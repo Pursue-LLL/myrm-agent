@@ -11,8 +11,8 @@
 
 [POS]
 Data-driven provider knowledge. Adding an OpenAI-compatible provider is one entry here; a provider with its
-own protocol additionally gets a wire module. The ``segment/model`` id format is the persisted one, so settings
-and saved model selections need no migration. Provider resolution is an explicit table, never a hidden rule.
+own protocol additionally gets a wire module. The ``segment/model`` id is the form that settings and saved model
+selections store. Provider resolution is an explicit table, never a hidden rule.
 """
 
 from __future__ import annotations

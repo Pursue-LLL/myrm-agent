@@ -34,7 +34,6 @@ system_prompt: |
   Be helpful and accurate.
 config:
   timeout_seconds: 60
-  concurrency_limit: 6
   max_turns: 10
   max_retries: 2
   retry_backoff_seconds: 1.5
@@ -85,8 +84,6 @@ class TestSubagentConfigLoader:
         assert config.tools == ("web_search_tool", "web_fetch_tool")
         assert "test agent" in config.system_prompt.lower()
         assert config.timeout_seconds == 60
-        # 6 is not a legacy default, so the migrator leaves an explicit value alone.
-        assert config.concurrency_limit == 6
         assert config.max_turns == 10
         assert config.max_retries == 2
         assert config.retry_backoff_seconds == 1.5
@@ -106,8 +103,27 @@ class TestSubagentConfigLoader:
         assert config.description == "Minimal agent with defaults"
         assert config.tools == ()
         assert config.timeout_seconds is None  # default: no wall-clock timeout
-        assert config.concurrency_limit == 10  # migrator lifts the legacy 5 to the scaled tier
         assert config.max_spawn_depth == 0  # default
+
+    def test_unknown_config_keys_are_ignored(self, temp_config_dir):
+        """A key the loader does not read (here ``concurrency_limit``) neither fails the load nor reaches the config"""
+        config_file = temp_config_dir / "stale.yaml"
+        config_file.write_text(
+            "name: stale\n"
+            "description: Carries a key no code reads\n"
+            "tools: []\n"
+            "system_prompt: |\n"
+            "  You are an agent whose config carries a stale key.\n"
+            "config:\n"
+            "  concurrency_limit: 3\n"
+            "  max_turns: 10\n"
+        )
+
+        config = SubagentConfigLoader().load_from_yaml(config_file)
+
+        assert config is not None
+        assert config.max_turns == 10
+        assert not hasattr(config, "concurrency_limit")
 
     def test_load_nonexistent_file(self, temp_config_dir):
         """Test loading non-existent file returns None"""

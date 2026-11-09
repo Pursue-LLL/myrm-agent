@@ -337,7 +337,7 @@ raise ToolError(
 - **运行时**: Python 3.13
 - **Web 框架**: FastAPI + uvicorn (uvloop)
 - **AI 框架**: LangChain + LangGraph
-- **LLM 适配**: harness 自研模型传输层（OpenAI Chat/Responses、Anthropic Messages、Gemini、Ollama 线协议适配器 + 数据驱动 Provider Profile + 随包模型目录）
+- **LLM 适配**: harness 自研模型传输层（OpenAI Chat/Responses、Anthropic Messages、Gemini、Ollama、AWS Bedrock Converse 线协议适配器 + 数据驱动 Provider Profile + 随包模型目录）
 - **包管理**: UV
 
 ---

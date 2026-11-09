@@ -275,34 +275,6 @@ model-tier: reasoning
     assert fm.model_tier == "reasoning"
 
 
-def test_parse_frontmatter_generic():
-    from myrm_agent_harness.backends.skills._utils import parse_frontmatter
-
-    content = """---
-name: sample-skill
-description: Comprehensive sample skill description
-version: 1.0.0
----
-# Main Content
-
-This is the body content.
-"""
-    frontmatter, body = parse_frontmatter(content)
-    assert frontmatter.get("name") == "sample-skill"
-    assert frontmatter.get("version") == "1.0.0"
-    assert "# Main Content" in body
-    assert "This is the body content." in body
-
-
-def test_parse_frontmatter_empty_or_no_frontmatter():
-    from myrm_agent_harness.backends.skills._utils import parse_frontmatter
-
-    content = "# Just plain markdown without frontmatter"
-    frontmatter, body = parse_frontmatter(content)
-    assert frontmatter == {}
-    assert body == content
-
-
 def test_parse_skill_frontmatter_required_connectors_and_mcps():
     content = """---
 name: multi-connector-meeting
@@ -329,6 +301,3 @@ required_mcp_server_ids:
     )
     assert meta.required_oauth_issuers == ["tencent_meeting", "google_workspace"]
     assert meta.required_mcp_server_ids == ["office_mcp", "tencent_docs_mcp"]
-
-
-

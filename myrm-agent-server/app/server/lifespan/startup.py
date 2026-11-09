@@ -286,11 +286,6 @@ async def _phase_1a_sequential() -> None:
 async def _phase_1b_parallel() -> None:
     """Phase 1b: Parallel independent tasks after DB ready."""
 
-    async def _init_subagent_configs() -> None:
-        from app.ai_agents.subagent_presets import register_default_subagent_configs
-
-        register_default_subagent_configs()
-
     async def _init_code_execution_config() -> None:
         _apply_code_execution_config()
 
@@ -439,7 +434,6 @@ async def _phase_1b_parallel() -> None:
     _init_managed_approval_policy_task()
 
     results = await asyncio.gather(
-        _init_subagent_configs(),
         _init_code_execution_config(),
         _init_checkpointer_task(),
         _init_state_manager_task(),
@@ -459,7 +453,6 @@ async def _phase_1b_parallel() -> None:
     )
 
     _labels = [
-        "Subagent configs",
         "Code execution config",
         "Checkpointer",
         "State manager",

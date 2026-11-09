@@ -5,7 +5,6 @@
 - SkillMetadataError: Skill metadata parsing or validation error.
 - SkillFrontmatter: Parsed SKILL.md frontmatter data (agentskills.io spec compliant).
 - _parse_frontmatter_yaml: Extract and parse YAML frontmatter from SKILL.md content.
-- parse_frontmatter: Extract YAML frontmatter and body from markdown content.
 - _validate_and_extract_description: Validate and extract description field per agentskills.io spec.
 - _warn_unknown_fields: Log warnings for unrecognized frontmatter fields.
 
@@ -34,6 +33,7 @@ _MAX_SKILL_FILE_SIZE = 1 * 1024 * 1024  # 1 MB max for SKILL.md
 
 
 logger = logging.getLogger(__name__)
+
 
 class SkillMetadataError(Exception):
     """Skill metadata parsing or validation error."""
@@ -195,32 +195,6 @@ def _parse_frontmatter_yaml(content: str, skill_dir_name: str) -> dict[str, obje
         raise SkillMetadataError(f"Frontmatter must be a YAML object, got: {type(parsed).__name__}")
 
     return parsed
-
-
-def parse_frontmatter(content: str) -> tuple[dict[str, object], str]:
-    """Extract YAML frontmatter and body from markdown content.
-
-    Args:
-        content: Full SKILL.md file content
-
-    Returns:
-        tuple of (parsed_yaml_dict, body_markdown)
-    """
-    match = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", content, re.DOTALL)
-    if not match:
-        return {}, content
-
-    frontmatter_text = match.group(1)
-    body = match.group(2)
-
-    try:
-        parsed = yaml.safe_load(frontmatter_text)
-        if isinstance(parsed, dict):
-            return parsed, body
-    except yaml.YAMLError:
-        pass
-
-    return {}, body
 
 
 _KNOWN_FRONTMATTER_FIELDS = frozenset(

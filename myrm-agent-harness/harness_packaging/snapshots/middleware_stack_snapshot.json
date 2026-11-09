@@ -16,11 +16,6 @@
   },
   {
     "present": true,
-    "symbol": "create_concurrency_limiter",
-    "type": "function"
-  },
-  {
-    "present": true,
     "symbol": "create_context_pipeline_middleware",
     "type": "function"
   },

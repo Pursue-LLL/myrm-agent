@@ -15,9 +15,9 @@
 
 [POS]
 The one reader of the provider's answer in an LLM exception, shared by the failure classifier, the retry-window
-extractor and the error diagnostics. A failure the client library raises before anything is sent (an unknown provider
-prefix, an unsupported parameter) carries no payload, so ``provider_error_message`` returns ``None`` for it instead of
-the library's text. Provider text is parsed only through ``parse_json_object``, so a truncated or hostile payload can
+extractor and the error diagnostics. A failure raised before anything is sent (a model id naming a provider the
+transport cannot reach) carries no payload, so ``provider_error_message`` returns ``None`` for it instead of the
+exception's own text. Provider text is parsed only through ``parse_json_object``, so a truncated or hostile payload can
 cost the reader its detail but never the failure being read.
 """
 

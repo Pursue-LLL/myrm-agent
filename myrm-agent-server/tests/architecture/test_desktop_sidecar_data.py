@@ -25,7 +25,6 @@ pytestmark = pytest.mark.architecture
 
 # Modules that open data through a path built from `__file__`, and the path they open (under the server root).
 _DATA_READERS = {
-    "app/ai_agents/subagent_catalog.py": "app/config/subagents",
     "app/ai_agents/subagent_presets.py": "app/config/subagents",
     "app/channels/i18n/engine.py": "app/channels/i18n/locales",
     "app/channels/providers/whatsapp/helpers.py": "app/channels/providers/whatsapp/bridge",

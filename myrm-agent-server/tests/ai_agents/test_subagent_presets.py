@@ -1,16 +1,16 @@
 """Boundary tests for the business-owned subagent preset catalog."""
 
 from pathlib import Path
-from unittest.mock import patch
 
+import pytest
 import yaml
-from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
+from app.ai_agents import subagent_presets
 from app.ai_agents.subagent_presets import (
     SUBAGENT_CONFIG_DIR,
     USER_SELECTABLE_SUBAGENT_IDS,
+    load_subagent_presets,
     load_user_selectable_subagent_configs,
-    register_default_subagent_configs,
     required_builtin_tools,
 )
 
@@ -70,43 +70,42 @@ def test_user_selectable_ids_are_loaded_from_core_not_duplicated():
     assert set(USER_SELECTABLE_SUBAGENT_IDS).issubset(core_files)
 
 
-def test_register_default_subagent_configs_registers_merged_sources():
-    config = SubagentConfig(system_prompt="test")
-    with (
-        patch(
-            "app.ai_agents.subagent_presets.load_subagent_configs_from_directory",
-            side_effect=[{"core": config}, {"custom": SubagentConfig(system_prompt="custom")}],
+def _write_preset(directory: Path, name: str, description: str) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"{name}.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "name": name,
+                "description": description,
+                "tools": [],
+                "system_prompt": f"You are the {name} preset agent.",
+                "config": {},
+            }
         ),
-        patch("app.ai_agents.subagent_presets.register_subagent_configs") as register,
-    ):
-        register_default_subagent_configs()
-
-    register.assert_called_once()
-    registered = register.call_args.args[0]
-    assert set(registered) == {"core", "custom"}
+        encoding="utf-8",
+    )
 
 
-def test_register_default_subagent_configs_handles_empty_catalog():
-    with (
-        patch(
-            "app.ai_agents.subagent_presets.load_subagent_configs_from_directory",
-            return_value={},
-        ),
-        patch("app.ai_agents.subagent_presets.register_subagent_configs") as register,
-    ):
-        register_default_subagent_configs()
+def test_shipped_core_presets_all_load():
+    presets = load_subagent_presets()
 
-    register.assert_called_once_with({})
+    assert {path.stem for path in (SUBAGENT_CONFIG_DIR / "core").glob("*.yaml")}.issubset(presets)
 
 
-def test_register_default_subagent_configs_contains_load_failure():
-    with (
-        patch(
-            "app.ai_agents.subagent_presets.load_subagent_configs_from_directory",
-            side_effect=RuntimeError("broken yaml"),
-        ),
-        patch("app.ai_agents.subagent_presets.register_subagent_configs") as register,
-    ):
-        register_default_subagent_configs()
+def test_custom_preset_overrides_core_preset_of_the_same_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    _write_preset(tmp_path / "core", "shared", "from core")
+    _write_preset(tmp_path / "core", "core-only", "from core")
+    _write_preset(tmp_path / "custom", "shared", "from custom")
+    monkeypatch.setattr(subagent_presets, "SUBAGENT_CONFIG_DIR", tmp_path)
 
-    register.assert_not_called()
+    presets = load_subagent_presets()
+
+    assert set(presets) == {"shared", "core-only"}
+    assert presets["shared"].description == "from custom"
+
+
+def test_missing_custom_directory_leaves_the_core_presets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    _write_preset(tmp_path / "core", "core-only", "from core")
+    monkeypatch.setattr(subagent_presets, "SUBAGENT_CONFIG_DIR", tmp_path)
+
+    assert set(load_subagent_presets()) == {"core-only"}

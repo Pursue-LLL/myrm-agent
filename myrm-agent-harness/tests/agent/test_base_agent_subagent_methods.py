@@ -14,32 +14,20 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.agent.base_agent import BaseAgent
-from myrm_agent_harness.agent.sub_agents.registry import SUBAGENT_CONFIGS
-from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+from myrm_agent_harness.agent.sub_agents.types import SubagentConfig, SubAgentResult, SubAgentStatus
 
-
-@pytest.fixture(autouse=True)
-def setup_configs():
-    original = dict(SUBAGENT_CONFIGS)
-    SUBAGENT_CONFIGS.clear()
-    SUBAGENT_CONFIGS["search"] = SubagentConfig(
+_CONFIGS: dict[str, SubagentConfig] = {
+    "search": SubagentConfig(
         tools=("web_search_tool",),
         system_prompt="Search prompt",
-        concurrency_limit=5,
         max_spawn_depth=2,
-    )
-    SUBAGENT_CONFIGS["browser"] = SubagentConfig(
+    ),
+    "browser": SubagentConfig(
         tools=("browser_navigate_tool",),
         system_prompt="Browser prompt",
-        concurrency_limit=3,
         max_spawn_depth=0,
-    )
-    yield
-    SUBAGENT_CONFIGS.clear()
-    SUBAGENT_CONFIGS.update(original)
-
-
-from myrm_agent_harness.agent.sub_agents.types import SubAgentResult, SubAgentStatus
+    ),
+}
 
 
 class FakeTool:
@@ -52,7 +40,7 @@ class FakeTool:
 
 
 def _make_tool_registry_getter():
-    """Return a tool_registry_getter that provides tools needed by SUBAGENT_CONFIGS."""
+    """Return a tool_registry_getter that provides tools needed by ``_CONFIGS``."""
     tools = [FakeTool("web_search_tool"), FakeTool("browser_navigate_tool")]
     return lambda: tools
 
@@ -90,7 +78,7 @@ async def test_spawn_child_nesting_forbidden():
     llm = FakeLLM()
     agent = BaseAgent(llm=llm)
 
-    browser_config = SUBAGENT_CONFIGS["browser"]
+    browser_config = _CONFIGS["browser"]
 
     result = await agent._spawn_child(
         task_id="test_id",
@@ -113,7 +101,7 @@ async def test_spawn_child_nesting_allowed():
     llm = FakeLLM("子 agent 响应")
     agent = BaseAgent(llm=llm)
 
-    search_config = SUBAGENT_CONFIGS["search"]
+    search_config = _CONFIGS["search"]
 
     result = await agent._spawn_child(
         task_id="test_id",
@@ -137,7 +125,7 @@ async def test_spawn_child_wait_true():
     llm = FakeLLM("子 agent 结果")
     agent = BaseAgent(llm=llm)
 
-    config = SUBAGENT_CONFIGS["search"]
+    config = _CONFIGS["search"]
 
     result = await agent._spawn_child(
         task_id="sync_test",
@@ -162,7 +150,7 @@ async def test_spawn_child_wait_false():
     agent = BaseAgent(llm=llm)
     manager = agent._subagent_manager
 
-    config = SUBAGENT_CONFIGS["search"]
+    config = _CONFIGS["search"]
 
     result = await agent._spawn_child(
         task_id="async_test",
@@ -197,7 +185,7 @@ async def test_list_children_with_running_tasks():
     llm = FakeLLM()
     agent = BaseAgent(llm=llm)
 
-    config = SUBAGENT_CONFIGS["search"]
+    config = _CONFIGS["search"]
 
     await agent._spawn_child(
         task_id="running_task",
@@ -396,7 +384,7 @@ async def test_children_cleanup_after_completion():
     agent = BaseAgent(llm=llm)
     manager = agent._subagent_manager
 
-    config = SUBAGENT_CONFIGS["search"]
+    config = _CONFIGS["search"]
 
     await agent._spawn_child(
         task_id="cleanup_test",

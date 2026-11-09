@@ -24,8 +24,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
-    _should_block_allow_always,
+from myrm_agent_harness.agent.middlewares.approval._allow_always import (
+    should_block_allow_always,
 )
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
     evaluate_tool_batch,
@@ -125,7 +125,7 @@ async def test_protected_instruction_files_task_flow_e2e() -> None:
 
         # 3. Permanent exemption guard verification (Permanent Exemption Denied)
         assert (
-            _should_block_allow_always(
+            should_block_allow_always(
                 tool_call=call,
                 extra_ctx=extra_ctx,
             )
@@ -167,7 +167,7 @@ async def test_protected_instruction_files_task_flow_e2e() -> None:
                 "args": {"command": shell_cmd},
             }
             assert (
-                _should_block_allow_always(
+                should_block_allow_always(
                     tool_call=shell_tool_call,
                     extra_ctx=None,
                 )
@@ -191,7 +191,7 @@ async def test_protected_instruction_files_task_flow_e2e() -> None:
             "args": {"path": "src/app.py", "content": "print('Updated code')\n"},
         }
         assert (
-            _should_block_allow_always(
+            should_block_allow_always(
                 tool_call=legit_tool_call,
                 extra_ctx={},
             )

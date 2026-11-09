@@ -97,7 +97,7 @@ class SqlAlchemyCronStore:
             stmt = stmt.where(CronJobModel.project_id == project_id)
 
         if name_filter:
-            stmt = stmt.where(CronJobModel.name.ilike(f"%{name_filter}%"))
+            stmt = stmt.where(CronJobModel.name.icontains(name_filter, autoescape=True))
 
         if due_before is not None:
             stmt = stmt.where(
@@ -131,7 +131,7 @@ class SqlAlchemyCronStore:
         if project_id is not None:
             stmt = stmt.where(CronJobModel.project_id == project_id)
         if name_filter:
-            stmt = stmt.where(CronJobModel.name.ilike(f"%{name_filter}%"))
+            stmt = stmt.where(CronJobModel.name.icontains(name_filter, autoescape=True))
         async with get_session() as session:
             return (await session.execute(stmt)).scalar_one()
 
