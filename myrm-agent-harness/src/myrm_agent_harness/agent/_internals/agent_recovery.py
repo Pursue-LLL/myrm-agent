@@ -1,7 +1,6 @@
-"""Agent recovery strategies — context overflow, LLM failover, structured error context.
+"""Agent recovery strategies — context overflow and LLM failover.
 
-Shared recovery functions used by ``base_agent.py``, ``streaming/recovery/stream_recovery.py``,
-and ``middlewares/replan_middleware.py``.
+Shared recovery functions used by ``base_agent.py`` and ``streaming/recovery/stream_recovery.py``.
 
 [INPUT]
 - agent.base_agent::BaseAgent (POS: Base Agent — lightweight agent with streaming, token tracking, and artifacts.)
@@ -12,16 +11,14 @@ and ``middlewares/replan_middleware.py``.
 - emergency_compact: Aggressively compact *messages* in-place after a context ...
 - truncate_oldest_rounds: Drop the oldest API-round groups from *messages* in-place.
 - rebuild_agent_with_llm: Rebuild agent graph with a different LLM for failover.
-- build_error_context: Build structured error context for LLM prompt injection.
 - diagnose_llm_error: Diagnose an LLM error and return (enhanced_message, diagn...
 
 [POS]
-Agent recovery strategies — context overflow, LLM failover, structured error context.
+Agent recovery strategies — context overflow and LLM failover.
 """
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING, Any, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
@@ -206,112 +203,6 @@ def rebuild_agent_with_llm(agent: BaseAgent, new_llm: BaseChatModel) -> Compiled
         agent._cache_keepalive.start()
 
     return agent._agent
-
-
-# ============================================================================
-# Structured Error Context
-# ============================================================================
-
-ERROR_RECOVERY_HINTS: dict[str, list[str]] = {
-    "FileNotFoundError": [
-        "Verify the file path is correct and the file exists",
-        "Check if the file was moved or deleted recently",
-        "Ensure you have read permissions for the directory",
-    ],
-    "PermissionError": [
-        "Check if you have sufficient permissions to access the resource",
-        "Try running with appropriate user permissions",
-        "Verify file/directory ownership and permissions",
-    ],
-    "ConnectionError": [
-        "Check your network connection",
-        "Verify the remote server is accessible",
-        "Check if firewall rules are blocking the connection",
-    ],
-    "TimeoutError": [
-        "The operation took too long — try increasing the timeout",
-        "Check if the remote service is responding",
-        "Verify network latency and bandwidth",
-    ],
-    "ValidationError": [
-        "Check if input data matches the expected schema",
-        "Verify all required fields are provided",
-        "Ensure data types are correct",
-    ],
-    "SyntaxError": [
-        "Check for typos or missing punctuation in the code",
-        "Verify the code follows the correct syntax for the language",
-        "Look for mismatched brackets or quotes",
-    ],
-    "ImportError": [
-        "Verify the module/package is installed",
-        "Check for circular import dependencies",
-        "Ensure the import path is correct",
-    ],
-    "KeyError": [
-        "Verify the key exists in the dictionary before accessing",
-        "Check for typos in the key name",
-        "Use .get() with a default value for optional keys",
-    ],
-    "TypeError": [
-        "Check that argument types match the function signature",
-        "Verify you're not passing None where a value is expected",
-        "Ensure operand types are compatible",
-    ],
-}
-
-
-def build_error_context(
-    operation: str,
-    target: str,
-    error: str,
-    previous_attempts: list[str] | None = None,
-) -> str:
-    """Build structured error context for LLM prompt injection.
-
-    Providing the LLM with explicit error details, prior attempts, and
-    actionable hints reduces blind retry loops.  Based on patterns
-    documented at AgentPatterns.ai.
-    """
-    error_type = _extract_error_type(error)
-    hints = ERROR_RECOVERY_HINTS.get(
-        error_type,
-        [
-            "Analyse the error message carefully for clues",
-            "Consider alternative approaches to achieve the goal",
-            "Check if prerequisites or dependencies are missing",
-        ],
-    )
-
-    parts = [
-        "## Error Recovery Context",
-        "",
-        f"**Operation**: {operation}",
-        f"**Target**: {target}",
-        f"**Error**: {error}",
-        "",
-    ]
-
-    if previous_attempts:
-        parts.append(f"**Previous Attempts** ({len(previous_attempts)}):")
-        parts.extend(f" {i + 1}. {a}" for i, a in enumerate(previous_attempts))
-        parts.append("")
-
-    parts.append("**Recovery Hints**:")
-    parts.extend(f" - {h}" for h in hints)
-    parts.append("")
-    parts.append("Please analyse the error and determine the best recovery strategy.")
-
-    return "\n".join(parts)
-
-
-_ERROR_TYPE_RE = re.compile(r"^(\w+Error)")
-
-
-def _extract_error_type(error: str) -> str:
-    """Extract the error class name from the head of *error*."""
-    match = _ERROR_TYPE_RE.search(error)
-    return match.group(1) if match else "UnknownError"
 
 
 # ============================================================================

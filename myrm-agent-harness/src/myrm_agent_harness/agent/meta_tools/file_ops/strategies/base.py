@@ -134,6 +134,10 @@ class FileSystemStrategy(ABC):
         """
         pass
 
+    async def missing_path_message(self, path: str) -> str:
+        """Why ``path`` cannot be viewed; a strategy that knows more than "absent" overrides this."""
+        return f"Path not found: {path}"
+
     @abstractmethod
     async def get_file_size(self, path: str) -> int:
         """获取文件大小

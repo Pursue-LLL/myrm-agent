@@ -43,6 +43,7 @@ from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
 from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
     build_tool_name_map,
     resolve_mcp_tool_name,
+    suggest_mcp_tool_names,
 )
 from myrm_agent_harness.agent.skills.runtime.ptc_calling import CALL_SYNTAX, CALL_WORKFLOW
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
@@ -226,13 +227,9 @@ class MCPSkillGenerator:
         matched_tool_name = resolve_mcp_tool_name(tool_name, mcp_tools)
 
         if not matched_tool_name:
-            available_tools = ", ".join(mcp_tools[:5])
-            if len(mcp_tools) > 5:
-                available_tools += f", ... ({len(mcp_tools)} total)"
+            closest = ", ".join(suggest_mcp_tool_names(tool_name, mcp_tools))
             raise FileNotFoundError(
-                f"Function '{tool_name}' not found in skill '{skill_meta.name}'. "
-                f"Available functions: {available_tools}. "
-                f"Please check the tool name and try again."
+                f"Function '{tool_name}' not found in skill '{skill_meta.name}'. Closest names: {closest}."
             )
 
         if matched_tool_name in skill_meta.mcp.tool_docs:

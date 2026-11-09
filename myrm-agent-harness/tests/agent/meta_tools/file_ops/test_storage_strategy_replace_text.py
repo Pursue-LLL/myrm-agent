@@ -25,6 +25,13 @@ async def test_strategy_round_trips_through_local_storage_backend(tmp_path: Path
 
 
 @pytest.mark.asyncio
+async def test_missing_path_message_is_the_plain_text(tmp_path: Path) -> None:
+    strategy = StorageBackendStrategy(LocalStorageBackend(tmp_path))
+
+    assert await strategy.missing_path_message("notes/a.txt") == "Path not found: notes/a.txt"
+
+
+@pytest.mark.asyncio
 async def test_replace_text_delegates_to_batch_engine() -> None:
     storage = AsyncMock()
     storage.exists = AsyncMock(return_value=True)

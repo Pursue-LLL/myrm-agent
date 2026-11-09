@@ -9,6 +9,7 @@ from langchain_core.messages import ToolMessage
 from myrm_agent_harness.agent.middlewares.replan_middleware import (
     ReplanMiddleware,
     _per_tool_errors_var,
+    get_replan_error_summary,
     reset_replan_attempts,
 )
 
@@ -157,7 +158,7 @@ async def test_awrap_tool_call_no_exception(middleware):
     _per_tool_errors_var.set({"test_tool": 2})
     result = await middleware.awrap_tool_call(request, handler)
     assert result is expected
-    assert "test_tool" not in _per_tool_errors_var.get()
+    assert "test_tool" not in get_replan_error_summary()
 
 
 @pytest.mark.asyncio
@@ -187,7 +188,7 @@ async def test_awrap_tool_call_exceeds_max_attempts(middleware):
     assert result.tool_call_id == "call_err_limit"
     assert result.status == "error"
     assert "Engine limit reached: max_replan_attempts exceeded" in result.content
-    assert _per_tool_errors_var.get()["bash_code_execute_tool"] == 3
+    assert get_replan_error_summary()["bash_code_execute_tool"] == 3
 
 
 @pytest.mark.asyncio
@@ -210,7 +211,7 @@ async def test_per_tool_counting_isolation(mock_get_suggestion, middleware):
         return ToolMessage(content="ok", name="skill_select_tool", tool_call_id="call_ok")
 
     await middleware.awrap_tool_call(success_request, ok_handler)
-    assert _per_tool_errors_var.get().get("bash_code_execute_tool") == 3
+    assert get_replan_error_summary().get("bash_code_execute_tool") == 3
 
     fail_request = ToolCallRequest(
         tool_call={
@@ -227,5 +228,29 @@ async def test_per_tool_counting_isolation(mock_get_suggestion, middleware):
         raise SyntaxError("bad code")
 
     result = await middleware.awrap_tool_call(fail_request, fail_handler)
-    assert _per_tool_errors_var.get()["bash_code_execute_tool"] == 4
+    assert get_replan_error_summary()["bash_code_execute_tool"] == 4
     assert "Engine limit reached" in result.content
+
+
+@pytest.mark.asyncio
+async def test_error_text_is_sent_once_with_the_diagnosis_and_the_hint(middleware):
+    """The result is re-sent with every later request, so the error (and its traceback) must not repeat."""
+    marker = "UNIQUE-MARKER-4f1c"
+    request = ToolCallRequest(
+        tool_call={"name": "bash_code_execute_tool", "args": {"command": "print(1)"}, "id": "call_once"},
+        tool=MagicMock(),
+        state={},
+        runtime=MagicMock(),
+    )
+
+    async def handler(req):
+        raise ValueError(f"Missing required argument(s): name. {marker}\nTraceback (most recent call last):\n  File x")
+
+    result = await middleware.awrap_tool_call(request, handler)
+
+    assert result.content.startswith("ToolExecutionError: Missing required argument(s): name.")
+    assert result.content.count(marker) == 1
+    assert "## Error Recovery Context" not in result.content
+    assert "### Autonomous Self-Correction Guidance" in result.content
+    assert "**Diagnosed Cause**" in result.content
+    assert "Diagnostic Hint:" in result.content
