@@ -22,8 +22,6 @@ Provides parsers for various file formats:
 - text::TextParser (POS: plain text and Markdown parser)
 - text_decoding::TextDecodingError, decode_text_bytes (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
 - ipynb::IpynbParser (POS: Jupyter Notebook parser)
-- legacy::LegacyFormatParser (POS: OLE2 legacy format parser with soffice conversion)
-
 [OUTPUT]
 - FileParser, PDFPlumberParser, DocxParser, ExcelParser, PptxParser, TextParser, IpynbParser: parser classes
 - decode_text_bytes, TextDecodingError: text bytes to str for callers that hold bytes instead of a file; bytes that are binary or in an unidentifiable encoding raise TextDecodingError

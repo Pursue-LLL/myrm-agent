@@ -4,10 +4,14 @@
 [INPUT]
 - patchright.async_api::Page (POS: Patchright page instance)
 - patchright.async_api::Frame (POS: Patchright frame instance)
-- snapshot.parser::parse_and_enhance_aria_tree (POS: ARIA tree parser)
-- snapshot.parser::RefInfo (POS: element ref metadata)
-- snapshot.observer_scripts::MUTATION_OBSERVER_SCRIPT (POS: DOM listener script)
-- snapshot.observer_scripts::CURSOR_DETECT_SCRIPT (POS: cursor-interactive detection script)
+- snapshot.aria_acquisition::get_aria_tree (POS: ARIA tree acquisition, layer 1)
+- snapshot.aria_parser::parse_aria_yaml (POS: ARIA YAML parser, layer 2)
+- snapshot.aria_enhancer::enhance_aria_tree (POS: ref IDs, semantic positions and scope filtering, layer 3)
+- snapshot.aria_renderer::render_to_yaml, smart_truncate_snapshot (POS: snapshot rendering and truncation, layer 4)
+- snapshot.aria_types::RefInfo (POS: element ref metadata)
+- snapshot.element_detectors::collect_bboxes, detect_blocking_modal, detect_cursor_interactive, detect_hover_surfaces (POS: element detection for snapshot enhancement)
+- snapshot.observer_manager::ObserverManager (POS: MutationObserver management for change detection)
+- snapshot.snapshot_types::AriaSnapshot, SnapshotMetrics, SnapshotSource (POS: snapshot data types and enums)
 
 [OUTPUT]
 - AriaSnapshot: immutable snapshot result (dataclass) [re-exported from snapshot_types]

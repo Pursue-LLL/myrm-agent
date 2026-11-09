@@ -2,7 +2,7 @@
 
 [INPUT]
 - memory.manager::MemoryManager (POS: unified memory facade)
-- memory.memory_recall_budget::* (POS: recall output budget guardrails)
+- memory.agent_surface.memory_recall_budget::* (POS: recall output budget guardrails)
 
 [OUTPUT]
 - MemoryPreCompactService: default ContextPreCompactCallback implementation

@@ -2,7 +2,7 @@
 
 [INPUT]
 - agent.event_log::sanitize_event_data (POS: The redaction every event payload passes before it is written; applied again to the events and the tool names a prompt is built from.)
-- agent.event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
+- agent.event_log.protocols::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 - agent.event_log.analytics_queries::get_session_summary (POS: Read-side analytics helpers for ``EventLogger``.)
 - agent.event_log.analytics_queries::get_tool_usage_stats (POS: Read-side analytics helpers for ``EventLogger``.)
 - agent.event_log.types::EventFilter (POS: Single source of truth for event log data structures.)

@@ -12,7 +12,7 @@ and single-purpose:
 - ``_common`` — shared string/number coercion helpers
 
 [INPUT]
-- event_log.protocol::EventLogBackend (POS: Protocol contract)
+- event_log.protocols::EventLogBackend (POS: Protocol contract)
 - event_log.types::StructuredEvent, EventFilter (POS: Single source of truth for event log data structures)
 - event_log.trace_types::ExecutionTrace, (POS: Read-side aggregation types.  Constructed by trace_builder from raw events.)
 

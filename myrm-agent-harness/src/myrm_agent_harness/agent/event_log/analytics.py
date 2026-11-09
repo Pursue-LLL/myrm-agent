@@ -4,7 +4,7 @@ Provides global-level aggregation and analytics across all sessions,
 separate from session-scoped EventLogger.
 
 [INPUT]
-- event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
+- event_log.protocols::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 
 [OUTPUT]
 - EventLogAnalytics: Global analytics query engine

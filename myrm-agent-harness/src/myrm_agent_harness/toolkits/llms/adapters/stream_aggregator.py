@@ -5,8 +5,7 @@
 - adapters.tool_recovery (POS: Tool call recovery module)
 - adapters.model_capability (POS: Model capability detection; xAI Grok tool-argument decoding gate)
 - adapters.safety_termination_detector (POS: Safety termination detector for truncated tool call suppression)
-- utils.cost_engine::compute_cost_by_tokens (POS: token-count-based cost calculation for streaming mode)
-- utils.token_tracker (POS: Token tracking API)
+- utils.token_economics.tracker::record_finish_reason (POS: Token tracking API)
 - adapters.usage_estimate::estimate_stream_usage (POS: local token count for a stream the provider reported no usage for)
 - utils.token_economics.usage_ledger::DROPPED_STREAM_FINISH_REASON (POS: finish_reason sentinel for streams closed without a final chunk)
 

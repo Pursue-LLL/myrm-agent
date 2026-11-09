@@ -1,7 +1,7 @@
 """Rate Limit Middleware.
 
 [INPUT]
-- agent.middlewares.base::AgentMiddleware (POS: Middleware base class)
+- langchain.agents.middleware::AgentMiddleware, ModelRequest, ModelResponse (POS: Middleware base class and the model-call request/response types)
 - toolkits.llms.rate_limit::RateLimitTracker, parse_rate_limit_headers (POS: Rate limit tracking)
 - toolkits.llms.rate_limit.types::RateLimitState (POS: Rate limit data structures)
 - utils.runtime.progress_sink::get_tool_progress_sink (POS: SSE event emission)

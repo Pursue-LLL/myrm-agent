@@ -5,7 +5,7 @@
 [INPUT]
 - core.security.redact::redact_sensitive_text (POS: Full redactor: assignments, header lines, connection strings, token shapes)
 - utils.token_economics.usage_ledger::DROPPED_STREAM_FINISH_REASON (POS: 断流 finish_reason 遥测哨兵)
-- utils.token_tracker::TokenUsage (POS: Token 使用追踪类型，记录 prompt/completion/total tokens)
+- utils.token_economics.tracker::TokenUsage (POS: Token 使用追踪类型，记录 prompt/completion/total tokens)
 - agent.security.types::SecurityConfig (POS: 工具执行安全配置)
 - streaming.types::ContextBudgetSnapshot (POS: 上下文预算快照)
 

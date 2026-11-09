@@ -37,7 +37,7 @@ Compression strategy:
 [INPUT]
 - agent.context_management.infra.schemas::ContextCompressOffloadCallback, (POS: Planner Schema Definitions)
 - runtime.quota.errors::QuotaExceededError (POS: Storage quota related errors.)
-- runtime.quota.protocol::StorageQuotaChecker (POS: Storage quota checking protocol.)
+- runtime.quota.protocols::StorageQuotaChecker (POS: Storage quota checking protocol.)
 - runtime.context.cleanup_ops::* (POS: Runtime context cleanup operations. Owns session directory cleanup and orphan cleanup entrypoints.)
 - runtime.context.file_access_tracker::get_file_access_tracker (POS: Context archive access tracking)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)

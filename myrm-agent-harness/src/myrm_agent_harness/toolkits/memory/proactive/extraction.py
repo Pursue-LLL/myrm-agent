@@ -5,8 +5,8 @@ follow-up opportunities. Uses structured output (Pydantic) for reliable
 parsing, with confidence thresholds and deduplication.
 
 [INPUT]
-- commitment.types::{CommitmentCandidate, ExtractionBatchResult, CommitmentKind, CommitmentSensitivity} (POS: type definitions)
-- commitment.config::CommitmentConfig (POS: extraction thresholds)
+- proactive.types::{CommitmentCandidate, ExtractionBatchResult, CommitmentKind, CommitmentSensitivity} (POS: type definitions)
+- proactive.config::CommitmentConfig (POS: extraction thresholds)
 - utils.json_parsing::parse_llm_json_object (POS: LLM 回复容错 JSON 对象提取)
 
 [OUTPUT]

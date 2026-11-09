@@ -5,7 +5,7 @@
 - memory._internal.storage::{store_*} (POS: internal vector storage operations)
 - memory._internal.dedup_funcs::{SemanticDedupFunc, EpisodicDedupFunc} (POS: batch deduplication callable types)
 - memory._internal.memory_scanner::scan_and_clean_memory (POS: content safety scanner)
-- memory.transient_fact_boundary::filter_transient_business_memories (POS: L3 write gate for transient business facts)
+- memory.agent_surface.transient_fact_boundary::filter_transient_business_memories (POS: L3 write gate for transient business facts)
 - memory.strategies.deduplicator::Deduplicator (POS: three-layer dedup: hash→vector→LLM)
 
 [OUTPUT]

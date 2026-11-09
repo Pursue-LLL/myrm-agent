@@ -17,7 +17,7 @@ business layer (Server/GUI).
 - agent.skills.evolution.execution.evaluator::BatchEvaluator (POS: Batch Evaluator for Skill Evolution.)
 - agent.skills.evolution.pipeline.trace_analyzer::TraceAnalyzer (POS: Trace Analyzer for Skill Evolution.)
 - agent.skills.evolution.pipeline.variant_generator::VariantGenerator (POS: Variant Generator for Skill Evolution.)
-- agent.event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
+- agent.event_log.protocols::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 - agent.skills.evolution.execution.sandbox_validator::SandboxValidator (POS: Sandbox validation for evolved skills.)
 - agent.skills.evolution.core.eval_regression::filter_variants_by_regression (POS: Non-blocking regression gate for the skill evolution pipeline.)
 - agent.skills.evolution.core.skill_on_disk::skill_from_disk (POS: The SKILL.md of a skill as it is on disk, the text and the evolution lock the evolution engine works from.)

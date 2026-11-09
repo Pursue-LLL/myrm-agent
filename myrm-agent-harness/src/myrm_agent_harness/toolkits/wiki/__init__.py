@@ -6,10 +6,10 @@ LLM acts as a "compiler" to maintain structured markdown wikis.
 
 [INPUT]
 - wiki.core::WikiStructure, WikiConfig (POS: wiki file system abstraction and configuration)
-- wiki.compiler::WikiCompiler (POS: LLM-powered wiki compilation engine)
-- wiki.query::WikiQueryEngine (POS: wiki query and enhancement engine)
-- wiki.linter::WikiLinter (POS: wiki health check and maintenance)
-- wiki.tools::create_wiki_tools (POS: LangChain tool integration)
+- wiki.pipeline.compiler::WikiCompiler (POS: LLM-powered wiki compilation engine)
+- wiki.retrieval.query::WikiQueryEngine (POS: wiki query and enhancement engine)
+- wiki.maintenance.linter::WikiLinter (POS: wiki health check and maintenance)
+- wiki.wiki_agent_tools::create_wiki_tools (POS: LangChain tool integration)
 - wiki.source_loader::fetch_url_markdown, SourceLoadError (POS: readable markdown of a URL for ingestion)
 
 [OUTPUT]

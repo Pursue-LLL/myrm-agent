@@ -4,7 +4,7 @@ Encapsulates backend + screenshot processor + coordinate scaler into a
 single cohesive API surface. Agent tools interact exclusively with this class.
 
 [INPUT]
-- backends.protocol::ComputerBackend (POS: platform-specific I/O)
+- backends.protocols::ComputerBackend (POS: platform-specific I/O)
 - screenshot_processor::ScreenshotProcessor (POS: image preprocessing)
 - coordinate_scaler::CoordinateScaler (POS: coordinate transformation)
 - screen_guard::ScreenGuard (POS: lock / sleep gate with host-provided on-demand unlock)

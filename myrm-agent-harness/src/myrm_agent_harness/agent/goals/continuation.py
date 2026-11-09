@@ -10,7 +10,7 @@
 - langchain_core.messages::HumanMessage, AIMessage (POS: Message types)
 - utils.runtime.cancellation::CancellationToken (POS: Cancellation state)
 - utils.runtime.steering::SteeringToken (POS: Steering state)
-- middlewares.tool_interceptor_middleware::get_loop_guard (POS: LoopGuard accessor)
+- middlewares.tooling.tool_interceptor_middleware::get_loop_guard (POS: LoopGuard accessor)
 
 [OUTPUT]
 - check_continuation: Evaluates the guard chain, returns ContinuationDecision.

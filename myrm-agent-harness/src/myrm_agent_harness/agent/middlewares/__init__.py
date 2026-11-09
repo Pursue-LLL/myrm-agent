@@ -21,7 +21,7 @@
   (POS: 工具冲突闸门，并发安全的调用共享、其余调用独占)
 - subagent_limit_middleware::subagent_limit_middleware (POS: Subagent limit middleware. Ensures the LLM cannot spawn more than MAX_CONCURRENT_SUBAGENTS in a single turn.)
   (POS: LLM Fan-out 保护，限制单轮 delegate_task 调用数)
-- security.tool_result_validator::ValidationResult, (POS: Provides ValidationResult, validate_tool_result, should_apply_validation.)
+- security.detection.tool_result_validator::ValidationResult, (POS: Provides ValidationResult, validate_tool_result, should_apply_validation.)
   (POS: 工具结果验证器，实现位于 security/)
 
 [OUTPUT]

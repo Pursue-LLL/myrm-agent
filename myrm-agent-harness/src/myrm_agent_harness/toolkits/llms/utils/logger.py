@@ -5,7 +5,7 @@ agent/context_management/PROMPT_CACHE_PRACTICE.md §6.3 whenever this file chang
 [INPUT]
 - json::json (POS: Python JSON library)
 - copy::copy (POS: Python deep-copy library)
-- utils.prompt_cache_economics::coerce_usage_non_negative_int, (POS: Utility library exports. Public interface for the utils module providing commonly used helper functions.)
+- utils.token_economics.cache_economics::coerce_usage_non_negative_int, compute_prompt_cache_stats (POS: provider usage-field coercion and prompt-cache hit statistics)
 
 [OUTPUT]
 - is_verbose_response_logging_enabled(): check whether verbose response logging is enabled

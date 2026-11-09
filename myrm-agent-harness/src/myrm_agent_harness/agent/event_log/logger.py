@@ -9,7 +9,7 @@ Every event is automatically enriched with context dimensions
 task-level replay, and OpenTelemetry correlation.
 
 [INPUT]
-- event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
+- event_log.protocols::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 - infra.tracing.propagation::get_current_trace_id (POS: Trace上下文传播)
 - event_log._sanitize::sanitize_event_data (POS: Pure filter between EventLogger.log and the backend; masks secrets in nested payloads and withholds one it cannot redact)
 

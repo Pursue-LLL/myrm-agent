@@ -3,7 +3,7 @@
 Self-update note: when this file changes, update its INPUT/OUTPUT/POS comments.
 
 [INPUT]
-- utils.token_tracker::TokenUsage (POS: Token usage tracking type for prompt/completion/total tokens)
+- utils.token_economics.tracker::TokenUsage (POS: Token usage tracking type for prompt/completion/total tokens)
 - .hitl_tool_policy::HITL_TOOL_POLICY (POS: HITL tool registry SSOT for subagent blocking)
 - core.security.tool_registry::PARENT_BOUND_WRITER_TOOLS (POS: writers over the running agent's own todo file, goal and kanban board)
 - .handover::HandoffFinding, AgentHandoverState (POS: Subagent subsystem handover data contract)
