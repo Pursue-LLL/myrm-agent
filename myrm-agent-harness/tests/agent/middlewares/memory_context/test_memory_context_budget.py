@@ -86,6 +86,28 @@ def test_a_section_dropped_between_two_kept_ones_is_not_charged() -> None:
     assert rendered.used_chars == len("## First\n- a\n") + len("## Last\n- b\n")
 
 
+def test_sections_render_by_ascending_priority_whatever_the_input_order() -> None:
+    rendered = render_budgeted_sections(
+        [BudgetedSection("Low", ["l"], priority=2), BudgetedSection("High", ["h"], priority=0)],
+        max_tokens=500,
+        truncation_message="",
+    )
+    assert rendered.body.index("## High") < rendered.body.index("## Low")
+
+
+def test_a_tight_budget_drops_the_lower_priority_section_even_when_it_is_listed_first() -> None:
+    rendered = render_budgeted_sections(
+        [
+            BudgetedSection("LowPri", ["L" * 8000], priority=80),
+            BudgetedSection("High", ["kept-short"], priority=1),
+        ],
+        max_tokens=240,
+        truncation_message="CUT_MARKER",
+    )
+    assert rendered.accepted_by_title == {"High": 1}
+    assert "LowPri" not in rendered.body
+
+
 @pytest.mark.parametrize("max_tokens", [10, 60, 240, 1000])
 def test_the_characters_used_never_exceed_the_budget(max_tokens: int) -> None:
     sections = [

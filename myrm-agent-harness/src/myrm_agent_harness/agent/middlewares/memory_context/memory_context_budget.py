@@ -82,8 +82,9 @@ def render_budgeted_sections(
 ) -> RenderedSections:
     """Render ``sections`` as one Markdown body within a single char budget, lowest ``priority`` value first.
 
-    Uses the priority ordering of ``PromptBudgetGuard.apply_budget``, so the whole block stays within one
-    budget. ``truncation_message`` closes the body when the budget cut anything.
+    Every section draws on the same budget. Items are kept in order until one does not fit; a section cut after
+    keeping some items, or whose header does not fit, ends the render, while a section none of whose items fit is
+    skipped. ``truncation_message`` closes the body when the budget cut anything.
 
     Reports the accepted item count per section title and the characters the kept sections use of the budget, so
     callers can say how many items actually reached the model instead of how many merely exist, and how full the
