@@ -2,7 +2,7 @@
 
 ## Overview
 
-Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fallback, adaptive routing, optional L4 remote escalation, and full-content delivery that shortens long pages to one shared budget while saving the complete text for `file_read_tool`.
+Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fallback, per-domain start-tier breaker, optional L4 remote escalation, and full-content delivery that shortens long pages to one shared budget while saving the complete text for `file_read_tool`.
 
 ## Submodule Index
 
@@ -13,7 +13,7 @@ Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fall
 | [probe/](probe/_ARCH.md) | Util | HTTP/3 probe and charset detection |
 | [extractors/](extractors/_ARCH.md) | Core | WeChat / Bilibili / YouTube fast-paths |
 | [fetchers/](fetchers/_ARCH.md) | Core | L1/L2/L3 fetcher implementations |
-| [router/](router/_ARCH.md) | Core | AdaptiveRouter self-learning selection |
+| [router/](router/_ARCH.md) | Core | Per-domain tier breaker and domain learning data |
 | [escalation/](escalation/_ARCH.md) | Core | L4 remote fetch hook |
 
 ## Package Root Files (facade only)

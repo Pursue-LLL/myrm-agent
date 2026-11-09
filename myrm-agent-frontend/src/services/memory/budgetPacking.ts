@@ -9,7 +9,7 @@
  * Functions: packRecallCandidates, getDefaultBudget
  *
  * [POS]
- * Client service for Budget Greedy Marginal Value Recall Packing Suite (Item 122 P2).
+ * Client service for Budget Greedy Marginal Value Recall Packing Suite.
  * Strict typing applied: No `any` types allowed. Single file < 200 lines.
  */
 

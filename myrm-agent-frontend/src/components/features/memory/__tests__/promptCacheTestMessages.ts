@@ -86,7 +86,6 @@ export const promptCacheZhMessages = {
           sessionInputLabel: '预览会话 ID',
           sessionPlaceholder: '输入会话 ID…',
           title: '双层上下文实验室',
-          itemBadge: 'Item 112',
           layoutBadge: '布局预览',
           description: 'Layer 1 快照在 user 消息尾；Layer 2 按节奏消解记忆冲突。',
           tabsAria: '实验室视图',

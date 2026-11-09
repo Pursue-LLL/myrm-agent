@@ -3,7 +3,7 @@
  * Props: packedResult, onRepack, repacking
  *
  * [OUTPUT]
- * MarginalValuePackingView: Main packing breakdown visualizer for Item 122.
+ * MarginalValuePackingView: Main packing breakdown visualizer for budget packing.
  *
  * [POS]
  * Command-center subview showing accepted/dropped candidates and context prompt preview.

@@ -9,8 +9,8 @@
  * - switchToNewContext (Cross-context smooth handover)
  *
  * [POS]
- * Frontend API service for Topic 01 Item 89 (OpenAI Codex rust-v0.153.0 PR #42385
- * context_management, human rectification via markdown note storage, and context rotation).
+ * Frontend API service for the model's private notebook: Markdown notes the user can read and
+ * correct, plus the stored contexts the agent can search and switch between.
  * Strict typing applied: No `any` types allowed.
  */
 

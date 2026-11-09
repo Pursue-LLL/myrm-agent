@@ -6,7 +6,7 @@
  * Deterministic baseline datasets for Two-Layer Dialectic Suite offline resilience and unit tests.
  *
  * [POS]
- * Command-center fallbacks for Item 112.
+ * Command-center fallbacks for the two-layer lab.
  * Strict typing applied: No `any` types allowed. Single file < 160 lines.
  */
 

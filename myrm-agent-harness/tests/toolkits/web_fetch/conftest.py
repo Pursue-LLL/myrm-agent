@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from myrm_agent_harness.toolkits.web_fetch.probe.http3_probe import reset_http3_state_for_tests
+
 
 @pytest.fixture
 def install_fake_scrapling() -> Iterator[AsyncMock]:
@@ -27,3 +29,11 @@ def install_fake_scrapling() -> Iterator[AsyncMock]:
     finally:
         sys.modules.pop("scrapling.fetchers", None)
         sys.modules.pop("scrapling", None)
+
+
+@pytest.fixture
+def http3_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """L1 HTTP/3 retry on, SSRF shield off, probe state and retry counters reset."""
+    reset_http3_state_for_tests()
+    monkeypatch.setenv("MYRM_HTTP3_RETRY", "1")
+    monkeypatch.setenv("MYRM_ENABLE_SSRF_SHIELD", "false")

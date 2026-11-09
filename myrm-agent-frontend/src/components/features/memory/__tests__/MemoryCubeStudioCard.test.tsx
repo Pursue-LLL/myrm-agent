@@ -7,7 +7,7 @@
  * ../command-center/MemoryCubeStudioCard::MemoryCubeStudioCard
  *
  * [OUTPUT]
- * Test suite verifying Memory Cube Scoped Isolation Studio Card (Item 124 P0):
+ * Test suite verifying Memory Cube Scoped Isolation Studio Card:
  * 1. Default render of header, HUD metrics bar and Active Cubes count
  * 2. Spatial Matrix tab filtering and cube selection
  * 3. Inspecting cube records in the detail pane
@@ -16,7 +16,7 @@
  * 6. Federated query execution verification
  *
  * [POS]
- * Unit tests for Item 124.
+ * Unit tests for the memory cube studio card.
  * Strict typing applied: No `any` types allowed. Single file < 250 lines.
  */
 
@@ -58,7 +58,7 @@ vi.mock('@/services/memory', async (importOriginal) => {
   };
 });
 
-describe('MemoryCubeStudioCard (Item 124 P0)', () => {
+describe('MemoryCubeStudioCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetCubeMatrixOverview.mockResolvedValue(FALLBACK_CUBE_MATRIX_OVERVIEW);

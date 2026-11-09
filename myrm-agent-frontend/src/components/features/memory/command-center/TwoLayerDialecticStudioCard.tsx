@@ -10,7 +10,7 @@
  * ./twoLayerDialecticFallbacks
  *
  * [OUTPUT]
- * TwoLayerDialecticStudioCard: Main command-center panel for Item 112.
+ * TwoLayerDialecticStudioCard: Main command-center panel for the two-layer context lab.
  *
  * [POS]
  * Command-center card for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Suite.
@@ -217,9 +217,6 @@ export const TwoLayerDialecticStudioCard: React.FC = () => {
               <h2 className="text-base font-semibold text-foreground tracking-tight">
                 {t('title')}
               </h2>
-              <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
-                {t('itemBadge')}
-              </span>
               <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                 {t('layoutBadge')}
               </span>

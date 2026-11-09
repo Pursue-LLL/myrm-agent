@@ -3,22 +3,27 @@
 /**
  * [INPUT]
  * - @/components/primitives::{Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue}
+ * - @/components/features/settings/default-model/EnabledModelSelect::EnabledModelSelect
+ * - @/store/useProviderStore::useProviderStore
  * - @/lib/utils/classnameUtils::cn
  * - @/components/features/message-box/progress-steps/toolIcons::{AgentThemeColor, AGENT_COLOR_CLASSES}
  *
  * [OUTPUT]
- * - SubagentCard: 渲染单个临时子代理配置卡片（包含名称、角色范围、主题色、模型覆盖与审查轮次上限）
+ * - SubagentCard: 渲染单个临时子代理配置卡片（包含名称、角色范围、主题色与模型覆盖）
  *
  * [POS]
- * Agent 编辑面板下的单个 Subagent 配置卡片。支持为每个子代理角色覆盖轻量经济模型以显著降低调用成本。
+ * Agent 编辑面板下的单个 Subagent 配置卡片。模型覆盖的选项来自用户已启用的 provider 模型，按 `providerId/model` 路由名保存，后端据此为该子代理解析专属 LLM。
  */
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Trash2, AlertCircle, Cpu } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import EnabledModelSelect from '@/components/features/settings/default-model/EnabledModelSelect';
+import useProviderStore, { selectEnabledModels } from '@/store/useProviderStore';
+import type { SingleModelSelection } from '@/store/config/providerTypes';
 import { cn } from '@/lib/utils/classnameUtils';
 import { type AgentThemeColor, AGENT_COLOR_CLASSES } from '@/components/features/message-box/progress-steps/toolIcons';
 
@@ -28,8 +33,8 @@ export interface EphemeralSubagentConfig {
   display_name?: string;
   theme_color?: AgentThemeColor;
   control_scope?: SubagentControlScope;
-  model_override?: string;
-  max_review_rounds?: number;
+  /** Routed model name (`providerId/model`); absent means the sub-agent inherits the parent LLM. */
+  model?: string;
 }
 
 const AVAILABLE_COLORS: AgentThemeColor[] = ['blue', 'green', 'purple', 'orange', 'pink', 'cyan', 'amber', 'red'];
@@ -45,13 +50,6 @@ const COLOR_HEX: Record<string, string> = {
   red: '#ef4444',
 };
 
-const SUGGESTED_MODELS = [
-  { value: 'inherit', labelKey: 'subagentModelInherit' },
-  { value: 'deepseek-chat', labelKey: 'subagentModelDeepseek' },
-  { value: 'gpt-4o-mini', labelKey: 'subagentModelGpt4oMini' },
-  { value: 'claude-3-5-haiku', labelKey: 'subagentModelClaudeHaiku' },
-];
-
 export interface SubagentCardProps {
   subagentKey: string;
   config: EphemeralSubagentConfig;
@@ -59,7 +57,7 @@ export interface SubagentCardProps {
   onDisplayNameChange: (key: string, name: string) => void;
   onThemeColorChange: (key: string, color: AgentThemeColor) => void;
   onControlScopeChange: (key: string, scope: SubagentControlScope) => void;
-  onModelOverrideChange: (key: string, model: string | undefined) => void;
+  onModelChange: (key: string, model: string | undefined) => void;
   onDelete: () => void;
   t: (key: string) => string;
 }
@@ -71,12 +69,23 @@ export const SubagentCard = memo(function SubagentCard({
   onDisplayNameChange,
   onThemeColorChange,
   onControlScopeChange,
-  onModelOverrideChange,
+  onModelChange,
   onDelete,
   t,
 }: SubagentCardProps) {
   const themeColor = (config.theme_color || 'blue') as AgentThemeColor;
-  const currentModel = config.model_override || 'inherit';
+  const providers = useProviderStore((state) => state.providers);
+  const enabledModels = useMemo(() => selectEnabledModels(providers), [providers]);
+  const selectedModel = useMemo<SingleModelSelection | null>(() => {
+    if (!config.model) {
+      return null;
+    }
+    const separator = config.model.indexOf('/');
+    if (separator <= 0) {
+      return null;
+    }
+    return { providerId: config.model.slice(0, separator), model: config.model.slice(separator + 1) };
+  }, [config.model]);
 
   return (
     <div className="p-4 rounded-lg border border-border/50 bg-muted/30 space-y-3">
@@ -141,35 +150,29 @@ export const SubagentCard = memo(function SubagentCard({
         </Select>
       </div>
 
-      {/* Model Override (Cost Optimization) */}
+      {/* Model (Cost Optimization) */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label
-            htmlFor={`model-override-${subagentKey}`}
-            className="text-xs font-medium text-muted-foreground flex items-center gap-1"
-          >
+          <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
             <Cpu size={12} className="text-primary" />
             <span>{t('modelOverride')}</span>
-          </Label>
+          </div>
           <span className="text-[10px] text-muted-foreground/80 bg-primary/10 text-primary px-1.5 py-0.2 rounded font-medium">
             {t('subagentCostSaving')}
           </span>
         </div>
-        <Select
-          value={currentModel}
-          onValueChange={(value) => onModelOverrideChange(subagentKey, value === 'inherit' ? undefined : value)}
-        >
-          <SelectTrigger id={`model-override-${subagentKey}`} className="h-9 text-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SUGGESTED_MODELS.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {t(item.labelKey)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <EnabledModelSelect
+          value={selectedModel}
+          onChange={(selection) =>
+            onModelChange(
+              subagentKey,
+              selection ? `${selection.providerId}/${selection.model}` : undefined,
+            )
+          }
+          enabledModels={enabledModels}
+          providers={providers}
+          placeholder={t('subagentModelInherit')}
+        />
       </div>
 
       {/* Theme Color */}

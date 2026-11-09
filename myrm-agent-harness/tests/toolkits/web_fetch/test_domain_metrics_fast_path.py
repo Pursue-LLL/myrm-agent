@@ -6,11 +6,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from myrm_agent_harness.toolkits.web_fetch.router import DomainMetricsManager
 from myrm_agent_harness.toolkits.web_fetch.router.models import DomainMetrics
 
 
@@ -45,17 +42,3 @@ def test_an_untrained_domain_learns_no_timeout_and_keeps_the_fast_path() -> None
 
     assert metrics.get_smart_fast_timeout() is None
     assert metrics.should_skip_smart_fast_path() is False
-
-
-def test_stats_count_a_skip_only_for_measured_unreliability(tmp_path: Path) -> None:
-    manager = DomainMetricsManager(storage_path=tmp_path / "domain_metrics.json")
-    healthy_without_latencies = manager.get_or_create("healthy.example")
-    unreliable = manager.get_or_create("unreliable.example")
-    for _ in range(25):
-        healthy_without_latencies.record_networkidle_result(success=True)
-        unreliable.record_networkidle_result(success=False)
-
-    stats = manager.get_stats()
-
-    assert stats["smart_skips"] == 1
-    assert stats["smart_adjustments"] == 0

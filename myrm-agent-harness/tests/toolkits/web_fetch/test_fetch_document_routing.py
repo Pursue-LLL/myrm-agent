@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import io
 from collections.abc import AsyncIterator, Callable
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -47,8 +46,8 @@ def _exe_result(*, status_code: int = 200) -> FetchResult:
 
 
 @pytest.fixture
-async def engine_with_http(tmp_path: Path) -> AsyncIterator[tuple[FetchEngine, AsyncMock]]:
-    engine = FetchEngine(adaptive_router_rules_file=tmp_path / "rules.pkl")
+async def engine_with_http() -> AsyncIterator[tuple[FetchEngine, AsyncMock]]:
+    engine = FetchEngine()
     http = AsyncMock()
     engine._http_fetcher = http
     engine._browser_fetcher = AsyncMock()
@@ -73,7 +72,7 @@ async def test_document_is_parsed_instead_of_degraded(
         html="", url=URL, headers={"content-type": content_type}, raw_body=make_body(MARKER)
     )
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is not None
     assert MARKER in doc.page_content
@@ -84,7 +83,7 @@ async def test_file_no_parser_reads_ends_the_fetch(engine_with_http: tuple[Fetch
     engine, http = engine_with_http
     http.fetch.return_value = _exe_result()
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is False
@@ -96,7 +95,7 @@ async def test_file_no_parser_reads_behind_an_error_status_still_degrades(
     engine, http = engine_with_http
     http.fetch.return_value = _exe_result(status_code=403)
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is True
@@ -118,7 +117,7 @@ async def test_text_is_returned_as_it_is(
     engine, http = engine_with_http
     http.fetch.return_value = _text_result(text, content_type=content_type)
 
-    doc, _, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, _, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is not None
     assert doc.page_content == text.strip()
@@ -133,7 +132,7 @@ async def test_text_behind_an_error_status_still_degrades(
     engine, http = engine_with_http
     http.fetch.return_value = _text_result("Forbidden", status_code=status_code)
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is True
@@ -143,7 +142,7 @@ async def test_empty_text_degrades(engine_with_http: tuple[FetchEngine, AsyncMoc
     engine, http = engine_with_http
     http.fetch.return_value = _text_result("  \n")
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is True
@@ -154,7 +153,7 @@ async def test_truncated_text_warns_the_user(engine_with_http: tuple[FetchEngine
     http.fetch.return_value = _text_result("0123456789" * 20)
 
     with patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", new_callable=AsyncMock) as dispatch:
-        doc, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP, max_chars=50)
+        doc, _, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP, max_chars=50)
 
     assert doc is not None
     assert doc.metadata["was_truncated"] is True
@@ -223,17 +222,21 @@ async def test_crawl_returns_what_a_remote_provider_reads_from_an_unreadable_fil
     ],
     ids=["404", "304", "unreadable-file", "text", "empty-text"],
 )
-async def test_router_learns_only_from_real_outcomes(
+async def test_tier_outcomes_come_only_from_real_attempts(
     engine_with_http: tuple[FetchEngine, AsyncMock], fetched: FetchResult, reported_success: bool | None
 ) -> None:
     engine, http = engine_with_http
     http.fetch.return_value = fetched
 
-    with patch.object(engine._router, "report_result") as report:
+    with (
+        patch.object(engine._tier_breaker, "report") as report,
+        patch.object(engine._domain_metrics, "record_failure") as record_failure,
+    ):
         await engine._try_and_report(URL, FetcherType.HTTP)
 
     if reported_success is None:
         report.assert_not_called()
+        record_failure.assert_not_called()
     else:
-        report.assert_called_once()
-        assert report.call_args.args[2] is reported_success
+        report.assert_called_once_with("example.com", FetcherType.HTTP, success=reported_success)
+        assert record_failure.called is (not reported_success)

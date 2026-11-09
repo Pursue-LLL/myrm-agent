@@ -19,7 +19,7 @@ vi.mock('next-intl', async (importOriginal) => {
  * dual-track XML tail injection simulation, and session reconcile consolidation.
  *
  * [POS]
- * Unit test for Item 98 (PromptCachePreservingEphemeralDeltaMemorySuite).
+ * Unit test for PromptCachePreservingEphemeralDeltaMemorySuite.
  * Strict typing applied: No `any` types allowed. File lines < 350.
  */
 

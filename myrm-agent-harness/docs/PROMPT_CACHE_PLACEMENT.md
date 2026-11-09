@@ -50,8 +50,8 @@ Do **not** equate “stable layout” with “100% cache hit”. Observe provide
 | Chat `ContextUsageIndicator` | All GUI users | **Yes** — `health.cache.cache_hit_rate` from provider usage |
 | Session trace / OTLP | Ops, analytics | **Yes** — `prompt_cache_hit_ratio` / `cache_read_*` |
 | Memory command center ephemeral metrics | Advanced / session overrides | **No** — layout & in-flight delta count only; do not show fake percentages |
-| **Two-layer Layer 1 (Item 112)** live chat | All GUI users (GeneralAgent) | **No** — tail layout only; hit rate from chat ring / provider usage. Wired via `two_layer_context_middleware` after ephemeral in `general_agent/factory/middlewares.py`. Set `MYRM_TWO_LAYER_CONTEXT_LIVE=0` to disable. |
-| Memory command center **Two-layer studio (Item 112)** | Lab / API preview only (`NEXT_PUBLIC_MEMORY_LABS=1`) | **No** — cadence/dialectic experiments; not required for live tail. |
+| **Two-layer Layer 1** live chat | All GUI users (GeneralAgent) | **No** — tail layout only; hit rate from chat ring / provider usage. Wired via `two_layer_context_middleware` after ephemeral in `general_agent/factory/middlewares.py`. Set `MYRM_TWO_LAYER_CONTEXT_LIVE=0` to disable. |
+| Memory command center **Two-layer studio** | Lab / API preview only (`NEXT_PUBLIC_MEMORY_LABS=1`) | **No** — cadence/dialectic experiments; not required for live tail. |
 | Settings → Runtime snapshot | Local / desktop ops | **N/A** — liveness & memory pressure (`GET /api/v1/ops/snapshot`); not cache hit rate |
 
 ## Product copy

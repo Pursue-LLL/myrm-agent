@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,7 +21,6 @@ from myrm_agent_harness.toolkits.web_fetch.fetchers.http_fetcher import HttpFetc
 from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetcherType
 from myrm_agent_harness.toolkits.web_fetch.fetchers.stealth_fetcher import StealthFetcher
 from myrm_agent_harness.toolkits.web_fetch.processing.url_normalizer import normalize_url
-from myrm_agent_harness.toolkits.web_fetch.router.models import FetcherDecision
 from tests.toolkits.browser._browser_available import chromium_available
 from tests.toolkits.browser._redirect_servers import page, redirect, serve
 
@@ -41,10 +39,8 @@ class _Tiers:
         return not self.browser.await_count and not self.stealth.await_count
 
 
-def _engine(tmp_path: Path, *, allow_private_networks: bool) -> tuple[FetchEngine, _Tiers]:
-    engine = FetchEngine(
-        adaptive_router_rules_file=tmp_path / "rules.pkl", allow_private_networks=allow_private_networks
-    )
+def _engine(*, allow_private_networks: bool) -> tuple[FetchEngine, _Tiers]:
+    engine = FetchEngine(allow_private_networks=allow_private_networks)
     tiers = _Tiers(browser=AsyncMock(return_value=None), stealth=AsyncMock(return_value=None))
     engine._browser_fetcher.fetch = tiers.browser  # type: ignore[method-assign]
     engine._stealth_fetcher.fetch = tiers.stealth  # type: ignore[method-assign]
@@ -59,8 +55,8 @@ def _offline_http3() -> Iterator[None]:
 
 @pytest.mark.asyncio
 class TestLocalMode:
-    async def test_requested_private_page_is_fetched_by_the_http_tier(self, tmp_path: Path) -> None:
-        engine, tiers = _engine(tmp_path, allow_private_networks=True)
+    async def test_requested_private_page_is_fetched_by_the_http_tier(self) -> None:
+        engine, tiers = _engine(allow_private_networks=True)
         with serve({"/page": page(_ARTICLE)}) as site:
             doc = await engine.crawl(site.url("/page"), allow_escalation=False)
 
@@ -69,8 +65,8 @@ class TestLocalMode:
         assert site.paths() == ["/page"]
         assert tiers.untouched()
 
-    async def test_redirect_within_the_requested_origin_is_followed(self, tmp_path: Path) -> None:
-        engine, _tiers = _engine(tmp_path, allow_private_networks=True)
+    async def test_redirect_within_the_requested_origin_is_followed(self) -> None:
+        engine, _tiers = _engine(allow_private_networks=True)
         with serve({"/start": redirect("/page"), "/page": page(_ARTICLE)}) as site:
             doc = await engine.crawl(site.url("/start"), allow_escalation=False)
 
@@ -78,8 +74,8 @@ class TestLocalMode:
         assert site.paths() == ["/start", "/page"]
 
     @pytest.mark.parametrize("host", ["127.0.0.1", "2130706433"], ids=["dotted", "decimal-integer"])
-    async def test_redirect_to_another_private_origin_is_never_requested(self, tmp_path: Path, host: str) -> None:
-        engine, tiers = _engine(tmp_path, allow_private_networks=True)
+    async def test_redirect_to_another_private_origin_is_never_requested(self, host: str) -> None:
+        engine, tiers = _engine(allow_private_networks=True)
         with serve({"/secret": page(_ARTICLE)}) as internal:
             port = internal.base_url.rsplit(":", 1)[1]
             with serve({"/start": redirect(f"http://{host}:{port}/secret")}) as entry:
@@ -94,14 +90,14 @@ class TestLocalMode:
         "metadata_url",
         ["http://169.254.169.254/latest/meta-data/", "http://metadata.google.internal/computeMetadata/v1/"],
     )
-    async def test_cloud_metadata_is_blocked_even_when_requested(self, tmp_path: Path, metadata_url: str) -> None:
-        engine, tiers = _engine(tmp_path, allow_private_networks=True)
+    async def test_cloud_metadata_is_blocked_even_when_requested(self, metadata_url: str) -> None:
+        engine, tiers = _engine(allow_private_networks=True)
 
         assert await engine.crawl(metadata_url, allow_escalation=False) is None
         assert tiers.untouched()
 
-    async def test_blocked_url_is_remembered_as_failed(self, tmp_path: Path) -> None:
-        engine, _tiers = _engine(tmp_path, allow_private_networks=True)
+    async def test_blocked_url_is_remembered_as_failed(self) -> None:
+        engine, _tiers = _engine(allow_private_networks=True)
         metadata_url = "http://169.254.169.254/latest/meta-data/"
 
         await engine.crawl(metadata_url, allow_escalation=False)
@@ -111,16 +107,14 @@ class TestLocalMode:
 
 @pytest.mark.asyncio
 class TestCloudMode:
-    async def test_blocked_redirect_hop_does_not_degrade_to_other_tiers(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_blocked_redirect_hop_does_not_degrade_to_other_tiers(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # The entry gate is bypassed and the first hop allowlisted to model a public entry URL
         # whose redirect leads inside; loopback stands in for both ends of the chain.
         monkeypatch.setattr(
             "myrm_agent_harness.core.security.guards.ssrf.validate_url_for_ssrf", lambda _url: SSRFResult(safe=True)
         )
         monkeypatch.setenv("MYRM_ALLOWED_INTERNAL_HOSTS", "127.0.0.1")
-        engine, tiers = _engine(tmp_path, allow_private_networks=False)
+        engine, tiers = _engine(allow_private_networks=False)
         with serve({"/secret": page(_ARTICLE)}) as internal:
             port = internal.base_url.rsplit(":", 1)[1]
             with serve({"/start": redirect(f"http://localhost:{port}/secret")}) as entry:
@@ -234,12 +228,11 @@ class TestStealthTier:
 
         assert site.hits == []
 
-    async def test_engine_stops_when_the_router_starts_at_the_stealth_tier(self, tmp_path: Path) -> None:
-        engine, tiers = _engine(tmp_path, allow_private_networks=True)
+    async def test_engine_stops_when_the_breaker_starts_at_the_stealth_tier(self) -> None:
+        engine, tiers = _engine(allow_private_networks=True)
         engine._stealth_fetcher = StealthFetcher(allow_private_networks=True)
-        stealth_start = FetcherDecision(fetcher_type=FetcherType.STEALTH, reason="test")
         with (
-            patch.object(engine._router, "select", return_value=stealth_start),
+            patch.object(engine._tier_breaker, "select", return_value=FetcherType.STEALTH),
             serve({"/secret": page(_ARTICLE)}) as internal,
         ):
             port = internal.base_url.rsplit(":", 1)[1]

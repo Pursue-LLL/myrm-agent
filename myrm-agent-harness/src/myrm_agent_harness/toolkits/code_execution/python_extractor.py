@@ -10,7 +10,8 @@ Quote-aware parsing prevents greedy-regex extraction errors.
 - extract_python_from_bash: Extract Python code from bash commands (quote-aware).
 - extract_python_from_pipe_stdin: Extract Python fed via ``quoted_payload | python3`` stdin.
 - extract_cat_py_paths_from_pipe_feeders: Resolve ``.py`` paths from ``cat`` pipe feeder segments.
-- validate_python_syntax: Pre-check extracted Python via ast.parse.
+- validate_python_syntax: Pre-check extracted Python; an error names the line and column and quotes that line
+  (cut to a window of 160 characters around the column).
 - SKILL_IMPORT_RE: Compiled pattern for ``from skills.xxx_skill import`` detection.
 - TOOLS_IMPORT_RE: Compiled pattern for ``from tools.xxx import`` detection.
 - SKILLS_NAMESPACE_ADVICE: Guidance for a failed ``No module named 'skills'`` import.
@@ -119,6 +120,34 @@ def _wrap_top_level_async_code(code: str) -> str:
     return f"{header_part}\nasync def __syntax_check__():\n{body_part}\n"
 
 
+_SYNTAX_EXCERPT_CHARS = 160
+
+
+def _describe_syntax_error(exc: SyntaxError, code: str) -> str:
+    """What is wrong, where, and the text of that line, in one line the model can act on."""
+    where = [f"SyntaxError: {exc.msg}"]
+    if exc.lineno:
+        where.append(f"line {exc.lineno}")
+        if exc.offset:
+            where.append(f"column {exc.offset}")
+    message = ", ".join(where)
+    # The tokenizer counts only \n, \r\n and \r as line ends; str.splitlines also splits on form feeds and the like.
+    lines = code.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    if exc.lineno and exc.lineno <= len(lines) and lines[exc.lineno - 1].strip():
+        message += f": `{_excerpt(lines[exc.lineno - 1], exc.offset)}`"
+    return message
+
+
+def _excerpt(line: str, column: int | None) -> str:
+    """The line as written (indentation is part of the diagnosis), windowed around the column when it is long."""
+    line = line.rstrip()
+    if len(line) <= _SYNTAX_EXCERPT_CHARS:
+        return line
+    start = max(0, (column or 1) - 1 - _SYNTAX_EXCERPT_CHARS // 2)
+    end = start + _SYNTAX_EXCERPT_CHARS
+    return f"{'...' if start else ''}{line[start:end]}{'...' if end < len(line) else ''}"
+
+
 def validate_python_syntax(code: str) -> str | None:
     """Return ``None`` if *code* is valid Python, otherwise a human-readable error.
 
@@ -145,10 +174,7 @@ def validate_python_syntax(code: str) -> str | None:
             except SyntaxError:
                 pass
 
-        parts = [f"SyntaxError: {exc.msg}"]
-        if exc.lineno:
-            parts.append(f"line {exc.lineno}")
-        return ", ".join(parts)
+        return _describe_syntax_error(exc, code)
 
 
 SKILL_IMPORT_RE = re.compile(r"from\s+(?:skills\.)?([\w]+_skill)(?:\.\w+)?\s+import")

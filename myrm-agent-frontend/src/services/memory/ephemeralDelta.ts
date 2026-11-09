@@ -3,7 +3,7 @@
  * @/services/api::apiClient (POS: standard client facade)
  *
  * [OUTPUT]
- * Types and client functions for Item 98:
+ * Types and client functions for PromptCachePreservingEphemeralDeltaMemorySuite:
  * PromptCachePreservingEphemeralDeltaMemorySuite.
  *
  * [POS]

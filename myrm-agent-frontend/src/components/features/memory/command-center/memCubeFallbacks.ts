@@ -3,10 +3,10 @@
  * @/services/memory::MemoryCubeDTO, MountPolicyDTO, CubeMatrixOverviewDTO, CubeRecordDTO
  *
  * [OUTPUT]
- * Fallback baseline mock topologies and records for Memory Cube Scoped Isolation Suite (Item 124).
+ * Fallback baseline mock topologies and records for Memory Cube Scoped Isolation Suite.
  *
  * [POS]
- * Client-side offline fallback and unit test fixtures for Item 124.
+ * Client-side offline fallback and unit test fixtures for the memory cube studio card.
  * Strict typing applied: No `any` types allowed. Single file < 200 lines.
  */
 

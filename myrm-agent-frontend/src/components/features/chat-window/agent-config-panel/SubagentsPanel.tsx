@@ -10,7 +10,7 @@
  * - SubagentsPanel: 智能体配置面板子组件，支持查看、添加、编辑和删除子代理，支持每角色模型覆盖降本
  *
  * [POS]
- * Agent 编辑面板下的 Subagent 角色集管理视图。支持为每个子代理角色配置专属经济型模型。
+ * Agent 编辑面板下的 Subagent 角色集管理视图。每个角色的模型覆盖从用户已启用的 provider 模型里选，未选则继承主智能体。
  */
 
 import { useState } from 'react';
@@ -57,20 +57,17 @@ export const SubagentsPanel = ({
       display_name: t('presetResearcher'),
       theme_color: 'blue',
       control_scope: 'leaf',
-      model_override: 'deepseek-chat',
     },
     coder: { display_name: t('presetCoder'), theme_color: 'green', control_scope: 'leaf' },
     reviewer: {
       display_name: t('presetReviewer'),
       theme_color: 'purple',
       control_scope: 'leaf',
-      model_override: 'deepseek-chat',
     },
     analyst: {
       display_name: t('presetAnalyst'),
       theme_color: 'orange',
       control_scope: 'leaf',
-      model_override: 'gpt-4o-mini',
     },
   };
 
@@ -116,7 +113,6 @@ export const SubagentsPanel = ({
           display_name: preset.display_name,
           theme_color: preset.theme_color,
           control_scope: preset.control_scope,
-          model_override: preset.model_override,
         }
       : { display_name: '', theme_color: 'blue', control_scope: 'leaf' };
 
@@ -159,10 +155,10 @@ export const SubagentsPanel = ({
     }));
   };
 
-  const handleModelOverrideChange = (key: string, model: string | undefined) => {
+  const handleModelChange = (key: string, model: string | undefined) => {
     setLocalEphemeralSubagents((prev) => ({
       ...prev,
-      [key]: { ...prev[key], model_override: model },
+      [key]: { ...prev[key], model },
     }));
   };
 
@@ -192,7 +188,7 @@ export const SubagentsPanel = ({
               onDisplayNameChange={handleDisplayNameChange}
               onThemeColorChange={handleThemeColorChange}
               onControlScopeChange={handleControlScopeChange}
-              onModelOverrideChange={handleModelOverrideChange}
+              onModelChange={handleModelChange}
               onDelete={() => setSubagentToDelete(key)}
               t={t}
             />

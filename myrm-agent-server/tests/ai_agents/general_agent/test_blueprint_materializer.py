@@ -4,6 +4,7 @@ Tests the materialize_jit_configs function that parses ephemeral subagent
 configurations from frontend into SubagentConfig objects.
 """
 
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -306,3 +307,35 @@ class TestMaterializedChildrenToolBoundary:
         config = materialize_jit_configs(raw_configs)["reader"]
 
         assert {tool.name for tool in filter_tools(config, self._parent_tools())} == {"file_read_tool"}
+
+
+class TestRoutedModelOverride:
+    """The model the roster member runs on, as the chat panel sends it."""
+
+    def test_routed_name_survives_materialization(self):
+        """A `providerId/model` value reaches SubagentConfig.model; the bare key the panel used to send does not."""
+        routed = materialize_jit_configs({"researcher": {"display_name": "Researcher", "model": "openai_like/deepseek-chat"}})
+        assert routed["researcher"].model == "openai_like/deepseek-chat"
+
+        legacy_key = materialize_jit_configs({"researcher": {"display_name": "Researcher", "model_override": "deepseek-chat"}})
+        assert legacy_key["researcher"].model is None
+
+    def test_no_model_field_inherits_the_parent_llm(self):
+        """Omitting the field keeps the sub-agent on the parent model."""
+        config = materialize_jit_configs({"researcher": {"display_name": "Researcher"}})["researcher"]
+
+        assert config.model is None
+        assert config.model_resolver is None
+
+    def test_catalog_binds_a_resolver_so_the_model_is_actually_used(self):
+        """The catalog hands the harness a resolver whenever a model is set, which is what turns the name into an LLM."""
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        configs = materialize_jit_configs({"researcher": {"display_name": "Researcher", "model": "openai_like/deepseek-chat"}})
+        catalog = DatabaseSubagentCatalog(bound_agent_ids=["researcher"], jit_configs=configs)
+
+        resolved = asyncio.run(catalog.resolve("researcher"))
+
+        assert resolved is not None
+        assert resolved.model == "openai_like/deepseek-chat"
+        assert resolved.model_resolver is not None

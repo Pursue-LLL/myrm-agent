@@ -6,7 +6,7 @@
  * Constants: FALLBACK_CANDIDATES, FALLBACK_BUDGET, FALLBACK_PACKED_RESULT, FALLBACK_ACCOUNTING
  *
  * [POS]
- * Fallback dataset for Budget Greedy Marginal Value Recall Packing Suite (Item 122 P2).
+ * Fallback dataset for Budget Greedy Marginal Value Recall Packing Suite.
  * Strict typing applied: No `any` types allowed. Single file < 150 lines.
  */
 

@@ -21,7 +21,8 @@ export interface EnabledModel {
 }
 
 interface EnabledModelSelectProps {
-  label: string;
+  /** Omit when the caller renders its own label above the trigger. */
+  label?: string;
   value: SingleModelSelection | null;
   onChange: (selection: SingleModelSelection | null) => void;
   enabledModels: EnabledModel[];
@@ -136,7 +137,7 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
 
     return (
       <div className="space-y-3">
-        <label className="text-sm font-medium text-foreground block">{label}</label>
+        {label ? <label className="text-sm font-medium text-foreground block">{label}</label> : null}
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <button

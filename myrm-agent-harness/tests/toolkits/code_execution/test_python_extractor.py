@@ -206,3 +206,38 @@ class TestValidatePythonSyntax:
         error = validate_python_syntax("x = \n def bad(")
         assert error is not None
         assert "line" in error
+
+    def test_error_names_the_line_the_column_and_the_text_of_that_line(self):
+        error = validate_python_syntax("import os\nvalue = (1, 2\nprint(value)\n")
+        assert error == "SyntaxError: '(' was never closed, line 2, column 9: `value = (1, 2`"
+
+    def test_indentation_of_the_line_is_kept_in_the_text(self):
+        error = validate_python_syntax("def f():\n    return 1\n  x = 2\n")
+        assert error is not None
+        assert error.endswith(": `  x = 2`")
+
+    def test_a_long_line_is_windowed_around_the_column(self):
+        error = validate_python_syntax("y = [" + ", ".join(str(i) for i in range(100)) + " $ ]\n")
+        assert error is not None
+        assert "column 395" in error  # the `$` is far beyond the first 160 characters
+        assert "99 $ ]`" in error
+        assert error.split(": `", 1)[1].startswith("...")
+        assert len(error) < 300
+
+    def test_a_long_line_with_the_error_at_its_start_is_cut_at_the_end(self):
+        error = validate_python_syntax("y = [$" + ", ".join(str(i) for i in range(200)) + "]\n")
+        assert error is not None
+        assert error.endswith("...`")
+        assert ": `y = [$0, 1" in error
+
+    def test_no_text_when_the_error_is_past_the_last_line(self):
+        from myrm_agent_harness.toolkits.code_execution.python_extractor import _describe_syntax_error
+
+        error = SyntaxError("unexpected EOF", ("<string>", 99, 1, "x"))
+        assert _describe_syntax_error(error, "a = 1") == "SyntaxError: unexpected EOF, line 99, column 1"
+
+    def test_form_feed_does_not_shift_the_reported_line(self):
+        error = validate_python_syntax("a = 1\x0c\nb = (\nc = 3\n")
+        assert error is not None
+        assert "line 2" in error
+        assert error.endswith("`b = (`")

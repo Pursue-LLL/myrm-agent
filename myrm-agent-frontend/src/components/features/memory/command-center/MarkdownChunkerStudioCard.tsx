@@ -11,7 +11,7 @@
  * Component: MarkdownChunkerStudioCard
  *
  * [POS]
- * Studio card orchestrating Item 132 IncrementalSlidingWindowMarkdownChunkerSuite.
+ * Studio card orchestrating IncrementalSlidingWindowMarkdownChunkerSuite.
  * Manages 400-token sliding window slicing, 80-token overlap, line pointers,
  * content-hash incremental diffing, and hydration viewer.
  * Strictly typed with zero `any`. Single file < 350 lines.
