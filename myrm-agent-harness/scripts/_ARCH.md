@@ -29,7 +29,8 @@ Harness 仓维护脚本：框架-业务边界 enforcement、PyPI 发布校验、
 | `validate_tool_registry.py` | 辅助 | Tool registry CI 校验（注册一致性 + 治理覆盖门禁：遍历注册内置全集 / 权限类型矩阵 / EXPLICIT_MCP_FALLBACK 第三态 / DYNAMICALLY_RESOLVED_TOOL_NAMES SSOT 消费 / BUILTIN↔注册双向一致性 / RULESET_COVERAGE_WHITELIST 双向一致性（stale+orphan）/ EXTERNAL server-managed 标注 / safety / canonical 参数 / forbidden legacy terms（bindmode、catalog_invoke、delegate_to_agent_tool、profile seed 内 delegate_agent 权限键）；`--json` 输出覆盖矩阵，矩阵含 `whitelist_orphan` 标注使 orphan 声明对审计报表可见） | ✅ |
 | `validate_arch_inventory.py` | 辅助 | `_ARCH.md` 文件清单表格 vs 同级 `.py` 一致性校验（仅解析表格行）+ `--md-refs` 全仓 markdown 路径引用真实性校验（反引号 span 与内联链接 `[label](path)` 统一管道；显式相对路径 / 跨仓 alias / harness 模块快捷三态解析，渐退剥离 symbol 后缀；`--root` 仓根或 server 仓等跨仓扫描仅跑 md-refs，不跑表格）+ `--repo-refs` 品牌仓文档引用的代码路径存在性校验（品牌仓未 checkout 时 SKIP） | ✅ |
 | `md_ref_validator.py` | 辅助 | md 引用校验核心：`scan_md_refs` / `_extract_md_refs` / `_resolve_md_ref` / 反引号 span 与内联链接统一解析（内联链接额外校验带扩展名的裸文件名如 `[x](other.md)`，反引号保留 `/` 门槛以免误判 prose）/ 渐退 symbol 剥离（拒绝截断到 `../..` 等父级标记）/ 源码根自动发现（harness `src/myrm_agent_harness`，server `app/`，跨仓快捷引用按被扫描仓识别）/ 无扩展名引用探测 TS·JS 源扩展名 / 导入规格表按首列源文件目录锚定 / `{placeholder}` 符号行跳过 / 非 UTF-8 文档跳过 / 白名单（`eval/_ARCH.md` 候选决策表、`prebuilt_skills/` 运行时产物），被 `validate_arch_inventory.py` 复用 | ✅ |
-| `check_fractal_docs.py` | 辅助 | 分形 `_ARCH.md` 目录覆盖 + IOP 头 baseline 门禁（`fractal_header_baseline.txt`） | ✅ |
+| `check_fractal_docs.py` | 辅助 | 分形文档门禁 CLI：目录 `_ARCH.md` 覆盖（`--no-stub` 守卫 `api/`）+ IOP 头 baseline（`--strict-headers`，`fractal_header_baseline.txt`）+ 文件头 `[INPUT]` 引用须指向真实存在的模块（总是运行，无 baseline）；退出码按位累加（1 头 / 2 缺 `_ARCH.md` / 4 stub / 8 悬空引用） | ✅ |
+| `fractal_input_refs.py` | 辅助 | `[INPUT]` 引用可解析性引擎：只校验一方引用（首段是包内某个目录或模块名），点路径去掉前导点与可选包名后须是真实模块或目录点路径的后缀（头部可省略前缀包，故 `cost_engine` 与 `token_economics.cost_engine` 都指向 `utils/token_economics/cost_engine.py`，`utils.cost_engine` 不行）；stdlib 与同名第三方根（`acp`、`mcp`）放行；无 baseline、无逐条白名单；只依赖标准库，pre-commit 的系统 `python` 即可运行 | ✅ |
 | `check_file_line_limit.py` | 辅助 | 单文件行数 baseline 门禁（>500 行须登记且不可增长）；`--incremental` 仅扫描 git 变更文件（pre-commit），无 git 时回退全量 | ✅ |
 | `ci_stall_guard.py` | 辅助 | CI 单测的停滞守卫：包住 pytest 并把输出同时写入日志；命令静默超过 `--stall-seconds`（默认 600 秒，大于 pytest-timeout 的 300 秒）即记录进程树、各线程状态与内核等待点、负载 / 内存 / 压力，向每个 Python 进程发 `SIGUSR1` 取全部线程栈（由 `tests/conftest.py` 的 `pytest_configure` 注册 faulthandler），再杀进程组并以 124 退出；运行期间每 `--sample-seconds` 输出一行 `[ci-sample]`；收到 SIGTERM（runner 取消）时一并结束命令；诊断行不重置静默计时 | — |
 | `check_test_source_assertions.py` | 辅助 | 测试源码文本断言门禁：以 `ast` 识别「读 `.py` 源码 + 断言字符串包含」写法，强制改用语法树断言，使断言不受格式化换行影响；`--incremental` 供 pre-commit 使用 | ✅ |
@@ -53,7 +54,7 @@ Harness 仓维护脚本：框架-业务边界 enforcement、PyPI 发布校验、
 python scripts/boundary_check.py              # CI 全量
 python scripts/boundary_check.py --incremental  # pre-commit 增量
 python scripts/boundary_check.py --fix          # 自动注释违规 import
-python scripts/check_fractal_docs.py            # 目录 _ARCH 覆盖
+python scripts/check_fractal_docs.py            # 目录 _ARCH 覆盖 + [INPUT] 引用可解析
 python scripts/check_fractal_docs.py --strict-headers --header-baseline scripts/fractal_header_baseline.txt --no-stub
 python scripts/check_file_line_limit.py --baseline scripts/file_line_baseline.txt
 python scripts/check_file_line_limit.py --incremental  # pre-commit: changed files only
@@ -94,4 +95,4 @@ Pre-commit runs `validate_arch_inventory.py` via hook `harness-arch-inventory-ch
 
 - **扫描目标**：`src/myrm_agent_harness/`
 - **配置**：`boundary_config.py`（`ALLOWED_FRAMEWORK_PREFIXES`、`BANNED_PREFIXES`、`ALLOWED_PATHS`）
-- **CI / pre-commit**：与 `tests/` 边界测试套件联动；`check_fractal_docs.py` 与 `tests/architecture/test_check_fractal_docs.py`；`server-architecture.yml` 运行 `validate_arch_inventory.py`、`check_import_resolvability.py`、`check_module_reachability.py`，该流水线不设路径过滤（由 server 的 `tests/architecture/test_gate_workflow_triggers.py` 钉住），所以改任一脚本，在 push main 与 PR 上都会跑
+- **CI / pre-commit**：与 `tests/` 边界测试套件联动；`check_fractal_docs.py` 与 `tests/architecture/test_check_fractal_docs.py`、`tests/scripts/test_fractal_input_refs.py`；`server-architecture.yml` 运行 `validate_arch_inventory.py`、`check_import_resolvability.py`、`check_module_reachability.py`，该流水线不设路径过滤（由 server 的 `tests/architecture/test_gate_workflow_triggers.py` 钉住），所以改任一脚本，在 push main 与 PR 上都会跑
