@@ -189,6 +189,7 @@ class TestCredentialChain:
         clock.now += 1
         assert load_credentials().frozen.access_key == "AKIDSECOND"
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="botocore splits credential_process by the Windows rules there")
     @pytest.mark.parametrize(
         ("reports_expiry", "runs"),
         [pytest.param(True, 1, id="renewed-by-botocore"), pytest.param(False, 4, id="read-again-every-window")],
