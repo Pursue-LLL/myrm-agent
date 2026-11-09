@@ -51,7 +51,6 @@ src/components/features/memory/shared-context/useSharedContextPanel.ts
 src/components/features/message-actions/SourcesButton.tsx
 src/components/features/message-box/ContextUsageIndicator.tsx
 src/components/features/message-box/MemoryCitationsButton.tsx
-src/components/features/message-box/MessageBox.tsx
 src/components/features/message-box/TokenUsageDisplay.tsx
 src/components/features/message-box/progress-steps/renderers/EvictedOutputDrawer.tsx
 src/components/features/message-input-actions/AgentIndicator.tsx

@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/consolidationUndo::ConsolidationUndoSummary (POS: 记忆自动整理撤销客户端)
  * ./MemoryCommandCenterAdvancedPanels::MemoryAdvancedVerifyPanels (POS: 个人大脑指挥中心验证面板)
  * ./MemoryCommandCenterObservationPanels::EventList (POS: 个人大脑指挥中心的只读观测面板)
  * ./MemoryCommandCenterGovernancePanels::MigrationPanel (POS: 个人大脑指挥中心的治理动作行、迁移覆盖与适配器状态面板)
@@ -17,13 +18,13 @@
 
 import { lazy, Suspense } from 'react';
 import type {
-  ConsolidationLastSummary,
   MemoryCommandCenterResponse,
   MemoryCommandDiagnosticHistoryItem,
   MemoryCommandDiagnosticRun,
   MemoryCommandGovernanceItem,
   MemoryCommandTimelineEvent,
 } from '@/services/memory/commandCenter';
+import type { ConsolidationUndoSummary } from '@/services/memory/consolidationUndo';
 import { MemoryAdvancedVerifyPanels } from './MemoryCommandCenterAdvancedPanels';
 import type { DoctorExecutableAction } from './memoryDoctorModel';
 import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
@@ -33,7 +34,7 @@ import { DualLayerMemoryCard } from '@/components/agent/DualLayerMemoryCard';
 import { MEMORY_TYPES, translateSpaceKind, type MemoryTranslation } from './memoryCommandCenterFormat';
 import { Panel, MetricTile, EmptyState } from './MemoryCommandCenterPrimitives';
 import { EventList, RuntimePanel, CostPanel, ReplayRow } from './MemoryCommandCenterObservationPanels';
-import { GovernanceRow, MigrationPanel, ConsolidationRollbackCard } from './MemoryCommandCenterGovernancePanels';
+import { GovernanceRow, MigrationPanel, ConsolidationUndoCard } from './MemoryCommandCenterGovernancePanels';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
@@ -111,7 +112,7 @@ export const ActSection = ({
   onRollbackImport,
   onOpenMigrationWizard,
   consolidationSummary,
-  onConsolidationRollback,
+  onConsolidationUndo,
 }: {
   snapshot: MemoryCommandCenterResponse;
   t: MemoryTranslation;
@@ -120,8 +121,8 @@ export const ActSection = ({
   onDoctorAction: (action: DoctorExecutableAction) => void;
   onRollbackImport: (importBatchId: string) => void;
   onOpenMigrationWizard: (source: string) => void;
-  consolidationSummary?: ConsolidationLastSummary | null;
-  onConsolidationRollback?: () => void;
+  consolidationSummary?: ConsolidationUndoSummary | null;
+  onConsolidationUndo?: (cycleId: string) => void;
 }) => (
   <div className="space-y-4">
     <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
@@ -143,13 +144,13 @@ export const ActSection = ({
             <EmptyState label={t('commandCenter.governanceEmpty')} />
           )}
         </Panel>
-        {consolidationSummary?.available && (
-          <Panel title={t('commandCenter.consolidationRollbackTitle')}>
-            <ConsolidationRollbackCard
+        {consolidationSummary && (
+          <Panel title={t('commandCenter.consolidationUndoTitle')}>
+            <ConsolidationUndoCard
               summary={consolidationSummary}
               t={t}
-              loading={actionId === 'consolidation:rollback'}
-              onRollback={onConsolidationRollback}
+              loading={actionId === 'consolidation:undo'}
+              onUndo={() => onConsolidationUndo?.(consolidationSummary.cycle_id)}
             />
           </Panel>
         )}

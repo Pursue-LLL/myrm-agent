@@ -56,7 +56,7 @@
 | `MemoryCommandCenterPanels.tsx`         | 组件 | 主内容区观察/治理/验证分区面板编排（含 migration 最近导入 batch 的执行就绪/首轮 outcome 展示与迁移入口编排）                                                               | ✅    |
 | `MemoryCommandCenterUnderstandSection.tsx` | 组件 | 「理解」分区面板：记忆能力卡片挂载与影响/冲突展示 | ✅    |
 | `MemoryCommandCenterObservationPanels.tsx` | 组件 | 只读观测子面板：影响行、实时事件流、运行时状态、成本与回放 | ✅    |
-| `MemoryCommandCenterGovernancePanels.tsx` | 组件 | 治理子面板：治理动作行、迁移覆盖与来源清单（manifest chips 深链导入向导）、整合回滚卡片 | ✅    |
+| `MemoryCommandCenterGovernancePanels.tsx` | 组件 | 治理子面板：治理动作行、迁移覆盖与来源清单（manifest chips 深链导入向导）、自动整理撤销卡片 | ✅    |
 | `MemoryCommandCenterPrimitives.tsx`     | 组件 | 分区面板共用原子组件：版块、指标块、运行时行、空态 | ✅    |
 | `memoryCommandCenterFormat.ts`          | 组件 | 分区面板共用枚举守卫与文案格式化 | ✅    |
 

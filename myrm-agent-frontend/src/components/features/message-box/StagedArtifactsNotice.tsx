@@ -8,7 +8,7 @@
  * StagedArtifactsNotice: Notification banner for automatically staged unwritten deliverables.
  *
  * [POS]
- * Renders in MessageBox when the assistant generated code/documents but omitted persisting them,
+ * Renders in AssistantMessage when the assistant generated code/documents but omitted persisting them,
  * providing immediate transparency that the files were safely preserved in the sandbox.
  */
 
@@ -71,9 +71,7 @@ export function StagedArtifactsNotice({ stagedArtifacts }: StagedArtifactsNotice
               </div>
             </div>
           ))}
-          <div className="text-[10px] text-muted-foreground/80 pt-1">
-            {t('footnote')}
-          </div>
+          <div className="text-[10px] text-muted-foreground/80 pt-1">{t('footnote')}</div>
         </div>
       )}
     </div>

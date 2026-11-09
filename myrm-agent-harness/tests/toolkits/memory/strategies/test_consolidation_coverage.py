@@ -126,7 +126,7 @@ async def test_consolidations_own_output_never_re_enters_the_window(new_manager:
 
     stats = await run_consolidation(manager, llm_returning(response), ConsolidationConfig())
 
-    # The run wrote a merged memory, an insight and an audit event; the user's memories, including the
+    # The run wrote a merged memory and an insight; the user's memories, including the
     # correction a user made, are all that is left to analyze.
     assert stats.merged == 1
     window = await fetch_candidate_window(manager, None, 100, datetime.now(UTC))

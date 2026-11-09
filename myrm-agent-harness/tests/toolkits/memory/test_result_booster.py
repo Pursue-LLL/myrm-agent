@@ -20,7 +20,7 @@ def retrieval_config():
         enable_keyword_boost=True,
         keyword_boost_weight=0.30,
         enable_temporal_boost=True,
-        temporal_boost_max_weight=0.40,
+        temporal_boost_weight=0.40,
         enable_person_name_boost=True,
         person_name_boost_weight=0.20,
         enable_quoted_phrase_boost=True,

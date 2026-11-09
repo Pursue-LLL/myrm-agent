@@ -27,7 +27,7 @@ See [../../toolkits/tasks/TASK_QUEUE_SYSTEM.md](../../toolkits/tasks/TASK_QUEUE_
 
 | Task Type | Description | Handler Location |
 |-----------|-------------|-----------------|
-| cognitive_consolidation | Merge and consolidate memory fragments | Built-in (idle_tasks.py) |
+| cognitive_consolidation | Run one forced memory maintenance cycle (consolidation, forgetting, staleness review, health check) that yields to foreground activity; an interrupted cycle is requeued | Built-in (idle_tasks.py) |
 | cognitive_subsumption | Erase redundant memories when a Skill is learned | Built-in (idle_tasks.py) |
 | context_compaction | Compress idle session context via the business-layer handler registered with `register_context_compaction_handler` | Built-in (idle_tasks.py) |
 

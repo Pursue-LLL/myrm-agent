@@ -113,7 +113,6 @@ class TestMemoryConfigDefaults:
         """Test all default configuration values."""
         config = MemoryConfig(embedding_model="test-model")
         assert config.collection_prefix == "memory"
-        assert config.default_search_limit == 10
         assert config.similarity_threshold == 0.5
         assert config.forgetting_interval == 10
         assert config.bm25_top_k == 50

@@ -22,7 +22,7 @@ dependencies = [
   "httpx[socks]>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；socks extra 供 Telegram socks5 代理；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   "watchdog>=6.0.0", # Workspace vault file change detection (file_watch_service.py)
   # --- Agent 框架 (langchain/langchain-core via harness; server 不重复 pin) ---
-  "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,computer-use]",
+  "myrm-agent-harness[acp,bedrock,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,computer-use]",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.3",           # Matrix channel + alert notifier HTTP client
   # --- 图片处理 ---

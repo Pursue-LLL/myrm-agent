@@ -2,7 +2,7 @@
 
 ## Overview
 
-Unit tests for `scripts/` maintenance tooling (tool registry engine/models/config/validator, turn1 token inventory, file line-limit gate, module-reachability and import-resolvability gates). Architecture gate tests for the same scripts live under `tests/architecture/`.
+Unit tests for `scripts/` maintenance tooling (tool registry engine/models/config/validator, turn1 token inventory, file line-limit gate, module-reachability, import-resolvability and fractal-docs `[INPUT]` reference gates). Architecture gate tests for the same scripts live under `tests/architecture/`.
 
 ## File Index
 
@@ -26,6 +26,7 @@ Unit tests for `scripts/` maintenance tooling (tool registry engine/models/confi
 | `test_sync_model_catalog.py` | Unit | `scripts/sync_model_catalog.py` trim rules (price tiers kept as range plus rates, whole-float windows stored as ints), union merge (upstream entry wins whole, dropped models stay, lost window/price reported not patched), the per-provider count of chat entries with a price but no token rate, refusal guard and first sync |
 | `test_import_resolvability_engine.py` | Unit | `scripts/import_resolvability_engine.py` on synthetic packages (module existence, relative imports, lazy / `try` / `TYPE_CHECKING` imports, import-time name binding, `__all__`, star re-exports and cycles, dynamic namespaces, unparsable files, cross-root scan scope, ordering, bytecode dirs) |
 | `test_check_import_resolvability.py` | Unit | `scripts/check_import_resolvability.py` CLI (exit codes 0/1/2, `--json`, `--package` / `--scan` validation and server-tree scan, `--incremental` scope and `harness_sources_changed`) |
+| `test_fractal_input_refs.py` | Unit | `scripts/fractal_input_refs.py` on synthetic packages (exact, abbreviated and package-prefixed references resolve; dangling ones are reported with file and line; leading dots do not change what a reference names; a first segment outside the package, stdlib modules and the shadowed third-party roots `acp` / `mcp` are not checked; the `[INPUT]` block ends at `[OUTPUT]` / `[POS]` / closing quotes and must open within the header lines; only reference-shaped lines are read; pruned directories are skipped; findings come in path-then-line order) and the `scripts/check_fractal_docs.py` CLI wiring (exit bit 8, exit codes add up, clean tree exits 0) |
 
 ## Key Dependencies
 

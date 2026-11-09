@@ -144,7 +144,9 @@ class TestConflictResolutionBranches:
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.5)]
         stats = await execute_operations(ops, manager, on_conflict=callback)
         assert stats.corrected == 1
-        manager.update_memory.assert_called_once_with("mem-1", importance=0.01, allow_protected=False)
+        manager.update_memory.assert_called_once_with(
+            "mem-1", importance=0.01, confidence=None, content=None, metadata=None, allow_protected=False
+        )
         manager.correct_memory.assert_not_called()
 
 
@@ -272,7 +274,9 @@ class TestNonSemanticMemoryCorrection:
         stats = await execute_operations(ops, manager, on_conflict=None)
         assert stats.updated == 1
         assert stats.corrected == 0
-        manager.update_memory.assert_called_once_with("mem-1", content="updated rule", allow_protected=False)
+        manager.update_memory.assert_called_once_with(
+            "mem-1", importance=None, confidence=None, content="updated rule", metadata=None, allow_protected=False
+        )
         manager.correct_memory.assert_not_called()
 
 

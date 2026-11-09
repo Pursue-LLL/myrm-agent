@@ -9,6 +9,7 @@
 - strategies.consolidation_models::* (POS: Domain models, DTOs, and protocol callback types for cross-session memory consolidation)
 - strategies.consolidation_prompts::* (POS: Prompts and payload compression helpers for memory consolidation)
 - strategies.consolidation_ops_executor::* (POS: Executes operations against memory primitives with transactional care, conflict routing, and deterministic three-state merge arbitration)
+- strategies.consolidation_undo::save_undo (POS: Exact undo of the latest consolidation cycle)
 - strategies.consolidation_window::fetch_candidate_window (POS: Oldest-first window of memories a consolidation run has not covered yet)
 - strategies.named_entity_guard::NamedEntityGuard (POS: 确定性命名实体与关键技术标识符守卫)
 
@@ -52,13 +53,13 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_ops_executor import (
     execute_operations,
     filter_and_guard_operations,
-    record_consolidation_event,
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import (
     _SYSTEM_PROMPT,
     _build_id_map,
     _build_user_prompt,
 )
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import save_undo
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
 from myrm_agent_harness.toolkits.memory.types import ClaimMemory, ProceduralMemory
 
@@ -212,7 +213,7 @@ async def run_consolidation(
     stats.insights = tuple(parsed.insights)
     stats.guard_patched = guard_patched_count
 
-    await record_consolidation_event(manager, stats)
+    await save_undo(manager, stats)
     if parsed.insights:
         await _persist_insights(manager, parsed.insights)
 
@@ -307,7 +308,6 @@ __all__ = [
     "execute_operations",
     "filter_and_guard_operations",
     "get_last_consolidated_at",
-    "record_consolidation_event",
     "run_consolidation",
     "should_consolidate",
 ]

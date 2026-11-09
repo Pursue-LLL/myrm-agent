@@ -5,9 +5,11 @@
  *
  * [OUTPUT]
  * MemoryCommandCenterPanels migration entry tests: manifest 驱动的导入入口渲染与动作回调守卫。
+ * MemoryCommandCenterPanels consolidation undo card tests: 自动整理撤销卡片的计数、冲突提示与按钮状态。
  *
  * [POS]
- * 记忆中心迁移面板 UI 回归测试。验证导入入口常显、manifest chips 深链到对应导入源，覆盖状态与计数如实展示。
+ * 记忆中心迁移面板 UI 回归测试。验证导入入口常显、manifest chips 深链到对应导入源，覆盖状态与计数如实展示；
+ * 自动整理撤销卡片按用户所见的那一次整理撤销，整理后被改动的记忆如实计数，全部被改动时不再提供撤销。
  */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -18,6 +20,7 @@ import type {
   MemoryCommandMigrationProvenance,
   MemoryCommandMigrationSourceManifestItem,
 } from '@/services/memory/commandCenter';
+import type { ConsolidationUndoSummary } from '@/services/memory/consolidationUndo';
 import { ActSection, VerifySection } from '../command-center/MemoryCommandCenterPanels';
 type ActSectionProps = Parameters<typeof ActSection>[0];
 type VerifySectionProps = Parameters<typeof VerifySection>[0];
@@ -116,6 +119,82 @@ describe('MemoryCommandCenterPanels migration entry', () => {
     expect(screen.getByText('commandCenter.coverageStatus.partial')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'OpenClaw' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Claude Code' })).toBeNull();
+  });
+});
+
+const UNDO_SUMMARY: ConsolidationUndoSummary = {
+  cycle_id: 'cycle-1',
+  recorded_at: '2026-11-09T08:30:00Z',
+  merged: 2,
+  corrected: 1,
+  updated: 3,
+  change_count: 9,
+  conflict_count: 0,
+};
+
+/** Echoes the interpolation values, so a count shown on the card can be asserted. */
+const tWithValues = ((key: string, values?: Record<string, number>) =>
+  values ? `${key}:${JSON.stringify(values)}` : key) as ActSectionProps['t'];
+
+const renderUndoCard = (
+  summary: ConsolidationUndoSummary | null,
+  { onUndo = vi.fn(), actionId = null }: { onUndo?: (cycleId: string) => void; actionId?: string | null } = {},
+) =>
+  render(
+    <ActSection
+      snapshot={makeSnapshot()}
+      t={tWithValues}
+      actionId={actionId}
+      onAction={() => {}}
+      onDoctorAction={() => {}}
+      onRollbackImport={() => {}}
+      onOpenMigrationWizard={() => {}}
+      consolidationSummary={summary}
+      onConsolidationUndo={onUndo}
+    />,
+  );
+
+describe('MemoryCommandCenterPanels consolidation undo card', () => {
+  it('undoes the cycle it describes and shows what that cycle did', async () => {
+    const user = userEvent.setup();
+    const onUndo = vi.fn();
+    renderUndoCard(UNDO_SUMMARY, { onUndo });
+
+    expect(
+      screen.getByText('commandCenter.consolidationBreakdown:{"merged":2,"corrected":1,"updated":3}'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('commandCenter.consolidationAffected:{"count":9}')).toBeInTheDocument();
+    expect(screen.queryByText(/commandCenter\.consolidationConflict/)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'commandCenter.consolidationUndoBtn' }));
+
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(onUndo).toHaveBeenCalledWith('cycle-1');
+  });
+
+  it('counts the memories changed since and still offers the undo for the rest', () => {
+    renderUndoCard({ ...UNDO_SUMMARY, conflict_count: 4 });
+
+    expect(screen.getByText('commandCenter.consolidationConflict:{"count":4}')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'commandCenter.consolidationUndoBtn' })).toBeEnabled();
+  });
+
+  it('offers no undo once every memory of the cycle was changed since', () => {
+    renderUndoCard({ ...UNDO_SUMMARY, conflict_count: UNDO_SUMMARY.change_count });
+
+    expect(screen.getByRole('button', { name: 'commandCenter.consolidationUndoUnavailable' })).toBeDisabled();
+  });
+
+  it('blocks a second click while the undo runs', () => {
+    renderUndoCard(UNDO_SUMMARY, { actionId: 'consolidation:undo' });
+
+    expect(screen.getByRole('button', { name: 'commandCenter.consolidationUndoing' })).toBeDisabled();
+  });
+
+  it('shows no card when no cycle can be undone', () => {
+    renderUndoCard(null);
+
+    expect(screen.queryByText('commandCenter.consolidationUndoTitle')).toBeNull();
   });
 });
 

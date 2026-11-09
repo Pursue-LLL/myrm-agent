@@ -17,7 +17,7 @@
 | `memory_graph.py` | 模块 | 记忆知识图谱 API：`GET /command-center/graph` 返回 Claim/Evidence 图的节点、边与按度数/冲突排序的核心主张（支持 namespace 过滤、时间点快照、是否含已取代关系）。对所有用户挂载，成长页（`/journey`）的知识图谱标签页读取它；路径前缀为 `/command-center`，不受 `MYRM_MEMORY_LABS` 控制。 | ✅ |
 | `evidence_playback.py` | 模块 | 记忆证据溯源 API：`GET /command-center/evidence/playback` 返回证据徽标对应的脱敏会话切片或归档快照。对所有用户挂载，记忆卡片的证据抽屉读取它；路径前缀为 `/command-center`，不受 `MYRM_MEMORY_LABS` 控制。 | ✅ |
 | `command_center_actions.py` | 模块 | 记忆指挥中心动作执行实现层。处理 GUI 治理动作（审批、拒绝、修正、Pin/Unpin、遗忘）；待审批记忆的批准/拒绝经审批队列统一审批入口（`services/memory/operations/pending_review.py`），编辑在审阅弹窗的 `edited_content` 完成。纪律默认一键恢复 `restore_disciplined_defaults` 归 Memory Doctor 修复执行器，不在本动作域。 | ✅ |
-| `command_center_consolidation.py` | 模块 | 记忆合并回滚 API 操作层。将 Harness 层的 consolidation_rollback 逻辑暴露给设置页 UI。 | ✅ |
+| `command_center_consolidation.py` | 模块 | 记忆自动整理撤销 API 操作层。`GET /command-center/consolidation/undo` 返回可撤销的最近一次整理（做了什么、其后有几条被用户改动；没有时 `summary` 为 null，对象包裹是因为前端把裸 null 响应体当错误）；`POST` 带 `cycle_id` 撤销用户所见的那一次，该次已被撤销或被更新的整理取代时返回 409。恢复语义由 Harness 的 `consolidation_undo` 负责。 | ✅ |
 | `command_center_diagnostics.py` | 模块 | 记忆指挥中心诊断与修复 API 操作层。包含 Memory Doctor 历史基准趋势与结构化白名单修复。 | ✅ |
 | `crud.py` | 模块 | Memory CRUD HTTP routes — thin transport layer. 导入回滚预演 `POST /import/rollback/dry-run` 由 `import_rollback_preview.py` 提供，其余导入/回滚路由（含实际回滚 `POST /import/rollback`）和归档导出 `/archive/export` 在这里。 | ✅ |
 | `import_rollback_preview.py` | 模块 | 导入回滚预演 API：`POST /import/rollback/dry-run` 返回回滚一个已确认导入批次会撤销的内容安全预览。只有 Memory Labs 命令中心的导入回滚弹窗调用，仅在 `MYRM_MEMORY_LABS=1` 时挂载；实际回滚 `POST /import/rollback` 不依赖预演，由 `crud.py` 提供并对所有用户挂载。 | ✅ |

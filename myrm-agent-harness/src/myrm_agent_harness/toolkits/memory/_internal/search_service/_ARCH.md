@@ -11,7 +11,7 @@
 | `__init__.py` | 门面 | 导出 `MemorySearchService` | ✅ |
 | `base.py` | 基础 | 实例状态、`FTS5SearcherFunc` 与跨阶段方法声明 | ✅ |
 | `helpers.py` | 辅助 | 时间窗 metadata、告警码、后台任务失败日志与耗时格式化 | ✅ |
-| `collection.py` | 核心 | 按类型扇出检索、并发收集、失败降级与结果过滤 | ✅ |
+| `collection.py` | 核心 | 按类型扇出检索、并发收集、失败降级与结果过滤；精确标识符流只在调用方命名空间内检索，索引命中仅用于定位，随后由向量库里的存量记忆整体替换（已不存在的索引行丢弃） | ✅ |
 | `ranking.py` | 核心 | RRF 排序与 raw exchange 裁剪 | ✅ |
 | `orchestrator.py` | 核心 | 对外 `search()`、deadline 预算、图增强与 trace | ✅ |
 

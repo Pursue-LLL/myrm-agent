@@ -11,7 +11,7 @@
  * - data-testid: `kanban-task-created-card-{task_id}` / `kanban-task-created-open-board-{task_id}`（Chrome E2E 钩子，非用户文案）
  *
  * [POS]
- * Chat 消息流中的 Kanban 任务创建反馈 UI；由 MessageBox 在 metadata.kanban_tasks_created 存在时渲染。
+ * Chat 消息流中的 Kanban 任务创建反馈 UI；由 AssistantRunOutputs 在 metadata.kanban_tasks_created 存在时渲染。
  */
 
 import { memo } from 'react';

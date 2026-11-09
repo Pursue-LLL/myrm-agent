@@ -683,10 +683,10 @@ retention = 0.35 × time_score + 0.25 × access_score + 0.15 × importance_score
 
 保护规则（优先级从高到低）：
 
-- 用户保护记忆（`BaseMemory.is_user_protected` = `pinned or is_user_locked`）：
-  - 遗忘策略：`should_forget=False`，reason="Protected: user-pinned or user-locked"
-  - Agent 工具删除（`memory_manage` / MCP `memory_manage`）：`allow_protected=False` 时拒绝删除，返回明确拒绝消息（防 prompt injection）
-  - Agent 工具改写（`memory_manage(action=update|correct)` / MCP 同名动作）：`allow_protected=False` 时拒绝改写正文，提示先请用户解锁（`agent_surface/rule_write_boundary.py`）；WebUI 编辑路径不受限，用户始终可改自己的数据
+- 用户保护记忆（`BaseMemory.is_user_protected` = `pinned or is_user_locked or is_exact_fact`）：
+  - 遗忘策略：`should_forget=False`，reason="Protected: user-pinned or user-locked"（精确事实走同一分支）
+  - Agent 工具删除（`memory_manage` / MCP `memory_manage`）：`allow_protected=False` 时拒绝删除用户置顶的记忆与锁定的规则，返回明确拒绝消息（防 prompt injection）；`is_exact_fact` 是分类器盖的章，不拦截删除
+  - Agent 工具改写（`memory_manage(action=update|correct)` / MCP 同名动作）：只有显式 `pinned` / `is_user_locked` 才被当作用户的决定，此时 `allow_protected=False` 拒绝改写正文，提示先请用户解锁（`agent_surface/rule_write_boundary.py`）；`is_exact_fact` 是分类器盖的章，不拦截 agent 的改写与纠正（见十九）；WebUI 编辑路径不受限，用户始终可改自己的数据
   - 自动写入（蒸馏合并/纠正/去重/替代、归纳 subsumption）：统一传 `allow_protected=False`，`MemoryProtectedError` 被捕获后跳过该条并记录 INFO 日志，不中断整批
   - 规则 TTL 归档：`is_user_locked` 规则跳过
   - WebUI 删除、导入回滚、归档回滚等用户主导路径：`allow_protected=True`（默认），可正常操作
@@ -727,18 +727,18 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 
 **模型来源**：整理、陈旧复审与复发检测共用同一个 consolidation LLM。工厂 `create_local_memory_manager` 以显式传入的 `consolidation_llm` 为准，未传入时回落到 `dedup_llm`；两者都缺省时整理与陈旧复审不运行，复发检测退化为取最近一条对话片段作为合并结果。
 
-### 7.2.2 跨会话认知整理与确定性命名实体守卫 (`strategies/consolidation.py`, `consolidation_models.py`, `consolidation_prompts.py`, `consolidation_ops_executor.py`, `consolidation_window.py`, `bookkeeping.py`, `named_entity_guard.py`)
+### 7.2.2 跨会话认知整理与确定性命名实体守卫 (`strategies/consolidation.py`, `consolidation_models.py`, `consolidation_prompts.py`, `consolidation_ops_executor.py`, `consolidation_window.py`, `consolidation_undo.py`, `bookkeeping.py`, `named_entity_guard.py`)
 
-跨会话记忆整理（Memory Consolidation）在空闲时段对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、候选窗口层（`consolidation_window`）、原子执行与审计层（`consolidation_ops_executor`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成；水位线等维护行由记账层（`bookkeeping`）读写。
+跨会话记忆整理（Memory Consolidation）在空闲时段对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、候选窗口层（`consolidation_window`）、原子执行层（`consolidation_ops_executor`）、撤销层（`consolidation_undo`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成；水位线等维护行由记账层（`bookkeeping`）读写。
 
 **核心机制与安全边界**：
 - **确定性命名实体守卫 (`NamedEntityGuard`)**：零 I/O 确定性检测器，自动提取源码记忆中的 5 类关键技术实体（`PORT` 端口、`IP_ADDRESS` IP、`URL_DSN` 数据库/API 链接、`ENV_VAR` 环境变量名、`FILE_PATH` 文件与系统路径）。在 LLM 提议 `merge`、`correct` 或 `update_content` 操作时，强制要求新文本完整保留所有关键实体；若关键实体发生篡改或丢失，直接拒绝该候选操作，杜绝模型摘要压缩产生的幻觉。
 - **Class-First Rubric 评分与短 ID 映射**：在系统提示词与执行前置过滤中固化准确性、防碎片化、冗余度三维标准，以短 ID 压缩减少 Token 开销并捍卫 Prompt Cache 静态前缀。
 - **一次整理对每条记忆只动一次**：模型对每条操作都是按「读到时的原样」规划的，所以前置过滤在通过评分与实体守卫后，只保留模型最先提出的那一条涉及某条记忆的操作（合并的各个来源、纠错与改写的目标都算「涉及」，短 ID 与完整 ID 视为同一条）；后到的、与已保留操作共用任何一条记忆的操作整条丢弃并记一行 INFO 日志，被评分或守卫拒绝的操作不占用记忆，被丢弃的操作也不计入 `guard_patched`。
 - **跨子阶段毫秒级协作避让 (`check_cooperative_yield`)**：在 `maintenance_service.py` 编排的 8 个维护子阶段（合并、BLOB GC、遗忘、摘要蒸发、因果图编译、陈旧审查、偏好重建、健康体检）入口处注入协作让出检查。当高优先级交互触发 `CooperativePauseSignal` 时，维护任务在毫秒内优雅退出并安全释放锁，保留已执行阶段的指标于 `MaintenanceReport.interrupted_by_pause`，确保前台交互零延迟。
-- **覆盖水位线与候选窗口**：`_system.last_consolidated_at` 是「已覆盖到哪里」的水位线，记在记账行里（`bookkeeping.py`：按管理器的归属命名空间分行，不经画像治理，确认模式下不进待审队列、不向聊天上下文追加增量）。水位线走记忆到达存储的顺序，而不是业务时间 `created_at`：存储层在每条语义、情节记忆写入向量库时盖一个到达戳 `stored_at`（`_internal/store_stamp.py`，落为文档 payload 的 `stored_ts`），取自进程内严格递增的微秒时钟，调用方自带的值一律被覆盖，经模型重写的 `update_memory` 沿用原戳。晚到的审批（保留提案时的 `created_at`）、带历史时间戳的导入、纠错写入，以及批量写入里创建时间完全相同的多条记忆，因此都按真正入库的先后被读到，窗口的截断处也不会再并列。每次整理只分析水位线之后最早的 `max_memories` 条记忆（`consolidation_window.py`）：语义与情节向量源按到达戳升序读取，水位线与本次的水位上界都下推到存储层（`stored_ts` 是 FLOAT payload 索引，由服务端预热统一建立）；规则不进窗口（规则靠 `trigger` / `action` 生效，整理改写的 `content` 影响不到它们，因此规则既不被分析、也不写到达戳）；合并后的候选池不会被截断劈开同一到达时刻（截断点后移到上一个时刻，整批同一时刻则整批入窗）。水位线只推进到该窗口实际覆盖的位置，大于一批的积压在连续几次整理中按到达顺序依次消化。早于到达戳存在的存量文档，在读取前由 `VectorStore.backfill_payload_copy` 按集合惰性补上由创建时间推得的到达戳（幂等；补写失败按该来源不可读处理，水位线停住；不能原位改写 payload 的后端保持默认的什么都不做）。存量文档补上的到达戳就是创建时间：创建时间完全相同的一组存量文档，若被某个来源的截断落在中间（每个来源只比窗口多读一条），该组其后的几条不会再被读到；新写入的记忆在进程内戳互不相同，不受影响。窗口不越过任何一个被截断的源已读到的位置（该位置取自读到的文档，而不是解码成功的记忆），否则另一个源里更晚的记忆会被分析、而该源没展示的更早记忆被永久跳过；整理自己的产物（审计事件、洞察、合并结果）不进入窗口。任一来源读取失败时其余来源照常分析，但水位线不动，读不到的记忆留给下一次；集合不存在（从未写入）按空处理。向量源按文档逐条解码：无法解码的文档被跳过，日志只记文档 ID 与异常类型、不记内容，也不会遮住同一来源的其余记忆；只有某个来源的整批非空文档一条都解不出来时，才按该来源不可读处理，水位线停住，其他来源的记忆随后续窗口再次入窗，直到该来源最早的一批未覆盖文档里解出至少一条。积压消化期间水位线落后于当前时间，24 小时门槛与 1 小时软锁据此更早放行下一批。
+- **覆盖水位线与候选窗口**：`_system.last_consolidated_at` 是「已覆盖到哪里」的水位线，记在记账行里（`bookkeeping.py`：按管理器的归属命名空间分行，不经画像治理，确认模式下不进待审队列、不向聊天上下文追加增量）。水位线走记忆到达存储的顺序，而不是业务时间 `created_at`：存储层在每条语义、情节记忆写入向量库时盖一个到达戳 `stored_at`（`_internal/store_stamp.py`，落为文档 payload 的 `stored_ts`），取自进程内严格递增的微秒时钟，调用方自带的值一律被覆盖，经模型重写的 `update_memory` 沿用原戳。晚到的审批（保留提案时的 `created_at`）、带历史时间戳的导入、纠错写入，以及批量写入里创建时间完全相同的多条记忆，因此都按真正入库的先后被读到，窗口的截断处也不会再并列。每次整理只分析水位线之后最早的 `max_memories` 条记忆（`consolidation_window.py`）：语义与情节向量源按到达戳升序读取，水位线与本次的水位上界都下推到存储层（`stored_ts` 是 FLOAT payload 索引，由服务端预热统一建立）；规则不进窗口（规则靠 `trigger` / `action` 生效，整理改写的 `content` 影响不到它们，因此规则既不被分析、也不写到达戳）；合并后的候选池不会被截断劈开同一到达时刻（截断点后移到上一个时刻，整批同一时刻则整批入窗）。水位线只推进到该窗口实际覆盖的位置，大于一批的积压在连续几次整理中按到达顺序依次消化。早于到达戳存在的存量文档，在读取前由 `VectorStore.backfill_payload_copy` 按集合惰性补上由创建时间推得的到达戳（幂等；补写失败按该来源不可读处理，水位线停住；不能原位改写 payload 的后端保持默认的什么都不做）。存量文档补上的到达戳就是创建时间：创建时间完全相同的一组存量文档，若被某个来源的截断落在中间（每个来源只比窗口多读一条），该组其后的几条不会再被读到；新写入的记忆在进程内戳互不相同，不受影响。窗口不越过任何一个被截断的源已读到的位置（该位置取自读到的文档，而不是解码成功的记忆），否则另一个源里更晚的记忆会被分析、而该源没展示的更早记忆被永久跳过；整理自己的产物（洞察、合并结果）不进入窗口。任一来源读取失败时其余来源照常分析，但水位线不动，读不到的记忆留给下一次；集合不存在（从未写入）按空处理。向量源按文档逐条解码：无法解码的文档被跳过，日志只记文档 ID 与异常类型、不记内容，也不会遮住同一来源的其余记忆；只有某个来源的整批非空文档一条都解不出来时，才按该来源不可读处理，水位线停住，其他来源的记忆随后续窗口再次入窗，直到该来源最早的一批未覆盖文档里解出至少一条。积压消化期间水位线落后于当前时间，24 小时门槛与 1 小时软锁据此更早放行下一批。
 - **批次熔断与水位线脏推进保护**：原子操作执行器跟踪连续存储异常，当连续遭遇 3 次底层异常时自动熔断并中止当前批次。主编排门面在批次被熔断、全量操作失败或模型调用失败时不推进水位线，保障未完成项在后续周期可被重新抓取；模型返回的任一操作带有越界取值（如 `update_content` 的 `importance` 超出 0–1，即存量记忆校验所用的区间）时整份响应校验失败，按模型调用失败处理。读取侧同样设防：`get_last_consolidated_at` 丢弃无法解析、无时区或晚于当前时间的存量值并记 WARNING（视同从未整理，下一次从最早的记忆重新分析），外部写入的异常值不会让时间门槛与软锁抛错或长期停摆；窗口推进的目标不会超过本次整理的水位上界 `settled_through()`——所有早于它盖章的写入都已落盘的最晚时刻，仍在落盘的写入会把它压在自己的戳之下——因此水位线不会越过尚不可见的写入；它取自戳钟，墙钟回拨后戳钟会领先墙钟，此时写下的水位线可能晚于当前时间，读取侧同样把它当作异常值丢弃并记 WARNING，直到墙钟追上；到达戳按进程盖章，其他进程里的写入方不在这道保护之内。
-- **单机沙箱确定性审计与回滚通道**：巩固周期生成的 `EpisodicMemory` 审计日志由存储管理器统一路由持久化，单机 SQLite 模式与混合向量存储模式均可完整记录 `[affected_ids:...]` 拓扑关系，保障 `consolidation_rollback.py` 可精准反转最近周期的记忆变更。
+- **整理周期的精确撤销**：整理对已有记忆的合并、纠错与改写，以及由此新建的记忆，都经写入网关 `CycleWrites`（`consolidation_undo.py`）落盘：网关在第一次写某条记忆之前记下它可恢复的字段（重要度、置信度、状态、元数据键名、文本是否被改写），并记下本周期新建的记忆 id；被改写的记忆把上一版文本留在自己的元数据（`previous_content`），所以日志只存数字与名字，已删除的记忆不会在日志里留下文本。日志存在一条记账行（`_system.last_consolidation_undo`，随用户的记忆一并清除），只有改动了记忆的周期才写入，空转的周期不会顶掉上一次可撤销的整理。只能撤销最近一次、只能撤销一次，且调用方须带上用户所见的 `cycle_id`，该次已被撤销或已被更新的整理取代时返回「不可撤销」（`None`）。撤销时删除新建的记忆、恢复被改动的记忆；整理之后被用户改过或删掉的记忆保持原样，用户之后置顶的新建记忆也不删，二者计入 `skipped_conflict`；单条失败计入 `errors` 并记 WARNING，不中断其余条目；无论结果如何，日志槽位都会被消耗。整理产出的洞察不在撤销范围内。
 - **全生命周期完成回调**：主编排门面确保在所有退出路径（包含 0 操作早退与正常完成）均触发 `on_complete` 回调并回传 `ConsolidationStats`，为前端状态通知与 WebSocket 管道提供可靠的生命周期事件流。
 - **受保护条目豁免**：自动化合并与纠错传递 `allow_protected=False`，用户主动锁定的关键记忆永不被覆写或合并。
 
@@ -991,12 +991,12 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 
 ### 反馈纠正
 
-`correct` action 实现"纠正不是删除，是用更强的真相覆盖错误"：
+`correct` action 实现"纠正不是删除，是用更强的真相覆盖错误"。纠正先走与普通写入相同的写入管线（安全扫描、瞬时事实闸门、精确事实硬锁），被接收之后才降权旧记忆，所以被拒绝的纠正不会改变任何记忆：
 
 ```
 Agent: memory_manage_tool(action="correct", memory_id="abc", new_content="正确的事实")
-  → 旧记忆 "abc": importance ×0.3, confidence → 0.1, metadata["corrected"]=True
-  → 新记忆 "xyz": confidence=0.95, correction_of="abc"（纠正链）
+  → 新记忆 "xyz": confidence=0.95, importance=min(旧+0.2, 1.0), correction_of="abc"（纠正链）；写入被拒绝则到此为止，旧记忆原样保留
+  → 旧记忆 "abc": importance ×0.3（下限 0.05）, confidence → 0.1, metadata["corrected"]=True；精确事实标记与索引行一并清除，被取代的事实不再与它的纠正争抢精确置顶
   → 检索时抑制: importance降权 × confidence降权 × correction_penalty(0.1)
 ```
 
@@ -1112,10 +1112,11 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 - **关系倒排索引与全文虚表存储（`_exact_fact_store` & `SQLiteRelationalStore`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.relational._exact_fact_store` 与 `sqlite_store`；
   - 双轨物理持久化：建立 `exact_fact_identifiers` 物理倒排索引表加速符号级精准点查，同步维护 `exact_facts_fts` FTS5 全文检索虚表；
-  - 生命周期级联联动：在记忆新增、批量写入、属性变更以及删除时，与向量底库自动协同级联更新与清理，杜绝孤儿索引。
+  - 生命周期联动：只登记语义记忆，在记忆新增、批量写入、改写与删除时与向量底库协同更新与清理；改写正文后，标识符按存储的最终正文重新提取并同步索引，索引同步失败只告警、不影响记忆本身的写入；
+  - 查询侧：精确标识符流在 SQL 里按调用方的 `primary_namespace` 限定可见范围（与向量检索同一谓词），同一记忆命中多个标识符时以最长命中者排序（`10.1.1.29:8029` 先于共享前缀 `10.1.1`）；索引只负责定位候选，命中项由向量库里的存量记忆整体替换（状态、作用域与时间戳以向量库为准，一次批量读取），向量库里已不存在的索引行直接丢弃，不会返回孤儿命中。
 - **检索硬置顶加权与全生命周期免遗忘免疫**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.retriever` 与 `types`；
-  - `BaseMemory` 包含强类型标识 `is_exact_fact: bool` 与 `exact_identifiers: list[str]`，并自动计入 `is_user_protected` 豁免保护，完全免疫遗忘衰减与蒸馏淘汰；
+  - `BaseMemory` 包含强类型标识 `is_exact_fact: bool` 与 `exact_identifiers: list[str]`，并自动计入 `is_user_protected` 豁免保护，完全免疫遗忘衰减与蒸馏淘汰（agent 的删除、改写、纠正只被显式 pin / lock 拦截，精确事实标记不拦截）；标识符在安全扫描与瞬时事实闸门之后、按最终入库正文盖章，两个字段只随语义记忆落盘并登记索引，情景与程序性记忆的盖章只存在于写入过程中；
   - 检索重排中当查询命中所包含的高熵精确标识符或原样子串时，赋予确定性硬置顶加权（`+5.0` 增益），确保精确事实绝对置顶于模糊语义召回。
 - **全链路展示与交互认知一致性**：
   - Server 端接口契约 `MemoryItem` 与变更请求模型支持 `is_exact_fact` 属性透传；

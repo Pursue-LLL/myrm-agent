@@ -23,7 +23,7 @@ repos:
         language: system
         pass_filenames: false
         files: ^myrm-agent-harness/
-        description: "Ensure every Python module directory under src/myrm_agent_harness has _ARCH.md"
+        description: "Ensure every Python module directory under src/myrm_agent_harness has _ARCH.md and every [INPUT] header reference names a module that exists"
 
       - id: harness-arch-inventory-check
         name: Harness _ARCH File Inventory

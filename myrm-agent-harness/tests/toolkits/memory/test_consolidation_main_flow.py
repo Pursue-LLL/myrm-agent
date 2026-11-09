@@ -2,7 +2,7 @@
 
 Covers:
 - soft-lock, insufficient memories, LLM failure and out-of-range answers
-- no-ops and full success (rubric filter, insights, completion hook)
+- no-ops and full success (rubric filter, insights, undo journal, completion hook)
 - circuit breaker and total failure leaving the stamp unmoved
 - the named-entity guard around merges and corrections
 """
@@ -22,6 +22,8 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     UpdateContentOp,
     run_consolidation,
 )
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import _PROFILE_KEY_LAST_CONSOLIDATED
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import _UNDO_KEY
 from tests.support.consolidation_manager import make_manager, semantic_doc
 
 
@@ -136,8 +138,9 @@ class TestRunConsolidation:
         assert stats.corrected == 0  # low-scoring op filtered out by rubric
         assert stats.insights == ("cross-cutting insight",)
         assert stats.input_count == 2
-        manager.add_event.assert_awaited()
-        manager._rel_store.set_profile.assert_awaited()
+        written_keys = [call.args[0] for call in manager._rel_store.set_profile.await_args_list]
+        assert _PROFILE_KEY_LAST_CONSOLIDATED in written_keys
+        assert _UNDO_KEY in written_keys  # the merge demoted two memories, so there is a cycle to undo
         on_complete.assert_awaited_once()
 
     @pytest.mark.asyncio

@@ -178,4 +178,3 @@ class TestConsolidationConfigFields:
         cfg = ConsolidationConfig()
         assert cfg.conflict_importance_threshold == 0.6
         assert cfg.conflict_confidence_threshold == 0.85
-        assert cfg.conflict_auto_resolve_days == 7

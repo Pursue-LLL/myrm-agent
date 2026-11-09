@@ -9,7 +9,7 @@
  * MessageActionBar: Completed/streaming assistant message actions.
  *
  * [POS]
- * Chat assistant message action surface. It keeps MessageBox focused on message layout and rendering.
+ * Chat assistant message action surface. It keeps AssistantMessage focused on message layout and rendering.
  */
 
 import { type RefObject, useMemo } from 'react';
@@ -115,9 +115,7 @@ export default function MessageActionBar({
             citationAudit={message.citationAudit}
           />
         )}
-        {!isStreaming && hasTurnLoadedSkills && (
-          <TurnLoadedSkillsButton skills={message.turnLoadedSkills} />
-        )}
+        {!isStreaming && hasTurnLoadedSkills && <TurnLoadedSkillsButton skills={message.turnLoadedSkills} />}
         {!isStreaming && effectiveChatId && (
           <RevertFiles chatId={effectiveChatId} messageId={message.requestMessageId || message.messageId} />
         )}

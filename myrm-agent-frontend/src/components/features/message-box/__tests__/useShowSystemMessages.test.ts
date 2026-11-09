@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { useShowSystemMessages } from '../useShowSystemMessages';
+import { setShowSystemMessages, useShowSystemMessages } from '../useShowSystemMessages';
 
 const SWITCH_STORAGE_KEY = 'developer_show_system_messages';
 
@@ -48,6 +48,28 @@ describe('useShowSystemMessages', () => {
 
     act(() => announceSwitch(false));
     expect(result.current).toBe(false);
+  });
+
+  it('persists the switch under the stored key and makes a mounted reader follow it', () => {
+    const { result } = renderHook(() => useShowSystemMessages());
+
+    act(() => setShowSystemMessages(true));
+    expect(localStorage.getItem(SWITCH_STORAGE_KEY)).toBe('true');
+    expect(result.current).toBe(true);
+
+    act(() => setShowSystemMessages(false));
+    expect(localStorage.getItem(SWITCH_STORAGE_KEY)).toBe('false');
+    expect(result.current).toBe(false);
+  });
+
+  it('keeps every mounted reader in step with a single write', () => {
+    const first = renderHook(() => useShowSystemMessages());
+    const second = renderHook(() => useShowSystemMessages());
+
+    act(() => setShowSystemMessages(true));
+
+    expect(first.result.current).toBe(true);
+    expect(second.result.current).toBe(true);
   });
 
   it('stops following the switch once the component is gone', () => {

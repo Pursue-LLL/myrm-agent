@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - publish_video_url_ingress, publish_media_ingress, adaptive_merge_segments, format_timestamp, parse_timestamp_str
+- VideoTranscriptUnavailableError: a video URL that yields no readable subtitles; the message names the cause and is safe to show
 
 [POS]
 Video & audio media raw ingress pipeline. Transforms timestamped video transcripts into structured Markdown with second-level timestamps and publishes to Raw Gate.
@@ -58,6 +59,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "MergedVideoSegment",
+    "VideoTranscriptUnavailableError",
     "adaptive_merge_segments",
     "build_video_markdown",
     "format_timestamp",
@@ -68,11 +70,22 @@ __all__ = [
 ]
 
 
+class VideoTranscriptUnavailableError(Exception):
+    """A video URL that yields no readable subtitles; the message names the cause and is safe to show.
+
+    Raised for an unsupported platform, a video without public subtitles and an empty transcript.
+    """
+
+
 async def publish_video_url_ingress(
     structure: WikiStructure,
     request: VideoUrlIngressRequest,
 ) -> ClipIngressResult:
-    """Extract online video subtitles (Bilibili / YouTube) and ingest into Wiki."""
+    """Extract online video subtitles (Bilibili / YouTube) and ingest into Wiki.
+
+    Raises:
+        VideoTranscriptUnavailableError: the URL is not a supported video or yields no readable subtitles.
+    """
     url = request.url.strip()
     url_hash = hashlib.sha256(url.encode()).hexdigest()
 
@@ -86,7 +99,9 @@ async def publish_video_url_ingress(
         platform = "bilibili"
         doc = await extract_bilibili_subtitle(url)
         if not doc:
-            raise ValueError(f"无法获取 Bilibili 视频字幕或该视频未公开字幕: {url}")
+            raise VideoTranscriptUnavailableError(
+                f"Could not fetch subtitles for the Bilibili video, or it has no public subtitles: {url}"
+            )
         meta = doc.metadata
         title = str(meta.get("title", title))
         author = str(meta.get("author_name", ""))
@@ -99,17 +114,19 @@ async def publish_video_url_ingress(
             preferred_languages=list(request.preferred_languages),
         )
         if not doc:
-            raise ValueError(f"无法获取 YouTube 视频字幕或该视频未提供字幕: {url}")
+            raise VideoTranscriptUnavailableError(
+                f"Could not fetch subtitles for the YouTube video, or it has no subtitles: {url}"
+            )
         meta = doc.metadata
         title = str(meta.get("title", title))
         author = str(meta.get("author_name", ""))
         duration_str = str(meta.get("duration", ""))
         raw_segments = parse_transcript_text_to_segments(doc.page_content)
     else:
-        raise ValueError(f"不支持的视频 URL 平台 (当前支持 Bilibili 与 YouTube): {url}")
+        raise VideoTranscriptUnavailableError(f"Unsupported video URL (only Bilibili and YouTube are supported): {url}")
 
     if not raw_segments:
-        raise ValueError("提取到的字幕内容为空")
+        raise VideoTranscriptUnavailableError("The fetched subtitles are empty")
 
     merged = adaptive_merge_segments(
         raw_segments,

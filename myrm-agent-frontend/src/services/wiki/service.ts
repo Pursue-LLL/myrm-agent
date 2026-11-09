@@ -499,7 +499,7 @@ export interface ObsidianImportResultResponse {
   message: string;
 }
 
-/** Why a link failed to import; the import dialog shows its own localized sentence per code. */
+/** Why a link failed to import; each import dialog shows its own localized sentence per code. */
 export type UrlImportErrorCode = 'address_rejected' | 'nothing_readable' | 'import_failed';
 
 export interface UrlImportItemResult {
@@ -548,7 +548,9 @@ export interface ImportVideoResponse {
   url: string;
   relative_path: string;
   status: 'success' | 'skipped_conflict' | 'superseded' | 'security_blocked' | 'error';
+  /** English diagnostic for API consumers; the UI renders `error_code` instead. */
   error: string;
+  error_code: UrlImportErrorCode | null;
   message: string;
 }
 

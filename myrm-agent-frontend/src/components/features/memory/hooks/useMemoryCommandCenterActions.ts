@@ -2,7 +2,8 @@
 
 /**
  * [INPUT]
- * @/services/memory/commandCenter::runMemoryCommandAction, runMemoryDiagnosticRepair, rollbackConsolidation (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/commandCenter::runMemoryCommandAction, runMemoryDiagnosticRepair (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/consolidationUndo::undoConsolidation (POS: 记忆自动整理撤销客户端)
  * @/services/memory/archive::dryRunRollbackMemoryImport, rollbackMemoryImport, exportMemoryArchive (POS: Frontend Memory Archive and import API client)
  * @/services/memory/pendingTargetChanged::isPendingTargetChanged (POS: 待审建议所针对的记忆已变化时给出本地化「已过期」提示)
  *
@@ -10,8 +11,8 @@
  * useMemoryCommandCenterActions: 命令中心写操作处理器与导入回滚弹窗状态
  *
  * [POS]
- * 命令中心写操作：治理决策、冲突裁决、Doctor 修复、导入回滚（预演后确认）、整合回滚、归档导出与迁移向导跳转。
- * 每个动作通过 toast 反馈结果，改变服务端状态后刷新快照。
+ * 命令中心写操作：治理决策、冲突裁决、Doctor 修复、导入回滚（预演后确认）、自动整理撤销、归档导出与迁移向导跳转。
+ * 每个动作通过 toast 反馈结果，改变服务端状态后刷新快照；自动整理撤销无论成败都刷新（该次整理可能已被消耗或取代）。
  */
 
 import { useCallback, useState } from 'react';
@@ -27,12 +28,12 @@ import {
   type MemoryImportRollbackResponse,
 } from '@/services/memory/archive';
 import {
-  rollbackConsolidation,
   runMemoryCommandAction,
   runMemoryDiagnosticRepair,
   type MemoryCommandDiagnosticRun,
   type MemoryCommandGovernanceItem,
 } from '@/services/memory/commandCenter';
+import { undoConsolidation } from '@/services/memory/consolidationUndo';
 import { canDeepLinkMigrationSource } from '@/services/migrationDiscovery';
 import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
 import type { DoctorExecutableAction } from '../command-center/memoryDoctorModel';
@@ -199,28 +200,44 @@ export const useMemoryCommandCenterActions = ({
     [router],
   );
 
-  const handleConsolidationRollback = useCallback(async () => {
-    setActionId('consolidation:rollback');
-    try {
-      const result = await rollbackConsolidation();
-      toast({
-        title: t('commandCenter.consolidationRollbackSuccess'),
-        description: t('commandCenter.consolidationRollbackSuccessDesc', {
-          count: result.rolled_back,
-          conflicts: result.skipped_conflict,
-        }),
-      });
+  const handleConsolidationUndo = useCallback(
+    async (cycleId: string) => {
+      setActionId('consolidation:undo');
+      try {
+        const result = await undoConsolidation(cycleId);
+        if (result.errors > 0) {
+          toast({
+            title: t('commandCenter.consolidationUndoPartial'),
+            description: t('commandCenter.consolidationUndoPartialDesc', {
+              count: result.rolled_back,
+              errors: result.errors,
+              conflicts: result.skipped_conflict,
+            }),
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: t('commandCenter.consolidationUndoSuccess'),
+            description: t('commandCenter.consolidationUndoSuccessDesc', {
+              count: result.rolled_back,
+              conflicts: result.skipped_conflict,
+            }),
+          });
+        }
+      } catch (err) {
+        toast({
+          title: t('commandCenter.actionFailed'),
+          description: err instanceof Error ? err.message : t('unknownError'),
+          variant: 'destructive',
+        });
+      } finally {
+        setActionId(null);
+      }
+      // The card offers the latest undoable cycle, which any outcome (undone, refused as stale) may have consumed.
       await loadSnapshot();
-    } catch (err) {
-      toast({
-        title: t('commandCenter.actionFailed'),
-        description: err instanceof Error ? err.message : t('unknownError'),
-        variant: 'destructive',
-      });
-    } finally {
-      setActionId(null);
-    }
-  }, [loadSnapshot, setActionId, t]);
+    },
+    [loadSnapshot, setActionId, t],
+  );
 
   const exportArchive = useCallback(async () => {
     setActionId('archive:export');
@@ -259,7 +276,7 @@ export const useMemoryCommandCenterActions = ({
     previewRollbackImport,
     confirmRollbackImport,
     openMigrationWizard,
-    handleConsolidationRollback,
+    handleConsolidationUndo,
     exportArchive,
     rollbackPreview,
     rollbackResult,

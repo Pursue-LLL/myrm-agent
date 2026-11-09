@@ -20,7 +20,7 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         Frontend Layer                               │
 ├─────────────────────────────────────────────────────────────────────┤
-│ - MessageBox: UI status indicator (mediaAnalysisStatus)              │
+│ - AssistantRunOutputs: UI status indicator (mediaAnalysisStatus)     │
 │ - messageStreamHandler: Process SSE events (analyzing_image/video)  │
 └──────────────────────────┬──────────────────────────────────────────┘
                            │ SSE Stream
@@ -119,14 +119,14 @@ if not supports_vision and vision_fallback_model_cfg:
 
 ### 5. Frontend Status Display
 
-**MessageBox Component** (`myrm-agent-frontend/src/components/features/message-box/MessageBox.tsx`):
+**AssistantRunOutputs Component** (`myrm-agent-frontend/src/components/features/message-box/assistant-message/AssistantRunOutputs.tsx`):
 - 检查 `message.mediaAnalysisStatus`（统一字段支持 `analyzing_image` / `analyzing_video`）
 - 渲染精美的状态指示器（渐变背景 + 旋转动画 + i18n 文本）
 
 **messageStreamHandler** (`myrm-agent-frontend/src/store/chat/messageStreamHandler.ts`):
 - 监听 SSE 事件 `type: "status"` + `step_key: "analyzing_image" | "analyzing_video"`
 - 设置/清除 message 的 `mediaAnalysisStatus` 字段
-- 读取 `vision_backend` 徽章（`vlm` / `frame` / `native_video`）并在 `MessageBox` 展示
+- 读取 `vision_backend` 徽章（`vlm` / `frame` / `native_video`）并在 `AssistantRunOutputs` 展示
 
 ### 6. Agent File Vision Read & Dynamic Fallback
 
