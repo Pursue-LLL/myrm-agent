@@ -18,7 +18,8 @@ Security Center 与 Agent 工具安全策略的 HTTP 层：供应链仪表盘、
 | `allowlist_granularity.py` | 模块 | allowlist REST 粒度映射与 DB 空串归一化 | — |
 | `test_fixtures.py` | 测试 | local-only：allowlist pattern seed/clear、hitl-probe（`pending_interrupt_events`） | ✅ |
 | `vault.py` | 路由 | `POST /security/vault/unlock`：本地主密钥派生 | ✅ |
-| `vault_credentials.py` | 路由 | `/security/vault-credentials` CRUD | ✅ |
+| `vault_credentials.py` | 路由 | `/security/vault-credentials` CRUD；构造服务前 `await ensure_master_key()` | ✅ |
+| `vault_errors.py` | 模块 | 把 `VaultLockedError` 映射为 423（WebUI 据此弹出解锁流程），避免退化成 500 | — |
 
 ## 路由（前缀 `/api/v1`）
 

@@ -9,6 +9,7 @@ unlock_vault: 接收用户主密码并解锁金库
 金库解锁 API 路由。供无凭证环境（Local/Docker）的终端用户安全输入密码派生主密钥。
 """
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, status
@@ -40,7 +41,8 @@ async def unlock_vault(req: VaultUnlockRequest) -> VaultUnlockResponse:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required to unlock the vault.")
 
     try:
-        MasterKeyProvider.unlock_vault(req.password)
+        # scrypt is CPU-bound; keep the event loop free while it derives the key.
+        await asyncio.to_thread(MasterKeyProvider.unlock_vault, req.password)
         return VaultUnlockResponse(status="success", message="Vault unlocked successfully.")
     except Exception as e:
         logger.error("Failed to unlock vault: %s", e)

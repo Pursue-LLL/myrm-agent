@@ -25,7 +25,8 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security.master_key import VaultLockedError
+from app.api.security.vault_errors import vault_locked_error
+from app.core.security.master_key import MasterKeyProvider, VaultLockedError
 from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
@@ -46,19 +47,16 @@ class AgentSecretResponse(BaseModel):
     key_name: str
 
 
-def _get_secret_backend() -> DatabaseSecretBackend:
+async def _secret_backend() -> DatabaseSecretBackend:
     """Create a secret backend on demand.
 
     Secret routes require an unlocked vault, but ordinary agent CRUD must
     remain available even when the vault is still locked.
     """
     try:
-        return DatabaseSecretBackend()
+        return DatabaseSecretBackend(master_key=await MasterKeyProvider.ensure_master_key(grace_sec=0))
     except VaultLockedError as exc:
-        raise HTTPException(
-            status_code=423,
-            detail="Vault is locked. Provide MYRM_MASTER_KEY, configure OS keyring, or unlock via API.",
-        ) from exc
+        raise vault_locked_error(exc) from exc
 
 
 @router.get("/{agent_id}/secrets", response_model=StandardSuccessResponse)
@@ -72,7 +70,7 @@ async def get_agent_secrets(
         if not agent:
             raise not_found_error("Agent")
 
-        secret_manager = _get_secret_backend()
+        secret_manager = await _secret_backend()
         secrets_dict = await secret_manager.get_all_secrets(agent_id)
         keys = list(secrets_dict.keys())
         return success_response(data=[{"key_name": k} for k in keys])
@@ -97,7 +95,7 @@ async def create_agent_secret(
         if not agent:
             raise not_found_error("Agent")
 
-        secret_manager = _get_secret_backend()
+        secret_manager = await _secret_backend()
         await secret_manager.save_secret(agent_id, secret_data.key_name, secret_data.secret_value)
         return success_response(data={"key_name": secret_data.key_name})
     except HTTPException:
@@ -118,7 +116,7 @@ async def delete_agent_secret(
         if not agent:
             raise not_found_error("Agent")
 
-        secret_manager = _get_secret_backend()
+        secret_manager = await _secret_backend()
         success = await secret_manager.delete_secret(agent_id, key_name)
         if not success:
             raise not_found_error("Agent Secret")

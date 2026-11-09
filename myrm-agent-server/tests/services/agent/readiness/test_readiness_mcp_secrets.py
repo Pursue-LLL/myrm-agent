@@ -43,9 +43,10 @@ def _org_mcp_dict(servers: list[dict[str, object]]) -> dict[str, object]:
 def _vault(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     store = AsyncMock()
     store.list_secret_keys = AsyncMock(return_value=["GITHUB_TOKEN", "REGION"])
+    monkeypatch.setenv("MYRM_MASTER_KEY", "test-master-key")
     monkeypatch.setattr(
         "app.services.agent.backends.secret_backend.DatabaseSecretBackend",
-        lambda: store,
+        lambda **_: store,
     )
     return store
 
@@ -162,9 +163,10 @@ async def test_no_required_secrets_no_warning() -> None:
 async def test_vault_error_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
     store = AsyncMock()
     store.list_secret_keys = AsyncMock(side_effect=RuntimeError("vault unavailable"))
+    monkeypatch.setenv("MYRM_MASTER_KEY", "test-master-key")
     monkeypatch.setattr(
         "app.services.agent.backends.secret_backend.DatabaseSecretBackend",
-        lambda: store,
+        lambda **_: store,
     )
 
     from app.services.agent.readiness.resolver import _check_mcp

@@ -32,10 +32,7 @@ async def test_prepare_injects_stdio_required_secrets(monkeypatch: pytest.Monkey
     secret_store = AsyncMock()
     secret_store.get_all_secrets = AsyncMock(return_value={"API_KEY": "secret-value"})
 
-    monkeypatch.setattr(
-        "app.core.security.MasterKeyProvider.get_master_key",
-        lambda: b"master-key",
-    )
+    monkeypatch.setenv("MYRM_MASTER_KEY", "master-key")
     monkeypatch.setattr(
         "app.services.agent.backends.DatabaseSecretBackend",
         lambda master_key: secret_store,
@@ -64,10 +61,7 @@ async def test_prepare_warns_when_required_secret_missing(monkeypatch: pytest.Mo
     secret_store = AsyncMock()
     secret_store.get_all_secrets = AsyncMock(return_value={})
 
-    monkeypatch.setattr(
-        "app.core.security.MasterKeyProvider.get_master_key",
-        lambda: b"master-key",
-    )
+    monkeypatch.setenv("MYRM_MASTER_KEY", "master-key")
     monkeypatch.setattr(
         "app.services.agent.backends.DatabaseSecretBackend",
         lambda master_key: secret_store,
@@ -96,10 +90,7 @@ async def test_prepare_uses_secret_auth_provider_for_header_refs(
     secret_store = AsyncMock()
     secret_store.get_all_secrets = AsyncMock(return_value={"TOKEN": "tok"})
 
-    monkeypatch.setattr(
-        "app.core.security.MasterKeyProvider.get_master_key",
-        lambda: b"master-key",
-    )
+    monkeypatch.setenv("MYRM_MASTER_KEY", "master-key")
     monkeypatch.setattr(
         "app.services.agent.backends.DatabaseSecretBackend",
         lambda master_key: secret_store,
@@ -121,10 +112,7 @@ async def test_prepare_falls_back_to_oauth_injection(monkeypatch: pytest.MonkeyP
     )
     oauth_cfg = cfg.model_copy(update={"headers": {"Authorization": "Bearer oauth-token"}})
 
-    monkeypatch.setattr(
-        "app.core.security.MasterKeyProvider.get_master_key",
-        lambda: b"master-key",
-    )
+    monkeypatch.setenv("MYRM_MASTER_KEY", "master-key")
     monkeypatch.setattr(
         "app.services.agent.backends.DatabaseSecretBackend",
         lambda master_key: AsyncMock(get_all_secrets=AsyncMock(return_value={})),
@@ -136,6 +124,16 @@ async def test_prepare_falls_back_to_oauth_injection(monkeypatch: pytest.MonkeyP
 
     prepared = await prepare_mcp_configs_for_runtime("agent-oauth", [cfg])
     assert prepared[0].headers == {"Authorization": "Bearer oauth-token"}
+
+
+@pytest.mark.asyncio
+async def test_locked_vault_returns_the_original_configs(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.services.agent.mcp_runtime_prepare import prepare_mcp_configs_for_runtime
+
+    cfg = MCPConfig(name="locked-mcp", type="stdio", command="echo", required_secrets=["API_KEY"])
+    monkeypatch.setattr("app.core.security.master_key.MasterKeyProvider.peek", lambda: None)
+
+    assert await prepare_mcp_configs_for_runtime("agent-locked", [cfg]) == [cfg]
 
 
 @pytest.mark.asyncio

@@ -1,16 +1,35 @@
-"""Vault Credentials CRUD API."""
+"""[INPUT]
+- app.core.security.master_key::MasterKeyProvider (POS: 主密钥状态机)
+- app.services.security.vault_credential_service::VaultCredentialService (POS: 凭据业务服务)
+
+[OUTPUT]
+- /security/vault-credentials CRUD
+
+[POS]
+Vault 标签凭据 CRUD 路由。构造服务前等待主密钥（最多 2 秒），金库锁定时返回 423 供 WebUI 弹解锁。
+"""
 
 import logging
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
+from app.api.security.vault_errors import vault_locked_error
+from app.core.security.master_key import MasterKeyProvider, VaultLockedError
 from app.database.models.vault_credential import VaultCredential
 from app.services.security.vault_credential_service import VaultCredentialService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vault-credentials", tags=["security", "vault"])
+
+
+async def _vault_service() -> VaultCredentialService:
+    """Build the credential service, waiting briefly for an in-flight keyring prompt."""
+    try:
+        return VaultCredentialService(master_key=await MasterKeyProvider.ensure_master_key())
+    except VaultLockedError as exc:
+        raise vault_locked_error(exc) from exc
 
 
 class VaultCredentialCreate(BaseModel):
@@ -48,9 +67,11 @@ class VaultCredentialResponse(BaseModel):
 async def list_credentials() -> list[VaultCredentialResponse]:
     """List all vault credentials (metadata only, secrets are not returned)."""
     try:
-        service = VaultCredentialService()
+        service = await _vault_service()
         creds = await service.list_credentials()
         return [VaultCredentialResponse.from_orm(c) for c in creds]
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to list vault credentials: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to list vault credentials") from e
@@ -63,7 +84,7 @@ async def create_credential(req: VaultCredentialCreate) -> VaultCredentialRespon
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must provide either password or totp_seed.")
 
     try:
-        service = VaultCredentialService()
+        service = await _vault_service()
         existing = await service.get_credential(req.label)
         if existing:
             raise HTTPException(
@@ -88,7 +109,7 @@ async def create_credential(req: VaultCredentialCreate) -> VaultCredentialRespon
 async def update_credential(label: str, req: VaultCredentialUpdate) -> VaultCredentialResponse:
     """Update an existing vault credential."""
     try:
-        service = VaultCredentialService()
+        service = await _vault_service()
         existing = await service.get_credential(label)
         if not existing:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Credential '{label}' not found.")
@@ -111,7 +132,7 @@ async def update_credential(label: str, req: VaultCredentialUpdate) -> VaultCred
 async def delete_credential(label: str) -> None:
     """Delete a vault credential."""
     try:
-        service = VaultCredentialService()
+        service = await _vault_service()
         deleted = await service.delete_credential(label)
         if not deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Credential '{label}' not found.")

@@ -42,7 +42,10 @@ async def prepare_mcp_configs_for_runtime[Config: (MCPConfig, MCPServerConfig)](
             MCPSecretAuthProvider,
         )
 
-        master_key = MasterKeyProvider.get_master_key()
+        # A locked vault cannot provide secrets; routing the untouched configs is the old behaviour.
+        master_key = MasterKeyProvider.peek()
+        if master_key is None:
+            return list(configs)
         secret_store = DatabaseSecretBackend(master_key=master_key)
         global_env = await secret_store.get_all_secrets(agent_id)
         if global_env:

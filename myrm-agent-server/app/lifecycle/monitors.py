@@ -1,7 +1,11 @@
-"""Application lifecycle management.
+"""[INPUT]
+- myrm_agent_harness.runtime.survival (POS: 内存压力与资源采样)
 
-Manages background monitors: MemoryPressureMonitor, AuthAlert, MaintenanceScheduler.
-All monitors follow start/stop pattern for clean lifecycle.
+[OUTPUT]
+- start/stop_memory_pressure_monitor: 内存压力与资源监控生命周期
+
+[POS]
+后台监控器生命周期：内存压力、认证告警、资源采样与失控栈采集；全部遵循 start/stop 模式。
 """
 
 from __future__ import annotations
@@ -101,6 +105,10 @@ async def start_memory_pressure_monitor() -> None:
 
     monitor = get_resource_monitor()
     monitor.add_listener(_on_metrics_collected)
+
+    from app.core.infra.runaway_dump import RunawayDumper
+
+    monitor.add_listener(RunawayDumper.from_settings().on_metrics)
     await monitor.start()
 
 

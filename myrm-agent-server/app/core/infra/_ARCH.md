@@ -13,6 +13,8 @@
 | `cors_validator.py` | 模块 | CORS 配置和验证；`resolve_cors_origins` 在配置列表上追加桌面壳经 `MYRM_DESKTOP_FRONTEND_PORT` 传入的自身前端源，保证 WebView 端口变化时白名单同步 | ✅ |
 | `frontend_launcher/` | 模块 | Next.js standalone 前端启动器，按阶段拆 4 个模块（common / checks / assets / ports）+ launcher（进程生命周期）：环境检测、端口协调、毒性环境变量清洗、崩溃重启。见 [frontend_launcher/_ARCH.md](frontend_launcher/_ARCH.md) | ✅ |
 | `idle_handlers.py` | 模块 | Server-side idle task handlers: 上下文压缩实现（`register_all_idle_handlers`）。 | ✅ |
+| `log_rate_limit.py` | 模块 | `LogStormFilter`：进程级令牌桶（默认 200 条/秒）+ 每 `(logger, level, 模板)` 有界 LRU（1024），超限合并并在下一条附 `[+N suppressed]`；ERROR/CRITICAL 配额更高且首条必留；`MYRM_LOG_RATE_LIMIT=0` 关闭 | ✅ |
+| `runaway_dump.py` | 模块 | `RunawayDumper`：资源监控监听器，线程 >200 连续 3 次或 CPU >90% 连续 6 次时把线程栈（相同栈聚合、最多 200 个）与 asyncio 任务栈写入 `<数据目录>/logs/runaway-*.txt`，保留 3 份、10 分钟冷却；只记录不杀进程 | ✅ |
 | `ingress.py` | 模块 | 公网 Ingress 单一解析入口；30s 内存缓存 + `invalidate_public_ingress_cache()`，避免 AuthMiddleware 每条 API 请求打 DB；`resolve_share_url_base(fallback)` 供 chat/artifact 分享链接组装公网 base（无 ingress 降级 fallback） | ✅ |
 | `ingress_requirement.py` | 模块 | 汇总已配置渠道与 Cron Webhook，判定是否需公网 Ingress；供 `/system/ingress-requirement` 与渠道 issues 补充。 | ✅ |
 | `tls_config.py` | 模块 | Enterprise TLS configuration bridge (DB→env var sync for MYRM_TLS_STRICT; applies to TLS contexts built afterwards; a runtime toggle retires the model transport's shared clients so the next model request follows it, while a client another component already holds keeps its context until a restart). | ✅ |

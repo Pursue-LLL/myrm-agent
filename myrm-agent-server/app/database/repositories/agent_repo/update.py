@@ -166,7 +166,7 @@ class UpdateMixin:
 
                             from app.core.security.master_key import MasterKeyProvider
 
-                            master_key = MasterKeyProvider.get_master_key()
+                            master_key = await MasterKeyProvider.ensure_master_key(grace_sec=0)
                             derived_key = ConfigCrypto.derive_key(master_key)
 
                             encrypted_token = ConfigCrypto.encrypt_value({"value": raw_token}, derived_key)

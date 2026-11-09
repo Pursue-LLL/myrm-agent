@@ -22,8 +22,7 @@
 security/
 ├── __init__.py          # 模块入口，导出 MasterKeyProvider
 ├── _ARCH.md             # 本文档
-├── master_key.py        # MasterKeyProvider（零落盘密钥管理）
-├── keyring_gate.py      # KeyringGate：OS 钥匙串调用的限时执行器（守护线程）
+├── master_key.py        # MasterKeyProvider（零落盘密钥管理，钥匙串后台解析）
 ├── browser_vault.py     # SessionVault 实例管理（全局 + agent 级隔离）与全保险库过期清理
 ├── llm_reviewer.py      # 动态 LLM 适配器（Transcript Classifier）
 ├── pii_actions.py       # PII action 字符串安全解析（非法/缺失值回退默认，防崩溃）
@@ -47,8 +46,7 @@ security/
 
 | 文件 | 职责 |
 |------|------|
-| `master_key.py` | MasterKeyProvider，3 级获取 Master Key：环境变量 (SaaS) → OS Keyring (Local/Tauri) → VaultLockedError (需用户解锁)。零落盘 (Zero-Disk) 架构，绝不向硬盘写明文密钥。钥匙串读写经 `KeyringGate` 限时 10 秒：超时按金库锁定处理，迟到的答复在金库仍未解锁时被采用。 |
-| `keyring_gate.py` | `KeyringGate`：在守护线程里执行 OS 钥匙串调用并限时。macOS 上读钥匙串会等 `securityd`，二进制身份变化后可能挂在授权弹窗上，同步调用会卡死事件循环与服务启动。超时的调用留在后台，期间后来的调用立即返回（不排队），答复迟到时交给回调；守护线程不阻止进程退出。 |
+| `master_key.py` | MasterKeyProvider，3 级获取 Master Key：环境变量 (SaaS) → OS Keyring (Local/Tauri) → VaultLockedError (需用户解锁)。零落盘 (Zero-Disk)。钥匙串读取固定在**单个后台守护线程**执行：`get_master_key()` 只读缓存，未就绪立即抛 `VaultLockedError(state=resolving/locked)`；`ensure_master_key(grace)` 给凭证路由最多 2 秒宽限；`peek()` 供只读预检使用且不触发读取；`prewarm()` 在启动时发起解析。10 秒未答复按锁定处理，30 秒后才允许重试；迟到的密钥在用户尚未解锁时被采用，显式解锁优先。 |
 | `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault；`cleanup_all_vaults` 一次清理全局 + 全部 agent vault 的过期会话（API 与 DB 维护定时任务共用） |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
 | `pii_actions.py` | 持久化 PII action 字符串安全解析：缺失/非法值回退默认枚举，杜绝非法配置导致 agent 初始化或记忆提取崩溃（retry 与 security extension 共用） |

@@ -1,10 +1,14 @@
-"""全局日志配置模块
+"""[INPUT]
+- myrm_agent_harness (POS: 脱敏/JSON/trace 日志组件)
+- app.core.infra.log_rate_limit::LogStormFilter (POS: 重复日志限速)
 
-提供应用程序的日志配置功能，包括：
-- 控制台日志输出（自动脱敏 API key / token / 凭证）
-- 第三方库日志级别控制
-- 自定义日志格式（文本 / JSON，环境变量切换）
-- 请求 trace_id / session_id 自动注入（通过 TracingLogFilter）
+[OUTPUT]
+- configure_logging: 进程级日志配置
+- set_debug_mode: 运行期切换级别
+
+[POS]
+全局日志配置：脱敏、JSON/文本格式、trace_id 注入、第三方库级别，以及重复日志限速
+（避免死循环写满磁盘）。
 """
 
 import logging
@@ -15,6 +19,7 @@ from myrm_agent_harness.agent.security.redact import RedactingFormatter
 from myrm_agent_harness.observability.tracing import JsonFormatter, TracingLogFilter
 
 from app.config.env import is_debug_mode
+from app.core.infra.log_rate_limit import LogStormFilter
 
 _TEXT_FORMAT = "🚀 %(name)s - %(levelname)s - [%(trace_id)s] %(message)s"
 
@@ -48,6 +53,8 @@ def configure_logging() -> None:
         console_handler.setFormatter(RedactingFormatter(_TEXT_FORMAT))
 
     console_handler.addFilter(TracingLogFilter())
+    # Bound repeated output: a looping caller must not be able to fill the disk or bury the cause.
+    console_handler.addFilter(LogStormFilter())
 
     log_level = logging.DEBUG if is_debug_mode() else logging.WARNING
     root_logger.setLevel(log_level)

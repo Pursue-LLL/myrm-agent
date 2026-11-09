@@ -85,7 +85,18 @@ if __name__ == "__main__":
         action="store_true",
         help="禁用自动恢复（健康检查失败时不尝试修复）",
     )
+    parser.add_argument(
+        "--exit-with-parent",
+        action="store_true",
+        help="父进程退出时自行关闭（探针/CI 实例使用；正式服务不要开启）",
+    )
     args = parser.parse_args()
+
+    # Armed before the startup work: the launcher can die while imports and health checks are still running.
+    if args.exit_with_parent:
+        from app.startup.parent_watchdog import start_parent_exit_watchdog
+
+        start_parent_exit_watchdog()
 
     # 处理 WebUI 模式参数
     if args.webui:

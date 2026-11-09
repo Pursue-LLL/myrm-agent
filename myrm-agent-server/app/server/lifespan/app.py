@@ -55,6 +55,11 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
     print(f"🐍 Python {sys.version.split()[0]}")
 
+    # Start the keyring read now so the first credential request never waits on an OS prompt.
+    from app.core.security.master_key import MasterKeyProvider
+
+    MasterKeyProvider.prewarm()
+
     # Before any subsystem spawns a child process or checks skill `requires.bins` against PATH.
     from app.startup.desktop_path import hydrate_desktop_path
 

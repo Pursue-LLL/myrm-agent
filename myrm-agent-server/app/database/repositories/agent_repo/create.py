@@ -48,7 +48,7 @@ class CreateMixin:
 
                 from app.core.security.master_key import MasterKeyProvider
 
-                master_key = MasterKeyProvider.get_master_key()
+                master_key = await MasterKeyProvider.ensure_master_key(grace_sec=0)
                 derived_key = ConfigCrypto.derive_key(master_key)
 
                 # Encrypt the token and replace it in the dict
