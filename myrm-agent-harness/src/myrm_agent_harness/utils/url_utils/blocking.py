@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import ipaddress
 import logging
-from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -115,19 +114,3 @@ def is_blocked_ip(addr: str | ipaddress.IPv4Address | ipaddress.IPv6Address) -> 
         or ip.is_unspecified
         or (v4 or ip) in _CGNAT_NETWORK
     )
-
-
-class _SSRFResultLike(Protocol):
-    """The read-only fields of an SSRF validation result that DNS pinning reads."""
-
-    @property
-    def safe(self) -> bool: ...
-
-    @property
-    def error(self) -> str: ...
-
-    @property
-    def hostname(self) -> str: ...
-
-    @property
-    def resolved_ips(self) -> tuple[str, ...]: ...

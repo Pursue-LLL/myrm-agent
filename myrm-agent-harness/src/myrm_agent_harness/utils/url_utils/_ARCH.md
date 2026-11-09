@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-URL 解析与 SSRF 原语：解析、黑名单、安全校验与 DNS pin 分层，`__init__.py` 是唯一入口。上级：[../_ARCH.md](../_ARCH.md)。
+URL 解析与 SSRF 原语：解析、黑名单与安全校验分层，`__init__.py` 是唯一入口。上级：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

@@ -221,8 +221,3 @@ def sanitize_url_for_error(url: str, max_length: int = 50) -> str:
         safe_url = safe_url[:max_length] + "..."
 
     return safe_url
-
-
-# ============================================================================
-# DNS Pinning Helpers
-# ============================================================================
