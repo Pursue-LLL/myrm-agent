@@ -84,7 +84,7 @@ class ImportUrlsRequest(BaseModel):
     )
 
 
-# Why a URL failed to import. The UI renders its own localized sentence per code.
+# Why a web page or video URL failed to import. Each import dialog renders its own localized sentence per code.
 UrlImportErrorCode = Literal["address_rejected", "nothing_readable", "import_failed"]
 
 
@@ -157,7 +157,9 @@ class ImportVideoResponse(BaseModel):
     url: str
     relative_path: str = ""
     status: Literal["success", "skipped_conflict", "superseded", "security_blocked", "error"]
+    # English diagnostic for API clients; the video dialog shows the localized text of `error_code` instead.
     error: str = ""
+    error_code: UrlImportErrorCode | None = None
     message: str
 
 

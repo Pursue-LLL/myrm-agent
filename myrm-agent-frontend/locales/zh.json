@@ -17534,6 +17534,7 @@
         "videoImporting": "正在解析与摄入视频...",
         "videoImportStart": "开始解析入库",
         "videoImportSuccess": "视频知识摄入成功，已提交编译队列",
+        "videoImportReasonNoTranscript": "没有获取到这个视频的字幕，请确认视频已公开且带有字幕。",
         "videoPlayerTitle": "视频播放与时间戳定位"
       },
       "tabs": {

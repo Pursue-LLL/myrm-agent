@@ -17534,6 +17534,7 @@
         "videoImporting": "Video wird analysiert und importiert...",
         "videoImportStart": "Import starten",
         "videoImportSuccess": "Video-Transkript importiert und in die Kompilierungs-Warteschlange eingereiht",
+        "videoImportReasonNoTranscript": "Für dieses Video konnten keine Untertitel abgerufen werden. Prüfen Sie, ob es öffentlich ist und Untertitel hat.",
         "videoPlayerTitle": "Videowiedergabe & Zeitstempel-Suche"
       },
       "tabs": {

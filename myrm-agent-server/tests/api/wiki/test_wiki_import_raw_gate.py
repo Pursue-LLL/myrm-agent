@@ -443,6 +443,7 @@ def test_import_video_bilibili_success(tmp_path: Path) -> None:
     data = response.json()
     assert data["success"] is True
     assert data["status"] == "success"
+    assert data["error_code"] is None
     rel_path = data["relative_path"]
     assert rel_path.lower().startswith("videos/")
     raw_path = structure.get_raw_file_path(rel_path)
@@ -472,4 +473,4 @@ def test_import_video_ssrf_blocked(tmp_path: Path) -> None:
     data = response.json()
     assert data["success"] is False
     assert data["status"] == "error"
-    assert "SSRF blocked" in data["error"]
+    assert (data["error"], data["error_code"]) == ("This address cannot be imported", "address_rejected")

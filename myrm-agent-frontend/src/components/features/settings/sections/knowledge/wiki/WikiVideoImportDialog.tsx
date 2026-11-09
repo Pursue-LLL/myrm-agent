@@ -32,6 +32,24 @@ export function isValidVideoUrl(url: string): boolean {
   return isBili || isYt;
 }
 
+/** The server's `error` text is an English diagnostic; the user reads the sentence of its status or `error_code`. */
+function failureMessage(
+  result: ImportVideoResponse,
+  t: ReturnType<typeof useTranslations<'settings.wiki.import'>>,
+): string {
+  if (result.status === 'security_blocked') {
+    return t('securityBlockedDescription', { count: 1 });
+  }
+  switch (result.error_code) {
+    case 'address_rejected':
+      return t('urlImportReasonAddressRejected');
+    case 'nothing_readable':
+      return t('videoImportReasonNoTranscript');
+    default:
+      return t('urlImportReasonFailed');
+  }
+}
+
 export function WikiVideoImportDialog({
   open,
   onOpenChange,
@@ -86,11 +104,11 @@ export function WikiVideoImportDialog({
         onImportFinished(res);
         handleClose();
       } else {
-        toast.error(res.error || res.message || t('importFailed'));
+        toast.error(failureMessage(res, t));
       }
     } catch (err) {
       console.error('Video import failed:', err);
-      toast.error(t('importFailed'));
+      toast.error(t('urlImportReasonFailed'));
     } finally {
       setIsSubmitting(false);
     }
