@@ -13,6 +13,7 @@
 - finalize_recall_tool_output: Prefix recall tool output with untrusted-data advisory.
 - format_profile_recall_output: Sanitized profile attribute lookup for recall tools.
 - format_preference_save_ack: Sanitized preference save success ack for memory_save tools.
+- format_write_ack: Save ack that tells a stored memory from one held for the user's approval.
 - format_recall_source_error_suffix: Sanitized source_error suffix for recall tool output.
 - recall_preamble_overhead_chars: Budget overhead for the static preamble.
 - RECALL_DRIFT_DEFENSE_FOOTER: Shared drift-defense footer for recall tool output.
@@ -26,6 +27,10 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
 _STALENESS_THRESHOLD_HOURS = 24
 _RELATIVE_TIME_RE = re.compile(r"^(\d+)\s*(d|h|w|m|y)$", re.IGNORECASE)
@@ -153,6 +158,13 @@ def format_preference_save_ack(preference_key: str, content: str) -> str:
     """Format memory_save preference success ack with the same redact → sanitize SSOT."""
     safe_content = sanitize_recalled_content(content)
     return f"Preference '{preference_key}' set to '{safe_content}'"
+
+
+def format_write_ack(label: str, memory: AnyMemory) -> str:
+    """Tell the model what a write did: a candidate held for approval has no stored ID, so none is reported."""
+    if memory.metadata.get("_pending_id"):
+        return f"{label} submitted for approval"
+    return f"{label} stored (ID: {memory.id})"
 
 
 def format_recall_source_error_suffix(source_error: str) -> str:

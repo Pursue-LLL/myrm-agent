@@ -7,7 +7,7 @@
 - toolkits.memory._internal.scope::MemoryWriteTarget (POS: bound / shared write target)
 - toolkits.memory.types::RuleSource (POS: rule provenance enum)
 - toolkits.memory.agent_surface.memory_search_policy::MemorySearchPolicy (POS: wiki / shared-write ACL)
-- toolkits.memory.agent_surface.memory_recall_formatting::format_preference_save_ack (POS: recall sanitize and save-ack SSOT)
+- toolkits.memory.agent_surface.memory_recall_formatting::{format_preference_save_ack, format_write_ack} (POS: recall sanitize and save-ack SSOT)
 - toolkits.memory.agent_surface.wiki_memory_boundary / transient_fact_boundary (POS: pre-write rejection heuristics)
 - toolkits.memory.agent_surface.write_failure_feedback (POS: LLM-readable write failure messages)
 
@@ -31,7 +31,10 @@ from pydantic.json_schema import SkipJsonSchema
 
 from myrm_agent_harness.toolkits.memory._internal.scope import MemoryWriteTarget
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.common import parse_string_list
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import format_preference_save_ack
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
+    format_preference_save_ack,
+    format_write_ack,
+)
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import MemorySearchPolicy
 from myrm_agent_harness.toolkits.memory.agent_surface.transient_fact_boundary import (
     looks_like_transient_business_fact,
@@ -93,18 +96,14 @@ class _SaveContext:
 
     manager: MemoryManager
     session: MemorySession | None
-    pending: bool
+    approval_required: bool
     content: str
     write_target: MemoryWriteTarget
 
     @property
-    def outcome(self) -> str:
-        return "submitted for approval" if self.pending else "stored"
-
-    @property
     def buffer(self) -> MemorySession | None:
         """Session buffer for writes that need no approval; ``None`` routes to the manager."""
-        return None if self.pending else self.session
+        return None if self.approval_required else self.session
 
     @property
     def bound_buffer(self) -> MemorySession | None:
@@ -127,8 +126,9 @@ async def _save_knowledge(ctx: _SaveContext, *, importance: float, tags: list[st
         importance=importance,
         tags=tags,
         write_target=ctx.write_target,
+        honor_approval=True,
     )
-    return f"Knowledge {ctx.outcome} (ID: {stored.id})"
+    return format_write_ack("Knowledge", stored)
 
 
 async def _save_event(ctx: _SaveContext) -> str:
@@ -143,8 +143,9 @@ async def _save_event(ctx: _SaveContext) -> str:
         ctx.content,
         event_type="agent_observation",
         write_target=ctx.write_target,
+        honor_approval=True,
     )
-    return f"Event {ctx.outcome} (ID: {stored.id})"
+    return format_write_ack("Event", stored)
 
 
 async def _save_preference(ctx: _SaveContext, *, preference_key: str | None) -> str:
@@ -171,8 +172,8 @@ async def _save_rule(ctx: _SaveContext, *, trigger: str | None, priority: int) -
         if buffered is None:
             return "Rule already exists in session (duplicate detected)"
         return f"Rule buffered (ID: {buffered.id})"
-    stored = await ctx.manager.add_rule(trigger, ctx.content, priority=priority)
-    return f"Rule {ctx.outcome} (ID: {stored.id})"
+    stored = await ctx.manager.add_rule(trigger, ctx.content, priority=priority, honor_approval=True)
+    return format_write_ack("Rule", stored)
 
 
 async def _save_instruction(ctx: _SaveContext, *, priority: int) -> str:
@@ -194,8 +195,9 @@ async def _save_instruction(ctx: _SaveContext, *, priority: int) -> str:
         ctx.content,
         priority=instruction_priority,
         source=RuleSource.AGENT_SELF,
+        honor_approval=True,
     )
-    return f"Instruction {ctx.outcome} (ID: {stored.id})"
+    return format_write_ack("Instruction", stored)
 
 
 def build_memory_save_tool(
@@ -235,7 +237,7 @@ def build_memory_save_tool(
         ctx = _SaveContext(
             manager=manager,
             session=manager.active_session,
-            pending=manager.approval_required,
+            approval_required=manager.approval_required,
             content=content,
             write_target=effective_write_target,
         )

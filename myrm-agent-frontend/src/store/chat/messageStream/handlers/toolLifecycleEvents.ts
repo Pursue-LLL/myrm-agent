@@ -101,6 +101,12 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     }
 
+    if (data.tool_name === 'memory_save_tool') {
+      // A save held for the user's approval lands in the pending queue; refresh it so the badge and the
+      // pending toast show it at once.
+      void import('@/store/memory').then(({ useMemoryStore }) => useMemoryStore.getState().fetchPendingMemories(true));
+    }
+
     return done(ctx);
   }
 

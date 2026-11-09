@@ -16,6 +16,13 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
 
 
 class MemoryManagerConvenienceMixin(MemoryManagerHost):
+    """Typed shortcuts over ``store``.
+
+    The ``add_*`` helpers store at once: they serve the user's own edits and the framework's internal writes.
+    ``honor_approval=True`` is for a write the agent decided on its own: an approval-gated manager then queues the
+    candidate (returned carrying ``metadata["_pending_id"]``, not yet stored) instead of persisting it.
+    """
+
     # ── Convenience: Profile ──
 
     async def set_profile_attribute(
@@ -77,6 +84,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
         tags: list[str] | None = None,
         source_chat_id: str | None = None,
         write_target: MemoryWriteTarget = "bound",
+        honor_approval: bool = False,
     ) -> SemanticMemory:
         memory = self._writer.build_knowledge(
             content=content,
@@ -85,7 +93,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
             source_chat_id=source_chat_id,
             write_target=write_target,
         )
-        result = await self.store(memory, _bypass_approval=True)
+        result = await self.store(memory, _bypass_approval=not honor_approval)
         return result if isinstance(result, SemanticMemory) else memory
 
     # ── Convenience: Events (Episodic) ──
@@ -104,6 +112,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
         negative_lesson: str | None = None,
         confidence_tier: Literal["strong", "weak", "shadow"] = "strong",
         write_target: MemoryWriteTarget = "bound",
+        honor_approval: bool = False,
     ) -> EpisodicMemory:
         memory = self._writer.build_event(
             content=content,
@@ -118,7 +127,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
             confidence_tier=confidence_tier,
             write_target=write_target,
         )
-        result = await self.store(memory, _bypass_approval=True)
+        result = await self.store(memory, _bypass_approval=not honor_approval)
         return result if isinstance(result, EpisodicMemory) else memory
 
     async def add_pitfall(
@@ -133,6 +142,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
         source_chat_id: str | None = None,
         source_message_id: str | None = None,
         write_target: MemoryWriteTarget = "bound",
+        honor_approval: bool = False,
     ) -> EpisodicMemory:
         memory = self._writer.build_pitfall(
             content=content,
@@ -145,7 +155,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
             source_message_id=source_message_id,
             write_target=write_target,
         )
-        result = await self.store(memory, _bypass_approval=True)
+        result = await self.store(memory, _bypass_approval=not honor_approval)
         return result if isinstance(result, EpisodicMemory) else memory
 
     # ── Convenience: Rules (Procedural) ──
@@ -158,6 +168,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
         priority: int = 0,
         trigger_keywords: list[str] | None = None,
         source: RuleSource = RuleSource.USER_EXTRACTED,
+        honor_approval: bool = False,
     ) -> ProceduralMemory:
         memory = self._writer.build_rule(
             trigger=trigger,
@@ -166,5 +177,5 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
             trigger_keywords=trigger_keywords,
             source=source,
         )
-        result = await self.store(memory, _bypass_approval=True)
+        result = await self.store(memory, _bypass_approval=not honor_approval)
         return result if isinstance(result, ProceduralMemory) else memory

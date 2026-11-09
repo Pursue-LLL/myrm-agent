@@ -883,6 +883,8 @@ tools = create_memory_tools(manager=manager)
   → 用户 reject  → manager.reject(id)  → 标记拒绝
 ```
 
+开关对 Agent 自己决定写入的每个类别都生效：`memory_save_tool` 与 Memory MCP `memory_store` 的 knowledge / event / rule / instruction 经 `add_*(honor_approval=True)` 交给开关，preference 经画像写入同样遵循。开关开启时写入不进会话缓冲，工具返回 `<类别> submitted for approval`（不带 ID，批准前记忆不生效、搜不到）；同一条已在待审队列时返回 `MemoryRejectedError` 文案并提示不要重复保存。`add_knowledge / add_event / add_pitfall / add_rule` 默认立即写入，服务用户手改与框架内部写入（巩固、模式发现、文件同步、草稿落库），不受开关约束；自动提取则无论开关一律进待审队列。
+
 `MemoryManager` 审批相关方法：
 
 | 方法                                                                              | 功能                                                                              |

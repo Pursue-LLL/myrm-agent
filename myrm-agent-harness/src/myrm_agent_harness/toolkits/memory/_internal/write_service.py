@@ -175,7 +175,9 @@ class MemoryWriter:
         if self._routes_to_pending(bypass_approval=bypass_approval, force_pending=force_pending):
             pending_id = await self._submit_pending(bound_memory)
             if not pending_id:
-                raise MemoryError("Duplicate pending memory (already awaiting approval)")
+                raise MemoryRejectedError(
+                    "Not saved: the same memory is already waiting for the user's approval. Do not save it again."
+                )
             bound_memory.metadata["_pending_id"] = pending_id
             return bound_memory
 

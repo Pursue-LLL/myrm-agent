@@ -6,7 +6,7 @@
 - toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager; routes writes through the approval queue when approval_required)
 - toolkits.memory._internal.scope::MemoryWriteTarget (POS: bound / shared write target)
 - toolkits.memory.types::RuleSource (POS: rule provenance enum)
-- toolkits.memory.agent_surface.memory_recall_formatting::format_preference_save_ack (POS: recall sanitize and save-ack SSOT)
+- toolkits.memory.agent_surface.memory_recall_formatting::{format_preference_save_ack, format_write_ack} (POS: recall sanitize and save-ack SSOT)
 - toolkits.memory.agent_surface.wiki_memory_boundary (POS: wiki-memory write boundary heuristics)
 - toolkits.memory.agent_surface.write_failure_feedback (POS: LLM-readable write failure messages)
 
@@ -28,7 +28,10 @@ from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server.common import M
 from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server.request_context import (
     get_request_wiki_boundary_enabled,
 )
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import format_preference_save_ack
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
+    format_preference_save_ack,
+    format_write_ack,
+)
 from myrm_agent_harness.toolkits.memory.agent_surface.wiki_memory_boundary import (
     looks_like_wiki_document,
     record_wiki_memory_save_rejection,
@@ -51,10 +54,6 @@ def _parse_write_target(value: str) -> MemoryWriteTarget | None:
     return None
 
 
-def _outcome(pending: bool) -> str:
-    return "submitted for approval" if pending else "stored"
-
-
 async def _store_knowledge(
     mgr: MemoryManager,
     content: str,
@@ -62,21 +61,22 @@ async def _store_knowledge(
     importance: float,
     tags: list[str],
     write_target: MemoryWriteTarget,
-    pending: bool,
 ) -> str:
     # Type-enabled, not dense-capable: without an embedding backend the type
     # lives in the BM25 sparse mirror and stays writable.
     if MemoryType.SEMANTIC not in mgr.get_enabled_types():
         return "Knowledge memory is not enabled."
-    mem = await mgr.add_knowledge(content, importance=importance, tags=tags, write_target=write_target)
-    return f"Knowledge {_outcome(pending)} (ID: {mem.id})"
+    mem = await mgr.add_knowledge(
+        content, importance=importance, tags=tags, write_target=write_target, honor_approval=True
+    )
+    return format_write_ack("Knowledge", mem)
 
 
-async def _store_event(mgr: MemoryManager, content: str, *, write_target: MemoryWriteTarget, pending: bool) -> str:
+async def _store_event(mgr: MemoryManager, content: str, *, write_target: MemoryWriteTarget) -> str:
     if MemoryType.EPISODIC not in mgr.get_enabled_types():
         return "Event memory is not enabled."
-    mem = await mgr.add_event(content, event_type="agent_observation", write_target=write_target)
-    return f"Event {_outcome(pending)} (ID: {mem.id})"
+    mem = await mgr.add_event(content, event_type="agent_observation", write_target=write_target, honor_approval=True)
+    return format_write_ack("Event", mem)
 
 
 async def _store_preference(mgr: MemoryManager, content: str, *, preference_key: str | None) -> str:
@@ -97,21 +97,22 @@ async def _store_rule(
     trigger: str | None,
     priority: int,
     keywords: list[str],
-    pending: bool,
 ) -> str:
     if not mgr.has_relational:
         return "Procedural memory is not enabled."
     if not trigger:
         return "Rule requires 'rule_trigger'."
-    mem = await mgr.add_rule(trigger, content, priority=priority, trigger_keywords=keywords)
-    return f"Rule {_outcome(pending)} (ID: {mem.id})"
+    mem = await mgr.add_rule(trigger, content, priority=priority, trigger_keywords=keywords, honor_approval=True)
+    return format_write_ack("Rule", mem)
 
 
-async def _store_instruction(mgr: MemoryManager, content: str, *, priority: int, pending: bool) -> str:
+async def _store_instruction(mgr: MemoryManager, content: str, *, priority: int) -> str:
     if not mgr.has_relational:
         return "Procedural memory is not enabled."
-    mem = await mgr.add_rule("always", content, priority=max(priority, 10), source=RuleSource.AGENT_SELF)
-    return f"Instruction {_outcome(pending)} (ID: {mem.id})"
+    mem = await mgr.add_rule(
+        "always", content, priority=max(priority, 10), source=RuleSource.AGENT_SELF, honor_approval=True
+    )
+    return format_write_ack("Instruction", mem)
 
 
 def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description: str) -> None:
@@ -156,7 +157,6 @@ def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description
         mgr = resolve()
         parsed_tags = parse_string_list(tags)
         parsed_keywords = parse_string_list(rule_keywords)
-        pending = mgr.approval_required
 
         if (
             get_request_wiki_boundary_enabled()
@@ -169,10 +169,10 @@ def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description
         try:
             if category == "knowledge":
                 return await _store_knowledge(
-                    mgr, content, importance=importance, tags=parsed_tags, write_target=target, pending=pending
+                    mgr, content, importance=importance, tags=parsed_tags, write_target=target
                 )
             if category == "event":
-                return await _store_event(mgr, content, write_target=target, pending=pending)
+                return await _store_event(mgr, content, write_target=target)
             if category == "preference":
                 return await _store_preference(mgr, content, preference_key=preference_key)
             if category == "rule":
@@ -182,10 +182,9 @@ def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description
                     trigger=rule_trigger,
                     priority=rule_priority,
                     keywords=parsed_keywords,
-                    pending=pending,
                 )
             if category == "instruction":
-                return await _store_instruction(mgr, content, priority=rule_priority, pending=pending)
+                return await _store_instruction(mgr, content, priority=rule_priority)
             return f"Unknown category: {category}"
         except Exception as e:
             return write_failure_feedback("MCP memory_store", e, fallback="Failed to store memory")

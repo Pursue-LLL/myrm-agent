@@ -89,11 +89,11 @@ def pending_to_memory(record: PendingRecord) -> AnyMemory:
         data["metadata"] = {key: value for key, value in metadata.items() if not isinstance(value, list)}
     mt = record.memory_type
     if mt == MemoryType.SEMANTIC:
-        return SemanticMemory(**data)
+        return SemanticMemory.model_validate(data)
     if mt == MemoryType.EPISODIC:
-        return EpisodicMemory(**data)
+        return EpisodicMemory.model_validate(data)
     if mt == MemoryType.PROCEDURAL:
-        return ProceduralMemory(**data)
+        return ProceduralMemory.model_validate(data)
     if mt == MemoryType.CONVERSATION:
-        return ConversationMemory(**data)
+        return ConversationMemory.model_validate(data)
     raise ValueError(f"Cannot reconstruct memory from type: {mt}")

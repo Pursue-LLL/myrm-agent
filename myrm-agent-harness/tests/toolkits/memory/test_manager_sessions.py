@@ -5,13 +5,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError
 from myrm_agent_harness.toolkits.memory.config import (
     ConsolidationConfig,
     MemoryConfig,
     RecurrenceConfig,
 )
-from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+from myrm_agent_harness.toolkits.memory.manager import MemoryManager, MemoryRejectedError
 from myrm_agent_harness.toolkits.memory.types import (
     EpisodicMemory,
     ProceduralMemory,
@@ -22,9 +21,7 @@ from myrm_agent_harness.toolkits.memory.types import (
 class TestSessionManagement:
     """Test session-related methods."""
 
-    def test_begin_session_creates_session(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    def test_begin_session_creates_session(self, mock_vector_store, mock_embedding, memory_config):
         """Test begin_session creates a new MemorySession."""
         manager = MemoryManager(
             memory_config,
@@ -38,9 +35,7 @@ class TestSessionManagement:
         assert session is not None
         assert manager.active_session == session
 
-    def test_begin_session_discards_previous_session(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    def test_begin_session_discards_previous_session(self, mock_vector_store, mock_embedding, memory_config):
         """Test that begin_session discards the previous active session."""
         manager = MemoryManager(
             memory_config,
@@ -58,9 +53,7 @@ class TestSessionManagement:
         assert manager.active_session != session1
 
     @pytest.mark.asyncio
-    async def test_begin_session_safely_drains_previous_session(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_begin_session_safely_drains_previous_session(self, mock_vector_store, mock_embedding, memory_config):
         """Test that begin_session drains and persists dirty buffer from previous session."""
         mock_vector_store.upsert.return_value = ["mem-1"]
 
@@ -77,9 +70,7 @@ class TestSessionManagement:
         assert session1.buffer_size == 1
 
         # Patch manager.store_batch to spy on drain
-        with patch.object(
-            manager, "store_batch", wraps=manager.store_batch
-        ) as spy_store:
+        with patch.object(manager, "store_batch", wraps=manager.store_batch) as spy_store:
             session2 = manager.begin_session("chat-2")
             assert manager.active_session == session2
 
@@ -93,9 +84,7 @@ class TestSessionManagement:
             assert spy_store.called
 
     @pytest.mark.asyncio
-    async def test_end_session_returns_empty_when_no_session(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_end_session_returns_empty_when_no_session(self, mock_vector_store, mock_embedding, memory_config):
         """Test end_session returns empty list when no active session."""
         manager = MemoryManager(
             memory_config,
@@ -109,9 +98,7 @@ class TestSessionManagement:
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_end_session_flushes_and_clears(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_end_session_flushes_and_clears(self, mock_vector_store, mock_embedding, memory_config):
         """Test end_session flushes session and clears active_session."""
         mock_vector_store.upsert.return_value = ["mem-1"]
 
@@ -131,14 +118,10 @@ class TestSessionManagement:
         assert manager.active_session is None
 
     @pytest.mark.asyncio
-    async def test_end_session_triggers_forgetting(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_end_session_triggers_forgetting(self, mock_vector_store, mock_embedding, memory_config):
         """Test that end_session triggers forgetting at configured intervals."""
         mock_vector_store.upsert.return_value = ["mem-1"]
-        forgetting_config = MemoryConfig(
-            embedding_model="test-model", forgetting_interval=3
-        )
+        forgetting_config = MemoryConfig(embedding_model="test-model", forgetting_interval=3)
 
         manager = MemoryManager(
             forgetting_config,
@@ -159,9 +142,7 @@ class TestStoreOperations:
     """Test store and store_batch operations."""
 
     @pytest.mark.asyncio
-    async def test_store_with_approval_required(
-        self, mock_relational_store, memory_config
-    ):
+    async def test_store_with_approval_required(self, mock_relational_store, memory_config):
         """Test store with approval_required creates pending record."""
         manager = MemoryManager(
             memory_config,
@@ -177,9 +158,7 @@ class TestStoreOperations:
         mock_relational_store.submit_pending.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_store_duplicate_pending_raises_error(
-        self, mock_relational_store, memory_config
-    ):
+    async def test_store_duplicate_pending_raises_error(self, mock_relational_store, memory_config):
         """Test storing duplicate pending memory raises error."""
         mock_relational_store.pending_exists.return_value = True
         mock_relational_store.submit_pending.return_value = ""
@@ -193,13 +172,11 @@ class TestStoreOperations:
 
         memory = SemanticMemory(content="Duplicate")
 
-        with pytest.raises(MemoryError, match="Duplicate pending memory"):
+        with pytest.raises(MemoryRejectedError, match="already waiting for the user's approval"):
             await manager.store(memory)
 
     @pytest.mark.asyncio
-    async def test_store_semantic_memory(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_store_semantic_memory(self, mock_vector_store, mock_embedding, memory_config):
         """Test storing semantic memory."""
         mock_vector_store.upsert.return_value = ["mem-1"]
 
@@ -219,9 +196,7 @@ class TestStoreOperations:
         mock_embedding.embed.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_store_episodic_memory(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_store_episodic_memory(self, mock_vector_store, mock_embedding, memory_config):
         """Test storing episodic memory."""
         mock_vector_store.upsert.return_value = ["mem-2"]
 
@@ -250,9 +225,7 @@ class TestStoreOperations:
         )
         mock_relational_store.create_rule.return_value = stored_rule
 
-        manager = MemoryManager(
-            memory_config, user_id="test_user", relational=mock_relational_store
-        )
+        manager = MemoryManager(memory_config, user_id="test_user", relational=mock_relational_store)
 
         memory = ProceduralMemory(
             content="When user asks for weather, use weather API",
@@ -265,9 +238,7 @@ class TestStoreOperations:
         assert result.id == "rule-1"
 
     @pytest.mark.asyncio
-    async def test_store_batch_empty_list(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_store_batch_empty_list(self, mock_vector_store, mock_embedding, memory_config):
         """Test store_batch with empty list returns empty."""
         manager = MemoryManager(
             memory_config,
@@ -286,9 +257,7 @@ class TestStoreOperations:
     ):
         """Test store_batch with mixed memory types."""
         mock_vector_store.upsert.side_effect = [["sem-1"], ["epi-1"]]
-        rule_obj = ProceduralMemory(
-            id="rule-1", content="Rule", trigger="trigger", action="action"
-        )
+        rule_obj = ProceduralMemory(id="rule-1", content="Rule", trigger="trigger", action="action")
         mock_relational_store.create_rule.return_value = rule_obj
 
         manager = MemoryManager(
@@ -313,9 +282,7 @@ class TestStoreOperations:
         assert any(isinstance(m, ProceduralMemory) for m in result)
 
     @pytest.mark.asyncio
-    async def test_store_batch_with_deduplicator(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_store_batch_with_deduplicator(self, mock_vector_store, mock_embedding, memory_config):
         """Test store_batch uses deduplicator when available."""
         mock_llm = MagicMock()
         mock_vector_store.upsert.return_value = ["mem-1"]
@@ -336,9 +303,7 @@ class TestStoreOperations:
         assert len(result) == 1
 
     @pytest.mark.asyncio
-    async def test_store_batch_episodic_with_deduplicator(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_store_batch_episodic_with_deduplicator(self, mock_vector_store, mock_embedding, memory_config):
         """Test store_batch deduplicates episodic memories when deduplicator available."""
         mock_llm = MagicMock()
         mock_vector_store.upsert.return_value = ["mem-1"]
@@ -385,45 +350,33 @@ class TestCheckSessionRecurrence:
     """Test check_session_recurrence integration in MemoryManager."""
 
     @pytest.mark.asyncio
-    async def test_recurrence_disabled_does_nothing(
-        self, mock_vector_store, mock_embedding
-    ):
+    async def test_recurrence_disabled_does_nothing(self, mock_vector_store, mock_embedding):
         """When recurrence is disabled, check_session_recurrence is a no-op."""
         config = MemoryConfig(
             embedding_model="test-model",
             recurrence=RecurrenceConfig(enabled=False),
         )
-        manager = MemoryManager(
-            config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding
-        )
+        manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
         assert manager._recurrence_detector is None
         await manager.check_session_recurrence("user likes python")
         mock_vector_store.search.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_recurrence_empty_summary_skips(
-        self, mock_vector_store, mock_embedding
-    ):
+    async def test_recurrence_empty_summary_skips(self, mock_vector_store, mock_embedding):
         """Empty or whitespace summary is silently skipped."""
         config = MemoryConfig(embedding_model="test-model")
-        manager = MemoryManager(
-            config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding
-        )
+        manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
         await manager.check_session_recurrence("")
         await manager.check_session_recurrence("   ")
         mock_vector_store.search.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_recurrence_not_triggered_stores_embedding(
-        self, mock_vector_store, mock_embedding
-    ):
+    async def test_recurrence_not_triggered_stores_embedding(self, mock_vector_store, mock_embedding):
         """When recurrence is not triggered, the embedding is still stored in buffer."""
         mock_vector_store.search.return_value = []
         mock_vector_store.count.return_value = 5
         config = MemoryConfig(embedding_model="test-model")
-        manager = MemoryManager(
-            config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding
-        )
+        manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
 
         await manager.check_session_recurrence("user asked about python")
 
@@ -431,9 +384,7 @@ class TestCheckSessionRecurrence:
         mock_vector_store.upsert.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_recurrence_triggered_stores_consolidated_memory(
-        self, mock_vector_store, mock_embedding
-    ):
+    async def test_recurrence_triggered_stores_consolidated_memory(self, mock_vector_store, mock_embedding):
         """When recurrence is triggered, a consolidated memory is stored."""
         from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
 
@@ -457,9 +408,7 @@ class TestCheckSessionRecurrence:
             embedding_model="test-model",
             recurrence=RecurrenceConfig(recurrence_k=4),
         )
-        manager = MemoryManager(
-            config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding
-        )
+        manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
 
         await manager.check_session_recurrence("user asked about python again")
 
@@ -479,37 +428,27 @@ class TestCheckSessionRecurrence:
         assert mock_vector_store.delete.called is False
 
     @pytest.mark.asyncio
-    async def test_recurrence_importance_preemption_stores_immediately(
-        self, mock_vector_store, mock_embedding
-    ):
+    async def test_recurrence_importance_preemption_stores_immediately(self, mock_vector_store, mock_embedding):
         """Importance preemption triggers immediate consolidation without k checks."""
         mock_vector_store.upsert.return_value = ["mem-1"]
         config = MemoryConfig(embedding_model="test-model")
-        manager = MemoryManager(
-            config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding
-        )
+        manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
 
         await manager.check_session_recurrence("I have a severe allergy to penicillin")
 
         assert mock_vector_store.upsert.called
 
     @pytest.mark.asyncio
-    async def test_recurrence_exception_is_non_fatal(
-        self, mock_vector_store, mock_embedding
-    ):
+    async def test_recurrence_exception_is_non_fatal(self, mock_vector_store, mock_embedding):
         """Exceptions in recurrence detection are caught and logged, not propagated."""
         mock_embedding.embed.side_effect = RuntimeError("embedding service down")
         config = MemoryConfig(embedding_model="test-model")
-        manager = MemoryManager(
-            config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding
-        )
+        manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
 
         await manager.check_session_recurrence("test topic")
 
     @pytest.mark.asyncio
-    async def test_recurrence_with_consolidation_llm(
-        self, mock_vector_store, mock_embedding
-    ):
+    async def test_recurrence_with_consolidation_llm(self, mock_vector_store, mock_embedding):
         """When consolidation_llm is provided, LLM is used for consolidation."""
         from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
 
@@ -530,9 +469,7 @@ class TestCheckSessionRecurrence:
         mock_vector_store.upsert.return_value = ["mem-new"]
 
         mock_llm = AsyncMock()
-        mock_llm.ainvoke = AsyncMock(
-            return_value=MagicMock(content="User prefers Python for data processing")
-        )
+        mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="User prefers Python for data processing"))
 
         config = MemoryConfig(
             embedding_model="test-model",
@@ -555,9 +492,7 @@ class TestCloseSessionDrain:
     """Test that close() flushes active session before closing stores."""
 
     @pytest.mark.asyncio
-    async def test_close_flushes_active_session(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_close_flushes_active_session(self, mock_vector_store, mock_embedding, memory_config):
         """close() must flush session buffer before closing stores."""
         mock_vector_store.upsert.return_value = ["mem-1"]
         manager = MemoryManager(
@@ -576,9 +511,7 @@ class TestCloseSessionDrain:
         mock_vector_store.upsert.assert_called()
 
     @pytest.mark.asyncio
-    async def test_close_noop_when_no_active_session(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_close_noop_when_no_active_session(self, mock_vector_store, mock_embedding, memory_config):
         """close() is safe when no active session exists."""
         manager = MemoryManager(
             memory_config,
@@ -592,9 +525,7 @@ class TestCloseSessionDrain:
         assert manager.active_session is None
 
     @pytest.mark.asyncio
-    async def test_close_idempotent_after_end_session(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_close_idempotent_after_end_session(self, mock_vector_store, mock_embedding, memory_config):
         """close() after end_session() does not double-flush."""
         mock_vector_store.upsert.return_value = ["mem-1"]
         manager = MemoryManager(
@@ -615,9 +546,7 @@ class TestCloseSessionDrain:
         mock_vector_store.upsert.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_close_continues_on_flush_failure(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+    async def test_close_continues_on_flush_failure(self, mock_vector_store, mock_embedding, memory_config):
         """close() still closes stores even if flush raises."""
         mock_vector_store.upsert.side_effect = OSError("disk full")
         mock_vector_store.close = AsyncMock()
@@ -644,12 +573,8 @@ class TestConsolidationTrigger:
         self, mock_relational_store, mock_vector_store, memory_config
     ):
         """store() fires _maybe_consolidate once the trigger threshold is reached."""
-        mock_relational_store.create_rule.return_value = ProceduralMemory(
-            id="r", content="c", trigger="t", action="a"
-        )
-        config = replace(
-            memory_config, consolidation=ConsolidationConfig(message_count_trigger=2)
-        )
+        mock_relational_store.create_rule.return_value = ProceduralMemory(id="r", content="c", trigger="t", action="a")
+        config = replace(memory_config, consolidation=ConsolidationConfig(message_count_trigger=2))
         manager = MemoryManager(
             config,
             user_id="u1",
@@ -671,12 +596,8 @@ class TestConsolidationTrigger:
         self, mock_relational_store, mock_vector_store, memory_config
     ):
         """store_batch() resets the counter and triggers consolidation at threshold."""
-        mock_relational_store.create_rule.return_value = ProceduralMemory(
-            id="r", content="c", trigger="t", action="a"
-        )
-        config = replace(
-            memory_config, consolidation=ConsolidationConfig(message_count_trigger=3)
-        )
+        mock_relational_store.create_rule.return_value = ProceduralMemory(id="r", content="c", trigger="t", action="a")
+        config = replace(memory_config, consolidation=ConsolidationConfig(message_count_trigger=3))
         manager = MemoryManager(
             config,
             user_id="u1",
@@ -685,15 +606,11 @@ class TestConsolidationTrigger:
         )
         manager._maybe_consolidate = MagicMock()
 
-        await manager.store_batch(
-            [ProceduralMemory(content="c", trigger="t", action="a")] * 2
-        )
+        await manager.store_batch([ProceduralMemory(content="c", trigger="t", action="a")] * 2)
         assert manager._stores_since_consolidation == 2
         manager._maybe_consolidate.assert_not_called()
 
-        await manager.store_batch(
-            [ProceduralMemory(content="c", trigger="t", action="a")]
-        )
+        await manager.store_batch([ProceduralMemory(content="c", trigger="t", action="a")])
         assert manager._stores_since_consolidation == 0
         manager._maybe_consolidate.assert_called_once()
 
@@ -702,12 +619,8 @@ class TestConsolidationTrigger:
         self, mock_relational_store, mock_vector_store, memory_config
     ):
         """_maybe_consolidate is never invoked when message_count_trigger <= 0."""
-        mock_relational_store.create_rule.return_value = ProceduralMemory(
-            id="r", content="c", trigger="t", action="a"
-        )
-        config = replace(
-            memory_config, consolidation=ConsolidationConfig(message_count_trigger=0)
-        )
+        mock_relational_store.create_rule.return_value = ProceduralMemory(id="r", content="c", trigger="t", action="a")
+        config = replace(memory_config, consolidation=ConsolidationConfig(message_count_trigger=0))
         manager = MemoryManager(
             config,
             user_id="u1",

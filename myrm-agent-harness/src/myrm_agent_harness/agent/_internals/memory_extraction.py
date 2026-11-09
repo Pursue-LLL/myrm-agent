@@ -21,9 +21,9 @@
 Memory auto-extraction utilities. Implements the post-turn extraction strategy:
 
 **Compressed Track (always runs):** LLM-extracted SemanticMemory/EpisodicMemory.
-Writes default to the pending queue (``force_pending=True``) for GUI review unless
-the caller opts out (API compat). Explicit ``memory_save_tool`` writes bypass
-pending via ``_bypass_approval=True``.
+Every candidate that passes the write gates waits in the pending queue for the user's review (``force_pending=True``);
+with ``force_pending=False`` the manager's approval switch decides, as it does for the
+agent's own ``memory_save_tool`` writes.
 
 **Verbatim Track (opt-in, ``enable_verbatim=True``):** the newest user/assistant
 exchange is stored as a ConversationMemory
@@ -186,10 +186,11 @@ async def persist_extracted_memories(
 ) -> int:
     """Persist extracted memories to MemoryManager.
 
-    Inferred auto-extraction writes route to the pending queue by default
-    (``force_pending=True``) so GUI users can review before L3 commit.
-    Explicit tool/API writes should call with ``force_pending=False`` and
-    use ``_bypass_approval=True`` on the manager instead.
+    Extracted memories are inferred, not requested: by default
+    (``force_pending=True``) every one that passes the write gates waits in the
+    pending queue for the user's review before L3 commit. With
+    ``force_pending=False`` they follow the manager's approval switch like any
+    other write.
 
     When *deep_scan_llm_func* is provided, non-structured PII in memory
     content is detected via LLM and pseudonymized before storage.
