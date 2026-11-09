@@ -45,10 +45,9 @@ describe('exportSessionZipPack', () => {
     globalThis.fetch = originalFetch;
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
+    // A DOM environment owns its read-only `document`; only the stub installed for a DOM-less run is removed.
     if (originalDocument === undefined) {
       delete (globalThis as { document?: unknown }).document;
-    } else {
-      globalThis.document = originalDocument;
     }
     vi.restoreAllMocks();
   });

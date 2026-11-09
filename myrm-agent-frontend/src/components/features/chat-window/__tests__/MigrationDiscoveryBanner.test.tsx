@@ -8,10 +8,12 @@ import React from 'react';
 import type { DiscoveryResponse, ExternalSource } from '@/services/migrationDiscovery';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const stableT = (key: string) => key;
+// Interpolation values are part of the output, so the counts and names the banner passes on can be asserted.
+const stableT = (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key);
 const mockPush = vi.fn();
 const mockDiscover = vi.fn<() => Promise<DiscoveryResponse>>();
 const mockIsLocalMode = vi.fn(() => true);
+const mockCanDeepLink = vi.fn(() => true);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -27,7 +29,7 @@ vi.mock('@/lib/deploy-mode', () => ({
 
 vi.mock('@/services/migrationDiscovery', () => ({
   discoverMigrationSources: () => mockDiscover(),
-  canDeepLinkMigrationSource: () => true,
+  canDeepLinkMigrationSource: () => mockCanDeepLink(),
   getMigrationSourceDisplayName: (id: string) => id,
 }));
 
@@ -61,6 +63,7 @@ describe('MigrationDiscoveryBanner', () => {
     mockPush.mockReset();
     mockDiscover.mockReset();
     mockIsLocalMode.mockReturnValue(true);
+    mockCanDeepLink.mockReturnValue(true);
     localStorage.clear();
   });
 
@@ -90,6 +93,78 @@ describe('MigrationDiscoveryBanner', () => {
     fireEvent.click(importButton);
 
     expect(mockPush).toHaveBeenCalledWith('/settings/memory?sub=migration&source=hermes');
+  });
+
+  it('encodes the source id in the deep link', async () => {
+    mockDiscover.mockResolvedValue(response([{ ...source, competitor: 'my agent&co' }]));
+
+    render(<MigrationDiscoveryBanner />);
+    fireEvent.click(await screen.findByRole('button', { name: /importButton/ }));
+
+    expect(mockPush).toHaveBeenCalledWith('/settings/memory?sub=migration&source=my%20agent%26co');
+  });
+
+  it('opens the migration page without a source when the one detected source cannot be deep-linked', async () => {
+    mockCanDeepLink.mockReturnValue(false);
+    mockDiscover.mockResolvedValue(response([source]));
+
+    render(<MigrationDiscoveryBanner />);
+    fireEvent.click(await screen.findByRole('button', { name: /importButton/ }));
+
+    expect(mockPush).toHaveBeenCalledWith('/settings/memory?sub=migration');
+  });
+
+  it('opens the migration page to choose from when several sources are detected', async () => {
+    mockDiscover.mockResolvedValue(response([source, { ...source, competitor: 'openclaw' }]));
+
+    render(<MigrationDiscoveryBanner />);
+    fireEvent.click(await screen.findByRole('button', { name: /importButton/ }));
+
+    expect(mockPush).toHaveBeenCalledWith('/settings/memory?sub=migration');
+  });
+
+  it('adds several sources up in the title and the description', async () => {
+    mockDiscover.mockResolvedValue(
+      response([source, { ...source, competitor: 'openclaw', memory_count_estimate: 4, skill_count: 1 }]),
+    );
+
+    render(<MigrationDiscoveryBanner />);
+
+    expect(await screen.findByText('title:{"competitor":"hermes, openclaw"}')).toBeInTheDocument();
+    expect(screen.getByText('description:{"memoryCount":7,"skillCount":3}')).toBeInTheDocument();
+  });
+
+  it.each<[string, Partial<ExternalSource>, string]>([
+    ['skills are found', { memory_count_estimate: 5, skill_count: 2 }, 'description:{"memoryCount":5,"skillCount":2}'],
+    [
+      'only memories are found',
+      { memory_count_estimate: 5, skill_count: 0 },
+      'descriptionMemoryOnly:{"memoryCount":5}',
+    ],
+    ['nothing countable is found', { memory_count_estimate: 0, skill_count: 0 }, 'descriptionGeneric'],
+  ])('describes what it found when %s', async (_label, counts, description) => {
+    mockDiscover.mockResolvedValue(response([{ ...source, ...counts }]));
+
+    render(<MigrationDiscoveryBanner />);
+
+    expect(await screen.findByText(description)).toBeInTheDocument();
+  });
+
+  it('warns about API keys only when one of the sources would bring some', async () => {
+    mockDiscover.mockResolvedValue(response([{ ...source, has_api_keys: true }]));
+    const withKeys = render(<MigrationDiscoveryBanner />);
+    expect(await screen.findByText('apiKeysHint')).toBeInTheDocument();
+    withKeys.unmount();
+
+    mockDiscover.mockResolvedValue(response([source]));
+    const withoutKeys = render(<MigrationDiscoveryBanner />);
+    await screen.findByRole('button', { name: /importButton/ });
+    expect(screen.queryByText('apiKeysHint')).toBeNull();
+    withoutKeys.unmount();
+
+    mockDiscover.mockResolvedValue(response([source, { ...source, competitor: 'openclaw', has_api_keys: true }]));
+    render(<MigrationDiscoveryBanner />);
+    expect(await screen.findByText('apiKeysHint')).toBeInTheDocument();
   });
 
   it('lets the actions wrap onto a second line instead of running past the screen edge', async () => {
