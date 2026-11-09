@@ -6,7 +6,6 @@ Covers:
 - _persist_insights: skips and store-error tolerance
 - execute_operations: MergeOp demote failure, UpdateContentOp protected memory
 - _enrich_with_similar candidate search + error fallback
-- record_consolidation_event persistence guards
 """
 
 from __future__ import annotations
@@ -18,13 +17,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
-    ConsolidationStats,
     MergeOp,
     UpdateContentOp,
     _enrich_with_similar,
     _persist_insights,
     execute_operations,
-    record_consolidation_event,
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import (
     _SYSTEM_PROMPT,
@@ -145,7 +142,10 @@ class TestExecuteOperationsExtraBranches:
         stats = await execute_operations(ops, manager)
         assert stats.updated == 0
         assert stats.errors == 0
-        manager.update_memory.assert_awaited_once_with("mem-1", content="new", importance=0.3, allow_protected=False)
+        manager.update_memory.assert_awaited_once_with(
+            "mem-1", importance=0.3, confidence=None, content="new", metadata=None, allow_protected=False
+        )
+        assert stats.undo.change_count == 0  # a refused write leaves nothing to undo
 
     @pytest.mark.asyncio
     async def test_update_content_applies(self) -> None:
@@ -197,29 +197,3 @@ class TestEnrichWithSimilar:
         manager.search = AsyncMock(side_effect=RuntimeError("search down"))
         base = SemanticMemory(content="base")
         assert await _enrich_with_similar(base, manager) == [base]
-
-
-class TestRecordConsolidationEvent:
-    @pytest.mark.asyncio
-    async def test_no_vector_still_records_event(self) -> None:
-        manager = make_manager()
-        manager.has_vector = False
-        await record_consolidation_event(manager, ConsolidationStats())
-        manager.add_event.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_summary_includes_affected_ids(self) -> None:
-        manager = make_manager()
-        stats = ConsolidationStats(merged=1, affected_ids=["a-1", "a-2"], input_count=3, duration_ms=12.5)
-        await record_consolidation_event(manager, stats)
-        manager.add_event.assert_awaited_once()
-        kwargs = manager.add_event.call_args.kwargs
-        assert kwargs["event_type"] == "consolidation"
-        assert "[affected_ids:a-1,a-2]" in kwargs["content"]
-        assert "input 3" in kwargs["content"]
-
-    @pytest.mark.asyncio
-    async def test_add_event_error_is_tolerated(self) -> None:
-        manager = make_manager()
-        manager.add_event = AsyncMock(side_effect=RuntimeError("event store down"))
-        await record_consolidation_event(manager, ConsolidationStats())  # must not raise

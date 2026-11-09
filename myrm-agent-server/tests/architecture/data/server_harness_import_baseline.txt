@@ -454,7 +454,7 @@ myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.session_post_process
 myrm_agent_harness.toolkits.memory.strategies.blind_spot
 myrm_agent_harness.toolkits.memory.strategies.consolidation
-myrm_agent_harness.toolkits.memory.strategies.consolidation_rollback
+myrm_agent_harness.toolkits.memory.strategies.consolidation_undo
 myrm_agent_harness.toolkits.memory.strategies.extraction_domain
 myrm_agent_harness.toolkits.memory.strategies.extractor
 myrm_agent_harness.toolkits.memory.strategies.implicit_feedback

@@ -4,8 +4,8 @@
 - memory._internal.storage::doc_to_episodic, doc_to_semantic (POS: Vector document to memory converters)
 - memory._internal.store_stamp::{STORED_TS_KEY, stored_at_from_metadata} (POS: arrival stamp of a stored memory and its payload form)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
-- memory.types::AnyMemory, EpisodicMemory, SemanticMemory (POS: memory data models)
-- strategies.consolidation_models::{CONSOLIDATION_EVENT_TYPE, CONSOLIDATION_INSIGHT_TAG, CONSOLIDATION_SOURCE_KEY} (POS: markers of consolidation's own output)
+- memory.types::AnyMemory, SemanticMemory (POS: memory data models)
+- strategies.consolidation_models::{CONSOLIDATION_INSIGHT_TAG, CONSOLIDATION_SOURCE_KEY} (POS: markers of consolidation's own output)
 
 [OUTPUT]
 - CandidateWindow: The memories of one run and the time the covered-through stamp may advance to
@@ -35,11 +35,10 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.memory._internal.storage import doc_to_episodic, doc_to_semantic
 from myrm_agent_harness.toolkits.memory._internal.store_stamp import STORED_TS_KEY, stored_at_from_metadata
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
-    CONSOLIDATION_EVENT_TYPE,
     CONSOLIDATION_INSIGHT_TAG,
     CONSOLIDATION_SOURCE_KEY,
 )
-from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -64,11 +63,9 @@ class CandidateWindow:
 
 def _is_consolidation_product(memory: AnyMemory) -> bool:
     """Whether consolidation itself wrote this memory; feeding it back would make every run analyze the last one."""
-    if isinstance(memory, EpisodicMemory):
-        return memory.event_type == CONSOLIDATION_EVENT_TYPE
-    if isinstance(memory, SemanticMemory):
-        return CONSOLIDATION_INSIGHT_TAG in memory.tags or CONSOLIDATION_SOURCE_KEY in memory.metadata
-    return False
+    return isinstance(memory, SemanticMemory) and (
+        CONSOLIDATION_INSIGHT_TAG in memory.tags or CONSOLIDATION_SOURCE_KEY in memory.metadata
+    )
 
 
 def _arrived_at(memory: AnyMemory) -> datetime:

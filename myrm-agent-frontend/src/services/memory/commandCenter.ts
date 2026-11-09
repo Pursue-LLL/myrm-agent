@@ -576,34 +576,6 @@ export const runMemoryDiagnosticRepair = async (
   });
 };
 
-export interface ConsolidationLastSummary {
-  available: boolean;
-  event_id?: string;
-  timestamp?: string;
-  summary?: string;
-  affected_ids?: string[];
-  affected_count?: number;
-  rollback_available?: boolean;
-  conflict_ids?: string[];
-}
-
-export interface ConsolidationRollbackResult {
-  rolled_back: number;
-  skipped_conflict: number;
-  errors: number;
-  conflict_ids: string[];
-}
-
-export const getConsolidationLastSummary = async (): Promise<ConsolidationLastSummary> => {
-  return apiRequest<ConsolidationLastSummary>('/memory/command-center/consolidation/last-summary');
-};
-
-export const rollbackConsolidation = async (): Promise<ConsolidationRollbackResult> => {
-  return apiRequest<ConsolidationRollbackResult>('/memory/command-center/consolidation/rollback', {
-    method: 'POST',
-  });
-};
-
 export interface MemoryRecallScopeBoundary {
   level: string;
   label: string;

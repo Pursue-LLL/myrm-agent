@@ -9,7 +9,7 @@
 
 [OUTPUT]
 - BASE, HORIZON, GLOBAL, NewManager, at: the clock and scope the seeds are laid out on
-- semantic, episodic: a memory created ``offset_s`` seconds after ``BASE`` that reached the store at ``stored_s`` (default: when it was created)
+- semantic, episodic: a memory created ``offset_s`` seconds after ``BASE`` that reached the store at ``stored_s`` (default: when it was created); a semantic one can state its importance, confidence, metadata and pin
 - seed, seed_undecodable: write them below a manager with an explicit stamp, the way the store lays them out
 - llm_returning: a chat model that answers every consolidation call with one response
 
@@ -52,6 +52,10 @@ def semantic(
     stored_s: int | None = None,
     tags: list[str] | None = None,
     correction_of: str | None = None,
+    importance: float = 0.5,
+    confidence: float = 1.0,
+    metadata: dict[str, str | int | float | bool] | None = None,
+    pinned: bool = False,
 ) -> SemanticMemory:
     return SemanticMemory(
         content=content,
@@ -61,6 +65,10 @@ def semantic(
         stored_at=at(offset_s if stored_s is None else stored_s),
         tags=tags or [],
         correction_of=correction_of,
+        importance=importance,
+        confidence=confidence,
+        metadata=metadata or {},
+        pinned=pinned,
     )
 
 

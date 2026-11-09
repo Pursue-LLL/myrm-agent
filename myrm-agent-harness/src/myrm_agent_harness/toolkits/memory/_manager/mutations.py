@@ -354,7 +354,7 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
             updated.status = MemoryStatus.ACTIVE if is_active else MemoryStatus.DISABLED
         if metadata is not None:
             # Callers pass the complete metadata they computed from the current one
-            # (dropping keys is how the consolidation rollback and the subsumption
+            # (dropping keys is how the consolidation undo and the subsumption
             # undo clear their markers), so this replaces it instead of merging.
             updated.metadata = dict(metadata)
         if isinstance(updated, ProceduralMemory):

@@ -3,8 +3,7 @@
 Covers:
 - get_last_consolidated_at / should_consolidate time gates
 - fetch_candidate_window: the arrival-ordered read of each source and the stamp that precedes it,
-  consolidation-event skip, truncation (never through one instant), per-store error tolerance and the
-  stamp each outcome allows
+  truncation (never through one instant), per-store error tolerance and the stamp each outcome allows
 - _advance_stamp persistence guards
 """
 
@@ -29,12 +28,12 @@ from myrm_agent_harness.toolkits.vector.base import FilterDict, VectorDocument
 from tests.support.consolidation_manager import make_manager, semantic_doc
 
 
-def _episodic_doc(mem_id: str, content: str, *, event_type: str = "conversation") -> VectorDocument:
+def _episodic_doc(mem_id: str, content: str) -> VectorDocument:
     created_at = datetime.now(UTC) - timedelta(days=1)
     return VectorDocument(
         id=mem_id,
         content=content,
-        metadata={"user_id": "test-user", "event_type": event_type, STORED_TS_KEY: created_at.timestamp()},
+        metadata={"user_id": "test-user", "event_type": "conversation", STORED_TS_KEY: created_at.timestamp()},
         created_at=created_at,
     )
 
@@ -153,21 +152,6 @@ class TestFetchCandidateWindow:
         assert all(hasattr(m, "created_at") for m in window.memories)
         # More candidates than one window holds: only what the window reached is covered.
         assert window.advance_to == window.memories[-1].stored_at
-
-    @pytest.mark.asyncio
-    async def test_consolidation_event_skipped(self) -> None:
-        manager = make_manager()
-        vector = manager._vec_store
-        vector.scroll = AsyncMock(
-            side_effect=[
-                ([], None),
-                ([_episodic_doc("consol", "event", event_type="consolidation")], None),
-            ]
-        )
-        horizon = datetime.now(UTC)
-        window = await fetch_candidate_window(manager, since=None, max_count=5, horizon=horizon)
-        assert window.memories == []
-        assert window.advance_to == horizon
 
     @pytest.mark.asyncio
     async def test_vector_scroll_error_is_tolerated(self) -> None:

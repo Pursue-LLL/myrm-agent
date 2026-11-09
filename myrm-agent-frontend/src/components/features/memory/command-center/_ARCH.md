@@ -14,7 +14,7 @@
 | `MemoryCommandCenterPanels.tsx`         | 核心 | 主内容区观察/治理/验证分区面板编排（概览/召回/健康等基础面板）   | ✅    |
 | `MemoryCommandCenterUnderstandSection.tsx` | 核心 | 「理解」分区：记忆经济学、行为指标、记忆能力卡片挂载与影响/冲突面板；Two-layer studio 卡片受 labs 开关约束 | ✅    |
 | `MemoryCommandCenterObservationPanels.tsx` | 辅助 | 只读观测子面板：记忆影响行、实时事件流、运行时状态、成本与回放概览 | ✅    |
-| `MemoryCommandCenterGovernancePanels.tsx` | 辅助 | 治理子面板：治理动作行、迁移覆盖与适配器状态面板、整合回滚卡片 | ✅    |
+| `MemoryCommandCenterGovernancePanels.tsx` | 辅助 | 治理子面板：治理动作行、迁移覆盖与适配器状态面板、自动整理撤销卡片 | ✅    |
 | `MemoryCommandCenterPrimitives.tsx`     | 辅助 | 分区面板共用原子组件：版块、指标块、运行时行与空态               | ✅    |
 | `memoryCommandCenterFormat.ts`          | 辅助 | 分区面板共用枚举守卫与文案格式化（memory 命名空间翻译、时间与事件描述） | ✅    |
 | `MemoryCommandCenterAdvancedPanels.tsx` | 核心 | 高级面板集合（容量剧场、偏好雷达、检索诊断等进阶视图）           | ✅    |

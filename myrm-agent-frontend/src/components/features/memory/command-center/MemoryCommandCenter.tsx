@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * @/services/memory/commandCenter::getMemoryCommandCenter (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/consolidationUndo::getConsolidationUndo (POS: 记忆自动整理撤销客户端)
  * @/services/projects::getProjects (POS: 项目管理 API 服务层)
  * ../hooks/useMemoryCommandCenterActions::useMemoryCommandCenterActions (POS: 治理、Doctor、导入回滚、归档导出等写操作及其提示)
  *
@@ -33,14 +34,13 @@ import { ActSection, ObserveSection, VerifySection } from './MemoryCommandCenter
 import { UnderstandSection } from './MemoryCommandCenterUnderstandSection';
 import {
   getMemoryCommandCenter,
-  getConsolidationLastSummary,
   getMemoryDiagnosticHistory,
-  type ConsolidationLastSummary,
   type MemoryCommandCenterResponse,
   type MemoryCommandDiagnosticHistoryItem,
   type MemoryCommandDiagnosticRun,
   type MemoryCommandTimelineEvent,
 } from '@/services/memory/commandCenter';
+import { getConsolidationUndo, type ConsolidationUndoSummary } from '@/services/memory/consolidationUndo';
 import { MemoryArchiveRestoreDialog } from '../dialogs/MemoryArchiveRestoreDialog';
 import { CommandCenterSkeleton, MetricTile, RollbackPreviewDialog, StatusPill } from './MemoryCommandCenterChrome';
 import { useMemoryArchiveRestoreActions } from '../hooks/useMemoryArchiveRestoreActions';
@@ -82,7 +82,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const [liveStream, setLiveStream] = useState<MemoryCommandTimelineEvent[]>([]);
   const [replaySessionId, setReplaySessionId] = useState<string | null>(null);
   const [healthExpanded, setHealthExpanded] = useState(false);
-  const [consolidationSummary, setConsolidationSummary] = useState<ConsolidationLastSummary | null>(null);
+  const [consolidationSummary, setConsolidationSummary] = useState<ConsolidationUndoSummary | null>(null);
   const activeChatId = useChatStore((state) => state.chatId);
 
   const urlProjectId = searchParams.get('project') ?? null;
@@ -116,7 +116,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
     try {
       const [snap, consolSummary, history] = await Promise.all([
         getMemoryCommandCenter(selectedProjectId, { signal: controller.signal }),
-        getConsolidationLastSummary().catch(() => null),
+        getConsolidationUndo().catch(() => null),
         getMemoryDiagnosticHistory(24).catch(() => ({ items: [] })),
       ]);
       if (controller.signal.aborted) {
@@ -202,7 +202,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
     previewRollbackImport,
     confirmRollbackImport,
     openMigrationWizard,
-    handleConsolidationRollback,
+    handleConsolidationUndo,
     exportArchive,
     rollbackPreview,
     rollbackResult,
@@ -427,7 +427,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
           onRollbackImport={previewRollbackImport}
           onOpenMigrationWizard={openMigrationWizard}
           consolidationSummary={consolidationSummary}
-          onConsolidationRollback={handleConsolidationRollback}
+          onConsolidationUndo={handleConsolidationUndo}
         />
       )}
       {activeSection === 'verify' && (

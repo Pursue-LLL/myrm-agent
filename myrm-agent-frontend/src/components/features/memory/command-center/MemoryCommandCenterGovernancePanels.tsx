@@ -3,24 +3,22 @@
 /**
  * [INPUT]
  * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/consolidationUndo::ConsolidationUndoSummary (POS: 记忆自动整理撤销客户端)
  * ./memoryDoctorModel::DoctorExecutableAction (POS: Memory Doctor 面板可派发的医生动作)
  * ./memoryCommandCenterFormat::translateRecordStatus (POS: 个人大脑指挥中心面板共用的枚举守卫与文案格式化)
  *
  * [OUTPUT]
  * GovernanceRow: 待审批记忆行与批准 / 拒绝动作。
  * MigrationPanel: 迁移覆盖、适配器就绪度与 missing 状态的迁移向导入口。
- * ConsolidationRollbackCard: 最近一次整合摘要与一键回滚。
+ * ConsolidationUndoCard: 最近一次记忆自动整理的摘要与一键撤销。
  *
  * [POS]
- * 个人大脑指挥中心的治理动作行、迁移覆盖与适配器状态面板，以及整合回滚卡片。
+ * 个人大脑指挥中心的治理动作行、迁移覆盖与适配器状态面板，以及自动整理撤销卡片。
  */
 
 import { cn } from '@/lib/utils/classnameUtils';
-import type {
-  ConsolidationLastSummary,
-  MemoryCommandCenterResponse,
-  MemoryCommandGovernanceItem,
-} from '@/services/memory/commandCenter';
+import type { MemoryCommandCenterResponse, MemoryCommandGovernanceItem } from '@/services/memory/commandCenter';
+import type { ConsolidationUndoSummary } from '@/services/memory/consolidationUndo';
 import type { DoctorExecutableAction } from './memoryDoctorModel';
 import {
   isCoverageStatus,
@@ -192,22 +190,25 @@ export const MigrationPanel = ({
   );
 };
 
-export const ConsolidationRollbackCard = ({
+export const ConsolidationUndoCard = ({
   summary,
   t,
   loading,
-  onRollback,
+  onUndo,
 }: {
-  summary: ConsolidationLastSummary;
+  summary: ConsolidationUndoSummary;
   t: MemoryTranslation;
   loading: boolean;
-  onRollback?: () => void;
+  onUndo: () => void;
 }) => {
-  const timeLabel = summary.timestamp
-    ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(
-        new Date(summary.timestamp),
-      )
-    : '';
+  const timeLabel = new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(summary.recorded_at));
+  // An undo leaves alone what the user changed since, so there is nothing to do once that is all of it.
+  const canUndo = summary.conflict_count < summary.change_count;
 
   return (
     <div className="space-y-3">
@@ -217,33 +218,37 @@ export const ConsolidationRollbackCard = ({
           <span className="text-[11px] text-muted-foreground">{timeLabel}</span>
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          {summary.summary ?? t('commandCenter.consolidationNoDetails')}
+          {t('commandCenter.consolidationBreakdown', {
+            merged: summary.merged,
+            corrected: summary.corrected,
+            updated: summary.updated,
+          })}
         </p>
         <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>{t('commandCenter.consolidationAffected', { count: summary.affected_count ?? 0 })}</span>
-          {!summary.rollback_available && (
+          <span>{t('commandCenter.consolidationAffected', { count: summary.change_count })}</span>
+          {summary.conflict_count > 0 && (
             <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-600 dark:text-amber-400">
-              {t('commandCenter.consolidationConflict')}
+              {t('commandCenter.consolidationConflict', { count: summary.conflict_count })}
             </span>
           )}
         </div>
       </div>
       <button
         type="button"
-        onClick={onRollback}
-        disabled={loading || !summary.rollback_available}
+        onClick={onUndo}
+        disabled={loading || !canUndo}
         className={cn(
           'w-full rounded-lg border px-3 py-2 text-xs font-medium transition-colors disabled:opacity-60',
-          summary.rollback_available
+          canUndo
             ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400'
             : 'border-border bg-background text-muted-foreground',
         )}
       >
         {loading
-          ? t('commandCenter.consolidationRollingBack')
-          : summary.rollback_available
-            ? t('commandCenter.consolidationRollbackBtn')
-            : t('commandCenter.consolidationRollbackUnavailable')}
+          ? t('commandCenter.consolidationUndoing')
+          : canUndo
+            ? t('commandCenter.consolidationUndoBtn')
+            : t('commandCenter.consolidationUndoUnavailable')}
       </button>
     </div>
   );

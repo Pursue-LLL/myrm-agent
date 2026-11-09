@@ -1,17 +1,19 @@
-"""Atomic operation execution and audit logging for memory consolidation.
+"""Atomic operation execution for memory consolidation.
 
 [INPUT]
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.config::ConsolidationConfig (POS: consolidation configuration)
 - strategies.consolidation_models::* (POS: consolidation operations and data contracts)
+- strategies.consolidation_undo::CycleWrites (POS: the write gateway that journals what a cycle changes)
 
 [OUTPUT]
 - execute_operations: Executes atomic merge/correct/update operations against memory storage
-- record_consolidation_event: Stores audit trail of consolidation into episodic memory
+- filter_and_guard_operations: Rubric and named-entity gate over the model's proposed operations
 
 [POS]
 Executes operations against memory primitives with transactional care, conflict routing,
-and deterministic three-state merge arbitration.
+and deterministic three-state merge arbitration. Every write goes through the cycle's write gateway,
+so what the cycle changed is journaled for undo.
 """
 
 from __future__ import annotations
@@ -22,7 +24,6 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryProtectedError
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
-    CONSOLIDATION_EVENT_TYPE,
     CONSOLIDATION_SOURCE_KEY,
     ConflictCallback,
     ConflictContext,
@@ -32,6 +33,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     MergeOp,
     UpdateContentOp,
 )
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import CycleWrites
 from myrm_agent_harness.toolkits.memory.strategies.merger import (
     DeterministicThreeStateMerger,
     MergeState,
@@ -183,6 +185,7 @@ async def execute_operations(
     )
 
     stats = ConsolidationStats(total_processed=len(ops))
+    writes = CycleWrites(manager, stats.undo)
 
     def resolve(sid: str) -> str:
         if id_map is not None:
@@ -204,19 +207,11 @@ async def execute_operations(
                     confidence=0.9,
                     metadata={CONSOLIDATION_SOURCE_KEY: ",".join(op.source_ids)},
                 )
-                stored = await manager.store(new_mem, _bypass_approval=True)
-                merged_id = stored.id if hasattr(stored, "id") else new_mem.id
-                stats.affected_ids.append(merged_id)
+                await writes.store(new_mem)
                 for short_id in op.source_ids:
                     full_id = resolve(short_id)
                     try:
-                        await manager.update_memory(
-                            full_id,
-                            importance=0.05,
-                            metadata={"consolidated": True},
-                            allow_protected=False,
-                        )
-                        stats.affected_ids.append(full_id)
+                        await writes.update_memory(full_id, importance=0.05, metadata_patch={"consolidated": True})
                     except MemoryProtectedError:
                         logger.info("Consolidation demote skipped protected memory %s", full_id)
                     except Exception as e:
@@ -255,8 +250,7 @@ async def execute_operations(
                     if resolution == ConflictResolution.KEEP_OLD:
                         continue
                     if resolution == ConflictResolution.DISCARD_BOTH:
-                        await manager.update_memory(full_id, importance=0.01, allow_protected=False)
-                        stats.affected_ids.append(full_id)
+                        await writes.update_memory(full_id, importance=0.01)
                         stats.corrected += 1
                         continue
                     # KEEP_NEW or MERGE: proceed to execute the correction below
@@ -274,63 +268,37 @@ async def execute_operations(
                         full_id,
                     )
                     if isinstance(existing, SemanticMemory):
-                        await manager.update_memory(
-                            full_id,
-                            confidence=merge_dec.updated_confidence or 0.35,
-                            allow_protected=False,
-                        )
+                        await writes.update_memory(full_id, confidence=merge_dec.updated_confidence or 0.35)
                         counterpart = SemanticMemory(
                             content=op.corrected_content,
                             importance=op.importance,
                             confidence=merge_dec.candidate_confidence or 0.35,
                             scope=existing.scope,
                         )
-                        stored = await manager.store(counterpart, _bypass_approval=True)
-                        stats.affected_ids.append(full_id)
-                        stats.affected_ids.append(stored.id)
+                        await writes.store(counterpart)
                         stats.updated += 1
                         continue
 
                 if merge_dec.state == MergeState.CONFIRM:
                     if isinstance(existing, SemanticMemory) and merge_dec.updated_confidence is not None:
-                        await manager.update_memory(
-                            full_id,
-                            confidence=merge_dec.updated_confidence,
-                            allow_protected=False,
-                        )
-                    stats.affected_ids.append(full_id)
+                        await writes.update_memory(full_id, confidence=merge_dec.updated_confidence)
                     stats.updated += 1
                     continue
 
                 if merge_dec.state == MergeState.SUPPLEMENT and merge_dec.merged_content:
-                    await manager.update_memory(
-                        full_id,
-                        content=merge_dec.merged_content,
-                        allow_protected=False,
-                    )
-                    stats.affected_ids.append(full_id)
+                    await writes.update_memory(full_id, content=merge_dec.merged_content)
                     stats.updated += 1
                     continue
 
                 if isinstance(existing, SemanticMemory):
-                    correction = await manager.correct_memory(full_id, op.corrected_content, allow_protected=False)
+                    await writes.correct_memory(full_id, op.corrected_content)
                     stats.corrected += 1
-                    stats.affected_ids.append(full_id)
-                    stats.affected_ids.append(correction.id)
                 else:
-                    await manager.update_memory(full_id, content=op.corrected_content, allow_protected=False)
+                    await writes.update_memory(full_id, content=op.corrected_content)
                     stats.updated += 1
-                    stats.affected_ids.append(full_id)
 
             elif isinstance(op, UpdateContentOp):
-                full_id = resolve(op.memory_id)
-                await manager.update_memory(
-                    full_id,
-                    content=op.new_content,
-                    importance=op.importance,
-                    allow_protected=False,
-                )
-                stats.affected_ids.append(full_id)
+                await writes.update_memory(resolve(op.memory_id), content=op.new_content, importance=op.importance)
                 stats.updated += 1
 
         except MemoryProtectedError:
@@ -354,32 +322,7 @@ async def execute_operations(
     return stats
 
 
-async def record_consolidation_event(manager: MemoryManager, stats: ConsolidationStats) -> None:
-    """Store a consolidation summary as an EpisodicMemory for auditability.
-
-    Embeds affected_ids into the event content so rollback can discover which
-    memories were touched by this consolidation cycle.
-    """
-    ids_csv = ",".join(stats.affected_ids) if stats.affected_ids else ""
-    summary = (
-        f"Memory consolidation: input {stats.input_count}, enriched {stats.enriched_count}, "
-        f"merged {stats.merged}, corrected {stats.corrected}, "
-        f"updated {stats.updated}, errors {stats.errors} ({stats.duration_ms:.0f}ms)"
-    )
-    if ids_csv:
-        summary += f"\n[affected_ids:{ids_csv}]"
-    try:
-        await manager.add_event(
-            content=summary,
-            event_type=CONSOLIDATION_EVENT_TYPE,
-            related_entities=["memory_system"],
-        )
-    except Exception as e:
-        logger.warning("Failed to record consolidation event: %s", e)
-
-
 __all__ = [
     "execute_operations",
     "filter_and_guard_operations",
-    "record_consolidation_event",
 ]

@@ -8,6 +8,7 @@
 [OUTPUT]
 - read_bookkeeping: Read a bookkeeping value from the manager's owner namespace
 - write_bookkeeping: Write a bookkeeping value to the manager's owner namespace
+- delete_bookkeeping: Remove a bookkeeping value from the manager's owner namespace
 
 [POS]
 Persistence of maintenance counters, hashes and timestamps. Deliberately bypasses the profile
@@ -47,4 +48,9 @@ async def write_bookkeeping(manager: MemoryManager, key: str, value: str) -> Non
     await manager._rel().set_profile(key, value, scope=MemoryScope(primary_namespace=namespace, namespaces=[namespace]))
 
 
-__all__ = ["read_bookkeeping", "write_bookkeeping"]
+async def delete_bookkeeping(manager: MemoryManager, key: str) -> None:
+    """Remove ``key`` from the manager's owner namespace; an absent key is not an error."""
+    await manager._rel().delete_profile(key, namespaces=[_owner_namespace(manager)])
+
+
+__all__ = ["delete_bookkeeping", "read_bookkeeping", "write_bookkeeping"]

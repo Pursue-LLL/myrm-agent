@@ -17,7 +17,11 @@ from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryC
 from myrm_agent_harness.toolkits.memory.ephemeral_delta.shared_store import get_shared_ephemeral_delta_store
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
-from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
+from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import (
+    delete_bookkeeping,
+    read_bookkeeping,
+    write_bookkeeping,
+)
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     _PROFILE_KEY_CONSOLIDATION_COUNT,
     increment_consolidation_count,
@@ -65,6 +69,22 @@ async def test_a_written_value_reads_back_and_a_missing_key_reads_as_none(store:
     await write_bookkeeping(manager, _KEY, "2")
 
     assert await read_bookkeeping(manager, _KEY) == "2"
+
+
+@pytest.mark.asyncio
+async def test_a_deleted_row_is_gone_from_its_own_namespace_only_and_deleting_again_is_harmless(
+    store: SQLiteRelationalStore,
+) -> None:
+    global_manager = _manager(store, namespaces=["global"])
+    project_manager = _manager(store, namespaces=["project:p1", "global"])
+    await write_bookkeeping(global_manager, _KEY, "global")
+    await write_bookkeeping(project_manager, _KEY, "project")
+
+    await delete_bookkeeping(project_manager, _KEY)
+    await delete_bookkeeping(project_manager, _KEY)
+
+    assert await read_bookkeeping(project_manager, _KEY) is None
+    assert await read_bookkeeping(global_manager, _KEY) == "global"
 
 
 @pytest.mark.asyncio
