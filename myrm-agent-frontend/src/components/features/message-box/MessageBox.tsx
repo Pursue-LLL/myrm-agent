@@ -21,7 +21,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { AlertTriangle, Ban, Disc3, ShieldAlert } from 'lucide-react';
+import { Disc3, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import useChatStore, { Message } from '@/store/useChatStore';
@@ -29,12 +29,6 @@ import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
 import { buildCitationSources } from '@/lib/citations/buildCitationSources';
 import { findLastTurnAnswerId } from '@/lib/chat/lastTurnAnswer';
-import ProgressSteps from './progress-steps/ProgressSteps';
-import { messageHasSkillManageUndo } from './progress-steps/skillManageBatch';
-import { SkillManageUndoHintCard } from './SkillManageUndoHintCard';
-import { EvidenceStageHUD } from '@/components/features/chat-window/EvidenceStageHUD';
-import { ExecutionPhaseStepper } from '@/components/features/chat-window/ExecutionPhaseStepper';
-import ConsensusThinkingPanel from './ConsensusThinkingPanel';
 import UserMessage from './UserMessage';
 import { WakeupNoticeRow } from './WakeupNoticeRow';
 import { resendEditedUserMessage, retryFailedUserMessage } from './userMessageResend';
@@ -42,18 +36,12 @@ import { useShowSystemMessages } from './useShowSystemMessages';
 import MarkdownContent from './MarkdownContent';
 import WaitingTtftIndicator from './WaitingTtftIndicator';
 import Suggestions from './Suggestions';
-import ArtifactsDisplay from '@/components/features/artifacts/ArtifactsDisplay';
-import ArtifactErrorBoundary from '@/components/features/artifacts/ArtifactErrorBoundary';
 import { CustomMessageCard } from './CustomMessageCard';
 import ClarificationInput from './ClarificationInput';
 import PlanConfirmationCard from './PlanConfirmationCard';
 import { HumanGateCard } from './HumanGateCard';
 import WorkflowSuggestionCard from './WorkflowSuggestionCard';
 import MessageActionBar from './MessageActionBar';
-import { ImageTaskCard, VideoTaskCard } from '@/components/features/task-card';
-import TtsAudioCard from './TtsAudioCard';
-import { CronJobSystemCard } from './CronJobSystemCard';
-import { KanbanTaskCreatedCard } from './KanbanTaskCreatedCard';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
 import WaterDropCostView from './WaterDropCostView';
 import MemoryInsightPanel from './MemoryInsightPanel';
@@ -61,25 +49,16 @@ import { resolveMessageCreatedAtMs } from './memoryLifecyclePhases';
 import { FileMutationWarning } from './FileMutationWarning';
 import { StagedArtifactsNotice } from './StagedArtifactsNotice';
 import WorkflowTemplateSaveCard from './WorkflowTemplateSaveCard';
-import ToolImageGallery from './ToolImageGallery';
-import SessionRecordingCard from './SessionRecordingCard';
-import VisualApprovalInlineSection from '@/components/features/chat-window/approval/VisualApprovalInlineSection';
-import { CouncilResultCard } from '@/components/features/chat-window/CouncilResultCard';
 import { MessageToc } from './MessageToc';
-import { McpAppSection } from './McpAppSection';
 import { DeliverableTierBadge } from './DeliverableTierBadge';
 import { ModelSpecialtyChip } from './ModelSpecialtyChip';
 import ReasoningProcessAccordion from './ReasoningProcessAccordion';
+import { AssistantRunOutputs } from './assistant-message/AssistantRunOutputs';
+import { CompletionStatusNotice } from './assistant-message/CompletionStatusNotice';
 import {
   closeUnbalancedReasoningTags,
   parseAsyncTaskResponse,
   parseTtsAudioResponse,
-  readCronJobResult,
-  readKanbanTasksCreated,
-  readMcpApps,
-  readSessionRecording,
-  readToolImages,
-  resolveProgressSteps,
 } from './assistant-message/messagePayloads';
 import { useAssistantMessageActions } from './assistant-message/useAssistantMessageActions';
 import { useReasoningAutoCollapse } from './assistant-message/useReasoningAutoCollapse';
@@ -123,21 +102,11 @@ const MessageBox = ({
     [message.content, message.role],
   );
   const t = useTranslations('chat');
-  const tProgress = useTranslations('progressSteps');
   const hasKbEvidenceOnCurrentMessage = useMemo(
     () =>
       message.sources?.some((source) => Boolean(source.kb_name) && Boolean(source.snippet || source.summary)) ?? false,
     [message.sources],
   );
-
-  const sessionRecordingData = readSessionRecording(message);
-  const toolImages = readToolImages(message);
-  const mcpApps = readMcpApps(message);
-  const cronJobResult = readCronJobResult(message);
-  const kanbanTasksCreated = readKanbanTasksCreated(message);
-  const sessionRecordingCard: React.ReactNode = sessionRecordingData ? (
-    <SessionRecordingCard filename={sessionRecordingData.filename} previewUrl={sessionRecordingData.preview_url} />
-  ) : null;
 
   const { isExpanded: isReasoningExpanded, toggle: toggleReasoning } = useReasoningAutoCollapse({
     isLast,
@@ -266,105 +235,15 @@ const MessageBox = ({
   return (
     <div data-test-id="assistant-message" className="flex flex-col space-y-9 relative">
       <div className="flex flex-col space-y-6 w-full">
-        {message.mediaAnalysisStatus && (
-          <div className="inline-flex flex-col gap-1">
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary backdrop-blur-sm">
-              <span
-                className="inline-block h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin"
-                aria-hidden="true"
-              />
-              <span>{tProgress(message.mediaAnalysisStatus)}</span>
-            </div>
-            {message.visionBackend && (
-              <span className="text-xs text-muted-foreground px-1">
-                {tProgress(`visionBackend.${message.visionBackend}` as 'visionBackend.vlm')}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* 进度步骤与执行阶段 HUD */}
-        {(() => {
-          const resolvedProgressSteps = resolveProgressSteps(message);
-          return (
-            <div className="space-y-1.5">
-              {(message.phaseExecution || (loading && isLast)) && (
-                <ExecutionPhaseStepper
-                  phaseExecution={message.phaseExecution}
-                  phaseHistory={message.phaseHistory}
-                  loading={loading && isLast}
-                  isApprovalPending={approvalPending}
-                />
-              )}
-              {resolvedProgressSteps.length > 0 && (
-                <>
-                  <EvidenceStageHUD steps={resolvedProgressSteps} loading={loading} />
-                  <ProgressSteps messageId={message.messageId} steps={resolvedProgressSteps} loading={loading} />
-                  {messageHasSkillManageUndo(resolvedProgressSteps) && !(loading && isLast) ? (
-                    <SkillManageUndoHintCard messageId={message.messageId} />
-                  ) : null}
-                </>
-              )}
-            </div>
-          );
-        })()}
-
-        {message.consensusRefs && message.consensusRefs.length > 0 && (
-          <ConsensusThinkingPanel
-            refs={message.consensusRefs}
-            isStreaming={isLast && loading && !message.content}
-            totalExpected={message.consensusRefsExpected}
-          />
-        )}
-
-        {/* 可视化审批 Artifact（BBox 高亮截图卡片） */}
-        <VisualApprovalInlineSection messageId={message.messageId} chatId={chatId ?? null} />
-
-        {/* 多专家 Council 编排会商与仲裁结果卡片 */}
-        {message.councilResult && <CouncilResultCard councilResult={message.councilResult} />}
-
-        {/* 工件 */}
-        {message.artifacts && message.artifacts.length > 0 && (
-          <ArtifactsDisplay artifacts={message.artifacts} chatId={chatId} />
-        )}
-
-        {/* 工具截屏图片（如 computer_use） */}
-        {toolImages.length > 0 && <ToolImageGallery images={toolImages} />}
-
-        {/* 会话录制回放 */}
-        {sessionRecordingCard}
-
-        {/* MCP Apps (ext-apps) 嵌入式 UI */}
-        {mcpApps.length > 0 && (
-          <ArtifactErrorBoundary fallbackMessage={t('mcpAppRenderFailed')}>
-            <McpAppSection views={mcpApps} />
-          </ArtifactErrorBoundary>
-        )}
-
-        {/* 异步任务卡片（如图片生成） */}
-        {taskResponse &&
-          (taskResponse.task_type === 'video_generate' ? (
-            <VideoTaskCard task_id={taskResponse.task_id} />
-          ) : (
-            <ImageTaskCard task_id={taskResponse.task_id} />
-          ))}
-
-        {/* TTS 语音合成结果：就地播放卡片 */}
-        {ttsAudioResponse && (
-          <TtsAudioCard
-            url={ttsAudioResponse.audio_url}
-            model={ttsAudioResponse.model}
-            durationSeconds={ttsAudioResponse.duration_seconds}
-          />
-        )}
-
-        {/* 定时任务创建/更新卡片 */}
-        {cronJobResult ? <CronJobSystemCard result={cronJobResult} /> : null}
-
-        {/* Kanban 任务创建卡片 */}
-        {kanbanTasksCreated.length > 0 && chatId
-          ? kanbanTasksCreated.map((item) => <KanbanTaskCreatedCard key={item.task_id} result={item} chatId={chatId} />)
-          : null}
+        <AssistantRunOutputs
+          message={message}
+          loading={loading}
+          isLast={isLast}
+          chatId={chatId}
+          approvalPending={approvalPending}
+          taskResponse={taskResponse}
+          ttsAudioResponse={ttsAudioResponse}
+        />
 
         {/* 回复 */}
         {!taskResponse && !ttsAudioResponse && (
@@ -539,31 +418,7 @@ const MessageBox = ({
               <WorkflowTemplateSaveCard message={message} chatId={chatId} />
             )}
 
-            {/* 完成状态提示 */}
-            {!(isLast && loading) && message.completionStatus === 'truncated' && (
-              <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                <span className="text-amber-700 dark:text-amber-300">{t('message.truncated')}</span>
-              </div>
-            )}
-            {!(isLast && loading) && message.completionStatus === 'cancelled' && (
-              <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-muted/40 border border-border/50 rounded-lg text-sm text-muted-foreground">
-                <Ban className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-                <span>{t('message.cancelled')}</span>
-              </div>
-            )}
-            {!(isLast && loading) && message.completionStatus === 'filtered' && (
-              <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg text-sm">
-                <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
-                <span className="text-red-700 dark:text-red-300">{t('message.contentFiltered')}</span>
-              </div>
-            )}
-            {!(isLast && loading) && message.completionStatus === 'budget_blocked' && (
-              <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg text-sm">
-                <Ban className="w-4 h-4 text-orange-500 shrink-0" />
-                <span className="text-orange-700 dark:text-orange-300">{t('message.budgetBlocked')}</span>
-              </div>
-            )}
+            <CompletionStatusNotice status={message.completionStatus} streaming={isLast && loading} />
 
             {/* 建议 */}
             {isLast && <Suggestions message={message} loading={loading} />}
