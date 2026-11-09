@@ -10,6 +10,7 @@ Covers:
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
@@ -62,19 +63,42 @@ class TestLastConsolidatedAt:
         assert await get_last_consolidated_at(manager) is None
 
     @pytest.mark.asyncio
-    async def test_invalid_raw_value_returns_none(self) -> None:
+    async def test_invalid_raw_value_is_ignored_with_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         manager = make_manager()
         manager._rel_store.get_profile = AsyncMock(return_value="not-a-date")
-        assert await get_last_consolidated_at(manager) is None
+        with caplog.at_level(logging.WARNING):
+            assert await get_last_consolidated_at(manager) is None
+        assert "'not-a-date' cannot be parsed; ignored" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_valid_raw_value_parsed(self) -> None:
+    async def test_naive_raw_value_is_ignored_with_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         manager = make_manager()
-        ts = datetime.now(UTC)
+        raw = datetime.now().replace(tzinfo=None).isoformat()
+        manager._rel_store.get_profile = AsyncMock(return_value=raw)
+        with caplog.at_level(logging.WARNING):
+            assert await get_last_consolidated_at(manager) is None
+        assert f"stamp {raw} is naive or ahead of the wall clock; ignored" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_raw_value_ahead_of_the_wall_clock_is_ignored_with_a_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        manager = make_manager()
+        raw = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+        manager._rel_store.get_profile = AsyncMock(return_value=raw)
+        with caplog.at_level(logging.WARNING):
+            assert await get_last_consolidated_at(manager) is None
+        assert f"stamp {raw} is naive or ahead of the wall clock; ignored" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_valid_raw_value_parsed_without_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        manager = make_manager()
+        ts = datetime.now(UTC) - timedelta(minutes=1)
         manager._rel_store.get_profile = AsyncMock(return_value=ts.isoformat())
-        parsed = await get_last_consolidated_at(manager)
-        assert parsed is not None
-        assert abs((parsed - ts).total_seconds()) < 1
+        with caplog.at_level(logging.WARNING):
+            parsed = await get_last_consolidated_at(manager)
+        assert parsed == ts
+        assert caplog.records == []
 
 
 class TestShouldConsolidate:

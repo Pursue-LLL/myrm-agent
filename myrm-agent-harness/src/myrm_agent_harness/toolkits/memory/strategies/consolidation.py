@@ -74,9 +74,9 @@ async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
     """Read the covered-through timestamp from the manager's bookkeeping row.
 
     The timestamp is a store stamp, and a stamp can run ahead of the wall clock while the wall clock catches up
-    after a step back. A stored value that is naive or ahead of the wall clock is ignored so it cannot make the
-    time gates raise or hold consolidation back indefinitely; the next run then starts again from the oldest
-    memories.
+    after a step back. A stored value that cannot be parsed, is naive or is ahead of the wall clock is ignored, with a
+    warning, so it cannot make the time gates raise or hold consolidation back indefinitely; the next run then starts
+    again from the oldest memories.
     """
     if not manager.has_relational:
         return None
@@ -86,8 +86,10 @@ async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
     try:
         last = datetime.fromisoformat(raw)
     except (ValueError, TypeError):
+        logger.warning("Consolidation covered-through stamp %r cannot be parsed; ignored", raw)
         return None
     if last.tzinfo is None or last > datetime.now(UTC):
+        logger.warning("Consolidation covered-through stamp %s is naive or ahead of the wall clock; ignored", raw)
         return None
     return last
 
