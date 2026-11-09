@@ -147,13 +147,14 @@ class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
                 id=self.point_id_for(doc.id),
                 vector=doc.vector,  # type: ignore[arg-type]
                 payload={
+                    **doc.metadata,
+                    # The store's own keys come last: nothing riding along in metadata may override them.
                     "original_id": doc.id,
                     "content": doc.content,
                     "created_at": doc.created_at.isoformat(),
                     "updated_at": doc.updated_at.isoformat(),
                     "_created_ts": doc.created_at.timestamp(),
                     "_updated_ts": doc.updated_at.timestamp(),
-                    **doc.metadata,
                 },
             )
             for doc in documents
@@ -419,6 +420,9 @@ class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
         content = payload.pop("content", "")
         created_at_str = payload.pop("created_at", None)
         updated_at_str = payload.pop("updated_at", None)
+        # The epoch mirrors are rewritten from the timestamps on every upsert, so they are not metadata.
+        payload.pop("_created_ts", None)
+        payload.pop("_updated_ts", None)
 
         created_at = datetime.fromisoformat(created_at_str) if created_at_str else datetime.now(UTC)
         updated_at = datetime.fromisoformat(updated_at_str) if updated_at_str else datetime.now(UTC)

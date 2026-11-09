@@ -98,6 +98,48 @@ class TestUpsertEpochTimestamps:
         assert isinstance(point.payload["_created_ts"], float)
         assert point.payload["_created_ts"] == now.timestamp()
 
+    @pytest.mark.asyncio
+    async def test_upsert_derives_the_stores_own_keys_from_the_document_not_from_metadata(self, store, mock_client):
+        created = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
+        updated = datetime(2026, 1, 16, 12, 0, 0, tzinfo=UTC)
+        doc = VectorDocument(
+            id="doc1",
+            content="fresh",
+            vector=[0.1, 0.2],
+            created_at=created,
+            updated_at=updated,
+            metadata={"_created_ts": 1.0, "_updated_ts": 2.0, "content": "stale", "tag": "kept"},
+        )
+        await store.upsert("test_col", [doc])
+        payload = mock_client.upsert.call_args[1]["points"][0].payload
+        assert payload["_created_ts"] == created.timestamp()
+        assert payload["_updated_ts"] == updated.timestamp()
+        assert payload["content"] == "fresh"
+        assert payload["tag"] == "kept"
+
+
+class TestReadBackMetadata:
+    @pytest.mark.asyncio
+    async def test_the_stores_own_keys_are_not_handed_out_as_metadata(self, store, mock_client):
+        point = MagicMock()
+        point.id = "point-1"
+        point.vector = [0.1, 0.2]
+        point.payload = {
+            "original_id": "doc1",
+            "content": "text",
+            "created_at": "2026-01-15T12:00:00+00:00",
+            "updated_at": "2026-01-16T12:00:00+00:00",
+            "_created_ts": 1.0,
+            "_updated_ts": 2.0,
+            "user_id": "u1",
+        }
+        mock_client.scroll.return_value = ([point], None)
+
+        documents, _ = await store.scroll("test_col", limit=10)
+
+        assert [document.id for document in documents] == ["doc1"]
+        assert documents[0].metadata == {"user_id": "u1"}
+
 
 class TestBackfillEpochTimestamps:
     @pytest.mark.asyncio

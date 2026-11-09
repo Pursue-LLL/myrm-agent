@@ -19,7 +19,7 @@ import pytest
 from qdrant_client import models
 
 from myrm_agent_harness.toolkits.vector.base import FilterDict, SparsePoint
-from myrm_agent_harness.toolkits.vector.qdrant.sparse import QdrantSparseMixin
+from myrm_agent_harness.toolkits.vector.qdrant.sparse import QdrantSparseMixin, sparse_payload
 
 
 class _FakeClient:
@@ -79,6 +79,8 @@ class _FakeClient:
                         "content": "litellm gateway outage",
                         "created_at": "2026-01-02T03:04:05+00:00",
                         "updated_at": "2026-01-02T03:04:05+00:00",
+                        "_created_ts": 1.0,
+                        "_updated_ts": 2.0,
                         "user_id": "u1",
                     },
                 )
@@ -206,6 +208,27 @@ async def test_upsert_sparse_builds_named_vector_points() -> None:
     assert payload["user_id"] == "u1"
 
 
+def test_sparse_payload_derives_the_stores_own_keys_from_the_point_not_from_metadata() -> None:
+    created = datetime(2026, 1, 1, tzinfo=UTC)
+    updated = datetime(2026, 1, 2, tzinfo=UTC)
+    point = SparsePoint(
+        id="d1",
+        indices=[1],
+        values=[1.0],
+        content="fresh",
+        metadata={"_created_ts": 1.0, "_updated_ts": 2.0, "content": "stale", "user_id": "u1"},
+        created_at=created,
+        updated_at=updated,
+    )
+
+    payload = sparse_payload(point)
+
+    assert payload["_created_ts"] == created.timestamp()
+    assert payload["_updated_ts"] == updated.timestamp()
+    assert payload["content"] == "fresh"
+    assert payload["user_id"] == "u1"
+
+
 # ── Sparse query & result mapping ────────────────────────────────────
 
 
@@ -231,7 +254,8 @@ async def test_search_sparse_queries_named_vector_and_maps_documents() -> None:
     # original_id wins over the qdrant point id; iso timestamps round-trip.
     assert result.document.id == "d1"
     assert result.document.content == "litellm gateway outage"
-    assert result.document.metadata["user_id"] == "u1"
+    # The store's own epoch copies are rewritten on every upsert, so they are not handed out as metadata.
+    assert result.document.metadata == {"user_id": "u1"}
     assert result.document.created_at == datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
 
 
