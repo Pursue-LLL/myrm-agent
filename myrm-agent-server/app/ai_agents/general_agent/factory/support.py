@@ -52,7 +52,6 @@ if TYPE_CHECKING:
     from app.core.types import MCPServerConfig
 
 
-
 async def _try_inject_mcp_oauth[Config: (MCPConfig, MCPServerConfig)](cfg: Config) -> Config:
     """Inject MCPOAuthProvider if the server has stored OAuth tokens."""
     if cfg.type not in ("sse", "streamable_http"):
@@ -285,4 +284,3 @@ def _build_session_cleanup_callback(
         await run_session_post_process(tasks, messages, chat_id)
 
     return _composite
-

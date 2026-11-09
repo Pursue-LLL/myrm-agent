@@ -47,6 +47,8 @@ def test_styled_seed_carries_its_style_text_once(label: str, style_text: str) ->
 
 
 def test_other_seeds_carry_no_style_text() -> None:
-    carrying = [label for label, prompt in _PROMPTS.items() if label not in _STYLED and (_CREATIVE in prompt or _FRIENDLY in prompt)]
+    carrying = [
+        label for label, prompt in _PROMPTS.items() if label not in _STYLED and (_CREATIVE in prompt or _FRIENDLY in prompt)
+    ]
 
     assert not carrying

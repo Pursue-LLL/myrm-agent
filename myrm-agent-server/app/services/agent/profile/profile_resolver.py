@@ -138,7 +138,6 @@ class ResolvedAgentProfile:
 
     """Whether agent-to-agent delegation is enabled for this profile."""
 
-
     @property
     def is_sandbox_capable(self) -> bool:
         """Whether this profile has sandbox/coding execution capabilities."""
