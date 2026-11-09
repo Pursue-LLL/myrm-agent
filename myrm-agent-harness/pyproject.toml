@@ -95,6 +95,10 @@ retrieval = [
 acp = [
   "agent-client-protocol>=0.12.1",
 ]
+# toolkits/llms/transport/bedrock_sigv4.py - Bedrock 请求用 AWS 凭证链签名（只用 Bedrock API Key 时不需要）
+bedrock = [
+  "botocore>=1.40.0", # AWS 凭证链 + SigV4 签名
+]
 # utils/media/image_compressor - PNG 量化压缩（延迟导入，失败回退 Pillow）
 image-processing = [
   "imagequant>=1.1.5",  # PNG 量化压缩 (pngquant 算法，Pillow 已在主依赖)
@@ -154,7 +158,7 @@ compiled-core-musl = [
 # END compiled-core-musl
 ]
 all = [
-  "myrm-agent-harness[acp,browser,computer-use,image-processing,qdrant,retrieval,file-parsers,pdf-ocr,fastapi,observability,web]",
+  "myrm-agent-harness[acp,bedrock,browser,computer-use,image-processing,qdrant,retrieval,file-parsers,pdf-ocr,fastapi,observability,web]",
 ]
 
 [tool.uv]

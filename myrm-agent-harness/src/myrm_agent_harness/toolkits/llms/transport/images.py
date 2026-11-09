@@ -14,10 +14,11 @@
 [POS]
 Each provider family has its own request shape and answer shape, so each gets a builder/parser pair here and the
 call is one ``asend_json``. The OpenAI family (OpenAI, Azure deployments, xAI, Together, Volcengine and any
-compatible gateway) shares ``/images/generations`` and ``/images/edits``; Gemini serves Imagen through ``:predict``
-and its image models through ``:generateContent``; Stability takes multipart forms; MiniMax image-01 has its own
-JSON endpoint. Editing exists only on the OpenAI family. Transport failures surface as ``LLMHTTPError`` so the
-image generator decides retries from the status code instead of exception class names.
+compatible gateway) shares ``/images/generations`` and ``/images/edits``; an Azure deployment takes its API version
+from ``AZURE_API_VERSION`` as chat and embeddings do. Gemini serves Imagen through ``:predict`` and its image models
+through ``:generateContent``; Stability takes multipart forms; MiniMax image-01 has its own JSON endpoint. Editing
+exists only on the OpenAI family. Transport failures surface as ``LLMHTTPError`` so the image generator decides
+retries from the status code instead of exception class names.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from typing import Final
 
 from myrm_agent_harness.toolkits.llms.transport.errors import BASE_RESP_STATUS
 from myrm_agent_harness.toolkits.llms.transport.http import FilePart, PreparedRequest, asend_json
-from myrm_agent_harness.toolkits.llms.transport.openai_chat import AZURE_DEFAULT_API_VERSION, openai_endpoint
+from myrm_agent_harness.toolkits.llms.transport.openai_chat import openai_endpoint
 from myrm_agent_harness.toolkits.llms.transport.params import split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
 from myrm_agent_harness.toolkits.llms.transport.service_routes import service_route
@@ -37,8 +38,6 @@ from myrm_agent_harness.utils.mime_types import detect_image_mime, extension_for
 
 _OPENAI_WIRES: Final = frozenset({"openai_chat", "azure_openai"})
 _NON_OPENAI_IMAGE_PROVIDERS: Final = frozenset({"stability", "minimax_image"})
-# An image call names its Azure API version itself, so the environment's ``AZURE_API_VERSION`` does not apply to it.
-_AZURE_IMAGE_API_VERSION: Final = AZURE_DEFAULT_API_VERSION
 # DALL-E 3 is the only OpenAI image model with a `style` option; the other image models take none.
 _STYLE_MODEL: Final = "dall-e-3"
 
@@ -133,9 +132,7 @@ def _nonempty(images: list[GeneratedImage], provider: str) -> list[GeneratedImag
 def _openai_generation(
     route: Route, prompt: str, size: str, quality: str | None, style: str | None, n: int, timeout: float
 ) -> PreparedRequest:
-    url, query, headers = openai_endpoint(
-        route, split_params({"api_version": _AZURE_IMAGE_API_VERSION}), "/images/generations"
-    )
+    url, query, headers = openai_endpoint(route, split_params({}), "/images/generations")
     body: dict[str, object] = {"prompt": prompt, "n": n, "size": size}
     if route.profile.wire != "azure_openai":  # an Azure deployment is addressed by the URL
         body["model"] = route.model
@@ -149,9 +146,7 @@ def _openai_generation(
 def _openai_edit(
     route: Route, image: bytes, prompt: str, mask: bytes | None, size: str, n: int, timeout: float
 ) -> PreparedRequest:
-    url, query, headers = openai_endpoint(
-        route, split_params({"api_version": _AZURE_IMAGE_API_VERSION}), "/images/edits"
-    )
+    url, query, headers = openai_endpoint(route, split_params({}), "/images/edits")
     form = {"prompt": prompt, "n": str(n), "size": size}
     if route.profile.wire != "azure_openai":
         form["model"] = route.model
