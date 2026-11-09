@@ -79,6 +79,7 @@ from ..fetchers.stealth_fetcher import StealthFetcher
 from ..probe.http3_probe import get_http3_retry_metrics
 from ..processing.pipeline import ContentPipeline
 from ..router.adaptive_router import AdaptiveRouter, RouterStats
+from .batch_mixin import FetchEngineBatchMixin
 from .cache_mixin import FetchEngineCacheMixin
 from .escalation_mixin import FetchEngineEscalationMixin
 from .fetch_mixin import FetchEngineFetchMixin
@@ -112,6 +113,7 @@ __all__ = [
 
 
 class FetchEngine(
+    FetchEngineBatchMixin,
     FetchEngineEscalationMixin,
     FetchEngineFetchMixin,
     FetchEngineCacheMixin,
@@ -389,103 +391,6 @@ class FetchEngine(
             return await self._handle_fetch_error(url, cache_key, future, e)
         finally:
             self._pending_requests.pop(cache_key, None)
-
-    async def crawl_many(
-        self,
-        urls: list[str],
-        *,
-        max_concurrency: int = 10,
-        force_refresh: bool = False,
-        max_chars: int = 0,
-        allow_escalation: bool = True,
-    ) -> tuple[SuccessResult, FailedResult]:
-        """Batch-crawl multiple URLs in parallel with global concurrency cap."""
-        self._ensure_workers_started()
-
-        success_results: SuccessResult = []
-        failed_results: FailedResult = []
-        sem = asyncio.Semaphore(max_concurrency)
-
-        async def process(url: str) -> None:
-            async with sem:
-                doc = await self.crawl(
-                    url,
-                    force_refresh=force_refresh,
-                    max_chars=max_chars,
-                    allow_escalation=allow_escalation,
-                )
-            if doc is not None:
-                success_results.append((url, doc))
-            else:
-                failed_results.append((url, None))
-
-        await asyncio.gather(*(process(u) for u in urls))
-        return success_results, failed_results
-
-    async def prefetch_with_retry(
-        self,
-        urls: list[str],
-        *,
-        max_retries: int = 3,
-        initial_backoff: float = 1.0,
-        max_concurrency: int = 10,
-    ) -> tuple[SuccessResult, FailedResult]:
-        """Warm up cache (concurrent + auto-retry on failure + exponential backoff)."""
-        self._ensure_workers_started()
-
-        success_results: SuccessResult = []
-        failed_results: FailedResult = []
-        results_lock = asyncio.Lock()
-        sem = asyncio.Semaphore(max_concurrency)
-
-        async def retry_one(url: str) -> None:
-            async with sem:
-                retry_count = 0
-                backoff = initial_backoff
-                last_error = None
-
-                while retry_count <= max_retries:
-                    try:
-                        force_refresh = retry_count > 0
-                        doc = await self.crawl(url, force_refresh=force_refresh)
-                        if doc is not None:
-                            async with results_lock:
-                                success_results.append((url, doc))
-                            return
-                        last_error = "Crawl returned None"
-                        logger.warning(
-                            f"Prefetch failed (attempt {retry_count + 1}/{max_retries + 1}): {url} — {last_error}"
-                        )
-                    except Exception as e:
-                        last_error = str(e)
-                        logger.warning(f"Prefetch failed (attempt {retry_count + 1}/{max_retries + 1}): {url} — {e}")
-
-                    retry_count += 1
-                    if retry_count <= max_retries:
-                        await asyncio.sleep(backoff)
-                        backoff *= 2
-
-                logger.error(f"Prefetch exhausted all retries: {url} — {last_error}")
-                async with results_lock:
-                    failed_results.append((url, None))
-
-        await asyncio.gather(*(retry_one(u) for u in urls))
-        return success_results, failed_results
-
-    async def prefetch(self, urls: list[str], *, max_concurrency: int = 5) -> None:
-        """Cache warmup: background async load URLs into cache."""
-        self._ensure_workers_started()
-
-        sem = asyncio.Semaphore(max_concurrency)
-
-        async def prefetch_one(url: str) -> None:
-            async with sem:
-                try:
-                    await self.crawl(url)
-                except Exception:
-                    logger.warning(f"Prefetch failed: {url}")
-
-        await asyncio.gather(*(prefetch_one(u) for u in urls), return_exceptions=True)
 
     async def shutdown(self) -> None:
         if self._background_workers:
