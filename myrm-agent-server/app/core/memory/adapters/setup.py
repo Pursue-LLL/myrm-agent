@@ -50,13 +50,6 @@ logger = logging.getLogger(__name__)
 _SPARSE_ONLY_EMBEDDING_MODEL = "sparse-only"
 """Cache-key marker for embeddings-less managers (mirrors the harness setup marker)."""
 
-# Conflicts whose importance reaches this threshold are treated as high-risk:
-# they are never auto-resolved (auto_resolve_at stays None) and always require
-# explicit user resolution, so critical preferences (stack moves, relocations,
-# allergy changes) cannot be silently reverted to the stale old memory.
-_HIGH_RISK_IMPORTANCE = 0.9
-_CONFLICT_AUTO_RESOLVE_HOURS = 72
-
 _memory_manager_cache: dict[tuple[object, ...], MemoryManager] = {}
 _memory_manager_cache_lock = asyncio.Lock()
 
