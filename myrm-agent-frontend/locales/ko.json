@@ -17543,6 +17543,7 @@
         "videoImportStart": "지식 수집 시작",
         "videoImportSuccess": "비디오 지식 수집 완료, 컴파일 대기열에 등록됨",
         "videoImportReasonNoTranscript": "이 동영상의 자막을 가져오지 못했습니다. 동영상이 공개되어 있고 자막이 있는지 확인하세요.",
+        "videoImportSkippedExisting": "이 동영상의 소스 파일이 이미 있습니다. 기존 내용을 유지했으며 새로 추가된 내용은 없습니다.",
         "videoPlayerTitle": "비디오 재생 및 타임스탬프 이동"
       },
       "tabs": {

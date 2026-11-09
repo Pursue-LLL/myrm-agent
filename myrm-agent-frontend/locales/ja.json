@@ -17543,6 +17543,7 @@
         "videoImportStart": "インポートを開始",
         "videoImportSuccess": "動画ナレッジの取り込みが完了し、コンパイルキューに追加されました",
         "videoImportReasonNoTranscript": "この動画の字幕を取得できませんでした。動画が公開されていて、字幕があるか確認してください。",
+        "videoImportSkippedExisting": "この動画のソースファイルは既に存在します。既存の内容を保持し、新しい内容は追加されませんでした。",
         "videoPlayerTitle": "動画再生とタイムスタンプシーク"
       },
       "tabs": {

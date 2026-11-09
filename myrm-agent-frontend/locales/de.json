@@ -17543,6 +17543,7 @@
         "videoImportStart": "Import starten",
         "videoImportSuccess": "Video-Transkript importiert und in die Kompilierungs-Warteschlange eingereiht",
         "videoImportReasonNoTranscript": "Für dieses Video konnten keine Untertitel abgerufen werden. Prüfen Sie, ob es öffentlich ist und Untertitel hat.",
+        "videoImportSkippedExisting": "Für dieses Video ist bereits eine Quelldatei vorhanden. Sie wurde beibehalten, es wurde nichts Neues hinzugefügt.",
         "videoPlayerTitle": "Videowiedergabe & Zeitstempel-Suche"
       },
       "tabs": {

@@ -100,7 +100,12 @@ export function WikiVideoImportDialog({
       );
 
       if (res.success) {
-        toast.success(t('videoImportSuccess'));
+        // A kept same-named source means nothing was imported, so it is not announced as a success.
+        if (res.status === 'skipped_conflict') {
+          toast.message(t('videoImportSkippedExisting'));
+        } else {
+          toast.success(t('videoImportSuccess'));
+        }
         onImportFinished(res);
         handleClose();
       } else {

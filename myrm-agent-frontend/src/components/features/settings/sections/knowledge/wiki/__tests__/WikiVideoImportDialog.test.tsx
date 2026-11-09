@@ -8,7 +8,7 @@ import type { MockLocale } from '@/test-utils/realIntl';
 let locale: MockLocale = 'en';
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => locale));
 
-const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), message: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
 const importVideo = vi.hoisted(() => vi.fn());
@@ -62,6 +62,11 @@ const BLOCKED: Record<MockLocale, string> = {
   zh: '有 1 个文件因含凭证或其他敏感内容被拒绝导入。',
 };
 
+const KEPT: Record<MockLocale, string> = {
+  en: 'A source file for this video already exists. It was kept and nothing new was added.',
+  zh: '这个视频的来源文件已存在，已保留原有内容，本次没有新增。',
+};
+
 function renderDialog() {
   const onOpenChange = vi.fn();
   const onImportFinished = vi.fn();
@@ -85,19 +90,48 @@ describe('WikiVideoImportDialog', () => {
     vi.restoreAllMocks();
   });
 
-  it('reports a finished import, hands over the result and closes', async () => {
-    const done = failure({ success: true, status: 'success', error: '', relative_path: 'videos/rick.md' });
-    importVideo.mockResolvedValue(done);
-    const view = renderDialog();
+  it.each<ImportVideoResponse['status']>(['success', 'superseded'])(
+    'announces a %s import, hands over the result and closes',
+    async (status) => {
+      const done = failure({ success: true, status, error: '', relative_path: 'videos/rick.md' });
+      importVideo.mockResolvedValue(done);
+      const view = renderDialog();
 
-    await submit(view);
+      await submit(view);
 
-    await waitFor(() => expect(view.onImportFinished).toHaveBeenCalledWith(done));
-    expect(importVideo).toHaveBeenCalledWith(expect.objectContaining({ url: VIDEO_URL }), undefined);
-    expect(toast.success).toHaveBeenCalledWith('Video transcript ingested and enqueued for compilation');
-    expect(toast.error).not.toHaveBeenCalled();
-    expect(view.onOpenChange).toHaveBeenCalledWith(false);
-  });
+      await waitFor(() => expect(view.onImportFinished).toHaveBeenCalledWith(done));
+      expect(importVideo).toHaveBeenCalledWith(expect.objectContaining({ url: VIDEO_URL }), undefined);
+      expect(toast.success).toHaveBeenCalledWith('Video transcript ingested and enqueued for compilation');
+      expect(toast.message).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(view.onOpenChange).toHaveBeenCalledWith(false);
+    },
+  );
+
+  it.each<MockLocale>(['en', 'zh'])(
+    'says nothing new was added when the same-named source is kept in %s',
+    async (lang) => {
+      locale = lang;
+      const kept = failure({
+        success: true,
+        status: 'skipped_conflict',
+        error: '',
+        relative_path: 'videos/rick.md',
+        message: 'File already exists (skipped conflict)',
+      });
+      importVideo.mockResolvedValue(kept);
+      const view = renderDialog();
+
+      await submit(view);
+
+      await waitFor(() => expect(toast.message).toHaveBeenCalledTimes(1));
+      expect(toast.message).toHaveBeenCalledWith(KEPT[lang]);
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(view.onImportFinished).toHaveBeenCalledWith(kept);
+      expect(view.onOpenChange).toHaveBeenCalledWith(false);
+    },
+  );
 
   describe.each<MockLocale>(['en', 'zh'])('failure reasons in %s', (lang) => {
     it.each(ERROR_CODES)('shows the sentence for %s and never the server diagnostic', async (code) => {
