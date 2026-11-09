@@ -31,6 +31,8 @@ from myrm_agent_harness.toolkits.memory._manager.retrieval_write import MemoryMa
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     MemoryError,
     MemoryNotFoundError,
+    MemoryProtectedError,
+    MemoryRejectedError,
     MemoryTaintedError,
 )
 from myrm_agent_harness.toolkits.memory._manager.storage import MemoryManagerStorageMixin
@@ -59,5 +61,7 @@ __all__ = [
     "MemoryError",
     "MemoryManager",
     "MemoryNotFoundError",
+    "MemoryProtectedError",
+    "MemoryRejectedError",
     "MemoryTaintedError",
 ]

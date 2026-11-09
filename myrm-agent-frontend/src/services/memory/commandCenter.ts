@@ -469,7 +469,6 @@ export interface MemoryCommandActionRequest {
     | 'reject'
     | 'edit'
     | 'correct'
-    | 'correct_and_lock'
     | 'forget'
     | 'pin'
     | 'unpin'

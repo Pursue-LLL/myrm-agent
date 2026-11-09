@@ -103,15 +103,13 @@ async def run_conflict_action(body: MemoryCommandActionRequest, db: AsyncSession
 
 
 async def run_memory_action(body: MemoryCommandActionRequest, manager: MemoryManager) -> None:
-    if body.action in ("correct", "correct_and_lock"):
+    if body.action == "correct":
         if not body.content or not body.content.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Corrected memory content is required",
             )
         await manager.correct_memory(body.target_id, body.content.strip())
-        if body.action == "correct_and_lock":
-            await manager.pin_memory(body.target_id)
         return
     if body.action == "pin":
         await manager.pin_memory(body.target_id)
@@ -141,6 +139,6 @@ def action_to_operation(action: str) -> MemoryOperationKind:
         return MemoryOperationKind.CORRECT
     if action == "forget":
         return MemoryOperationKind.FORGET
-    if action in {"pin", "unpin", "edit", "correct_and_lock"}:
+    if action in {"pin", "unpin", "edit"}:
         return MemoryOperationKind.WRITE
     return MemoryOperationKind.OBSERVE

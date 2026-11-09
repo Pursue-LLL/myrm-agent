@@ -212,18 +212,6 @@ class TestRunMemoryAction:
         manager.correct_memory.assert_awaited_once_with("m-1", "fixed")
 
     @pytest.mark.asyncio
-    async def test_correct_and_lock_pins(self) -> None:
-        manager = AsyncMock()
-
-        await actions.run_memory_action(
-            _body(target_kind="memory", target_id="m-1", action="correct_and_lock", content="fixed"),
-            manager,
-        )
-
-        manager.correct_memory.assert_awaited_once_with("m-1", "fixed")
-        manager.pin_memory.assert_awaited_once_with("m-1")
-
-    @pytest.mark.asyncio
     async def test_forget_procedural_deletes_rule(self) -> None:
         manager = AsyncMock()
 

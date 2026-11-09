@@ -45,9 +45,7 @@ class TestUpdateMemoryProtectionGuard:
         """Automated paths must not rewrite a rule the user locked."""
         from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 
-        rule = ProceduralMemory(
-            id="r1", content="When: X → Do: Y", trigger="X", action="Y", is_user_locked=True
-        )
+        rule = ProceduralMemory(id="r1", content="When: X → Do: Y", trigger="X", action="Y", is_user_locked=True)
         mock_relational_store.get_rule.return_value = rule
 
         mgr = MemoryManager(
@@ -91,9 +89,7 @@ class TestUpdateMemoryProtectionGuard:
         mock_embedding: AsyncMock,
         mock_relational_store: AsyncMock,
     ) -> None:
-        rule = ProceduralMemory(
-            id="r2", content="When: A → Do: B", trigger="A", action="B", is_user_locked=False
-        )
+        rule = ProceduralMemory(id="r2", content="When: A → Do: B", trigger="A", action="B", is_user_locked=False)
         mock_relational_store.get_rule.return_value = rule
         mock_relational_store.update_rule.side_effect = lambda _id, updated: updated
 
@@ -119,9 +115,7 @@ class TestUpdateMemoryProtectionGuard:
         """The WebUI keeps the default: the user owns their own protected rules."""
         from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 
-        rule = ProceduralMemory(
-            id="r3", content="When: X → Do: Y", trigger="X", action="Y", is_user_locked=True
-        )
+        rule = ProceduralMemory(id="r3", content="When: X → Do: Y", trigger="X", action="Y", is_user_locked=True)
         mock_relational_store.get_rule.return_value = rule
         mock_relational_store.update_rule.side_effect = lambda _id, updated: updated
 
@@ -300,7 +294,7 @@ class TestCorrectMemoryProtectionGuard:
         )
         mgr.get_memory = AsyncMock(return_value=pinned)
         correction = SemanticMemory(id="m2", content="rewritten", correction_of="m1")
-        mgr._store_semantic = AsyncMock(return_value=correction)
+        mgr._writer._store_semantic = AsyncMock(return_value=correction)
 
         result = await mgr.correct_memory("m1", "rewritten")
 

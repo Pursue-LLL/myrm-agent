@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Literal
+from typing import Literal, cast
 
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
@@ -170,11 +170,13 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
     async def correct_memory(
         self, memory_id: str, corrected_content: str, *, allow_protected: bool = True
     ) -> SemanticMemory:
-        """Correct a factually wrong memory: demote the old one and create a linked correction.
+        """Correct a factually wrong memory: store a linked correction, then demote the old one.
 
-        ``allow_protected=False`` (automated and agent-facing paths) refuses to
-        demote a memory the user protected. Returns the newly created correction
-        memory.
+        The correction passes the same write pipeline as any other memory (security scan,
+        transient-fact gate, exact-fact lock) and the old memory is demoted only once it was
+        accepted, so a rejected correction changes nothing. ``allow_protected=False``
+        (automated and agent-facing paths) refuses to demote a memory the user protected.
+        Returns the newly created correction memory.
         """
         existing = await self.get_memory(memory_id)
         if existing is None:
@@ -185,15 +187,8 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
             raise MemoryProtectedError(
                 f"Memory {memory_id} is protected by the user; automated corrections are not allowed"
             )
-
-        demoted = existing.model_copy(deep=True)
-        demoted.importance = max(existing.importance * 0.3, 0.05)
-        demoted.confidence = 0.1
-        demoted.metadata = {**demoted.metadata, "corrected": True}
-        demoted.updated_at = datetime.now(UTC)
         if self._vector is None:
             raise MemoryError("Vector backend required")
-        await update_vector_memory(demoted, False, self._vector, self._config, self._embedding, self._cache)
 
         mutation_res = apply_sparse_mutation(existing.content, corrected_content)
         final_content = (
@@ -220,7 +215,19 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
             correction_of=memory_id,
             metadata=correction_meta,
         )
-        return await self._store_semantic(correction)
+        stored = cast(SemanticMemory, await self.store(correction, _bypass_approval=True))
+
+        demoted = existing.model_copy(deep=True)
+        demoted.importance = max(existing.importance * 0.3, 0.05)
+        demoted.confidence = 0.1
+        # The superseded fact must stop outranking its correction in the exact-identifier stream.
+        demoted.is_exact_fact = False
+        demoted.exact_identifiers = []
+        demoted.metadata = {**demoted.metadata, "corrected": True}
+        demoted.updated_at = datetime.now(UTC)
+        await update_vector_memory(demoted, False, self._vector, self._config, self._embedding, self._cache)
+        await self._sync_exact_fact_index(demoted, "delete")
+        return stored
 
     async def sparse_mutate_memory(
         self,

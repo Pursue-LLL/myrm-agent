@@ -11,6 +11,7 @@ API error utilities: the FastAPI exception handlers (register_exception_handlers
 from __future__ import annotations
 
 import traceback
+from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -24,6 +25,19 @@ from .constants import (
 from .redaction import redact_error_payload
 
 
+def _memory_error_handler(status_code: int) -> Callable[[Request, Exception], Awaitable[JSONResponse]]:
+    """Answer a refused memory request with the error's caller-safe message under the ``detail`` contract.
+
+    The request log keeps only the error type, never the memory content the message may describe.
+    """
+
+    async def handle(request: Request, exc: Exception) -> JSONResponse:
+        logger.warning("[%s] memory request refused: %s", request.url.path, type(exc).__name__)
+        return JSONResponse(status_code=status_code, content={"detail": str(exc)})
+
+    return handle
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register global handlers that convert MyrmError into JSON responses.
 
@@ -32,7 +46,12 @@ def register_exception_handlers(app: FastAPI) -> None:
     In debug mode (DEBUG=true), error responses include full stack traces
     for faster troubleshooting. In production, only structured error info is returned.
     """
-    from myrm_agent_harness.toolkits.memory.manager import MemoryTaintedError
+    from myrm_agent_harness.toolkits.memory.manager import (
+        MemoryNotFoundError,
+        MemoryProtectedError,
+        MemoryRejectedError,
+        MemoryTaintedError,
+    )
 
     from app.config.env import is_debug_mode
 
@@ -87,15 +106,16 @@ def register_exception_handlers(app: FastAPI) -> None:
             headers=getattr(exc, "headers", None),
         )
 
-    @app.exception_handler(MemoryTaintedError)
-    async def _handle_memory_tainted(request: Request, exc: MemoryTaintedError) -> JSONResponse:
-        """A memory the write scan rejected is a client error, never a 500.
-
-        Writers that do not map it themselves (profile/rule create, correction, conflict
-        resolution, imports) all surface the same user-safe ``detail`` under the legacy contract.
-        """
-        logger.warning("[%s] memory write rejected by the security scan", request.url.path)
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": str(exc)})
+    # A refused memory request is the caller's to fix, never a 500. Writers that do not map these
+    # themselves (profile/rule create, correction, conflict resolution, imports) share one contract.
+    memory_error_status: dict[type[Exception], int] = {
+        MemoryTaintedError: status.HTTP_400_BAD_REQUEST,  # the write scan rejected the content
+        MemoryRejectedError: status.HTTP_400_BAD_REQUEST,  # the memory rules refuse the write
+        MemoryProtectedError: status.HTTP_409_CONFLICT,  # the user protected this memory
+        MemoryNotFoundError: status.HTTP_404_NOT_FOUND,  # the id is outside the caller's scope
+    }
+    for error_type, error_status in memory_error_status.items():
+        app.add_exception_handler(error_type, _memory_error_handler(error_status))
 
     @app.exception_handler(AttributeError)
     async def _handle_attribute_error(request: Request, exc: AttributeError) -> JSONResponse:
@@ -147,4 +167,4 @@ def register_exception_handlers(app: FastAPI) -> None:
             content=body,
         )
 
-    logger.info("✅ Global error handlers registered (MyrmError + AttributeError + TypeError)")
+    logger.info("✅ Global error handlers registered (MyrmError + memory errors + AttributeError + TypeError)")
