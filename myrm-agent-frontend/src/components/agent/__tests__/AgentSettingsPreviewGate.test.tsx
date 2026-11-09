@@ -27,7 +27,6 @@ describe('AgentSettingsPreviewGate', () => {
       deploy_mode: 'sandbox',
       sandbox_bound_note: '受控容器沙箱：高危命令被系统级安全拦截',
       prompt_mode: 'full',
-      personality_style: 'professional',
     },
   };
 
@@ -49,7 +48,6 @@ describe('AgentSettingsPreviewGate', () => {
       memory_preset: 'dual_layer',
       deploy_mode: 'sandbox',
       prompt_mode: 'lean',
-      personality_style: 'collaborative',
     },
   };
 
@@ -96,7 +94,6 @@ describe('AgentSettingsPreviewGate', () => {
     // Meta Specs Pill Bar
     expect(screen.getByText('Pre-flight verified')).toBeInTheDocument();
     expect(screen.getByText('full')).toBeInTheDocument();
-    expect(screen.getByText('professional')).toBeInTheDocument();
   });
 
   it('renders fallback copy for minimal templates without settings_preview', () => {

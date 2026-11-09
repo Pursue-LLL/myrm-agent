@@ -665,36 +665,6 @@
         "naked": "僅保留最低安全規則。透過你的系統指令完全控制行為。"
       }
     },
-    "personality": {
-      "title": "溝通風格",
-      "description": "選擇智慧體的溝通方式，這會影響回覆的語氣和風格。",
-      "loadFailed": "溝通風格清單載入失敗",
-      "retry": "重試",
-      "exampleLabel": "範例回覆",
-      "category": {
-        "practical": "實用型",
-        "fun": "趣味型"
-      },
-      "styles": {
-        "professional": "專業",
-        "friendly": "友好",
-        "concise": "簡潔",
-        "detailed": "詳細",
-        "humorous": "幽默",
-        "academic": "學術",
-        "creative": "創意",
-        "socratic": "啟發",
-        "pirate": "海盜",
-        "shakespeare": "莎翁",
-        "noir": "偵探",
-        "kawaii": "可愛",
-        "catgirl": "貓娘",
-        "hype": "激情",
-        "uwu": "軟萌",
-        "surfer": "衝浪",
-        "wenyan": "文言文"
-      }
-    },
     "systemPrompt": "系統指令",
     "systemPromptPlaceholder": "自定義指令，指導智慧體的行為和回答風格",
     "mcpServices": "MCP 服務",
@@ -10683,7 +10653,6 @@
       "deployBoundaryTitle": "部署模式與沙箱邊界",
       "sandboxNoteDefault": "隔離沙箱執行：高風險系統命令被限制在容器工作區內。",
       "promptMode": "提示詞模式",
-      "personality": "語氣",
       "preflightReady": "預檢已通過",
       "backToTemplates": "返回",
       "creating": "建立中…",

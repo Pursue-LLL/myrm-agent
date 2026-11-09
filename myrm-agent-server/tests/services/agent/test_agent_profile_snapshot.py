@@ -51,7 +51,6 @@ async def _create_test_agent(name: str = "Snapshot Test Agent") -> str:
             name=name,
             description="For snapshot tests",
             system_prompt="You are a professional assistant.",
-            personality_style="professional",
             mcp_ids=["mcp-a"],
         )
     )
@@ -380,6 +379,18 @@ def test_updates_from_snapshot_data_omits_cron_when_missing_from_snapshot() -> N
     assert "cron_post_run_verify" not in updates
 
 
+def test_a_snapshot_stored_with_the_retired_style_key_restores_cleanly() -> None:
+    """Snapshots saved while agents still had a style field keep that key in their JSON; restoring ignores it."""
+    agent = AgentProfile(id="agent-1", metadata={})
+    updates = updates_from_snapshot_data(
+        agent,
+        {"display_name": "Snapshot Agent", "system_prompt": "Old prompt", "personality_style": "friendly"},
+    )
+    assert updates["system_prompt"] == "Old prompt"
+    assert "personality_style" not in updates
+    assert "personality_style" not in updates["metadata"]
+
+
 @pytest.mark.asyncio
 async def test_create_agent_persists_cron_post_run_verify_column(agent_db, monkeypatch) -> None:
     import app.platform_utils as platform_utils
@@ -391,7 +402,6 @@ async def test_create_agent_persists_cron_post_run_verify_column(agent_db, monke
             name="Cron Verify Create",
             description="Create path column SSOT",
             system_prompt="You are a professional assistant.",
-            personality_style="professional",
             cron_post_run_verify=True,
         )
     )

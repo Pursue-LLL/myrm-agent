@@ -59,7 +59,6 @@ export function AgentSettingsPreviewGate({
   const deployMode = preview?.deploy_mode ?? 'sandbox';
   const sandboxNote = preview?.sandbox_bound_note;
   const promptMode = preview?.prompt_mode ?? 'full';
-  const personality = preview?.personality_style ?? 'professional';
 
   return (
     <div
@@ -233,8 +232,6 @@ export function AgentSettingsPreviewGate({
       <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-border/40 bg-muted/20 text-xs text-muted-foreground">
         <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
         <span>{t('promptMode', { fallback: 'Prompt Mode' })}: <strong className="text-foreground font-mono">{promptMode}</strong></span>
-        <span className="text-border">•</span>
-        <span>{t('personality', { fallback: 'Tone' })}: <strong className="text-foreground capitalize">{personality}</strong></span>
         <span className="text-border">•</span>
         <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="w-3 h-3" />

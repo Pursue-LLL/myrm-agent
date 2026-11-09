@@ -733,6 +733,8 @@ MIGRATION_STATEMENTS: list[str] = [
     CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL,
     # A communication style is now ordinary system-prompt text; this keeps the style of every custom agent that chose one.
     MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL,
+    "ALTER TABLE agents DROP COLUMN personality_style",
+    "ALTER TABLE agent_profile_history DROP COLUMN personality_style",
 ]
 
 # 创建索引的SQL语句列表

@@ -49,4 +49,3 @@
 ## 模块依赖
 
 - 内部：所有域模块 → `base.py` (Base 基类)
-- 外部：`agent.py` → `app.ai_agents.personality_templates` (DEFAULT_PERSONALITY_STYLE)

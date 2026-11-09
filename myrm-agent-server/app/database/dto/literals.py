@@ -2,7 +2,7 @@
 - pydantic / typing (POS: model primitives)
 
 [OUTPUT]
-- PersonalityStyleLiteral, MemoryDecayProfileLiteral, MemoryExtractionPresetLiteral, PromptModeLiteral, SecurityPresetLiteral, WorkspacePolicyLiteral, AgentTypeLiteral, SessionResetModeLiteral, normalize_workspace_policy
+- MemoryDecayProfileLiteral, MemoryExtractionPresetLiteral, PromptModeLiteral, SecurityPresetLiteral, WorkspacePolicyLiteral, AgentTypeLiteral, SessionResetModeLiteral, normalize_workspace_policy
 
 [POS]
 Data transfer objects: stored value vocabularies (Literal aliases) and the workspace-policy normalizer.
@@ -11,29 +11,6 @@ Data transfer objects: stored value vocabularies (Literal aliases) and the works
 from __future__ import annotations
 
 from typing import Literal
-
-PersonalityStyleLiteral = Literal[
-    # 实用型
-    "professional",
-    "friendly",
-    "concise",
-    "detailed",
-    "humorous",
-    "academic",
-    "creative",
-    "socratic",
-    # 趣味型
-    "pirate",
-    "shakespeare",
-    "noir",
-    "kawaii",
-    "catgirl",
-    "hype",
-    "uwu",
-    "surfer",
-    "wenyan",
-]
-
 
 MemoryDecayProfileLiteral = Literal["permanent", "normal", "fast"]
 

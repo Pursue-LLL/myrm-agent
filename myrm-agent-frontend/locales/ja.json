@@ -665,36 +665,6 @@
         "naked": "最小限のセキュリティルールのみ。システムプロンプトでアクションを完全に制御します。"
       }
     },
-    "personality": {
-      "title": "コミュニケーションスタイル",
-      "description": "エージェントのコミュニケーション方式を選択します。回答のトーンとスタイルに影響します。",
-      "loadFailed": "コミュニケーションスタイルを読み込めませんでした",
-      "retry": "再試行",
-      "exampleLabel": "返信例",
-      "category": {
-        "practical": "実用型",
-        "fun": "ファン＆ロールプレイ"
-      },
-      "styles": {
-        "professional": "プロフェッショナル",
-        "friendly": "フレンドリー",
-        "concise": "簡潔",
-        "detailed": "詳細",
-        "humorous": "ユーモラス",
-        "academic": "アカデミック",
-        "creative": "クリエイティブ",
-        "socratic": "ソクラテス式",
-        "pirate": "パイレーツ",
-        "shakespeare": "シェイクスピア",
-        "noir": "ノワール",
-        "kawaii": "カワイイ",
-        "catgirl": "猫娘",
-        "hype": "ハイプ",
-        "uwu": "ふわふわ",
-        "surfer": "サーファー",
-        "wenyan": "漢文"
-      }
-    },
     "systemPrompt": "システムプロンプト",
     "systemPromptPlaceholder": "エージェントの動作と回答スタイルをガイドするカスタム指示",
     "mcpServices": "MCP サービス",
@@ -10683,7 +10653,6 @@
       "deployBoundaryTitle": "デプロイモードとサンドボックス境界",
       "sandboxNoteDefault": "分離されたサンドボックスで実行：高リスクなシステムコマンドはコンテナ内のワークスペースに閉じ込められます。",
       "promptMode": "プロンプトモード",
-      "personality": "トーン",
       "preflightReady": "事前チェック済み",
       "backToTemplates": "戻る",
       "creating": "作成中…",

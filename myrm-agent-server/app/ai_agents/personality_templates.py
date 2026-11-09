@@ -1,19 +1,19 @@
 """[INPUT]
-- app.database.dto::PersonalityStyleLiteral (POS: Pydantic 数据传输对象与类型定义)
+(none — static data)
 
 [OUTPUT]
-- PersonalityStyle: 人格风格类型别名（从 dto.PersonalityStyleLiteral 导入）
+- PersonalityStyle: 风格 key 的字面量类型
 - PersonalityTemplate: 人格风格模板数据类
 - PERSONALITY_TEMPLATES: 全部预置风格模板字典
 - DEFAULT_PERSONALITY_STYLE: 默认风格常量
-- list_all_personalities(): 列出全部风格（目录接口与 IM 列表共用）
+- list_all_personalities(): 列出全部风格
 - render_personality_block(): 渲染注入给模型的沟通风格块（含作用域不变量），非默认风格才有值
 
 [POS]
 预置聊天风格模板定义。提供 17 种预置人格风格（8 实用 + 9 趣味），
-可通过 IM 渠道 `/personality` 命令或前端 UI 切换。
-风格仅影响 System Prompt 的追加内容，不改变 Agent 核心能力；
-注入文本由 render_personality_block() 统一拼装，Web/渠道/语音/定时/看板/Goal/Eval 共用同一份。
+仅供 IM 渠道 `/personality` 命令做会话级切换；智能体自己的沟通风格是它 system_prompt 里的普通文本。
+风格仅影响回复措辞，不改变 Agent 核心能力；
+注入文本由 render_personality_block() 统一拼装，只在 IM 回合使用。
 """
 
 from __future__ import annotations
@@ -22,9 +22,29 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from app.database.dto import PersonalityStyleLiteral as PersonalityStyle
-
 logger = logging.getLogger(__name__)
+
+PersonalityStyle = Literal[
+    # 实用型
+    "professional",
+    "friendly",
+    "concise",
+    "detailed",
+    "humorous",
+    "academic",
+    "creative",
+    "socratic",
+    # 趣味型
+    "pirate",
+    "shakespeare",
+    "noir",
+    "kawaii",
+    "catgirl",
+    "hype",
+    "uwu",
+    "surfer",
+    "wenyan",
+]
 
 DEFAULT_PERSONALITY_STYLE: PersonalityStyle = "professional"
 

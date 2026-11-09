@@ -665,36 +665,6 @@
         "naked": "Nur minimale Sicherheitsregeln. Volle Kontrolle über Ihren System-Prompt."
       }
     },
-    "personality": {
-      "title": "Kommunikationsstil",
-      "description": "Wählen Sie den Kommunikationsstil des Agenten. Dies beeinflusst Ton und Stil der Antworten.",
-      "loadFailed": "Kommunikationsstile konnten nicht geladen werden",
-      "retry": "Erneut versuchen",
-      "exampleLabel": "Beispielantwort",
-      "category": {
-        "practical": "Praktisch",
-        "fun": "Spaß & Rollenspiel"
-      },
-      "styles": {
-        "professional": "Professionell",
-        "friendly": "Freundlich",
-        "concise": "Prägnant",
-        "detailed": "Ausführlich",
-        "humorous": "Humorvoll",
-        "academic": "Akademisch",
-        "creative": "Kreativ",
-        "socratic": "Sokratisch",
-        "pirate": "Pirat",
-        "shakespeare": "Shakespeare-Stil",
-        "noir": "Noir-Stil",
-        "kawaii": "Kawaii-Stil",
-        "catgirl": "Katzenmädchen",
-        "hype": "Hype-Stil",
-        "uwu": "UwU",
-        "surfer": "Surfer-Stil",
-        "wenyan": "Klassisch"
-      }
-    },
     "systemPrompt": "System-Prompt",
     "systemPromptPlaceholder": "Benutzerdefinierte Anweisungen für Verhalten und Antwortstil des Agenten",
     "mcpServices": "MCP-Dienste",
@@ -10683,7 +10653,6 @@
       "deployBoundaryTitle": "Bereitstellungsmodus und Sandbox-Grenze",
       "sandboxNoteDefault": "Isolierte Sandbox-Ausführung: Riskante Systembefehle bleiben im Container-Workspace abgeschirmt.",
       "promptMode": "Prompt-Modus",
-      "personality": "Tonfall",
       "preflightReady": "Vorabprüfung bestanden",
       "backToTemplates": "Zurück",
       "creating": "Wird erstellt…",

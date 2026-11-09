@@ -30,7 +30,6 @@ from .literals import (
     AgentTypeLiteral,
     MemoryDecayProfileLiteral,
     MemoryExtractionPresetLiteral,
-    PersonalityStyleLiteral,
     PromptModeLiteral,
     SecurityPresetLiteral,
     WorkspacePolicyLiteral,
@@ -86,7 +85,6 @@ class AgentBase(BaseModel):
         description="该 Agent 运行所需的渠道能力列表（如 media, voice_message）",
     )
     prompt_mode: PromptModeLiteral = Field(default="full", description="Prompt injection mode: full/lean/naked")
-    personality_style: PersonalityStyleLiteral = Field(default="professional", description="Personality style preset")
     memory_decay_profile: MemoryDecayProfileLiteral = Field(default="normal", description="Memory forgetting decay speed")
     memory_extraction_preset: MemoryExtractionPresetLiteral = Field(
         default="auto", description="Domain extraction preset for memory precision"
@@ -210,7 +208,6 @@ class AgentUpdate(BaseModel):
         description="该 Agent 运行所需的渠道能力列表（如 media, voice_message）",
     )
     prompt_mode: PromptModeLiteral | None = Field(default=None, description="Prompt injection mode: full/lean/naked")
-    personality_style: PersonalityStyleLiteral | None = Field(default=None, description="Personality style preset")
     memory_decay_profile: MemoryDecayProfileLiteral | None = Field(default=None, description="Memory forgetting decay speed")
     memory_extraction_preset: MemoryExtractionPresetLiteral | None = Field(
         default=None, description="Domain extraction preset for memory precision"

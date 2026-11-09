@@ -1,6 +1,6 @@
 """personality_templates 模块单元测试
 
-验证模板定义的一致性、查询 API 的正确性、与 dto.py 类型定义的同步性，
+验证模板定义的一致性、查询 API 的正确性、与 PersonalityStyle 字面量的同步性，
 以及注入块（作用域不变量 + 风格本体）的渲染契约。
 """
 
@@ -17,24 +17,19 @@ from app.ai_agents.personality_templates import (
     list_all_personalities,
     render_personality_block,
 )
-from app.database.dto import PersonalityStyleLiteral
 
 
 class TestPersonalityTemplatesConsistency:
     """模板定义与 Literal 类型一致性测试"""
 
     def test_template_keys_match_literal_values(self) -> None:
-        """PERSONALITY_TEMPLATES 的 key 必须与 PersonalityStyleLiteral 完全一致"""
-        literal_values = set(PersonalityStyleLiteral.__args__)
+        """PERSONALITY_TEMPLATES 的 key 必须与 PersonalityStyle 完全一致"""
+        literal_values = set(PersonalityStyle.__args__)
         template_keys = set(PERSONALITY_TEMPLATES.keys())
         assert literal_values == template_keys, (
             f"Mismatch: in Literal but not Templates={literal_values - template_keys}, "
             f"in Templates but not Literal={template_keys - literal_values}"
         )
-
-    def test_personality_style_is_alias_of_literal(self) -> None:
-        """PersonalityStyle 应该就是 PersonalityStyleLiteral 的别名"""
-        assert PersonalityStyle is PersonalityStyleLiteral
 
     def test_every_template_name_matches_key(self) -> None:
         """每个模板的 name 字段必须与其 dict key 一致"""

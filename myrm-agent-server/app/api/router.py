@@ -11,7 +11,6 @@ from app.api.agents import (
     generate_prompt,
     governance,
     openapi_services,
-    personality,
     profile_audit,
     providers,
     readiness,
@@ -131,7 +130,6 @@ api_router.include_router(web_push_router)
 api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"])
 api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
 api_router.include_router(subagent_presets.router, prefix="/agents", tags=["agents"])
-api_router.include_router(personality.router, prefix="/agents", tags=["agents"])
 api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])
 api_router.include_router(subagents.router, prefix="/chats", tags=["subagents"])
 api_router.include_router(user_agent.router, prefix="/user-agents", tags=["user-agents"])

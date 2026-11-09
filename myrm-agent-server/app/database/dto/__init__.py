@@ -43,7 +43,6 @@ from .literals import (
     AgentTypeLiteral,
     MemoryDecayProfileLiteral,
     MemoryExtractionPresetLiteral,
-    PersonalityStyleLiteral,
     PromptModeLiteral,
     SecurityPresetLiteral,
     SessionResetModeLiteral,
@@ -65,7 +64,6 @@ from .pagination import (
 )
 
 __all__ = [
-    "PersonalityStyleLiteral",
     "MemoryDecayProfileLiteral",
     "MemoryExtractionPresetLiteral",
     "PromptModeLiteral",

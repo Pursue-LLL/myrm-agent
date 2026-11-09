@@ -19,7 +19,6 @@ import {
   Agent,
   AgentModelSelection,
   AgentSessionPolicy,
-  DEFAULT_PERSONALITY_STYLE,
   getAgent,
   updateAgent,
   createAgent,
@@ -145,9 +144,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // 启发式提示
   const [suggestionPrompts, setSuggestionPrompts] = useState<string[]>([]);
 
-  // Personality 风格
-  const [personalityStyle, setPersonalityStyle] = useState<string>(DEFAULT_PERSONALITY_STYLE);
-
   // 提示模式
   const [promptMode, setPromptMode] = useState<'full' | 'lean' | 'naked'>('full');
 
@@ -188,7 +184,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     selectedSubagentIds: [] as string[],
     securityOverrides: null as Record<string, unknown> | null,
     defaultSecurityPreset: null as 'hitl' | 'accept_edits' | 'explore' | null,
-    personalityStyle: DEFAULT_PERSONALITY_STYLE as string,
     promptMode: 'full' as 'full' | 'lean' | 'naked',
     maxIterations: null as number | null,
     workspacePolicy: 'INHERIT_REQUESTER' as WorkspacePolicy,
@@ -238,7 +233,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       defaultPresetChanged ||
       engineParamsChanged ||
       openapiChanged ||
-      personalityStyle !== originalData.personalityStyle ||
       promptMode !== originalData.promptMode ||
       memoryDecayProfile !== originalData.memoryDecayProfile ||
       memoryExtractionPreset !== originalData.memoryExtractionPreset ||
@@ -269,7 +263,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     modelSelection,
     securityOverrides,
     defaultSecurityPreset,
-    personalityStyle,
     promptMode,
     maxIterations,
     memoryDecayProfile,
@@ -345,7 +338,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setSecurityOverrides(data.security_overrides ?? null);
       setDefaultSecurityPreset(data.default_security_preset ?? null);
       setSelectedSubagentIds(data.subagent_ids || []);
-      setPersonalityStyle(data.personality_style || DEFAULT_PERSONALITY_STYLE);
       setPromptMode(data.prompt_mode || 'full');
       setMaxIterations(data.max_iterations ?? null);
       setWorkspacePolicy(data.workspace_policy || 'INHERIT_REQUESTER');
@@ -377,7 +369,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         modelSelection: data.model_selection ?? null,
         securityOverrides: data.security_overrides ?? null,
         defaultSecurityPreset: data.default_security_preset ?? null,
-        personalityStyle: data.personality_style || DEFAULT_PERSONALITY_STYLE,
         promptMode: data.prompt_mode || 'full',
         allowDiscovery: data.allow_discovery ?? true,
         cronPostRunVerify: data.cron_post_run_verify ?? false,
@@ -479,7 +470,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           security_overrides: securityOverrides,
           default_security_preset: defaultSecurityPreset,
           prompt_mode: promptMode,
-          personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
           trusted_desktop_apps: trustedDesktopApps,
@@ -519,7 +509,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           security_overrides: securityOverrides,
           default_security_preset: defaultSecurityPreset,
           prompt_mode: promptMode,
-          personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
           trusted_desktop_apps: trustedDesktopApps,
@@ -562,7 +551,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           modelSelection,
           securityOverrides,
           defaultSecurityPreset,
-          personalityStyle,
           allowDiscovery,
           cronPostRunVerify,
           trustedDesktopApps: [...trustedDesktopApps],
@@ -618,7 +606,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     selectedSubagentIds,
     securityOverrides,
     defaultSecurityPreset,
-    personalityStyle,
     promptMode,
     maxIterations,
     memoryDecayProfile,
@@ -768,9 +755,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     defaultSecurityPreset,
     setDefaultSecurityPreset,
     saveVersion,
-    // Personality
-    personalityStyle,
-    setPersonalityStyle,
     // 提示模式
     promptMode,
     setPromptMode,

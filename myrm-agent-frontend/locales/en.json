@@ -665,36 +665,6 @@
         "naked": "Minimal safety rules only. Full control via your System Prompt."
       }
     },
-    "personality": {
-      "title": "Communication Style",
-      "description": "Choose how the agent communicates. This affects the tone and style of responses.",
-      "loadFailed": "Failed to load communication styles",
-      "retry": "Retry",
-      "exampleLabel": "Example reply",
-      "category": {
-        "practical": "Practical",
-        "fun": "Fun & Roleplay"
-      },
-      "styles": {
-        "professional": "Professional",
-        "friendly": "Friendly",
-        "concise": "Concise",
-        "detailed": "Detailed",
-        "humorous": "Humorous",
-        "academic": "Academic",
-        "creative": "Creative",
-        "socratic": "Socratic",
-        "pirate": "Pirate",
-        "shakespeare": "Shakespeare",
-        "noir": "Noir",
-        "kawaii": "Kawaii",
-        "catgirl": "Catgirl",
-        "hype": "Hype",
-        "uwu": "UwU",
-        "surfer": "Surfer",
-        "wenyan": "Classical"
-      }
-    },
     "systemPrompt": "System Prompt",
     "systemPromptPlaceholder": "Custom instructions to guide the agent's behavior and response style",
     "mcpServices": "MCP Services",
@@ -10683,7 +10653,6 @@
       "deployBoundaryTitle": "Deploy Mode & Sandbox Boundary",
       "sandboxNoteDefault": "Isolated sandbox execution: high-risk system commands are shielded within container workspace.",
       "promptMode": "Prompt Mode",
-      "personality": "Tone",
       "preflightReady": "Pre-flight verified",
       "backToTemplates": "Back",
       "creating": "Creating…",

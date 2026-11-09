@@ -41,7 +41,6 @@ interface TemplateApiResponseItem {
     deploy_mode: string;
     sandbox_bound_note?: string;
     prompt_mode: string;
-    personality_style: string;
   };
 }
 

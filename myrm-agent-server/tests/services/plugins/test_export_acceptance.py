@@ -78,13 +78,12 @@ def team(world: ExportWorld) -> ExportWorld:
         mcps=("docs", "search"),
         subagents=("worker",),
         metadata={
-            "personality_style": "professional",
             "suggestion_prompts": ["Summarize the notes"],
             "mcp_tool_selections": {"docs": ["search_docs"]},
             "engine_params": {TEMPLATE_FILES_KEY: templates.files},
         },
     )
-    world.expert("worker", "Worker", skills=("local::a1",), metadata={"personality_style": "professional"})
+    world.expert("worker", "Worker", skills=("local::a1",))
     return world
 
 
@@ -290,7 +289,6 @@ def _reinstall(package: ExportedPackage) -> tuple[ExportWorld, str]:
             description=create.description,
             system_prompt=create.system_prompt,
             metadata={
-                "personality_style": create.personality_style,
                 "suggestion_prompts": create.suggestion_prompts,
                 "allow_discovery": create.allow_discovery,
                 "mcp_tool_selections": create.mcp_tool_selections,

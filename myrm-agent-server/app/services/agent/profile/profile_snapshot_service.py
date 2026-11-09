@@ -108,7 +108,6 @@ def mutable_snapshot_data(profile: AgentProfile) -> dict[str, object]:
         "display_name": profile.display_name,
         "description": profile.description,
         "system_prompt": profile.system_prompt,
-        "personality_style": metadata.get("personality_style"),
         "model": profile.model,
         "model_selection": model_selection,
         "skill_ids": _normalize_str_list(profile.skills),
@@ -177,7 +176,6 @@ def project_mutable_after_update(existing: AgentProfile, updates: dict[str, obje
     metadata_update = updates.get("metadata")
     if isinstance(metadata_update, dict):
         for key in (
-            "personality_style",
             "mcp_ids",
             "mcp_tool_selections",
             "enabled_builtin_tools",
@@ -238,7 +236,6 @@ def updates_from_snapshot_data(agent: AgentProfile, data: dict[str, object]) -> 
 
     new_metadata = dict(agent.metadata) if agent.metadata else {}
     for key in (
-        "personality_style",
         "mcp_ids",
         "mcp_tool_selections",
         "enabled_builtin_tools",

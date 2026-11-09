@@ -14,11 +14,9 @@ Agent 序列化共享层。被 agent.py / agent_portability.py / templates.py �
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypeGuard, get_args
 
 from myrm_agent_harness.backends.profiles.types import AgentProfile
 
-from app.ai_agents.personality_templates import DEFAULT_PERSONALITY_STYLE
 from app.core.memory.adapters.policy import memory_policy_to_dict
 from app.database.dto import (
     AgentMemoryPolicyConfig,
@@ -26,23 +24,9 @@ from app.database.dto import (
     AgentSessionPolicyConfig,
     CommandBindingConfig,
     ModelSelection,
-    PersonalityStyleLiteral,
     normalize_workspace_policy,
 )
 from app.services.agent.agent_service import HIDDEN_SYSTEM_PROMPT
-
-
-def _is_valid_personality(value: object) -> TypeGuard[PersonalityStyleLiteral]:
-    return isinstance(value, str) and value in get_args(PersonalityStyleLiteral)
-
-
-def _safe_personality(raw: object) -> PersonalityStyleLiteral:
-    """Sanitize personality_style from DB, falling back to default for invalid values."""
-    if _is_valid_personality(raw):
-        return raw
-    if _is_valid_personality(DEFAULT_PERSONALITY_STYLE):
-        return DEFAULT_PERSONALITY_STYLE
-    return "professional"
 
 
 def _metadata_as_mapping(agent: AgentProfile) -> dict[str, object]:
@@ -175,7 +159,6 @@ def _to_agent_response(
         security_overrides=_meta_dict_or_none(metadata, "security_overrides"),
         default_security_preset=_meta_str(metadata, "default_security_preset"),
         prompt_mode=metadata.get("prompt_mode", "full") or "full",
-        personality_style=_safe_personality(metadata.get("personality_style")),
         subagent_ids=_meta_str_list(metadata, "subagent_ids", default=[]),
         max_iterations=agent.max_iterations,
         workspace_policy=normalize_workspace_policy(metadata.get("workspace_policy")),

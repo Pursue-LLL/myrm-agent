@@ -6,14 +6,11 @@ import { Textarea } from '@/components/primitives/textarea';
 import { Switch } from '@/components/primitives/switch';
 import { Shield, Unlock, X, Zap } from 'lucide-react';
 
-import { PersonalityStylePicker } from './PersonalityStylePicker';
-
 const MAX_SUGGESTION_PROMPTS = 8;
 
 interface AgentBasicInfoTabProps {
   name: string;
   description: string;
-  personalityStyle: string;
   promptMode: 'full' | 'lean' | 'naked';
   allowDiscovery: boolean;
   formalKoreanReplies: boolean;
@@ -21,7 +18,6 @@ interface AgentBasicInfoTabProps {
   readonly?: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
-  onPersonalityChange: (value: string) => void;
   onPromptModeChange: (value: 'full' | 'lean' | 'naked') => void;
   onAllowDiscoveryChange: (value: boolean) => void;
   onFormalKoreanRepliesChange: (value: boolean) => void;
@@ -37,7 +33,6 @@ const PROMPT_MODES: Array<{ value: 'full' | 'lean' | 'naked'; icon: React.ReactN
 export function AgentBasicInfoTab({
   name,
   description,
-  personalityStyle,
   promptMode,
   allowDiscovery,
   formalKoreanReplies,
@@ -45,7 +40,6 @@ export function AgentBasicInfoTab({
   readonly: isReadonly = false,
   onNameChange,
   onDescriptionChange,
-  onPersonalityChange,
   onPromptModeChange,
   onAllowDiscoveryChange,
   onFormalKoreanRepliesChange,
@@ -234,8 +228,6 @@ export function AgentBasicInfoTab({
           </div>
           <p className="text-xs text-muted-foreground/80 italic">{t(`agent.promptMode.hints.${promptMode}`)}</p>
         </div>
-
-        <PersonalityStylePicker value={personalityStyle} onChange={onPersonalityChange} readonly={isReadonly} />
       </div>
     </div>
   );

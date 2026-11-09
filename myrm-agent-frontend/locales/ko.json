@@ -665,36 +665,6 @@
         "naked": "최소 안전 규칙만. 시스템 프롬프트로 완전한 제어."
       }
     },
-    "personality": {
-      "title": "커뮤니케이션 스타일",
-      "description": "에이전트의 소통 방식을 선택합니다. 응답의 어조와 스타일에 영향을 줍니다.",
-      "loadFailed": "커뮤니케이션 스타일을 불러오지 못했습니다",
-      "retry": "다시 시도",
-      "exampleLabel": "답변 예시",
-      "category": {
-        "practical": "실용형",
-        "fun": "재미 & 롤플레이"
-      },
-      "styles": {
-        "professional": "전문적",
-        "friendly": "친근한",
-        "concise": "간결한",
-        "detailed": "상세한",
-        "humorous": "유머러스",
-        "academic": "학술적",
-        "creative": "창의적",
-        "socratic": "소크라테스식",
-        "pirate": "해적",
-        "shakespeare": "셰익스피어",
-        "noir": "누아르",
-        "kawaii": "카와이",
-        "catgirl": "고양이소녀",
-        "hype": "하이프",
-        "uwu": "UwU",
-        "surfer": "서퍼",
-        "wenyan": "한문"
-      }
-    },
     "systemPrompt": "시스템 프롬프트",
     "systemPromptPlaceholder": "에이전트의 동작과 응답 스타일을 안내하는 사용자 정의 지침",
     "mcpServices": "MCP 서비스",
@@ -10683,7 +10653,6 @@
       "deployBoundaryTitle": "배포 모드 및 샌드박스 경계",
       "sandboxNoteDefault": "격리된 샌드박스에서 실행: 위험도가 높은 시스템 명령은 컨테이너 워크스페이스 안에 차단됩니다.",
       "promptMode": "프롬프트 모드",
-      "personality": "어조",
       "preflightReady": "사전 점검 완료",
       "backToTemplates": "뒤로",
       "creating": "만드는 중…",

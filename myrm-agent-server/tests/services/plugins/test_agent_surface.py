@@ -100,23 +100,21 @@ class TestImportAgentFields:
     def test_invalid_optional_values_are_dropped_and_reported(self) -> None:
         agent = PluginAgent(
             name="A",
-            metadata={"personality_style": "hacker", "suggestion_prompts": "not-a-list", "allow_discovery": "yes"},
+            metadata={"suggestion_prompts": "not-a-list", "allow_discovery": "yes"},
         )
         imported = import_agent_fields(agent)
-        assert set(imported.dropped_fields) == {"personality_style", "suggestion_prompts", "allow_discovery"}
+        assert set(imported.dropped_fields) == {"suggestion_prompts", "allow_discovery"}
         assert set(imported.fields) == {"description", "system_prompt"}
 
     def test_valid_optional_values_are_carried_and_bounded(self) -> None:
         agent = PluginAgent(
             name="A",
             metadata={
-                "personality_style": "friendly",
                 "suggestion_prompts": [f"prompt {i} " + "x" * 400 for i in range(10)],
                 "allow_discovery": False,
             },
         )
         fields = import_agent_fields(agent).fields
-        assert fields["personality_style"] == "friendly"
         assert fields["allow_discovery"] is False
         prompts = fields["suggestion_prompts"]
         assert isinstance(prompts, list) and len(prompts) == 6 and all(len(p) <= 200 for p in prompts)
@@ -142,7 +140,7 @@ class TestImportAgentFields:
 
         listed = import_agent_fields(agent).ignored_declarations
 
-        assert listed == ("arbitrary", "hooks", "security_overrides")
+        assert listed == ("arbitrary", "hooks", "personality_style", "security_overrides")
 
     def test_ignored_declaration_list_is_bounded(self) -> None:
         agent = PluginAgent(name="A", metadata={**{f"extra-{i:03d}": 1 for i in range(100)}, "a" * 200: 1})
@@ -193,7 +191,6 @@ class TestToolSelections:
 class TestProfileProjection:
     def _profile(self, **overrides: object) -> AgentProfile:
         metadata: dict[str, object] = {
-            "personality_style": "concise",
             "suggestion_prompts": ["Summarize this", " "],
             "allow_discovery": False,
             "mcp_tool_selections": {"fetch": ["get"], "gone": ["x"]},
@@ -230,7 +227,6 @@ class TestProfileProjection:
         assert agent.mcp_names == ("fetch",)
         assert agent.is_entry_agent is True
         assert agent.metadata == {
-            "personality_style": "concise",
             "suggestion_prompts": ["Summarize this"],
             "allow_discovery": False,
             "mcp_tool_selections": {"fetch": ["get"]},
