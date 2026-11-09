@@ -18,8 +18,8 @@ Detailed design: [META_TOOLS_SYSTEM.md](META_TOOLS_SYSTEM.md)
 |-----------|-------------|
 | bash/ | Bash tool module (Pure Script + MCP `skills.*/tools.*` batch; bash preflight blocks `myrm_tools`). |
 | discover_capability/ | Unified Capability Discovery gateway. |
-| file_ops/ | File operations tool module (Claude Code compatible). |
-| file_search/ | File search tool module (Claude Code compatible). |
+| file_ops/ | File operations tool module. |
+| file_search/ | File search tool module. |
 | goals/ | Goal interaction tools — LLM tools for querying/completing goals. |
 | progress/ | Main-agent todo progress (`todo_write`, workspace todos SSOT). |
 | clarification/ | Structured HITL clarification (`ask_question_tool`) — schemas and LangChain adapter; HITL policy SSOT is in `sub_agents/hitl_tool_policy.py`. |

@@ -11,6 +11,7 @@ Detects whether user input is Python or Bash and extracts embedded Python from
 - CodeDetectionResult: detection outcome with extracted code
 - CodeTypeDetector: detector class
 - code_detector: module singleton
+- runs_as_python: whether the bash tool hands a command to the Python wrapper instead of a shell
 
 [POS]
 Pure code analysis with zero agent/ runtime dependencies. Lives in toolkits
@@ -173,3 +174,17 @@ class CodeTypeDetector:
 
 
 code_detector = CodeTypeDetector()
+
+
+def runs_as_python(command: str, *, run_in_background: bool = False) -> bool:
+    """Whether the bash tool hands ``command`` to the Python wrapper instead of a shell.
+
+    A background spawn is always ``sh -c``, whatever the text looks like. Otherwise the executor strips the
+    command, unwraps one Markdown fence and routes it by ``code_detector``; this repeats those steps, so a check
+    that only makes sense for shell syntax can stand down exactly when no shell reads the text.
+    """
+    if run_in_background:
+        return False
+    from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
+
+    return code_detector.is_python(unwrap_markdown_fence(command.strip()))

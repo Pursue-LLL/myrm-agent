@@ -11,6 +11,7 @@
 - ._tool.multimodal (POS: Vision ContentBlock return path)
 - ._tool.exit_semantics (POS: Exit-code semantic interpretation)
 - .._context_recovery::ensure_executor, restore_context_vars (POS: Executor ContextVar recovery)
+- toolkits.code_execution.code_detector::runs_as_python (POS: whether a command runs as Python or in a shell)
 
 [OUTPUT]
 - create_bash_code_execute_tool: Factory creating the bash_code_execute_tool LangChain Tool
@@ -83,6 +84,7 @@ from myrm_agent_harness.agent.meta_tools.bash._tool.tool_description import (
     resolve_bash_code_execute_tool_description,
 )
 from myrm_agent_harness.core.security.redact import command_preview
+from myrm_agent_harness.toolkits.code_execution.code_detector import runs_as_python
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -168,7 +170,16 @@ def create_bash_code_execute_tool(
                     diagnostic_info={"interactive_required": True},
                 )
 
-            if not run_in_background:
+            auto_yield = should_auto_yield(
+                command=command,
+                run_in_background=run_in_background,
+                yield_after_seconds=yield_after_seconds,
+            )
+            # `&` is a shell operator, so the guard only concerns commands a shell reads: not Python source,
+            # which the wrapper runs (a whitelisted build/test command is spawned in a shell either way).
+            python_source = not auto_yield and runs_as_python(command, run_in_background=run_in_background)
+
+            if not run_in_background and not python_source:
                 bg_amp_msg = check_unquoted_background_ampersand(command)
                 if bg_amp_msg is not None:
                     from myrm_agent_harness.utils.errors import ToolError
@@ -200,11 +211,6 @@ def create_bash_code_execute_tool(
             if global_env:
                 bash_executor.set_global_env(global_env)
 
-            auto_yield = should_auto_yield(
-                command=command,
-                run_in_background=run_in_background,
-                yield_after_seconds=yield_after_seconds,
-            )
             if run_in_background or auto_yield:
                 if not session_id:
                     from myrm_agent_harness.utils.errors import ToolError

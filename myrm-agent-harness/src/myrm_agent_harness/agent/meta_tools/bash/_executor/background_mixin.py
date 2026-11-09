@@ -3,6 +3,7 @@
 [INPUT]
 - ._background.registry::get_background_registry, BackgroundQuotaError (POS: Background job registry)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
+- agent.security.checks::check_shell_threats (POS: hidden-character and quoting layer, applied to the text a shell is about to read)
 - agent.artifacts.file_id_registry::resolve_file_ids_in_text (POS: File ID resolution)
 - toolkits.code_execution.executors.base::ExecutionContext, CodeExecutor (POS: Code executor base classes)
 - toolkits.code_execution::ExecutionConfig (POS: Code execution configuration layer)
@@ -26,6 +27,7 @@ from myrm_agent_harness.agent.artifacts.file_id_registry import resolve_file_ids
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
     BashExecutionError,
 )
+from myrm_agent_harness.agent.security.checks import check_shell_threats
 from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.toolkits.code_execution.executors.base import ExecutionContext
 
@@ -111,6 +113,18 @@ class BashExecutorBackgroundMixin:
                 command_preview(command, 200),
             )
             command = normalized
+
+        # The permission engine reads Python-looking text without the shell-quoting layer, yet a whitelisted
+        # build/test command is spawned here as a shell whatever it looks like: judge the final text as the shell
+        # command it has become.
+        action, reason = check_shell_threats("code_interpreter", {"command": command, "run_in_background": True})
+        if action is not None:
+            raise BashExecutionError(
+                reason,
+                phase="validation",
+                error_category="SHELL_THREAT",
+                error_hint="Remove ANSI-C or locale quoting, carriage returns and invisible characters.",
+            )
 
         workspace, invalidated_workspace_id = await self._workspace_manager.get_or_create(session_id)
         if invalidated_workspace_id:

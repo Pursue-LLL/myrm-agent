@@ -1,4 +1,4 @@
-"""文件写入工具（Claude Code 兼容）
+"""文件写入工具
 
 1. 本文件的 INPUT/OUTPUT/POS 注释
 
@@ -13,7 +13,7 @@
 - create_file_write_tool: 创建文件写入工具的工厂函数
 
 [POS]
-File write tool (Claude Code compatible). Creates new files; rejects empty/whitespace-only content; auto File ID resolution (@file_001), automatic artifact registration, and real-time frontend push.
+File write tool. Creates new files; rejects empty/whitespace-only content; auto File ID resolution (@file_001), automatic artifact registration, and real-time frontend push.
 
 """
 

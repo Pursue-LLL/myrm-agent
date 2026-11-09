@@ -133,6 +133,8 @@ PTC（程序化工具调用）
 
 `toolkits/code_execution/code_detector.py` classifies incoming shell input as Python or Bash before execution. It delegates ``python -c`` quote-aware extraction to `python_extractor.py` (SSOT). `agent/meta_tools/bash/BashExecutor` consumes the detector and routes to `CodeExecutor.execute()` or `execute_bash()`; syntax pre-check uses the same `python_extractor.validate_python_syntax`.
 
+`runs_as_python(command, run_in_background=…)` is the single predicate for "no shell reads this text": it strips the command, unwraps one Markdown fence and asks the detector, the same steps the executor takes, and a background spawn is always `sh -c`. Guards written for shell syntax use it to stand down for Python source: the permission engine's ANSI-C / locale quoting layer (`$'`, `$"` are regex end anchors in Python) and the bash tool's detached-`&` guard (`a & b` is a bitwise operator). Python source runs inside the wrapper, whose PEP 578 audit hook refuses `subprocess` and `os.system`, so the text cannot reach a shell; the language-independent hidden-character layer (`analyze_hidden_characters`) still applies to it.
+
 #### Matplotlib 内联图表捕获（Jupyter 级）
 
 Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截 `matplotlib.pyplot` 首次导入并强制 `Agg` 无头后端，随后接管图表呈现：

@@ -3,6 +3,7 @@
 [INPUT]
 - httpx (POS: the HTTP client; proxy and TLS behavior come from it and from infra.tls_compat)
 - transport.errors (POS: LLMHTTPError for failed statuses)
+- transport.redirects (POS: which redirects are followed, within which host)
 - transport.retry (POS: which failures are retried and how long to wait)
 - transport.stream_events (POS: the events of a streamed body, whatever its framing)
 
@@ -20,9 +21,10 @@
 [POS]
 The only place the transport touches the network. A wire module builds a PreparedRequest and a decoder; this module
 sends it, maps a failed status to LLMHTTPError and, for a request that allows it, retries what failed before the
-provider produced anything (see transport.retry). A stream is never retried once it has begun. Clients are shared per
-event loop and egress proxy; the per-request timeout is the provider's silence budget, as a stream that keeps
-producing is not cut.
+provider produced anything (see transport.retry). A stream is never retried once it has begun. A 307/308 from a gateway
+on the configured host is followed with the same body and headers (see transport.redirects); a hop is not a retry.
+Clients are shared per event loop and egress proxy; the per-request timeout is the provider's silence budget, as a
+stream that keeps producing is not cut.
 """
 
 from __future__ import annotations
@@ -39,6 +41,7 @@ from typing import Final, Protocol
 import httpx
 
 from myrm_agent_harness.toolkits.llms.transport.errors import LLMResponseError, araise_for_status, raise_for_status
+from myrm_agent_harness.toolkits.llms.transport.redirects import MAX_REDIRECTS, followed_url, shown
 from myrm_agent_harness.toolkits.llms.transport.retry import answer_wait, error_wait
 from myrm_agent_harness.toolkits.llms.transport.stream_events import aiter_stream_events, iter_stream_events
 
@@ -190,9 +193,23 @@ def _log_retry(req: PreparedRequest, retried: int, wait: float, reason: str) -> 
     logger.warning("Retrying %s request in %.1fs (retry %d) after %s", req.provider, wait, retried, reason)
 
 
+def _redirected(req: PreparedRequest, response: httpx.Response, hops: int) -> PreparedRequest | None:
+    """The request a redirect answer moves the call to; ``None`` when the answer is the final one.
+
+    The location is the whole address, so the request's own query is not added to it.
+    """
+    target = followed_url(response) if hops < MAX_REDIRECTS else None
+    if target is None:
+        return None
+    logger.warning(
+        "%s endpoint answered HTTP %d and redirects to %s", req.provider, response.status_code, shown(target)
+    )
+    return replace(req, url=str(target), query={})
+
+
 def _send(req: PreparedRequest) -> httpx.Response:
     client = _sync_client(req.proxy)
-    retried = 0
+    retried = hops = 0
     while True:
         try:
             response = client.send(_build(client, req), stream=req.stream)
@@ -201,6 +218,10 @@ def _send(req: PreparedRequest) -> httpx.Response:
             if wait is None:
                 raise
         else:
+            if (moved := _redirected(req, response, hops)) is not None:
+                response.close()
+                req, hops = moved, hops + 1
+                continue
             wait, reason = answer_wait(response, retried, req.retries), f"HTTP {response.status_code}"
             if wait is None:
                 return response
@@ -212,7 +233,7 @@ def _send(req: PreparedRequest) -> httpx.Response:
 
 async def _asend(req: PreparedRequest) -> httpx.Response:
     client = _async_client(req.proxy)
-    retried = 0
+    retried = hops = 0
     while True:
         try:
             response = await client.send(_build(client, req), stream=req.stream)
@@ -221,6 +242,10 @@ async def _asend(req: PreparedRequest) -> httpx.Response:
             if wait is None:
                 raise
         else:
+            if (moved := _redirected(req, response, hops)) is not None:
+                await response.aclose()
+                req, hops = moved, hops + 1
+                continue
             wait, reason = answer_wait(response, retried, req.retries), f"HTTP {response.status_code}"
             if wait is None:
                 return response

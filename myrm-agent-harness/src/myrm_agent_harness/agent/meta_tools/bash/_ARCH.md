@@ -37,7 +37,7 @@ bash/
 |------|------|-------------|-------|
 | `__init__.py` | Package | 包门面：聚合导出 5 个公共符号（`BashExecutor`、两个 tool 工厂、工具名常量、`BashExecutionError`）。 | — |
 | `_tool/tool_description.py` | Internal | 静态缓存稳定 `TOOL_DESCRIPTION`（合并/OBSERVATION 规则）。 | ✅ |
-| `bash_code_execute_tool.py` | Core | `create_bash_code_execute_tool` LangChain 工厂；静态 TOOL_DESCRIPTION + OS hint；preflight ``ToolError`` 保留 ``guardrail_blocked``；``BashExecutionError`` 包装保留 stderr evicted ref。 | ✅ |
+| `bash_code_execute_tool.py` | Core | `create_bash_code_execute_tool` LangChain 工厂；静态 TOOL_DESCRIPTION + OS hint；preflight ``ToolError`` 保留 ``guardrail_blocked``；游离 ``&`` 守卫只管 shell 会读的命令（Python 源码里的 ``a & b`` 是位运算；自动让出的 build/test 命令仍是 shell）；``BashExecutionError`` 包装保留 stderr evicted ref。 | ✅ |
 | `bash_process_tools.py` | Core | 统一 ``bash_process_tool``（actions list/output/kill/wait/write_stdin/submit_stdin/close_stdin）。后台任务按会话归属，委派的子 Agent 与父共用会话，所以 kill / write_stdin / submit_stdin / close_stdin 在工具内部检查能力句柄的 EXECUTE（与启动任务的 `bash_code_execute_tool` 同一权限）：只读子 Agent 能 list / output / wait 父的任务，不能对其发信号或写 stdin。`kill` 的结果如实说明停止的效果：任务进程组内是否发现还有进程仍在运行（metadata 的 `leftover_processes`；Windows 无法列出进程组，只说发出了什么信号）；对已结束但留有后台进程的任务，`kill` 停的是它留下的进程，`list` / `output` / `wait` 的结果带 `leftover_processes`（大于 0 时才出现）。 | ✅ |
 
 ### `_executor/` 执行器域

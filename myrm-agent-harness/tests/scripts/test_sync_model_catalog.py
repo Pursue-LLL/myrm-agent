@@ -49,6 +49,86 @@ class TestTrim:
         trimmed = _sync.trim({"m": {"litellm_provider": "vendor", "mode": "chat", **flags, "supports_unrelated": True}})
         assert trimmed == {"m": {"provider": "vendor", "mode": "chat", **flags}}
 
+    def test_price_tiers_are_kept_with_only_the_range_and_the_rates_billed_inside_it(self) -> None:
+        tiers = [
+            {"range": [0, 32000.0], "input_cost_per_token": 1e-6, "output_cost_per_token": 6e-6, "note": "x"},
+            {
+                "range": [32000.0, 128000.0],
+                "input_cost_per_token": 2e-6,
+                "output_cost_per_token": 1e-5,
+                "cache_read_input_token_cost": 4e-7,
+            },
+        ]
+        trimmed = _sync.trim({"m": {"litellm_provider": "vendor", "mode": "chat", "tiered_pricing": tiers}})
+        assert trimmed["m"]["tiered_pricing"] == [
+            {"range": [0, 32000.0], "input_cost_per_token": 1e-6, "output_cost_per_token": 6e-6},
+            tiers[1],
+        ]
+
+    def test_a_window_stated_as_a_whole_float_is_stored_as_the_integer_it_is(self) -> None:
+        raw = {
+            "litellm_provider": "vendor",
+            "mode": "chat",
+            "max_input_tokens": 131072.0,
+            "max_output_tokens": 8192,
+            "max_tokens": 4096.5,
+            "output_vector_size": 1024.0,
+            "input_cost_per_token": 2.0,
+        }
+        trimmed = _sync.trim({"m": raw})["m"]
+        assert trimmed["max_input_tokens"] == 131072 and isinstance(trimmed["max_input_tokens"], int)
+        assert trimmed["output_vector_size"] == 1024 and isinstance(trimmed["output_vector_size"], int)
+        assert trimmed["max_output_tokens"] == 8192
+        assert trimmed["max_tokens"] == 4096.5  # a fractional value is not a count to be rounded
+        assert trimmed["input_cost_per_token"] == 2.0 and isinstance(trimmed["input_cost_per_token"], float)
+
+
+class TestUnreadablePrices:
+    @staticmethod
+    def _families(raw: dict[str, object]) -> dict[str, int]:
+        return _sync.unreadable_prices(raw, _sync.trim(raw))
+
+    def test_a_chat_entry_priced_per_second_or_per_character_is_counted_under_its_provider(self) -> None:
+        raw = {
+            "a": {"litellm_provider": "bedrock", "mode": "chat", "input_cost_per_second": 0.1},
+            "b": {"litellm_provider": "bedrock", "mode": "chat", "input_cost_per_character": 1e-6},
+            "c": {"litellm_provider": "vertex", "mode": "responses", "cost_per_second": 0.2},
+        }
+        assert self._families(raw) == {"bedrock": 2, "vertex": 1}
+
+    def test_flat_and_tiered_token_rates_and_priceless_or_non_chat_entries_are_not_counted(self) -> None:
+        tier = {"range": [0, 8], "input_cost_per_token": 1e-6, "output_cost_per_token": 2e-6}
+        raw = {
+            "flat": {
+                "litellm_provider": "v",
+                "mode": "chat",
+                "input_cost_per_token": 1e-6,
+                "output_cost_per_token": 2e-6,
+            },
+            "tiered": {"litellm_provider": "v", "mode": "chat", "tiered_pricing": [tier]},
+            "free": {"litellm_provider": "v", "mode": "chat", "max_input_tokens": 8},
+            "image": {"litellm_provider": "v", "mode": "image_generation", "output_cost_per_image": 0.04},
+        }
+        assert self._families(raw) == {}
+
+    def test_a_price_shape_the_trimming_does_not_keep_is_what_the_count_exists_to_show(self) -> None:
+        # Tiers whose rows state no input or no output rate leave the model unpriced: counted, not silently lost.
+        raw = {
+            "m": {
+                "litellm_provider": "v",
+                "mode": "chat",
+                "tiered_pricing": [{"range": [0, 8], "input_cost_per_token": 1e-6}],
+            }
+        }
+        assert self._families(raw) == {"v": 1}
+
+    def test_the_report_gives_the_families_and_their_total(self) -> None:
+        result = _sync.merge({}, {})
+        assert "chat entries with a price but no token rate: 3 (bedrock 2, vertex 1)" in _sync._report(
+            result, {"bedrock": 2, "vertex": 1}
+        )
+        assert "chat entries with a price but no token rate: 0 (none)" in _sync._report(result, {})
+
 
 class TestMerge:
     def test_upstream_replaces_a_listed_entry_whole_so_a_corrected_flag_does_not_survive(self) -> None:
@@ -106,7 +186,9 @@ class TestMain:
         assert _sync.main() == 0
         written = json.loads(snapshot_file.read_text(encoding="utf-8"))
         assert written["a"]["max_input_tokens"] == 9 and "b" in written
-        assert "added 0, updated 1, kept although upstream dropped them 1" in capsys.readouterr().out
+        report = capsys.readouterr().out
+        assert "added 0, updated 1, kept although upstream dropped them 1" in report
+        assert "chat entries with a price but no token rate: 0 (none)" in report
 
     def test_an_upstream_that_keeps_under_half_the_snapshot_is_refused_and_nothing_is_written(
         self, snapshot_file: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

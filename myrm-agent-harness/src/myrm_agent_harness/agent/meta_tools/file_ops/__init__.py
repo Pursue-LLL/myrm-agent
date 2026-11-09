@@ -1,4 +1,4 @@
-"""File operations tool module (Claude Code compatible).
+"""File operations tool module.
 
 提供文件查看、写入、编辑能力。
 

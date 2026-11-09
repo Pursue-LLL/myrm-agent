@@ -4,7 +4,41 @@ from myrm_agent_harness.toolkits.code_execution.code_detector import (
     CodeType,
     CodeTypeDetector,
     code_detector,
+    runs_as_python,
 )
+
+PYTHON_SOURCE = "\n".join(
+    (
+        "import re",
+        "tags = ['v1.2.3', 'v2']",
+        "for tag in tags:",
+        "    print(re.match(r'^v(\\d+)$', tag))",
+        "print('done')",
+    )
+)
+
+
+class TestRunsAsPython:
+    """The predicate checks use to stand down shell-only rules exactly when no shell reads the text."""
+
+    def test_python_source_runs_in_the_wrapper(self) -> None:
+        assert runs_as_python(PYTHON_SOURCE)
+
+    def test_a_background_spawn_is_always_a_shell(self) -> None:
+        assert not runs_as_python(PYTHON_SOURCE, run_in_background=True)
+
+    def test_a_shell_command_is_not_python(self) -> None:
+        assert not runs_as_python("ls -la && echo done")
+
+    def test_surrounding_whitespace_does_not_change_the_route(self) -> None:
+        assert runs_as_python(f"\n\n  {PYTHON_SOURCE}\n")
+
+    def test_one_markdown_fence_around_the_source_does_not_change_the_route(self) -> None:
+        assert runs_as_python(f"```python\n{PYTHON_SOURCE}\n```")
+
+    def test_it_agrees_with_the_detector_the_executor_uses(self) -> None:
+        for command in (PYTHON_SOURCE, "echo hi", "python3 -c 'print(1)'", "x = await f()", ""):
+            assert runs_as_python(command) == code_detector.is_python(command.strip())
 
 
 class TestCodeTypeDetector:
