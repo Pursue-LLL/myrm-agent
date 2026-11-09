@@ -145,6 +145,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | ------------ | --------------------------------- | ----------------------------- |
 | **类型系统** | Pydantic >= 2.0.0                 | 数据验证和类型定义            |
 | **异步 I/O** | aiofiles, httpx, aiosqlite | 文件、网络、SQLite 异步操作   |
+| **模型调用** | httpx（自研 `toolkits/llms/transport/`，不加载 provider SDK） | OpenAI / Anthropic / Gemini / Ollama / Bedrock 线协议，嵌入、重排与图像生成请求 |
 | **HTML**     | beautifulsoup4, lxml              | 网页剪枝与 DOM 解析           |
 | **域名**     | idna                              | 域名按浏览器拨号时的写法折叠（UTS 46）：出站网址据此得到唯一的规范写法，各层按它判定、拨号点按它发请求，域名列表条目与主机也据此比较 |
 | **Checkpoint** | langgraph-checkpoint-sqlite, dill | 会话状态持久化与序列化      |
@@ -272,7 +273,7 @@ agent/ (运行时核心层)
 │   ├─ cron/ (定时任务)
 │   ├─ kanban/ (多任务看板)
 │   ├─ memory/ (记忆系统)
-│   └─ llms/ (LLM 管理)
+│   └─ llms/ (LLM 管理 — 自研模型传输层 transport、模型目录、聊天适配器、错误分类、降级与路由)
 └─ utils/ (基础层)
 ```
 

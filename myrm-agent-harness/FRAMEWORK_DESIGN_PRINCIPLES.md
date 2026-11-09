@@ -9,7 +9,7 @@
 
 - **零业务规则**：不含用户体系、计费、渠道校验、多租户调度。
 - **零反向依赖**：`src/myrm_agent_harness/**` 只允许 import 自身与第三方包。业务层与宿主包前缀（以 `scripts/boundary_config.py` 的 `BANNED_PREFIXES` 为准）被硬拦截，由 pre-commit `harness-boundary-check` 与 CI `harness-boundary.yml` 全量执行。
-- **核心依赖 24 项**：`[project].dependencies` 只有 24 个运行时包，由 `tests/architecture/test_core_dependencies.py::test_core_dependency_count_is_stable` 锁定。浏览器、Qdrant、检索、OCR、FastAPI 宿主适配全部是 optional extras；harness 源码不 import `fastapi`。
+- **核心依赖 26 项**：`[project].dependencies` 只有 26 个运行时包，由 `tests/architecture/test_core_dependencies.py::test_core_dependency_count_is_stable` 锁定。浏览器、Qdrant、检索、OCR、FastAPI 宿主适配全部是 optional extras；harness 源码不 import `fastapi`。
 - **契约优先**：跨层扩展点用 `Protocol` 或 Pydantic 模型定义（`api/protocols.py`、`api/hooks.py`、`toolkits/**/protocols.py`）。业务系统实现契约，框架不反向读取业务文件。
 - **单实例、单用户**：一个 agent 实例服务一个用户；多用户靠多进程 / 多容器 / 多实例横向扩展。框架内不得引入租户隔离、跨用户共享状态或隐式 `user_id`。
 
