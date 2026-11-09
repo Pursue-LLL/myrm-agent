@@ -179,10 +179,6 @@ class CreateMemoryRequest(BaseModel):
         default_factory=list,
         description="Related entities (episodic only, for graph indexing)",
     )
-    is_exact_fact: bool | None = Field(
-        default=None,
-        description="Explicitly declare this memory as an exact fact with deterministic hard lock",
-    )
 
 
 class UpdateMemoryRequest(BaseModel):

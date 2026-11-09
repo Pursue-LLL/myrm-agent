@@ -100,13 +100,9 @@ export default function ResourcePressureBanner() {
         }
         const dismissed = readDismissed();
         if (dismissed.includes(next)) {
-          setTrigger((current) => {
-            // Escalation re-opens even mid-dismissal: compare severity.
-            if (current && TRIGGER_SEVERITY[next] > TRIGGER_SEVERITY[current]) {
-              return next;
-            }
-            return current;
-          });
+          // Only an escalation over the banner on screen re-opens a dismissed trigger. Otherwise the worst active
+          // trigger is a dismissed one, so any banner still up reports pressure that has passed and comes down.
+          setTrigger((current) => (current && TRIGGER_SEVERITY[next] > TRIGGER_SEVERITY[current] ? next : null));
           return;
         }
         setTrigger(next);

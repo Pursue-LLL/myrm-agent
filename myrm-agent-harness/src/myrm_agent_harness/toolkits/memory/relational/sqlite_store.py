@@ -22,6 +22,7 @@ lifecycle; Profile, Procedural, and Pending CRUD come from the operation mixins.
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 from datetime import datetime
@@ -72,6 +73,9 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._connection: aiosqlite.Connection | None = None
         self._connection_lock = asyncio.Lock()
+        # Replacing one memory's index rows takes several statements on the one shared connection; without
+        # this lock, concurrent replacements interleave and leave the rows of every writer behind.
+        self._exact_fact_write_lock = asyncio.Lock()
         self._initialized = False
         self._closed = False
         self._fts5_supported = False
@@ -110,9 +114,9 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
                         self._connection = None
                         raise
                     except Exception as e:
+                        await self._discard_connection()
                         err_str = str(e).lower()
                         if any(k in err_str for k in ("malformed", "corrupt", "not a database", "disk i/o error")):
-                            self._connection = None
                             raise CorruptedMemoryIndexError(
                                 f"Corrupted SQLite store {self._db_path}: {e}",
                                 db_path=str(self._db_path),
@@ -121,6 +125,17 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
                             ) from e
                         raise RelationalConnectionError(f"Failed to connect: {e}") from e
         return self._connection
+
+    async def _discard_connection(self) -> None:
+        """Drop a connection whose setup failed.
+
+        Its tables may be missing; keeping it would make every later call fail on it until the process restarts,
+        while a fresh connection retries the setup.
+        """
+        connection, self._connection = self._connection, None
+        if connection is not None:
+            with contextlib.suppress(Exception):
+                await connection.close()
 
     async def _init_connection_settings(self) -> None:
         if self._connection is None:
@@ -274,17 +289,18 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
         conn = await self._get_connection()
         await self._ensure_integrity_before_write()
         try:
-            await save_exact_fact(
-                conn,
-                memory_id=memory_id,
-                user_id=user_id,
-                content=content,
-                identifiers=identifiers,
-                primary_namespace=primary_namespace,
-                namespaces=namespaces,
-                fts5_supported=self._fts5_supported,
-            )
-            await conn.commit()
+            async with self._exact_fact_write_lock:
+                await save_exact_fact(
+                    conn,
+                    memory_id=memory_id,
+                    user_id=user_id,
+                    content=content,
+                    identifiers=identifiers,
+                    primary_namespace=primary_namespace,
+                    namespaces=namespaces,
+                    fts5_supported=self._fts5_supported,
+                )
+                await conn.commit()
         except Exception as e:
             self._handle_query_error("record_exact_fact", e)
 
@@ -322,12 +338,13 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
         conn = await self._get_connection()
         await self._ensure_integrity_before_write()
         try:
-            await delete_exact_fact(
-                conn,
-                memory_id=memory_id,
-                fts5_supported=self._fts5_supported,
-            )
-            await conn.commit()
+            async with self._exact_fact_write_lock:
+                await delete_exact_fact(
+                    conn,
+                    memory_id=memory_id,
+                    fts5_supported=self._fts5_supported,
+                )
+                await conn.commit()
         except Exception as e:
             self._handle_query_error("delete_exact_fact", e)
 

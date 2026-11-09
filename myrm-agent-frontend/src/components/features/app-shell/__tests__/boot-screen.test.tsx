@@ -4,7 +4,7 @@ import BootScreen from '../boot-screen';
 import { shouldShowBootScreen, markBootScreenShown } from '../boot-screen-gate';
 
 vi.mock('next/image', () => ({
-  // oxlint-disable-next-line jsx-a11y/alt-text -- the mock forwards next/image props, including alt
+  // oxlint-disable-next-line jsx-a11y/alt-text, next/no-img-element -- the mock stands in for next/image and forwards its props, including alt
   default: (props: Record<string, unknown>) => <img {...props} />,
 }));
 
@@ -243,7 +243,8 @@ describe('BootScreen component', () => {
 
     const container = screen.getByRole('presentation');
     expect(container).toHaveClass('opacity-100');
-    expect(container).toHaveStyle({ transitionDuration: '400ms' });
+    // The inline declaration is the contract; jsdom reports the computed value in seconds ("0.4s").
+    expect(container.style.transitionDuration).toBe('400ms');
 
     await act(async () => {
       fireEvent.click(container);

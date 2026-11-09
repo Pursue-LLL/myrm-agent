@@ -70,16 +70,23 @@ describe('useDefaultAgentBootstrap', () => {
     );
   });
 
-  it('falls back to a minimal general config when the full agent cannot be loaded', async () => {
-    mockAgentState.fetchAgent.mockRejectedValue(new Error('network'));
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('logs the failure and falls back to a minimal general config when the full agent cannot be loaded', async () => {
+    const failure = new Error('network');
+    mockAgentState.fetchAgent.mockRejectedValue(failure);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     renderHook(() => useDefaultAgentBootstrap(setAgentConfig));
 
     await waitFor(() => expect(setAgentConfig).toHaveBeenCalledTimes(1));
     expect(setAgentConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ agentId: 'builtin-general', presetIcon: 'Sparkle', selectedSkillIds: [], systemPrompt: '' }),
+      expect.objectContaining({
+        agentId: 'builtin-general',
+        presetIcon: 'Sparkle',
+        selectedSkillIds: [],
+        systemPrompt: '',
+      }),
     );
+    expect(logged).toHaveBeenCalledWith('Failed to fetch full agent details for general', failure);
   });
 
   it.each<[string, Partial<AgentConfig>]>([
@@ -107,6 +114,61 @@ describe('useDefaultAgentBootstrap', () => {
     expect(setAgentConfig).not.toHaveBeenCalled();
   });
 
+  it.each(['builtin-general', 'general'])(
+    'accepts %s as the general agent, with the fallback icon when it has no avatar',
+    async (id) => {
+      mockAgentState.agents = [{ id, name: 'General' }];
+      mockAgentState.fetchAgent.mockResolvedValue(mockAgentState.agents[0]);
+
+      renderHook(() => useDefaultAgentBootstrap(setAgentConfig));
+
+      await waitFor(() => expect(setAgentConfig).toHaveBeenCalledTimes(1));
+      expect(setAgentConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ agentId: id, presetId: id, presetName: 'General', presetIcon: 'MessageCircle' }),
+      );
+    },
+  );
+
+  it('keeps the minimal general config when the full agent is not found', async () => {
+    mockAgentState.fetchAgent.mockResolvedValue(null);
+
+    renderHook(() => useDefaultAgentBootstrap(setAgentConfig));
+
+    await waitFor(() => expect(setAgentConfig).toHaveBeenCalledTimes(1));
+    expect(setAgentConfig).toHaveBeenCalledWith({
+      agentId: 'builtin-general',
+      selectedSkillIds: [],
+      skillConfigs: {},
+      selectedMcpNames: [],
+      systemPrompt: '',
+      useGlobalInstruction: true,
+      autoRestoreDomains: [],
+      presetId: 'builtin-general',
+      presetName: 'General',
+      presetIcon: 'Sparkle',
+    });
+  });
+
+  it('logs the failure and selects nothing when the agent list cannot be loaded', async () => {
+    const failure = new Error('offline');
+    mockAgentState.fetchAgents.mockRejectedValue(failure);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    renderHook(() => useDefaultAgentBootstrap(setAgentConfig));
+
+    await waitFor(() => expect(logged).toHaveBeenCalledWith(failure));
+    expect(setAgentConfig).not.toHaveBeenCalled();
+  });
+
+  it('treats a stored configuration without any lists as not configured', async () => {
+    // A configuration persisted by an older build can lack the list fields entirely.
+    mockChatState.agentConfig = { useGlobalInstruction: true } as unknown as AgentConfig;
+
+    renderHook(() => useDefaultAgentBootstrap(setAgentConfig));
+
+    await waitFor(() => expect(setAgentConfig).toHaveBeenCalledTimes(1));
+  });
+
   it('does nothing when the agent list has no general agent', async () => {
     mockAgentState.agents = [{ id: 'builtin-coder', name: 'Coder' }];
 
@@ -114,6 +176,20 @@ describe('useDefaultAgentBootstrap', () => {
     await waitFor(() => expect(mockAgentState.fetchAgents).toHaveBeenCalledTimes(1));
 
     expect(setAgentConfig).not.toHaveBeenCalled();
+  });
+
+  it('does not bootstrap again when the caller hands over a new setter', async () => {
+    const replacement = vi.fn();
+    const { rerender } = renderHook(({ setter }) => useDefaultAgentBootstrap(setter), {
+      initialProps: { setter: setAgentConfig },
+    });
+    await waitFor(() => expect(setAgentConfig).toHaveBeenCalledTimes(1));
+
+    rerender({ setter: replacement });
+    await Promise.resolve();
+
+    expect(mockAgentState.fetchAgents).toHaveBeenCalledTimes(1);
+    expect(replacement).not.toHaveBeenCalled();
   });
 
   it('bootstraps only once across re-renders', async () => {

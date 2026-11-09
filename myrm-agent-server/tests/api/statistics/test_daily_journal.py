@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -10,7 +13,9 @@ import pytest
 from app.api.statistics.daily_journal import (
     _build_source_breakdown,
     _build_timeline,
+    _fetch_tool_call_count,
     _parse_day,
+    get_daily_journal,
 )
 from app.core.utils.errors import StandardHTTPException
 
@@ -75,7 +80,7 @@ class TestBuildTimeline:
         assert types_in_order == ["approval", "kanban", "cron_run", "session"]
 
     def test_null_time_sorted_to_end(self):
-        """FIX 2 verification: events without time go to end of timeline."""
+        """Events without a time go to the end of the timeline."""
         sessions = [
             {"started_at": "2026-05-20T08:00:00", "chat_id": "c1", "title": "Morning", "action_mode": "chat", "total_tokens": 0}
         ]
@@ -126,160 +131,96 @@ class TestBuildSourceBreakdown:
         assert result == {"unknown": 1}
 
 
+def _utc_midnight(days_ago: int = 0) -> datetime:
+    return datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_ago)
+
+
+def _analytics_reporting(day: str, tool_calls: int) -> AsyncMock:
+    """An analytics stub whose only recorded activity is `tool_calls` on `day`."""
+    activity = MagicMock(date=day, tool_calls=tool_calls)
+    analytics = AsyncMock()
+    analytics.get_global_activity_patterns = AsyncMock(return_value=MagicMock(daily_activities=[activity]))
+    return analytics
+
+
+@contextmanager
+def _stubbed_event_log(*, log_dir_exists: bool = True, analytics_class: MagicMock | None = None) -> Iterator[None]:
+    """Run with the journal's event-log directory and analytics class stubbed.
+
+    The handler imports the analytics classes inside the function, so they are replaced through ``sys.modules``.
+    """
+    modules = {}
+    if analytics_class is not None:
+        modules = {
+            "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=analytics_class),
+            "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=MagicMock()),
+        }
+    with (
+        patch("app.api.statistics.daily_journal.settings") as mock_settings,
+        patch("app.api.statistics.daily_journal.Path") as mock_path,
+        patch.dict("sys.modules", modules),
+    ):
+        mock_settings.database.event_log_dir = "/tmp/test"
+        mock_path.return_value.exists.return_value = log_dir_exists
+        yield
+
+
 class TestFetchToolCallCountDynamicDays:
-    """FIX 1 verification: days_ago is computed dynamically."""
+    """The look-back window is computed from the requested day."""
 
     @pytest.mark.asyncio
     async def test_recent_date_uses_minimum_2(self):
-        from app.api.statistics.daily_journal import _fetch_tool_call_count
+        today = _utc_midnight()
+        day = today.strftime("%Y-%m-%d")
+        analytics = _analytics_reporting(day, tool_calls=42)
 
-        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        with _stubbed_event_log(analytics_class=MagicMock(return_value=analytics)):
+            result = await _fetch_tool_call_count(today, today + timedelta(days=1), day)
 
-        mock_activity = MagicMock()
-        mock_activity.date = today.strftime("%Y-%m-%d")
-        mock_activity.tool_calls = 42
-
-        mock_patterns = MagicMock()
-        mock_patterns.daily_activities = [mock_activity]
-
-        mock_analytics = AsyncMock()
-        mock_analytics.get_global_activity_patterns = AsyncMock(return_value=mock_patterns)
-
-        mock_backend_cls = MagicMock()
-
-        with (
-            patch("app.api.statistics.daily_journal.settings") as mock_settings,
-            patch("app.api.statistics.daily_journal.Path") as mock_path,
-            patch.dict(
-                "sys.modules",
-                {
-                    "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
-                    "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
-                },
-            ),
-        ):
-            mock_settings.database.event_log_dir = "/tmp/test"
-            mock_path.return_value.exists.return_value = True
-
-            result = await _fetch_tool_call_count(today, today + timedelta(days=1))
-
-            assert result == 42
-            call_args = mock_analytics.get_global_activity_patterns.call_args
-            assert call_args.kwargs["time_range_days"] >= 2
+        assert result == 42
+        assert analytics.get_global_activity_patterns.call_args.kwargs["time_range_days"] >= 2
 
     @pytest.mark.asyncio
     async def test_old_date_uses_large_days_ago(self):
-        from app.api.statistics.daily_journal import _fetch_tool_call_count
+        old_date = _utc_midnight(days_ago=30)
+        day = old_date.strftime("%Y-%m-%d")
+        analytics = _analytics_reporting(day, tool_calls=99)
 
-        old_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=30)
+        with _stubbed_event_log(analytics_class=MagicMock(return_value=analytics)):
+            result = await _fetch_tool_call_count(old_date, old_date + timedelta(days=1), day)
 
-        mock_activity = MagicMock()
-        mock_activity.date = old_date.strftime("%Y-%m-%d")
-        mock_activity.tool_calls = 99
-
-        mock_patterns = MagicMock()
-        mock_patterns.daily_activities = [mock_activity]
-
-        mock_analytics = AsyncMock()
-        mock_analytics.get_global_activity_patterns = AsyncMock(return_value=mock_patterns)
-
-        mock_backend_cls = MagicMock()
-
-        with (
-            patch("app.api.statistics.daily_journal.settings") as mock_settings,
-            patch("app.api.statistics.daily_journal.Path") as mock_path,
-            patch.dict(
-                "sys.modules",
-                {
-                    "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
-                    "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
-                },
-            ),
-        ):
-            mock_settings.database.event_log_dir = "/tmp/test"
-            mock_path.return_value.exists.return_value = True
-
-            result = await _fetch_tool_call_count(old_date, old_date + timedelta(days=1))
-
-            assert result == 99
-            call_args = mock_analytics.get_global_activity_patterns.call_args
-            assert call_args.kwargs["time_range_days"] >= 31
+        assert result == 99
+        assert analytics.get_global_activity_patterns.call_args.kwargs["time_range_days"] >= 31
 
     @pytest.mark.asyncio
     async def test_missing_event_log_dir_returns_zero(self):
-        from app.api.statistics.daily_journal import _fetch_tool_call_count
-
         today = datetime.now(UTC)
+        analytics_class = MagicMock()
 
-        with (
-            patch("app.api.statistics.daily_journal.settings") as mock_settings,
-            patch("app.api.statistics.daily_journal.Path") as mock_path,
-        ):
-            mock_settings.database.event_log_dir = "/nonexistent"
-            mock_path.return_value.exists.return_value = False
+        with _stubbed_event_log(log_dir_exists=False, analytics_class=analytics_class):
+            result = await _fetch_tool_call_count(today, today + timedelta(days=1), today.strftime("%Y-%m-%d"))
 
-            result = await _fetch_tool_call_count(today, today + timedelta(days=1))
-            assert result == 0
+        assert result == 0
+        analytics_class.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_exception_returns_zero(self):
-        from app.api.statistics.daily_journal import _fetch_tool_call_count
-
         today = datetime.now(UTC)
 
-        with (
-            patch("app.api.statistics.daily_journal.settings") as mock_settings,
-            patch("app.api.statistics.daily_journal.Path") as mock_path,
-            patch.dict(
-                "sys.modules",
-                {
-                    "myrm_agent_harness.agent.event_log": MagicMock(
-                        EventLogAnalytics=MagicMock(side_effect=RuntimeError("boom"))
-                    ),
-                    "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=MagicMock()),
-                },
-            ),
-        ):
-            mock_settings.database.event_log_dir = "/tmp/test"
-            mock_path.return_value.exists.return_value = True
+        with _stubbed_event_log(analytics_class=MagicMock(side_effect=RuntimeError("boom"))):
+            result = await _fetch_tool_call_count(today, today + timedelta(days=1), today.strftime("%Y-%m-%d"))
 
-            result = await _fetch_tool_call_count(today, today + timedelta(days=1))
-            assert result == 0
+        assert result == 0
 
     @pytest.mark.asyncio
     async def test_date_not_in_activities_returns_zero(self):
-        from app.api.statistics.daily_journal import _fetch_tool_call_count
+        today = _utc_midnight()
+        analytics = _analytics_reporting("1999-01-01", tool_calls=42)
 
-        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        with _stubbed_event_log(analytics_class=MagicMock(return_value=analytics)):
+            result = await _fetch_tool_call_count(today, today + timedelta(days=1), today.strftime("%Y-%m-%d"))
 
-        mock_activity = MagicMock()
-        mock_activity.date = "1999-01-01"
-        mock_activity.tool_calls = 42
-
-        mock_patterns = MagicMock()
-        mock_patterns.daily_activities = [mock_activity]
-
-        mock_analytics = AsyncMock()
-        mock_analytics.get_global_activity_patterns = AsyncMock(return_value=mock_patterns)
-
-        mock_backend_cls = MagicMock()
-
-        with (
-            patch("app.api.statistics.daily_journal.settings") as mock_settings,
-            patch("app.api.statistics.daily_journal.Path") as mock_path,
-            patch.dict(
-                "sys.modules",
-                {
-                    "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
-                    "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
-                },
-            ),
-        ):
-            mock_settings.database.event_log_dir = "/tmp/test"
-            mock_path.return_value.exists.return_value = True
-
-            result = await _fetch_tool_call_count(today, today + timedelta(days=1))
-            assert result == 0
+        assert result == 0
 
 
 class TestGetDailyJournalEndpoint:
@@ -287,17 +228,13 @@ class TestGetDailyJournalEndpoint:
 
     @pytest.mark.asyncio
     async def test_valid_date_returns_success(self):
-        from app.api.statistics.daily_journal import get_daily_journal
-
         mock_db = AsyncMock()
         mock_result = MagicMock()
         mock_result.all.return_value = []
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         with patch("app.api.statistics.daily_journal._fetch_tool_call_count", new_callable=AsyncMock, return_value=0):
-            response = await get_daily_journal(date="2026-05-20", agent_id=None, db=mock_db)
-
-        import json
+            response = await get_daily_journal(date="2026-05-20", agent_id=None, timezone=None, x_timezone=None, db=mock_db)
 
         body = json.loads(response.body)
         assert body["code"] == 0
@@ -310,17 +247,15 @@ class TestGetDailyJournalEndpoint:
 
     @pytest.mark.asyncio
     async def test_invalid_date_raises(self):
-        from app.api.statistics.daily_journal import get_daily_journal
-
         mock_db = AsyncMock()
 
-        with pytest.raises(StandardHTTPException):
-            await get_daily_journal(date="not-valid", agent_id=None, db=mock_db)
+        with pytest.raises(StandardHTTPException) as exc_info:
+            await get_daily_journal(date="not-valid", agent_id=None, timezone=None, x_timezone=None, db=mock_db)
+
+        assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
     async def test_with_sessions_aggregates_tokens(self):
-        from app.api.statistics.daily_journal import get_daily_journal
-
         chat_row = (
             "chat-1",
             "Test Chat",
@@ -351,9 +286,7 @@ class TestGetDailyJournalEndpoint:
         mock_db.execute = mock_execute
 
         with patch("app.api.statistics.daily_journal._fetch_tool_call_count", new_callable=AsyncMock, return_value=10):
-            response = await get_daily_journal(date="2026-05-20", agent_id=None, db=mock_db)
-
-        import json
+            response = await get_daily_journal(date="2026-05-20", agent_id=None, timezone=None, x_timezone=None, db=mock_db)
 
         body = json.loads(response.body)
         data = body["data"]
@@ -368,8 +301,6 @@ class TestGetDailyJournalEndpoint:
 
     @pytest.mark.asyncio
     async def test_source_breakdown_computed(self):
-        from app.api.statistics.daily_journal import get_daily_journal
-
         rows = [
             ("c1", "Chat 1", "chat", "web", None, datetime(2026, 5, 20, 10, tzinfo=UTC), 100, 0.01, 1),
             ("c2", "Chat 2", "chat", "api", None, datetime(2026, 5, 20, 11, tzinfo=UTC), 200, 0.02, 2),
@@ -382,21 +313,14 @@ class TestGetDailyJournalEndpoint:
             nonlocal call_count
             call_count += 1
             result = MagicMock()
-            if call_count == 1:
-                result.all.return_value = rows
-            elif call_count == 2:
-                result.all.return_value = []
-            else:
-                result.all.return_value = []
+            result.all.return_value = rows if call_count == 1 else []
             return result
 
         mock_db = AsyncMock()
         mock_db.execute = mock_execute
 
         with patch("app.api.statistics.daily_journal._fetch_tool_call_count", new_callable=AsyncMock, return_value=0):
-            response = await get_daily_journal(date="2026-05-20", agent_id=None, db=mock_db)
-
-        import json
+            response = await get_daily_journal(date="2026-05-20", agent_id=None, timezone=None, x_timezone=None, db=mock_db)
 
         body = json.loads(response.body)
         data = body["data"]

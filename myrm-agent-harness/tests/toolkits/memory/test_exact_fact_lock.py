@@ -2,7 +2,7 @@
 
 Covers:
 - ExactFactClassifier identification (UUID, Git SHA, SemVer, Port, Config Key)
-- Shannon entropy and false positive suppression
+- False positive suppression
 - BaseMemory.is_user_protected and ForgettingStrategy immunity
 - SQLiteRelationalStore exact fact persistence, search_fts5, and deletion
 - MemoryRetriever deterministic exact-fact boosting
@@ -19,10 +19,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.relational.sqlite_store import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.memory.retriever import MemoryRetriever
-from myrm_agent_harness.toolkits.memory.strategies.exact_fact import (
-    ExactFactClassifier,
-    compute_shannon_entropy,
-)
+from myrm_agent_harness.toolkits.memory.strategies.exact_fact import ExactFactClassifier
 from myrm_agent_harness.toolkits.memory.strategies.forgetting import ForgettingStrategy
 from myrm_agent_harness.toolkits.memory.types import (
     MemorySearchResult,
@@ -72,11 +69,63 @@ class TestExactFactClassifier:
         assert is_exact is True
         assert "API_GATEWAY_TIMEOUT_MS" in idents
 
-    def test_shannon_entropy_calculation(self) -> None:
-        low_entropy = compute_shannon_entropy("aaaaaaaaaaaa")
-        high_entropy = compute_shannon_entropy("a1B#9$xZ7!kQ")
-        assert high_entropy > low_entropy
-        assert high_entropy > 3.0
+    @pytest.mark.parametrize(
+        ("spaced", "attached"),
+        [
+            ("服务器地址是 10.0.0.5:8080 ，请记住", "服务器地址是10.0.0.5:8080，请记住"),
+            ("版本 v2.4.1 上线", "版本v2.4.1上线"),
+            ("把 DEPLOY_TOKEN 设置为 abc", "把DEPLOY_TOKEN设置为abc"),
+            ("订单号 123e4567-e89b-12d3-a456-426614174000 已发货", "订单号123e4567-e89b-12d3-a456-426614174000已发货"),
+            ("我的数据库在 localhost:5432 上", "我的数据库在localhost:5432上"),
+            ("commit 是 a1b2c3d4e 修复", "commit是a1b2c3d4e修复"),
+        ],
+    )
+    def test_cjk_neighbours_do_not_hide_an_identifier(self, spaced: str, attached: str) -> None:
+        """Chinese is written without spaces, so an identifier must be found with or without them."""
+        found = ExactFactClassifier.extract_identifiers(spaced)
+        assert found
+        assert ExactFactClassifier.extract_identifiers(attached) == found
+
+    def test_an_address_next_to_cjk_text_is_not_cut_into_a_fragment(self) -> None:
+        assert ExactFactClassifier.extract_identifiers("服务器地址是10.0.0.5:8080，请记住") == ["10.0.0.5:8080"]
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("10.0.0.5:8080", ["10.0.0.5:8080"]),
+            ("connect to 192.168.1.100", ["192.168.1.100"]),
+            ("hosts 10.0.0.5 and 10.0.0.6:8080", ["10.0.0.5", "10.0.0.6:8080"]),
+            ("0.0.0.0:80 and localhost:3000", ["0.0.0.0:80", "localhost:3000"]),
+            ("build 1.2.3.4 shipped", ["1.2.3.4"]),
+        ],
+    )
+    def test_an_address_is_one_identifier_as_written(self, text: str, expected: list[str]) -> None:
+        """No version-looking fragment (``10.0.0``) is read out of an address, or every host of a subnet would match."""
+        assert ExactFactClassifier.extract_identifiers(text) == expected
+
+    @pytest.mark.parametrize("text", ["10.0.0.256", "1.2.3.4.5", "ip10.0.0.5", "999.1.1.1:80"])
+    def test_a_dotted_number_that_is_no_address_is_no_identifier(self, text: str) -> None:
+        assert ExactFactClassifier.extract_identifiers(text) == []
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("version 2.3.1 released", ["2.3.1"]),
+            ("see release 1.2.3.", ["1.2.3"]),
+            ("libfoo-1.2.3.tar.gz", ["1.2.3"]),
+            ("v1.2.3-rc.1+build.5", ["v1.2.3-rc.1+build.5"]),
+        ],
+    )
+    def test_a_version_is_extracted_whole(self, text: str, expected: list[str]) -> None:
+        assert ExactFactClassifier.extract_identifiers(text) == expected
+
+    @pytest.mark.parametrize("text", ["服务器端口 8080 已开放", "服务器端口：8080已开放", "端口\u30008080开放"])
+    def test_a_chinese_port_declaration_is_extracted(self, text: str) -> None:
+        assert ExactFactClassifier.extract_identifiers(text) == ["8080"]
+
+    @pytest.mark.parametrize("text", ["第3章讲了10.5个例子", "这个方案比上一版快了3.5倍", "会议在下午3点开始"])
+    def test_cjk_text_with_plain_numbers_is_not_an_exact_fact(self, text: str) -> None:
+        assert ExactFactClassifier.extract_identifiers(text) == []
 
     def test_common_text_no_false_positive(self) -> None:
         text = "We should meet tomorrow afternoon to discuss product design requirements."
@@ -326,6 +375,3 @@ class TestMemoryManagerExactFactEndToEnd:
             assert "15432" in fts_hits[0].content
 
             await manager.close()
-
-
-

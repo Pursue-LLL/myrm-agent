@@ -64,7 +64,9 @@ def apply_edited_content(record: PendingRecord, edited_content: str) -> PendingR
 
     Both ``content`` (used by ``CORRECT``) and ``memory_data["content"]`` (used to
     rebuild the memory for ``STORE``) are updated so every approval path persists
-    the same wording. Profile entries and ``DELETE`` proposals persist no free
+    the same wording. The exact-fact identifiers stamped on the proposed wording no
+    longer describe the reworded text, so they are cleared and derived again from the
+    text that is stored. Profile entries and ``DELETE`` proposals persist no free
     text, so an edit there is an error rather than a silently dropped change.
 
     Raises:
@@ -77,7 +79,8 @@ def apply_edited_content(record: PendingRecord, edited_content: str) -> PendingR
         raise InvalidPendingEditError("This proposal has no editable content")
     if content == record.content:
         return record
-    return record.model_copy(update={"content": content, "memory_data": {**record.memory_data, "content": content}})
+    reworded_data = {**record.memory_data, "content": content, "exact_identifiers": []}
+    return record.model_copy(update={"content": content, "memory_data": reworded_data})
 
 
 def pending_to_memory(record: PendingRecord) -> AnyMemory:

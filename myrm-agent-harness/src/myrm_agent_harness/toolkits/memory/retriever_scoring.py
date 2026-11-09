@@ -4,11 +4,13 @@
 - memory.config::RetrievalConfig (POS: retrieval configuration)
 - memory.signals::{SignalCalculator, get_default_half_life, get_default_signal_weights} (POS: context signal
   calculator and per-type priors)
+- memory.strategies.exact_fact::ExactFactClassifier (POS: decides whether a query names a stored identifier)
 - memory.text_utils::tokenize (POS: query/content tokenization)
 - memory.types::MemorySearchResult (POS: memory data models)
 
 [OUTPUT]
-- RetrievalScoringMixin: Geometric signal fusion plus keyword, temporal and pattern boosts applied to a candidate
+- RetrievalScoringMixin: Geometric signal fusion plus keyword, temporal and pattern boosts applied to a candidate,
+  and the exact-fact hit test shared by the rank and fuse pipelines
 
 [POS]
 Scoring half of the retriever: turns a base relevance score and a candidate's context signals into the final
@@ -23,6 +25,7 @@ from myrm_agent_harness.toolkits.memory.signals import (
     get_default_half_life,
     get_default_signal_weights,
 )
+from myrm_agent_harness.toolkits.memory.strategies.exact_fact import ExactFactClassifier
 from myrm_agent_harness.toolkits.memory.text_utils import tokenize
 from myrm_agent_harness.toolkits.memory.types import MemorySearchResult
 
@@ -33,28 +36,32 @@ class RetrievalScoringMixin:
     _config: RetrievalConfig
     _signal_calc: SignalCalculator
 
+    @staticmethod
+    def _names_exact_fact(result: MemorySearchResult, query_keys: frozenset[str]) -> bool:
+        """Whether the query names one of the candidate's exact identifiers (see ``ExactFactClassifier.query_keys``)."""
+        memory = result.memory
+        return memory.is_exact_fact and ExactFactClassifier.mentions_any(memory.exact_identifiers, query_keys)
+
     def _boost(
         self,
         base: float,
         result: MemorySearchResult,
         query_tokens: frozenset[str],
         query_context: object | None = None,
-        raw_query: str = "",
+        *,
+        exact_hit: bool = False,
     ) -> float:
         """Apply context-aware scoring boost with hybrid enhancements.
+
+        An exact-fact candidate whose identifier the query names (``exact_hit``) scores 1.0 outright.
 
         Enhancements:
         - Geometric scoring (relevance/recency/importance/preference/rating/type prior/confidence)
         - Keyword overlap boost
         - Temporal proximity boost
         """
-        mem = result.memory
-        if getattr(mem, "is_exact_fact", False) and getattr(mem, "exact_identifiers", None):
-            q_lower = raw_query.lower()
-            for ident in mem.exact_identifiers:
-                ident_lower = ident.lower()
-                if ident_lower in query_tokens or (q_lower and ident_lower in q_lower):
-                    return 1.0
+        if exact_hit:
+            return 1.0
 
         geometric = self._geometric_score(base, result)
         keyword_boost = self._keyword_overlap_boost(result, query_tokens)

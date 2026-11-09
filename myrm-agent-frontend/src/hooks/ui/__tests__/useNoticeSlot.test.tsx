@@ -1,5 +1,7 @@
 /** @vitest-environment jsdom */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { useNoticeSlot, type NoticeId } from '../useNoticeSlot';
@@ -7,6 +9,17 @@ import { useNoticeSlot, type NoticeId } from '../useNoticeSlot';
 function Notice({ id, wants }: { id: NoticeId; wants: boolean }) {
   const holdsSlot = useNoticeSlot(id, wants);
   return holdsSlot ? <p>{id}</p> : null;
+}
+
+/** A notice that closes itself, so its siblings only learn about it through the slot and are not re-rendered. */
+function ClosableNotice({ id }: { id: NoticeId }) {
+  const [wants, setWants] = useState(true);
+  const holdsSlot = useNoticeSlot(id, wants);
+  return holdsSlot ? (
+    <button type="button" onClick={() => setWants(false)}>
+      {id}
+    </button>
+  ) : null;
 }
 
 const shown = (id: NoticeId) => screen.queryByText(id) !== null;
@@ -74,6 +87,35 @@ describe('useNoticeSlot', () => {
     render(<Notice id="migration-discovery" wants />);
 
     expect(shown('migration-discovery')).toBe(true);
+  });
+
+  it('tells the waiting notice when the holder closes itself', () => {
+    render(
+      <>
+        <ClosableNotice id="update-nudge" />
+        <ClosableNotice id="migration-discovery" />
+      </>,
+    );
+    expect(shown('migration-discovery')).toBe(false);
+
+    fireEvent.click(screen.getByText('update-nudge'));
+
+    expect(shown('update-nudge')).toBe(false);
+    expect(shown('migration-discovery')).toBe(true);
+  });
+
+  it('tells a waiting notice elsewhere on the page when the holder unmounts', () => {
+    const holder = render(<Notice id="update-nudge" wants />);
+    render(<Notice id="migration-discovery" wants />);
+    expect(shown('migration-discovery')).toBe(false);
+
+    holder.unmount();
+
+    expect(shown('migration-discovery')).toBe(true);
+  });
+
+  it('renders no notice on the server, so the first client render matches it', () => {
+    expect(renderToString(<Notice id="update-nudge" wants />)).toBe('');
   });
 
   it('is never blocked by a notice that has nothing to show', () => {

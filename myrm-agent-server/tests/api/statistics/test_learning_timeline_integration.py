@@ -11,7 +11,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
+from app.core.skills.curator.service import SkillPinnedError
 from app.services.memory.manager_deps import get_crud_memory_manager
 from tests.support.minimal_app import build_minimal_app
 
@@ -64,18 +66,8 @@ class TestLearningTimelineIntegration:
 
     async def test_put_learning_timeline_memory_endpoint(self, app, client):
         mock_manager = AsyncMock()
-        mock_mem = SimpleNamespace(
-            id="mem-1",
-            content="Updated content via HTTP",
-            importance=0.9,
-            reasoning="Context",
-            tags=["python"],
-            is_user_locked=True,
-            status="active",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-        mock_manager.update_memory.return_value = mock_mem
+        mock_manager.update_memory.return_value = SemanticMemory(id="mem-1", content="Updated content via HTTP")
+        mock_manager.pin_memory.return_value = SemanticMemory(id="mem-1", content="Updated content via HTTP", pinned=True)
         app.dependency_overrides[get_crud_memory_manager] = lambda: mock_manager
 
         with patch(
@@ -94,6 +86,8 @@ class TestLearningTimelineIntegration:
             data = resp.json()
             assert data["code"] == 0
             assert data["data"]["content"] == "Updated content via HTTP"
+            assert data["data"]["is_user_locked"] is True
+        mock_manager.pin_memory.assert_awaited_once_with("mem-1")
 
     async def test_delete_learning_timeline_memory_endpoint(self, app, client):
         mock_manager = AsyncMock()
@@ -111,14 +105,30 @@ class TestLearningTimelineIntegration:
             assert data["data"]["deleted"] is True
 
     async def test_archive_learning_timeline_skill_endpoint(self, app, client):
-        with patch("app.api.statistics.learning_timeline.set_skill_archived") as mock_archive:
+        with patch("app.api.statistics.learning_timeline.archive_skill_with_guards", new_callable=AsyncMock) as mock_archive:
             resp = await client.post("/api/v1/statistics/learning-timeline/skill/test-skill/archive?active=false")
             assert resp.status_code == 200
             data = resp.json()
             assert data["code"] == 0
             assert data["data"]["is_active"] is False
             assert data["data"]["skill_name"] == "test-skill"
-            mock_archive.assert_called_once_with("test-skill", archived=True)
+            mock_archive.assert_awaited_once_with("test-skill")
+
+    async def test_restore_learning_timeline_skill_endpoint(self, app, client):
+        with patch("app.api.statistics.learning_timeline.set_skill_archived") as mock_restore:
+            resp = await client.post("/api/v1/statistics/learning-timeline/skill/test-skill/archive?active=true")
+            assert resp.status_code == 200
+            assert resp.json()["data"]["is_active"] is True
+            mock_restore.assert_called_once_with("test-skill", archived=False)
+
+    async def test_archive_learning_timeline_skill_endpoint_refuses_a_pinned_skill(self, app, client):
+        with patch(
+            "app.api.statistics.learning_timeline.archive_skill_with_guards",
+            new_callable=AsyncMock,
+            side_effect=SkillPinnedError("test-skill"),
+        ):
+            resp = await client.post("/api/v1/statistics/learning-timeline/skill/test-skill/archive?active=false")
+            assert resp.status_code == 409
 
     async def test_filter_by_kind_and_pagination(self, app, client):
         mock_manager = AsyncMock()

@@ -4,10 +4,11 @@
 app.api.memory.router::router (POS: memory HTTP routes, mounted by the memory preset)
 app.services.memory.manager_deps (POS: FastAPI dependencies that build the MemoryManager)
 app.core.memory.adapters.setup::create_memory_manager (POS: real manager factory, keyword mode when embedding is None)
+tests.support.memory_http_stack::memory_http_stack (POS: the real stack over a temporary storage root)
 
 [OUTPUT]
 list / filter / search / export / pending review / backup answer with 200 and real data
-when the ``retrieval`` settings carry no embedding.
+when the ``retrieval`` settings carry no embedding; the consolidation undo card is empty, not an error.
 
 [POS]
 Regression guard for the human-facing leg of keyword mode. The dependencies, handlers, manager,
@@ -21,26 +22,20 @@ from __future__ import annotations
 import secrets
 import string
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
-from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
-from myrm_agent_harness.toolkits.vector.qdrant.store import QdrantVectorStore
 
-from app.api.dependencies import get_deploy_identity
-from app.api.memory.operations.backup import get_backup_store
 from app.core.memory.adapters import setup as memory_setup
-from app.services.memory.backup.volume_store import VolumeBackupStore
-from tests.support.minimal_app import build_minimal_app
+from tests.support.memory_http_stack import MemoryHttpStack, memory_http_stack, retrieval_settings
 
 pytestmark = pytest.mark.integration
 
 _MEMORY = "/api/v1/memory"
+_UNDO = f"{_MEMORY}/command-center/consolidation/undo"
 
 
 def _token() -> str:
@@ -48,57 +43,10 @@ def _token() -> str:
     return "kw" + "".join(secrets.choice(string.ascii_lowercase) for _ in range(14))
 
 
-def _retrieval_settings(*, embedding: bool) -> SimpleNamespace:
-    """The slice of ``UserConfigs`` the platform retrieval loader reads."""
-    retrieval: dict[str, object] | None = None
-    if embedding:
-        retrieval = {
-            "embeddingApplied": True,
-            "embeddingConfig": {"model": "BAAI/bge-m3", "apiKey": "sk-unit", "apiBase": "http://127.0.0.1:9/v1"},
-        }
-    return SimpleNamespace(retrieval_dict=retrieval)
-
-
-@dataclass
-class KeywordApi:
-    client: AsyncClient
-    embeddings_seen: list[EmbeddingConfig | None] = field(default_factory=list)
-
-
 @pytest.fixture
-async def keyword_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[KeywordApi]:
-    await clear_embedded_stores()
-    monkeypatch.setattr(QdrantVectorStore, "RETRY_BASE_DELAY", 0.0)
-
-    real_create = memory_setup.create_memory_manager
-    embeddings_seen: list[EmbeddingConfig | None] = []
-
-    async def isolated_create(binding, embedding_config, **kwargs):  # noqa: ANN001, ANN003, ANN202
-        embeddings_seen.append(embedding_config)
-        return await real_create(binding, embedding_config, base_path=tmp_path / "memory", **kwargs)
-
-    monkeypatch.setattr(memory_setup, "create_memory_manager", isolated_create)
-    monkeypatch.setattr(
-        "app.core.channel_bridge.config_loader.load_user_configs",
-        AsyncMock(return_value=_retrieval_settings(embedding=False)),
-    )
-    monkeypatch.setattr(
-        "app.services.memory.extract_retry.resolve_chat_extraction_llm.get_platform_dedup_llm",
-        AsyncMock(return_value=None),
-    )
-
-    app = build_minimal_app(preset="memory")
-    app.dependency_overrides[get_deploy_identity] = lambda: "test_user"
-    app.dependency_overrides[get_backup_store] = lambda: VolumeBackupStore(tmp_path / "backups")
-    transport = ASGITransport(app=app)
-    with patch("app.api.memory.test_seed.is_local_mode", return_value=True):
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            yield KeywordApi(client=client, embeddings_seen=embeddings_seen)
-
-    for manager in list(memory_setup._memory_manager_cache.values()):
-        await manager.close()
-    memory_setup._memory_manager_cache.clear()
-    await clear_embedded_stores()
+async def keyword_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[MemoryHttpStack]:
+    async with memory_http_stack(tmp_path, monkeypatch, embedding=False) as stack:
+        yield stack
 
 
 async def _create(client: AsyncClient, memory_type: str, content: str) -> str:
@@ -107,7 +55,7 @@ async def _create(client: AsyncClient, memory_type: str, content: str) -> str:
     return str(resp.json()["id"])
 
 
-async def test_pending_review_to_search_and_backup_work_without_an_embedding(keyword_api: KeywordApi) -> None:
+async def test_pending_review_to_search_and_backup_work_without_an_embedding(keyword_api: MemoryHttpStack) -> None:
     client = keyword_api.client
     word = _token()
     target_id = await _create(client, "semantic", f"{word} original fact")
@@ -160,11 +108,27 @@ async def test_pending_review_to_search_and_backup_work_without_an_embedding(key
     assert all(cfg is None for cfg in keyword_api.embeddings_seen)
 
 
-async def test_a_configured_embedding_still_reaches_the_manager(keyword_api: KeywordApi, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_consolidation_undo_card_is_empty_without_an_embedding_because_nothing_was_consolidated(
+    keyword_api: MemoryHttpStack,
+) -> None:
+    """Consolidation needs the dense store, so a default install has no cycle to undo; the card must say so, not fail."""
+    client = keyword_api.client
+    await _create(client, "semantic", f"{_token()} a fact")
+
+    card = await client.get(_UNDO)
+    undo = await client.post(_UNDO, json={"cycle_id": "never-ran"})
+
+    assert (card.status_code, card.json()) == (200, {"summary": None})
+    assert undo.status_code == 409
+
+
+async def test_a_configured_embedding_still_reaches_the_manager(
+    keyword_api: MemoryHttpStack, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Making embedding optional must not drop it when the user did configure one."""
     monkeypatch.setattr(
         "app.core.channel_bridge.config_loader.load_user_configs",
-        AsyncMock(return_value=_retrieval_settings(embedding=True)),
+        AsyncMock(return_value=retrieval_settings(embedding=True)),
     )
     created: list[EmbeddingConfig | None] = []
 

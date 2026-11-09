@@ -50,16 +50,17 @@ def sparse_payload(point: SparsePoint) -> dict[str, object]:
     Keeping the payload shape identical (original_id / content / isoformat
     timestamps / epoch ts / metadata) lets the shared FilterDict semantics
     (namespace match, created_at ranges, archived flags) filter sparse results
-    exactly like dense results.
+    exactly like dense results. The store's own keys come last: nothing riding along in
+    metadata may override them.
     """
     return {
+        **point.metadata,
         "original_id": point.id,
         "content": point.content,
         "created_at": point.created_at.isoformat(),
         "updated_at": point.updated_at.isoformat(),
         "_created_ts": point.created_at.timestamp(),
         "_updated_ts": point.updated_at.timestamp(),
-        **point.metadata,
     }
 
 
@@ -272,6 +273,8 @@ class QdrantSparseMixin:
         content = payload.pop("content", "")
         created_at_str = payload.pop("created_at", None)
         updated_at_str = payload.pop("updated_at", None)
+        payload.pop("_created_ts", None)
+        payload.pop("_updated_ts", None)
         return VectorDocument(
             id=str(payload.pop("original_id", None) or point.id),
             content=content,

@@ -99,6 +99,6 @@ async def test_a_correction_replaces_the_old_fact_in_the_exact_identifier_stream
     demoted = await manager.get_memory(old.id)
     assert isinstance(demoted, SemanticMemory)
     assert (demoted.is_exact_fact, demoted.exact_identifiers, demoted.confidence) == (False, [], 0.1)
-    assert indexed_identifiers(tmp_path) == {"10.0.0", "10.0.0.6:8080"}
+    assert indexed_identifiers(tmp_path) == {"10.0.0.6:8080"}
     assert STALE not in await exact_contents(manager, "10.0.0.5:8080")
     assert await exact_contents(manager, "10.0.0.6:8080") == [MOVED]
