@@ -774,7 +774,7 @@ result = await extractor.extract(messages=messages)
 1. **模型判断**：会话结束的 LLM 抽取（`strategies/extractor/`，受 No-Op Default 门控）与 Agent 调用 `memory_save_tool`；
 2. **人的明确选择**：用户手动创建并锁定的规则。审批决定不会自动写成规则或记忆：`reject` 不携带修正值，客户端与系统填入的反馈只是固定模板，由它生成的规则是无上下文的永久模板；`edit` 的改写通过 `APPROVAL_CORRECTION` 钩子事件交给用户自定义钩子，框架不内置学习器。需要长期放行或拒绝，走审批的 `allowAlways` / `allowDomain` / `grantDirectory` 选项与安全策略的 `command_denylist`。
 
-> 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：规则统一进入 stable 层的 `Behavioral Rules` 段（`priority=3`），items 按「用户背书（`is_user_locked`）优先」排序，契合 `PromptBudgetGuard` 从后截断的行为，使背书规则最后被丢。
+> 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：规则统一进入 stable 层的 `Behavioral Rules` 段（`priority=3`），items 按「用户背书（`is_user_locked`）优先」排序，契合 `render_budgeted_sections` 从后截断的行为，使背书规则最后被丢。
 
 > 动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配，`whenever`、`nevertheless` 不算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算），或显式标记 `is_veto` 的规则，渲染进优先级 0 的 `Mandatory Negative Constraints (VETO Rules)` 段，行格式 `[NEVER] {动作} (Scope: {适用范围})`，有理由时后接 `— Reason: {reason}`。适用范围依次取 `tool_name`、`veto_scope`、规则存入时的触发条件 `trigger`，都没有才是 `*`：规则只在存入时指定的场合生效，不会变成对所有任务的禁令。该段按（`priority` 降序，`id` 升序）排序；库里取出的规则没有 `id`，同优先级的保持取出的顺序（用户锁定的在前，其后新写入的在前），顺序固定以保持前缀缓存的字节稳定。该段只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
 
@@ -898,7 +898,7 @@ tools = create_memory_tools(manager=manager)
 | `batch_approve(ids)`                                                              | 批量审批                                                                          |
 | `batch_reject(ids)`                                                               | 批量拒绝                                                                          |
 
-`PendingResolutionAction` 取值：`STORE`（默认，持久化候选记忆本身）、`CORRECT`（以候选内容纠正 `target_memory_id`，触发旧记忆降级并建立纠正链）、`DELETE`（归档 `target_memory_id`）。`CORRECT`/`DELETE` 需携带 `target_memory_id`；`DELETE` 走 `update_memory(status=ARCHIVED)`（软删除：召回即刻排除，保留期内可恢复，到期由归档回收清除），目标已被清除时批准幂等完成。`edited_content` 同时更新 `content` 与 `memory_data["content"]`（`STORE` 据后者重建、`CORRECT` 读前者）；空白文本、`profile`/`DELETE` 提案无可编辑文本，传入编辑抛 `InvalidPendingEditError` 且提案保持待审。若 `CORRECT` 的目标在审批前已被遗忘/清除，批准会退化为 `STORE`（保留用户已确认的纠正内容），而非报错。
+`PendingResolutionAction` 取值：`STORE`（默认，持久化候选记忆本身）、`CORRECT`（以候选内容纠正 `target_memory_id`，触发旧记忆降级并建立纠正链）、`DELETE`（归档 `target_memory_id`）。`CORRECT`/`DELETE` 需携带 `target_memory_id`；`DELETE` 走 `update_memory(status=ARCHIVED)`（软删除：召回即刻排除，保留期内可恢复，到期由归档回收清除），目标已被清除时批准幂等完成。`edited_content` 同时更新 `content` 与 `memory_data["content"]`（`STORE` 据后者重建、`CORRECT` 读前者），并清空提案上盖好的精确事实标识符，入库时按改写后的正文重新提取（`is_exact_fact` 标记保留）；空白文本、`profile`/`DELETE` 提案无可编辑文本，传入编辑抛 `InvalidPendingEditError` 且提案保持待审。若 `CORRECT` 的目标在审批前已被遗忘/清除，批准会退化为 `STORE`（保留用户已确认的纠正内容），而非报错。
 
 目标漂移保护：批准前读取目标，若自提案入队后目标被改写（内容与 `target_content` 快照不一致）、`CORRECT` 目标已被纠正过（`metadata.corrected`）或不再 `ACTIVE`，或 `DELETE` 目标内容已被改写，则抛 `PendingTargetChangedError`、提案保持待审，避免两条纠正并存或覆盖用户的手动编辑；目标仍存在但落在审批 manager 的 namespace 之外（如智能体仅读写自身作用域）时同样拒绝，不会被当作「已删除」而静默存成新记忆或空操作；无快照的旧记录跳过内容比对，目标真正已不存在/已归档的幂等路径不受影响。同一提案的并发审批串行由调用方负责（server 的 `pending_review` 按 pending_id 加锁）。
 
@@ -1106,20 +1106,22 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 - **无 LLM 确定性分类与符号提取器（`ExactFactClassifier`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.strategies.exact_fact`；
-  - 采用高精度预编译正规表达式精准捕获 UUID4、Git SHA (7~40 位)、SemVer 规范版本号、IP/localhost 端口与大写配置键；
-  - 引入 Shannon 熵校验过滤高频自然语言词汇，杜绝普通英语单词（如 `decade`, `accord`, `coffee`）发生假阳性误锁；
+  - 采用高精度预编译正规表达式精准捕获 UUID4、Git SHA (7~40 位)、SemVer 规范版本号、IPv4 地址（带端口或不带）、localhost 端口与大写配置键；
+  - 标识符边界只按 ASCII 字母数字判定：中文不加空格，紧贴文字书写的标识符（`服务器地址是10.0.0.5:8080，请记住`、`版本v2.4.1上线`）与加了空格时提取结果一致，不会被截成 `0.0.5` 之类的片段；端口声明接受 `端口：8080` 的全角冒号与全角空格；
+  - 地址按书写原样登记（`10.0.0.5:8080` 或裸 `10.0.0.5`），点分数字串不会被从中间截出版本号形态的碎片：否则 `10.0.0.5` 会顺带登记 `10.0.0`，同一子网的所有主机互相命中；
+  - 以停用词表过滤高频英语单词（如 `decade`, `accord`, `coffee`），并要求 7~12 位十六进制短串同时含字母与数字，杜绝普通词汇的假阳性误锁；
   - 零 LLM 模型调用开销，微秒级执行完成。
 - **关系倒排索引与全文虚表存储（`_exact_fact_store` & `SQLiteRelationalStore`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.relational._exact_fact_store` 与 `sqlite_store`；
   - 双轨物理持久化：建立 `exact_fact_identifiers` 物理倒排索引表加速符号级精准点查，同步维护 `exact_facts_fts` FTS5 全文检索虚表；
   - 生命周期联动：只登记语义记忆，在记忆新增、批量写入、改写与删除时与向量底库协同更新与清理；改写正文后，标识符按存储的最终正文重新提取并同步索引，索引同步失败只告警、不影响记忆本身的写入；
-  - 查询侧：精确标识符流在 SQL 里按调用方的 `primary_namespace` 限定可见范围（与向量检索同一谓词），同一记忆命中多个标识符时以最长命中者排序（`10.1.1.29:8029` 先于共享前缀 `10.1.1`）；索引只负责定位候选，命中项由向量库里的存量记忆整体替换（状态、作用域与时间戳以向量库为准，一次批量读取），向量库里已不存在的索引行直接丢弃，不会返回孤儿命中。
+  - 查询侧：精确标识符流在 SQL 里按调用方的 `primary_namespace` 限定可见范围（与向量检索同一谓词），同一记忆命中多个标识符时以最长命中者排序（`10.1.1.29:8029` 先于许多记忆共有的短标识符 `8080`）；索引只负责定位候选，命中项由向量库里的存量记忆整体替换（状态、作用域与时间戳以向量库为准，一次批量读取），向量库里已不存在的索引行直接丢弃，不会返回孤儿命中。
 - **检索硬置顶加权与全生命周期免遗忘免疫**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.retriever` 与 `types`；
   - `BaseMemory` 包含强类型标识 `is_exact_fact: bool` 与 `exact_identifiers: list[str]`，并自动计入 `is_user_protected` 豁免保护，完全免疫遗忘衰减与蒸馏淘汰（agent 的删除、改写、纠正只被显式 pin / lock 拦截，精确事实标记不拦截）；标识符在安全扫描与瞬时事实闸门之后、按最终入库正文盖章，两个字段只随语义记忆落盘并登记索引，情景与程序性记忆的盖章只存在于写入过程中；
-  - 检索重排中当查询命中所包含的高熵精确标识符或原样子串时，赋予确定性硬置顶加权（`+5.0` 增益），确保精确事实绝对置顶于模糊语义召回。
+  - 检索重排中当查询完整写出记忆所含的某个精确标识符（查询里的整词、从查询提取出的标识符、或其中端点的端口）时，赋予确定性硬置顶加权（`+5.0` 增益），确保精确事实绝对置顶于模糊语义召回；包含不等于点名：存下的端口 `22` 不会被查询里的 `2022` 触发，`10.0.0.5` 不会被 `10.0.0.55` 触发，`v1.2.3` 与 `1.2.3` 视为同一版本。
 - **全链路展示与交互认知一致性**：
-  - Server 端接口契约 `MemoryItem` 与变更请求模型支持 `is_exact_fact` 属性透传；
+  - Server 端接口契约：`MemoryItem` 返回 `is_exact_fact` 与 `exact_identifiers`；创建时由分类器按正文盖章，更新请求的 `is_exact_fact` 可由用户显式开关（语义记忆）；
   - 前端 `MemoryCard.tsx` 与 `EvidenceDrawer.tsx` 支持视觉识别蓝底硬锁徽章，呈现提取到的确切事实符号。
 - **决策反转治理（撤回的决策不再被重复回答）**：
   - 核心位置：`strategies/merger.py`（`DeterministicThreeStateMerger`）与 `strategies/deduplicator.py`；
