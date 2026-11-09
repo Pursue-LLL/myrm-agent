@@ -5,7 +5,6 @@
 - agent.background_worker.shadow_context (POS: Execution-layer bulkhead isolation for background shadow workloads.)
 - agent.skill_agent.context::get_memory_manager (POS: Module-level ContextVar management and background task utilities.)
 - runtime.maintenance.scheduler::get_maintenance_scheduler (POS: Global adaptive maintenance scheduler.)
-- toolkits.memory.cognitive.consolidator::CognitiveConsolidator (POS: Memory toolkit's cognitive consolidation adapter. Forwards consolidation, forgetting, and health checks to the single maintenance core so the system keeps exactly one maintenance path.)
 - runtime.events.bus::get_event_bus (POS: Event Bus Implementation)
 
 [OUTPUT]
@@ -41,9 +40,6 @@ from myrm_agent_harness.runtime.maintenance.protocols import (
     MaintenanceTaskType,
 )
 from myrm_agent_harness.runtime.maintenance.scheduler import get_maintenance_scheduler
-from myrm_agent_harness.toolkits.memory.cognitive.consolidator import (
-    CognitiveConsolidator,
-)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.background_worker.registry import IdleTaskRecord
@@ -65,6 +61,17 @@ class ContextCompactionHandler(Protocol):
 
     async def __call__(self, chat_id: str, session_id: str) -> dict[str, object]: ...
 
+
+# What a finished maintenance cycle publishes: counts and flags. The report's snapshots and neglected-memory
+# previews stay out of the event, which carries structure, not memory text.
+_MAINTENANCE_EVENT_KEYS: tuple[str, ...] = (
+    "consolidation",
+    "forgetting",
+    "duration_ms",
+    "skipped",
+    "skip_reason",
+    "interrupted_by_pause",
+)
 
 # Keyed by task.task_type (e.g., "skill_sync")
 _idle_task_handlers: dict[str, IdleTaskHandler] = {}
@@ -184,10 +191,8 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
                     raw_cost = event_data.get("cost", 0.0)
                     cost = float(raw_cost) if isinstance(raw_cost, int | float) else 0.0
                 elif task.task_type == "cognitive_consolidation":
-                    pause_signal = get_global_pause_signal()
                     memory_manager = get_memory_manager()
                     if memory_manager:
-                        consolidator = CognitiveConsolidator(memory_manager)
                         event_bus.publish(
                             IdleTaskProgressEvent(
                                 session_id=session_id,
@@ -197,14 +202,13 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
                             )
                         )
 
-                        result = await consolidator.run_consolidation(
-                            pause_signal=pause_signal
-                        )
+                        report = await memory_manager.run_maintenance_cycle(force=True, pause_signal=pause_signal)
 
-                        if result.errors and not result.skipped:
-                            raise RuntimeError(f"Consolidation errors: {result.errors}")
+                        if report.consolidation_errors and not report.skipped:
+                            raise RuntimeError(f"Consolidation errors: {report.consolidation_errors}")
 
-                        event_data = result.to_dict()
+                        summary = report.to_dict()
+                        event_data = {key: summary[key] for key in _MAINTENANCE_EVENT_KEYS}
                     else:
                         logger.warning(
                             "MemoryManager not available. Simulating idle task."

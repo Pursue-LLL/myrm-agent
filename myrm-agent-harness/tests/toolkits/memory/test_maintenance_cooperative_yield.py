@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from myrm_agent_harness.runtime.cognitive_clock.signals import CooperativePauseSignal
-from myrm_agent_harness.toolkits.memory.cognitive.consolidator import CognitiveConsolidator
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import ConsolidationStats
@@ -107,26 +106,3 @@ async def test_maintenance_completes_when_no_pause_requested(
     assert report.skipped is False
     assert report.interrupted_by_pause is False
     assert report.skip_reason == ""
-
-
-@pytest.mark.asyncio
-async def test_cognitive_consolidator_delegates_pause_signal(
-    memory_config: MemoryConfig,
-    mock_vector_store: AsyncMock,
-    mock_embedding: AsyncMock,
-) -> None:
-    """CognitiveConsolidator passes pause_signal to manager and exposes interrupted_by_pause."""
-    mgr = _create_manager(memory_config, mock_vector_store, mock_embedding)
-    pause_signal = CooperativePauseSignal()
-    pause_signal.request_pause("cooperative_test")
-
-    consolidator = CognitiveConsolidator(mgr)
-    result = await consolidator.run_consolidation(pause_signal=pause_signal)
-
-    assert result.skipped is True
-    assert result.interrupted_by_pause is True
-    assert "cooperative_test" in result.skip_reason
-    # Cooperative pause should NOT be counted as an unhandled error
-    assert len(result.errors) == 0
-    res_dict = result.to_dict()
-    assert res_dict["interrupted_by_pause"] is True
