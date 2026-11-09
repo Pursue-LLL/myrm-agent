@@ -116,8 +116,8 @@ async def test_dispatcher_started_without_a_gate_is_unchanged() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gate_blocks_only_when_the_configuration_is_incomplete() -> None:
-    """Only a definitive ConfigIncompleteError blocks dispatch; a broken gate fails open."""
+async def test_gate_blocks_only_when_no_provider_is_configured() -> None:
+    """Only a missing provider blocks dispatch; a broken gate fails open."""
     from types import SimpleNamespace
 
     configs = SimpleNamespace(providers_dict={"providers": []})
@@ -133,6 +133,7 @@ async def test_gate_blocks_only_when_the_configuration_is_incomplete() -> None:
             resolution_steps=[],
             error_code="provider_not_configured",
         )
+        dispatch_gate.reset_cache()
         assert await dispatch_gate.dispatch_allowed() is False
 
     with (
@@ -142,6 +143,60 @@ async def test_gate_blocks_only_when_the_configuration_is_incomplete() -> None:
         resolver.side_effect = ValueError("gate itself broke")
         dispatch_gate.reset_cache()
         assert await dispatch_gate.dispatch_allowed() is True
+    dispatch_gate.reset_cache()
+
+
+@pytest.mark.asyncio
+async def test_missing_default_model_blocks_only_when_an_unpinned_task_exists() -> None:
+    """A task that pins its own model resolves without a default; one that does not, does not."""
+    from types import SimpleNamespace
+
+    configs = SimpleNamespace(providers_dict={"providers": [{"id": "openai", "isEnabled": True}]})
+
+    def resolver_raising(*_args: object, **_kwargs: object) -> None:
+        raise ConfigIncompleteError(
+            user_friendly_message={"en": "no default model"},
+            technical_details="no default",
+            resolution_steps=[],
+            error_code="default_model_not_configured",
+        )
+
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", return_value=configs),
+        patch("app.core.channel_bridge.model_resolver.resolve_model_config", side_effect=resolver_raising),
+        patch.object(dispatch_gate, "_unplanned_task_exists", return_value=False),
+    ):
+        dispatch_gate.reset_cache()
+        assert await dispatch_gate.dispatch_allowed() is True
+
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", return_value=configs),
+        patch("app.core.channel_bridge.model_resolver.resolve_model_config", side_effect=resolver_raising),
+        patch.object(dispatch_gate, "_unplanned_task_exists", return_value=True),
+    ):
+        dispatch_gate.reset_cache()
+        assert await dispatch_gate.dispatch_allowed() is False
+    dispatch_gate.reset_cache()
+
+
+@pytest.mark.asyncio
+async def test_unknown_config_error_code_blocks_dispatch() -> None:
+    """An unrecognised ConfigIncompleteError is still a configuration problem: stay conservative."""
+    from types import SimpleNamespace
+
+    configs = SimpleNamespace(providers_dict={})
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", return_value=configs),
+        patch("app.core.channel_bridge.model_resolver.resolve_model_config") as resolver,
+    ):
+        resolver.side_effect = ConfigIncompleteError(
+            user_friendly_message={"en": "something else"},
+            technical_details="other",
+            resolution_steps=[],
+            error_code="something_else",
+        )
+        dispatch_gate.reset_cache()
+        assert await dispatch_gate.dispatch_allowed() is False
     dispatch_gate.reset_cache()
 
 
@@ -159,4 +214,23 @@ async def test_gate_is_memoised_so_hundreds_of_boards_evaluate_once() -> None:
         results = await asyncio.gather(*(dispatch_gate.dispatch_allowed() for _ in range(200)))
     assert all(results) is True
     assert loader.await_count == 1
+    dispatch_gate.reset_cache()
+
+
+def test_gate_survives_being_called_from_a_second_event_loop() -> None:
+    """A process-global gate must not cache an asyncio primitive bound to a finished loop."""
+
+    async def one_call() -> bool:
+        return await dispatch_gate.dispatch_allowed()
+
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", return_value=None),
+        patch("app.core.channel_bridge.model_resolver.resolve_model_config", return_value=None),
+    ):
+        dispatch_gate.reset_cache()
+        assert asyncio.run(one_call()) is True
+        dispatch_gate.reset_cache()
+        assert asyncio.run(one_call()) is True
+        # And again without a reset: the memo must not be tied to the first loop.
+        assert asyncio.run(one_call()) is True
     dispatch_gate.reset_cache()
