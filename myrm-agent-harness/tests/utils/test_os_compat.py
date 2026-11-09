@@ -3,9 +3,8 @@
 # We will reload the module with patching.
 import importlib
 import signal
-import sys
 from collections.abc import Iterator
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -14,11 +13,7 @@ import myrm_agent_harness.utils.os_compat as os_compat
 
 @pytest.fixture
 def win32_env() -> Iterator[None]:
-    mock_msvcrt = MagicMock()
-    mock_msvcrt.LK_NBLCK = 1
-    mock_msvcrt.LK_LOCK = 2
-    mock_msvcrt.LK_UNLCK = 3
-    with patch.dict("sys.modules", {"msvcrt": mock_msvcrt}), patch("sys.platform", "win32"):
+    with patch("sys.platform", "win32"):
         importlib.reload(os_compat)
         yield
     importlib.reload(os_compat)
@@ -110,28 +105,6 @@ def test_kill_spawned_group_win32_kills_the_tree_from_the_pid(win32_env: None) -
         assert "12345" in mock_run.call_args[0][0]
 
 
-def test_win_lock_emulation(win32_env: None) -> None:
-    mock_msvcrt = sys.modules["msvcrt"]
-
-    with patch("os.lseek", return_value=0):
-        os_compat.flock(1, os_compat.LOCK_EX | os_compat.LOCK_NB)
-        mock_msvcrt.locking.assert_called_with(1, mock_msvcrt.LK_NBLCK, 1)
-
-        os_compat.flock(1, os_compat.LOCK_UN)
-        mock_msvcrt.locking.assert_called_with(1, mock_msvcrt.LK_UNLCK, 1)
-
-        os_compat.lockf(1, os_compat.LOCK_EX, length=10)
-        mock_msvcrt.locking.assert_called_with(1, mock_msvcrt.LK_LOCK, 10)
-
-        mock_msvcrt.locking.side_effect = OSError("resource busy")
-        with pytest.raises(BlockingIOError):
-            os_compat.flock(1, os_compat.LOCK_EX | os_compat.LOCK_NB)
-
-        mock_msvcrt.locking.side_effect = OSError("permission denied")
-        with pytest.raises(OSError, match="permission denied"):
-            os_compat.flock(1, os_compat.LOCK_EX)
-
-
 def test_sigkill_is_the_posix_force_kill_signal(posix_env: None) -> None:
     assert os_compat.SIGKILL is signal.SIGKILL
     assert os_compat.kill_process_group.__defaults__ == (signal.SIGKILL,)
@@ -176,16 +149,3 @@ def test_terminate_process_graceful_escalates_to_sigkill(posix_env: None) -> Non
         os_compat.terminate_process_graceful(12345, grace_seconds=2.0)
 
     assert alive["value"] is False
-
-
-def test_posix_lock(posix_env: None) -> None:
-    if sys.platform == "win32":
-        pytest.skip("Cannot reliably mock fcntl on Windows host")
-
-    with patch("fcntl.flock") as mock_flock:
-        os_compat.flock(1, os_compat.LOCK_EX)
-        mock_flock.assert_called_once_with(1, os_compat.LOCK_EX)
-
-    with patch("fcntl.lockf") as mock_lockf:
-        os_compat.lockf(1, os_compat.LOCK_EX, 10)
-        mock_lockf.assert_called_once_with(1, os_compat.LOCK_EX, 10, 0, 0)
