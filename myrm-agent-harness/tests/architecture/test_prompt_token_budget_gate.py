@@ -55,9 +55,10 @@ class TestPromptTokenBudgetGate:
         The bash tool's description is ``static + get_os_hint()``, and the hint states the host OS
         and whatever the Python toolchain probe can reach: 58 tokens on this macOS arm64 box, 32 on
         ubuntu-latest, 31-60 across distributions, and up to ~100 when a probe finds an unusual
-        interpreter mix. Charging that live number would let the gate flip on a PATH or a probe
-        outcome instead of on an edit, so the budget compares the host-independent description
-        total and the hint is checked against its own allowance.
+        interpreter mix; a sandbox with a visual desktop adds a 57-token VNC line on top. Charging
+        that live number would let the gate flip on a PATH or a probe outcome instead of on an edit,
+        so the budget compares the host-independent description total and the hint is checked
+        against its own allowance.
 
         Scope is description + wrapper only — tool parameter schemas are tracked separately in
         DEFAULT_AGENT_TOKEN_INVENTORY.md §六.
@@ -68,8 +69,9 @@ class TestPromptTokenBudgetGate:
         )
         from scripts.measure_turn1_token_inventory import _build_default_turn1_tools
 
-        # Widest hint seen in practice is ~100 tokens; 120 leaves room without hiding a real blowup.
-        os_hint_allowance = 120
+        # Widest OS + toolchain hint seen in practice is ~100 tokens and the visual desktop line adds 57;
+        # 180 leaves room without hiding a real blowup.
+        os_hint_allowance = 180
         live_hint = get_token_count(get_os_hint("en"))
         assert live_hint <= os_hint_allowance, (
             f"bash OS hint grew to {live_hint} tokens, past the {os_hint_allowance}-token allowance "
