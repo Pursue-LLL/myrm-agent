@@ -53,7 +53,7 @@ take a credential only from the caller, never from the environment.
 ## Key Dependencies
 
 - `httpx` (HTTP, proxy and TLS behavior; `infra.tls_compat` supplies the trust store)
-- `botocore` (optional: only to sign Bedrock requests with AWS credentials; a deployment that authenticates with a Bedrock API key never loads it)
+- `botocore` (extra `bedrock`: only to sign Bedrock requests with AWS credentials; a deployment that authenticates with a Bedrock API key never loads it)
 - `catalog` (model capability flags and output ceilings that decide what a request may carry)
 - Consumed by `adapters/chat_model` (chat), `toolkits/retriever` (embeddings, rerank), `toolkits/llms/image` (images)
 

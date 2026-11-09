@@ -161,6 +161,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 - **`[file-parsers]`**: python-docx, openpyxl, python-pptx（Office；pdfplumber + pypdfium2 由 core / pdfplumber 传递依赖）
 - **`[retrieval]`**: langchain-text-splitters, numpy, jieba, rank-bm25, tenacity（代码分块 + 云 embedding 重试）
 - **`[acp]`**: agent-client-protocol（外部 Agent 委托 + ACP Server）
+- **`[bedrock]`**: botocore（Bedrock 请求用 AWS 凭证链签名；只用 Bedrock API Key 时不需要）
 - **`[browser]`**: patchright, camoufox（仅 Python 包；约 1.2 GB 的 Camoufox 浏览器构建需另行 `camoufox fetch` 安装，见 `toolkits/browser/pool/camoufox_availability.py`）, orjson（浏览器自动化与会话持久化 JSON）
 - **`[observability]`**: prometheus-client, opentelemetry-sdk, opentelemetry-exporter-otlp-proto-grpc, opentelemetry-exporter-otlp-proto-http, openinference-instrumentation-langchain（Prometheus 指标 + Phoenix / OTLP 追踪，OTLP 支持 HTTP/protobuf 与 gRPC）
 - **`[compiled-core]`** / **`[compiled-core-musl]`**: 平台 native 扩展 wheel（8 平台，见 `harness_packaging/DISTRIBUTION_SYSTEM.md`）
