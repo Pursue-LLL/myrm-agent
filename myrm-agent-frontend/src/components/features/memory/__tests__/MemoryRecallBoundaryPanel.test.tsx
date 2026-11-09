@@ -141,6 +141,66 @@ describe('MemoryRecallBoundaryPanel', () => {
     expect(screen.queryByText(/此处显示其中/)).toBeNull();
   });
 
+  it('opens on the candidate pool and says when it is empty', async () => {
+    render(<MemoryRecallBoundaryPanel />);
+
+    expect(await screen.findByText('当前候选待审池为空，记忆处于清爽健康状态')).toBeDefined();
+  });
+
+  it('lists each pending candidate with its type, confidence and source', async () => {
+    mockGetMemoryRecallBoundary.mockResolvedValue({
+      ...boundary,
+      candidate_records: [
+        {
+          id: 'cand-1',
+          memory_type: 'episodic',
+          content_preview: 'moved to Berlin last spring',
+          confidence: 0.857,
+          source: 'conversation',
+          created_at: '2026-11-01T08:00:00Z',
+          status: 'review_required',
+        },
+      ],
+      total_candidates: 1,
+    });
+    render(<MemoryRecallBoundaryPanel />);
+
+    expect(await screen.findByText('moved to Berlin last spring')).toBeDefined();
+    expect(screen.getByText('经历')).toBeDefined();
+    expect(screen.getByText('置信度: 86%')).toBeDefined();
+    expect(screen.getByText('来源: conversation')).toBeDefined();
+    expect(screen.queryByText('当前候选待审池为空，记忆处于清爽健康状态')).toBeNull();
+  });
+
+  it('says when there is no approved memory', async () => {
+    mockGetMemoryRecallBoundary.mockResolvedValue({ ...boundary, approved_records: [], total_approved: 0 });
+    render(<MemoryRecallBoundaryPanel />);
+
+    await openTab(/已生效参与召回记忆/);
+
+    expect(screen.getByText('暂无已生效记忆')).toBeDefined();
+  });
+
+  it('keeps the data and disables refresh while the boundary reloads', async () => {
+    render(<MemoryRecallBoundaryPanel />);
+    await screen.findByRole('tab', { name: /已生效参与召回记忆/ });
+
+    let finishReload: (data: MemoryRecallBoundaryData) => void = () => undefined;
+    mockGetMemoryRecallBoundary.mockReturnValueOnce(
+      new Promise<MemoryRecallBoundaryData>((resolve) => {
+        finishReload = resolve;
+      }),
+    );
+    const refresh = screen.getByRole('button', { name: '刷新边界' }) as HTMLButtonElement;
+    fireEvent.click(refresh);
+
+    await waitFor(() => expect(refresh.disabled).toBe(true));
+    expect(screen.getByRole('tab', { name: /已生效参与召回记忆/ })).toBeDefined();
+
+    finishReload(boundary);
+    await waitFor(() => expect(refresh.disabled).toBe(false));
+  });
+
   it('marks which read scopes are active', async () => {
     render(<MemoryRecallBoundaryPanel />);
 
