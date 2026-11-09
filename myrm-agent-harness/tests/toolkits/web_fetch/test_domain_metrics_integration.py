@@ -4,8 +4,7 @@
 1. DomainMetrics 数据模型（失败时间衰减、SMART 等待策略数据、序列化）
 2. DomainMetricsManager 持久化、LRU 驱逐、不活跃清理、使用时触发的定时保存与清理
 3. 任何记录都会刷新域名活跃时间（活跃域名不会被清理）
-4. 云沙箱文件锁机制
-5. domain_key 域名键
+4. domain_key 域名键
 """
 
 from __future__ import annotations
@@ -150,23 +149,15 @@ class TestDomainMetricsManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             storage_path = Path(tmpdir) / "test_metrics.json"
 
-            manager = DomainMetricsManager(storage_path=storage_path, use_file_lock=False)
+            manager = DomainMetricsManager(storage_path=storage_path)
             manager.record_failure("example.com", FetcherType.HTTP)
             manager._save_metrics()
 
-            manager2 = DomainMetricsManager(storage_path=storage_path, use_file_lock=False)
+            manager2 = DomainMetricsManager(storage_path=storage_path)
 
             loaded_metrics = manager2.get("example.com")
             assert loaded_metrics is not None
             assert loaded_metrics.get_recent_failures_count(FetcherType.HTTP) == 1
-
-    def test_explicit_file_lock_enable(self):
-        """测试显式启用文件锁"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            storage_path = Path(tmpdir) / "test_metrics.json"
-
-            manager = DomainMetricsManager(storage_path=storage_path, use_file_lock=True)
-            assert manager._use_file_lock is True
 
     def test_explicit_path_override(self):
         """测试显式路径参数覆盖"""
@@ -311,25 +302,6 @@ class TestScheduledMaintenance:
         manager.get_or_create("fresh.com")
 
         assert manager.get("stale.com") is not None
-
-
-class TestFileLock:
-    """测试文件锁机制"""
-
-    @pytest.mark.parametrize("use_file_lock", [True, False])
-    def test_file_lock_modes_save_and_reload(self, use_file_lock: bool):
-        """文件锁启用/禁用时保存、重新加载都正常"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            storage_path = f"{tmpdir}/metrics.json"
-            manager = DomainMetricsManager(storage_path=storage_path, use_file_lock=use_file_lock)
-
-            assert manager._use_file_lock is use_file_lock
-
-            manager.record_failure("test.com", FetcherType.HTTP)
-            manager._save_metrics()
-
-            reloaded = DomainMetricsManager(storage_path=storage_path, use_file_lock=use_file_lock)
-            assert reloaded.get("test.com") is not None
 
 
 class TestDomainKey:

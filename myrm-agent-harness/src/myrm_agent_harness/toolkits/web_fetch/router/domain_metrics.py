@@ -3,7 +3,7 @@
 Responsibilities:
 - Unified management of all domain learning metrics (web_fetch + browser)
 - Provides domain-level failure decay and wait strategy data
-- JSON serialization persistence (with file lock support), saved and cleaned up on a schedule as the store is used
+- JSON serialization persistence (atomic writes), saved and cleaned up on a schedule as the store is used
 
 Architecture:
 - Framework layer adapts to deployment scenarios via parameter injection
@@ -33,7 +33,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.infra.data_dir import resolve_workspace_state_dir
-from myrm_agent_harness.utils import os_compat as fcntl
 
 from ..fetchers.protocols import FetcherType
 from .models import DomainMetrics
@@ -63,19 +62,19 @@ class DomainMetricsManager:
     - Domain-level metric storage and retrieval
     - Async background persistence, scheduled lazily whenever the store is used
     - StorageProvider support (cloud storage S3/R2/GCS)
-    - File lock support (local filesystem multi-process scenarios)
     - Auto-cleanup of expired domains (7 days inactive)
 
     Two storage modes:
     1. StorageProvider mode: abstract interface, supports cloud storage (S3/R2/GCS)
-    2. Local file mode: direct Path operations, with file lock (fcntl)
+    2. Local file mode: direct Path operations, atomic writes (temp file + rename)
 
     Note: StorageProvider mode does not load data in __init__ (async lazy load);
           local file mode loads synchronously in __init__.
 
     Concurrency model:
     - Re-entrant lock protects in-memory data structures
-    - File lock protects local JSON file (multi-process scenarios)
+    - Local saves are atomic, so a reader never sees a torn file; processes that share one
+      file overwrite each other's snapshot (last writer wins), so give each process its own file
     """
 
     def __init__(
@@ -84,7 +83,6 @@ class DomainMetricsManager:
         storage_path: str | Path | None = None,
         storage_provider: StorageProvider | None = None,
         storage_key: str = "web_fetch/domain_metrics.json",
-        use_file_lock: bool = False,
         max_domains: int = 10000,
         save_interval_minutes: int = 5,
         inactive_days: int = 7,
@@ -95,7 +93,6 @@ class DomainMetricsManager:
             storage_path: Storage file path (local mode, None uses default path)
             storage_provider: Storage provider (cloud storage mode, optional)
             storage_key: Storage key (StorageProvider mode, default: "web_fetch/domain_metrics.json")
-            use_file_lock: Whether to enable file lock (local mode, multi-process scenarios)
             max_domains: Maximum domain count (LRU eviction)
             save_interval_minutes: Auto-save interval (minutes)
             inactive_days: Inactive domain cleanup threshold (days)
@@ -103,7 +100,6 @@ class DomainMetricsManager:
         self._storage_path = self._resolve_storage_path(storage_path) if not storage_provider else None
         self._storage_provider = storage_provider
         self._storage_key = storage_key
-        self._use_file_lock = use_file_lock
         self._max_domains = max_domains
         self._save_interval_minutes = save_interval_minutes
         self._inactive_days = inactive_days
@@ -124,7 +120,6 @@ class DomainMetricsManager:
 
         logger.info(
             f"DomainMetricsManager initialized: {len(self._metrics)} domains, "
-            f"file_lock={self._use_file_lock}, "
             f"storage={'StorageProvider' if self._storage_provider else str(self._storage_path)}"
         )
 
@@ -142,10 +137,7 @@ class DomainMetricsManager:
         return resolve_workspace_state_dir() / "domain_metrics.json"
 
     def _load_metrics(self) -> None:
-        """Load domain metrics from JSON file (local file mode).
-
-        Uses fcntl file lock (synchronous), for multi-process concurrent scenarios.
-        """
+        """Load domain metrics from JSON file (local file mode)."""
         assert self._storage_path is not None
 
         if not self._storage_path.exists():
@@ -154,19 +146,8 @@ class DomainMetricsManager:
 
         try:
             with open(self._storage_path, encoding="utf-8") as f:
-                if self._use_file_lock:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-
-                try:
-                    data = json.load(f)
-                    loaded_metrics = {
-                        domain: DomainMetrics.from_dict(metrics_data) for domain, metrics_data in data.items()
-                    }
-                finally:
-                    if self._use_file_lock:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-
-            self._metrics = loaded_metrics
+                data = json.load(f)
+            self._metrics = {domain: DomainMetrics.from_dict(metrics_data) for domain, metrics_data in data.items()}
             logger.info(f"Loaded {len(self._metrics)} domain metrics from {self._storage_path}")
 
         except Exception:
