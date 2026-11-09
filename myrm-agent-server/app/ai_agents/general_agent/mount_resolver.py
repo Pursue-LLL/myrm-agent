@@ -15,7 +15,7 @@ to physically instantiate and inject based on the incoming channel type.
 
 [POS]
 Pure resolver layer between channel ingress and GeneralAgent factory wiring.
-Prevents IM channels from leaking browser, desktop control, or CLI tools/prompts,
+Prevents IM channels from leaking browser or desktop control tools/prompts,
 eliminating prompt-token waste and tool-hallucination errors.
 """
 
@@ -39,7 +39,6 @@ class ResolvedMountPlan:
     mount_browser: bool
     mount_computer_use: bool
     mount_desktop_prompt: bool
-    mount_cli_context: bool
 
 
 def resolve_agent_mount(
@@ -52,7 +51,6 @@ def resolve_agent_mount(
     - Browser tools: Only mount in WEB_CHAT channels when profile has enable_browser=True.
     - Computer use: Only mount in WEB_CHAT channels when supported by host deploy mode.
     - Desktop prompt: Only inject DESKTOP_CONTROL_RULES when computer use tools are mounted.
-    - CLI context: Only inject CLI discovery context when not in untrusted IM channels.
     """
     effective_channel = channel_name or getattr(agent_wrapper, "channel_name", "web_chat") or "web_chat"
     channel_type = resolve_channel_type(effective_channel)
@@ -73,10 +71,6 @@ def resolve_agent_mount(
     # 3. Desktop rules in System Prompt
     mount_desktop_prompt = mount_computer_use
 
-    # 4. CLI discovery context in System Prompt
-    # Only injected for web_chat/cron; IM channels must avoid polluting prompt with CLI tool signatures
-    mount_cli_context = is_web_chat or channel_type == ChannelType.CRON
-
     if not is_web_chat and (enable_browser or enable_computer_use):
         logger.info(
             "Channel '%s' (%s): safely omitted browser/desktop physical mount (profile: browser=%s, cu=%s)",
@@ -90,5 +84,4 @@ def resolve_agent_mount(
         mount_browser=mount_browser,
         mount_computer_use=mount_computer_use,
         mount_desktop_prompt=mount_desktop_prompt,
-        mount_cli_context=mount_cli_context,
     )

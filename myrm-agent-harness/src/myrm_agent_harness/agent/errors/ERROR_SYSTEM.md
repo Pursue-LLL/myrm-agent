@@ -148,8 +148,8 @@ WebSearchError
 - **机制**：`ExecutionResult.__post_init__` 自动调用 `generate_error_hint()`，基于 `error_category` + `stderr` 正则提取生成精准修复建议
 - **数据流**：`ExecutionResult.error_hint` → `BashExecutionError.error_hint` → `ToolError.user_hint` → `format_for_llm()`
 - **覆盖范围**：
-  - `import`：提取模块名 → `_IMPORT_TO_PYPI` 映射 PyPI 包名 → 智能检测 uv 包管理器优先使用（`uv pip install` vs `pip install`）
-  - `not_found`：提取命令名 → 联动 `tool_discovery` 的 `get_install_hint()` 查询 `TOOL_CATALOG` 中的平台特定安装命令（如 `"Try: brew install jq"`），不在 catalog 中则 fallback 到通用提示
+  - `import`：提取模块名 → `_IMPORT_TO_PYPI` 映射 PyPI 包名 → `shutil.which("uv")` 命中时优先使用 uv（`uv pip install` vs `pip install`）
+  - `not_found`：提取命令名 → 通用提示（`Command '<name>' not found. Install it or check the PATH.`）；不内置按平台的安装命令表
   - `permission_denied`：提取文件路径 → `chmod +x` 建议
   - `timeout`：方向性建议（减少数据量/拆分任务）
   - `oom`：方向性建议（分批处理/减少内存）

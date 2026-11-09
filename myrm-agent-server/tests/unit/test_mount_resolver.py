@@ -18,7 +18,6 @@ def test_resolve_agent_mount_web_chat_all_enabled() -> None:
     assert plan.mount_browser is True
     assert plan.mount_computer_use is True
     assert plan.mount_desktop_prompt is True
-    assert plan.mount_cli_context is True
 
 
 def test_resolve_agent_mount_im_channel_drops_browser_and_desktop() -> None:
@@ -33,7 +32,6 @@ def test_resolve_agent_mount_im_channel_drops_browser_and_desktop() -> None:
         assert plan.mount_browser is False, f"Browser tools should not mount on {im_channel}"
         assert plan.mount_computer_use is False, f"Desktop tools should not mount on {im_channel}"
         assert plan.mount_desktop_prompt is False, f"Desktop rules should not inject on {im_channel}"
-        assert plan.mount_cli_context is False, f"CLI context should not inject on {im_channel}"
 
 
 def test_resolve_agent_mount_cron_channel() -> None:
@@ -47,7 +45,6 @@ def test_resolve_agent_mount_cron_channel() -> None:
     assert plan.mount_browser is False
     assert plan.mount_computer_use is False
     assert plan.mount_desktop_prompt is False
-    assert plan.mount_cli_context is True
 
 
 def test_resolve_agent_mount_computer_use_host_unsupported() -> None:

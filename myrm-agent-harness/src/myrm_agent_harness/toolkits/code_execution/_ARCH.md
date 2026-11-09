@@ -28,6 +28,5 @@ Detailed design: [EXECUTION_SYSTEM.md](EXECUTION_SYSTEM.md)
 | sandbox/ | OS-level process sandbox for local/desktop execution. |
 | security/ | Execution security — shell command analysis, blacklists, and validators. |
 | session/ | Persistent Session Module (with Auto-Tee, OOM & Disk Quota protection) |
-| tool_discovery/ | CLI tool auto-discovery module entry point. Provides get_cli_tools_context() one-stop API to detect |
 | utils/ | Code execution utilities. |
 | workspace/ | Session workspaces rooted at explicit host-provided aggregate directory (`merged_context[\"workspaces_storage_root\"]` consumed by Harness `WorkspaceService`). |

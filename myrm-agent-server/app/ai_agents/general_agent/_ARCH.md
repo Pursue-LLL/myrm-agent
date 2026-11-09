@@ -35,7 +35,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | 文件 | 地位 | 职责| I/O/P |
 |------|------|------|-------|
 | `agent.py` | ✅ 核心 | GeneralAgent 门面：`release_pooled_session()` 释放 per-turn 资源但不关闭池化 SkillAgent/Browser；`close()` 全量 teardown | ✅ |
-| `mount_resolver.py` | ✅ 核心 | 渠道与 Profile 工具物理挂载解析器（`resolve_agent_mount`）：对齐 IM 渠道安全边界，剥离 Browser/Desktop/CLI 物理实例化与桌面控制提示词，根除 Token 浪费与工具幻觉被拒。 | ✅ |
+| `mount_resolver.py` | ✅ 核心 | 渠道与 Profile 工具物理挂载解析器（`resolve_agent_mount`）：对齐 IM 渠道安全边界，剥离 Browser/Desktop 物理实例化与桌面控制提示词，根除 Token 浪费与工具幻觉被拒。 | ✅ |
 | `factory/` | ✅ 核心 | Agent 实例组装包：`builder.py` 编排（LLM → 技能 → 工具 → 沙箱 → 中间件 → 提示词 → create_skill_agent），`llms.py`/`skills.py`/`runtime.py`/`middlewares.py`/`prompt.py` 分阶段实现，`support.py` 放工具/Kanban/回调构造；详见 [factory/_ARCH.md](factory/_ARCH.md) |
 | `active_tool_groups.py` | ✅ 核心 | GeneralAgent enable 标志 → harness `TOOL_GROUP_MAP` 组名列表（Gap + `AgentRuntimeSpec.tool_groups`）。 | ❌ |
 | `kanban_tool_mode.py` | ✅ 辅助 | 解析 `KanbanToolMode`：TaskRunner 强制 worker（6）；chat 默认 orchestrator（3）；board CRUD 仅 REST/GUI | ❌ |

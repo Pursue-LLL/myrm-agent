@@ -184,11 +184,10 @@ async def build_general_agent(
     # 7.5 Auto-tune for small models (zero-config compatibility mode)
     _apply_small_model_tuning(agent_wrapper)
 
-    # 8. System prompt (core + CLI tool awareness)
+    # 8. System prompt
     system_prompt = build_system_prompt(
         agent_wrapper,
         mount_plan=mount_plan,
-        executor=executor,
         channel_notify_tool_loaded=channel_notify_tool_loaded,
         prompt_locale=effective_prompt_locale,
     )
