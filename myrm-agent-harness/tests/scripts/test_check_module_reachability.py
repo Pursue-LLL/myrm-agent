@@ -171,3 +171,81 @@ def test_project_entry_points_reads_console_scripts(tmp_path: Path) -> None:
     pyproject.write_text('[project.scripts]\ntool = "pkg.agent.engine.cli:main"\n', encoding="utf-8")
     assert cli.project_entry_points(pyproject) == ("pkg.agent.engine.cli:main",)
     assert cli.project_entry_points(tmp_path / "missing.toml") == ()
+
+
+_PENDING_MODULE = '''"""A unit waiting for its caller.
+
+[POS]
+Something implemented and tested, not wired yet.
+
+[PENDING] No caller yet: the surface that will use it ships with the next feature.
+"""
+
+
+def run() -> None: ...
+'''
+
+
+def test_a_pending_unit_is_reported_and_does_not_fail_the_gate(
+    trees: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    harness, _ = trees
+    _write(harness, {"agent/engine/waiting.py": _PENDING_MODULE})
+
+    assert cli.main([]) == 0
+
+    out = capsys.readouterr().out
+    assert "1 unit(s) declared [PENDING]" in out
+    assert "agent/engine/waiting" in out
+    assert "the surface that will use it ships with the next feature" in out
+
+
+def test_pending_units_appear_in_json_with_their_reason(
+    trees: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    harness, _ = trees
+    _write(harness, {"agent/engine/waiting.py": _PENDING_MODULE})
+
+    assert cli.main(["--json"]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["dead"] == []
+    assert [item["unit"] for item in payload["pending"]] == ["agent/engine/waiting"]
+    assert payload["pending"][0]["reason"].startswith("No caller yet")
+
+
+def test_a_pending_unit_that_gained_a_consumer_fails_until_the_note_is_dropped(
+    trees: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    harness, _ = trees
+    _write(
+        harness,
+        {
+            "agent/engine/waiting.py": _PENDING_MODULE,
+            "api/uses_waiting.py": "from pkg.agent.engine.waiting import run\n\nrun()\n",
+        },
+    )
+
+    assert cli.main([]) == 1
+
+    err = capsys.readouterr().err
+    assert "still say [PENDING] but already have a production consumer" in err
+    assert "agent/engine/waiting" in err
+
+
+def test_a_pending_note_spans_continuation_lines(trees: tuple[Path, Path], capsys: pytest.CaptureFixture[str]) -> None:
+    harness, _ = trees
+    _write(
+        harness,
+        {
+            "agent/engine/waiting.py": (
+                '"""Waiting.\n\n[POS]\nPlaceholder.\n\n'
+                '[PENDING] First half of the reason,\nand the second half.\n"""\n\n\ndef run() -> None: ...\n'
+            )
+        },
+    )
+
+    assert cli.main(["--json"]) == 0
+
+    reason = json.loads(capsys.readouterr().out)["pending"][0]["reason"]
+    assert reason == "First half of the reason, and the second half."

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
@@ -40,6 +40,7 @@ _SKIPPED_DIRS: Final = frozenset({"__pycache__", "_generated"})
 class Unit:
     key: str
     lines: int
+    pending: str = ""
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,8 @@ class Report:
     dead: tuple[Unit, ...]
     server_only: tuple[Unit, ...]
     files_scanned: int
+    pending: tuple[Unit, ...] = ()
+    stale_pending: tuple[Unit, ...] = ()
 
 
 def _under(parts: tuple[str, ...], root_dirs: Sequence[str]) -> bool:
@@ -152,6 +155,7 @@ class _Graph:
     unit_lines: dict[str, int]
     root_targets: set[str]
     files: int
+    unit_pending: dict[str, str] = field(default_factory=dict)
 
     def reach(self, seeds: Iterable[str]) -> set[str]:
         live: set[str] = set()
@@ -207,6 +211,8 @@ def _build(tree_root: Path, root_dirs: Sequence[str], foreign: Sequence[str] = (
             continue
         graph.unit_targets[key] |= targets
         graph.unit_lines[key] += facts.lines
+        if facts.pending:
+            graph.unit_pending[key] = facts.pending
         for name in facts.exports:
             graph.resolver.exporters[name].add(key)
     return graph
@@ -237,10 +243,17 @@ def analyze(
     seeds = graph.root_targets | _entry_targets(entry_points)
     live_all = graph.reach(seeds | consumed)
     live_in_package = graph.reach(seeds)
-    units = {key: Unit(key, graph.unit_lines[key]) for key in sorted(graph.unit_targets)}
+    units = {
+        key: Unit(key, graph.unit_lines[key], graph.unit_pending.get(key, "")) for key in sorted(graph.unit_targets)
+    }
+    unreachable = [unit for key, unit in units.items() if key not in live_all]
     return Report(
         units=units,
-        dead=tuple(unit for key, unit in units.items() if key not in live_all),
+        dead=tuple(unit for unit in unreachable if not unit.pending),
         server_only=tuple(unit for key, unit in units.items() if key in live_all and key not in live_in_package),
         files_scanned=files_scanned,
+        pending=tuple(unit for unit in unreachable if unit.pending),
+        # A unit that says it is pending but is already consumed makes the note a lie; report it so the
+        # header gets corrected instead of quietly claiming work that is done.
+        stale_pending=tuple(unit for key, unit in units.items() if key in live_all and unit.pending),
     )
