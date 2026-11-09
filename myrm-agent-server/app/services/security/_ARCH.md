@@ -18,4 +18,5 @@
 | `dashboard_settings.py` | 核心 | Omni-Config `securityDashboardSettings` 读取 | ✅ |
 | `profile_manager.py` | 核心 | Security Profile CRUD；builtin seed 与 SSOT 同步；save/read API 路径均 fan-out 旧 `delegate_agent` 键 | ✅ |
 | `workspace_trust_store.py` | 核心 | UserConfig 持久化 workspace trust registry（含 TRUSTED 时用户看过的 repo 命令前缀 `disclosed_command_prefixes`；旧条目无此字段 → 一次性重新确认）；启动时注入 harness `WorkspaceTrustLookup` | ✅ |
+| `vault_credential_service.py` | 核心 | Vault 标签凭据的列表/读取/保存/删除与全局保险库同步；密码与 TOTP 种子 AES-256-GCM 加密落库，主密钥由调用方注入，缺省读只读缓存（金库未就绪立即失败） | ✅ |
 | `tenant_guardrail.py` | 核心 | SaaS tenant guardrail hook（预留；subagent 消费由 WU budget 门禁） | ✅ |

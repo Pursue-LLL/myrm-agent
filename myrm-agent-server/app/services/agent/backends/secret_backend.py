@@ -1,4 +1,15 @@
-"""Database-backed implementation of AgentSecretBackend."""
+"""[INPUT]
+- myrm_agent_harness.api (POS: 外部密钥引用解析)
+- myrm_agent_harness.utils.crypto.config_crypto (POS: AES-256-GCM 配置加密)
+- app.core.security.master_key::MasterKeyProvider (POS: 安全金库密钥派生模块)
+
+[OUTPUT]
+- DatabaseSecretBackend: Agent 机密的加密读写与键名列表
+
+[POS]
+Agent 机密存储适配器。AES-256-GCM 加密落库，读取时解算 op:// / bw:// 外部引用；主密钥由调用方
+注入，缺省读 MasterKeyProvider 的只读缓存，金库未就绪时立即失败而不是阻塞事件循环。
+"""
 
 import logging
 

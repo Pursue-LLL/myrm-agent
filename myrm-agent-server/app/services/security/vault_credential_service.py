@@ -1,4 +1,15 @@
-"""Service for managing Vault Credentials."""
+"""[INPUT]
+- myrm_agent_harness.core.security.credential_vault (POS: 全局凭证保险库)
+- myrm_agent_harness.utils.crypto.config_crypto (POS: AES-256-GCM 配置加密)
+- app.core.security.master_key::MasterKeyProvider (POS: 安全金库密钥派生模块)
+
+[OUTPUT]
+- VaultCredentialService: Vault 标签凭据的列表/读取/保存/删除与全局保险库同步
+
+[POS]
+Vault 标签凭据业务服务。密码与 TOTP 种子加密落库并同步到 harness 全局保险库；主密钥由调用方
+注入，缺省读 MasterKeyProvider 的只读缓存，金库未就绪时立即失败而不是阻塞事件循环。
+"""
 
 import logging
 import uuid
