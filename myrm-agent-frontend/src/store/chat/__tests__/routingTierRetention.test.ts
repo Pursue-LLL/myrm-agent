@@ -221,7 +221,7 @@ describe('routingTier retention across SSE sequence', () => {
       {
         type: AgentEventType.ROUTING_DECISION,
         messageId: MESSAGE_ID,
-        data: { model_tier: 'medium' },
+        data: { tier: 'standard' },
       } as never,
       '',
       undefined,

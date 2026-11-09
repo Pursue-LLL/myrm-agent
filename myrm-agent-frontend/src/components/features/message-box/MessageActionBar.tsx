@@ -157,7 +157,6 @@ export default function MessageActionBar({
             modelName={message.modelName}
             routingTier={message.routingTier}
             routingReason={message.routingReason}
-            modelTier={message.modelTier}
             privacyLevel={message.privacyLevel}
             privacyAction={message.privacyAction}
             privacyRoute={message.privacyRoute}

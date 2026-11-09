@@ -80,7 +80,7 @@ def test_preflight_reads_real_db_streak_and_suppresses_warning(client: TestClien
     store.set_streak("chat-1", 2)
 
     item = _preflight_item(client, estimated_tokens=9000, chat_id="chat-1")
-    # WEAK tier threshold ~8266; 9000 < 14400 (90% safety net) and streak=2 -> suppressed
+    # threshold 8000; 9000 < 14400 (90% safety net) and streak=2 -> suppressed
     assert item["will_compress"] is False
 
 
@@ -158,12 +158,10 @@ def test_preflight_resolves_real_model_window_from_the_frontend_value(
 
 
 @pytest.mark.integration
-def test_preflight_tier_inference_matches_small_model_tuning(
+def test_preflight_threshold_follows_the_window_not_the_model_name(
     client: TestClient,
 ) -> None:
-    """Real tier inference agrees with the agent factory's small-model tuning."""
-    from myrm_agent_harness.core.config.model_tier import infer_model_tier
-
+    """A configured production model gets the default threshold: half of the window, like any other model."""
     from tests.support.test_secrets import resolve_test_env
 
     model = resolve_test_env("BASIC_MODEL", "openai-like/deepseek-v4-flash")
@@ -180,17 +178,7 @@ def test_preflight_tier_inference_matches_small_model_tuning(
     assert response.status_code == 200, response.text
     item = response.json()["data"]["results"][0]
     assert item["found"] is True
-
-    window = int(item["new_window"])
-    tier = infer_model_tier(model, max_context_tokens=window)
-    # The preflight uses the same infer_model_tier + ContextConfig formula, so the
-    # returned threshold must equal ContextConfig(window, start_ratio-for-tier).
-    ratio = {"weak": 0.30, "medium": 0.50}.get(tier.value)
-    if ratio is None:  # STRONG -> default 0.5 classic ratio
-        expected = int(window * 0.5)
-    else:
-        expected = int(window * (ratio + (0.95 - ratio) / 3.0))
-    assert item["compress_threshold"] == expected
+    assert item["compress_threshold"] == int(item["new_window"] * 0.5)
 
 
 @pytest.mark.integration

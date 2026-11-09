@@ -959,7 +959,7 @@ export default function E2EChatBridge() {
         flushSync(() => {
           const state = useChatStore.getState();
           // `state.loading` must NOT force a reload: a live turn is streaming
-          // store-injected state (routingTier / modelTier from SSE), and a
+          // store-injected state (routingTier from SSE), and a
           // forceReload would clear the store and rebuild it from a DB snapshot
           // that has not yet persisted the assistant message — losing the tier.
           // attachToChat below polls until `loading` clears instead.
@@ -1249,7 +1249,6 @@ export default function E2EChatBridge() {
           userCount: users.length,
           assistantCount: assistants.length,
           lastAssistantRoutingTier: lastAssistant?.routingTier ?? null,
-          lastAssistantModelTier: lastAssistant?.modelTier ?? null,
           lastAssistantKeys: lastAssistant ? Object.keys(lastAssistant) : [],
           isStreaming: Boolean(state.loading || state.abortController),
           hasOk: /\bOK\b/i.test(assistantText),

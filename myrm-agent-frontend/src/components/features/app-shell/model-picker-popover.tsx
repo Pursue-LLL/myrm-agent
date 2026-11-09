@@ -61,10 +61,8 @@ interface ModelPickerPopoverProps {
   onSelectSmartRouting?: () => void;
   /** 当前会话估算 tokens（聊天场景传入）；无值/<=0 时禁用压缩预检 */
   estimatedTokens?: number | null;
-  /** agent 显式压缩起始比例（engineParams），缺省由 server 按目标模型 tier 推断 */
+  /** agent 显式压缩起始比例（engineParams），缺省使用 server 的默认阈值 */
   compressStartRatio?: number | null;
-  /** agent prompt 模式（full/lean/naked/search）；非 full 时 server 回退默认压缩比例 */
-  promptMode?: string | null;
   /** 当前会话 human 消息数（轮数）；提供时 server 按运行时动态阈值判定压缩 */
   turnCount?: number | null;
   /** 当前会话 ID（聊天场景传入）；提供时 server 消费压缩无效 streak，避免误报 */
@@ -91,7 +89,6 @@ export default function ModelPickerPopover({
   onSelectSmartRouting,
   estimatedTokens,
   compressStartRatio,
-  promptMode,
   turnCount,
   chatId,
   align = 'start',
@@ -178,7 +175,6 @@ export default function ModelPickerPopover({
     capabilities,
     estimatedTokens,
     compressStartRatio,
-    promptMode,
     turnCount,
     chatId,
   });

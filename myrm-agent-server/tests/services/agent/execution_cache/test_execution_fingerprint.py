@@ -399,8 +399,8 @@ def test_execution_fingerprint_changes_when_video_fallback_models_change() -> No
 
 def test_execution_fingerprint_changes_when_model_internal_params_change() -> None:
     """Model internal params (base_url/max_context_tokens/supports_vision/
-    custom_model_def) are solidified into prompt-mode auto-tuning and the harness
-    spec (factory:758-760,1159-1160), so they must bust the POOLED cache."""
+    custom_model_def) are solidified into the harness spec at build time,
+    so they must bust the POOLED cache."""
     from myrm_agent_harness.agent.config.llm import CustomModelDef
 
     wrapper = GeneralAgent(
@@ -416,8 +416,8 @@ def test_execution_fingerprint_changes_when_model_internal_params_change() -> No
         supports_vision=True,
         custom_model_def=CustomModelDef(model_id="ollama/llama3", context_length=8192),
     )
-    tuned_fp = compute_execution_fingerprint(wrapper)
-    assert base_fp != tuned_fp
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert base_fp != changed_fp
 
 
 def test_execution_fingerprint_stable_when_api_key_rotates() -> None:

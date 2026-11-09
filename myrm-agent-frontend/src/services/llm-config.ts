@@ -547,7 +547,7 @@ const PREFLIGHT_CACHE_LIMIT = 100;
 
 /**
  * 会话维度 preflight 缓存（LRU 上限，防 estimatedTokens 单调变化导致 key 无限累积）。
- * key = `${chatId}:${model}:${max_input_tokens}:${ratio}:${prompt_mode}:${estimatedTokens}:${turn_count}`
+ * key = `${chatId}:${model}:${max_input_tokens}:${ratio}:${estimatedTokens}:${turn_count}`
  * chatId 使不同会话隔离；streak 变化必伴随 estimatedTokens（current_tokens）变化，自动失效。
  */
 const preflightCache = new Map<string, ModelSwitchPreflightResult>();
@@ -578,12 +578,11 @@ export const fetchModelSwitchPreflight = async (
   estimatedTokens: number,
   items: ModelSwitchPreflightItem[],
   compressStartRatio?: number | null,
-  promptMode?: string | null,
   turnCount?: number | null,
   chatId?: string | null,
 ): Promise<Record<string, ModelSwitchPreflightResult>> => {
   const cacheKeyFor = (item: ModelSwitchPreflightItem) =>
-    `${chatId ?? ''}:${item.model}:${item.max_input_tokens ?? ''}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${estimatedTokens}:${turnCount ?? ''}`;
+    `${chatId ?? ''}:${item.model}:${item.max_input_tokens ?? ''}:${compressStartRatio ?? ''}:${estimatedTokens}:${turnCount ?? ''}`;
 
   const uncached = items.filter((item) => !preflightCache.has(cacheKeyFor(item)));
   const hitMap: Record<string, ModelSwitchPreflightResult> = {};
@@ -604,7 +603,6 @@ export const fetchModelSwitchPreflight = async (
       body: JSON.stringify({
         estimated_tokens: estimatedTokens,
         compress_start_ratio: compressStartRatio ?? null,
-        prompt_mode: promptMode ?? null,
         turn_count: turnCount ?? null,
         chat_id: chatId ?? null,
         models: uncached,

@@ -201,8 +201,6 @@ const BaseModelSelector = () => {
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   }, [agentConfig?.engineParams]);
 
-  const promptMode = useMemo(() => agentConfig?.promptMode ?? null, [agentConfig?.promptMode]);
-
   const moaChipLabel = useMemo(() => {
     const labelKey = resolveMoaPresetLabelKey(triggerDisplay.moaPresetId);
     if (!labelKey) {
@@ -299,7 +297,6 @@ const BaseModelSelector = () => {
         onSelectSmartRouting={handleSelectSmartRouting}
         estimatedTokens={estimatedTokens}
         compressStartRatio={compressStartRatio}
-        promptMode={promptMode}
         turnCount={turnCount}
         chatId={chatId}
         trigger={

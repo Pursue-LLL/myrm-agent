@@ -106,7 +106,7 @@ export const loadMessages = async (
           // A live turn was streaming when this load started: the DB snapshot
           // may still lack the in-flight assistant message. Keep any local
           // assistant that is absent from the DB (or merge its store-injected
-          // fields over the DB row) so routingTier / modelTier are never lost
+          // fields over the DB row) so routingTier is never lost
           // by a stale refresh.
           const dbById = new Map(messages.map((m) => [m.messageId, m]));
           const merged = messages.map((dbMsg) => {
@@ -119,11 +119,7 @@ export const loadMessages = async (
             return dbMsg;
           });
           for (const local of state.messages) {
-            if (
-              !dbById.has(local.messageId) &&
-              local.role === 'assistant' &&
-              (local.routingTier !== undefined || local.modelTier !== undefined)
-            ) {
+            if (!dbById.has(local.messageId) && local.role === 'assistant' && local.routingTier !== undefined) {
               merged.push(local);
             }
           }

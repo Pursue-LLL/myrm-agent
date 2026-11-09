@@ -212,9 +212,7 @@ myrm_agent_harness.backends.skills.versioning
 myrm_agent_harness.core.artifacts.constants
 myrm_agent_harness.core.artifacts.manifest
 myrm_agent_harness.core.artifacts.paths
-myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
-myrm_agent_harness.core.config.model_tier
 myrm_agent_harness.core.config.wire
 myrm_agent_harness.core.context_vars
 myrm_agent_harness.core.events

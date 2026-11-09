@@ -26,7 +26,6 @@ interface UseModelSwitchPreflightParams {
   /** 当前会话估算 tokens；无值或 <= 0 时不预检 */
   estimatedTokens: number | null | undefined;
   compressStartRatio: number | null | undefined;
-  promptMode: string | null | undefined;
   turnCount: number | null | undefined;
   chatId: string | null | undefined;
 }
@@ -38,7 +37,6 @@ export function useModelSwitchPreflight({
   capabilities,
   estimatedTokens,
   compressStartRatio,
-  promptMode,
   turnCount,
   chatId,
 }: UseModelSwitchPreflightParams): Record<string, ModelSwitchPreflightResult> {
@@ -55,10 +53,7 @@ export function useModelSwitchPreflight({
       return;
     }
 
-    const signature = buildPreflightSignature(
-      { chatId, estimatedTokens, compressStartRatio, promptMode, turnCount },
-      pairs,
-    );
+    const signature = buildPreflightSignature({ chatId, estimatedTokens, compressStartRatio, turnCount }, pairs);
     if (preflightRequestedRef.current === signature) {
       return;
     }
@@ -68,23 +63,12 @@ export function useModelSwitchPreflight({
       estimatedTokens,
       pairs.map((p) => ({ model: p.liteName, max_input_tokens: p.maxInput })),
       compressStartRatio,
-      promptMode,
       turnCount,
       chatId,
     ).then((results) => {
       setPreflightMap(mapPreflightResults(pairs, results));
     });
-  }, [
-    open,
-    estimatedTokens,
-    capabilities,
-    enabledModels,
-    providers,
-    compressStartRatio,
-    promptMode,
-    turnCount,
-    chatId,
-  ]);
+  }, [open, estimatedTokens, capabilities, enabledModels, providers, compressStartRatio, turnCount, chatId]);
 
   return preflightMap;
 }

@@ -131,7 +131,6 @@ interface TokenUsageDisplayProps {
   modelName?: string;
   routingTier?: RoutingTierValue;
   routingReason?: string;
-  modelTier?: 'weak' | 'medium';
   privacyLevel?: SensitivityLevel;
   privacyAction?: string;
   privacyRoute?: string;
@@ -245,7 +244,6 @@ export default function TokenUsageDisplay({
   modelName,
   routingTier,
   routingReason,
-  modelTier,
   privacyLevel,
   privacyAction,
   privacyRoute,
@@ -679,22 +677,6 @@ export default function TokenUsageDisplay({
                       </Tooltip>
                     )}
                   </div>
-                </div>
-              )}
-
-              {/* Model Tier (Compatibility Mode) */}
-              {modelTier && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{t('compatMode')}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                      modelTier === 'weak'
-                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
-                        : 'bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400'
-                    }`}
-                  >
-                    {modelTier === 'weak' ? t('compatWeak') : t('compatMedium')}
-                  </span>
                 </div>
               )}
 

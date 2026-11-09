@@ -210,8 +210,7 @@ class TestSpecialtyRoutingSSEChunkEmission:
         event_data = json.loads(data_line[6:])
         assert event_data["type"] == "routing_decision"
         assert event_data["messageId"] == "msg-spec-123"
-        assert event_data["data"]["tier"] == "code"
-        assert event_data["data"]["specialty"] == "code"
+        assert event_data["data"] == {"tier": "code", "specialty": "code"}
 
 
 class TestAutoMoAOverlayGateConverter:

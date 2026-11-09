@@ -9,7 +9,7 @@ const mockChatMessages = vi.hoisted(
       contextBudget?: { turn_count?: number; current_tokens?: number; messages_estimated_tokens?: number };
     }>,
 );
-const mockAgentConfig = vi.hoisted(() => ({ engineParams: { compress_start_ratio: 0.4 }, promptMode: 'full' }));
+const mockAgentConfig = vi.hoisted(() => ({ engineParams: { compress_start_ratio: 0.4 } }));
 
 vi.mock('@/store/useChatStore', () => ({
   default: vi.fn((selector: (state: object) => unknown) =>

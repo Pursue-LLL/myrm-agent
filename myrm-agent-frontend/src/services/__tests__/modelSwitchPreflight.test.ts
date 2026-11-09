@@ -14,7 +14,7 @@ describe('fetchModelSwitchPreflight', () => {
     mockApiRequest.mockReset();
   });
 
-  it('posts estimated_tokens, ratio, prompt_mode, turn_count, chat_id and models to the preflight endpoint', async () => {
+  it('posts estimated_tokens, ratio, turn_count, chat_id and models to the preflight endpoint', async () => {
     mockApiRequest.mockResolvedValue({
       results: [
         {
@@ -31,7 +31,6 @@ describe('fetchModelSwitchPreflight', () => {
       9000,
       [{ model: 'custom/a', max_input_tokens: 16000 }],
       0.3,
-      'lean',
       7,
       'chat-123',
     );
@@ -41,7 +40,6 @@ describe('fetchModelSwitchPreflight', () => {
       body: JSON.stringify({
         estimated_tokens: 9000,
         compress_start_ratio: 0.3,
-        prompt_mode: 'lean',
         turn_count: 7,
         chat_id: 'chat-123',
         models: [{ model: 'custom/a', max_input_tokens: 16000 }],
@@ -57,7 +55,6 @@ describe('fetchModelSwitchPreflight', () => {
 
     const body = JSON.parse((mockApiRequest.mock.calls[0][1] as { body: string }).body);
     expect(body.compress_start_ratio).toBeNull();
-    expect(body.prompt_mode).toBeNull();
     expect(body.turn_count).toBeNull();
     expect(body.chat_id).toBeNull();
   });
@@ -65,10 +62,10 @@ describe('fetchModelSwitchPreflight', () => {
   it('isolates cache across chat sessions', async () => {
     mockApiRequest.mockResolvedValue({ results: [] });
 
-    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, null, null, 'chat-1');
+    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, null, 'chat-1');
     mockApiRequest.mockReset();
     mockApiRequest.mockResolvedValue({ results: [] });
-    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, null, null, 'chat-2');
+    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, null, 'chat-2');
 
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
   });
@@ -128,24 +125,13 @@ describe('fetchModelSwitchPreflight', () => {
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
   });
 
-  it('re-fetches when prompt_mode changes', async () => {
-    mockApiRequest.mockResolvedValue({ results: [] });
-
-    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, 'full');
-    mockApiRequest.mockReset();
-    mockApiRequest.mockResolvedValue({ results: [] });
-    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, 'lean');
-
-    expect(mockApiRequest).toHaveBeenCalledTimes(1);
-  });
-
   it('re-fetches when turn_count changes (session turns grow)', async () => {
     mockApiRequest.mockResolvedValue({ results: [] });
 
-    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, null, 3);
+    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, 3);
     mockApiRequest.mockReset();
     mockApiRequest.mockResolvedValue({ results: [] });
-    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, null, 10);
+    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, 10);
 
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
   });

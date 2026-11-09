@@ -41,13 +41,8 @@ class ModelSwitchPreflightRequest(BaseModel):
     estimated_tokens: int = Field(..., gt=0, description="当前会话估算 tokens")
     compress_start_ratio: float | None = Field(
         default=None,
-        description="显式压缩起始比例（agent 引擎配置）；缺省按目标模型 tier 推断。"
+        description="显式压缩起始比例（agent 引擎配置）；缺省使用 harness ContextConfig 的默认阈值（窗口的 50%）。"
         "越界值由 harness ContextConfig 内部 clamp 到 [0.20, 0.85]，与运行时口径一致",
-    )
-    prompt_mode: str | None = Field(
-        default=None,
-        description="agent prompt 模式（full/lean/naked/search）。仅 full 或未配置时按模型 tier 推断压缩比例，"
-        "否则回退默认 0.5，与 factory._apply_small_model_tuning 的触发条件保持一致",
     )
     turn_count: int | None = Field(
         default=None,
@@ -96,9 +91,7 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
 
     计算切换到目标模型后是否会在下一条消息立即触发上下文压缩。
     复用 harness ContextConfig 的真实压缩阈值公式，避免前端硬编码导致口径漂移。
-    compress_start_ratio 缺省且 agent 为 full prompt 模式时，按目标模型 tier
-    （STRONG/MEDIUM/WEAK）推断，与 factory._apply_small_model_tuning 的压缩起点口径一致；
-    非 full 模式（lean/naked/search）下 _apply_small_model_tuning 不生效，回退默认 0.5。
+    compress_start_ratio 缺省时使用 ContextConfig 的默认阈值（窗口的 50%），与运行时口径一致。
     传入 turn_count 时复用 harness ContextBudget 的动态阈值（长会话按紧张度收紧阈值），
     与 compress_processor 的阈值计算口径一致。已知边界：运行时 eco_mode（预算压力阈值
     ×0.80，compress 实际触发更早）与 hot cache bypass（5 分钟活跃跳过压缩）为瞬态运行时
@@ -124,7 +117,6 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
     from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
         get_compression_streak_store,
     )
-    from myrm_agent_harness.core.config.model_tier import ModelTier, infer_model_tier
 
     ineffective_streak = (
         await asyncio.to_thread(get_compression_streak_store().get_streak, request.chat_id) if request.chat_id else 0
@@ -136,16 +128,7 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
             results.append(ModelSwitchPreflightResult(model=item.model).model_dump())
             continue
 
-        ratio = request.compress_start_ratio
-        if ratio is None and request.prompt_mode in (None, "full"):
-            tier = infer_model_tier(item.model, max_context_tokens=window)
-            if tier == ModelTier.WEAK:
-                ratio = 0.30
-            elif tier == ModelTier.MEDIUM:
-                ratio = 0.50
-            # STRONG -> ratio None -> 默认 0.5 压缩阈值
-
-        cfg = ContextConfig(max_context_tokens=window, compress_start_ratio=ratio)
+        cfg = ContextConfig(max_context_tokens=window, compress_start_ratio=request.compress_start_ratio)
         threshold = cfg.compress_threshold
         if request.turn_count is not None:
             budget = ContextBudget(

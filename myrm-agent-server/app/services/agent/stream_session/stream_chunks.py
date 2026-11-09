@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncGenerator
-from typing import cast
 
 from myrm_agent_harness.toolkits.llms.fallback import with_failover_emitter
 
@@ -67,12 +66,6 @@ async def generate_cancellable_stream(
     approval = ApprovalTimeoutHolder()
     clarification = ClarificationTimeoutHolder()
 
-    from myrm_agent_harness.core.config import ModelTier, infer_model_tier
-
-    _custom_def = getattr(session.params.model_cfg, "custom_model_def", None)
-    _max_ctx = getattr(session.params.model_cfg, "max_context_tokens", None)
-    _model_tier = infer_model_tier(session.params.model_cfg.model, _custom_def, _max_ctx)
-
     if session.routing_tier or session.routing_specialty:
         routing_data: dict[str, object] = {}
         if session.routing_tier:
@@ -81,8 +74,6 @@ async def generate_cancellable_stream(
             routing_data["specialty"] = session.routing_specialty
         if session.routing_reason:
             routing_data["reason"] = session.routing_reason
-        if _model_tier != ModelTier.STRONG:
-            routing_data["model_tier"] = _model_tier.value
 
         routing_event_data: dict[str, object] = {
             "type": "routing_decision",
@@ -91,14 +82,6 @@ async def generate_cancellable_stream(
         }
         session.collector.feed_event(routing_event_data)
         yield SSEEnvelope.from_any(routing_event_data).to_sse_chunk()
-    elif _model_tier != ModelTier.STRONG:
-        model_tier_event: dict[str, object] = {
-            "type": "routing_decision",
-            "messageId": session.params.message_id or "",
-            "data": cast(dict[str, object], {"model_tier": _model_tier.value}),
-        }
-        session.collector.feed_event(model_tier_event)
-        yield SSEEnvelope.from_any(model_tier_event).to_sse_chunk()
 
     if session.context_warnings:
         for warning_msg in session.context_warnings:

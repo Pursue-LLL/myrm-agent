@@ -28,7 +28,6 @@ from app.ai_agents.general_agent.factory.prompt import build_system_prompt
 from app.ai_agents.general_agent.factory.runtime import build_sandbox_runtime, load_channel_notify_tool
 from app.ai_agents.general_agent.factory.skills import load_skill_runtime
 from app.ai_agents.general_agent.factory.support import (
-    _apply_small_model_tuning,
     _build_session_cleanup_callback,
     _build_skill_review_callback,
     _setup_kanban_tools,
@@ -186,9 +185,6 @@ async def build_general_agent(
 
     checkpointer = get_checkpointer()
     logger.info(f"使用 checkpointer: {type(checkpointer).__name__}")
-
-    # 7.5 Auto-tune for small models (zero-config compatibility mode)
-    _apply_small_model_tuning(agent_wrapper)
 
     # 8. System prompt
     system_prompt = build_system_prompt(
