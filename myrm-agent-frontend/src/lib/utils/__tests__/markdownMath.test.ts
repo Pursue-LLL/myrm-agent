@@ -5,16 +5,21 @@ import remarkRehype from 'remark-rehype';
 import { unified } from 'unified';
 import { visit } from 'unist-util-visit';
 import { describe, expect, it } from 'vitest';
-import { mathPlugins, normalizeMathDelimiters } from '../markdownMath';
+import { chatMathPlugins, mathPlugins, normalizeMathDelimiters } from '../markdownMath';
 
 const parser = unified().use(remarkParse).use(remarkGfm).use(mathPlugins.remark);
-const renderer = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(mathPlugins.remark)
-  .use(remarkRehype)
-  .use(mathPlugins.rehype)
-  .use(rehypeStringify);
+
+function rendererFor(preset: typeof mathPlugins) {
+  return unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(preset.remark)
+    .use(remarkRehype)
+    .use(preset.rehype)
+    .use(rehypeStringify);
+}
+const renderer = rendererFor(mathPlugins);
+const chatRenderer = rendererFor(chatMathPlugins);
 
 /** Everything the parser makes of a text after the pre-pass: formula sources, and the literal text left over. */
 function parse(markdown: string): { formulas: string[]; text: string } {
@@ -32,6 +37,7 @@ function parse(markdown: string): { formulas: string[]; text: string } {
 }
 
 const render = (markdown: string): string => String(renderer.processSync(normalizeMathDelimiters(markdown)));
+const renderChat = (markdown: string): string => String(chatRenderer.processSync(normalizeMathDelimiters(markdown)));
 
 describe('normalizeMathDelimiters', () => {
   describe('LaTeX delimiters', () => {
@@ -292,5 +298,30 @@ describe('math rendering', () => {
 
   it('degrades invalid TeX to KaTeX error markup instead of throwing', () => {
     expect(render('broken $\\frac{1}{$ here')).toContain('katex-error');
+  });
+});
+
+describe('KaTeX options per preset', () => {
+  it('keeps commands that link or load a resource switched off outside the chat', () => {
+    const html = render('$\\href{https://example.com}{x}$ and $\\includegraphics{https://example.com/a.png}$');
+    expect(html).toContain('class="katex"');
+    expect(html).not.toContain('<a ');
+    expect(html).not.toContain('<img');
+  });
+
+  it('lets chat messages use them', () => {
+    expect(renderChat('$\\href{https://example.com}{x}$')).toContain('href="https://example.com"');
+  });
+
+  it('gives chat messages html-only output and the other surfaces MathML next to it', () => {
+    expect(renderChat('$x$')).not.toContain('katex-mathml');
+    expect(render('$x$')).toContain('katex-mathml');
+  });
+
+  it('runs the same parser policy and percent escape in both', () => {
+    for (const run of [render, renderChat]) {
+      expect(run('Costs $5 and $10 and $$50% \\text{done}$$')).not.toContain('katex-error');
+      expect(run('Costs $5 and $10')).not.toContain('class="katex"');
+    }
   });
 });

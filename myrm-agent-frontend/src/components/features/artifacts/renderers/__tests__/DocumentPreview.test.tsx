@@ -74,3 +74,32 @@ describe('DocumentPreview resolveUrl', () => {
     expect(image.getAttribute('src')).toBe('img/logo.png');
   });
 });
+
+describe('DocumentPreview math', () => {
+  it('renders formulas in any notation and leaves prices as text', async () => {
+    const content = 'Costs $5 and $10.\n\nArea \\(\\pi r^2\\) and $$e^{i\\pi}=-1$$';
+    const { container } = render(<DocumentPreview content={content} filename="notes.md" />);
+
+    await screen.findByText(/Costs/);
+    expect(container.querySelectorAll('.katex')).toHaveLength(2);
+    expect(container.textContent).toContain('Costs $5 and $10.');
+  });
+
+  it('keeps the dollar signs and percent signs inside code as written', async () => {
+    const content = 'Price $5.\n\n```bash\ntrap "rm -f /tmp/lock.$$" EXIT\necho 100%\n```\n\nThen $10.';
+    const { container } = render(<DocumentPreview content={content} filename="notes.md" />);
+
+    await screen.findByTestId('code-block');
+    expect(container.querySelectorAll('.katex')).toHaveLength(0);
+    expect(screen.getByTestId('code-block').textContent).toBe('trap "rm -f /tmp/lock.$$" EXIT\necho 100%');
+  });
+
+  it('does not turn commands that link or load a resource into links or images', async () => {
+    const content = '$\\href{https://example.com}{x}$ and $\\includegraphics{https://example.com/a.png}$';
+    const { container } = render(<DocumentPreview content={content} filename="notes.md" />);
+
+    await screen.findByText(/and/);
+    expect(container.querySelectorAll('.katex')).toHaveLength(2);
+    expect(container.querySelectorAll('a, img')).toHaveLength(0);
+  });
+});

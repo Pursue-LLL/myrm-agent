@@ -33,13 +33,15 @@
 | `__tests__/SessionExportModal.test.tsx` | 测试 | 会话导出模态框测试套件：覆盖 HTML/MD/JSON/ZIP 四模式切换、initialFormat 初始选中、脱敏选项变更、Markdown/JSON/ZIP 下载触发、剪贴板复制通知、空消息保护与导出网络异常 Toast 提示 | ✅ |
 | `__tests__/SessionExportButton.test.tsx` | 测试 | 会话导出按钮测试套件：覆盖点击打开弹窗、全局 `myrm:open-session-export` 事件监听、Slash 参数解析与 format 别名透传校验 | ✅ |
 | `ChatCronLink.tsx` | 组件 | 会话内关联定时任务 Badge（计数 → `/settings/cron?chat_id=`） | ✅ |
-| `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + 锚点胶囊展示 + archive 归档抽屉 + 快照书签 list/fork（`forkContextBranch` + `router.push` 导航新会话，对齐 ForkDialog） | ✅ |
+| `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + 锚点胶囊展示 + archive 归档抽屉 + 快照书签 list/fork（`forkContextBranch` + `router.push` 导航新会话，对齐 ForkDialog）；摘要正文的公式经 `@/lib/utils/markdownMath` 渲染 | ✅ |
 | `CompactionAnchorStrip.tsx` | 组件 | 确定性机器符号锚点晶透微流光胶囊条：展示 Commit SHA、文件路径、代码符号、API 端点与关键报错，支持一键复制与折叠展开 | ✅ |
-| `CompactedArchiveModal.tsx` | 组件 | 上下文压缩历史归档消息全屏弹窗模态框：纯展示与安全降级、时间线格式化、代码与公式渲染 | ✅ |
+| `CompactedArchiveModal.tsx` | 组件 | 上下文压缩历史归档消息全屏弹窗模态框：纯展示与安全降级、时间线格式化、代码渲染，公式经 `@/lib/utils/markdownMath` 渲染 | ✅ |
 | `CompactedBookmarksList.tsx` | 组件 | 上下文压缩快照书签轻量列表与快速 Fork 派生控件：状态机感知（loading/error/empty/ready）、一键导航与事件代理 | ✅ |
 | `parseExactAnchors.ts` | 辅助 | 上下文压缩摘要机器符号精确解析纯函数：双模式安全提取（JSON 元数据块 / Markdown 符号段落）、智能剔除多余正文防止双重渲染、强类型 0 Any | ✅ |
 | `__tests__/CompactionAnchorStrip.test.tsx` | 测试 | 锚点胶囊条单元测试：空状态保护、符号汇总计数、折叠/展开交互、剪贴板复制及回调触发、翻译键与插值参数、复制按钮无障碍名称、折叠预览剩余计数覆盖 | ✅ |
 | `__tests__/parseExactAnchors.test.ts` | 测试 | 机器符号解析器单元测试：空文本容错、metaAnchors 优先契约、Markdown 区块提取与正文剥离、JSON 注释提取覆盖 | ✅ |
+| `__tests__/CompactedArchiveModal.test.tsx` | 测试 | 归档弹窗公式测试：`$…$`、`$$…$$`、`\(…\)` 都渲染成公式而价格句保持原文，`\href` / `\includegraphics` 不产生链接或图片 | ✅ |
+| `__tests__/CompactedSummaryView.math.test.tsx` | 测试 | 压缩摘要公式测试（状态 hook 与子卡片桩化）：同归档弹窗的两条 | ✅ |
 | `LoopStatusBar.tsx` | 组件 | 会话级循环调度悬浮胶囊：响应式双主题、自适应倒计时动效、运行轮次与退避步长指示、`--until` 停止目标徽章呈现、一键停止控制 | ✅ |
 | `__tests__/LoopStatusBar.test.tsx` | 测试 | 循环状态胶囊单元测试：隐藏/显示控制、倒计时格式化、停止请求与无缝响应、`--until` 停止目标徽章呈现、暂停态隐藏倒计时与不限轮次计数、翻译键与插值参数覆盖 | ✅ |
 | `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅：扫描中与无数据时不渲染（无占位闪烁），仅发现数据后出现；操作按钮行允许换行，窄屏上较长的按钮文案不会越出屏幕边缘；单源时深链 `?sub=migration&source=`；关闭后按设备静默 7 天（`useProactiveDismissal`，key `migration-discovery`），静默期内连磁盘扫描都不做，到期后再次提示；与更新提醒横幅共用首屏单槽（`useNoticeSlot`）：另一张提示卡已在屏上时先等待，不叠在它上方、不把整页顶下去 | ✅ |
