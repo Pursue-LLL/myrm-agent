@@ -1,14 +1,10 @@
 """Comprehensive unit test suite for Item 11: Sparse Semantic Mask Minimal Overwrite Mutation Engine.
 
 Tests slot parsing, sparse diff action masking, informed retention, in-place synthesis,
-and integration with conflict merger and memory manager.
+and integration with the mergers.
 """
 
 from __future__ import annotations
-
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
 
 from myrm_agent_harness.toolkits.memory.strategies.conflict_merger import (
     MergeAction,
@@ -197,53 +193,6 @@ cache: memcached""",
     assert "db: postgres" in res.value
     assert res.mutation_summary is not None
     assert "1 overwritten" in res.mutation_summary
-
-
-@pytest.mark.asyncio
-async def test_mutations_mixin_sparse_mutate_memory() -> None:
-    from myrm_agent_harness.toolkits.memory._manager.mutations import (
-        MemoryManagerMutationsMixin,
-    )
-
-    class DummyManager(MemoryManagerMutationsMixin):
-        def __init__(self, memory: SemanticMemory) -> None:
-            self._mem = memory
-            self._config = MagicMock()
-            self._cache = None
-            self._vector = MagicMock()
-            self._embedding = MagicMock()
-
-        async def get_memory(self, memory_id: str) -> SemanticMemory:
-            return self._mem
-
-    initial_mem = SemanticMemory(
-        id="mem_profile_01",
-        user_id="user_123",
-        content="""color: blue
-font: fira-code
-editor: neovim""",
-        confidence=0.92,
-    )
-    mgr = DummyManager(initial_mem)
-
-    # Patch vector memory update
-    import myrm_agent_harness.toolkits.memory._manager.mutations as mut_mod
-
-    original_update = mut_mod.update_vector_memory
-    mut_mod.update_vector_memory = AsyncMock()  # type: ignore[attr-defined]
-
-    try:
-        updated = await mgr.sparse_mutate_memory(
-            memory_id="mem_profile_01",
-            patch_content="color: dark-ocean",
-        )
-        assert "color: dark-ocean" in updated.content
-        assert "font: fira-code" in updated.content
-        assert "editor: neovim" in updated.content
-        assert updated.metadata.get("sparse_overwritten_count") == 1
-        assert updated.metadata.get("sparse_retained_count") == 2
-    finally:
-        mut_mod.update_vector_memory = original_update  # type: ignore[attr-defined]
 
 
 def test_sparse_mutation_composite_semicolon_clause_overwrite() -> None:

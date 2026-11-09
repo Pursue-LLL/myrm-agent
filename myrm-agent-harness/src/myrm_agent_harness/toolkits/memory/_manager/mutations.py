@@ -229,48 +229,6 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
         await self._sync_exact_fact_index(demoted, "delete")
         return stored
 
-    async def sparse_mutate_memory(
-        self,
-        memory_id: str,
-        patch_content: str,
-        *,
-        allow_protected: bool = False,
-    ) -> SemanticMemory:
-        """In-place minimal-overwrite mutation of a compound semantic memory.
-
-        Applies SparseSemanticMask to update targeted slots while retaining
-        all unmentioned contextual slots, preventing catastrophic amnesia.
-        """
-        existing = await self.get_memory(memory_id)
-        if existing is None:
-            raise MemoryNotFoundError(f"Memory {memory_id} not found")
-        if not isinstance(existing, SemanticMemory):
-            raise MemoryError(f"Sparse mutation only supports SemanticMemory, got {type(existing).__name__}")
-        if not allow_protected and existing.is_user_protected:
-            raise MemoryProtectedError(
-                f"Memory {memory_id} is protected by the user; automated mutations are not allowed"
-            )
-
-        mutation_res = apply_sparse_mutation(existing.content, patch_content)
-        if not mutation_res.is_mutated:
-            return existing
-
-        updated = existing.model_copy(deep=True)
-        updated.content = mutation_res.mutated_text
-        updated.updated_at = datetime.now(UTC)
-        updated.metadata = {
-            **updated.metadata,
-            "last_sparse_mutation": mutation_res.summary,
-            "sparse_retained_count": mutation_res.retained_count,
-            "sparse_overwritten_count": mutation_res.overwritten_count,
-            "sparse_appended_count": mutation_res.appended_count,
-            "sparse_removed_count": mutation_res.removed_count,
-        }
-        if self._vector is None:
-            raise MemoryError("Vector backend required")
-        await update_vector_memory(updated, True, self._vector, self._config, self._embedding, self._cache)
-        return updated
-
     async def pin_memory(self, memory_id: str) -> AnyMemory:
         """Mark a memory as user-pinned (immune to forgetting)."""
         return await self._set_pinned(memory_id, pinned=True)

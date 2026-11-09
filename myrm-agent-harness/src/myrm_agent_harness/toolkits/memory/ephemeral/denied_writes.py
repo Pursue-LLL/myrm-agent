@@ -256,8 +256,3 @@ class DeniedMemoryWrites:
 
     async def set_system_profile_attribute(self, key: str, value: str) -> None:
         self._deny()
-
-    async def sparse_mutate_memory(
-        self, memory_id: str, patch_content: str, *, allow_protected: bool = False
-    ) -> SemanticMemory:
-        self._deny()

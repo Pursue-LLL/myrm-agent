@@ -1,14 +1,13 @@
-"""Mutation mixin paths: sparse mutation, archive side effects, exact-fact bookkeeping and write guards."""
+"""Mutation mixin paths: structured correction, archive side effects, exact-fact bookkeeping and write guards."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError, MemoryNotFoundError, MemoryProtectedError
+from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import (
     ConversationMemory,
-    EpisodicMemory,
     MemoryStatus,
     ProceduralMemory,
     SemanticMemory,
@@ -39,52 +38,6 @@ def persisted():
 
 def _serve(manager: MemoryManager, memory) -> None:
     manager.get_memory = AsyncMock(return_value=memory)
-
-
-class TestSparseMutate:
-    @pytest.mark.asyncio
-    async def test_missing_memory_is_reported(self, manager):
-        _serve(manager, None)
-
-        with pytest.raises(MemoryNotFoundError):
-            await manager.sparse_mutate_memory("mem-x", "city: Paris")
-
-    @pytest.mark.asyncio
-    async def test_only_semantic_memories_can_be_mutated(self, manager):
-        _serve(manager, EpisodicMemory(id="mem-e", content="event"))
-
-        with pytest.raises(MemoryError, match="only supports SemanticMemory"):
-            await manager.sparse_mutate_memory("mem-e", "city: Paris")
-
-    @pytest.mark.asyncio
-    async def test_protected_memory_refuses_automated_mutation(self, manager, persisted):
-        _serve(manager, SemanticMemory(id="mem-p", content=_STRUCTURED, pinned=True))
-
-        with pytest.raises(MemoryProtectedError):
-            await manager.sparse_mutate_memory("mem-p", "city: Paris")
-
-        persisted.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_unstructured_prose_is_left_untouched(self, manager, persisted):
-        existing = SemanticMemory(id="mem-u", content="Likes tea")
-        _serve(manager, existing)
-
-        result = await manager.sparse_mutate_memory("mem-u", "Likes coffee")
-
-        assert result is existing
-        persisted.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_structured_patch_overwrites_one_slot_and_keeps_the_rest(self, manager, persisted):
-        _serve(manager, SemanticMemory(id="mem-s", content=_STRUCTURED))
-
-        result = await manager.sparse_mutate_memory("mem-s", "city: Paris")
-
-        assert result.content == "name: Alice\ncity: Paris"
-        assert result.metadata["sparse_retained_count"] == 1
-        assert result.metadata["sparse_overwritten_count"] == 1
-        assert persisted.await_args.args[1] is True
 
 
 class TestCorrectionKeepsStructure:
