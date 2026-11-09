@@ -2,13 +2,16 @@
 
 Multi-layer detection with quote-aware preprocessing:
 
-Layer 1 (raw string, always checked):
+Layer 1 (raw string, always checked; ``analyze_hidden_characters``):
   Binary injection (embedded newlines, null bytes) and invisible Unicode
-  obfuscation (12 categories). Never legitimate in LLM-generated commands.
+  obfuscation (12 categories). Never legitimate in LLM-generated commands, in a
+  shell line or in Python source.
 
-Layer 1.5 (raw string, BLOCK):
+Layer 1.5 (raw string, BLOCK, shell text only):
   ANSI-C quoting ($'...') and locale quoting ($"...") that can hide arbitrary
-  commands via escape sequences (hex, unicode, octal). Always obfuscation.
+  commands via escape sequences (hex, unicode, octal). Always obfuscation in a
+  command line a shell reads; in Python source ``$'`` is a regex end anchor next
+  to a quote, so callers that know the text is Python skip this layer.
 
 Layer 2 (quote-stripped, BLOCK):
   Injection vectors ($(), backticks, ${}, etc.), dangerous commands
@@ -46,6 +49,7 @@ Consumers:
 [OUTPUT]
 - ThreatLevel: Severity level of a detected command threat.
 - CommandThreat: A single security threat detected in a shell command.
+- analyze_hidden_characters: Layer 1 alone (control and invisible characters), valid for shell and Python text.
 - analyze_command: Analyze a shell command for security threats.
 - has_block_threat: Quick check: return the first BLOCK-level threat, or None...
 - has_escalate_threat: Quick check: return the first ESCALATE-level threat, or N...
@@ -177,6 +181,24 @@ def is_destructive_command(command: str) -> bool:
     return any(re.search(pattern, normalized, re.IGNORECASE) for pattern in destructive_patterns)
 
 
+def analyze_hidden_characters(text: str) -> tuple[CommandThreat, ...]:
+    """Layer 1: control and invisible characters that hide what a command or a script does.
+
+    Language-independent, so it also judges Python source the bash tool runs without a shell.
+    """
+    threats = [
+        CommandThreat(ThreatLevel.BLOCK, "binary_injection", desc, repr(char))
+        for char, desc in BINARY_INJECTION
+        if char in text
+    ]
+    threats += [
+        CommandThreat(ThreatLevel.BLOCK, "obfuscation", f"Invisible Unicode character: {desc}", repr(char))
+        for char, desc in INVISIBLE_UNICODE
+        if char in text
+    ]
+    return tuple(threats)
+
+
 def analyze_command(command: str, *, _depth: int = 0) -> tuple[CommandThreat, ...]:
     """Analyze a shell command for security threats.
 
@@ -192,29 +214,7 @@ def analyze_command(command: str, *, _depth: int = 0) -> tuple[CommandThreat, ..
     if not command or not command.strip():
         return ()
 
-    threats: list[CommandThreat] = []
-
-    for char, desc in BINARY_INJECTION:
-        if char in command:
-            threats.append(
-                CommandThreat(
-                    level=ThreatLevel.BLOCK,
-                    category="binary_injection",
-                    detail=desc,
-                    evidence=repr(char),
-                )
-            )
-
-    for char, desc in INVISIBLE_UNICODE:
-        if char in command:
-            threats.append(
-                CommandThreat(
-                    level=ThreatLevel.BLOCK,
-                    category="obfuscation",
-                    detail=f"Invisible Unicode character: {desc}",
-                    evidence=repr(char),
-                )
-            )
+    threats: list[CommandThreat] = list(analyze_hidden_characters(command))
 
     # Layer 1.5: ANSI-C / locale quoting detection (before quote stripping)
     ansi_c_match = ANSI_C_QUOTE_RE.search(command)

@@ -214,8 +214,8 @@ class SSRFResult:
 
 | 层级 | 威胁级别 | 检测内容 |
 |------|---------|---------|
-| Layer 1: 二进制/Unicode | BLOCK | `\r`, `\0`, 12 种不可见 Unicode 字符（零宽空格、方向控制等） |
-| Layer 1.5: 编码绕过 | BLOCK | ANSI-C quoting `$'...'`、locale quoting `$"..."` |
+| Layer 1: 二进制/Unicode | BLOCK | `\r`, `\0`, 12 种不可见 Unicode 字符（零宽空格、方向控制等）；与语言无关，shell 命令和 Python 源码都检（`analyze_hidden_characters`） |
+| Layer 1.5: 编码绕过 | BLOCK | ANSI-C quoting `$'...'`、locale quoting `$"..."`；只检 shell 读取的文本 |
 | Layer 2: 注入/危险命令 | BLOCK | 6 注入向量（`$()`, `` ` ``, `${}`, `;`, `<()`, `>()`）+ 70+ 危险命令模式；向持久 shell 导出代码注入变量（`BASH_ENV`、`LD_PRELOAD`、`GIT_EXTERNAL_DIFF` 等，读 shell 词，引号不能掩盖变量名） |
 | Layer 2.5: SQL 语句守卫 | ESCALATE | 数据库客户端命令（`psql`/`mysql`/`sqlite3`/`sqlcmd`/`mongosh`）中的破坏性 SQL；作用于引号剥离前的原始命令，以捕获单引号内的 SQL（`sql_statement_guard.py`） |
 | Layer 3: 可疑模式 | ESCALATE | `curl \| sh`, `eval`, `base64 -d`, `kill`/`pkill`/`killall` 等 |
@@ -224,6 +224,8 @@ class SSRFResult:
 引号感知：`shell_command_strip._strip_quoted_content()` 字符级状态机将单引号内容替换为占位符，防止 `echo 'rm -rf /'` 误报。双引号内容保留（允许检测 `$()` 命令替换）。`find -exec {} \;` 的转义分号通过 `shell_command_rules.FIND_EXEC_TERMINATOR_RE` 精确豁免。
 
 BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`, `&&`, `||`, `>` 等合法 Shell 操作符。
+
+**Python 源码不经 shell，不查 Layer 1.5**：`bash_code_execute_tool` 也直接接收 Python 源码，由 Python 包装脚本运行，不经过 shell；包装脚本内联的 PEP 578 审计钩子拒绝 `subprocess` / `os.system`，文本没有办法再交给 shell。对这类文本 `check_shell_threats`（`code_interpreter`）只做 Layer 1：`$'` / `$"` 在 Python 里是正则结尾锚点后面跟引号（`re.match(r'^v(\d+)$', s)`），不是 shell 引用。判定用 `code_detector.runs_as_python()`，与执行器同一套（去首尾空白、去一层 Markdown 围栏、`code_detector`）。后台启动（`run_in_background`）始终是 shell，所有无条件类别照旧；自动让出（命中 build/test 白名单）和后台共用的 shell 启动点 `BashExecutor.spawn_background` 再对最终文本按 shell 语义检查一次，所以引擎对 Python 文本的放宽不会让文本绕到 shell 那边。`shell_exec`（往运行中的进程键入）永远按 shell 看。
 
 ### 3.2.2 Safe Exec — 直接执行路径
 

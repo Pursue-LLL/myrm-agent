@@ -8,6 +8,8 @@ All checks are pure functions — no side effects, no I/O, trivially testable.
 - path_security (POS: protected-file, sensitive-file and boundary predicates)
 - types::PathPolicy, PermissionAction (POS: the path zones and the verdict vocabulary)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace-relative path resolution)
+- toolkits.code_execution.code_detector::runs_as_python (POS: whether the bash tool runs a command as Python or as shell)
+- toolkits.code_execution.security.shell_command_analyzer::analyze_command, analyze_hidden_characters (POS: threat layers)
 
 [OUTPUT]
 - check_path_policy: the verdict for one host path; an ASK reason is a CodedReason
@@ -215,10 +217,11 @@ _SHELL_EXEC_PERMISSION = "shell_exec"
 # process, ``code_interpreter`` runs the line the bash tool was given; the analyzer must see both.
 _COMMAND_LINE_PERMISSIONS = frozenset({_SHELL_EXEC_PERMISSION, "code_interpreter"})
 # Categories whose evidence is unambiguous: bytes and quoting a command line never legitimately carries, and
-# a form that exists only to hide what runs. They are BLOCK-level and hold for every command-line permission,
-# which closes the gap where the primary shell tool ran with no analyzer at all. The remaining categories
-# stay scoped to ``shell_exec`` because their patterns also match ordinary agent work (``python -c``,
-# ``node -e``, ``sudo``, ``;`` chaining, shell loops), which the approval layer must not refuse outright.
+# a form that exists only to hide what runs. They are BLOCK-level and hold for every command-line permission
+# (for Python source only the bytes apply, see ``check_shell_threats``), which closes the gap where the primary
+# shell tool ran with no analyzer at all. The remaining categories stay scoped to ``shell_exec`` because their
+# patterns also match ordinary agent work (``python -c``, ``node -e``, ``sudo``, ``;`` chaining, shell loops),
+# which the approval layer must not refuse outright.
 _UNCONDITIONAL_BLOCK_CATEGORIES = frozenset({"binary_injection", "obfuscation"})
 
 
@@ -230,25 +233,38 @@ def check_shell_threats(permission: str, tool_input: dict[str, object]) -> tuple
 
     ``shell_exec`` sees every category. A command-line permission that is not ``shell_exec``
     (``code_interpreter``, the bash tool) sees only the unconditional block categories, so an ordinary
-    ``python -c`` or ``node -e`` keeps reaching the ruleset and the read-only classifier.
+    ``python -c`` or ``node -e`` keeps reaching the ruleset and the read-only classifier. Python source the bash
+    tool runs in its wrapper is judged for hidden characters only (see below).
     """
     if permission not in _COMMAND_LINE_PERMISSIONS:
         return None, ""
 
+    from myrm_agent_harness.toolkits.code_execution.code_detector import runs_as_python
     from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
         ThreatLevel,
         analyze_command,
+        analyze_hidden_characters,
     )
 
     command = str(tool_input.get("command", "") or tool_input.get("code", "") or tool_input.get("data", "")).strip()
     if not command:
         return None, ""
 
-    threats = [
-        threat
-        for threat in analyze_command(command)
-        if permission == _SHELL_EXEC_PERMISSION or threat.category in _UNCONDITIONAL_BLOCK_CATEGORIES
-    ]
+    # The bash tool also takes Python source, which its wrapper runs without a shell. There ``$'`` and ``$"`` are
+    # a regex end anchor beside a string quote (``re.match(r'^v\d+$', s)``), not shell quoting, and the wrapper's
+    # audit hook refuses the subprocess calls through which the text could reach a shell, so only the
+    # language-independent hidden-character layer applies. A background spawn is always a shell and keeps every
+    # unconditional category.
+    if permission != _SHELL_EXEC_PERMISSION and runs_as_python(
+        command, run_in_background=bool(tool_input.get("run_in_background"))
+    ):
+        threats = analyze_hidden_characters(command)
+    else:
+        threats = tuple(
+            threat
+            for threat in analyze_command(command)
+            if permission == _SHELL_EXEC_PERMISSION or threat.category in _UNCONDITIONAL_BLOCK_CATEGORIES
+        )
     if not threats:
         return None, ""
 
