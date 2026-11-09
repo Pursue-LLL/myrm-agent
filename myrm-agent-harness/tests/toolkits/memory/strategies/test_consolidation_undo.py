@@ -10,19 +10,9 @@ from __future__ import annotations
 import pytest
 
 from myrm_agent_harness.toolkits.memory._internal.maintenance import run_forgetting
-from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import write_bookkeeping
-from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
-    ConsolidationOp,
-    ConsolidationResponse,
-    ConsolidationStats,
-    CorrectOp,
-    MergeOp,
-    UpdateContentOp,
-    run_consolidation,
-)
-from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import UndoJournal
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import UndoJournal, UpdateContentOp
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import (
     _UNDO_KEY,
     CycleWrites,
@@ -35,40 +25,9 @@ from myrm_agent_harness.toolkits.memory.strategies.merger import (
     MergeDecision,
     MergeState,
 )
-from myrm_agent_harness.toolkits.memory.types import AnyMemory, MemoryStatus, SemanticMemory
-from tests.support.consolidation_seeds import NewManager, llm_returning, seed, semantic
-
-# A test runs several cycles back to back, so the soft lock that spaces real runs apart is off.
-CONFIG = ConsolidationConfig(soft_lock_hours=0.0)
-TEA = "User drinks green tea every morning"
-TEA_TOO = "User likes green tea early in the day"
-
-
-async def run_cycle(
-    manager: MemoryManager, *ops: ConsolidationOp, insights: tuple[str, ...] = ()
-) -> ConsolidationStats:
-    response = ConsolidationResponse(operations=list(ops), insights=list(insights))
-    return await run_consolidation(manager, llm_returning(response), CONFIG)
-
-
-def merge(first: SemanticMemory, second: SemanticMemory, text: str) -> MergeOp:
-    return MergeOp(source_ids=[first.id[:8], second.id[:8]], merged_content=text)
-
-
-def correct(memory: SemanticMemory, text: str) -> CorrectOp:
-    return CorrectOp(memory_id=memory.id[:8], corrected_content=text, accuracy_score=0.95)
-
-
-def rewrite(memory: SemanticMemory, text: str, importance: float) -> UpdateContentOp:
-    return UpdateContentOp(memory_id=memory.id[:8], new_content=text, importance=importance)
-
-
-async def undo(manager: MemoryManager) -> UndoResult:
-    summary = await get_undo_summary(manager)
-    assert summary is not None
-    result = await undo_last_consolidation(manager, summary.cycle_id)
-    assert result is not None
-    return result
+from myrm_agent_harness.toolkits.memory.types import MemoryStatus, SemanticMemory
+from tests.support.consolidation_cycles import TEA, TEA_TOO, correct, merge, rewrite, run_cycle, store_fresh, undo
+from tests.support.consolidation_seeds import NewManager, seed, semantic
 
 
 async def snapshot(manager: MemoryManager, memory: SemanticMemory) -> tuple[object, ...]:
@@ -76,11 +35,6 @@ async def snapshot(manager: MemoryManager, memory: SemanticMemory) -> tuple[obje
     current = await manager.get_memory(memory.id)
     assert isinstance(current, SemanticMemory)
     return (current.content, current.importance, current.confidence, current.status, current.metadata)
-
-
-async def store_fresh(manager: MemoryManager, *texts: str) -> list[AnyMemory]:
-    """Memories that reach the store after a finished cycle, so the next cycle has something to analyze."""
-    return [await manager.store(SemanticMemory(content=text), _bypass_approval=True) for text in texts]
 
 
 async def test_undoing_a_merge_deletes_the_merged_memory_and_restores_each_source_exactly(

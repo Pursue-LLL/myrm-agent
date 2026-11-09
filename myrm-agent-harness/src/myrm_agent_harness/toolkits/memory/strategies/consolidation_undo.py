@@ -258,7 +258,8 @@ async def _restore(manager: MemoryManager, memory: AnyMemory, pre: PreImage) -> 
 async def undo_last_consolidation(manager: MemoryManager, cycle_id: str) -> UndoResult | None:
     """Undo the saved cycle when it is ``cycle_id``; ``None`` when that cycle is no longer the saved one.
 
-    The slot is consumed whatever the outcome, so one click is never replayed over memories it already restored.
+    The slot is consumed whatever the outcome, so one click is never replayed over memories it already restored; a newer
+    cycle that saved its own journal while this undo ran keeps the slot.
     """
     record = await _load_undo(manager)
     if record is None or record.cycle_id != cycle_id:
@@ -286,7 +287,9 @@ async def undo_last_consolidation(manager: MemoryManager, cycle_id: str) -> Undo
             result.errors += 1
         else:
             result.rolled_back += 1
-    await delete_bookkeeping(manager, _UNDO_KEY)
+    current = await _load_undo(manager)
+    if current is not None and current.cycle_id == record.cycle_id:
+        await delete_bookkeeping(manager, _UNDO_KEY)
     return result
 
 
