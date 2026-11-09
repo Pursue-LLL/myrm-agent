@@ -1,7 +1,7 @@
 """Skill sync integration tests.
 
 Unit tests: test_quality_gate.py, test_sync_manifest.py, test_sync_manager.py.
-This module covers LocalFSSyncBackend, SkillSyncManager, idle integration, and sync DTOs.
+This module covers SkillSyncManager, idle integration, and sync DTOs.
 """
 
 from __future__ import annotations
@@ -79,105 +79,6 @@ class TestSyncTypes:
         assert s.enabled is False
         s.enabled = True
         assert s.enabled is True
-
-
-# ──────────────────────────────────────────────
-#  LocalFSSyncBackend
-# ──────────────────────────────────────────────
-
-
-class TestLocalFSSyncBackend:
-    """LocalFSSyncBackend 本地文件同步测试."""
-
-    @pytest.fixture
-    def mock_storage(self) -> AsyncMock:
-        storage = AsyncMock()
-        storage._manifest: dict[str, Any] = {}
-        storage._files: dict[str, bytes] = {}
-
-        async def write(key: str, content: bytes, content_type: str | None = None) -> None:
-            storage._files[key] = content
-
-        async def read(key: str) -> bytes:
-            if key not in storage._files:
-                raise FileNotFoundError(key)
-            return storage._files[key]
-
-        async def write_text(key: str, content: str, encoding: str = "utf-8", content_type: str | None = None) -> None:
-            storage._files[key] = content.encode(encoding)
-
-        async def read_text(key: str, encoding: str = "utf-8") -> str:
-            if key not in storage._files:
-                raise FileNotFoundError(key)
-            return storage._files[key].decode(encoding)
-
-        storage.write = AsyncMock(side_effect=write)
-        storage.read = AsyncMock(side_effect=read)
-        storage.write_text = AsyncMock(side_effect=write_text)
-        storage.read_text = AsyncMock(side_effect=read_text)
-        return storage
-
-    @pytest.fixture
-    def backend(self, mock_storage: AsyncMock, tmp_path: Path) -> Any:
-        from myrm_agent_harness.agent.skills.sync.local_sync import LocalFSSyncBackend
-
-        return LocalFSSyncBackend(storage=mock_storage, local_skills_path=tmp_path / "skills")
-
-    @pytest.mark.asyncio
-    async def test_push_single_skill(self, backend: Any, mock_storage: AsyncMock) -> None:
-        result = await backend.push_skills({"skill_a": b"zipdata"})
-        assert result.success is True
-        assert result.pushed_count == 1
-        assert "shared_skills/skill_a.zip" in mock_storage._files
-        assert mock_storage.write_text.called
-
-    @pytest.mark.asyncio
-    async def test_push_multiple_skills(self, backend: Any, mock_storage: AsyncMock) -> None:
-        bundles = {f"sk_{i}": f"zip_{i}".encode() for i in range(5)}
-        result = await backend.push_skills(bundles)
-        assert result.success is True
-        assert result.pushed_count == 5
-
-    @pytest.mark.asyncio
-    async def test_list_remote_empty(self, backend: Any) -> None:
-        entries = await backend.list_remote()
-        assert entries == []
-
-    @pytest.mark.asyncio
-    async def test_list_remote_after_push(self, backend: Any) -> None:
-        await backend.push_skills({"sk_a": b"zip_a"})
-        entries = await backend.list_remote()
-        assert len(entries) == 1
-        assert entries[0].name == "sk_a"
-
-    @pytest.mark.asyncio
-    async def test_list_remote_with_prefix_filter(self, backend: Any) -> None:
-        await backend.push_skills({"data/etl": b"z1", "infra/monitor": b"z2"})
-        entries = await backend.list_remote(prefix="data/")
-        assert len(entries) == 1
-        assert entries[0].name == "data/etl"
-
-    @pytest.mark.asyncio
-    async def test_resolve_conflict_remote_wins(self, backend: Any) -> None:
-        cr = await backend.resolve_conflict("sk", "local_sha", "remote_sha", ConflictStrategy.REMOTE_WINS)
-        assert cr.winner_sha256 == "remote_sha"
-        assert cr.strategy_used == ConflictStrategy.REMOTE_WINS
-
-    @pytest.mark.asyncio
-    async def test_resolve_conflict_local_wins(self, backend: Any) -> None:
-        cr = await backend.resolve_conflict("sk", "local_sha", "remote_sha", ConflictStrategy.LOCAL_WINS)
-        assert cr.winner_sha256 == "local_sha"
-
-    @pytest.mark.asyncio
-    async def test_resolve_conflict_skip(self, backend: Any) -> None:
-        cr = await backend.resolve_conflict("sk", "local_sha", "remote_sha", ConflictStrategy.SKIP)
-        assert cr.strategy_used == ConflictStrategy.SKIP
-
-    @pytest.mark.asyncio
-    async def test_pull_from_empty_repo(self, backend: Any) -> None:
-        result = await backend.pull_skills()
-        assert result.success is True
-        assert result.new_count == 0
 
 
 # ──────────────────────────────────────────────
@@ -367,49 +268,6 @@ class TestIdleIntegration:
     @pytest.mark.asyncio
     async def test_handle_skips_when_syncing(self) -> None:
         pass
-
-    @pytest.mark.asyncio
-    async def test_pull_skill_blocks_path_escape(self, tmp_path: Path) -> None:
-        """Verify LocalSync pull blocks prefix-similarity and directory traversal attacks."""
-        from myrm_agent_harness.agent.skills.packaging.unpacker import UnpackResult
-        from myrm_agent_harness.agent.skills.sync.local_sync import LocalFSSyncBackend
-
-        local_skills = tmp_path / "skills"
-        local_skills.mkdir()
-
-        storage = AsyncMock()
-        storage.read = AsyncMock(return_value=b"fake_zip")
-
-        unpacker = MagicMock()
-        # Mock unpacker returning malicious relative paths
-        unpacker.unpack.return_value = UnpackResult(
-            success=True,
-            skill_info=None,
-            files={
-                "SKILL.md": b"# Good Skill",
-                "../skills_evil/malicious.py": b"# exploit",
-                "../../outside.txt": b"# exploit2",
-            },
-        )
-
-        backend = LocalFSSyncBackend(
-            storage=storage,
-            local_skills_path=local_skills,
-        )
-        backend._unpacker = unpacker
-
-        # Mock remote manifest with 1 skill
-        backend._load_remote_manifest = AsyncMock(return_value={"test_skill": {"updated_at": "2026-01-01T00:00:00"}})
-
-        result = await backend.pull_skills()
-        assert result.success is True
-        assert "test_skill" in result.pulled_skills
-
-        # Legitimate skill file is written
-        assert (local_skills / "test_skill" / "SKILL.md").exists()
-        # Malicious paths are blocked and NOT written
-        assert not (tmp_path / "skills_evil").exists()
-        assert not (tmp_path / "outside.txt").exists()
 
     def test_task_type_constant(self) -> None:
         from myrm_agent_harness.agent.skills.sync.idle_integration import SKILL_SYNC_TASK_TYPE

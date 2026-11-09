@@ -9,7 +9,6 @@ Embedding Service Toolkit.
 |------|------|-------------|-------|
 | `__init__.py` | Package | Embedding 模块门面入口：导出 `EmbeddingService` 与工厂方法 | ✅ |
 | base.py | Core | Embedding contract layer. Declares the abstract interface that every embedding backend | ✅ |
-| cache.py | Core | Embedding cache layer. Provides a two-tier caching mechanism (memory + SQLite) that sits | ✅ |
 | cloud_embedding.py | Core | Cloud embedding backend. Translates EmbeddingService into embedding API calls with auto batch splitting (count + chars dual protection), retry, dimension detection, and embed-window preflight. Supports Ollama via api_base. The transport behind `aembed` sends `encoding_format="float"` to every provider except Voyage and Jina, which return float arrays when the field is absent | ✅ |
     | window_policy.py | Core | EmbedWindowPolicy SSOT: model max input tokens, effective chunk budget, EmbedInputTooLargeError, token_counter_for_model（wordpiece 家族 bge/bce/nomic/minilm/e5/gte/paraphrase/jina→estimate、BPE→o200k 统一计数出口） | ✅ |
 | factory.py | Core | Embedding factory. CloudEmbedding only (api_key required). Process-wide singleton | ✅ |
