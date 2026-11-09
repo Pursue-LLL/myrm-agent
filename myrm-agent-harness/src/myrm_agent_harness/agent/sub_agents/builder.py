@@ -39,7 +39,6 @@ from .types import DELEGATION_CAPABILITY_MANIFEST, SubagentConfig, WorkspacePoli
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.base_agent import BaseAgent
-    from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 
 logger = get_agent_logger(__name__)
 
@@ -332,8 +331,8 @@ async def build_child_agent(
         checkpointer=get_subagent_checkpointer(),
         config=AgentRuntimeConfig(
             # Recursion budget is owned by the subagent's max_turns — independent of the
-            # parent's recursion_limit (aligned with build_standalone_agent), so a configured
-            # max_turns is never silently truncated by a lower parent limit.
+            # parent's recursion_limit, so a configured max_turns is never silently
+            # truncated by a lower parent limit.
             recursion_limit=config.max_turns * 2,
             timeout_seconds=(
                 parent_agent.config.engine_params.timeout_seconds
@@ -370,40 +369,4 @@ def _inherit_child_runtime_limits(
         current_depth=current_depth + 1,
         budget_state=budget_state,
         max_children_per_agent=max_children,
-    )
-
-
-def build_standalone_agent(
-    llm: object, config: SubagentConfig, tools: list[BaseTool], task_description: str, executor: object | None = None
-) -> BaseAgent:
-    """Build an independent BaseAgent without a parent agent context.
-
-    Unlike build_child_agent, this does not require a parent BaseAgent.
-    Designed for orchestrators that manage agents directly rather than
-    through the BaseAgent tree.
-    """
-    from langchain_core.language_models import BaseChatModel
-
-    from myrm_agent_harness.agent.base_agent import BaseAgent
-    from myrm_agent_harness.agent.middlewares import create_context_pipeline_middleware
-    from myrm_agent_harness.agent.types import AgentRuntimeConfig
-
-    system_prompt = config.system_prompt
-    if task_description:
-        system_prompt = f"{task_description}\n\n{system_prompt}" if system_prompt else task_description
-
-    if system_prompt:
-        system_prompt += f"\n\n{_HANDOVER_PROTOCOL_PROMPT}"
-
-    llm_instance = cast(BaseChatModel, llm)
-
-    return BaseAgent(
-        llm=llm_instance,
-        executor=cast("CodeExecutor | None", executor),
-        system_prompt=system_prompt,
-        tools=tools,
-        middlewares=[create_context_pipeline_middleware(llm=llm_instance)],
-        config=AgentRuntimeConfig(
-            recursion_limit=config.max_turns * 2, timeout_seconds=config.timeout_seconds, collect_artifacts=False
-        ),
     )
