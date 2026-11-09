@@ -10,8 +10,7 @@ Validates (harness scope — 3 checks):
 3. SystemMessage content hash is immutable across multiple resolutions
    (prompt cache safety).
 
-Business-layer CORE prompt caps (full ≤2000 / lean ≤1200 / lean÷full ≤0.70 on
-``cl100k_base``) live in the server repo:
+Business-layer CORE prompt cap (full ≤2000 on ``cl100k_base``) lives in the server repo:
 ``myrm-agent-server/tests/ai_agents/test_prompt_integrity.py::TestPromptTokenBudgetGate``.
 The assembled static first system message (core prompt + datetime rules + agent core rules + channel hint,
 per surface and locale) and ``<widget_capability>`` are capped in

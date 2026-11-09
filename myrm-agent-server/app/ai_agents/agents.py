@@ -1,7 +1,7 @@
 """Agent统一入口模块
 
 提供:
-- General Agent - 通用自主决策Agent（基于LangGraph），支持 full/lean/naked/search 多种 prompt 模式
+- General Agent - 通用自主决策Agent（基于LangGraph），支持 full/search 两种 prompt 模式
 """
 
 from __future__ import annotations

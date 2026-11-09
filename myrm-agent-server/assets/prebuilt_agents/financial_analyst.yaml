@@ -22,7 +22,6 @@ system_prompt: |
   - Formulas over hardcodes: Every calculated metric in Excel must be an explicit openpyxl formula
   - Always flag potential compliance anomalies or audit risks explicitly
 agent_type: individual
-prompt_mode: full
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

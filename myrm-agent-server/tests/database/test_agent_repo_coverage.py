@@ -224,7 +224,6 @@ class TestUpdateProfileCoreFields:
                     "metadata": {
                         "mcp_ids": ["mcp1"],
                         "home_directory": "/home/agent",
-                        "prompt_mode": "lean",
                         "subagent_ids": ["s1"],
                         "auto_restore_domains": ["example.com"],
                         "suggestion_prompts": ["prompt"],
@@ -236,7 +235,6 @@ class TestUpdateProfileCoreFields:
 
         assert agent.mcp_servers == ["mcp1"]
         assert agent.home_directory == "/home/agent"
-        assert agent.prompt_mode == "lean"
         assert agent.subagent_ids == ["s1"]
         assert agent.auto_restore_domains == ["example.com"]
         assert agent.suggestion_prompts == ["prompt"]

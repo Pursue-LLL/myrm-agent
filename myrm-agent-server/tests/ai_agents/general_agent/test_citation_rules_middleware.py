@@ -195,8 +195,7 @@ class TestCitationRulesMiddleware:
         assert system_msgs[0].content == "sys"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("mode", ["naked", "search"])
-    async def test_skips_injection_in_naked_and_search_mode(self, mode: str) -> None:
+    async def test_skips_injection_in_search_mode(self) -> None:
         mw = CitationRulesMiddleware()
 
         state_messages: list[Any] = [
@@ -213,7 +212,7 @@ class TestCitationRulesMiddleware:
         mock_handler.return_value = AsyncMock()
 
         mock_runtime = AsyncMock()
-        mock_runtime.context = {"prompt_mode": mode}
+        mock_runtime.context = {"prompt_mode": "search"}
 
         request = ModelRequest(
             model=AsyncMock(),
@@ -227,40 +226,6 @@ class TestCitationRulesMiddleware:
         called_request = mock_handler.call_args[0][0]
         assert len(called_request.messages) == 2
         assert not any("[SYSTEM INSTRUCTION]" in str(m.content) for m in called_request.messages)
-
-    @pytest.mark.asyncio
-    async def test_injects_in_lean_mode(self) -> None:
-        mw = CitationRulesMiddleware()
-
-        state_messages: list[Any] = [
-            SystemMessage(content="system"),
-            HumanMessage(content="query"),
-            ToolMessage(
-                content="<<<UNTRUSTED_DATA src\nresult",
-                tool_call_id="c1",
-                name="web_search_tool",
-            ),
-        ]
-
-        mock_handler = AsyncMock()
-        mock_handler.return_value = AsyncMock()
-
-        mock_runtime = AsyncMock()
-        mock_runtime.context = {"prompt_mode": "lean"}
-
-        request = ModelRequest(
-            model=AsyncMock(),
-            messages=[SystemMessage(content="sys"), HumanMessage(content="q")],
-            state={"messages": state_messages},
-            runtime=mock_runtime,
-        )
-
-        await mw.awrap_model_call(request, mock_handler)
-
-        called_request = mock_handler.call_args[0][0]
-        last_msg = called_request.messages[-1]
-        assert isinstance(last_msg, HumanMessage)
-        assert "[SYSTEM INSTRUCTION]" in str(last_msg.content)
 
     @pytest.mark.asyncio
     async def test_injects_in_full_mode(self) -> None:
@@ -313,7 +278,7 @@ class TestCitationRulesMiddleware:
         mock_handler.return_value = AsyncMock()
 
         mock_runtime = AsyncMock()
-        mock_runtime.context = {"prompt_mode": "lean", "prompt_locale": "zh-CN"}
+        mock_runtime.context = {"prompt_mode": "full", "prompt_locale": "zh-CN"}
 
         request = ModelRequest(
             model=AsyncMock(),

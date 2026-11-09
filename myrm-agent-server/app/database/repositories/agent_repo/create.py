@@ -99,7 +99,6 @@ class CreateMixin:
             engine_params=MappingMixin._prepare_engine_params(meta),
             suggestion_prompts=meta.get("suggestion_prompts"),
             openapi_services=meta.get("openapi_services") or None,
-            prompt_mode=str(meta.get("prompt_mode", "full")),
             workspace_policy=str(meta.get("workspace_policy", "INHERIT_REQUESTER")),
             session_policy=meta.get("session_policy"),
             notify_targets=meta.get("notify_targets"),

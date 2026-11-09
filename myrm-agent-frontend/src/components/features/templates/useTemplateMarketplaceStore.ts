@@ -40,7 +40,6 @@ interface TemplateApiResponseItem {
     memory_preset: string;
     deploy_mode: string;
     sandbox_bound_note?: string;
-    prompt_mode: string;
   };
 }
 

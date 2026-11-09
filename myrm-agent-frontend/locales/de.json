@@ -651,20 +651,6 @@
       "description": "Prompts konfigurieren, die auf der leeren Chat-Seite angezeigt werden, um Nutzer schnell über die Fähigkeiten dieses Agenten zu informieren.",
       "placeholder": "Prompt eingeben und Enter drücken zum Hinzufügen"
     },
-    "promptMode": {
-      "title": "Prompt-Modus",
-      "description": "Steuert, wie viel eingebaute Anweisung injiziert wird. Lean reduziert Token-Nutzung; Naked gibt Ihnen volle Kontrolle.",
-      "modes": {
-        "full": "Vollständig",
-        "lean": "Mager",
-        "naked": "Nackt"
-      },
-      "hints": {
-        "full": "Alle eingebauten Regeln aktiv: Formatierung, Zitate, Sicherheit und Aufgabenintegrität.",
-        "lean": "Nur Kernidentität + Sicherheit. Das Modell nutzt seinen natürlichen Formatierungsstil.",
-        "naked": "Nur minimale Sicherheitsregeln. Volle Kontrolle über Ihren System-Prompt."
-      }
-    },
     "systemPrompt": "System-Prompt",
     "systemPromptPlaceholder": "Benutzerdefinierte Anweisungen für Verhalten und Antwortstil des Agenten",
     "mcpServices": "MCP-Dienste",
@@ -10649,7 +10635,6 @@
       "memoryDescription": "Zweischichtiges HUD: Persona-Profil plus Workspace-Notizen mit Kontingentschutz.",
       "deployBoundaryTitle": "Bereitstellungsmodus und Sandbox-Grenze",
       "sandboxNoteDefault": "Isolierte Sandbox-Ausführung: Riskante Systembefehle bleiben im Container-Workspace abgeschirmt.",
-      "promptMode": "Prompt-Modus",
       "preflightReady": "Vorabprüfung bestanden",
       "backToTemplates": "Zurück",
       "creating": "Wird erstellt…",

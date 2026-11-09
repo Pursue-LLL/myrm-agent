@@ -98,8 +98,6 @@ class UpdateMixin:
                 agent.enabled_builtin_tools = persist_enabled_builtin_tools(metadata["enabled_builtin_tools"])
             if "home_directory" in metadata:
                 agent.home_directory = cast(str | None, metadata["home_directory"])
-            if "prompt_mode" in metadata:
-                agent.prompt_mode = cast(str, metadata["prompt_mode"])
             if "security_overrides" in metadata:
                 agent.security_overrides = cast(dict[str, object] | None, metadata["security_overrides"])
             if "default_security_preset" in metadata:

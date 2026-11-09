@@ -31,7 +31,6 @@ system_prompt: |
   - Images: always include alt text, use loading="lazy" for below-fold images
   - Test at 375px, 768px, 1280px, and 1920px viewports
 agent_type: individual
-prompt_mode: full
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

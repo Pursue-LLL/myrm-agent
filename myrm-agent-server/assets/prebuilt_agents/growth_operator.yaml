@@ -21,7 +21,6 @@ system_prompt: |
   - Distinguish between vanity metrics (page views) and core business metrics (activation, revenue, retention)
   - Deliver clean, structured Markdown, formatted spreadsheets, and presentation outlines
 agent_type: individual
-prompt_mode: full
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

@@ -55,6 +55,7 @@ class Agent(Base):
     security_overrides: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     default_security_preset: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
+    # System-managed: "search" for the built-in search agents, "full" for every other agent.
     prompt_mode: Mapped[str] = mapped_column(String(20), default="full", nullable=False)
     suggestion_prompts: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 

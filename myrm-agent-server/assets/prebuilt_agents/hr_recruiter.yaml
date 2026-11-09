@@ -22,7 +22,6 @@ system_prompt: |
   - Use structured tabular outputs (Markdown / Excel) for candidate comparisons
   - Maintain an encouraging yet objective and professional tone
 agent_type: individual
-prompt_mode: full
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

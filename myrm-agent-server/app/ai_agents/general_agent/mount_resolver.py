@@ -51,8 +51,8 @@ def resolve_agent_mount(
     - Browser tools: Only mount in WEB_CHAT channels when profile has enable_browser=True.
     - Computer use: Only mount in WEB_CHAT channels when supported by host deploy mode; the desktop control
       rules in the system prompt are injected exactly when these tools are mounted.
-    - Widget declaration: Only declare HTML widgets where they render (the web chat), and only for the
-      conversational prompt modes; the search surface and naked mode never produce widgets.
+    - Widget declaration: Only declare HTML widgets where they render (the web chat), and never on the
+      search surface, which produces no widgets.
     """
     effective_channel = channel_name or getattr(agent_wrapper, "channel_name", "web_chat") or "web_chat"
     channel_type = resolve_channel_type(effective_channel)
@@ -72,7 +72,7 @@ def resolve_agent_mount(
 
     # 3. Widget capability declaration; IM, cron, voice, kanban and eval channels all resolve to non-web-chat
     prompt_mode = getattr(agent_wrapper, "prompt_mode", "full")
-    mount_widget_capability = is_web_chat and prompt_mode not in ("search", "naked")
+    mount_widget_capability = is_web_chat and prompt_mode != "search"
 
     if not is_web_chat and (enable_browser or enable_computer_use):
         logger.info(

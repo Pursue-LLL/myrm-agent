@@ -651,20 +651,6 @@
       "description": "配置空白聊天页展示的引导提示，帮助用户快速了解该智能体的能力。",
       "placeholder": "输入提示后按 Enter 添加"
     },
-    "promptMode": {
-      "title": "提示词模式",
-      "description": "控制注入多少内置指令。精简模式减少 token 消耗；裸模式将控制权完全交给你。",
-      "modes": {
-        "full": "完整",
-        "lean": "精简",
-        "naked": "裸"
-      },
-      "hints": {
-        "full": "所有内置规则生效：格式化、引用、安全和任务完整性。",
-        "lean": "仅核心身份 + 安全规则。模型使用自身的自然格式风格。",
-        "naked": "仅保留最低安全规则。通过你的系统指令完全控制行为。"
-      }
-    },
     "systemPrompt": "系统指令",
     "systemPromptPlaceholder": "自定义指令，指导智能体的行为和回答风格",
     "mcpServices": "MCP 服务",
@@ -10649,7 +10635,6 @@
       "memoryDescription": "双层 HUD：人设档案 + 带配额保护的工作区笔记。",
       "deployBoundaryTitle": "部署模式与沙箱边界",
       "sandboxNoteDefault": "隔离沙箱执行：高风险系统命令被限制在容器工作区内。",
-      "promptMode": "提示词模式",
       "preflightReady": "预检已通过",
       "backToTemplates": "返回",
       "creating": "创建中…",

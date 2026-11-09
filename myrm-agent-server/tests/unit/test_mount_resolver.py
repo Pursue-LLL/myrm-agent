@@ -62,9 +62,7 @@ def test_resolve_agent_mount_computer_use_host_unsupported() -> None:
     ("channel", "prompt_mode", "expected"),
     [
         ("web_chat", "full", True),
-        ("web_chat", "lean", True),
         ("web_chat", "search", False),
-        ("web_chat", "naked", False),
         *[
             (channel, "full", False)
             for channel in (

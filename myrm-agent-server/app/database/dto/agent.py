@@ -84,7 +84,6 @@ class AgentBase(BaseModel):
         default=[],
         description="该 Agent 运行所需的渠道能力列表（如 media, voice_message）",
     )
-    prompt_mode: PromptModeLiteral = Field(default="full", description="Prompt injection mode: full/lean/naked")
     memory_decay_profile: MemoryDecayProfileLiteral = Field(default="normal", description="Memory forgetting decay speed")
     memory_extraction_preset: MemoryExtractionPresetLiteral = Field(
         default="auto", description="Domain extraction preset for memory precision"
@@ -207,7 +206,6 @@ class AgentUpdate(BaseModel):
         default=[],
         description="该 Agent 运行所需的渠道能力列表（如 media, voice_message）",
     )
-    prompt_mode: PromptModeLiteral | None = Field(default=None, description="Prompt injection mode: full/lean/naked")
     memory_decay_profile: MemoryDecayProfileLiteral | None = Field(default=None, description="Memory forgetting decay speed")
     memory_extraction_preset: MemoryExtractionPresetLiteral | None = Field(
         default=None, description="Domain extraction preset for memory precision"
@@ -327,7 +325,9 @@ class AgentListItem(BaseModel):
     avatar_url: str | None = Field(default=None, description="智能体头像/图标 URL")
     is_built_in: bool = Field(default=False, description="是否为内置 Agent")
     agent_type: AgentTypeLiteral = Field(default="individual", description="Agent type")
-    prompt_mode: str = Field(default="full", description="Prompt mode (full, lean, naked, search)")
+    prompt_mode: PromptModeLiteral = Field(
+        default="full", description="Prompt mode, set by the system: search for the built-in search agents, otherwise full"
+    )
     subagent_ids: list[str] | None = Field(default=None, description="关联子智能体 ID 列表")
     enabled_builtin_tools: list[str] | None = Field(
         default=None,

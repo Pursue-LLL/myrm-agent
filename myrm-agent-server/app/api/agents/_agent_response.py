@@ -158,7 +158,6 @@ def _to_agent_response(
         model_selection=_build_model_selection(agent.model, metadata),
         security_overrides=_meta_dict_or_none(metadata, "security_overrides"),
         default_security_preset=_meta_str(metadata, "default_security_preset"),
-        prompt_mode=metadata.get("prompt_mode", "full") or "full",
         subagent_ids=_meta_str_list(metadata, "subagent_ids", default=[]),
         max_iterations=agent.max_iterations,
         workspace_policy=normalize_workspace_policy(metadata.get("workspace_policy")),

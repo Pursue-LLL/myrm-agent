@@ -24,7 +24,6 @@ system_prompt: |
   - Prioritize business safety and margin integrity.
   - Require explicit operator approval before applying staged proposals to production listings.
 agent_type: individual
-prompt_mode: full
 goal_mode_default: true
 mcp_ids: []
 mcp_tool_selections: {}

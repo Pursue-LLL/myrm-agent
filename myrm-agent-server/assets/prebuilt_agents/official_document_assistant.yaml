@@ -36,7 +36,6 @@ system_prompt: |
   - Always include proper document structure elements
   - If the user asks for academic papers (论文), switch to academic formatting rules
 agent_type: individual
-prompt_mode: full
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

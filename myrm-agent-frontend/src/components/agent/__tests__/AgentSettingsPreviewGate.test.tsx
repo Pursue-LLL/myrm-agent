@@ -26,7 +26,6 @@ describe('AgentSettingsPreviewGate', () => {
       memory_preset: 'dual_layer',
       deploy_mode: 'sandbox',
       sandbox_bound_note: '受控容器沙箱：高危命令被系统级安全拦截',
-      prompt_mode: 'full',
     },
   };
 
@@ -47,7 +46,6 @@ describe('AgentSettingsPreviewGate', () => {
       mcp_ids: [],
       memory_preset: 'dual_layer',
       deploy_mode: 'sandbox',
-      prompt_mode: 'lean',
     },
   };
 
@@ -91,9 +89,9 @@ describe('AgentSettingsPreviewGate', () => {
     expect(screen.getByTestId('preview-matrix-sandbox')).toBeInTheDocument();
     expect(screen.getByText('受控容器沙箱：高危命令被系统级安全拦截')).toBeInTheDocument();
 
-    // Meta Specs Pill Bar
+    // Pre-flight Status Bar
     expect(screen.getByText('Pre-flight verified')).toBeInTheDocument();
-    expect(screen.getByText('full')).toBeInTheDocument();
+    expect(screen.queryByText(/Prompt Mode/)).not.toBeInTheDocument();
   });
 
   it('renders fallback copy for minimal templates without settings_preview', () => {

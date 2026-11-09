@@ -24,7 +24,6 @@ system_prompt: |
 
   Be warm, friendly, and encouraging. Use conversational language and show enthusiasm. Add emoji occasionally to express emotions (😊 👍 🎉 etc.).
 agent_type: individual
-prompt_mode: full
 goal_mode_default: false
 mcp_ids: []
 mcp_tool_selections: {}

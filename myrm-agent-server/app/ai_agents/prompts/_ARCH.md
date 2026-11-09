@@ -6,7 +6,7 @@
 ## 架构概述
 
 共享提示词模块。为各类 Agent 提供可复用的系统提示词和规则。
-支持四档 Prompt Mode（full/lean/naked/search），per-agent 可配置。
+支持两档 Prompt Mode（full/search），由系统决定：内置快速 / 深度搜索智能体用 search，其余智能体（含自定义）用 full；模型名与上下文窗口不改变提示词。
 
 ---
 
@@ -14,20 +14,18 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `general_agent_prompt.py` | ✅ 核心 | 通用 Agent 系统提示词（四档预构建 + get_core_system_prompt API；`coerce_prompt_mode` 把库里存的自由字符串收窄为已知档位，未知值按 full） |
+| `general_agent_prompt.py` | ✅ 核心 | 通用 Agent 系统提示词（两档预构建 + get_core_system_prompt API；`coerce_prompt_mode` 把库里存的自由字符串收窄为已知档位，search 以外一律按 full） |
 | `fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（被 general_agent_prompt search 模式静态引用；回复规则取 `SEARCH_RESPONSE_RULES_*`） |
 | `shared_rules.py` | ✅ 辅助 | 跨 Agent 共享规则常量；回复规则分两套：`AGENT_RESPONSE_RULES_*` 供 full 档（篇幅随问题复杂度，Markdown 与表格以渠道 `[Output Format]` 声明为准），`SEARCH_RESPONSE_RULES_*` 供 search 档与快速搜索（全面详细的综合答案），公式契约 `_LATEX_RULES_*` 两套共用 |
 | `deliverable_discipline.py` | ✅ 辅助 | Deliverable-first SSOT（Knowledge Work / builtin-economy user_instructions；含 kanban 任务板引导 + 反幻觉写文件约束；不绑定具体工具名，工具由 schema 暴露） |
 
 ---
 
-## Prompt Mode 四档设计
+## Prompt Mode 两档设计
 
 | Mode | Token 量（`o200k_base`，英 / 中，不含 answer 工具引导；开启后约各 +76 / +82） | 注入内容 | 适用场景 |
 |------|----------|----------|----------|
 | `full` | 600 / 786 | 身份+回复规则（Agent 版）+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | 通用场景（默认） |
-| `lean` | 257 / 298 | 身份+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | WEAK/MEDIUM 模型自动适配；高级用户减少干扰 |
-| `naked` | 40 / 40 | 工具调用指引（安全边界由 SecurityBoundaryMiddleware 统一注入） | 完全用户控制与轻量测试 |
 | `search` | 1,122 / 1,832 | 搜索专用提示词（来自 fast_search_agent_prompt.py，含搜索版回复规则，安全边界由 SecurityBoundaryMiddleware 统一注入）| 快速搜索模式 |
 
 体积门禁：full 档与 harness 拼在它后面的静态块（时间规则、核心行为规则、渠道输出提示）合计，由 `tests/architecture/test_first_turn_static_prompt_budget.py` 按语言封顶；往里加字的改动须在同一 PR 抬高上限并说明理由。
@@ -50,5 +48,5 @@ search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（de
   2. **最大化 KV Cache 前缀复用**：桌面规则作为全局不可变静态常量追加，保证不同语言用户在同一沙箱/桌面服务中的该段前缀字节一致，避免动态分叉导致前缀命中率下降。
 
 中间件条件逻辑：
-- `citation_rules_middleware`：naked/search 模式跳过（lean/full 在有外部来源时注入）
-- `widget_capability_middleware`：只在 web_chat 渠道的 full / lean 模式挂载（`mount_resolver.mount_widget_capability`）；搜索面、naked 以及 IM、定时、语音、看板、评测不挂
+- `citation_rules_middleware`：search 模式跳过（full 在有外部来源时注入）
+- `widget_capability_middleware`：只在 web_chat 渠道的 full 模式挂载（`mount_resolver.mount_widget_capability`）；搜索面以及 IM、定时、语音、看板、评测不挂

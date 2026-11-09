@@ -91,8 +91,7 @@ class CitationRulesMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             runtime_ctx = getattr(request.runtime, "context", None)
             if isinstance(runtime_ctx, dict):
                 ctx = runtime_ctx
-                prompt_mode = runtime_ctx.get("prompt_mode")
-                if prompt_mode in ("naked", "search"):
+                if runtime_ctx.get("prompt_mode") == "search":
                     return await handler(request)
 
         state = request.state

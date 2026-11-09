@@ -133,7 +133,6 @@ export interface Agent {
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
   default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
-  prompt_mode?: 'full' | 'lean' | 'naked';
   subagent_ids?: string[];
   max_iterations?: number | null;
   workspace_policy?: WorkspacePolicy;
@@ -165,7 +164,7 @@ export interface AgentListItem {
   avatar_url?: string;
   is_built_in?: boolean;
   agent_type?: AgentType;
-  prompt_mode?: string;
+  prompt_mode?: 'full' | 'search';
   skill_ids?: string[];
   mcp_ids?: string[];
   subagent_ids?: string[];
@@ -197,7 +196,6 @@ export interface AgentCreate {
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
   default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
-  prompt_mode?: 'full' | 'lean' | 'naked';
   subagent_ids?: string[];
   max_iterations?: number | null;
   workspace_policy?: WorkspacePolicy;
@@ -240,7 +238,6 @@ export interface AgentUpdate {
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
   default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
-  prompt_mode?: 'full' | 'lean' | 'naked';
   subagent_ids?: string[];
   max_iterations?: number | null;
   workspace_policy?: WorkspacePolicy;
@@ -843,7 +840,6 @@ export interface TemplateSettingsPreview {
   memory_preset: string;
   deploy_mode: string;
   sandbox_bound_note?: string | null;
-  prompt_mode: string;
 }
 
 export interface TemplateListItem {

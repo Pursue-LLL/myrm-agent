@@ -11,7 +11,7 @@ CORE_SYSTEM_PROMPT: 默认 full 模式预构建常量
 get_citation_rules_if_needed: 条件返回引用规则
 
 [POS]
-GeneralAgent 核心系统提示词。支持四档 Prompt Mode（full/lean/naked/search）与中英双语（默认英文），
+GeneralAgent 核心系统提示词。支持两档 Prompt Mode（full/search）与中英双语（默认英文），
 同一 mode + locale 的 prompt 字符串跨用户稳定以最大化 KV Cache 命中率。
 通用防御规则（XML 防御、上下文优先、工具使用纪律等）由框架层
 agent_core_rules.py 的 AGENT_CORE_RULES 提供，此处仅包含业务层特有的
@@ -40,16 +40,12 @@ from app.ai_agents.prompts.shared_rules import (
     TASK_INTEGRITY_RULES_ZH,
 )
 
-PromptMode = Literal["full", "lean", "naked", "search"]
+PromptMode = Literal["full", "search"]
 
 
 def coerce_prompt_mode(value: str) -> PromptMode:
     """Narrow a stored (free-form) prompt mode to a known mode; unknown values mean "full"."""
-    match value:
-        case "lean" | "naked" | "search":
-            return value
-        case _:
-            return "full"
+    return "search" if value == "search" else "full"
 
 
 # =============================================================================
@@ -136,13 +132,6 @@ _RULESET_WITHOUT_ANSWER_TOOL_ZH = """
 </ruleset>
 """
 
-_NAKED_TOOL_GUIDANCE = """
-<tool_guidance>
-When you need to perform actions, use the available tools via Function Calling API.
-Do NOT output tool calls as XML tags in your response text.
-</tool_guidance>
-"""
-
 
 def _build_identity_and_rules(enable_answer_tool: bool, is_zh: bool) -> str:
     if is_zh:
@@ -160,35 +149,10 @@ def _build_prompt_map(
     is_zh: bool,
 ) -> dict[PromptMode, str]:
     if is_zh:
-        full_parts = [
-            identity,
-            AGENT_RESPONSE_RULES_ZH,
-            TASK_INTEGRITY_RULES_ZH,
-        ]
-
-        lean_parts = [identity, TASK_INTEGRITY_RULES_ZH]
-
-        return {
-            "full": "\n".join(full_parts),
-            "lean": "\n".join(lean_parts),
-            "naked": _NAKED_TOOL_GUIDANCE,
-            "search": _SEARCH_BASE_ZH,
-        }
-
-    full_parts = [
-        identity,
-        AGENT_RESPONSE_RULES_EN,
-        TASK_INTEGRITY_RULES_EN,
-    ]
-
-    lean_parts = [identity, TASK_INTEGRITY_RULES_EN]
-
-    return {
-        "full": "\n".join(full_parts),
-        "lean": "\n".join(lean_parts),
-        "naked": _NAKED_TOOL_GUIDANCE,
-        "search": _SEARCH_BASE_EN,
-    }
+        full = "\n".join([identity, AGENT_RESPONSE_RULES_ZH, TASK_INTEGRITY_RULES_ZH])
+        return {"full": full, "search": _SEARCH_BASE_ZH}
+    full = "\n".join([identity, AGENT_RESPONSE_RULES_EN, TASK_INTEGRITY_RULES_EN])
+    return {"full": full, "search": _SEARCH_BASE_EN}
 
 
 # 预构建 4 个静态 Map（is_zh × enable_answer_tool），
@@ -218,8 +182,6 @@ def get_core_system_prompt(
     Args:
         mode: 提示词模式
             - full: 完整规则（默认），适合通用场景
-            - lean: 精简规则，保留身份+安全+任务完整性
-            - naked: 裸调模式，仅安全规则+工具调用指引
             - search: 搜索模式，轻量搜索专用提示词
         enable_answer_tool: 是否包含 request_answer_user_tool 引导规则
         locale: 语言区域代码，如 "zh-CN" / "en"（默认 "en" 英文）

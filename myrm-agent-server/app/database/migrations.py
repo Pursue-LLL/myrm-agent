@@ -6,7 +6,7 @@ sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
 app.database.personality_style_merge::MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL (POS: 沟通风格并入 system_prompt 的冻结语句)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt）
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt） / NORMALIZE_RETIRED_PROMPT_MODES_SQL（已退役的 lean / naked 提示词模式行改为 full）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -55,6 +55,10 @@ REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL = (
 CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL = (
     "UPDATE agents SET memory_policy = NULL WHERE id IN ('builtin-fast-search', 'builtin-deep-search')"
 )
+
+# The prompt mode is set by the system (``search`` for the built-in search agents, ``full`` for every other agent); the
+# two modes that a user could once pick, ``lean`` and ``naked``, no longer exist and become ``full``.
+NORMALIZE_RETIRED_PROMPT_MODES_SQL = "UPDATE agents SET prompt_mode = 'full' WHERE prompt_mode IN ('lean', 'naked')"
 
 # 数据库迁移语句（按顺序执行）
 # 已完成的迁移会被清理，新迁移添加到此列表
@@ -735,6 +739,7 @@ MIGRATION_STATEMENTS: list[str] = [
     MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL,
     "ALTER TABLE agents DROP COLUMN personality_style",
     "ALTER TABLE agent_profile_history DROP COLUMN personality_style",
+    NORMALIZE_RETIRED_PROMPT_MODES_SQL,
 ]
 
 # 创建索引的SQL语句列表

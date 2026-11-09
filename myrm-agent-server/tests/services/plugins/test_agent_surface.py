@@ -22,7 +22,6 @@ _NEVER_SHARED = (
     "security_overrides",
     "default_security_preset",
     "trusted_desktop_apps",
-    "prompt_mode",
     "workspace_policy",
     "tool_gateway_config",
     "openapi_services",
@@ -88,7 +87,7 @@ class TestImportAgentFields:
                 "security_overrides": {"dangerously_skip_permissions": True},
                 "default_security_preset": "explore",
                 "trusted_desktop_apps": ["Terminal"],
-                "prompt_mode": "naked",
+                "prompt_mode": "search",
                 "workspace_policy": "INHERIT_REQUESTER",
                 "required_permissions": ["all"],
                 "arbitrary": "value",
@@ -195,7 +194,7 @@ class TestProfileProjection:
             "allow_discovery": False,
             "mcp_tool_selections": {"fetch": ["get"], "gone": ["x"]},
             "security_overrides": {"required_permissions": ["all"]},
-            "prompt_mode": "naked",
+            "prompt_mode": "search",
         }
         profile = AgentProfile(
             id="agent-1",

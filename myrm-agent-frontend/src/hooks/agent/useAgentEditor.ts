@@ -144,10 +144,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // 启发式提示
   const [suggestionPrompts, setSuggestionPrompts] = useState<string[]>([]);
 
-  // 提示模式
-  const [promptMode, setPromptMode] = useState<'full' | 'lean' | 'naked'>('full');
-
-
   // 可发现性
   const [allowDiscovery, setAllowDiscovery] = useState<boolean>(true);
   const [cronPostRunVerify, setCronPostRunVerify] = useState<boolean>(false);
@@ -184,7 +180,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     selectedSubagentIds: [] as string[],
     securityOverrides: null as Record<string, unknown> | null,
     defaultSecurityPreset: null as 'hitl' | 'accept_edits' | 'explore' | null,
-    promptMode: 'full' as 'full' | 'lean' | 'naked',
     maxIterations: null as number | null,
     workspacePolicy: 'INHERIT_REQUESTER' as WorkspacePolicy,
     memoryDecayProfile: 'normal' as 'permanent' | 'normal' | 'fast',
@@ -233,7 +228,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       defaultPresetChanged ||
       engineParamsChanged ||
       openapiChanged ||
-      promptMode !== originalData.promptMode ||
       memoryDecayProfile !== originalData.memoryDecayProfile ||
       memoryExtractionPreset !== originalData.memoryExtractionPreset ||
       workspacePolicy !== originalData.workspacePolicy ||
@@ -263,7 +257,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     modelSelection,
     securityOverrides,
     defaultSecurityPreset,
-    promptMode,
     maxIterations,
     memoryDecayProfile,
     memoryExtractionPreset,
@@ -338,7 +331,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setSecurityOverrides(data.security_overrides ?? null);
       setDefaultSecurityPreset(data.default_security_preset ?? null);
       setSelectedSubagentIds(data.subagent_ids || []);
-      setPromptMode(data.prompt_mode || 'full');
       setMaxIterations(data.max_iterations ?? null);
       setWorkspacePolicy(data.workspace_policy || 'INHERIT_REQUESTER');
       setAllowDiscovery(data.allow_discovery ?? true);
@@ -369,7 +361,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         modelSelection: data.model_selection ?? null,
         securityOverrides: data.security_overrides ?? null,
         defaultSecurityPreset: data.default_security_preset ?? null,
-        promptMode: data.prompt_mode || 'full',
         allowDiscovery: data.allow_discovery ?? true,
         cronPostRunVerify: data.cron_post_run_verify ?? false,
         trustedDesktopApps: data.trusted_desktop_apps ?? [],
@@ -469,7 +460,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           model_selection: modelSelection,
           security_overrides: securityOverrides,
           default_security_preset: defaultSecurityPreset,
-          prompt_mode: promptMode,
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
           trusted_desktop_apps: trustedDesktopApps,
@@ -508,7 +498,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           model_selection: modelSelection,
           security_overrides: securityOverrides,
           default_security_preset: defaultSecurityPreset,
-          prompt_mode: promptMode,
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
           trusted_desktop_apps: trustedDesktopApps,
@@ -555,7 +544,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           cronPostRunVerify,
           trustedDesktopApps: [...trustedDesktopApps],
           busyInputMode,
-          promptMode,
           maxIterations,
           memoryDecayProfile,
           memoryExtractionPreset,
@@ -606,7 +594,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     selectedSubagentIds,
     securityOverrides,
     defaultSecurityPreset,
-    promptMode,
     maxIterations,
     memoryDecayProfile,
     memoryExtractionPreset,
@@ -755,9 +742,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     defaultSecurityPreset,
     setDefaultSecurityPreset,
     saveVersion,
-    // 提示模式
-    promptMode,
-    setPromptMode,
     // 可发现性
     allowDiscovery,
     setAllowDiscovery,

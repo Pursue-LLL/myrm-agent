@@ -101,7 +101,6 @@ _FIELD_RULES: Final[dict[str, tuple[Disposition, str]]] = {
     "security_overrides": (_X, "permission escalation vector; packages never carry security policy"),
     "default_security_preset": (_X, "security policy is the installing user's decision"),
     "required_capabilities": (_X, "channel capabilities are environment-specific"),
-    "prompt_mode": (_X, "controls which safety/system sections are injected"),
     "memory_decay_profile": (_X, "personal memory tuning"),
     "memory_extraction_preset": (_X, "personal memory tuning"),
     "workspace_policy": (_X, "workspace policy is the installing user's decision"),

@@ -18,7 +18,7 @@ MemoryDecayProfileLiteral = Literal["permanent", "normal", "fast"]
 MemoryExtractionPresetLiteral = Literal["none", "auto", "persona", "work_assistant", "research"]
 
 
-PromptModeLiteral = Literal["full", "lean", "naked", "search"]
+PromptModeLiteral = Literal["full", "search"]
 
 
 SecurityPresetLiteral = Literal["hitl", "accept_edits", "explore"]

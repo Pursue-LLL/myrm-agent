@@ -27,7 +27,6 @@ import {
   ArrowLeft,
   Sparkles,
   CheckCircle2,
-  Cpu,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import type { TemplateListItem } from '@/services/agent';
@@ -58,7 +57,6 @@ export function AgentSettingsPreviewGate({
   const memoryPreset = preview?.memory_preset ?? 'dual_layer';
   const deployMode = preview?.deploy_mode ?? 'sandbox';
   const sandboxNote = preview?.sandbox_bound_note;
-  const promptMode = preview?.prompt_mode ?? 'full';
 
   return (
     <div
@@ -228,11 +226,8 @@ export function AgentSettingsPreviewGate({
         </div>
       </div>
 
-      {/* Meta Specs Pill Bar */}
+      {/* Pre-flight Status Bar */}
       <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-border/40 bg-muted/20 text-xs text-muted-foreground">
-        <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
-        <span>{t('promptMode', { fallback: 'Prompt Mode' })}: <strong className="text-foreground font-mono">{promptMode}</strong></span>
-        <span className="text-border">•</span>
         <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="w-3 h-3" />
           {t('preflightReady', { fallback: 'Pre-flight verified' })}

@@ -121,7 +121,6 @@ class TestSerializationHelpers:
             metadata={
                 "allow_discovery": False,
                 "mcp_ids": ["mcp1"],
-                "prompt_mode": "lean",
                 "agent_type": "team",
                 "subagent_ids": ["sub1"],
                 "workspace_policy": "READ_ONLY_SANDBOX",

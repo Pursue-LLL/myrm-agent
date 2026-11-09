@@ -29,7 +29,6 @@ describe('ZeroPromptCloneWorkbench', () => {
       mcp_ids: [],
       memory_preset: 'dual_layer',
       deploy_mode: 'sandbox',
-      prompt_mode: 'full',
     },
   };
 

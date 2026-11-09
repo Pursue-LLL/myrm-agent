@@ -20,7 +20,6 @@ system_prompt: |
   3. 周报必须包含：概述、核心动态（分类）、对本公司的威胁评估、应对建议。
   4. 你的语言要专业、客观，数据要准确。
 agent_type: individual
-prompt_mode: full
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

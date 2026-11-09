@@ -651,20 +651,6 @@
       "description": "빈 채팅 페이지에 표시되는 프롬프트를 구성하여 사용자가 이 에이전트의 역량을 빠르게 이해하도록 돕습니다.",
       "placeholder": "프롬프트 입력 후 Enter를 눌러 추가"
     },
-    "promptMode": {
-      "title": "프롬프트 모드",
-      "description": "주입되는 기본 지침의 양을 제어합니다. Lean은 토큰 사용량을 줄이고 Naked는 완전한 제어를 제공합니다.",
-      "modes": {
-        "full": "전체",
-        "lean": "경량",
-        "naked": "네이키드"
-      },
-      "hints": {
-        "full": "모든 기본 규칙 활성: 형식, 인용, 보안, 작업 무결성.",
-        "lean": "핵심 정체성 + 보안만. 모델이 자연스러운 형식 스타일을 사용합니다.",
-        "naked": "최소 안전 규칙만. 시스템 프롬프트로 완전한 제어."
-      }
-    },
     "systemPrompt": "시스템 프롬프트",
     "systemPromptPlaceholder": "에이전트의 동작과 응답 스타일을 안내하는 사용자 정의 지침",
     "mcpServices": "MCP 서비스",
@@ -10649,7 +10635,6 @@
       "memoryDescription": "2계층 HUD: 페르소나 프로필과 워크스페이스 노트(할당량 보호 포함).",
       "deployBoundaryTitle": "배포 모드 및 샌드박스 경계",
       "sandboxNoteDefault": "격리된 샌드박스에서 실행: 위험도가 높은 시스템 명령은 컨테이너 워크스페이스 안에 차단됩니다.",
-      "promptMode": "프롬프트 모드",
       "preflightReady": "사전 점검 완료",
       "backToTemplates": "뒤로",
       "creating": "만드는 중…",

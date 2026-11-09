@@ -651,20 +651,6 @@
       "description": "Configure prompts shown on the empty chat page to help users quickly understand this agent's capabilities.",
       "placeholder": "Type a prompt and press Enter to add"
     },
-    "promptMode": {
-      "title": "Prompt Mode",
-      "description": "Controls how much built-in instruction is injected. Lean reduces token usage; Naked gives you full control.",
-      "modes": {
-        "full": "Full",
-        "lean": "Lean",
-        "naked": "Naked"
-      },
-      "hints": {
-        "full": "All built-in rules active: formatting, citations, security, and task integrity.",
-        "lean": "Core identity + security only. Model uses its natural formatting style.",
-        "naked": "Minimal safety rules only. Full control via your System Prompt."
-      }
-    },
     "systemPrompt": "System Prompt",
     "systemPromptPlaceholder": "Custom instructions to guide the agent's behavior and response style",
     "mcpServices": "MCP Services",
@@ -10649,7 +10635,6 @@
       "memoryDescription": "Dual-Layer HUD: Persona profile + workspace notes with quota protection.",
       "deployBoundaryTitle": "Deploy Mode & Sandbox Boundary",
       "sandboxNoteDefault": "Isolated sandbox execution: high-risk system commands are shielded within container workspace.",
-      "promptMode": "Prompt Mode",
       "preflightReady": "Pre-flight verified",
       "backToTemplates": "Back",
       "creating": "Creating…",
