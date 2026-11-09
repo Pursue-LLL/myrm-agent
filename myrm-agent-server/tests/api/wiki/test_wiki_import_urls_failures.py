@@ -1,4 +1,5 @@
-"""Wiki URL and video import: a link that cannot be read is an error with a code and never touches raw/."""
+"""Wiki URL and video import outcomes that add nothing: an unreadable link is an error with a code and never
+touches raw/, a blocked source is told apart by its status, and a re-imported video keeps the stored source."""
 
 from __future__ import annotations
 
@@ -9,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from langchain_core.documents import Document
 from myrm_agent_harness.core.security.guards.ssrf import SSRFResult
 from myrm_agent_harness.toolkits.wiki import SourceLoadError
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
@@ -231,3 +233,26 @@ def test_video_security_block_is_told_apart_by_status_and_has_no_error_code(
         data = _import_video(client)
 
     assert (data.success, data.status, data.error_code) == (False, "security_blocked", None)
+
+
+def test_reimported_video_keeps_the_stored_source_and_reports_the_kept_status(
+    import_client: tuple[TestClient, WikiStructure],
+) -> None:
+    """The video dialog words a kept source as 'nothing new was added' because the route answers it this way."""
+    client, structure = import_client
+    transcript = Document(
+        page_content="00:00 Welcome\n00:30 System Architecture Design",
+        metadata={"title": "Clean Arch Video", "author_name": "Software Guru", "duration": "10:00"},
+    )
+
+    with patch(_YOUTUBE_EXTRACTOR, new=AsyncMock(return_value=transcript)):
+        first = _import_video(client)
+        stored = structure.get_raw_file_path(first.relative_path)
+        before = stored.read_text(encoding="utf-8")
+        second = _import_video(client)
+
+    assert (first.success, first.status) == (True, "success")
+    assert (second.success, second.status, second.relative_path) == (True, "skipped_conflict", first.relative_path)
+    assert (second.error, second.error_code) == ("", None)
+    assert stored.read_text(encoding="utf-8") == before
+    assert len(_raw_files(structure)) == 1
