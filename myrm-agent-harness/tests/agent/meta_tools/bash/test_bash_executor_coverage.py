@@ -269,7 +269,9 @@ async def test_execute_failure_evicts_stderr_into_message() -> None:
     assert err.stderr_evicted_stored_chars == 1500
     assert err.stderr_evicted_total_lines == 12
 
-    log_kwargs = mock_log.await_args.kwargs
+    log_call = mock_log.await_args
+    assert log_call is not None
+    log_kwargs = log_call.kwargs
     assert log_kwargs["stdout"] == (
         "[LARGE STDOUT TRUNCATED (1 lines, ~2 tokens)]\n\nRead the full output with file_read_tool."
     )
