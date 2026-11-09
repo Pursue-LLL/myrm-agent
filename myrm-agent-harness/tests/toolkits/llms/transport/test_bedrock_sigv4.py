@@ -1,8 +1,8 @@
 """The AWS credential chain and the Signature Version 4 header as botocore produces them, checked without a network.
 
-Needs botocore, which the harness does not depend on: the whole file is skipped where it is not installed. A signature
-is never compared with a stored one (it carries the time); it is recomputed by ``sigv4_verifier``, which knows the
-algorithm and not botocore.
+Needs botocore (extra ``bedrock``): the whole file is skipped where it is not installed. A signature is never compared
+with a stored one (it carries the time); it is recomputed by ``sigv4_verifier``, which knows the algorithm and not
+botocore.
 """
 
 from __future__ import annotations
@@ -74,6 +74,12 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> _Clock:
 
 def _profile(access_key: str) -> str:
     return f"[default]\naws_access_key_id = {access_key}\naws_secret_access_key = {_SECRET_KEY}\n"
+
+
+def _load_from_keys(monkeypatch: pytest.MonkeyPatch, number: int) -> None:
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", f"AKID{number}")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", _SECRET_KEY)
+    load_credentials()
 
 
 def _signed(
@@ -175,6 +181,22 @@ class TestCredentialChain:
 
         assert load_credentials().frozen.access_key == "AKIDLATE"
 
+    def test_a_session_that_found_nothing_is_replaced_without_asking_the_chain_again(
+        self, monkeypatch: pytest.MonkeyPatch, clock: _Clock
+    ) -> None:
+        """The cache lock must not be held while the chain is walked: that does disk and network I/O."""
+        with pytest.raises(UnsupportedProviderError):
+            load_credentials()
+        (stale,) = (cached.session for cached in bedrock_sigv4._sessions.values())
+        asked: list[str] = []
+        monkeypatch.setattr(stale, "get_credentials", lambda: asked.append("the chain"))
+        clock.now += 300
+
+        with pytest.raises(UnsupportedProviderError):
+            load_credentials()
+
+        assert asked == []
+
     def test_keys_rewritten_in_the_shared_file_are_read_again_after_five_minutes(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, clock: _Clock
     ) -> None:
@@ -224,8 +246,18 @@ class TestCredentialChain:
 
     def test_only_the_most_recent_sources_are_kept(self, monkeypatch: pytest.MonkeyPatch) -> None:
         for number in range(bedrock_sigv4._MAX_SESSIONS + 2):
-            monkeypatch.setenv("AWS_ACCESS_KEY_ID", f"AKID{number}")
-            monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", _SECRET_KEY)
-            load_credentials()
+            _load_from_keys(monkeypatch, number)
 
         assert len(bedrock_sigv4._sessions) == bedrock_sigv4._MAX_SESSIONS
+
+    def test_a_source_used_again_outlasts_the_one_left_unused_longest(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for number in range(bedrock_sigv4._MAX_SESSIONS):
+            _load_from_keys(monkeypatch, number)
+        _load_from_keys(monkeypatch, 0)
+        _load_from_keys(monkeypatch, bedrock_sigv4._MAX_SESSIONS)
+
+        at = bedrock_sigv4._CHAIN_ENV.index("AWS_ACCESS_KEY_ID")
+        assert {key[at] for key in bedrock_sigv4._sessions} == {
+            "AKID0",
+            *(f"AKID{number}" for number in range(2, bedrock_sigv4._MAX_SESSIONS + 1)),
+        }
