@@ -6,7 +6,8 @@
  *
  * [OUTPUT]
  * - normalizeMathDelimiters: the text pre-pass, run before parsing
- * - mathPlugins: remark and rehype plugin lists for react-markdown and unified processors
+ * - mathPlugins, chatMathPlugins: remark and rehype plugin lists for react-markdown and unified processors; they
+ *   differ only in the KaTeX options
  *
  * [POS]
  * What counts as a formula is decided once, inside the parser (`remarkMathPolicy`): a `$` the policy refuses stays
@@ -81,7 +82,10 @@ const policyExtension: Extension = {
   },
 };
 
-/** `remark-math` with the single-`$` policy above in place of the stock pairing. */
+/**
+ * Math syntax for remark: the `$` / `$$` micromark extension with the single-`$` policy above, and the conversion
+ * of its tokens into `math` / `inlineMath` nodes.
+ */
 const remarkMathPolicy: Plugin<[], MdastRoot> = function () {
   const data = this.data();
   (data.micromarkExtensions ??= []).push(policyExtension);
@@ -107,8 +111,12 @@ const rehypeEscapeMathPercent: Plugin<[], HastRoot> = () => (tree) => {
   });
 };
 
-/** `throwOnError` is absent on purpose: rehype-katex sets it itself and falls back to KaTeX's inline error markup. */
-const katexConfig: KatexOptions = {
+/**
+ * What chat messages render with: html-only output, no strict-mode warnings, `\text` set as `\mathrm`, and KaTeX's
+ * trusted commands enabled. `throwOnError` is absent on purpose: rehype-katex sets it itself and falls back to
+ * KaTeX's inline error markup.
+ */
+const chatKatexOptions: KatexOptions = {
   strict: false,
   output: 'html',
   trust: true,
@@ -116,9 +124,27 @@ const katexConfig: KatexOptions = {
 };
 
 /** Plugin lists for `react-markdown` (`remarkPlugins`, `rehypePlugins`) and unified processors alike. */
-export const mathPlugins: { remark: PluggableList; rehype: PluggableList } = {
-  remark: [remarkMathPolicy],
-  rehype: [rehypeEscapeMathPercent, [rehypeKatex, katexConfig]],
+interface MathPlugins {
+  remark: PluggableList;
+  rehype: PluggableList;
+}
+
+const remarkPlugins: PluggableList = [remarkMathPolicy];
+
+/**
+ * For everything that is not a chat message (compacted summaries, archived messages, document previews, the HTML
+ * export): KaTeX with its own defaults, so the commands that link or load a resource (`\href`, `\includegraphics`,
+ * `\htmlClass`) stay switched off.
+ */
+export const mathPlugins: MathPlugins = {
+  remark: remarkPlugins,
+  rehype: [rehypeEscapeMathPercent, rehypeKatex],
+};
+
+/** For chat messages: the same pipeline with the KaTeX options above. */
+export const chatMathPlugins: MathPlugins = {
+  remark: remarkPlugins,
+  rehype: [rehypeEscapeMathPercent, [rehypeKatex, chatKatexOptions]],
 };
 
 /** Fenced code (up to its closing fence, or to the end while a stream has not closed it) and inline code spans. */

@@ -1,5 +1,5 @@
 /**
- * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps).
+ * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ../markdownMath.ts::mathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render).
  * [OUTPUT] buildHtmlDocument.
  * [POS] Markdown-to-HTML export renderer for chat conversations.
  */
@@ -16,6 +16,7 @@ import {
   renderToolCallDetailsHtml,
 } from './chatExportHtmlTemplates';
 import { isSafeLinkUrl, rehypeSafeLinks } from './exportUrlPolicy';
+import { mathPlugins, normalizeMathDelimiters } from '../markdownMath';
 import type { Element, ElementContent } from 'hast';
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
@@ -107,9 +108,7 @@ async function getMarkdownEngine() {
       const { unified } = await import('unified');
       const { default: remarkParse } = await import('remark-parse');
       const { default: remarkGfm } = await import('remark-gfm');
-      const { default: remarkMath } = await import('remark-math');
       const { default: remarkRehype } = await import('remark-rehype');
-      const { default: rehypeKatex } = await import('rehype-katex');
       const { default: rehypeHighlight } = await import('rehype-highlight');
       const { default: rehypeStringify } = await import('rehype-stringify');
       const { visit, SKIP } = await import('unist-util-visit');
@@ -117,9 +116,9 @@ async function getMarkdownEngine() {
       const processor = unified()
         .use(remarkParse)
         .use(remarkGfm)
-        .use(remarkMath)
+        .use(mathPlugins.remark)
         .use(remarkRehype, { allowDangerousHtml: false })
-        .use(rehypeKatex)
+        .use(mathPlugins.rehype)
         .use(rehypeHighlight)
         .use(() => (tree: Element) => {
           visit(tree, 'element', (node: Element) => {
@@ -184,7 +183,7 @@ async function getMarkdownEngine() {
 
 async function renderMarkdown(content: string): Promise<string> {
   const processor = await getMarkdownEngine();
-  const result = await processor.process(content);
+  const result = await processor.process(normalizeMathDelimiters(content));
   return String(result);
 }
 

@@ -1,8 +1,12 @@
 'use client';
 
 import React, { memo, Suspense, useMemo, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import 'katex/dist/katex.min.css';
 import { cn } from '@/lib/utils/classnameUtils';
 import { stripYamlFrontmatter } from '@/lib/utils/frontmatter';
+import { mathPlugins, normalizeMathDelimiters } from '@/lib/utils/markdownMath';
 import MermaidChart from '../../markdown-render-tools/MermaidChart';
 import CodeBlock from '../../markdown-render-tools/CodeBlock';
 import DocumentSelectionToolbar from '../portal/DocumentSelectionToolbar';
@@ -17,16 +21,19 @@ const LoadingState: React.FC = () => (
   </div>
 );
 
+/** 骨架屏每行的宽度（%）：固定值，重渲染时不会跳动 */
+const SKELETON_LINE_WIDTHS = [62, 41, 73, 55, 68, 36, 70, 49, 64, 44, 58, 33];
+
 /** 骨架屏加载状态 */
 const SkeletonLoader: React.FC = () => (
   <div className="h-full w-full p-4 space-y-3 bg-gray-50 dark:bg-gray-900">
-    {Array.from({ length: 12 }).map((_, i) => (
+    {SKELETON_LINE_WIDTHS.map((width, i) => (
       <div key={i} className="flex gap-3 animate-pulse">
         <div className="w-8 h-4 rounded bg-gray-200 dark:bg-gray-800" />
         <div
           className="h-4 rounded bg-gray-200 dark:bg-gray-800"
           style={{
-            width: `${Math.random() * 40 + 30}%`,
+            width: `${width}%`,
             animationDelay: `${i * 50}ms`,
           }}
         />
@@ -40,17 +47,12 @@ interface MarkdownProps {
   resolveUrl?: UrlResolver;
 }
 
-/** ReactMarkdown 渲染器（分离以便懒加载） */
+/** ReactMarkdown 渲染器 */
 const ReactMarkdownRenderer: React.FC<MarkdownProps> = memo(({ content, resolveUrl }) => {
-  const ReactMarkdown = require('react-markdown').default;
-  const remarkGfm = require('remark-gfm').default;
-  const remarkMath = require('remark-math').default;
-  const rehypeKatex = require('rehype-katex').default;
-
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeKatex]}
+      remarkPlugins={[remarkGfm, ...mathPlugins.remark]}
+      rehypePlugins={mathPlugins.rehype}
       components={{
         code: ({
           node: _node,
@@ -90,10 +92,10 @@ const ReactMarkdownRenderer: React.FC<MarkdownProps> = memo(({ content, resolveU
             </code>
           );
         },
-        img: ({ node: _node, src, alt, ...props }: { node?: unknown; src?: string; alt?: string }) => (
+        img: ({ node: _node, src, alt, ...props }: { node?: unknown; src?: string | Blob; alt?: string }) => (
           // oxlint-disable-next-line next/no-img-element -- src is an arbitrary address written in the document, which next/image cannot optimize
           <img
-            src={src && resolveUrl ? resolveUrl(src) : src}
+            src={src && typeof src === 'string' && resolveUrl ? resolveUrl(src) : src}
             alt={alt || ''}
             loading="lazy"
             className="rounded-lg shadow-md max-w-full h-auto"
@@ -122,7 +124,7 @@ const ReactMarkdownRenderer: React.FC<MarkdownProps> = memo(({ content, resolveU
         ),
       }}
     >
-      {content}
+      {normalizeMathDelimiters(content)}
     </ReactMarkdown>
   );
 });

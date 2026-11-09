@@ -94,7 +94,6 @@
         "rehype-stringify": "^10.0.1",
         "remark-gfm": "^4.0.1",
         "remark-github-markdown-alerts": "^1.2.2",
-        "remark-math": "^6.0.0",
         "remark-parse": "^11.0.0",
         "remark-rehype": "^11.1.2",
         "serwist": "^9.5.13",
@@ -2030,8 +2029,6 @@
     "remark-gfm": ["remark-gfm@4.0.1", "https://registry.npmmirror.com/remark-gfm/-/remark-gfm-4.0.1.tgz", { "dependencies": { "@types/mdast": "^4.0.0", "mdast-util-gfm": "^3.0.0", "micromark-extension-gfm": "^3.0.0", "remark-parse": "^11.0.0", "remark-stringify": "^11.0.0", "unified": "^11.0.0" } }, "sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg=="],
 
     "remark-github-markdown-alerts": ["remark-github-markdown-alerts@1.2.2", "https://registry.npmmirror.com/remark-github-markdown-alerts/-/remark-github-markdown-alerts-1.2.2.tgz", { "dependencies": { "hast-util-from-html": "^2.0.3", "hast-util-to-html": "^9.0.5", "hastscript": "^9.0.1", "mdast-util-to-string": "^4.0.0", "unist-builder": "^4.0.0", "unist-util-visit": "^5.0.0" } }, "sha512-MN7n4idIttGa99pXo2F+9hLX+AeKFXbcDCLbL/oGomSbGEThg3goYlYgyJ+NAXGi2WrwRMtxQ1h594dq+8j4UQ=="],
-
-    "remark-math": ["remark-math@6.0.0", "https://registry.npmmirror.com/remark-math/-/remark-math-6.0.0.tgz", { "dependencies": { "@types/mdast": "^4.0.0", "mdast-util-math": "^3.0.0", "micromark-extension-math": "^3.0.0", "unified": "^11.0.0" } }, "sha512-MMqgnP74Igy+S3WwnhQ7kqGlEerTETXMvJhrUzDikVZ2/uogJCb+WHUg97hK9/jcfc0dkD73s3LN8zU49cTEtA=="],
 
     "remark-parse": ["remark-parse@11.0.0", "https://registry.npmmirror.com/remark-parse/-/remark-parse-11.0.0.tgz", { "dependencies": { "@types/mdast": "^4.0.0", "mdast-util-from-markdown": "^2.0.0", "micromark-util-types": "^2.0.0", "unified": "^11.0.0" } }, "sha512-FCxlKLNGknS5ba/1lmpYijMUzX2esxW5xQqjWxw2eHFfS2MSdaHVINFmhjo+qN1WhZhNimq0dZATN9pH0IDrpA=="],
 

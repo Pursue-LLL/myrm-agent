@@ -28,7 +28,7 @@ import { recordEvidenceSurface } from '@/services/wiki/evidenceMetrics';
 import { useTranslations } from 'next-intl';
 import { IncrementalStreamingMarkdownRenderer } from '@/components/features/chat-window/streaming-markdown';
 import { preprocessCitationMarkers } from '@/lib/citations/preprocessCitationMarkers';
-import { mathPlugins, normalizeMathDelimiters } from '@/lib/utils/markdownMath';
+import { chatMathPlugins, normalizeMathDelimiters } from '@/lib/utils/markdownMath';
 import { createMarkdownComponents, type OpenKbDrawer } from './markdownComponents';
 
 const preprocessVaultLinks = (text: string) => {
@@ -230,8 +230,8 @@ const MarkdownContent = React.memo(
           contextKey={`chat:${_messageId}`}
         />
         <ReactMarkdown
-          remarkPlugins={[...mathPlugins.remark, remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}
-          rehypePlugins={[...mathPlugins.rehype, rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
+          remarkPlugins={[...chatMathPlugins.remark, remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}
+          rehypePlugins={[...chatMathPlugins.rehype, rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
           components={components}
           allowedElements={[
             // 允许渲染的元素

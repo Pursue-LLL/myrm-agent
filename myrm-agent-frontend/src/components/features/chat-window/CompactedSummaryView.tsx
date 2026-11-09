@@ -13,7 +13,7 @@
  * [POS]
  * Context compaction summary host view in chat stream (Item 27 refactor).
  * Decoupled state management via useCompactedSummaryState.
- * File length < 280 lines (strictly < 400 lines threshold). Zero `any` types. Zero native emoji.
+ * File length < 400 lines. Zero `any` types. Zero native emoji.
  */
 
 import React, { useEffect, useMemo, useRef } from 'react';
@@ -22,8 +22,7 @@ import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { CompactionAnchorStrip } from './CompactionAnchorStrip';
 import { parseExactAnchors } from './parseExactAnchors';
 import { CompactedArchiveModal } from './CompactedArchiveModal';
@@ -33,6 +32,7 @@ import { parseCompactionEntry } from '../compaction-milestone/compactionParser';
 import { useCompactedSummaryState, bookmarkDisplayLabel } from './useCompactedSummaryState';
 import { cn } from '@/lib/utils/classnameUtils';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
+import { mathPlugins, normalizeMathDelimiters } from '@/lib/utils/markdownMath';
 
 const markdownLinkComponents = {
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -156,7 +156,7 @@ export const CompactedSummaryView = () => {
             sourceBranchName: bookmarkDisplayLabel(latestBookmark),
             summary: t('branchContextDistilled'),
             keyTakeaways: [t('branchSnapshotArchived', { path: latestBookmark.snapshot_path })],
-            createdAt: latestBookmark.created_at || new Date().toISOString(),
+            createdAt: latestBookmark.created_at || '',
           }}
           className="mb-4"
         />
@@ -234,11 +234,11 @@ export const CompactedSummaryView = () => {
         ) : (
           <div className="prose dark:prose-invert prose-sm max-w-none break-words text-sm text-foreground/80 whitespace-pre-wrap max-h-[300px] overflow-y-auto scrollbar-thin">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
+              remarkPlugins={[remarkGfm, ...mathPlugins.remark]}
+              rehypePlugins={mathPlugins.rehype}
               components={markdownLinkComponents}
             >
-              {cleanedSummary}
+              {normalizeMathDelimiters(cleanedSummary)}
             </ReactMarkdown>
           </div>
         )}

@@ -20,8 +20,8 @@ import { ClockCounterClockwise, X } from '@phosphor-icons/react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+import { mathPlugins, normalizeMathDelimiters } from '@/lib/utils/markdownMath';
 import type { ArchivedChatMessage } from '@/services/chat';
 
 interface CompactedArchiveModalProps {
@@ -73,10 +73,7 @@ export function CompactedArchiveModal({
             <div className="text-center text-muted-foreground p-8">{emptyLabel}</div>
           ) : (
             messages.map((msg, idx) => (
-              <div
-                key={msg.id || idx}
-                className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-              >
+              <div key={msg.id || idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                 <div className="text-xs text-muted-foreground mb-1">
                   {msg.role === 'user' ? roleUserLabel : roleAssistantLabel} •{' '}
                   {msg.created_at ? format(new Date(msg.created_at), 'yyyy-MM-dd HH:mm:ss') : ''}
@@ -87,11 +84,11 @@ export function CompactedArchiveModal({
                   }`}
                 >
                   <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
+                    remarkPlugins={[remarkGfm, ...mathPlugins.remark]}
+                    rehypePlugins={mathPlugins.rehype}
                     components={markdownLinkComponents}
                   >
-                    {msg.content || ''}
+                    {normalizeMathDelimiters(msg.content || '')}
                   </ReactMarkdown>
                 </div>
               </div>
