@@ -1,9 +1,8 @@
 """Jittered backoff utilities for decorrelated retries.
 
-Replaces fixed exponential backoff with jittered delays to prevent
-thundering-herd retry spikes when multiple sessions hit the same
-rate-limited provider concurrently. Also provides adaptive schedule
-handling for PAAS overload conditions (such as Z.AI 1305 / "temporarily overloaded").
+Jittered delays keep the sessions that hit the same rate-limited provider at once from retrying in lockstep
+(thundering-herd retry spikes). Also provides adaptive schedule handling for PAAS overload conditions
+(such as Z.AI 1305 / "temporarily overloaded").
 
 [INPUT]
 - (none)
