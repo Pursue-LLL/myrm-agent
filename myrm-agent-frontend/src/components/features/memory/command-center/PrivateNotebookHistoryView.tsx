@@ -8,7 +8,7 @@
  * PrivateNotebookHistoryView: Subcomponent for cross-context interaction history search and archived context listing.
  *
  * [POS]
- * Subcomponent for Item 89 (Transparent Inspectable Model Private Notebook Suite).
+ * Subcomponent for the Transparent Inspectable Model Private Notebook Suite.
  * Strict typing applied: No `any` types allowed.
  */
 

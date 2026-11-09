@@ -8,7 +8,7 @@
  * PromptCacheConsolidationView: Subview for session tail-delta preview and layout diagnostics.
  *
  * [POS]
- * Subcomponent for Item 98 (PromptCachePreservingEphemeralDeltaMemorySuite).
+ * Subcomponent for PromptCachePreservingEphemeralDeltaMemorySuite.
  */
 
 import React from 'react';

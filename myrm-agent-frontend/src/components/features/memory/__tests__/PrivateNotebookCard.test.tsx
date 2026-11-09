@@ -11,7 +11,7 @@
  * and context handover rotation.
  *
  * [POS]
- * Unit test for Item 89 (Transparent Inspectable Model Private Notebook Suite).
+ * Unit test for the Transparent Inspectable Model Private Notebook Suite.
  * Strict typing applied: No `any` types allowed.
  */
 
@@ -134,7 +134,7 @@ describe('PrivateNotebookCard', () => {
     mockListNotes.mockResolvedValueOnce([]);
     const createdNote: NoteEntryDTO = {
       title: 'feature_roadmap',
-      content: 'Item 89 P0 闭环推进中',
+      content: '闭环推进中',
       updated_at: '2026-10-08T03:00:00Z',
       tags: [],
     };
@@ -155,7 +155,7 @@ describe('PrivateNotebookCard', () => {
     const contentInput = screen.getByPlaceholderText(/输入要记录到模型的要点/);
 
     fireEvent.change(titleInput, { target: { value: 'feature_roadmap' } });
-    fireEvent.change(contentInput, { target: { value: 'Item 89 P0 闭环推进中' } });
+    fireEvent.change(contentInput, { target: { value: '闭环推进中' } });
 
     const submitBtn = screen.getByTestId('append-note-submit-btn');
     fireEvent.click(submitBtn);
@@ -163,7 +163,7 @@ describe('PrivateNotebookCard', () => {
     await waitFor(() => {
       expect(mockAppendNote).toHaveBeenCalledWith({
         title: 'feature_roadmap',
-        content: 'Item 89 P0 闭环推进中',
+        content: '闭环推进中',
       });
       expect(screen.getByText(/已保存笔记: feature_roadmap/)).toBeInTheDocument();
     });

@@ -6,7 +6,7 @@
  * DialecticReconciliationConsoleView: Layer 2 Multi-Pass Dialectic Reasoning & Contradiction Resolution Console.
  *
  * [POS]
- * Sub-view in TwoLayerDialecticStudioCard for Item 112.
+ * Sub-view of TwoLayerDialecticStudioCard.
  * Strict typing applied: No `any` types allowed. Accessible markup. Single file < 350 lines.
  */
 

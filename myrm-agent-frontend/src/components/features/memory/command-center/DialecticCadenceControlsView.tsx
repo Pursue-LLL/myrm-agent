@@ -5,7 +5,7 @@
  * Props: config, onUpdateConfig
  *
  * [OUTPUT]
- * DialecticCadenceControlsView: cadence and depth tuning panel for Item 112 lab.
+ * DialecticCadenceControlsView: cadence and depth tuning panel for the two-layer lab.
  *
  * [POS]
  * Sub-view in TwoLayerDialecticStudioCard.

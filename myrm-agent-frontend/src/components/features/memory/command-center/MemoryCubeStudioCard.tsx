@@ -13,7 +13,7 @@
  * Component: MemoryCubeStudioCard
  *
  * [POS]
- * Command Center flagship card for Item 124 Memory Cube Scoped Isolation & Dynamic Mounting Suite.
+ * Command Center flagship card for the Memory Cube Scoped Isolation & Dynamic Mounting Suite.
  * Follows a11y ratchet guidelines: Uses native `<section aria-label="...">`, visible focus rings,
  * proper htmlFor connections, and zero raw `>` or `->` characters.
  * Strict typing applied: No `any` types allowed. Single file < 350 lines.
@@ -235,7 +235,7 @@ export const MemoryCubeStudioCard: React.FC = () => {
                 Memory Cube Scoped Isolation &amp; Dynamic Mounting Studio
               </h2>
               <div className="text-xs text-muted-foreground">
-                Item 124 [P0] · Multi-agent private/shared compartments with read/write decoupled mounting
+                Multi-agent private/shared compartments with read/write decoupled mounting
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 /**
- * Test suite verifying Item 142 RetrievalScoreHonestyRawVsRanking:
+ * Test suite verifying RetrievalScoreHonestyRawVsRanking:
  * 1. Default render of HUD telemetry bar, threshold sliders, and candidates list.
  * 2. Evaluating candidates successfully with mock service response.
  * 3. Toggling strict mode dual threshold switch.
@@ -33,7 +33,7 @@ vi.mock('@/services/memory/scoreHonesty', async (importOriginal) => {
   };
 });
 
-describe('ScoreHonestyInspectionCard (Item 142 P1)', () => {
+describe('ScoreHonestyInspectionCard', () => {
   const sampleStats = {
     total_candidates: 2,
     admitted_count: 1,

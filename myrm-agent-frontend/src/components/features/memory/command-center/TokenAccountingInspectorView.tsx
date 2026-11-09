@@ -3,7 +3,7 @@
  * Props: budgetConfig, accounting, onUpdateBudget, onSimulate, simulating
  *
  * [OUTPUT]
- * TokenAccountingInspectorView: Dual-track token accounting and knapsack tuner for Item 122.
+ * TokenAccountingInspectorView: Dual-track token accounting and knapsack tuner for budget packing.
  *
  * [POS]
  * Command-center subview for token cost economics and knapsack tuning knobs.

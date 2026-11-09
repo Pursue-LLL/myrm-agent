@@ -4791,7 +4791,6 @@
           "sessionInputLabel": "プレビューセッション ID",
           "sessionPlaceholder": "セッション ID を入力…",
           "title": "二層コンテキストラボ",
-          "itemBadge": "項目 112",
           "layoutBadge": "レイアウトプレビュー",
           "description": "Layer 1 スナップショットはユーザーメッセージ末尾；Layer 2 は周期で記憶の矛盾を解消。",
           "tabsAria": "ラボビュー",

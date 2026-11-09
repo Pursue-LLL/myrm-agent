@@ -4791,7 +4791,6 @@
           "sessionInputLabel": "Preview session ID",
           "sessionPlaceholder": "Enter a session id…",
           "title": "Two-layer context lab",
-          "itemBadge": "Item 112",
           "layoutBadge": "Layout preview",
           "description": "Layer 1 base snapshots attach to the user message tail; Layer 2 resolves memory conflicts on a cadence.",
           "tabsAria": "Two-layer lab views",

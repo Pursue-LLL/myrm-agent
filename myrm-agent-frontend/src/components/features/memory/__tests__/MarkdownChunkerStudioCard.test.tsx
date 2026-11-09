@@ -6,7 +6,7 @@
  * ../command-center/MarkdownChunkerStudioCard::MarkdownChunkerStudioCard
  *
  * [OUTPUT]
- * Test suite verifying Item 132 IncrementalSlidingWindowMarkdownChunkerSuite:
+ * Test suite verifying IncrementalSlidingWindowMarkdownChunkerSuite:
  * 1. Default render of HUD telemetry, document selector, and slicing parameter inputs
  * 2. Execution of sliding window slicing and rendering chunk list with line pointers
  * 3. Execution of context hydration expanding surrounding document lines
@@ -14,7 +14,7 @@
  * 5. Resilient fallback and alert banner on network or API failures
  *
  * [POS]
- * Unit tests for Item 132.
+ * Unit tests for the Markdown chunker studio card.
  * Strict typing applied: Zero `any` types. Single file < 200 lines.
  */
 
@@ -48,7 +48,7 @@ vi.mock('@/services/memory', async (importOriginal) => {
   };
 });
 
-describe('MarkdownChunkerStudioCard (Item 132 P1)', () => {
+describe('MarkdownChunkerStudioCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSliceMarkdown.mockResolvedValue(FALLBACK_SLICE_RESPONSE);

@@ -9,7 +9,7 @@
  * - confirmInsightIngest
  *
  * [POS]
- * Frontend API service for historical session keyframe sampling and first encounter report (Topic 01 Item 67).
+ * Frontend API service for historical session keyframe sampling and the first-encounter report.
  * Strict typing applied: No `any` types allowed.
  */
 

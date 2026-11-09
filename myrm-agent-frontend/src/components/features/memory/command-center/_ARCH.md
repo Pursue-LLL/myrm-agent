@@ -41,7 +41,7 @@
 | `TwoLayerDialecticHudBar.tsx` | 辅助 | 两层辩证 4 维 HUD：前缀布局稳定提示、Layer 1/2 周期与辩证深度；不展示伪造缓存命中率 | ✅    |
 | `BaseContextCacheView.tsx` | 辅助 | Layer 1 基础上下文与 Prompt Cache 检视子组件：呈现冻结 System 块、User 尾部注入块、持久 Cache Key 与单次编译仿真 | ✅    |
 | `DialecticReconciliationConsoleView.tsx` | 辅助 | Layer 2 自适应辩证推理工作台子组件：支持配置矛盾事实并启动 1~3 遍正题/反题/合题辩证调和，展示置信度与合成事实 | ✅    |
-| `DialecticCadenceControlsView.tsx` | 辅助 | Item 112 Lab：Layer 1/2 周期、辩证深度与 reasoning 等级调优（i18n；不承诺缓存命中率） | ✅    |
+| `DialecticCadenceControlsView.tsx` | 辅助 | 双层实验室：Layer 1/2 周期、辩证深度与 reasoning 等级调优（i18n；不承诺缓存命中率） | ✅    |
 | `twoLayerDialecticFallbacks.ts` | 辅助 | 两层上下文解耦与辩证推理调和离线及单测仿真数据集 | ✅    |
 | `BudgetGreedyPackingStudioCard.tsx` | 核心 | 预算贪心边际价值召回装箱中枢卡片：给定 Token 预算贪心装满边际价值最高片段，区分计费与存储 Token 双轨计量 | ✅    |
 | `BudgetPackingHudBar.tsx` | 辅助 | 装箱预算 4 维 HUD 监控条：呈现预算填满率、平均边际价值密度、存储 Token 离线节省量与语义冗余拦截量 | ✅    |
