@@ -17,7 +17,7 @@ import pytest
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 
@@ -85,6 +85,12 @@ def ask_question_tool(questions: str) -> str:
     return "asked"
 
 
+@tool
+def glob_tool(pattern: str) -> str:
+    """List the files that match."""
+    return "notes.txt"
+
+
 def _tool_call(call_id: str, name: str = "ping", **args: int) -> AIMessage:
     return AIMessage(content="", tool_calls=[{"id": call_id, "name": name, "args": args}])
 
@@ -95,13 +101,16 @@ def _shipped_agent(
     checkpointer: InMemorySaver | None = None,
     without: Sequence[str] = (),
     engine: EngineParams | None = None,
+    holds: Sequence[BaseTool] = (),
 ) -> tuple[ScriptedModel, CompiledStateGraph]:
+    """The shipped stack around the usual tools and the *holds* the run has besides, which its registry knows too."""
     return shipped_agent(
         script,
-        [ping, leak, step, ask_question_tool],
+        [ping, leak, step, ask_question_tool, *holds],
         checkpointer=checkpointer,
         without=without,
         engine=engine,
+        registered=holds,
     )
 
 
@@ -139,7 +148,7 @@ def test_the_shipped_graph_runs_the_hooks_its_middlewares_define() -> None:
 
 
 async def test_the_model_is_sent_the_boundary_rules_and_the_session_directories_once_per_run() -> None:
-    model, agent = _shipped_agent([_tool_call("c1"), AIMessage(content="done")])
+    model, agent = _shipped_agent([_tool_call("c1"), AIMessage(content="done")], holds=[glob_tool])
 
     await agent.ainvoke({"messages": [HumanMessage(content="call ping")]})
 
@@ -150,6 +159,16 @@ async def test_the_model_is_sent_the_boundary_rules_and_the_session_directories_
         assert sum("<session-access>" in text for text in systems) == 1
     first = [name for name, _ in model.calls[0]]
     assert first.index("HumanMessage") < first.index("SystemMessage")
+
+
+async def test_a_run_that_holds_no_tool_taking_paths_is_sent_the_boundary_rules_but_no_session_directories() -> None:
+    model, agent = _shipped_agent([AIMessage(content="done")])
+
+    await agent.ainvoke({"messages": [HumanMessage(content="hello")]})
+
+    systems = _texts(model.calls[0], SystemMessage)
+    assert sum("<data_boundary_rules" in text for text in systems) == 1
+    assert not any("<session-access>" in text for text in systems)
 
 
 @pytest.mark.parametrize("action", [PIIAction.REDACT, PIIAction.PSEUDONYMIZE, PIIAction.BLOCK])

@@ -26,7 +26,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `parallel_tool_calls.py` | Core | `ParallelToolCallsMiddleware`: when `EngineParams.enable_parallel_tool_calls` is set, every model call that offers tools carries `parallel_tool_calls` in `ModelRequest.model_settings` (a setting the request already carries is kept; a call without tools gets none); wired innermost of the model-call wrappers, so a failover rebuild of the graph applies it to the new model too. | ✅ |
 | `rate_limit.py` | Core | Proactive provider 429 throttling. | ✅ |
 | `replan_middleware.py` | Core | Dynamic replan loop on tool errors. | ✅ |
-| `session_access_middleware.py` | Core | Inject per-turn HITL session directory access context (`<session-access>` block) before a model call when the history does not carry it yet (marker dedup); returns only the new message. | ✅ |
+| `session_access_middleware.py` | Core | Inject the directory access context (`<session-access>` block: the workspace, the declared roots and the session's HITL grants) before a model call when the history does not carry it yet (marker dedup); returns only the new message. Only a run whose registry holds a tool taking paths (`glob_tool`, `grep_tool`, `file_write_tool`, `file_edit_tool`, `bash_code_execute_tool`) gets it, read per call because the registry is filled after the chain is built: the fast-search mount carries `file_read_tool` alone, over spill files and uploads whose paths the messages state in full. | ✅ |
 | `subagent_limit_middleware.py` | Core | Max concurrent subagents per turn. | ✅ |
 
 | Submodule | Description |

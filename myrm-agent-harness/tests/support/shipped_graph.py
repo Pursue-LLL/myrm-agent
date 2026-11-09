@@ -3,10 +3,11 @@
 [INPUT]
 - agent._internals._agent_build::build_middlewares, create_registry (POS: the middleware stack an agent runs)
 - agent.middlewares._session_context (POS: the per-run session context the stack reads)
+- agent.tool_management::ToolSource (POS: where a registered tool comes from)
 
 [OUTPUT]
 - ScriptedModel: answers from a script and records what each call was sent and the keyword arguments of each tool binding
-- shipped_agent: the shipped middleware stack compiled with ``create_agent`` around given tools
+- shipped_agent: the shipped middleware stack compiled with ``create_agent`` around given tools, over a registry that holds the tools a test names
 - shipped_session: the session context of a run that may use tools without asking
 - yolo_config: the security config of such a run
 
@@ -41,6 +42,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     set_workspace_root,
 )
 from myrm_agent_harness.agent.security.types import PrivacyPolicy, SecurityConfig
+from myrm_agent_harness.agent.tool_management import ToolSource
 from myrm_agent_harness.agent.types import EngineParams
 from myrm_agent_harness.core.security.audit import reset_audit_log
 from myrm_agent_harness.core.security.guards.privacy_tracker import reset_privacy_tracker
@@ -77,10 +79,17 @@ def shipped_agent(
     checkpointer: BaseCheckpointSaver | None = None,
     without: Sequence[str] = (),
     engine: EngineParams | None = None,
+    registered: Sequence[BaseTool] = (),
 ) -> tuple[ScriptedModel, CompiledStateGraph]:
-    """The agent's own middleware stack in a graph, minus the middlewares named in *without*."""
+    """The agent's own middleware stack in a graph, minus the middlewares named in *without*.
+
+    The stack's probes read what its registry holds (which tools the run has). A run registers the tools it hands
+    the graph; here the registry holds only *registered*, so a case is about the tools it names.
+    """
+    registry = create_registry()
+    registry.register_many(list(registered), source=ToolSource.USER)
     model = ScriptedModel(script=script)
-    middlewares = [m for m in build_middlewares(create_registry(), [], engine) if m.name not in without]
+    middlewares = [m for m in build_middlewares(registry, [], engine) if m.name not in without]
     return model, create_agent(model, tools=list(tools), middleware=middlewares, checkpointer=checkpointer)
 
 
