@@ -1583,7 +1583,7 @@ _heal_mux_request_timeout_drift() {
       return 0
     fi
   fi
-  # Probe failed — heal/restart (fail-closed for stale 55s upstream; BUG-DG-2026-07-21-001).
+  # Probe failed — heal/restart (fail-closed for stale 55s upstream).
   if ! _mux_daemon_pid_alive; then
     _ensure_mux_cold_start_if_absent
     return 0

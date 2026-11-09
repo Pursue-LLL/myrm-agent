@@ -1,7 +1,7 @@
 """Unit tests for server OS lock — active-holder exit, zombie-lock takeover.
 
 活跃实例 = 持锁进程 alive **且** 监听 target_port；alive 但不监听端口
-（僵尸 run.py）由新实例接管（BUG-DG-2026-08-09-R014 家族修复）。
+（僵尸 run.py）由新实例接管。
 """
 
 from __future__ import annotations

@@ -200,8 +200,8 @@ async def _create_background_target(
                 #
                 # NEVER fall back to `Target.activateTarget`: E2E Chrome shares
                 # the same .app bundle as the user's own Chrome, so any
-                # activation raises the whole app and steals macOS focus
-                # (BUG-DG-2026-08-10-R026). If the park failed, keep rendering
+                # activation raises the whole app and steals macOS focus.
+                # If the park failed, keep rendering
                 # via `Emulation.setFocusEmulationEnabled` — it reports focus +
                 # visibility to the page without touching window ordering.
                 parked = False

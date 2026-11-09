@@ -127,7 +127,7 @@ export const initializeChat = (
       actions.setMessages((draft) => {
         Object.assign(draft, snapshot);
         draft.chatId = id;
-        // Agent-bound chats: background loadMessages+restore owns ready signal (BUG-004 gate).
+        // Agent-bound chats: background loadMessages+restore owns ready signal (Hydration Readiness Gate).
         draft.isMessagesLoaded = snapshotHasBoundAgent ? false : true;
         draft.securityPreset = normalizeSecurityPreset(draft.agentConfig?.defaultSecurityPreset);
         draft.activeMoaPresetId = snapshot.incognitoMode ? null : (snapshot.activeMoaPresetId ?? null);

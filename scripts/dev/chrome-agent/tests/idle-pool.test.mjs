@@ -159,7 +159,7 @@ test('a blank tab in a shared window is left alone until it has been unused for 
     const { pool, closed, created, state, clock } = setup({ pages: [page('A'), page('B'), page('C')], windows: { A: 1, B: 1, C: 1 } });
     await pool.reconcile();
     assert.equal(created().length, 3);
-    // A client may have created and attached such a tab a moment ago (BUG-DG-2026-10-12-010).
+    // A client may have created and attached such a tab a moment ago.
     for (const ms of [0, 5, 250, 2000, GRACE_MS - 1]) {
         clock.ms = ms;
         await pool.reconcile();
