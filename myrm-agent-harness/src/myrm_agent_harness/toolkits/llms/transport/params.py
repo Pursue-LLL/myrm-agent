@@ -5,7 +5,9 @@
 
 [OUTPUT]
 - CallOptions: the transport-level options of a call and its remaining body parameters
-- split_params: separate credentials / timeout / proxy / headers / extra_body from the body parameters
+- split_params: take timeout / proxy / headers / extra_body / api_version / azure_ad_token / organization / stream out
+  of the call's keyword arguments; what the route or the wire consumes itself (model, messages, endpoint, credential)
+  stays out of the body parameters
 - merge_headers: case-insensitive header overlay shared by every wire
 
 [POS]
