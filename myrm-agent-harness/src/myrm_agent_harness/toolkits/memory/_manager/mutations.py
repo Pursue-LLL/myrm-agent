@@ -46,12 +46,13 @@ ExactFactIndexAction = Literal["record", "delete"]
 
 
 def _restamp_exact_fact(
-    memory: AnyMemory, *, is_exact_fact: bool | None, content_changed: bool
+    memory: SemanticMemory, *, is_exact_fact: bool | None, content_changed: bool
 ) -> ExactFactIndexAction | None:
-    """Re-derive the exact-fact flag and identifiers from the memory's final content.
+    """Re-derive a knowledge memory's exact-fact flag and identifiers from its final content.
 
-    Runs after the security scan so the identifiers and the index follow the stored
-    (redacted) text; returns the index change the stored memory needs, if any.
+    Runs after the security scan so the identifiers and the index follow the stored (redacted) text;
+    returns the index change the memory needs, if any. Only knowledge memories carry the stamp: it
+    is persisted with them and the exact-identifier stream serves only them.
     """
     if is_exact_fact is None and not (content_changed and memory.is_exact_fact):
         return None
@@ -370,7 +371,11 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
         if content_changed and self._config.security_scan_enabled:
             scan_and_clean_memory(updated, block_threshold=self._config.injection_block_threshold)
 
-        index_action = _restamp_exact_fact(updated, is_exact_fact=is_exact_fact, content_changed=content_changed)
+        index_action = (
+            _restamp_exact_fact(updated, is_exact_fact=is_exact_fact, content_changed=content_changed)
+            if isinstance(updated, SemanticMemory)
+            else None
+        )
 
         if isinstance(updated, (SemanticMemory, EpisodicMemory)):
             if self._vector is None:
@@ -391,7 +396,5 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
                 self._record_ephemeral_delta_for_memory(result)
             return result
         if isinstance(updated, ProceduralMemory):
-            rule = await self._rel().update_rule(memory_id, updated)
-            await self._sync_exact_fact_index(rule, index_action)
-            return rule
+            return await self._rel().update_rule(memory_id, updated)
         raise ValueError(f"Cannot update memory type: {type(updated).__name__}")

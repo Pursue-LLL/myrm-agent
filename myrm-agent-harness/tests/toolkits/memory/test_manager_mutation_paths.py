@@ -8,6 +8,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import (
     ConversationMemory,
+    EpisodicMemory,
     MemoryStatus,
     ProceduralMemory,
     SemanticMemory,
@@ -182,3 +183,24 @@ class TestExactFactBookkeeping:
         result = await manager.update_memory("mem-f", content="Server IP is 10.0.0.2")
 
         assert result.content == "Server IP is 10.0.0.2"
+
+    @pytest.mark.asyncio
+    async def test_an_event_is_never_registered_in_the_index(self, manager, mock_relational_store, persisted):
+        _serve(manager, EpisodicMemory(id="mem-e", content="Deploy finished at 10.0.0.1"))
+        mock_relational_store.record_exact_fact = AsyncMock()
+
+        result = await manager.update_memory("mem-e", is_exact_fact=True)
+
+        assert result.is_exact_fact is False
+        mock_relational_store.record_exact_fact.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_rule_is_never_registered_in_the_index(self, manager, mock_relational_store):
+        _serve(manager, ProceduralMemory(id="rule-1", trigger="when asked", action="use 10.0.0.1"))
+        mock_relational_store.update_rule = AsyncMock(side_effect=lambda _id, memory: memory)
+        mock_relational_store.record_exact_fact = AsyncMock()
+
+        result = await manager.update_memory("rule-1", is_exact_fact=True)
+
+        assert result.is_exact_fact is False
+        mock_relational_store.record_exact_fact.assert_not_awaited()
