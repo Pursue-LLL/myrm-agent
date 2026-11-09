@@ -57,6 +57,18 @@ describe('composer clearance filler', () => {
     expect(spacer).toHaveClass('min-h-40');
   });
 
+  it('counts a bottom offset that is not a number as zero', () => {
+    setDockHeight(300);
+    const { container } = render(
+      <Column>
+        <div data-composer-dock style={{ bottom: 'auto' }} />
+      </Column>,
+    );
+
+    const spacer = container.firstElementChild?.firstElementChild as HTMLElement;
+    expect(spacer.style.height).toBe('316px');
+  });
+
   it('follows the composer when its size changes', () => {
     setDockHeight(300);
     const { container } = render(<Column>{dock}</Column>);

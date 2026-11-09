@@ -45,21 +45,23 @@
 | `LoopStatusBar.tsx` | 组件 | 会话级循环调度悬浮胶囊：响应式双主题、自适应倒计时动效、运行轮次与退避步长指示、`--until` 停止目标徽章呈现、一键停止控制 | ✅ |
 | `__tests__/LoopStatusBar.test.tsx` | 测试 | 循环状态胶囊单元测试：隐藏/显示控制、倒计时格式化、停止请求与无缝响应、`--until` 停止目标徽章呈现、暂停态隐藏倒计时与不限轮次计数、翻译键与插值参数覆盖 | ✅ |
 | `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅：扫描中与无数据时不渲染（无占位闪烁），仅发现数据后出现；操作按钮行允许换行，窄屏上较长的按钮文案不会越出屏幕边缘；单源时深链 `?sub=migration&source=`；关闭后按设备静默 7 天（`useProactiveDismissal`，key `migration-discovery`），静默期内连磁盘扫描都不做，到期后再次提示；与更新提醒横幅共用首屏单槽（`useNoticeSlot`）：另一张提示卡已在屏上时先等待，不叠在它上方、不把整页顶下去 | ✅ |
-| `__tests__/MigrationDiscoveryBanner.test.tsx` | 测试 | 迁移发现横幅测试：扫描中/无数据/扫描失败不渲染、发现数据后单源深链、操作按钮行可换行、关闭后 7 天内不再出现也不再扫描（新会话同样）、到期后重新提示、另一张提示卡占槽时等待并在其关闭后出现、非本地模式不扫描 | ✅ |
+| `__tests__/MigrationDiscoveryBanner.test.tsx` | 测试 | 迁移发现横幅测试：扫描中/无数据/扫描失败不渲染、发现数据后单源深链（来源 id 会编码；该来源不支持深链或检测到多个来源时落到迁移页自行选择）、标题合并多个来源名且数量相加、描述按有技能/仅记忆/无计数三档、仅当某个来源会带来 API 密钥时出现密钥提示、操作按钮行可换行、关闭后 7 天内不再出现也不再扫描（新会话同样）、到期后重新提示、另一张提示卡占槽时等待并在其关闭后出现、非本地模式不扫描 | ✅ |
 | `IncognitoNotice.tsx` | 组件 | 空会话态无痕说明：无痕开启时就地写明条款（复用 `memory.incognitoModeDesc`：不读写记忆、不进历史与搜索、闲置超 1 小时自动删除、模型服务商仍会处理发送内容）；开关的悬停提示在触屏上不出现、手机上开关又在底部抽屉里，所以条款直接写在空会话页面上；`role=status` 的 `<output>`，仅用主题变量 | ✅ |
 | `__tests__/IncognitoNotice.test.tsx` | 测试 | 无痕说明测试：关闭时不渲染、开启后含标题与条款并带 `status` 语义 | ✅ |
 | `EmptyChat.tsx` | 组件 | 空会话态：挂载 `IncognitoNotice`、`ResourcePressureBanner`（告警排在可选提议之前，晚到的提议只会插在它下方）、`MigrationDiscoveryBanner`（仅发现外部助手数据时出现；与 `UpdateNudgeBanner` 共用首屏单槽，一次只出现一张）、`SamplePrompts`、`Companion`、`MessageInput` 等；`AgentConfigPanel` 以收起态挂载，仅在 AgentIndicator 的「详细配置与微调」中展开；模型编排手册入口在设置的模型页与智能路由徽章；首屏组件白名单由 `__tests__/EmptyChat.contract.test.ts` 守卫；手机（<`sm`）顶部留白 `8vh`、≥`sm` 为 `20vh`，使 390×844 的干净首屏无需滚动（由 `__tests__/EmptyChat.mobile.contract.test.ts` 守卫）；标题带 `data-testid="empty-chat-title"`（E2E 以它判定页面已挂载） | ✅ |
 | `__tests__/EmptyChat.contract.test.ts` | 测试 | 空会话首屏契约：`EmptyChat.tsx` 导入的组件必须在白名单内，新增首屏卡片须同时更新白名单并说明理由；桌面输入框主行只挂 `ComposerPrimaryControls` 与 `ComposerOptionsRegion`（`MessageInput` 不再导入选项区里的次要控件，也不再有横滑工具栏），防止首屏再次堆叠；根节点不得自带 `min-h-*`（撑满视口交给 AppLayout 的 `main`，否则外层 `pt-4` 会把干净的首屏变成滚动条） | ✅ |
+| `__tests__/EmptyChat.test.tsx` | 测试 | 空会话首屏行为测试（子组件换成标记桩、store 换成小型真实 store）：标题与各块按阅读顺序排列（输入框之后依次是无痕说明、资源告警、迁移、更新、示例 prompt、智能体配置）、陪伴挂件仅在 `companion_mode` 打开时出现、智能路由解析器拿到聊天与供应商状态且只在它们变化时重算、徽章仅在路由生效时出现并打开编排手册、挂载即预热首轮并聚焦输入框 | ✅ |
 | `__tests__/EmptyChat.mobile.contract.test.ts` | 测试 | 空会话首屏手机端契约（源码级守卫）：精选专家条与示例 prompt 在手机上是单行横滑、≥`sm` 才换行/成网格；工作目录行只有一处渲染、位于输入框与操作栏之间（手机上不依赖桌面工具栏）、路径单行省略且箭头不被挤出；输入框手机字号 `text-base`；EmptyChat 手机顶部留白；ChatWindow 空会话分支的系统横幅外包左侧避让容器，不压在侧栏浮动开关上 | ✅ |
 | `__tests__/ComposerToolbar.popupPortal.contract.test.ts` | 测试 | 输入框弹层契约（源码级守卫）：选项区为让高度可以动画而裁切内容（`overflow-hidden`），裁切框会切掉定位在框外的子节点；`message-input-actions/`、`composer-options/`、`thinking-permission/` 与 `ExpertSummonPopover` 内不得再用内联 `absolute bottom-full / top-full` 定位弹层，必须走 Radix 门户（Popover / DropdownMenu） | ✅ |
 | `ComposerClearanceSpacer.tsx` | 组件 | 消息列表末尾的底部间距：高度 = 浮动输入框（`[data-composer-dock]`，必须是消息列的直接子节点）高度 + 底部偏移 + 16px，随选项区展开、排队消息、附件与长草稿变化；高度由 `ResizeObserver` 直接写到元素上，输入框尺寸变化不触发长对话重渲染；`className` 带最小高度（传统列表 `min-h-40 lg:min-h-[15rem]`、虚拟列表 `min-h-44`），首帧与固定高度时一致；`Chat.tsx` 与 `VirtualMessageList` 共用 | ✅ |
-| `__tests__/ComposerClearanceSpacer.test.tsx` | 测试 | 底部间距契约：高度 = 输入框高度 + 底部偏移 + 边距并向上取整、随 `ResizeObserver` 回调更新、卸载时断开；消息列里没有输入框、或输入框不是直接子节点时不改高度 | ✅ |
+| `__tests__/ComposerClearanceSpacer.test.tsx` | 测试 | 底部间距契约：高度 = 输入框高度 + 底部偏移 + 边距并向上取整（底部偏移不是数字时按 0 计）、随 `ResizeObserver` 回调更新、卸载时断开；消息列里没有输入框、或输入框不是直接子节点时不改高度 | ✅ |
 | `TurnTimelineRail.tsx` | 组件 | 会话时间线大纲导航导轨与移动端大纲抽屉：10px 固定步距微光刻度、双端渐变淡出遮罩、大纲浮层预览、跨轮次连续加载直达（按用户消息 ID 锚定，`loadThroughTurn`）与 Alt+↑/↓ 键盘轮次跳跃（`MobileTurnOutlineSheet` 同文件导出；纯函数模型层 `turnRailModel.ts`，后台完成通知行不算轮次） | ✅ |
 | `FiveContractDeliveryStatusPanel.tsx` | 组件 | 五合同交付生命周期进度面板：透明透出 Task Intent、Scene Environment、Action Execution、Delivery Artifact 与 Acceptance Verification 5 阶段状态机进度条与审计详情 | ✅ |
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models`；「已有订阅」入口经共享 `useXaiDeviceLogin` 以设备码授权接入 xAI SuperGrok，授权成功由 `connectProviderSubscription` 启用 xAI 并按 models.dev 目录补齐起始模型、主模型槽位空缺时绑定；授权失败给出本地化提示；确认弹窗比横幅存活更久，成功提示不会随横幅一起消失；本机已运行 Ollama 且有能对话、支持工具调用的模型时（`useOllamaQuickConnect`），多一个「使用 Ollama：模型名」按钮，点击经 `enableProviderWithModel` 启用 Ollama 与该模型、主模型槽位空缺时绑定，没有合格模型时不显示 | ✅ |
 | `UpdateNudgeBanner.tsx` | 组件 | 空会话与闲置聊天页可用更新提醒横幅：包含常规升级与安全补丁专属视觉（IconShield+amber警戒色）、推迟及勿扰过滤、直跳全栈更新面板；「忽略」常规更新即推迟该版本（与更新面板的「推迟」同一偏好，更新的版本出现时再次提醒），「忽略」安全补丁只在本会话有效（补丁本就穿透推迟）；手机上文案在上、操作在下（≥`sm` 同一行），文案始终有可读宽度；与外部助手发现横幅共用首屏单槽（`useNoticeSlot`），另一张提示卡已在屏上时先等待；「忽略」按钮高度 ≥24px（触屏 32px） | ✅ |
-| `__tests__/UpdateNudgeBanner.test.tsx` | 测试 | 更新提醒横幅测试套件：常规更新渲染、安全更新穿透显示、免打扰会话持久化、忽略即推迟（下个会话不再提示、更新的版本再次提醒）、安全补丁忽略仅限本会话、另一张提示卡占槽时等待并在其关闭后出现、跳转动作与手机上下堆叠布局覆盖 | ✅ |
-| `ResourcePressureBanner.tsx` | 组件 | 空会话页资源压力告警：磁盘严重 > 内存严重 > 磁盘偏高 > 内存偏高，只显示最差的一张（`/api/v1/health/pressure`，60 秒轮询）；「忽略」仅限本会话、严重度升级即时重开、恢复后清除；告警不参与首屏单槽（不应让位给可选提议），「忽略」按钮高度 ≥24px（触屏 32px） | ✅ |
+| `__tests__/UpdateNudgeBanner.test.tsx` | 测试 | 更新提醒横幅测试套件：常规更新渲染（标题带版本号）、安全更新穿透显示、免打扰会话持久化、忽略即推迟（下个会话不再提示、更新的版本再次提醒）、安全补丁忽略仅限本会话、接口出错/不可达/返回非 JSON/已是最新/无最新版本时保持静默、免打扰时段与已推迟版本内的常规更新不提示、浏览器拦截会话标记读取时仍照常检查、会话标记写入失败时仍关闭并推迟、另一张提示卡占槽时等待并在其关闭后出现、跳转动作与手机上下堆叠布局覆盖 | ✅ |
+| `ResourcePressureBanner.tsx` | 组件 | 空会话页资源压力告警：磁盘严重 > 内存严重 > 磁盘偏高 > 内存偏高，只显示最差的一张（`/api/v1/health/pressure`，60 秒轮询）；「忽略」仅限本会话、严重度升级即时重开、恢复后清除、只剩被忽略的告警时撤下已不成立的那张；告警不参与首屏单槽（不应让位给可选提议），「忽略」按钮高度 ≥24px（触屏 32px） | ✅ |
+| `__tests__/ResourcePressureBanner.test.tsx` | 测试 | 资源压力告警测试（假时钟驱动轮询）：磁盘严重 > 内存严重 > 磁盘偏高 > 内存偏高的取值优先级与大小写、无压力/空应答/未知级别/错误状态/不可达/非 JSON 时静默、挂载即查并每 60 秒再查（卸载后停止，迟到的应答不改动忽略记录）、忽略仅限本会话且逐项累积、被忽略的告警只在比屏幕上的更严重时重开、只剩被忽略的告警时撤下旧横幅、恢复后清除记录、损坏的忽略记录视为空、写入失败仍收起、「打开」跳到系统设置 | ✅ |
 | `playbook/` | 子包 | 模型编排最佳实践领域子包：包含首屏轻量发现胶囊、交互式看板弹窗、三大黄金预设与一键增量下发引擎（详见 `playbook/_ARCH.md`） | ✅ |
 | `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与输入框选项区 `ComposerOptionsRegion`） | ✅ |
 | `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 + streaming 防护 | ✅ |
@@ -91,7 +93,8 @@
 | `ContextFootprintInspector.tsx` | 组件 | 会话初始上下文底噪透视面板与闲置 MCP 快速裁决器：清晰透视 System Prompt、Persona、Workspace Rules、MCP Tools 与 Skills 五层底层初始 Token 占用，支持 `/context` 指令直达与一键启闭闲置 MCP 服务；三档底噪基线说明取自 `chat.contextFootprint` | ✅ |
 | `__tests__/ContextFootprintInspector.test.tsx` | 测试 | 上下文底噪透视组件单元测试套件：覆盖 5 层底噪 breakdown 渲染、formatTokenNumber 紧凑格式化、空服务状态、MCP 实时切换回调与关闭事件触发 | ✅ |
 | `__tests__/ReferenceMentionPopover.dedup.test.tsx` | 测试 | 引用建议气泡去重指示单元测试套件：覆盖会话隔离账本下已注入文件的 `[已在上下文]` 胶囊标签渲染与防膨胀提示 | ✅ |
-| `SamplePrompts.tsx` | 组件 | 空会话情境感知操作算子与示例 prompt 列表：时段智能感知（晨间/午后/晚间/深夜四时段自动自适应与微胶囊切换）+ 模式与等级加权过滤；手机上胶囊为单行横滑、示例卡片为吸附横滑（出血到屏幕边缘），≥`sm` 胶囊换行居中、卡片成 2/4 列网格 | ✅ |
+| `SamplePrompts.tsx` | 组件 | 空会话情境感知操作算子与示例 prompt 列表：时段智能感知（晨间/午后/晚间/深夜四时段自动自适应与微胶囊切换）+「全部」按模式（fast / agent）从候选池按种子稳定抽四张（种子含模式、智能体、时段与等级，服务端与客户端一致）；智能体自带 `suggestionPrompts` 时隐藏胶囊并从中抽取；手机上胶囊为单行横滑、示例卡片为吸附横滑（出血到屏幕边缘），≥`sm` 胶囊换行居中、卡片成 2/4 列网格 | ✅ |
+| `__tests__/SamplePrompts.test.tsx` | 测试 | 示例 prompt 测试（假时钟）：各时段边界（0/6/12/18 点起，5:59/11:59/17:59/23:59 止）选对四张时段卡并只给当前时段打点、服务端先出晨间再切到真实时段、页面开着跨时段时跟随时钟且卸载后停表、手选时段与点当前时段回到自动（之后继续跟随时钟）、「全部」按模式抽四张不同的卡且同状态同结果、两个池里的每张卡都会轮到、不认识的模式按 agent、智能体自带建议替换胶囊与内置卡（少于四条全显示、空数组回退）、点击卡片把文案原样写入输入框 | ✅ |
 | `ScrollToBottomButton.tsx` | 组件/模块 | 滚动到底部浮动按钮（双态：↓ 箭头 / 新消息药丸） | ✅ |
 | `YoloModeBanner.tsx` | 组件 | YOLO 模式全局警告横幅；org 全局 disableYolo 或 per-model MAP 约束时展示真实审批提示（ConfigSync + effective MAP SSE/visibility refetch + 当前 Agent 模型） | ✅ |
 | `EStopBanner.tsx` | 组件/模块 | E-Stop 全局冻结横幅（GET /security/estop，解除冻结 POST resume） | ✅ |
