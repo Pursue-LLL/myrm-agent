@@ -1453,10 +1453,7 @@
       },
       "modelOverride": "モデルの上書き",
       "subagentCostSaving": "サブエージェントのコスト削減",
-      "subagentModelInherit": "メインエージェントに従う（デフォルト）",
-      "subagentModelDeepseek": "DeepSeek-V3 / Flash（おすすめ・最小コスト）",
-      "subagentModelGpt4oMini": "GPT-4o Mini（高速レビュー）",
-      "subagentModelClaudeHaiku": "Claude 3.5 Haiku（高スループット監査）"
+      "subagentModelInherit": "メインエージェントに従う（デフォルト）"
     },
     "preview": "プレビュー",
     "avatarColor": "アバターの色",

@@ -1453,10 +1453,7 @@
       },
       "modelOverride": "模型覆寫",
       "subagentCostSaving": "子智慧體降本",
-      "subagentModelInherit": "跟隨主智慧體（預設）",
-      "subagentModelDeepseek": "DeepSeek-V3 / Flash（推薦·極致低成本）",
-      "subagentModelGpt4oMini": "GPT-4o Mini（快速審查）",
-      "subagentModelClaudeHaiku": "Claude 3.5 Haiku（高吞吐稽核）"
+      "subagentModelInherit": "跟隨主智慧體（預設）"
     },
     "preview": "預覽",
     "avatarColor": "頭像顏色",

@@ -1453,10 +1453,7 @@
       },
       "modelOverride": "모델 재정의",
       "subagentCostSaving": "하위 에이전트 비용 절감",
-      "subagentModelInherit": "메인 에이전트를 따름(기본값)",
-      "subagentModelDeepseek": "DeepSeek-V3 / Flash(추천·최저 비용)",
-      "subagentModelGpt4oMini": "GPT-4o Mini(빠른 검토)",
-      "subagentModelClaudeHaiku": "Claude 3.5 Haiku(고처리량 감사)"
+      "subagentModelInherit": "메인 에이전트를 따름(기본값)"
     },
     "preview": "미리보기",
     "avatarColor": "아바타 색상",

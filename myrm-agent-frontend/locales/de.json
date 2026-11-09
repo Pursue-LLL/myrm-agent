@@ -1453,10 +1453,7 @@
       },
       "modelOverride": "Modellüberschreibung",
       "subagentCostSaving": "Kostensenkung für Subagenten",
-      "subagentModelInherit": "Wie Hauptagent (Standard)",
-      "subagentModelDeepseek": "DeepSeek-V3 / Flash (empfohlen, niedrigste Kosten)",
-      "subagentModelGpt4oMini": "GPT-4o Mini (schnelle Prüfung)",
-      "subagentModelClaudeHaiku": "Claude 3.5 Haiku (Audit mit hohem Durchsatz)"
+      "subagentModelInherit": "Wie Hauptagent (Standard)"
     },
     "preview": "Vorschau",
     "avatarColor": "Avatar-Farbe",

@@ -1453,10 +1453,7 @@
       },
       "modelOverride": "Model override",
       "subagentCostSaving": "Subagent cost saving",
-      "subagentModelInherit": "Follow main agent (default)",
-      "subagentModelDeepseek": "DeepSeek-V3 / Flash (recommended, lowest cost)",
-      "subagentModelGpt4oMini": "GPT-4o Mini (fast review)",
-      "subagentModelClaudeHaiku": "Claude 3.5 Haiku (high-throughput audit)"
+      "subagentModelInherit": "Follow main agent (default)"
     },
     "preview": "Preview",
     "avatarColor": "Avatar Color",

@@ -116,6 +116,30 @@ interface ProviderState {
  */
 let providersHydrated = false;
 
+/**
+ * Enabled model options for a provider list: providers that are on and hold usable credentials.
+ *
+ * Pure so components can derive the same list from a subscribed `providers` slice instead of
+ * reading the store imperatively (which would not re-render when a provider is toggled).
+ */
+export function selectEnabledModels(
+  providers: ProviderConfig[],
+): Array<{ providerId: string; providerName: string; model: string }> {
+  const result: Array<{ providerId: string; providerName: string; model: string }> = [];
+  for (const provider of providers) {
+    if (!provider.isEnabled) {
+      continue;
+    }
+    if (!hasUsableProviderAuth(provider)) {
+      continue;
+    }
+    for (const model of provider.enabledModels || []) {
+      result.push({ providerId: provider.id, providerName: provider.name, model });
+    }
+  }
+  return result;
+}
+
 function syncToManager(
   providers: ProviderConfig[],
   defaultModelConfig: DefaultModelConfig,
@@ -935,29 +959,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
     set({ customModelInfo, defaultModelConfig });
   },
 
-  getEnabledModels: () => {
-    const providers = get().providers;
-    const result: Array<{ providerId: string; providerName: string; model: string }> = [];
-
-    for (const provider of providers) {
-      if (!provider.isEnabled) {
-        continue;
-      }
-      if (!hasUsableProviderAuth(provider)) {
-        continue;
-      }
-
-      for (const model of provider.enabledModels || []) {
-        result.push({
-          providerId: provider.id,
-          providerName: provider.name,
-          model,
-        });
-      }
-    }
-
-    return result;
-  },
+  getEnabledModels: () => selectEnabledModels(get().providers),
 }));
 
 export default useProviderStore;
