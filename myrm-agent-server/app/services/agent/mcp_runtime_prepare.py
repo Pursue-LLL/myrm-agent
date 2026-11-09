@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.services.agent.backends::DatabaseSecretBackend, MCPSecretAuthProvider (POS: agent secret store)
+- app.core.security.master_key::MasterKeyProvider (POS: 安全金库密钥派生模块)
 - app.ai_agents.general_agent.factory::_try_inject_mcp_oauth (POS: MCP OAuth header injection)
 
 [OUTPUT]
@@ -9,6 +10,8 @@
 
 [POS]
 Server business layer. Shared by GeneralAgent factory build and catalog capability hot reload.
+The master key is read through peek(): while the vault is locked or still resolving, configs are
+returned untouched instead of blocking a turn on the OS keyring.
 """
 
 from __future__ import annotations

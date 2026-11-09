@@ -1,5 +1,5 @@
 """[INPUT]
-- app.core.security.master_key::VaultLockedError (POS: 金库锁定错误)
+- app.core.security.master_key::VaultLockedError (POS: 缺少主密钥时抛出，携带当前状态)
 
 [OUTPUT]
 - vault_locked_error: 把锁定错误映射为 HTTP 423

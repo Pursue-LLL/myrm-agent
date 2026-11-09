@@ -90,3 +90,7 @@ security/
 - `app/services/config/encryption.py`: 配置存储透明加解密
 - `app/core/channel_bridge/config_loader.py`: 频道配置加载解密
 - `app/api/dependencies.py`: 内部服务密钥验证
+- `app/api/security/vault_credentials.py` / `app/api/security/vault.py`: 凭据 CRUD 与解锁，锁定统一映射 423
+- `app/api/agents/agent_extras.py`: Agent 密钥端点，锁定返回 423
+- `app/services/agent/mcp_runtime_prepare.py`: MCP 密钥注入前 `peek()`；未就绪则原样返回配置
+- `app/database/repositories/agent_repo/create.py` / `update.py`: 网关 token 加密前等待主密钥

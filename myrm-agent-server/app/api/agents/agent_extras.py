@@ -5,6 +5,9 @@ services.agent.agent_service::AgentService (POS: 业务层 Agent CRUD 服务)
 services.agent.backends::DatabaseSecretBackend (POS: Agent Secrets 加密存储)
 services.agent.builtin_specs.builtin_tool_validation::RequiredBuiltinTools (POS: 内建工具类型)
 core.skills.loader::create_skill_backend (POS: 与 Agent 运行时同一份技能后端组装，Turn1 预览的技能来源)
+core.security.master_key::MasterKeyProvider (POS: 安全金库密钥派生模块)
+core.security.master_key::VaultLockedError (POS: 缺少主密钥时抛出，携带当前状态)
+api.security.vault_errors::vault_locked_error (POS: Vault HTTP 错误映射)
 
 [OUTPUT]
 - GET    /{agent_id}/secrets: 列出 Agent 机密名称（不含明文）
@@ -14,7 +17,7 @@ core.skills.loader::create_skill_backend (POS: 与 Agent 运行时同一份技�
 - POST   /evaluate-action-space: 动作空间复杂度 ASCS 评估 + Turn1 catalog_preview（inline/hidden/search_mounted）
 
 [POS]
-Agent 辅助端点。Secrets 管理、使用统计、动作空间复杂度评估。
+Agent 辅助端点。Secrets 管理、使用统计、动作空间复杂度评估。机密端点依赖金库，锁定或仍在解析时返回 423；其余端点不受金库状态影响。
 """
 
 from __future__ import annotations

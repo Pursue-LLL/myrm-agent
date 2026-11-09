@@ -1,8 +1,10 @@
 """[INPUT]
-- myrm_agent_harness.runtime.survival (POS: 内存压力与资源采样)
+- myrm_agent_harness.runtime.survival.resource_monitor::ResourceMonitor (POS: Resource monitor for single Agent instance)
+- app.core.infra.runaway_dump::RunawayDumper (POS: 失控现场采集器)
 
 [OUTPUT]
 - start/stop_memory_pressure_monitor: 内存压力与资源监控生命周期
+- 资源采样监听器：内存历史事件 + 失控栈采集
 
 [POS]
 后台监控器生命周期：内存压力、认证告警、资源采样与失控栈采集；全部遵循 start/stop 模式。

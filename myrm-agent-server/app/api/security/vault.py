@@ -6,7 +6,8 @@ core.security.master_key::MasterKeyProvider (POS: 安全金库密钥派生模块
 unlock_vault: 接收用户主密码并解锁金库
 
 [POS]
-金库解锁 API 路由。供无凭证环境（Local/Docker）的终端用户安全输入密码派生主密钥。
+金库解锁 API 路由。供无凭证环境（Local/Docker）的终端用户安全输入密码派生主密钥；
+密码派生（scrypt）在 worker 线程执行，不占用事件循环。
 """
 
 import asyncio

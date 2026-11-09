@@ -10,8 +10,8 @@ Agent 领域仓储。类不持有实例状态：8 个方法全部是 `@staticmet
 | `store.py` | 核心 | `AgentRepository(ReadsMixin, CreateMixin, UpdateMixin, MappingMixin)`，无 `__init__`、无实例状态 | — |
 | `mapping.py` | 辅助 | `_agent_to_profile`（ORM ↔ `AgentProfile`）、`_prepare_engine_params` 投影 | — |
 | `reads.py` | 核心 | `get_profile` / `list_profiles`（分页）/ `count_profiles` | ✅ |
-| `create.py` | 核心 | `create_profile` / `delete_profile` | ✅ |
-| `update.py` | 核心 | `update_profile`（含乐观并发 `StaleDataError` 处理） | ✅ |
+| `create.py` | 核心 | `create_profile` / `delete_profile`；网关 `auth_token` 加密前 `await ensure_master_key(grace_sec=0)`，金库未就绪时丢弃 token 而不是写入明文 | ✅ |
+| `update.py` | 核心 | `update_profile`（含乐观并发 `StaleDataError` 处理）；网关 `auth_token` 加密前同样等待主密钥，失败则移除 token 而不是写入明文 | ✅ |
 
 ## 说明
 

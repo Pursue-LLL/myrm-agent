@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""应用启动脚本
+"""[INPUT]
+- app.startup.env_loader / config_check / health_check / server_lock / uvicorn_runner / granian_runner (POS: 启动编排)
+- app.startup.parent_watchdog (POS: 探针/CI 实例的生命周期兜底)
+- app.core.infra.frontend_launcher (POS: 端口探测与前端启动)
 
-所有部署模式默认使用 uvicorn 单进程（沙箱内嵌入式 SQLite + Qdrant 需要单进程避免文件锁冲突）。
-如需手动切换为 granian 多进程，设置 SERVER_MODE=granian（仅适用于无嵌入式数据库的场景）。
+[OUTPUT]
+- 进程 CLI 入口：参数解析、端口/数据目录锁、uvicorn 或 granian 启动
+- --exit-with-parent：启动父进程看门狗，父进程消失即自行关闭
 
-启动逻辑已拆分到 app/startup/ 子模块，本文件仅作为 CLI 入口。
+[POS]
+应用启动脚本。默认 uvicorn 单进程（沙箱内嵌入式 SQLite + Qdrant 需要单进程避免文件锁冲突）；
+SERVER_MODE=granian 仅适用于无嵌入式数据库的部署。启动逻辑在 app/startup/，本文件只做编排。
 """
 
 import argparse

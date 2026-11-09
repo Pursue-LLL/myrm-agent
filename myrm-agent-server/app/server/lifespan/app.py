@@ -1,11 +1,13 @@
 """[INPUT]
 - .startup / .shutdown (POS: lifespan phases)
+- app.core.security.master_key::MasterKeyProvider (POS: 安全金库密钥派生模块)
 
 [OUTPUT]
 - optimized_lifespan
 
 [POS]
-The FastAPI lifespan: runs the sequential and parallel startup phases, then shutdown.
+The FastAPI lifespan: prewarms the master key in the background, runs the sequential and parallel
+startup phases, then shutdown. The keyring prompt never blocks startup.
 """
 
 from __future__ import annotations

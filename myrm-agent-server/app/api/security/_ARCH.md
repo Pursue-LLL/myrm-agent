@@ -17,7 +17,7 @@ Security Center 与 Agent 工具安全策略的 HTTP 层：供应链仪表盘、
 | `allowlist.py` | 路由 | `/security/allowlist` 工具 allowlist 查询与删除；`command_pattern` / `expires_at` 字段与 harness 四层匹配及时效自动撤销对齐 | ✅ |
 | `allowlist_granularity.py` | 模块 | allowlist REST 粒度映射与 DB 空串归一化 | — |
 | `test_fixtures.py` | 测试 | local-only：allowlist pattern seed/clear、hitl-probe（`pending_interrupt_events`） | ✅ |
-| `vault.py` | 路由 | `POST /security/vault/unlock`：本地主密钥派生 | ✅ |
+| `vault.py` | 路由 | `POST /security/vault/unlock`：本地主密钥派生；scrypt 在 worker 线程执行，不阻塞事件循环 | ✅ |
 | `vault_credentials.py` | 路由 | `/security/vault-credentials` CRUD；构造服务前 `await ensure_master_key()` | ✅ |
 | `vault_errors.py` | 模块 | 把 `VaultLockedError` 映射为 423（WebUI 据此弹出解锁流程），避免退化成 500 | — |
 
@@ -49,6 +49,7 @@ Security Center 与 Agent 工具安全策略的 HTTP 层：供应链仪表盘、
 
 ## 模块依赖
 
+- `app.core.security.master_key` — 主密钥状态机（`ensure_master_key` / `peek`），凭据与解锁路由共用
 - `app.services.security.merged_dashboard` — 仪表盘合并
 - `app.services.security.platform_audit` — 审计读写
 - `app.services.security.cp_rate_limit` — sandbox 限流

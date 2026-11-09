@@ -1,11 +1,13 @@
 """[INPUT]
 - app.database.models / harness profile types (POS: ORM + domain types)
+- app.core.security.master_key::MasterKeyProvider (POS: 安全金库密钥派生模块)
 
 [OUTPUT]
 - CreateMixin
 
 [POS]
-AgentRepository mixin: profile creation and deletion.
+AgentRepository mixin: profile creation and deletion; gateway auth tokens are encrypted only with an
+available master key, and a locked vault drops the token instead of storing plaintext.
 """
 
 from __future__ import annotations

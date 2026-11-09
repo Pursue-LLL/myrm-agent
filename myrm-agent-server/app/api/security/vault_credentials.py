@@ -1,5 +1,6 @@
 """[INPUT]
-- app.core.security.master_key::MasterKeyProvider (POS: 主密钥状态机)
+- app.core.security.master_key::MasterKeyProvider (POS: 安全金库密钥派生模块)
+- app.core.security.master_key::VaultLockedError (POS: 缺少主密钥时抛出，携带当前状态)
 - app.services.security.vault_credential_service::VaultCredentialService (POS: 凭据业务服务)
 
 [OUTPUT]

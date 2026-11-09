@@ -758,6 +758,14 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/evolution/test_evolution_lock_rows.py` | 模块 | `/derive`、`/fix`、锁开关对不同键的进化行都能找到：以技能名为键的行（经页面 id 或名字引用）、优先取以页面 id 为键的行、不采用同名他人的行；没有行的本地技能补建一行且重复触发复用它；被锁的技能（库标志或 SKILL.md 里的锁）在入口被拒绝（没有行的被锁技能不补行），`/fix` 强制重试同样不绕过；非本地技能不补行、SKILL.md 缺失与未知技能为 404、SKILL.md 超出存储上限被拒绝且不留行；解锁同时清除按技能名为键的行与 SKILL.md 里的锁，上锁标记该技能的每一行 |
 | `api/evolution/test_evolution_display_rows.py` | 模块 | 技能页展示的锁与回归用例取自存放该技能 SKILL.md 的进化行，即 `/derive` 与锁开关作用的那一行（真实 HTTP 与真实存储）：改过名的技能显示旧名行的锁且 `/derive` 同样 409；同名而在不同目录的技能互不串锁（上锁、解锁只影响自己）、互不串用回归用例；存放别的目录 SKILL.md 的行不会被展示；没有行的技能显示自己 SKILL.md 里的锁（两种取值）；以页面 id 为键的行优先；非本地技能仍按名字取；一次列表请求只读一次进化库的活动行 |
 | `services/skills/test_evolution_review_rollback.py` | 模块 | 演化评审回滚：fork 回滚移除其文件与记录且无错误，编辑回滚还原原始内容，已退役的进化类型在技能文件被改动之前即被拒绝 |
+| `core/infra/test_log_rate_limit.py` | 单元 | 日志限速：不同消息不误伤；同模板超过 burst 后合并，下一条附被丢弃计数；ERROR 配额更高且首条穿透全局桶；记忆键有界；全局桶封顶；非法 `MYRM_LOG_RATE_LIMIT` 回退默认；0 关闭 |
+| `core/infra/test_runaway_dump.py` | 单元 | 失控现场：CPU 或线程连续超阈值才落盘（单次高样本不触发）、冷却期不重复、相同线程栈聚合、写盘失败不冒泡、防重入、2MB 截断、只保留 3 份、从数据目录解析输出路径 |
+| `core/security/test_master_key_provider.py` | 单元 | 主密钥：环境变量优先且不发钥匙串读；后台单线程解析，首调立即失败而不阻塞；失败负缓存与 30s 后重试；迟到密钥被采用；显式解锁不被迟到结果覆盖；peek 不触发读取；钥匙串后端崩溃不杀线程；持久化失败只记警告 |
+| `startup/test_parent_watchdog.py` | 单元 | `--exit-with-parent`：父进程变化后向自身发 SIGTERM；启动前已孤儿立即退出；父进程稳定时不动作 |
+| `api/security/test_vault_unlock.py` | 模块 | 金库解锁路由：空密码 400、成功返回、派生失败 500；scrypt 经 worker 线程执行 |
+| `api/security/test_vault_credentials_errors.py` | 模块 | Vault 凭据错误映射：锁定/解析中 → 423，后端失败 → 500，423 不被通用异常吞成 500 |
+| `api/agents/test_agent_secret_backend.py` | 模块 | Agent 密钥后端工厂：把主密钥传给存储；金库锁定 → 423 |
+| `api/agents/test_agent_extras_routes.py` | 模块 | Agent 辅助路由：Secrets 列表/创建/删除、使用统计、ASCS 评估、Turn1 技能目录预览的成功与错误分支 |
 
 ---
 

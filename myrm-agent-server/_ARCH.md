@@ -22,7 +22,7 @@ FastAPI 单机业务后端：HTTP API、渠道桥接、生命周期编排；Agen
 
 | 文件 | 职责 |
 |------|------|
-| `run.py` | 进程 CLI 入口 → `app/startup/*` |
+| `run.py` | 进程 CLI 入口 → `app/startup/*`；`--exit-with-parent` 为探针/CI 实例武装父进程看门狗 |
 | `deploy.py` | 薄 shim → `scripts/deploy.py` |
 | `pyproject.toml` / `uv.lock` | Python 依赖；harness 经 `[tool.uv.sources]` 解析为同仓 editable path 源 |
 | `Dockerfile` / `docker-compose.yaml` | 容器构建与编排；两个容器的加固（去能力、禁止提权、前端只读根文件系统、后端停止宽限期长于回合排空）由 `tests/architecture/test_docker_compose_hardening.py` 钉住 |

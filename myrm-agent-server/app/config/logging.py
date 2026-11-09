@@ -1,6 +1,6 @@
 """[INPUT]
 - myrm_agent_harness (POS: 脱敏/JSON/trace 日志组件)
-- app.core.infra.log_rate_limit::LogStormFilter (POS: 重复日志限速)
+- app.core.infra.log_rate_limit::LogStormFilter (POS: 日志风暴保护)
 
 [OUTPUT]
 - configure_logging: 进程级日志配置

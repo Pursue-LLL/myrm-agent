@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.runtime.survival.resource_monitor::ResourceMetrics (POS: 10 秒资源采样)
+- myrm_agent_harness.runtime.survival.resource_monitor::ResourceMetrics (POS: Resource usage metrics)
 
 [OUTPUT]
 - RunawayDumper: 持续超阈值时落盘线程栈与 asyncio 任务栈
