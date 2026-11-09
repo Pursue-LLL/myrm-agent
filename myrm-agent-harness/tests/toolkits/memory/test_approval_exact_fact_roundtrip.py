@@ -64,3 +64,32 @@ async def test_a_row_queued_with_identifier_lists_in_its_metadata_is_approved(ne
     assert reloaded.is_exact_fact is True
     assert reloaded.exact_identifiers == identifiers
     assert reloaded.metadata.get("exact_identifiers") is None
+
+
+async def test_an_edited_approval_is_stamped_from_the_edited_text(new_manager: NewManager) -> None:
+    manager = new_manager()
+    await manager.store_batch([SemanticMemory(content=WITH_IDENTIFIER)], _force_pending=True)
+    [queued] = await manager.list_pending()
+
+    approved = await manager.approve(queued.id, edited_content="The staging server moved to 10.2.2.2:9000")
+
+    reloaded = await manager.get_memory(approved.id)
+    assert reloaded is not None
+    assert reloaded.is_exact_fact is True
+    assert reloaded.exact_identifiers == ["10.2.2.2:9000"]
+    assert "10.0.0.5:8080" not in await searched_contents(manager, "10.0.0.5:8080")
+
+
+async def test_an_edit_that_drops_every_identifier_keeps_the_fact_flagged_without_identifiers(
+    new_manager: NewManager,
+) -> None:
+    manager = new_manager()
+    await manager.store_batch([SemanticMemory(content=WITH_IDENTIFIER)], _force_pending=True)
+    [queued] = await manager.list_pending()
+
+    approved = await manager.approve(queued.id, edited_content="The staging server runs on the shared test network")
+
+    reloaded = await manager.get_memory(approved.id)
+    assert reloaded is not None
+    assert reloaded.is_exact_fact is True
+    assert reloaded.exact_identifiers == []
