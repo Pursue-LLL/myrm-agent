@@ -118,36 +118,24 @@ async def _build_available_types_hint(catalog: SubagentCatalog | None) -> str:
     """Build a dynamic hint listing available subagent types for the LLM.
 
     Uses the SubagentCatalog protocol (which includes YAML presets, JIT configs,
-    AND user-defined database agents) when provided. Falls back to the global
-    SUBAGENT_CONFIGS registry when catalog is None.
+    AND user-defined database agents). Without a catalog there is nothing to list.
     """
-    if catalog is not None:
-        available_ids = await catalog.list_available()
-        if not available_ids:
-            return ""
+    if catalog is None:
+        return ""
 
-        lines = ["Available agent_type values (use the exact string):"]
-        for type_id in available_ids[:50]:
-            cfg = await catalog.resolve(type_id)
-            if cfg:
-                desc = cfg.description or cfg.display_name or cfg.system_prompt[:80]
-                lines.append(f'- "{type_id}": {desc}')
-        if len(available_ids) > 50:
-            lines.append(f"... and {len(available_ids) - 50} more available.")
-        lines.append('- "generalPurpose": General-purpose agent for any task (default)')
-        return "\n".join(lines)
-
-    from myrm_agent_harness.agent.sub_agents.registry import SUBAGENT_CONFIGS
-
-    if not SUBAGENT_CONFIGS:
+    available_ids = await catalog.list_available()
+    if not available_ids:
         return ""
 
     lines = ["Available agent_type values (use the exact string):"]
-    for name, config in sorted(SUBAGENT_CONFIGS.items()):
-        desc = config.description or name
-        lines.append(f'- "{name}": {desc}')
+    for type_id in available_ids[:50]:
+        cfg = await catalog.resolve(type_id)
+        if cfg:
+            desc = cfg.description or cfg.display_name or cfg.system_prompt[:80]
+            lines.append(f'- "{type_id}": {desc}')
+    if len(available_ids) > 50:
+        lines.append(f"... and {len(available_ids) - 50} more available.")
     lines.append('- "generalPurpose": General-purpose agent for any task (default)')
-
     return "\n".join(lines)
 
 

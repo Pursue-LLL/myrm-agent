@@ -5,7 +5,7 @@
 ## Architecture
 
 - **Framework** (`myrm-agent-harness`): `load_subagent_configs_from_directory()` 纯函数加载
-- **Business** (`myrm-agent-server`): 本目录 YAML 内容 + `subagent_presets.py` 注册
+- **Business** (`myrm-agent-server`): 本目录 YAML 内容 + `subagent_presets.py` 加载
 
 ## Directory Structure
 
@@ -22,7 +22,7 @@ app/config/subagents/
 
 1. `custom/*.yaml` 覆盖同名 `core/*.yaml`
 2. 每个文件内 `config:` 块定义运行时参数（timeout、max_turns 等）
-3. 未写字段时使用 harness `config_loader` 内置默认（120/25/5/3）
+3. 未写字段时使用 harness `config_loader` 内置默认（`timeout_seconds` 不设上限、`max_turns` 250、`max_retries` 3）
 
 **无 env 层、无全局 policy 层。**
 
@@ -47,6 +47,6 @@ Core presets (SSOT tool names):
 - `explore.yaml` — read-only `file_read_tool`, `grep_tool`, `glob_tool`
 - `structure-planner.yaml` / `layout-designer.yaml` / `format-verifier.yaml` — office deliverable specialists used by the prebuilt Office Full-Chain Delivery agent
 
-## Registration
+## Loading
 
-`app/ai_agents/subagent_presets.py::register_default_subagent_configs()` 在启动时加载并注册。
+`app/ai_agents/subagent_presets.py::load_subagent_presets()` 读取 `core/` 与 `custom/`（`custom/` 可缺省）；`DatabaseSubagentCatalog` 每次构造时读取，Agent 编辑器的预设目录读同一来源。

@@ -17,10 +17,6 @@ from myrm_agent_harness.agent.sub_agents.builder import (
     filter_tools,
 )
 from myrm_agent_harness.agent.sub_agents.manager import SubagentManager
-from myrm_agent_harness.agent.sub_agents.registry import (
-    SUBAGENT_CONFIGS,
-    register_subagent_configs,
-)
 from myrm_agent_harness.agent.sub_agents.types import (
     CancellationStrategy,
     ControlScope,
@@ -30,17 +26,12 @@ from myrm_agent_harness.agent.sub_agents.types import (
 )
 from myrm_agent_harness.agent.types import AgentRuntimeConfig
 
-# Register test subagent configs for tests that reference SUBAGENT_CONFIGS["search"]
-if "search" not in SUBAGENT_CONFIGS:
-    register_subagent_configs(
-        {
-            "search": SubagentConfig(
-                description="Search subagent",
-                system_prompt="You are a search subagent.",
-                tools=("web_search_tool",),
-            ),
-        }
-    )
+# The search subagent config the tests below spawn children from.
+_SEARCH_CONFIG = SubagentConfig(
+    description="Search subagent",
+    system_prompt="You are a search subagent.",
+    tools=("web_search_tool",),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -265,8 +256,8 @@ async def test_spawn_child_retries_after_transient_failure() -> None:
     manager = agent._subagent_manager
 
     config = SubagentConfig(
-        tools=SUBAGENT_CONFIGS["search"].tools,
-        system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
+        tools=_SEARCH_CONFIG.tools,
+        system_prompt=_SEARCH_CONFIG.system_prompt,
         timeout_seconds=30,
         max_retries=2,
         retry_backoff_seconds=0.0,
@@ -299,8 +290,8 @@ async def test_spawn_child_times_out_when_execution_is_too_slow() -> None:
     manager = agent._subagent_manager
 
     config = SubagentConfig(
-        tools=SUBAGENT_CONFIGS["search"].tools,
-        system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
+        tools=_SEARCH_CONFIG.tools,
+        system_prompt=_SEARCH_CONFIG.system_prompt,
         timeout_seconds=0.5,
         max_retries=1,
         retry_backoff_seconds=0.0,
@@ -343,7 +334,7 @@ async def test_spawn_child_rejects_duplicate_task_id() -> None:
         task_id="duplicate_child",
         agent_type="search",
         task_description="first run",
-        config=SUBAGENT_CONFIGS["search"],
+        config=_SEARCH_CONFIG,
         context={
             "session_id": "test",
             "workspace_path": "/tmp/test",
@@ -357,7 +348,7 @@ async def test_spawn_child_rejects_duplicate_task_id() -> None:
         task_id="duplicate_child",
         agent_type="search",
         task_description="second run",
-        config=SUBAGENT_CONFIGS["search"],
+        config=_SEARCH_CONFIG,
         context={
             "session_id": "test",
             "workspace_path": "/tmp/test",
@@ -446,7 +437,7 @@ async def test_spawn_child_accepts_parent_type() -> None:
         task_id="nesting_allowed",
         agent_type="search",
         task_description="nested search",
-        config=SUBAGENT_CONFIGS["search"],
+        config=_SEARCH_CONFIG,
         context={
             "session_id": "test",
             "workspace_path": "/tmp/test",
@@ -1471,7 +1462,7 @@ class TestAgentManageTools:
             task_id="bg_task",
             agent_type="search",
             task_description="background work",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={},
             tool_registry_getter=lambda: [],
             wait=False,
@@ -1501,7 +1492,7 @@ class TestAgentManageTools:
             task_id="cancel_me",
             agent_type="search",
             task_description="long running",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={},
             tool_registry_getter=lambda: [FakeSearchTool()],
             wait=False,
@@ -1676,7 +1667,7 @@ class TestManagerDuplicateTaskId:
             task_id="dup_task",
             agent_type="search",
             task_description="first spawn",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={},
             tool_registry_getter=lambda: [],
             wait=False,
@@ -1686,7 +1677,7 @@ class TestManagerDuplicateTaskId:
             task_id="dup_task",
             agent_type="search",
             task_description="second spawn",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={},
             tool_registry_getter=lambda: [],
             wait=True,
@@ -1715,7 +1706,7 @@ class TestCancelAll:
                 task_id=f"cancel_all_{i}",
                 agent_type="search",
                 task_description=f"task {i}",
-                config=SUBAGENT_CONFIGS["search"],
+                config=_SEARCH_CONFIG,
                 context={},
                 tool_registry_getter=lambda: [],
                 wait=False,
@@ -1747,7 +1738,7 @@ class TestCleanupChildPaths:
             task_id="bg_success",
             agent_type="search",
             task_description="quick task",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={},
             tool_registry_getter=lambda: [],
             wait=False,
@@ -1772,7 +1763,7 @@ class TestCleanupChildPaths:
             task_id="bg_cancel",
             agent_type="search",
             task_description="slow work",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={
                 "session_id": "test_session",
                 "workspace_path": "/tmp/test",
@@ -1881,7 +1872,7 @@ class TestParentTypeRestriction:
             task_id="restricted",
             agent_type="search",
             task_description="test",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={},
             tool_registry_getter=lambda: [],
             wait=True,
@@ -1909,7 +1900,7 @@ class TestListChildrenMixed:
             task_id="slow_task",
             agent_type="search",
             task_description="slow",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={},
             tool_registry_getter=lambda: [],
             wait=False,
@@ -2349,7 +2340,7 @@ class TestDrainNotifications:
             task_id="notif_test",
             agent_type="search",
             task_description="quick task",
-            config=SUBAGENT_CONFIGS["search"],
+            config=_SEARCH_CONFIG,
             context={
                 "session_id": "s",
                 "workspace_path": "/tmp",
@@ -2437,8 +2428,8 @@ class TestHardTimeoutSemaphoreRelease:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
-            system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
+            tools=_SEARCH_CONFIG.tools,
+            system_prompt=_SEARCH_CONFIG.system_prompt,
             timeout_seconds=0.05,
             max_retries=1,
             retry_backoff_seconds=0.0,
@@ -2546,7 +2537,7 @@ class TestTraceId:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
+            tools=_SEARCH_CONFIG.tools,
             system_prompt="t",
             timeout_seconds=0.05,
             max_retries=1,
@@ -3209,8 +3200,8 @@ class TestCancellationStrategy:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
-            system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
+            tools=_SEARCH_CONFIG.tools,
+            system_prompt=_SEARCH_CONFIG.system_prompt,
             timeout_seconds=30,
             max_retries=1,
             cancellation_strategy=CancellationStrategy.IMMEDIATE,
@@ -3246,8 +3237,8 @@ class TestCancellationStrategy:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
-            system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
+            tools=_SEARCH_CONFIG.tools,
+            system_prompt=_SEARCH_CONFIG.system_prompt,
             timeout_seconds=30,
             max_retries=1,
             cancellation_strategy=CancellationStrategy.GRACEFUL,
@@ -3286,8 +3277,8 @@ class TestCancellationStrategy:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
-            system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
+            tools=_SEARCH_CONFIG.tools,
+            system_prompt=_SEARCH_CONFIG.system_prompt,
             timeout_seconds=30,
             max_retries=1,
             cancellation_strategy=CancellationStrategy.CHECKPOINT,
@@ -3373,7 +3364,7 @@ class TestCancellationStrategy:
         config = SubagentConfig(
             system_prompt="test",
             description="test",
-            tools=SUBAGENT_CONFIGS["search"].tools,
+            tools=_SEARCH_CONFIG.tools,
             timeout_seconds=10,
             max_retries=1,
             cancellation_strategy=CancellationStrategy.GRACEFUL,
@@ -3415,7 +3406,7 @@ class TestCancellationStrategy:
         config = SubagentConfig(
             system_prompt="test",
             description="test",
-            tools=SUBAGENT_CONFIGS["search"].tools,
+            tools=_SEARCH_CONFIG.tools,
             timeout_seconds=5,
             max_retries=1,
             cancellation_strategy=CancellationStrategy.GRACEFUL,
@@ -3453,7 +3444,7 @@ class TestCapacitySnapshotWithActiveChildren:
 
         # Start a child that will run for a while
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
+            tools=_SEARCH_CONFIG.tools,
             system_prompt="test",
             timeout_seconds=10,
             max_retries=0,
@@ -3543,7 +3534,7 @@ class TestCleanupChildEdgeCases:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
+            tools=_SEARCH_CONFIG.tools,
             system_prompt="test",
             timeout_seconds=10,
             max_retries=0,
@@ -3585,7 +3576,7 @@ class TestListChildrenDetails:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
+            tools=_SEARCH_CONFIG.tools,
             system_prompt="test",
             timeout_seconds=10,
             max_retries=0,
@@ -3617,7 +3608,7 @@ class TestListChildrenDetails:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
+            tools=_SEARCH_CONFIG.tools,
             system_prompt="test",
             timeout_seconds=10,
             max_retries=0,
@@ -3717,7 +3708,7 @@ class TestValidateCapacityEdgeCases:
             manager._children[f"task_{i}"] = MagicMock()
             manager._children[f"task_{i}"].done.return_value = False
 
-        config = SUBAGENT_CONFIGS["search"]
+        config = _SEARCH_CONFIG
         result = manager._validate_capacity("overflow_task", "search", config)
         assert result is not None
         assert result.success is False
@@ -3735,7 +3726,7 @@ class TestValidateCapacityEdgeCases:
             manager._children[f"task_{i}"] = MagicMock()
             manager._children[f"task_{i}"].done.return_value = True
 
-        config = SUBAGENT_CONFIGS["search"]
+        config = _SEARCH_CONFIG
         result = manager._validate_capacity("new_task", "search", config)
         assert result is None
 
@@ -3789,7 +3780,7 @@ class TestSteerDetails:
         manager = agent._subagent_manager
 
         config = SubagentConfig(
-            tools=SUBAGENT_CONFIGS["search"].tools,
+            tools=_SEARCH_CONFIG.tools,
             system_prompt="test",
             timeout_seconds=10,
             max_retries=0,

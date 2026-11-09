@@ -1,7 +1,7 @@
 """Default prompt templates for multi-agent coordination.
 
 Provides production-ready prompt constants that framework users can import
-directly into their SubagentConfig definitions.
+into the SubagentConfig entries their SubagentCatalog resolves.
 
 Usage::
 
@@ -10,13 +10,13 @@ Usage::
         DEFAULT_WORKER_PROMPT,
         DEFAULT_VERIFIER_PROMPT)
 
-    register_subagent_configs({
+    configs = {
         "coordinator": SubagentConfig(system_prompt=DEFAULT_COORDINATOR_PROMPT, ...),
         "verifier": SubagentConfig(
             system_prompt=DEFAULT_VERIFIER_PROMPT,
             control_scope=ControlScope.LEAF,
             tools=("bash", "read_file", "glob", "grep")),
-    })
+    }
 
 [INPUT]
 - (none)

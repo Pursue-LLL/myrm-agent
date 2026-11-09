@@ -104,36 +104,6 @@ async def test_catalog_path_cap_at_50():
 
 
 @pytest.mark.asyncio
-async def test_fallback_path_no_catalog(monkeypatch):
-    """Without catalog (None), falls back to global SUBAGENT_CONFIGS.
-    When registry is empty, returns empty string."""
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.sub_agents.registry.SUBAGENT_CONFIGS",
-        {},
-    )
-    result = await _build_available_types_hint(None)
-    assert result == ""
-
-
-@pytest.mark.asyncio
-async def test_fallback_path_with_populated_registry(monkeypatch):
-    """Fallback path uses SUBAGENT_CONFIGS when populated."""
-    fake_registry = {
-        "search": FakeSubagentConfig(description="Web search agent", system_prompt="Search."),
-        "browser": FakeSubagentConfig(description="Browser automation", system_prompt="Browse."),
-    }
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.sub_agents.registry.SUBAGENT_CONFIGS",
-        fake_registry,
-    )
-    result = await _build_available_types_hint(None)
-
-    assert '"browser": Browser automation' in result
-    assert '"search": Web search agent' in result
-    assert '"generalPurpose"' in result
-
-
-@pytest.mark.asyncio
 async def test_resolve_returns_none_skipped():
     """If resolve returns None for a type_id, it's silently skipped."""
 
@@ -194,36 +164,6 @@ async def test_catalog_general_purpose_always_appended():
 
 
 @pytest.mark.asyncio
-async def test_fallback_path_sorted_alphabetically(monkeypatch):
-    """Fallback path sorts SUBAGENT_CONFIGS alphabetically by key."""
-    fake_registry = {
-        "zulu": FakeSubagentConfig(description="Zulu agent", system_prompt="Z."),
-        "alpha": FakeSubagentConfig(description="Alpha agent", system_prompt="A."),
-        "mike": FakeSubagentConfig(description="Mike agent", system_prompt="M."),
-    }
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.sub_agents.registry.SUBAGENT_CONFIGS",
-        fake_registry,
-    )
-    result = await _build_available_types_hint(None)
-
-    lines = [line for line in result.split("\n") if line.startswith('- "')]
-    agent_lines = [line for line in lines if "generalPurpose" not in line]
-    assert agent_lines[0].startswith('- "alpha"')
-    assert agent_lines[1].startswith('- "mike"')
-    assert agent_lines[2].startswith('- "zulu"')
-
-
-@pytest.mark.asyncio
-async def test_fallback_no_description_uses_name(monkeypatch):
-    """Fallback path: when config.description is empty, uses the config key (name)."""
-    fake_registry = {
-        "no-desc": FakeSubagentConfig(description="", system_prompt="Some prompt"),
-    }
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.sub_agents.registry.SUBAGENT_CONFIGS",
-        fake_registry,
-    )
-    result = await _build_available_types_hint(None)
-
-    assert '"no-desc": no-desc' in result
+async def test_without_catalog_nothing_is_listed():
+    """No catalog means there are no agent types to advertise."""
+    assert await _build_available_types_hint(None) == ""
