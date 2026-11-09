@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - DomainMetrics: Per-domain fetch failures and browser wait-strategy learning data
+- PersistedMetrics: JSON shape of a stored DomainMetrics
 - domain_key: Key under which a URL's domain is tracked
 
 [POS]
@@ -17,6 +18,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
+from typing import Required, TypedDict
 from urllib.parse import urlparse
 
 from ..fetchers.protocols import FetcherType
@@ -26,6 +28,17 @@ _SMART_MIN_SAMPLES = 20
 _SMART_MIN_SUCCESS_RATE = 0.5
 _MAX_FAILURE_SAMPLES = 100
 _MAX_WAIT_SAMPLES = 200
+
+
+class PersistedMetrics(TypedDict, total=False):
+    """JSON shape of a stored ``DomainMetrics``; keys it does not list are ignored when loading."""
+
+    domain: Required[str]
+    wait_strategy_latencies: dict[str, list[float]]
+    networkidle_success_count: int
+    networkidle_fail_count: int
+    failure_timestamps: dict[str, list[float]]
+    last_access: float
 
 
 def domain_key(url: str) -> str:
@@ -86,7 +99,7 @@ class DomainMetrics:
         self.__dict__.update(state)
         self._lock = threading.Lock()
 
-    def to_dict(self) -> dict[str, object]:
+    def to_dict(self) -> PersistedMetrics:
         """Serialize to JSON-storable dict"""
         return {
             "domain": self.domain,
@@ -98,7 +111,7 @@ class DomainMetrics:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, object]) -> DomainMetrics:
+    def from_dict(cls, data: PersistedMetrics) -> DomainMetrics:
         """Deserialize from dict (keys it does not know are ignored)"""
         metrics = cls(domain=data["domain"])
         metrics.wait_strategy_latencies = {
