@@ -14455,37 +14455,6 @@
       "resizeSuccess": "终端尺寸已更新"
     }
   },
-  "commandPalette": {
-    "title": "全局命令中枢与会话搜索",
-    "shortcutHint": "按 Cmd+K 随时唤起",
-    "inputPlaceholder": "输入指令、动作或搜索历史消息...",
-    "groups": {
-      "actions": "快捷控制与系统指令",
-      "history": "会话标题与历史消息"
-    },
-    "actionsList": {
-      "switchModel": "切换当前大模型 (/model)",
-      "switchModelDesc": "即时调整或切换底座推理模型",
-      "switchAgent": "切换智能体专员 (/agent)",
-      "switchAgentDesc": "快速换用代码专家、架构师等专任 Agent",
-      "clearContext": "清空当前上下文 (/clear)",
-      "clearContextDesc": "重置会话上下文与多轮对话窗口",
-      "exportSession": "导出单文件离线会话 (/export)",
-      "exportSessionDesc": "打包当前多轮任务为独立交互式 HTML",
-      "globalEstop": "全局物理急停 (Global E-Stop)",
-      "globalEstopDesc": "一键中断所有后台正在运行的子 Agent 与长任务"
-    },
-    "historyEmpty": "未找到匹配的历史会话",
-    "searchingHistory": "正在检索历史消息...",
-    "telemetry": {
-      "cacheHit": "Cache 命中",
-      "ttft": "TTFT 首字延迟",
-      "throughput": "实时生成速率",
-      "estopBtn": "全局急停",
-      "estopActivated": "全局急停已触发，活跃任务已中断"
-    },
-    "tabToAdopt": "按 Tab 键一键填入建议提示词"
-  },
   "machines": {
     "title": "自托管机群 (My Machines)",
     "subtitle": "接入并监控自托管物理机与私有算力节点，支持远程人机同屏实时接管",

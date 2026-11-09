@@ -14455,37 +14455,6 @@
       "resizeSuccess": "Terminal size updated"
     }
   },
-  "commandPalette": {
-    "title": "Global Command Hub & Session Search",
-    "shortcutHint": "Press Cmd+K anytime",
-    "inputPlaceholder": "Type command, action, or search chat history...",
-    "groups": {
-      "actions": "Quick Controls & System Commands",
-      "history": "Chat Threads & Message History"
-    },
-    "actionsList": {
-      "switchModel": "Switch Active Model (/model)",
-      "switchModelDesc": "Adjust or switch baseline inference model",
-      "switchAgent": "Switch Specialized Agent (/agent)",
-      "switchAgentDesc": "Quickly switch to Code Architect, Tester, etc.",
-      "clearContext": "Clear Current Context (/clear)",
-      "clearContextDesc": "Reset conversation context and multi-turn window",
-      "exportSession": "Export Offline HTML Bundle (/export)",
-      "exportSessionDesc": "Package multi-turn task into standalone interactive HTML",
-      "globalEstop": "Global Physical Emergency Stop (/estop)",
-      "globalEstopDesc": "Instantly abort all active background runs and subagents"
-    },
-    "historyEmpty": "No matching conversation found",
-    "searchingHistory": "Searching message history...",
-    "telemetry": {
-      "cacheHit": "Cache Hit",
-      "ttft": "TTFT Latency",
-      "throughput": "Live Throughput",
-      "estopBtn": "Global E-Stop",
-      "estopActivated": "Emergency Stop Activated. Active tasks halted."
-    },
-    "tabToAdopt": "Press Tab to adopt suggested prompt"
-  },
   "machines": {
     "title": "My Machines (Fleet Dashboard)",
     "subtitle": "Connect and monitor your self-hosted machines and private compute nodes with real-time screen takeover",

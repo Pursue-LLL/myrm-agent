@@ -14455,37 +14455,6 @@
       "resizeSuccess": "Terminalgröße wurde aktualisiert"
     }
   },
-  "commandPalette": {
-    "title": "Globales Befehlszentrum & Sitzungssuche",
-    "shortcutHint": "Jederzeit Cmd+K drücken",
-    "inputPlaceholder": "Befehl oder Aktion eingeben oder Chatverlauf durchsuchen...",
-    "groups": {
-      "actions": "Schnellsteuerung & Systembefehle",
-      "history": "Chat-Threads & Nachrichtenverlauf"
-    },
-    "actionsList": {
-      "switchModel": "Aktives Modell wechseln (/model)",
-      "switchModelDesc": "Basis-Inferenzmodell anpassen oder wechseln",
-      "switchAgent": "Spezialisierten Agent wechseln (/agent)",
-      "switchAgentDesc": "Schnell zu Code-Architekt, Tester usw. wechseln",
-      "clearContext": "Aktuellen Kontext löschen (/clear)",
-      "clearContextDesc": "Arbeitsspeicher und Mehrfachrunden-Fenster zurücksetzen",
-      "exportSession": "Offline-HTML-Paket exportieren (/export)",
-      "exportSessionDesc": "Mehrstufige Aufgabe als eigenständiges interaktives HTML verpacken",
-      "globalEstop": "Globaler Not-Aus (/estop)",
-      "globalEstopDesc": "Alle aktiven Hintergrundläufe und Subagenten sofort abbrechen"
-    },
-    "historyEmpty": "Keine passende Unterhaltung gefunden",
-    "searchingHistory": "Nachrichtenverlauf wird durchsucht...",
-    "telemetry": {
-      "cacheHit": "Cache-Treffer",
-      "ttft": "TTFT-Latenz",
-      "throughput": "Live-Durchsatz",
-      "estopBtn": "Globaler Not-Aus",
-      "estopActivated": "Not-Aus ausgelöst. Aktive Aufgaben wurden gestoppt."
-    },
-    "tabToAdopt": "Tab drücken, um den vorgeschlagenen Prompt zu übernehmen"
-  },
   "machines": {
     "title": "Meine Maschinen (Flottenübersicht)",
     "subtitle": "Verbinden und überwachen Sie Ihre selbst gehosteten Maschinen und privaten Rechenknoten mit Echtzeit-Bildschirmübernahme",
