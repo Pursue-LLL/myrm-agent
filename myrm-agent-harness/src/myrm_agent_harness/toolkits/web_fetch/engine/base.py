@@ -403,6 +403,7 @@ class FetchEngine(
         await self._http_fetcher.shutdown()
         await self._browser_fetcher.shutdown()
         await self._stealth_fetcher.shutdown()
+        await self._domain_metrics.shutdown_async()
 
         from ..router.site_experience import get_global_site_experience_store
 

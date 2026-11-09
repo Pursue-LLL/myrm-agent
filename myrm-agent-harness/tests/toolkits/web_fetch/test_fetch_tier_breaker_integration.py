@@ -5,6 +5,7 @@ The fetchers are stubs, so every scenario counts exactly which tiers a crawl tou
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -114,3 +115,14 @@ async def test_failed_attempts_feed_the_failure_history_the_stale_site_hint_read
     assert metrics is not None
     assert metrics.get_recent_failures_count(FetcherType.HTTP) == 3
     assert metrics.get_recent_failures_count(FetcherType.BROWSER) == 0
+
+
+async def test_shutdown_saves_failure_history_the_save_schedule_has_not_reached(site: _Site, tmp_path: Path) -> None:
+    _http_blocked_browser_works(site)
+    await site.visit()
+    saved = tmp_path / "domain_metrics.json"
+    assert not saved.exists()
+
+    await site.engine.shutdown()
+
+    assert "example.com" in json.loads(saved.read_text())
