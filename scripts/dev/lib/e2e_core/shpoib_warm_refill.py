@@ -1,4 +1,4 @@
-"""SHPOIB warm pool refill: boots backends that later PRIVATE lanes borrow (R159).
+"""SHPOIB warm pool refill: boots backends that later PRIVATE lanes borrow.
 
 [INPUT] e2e_core.shpoib_warm_pool (registry, locks, prune), e2e_core.verify_backend_seed
 [OUTPUT] maintain_warm_pool(), CLI ``maintain`` / ``status``
@@ -177,7 +177,7 @@ def maintain_warm_pool(*, target_size: int | None = None) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="SHPOIB warm backend pool (R159)")
+    parser = argparse.ArgumentParser(description="SHPOIB warm backend pool")
     sub = parser.add_subparsers(dest="command", required=True)
     maintain = sub.add_parser("maintain")
     maintain.add_argument("--size", type=int, default=DEFAULT_POOL_SIZE)

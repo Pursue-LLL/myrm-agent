@@ -1,4 +1,4 @@
-"""Per-pid Chrome E2E wall progress — thin delegate to dev/lib SSOT (R62 Phase B)."""
+"""Per-pid Chrome E2E wall progress — thin delegate to dev/lib SSOT (Phase B)."""
 
 from __future__ import annotations
 

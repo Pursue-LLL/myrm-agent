@@ -1,4 +1,4 @@
-"""TransportSupervisor — mux runtime invariants for parallel Chrome E2E (R65-A).
+"""TransportSupervisor — mux runtime invariants for parallel Chrome E2E.
 
 [INPUT]
 - e2e_core.runtime_probe.mux_owned_daemon_count
@@ -53,10 +53,10 @@ COLD_SHIM_RESTART_DEFER_PEER_THRESHOLD: int = 4
 
 
 def cold_shim_restart_defer_peer_threshold() -> int:
-    """Parallel mux load above which local cold-shim restart must defer (R231/R265)."""
+    """Parallel mux load above which local cold-shim restart must defer."""
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         # Signoff always runs under parallel chrome_e2e; threshold=4 never drains.
-        # R265: mux recovery lock serializes cold-shim restart — proceed at 5–7 peers.
+        # mux recovery lock serializes cold-shim restart — proceed at 5–7 peers.
         return 8
     return COLD_SHIM_RESTART_DEFER_PEER_THRESHOLD
 
@@ -69,7 +69,7 @@ def _chrome_e2e_pytest_peer_count() -> int:
 
 
 def _cold_shim_defer_peer_load() -> int:
-    """Mux load that must block unsynchronized local cold-shim restart (R231).
+    """Mux load that must block unsynchronized local cold-shim restart.
 
     Uses wave leases + contexts with owned pages only — stale empty mux shells and
     runtime-cell cardinality must not inflate defer pressure.
@@ -167,7 +167,7 @@ def session_recovery_budget_cap(*, pessimistic: bool = False) -> float:
 
 
 def mux_upstream_wait_cap(*, pessimistic: bool = False) -> int:
-    """Scale mux cold-attach queue wait under parallel wave/mux peers (R101)."""
+    """Scale mux cold-attach queue wait under parallel wave/mux peers."""
     peers = _mux_peer_count(pessimistic=pessimistic)
     _, mux_wait = caps_for_explicit_peer_count(peers, pessimistic=pessimistic)
     cap = float(mux_wait)
@@ -226,7 +226,7 @@ def caps_for_explicit_peer_count(
 
 
 def bootstrap_wall_cap_sec(*, pessimistic: bool = False) -> int:
-    """Scale SHPOIB bootstrap wall under parallel wave/mux peers (R102)."""
+    """Scale SHPOIB bootstrap wall under parallel wave/mux peers."""
     peers = _mux_peer_count(pessimistic=pessimistic)
     bootstrap, _ = caps_for_explicit_peer_count(peers, pessimistic=pessimistic)
     return bootstrap
@@ -239,7 +239,7 @@ def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:
 
 
 def live_agent_pytest_wall_cap_sec(*, pessimistic_peers: bool = False) -> int:
-    """pytest-timeout outer cap: bootstrap + body + teardown + mux queue + recovery (R103/R105/R108)."""
+    """pytest-timeout outer cap: bootstrap + body + teardown + mux queue + recovery."""
     from dev_gate.contract import E2E_TEARDOWN_WALL_CLOCK_SEC  # noqa: PLC0415
 
     return (
@@ -266,7 +266,7 @@ def recovery_budget_remaining() -> float:
 
 
 def parallel_active_test_count() -> int:
-    """Best-effort parallel chrome_e2e count for recovery mutex scaling (R73-F TPC M3)."""
+    """Best-effort parallel chrome_e2e count for recovery mutex scaling (TPC M3)."""
     from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
     return parallel_active_test_count_ssot()
@@ -328,7 +328,7 @@ def recovery_lock_wait_sec() -> float:
         if is_e2e_signoff_runtime():
             pressure = max(active, _parallel_signoff_pressure_peers())
             scaled = MUX_RECOVERY_LOCK_BASE_SEC + pressure * 35.0
-            cap = 300.0  # R229/R230: v155-v156 post-SEND_TURN attach under mux_peers≥7
+            cap = 300.0 # v155-v156 post-SEND_TURN attach under mux_peers≥7
     except ImportError:
         pass
     return min(cap, scaled)
@@ -344,7 +344,7 @@ def assert_mux_daemons_single(*, phase: str) -> None:
         "new_page",
         "recover_mux_transport",
     ):
-        # R190/R213: parallel abandon may teardown all mux daemons — recover paths respawn.
+        # parallel abandon may teardown all mux daemons — recover paths respawn.
         return
     if count != 1:
         raise RuntimeError(

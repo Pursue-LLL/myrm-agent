@@ -1,4 +1,4 @@
-"""Wave-scoped debounced shared frontend heal for warm_ui_route (R122 warm SSOT)."""
+"""Wave-scoped debounced shared frontend heal for warm_ui_route (warm SSOT)."""
 
 from __future__ import annotations
 
@@ -234,7 +234,7 @@ def probe_indicates_ui_connection_refused(probe: dict[str, object]) -> bool:
 def launch_force_blocks_frontend_heal(
     *, probe: dict[str, object] | None = None
 ) -> bool:
-    """R291 guard: skip preemptive heal under launch-force when UI is already reachable."""
+    """guard: skip preemptive heal under launch-force when UI is already reachable."""
     if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() != "1":
         return False
     if probe is not None and probe_indicates_ui_connection_refused(probe):

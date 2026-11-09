@@ -244,16 +244,16 @@ def test_turn_flow_seeded_resend_api_kickoff_ssot() -> None:
     text = open(turn_flow.__file__, encoding="utf-8").read()
     assert "_kickoff_desktop_turn_via_api_sync" in text
     assert "_try_signoff_api_kickoff" in text
-    assert "R286 signoff initial send" in text
-    assert "R287 signoff skip force_chat_shell" in text
-    assert "R288 signoff lightweight mux recover" in text
+    assert"signoff initial send"in text
+    assert"signoff skip force_chat_shell"in text
+    assert"signoff lightweight mux recover"in text
     assert "_signoff_mux_recover_lightweight" in text
-    assert "R232 mux-bypass" in text
-    assert "R233 api-primary" in text
+    assert"mux-bypass"in text
+    assert"api-primary"in text
     assert "DONE wait (mux-bypass)" in text
     assert "api_primary_done=seeded_api_kickoff" in text
     assert "initial_api_kickoff" in text
-    assert "R264 CDP resend transport fail" in text
+    assert"CDP resend transport fail"in text
     assert "run_r262_chain" in text
     seeded_block = text.split("seeded pending fallback approval", maxsplit=1)[1]
     seeded_block = seeded_block.split("if not kickoff_ok:")[0]
@@ -421,7 +421,7 @@ async def test_try_signoff_api_kickoff_missing_chat_id() -> None:
 async def test_wait_seeded_resend_turn_kickoff_r245_effective_ui_baseline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """R245: UI baseline must honor API baseline when R241 fastpath sets baseline_user=1."""
+    """UI baseline must honor API baseline when fastpath sets baseline_user=1."""
     monkeypatch.setattr(
         turn_flow,
         "_seeded_kickoff_activity_probe",

@@ -96,7 +96,7 @@ def parallel_request_lock_cap_sec() -> float:
 
 
 def resolve_request_lock_acquire_sec(peer_count_fn: "callable[[], int]") -> float:
-    """Scale per-session mux request lock wait with parallel E2E load (R76).
+    """Scale per-session mux request lock wait with parallel E2E load.
 
     ``transport_supervisor.recovery_lock_wait_sec`` scales on active pytest count;
     peer_count_fn scales on concurrent mux sessions.

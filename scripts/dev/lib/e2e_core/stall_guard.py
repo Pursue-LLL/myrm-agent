@@ -1,4 +1,4 @@
-"""Unified stall tripwires for parallel Chrome E2E (R96-B6 SSOT).
+"""Unified stall tripwires for parallel Chrome E2E (SSOT).
 
 [INPUT]
 - e2e_session_runtime.snapshot nodeStartedMonotonic / currentNode
@@ -67,7 +67,7 @@ def node_elapsed_from_snapshot(snapshot: dict[str, object]) -> float | None:
 
 
 def _resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
-    """Resolve stall cap for hung-reap / e2e-context (signoff open_mcp_page uses R169 cap)."""
+    """Resolve stall cap for hung-reap / e2e-context (signoff open_mcp_page uses cap)."""
     try:
         from dev_gate.contract import resolve_transport_stall_cap_sec
 
@@ -173,7 +173,7 @@ def node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | None:
 
 
 def _transport_stall_cap_sec() -> float:
-    """Scale transport node stall cap under parallel mux load (R122-B11/R127)."""
+    """Scale transport node stall cap under parallel mux load."""
     cap = float(NODE_STUCK_FAIL_FAST_SEC)
     peers = 0
     try:

@@ -156,7 +156,7 @@ def _launch_allowed(*, next_action: str, ctx: E2eApiContext) -> bool:
     # gate fail-closed.
     if next_action == "PRIVATE_EPOCH_REQUIRED":
         return True
-    # R298: SHPOIB PRIVATE tests seed isolated backend in bootstrap — shared epoch block is OK.
+    # SHPOIB PRIVATE tests seed isolated backend in bootstrap — shared epoch block is OK.
     if next_action == "SHPOIB_OR_VERIFY_API" and _shpoib_launch_bypass_enabled():
         return True
     if ctx.blocked:

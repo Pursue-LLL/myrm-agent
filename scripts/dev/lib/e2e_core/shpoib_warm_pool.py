@@ -1,7 +1,7 @@
-"""SHPOIB warm backend pool for LIVE chrome_e2e (R159): registry, borrow, release.
+"""SHPOIB warm backend pool for LIVE chrome_e2e: registry, borrow, release.
 
 [POS] Dev Gate layer. Keeps hot private backends ready for borrow to cut
-cold bootstrap (~89s) to near-zero on pool hit. Pattern derived from flock + registry + progress tokens (R159).
+cold bootstrap (~89s) to near-zero on pool hit. Pattern derived from flock + registry + progress tokens.
 Registry sections are short by contract (``_registry_lock``); booting backends lives in
 ``shpoib_warm_refill`` so a spawn can never sit under the lock borrowers wait on.
 """

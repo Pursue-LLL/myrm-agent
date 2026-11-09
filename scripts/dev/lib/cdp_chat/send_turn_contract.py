@@ -1,4 +1,4 @@
-"""SendTurnContract SSOT for chrome_e2e chat submit (R72).
+"""SendTurnContract SSOT for chrome_e2e chat submit.
 
 [INPUT]
 dev_gate.contract::SEND_TURN_* constants

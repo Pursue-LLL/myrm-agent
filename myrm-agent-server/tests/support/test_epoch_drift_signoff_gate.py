@@ -1,4 +1,4 @@
-"""R278: signoff must not pytest.skip on epoch drift entry gate."""
+"""signoff must not pytest.skip on epoch drift entry gate."""
 
 from __future__ import annotations
 

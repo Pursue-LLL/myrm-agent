@@ -203,7 +203,7 @@ def decide_drift_heal(*, active_leases: int, drift_pending: bool) -> DriftHealAc
 
 
 def should_defer_harness_install(active_leases: int) -> bool:
-    """Defer under wave leases or parallel chrome_e2e ADMIT (R150 harness install dogpile)."""
+    """Defer under wave leases or parallel chrome_e2e ADMIT (harness install dogpile)."""
     if active_leases > 0:
         return True
     try:
@@ -706,7 +706,7 @@ def run_command_with_backend_heal_flock(
     lock_file: Path,
     wait_sec: float,
 ) -> int:
-    """Run subprocess argv under backend heal flock (P0-STACK-1 / R46.2 SSOT)."""
+    """Run subprocess argv under backend heal flock (P0-STACK-1 / SSOT)."""
     if not cmd:
         print("run-heal-flocked: empty command", file=sys.stderr)
         return 2

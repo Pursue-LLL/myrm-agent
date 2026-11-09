@@ -98,7 +98,7 @@ def _is_sandbox_home_shadow(path: Path) -> bool:
     Cursor redirects HOME to a sandbox directory (``~/.cursor2`` was measured on
     2026-08-08, ``~/.cursor-3`` on later builds), so default-inferred state dirs land
     under the shadow while the real wave lives under the real user's home. Such paths
-    must keep participating in the open-wave scan (R287). Everything else that was
+    must keep participating in the open-wave scan. Everything else that was
     explicitly set (isolated runtime state dirs, real-home shared dir) is SSOT.
     """
     return any(part.lower() in _SANDBOX_HOME_PARTS for part in path.parts)

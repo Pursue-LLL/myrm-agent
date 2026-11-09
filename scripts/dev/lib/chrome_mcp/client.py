@@ -637,7 +637,7 @@ class ChromeMcpClient:
             wait_sec = min(max_wait_sec, max(0.01, wait_sec))
         else:
             wait_sec = max(0.1, min(wait_sec, max_wait_sec))
-        # R184: open-page budget must cap mux lock wait — orphan to_thread otherwise
+        # open-page budget must cap mux lock wait — orphan to_thread otherwise
         # holds the lock past asyncio wall timeout under parallel signoff load.
         if self._tool_wall_deadline is not None:
             wall_remaining = self.remaining_tool_wall_sec()
@@ -729,7 +729,7 @@ class ChromeMcpClient:
         self._tool_wall_deadline = deadline
 
     def remaining_tool_wall_sec(self) -> float | None:
-        """Monotonic seconds left on open-page tool wall, or None when unset (R184)."""
+        """Monotonic seconds left on open-page tool wall, or None when unset."""
         if self._tool_wall_deadline is None:
             return None
         return max(0.0, self._tool_wall_deadline - time.monotonic())
@@ -769,7 +769,7 @@ class ChromeMcpClient:
         return max(timeout_sec, adaptive)
 
     def _page_tool_timeout_sec(self, page_timeout_ms: int) -> float:
-        """Align navigate/new_page tool timeout with page timeout under open-page budget (R228)."""
+        """Align navigate/new_page tool timeout with page timeout under open-page budget."""
         page_sec = page_timeout_ms / 1000.0 + 5.0
         if self._open_page_budget_active():
             return self._resolve_tool_timeout_sec(
@@ -1336,7 +1336,7 @@ class ChromeMcpClient:
         return page
 
     def _ensure_page_tracked_for_recovery(self, page: McpPage) -> None:
-        """Expose orphan McpPage handles to mux recovery instead of cold shim (R115)."""
+        """Expose orphan McpPage handles to mux recovery instead of cold shim."""
         if page.page_id in self._pages or page.page_id in self._disconnected_pages:
             return
         self._disconnected_pages[page.page_id] = page
@@ -1411,7 +1411,7 @@ class ChromeMcpClient:
         return refreshed
 
     def _heal_after_context_reset(self) -> None:
-        """R96-MUX: rebuild owned pages via new_page after mux context reset."""
+        """rebuild owned pages via new_page after mux context reset."""
         from mux.transport_recovery_core import TransportRecoveryMode
 
         saved_pages = self._collapse_pages_for_recovery(
@@ -1858,7 +1858,7 @@ class ChromeMcpClient:
         self._page_lease_heartbeat.start()
 
     def _restart_cold_shim(self) -> None:
-        """Restart local MCP shim when this client owns no pages (R109).
+        """Restart local MCP shim when this client owns no pages.
 
         Per-session shim teardown/spawn is local; global mux attach restart runs under
         ``mux_recovery_scope`` so parallel workers never stampede daemon restart.
@@ -1992,7 +1992,7 @@ class ChromeMcpClient:
         saved_pages: dict[int, McpPage],
         reclaim_deadline: float,
     ) -> None:
-        """R69-C: page-level reclaim when global shim teardown would harm peer sessions."""
+        """page-level reclaim when global shim teardown would harm peer sessions."""
         if not saved_pages:
             return
         if getattr(self, "_reclaim_in_progress", False):
@@ -2082,7 +2082,7 @@ class ChromeMcpClient:
         else:
             self._teardown_shim_process()
         # Orphan to_thread may still hold the old lock in select(); replace so recover
-        # on the event loop thread cannot deadlock (R49-R50).
+        # on the event loop thread cannot deadlock.
         self._request_lock = _TrackedRLock()
 
     def reset_after_orphan(self) -> None:

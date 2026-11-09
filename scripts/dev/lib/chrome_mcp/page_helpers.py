@@ -81,7 +81,7 @@ def is_retryable_new_page_parse_exc(
     exc: BaseException,
     new_page_result: dict[str, object] | None,
 ) -> bool:
-    """R229: CDP 404 drift must enter new_page inner retry, not instant re-raise."""
+    """CDP 404 drift must enter new_page inner retry, not instant re-raise."""
     if isinstance(exc, TimeoutError):
         return True
     if not isinstance(exc, RuntimeError):
@@ -92,7 +92,7 @@ def is_retryable_new_page_parse_exc(
 
 
 def new_page_tool_max_attempts(*, open_page_budget_active: bool) -> int:
-    """R121: open_mcp_page wall budget allows one CDP-drift heal + retry."""
+    """open_mcp_page wall budget allows one CDP-drift heal + retry."""
     base = tool_retry_attempts("new_page")
     if not open_page_budget_active:
         return base
@@ -100,7 +100,7 @@ def new_page_tool_max_attempts(*, open_page_budget_active: bool) -> int:
 
 
 def ensure_cdp_ready_before_parallel_new_page(client: "ChromeMcpClient") -> None:
-    """R121: probe CDP before mux new_page when peers>=2."""
+    """probe CDP before mux new_page when peers>=2."""
     del client
     from cdp_chat.support import wait_e2e_cdp_ready
 
@@ -117,7 +117,7 @@ def ensure_cdp_ready_before_parallel_new_page(client: "ChromeMcpClient") -> None
 
 
 def recover_new_page_chrome_drift(client: "ChromeMcpClient") -> None:
-    """Heal CDP 404 on new_page — lightweight shim recover under parallel (R122-B8)."""
+    """Heal CDP 404 on new_page — lightweight shim recover under parallel."""
     from cdp_chat.support import wait_e2e_cdp_ready
 
     client._recover_mux_transport()
@@ -141,7 +141,7 @@ def recover_new_page_chrome_drift(client: "ChromeMcpClient") -> None:
 
 
 def new_page_retry_attempts() -> int:
-    """Scale cold new_page retries under parallel mux/wave load (R112)."""
+    """Scale cold new_page retries under parallel mux/wave load."""
     peers = parallel_mux_peer_count()
     if peers <= 3:
         return _NEW_PAGE_TOOL_RETRY_ATTEMPTS
@@ -169,7 +169,7 @@ def is_mux_parallel_fail_fast_message(message: str) -> bool:
 
 
 def parallel_mux_peer_count() -> int:
-    """Active parallel mux/wave peers for cross-session teardown guard (R69/TRSM)."""
+    """Active parallel mux/wave peers for cross-session teardown guard."""
     from mux.load import snapshot_mux_load
 
     snapshot = snapshot_mux_load(force=True)

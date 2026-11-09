@@ -1,4 +1,4 @@
-"""Chrome E2E launch preflight gate (R166 UPAP).
+"""Chrome E2E launch preflight gate (UPAP).
 
 [INPUT]
 - api_verify.resolve_e2e_api_context / _compute_next_action (POS: Agent SSOT)

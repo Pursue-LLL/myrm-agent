@@ -9,7 +9,7 @@
 - reap_stale_plane_artifacts() / converge_plane_if_idle() / plane_health_snapshot()
 - ensure_mux_daemon_if_absent() / _start_mux_daemon_if_needed() — idempotent mux cold start (never restarts live daemons)
 - _try_acquire_converge_lock() breaks stale /tmp/plane-converge.lockdir (>120s)
-- Consumed by e2e-context (dataPlane block) and attach fast-fail (R032)
+- Consumed by e2e-context (dataPlane block) and attach fast-fail
 
 [POS]
 Dev Gate infra layer. Idle converge never mutates stack during active wave leases;

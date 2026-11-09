@@ -1,4 +1,4 @@
-"""E2EOrchestrator — Dev Gate E2E session SSOT (R65-B over R62 lifecycle).
+"""E2EOrchestrator — Dev Gate E2E session SSOT (four-phase session lifecycle).
 
 [INPUT]
 - e2e_session_runtime/lifecycle.py (phase budgets)

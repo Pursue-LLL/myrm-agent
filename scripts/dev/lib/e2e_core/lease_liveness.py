@@ -1,4 +1,4 @@
-"""Wave lease liveness SSOT for `./myrm-dev e2e-context` (R74-OBS-3/4).
+"""Wave lease liveness SSOT for `./myrm-dev e2e-context`.
 
 [INPUT]
 - wave_orchestrator.core.wave_status (POS: active lease records)

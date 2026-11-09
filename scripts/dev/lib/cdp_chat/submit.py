@@ -1,4 +1,4 @@
-"""Chat submit via SendTurnContract atomic evaluate (R72)."""
+"""Chat submit via SendTurnContract atomic evaluate."""
 
 from __future__ import annotations
 

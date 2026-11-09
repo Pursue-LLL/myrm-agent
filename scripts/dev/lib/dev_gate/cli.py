@@ -393,7 +393,7 @@ def ensure_coordinator(
     disabled_path = database_target.with_suffix(".socket-disabled")
     pid_path = _coordinator_pid_path(database_target)
     if disabled_path.is_file():
-        # Stale .socket-disabled must not block a live coordinator (R274).
+        # Stale.socket-disabled must not block a live coordinator.
         if _ping(socket_target):
             disabled_path.unlink(missing_ok=True)
         else:
@@ -478,7 +478,7 @@ def ensure_coordinator(
                 and _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC)
             ):
                 return socket_target
-            # R273: stale socket blocks all waiters — remove and spawn one coordinator.
+            # stale socket blocks all waiters — remove and spawn one coordinator.
             _eliminate_coordinator_herd(
                 socket_target=socket_target,
                 database_target=database_target,

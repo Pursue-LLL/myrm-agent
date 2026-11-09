@@ -15,7 +15,7 @@ ATTACH_RESTART_BLOCKED_TOKEN: str = "MUX_ATTACH_RESTART_BLOCKED_PARALLEL"
 
 
 def _desktop_soak_signoff_parallel_attach_restart_ok() -> bool:
-    """R265: desktop leg soak must heal mux attach under active wave leases."""
+    """desktop leg soak must heal mux attach under active wave leases."""
     return os.environ.get("E2E_SIGNOFF", "").strip() == "1" and os.environ.get(
         "MYRM_E2E_DESKTOP_SOAK", ""
     ).strip() in ("1", "true", "yes")
@@ -44,7 +44,7 @@ def _parallel_load_blocks_attach_restart() -> bool:
 
 
 def _preflight_timeout_sec() -> float:
-    """Scale attach-restart preflight under parallel signoff (R121)."""
+    """Scale attach-restart preflight under parallel signoff."""
     try:
         import sys
         from pathlib import Path

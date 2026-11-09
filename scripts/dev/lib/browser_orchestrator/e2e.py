@@ -716,7 +716,7 @@ def _effective_parallel_load() -> int:
 
 
 def _parallel_open_page_max_attempts() -> int:
-    """R299: cap retries — orchestrator fail-fast wall makes multi-minute storms pointless."""
+    """cap retries — orchestrator fail-fast wall makes multi-minute storms pointless."""
     try:
         from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
@@ -1337,7 +1337,7 @@ def open_app_route_page(
     resolved_request = (
         request_timeout_sec if request_timeout_sec is not None else ssot_cap
     )
-    # R299-SSOT: the client must never abandon before the daemon queue budget
+    # the client must never abandon before the daemon queue budget
     # (open_app_route queue wait ≤ DEV_OPEN_PAGE_TRANSACTION_WALL_SEC), even
     # when a caller supplies a shorter convenience timeout.
     effective_timeout = max(resolved_request, ssot_cap)

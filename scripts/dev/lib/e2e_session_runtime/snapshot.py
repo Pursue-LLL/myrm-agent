@@ -1,11 +1,11 @@
-"""Per-pid Chrome E2E session snapshot SSOT (R62 Phase B).
+"""Per-pid Chrome E2E session snapshot SSOT (Phase B).
 
 [INPUT]
 - e2e_session_runtime.lifecycle ENV_WALL_* (phase + monotonic clocks)
 
 [OUTPUT]
 - write_session_snapshot / read_session_snapshot / body_elapsed_from_snapshot
-- nodeStartedMonotonic + node elapsed for e2e_stall_guard (R96-B6)
+- nodeStartedMonotonic + node elapsed for e2e_stall_guard
 
 [POS]
 Dev Gate layer — parallel-safe progress for ./myrm-dev e2e-context and hung pytest reap.
@@ -77,7 +77,7 @@ def write_holder_session_snapshot(
     lane: str = "",
     shpoib: bool = False,
 ) -> None:
-    """R144: test.sh ADMIT session sidecar — visible before inner pytest spawns."""
+    """test.sh ADMIT session sidecar — visible before inner pytest spawns."""
     now = time.monotonic()
     existing = read_session_snapshot(holder_pid)
     started = _session_started_monotonic(existing, now=now)
@@ -137,7 +137,7 @@ def _resolve_body_started_monotonic(
     resolved_phase: str,
     existing: dict[str, object] | None,
 ) -> float:
-    """Body clock for hung-reap — ADMIT/BOOTSTRAP queue must not consume BODY budget (R62)."""
+    """Body clock for hung-reap — ADMIT/BOOTSTRAP queue must not consume BODY budget."""
     if resolved_phase != "body":
         if existing is not None:
             raw = existing.get("bodyStartedMonotonic")

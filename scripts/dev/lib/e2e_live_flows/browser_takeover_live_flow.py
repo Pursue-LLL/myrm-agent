@@ -1,4 +1,4 @@
-"""Browser takeover LIVE — orchestration flow body (R98)."""
+"""Browser takeover LIVE — orchestration flow body."""
 
 from __future__ import annotations
 

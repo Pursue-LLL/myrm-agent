@@ -60,7 +60,7 @@ BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 
 def _force_mux_heal_before_live_retry() -> None:
-    """Heal stale CDP/mux after a failed open_mcp_page before outer retry (R119/R120)."""
+    """Heal stale CDP/mux after a failed open_mcp_page before outer retry."""
     _require_e2e_cdp_ready(budget_sec=45.0)
     from mux.attach_force_restart import force_mux_attach_restart_scoped
 
@@ -110,14 +110,14 @@ def _is_transport_retryable(exc: BaseException) -> bool:
 
 
 def _normalize_live_transport_exc(exc: BaseException) -> BaseException:
-    """R170: parallel open_mcp stall tripwire sends SIGINT — outer retry must heal mux."""
+    """parallel open_mcp stall tripwire sends SIGINT — outer retry must heal mux."""
     if isinstance(exc, KeyboardInterrupt) and _parallel_live_agent_peer_count() >= 2:
         return RuntimeError("MUX_RECLAIM: open_mcp_page_blocking stall tripwire (SIGINT); recover mux and retry")
     return exc
 
 
 def _is_mux_io_deferrable(exc: BaseException) -> bool:
-    """R151: parallel mux reclaim may stall Chrome MCP evaluate/navigate — API remains SSOT."""
+    """parallel mux reclaim may stall Chrome MCP evaluate/navigate — API remains SSOT."""
     if isinstance(exc, TimeoutError):
         return True
     if isinstance(exc, RuntimeError):
@@ -173,7 +173,7 @@ def _nudge_result_agent_busy(nudge_result: dict[str, object]) -> bool:
 
 
 def _nudge_result_deferrable(nudge_result: dict[str, object]) -> bool:
-    """R168: parallel mux — steer may own the turn; nudge idle/409 is not fatal."""
+    """parallel mux — steer may own the turn; nudge idle/409 is not fatal."""
     if _nudge_result_agent_busy(nudge_result):
         return True
     err = nudge_result.get("error")
@@ -456,7 +456,7 @@ def _create_empty_write_live_agent(api_url: str) -> str:
 
 
 def _live_chat_attempt_cap() -> int:
-    """R144/R165: parallel mux — allow one pre-SEND_TURN transport retry (turn_ever_sent guard)."""
+    """parallel mux — allow one pre-SEND_TURN transport retry (turn_ever_sent guard)."""
     if parallel_live_agent_peer_count() >= 2:
         return 2
     return _MAX_CHAT_ATTEMPTS
@@ -471,12 +471,12 @@ def _live_empty_write_parallel_scaled_cap_sec(*, base: float) -> float:
 
 
 def _live_empty_write_post_send_stall_cap_sec() -> float:
-    """R134: post-E2E_SEND_TURN stall scales under parallel load (not transport)."""
+    """post-E2E_SEND_TURN stall scales under parallel load (not transport)."""
     return _live_empty_write_parallel_scaled_cap_sec(base=float(STALL_PROGRESS_SEC))
 
 
 def _live_empty_write_post_steer_idle_cap_sec() -> float:
-    """R137: post-steer fail-fast scales under parallel load (steer API ok, LLM slow)."""
+    """post-steer fail-fast scales under parallel load (steer API ok, LLM slow)."""
     return _live_empty_write_parallel_scaled_cap_sec(base=float(STALL_PROGRESS_SEC))
 
 
@@ -493,7 +493,7 @@ def _live_empty_write_ui_nudge_allowed_after_steer(*, idle_sec: float) -> bool:
 
 
 def _live_api_poll_timeout_sec() -> float:
-    """R167: private-backend message fetch under parallel mux load."""
+    """private-backend message fetch under parallel mux load."""
     peers = _parallel_live_agent_peer_count()
     if peers < 2:
         return 15.0
@@ -515,7 +515,7 @@ def _live_turn_wait_cap_sec() -> float:
 
 
 def _live_bridge_ready_timeout_sec() -> float:
-    """R138: React E2E bridge wait scales under parallel mux load."""
+    """React E2E bridge wait scales under parallel mux load."""
     return _live_empty_write_parallel_scaled_cap_sec(base=90.0)
 
 
@@ -635,7 +635,7 @@ async def test_file_write_empty_live_agent_webui(
         raise AssertionError(f"Live empty write API nudge failed: {nudge_result}; filename={filename!r}")
 
     async def _steer_empty_write_turn(chat_id: str, filename: str) -> bool:
-        """R150: REST steer on in-flight turn — works when UI nudge gets AgentBusyError."""
+        """REST steer on in-flight turn — works when UI nudge gets AgentBusyError."""
         steer_result = await asyncio.to_thread(
             steer_chat_message,
             chat_id,
@@ -710,7 +710,7 @@ async def test_file_write_empty_live_agent_webui(
                 not_invoked_since = time.monotonic()
             last_api = (invoked, has_failure)
             if invoked and has_failure:
-                # R62-C1: API is SSOT under parallel MUX load — do not burn BODY
+                # API is SSOT under parallel MUX load — do not burn BODY
                 # waiting for DOM banner when messages already record the failure.
                 touch_wall_progress()
                 try:
@@ -844,7 +844,7 @@ async def test_file_write_empty_live_agent_webui(
                 idle_sec = time.monotonic() - not_invoked_since
                 nudge_filename = target_file.name if target_file is not None else "output.txt"
                 if idle_sec >= 30.0 and not last_api[0]:
-                    # R150/R173: steer before UI nudge; repeat steer under parallel.
+                    # steer before UI nudge; repeat steer under parallel.
                     steer_cap = _live_empty_write_steer_attempts_cap()
                     if steer_attempts < steer_cap and (
                         steer_attempts == 0 or idle_sec >= _live_empty_write_steer_retry_idle_sec()
@@ -877,7 +877,7 @@ async def test_file_write_empty_live_agent_webui(
                         f"parallel_peers={_parallel_live_agent_peer_count()} "
                         f"ui_sample={ui_sample[:500]!r} isStreaming={ui.get('isStreaming')}"
                     )
-            # R62-C1/R132: stall fail-fast when stream idle and tool not yet invoked.
+            # stall fail-fast when stream idle and tool not yet invoked.
             # After invoke without failure metadata, wait for API/UI settle (no stall).
             if not last_api[0] and not_invoked_since is not None:
                 stall_elapsed = time.monotonic() - not_invoked_since
@@ -911,7 +911,7 @@ async def test_file_write_empty_live_agent_webui(
         )
 
     async def _ensure_agent_url_loaded(chat: McpChatSession, target_agent_url: str) -> None:
-        """R135/R139: re-navigate when shared UI drops ?agentId= or tab is chrome-error."""
+        """re-navigate when shared UI drops ?agentId= or tab is chrome-error."""
         raw = await chat.evaluate(
             "(() => ({ href: String(location.href || ''), path: String(location.pathname || '') }))()",
             intent=EvaluateIntent.SYNC_PROBE,
@@ -939,7 +939,7 @@ async def test_file_write_empty_live_agent_webui(
     async def _rehydrate_providers_after_agent_navigate(
         chat: McpChatSession,
     ) -> None:
-        """R166: shared UI bootstrap hydrates at `/`; agent URL reload drops selection."""
+        """shared UI bootstrap hydrates at `/`; agent URL reload drops selection."""
         hydrate_cap = _bounded_wait_sec(60.0, reserve_sec=90.0)
         bridge_cap = min(_live_bridge_ready_timeout_sec(), hydrate_cap)
         await chat.ensure_react_e2e_bridge(timeout_sec=bridge_cap)
@@ -1004,7 +1004,7 @@ async def test_file_write_empty_live_agent_webui(
         raise AssertionError(f"Agent not bound in UI before live turn: {last}")
 
     async def _ensure_live_bridge_ready(chat: McpChatSession) -> None:
-        """R138: parallel-safe bridge gate before new-chat / chat surface."""
+        """parallel-safe bridge gate before new-chat / chat surface."""
         bridge_cap = _live_bridge_ready_timeout_sec()
         await chat.ensure_react_e2e_bridge(timeout_sec=bridge_cap)
 

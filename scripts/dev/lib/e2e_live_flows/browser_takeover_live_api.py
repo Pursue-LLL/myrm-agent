@@ -1,4 +1,4 @@
-"""Browser takeover LIVE — backend API helpers (R98)."""
+"""Browser takeover LIVE — backend API helpers."""
 
 from __future__ import annotations
 

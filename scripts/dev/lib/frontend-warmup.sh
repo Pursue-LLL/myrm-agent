@@ -332,7 +332,7 @@ _warmup_frontend_client() {
       return 0
     fi
     if [[ "${MYRM_E2E_ATTACH_CLIENT_WARMUP:-0}" == "1" ]]; then
-      : # fall through to flock + CDP warmup below (R284 body-phase hydration)
+      : # fall through to flock + CDP warmup below (body-phase hydration)
     else
       echo "STACK_WARN: client_hot skipped at attach ADMIT — pytest body will hydrate per-page" >&2
       return 0
@@ -499,7 +499,7 @@ _frontend_liveness_probe_seconds() {
   curl -sf --connect-timeout 3 --max-time "${probe_timeout}" -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
 }
 
-# R149: parallel Next compile may flap HTTP 000 immediately after ensure OK — require warm streak.
+# parallel Next compile may flap HTTP 000 immediately after ensure OK — require warm streak.
 _frontend_post_heal_warm_streak_ok() {
   # The cap must cover a cold Next compile. Reading it from dev_gate.contract —
   # the same SSOT the preflight passes down — removes the duplicated magic number

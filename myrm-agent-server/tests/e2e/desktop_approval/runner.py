@@ -168,7 +168,7 @@ async def run_desktop_approval_chrome_e2e(
                 retry_body_reserve = signoff_parallel_desktop_mux_step_timeout_sec(180.0)
                 if body_remaining < retry_body_reserve:
                     progress(
-                        "R255 skip internal retry — body budget remaining "
+                        "skip internal retry — body budget remaining"
                         f"{body_remaining:.0f}s < reserve {retry_body_reserve:.0f}s"
                     )
                     break
@@ -177,7 +177,7 @@ async def run_desktop_approval_chrome_e2e(
                         _signoff_mux_recover_lightweight,
                     )
 
-                    progress("R288 signoff skip recover_mux_transport on allow-once retry")
+                    progress("signoff skip recover_mux_transport on allow-once retry")
                     await _signoff_mux_recover_lightweight(
                         chat,
                         reason="signoff desktop allow-once internal retry",
@@ -277,7 +277,7 @@ async def run_desktop_approval_chrome_e2e(
                     _signoff_mux_recover_lightweight,
                 )
 
-                progress("R288 signoff skip recover_mux_transport on page transport heal")
+                progress("signoff skip recover_mux_transport on page transport heal")
                 await _signoff_mux_recover_lightweight(
                     chat,
                     reason="signoff desktop page transport heal reopen",

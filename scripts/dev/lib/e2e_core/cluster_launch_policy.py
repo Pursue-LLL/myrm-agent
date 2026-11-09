@@ -1,7 +1,7 @@
 """Cluster launch FAIL_FAST suppression — peers hung-reap intentionally skips.
 
 [POS]
-Dev Gate layer. R030-J contract: FAIL_FAST and hung-reap must judge the SAME
+Dev Gate layer. contract: FAIL_FAST and hung-reap must judge the SAME
 session row from the SAME clock. The coordinator ``phase_started_at`` clock
 (active_tests rows) can lead the true pytest BODY clock when a holder reports
 BODY early or a long bootstrap precedes BODY — judging FAIL_FAST from it while
@@ -108,7 +108,7 @@ def _session_row_from_active_test(row: dict[str, object]):
 def cluster_fail_fast_suppressed_for_active_test(row: dict[str, object]) -> bool:
     """True when FAIL_FAST must NOT block unrelated launches for this peer.
 
-    R030-J contract: judge the authoritative registry row (per-pytest snapshot),
+    contract: judge the authoritative registry row (per-pytest snapshot),
     exactly like hung-reap. A peer the reaper judges healthy must never block the
     cluster, even when the coordinator ``phase_started_at`` clock claims an over-cap
     body (split-clock lock). A peer the reaper will reap is NOT suppressed, so
