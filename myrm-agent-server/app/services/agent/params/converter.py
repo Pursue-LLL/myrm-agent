@@ -261,6 +261,7 @@ async def convert_to_general_agent_params(
         locale=locale,
         max_iterations=profile.agent_max_iterations,
         memory_policy=profile.agent_memory_policy,
+        memory_recall_mode=surface.memory_recall_mode,
         memory_decay_profile=profile.agent_memory_decay_profile,
         memory_extraction_preset=profile.agent_memory_extraction_preset,
         engine_params=apply_moa_preset_activation(

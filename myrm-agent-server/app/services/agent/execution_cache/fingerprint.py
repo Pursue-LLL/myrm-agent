@@ -233,6 +233,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "memory_decay_profile": agent_wrapper.memory_decay_profile,
         "memory_require_confirmation": agent_wrapper.memory_require_confirmation,
         "memory_policy": _stable_json(agent_wrapper.memory_policy),
+        "memory_recall_mode": agent_wrapper.memory_recall_mode.value,
         "enable_conversation_search": agent_wrapper.enable_conversation_search,
         "enable_advanced_retrieval": agent_wrapper.enable_advanced_retrieval,
         "embedding_config": _credential_free_json(agent_wrapper.embedding_config),

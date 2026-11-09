@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.toolkits.memory.config import RecallMode
 
 from app.ai_agents.general_agent.active_tool_groups import (
     ACTIVE_TOOL_GROUP_KEYS,
@@ -20,6 +21,7 @@ def _agent(**overrides: object) -> SimpleNamespace:
         enable_shell_tools=True,
         enable_computer_use=False,
         enable_memory=True,
+        memory_recall_mode=RecallMode.HYBRID,
         incognito_mode=False,
         enable_kanban=False,
         enable_wiki=False,
@@ -105,6 +107,23 @@ def test_incognito_excludes_memory() -> None:
 def test_memory_off_excludes_memory_group() -> None:
     groups = derive_active_tool_groups(_agent(enable_memory=False), enable_planning=False)
     assert "memory" not in groups
+
+
+def test_memory_group_follows_whether_memory_tools_are_mounted() -> None:
+    for recall_mode, mounted in [
+        (RecallMode.HYBRID, True),
+        (RecallMode.TOOLS, True),
+        (RecallMode.CONTEXT, False),
+    ]:
+        groups = derive_active_tool_groups(_agent(memory_recall_mode=recall_mode), enable_planning=False)
+        assert ("memory" in groups) is mounted, recall_mode
+
+
+def test_params_without_a_recall_mode_keep_the_memory_group_and_a_context_one_drops_it() -> None:
+    from app.ai_agents.general_agent.active_tool_groups import derive_active_tool_groups_from_params
+
+    assert "memory" in derive_active_tool_groups_from_params(SimpleNamespace())
+    assert "memory" not in derive_active_tool_groups_from_params(SimpleNamespace(memory_recall_mode=RecallMode.CONTEXT))
 
 
 def test_builtin_tool_id_to_group_values_subset_of_active_keys() -> None:

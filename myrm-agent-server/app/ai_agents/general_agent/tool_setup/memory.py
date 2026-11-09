@@ -13,6 +13,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.memory.config import RecallMode
+
 from .base import ToolSetupBaseMixin
 
 if TYPE_CHECKING:
@@ -68,12 +70,19 @@ class MemoryToolsMixin(ToolSetupBaseMixin):
                 self.embedding_config,
                 approval_required=self.memory_require_confirmation,
                 dedup_llm=None,
+                recall_mode=self.memory_recall_mode,
                 time_decay_half_life_days=time_decay_half_life_days,
                 reranker_config=self.reranker_config if self.enable_advanced_retrieval else None,
                 on_conflict=on_conflict,
                 on_consolidation_complete=on_consolidation_complete,
                 base_path=self.memory_base_path,
             )
+
+            if self.memory_recall_mode == RecallMode.CONTEXT:
+                # The injected memory block is the only way memory reaches the model on this surface:
+                # no tool is mounted, so no search policy or tool backend is prepared either.
+                logger.info("🧠 记忆以上下文注入方式加载（不挂载记忆工具）")
+                return manager
 
             from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
                 MemorySearchBackends,

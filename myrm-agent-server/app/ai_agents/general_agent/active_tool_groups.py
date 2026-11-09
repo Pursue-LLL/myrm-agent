@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.toolkits.memory.config import RecallMode
 
 
 class ActiveToolGroupSource(Protocol):
@@ -29,6 +30,7 @@ class ActiveToolGroupSource(Protocol):
     enable_shell_tools: bool
     enable_computer_use: bool
     enable_memory: bool
+    memory_recall_mode: RecallMode
     incognito_mode: bool
     enable_kanban: bool
     enable_wiki: bool
@@ -80,7 +82,7 @@ def derive_active_tool_groups(
         ("file_ops", agent.file_access_mode == FileAccessMode.FULL),
         ("shell", agent.enable_shell_tools),
         ("computer_use", agent.enable_computer_use),
-        ("memory", agent.enable_memory and not agent.incognito_mode),
+        ("memory", agent.enable_memory and not agent.incognito_mode and agent.memory_recall_mode != RecallMode.CONTEXT),
         ("kanban", agent.enable_kanban),
         ("wiki", agent.enable_wiki),
         ("planning", enable_planning),
@@ -105,6 +107,7 @@ class _ParamsToolGroupSource:
     enable_shell_tools: bool
     enable_computer_use: bool
     enable_memory: bool
+    memory_recall_mode: RecallMode
     incognito_mode: bool
     enable_kanban: bool
     enable_wiki: bool
@@ -126,6 +129,7 @@ def derive_active_tool_groups_from_params(params: object) -> frozenset[str]:
         enable_shell_tools=bool(getattr(params, "enable_shell_tools", True)),
         enable_computer_use=bool(getattr(params, "enable_computer_use", False)),
         enable_memory=bool(getattr(params, "enable_memory", True)),
+        memory_recall_mode=getattr(params, "memory_recall_mode", RecallMode.HYBRID),
         incognito_mode=bool(getattr(params, "incognito_mode", False)),
         enable_kanban=bool(getattr(params, "enable_kanban", False)),
         enable_wiki=bool(getattr(params, "enable_wiki", False)),

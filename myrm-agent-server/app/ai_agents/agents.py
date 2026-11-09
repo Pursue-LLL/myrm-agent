@@ -200,6 +200,7 @@ class AgentFactory:
             session_loaded_skill_names=params.session_loaded_skill_names,
             max_iterations=params.max_iterations,
             memory_policy=params.memory_policy,
+            memory_recall_mode=params.memory_recall_mode,
             memory_decay_profile=params.memory_decay_profile,
             memory_extraction_preset=params.memory_extraction_preset,
             engine_params=params.engine_params,

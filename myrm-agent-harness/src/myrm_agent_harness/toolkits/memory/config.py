@@ -68,7 +68,7 @@ class RecallMode(StrEnum):
     """Controls how memory context is delivered to the agent.
 
     - HYBRID: context injection + memory tools (default, full capability)
-    - CONTEXT: context injection only, memory tools hidden (API/headless scenarios)
+    - CONTEXT: context injection only, memory tools hidden (one-shot surfaces such as fast search)
     - TOOLS: memory tools only, no auto-injection (minimal token overhead)
     """
 

@@ -261,10 +261,10 @@ Token 明细（tiktoken o200k_base）：
 
 | 子模式 | Turn1 eager 工具 | 说明 |
 |--------|------------------|------|
-| normal | web_search + web_fetch + request_answer_user + memory×4（可选） | max_tool_calls=8 |
+| normal | web_search + web_fetch + request_answer_user（不挂载记忆工具） | max_tool_calls=8 |
 | deep | 同上 + SufficiencyConfig 增强搜索 | prompt 追加 `<deep_search_mode>`（web_fetch 深读 + answer 自审）；max_tool_calls=20 |
 
-**不含**：file/bash/glob/grep、browser（browser 仅 Agent profile `browser` 开关 opt-in）、kanban、wiki、planning、子 Agent 委托。
+**不含**：file/bash/glob/grep、memory 工具（记忆只经 `<user_memory_context>` 注入，`RecallMode.CONTEXT`）、browser（browser 仅 Agent profile `browser` 开关 opt-in）、kanban、wiki、planning、子 Agent 委托。
 
 ---
 

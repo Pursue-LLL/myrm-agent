@@ -538,6 +538,18 @@ def test_execution_fingerprint_changes_when_memory_policy_changes() -> None:
     assert inherit_fp != scoped_fp
 
 
+def test_execution_fingerprint_changes_when_memory_recall_mode_changes() -> None:
+    """The recall mode decides at build time whether any memory tool is mounted,
+    so it must bust the POOLED cache."""
+    from myrm_agent_harness.toolkits.memory.config import RecallMode
+
+    wrapper = _base_wrapper()
+    hybrid_fp = compute_execution_fingerprint(wrapper)
+    wrapper.memory_recall_mode = RecallMode.CONTEXT
+    context_fp = compute_execution_fingerprint(wrapper)
+    assert hybrid_fp != context_fp
+
+
 def test_execution_fingerprint_changes_when_kanban_default_board_changes() -> None:
     """Kanban default board resolves the dispatcher at build time (factory:1057-1063),
     so the board override must bust the POOLED cache."""

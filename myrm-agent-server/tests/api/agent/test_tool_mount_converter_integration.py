@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.toolkits.memory.config import RecallMode
 
 from app.ai_agents.agents import AgentFactory
 from app.services.agent.params.converter import convert_to_general_agent_params
@@ -35,10 +36,12 @@ class TestToolMountConverterIntegration:
         assert params.file_access_mode == FileAccessMode.FULL
         assert params.enable_shell_tools is True
         assert params.prompt_mode == "full"
+        assert params.memory_recall_mode is RecallMode.HYBRID
 
         agent = AgentFactory.create_general_agent(params)
         assert agent.file_access_mode == FileAccessMode.FULL
         assert agent.enable_shell_tools is True
+        assert agent.memory_recall_mode is RecallMode.HYBRID
 
     @pytest.mark.asyncio
     async def test_fast_search_disables_file_and_shell_meta_tools(self, base_request: dict[str, object]) -> None:
@@ -51,7 +54,9 @@ class TestToolMountConverterIntegration:
         assert params.file_access_mode == FileAccessMode.SPILL_AND_UPLOADS
         assert params.enable_shell_tools is False
         assert params.prompt_mode == "search"
+        assert params.memory_recall_mode is RecallMode.CONTEXT
 
         agent = AgentFactory.create_general_agent(params)
         assert agent.file_access_mode == FileAccessMode.SPILL_AND_UPLOADS
         assert agent.enable_shell_tools is False
+        assert agent.memory_recall_mode is RecallMode.CONTEXT
