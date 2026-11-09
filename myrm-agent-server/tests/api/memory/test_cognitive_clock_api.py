@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.runtime.cognitive_clock.signals import get_global_pause_signal
 
 from app.api.dependencies import get_db_session
 from app.api.memory.operations import cognitive_clock_console
@@ -14,12 +16,12 @@ from app.api.memory.operations import guardian as guardian_operation
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client() -> Iterator[TestClient]:
     app = FastAPI()
     app.include_router(guardian_operation.router, prefix="/api/v1/memory")
     app.include_router(cognitive_clock_console.router, prefix="/api/v1/memory")
 
-    async def _fake_db():
+    async def _fake_db() -> AsyncIterator[AsyncMock]:
         yield AsyncMock()
 
     app.dependency_overrides[get_db_session] = _fake_db
@@ -28,6 +30,8 @@ def client() -> TestClient:
             yield test_client
     finally:
         app.dependency_overrides.clear()
+        # The activity endpoint raises the process-wide pause signal; left up, every later maintenance cycle yields.
+        get_global_pause_signal().clear()
 
 
 def test_get_cognitive_clock_status(client: TestClient) -> None:
