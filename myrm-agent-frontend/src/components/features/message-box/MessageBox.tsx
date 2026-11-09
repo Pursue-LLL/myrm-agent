@@ -19,22 +19,16 @@
  * markdown, artifacts and approvals to focused child components.
  */
 
-/* eslint-disable @next/next/no-img-element */
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { AlertTriangle, Ban, Disc3, FileCode2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Ban, Disc3, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
-import { usePlanStore } from '@/store/chat/goals/usePlanStore';
-import type { McpAppView, ProgressItem, ToolImageOutput } from '@/store/chat/types';
 import { buildCitationSources } from '@/lib/citations/buildCitationSources';
-import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import { findLastTurnAnswerId } from '@/lib/chat/lastTurnAnswer';
-import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
-import { regenerateLastTurn, cancelAgentRequest } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
 import { messageHasSkillManageUndo } from './progress-steps/skillManageBatch';
 import { SkillManageUndoHintCard } from './SkillManageUndoHintCard';
@@ -58,9 +52,8 @@ import WorkflowSuggestionCard from './WorkflowSuggestionCard';
 import MessageActionBar from './MessageActionBar';
 import { ImageTaskCard, VideoTaskCard } from '@/components/features/task-card';
 import TtsAudioCard from './TtsAudioCard';
-import { recordQualityOutcomeNegative } from '@/services/wiki/evidenceMetrics';
 import { CronJobSystemCard } from './CronJobSystemCard';
-import { KanbanTaskCreatedCard, type KanbanTaskCreatedResult } from './KanbanTaskCreatedCard';
+import { KanbanTaskCreatedCard } from './KanbanTaskCreatedCard';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
 import WaterDropCostView from './WaterDropCostView';
 import MemoryInsightPanel from './MemoryInsightPanel';
@@ -76,8 +69,20 @@ import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';
 import { DeliverableTierBadge } from './DeliverableTierBadge';
 import { ModelSpecialtyChip } from './ModelSpecialtyChip';
-import type { ReasoningDisplayMode } from '@/services/config/types';
 import ReasoningProcessAccordion from './ReasoningProcessAccordion';
+import {
+  closeUnbalancedReasoningTags,
+  parseAsyncTaskResponse,
+  parseTtsAudioResponse,
+  readCronJobResult,
+  readKanbanTasksCreated,
+  readMcpApps,
+  readSessionRecording,
+  readToolImages,
+  resolveProgressSteps,
+} from './assistant-message/messagePayloads';
+import { useAssistantMessageActions } from './assistant-message/useAssistantMessageActions';
+import { useReasoningAutoCollapse } from './assistant-message/useReasoningAutoCollapse';
 
 const MessageBox = ({
   message,
@@ -91,11 +96,9 @@ const MessageBox = ({
   isLast: boolean;
 }) => {
   const showSystemMessages = useShowSystemMessages();
-  const [isReasoningExpanded, setIsReasoningExpanded] = useState(() => isLast && loading && !message.content);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const markdownRef = useRef<HTMLDivElement>(null);
   const { state: quoteState, dismiss: dismissQuote } = useQuoteSelection(markdownRef);
-  const sendMessage = useChatStore((state) => state.sendMessage);
   const messages = useChatStore((state) => state.messages);
   const composerPendingClarification = useMemo(() => findActivePendingClarification(messages), [messages]);
   // Regenerate acts on the latest turn only, so only that turn's answer offers it.
@@ -115,24 +118,10 @@ const MessageBox = ({
   const reasoningDisplayMode = useConfigStore(
     (state) => state.personalSettings?.reasoningDisplayMode ?? state.reasoningDisplayMode ?? 'collapsed',
   );
-  const parsedMessage = useMemo(() => {
-    if (!message.content) {
-      return '';
-    }
-    let processedMessage = message.content;
-    if (message.role === 'assistant' && processedMessage.includes('<')) {
-      for (const tag of ['think', 'thinking', 'thought', 'antthinking', 'reasoning', 'REASONING_SCRATCHPAD'] as const) {
-        const openRe = new RegExp(`<${tag}>`, 'gi');
-        const closeRe = new RegExp(`</${tag}>`, 'gi');
-        const openCount = processedMessage.match(openRe)?.length || 0;
-        const closeCount = processedMessage.match(closeRe)?.length || 0;
-        if (openCount > closeCount) {
-          processedMessage += `</${tag}> <a> </a>`;
-        }
-      }
-    }
-    return processedMessage;
-  }, [message.content, message.role]);
+  const parsedMessage = useMemo(
+    () => (message.role === 'assistant' ? closeUnbalancedReasoningTags(message.content) : message.content || ''),
+    [message.content, message.role],
+  );
   const t = useTranslations('chat');
   const tProgress = useTranslations('progressSteps');
   const hasKbEvidenceOnCurrentMessage = useMemo(
@@ -141,136 +130,33 @@ const MessageBox = ({
     [message.sources],
   );
 
-  const sessionRecordingData: { filename: string; preview_url: string } | null =
-    message.sessionRecording &&
-    typeof message.sessionRecording === 'object' &&
-    typeof message.sessionRecording.filename === 'string' &&
-    typeof message.sessionRecording.preview_url === 'string'
-      ? message.sessionRecording
-      : null;
-  const toolImages: ToolImageOutput[] = Array.isArray(message.toolImages)
-    ? (message.toolImages as ToolImageOutput[])
-    : [];
-  const mcpApps: McpAppView[] = Array.isArray(message.mcpApps) ? (message.mcpApps as McpAppView[]) : [];
-  const cronJobResult =
-    message.metadata && typeof message.metadata === 'object' && 'cron_job_result' in message.metadata
-      ? (message.metadata.cron_job_result as import('./CronJobSystemCard').CronJobResult)
-      : null;
-  const kanbanTasksCreated = (() => {
-    if (!message.metadata || typeof message.metadata !== 'object') {
-      return [];
-    }
-    const raw = message.metadata.kanban_tasks_created;
-    if (Array.isArray(raw)) {
-      return raw.filter(
-        (item): item is KanbanTaskCreatedResult =>
-          typeof item === 'object' &&
-          item !== null &&
-          typeof (item as KanbanTaskCreatedResult).task_id === 'string' &&
-          typeof (item as KanbanTaskCreatedResult).title === 'string' &&
-          typeof (item as KanbanTaskCreatedResult).board_id === 'string',
-      );
-    }
-    return [];
-  })();
+  const sessionRecordingData = readSessionRecording(message);
+  const toolImages = readToolImages(message);
+  const mcpApps = readMcpApps(message);
+  const cronJobResult = readCronJobResult(message);
+  const kanbanTasksCreated = readKanbanTasksCreated(message);
   const sessionRecordingCard: React.ReactNode = sessionRecordingData ? (
     <SessionRecordingCard filename={sessionRecordingData.filename} previewUrl={sessionRecordingData.preview_url} />
   ) : null;
 
-  // 自动折叠思考过程：只在「思考 → 开始输出正文」这一刻收起一次（延迟 1s，避免刚展开就被夺走）。
-  // 不能对每次展开都生效：否则用户在回答结束后想回看思考，会刚点开就被立刻收起（Cursor 曾因此被报 bug）。
-  const autoCollapsedReasoningRef = useRef(false);
-  useEffect(() => {
-    if (
-      reasoningDisplayMode !== 'inline' &&
-      message.reasoning &&
-      message.content &&
-      message.content.length > 0 &&
-      isReasoningExpanded &&
-      !autoCollapsedReasoningRef.current
-    ) {
-      const timer = setTimeout(() => {
-        autoCollapsedReasoningRef.current = true;
-        setIsReasoningExpanded(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isReasoningExpanded, message.content, message.reasoning, reasoningDisplayMode]);
-
-  // Resolves whether the regeneration went through, so the menu keeps a custom instruction that was refused.
-  const handleRegenerate = async (instruction?: string): Promise<boolean> => {
-    if (!chatId) {
-      return false;
-    }
-
-    try {
-      const result = await regenerateLastTurn(chatId, instruction);
-
-      if (result.success && result.query) {
-        useChatStore.setState((state) => ({
-          messages: state.messages.filter((m) => m.role !== 'assistant' || m.messageId !== message.messageId),
-          regenerateSiblingGroupId: result.sibling_group_id,
-          regenerateInstruction: instruction,
-        }));
-        if (hasKbEvidenceOnCurrentMessage) {
-          recordQualityOutcomeNegative('chat', 1, `chat:${message.messageId}`);
-        }
-
-        void usePlanStore.getState().fetchPlan(chatId);
-
-        const cleanQuery = stripDatetimeTag(result.query);
-        return await sendMessage(cleanQuery);
-      }
-      return false;
-    } catch (error) {
-      console.error('Regenerate failed:', error);
-      return false;
-    } finally {
-      useChatStore.setState({ regenerateSiblingGroupId: undefined, regenerateInstruction: undefined });
-    }
-  };
-
-  // 取消：调用后端 API 取消正在运行的 Agent 请求
-  const handleCancel = async () => {
-    try {
-      const abortController = useChatStore.getState().abortController;
-      await cancelAgentRequest(message.messageId);
-      abortController?.abort(); // 关闭 SSE 连接
-      // 锁等待期间取消：pump 可能还没走到 waiting_for_turn_clear 就退出了，
-      // 前端残留的等待进度步骤在此同步清除，避免 UI 残留卡死。
-      useChatStore.getState().setMessages((state) => {
-        state.messages = removeWaitingForTurnStep(state.messages, message.messageId);
-      });
-    } catch (error) {
-      console.error('Cancel failed:', error);
-    }
-  };
+  const { isExpanded: isReasoningExpanded, toggle: toggleReasoning } = useReasoningAutoCollapse({
+    isLast,
+    loading,
+    content: message.content,
+    reasoning: message.reasoning,
+    displayMode: reasoningDisplayMode,
+  });
+  const { handleRegenerate, handleCancel } = useAssistantMessageActions({
+    message,
+    chatId,
+    hasKbEvidence: hasKbEvidenceOnCurrentMessage,
+  });
 
   // 检测是否为异步任务响应（如图片生成）
-  const taskResponse = useMemo(() => {
-    try {
-      const parsed = JSON.parse(message.content);
-      if (parsed.task_id && typeof parsed.task_id === 'string') {
-        return parsed as { task_id: string; task_type?: string; status?: string; message?: string };
-      }
-    } catch {
-      // 不是有效 JSON 或不包含 task_id，继续正常渲染
-    }
-    return null;
-  }, [message.content]);
+  const taskResponse = useMemo(() => parseAsyncTaskResponse(message.content), [message.content]);
 
   // 检测是否为 tts_generate 同步成功响应（就地播放而非裸 JSON 渲染）
-  const ttsAudioResponse = useMemo(() => {
-    try {
-      const parsed = JSON.parse(message.content);
-      if (parsed && typeof parsed === 'object' && parsed.status === 'success' && typeof parsed.audio_url === 'string') {
-        return parsed as { audio_url: string; model?: string; duration_seconds?: number };
-      }
-    } catch {
-      // 不是有效 JSON，继续正常渲染
-    }
-    return null;
-  }, [message.content]);
+  const ttsAudioResponse = useMemo(() => parseTtsAudioResponse(message.content), [message.content]);
 
   // A marker in this answer names a source of this message first, then the nearest earlier message that has that number.
   const citationSources = useMemo(
@@ -399,11 +285,7 @@ const MessageBox = ({
 
         {/* 进度步骤与执行阶段 HUD */}
         {(() => {
-          const resolvedProgressSteps: ProgressItem[] = message.progressSteps?.length
-            ? message.progressSteps
-            : Array.isArray(message.metadata?.progressSteps)
-              ? (message.metadata.progressSteps as ProgressItem[])
-              : [];
+          const resolvedProgressSteps = resolveProgressSteps(message);
           return (
             <div className="space-y-1.5">
               {(message.phaseExecution || (loading && isLast)) && (
@@ -524,7 +406,7 @@ const MessageBox = ({
                 isLast={isLast}
                 loading={loading}
                 isExpanded={isReasoningExpanded}
-                onToggle={() => setIsReasoningExpanded(!isReasoningExpanded)}
+                onToggle={toggleReasoning}
                 displayMode={reasoningDisplayMode}
               />
             )}
