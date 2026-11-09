@@ -17,6 +17,7 @@ scanning. Not part of the public API.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -107,6 +108,7 @@ class GovernanceService:
         "_namespaces",
         "_relational",
         "_scope",
+        "_submit_lock",
         "_user_id",
     )
 
@@ -124,6 +126,9 @@ class GovernanceService:
         self._relational = relational
         self._namespaces = list(namespaces)
         self._scope = scope.model_copy(deep=True)
+        # The duplicate check and the insert are separate statements; parallel identical submits would all
+        # pass the check before the first one is queued.
+        self._submit_lock = asyncio.Lock()
 
     async def submit_pending(
         self,
@@ -134,16 +139,17 @@ class GovernanceService:
         target_content: str | None = None,
     ) -> str:
         rel = self._rel()
-        if await rel.pending_exists(memory.memory_type.value, memory.content):
-            return ""
-        return await rel.submit_pending(
-            memory_to_pending(
-                memory,
-                resolution_action=resolution_action,
-                target_memory_id=target_memory_id,
-                target_content=target_content,
+        async with self._submit_lock:
+            if await rel.pending_exists(memory.memory_type.value, memory.content):
+                return ""
+            return await rel.submit_pending(
+                memory_to_pending(
+                    memory,
+                    resolution_action=resolution_action,
+                    target_memory_id=target_memory_id,
+                    target_content=target_content,
+                )
             )
-        )
 
     async def approve(
         self,
