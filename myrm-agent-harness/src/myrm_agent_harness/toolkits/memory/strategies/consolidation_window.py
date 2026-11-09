@@ -4,7 +4,7 @@
 - memory._internal.storage::doc_to_episodic, doc_to_semantic (POS: Vector document to memory converters)
 - memory._internal.store_stamp::{STORED_TS_KEY, stored_at_from_metadata} (POS: arrival stamp of a stored memory and its payload form)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
-- memory.types::AnyMemory, SemanticMemory (POS: memory data models)
+- memory.types::AnyMemory, MemoryStatus, SemanticMemory (POS: memory data models and lifecycle status)
 - strategies.consolidation_models::{CONSOLIDATION_INSIGHT_TAG, CONSOLIDATION_SOURCE_KEY} (POS: markers of consolidation's own output)
 
 [OUTPUT]
@@ -18,10 +18,10 @@ memory approved late, imported with its source's timestamp or corrected is still
 memories are read: a procedural rule takes effect through its trigger and action, which consolidation may not
 rewrite, so a rule is never a candidate. The window walks forward in arrival order, never past the run's horizon and
 never past a point some source was not read to, so a backlog larger than one run is drained batch by batch. The only
-memories it skips are consolidation's own output, documents that cannot be decoded (one never hides its neighbours)
-and, when a source is cut inside a group of documents stored before stamps existed that share one creation instant,
-the rest of that group. An unreadable source, or a batch in which nothing decodes, holds the stamp instead of letting
-it jump over memories the run could not see.
+memories it skips are consolidation's own output, memories the user archived or switched off, documents that cannot
+be decoded (one never hides its neighbours) and, when a source is cut inside a group of documents stored before stamps
+existed that share one creation instant, the rest of that group. An unreadable source, or a batch in which nothing
+decodes, holds the stamp instead of letting it jump over memories the run could not see.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     CONSOLIDATION_INSIGHT_TAG,
     CONSOLIDATION_SOURCE_KEY,
 )
-from myrm_agent_harness.toolkits.memory.types import SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import MemoryStatus, SemanticMemory
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -66,6 +66,15 @@ def _is_consolidation_product(memory: AnyMemory) -> bool:
     return isinstance(memory, SemanticMemory) and (
         CONSOLIDATION_INSIGHT_TAG in memory.tags or CONSOLIDATION_SOURCE_KEY in memory.metadata
     )
+
+
+def _is_analyzable(memory: AnyMemory) -> bool:
+    """Whether a run may analyze the memory.
+
+    One the user archived or switched off is out of play: it would be sent to the model, and a merge would write its
+    content back into a live memory.
+    """
+    return memory.status == MemoryStatus.ACTIVE and not _is_consolidation_product(memory)
 
 
 def _arrived_at(memory: AnyMemory) -> datetime:
@@ -170,7 +179,7 @@ async def fetch_candidate_window(
             memories = _decode(collection, documents, to_memory)
             if documents and not memories:
                 readable = False
-            candidates.extend(memory for memory in memories if not _is_consolidation_product(memory))
+            candidates.extend(memory for memory in memories if _is_analyzable(memory))
 
     pool = sorted((m for m in candidates if bound is None or _arrived_at(m) <= bound), key=_arrived_at)
     if len(pool) > max_count:

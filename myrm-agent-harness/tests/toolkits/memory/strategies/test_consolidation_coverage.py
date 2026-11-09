@@ -24,7 +24,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import CONSOLIDATION_INSIGHT_TAG
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
-from myrm_agent_harness.toolkits.memory.types import ProceduralMemory, SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import MemoryStatus, MemoryType, ProceduralMemory, SemanticMemory
 from myrm_agent_harness.toolkits.vector.base import FilterDict, VectorDocument
 from tests.support.consolidation_seeds import (
     GLOBAL,
@@ -131,6 +131,40 @@ async def test_consolidations_own_output_never_re_enters_the_window(new_manager:
     assert stats.merged == 1
     window = await fetch_candidate_window(manager, None, 100, datetime.now(UTC))
     assert sorted(m.content for m in window.memories) == sorted(m.content for m in (first, second, correction))
+
+
+async def test_memories_the_user_archived_or_switched_off_are_not_analyzed(new_manager: NewManager) -> None:
+    manager = new_manager()
+    live, other = semantic("User drinks green tea every morning", 1), semantic("User keeps a standing desk", 2)
+    trashed, silenced = semantic("User likes green tea early in the day", 3), semantic("User rides a bicycle", 4)
+    await seed(manager, [live, other, trashed, silenced])
+    await manager.update_memory(trashed.id, status=MemoryStatus.ARCHIVED)
+    await manager.update_memory(silenced.id, status=MemoryStatus.DISABLED)
+
+    window = await fetch_candidate_window(manager, None, 100, HORIZON)
+
+    assert [m.content for m in window.memories] == [live.content, other.content]
+    assert window.advance_to == HORIZON  # they are skipped on purpose, so the stamp moves past them
+
+
+async def test_a_deleted_memory_is_neither_shown_to_the_model_nor_merged_back_into_a_live_one(
+    new_manager: NewManager,
+) -> None:
+    manager = new_manager()
+    live, other = semantic("User drinks green tea every morning", 1), semantic("User keeps a standing desk", 2)
+    deleted = semantic("User secretly drinks whisky", 3)
+    await seed(manager, [live, other, deleted])
+    await manager.update_memory(deleted.id, status=MemoryStatus.ARCHIVED)
+    merge = MergeOp(source_ids=[live.id[:8], deleted.id[:8]], merged_content="User drinks green tea and whisky")
+    llm = llm_returning(ConsolidationResponse(operations=[merge]))
+
+    stats = await run_consolidation(manager, llm, ConsolidationConfig(soft_lock_hours=0.0))
+
+    messages = llm.with_structured_output.return_value.ainvoke.await_args.args[0]
+    assert not any("whisky" in str(message.content) for message in messages)
+    assert (stats.input_count, stats.merged, stats.undo.change_count) == (2, 0, 0)
+    contents = [m.content for m in await manager.list_memories(MemoryType.SEMANTIC)]
+    assert sorted(contents) == sorted([live.content, other.content])
 
 
 async def test_an_unreadable_source_holds_the_stamp_but_still_yields_the_other_sources(
