@@ -237,6 +237,38 @@ class KanbanDispatcherMixin(KanbanServiceCore):
             worker_id=worker_id,
         )
 
+    async def start_boot_dispatchers(self, runner: TaskRunner) -> tuple[int, bool]:
+        """Start every board's dispatcher for a server boot, gated on a usable model configuration.
+
+        Returns ``(started, gated)``. ``gated`` is True when no model is configured: the dispatchers
+        exist but hold their READY tasks, so a boot cannot fail queued work or write a failure row
+        for every task. The stale-RUNNING reset runs once here, which is why each dispatcher then
+        skips its own per-board rescue query.
+        """
+        from app.services.kanban.dispatch_gate import dispatch_allowed
+
+        allowed = await dispatch_allowed()
+        gate = None if allowed else dispatch_allowed
+        started = 0
+        for board in await self.list_boards():
+            dispatcher = await run_start_dispatcher(
+                self._store,
+                self._dispatchers,
+                board.board_id,
+                runner,
+                rescue_orphans=False,
+                dispatch_allowed=gate,
+            )
+            if dispatcher is not None:
+                started += 1
+        return started, not allowed
+
+    async def dispatch_is_blocked(self) -> bool:
+        """True when no usable model configuration exists, so dispatchers hold their READY tasks."""
+        from app.services.kanban.dispatch_gate import dispatch_allowed
+
+        return not await dispatch_allowed()
+
     async def stop_dispatcher(self, board_id: str) -> bool:
         return await run_stop_dispatcher(self._dispatchers, board_id)
 
