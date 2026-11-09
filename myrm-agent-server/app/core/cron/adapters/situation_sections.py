@@ -44,7 +44,7 @@ class PendingRemindersSection:
         from app.core.cron.adapters.setup import get_cron_store
 
         store = get_cron_store()
-        jobs = await store.list_jobs(user_id=ctx.user_id, limit=50)
+        jobs = await store.list_jobs(limit=50)
 
         from myrm_agent_harness.toolkits.cron.types import JobStatus, ScheduleKind
 
@@ -84,7 +84,7 @@ class SystemHealthSection:
         from app.core.cron.adapters.setup import get_cron_store
 
         store = get_cron_store()
-        jobs = await store.list_jobs(user_id=ctx.user_id, limit=200)
+        jobs = await store.list_jobs(limit=200)
 
         from myrm_agent_harness.toolkits.cron.types import JobStatus
 

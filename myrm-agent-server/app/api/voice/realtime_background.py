@@ -254,7 +254,7 @@ async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeTool
 
     mgr = get_cron_manager()
     try:
-        jobs = await mgr.list_jobs("default")
+        jobs = await mgr.list_jobs()
         active_reminders = [j for j in jobs if j.status == JobStatus.ACTIVE and j.job_type == JobType.REMINDER]
 
         target_job = None
@@ -306,7 +306,7 @@ async def _execute_list_reminders(req: RealtimeToolExecRequest) -> RealtimeToolE
 
     mgr = get_cron_manager()
     try:
-        jobs = await mgr.list_jobs("default")
+        jobs = await mgr.list_jobs()
         active_reminders = [
             {
                 "id": j.id,

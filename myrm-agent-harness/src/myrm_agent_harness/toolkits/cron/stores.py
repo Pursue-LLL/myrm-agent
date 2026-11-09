@@ -13,12 +13,6 @@ Thread-safe for asyncio (single event loop) via ``asyncio.Lock``.
 
 [POS]
 Built-in in-memory CronStore for development and testing.
-
-[PENDING] Test double by design: the scheduler and executor tests of the harness and the server drive the
-real engine through it, while production uses the SQLAlchemy store (a server contract test runs the same
-cases against both). It has no production caller because it is not meant to have one. It is not published
-on ``api/`` until the product decides whether a store scopes jobs by ``user_id``: this double filters by it,
-the SQL store neither persists nor filters it.
 """
 
 from __future__ import annotations
@@ -55,7 +49,6 @@ class InMemoryCronStore:
     async def list_jobs(
         self,
         *,
-        user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
@@ -65,9 +58,6 @@ class InMemoryCronStore:
     ) -> list[CronJob]:
         async with self._lock:
             result = list(self._jobs.values())
-
-        if user_id is not None:
-            result = [j for j in result if j.user_id == user_id]
 
         if chat_id is not None:
             result = [j for j in result if j.chat_id == chat_id]
@@ -96,15 +86,12 @@ class InMemoryCronStore:
     async def count_jobs(
         self,
         *,
-        user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
     ) -> int:
         async with self._lock:
             jobs = list(self._jobs.values())
-        if user_id is not None:
-            jobs = [j for j in jobs if j.user_id == user_id]
         if chat_id is not None:
             jobs = [j for j in jobs if j.chat_id == chat_id]
         if project_id is not None:

@@ -156,18 +156,17 @@ class CronValidationMixin:
             streams=triggers.streams,
         )
 
-    async def _resolve_name_conflict(self, user_id: str, name: str) -> str:
-        """Auto-append (2), (3), etc. if name already exists for this user.
+    async def _resolve_name_conflict(self, name: str) -> str:
+        """Auto-append (2), (3), etc. if a job with this name already exists.
 
         Args:
-            user_id: User identifier for scope isolation
             name: Desired task name
 
         Returns:
             Unique name (original or with suffix like " (2)")
         """
         # Query store directly to avoid mock issues in tests
-        existing_jobs = await self._store.list_jobs(user_id=user_id)
+        existing_jobs = await self._store.list_jobs()
         existing_names = {job.name for job in existing_jobs}
 
         if name not in existing_names:

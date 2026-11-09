@@ -80,7 +80,6 @@ class SqlAlchemyCronStore:
     async def list_jobs(
         self,
         *,
-        user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
@@ -120,7 +119,6 @@ class SqlAlchemyCronStore:
     async def count_jobs(
         self,
         *,
-        user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,

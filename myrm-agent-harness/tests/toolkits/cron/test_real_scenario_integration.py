@@ -319,7 +319,7 @@ class TestCRUDOperations:
             prompt="test",
         )
 
-        jobs = await manager.list_jobs("user-1")
+        jobs = await manager.list_jobs()
         assert len(jobs) == 1
         assert jobs[0].id == job.id
 

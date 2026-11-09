@@ -58,7 +58,6 @@ async def list_jobs(
     chat_filter = chat_id.strip() if chat_id else None
     project_filter = project_id.strip() if project_id else None
     jobs = await mgr.list_jobs(
-        USER_ID,
         name_filter=name_filter,
         chat_id=chat_filter,
         project_id=project_filter,
@@ -67,14 +66,13 @@ async def list_jobs(
     )
     if name_filter or chat_filter or project_filter:
         all_matched = await mgr.list_jobs(
-            USER_ID,
             name_filter=name_filter,
             chat_id=chat_filter,
             project_id=project_filter,
         )
         total = len(all_matched)
     else:
-        total = await mgr.count_jobs(USER_ID)
+        total = await mgr.count_jobs()
 
     job_ids = [j.id for j in jobs if j.monitor_config]
     monitor_states = await mgr.batch_get_monitor_states(job_ids) if job_ids else {}

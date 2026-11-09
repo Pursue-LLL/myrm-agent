@@ -31,7 +31,7 @@ from .job_repair import repair_wiki_delta_job
 
 async def _find_preset_cron_job(*, job_name: str, stored_job_id: str | None) -> str | None:
     mgr = common.get_cron_manager()
-    jobs = await mgr.list_jobs(_USER_ID)
+    jobs = await mgr.list_jobs()
     for job in jobs:
         if job.name == job_name or job.name.startswith(f"{job_name} ("):
             return job.id

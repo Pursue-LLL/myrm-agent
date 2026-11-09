@@ -263,8 +263,8 @@ async def _do_add(
     return json.dumps(result, ensure_ascii=False)
 
 
-async def _do_list(mgr: CronManager, user_id: str, name_filter: str) -> str:
-    jobs = await mgr.list_jobs(user_id, name_filter=name_filter.strip() or None)
+async def _do_list(mgr: CronManager, name_filter: str) -> str:
+    jobs = await mgr.list_jobs(name_filter=name_filter.strip() or None)
     if not jobs:
         return "No scheduled tasks."
 

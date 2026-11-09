@@ -61,7 +61,7 @@ async def test_create_job_enforces_slot_before_inner() -> None:
     with patch(_SLOT_FN) as mock_slot:
         await mgr.create_job("user-1", name="t", job_type=MagicMock(), schedule=MagicMock())
 
-    inner.count_jobs.assert_awaited_once_with("user-1")
+    inner.count_jobs.assert_awaited_once_with()
     mock_slot.assert_called_once_with(2)
     inner.create_job.assert_awaited_once()
 
@@ -177,14 +177,14 @@ async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> Non
     mgr = EntitlementGuardedCronManager(inner)
 
     assert await mgr.get_job("j1", "user-1") is inner.get_job.return_value
-    assert await mgr.list_jobs("user-1", name_filter="x", limit=5, offset=2) is inner.list_jobs.return_value
+    assert await mgr.list_jobs(name_filter="x", limit=5, offset=2) is inner.list_jobs.return_value
     assert await mgr.pause_job("j1", "user-1") is inner.pause_job.return_value
     assert await mgr.resume_job("j1", "user-1") is inner.resume_job.return_value
     assert await mgr.delete_job("j1", "user-1") is True
     assert await mgr.trigger_now("j1", "user-1") is True
 
     inner.get_job.assert_awaited_once_with("j1", "user-1")
-    inner.list_jobs.assert_awaited_once_with("user-1", name_filter="x", chat_id=None, project_id=None, limit=5, offset=2)
+    inner.list_jobs.assert_awaited_once_with(name_filter="x", chat_id=None, project_id=None, limit=5, offset=2)
     inner.pause_job.assert_awaited_once_with("j1", "user-1")
     inner.resume_job.assert_awaited_once_with("j1", "user-1")
     inner.delete_job.assert_awaited_once_with("j1", "user-1")

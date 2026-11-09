@@ -19,8 +19,6 @@ from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 
 logger = logging.getLogger(__name__)
 
-_CRON_USER_ID = "default"
-
 
 async def count_cron_jobs_bound_to_template(template_id: str) -> int:
     """Return how many Cron jobs reference ``template_id``."""
@@ -32,7 +30,7 @@ async def count_cron_jobs_bound_to_template(template_id: str) -> int:
 
     mgr = get_cron_manager()
     try:
-        jobs = await mgr.list_jobs(_CRON_USER_ID)
+        jobs = await mgr.list_jobs()
     except (SQLAlchemyOperationalError, sqlite3.OperationalError) as exc:
         # Stale dev DB may lack workflow_template_id until migrations run on restart.
         logger.warning(

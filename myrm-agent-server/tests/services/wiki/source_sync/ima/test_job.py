@@ -52,7 +52,7 @@ class Cron:
     store: InMemoryCronStore
 
     async def jobs(self) -> list[CronJob]:
-        return await self.manager.list_jobs(job_module._USER_ID)
+        return await self.manager.list_jobs()
 
     async def only(self) -> CronJob:
         (job,) = await self.jobs()

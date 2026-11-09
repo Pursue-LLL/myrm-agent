@@ -22,7 +22,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/entitlement_guarded_manager.py` | 核心 | Sandbox slot gate + lifecycle guard + tools_allowed normalize（REST + agent SSOT） | — |
 | `adapters/lifecycle_guard.py` | 核心 | 创建/更新时拦截 myrm 服务 restart/stop（含 pre_condition_script 与 shell 验收标准的 command） | — |
 | `adapters/tools_policy.py` | 核心 | Cron job tools_allowed 校验、runtime 求交、受限 job 跳过 baseline 强制 | — |
-| `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `user_id`/`chat_id`/`name_filter`，`get_job` 路径对 legacy `monitor_config` 做 opportunistic 规范化回写，并提供可节流的批量清洗入口用于启动时历史数据治理（含结构化清洗统计与续清标记） | — |
+| `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `chat_id`/`project_id`/`name_filter`（名称子串匹配，不区分大小写，`%` / `_` 按字面量处理；不按所有者过滤，部署为单用户实例，所有者校验只在 `CronManager` 的单任务操作上），与 `InMemoryCronStore` 的行为一致性由 `tests/core/cron/adapters/test_cron_store_contract.py` 对两种实现跑同一组用例守住，`get_job` 路径对 legacy `monitor_config` 做 opportunistic 规范化回写，并提供可节流的批量清洗入口用于启动时历史数据治理（含结构化清洗统计与续清标记） | — |
 | `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | — |
 | `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
 | `adapters/agent_runner/` | 核心 | JobRunner：ConfigService + AgentFactory；可选 `workflow_template_id` 走 pinned DW（`create_dynamic_workflow_stream` unattended）；执行前 `validate_cron_template_at_execution`（trust/args/readonly）；Cron 绑模板同 SSOT；cron 渠道 `enable_cron_eager=False` 且剔除 `cron` builtin；[SILENT] + SituationReport | — |
