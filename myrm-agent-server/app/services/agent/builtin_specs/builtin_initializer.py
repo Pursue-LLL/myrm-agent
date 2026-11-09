@@ -105,8 +105,6 @@ async def initialize_builtin_agents() -> None:
                     agent_kwargs["prompt_mode"] = spec.prompt_mode
                 if spec.engine_params is not None:
                     agent_kwargs["engine_params"] = spec.engine_params
-                if spec.memory_policy is not None:
-                    agent_kwargs["memory_policy"] = spec.memory_policy
                 if spec.memory_extraction_preset is not None:
                     agent_kwargs["memory_extraction_preset"] = spec.memory_extraction_preset
                 if spec.max_iterations is not None:
@@ -174,9 +172,6 @@ def _sync_existing_agent(
         changed = True
     if spec.engine_params is not None and agent.engine_params != spec.engine_params:
         agent.engine_params = spec.engine_params
-        changed = True
-    if spec.memory_policy is not None and agent.memory_policy != spec.memory_policy:
-        agent.memory_policy = spec.memory_policy
         changed = True
     if spec.memory_extraction_preset is not None and agent.memory_extraction_preset != spec.memory_extraction_preset:
         agent.memory_extraction_preset = spec.memory_extraction_preset

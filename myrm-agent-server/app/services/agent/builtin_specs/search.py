@@ -26,11 +26,6 @@ _SEARCH_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         enabled_builtin_tools=("web_search",),
         prompt_mode="search",
         engine_params={"max_tool_calls": 8},
-        memory_policy={
-            "read_scopes": ["global", "conversation"],
-            "write_policy": "conversation",
-            "allow_l3_extraction": False,
-        },
         max_iterations=30,
         suggestion_prompts=(
             "What happened in the world today?",
@@ -51,11 +46,6 @@ _SEARCH_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         enabled_builtin_tools=("web_search", "answer_tool"),
         prompt_mode="search",
         engine_params={"max_tool_calls": 20},
-        memory_policy={
-            "read_scopes": ["global", "conversation"],
-            "write_policy": "conversation",
-            "allow_l3_extraction": False,
-        },
         max_iterations=50,
         suggestion_prompts=(
             "Deep dive into the current state of quantum computing research",

@@ -5,7 +5,7 @@ myrm_agent_harness.utils.db.migration_engine::StatefulMigrationEngine/MigrationS
 sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED）
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -45,6 +45,12 @@ BACKFILL_LEGACY_WAKEUP_NOTICE_SQL = (
 REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL = (
     "UPDATE approvals SET status = 'REJECTED', resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP "
     "WHERE action_type = 'tool_stuck' AND status = 'PENDING'"
+)
+
+# The built-in search agents run on the default memory policy and carry no override of their own; a row that
+# still holds one is cleared. Only these two ids change: every other agent keeps the policy it has.
+CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL = (
+    "UPDATE agents SET memory_policy = NULL WHERE id IN ('builtin-fast-search', 'builtin-deep-search')"
 )
 
 # 数据库迁移语句（按顺序执行）
@@ -721,6 +727,7 @@ MIGRATION_STATEMENTS: list[str] = [
     REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL,
     # Isolation comes from automatic file snapshots, so the git-worktree sandbox root is no longer stored.
     "ALTER TABLE chats DROP COLUMN sandbox_base_dir",
+    CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL,
 ]
 
 # 创建索引的SQL语句列表

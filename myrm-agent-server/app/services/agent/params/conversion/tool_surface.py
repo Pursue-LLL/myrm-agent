@@ -21,8 +21,6 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryWritePolicy
-
 from ..models import AgentRequest
 from .profile_apply import ProfileContext
 from .sources import ConfigSources
@@ -92,7 +90,7 @@ async def resolve_tool_surface(request: AgentRequest, profile: ProfileContext, s
         profile.openapi_services = None
         profile.agent_max_iterations = 50 if search_depth == "deep" else 30
         profile.engine_params = {"max_tool_calls": 20 if search_depth == "deep" else 8}
-        profile.agent_memory_policy = AgentMemoryPolicy(write_policy=MemoryWritePolicy.CONVERSATION)
+        profile.agent_memory_policy = None
         return ToolSurface(is_fast=True, tool_flags=tool_flags, prompt_mode=prompt_mode, search_depth=search_depth)
 
     if sources.search_cfg is None and "web_search" in profile.enabled_builtin_tools:
