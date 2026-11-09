@@ -169,6 +169,7 @@ export const videoImportResultOf = (over: Partial<ImportVideoResponse> = {}): Im
   relative_path: 'raw/video.md',
   status: 'success',
   error: '',
+  error_code: null,
   message: 'Imported the video',
   ...over,
 });

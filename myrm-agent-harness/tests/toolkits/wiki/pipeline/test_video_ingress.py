@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -15,6 +17,7 @@ from myrm_agent_harness.toolkits.wiki.pipeline.ingress.types import (
     VideoUrlIngressRequest,
 )
 from myrm_agent_harness.toolkits.wiki.pipeline.ingress.video_ingress import (
+    VideoTranscriptUnavailableError,
     adaptive_merge_segments,
     format_timestamp,
     parse_timestamp_str,
@@ -45,13 +48,9 @@ def test_adaptive_merge_segments() -> None:
     segments = [
         MediaTranscriptSegment(start_seconds=0.0, end_seconds=3.0, text="Hello"),
         MediaTranscriptSegment(start_seconds=3.0, end_seconds=6.0, text="world"),
-        MediaTranscriptSegment(
-            start_seconds=6.0, end_seconds=10.0, text="this is a test"
-        ),
+        MediaTranscriptSegment(start_seconds=6.0, end_seconds=10.0, text="this is a test"),
     ]
-    merged = adaptive_merge_segments(
-        segments, window_duration_seconds=30, window_max_chars=100
-    )
+    merged = adaptive_merge_segments(segments, window_duration_seconds=30, window_max_chars=100)
     assert len(merged) == 1
     assert merged[0].start_seconds == 0.0
     assert merged[0].end_seconds == 10.0
@@ -60,16 +59,10 @@ def test_adaptive_merge_segments() -> None:
 
 def test_adaptive_merge_segments_speaker_boundary() -> None:
     segments = [
-        MediaTranscriptSegment(
-            start_seconds=0.0, end_seconds=3.0, text="Hi Alice", speaker="Bob"
-        ),
-        MediaTranscriptSegment(
-            start_seconds=3.0, end_seconds=6.0, text="Hi Bob", speaker="Alice"
-        ),
+        MediaTranscriptSegment(start_seconds=0.0, end_seconds=3.0, text="Hi Alice", speaker="Bob"),
+        MediaTranscriptSegment(start_seconds=3.0, end_seconds=6.0, text="Hi Bob", speaker="Alice"),
     ]
-    merged = adaptive_merge_segments(
-        segments, window_duration_seconds=30, window_max_chars=100
-    )
+    merged = adaptive_merge_segments(segments, window_duration_seconds=30, window_max_chars=100)
     assert len(merged) == 2
     assert merged[0].speaker == "Bob"
     assert merged[1].speaker == "Alice"
@@ -155,6 +148,71 @@ async def test_publish_video_url_ingress_youtube(temp_structure: WikiStructure) 
     assert "MIT OpenCourseWare" in content
 
 
+_VIDEO_INGRESS = "myrm_agent_harness.toolkits.wiki.pipeline.ingress.video_ingress"
+
+
+def _raw_files(structure: WikiStructure) -> list[Path]:
+    return [path for path in structure.raw_dir.rglob("*") if path.is_file()]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("url", "extractor", "platform"),
+    [
+        (
+            "https://www.bilibili.com/video/BV1xx411c7Xz",
+            "extract_bilibili_subtitle",
+            "Bilibili",
+        ),
+        (
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "extract_youtube_transcript",
+            "YouTube",
+        ),
+    ],
+)
+async def test_video_without_subtitles_is_unavailable_and_nothing_is_written(
+    temp_structure: WikiStructure, url: str, extractor: str, platform: str
+) -> None:
+    with (
+        patch(f"{_VIDEO_INGRESS}.{extractor}", new=AsyncMock(return_value=None)),
+        pytest.raises(VideoTranscriptUnavailableError, match=f"{platform} video.*{re.escape(url)}"),
+    ):
+        await publish_video_url_ingress(temp_structure, VideoUrlIngressRequest(url=url))
+
+    assert _raw_files(temp_structure) == []
+
+
+@pytest.mark.asyncio
+async def test_empty_subtitles_are_unavailable_and_nothing_is_written(
+    temp_structure: WikiStructure,
+) -> None:
+    silent = Document(page_content="  \n", metadata={"title": "Silent film"})
+
+    with (
+        patch(f"{_VIDEO_INGRESS}.extract_youtube_transcript", new=AsyncMock(return_value=silent)),
+        pytest.raises(VideoTranscriptUnavailableError, match="subtitles are empty"),
+    ):
+        await publish_video_url_ingress(temp_structure, VideoUrlIngressRequest(url="https://youtu.be/dQw4w9WgXcQ"))
+
+    assert _raw_files(temp_structure) == []
+
+
+@pytest.mark.asyncio
+async def test_unsupported_platform_is_unavailable_and_nothing_is_written(
+    temp_structure: WikiStructure,
+) -> None:
+    url = "https://vimeo.com/76979871"
+
+    with pytest.raises(
+        VideoTranscriptUnavailableError,
+        match=f"Unsupported video URL.*{re.escape(url)}",
+    ):
+        await publish_video_url_ingress(temp_structure, VideoUrlIngressRequest(url=url))
+
+    assert _raw_files(temp_structure) == []
+
+
 @pytest.mark.asyncio
 async def test_publish_media_ingress_with_keyframes(
     temp_structure: WikiStructure,
@@ -165,12 +223,8 @@ async def test_publish_media_ingress_with_keyframes(
         media_filename="presentation.mp4",
         duration_seconds=120.0,
         segments=(
-            MediaTranscriptSegment(
-                start_seconds=0.0, end_seconds=15.0, text="Intro slide"
-            ),
-            MediaTranscriptSegment(
-                start_seconds=15.0, end_seconds=60.0, text="Architecture diagram"
-            ),
+            MediaTranscriptSegment(start_seconds=0.0, end_seconds=15.0, text="Intro slide"),
+            MediaTranscriptSegment(start_seconds=15.0, end_seconds=60.0, text="Architecture diagram"),
         ),
         keyframes=(
             MediaKeyframe(

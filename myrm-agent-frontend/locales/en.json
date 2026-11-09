@@ -17542,6 +17542,7 @@
         "videoImporting": "Extracting and ingesting video...",
         "videoImportStart": "Start Ingesting",
         "videoImportSuccess": "Video transcript ingested and enqueued for compilation",
+        "videoImportReasonNoTranscript": "No subtitles could be fetched for this video. Check that it is public and has subtitles.",
         "videoPlayerTitle": "Video Playback & Timestamp Seek"
       },
       "tabs": {
