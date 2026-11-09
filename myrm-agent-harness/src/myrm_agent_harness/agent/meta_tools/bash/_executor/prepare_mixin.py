@@ -69,6 +69,8 @@ class PreparedExecution(NamedTuple):
 class BashExecutorPrepareMixin:
     """Detect execution mode and prepare code, MCP IPC scope, and skill staging helpers."""
 
+    _last_python_c_transform_hint: str | None = None
+
     if TYPE_CHECKING:
         # Provided by BashExecutor and BashExecutorContextMixin.
         _enable_skill_execution: bool
@@ -114,6 +116,7 @@ class BashExecutorPrepareMixin:
         """
         use_python_execution = False
         prepared_code = command
+        user_code = command
         mcp_config_items = None
         trace_nonce = None
 
@@ -140,6 +143,7 @@ class BashExecutorPrepareMixin:
                     else self._skill_executor.prepare_for_execution(command=command, endpoint=endpoint)
                 )
                 prepared_code = skill_context.prepared_code
+                user_code = skill_context.user_code
                 mcp_config_items = skill_context.mcp_config
                 trace_nonce = endpoint.trace_nonce
 
@@ -147,7 +151,7 @@ class BashExecutorPrepareMixin:
             detection_result = code_detector.detect(command)
             if detection_result.code_type == CodeType.PYTHON:
                 use_python_execution = True
-                prepared_code = detection_result.extracted_code
+                prepared_code = user_code = detection_result.extracted_code
                 logger.info(f" Python code detected ({detection_result.detection_reason})")
                 if "python" in command and "-c" in command:
                     self._last_python_c_transform_hint = (
@@ -163,14 +167,16 @@ class BashExecutorPrepareMixin:
                     )
 
         if use_python_execution:
-            self._validate_python_syntax(prepared_code, command)
+            # The wrapper compiles the user's program on its own, after the IPC client: check that text, so the
+            # line numbers are the model's and a leading `from __future__` import is as valid as it is at run time.
+            self._validate_python_syntax(user_code, command)
 
         return PreparedExecution(use_python_execution, prepared_code, mcp_config_items, trace_nonce)
 
     def consume_python_c_transform_hint(self) -> str | None:
         """Return + clear the last ``python -c`` transform hint, if any."""
-        hint: str | None = getattr(self, "_last_python_c_transform_hint", None)
-        self._last_python_c_transform_hint = None  # type: ignore[assignment]
+        hint = self._last_python_c_transform_hint
+        self._last_python_c_transform_hint = None
         return hint
 
     @staticmethod

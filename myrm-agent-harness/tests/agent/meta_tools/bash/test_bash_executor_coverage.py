@@ -778,7 +778,7 @@ async def test_prepare_execution_skill_path_serves_the_caller_scope() -> None:
     skill_executor = MagicMock()
     skill_executor.detect_skill_in_command.return_value = (True, "demo")
     skill_executor.prepare_for_execution.return_value = MagicMock(
-        prepared_code="print('skill')", mcp_config=[MagicMock()]
+        prepared_code="print('skill')", user_code="print('skill')", mcp_config=[MagicMock()]
     )
     bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=True)
     bash_exec._skill_executor = skill_executor
