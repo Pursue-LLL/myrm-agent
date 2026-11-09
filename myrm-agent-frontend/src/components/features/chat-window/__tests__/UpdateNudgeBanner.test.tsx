@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import UpdateNudgeBanner from '../UpdateNudgeBanner';
 import { useNoticeSlot } from '@/hooks/ui/useNoticeSlot';
 import * as updatePrefs from '@/lib/update-prefs';
+import { settle } from '@/test-utils/fakeClock';
 
 const mockPush = vi.fn();
 
@@ -19,12 +20,8 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params) {
-    return Object.entries(params).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), key);
-  }
-  return key;
-};
+// Interpolation values are part of the output, so the version the banner passes on can be asserted.
+const stableT = (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -70,6 +67,10 @@ describe('UpdateNudgeBanner', () => {
     vi.spyOn(updatePrefs, 'isQuietNow').mockReturnValue(false);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders standard update banner when stale=true and no security patch', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -84,7 +85,7 @@ describe('UpdateNudgeBanner', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('icon-download')).toBeInTheDocument();
-      expect(screen.getByText('title')).toBeInTheDocument();
+      expect(screen.getByText('title:{"version":"v0.2.0"}')).toBeInTheDocument();
       expect(screen.getByText('description')).toBeInTheDocument();
     });
   });
@@ -106,7 +107,7 @@ describe('UpdateNudgeBanner', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('icon-shield')).toBeInTheDocument();
-      expect(screen.getByText('securityTitle')).toBeInTheDocument();
+      expect(screen.getByText('securityTitle:{"version":"v0.2.0"}')).toBeInTheDocument();
       expect(screen.getByText('securityDescription')).toBeInTheDocument();
     });
   });
@@ -270,5 +271,113 @@ describe('UpdateNudgeBanner', () => {
 
     fireEvent.click(screen.getByText('open'));
     expect(mockPush).toHaveBeenCalledWith('/settings/system?sub=about');
+  });
+
+  describe('stays silent', () => {
+    it.each<[string, object]>([
+      ['the stack is current', { stale: false, latest: { version: 'v0.2.0' } }],
+      ['staleness is unknown', { stale: null, latest: { version: 'v0.2.0' } }],
+      ['no latest release is reported', { stale: true, latest: null }],
+      ['the latest release carries no version', { stale: true, latest: {} }],
+      ['a security patch carries no version either', { stale: true, latest: {}, changelog: { is_security: true } }],
+    ])('when %s', async (_label, payload) => {
+      const json = vi.fn(async () => payload);
+      global.fetch = vi.fn().mockResolvedValue({ ok: true, json } as unknown as Response);
+
+      const { container } = render(<UpdateNudgeBanner />);
+      await settle();
+
+      expect(json).toHaveBeenCalledTimes(1);
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('when the update service answers with an error status', async () => {
+      const json = vi.fn(async () => ({ stale: true, latest: { version: 'v0.2.0' } }));
+      global.fetch = vi.fn().mockResolvedValue({ ok: false, json } as unknown as Response);
+
+      const { container } = render(<UpdateNudgeBanner />);
+      await settle();
+
+      expect(json).not.toHaveBeenCalled();
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it.each<[string, () => Promise<unknown>]>([
+      ['is unreachable', () => Promise.reject(new Error('offline'))],
+      [
+        'answers with something that is not JSON',
+        async () => ({ ok: true, json: () => Promise.reject(new SyntaxError('bad')) }),
+      ],
+    ])('when the update service %s', async (_label, respond) => {
+      global.fetch = vi.fn(respond as () => Promise<Response>);
+
+      const { container } = render(<UpdateNudgeBanner />);
+      await settle();
+
+      expect(global.fetch).toHaveBeenCalledWith('/api/v1/health/update-status');
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('for a regular update during quiet hours', async () => {
+      vi.spyOn(updatePrefs, 'isQuietNow').mockReturnValue(true);
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ stale: true, latest: { version: 'v0.2.0' }, changelog: { is_security: false } }),
+      } as Response);
+
+      const { container } = render(<UpdateNudgeBanner />);
+      await settle();
+
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('for a regular update the viewer already deferred', async () => {
+      vi.spyOn(updatePrefs, 'getDeferredVersion').mockReturnValue('v0.2.0');
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ stale: true, latest: { version: 'v0.2.0' } }),
+      } as Response);
+
+      const { container } = render(<UpdateNudgeBanner />);
+      await settle();
+
+      expect(container).toBeEmptyDOMElement();
+    });
+  });
+
+  it('still checks for updates when the browser blocks reading the session flag', async () => {
+    vi.spyOn(sessionStorageMock, 'getItem').mockImplementation(() => {
+      throw new DOMException('Access is denied for this document.', 'SecurityError');
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ stale: true, latest: { version: 'v0.2.0' } }),
+    } as Response);
+
+    render(<UpdateNudgeBanner />);
+
+    await waitFor(() => {
+      expect(screen.getByText('open')).toBeInTheDocument();
+    });
+  });
+
+  it('still closes and defers the update when the session flag cannot be stored', async () => {
+    const deferSpy = vi.spyOn(updatePrefs, 'setDeferredVersion');
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ stale: true, latest: { version: 'v0.2.0' } }),
+    } as Response);
+    render(<UpdateNudgeBanner />);
+    await waitFor(() => {
+      expect(screen.getByText('open')).toBeInTheDocument();
+    });
+    vi.spyOn(sessionStorageMock, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+
+    fireEvent.click(screen.getByLabelText('dismiss'));
+
+    expect(screen.queryByText('open')).not.toBeInTheDocument();
+    expect(deferSpy).toHaveBeenCalledWith('v0.2.0');
   });
 });

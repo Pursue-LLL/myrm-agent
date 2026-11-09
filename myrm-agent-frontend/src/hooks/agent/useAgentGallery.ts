@@ -60,9 +60,13 @@ export function useAgentGallery({ onSelectPreset, onSelectCustomAgent }: UseAgen
     if (!isInitialized) {
       initProviders();
     }
-    // 27 built-in presets exceed default page_size=20; fetch enough for gallery SSOT.
+  }, [isInitialized, initProviders]);
+
+  // 27 built-in presets exceed default page_size=20; fetch enough for gallery SSOT.
+  // A forced fetch is not de-duplicated by the store, so it must not re-run when the providers finish starting.
+  useEffect(() => {
     fetchAgents(1, AGENT_LIST_BUILTIN_PAGE_SIZE, true);
-  }, [isInitialized, initProviders, fetchAgents]);
+  }, [fetchAgents]);
 
   const isCLIVisualAgent = (agent: PresetAgent) => {
     return agent.category === 'cli_visual';

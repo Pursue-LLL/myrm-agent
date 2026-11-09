@@ -18,7 +18,14 @@ function readSavedRoutes(): Record<string, string> {
     return {};
   }
   try {
-    return JSON.parse(localStorage.getItem(ROUTE_STORAGE_KEY) || '{}');
+    const parsed: unknown = JSON.parse(localStorage.getItem(ROUTE_STORAGE_KEY) || '{}');
+    // A stored `null` or array parses fine but is not a route map; reading a tab off it would take the whole shell down.
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return {};
+    }
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+    );
   } catch {
     return {};
   }

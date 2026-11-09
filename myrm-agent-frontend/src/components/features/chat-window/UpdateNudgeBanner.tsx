@@ -30,6 +30,15 @@ import { cn } from '@/lib/utils/classnameUtils';
 
 const DISMISS_KEY = 'update_nudge_dismissed';
 
+/** Storage can be blocked (privacy settings); an optional banner must never take the page down over it. */
+function wasDismissedThisSession(): boolean {
+  try {
+    return sessionStorage.getItem(DISMISS_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export default function UpdateNudgeBanner() {
   const t = useTranslations('chat.updateNudge');
   const router = useRouter();
@@ -40,7 +49,7 @@ export default function UpdateNudgeBanner() {
 
   useEffect(() => {
     let cancelled = false;
-    if (typeof window !== 'undefined' && sessionStorage.getItem(DISMISS_KEY) === 'true') {
+    if (wasDismissedThisSession()) {
       return;
     }
     const probe = async () => {
