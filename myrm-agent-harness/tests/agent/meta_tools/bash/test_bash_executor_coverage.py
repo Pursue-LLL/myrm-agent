@@ -269,7 +269,9 @@ async def test_execute_failure_evicts_stderr_into_message() -> None:
     assert err.stderr_evicted_stored_chars == 1500
     assert err.stderr_evicted_total_lines == 12
 
-    log_kwargs = mock_log.await_args.kwargs
+    log_call = mock_log.await_args
+    assert log_call is not None
+    log_kwargs = log_call.kwargs
     assert log_kwargs["stdout"] == (
         "[LARGE STDOUT TRUNCATED (1 lines, ~2 tokens)]\n\nRead the full output with file_read_tool."
     )
@@ -778,7 +780,7 @@ async def test_prepare_execution_skill_path_serves_the_caller_scope() -> None:
     skill_executor = MagicMock()
     skill_executor.detect_skill_in_command.return_value = (True, "demo")
     skill_executor.prepare_for_execution.return_value = MagicMock(
-        prepared_code="print('skill')", mcp_config=[MagicMock()]
+        prepared_code="print('skill')", user_code="print('skill')", mcp_config=[MagicMock()]
     )
     bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=True)
     bash_exec._skill_executor = skill_executor

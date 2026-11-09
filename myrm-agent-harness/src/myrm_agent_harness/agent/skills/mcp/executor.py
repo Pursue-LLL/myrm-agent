@@ -67,6 +67,9 @@ class SkillExecutionContext:
     prepared_code: str
     """预处理后的代码（包含 MCP 代理客户端）"""
 
+    user_code: str
+    """prepared_code 里客户端之后的部分（内联技能代码，或运行保存脚本的启动器）：包装脚本把它当作独立程序编译运行，行号以它的第一行为 1"""
+
 
 class SkillExecutor:
     """技能执行器
@@ -145,7 +148,12 @@ class SkillExecutor:
     def _not_a_skill(command: str) -> SkillExecutionContext:
         """命令不是技能调用：代码保持原样。"""
         return SkillExecutionContext(
-            is_skill=False, skill_name=None, mcp_config=None, original_code=command, prepared_code=command
+            is_skill=False,
+            skill_name=None,
+            mcp_config=None,
+            original_code=command,
+            prepared_code=command,
+            user_code=command,
         )
 
     def _skill_context(
@@ -170,6 +178,7 @@ class SkillExecutor:
             mcp_config=mcp_config,
             original_code=command,
             prepared_code=prepared_code,
+            user_code=user_code,
         )
 
     def detect_skill_in_command(self, command: str) -> tuple[bool, str | None]:
