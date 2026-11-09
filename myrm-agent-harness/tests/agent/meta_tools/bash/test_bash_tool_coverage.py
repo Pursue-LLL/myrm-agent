@@ -100,6 +100,18 @@ def test_get_os_hint_contains_os_label() -> None:
     assert "当前系统" in hint or "OS:" in hint
 
 
+@pytest.mark.parametrize("locale", [None, "zh-CN"])
+def test_get_os_hint_includes_the_visual_desktop_line_when_vnc_is_available(locale: str | None) -> None:
+    vnc_hint = "Visual Desktop: Xvfb virtual display (1280x720) with VNC streaming is available."
+    with patch("myrm_agent_harness.toolkits.vnc.server.get_environment_hint", return_value=vnc_hint):
+        assert vnc_hint in get_os_hint(locale=locale)
+
+
+def test_get_os_hint_omits_the_visual_desktop_line_without_vnc() -> None:
+    with patch("myrm_agent_harness.toolkits.vnc.server.get_environment_hint", return_value=""):
+        assert "Visual Desktop" not in get_os_hint()
+
+
 @pytest.mark.asyncio
 async def test_track_context_access_records_persistent_paths() -> None:
     tracker = MagicMock()

@@ -4,7 +4,7 @@
 
 > 测量方法：`tiktoken o200k_base` 规划 SSOT（`utils/text_utils.PLANNING_ENCODING`；与 GPT-5 / GPT-4o 族一致）
 > 测量时间：2026-09-16（`scripts/measure_turn1_token_inventory.py`）；`web_search_tool` 的描述（§三）于 2026-11-04 重测，`web_fetch_tool` 的描述（§二）及据此推出的 CORE 小计与 Turn-1 工具层合计于 2026-11-05 重测；§一 的 `messages[0]` 各分量与合计、以及据此推出的各场景 System Prompt 层与小计，于 2026-11-05 按当前源码重测；§四 的 38 个 EXTENDED 工具与 §4.24 的 5 个 server 工具于 2026-11-04 重测：各工具经 `create_*` 工厂构造（后端用 stub，`image_tool` / `video_tool` 用引擎默认配置），取 `tool.description` 的 o200k_base token 数；`delegate_task_tool` 的描述含运行期 sub-agent 名册，只计固定部分；`image_tool` / `video_tool` 的描述含运行期模型名，数值随配置浮动；§4.18 编排信号不是 LLM 工具，沿用记录值；§四 各行都不由测试锁定
-> 测量宿主：macOS 25.5.0 / arm64 / bash（OS hint、env 行、toolchain 探测行随宿主变化，见 §一、§二 标注）
+> 测量宿主：macOS 25.5.0 / arm64 / bash（bash 工具描述里的 OS hint、toolchain 探测行与 VNC 行随宿主变化，见 §二 标注）
 > 测量对象：默认通用智能体，Turn 1 初始化时的完整 prompt 结构；`prompt_mode=full`、`enable_answer_tool=False`（server 默认）、locale EN（工具描述为主，prompt 主体见 §一 双列）
 > 漂移门禁：`tests/scripts/test_measure_turn1_token_inventory.py` 锁定 Turn-1 默认 13 个工具（§二、§三）的逐工具数值，`tests/architecture/test_prompt_token_budget_gate.py` 锁定预算上限；server 仓 `tests/architecture/test_first_turn_static_prompt_budget.py` 按语言锁定静态首轮 system 消息
 >
@@ -15,7 +15,7 @@
 ## 一、System Prompt 层（`messages[0]` 拼装 + 跟随用户输入的 canary 与安全边界）
 
 > **口径**：tiktoken `o200k_base` 实测（`utils/text_utils.PLANNING_ENCODING`），宿主 macOS。
-> `messages[0]` 由框架层 `agent/base_agent.py:162-168` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 4 段；widget 能力声明、安全边界与 canary 都是**独立 SystemMessage**（widget 在前导 system 消息之后，安全边界与 canary 跟在用户输入之后），不计入 `messages[0]`。
+> `messages[0]` 由框架层 `agent/base_agent.py` 的 `_ensure_initialized()` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 3 段；widget 能力声明、安全边界与 canary 都是**独立 SystemMessage**（widget 在前导 system 消息之后，安全边界与 canary 跟在用户输入之后），不计入 `messages[0]`。
 
 | # | 组件 | Token (o200k_base) | 来源文件 | 说明 |
 |---|------|-------------------:|----------|------|
@@ -23,18 +23,17 @@
 | 2 | DATETIME_SYSTEM_RULES | 89 | `harness/agent/streaming/utils.py:55` | 时间感知规则常量（`<datetime_rules>` 标签），冻结在 system prompt 中 |
 | 3 | AGENT_CORE_RULES | **312** | `harness/agent/streaming/agent_core_rules.py:28` | 核心规则**无条件注入**，所有模型字节相同、与模型名无关：禁止叙述工具调用、工具结果诚实、断言缺失前先验证、搜索与上下文复用、原生 FC 约束、因缺能力拒绝前先用发现/搜索工具查找技能与工具 |
 | 4 | channel output hint | 47（web_chat）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:175` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
-| 5 | environment 行 | 43 (macOS) · 29 (Linux) · 31 (Windows/powershell) | `harness/toolkits/code_execution/platform.py:138` | `<environment>` 标签；含 OS/shell/可选 python-toolchain 与 VNC 探测行（干净环境为 0） |
-| 6 | canary 指令（独立 SystemMessage，追加在最新用户消息之后） | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:54` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57。由 CanaryMiddleware 每个对话线程注入一次（`agent/middlewares/security/canary_middleware.py` 的 `before_model`），线程已带 canary 指令就沿用；**不占用 `messages[0]`**，system prompt 因此在所有会话里字节相同 |
-| 7 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:300`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
-| 8 | widget 能力声明（独立 SystemMessage，插在前导 system 消息之后、用户输入之前） | **348** | `server/ai_agents/agent_middlewares/widget_capability_middleware.py:23` | `<widget_capability>` 标签；WidgetCapabilityMiddleware 在每次模型调用的请求里插入（不写入对话状态），位置与字节恒定；仅 web_chat 渠道的 `prompt_mode=full/lean` 挂载（`mount_resolver.mount_widget_capability`），搜索面、naked、IM、定时、语音、看板、评测不挂 |
+| 5 | canary 指令（独立 SystemMessage，追加在最新用户消息之后） | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:54` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57。由 CanaryMiddleware 每个对话线程注入一次（`agent/middlewares/security/canary_middleware.py` 的 `before_model`），线程已带 canary 指令就沿用；**不占用 `messages[0]`**，system prompt 因此在所有会话里字节相同 |
+| 6 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:300`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
+| 7 | widget 能力声明（独立 SystemMessage，插在前导 system 消息之后、用户输入之前） | **348** | `server/ai_agents/agent_middlewares/widget_capability_middleware.py:23` | `<widget_capability>` 标签；WidgetCapabilityMiddleware 在每次模型调用的请求里插入（不写入对话状态），位置与字节恒定；仅 web_chat 渠道的 `prompt_mode=full/lean` 挂载（`mount_resolver.mount_widget_capability`），搜索面、naked、IM、定时、语音、看板、评测不挂 |
 
-**`messages[0]` 合计（实测，含上表 1~5，不含运行时条件追加）**：
+**`messages[0]` 合计（实测，含上表 1~4，不含运行时条件追加）**：
 
 | 模型 | full-ZH | full-EN | lean-ZH | lean-EN |
 |------|--------:|--------:|--------:|--------:|
 | 所有模型（核心规则与模型名无关） | **1,349** | 1,153 | 789 | 748 |
 
-> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + AGENT_CORE_RULES 312 + channel hint 47(web_chat) + env 行 43(macOS)，各分量分别计数后相加。
+> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + AGENT_CORE_RULES 312 + channel hint 47(web_chat)，各分量分别计数后相加。
 > `messages[0]` 的各分量在参数组合内字节恒定；canary 的随机 hex（50~57 tok）在独立消息里，不进 `messages[0]`。
 >
 > 默认组合（中文用户 + full）：`messages[0]` 1,349 + widget 能力声明 348 + 跟随用户输入的两条独立 SystemMessage（canary ≈53 + 安全边界 299）= **2,049 tokens**。
@@ -55,7 +54,7 @@
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
 | 4a | web_fetch_tool | 92 | `harness/toolkits/web_fetch/web_fetch_agent_tools.py` | HTTP 抓取/深读（默认只读全文，含 PDF/DOCX/XLSX/PPTX；同时配置 reranker 与 embedding 时提供 fetch_and_extract，描述为 272）。描述不提浏览器工具：「只读优先 web_fetch」的路由提示只在浏览器一侧，挂载 `web_fetch_tool` 时由 `browser_navigate_tool` 的 Dynamic Hints 追加 | Turn1 基线 |
-| 6 | **bash_code_execute_tool** | **1,412** | `harness/agent/meta_tools/bash/_tool/tool_description.py` + `_tool/helpers.py:54` | Shell/Python。**宿主相关**：静态描述 1,355（宿主无关）+ OS hint（含 `os_release`/`arch`，见 `platform.py:116-122`；macOS arm64 58 / ubuntu-latest 32 / 各发行版实测 31–60）+ 可选 toolchain 探测行（干净环境为 0）。拼接处 BPE 合并使实测总数比两段之和少 1（1,355+58=1,413，实测 1,412） | 通用 Agent 基线 |
+| 6 | **bash_code_execute_tool** | **1,412** | `harness/agent/meta_tools/bash/_tool/tool_description.py` + `_tool/helpers.py:54` | Shell/Python。**宿主相关**：静态描述 1,355（宿主无关）+ OS hint（含 `os_release`/`arch`，见 `platform.py:116-122`；macOS arm64 58 / ubuntu-latest 32 / 各发行版实测 31–60）+ 可选 toolchain 探测行（干净环境为 0）+ 可选 VNC 视觉桌面行（只有带 DISPLAY、x11vnc 与 websockify 的 Linux 沙箱才有，约 56，示意值，其余宿主为 0）。拼接处 BPE 合并使实测总数比两段之和少 1（1,355+58=1,413，实测 1,412） | 通用 Agent 基线 |
 | 6b | **bash_process_tool** | **107** | `harness/agent/meta_tools/bash/bash_process_tools.py` | 后台进程 list/output/kill（CORE；与 bash_code_execute 同挂） | enable_shell_tools |
 | 7 | file_edit_tool | 132 | `harness/agent/meta_tools/file_ops/file_edit_tool.py` | 批量 edits[] 原子编辑 | 通用 Agent 基线 |
 | 8 | file_read_tool | 332 | `harness/agent/meta_tools/file_ops/file_read_tool.py` | 读取文件 | 通用 Agent 基线 |
@@ -358,7 +357,7 @@ Token 明细（tiktoken o200k_base）：
 | harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **5,807**，余量 693：bash 计入静态 1,355、不计宿主 OS hint；live hint 另锁 ≤ 120。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 350 / `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 314（实测 299 + 5%）/ `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
 | harness | `tests/scripts/test_measure_turn1_token_inventory.py` | 逐工具描述 token 与 §二/§三 表格一致（漂移即失败并指出工具名）；`bash_code_execute` 的宿主相关 OS hint 单独扣减，上限判定同样以静态 1,355 计，故 macOS 与 Linux CI 结果一致 |
 | server | `tests/ai_agents/test_prompt_integrity.py:193-230`（`cl100k_base`，仅英文 CORE） | CORE full ≤ **2,000** / lean ≤ **1,200** / lean÷full ratio ≤ **0.70** |
-| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE + 时间规则 + 核心行为规则 + web_chat 提示，所有模型相同）按面与 zh-CN / en 封顶，上限 = 实测 +5%（通用 full：zh-CN **1,293**（实测 1,231）/ en **1,098**（实测 1,045）；快速搜索：zh-CN **2,391**（实测 2,277）/ en **1,646**（实测 1,567）；深度搜索：zh-CN **2,529**（实测 2,408）/ en **1,763**（实测 1,679））；`<widget_capability>` ≤ **366**（实测 348）。不含 env 行，故低于上表 `messages[0]` |
+| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE + 时间规则 + 核心行为规则 + web_chat 提示，所有模型相同）按面与 zh-CN / en 封顶，上限 = 实测 +5%（通用 full：zh-CN **1,293**（实测 1,231）/ en **1,098**（实测 1,045）；快速搜索：zh-CN **2,391**（实测 2,277）/ en **1,646**（实测 1,567）；深度搜索：zh-CN **2,529**（实测 2,408）/ en **1,763**（实测 1,679））；`<widget_capability>` ≤ **366**（实测 348）。与上表 `messages[0]` 同一组分量，按拼接后的整段计数，与分量求和相差几个 token |
 
 
 ---

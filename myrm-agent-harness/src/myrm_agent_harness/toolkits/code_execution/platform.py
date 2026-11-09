@@ -22,15 +22,12 @@ Cross-platform runtime detection and shell configuration.
 from __future__ import annotations
 
 import functools
-import logging
 import os
 import platform
 import shutil
 import sys
 from dataclasses import dataclass
 from typing import Literal
-
-_logger = logging.getLogger(__name__)
 
 OSType = Literal["windows", "macos", "linux"]
 ShellType = Literal["bash", "powershell", "cmd"]
@@ -114,7 +111,7 @@ class PlatformInfo:
 
     @property
     def prompt_label(self) -> str:
-        """Human-readable OS description for system prompt injection."""
+        """Human-readable OS description for the bash tool description."""
         names: dict[OSType, str] = {"windows": "Windows", "macos": "macOS", "linux": "Linux"}
         base = f"{names[self.os_type]} ({self.os_release}, {self.arch})"
         if self.is_wsl:
@@ -123,7 +120,7 @@ class PlatformInfo:
 
     @property
     def shell_hint(self) -> str:
-        """Shell usage hints for system prompt injection."""
+        """Shell usage hints for the bash tool description."""
         if self.os_type == "macos":
             return "bash (BSD toolchain: use vm_stat instead of free, no GNU long options for ps/top)"
         if self.os_type == "windows":
@@ -133,39 +130,6 @@ class PlatformInfo:
         if self.is_wsl:
             return "bash (Linux on WSL, but host is Windows)"
         return "bash (GNU toolchain)"
-
-    @property
-    def environment_prompt_line(self) -> str:
-        """Unified environment tag for system prompt injection.
-
-        Combines OS, shell, Python toolchain, and VNC visual desktop information
-        into a single ``<environment>`` XML tag.  Sections are omitted when
-        unavailable (zero token cost for non-applicable environments).
-
-        Output is deterministic for the process lifetime — safe for
-        KV-cache prefix caching.  Delegates probes to their respective modules
-        (single source of truth per capability).
-        """
-        parts: list[str] = [f"OS: {self.prompt_label}. Shell: {self.shell_hint}."]
-        try:
-            from myrm_agent_harness.toolkits.code_execution.env_probe import (
-                get_environment_probe_line,
-            )
-
-            py_line = get_environment_probe_line()
-            if py_line:
-                parts.append(py_line)
-        except Exception:
-            _logger.debug("Python toolchain probe unavailable", exc_info=True)
-        try:
-            from myrm_agent_harness.toolkits.vnc.server import get_environment_hint
-
-            vnc_line = get_environment_hint()
-            if vnc_line:
-                parts.append(vnc_line)
-        except Exception:
-            _logger.debug("VNC environment probe unavailable", exc_info=True)
-        return "\n<environment>" + " ".join(parts) + "</environment>"
 
 
 @functools.lru_cache(maxsize=1)

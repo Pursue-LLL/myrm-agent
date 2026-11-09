@@ -8,9 +8,8 @@ general agent and the two search depths (quick and deep).
 Every cap is the size measured after the last deliberate prompt change plus 5%. A change that adds text
 must raise the cap in the same PR and say why, so the first turn cannot grow unnoticed.
 
-Left out on purpose: the host environment line (it varies per host, so prompt text does not decide it). The
-session canary and the security boundary rules are separate system messages behind the user's input, not part
-of ``messages[0]``.
+Left out on purpose: the session canary and the security boundary rules, which are separate system messages
+behind the user's input, not part of ``messages[0]``.
 """
 
 from __future__ import annotations

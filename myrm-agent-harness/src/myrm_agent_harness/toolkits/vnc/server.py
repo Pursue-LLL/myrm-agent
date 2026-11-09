@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - VncServer: lifecycle manager for x11vnc + websockify pair
-- get_environment_hint: VNC awareness line for system prompt injection
+- get_environment_hint: VNC awareness line for the bash tool description
 
 [POS]
 Lazy-started VNC infrastructure that captures the existing Xvfb virtual display
@@ -69,7 +69,7 @@ def _probe_xvfb_resolution() -> str:
 
 
 def get_environment_hint() -> str:
-    """Return a VNC environment awareness line for system prompt injection.
+    """Return a VNC environment awareness line for the bash tool description.
 
     Process-level cache — deterministic output safe for KV-cache prefix caching.
     Returns '' when VNC is unavailable (macOS, Windows, no Xvfb), meaning zero

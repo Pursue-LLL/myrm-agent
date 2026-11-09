@@ -155,16 +155,12 @@ class BaseAgent(BaseAgentModesMixin):
             # The token reaches the model through CanaryMiddleware, behind the user's input; a per-session token
             # in this prompt would end the prefix a provider shares across sessions at the token.
             set_canary_token(generate_canary())
-            from myrm_agent_harness.toolkits.code_execution.platform import (
-                detect_platform,
-            )
 
             self._cached_system_prompt = (
                 (self.system_prompt or "")
                 + DATETIME_SYSTEM_RULES
                 + AGENT_CORE_RULES
                 + resolve_channel_output_hint(self.config.channel_name)
-                + detect_platform().environment_prompt_line
             )
 
         self._cached_middlewares = self._build_middlewares()

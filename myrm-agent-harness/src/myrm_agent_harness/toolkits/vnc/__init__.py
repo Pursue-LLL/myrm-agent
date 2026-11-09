@@ -2,14 +2,14 @@
 
 [INPUT]
 - toolkits.vnc.server::VncServer (POS: VNC server lifecycle manager for x11vnc + websockify on existing Xvfb.)
-- toolkits.vnc.server::get_environment_hint (POS: Detect VNC/Xvfb availability for system prompt injection.)
+- toolkits.vnc.server::get_environment_hint (POS: Detect VNC/Xvfb availability for the bash tool description.)
 - toolkits.vnc.takeover::TakeoverCoordinator (POS: Human-agent browser control handoff state machine.)
 - toolkits.vnc.takeover::TakeoverLifecycleHook (POS: Optional async callbacks for takeover start/end.)
 - toolkits.vnc.takeover::TakeoverState (POS: Takeover state enum for AGENT_ACTIVE vs USER_TAKEOVER.)
 
 [OUTPUT]
 - VncServer: lazy-start VNC stack on existing Xvfb display
-- get_environment_hint: prompt line for VNC availability
+- get_environment_hint: tool-description line for VNC availability
 - TakeoverCoordinator: human takeover coordination
 - TakeoverLifecycleHook: optional lifecycle callbacks
 - TakeoverState: takeover state enum

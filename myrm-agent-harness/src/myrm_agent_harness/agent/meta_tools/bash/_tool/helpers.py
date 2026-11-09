@@ -5,6 +5,7 @@
 - runtime.paths.execution_paths::get_persistent_root (POS: persistent root in effect)
 - toolkits.code_execution.platform::detect_platform (POS: Cross-platform runtime detection)
 - toolkits.code_execution.env_probe::get_environment_probe_line (POS: Python toolchain probe)
+- toolkits.vnc.server::get_environment_hint (POS: Detect VNC/Xvfb availability for the bash tool description.)
 - toolkits.storage::storage_config (POS: Absolute storage root that skill storage keys resolve against)
 
 [OUTPUT]
@@ -76,11 +77,12 @@ def resolve_skill_storage_paths(skills: Sequence[SkillMetadata]) -> list[str]:
 
 
 def get_os_hint(locale: str | None = None) -> str:
-    """Generate OS + toolchain hint for LLM to produce correct commands."""
+    """Generate the OS, toolchain and visual desktop hint the LLM needs to produce correct commands."""
     from myrm_agent_harness.toolkits.code_execution.env_probe import (
         get_environment_probe_line,
     )
     from myrm_agent_harness.toolkits.code_execution.platform import detect_platform
+    from myrm_agent_harness.toolkits.vnc.server import get_environment_hint
     from myrm_agent_harness.utils.locale import is_chinese
 
     plat = detect_platform()
@@ -96,6 +98,10 @@ def get_os_hint(locale: str | None = None) -> str:
     env_line = get_environment_probe_line()
     if env_line:
         lines.append(env_line)
+
+    vnc_line = get_environment_hint()
+    if vnc_line:
+        lines.append(vnc_line)
 
     return "\n".join(lines)
 
