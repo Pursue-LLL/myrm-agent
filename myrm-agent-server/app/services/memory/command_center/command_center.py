@@ -7,7 +7,7 @@ app.services.memory.command_center.command_center_health::build_health (POS: 健
 app.services.memory.command_center.command_center_timeline::build_timeline (POS: 时间线投影)
 app.services.memory.command_center.command_center_trace::build_trace_runs (POS: 召回追踪运行投影)
 app.services.memory.command_center.command_center_replay::{build_replay, build_replay_events, build_waterfall} (POS: 回放与瀑布投影)
-app.services.memory.command_center.command_center_recall_boundary::build_recall_boundary (POS: 召回边界与四分区预算快照)
+app.services.memory.command_center.command_center_recall_boundary::build_recall_boundary (POS: 召回边界与四职责分区快照)
 app.services.memory.command_center.command_center_pending::{count_pending_review, build_pending_governance} (POS: 审批队列在指挥中心的读取视图)
 app.database.models.memory::SharedContextModel (POS: 记忆域模型)
 app.services.memory.shared_context.shared_context::SharedContextService (POS: 共享上下文业务服务)

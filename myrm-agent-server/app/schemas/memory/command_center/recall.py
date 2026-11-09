@@ -27,16 +27,12 @@ class MemoryRecallScopeBoundary(BaseModel):
 
 
 class MemoryFourPartitionSummary(BaseModel):
-    """Four memory job partitions (Identity, Session Memory, Operating Instructions, Retrievable Evidence)."""
+    """Stored memories per job partition (Identity, Session Memory, Operating Instructions, Retrievable Evidence)."""
 
     identity_count: int = 0
     session_memory_count: int = 0
     operating_instructions_count: int = 0
     retrievable_evidence_count: int = 0
-    identity_chars: int = 0
-    session_memory_chars: int = 0
-    operating_instructions_chars: int = 0
-    retrievable_evidence_chars: int = 0
 
 
 class MemoryCandidateRecord(BaseModel):
@@ -59,9 +55,8 @@ class MemoryApprovedRecord(BaseModel):
     content_preview: str
     namespace: str
     partition: Literal["identity", "session_memory", "operating_instructions", "retrievable_evidence"]
-    importance: float
+    importance: float | None = Field(default=None, description="None for a memory type that has no importance score.")
     access_count: int
-    char_count: int
     is_pinned: bool = False
 
 
@@ -75,9 +70,6 @@ class MemoryRecallBoundaryData(BaseModel):
     partitions: MemoryFourPartitionSummary = Field(default_factory=MemoryFourPartitionSummary)
     candidate_records: list[MemoryCandidateRecord] = Field(default_factory=list)
     approved_records: list[MemoryApprovedRecord] = Field(default_factory=list)
-    budget_chars_used: int = 0
-    budget_chars_total: int = 6000
-    budget_overflow_risk: Literal["safe", "approaching_limit", "overflow"] = "safe"
     total_candidates: int = 0
     total_approved: int = 0
 

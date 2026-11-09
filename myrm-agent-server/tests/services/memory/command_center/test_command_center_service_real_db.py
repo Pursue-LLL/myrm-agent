@@ -10,11 +10,14 @@ import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryType
+from myrm_agent_harness.toolkits.memory.types import AnyMemory, EpisodicMemory, MemoryScope, ProceduralMemory, SemanticMemory
+from sqlalchemy import Table
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.models.base import Base
@@ -26,22 +29,26 @@ from app.database.models.memory import (
     SharedContextModel,
     SharedContextWriteProposalModel,
 )
+from app.schemas.memory.command_center import MemoryRecallBoundaryData
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
 from app.services.memory.command_center.command_center_health import build_health
 from app.services.memory.command_center.command_center_influence import load_influence
-from app.services.memory.command_center.command_center_recall_boundary import BUDGET_CHARS_TOTAL, build_recall_boundary
+from app.services.memory.command_center.command_center_recall_boundary import build_recall_boundary
 from app.services.memory.command_center.command_center_timeline import build_timeline
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 _NOW = datetime.now(UTC).replace(microsecond=0)
 _TABLES = [
-    SharedContextModel.__table__,
-    SharedContextBindingModel.__table__,
-    SharedContextWriteProposalModel.__table__,
-    MemoryOperationEventModel.__table__,
-    MemoryHealthSnapshotModel.__table__,
-    Chat.__table__,
-    Message.__table__,
+    cast(Table, model.__table__)
+    for model in (
+        SharedContextModel,
+        SharedContextBindingModel,
+        SharedContextWriteProposalModel,
+        MemoryOperationEventModel,
+        MemoryHealthSnapshotModel,
+        Chat,
+        Message,
+    )
 ]
 
 
@@ -292,52 +299,44 @@ class TestHealth:
         assert (health.status, health.total, health.cache_status) == ("unknown", None, "refreshed")
 
 
-class _Memory:
-    def __init__(self, memory_id: str, content: str) -> None:
-        self.id = memory_id
-        self.content = content
-        self.primary_namespace = "global"
+def _manager_holding(memories: dict[MemoryType, list[AnyMemory]] | None = None, **counts: int) -> MagicMock:
+    """Manager whose stores list ``memories`` per type and report ``counts`` by type value (unnamed types hold nothing)."""
+    held = memories or {}
+
+    async def _count(memory_type: MemoryType) -> int:
+        return counts.get(memory_type.value, 0)
+
+    async def _list(memory_type: MemoryType, *, limit: int, **_: object) -> list[AnyMemory]:
+        return held.get(memory_type, [])[:limit]
+
+    manager = _manager()
+    manager.count_memories = AsyncMock(side_effect=_count)
+    manager.list_memories = AsyncMock(side_effect=_list)
+    return manager
+
+
+async def _boundary(db: AsyncSession, manager: MagicMock, **identity: str) -> MemoryRecallBoundaryData:
+    with patch(
+        "app.services.memory.command_center.command_center_recall_boundary.build_candidate_records",
+        new=AsyncMock(return_value=[]),
+    ):
+        return await build_recall_boundary(db, manager, **identity)
 
 
 class TestRecallBoundary:
-    @staticmethod
-    def _manager_with(chars: int) -> MagicMock:
-        def _list(memory_type: MemoryType, **_: object) -> list[_Memory]:
-            if memory_type == MemoryType.PROFILE:
-                return [_Memory("profile-1", "p" * 100)]
-            if memory_type == MemoryType.SEMANTIC:
-                return [_Memory("sem-1", "s" * chars)]
-            if memory_type == MemoryType.PROCEDURAL:
-                return [_Memory("proc-1", "r" * 50)]
-            if memory_type == MemoryType.TASK_DIGEST:
-                return [_Memory("task-1", "t" * 10)]
-            return []
-
-        manager = _manager()
-        manager.list_memories = AsyncMock(side_effect=_list)
-        return manager
-
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("chars", "risk"),
-        [(100, "safe"), (4400, "approaching_limit"), (BUDGET_CHARS_TOTAL, "overflow")],
-    )
-    async def test_partitions_and_budget_risk(self, db: AsyncSession, chars: int, risk: str) -> None:
-        manager = self._manager_with(chars)
-        with patch(
-            "app.services.memory.command_center.command_center_recall_boundary.build_candidate_records",
-            new=AsyncMock(return_value=[]),
-        ):
-            data = await build_recall_boundary(db, manager, agent_id="a1", task_id="t1")
+    async def test_partitions_report_the_stored_counts(self, db: AsyncSession) -> None:
+        manager = _manager_holding(profile=1, semantic=40, episodic=7, task_digest=3, procedural=2, conversation=5, claim=4)
+
+        data = await _boundary(db, manager, agent_id="a1", task_id="t1")
 
         partitions = data.partitions
-        assert (partitions.identity_count, partitions.operating_instructions_count) == (1, 1)
-        assert (partitions.session_memory_count, partitions.retrievable_evidence_count) == (1, 1)
-        assert partitions.retrievable_evidence_chars == chars
-        assert data.budget_chars_used == 100 + chars + 50 + 10
-        assert data.budget_chars_total == BUDGET_CHARS_TOTAL
-        assert data.budget_overflow_risk == risk
-        assert data.total_approved == 4
+        assert partitions.identity_count == 1
+        assert partitions.operating_instructions_count == 2
+        # 3 of the 7 episodic memories are task digests: each counts once, under the session partition.
+        assert partitions.session_memory_count == 5 + 3
+        assert partitions.retrievable_evidence_count == 40 + (7 - 3) + 4
+        assert data.total_approved == 1 + 8 + 2 + 48
         assert data.write_policy == "inherit"
         levels = {scope.level: scope for scope in data.read_scopes}
         assert levels["agent"].label == "Agent Dedicated (a1)"
@@ -345,22 +344,88 @@ class TestRecallBoundary:
         assert all(scope.is_active for scope in data.read_scopes)
 
     @pytest.mark.asyncio
-    async def test_a_failing_type_is_skipped_without_aborting_the_snapshot(self, db: AsyncSession) -> None:
-        manager = _manager()
+    async def test_a_digest_count_above_the_episodic_count_never_goes_negative(self, db: AsyncSession) -> None:
+        data = await _boundary(db, _manager_holding(episodic=1, task_digest=3))
 
-        async def _list(memory_type: MemoryType, **_: object) -> list[_Memory]:
+        assert data.partitions.retrievable_evidence_count == 0
+        assert data.partitions.session_memory_count == 3
+
+    @pytest.mark.asyncio
+    async def test_sample_rows_carry_the_stored_values(self, db: AsyncSession) -> None:
+        tea = SemanticMemory(
+            id="sem-1",
+            content="likes tea",
+            importance=0.8,
+            access_count=3,
+            pinned=True,
+            scope=MemoryScope(primary_namespace="agent:a1"),
+        )
+        rule = ProceduralMemory(id="proc-1", content="ask first", trigger="schema change", action="ask")
+        manager = _manager_holding({MemoryType.SEMANTIC: [tea], MemoryType.PROCEDURAL: [rule]}, semantic=1, procedural=1)
+
+        data = await _boundary(db, manager)
+
+        records = {record.id: record for record in data.approved_records}
+        assert records["sem-1"].partition == "retrievable_evidence"
+        assert records["sem-1"].namespace == "agent:a1"
+        assert (records["sem-1"].importance, records["sem-1"].access_count, records["sem-1"].is_pinned) == (0.8, 3, True)
+        # A rule has no importance score; none is made up.
+        assert records["proc-1"].partition == "operating_instructions"
+        assert (records["proc-1"].importance, records["proc-1"].access_count, records["proc-1"].is_pinned) == (
+            None,
+            0,
+            False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_task_digests_are_sampled_once_under_the_session_partition(self, db: AsyncSession) -> None:
+        note = EpisodicMemory(id="ep-1", content="met bob", event_type="conversation")
+        digest = EpisodicMemory(id="dg-1", content="digest", event_type=MemoryType.TASK_DIGEST.value)
+        manager = _manager_holding(
+            {MemoryType.EPISODIC: [note, digest], MemoryType.TASK_DIGEST: [digest]}, episodic=2, task_digest=1
+        )
+
+        data = await _boundary(db, manager)
+
+        assert [(record.id, record.partition) for record in data.approved_records] == [
+            ("ep-1", "retrievable_evidence"),
+            ("dg-1", "session_memory"),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_sample_is_capped_and_lists_only_what_is_still_missing(self, db: AsyncSession) -> None:
+        manager = _manager_holding(
+            {
+                MemoryType.PROFILE: [SemanticMemory(content="name: Ada")],
+                MemoryType.SEMANTIC: [SemanticMemory(content=f"fact {index}") for index in range(20)],
+            },
+            profile=1,
+            semantic=20,
+        )
+
+        data = await _boundary(db, manager)
+
+        assert len(data.approved_records) == 15
+        listed = [(call.args[0], call.kwargs["limit"]) for call in manager.list_memories.await_args_list]
+        assert listed == [(MemoryType.PROFILE, 15), (MemoryType.SEMANTIC, 14)]
+
+    @pytest.mark.asyncio
+    async def test_a_failing_type_is_skipped_without_aborting_the_snapshot(self, db: AsyncSession) -> None:
+        profile = SemanticMemory(id="profile-1", content="hello")
+        manager = _manager_holding(profile=1, semantic=9)
+
+        async def _list(memory_type: MemoryType, **_: object) -> list[AnyMemory]:
             if memory_type == MemoryType.SEMANTIC:
                 raise RuntimeError("store offline")
-            return [_Memory("profile-1", "hello")] if memory_type == MemoryType.PROFILE else []
+            return [profile] if memory_type == MemoryType.PROFILE else []
 
         manager.list_memories = AsyncMock(side_effect=_list)
-        with patch(
-            "app.services.memory.command_center.command_center_recall_boundary.build_candidate_records",
-            new=AsyncMock(return_value=[]),
-        ):
-            data = await build_recall_boundary(db, manager)
-        assert data.total_approved == 1
-        assert data.approved_records[0].partition == "identity"
+
+        data = await _boundary(db, manager)
+
+        assert [record.id for record in data.approved_records] == ["profile-1"]
+        # Counts come from the store's own counter, so a type whose sample failed still reports its size.
+        assert data.partitions.retrievable_evidence_count == 9
 
 
 class TestSnapshot:

@@ -5,7 +5,7 @@ app.schemas.memory.command_center::MemoryRecallBoundaryData
 app.api.memory.operations.command_center::get_memory_recall_boundary
 
 [OUTPUT]
-test_recall_boundary_schema_contracts, test_recall_boundary_api_endpoint
+test_recall_boundary_schema_contracts, test_an_approved_record_may_have_no_importance_score, test_get_memory_recall_boundary_api
 
 [POS]
 Tests for the Review-First Memory Recall Boundary and Candidate/Approved partition snapshot API.
@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.toolkits.memory import MemoryType
 
 from app.schemas.memory.command_center import (
     MemoryApprovedRecord,
@@ -56,10 +57,6 @@ def test_recall_boundary_schema_contracts() -> None:
             session_memory_count=4,
             operating_instructions_count=1,
             retrievable_evidence_count=10,
-            identity_chars=400,
-            session_memory_chars=1200,
-            operating_instructions_chars=300,
-            retrievable_evidence_chars=2500,
         ),
         candidate_records=[
             MemoryCandidateRecord(
@@ -81,24 +78,33 @@ def test_recall_boundary_schema_contracts() -> None:
                 partition="operating_instructions",
                 importance=0.95,
                 access_count=12,
-                char_count=22,
                 is_pinned=True,
             )
         ],
-        budget_chars_used=4400,
-        budget_chars_total=6000,
-        budget_overflow_risk="safe",
         total_candidates=1,
         total_approved=17,
     )
 
     assert boundary.agent_id == "test-agent"
-    assert boundary.budget_overflow_risk == "safe"
     assert len(boundary.read_scopes) == 2
     assert boundary.partitions.identity_count == 2
     assert len(boundary.candidate_records) == 1
     assert len(boundary.approved_records) == 1
     assert boundary.approved_records[0].is_pinned is True
+
+
+def test_an_approved_record_may_have_no_importance_score() -> None:
+    """A memory type without an importance score (a procedural rule) reports none instead of a made-up value."""
+    record = MemoryApprovedRecord(
+        id="appr-2",
+        memory_type="procedural",
+        content_preview="Ask before changing the schema",
+        namespace="global",
+        partition="operating_instructions",
+        access_count=0,
+    )
+
+    assert record.importance is None
 
 
 @pytest.mark.asyncio
@@ -116,6 +122,8 @@ async def test_get_memory_recall_boundary_api() -> None:
     mock_manager.memory_policy = None
     mock_manager.namespaces = ["global", "agent:default"]
     mock_manager.list_memories = AsyncMock(return_value=[])
+    mock_manager.list_pending = AsyncMock(return_value=[])
+    mock_manager.count_memories = AsyncMock(side_effect=lambda memory_type: 3 if memory_type == MemoryType.SEMANTIC else 0)
 
     test_app = build_minimal_app(preset="memory")
     test_app.dependency_overrides[get_db_session] = lambda: mock_db
@@ -128,10 +136,14 @@ async def test_get_memory_recall_boundary_api() -> None:
             assert response.status_code == 200
             data = response.json()
             assert "read_scopes" in data
-            assert "partitions" in data
-            assert "budget_chars_total" in data
-            assert data["budget_chars_total"] == 6000
-            assert data["budget_overflow_risk"] in ("safe", "approaching_limit", "overflow")
+            assert data["partitions"] == {
+                "identity_count": 0,
+                "session_memory_count": 0,
+                "operating_instructions_count": 0,
+                "retrievable_evidence_count": 3,
+            }
+            assert data["total_approved"] == 3
+            assert not [name for name in data if name.startswith("budget")]
     finally:
         test_app.dependency_overrides.pop(get_db_session, None)
         test_app.dependency_overrides.pop(get_crud_memory_manager, None)

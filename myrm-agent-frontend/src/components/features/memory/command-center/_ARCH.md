@@ -24,7 +24,7 @@
 | `MemoryDoctorStatusPill.tsx`            | 组件 | 就绪度状态徽章，趋势区、运行摘要与检查项共用                   | ✅    |
 | `memoryDoctorModel.ts`                  | 辅助 | 医生面板共用的动作联合类型、取值守卫与展示格式化                 | ✅    |
 | `MemoryCommandCenterChrome.tsx`         | 辅助 | 命令中心外壳（标题、工具栏、tab 切换与操作区）                   | ✅    |
-| `MemoryRecallBoundaryPanel.tsx`         | 辅助 | 召回边界面板：注入预算与截断披露                                 | ✅    |
+| `MemoryRecallBoundaryPanel.tsx`         | 辅助 | 召回边界面板：读取范围、候选待审池、四职责分区的真实记忆数量与已生效记忆样本 | ✅    |
 | `CognitiveClockPanel.tsx`               | 核心 | 多频认知时钟状态面板：T0-T3 状态指示、前台打字让步指示与手动提炼 | ✅    |
 | `MemoryEconomicsPanel.tsx`              | 核心 | 长程有状态任务记忆经济学剖析面板：三阶段开销、ROI 轨迹与沉睡治理 | ✅    |
 | `MemoryEconomicsKpiCards.tsx`           | 辅助 | 经济学面板指标卡片子组件：三阶段时延细分、前缀缓存保持率与 ROI   | ✅    |

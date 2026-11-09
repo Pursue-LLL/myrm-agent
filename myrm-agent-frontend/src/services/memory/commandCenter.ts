@@ -464,17 +464,7 @@ export interface MemoryCommandGraphResponse {
 export interface MemoryCommandActionRequest {
   target_kind: 'pending_memory' | 'shared_context_proposal' | 'memory' | 'conflict_pair';
   target_id: string;
-  action:
-    | 'approve'
-    | 'reject'
-    | 'edit'
-    | 'correct'
-    | 'forget'
-    | 'pin'
-    | 'unpin'
-    | 'keep_new'
-    | 'keep_old'
-    | 'coexist';
+  action: 'approve' | 'reject' | 'edit' | 'correct' | 'forget' | 'pin' | 'unpin' | 'keep_new' | 'keep_old' | 'coexist';
   memory_type?: string;
   content?: string;
 }
@@ -627,15 +617,11 @@ export interface MemoryFourPartitionSummary {
   session_memory_count: number;
   operating_instructions_count: number;
   retrievable_evidence_count: number;
-  identity_chars: number;
-  session_memory_chars: number;
-  operating_instructions_chars: number;
-  retrievable_evidence_chars: number;
 }
 
 export interface MemoryCandidateRecord {
   id: string;
-  memory_type: string;
+  memory_type: MemoryType;
   content_preview: string;
   confidence: number;
   source: string;
@@ -645,13 +631,13 @@ export interface MemoryCandidateRecord {
 
 export interface MemoryApprovedRecord {
   id: string;
-  memory_type: string;
+  memory_type: MemoryType;
   content_preview: string;
   namespace: string;
   partition: 'identity' | 'session_memory' | 'operating_instructions' | 'retrievable_evidence';
-  importance: number;
+  /** Null for a memory type that has no importance score (a procedural rule). */
+  importance: number | null;
   access_count: number;
-  char_count: number;
   is_pinned: boolean;
 }
 
@@ -662,10 +648,8 @@ export interface MemoryRecallBoundaryData {
   write_policy: string;
   partitions: MemoryFourPartitionSummary;
   candidate_records: MemoryCandidateRecord[];
+  /** A sample of the approved memories; `total_approved` counts all of them. */
   approved_records: MemoryApprovedRecord[];
-  budget_chars_used: number;
-  budget_chars_total: number;
-  budget_overflow_risk: 'safe' | 'approaching_limit' | 'overflow';
   total_candidates: number;
   total_approved: number;
 }
