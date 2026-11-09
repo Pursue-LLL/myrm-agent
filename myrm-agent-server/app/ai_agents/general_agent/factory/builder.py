@@ -173,7 +173,13 @@ async def build_general_agent(
     archive_checkpoint_ext = runtime.archive_checkpoint_ext
 
     # 6. Create middlewares
-    middlewares = await build_agent_middlewares(agent_wrapper, effective_chat_id, runtime, lite_llm=llm_bundle.lite_llm)
+    middlewares = await build_agent_middlewares(
+        agent_wrapper,
+        effective_chat_id,
+        runtime,
+        lite_llm=llm_bundle.lite_llm,
+        mount_plan=mount_plan,
+    )
 
     # 7. Checkpointer
     from app.platform_utils import get_checkpointer

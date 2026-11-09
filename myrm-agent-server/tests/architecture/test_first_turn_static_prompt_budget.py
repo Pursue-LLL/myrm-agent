@@ -36,7 +36,7 @@ _STATIC_FIRST_MESSAGE_CAPS: dict[tuple[str, str], int] = {
     ("search-deep", "zh-CN"): 2529,
     ("search-deep", "en"): 1763,
 }
-# Measured 348 tokens; the block rides in every web turn. Cap = measured * 1.05 rounded up.
+# Measured 348 tokens; the block rides in every web chat turn outside the search surface. Cap = measured * 1.05 rounded up.
 _WIDGET_CAPABILITY_CAP = 366
 
 # Section tags that prove each surface was assembled from the real blocks, not from an empty stand-in.

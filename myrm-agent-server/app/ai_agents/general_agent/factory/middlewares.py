@@ -1,5 +1,6 @@
 """[INPUT]
 - app.ai_agents.general_agent.factory.runtime::SandboxRuntime (POS: 装配第三阶段；只创建执行资源，不组装中间件或提示词。)
+- app.ai_agents.general_agent.mount_resolver::ResolvedMountPlan (POS: Pure resolver layer between channel ingress and GeneralAgent factory wiring.)
 
 [OUTPUT]
 - build_agent_middlewares: build_agent_middlewares
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
     from app.ai_agents.general_agent.agent import GeneralAgent
+    from app.ai_agents.general_agent.mount_resolver import ResolvedMountPlan
 
 from app.ai_agents.general_agent.factory.runtime import SandboxRuntime
 
@@ -30,6 +32,7 @@ async def build_agent_middlewares(
     runtime: SandboxRuntime,
     *,
     lite_llm: "BaseChatModel",
+    mount_plan: "ResolvedMountPlan",
 ) -> "list[AgentMiddleware]":
     from myrm_agent_harness.agent.context_management.infra.cache_policy import (
         resolve_cache_ttl_prune_policy,
@@ -131,7 +134,7 @@ async def build_agent_middlewares(
         workspace_rules_middleware,
         project_roadmap_middleware,
         memory_context_middleware,
-        widget_capability_middleware,
+        *([widget_capability_middleware] if mount_plan.mount_widget_capability else []),
         citation_rules_middleware,
         tool_selection_middleware,
         context_pipeline_middleware,

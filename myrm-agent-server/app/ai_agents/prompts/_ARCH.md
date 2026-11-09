@@ -51,4 +51,4 @@ search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（de
 
 中间件条件逻辑：
 - `citation_rules_middleware`：naked/search 模式跳过（lean/full 在有外部来源时注入）
-- `widget_capability_middleware`：naked 模式跳过
+- `widget_capability_middleware`：只在 web_chat 渠道的 full / lean 模式挂载（`mount_resolver.mount_widget_capability`）；搜索面、naked 以及 IM、定时、语音、看板、评测不挂

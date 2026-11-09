@@ -14,7 +14,7 @@ Business-layer CORE prompt caps (full ≤2000 / lean ≤1200 / lean÷full ≤0.7
 ``cl100k_base``) live in the server repo:
 ``myrm-agent-server/tests/ai_agents/test_prompt_integrity.py::TestPromptTokenBudgetGate``.
 The assembled static first system message (core prompt + datetime rules + agent core rules + channel hint,
-per locale) and ``<widget_capability>`` are capped in
+per surface and locale) and ``<widget_capability>`` are capped in
 ``myrm-agent-server/tests/architecture/test_first_turn_static_prompt_budget.py``.
 """
 

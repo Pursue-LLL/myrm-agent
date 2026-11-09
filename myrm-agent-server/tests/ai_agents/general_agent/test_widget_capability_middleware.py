@@ -1,4 +1,4 @@
-"""Tests for widget_capability_middleware — conditional widget declaration injection."""
+"""Tests for widget_capability_middleware — widget declaration injection."""
 
 from __future__ import annotations
 
@@ -109,76 +109,3 @@ class TestWidgetCapabilityMiddleware:
 
         called_request = mock_handler.call_args[0][0]
         assert len(called_request.messages) == 3
-
-    @pytest.mark.asyncio
-    async def test_skips_in_naked_mode(self) -> None:
-        """Widget capability must be skipped in naked mode."""
-        mw = WidgetCapabilityMiddleware()
-
-        mock_handler = AsyncMock()
-        mock_handler.return_value = AsyncMock()
-
-        mock_runtime = AsyncMock()
-        mock_runtime.context = {"prompt_mode": "naked"}
-
-        request = ModelRequest(
-            model=AsyncMock(),
-            messages=[SystemMessage(content="core"), HumanMessage(content="q")],
-            state={"messages": [SystemMessage(content="core"), HumanMessage(content="q")]},
-            runtime=mock_runtime,
-        )
-
-        await mw.awrap_model_call(request, mock_handler)
-
-        called_request = mock_handler.call_args[0][0]
-        assert len(called_request.messages) == 2
-        contents = [m.content for m in called_request.messages if isinstance(m, SystemMessage)]
-        assert not any(WIDGET_CAPABILITY_MARKER in c for c in contents)
-
-    @pytest.mark.asyncio
-    async def test_injects_in_lean_mode(self) -> None:
-        """Widget capability should still inject in lean mode (only naked skips)."""
-        mw = WidgetCapabilityMiddleware()
-
-        mock_handler = AsyncMock()
-        mock_handler.return_value = AsyncMock()
-
-        mock_runtime = AsyncMock()
-        mock_runtime.context = {"prompt_mode": "lean"}
-
-        request = ModelRequest(
-            model=AsyncMock(),
-            messages=[SystemMessage(content="core"), HumanMessage(content="q")],
-            state={"messages": [SystemMessage(content="core"), HumanMessage(content="q")]},
-            runtime=mock_runtime,
-        )
-
-        await mw.awrap_model_call(request, mock_handler)
-
-        called_request = mock_handler.call_args[0][0]
-        contents = [m.content for m in called_request.messages if isinstance(m, SystemMessage)]
-        assert any(WIDGET_CAPABILITY_MARKER in c for c in contents)
-
-    @pytest.mark.asyncio
-    async def test_injects_in_full_mode(self) -> None:
-        """Widget capability should inject in full mode."""
-        mw = WidgetCapabilityMiddleware()
-
-        mock_handler = AsyncMock()
-        mock_handler.return_value = AsyncMock()
-
-        mock_runtime = AsyncMock()
-        mock_runtime.context = {"prompt_mode": "full"}
-
-        request = ModelRequest(
-            model=AsyncMock(),
-            messages=[SystemMessage(content="core"), HumanMessage(content="q")],
-            state={"messages": [SystemMessage(content="core"), HumanMessage(content="q")]},
-            runtime=mock_runtime,
-        )
-
-        await mw.awrap_model_call(request, mock_handler)
-
-        called_request = mock_handler.call_args[0][0]
-        contents = [m.content for m in called_request.messages if isinstance(m, SystemMessage)]
-        assert any(WIDGET_CAPABILITY_MARKER in c for c in contents)

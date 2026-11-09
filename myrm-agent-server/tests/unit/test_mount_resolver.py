@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.ai_agents.general_agent.mount_resolver import (
     resolve_agent_mount,
 )
@@ -58,3 +60,35 @@ def test_resolve_agent_mount_computer_use_host_unsupported() -> None:
     assert plan.mount_browser is True
     assert plan.mount_computer_use is False
     assert plan.mount_desktop_prompt is False
+
+
+@pytest.mark.parametrize(
+    ("channel", "prompt_mode", "expected"),
+    [
+        ("web_chat", "full", True),
+        ("web_chat", "lean", True),
+        ("web_chat", "search", False),
+        ("web_chat", "naked", False),
+        *[
+            (channel, "full", False)
+            for channel in (
+                "feishu",
+                "wecom",
+                "dingtalk",
+                "telegram",
+                "slack",
+                "discord",
+                "cron",
+                "kanban",
+                "eval",
+                "voice_bridge",
+                "realtime_voice",
+            )
+        ],
+    ],
+)
+def test_widget_declaration_is_mounted_only_for_web_chat_conversations(channel: str, prompt_mode: str, expected: bool) -> None:
+    agent = MagicMock()
+    agent.prompt_mode = prompt_mode
+
+    assert resolve_agent_mount(channel, agent).mount_widget_capability is expected
