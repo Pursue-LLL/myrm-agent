@@ -6,6 +6,8 @@ earlier round's reply instead: an empty reply after a tool round ended the run w
 reply cut by the output limit looked like a failed tool call.
 """
 
+from collections.abc import AsyncIterator, Iterator
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,6 +20,8 @@ from ..scripted_agent import (
     BASE_MAX_TOKENS,
     FULL_REPORT,
     TRACKER_PATH,
+    RecordingCompactor,
+    Request,
     complete_write,
     empty_reply,
     final_answer,
@@ -33,19 +37,19 @@ TOOL_HINT = "Your previous tool call was not executed"
 
 
 @pytest.fixture(autouse=True)
-def _isolated_output_budget():
+def _isolated_output_budget() -> Iterator[None]:
     reset_ephemeral_max_output_tokens()
     yield
     reset_ephemeral_max_output_tokens()
 
 
-def _last_message(request) -> str:
+def _last_message(request: Request) -> str:
     return request.messages[-1][1]
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("gated", [False, True], ids=["fresh", "resumed"])
-async def test_empty_reply_after_a_tool_round_is_retried(gated: bool):
+async def test_empty_reply_after_a_tool_round_is_retried(gated: bool) -> None:
     run, model = await run_agent([complete_write(), empty_reply(), final_answer()], gated=gated)
 
     assert run.error is None
@@ -57,7 +61,7 @@ async def test_empty_reply_after_a_tool_round_is_retried(gated: bool):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("gated", [False, True], ids=["fresh", "resumed"])
-async def test_reasoning_only_cut_after_a_tool_round_gets_a_larger_budget_and_the_right_hint(gated: bool):
+async def test_reasoning_only_cut_after_a_tool_round_gets_a_larger_budget_and_the_right_hint(gated: bool) -> None:
     run, model = await run_agent([complete_write(), reasoning_only_cut(), final_answer()], gated=gated)
 
     assert run.error is None
@@ -69,7 +73,7 @@ async def test_reasoning_only_cut_after_a_tool_round_gets_a_larger_budget_and_th
 
 
 @pytest.mark.asyncio
-async def test_first_reply_of_a_conversation_can_be_empty():
+async def test_first_reply_of_a_conversation_can_be_empty() -> None:
     """No assistant message precedes it, so nothing in ``collected_messages`` could stand in for the reply."""
     run, model = await run_agent([empty_reply(), final_answer()])
 
@@ -79,7 +83,7 @@ async def test_first_reply_of_a_conversation_can_be_empty():
 
 
 @pytest.mark.asyncio
-async def test_reasoning_field_reply_that_stopped_normally_is_an_empty_response():
+async def test_reasoning_field_reply_that_stopped_normally_is_an_empty_response() -> None:
     """A reply that only reasoned and then stopped is as empty to the user as one with nothing in it."""
     reasoned_then_stopped = (AIMessage(content="", additional_kwargs={"reasoning_content": "Thinking it over"}), "stop")
 
@@ -93,7 +97,7 @@ async def test_reasoning_field_reply_that_stopped_normally_is_an_empty_response(
 
 
 @pytest.mark.asyncio
-async def test_repeated_empty_replies_end_in_an_error_not_in_silence():
+async def test_repeated_empty_replies_end_in_an_error_not_in_silence() -> None:
     run, model = await run_agent([complete_write(), empty_reply(), empty_reply(), empty_reply()])
 
     assert len(model.requests) == 4  # the write, the empty reply, and two retries
@@ -102,7 +106,7 @@ async def test_repeated_empty_replies_end_in_an_error_not_in_silence():
 
 
 @pytest.mark.asyncio
-async def test_safety_refusal_without_a_fallback_is_asked_again_then_reported():
+async def test_safety_refusal_without_a_fallback_is_asked_again_then_reported() -> None:
     """The refusal is an empty reply; with no safety fallback to switch to it takes the empty-response path."""
     refusal = (AIMessage(content=""), "content_filter")
 
@@ -113,7 +117,7 @@ async def test_safety_refusal_without_a_fallback_is_asked_again_then_reported():
 
 
 @pytest.mark.asyncio
-async def test_reasoning_cuts_stop_where_the_budget_recovery_gives_up():
+async def test_reasoning_cuts_stop_where_the_budget_recovery_gives_up() -> None:
     """The truncation recovery owns a reply cut inside its reasoning; once it gives up, nothing asks again."""
     cuts = [reasoning_only_cut() for _ in range(4)]
 
@@ -128,11 +132,15 @@ async def test_reasoning_cuts_stop_where_the_budget_recovery_gives_up():
 class _PassesAgent:
     """Streams one prepared list of ``updates`` chunks per pass; later passes repeat the last list."""
 
+    checkpointer = None
+
     def __init__(self, passes: list[list[tuple[str, dict[str, dict[str, list[AIMessage]]]]]]) -> None:
         self.passes = passes
         self.calls = 0
 
-    async def astream(self, *_args: object, **_kwargs: object):
+    async def astream(
+        self, *_args: object, **_kwargs: object
+    ) -> AsyncIterator[tuple[str, dict[str, dict[str, list[AIMessage]]]]]:
         chunks = self.passes[min(self.calls, len(self.passes) - 1)]
         self.calls += 1
         for chunk in chunks:
@@ -140,7 +148,7 @@ class _PassesAgent:
 
 
 @pytest.mark.asyncio
-async def test_a_reply_does_not_outlive_the_pass_that_produced_it():
+async def test_a_reply_does_not_outlive_the_pass_that_produced_it() -> None:
     """A pass that delivers no reply must not re-trigger the recovery of the previous pass's reply."""
     empty = ("updates", {"model": {"messages": [AIMessage(content="")]}})
     agent = _PassesAgent([[empty], []])
@@ -157,7 +165,7 @@ async def test_a_reply_does_not_outlive_the_pass_that_produced_it():
 
 
 @pytest.mark.asyncio
-async def test_a_run_that_produced_no_reply_recovers_nothing():
+async def test_a_run_that_produced_no_reply_recovers_nothing() -> None:
     """An earlier round's tool-calling reply is history, not this run's reply."""
     executor = make_executor(make_context(None, {"messages": []}))
     earlier_round = AIMessage(content="", tool_calls=[{"name": "write_file", "args": {}, "id": "call_1"}])
@@ -166,4 +174,4 @@ async def test_a_run_that_produced_no_reply_recovers_nothing():
     with patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason="length")):
         assert await executor._handle_length_truncation([HumanMessage(content="hi"), earlier_round]) is False
     assert await executor._handle_empty_response([HumanMessage(content="hi"), earlier_round]) is False
-    assert executor._compactor.events == []
+    assert cast(RecordingCompactor, executor._compactor).events == []

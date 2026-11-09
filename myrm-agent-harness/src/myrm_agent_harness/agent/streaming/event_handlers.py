@@ -66,7 +66,7 @@ async def process_updates_chunk(
         stats: 执行统计
         message_id: 消息 ID
         collected_messages: 可选，用于收集所有消息（Steering 重建 agent_input 用）
-        source_tracker: 可选，会话级引用源追踪器（自动去重+转发 sources 事件）
+        source_tracker: 可选，本次运行的引用源追踪器（自动去重+转发 sources 事件）
     """
     for node_name, node_output in data.items():
         if not node_output:

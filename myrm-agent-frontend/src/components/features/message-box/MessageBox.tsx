@@ -8,6 +8,7 @@
  * ./userMessageResend (POS: Resend flows of a user bubble, retry of a failed send and edit-and-resend)
  * ./WakeupNoticeRow (POS: Quiet transcript line for a settled background task that did not wake the agent)
  * components/features/task-card/{ImageTaskCard,VideoTaskCard} (POS: Async media task cards)
+ * @/lib/citations/buildCitationSources (POS: Citation source resolver of an answer; SSOT for which source a marker number names)
  *
  * [OUTPUT]
  * MessageBox: Renders one chat message across user, assistant and system roles.
@@ -27,9 +28,8 @@ import useChatStore, { Message } from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
-import type { McpAppView, ProgressItem, Source, ToolImageOutput } from '@/store/chat/types';
-import { resolveSourceClickUrl } from '@/store/chat/types/sources';
-import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
+import type { McpAppView, ProgressItem, ToolImageOutput } from '@/store/chat/types';
+import { buildCitationSources } from '@/lib/citations/buildCitationSources';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import { findLastTurnAnswerId } from '@/lib/chat/lastTurnAnswer';
 import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
@@ -289,53 +289,10 @@ const MessageBox = ({
     return null;
   }, [message.content]);
 
-  // 累积当前会话中所有消息的 sources（从开始到当前消息）
-  // 这样可以正确渲染引用了之前消息中 sources 的 【数字】 标记
-  const accumulatedSources = useMemo(() => {
-    const allSources: Source[] = [];
-    const seenKeys = new Set<string>();
-
-    // 遍历从开始到当前消息的所有消息
-    for (let i = 0; i <= messageIndex && i < messages.length; i++) {
-      const msg = messages[i];
-      if (msg.sources) {
-        for (const source of msg.sources) {
-          // 生成唯一标识符用于去重
-          // 优先使用 URL，其次使用 skill 名称组合，最后使用 kb/filename 组合
-          let key: string;
-          const clickUrl = resolveSourceClickUrl(source);
-          if (clickUrl) {
-            key = clickUrl;
-          } else if (source.skill_name && source.calls && source.calls.length > 0) {
-            // 使用 skill_name 和 calls 中的工具名称组合
-            const toolNames = source.calls.map((c) => c.tool_name).join(',');
-            key = `skill:${source.skill_name}:${toolNames}`;
-          } else if (source.skill_name) {
-            // 只有 skill_name 没有 calls
-            key = `skill:${source.skill_name}`;
-          } else if (source.source_key) {
-            key = source.source_key;
-          } else if (source.kb_name && source.filename) {
-            key = `kb:${source.kb_name}:${source.filename}`;
-          } else {
-            // 兜底：使用 index（如果有）或跳过去重
-            key = source.index ? `index:${source.index}` : JSON.stringify(source);
-          }
-
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            allSources.push(source);
-          }
-        }
-      }
-    }
-
-    return allSources;
-  }, [messages, messageIndex]);
-
+  // A marker in this answer names a source of this message first, then the nearest earlier message that has that number.
   const citationSources = useMemo(
-    () => mergeMessageSources(accumulatedSources, message.sources ?? []),
-    [accumulatedSources, message.sources],
+    () => buildCitationSources(messages.slice(0, messageIndex), message.sources ?? []),
+    [messages, messageIndex, message.sources],
   );
 
   if (!message) {

@@ -5,6 +5,7 @@
 - agent.streaming.event_handlers (POS: 事件处理器)
 - agent.streaming.artifact_events (POS: Artifact 事件处理器)
 - agent.streaming.source_tracker::SourceTracker (POS: 源追踪器)
+- agent.streaming.source_numbering::restore_source_numbering (POS: Run-start step: the run's tracker continues the numbers its thread already stated)
 - agent.streaming.reasoning_scrubber::ReasoningScrubber (POS: 流式清洗器)
 - agent.streaming.recovery.context_pressure_gate::PreflightGateMixin (POS: Deterministic send-gate owned by the streaming recovery layer)
 - agent.streaming.stream_fatal_error::StreamFatalErrorMixin (POS: Fatal-error reporting for StreamExecutor)
@@ -15,7 +16,7 @@
 
 [OUTPUT]
 - StreamContext: execution context dataclass (optional callbacks: drain_subagent_notifications, on_loop_restart, on_goal_hold, file_content_reader for media/vision recovery)
-- StreamExecutor: streaming execution engine; binds the run's source numbering (``SourceTracker.index_for``) for the tools it streams
+- StreamExecutor: streaming execution engine; binds the run's source numbering (``SourceTracker.index_for``, continuing the thread's earlier numbers) for the tools it streams
 
 [POS]
 Stream execution engine. Encapsulates the complete lifecycle of Agent.astream().
@@ -52,6 +53,7 @@ from .recovery.context_pressure_gate import (
 from .recovery.stream_recovery import StreamRecoveryMixin
 from .recovery.stream_recovery_window import WindowAction
 from .recovery.turn_retry_state import TurnRetryState
+from .source_numbering import restore_source_numbering
 from .source_tracker import SourceTracker
 from .stream_compactor import StreamCompactor
 from .stream_dispatcher import StreamDispatcherMixin
@@ -193,6 +195,8 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
             # Bound here, in the task that streams the graph: every tool body runs in a copy of this context, and
             # the tracker is mutated in place, so a number a tool prints is the index of the card issued for it.
             source_indexer_var.set(ctx.source_tracker.index_for)
+            # A run that continues a thread numbers on from the earlier runs: the model's context still holds their labels.
+            await restore_source_numbering(ctx.source_tracker, ctx.agent.checkpointer, ctx.run_config)
 
             if ctx.token_tracker is not None:
                 from myrm_agent_harness.utils.token_economics.tracker import (

@@ -5,8 +5,8 @@ interceptor and the stream handlers, the model must stop reading the sources lis
 same ``reviewing_sources`` and ``sources`` events for it.
 
 [POS]
-Chain-level tests of tool-sources hoisting, one case per kind of producer. The hoisting rules themselves are covered in
-test_tool_sources_hoisting.py.
+Chain-level tests of tool-sources hoisting, one case per kind of producer, and of the numbers the stored sources carry.
+The hoisting and stamping rules themselves are covered in test_tool_sources_hoisting.py.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from myrm_agent_harness.agent.streaming.event_handlers import process_updates_ch
 from myrm_agent_harness.agent.streaming.source_tracker import SourceTracker
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics
+from myrm_agent_harness.core.context_vars import scoped_value, source_indexer_var
 from myrm_agent_harness.toolkits.browser.tools.navigate import create_navigate_tool
 from myrm_agent_harness.toolkits.memory.agent_surface.tool_result_sources import pack_tool_result_with_sources
 from myrm_agent_harness.toolkits.web_fetch.web_fetch_agent_tools import _full_content_result
@@ -242,3 +243,68 @@ class TestFromToolToStream:
         result, _ = await _intercepted(message, guard_output=appended)
 
         assert result is appended
+
+
+class TestTheStoredSourcesCarryTheRunsNumbers:
+    """What the checkpoint keeps of a tool call records the numbers the model read, which are the cards' indexes."""
+
+    @staticmethod
+    async def _cards(result: ToolMessage | Command[object], tracker: SourceTracker) -> list[dict[str, object]]:
+        updates: dict[str, dict[str, object]] = {"tools": {"messages": [result]}}
+        stream = process_updates_chunk(updates, AgentRunStatistics(), _MESSAGE_ID, source_tracker=tracker)
+        events = [event async for event in stream]
+        sources_event = next(event for event in events if event["type"] == AgentEventType.SOURCES.value)
+        cards = sources_event["data"]
+        assert isinstance(cards, list)
+        return cards
+
+    @pytest.mark.asyncio
+    async def test_the_stored_number_of_a_source_the_tool_numbered_is_the_number_it_printed(self) -> None:
+        tracker = SourceTracker()
+        message = await _langchain_message(await _web_search())
+        # The tool numbered the second source first, as a result that orders its text by relevance does.
+        printed = {"b": tracker.index_for(WEB_SOURCES[1]), "a": tracker.index_for(WEB_SOURCES[0])}
+
+        with scoped_value(source_indexer_var, tracker.index_for):
+            result, _ = await _intercepted(message)
+
+        assert isinstance(result, ToolMessage)
+        stored = result.additional_kwargs[TOOL_SOURCES_KWARG]
+        assert [(source["url"], source["index"]) for source in stored] == [
+            ("https://a.test/post", printed["a"]),
+            ("https://b.test/post", printed["b"]),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_each_stored_number_is_the_index_of_the_card_the_stream_issues(self) -> None:
+        tracker = SourceTracker()
+        message = await _langchain_message(await _web_search())
+
+        with scoped_value(source_indexer_var, tracker.index_for):
+            result, _ = await _intercepted(message)
+        assert isinstance(result, ToolMessage)
+        cards = await self._cards(result, tracker)
+
+        stored = result.additional_kwargs[TOOL_SOURCES_KWARG]
+        assert [(card["url"], card["index"]) for card in cards] == [(s["url"], s["index"]) for s in stored]
+
+    @pytest.mark.asyncio
+    async def test_the_text_the_model_reads_is_the_same_with_and_without_the_numbers(self) -> None:
+        message = await _langchain_message(await _web_search())
+
+        plain, _ = await _intercepted(message)
+        with scoped_value(source_indexer_var, SourceTracker().index_for):
+            numbered, _ = await _intercepted(message)
+
+        assert isinstance(plain, ToolMessage)
+        assert isinstance(numbered, ToolMessage)
+        assert numbered.content == plain.content
+
+    @pytest.mark.asyncio
+    async def test_a_run_that_numbers_nothing_stores_the_sources_as_the_tool_returned_them(self) -> None:
+        payload = await _web_search()
+
+        result, _ = await _intercepted(await _langchain_message(payload))
+
+        assert isinstance(result, ToolMessage)
+        assert all("index" not in source for source in result.additional_kwargs[TOOL_SOURCES_KWARG])

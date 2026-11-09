@@ -14,6 +14,10 @@ and actionable remediation suggestion generation.
 
 [POS]
 myrm-agent-harness/src/myrm_agent_harness/backends/skills/scanning/quality_linter.py
+
+[PENDING] No caller yet: the skill market's install path runs its own scan (`scan_all_text_files`)
+and does not ask this linter for a score. It is the only implementation of the 7 Golden Rules audit, so
+it waits for the authoring/review surface that should show the report.
 """
 
 from __future__ import annotations

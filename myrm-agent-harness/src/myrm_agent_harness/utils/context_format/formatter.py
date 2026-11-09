@@ -52,7 +52,6 @@ def format_documents_with_metadata(
     - 优先级3: 字符fallback（tiktoken失败时）
 
     自适应估算策略：基于首个header预检分级（25/40/70 tokens），精确计算questions前缀。
-    准确率100%，平均预算利用率81.5%，性能~0.50ms/文档（实测批量处理10文档）。
 
     极端场景处理：当预算严重不足（estimated_overhead > total_max_tokens）时，
     动态裁剪文档数量以满足预算（保留Top优先级），确保final_tokens严格≤total_max_tokens。

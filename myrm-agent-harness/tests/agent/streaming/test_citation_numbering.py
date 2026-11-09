@@ -155,7 +155,7 @@ def _executor_streaming(tracker: SourceTracker, seen: list[SourceIndexer | None]
         yield ("messages", (AIMessage(content="done"), {"tags": []}))
 
     ctx = StreamContext(
-        agent=MagicMock(),
+        agent=MagicMock(astream=fake_astream),
         agent_input={"messages": [HumanMessage(content="hi")]},
         merged_context={"locale": "en"},
         run_config={},
@@ -166,13 +166,13 @@ def _executor_streaming(tracker: SourceTracker, seen: list[SourceIndexer | None]
         source_tracker=tracker,
         output_queue=asyncio.Queue(),
     )
-    ctx.agent.astream = fake_astream
     return StreamExecutor(ctx=ctx, fallback_llm=None, safety_fallback_llm=None, rebuild_agent_fn=MagicMock())
 
 
 @pytest.mark.asyncio
 async def test_a_run_numbers_the_sources_of_its_tools_with_its_own_tracker() -> None:
-    tracker, seen = SourceTracker(), []
+    tracker = SourceTracker()
+    seen: list[SourceIndexer | None] = []
 
     # The runtime streams every run in a task of its own.
     await asyncio.create_task(_executor_streaming(tracker, seen).execute())
@@ -211,7 +211,7 @@ async def test_tool_bodies_run_by_a_graph_tool_node_get_the_binding_of_the_strea
         seen["sync"] = source_indexer_var.get()
         return text
 
-    def call_both_tools(_state: MessagesState) -> dict[str, list[AIMessage]]:
+    def call_both_tools(state: MessagesState) -> dict[str, list[AIMessage]]:
         calls = [
             ToolCall(name="async_tool", args={"text": "a"}, id="call-async"),
             ToolCall(name="sync_tool", args={"text": "b"}, id="call-sync"),
