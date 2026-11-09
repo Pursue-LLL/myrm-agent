@@ -11,9 +11,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock
 
-import discord
 import httpx
 import pytest
+
+pytest.importorskip("discord")
+
+import discord
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError
