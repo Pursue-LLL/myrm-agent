@@ -45,7 +45,7 @@ async def prepare_mcp_configs_for_runtime[Config: (MCPConfig, MCPServerConfig)](
             MCPSecretAuthProvider,
         )
 
-        # A locked vault cannot provide secrets; routing the untouched configs is the old behaviour.
+        # A locked vault cannot provide secrets; routing the configs untouched keeps the turn from blocking.
         master_key = MasterKeyProvider.peek()
         if master_key is None:
             return list(configs)
