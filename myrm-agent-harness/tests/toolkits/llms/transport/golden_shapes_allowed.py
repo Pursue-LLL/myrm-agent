@@ -98,12 +98,6 @@ SHAPE_RULES: tuple[ShapeRule, ...] = (
         providers=("chat/cohere_chat",),
     ),
     ShapeRule(
-        "azure-embedding-stable-api-version",
-        "Same decision as the golden services registry's rule of that name: the stable `2024-10-21` API version "
-        "instead of the previous library's `2025-02-01-preview`. The path is unchanged for every shape.",
-        providers=("embedding/azure",),
-    ),
-    ShapeRule(
         "flux-settings-alias",
         "Same decision as the golden services registry's rule of that name: the previous library rejected `flux/"
         "schnell` before sending anything, so it reached no endpoint; the transport maps it to Together's FLUX.1.",

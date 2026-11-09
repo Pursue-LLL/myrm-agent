@@ -46,8 +46,13 @@ from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_AZURE_API_VERSION = "2024-10-21"
-_DEFAULT_AZURE_RESPONSES_API_VERSION = "preview"
+# A preview version, because the stable ones lack what current deployments take (``reasoning_effort`` arrived with
+# 2024-12-01-preview).
+AZURE_DEFAULT_API_VERSION: Final = "2025-02-01-preview"
+# The Responses API is served from Azure's versionless ``/openai/v1`` route, where ``preview`` selects its current
+# surface; a dated version addresses the older ``/openai`` route.
+_AZURE_RESPONSES_API_VERSION: Final = "preview"
+_AZURE_V1_VERSIONS: Final = frozenset({"preview", "latest", "v1"})
 _OFFICIAL_HOST = "api.openai.com"
 _TOP_LEVEL_CACHE_READ_KEYS = ("prompt_cache_hit_tokens", "cache_read_input_tokens")
 # Finish reasons that say the provider cut the answer off, with the HTTP status the cut stands for (``None``: no hint).
@@ -138,14 +143,17 @@ def openai_endpoint(route: Route, opts: CallOptions, path: str) -> tuple[str, di
     headers: dict[str, str] = dict(route.profile.headers)
     query: dict[str, str] = {}
     if route.profile.wire == "azure_openai":
-        version = opts.api_version or first_env(route.profile.api_version_env)
         if path == "/responses":  # the Responses API addresses the model in the body, not by deployment
-            url = f"{base}/openai{path}"
-            query["api-version"] = version or _DEFAULT_AZURE_RESPONSES_API_VERSION
+            # The environment's version belongs to the chat API; the Responses API has a default of its own.
+            version = opts.api_version or _AZURE_RESPONSES_API_VERSION
+            url = f"{base}{'/openai/v1' if version in _AZURE_V1_VERSIONS else '/openai'}{path}"
         else:
+            version = opts.api_version or first_env(route.profile.api_version_env) or AZURE_DEFAULT_API_VERSION
             url = f"{base}/openai/deployments/{route.model}{path}"
-            query["api-version"] = version or _DEFAULT_AZURE_API_VERSION
-        if route.api_key:
+        query["api-version"] = version
+        if opts.azure_ad_token:  # a Microsoft Entra token, when given, is the credential; the resource key is not sent
+            headers["Authorization"] = f"Bearer {opts.azure_ad_token}"
+        elif route.api_key:
             headers["api-key"] = route.api_key
     else:
         url = f"{base}{path}"

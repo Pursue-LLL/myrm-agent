@@ -57,15 +57,29 @@ class TestAzureAndOrganization:
     def test_azure_addresses_the_model_in_the_body_and_defaults_the_preview_api(self) -> None:
         request = _prepare("azure/gpt-5.4", api_base=_AZURE)
 
-        assert request.url == f"{_AZURE}/openai/responses"
+        assert request.url == f"{_AZURE}/openai/v1/responses"
         assert dict(request.query) == {"api-version": "preview"}
         assert request.headers["api-key"] == "k"
         assert _body(request)["model"] == "gpt-5.4"
 
-    def test_azure_takes_the_callers_api_version(self) -> None:
+    @pytest.mark.parametrize("version", ["preview", "latest", "v1"])
+    def test_the_versions_of_the_versionless_route_address_it(self, version: str) -> None:
+        request = _prepare("azure/gpt-5.4", api_base=_AZURE, api_version=version)
+
+        assert request.url == f"{_AZURE}/openai/v1/responses"
+        assert dict(request.query) == {"api-version": version}
+
+    def test_a_dated_api_version_addresses_the_versioned_route(self) -> None:
         request = _prepare("azure/gpt-5.4", api_base=_AZURE, api_version="2025-03-01-preview")
 
+        assert request.url == f"{_AZURE}/openai/responses"
         assert dict(request.query) == {"api-version": "2025-03-01-preview"}
+
+    def test_an_entra_token_is_the_bearer_credential_and_stays_out_of_the_body(self) -> None:
+        request = _prepare("azure/gpt-5.4", api_base=_AZURE, azure_ad_token="entra-token")
+
+        assert request.headers == {"Authorization": "Bearer entra-token"}
+        assert "entra-token" not in json.dumps(_body(request))
 
     def test_the_organization_header_goes_only_to_openai_itself(self) -> None:
         route = resolve_route("openai/gpt-5.4", api_key="k")

@@ -11,7 +11,7 @@ import pytest
 from myrm_agent_harness.toolkits.llms.catalog import store
 from myrm_agent_harness.toolkits.llms.transport import bedrock_converse
 from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest
-from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError, resolve_route
+from myrm_agent_harness.toolkits.llms.transport.profile import resolve_route
 from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 Message = dict[str, object]
@@ -144,10 +144,6 @@ class TestCredentialAndTransportOptions:
     def test_the_environment_key_is_the_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "from-env")
         assert _request(key=None).headers["Authorization"] == "Bearer from-env"
-
-    def test_without_a_key_the_call_is_refused_before_any_request_is_made(self) -> None:
-        with pytest.raises(UnsupportedProviderError, match="Bedrock API key"):
-            _request(key=None)
 
     def test_caller_headers_are_added_and_override_case_insensitively(self) -> None:
         headers = _request(extra_headers={"x-trace": "1", "authorization": "Bearer other"}).headers

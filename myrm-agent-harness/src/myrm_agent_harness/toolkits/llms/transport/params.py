@@ -34,6 +34,7 @@ _TRANSPORT_KEYS: Final = frozenset(
         "extra_headers",
         "extra_body",
         "api_version",
+        "azure_ad_token",
         "organization",
     }
 )
@@ -48,6 +49,7 @@ class CallOptions:
     headers: dict[str, str]
     extra_body: dict[str, object]
     api_version: str | None
+    azure_ad_token: str | None
     organization: str | None
     stream: bool
     body: dict[str, object] = field(default_factory=dict)
@@ -76,6 +78,7 @@ def split_params(params: Mapping[str, object]) -> CallOptions:
         headers=_string_map(params.get("extra_headers")),
         extra_body=_object_map(params.get("extra_body")),
         api_version=_text(params.get("api_version")),
+        azure_ad_token=_text(params.get("azure_ad_token")),
         organization=_text(params.get("organization")),
         stream=params.get("stream") is True,
         body={k: v for k, v in params.items() if k not in _TRANSPORT_KEYS and v is not None},

@@ -287,6 +287,11 @@ ignore_missing_imports = true
 module = "croniter"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# botocore 无类型 stubs（可选依赖，未带 py.typed）；仅在 toolkits/llms/transport/bedrock_sigv4.py 惰性导入，用于 Bedrock 的 SigV4 签名。
+module = "botocore.*"
+ignore_missing_imports = true
+
 [tool.pyright]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"
