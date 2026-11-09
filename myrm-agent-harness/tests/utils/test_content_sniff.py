@@ -20,11 +20,17 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR" + b"\x00" * 16
 EXE = b"MZ\x90\x00" + bytes(range(256)) * 4
 
 
+# A fixed timestamp keeps the archive bytes, and so the parametrized test ids, identical in every pytest-xdist worker.
+_ZIP_TIMESTAMP = (2026, 1, 1, 0, 0, 0)
+
+
 def _zip(entries: dict[str, bytes]) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
         for name, data in entries.items():
-            archive.writestr(name, data)
+            member = zipfile.ZipInfo(name, date_time=_ZIP_TIMESTAMP)
+            member.external_attr = 0o600 << 16
+            archive.writestr(member, data)
     return buffer.getvalue()
 
 
