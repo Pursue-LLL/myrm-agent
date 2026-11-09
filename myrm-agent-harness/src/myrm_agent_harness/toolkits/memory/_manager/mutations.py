@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Literal
 
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
@@ -41,7 +42,45 @@ def _require_unit_interval(name: str, value: float | None) -> None:
         )
 
 
+ExactFactIndexAction = Literal["record", "delete"]
+
+
+def _restamp_exact_fact(
+    memory: AnyMemory, *, is_exact_fact: bool | None, content_changed: bool
+) -> ExactFactIndexAction | None:
+    """Re-derive the exact-fact flag and identifiers from the memory's final content.
+
+    Runs after the security scan so the identifiers and the index follow the stored
+    (redacted) text; returns the index change the stored memory needs, if any.
+    """
+    if is_exact_fact is None and not (content_changed and memory.is_exact_fact):
+        return None
+    if is_exact_fact is not None:
+        memory.is_exact_fact = is_exact_fact
+    memory.exact_identifiers = ExactFactClassifier.extract_identifiers(memory.content) if memory.is_exact_fact else []
+    return "record" if memory.is_exact_fact else "delete"
+
+
 class MemoryManagerMutationsMixin(MemoryManagerHost):
+    async def _sync_exact_fact_index(self, memory: AnyMemory, action: ExactFactIndexAction | None) -> None:
+        """Mirror a stored memory's exact-fact state into the side index; failures only warn."""
+        if self._relational is None or action is None:
+            return
+        try:
+            if action == "record":
+                await self._relational.record_exact_fact(
+                    memory_id=memory.id,
+                    user_id=memory.user_id,
+                    content=memory.content,
+                    identifiers=memory.exact_identifiers,
+                    primary_namespace=memory.scope.primary_namespace if memory.scope else "",
+                    namespaces=memory.scope.namespaces if memory.scope else None,
+                )
+            else:
+                await self._relational.delete_exact_fact(memory.id)
+        except Exception as err:
+            logger.warning("Failed to sync exact fact index: %s", err)
+
     # ── User Feedback Rating ──
 
     async def rate_memory(self, memory_id: str, score: int, collection: str | None = None) -> bool:
@@ -361,54 +400,12 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
             if is_user_locked is not None:
                 updated.is_user_locked = is_user_locked
 
-        if is_exact_fact is not None:
-            updated.is_exact_fact = is_exact_fact
-            updated.metadata["is_exact_fact"] = is_exact_fact
-            if is_exact_fact:
-                idents = ExactFactClassifier.extract_identifiers(updated.content)
-                updated.exact_identifiers = idents
-                updated.metadata["exact_identifiers"] = idents
-                if self._relational is not None:
-                    try:
-                        await self._relational.record_exact_fact(
-                            memory_id=updated.id,
-                            user_id=updated.user_id,
-                            content=updated.content,
-                            identifiers=idents,
-                            primary_namespace=updated.scope.primary_namespace if updated.scope else "",
-                            namespaces=updated.scope.namespaces if updated.scope else None,
-                        )
-                    except Exception as err:
-                        logger.warning("Failed to record exact fact: %s", err)
-            else:
-                updated.exact_identifiers = []
-                updated.metadata["exact_identifiers"] = []
-                if self._relational is not None:
-                    try:
-                        await self._relational.delete_exact_fact(updated.id)
-                    except Exception as err:
-                        logger.warning("Failed to delete exact fact: %s", err)
-        elif content_changed and updated.is_exact_fact:
-            idents = ExactFactClassifier.extract_identifiers(updated.content)
-            updated.exact_identifiers = idents
-            updated.metadata["exact_identifiers"] = idents
-            if self._relational is not None:
-                try:
-                    await self._relational.record_exact_fact(
-                        memory_id=updated.id,
-                        user_id=updated.user_id,
-                        content=updated.content,
-                        identifiers=idents,
-                        primary_namespace=updated.scope.primary_namespace if updated.scope else "",
-                        namespaces=updated.scope.namespaces if updated.scope else None,
-                    )
-                except Exception as err:
-                    logger.warning("Failed to update exact fact: %s", err)
-
         updated.updated_at = datetime.now(UTC)
 
         if content_changed and self._config.security_scan_enabled:
             scan_and_clean_memory(updated, block_threshold=self._config.injection_block_threshold)
+
+        index_action = _restamp_exact_fact(updated, is_exact_fact=is_exact_fact, content_changed=content_changed)
 
         if isinstance(updated, (SemanticMemory, EpisodicMemory)):
             if self._vector is None:
@@ -424,9 +421,12 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
                 e,
                 self._cache,
             )
+            await self._sync_exact_fact_index(result, index_action)
             if content_changed:
                 self._record_ephemeral_delta_for_memory(result)
             return result
         if isinstance(updated, ProceduralMemory):
-            return await self._rel().update_rule(memory_id, updated)
+            rule = await self._rel().update_rule(memory_id, updated)
+            await self._sync_exact_fact_index(rule, index_action)
+            return rule
         raise ValueError(f"Cannot update memory type: {type(updated).__name__}")

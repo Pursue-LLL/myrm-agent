@@ -123,6 +123,8 @@ _COMMON_KNOWN_KEYS = frozenset(
 _SEMANTIC_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
     {
         "confidence",
+        "is_exact_fact",
+        "exact_identifiers",
         "preference_type",
         "preference_strength",
         "correction_of",
@@ -206,6 +208,8 @@ def doc_to_semantic(doc: VectorDocument) -> SemanticMemory:
         last_accessed_at=_last_accessed_from_metadata(meta),
         user_rating=_safe_float(meta.get("user_rating", 0.5), 0.5),
         pinned=bool(meta.get("pinned", False)),
+        is_exact_fact=meta.get("is_exact_fact") is True,
+        exact_identifiers=_string_list_from_metadata(meta, "exact_identifiers"),
         status=_status_from_metadata(meta),
         expected_valid_days=evd,
         metadata=extra,
@@ -370,6 +374,8 @@ def semantic_to_doc(m: SemanticMemory) -> VectorDocument:
         "merge_count": m.merge_count,
         "merge_history": m.merge_history,
         "pinned": m.pinned,
+        "is_exact_fact": m.is_exact_fact,
+        "exact_identifiers": list(m.exact_identifiers),
         "status": m.status,
         "archived": m.status == "archived",
         "expected_valid_days": m.expected_valid_days if m.expected_valid_days is not None else 0,

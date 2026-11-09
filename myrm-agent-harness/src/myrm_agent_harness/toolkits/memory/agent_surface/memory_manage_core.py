@@ -25,7 +25,7 @@ from __future__ import annotations
 from typing import Literal, get_args
 
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-from myrm_agent_harness.toolkits.memory.types import MemoryType
+from myrm_agent_harness.toolkits.memory.types import AnyMemory, MemoryType
 
 ManageAction = Literal["update", "delete", "correct", "rate"]
 MANAGE_ACTIONS: tuple[ManageAction, ...] = get_args(ManageAction)
@@ -79,27 +79,34 @@ async def _delete(manager: MemoryManager, mem_type: MemoryType, memory_id: str) 
     return f"Delete action is not supported for {mem_type.value} memories."
 
 
-async def _update(manager: MemoryManager, memory_id: str, new_content: str | None, new_importance: float | None) -> str:
+def _agent_may_modify(memory: AnyMemory) -> bool:
+    """``is_exact_fact`` is the classifier's stamp; only an explicit pin or lock is the user's decision."""
+    return not (memory.pinned or memory.is_user_locked)
+
+
+async def _update(
+    manager: MemoryManager, memory: AnyMemory, new_content: str | None, new_importance: float | None
+) -> str:
     if not new_content:
         return "Update requires 'new_content'."
     updated = await manager.update_memory(
-        memory_id,
+        memory.id,
         content=new_content,
         importance=new_importance,
-        allow_protected=False,
+        allow_protected=_agent_may_modify(memory),
     )
     return f"Memory updated (ID: {updated.id})"
 
 
-async def _correct(manager: MemoryManager, mem_type: MemoryType, memory_id: str, new_content: str | None) -> str:
+async def _correct(manager: MemoryManager, memory: AnyMemory, new_content: str | None) -> str:
     if not new_content:
         return "Correct requires 'new_content' with the corrected fact."
-    if mem_type != MemoryType.SEMANTIC:
+    if memory.memory_type != MemoryType.SEMANTIC:
         return "Correct action is only supported for knowledge memories."
     if MemoryType.SEMANTIC not in manager.get_enabled_types():
         return "Knowledge memory is not enabled."
-    correction = await manager.correct_memory(memory_id, new_content, allow_protected=False)
-    return f"Memory corrected (new ID: {correction.id}). Prior entry {memory_id} kept in history."
+    correction = await manager.correct_memory(memory.id, new_content, allow_protected=_agent_may_modify(memory))
+    return f"Memory corrected (new ID: {correction.id}). Prior entry {memory.id} kept in history."
 
 
 async def manage_memory(
@@ -122,7 +129,7 @@ async def manage_memory(
     if action == "delete":
         return await _delete(manager, mem_type, memory_id)
     if action == "update":
-        return await _update(manager, memory_id, new_content, new_importance)
+        return await _update(manager, memory, new_content, new_importance)
     if action == "correct":
-        return await _correct(manager, mem_type, memory_id, new_content)
+        return await _correct(manager, memory, new_content)
     return f"Unknown action: {action}"

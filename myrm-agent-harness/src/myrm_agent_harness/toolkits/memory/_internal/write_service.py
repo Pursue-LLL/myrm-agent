@@ -193,9 +193,7 @@ class MemoryWriter:
             memory.is_exact_fact = True
             existing = set(getattr(memory, "exact_identifiers", []) or [])
             existing.update(extracted)
-            memory.exact_identifiers = sorted(list(existing))
-            memory.metadata["is_exact_fact"] = True
-            memory.metadata["exact_identifiers"] = memory.exact_identifiers
+            memory.exact_identifiers = sorted(existing)
         return memory
 
     async def store_batch(
