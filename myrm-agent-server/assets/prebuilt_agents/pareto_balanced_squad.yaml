@@ -52,7 +52,6 @@ members:
       en: "Handles formatting, docs, and routine dispatch with fast open-source model"
     system_prompt: |
       你负责快速任务拆解、信息格式化和基础工具调用。保持输出精简、精准、高效。
-    personality_style: professional
     model_selection:
       provider: deepseek
       model: deepseek-chat
@@ -65,7 +64,6 @@ members:
       en: "Tackles complex algorithms, refactoring, and critical architecture decisions with frontier reasoning models"
     system_prompt: |
       你是一位顶级逻辑与架构推演专家。专注于深层原因分析、严谨论证与高质量代码交付。
-    personality_style: professional
     model_selection:
       provider: anthropic
       model: claude-3-5-sonnet-20241022

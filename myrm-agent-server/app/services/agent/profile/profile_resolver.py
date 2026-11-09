@@ -103,7 +103,6 @@ class ResolvedAgentProfile:
     subagent_ids: tuple[str, ...] | None = None
     security_overrides: dict[str, object] | None = None
     default_security_preset: str | None = None
-    personality_style: str | None = None
     prompt_mode: str = "full"
     max_iterations: int | None = None
     workspace_policy: str | None = None
@@ -197,7 +196,6 @@ class AgentProfileResolver:
                 raw_subagent_ids = metadata.get("subagent_ids")
                 raw_mcp_ids = metadata.get("mcp_ids", [])
                 raw_security = metadata.get("security_overrides")
-                raw_personality = metadata.get("personality_style")
                 if agent.tools_allowed is not None:
                     raw_builtin_tools: object = list(agent.tools_allowed)
                 else:
@@ -266,7 +264,6 @@ class AgentProfileResolver:
                     default_security_preset=(
                         str(metadata.get("default_security_preset")) if metadata.get("default_security_preset") else None
                     ),
-                    personality_style=str(raw_personality) if raw_personality else None,
                     prompt_mode=str(metadata.get("prompt_mode", "full")),
                     max_iterations=agent.max_iterations,
                     workspace_policy=(str(raw_workspace_policy) if raw_workspace_policy else None),

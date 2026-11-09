@@ -546,7 +546,6 @@ async def test_custom_agent_factory_build_rebinds_memory_search_tool(monkeypatch
         enabled_builtin_tools=("memory", "bash"),
         max_iterations=12,
         memory_policy=None,
-        metadata={"personality_style": "default"},
     )
     factory = CustomAgentFactory(agent_id="custom-researcher", agent_profile=profile)
     factory._initialized = True
@@ -1132,121 +1131,6 @@ async def test_custom_agent_factory_build_memory_manager_failure_is_degraded(mon
     await factory.build(config, [], "task", parent, current_depth=1)
 
     assert captured_memory_manager[0] is None
-
-
-@pytest.mark.asyncio
-async def test_custom_agent_factory_build_applies_personality_style(monkeypatch) -> None:
-    from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
-
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
-
-    profile = SimpleNamespace(
-        display_name="Friendly",
-        skills=[],
-        enabled_builtin_tools=(),
-        max_iterations=8,
-        memory_policy=None,
-        metadata={"personality_style": "friendly"},
-    )
-    factory = CustomAgentFactory(agent_id="custom-friendly", agent_profile=profile)
-    factory._initialized = True
-
-    captured_spec: list[object] = []
-
-    async def fake_create_skill_agent(**kwargs: object) -> SimpleNamespace:
-        spec = kwargs.get("spec")
-        if spec is not None:
-            captured_spec.append(spec)
-        return SimpleNamespace()
-
-    import myrm_agent_harness.api as api_module
-
-    monkeypatch.setattr(api_module, "create_skill_agent", fake_create_skill_agent)
-    monkeypatch.setattr(
-        "app.platform_utils.get_storage_provider",
-        lambda: SimpleNamespace(),
-    )
-
-    parent = SimpleNamespace(
-        llm=SimpleNamespace(),
-        executor=None,
-        enable_conversation_search=False,
-        incognito_mode=False,
-        enable_wiki=False,
-        _last_context={"chat_id": "chat-friendly"},
-    )
-    config = SubagentConfig(
-        display_name="Friendly",
-        system_prompt="Base prompt.",
-        memory_isolation=MemoryIsolationPolicy.EPHEMERAL_SESSION,
-    )
-
-    await factory.build(config, [], "task", parent, current_depth=1)
-
-    assert captured_spec
-    system_prompt = captured_spec[0].system_prompt
-    assert isinstance(system_prompt, str)
-    assert "Communication Style" in system_prompt
-
-
-@pytest.mark.asyncio
-async def test_custom_agent_factory_build_personality_template_failure_is_non_fatal(monkeypatch) -> None:
-    from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
-
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
-
-    profile = SimpleNamespace(
-        display_name="Personality Fail",
-        skills=[],
-        enabled_builtin_tools=(),
-        max_iterations=8,
-        memory_policy=None,
-        metadata={"personality_style": "friendly"},
-    )
-    factory = CustomAgentFactory(agent_id="custom-personality-fail", agent_profile=profile)
-    factory._initialized = True
-
-    captured_spec: list[object] = []
-
-    def fake_render_personality_block(_style: object) -> SimpleNamespace:
-        raise RuntimeError("template load failed")
-
-    async def fake_create_skill_agent(**kwargs: object) -> SimpleNamespace:
-        spec = kwargs.get("spec")
-        if spec is not None:
-            captured_spec.append(spec)
-        return SimpleNamespace()
-
-    import myrm_agent_harness.api as api_module
-
-    monkeypatch.setattr(
-        "app.ai_agents.personality_templates.render_personality_block",
-        fake_render_personality_block,
-    )
-    monkeypatch.setattr(api_module, "create_skill_agent", fake_create_skill_agent)
-    monkeypatch.setattr(
-        "app.platform_utils.get_storage_provider",
-        lambda: SimpleNamespace(),
-    )
-
-    parent = SimpleNamespace(
-        llm=SimpleNamespace(),
-        executor=None,
-        enable_conversation_search=False,
-        incognito_mode=False,
-        enable_wiki=False,
-        _last_context={"chat_id": "chat-personality-fail"},
-    )
-    config = SubagentConfig(
-        display_name="Personality Fail",
-        system_prompt="Base prompt.",
-        memory_isolation=MemoryIsolationPolicy.EPHEMERAL_SESSION,
-    )
-
-    await factory.build(config, [], "task", parent, current_depth=1)
-
-    assert captured_spec
-    assert captured_spec[0].system_prompt == "Base prompt."
 
 
 @pytest.mark.asyncio

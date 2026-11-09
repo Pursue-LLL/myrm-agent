@@ -18,7 +18,7 @@ this factory to construct a fully-featured SkillAgent instead of a bare
 BaseAgent.
 
 This enables custom subagents to retain their full capabilities: skills,
-memory, MCP integrations, and personality style.
+memory, and MCP integrations.
 
 Resources (skill_backend, MCP configs) are initialized
 once on first build() and cached for reuse within the same session.
@@ -376,19 +376,7 @@ class CustomAgentFactory:
         # --- 3. Max iterations ---
         max_iterations = getattr(profile, "max_iterations", None) or 100
 
-        # --- 4. Personality style suffix ---
-        from app.ai_agents.personality_templates import render_personality_block
-
-        raw_style = (getattr(profile, "metadata", None) or {}).get("personality_style")
-        try:
-            style_block = render_personality_block(raw_style if isinstance(raw_style, str) else None)
-        except Exception as exc:  # 防御：风格渲染异常绝不能阻断子 Agent 创建
-            style_block = None
-            logger.warning("Failed to render personality style '%s': %s", raw_style, exc)
-        if style_block:
-            system_prompt += f"\n\n{style_block}"
-
-        # --- 5. Build AgentRuntimeSpec & create SkillAgent ---
+        # --- 4. Build AgentRuntimeSpec & create SkillAgent ---
         from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
 
         skill_ids = await resolve_runtime_skill_ids(getattr(profile, "skills", None) or [])
@@ -406,19 +394,11 @@ class CustomAgentFactory:
 
         mcp_surface_mode, engine_params = normalize_mcp_surface_engine_params(engine_params)
 
-        from app.services.agent.params.profile_output_suffixes import (
-            apply_profile_output_suffixes,
+        from app.services.agent.params.response_locale_suffix import (
+            apply_response_locale_suffix,
         )
 
-        system_prompt = (
-            apply_profile_output_suffixes(
-                system_prompt,
-                personality_style=None,
-                engine_params=engine_params,
-                agent_id=self._agent_id,
-            )
-            or system_prompt
-        )
+        system_prompt = apply_response_locale_suffix(system_prompt, engine_params=engine_params) or system_prompt
 
         mcp_servers = list(self._cached_mcp_configs)
         if mcp_servers:

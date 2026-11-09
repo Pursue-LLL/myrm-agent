@@ -2,10 +2,11 @@
 
 [INPUT]
 app.channels.types::InboundMessage, ResolvedAgentProfile (POS: 渠道入站与 Agent 配置)
+app.ai_agents.personality_templates::render_personality_block (POS: 会话级沟通风格块渲染)
 
 [OUTPUT]
 enrich_channel_user_instructions(): 合并团队协议、渠道能力约束、IM 行为策略 Persona、
-profile_output_suffixes（人格 + response_locale_policy）后的 instructions。
+会话级沟通风格（`/personality`）与 response_locale_policy 后缀后的 instructions。
 
 [POS]
 preamble 子模块：将渠道/Agent 输出约束注入 user_instructions 尾部。
@@ -66,22 +67,17 @@ async def enrich_channel_user_instructions(
             )
             instructions = f"{instructions}\n\n{im_persona}" if instructions else im_persona
 
-    from app.ai_agents.personality_templates import DEFAULT_PERSONALITY_STYLE
-    from app.services.agent.params.profile_output_suffixes import (
-        apply_profile_output_suffixes,
-    )
+    from app.ai_agents.personality_templates import render_personality_block
+    from app.services.agent.params.response_locale_suffix import apply_response_locale_suffix
 
-    raw_ps = (
-        msg.metadata.get("personality_style")
-        or (resolved_profile.personality_style if resolved_profile else None)
-        or DEFAULT_PERSONALITY_STYLE
-    )
-    personality_style_key = str(raw_ps)
-    instructions = apply_profile_output_suffixes(
+    session_style = msg.metadata.get("personality_style")
+    style_block = render_personality_block(session_style if isinstance(session_style, str) else None)
+    if style_block:
+        instructions = f"{instructions}\n\n{style_block}" if instructions else style_block
+
+    instructions = apply_response_locale_suffix(
         instructions,
-        personality_style=(personality_style_key if personality_style_key != DEFAULT_PERSONALITY_STYLE else None),
         engine_params=resolved_profile.engine_params if resolved_profile else None,
-        agent_id=resolved_agent_id,
     )
 
     return instructions or ""

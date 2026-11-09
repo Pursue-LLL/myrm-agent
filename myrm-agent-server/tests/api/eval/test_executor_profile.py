@@ -33,7 +33,6 @@ class MockResolvedProfile:
         self.memory_extraction_preset = None
         self.mcp_ids: list[str] | None = None
         self.mcp_tool_selections: dict[str, list[str]] | None = None
-        self.personality_style = None
 
 
 @pytest.mark.asyncio

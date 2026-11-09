@@ -24,7 +24,6 @@ system_prompt: |
   4. Provide before/after demonstration transforms to validate style fidelity.
 agent_type: individual
 prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

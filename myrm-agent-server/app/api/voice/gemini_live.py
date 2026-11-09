@@ -93,15 +93,13 @@ async def create_gemini_live_token(req: GeminiLiveTokenRequest) -> GeminiLiveTok
     if profile:
         if profile.system_prompt:
             instructions = profile.system_prompt
-        from app.services.agent.params.profile_output_suffixes import (
-            apply_profile_output_suffixes,
+        from app.services.agent.params.response_locale_suffix import (
+            apply_response_locale_suffix,
         )
 
-        instructions = apply_profile_output_suffixes(
+        instructions = apply_response_locale_suffix(
             instructions,
-            personality_style=profile.personality_style,
             engine_params=profile.engine_params,
-            agent_id=agent_id,
         )
 
     memory_context = voice_memory_context_from(

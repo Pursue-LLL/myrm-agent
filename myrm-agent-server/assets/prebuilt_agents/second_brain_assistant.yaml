@@ -18,7 +18,6 @@ system_prompt: |
   Keep replies practical. Ask one clarifying question when the vault scope is ambiguous.
 agent_type: individual
 prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

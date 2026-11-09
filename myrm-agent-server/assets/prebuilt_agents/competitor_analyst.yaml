@@ -21,7 +21,6 @@ system_prompt: |
   4. 你的语言要专业、客观，数据要准确。
 agent_type: individual
 prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

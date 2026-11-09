@@ -31,7 +31,6 @@ system_prompt: |
   - If pg_stat_statements is not enabled, flag it and recommend enabling it
 agent_type: individual
 prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

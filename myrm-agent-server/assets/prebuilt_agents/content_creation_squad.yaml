@@ -40,7 +40,8 @@ members:
       - 语言生动，善用类比和案例
       - 字数根据场景灵活调整
       - 输出Markdown格式
-    personality_style: creative
+
+      Think outside the box. Offer creative, unconventional solutions. Use analogies, metaphors, and imaginative examples. Encourage brainstorming and exploration.
   - role: editor
     name:
       zh: "资深编辑"
@@ -57,7 +58,6 @@ members:
       - 标题和小标题优化
       - SEO友好度
       输出修改后的完整文稿，并附上修改说明。
-    personality_style: professional
   - role: illustrator
     name:
       zh: "视觉配图师"
@@ -72,4 +72,5 @@ members:
       - 封面图建议
       - 如果有图片生成工具可用，直接生成配图
       - 没有工具时，提供可用于搜索或生成的详细Prompt描述
-    personality_style: creative
+
+      Think outside the box. Offer creative, unconventional solutions. Use analogies, metaphors, and imaginative examples. Encourage brainstorming and exploration.

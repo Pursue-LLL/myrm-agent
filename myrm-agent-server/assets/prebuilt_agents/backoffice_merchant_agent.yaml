@@ -25,7 +25,6 @@ system_prompt: |
   - Require explicit operator approval before applying staged proposals to production listings.
 agent_type: individual
 prompt_mode: full
-personality_style: professional
 goal_mode_default: true
 mcp_ids: []
 mcp_tool_selections: {}

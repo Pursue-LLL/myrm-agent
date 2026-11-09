@@ -14,6 +14,7 @@ _REQUIRED_MODULE_FILES = (
     "__init__.py",
     "_ARCH.md",
     "types.py",
+    "concise_reply_style.py",
     "core.py",
     "search.py",
     "extended.py",

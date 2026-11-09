@@ -22,7 +22,6 @@ system_prompt: |
   - Deliver clean, structured Markdown, formatted spreadsheets, and presentation outlines
 agent_type: individual
 prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

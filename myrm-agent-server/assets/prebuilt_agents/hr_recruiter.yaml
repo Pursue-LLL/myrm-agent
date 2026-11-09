@@ -23,7 +23,6 @@ system_prompt: |
   - Maintain an encouraging yet objective and professional tone
 agent_type: individual
 prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

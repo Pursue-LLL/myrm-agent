@@ -29,7 +29,6 @@ moa_overlay:
       model: qwen/qwen-2.5-coder-32b-instruct
       reasoning_effort: low
 prompt_mode: full
-personality_style: professional
 enabled_builtin_tools:
   - code_execute
   - file_ops

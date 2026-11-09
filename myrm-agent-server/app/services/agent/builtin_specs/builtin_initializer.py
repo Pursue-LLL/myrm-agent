@@ -61,7 +61,7 @@ async def initialize_builtin_agents() -> None:
     """Create or update built-in agents at startup.
 
     Idempotent: creates missing agents and updates spec-controlled fields
-    (name, description, avatar, personality, system_prompt, enabled_builtin_tools,
+    (name, description, avatar, system_prompt, enabled_builtin_tools,
     memory_extraction_preset, suggestion_prompts)
     for existing ones to keep them in sync with code definitions.
     User-customizable fields (skill_ids, mcp_servers, etc.) are never overwritten.
@@ -91,7 +91,6 @@ async def initialize_builtin_agents() -> None:
                     "avatar": expected_avatar,
                     "is_built_in": True,
                     "is_public": True,
-                    "personality_style": spec.personality_style,
                     "system_prompt": resolved_prompt,
                     "skill_ids": default_skills,
                     "skill_configs": default_skill_configs or None,
@@ -155,9 +154,6 @@ def _sync_existing_agent(
         changed = True
     if agent.avatar != expected_avatar:
         agent.avatar = expected_avatar
-        changed = True
-    if agent.personality_style != spec.personality_style:
-        agent.personality_style = spec.personality_style
         changed = True
     if agent.system_prompt != resolved_prompt:
         agent.system_prompt = resolved_prompt

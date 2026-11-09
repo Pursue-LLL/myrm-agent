@@ -107,15 +107,13 @@ class ParamsMixin:
                 user_instructions = (
                     f"{user_instructions}\n\n{profile.system_prompt}" if user_instructions else profile.system_prompt
                 )
-            from app.services.agent.params.profile_output_suffixes import (
-                apply_profile_output_suffixes,
+            from app.services.agent.params.response_locale_suffix import (
+                apply_response_locale_suffix,
             )
 
-            user_instructions = apply_profile_output_suffixes(
+            user_instructions = apply_response_locale_suffix(
                 user_instructions,
-                personality_style=profile.personality_style,
                 engine_params=profile.engine_params,
-                agent_id=agent_id,
             )
 
         voice_instructions = (user_instructions or "") + _VOICE_SYSTEM_SUFFIX

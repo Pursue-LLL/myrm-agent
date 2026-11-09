@@ -60,5 +60,5 @@ def test_economy_has_cowork_tools() -> None:
     assert "external_cli" not in (economy.enabled_builtin_tools or ())
     assert economy.memory_extraction_preset == "work_assistant"
     assert economy.name == "Knowledge Work"
-    assert economy.system_prompt is KNOWLEDGE_WORK_SYSTEM_PROMPT
+    assert economy.system_prompt.startswith(KNOWLEDGE_WORK_SYSTEM_PROMPT)
     assert "<deliverable_discipline>" in economy.system_prompt

@@ -44,7 +44,6 @@ class _BuiltInAgentSpec:
     name: str
     description: str
     icon_id: str
-    personality_style: str
     system_prompt: str
     default_skill_ids: tuple[str, ...] = ()
     enabled_builtin_tools: tuple[str, ...] | None = None
