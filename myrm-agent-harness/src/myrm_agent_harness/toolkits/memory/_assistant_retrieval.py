@@ -1,4 +1,4 @@
-"""Two-Pass Assistant Retrieval for assistant-reference queries (MemPalace enhancement).
+"""Two-Pass Assistant Retrieval for assistant-reference queries.
 
 Handles queries like "What did you recommend?" or "You told me X, remind me?".
 
@@ -34,7 +34,7 @@ queries. Zero re-indexing cost due to MyrmAgent's dual-embedding design.
 - search_conversation_two_pass: Two-Pass search for assistant-reference queries.
 
 [POS]
-Two-Pass Assistant Retrieval for assistant-reference queries (MemPalace enhancement).
+Two-Pass Assistant Retrieval for assistant-reference queries.
 """
 
 from __future__ import annotations

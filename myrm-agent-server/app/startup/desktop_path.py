@@ -64,7 +64,7 @@ def _parse_probe_output(raw: bytes) -> list[str]:
 def _probe_login_shell_path() -> list[str]:
     """Ask the user's interactive login shell for PATH.
 
-    Interactive + login mirrors what VS Code and Cursor do, because many users export PATH from ~/.zshrc rather
+    Interactive + login is required because many users export PATH from ~/.zshrc rather
     than ~/.zprofile. The shell gets no stdin, its own session (so it cannot grab a terminal) and a hard deadline;
     on timeout the whole process group is killed, but any PATH already printed is still used. Output goes to an
     anonymous file instead of a pipe: a daemon started by an rc file would inherit a pipe and keep it open, making

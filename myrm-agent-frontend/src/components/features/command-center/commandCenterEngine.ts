@@ -143,7 +143,7 @@ export function getDefaultSessions(): SessionSummaryItem[] {
     },
     {
       id: 'sess-002',
-      title: 'OpenClaw Gateway 延迟压测与 N+1 请求清零',
+      title: 'Gateway 延迟压测与 N+1 请求清零',
       agentName: 'Diagnostics-Reaper',
       updatedAt: '2026-09-08 16:40',
       messageCount: 24,

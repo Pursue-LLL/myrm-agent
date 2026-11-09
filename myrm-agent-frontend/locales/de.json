@@ -21014,6 +21014,7 @@
       "creating": "Erstellen...",
       "createSuccess": "Backup erfolgreich erstellt",
       "createError": "Backup konnte nicht erstellt werden",
+      "createErrorPreviousModel": "Teile Ihres Gedächtnisses wurden noch nicht auf das neue Embedding-Modell migriert, daher wurde kein Backup erstellt. Schließen Sie zuerst die Migration ab und sichern Sie dann erneut.",
       "backupListTitle": "Sicherungsverlauf",
       "backupListDescription": "{count} Backup(s) gefunden",
       "loading": "Laden...",

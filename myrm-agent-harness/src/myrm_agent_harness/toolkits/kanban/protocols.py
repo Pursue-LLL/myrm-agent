@@ -313,7 +313,7 @@ class CompletionVerifier(Protocol):
 class SpecifyOutcome:
     """Result of a single Specifier pass.
 
-    Mirrors the no-exception contract from hermes ``kanban_specify.SpecifyOutcome``:
+    No-exception contract:
     failures (LLM unavailable, malformed reply, parse error, race lost) surface
     via ``ok=False`` so batch sweeps and dry-runs can continue past individual
     failures and still display a useful preview.
@@ -349,8 +349,7 @@ class TaskSpecifier(Protocol):
 
     The framework defines the contract; the application layer injects a
     concrete implementation that owns the LLM credentials / prompt template
-    / cost accounting. Mirrors hermes ``kanban_specify.specify_task`` but
-    is exposed as a Protocol so non-hermes backends (mock, deterministic,
+    / cost accounting. It is a Protocol so any backend (mock, deterministic,
     local-model) can swap in.
 
     A specifier MUST be idempotent in spirit: calling it twice on the same

@@ -37,8 +37,7 @@ import time
 from collections import deque
 from collections.abc import Callable
 
-# Safety defaults mirroring the reference implementation (Hermes bot_loop_guard):
-# 20 bot-triggered turns within 5 minutes trip a 10-minute cooldown.
+# Safety defaults: 20 bot-triggered turns within 5 minutes trip a 10-minute cooldown.
 DEFAULT_MAX_EVENTS = 20
 DEFAULT_WINDOW_SECONDS = 300.0
 DEFAULT_COOLDOWN_SECONDS = 600.0

@@ -8,8 +8,8 @@
  * ResourcePressureBanner: worst-first resource pressure banner.
  *
  * [POS]
- * EmptyChat banner shown on resource trouble. Trigger priority mirrors the
- * Hermes design: disk-critical (silent data loss) outranks everything, then
+ * EmptyChat banner shown on resource trouble. Trigger priority: disk-critical
+ * (silent data loss) outranks everything, then
  * memory-critical, then elevated warnings. Dismissals are session-scoped and
  * any escalation re-opens immediately; recovery clears them.
  */

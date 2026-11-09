@@ -53,6 +53,7 @@ class TaskAttachment:
             "content_ref": self.content_ref,
         }
 
+
 @dataclass(frozen=True, slots=True)
 class BoardSettings:
     """Tunable knobs for a KanbanBoard.
@@ -62,7 +63,7 @@ class BoardSettings:
     Specifier knobs:
         specify_max_tokens: hard ceiling on completion tokens for the
             triage→spec LLM call (prevents runaway spend on a single task).
-            Mirrors hermes ``HERMES_KANBAN_SPECIFY_MAX_TOKENS`` (default 6000).
+            Default 6000.
         auto_specify_on_create: when True, tasks created with
             ``initial_status=TRIAGE`` are scheduled for an immediate Specifier
             pass without explicit user action. Off by default to keep token
@@ -78,6 +79,7 @@ class BoardSettings:
     auto_specify_on_create: bool = False
     default_workdir: str | None = None
     block_recurrence_limit: int = 2
+
 
 @dataclass
 class KanbanBoard:
@@ -109,6 +111,7 @@ class KanbanBoard:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
 
 @dataclass
 class KanbanTask:
@@ -222,6 +225,7 @@ class KanbanTask:
             data["progress_note"] = self.progress_note
         return data
 
+
 @dataclass(frozen=True, slots=True)
 class TaskEdge:
     """Directed dependency edge: child depends on parent.
@@ -238,6 +242,7 @@ class TaskEdge:
             "child_task_id": self.child_task_id,
         }
 
+
 @dataclass(frozen=True, slots=True)
 class TaskClaim:
     """Worker ownership record for an in-progress task."""
@@ -245,6 +250,7 @@ class TaskClaim:
     task_id: str
     worker_id: str
     claimed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
 
 @dataclass
 class TaskRun:
@@ -293,6 +299,7 @@ class TaskRun:
             "cost_usd": self.cost_usd,
         }
 
+
 @dataclass(frozen=True)
 class TaskEvent:
     """Persistent lifecycle event for audit and catch-up."""
@@ -314,6 +321,7 @@ class TaskEvent:
             "created_at": self.created_at.isoformat(),
         }
 
+
 @dataclass
 class VerificationResult:
     """The outcome of evaluating a single task-completion criterion."""
@@ -322,6 +330,7 @@ class VerificationResult:
     reason: str | None = None
     error_logs: str | None = None
     comments: list[dict[str, object]] = field(default_factory=list)
+
 
 @dataclass(frozen=True, slots=True)
 class TaskExecutionResult:
@@ -380,6 +389,7 @@ class TaskExecutionResult:
             message=error,
             metadata_patch=metadata_patch or {},
         )
+
 
 class TaskTimeoutError(Exception):
     """Raised when a task exceeds its max_runtime_seconds.

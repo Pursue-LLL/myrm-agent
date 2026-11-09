@@ -26,7 +26,7 @@ from .parked_file_view import is_parked_path, wrap_long_lines, wrapped_rows_noti
 # 类型别名
 type DirectoryEntry = tuple[str, bool, int]  # (name, is_dir, size)
 
-# 截断标记，用于标记被 clamp 的超长行（对齐 hermes-agent）
+# 截断标记，用于标记被 clamp 的超长行
 _TRUNCATED_MARKER = "... [truncated]"
 
 

@@ -352,7 +352,7 @@ depth:
    request.
 
 Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
-`tests/channels/test_routing_policy_resolver.py::TestBotSenderGate`,
+`tests/channels/test_routing_policy_group_gates.py::TestBotSenderGate`,
 `tests/channels/providers/telegram/test_telegram_inbound_mention.py::TestReplyToBotImplicitMention`,
 `tests/channels/providers/slack/test_slack_thread_auto_reply.py::TestBotSenderThreadGate`,
 `tests/channels/test_channel_data_plane.py::TestObservedContextHygiene`, and

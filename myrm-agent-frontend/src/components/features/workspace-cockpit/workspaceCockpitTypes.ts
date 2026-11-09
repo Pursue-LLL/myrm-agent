@@ -6,7 +6,7 @@
  * SwimlaneType, WorkspaceTaskItem, OfflineDigestSummary, WorkspaceManagerCockpitProps
  *
  * [POS]
- * Type contract layer for Personal Workspace Cockpit and Manager Deck. Aligns with LoopX dashboard and Hermes v0.21.5.
+ * Type contract layer for Personal Workspace Cockpit and Manager Deck.
  */
 
 export type SwimlaneType = 'needs-you' | 'in-progress' | 'observing' | 'scheduled';

@@ -21014,6 +21014,7 @@
       "creating": "만드는 중...",
       "createSuccess": "백업이 성공적으로 생성되었습니다",
       "createError": "백업 생성 실패",
+      "createErrorPreviousModel": "일부 메모리가 새 임베딩 모델로 아직 마이그레이션되지 않아 백업을 만들지 않았습니다. 먼저 마이그레이션을 마친 뒤 다시 백업하세요.",
       "backupListTitle": "백업 기록",
       "backupListDescription": "{count}개 백업 발견",
       "loading": "로딩 중...",

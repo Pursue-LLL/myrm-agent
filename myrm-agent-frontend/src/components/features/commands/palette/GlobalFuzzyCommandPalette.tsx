@@ -3,7 +3,7 @@
 /**
  * GlobalFuzzyCommandPalette Component.
  * Unified search & command hub (Cmd+K / Ctrl+K) merging Actions & Thread History.
- * Implements Hermes Agent v0.21.0 & OpenHuman search hub parity with zero emojis.
+ * Renders without emojis.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -337,7 +337,7 @@ export const GlobalFuzzyCommandPalette: React.FC<GlobalFuzzyCommandPaletteProps>
             <span>↵ Select</span>
             <span>Esc Close</span>
           </div>
-          <div>Hermes Cmd+K Palette</div>
+          <div>Cmd+K Palette</div>
         </footer>
       </div>
     </dialog>

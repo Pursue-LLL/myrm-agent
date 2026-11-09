@@ -21014,6 +21014,7 @@
       "creating": "建立中...",
       "createSuccess": "備份建立成功",
       "createError": "備份建立失敗",
+      "createErrorPreviousModel": "部分記憶尚未遷移到新的嵌入模型，因此沒有建立備份。請先完成遷移，再重新備份。",
       "backupListTitle": "備份歷史",
       "backupListDescription": "找到 {count} 個備份",
       "loading": "載入中...",

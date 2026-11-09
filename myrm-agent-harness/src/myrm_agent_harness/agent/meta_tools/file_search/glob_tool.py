@@ -1,4 +1,4 @@
-"""文件搜索工具（Claude Code 兼容）
+"""文件搜索工具
 
 [INPUT]
 - langchain.tools::tool (POS: LangChain 工具装饰器)
@@ -11,7 +11,7 @@
 - rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档遵循同一套选文件策略)
 - glob_match::compile_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
-- grep_tool::_has_ripgrep (POS: Content search tool, Claude Code compatible)
+- grep_tool::_has_ripgrep (POS: Content search tool)
 - path_hint::mcp_namespace_error (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
 - search_target::require_examinable_target (POS: Preflight that names a missing or unreadable search path instead of searching it)
 - skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: ACL filter preventing file tools from reading disabled skill directories)
@@ -21,7 +21,7 @@
 - create_glob_tool: 创建 Glob 工具的工厂函数
 
 [POS]
-File search tool (Claude Code compatible). Searches for files using glob patterns (* and **) with recursive search, exclusion patterns, resource limits, and audit logging.
+File search tool. Searches for files using glob patterns (* and **) with recursive search, exclusion patterns, resource limits, and audit logging.
 The ripgrep tier only enumerates files (ignore rules applied by ripgrep); matching uses the same glob semantics as the Python tier.
 A ripgrep run that gives no answer (``RgRunResult.answered``) falls back to the Python tier.
 

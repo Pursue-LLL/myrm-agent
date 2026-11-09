@@ -2,7 +2,7 @@
 
 ## Design Goal
 
-Publish `myrm-agent-harness` to PyPI as a **dual-wheel package** that third-party frameworks can import and extend: a release wheel (public API readable, manifest-declared modules stripped) plus per-platform core wheels carrying the Nuitka-compiled modules — mirroring Claude Code's npm shell + native binary pattern. The complete source is MIT-licensed and published in the GitHub repository.
+Publish `myrm-agent-harness` to PyPI as a **dual-wheel package** that third-party frameworks can import and extend: a release wheel (public API readable, manifest-declared modules stripped) plus per-platform core wheels carrying the Nuitka-compiled modules. The complete source is MIT-licensed and published in the GitHub repository.
 
 ## Architecture
 

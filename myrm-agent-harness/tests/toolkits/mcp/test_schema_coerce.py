@@ -98,8 +98,7 @@ def test_coerce_number_decimal_and_exponent_still_float():
 def test_coerce_integer_float_form_literal_to_int():
     """integer schema with a float-form literal denoting a whole number → int.
 
-    Mirrors openclaw's Number.isInteger behavior: "25.0" → 25. int() alone
-    would raise ValueError and leave the raw string.
+    "25.0" → 25: int() alone would raise ValueError and leave the raw string.
     """
     schema = {"properties": {"count": {"type": "integer"}}}
     coerced = coerce_arguments_by_schema(schema, {"count": "25.0"})
@@ -128,10 +127,7 @@ def test_coerce_number_float_form_big_integer_preserves_precision():
 
 
 def test_coerce_integer_fractional_literal_keeps_string():
-    """integer schema with a genuinely fractional literal keeps the string.
-
-    Mirrors openclaw's Number.isInteger rejection for non-integers.
-    """
+    """integer schema with a genuinely fractional literal keeps the string."""
     schema = {"properties": {"count": {"type": "integer"}}}
     coerced = coerce_arguments_by_schema(schema, {"count": "25.5"})
     assert coerced["count"] == "25.5"
@@ -148,8 +144,8 @@ def test_coerce_integer_invalid_numeric_literal_keeps_string():
 def test_coerce_number_non_finite_keeps_string():
     """inf / nan are not valid JSON numbers — keep the string.
 
-    Mirrors openclaw's Number.isFinite guard: Number("1e100000") → Infinity
-    fails the finite check and the raw string is preserved.
+    "1e100000" overflows to infinity, fails the finite check and the raw string
+    is preserved.
     """
     schema = {"properties": {"v": {"type": "number"}}}
     for raw in ("inf", "-inf", "nan", "Infinity", "1e100000"):
@@ -312,7 +308,7 @@ def test_coerce_arguments_array_from_ast_literal_single_quotes():
 def test_coerce_array_bare_string_wrapped_single_element():
     """Bare string for an array schema wraps into a single-element list.
 
-    Mirrors hermes-agent: open-weight models emit ``{"urls": "https://a.com"}``
+    Open-weight models emit ``{"urls": "https://a.com"}``
     when the tool expects ``urls: array<string>``.
     """
     schema = {"properties": {"urls": {"type": "array", "items": {"type": "string"}}}}
@@ -381,26 +377,26 @@ def test_coerce_array_markdown_wrapped_failed_container_string():
 def test_coerce_array_markdown_wrapped_valid_json_parsed():
     """Markdown-wrapped valid JSON arrays still parse to native lists."""
     schema = {"properties": {"items": {"type": "array", "items": {"type": "string"}}}}
-    coerced = coerce_arguments_by_schema(schema, {"items": "```json\n[\"a\", \"b\"]\n```"})
+    coerced = coerce_arguments_by_schema(schema, {"items": '```json\n["a", "b"]\n```'})
     assert coerced["items"] == ["a", "b"]
 
 
 def test_coerce_boolean_from_int_one_zero():
-    """int 1/0 → boolean for boolean schemas (openclaw bidirectional)."""
+    """int 1/0 → boolean for boolean schemas."""
     schema = {"properties": {"enabled": {"type": "boolean"}}}
     assert coerce_arguments_by_schema(schema, {"enabled": 1})["enabled"] is True
     assert coerce_arguments_by_schema(schema, {"enabled": 0})["enabled"] is False
 
 
 def test_coerce_boolean_from_float_one_zero():
-    """Float forms 1.0/0.0 → boolean, matching openclaw's typeof number check."""
+    """Float forms 1.0/0.0 → boolean."""
     schema = {"properties": {"enabled": {"type": "boolean"}}}
     assert coerce_arguments_by_schema(schema, {"enabled": 1.0})["enabled"] is True
     assert coerce_arguments_by_schema(schema, {"enabled": 0.0})["enabled"] is False
 
 
 def test_coerce_int_from_boolean():
-    """boolean → int 1/0 for integer/number schemas (openclaw bidirectional)."""
+    """boolean → int 1/0 for integer/number schemas."""
     schema = {"properties": {"max": {"type": "integer"}, "ratio": {"type": "number"}}}
     assert coerce_arguments_by_schema(schema, {"max": True, "ratio": False}) == {"max": 1, "ratio": 0}
 

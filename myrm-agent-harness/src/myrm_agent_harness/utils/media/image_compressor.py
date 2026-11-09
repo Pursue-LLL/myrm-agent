@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 # ceilings (Claude API 10 MiB, Anthropic on Bedrock/Vertex & OpenAI 5 MiB,
 # Groq 4 MiB): raw bytes inflate ~4/3 when base64-embedded, so a raw-byte
 # comparison under a 4 MiB ceiling would let a 5.3 MiB base64 payload through.
-# Mirrors hermes-agent's base64-space embed cap (_EMBED_TARGET_BYTES = 4 MiB),
-# while keeping 2048px fidelity for vision analysis.
+# The 4 MiB default matches the strictest provider ceiling above, while the
+# 2048px dimension keeps fidelity for vision analysis.
 SEND_COMPRESS_MAX_DIMENSION = 2048
 SEND_COMPRESS_QUALITY = 0.75
 SEND_COMPRESS_TRIGGER_BYTES = 4 * 1024 * 1024
@@ -358,7 +358,7 @@ class ImageCompressor:
         output_path: str | Path | None,
         quality: float,
         max_dimension: int | None,
-    ) -> bytes | None | bool:
+    ) -> bytes | bool | None:
         """Compress PNG using imagequant."""
         try:
             import imagequant  # type: ignore[import-not-found]

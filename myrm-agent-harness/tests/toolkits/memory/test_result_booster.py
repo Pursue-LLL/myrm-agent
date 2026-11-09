@@ -1,4 +1,4 @@
-"""Unit tests for ResultBooster (MemPalace enhancement)."""
+"""Unit tests for ResultBooster."""
 
 from __future__ import annotations
 

@@ -485,7 +485,7 @@ class VideoGenerator:
     ) -> ModeCapabilities | None:
         """Auto-detect generation mode from inputs and return matching capabilities.
 
-        Priority: V2V > I2V > T2V (same as OpenClaw's inputCount-based detection).
+        Priority: V2V > I2V > T2V, decided by which reference inputs are present.
         Returns None if the provider has no mode_capabilities declared.
         """
         mc = caps.mode_capabilities

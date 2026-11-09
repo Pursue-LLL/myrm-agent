@@ -78,7 +78,7 @@ def build_memory_truncated_placeholder(
     tail_chars: int = 400,
     reason: str | None = None,
 ) -> str:
-    """Build a deterministic in-memory truncated placeholder preserving head & tail (DSH style) with semantic findings.
+    """Build a deterministic in-memory truncated placeholder preserving head & tail with semantic findings.
 
     Content that already fits within the ``head_chars + tail_chars`` budget is
     returned verbatim: truncating it would not reduce tokens and would risk
@@ -281,7 +281,7 @@ class ActiveToolResultPruneProcessor(BaseProcessor):
     When the offload callback is unavailable or fails:
     - By default, original content is preserved (fail-safe, no data loss).
     - When ``enable_memory_fallback=True`` or ``force_prune=True`` (e.g. before compaction),
-      it gracefully truncates head & tail in-memory (DSH style) to prevent context blowup.
+      it gracefully truncates head & tail in-memory to prevent context blowup.
     """
 
     def __init__(

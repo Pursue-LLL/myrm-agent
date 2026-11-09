@@ -8,7 +8,7 @@ Mobile remote E2EE 域：Curve25519 NaCl box 原语、daemon 持久密钥、内�
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `crypto.py` | 核心 | Curve25519 NaCl box 加解密（对标 Paseo relay crypto） | ✅ |
+| `crypto.py` | 核心 | Curve25519 NaCl box 加解密（与 Paseo relay 加密格式兼容） | ✅ |
 | `keystore.py` | 核心 | daemon 持久 X25519 密钥对（0600） | ✅ |
 | `session.py` | 核心 | E2EE 会话注册表（TTL 1h、上限 256 LRU 驱逐）+ pair/body 解密常量 | ✅ |
 | `response.py` | 核心 | remote API JSON 响应 E2EE 包装 | ✅ |

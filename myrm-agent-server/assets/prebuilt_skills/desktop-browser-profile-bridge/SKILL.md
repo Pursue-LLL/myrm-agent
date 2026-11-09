@@ -8,7 +8,6 @@ tags:
   - profile-bridge
   - session-reuse
   - desktop-native
-  - hermes-agent
   - cdp
 allowed-tools:
   - bash_code_execute_tool
@@ -25,7 +24,7 @@ When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 character
 
 ## Overview
 
-Based on architecture principles from Hermes Agent v0.21.0 Pantheon ("Pantheon Release: Controlling Desktop Browsers & Reusing Sessions"), this skill equips the Agent with **authenticated browser execution capabilities**.
+This skill equips the Agent with **authenticated browser execution capabilities**.
 Instead of launching a cold, unauthenticated browser that gets blocked by enterprise Single Sign-On (Okta, Feishu, Google Workspace, GitHub 2FA), this protocol creates a **read-only isolated session snapshot** from the user's host desktop browser (Chrome, Edge, Brave) to seamlessly execute automation tasks.
 
 ---

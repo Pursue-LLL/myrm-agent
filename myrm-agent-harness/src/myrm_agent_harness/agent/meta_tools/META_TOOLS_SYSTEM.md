@@ -7,7 +7,7 @@
 ## 设计目标
 
 1. **框架绑定 vs 通用工具分离**：`toolkits/` 可独立 import；`meta_tools/` 必须绑定 Agent 会话/运行时
-2. **Claude Code 兼容**：bash、file_ops、file_search 等工具接口与 Claude Code 对齐，降低迁移成本
+2. **标准化文件与命令工具**：bash、file_ops、file_search 覆盖命令执行、文件读写、精确字符串替换与 glob/grep 搜索
 3. **条件加载**：通过 `tool_management/tool_layers.py` 三层（CORE/HIGH_PRIORITY/EXTENDED）控制 token 开销
 4. **LLM 委派入口**：子 Agent 创建走 `meta_tools/spawn_subagent/`（`delegate_task_tool` 等 7 个 LLM 工具）；Dynamic Workflow 的 PTC `spawn_subagent` 在 `agent/dynamic_workflow/tools/`，不进 `_TOOL_LAYERS`；并行路径复用 `parallel/`
 
@@ -56,7 +56,7 @@
 |--------|------|----------|
 | `bash/` | PTY/bash 执行、输出压缩与 eviction | `bash_code_execute_tool`（聚合根）、`bash_executor`（4 mixin 聚合） |
 | `file_ops/` | 读写编辑、validators、observers；`file_read_tool` 支持 `vault://`；`file_edit_tool` 支持 `edits[]` 批量原子替换 | `file_read_tool`, `file_write_tool`, `file_edit_tool` |
-| `file_search/` | glob/grep（Claude Code 兼容） | `glob_tool`, `grep_tool` |
+| `file_search/` | glob/grep 文件名与内容搜索 | `glob_tool`, `grep_tool` |
 | `spawn_subagent/` | delegate/control/teammate (mode=batch|parallel on delegate) | `delegate_task_tool`, `subagent_control_tool` |
 | `skills/` | select/manage/discovery 技能工具 | `create_skill_*_tool` 系列（见各子目录） |
 | `goals/` | Goal 引擎 LLM 工具面（域逻辑在 `agent/goals/`） | `create_goal_tools` |

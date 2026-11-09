@@ -1,9 +1,9 @@
 """FAQ interceptor assembly: the embedding backend comes from WebUI retrieval settings, never env vars.
 
-The regressions these hold down: the factory used to read ``EMBEDDING_*`` env vars, which production
-never sets, so ``get_faq_interceptor()`` silently returned None and every FAQ corpus was dead; and it
-kept the first interceptor for the life of the process, so an embedding model saved later was ignored
-and FAQ lookups went on embedding with the old one.
+What these hold down: the factory reads the embedding saved in Settings, not ``EMBEDDING_*`` env vars (production
+never sets them, so ``get_faq_interceptor()`` would return None and every FAQ corpus would be dead); and it follows an
+embedding model saved while the process runs, instead of embedding FAQ lookups with the one the first interceptor was
+built for.
 """
 
 from __future__ import annotations

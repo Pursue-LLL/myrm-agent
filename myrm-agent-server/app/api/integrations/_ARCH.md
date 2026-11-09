@@ -17,7 +17,7 @@
 | `models_dev.py` | 模块 | models.dev 模型目录代理（`GET /models-dev`）：出站请求走受企业网络兼容设置管辖的 httpx 客户端；约 6 MB 的目录以字节缓存 5 分钟、不解析直接拼进成功信封，并发请求共享同一次下载（上游不通时也只试一次），上游失败一律 502 且不缓存 | ✅ |
 | `oauth/` | 子包 | OAuth 连接的 HTTP 层：个人凭证存取、MCP 与 Google Workspace 授权码 + PKCE、xAI 设备码登录、模型供应商订阅登录的状态与断开、授权结束后的结果页；详见 [oauth/_ARCH.md](oauth/_ARCH.md) | ✅ |
 | `ollama.py` | 模块 | 本机 Ollama 探测与一键连接端点：`GET /ollama/chat-model` 读取 `/api/tags`，用 `/api/show` 的 capabilities 排除 embedding 模型、无工具调用能力的模型与云端转发模型，为首个能对话且支持工具调用的已装模型给出连接地址；只读用户已安装的模型，不安装、不下载 | ✅ |
-| `retrieval.py` | 模块 | 检索服务配置验证：`POST /embedding` 嵌入一段短文本、`POST /reranker` 对两条短文档重排，都经产品运行时同一套工厂（`get_embedding_service` / `get_reranker_service`）真实调用上游；每次探测的文本都不同，按文本命中的缓存（嵌入服务自带的、网关上的）因此答不了探测；失败仍返回 HTTP 200 + `success=false`，`message` 写明原因（Key 被拒 / 模型或端点未知 / 限流 / 额度耗尽 / 端点不可达 / TLS 证书被拒），`error` 是抹去 Key 的异常文本；设置页的 Next 代理 `app/api/retrieval/validate/*` 指向此处 | ✅ |
+| `retrieval.py` | 模块 | 检索服务配置验证：`POST /embedding` 嵌入一段短文本、`POST /reranker` 对两条短文档重排，都经产品运行时同一套工厂（`get_embedding_service` / `get_reranker_service`）真实调用上游；每次探测的文本都不同，按文本命中的缓存（嵌入服务自带的、网关上的）因此答不了探测；失败仍返回 HTTP 200 + `success=false`，`message` 写明原因（Key 被拒 / 模型或端点未知 / 限流 / 额度耗尽 / 端点不可达 / TLS 证书被拒；没有自有原因的失败按上游自己的话回显，上游没说话则报状态码，非上游失败报失败自身的文字），`message` 与 `error` 里请求的 Key 都被抹掉；设置页的 Next 代理 `app/api/retrieval/validate/*` 指向此处 | ✅ |
 | `router.py` | 路由 | Integrations API router | ✅ |
 | `search.py` | 模块 | Search provider manifest (`GET /providers`) 与 live probe 验证 (`POST /verify`)；manifest 驱动 Settings 下拉 | ✅ |
 | `web_fetch.py` | 模块 | Web fetch escalation verify API；`POST /verify` 校验 Jina/Firecrawl 凭据（含 `inherit_from_search` 继承 / 自托管 `api_base`） | ✅ |

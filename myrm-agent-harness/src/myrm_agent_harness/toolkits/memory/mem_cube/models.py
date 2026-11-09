@@ -14,7 +14,7 @@
 - CubeWriteRequest, CubeWriteResult: Authorized routed mutation contracts.
 
 [POS]
-Domain value objects and contracts for Item 124 (MemOS-aligned Memory Cube).
+Domain value objects and contracts for the Memory Cube.
 """
 
 from __future__ import annotations

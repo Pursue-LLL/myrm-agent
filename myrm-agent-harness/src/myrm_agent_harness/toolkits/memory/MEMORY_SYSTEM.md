@@ -206,11 +206,6 @@ myrm_agent_harness/
 - 代码片段（"使用`async def foo()`" → "使用异步函数"）
 - 精确措辞（"用户明确拒绝X" → "用户不喜欢X"）
 
-**竞品研究：**
-
-- [MemPalace](https://github.com/MemPalace/mempalace)在benchmark中达到96.6% R@5（verbatim baseline），而传统方式仅30-45%
-- 关键insight：**Verbatim + 6 progressive enhancements** 才能达到98-99% R@5
-
 ### 4.2 ConversationMemory 设计
 
 **Dual-field storage（双字段存储）：**
@@ -380,7 +375,7 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 
 以下对比为 **定性**。若需在文档中对「自适应召回、检索成本或延迟」声称具体百分比，须在仓库内附上可重复的基准脚本或原始数据集与版本号——**本节不再预设未核验的百分比**。
 
-| 维度               | MemPalace（参考对标） | MyrmAgent                         | 说明 |
+| 维度               | MemPalace | MyrmAgent                         | 说明 |
 | ------------------ | --------------------- | --------------------------------- | ---- |
 | Verbatim 存储       | ✅                    | ✅（显式开启，默认关闭）            | —    |
 | Adaptive 查询      | ❌（文档视角）          | ✅（三路信号 + 阈值工程）           | Myrm Agent 可调节 |

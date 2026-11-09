@@ -24,7 +24,7 @@ from .outline import extract_truncated_outline
 # e.g. ``     12|def foo()``. Used to derive the next_offset continuation line.
 _GUTTER_LINE_RE = re.compile(r"^\s*(\d+)\|")
 
-# Compact marker appended to the truncated block (openclaw/hermes-style).
+# Compact marker appended to the truncated block.
 _TRUNCATION_MARKER = "\n\n... [truncated]"
 
 

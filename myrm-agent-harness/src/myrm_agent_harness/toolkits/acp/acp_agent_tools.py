@@ -67,7 +67,7 @@ class DelegateMeta(TypedDict):
 
 logger = logging.getLogger(__name__)
 
-MAX_TASK_BYTES = 2 * 1024 * 1024  # 2 MB — aligned with openclaw's MAX_PROMPT_BYTES
+MAX_TASK_BYTES = 2 * 1024 * 1024  # 2 MB
 _MAX_RETRIES = 1
 _DEFAULT_MAX_TURNS = 25
 

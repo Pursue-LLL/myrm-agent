@@ -64,7 +64,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
      - 6b. **Loop Restart**：当 `loop_on_pause=True` 且未超过 `max_loop_restarts` 时，触发 `trigger_goal_stream_with_failure_policy(keep_active)` 以新 context 立即重启，而非等待 Cron 分钟级延迟。
      - 6c. **Standard Suppression**：连续零工具调用 → PAUSED 防空转（原有行为）。
   7. **语义完成判断**（Semantic Judge）：使用廉价 LLM 判断目标是否已语义完成。当判定未完成时，Judge 的 reason 会被传递到下一轮的 continuation prompt 中（"Previous evaluation feedback" 块），使 Agent 知道具体缺口并针对性修复。当 Judge 判定 DONE 且 `acceptance_criteria` 已配置时，触发 `VerificationGatekeeper` 程序化验证（shell 命令执行 + 语义 LLM 评估），全部通过后执行 InvariantSnapshot 篡改检测，全部通过才标记 COMPLETE。验证失败时递增 `verification_retries`，超过阈值（3 次）自动 PAUSE 防止无限循环。
-- **Budget Wrap-up Turn（预算耗尽优雅收尾）**：当预算首次耗尽时，不立即终止 Agent，而是注入 `build_wrapup_prompt`（"停止新工作，总结进度/剩余工作/下步建议"）触发额外一轮无工具的 LLM 调用，让 Agent 生成语义化总结作为 AssistantMessage 出现在聊天流中。通过 `_WRAPUP_SENTINEL` 标记检测防止无限循环，第二次进入 BUDGET_LIMITED 时直接终止。灵感来源：Codex `budget_limit.md` + Hermes `_handle_max_iterations`。
+- **Budget Wrap-up Turn（预算耗尽优雅收尾）**：当预算首次耗尽时，不立即终止 Agent，而是注入 `build_wrapup_prompt`（"停止新工作，总结进度/剩余工作/下步建议"）触发额外一轮无工具的 LLM 调用，让 Agent 生成语义化总结作为 AssistantMessage 出现在聊天流中。通过 `_WRAPUP_SENTINEL` 标记检测防止无限循环，第二次进入 BUDGET_LIMITED 时直接终止。
 - 返回结构化 `ContinuationDecision`（verdict / reason / turns_used / max_turns），verdict 类型包括：continue / done / budget / cancelled / suppressed / steering / no_goal / convergence / loop_restart / **wait**。
 - Semantic Judge 特性：
   - 三段式 prompt：角色定义 + 严格 DONE 条件 + JSON 输出格式要求。

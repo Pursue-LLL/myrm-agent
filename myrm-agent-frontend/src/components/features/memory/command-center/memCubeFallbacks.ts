@@ -106,8 +106,8 @@ export const FALLBACK_SAMPLE_RECORDS: Record<string, CubeRecordDTO[]> = {
     {
       record_id: 'rec-proj-1',
       cube_id: 'cube-proj-open-perplexity',
-      content: 'Item 124 Memory Cube addresses multi-agent cross-talk via MemOS compartments.',
-      metadata: { item_id: 124, status: 'in-progress' },
+      content: 'Memory Cube isolates memories into per-project compartments to prevent multi-agent cross-talk.',
+      metadata: { status: 'in-progress' },
       created_at: 1775601100,
     },
   ],

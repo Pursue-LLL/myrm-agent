@@ -2,7 +2,7 @@
 
 Uses ``/usr/bin/sandbox-exec -p`` with a dynamically generated SBPL profile
 string to restrict file-write and (optionally) network access.  The profile
-is passed inline via ``-p`` (no temporary files), following Codex's approach.
+is passed inline via ``-p`` (no temporary files).
 
 Security note: only ``/usr/bin/sandbox-exec`` is used to prevent PATH
 injection attacks.

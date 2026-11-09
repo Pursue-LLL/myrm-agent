@@ -1,4 +1,4 @@
-"""内容搜索工具（Claude Code 兼容）
+"""内容搜索工具
 
 [INPUT]
 - langchain.tools::tool (POS: LangChain 工具装饰器)
@@ -27,7 +27,7 @@
 - create_grep_tool: 创建 Grep 工具的工厂函数
 
 [POS]
-Content search tool (Claude Code compatible). Searches file contents for matching text patterns
+Content search tool. Searches file contents for matching text patterns
 with regex and literal (--fixed-strings) modes, path-grouped output from 5 matches on and intelligent line truncation.
 Two search tiers follow one file-selection policy (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
 Python tier); ripgrep runs first, and the Python tier takes over when ripgrep is missing or gives no answer

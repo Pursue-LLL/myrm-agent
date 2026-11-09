@@ -10,7 +10,7 @@
   as long-term knowledge or rejecting it as transient garbage.
 
 [POS]
-Intake gatekeeper implementing Hermes memory guidelines, preventing task progress,
+Intake gatekeeper implementing the memory guidelines, preventing task progress,
 ephemeral issue numbers, and transient error traces from polluting vector memory.
 """
 

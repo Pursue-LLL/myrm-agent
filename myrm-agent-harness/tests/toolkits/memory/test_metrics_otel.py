@@ -325,7 +325,7 @@ class TestCrossSessionHits:
 
 
 class TestRecordBoostMethods:
-    """OTEL recording methods for MemPalace boost counters."""
+    """OTEL recording methods for boost counters."""
 
     def test_record_assistant_reference_query_noop_when_none(self) -> None:
         metrics = SearchMetrics()

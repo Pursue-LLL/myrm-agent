@@ -13,6 +13,7 @@ MemoryItem and memory CRUD / pending / backup / status / taste / preference requ
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -270,12 +271,17 @@ class CreateBackupRequest(BaseModel):
 
 
 class CreateBackupResponse(BaseModel):
-    """Response for backup creation"""
+    """Response for backup creation
+
+    ``error_code`` is the stable code of a refusal the settings panel words itself; any other failure leaves it empty
+    and the panel shows its generic message.
+    """
 
     success: bool
     backup_id: str | None = None
     duration_ms: float
     error: str | None = None
+    error_code: Literal["previous_model"] | None = None
     metadata: BackupMetadataResponse | None = None
 
 

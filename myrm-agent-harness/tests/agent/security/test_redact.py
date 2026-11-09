@@ -79,7 +79,7 @@ class TestStructuralPatterns:
     def test_authorization_digest_header(self) -> None:
         text = "Authorization: Digest username=Mufasa, realm=test, nonce=abc123"
         result = redact_sensitive_text(text)
-        # scheme 词保留，credential 段（首个 key=value）被掩码（与 Hermes 行为一致）
+        # scheme 词保留，credential 段（首个 key=value）被掩码
         assert "Authorization: Digest" in result
         assert "Mufasa" not in result
 
@@ -137,7 +137,7 @@ class TestContextualPatterns:
         assert "mysecretpassword1234" not in result
 
     def test_json_raw_secret_fields(self) -> None:
-        """JSON 的 `raw_secret`/`secret_input` 字段（对齐 Hermes）必须脱敏。"""
+        """JSON 的 `raw_secret`/`secret_input` 字段必须脱敏。"""
         for key in ("raw_secret", "secret_input"):
             text = f'{{"{key}": "s3cr3t_value_12345678"}}'
             result = redact_sensitive_text(text)
@@ -536,7 +536,7 @@ class TestRedactEngineHardening:
         assert "--env prod" in result
 
     def test_dotted_key_equals_redacted(self) -> None:
-        """点分配置等号形式（`app.api.key=`）对齐 Hermes _CFG_DOTTED_RE 脱敏。"""
+        """点分配置等号形式（`app.api.key=`）必须脱敏。"""
         result = redact_sensitive_text("app.api.key=mysecretvalue12345678")
         assert "mysecretvalue12345678" not in result
         assert "app.api.key=mysecr...5678" in result
@@ -581,7 +581,7 @@ class TestRedactEngineHardening:
             assert "&limit=10" in result, f"{key} 吞参"
 
     def test_oauth_code_redacted(self) -> None:
-        """OAuth 授权码 `code` 参数（URL callback + token form body，对齐 Hermes）必须脱敏。"""
+        """OAuth 授权码 `code` 参数（URL callback + token form body）必须脱敏。"""
         url = "https://app.example.com/callback?code=abc123def456ghi789&state=x"
         result = redact_sensitive_text(url)
         assert "abc123def456ghi789" not in result
@@ -599,7 +599,7 @@ class TestRedactEngineHardening:
         assert "***" in result or "..." in result
 
     def test_control_char_split_token_redacted(self) -> None:
-        """ESC 控制字符拆分的 token 必须被掩码（对齐 Hermes #77484）。"""
+        """ESC 控制字符拆分的 token 必须被掩码。"""
         token = "sk-abc\x1bdefghijklmnopqrstuvwxyz123"
         result = redact_sensitive_text(f"Token: {token}")
         assert token not in result
@@ -638,7 +638,7 @@ class TestRedactEngineHardening:
         assert "x-api-key:" in result
 
     def test_bare_jwt_redacted(self) -> None:
-        """无 key 上下文的裸 JWT 必须掩码（对齐 Hermes _JWT_RE）。"""
+        """无 key 上下文的裸 JWT 必须掩码。"""
         jwt = (
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
             "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
@@ -654,7 +654,7 @@ class TestRedactEngineHardening:
         assert "os.getenv('OPENAI_API_KEY')" in result
 
     def test_oauth_code_not_redacted(self) -> None:
-        """OAuth 授权码（`?code=`）为敏感参数（对齐 Hermes `_SENSITIVE_QUERY_PARAMS`），
+        """OAuth 授权码（`?code=`）为敏感参数，
         明文即盗用，必须脱敏；`state`/`scope` 非凭据保持原样。"""
         text = "https://login.example.com/callback?code=abc123&state=xyz&scope=read"
         result = redact_sensitive_text(text)
@@ -671,7 +671,7 @@ class TestRedactEngineHardening:
             assert "&x=1" in result, f"{key} 吞参"
 
     def test_extended_prefixes_redacted(self) -> None:
-        """对齐 Hermes 的扩展服务商前缀（GitLab/xAI/Notion/Codex/ElevenLabs 等）脱敏。"""
+        """扩展服务商前缀（GitLab/xAI/Notion/Codex/ElevenLabs 等）必须脱敏。"""
         for token in (
             "xai-abcdefghijklmnopqrstuvwxyz123456",
             "ntn_abcdefghijklmnopqrstuvwxyz123456",
@@ -770,7 +770,7 @@ class TestRedactYamlColon:
         assert redact_sensitive_text(text) == text
 
     def test_yaml_bare_auth_redacted(self) -> None:
-        """裸 `auth:` key（对齐 Hermes _YAML_CFG_NAMES）覆盖凭据值。"""
+        """裸 `auth:` key 覆盖凭据值。"""
         cases = {
             "auth: abc123def456ghi789": "auth: abc123...i789",
             "auth: dXNlcjpwYXNzd29yZA==": "auth: dXNlcj...ZA==",
@@ -933,7 +933,7 @@ class TestRedactProseWordBoundary:
         assert "mysecretvalue12345678" not in result
 
     def test_embedded_all_caps_token_not_redacted(self) -> None:
-        """`MYTOKEN=`（无分隔内嵌）词边界不命中，保持原样（对齐 Hermes）。"""
+        """`MYTOKEN=`（无分隔内嵌）词边界不命中，保持原样。"""
         text = "MYTOKEN=mysecretvalue12345678"
         assert redact_sensitive_text(text) == text
 

@@ -89,7 +89,7 @@ const INITIAL_WORKSTREAMS: PinnedWorkstream[] = [
   },
   {
     id: 'ws-3',
-    title: 'Hermes 协议跨进程 RPC 适配方案',
+    title: '跨进程 RPC 协议适配方案',
     lastActive: '2小时前',
     category: 'artifact',
     isPinned: false,

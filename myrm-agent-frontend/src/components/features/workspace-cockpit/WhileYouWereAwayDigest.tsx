@@ -11,7 +11,7 @@
  * WhileYouWereAwayDigest: Prominent banner summarizing offline achievements, failures, and blocked decisions.
  *
  * [POS]
- * "While You Were Away" offline catch-up digest card for Personal Workspace Cockpit. Aligns with LoopX dashboard.
+ * "While You Were Away" offline catch-up digest card for Personal Workspace Cockpit.
  */
 
 import React from 'react';

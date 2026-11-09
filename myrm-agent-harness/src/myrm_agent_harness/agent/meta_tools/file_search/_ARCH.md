@@ -1,7 +1,7 @@
 # file_search/
 
 ## Overview
-File search tool module (Claude Code compatible). Provides file name search and content search
+File search tool module. Provides file name search and content search
 with path-grouped densified output (auto-deduplicates repeated paths) and intelligent line truncation.
 Both tools run in two tiers that follow one file-selection policy: ripgrep (`rg_traversal.py` decides what it walks,
 `_rg_runner.py` runs it, `rg_matches.py` collects what it finds) and a Python tier (`fallback_discovery.py`,

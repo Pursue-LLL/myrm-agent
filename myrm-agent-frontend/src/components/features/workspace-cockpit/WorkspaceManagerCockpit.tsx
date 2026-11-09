@@ -14,7 +14,7 @@
  * WorkspaceManagerCockpit: Top-level unified manager cockpit surface with offline digest and four swimlanes deck.
  *
  * [POS]
- * Primary surface for Personal Workspace Cockpit. Aligns with LoopX personal agent workspace console.
+ * Primary surface for Personal Workspace Cockpit.
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -79,12 +79,7 @@ export const WorkspaceManagerCockpit: React.FC<WorkspaceManagerCockpitProps> = (
             <LayoutDashboard className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-foreground flex items-center gap-1.5">
-              Personal Workspace Cockpit
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                LoopX Engine
-              </span>
-            </h1>
+            <h1 className="text-base font-bold text-foreground">Personal Workspace Cockpit</h1>
             <p className="text-xs text-muted-foreground">
               Global mission control across autonomous agents, background probes, and scheduled runs.
             </p>

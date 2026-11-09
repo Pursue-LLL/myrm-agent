@@ -1,9 +1,19 @@
 """Memory backup and restore endpoints.
 
-Creates, lists, restores and deletes complete snapshots of the user's memories (profile,
-rules, semantic, episodic) on the sandbox persistent volume. Creating and restoring need a
-manager that stores directly (``get_crud_memory_manager``): restored memories must not
-land in the approval queue. Listing and deleting only touch the volume.
+[INPUT]
+- app.api.memory.utils::get_crud_memory_manager (POS: Memory API utilities that re-export the shared service-layer manager dependencies)
+- app.services.memory.backup.service::MemoryBackupService (POS: 本地备份的创建与恢复流程：把 MemoryManager 与 VolumeBackupStore 串起来)
+- app.services.memory.backup.snapshot::SnapshotError/PreviousModelMemoriesError (POS: 本地卷与远程备份共用的快照格式及其捕获/回放逻辑；旧嵌入模型下仍有记忆时拒绝捕获)
+- app.services.memory.backup.volume_store::VolumeBackupStore/BackupNotFoundError (POS: 把快照存放在沙箱持久卷上)
+- app.schemas.memory.crud::BackupMetadataResponse/CreateBackupRequest/CreateBackupResponse/ListBackupsResponse/RestoreBackupRequest/RestoreBackupResponse (POS: 记忆 CRUD 共享 Schema)
+
+[OUTPUT]
+- router: POST /backup/create, GET /backup/list, POST /backup/restore, DELETE /backup/{backup_id}; a create refused because memories are still under a previous embedding model answers success=false with error_code="previous_model"
+
+[POS]
+Local memory backup API: complete snapshots of the user's memories (profile, rules, semantic, episodic) on the sandbox persistent
+volume. Creating and restoring use a manager that stores directly (``get_crud_memory_manager``), so restored memories never land in
+the approval queue; listing and deleting only touch the volume.
 """
 
 import asyncio
@@ -24,7 +34,7 @@ from app.schemas.memory.crud import (
     RestoreBackupResponse,
 )
 from app.services.memory.backup.service import MemoryBackupService
-from app.services.memory.backup.snapshot import SnapshotError
+from app.services.memory.backup.snapshot import PreviousModelMemoriesError, SnapshotError
 from app.services.memory.backup.volume_store import BackupNotFoundError, VolumeBackupStore
 
 logger = logging.getLogger(__name__)
@@ -59,11 +69,14 @@ async def create_backup(
 ) -> CreateBackupResponse:
     """Snapshot every memory onto the persistent volume.
 
-    Reports ``success=false`` rather than saving a backup that misses memories.
+    Reports ``success=false`` rather than saving a backup that misses memories; ``error_code`` names the refusal that
+    memories left under a previous embedding model cause.
     """
     start = time.perf_counter()
     try:
         metadata = await MemoryBackupService(manager, store).create(request.description)
+    except PreviousModelMemoriesError as exc:
+        return CreateBackupResponse(success=False, duration_ms=_elapsed_ms(start), error=str(exc), error_code="previous_model")
     except SnapshotError as exc:
         return CreateBackupResponse(success=False, duration_ms=_elapsed_ms(start), error=str(exc))
     except Exception as exc:

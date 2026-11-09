@@ -1,10 +1,10 @@
-"""Types for single-use execution tickets and DSH three-token chain.
+"""Types for single-use execution tickets and the three-token chain.
 
 [INPUT]
 - None (standard library)
 
 [OUTPUT]
-- TokenType: DSH Data Agent §9 token categories (CONFIRMATION, QUERY, EXPLORATION).
+- TokenType: Three-token chain categories (CONFIRMATION, QUERY, EXPLORATION).
 - TicketStatus: Single-use ticket lifecycle states (ISSUED, CONSUMED, EXPIRED, REVOKED).
 - SingleUseTicket: Cryptographically bound single-use execution ticket.
 
@@ -21,7 +21,7 @@ from enum import StrEnum
 
 
 class TokenType(StrEnum):
-    """Three-token chain categories (DSH Data Agent §9).
+    """Three-token chain categories.
 
     CONFIRMATION: Bounds semantic approval intents (e.g. destructive actions, writes).
     QUERY: Bounds raw query/script content (e.g. SQL statements, shell commands).

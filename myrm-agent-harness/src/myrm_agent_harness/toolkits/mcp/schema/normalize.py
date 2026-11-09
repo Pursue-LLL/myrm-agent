@@ -36,7 +36,7 @@ def canonicalize_schema_for_cache(value: object) -> object:
     changes → system prompt prefix differs → prefix cache is invalidated →
     higher TTFT and doubled token cost.
 
-    Rules (mirrors deepseek-reasonix ``canonicalizeSchemaForCache``):
+    Rules:
     - Object keys are sorted lexicographically at every nesting level.
     - ``required`` and ``dependentRequired`` arrays (set-like semantics)
       are sorted; other arrays (e.g. ``enum``) preserve insertion order.

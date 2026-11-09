@@ -155,7 +155,7 @@ DEFAULT_CHILD_SAFE_ENV_KEYS: Final[frozenset[str]] = frozenset(
 # High-risk exact keys strictly forbidden in child environments
 FORBIDDEN_EXACT_KEYS: Final[frozenset[str]] = frozenset(
     {
-        # Noise protocol tokens & Codex execution server credentials (openai-codex #38941 & #37607)
+        # Noise protocol tokens & Codex execution server credentials
         "NOISE_AUTH_TOKEN",
         "NOISE_PRIVATE_KEY",
         "NOISE_REMOTE_PUB",
@@ -293,7 +293,7 @@ def is_non_inheritable_env_var(key: str) -> bool:
     """Return True if the environment variable name is forbidden from child process inheritance.
 
     Implements case-insensitive detection for privilege escalation vectors, sensitive
-    sockets (SSH/GPG), tokens, and cloud launch context (Codex PR #38941 & #37607 parity).
+    sockets (SSH/GPG), tokens, and cloud launch context.
     """
     return _is_sensitive_key(key)
 
@@ -367,7 +367,7 @@ def build_isolated_child_env(
 
     1. Starts with sanitized base environment under the specified policy (default CORE).
     2. Overrides with explicitly provided extra_env (after stripping injection vectors).
-    3. Strictly scrubs non-inheritable credentials post-override (Codex #38941 parity).
+    3. Strictly scrubs non-inheritable credentials post-override.
 
     Args:
         base_env: Base environment (defaults to os.environ if None).
@@ -391,7 +391,7 @@ def build_isolated_child_env(
             if upper in ("NODE_OPTIONS", "PYTHONSTARTUP"):
                 logger.warning("Blocked interpreter startup injection override in child env: %s", k)
                 continue
-            # Codex PR #38941 & #37607 parity: auth tokens and launch context cannot be restored via overrides
+            # Auth tokens and launch context cannot be restored via overrides
             if _is_sensitive_key(k):
                 logger.warning("Blocked non-inheritable override in child env: %s", k)
                 continue

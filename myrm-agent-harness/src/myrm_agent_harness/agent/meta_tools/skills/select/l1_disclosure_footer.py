@@ -63,7 +63,7 @@ def format_linked_files_section(
     max_per_group: int = _MAX_PATHS_PER_GROUP,
     max_total: int = _MAX_LINKED_PATHS_TOTAL,
 ) -> str:
-    """Render Hermes-style linked_files index with caps."""
+    """Render the linked_files index with caps."""
     if not grouped:
         return ""
 

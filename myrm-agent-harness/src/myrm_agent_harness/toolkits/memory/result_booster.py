@@ -1,4 +1,4 @@
-"""Result boosting for memory retrieval (MemPalace enhancement).
+"""Result boosting for memory retrieval.
 
 Applies multiple boosting strategies to search results based on query patterns:
 - Keyword overlap: Boost results containing quoted phrases or important keywords
@@ -26,7 +26,7 @@ Each boost type can be independently configured.
 - boost_results: Apply multiple boosting strategies to search results.
 
 [POS]
-Result boosting for memory retrieval (MemPalace enhancement).
+Result boosting for memory retrieval.
 """
 
 from __future__ import annotations
@@ -119,8 +119,7 @@ def _apply_keyword_boost(score: float, content: str, query_context: QueryContext
 
     Boost results that contain quoted phrases or important keywords from query.
 
-    MemPalace formula: fused_dist = dist * (1.0 - 0.30 * overlap)
-    We use multiplicative boost: score * (1.0 + weight * overlap)
+    Multiplicative boost: score * (1.0 + weight * overlap)
     """
     if not query_context.quoted_phrases:
         return score
@@ -142,8 +141,8 @@ def _apply_temporal_boost(
 
     Boost recent memories for time-related queries.
 
-    MemPalace: up to 40% distance reduction for temporal matches.
-    We use multiplicative boost based on time difference.
+    The multiplicative boost decays with the time difference:
+    full weight within 1 day, half within 7 days, a fifth within 30 days.
     """
     if not query_context.reference_time or not result.memory.created_at:
         return score

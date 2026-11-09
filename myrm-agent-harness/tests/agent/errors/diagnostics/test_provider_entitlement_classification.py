@@ -19,10 +19,9 @@ class _ProviderError(Exception):
         self.status_code = status_code
 
 
-# The xAI bodies mirror the fixtures in the Hermes and OpenClaw test suites; none was captured by
-# this project. The 402 and Chinese bodies are generic provider wordings. Single-phrase bodies
-# ("run out of credits", "need a Grok subscription") make dropping any one billing phrase from
-# either classifier fail at least one case.
+# None of the xAI bodies was captured from a live account; the 402 and Chinese bodies are generic
+# provider wordings. Single-phrase bodies ("run out of credits", "need a Grok subscription") make
+# dropping any one billing phrase from either classifier fail at least one case.
 _ENTITLEMENT_CASES = {
     "supergrok_403_no_active_subscription": _ProviderError(
         403,

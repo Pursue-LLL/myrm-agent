@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Memory Cube 空间治理与读写分离动态挂载套件（Memory Cube Scoped Isolation & Dynamic Mounting Suite · Item 124 P0 · 对标 MemOS `mem_cube` 核心实证与空间隔离架构）。
+Memory Cube 空间治理与读写分离动态挂载套件（Memory Cube Scoped Isolation & Dynamic Mounting Suite）。
 
 ### 核心机制
 1. **一等公民 Memory Cube 空间抽象（First-Class Memory Cube Abstraction）**：

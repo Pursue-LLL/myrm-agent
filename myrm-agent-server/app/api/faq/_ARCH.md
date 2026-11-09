@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Per-agent FAQ 语料库的 REST API。提供 CRUD、批量导入、索引重建、命中统计和未匹配查询发现。
+Per-agent FAQ 语料库的 REST API。提供 CRUD、批量导入、索引重建、命中统计和未匹配查询发现。索引只在 `POST /{agent_id}/rebuild-index` 时重算（条目增删改与导入不动索引），未配置 embedding 时该接口返回 409。
 
 ## 文件清单
 

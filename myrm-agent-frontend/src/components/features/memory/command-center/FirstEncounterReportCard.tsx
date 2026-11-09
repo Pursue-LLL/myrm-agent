@@ -201,16 +201,13 @@ export function FirstEncounterReportCard({
   return (
     <Card className="border border-border/80 shadow-sm" data-testid="first-encounter-report-card">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <div className="flex items-center gap-2">
             <Compass className="h-5 w-5 text-primary" />
             <CardTitle className="text-base font-semibold">
               历史会话轻量采样与初见报告 (First Encounter Insight Report)
             </CardTitle>
           </div>
-          <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-            Item 67 · P0
-          </Badge>
         </div>
         <CardDescription className="text-xs text-muted-foreground">
           首 2 轮核心目标 + 尾 12 轮决策滑窗采样，香农熵双轨零泄漏脱敏，生成个人技术画像初见报告与一键冷启动入库。
