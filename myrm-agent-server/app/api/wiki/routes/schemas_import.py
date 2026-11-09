@@ -5,6 +5,7 @@
 - ImportFolderRequest: ImportFolderRequest
 - ImportResultResponse: ImportResultResponse
 - ImportUrlsRequest: ImportUrlsRequest
+- UrlImportErrorCode: UrlImportErrorCode
 - UrlImportItemResult: UrlImportItemResult
 - ImportUrlsResultResponse: ImportUrlsResultResponse
 - ImportVideoRequest: ImportVideoRequest
@@ -83,6 +84,10 @@ class ImportUrlsRequest(BaseModel):
     )
 
 
+# Why a URL failed to import. The UI renders its own localized sentence per code.
+UrlImportErrorCode = Literal["address_rejected", "nothing_readable", "import_failed"]
+
+
 class UrlImportItemResult(BaseModel):
     url: str
     relative_path: str = ""
@@ -94,7 +99,9 @@ class UrlImportItemResult(BaseModel):
         "security_redacted",
         "error",
     ]
+    # English diagnostic for API clients; the import dialog shows the localized text of `error_code` instead.
     error: str = ""
+    error_code: UrlImportErrorCode | None = None
 
 
 class ImportUrlsResultResponse(BaseModel):

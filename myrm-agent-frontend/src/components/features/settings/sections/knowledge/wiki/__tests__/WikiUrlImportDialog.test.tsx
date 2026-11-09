@@ -2,7 +2,7 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ImportUrlsResultResponse, UrlImportItemResult } from '@/services/wikiService';
+import type { ImportUrlsResultResponse, UrlImportErrorCode, UrlImportItemResult } from '@/services/wikiService';
 import type { MockLocale } from '@/test-utils/realIntl';
 
 let locale: MockLocale = 'en';
@@ -18,10 +18,22 @@ import { WikiUrlImportDialog } from '../WikiUrlImportDialog';
 
 const OK_URL = 'https://ok.example/a';
 const BAD_URL = 'https://bad.example/b';
-const BAD_REASON = 'No readable content could be fetched from https://bad.example/b';
+// The server's English diagnostic, which the dialog must never show.
+const BAD_DIAGNOSTIC = 'No readable content could be fetched from https://bad.example/b';
 
-function item(url: string, status: UrlImportItemResult['status'], error = ''): UrlImportItemResult {
-  return { url, relative_path: status === 'error' ? '' : `${url.split('/').pop()}.md`, status, error };
+function item(
+  url: string,
+  status: UrlImportItemResult['status'],
+  error = '',
+  errorCode: UrlImportErrorCode | null = null,
+): UrlImportItemResult {
+  return {
+    url,
+    relative_path: status === 'error' ? '' : `${url.split('/').pop()}.md`,
+    status,
+    error,
+    error_code: errorCode,
+  };
 }
 
 function responseFor(results: UrlImportItemResult[]): ImportUrlsResultResponse {
@@ -41,12 +53,29 @@ function responseFor(results: UrlImportItemResult[]): ImportUrlsResultResponse {
   };
 }
 
-const PARTIAL_FAILURE = responseFor([item(OK_URL, 'success'), item(BAD_URL, 'error', BAD_REASON)]);
+const PARTIAL_FAILURE = responseFor([
+  item(OK_URL, 'success'),
+  item(BAD_URL, 'error', BAD_DIAGNOSTIC, 'nothing_readable'),
+]);
 
 const LABELS: Record<MockLocale, { placeholder: string; start: string }> = {
   en: { placeholder: 'Paste URLs here (one per line, up to 50)', start: 'Start Ingestion' },
   zh: { placeholder: '在此粘贴链接（每行一个，最多 50 个）', start: '开始摄入' },
 };
+
+const REASONS: Record<MockLocale, Record<UrlImportErrorCode, string>> = {
+  en: {
+    address_rejected: 'This address cannot be imported. Check that it is a public web link.',
+    nothing_readable: 'No readable content could be fetched. Check that the page opens in a browser, then retry.',
+    import_failed: 'The import failed. Try again later.',
+  },
+  zh: {
+    address_rejected: '该地址无法导入，请确认它是可公开访问的网页链接。',
+    nothing_readable: '没有读取到可用的正文，请确认页面能在浏览器中打开后重试。',
+    import_failed: '导入失败，请稍后重试。',
+  },
+};
+const ERROR_CODES: UrlImportErrorCode[] = ['address_rejected', 'nothing_readable', 'import_failed'];
 
 function renderDialog() {
   const onOpenChange = vi.fn();
@@ -155,8 +184,22 @@ describe('WikiUrlImportDialog', () => {
       const panel = screen.getByRole('alert');
       expect(within(panel).getByText(/These links could not be imported/)).toBeInTheDocument();
       expect(within(panel).getByText(BAD_URL)).toBeInTheDocument();
-      expect(within(panel).getByText(new RegExp(BAD_REASON))).toBeInTheDocument();
+      expect(within(panel).getByText(new RegExp(REASONS.en.nothing_readable))).toBeInTheDocument();
       expect(within(panel).queryByText(OK_URL)).toBeNull();
+    });
+
+    it('lists a link the server gave no code for without a reason, never falling back to its English text', async () => {
+      importUrls.mockResolvedValue(responseFor([item(BAD_URL, 'error', BAD_DIAGNOSTIC)]));
+      const view = renderDialog();
+
+      await pasteAndStart(view, BAD_URL);
+
+      const panel = screen.getByRole('alert');
+      expect(within(panel).getByText(BAD_URL)).toBeInTheDocument();
+      expect(within(panel).queryByText(BAD_DIAGNOSTIC, { exact: false })).toBeNull();
+      for (const reason of Object.values(REASONS.en)) {
+        expect(within(panel).queryByText(reason, { exact: false })).toBeNull();
+      }
     });
 
     it('retries only the failed link on the next click and closes once it is imported', async () => {
@@ -190,6 +233,20 @@ describe('WikiUrlImportDialog', () => {
       expect(
         within(screen.getByRole('alert')).getByText('以下链接未能导入，已保留在输入框中，可检查后重试。'),
       ).toBeInTheDocument();
+    });
+
+    describe.each<MockLocale>(['en', 'zh'])('failure reasons in %s', (lang) => {
+      it.each(ERROR_CODES)('shows the sentence for %s and never the server diagnostic', async (code) => {
+        locale = lang;
+        importUrls.mockResolvedValue(responseFor([item(BAD_URL, 'error', BAD_DIAGNOSTIC, code)]));
+        const view = renderDialog();
+
+        await pasteAndStart(view, BAD_URL);
+
+        const panel = screen.getByRole('alert');
+        expect(within(panel).getByText(REASONS[lang][code], { exact: false })).toBeInTheDocument();
+        expect(within(panel).queryByText(BAD_DIAGNOSTIC, { exact: false })).toBeNull();
+      });
     });
   });
 

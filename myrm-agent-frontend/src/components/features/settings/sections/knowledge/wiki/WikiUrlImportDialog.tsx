@@ -14,13 +14,34 @@ import {
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
-import { wikiService, type ImportUrlsResultResponse, type UrlImportItemResult } from '@/services/wikiService';
+import {
+  wikiService,
+  type ImportUrlsResultResponse,
+  type UrlImportErrorCode,
+  type UrlImportItemResult,
+} from '@/services/wikiService';
 
 interface WikiUrlImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agentScopeId?: string | null;
   onImportFinished: (result: ImportUrlsResultResponse) => void;
+}
+
+/** The server's `error` text is an English diagnostic; the user reads the sentence of its `error_code`. */
+function failureReason(
+  code: UrlImportErrorCode | null,
+  t: ReturnType<typeof useTranslations<'settings.wiki.import'>>,
+): string | null {
+  if (!code) {
+    return null;
+  }
+  const reasons: Record<UrlImportErrorCode, string> = {
+    address_rejected: t('urlImportReasonAddressRejected'),
+    nothing_readable: t('urlImportReasonNothingReadable'),
+    import_failed: t('urlImportReasonFailed'),
+  };
+  return reasons[code];
 }
 
 export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImportFinished }: WikiUrlImportDialogProps) {
@@ -139,12 +160,15 @@ export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImport
               >
                 <p className="font-medium text-destructive-text">{t('urlImportFailedHint')}</p>
                 <ul className="max-h-32 space-y-1 overflow-y-auto">
-                  {listedFailures.map((item) => (
-                    <li key={item.url} className="break-all">
-                      <span className="font-mono text-foreground">{item.url}</span>
-                      {item.error ? <span className="text-muted-foreground"> - {item.error}</span> : null}
-                    </li>
-                  ))}
+                  {listedFailures.map((item) => {
+                    const reason = failureReason(item.error_code, t);
+                    return (
+                      <li key={item.url} className="break-all">
+                        <span className="font-mono text-foreground">{item.url}</span>
+                        {reason ? <span className="text-muted-foreground"> - {reason}</span> : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ) : null}

@@ -238,6 +238,7 @@ def test_import_urls_success(tmp_path: Path) -> None:
     assert data["total_urls"] == 1
     assert data["enqueued_count"] == 1
     assert data["results"][0]["status"] == "success"
+    assert data["results"][0]["error_code"] is None
     assert data["results"][0]["url"] == "https://example.com/article-1"
     rel_path = data["results"][0]["relative_path"]
     assert rel_path.lower().startswith("articles/web/")
@@ -270,6 +271,7 @@ def test_import_urls_ssrf_blocked(tmp_path: Path) -> None:
     assert data["enqueued_count"] == 0
     assert data["results"][0]["status"] == "error"
     assert data["results"][0]["error"] == "This address cannot be imported"
+    assert data["results"][0]["error_code"] == "address_rejected"
 
 
 def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
