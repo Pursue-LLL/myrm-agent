@@ -214,7 +214,7 @@ async def search_exact_facts(
     scope_params = list(namespaces) if namespaces is not None else []
 
     # 1. Deterministic B-Tree search by exact identifier; the longest matched identifier ranks first so a
-    # precise ``10.1.1.29:8029`` outranks the shared ``10.1.1`` prefix the classifier also indexes.
+    # precise ``10.1.1.29:8029`` outranks a short one such as ``8080`` that many memories share.
     if extracted:
         placeholders = ",".join("?" for _ in extracted)
         sql = f"""

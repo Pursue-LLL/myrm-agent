@@ -5,6 +5,7 @@
 - memory.config::RetrievalConfig (POS: retrieval configuration)
 - memory.retriever_scoring::RetrievalScoringMixin (POS: per-candidate geometric scoring and boosts)
 - memory.signals::SignalCalculator (POS: context signal calculator)
+- memory.strategies.exact_fact::ExactFactClassifier (POS: the identifiers a query names)
 - memory.types::{MemorySearchResult, SemanticMemory} (POS: memory data models)
 
 [OUTPUT]
@@ -25,6 +26,7 @@ from __future__ import annotations
 from myrm_agent_harness.toolkits.memory.config import RetrievalConfig
 from myrm_agent_harness.toolkits.memory.retriever_scoring import RetrievalScoringMixin
 from myrm_agent_harness.toolkits.memory.signals import SignalCalculator
+from myrm_agent_harness.toolkits.memory.strategies.exact_fact import ExactFactClassifier
 from myrm_agent_harness.toolkits.memory.text_utils import tokenize
 from myrm_agent_harness.toolkits.memory.types import (
     HitSource,
@@ -64,6 +66,7 @@ class MemoryRetriever(RetrievalScoringMixin):
             similarity_threshold if similarity_threshold is not None else self._config.raw_similarity_threshold
         )
         query_tokens = tokenize(query)
+        query_keys = ExactFactClassifier.query_keys(query)
         scores: dict[str, float] = {}
         items: dict[str, MemorySearchResult] = {}
         max_raw_scores: dict[str, float] = {}
@@ -75,7 +78,8 @@ class MemoryRetriever(RetrievalScoringMixin):
                 else (r.raw_similarity if r.raw_similarity is not None else r.score)
             )
             max_raw_scores[mid] = r_raw
-            scores[mid] = self._boost(r.score, r, query_tokens, query_context, raw_query=query)
+            exact_hit = self._names_exact_fact(r, query_keys)
+            scores[mid] = self._boost(r.score, r, query_tokens, query_context, exact_hit=exact_hit)
             items[mid] = r
         if sim_threshold > 0:
             self._similarity_cutoff(scores, items, max_raw_scores, sim_threshold)
@@ -115,7 +119,7 @@ class MemoryRetriever(RetrievalScoringMixin):
         )
         k = self._config.rrf_k
         query_tokens = tokenize(query)
-        query_lower = query.lower()
+        query_keys = ExactFactClassifier.query_keys(query)
 
         for list_idx, results in enumerate(result_lists):
             src_name = source_names[list_idx] if source_names and list_idx < len(source_names) else f"stream_{list_idx}"
@@ -131,13 +135,10 @@ class MemoryRetriever(RetrievalScoringMixin):
 
                 rrf = 1.0 / (k + rank_idx + 1)
                 type_w = self._config.type_weights.get(r.memory_type, 1.0)
-                boosted = self._boost(rrf * type_w, r, query_tokens, query_context, raw_query=query)
-                if getattr(r.memory, "is_exact_fact", False) and getattr(r.memory, "exact_identifiers", None):
-                    for ident in r.memory.exact_identifiers:
-                        ident_lower = ident.lower()
-                        if ident_lower in query_tokens or (query_lower and ident_lower in query_lower):
-                            boosted += 5.0
-                            break
+                exact_hit = self._names_exact_fact(r, query_keys)
+                boosted = self._boost(rrf * type_w, r, query_tokens, query_context, exact_hit=exact_hit)
+                if exact_hit:
+                    boosted += 5.0
                 scores[mid] = scores.get(mid, 0.0) + boosted
                 if mid not in items:
                     items[mid] = r

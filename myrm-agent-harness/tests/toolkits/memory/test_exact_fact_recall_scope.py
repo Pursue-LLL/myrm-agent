@@ -44,11 +44,21 @@ async def searched_contents(manager: MemoryManager, query: str, limit: int = 5) 
 async def test_an_identifier_never_recalls_another_namespaces_memory(new_manager: NewManager) -> None:
     owner, guest = new_manager(OWNER), new_manager(GUEST)
     await remember(owner, "Owner private: database at 10.1.1.3:8003")
-    own = "Guest sandbox: box at 10.1.1.200:7777"
+    own = "Guest sandbox: box at 10.1.1.3:8003"
     await remember(guest, own)
 
     assert await exact_contents(guest, "10.1.1.3:8003") == [own]
     assert await searched_contents(guest, "10.1.1.3:8003") == [own]
+
+
+async def test_an_identifier_written_against_chinese_text_is_recalled_by_it(new_manager: NewManager) -> None:
+    """Chinese is written without spaces: the stored identifier is the whole address, not a fragment of it."""
+    owner = new_manager(OWNER)
+    written = "服务器地址是10.0.0.5:8080，请记住"
+    await remember(owner, written)
+
+    assert await exact_contents(owner, "10.0.0.5:8080") == [written]
+    assert await exact_contents(owner, "地址10.0.0.5:8080是什么") == [written]
 
 
 async def test_a_namespace_set_that_reads_nothing_recalls_nothing(new_manager: NewManager) -> None:
@@ -58,14 +68,31 @@ async def test_a_namespace_set_that_reads_nothing_recalls_nothing(new_manager: N
     assert await owner._relational.search_fts5("10.1.1.3:8003", 5, None, None, namespaces=[]) == []
 
 
-async def test_the_precise_identifier_outranks_memories_sharing_its_subnet(new_manager: NewManager) -> None:
+async def test_the_longer_identifier_outranks_a_short_one_many_memories_share(new_manager: NewManager) -> None:
     owner = new_manager(OWNER)
     for index in range(30):
-        await remember(owner, f"Owner private: service {index} at 10.1.1.{index}:80{index:02d}")
-    target = "Owner private: service 29 at 10.1.1.29:8029"
+        await remember(owner, f"Owner private: service {index} listens on port 8080")
+    target = "Owner private: gateway at 10.1.1.29:8029"
+    await remember(owner, target)
+    query = "gateway 10.1.1.29:8029 port 8080"
 
-    assert (await exact_contents(owner, "10.1.1.29:8029"))[0] == target
-    assert target in await searched_contents(owner, "10.1.1.29:8029")
+    assert (await exact_contents(owner, query))[0] == target
+    assert target in await searched_contents(owner, query)
+
+
+async def test_another_address_in_the_same_subnet_is_not_the_identifier_asked_for(new_manager: NewManager) -> None:
+    owner = new_manager(OWNER)
+    await remember(owner, "Staging box at 10.0.0.9:9090")
+
+    assert await exact_contents(owner, "10.0.0.5:8080") == []
+
+
+async def test_a_bare_host_finds_the_memory_of_its_endpoint_through_full_text(new_manager: NewManager) -> None:
+    owner = new_manager(OWNER)
+    stored = "Staging box at 10.0.0.9:9090"
+    await remember(owner, stored)
+
+    assert await exact_contents(owner, "10.0.0.9") == [stored]
 
 
 async def test_a_shared_namespace_is_recalled_and_a_sibling_agents_private_one_is_not(new_manager: NewManager) -> None:
@@ -74,11 +101,12 @@ async def test_a_shared_namespace_is_recalled_and_a_sibling_agents_private_one_i
     agent_c = new_manager([*SHARED, "agent:c"])
     outsider = new_manager(GUEST)
     shared = "Team shared: wiki at 10.9.9.9:8000"
+    private = "Agent C private: wiki mirror at 10.9.9.9:8000"
     await remember(publisher, shared)
-    await remember(agent_c, "Agent C private: box at 10.9.9.10:8001")
+    await remember(agent_c, private)
 
     assert await exact_contents(agent_b, "10.9.9.9:8000") == [shared]
-    assert await exact_contents(agent_b, "10.9.9.10:8001") == [shared]
+    assert sorted(await exact_contents(agent_c, "10.9.9.9:8000")) == sorted([shared, private])
     assert await exact_contents(outsider, "10.9.9.9:8000") == []
 
 

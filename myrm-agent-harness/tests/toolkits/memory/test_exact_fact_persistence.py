@@ -21,7 +21,7 @@ from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 NewManager = Callable[..., MemoryManager]
 
 FACT = "The staging server is reachable at 10.0.0.5:8080 (v2.4.1)"
-FACT_IDENTIFIERS = {"10.0.0", "10.0.0.5:8080", "v2.4.1"}
+FACT_IDENTIFIERS = {"10.0.0.5:8080", "v2.4.1"}
 
 
 def indexed(tmp_path: Path) -> list[tuple[str, str]]:
@@ -89,7 +89,7 @@ async def test_the_index_follows_the_text_of_a_content_update(new_manager: NewMa
 
     await manager.update_memory(stored.id, content="The staging server moved to 10.0.0.9:9090")
 
-    assert indexed_identifiers(tmp_path) == {"10.0.0", "10.0.0.9:9090"}
+    assert indexed_identifiers(tmp_path) == {"10.0.0.9:9090"}
 
 
 async def test_the_index_never_holds_text_the_scan_redacted(new_manager: NewManager, tmp_path: Path) -> None:
