@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import AbstractContextManager
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -11,8 +14,11 @@ from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.memory.relational.exceptions import (
     CorruptedMemoryIndexError,
     RelationalQueryError,
+    RelationalStoreError,
 )
 from tests.support.relational_records import make_pending, make_rule
+
+STORE_MODULE = "myrm_agent_harness.toolkits.memory.relational.sqlite_store"
 
 
 @pytest.fixture
@@ -149,3 +155,81 @@ async def test_corrupted_memory_index_fail_fast(tmp_path: Path, monkeypatch: pyt
     assert "failed quick_check" in str(exc_write.value)
 
     await store.close()
+
+
+# ── Exact-fact index operations and connection setup ────────────────
+
+
+def failing(operation: str, message: str) -> AbstractContextManager[object]:
+    """Make one of the store module's operations raise ``message``."""
+    return patch(f"{STORE_MODULE}.{operation}", side_effect=RuntimeError(message))
+
+
+async def record(store: SQLiteRelationalStore, identifier: str) -> None:
+    await store.record_exact_fact(
+        memory_id="m1",
+        user_id="user",
+        content=f"host at {identifier}",
+        identifiers=[identifier],
+        primary_namespace="ns",
+    )
+
+
+@pytest.mark.parametrize(
+    ("operation", "call"),
+    [
+        ("save_exact_fact", lambda store: record(store, "10.0.0.1:80")),
+        ("delete_exact_fact", lambda store: store.delete_exact_fact("m1")),
+        ("search_exact_facts", lambda store: store.search_fts5("10.0.0.1:80")),
+    ],
+    ids=["record", "delete", "search"],
+)
+async def test_a_failing_index_operation_surfaces_and_leaves_the_store_usable(
+    store: SQLiteRelationalStore, operation: str, call: Callable[[SQLiteRelationalStore], Awaitable[object]]
+) -> None:
+    with failing(operation, "index exploded"), pytest.raises(RelationalQueryError, match="index exploded"):
+        await call(store)
+
+    # The index write lock is not left held: the next write completes instead of waiting for it.
+    await asyncio.wait_for(record(store, "10.0.0.2:81"), timeout=5)
+    assert [hit.memory.id for hit in await store.search_fts5("10.0.0.2:81")] == ["m1"]
+
+
+async def test_a_failure_that_reads_as_corruption_drops_the_connection_and_the_next_write_reconnects(
+    store: SQLiteRelationalStore,
+) -> None:
+    dropped = await store._get_connection()
+
+    with failing("save_exact_fact", "database disk image is malformed"), pytest.raises(CorruptedMemoryIndexError):
+        await record(store, "10.0.0.1:80")
+    await dropped.close()
+
+    await asyncio.wait_for(record(store, "10.0.0.2:81"), timeout=5)
+    assert [hit.memory.id for hit in await store.search_fts5("10.0.0.2:81")] == ["m1"]
+
+
+async def test_a_failed_schema_setup_is_retried_by_the_next_call(store: SQLiteRelationalStore) -> None:
+    with failing("init_relational_schema", "disk is full"), pytest.raises(RelationalStoreError, match="disk is full"):
+        await store.set_profile("language", "zh")
+
+    await store.set_profile("language", "zh")
+
+    assert await store.get_profile("language") == "zh"
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [("database disk image is malformed", CorruptedMemoryIndexError), ("lock timeout", RelationalQueryError)],
+    ids=["reads-as-corruption", "other-failure"],
+)
+async def test_an_integrity_query_failure_is_corruption_only_when_it_reads_as_corruption(
+    store: SQLiteRelationalStore, message: str, expected: type[RelationalStoreError]
+) -> None:
+    with patch.object(store, "_quick_check_rows", side_effect=RuntimeError(message)), pytest.raises(expected):
+        await store.assert_store_integrity()
+
+
+async def test_the_integrity_check_of_a_closed_store_says_so(store: SQLiteRelationalStore) -> None:
+    await store.close()
+
+    assert await store.check_integrity() == (False, "Store has been closed")
