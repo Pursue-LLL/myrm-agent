@@ -1,19 +1,26 @@
-"""Tests for hoist_tool_sources: the citation sources of a tool result leave the text the model reads.
+"""Tests for the tool-source helpers: the citation sources of a tool result leave the text the model reads and are
+stored with the number the model read each under.
 
 [POS]
-Unit level: which results are split, what the model reads afterwards, what travels in additional_kwargs. The
-interceptor wiring and the path to the SSE ``sources`` event are covered in test_tool_sources_pipeline.py.
+Unit level: which results are split, what the model reads afterwards, what travels in additional_kwargs, how the
+numbers are stamped. The interceptor wiring and the path to the SSE ``sources`` event are covered in
+test_tool_sources_pipeline.py.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 
 import pytest
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
-from myrm_agent_harness.agent.middlewares.tooling.tool_sources_hoisting import TOOL_SOURCES_KWARG, hoist_tool_sources
+from myrm_agent_harness.agent.middlewares.tooling.tool_sources_hoisting import (
+    TOOL_SOURCES_KWARG,
+    hoist_tool_sources,
+    stamp_source_indexes,
+)
 
 SOURCES: list[dict[str, object]] = [
     {"url": "https://a.test/post", "title": "A", "snippet": "first"},
@@ -166,3 +173,106 @@ class TestResultsThatAreLeftAlone:
         command: Command[object] = Command(update={"k": "v"})
 
         assert hoist_tool_sources(command) is command
+
+
+NUMBERS = {"https://a.test/post": 4, "https://b.test/post": 7}
+
+
+def _number_of(source: Mapping[str, object]) -> int:
+    return NUMBERS[str(source["url"])]
+
+
+def _hoisted_message() -> ToolMessage:
+    return _hoisted(_message({"content": "text", "metadata": {"sources": SOURCES}}))
+
+
+def _stamped(message: ToolMessage) -> ToolMessage:
+    result = stamp_source_indexes(message, _number_of)
+    assert isinstance(result, ToolMessage)
+    return result
+
+
+class TestStampSourceIndexes:
+    """The stored tool message records the number each source was read under, which is its card's index."""
+
+    def test_each_source_carries_the_number_the_run_gave_it(self) -> None:
+        result = _stamped(_hoisted_message())
+
+        assert result.additional_kwargs[TOOL_SOURCES_KWARG] == [
+            {**source, "index": _number_of(source)} for source in SOURCES
+        ]
+
+    def test_the_run_is_asked_once_per_source_in_order(self) -> None:
+        asked: list[Mapping[str, object]] = []
+
+        def record(source: Mapping[str, object]) -> int:
+            asked.append(source)
+            return len(asked)
+
+        result = stamp_source_indexes(_hoisted_message(), record)
+
+        assert asked == SOURCES
+        assert isinstance(result, ToolMessage)
+        assert [source["index"] for source in result.additional_kwargs[TOOL_SOURCES_KWARG]] == [1, 2]
+
+    def test_a_stale_index_in_a_source_is_replaced_by_the_runs_number(self) -> None:
+        message = _message({"content": "text", "metadata": {"sources": [{**SOURCES[0], "index": 99}]}})
+
+        result = _stamped(_hoisted(message))
+
+        assert result.additional_kwargs[TOOL_SOURCES_KWARG][0]["index"] == 4
+
+    def test_what_the_model_reads_and_the_rest_of_the_message_stay_as_they_were(self) -> None:
+        message = _hoisted(
+            _message({"content": "text", "metadata": {"sources": SOURCES}}, additional_kwargs={"flag": 1}, id="msg-7")
+        )
+
+        result = _stamped(message)
+
+        assert result.content == message.content
+        assert (result.id, result.tool_call_id, result.name) == ("msg-7", "call_1", "a_tool")
+        assert result.additional_kwargs["flag"] == 1
+
+    def test_the_given_message_is_not_modified(self) -> None:
+        message = _hoisted_message()
+
+        _stamped(message)
+
+        assert message.additional_kwargs[TOOL_SOURCES_KWARG] == SOURCES
+
+    def test_an_entry_that_is_not_a_source_dict_is_kept_as_it_is(self) -> None:
+        message = ToolMessage(
+            content="text",
+            name="a_tool",
+            tool_call_id="call_1",
+            additional_kwargs={TOOL_SOURCES_KWARG: ["x", SOURCES[0]]},
+        )
+
+        result = _stamped(message)
+
+        assert result.additional_kwargs[TOOL_SOURCES_KWARG] == ["x", {**SOURCES[0], "index": 4}]
+
+
+class TestResultsWithNothingToStamp:
+    def test_a_message_without_hoisted_sources_is_returned_as_it_is(self) -> None:
+        message = ToolMessage(content="plain", name="a_tool", tool_call_id="call_1")
+
+        assert stamp_source_indexes(message, _number_of) is message
+
+    @pytest.mark.parametrize("sources", [[], "https://a.test", None])
+    def test_an_empty_or_malformed_sources_value_is_returned_as_it_is(self, sources: object) -> None:
+        message = ToolMessage(
+            content="text", name="a_tool", tool_call_id="call_1", additional_kwargs={TOOL_SOURCES_KWARG: sources}
+        )
+
+        assert stamp_source_indexes(message, _number_of) is message
+
+    def test_a_run_without_source_numbering_leaves_the_message_as_it_is(self) -> None:
+        message = _hoisted_message()
+
+        assert stamp_source_indexes(message, None) is message
+
+    def test_a_graph_command_is_returned_as_it_is(self) -> None:
+        command: Command[object] = Command(update={"k": "v"})
+
+        assert stamp_source_indexes(command, _number_of) is command

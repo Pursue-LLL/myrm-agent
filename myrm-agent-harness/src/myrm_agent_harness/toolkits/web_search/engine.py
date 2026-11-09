@@ -151,18 +151,12 @@ class WebSearchTools:
         if total_time_ms > 5000:
             logger.warning(f"Slow search detected: {total_time_ms:.0f}ms for {len(questions)} queries")
 
-        sources_metadata, formatted_context, truncation_stats = format_documents_with_metadata(
+        sources_metadata, formatted_context, _ = format_documents_with_metadata(
             selected_docs,
             questions=questions,
             index_for=source_indexer_var.get(),
         )
         _attach_search_providers(sources_metadata, selected_docs)
-
-        if truncation_stats:
-            logger.info(
-                f"Token usage: {truncation_stats.original_tokens}→{truncation_stats.final_tokens}, "
-                f"retention={truncation_stats.retention_ratio:.1%}"
-            )
 
         return sources_metadata, formatted_context
 

@@ -105,6 +105,7 @@ dispatcher  handlers      events         recovery*
 | `step_builder.py` | 前端步骤 UI 数据（tool name + args） |
 | `utils.py` | 上下文校验、时间戳规则、tool name 规范化 |
 | `source_tracker.py` | 来源引用转发：`event_handlers` 把工具结果 `ToolMessage.additional_kwargs["sources"]`（由 `tool_interceptor_middleware` 从 `{content, metadata}` 结果的 `metadata.sources` 取出）交给它，按本次运行去重编号后增量分发；要在结果文本里给来源编号的工具，用开跑时绑进 `source_indexer_var` 的 `SourceTracker.index_for` 取号，卡片沿用同一个编号 |
+| `source_numbering.py` | 引用编号的线程内延续：每次运行（含审批续跑与同线程的下一轮）都有一个新的 `SourceTracker`，模型上下文里却还留着此前各次运行写下的编号标签。`tool_interceptor_middleware` 把模型读到的编号盖在每个提升出来的来源上（`stamp_source_indexes`，只写 `additional_kwargs`，模型读到的文本不变，不影响提示词前缀缓存），`StreamExecutor.execute` 开跑时经 `restore_source_numbering` 读线程检查点里的盖章，由 `SourceTracker.restore` 接上；于是同一线程里一个编号始终指同一个来源。边界：检查点读不到时这次运行从 1 起编；盖章只记录工具当时展示的链接拼写，一个页面先以追踪/跳转链接展示、后在另一次运行以最终链接展示时，不会被认回同一个编号；上线前已存在的线程没有盖章，不受影响也得不到续号 |
 
 ---
 

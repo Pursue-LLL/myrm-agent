@@ -88,11 +88,12 @@ const expandCitationIndices = (rawInner: string): number[] => {
   return res;
 };
 
+/** Position of the source that carries the number `num`; a marker names a source by number, never by position. */
+const findSourcePosition = (num: number, sources: Source[]): number =>
+  sources.findIndex((s) => Number(s.index) === num);
+
 const buildCitationTagForNumber = (num: number, sources: Source[]): string => {
-  let sourceIndex = sources.findIndex((s) => Number(s.index) === num);
-  if (sourceIndex === -1 && num <= sources.length) {
-    sourceIndex = num - 1;
-  }
+  const sourceIndex = findSourcePosition(num, sources);
   if (sourceIndex === -1) {
     return `[${num}]`;
   }
@@ -113,12 +114,7 @@ const processBracketMatch = (match: string, innerText: string, sources: Source[]
     return match;
   }
 
-  const hasAnyValid = indices.some((num) => {
-    const idx = sources.findIndex((s) => Number(s.index) === num);
-    return idx !== -1 || (num <= sources.length && num > 0);
-  });
-
-  if (!hasAnyValid) {
+  if (!indices.some((num) => findSourcePosition(num, sources) !== -1)) {
     return match;
   }
 

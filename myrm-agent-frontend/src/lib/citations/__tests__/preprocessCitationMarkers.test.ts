@@ -118,10 +118,23 @@ describe('preprocessCitationMarkers', () => {
     expect(result).toContain('<citation data-num="1"');
   });
 
-  it('falls back to positional index when source.index is missing', () => {
+  it('leaves a marker plain when no source carries the number it names', () => {
     const noIndexSources = sources.map(({ index: _index, ...rest }) => rest) as Source[];
-    const result = preprocessCitationMarkers('增长 5%【1】。', noIndexSources);
-    expect(result).toContain('<citation data-num="1"');
+
+    expect(preprocessCitationMarkers('增长 5%【1】。', noIndexSources)).toBe('增长 5%【1】。');
+  });
+
+  it('names a source by the number it carries, not by its position', () => {
+    const numbered: Source[] = [
+      { index: 5, type: 'web_search', title: 'Five', url: 'https://example.com/five' },
+      { index: 7, type: 'web_search', title: 'Seven', url: 'https://example.com/seven' },
+    ];
+
+    expect(preprocessCitationMarkers('Absent 【2】.', numbered)).toBe('Absent 【2】.');
+    expect(preprocessCitationMarkers('Present 【7】.', numbered)).toContain('data-source-index="1"');
+    expect(preprocessCitationMarkers('Both [5, 2].', numbered)).toMatch(
+      /<citation data-num="5" data-source-index="0"[^>]*><\/citation>\[2\]/,
+    );
   });
 
   it('converts full-width digit markers 【１】 and 【１，２】', () => {
