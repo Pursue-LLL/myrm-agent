@@ -9,17 +9,15 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
-import discord
 import httpx
 import pytest
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.dingtalk import DingTalkChannel
-from app.channels.providers.discord import DiscordChannel
-from app.channels.providers.discord.config import DiscordChannelConfig
 from app.channels.providers.feishu import FeishuChannel
 from app.channels.providers.feishu.sdk import FeishuClient
 from app.channels.providers.googlechat import GoogleChatChannel
@@ -33,6 +31,9 @@ from app.channels.providers.whatsapp import WhatsAppChannel
 from app.channels.types import OutboundMessage
 from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
 
+if TYPE_CHECKING:
+    from app.channels.providers.discord import DiscordChannel
+
 _CHAT, _MESSAGE = "chat-1", "42"
 
 
@@ -41,8 +42,18 @@ def _http_error(status: int) -> httpx.HTTPStatusError:
     return httpx.HTTPStatusError("rejected", request=request, response=httpx.Response(status, request=request))
 
 
+def _discord_channel() -> DiscordChannel:
+    """The Discord SDK is an optional extra: where it is not installed only the Discord cases skip."""
+    pytest.importorskip("discord")
+    from app.channels.providers.discord import DiscordChannel
+    from app.channels.providers.discord.config import DiscordChannelConfig
+
+    return DiscordChannel(DiscordChannelConfig(bot_token="t", enable_gateway=True))
+
+
 def _discord_rejects(status: int = 404) -> BaseChannel:
-    channel = DiscordChannel(DiscordChannelConfig(bot_token="t", enable_gateway=True))
+    channel = _discord_channel()
+    discord = pytest.importorskip("discord")
     messageable = MagicMock()
     messageable.fetch_message = AsyncMock(
         side_effect=discord.HTTPException(MagicMock(status=status, reason="rejected"), "rejected")
@@ -52,7 +63,7 @@ def _discord_rejects(status: int = 404) -> BaseChannel:
 
 
 def _discord_channel_unreachable() -> BaseChannel:
-    channel = DiscordChannel(DiscordChannelConfig(bot_token="t", enable_gateway=True))
+    channel = _discord_channel()
     channel._resolve_channel = AsyncMock(return_value=None)  # type: ignore[method-assign]
     return channel
 

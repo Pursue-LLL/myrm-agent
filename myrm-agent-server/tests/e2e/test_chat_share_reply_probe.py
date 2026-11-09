@@ -8,7 +8,8 @@ also contains is found on the page even when the reply is missing from it.
 from __future__ import annotations
 
 import pytest
-from test_chat_share_chrome_e2e import _norm_ws, _page_text, _reply_probe
+
+from tests.e2e.test_chat_share_chrome_e2e import _norm_ws, _page_text, _reply_probe
 
 PROMPT = "【E2E 分享真实对话】请用一句中文介绍你自己，回答必须以 OK 开头，不超过 80 字。"
 # A real reply of the model that does not contain any token the prompt could have named.
