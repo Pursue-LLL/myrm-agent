@@ -93,6 +93,8 @@ async def _build_agent_params(
     request: ChatCompletionRequest,
 ) -> "GeneralAgentParams":
     """Build GeneralAgentParams from an OpenAI-compatible request."""
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.memory.proactive.settings import resolve_memory_enabled
     from app.services.agent.params import convert_to_general_agent_params
     from app.services.agent.params.models import AgentRequest
 
@@ -100,6 +102,8 @@ async def _build_agent_params(
 
     message_id = f"oai-{uuid.uuid4().hex[:16]}"
     chat_id = request.chat_id or f"oai-session-{uuid.uuid4().hex[:12]}"
+    # An external client has no settings screen: the user's stored memory switches decide, like every headless entry.
+    memory_settings = (await load_user_configs()).personal_settings_dict or {}
 
     agent_request = AgentRequest(
         message_id=message_id,
@@ -107,8 +111,8 @@ async def _build_agent_params(
         agent_id=agent_id,
         query=_extract_query(request),
         user_instructions=_extract_system_instruction(request),
-        enable_memory=True,
-        enable_memory_auto_extraction=True,
+        enable_memory=resolve_memory_enabled(memory_settings),
+        enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
         timezone=None,
     )
 

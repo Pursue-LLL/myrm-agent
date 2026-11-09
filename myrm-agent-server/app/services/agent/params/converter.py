@@ -230,21 +230,9 @@ async def convert_to_general_agent_params(
         memory_require_confirmation=(
             True if (request.enable_memory and sandbox_capable) else request.memory_require_confirmation
         ),
+        # A code-executing agent never distils memories on its own: strict write gating.
         enable_memory_auto_extraction=(
-            False
-            if request.incognito_mode
-            else (
-                False
-                if (
-                    sandbox_capable
-                    and (
-                        profile.resolved is None
-                        or profile.resolved.memory_policy is None
-                        or not getattr(profile.resolved.memory_policy, "enable_auto_extraction", False)
-                    )
-                )
-                else (request.enable_memory and request.enable_memory_auto_extraction)
-            )
+            request.enable_memory and request.enable_memory_auto_extraction and not request.incognito_mode and not sandbox_capable
         ),
         enable_conversation_search=request.enable_conversation_search and not request.incognito_mode,
         incognito_mode=request.incognito_mode,
