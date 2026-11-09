@@ -50,7 +50,8 @@ def reset_cache() -> None:
     _inflight.clear()
 
 
-async def _evaluate() -> bool:
+async def _evaluate() -> bool | None:
+    """True/False for a definitive answer, None when the configuration could not be read."""
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.model_resolver import resolve_model_config
 
@@ -66,9 +67,12 @@ async def _evaluate() -> bool:
             # is exactly the set the missing default would fail.
             return not await _unplanned_task_exists()
         return False
-    except Exception as exc:  # noqa: BLE001 - a broken gate must not stop dispatch
+    except Exception as exc:  # noqa: BLE001 - the gate must never raise into a dispatch loop
+        # A read that fails (SQLite lock contention, a half-written config) says nothing about the
+        # model configuration; treating it as "allowed" would flap the gate and letting it raise
+        # would kill the loop. Keep the previous verdict.
         logger.warning("Kanban dispatch gate could not read the model configuration: %s", exc)
-        return True
+        return None
     return True
 
 
@@ -100,16 +104,24 @@ async def _unplanned_task_exists() -> bool:
 
 async def _evaluate_and_store() -> bool:
     global _cached
-    allowed = await _evaluate()
-    _cached = (time.monotonic(), allowed)
-    return allowed
+    verdict = await _evaluate()
+    if verdict is None:
+        # Unreadable. One retry, then fail open: silently holding every queued task forever is
+        # worse than letting the runner report the same configuration error the user must fix.
+        await asyncio.sleep(0.2)
+        verdict = await _evaluate()
+    if verdict is None:
+        logger.warning("Kanban dispatch gate stays unreadable; letting queued tasks reach the runner")
+        verdict = True
+    _cached = (time.monotonic(), verdict)
+    return verdict
 
 
 async def dispatch_allowed() -> bool:
-    """False only when the saved configuration has no provider at all.
+    """False only when the saved configuration definitively has no usable model.
 
-    Any other outcome — including a gate that cannot read the configuration — allows dispatch: a
-    broken check must not hide real tasks from the user.
+    A read failure is retried once and then treated as allowed: the runner reports the same
+    configuration error to the user, while an ungated hold would keep the queue silent forever.
     """
     cached = _cached
     if cached is not None and time.monotonic() - cached[0] < _CACHE_TTL_SECONDS:

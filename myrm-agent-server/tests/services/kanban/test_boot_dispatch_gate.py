@@ -217,6 +217,15 @@ async def test_gate_is_memoised_so_hundreds_of_boards_evaluate_once() -> None:
     dispatch_gate.reset_cache()
 
 
+@pytest.mark.asyncio
+async def test_unreadable_configuration_fails_open_instead_of_holding_forever() -> None:
+    """A gate that cannot read at all must not keep the queue silent; the runner reports the error."""
+    with patch("app.core.channel_bridge.config_loader.load_user_configs", side_effect=RuntimeError("disk I/O error")):
+        dispatch_gate.reset_cache()
+        assert await dispatch_gate.dispatch_allowed() is True
+    dispatch_gate.reset_cache()
+
+
 def test_gate_survives_being_called_from_a_second_event_loop() -> None:
     """A process-global gate must not cache an asyncio primitive bound to a finished loop."""
 
