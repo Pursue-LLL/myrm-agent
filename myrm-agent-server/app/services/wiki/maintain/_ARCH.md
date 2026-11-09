@@ -19,7 +19,6 @@ Wiki maintain 域子包 — 编排、schemas 与状态持久化。
 | `reporting.py` | 核心 | 运行结果对外的文本与载荷（纯函数）：`lint_issue_payloads`（最多 200 条）、`build_summary_text`（cron 摘要，无变化且模型正常、或被用户取消时 `[SILENT]`）、`build_list_only_report`（`list_only` 周检 Markdown 报告） | ✅ |
 | `run_registry.py` | 核心 | 每个知识库范围最近一轮的实时状态（阶段、done/total、`stop` 事件、结果、错误码）与单飞：检查与占位之间没有 `await`，不需要锁；`cancel_requested`（进行中且已请求取消，状态接口据此让重载后的页面仍显示「正在停止」）；`cancel_wiki_maintain` 只对进行中的一轮置位 `stop`，结束的一轮原样返回；结束的一轮保留到下一轮替换 | ✅ |
 | `schemas.py` | 类型 | `WikiMaintainState` / `WikiMaintainRunResult`（含 `ai_unavailable`、`cancelled`）/ `WikiMaintainModeLiteral` | ✅ |
-| `stale_archiver.py` | 核心 | `StaleFileArchiver` — 探测与归档过期草稿与失效 deprecated 文档 | ✅ |
 | `state_store.py` | 持久化 | UserConfig `wikiMaintainState` 上次维护 observability（按 agent） | ✅ |
 
 ## 依赖
