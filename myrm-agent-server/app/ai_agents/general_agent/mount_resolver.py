@@ -38,7 +38,6 @@ class ResolvedMountPlan:
 
     mount_browser: bool
     mount_computer_use: bool
-    mount_desktop_prompt: bool
     mount_widget_capability: bool
 
 
@@ -50,8 +49,8 @@ def resolve_agent_mount(
 
     Rules:
     - Browser tools: Only mount in WEB_CHAT channels when profile has enable_browser=True.
-    - Computer use: Only mount in WEB_CHAT channels when supported by host deploy mode.
-    - Desktop prompt: Only inject DESKTOP_CONTROL_RULES when computer use tools are mounted.
+    - Computer use: Only mount in WEB_CHAT channels when supported by host deploy mode; the desktop control
+      rules in the system prompt are injected exactly when these tools are mounted.
     - Widget declaration: Only declare HTML widgets where they render (the web chat), and only for the
       conversational prompt modes; the search surface and naked mode never produce widgets.
     """
@@ -71,10 +70,7 @@ def resolve_agent_mount(
     can_deploy_cu = is_computer_use_deploy_supported()
     mount_computer_use = is_web_chat and enable_computer_use and can_deploy_cu
 
-    # 3. Desktop rules in System Prompt
-    mount_desktop_prompt = mount_computer_use
-
-    # 4. Widget capability declaration; IM, cron, voice, kanban and eval channels all resolve to non-web-chat
+    # 3. Widget capability declaration; IM, cron, voice, kanban and eval channels all resolve to non-web-chat
     prompt_mode = getattr(agent_wrapper, "prompt_mode", "full")
     mount_widget_capability = is_web_chat and prompt_mode not in ("search", "naked")
 
@@ -90,6 +86,5 @@ def resolve_agent_mount(
     return ResolvedMountPlan(
         mount_browser=mount_browser,
         mount_computer_use=mount_computer_use,
-        mount_desktop_prompt=mount_desktop_prompt,
         mount_widget_capability=mount_widget_capability,
     )

@@ -53,7 +53,6 @@ def _plan(*, widget: bool) -> ResolvedMountPlan:
     return ResolvedMountPlan(
         mount_browser=False,
         mount_computer_use=False,
-        mount_desktop_prompt=False,
         mount_widget_capability=widget,
     )
 

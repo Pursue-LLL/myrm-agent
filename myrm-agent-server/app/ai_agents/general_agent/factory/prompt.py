@@ -5,7 +5,7 @@
 - app.ai_agents.general_agent.kanban_tool_mode::resolve_kanban_tool_mode (POS: GeneralAgent factory 的 Kanban 工具 bind 解析辅助模块；TaskRunner 强制 worker，chat 默认 orchestrator。)
 - myrm_agent_harness.utils.locale::is_chinese (POS: Shared locale utilities consumed by channel i18n, error diagnostics, and)
 - myrm_agent_harness.toolkits.kanban::get_worker_lifecycle_guidance (POS: Kanban toolkit entry point. Aggregates dispatcher, protocols, built-in)
-- app.ai_agents.prompts.shared_rules::DESKTOP_CONTROL_RULES (POS: 跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，支持中英双语，提供服从、任务完整性、桌面控制等核心护栏。桌面控制运行时注入英文单例（factory）。)
+- app.ai_agents.prompts.shared_rules::DESKTOP_CONTROL_RULES (POS: 跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，除桌面控制外均支持中英双语，提供任务完整性、桌面控制等核心护栏；用户指令的优先级只由 user_instructions 消息头声明。桌面控制规则是底层工具调用协议，只有英文版，由 factory 注入。)
 - app.services.agent.outbound_notify.types::CHANNEL_NOTIFY_SYSTEM_APPENDIX (POS: Data types for agent-initiated outbound channel notifications.)
 
 [OUTPUT]
@@ -72,7 +72,7 @@ def build_system_prompt(
             max_runtime_seconds=getattr(agent_wrapper, "kanban_max_runtime_seconds", None),
         )
 
-    if mount_plan.mount_desktop_prompt:
+    if mount_plan.mount_computer_use:
         from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
 
         system_prompt += DESKTOP_CONTROL_RULES

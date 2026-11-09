@@ -16,6 +16,7 @@ from app.ai_agents.prompts.general_agent_prompt import (
 )
 from app.ai_agents.prompts.shared_rules import (
     AGENT_RESPONSE_RULES_EN,
+    DESKTOP_CONTROL_RULES,
     EXTERNAL_SOURCES_CITATION_RULES,
     SEARCH_RESPONSE_RULES_EN,
     TASK_INTEGRITY_RULES,
@@ -223,69 +224,26 @@ class TestDesktopControlRules:
     """Validates DESKTOP_CONTROL_RULES stays aligned with desktop tool capabilities."""
 
     def test_rules_disclose_target_scope(self) -> None:
-        from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
-
         assert 'scope="target"' in DESKTOP_CONTROL_RULES
         assert 'app_name="<app name>"' in DESKTOP_CONTROL_RULES
         assert "desktop_snapshot_tool" in DESKTOP_CONTROL_RULES
 
     def test_rules_disclose_query_and_wait(self) -> None:
-        from app.ai_agents.prompts.shared_rules import (
-            DESKTOP_CONTROL_RULES_EN,
-            DESKTOP_CONTROL_RULES_ZH,
-        )
-
-        assert 'query="<search term>"' in DESKTOP_CONTROL_RULES_EN
-        assert "wait_seconds=" in DESKTOP_CONTROL_RULES_EN
-        assert 'query="<搜索关键词>"' in DESKTOP_CONTROL_RULES_ZH
-        assert "wait_seconds=" in DESKTOP_CONTROL_RULES_ZH
+        assert 'query="<search term>"' in DESKTOP_CONTROL_RULES
+        assert "wait_seconds=" in DESKTOP_CONTROL_RULES
 
     def test_rules_do_not_mention_window_title(self) -> None:
         """app_name must stay an app-name hint; 'window name' is unsupported on macOS."""
-        from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
-
         assert "window name" not in DESKTOP_CONTROL_RULES
 
     def test_rules_forbid_operator_as_key_name(self) -> None:
         """Printable operators must not be used as press/key names (calculator pitfall)."""
-        from app.ai_agents.prompts.shared_rules import (
-            DESKTOP_CONTROL_RULES_EN,
-            DESKTOP_CONTROL_RULES_ZH,
-        )
-
-        assert "printable operators" in DESKTOP_CONTROL_RULES_EN
-        assert '"*"' in DESKTOP_CONTROL_RULES_EN
-        assert '"/"' in DESKTOP_CONTROL_RULES_EN
-        assert '"+"' in DESKTOP_CONTROL_RULES_EN
-        assert '"-"' in DESKTOP_CONTROL_RULES_EN
-        assert '"%"' in DESKTOP_CONTROL_RULES_EN
-        assert '"="' in DESKTOP_CONTROL_RULES_EN
-        assert "desktop_vision_tool key=" in DESKTOP_CONTROL_RULES_EN
-        assert "calculator/@dref" in DESKTOP_CONTROL_RULES_EN
-        assert "action=press activates" in DESKTOP_CONTROL_RULES_EN
-
-        assert "可打印运算符" in DESKTOP_CONTROL_RULES_ZH
-        assert '"*"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"/"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"+"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"-"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"%"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"="' in DESKTOP_CONTROL_RULES_ZH
-        assert "desktop_vision_tool" in DESKTOP_CONTROL_RULES_ZH
-        assert "@dref" in DESKTOP_CONTROL_RULES_ZH
-        assert "action=press" in DESKTOP_CONTROL_RULES_ZH
-
-    def test_zh_rules_include_operator_ban(self) -> None:
-        """ZH desktop rules keep the same operator anti-pattern as EN (parity, not runtime inject)."""
-        from app.ai_agents.prompts.shared_rules import (
-            DESKTOP_CONTROL_RULES_EN,
-            DESKTOP_CONTROL_RULES_ZH,
-        )
-
-        assert "可打印运算符" in DESKTOP_CONTROL_RULES_ZH
-        assert '"*"' in DESKTOP_CONTROL_RULES_ZH
-        assert "printable operators" in DESKTOP_CONTROL_RULES_EN
-        assert DESKTOP_CONTROL_RULES_EN is not DESKTOP_CONTROL_RULES_ZH
+        assert "printable operators" in DESKTOP_CONTROL_RULES
+        for operator in ("*", "/", "+", "-", "%", "="):
+            assert f'"{operator}"' in DESKTOP_CONTROL_RULES
+        assert "desktop_vision_tool key=" in DESKTOP_CONTROL_RULES
+        assert "calculator/@dref" in DESKTOP_CONTROL_RULES
+        assert "action=press activates" in DESKTOP_CONTROL_RULES
 
 
 class TestPromptBilingualSupport:

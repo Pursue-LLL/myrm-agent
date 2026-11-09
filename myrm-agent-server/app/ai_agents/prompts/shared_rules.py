@@ -4,15 +4,15 @@
 （无运行时外部模块依赖；纯常量）
 
 [OUTPUT]
-跨 Agent 共享规则常量（TASK_INTEGRITY_RULES_*, DESKTOP_CONTROL_RULES_*, AGENT_RESPONSE_RULES_*, SEARCH_RESPONSE_RULES_*, EXTERNAL_SOURCES_CITATION_RULES_*）
+跨 Agent 共享规则常量（TASK_INTEGRITY_RULES_*, DESKTOP_CONTROL_RULES, AGENT_RESPONSE_RULES_*, SEARCH_RESPONSE_RULES_*, EXTERNAL_SOURCES_CITATION_RULES_*）
 
 [POS]
-跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，支持中英双语，提供任务完整性、桌面控制等核心护栏；用户指令的优先级只由 user_instructions 消息头声明。桌面控制运行时注入英文单例（factory）。
+跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，除桌面控制外均支持中英双语，提供任务完整性、桌面控制等核心护栏；用户指令的优先级只由 user_instructions 消息头声明。桌面控制规则是底层工具调用协议，只有英文版，由 factory 注入。
 
 规则组织结构：
 
 - TASK_INTEGRITY_RULES: 任务完整性护栏（_EN / _ZH）
-- DESKTOP_CONTROL_RULES: 桌面控制规则（_EN / _ZH）
+- DESKTOP_CONTROL_RULES: 桌面控制规则（底层工具调用协议，只有英文版）
 - AGENT_RESPONSE_RULES: Agent 回复规则（篇幅随问题复杂度，Markdown / 表格以渠道声明为准）（_EN / _ZH）
 - SEARCH_RESPONSE_RULES: 搜索综合回复规则（全面详细的综合答案）（_EN / _ZH）；与 Agent 共用 _LATEX_RULES_* 公式契约
 - EXTERNAL_SOURCES_CITATION_RULES: 外部来源引用规则（_EN / _ZH）
@@ -51,8 +51,9 @@ TASK_INTEGRITY_RULES_ZH = """
 # =============================================================================
 # 显式桌面控制规则（Desktop Control Rules）
 # =============================================================================
+# 底层工具调用协议只有英文版：所有语言环境注入同一份字节，保证提示词缓存前缀稳定。
 
-DESKTOP_CONTROL_RULES_EN = """
+DESKTOP_CONTROL_RULES = """
 <desktop_control_rules>
 - **Workflow order**: desktop_snapshot_tool → desktop_interact_tool(ref=@dref).
 - Prefer semantic @dref interactions from the AX tree. Do not guess coordinates when refs exist.
@@ -70,27 +71,6 @@ DESKTOP_CONTROL_RULES_EN = """
 - On macOS, if snapshot reports permission required, ask the user to grant Accessibility access before retrying.
 - First-time control of each desktop app requires user approval in the Web UI.
 - **When Not to Use Mobile Mirroring**: If a task can be achieved via browser, Web API, or native desktop app, do not switch to iPhone Mirroring. Agent must never automatically click iPhone connection or biometric pairing prompts.
-</desktop_control_rules>
-"""
-
-DESKTOP_CONTROL_RULES_ZH = """
-<desktop_control_rules>
-- **工作流顺序**: desktop_snapshot_tool → desktop_interact_tool(ref=@dref)。
-- 优先使用来自可访问性树（AX tree）的语义 @dref 交互。存在引用时不猜测坐标。
-- 在大型可访问性树中，使用 desktop_snapshot_tool 的 query 与 role 参数优先检索目标元素（如 desktop_snapshot_tool(query="<搜索关键词>")）。
-- 在耗时异步操作（如导出、动画、弹窗过渡）中使用 desktop_interact_tool（或 desktop_snapshot_tool）的 wait_seconds=<秒数> 参数等待 UI 稳定。
-- 对树状节点与折叠项使用 action="expand" 或 action="collapse"；对复选框与开关使用 action="toggle"（或 action="check"/"uncheck"）；对按钮与菜单项使用 action="invoke"。
-- 仅在 AX tree 为空、纯画布或 desktop_interact_tool 失败时使用 desktop_vision_tool。
-- 使用 set_value 进行原子字段替换；使用 type 进行击键模拟。
-- 禁止把可打印运算符（如 "*"、"/"、"+"、"-"、"%"、"="）当作 desktop_vision_tool 的 key= 键名。请用 type 输入这些字符，或通过 desktop_interact_tool click 计算器等界面上的对应 @dref 按钮。注意：interact 的 action=press 是激活 @dref 控件，不是键盘键名。
-- 调用 desktop_interact_tool 后，在执行下一步操作前先读取后续快照。
-- 若要在不切换前台的情况下操作特定应用，调用 desktop_snapshot_tool(scope="target", app_name="<app name>")，随后通过其 @dref 引用交互。后台输入直达该应用；若前台意外变化调用会中止，重拍快照后重试。
-- 确定可逆的步骤尽量打包进最少的工具调用，不要中途停下询问是否继续；仅在身份歧义、需要新坐标、不可逆动作或意外 UI 状态时停下。
-- 最便宜的检查优先：可见状态→一张截图；语义状态→一次 AX 查询；两者证明不同时才都用。
-- 用运行中工具调用内的重复查询（含 wait_seconds）等待异步 UI，不要一轮一轮追问。
-- 在 macOS 上，若快照报告需要权限，请在重试前提示用户授予辅助功能访问权限。
-- 首次控制每个桌面应用时，需在 Web UI 中获得用户批准。
-- **手机镜像非必要不使用原则（When Not to Use）**: 凡可通过网页、Web API 或桌面原生客户端解决的任务，严禁切换至 iPhone 镜像。Agent 严禁擅自代点 iPhone 连接确认与生物配对授权弹窗。
 </desktop_control_rules>
 """
 
@@ -261,5 +241,4 @@ EXTERNAL_SOURCES_CITATION_RULES_ZH = """
 # =============================================================================
 
 TASK_INTEGRITY_RULES = TASK_INTEGRITY_RULES_EN
-DESKTOP_CONTROL_RULES = DESKTOP_CONTROL_RULES_EN
 EXTERNAL_SOURCES_CITATION_RULES = EXTERNAL_SOURCES_CITATION_RULES_EN
