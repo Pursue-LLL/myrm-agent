@@ -17,7 +17,8 @@ OpenAI-shaped and leave as content blocks; cache_control markers on content part
 carried through unchanged; consecutive turns of one role are merged because the API demands alternation. What the
 model itself accepts shapes the body: the newest generation takes no sampling parameters, and an unstated output
 budget is the model's ceiling. A request that replays tool calls but declares no tools gets a placeholder tool,
-which the API demands.
+which the API demands. An API key travels as ``x-api-key``; a Claude subscription token (``sk-ant-oat…``) travels as
+a bearer token with the beta flag that admits it, and never as ``x-api-key``.
 """
 
 from __future__ import annotations
@@ -42,6 +43,9 @@ logger = logging.getLogger(__name__)
 _API_VERSION: Final = "2023-06-01"
 _OFFICIAL_HOST: Final = "api.anthropic.com"
 _STRUCTURED_OUTPUT_BETA: Final = "structured-outputs-2025-11-13"
+# A token of a Claude subscription (``sk-ant-oat…``) is a bearer credential the API honours with this beta flag.
+_OAUTH_TOKEN_PREFIX: Final = "sk-ant-oat"
+_OAUTH_BETA: Final = "oauth-2025-04-20"
 # The answer budget when the caller states none and the catalog does not know the model's own ceiling.
 _DEFAULT_MAX_TOKENS: Final = 8192
 _PLACEHOLDER_TOOL: Final[dict[str, object]] = {
@@ -339,15 +343,27 @@ def _body(route: Route, messages: Sequence[Mapping[str, object]], opts: CallOpti
     return body
 
 
-def _merge_beta(headers: dict[str, str], required: str | None) -> dict[str, str]:
-    """Caller-supplied ``anthropic-beta`` flags are kept next to the one the request itself needs."""
-    if required is None:
+def _merge_beta(headers: dict[str, str], required: Sequence[str]) -> dict[str, str]:
+    """Caller-supplied ``anthropic-beta`` flags are kept next to the ones the request itself needs."""
+    if not required:
         return headers
     key = next((k for k in headers if k.lower() == "anthropic-beta"), "anthropic-beta")
     flags = [f.strip() for f in headers.get(key, "").split(",") if f.strip()]
-    if required not in flags:
-        flags.append(required)
+    flags.extend(flag for flag in required if flag not in flags)
     return {**headers, key: ",".join(flags)}
+
+
+def _credential_headers(key: str | None, base_url: str) -> tuple[dict[str, str], list[str]]:
+    """The headers that carry the key and the beta flags that key needs."""
+    if not key:
+        return {}, []
+    if key.startswith(_OAUTH_TOKEN_PREFIX):
+        return {"authorization": f"Bearer {key}", "anthropic-dangerous-direct-browser-access": "true"}, [_OAUTH_BETA]
+    headers = {"x-api-key": key}
+    # Gateways that front the Messages API authenticate with a bearer token; the vendor itself never needs one.
+    if urlsplit(base_url).hostname != _OFFICIAL_HOST:
+        headers["authorization"] = f"Bearer {key}"
+    return headers, []
 
 
 def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapping[str, object]) -> PreparedRequest:
@@ -355,18 +371,14 @@ def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapp
     if not route.base_url:
         raise UnsupportedProviderError("The Anthropic wire needs an api_base")
     body = _body(route, messages, opts)
-    headers: dict[str, str] = {"anthropic-version": _API_VERSION}
-    if route.api_key:
-        headers["x-api-key"] = route.api_key
-        # Gateways that front the Messages API authenticate with a bearer token; the vendor itself never needs one.
-        if urlsplit(route.base_url).hostname != _OFFICIAL_HOST:
-            headers["authorization"] = f"Bearer {route.api_key}"
+    credential_headers, betas = _credential_headers(route.api_key, route.base_url)
     if "output_format" in body:
-        headers["anthropic-beta"] = _STRUCTURED_OUTPUT_BETA
+        betas.append(_STRUCTURED_OUTPUT_BETA)
+    headers = merge_headers({"anthropic-version": _API_VERSION, **credential_headers}, opts.headers)
     return PreparedRequest(
         provider=route.profile.id,
         url=f"{route.base_url}/v1/messages",
-        headers=_merge_beta(merge_headers(headers, opts.headers), headers.get("anthropic-beta")),
+        headers=_merge_beta(headers, betas),
         body=body,
         timeout=opts.timeout,
         proxy=opts.proxy,

@@ -10,14 +10,12 @@ Provides Protocol-driven bidirectional skill sync for three deployment modes:
 - SkillQualityGateProtocol: Protocol for push quality gate
 - SkillSyncManager: Sync orchestrator
 - SkillSyncManifest: Persistent sync state
-- LocalFSSyncBackend: File-system-based sync backend
 - ThresholdQualityGate: Default quality gate
 
 [POS]
 Skill synchronization module — collective skill evolution enabler.
 """
 
-from .local_sync import LocalFSSyncBackend
 from .manager import SkillSyncManager
 from .manifest import SkillSyncManifest
 from .protocols import SkillQualityGateProtocol, SkillSyncProtocol
@@ -35,7 +33,6 @@ from .types import (
 __all__ = [
     "ConflictStrategy",
     "GateVerdict",
-    "LocalFSSyncBackend",
     "PullResult",
     "PushResult",
     "RemoteSkillEntry",

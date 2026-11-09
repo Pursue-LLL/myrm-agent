@@ -3,7 +3,8 @@
 [INPUT]
 - transport.profile (POS: Route — endpoint root, bare model id and the Bedrock API key)
 - transport.params (POS: CallOptions split of the call's keyword arguments)
-- transport.http (POS: PreparedRequest)
+- transport.http (POS: PreparedRequest, RequestSigner)
+- transport.bedrock_sigv4 (POS: AWS credential chain and the signature of a request)
 - transport.bedrock_content (POS: messages as Converse turns, tool name escape)
 - transport.bedrock_structured (POS: structured output, native or as a synthetic tool)
 - transport.json_schema (POS: reference inlining of tool schemas)
@@ -14,16 +15,17 @@
 - prepare: a PreparedRequest for the Converse (or ConverseStream) operation
 
 [POS]
-Request half of the Bedrock wire (answers are read by ``bedrock_response``). Authentication is a Bedrock API key sent as
-a bearer token; signing with AWS credentials is not part of this wire. The region of the default endpoint comes from
-the model ARN or the AWS region variables. Converse is the one operation spoken, so ``converse/`` and ``invoke/`` route
-prefixes of a model id are dropped. The caller's tools and tool choice are sent as stated, whichever model it is: the
-catalog can lag a model's real abilities, and a refusal from the API says so plainly. Reasoning is asked for the way
-each model family takes it: a thinking block for Claude, ``reasoningConfig`` for Nova 2, ``reasoning_effort`` for
-gpt-oss, all in ``additionalModelRequestFields``; a model without reasoning is sent none. Where the catalog lists it,
-``parallel_tool_calls`` becomes Anthropic's ``disable_parallel_tool_use`` there as well. A request that replays tool
-calls but declares no tools gets a placeholder tool, which the API demands. A tool choice the caller states wins over
-the forced call of the synthetic structured-output tool.
+Request half of the Bedrock wire (answers are read by ``bedrock_response``). A Bedrock API key is sent as a bearer
+token; without one the request is signed with the AWS credential chain (``bedrock_sigv4``), which needs botocore and
+may block, so ``prepare`` is then run off the event loop. The region of the default endpoint comes from the model ARN,
+the AWS region variables or, when signing, the region of the AWS profile. Converse is the one operation spoken, so
+``converse/`` and ``invoke/`` route prefixes of a model id are dropped. The caller's tools and tool choice are sent
+as stated, whichever model it is: the catalog can lag a model's real abilities, and a refusal from the API says so
+plainly. Reasoning is asked for the way each model family takes it: a thinking block for Claude, ``reasoningConfig``
+for Nova 2, ``reasoning_effort`` for gpt-oss, all in ``additionalModelRequestFields``; a model without reasoning is
+sent none. Where the catalog lists it, ``parallel_tool_calls`` becomes Anthropic's ``disable_parallel_tool_use``
+there as well. A request that replays tool calls but declares no tools gets a placeholder tool, which the API
+demands. A tool choice the caller states wins over the forced call of the synthetic structured-output tool.
 """
 
 from __future__ import annotations
@@ -44,6 +46,7 @@ from myrm_agent_harness.toolkits.llms.transport.bedrock_content import (
     encode_tool_name,
     to_turns,
 )
+from myrm_agent_harness.toolkits.llms.transport.bedrock_sigv4 import load_credentials, request_signer
 from myrm_agent_harness.toolkits.llms.transport.bedrock_structured import (
     JSON_TOOL,
     json_tool,
@@ -52,10 +55,10 @@ from myrm_agent_harness.toolkits.llms.transport.bedrock_structured import (
     supports_native_output,
 )
 from myrm_agent_harness.toolkits.llms.transport.capabilities import claude_traits
-from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest
+from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest, RequestSigner
 from myrm_agent_harness.toolkits.llms.transport.json_schema import inline_refs
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
-from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
+from myrm_agent_harness.toolkits.llms.transport.profile import Route
 from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 logger = logging.getLogger(__name__)
@@ -292,29 +295,42 @@ def _body(model: str, messages: Sequence[Mapping[str, object]], opts: CallOption
     return body
 
 
-def _endpoint(base_url: str | None, model: str) -> str:
+def _region(model: str, profile_region: str | None = None) -> str:
+    """The region of a call: the model ARN's, else the AWS variables', else the AWS profile's, else the default."""
     arn = _ARN_REGION.match(model)
-    region = arn[1] if arn else next((v for name in _REGION_ENV if (v := os.environ.get(name))), _DEFAULT_REGION)
-    return (base_url or _ENDPOINT).replace("{region}", region)
+    if arn:
+        return arn[1]
+    return next((v for name in _REGION_ENV if (v := os.environ.get(name))), None) or profile_region or _DEFAULT_REGION
 
 
 def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapping[str, object]) -> PreparedRequest:
+    """Authenticated by the Bedrock API key when there is one; otherwise signed with the AWS credential chain.
+
+    Resolving the chain can block (files, instance metadata, a token service), so a caller on the event loop runs
+    this off it (see ``client.LLMTransport.acompletion``).
+    """
     opts = split_params(params)
-    if not route.api_key:
-        raise UnsupportedProviderError(
-            "The Bedrock wire needs a Bedrock API key (api_key or AWS_BEARER_TOKEN_BEDROCK); "
-            "signing requests with AWS credentials is not supported"
-        )
     model = _OPERATION_PREFIX.sub("", route.model)
+    headers: dict[str, str] = {}
+    signer: RequestSigner | None = None
+    if route.api_key:
+        headers["Authorization"] = f"Bearer {route.api_key}"
+        region = _region(model)
+    else:
+        credentials = load_credentials()
+        region = _region(model, credentials.region)
+        signer = request_signer(credentials, region)
+    endpoint = (route.base_url or _ENDPOINT).replace("{region}", region)
+    operation = "converse-stream" if opts.stream else "converse"
     return PreparedRequest(
         provider=route.profile.id,
-        url=f"{_endpoint(route.base_url, model)}/model/{quote(model, safe='')}/"
-        f"{'converse-stream' if opts.stream else 'converse'}",
-        headers=merge_headers({"Authorization": f"Bearer {route.api_key}"}, opts.headers),
+        url=f"{endpoint}/model/{quote(model, safe='')}/{operation}",
+        headers=merge_headers(headers, opts.headers),
         body=_body(model, messages, opts),
         timeout=opts.timeout,
         proxy=opts.proxy,
         stream=opts.stream,
         framing="eventstream",
         retries=DEFAULT_RETRIES,
+        signer=signer,
     )

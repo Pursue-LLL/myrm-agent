@@ -9,6 +9,7 @@
 
 [OUTPUT]
 - PreparedRequest: one fully built provider request (what a wire module produces)
+- RequestSigner: the hook that adds a signature to each attempt as it is built (Bedrock's AWS Signature Version 4)
 - StreamDecoder: the contract a wire module implements to turn stream events into chat chunks
 - send_json / asend_json: one non-streaming round trip (JSON or multipart form body), parsed
 - open_stream / aopen_stream: one streaming round trip, as a chunk iterator
@@ -23,8 +24,9 @@ The only place the transport touches the network. A wire module builds a Prepare
 sends it, maps a failed status to LLMHTTPError and, for a request that allows it, retries what failed before the
 provider produced anything (see transport.retry). A stream is never retried once it has begun. A 307/308 from a gateway
 on the configured host is followed with the same body and headers (see transport.redirects); a hop is not a retry.
-Clients are shared per event loop and egress proxy; the per-request timeout is the provider's silence budget, as a
-stream that keeps producing is not cut.
+A request's signer runs on every attempt and every hop after the request is built, because a signature covers the
+bytes, the time and the address of the attempt it is sent with. Clients are shared per event loop and egress proxy;
+the per-request timeout is the provider's silence budget, as a stream that keeps producing is not cut.
 """
 
 from __future__ import annotations
@@ -34,7 +36,7 @@ import json
 import logging
 import threading
 import time
-from collections.abc import AsyncGenerator, Generator, Mapping
+from collections.abc import AsyncGenerator, Callable, Generator, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Final, Protocol
 
@@ -56,6 +58,8 @@ Chunk = dict[str, object]
 # One multipart file field: ``(filename, content, mime)``, or a bare string for a field that only forces the
 # multipart encoding.
 FilePart = tuple[str, bytes, str] | str
+# Adds the authentication that depends on the exact bytes of a request (a signature) to the request about to be sent.
+RequestSigner = Callable[[httpx.Request], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +80,8 @@ class PreparedRequest:
     files: Mapping[str, FilePart] | None = None
     # Retries after the first attempt for a failure before anything came back; 0 for a call that must not be repeated.
     retries: int = 0
+    # Signs each attempt as it is built, so a retry carries a fresh signature and a redirect hop one for its new address.
+    signer: RequestSigner | None = None
 
 
 class StreamDecoder(Protocol):
@@ -155,7 +161,7 @@ def retire_clients() -> None:
 
 def _build(client: httpx.Client | httpx.AsyncClient, req: PreparedRequest) -> httpx.Request:
     if req.files is not None:
-        return client.build_request(
+        request = client.build_request(
             "POST",
             req.url,
             params=dict(req.query) or None,
@@ -164,14 +170,19 @@ def _build(client: httpx.Client | httpx.AsyncClient, req: PreparedRequest) -> ht
             files=dict(req.files),
             timeout=_timeout(req.timeout),
         )
-    return client.build_request(
-        "POST",
-        req.url,
-        params=dict(req.query) or None,
-        headers=dict(req.headers),
-        content=json.dumps(req.body, ensure_ascii=False).encode() if req.body is not None else None,
-        timeout=_timeout(req.timeout),
-    )
+    else:
+        request = client.build_request(
+            "POST",
+            req.url,
+            params=dict(req.query) or None,
+            headers=dict(req.headers),
+            content=json.dumps(req.body, ensure_ascii=False).encode() if req.body is not None else None,
+            timeout=_timeout(req.timeout),
+        )
+    if req.signer is not None:
+        request.read()  # a multipart body is a stream until read, and the signature covers its bytes
+        req.signer(request)
+    return request
 
 
 def _with_json_headers(req: PreparedRequest) -> PreparedRequest:

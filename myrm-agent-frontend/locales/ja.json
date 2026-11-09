@@ -14455,37 +14455,6 @@
       "resizeSuccess": "ターミナルのサイズを更新しました"
     }
   },
-  "commandPalette": {
-    "title": "グローバルコマンドハブ＆セッション検索",
-    "shortcutHint": "いつでも Cmd+K を押してください",
-    "inputPlaceholder": "コマンドやアクションを入力、またはチャット履歴を検索...",
-    "groups": {
-      "actions": "クイック操作＆システムコマンド",
-      "history": "チャットスレッド＆メッセージ履歴"
-    },
-    "actionsList": {
-      "switchModel": "使用中のモデルを切り替え (/model)",
-      "switchModelDesc": "基本の推論モデルを調整または切り替え",
-      "switchAgent": "専門エージェントを切り替え (/agent)",
-      "switchAgentDesc": "コードアーキテクトやテスターなどにすばやく切り替え",
-      "clearContext": "現在のコンテキストをクリア (/clear)",
-      "clearContextDesc": "ワーキングメモリとマルチターンウィンドウをリセット",
-      "exportSession": "オフライン HTML バンドルをエクスポート (/export)",
-      "exportSessionDesc": "マルチターンのタスクを単体で動くインタラクティブ HTML にパッケージ化",
-      "globalEstop": "グローバル緊急停止 (/estop)",
-      "globalEstopDesc": "実行中のバックグラウンド処理とサブエージェントをすべて即座に中止"
-    },
-    "historyEmpty": "一致する会話が見つかりません",
-    "searchingHistory": "メッセージ履歴を検索中...",
-    "telemetry": {
-      "cacheHit": "キャッシュヒット",
-      "ttft": "TTFT レイテンシ",
-      "throughput": "リアルタイムスループット",
-      "estopBtn": "グローバル緊急停止",
-      "estopActivated": "緊急停止を実行しました。実行中のタスクは停止されました。"
-    },
-    "tabToAdopt": "Tab キーで提案されたプロンプトを採用"
-  },
   "machines": {
     "title": "マイマシン（フリートダッシュボード）",
     "subtitle": "セルフホストのマシンやプライベート計算ノードを接続・監視し、画面をリアルタイムで引き継げます",

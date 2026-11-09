@@ -29,7 +29,7 @@ from typing import Final
 
 from myrm_agent_harness.toolkits.llms.transport.errors import BASE_RESP_STATUS
 from myrm_agent_harness.toolkits.llms.transport.http import FilePart, PreparedRequest, asend_json
-from myrm_agent_harness.toolkits.llms.transport.openai_chat import openai_endpoint
+from myrm_agent_harness.toolkits.llms.transport.openai_chat import AZURE_DEFAULT_API_VERSION, openai_endpoint
 from myrm_agent_harness.toolkits.llms.transport.params import split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
 from myrm_agent_harness.toolkits.llms.transport.service_routes import service_route
@@ -37,8 +37,8 @@ from myrm_agent_harness.utils.mime_types import detect_image_mime, extension_for
 
 _OPENAI_WIRES: Final = frozenset({"openai_chat", "azure_openai"})
 _NON_OPENAI_IMAGE_PROVIDERS: Final = frozenset({"stability", "minimax_image"})
-# Azure serves its image deployments on a newer API version than its chat default.
-_AZURE_IMAGE_API_VERSION: Final = "2025-02-01-preview"
+# An image call names its Azure API version itself, so the environment's ``AZURE_API_VERSION`` does not apply to it.
+_AZURE_IMAGE_API_VERSION: Final = AZURE_DEFAULT_API_VERSION
 # DALL-E 3 is the only OpenAI image model with a `style` option; the other image models take none.
 _STYLE_MODEL: Final = "dall-e-3"
 

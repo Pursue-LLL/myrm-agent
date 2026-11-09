@@ -31,7 +31,6 @@ class SkillSyncProtocol(Protocol):
     """Backend-agnostic skill synchronization interface.
 
     Implementations:
-    - LocalFSSyncBackend: file-system-based (Local/Tauri multi-device)
     - HTTPSyncBackend: planned for SaaS via control-plane (not yet implemented)
 
     The protocol intentionally works with skill *bundles* (ZIP bytes)

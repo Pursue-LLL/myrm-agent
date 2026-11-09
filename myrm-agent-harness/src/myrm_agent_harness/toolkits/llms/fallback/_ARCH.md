@@ -15,7 +15,6 @@ Enhanced model fallback management. Supports cooldown periods and candidate pool
 | managed_llm.py | Core | LLM wrapper that transparently integrates ModelFallbackManager into LangChain's | ✅ |
 | manager.py | Core | Model fallback manager. Maintains candidate pool, cooldown state, and selects the next available mod | ✅ |
 | probe_throttle.py | Core | Global probe throttle. Prevents concurrent requests from redundantly probing the same model. | ✅ |
-| recommendations.py | Core | Provides intelligent fallback model recommendations based on model capabilities, | ✅ |
 | scenario.py | Core | Scenario-aware model selection. Optimizes model choice based on scenario (realtime/batch/balanced). | ✅ |
 
 ## Key Dependencies

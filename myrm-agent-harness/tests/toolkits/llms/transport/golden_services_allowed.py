@@ -92,14 +92,6 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
         when=_old_is("api.cohere.ai"),
     ),
     AllowedDiff(
-        "azure-embedding-stable-api-version",
-        "The previous library defaulted to the 2025-02-01-preview API; the transport uses the stable 2024-10-21 "
-        "version, the same default as its chat path.",
-        "~",
-        r"/query",
-        providers=("embedding/azure",),
-    ),
-    AllowedDiff(
         "ollama-openai-endpoint",
         "Ollama serves the OpenAI-shaped `/v1/embeddings` next to its native `/api/embed`, so the transport uses one "
         "request shape for every OpenAI-compatible provider (and sends the optional bearer key, which the native call "

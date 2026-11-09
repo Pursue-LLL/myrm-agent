@@ -14455,37 +14455,6 @@
       "resizeSuccess": "터미널 크기가 업데이트되었습니다"
     }
   },
-  "commandPalette": {
-    "title": "글로벌 명령 허브 및 세션 검색",
-    "shortcutHint": "언제든지 Cmd+K를 누르세요",
-    "inputPlaceholder": "명령이나 작업을 입력하거나 채팅 기록을 검색하세요...",
-    "groups": {
-      "actions": "빠른 제어 및 시스템 명령",
-      "history": "채팅 스레드 및 메시지 기록"
-    },
-    "actionsList": {
-      "switchModel": "사용 중인 모델 전환 (/model)",
-      "switchModelDesc": "기본 추론 모델을 조정하거나 전환",
-      "switchAgent": "전문 에이전트 전환 (/agent)",
-      "switchAgentDesc": "코드 아키텍트, 테스터 등으로 빠르게 전환",
-      "clearContext": "현재 컨텍스트 지우기 (/clear)",
-      "clearContextDesc": "세션 메모리와 멀티턴 윈도우 초기화",
-      "exportSession": "오프라인 HTML 번들 내보내기 (/export)",
-      "exportSessionDesc": "멀티턴 작업을 독립 실행형 인터랙티브 HTML로 패키징",
-      "globalEstop": "전역 긴급 정지 (/estop)",
-      "globalEstopDesc": "실행 중인 모든 백그라운드 작업과 서브 에이전트를 즉시 중단"
-    },
-    "historyEmpty": "일치하는 대화를 찾을 수 없습니다",
-    "searchingHistory": "메시지 기록 검색 중...",
-    "telemetry": {
-      "cacheHit": "캐시 적중",
-      "ttft": "TTFT 지연 시간",
-      "throughput": "실시간 처리량",
-      "estopBtn": "전역 긴급 정지",
-      "estopActivated": "긴급 정지가 실행되었습니다. 진행 중인 작업이 중단되었습니다."
-    },
-    "tabToAdopt": "Tab 키로 제안된 프롬프트 적용"
-  },
   "machines": {
     "title": "내 머신(플릿 대시보드)",
     "subtitle": "셀프 호스팅 머신과 프라이빗 컴퓨팅 노드를 연결하고 모니터링하며 화면을 실시간으로 인계받을 수 있습니다",

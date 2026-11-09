@@ -17,10 +17,12 @@ whichever wire or gateway produced the answer. It keeps no answers and no state 
 model and thread and every call reaches the provider: a stored answer would stand in for a key the provider has since
 revoked or an endpoint that has gone away. Connection pools live in ``http``. It exposes the same four calls and keyword
 arguments the chat adapter has always issued, which keeps the adapter's retry, failover and recovery logic untouched.
+A wire that resolves AWS credentials while it builds a request (Bedrock without an API key) builds it off the event loop.
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
@@ -59,6 +61,15 @@ class ChatWire:
     prepare: Callable[[Route, Messages, Mapping[str, object]], PreparedRequest]
     parse: Callable[[Route, dict[str, object]], dict[str, object]]
     decoder: Callable[[Route], StreamDecoder]
+    # True when ``prepare`` looks the AWS credential chain up (files, instance metadata, a token service) unless the
+    # call carries an API key.
+    resolves_credentials: bool = False
+
+    async def aprepare(self, route: Route, messages: Messages, params: Mapping[str, object]) -> PreparedRequest:
+        """``prepare`` without blocking the event loop on the credential lookup."""
+        if self.resolves_credentials and not route.api_key:
+            return await asyncio.to_thread(self.prepare, route, messages, params)
+        return self.prepare(route, messages, params)
 
 
 _OPENAI = ChatWire(openai_chat.prepare, openai_chat.parse, openai_chat.decoder)
@@ -68,7 +79,9 @@ _CHAT_WIRES: Final[dict[str, ChatWire]] = {
     "anthropic": ChatWire(anthropic_messages.prepare, anthropic_response.parse, anthropic_response.decoder),
     "gemini": ChatWire(gemini_generate.prepare, gemini_generate.parse, gemini_generate.decoder),
     "ollama": ChatWire(ollama_chat.prepare, ollama_chat.parse, ollama_chat.decoder),
-    "bedrock": ChatWire(bedrock_converse.prepare, bedrock_response.parse, bedrock_response.decoder),
+    "bedrock": ChatWire(
+        bedrock_converse.prepare, bedrock_response.parse, bedrock_response.decoder, resolves_credentials=True
+    ),
 }
 
 
@@ -99,7 +112,7 @@ class LLMTransport:
     async def acompletion(self, *, messages: Messages, **params: object) -> dict[str, object] | AsyncProviderStream:
         route = _route(params)
         wire = _CHAT_WIRES[route.profile.wire]
-        request = wire.prepare(route, messages, params)
+        request = await wire.aprepare(route, messages, params)
         if request.stream:
             return await aopen_stream(request, ShapedDecoder(wire.decoder(route)))
         return shape_completion(route.profile.id, wire.parse(route, await asend_json(request)))

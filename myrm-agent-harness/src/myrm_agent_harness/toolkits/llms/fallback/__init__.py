@@ -36,12 +36,6 @@ from .health_check import (
 from .managed_llm import FallbackModel, ManagedLLM
 from .manager import ModelCandidate, ModelFallbackManager
 from .probe_throttle import GlobalProbeThrottle, get_global_probe_throttle
-from .recommendations import (
-    FallbackRecommendation,
-    generate_quantified_reason,
-    get_primary_recommendation,
-    recommend_fallback,
-)
 from .scenario import ModelMetrics, ScenarioType, select_by_scenario, select_by_scenario_with_quality
 
 __all__ = [
@@ -51,7 +45,6 @@ __all__ = [
     "FailoverEmitter",
     "FailoverEvent",
     "FallbackModel",
-    "FallbackRecommendation",
     "GlobalProbeThrottle",
     "ManagedLLM",
     "HealthProbeErrorKind",
@@ -64,14 +57,11 @@ __all__ = [
     "RecoveryEvent",
     "ScenarioType",
     "failover_emitter_ctx",
-    "generate_quantified_reason",
     "get_active_failover_emitter",
     "get_global_probe_throttle",
     "get_preset_config",
-    "get_primary_recommendation",
     "lightweight_health_check",
     "probe_llm_health",
-    "recommend_fallback",
     "select_by_scenario",
     "select_by_scenario_with_quality",
     "with_failover_emitter",
