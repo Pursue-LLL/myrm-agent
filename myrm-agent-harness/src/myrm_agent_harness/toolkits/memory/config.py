@@ -190,8 +190,6 @@ class RetrievalConfig:
         type_weights: Memory type weights for RRF fusion
         correction_penalty: Penalty multiplier for corrected memories
         mmr_lambda: MMR diversity balance (1.0 = pure relevance, 0.0 = pure diversity)
-        enable_conversation_raw_channel: Enable raw_embedding channel for ConversationMemory
-        raw_channel_weight: Weight for raw_embedding channel (summary_channel_weight = 1 - this)
         keyword_overlap_weight: Keyword overlap boost weight
         keyword_overlap_min_tokens: Minimum token overlap to apply boost
         enable_adaptive_channel: Enable adaptive dual-channel selection (saves ~35% query cost)
@@ -203,7 +201,6 @@ class RetrievalConfig:
         enable_keyword_boost: Enable keyword overlap boost in ResultBooster
         keyword_boost_weight: Keyword boost weight (multiplicative factor)
         enable_temporal_boost: Enable temporal proximity boost in ResultBooster
-        temporal_boost_max_weight: Maximum temporal boost weight (for same-day matches)
         enable_person_name_boost: Enable person name match boost in ResultBooster
         person_name_boost_weight: Person name boost weight (multiplicative factor)
         enable_quoted_phrase_boost: Enable quoted phrase match boost in ResultBooster
@@ -239,15 +236,12 @@ class RetrievalConfig:
     )
     correction_penalty: float = 0.1
     mmr_lambda: float = 0.7
-    enable_conversation_raw_channel: bool = True
-    raw_channel_weight: float = 0.4
     keyword_overlap_weight: float = 0.15
     keyword_overlap_min_tokens: int = 2
     temporal_boost_weight: float = 0.40
     temporal_boost_threshold_hours: float = 24.0
     quoted_phrase_boost: float = 1.5
     person_name_boost: float = 0.67
-    preference_min_confidence: float = 0.7
     enable_adaptive_channel: bool = True
     adaptive_threshold: int = 5
     adaptive_diversity_threshold: float = 0.7
@@ -257,7 +251,6 @@ class RetrievalConfig:
     enable_keyword_boost: bool = True
     keyword_boost_weight: float = 0.30
     enable_temporal_boost: bool = True
-    temporal_boost_max_weight: float = 0.40
     enable_person_name_boost: bool = True
     person_name_boost_weight: float = 0.20
     enable_quoted_phrase_boost: bool = True
@@ -353,7 +346,6 @@ class ConsolidationConfig:
         enrich_max_similar: Max similar memories to fetch when only 1 new memory exists
         conflict_importance_threshold: Minimum importance to route a contradiction to user review
         conflict_confidence_threshold: Route to user when LLM accuracy is below this value
-        conflict_auto_resolve_days: Days before an unresolved conflict auto-resolves as keep_new
     """
 
     enabled: bool = True
@@ -364,7 +356,6 @@ class ConsolidationConfig:
     message_count_trigger: int = 50
     conflict_importance_threshold: float = 0.6
     conflict_confidence_threshold: float = 0.85
-    conflict_auto_resolve_days: int = 7
 
 
 @dataclass(frozen=True, slots=True)
@@ -414,7 +405,6 @@ class MemoryConfig:
 
     embedding_model: str
     collection_prefix: str = "memory"
-    default_search_limit: int = 10
     similarity_threshold: float = 0.5
     enable_adaptive_threshold: bool = True
     adaptive_threshold_strategy: AdaptiveThresholdStrategy = field(default_factory=CountBasedThresholdStrategy)

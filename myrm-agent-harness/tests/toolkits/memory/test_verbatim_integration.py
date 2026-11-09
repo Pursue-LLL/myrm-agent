@@ -198,12 +198,6 @@ class TestDualChannelConfig:
         assert MemoryType.CONVERSATION in config.type_weights
         assert config.type_weights[MemoryType.CONVERSATION] == 0.95
 
-    def test_raw_channel_enabled(self) -> None:
-        config = RetrievalConfig()
-
-        assert config.enable_conversation_raw_channel is True
-        assert 0 < config.raw_channel_weight < 1
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
