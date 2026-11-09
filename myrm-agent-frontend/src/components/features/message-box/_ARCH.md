@@ -52,7 +52,7 @@
 | `__tests__/MessageBox.citationSources.test.tsx` | 测试 | 多轮会话经真实 `MessageBox` 渲染，断言交给 `MarkdownContent` 的 cite 来源：本条自己的编号优先于更早消息的同号来源、缺的编号取最近的更早消息、不取后面消息的来源 | ✅ |
 | `__tests__/MessageBox.routing.test.tsx` | 测试 | 角色路由：助手行把消息、位置、流式标志与当前聊天交给助手气泡（聊天 id 不是字符串时不传）；`custom_message` 与带 `is_custom_message` 标记的任意角色行渲染为卡片（缺省类型与保留策略、`display: false` 不渲染、标记为 false 不算）；用户行的首行标记、仅发送失败才提供重试、编辑的进入 / 取消 / 提交（加载中或没有聊天时不重发且保持编辑态） | ✅ |
 | `__tests__/MessageBox.lastTurnAnswer.test.tsx` | 测试 | 经真实 `MessageBox` 渲染：只有最新回合的回答把 `isLastTurnAnswer` 交给操作栏（更早回合与其后的系统通知不给）；带 `wakeupNotice` 的用户行（起了回合的通知不渲染，其余渲染为安静的一行且不显示原始文本）；开发者模式的 system 行默认隐藏、开启后带本地化标签、已开启时首帧即显示 | ✅ |
-| `__tests__/MessageBox.reasoningAutoCollapse.test.tsx` | 测试 | 思考块在回答开始时自动折叠一次且用户之后可再展开；`inline` 档在回答开始后保持展开且没有折叠开关；已完成的消息在 `inline` 档无需点击即显示思考 | ✅ |
+| `__tests__/MessageBox.reasoningAutoCollapse.test.tsx` | 测试 | 思考块在回答开始时自动折叠一次且用户之后可再展开；已完成的消息里用户手动展开的思考块不会被自动收起；`inline` 档在回答开始后保持展开且没有折叠开关；已完成的消息在 `inline` 档无需点击即显示思考 | ✅ |
 | `__tests__/MessageBox.regenerate.test.tsx` | 测试 | 重新生成把结果如实回报给操作栏菜单：请求被拒（菜单保留自定义指令、不发新一轮）、回合未送出、没有可发送的查询、回合已送出 | ✅ |
 | `WaitingTtftIndicator.tsx` | 组件 | 首 token 前的等待指示：呼吸圆点 + 逐秒计时（文案走 `chat.reasoningThinking`），路由帧到达即挂载，内容/思考到达后卸载 | ✅ |
 | `MessageBoxLoading.tsx` | 辅助 | 首 token 前的等待态：骨架条 + 逐秒计时（复用 `WaitingTtftIndicator`），避免数秒等待被误认为卡死 | ✅ |

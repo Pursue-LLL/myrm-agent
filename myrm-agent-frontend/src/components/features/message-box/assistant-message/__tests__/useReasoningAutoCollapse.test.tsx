@@ -38,6 +38,14 @@ describe('useReasoningAutoCollapse', () => {
     expect(mountHook({ ...THINKING, ...override }).result.current.isExpanded).toBe(false);
   });
 
+  it('stays open however long the model keeps thinking', () => {
+    const { result } = mountHook();
+
+    advance(60_000);
+
+    expect(result.current.isExpanded).toBe(true);
+  });
+
   it('folds once the answer has been still for a second, and stays open when the reader reopens it', () => {
     const { result, rerender } = mountHook();
 
@@ -51,6 +59,36 @@ describe('useReasoningAutoCollapse', () => {
     advance(5000);
 
     expect(result.current.isExpanded).toBe(true);
+  });
+
+  it('leaves a block the reader opens on a finished message open', () => {
+    const { result } = mountHook({ ...THINKING, isLast: false, loading: false, content: 'Hello' });
+
+    act(() => result.current.toggle());
+    advance(5000);
+
+    expect(result.current.isExpanded).toBe(true);
+  });
+
+  it('leaves a block the reader reopened while the answer was still coming in open', () => {
+    const { result, rerender } = mountHook();
+
+    act(() => result.current.toggle());
+    act(() => result.current.toggle());
+    rerender({ ...THINKING, content: 'Hello' });
+    advance(5000);
+
+    expect(result.current.isExpanded).toBe(true);
+  });
+
+  it('does not reopen a block the reader closed while the model was still thinking', () => {
+    const { result, rerender } = mountHook();
+
+    act(() => result.current.toggle());
+    rerender({ ...THINKING, content: 'Hello' });
+    advance(5000);
+
+    expect(result.current.isExpanded).toBe(false);
   });
 
   it('waits again while the answer keeps changing', () => {

@@ -4,6 +4,7 @@
  * 思考块折叠语义：
  * - 只在「思考 → 开始输出正文」这一次自动折叠（延迟 1s）；
  * - 折叠之后用户手动展开，不得再被自动收起（否则永远看不了历史思考）；
+ * - 已完成的消息里用户手动展开的思考块，同样不被自动收起；
  * - inline 档位：思考正文始终展开，没有折叠开关，也不会被自动收起。
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -108,6 +109,22 @@ describe('MessageBox reasoning auto-collapse', () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
+    expect(screen.getByText('先分析需求再作答')).toBeTruthy();
+  });
+
+  it('keeps the reasoning of a finished message open once the reader has opened it', () => {
+    vi.useFakeTimers();
+    const finished = reasoningMessage('这是回答');
+    storeMessages.current = [finished];
+
+    render(<MessageBox message={finished} messageIndex={0} loading={false} isLast={false} />);
+    expect(screen.queryByText('先分析需求再作答')).toBeNull();
+
+    fireEvent.click(screen.getByLabelText('expandReasoning'));
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
     expect(screen.getByText('先分析需求再作答')).toBeTruthy();
   });
 
