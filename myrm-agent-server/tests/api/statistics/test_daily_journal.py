@@ -161,7 +161,7 @@ class TestFetchToolCallCountDynamicDays:
             mock_settings.database.event_log_dir = "/tmp/test"
             mock_path.return_value.exists.return_value = True
 
-            result = await _fetch_tool_call_count(today, today + timedelta(days=1))
+            result = await _fetch_tool_call_count(today, today + timedelta(days=1), today.strftime("%Y-%m-%d"))
 
             assert result == 42
             call_args = mock_analytics.get_global_activity_patterns.call_args
@@ -199,7 +199,7 @@ class TestFetchToolCallCountDynamicDays:
             mock_settings.database.event_log_dir = "/tmp/test"
             mock_path.return_value.exists.return_value = True
 
-            result = await _fetch_tool_call_count(old_date, old_date + timedelta(days=1))
+            result = await _fetch_tool_call_count(old_date, old_date + timedelta(days=1), old_date.strftime("%Y-%m-%d"))
 
             assert result == 99
             call_args = mock_analytics.get_global_activity_patterns.call_args
@@ -218,7 +218,7 @@ class TestFetchToolCallCountDynamicDays:
             mock_settings.database.event_log_dir = "/nonexistent"
             mock_path.return_value.exists.return_value = False
 
-            result = await _fetch_tool_call_count(today, today + timedelta(days=1))
+            result = await _fetch_tool_call_count(today, today + timedelta(days=1), today.strftime("%Y-%m-%d"))
             assert result == 0
 
     @pytest.mark.asyncio
@@ -243,7 +243,7 @@ class TestFetchToolCallCountDynamicDays:
             mock_settings.database.event_log_dir = "/tmp/test"
             mock_path.return_value.exists.return_value = True
 
-            result = await _fetch_tool_call_count(today, today + timedelta(days=1))
+            result = await _fetch_tool_call_count(today, today + timedelta(days=1), today.strftime("%Y-%m-%d"))
             assert result == 0
 
     @pytest.mark.asyncio
@@ -278,7 +278,7 @@ class TestFetchToolCallCountDynamicDays:
             mock_settings.database.event_log_dir = "/tmp/test"
             mock_path.return_value.exists.return_value = True
 
-            result = await _fetch_tool_call_count(today, today + timedelta(days=1))
+            result = await _fetch_tool_call_count(today, today + timedelta(days=1), today.strftime("%Y-%m-%d"))
             assert result == 0
 
 
@@ -295,7 +295,7 @@ class TestGetDailyJournalEndpoint:
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         with patch("app.api.statistics.daily_journal._fetch_tool_call_count", new_callable=AsyncMock, return_value=0):
-            response = await get_daily_journal(date="2026-05-20", agent_id=None, db=mock_db)
+            response = await get_daily_journal(date="2026-05-20", agent_id=None, timezone=None, x_timezone=None, db=mock_db)
 
         import json
 
@@ -314,8 +314,10 @@ class TestGetDailyJournalEndpoint:
 
         mock_db = AsyncMock()
 
-        with pytest.raises(StandardHTTPException):
-            await get_daily_journal(date="not-valid", agent_id=None, db=mock_db)
+        with pytest.raises(StandardHTTPException) as exc_info:
+            await get_daily_journal(date="not-valid", agent_id=None, timezone=None, x_timezone=None, db=mock_db)
+
+        assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
     async def test_with_sessions_aggregates_tokens(self):
@@ -351,7 +353,7 @@ class TestGetDailyJournalEndpoint:
         mock_db.execute = mock_execute
 
         with patch("app.api.statistics.daily_journal._fetch_tool_call_count", new_callable=AsyncMock, return_value=10):
-            response = await get_daily_journal(date="2026-05-20", agent_id=None, db=mock_db)
+            response = await get_daily_journal(date="2026-05-20", agent_id=None, timezone=None, x_timezone=None, db=mock_db)
 
         import json
 
@@ -394,7 +396,7 @@ class TestGetDailyJournalEndpoint:
         mock_db.execute = mock_execute
 
         with patch("app.api.statistics.daily_journal._fetch_tool_call_count", new_callable=AsyncMock, return_value=0):
-            response = await get_daily_journal(date="2026-05-20", agent_id=None, db=mock_db)
+            response = await get_daily_journal(date="2026-05-20", agent_id=None, timezone=None, x_timezone=None, db=mock_db)
 
         import json
 

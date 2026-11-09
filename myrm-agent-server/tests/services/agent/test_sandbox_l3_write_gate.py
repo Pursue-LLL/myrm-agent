@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.ai_agents import GeneralAgentParams
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest
 from app.services.agent.profile.profile_builtin_tools import is_sandbox_capable_tools
@@ -54,98 +55,66 @@ class TestResolvedAgentProfileProperty:
         assert general_profile.is_sandbox_capable is False
 
 
+async def convert(*, builtin_tools: tuple[str, ...], **request_fields: bool) -> GeneralAgentParams:
+    """Run the real converter for an agent with ``builtin_tools``; memory and auto-extraction start switched on."""
+    profile = ResolvedAgentProfile(agent_id="agent-1", skill_ids=(), mcp_ids=(), enabled_builtin_tools=builtin_tools)
+    resolver = MagicMock()
+    resolver.resolve = AsyncMock(return_value=profile)
+    request = AgentRequest(
+        message_id="msg-1",
+        query="Remember that my deploy host is 10.0.0.5:8080",
+        chat_id="chat-1",
+        agent_id="agent-1",
+        model_selection=get_model_selection(),
+        **{"enable_memory": True, "enable_memory_auto_extraction": True, **request_fields},
+    )
+    with (
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=resolver),
+        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=_build_mock_user_configs())),
+    ):
+        params, *_ = await convert_to_general_agent_params(request, chat_history=[])
+    return params
+
+
 class TestConverterSandboxWriteGate:
     @pytest.mark.asyncio
     async def test_sandbox_profile_disables_auto_extraction_by_default(self) -> None:
-        coding_profile = ResolvedAgentProfile(
-            agent_id="coding-agent-1",
-            skill_ids=(),
-            mcp_ids=(),
-            enabled_builtin_tools=("code_execute", "web_search"),
-        )
-        mock_resolver = MagicMock()
-        mock_resolver.resolve = AsyncMock(return_value=coding_profile)
-
-        req = AgentRequest(
-            message_id="msg-1",
-            query="Refactor auth",
-            chat_id="chat-coding",
-            agent_id="coding-agent-1",
-            enable_memory=True,
-            enable_memory_auto_extraction=True,
-            memory_require_confirmation=False,
-            model_selection=get_model_selection(),
-        )
-
-        mock_configs = _build_mock_user_configs()
-        with (
-            patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
-            patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        ):
-            params, *rest = await convert_to_general_agent_params(req, chat_history=[])
+        params = await convert(builtin_tools=("code_execute", "web_search"), memory_require_confirmation=False)
 
         assert params.enable_memory_auto_extraction is False
         assert params.memory_require_confirmation is True
 
     @pytest.mark.asyncio
     async def test_general_profile_retains_auto_extraction(self) -> None:
-        general_profile = ResolvedAgentProfile(
-            agent_id="general-agent-1",
-            skill_ids=(),
-            mcp_ids=(),
-            enabled_builtin_tools=("web_search", "memory"),
-        )
-        mock_resolver = MagicMock()
-        mock_resolver.resolve = AsyncMock(return_value=general_profile)
-
-        req = AgentRequest(
-            message_id="msg-2",
-            query="Tell me a joke",
-            chat_id="chat-general",
-            agent_id="general-agent-1",
-            enable_memory=True,
-            enable_memory_auto_extraction=True,
-            memory_require_confirmation=False,
-            model_selection=get_model_selection(),
-        )
-
-        mock_configs = _build_mock_user_configs()
-        with (
-            patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
-            patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        ):
-            params, *rest = await convert_to_general_agent_params(req, chat_history=[])
+        params = await convert(builtin_tools=("web_search", "memory"), memory_require_confirmation=False)
 
         assert params.enable_memory_auto_extraction is True
         assert params.memory_require_confirmation is False
 
     @pytest.mark.asyncio
     async def test_incognito_mode_overrides_all(self) -> None:
-        general_profile = ResolvedAgentProfile(
-            agent_id="general-agent-1",
-            skill_ids=(),
-            mcp_ids=(),
-            enabled_builtin_tools=("web_search", "memory"),
-        )
-        mock_resolver = MagicMock()
-        mock_resolver.resolve = AsyncMock(return_value=general_profile)
+        params = await convert(builtin_tools=("web_search", "memory"), incognito_mode=True)
 
-        req = AgentRequest(
-            message_id="msg-3",
-            query="Secret query",
-            chat_id="chat-incognito",
-            agent_id="general-agent-1",
-            enable_memory=True,
-            enable_memory_auto_extraction=True,
-            incognito_mode=True,
-            model_selection=get_model_selection(),
-        )
+        assert params.enable_memory_auto_extraction is False
 
-        mock_configs = _build_mock_user_configs()
-        with (
-            patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
-            patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        ):
-            params, *rest = await convert_to_general_agent_params(req, chat_history=[])
+    @pytest.mark.asyncio
+    async def test_incognito_mode_keeps_memory_on(self) -> None:
+        params = await convert(builtin_tools=("web_search", "memory"), incognito_mode=True)
+
+        assert params.enable_memory is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("builtin_tools", "request_fields"),
+        [
+            pytest.param(("web_search",), {"enable_memory": False}, id="memory-off"),
+            pytest.param(("web_search",), {"enable_memory_auto_extraction": False}, id="extraction-off"),
+            pytest.param(("web_search", "external_cli"), {}, id="external-cli-agent"),
+        ],
+    )
+    async def test_auto_extraction_stays_off_when_any_of_its_conditions_fails(
+        self, builtin_tools: tuple[str, ...], request_fields: dict[str, bool]
+    ) -> None:
+        params = await convert(builtin_tools=builtin_tools, **request_fields)
 
         assert params.enable_memory_auto_extraction is False

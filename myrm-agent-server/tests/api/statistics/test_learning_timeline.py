@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.memory.types import ProceduralMemory, SemanticMemory
 
 from app.api.statistics.learning_timeline import (
     LearningTimelineItem,
@@ -17,6 +19,9 @@ from app.api.statistics.learning_timeline import (
     get_learning_timeline,
     update_timeline_memory_item,
 )
+from app.core.skills.curator.bound_skills import SkillBoundError
+from app.core.skills.curator.service import SkillNotFoundError, SkillPinnedError
+from app.core.utils.errors.http import StandardHTTPException
 from app.schemas.memory.crud import UpdateMemoryRequest
 from app.services.skills.growth.audit_queries import SkillGrowthTimelineEventRead
 from app.services.skills.growth.case_types import SkillGrowthCaseSource, SkillGrowthCaseStatus
@@ -113,37 +118,49 @@ class TestLearningTimelineEndpoints:
             )
             assert resp.status_code == 200
 
-    async def test_update_timeline_memory_item_success(self):
+    async def test_inline_edit_pins_a_semantic_memory(self):
+        """The inline edit is an explicit user lock: knowledge is pinned after the edit, never locked through the update."""
         mock_manager = AsyncMock()
-        mock_mem = SimpleNamespace(
-            id="mem-1",
-            content="Updated rule",
-            importance=0.9,
-            reasoning="Context",
-            tags=["python"],
-            is_user_locked=True,
-            status="active",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-        mock_manager.update_memory.return_value = mock_mem
+        mock_manager.update_memory.return_value = SemanticMemory(id="mem-1", content="Updated rule")
+        mock_manager.pin_memory.return_value = SemanticMemory(id="mem-1", content="Updated rule", pinned=True)
 
         with patch(
             "app.services.memory.operations.crud.item_mutations._record_memory_event",
             new_callable=AsyncMock,
         ):
-            req = UpdateMemoryRequest(
-                content="Updated rule",
-                importance=0.9,
-                reasoning="Context",
-            )
             resp = await update_timeline_memory_item(
                 memory_type="semantic",
                 memory_id="mem-1",
-                body=req,
+                body=UpdateMemoryRequest(content="Updated rule", importance=0.9, reasoning="Context"),
                 manager=mock_manager,
             )
-            assert resp.status_code == 200
+
+        assert resp.status_code == 200
+        assert json.loads(resp.body)["data"]["is_user_locked"] is True
+        assert mock_manager.update_memory.await_args.kwargs["is_user_locked"] is None
+        mock_manager.pin_memory.assert_awaited_once_with("mem-1")
+
+    async def test_inline_edit_locks_a_procedural_rule_through_the_update(self):
+        mock_manager = AsyncMock()
+        mock_manager.update_memory.return_value = ProceduralMemory(
+            id="rule-1", trigger="when asked", action="use uv", is_user_locked=True
+        )
+
+        with patch(
+            "app.services.memory.operations.crud.item_mutations._record_memory_event",
+            new_callable=AsyncMock,
+        ):
+            resp = await update_timeline_memory_item(
+                memory_type="procedural",
+                memory_id="rule-1",
+                body=UpdateMemoryRequest(content="use uv"),
+                manager=mock_manager,
+            )
+
+        assert resp.status_code == 200
+        assert json.loads(resp.body)["data"]["is_user_locked"] is True
+        assert mock_manager.update_memory.await_args.kwargs["is_user_locked"] is True
+        mock_manager.pin_memory.assert_not_awaited()
 
     async def test_delete_timeline_memory_item_success(self):
         mock_manager = AsyncMock()
@@ -160,8 +177,35 @@ class TestLearningTimelineEndpoints:
             )
             assert resp.status_code == 200
 
-    async def test_archive_timeline_skill_item_success(self):
-        with patch("app.api.statistics.learning_timeline.set_skill_archived") as mock_archive:
+    async def test_archive_timeline_skill_item_runs_the_guarded_archive(self):
+        with patch("app.api.statistics.learning_timeline.archive_skill_with_guards", new_callable=AsyncMock) as mock_archive:
             resp = await archive_timeline_skill_item(skill_name="test-skill", active=False)
-            assert resp.status_code == 200
-            mock_archive.assert_called_once_with("test-skill", archived=True)
+
+        assert resp.status_code == 200
+        assert json.loads(resp.body)["data"]["is_active"] is False
+        mock_archive.assert_awaited_once_with("test-skill")
+
+    async def test_restore_timeline_skill_item_clears_the_archive_flag(self):
+        with patch("app.api.statistics.learning_timeline.set_skill_archived") as mock_restore:
+            resp = await archive_timeline_skill_item(skill_name="test-skill", active=True)
+
+        assert resp.status_code == 200
+        assert json.loads(resp.body)["data"]["is_active"] is True
+        mock_restore.assert_called_once_with("test-skill", archived=False)
+
+    @pytest.mark.parametrize(
+        ("refusal", "expected_status"),
+        [
+            (SkillNotFoundError("test-skill"), 404),
+            (SkillBoundError("test-skill"), 409),
+            (SkillPinnedError("test-skill"), 409),
+        ],
+    )
+    async def test_archive_timeline_skill_item_maps_the_guard_refusals(self, refusal, expected_status):
+        with (
+            patch("app.api.statistics.learning_timeline.archive_skill_with_guards", new_callable=AsyncMock, side_effect=refusal),
+            pytest.raises(StandardHTTPException) as raised,
+        ):
+            await archive_timeline_skill_item(skill_name="test-skill", active=False)
+
+        assert raised.value.status_code == expected_status
