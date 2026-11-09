@@ -22,7 +22,6 @@ from myrm_agent_harness.agent.middlewares.guardrails import GuardrailMiddleware
 from app.ai_agents.agent_middlewares import (
     ephemeral_delta_middleware,
     proactive_pack_middleware,
-    two_layer_context_middleware,
 )
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.ai_agents.general_agent.factory.middlewares import build_agent_middlewares
@@ -67,4 +66,4 @@ async def test_the_stack_is_assembled_with_the_guardrail_first_and_the_tail_bloc
     )
 
     assert isinstance(middlewares[0], GuardrailMiddleware)
-    assert middlewares[-3:] == [proactive_pack_middleware, ephemeral_delta_middleware, two_layer_context_middleware]
+    assert middlewares[-2:] == [proactive_pack_middleware, ephemeral_delta_middleware]

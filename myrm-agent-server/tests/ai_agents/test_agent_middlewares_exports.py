@@ -8,7 +8,6 @@ def test_agent_middlewares_public_exports_exclude_auto_session_recall() -> None:
 
     exported = set(agent_middlewares.__all__)
     assert "ephemeral_delta_middleware" in exported
-    assert "two_layer_context_middleware" in exported
     assert "memory_context_middleware" in exported
     assert "proactive_pack_middleware" in exported
     assert "PROACTIVE_PACK_CONTEXT_KEY" in exported

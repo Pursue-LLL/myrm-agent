@@ -158,14 +158,6 @@ class SessionNotes:
             total += len(section.content) // 4
         return total
 
-    def to_summary_text(self) -> str:
-        """转换为摘要文本（用于压缩时替代 LLM 摘要）"""
-        parts: list[str] = []
-        for section in self.sections:
-            if section.content.strip():
-                parts.append(f"## {section.title}\n{section.content.strip()}")
-        return "\n\n".join(parts)
-
     def to_json(self) -> str:
         """序列化为 JSON（用于增量合并 prompt 和 DB 持久化）
 

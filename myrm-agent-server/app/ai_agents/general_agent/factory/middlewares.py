@@ -42,7 +42,6 @@ async def build_agent_middlewares(
         memory_context_middleware,
         proactive_pack_middleware,
         project_roadmap_middleware,
-        two_layer_context_middleware,
         user_instructions_middleware,
         widget_capability_middleware,
     )
@@ -168,7 +167,6 @@ async def build_agent_middlewares(
         [
             proactive_pack_middleware,
             ephemeral_delta_middleware,
-            two_layer_context_middleware,
         ]
     )
 

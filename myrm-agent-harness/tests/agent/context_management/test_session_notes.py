@@ -83,19 +83,6 @@ class TestSessionNotes:
         notes.get_section("current_state").content = "a" * 400
         assert notes.estimate_total_tokens() == 100
 
-    def test_to_summary_text(self) -> None:
-        notes = SessionNotes()
-        notes.get_section("session_title").content = "My Session"
-        text = notes.to_summary_text()
-        assert "## Session Title" in text
-        assert "My Session" in text
-
-    def test_to_summary_text_skips_empty(self) -> None:
-        notes = SessionNotes()
-        notes.get_section("session_title").content = "Title"
-        text = notes.to_summary_text()
-        assert "## Current State" not in text
-
     def test_to_json_includes_meta(self) -> None:
         notes = SessionNotes()
         notes.last_updated_message_idx = 10
