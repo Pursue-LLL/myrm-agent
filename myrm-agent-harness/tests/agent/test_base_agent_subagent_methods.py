@@ -25,13 +25,11 @@ def setup_configs():
     SUBAGENT_CONFIGS["search"] = SubagentConfig(
         tools=("web_search_tool",),
         system_prompt="Search prompt",
-        concurrency_limit=5,
         max_spawn_depth=2,
     )
     SUBAGENT_CONFIGS["browser"] = SubagentConfig(
         tools=("browser_navigate_tool",),
         system_prompt="Browser prompt",
-        concurrency_limit=3,
         max_spawn_depth=0,
     )
     yield

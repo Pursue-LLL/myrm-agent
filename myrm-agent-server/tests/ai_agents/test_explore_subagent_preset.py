@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from myrm_agent_harness.agent.sub_agents.budget_scaling import DEFAULT_SCALED_CONCURRENCY
 from myrm_agent_harness.agent.sub_agents.config_loader import (
     SubagentConfigLoader,
     load_subagent_configs_from_directory,
@@ -95,9 +94,6 @@ def test_explore_sandbox_and_budget_constraints() -> None:
     assert config.max_turns == 15
     assert config.budget_tokens == 100000
     assert config.max_result_tokens == 8000
-    # ConfigUpgradeMigrator treats 3/5 as legacy defaults and lifts them to the scaled
-    # default, so the preset's own 5 never reaches the runtime config.
-    assert config.concurrency_limit == DEFAULT_SCALED_CONCURRENCY
 
 
 def test_explore_prompt_contract_and_citations() -> None:

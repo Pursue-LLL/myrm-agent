@@ -29,9 +29,6 @@ config:
   # Maximum execution time in seconds
   timeout_seconds: 120
   
-  # Maximum number of parallel instances of this agent type
-  concurrency_limit: 5
-  
   # Maximum LLM conversation turns
   max_turns: 25
   

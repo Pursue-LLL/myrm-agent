@@ -268,7 +268,6 @@ async def test_spawn_child_retries_after_transient_failure() -> None:
         tools=SUBAGENT_CONFIGS["search"].tools,
         system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
         timeout_seconds=30,
-        concurrency_limit=SUBAGENT_CONFIGS["search"].concurrency_limit,
         max_retries=2,
         retry_backoff_seconds=0.0,
     )
@@ -303,7 +302,6 @@ async def test_spawn_child_times_out_when_execution_is_too_slow() -> None:
         tools=SUBAGENT_CONFIGS["search"].tools,
         system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
         timeout_seconds=0.5,
-        concurrency_limit=SUBAGENT_CONFIGS["search"].concurrency_limit,
         max_retries=1,
         retry_backoff_seconds=0.0,
     )
@@ -2442,7 +2440,6 @@ class TestHardTimeoutSemaphoreRelease:
             tools=SUBAGENT_CONFIGS["search"].tools,
             system_prompt=SUBAGENT_CONFIGS["search"].system_prompt,
             timeout_seconds=0.05,
-            concurrency_limit=SUBAGENT_CONFIGS["search"].concurrency_limit,
             max_retries=1,
             retry_backoff_seconds=0.0,
         )

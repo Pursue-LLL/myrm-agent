@@ -135,7 +135,6 @@ output_protocol:
 
 config:
   timeout_seconds: 90
-  concurrency_limit: 3
   max_turns: 15
 """
         config_path = temp_dir / "strategic-advisor.yaml"

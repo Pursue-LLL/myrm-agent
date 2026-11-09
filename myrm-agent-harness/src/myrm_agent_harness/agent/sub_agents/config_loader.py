@@ -296,7 +296,6 @@ class SubagentConfigLoader:
                 theme_color=validated.theme_color,
                 model=validated.model,
                 timeout_seconds=migrated_dict.get("timeout_seconds"),
-                concurrency_limit=int(cast(int | str, migrated_dict.get("concurrency_limit", 10))),
                 max_turns=int(cast(int | str, migrated_dict.get("max_turns", 250))),
                 max_retries=int(cast(int | str, migrated_dict.get("max_retries", 3))),
                 retry_backoff_seconds=float(cast(float | str, migrated_dict.get("retry_backoff_seconds", 2.0))),

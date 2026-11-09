@@ -258,7 +258,6 @@ class SpawnSubagentTool(BaseTool):
             config = SubagentConfig(
                 system_prompt="You are a sub-agent executing a specific task within a Dynamic Workflow.",
                 max_spawn_depth=0,
-                concurrency_limit=10,
                 max_cost_usd=2.0,
                 budget_tokens=200_000,
                 model_resolver=parent_resolver,

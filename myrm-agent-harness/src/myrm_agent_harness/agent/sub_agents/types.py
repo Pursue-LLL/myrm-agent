@@ -450,7 +450,6 @@ class SubagentConfig:
     """Wall-clock timeout for the subagent. None (default) disables the hard
     timeout — the subagent runs until max_turns, staleness detection, or
     budget limits stop it. Set to a positive int to enforce a hard cap."""
-    concurrency_limit: int = 10
     max_turns: int = 250
     max_retries: int = 3
     retry_backoff_seconds: float = 2.0

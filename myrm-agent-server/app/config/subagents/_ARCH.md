@@ -38,7 +38,6 @@ system_prompt: |
   ...
 config:
   timeout_seconds: 30
-  concurrency_limit: 10
   max_turns: 3
   max_retries: 1
 ```

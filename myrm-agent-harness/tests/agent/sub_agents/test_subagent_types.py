@@ -20,7 +20,6 @@ def setup_configs():
         tools=("web_search_tool", "web_fetch_tool"),
         system_prompt="Search prompt of sufficient length",
         timeout_seconds=60,
-        concurrency_limit=5,
         max_retries=3,
         max_spawn_depth=2,
     )
@@ -28,14 +27,12 @@ def setup_configs():
         tools=("browser_navigate_tool", "browser_click"),
         system_prompt="Browser prompt of sufficient length",
         timeout_seconds=60,
-        concurrency_limit=3,
         max_spawn_depth=0,
     )
     SUBAGENT_CONFIGS["analysis"] = SubagentConfig(
         tools=("memory_read", "memory_write"),
         system_prompt="Analysis prompt of sufficient length",
         timeout_seconds=60,
-        concurrency_limit=5,
         max_spawn_depth=0,
     )
     yield
@@ -48,7 +45,6 @@ def test_subagent_config_dataclass():
         tools=("tool1", "tool2"),
         system_prompt="Test prompt",
         timeout_seconds=60,
-        concurrency_limit=5,
         max_retries=3,
         retry_backoff_seconds=2.0,
         max_spawn_depth=1,
@@ -57,14 +53,13 @@ def test_subagent_config_dataclass():
     assert config.tools == ("tool1", "tool2")
     assert config.system_prompt == "Test prompt"
     assert config.timeout_seconds == 60
-    assert config.concurrency_limit == 5
     assert config.max_retries == 3
     assert config.retry_backoff_seconds == 2.0
     assert config.max_spawn_depth == 1
 
 
 def test_subagent_config_defaults():
-    config = SubagentConfig(tools=("tool1"), system_prompt="Test", timeout_seconds=5, concurrency_limit=10)
+    config = SubagentConfig(tools=("tool1"), system_prompt="Test", timeout_seconds=5)
 
     assert config.max_retries == 3
     assert config.retry_backoff_seconds == 2.0
@@ -92,7 +87,6 @@ def test_search_agent_config():
     assert "web_fetch_tool" in config.tools
     assert len(config.tools) >= 2
     assert config.timeout_seconds > 0
-    assert config.concurrency_limit > 0
     assert config.max_retries > 0
     assert len(config.system_prompt) > 0
     assert config.max_spawn_depth >= 1
@@ -104,7 +98,6 @@ def test_browser_agent_config():
     assert "browser_navigate_tool" in config.tools
     assert len(config.tools) >= 2
     assert config.timeout_seconds > 0
-    assert config.concurrency_limit > 0
     assert config.max_spawn_depth == 0
 
 
@@ -114,7 +107,6 @@ def test_analysis_agent_config():
     assert "memory_read" in config.tools or "memory_write" in config.tools
     assert len(config.tools) >= 2
     assert config.timeout_seconds > 0
-    assert config.concurrency_limit > 0
     assert config.max_spawn_depth == 0
 
 
@@ -122,13 +114,6 @@ def test_config_timeout_reasonable():
     for agent_type, config in SUBAGENT_CONFIGS.items():
         assert 1 <= config.timeout_seconds <= 300, (
             f"{agent_type} timeout {config.timeout_seconds}s out of reasonable range (1-300s)"
-        )
-
-
-def test_config_concurrency_reasonable():
-    for agent_type, config in SUBAGENT_CONFIGS.items():
-        assert 1 <= config.concurrency_limit <= 50, (
-            f"{agent_type} concurrency {config.concurrency_limit} out of reasonable range (1-50)"
         )
 
 

@@ -41,7 +41,6 @@ system_prompt: |
 
 config:
   timeout_seconds: 90
-  concurrency_limit: 5
   max_turns: 15
   max_retries: 2
   retry_backoff_seconds: 2.0

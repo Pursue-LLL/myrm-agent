@@ -13,7 +13,6 @@ import pytest
 from langchain_core.tools import BaseTool
 from myrm_agent_harness.agent.base_agent import BaseAgent
 from myrm_agent_harness.agent.meta_tools.spawn_subagent import create_delegate_task_tool
-from myrm_agent_harness.agent.middlewares import create_concurrency_limiter
 from myrm_agent_harness.agent.types import AgentRuntimeConfig
 
 from app.ai_agents.subagent_presets import register_default_subagent_configs
@@ -63,7 +62,6 @@ async def test_real_world_concurrent_search():
 
     agent = BaseAgent(
         llm=llm,
-        middlewares=[create_concurrency_limiter()],
         config=AgentRuntimeConfig(recursion_limit=25, timeout_seconds=30),
     )
 
@@ -105,48 +103,6 @@ async def test_real_world_concurrent_search():
 
     assert "success_rate" in aggregated
     assert "results" in aggregated
-
-
-@pytest.mark.asyncio
-async def test_real_world_concurrency_limit():
-    """真实场景：验证并发限制生效"""
-    llm = MockLLM()
-
-    agent = BaseAgent(
-        llm=llm,
-        middlewares=[create_concurrency_limiter()],
-    )
-
-    from unittest.mock import AsyncMock
-
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
-
-    catalog = AsyncMock()
-    catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-
-    spawn_tool = create_delegate_task_tool(
-        parent_agent=agent,
-        tool_registry_getter=lambda: [],
-        catalog=catalog,
-    )
-
-    browser_config = SubagentConfig(system_prompt="test")
-    assert browser_config.concurrency_limit == 5
-
-    tasks = []
-    for i in range(5):
-        task = spawn_tool.ainvoke(
-            {
-                "agent_type": "browser",
-                "objective": f"浏览器任务 {i}",
-                "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
-                "wait": False,
-            }
-        )
-        tasks.append(task)
-
-    results = await asyncio.gather(*tasks)
-    assert len(results) == 5
 
 
 @pytest.mark.asyncio
