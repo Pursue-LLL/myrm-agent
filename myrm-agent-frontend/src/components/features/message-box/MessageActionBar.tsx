@@ -115,9 +115,7 @@ export default function MessageActionBar({
             citationAudit={message.citationAudit}
           />
         )}
-        {!isStreaming && hasTurnLoadedSkills && (
-          <TurnLoadedSkillsButton skills={message.turnLoadedSkills} />
-        )}
+        {!isStreaming && hasTurnLoadedSkills && <TurnLoadedSkillsButton skills={message.turnLoadedSkills} />}
         {!isStreaming && effectiveChatId && (
           <RevertFiles chatId={effectiveChatId} messageId={message.requestMessageId || message.messageId} />
         )}

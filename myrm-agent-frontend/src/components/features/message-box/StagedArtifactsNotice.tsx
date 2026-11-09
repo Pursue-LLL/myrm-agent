@@ -71,9 +71,7 @@ export function StagedArtifactsNotice({ stagedArtifacts }: StagedArtifactsNotice
               </div>
             </div>
           ))}
-          <div className="text-[10px] text-muted-foreground/80 pt-1">
-            {t('footnote')}
-          </div>
+          <div className="text-[10px] text-muted-foreground/80 pt-1">{t('footnote')}</div>
         </div>
       )}
     </div>
