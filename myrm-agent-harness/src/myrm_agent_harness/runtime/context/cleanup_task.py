@@ -16,7 +16,8 @@ Schedule:
 
 Each pass walks every workspace directory with blocking filesystem calls, so it runs in a worker thread: on a
 machine with hundreds of workspaces it takes seconds, and on the event loop it would hold up everything else
-(the server's startup included).
+(the server's startup included). A thread cannot be cancelled and the interpreter waits for it at exit, so
+``stop()`` also signals the pass, which leaves the walk at the next workspace.
 
 [INPUT]
 - (none)
@@ -32,6 +33,7 @@ import asyncio
 import contextlib
 import logging
 import shutil
+import threading
 import time
 from pathlib import Path
 
@@ -62,6 +64,8 @@ class ContextCleanupScheduler:
         self._max_age_days = max_age_days
         self._task: asyncio.Task[None] | None = None
         self._stop_event: asyncio.Event = asyncio.Event()
+        # Read by the worker thread of a pass, so it is a threading event rather than the loop's.
+        self._pass_stopped = threading.Event()
 
     @property
     def is_running(self) -> bool:
@@ -77,6 +81,7 @@ class ContextCleanupScheduler:
             return
 
         self._stop_event.clear()
+        self._pass_stopped.clear()
         self._task = asyncio.create_task(self._loop())
         logger.info("Context cleanup task created")
 
@@ -87,6 +92,7 @@ class ContextCleanupScheduler:
             timeout: Maximum seconds to wait for graceful shutdown
         """
         self._stop_event.set()
+        self._pass_stopped.set()
 
         if self._task is not None and not self._task.done():
             try:
@@ -141,6 +147,10 @@ class ContextCleanupScheduler:
                     continue
 
                 for session_dir in user_dir.iterdir():
+                    if self._pass_stopped.is_set():
+                        logger.info("Context cleanup interrupted by shutdown: %d sessions cleaned", cleaned_count)
+                        return
+
                     if not session_dir.is_dir():
                         continue
 
