@@ -244,17 +244,23 @@ class KanbanDispatcherMixin(KanbanServiceCore):
             worker_id=worker_id,
         )
 
-    def start_boot_dispatchers(self, runner: TaskRunner) -> None:
+    def start_boot_dispatchers(self, *, start_after_seconds: float = 0.0) -> None:
         """Start every board's dispatcher for a server boot in the background and return at once.
 
         A dispatcher issues its first queries as soon as it exists, so a machine with hundreds of boards
-        would otherwise keep the server from answering until all of them had been through that burst. A
-        board whose dispatcher has not started yet loses nothing: the dispatcher scans for READY tasks
-        when it starts. ``shutdown`` cancels a start that is still going.
+        would otherwise keep the server from answering until all of them had been through that burst.
+        ``start_after_seconds`` holds the first start back so the caller's own first requests are served
+        before it. A board whose dispatcher has not started yet loses nothing: the dispatcher scans for
+        READY tasks when it starts. ``shutdown`` cancels a start that is still waiting or going.
         """
-        self._boot_dispatchers_task = spawn_observed_task(self._start_boot_dispatchers(runner), name="kanban-boot-dispatchers")
+        runner = self._runner
+        if runner is None:
+            raise RuntimeError("The kanban runner must be set before the boot dispatchers start")
+        self._boot_dispatchers_task = spawn_observed_task(
+            self._start_boot_dispatchers(runner, start_after_seconds), name="kanban-boot-dispatchers"
+        )
 
-    async def _start_boot_dispatchers(self, runner: TaskRunner) -> None:
+    async def _start_boot_dispatchers(self, runner: TaskRunner, start_after_seconds: float) -> None:
         """Gated on a usable model configuration: while none exists the dispatchers hold their READY tasks,
         so a boot cannot fail queued work or write a failure row for every task.
 
@@ -264,12 +270,18 @@ class KanbanDispatcherMixin(KanbanServiceCore):
         """
         from app.services.kanban.dispatch_gate import dispatch_allowed
 
+        if start_after_seconds > 0:
+            await asyncio.sleep(start_after_seconds)
         boards = await self.list_boards()
         if not boards:
             return
         gated = not await dispatch_allowed()
         started = 0
         for position, board in enumerate(boards, start=1):
+            if board.board_id in self._dispatchers:
+                # A board created while this start waited already has its live dispatcher; starting
+                # again would stop it first.
+                continue
             dispatcher = await run_start_dispatcher(
                 self._store,
                 self._dispatchers,

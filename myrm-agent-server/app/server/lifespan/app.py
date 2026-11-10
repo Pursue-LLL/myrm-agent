@@ -20,9 +20,9 @@ from myrm_agent_harness.runtime.survival.startup import StartupTimer
 
 from app.config.settings import settings
 from app.lifecycle import (
+    prepare_kanban_dispatch,
     start_channel_gateway,
     start_cron_scheduler,
-    start_kanban_dispatchers,
     start_remote_backup_scheduler,
 )
 
@@ -152,7 +152,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         gw_result, cron_result, kanban_result, backup_result = await asyncio.gather(
             start_channel_gateway(),
             start_cron_scheduler(),
-            start_kanban_dispatchers(),
+            prepare_kanban_dispatch(),
             start_remote_backup_scheduler(),
             return_exceptions=True,
         )
@@ -162,7 +162,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         if isinstance(cron_result, Exception):
             logger.error("[Startup] Cron scheduler failed to start: %s", cron_result)
         if isinstance(kanban_result, Exception):
-            logger.error("[Startup] Kanban dispatchers failed to start: %s", kanban_result)
+            logger.error("[Startup] Kanban dispatch preparation failed: %s", kanban_result)
         if isinstance(backup_result, Exception):
             logger.error("[Startup] Remote backup scheduler failed to start: %s", backup_result)
 

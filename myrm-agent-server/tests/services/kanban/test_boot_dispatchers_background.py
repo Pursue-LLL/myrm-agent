@@ -1,21 +1,22 @@
 """A server boot starts the kanban dispatchers in the background, so its length does not grow with the board count.
 
 A machine with 525 boards spent seconds in this step: every board read its own row again, and each dispatcher ran
-its first queries before the next board was started. The boot now reads the boards once, starts them in batches
-off the readiness path, and shutdown cancels a start that is still going.
+its first queries before the next board was started. The boot now prepares kanban cheaply before the HTTP bind,
+and starts the dispatchers afterwards: the boards are read once, started in batches, a first start can be held
+back, and shutdown cancels a start that is still waiting or going.
 """
 
 from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import BoardSettings, KanbanBoard
 
-from app.lifecycle.schedulers.kanban import start_kanban_dispatchers
+from app.lifecycle.schedulers import kanban as lifecycle
 from app.services.kanban import KanbanService, dispatch_gate
 from app.services.kanban.service_mixins import query_dispatcher_mixin as mixin
 
@@ -36,6 +37,7 @@ async def _service(monkeypatch: pytest.MonkeyPatch, boards: list[KanbanBoard], *
         await store.save_board(board)
     service = KanbanService()
     monkeypatch.setattr(service, "_store", store)
+    service.set_runner(_RUNNER)  # type: ignore[arg-type]
 
     async def list_boards(*, project_id: str | None = None) -> list[KanbanBoard]:
         return list(boards)
@@ -54,11 +56,22 @@ async def _boot_started(service: KanbanService) -> None:
     await task
 
 
+def _record_sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Replace the mixin's sleep with a recorder so pauses and the start delay are observable without waiting."""
+    sleeps: list[float] = []
+
+    async def record(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(mixin, "asyncio", SimpleNamespace(sleep=record, CancelledError=asyncio.CancelledError))
+    return sleeps
+
+
 @pytest.mark.asyncio
 async def test_boot_start_returns_before_any_dispatcher_exists(monkeypatch: pytest.MonkeyPatch) -> None:
     service = await _service(monkeypatch, _boards(3))
 
-    service.start_boot_dispatchers(_RUNNER)  # type: ignore[arg-type]
+    service.start_boot_dispatchers()
     assert service._dispatchers == {}
 
     await _boot_started(service)
@@ -78,7 +91,7 @@ async def test_boot_start_does_not_read_the_listed_boards_again(monkeypatch: pyt
 
     monkeypatch.setattr(service.store, "get_board", counting_get_board)
 
-    service.start_boot_dispatchers(_RUNNER)  # type: ignore[arg-type]
+    service.start_boot_dispatchers()
     await _boot_started(service)
 
     assert len(service._dispatchers) == 4
@@ -89,19 +102,50 @@ async def test_boot_start_does_not_read_the_listed_boards_again(monkeypatch: pyt
 @pytest.mark.asyncio
 async def test_boot_start_pauses_between_batches(monkeypatch: pytest.MonkeyPatch) -> None:
     service = await _service(monkeypatch, _boards(5))
-    pauses: list[float] = []
-
-    async def record_pause(delay: float) -> None:
-        pauses.append(delay)
-
+    sleeps = _record_sleeps(monkeypatch)
     monkeypatch.setattr(mixin, "_BOOT_BATCH_SIZE", 2)
-    monkeypatch.setattr(mixin, "asyncio", SimpleNamespace(sleep=record_pause, CancelledError=asyncio.CancelledError))
 
-    service.start_boot_dispatchers(_RUNNER)  # type: ignore[arg-type]
+    service.start_boot_dispatchers()
     await _boot_started(service)
 
-    assert pauses == [mixin._BOOT_BATCH_PAUSE_SECONDS] * 2  # after the 2nd and the 4th board
+    assert sleeps == [mixin._BOOT_BATCH_PAUSE_SECONDS] * 2  # after the 2nd and the 4th board
     assert len(service._dispatchers) == 5
+    await service.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_boot_start_holds_back_the_first_start_by_the_requested_delay(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = await _service(monkeypatch, _boards(1))
+    sleeps = _record_sleeps(monkeypatch)
+    listed: list[int] = []
+    original = service.list_boards
+
+    async def list_after_sleep(*, project_id: str | None = None) -> list[KanbanBoard]:
+        listed.append(len(sleeps))
+        return await original(project_id=project_id)
+
+    monkeypatch.setattr(service, "list_boards", list_after_sleep)
+
+    service.start_boot_dispatchers(start_after_seconds=0.75)
+    await _boot_started(service)
+
+    assert sleeps == [0.75]
+    assert listed == [1]  # the boards are read only once the delay has passed
+    await service.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_boot_start_does_not_replace_a_dispatcher_that_is_already_running(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = await _service(monkeypatch, _boards(3))
+    live = SimpleNamespace(stop=AsyncMock())
+    service._dispatchers["b1"] = live  # type: ignore[assignment]
+
+    service.start_boot_dispatchers()
+    await _boot_started(service)
+
+    assert service._dispatchers["b1"] is live
+    live.stop.assert_not_awaited()
+    assert sorted(service._dispatchers) == ["b0", "b1", "b2"]
     await service.shutdown()
 
 
@@ -117,7 +161,7 @@ async def test_boot_start_hands_each_dispatcher_its_board_and_the_closed_gate(mo
 
     monkeypatch.setattr(mixin, "run_start_dispatcher", fake_start)
 
-    service.start_boot_dispatchers(_RUNNER)  # type: ignore[arg-type]
+    service.start_boot_dispatchers()
     await _boot_started(service)
 
     assert [call["board"] for call in calls] == boards
@@ -136,7 +180,7 @@ async def test_boot_start_passes_no_gate_when_a_model_is_configured(monkeypatch:
 
     monkeypatch.setattr(mixin, "run_start_dispatcher", fake_start)
 
-    service.start_boot_dispatchers(_RUNNER)  # type: ignore[arg-type]
+    service.start_boot_dispatchers()
     await _boot_started(service)
 
     assert [call["dispatch_allowed"] for call in calls] == [None]
@@ -151,10 +195,18 @@ async def test_boot_start_with_no_boards_never_consults_the_gate(monkeypatch: py
 
     monkeypatch.setattr(dispatch_gate, "dispatch_allowed", forbidden)
 
-    service.start_boot_dispatchers(_RUNNER)  # type: ignore[arg-type]
+    service.start_boot_dispatchers()
     await _boot_started(service)
 
     assert service._dispatchers == {}
+
+
+@pytest.mark.asyncio
+async def test_boot_start_needs_the_runner_prepared_first() -> None:
+    service = KanbanService()
+
+    with pytest.raises(RuntimeError, match="runner"):
+        service.start_boot_dispatchers()
 
 
 @pytest.mark.asyncio
@@ -169,7 +221,7 @@ async def test_shutdown_cancels_a_boot_start_that_is_still_going(monkeypatch: py
 
     monkeypatch.setattr(mixin, "run_start_dispatcher", blocked)
 
-    service.start_boot_dispatchers(_RUNNER)  # type: ignore[arg-type]
+    service.start_boot_dispatchers()
     await entered.wait()
     await asyncio.wait_for(service.shutdown(), timeout=2)
 
@@ -179,14 +231,43 @@ async def test_shutdown_cancels_a_boot_start_that_is_still_going(monkeypatch: py
 
 
 @pytest.mark.asyncio
-async def test_the_lifecycle_starter_does_not_wait_for_the_dispatchers(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_shutdown_cancels_a_boot_start_that_is_still_waiting(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = await _service(monkeypatch, _boards(3))
+
+    service.start_boot_dispatchers(start_after_seconds=3600)
+    await asyncio.sleep(0)
+    await asyncio.wait_for(service.shutdown(), timeout=2)
+
+    task = service._boot_dispatchers_task
+    assert task is not None
+    assert task.cancelled()
+    assert service._dispatchers == {}
+
+
+@pytest.mark.asyncio
+async def test_preparation_recovers_stale_tasks_and_wires_the_runner_without_starting_dispatchers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     service = KanbanService()
-    started: list[object] = []
     monkeypatch.setattr(KanbanService, "get_instance", classmethod(lambda cls: service))
-    monkeypatch.setattr(service, "recover_stale_tasks", AsyncMock(return_value=0))
-    monkeypatch.setattr(service, "start_boot_dispatchers", started.append)
+    recover = AsyncMock(return_value=0)
+    monkeypatch.setattr(service, "recover_stale_tasks", recover)
+    monkeypatch.setattr(service, "start_boot_dispatchers", MagicMock(side_effect=AssertionError("not before the bind")))
 
-    await start_kanban_dispatchers()
+    await lifecycle.prepare_kanban_dispatch()
 
-    assert len(started) == 1
-    assert service._runner is started[0]
+    recover.assert_awaited_once()
+    assert service._runner is not None
+    assert service._boot_dispatchers_task is None
+
+
+@pytest.mark.asyncio
+async def test_the_lifecycle_starter_hands_over_the_boot_delay_and_does_not_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = KanbanService()
+    monkeypatch.setattr(KanbanService, "get_instance", classmethod(lambda cls: service))
+    starter = MagicMock()
+    monkeypatch.setattr(service, "start_boot_dispatchers", starter)
+
+    await lifecycle.start_kanban_dispatchers()
+
+    starter.assert_called_once_with(start_after_seconds=lifecycle.BOOT_DISPATCH_DELAY_SECONDS)

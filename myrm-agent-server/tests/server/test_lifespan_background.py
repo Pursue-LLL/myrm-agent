@@ -21,11 +21,11 @@ import pytest
 
 from app.server.lifespan import background
 
-_TASK_NAMES = ("warmup", "orphaned-goals", "startup-event", "trunk-templates", "tool-layers")
+_TASK_NAMES = ("warmup", "orphaned-goals", "kanban-dispatchers", "startup-event", "trunk-templates", "tool-layers")
 
 
 def _install_fakes(monkeypatch: pytest.MonkeyPatch, started: list[str], *, failing: str | None = None) -> asyncio.Event:
-    """Replace the five background coroutines; each records its start, waits for ``release``, then ends or fails."""
+    """Replace the six background coroutines; each records its start, waits for ``release``, then ends or fails."""
     release = asyncio.Event()
 
     def fake(name: str) -> Callable[[], Awaitable[None]]:
@@ -39,6 +39,7 @@ def _install_fakes(monkeypatch: pytest.MonkeyPatch, started: list[str], *, faili
 
     monkeypatch.setattr(background, "run_async_warmup", fake("warmup"))
     monkeypatch.setattr(background, "pause_orphaned_active_goals", fake("orphaned-goals"))
+    monkeypatch.setattr(background, "start_kanban_dispatchers", fake("kanban-dispatchers"))
     monkeypatch.setattr(background.startup, "_dispatch_startup_event", fake("startup-event"))
     monkeypatch.setattr(background.startup, "_seed_trunk_templates", fake("trunk-templates"))
     monkeypatch.setattr(background.startup, "_preload_agent_tool_layers", fake("tool-layers"))
