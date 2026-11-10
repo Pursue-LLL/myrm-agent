@@ -112,7 +112,7 @@ vi.mock('../ReplayAction', () => ({ default: () => null }));
 vi.mock('../SessionExportButton', () => ({ default: () => null }));
 vi.mock('../DashboardWorkspaceLink', () => ({ DashboardWorkspaceLink: () => null }));
 vi.mock('../WorkingStateBadge', () => ({ default: () => null }));
-vi.mock('../artifacts/ArtifactPortal', () => ({ default: () => null }));
+vi.mock('@/components/features/artifacts/ArtifactPortal', () => ({ default: () => null }));
 vi.mock('../../extension-ui', () => ({ ExtensionUIModal: () => null }));
 vi.mock('../../task-hud', () => ({ TaskHudOverlay: () => null }));
 vi.mock('@/components/features/project-workspace/WorkspaceTrustBanner', () => ({ default: () => null }));
