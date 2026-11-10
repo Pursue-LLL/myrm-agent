@@ -10,6 +10,8 @@
  * Loads notification slices on idle to avoid bundling all locale JSON upfront.
  */
 
+import { scheduleWhenIdle } from '@/lib/utils/scheduleWhenIdle';
+
 export type StreamLocale = 'en' | 'zh' | 'ja' | 'ko' | 'de';
 
 type NotificationCopy = {
@@ -61,13 +63,7 @@ function scheduleNotificationCopyWarmup(): void {
     return;
   }
 
-  const schedule =
-    window.requestIdleCallback ??
-    ((callback: () => void) => {
-      window.setTimeout(callback, 1);
-    });
-
-  schedule(() => {
+  scheduleWhenIdle(() => {
     void preloadNotificationCopy();
   });
 }

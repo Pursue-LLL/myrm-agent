@@ -26,6 +26,7 @@ import useChatStore from '@/store/useChatStore';
 import { enforceSecurityPresetYoloMutex } from '@/store/chat/securityPreset';
 import { hydrateChatPreferencesFromStorage } from '@/store/useChatStore';
 import { whenDatabaseReady } from '@/lib/platform-readiness';
+import { scheduleWhenIdle } from '@/lib/utils/scheduleWhenIdle';
 import ConfigConflictDialog, { type ConfigConflictData } from './ConfigConflictDialog';
 
 /**
@@ -106,15 +107,7 @@ export default function SettingsSyncInitializer() {
         await initConfig();
         setStatus('success');
 
-        const scheduleDeferred =
-          typeof window !== 'undefined'
-            ? (window.requestIdleCallback ??
-              ((callback: () => void) => {
-                window.setTimeout(callback, 1);
-              }))
-            : null;
-
-        const runDeferredStores = () => {
+        scheduleWhenIdle(() => {
           void Promise.all([initProviders(), initCommands(), initRetrieval()])
             .then(() => {
               console.log('[SettingsSync] Deferred stores initialized successfully');
@@ -122,13 +115,7 @@ export default function SettingsSyncInitializer() {
             .catch((deferredError) => {
               console.warn('[SettingsSync] Deferred store initialization failed:', deferredError);
             });
-        };
-
-        if (scheduleDeferred) {
-          scheduleDeferred(runDeferredStores);
-        } else {
-          await Promise.all([initProviders(), initCommands(), initRetrieval()]);
-        }
+        });
       } catch (err) {
         console.warn('[SettingsSync] Initialization failed:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');

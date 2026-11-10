@@ -16,7 +16,6 @@ import { useConnectionsChangedReload } from '@/hooks/tauri/useConnectionsChanged
 import { useGlobalShortcuts } from '@/hooks/shell/useGlobalShortcuts';
 import { useComputerUseEscapeAbort } from '@/hooks/shell/useComputerUseEscapeAbort';
 import { useVisibilityThrottling } from '@/hooks/ui/useVisibilityThrottling';
-import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
 import { useTrayEvents } from '@/hooks/tauri/useTrayEvents';
 import { useCurtainTexts } from '@/hooks/tauri/useCurtainTexts';
 import { useCrashLoopGuard } from '@/hooks/shell/useCrashLoopGuard';
@@ -32,6 +31,7 @@ import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { useProgressionStore } from '@/store/useProgressionStore';
 import { useWuBalanceWatcher } from '@/hooks/billing/useWuBalanceWatcher';
 import { useExtensionWebUiOriginSeed } from '@/hooks/extension/useExtensionWebUiOriginSeed';
+import { scheduleWhenIdle } from '@/lib/utils/scheduleWhenIdle';
 import E2ECompanionBridge from '@/components/dev/E2ECompanionBridge';
 
 const CronPushPoller = lazy(() =>
@@ -57,30 +57,19 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
     initAuth();
   }, [initAuth]);
 
-  useEffect(() => {
-    const schedule =
-      window.requestIdleCallback ??
-      ((callback: () => void) => {
-        window.setTimeout(callback, 1);
-      });
+  useEffect(
+    () =>
+      scheduleWhenIdle(() => {
+        void useFeatureGateStore.getState().loadFeatures();
+        void useProgressionStore.getState().load();
+      }),
+    [],
+  );
 
-    const handle = schedule(() => {
-      void useFeatureGateStore.getState().loadFeatures();
-      void useProgressionStore.getState().load();
-    });
-
-    return () => {
-      if (typeof handle === 'number' && window.cancelIdleCallback) {
-        window.cancelIdleCallback(handle);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!configReadinessDegraded) {
-      setDismissedReadinessDegraded(false);
-    }
-  }, [configReadinessDegraded]);
+  // 就绪降级一旦恢复，之前的“已关闭”就作废：下一次降级要重新提示。
+  if (!configReadinessDegraded && dismissedReadinessDegraded) {
+    setDismissedReadinessDegraded(false);
+  }
 
   useTrayStatus();
   useTabBadge();
