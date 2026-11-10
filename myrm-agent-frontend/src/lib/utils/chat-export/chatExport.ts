@@ -356,7 +356,10 @@ export async function downloadMessageAsHtml(
 export async function downloadMessageAsDocx(message: Message, includeReasoning: boolean, redact = true): Promise<void> {
   const markdown = formatMessageMarkdown(message, includeReasoning, redact);
   const { buildHtmlDocument } = await import('./chatExportHtml');
-  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), 'light', 'en');
+  // Word has no script and no KaTeX stylesheet, so it gets the static document rather than the interactive page.
+  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), 'light', 'en', {
+    static: true,
+  });
   const { toDocx } = await import('docshift');
   const docxBlob = await toDocx(html);
   await triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));

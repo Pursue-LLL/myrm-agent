@@ -6,8 +6,9 @@
  *
  * [OUTPUT]
  * - normalizeMathDelimiters: the text pre-pass, run before parsing
- * - mathPlugins, chatMathPlugins: remark and rehype plugin lists for react-markdown and unified processors; the chat
- *   list differs in the KaTeX options and in unwrapping SVG that a message's raw HTML carries
+ * - mathPlugins, chatMathPlugins, texSourceMathPlugins: remark and rehype plugin lists for react-markdown and unified
+ *   processors; the chat list differs in the KaTeX options and in unwrapping SVG that a message's raw HTML carries,
+ *   the TeX-source list leaves each formula as `$…$` text for documents that cannot typeset it
  *
  * [POS]
  * What counts as a formula is decided once, inside the parser (`remarkMathPolicy`): a `$` the policy refuses stays
@@ -93,20 +94,51 @@ const remarkMathPolicy: Plugin<[], MdastRoot> = function () {
 };
 
 /**
+ * A formula as the math parser leaves it in the HTML tree: a `code.language-math`, either inline or, for `$$…$$` and a
+ * ```math fence, the only child of a `pre`.
+ */
+function isMathCode(node: Element): boolean {
+  const classNames = node.properties.className;
+  return node.tagName === 'code' && Array.isArray(classNames) && classNames.includes('language-math');
+}
+
+/**
  * `%` opens a TeX comment and would swallow the rest of the formula, yet models write percentages inside formulas
  * (`$$50% \text{done}$$`). Only the nodes the math parser produced are touched, so code and prose keep their `%`.
  */
 const rehypeEscapeMathPercent: Plugin<[], HastRoot> = () => (tree) => {
   // The visitor must not return a value: `false` would stop the walk and a number would jump to that index.
   visit(tree, 'element', (node: Element) => {
-    const classNames = node.properties.className;
-    if (node.tagName !== 'code' || !Array.isArray(classNames) || !classNames.includes('language-math')) {
+    if (!isMathCode(node)) {
       return;
     }
     for (const child of node.children) {
       if (child.type === 'text') {
         child.value = child.value.replace(/(?<!\\)%/g, '\\%');
       }
+    }
+  });
+};
+
+/**
+ * Puts each formula back as the TeX it was written in: `$…$` inline, and `$$…$$` as a paragraph of its own where
+ * the parser made a `pre`. Nothing renders the source here, so it stays as written (a `%` stays a `%`) and only the
+ * whitespace around it goes (a math fence ends with a newline).
+ */
+const rehypeMathAsTexSource: Plugin<[], HastRoot> = () => (tree) => {
+  visit(tree, 'element', (node: Element, index, parent) => {
+    if (!isMathCode(node) || !parent || index === undefined) {
+      return;
+    }
+    const tex = node.children
+      .map((child) => (child.type === 'text' ? child.value : ''))
+      .join('')
+      .trim();
+    if (parent.type === 'element' && parent.tagName === 'pre') {
+      parent.tagName = 'p';
+      parent.children = [{ type: 'text', value: `$$${tex}$$` }];
+    } else {
+      parent.children[index] = { type: 'text', value: `$${tex}$` };
     }
   });
 };
@@ -165,6 +197,16 @@ export const mathPlugins: MathPlugins = {
 export const chatMathPlugins: MathPlugins = {
   remark: remarkPlugins,
   rehype: [rehypeUnwrapRawVector, rehypeEscapeMathPercent, [rehypeKatex, chatKatexOptions]],
+};
+
+/**
+ * For documents that have neither the KaTeX stylesheet nor its fonts and would show KaTeX's markup twice (a Word
+ * file converted from HTML): each formula stays its TeX source, which reads the same everywhere. The parser and the
+ * pre-pass are the same, so what counts as a formula is the same as on screen.
+ */
+export const texSourceMathPlugins: MathPlugins = {
+  remark: remarkPlugins,
+  rehype: [rehypeMathAsTexSource],
 };
 
 /** Fenced code (up to its closing fence, or to the end while a stream has not closed it) and inline code spans. */
