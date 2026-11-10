@@ -71,6 +71,7 @@ export function CapturePreview({
           onClick={onImageClick}
           className="w-full aspect-video bg-black/5 dark:bg-white/5 cursor-pointer hover:opacity-80 transition-opacity"
         >
+          {/* oxlint-disable-next-line next/no-img-element -- the capture is an in-memory base64 JPEG, which next/image cannot optimize */}
           <img
             src={`data:image/jpeg;base64,${capture.screenshot}`}
             alt={capture.windowTitle || t('captureAlt')}
@@ -126,7 +127,7 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
       <button type="button" className="absolute top-4 right-4 text-white/80 hover:text-white" onClick={onClose}>
         <X className="w-6 h-6" />
       </button>
-      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- propagation barrier only; the image is not interactive */}
+      {/* oxlint-disable-next-line next/no-img-element, jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the source is an in-memory base64 JPEG that next/image cannot optimize; the click handler is a propagation barrier only, the image is not interactive */}
       <img
         src={src}
         alt={alt}

@@ -6,6 +6,7 @@
  * - useChatStore (POS: 当前会话 agent 路由)
  * - useFeatureGateStore (POS: Feature Gate 检查)
  * - useFlowPadInlineRoute / useFlowPadExpertTemplates / useFlowPadSend (POS: Inline 路由、专家召唤、发送三层)
+ * - useFlowPadDraft (POS: 输入草稿与截图放大图，随会话重置)
  *
  * [OUTPUT]
  * - FlowPadModal: 全局居中 Dialog，整合截图预览 + 语音/文本输入 + Inline 专家召唤
@@ -16,7 +17,7 @@
  * 负责面板生命周期（开合时重置各层状态）、输入草稿与结果回写；路由/召唤/发送逻辑在各自 hook 中。
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { Dialog, DialogContent, DialogTitle } from '@/components/primitives/dialog';
 import { useFlowPadStore } from '@/store/useFlowPadStore';
@@ -36,6 +37,7 @@ import { FlowPadInlineRouteSwitcher } from './flow-pad-inline-route-switcher';
 import { FlowPadInlineResultPanel } from './flow-pad-inline-result-panel';
 import { FlowPadQuickActions } from './flow-pad-quick-actions';
 import { FlowPadSelectedTextChip } from './flow-pad-selected-text-chip';
+import { useFlowPadDraft } from './useFlowPadDraft';
 import { useFlowPadExpertTemplates } from './useFlowPadExpertTemplates';
 import { useFlowPadInlineRoute } from './useFlowPadInlineRoute';
 import { useFlowPadSend } from './useFlowPadSend';
@@ -48,8 +50,7 @@ export function FlowPadModal() {
   const { agentConfig } = useChatStore();
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
 
-  const [text, setText] = useState('');
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const { text, setText, lightboxSrc, setLightboxSrc } = useFlowPadDraft({ isOpen, mode, sourcePid, initialText });
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const {
@@ -114,28 +115,34 @@ export function FlowPadModal() {
     }
   }, []);
 
-  // Every open, close, new capture or mode change starts a fresh pad session: nothing carries over.
+  // Every open, close, new capture or mode change starts a fresh pad session: no route, template or request state
+  // carries over (the draft resets itself in useFlowPadDraft).
   useEffect(() => {
     resetRoute();
     resetTemplates();
     resetInlineRequest();
-    clearSummon();
+  }, [isOpen, initialText, mode, sourcePid, resetRoute, resetTemplates, resetInlineRequest]);
+
+  // Puts the cursor in the draft box whenever a session has opened.
+  useEffect(() => {
     if (!isOpen) {
       return;
     }
-    setText(initialText);
-    setLightboxSrc(null);
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }, [isOpen, initialText, mode, sourcePid, resetRoute, resetTemplates, resetInlineRequest, clearSummon]);
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(focusTimer);
+  }, [isOpen, initialText, mode, sourcePid]);
 
   useEffect(() => {
     autoResizeTextarea();
   }, [text, autoResizeTextarea]);
 
-  const handleSpeechTranscript = useCallback((transcript: string) => {
-    setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
-    inputRef.current?.focus();
-  }, []);
+  const handleSpeechTranscript = useCallback(
+    (transcript: string) => {
+      setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      inputRef.current?.focus();
+    },
+    [setText],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

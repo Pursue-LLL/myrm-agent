@@ -58,7 +58,7 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
   const fetchAgent = useAgentStore((state) => state.fetchAgent);
   const agentListLoading = useAgentStore((state) => state.loading);
 
-  const [inlineRouteSelection, setInlineRouteSelection] = useState<InlineRouteSelection | null>(null);
+  const [pickedRoute, setPickedRoute] = useState<InlineRouteSelection | null>(null);
   const [agentRouteMenuOpen, setAgentRouteMenuOpen] = useState(false);
   const [inlineRouteSwitching, setInlineRouteSwitching] = useState(false);
   const [inlineRouteSwitchError, setInlineRouteSwitchError] = useState<string | null>(null);
@@ -75,6 +75,12 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
     [agents, locale],
   );
 
+  // An override whose agent has left the roster no longer applies: the pad falls back to the session route.
+  const inlineRouteSelection = useMemo(
+    () => (pickedRoute && availableAgents.some((agent) => agent.id === pickedRoute.id) ? pickedRoute : null),
+    [pickedRoute, availableAgents],
+  );
+
   const currentAgentLabel = useMemo(() => {
     const displayName = getAgentDisplayName(agentConfig);
     if (displayName === null) {
@@ -89,7 +95,7 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
   const resetRoute = useCallback(() => {
     switchAbortRef.current?.abort();
     switchAbortRef.current = null;
-    setInlineRouteSelection(null);
+    setPickedRoute(null);
     setInlineRouteSwitchError(null);
     setInlineRouteSwitching(false);
     setAgentRouteMenuOpen(false);
@@ -101,18 +107,6 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
     }
     void fetchAgents(1, 100, true);
   }, [isOpen, mode, fetchAgents]);
-
-  useEffect(() => {
-    if (!inlineRouteSelection) {
-      return;
-    }
-    const stillExists = availableAgents.some((agent) => agent.id === inlineRouteSelection.id);
-    if (!stillExists) {
-      setInlineRouteSelection(null);
-      setInlineRouteSwitchError(null);
-      clearSummon();
-    }
-  }, [availableAgents, inlineRouteSelection, clearSummon]);
 
   useEffect(() => {
     if (!agentRouteMenuOpen) {
@@ -136,7 +130,7 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
       if (agentId === null) {
         switchAbortRef.current?.abort();
         switchAbortRef.current = null;
-        setInlineRouteSelection(null);
+        setPickedRoute(null);
         setInlineRouteSwitchError(null);
         setInlineRouteSwitching(false);
         return true;
@@ -160,7 +154,7 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
           throw new Error('Failed to load target agent profile');
         }
         const nextName = getBuiltinAgentName(agentId, listItem?.name ?? fullAgent.name, locale);
-        setInlineRouteSelection({
+        setPickedRoute({
           id: agentId,
           name: nextName,
           avatarUrl: listItem?.avatar_url ?? fullAgent.avatar_url,
@@ -180,7 +174,7 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
           locale,
         );
         // Fail-safe to current session route to avoid accidentally sending with stale override.
-        setInlineRouteSelection(null);
+        setPickedRoute(null);
         setInlineRouteSwitchError(failedName);
         toast.error(t('inlineRouteApplyFailed'), { duration: 3000 });
         return false;
@@ -200,7 +194,7 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
   const dismissRouteSwitchError = useCallback(() => setInlineRouteSwitchError(null), []);
 
   const fallbackToCurrentRoute = useCallback(() => {
-    setInlineRouteSelection(null);
+    setPickedRoute(null);
     setInlineRouteSwitchError(null);
     clearSummon();
     toast.success(t('inlineRouteFallbackApplied'), { duration: 2000 });

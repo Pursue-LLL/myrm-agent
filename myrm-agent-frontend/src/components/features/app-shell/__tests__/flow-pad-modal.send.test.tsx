@@ -220,6 +220,23 @@ describe('FlowPadModal: sending, results and drafting', () => {
       });
     });
 
+    it('forgets the request of a closed pad so its late stream does not fill the next pad', async () => {
+      openInlinePad();
+      renderFlowPad();
+      await submitText('question');
+
+      act(() => useFlowPadStore.getState().close());
+      act(() => openInlinePad());
+      act(() =>
+        simulateChatChange({
+          loading: true,
+          messages: [{ role: 'assistant', content: 'stale answer', messageId: 'inline-msg-1' }],
+        }),
+      );
+
+      expect(useFlowPadStore.getState().inlineResult).toBe('');
+    });
+
     it('ends the generating state when the turn finishes without any assistant text', async () => {
       openInlinePad();
       renderFlowPad();

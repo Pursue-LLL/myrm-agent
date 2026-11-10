@@ -8,7 +8,7 @@
  *
  * [POS]
  * FlowPad Inline 的召唤转化归因。记住"当前路由来自哪次专家召唤"，使首条发给该专家的消息
- * 恰好上报一次；路由换走、回退或面板重开时由调用方 clear。
+ * 恰好上报一次；路由换走或回退时由调用方 clear（没有路由覆盖就不会上报）。
  */
 import { useCallback, useRef } from 'react';
 import { recordExpertSummonFirstMessageSent } from '@/services/expertSummonMetrics';
