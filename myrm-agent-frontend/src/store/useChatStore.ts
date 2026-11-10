@@ -1082,9 +1082,11 @@ const useChatStore = create<ChatState>()(
       },
 
       // 分页聊天历史管理
-      loadChatHistory: async (page = 1, pageSize = 20) => {
+      // Without `force` this only fills an empty, idle list. A forced read is a refresh: it swaps the first page in
+      // when it arrives and supersedes any read still on its way.
+      loadChatHistory: async (page = 1, pageSize = 20, { force = false } = {}) => {
         const { chatHistoryLoading, chatHistoryItems, chatHistorySourceFilter, chatHistorySearchKeyword } = get();
-        if (chatHistoryLoading || chatHistoryItems.length > 0) {
+        if (!force && (chatHistoryLoading || chatHistoryItems.length > 0)) {
           return;
         }
         const request = ++latestChatHistoryRequest;

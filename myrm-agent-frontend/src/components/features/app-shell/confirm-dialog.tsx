@@ -146,14 +146,11 @@ export const ConfirmDialog = ({
   const [internalOpen, setInternalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 使用受控或非受控模式
-  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  // 传入 `open` 时以它为准；否则自己持有，`onOpenChange` 只用来通知。
+  const open = controlledOpen ?? internalOpen;
   const setOpen = (value: boolean) => {
-    if (controlledOnOpenChange) {
-      controlledOnOpenChange(value);
-    } else {
-      setInternalOpen(value);
-    }
+    setInternalOpen(value);
+    controlledOnOpenChange?.(value);
   };
 
   // 有 trigger 时 Radix 自己会把焦点还给它。
@@ -174,11 +171,6 @@ export const ConfirmDialog = ({
     }
   };
 
-  const handleCancel = () => {
-    onCancel?.();
-    setOpen(false);
-  };
-
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
@@ -191,7 +183,7 @@ export const ConfirmDialog = ({
         <AlertDialogFooter className="sm:space-x-2 animate-in slide-in-from-bottom-2 duration-300 delay-100">
           <AlertDialogCancel
             disabled={isLoading}
-            onClick={handleCancel}
+            onClick={() => onCancel?.()}
             data-testid="confirm-dialog-cancel"
             className="transition-all duration-200 hover:scale-105"
           >

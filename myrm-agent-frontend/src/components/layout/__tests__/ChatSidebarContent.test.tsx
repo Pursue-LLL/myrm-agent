@@ -429,6 +429,25 @@ describe('ChatSidebarContent trash', () => {
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
+  it('reads the history list again when a chat is restored from the panel', async () => {
+    const original = useChatStore.getState().loadChatHistory;
+    const loadChatHistory = vi.fn<typeof original>().mockResolvedValue(undefined);
+    useChatStore.setState({ loadChatHistory });
+    try {
+      renderSidebar();
+      await settle();
+      expect(loadChatHistory).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: /^title/ }));
+
+      fireEvent.click(await screen.findByRole('button', { name: 'restored' }));
+      await settle();
+
+      expect(loadChatHistory).toHaveBeenCalledExactlyOnceWith(1, 20, { force: true });
+    } finally {
+      useChatStore.setState({ loadChatHistory: original });
+    }
+  });
+
   it('keeps the newest count when an older read finishes last', async () => {
     const older = deferred<number>();
     kit.trashCount.mockReturnValueOnce(older.promise).mockResolvedValueOnce(2);

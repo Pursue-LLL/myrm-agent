@@ -2103,6 +2103,7 @@
       "deleteFailed": "삭제 실패",
       "emptied": "휴지통이 비워졌습니다",
       "emptyFailed": "휴지통 비우기 실패",
+      "loadFailed": "휴지통을 불러오지 못했습니다",
       "confirmEmptyTitle": "휴지통 비우기",
       "confirmEmptyDesc": "{count}개의 대화를 영구 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
       "confirmDeleteTitle": "영구 삭제",

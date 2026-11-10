@@ -61,7 +61,7 @@ export async function handleWakePhaseTransition(
 
     // 2. 静默刷新会话历史列表，让左侧磁贴解绑失效状态
     try {
-      await loadChatHistory(1);
+      await loadChatHistory(1, 20, { force: true });
     } catch (err) {
       console.warn('[WakeRecovery] Failed to refresh chat history after wake:', err);
     }

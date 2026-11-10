@@ -2112,6 +2112,7 @@
       "deleteFailed": "Failed to delete",
       "emptied": "Trash emptied",
       "emptyFailed": "Failed to empty trash",
+      "loadFailed": "Failed to load the trash",
       "confirmEmptyTitle": "Empty Trash",
       "confirmEmptyDesc": "Permanently delete all {count} conversations? This action cannot be undone.",
       "confirmDeleteTitle": "Delete Forever",

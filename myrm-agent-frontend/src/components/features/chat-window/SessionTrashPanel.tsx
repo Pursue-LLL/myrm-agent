@@ -7,12 +7,25 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/shared/useToast';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import type { CascadeInfo, TrashedChatItem } from '@/services/chatTrash';
-import { emptyTrash, getCascadeInfo, getTrashedChats, permanentlyDeleteChat, restoreChat } from '@/services/chatTrash';
+import {
+  TRASH_PAGE_SIZE,
+  emptyTrash,
+  getCascadeInfo,
+  getTrashedChats,
+  permanentlyDeleteChat,
+  restoreChat,
+} from '@/services/chatTrash';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface SessionTrashPanelProps {
   onRestored?: () => void;
   onCountChange?: (count: number) => void;
+}
+
+/** Adds the chats of a freshly read page that the list does not hold yet (all of them when the list is empty). */
+function appendNew(current: TrashedChatItem[], incoming: TrashedChatItem[]): TrashedChatItem[] {
+  const known = new Set(current.map((chat) => chat.id));
+  return [...current, ...incoming.filter((chat) => !known.has(chat.id))];
 }
 
 const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountChange }: SessionTrashPanelProps) {
@@ -21,60 +34,92 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
 
   const [chats, setChats] = useState<TrashedChatItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [hasNext, setHasNext] = useState(false);
-  const [total, setTotal] = useState(0);
+  // Unknown until the first page has been read.
+  const [total, setTotal] = useState<number | null>(null);
   const [cascadeInfo, setCascadeInfo] = useState<CascadeInfo | null>(null);
   const cascadeFetchRef = useRef<string | null>(null);
+  // Chats with a request in flight: a second click on the same row would only add a request that fails.
+  const inFlightRef = useRef(new Set<string>());
 
+  /** Reads `page` into the list. A failed first read shows the error screen; a failed later page only a notice. */
   const fetchTrashed = useCallback(
-    async (pageNum: number, append = false) => {
+    async (page: number, loadingMore: boolean) => {
       setLoading(true);
+      setLoadFailed(false);
       try {
-        const res = await getTrashedChats(pageNum);
-        setChats((prev) => (append ? [...prev, ...res.items] : res.items));
+        const res = await getTrashedChats(page);
+        setChats((prev) => appendNew(prev, res.items));
         setHasNext(res.pagination.has_next);
         setTotal(res.pagination.total);
-        onCountChange?.(res.pagination.total);
+      } catch {
+        if (loadingMore) {
+          toast({ title: t('loadFailed'), variant: 'destructive' });
+        } else {
+          setLoadFailed(true);
+        }
       } finally {
         setLoading(false);
       }
     },
-    [onCountChange],
+    [t],
   );
 
   useEffect(() => {
-    fetchTrashed(1);
+    void fetchTrashed(1, false);
   }, [fetchTrashed]);
 
+  // Restoring or deleting every loaded chat can leave older ones on the server: read them instead of calling the
+  // trash empty.
+  useEffect(() => {
+    if (!loading && !loadFailed && hasNext && chats.length === 0) {
+      void fetchTrashed(1, false);
+    }
+  }, [loading, loadFailed, hasNext, chats.length, fetchTrashed]);
+
+  // The parent shows the count (badge); it hears about every change from here, once the first read has told it.
+  useEffect(() => {
+    if (total !== null) {
+      onCountChange?.(total);
+    }
+  }, [total, onCountChange]);
+
+  const removeChat = useCallback((chatId: string) => {
+    setChats((prev) => prev.filter((chat) => chat.id !== chatId));
+    setTotal((prev) => (prev === null ? prev : prev - 1));
+  }, []);
+
   const handleRestore = async (chatId: string) => {
+    if (inFlightRef.current.has(chatId)) {
+      return;
+    }
+    inFlightRef.current.add(chatId);
     try {
       await restoreChat(chatId);
-      setChats((prev) => prev.filter((c) => c.id !== chatId));
-      setTotal((prev) => {
-        const newTotal = prev - 1;
-        onCountChange?.(newTotal);
-        return newTotal;
-      });
+      removeChat(chatId);
       onRestored?.();
       toast({ title: t('restored'), variant: 'default' });
     } catch {
       toast({ title: t('restoreFailed'), variant: 'destructive' });
+    } finally {
+      inFlightRef.current.delete(chatId);
     }
   };
 
   const handlePermanentDelete = async (chatId: string) => {
+    if (inFlightRef.current.has(chatId)) {
+      return;
+    }
+    inFlightRef.current.add(chatId);
     try {
       await permanentlyDeleteChat(chatId);
-      setChats((prev) => prev.filter((c) => c.id !== chatId));
-      setTotal((prev) => {
-        const newTotal = prev - 1;
-        onCountChange?.(newTotal);
-        return newTotal;
-      });
+      removeChat(chatId);
       toast({ title: t('permanentlyDeleted'), variant: 'default' });
     } catch {
       toast({ title: t('deleteFailed'), variant: 'destructive' });
+    } finally {
+      inFlightRef.current.delete(chatId);
     }
   };
 
@@ -88,12 +133,12 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
           setCascadeInfo(info);
         }
       } catch {
-        setCascadeInfo({ counts: {}, total: 0 });
+        // The warning is a courtesy: without a count the chat can still be deleted.
       }
     }
     if (!open) {
+      // Keeps what the dialog shows while it fades out; the next opening starts from a blank.
       cascadeFetchRef.current = null;
-      setCascadeInfo(null);
     }
   }, []);
 
@@ -109,30 +154,46 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
     try {
       await emptyTrash();
       setChats([]);
+      setHasNext(false);
       setTotal(0);
-      onCountChange?.(0);
       toast({ title: t('emptied'), variant: 'default' });
     } catch {
       toast({ title: t('emptyFailed'), variant: 'destructive' });
     }
   };
 
+  // Chats restored or deleted since the last read shift the server's pages: the first chat not yet loaded sits on the
+  // page that starts at or before the loaded count, and the overlap is dropped when it is appended.
   const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchTrashed(nextPage, true);
+    void fetchTrashed(Math.floor(chats.length / TRASH_PAGE_SIZE) + 1, true);
   };
 
-  if (loading && chats.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <IconLoader className="h-8 w-8 animate-spin text-primary/50" />
-        <p className="mt-3 text-sm text-muted-foreground">{t('loading')}</p>
-      </div>
-    );
-  }
-
   if (chats.length === 0) {
+    if (loadFailed) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-3 py-16">
+          <p className="text-sm text-muted-foreground">{t('loadFailed')}</p>
+          <button
+            type="button"
+            onClick={() => void fetchTrashed(1, false)}
+            className={cn(
+              'px-4 py-2 rounded-lg text-xs font-medium transition-colors',
+              'bg-primary/10 text-primary hover:bg-primary/20',
+            )}
+          >
+            {tCommon('retry')}
+          </button>
+        </div>
+      );
+    }
+    if (loading || hasNext) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12">
+          <IconLoader className="h-8 w-8 animate-spin text-primary/50" />
+          <p className="mt-3 text-sm text-muted-foreground">{t('loading')}</p>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <div className="relative">
@@ -159,11 +220,11 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
                 'bg-destructive/10 text-destructive-text hover:bg-destructive/20',
               )}
             >
-              {t('emptyAll')} ({total})
+              {t('emptyAll')} ({total ?? 0})
             </button>
           }
           title={t('confirmEmptyTitle')}
-          description={t('confirmEmptyDesc', { count: total })}
+          description={t('confirmEmptyDesc', { count: total ?? 0 })}
           confirmText={t('emptyAll')}
           cancelText={tCommon('cancel')}
           variant="destructive"

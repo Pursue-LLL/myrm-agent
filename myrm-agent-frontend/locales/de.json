@@ -2103,6 +2103,7 @@
       "deleteFailed": "Löschen fehlgeschlagen",
       "emptied": "Papierkorb geleert",
       "emptyFailed": "Leeren des Papierkorbs fehlgeschlagen",
+      "loadFailed": "Papierkorb konnte nicht geladen werden",
       "confirmEmptyTitle": "Papierkorb leeren",
       "confirmEmptyDesc": "Alle {count} Konversationen endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "confirmDeleteTitle": "Endgültig löschen",

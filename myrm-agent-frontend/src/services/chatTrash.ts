@@ -10,7 +10,13 @@ export interface TrashedChatsResponse {
   pagination: PaginationInfo;
 }
 
-export const getTrashedChats = async (page: number = 1, pageSize: number = 20): Promise<TrashedChatsResponse> => {
+/** Chats per page when the caller does not ask for a size; pages are `TRASH_PAGE_SIZE` chats apart. */
+export const TRASH_PAGE_SIZE = 20;
+
+export const getTrashedChats = async (
+  page: number = 1,
+  pageSize: number = TRASH_PAGE_SIZE,
+): Promise<TrashedChatsResponse> => {
   return apiRequest<TrashedChatsResponse>(`/chats/trash?page=${page}&page_size=${pageSize}`);
 };
 

@@ -320,7 +320,7 @@ export interface ChatState {
   scheduleAutoSave: () => void;
 
   // 分页聊天历史管理
-  loadChatHistory: (page?: number, pageSize?: number) => Promise<void>;
+  loadChatHistory: (page?: number, pageSize?: number, options?: { force?: boolean }) => Promise<void>;
   loadMoreChatHistory: () => Promise<void>;
 
   // Pinned Threads

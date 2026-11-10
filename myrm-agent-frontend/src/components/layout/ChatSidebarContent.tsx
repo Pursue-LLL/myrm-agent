@@ -72,6 +72,7 @@ type SidebarView = 'chat' | 'workspace';
 
 const TrashButton = memo(function TrashButton() {
   const t = useTranslations('chat.trash');
+  const loadChatHistory = useChatStore((state) => state.loadChatHistory);
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   // Counts come from our own reads and from the panel; only the newest one may stand.
@@ -98,6 +99,12 @@ const TrashButton = memo(function TrashButton() {
     refreshCount();
   }, [refreshCount]);
 
+  // A restored chat belongs back in the history list, which is otherwise only read when it is empty.
+  const handleRestored = useCallback(() => {
+    void refreshCount();
+    void loadChatHistory(1, 20, { force: true });
+  }, [refreshCount, loadChatHistory]);
+
   return (
     <div className="px-3 py-2 border-t border-border/30">
       <Sheet open={open} onOpenChange={setOpen}>
@@ -119,7 +126,7 @@ const TrashButton = memo(function TrashButton() {
             <SheetTitle>{t('title')}</SheetTitle>
           </SheetHeader>
           <div className="mt-4">
-            <SessionTrashPanel onRestored={refreshCount} onCountChange={showCount} />
+            <SessionTrashPanel onRestored={handleRestored} onCountChange={showCount} />
           </div>
         </SheetContent>
       </Sheet>

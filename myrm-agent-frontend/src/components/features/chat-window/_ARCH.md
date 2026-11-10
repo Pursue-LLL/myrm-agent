@@ -71,6 +71,9 @@
 | `__tests__/useCompactedSummaryState.actions.test.tsx` | 测试 | 压缩摘要状态单测（动作部分）：摘要编辑保存（失败保留编辑、切走的会话不被写入）、归档（缓存、失败关闭并重试）、派生新会话（流式拒绝、各阶段诊断、E2E 整页跳转） | ✅ |
 | `__tests__/CompactedSummaryView.behavior.test.tsx` | 测试 | 压缩摘要视图行为：外链新标签页且无 opener、锚点与里程碑卡片的入参、节省 token 的缩写、编辑 / 保存 / 取消 / 保存失败、归档窗口、快照列表与分支卡片、保存快照进度、失败重试、点击快照只派生被点的那条 | ✅ |
 | `__tests__/CompactedBookmarksList.test.tsx` | 测试 | 快照书签列表：加载 / 失败（可重试）/ 空 / 就绪四态及优先级、名称与时间与文件提示、派生按钮标注与进行中状态 | ✅ |
+| `__tests__/trashKit.ts` | 测试 | 回收站测试底座（供 mock 工厂动态导入，不引入组件）：服务 / 提示 / 多语言替身、会话构造器、按页返回并随恢复 / 删除 / 清空变化的假服务端 `serveTrash` | ✅ |
+| `__tests__/SessionTrashPanel.test.tsx` | 测试 | 回收站面板：列表与数量通知、读取失败（可重试；翻页失败提示并重试同一页）、恢复（行消失、数量、通知父级、失败、并发与连点、父级随之更新无 React 警告）、翻页（追加、移走若干后不漏会话、全部移走后补读） | ✅ |
+| `__tests__/SessionTrashPanel.delete.test.tsx` | 测试 | 回收站面板的永久删除与清空：先问再删（取消、失败保留、无标题的名称）、级联提示（有 / 无 / 读取失败、每次打开重读、迟到的应答不串）、清空（询问数量、清空后不重读、失败保留） | ✅ |
 | `__tests__/parseExactAnchors.test.ts` | 测试 | 机器符号解析器单元测试：空文本容错、metaAnchors 优先契约、Markdown 区块提取与正文剥离、JSON 注释提取覆盖 | ✅ |
 | `__tests__/CompactedArchiveModal.test.tsx` | 测试 | 归档弹窗公式测试：`$…$`、`$$…$$`、`\(…\)` 都渲染成公式而价格句保持原文，`\href` / `\includegraphics` 不产生链接或图片 | ✅ |
 | `__tests__/CompactedSummaryView.math.test.tsx` | 测试 | 压缩摘要公式测试（状态 hook 与子卡片桩化）：同归档弹窗的两条 | ✅ |
@@ -132,7 +135,7 @@
 | `EStopBanner.tsx` | 组件/模块 | E-Stop 全局冻结横幅（GET /security/estop，解除冻结 POST resume）；状态读取只采纳最新一次应答（焦点与 `estop-changed` 并发读取乱序时不被旧应答覆盖），读取失败时隐藏横幅（`__tests__/EStopBanner.test.tsx` 守卫） | ✅ |
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动；重新连上后再次断开会再次提示，`__tests__/ExtensionDisconnectedBanner.test.tsx` 守卫） | ✅ |
 | `ExtensionTakeoverBanner.tsx` | 组件/模块 | 外部浏览器 HITL 横幅（harness `is_managed=false` → `uiMode=extension`：CDP/auto/extension 均 in-chat 引导本地 Chrome + Done/Skip；支持打开/复制签名远程接管链接；CAPTCHA auto_detect 时隐藏按钮；`__tests__/ExtensionTakeoverBanner.test.tsx` 守卫） | ✅ |
-| `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复/永久删除） | ✅ |
+| `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复 / 永久删除 / 清空）：首次读取失败显示可重试的错误而不是「回收站为空」，翻页失败弹提示并保留已加载的会话；翻页按已加载数量换算页码并去重，恢复 / 删除若干会话后不漏会话；已加载的会话全部移走而服务器还有更多时自动补读；同一会话进行中的操作不重复发起；永久删除前先问，有级联会话时在确认里写明数量（每次打开重读，迟到的应答与读取失败都不影响删除）；数量在首次读取后才通知父级（`__tests__/SessionTrashPanel*.test.tsx` 守卫） | ✅ |
 | `AgentToolDiagnostics.tsx` | 组件 | Agent 工具健康诊断弹窗（tool 成功率/耗时）；文案取自 `chat.toolDiagnostics`，`__tests__/AgentToolDiagnostics.test.tsx` 覆盖触发按钮、标题、各指标标签与空态 | ✅ |
 | `SubagentPromptButton.tsx` | 组件 | 子代理完成后延迟 5s 出现的「查看结果」入口按钮：倒计时仅作提示，点击才发送按界面语言本地化的 `chat.subagent.viewResults` | ✅ |
 | `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher（queue 过期 toast） | ✅ |

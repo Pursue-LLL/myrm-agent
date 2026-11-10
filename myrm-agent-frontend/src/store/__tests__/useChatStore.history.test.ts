@@ -312,3 +312,63 @@ describe('loadMoreChatHistory', () => {
     expect(state().chatHistoryLoading).toBe(false);
   });
 });
+
+describe('a forced loadChatHistory refreshes the list', () => {
+  const seedList = (...chats: ChatItem[]) =>
+    useChatStore.setState({
+      chatHistoryItems: chats,
+      chatHistoryPagination: pagination({ total: chats.length }),
+    });
+
+  it('keeps the list on screen until the first page arrives, then swaps it in', async () => {
+    seedList(chat('a'), chat('b'));
+    const pending = deferred<ChatHistoryResponse>();
+    getChatHistory.mockReturnValue(pending.promise);
+
+    const refresh = state().loadChatHistory(1, 20, { force: true });
+
+    expect(ids()).toEqual(['a', 'b']);
+    expect(state().chatHistoryLoading).toBe(true);
+    pending.resolve(pageOf([chat('c'), chat('a'), chat('b')]));
+    await refresh;
+
+    expect(ids()).toEqual(['c', 'a', 'b']);
+    expect(state().chatHistoryPagination?.total).toBe(3);
+    expect(state().chatHistoryLoading).toBe(false);
+  });
+
+  it('asks with the filters the list has now', async () => {
+    seedList(chat('a'));
+    useChatStore.setState({ chatHistorySourceFilter: 'cli', chatHistorySearchKeyword: '  plan  ' });
+    getChatHistory.mockResolvedValue(pageOf([chat('a', 'cli')]));
+
+    await state().loadChatHistory(1, 20, { force: true });
+
+    expect(getChatHistory).toHaveBeenCalledExactlyOnceWith(1, 20, 'cli', undefined, 'plan');
+  });
+
+  it('replaces a page that was still on its way', async () => {
+    seedList(chat('a'), chat('b'));
+    useChatStore.setState({ chatHistoryPagination: pagination({ total: 40, total_pages: 2, has_next: true }) });
+    const latePage = deferred<ChatHistoryResponse>();
+    getChatHistory.mockReturnValueOnce(latePage.promise).mockResolvedValueOnce(pageOf([chat('c'), chat('a')]));
+    const loadMore = state().loadMoreChatHistory();
+
+    await state().loadChatHistory(1, 20, { force: true });
+    latePage.resolve(pageOf([chat('old')], { page: 2 }));
+    await loadMore;
+
+    expect(ids()).toEqual(['c', 'a']);
+    expect(state().chatHistoryLoading).toBe(false);
+  });
+
+  it('keeps the list, and stops showing progress, when the refresh fails', async () => {
+    seedList(chat('a'), chat('b'));
+    getChatHistory.mockRejectedValueOnce(new Error('offline'));
+
+    await state().loadChatHistory(1, 20, { force: true });
+
+    expect(ids()).toEqual(['a', 'b']);
+    expect(state().chatHistoryLoading).toBe(false);
+  });
+});

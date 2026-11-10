@@ -80,7 +80,7 @@ describe('desktopWakeRecovery', () => {
       expect(loadMessages).toHaveBeenCalledWith('chat-active');
       // loadMessages releases the loading flag once the transcript is reconciled; the wake handler never clears it.
       expect(setLoading).not.toHaveBeenCalled();
-      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(loadChatHistory).toHaveBeenCalledWith(1, 20, { force: true });
       expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
     });
 
@@ -111,7 +111,7 @@ describe('desktopWakeRecovery', () => {
       expect(loadMessages).not.toHaveBeenCalled();
       expect(setLoading).not.toHaveBeenCalled();
       expect(turn.signal.aborted).toBe(false);
-      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(loadChatHistory).toHaveBeenCalledWith(1, 20, { force: true });
       expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
     });
 
@@ -143,7 +143,7 @@ describe('desktopWakeRecovery', () => {
 
       expect(loadMessages).toHaveBeenCalledWith('chat-flaky');
       expect(setLoading).not.toHaveBeenCalled();
-      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(loadChatHistory).toHaveBeenCalledWith(1, 20, { force: true });
       expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
     });
 
@@ -174,7 +174,7 @@ describe('desktopWakeRecovery', () => {
 
       expect(loadMessages).not.toHaveBeenCalled();
       expect(setLoading).not.toHaveBeenCalled();
-      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(loadChatHistory).toHaveBeenCalledWith(1, 20, { force: true });
       expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
     });
 
@@ -203,7 +203,7 @@ describe('desktopWakeRecovery', () => {
         }),
       ).resolves.toBeUndefined();
 
-      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(loadChatHistory).toHaveBeenCalledWith(1, 20, { force: true });
       expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
     });
 
@@ -290,7 +290,7 @@ describe('desktopWakeRecovery', () => {
       document.dispatchEvent(new Event('visibilitychange'));
 
       await Promise.resolve();
-      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(loadChatHistory).toHaveBeenCalledWith(1, 20, { force: true });
 
       dateSpy.mockRestore();
       unlisten();
@@ -361,7 +361,7 @@ describe('desktopWakeRecovery', () => {
       }
       await Promise.resolve();
 
-      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(loadChatHistory).toHaveBeenCalledWith(1, 20, { force: true });
 
       unlisten();
       expect(mockTauriUnlisten).toHaveBeenCalledTimes(1);

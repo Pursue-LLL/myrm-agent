@@ -2103,6 +2103,7 @@
       "deleteFailed": "削除に失敗しました",
       "emptied": "ごみ箱を空にしました",
       "emptyFailed": "ゴミ箱を空にするのに失敗",
+      "loadFailed": "ごみ箱を読み込めませんでした",
       "confirmEmptyTitle": "ゴミ箱を空にする",
       "confirmEmptyDesc": "{count} 件の会話を完全に削除しますか？この操作は取り消せません。",
       "confirmDeleteTitle": "完全に削除",

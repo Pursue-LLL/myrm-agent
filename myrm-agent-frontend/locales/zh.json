@@ -2112,6 +2112,7 @@
       "deleteFailed": "删除失败",
       "emptied": "回收站已清空",
       "emptyFailed": "清空失败",
+      "loadFailed": "加载回收站失败",
       "confirmEmptyTitle": "清空回收站",
       "confirmEmptyDesc": "永久删除全部 {count} 个会话？此操作不可撤销。",
       "confirmDeleteTitle": "永久删除",

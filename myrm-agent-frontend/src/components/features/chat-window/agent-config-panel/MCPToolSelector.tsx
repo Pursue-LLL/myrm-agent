@@ -35,78 +35,74 @@ const RISK_CONFIG: Record<RiskLevel, { icon: typeof Shield; className: string; l
   danger: { icon: AlertTriangle, className: 'text-red-500', labelKey: 'destructive' },
 };
 
-/**
- * Per-server MCP tool selector with risk annotations.
- *
- * When `selectedTools` is undefined (no filter), all tools are enabled.
- * Toggling any tool off creates an explicit whitelist of the remaining tools.
- */
-const MCPToolSelector = ({
-  mcpConfig,
-  serverName,
-  selectedTools,
-  onSelectionChange,
-  isServerEnabled,
-}: MCPToolSelectorProps) => {
+type ServerToolSelectorProps = Omit<MCPToolSelectorProps, 'isServerEnabled'>;
+
+/** The selector of a server that is selected: what it reads and holds is dropped when the server is switched off. */
+const ServerToolSelector = ({ mcpConfig, serverName, selectedTools, onSelectionChange }: ServerToolSelectorProps) => {
   const t = useTranslations('agent.configPanel.mcpTools');
   const [tools, setTools] = useState<MCPToolDetail[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const fetchedRef = useRef(false);
-  const selectedToolsRef = useRef(selectedTools);
-  selectedToolsRef.current = selectedTools;
+  // The read whose answer is still wanted: null while none runs, and again once the selector is gone, so an answer
+  // that arrives then never reaches the parent.
+  const activeReadRef = useRef<object | null>(null);
+  // What a read needs once its answer arrives; kept current so new objects from the parent do not restart it.
+  const latestRef = useRef({ mcpConfig, serverName, selectedTools, onSelectionChange });
+  useEffect(() => {
+    latestRef.current = { mcpConfig, serverName, selectedTools, onSelectionChange };
+  });
 
   const loadTools = useCallback(async () => {
-    if (fetchedRef.current || !isServerEnabled) {
+    if (fetchedRef.current || activeReadRef.current) {
       return;
     }
+    const read = {};
+    activeReadRef.current = read;
     setLoading(true);
     setLoadError(false);
-    try {
-      const { tools: fetchedTools, error } = await fetchMCPTools(mcpConfig);
-      if (error) {
-        setLoadError(true);
-        return;
-      }
-      setTools(fetchedTools);
-      fetchedRef.current = true;
-
-      if (!selectedToolsRef.current && fetchedTools.length > 0) {
-        const hasDangerous = fetchedTools.some((item) => item.destructiveHint);
-        if (hasDangerous) {
-          const safeDefaults = fetchedTools.filter((item) => !item.destructiveHint).map((item) => item.name);
-          onSelectionChange(serverName, safeDefaults);
-        }
-      }
-    } finally {
-      setLoading(false);
+    const { tools: fetchedTools, error } = await fetchMCPTools(latestRef.current.mcpConfig);
+    if (activeReadRef.current !== read) {
+      return;
     }
-  }, [mcpConfig, isServerEnabled, onSelectionChange, serverName]);
+    activeReadRef.current = null;
+    setLoading(false);
+    if (error) {
+      setLoadError(true);
+      return;
+    }
+    setTools(fetchedTools);
+    fetchedRef.current = true;
 
-  const handleRetry = useCallback(() => {
-    fetchedRef.current = false;
-    setLoadError(false);
-    loadTools();
-  }, [loadTools]);
+    // A server with destructive tools starts with only the other tools on; the user opts in to the rest.
+    const { selectedTools: chosen, serverName: name, onSelectionChange: choose } = latestRef.current;
+    if (!chosen && fetchedTools.some((item) => item.destructiveHint)) {
+      choose(
+        name,
+        fetchedTools.filter((item) => !item.destructiveHint).map((item) => item.name),
+      );
+    }
+  }, []);
 
   useEffect(() => {
-    if (expanded && !fetchedRef.current) {
-      loadTools();
+    if (expanded) {
+      void loadTools();
     }
   }, [expanded, loadTools]);
 
-  useEffect(() => {
-    if (!isServerEnabled) {
-      fetchedRef.current = false;
-      setTools([]);
-      setExpanded(false);
-      setLoadError(false);
-    }
-  }, [isServerEnabled]);
+  useEffect(
+    () => () => {
+      activeReadRef.current = null;
+    },
+    [],
+  );
 
   const isAllSelected = !selectedTools;
   const enabledSet = new Set(selectedTools ?? tools.map((item) => item.name));
+  // A name the server no longer offers can stay in a saved choice; it is no tool the user can see, so it is not counted.
+  const enabledCount = tools.filter((item) => enabledSet.has(item.name)).length;
+  const disabledDangerousCount = tools.filter((item) => item.destructiveHint && !enabledSet.has(item.name)).length;
 
   const handleToggleTool = (toolName: string) => {
     if (isAllSelected) {
@@ -119,8 +115,7 @@ const MCPToolSelector = ({
       } else {
         current.add(toolName);
       }
-      const newSelection = Array.from(current);
-      onSelectionChange(serverName, newSelection.length === tools.length ? undefined : newSelection);
+      onSelectionChange(serverName, tools.every((item) => current.has(item.name)) ? undefined : Array.from(current));
     }
   };
 
@@ -128,21 +123,16 @@ const MCPToolSelector = ({
     onSelectionChange(serverName, undefined);
   };
 
-  if (!isServerEnabled) {
-    return null;
+  let filterSummary = '';
+  if (tools.length > 0) {
+    filterSummary = selectedTools ? `${enabledCount}/${tools.length}` : `${tools.length}`;
   }
-
-  const filterSummary =
-    selectedTools && tools.length > 0
-      ? `${selectedTools.length}/${tools.length}`
-      : tools.length > 0
-        ? `${tools.length}`
-        : '';
 
   return (
     <div className="mt-1 ml-6 sm:ml-10 mr-1 sm:mr-3">
       <button
         type="button"
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
         className={cn(
           'flex items-center gap-1.5 text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors',
@@ -163,7 +153,7 @@ const MCPToolSelector = ({
               <span className="text-xs text-destructive-text">{t('loadFailed')}</span>
               <button
                 type="button"
-                onClick={handleRetry}
+                onClick={() => void loadTools()}
                 className="flex items-center gap-1 text-[11px] text-primary/70 hover:text-primary transition-colors"
               >
                 <RefreshCw size={10} />
@@ -178,19 +168,12 @@ const MCPToolSelector = ({
 
           {!loading && tools.length > 0 && (
             <>
-              {selectedTools &&
-                (() => {
-                  const disabledDangerous = tools.filter((item) => item.destructiveHint && !enabledSet.has(item.name));
-                  if (disabledDangerous.length === 0) {
-                    return null;
-                  }
-                  return (
-                    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-destructive/10 text-[11px] text-destructive-text">
-                      <AlertTriangle size={11} />
-                      <span>{t('dangerDisabled', { count: disabledDangerous.length })}</span>
-                    </div>
-                  );
-                })()}
+              {disabledDangerousCount > 0 && (
+                <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-destructive/10 text-[11px] text-destructive-text">
+                  <AlertTriangle size={11} />
+                  <span>{t('dangerDisabled', { count: disabledDangerousCount })}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between mb-1.5 px-1">
                 <button
                   type="button"
@@ -201,15 +184,15 @@ const MCPToolSelector = ({
                 </button>
                 {selectedTools && (
                   <span className="text-[10px] text-muted-foreground/60">
-                    {selectedTools.length} / {tools.length}
+                    {enabledCount} / {tools.length}
                   </span>
                 )}
               </div>
 
               {tools.map((tool) => {
-                const risk = getRiskLevel(tool);
-                const config = RISK_CONFIG[risk];
+                const config = RISK_CONFIG[getRiskLevel(tool)];
                 const RiskIcon = config.icon;
+                const riskLabel = t(config.labelKey);
                 const checked = enabledSet.has(tool.name);
 
                 return (
@@ -229,15 +212,16 @@ const MCPToolSelector = ({
                     <span className="flex-1 truncate">{tool.name}</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <RiskIcon size={12} className={config.className} />
+                        <RiskIcon size={12} aria-hidden className={config.className} />
                       </TooltipTrigger>
                       <TooltipContent side="left" className="text-xs max-w-[200px]">
-                        <p className="font-medium">{t(config.labelKey)}</p>
+                        <p className="font-medium">{riskLabel}</p>
                         {tool.description && (
                           <p className="text-muted-foreground mt-0.5">{tool.description.slice(0, 120)}</p>
                         )}
                       </TooltipContent>
                     </Tooltip>
+                    <span className="sr-only">{riskLabel}</span>
                   </label>
                 );
               })}
@@ -248,5 +232,15 @@ const MCPToolSelector = ({
     </div>
   );
 };
+
+/**
+ * Per-server MCP tool selector with risk annotations.
+ *
+ * When `selectedTools` is undefined (no filter), all tools are enabled.
+ * Toggling any tool off creates an explicit whitelist of the remaining tools.
+ * While the server is not selected nothing is shown or read.
+ */
+const MCPToolSelector = ({ isServerEnabled, ...selector }: MCPToolSelectorProps) =>
+  isServerEnabled ? <ServerToolSelector {...selector} /> : null;
 
 export default MCPToolSelector;
