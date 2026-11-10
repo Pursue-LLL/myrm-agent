@@ -1927,7 +1927,8 @@
       "inFlight": "生成中...",
       "userPrompt": "提問",
       "assistantReply": "回覆",
-      "jumpToTurn": "跳轉至第 {index} 輪"
+      "jumpToTurn": "跳轉至第 {index} 輪",
+      "loadFailed": "無法載入該輪對話，請稍後再試"
     },
     "scrollCue": {
       "scrollToBottom": "滾動到底部",

@@ -1927,7 +1927,8 @@
       "inFlight": "생성 중...",
       "userPrompt": "질문",
       "assistantReply": "답변",
-      "jumpToTurn": "{index}번째 턴으로 이동"
+      "jumpToTurn": "{index}번째 턴으로 이동",
+      "loadFailed": "해당 턴을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
     },
     "scrollCue": {
       "scrollToBottom": "맨 아래로 스크롤",

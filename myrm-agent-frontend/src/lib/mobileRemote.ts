@@ -1,5 +1,6 @@
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import {
+  decodeUrlBase64,
   decryptJsonPayload,
   E2EEHandshakeRequiredError,
   e2eeRequestHeaders,
@@ -13,6 +14,7 @@ import {
 
 const MOBILE_PAIR_STORAGE_KEY = 'mobile_pair_token';
 const PAIR_REFRESH_LEAD_MS = 5 * 60 * 1000;
+const MIN_REFRESH_DELAY_MS = 30_000;
 
 type PairingTokenResponse = {
   token: string;
@@ -29,20 +31,6 @@ export function isMobileRemoteSurface(): boolean {
   return typeof window !== 'undefined' && isMobileRemotePath(window.location.pathname);
 }
 
-function stripPairTokenFromUrl(): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  const params = new URLSearchParams(window.location.search);
-  if (!params.has('pair')) {
-    return;
-  }
-  params.delete('pair');
-  const query = params.toString();
-  const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
-  window.history.replaceState(null, '', nextUrl);
-}
-
 type PairTokenPayload = {
   chat_id?: string | null;
   purpose?: string;
@@ -51,13 +39,8 @@ type PairTokenPayload = {
 
 function decodePairPayload(token: string): PairTokenPayload | null {
   const [bodyB64] = token.split('.');
-  if (!bodyB64) {
-    return null;
-  }
   try {
-    const padded = bodyB64 + '='.repeat((4 - (bodyB64.length % 4)) % 4);
-    const json = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(json) as PairTokenPayload;
+    return JSON.parse(new TextDecoder().decode(decodeUrlBase64(bodyB64))) as PairTokenPayload;
   } catch {
     return null;
   }
@@ -67,14 +50,21 @@ export function getMobilePairToken(): string | undefined {
   if (typeof window === 'undefined') {
     return undefined;
   }
-  const fromUrl = new URLSearchParams(window.location.search).get('pair');
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = params.get('pair');
   if (fromUrl) {
-    sessionStorage.setItem(MOBILE_PAIR_STORAGE_KEY, fromUrl);
-    stripPairTokenFromUrl();
+    storeMobilePairToken(fromUrl);
+    // The token belongs in this tab's storage, not in an address that can be copied or shared.
+    params.delete('pair');
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`,
+    );
     return fromUrl;
   }
-  const stored = sessionStorage.getItem(MOBILE_PAIR_STORAGE_KEY);
-  return stored ?? undefined;
+  return sessionStorage.getItem(MOBILE_PAIR_STORAGE_KEY) ?? undefined;
 }
 
 export function storeMobilePairToken(token: string): void {
@@ -169,7 +159,7 @@ export async function mobileApiRequest<T>(path: string, init: RequestInit = {}):
     session && payload && typeof payload === 'object' && 'c' in (payload as Record<string, unknown>)
       ? decryptJsonPayload(session, payload)
       : payload;
-  if (decoded && typeof decoded === 'object' && decoded !== null && 'data' in decoded) {
+  if (decoded && typeof decoded === 'object' && 'data' in decoded) {
     return (decoded as { data: T }).data;
   }
   return decoded as T;
@@ -201,16 +191,22 @@ export async function refreshMobilePairToken(): Promise<string | undefined> {
   return token;
 }
 
+/**
+ * Keeps the pair token fresh until the returned function is called: renews it shortly before it expires and,
+ * when a renewal fails, tries again after the minimum delay. Stopping cancels the pending timer and keeps a
+ * renewal that is already in flight from scheduling the next one.
+ */
 export function scheduleMobilePairRefresh(): () => void {
   if (typeof window === 'undefined') {
     return () => undefined;
   }
 
   let timer: number | undefined;
+  let stopped = false;
 
   const schedule = () => {
-    if (timer !== undefined) {
-      window.clearTimeout(timer);
+    if (stopped) {
+      return;
     }
     const token = getMobilePairToken();
     if (!token) {
@@ -221,16 +217,17 @@ export function scheduleMobilePairRefresh(): () => void {
       return;
     }
     const refreshAt = payload.exp * 1000 - PAIR_REFRESH_LEAD_MS;
-    const delay = Math.max(refreshAt - Date.now(), 30_000);
+    const delay = Math.max(refreshAt - Date.now(), MIN_REFRESH_DELAY_MS);
     timer = window.setTimeout(() => {
-      void refreshMobilePairToken().finally(schedule);
+      refreshMobilePairToken()
+        .catch((error: unknown) => console.warn('Failed to refresh mobile pair token:', error))
+        .finally(schedule);
     }, delay);
   };
 
   schedule();
   return () => {
-    if (timer !== undefined) {
-      window.clearTimeout(timer);
-    }
+    stopped = true;
+    window.clearTimeout(timer);
   };
 }

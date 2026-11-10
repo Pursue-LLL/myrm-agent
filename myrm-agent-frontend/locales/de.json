@@ -1927,7 +1927,8 @@
       "inFlight": "Wird generiert...",
       "userPrompt": "Frage",
       "assistantReply": "Antwort",
-      "jumpToTurn": "Zu Runde {index} springen"
+      "jumpToTurn": "Zu Runde {index} springen",
+      "loadFailed": "Diese Runde konnte nicht geladen werden. Versuche es gleich noch einmal."
     },
     "scrollCue": {
       "scrollToBottom": "Scrollen Sie nach unten",

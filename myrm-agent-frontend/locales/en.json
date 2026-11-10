@@ -1927,7 +1927,8 @@
       "inFlight": "Generating...",
       "userPrompt": "Prompt",
       "assistantReply": "Reply",
-      "jumpToTurn": "Jump to turn {index}"
+      "jumpToTurn": "Jump to turn {index}",
+      "loadFailed": "Couldn't load that turn. Try again in a moment."
     },
     "scrollCue": {
       "scrollToBottom": "Scroll to bottom",

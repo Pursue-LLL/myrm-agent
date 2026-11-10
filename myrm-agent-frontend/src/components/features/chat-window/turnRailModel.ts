@@ -9,7 +9,7 @@
  *
  * [OUTPUT]
  * - MIN_TURNS_FOR_RAIL / FALLBACK_PREVIEW_LIMIT 常量
- * - RailTurnItem 归一化轮次条目
+ * - RailTurnItem 归一化轮次条目 / railTurnStatus 刻度与预览的状态（流式中 / 已加载 / 未加载）
  * - normalizeRailItems (大纲优先 + In-Flight 动态合成 + messages 降级)
  * - calculateRailPitchWidth (悬浮波纹扩散刻度宽度)
  *
@@ -38,6 +38,16 @@ export interface RailTurnItem {
   isLoaded: boolean;
   messageIndex: number;
   isInFlight?: boolean;
+}
+
+export type RailTurnStatus = 'inFlight' | 'loaded' | 'unloaded';
+
+/** 轮次的状态：流式中的轮次优先，其余看是否已在内存；取值同时是 `chat.turnRail` 里状态文案的键。 */
+export function railTurnStatus(item: RailTurnItem): RailTurnStatus {
+  if (item.isInFlight) {
+    return 'inFlight';
+  }
+  return item.isLoaded ? 'loaded' : 'unloaded';
 }
 
 /**

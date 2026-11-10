@@ -1927,7 +1927,8 @@
       "inFlight": "生成中...",
       "userPrompt": "質問",
       "assistantReply": "返答",
-      "jumpToTurn": "ターン {index} にジャンプ"
+      "jumpToTurn": "ターン {index} にジャンプ",
+      "loadFailed": "このターンを読み込めませんでした。しばらくしてからもう一度お試しください。"
     },
     "scrollCue": {
       "scrollToBottom": "スクロールまで下部",

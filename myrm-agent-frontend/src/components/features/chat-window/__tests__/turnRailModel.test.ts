@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Message } from '@/store/chat/types';
 import type { TurnOutlineItem } from '@/services/chat';
-import { MIN_TURNS_FOR_RAIL, calculateRailPitchWidth, normalizeRailItems } from '../turnRailModel';
+import { MIN_TURNS_FOR_RAIL, calculateRailPitchWidth, normalizeRailItems, railTurnStatus } from '../turnRailModel';
 
 const msg = (id: string, role: 'user' | 'assistant', content: string, idx: number): Message =>
   ({
@@ -62,6 +62,23 @@ describe('turnRailModel', () => {
       expect(calculateRailPitchWidth(7, 5, true, false)).toBe(16);
       expect(calculateRailPitchWidth(7, 5, false, false)).toBe(10);
       expect(calculateRailPitchWidth(10, 5, true, false)).toBe(14);
+    });
+  });
+
+  describe('railTurnStatus', () => {
+    const item = (isLoaded: boolean, isInFlight?: boolean) => ({
+      ...normalizeRailItems([msg('u1', 'user', 'q', 0)], undefined)[0],
+      isLoaded,
+      isInFlight,
+    });
+
+    it('puts the turn being generated first, then tells memory from history', () => {
+      expect(railTurnStatus(item(true, true))).toBe('inFlight');
+      expect(railTurnStatus(item(false, true))).toBe('inFlight');
+      expect(railTurnStatus(item(true, false))).toBe('loaded');
+      expect(railTurnStatus(item(true))).toBe('loaded');
+      expect(railTurnStatus(item(false, false))).toBe('unloaded');
+      expect(railTurnStatus(item(false))).toBe('unloaded');
     });
   });
 });
