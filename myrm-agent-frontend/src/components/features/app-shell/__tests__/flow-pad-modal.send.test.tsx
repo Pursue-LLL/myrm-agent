@@ -348,6 +348,30 @@ describe('FlowPadModal: sending, results and drafting', () => {
       expect(useFlowPadStore.getState().isOpen).toBe(true);
     });
 
+    it('closes the full-size screenshot on Escape and leaves the pad open for the next Escape', async () => {
+      openChatPad({ screenshot: 'abc', windowTitle: 'Win' });
+      renderFlowPad();
+      await click(screen.getByAltText('Win'));
+      const keysSeenByDocument: string[] = [];
+      const recordKey = (event: KeyboardEvent) => keysSeenByDocument.push(event.key);
+      document.addEventListener('keydown', recordKey, true);
+
+      try {
+        fireEvent.keyDown(document.body, { key: 'a' });
+        expect(screen.getByAltText('appshotAlt')).toBeInTheDocument();
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(screen.queryByAltText('appshotAlt')).not.toBeInTheDocument();
+        expect(useFlowPadStore.getState().isOpen).toBe(true);
+        expect(keysSeenByDocument).toEqual(['a']);
+
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(useFlowPadStore.getState().isOpen).toBe(false);
+        expect(keysSeenByDocument).toEqual(['a', 'Escape']);
+      } finally {
+        document.removeEventListener('keydown', recordKey, true);
+      }
+    });
+
     it('does not keep a screenshot full size across pad sessions', async () => {
       openChatPad({ screenshot: 'abc', windowTitle: 'Win' });
       renderFlowPad();

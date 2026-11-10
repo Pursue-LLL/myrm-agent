@@ -92,7 +92,7 @@ export function FlowPadModal() {
     expertTemplatesError,
     filteredExpertTemplates,
     instantiatingTemplateId,
-    loadExpertTemplates,
+    retryExpertTemplates,
     instantiateExpertTemplate,
     resetTemplates,
   } = useFlowPadExpertTemplates({
@@ -251,7 +251,7 @@ export function FlowPadModal() {
               instantiatingTemplateId={instantiatingTemplateId}
               onSelectInlineRouteAgent={selectRouteAgent}
               onFallbackToCurrentRoute={fallbackToCurrentRoute}
-              onLoadExpertTemplates={loadExpertTemplates}
+              onRetryExpertTemplates={retryExpertTemplates}
               onInstantiateExpertTemplate={instantiateExpertTemplate}
               t={t}
             />

@@ -49,7 +49,7 @@ interface FlowPadInlineRouteSwitcherProps {
   instantiatingTemplateId: string | null;
   onSelectInlineRouteAgent: (agentId: string | null) => Promise<boolean>;
   onFallbackToCurrentRoute: () => void;
-  onLoadExpertTemplates: () => Promise<void>;
+  onRetryExpertTemplates: () => void;
   onInstantiateExpertTemplate: (template: TemplateListItem, starterPrompt?: string) => Promise<void>;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
@@ -77,7 +77,7 @@ export function FlowPadInlineRouteSwitcher({
   instantiatingTemplateId,
   onSelectInlineRouteAgent,
   onFallbackToCurrentRoute,
-  onLoadExpertTemplates,
+  onRetryExpertTemplates,
   onInstantiateExpertTemplate,
   t,
 }: FlowPadInlineRouteSwitcherProps) {
@@ -185,7 +185,7 @@ export function FlowPadInlineRouteSwitcher({
                     <button
                       type="button"
                       className="mx-2 my-1 w-[calc(100%-1rem)] rounded-sm border border-border/60 px-2 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-accent/50"
-                      onClick={() => void onLoadExpertTemplates()}
+                      onClick={onRetryExpertTemplates}
                     >
                       {t('inlineRouteTemplateRetry')}
                     </button>

@@ -111,8 +111,10 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
         onClose();
       }
     };
-    document.addEventListener('keydown', handleEsc, true);
-    return () => document.removeEventListener('keydown', handleEsc, true);
+    // The window's capture phase runs before the document's, where the pad dialog listens for Escape; stopping the
+    // event here lets the first Escape close only the lightbox.
+    window.addEventListener('keydown', handleEsc, true);
+    return () => window.removeEventListener('keydown', handleEsc, true);
   }, [onClose]);
 
   return (

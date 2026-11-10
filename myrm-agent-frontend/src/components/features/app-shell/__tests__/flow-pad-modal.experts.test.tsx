@@ -53,6 +53,9 @@ describe('FlowPadModal: expert templates and summon', () => {
 
       await openRouteMenu();
       expect(mocks.getTemplates).toHaveBeenCalledTimes(1);
+      await click(routeTrigger());
+      await openRouteMenu();
+      expect(mocks.getTemplates).toHaveBeenCalledTimes(1);
       await act(async () => {
         pending.resolve([TEAM_TEMPLATE]);
       });
@@ -71,6 +74,56 @@ describe('FlowPadModal: expert templates and summon', () => {
 
       expect(errorLog).toHaveBeenCalledWith('FlowPad template list fetch failed:', expect.any(Error));
       expect(await screen.findByTestId(CARD)).toBeInTheDocument();
+    });
+
+    it('asks once for a list that fails to load and waits for the user to retry', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      mocks.getTemplates.mockImplementation(
+        () => new Promise((_, reject) => setTimeout(() => reject(new Error('offline')), 5)),
+      );
+      renderFlowPad();
+      await openRouteMenu();
+      const retry = await screen.findByText('inlineRouteTemplateRetry');
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      });
+      expect(mocks.getTemplates).toHaveBeenCalledTimes(1);
+
+      mocks.getTemplates.mockResolvedValueOnce([TEAM_TEMPLATE]);
+      await click(retry);
+
+      expect(await screen.findByTestId(CARD)).toBeInTheDocument();
+      expect(mocks.getTemplates).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps waiting for the retry when the menu is closed and opened again in the same session', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      mocks.getTemplates.mockRejectedValueOnce(new Error('offline'));
+      renderFlowPad();
+      await openRouteMenu();
+      await screen.findByText('inlineRouteTemplateRetry');
+
+      await click(routeTrigger());
+      await openRouteMenu();
+
+      expect(screen.getByText('inlineRouteTemplateRetry')).toBeInTheDocument();
+      expect(mocks.getTemplates).toHaveBeenCalledTimes(1);
+    });
+
+    it('tries a list that failed again when the next pad session opens the menu', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      mocks.getTemplates.mockRejectedValueOnce(new Error('offline'));
+      renderFlowPad();
+      await openRouteMenu();
+      await screen.findByText('inlineRouteTemplateRetry');
+
+      act(() => useFlowPadStore.getState().close());
+      act(() => openInlinePad());
+      await openRouteMenu();
+
+      expect(await screen.findByTestId(CARD)).toBeInTheDocument();
+      expect(mocks.getTemplates).toHaveBeenCalledTimes(2);
     });
 
     it('filters by the search text and reports the surface view and the first search once', async () => {

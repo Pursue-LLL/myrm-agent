@@ -8,8 +8,8 @@
  * - useFlowPadExpertTemplates: 团队模板列表/搜索/召唤状态与动作。
  *
  * [POS]
- * FlowPad Inline 路由菜单里的"专家召唤"数据层：菜单打开时加载团队模板，按搜索词过滤，
- * 召唤成功后刷新名单并把路由切到新专家，同时上报召唤漏斗各阶段。
+ * FlowPad Inline 路由菜单里的"专家召唤"数据层：菜单打开时加载团队模板（失败后等用户重试，每个会话再自动试一次），
+ * 按搜索词过滤，召唤成功后刷新名单并把路由切到新专家，同时上报召唤漏斗各阶段。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useTranslations } from 'next-intl';
@@ -59,47 +59,46 @@ export function useFlowPadExpertTemplates({
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
 
   const [templateSearchQuery, setTemplateSearchQuery] = useState('');
-  const [expertTemplates, setExpertTemplates] = useState<TemplateListItem[]>([]);
-  const [expertTemplatesLoading, setExpertTemplatesLoading] = useState(false);
-  const [expertTemplatesLoaded, setExpertTemplatesLoaded] = useState(false);
+  const [expertTemplates, setExpertTemplates] = useState<TemplateListItem[] | null>(null);
   const [expertTemplatesError, setExpertTemplatesError] = useState(false);
   const [instantiatingTemplateId, setInstantiatingTemplateId] = useState<string | null>(null);
   const hasReportedSurfaceViewRef = useRef(false);
   const hasReportedSearchRef = useRef(false);
+  const requestInFlightRef = useRef(false);
 
-  /** Forgets the search and the once-per-session reports; loaded templates stay cached for the next session. */
+  /**
+   * Forgets the search, the once-per-session reports and an earlier load failure, so each session tries the list
+   * once more; loaded templates stay cached for the next session.
+   */
   const resetTemplates = useCallback(() => {
     setTemplateSearchQuery('');
     setInstantiatingTemplateId(null);
+    setExpertTemplatesError(false);
     hasReportedSurfaceViewRef.current = false;
     hasReportedSearchRef.current = false;
   }, []);
 
-  const loadExpertTemplates = useCallback(async () => {
-    setExpertTemplatesLoading(true);
-    setExpertTemplatesError(false);
-    try {
-      const templates = await getTemplates();
-      const teamTemplates = templates.filter((item) => item.agent_type === 'team');
-      setExpertTemplates(teamTemplates);
-      setExpertTemplatesLoaded(true);
-    } catch (error) {
-      console.error('FlowPad template list fetch failed:', error);
-      setExpertTemplatesError(true);
-    } finally {
-      setExpertTemplatesLoading(false);
-    }
-  }, []);
+  const menuShowsTemplates = mode === 'inline' && agentRouteMenuOpen;
+  const expertTemplatesLoading = menuShowsTemplates && expertTemplates === null && !expertTemplatesError;
 
+  // Asks while the open menu has nothing to show; a failed request waits for the user's retry instead.
   useEffect(() => {
-    if (mode !== 'inline' || !agentRouteMenuOpen) {
+    if (!expertTemplatesLoading || requestInFlightRef.current) {
       return;
     }
-    if (expertTemplatesLoaded || expertTemplatesLoading) {
-      return;
-    }
-    void loadExpertTemplates();
-  }, [mode, agentRouteMenuOpen, expertTemplatesLoaded, expertTemplatesLoading, loadExpertTemplates]);
+    requestInFlightRef.current = true;
+    getTemplates()
+      .then((templates) => setExpertTemplates(templates.filter((item) => item.agent_type === 'team')))
+      .catch((error: unknown) => {
+        console.error('FlowPad template list fetch failed:', error);
+        setExpertTemplatesError(true);
+      })
+      .finally(() => {
+        requestInFlightRef.current = false;
+      });
+  }, [expertTemplatesLoading]);
+
+  const retryExpertTemplates = useCallback(() => setExpertTemplatesError(false), []);
 
   useEffect(() => {
     if (mode !== 'inline' || !agentRouteMenuOpen || hasReportedSurfaceViewRef.current) {
@@ -122,7 +121,7 @@ export function useFlowPadExpertTemplates({
   }, [mode, agentRouteMenuOpen, templateSearchQuery]);
 
   const filteredExpertTemplates = useMemo(() => {
-    return expertTemplates.filter((template) => templateMatchesSearchQuery(template, templateSearchQuery));
+    return (expertTemplates ?? []).filter((template) => templateMatchesSearchQuery(template, templateSearchQuery));
   }, [expertTemplates, templateSearchQuery]);
 
   const instantiateExpertTemplate = useCallback(
@@ -188,7 +187,7 @@ export function useFlowPadExpertTemplates({
     expertTemplatesError,
     filteredExpertTemplates,
     instantiatingTemplateId,
-    loadExpertTemplates,
+    retryExpertTemplates,
     instantiateExpertTemplate,
     resetTemplates,
   };
