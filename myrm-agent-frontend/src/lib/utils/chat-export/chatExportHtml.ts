@@ -1,5 +1,5 @@
 /**
- * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ../markdownMath.ts::mathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render).
+ * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ./katexExportStyle.ts::getKatexExportStyle (POS: the KaTeX stylesheet and fonts an export with formulas embeds); ../markdownMath.ts::mathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render).
  * [OUTPUT] buildHtmlDocument.
  * [POS] Markdown-to-HTML export renderer for chat conversations.
  */
@@ -16,10 +16,14 @@ import {
   renderToolCallDetailsHtml,
 } from './chatExportHtmlTemplates';
 import { isSafeLinkUrl, rehypeSafeLinks } from './exportUrlPolicy';
+import { getKatexExportStyle } from './katexExportStyle';
 import { mathPlugins, normalizeMathDelimiters } from '../markdownMath';
 import type { Element, ElementContent } from 'hast';
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
+
+/** What KaTeX renders every formula into, inline or display; code and prose escape their `<`, so only a formula matches. */
+const KATEX_MARKUP = '<span class="katex">';
 
 function formatTs(iso: string): string {
   try {
@@ -263,6 +267,9 @@ export async function buildHtmlDocument(
     renderedMessages.push(msgHtml);
   }
 
+  // The file carries the stylesheet and fonts its formulas need, but only an export that has formulas pays for them.
+  const katexStyle = renderedMessages.some((html) => html.includes(KATEX_MARKUP)) ? await getKatexExportStyle() : '';
+
   const themeToggleText = theme === 'dark' ? 'Light' : 'Dark';
   const usageHtml = renderUsageStats(data.usageSummary, labels);
   const toolActivityHtml = includeToolCalls ? renderToolActivityHtml(data.toolSummary, labels) : '';
@@ -274,7 +281,7 @@ export async function buildHtmlDocument(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} - Myrm</title>
-<style>${getStyles()}${getHljsTheme()}</style>
+<style>${getStyles()}${getHljsTheme()}${katexStyle}</style>
 </head>
 <body>
 <div class="export-header">
