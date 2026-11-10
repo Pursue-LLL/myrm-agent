@@ -996,7 +996,7 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 ```
 Agent: memory_manage_tool(action="correct", memory_id="abc", new_content="正确的事实")
   → 新记忆 "xyz": confidence=0.95, importance=min(旧+0.2, 1.0), correction_of="abc"（纠正链）；写入被拒绝则到此为止，旧记忆原样保留
-  → 旧记忆 "abc": importance ×0.3（下限 0.05）, confidence → 0.1, metadata["corrected"]=True；精确事实标记与索引行一并清除，被取代的事实不再与它的纠正争抢精确置顶
+  → 旧记忆 "abc": importance ×0.3（下限 0.05）, confidence → 0.1, metadata["corrected"]=True；精确事实标记与索引行一并清除，被取代的事实不会与它的纠正争抢精确置顶
   → 检索时抑制: importance降权 × confidence降权 × correction_penalty(0.1)
 ```
 
