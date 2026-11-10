@@ -184,7 +184,6 @@ _LATEST_ASSISTANT_JS = """(() => {
     i,
     role: m.role || m.type || '?',
     tier: m.routingTier || null,
-    modelTier: m.modelTier || null,
     model: m.modelName || m.model || null,
     msgId: m.messageId || m.id || null,
     content: String(m.content || m.text || '').slice(0, 40),
@@ -195,7 +194,6 @@ _LATEST_ASSISTANT_JS = """(() => {
     return {
       ready: true,
       routingTier: msg.routingTier || null,
-      modelTier: msg.modelTier || null,
       modelName: msg.modelName || msg.model || null,
       content: String(msg.content || msg.text || '').slice(0, 100),
       msg_count: msgs.length,

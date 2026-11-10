@@ -55,7 +55,6 @@ export interface PreflightRequestContext {
   chatId: string | null | undefined;
   estimatedTokens: number;
   compressStartRatio: number | null | undefined;
-  promptMode: string | null | undefined;
   turnCount: number | null | undefined;
 }
 
@@ -205,8 +204,8 @@ export function buildPreflightPairs(
 
 /** Any change of the session context or the candidate list produces a new signature and therefore a new preflight request. */
 export function buildPreflightSignature(context: PreflightRequestContext, pairs: PreflightPair[]): string {
-  const { chatId, estimatedTokens, compressStartRatio, promptMode, turnCount } = context;
-  return `${chatId ?? ''}:${estimatedTokens}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${turnCount ?? ''}:${pairs
+  const { chatId, estimatedTokens, compressStartRatio, turnCount } = context;
+  return `${chatId ?? ''}:${estimatedTokens}:${compressStartRatio ?? ''}:${turnCount ?? ''}:${pairs
     .map((p) => `${p.liteName}:${p.maxInput}`)
     .join('|')}`;
 }

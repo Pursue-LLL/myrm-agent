@@ -13,7 +13,8 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `types.py` | 核心 | `_BuiltInAgentSpec` dataclass（含 `max_iterations` 轮数语义字段）+ `_TOOL_*` 工具集常量 SSOT（含 `_TOOL_COWORK` = default + kanban） | ✅ |
-| `core.py` | 核心 | 核心预置智能体规格（`_CORE_BUILTIN_AGENTS`）；`builtin-economy` = Knowledge Work Cowork preset（`KNOWLEDGE_WORK_SYSTEM_PROMPT`） | ✅ |
+| `concise_reply_style.py` | 辅助 | `CONCISE_REPLY_STYLE`：简洁型预置智能体共用的简短回复规则（含作用域一句），追加在各自 `system_prompt` 末尾；其余风格文本（创意 / 详尽 / 友好）直接写在对应规格的 `system_prompt` 里 | ✅ |
+| `core.py` | 核心 | 核心预置智能体规格（`_CORE_BUILTIN_AGENTS`）；`builtin-economy` = Knowledge Work Cowork preset（`KNOWLEDGE_WORK_SYSTEM_PROMPT` + `CONCISE_REPLY_STYLE`） | ✅ |
 | `search.py` | 核心 | Web 搜索预置智能体（`prompt_mode=search`，`max_iterations=30/50` 轮数预算）；Web UI  persona，非 Channel 绑定目标 | ✅ |
 | `extended.py` | 核心 | 扩展预置智能体规格（`_EXTENDED_BUILTIN_AGENTS`） | ✅ |
 | `vertical.py` | 核心 | 垂直领域预置智能体规格（`_VERTICAL_BUILTIN_AGENTS`）；含 **`builtin-ko-office`**（`response_locale_policy` 正式韩语） | ✅ |
@@ -28,4 +29,5 @@
 
 - 本目录 `builtin_tool_ids.py` — `DEFAULT_ENABLED_BUILTIN_TOOLS`
 - `app/ai_agents/prompts/deliverable_discipline.py` — `KNOWLEDGE_WORK_SYSTEM_PROMPT`
+- 本目录 `concise_reply_style.py` — `CONCISE_REPLY_STYLE`
 - `app/services/agent/builtin_agent_specs.py` — 聚合 `_BUILTIN_AGENTS` 并 re-export 类型/常量

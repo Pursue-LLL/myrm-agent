@@ -14,7 +14,6 @@ to an actual LLM instance instead of silently falling back to parent LLM.
 import logging
 from dataclasses import replace
 
-from myrm_agent_harness.agent.sub_agents.registry import auto_register_subagent_configs
 from myrm_agent_harness.agent.sub_agents.types import (
     ControlScope,
     MemoryIsolationPolicy,
@@ -22,6 +21,7 @@ from myrm_agent_harness.agent.sub_agents.types import (
     WorkspacePolicy,
 )
 
+from app.ai_agents.subagent_presets import load_subagent_presets
 from app.platform_utils import get_session_factory
 from app.services.agent.agent_service import AgentService
 
@@ -80,11 +80,8 @@ class DatabaseSubagentCatalog:
         )
         self._model_resolver = _LLMModelResolver()
 
-        from pathlib import Path
-
-        config_dir = Path(__file__).parent.parent / "config" / "subagents"
         try:
-            self._yaml_configs = auto_register_subagent_configs(base_path=str(config_dir))
+            self._yaml_configs = load_subagent_presets()
         except Exception as e:
             logger.warning("Failed to load YAML subagent configs: %s", e)
             self._yaml_configs = {}

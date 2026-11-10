@@ -122,7 +122,7 @@ Channel security: IM strips `!desktop_*`; Cron denies `desktop_capture` / `deskt
 
 ## Agent Prompt Rules
 
-Injected via server `DESKTOP_CONTROL_RULES` (`myrm-agent-server/app/ai_agents/prompts/shared_rules.py`) when `mount_desktop_prompt` is true (`mount_resolver`: equals computer_use mount; factory appends the English singleton for KV-cache stability):
+Injected via server `DESKTOP_CONTROL_RULES` (`myrm-agent-server/app/ai_agents/prompts/shared_rules.py`) when computer use tools are mounted (`mount_resolver.mount_computer_use`; the rules exist in English only, so every locale gets the same bytes and the prompt cache prefix stays stable):
 
 - Workflow order: snapshot → interact
 - Prefer @dref; use `set_value` for atomic field replacement; use vision only when AX is empty or interact failed

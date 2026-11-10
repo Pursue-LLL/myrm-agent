@@ -16,7 +16,6 @@ from myrm_agent_harness.backends.profiles.types import AgentProfile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai_agents.personality_templates import DEFAULT_PERSONALITY_STYLE
 from app.core.memory.adapters.policy import memory_policy_to_dict
 from app.database.models import Agent
 from app.services.agent.builtin_specs.builtin_tool_ids import persist_enabled_builtin_tools
@@ -100,8 +99,6 @@ class CreateMixin:
             engine_params=MappingMixin._prepare_engine_params(meta),
             suggestion_prompts=meta.get("suggestion_prompts"),
             openapi_services=meta.get("openapi_services") or None,
-            prompt_mode=str(meta.get("prompt_mode", "full")),
-            personality_style=meta.get("personality_style", DEFAULT_PERSONALITY_STYLE),
             workspace_policy=str(meta.get("workspace_policy", "INHERIT_REQUESTER")),
             session_policy=meta.get("session_policy"),
             notify_targets=meta.get("notify_targets"),
@@ -138,7 +135,6 @@ class CreateMixin:
             name=agent.name,
             description=agent.description,
             system_prompt=agent.system_prompt,
-            personality_style=agent.personality_style,
             snapshot_data={
                 "model_config": agent.model_config,
                 "model_selection": agent.model_selection,

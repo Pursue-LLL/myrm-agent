@@ -14,12 +14,7 @@
  */
 
 import { create } from 'zustand';
-import type {
-  TemplateMarketplaceState,
-  AgentTemplateItem,
-  TemplateCategory,
-  CloneOptions,
-} from './templateTypes';
+import type { TemplateMarketplaceState, AgentTemplateItem, TemplateCategory, CloneOptions } from './templateTypes';
 
 interface TemplateApiResponseItem {
   id: string;
@@ -40,8 +35,6 @@ interface TemplateApiResponseItem {
     memory_preset: string;
     deploy_mode: string;
     sandbox_bound_note?: string;
-    prompt_mode: string;
-    personality_style: string;
   };
 }
 

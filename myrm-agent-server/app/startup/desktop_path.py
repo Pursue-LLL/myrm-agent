@@ -3,7 +3,6 @@
 [INPUT]
 - os.environ::MYRM_SHELL_PID (POS: injected only by the Tauri shell; gates the whole module)
 - the user's login shell (POS: source of the PATH their terminal would have)
-- myrm_agent_harness.toolkits.code_execution.tool_discovery::COMMON_TOOL_DIRS (POS: the directories CLI discovery searches)
 
 [OUTPUT]
 - hydrate_desktop_path: merge the login-shell PATH and common tool directories into os.environ["PATH"]
@@ -13,8 +12,8 @@ A GUI-launched macOS app inherits launchd's minimal PATH (/usr/bin:/bin:/usr/sbi
 installed with Homebrew, nvm or cargo are invisible to the agent's bash tool and to skill `requires.bins`
 checks. The desktop sidecar recovers the PATH once at startup, the same way terminal-integrated editors do.
 Only PATH is touched; credentials and other variables are never imported from the shell.
-The fallback directories are the very ones CLI discovery searches, so the `<cli_tools>` prompt section never lists
-a tool the shell cannot run, even when the login-shell probe fails.
+When the login-shell probe fails, the common tool directories still make Homebrew, user-local and cargo binaries
+reachable.
 """
 
 from __future__ import annotations
@@ -27,8 +26,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Iterable
-
-from myrm_agent_harness.toolkits.code_execution.tool_discovery import COMMON_TOOL_DIRS
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +35,18 @@ SHELL_PID_ENV = "MYRM_SHELL_PID"
 _PROBE_TIMEOUT_SECONDS = 5.0
 _START_MARKER = "__MYRM_PATH_START__"
 _END_MARKER = "__MYRM_PATH_END__"
+
+
+def _default_tool_dirs() -> tuple[str, ...]:
+    """Directories where user-installed CLIs usually live; the home-relative ones are skipped when HOME is unresolvable."""
+    system_dirs = ["/usr/local/bin", "/opt/homebrew/bin", "/opt/homebrew/sbin"]
+    with contextlib.suppress(RuntimeError):
+        home = Path.home()
+        return (*system_dirs, str(home / ".local" / "bin"), str(home / ".cargo" / "bin"))
+    return tuple(system_dirs)
+
+
+COMMON_TOOL_DIRS = _default_tool_dirs()
 
 
 def _spawned_by_desktop_shell() -> bool:

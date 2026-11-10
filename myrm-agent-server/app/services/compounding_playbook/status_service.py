@@ -31,7 +31,6 @@ from app.schemas.compounding_playbook import (
 
 logger = logging.getLogger(__name__)
 
-USER_ID = "default"
 _MEMORY_TYPES: tuple[MemoryType, ...] = (
     MemoryType.PROFILE,
     MemoryType.SEMANTIC,
@@ -83,7 +82,7 @@ async def _count_skills() -> int:
 
 async def _count_cron_jobs(cron_manager: CronManager) -> tuple[int, int]:
     try:
-        jobs = await cron_manager.list_jobs(USER_ID)
+        jobs = await cron_manager.list_jobs()
         verify_count = sum(1 for job in jobs if job.acceptance_criteria and len(job.acceptance_criteria) > 0)
         return len(jobs), verify_count
     except Exception as exc:

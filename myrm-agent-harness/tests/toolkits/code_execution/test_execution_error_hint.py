@@ -6,19 +6,14 @@ import pytest
 
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     ExecutionResult,
+    _get_preferred_pip_installer,
     generate_error_hint,
 )
 
+_MODELS = "myrm_agent_harness.toolkits.code_execution.executors.models"
+
 # Mock _get_preferred_pip_installer to return "pip" for deterministic tests
-_PIP_MOCK = patch(
-    "myrm_agent_harness.toolkits.code_execution.executors.models._get_preferred_pip_installer",
-    return_value="pip",
-)
-# Mock _lookup_install_hint to return None (P0 behavior: no catalog lookup)
-_LOOKUP_MOCK = patch(
-    "myrm_agent_harness.toolkits.code_execution.executors.models._lookup_install_hint",
-    return_value=None,
-)
+_PIP_MOCK = patch(f"{_MODELS}._get_preferred_pip_installer", return_value="pip")
 
 
 # ============================================================================
@@ -89,33 +84,62 @@ class TestImportHint:
 
 
 # ============================================================================
+# generate_error_hint — installer choice
+# ============================================================================
+
+
+class TestPreferredInstaller:
+    def test_uv_on_path_selects_uv_pip(self) -> None:
+        with patch(f"{_MODELS}.shutil.which", return_value="/usr/local/bin/uv") as which:
+            assert _get_preferred_pip_installer() == "uv pip"
+        which.assert_called_once_with("uv")
+
+    def test_without_uv_selects_pip(self) -> None:
+        with patch(f"{_MODELS}.shutil.which", return_value=None):
+            assert _get_preferred_pip_installer() == "pip"
+
+    def test_import_hint_names_uv_pip_when_uv_is_available(self) -> None:
+        result = ExecutionResult(
+            success=False,
+            stderr="ModuleNotFoundError: No module named 'PIL'",
+            error_category="import",
+        )
+        with patch(f"{_MODELS}.shutil.which", return_value="/usr/local/bin/uv"):
+            assert generate_error_hint(result) == "Try: uv pip install Pillow"
+
+    def test_import_hint_names_pip_without_uv(self) -> None:
+        result = ExecutionResult(
+            success=False,
+            stderr="ModuleNotFoundError: No module named 'PIL'",
+            error_category="import",
+        )
+        with patch(f"{_MODELS}.shutil.which", return_value=None):
+            assert generate_error_hint(result) == "Try: pip install Pillow"
+
+
+# ============================================================================
 # generate_error_hint — not_found errors
 # ============================================================================
 
 
-@_LOOKUP_MOCK
 class TestNotFoundHint:
-    def test_extracts_command_name(self, _mock_lookup: object) -> None:
+    def test_extracts_command_name(self) -> None:
         result = ExecutionResult(
             success=False,
             stderr="ffmpeg: command not found",
             error_category="not_found",
         )
-        hint = generate_error_hint(result)
-        assert hint is not None
-        assert "ffmpeg" in hint
+        assert generate_error_hint(result) == "Command 'ffmpeg' not found. Install it or check the PATH."
 
-    def test_alternative_not_found_pattern(self, _mock_lookup: object) -> None:
+    def test_alternative_not_found_pattern(self) -> None:
         result = ExecutionResult(
             success=False,
             stderr="jq: not found",
             error_category="not_found",
         )
-        hint = generate_error_hint(result)
-        assert hint is not None
-        assert "jq" in hint
+        assert generate_error_hint(result) == "Command 'jq' not found. Install it or check the PATH."
 
-    def test_fallback_for_file_not_found(self, _mock_lookup: object) -> None:
+    def test_fallback_for_file_not_found(self) -> None:
         result = ExecutionResult(
             success=False,
             stderr="FileNotFoundError: [Errno 2] No such file or directory: '/tmp/data.csv'",

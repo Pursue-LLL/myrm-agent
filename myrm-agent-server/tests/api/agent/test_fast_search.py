@@ -121,60 +121,8 @@ class TestSearchDepthValidation:
 class TestFastModeConverterParams:
     """converter.py fast 模式参数覆盖逻辑验证（无需 LLM/DB）
 
-    验证 fast 代码块中的 engine_params、memory_policy、tool 限制、prompt_mode
-    与 builtin_initializer 中的预置配置保持语义一致。
+    验证 fast 搜索预置体的规格（工具、引擎参数、提示词模式）。
     """
-
-    def test_normal_engine_params_match_builtin(self):
-        expected_max_tool_calls = 8
-        engine_params = {"max_tool_calls": 20 if "normal" == "deep" else 8}
-        assert engine_params["max_tool_calls"] == expected_max_tool_calls
-
-    def test_deep_engine_params_match_builtin(self):
-        expected_max_tool_calls = 20
-        engine_params = {"max_tool_calls": 20 if "deep" == "deep" else 8}
-        assert engine_params["max_tool_calls"] == expected_max_tool_calls
-
-    def test_memory_policy_is_conversation(self):
-        agent_memory_policy = {"write_policy": "conversation"}
-        assert agent_memory_policy["write_policy"] == "conversation"
-
-    def test_normal_mode_tools_are_minimal(self):
-        fast_builtin: list[str] = ["answer_tool"]
-        assert fast_builtin == ["answer_tool"]
-        assert "browser" not in fast_builtin
-
-    def test_deep_mode_does_not_add_browser(self):
-        """Deep fast uses web_fetch for page depth; browser stays opt-in via agent profile."""
-        fast_builtin: list[str] = ["answer_tool"]
-        assert fast_builtin == ["answer_tool"]
-        assert "browser" not in fast_builtin
-
-    def test_normal_max_iterations(self):
-        search_depth = "normal"
-        agent_max_iterations = 50 if search_depth == "deep" else 30
-        assert agent_max_iterations == 30
-
-    def test_deep_max_iterations(self):
-        search_depth = "deep"
-        agent_max_iterations = 50 if search_depth == "deep" else 30
-        assert agent_max_iterations == 50
-
-    def test_prompt_mode_is_search(self):
-        prompt_mode = "search"
-        assert prompt_mode == "search"
-
-    def test_fast_disables_skills_and_mcp(self):
-        agent_skill_ids: list[str] = []
-        agent_skill_configs = None
-        mcp_configs = None
-        agent_subagent_ids = None
-        openapi_services = None
-        assert agent_skill_ids == []
-        assert agent_skill_configs is None
-        assert mcp_configs is None
-        assert agent_subagent_ids is None
-        assert openapi_services is None
 
     def test_builtin_initializer_search_agents_exist(self):
         from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
@@ -190,8 +138,6 @@ class TestFastModeConverterParams:
         assert spec.prompt_mode == "search"
         assert spec.engine_params is not None
         assert spec.engine_params["max_tool_calls"] == 8
-        assert spec.memory_policy is not None
-        assert spec.memory_policy.get("write_policy") == "conversation"
         # 搜索提示词由 prompt_mode="search" 单一提供，system_prompt 必须留空
         assert spec.system_prompt == ""
 
@@ -202,8 +148,6 @@ class TestFastModeConverterParams:
         assert spec.prompt_mode == "search"
         assert spec.engine_params is not None
         assert spec.engine_params["max_tool_calls"] == 20
-        assert spec.memory_policy is not None
-        assert spec.memory_policy.get("write_policy") == "conversation"
         assert spec.system_prompt == ""
 
 

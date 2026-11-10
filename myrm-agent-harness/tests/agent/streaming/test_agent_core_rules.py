@@ -73,10 +73,6 @@ class TestAgentCoreRules:
         """The web UI and the IM channels both show every tool call to the user."""
         assert "invisible" not in AGENT_CORE_RULES
 
-    def test_proactive_capability_discovery_present(self) -> None:
-        assert "declining a user request" in AGENT_CORE_RULES
-        assert "discovery or search tool" in AGENT_CORE_RULES
-
     def test_search_query_guidance_not_in_agent_core_rules(self) -> None:
         assert "Query Rewriting Rules" not in AGENT_CORE_RULES
 
@@ -86,10 +82,9 @@ class TestAgentCoreRules:
         assert "What time is it" not in AGENT_CORE_RULES
         assert "use a shell tool" not in AGENT_CORE_RULES
 
-    def test_proactive_search_before_xml_close(self) -> None:
-        """Proactive capability discovery rule is inside the XML block."""
+    def test_the_last_rule_is_inside_the_xml_block(self) -> None:
         close_tag_pos = AGENT_CORE_RULES.index("</agent_behavior_rules>")
-        rule_pos = AGENT_CORE_RULES.index("declining a user request")
+        rule_pos = AGENT_CORE_RULES.index("redundant tool calls")
         assert rule_pos < close_tag_pos
 
 

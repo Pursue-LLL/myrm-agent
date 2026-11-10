@@ -3,9 +3,10 @@
 [INPUT]
 myrm_agent_harness.utils.db.migration_engine::StatefulMigrationEngine/MigrationStatement (POS: 有状态迁移引擎)
 sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
+app.database.personality_style_merge::MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL (POS: 沟通风格并入 system_prompt 的冻结语句)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED）
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt） / NORMALIZE_RETIRED_PROMPT_MODES_SQL（已退役的 lean / naked 提示词模式行改为 full）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -18,6 +19,8 @@ from myrm_agent_harness.utils.db.migration_engine import (
     StatefulMigrationEngine,
 )
 from sqlalchemy.ext.asyncio import AsyncEngine
+
+from app.database.personality_style_merge import MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +49,16 @@ REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL = (
     "UPDATE approvals SET status = 'REJECTED', resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP "
     "WHERE action_type = 'tool_stuck' AND status = 'PENDING'"
 )
+
+# The built-in search agents run on the default memory policy and carry no override of their own; a row that
+# still holds one is cleared. Only these two ids change: every other agent keeps the policy it has.
+CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL = (
+    "UPDATE agents SET memory_policy = NULL WHERE id IN ('builtin-fast-search', 'builtin-deep-search')"
+)
+
+# The prompt mode is set by the system (``search`` for the built-in search agents, ``full`` for every other agent); the
+# two modes that a user could once pick, ``lean`` and ``naked``, no longer exist and become ``full``.
+NORMALIZE_RETIRED_PROMPT_MODES_SQL = "UPDATE agents SET prompt_mode = 'full' WHERE prompt_mode IN ('lean', 'naked')"
 
 # 数据库迁移语句（按顺序执行）
 # 已完成的迁移会被清理，新迁移添加到此列表
@@ -721,6 +734,12 @@ MIGRATION_STATEMENTS: list[str] = [
     REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL,
     # Isolation comes from automatic file snapshots, so the git-worktree sandbox root is no longer stored.
     "ALTER TABLE chats DROP COLUMN sandbox_base_dir",
+    CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL,
+    # A communication style is now ordinary system-prompt text; this keeps the style of every custom agent that chose one.
+    MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL,
+    "ALTER TABLE agents DROP COLUMN personality_style",
+    "ALTER TABLE agent_profile_history DROP COLUMN personality_style",
+    NORMALIZE_RETIRED_PROMPT_MODES_SQL,
 ]
 
 # 创建索引的SQL语句列表

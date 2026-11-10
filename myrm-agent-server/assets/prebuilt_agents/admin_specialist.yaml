@@ -21,8 +21,6 @@ system_prompt: |
   - Tables and checklists must include explicit owners, due dates, and status columns
   - Respect internal protocol, seniority order, and confidentiality classifications
 agent_type: individual
-prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

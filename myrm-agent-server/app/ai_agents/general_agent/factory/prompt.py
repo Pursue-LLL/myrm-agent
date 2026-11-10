@@ -1,41 +1,33 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），)
 - app.ai_agents.general_agent.mount_resolver::ResolvedMountPlan (POS: Pure resolver layer between channel ingress and GeneralAgent factory wiring.)
-- app.ai_agents.prompts.general_agent_prompt::coerce_prompt_mode / get_core_system_prompt / SEARCH_DEEP_SUFFIX / SEARCH_DEEP_SUFFIX_ZH (POS: GeneralAgent 核心系统提示词。支持四档 Prompt Mode（full/lean/naked/search）与中英双语（默认英文），)
+- app.ai_agents.prompts.general_agent_prompt::coerce_prompt_mode / get_core_system_prompt / SEARCH_DEEP_SUFFIX / SEARCH_DEEP_SUFFIX_ZH (POS: GeneralAgent 核心系统提示词。支持两档 Prompt Mode（full/search）与中英双语（默认英文），)
 - app.ai_agents.general_agent.kanban_tool_mode::resolve_kanban_tool_mode (POS: GeneralAgent factory 的 Kanban 工具 bind 解析辅助模块；TaskRunner 强制 worker，chat 默认 orchestrator。)
 - myrm_agent_harness.utils.locale::is_chinese (POS: Shared locale utilities consumed by channel i18n, error diagnostics, and)
 - myrm_agent_harness.toolkits.kanban::get_worker_lifecycle_guidance (POS: Kanban toolkit entry point. Aggregates dispatcher, protocols, built-in)
-- app.ai_agents.prompts.shared_rules::DESKTOP_CONTROL_RULES (POS: 跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，支持中英双语，提供服从、任务完整性、桌面控制等核心护栏。桌面控制运行时注入英文单例（factory）。)
+- app.ai_agents.prompts.shared_rules::DESKTOP_CONTROL_RULES (POS: 跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，除桌面控制外均支持中英双语，提供任务完整性、桌面控制等核心护栏；用户指令的优先级只由 user_instructions 消息头声明。桌面控制规则是底层工具调用协议，只有英文版，由 factory 注入。)
 - app.services.agent.outbound_notify.types::CHANNEL_NOTIFY_SYSTEM_APPENDIX (POS: Data types for agent-initiated outbound channel notifications.)
-- myrm_agent_harness.toolkits.code_execution.tool_discovery::get_cli_tools_context (POS: CLI tool auto-discovery module entry point. Provides get_cli_tools_context() one-stop API to detect)
 
 [OUTPUT]
 - build_system_prompt: build_system_prompt
 
 [POS]
-装配第五阶段；按模式、桌面/CLI 挂载与会话根目录拼接最终提示词。
+装配第五阶段；按模式、桌面挂载与会话根目录拼接最终提示词。
 """
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
-
     from app.ai_agents.general_agent.agent import GeneralAgent
     from app.ai_agents.general_agent.mount_resolver import ResolvedMountPlan
-
-logger = logging.getLogger(__name__)
 
 
 def build_system_prompt(
     agent_wrapper: "GeneralAgent",
     *,
     mount_plan: "ResolvedMountPlan",
-    executor: "CodeExecutor | None",
     channel_notify_tool_loaded: bool,
     prompt_locale: str | None,
 ) -> str:
@@ -80,22 +72,10 @@ def build_system_prompt(
             max_runtime_seconds=getattr(agent_wrapper, "kanban_max_runtime_seconds", None),
         )
 
-    if mount_plan.mount_desktop_prompt:
+    if mount_plan.mount_computer_use:
         from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
 
         system_prompt += DESKTOP_CONTROL_RULES
-
-    if executor is not None and mount_plan.mount_cli_context:
-        try:
-            from myrm_agent_harness.toolkits.code_execution.tool_discovery import (
-                get_cli_tools_context,
-            )
-
-            cli_ctx = get_cli_tools_context()
-            if cli_ctx:
-                system_prompt += cli_ctx
-        except Exception as e:
-            logger.warning("CLI tool discovery failed (degraded): %s", e)
 
     if channel_notify_tool_loaded:
         from app.services.agent.outbound_notify.types import (

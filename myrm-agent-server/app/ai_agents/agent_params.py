@@ -1,6 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.agent.meta_tools.mount_policy::FileAccessMode
-- myrm_agent_harness.toolkits.memory.config::AgentMemoryPolicy
+- myrm_agent_harness.toolkits.memory.config::AgentMemoryPolicy, RecallMode
 - myrm_agent_harness.toolkits.retriever.embedding.factory::EmbeddingConfig
 - myrm_agent_harness.toolkits.retriever.reranker.factory::RerankerConfig
 - myrm_agent_harness.toolkits.web_search::SearchServiceConfig
@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Literal
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
-from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, RecallMode
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
@@ -211,6 +211,7 @@ class GeneralAgentParams(BaseAgentParams):
     prompt_locale: str | None = None
     max_iterations: int | None = None
     memory_policy: AgentMemoryPolicy | None = None
+    memory_recall_mode: RecallMode = RecallMode.HYBRID
     memory_decay_profile: str | None = None
     memory_extraction_preset: str | None = None
     engine_params: dict[str, object] | None = None

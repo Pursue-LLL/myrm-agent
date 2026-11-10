@@ -1727,7 +1727,7 @@ class TestCronPlatformV2:
         parsed = json.loads(result)
         assert parsed["status"] == "success"
         assert parsed["job_type"] == "Reminder"
-        jobs = await manager.list_jobs(USER_ID)
+        jobs = await manager.list_jobs()
         assert jobs[0].job_type == JobType.REMINDER
 
     @pytest.mark.asyncio
@@ -1747,7 +1747,7 @@ class TestCronPlatformV2:
             }
         )
         assert json.loads(result)["status"] == "success"
-        jobs = await manager.list_jobs(USER_ID)
+        jobs = await manager.list_jobs()
         assert jobs[0].delivery.channel == "telegram"
         assert jobs[0].delivery.target == "chat-99"
 

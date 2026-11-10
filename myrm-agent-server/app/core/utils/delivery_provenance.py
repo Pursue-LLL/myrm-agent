@@ -10,8 +10,8 @@ Banners prepend to Human-visible text only — never mutate leading System prefi
 - format_delivery_banner: Canonical routing banner lines ending with "---".
 - ingress_from_channel_metadata: Map InboundMessage metadata to ingress label string.
 - apply_delivery_banner: Prefix multimodal-safe queries with arbitrary channel/ingress labels.
-- resolve_general_agent_pipeline_labels: Map GeneralAgent.channel_name to LLM-visible labels.
-- apply_general_agent_pipeline_banner: Convenience wrapper for SkillAgent ingress before execute_stream_pipeline.
+- resolve_general_agent_pipeline_labels: Map GeneralAgent.channel_name to the labels of the delivery log line and the banner.
+- apply_general_agent_pipeline_banner: Banner the user turn of an agent run, except in the browser chat.
 
 [POS]
 Pure server-side prose assembly for SECURITY_BOUNDARY–aligned modeling hints. An explicit skill invocation
@@ -28,6 +28,7 @@ from app.core.utils.skill_invocation import decorate_behind_skill_tag
 
 _PROVENANCE_HEADER = "[Inbound channel message]"
 _DEFAULT_INGRESS_FALLBACK = "local_connector"
+_BROWSER_CHAT = "web_chat"
 
 
 def format_delivery_banner(*, channel_label: str, ingress_label: str) -> str:
@@ -66,16 +67,20 @@ def prepend_plain_banner(*, channel_label: str, ingress_label: str, body: str) -
     return _with_banner(body, banner)
 
 
-def resolve_general_agent_pipeline_labels(channel_name: str) -> tuple[str, str]:
-    """Map persisted agent channel semantics to banners seen by SkillAgent-process_stream.
+def _normalized_channel(channel_name: str) -> str:
+    """The agent's channel name; an agent without one is the browser chat."""
+    return (channel_name or "").strip() or _BROWSER_CHAT
 
-    Interactive browser chat keeps virtual labels http_gui/browser_sse even when channel_name
-    is the default ``web_chat`` so documentation and observability align with SSE ingress.
+
+def resolve_general_agent_pipeline_labels(channel_name: str) -> tuple[str, str]:
+    """Map persisted agent channel semantics to the labels of the delivery log line and the banner.
+
+    Interactive browser chat is logged as http_gui/browser_sse (SSE ingress) although its turns carry no banner.
     Scheduled jobs, eval harness runs, and harness async wake continuations each get distinct
     ingress labels (``cron_scheduler``, ``eval_runner``, ``async_wake_consumer``).
     """
-    normalized = (channel_name or "").strip() or "web_chat"
-    if normalized == "web_chat":
+    normalized = _normalized_channel(channel_name)
+    if normalized == _BROWSER_CHAT:
         return ("http_gui", "browser_sse")
     if normalized == "cron":
         return ("cron", "cron_scheduler")
@@ -132,5 +137,12 @@ def apply_delivery_banner(
 
 
 def apply_general_agent_pipeline_banner(query: object, *, channel_name: str) -> object:
+    """Banner the user turn of an agent run with the route its channel arrived by.
+
+    The browser chat is the default ingress and its route never varies, so its turns are left as typed: a banner
+    there would be a constant line, and the disclaimer that goes with it, paid for on every turn.
+    """
+    if _normalized_channel(channel_name) == _BROWSER_CHAT:
+        return query
     ch, ing = resolve_general_agent_pipeline_labels(channel_name)
     return apply_delivery_banner(query, channel_label=ch, ingress_label=ing)

@@ -321,17 +321,17 @@ class TestQueryMethods:
         mgr = _make_manager()
         jobs = [_make_job()]
         mgr._store.list_jobs = AsyncMock(return_value=jobs)
-        result = await mgr.list_jobs("user-1", limit=10, offset=0)
+        result = await mgr.list_jobs(limit=10, offset=0)
         assert result == jobs
         mgr._store.list_jobs.assert_awaited_once_with(
-            user_id="user-1", name_filter=None, chat_id=None, project_id=None, limit=10, offset=0
+            name_filter=None, chat_id=None, project_id=None, limit=10, offset=0
         )
 
     @pytest.mark.asyncio
     async def test_count_jobs(self) -> None:
         mgr = _make_manager()
         mgr._store.count_jobs = AsyncMock(return_value=5)
-        assert await mgr.count_jobs("user-1") == 5
+        assert await mgr.count_jobs() == 5
 
     @pytest.mark.asyncio
     async def test_get_job_found(self) -> None:

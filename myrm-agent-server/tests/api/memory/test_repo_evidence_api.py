@@ -10,6 +10,7 @@
 Tests repo git evidence inspection endpoint.
 """
 
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -39,7 +40,10 @@ def test_get_repo_evidence_digest_endpoint(repo_client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
 
-    assert data["repo_name"] in ("myrm-agent", "open-perplexity")
+    toplevel = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=cwd, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    assert data["repo_name"] == Path(toplevel).name
     assert "current_branch" in data
     assert "is_dirty" in data
     assert isinstance(data["recent_commits"], list)

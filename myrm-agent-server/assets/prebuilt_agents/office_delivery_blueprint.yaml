@@ -33,8 +33,6 @@ system_prompt: |
   - Validate all outputs before marking goal complete
   - Never hardcode computed values in Excel — use formulas
 agent_type: individual
-prompt_mode: full
-personality_style: professional
 goal_mode_default: true
 mcp_ids: []
 mcp_tool_selections: {}

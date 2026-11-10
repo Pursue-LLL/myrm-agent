@@ -106,7 +106,6 @@ class TestBuildEvalManifest:
             memory_extraction_preset = None
             mcp_ids = None
             mcp_tool_selections = None
-            personality_style = None
 
         class FakeResolver:
             async def resolve(self, profile_id: str) -> FakeProfile:
@@ -161,7 +160,6 @@ class TestBuildEvalManifest:
             memory_extraction_preset = None
             mcp_ids = None
             mcp_tool_selections = None
-            personality_style = None
 
         class FakeResolver:
             async def resolve(self, profile_id: str) -> FakeProfile:
@@ -205,7 +203,6 @@ class TestBuildEvalManifest:
             memory_extraction_preset = None
             mcp_ids = None
             mcp_tool_selections = None
-            personality_style = None
 
         class FakeResolver:
             async def resolve(self, profile_id: str) -> FakeProfile:

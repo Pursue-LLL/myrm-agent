@@ -30,8 +30,6 @@ export interface TemplateSettingsPreview {
   memory_preset: string;
   deploy_mode: string;
   sandbox_bound_note?: string;
-  prompt_mode: string;
-  personality_style: string;
 }
 
 export interface AgentTemplateItem {

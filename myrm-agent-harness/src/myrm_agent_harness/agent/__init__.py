@@ -20,12 +20,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.hooks.graceful_shutdown import GracefulShutdownManager, get_shutdown_manager
     from myrm_agent_harness.agent.skill_agent import SkillAgent
     from myrm_agent_harness.agent.skill_agent.factory import create_skill_agent
-    from myrm_agent_harness.agent.sub_agents.registry import (
-        SUBAGENT_CONFIGS,
-        auto_register_subagent_configs,
-        register_subagent_configs,
-        register_subagent_configs_from_directory,
-    )
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig, SubAgentResult, SubAgentStatus
     from myrm_agent_harness.agent.types import (
         AgentRunStatistics,
@@ -46,19 +40,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "LLMConfig": ("myrm_agent_harness.agent.config", "LLMConfig"),
     "AgentRuntimeConfig": ("myrm_agent_harness.agent.types", "AgentRuntimeConfig"),
     "SubagentConfig": ("myrm_agent_harness.agent.sub_agents.types", "SubagentConfig"),
-    "SUBAGENT_CONFIGS": ("myrm_agent_harness.agent.sub_agents.registry", "SUBAGENT_CONFIGS"),
-    "register_subagent_configs": (
-        "myrm_agent_harness.agent.sub_agents.registry",
-        "register_subagent_configs",
-    ),
-    "register_subagent_configs_from_directory": (
-        "myrm_agent_harness.agent.sub_agents.registry",
-        "register_subagent_configs_from_directory",
-    ),
-    "auto_register_subagent_configs": (
-        "myrm_agent_harness.agent.sub_agents.registry",
-        "auto_register_subagent_configs",
-    ),
     "SubAgentStatus": ("myrm_agent_harness.agent.sub_agents.types", "SubAgentStatus"),
     "SubAgentResult": ("myrm_agent_harness.agent.sub_agents.types", "SubAgentResult"),
     "HookEvent": ("myrm_agent_harness.agent.hooks", "HookEvent"),
@@ -117,7 +98,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
 
 __all__ = [
     "InvalidGeneratedTitleRecoverySuite",
-    "SUBAGENT_CONFIGS",
     "AgentEventType",
     "AgentRunStatistics",
     "AgentRuntimeConfig",
@@ -140,13 +120,10 @@ __all__ = [
     "SubAgentStatus",
     "SubagentConfig",
     "TokenUsage",
-    "auto_register_subagent_configs",
     "create_skill_agent",
     "fire_hook",
     "get_shutdown_manager",
     "map_to_completion_status",
-    "register_subagent_configs",
-    "register_subagent_configs_from_directory",
 ]
 
 

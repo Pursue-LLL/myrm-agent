@@ -20,5 +20,5 @@ Agent 领域仓储。类不持有实例状态：8 个方法全部是 `@staticmet
 
 ## 依赖关系
 
-- 上游：`app.database.models`、`app.ai_agents.personality_templates`、harness `backends.profiles.types` / `toolkits.memory.config`
+- 上游：`app.database.models`、harness `backends.profiles.types` / `toolkits.memory.config`
 - 下游：`app/database/repositories/uow.py`、`app/api/agents/**`、`app/services/agent/**`

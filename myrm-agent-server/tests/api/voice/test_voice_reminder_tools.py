@@ -9,11 +9,13 @@ Validates:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.cron.types import CronJob, JobStatus, JobType, Schedule, ScheduleKind
+from myrm_agent_harness.toolkits.cron.manager import CronManager
+from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
+from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, Schedule, ScheduleKind
 
 from app.api.voice.realtime import RealtimeToolExecRequest
 from app.api.voice.realtime_background import BACKGROUND_TOOL_HANDLERS
@@ -89,49 +91,44 @@ async def test_set_reminder_execution_relative_minutes():
 
 @pytest.mark.asyncio
 async def test_cancel_and_list_reminders():
-    """Test cancel_reminder and list_reminders execution."""
+    """cancel_reminder removes the job from a real manager; a mocked manager cannot catch swapped arguments."""
     cancel_handler = BACKGROUND_TOOL_HANDLERS["cancel_reminder"]
     list_handler = BACKGROUND_TOOL_HANDLERS["list_reminders"]
 
-    mock_job = CronJob(
-        id="cron-reminder-456",
-        user_id="default",
-        name="Voice Reminder: team standup",
-        job_type=JobType.REMINDER,
-        schedule=Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(timezone.utc)),
-        prompt="team standup",
-        status=JobStatus.ACTIVE,
-    )
+    store = InMemoryCronStore()
+    mgr = CronManager(store=store, scheduler=MagicMock(), shell_enabled=False)
+    schedule = Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(timezone.utc) + timedelta(hours=1))
+    standup = await mgr.create_job("default", "Voice Reminder: team standup", JobType.REMINDER, schedule, prompt="team standup")
+    water = await mgr.create_job("default", "Voice Reminder: drink water", JobType.REMINDER, schedule, prompt="drink water")
 
-    mock_mgr = AsyncMock()
-    mock_mgr.list_jobs.return_value = [mock_job]
-    mock_mgr.delete_job.return_value = True
-
-    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mock_mgr):
+    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mgr):
         # 1. List reminders
-        list_req = RealtimeToolExecRequest(
-            tool_name="list_reminders",
-            arguments={},
-            chat_id="chat-test-voice-1",
+        list_resp = await list_handler(
+            RealtimeToolExecRequest(tool_name="list_reminders", arguments={}, chat_id="chat-test-voice-1")
         )
-        list_resp = await list_handler(list_req)
         assert list_resp.error is None
         list_data = json.loads(list_resp.result)
-        assert list_data["count"] == 1
-        assert list_data["reminders"][0]["id"] == "cron-reminder-456"
+        assert list_data["count"] == 2
+        assert {reminder["id"] for reminder in list_data["reminders"]} == {standup.id, water.id}
 
         # 2. Cancel reminder by content match
-        cancel_req = RealtimeToolExecRequest(
-            tool_name="cancel_reminder",
-            arguments={"content": "standup"},
-            chat_id="chat-test-voice-1",
+        cancel_resp = await cancel_handler(
+            RealtimeToolExecRequest(tool_name="cancel_reminder", arguments={"content": "standup"}, chat_id="chat-test-voice-1")
         )
-        cancel_resp = await cancel_handler(cancel_req)
         assert cancel_resp.error is None
         cancel_data = json.loads(cancel_resp.result)
         assert cancel_data["cancelled"] is True
-        assert cancel_data["job_id"] == "cron-reminder-456"
-        mock_mgr.delete_job.assert_awaited_once_with("default", "cron-reminder-456")
+        assert cancel_data["job_id"] == standup.id
+        assert await store.get_job(standup.id) is None
+        assert await store.get_job(water.id) is not None
+
+        # 3. Cancel reminder by id
+        cancel_resp = await cancel_handler(
+            RealtimeToolExecRequest(tool_name="cancel_reminder", arguments={"reminder_id": water.id}, chat_id="chat-test-voice-1")
+        )
+        assert cancel_resp.error is None
+        assert json.loads(cancel_resp.result)["cancelled"] is True
+        assert await store.list_jobs() == []
 
 
 @pytest.mark.asyncio
@@ -155,8 +152,13 @@ async def test_cron_push_triggers_system_notification_with_voice_bg_done():
         while not q.empty():
             events.append(q.get_nowait())
 
+        # The bus is process-global: keep only this push's notification, other tests may publish concurrently.
         cron_events = [e for e in events if e.event_type == AppEventType.CRON_UPDATED]
-        sys_events = [e for e in events if e.event_type == AppEventType.SYSTEM_NOTIFICATION]
+        sys_events = [
+            e
+            for e in events
+            if e.event_type == AppEventType.SYSTEM_NOTIFICATION and e.data["meta_data"]["chat_id"] == "chat-voice-777"
+        ]
 
         assert len(cron_events) >= 1
         assert len(sys_events) >= 1

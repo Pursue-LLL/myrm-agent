@@ -9,6 +9,8 @@ import {
   type MemoryApprovedRecord,
   type MemoryFourPartitionSummary,
   type MemoryRecallBoundaryData,
+  type MemoryRecallScopeLevel,
+  type MemoryRecallWritePolicy,
 } from '@/services/memory/commandCenter';
 
 interface MemoryRecallBoundaryPanelProps {
@@ -48,6 +50,26 @@ const PARTITION_COPY: Record<
     title: 'partitionRetrievableEvidence',
     description: 'partitionRetrievableEvidenceDescription',
   },
+};
+
+/** Locale keys of each scope level: the server sends the level and its namespace pattern, the wording is localized here. */
+const SCOPE_COPY: Record<MemoryRecallScopeLevel, { title: string; description: string }> = {
+  global: { title: 'scopeGlobal', description: 'scopeGlobalDescription' },
+  agent: { title: 'scopeAgent', description: 'scopeAgentDescription' },
+  channel: { title: 'scopeChannel', description: 'scopeChannelDescription' },
+  conversation: { title: 'scopeConversation', description: 'scopeConversationDescription' },
+  task: { title: 'scopeTask', description: 'scopeTaskDescription' },
+  shared: { title: 'scopeShared', description: 'scopeSharedDescription' },
+};
+
+const WRITE_POLICY_COPY: Record<MemoryRecallWritePolicy, string> = {
+  inherit: 'writePolicyInherit',
+  global: 'writePolicyGlobal',
+  client: 'writePolicyClient',
+  agent: 'writePolicyAgent',
+  channel: 'writePolicyChannel',
+  conversation: 'writePolicyConversation',
+  task: 'writePolicyTask',
 };
 
 export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({ agentId, taskId, className }) => {
@@ -130,8 +152,8 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
             {t('title')}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">{t('subtitle')}</p>
-          <p className="text-[11px] font-mono text-muted-foreground mt-1.5">
-            {t('policyWrite')}: {data.write_policy}
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            {t('policyWrite')}: {t(WRITE_POLICY_COPY[data.write_policy])}
           </p>
         </div>
         <button
@@ -187,17 +209,16 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
                     <span className="px-2 py-0.5 text-[11px] font-medium rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
                       {tMemory(`types.${cand.memory_type}`)}
                     </span>
-                    <span className="text-[11px] text-muted-foreground font-mono">
-                      {t('confidence')}: {(cand.confidence * 100).toFixed(0)}%
-                    </span>
+                    {cand.confidence !== null && (
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        {t('confidence')}: {(cand.confidence * 100).toFixed(0)}%
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-foreground/90 leading-relaxed font-sans">{cand.content_preview}</p>
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/30">
-                    <span>
-                      {t('source')}: {cand.source}
-                    </span>
-                    <span className="text-amber-500 font-medium">{t('candidateReviewDesc')}</span>
-                  </div>
+                  <p className="text-[11px] text-amber-500 font-medium pt-1 border-t border-border/30">
+                    {t('candidateReviewDesc')}
+                  </p>
                 </div>
               ))}
             </div>
@@ -292,12 +313,12 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
               >
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold">{sc.label}</span>
+                    <span className="text-xs font-semibold">{t(SCOPE_COPY[sc.level].title)}</span>
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground">
                       {sc.namespace_pattern}
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">{sc.description}</p>
+                  <p className="text-[11px] text-muted-foreground">{t(SCOPE_COPY[sc.level].description)}</p>
                 </div>
                 <span
                   className={cn(

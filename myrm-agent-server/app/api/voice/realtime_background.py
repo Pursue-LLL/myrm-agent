@@ -1,20 +1,21 @@
-"""Realtime voice background task lifecycle handlers.
+"""Realtime voice background task and reminder lifecycle handlers.
 
-Short-circuit handlers for background task tools (run/cancel/status/steer)
-invoked from the OpenAI Realtime WebRTC session. Each handler delegates to
-ChannelBackgroundTaskHandler without invoking the full Agent pipeline.
+Short-circuit handlers invoked from the OpenAI Realtime WebRTC session without
+the full Agent pipeline: background task tools (run/cancel/status/steer) delegate
+to ChannelBackgroundTaskHandler, reminder tools (set/cancel/list) to CronManager.
 
 [INPUT]
 - app.core.channel_bridge.setup::get_background_task_handler (POS: Channel gateway lifecycle)
 - app.core.channel_bridge.persistent_background (POS: metadata SSOT)
+- app.core.cron.adapters.setup::get_cron_manager (POS: CronManager SSOT)
 
 [OUTPUT]
 - BACKGROUND_TOOL_HANDLERS: dict mapping tool names to async handler functions
 - RealtimeToolExecRequest, RealtimeToolExecResponse re-exported for convenience
 
 [POS]
-Voice background task lifecycle. Extracted from realtime.py to keep file sizes
-manageable. All handlers return RealtimeToolExecResponse directly.
+Voice background task and reminder lifecycle. Extracted from realtime.py to keep
+file sizes manageable. All handlers return RealtimeToolExecResponse directly.
 """
 
 from __future__ import annotations
@@ -253,7 +254,7 @@ async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeTool
 
     mgr = get_cron_manager()
     try:
-        jobs = await mgr.list_jobs("default")
+        jobs = await mgr.list_jobs()
         active_reminders = [j for j in jobs if j.status == JobStatus.ACTIVE and j.job_type == JobType.REMINDER]
 
         target_job = None
@@ -281,7 +282,7 @@ async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeTool
                 )
             )
 
-        success = await mgr.delete_job("default", target_job.id)
+        success = await mgr.delete_job(target_job.id, "default")
         return RealtimeToolExecResponse(
             result=json.dumps(
                 {
@@ -305,7 +306,7 @@ async def _execute_list_reminders(req: RealtimeToolExecRequest) -> RealtimeToolE
 
     mgr = get_cron_manager()
     try:
-        jobs = await mgr.list_jobs("default")
+        jobs = await mgr.list_jobs()
         active_reminders = [
             {
                 "id": j.id,

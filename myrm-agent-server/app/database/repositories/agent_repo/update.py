@@ -98,10 +98,6 @@ class UpdateMixin:
                 agent.enabled_builtin_tools = persist_enabled_builtin_tools(metadata["enabled_builtin_tools"])
             if "home_directory" in metadata:
                 agent.home_directory = cast(str | None, metadata["home_directory"])
-            if "prompt_mode" in metadata:
-                agent.prompt_mode = cast(str, metadata["prompt_mode"])
-            if "personality_style" in metadata:
-                agent.personality_style = cast(str, metadata["personality_style"])
             if "security_overrides" in metadata:
                 agent.security_overrides = cast(dict[str, object] | None, metadata["security_overrides"])
             if "default_security_preset" in metadata:
@@ -187,9 +183,7 @@ class UpdateMixin:
                 agent.session_recording = cast(str | None, metadata["session_recording"])
 
         # Increment version and save history if core fields changed
-        if any(k in updates for k in ["system_prompt", "display_name", "description"]) or (
-            "metadata" in updates and "personality_style" in updates["metadata"]
-        ):
+        if any(k in updates for k in ["system_prompt", "display_name", "description"]):
             # Optimistic locking handles the version increment automatically
             # We just need to flush to get the new version number
             from fastapi import HTTPException
@@ -211,7 +205,6 @@ class UpdateMixin:
                 name=agent.name,
                 description=agent.description,
                 system_prompt=agent.system_prompt,
-                personality_style=agent.personality_style,
                 snapshot_data={
                     "model_config": agent.model_config,
                     "model_selection": agent.model_selection,

@@ -248,8 +248,6 @@ class AgentService:
             "security_overrides": agent_data.security_overrides,
             "default_security_preset": agent_data.default_security_preset,
             "required_capabilities": agent_data.required_capabilities,
-            "prompt_mode": agent_data.prompt_mode,
-            "personality_style": agent_data.personality_style,
             "allow_discovery": agent_data.allow_discovery,
             "subagent_ids": agent_data.subagent_ids,
             "workspace_policy": agent_data.workspace_policy,
@@ -375,10 +373,6 @@ class AgentService:
                 new_metadata["security_overrides"] = agent_data.security_overrides
             if "default_security_preset" in agent_data.model_fields_set:
                 new_metadata["default_security_preset"] = agent_data.default_security_preset
-            if agent_data.prompt_mode is not None:
-                new_metadata["prompt_mode"] = agent_data.prompt_mode
-            if agent_data.personality_style is not None:
-                new_metadata["personality_style"] = agent_data.personality_style
             if "allow_discovery" in agent_data.model_fields_set:
                 new_metadata["allow_discovery"] = agent_data.allow_discovery
             if agent_data.subagent_ids is not None:

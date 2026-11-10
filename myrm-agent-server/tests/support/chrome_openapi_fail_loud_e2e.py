@@ -60,7 +60,6 @@ def apply_agent_from_e2e_api_js(expected_agent_id: str) -> str:
       memoryDecayProfile: agent.memory_decay_profile || 'normal',
       memoryExtractionPreset: agent.memory_extraction_preset || 'auto',
       browserSource: agent.browser_source || undefined,
-      promptMode: agent.prompt_mode || undefined,
       defaultSecurityPreset: agent.default_security_preset ?? undefined,
     }});
     if (typeof bridge.ensureChatSession === 'function') {{
@@ -125,7 +124,6 @@ def wait_agent_applied_js(expected_agent_id: str) -> str:
       memoryDecayProfile: agent.memory_decay_profile || 'normal',
       memoryExtractionPreset: agent.memory_extraction_preset || 'auto',
       browserSource: agent.browser_source || undefined,
-      promptMode: agent.prompt_mode || undefined,
       defaultSecurityPreset: agent.default_security_preset ?? undefined,
     }});
     if (typeof bridge.ensureChatSession === 'function') {{

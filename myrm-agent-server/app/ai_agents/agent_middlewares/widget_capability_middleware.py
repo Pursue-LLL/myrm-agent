@@ -4,7 +4,8 @@
 声明不写入对话状态；内容与插入位置恒定。
 
 设计原则：
-1. 声明约 350 token（o200k_base，CI 门禁封顶 366），除 naked 模式外始终插入
+1. 声明约 350 token（o200k_base，CI 门禁封顶 366）；是否挂载由 `mount_resolver` 的 `mount_widget_capability`
+   决定（只有能渲染 widget 的网页聊天会话才挂），挂载后每次模型调用都插入
 2. 声明包含格式规范、CDN 白名单、设计指南
 3. 插入位置：请求里前导连续 SystemMessage 之后、第一条非 system 消息之前
 """
@@ -82,12 +83,6 @@ class WidgetCapabilityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        # naked 模式下跳过 widget 能力声明
-        if request.runtime is not None:
-            ctx = getattr(request.runtime, "context", None)
-            if isinstance(ctx, dict) and ctx.get("prompt_mode") == "naked":
-                return await handler(request)
-
         if _has_widget_capability_injected(request.messages):
             return await handler(request)
 

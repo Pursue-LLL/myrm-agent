@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-通用对话 Agent。提供通用 AI 对话能力，包含专用中间件（引用规则、工具选择）和业务工具集成。通过 `prompt_mode` 支持多模式运行（full/lean/naked/search），其中 search 模式实现快速搜索功能，无需独立的 FastSearchAgent；Fast Turn1 为 web_search + web_fetch + UECD 只读 file_read + answer_tool（+ memory），browser 仅 profile `browser` 开关 opt-in。
+通用对话 Agent。提供通用 AI 对话能力，包含专用中间件（引用规则、工具选择）和业务工具集成。通过 `prompt_mode` 支持两种模式运行（full/search，由系统决定），其中 search 模式实现快速搜索功能，无需独立的 FastSearchAgent；Fast Turn1 为 web_search + web_fetch + UECD 只读 file_read + answer_tool（+ memory），browser 仅 profile `browser` 开关 opt-in。
 历史会话召回在 GeneralAgent、Custom 与 Ephemeral JIT 子 Agent 均通过 `memory_search_tool(corpus=sessions)` ACL 启用（用户设置 `memoryEnableConversationSearch`，默认关闭；无痕模式禁用 sessions corpus）。Harness 只消费 Protocol，不感知数据库或产品身份语义。
 LLM 装配阶段尊重用户在 WebUI 选择的主模型；不支持工具调用或 provider 报错时，由 harness `stream_recovery` 在运行时切换至备用模型（需用户配置 fallback）。
 当前实现会优先消费渠道入口已经解析好的正式身份契约：
@@ -35,11 +35,11 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | 文件 | 地位 | 职责| I/O/P |
 |------|------|------|-------|
 | `agent.py` | ✅ 核心 | GeneralAgent 门面：`release_pooled_session()` 释放 per-turn 资源但不关闭池化 SkillAgent/Browser；`close()` 全量 teardown | ✅ |
-| `mount_resolver.py` | ✅ 核心 | 渠道与 Profile 工具物理挂载解析器（`resolve_agent_mount`）：对齐 IM 渠道安全边界，剥离 Browser/Desktop/CLI 物理实例化与桌面控制提示词，根除 Token 浪费与工具幻觉被拒。 | ✅ |
+| `mount_resolver.py` | ✅ 核心 | 渠道与 Profile 工具物理挂载解析器（`resolve_agent_mount`）：对齐 IM 渠道安全边界，剥离 Browser/Desktop 物理实例化与桌面控制提示词，根除 Token 浪费与工具幻觉被拒。 | ✅ |
 | `factory/` | ✅ 核心 | Agent 实例组装包：`builder.py` 编排（LLM → 技能 → 工具 → 沙箱 → 中间件 → 提示词 → create_skill_agent），`llms.py`/`skills.py`/`runtime.py`/`middlewares.py`/`prompt.py` 分阶段实现，`support.py` 放工具/Kanban/回调构造；详见 [factory/_ARCH.md](factory/_ARCH.md) |
 | `active_tool_groups.py` | ✅ 核心 | GeneralAgent enable 标志 → harness `TOOL_GROUP_MAP` 组名列表（Gap + `AgentRuntimeSpec.tool_groups`）。 | ❌ |
 | `kanban_tool_mode.py` | ✅ 辅助 | 解析 `KanbanToolMode`：TaskRunner 强制 worker（6）；chat 默认 orchestrator（3）；board CRUD 仅 REST/GUI | ❌ |
-| `stream_pipeline.py` | ✅ 核心 | 执行流水线：POOLED 路径经 `coalesced_acquire` 复用 `BuiltExecutionUnit`；acquire 后 emit `turn_prewarm_*_clear`（agent：`still_warming`；memory：`brief_pending` 时 dismiss waiting）；`guard_turn` 串行同 chat；指定外部 Agent 直连（`force_external_agent`）整段交给 `forced_delegate.stream_forced_delegate`（在 delivery banner 之前分流，外部 CLI 收到的是用户原话，不带给主 Agent 模型看的路由横幅）；其余按 `channel_name` 解析 delivery banner → `SkillAgent.run`（整轮持有 `SleepInhibitor`，挂载桌面会话时同时保持显示器常亮）。当 `context["goal_provider"]` 存在时注入 `on_goal_terminal`/`on_loop_restart`/`on_goal_hold` 回调与相关 learnings 充实（回调注入只依赖 goal_provider；`on_goal_hold` 在提供方额度窗口停靠目标时通知宿主唤醒守护进程；`on_goal_terminal` 传入 `privacy_deep_scan` 启用 learnings 深度 PII 扫描） | ✅ |
+| `stream_pipeline.py` | ✅ 核心 | 执行流水线：POOLED 路径经 `coalesced_acquire` 复用 `BuiltExecutionUnit`；acquire 后 emit `turn_prewarm_*_clear`（agent：`still_warming`；memory：`brief_pending` 时 dismiss waiting）；`guard_turn` 串行同 chat；指定外部 Agent 直连（`force_external_agent`）整段交给 `forced_delegate.stream_forced_delegate`（在 delivery banner 之前分流，外部 CLI 收到的是用户原话，不带给主 Agent 模型看的路由横幅）；其余按 `channel_name` 给用户消息加 delivery banner（网页聊天不加，原样交给 agent）→ `SkillAgent.run`（整轮持有 `SleepInhibitor`，挂载桌面会话时同时保持显示器常亮）。当 `context["goal_provider"]` 存在时注入 `on_goal_terminal`/`on_loop_restart`/`on_goal_hold` 回调与相关 learnings 充实（回调注入只依赖 goal_provider；`on_goal_hold` 在提供方额度窗口停靠目标时通知宿主唤醒守护进程；`on_goal_terminal` 传入 `privacy_deep_scan` 启用 learnings 深度 PII 扫描） | ✅ |
 | `forced_delegate.py` | ✅ 核心 | 指定外部 Agent 直连（`force_external_agent`）的实现：`denial_reason`（`invoke_external_agent` 的安全策略闸门，`ask` 也算不允许——直连没有逐次审批）→ 懒建 pool 与可用性检查 → `_direct_delegate_stream` 转发；被拦下、不可用、中途出意外三条失败路径都以带处置指引的错误事件收尾（`services/external_agents/delegation/errors.py` 的 `denied` / `unavailable` / `failed`，会话语言），策略引擎的原话与异常只进日志，不换成主 Agent 或别的 Agent 作答；日志记路由目标与 chat id，不记用户消息内容 | ✅ |
 | `config_builders.py` | ✅ 核心 | 分离出的配置构建器，包含运行时执行、隐私路由、环境变量解析。 | ✅ |
 | `callbacks.py` | ✅ 核心 | 会话清理与持久化回调：`make_commitment_extraction_callback`、`make_loaded_skills_persist_callback`（turn-end 写入 `Chat.session_loaded_skill_names`）、`make_notes_persist` / `make_notes_load`、`make_summary_persist_with_wiki_archive`（compaction persist 后 Wiki 归档，绑 `on_summary_persist`）、`make_skill_review_callback(memory_enabled=…)`（后台技能复盘就绪回调；记忆关闭时丢弃 `semantic_memory` 类发现，只保留技能草稿；隐身会话由工厂不挂载该回调）。 | ✅ |
@@ -53,7 +53,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | `goal_learnings.py` | ✅ 核心 | Goal 终态回调工厂：`build_goal_terminal_callback` 在 Goal 终态时提取 learnings 存入 SemanticMemory（`memory_manager` 可选，memory 关闭时跳过提取但 dequeue 仍执行），`deep_scan=True` 时 learnings 经 LLM 深度 PII 假名化后入库（对齐会话记忆隐私承诺）；抽取输入只取各消息的可见文本（截图/附件不进入 prompt，无文本的消息不计入最少轮数）；发布 `GOAL_TERMINAL` ServerEventBus 事件（触发 IM 通知），并 dequeue 下一个排队 Goal。`retrieve_relevant_learnings` 为新 Goal 检索历史经验。 | ✅ |
 | `llm_factory.py` | ✅ 辅助 | LLM 实例工厂（main/lite/fallback/safety_fallback；ManagedLLM 包装 main/lite；**stream_fallback_llm** 供 StreamExecutor；`apply_lite_context_downgrade` 返回 effective lite cfg；`apply_lite_managed_fallback` 在 downgrade 后包装 lite） | ✅ |
 | `mcp_vault_handler.py` | ✅ 辅助 | Server 层 MCP 大结果 vault spill handler 工厂。`build_mcp_vault_handler(workspace_root)` 返回 `OversizedResultHandler` 闭包，在 `factory/builder.py` 注入到 MCP 配置，使 harness `_timeout_wrapper` 将超量结果持久化至 ArtifactVault 而非截断丢弃。 | ✅ |
-| `agent_middlewares/citation_rules_middleware.py` | ✅ 辅助 | 引用规则中间件；naked/search 模式跳过注入；lean/full 在有 UNTRUSTED 来源时注入 |
+| `agent_middlewares/citation_rules_middleware.py` | ✅ 辅助 | 引用规则中间件；search 模式跳过注入；full 在有 UNTRUSTED 来源时注入 |
 | `agent_middlewares/tool_selection_middleware.py` | ✅ 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 |
 | `tools/_tool_layer_bootstrap.py` | ✅ 核心 | Server 专属工具向 harness `_TOOL_LAYERS` 注册（channel_notify、image/video/tts media 工具、artifact_publish） |
 

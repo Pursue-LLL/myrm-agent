@@ -28,7 +28,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `request_view_guard_middleware.py` | Core | `RequestViewGuardMiddleware`: the last model-call wrapper before the provider; hands the digests of the request's messages to the run's cache break detector, which names the first message where a request stopped extending the previous one. Records only, never rewrites. | ✅ |
 | `rate_limit.py` | Core | Proactive provider 429 throttling. | ✅ |
 | `replan_middleware.py` | Core | Dynamic replan loop on tool errors. | ✅ |
-| `session_access_middleware.py` | Core | Inject per-turn HITL session directory access context (`<session-access>` block) before a model call when the history does not carry it yet (marker dedup); returns only the new message. | ✅ |
+| `session_access_middleware.py` | Core | Inject the directory access context (`<session-access>` block: the workspace, the declared roots and the session's HITL grants) before a model call when the history does not carry it yet (marker dedup); returns only the new message. Only a run whose registry holds a tool taking paths (`glob_tool`, `grep_tool`, `file_write_tool`, `file_edit_tool`, `bash_code_execute_tool`) gets it, read per call because the registry is filled after the chain is built: the fast-search mount carries `file_read_tool` alone, over spill files and uploads whose paths the messages state in full. | ✅ |
 | `subagent_limit_middleware.py` | Core | Max concurrent subagents per turn. | ✅ |
 
 | Submodule | Description |

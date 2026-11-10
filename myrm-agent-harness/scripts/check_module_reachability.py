@@ -10,12 +10,6 @@ own tests and is re-exported from an ``__init__.py`` but is called by nothing is
 path and fails the gate. There is no allowlist: wire the unit into a production call site (covered
 by a test that drives the real entry point) or delete it.
 
-"Unwired" is not the same as "dead", and the gate cannot tell them apart on its own. A unit that is
-implemented, tested and waiting for the surface that will call it declares that in one paragraph of
-its module docstring — ``[PENDING] <what it waits for>``, beside ``[POS]`` — and is then reported as
-pending instead of dead. The note is not an exemption: the gate still fails when a unit carrying it
-has in fact gained a consumer, so it cannot outlive the wait.
-
 With ``--base REV`` the gate switches to diff mode: only units that are dead now and were not dead at
 the merge-base with ``REV`` fail (see ``module_reachability_diff``). The harness package, the server
 tree and ``pyproject.toml`` are all read at that merge-base, so a unit orphaned by deleting its last
@@ -106,10 +100,6 @@ def _format_units(units: tuple[Unit, ...]) -> list[str]:
     return [f"  {unit.key}  ({unit.lines} lines)" for unit in units]
 
 
-def _format_pending(units: tuple[Unit, ...]) -> list[str]:
-    return [f"  {unit.key}  ({unit.lines} lines) — {unit.pending}" for unit in units]
-
-
 def _print_report(
     report: Report,
     failing: tuple[Unit, ...],
@@ -128,17 +118,6 @@ def _print_report(
     if verbose and report.server_only:
         print("Server-only units:")
         print("\n".join(_format_units(report.server_only)))
-    if report.pending:
-        print(f"{len(report.pending)} unit(s) declared [PENDING] — implemented, not wired yet, not counted as dead:")
-        print("\n".join(_format_pending(report.pending)))
-    if report.stale_pending:
-        print(
-            f"FAIL: {len(report.stale_pending)} unit(s) still say [PENDING] but already have a production consumer; "
-            "drop the note:",
-            file=sys.stderr,
-        )
-        print("\n".join(_format_pending(report.stale_pending)), file=sys.stderr)
-        return
     if diff is not None:
         print(
             f"diff mode: merge-base {diff.base[:10]} with {base_rev}; "
@@ -152,9 +131,7 @@ def _print_report(
     print("\n".join(_format_units(failing)), file=sys.stderr)
     print(
         "Wire each unit into a production call site covered by a test that drives the real entry point, "
-        "or delete it. A re-export in an __init__.py is not a consumer and there is no allowlist. "
-        "A unit that is implemented and waiting for its caller says so in one line of its module "
-        "docstring, `[PENDING] <what it waits for>`, and is reported as pending instead of dead.",
+        "or delete it. A re-export in an __init__.py is not a consumer and there is no allowlist.",
         file=sys.stderr,
     )
 
@@ -215,10 +192,6 @@ def main(argv: list[str] | None = None) -> int:
                     "units": len(report.units),
                     "base": diff.base if diff else None,
                     "dead": [{"unit": unit.key, "lines": unit.lines} for unit in failing],
-                    "pending": [
-                        {"unit": unit.key, "lines": unit.lines, "reason": unit.pending} for unit in report.pending
-                    ],
-                    "stale_pending": [{"unit": unit.key, "lines": unit.lines} for unit in report.stale_pending],
                     "server_only": [{"unit": unit.key, "lines": unit.lines} for unit in report.server_only],
                 },
                 indent=2,
@@ -226,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     else:
         _print_report(report, failing, label, elapsed, verbose=args.verbose, diff=diff, base_rev=args.base)
-    return 1 if failing or report.stale_pending else 0
+    return 1 if failing else 0
 
 
 if __name__ == "__main__":

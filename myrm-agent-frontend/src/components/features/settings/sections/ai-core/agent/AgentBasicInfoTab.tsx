@@ -4,49 +4,33 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
 import { Switch } from '@/components/primitives/switch';
-import { Shield, Unlock, X, Zap } from 'lucide-react';
-
-import { PersonalityStylePicker } from './PersonalityStylePicker';
+import { X } from 'lucide-react';
 
 const MAX_SUGGESTION_PROMPTS = 8;
 
 interface AgentBasicInfoTabProps {
   name: string;
   description: string;
-  personalityStyle: string;
-  promptMode: 'full' | 'lean' | 'naked';
   allowDiscovery: boolean;
   formalKoreanReplies: boolean;
   suggestionPrompts: string[];
   readonly?: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
-  onPersonalityChange: (value: string) => void;
-  onPromptModeChange: (value: 'full' | 'lean' | 'naked') => void;
   onAllowDiscoveryChange: (value: boolean) => void;
   onFormalKoreanRepliesChange: (value: boolean) => void;
   onSuggestionPromptsChange: (value: string[]) => void;
 }
 
-const PROMPT_MODES: Array<{ value: 'full' | 'lean' | 'naked'; icon: React.ReactNode }> = [
-  { value: 'full', icon: <Shield className="w-5 h-5" /> },
-  { value: 'lean', icon: <Zap className="w-5 h-5" /> },
-  { value: 'naked', icon: <Unlock className="w-5 h-5" /> },
-];
-
 export function AgentBasicInfoTab({
   name,
   description,
-  personalityStyle,
-  promptMode,
   allowDiscovery,
   formalKoreanReplies,
   suggestionPrompts,
   readonly: isReadonly = false,
   onNameChange,
   onDescriptionChange,
-  onPersonalityChange,
-  onPromptModeChange,
   onAllowDiscoveryChange,
   onFormalKoreanRepliesChange,
   onSuggestionPromptsChange,
@@ -197,45 +181,6 @@ export function AgentBasicInfoTab({
             <Switch checked={formalKoreanReplies} onCheckedChange={onFormalKoreanRepliesChange} disabled={isReadonly} />
           </div>
         </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">{t('agent.promptMode.title')}</label>
-          <p className="text-xs text-muted-foreground">{t('agent.promptMode.description')}</p>
-          <div className="grid grid-cols-3 gap-2">
-            {PROMPT_MODES.map((mode) => {
-              const isSelected = promptMode === mode.value;
-              return (
-                <button
-                  key={mode.value}
-                  type="button"
-                  onClick={() => !isReadonly && onPromptModeChange(mode.value)}
-                  disabled={isReadonly}
-                  className={cn(
-                    'flex flex-col items-center gap-1.5 p-3 rounded-xl',
-                    'border transition-all duration-200',
-                    isReadonly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
-                    isSelected
-                      ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
-                      : 'border-border/40 bg-background hover:border-border hover:bg-muted/30',
-                  )}
-                >
-                  <span className="text-xl leading-none">{mode.icon}</span>
-                  <span
-                    className={cn(
-                      'text-xs font-medium leading-tight text-center',
-                      isSelected ? 'text-primary' : 'text-muted-foreground',
-                    )}
-                  >
-                    {t(`agent.promptMode.modes.${mode.value}`)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground/80 italic">{t(`agent.promptMode.hints.${promptMode}`)}</p>
-        </div>
-
-        <PersonalityStylePicker value={personalityStyle} onChange={onPersonalityChange} readonly={isReadonly} />
       </div>
     </div>
   );

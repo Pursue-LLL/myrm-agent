@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AgentListItem } from '@/services/agent';
 import { filterChannelBindableAgents } from '@/services/channels/channelAgentBinding';
 
-function agent(id: string, promptMode?: string): AgentListItem {
+function agent(id: string, promptMode?: 'full' | 'search'): AgentListItem {
   return {
     id,
     name: id,

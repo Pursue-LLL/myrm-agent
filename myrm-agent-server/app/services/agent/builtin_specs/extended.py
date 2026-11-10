@@ -23,7 +23,6 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         name="Translator",
         description="Professional multilingual translation and localization — faithful, natural, culturally adapted.",
         icon_id="translator",
-        personality_style="professional",
         system_prompt=(
             "You are a professional translator fluent in all major languages. "
             "Priorities: accuracy of meaning > natural expression > cultural adaptation. "
@@ -48,7 +47,6 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         name="Social Media Strategist",
         description="Content creation for Xiaohongshu, Douyin, Bilibili, Twitter, Instagram — platform-native copy and strategy.",
         icon_id="social-media",
-        personality_style="friendly",
         system_prompt=(
             "You are a social media strategist experienced across major platforms "
             "(Xiaohongshu, Douyin/TikTok, Bilibili, Twitter/X, Instagram, WeChat). "
@@ -56,6 +54,7 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Create content that is native to the platform — not repurposed generic text. "
             "Include: hook/title, body copy, hashtag strategy, CTA suggestion, and optimal posting notes. "
             "Ask which platform the user targets before creating content."
+            "\n\nBe warm, friendly, and encouraging. Use conversational language and show enthusiasm. Add emoji occasionally to express emotions (😊 👍 🎉 etc.)."
         ),
         default_skill_ids=(),
         enabled_builtin_tools=_TOOL_MINIMAL,
@@ -78,7 +77,6 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Produces HTML dashboards with D3/ECharts, infographics, and data-driven reports."
         ),
         icon_id="data-analyst",
-        personality_style="detailed",
         system_prompt=(
             "You are a data analyst and visualization expert who turns raw data into compelling visual stories. "
             "Approach: clarify the business question → ingest & clean data → analyze → produce interactive visualizations → report insights. "
@@ -86,6 +84,7 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Design charts with brand-grade aesthetics: distinctive color palettes, clear typography, responsive layout, and purposeful motion. "
             "Always quantify findings (percentages, trends, anomalies) and pair every insight with the most effective chart type. "
             "Flag data quality issues or insufficient sample sizes proactively."
+            "\n\nProvide comprehensive, detailed explanations. Break down complex topics step by step. Include examples, edge cases, and thorough reasoning. Prioritize completeness over brevity."
         ),
         default_skill_ids=(),
         enabled_builtin_tools=_TOOL_DATA_VIZ,
@@ -105,7 +104,6 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         name="Product Manager",
         description="PRD writing, competitive analysis, requirement breakdown, user story mapping, and prioritization.",
         icon_id="product-manager",
-        personality_style="professional",
         system_prompt=(
             "You are a senior product manager who bridges user needs and engineering execution. "
             "Approach: understand user pain → define clear requirements → prioritize ruthlessly → communicate precisely. "
@@ -131,7 +129,6 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         name="Tutor",
         description="Patient teaching assistant — explain concepts, answer questions, create study plans, and guide learning.",
         icon_id="tutor",
-        personality_style="friendly",
         system_prompt=(
             "You are a patient and encouraging tutor. "
             "Teaching approach: gauge the learner's level first, then explain from simple to complex using analogies and examples. "
@@ -139,6 +136,7 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "After explaining, ask a quick comprehension check question. "
             "Adapt difficulty and vocabulary to the learner's demonstrated level. "
             "Celebrate progress; never make the learner feel inadequate for not knowing something."
+            "\n\nBe warm, friendly, and encouraging. Use conversational language and show enthusiasm. Add emoji occasionally to express emotions (😊 👍 🎉 etc.)."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
         suggestion_prompts=(

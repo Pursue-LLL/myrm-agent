@@ -16,13 +16,11 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
           tier?: 'simple' | 'standard' | 'reasoning' | 'complex' | 'code' | 'long_doc';
           specialty?: 'code' | 'long_doc' | 'reasoning' | 'multimodal' | 'casual' | 'general';
           reason?: string;
-          model_tier?: 'weak' | 'medium';
         }
       | undefined;
     const tier = routingData?.tier;
     const specialty = routingData?.specialty;
     const reason = routingData?.reason;
-    const modelTier = routingData?.model_tier;
     if (typeof window !== 'undefined') {
       const afterPush = () => {
         try {
@@ -43,7 +41,6 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       };
       const diag = {
         tier,
-        modelTier,
         added,
         mid: data.messageId,
         at: Date.now(),
@@ -64,13 +61,12 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       (window as unknown as { __MYRM_ROUTING_DIAG__?: unknown[] }).__MYRM_ROUTING_DIAG__ = diagArr;
       console.warn('[MYRM_ROUTING_DIAG]', JSON.stringify(diag));
     }
-    if (tier || specialty || reason || modelTier) {
+    if (tier || specialty || reason) {
       ctx.meta = {
         ...(ctx.meta ?? {}),
         ...(tier ? { routingTier: tier } : {}),
         ...(specialty ? { routingSpecialty: specialty } : {}),
         ...(reason ? { routingReason: reason } : {}),
-        ...(modelTier ? { modelTier } : {}),
       };
       if (!added) {
         actions.setMessages((state) => {
@@ -82,7 +78,6 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
             routingTier: tier,
             routingSpecialty: specialty,
             routingReason: reason,
-            modelTier,
             createdAt: new Date(),
             metadata: data.metadata,
           });
@@ -105,9 +100,6 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
             }
             if (reason) {
               state.messages[messageIndex].routingReason = reason;
-            }
-            if (modelTier) {
-              state.messages[messageIndex].modelTier = modelTier;
             }
           }
         });

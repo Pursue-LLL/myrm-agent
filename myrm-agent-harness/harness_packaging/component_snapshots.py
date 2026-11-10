@@ -54,7 +54,6 @@ def export_middleware_stack_snapshot() -> list[dict[str, Any]]:
         "debug_logger_middleware",
         "tool_interceptor_middleware",
         "create_context_pipeline_middleware",
-        "create_concurrency_limiter",
         "ToolConflictGateMiddleware",
         "PlanConfirmMiddleware",
         "goal_focus_middleware",

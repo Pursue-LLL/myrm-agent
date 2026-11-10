@@ -223,7 +223,7 @@ def test_every_page_is_filled_to_the_token_budget_and_the_pages_cover_the_text(
         (1_000_000, 20_000),
     ],
 )
-def test_a_window_within_the_medium_tier_gets_a_tenth_of_it_and_any_other_window_the_full_page(
+def test_a_window_of_at_most_65536_tokens_gets_a_tenth_of_it_and_any_other_window_the_full_page(
     window: int | None, budget: int
 ) -> None:
     assert page_token_budget(window) == budget

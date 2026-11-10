@@ -83,10 +83,7 @@ def mock_agent_service():
         mock_profile.max_iterations = None
         mock_profile.memory_policy = None
         mock_profile.memory_decay_profile = None
-        mock_profile.metadata = {
-            "security_overrides": None,
-            "personality_style": "professional",
-        }
+        mock_profile.metadata = {"security_overrides": None}
         service.get_agent_by_id = AsyncMock(return_value=mock_profile)
         yield service
 
@@ -314,7 +311,6 @@ async def test_channel_injects_auto_restore_domains_from_resolved_profile(
         subagent_ids=None,
         mcp_ids=(),
         security_overrides=None,
-        personality_style=None,
         max_iterations=None,
         workspace_policy=None,
         memory_policy=None,
@@ -360,42 +356,8 @@ def clear_agent_cache():
 
 
 @pytest.mark.asyncio
-async def test_personality_injection_from_agent_config(mock_agent_factory, mock_load_user_configs, mock_agent_service):
-    """Non-professional personality from agent config injects Communication Style suffix."""
-    mock_agent_service.get_agent_by_id.return_value.metadata = {
-        "security_overrides": None,
-        "personality_style": "humorous",
-    }
-
-    executor = ChannelAgentExecutor()
-    msg = InboundMessage(
-        channel="test",
-        sender_id="u1",
-        chat_id="c1",
-        content="hi",
-        channel_capabilities=ChannelCapabilities(media=True, file_upload=True, markdown=True),
-        sent_at=1696932000.0,
-        sent_timezone="UTC",
-    )
-    topic_context = TopicContext(topic_id="t1", agent_id="main")
-
-    stream = executor.execute_stream(msg=msg, topic_context=topic_context)
-    async for _ in stream:
-        pass
-
-    params = mock_agent_factory.create_general_agent.call_args[0][0]
-    assert "**Communication Style**:" in params.user_instructions
-    assert "humorous" in params.user_instructions.lower() or "playful" in params.user_instructions.lower()
-
-
-@pytest.mark.asyncio
-async def test_personality_metadata_overrides_agent_config(mock_agent_factory, mock_load_user_configs, mock_agent_service):
-    """Personality from message metadata (slash command) takes priority over agent config."""
-    mock_agent_service.get_agent_by_id.return_value.metadata = {
-        "security_overrides": None,
-        "personality_style": "academic",
-    }
-
+async def test_session_style_from_slash_command_is_injected(mock_agent_factory, mock_load_user_configs, mock_agent_service):
+    """The IM ``/personality`` choice travels in message metadata and is rendered as a Communication Style block."""
     executor = ChannelAgentExecutor()
     msg = InboundMessage(
         channel="test",
@@ -415,17 +377,12 @@ async def test_personality_metadata_overrides_agent_config(mock_agent_factory, m
 
     params = mock_agent_factory.create_general_agent.call_args[0][0]
     assert "**Communication Style**:" in params.user_instructions
-    assert (
-        "concise" in params.user_instructions.lower()
-        or "brief" in params.user_instructions.lower()
-        or "terse" in params.user_instructions.lower()
-    )
-    assert "academic" not in params.user_instructions.lower()
+    assert "Answer first" in params.user_instructions
 
 
 @pytest.mark.asyncio
-async def test_professional_personality_no_suffix(mock_agent_factory, mock_load_user_configs, mock_agent_service):
-    """Professional personality (default) does not inject Communication Style suffix."""
+async def test_no_style_block_without_session_choice(mock_agent_factory, mock_load_user_configs, mock_agent_service):
+    """Without a session-level choice no Communication Style block is injected."""
     executor = ChannelAgentExecutor()
     msg = InboundMessage(
         channel="test",

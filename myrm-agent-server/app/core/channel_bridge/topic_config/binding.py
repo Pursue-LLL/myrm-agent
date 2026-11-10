@@ -97,7 +97,6 @@ class BindingMixin:
             reply_mode=reply_mode,
             draft_timeout_minutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
             draft_timeout_action=timeout_action,
-            personality_style=str(topic_cfg["personalityStyle"]) if topic_cfg.get("personalityStyle") else None,
             identity_scope=identity_scope,
             identity_id=str(topic_cfg["identityId"]) if topic_cfg.get("identityId") else None,
             identity_name=str(topic_cfg["identityName"]) if topic_cfg.get("identityName") else None,
@@ -121,7 +120,6 @@ class BindingMixin:
         draft_timeout_action: DraftTimeoutAction | object = _UNSET,
         project_id: str | None | object = _UNSET,
         authorized_path: str | None | object = _UNSET,
-        personality_style: str | None | object = _UNSET,
         identity_scope: IdentityScopeMode | object = _UNSET,
         identity_id: str | None | object = _UNSET,
         identity_name: str | None | object = _UNSET,
@@ -211,12 +209,6 @@ class BindingMixin:
         elif authorized_path is _UNSET:
             resolved_authorized_path = str(topic_entry["authorizedPath"]) if topic_entry.get("authorizedPath") else None
 
-        if personality_style is not _UNSET:
-            if personality_style:
-                topic_entry["personalityStyle"] = str(personality_style)
-            else:
-                topic_entry.pop("personalityStyle", None)
-
         if identity_scope is not _UNSET:
             scope_value = identity_scope.value if isinstance(identity_scope, IdentityScopeMode) else str(identity_scope)
             topic_entry["identityScope"] = scope_value
@@ -265,7 +257,6 @@ class BindingMixin:
             reply_mode=effective_reply_mode,
             draft_timeout_minutes=int(topic_entry.get("draftTimeoutMinutes", 5)),
             draft_timeout_action=effective_timeout_action,
-            personality_style=str(topic_entry["personalityStyle"]) if topic_entry.get("personalityStyle") else None,
             identity_scope=effective_identity_scope,
             identity_id=str(topic_entry["identityId"]) if topic_entry.get("identityId") else None,
             identity_name=str(topic_entry["identityName"]) if topic_entry.get("identityName") else None,

@@ -51,7 +51,7 @@ class SQLitePendingMixin(SQLiteStoreHost):
             await conn.commit()
             return record.id
         except Exception as e:
-            self._handle_query_error("submit_pending", e)
+            await self._handle_query_error("submit_pending", e)
             return record.id
 
     async def get_pending(self, pending_id: str) -> PendingRecord | None:
@@ -61,7 +61,7 @@ class SQLitePendingMixin(SQLiteStoreHost):
                 row = await cursor.fetchone()
             return row_to_pending(tuple(row)) if row else None
         except Exception as e:
-            self._handle_query_error("get_pending", e)
+            await self._handle_query_error("get_pending", e)
             return None
 
     async def pending_exists(self, memory_type: str, content: str) -> bool:
@@ -73,7 +73,7 @@ class SQLitePendingMixin(SQLiteStoreHost):
             ) as cursor:
                 return await cursor.fetchone() is not None
         except Exception as e:
-            self._handle_query_error("pending_exists", e)
+            await self._handle_query_error("pending_exists", e)
             return False
 
     async def mark_pending(self, pending_id: str, status: str) -> None:
@@ -87,7 +87,7 @@ class SQLitePendingMixin(SQLiteStoreHost):
             )
             await conn.commit()
         except Exception as e:
-            self._handle_query_error("mark_pending", e)
+            await self._handle_query_error("mark_pending", e)
 
     async def list_pending(self, *, limit: int = 50) -> list[PendingRecord]:
         conn = await self._get_connection()
@@ -125,7 +125,7 @@ class SQLitePendingMixin(SQLiteStoreHost):
             await conn.commit()
             return cursor.rowcount or 0
         except Exception as e:
-            self._handle_query_error("batch_mark_pending", e)
+            await self._handle_query_error("batch_mark_pending", e)
             return 0
 
     async def delete_pending_by_source_chat_id(self, source_chat_id: str) -> int:
@@ -139,7 +139,7 @@ class SQLitePendingMixin(SQLiteStoreHost):
             await conn.commit()
             return cursor.rowcount or 0
         except Exception as e:
-            self._handle_query_error("delete_pending_by_source_chat_id", e)
+            await self._handle_query_error("delete_pending_by_source_chat_id", e)
             return 0
 
     async def count_pending_by_source_chat_id(self, source_chat_id: str) -> int:

@@ -83,7 +83,6 @@ async def test_initialize_creates_all_builtin_agents(test_db: sessionmaker):
         else:
             assert not agent.system_prompt
         assert agent.avatar and agent.avatar.startswith("icon:")
-        assert agent.personality_style
 
 
 @pytest.mark.asyncio
@@ -112,7 +111,6 @@ async def test_initialize_skips_existing_partial(test_db: sessionmaker):
                 avatar=f"icon:{first_spec.icon_id}",
                 is_built_in=True,
                 is_public=True,
-                personality_style=first_spec.personality_style,
                 system_prompt=first_spec.system_prompt,
                 skill_ids=[],
                 mcp_servers=[],
@@ -144,7 +142,6 @@ async def test_initialize_updates_outdated_spec_fields(test_db: sessionmaker):
                 avatar="emoji:❌",
                 is_built_in=True,
                 is_public=True,
-                personality_style="humorous",
                 system_prompt="Outdated prompt",
                 skill_ids=["user-skill-1"],
                 mcp_servers=["user-mcp"],
@@ -163,7 +160,6 @@ async def test_initialize_updates_outdated_spec_fields(test_db: sessionmaker):
     assert agent.name == first_spec.name
     assert agent.description == first_spec.description
     assert agent.avatar == f"icon:{first_spec.icon_id}"
-    assert agent.personality_style == first_spec.personality_style
     assert agent.system_prompt == first_spec.system_prompt
     # User-customizable fields must NOT be overwritten
     assert agent.skill_ids == ["user-skill-1"]
@@ -184,7 +180,6 @@ async def test_initialize_preserves_zero_default_skill_ids(test_db: sessionmaker
                 description=dev_spec.description,
                 is_built_in=True,
                 is_public=True,
-                personality_style=dev_spec.personality_style,
                 system_prompt=dev_spec.system_prompt,
                 skill_ids=[],
                 skill_configs=None,
@@ -320,7 +315,6 @@ async def test_update_builtin_agent_other_fields_allowed(test_db: sessionmaker):
             skill_ids=["skill-1"],
             enabled_builtin_tools=["web_search"],
             max_iterations=50,
-            personality_style="creative",
             subagent_ids=["sub-1"],
             mcp_ids=["mcp-1"],
             security_overrides={"sandbox": True},
@@ -347,7 +341,7 @@ async def test_update_nonexistent_agent_returns_none(test_db: sessionmaker):
 
 @pytest.mark.asyncio
 async def test_search_agents_have_correct_extended_fields(test_db: sessionmaker):
-    """Search agents should have enabled_builtin_tools, engine_params, memory_policy, prompt_mode."""
+    """Search agents should have enabled_builtin_tools, engine_params, prompt_mode and no memory-policy override."""
     await initialize_builtin_agents()
 
     async with test_db() as session:
@@ -359,12 +353,7 @@ async def test_search_agents_have_correct_extended_fields(test_db: sessionmaker)
     assert fast.prompt_mode == "search"
     assert fast.engine_params == {"max_tool_calls": 8}
     assert fast.max_iterations == 30
-    assert fast.memory_policy == {
-        "read_scopes": ["global", "conversation"],
-        "write_policy": "conversation",
-        "allow_l3_extraction": False,
-        "auto_cleanup": True,
-    }
+    assert fast.memory_policy is None
     # 搜索提示词由 prompt_mode="search" 单一提供，system_prompt 留空避免重复注入
     assert not fast.system_prompt
 
@@ -373,12 +362,7 @@ async def test_search_agents_have_correct_extended_fields(test_db: sessionmaker)
     assert deep.prompt_mode == "search"
     assert deep.engine_params == {"max_tool_calls": 20}
     assert deep.max_iterations == 50
-    assert deep.memory_policy == {
-        "read_scopes": ["global", "conversation"],
-        "write_policy": "conversation",
-        "allow_l3_extraction": False,
-        "auto_cleanup": True,
-    }
+    assert deep.memory_policy is None
     assert not deep.system_prompt
 
 
@@ -394,12 +378,10 @@ async def test_search_agents_update_syncs_extended_fields(test_db: sessionmaker)
                 avatar="icon:search",
                 is_built_in=True,
                 is_public=True,
-                personality_style="concise",
                 system_prompt="old prompt",
                 enabled_builtin_tools=["browser"],
                 prompt_mode="full",
                 engine_params={"max_tool_calls": 3},
-                memory_policy=None,
                 skill_ids=[],
                 mcp_servers=[],
                 subagent_ids=[],
@@ -418,12 +400,6 @@ async def test_search_agents_update_syncs_extended_fields(test_db: sessionmaker)
     assert agent.prompt_mode == "search"
     assert agent.engine_params == {"max_tool_calls": 8}
     assert agent.max_iterations == 30
-    assert agent.memory_policy == {
-        "read_scopes": ["global", "conversation"],
-        "write_policy": "conversation",
-        "allow_l3_extraction": False,
-        "auto_cleanup": True,
-    }
     # 旧的冗余 system_prompt 被同步清空，避免双重注入
     assert not agent.system_prompt
 
@@ -440,7 +416,6 @@ async def test_initialize_syncs_hr_screener_tools_without_baseline(test_db: sess
                 avatar="icon:Briefcase",
                 is_built_in=True,
                 is_public=True,
-                personality_style="professional",
                 system_prompt="old prompt",
                 enabled_builtin_tools=["web_search", "memory", "file_ops"],
                 prompt_mode="full",
@@ -477,7 +452,6 @@ async def test_initialize_syncs_economy_memory_extraction_preset(test_db: sessio
                 avatar=f"icon:{economy_spec.icon_id}",
                 is_built_in=True,
                 is_public=True,
-                personality_style=economy_spec.personality_style,
                 system_prompt=economy_spec.system_prompt,
                 memory_extraction_preset="auto",
                 skill_ids=[],
@@ -503,7 +477,7 @@ async def test_initialize_syncs_economy_deliverable_system_prompt(test_db: sessi
     from app.ai_agents.prompts.deliverable_discipline import KNOWLEDGE_WORK_SYSTEM_PROMPT
 
     economy_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-economy")
-    assert economy_spec.system_prompt is KNOWLEDGE_WORK_SYSTEM_PROMPT
+    assert economy_spec.system_prompt.startswith(KNOWLEDGE_WORK_SYSTEM_PROMPT)
 
     async with test_db() as session:
         session.add(
@@ -514,7 +488,6 @@ async def test_initialize_syncs_economy_deliverable_system_prompt(test_db: sessi
                 avatar=f"icon:{economy_spec.icon_id}",
                 is_built_in=True,
                 is_public=True,
-                personality_style=economy_spec.personality_style,
                 system_prompt="Outdated inline economy prompt",
                 memory_extraction_preset=economy_spec.memory_extraction_preset,
                 skill_ids=[],
@@ -531,7 +504,7 @@ async def test_initialize_syncs_economy_deliverable_system_prompt(test_db: sessi
         result = await session.execute(select(Agent).where(Agent.id == economy_spec.id))
         agent = result.scalar_one()
 
-    assert agent.system_prompt == KNOWLEDGE_WORK_SYSTEM_PROMPT
+    assert agent.system_prompt == economy_spec.system_prompt
     assert "<deliverable_discipline>" in agent.system_prompt
 
 

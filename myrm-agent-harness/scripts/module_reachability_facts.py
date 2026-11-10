@@ -47,7 +47,6 @@ class FileFacts:
     lines: int
     runnable: bool = False
     stars: frozenset[str] = frozenset()
-    pending: str = ""
 
 
 def _resolve_relative(level: int, module: str | None, package: str) -> str:
@@ -262,31 +261,6 @@ def _hub_bindings(tree: ast.Module, scan: _Scan, package: str, roots: Sequence[s
     return bindings, aliased
 
 
-def _pending_reason(tree: ast.Module) -> str:
-    """The ``[PENDING]`` note from the module docstring, or ``""``.
-
-    A unit that is implemented, tested and deliberately not wired yet says so once, in its own
-    header, next to the ``[POS]`` paragraph: ``[PENDING] <why it is not wired and what will wire it>``.
-    The gate then reports it as pending instead of dead, and rejects a pending unit that is already
-    consumed so the note cannot outlive the wait.
-    """
-    docstring = ast.get_docstring(tree) or ""
-    lines = docstring.splitlines()
-    for index, line in enumerate(lines):
-        stripped = line.strip()
-        if not stripped.startswith("[PENDING]"):
-            continue
-        # The note is one paragraph: the marker line plus the continuation lines under it.
-        note = [stripped[len("[PENDING]") :].strip()]
-        for follow in lines[index + 1 :]:
-            text = follow.strip()
-            if not text or text.startswith("["):
-                break
-            note.append(text)
-        return " ".join(part for part in note if part)
-    return ""
-
-
 def analyze_source(text: str, package: str, roots: Sequence[str], *, role: Role) -> FileFacts:
     """Extract evidence from ``text``.
 
@@ -313,12 +287,4 @@ def analyze_source(text: str, package: str, roots: Sequence[str], *, role: Role)
     else:
         targets |= imported | _string_targets(scan.strings) | set(bindings.values())
     stars = _star_sources(scan.imports, package) if role is Role.MODULE else frozenset()
-    return FileFacts(
-        frozenset(targets),
-        bindings,
-        _exports(tree),
-        lines,
-        _runs_as_script(tree),
-        stars,
-        _pending_reason(tree) if role is Role.MODULE else "",
-    )
+    return FileFacts(frozenset(targets), bindings, _exports(tree), lines, _runs_as_script(tree), stars)

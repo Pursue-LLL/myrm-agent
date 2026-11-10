@@ -2,6 +2,7 @@
 
 [INPUT]
 myrm_agent_harness.toolkits.memory::MemoryManager, MemoryType, types.AnyMemory (POS: Unified memory manager and memory domain types)
+myrm_agent_harness.toolkits.memory.config::MemoryWritePolicy (POS: where an agent-bound manager writes new memories)
 app.services.memory.command_center.command_center_memory_scan::{ALL_MEMORY_TYPES, count_memories_by_type} (POS: 指挥中心记忆类型枚举与按类型计数)
 app.services.memory.command_center.command_center_pending::build_candidate_records (POS: 审批队列在指挥中心的读取视图)
 app.services.memory.command_center.command_center_projection_utils::preview_content (POS: 指挥中心预览裁剪)
@@ -19,6 +20,7 @@ import logging
 from typing import Literal
 
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
+from myrm_agent_harness.toolkits.memory.config import MemoryWritePolicy
 from myrm_agent_harness.toolkits.memory.types import AnyMemory
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +29,7 @@ from app.schemas.memory.command_center import (
     MemoryFourPartitionSummary,
     MemoryRecallBoundaryData,
     MemoryRecallScopeBoundary,
+    ScopeLevel,
 )
 from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES, count_memories_by_type
 from app.services.memory.command_center.command_center_pending import build_candidate_records
@@ -36,8 +39,6 @@ logger = logging.getLogger(__name__)
 
 _APPROVED_SAMPLE_LIMIT = 15
 _PREVIEW_CHARS = 100
-
-_ALL_SCOPE_LEVELS = frozenset({"global", "agent", "channel", "conversation", "task", "shared"})
 
 Partition = Literal["identity", "session_memory", "operating_instructions", "retrievable_evidence"]
 
@@ -59,34 +60,24 @@ def _scope_boundaries(
     task_id: str | None,
 ) -> list[MemoryRecallScopeBoundary]:
     policy = memory_manager.memory_policy
-    active_levels = {scope.value for scope in policy.read_scopes} if (policy and policy.read_scopes) else _ALL_SCOPE_LEVELS
-    levels = [
-        ("global", "Global Shared Knowledge", "global", "System-wide persistent facts and rules"),
-        (
-            "agent",
-            f"Agent Dedicated ({agent_id or 'default'})",
-            f"agent:{agent_id or 'default'}",
-            "Private memory assigned to this agent identity",
-        ),
-        ("channel", "Channel/Integration Boundary", "channel:*", "Platform or channel-specific context"),
-        ("conversation", "Session Conversation State", "conversation:*", "Current multi-turn dialog flow"),
-        (
-            "task",
-            f"Task Boundary ({task_id or 'active'})",
-            f"task:{task_id or 'active'}",
-            "Ephemeral execution session memory",
-        ),
-        ("shared", "Team Shared Context", "shared:*", "Explicitly shared team vaults and resources"),
-    ]
-    return [
-        MemoryRecallScopeBoundary(
+    # No read-scope restriction means every level is readable.
+    readable = {scope.value for scope in policy.read_scopes} if (policy and policy.read_scopes) else None
+
+    def boundary(level: ScopeLevel, namespace_pattern: str) -> MemoryRecallScopeBoundary:
+        return MemoryRecallScopeBoundary(
             level=level,
-            label=label,
-            is_active=level in active_levels,
-            namespace_pattern=pattern,
-            description=description,
+            is_active=readable is None or level in readable,
+            namespace_pattern=namespace_pattern,
         )
-        for level, label, pattern, description in levels
+
+    # Without an agent id the harness reads the "default" agent namespace; a task namespace exists only for a known task.
+    return [
+        boundary("global", "global"),
+        boundary("agent", f"agent:{agent_id or 'default'}"),
+        boundary("channel", "channel:*"),
+        boundary("conversation", "conversation:*"),
+        boundary("task", f"task:{task_id or '*'}"),
+        boundary("shared", "shared:*"),
     ]
 
 
@@ -158,7 +149,7 @@ async def build_recall_boundary(
         agent_id=agent_id or (policy.agent_id if policy else None),
         task_id=task_id or (policy.task_id if policy else None),
         read_scopes=_scope_boundaries(memory_manager, agent_id=agent_id, task_id=task_id),
-        write_policy=(policy.write_policy.value if (policy and hasattr(policy.write_policy, "value")) else "inherit"),
+        write_policy=policy.write_policy if policy else MemoryWritePolicy.INHERIT,
         partitions=MemoryFourPartitionSummary(
             identity_count=totals["identity"],
             session_memory_count=totals["session_memory"],

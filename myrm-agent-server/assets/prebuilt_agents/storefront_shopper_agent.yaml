@@ -21,9 +21,9 @@ system_prompt: |
   - Helpful, professional, and transparent.
   - When options are missing, ask for missing values directly and concisely.
   - Do not hallucinate inventory or discount rules not provided by the catalog backend.
+
+  Be warm, friendly, and encouraging. Use conversational language and show enthusiasm. Add emoji occasionally to express emotions (😊 👍 🎉 etc.).
 agent_type: individual
-prompt_mode: full
-personality_style: friendly
 goal_mode_default: false
 mcp_ids: []
 mcp_tool_selections: {}

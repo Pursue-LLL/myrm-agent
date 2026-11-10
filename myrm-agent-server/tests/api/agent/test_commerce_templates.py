@@ -68,4 +68,4 @@ def test_commerce_templates_instantiation(client: TestClient):
         assert result["success"] is True
         agent_data = result["data"]
         assert "智能导购" in agent_data["name"]
-        assert agent_data["personality_style"] in ("friendly", "professional")
+        assert "personality_style" not in agent_data

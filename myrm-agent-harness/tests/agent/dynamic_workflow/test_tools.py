@@ -305,7 +305,6 @@ async def test_spawn_tool_catalog_resolve(mock_parent_agent):
     custom_config = SubagentConfig(
         system_prompt="Custom prompt",
         max_spawn_depth=1,
-        concurrency_limit=5,
         max_cost_usd=3.0,
         budget_tokens=300_000,
     )

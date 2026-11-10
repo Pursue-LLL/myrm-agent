@@ -40,7 +40,6 @@ members:
       - 考虑可扩展性、可维护性、性能
       - 识别技术风险并给出缓解策略
       输出格式：方案文档（含架构图描述、模块说明、接口定义、风险评估）
-    personality_style: professional
   - role: developer
     name:
       zh: "高级开发者"
@@ -57,7 +56,6 @@ members:
       - 关键路径包含单元测试
       - 考虑边界条件和异常场景
       编码风格：简洁优雅，命名准确，避免过度设计。
-    personality_style: professional
   - role: reviewer
     name:
       zh: "代码审查员"
@@ -74,4 +72,3 @@ members:
       - 可维护性：命名、结构、耦合度
       - 测试覆盖：关键路径是否有测试
       输出格式：逐项点评（严重/建议/赞）+ 总体评价 + 修改建议。
-    personality_style: professional

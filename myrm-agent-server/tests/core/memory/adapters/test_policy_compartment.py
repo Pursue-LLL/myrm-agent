@@ -83,7 +83,6 @@ def test_compartment_policy_overrides_wider_profile_policy_but_keeps_identifiers
         read_scopes=(MemoryScopeLevel.GLOBAL, MemoryScopeLevel.AGENT),
         write_policy=MemoryWritePolicy.AGENT,
         allow_l3_extraction=True,
-        auto_cleanup=True,
     )
 
     confined = compartment_memory_policy(profile)
@@ -91,5 +90,5 @@ def test_compartment_policy_overrides_wider_profile_policy_but_keeps_identifiers
     assert confined.read_scopes == (MemoryScopeLevel.CONVERSATION,)
     assert confined.write_policy == MemoryWritePolicy.INHERIT
     assert confined.allow_l3_extraction is False
-    assert (confined.agent_id, confined.task_id, confined.auto_cleanup) == ("planner", "task-9", True)
+    assert (confined.agent_id, confined.task_id) == ("planner", "task-9")
     assert profile.read_scopes == (MemoryScopeLevel.GLOBAL, MemoryScopeLevel.AGENT)

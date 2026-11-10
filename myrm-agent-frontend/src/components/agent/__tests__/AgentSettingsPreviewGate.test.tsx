@@ -26,8 +26,6 @@ describe('AgentSettingsPreviewGate', () => {
       memory_preset: 'dual_layer',
       deploy_mode: 'sandbox',
       sandbox_bound_note: '受控容器沙箱：高危命令被系统级安全拦截',
-      prompt_mode: 'full',
-      personality_style: 'professional',
     },
   };
 
@@ -48,8 +46,6 @@ describe('AgentSettingsPreviewGate', () => {
       mcp_ids: [],
       memory_preset: 'dual_layer',
       deploy_mode: 'sandbox',
-      prompt_mode: 'lean',
-      personality_style: 'collaborative',
     },
   };
 
@@ -57,13 +53,7 @@ describe('AgentSettingsPreviewGate', () => {
     const handleConfirm = vi.fn();
     const handleBack = vi.fn();
 
-    render(
-      <AgentSettingsPreviewGate
-        template={fullTemplate}
-        onConfirm={handleConfirm}
-        onBack={handleBack}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={fullTemplate} onConfirm={handleConfirm} onBack={handleBack} />);
 
     // Header & identity
     expect(screen.getByText('全栈架构专家')).toBeInTheDocument();
@@ -93,20 +83,13 @@ describe('AgentSettingsPreviewGate', () => {
     expect(screen.getByTestId('preview-matrix-sandbox')).toBeInTheDocument();
     expect(screen.getByText('受控容器沙箱：高危命令被系统级安全拦截')).toBeInTheDocument();
 
-    // Meta Specs Pill Bar
+    // Pre-flight Status Bar
     expect(screen.getByText('Pre-flight verified')).toBeInTheDocument();
-    expect(screen.getByText('full')).toBeInTheDocument();
-    expect(screen.getByText('professional')).toBeInTheDocument();
+    expect(screen.queryByText(/Prompt Mode/)).not.toBeInTheDocument();
   });
 
   it('renders fallback copy for minimal templates without settings_preview', () => {
-    render(
-      <AgentSettingsPreviewGate
-        template={minimalTemplate}
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={minimalTemplate} onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     expect(screen.getByText('Standard workspace primitives inherited')).toBeInTheDocument();
     expect(screen.getByText('No extra skills pre-mounted')).toBeInTheDocument();
@@ -114,26 +97,14 @@ describe('AgentSettingsPreviewGate', () => {
   });
 
   it('renders team badge when template agent_type is team', () => {
-    render(
-      <AgentSettingsPreviewGate
-        template={teamTemplate}
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={teamTemplate} onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     expect(screen.getByText('Team')).toBeInTheDocument();
   });
 
   it('triggers onBack when back button is clicked', () => {
     const handleBack = vi.fn();
-    render(
-      <AgentSettingsPreviewGate
-        template={fullTemplate}
-        onConfirm={vi.fn()}
-        onBack={handleBack}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={fullTemplate} onConfirm={vi.fn()} onBack={handleBack} />);
 
     const backBtn = screen.getByRole('button', { name: /Back/i });
     fireEvent.click(backBtn);
@@ -142,13 +113,7 @@ describe('AgentSettingsPreviewGate', () => {
 
   it('triggers onConfirm when confirm button is clicked', () => {
     const handleConfirm = vi.fn();
-    render(
-      <AgentSettingsPreviewGate
-        template={fullTemplate}
-        onConfirm={handleConfirm}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={fullTemplate} onConfirm={handleConfirm} onBack={vi.fn()} />);
 
     const confirmBtn = screen.getByTestId('confirm-instantiate-agent-btn');
     fireEvent.click(confirmBtn);
@@ -156,14 +121,7 @@ describe('AgentSettingsPreviewGate', () => {
   });
 
   it('disables buttons when isCreating is true', () => {
-    render(
-      <AgentSettingsPreviewGate
-        template={fullTemplate}
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-        isCreating
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={fullTemplate} onConfirm={vi.fn()} onBack={vi.fn()} isCreating />);
 
     expect(screen.getByRole('button', { name: /Back/i })).toBeDisabled();
     expect(screen.getByTestId('confirm-instantiate-agent-btn')).toBeDisabled();

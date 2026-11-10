@@ -592,15 +592,13 @@ class KanbanTaskRunner:
             )
 
         if profile:
-            from app.services.agent.params.profile_output_suffixes import (
-                apply_profile_output_suffixes,
+            from app.services.agent.params.response_locale_suffix import (
+                apply_response_locale_suffix,
             )
 
-            task_user_instructions = apply_profile_output_suffixes(
+            task_user_instructions = apply_response_locale_suffix(
                 task_user_instructions,
-                personality_style=profile.personality_style,
                 engine_params=profile.engine_params,
-                agent_id=task.agent_id,
             )
 
         declared_roots: tuple[str, ...] = ()

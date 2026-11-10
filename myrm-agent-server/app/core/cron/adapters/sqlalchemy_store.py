@@ -80,7 +80,6 @@ class SqlAlchemyCronStore:
     async def list_jobs(
         self,
         *,
-        user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
@@ -97,7 +96,7 @@ class SqlAlchemyCronStore:
             stmt = stmt.where(CronJobModel.project_id == project_id)
 
         if name_filter:
-            stmt = stmt.where(CronJobModel.name.ilike(f"%{name_filter}%"))
+            stmt = stmt.where(CronJobModel.name.icontains(name_filter, autoescape=True))
 
         if due_before is not None:
             stmt = stmt.where(
@@ -120,7 +119,6 @@ class SqlAlchemyCronStore:
     async def count_jobs(
         self,
         *,
-        user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
@@ -131,7 +129,7 @@ class SqlAlchemyCronStore:
         if project_id is not None:
             stmt = stmt.where(CronJobModel.project_id == project_id)
         if name_filter:
-            stmt = stmt.where(CronJobModel.name.ilike(f"%{name_filter}%"))
+            stmt = stmt.where(CronJobModel.name.icontains(name_filter, autoescape=True))
         async with get_session() as session:
             return (await session.execute(stmt)).scalar_one()
 

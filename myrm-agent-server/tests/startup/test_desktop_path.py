@@ -16,7 +16,6 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.toolkits.code_execution import tool_discovery
 
 from app.startup import desktop_path
 
@@ -180,9 +179,24 @@ class TestMergeAndCommonToolDirs:
 
         assert desktop_path._existing_common_tool_dirs() == [str(present)]
 
-    def test_common_tool_dirs_are_the_list_cli_discovery_searches(self) -> None:
-        """One list for both: the prompt's CLI inventory and the shell's PATH must not drift apart."""
-        assert vars(desktop_path)["COMMON_TOOL_DIRS"] is tool_discovery.COMMON_TOOL_DIRS
+    def test_default_tool_dirs_cover_system_and_user_bins(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/home/someone")))
+
+        assert desktop_path._default_tool_dirs() == (
+            "/usr/local/bin",
+            "/opt/homebrew/bin",
+            "/opt/homebrew/sbin",
+            "/home/someone/.local/bin",
+            "/home/someone/.cargo/bin",
+        )
+
+    def test_default_tool_dirs_skip_home_entries_when_home_is_unresolvable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _no_home(cls: type[Path]) -> Path:
+            raise RuntimeError("Could not determine home directory.")
+
+        monkeypatch.setattr(Path, "home", classmethod(_no_home))
+
+        assert desktop_path._default_tool_dirs() == ("/usr/local/bin", "/opt/homebrew/bin", "/opt/homebrew/sbin")
 
 
 class TestHydrate:

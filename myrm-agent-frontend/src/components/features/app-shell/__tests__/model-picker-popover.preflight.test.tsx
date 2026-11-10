@@ -123,7 +123,6 @@ const renderPopover = (
   props: {
     estimatedTokens?: number | null;
     compressStartRatio?: number | null;
-    promptMode?: string | null;
     turnCount?: number | null;
     chatId?: string | null;
     onSelect?: (providerId: string, model: string) => void;
@@ -136,7 +135,6 @@ const renderPopover = (
       onSelect={onSelect}
       estimatedTokens={props.estimatedTokens}
       compressStartRatio={props.compressStartRatio ?? null}
-      promptMode={props.promptMode ?? null}
       turnCount={props.turnCount ?? null}
       chatId={props.chatId ?? null}
       trigger={<button type="button">open</button>}
@@ -260,21 +258,20 @@ describe('ModelPickerPopover preflight warning', () => {
       0.6,
       null,
       null,
-      null,
     );
   });
 
-  it('passes promptMode to the preflight service', async () => {
+  it('passes turnCount to the preflight service', async () => {
     mocks.fetchModelSwitchPreflight.mockResolvedValue({ results: [] });
 
-    renderPopover({ estimatedTokens: 9000, promptMode: 'lean', turnCount: 7 });
+    renderPopover({ estimatedTokens: 9000, turnCount: 7 });
 
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledWith(9000, expect.any(Array), null, 'lean', 7, null);
+    expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledWith(9000, expect.any(Array), null, 7, null);
   });
 
   it('re-fetches preflight when turnCount grows past the dynamic-threshold window', async () => {
@@ -286,7 +283,6 @@ describe('ModelPickerPopover preflight warning', () => {
         onSelect={vi.fn()}
         estimatedTokens={9000}
         compressStartRatio={null}
-        promptMode={null}
         turnCount={3}
         trigger={<button type="button">open</button>}
       />,
@@ -297,7 +293,7 @@ describe('ModelPickerPopover preflight warning', () => {
       await Promise.resolve();
     });
     expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledTimes(1);
-    expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledWith(9000, expect.any(Array), null, null, 3, undefined);
+    expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledWith(9000, expect.any(Array), null, 3, undefined);
 
     rerender(
       <ModelPickerPopover
@@ -305,7 +301,6 @@ describe('ModelPickerPopover preflight warning', () => {
         onSelect={vi.fn()}
         estimatedTokens={9000}
         compressStartRatio={null}
-        promptMode={null}
         turnCount={10}
         trigger={<button type="button">open</button>}
       />,
@@ -316,52 +311,7 @@ describe('ModelPickerPopover preflight warning', () => {
       await Promise.resolve();
     });
     expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledTimes(2);
-    expect(mocks.fetchModelSwitchPreflight).toHaveBeenLastCalledWith(
-      9000,
-      expect.any(Array),
-      null,
-      null,
-      10,
-      undefined,
-    );
-  });
-
-  it('re-fetches preflight when promptMode changes mid-session', async () => {
-    mocks.fetchModelSwitchPreflight.mockResolvedValue({ results: [] });
-
-    const { rerender } = render(
-      <ModelPickerPopover
-        currentSelection={{ providerId: 'p1', model: 'model-a' }}
-        onSelect={vi.fn()}
-        estimatedTokens={9000}
-        compressStartRatio={null}
-        promptMode={null}
-        trigger={<button type="button">open</button>}
-      />,
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledTimes(1);
-
-    rerender(
-      <ModelPickerPopover
-        currentSelection={{ providerId: 'p1', model: 'model-a' }}
-        onSelect={vi.fn()}
-        estimatedTokens={9000}
-        compressStartRatio={null}
-        promptMode="lean"
-        trigger={<button type="button">open</button>}
-      />,
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchModelSwitchPreflight).toHaveBeenLastCalledWith(9000, expect.any(Array), null, 10, undefined);
   });
 });
 

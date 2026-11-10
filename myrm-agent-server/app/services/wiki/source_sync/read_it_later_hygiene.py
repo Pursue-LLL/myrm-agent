@@ -71,7 +71,7 @@ def is_stale_read_it_later_job(job: CronJob) -> bool:
 
 async def migrate_stale_read_it_later_jobs(*, user_id: str = _DEFAULT_USER_ID) -> ReadItLaterHygieneResult:
     mgr = get_cron_manager()
-    jobs = await mgr.list_jobs(user_id)
+    jobs = await mgr.list_jobs()
     result = ReadItLaterHygieneResult()
 
     for job in jobs:

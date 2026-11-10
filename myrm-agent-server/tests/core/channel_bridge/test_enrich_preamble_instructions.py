@@ -153,6 +153,19 @@ async def test_personality_template_coexists_with_im_persona() -> None:
 
 
 @pytest.mark.asyncio
+async def test_unknown_session_style_adds_no_block() -> None:
+    """A session style that is not a known preset renders nothing."""
+    result = await enrich_channel_user_instructions(
+        _msg(None, metadata={"personality_style": "nonexistent-style"}),
+        user_instructions="base",
+        resolved_profile=None,
+        agent_subagent_ids=None,
+        resolved_agent_id=None,
+    )
+    assert result == "base"
+
+
+@pytest.mark.asyncio
 async def test_response_locale_suffix_from_profile() -> None:
     """Agent profile response_locale_policy appends Korean honorific suffix."""
     from app.services.agent.profile.profile_resolver import ResolvedAgentProfile

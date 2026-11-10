@@ -92,7 +92,7 @@ async def heartbeat_status() -> HeartbeatStatusResponse:
     from myrm_agent_harness.toolkits.cron.heartbeat import get_heartbeat_status
 
     mgr = _h._get_manager()
-    status = await get_heartbeat_status(mgr, USER_ID)
+    status = await get_heartbeat_status(mgr)
     if not status.job:
         return HeartbeatStatusResponse(enabled=False)
     return _job_to_response(status.job, enabled=status.enabled)
@@ -131,7 +131,7 @@ async def heartbeat_disable() -> HeartbeatStatusResponse:
     disabled = await disable_heartbeat(mgr, USER_ID)
     if not disabled:
         raise HTTPException(status_code=404, detail="Heartbeat not found")
-    status = await get_heartbeat_status(mgr, USER_ID)
+    status = await get_heartbeat_status(mgr)
     if not status.job:
         return HeartbeatStatusResponse(enabled=False)
     return _job_to_response(status.job, enabled=False)

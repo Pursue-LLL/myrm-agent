@@ -14,32 +14,8 @@ async function throwUserAgentFetchError(response: Response, action: string): Pro
   throw new Error(parseUserAgentFetchErrorMessage(errorText, action, response.statusText));
 }
 
-export const DEFAULT_PERSONALITY_STYLE = 'professional' as const;
-
 /** 28 built-in presets exceed API default page_size=20. */
 export const AGENT_LIST_BUILTIN_PAGE_SIZE = 50;
-
-/**
- * One communication style preset. The catalog is owned by the server
- * (`GET /agents/personalities`); the editor renders whatever it returns.
- */
-export interface PersonalityCatalogItem {
-  id: string;
-  displayName: string;
-  displayNameZh: string;
-  description: string;
-  descriptionZh: string;
-  exampleResponse: string;
-  exampleResponseZh: string;
-  iconId: string;
-  /** Server-owned category id (known: practical, fun); new ids render as extra groups. */
-  category: string;
-}
-
-/** Load the built-in communication style presets. */
-export async function getPersonalityCatalog(): Promise<PersonalityCatalogItem[]> {
-  return apiRequest<PersonalityCatalogItem[]>('/agents/personalities', { method: 'GET', silent: true });
-}
 
 /** Metadata for a built-in subagent preset exposed by the Agent editor. */
 export interface SubagentPresetItem {
@@ -157,8 +133,6 @@ export interface Agent {
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
   default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
-  prompt_mode?: 'full' | 'lean' | 'naked';
-  personality_style?: string;
   subagent_ids?: string[];
   max_iterations?: number | null;
   workspace_policy?: WorkspacePolicy;
@@ -190,7 +164,7 @@ export interface AgentListItem {
   avatar_url?: string;
   is_built_in?: boolean;
   agent_type?: AgentType;
-  prompt_mode?: string;
+  prompt_mode?: 'full' | 'search';
   skill_ids?: string[];
   mcp_ids?: string[];
   subagent_ids?: string[];
@@ -222,8 +196,6 @@ export interface AgentCreate {
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
   default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
-  prompt_mode?: 'full' | 'lean' | 'naked';
-  personality_style?: string;
   subagent_ids?: string[];
   max_iterations?: number | null;
   workspace_policy?: WorkspacePolicy;
@@ -266,8 +238,6 @@ export interface AgentUpdate {
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
   default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
-  prompt_mode?: 'full' | 'lean' | 'naked';
-  personality_style?: string;
   subagent_ids?: string[];
   max_iterations?: number | null;
   workspace_policy?: WorkspacePolicy;
@@ -870,8 +840,6 @@ export interface TemplateSettingsPreview {
   memory_preset: string;
   deploy_mode: string;
   sandbox_bound_note?: string | null;
-  prompt_mode: string;
-  personality_style: string;
 }
 
 export interface TemplateListItem {

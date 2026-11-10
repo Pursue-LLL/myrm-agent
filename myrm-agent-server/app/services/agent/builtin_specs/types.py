@@ -44,13 +44,11 @@ class _BuiltInAgentSpec:
     name: str
     description: str
     icon_id: str
-    personality_style: str
     system_prompt: str
     default_skill_ids: tuple[str, ...] = ()
     enabled_builtin_tools: tuple[str, ...] | None = None
     prompt_mode: str = "full"
     engine_params: dict[str, object] | None = field(default=None, compare=False)
-    memory_policy: dict[str, object] | None = field(default=None, compare=False)
     memory_extraction_preset: str | None = None
     max_iterations: int | None = None
     suggestion_prompts: tuple[str, ...] = ()

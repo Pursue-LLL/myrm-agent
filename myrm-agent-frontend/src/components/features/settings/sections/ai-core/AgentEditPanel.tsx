@@ -317,16 +317,12 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
             <AgentBasicInfoTab
               name={editor.name}
               description={editor.description}
-              personalityStyle={editor.personalityStyle}
-              promptMode={editor.promptMode}
               allowDiscovery={editor.allowDiscovery}
               formalKoreanReplies={formalKoreanReplies}
               suggestionPrompts={editor.suggestionPrompts}
               readonly={editor.isReadonly}
               onNameChange={editor.setName}
               onDescriptionChange={editor.setDescription}
-              onPersonalityChange={editor.setPersonalityStyle}
-              onPromptModeChange={editor.setPromptMode}
               onAllowDiscoveryChange={editor.setAllowDiscovery}
               onFormalKoreanRepliesChange={handleFormalKoreanRepliesChange}
               onSuggestionPromptsChange={editor.setSuggestionPrompts}

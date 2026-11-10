@@ -177,7 +177,7 @@ describe('preflight helpers', () => {
 
   it('changes the request signature whenever the session context or candidates change', () => {
     const pairs = buildPreflightPairs(ENABLED, [OPENAI, OLLAMA], { 'gpt-4o': CAPS });
-    const base = { chatId: 'c1', estimatedTokens: 1000, compressStartRatio: 0.5, promptMode: 'full', turnCount: 3 };
+    const base = { chatId: 'c1', estimatedTokens: 1000, compressStartRatio: 0.5, turnCount: 3 };
     const signature = buildPreflightSignature(base, pairs);
 
     expect(buildPreflightSignature({ ...base }, pairs)).toBe(signature);
@@ -185,7 +185,6 @@ describe('preflight helpers', () => {
       { chatId: 'c2' },
       { estimatedTokens: 1001 },
       { compressStartRatio: null },
-      { promptMode: 'lean' },
       { turnCount: 4 },
     ]) {
       expect(buildPreflightSignature({ ...base, ...change }, pairs)).not.toBe(signature);

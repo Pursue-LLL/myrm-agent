@@ -1,7 +1,7 @@
 """Stream Pipeline for GeneralAgent.
 
 [INPUT]
-- app.core.utils.delivery_provenance::resolve_general_agent_pipeline_labels, apply_delivery_banner (POS: Human ingress banner + structured log labels keyed by channel_name.)
+- app.core.utils.delivery_provenance::resolve_general_agent_pipeline_labels, apply_general_agent_pipeline_banner (POS: Human ingress banner (not for the browser chat) + structured log labels keyed by channel_name.)
 - app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware::reset_answer_tool_convergence (POS: 工具约束中间件的收敛状态重置)
 - app.ai_agents.general_agent.forced_delegate::stream_forced_delegate (POS: 指定外部 Agent 的直连委托：安全闸门、可用性检查、失败指引)
 
@@ -18,7 +18,7 @@ from uuid import uuid4
 
 from app.ai_agents.general_agent.forced_delegate import stream_forced_delegate
 from app.core.utils.delivery_provenance import (
-    apply_delivery_banner,
+    apply_general_agent_pipeline_banner,
     resolve_general_agent_pipeline_labels,
 )
 
@@ -81,7 +81,7 @@ async def execute_stream_pipeline(
                 yield event
         return
 
-    query = apply_delivery_banner(query, channel_label=ch_label, ingress_label=ingress_label)
+    query = apply_general_agent_pipeline_banner(query, channel_name=agent_wrapper.channel_name)
     query_preview = query if isinstance(query, str) else "[multimodal]"
 
     if agent_wrapper.jit_subagents:

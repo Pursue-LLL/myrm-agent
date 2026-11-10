@@ -2,7 +2,7 @@
 - app.services.agent.params.models::AgentRequest (POS: Agent API request DTO)
 - app.services.agent.profile.profile_resolver::ResolvedAgentProfile (POS: saved Agent profile)
 - app.services.agent.params.mcp_selection (POS: per-agent MCP server/tool filtering)
-- app.services.agent.params.profile_output_suffixes (POS: personality + response-locale suffix injection)
+- app.services.agent.params.response_locale_suffix (POS: response-locale suffix injection)
 - app.ai_agents.team_protocol::build_leader_protocol_prompt (POS: team leader protocol prompt)
 - app.platform_utils.sandbox.tool_gateway::merge_tool_gateway_config (POS: tool gateway config merge)
 - app.core.types::MCPServerConfig (POS: MCP server config DTO)
@@ -184,8 +184,8 @@ async def apply_agent_profile(
                 f"{profile.user_instructions}\n\n{leader_protocol}" if profile.user_instructions else leader_protocol
             )
 
-        from app.services.agent.params.profile_output_suffixes import (
-            apply_profile_output_suffixes,
+        from app.services.agent.params.response_locale_suffix import (
+            apply_response_locale_suffix,
         )
 
         suffix_engine_params: dict[str, object] | None = dict(resolved.engine_params) if resolved.engine_params else None
@@ -198,11 +198,9 @@ async def apply_agent_profile(
             else:
                 suffix_engine_params = dict(request.engine_params)
 
-        profile.user_instructions = apply_profile_output_suffixes(
+        profile.user_instructions = apply_response_locale_suffix(
             profile.user_instructions,
-            personality_style=resolved.personality_style,
             engine_params=suffix_engine_params,
-            agent_id=request.agent_id,
         )
 
     if profile.mcp_configs and resolved:

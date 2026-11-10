@@ -177,7 +177,7 @@ def build_middlewares(
             BudgetBoundaryMiddleware(),
             SecurityBoundaryMiddleware(),
             CanaryMiddleware(),
-            SessionAccessMiddleware(),
+            SessionAccessMiddleware(registry),
             SecurityGuardrailMiddleware(),
         ]
     )

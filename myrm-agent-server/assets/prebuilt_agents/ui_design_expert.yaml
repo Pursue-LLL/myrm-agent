@@ -40,8 +40,6 @@ system_prompt: |
   - Mobile-first responsive — designs must be beautiful at 375px, not just functional
   - WCAG AA contrast ratios maintained even with bold color choices
 agent_type: individual
-prompt_mode: full
-personality_style: professional
 mcp_ids:
   - "figma"
 mcp_tool_selections: {}

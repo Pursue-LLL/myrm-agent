@@ -89,7 +89,6 @@ myrm_agent_harness.agent.middlewares.guardrails.core
 myrm_agent_harness.agent.middlewares.memory_context.ephemeral_delta_middleware
 myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware
 myrm_agent_harness.agent.middlewares.memory_context.proactive_pack_middleware
-myrm_agent_harness.agent.middlewares.memory_context.two_layer_context_middleware
 myrm_agent_harness.agent.middlewares.moa_advisor_middleware
 myrm_agent_harness.agent.orchestration.steering
 myrm_agent_harness.agent.parallel.config
@@ -171,7 +170,6 @@ myrm_agent_harness.agent.sub_agents.config_loader
 myrm_agent_harness.agent.sub_agents.delegation_policy
 myrm_agent_harness.agent.sub_agents.manager
 myrm_agent_harness.agent.sub_agents.orchestrator
-myrm_agent_harness.agent.sub_agents.registry
 myrm_agent_harness.agent.sub_agents.session_tree
 myrm_agent_harness.agent.sub_agents.types
 myrm_agent_harness.agent.tool_management
@@ -213,9 +211,7 @@ myrm_agent_harness.backends.skills.versioning
 myrm_agent_harness.core.artifacts.constants
 myrm_agent_harness.core.artifacts.manifest
 myrm_agent_harness.core.artifacts.paths
-myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
-myrm_agent_harness.core.config.model_tier
 myrm_agent_harness.core.config.wire
 myrm_agent_harness.core.context_vars
 myrm_agent_harness.core.events
@@ -336,7 +332,6 @@ myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types
 myrm_agent_harness.toolkits.code_execution.security
 myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
 myrm_agent_harness.toolkits.code_execution.session.process_tree
-myrm_agent_harness.toolkits.code_execution.tool_discovery
 myrm_agent_harness.toolkits.code_execution.utils.log_distiller
 myrm_agent_harness.toolkits.code_execution.utils.port_sniffer
 myrm_agent_harness.toolkits.code_execution.utils.workspace_path

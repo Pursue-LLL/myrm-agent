@@ -68,7 +68,7 @@ class RecallMode(StrEnum):
     """Controls how memory context is delivered to the agent.
 
     - HYBRID: context injection + memory tools (default, full capability)
-    - CONTEXT: context injection only, memory tools hidden (API/headless scenarios)
+    - CONTEXT: context injection only, memory tools hidden (one-shot surfaces such as fast search)
     - TOOLS: memory tools only, no auto-injection (minimal token overhead)
     """
 
@@ -110,7 +110,6 @@ class AgentMemoryPolicy:
     - ``INHERIT`` preserves existing behavior: write with the full derived scope chain.
     - Explicit write levels narrow writes to a single namespace, e.g. task-only.
     - ``allow_l3_extraction`` controls whether background LLM extraction is allowed.
-    - ``auto_cleanup`` controls whether ephemeral session/task state is cleaned up upon task end.
     """
 
     client_id: str | None = None
@@ -121,7 +120,6 @@ class AgentMemoryPolicy:
     read_scopes: tuple[MemoryScopeLevel, ...] | None = None
     write_policy: MemoryWritePolicy = MemoryWritePolicy.INHERIT
     allow_l3_extraction: bool = True
-    auto_cleanup: bool = False
 
     @classmethod
     def preset_l2_flow(
@@ -129,7 +127,6 @@ class AgentMemoryPolicy:
         *,
         agent_id: str | None = None,
         task_id: str | None = None,
-        auto_cleanup: bool = True,
     ) -> AgentMemoryPolicy:
         """L2-only flow agent preset (forms, tickets, workflow execution).
 
@@ -142,7 +139,6 @@ class AgentMemoryPolicy:
             read_scopes=(MemoryScopeLevel.GLOBAL, MemoryScopeLevel.TASK),
             write_policy=MemoryWritePolicy.TASK,
             allow_l3_extraction=False,
-            auto_cleanup=auto_cleanup,
         )
 
     @classmethod
@@ -150,7 +146,6 @@ class AgentMemoryPolicy:
         cls,
         *,
         agent_id: str | None = None,
-        auto_cleanup: bool = True,
     ) -> AgentMemoryPolicy:
         """FAQ / realtime search agent preset (news, weather, documentation).
 
@@ -162,7 +157,6 @@ class AgentMemoryPolicy:
             read_scopes=(MemoryScopeLevel.GLOBAL, MemoryScopeLevel.CONVERSATION),
             write_policy=MemoryWritePolicy.CONVERSATION,
             allow_l3_extraction=False,
-            auto_cleanup=auto_cleanup,
         )
 
     @classmethod
@@ -177,7 +171,6 @@ class AgentMemoryPolicy:
             read_scopes=None,
             write_policy=MemoryWritePolicy.INHERIT,
             allow_l3_extraction=True,
-            auto_cleanup=False,
         )
 
 

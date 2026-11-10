@@ -14,7 +14,6 @@ both directions, so export and import can never drift apart:
 [INPUT]
 - myrm_agent_harness.agent.plugins.models::PluginAgent (POS: portable agent record.)
 - myrm_agent_harness.backends.profiles.types::AgentProfile (POS: stored profile.)
-- app.database.dto::PersonalityStyleLiteral (POS: allowed personality presets.)
 - app.services.agent.builtin_specs.builtin_tool_ids::DEFAULT_ENABLED_BUILTIN_TOOLS
   (POS: tool grants an untrusted package may enable.)
 
@@ -36,13 +35,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final, get_args
+from typing import Final
 
 from myrm_agent_harness.agent.plugins import AGENT_STRUCTURAL_KEYS
 from myrm_agent_harness.agent.plugins.models import PluginAgent
 from myrm_agent_harness.backends.profiles.types import AgentProfile
 
-from app.database.dto import PersonalityStyleLiteral
 from app.services.agent.builtin_specs.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
 
 __all__ = [
@@ -83,7 +81,6 @@ _FIELD_RULES: Final[dict[str, tuple[Disposition, str]]] = {
     "system_prompt": (_C, "the expert's behavior"),
     "max_iterations": (_C, "loop budget; imports can only lower it to the system default"),
     "enabled_builtin_tools": (_C, "requested tool set; imports are limited to the default grants"),
-    "personality_style": (_C, "validated preset"),
     "suggestion_prompts": (_C, "starter prompts (bounded text)"),
     "allow_discovery": (_C, "delegation visibility flag"),
     "mcp_tool_selections": (_C, "per-connector tool whitelist, restricted to resolved connectors"),
@@ -104,7 +101,6 @@ _FIELD_RULES: Final[dict[str, tuple[Disposition, str]]] = {
     "security_overrides": (_X, "permission escalation vector; packages never carry security policy"),
     "default_security_preset": (_X, "security policy is the installing user's decision"),
     "required_capabilities": (_X, "channel capabilities are environment-specific"),
-    "prompt_mode": (_X, "controls which safety/system sections are injected"),
     "memory_decay_profile": (_X, "personal memory tuning"),
     "memory_extraction_preset": (_X, "personal memory tuning"),
     "workspace_policy": (_X, "workspace policy is the installing user's decision"),
@@ -141,13 +137,9 @@ _MAX_DECLARATION_NAME_CHARS: Final = 64
 
 # The author's model choice travels as a display-only hint (model name, never a provider id).
 RECOMMENDED_MODEL_KEY: Final = "recommended_model"
-_CARRIED_EXTRA_KEYS: Final = frozenset(
-    {"personality_style", "suggestion_prompts", "allow_discovery", "mcp_tool_selections", RECOMMENDED_MODEL_KEY}
-)
+_CARRIED_EXTRA_KEYS: Final = frozenset({"suggestion_prompts", "allow_discovery", "mcp_tool_selections", RECOMMENDED_MODEL_KEY})
 _MAX_TOOL_NAME_CHARS: Final = 128
 _MAX_SELECTED_TOOLS: Final = 200
-
-_PERSONALITY_STYLES: Final = frozenset(get_args(PersonalityStyleLiteral))
 
 
 def profile_to_plugin_agent(
@@ -163,9 +155,6 @@ def profile_to_plugin_agent(
     meta = profile.metadata or {}
     extras: dict[str, object] = {}
 
-    personality = meta.get("personality_style")
-    if isinstance(personality, str) and personality in _PERSONALITY_STYLES:
-        extras["personality_style"] = personality
     prompts = _bounded_texts(meta.get("suggestion_prompts"), MAX_SUGGESTION_PROMPTS, MAX_SUGGESTION_PROMPT_CHARS)
     if prompts:
         extras["suggestion_prompts"] = prompts
@@ -228,12 +217,6 @@ def import_agent_fields(agent: PluginAgent) -> ImportedAgentFields:
         fields["enabled_builtin_tools"] = granted
 
     meta = agent.metadata
-    if "personality_style" in meta:
-        style = meta["personality_style"]
-        if isinstance(style, str) and style in _PERSONALITY_STYLES:
-            fields["personality_style"] = style
-        else:
-            dropped.append("personality_style")
     if "suggestion_prompts" in meta:
         prompts = _bounded_texts(meta["suggestion_prompts"], MAX_SUGGESTION_PROMPTS, MAX_SUGGESTION_PROMPT_CHARS)
         if prompts:

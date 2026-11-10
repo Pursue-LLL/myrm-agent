@@ -170,7 +170,7 @@ messages[idx] = HumanMessage(content=f"{msg.content}\n\n{prompt}")
 - **System Prompt 永远不包含动态内容**——完全冻结
 - **说明文案与数据分离**：`datetime_rules` 在 System Prompt 中声明一次（被缓存），每条消息只携带 ~12 tokens 的时间戳数据，相比每条重复完整说明节省 ~28 tokens/条
 - **核心行为规则**：`AGENT_CORE_RULES`（`streaming/agent_core_rules.py`）追加在 `DATETIME_SYSTEM_RULES` 之后。输出固定文本（反叙述 + 工具诚实 + 搜索与上下文复用），所有模型字节相同、与模型名无关，session 内不变，完全缓存安全。模型特有的失败模式不靠分厂商的提示词文本，由代码兜底（工具调用解析器、流恢复、CompletionGuard）
-- **环境感知注入**：`detect_platform().environment_prompt_line`（`toolkits/code_execution/platform.py`）追加在 `resolve_channel_output_hint` 之后。输出一个 `<environment>` XML 标签，包含 OS 类型/版本/架构、Shell 类型/工具链差异、Python 工具链状态（pip/PEP-668/uv）。由 `detect_platform()` 的 `@lru_cache(maxsize=1)` 保证进程生命周期内不变，Python 探测由 `env_probe.get_environment_probe_line()` 的 `threading.Lock` 保证一次性探测。正常环境省略 Python 部分（零额外 token），异常环境增加 <50 tokens。完全缓存安全
+- **环境信息只在 bash 工具描述里**：OS 类型/版本/架构、Shell 类型/工具链差异、Python 工具链状态（pip/PEP-668/uv）与 VNC 视觉桌面提示由 `get_os_hint()`（`agent/meta_tools/bash/_tool/helpers.py`）拼进 bash 工具的描述，不进 system prompt；没挂 bash 工具的智能体不带这些信息。三类探测在进程生命周期内结果不变（`detect_platform()` 的 `@lru_cache(maxsize=1)`、`env_probe.get_environment_probe_line()` 的 `threading.Lock`、`get_environment_hint()` 的进程级缓存），正常环境省略 Python 与 VNC 部分（零额外 token）。完全缓存安全
 
 **已知边缘情况 — Timezone 切换**：历史消息的时间戳使用**当前请求时的用户时区**渲染（`user_timezone_var.get()`）。如果用户在对话中途切换时区（如 `Asia/Shanghai` → `America/New_York`），同一条历史消息的 UTC offset 会变化（`UTC+8` → `UTC-5`），导致该消息之后的前缀缓存一次性失效。
 
@@ -276,7 +276,7 @@ System: `<data_boundary_rules>` …               ← SecurityBoundary，state �
 - **存储值先消毒**：条目经 `defang_markup()` 把每个标签起始符（ASCII `<`、全角 `＜`、小号 `﹤`）改写为 `&lt;` 后再进预算，存储值不能关闭记忆块或开出自己的 `<user_instructions>` 块；`&`、`>`、URL 和代码原样保留。改写是确定的，同样的存储值每次得到同样的字节，缓存前缀不受影响。
 - **预算遥测**：`set_memory_runtime_budget` 的 `total` 是块预算折成的字符数（`max_tokens=2500` × 4，即 `MEMORY_BLOCK_BUDGET_CHARS`），`used` 是进入块的段落占用的字符数（被丢弃的段落不计），规则数含 VETO 与行为规则。
 
-**业务侧入账 Human 前缀（IM + pipeline）**：`myrm-agent-server/app/core/utils/delivery_provenance.py` 提供统一横幅与 `resolve_general_agent_pipeline_labels`。IM 仍由 `app/core/channel_bridge/agent_executor/helpers.py::build_channel_inbound_query` 调用 `prepend_plain_banner`（支持多模态图片+文本）。HTTP/SSE `/agent-stream` LangGraph 主路径在 `general_agent/stream_pipeline.py::execute_stream_pipeline` **进入 `SkillAgent.run` 之前**：先 **INFO `general_agent_delivery_labels`**（`channel_label`/`ingress_label`），再 **`apply_delivery_banner`**；其中 `GeneralAgent.channel_name=="web_chat"` 仍等价 `http_gui`/`browser_sse`，`cron`/`eval`/`headless_wakeup` 等由其映射。**Headless wakeup** 在 `app/services/agent/wakeup_handler.py` 显式改写 `channel_name=headless_wakeup` 并在 `memory_channel_id` 缺省时 **写回 `web_chat`**，以免记忆分区随投递前缀漂移。FastLane 在 `myrm-agent-server/app/api/agents/general_agent/streaming.py` 使用 `apply_general_agent_pipeline_banner` + `GeneralAgentParams.channel_name`；FastSearch（`action_mode=="fast"`）走同一 GeneralAgent 管线，`workspaces_storage_root` 由 `app/ai_agents/general_agent/agent.py` 在构建 runtime context 时统一写入。群组上下文块仍仅在 IM executor 拼接。
+**业务侧入账 Human 前缀（IM + pipeline）**：`myrm-agent-server/app/core/utils/delivery_provenance.py` 提供统一横幅与 `resolve_general_agent_pipeline_labels`。IM 仍由 `app/core/channel_bridge/agent_executor/helpers.py::build_channel_inbound_query` 调用 `prepend_plain_banner`（支持多模态图片+文本）。HTTP/SSE `/agent-stream` LangGraph 主路径在 `general_agent/stream_pipeline.py::execute_stream_pipeline` **进入 `SkillAgent.run` 之前**：先 **INFO `general_agent_delivery_labels`**（`channel_label`/`ingress_label`），再 **`apply_general_agent_pipeline_banner`**；其中 `GeneralAgent.channel_name=="web_chat"`（默认入口，路由恒定）的用户消息不加横幅，日志标签仍记 `http_gui`/`browser_sse`，`cron`/`eval`/`headless_wakeup` 等照加并由其映射标签。**Headless wakeup** 在 `app/services/agent/wakeup_handler.py` 显式改写 `channel_name=headless_wakeup` 并在 `memory_channel_id` 缺省时 **写回 `web_chat`**，以免记忆分区随投递前缀漂移。FastLane 在 `myrm-agent-server/app/api/agents/general_agent/streaming.py` 使用 `apply_general_agent_pipeline_banner` + `GeneralAgentParams.channel_name`；FastSearch（`action_mode=="fast"`）走同一 GeneralAgent 管线，`workspaces_storage_root` 由 `app/ai_agents/general_agent/agent.py` 在构建 runtime context 时统一写入。群组上下文块仍仅在 IM executor 拼接。
 
 ### 2.6 只增不改的消息历史与单调前缀铁律（Append-Only Law）
 
@@ -1295,7 +1295,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `streaming/utils.py` | `get_datetime_prompt()` 生成时间标签 + `DATETIME_SYSTEM_RULES` 系统规则常量 |
 | `streaming/agent_core_rules.py` | 核心行为规则：`AGENT_CORE_RULES` 是所有模型共用的固定文本 |
 | `streaming/message_builder.py` | `inject_datetime_tags()` 时间戳注入逻辑（当前消息 + 历史消息确定性注入） |
-| `base_agent.py` | `_ensure_initialized()` 中追加 DATETIME_SYSTEM_RULES + AGENT_CORE_RULES + environment_prompt_line 到 system_prompt（canary 不进 system prompt：每会话随机的 token 会让前缀缓存在该处分叉，改由 `CanaryMiddleware` 作为跟在用户输入之后的独立 SystemMessage 注入） |
+| `base_agent.py` | `_ensure_initialized()` 中追加 DATETIME_SYSTEM_RULES + AGENT_CORE_RULES + 渠道输出提示（`resolve_channel_output_hint`）到 system_prompt（canary 不进 system prompt：每会话随机的 token 会让前缀缓存在该处分叉，改由 `CanaryMiddleware` 作为跟在用户输入之后的独立 SystemMessage 注入） |
 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户指令注入到 System Prompt 之后（跨用户缓存感知） |
 | `workspace_rules/middleware.py` | Workspace 规则注入（user_instructions 之后、memory_context 之前） |
 | `middlewares/memory_context/memory_context_middleware.py` | 记忆上下文注入位置的缓存感知设计 |

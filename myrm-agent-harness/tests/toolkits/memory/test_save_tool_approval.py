@@ -132,6 +132,15 @@ async def test_parallel_identical_saves_queue_a_single_proposal(new_manager: New
     assert len(await manager.list_pending()) == 1
 
 
+async def test_parallel_identical_profile_updates_queue_a_single_proposal(new_manager: NewManager) -> None:
+    manager = new_manager(approval_required=True)
+
+    pending_ids = await asyncio.gather(*(manager.set_profile_attribute("language", "zh") for _ in range(6)))
+
+    assert sum(1 for pending_id in pending_ids if pending_id) == 1
+    assert len(await manager.list_pending()) == 1
+
+
 async def test_internal_writers_are_not_held_back_by_the_switch(new_manager: NewManager) -> None:
     """Only the agent's own saves honour the switch; the user's edits and framework writes store at once."""
     manager = new_manager(approval_required=True)

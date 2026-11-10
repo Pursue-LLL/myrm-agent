@@ -15,8 +15,6 @@
   (POS: Plan-phase HITL: intercept first todo_write plan for user review via interrupt())
 - goal_focus_middleware::goal_focus_middleware (POS: Active goal objective injection)
   (POS: 用户发起轮在末位 HumanMessage 注入 ACTIVE goal objective；continuation/wrap-up 轮跳过)
-- concurrency.concurrency_limiter::create_concurrency_limiter, (POS: Subagent  Semaphore  SUBAGENT_CONFIGS)
-  (POS: Subagent 并发限制器，根据 agent_type 限制并发)
 - concurrency.tool_conflict_gate::ToolConflictGateMiddleware (POS: Which tool calls of one agent may run at the same moment.)
   (POS: 工具冲突闸门，并发安全的调用共享、其余调用独占)
 - subagent_limit_middleware::subagent_limit_middleware (POS: Subagent limit middleware. Ensures the LLM cannot spawn more than MAX_CONCURRENT_SUBAGENTS in a single turn.)
@@ -28,9 +26,7 @@
 - create_context_pipeline_middleware(): 上下文管道中间件工厂函数
 - debug_logger_middleware: 调试日志中间件
 - tool_interceptor_middleware: 工具拦截中间件
-- create_concurrency_limiter(): Subagent 并发限制中间件工厂函数
 - ToolConflictGateMiddleware: 工具冲突闸门中间件类
-- get_subagent_semaphore(): 获取特定 agent_type 的 semaphore
 - PlanConfirmMiddleware: Plan-phase HITL 中间件类
 - reset_plan_confirm_state(): 重置 plan confirm 状态
 - goal_focus_middleware(): Active goal objective 注入中间件工厂
@@ -58,10 +54,6 @@ from myrm_agent_harness.agent.middlewares.approval import (
 from myrm_agent_harness.agent.middlewares.completion import (
     CompletionGuard,
     reset_completion_guard,
-)
-from myrm_agent_harness.agent.middlewares.concurrency.concurrency_limiter import (
-    create_concurrency_limiter,
-    get_subagent_semaphore,
 )
 from myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate import (
     ToolConflictGateMiddleware,
@@ -116,7 +108,6 @@ __all__ = [
     "RiskTriggerReason",
     "SkillBoundaryProvider",
     "ValidationResult",
-    "create_concurrency_limiter",
     "create_context_pipeline_middleware",
     "create_moa_advisor_middleware",
     "ToolConflictGateMiddleware",
@@ -125,7 +116,6 @@ __all__ = [
     "get_delegation_token",
     "get_max_consecutive_replan_errors",
     "get_replan_error_summary",
-    "get_subagent_semaphore",
     "is_unrecoverable_fatal_error",
     "notify_loop_guard_compaction",
     "progress_middleware",

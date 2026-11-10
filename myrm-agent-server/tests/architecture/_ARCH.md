@@ -51,7 +51,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_server_harness_imports.py` | 相对 baseline 禁止新增 server→harness 内部 import；禁止 import 含 ``._`` 的 harness 私有模块路径；并校验每个被 import 的 harness 模块在 harness 源包里**真实存在**（harness 单侧改名/移动时，服务端测试期即红，而不是等首个真实回合 `ImportError`） |
 | `test_runtime_image_x11_tools.py` | 两个运行时镜像（`Dockerfile`、`docker/Dockerfile.official`）的 `apt-get install` 必须在 xdotool 旁同时装 xclip 与 x11-utils（含非 ASCII 字符的文本走 xclip 剪贴板粘贴，缺失则中日韩文本整体失败；`xprop`、`xdpyinfo` 来自 x11-utils，缺失则前台窗口类名为空、屏幕分辨率回退成错误的 1920x1080） |
 | `test_dev_pid_path_ssot.py` | `scripts/**` 禁止读取子目录 `.myrm-dev-*` pid（cleanup rm 豁免） |
-| `test_server_pyproject_lock_parity.py` | pyproject 主依赖/optional extras 与 uv.lock requires-dist 同构；harness 须为 in-repo editable path source，且 lock 不解析出平台 core 轮子包（`compiled-core` extra 里的需求声明不算）；lock 只含 `pypi.org`/`files.pythonhosted.org`；禁止 GPL/optional 包与 harness 已 pin 的 `langchain`/`langchain-core` 以及已删除的 `litellm` 回流 main |
+| `test_server_pyproject_lock_parity.py` | pyproject 主依赖/optional extras 与 uv.lock requires-dist 同构；harness 须为 in-repo editable path source，且 lock 不解析出平台 core 轮子包（`compiled-core` extra 里的需求声明不算）；lock 只含 `pypi.org`/`files.pythonhosted.org`；main 依赖不得含 GPL/optional 包、harness 已 pin 的 `langchain`/`langchain-core` 与 `litellm` |
 | `test_no_user_id.py` | 单机 server 禁止多租户 user_id 泄漏 |
 | `test_no_private_references.py` | 开源仓全部已跟踪文本文件（不限 `*.md`）禁止出现私有开发壳的规划目录、名称、维护者速查文档名与 `topic_NN` 规划条目编号；一次 `git grep -I -i -E` 扫描（不区分大小写，目录名带不带斜杠都命中），编号用显式边界，紧贴中文的写法也命中；模式与样例由片段拼成，守卫文件不会命中自己；自带模式正反例自证；整树扫描另由不带路径过滤的 `.github/workflows/public-tree-guards.yml` 在每次 push main 与 PR 上独立运行（前端、桌面、脚本、根目录文档的改动同样被覆盖） |
 | `test_no_tracked_symlinks.py` | 开源仓禁止跟踪符号链接：链接目标是提交者本机上的路径，入库后新检出就会出错（曾有一个提交进来的 `myrm-agent-server/.venv` 链接让 `uv sync` 报 `File exists`、桌面发布契约随之变红）；常见来源是 worktree 为共用虚拟环境或 `node_modules` 建的链接被 `git add -A` 收进暂存区；读 `git ls-files -s` 里文件模式为 `120000` 的路径，列出即失败并给出路径；自带一个用真实 git 暂存链接与普通文件的探测自证（Windows 跳过） |
@@ -88,7 +88,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_prebuilt_skill_voice_memo_synthesizer.py` | `voice-memo-synthesizer` skill 契约防漂移：四维解构/Actionability 门禁/唯一幂等键/UTF-8-SIG 规程 |
 | `test_prebuilt_skill_voice_corpus_review.py` | `voice-corpus-review` skill 契约防漂移：跨会话多素材聚合/看板真实验收/阻碍归因/周度复盘工件规程 |
 | `test_prebuilt_skills_frontmatter_keys.py` | 出厂 prebuilt `SKILL.md` 的 frontmatter 只能声明运行时认识的键（loader 对未知键只告警，写错的键会静默失效）；`pipeline_spec` 为看板流水线专用豁免；自带反向对照防空转 |
-| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（full 模式）+ 时间规则 + 核心行为规则（所有模型共用）+ web_chat 渠道提示，按中英文各设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；主机环境行与运行时挂载的 CLI 工具段随主机或进程变化，不在范围内；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
+| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（通用 full、快速搜索、深度搜索三个面）+ 时间规则 + 核心行为规则（所有模型共用）+ web_chat 渠道提示（网页聊天不声明，为空），按面与中英文各设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
 | `test_telegram_channel_mixin_mro.py` | `TelegramChannel._pre_emit_hook` 必须来自 hooks mixin；inbound、inbound_message、inbound_poll 三个 mixin 不得定义同名方法（源码里 `TYPE_CHECKING` 下给类型检查器的声明不算）；MRO 中话题 mixin 先于 hooks mixin；`collect_issues` 必须来自诊断 mixin，而不是 `BaseChannel` 的默认实现 |

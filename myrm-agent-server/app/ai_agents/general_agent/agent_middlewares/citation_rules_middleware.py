@@ -21,7 +21,7 @@ from app.ai_agents.prompts.general_agent_prompt import get_citation_rules_if_nee
 logger = logging.getLogger(__name__)
 
 _UNTRUSTED_DATA_MARKER = "<<<UNTRUSTED_DATA "
-_SKIPPED_PROMPT_MODES = ("naked", "search")
+_SKIPPED_PROMPT_MODE = "search"
 
 _REMINDER_ZH = (
     "\n\n【任务完整性提醒】\n你必须同时严格遵循并满足上方用户原始提问中要求的所有特定输出格式、末尾特定标记及约束条件。"
@@ -85,7 +85,7 @@ class CitationRulesMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         run_context = getattr(request.runtime, "context", None) if request.runtime is not None else None
         ctx: dict[str, object] = run_context if isinstance(run_context, dict) else {}
-        if ctx.get("prompt_mode") in _SKIPPED_PROMPT_MODES:
+        if ctx.get("prompt_mode") == _SKIPPED_PROMPT_MODE:
             return await handler(request)
 
         group_end = _end_of_first_source_group(request.messages)

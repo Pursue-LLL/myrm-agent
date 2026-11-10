@@ -38,7 +38,7 @@ _COPY = {
 
 async def find_job(agent_id: str | None) -> CronJob | None:
     scope = normalize_agent_scope(agent_id)
-    for job in await get_cron_manager().list_jobs(_USER_ID):
+    for job in await get_cron_manager().list_jobs():
         if job.command == WIKI_IMA_SYNC_COMMAND and normalize_agent_scope(job.agent_id) == scope:
             return job
     return None
@@ -100,7 +100,7 @@ async def resume_job(agent_id: str | None) -> bool:
 
 async def stop_all_jobs() -> int:
     manager = get_cron_manager()
-    jobs = [job for job in await manager.list_jobs(_USER_ID) if job.command == WIKI_IMA_SYNC_COMMAND]
+    jobs = [job for job in await manager.list_jobs() if job.command == WIKI_IMA_SYNC_COMMAND]
     deleted = [await manager.delete_job(job.id, _USER_ID) for job in jobs]
     return sum(1 for ok in deleted if ok)
 

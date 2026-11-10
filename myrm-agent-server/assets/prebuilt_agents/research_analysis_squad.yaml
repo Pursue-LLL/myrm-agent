@@ -41,7 +41,6 @@ members:
       - 识别数据中的趋势和异常
       - 输出结构化的数据摘要（含数据来源）
       格式要求：使用表格展示关键数据，注明信息时效性。
-    personality_style: professional
     prebuilt_skill_ids:
       - "deep-research"
   - role: strategist
@@ -59,7 +58,6 @@ members:
       - 提出可行的战略建议（短期/中期/长期）
       - 使用SWOT/Porter/PESTEL等框架组织分析
       风格：观点鲜明、逻辑严密、可操作性强。
-    personality_style: professional
   - role: reporter
     name:
       zh: "报告撰写专家"
@@ -75,4 +73,3 @@ members:
       - 语言专业客观，数据引用准确
       - 图表建议（描述应在哪里使用什么类型的图表）
       - 确保报告可直接用于汇报或决策
-    personality_style: professional

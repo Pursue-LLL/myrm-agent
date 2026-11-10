@@ -28,8 +28,6 @@ moa_overlay:
     - providerId: openai
       model: gpt-4o
       reasoning_effort: medium
-prompt_mode: full
-personality_style: professional
 enabled_builtin_tools:
   - web_search
   - wiki

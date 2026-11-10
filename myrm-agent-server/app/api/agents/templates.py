@@ -62,8 +62,6 @@ class TemplateSettingsPreview(BaseModel):
     memory_preset: str = "dual_layer"
     deploy_mode: str = "sandbox"
     sandbox_bound_note: str | None = None
-    prompt_mode: str = "full"
-    personality_style: str = "professional"
 
 
 class TemplateListItem(BaseModel):
@@ -168,8 +166,6 @@ async def list_templates(request: Request) -> JSONResponse:
                         memory_preset=str(data.get("memory_preset") or "dual_layer"),
                         deploy_mode=str(data.get("deploy_mode") or "sandbox"),
                         sandbox_bound_note=str(data.get("sandbox_bound_note")) if data.get("sandbox_bound_note") else None,
-                        prompt_mode=str(data.get("prompt_mode") or "full"),
-                        personality_style=str(data.get("personality_style") or "professional"),
                     )
 
                     templates.append(
@@ -361,8 +357,6 @@ def _build_member_agent_data(member: dict[str, Any], accept_lang: str) -> AgentC
         "agent_type": "individual",
         "is_built_in": False,
         "allow_discovery": False,
-        "prompt_mode": member.get("prompt_mode", "full"),
-        "personality_style": member.get("personality_style", "professional"),
     }
 
     # Carry over optional fields
@@ -412,8 +406,6 @@ def _build_leader_agent_data(
         "is_built_in": False,
         "subagent_ids": member_ids,
         "allow_discovery": data.get("allow_discovery", True),
-        "prompt_mode": data.get("prompt_mode", "full"),
-        "personality_style": data.get("personality_style", "professional"),
     }
 
     # Carry over optional fields from leader config

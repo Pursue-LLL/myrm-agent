@@ -453,15 +453,6 @@ def create_context_pipeline_middleware(
                 _summary_persist_tasks.add(persist_task)
                 persist_task.add_done_callback(_summary_persist_tasks.discard)
 
-            from myrm_agent_harness.agent.middlewares._session_context import (
-                set_session_notes_summary,
-            )
-
-            if _notes_manager is not None and _notes_manager.notes.is_ready():
-                set_session_notes_summary(_notes_manager.notes.to_summary_text())
-            else:
-                set_session_notes_summary(None)
-
             response = await handler(request)
             _last_successful_call_time = time.time()
             return response

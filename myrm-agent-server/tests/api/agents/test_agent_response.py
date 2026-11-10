@@ -14,7 +14,6 @@ from app.api.agents._agent_response import (
     _resolve_enabled_builtin_tools,
     _response_memory_policy,
     _response_session_policy,
-    _safe_personality,
     _to_agent_response,
 )
 
@@ -53,20 +52,6 @@ def test_allow_discovery_defaults_true_when_missing() -> None:
 
 
 class TestSerializationHelpers:
-    def test_safe_personality_valid(self) -> None:
-        assert _safe_personality("friendly") == "friendly"
-
-    def test_safe_personality_hard_fallback(self, monkeypatch) -> None:
-        """Invalid default personality still yields a literal fallback."""
-        import app.api.agents._agent_response as mod
-
-        monkeypatch.setattr(
-            mod,
-            "DEFAULT_PERSONALITY_STYLE",
-            "not-a-real-style",
-        )
-        assert _safe_personality("also-invalid") == "professional"
-
     def test_meta_str_list_converts_to_strings(self) -> None:
         assert _meta_str_list({"mcp_ids": ["a", 1]}, "mcp_ids") == ["a", "1"]
 
@@ -136,8 +121,6 @@ class TestSerializationHelpers:
             metadata={
                 "allow_discovery": False,
                 "mcp_ids": ["mcp1"],
-                "personality_style": "friendly",
-                "prompt_mode": "lean",
                 "agent_type": "team",
                 "subagent_ids": ["sub1"],
                 "workspace_policy": "READ_ONLY_SANDBOX",
@@ -153,7 +136,6 @@ class TestSerializationHelpers:
         response = _to_agent_response(profile, show_system_prompt=True, snapshot_count=2, snapshot_saved=True)
 
         assert response.allow_discovery is False
-        assert response.personality_style == "friendly"
         assert response.agent_type == "team"
         assert response.workspace_policy == "READ_ONLY_SANDBOX"
         assert response.session_policy is not None

@@ -1,4 +1,5 @@
 """[INPUT]
+- myrm_agent_harness.toolkits.memory.config::RecallMode (POS: how memory reaches the model: injection, tools or both)
 - app.services.agent.params.models::AgentRequest (POS: Agent API request DTO)
 - app.services.agent.params.profile_apply::ProfileContext (POS: capability envelope of the turn)
 - app.services.agent.params.sources::ConfigSources (POS: search / retrieval / MCP sources)
@@ -7,12 +8,12 @@
 - app.core.channel_bridge.config_loader::load_user_configs (POS: decrypted user config loader)
 
 [OUTPUT]
-- ToolSurface: builtin tool flags, prompt mode, search depth for this entry surface
+- ToolSurface: builtin tool flags, prompt mode, search depth, memory recall mode for this entry surface
 - resolve_tool_surface(): pick the fast-search surface or the general web-chat surface
 
 [POS]
 Entry-surface stage of Agent request conversion. Fast mode is the only surface without file/bash:
-it forces an answer_tool-only profile and wipes skills / MCP / subagents / media generation.
+it forces an answer_tool-only profile, wipes skills / MCP / subagents / media generation and mounts no memory tools.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryWritePolicy
+from myrm_agent_harness.toolkits.memory.config import RecallMode
 
 from ..models import AgentRequest
 from .profile_apply import ProfileContext
@@ -41,13 +42,15 @@ class ToolSurface:
     tool_flags: BuiltinToolFlags
     prompt_mode: str
     search_depth: str = "normal"
+    memory_recall_mode: RecallMode = RecallMode.HYBRID
 
 
 async def resolve_tool_surface(request: AgentRequest, profile: ProfileContext, sources: ConfigSources) -> ToolSurface:
     """Mount the fast-search surface or the general web-chat surface.
 
     Fast mode intentionally overwrites the profile (tools, skills, MCP, subagents, media, memory
-    policy) — the saved Agent profile does not apply to a one-shot answer run. A search config
+    policy) — the saved Agent profile does not apply to a one-shot answer run — and mounts no memory
+    tools: the user's memory still reaches the model through the injected block. A search config
     reloaded here is written back into ``sources`` because that is the value the mount reads.
     """
 
@@ -92,8 +95,14 @@ async def resolve_tool_surface(request: AgentRequest, profile: ProfileContext, s
         profile.openapi_services = None
         profile.agent_max_iterations = 50 if search_depth == "deep" else 30
         profile.engine_params = {"max_tool_calls": 20 if search_depth == "deep" else 8}
-        profile.agent_memory_policy = AgentMemoryPolicy(write_policy=MemoryWritePolicy.CONVERSATION)
-        return ToolSurface(is_fast=True, tool_flags=tool_flags, prompt_mode=prompt_mode, search_depth=search_depth)
+        profile.agent_memory_policy = None
+        return ToolSurface(
+            is_fast=True,
+            tool_flags=tool_flags,
+            prompt_mode=prompt_mode,
+            search_depth=search_depth,
+            memory_recall_mode=RecallMode.CONTEXT,
+        )
 
     if sources.search_cfg is None and "web_search" in profile.enabled_builtin_tools:
         from app.core.channel_bridge.config_cache import (

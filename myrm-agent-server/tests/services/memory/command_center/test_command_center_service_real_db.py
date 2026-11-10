@@ -339,7 +339,7 @@ class TestRecallBoundary:
         assert data.total_approved == 1 + 8 + 2 + 48
         assert data.write_policy == "inherit"
         levels = {scope.level: scope for scope in data.read_scopes}
-        assert levels["agent"].label == "Agent Dedicated (a1)"
+        assert levels["agent"].namespace_pattern == "agent:a1"
         assert levels["task"].namespace_pattern == "task:t1"
         assert all(scope.is_active for scope in data.read_scopes)
 

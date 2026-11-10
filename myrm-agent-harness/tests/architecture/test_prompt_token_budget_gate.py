@@ -5,16 +5,15 @@ Validates (harness scope — 3 checks):
    + schema wrappers) does NOT exceed ceiling (≤6500 tokens), measured on a
    host-independent basis: the bash tool's live OS hint is swapped for its static
    description, and the hint is capped separately so a host quirk cannot decide the verdict.
-2. Harness system rule constants stay compact: AGENT_CORE_RULES ≤350,
+2. Harness system rule constants stay compact: AGENT_CORE_RULES ≤301,
    SECURITY_BOUNDARY_SYSTEM_RULES ≤314, DATETIME_SYSTEM_RULES ≤120.
 3. SystemMessage content hash is immutable across multiple resolutions
    (prompt cache safety).
 
-Business-layer CORE prompt caps (full ≤2000 / lean ≤1200 / lean÷full ≤0.70 on
-``cl100k_base``) live in the server repo:
+Business-layer CORE prompt cap (full ≤2000 on ``cl100k_base``) lives in the server repo:
 ``myrm-agent-server/tests/ai_agents/test_prompt_integrity.py::TestPromptTokenBudgetGate``.
 The assembled static first system message (core prompt + datetime rules + agent core rules + channel hint,
-per locale) and ``<widget_capability>`` are capped in
+per surface and locale) and ``<widget_capability>`` are capped in
 ``myrm-agent-server/tests/architecture/test_first_turn_static_prompt_budget.py``.
 """
 
@@ -55,9 +54,10 @@ class TestPromptTokenBudgetGate:
         The bash tool's description is ``static + get_os_hint()``, and the hint states the host OS
         and whatever the Python toolchain probe can reach: 58 tokens on this macOS arm64 box, 32 on
         ubuntu-latest, 31-60 across distributions, and up to ~100 when a probe finds an unusual
-        interpreter mix. Charging that live number would let the gate flip on a PATH or a probe
-        outcome instead of on an edit, so the budget compares the host-independent description
-        total and the hint is checked against its own allowance.
+        interpreter mix; a sandbox with a visual desktop adds a 57-token VNC line on top. Charging
+        that live number would let the gate flip on a PATH or a probe outcome instead of on an edit,
+        so the budget compares the host-independent description total and the hint is checked
+        against its own allowance.
 
         Scope is description + wrapper only — tool parameter schemas are tracked separately in
         DEFAULT_AGENT_TOKEN_INVENTORY.md §六.
@@ -68,8 +68,9 @@ class TestPromptTokenBudgetGate:
         )
         from scripts.measure_turn1_token_inventory import _build_default_turn1_tools
 
-        # Widest hint seen in practice is ~100 tokens; 120 leaves room without hiding a real blowup.
-        os_hint_allowance = 120
+        # Widest OS + toolchain hint seen in practice is ~100 tokens and the visual desktop line adds 57;
+        # 180 leaves room without hiding a real blowup.
+        os_hint_allowance = 180
         live_hint = get_token_count(get_os_hint("en"))
         assert live_hint <= os_hint_allowance, (
             f"bash OS hint grew to {live_hint} tokens, past the {os_hint_allowance}-token allowance "
@@ -97,8 +98,8 @@ class TestPromptTokenBudgetGate:
         sec_boundary_tokens = get_token_count(SECURITY_BOUNDARY_SYSTEM_RULES)
         datetime_tokens = get_token_count(DATETIME_SYSTEM_RULES)
 
-        # AGENT_CORE_RULES measures 312 tokens, ceiling 350 tokens
-        assert agent_core_tokens <= 350, f"AGENT_CORE_RULES tokens {agent_core_tokens} exceeded ceiling 350"
+        # AGENT_CORE_RULES measures 286 tokens, ceiling 301 tokens (measured + 5%)
+        assert agent_core_tokens <= 301, f"AGENT_CORE_RULES tokens {agent_core_tokens} exceeded ceiling 301"
 
         # SECURITY_BOUNDARY_SYSTEM_RULES measures 299 tokens, ceiling 314 tokens (measured + 5%)
         assert sec_boundary_tokens <= 314, (

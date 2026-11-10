@@ -225,16 +225,14 @@ class TestCitationRulesMiddleware:
         assert [m.content for m in sent if isinstance(m, SystemMessage)] == ["sys"]
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("mode", ["naked", "search"])
-    async def test_skips_injection_in_naked_and_search_mode(self, mode: str) -> None:
+    async def test_skips_injection_in_search_mode(self) -> None:
         messages: list[AnyMessage] = [HumanMessage(content="query"), _call("c1"), _result("c1")]
 
-        assert await _sent(messages, {"prompt_mode": mode}) == messages
+        assert await _sent(messages, {"prompt_mode": "search"}) == messages
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("mode", ["lean", "full"])
-    async def test_injects_in_lean_and_full_mode(self, mode: str) -> None:
-        sent = await _sent([HumanMessage(content="query"), _call("c1"), _result("c1")], {"prompt_mode": mode})
+    async def test_injects_in_full_mode(self) -> None:
+        sent = await _sent([HumanMessage(content="query"), _call("c1"), _result("c1")], {"prompt_mode": "full"})
 
         assert _notices(sent) == [3]
 
@@ -242,7 +240,7 @@ class TestCitationRulesMiddleware:
     async def test_injects_zh_rules_when_prompt_locale_zh(self) -> None:
         sent = await _sent(
             [HumanMessage(content="query"), _call("c1"), _result("c1")],
-            {"prompt_mode": "lean", "prompt_locale": "zh-CN"},
+            {"prompt_mode": "full", "prompt_locale": "zh-CN"},
         )
 
         assert "【任务完整性提醒】" in str(sent[3].content)

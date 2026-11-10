@@ -603,11 +603,9 @@ def test_memory_policy_adapter_and_dto_serialization_roundtrip():
         read_scopes=[MemoryScopeLevel.GLOBAL, MemoryScopeLevel.TASK],
         write_policy=MemoryWritePolicy.TASK,
         allow_l3_extraction=False,
-        auto_cleanup=True,
     )
     payload = dto.model_dump()
     assert payload["allow_l3_extraction"] is False
-    assert payload["auto_cleanup"] is True
 
     policy = memory_policy_from_dict(payload)
     assert policy is not None
@@ -615,11 +613,23 @@ def test_memory_policy_adapter_and_dto_serialization_roundtrip():
     assert policy.read_scopes == (MemoryScopeLevel.GLOBAL, MemoryScopeLevel.TASK)
     assert policy.write_policy == MemoryWritePolicy.TASK
     assert policy.allow_l3_extraction is False
-    assert policy.auto_cleanup is True
 
     serialized = memory_policy_to_dict(policy)
     assert serialized is not None
     assert serialized["allow_l3_extraction"] is False
-    assert serialized["auto_cleanup"] is True
     assert serialized["read_scopes"] == ["global", "task"]
     assert serialized["write_policy"] == "task"
+
+
+def test_a_stored_memory_policy_with_a_key_the_reader_does_not_know_loads_ignoring_it():
+    """A policy persisted with ``auto_cleanup`` (no field carries it) is read as the rest of its keys say."""
+    from app.core.memory.adapters.policy import memory_policy_from_dict
+    from app.database.dto import AgentMemoryPolicyConfig
+
+    stored = {"write_policy": "conversation", "allow_l3_extraction": False, "auto_cleanup": True}
+
+    assert AgentMemoryPolicyConfig(**stored).write_policy == MemoryWritePolicy.CONVERSATION
+    policy = memory_policy_from_dict(stored)
+    assert policy is not None
+    assert policy.write_policy == MemoryWritePolicy.CONVERSATION
+    assert policy.allow_l3_extraction is False

@@ -127,7 +127,8 @@ class GovernanceService:
         self._namespaces = list(namespaces)
         self._scope = scope.model_copy(deep=True)
         # The duplicate check and the insert are separate statements; parallel identical submits would all
-        # pass the check before the first one is queued.
+        # pass the check before the first one is queued. The lock serializes the submits of this manager only:
+        # another manager on the same database holds its own lock.
         self._submit_lock = asyncio.Lock()
 
     async def submit_pending(
@@ -304,9 +305,10 @@ class GovernanceService:
                 content=f"{key}: {value}",
                 memory_data={"key": key, "value": value, "scope": profile_scope.model_dump()},
             )
-            if await rel.pending_exists(MemoryType.PROFILE.value, record.content):
-                return ""
-            return await rel.submit_pending(record)
+            async with self._submit_lock:
+                if await rel.pending_exists(MemoryType.PROFILE.value, record.content):
+                    return ""
+                return await rel.submit_pending(record)
 
         await rel.set_profile(key, value, scope=profile_scope)
         from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (

@@ -1,6 +1,6 @@
 """用户指令注入中间件 (User Instructions Middleware)
 
-把 user_instructions 作为 SystemMessage 注入每次模型调用的请求，可被 GeneralAgent 各模式（full/lean/naked/search）共用。
+把 user_instructions 作为 SystemMessage 注入每次模型调用的请求，可被 GeneralAgent 各模式（full/search）共用。
 
 1. agent/context_management/PROMPT_CACHE_PRACTICE.md §2 前缀稳定性保障
 

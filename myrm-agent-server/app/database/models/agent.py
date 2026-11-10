@@ -1,6 +1,5 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[INPUT] app.ai_agents.personality_templates::DEFAULT_PERSONALITY_STYLE (POS: Agent 人格风格模板)
 [OUTPUT] Agent: Agent 配置, AgentSecret: Agent 加密密钥
 [POS] Agent 配置域模型。管理 Agent 基本信息、模型配置、技能绑定和加密密钥。
 """
@@ -19,8 +18,6 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.ai_agents.personality_templates import DEFAULT_PERSONALITY_STYLE
 
 from .base import Base
 
@@ -58,8 +55,8 @@ class Agent(Base):
     security_overrides: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     default_security_preset: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
+    # System-managed: "search" for the built-in search agents, "full" for every other agent.
     prompt_mode: Mapped[str] = mapped_column(String(20), default="full", nullable=False)
-    personality_style: Mapped[str] = mapped_column(String(32), default=DEFAULT_PERSONALITY_STYLE, nullable=False)
     suggestion_prompts: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     memory_decay_profile: Mapped[str] = mapped_column(String(32), default="normal", nullable=False)

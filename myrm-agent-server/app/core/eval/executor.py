@@ -279,15 +279,13 @@ class LocalEvalExecutor:
                         mcp_tool_selections=resolved.mcp_tool_selections or None,
                     )
 
-                from app.services.agent.params.profile_output_suffixes import (
-                    apply_profile_output_suffixes,
+                from app.services.agent.params.response_locale_suffix import (
+                    apply_response_locale_suffix,
                 )
 
-                user_instructions = apply_profile_output_suffixes(
+                user_instructions = apply_response_locale_suffix(
                     user_instructions,
-                    personality_style=resolved.personality_style,
                     engine_params=resolved.engine_params,
-                    agent_id=self.profile_id,
                 )
 
         if self.benchmark_mode:

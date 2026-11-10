@@ -14,7 +14,6 @@
 - myrm_agent_harness.toolkits.memory.session_post_process::run_session_post_process (POS: Single entry point for memory-domain background work after a conversation)
 - app.ai_agents.general_agent.correction_propagation::make_correction_propagation_callback (POS: 会话结束时的隐式纠错传播。两阶段检测用户纠正信号，产出结构化纠错提案，分别路由到)
 - app.ai_agents.general_agent.frustration_routing::make_frustration_skill_routing_callback (POS: Frustration signal → Skill evolution routing callback.)
-- myrm_agent_harness.core.config::ModelTier / infer_model_tier (POS: Core config — framework-agnostic configuration types.)
 - app.services.agent.backends.mcp_oauth_store::get_mcp_oauth_token_store (POS: MCP OAuth token encrypted persistence. Implements framework MCPOAuthTokenStore)
 - myrm_agent_harness.toolkits.mcp.oauth::MCPOAuthProvider (POS: MCP OAuth 2.0 + PKCE authentication. Framework-level provider implementing)
 - app.platform_utils.sandbox.entitlements.entitlement_guard::fetch_sandbox_entitlements / fetch_sandbox_entitlements (POS: Sandbox entitlement guard — resolves CP internal entitlements for SaaS sandbox mode.)
@@ -30,7 +29,6 @@
 - _get_budget_pressure_fn: Create budget pressure callback for eco mode, or None if budget module unavailable.
 - _build_skill_review_callback: Background skill review writes skills and approval records, so an incognito session never wires it.
 - _build_session_cleanup_callback: Build a composite session cleanup callback (follow-up extraction + correction propagation + skill routing).
-- _apply_small_model_tuning: Auto-tune agent parameters when a small/weak model is detected.
 
 [POS]
 与装配主流程分离的工具/Kanban/回调构造；只被 factory 包内部调用。
@@ -52,7 +50,6 @@ if TYPE_CHECKING:
 
     from app.ai_agents.general_agent.agent import GeneralAgent
     from app.core.types import MCPServerConfig
-
 
 
 async def _try_inject_mcp_oauth[Config: (MCPConfig, MCPServerConfig)](cfg: Config) -> Config:
@@ -287,55 +284,3 @@ def _build_session_cleanup_callback(
         await run_session_post_process(tasks, messages, chat_id)
 
     return _composite
-
-
-def _apply_small_model_tuning(agent_wrapper: "GeneralAgent") -> None:
-    """Auto-tune agent parameters when a small/weak model is detected.
-
-    Only applies when prompt_mode is still at default ("full") and user
-    has not explicitly configured engine_params overrides.
-    Preserves all user-explicit settings — auto-tuning is purely additive.
-    """
-    if agent_wrapper.prompt_mode != "full":
-        return
-
-    from myrm_agent_harness.core.config import ModelTier, infer_model_tier
-
-    custom_def = getattr(agent_wrapper.model_cfg, "custom_model_def", None)
-    max_ctx = getattr(agent_wrapper.model_cfg, "max_context_tokens", None)
-
-    tier = infer_model_tier(
-        model_name=agent_wrapper.model_cfg.model,
-        custom_model_def=custom_def,
-        max_context_tokens=max_ctx,
-    )
-
-    if tier == ModelTier.STRONG:
-        return
-
-    engine = agent_wrapper.engine_params or {}
-
-    if tier == ModelTier.WEAK:
-        agent_wrapper.prompt_mode = "lean"
-        if engine.get("enable_parallel_tool_calls") is None:
-            engine["enable_parallel_tool_calls"] = False
-        if engine.get("compress_start_ratio") is None:
-            engine["compress_start_ratio"] = 0.30
-        if engine.get("max_tool_calls") is None:
-            engine["max_tool_calls"] = 10
-        logger.info(
-            "Small model compatibility: tier=%s, model=%s → prompt_mode=lean, parallel=False, compress_ratio=0.30",
-            tier,
-            agent_wrapper.model_cfg.model,
-        )
-    elif tier == ModelTier.MEDIUM:
-        agent_wrapper.prompt_mode = "lean"
-        if engine.get("compress_start_ratio") is None:
-            engine["compress_start_ratio"] = 0.50
-        logger.info(
-            "Medium model tuning: tier=%s, model=%s → prompt_mode=lean, compress_ratio=0.50",
-            tier,
-            agent_wrapper.model_cfg.model,
-        )
-
-    agent_wrapper.engine_params = engine

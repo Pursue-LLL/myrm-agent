@@ -15,8 +15,8 @@ to physically instantiate and inject based on the incoming channel type.
 
 [POS]
 Pure resolver layer between channel ingress and GeneralAgent factory wiring.
-Prevents IM channels from leaking browser, desktop control, or CLI tools/prompts,
-eliminating prompt-token waste and tool-hallucination errors.
+Prevents IM channels from leaking browser or desktop control tools/prompts and keeps the widget declaration
+to the surface that can render it, eliminating prompt-token waste and tool-hallucination errors.
 """
 
 from __future__ import annotations
@@ -38,8 +38,7 @@ class ResolvedMountPlan:
 
     mount_browser: bool
     mount_computer_use: bool
-    mount_desktop_prompt: bool
-    mount_cli_context: bool
+    mount_widget_capability: bool
 
 
 def resolve_agent_mount(
@@ -50,9 +49,10 @@ def resolve_agent_mount(
 
     Rules:
     - Browser tools: Only mount in WEB_CHAT channels when profile has enable_browser=True.
-    - Computer use: Only mount in WEB_CHAT channels when supported by host deploy mode.
-    - Desktop prompt: Only inject DESKTOP_CONTROL_RULES when computer use tools are mounted.
-    - CLI context: Only inject CLI discovery context when not in untrusted IM channels.
+    - Computer use: Only mount in WEB_CHAT channels when supported by host deploy mode; the desktop control
+      rules in the system prompt are injected exactly when these tools are mounted.
+    - Widget declaration: Only declare HTML widgets where they render (the web chat), and never on the
+      search surface, which produces no widgets.
     """
     effective_channel = channel_name or getattr(agent_wrapper, "channel_name", "web_chat") or "web_chat"
     channel_type = resolve_channel_type(effective_channel)
@@ -70,12 +70,9 @@ def resolve_agent_mount(
     can_deploy_cu = is_computer_use_deploy_supported()
     mount_computer_use = is_web_chat and enable_computer_use and can_deploy_cu
 
-    # 3. Desktop rules in System Prompt
-    mount_desktop_prompt = mount_computer_use
-
-    # 4. CLI discovery context in System Prompt
-    # Only injected for web_chat/cron; IM channels must avoid polluting prompt with CLI tool signatures
-    mount_cli_context = is_web_chat or channel_type == ChannelType.CRON
+    # 3. Widget capability declaration; IM, cron, voice, kanban and eval channels all resolve to non-web-chat
+    prompt_mode = getattr(agent_wrapper, "prompt_mode", "full")
+    mount_widget_capability = is_web_chat and prompt_mode != "search"
 
     if not is_web_chat and (enable_browser or enable_computer_use):
         logger.info(
@@ -89,6 +86,5 @@ def resolve_agent_mount(
     return ResolvedMountPlan(
         mount_browser=mount_browser,
         mount_computer_use=mount_computer_use,
-        mount_desktop_prompt=mount_desktop_prompt,
-        mount_cli_context=mount_cli_context,
+        mount_widget_capability=mount_widget_capability,
     )

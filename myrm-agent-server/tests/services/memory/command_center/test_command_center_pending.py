@@ -8,6 +8,7 @@ import pytest
 from myrm_agent_harness.toolkits.memory.types import MemoryType, PendingRecord, PendingResolutionAction
 
 from app.database.models.memory import PendingMemory
+from app.schemas.memory.command_center import MemoryCandidateRecord
 from app.services.memory.command_center import command_center_pending as pending_views
 from tests.services.memory.conftest import SessionFactory
 
@@ -17,12 +18,13 @@ def _record(
     *,
     action: PendingResolutionAction = PendingResolutionAction.STORE,
     target_content: str | None = None,
+    memory_data: dict[str, object] | None = None,
 ) -> PendingRecord:
     return PendingRecord(
         id=pending_id,
         memory_type=MemoryType.SEMANTIC,
         content=f"content of {pending_id}",
-        memory_data={"confidence": 0.9},
+        memory_data={"confidence": 0.9} if memory_data is None else memory_data,
         resolution_action=action,
         target_memory_id="old-1" if target_content else None,
         target_content=target_content,
@@ -41,7 +43,9 @@ async def _seed_orm_rows(factory: SessionFactory) -> None:
     async with factory() as db:
         db.add_all(
             [
-                PendingMemory(id="conflict-1", memory_type="semantic", content="conflict text", is_conflict=True),
+                PendingMemory(
+                    id="conflict-1", memory_type="semantic", content="conflict text", confidence=0.62, is_conflict=True
+                ),
                 PendingMemory(id="orm-nonconflict-1", memory_type="semantic", content="never written today", is_conflict=False),
             ]
         )
@@ -84,6 +88,20 @@ async def test_candidates_list_queue_first_then_conflicts(test_db: SessionFactor
     assert [c.id for c in candidates] == ["p-1", "conflict-1"]
     assert candidates[0].confidence == pytest.approx(0.9)
     assert candidates[0].memory_type == "semantic"
+    assert candidates[1].confidence == pytest.approx(0.62)  # the stored conflict score, not a default
+
+
+@pytest.mark.asyncio
+async def test_a_candidate_without_a_confidence_score_reports_none(test_db: SessionFactory) -> None:
+    async with test_db() as db:
+        candidates = await pending_views.build_candidate_records(db, _manager([_record("p-1", memory_data={})]))
+
+    assert [c.confidence for c in candidates] == [None]
+
+
+def test_a_candidate_states_only_stored_facts() -> None:
+    """No origin label is stored for a queued proposal, so the record has no field to invent one in."""
+    assert "source" not in MemoryCandidateRecord.model_fields
 
 
 @pytest.mark.asyncio

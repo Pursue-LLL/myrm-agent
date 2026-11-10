@@ -10,7 +10,6 @@ and a page holds a number of o200k tokens that follows the model's window, not t
 [INPUT]
 - agent.context_guard::KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR (POS: the directories the guard writes to)
 - agent.security.redact::redact_sensitive_text (POS: tool output redaction)
-- core.config.model_tier::ModelTier, infer_model_tier (POS: the window tiers)
 - utils.text_utils::get_token_count (POS: tiktoken count, o200k)
 
 [OUTPUT]
@@ -30,15 +29,15 @@ import posixpath
 
 from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
-from myrm_agent_harness.core.config.model_tier import ModelTier, infer_model_tier
 from myrm_agent_harness.utils.text_utils import get_token_count
 
 # A page is 20,000 o200k tokens (16% of a 128k window), so a long paste is read in a few calls. A model with another
 # tokenizer sees more tokens in the same page (CJK, for one).
 DEFAULT_PAGE_TOKEN_BUDGET = 20_000
-# A model whose window is in the MEDIUM tier or below gets a page of a tenth of its window instead: the context pruner
+# A model whose window is at most this many tokens gets a page of a tenth of its window instead: the context pruner
 # keeps the five most recent tool results in full (``ContextConfig.keep_recent_calls``), so five consecutive pages take
 # half the window.
+_SMALL_WINDOW_TOKENS = 65_536
 _SMALL_WINDOW_PAGE_DIVISOR = 10
 # Floor on a page, so a very small window does not turn one paste into dozens of model calls. A window under 20,000
 # tokens therefore gets more than a tenth of it per page.
@@ -98,10 +97,10 @@ def wrapped_rows_notice(width: int, first_split_line: int) -> str:
 def page_token_budget(window_tokens: int | None) -> int:
     """o200k tokens in one page for a model whose context window is *window_tokens* (``None``: not reported).
 
-    A window in the MEDIUM tier or below gets a tenth of it, at least ``MIN_PAGE_TOKEN_BUDGET``. A larger or unknown
+    A window of at most 65,536 tokens gets a tenth of it, at least ``MIN_PAGE_TOKEN_BUDGET``. A larger or unknown
     window, and a value that is not a window (zero, negative), gets ``DEFAULT_PAGE_TOKEN_BUDGET``.
     """
-    if window_tokens is None or window_tokens <= 0 or infer_model_tier("", None, window_tokens) is ModelTier.STRONG:
+    if window_tokens is None or window_tokens <= 0 or window_tokens > _SMALL_WINDOW_TOKENS:
         return DEFAULT_PAGE_TOKEN_BUDGET
     return max(window_tokens // _SMALL_WINDOW_PAGE_DIVISOR, MIN_PAGE_TOKEN_BUDGET)
 

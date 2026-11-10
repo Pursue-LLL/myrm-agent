@@ -365,19 +365,19 @@ const staleCoreSkills = useMemo(() => {
 
 ### 6.1 典型场景 Token 预算
 
-证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE 层按 2026-11-05 重测，HIGH_PRIORITY 层按 2026-11-06 重测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-05 重测）
+证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE 层按 2026-11-05 重测，HIGH_PRIORITY 层按 2026-11-06 重测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-09 重测）
 
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
-| 最小场景 | 8 个 | ~5,500 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
-| 典型场景 | 13 个 | ~9,650 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 56 个 | ~19,010（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
+| 最小场景 | 8 个 | ~5,310 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
+| 典型场景 | 13 个 | ~9,460 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
+| 满载场景 | 56 个 | ~18,820（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
 | 组件 | Token | 缓存特性 |
 |------|------:|---------|
-| System Prompt 层 | ~2,049 | `messages[0]` 1,349（跨用户共享缓存）+ widget 能力声明 348 + 跟随用户输入的 canary ≈53 与安全边界 299 |
+| System Prompt 层 | ~1,861 | `messages[0]` 1,161（跨用户共享缓存）+ widget 能力声明 348 + 跟随用户输入的 canary ≈53 与安全边界 299 |
 | CORE 工具层 | ~2,599 | 始终缓存 |
 | HIGH_PRIORITY 工具层 | ~2,420 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |

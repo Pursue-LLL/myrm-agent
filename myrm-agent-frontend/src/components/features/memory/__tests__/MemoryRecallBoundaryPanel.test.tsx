@@ -19,20 +19,8 @@ const boundary: MemoryRecallBoundaryData = {
   agent_id: null,
   task_id: null,
   read_scopes: [
-    {
-      level: 'global',
-      label: 'Global Shared Knowledge',
-      is_active: true,
-      namespace_pattern: 'global',
-      description: 'System-wide persistent facts and rules',
-    },
-    {
-      level: 'task',
-      label: 'Task Boundary (active)',
-      is_active: false,
-      namespace_pattern: 'task:active',
-      description: 'Ephemeral execution session memory',
-    },
+    { level: 'global', is_active: true, namespace_pattern: 'global' },
+    { level: 'task', is_active: false, namespace_pattern: 'task:*' },
   ],
   write_policy: 'inherit',
   partitions: {
@@ -67,6 +55,15 @@ const boundary: MemoryRecallBoundaryData = {
   total_candidates: 0,
   total_approved: 59,
 };
+
+const ALL_SCOPES: MemoryRecallBoundaryData['read_scopes'] = [
+  { level: 'global', is_active: true, namespace_pattern: 'global' },
+  { level: 'agent', is_active: true, namespace_pattern: 'agent:a1' },
+  { level: 'channel', is_active: true, namespace_pattern: 'channel:*' },
+  { level: 'conversation', is_active: true, namespace_pattern: 'conversation:*' },
+  { level: 'task', is_active: true, namespace_pattern: 'task:t1' },
+  { level: 'shared', is_active: true, namespace_pattern: 'shared:*' },
+];
 
 const openTab = async (name: RegExp) => fireEvent.click(await screen.findByRole('tab', { name }));
 
@@ -147,7 +144,7 @@ describe('MemoryRecallBoundaryPanel', () => {
     expect(await screen.findByText('当前候选待审池为空，记忆处于清爽健康状态')).toBeDefined();
   });
 
-  it('lists each pending candidate with its type, confidence and source', async () => {
+  it('lists each pending candidate with its type and, when it has one, its confidence', async () => {
     mockGetMemoryRecallBoundary.mockResolvedValue({
       ...boundary,
       candidate_records: [
@@ -156,19 +153,29 @@ describe('MemoryRecallBoundaryPanel', () => {
           memory_type: 'episodic',
           content_preview: 'moved to Berlin last spring',
           confidence: 0.857,
-          source: 'conversation',
           created_at: '2026-11-01T08:00:00Z',
           status: 'review_required',
         },
+        {
+          id: 'cand-2',
+          memory_type: 'semantic',
+          content_preview: 'may move to Lisbon next year',
+          confidence: null,
+          created_at: '2026-11-02T08:00:00Z',
+          status: 'pending',
+        },
       ],
-      total_candidates: 1,
+      total_candidates: 2,
     });
-    render(<MemoryRecallBoundaryPanel />);
+    const { container } = render(<MemoryRecallBoundaryPanel />);
 
     expect(await screen.findByText('moved to Berlin last spring')).toBeDefined();
+    expect(screen.getByText('may move to Lisbon next year')).toBeDefined();
     expect(screen.getByText('经历')).toBeDefined();
     expect(screen.getByText('置信度: 86%')).toBeDefined();
-    expect(screen.getByText('来源: conversation')).toBeDefined();
+    // A proposal without a score shows no score, and no card names an origin the store does not hold.
+    expect(screen.getAllByText(/置信度/)).toHaveLength(1);
+    expect(container.textContent).not.toMatch(/来源|extraction/);
     expect(screen.queryByText('当前候选待审池为空，记忆处于清爽健康状态')).toBeNull();
   });
 
@@ -208,6 +215,65 @@ describe('MemoryRecallBoundaryPanel', () => {
 
     expect(screen.getByText('生效中')).toBeDefined();
     expect(screen.getByText('受限')).toBeDefined();
+  });
+
+  it.each([
+    [
+      'zh',
+      /任务召回边界/,
+      ['全局共享知识', '智能体专属记忆', '渠道与集成边界', '会话状态', '任务边界', '团队共享上下文'],
+    ],
+    [
+      'en',
+      /Task Scope Boundary/,
+      [
+        'Global shared knowledge',
+        'Agent-specific memory',
+        'Channel and integration boundary',
+        'Conversation state',
+        'Task boundary',
+        'Team shared context',
+      ],
+    ],
+  ] as const)(
+    'names every scope level in the reader language (%s) next to its namespace pattern',
+    async (locale, tab, titles) => {
+      intl.locale = locale;
+      mockGetMemoryRecallBoundary.mockResolvedValue({ ...boundary, read_scopes: ALL_SCOPES });
+      const { container } = render(<MemoryRecallBoundaryPanel />);
+
+      await openTab(tab);
+
+      for (const title of titles) {
+        expect(screen.getByText(title)).toBeDefined();
+      }
+      expect(screen.getByText('task:t1')).toBeDefined();
+      expect(screen.getByText('shared:*')).toBeDefined();
+      if (locale === 'zh') {
+        expect(container.textContent).not.toMatch(/Global Shared Knowledge|Agent Dedicated|Team Shared Context/);
+      }
+    },
+  );
+
+  it.each([
+    ['inherit', '默认（所有适用范围）', 'Default (all applicable scopes)'],
+    ['global', '仅全局范围', 'Global scope only'],
+    ['client', '仅当前客户端', 'This client only'],
+    ['agent', '仅当前智能体', 'This agent only'],
+    ['channel', '仅当前渠道', 'This channel only'],
+    ['conversation', '仅当前会话', 'This conversation only'],
+    ['task', '仅当前任务', 'This task only'],
+  ] as const)('shows the %s write policy in words, not as a stored identifier', async (policy, zh, en) => {
+    mockGetMemoryRecallBoundary.mockResolvedValue({ ...boundary, write_policy: policy });
+    const zhView = render(<MemoryRecallBoundaryPanel />);
+
+    expect(await screen.findByText(`写入策略: ${zh}`)).toBeDefined();
+    zhView.unmount();
+
+    intl.locale = 'en';
+    render(<MemoryRecallBoundaryPanel />);
+
+    expect(await screen.findByText(`Write Policy: ${en}`)).toBeDefined();
   });
 
   it('reports a failed load in plain words and recovers on refresh', async () => {

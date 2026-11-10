@@ -17,7 +17,7 @@ import ast
 from pathlib import Path
 
 FACTORY_PATH = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory" / "middlewares.py"
-_TAIL_GROUP = ["proactive_pack_middleware", "ephemeral_delta_middleware", "two_layer_context_middleware"]
+_TAIL_GROUP = ["proactive_pack_middleware", "ephemeral_delta_middleware"]
 
 
 def _names_of(node: ast.List) -> list[str]:

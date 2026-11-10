@@ -87,6 +87,7 @@ def test_api_types_submodule_exports_without_factory() -> None:
 def test_api_protocols_are_extension_contracts() -> None:
     from myrm_agent_harness.api.protocols import (
         AgentProfileBackend,
+        CronStore,
         HookRegistryProtocol,
         IntegrationProvider,
         KanbanStore,
@@ -97,6 +98,7 @@ def test_api_protocols_are_extension_contracts() -> None:
 
     protocol_types = (
         AgentProfileBackend,
+        CronStore,
         HookRegistryProtocol,
         IntegrationProvider,
         KanbanStore,
@@ -107,6 +109,17 @@ def test_api_protocols_are_extension_contracts() -> None:
     for protocol_type in protocol_types:
         assert inspect.isclass(protocol_type)
         assert issubclass(protocol_type, Protocol) or getattr(protocol_type, "_is_protocol", False)
+
+
+@pytest.mark.api
+async def test_api_publishes_in_memory_cron_store_as_reference_implementation() -> None:
+    from myrm_agent_harness.api import CronStore, InMemoryCronStore
+
+    store = InMemoryCronStore()
+
+    assert isinstance(store, CronStore)
+    assert await store.get_job("missing-job") is None
+    assert await store.list_jobs() == []
 
 
 @pytest.mark.api

@@ -127,10 +127,11 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
         return self._connection
 
     async def _discard_connection(self) -> None:
-        """Drop a connection whose setup failed.
+        """Close the current connection and drop it, so the next call opens a fresh one.
 
-        Its tables may be missing; keeping it would make every later call fail on it until the process restarts,
-        while a fresh connection retries the setup.
+        A connection whose setup failed may lack its tables; keeping it would make every later call fail on it until
+        the process restarts, while a fresh connection retries the setup. A connection that reads as corrupted is
+        dropped and reopened the same way.
         """
         connection, self._connection = self._connection, None
         if connection is not None:
@@ -196,12 +197,17 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
                 ) from e
             raise RelationalQueryError(f"SQLite store {self._db_path} integrity check query failed: {e}") from e
 
-    def _handle_query_error(self, op: str, e: Exception) -> None:
+    async def _handle_query_error(self, op: str, e: Exception) -> None:
+        """Raise ``e`` as the store's typed error; a failure that reads as corruption also drops the connection.
+
+        The dropped connection is closed, so the next call opens a fresh one instead of leaving its thread and
+        file handle behind.
+        """
         if isinstance(e, (CorruptedMemoryIndexError, RelationalStoreError)):
             raise e
         err_str = str(e).lower()
         if any(k in err_str for k in ("malformed", "corrupt", "not a database", "disk i/o")):
-            self._connection = None
+            await self._discard_connection()
             raise CorruptedMemoryIndexError(
                 f"SQLite store {self._db_path} corrupted during {op}: {e}",
                 db_path=str(self._db_path),
@@ -255,7 +261,7 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
             await conn.commit()
             return (c1.rowcount or 0) + (c2.rowcount or 0) + (c3.rowcount or 0)
         except Exception as e:
-            self._handle_query_error("delete_all", e)
+            await self._handle_query_error("delete_all", e)
             return 0
 
     # ── Diagnostics & Integrity ──────────────────────────────────────
@@ -302,7 +308,7 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
                 )
                 await conn.commit()
         except Exception as e:
-            self._handle_query_error("record_exact_fact", e)
+            await self._handle_query_error("record_exact_fact", e)
 
     async def search_fts5(
         self,
@@ -330,7 +336,7 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
                 fts5_supported=self._fts5_supported,
             )
         except Exception as e:
-            self._handle_query_error("search_fts5", e)
+            await self._handle_query_error("search_fts5", e)
             return []
 
     async def delete_exact_fact(self, memory_id: str) -> None:
@@ -346,7 +352,7 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
                 )
                 await conn.commit()
         except Exception as e:
-            self._handle_query_error("delete_exact_fact", e)
+            await self._handle_query_error("delete_exact_fact", e)
 
     # ── Lifecycle ────────────────────────────────────────────────────
 

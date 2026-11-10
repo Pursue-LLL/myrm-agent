@@ -30,8 +30,6 @@ system_prompt: |
   - All formats: Use professional color palette (blues/grays), sans-serif fonts, consistent spacing
   - Always verify the output file exists and has non-zero size before reporting success
 agent_type: individual
-prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []

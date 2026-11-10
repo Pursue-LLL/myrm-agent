@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from myrm_agent_harness.backends.profiles.types import AgentProfile, CommandBinding
 
-from app.ai_agents.personality_templates import DEFAULT_PERSONALITY_STYLE
 from app.core.memory.adapters.policy import memory_policy_from_dict
 from app.database.dto import normalize_workspace_policy
 from app.database.models import Agent
@@ -83,7 +82,6 @@ class MappingMixin:
                 "suggestion_prompts": agent.suggestion_prompts,
                 "home_directory": agent.home_directory,
                 "prompt_mode": agent.prompt_mode or "full",
-                "personality_style": agent.personality_style or DEFAULT_PERSONALITY_STYLE,
                 "security_overrides": agent.security_overrides,
                 "default_security_preset": agent.default_security_preset,
                 "subagent_ids": agent.subagent_ids,

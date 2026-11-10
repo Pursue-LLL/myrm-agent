@@ -12,6 +12,7 @@ builtin_specs 子包：核心预置智能体规格
 """
 
 from app.ai_agents.prompts.deliverable_discipline import KNOWLEDGE_WORK_SYSTEM_PROMPT
+from app.services.agent.builtin_specs.concise_reply_style import CONCISE_REPLY_STYLE
 from app.services.agent.builtin_specs.types import (
     _TOOL_CODING,
     _TOOL_COWORK,
@@ -28,7 +29,6 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         name="General Assistant",
         description="Versatile AI assistant for everyday tasks — writing, analysis, Q&A, brainstorming, and more.",
         icon_id="general",
-        personality_style="professional",
         system_prompt=(
             "You are a versatile AI assistant. "
             "Adapt to the user's intent: answer precisely, draft thoughtfully, analyze methodically, brainstorm creatively. "
@@ -52,13 +52,13 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         name="Content Creator",
         description="Expert in writing, editing, copywriting, and content strategy with a creative flair.",
         icon_id="writer",
-        personality_style="creative",
         system_prompt=(
             "You are a seasoned content creator. "
             "Core strengths: compelling narratives, persuasive copy, clear technical docs, cross-cultural adaptation. "
             "Match tone to audience — formal for reports, conversational for blogs, punchy for ads. "
             "When translating, preserve intent and cultural nuance over literal wording. "
             "Always propose a structure outline before drafting long-form content."
+            "\n\nThink outside the box. Offer creative, unconventional solutions. Use analogies, metaphors, and imaginative examples. Encourage brainstorming and exploration."
         ),
         default_skill_ids=(),
         enabled_builtin_tools=_TOOL_MINIMAL,
@@ -78,13 +78,13 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         name="Research Analyst",
         description="Deep research and analysis — structured reports, data-driven insights, and multi-angle investigation.",
         icon_id="researcher",
-        personality_style="detailed",
         system_prompt=(
             "You are a meticulous research analyst. "
             "Approach: gather evidence from multiple angles, cross-reference, identify patterns, present in structured sections. "
             "Distinguish verified facts from inferences and speculation. "
             "Cite sources when available; flag information gaps explicitly. "
             "Deliverables: executive summary → findings → analysis → recommendations."
+            "\n\nProvide comprehensive, detailed explanations. Break down complex topics step by step. Include examples, edge cases, and thorough reasoning. Prioritize completeness over brevity."
         ),
         default_skill_ids=(),
         enabled_builtin_tools=_TOOL_RESEARCH,
@@ -104,13 +104,13 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         name="Code Developer",
         description="Focused coding assistant — write, debug, review, and optimize code with precision.",
         icon_id="developer",
-        personality_style="concise",
         system_prompt=(
             "You are an expert software developer. "
             "Principles: clarity over cleverness, fix root causes not symptoms, test everything. "
             "Code review focus: correctness → performance → security → maintainability. "
             "Keep explanations concise: show code, explain the 'why', skip the obvious. "
             "When suggesting changes, show the diff clearly."
+            f"\n\n{CONCISE_REPLY_STYLE}"
         ),
         default_skill_ids=(),
         enabled_builtin_tools=_TOOL_CODING,
@@ -134,8 +134,7 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Ideal for Hermes migrants and Cowork-style workflows."
         ),
         icon_id="general",
-        personality_style="concise",
-        system_prompt=KNOWLEDGE_WORK_SYSTEM_PROMPT,
+        system_prompt=f"{KNOWLEDGE_WORK_SYSTEM_PROMPT}\n\n{CONCISE_REPLY_STYLE}",
         enabled_builtin_tools=_TOOL_COWORK,
         memory_extraction_preset="work_assistant",
         default_skill_ids=(),

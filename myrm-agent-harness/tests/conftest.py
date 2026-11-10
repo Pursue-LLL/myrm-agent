@@ -12,7 +12,6 @@ import tempfile
 from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager, suppress
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from blockbuster import BlockBuster
@@ -389,20 +388,6 @@ def _isolate_subagent_checkpointer() -> Iterator[None]:
     reset_subagent_checkpointer()
     yield
     reset_subagent_checkpointer()
-
-
-@pytest.fixture(autouse=True)
-def _isolate_cli_tool_detection_cache() -> Iterator[None]:
-    """Isolate the process-level CLI tool detection cache between all tests.
-
-    ``detect_all()`` memoizes the host scan. A test that mocks ``shutil.which`` or PATH and triggers a
-    scan (directly, or through ``generate_error_hint``) would otherwise leave an empty catalog behind for
-    every later test of the worker.
-    """
-    from myrm_agent_harness.toolkits.code_execution.tool_discovery import detector
-
-    with patch.object(detector, "_cache", None):
-        yield
 
 
 @pytest.fixture(autouse=True)

@@ -97,8 +97,6 @@ async def resolve_target_agent_id(
             model_selection=None,
             mcp_ids=[],
             memory_policy=None,
-            prompt_mode=str((source.metadata or {}).get("prompt_mode", "full")),
-            personality_style=str((source.metadata or {}).get("personality_style", "professional")),
         ),
     )
     return created.id, True

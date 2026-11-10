@@ -212,13 +212,6 @@ describe('TokenUsageDisplay', () => {
     expect(screen.queryByText(/some_future_router_internal|some future router internal/)).not.toBeInTheDocument();
   });
 
-  // --- 模型兼容层 ---
-
-  it('displays model tier when provided', () => {
-    render(<TokenUsageDisplay usage={makeUsage()} modelTier="weak" />);
-    expect(screen.getByText('compatMode')).toBeInTheDocument();
-  });
-
   // --- 隐私级别 ---
 
   it('does not display privacy section for s1 (public)', () => {

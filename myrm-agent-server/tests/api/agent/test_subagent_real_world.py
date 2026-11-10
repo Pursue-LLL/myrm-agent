@@ -13,12 +13,10 @@ import pytest
 from langchain_core.tools import BaseTool
 from myrm_agent_harness.agent.base_agent import BaseAgent
 from myrm_agent_harness.agent.meta_tools.spawn_subagent import create_delegate_task_tool
-from myrm_agent_harness.agent.middlewares import create_concurrency_limiter
+from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 from myrm_agent_harness.agent.types import AgentRuntimeConfig
 
-from app.ai_agents.subagent_presets import register_default_subagent_configs
-
-register_default_subagent_configs()
+from app.ai_agents.subagent_presets import load_subagent_presets
 
 
 class MockLLM:
@@ -56,6 +54,15 @@ class MockWebSearchTool(BaseTool):
         return {"results": [f"Result for {q}" for q in questions]}
 
 
+# A child's workspace and session come from its parent's run context, never from the model-supplied
+# ``context`` argument of the delegate tool.
+_PARENT_CONTEXT: dict[str, object] = {
+    "session_id": "test_session",
+    "workspace_path": "/tmp/test",
+    "workspaces_storage_root": "/tmp/test_workspaces",
+}
+
+
 @pytest.mark.asyncio
 async def test_real_world_concurrent_search():
     """真实场景：并发搜索多个来源"""
@@ -63,13 +70,10 @@ async def test_real_world_concurrent_search():
 
     agent = BaseAgent(
         llm=llm,
-        middlewares=[create_concurrency_limiter()],
         config=AgentRuntimeConfig(recursion_limit=25, timeout_seconds=30),
     )
 
     from unittest.mock import AsyncMock
-
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
@@ -108,48 +112,6 @@ async def test_real_world_concurrent_search():
 
 
 @pytest.mark.asyncio
-async def test_real_world_concurrency_limit():
-    """真实场景：验证并发限制生效"""
-    llm = MockLLM()
-
-    agent = BaseAgent(
-        llm=llm,
-        middlewares=[create_concurrency_limiter()],
-    )
-
-    from unittest.mock import AsyncMock
-
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
-
-    catalog = AsyncMock()
-    catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-
-    spawn_tool = create_delegate_task_tool(
-        parent_agent=agent,
-        tool_registry_getter=lambda: [],
-        catalog=catalog,
-    )
-
-    browser_config = SubagentConfig(system_prompt="test")
-    assert browser_config.concurrency_limit == 5
-
-    tasks = []
-    for i in range(5):
-        task = spawn_tool.ainvoke(
-            {
-                "agent_type": "browser",
-                "objective": f"浏览器任务 {i}",
-                "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
-                "wait": False,
-            }
-        )
-        tasks.append(task)
-
-    results = await asyncio.gather(*tasks)
-    assert len(results) == 5
-
-
-@pytest.mark.asyncio
 async def test_real_world_error_recovery():
     """真实场景：错误恢复和重试"""
 
@@ -173,10 +135,9 @@ async def test_real_world_error_recovery():
 
     llm = FailingLLM()
     agent = BaseAgent(llm=llm)
+    agent._last_context = dict(_PARENT_CONTEXT)
 
     from unittest.mock import AsyncMock
-
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
@@ -210,8 +171,6 @@ async def test_real_world_list_children():
     agent = BaseAgent(llm=llm)
 
     from unittest.mock import AsyncMock
-
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
@@ -252,10 +211,9 @@ async def test_real_world_context_sharing():
     llm = MockLLM("使用共享上下文")
 
     agent = BaseAgent(llm=llm)
+    agent._last_context = dict(_PARENT_CONTEXT)
 
     from unittest.mock import AsyncMock
-
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
@@ -306,8 +264,6 @@ async def test_real_world_timeout_config():
     agent = BaseAgent(llm=llm)
 
     from unittest.mock import AsyncMock
-
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
@@ -364,20 +320,23 @@ def _browser_toolkit() -> list[BaseTool]:
     ]
 
 
-class _RegistrySubagentCatalog:
-    async def resolve(self, type_id: str):
-        from myrm_agent_harness.agent.sub_agents.registry import SUBAGENT_CONFIGS
+class _PresetCatalog:
+    """Resolves the shipped YAML presets; no database, no model resolver."""
 
-        return SUBAGENT_CONFIGS.get(type_id)
+    def __init__(self) -> None:
+        self._presets = load_subagent_presets()
+
+    async def resolve(self, type_id: str) -> SubagentConfig | None:
+        return self._presets.get(type_id)
 
 
 @pytest.mark.asyncio
 async def test_delegate_browser_subagent_spawn_has_interact_tool() -> None:
-    """Smoke: registered browser preset + parent toolkit → live browser sub-agent."""
+    """Smoke: shipped browser preset + parent toolkit → live browser sub-agent."""
     from myrm_agent_harness.agent.sub_agents.builder import filter_tools
-    from myrm_agent_harness.agent.sub_agents.registry import SUBAGENT_CONFIGS
 
-    browser_config = SUBAGENT_CONFIGS.get("browser")
+    catalog = _PresetCatalog()
+    browser_config = await catalog.resolve("browser")
     assert browser_config is not None
 
     parent_tools = _browser_toolkit()
@@ -388,10 +347,11 @@ async def test_delegate_browser_subagent_spawn_has_interact_tool() -> None:
 
     llm = MockLLM("Browser task completed")
     agent = BaseAgent(llm=llm)
+    agent._last_context = dict(_PARENT_CONTEXT)
     spawn_tool = create_delegate_task_tool(
         parent_agent=agent,
         tool_registry_getter=lambda: parent_tools,
-        catalog=_RegistrySubagentCatalog(),
+        catalog=catalog,
     )
 
     result = await spawn_tool.ainvoke(

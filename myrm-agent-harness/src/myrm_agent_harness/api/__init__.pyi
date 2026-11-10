@@ -72,6 +72,9 @@ from myrm_agent_harness.api.protocols import (
     AgentProfileBackend as AgentProfileBackend,
 )
 from myrm_agent_harness.api.protocols import (
+    CronStore as CronStore,
+)
+from myrm_agent_harness.api.protocols import (
     HookEvent as HookEvent,
 )
 from myrm_agent_harness.api.protocols import (
@@ -499,6 +502,9 @@ from myrm_agent_harness.toolkits.cron.engine.connector_health import (
 )
 from myrm_agent_harness.toolkits.cron.engine.fingerprint import (
     compute_workflow_fingerprint as compute_workflow_fingerprint,
+)
+from myrm_agent_harness.toolkits.cron.stores import (
+    InMemoryCronStore as InMemoryCronStore,
 )
 from myrm_agent_harness.toolkits.kanban.stores import (
     InMemoryKanbanStore as InMemoryKanbanStore,

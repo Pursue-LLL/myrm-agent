@@ -8,14 +8,15 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 # 缓存策略配置：路径前缀 -> max-age (秒)
-# 0 表示不缓存，-1 表示使用默认不设置头
+# 0 表示不缓存；未命中任何前缀的路径不设置缓存头
 CACHE_POLICIES: dict[str, int] = {
     # 预置技能市场 - 变化较少，可缓存较长时间
     "/api/v1/storage/skills": 300,  # 5 分钟
     # 用户技能配置 - 变化中等
     "/api/v1/storage/users": 60,  # 1 分钟
-    # 智能体列表 - 变化中等
-    "/api/v1/user-agents": 60,  # 1 分钟
+    # 智能体列表/详情/密钥/历史 - 不缓存：写操作落在不同 URL 上，浏览器不会据此淘汰
+    # 已缓存的列表，缓存会让"刚删除/刚创建"的数据在回读时仍是旧值
+    "/api/v1/user-agents": 0,
     # 聊天历史 - 不缓存（可能随时有新消息）
     "/api/v1/chats": 0,
 }

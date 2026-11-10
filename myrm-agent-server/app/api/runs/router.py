@@ -74,7 +74,7 @@ async def _fetch_cron_runs(
     runs = await mgr.list_runs(USER_ID, limit=limit, offset=0, status=filter_status)
 
     job_ids = list({r.job_id for r in runs})
-    all_jobs = await mgr.list_jobs(USER_ID) if job_ids else []
+    all_jobs = await mgr.list_jobs() if job_ids else []
     job_map = {j.id: j for j in all_jobs if j.id in set(job_ids)}
 
     results: list[UnifiedRunResponse] = []

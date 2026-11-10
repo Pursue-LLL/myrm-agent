@@ -234,7 +234,6 @@ class TestMemoryManagerInitialization:
         assert flow_policy.write_policy == MemoryWritePolicy.TASK
         assert flow_policy.task_id == "task-999"
         assert flow_policy.allow_l3_extraction is False
-        assert flow_policy.auto_cleanup is True
         assert flow_policy.read_scopes == (MemoryScopeLevel.GLOBAL, MemoryScopeLevel.TASK)
 
         flow_manager = MemoryManager(
@@ -250,12 +249,9 @@ class TestMemoryManagerInitialization:
         faq_policy = AgentMemoryPolicy.preset_faq_retrieval(agent_id="search-bot")
         assert faq_policy.write_policy == MemoryWritePolicy.CONVERSATION
         assert faq_policy.allow_l3_extraction is False
-        assert faq_policy.auto_cleanup is True
         assert faq_policy.read_scopes == (MemoryScopeLevel.GLOBAL, MemoryScopeLevel.CONVERSATION)
 
         # 3. Standard assistant
         std_policy = AgentMemoryPolicy.preset_standard(agent_id="general-bot")
         assert std_policy.write_policy == MemoryWritePolicy.INHERIT
         assert std_policy.allow_l3_extraction is True
-        assert std_policy.auto_cleanup is False
-

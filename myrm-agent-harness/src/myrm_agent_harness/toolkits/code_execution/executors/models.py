@@ -18,6 +18,7 @@ Data models for code execution.
 from __future__ import annotations
 
 import re
+import shutil
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -246,25 +247,9 @@ _IMPORT_TO_PYPI: dict[str, str] = {
 }
 
 
-def _lookup_install_hint(bin_name: str) -> str | None:
-    """Look up a platform-specific install command from the CLI tool catalog."""
-    from myrm_agent_harness.toolkits.code_execution.tool_discovery.detector import (
-        get_install_hint,
-    )
-
-    return get_install_hint(bin_name)
-
-
 def _get_preferred_pip_installer() -> str:
-    """Return ``uv pip`` if uv is detected, otherwise ``pip``."""
-    from myrm_agent_harness.toolkits.code_execution.tool_discovery.detector import (
-        detect_all,
-    )
-
-    for tool in detect_all():
-        if tool.id == "uv":
-            return "uv pip"
-    return "pip"
+    """Return ``uv pip`` if uv is on PATH, otherwise ``pip``."""
+    return "uv pip" if shutil.which("uv") else "pip"
 
 
 def generate_error_hint(result: ExecutionResult) -> str | None:
@@ -287,11 +272,7 @@ def generate_error_hint(result: ExecutionResult) -> str | None:
     if category == "not_found":
         match = _COMMAND_NOT_FOUND_RE.search(combined)
         if match:
-            command = match.group(1)
-            install_cmd = _lookup_install_hint(command)
-            if install_cmd:
-                return f"Command '{command}' not found. Try: {install_cmd}"
-            return f"Command '{command}' not found. Install it or check the PATH."
+            return f"Command '{match.group(1)}' not found. Install it or check the PATH."
         return "A command was not found. Verify spelling and PATH."
 
     if category in {"permission_denied", "sandbox_ro"} and _PROTECTED_GIT_RE.search(combined):

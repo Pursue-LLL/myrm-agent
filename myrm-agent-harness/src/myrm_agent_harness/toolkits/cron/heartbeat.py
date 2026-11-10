@@ -1,7 +1,7 @@
 """Heartbeat — convenience layer over CronManager for periodic agent self-checks.
 
 Provides enable/disable/status semantics for a single well-known
-cron job (name ``__heartbeat__``) per owner.  Supports both fixed-interval
+cron job (name ``__heartbeat__``).  Supports both fixed-interval
 and cron-based (time-of-day) scheduling.  All scheduling, retry,
 delivery, and execution logic is delegated to the existing cron engine.
 
@@ -23,7 +23,7 @@ Usage (framework-only, no business coupling)::
 - (none)
 
 [OUTPUT]
-- HeartbeatStatus: Find the owner's heartbeat job by convention name.
+- HeartbeatStatus: Whether the heartbeat is enabled, and its job (None when absent).
 - enable_heartbeat: Enable the heartbeat.  Idempotent: creates or resumes the...
 - disable_heartbeat: Disable (pause) the heartbeat.  Returns False if no heart...
 - get_heartbeat_status: Return the current heartbeat state.
@@ -73,9 +73,9 @@ class HeartbeatStatus(NamedTuple):
     job: CronJob | None
 
 
-async def _find_heartbeat(manager: CronManager, owner_id: str) -> CronJob | None:
-    """Find the owner's heartbeat job by convention name."""
-    jobs = await manager.list_jobs(owner_id, limit=200)
+async def _find_heartbeat(manager: CronManager) -> CronJob | None:
+    """Find the heartbeat job by its conventional name."""
+    jobs = await manager.list_jobs(limit=200)
     return next((j for j in jobs if j.name == HEARTBEAT_JOB_NAME), None)
 
 
@@ -111,7 +111,7 @@ async def enable_heartbeat(
     Pass ``None`` to unbind (clears any previously bound agent).
     """
     sched = _build_schedule(schedule, interval_ms)
-    existing = await _find_heartbeat(manager, owner_id)
+    existing = await _find_heartbeat(manager)
 
     if existing is not None:
         patch = CronJobPatch(
@@ -143,16 +143,16 @@ async def enable_heartbeat(
 
 async def disable_heartbeat(manager: CronManager, owner_id: str) -> bool:
     """Disable (pause) the heartbeat.  Returns False if no heartbeat exists."""
-    existing = await _find_heartbeat(manager, owner_id)
+    existing = await _find_heartbeat(manager)
     if existing is None:
         return False
     result = await manager.pause_job(existing.id, owner_id)
     return result is not None
 
 
-async def get_heartbeat_status(manager: CronManager, owner_id: str) -> HeartbeatStatus:
+async def get_heartbeat_status(manager: CronManager) -> HeartbeatStatus:
     """Return the current heartbeat state."""
-    existing = await _find_heartbeat(manager, owner_id)
+    existing = await _find_heartbeat(manager)
     if existing is None:
         return HeartbeatStatus(enabled=False, job=None)
     return HeartbeatStatus(

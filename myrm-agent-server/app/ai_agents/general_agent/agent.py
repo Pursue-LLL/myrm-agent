@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, cast
 
 from langchain_core.messages import BaseMessage
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
-from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, RecallMode
 from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 from app.core.memory.adapters.setup import resolve_context_binding
@@ -162,6 +162,7 @@ class GeneralAgent(ToolSetupMixin):
         session_loaded_skill_names: list[str] | None = None,
         max_iterations: int | None = None,
         memory_policy: AgentMemoryPolicy | None = None,
+        memory_recall_mode: RecallMode = RecallMode.HYBRID,
         memory_decay_profile: str | None = None,
         memory_extraction_preset: str | None = None,
         engine_params: dict[str, object] | None = None,
@@ -272,6 +273,7 @@ class GeneralAgent(ToolSetupMixin):
         self.locale = locale
         self.max_iterations = max_iterations
         self.memory_policy = memory_policy
+        self.memory_recall_mode = memory_recall_mode
         self.memory_decay_profile = memory_decay_profile
         self.memory_extraction_preset = memory_extraction_preset or "auto"
         self.engine_params = engine_params

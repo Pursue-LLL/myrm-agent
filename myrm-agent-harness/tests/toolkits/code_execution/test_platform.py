@@ -1,4 +1,4 @@
-"""Tests for toolkits/code_execution/platform.py — platform detection and environment prompt."""
+"""Tests for toolkits/code_execution/platform.py — platform detection and shell hints."""
 
 from __future__ import annotations
 
@@ -149,7 +149,6 @@ class TestPlatformInfoProperties:
         assert "powershell" in pwsh_info.shell_hint
         assert "Get-ChildItem" in pwsh_info.shell_hint
 
-
     def test_shell_hint_wsl(self, linux_wsl_info: PlatformInfo):
         hint = linux_wsl_info.shell_hint
         assert "WSL" in hint
@@ -157,99 +156,6 @@ class TestPlatformInfoProperties:
     def test_shell_hint_linux(self, linux_info: PlatformInfo):
         hint = linux_info.shell_hint
         assert "GNU" in hint
-
-
-class TestEnvironmentPromptLine:
-    """environment_prompt_line property."""
-
-    @pytest.fixture
-    def macos_info(self) -> PlatformInfo:
-        return PlatformInfo(
-            os_type="macos",
-            os_release="24.6.0",
-            arch="arm64",
-            is_wsl=False,
-            shell_path="/bin/bash",
-            shell_args=("--norc", "--noprofile"),
-            shell_type="bash",
-            exit_code_var="$?",
-            env_set_template="export {key}={value}",
-            path_separator=":",
-            process_group_creation_flag=0,
-            safe_env_vars=frozenset(),
-        )
-
-    def test_contains_environment_tag(self, macos_info: PlatformInfo):
-        line = macos_info.environment_prompt_line
-        assert "<environment>" in line
-        assert "</environment>" in line
-
-    def test_contains_os_info(self, macos_info: PlatformInfo):
-        line = macos_info.environment_prompt_line
-        assert "OS:" in line
-        assert "macOS" in line
-
-    def test_contains_shell_info(self, macos_info: PlatformInfo):
-        line = macos_info.environment_prompt_line
-        assert "Shell:" in line
-
-    def test_idempotent(self, macos_info: PlatformInfo):
-        a = macos_info.environment_prompt_line
-        b = macos_info.environment_prompt_line
-        assert a == b
-
-    def test_env_probe_failure_does_not_crash(self, macos_info: PlatformInfo):
-        with patch(
-            "myrm_agent_harness.toolkits.code_execution.env_probe.get_environment_probe_line",
-            side_effect=RuntimeError("boom"),
-        ):
-            line = macos_info.environment_prompt_line
-            assert "<environment>" in line
-            assert "OS:" in line
-
-    def test_env_probe_empty_omits_python(self, macos_info: PlatformInfo):
-        with patch(
-            "myrm_agent_harness.toolkits.code_execution.env_probe.get_environment_probe_line",
-            return_value="",
-        ):
-            line = macos_info.environment_prompt_line
-            assert "Python" not in line
-            assert "OS:" in line
-
-    def test_env_probe_nonempty_includes_python(self, macos_info: PlatformInfo):
-        probe_line = "Python toolchain: python3=3.12.4, pip=missing."
-        with patch(
-            "myrm_agent_harness.toolkits.code_execution.env_probe.get_environment_probe_line",
-            return_value=probe_line,
-        ):
-            line = macos_info.environment_prompt_line
-            assert probe_line in line
-
-    def test_vnc_probe_failure_does_not_crash(self, macos_info: PlatformInfo):
-        with patch(
-            "myrm_agent_harness.toolkits.vnc.server.get_environment_hint",
-            side_effect=RuntimeError("boom"),
-        ):
-            line = macos_info.environment_prompt_line
-            assert "<environment>" in line
-            assert "OS:" in line
-
-    def test_vnc_probe_empty_omits_visual_desktop(self, macos_info: PlatformInfo):
-        with patch(
-            "myrm_agent_harness.toolkits.vnc.server.get_environment_hint",
-            return_value="",
-        ):
-            line = macos_info.environment_prompt_line
-            assert "Visual Desktop" not in line
-
-    def test_vnc_probe_nonempty_includes_visual_desktop(self, macos_info: PlatformInfo):
-        vnc_hint = "Visual Desktop: Xvfb virtual display (1280x720) with VNC streaming is available."
-        with patch(
-            "myrm_agent_harness.toolkits.vnc.server.get_environment_hint",
-            return_value=vnc_hint,
-        ):
-            line = macos_info.environment_prompt_line
-            assert vnc_hint in line
 
 
 class TestDetectWSL:

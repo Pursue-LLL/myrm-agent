@@ -49,7 +49,7 @@ async def test_a_row_queued_with_identifier_lists_in_its_metadata_is_approved(ne
     stored_metadata = queued.memory_data.get("metadata")
     assert isinstance(stored_metadata, dict)
     identifiers = queued.memory_data["exact_identifiers"]
-    # The shape of rows queued while the identifiers were also stamped into the metadata as a list.
+    # This row carries the identifier list inside its metadata as well as in the typed field.
     stuck_data = {
         **queued.memory_data,
         "metadata": {**stored_metadata, "is_exact_fact": True, "exact_identifiers": identifiers},
@@ -78,6 +78,22 @@ async def test_an_edited_approval_is_stamped_from_the_edited_text(new_manager: N
     assert reloaded.is_exact_fact is True
     assert reloaded.exact_identifiers == ["10.2.2.2:9000"]
     assert "10.0.0.5:8080" not in await searched_contents(manager, "10.0.0.5:8080")
+
+
+async def test_an_edit_that_adds_an_identifier_to_a_plain_proposal_makes_it_an_exact_fact(
+    new_manager: NewManager,
+) -> None:
+    manager = new_manager()
+    await manager.store_batch([SemanticMemory(content=PLAIN)], _force_pending=True)
+    [queued] = await manager.list_pending()
+
+    approved = await manager.approve(queued.id, edited_content="The staging server is at 10.3.3.3:7000")
+
+    reloaded = await manager.get_memory(approved.id)
+    assert reloaded is not None
+    assert reloaded.is_exact_fact is True
+    assert reloaded.exact_identifiers == ["10.3.3.3:7000"]
+    assert "The staging server is at 10.3.3.3:7000" in await searched_contents(manager, "10.3.3.3:7000")
 
 
 async def test_an_edit_that_drops_every_identifier_keeps_the_fact_flagged_without_identifiers(

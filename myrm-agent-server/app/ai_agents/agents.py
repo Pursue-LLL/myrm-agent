@@ -1,7 +1,7 @@
 """Agent统一入口模块
 
 提供:
-- General Agent - 通用自主决策Agent（基于LangGraph），支持 full/lean/naked/search 多种 prompt 模式
+- General Agent - 通用自主决策Agent（基于LangGraph），支持 full/search 两种 prompt 模式
 """
 
 from __future__ import annotations
@@ -200,6 +200,7 @@ class AgentFactory:
             session_loaded_skill_names=params.session_loaded_skill_names,
             max_iterations=params.max_iterations,
             memory_policy=params.memory_policy,
+            memory_recall_mode=params.memory_recall_mode,
             memory_decay_profile=params.memory_decay_profile,
             memory_extraction_preset=params.memory_extraction_preset,
             engine_params=params.engine_params,

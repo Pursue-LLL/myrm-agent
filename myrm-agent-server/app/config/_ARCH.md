@@ -45,7 +45,7 @@
 ### 被依赖方
 - `run.py`（项目根目录）：启动时调用 `check_and_migrate_config()`, `preflight_check_config()`, `track_config_changes()`
 - `scripts/cli.py`：CLI命令调用 `preflight_check_config()`（配置热校验）
-- `app/ai_agents/subagent_presets.py`：加载 `subagents/*.yaml` 并注册到 harness registry
+- `app/ai_agents/subagent_presets.py`：加载 `subagents/core|custom/*.yaml`
 
 ---
 

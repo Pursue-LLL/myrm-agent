@@ -289,7 +289,7 @@ class TestDatabaseSubagentCatalogFailurePaths:
         from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
 
         with patch(
-            "app.ai_agents.subagent_catalog.auto_register_subagent_configs",
+            "app.ai_agents.subagent_catalog.load_subagent_presets",
             side_effect=RuntimeError("yaml broken"),
         ):
             catalog = DatabaseSubagentCatalog(bound_agent_ids=[])

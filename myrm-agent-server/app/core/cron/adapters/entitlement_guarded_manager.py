@@ -43,14 +43,14 @@ class EntitlementGuardedCronManager:
     def __init__(self, inner: CronManager) -> None:
         self._inner = inner
 
-    async def _enforce_slot(self, user_id: str) -> None:
+    async def _enforce_slot(self) -> None:
         from app.platform_utils.sandbox.entitlements.entitlement_guard import (
             EntitlementGuardError,
             require_cron_slot,
         )
 
         try:
-            current_count = await self._inner.count_jobs(user_id)
+            current_count = await self._inner.count_jobs()
             require_cron_slot(current_count)
         except EntitlementGuardError as exc:
             raise ValueError(str(exc)) from exc
@@ -105,7 +105,7 @@ class EntitlementGuardedCronManager:
             pre_condition_script=pre_condition_script,
             acceptance_criteria=acceptance_criteria,
         )
-        await self._enforce_slot(user_id)
+        await self._enforce_slot()
         normalized_tools = normalize_cron_tools_allowed(tools_allowed) if tools_allowed else None
         return await self._inner.create_job(
             user_id,
@@ -181,7 +181,7 @@ class EntitlementGuardedCronManager:
         return await self._inner.update_job(job_id, user_id, patch)
 
     async def duplicate_job(self, job_id: str, user_id: str) -> CronJob | None:
-        await self._enforce_slot(user_id)
+        await self._enforce_slot()
         return await self._inner.duplicate_job(job_id, user_id)
 
     async def get_job(self, job_id: str, user_id: str) -> CronJob | None:
@@ -189,7 +189,6 @@ class EntitlementGuardedCronManager:
 
     async def list_jobs(
         self,
-        user_id: str,
         *,
         name_filter: str | None = None,
         chat_id: str | None = None,
@@ -198,7 +197,7 @@ class EntitlementGuardedCronManager:
         offset: int = 0,
     ) -> list[CronJob]:
         return await self._inner.list_jobs(
-            user_id, name_filter=name_filter, chat_id=chat_id, project_id=project_id, limit=limit, offset=offset
+            name_filter=name_filter, chat_id=chat_id, project_id=project_id, limit=limit, offset=offset
         )
 
     async def pause_job(self, job_id: str, user_id: str) -> CronJob | None:

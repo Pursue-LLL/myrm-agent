@@ -14,7 +14,7 @@ GeneralAgent 装配包：按执行阶段拆成六个模块，`builder.py` 只保
 | `skills.py` | 阶段 | 存储后端、技能后端与运行时技能列表 | ✅ |
 | `runtime.py` | 阶段 | 沙箱执行器、记忆回调/扩展与渠道通知工具 | ✅ |
 | `middlewares.py` | 阶段 | 护栏、上下文管线、MoA 与 Human-tail 中间件顺序 | ✅ |
-| `prompt.py` | 阶段 | 核心提示词与桌面/CLI/渠道/会话根目录补充 | ✅ |
+| `prompt.py` | 阶段 | 核心提示词与桌面/渠道/会话根目录补充 | ✅ |
 | `support.py` | 支撑 | MCP OAuth 注入、Kanban 工具、技能评审与清理回调 | ✅ |
 
 ## 依赖关系

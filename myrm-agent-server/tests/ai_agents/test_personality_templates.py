@@ -1,6 +1,6 @@
 """personality_templates 模块单元测试
 
-验证模板定义的一致性、查询 API 的正确性、与 dto.py 类型定义的同步性，
+验证模板定义的一致性、与 PersonalityStyle 字面量的同步性，
 以及注入块（作用域不变量 + 风格本体）的渲染契约。
 """
 
@@ -14,27 +14,21 @@ from app.ai_agents.personality_templates import (
     STYLE_SCOPE_INVARIANT,
     PersonalityStyle,
     PersonalityTemplate,
-    list_all_personalities,
     render_personality_block,
 )
-from app.database.dto import PersonalityStyleLiteral
 
 
 class TestPersonalityTemplatesConsistency:
     """模板定义与 Literal 类型一致性测试"""
 
     def test_template_keys_match_literal_values(self) -> None:
-        """PERSONALITY_TEMPLATES 的 key 必须与 PersonalityStyleLiteral 完全一致"""
-        literal_values = set(PersonalityStyleLiteral.__args__)
+        """PERSONALITY_TEMPLATES 的 key 必须与 PersonalityStyle 完全一致"""
+        literal_values = set(PersonalityStyle.__args__)
         template_keys = set(PERSONALITY_TEMPLATES.keys())
         assert literal_values == template_keys, (
             f"Mismatch: in Literal but not Templates={literal_values - template_keys}, "
             f"in Templates but not Literal={template_keys - literal_values}"
         )
-
-    def test_personality_style_is_alias_of_literal(self) -> None:
-        """PersonalityStyle 应该就是 PersonalityStyleLiteral 的别名"""
-        assert PersonalityStyle is PersonalityStyleLiteral
 
     def test_every_template_name_matches_key(self) -> None:
         """每个模板的 name 字段必须与其 dict key 一致"""
@@ -42,21 +36,8 @@ class TestPersonalityTemplatesConsistency:
             assert template.name == key, f"Template key '{key}' != template.name '{template.name}'"
 
     def test_template_count(self) -> None:
-        """当前应有 17 种预置风格（8 实用 + 9 趣味）"""
+        """当前应有 17 种预置风格"""
         assert len(PERSONALITY_TEMPLATES) == 17
-
-    def test_category_split_matches_catalog_grouping(self) -> None:
-        """分类必须是 8 实用 + 9 趣味，且与前端九宫格分组一致"""
-        practical = [t for t in PERSONALITY_TEMPLATES.values() if t.category == "practical"]
-        fun = [t for t in PERSONALITY_TEMPLATES.values() if t.category == "fun"]
-        assert len(practical) == 8
-        assert len(fun) == 9
-
-    def test_icon_ids_are_unique_and_non_empty(self) -> None:
-        """GUI 图标标识必须非空且唯一，避免两个风格共用同一图标造成认知歧义"""
-        icon_ids = [t.icon_id for t in PERSONALITY_TEMPLATES.values()]
-        assert all(icon_id.strip() for icon_id in icon_ids)
-        assert len(set(icon_ids)) == len(icon_ids)
 
 
 class TestPersonalityTemplateFields:
@@ -70,13 +51,9 @@ class TestPersonalityTemplateFields:
         assert template.display_name, f"{style}: display_name is empty"
         assert template.display_name_zh, f"{style}: display_name_zh is empty"
         assert template.emoji, f"{style}: emoji is empty"
-        assert template.icon_id, f"{style}: icon_id is empty"
-        assert template.category in ("practical", "fun"), f"{style}: invalid category"
         assert template.system_prompt_suffix, f"{style}: system_prompt_suffix is empty"
         assert template.description, f"{style}: description is empty"
         assert template.description_zh, f"{style}: description_zh is empty"
-        assert template.example_response, f"{style}: example_response is empty"
-        assert template.example_response_zh, f"{style}: example_response_zh is empty"
 
     def test_templates_are_frozen(self) -> None:
         """PersonalityTemplate 应该是不可变的"""
@@ -87,15 +64,6 @@ class TestPersonalityTemplateFields:
 
 class TestQueryAPI:
     """查询 API 正确性测试"""
-
-    def test_list_all_personalities_count(self) -> None:
-        all_styles = list_all_personalities()
-        assert len(all_styles) == len(PERSONALITY_TEMPLATES)
-
-    def test_list_all_personalities_type(self) -> None:
-        all_styles = list_all_personalities()
-        for style in all_styles:
-            assert isinstance(style, PersonalityTemplate)
 
     def test_default_personality_style(self) -> None:
         assert DEFAULT_PERSONALITY_STYLE == "professional"
@@ -225,7 +193,7 @@ class TestWenyanTemplate:
 
 
 class TestPromptInjectionLogic:
-    """验证 personality_style 的 prompt 注入与 converter 的协作逻辑"""
+    """验证会话级沟通风格块的注入规则"""
 
     def test_non_default_style_produces_suffix(self) -> None:
         """非默认风格应产生非空的注入内容"""
@@ -238,7 +206,7 @@ class TestPromptInjectionLogic:
             assert len(template.system_prompt_suffix) > 10, f"{style_name}: suffix too short"
 
     def test_default_style_skipped_in_injection(self) -> None:
-        """默认风格 professional 在 converter 中不注入额外内容"""
+        """默认风格 professional 不注入额外内容"""
         assert DEFAULT_PERSONALITY_STYLE == "professional"
         assert render_personality_block(DEFAULT_PERSONALITY_STYLE) is None
 

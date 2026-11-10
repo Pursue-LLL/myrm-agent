@@ -28,7 +28,6 @@ from app.ai_agents.general_agent.factory.prompt import build_system_prompt
 from app.ai_agents.general_agent.factory.runtime import build_sandbox_runtime, load_channel_notify_tool
 from app.ai_agents.general_agent.factory.skills import load_skill_runtime
 from app.ai_agents.general_agent.factory.support import (
-    _apply_small_model_tuning,
     _build_session_cleanup_callback,
     _build_skill_review_callback,
     _setup_kanban_tools,
@@ -173,7 +172,13 @@ async def build_general_agent(
     archive_checkpoint_ext = runtime.archive_checkpoint_ext
 
     # 6. Create middlewares
-    middlewares = await build_agent_middlewares(agent_wrapper, effective_chat_id, runtime, lite_llm=llm_bundle.lite_llm)
+    middlewares = await build_agent_middlewares(
+        agent_wrapper,
+        effective_chat_id,
+        runtime,
+        lite_llm=llm_bundle.lite_llm,
+        mount_plan=mount_plan,
+    )
 
     # 7. Checkpointer
     from app.platform_utils import get_checkpointer
@@ -181,14 +186,10 @@ async def build_general_agent(
     checkpointer = get_checkpointer()
     logger.info(f"使用 checkpointer: {type(checkpointer).__name__}")
 
-    # 7.5 Auto-tune for small models (zero-config compatibility mode)
-    _apply_small_model_tuning(agent_wrapper)
-
-    # 8. System prompt (core + CLI tool awareness)
+    # 8. System prompt
     system_prompt = build_system_prompt(
         agent_wrapper,
         mount_plan=mount_plan,
-        executor=executor,
         channel_notify_tool_loaded=channel_notify_tool_loaded,
         prompt_locale=effective_prompt_locale,
     )

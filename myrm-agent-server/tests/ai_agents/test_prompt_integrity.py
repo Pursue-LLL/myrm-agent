@@ -1,7 +1,7 @@
-"""Tests for system prompt integrity across all Prompt Mode tiers.
+"""Tests for system prompt integrity across the Prompt Modes.
 
 Validates that CORE_SYSTEM_PROMPT correctly assembles all rule blocks,
-that each mode (full/lean/naked) contains the expected components,
+that each mode (full/search) contains the expected components,
 and that prompt strings are stable for KV Cache optimization.
 """
 
@@ -15,8 +15,8 @@ from app.ai_agents.prompts.general_agent_prompt import (
     get_core_system_prompt,
 )
 from app.ai_agents.prompts.shared_rules import (
-    ABSOLUTE_OBEDIENCE_RULES,
     AGENT_RESPONSE_RULES_EN,
+    DESKTOP_CONTROL_RULES,
     EXTERNAL_SOURCES_CITATION_RULES,
     SEARCH_RESPONSE_RULES_EN,
     TASK_INTEGRITY_RULES,
@@ -29,7 +29,6 @@ class TestCoreSystemPrompt:
     def test_contains_all_rule_blocks(self) -> None:
         prompt = get_core_system_prompt()
         assert "<identity>" in prompt
-        assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
         assert "<task_integrity>" in prompt
 
@@ -54,14 +53,12 @@ class TestCoreSystemPrompt:
         """Rules should appear in correct order for prompt cache stability."""
         prompt = CORE_SYSTEM_PROMPT
         identity_pos = prompt.index("<identity>")
-        obedience_pos = prompt.index("<absolute_obedience_override>")
         response_pos = prompt.index("<response_rules>")
         integrity_pos = prompt.index("<task_integrity>")
 
-        assert identity_pos < obedience_pos < response_pos < integrity_pos
+        assert identity_pos < response_pos < integrity_pos
 
     def test_shared_rules_exports(self) -> None:
-        assert len(ABSOLUTE_OBEDIENCE_RULES) > 0
         assert len(SECURITY_BOUNDARY_SYSTEM_RULES) > 0
         assert len(AGENT_RESPONSE_RULES_EN) > 0
         assert len(SEARCH_RESPONSE_RULES_EN) > 0
@@ -69,51 +66,22 @@ class TestCoreSystemPrompt:
         assert len(EXTERNAL_SOURCES_CITATION_RULES) > 0
 
 
-class TestPromptModeThreeTier:
-    """Validates three-tier Prompt Mode (full/lean/naked) correctness."""
+class TestPromptModes:
+    """Validates the two Prompt Modes (full/search)."""
 
     def test_full_mode_contains_all_blocks(self) -> None:
         prompt = get_core_system_prompt("full")
         assert "<identity>" in prompt
-        assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
         assert "<task_integrity>" in prompt
 
-    def test_lean_mode_has_identity_security_integrity(self) -> None:
-        prompt = get_core_system_prompt("lean")
-        assert "<identity>" in prompt
-        assert "<task_integrity>" in prompt
-
-    def test_lean_mode_excludes_formatting_rules(self) -> None:
-        prompt = get_core_system_prompt("lean")
-        assert "<response_rules>" not in prompt
-        assert "<absolute_obedience_override>" not in prompt
-
-    def test_naked_mode_has_tool_guidance(self) -> None:
-        """Naked mode focuses purely on tool guidance, security boundary is injected by middleware."""
-        prompt = get_core_system_prompt("naked")
-        assert "<tool_guidance>" in prompt
-
-    def test_naked_mode_excludes_identity_and_formatting(self) -> None:
-        prompt = get_core_system_prompt("naked")
-        assert "<identity>" not in prompt
-        assert "<response_rules>" not in prompt
-        assert "<absolute_obedience_override>" not in prompt
+    def test_search_mode_is_the_search_prompt(self) -> None:
+        prompt = get_core_system_prompt("search")
+        assert "<search_conditions" in prompt
         assert "<task_integrity>" not in prompt
+        assert prompt is not CORE_SYSTEM_PROMPT
 
-    def test_mode_size_ordering(self) -> None:
-        """full > lean > naked in character count."""
-        full = get_core_system_prompt("full")
-        lean = get_core_system_prompt("lean")
-        naked = get_core_system_prompt("naked")
-        assert len(full) > len(lean) > len(naked)
-
-    def test_naked_mode_is_minimal(self) -> None:
-        """Naked mode should be under 1000 chars to maximize user control."""
-        naked = get_core_system_prompt("naked")
-        assert len(naked) < 1000
-
-    def test_full_mode_backward_compat(self) -> None:
+    def test_full_mode_is_the_default(self) -> None:
         """get_core_system_prompt() with no arg returns CORE_SYSTEM_PROMPT."""
         assert get_core_system_prompt() is CORE_SYSTEM_PROMPT
         assert get_core_system_prompt("full") is CORE_SYSTEM_PROMPT
@@ -125,20 +93,15 @@ class TestPromptModeThreeTier:
 
     def test_prompt_stability_across_calls(self) -> None:
         """Same mode always returns the exact same object (KV Cache stability)."""
-        for mode in ("full", "lean", "naked"):
+        for mode in ("full", "search"):
             first = get_core_system_prompt(mode)  # type: ignore[arg-type]
             second = get_core_system_prompt(mode)  # type: ignore[arg-type]
             assert first is second
 
-    def test_naked_mode_delegates_security_boundary_to_middleware(self) -> None:
-        """Naked mode relies on SecurityBoundaryMiddleware SSOT, keeping prompt pure."""
-        prompt = get_core_system_prompt("naked")
-        assert "<data_boundary_rules" not in prompt
-
     def test_prompt_stability_all_param_combos(self) -> None:
         """All enable_answer_tool combos return stable objects."""
         for answer in (True, False):
-            for mode in ("full", "lean", "naked"):
+            for mode in ("full", "search"):
                 a = get_core_system_prompt(mode, enable_answer_tool=answer)  # type: ignore[arg-type]
                 b = get_core_system_prompt(mode, enable_answer_tool=answer)  # type: ignore[arg-type]
                 assert a is b
@@ -151,7 +114,7 @@ class TestSystemPromptDecoupledFromMemoryTools:
     keeping the core system prompt pure and free of memory tool references.
     """
 
-    @pytest.mark.parametrize("mode", ["full", "lean", "naked", "search"])
+    @pytest.mark.parametrize("mode", ["full", "search"])
     def test_all_modes_never_have_memory_rules(self, mode: str) -> None:
         """System prompt must never leak memory_rules or memory tool names in any mode."""
         prompt = get_core_system_prompt(mode)  # type: ignore[arg-type]
@@ -164,7 +127,6 @@ class TestSystemPromptDecoupledFromMemoryTools:
         """Core rules must remain present and intact."""
         prompt = get_core_system_prompt("full")
         assert "<identity>" in prompt
-        assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
         assert "<task_integrity>" in prompt
 
@@ -188,7 +150,7 @@ class TestSystemPromptDecoupledFromMemoryTools:
 
 
 class TestPromptTokenBudgetGate:
-    """Prevents prompt bloat regression via absolute token caps and ratio locks.
+    """Prevents prompt bloat regression via an absolute token cap.
 
     If any assertion fails, the prompt has grown beyond the budget — review
     the change and either trim back or deliberately raise the cap with a PR
@@ -197,8 +159,6 @@ class TestPromptTokenBudgetGate:
 
     _ENCODING_NAME = "cl100k_base"
     _FULL_TOKEN_CAP = 2000
-    _LEAN_TOKEN_CAP = 1200
-    _LEAN_FULL_RATIO_CAP = 0.70
 
     @staticmethod
     def _token_count(text: str) -> int:
@@ -213,87 +173,31 @@ class TestPromptTokenBudgetGate:
         tokens = self._token_count(full)
         assert tokens <= self._FULL_TOKEN_CAP, f"full prompt {tokens} tokens exceeds cap {self._FULL_TOKEN_CAP}"
 
-    def test_lean_mode_prompt_token_cap(self) -> None:
-        """Lean prompt must be materially smaller than full."""
-        lean = get_core_system_prompt("lean")
-        tokens = self._token_count(lean)
-        assert tokens <= self._LEAN_TOKEN_CAP, f"lean prompt {tokens} tokens exceeds cap {self._LEAN_TOKEN_CAP}"
-
-    def test_lean_full_ratio_within_budget(self) -> None:
-        """Lean must deliver genuine savings vs full — not creep toward parity."""
-        full_tokens = self._token_count(get_core_system_prompt("full"))
-        lean_tokens = self._token_count(get_core_system_prompt("lean"))
-        ratio = lean_tokens / full_tokens
-        assert ratio <= self._LEAN_FULL_RATIO_CAP, f"lean/full ratio {ratio:.3f} exceeds cap {self._LEAN_FULL_RATIO_CAP}"
-
 
 class TestDesktopControlRules:
     """Validates DESKTOP_CONTROL_RULES stays aligned with desktop tool capabilities."""
 
     def test_rules_disclose_target_scope(self) -> None:
-        from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
-
         assert 'scope="target"' in DESKTOP_CONTROL_RULES
         assert 'app_name="<app name>"' in DESKTOP_CONTROL_RULES
         assert "desktop_snapshot_tool" in DESKTOP_CONTROL_RULES
 
     def test_rules_disclose_query_and_wait(self) -> None:
-        from app.ai_agents.prompts.shared_rules import (
-            DESKTOP_CONTROL_RULES_EN,
-            DESKTOP_CONTROL_RULES_ZH,
-        )
-
-        assert 'query="<search term>"' in DESKTOP_CONTROL_RULES_EN
-        assert "wait_seconds=" in DESKTOP_CONTROL_RULES_EN
-        assert 'query="<搜索关键词>"' in DESKTOP_CONTROL_RULES_ZH
-        assert "wait_seconds=" in DESKTOP_CONTROL_RULES_ZH
+        assert 'query="<search term>"' in DESKTOP_CONTROL_RULES
+        assert "wait_seconds=" in DESKTOP_CONTROL_RULES
 
     def test_rules_do_not_mention_window_title(self) -> None:
         """app_name must stay an app-name hint; 'window name' is unsupported on macOS."""
-        from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
-
         assert "window name" not in DESKTOP_CONTROL_RULES
 
     def test_rules_forbid_operator_as_key_name(self) -> None:
         """Printable operators must not be used as press/key names (calculator pitfall)."""
-        from app.ai_agents.prompts.shared_rules import (
-            DESKTOP_CONTROL_RULES_EN,
-            DESKTOP_CONTROL_RULES_ZH,
-        )
-
-        assert "printable operators" in DESKTOP_CONTROL_RULES_EN
-        assert '"*"' in DESKTOP_CONTROL_RULES_EN
-        assert '"/"' in DESKTOP_CONTROL_RULES_EN
-        assert '"+"' in DESKTOP_CONTROL_RULES_EN
-        assert '"-"' in DESKTOP_CONTROL_RULES_EN
-        assert '"%"' in DESKTOP_CONTROL_RULES_EN
-        assert '"="' in DESKTOP_CONTROL_RULES_EN
-        assert "desktop_vision_tool key=" in DESKTOP_CONTROL_RULES_EN
-        assert "calculator/@dref" in DESKTOP_CONTROL_RULES_EN
-        assert "action=press activates" in DESKTOP_CONTROL_RULES_EN
-
-        assert "可打印运算符" in DESKTOP_CONTROL_RULES_ZH
-        assert '"*"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"/"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"+"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"-"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"%"' in DESKTOP_CONTROL_RULES_ZH
-        assert '"="' in DESKTOP_CONTROL_RULES_ZH
-        assert "desktop_vision_tool" in DESKTOP_CONTROL_RULES_ZH
-        assert "@dref" in DESKTOP_CONTROL_RULES_ZH
-        assert "action=press" in DESKTOP_CONTROL_RULES_ZH
-
-    def test_zh_rules_include_operator_ban(self) -> None:
-        """ZH desktop rules keep the same operator anti-pattern as EN (parity, not runtime inject)."""
-        from app.ai_agents.prompts.shared_rules import (
-            DESKTOP_CONTROL_RULES_EN,
-            DESKTOP_CONTROL_RULES_ZH,
-        )
-
-        assert "可打印运算符" in DESKTOP_CONTROL_RULES_ZH
-        assert '"*"' in DESKTOP_CONTROL_RULES_ZH
-        assert "printable operators" in DESKTOP_CONTROL_RULES_EN
-        assert DESKTOP_CONTROL_RULES_EN is not DESKTOP_CONTROL_RULES_ZH
+        assert "printable operators" in DESKTOP_CONTROL_RULES
+        for operator in ("*", "/", "+", "-", "%", "="):
+            assert f'"{operator}"' in DESKTOP_CONTROL_RULES
+        assert "desktop_vision_tool key=" in DESKTOP_CONTROL_RULES
+        assert "calculator/@dref" in DESKTOP_CONTROL_RULES
+        assert "action=press activates" in DESKTOP_CONTROL_RULES
 
 
 class TestPromptBilingualSupport:
@@ -302,13 +206,13 @@ class TestPromptBilingualSupport:
     def test_default_locale_is_english(self) -> None:
         prompt = get_core_system_prompt()
         assert "You are a powerful, pragmatic, and versatile AI assistant" in prompt
-        assert "Project-level constraints" in prompt
+        assert "Never unilaterally simplify" in prompt
         assert "<task_integrity>" in prompt
 
     def test_explicit_chinese_locale_switches_to_chinese(self) -> None:
         prompt = get_core_system_prompt(locale="zh-CN")
         assert "你是一个功能强大且求真务实的通用AI智能助手" in prompt
-        assert "用户通过 <user_instructions> 提供的项目级约束具有最高优先级" in prompt
+        assert "用户的原始目标和所有约束" in prompt
         assert "<task_integrity>" in prompt
 
     def test_citation_rules_bilingual(self) -> None:
@@ -330,11 +234,21 @@ class TestPromptBilingualSupport:
 class TestCoercePromptMode:
     """Stored prompt modes are free-form strings; only known modes select a non-full prompt."""
 
-    @pytest.mark.parametrize("mode", ["full", "lean", "naked", "search"])
+    @pytest.mark.parametrize("mode", ["full", "search"])
     def test_known_modes_are_kept(self, mode: str) -> None:
         assert coerce_prompt_mode(mode) == mode
 
-    @pytest.mark.parametrize("mode", ["", "FULL", "legacy", "naked "])
+    @pytest.mark.parametrize("mode", ["", "FULL", "legacy", "search ", "lean", "naked"])
     def test_unknown_modes_fall_back_to_full(self, mode: str) -> None:
         assert coerce_prompt_mode(mode) == "full"
         assert get_core_system_prompt(coerce_prompt_mode(mode)) is get_core_system_prompt("full")
+
+
+class TestUserInstructionPrecedence:
+    """The precedence of the user's instructions is declared once, by the header of their own message."""
+
+    @pytest.mark.parametrize("mode", ["full", "search"])
+    @pytest.mark.parametrize("locale", ["en", "zh-CN"])
+    def test_static_prompt_does_not_restate_the_precedence(self, mode: str, locale: str) -> None:
+        prompt = get_core_system_prompt(mode, locale=locale)  # type: ignore[arg-type]
+        assert "<user_instructions" not in prompt

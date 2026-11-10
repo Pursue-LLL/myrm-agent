@@ -17,11 +17,6 @@ from myrm_agent_harness.toolkits.wiki.core.config import (
     WikiConfig,
     WikiQueryConfig,
 )
-from myrm_agent_harness.toolkits.wiki.core.source_card_contract import (
-    SourceCardContract,
-    parse_source_card,
-    serialize_source_card,
-)
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.core.types import (
     CompileResult,
@@ -34,12 +29,9 @@ __all__ = [
     "CompileResult",
     "ConceptInfo",
     "QueryResult",
-    "SourceCardContract",
     "WikiArticle",
     "WikiCompileConfig",
     "WikiConfig",
     "WikiQueryConfig",
     "WikiStructure",
-    "parse_source_card",
-    "serialize_source_card",
 ]

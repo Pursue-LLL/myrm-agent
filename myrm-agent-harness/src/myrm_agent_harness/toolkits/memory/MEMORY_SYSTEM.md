@@ -754,7 +754,7 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 - **主体归属隔离 (Attribution)**：严格区分用户本人与第三方（家人、朋友、同事等），禁止将第三方的特征、疾病或偏好归因于用户本人。
 - **瞬态情绪过滤 (Transient State Filter)**：过滤掉短暂的情绪和心理状态（如“今天很焦虑”、“感觉很抑郁”），除非明确说明是慢性疾病，防止 AI 永久存储瞬态情绪。
 - **业务瞬态事实 L3 写入总闸 (Business Transient Fact Write Gate)**：`transient_fact_boundary.py` 提供双语 regex 启发式；`MemoryWriter.store/store_batch` 与 `MemoryManager.update_memory` 在持久化前统一过滤 Semantic/Episodic 中的实时业务态（物流进度、账户余额、OTP、临时链接等），`memory_save_tool` 与 auto-extract 路径同样拦截；Profile/Procedural/ConversationMemory 豁免。拒绝以 `MemoryRejectedError`（`MemoryError` 子类，消息面向调用方，可原样呈现）抛出，工具层经 `write_failure_feedback` 原样转述给模型，Server 层映射为 HTTP 400。`update_memory` 对写入前即可判定的越界输入同样以 `MemoryRejectedError` 拒绝且不落任何数据：`importance` / `confidence` 必须在 0.0–1.0（模型层的读取区间，越界值一旦落库该记忆将无法再读出），不做钳制。
-- **流程型/FAQ Agent L2 记忆策略预设 (Flow-Type Agent L2-Only Memory Policy Preset)**：`AgentMemoryPolicy` 扩展 `allow_l3_extraction` 与 `auto_cleanup`，提供 `preset_l2_flow`（任务级局部读写、禁用 L3 抽取、完成自动蒸发）与 `preset_faq_retrieval`（会话级局部读写、禁用 L3 抽取）；在 `review.py` 会话结算时短路阻断后台 LLM 抽取，从源头防止工单、即时搜索等瞬态临时数据污染长期库。
+- **流程型/FAQ Agent L2 记忆策略预设 (Flow-Type Agent L2-Only Memory Policy Preset)**：`AgentMemoryPolicy` 扩展 `allow_l3_extraction`，提供 `preset_l2_flow`（任务级局部读写、禁用 L3 抽取）与 `preset_faq_retrieval`（会话级局部读写、禁用 L3 抽取）；在 `review.py` 会话结算时短路阻断后台 LLM 抽取，从源头防止工单、即时搜索等瞬态临时数据污染长期库。
 - **Per-Fact TTL**：提取时 LLM 为每条记忆预估有效期 `expected_valid_days`（瞬态 30-90d、项目 90-180d、习惯 180-365d、永久 null），供遗忘策略和 staleness review 使用
 - **动态提示词**：根据 `ExtractionConfig` 动态生成，仅包含启用的记忆类型
 - **Token 优化**：337 tokens（全类型）→ 229 tokens（最小配置），节省 32%
@@ -889,7 +889,7 @@ tools = create_memory_tools(manager=manager)
 
 | 方法                                                                              | 功能                                                                              |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重），并声明批准后应执行的落库语义与待审目标展示内容 |
+| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：同一 manager 内相同提案并行提交也只入队一次，画像提案同理；同库的其他 manager 各持自己的锁），并声明批准后应执行的落库语义与待审目标展示内容 |
 | `approve(pending_id, *, edited_content=None)`                                     | 按 `resolution_action` 分派：`STORE` 持久化新记忆 / `CORRECT` 纠正目标记忆 / `DELETE` 归档目标记忆；`edited_content` 为审批者改写后的文本 |
 | `reject(pending_id)`                                                              | 拒绝；记录不存在抛 `MemoryNotFoundError`，已处理（非 `pending`）的记录重复拒绝/批准是空操作，不会重复落库或改写已批准状态 |
 | `get_pending(pending_id)`                                                         | 按 id 读取单条待审批记录（含已处理状态），不存在返回 `None`；供业务层在批准/拒绝前取得审计所需元数据 |
@@ -996,7 +996,7 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 ```
 Agent: memory_manage_tool(action="correct", memory_id="abc", new_content="正确的事实")
   → 新记忆 "xyz": confidence=0.95, importance=min(旧+0.2, 1.0), correction_of="abc"（纠正链）；写入被拒绝则到此为止，旧记忆原样保留
-  → 旧记忆 "abc": importance ×0.3（下限 0.05）, confidence → 0.1, metadata["corrected"]=True；精确事实标记与索引行一并清除，被取代的事实不再与它的纠正争抢精确置顶
+  → 旧记忆 "abc": importance ×0.3（下限 0.05）, confidence → 0.1, metadata["corrected"]=True；精确事实标记与索引行一并清除，被取代的事实不会与它的纠正争抢精确置顶
   → 检索时抑制: importance降权 × confidence降权 × correction_penalty(0.1)
 ```
 

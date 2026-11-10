@@ -17,6 +17,7 @@ from ..external_agents import ExternalAgentsMixin
 
 if TYPE_CHECKING:
     from myrm_agent_harness.api import SkillAgent
+    from myrm_agent_harness.toolkits.memory.config import RecallMode
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
@@ -77,12 +78,9 @@ class ToolSetupBaseMixin(ExternalAgentsMixin):
         declared_capabilities: tuple[str, ...]
         memory_base_path: str | None
         memory_decay_profile: str | None
+        memory_recall_mode: RecallMode
 
         # 跨工具族调用：实现在对应 mixin，组合后由 MRO 解析。
-        def _setup_image_generation_tools(
-            self, tools: list[object], *, task_user_id: str = "default"
-        ) -> None: ...
-        def _setup_video_generation_tools(
-            self, tools: list[object], *, task_user_id: str = "default"
-        ) -> None: ...
+        def _setup_image_generation_tools(self, tools: list[object], *, task_user_id: str = "default") -> None: ...
+        def _setup_video_generation_tools(self, tools: list[object], *, task_user_id: str = "default") -> None: ...
         def _setup_tts_tools(self, tools: list[object]) -> None: ...

@@ -55,10 +55,6 @@ class AgentMemoryPolicyConfig(BaseModel):
         default=True,
         description="Whether background L3 LLM memory extraction is allowed",
     )
-    auto_cleanup: bool = Field(
-        default=False,
-        description="Whether ephemeral session/task state is cleaned up upon task end",
-    )
 
 
 class AgentSessionPolicyConfig(BaseModel):

@@ -9,7 +9,6 @@ from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.sub_agents.builder import (
     build_child_agent,
-    build_standalone_agent,
     filter_tools,
     merge_child_stats,
     resolve_llm,
@@ -271,7 +270,7 @@ class TestResolveLlm:
 
 
 # ---------------------------------------------------------------------------
-# build_child_agent / build_standalone_agent
+# build_child_agent
 # ---------------------------------------------------------------------------
 
 
@@ -325,25 +324,6 @@ class TestBuildAgents:
         factory.build.assert_awaited_once()
         mock_child._subagent_manager.inherit_runtime_limits.assert_called_once()
         assert mock_child._subagent_manager.inherit_runtime_limits.call_args[1]["current_depth"] == 3
-
-    def test_build_standalone_agent(self):
-        cfg = SubagentConfig(system_prompt="standalone", max_turns=5, timeout_seconds=30)
-        llm = MagicMock()
-        MagicMock()
-        with patch("myrm_agent_harness.agent.base_agent.BaseAgent") as mock_agent:
-            mock_agent.return_value = MagicMock()
-            build_standalone_agent(llm, cfg, [], "do standalone")
-            call_kwargs = mock_agent.call_args[1]
-            assert "standalone" in call_kwargs["system_prompt"]
-
-    def test_build_standalone_no_task(self):
-        cfg = SubagentConfig(system_prompt="bare")
-        llm = MagicMock()
-        with patch("myrm_agent_harness.agent.base_agent.BaseAgent") as mock_agent:
-            mock_agent.return_value = MagicMock()
-            build_standalone_agent(llm, cfg, [], "")
-            call_kwargs = mock_agent.call_args[1]
-            assert call_kwargs["system_prompt"].startswith("bare")
 
 
 class TestBuilderForkMode:

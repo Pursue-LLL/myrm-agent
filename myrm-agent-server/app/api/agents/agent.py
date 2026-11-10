@@ -93,7 +93,7 @@ async def get_agents(
                     avatar_url=agent.avatar,
                     is_built_in=agent.built_in,
                     agent_type="team" if meta.get("agent_type") == "team" else "individual",
-                    prompt_mode=_meta_str(meta, "prompt_mode") or "full",
+                    prompt_mode="search" if _meta_str(meta, "prompt_mode") == "search" else "full",
                     subagent_ids=_meta_str_list_or_none(meta, "subagent_ids") or None,
                     enabled_builtin_tools=_resolve_enabled_builtin_tools(agent),
                     model_selection=_build_model_selection(agent.model, meta),

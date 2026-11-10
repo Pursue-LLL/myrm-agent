@@ -77,7 +77,6 @@ myrm_agent_harness/backends/skills/scanning/__init__.py
 myrm_agent_harness/core/artifacts/__init__.py
 myrm_agent_harness/core/artifacts/constants.py
 myrm_agent_harness/core/config/gateway.py
-myrm_agent_harness/core/config/model_tier.py
 myrm_agent_harness/core/events/__init__.py
 myrm_agent_harness/core/events/types.py
 myrm_agent_harness/core/features/__init__.py

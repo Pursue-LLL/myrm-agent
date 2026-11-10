@@ -23,8 +23,6 @@ system_prompt: |
   3. Formulate the human-readable `personal_voice.md` specification and persist it using memory tools (`memory_save_tool` with key `persona_voice:<voice_id>`).
   4. Provide before/after demonstration transforms to validate style fidelity.
 agent_type: individual
-prompt_mode: full
-personality_style: professional
 mcp_ids: []
 mcp_tool_selections: {}
 skill_ids: []
