@@ -35,11 +35,9 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     run_consolidation,
     should_consolidate,
 )
-from myrm_agent_harness.toolkits.memory.strategies.deduplicator import (
-    DeduplicationDecision,
-    HashCacheMetrics,
-    SmartDeduplicator,
-)
+from myrm_agent_harness.toolkits.memory.strategies.dedup_hash_cache import HashCacheMetrics
+from myrm_agent_harness.toolkits.memory.strategies.dedup_types import DeduplicationDecision
+from myrm_agent_harness.toolkits.memory.strategies.deduplicator import SmartDeduplicator
 from myrm_agent_harness.toolkits.memory.strategies.distillation_guards import (
     DistillationCandidate,
     DistillationGuardRejectionError,

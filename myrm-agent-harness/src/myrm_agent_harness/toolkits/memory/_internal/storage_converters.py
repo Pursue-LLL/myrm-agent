@@ -2,7 +2,7 @@
 
 [INPUT]
 - memory.protocols.vector::{VectorDocument, FilterDict} (POS: vector store protocol and data models)
-- memory.types::{SemanticMemory, EpisodicMemory, ConversationMemory, ...} (POS: memory data models)
+- memory.types::{SemanticMemory, EpisodicMemory, ...} (POS: memory data models)
 - memory.domain_types::{MemoryDomain, DomainCategory} (POS: domain & category taxonomy)
 - _internal.store_stamp::{STORED_TS_KEY, stored_at_from_metadata, stored_ts_payload} (POS: arrival stamp of a stored memory and its payload form)
 
@@ -11,7 +11,7 @@
 - Lifecycle helpers: _lifecycle_payload, _lifecycle_from_metadata
 - Usage-stamp helper: _stamp_access (records one use on a stored document)
 - to_doc: semantic_to_doc, episodic_to_doc
-- from_doc: doc_to_semantic, doc_to_episodic, doc_to_conversation
+- from_doc: doc_to_semantic, doc_to_episodic
 
 [POS]
 Stateless conversion layer between vector-store documents and typed memory models. A document's store stamp
@@ -22,8 +22,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from datetime import datetime
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory._internal._storage_payload_helpers import (
     _last_accessed_from_metadata,
@@ -48,15 +46,11 @@ from myrm_agent_harness.toolkits.memory.protocols.vector import (
     VectorDocument,
 )
 from myrm_agent_harness.toolkits.memory.types import (
-    ConversationMemory,
     EpisodicMemory,
     MemoryType,
     PreferenceType,
     SemanticMemory,
 )
-
-if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +66,6 @@ __all__ = [
     "_stamp_access",
     "doc_to_semantic",
     "doc_to_episodic",
-    "doc_to_conversation",
     "semantic_to_doc",
     "episodic_to_doc",
 ]
@@ -142,17 +135,6 @@ _EPISODIC_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
         "tags",
         "last_accessed_at",
         STORED_TS_KEY,
-    }
-)
-
-_CONVERSATION_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
-    {
-        "timestamp",
-        "user_turn_only",
-        "related_entities",
-        "source_message_id",
-        "project_id",
-        "topic_id",
     }
 )
 
@@ -267,91 +249,6 @@ def doc_to_episodic(doc: VectorDocument) -> EpisodicMemory:
         domain=_parse_domain(meta.get("domain")),
         domain_category=str(meta.get("domain_category", "")),
         related_entities=_string_list_from_metadata(meta, "related_entities"),
-    )
-
-
-def doc_to_conversation(
-    doc: VectorDocument,
-    *,
-    include_raw: bool = False,
-    config: MemoryConfig | None = None,
-) -> ConversationMemory:
-    """Convert VectorDocument to ConversationMemory."""
-    meta = doc.metadata
-    raw_lang = str(meta.get("language", "en"))
-    lang = raw_lang if raw_lang in ("zh", "en") else "en"
-    extra: dict[str, str | int | float | bool] = {}
-    for k, v in meta.items():
-        if k not in _CONVERSATION_KNOWN_KEYS and isinstance(v, (str, int, float, bool)):
-            extra[k] = v
-
-    raw_entities = meta.get("related_entities", [])
-    related_entities = raw_entities if isinstance(raw_entities, list) else []
-
-    raw_timestamp = meta.get("timestamp")
-    if isinstance(raw_timestamp, datetime):
-        timestamp = raw_timestamp
-    elif isinstance(raw_timestamp, str):
-        try:
-            timestamp = datetime.fromisoformat(raw_timestamp)
-        except (ValueError, TypeError):
-            timestamp = doc.created_at
-    else:
-        timestamp = doc.created_at
-
-    raw_exchange_value = ""
-    if include_raw:
-        raw_data = meta.get("raw_exchange", "")
-        if isinstance(raw_data, str) and raw_data.startswith("blob://"):
-            from myrm_agent_harness.toolkits.memory.compression import (
-                internalize_payload,
-            )
-
-            blob_dir = config.blob_storage_path if config else None
-            raw_exchange_value = internalize_payload(raw_data, blob_dir=blob_dir)
-        else:
-            is_compressed_flag = bool(meta.get("raw_exchange_compressed", False))
-            if is_compressed_flag and isinstance(raw_data, str):
-                import base64
-
-                from myrm_agent_harness.toolkits.memory.compression import (
-                    decompress_payload,
-                )
-
-                try:
-                    compressed_bytes = base64.b64decode(raw_data)
-                    raw_exchange_value = decompress_payload(compressed_bytes)
-                except Exception:
-                    raw_exchange_value = raw_data
-            else:
-                raw_exchange_value = str(raw_data) if raw_data else ""
-
-    return ConversationMemory(
-        id=doc.id,
-        user_id=str(meta.get("user_id", "")),
-        content=doc.content,
-        raw_exchange=raw_exchange_value,
-        raw_embedding=None,
-        summary_embedding=doc.vector,
-        timestamp=timestamp,
-        user_turn_only=bool(meta.get("user_turn_only", True)),
-        related_entities=related_entities,
-        source_chat_id=str(meta.get("source_chat_id", "")) or None,
-        source_message_id=str(meta.get("source_message_id", "")) or None,
-        project_id=str(meta.get("project_id", "")) or None,
-        topic_id=str(meta.get("topic_id", "")) or None,
-        importance=_safe_float(meta.get("importance", 0.5), 0.5),
-        language=lang,  # type: ignore[arg-type]
-        status=_status_from_metadata(meta),
-        metadata=extra,
-        created_at=doc.created_at,
-        updated_at=doc.updated_at,
-        scope=_scope_from_metadata(meta),
-        lifecycle=_lifecycle_from_metadata(meta),
-        summary_l0=str(meta.get("summary_l0", "")),
-        overview_l1=str(meta.get("overview_l1", "")),
-        domain=_parse_domain(meta.get("domain")),
-        domain_category=str(meta.get("domain_category", "")),
     )
 
 

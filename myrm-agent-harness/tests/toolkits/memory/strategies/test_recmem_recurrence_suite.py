@@ -1,16 +1,13 @@
 """Evaluation suite for RecurrenceDetector and noise-suppression heuristics."""
 
-
 from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory.strategies.recurrence import (
-    RecurrenceDetector,
-    _is_trivial_summary,
-)
+from myrm_agent_harness.toolkits.memory.strategies.recurrence import RecurrenceDetector
+from myrm_agent_harness.toolkits.memory.strategies.recurrence_signals import is_trivial_summary
 from myrm_agent_harness.toolkits.vector.base import SearchResult, VectorDocument
 
 # ---------------------------------------------------------------------------
@@ -59,15 +56,13 @@ def detector(mock_embedding: AsyncMock, mock_vector: AsyncMock) -> RecurrenceDet
 
 class TestRecurrenceDetectorEnhancements:
     def test_trivial_greeting_detection(self) -> None:
-        assert _is_trivial_summary("hello")
-        assert _is_trivial_summary("Hi there!")
-        assert _is_trivial_summary("你好呀")
-        assert _is_trivial_summary("好的，收到")
-        assert _is_trivial_summary("Thanks a lot")
-        assert not _is_trivial_summary("User prefers TypeScript with strict mode enabled")
-        assert not _is_trivial_summary(
-            "Database connection timeout occurs under 100 concurrent clients"
-        )
+        assert is_trivial_summary("hello")
+        assert is_trivial_summary("Hi there!")
+        assert is_trivial_summary("你好呀")
+        assert is_trivial_summary("好的，收到")
+        assert is_trivial_summary("Thanks a lot")
+        assert not is_trivial_summary("User prefers TypeScript with strict mode enabled")
+        assert not is_trivial_summary("Database connection timeout occurs under 100 concurrent clients")
 
     @pytest.mark.asyncio
     async def test_trivial_greeting_short_circuits_no_vector_call(
@@ -92,16 +87,10 @@ class TestRecurrenceDetectorEnhancements:
             vector=[0.05] * 768,
             metadata={"session_id": "sess-old", "importance": 0.5, "is_deprecated": False},
         )
-        mock_vector.search.return_value = [
-            SearchResult(document=existing_doc, score=0.88)
-        ]
+        mock_vector.search.return_value = [SearchResult(document=existing_doc, score=0.88)]
 
-        mock_llm = AsyncMock(
-            return_value="Consolidated: User strictly prefers asyncio over threading"
-        )
-        result = await detector.check_recurrence(
-            "User prefers async python everywhere", llm_func=mock_llm
-        )
+        mock_llm = AsyncMock(return_value="Consolidated: User strictly prefers asyncio over threading")
+        result = await detector.check_recurrence("User prefers async python everywhere", llm_func=mock_llm)
         assert result.triggered
         assert "asyncio" in str(result.consolidated_content)
 
@@ -123,9 +112,7 @@ class TestRecurrenceDetectorEnhancements:
             vector=[0.05] * 768,
             metadata={"is_deprecated": True, "superseded_by": "new-doc-1"},
         )
-        mock_vector.search.return_value = [
-            SearchResult(document=deprecated_doc, score=0.92)
-        ]
+        mock_vector.search.return_value = [SearchResult(document=deprecated_doc, score=0.92)]
         result = await detector.check_recurrence("User prefers async python code")
         # Since the hit was deprecated, effective hits should be 0 (< recurrence_k=2)
         assert not result.triggered
@@ -153,10 +140,8 @@ class TestWorkingBoardRetentionAndNoise:
         ]
         suppressed = 0
         for sample in chitchat_samples:
-            if _is_trivial_summary(sample):
+            if is_trivial_summary(sample):
                 suppressed += 1
 
         suppression_ratio = suppressed / len(chitchat_samples)
-        assert (
-            suppression_ratio == 1.0
-        ), f"Suppression ratio {suppression_ratio:.2%} is below 100%"
+        assert suppression_ratio == 1.0, f"Suppression ratio {suppression_ratio:.2%} is below 100%"

@@ -5,6 +5,7 @@
 - memory.config::RecurrenceConfig (POS: recurrence detection configuration)
 - memory.protocols.embedding::EmbeddingProtocol (POS: text to vector)
 - memory.protocols.vector::VectorStoreProtocol (POS: vector storage)
+- strategies.recurrence_signals::{is_important, is_trivial_summary} (POS: keyword rules for must-remember signals and chitchat)
 
 [OUTPUT]
 - RecurrenceDetector: Detects recurrent topics across sessions and triggers LLM consolidation.
@@ -30,112 +31,13 @@ from myrm_agent_harness.toolkits.memory.protocols.vector import (
     VectorDocument,
     VectorStoreProtocol,
 )
+from myrm_agent_harness.toolkits.memory.strategies.recurrence_signals import is_important, is_trivial_summary
 
 logger = logging.getLogger(__name__)
 
 LLMFunc = Callable[[str, str], Awaitable[str]]
 
 _RECURRENCE_COLLECTION_SUFFIX = "_recurrence_buffer"
-
-_IMPORTANCE_KEYWORDS_EN = frozenset(
-    {
-        "allergy",
-        "allergic",
-        "anaphylaxis",
-        "medication",
-        "prescription",
-        "diabetes",
-        "asthma",
-        "epilepsy",
-        "emergency",
-        "hospital",
-        "password",
-        "credential",
-        "deadline",
-        "urgent",
-        "phobia",
-        "trauma",
-        "intolerance",
-        "wheelchair",
-        "disability",
-    }
-)
-
-_IMPORTANCE_KEYWORDS_CN = frozenset(
-    {
-        "过敏",
-        "药物",
-        "处方",
-        "糖尿病",
-        "哮喘",
-        "癫痫",
-        "急诊",
-        "医院",
-        "密码",
-        "密钥",
-        "凭证",
-        "截止日期",
-        "紧急",
-        "恐惧",
-        "创伤",
-        "饮食禁忌",
-        "不耐受",
-        "残疾",
-        "轮椅",
-    }
-)
-
-_TRIVIAL_SUMMARY_PATTERNS = frozenset(
-    {
-        "hello",
-        "hi",
-        "hey",
-        "hi there",
-        "hello there",
-        "greetings",
-        "good morning",
-        "good afternoon",
-        "good evening",
-        "morning",
-        "ok",
-        "okay",
-        "fine",
-        "cool",
-        "sure",
-        "thanks",
-        "thank you",
-        "thanks a lot",
-        "thank you very much",
-        "thx",
-        "bye",
-        "goodbye",
-        "test",
-        "testing",
-        "ping",
-        "pong",
-        "chat",
-        "你好",
-        "您好",
-        "你好呀",
-        "在吗",
-        "在不在",
-        "打个招呼",
-        "问好",
-        "测试",
-        "哈喽",
-        "嗨",
-        "好的",
-        "好的收到",
-        "收到",
-        "明白",
-        "行",
-        "可以",
-        "谢谢",
-        "多谢",
-        "再见",
-        "拜拜",
-    }
-)
 
 _CONSOLIDATION_SYSTEM_PROMPT = """\
 You are a memory consolidation specialist. Given multiple conversation snippets \
@@ -221,7 +123,7 @@ class RecurrenceDetector:
         if not session_summary.strip():
             return RecurrenceResult(triggered=False)
 
-        if self._importance_preemption and _is_important(session_summary):
+        if self._importance_preemption and is_important(session_summary):
             return RecurrenceResult(
                 triggered=True,
                 consolidated_content=session_summary,
@@ -229,7 +131,7 @@ class RecurrenceDetector:
                 topic_summary="importance_preemption",
             )
 
-        if _is_trivial_summary(session_summary):
+        if is_trivial_summary(session_summary):
             return RecurrenceResult(
                 triggered=False,
                 recurrence_count=0,
@@ -347,24 +249,3 @@ class RecurrenceDetector:
 
         if to_delete:
             await self._vector.delete(self._collection, to_delete)
-
-
-def _is_important(text: str) -> bool:
-    """Check if text contains high-importance signals (health, safety, credentials)."""
-    lower = text.lower()
-    for kw in _IMPORTANCE_KEYWORDS_EN:
-        if kw in lower:
-            return True
-    return any(kw in text for kw in _IMPORTANCE_KEYWORDS_CN)
-
-
-def _is_trivial_summary(text: str) -> bool:
-    """Check if text is trivial conversational chitchat with no long-term memory value.
-
-    Filters out greetings, acknowledgments, and empty chitchat unless high importance signals
-    are present.
-    """
-    cleaned = "".join(ch for ch in text.lower() if ch.isalnum() or ch.isspace()).strip()
-    if not cleaned or cleaned in _TRIVIAL_SUMMARY_PATTERNS:
-        return True
-    return len(cleaned) <= 4 and not _is_important(text)

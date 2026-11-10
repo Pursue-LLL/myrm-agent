@@ -1,7 +1,8 @@
 """Search operations for memory retrieval.
 
 [INPUT]
-- storage_converters::{doc_to_semantic, doc_to_episodic, doc_to_conversation, _user_filter}
+- storage_converters::{doc_to_semantic, doc_to_episodic, _user_filter}
+- storage_conversation::doc_to_conversation
 - bm25_sparse::{BM25SparseIndexStore, bm25_scope, unwrap_sparse_mirror}
 - memory.protocols.vector::VectorStoreProtocol
 - memory.types::{MemorySearchResult, MemoryType, SemanticMemory}
@@ -29,9 +30,9 @@ from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import (
     bm25_scope,
     unwrap_sparse_mirror,
 )
+from myrm_agent_harness.toolkits.memory._internal.storage_conversation import doc_to_conversation
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
     _user_filter,
-    doc_to_conversation,
     doc_to_episodic,
     doc_to_semantic,
 )

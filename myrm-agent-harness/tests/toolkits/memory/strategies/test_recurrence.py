@@ -7,10 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.agent.skill_agent import SkillAgent
-from myrm_agent_harness.toolkits.memory.strategies.recurrence import (
-    RecurrenceDetector,
-    _is_important,
-)
+from myrm_agent_harness.toolkits.memory.strategies.recurrence import RecurrenceDetector
+from myrm_agent_harness.toolkits.memory.strategies.recurrence_signals import is_important
 from myrm_agent_harness.toolkits.vector.base import SearchResult, VectorDocument
 
 
@@ -286,31 +284,31 @@ class TestRecurrenceDetector:
 
 class TestIsImportant:
     def test_english_allergy(self) -> None:
-        assert _is_important("I have a severe allergy to shellfish")
+        assert is_important("I have a severe allergy to shellfish")
 
     def test_english_password(self) -> None:
-        assert _is_important("My password for the server is")
+        assert is_important("My password for the server is")
 
     def test_english_medication(self) -> None:
-        assert _is_important("I take medication for blood pressure")
+        assert is_important("I take medication for blood pressure")
 
     def test_chinese_allergy(self) -> None:
-        assert _is_important("我对花生过敏很严重")
+        assert is_important("我对花生过敏很严重")
 
     def test_chinese_urgency(self) -> None:
-        assert _is_important("这个截止日期很紧急")
+        assert is_important("这个截止日期很紧急")
 
     def test_normal_text_not_important(self) -> None:
-        assert not _is_important("I like reading books about history")
+        assert not is_important("I like reading books about history")
 
     def test_chinese_normal_not_important(self) -> None:
-        assert not _is_important("今天天气不错，适合散步")
+        assert not is_important("今天天气不错，适合散步")
 
     def test_case_insensitive(self) -> None:
-        assert _is_important("I have DIABETES type 2")
+        assert is_important("I have DIABETES type 2")
 
     def test_disability_keyword(self) -> None:
-        assert _is_important("I use a wheelchair")
+        assert is_important("I use a wheelchair")
 
 
 class TestBuildRecurrenceSummary:

@@ -689,7 +689,7 @@ class TestMetrics:
 
 
 class TestUpdateApplication:
-    """Tests for _apply_update method (metadata, tags, source provenance)."""
+    """Tests for the update a verdict applies (metadata, tags, source provenance)."""
 
     @pytest.mark.asyncio
     async def test_update_replace_metadata_overwrites(

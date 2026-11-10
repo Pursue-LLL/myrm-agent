@@ -1,10 +1,10 @@
 """Internal storage facade.
 
 [INPUT]
-- storage_converters::{doc_to_*, semantic_to_doc, episodic_to_doc, _user_filter, ...} (POS: stateless conversion layer)
+- storage_converters::{doc_to_semantic, doc_to_episodic, semantic_to_doc, episodic_to_doc, _user_filter, ...} (POS: stateless conversion layer)
 - storage_by_type::{list_by_type, count_by_type, delete_by_type, iter_pages_by_type} (POS: per-type CRUD dispatch)
 - storage_search::{search_profile, search_semantic, search_episodic, ...} (POS: search-specific storage operations)
-- storage_conversation::{embed_conversations, store_conversations_batch} (POS: dual-embedding conversation storage)
+- storage_conversation::{doc_to_conversation, embed_conversations, store_conversations_batch} (POS: dual-embedding conversation storage and read)
 - storage_context::{load_context, WORKING_STATE_*} (POS: context loading for agent prompt)
 - bm25_sparse::is_sparse_authoritative (POS: embeddings-less content rewrites)
 - memory.types::{SemanticMemory, EpisodicMemory, ConversationMemory, ...} (POS: memory data models)
@@ -41,6 +41,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage_context import (
     load_context,
 )
 from myrm_agent_harness.toolkits.memory._internal.storage_conversation import (
+    doc_to_conversation,
     embed_conversations,
     store_conversations_batch,
 )
@@ -52,7 +53,6 @@ from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
     _scope_from_metadata,
     _scope_payload,
     _user_filter,
-    doc_to_conversation,
     doc_to_episodic,
     doc_to_semantic,
     episodic_to_doc,

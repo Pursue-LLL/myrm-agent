@@ -2,33 +2,46 @@
 
 [INPUT]
 - storage::{embed_batch} (POS: embedding generation with cache)
-- storage_converters::{_lifecycle_payload, _scope_payload} (POS: metadata serialization)
+- storage_converters::{_COMMON_KNOWN_KEYS, _lifecycle_from_metadata, _lifecycle_payload, _parse_domain, _safe_float, _scope_from_metadata, _scope_payload, _status_from_metadata} (POS: metadata serialization and shared payload readers)
 - bm25_sparse::unwrap_sparse_mirror (POS: backend beneath the BM25 mirror wrapper)
 - memory.types::{ConversationMemory, MemoryType} (POS: memory data models)
 
 [OUTPUT]
 - embed_conversations: Fill in the raw + summary vectors a conversation does not carry yet
 - store_conversations_batch: Batch store with Qdrant named vectors (raw + summary)
+- doc_to_conversation: Vector document -> ConversationMemory, the read side of the payload the batch store writes
 
 [POS]
 Conversation memory persistence. Handles dual-embedding generation,
-Qdrant named-vector storage, inline compression / external BLOB offloading.
+Qdrant named-vector storage, inline compression / external BLOB offloading, and the read of that payload back
+into a ConversationMemory (raw exchange decompressed or internalized from its blob on request).
 Embedding is a step of its own so a caller can run the slow model call ahead of the write.
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import unwrap_sparse_mirror
+from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
+    _COMMON_KNOWN_KEYS,
+    _lifecycle_from_metadata,
+    _lifecycle_payload,
+    _parse_domain,
+    _safe_float,
+    _scope_from_metadata,
+    _scope_payload,
+    _status_from_metadata,
+)
 from myrm_agent_harness.toolkits.memory.types import ConversationMemory, MemoryType
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.config import MemoryConfig
     from myrm_agent_harness.toolkits.memory.protocols.cache import EmbeddingCacheProtocol
     from myrm_agent_harness.toolkits.memory.protocols.embedding import EmbeddingProtocol
-    from myrm_agent_harness.toolkits.memory.protocols.vector import VectorStoreProtocol
+    from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument, VectorStoreProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -105,12 +118,6 @@ async def store_conversations_batch(
     output instead of a guessed default. Other backends raise ``NotImplementedError``.
     A vector the memory already carries is written as is.
     """
-    from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
-        _lifecycle_payload as lc_payload,
-    )
-    from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
-        _scope_payload as sc_payload,
-    )
     from myrm_agent_harness.toolkits.vector.base import VectorStore
 
     vector = unwrap_sparse_mirror(vector)
@@ -176,8 +183,8 @@ async def store_conversations_batch(
                     "archived": m.status == "archived",
                     "created_at": m.created_at.isoformat(),
                     "updated_at": m.updated_at.isoformat(),
-                    **sc_payload(m.scope),
-                    **lc_payload(m.lifecycle),
+                    **_scope_payload(m.scope),
+                    **_lifecycle_payload(m.lifecycle),
                 }
                 for k, v in m.metadata.items():
                     if k not in payload:
@@ -208,3 +215,100 @@ async def store_conversations_batch(
             "ConversationMemory storage requires Qdrant backend with named vectors support. "
             "Other vector stores are not currently supported for dual-embedding storage."
         )
+
+
+_CONVERSATION_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
+    {
+        "timestamp",
+        "user_turn_only",
+        "related_entities",
+        "source_message_id",
+        "project_id",
+        "topic_id",
+    }
+)
+
+
+def doc_to_conversation(
+    doc: VectorDocument,
+    *,
+    include_raw: bool = False,
+    config: MemoryConfig | None = None,
+) -> ConversationMemory:
+    """Convert VectorDocument to ConversationMemory."""
+    meta = doc.metadata
+    raw_lang = str(meta.get("language", "en"))
+    lang = raw_lang if raw_lang in ("zh", "en") else "en"
+    extra: dict[str, str | int | float | bool] = {}
+    for k, v in meta.items():
+        if k not in _CONVERSATION_KNOWN_KEYS and isinstance(v, (str, int, float, bool)):
+            extra[k] = v
+
+    raw_entities = meta.get("related_entities", [])
+    related_entities = raw_entities if isinstance(raw_entities, list) else []
+
+    raw_timestamp = meta.get("timestamp")
+    if isinstance(raw_timestamp, datetime):
+        timestamp = raw_timestamp
+    elif isinstance(raw_timestamp, str):
+        try:
+            timestamp = datetime.fromisoformat(raw_timestamp)
+        except (ValueError, TypeError):
+            timestamp = doc.created_at
+    else:
+        timestamp = doc.created_at
+
+    raw_exchange_value = ""
+    if include_raw:
+        raw_data = meta.get("raw_exchange", "")
+        if isinstance(raw_data, str) and raw_data.startswith("blob://"):
+            from myrm_agent_harness.toolkits.memory.compression import (
+                internalize_payload,
+            )
+
+            blob_dir = config.blob_storage_path if config else None
+            raw_exchange_value = internalize_payload(raw_data, blob_dir=blob_dir)
+        else:
+            is_compressed_flag = bool(meta.get("raw_exchange_compressed", False))
+            if is_compressed_flag and isinstance(raw_data, str):
+                import base64
+
+                from myrm_agent_harness.toolkits.memory.compression import (
+                    decompress_payload,
+                )
+
+                try:
+                    compressed_bytes = base64.b64decode(raw_data)
+                    raw_exchange_value = decompress_payload(compressed_bytes)
+                except Exception:
+                    raw_exchange_value = raw_data
+            else:
+                raw_exchange_value = str(raw_data) if raw_data else ""
+
+    return ConversationMemory(
+        id=doc.id,
+        user_id=str(meta.get("user_id", "")),
+        content=doc.content,
+        raw_exchange=raw_exchange_value,
+        raw_embedding=None,
+        summary_embedding=doc.vector,
+        timestamp=timestamp,
+        user_turn_only=bool(meta.get("user_turn_only", True)),
+        related_entities=related_entities,
+        source_chat_id=str(meta.get("source_chat_id", "")) or None,
+        source_message_id=str(meta.get("source_message_id", "")) or None,
+        project_id=str(meta.get("project_id", "")) or None,
+        topic_id=str(meta.get("topic_id", "")) or None,
+        importance=_safe_float(meta.get("importance", 0.5), 0.5),
+        language=lang,  # type: ignore[arg-type]
+        status=_status_from_metadata(meta),
+        metadata=extra,
+        created_at=doc.created_at,
+        updated_at=doc.updated_at,
+        scope=_scope_from_metadata(meta),
+        lifecycle=_lifecycle_from_metadata(meta),
+        summary_l0=str(meta.get("summary_l0", "")),
+        overview_l1=str(meta.get("overview_l1", "")),
+        domain=_parse_domain(meta.get("domain")),
+        domain_category=str(meta.get("domain_category", "")),
+    )
