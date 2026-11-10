@@ -8,7 +8,7 @@ from pathlib import Path
 from myrm_agent_harness.core.security.tool_registry import TOOL_TO_GROUP
 
 _MYRM_AGENT_ROOT = Path(__file__).resolve().parents[3]
-_PANEL = (
+_TEMPLATES_FILE = (
     _MYRM_AGENT_ROOT
     / "myrm-agent-frontend"
     / "src"
@@ -16,7 +16,7 @@ _PANEL = (
     / "features"
     / "chat-window"
     / "agent-config-panel"
-    / "AgentConfigPanel.tsx"
+    / "blueprintTemplates.ts"
 )
 
 _TEMPLATES_BLOCK = re.compile(r"const BLUEPRINT_TEMPLATES = \[(.*?)\n\];", re.DOTALL)
@@ -26,9 +26,9 @@ _QUOTED = re.compile(r"'([^']+)'")
 
 
 def _blueprint_block() -> str:
-    assert _PANEL.is_file(), f"Missing frontend panel file: {_PANEL}"
-    match = _TEMPLATES_BLOCK.search(_PANEL.read_text(encoding="utf-8"))
-    assert match, "BLUEPRINT_TEMPLATES block not found in AgentConfigPanel.tsx"
+    assert _TEMPLATES_FILE.is_file(), f"Missing frontend blueprint templates file: {_TEMPLATES_FILE}"
+    match = _TEMPLATES_BLOCK.search(_TEMPLATES_FILE.read_text(encoding="utf-8"))
+    assert match, "BLUEPRINT_TEMPLATES block not found in blueprintTemplates.ts"
     return match.group(1)
 
 
