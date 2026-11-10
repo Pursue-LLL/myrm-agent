@@ -4,10 +4,11 @@
 - toolkits.llms.errors::classify_error, ErrorKind (POS: LLM error classification)
 - toolkits.llms.errors.error_payload::MAX_CHAIN_DEPTH, walk_exception_chain (POS: The one reader of the provider's answer)
 - agent.errors.diagnostics::LLMErrorDiagnostic (POS: LLM error diagnostic engine)
+- toolkits.llms.transport.profile::PROFILES (POS: Data-driven provider knowledge; names the wire each provider speaks)
 - tests.support.mcp_testkit.tls_pki::generate_tls_pki (POS: Throwaway PKI whose server certificate chains to a private CA)
 
 [OUTPUT]
-- Fails when a provider family's wire words a rejected certificate in a shape the classifier or the
+- Fails when one of the transport's wires words a rejected certificate in a shape the classifier or the
   diagnostics do not recognize, which sends the failure back to the retry, key-rotation or generic-connection paths.
 - Fails when a plain-HTTP answer to an https request is taken for a certificate rejection and stops being retried.
 - Fails when the transport's exception chain grows past half of the bound the cause is read within, before one more
@@ -15,7 +16,7 @@
 
 [POS]
 Drift guard for ``rejects_certificate``. Hand-built exception chains prove the logic; this test proves the chains
-the model transport actually raises, one per provider family, against a loopback listener whose certificate the client does not
+the model transport actually raises, one per wire in the profile table, against a loopback listener whose certificate the client does not
 trust (a private CA missing from the trust store, the situation of a TLS-inspecting corporate proxy). A listener that
 answers plain HTTP pins the opposite side: a misconfigured scheme stays a transient transport failure.
 """
@@ -36,17 +37,23 @@ from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 from myrm_agent_harness.toolkits.llms.errors.error_payload import MAX_CHAIN_DEPTH, walk_exception_chain
 from myrm_agent_harness.toolkits.llms.transport import get_transport
+from myrm_agent_harness.toolkits.llms.transport.profile import PROFILES
 from tests.support.mcp_testkit.tls_pki import generate_tls_pki
 from tests.support.tls_loopback import isolate_from_system_proxy
 
-# One model per wire the transport speaks.
-_PROVIDER_MODELS = (
-    "openai/gpt-4o-mini",
-    "anthropic/claude-3-5-haiku-latest",
-    "gemini/gemini-2.0-flash",
-    "ollama_chat/llama3",
-    "deepseek/deepseek-chat",
-)
+
+def _one_model_per_wire() -> dict[str, str]:
+    """A ``provider/model`` id for every wire the profile table speaks, keyed by wire.
+
+    Derived from ``PROFILES`` so a wire added to the transport is covered without editing this file.
+    """
+    models: dict[str, str] = {}
+    for profile_id, profile in PROFILES.items():
+        models.setdefault(profile.wire, f"{profile_id}/probe")
+    return models
+
+
+_WIRE_MODELS = _one_model_per_wire()
 _PLAIN_HTTP_ANSWER = b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"
 
 
@@ -142,22 +149,22 @@ async def _failure_of_https_call(model: str, listener: _Listener) -> Exception:
     raise AssertionError("the https call to the local listener must fail")
 
 
-@pytest.mark.parametrize("model", _PROVIDER_MODELS)
-async def test_every_provider_family_reads_a_rejected_certificate_the_same_way(
-    model: str, untrusted_certificate_listener: _Listener
+@pytest.mark.parametrize("wire", _WIRE_MODELS)
+async def test_every_wire_reads_a_rejected_certificate_the_same_way(
+    wire: str, untrusted_certificate_listener: _Listener
 ) -> None:
-    failure = await _failure_of_https_call(model, untrusted_certificate_listener)
+    failure = await _failure_of_https_call(_WIRE_MODELS[wire], untrusted_certificate_listener)
 
     assert classify_error(failure) is ErrorKind.TLS_CERTIFICATE
     assert LLMErrorDiagnostic.diagnose(failure, None, locale="en").error_type == "tls_certificate"
     assert len(walk_exception_chain(failure)) <= MAX_CHAIN_DEPTH // 2
 
 
-@pytest.mark.parametrize("model", _PROVIDER_MODELS)
+@pytest.mark.parametrize("wire", _WIRE_MODELS)
 async def test_plain_http_answer_to_https_call_is_not_taken_for_a_rejected_certificate(
-    model: str, plain_http_listener: _Listener
+    wire: str, plain_http_listener: _Listener
 ) -> None:
-    failure = await _failure_of_https_call(model, plain_http_listener)
+    failure = await _failure_of_https_call(_WIRE_MODELS[wire], plain_http_listener)
 
     assert classify_error(failure) is ErrorKind.TIMEOUT
     assert LLMErrorDiagnostic.diagnose(failure, None, locale="en").error_type != "tls_certificate"
