@@ -3,12 +3,8 @@
 /**
  * 配置同步初始化组件
  *
- * 在应用顶层挂载，自动处理用户配置的同步。
- *
- * 工作流程：
- * 1. 初始化 ConfigSyncManager（统一管理所有配置）
- * 2. 设置冲突解决器（UI 对话框）
- * 3. 初始化各个 Store（从 ConfigSyncManager 加载数据）
+ * 在应用顶层挂载：先同步应用已保存的聊天偏好，再启动配置同步（顺序见 `settings-sync-bootstrap`），
+ * 并承载跨设备冲突的决策对话框：同步流程提出冲突，用户在对话框里选择保留本地或采用服务端。
  *
  * 支持的部署模式：
  * - Tauri 模式：同步到本地 SQLite
@@ -17,186 +13,51 @@
 
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import useProviderStore from '@/store/useProviderStore';
-import useConfigStore from '@/store/useConfigStore';
-import { useCommandStore } from '@/store/useCommandStore';
-import { useRetrievalStore } from '@/store/useRetrievalStore';
-import { getConfigSyncManager } from '@/services/config';
-import useChatStore from '@/store/useChatStore';
-import { enforceSecurityPresetYoloMutex } from '@/store/chat/securityPreset';
+import type { ConfigConflictResolution } from '@/services/config/conflictResolution';
 import { hydrateChatPreferencesFromStorage } from '@/store/useChatStore';
-import { whenDatabaseReady } from '@/lib/platform-readiness';
-import ConfigConflictDialog, { type ConfigConflictData } from './ConfigConflictDialog';
+import ConfigConflictDialog from './ConfigConflictDialog';
+import { bootstrapSettingsSync } from './settings-sync-bootstrap';
 
-/**
- * 配置初始化状态
- */
-type InitStatus = 'idle' | 'loading' | 'success' | 'error';
+/** 正在询问用户的冲突，以及把决定交还给提问的同步流程的方式。 */
+interface OpenQuestion {
+  conflict: ConfigConflictResolution;
+  decide: (keepLocal: boolean) => void;
+}
 
 export default function SettingsSyncInitializer() {
   const t = useTranslations('configConflict');
-  const [status, setStatus] = useState<InitStatus>('idle');
-  const [error, setError] = useState<string | null>(null);
-
-  // 冲突对话框状态
-  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
-  const [currentConflict, setCurrentConflict] = useState<ConfigConflictData | null>(null);
-  const [conflictResolveCallback, setConflictResolveCallback] = useState<((keepLocal: boolean) => void) | null>(null);
-
-  const { initProviders } = useProviderStore();
-  const { initConfig } = useConfigStore();
-  const { initCommands } = useCommandStore();
-  const { initRetrieval } = useRetrievalStore();
+  const [question, setQuestion] = useState<OpenQuestion | null>(null);
 
   useLayoutEffect(() => {
     hydrateChatPreferencesFromStorage();
   }, []);
 
   useEffect(() => {
-    const initializeAll = async () => {
-      if (status !== 'idle') {
-        return;
-      }
+    // 一次只问一个：对话框打开期间到来的冲突排在当前问题之后，
+    // 否则后来者会顶掉前一个问题，让等待它的同步流程永远等不到答案。
+    let lastQuestion: Promise<unknown> = Promise.resolve();
+    const ask = (conflict: ConfigConflictResolution) =>
+      new Promise<boolean>((decide) => setQuestion({ conflict, decide }));
 
-      setStatus('loading');
-
-      try {
-        if (!(await whenDatabaseReady())) {
-          setStatus('error');
-          setError('Backend not available');
-          return;
-        }
-
-        // 先初始化 ConfigSyncManager，再初始化各个 Store
-        console.log('[SettingsSync] Initializing ConfigSyncManager...');
-        const manager = getConfigSyncManager();
-
-        // 🎨 设置精美的冲突解决器（替换原生 window.confirm）
-        manager.setConflictResolver?.((conflict) => {
-          return new Promise<boolean>((resolve) => {
-            const configLabel = getConfigKeyLabel(conflict.configKey);
-            setCurrentConflict({
-              configKey: conflict.configKey,
-              configLabel,
-              serverVersion: conflict.serverVersion,
-              localVersion: conflict.localVersion,
-              deviceId: conflict.deviceId,
-              localValue: conflict.localValue,
-              serverValue: conflict.serverValue,
-            });
-            setConflictResolveCallback(() => (keepLocal: boolean) => {
-              resolve(keepLocal);
-            });
-            setConflictDialogOpen(true);
-          });
-        });
-
-        await manager.initialize();
-        await manager.runStartupNormalization();
-
-        // securityConfig 就绪后重放「非 HITL 预设 ⇄ YOLO」互斥：异步加载期间若已绑定
-        // 非 HITL 预设 Agent，disarm 因本地缓存未同步而跳过，此处兜底关闭残留 YOLO。
-        enforceSecurityPresetYoloMutex(useChatStore.getState().securityPreset);
-        // 运行时 securityConfig 变化（如其他 Tab 开启 YOLO）同样触发互斥重放。
-        manager.subscribe('securityConfig', () => {
-          enforceSecurityPresetYoloMutex(useChatStore.getState().securityPreset);
-        });
-
-        console.log('[SettingsSync] Initializing critical stores...');
-        await initConfig();
-        setStatus('success');
-
-        const scheduleDeferred =
-          typeof window !== 'undefined'
-            ? (window.requestIdleCallback ??
-              ((callback: () => void) => {
-                window.setTimeout(callback, 1);
-              }))
-            : null;
-
-        const runDeferredStores = () => {
-          void Promise.all([initProviders(), initCommands(), initRetrieval()])
-            .then(() => {
-              console.log('[SettingsSync] Deferred stores initialized successfully');
-            })
-            .catch((deferredError) => {
-              console.warn('[SettingsSync] Deferred store initialization failed:', deferredError);
-            });
-        };
-
-        if (scheduleDeferred) {
-          scheduleDeferred(runDeferredStores);
-        } else {
-          await Promise.all([initProviders(), initCommands(), initRetrieval()]);
-        }
-      } catch (err) {
-        console.warn('[SettingsSync] Initialization failed:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        setStatus('error');
-
-        // 即使失败，也尝试初始化各个 Store（使用默认值）
-        try {
-          await initConfig();
-          await Promise.all([initProviders(), initCommands(), initRetrieval()]);
-        } catch {
-          /* ignore secondary errors */
-        }
-      }
-    };
-
-    initializeAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void bootstrapSettingsSync((conflict) => {
+      const decision = lastQuestion.then(() => ask(conflict));
+      lastQuestion = decision;
+      return decision;
+    });
   }, []);
 
-  // 在开发模式下显示初始化状态
-  if (process.env.NODE_ENV === 'development' && status === 'error') {
-    console.warn('[SettingsSync] Error:', error);
-  }
-
-  const handleConflictResolution = (keepLocal: boolean) => {
-    conflictResolveCallback?.(keepLocal);
-    setConflictDialogOpen(false);
-    setCurrentConflict(null);
-    setConflictResolveCallback(null);
+  const decide = (keepLocal: boolean) => {
+    question?.decide(keepLocal);
+    setQuestion(null);
   };
 
   return (
     <ConfigConflictDialog
-      open={conflictDialogOpen}
-      onOpenChange={setConflictDialogOpen}
-      conflict={currentConflict}
-      onKeepLocal={() => handleConflictResolution(true)}
-      onUseServer={() => handleConflictResolution(false)}
+      open={question !== null}
+      conflict={question && { ...question.conflict, configLabel: t(`keys.${question.conflict.configKey}`) }}
+      onKeepLocal={() => decide(true)}
+      onUseServer={() => decide(false)}
       t={t}
     />
   );
-}
-
-/**
- * 配置键的用户友好标签（国际化）
- */
-function getConfigKeyLabel(key: string): string {
-  const labelMap: Record<string, string> = {
-    providers: 'Model Providers',
-    chatSettings: 'Chat Settings',
-    personalSettings: 'Personal Settings',
-    mcpServers: 'MCP Servers',
-    searchServices: 'Search Services',
-    commands: 'Custom Commands',
-    retrieval: 'Retrieval Config',
-    channels: 'Notification Channels',
-    voice: 'Voice Settings',
-    securityConfig: 'Security Policy',
-    feishuCredentials: 'Feishu Credentials',
-    dingtalkCredentials: 'DingTalk Credentials',
-    slackCredentials: 'Slack Credentials',
-    discordCredentials: 'Discord Credentials',
-    wecomCredentials: 'WeCom Credentials',
-    wechatCredentials: 'WeChat Credentials',
-    teamsCredentials: 'Teams Credentials',
-    matrixCredentials: 'Matrix Credentials',
-    telegramCredentials: 'Telegram Credentials',
-    googlechatCredentials: 'Google Chat Credentials',
-  };
-  return labelMap[key] || key;
 }

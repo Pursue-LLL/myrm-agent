@@ -39,6 +39,7 @@ class _FakeVectorlessManager(MemoryManagerDeletionMixin):
     _graph = None
     _config = None
     _user_id = "u1"
+    _all_scopes = False
     _namespaces: ClassVar[list[str]] = ["agent:default"]
 
 

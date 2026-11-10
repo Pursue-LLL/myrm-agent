@@ -52,3 +52,4 @@
 - `requestManager.ts`：全局请求管理 — 流式 AI 搜索请求注册、跟踪与取消（AbortController 集合管理）。
 - `teammateMessage.ts`：teammate 消息归一 — `normalizeTeammateEntry` 消息行（message_id/from/to/body/created_at）到 `TeammateMessageEntry` 归一。
 - `toast.ts`：Toast 统一包装 — 兼容 shadcn/ui 与 Sonner 双 API 形态，错误信息经 `errorRedactor` 脱敏后展示。
+- `scheduleWhenIdle.ts`：低优先级启动任务的调度 — `scheduleWhenIdle(task)` 在浏览器空闲时运行，没有 `requestIdleCallback` 的环境（macOS 的 WKWebView 即是）退化为 1ms 定时器，返回的取消函数在两条路径上都有效；应用壳层的延迟挂载、配置同步的后台 store、布局的特性开关与成长数据加载、通知文案预热共用它，不要各自再写一份回退。

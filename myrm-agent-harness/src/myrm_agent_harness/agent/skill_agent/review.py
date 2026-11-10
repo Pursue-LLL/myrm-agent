@@ -410,7 +410,7 @@ class SkillAgentReviewMixin:
                     recurrence_summary = self._build_recurrence_summary(query, assistant_chunks)
                     if recurrence_summary:
                         recurrence_task = asyncio.create_task(
-                            memory_manager.check_session_recurrence(recurrence_summary)
+                            memory_manager.check_session_recurrence(recurrence_summary, source_chat_id=session_chat_id)
                         )
                         track_background_task(recurrence_task)
             finally:

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from myrm_agent_harness.toolkits.memory.strategies.deduplicator import (
+from myrm_agent_harness.toolkits.memory.strategies.dedup_judge import (
     _CONTESTED_KEY,
     _CONTESTED_VALUE,
     _mark_contested,

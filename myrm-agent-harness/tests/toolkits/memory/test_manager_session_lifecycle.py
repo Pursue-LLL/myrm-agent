@@ -106,7 +106,7 @@ class TestRecurrence:
     async def test_recurrence_check_is_skipped_without_a_detector(self, manager):
         manager._recurrence_detector = None
 
-        await manager._check_recurrence_and_store("topic summary")
+        await manager._check_recurrence_and_store("topic summary", None)
 
         assert manager._recurrence_detector is None
 

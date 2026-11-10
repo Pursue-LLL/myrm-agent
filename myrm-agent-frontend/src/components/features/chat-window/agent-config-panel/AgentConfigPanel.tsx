@@ -13,7 +13,6 @@ import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 
 // 懒加载大型组件，减少初始加载时间
 const AgentConfigEditDialog = lazy(() => import('./AgentConfigEditDialog'));
-const EMPTY_AUTO_RESTORE_DOMAINS: string[] = [];
 
 interface AgentConfigPanelProps {
   /** 作用于展开后的编辑面板；折叠时面板不占任何高度 */
@@ -161,17 +160,18 @@ const AgentConfigPanel = ({ className }: AgentConfigPanelProps) => {
           type={editDialogType}
           enabledSkills={enabledSkills}
           enabledMcps={enabledMcps}
-          selectedSkillIds={agentConfig?.selectedSkillIds || []}
-          skillConfigs={agentConfig?.skillConfigs || {}}
-          selectedMcpNames={agentConfig?.selectedMcpNames || []}
+          selectedSkillIds={agentConfig?.selectedSkillIds}
+          skillConfigs={agentConfig?.skillConfigs}
+          selectedMcpNames={agentConfig?.selectedMcpNames}
           mcpToolSelections={agentConfig?.mcpToolSelections}
-          systemPrompt={agentConfig?.systemPrompt || ''}
-          useGlobalInstruction={agentConfig?.useGlobalInstruction ?? true}
+          systemPrompt={agentConfig?.systemPrompt}
+          useGlobalInstruction={agentConfig?.useGlobalInstruction}
           enabledBuiltinTools={currentBuiltinTools}
           browserSource={agentConfig?.browserSource}
           dialogPolicy={agentConfig?.dialogPolicy}
-          autoRestoreDomains={agentConfig?.autoRestoreDomains ?? EMPTY_AUTO_RESTORE_DOMAINS}
-          ephemeralSubagents={agentConfig?.ephemeralSubagents || {}}
+          sessionRecording={agentConfig?.sessionRecording}
+          autoRestoreDomains={agentConfig?.autoRestoreDomains}
+          ephemeralSubagents={agentConfig?.ephemeralSubagents}
           onSave={handleSaveConfig}
           onRefreshSkills={refreshSkills}
         />

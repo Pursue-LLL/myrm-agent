@@ -378,6 +378,7 @@ class TestCleanupSession:
         await agent._cleanup_session("How to debug?", None, ["Use print"])
         await asyncio.sleep(0.1)
         mm.check_session_recurrence.assert_called_once()
+        assert mm.check_session_recurrence.call_args.kwargs == {"source_chat_id": "c1"}
 
     @pytest.mark.asyncio
     async def test_skill_review_triggered_when_stats_sufficient(self) -> None:

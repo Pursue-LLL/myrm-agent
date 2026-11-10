@@ -17,6 +17,7 @@ from myrm_agent_harness.toolkits.memory._manager.archival import MemoryManagerAr
 from myrm_agent_harness.toolkits.memory._manager.bulk_deletion import MemoryManagerBulkDeletionMixin
 from myrm_agent_harness.toolkits.memory._manager.convenience import MemoryManagerConvenienceMixin
 from myrm_agent_harness.toolkits.memory._manager.core import MemoryManagerCore
+from myrm_agent_harness.toolkits.memory._manager.feedback import MemoryManagerFeedbackMixin
 from myrm_agent_harness.toolkits.memory._manager.governance_session import (
     MemoryManagerGovernanceSessionMixin,
 )
@@ -49,6 +50,7 @@ class MemoryManager(
     MemoryManagerQueriesMixin,
     MemoryManagerListingMaintenanceMixin,
     MemoryManagerMutationsMixin,
+    MemoryManagerFeedbackMixin,
     MemoryManagerStorageMixin,
     MemoryManagerImportExportMixin,
     MemoryManagerReindexMixin,

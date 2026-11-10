@@ -155,15 +155,14 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
     async def delete_rule(self, rule_id: str, *, allow_protected: bool = True) -> bool:
         """Delete an owned procedural rule.
 
-        Ownership is enforced via the manager's namespaces so a rule can only
-        be deleted when it lives in the current scope — mirroring the
-        ownership gate already applied to vector memories.
+        A rule is owned when it lives in one of the manager's namespaces (any namespace for an ``all_scopes``
+        manager), the same gate vector memories pass.
 
         ``allow_protected=False`` (automated and agent-facing paths) refuses to
         delete a user-endorsed rule, so the lock shared with
         distillation/merge/forgetting cannot be silently bypassed.
         """
-        rule = await self._rel().get_rule(rule_id, namespaces=self._namespaces)
+        rule = await self._rel().get_rule(rule_id, namespaces=self._ownership_namespaces())
         if rule is None:
             return False
         if not allow_protected and rule.is_user_protected:
@@ -205,7 +204,7 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
                 continue
             if memory_type == MemoryType.PROCEDURAL.value and self._relational is not None:
                 for rule_id in ids:
-                    rule = await self._relational.get_rule(rule_id, namespaces=self._namespaces)
+                    rule = await self._relational.get_rule(rule_id, namespaces=self._ownership_namespaces())
                     if rule is None:
                         result.missing_refs.append(
                             MemoryMutationRef(
@@ -362,16 +361,20 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
                 return collected
 
     def _owns_vector_doc(self, doc: VectorDocument) -> bool:
+        """Whether the doc is this user's and lives in an owned namespace (any, for an ``all_scopes`` manager)."""
         stored_uid = doc.metadata.get("user_id")
         if stored_uid and stored_uid != self._user_id:
             return False
+        owned = self._ownership_namespaces()
+        if owned is None:
+            return True
         primary_namespace = doc.metadata.get("primary_namespace")
         if primary_namespace:
-            return primary_namespace in self._namespaces
+            return primary_namespace in owned
         raw_namespaces = doc.metadata.get("namespaces")
         if isinstance(raw_namespaces, list) and raw_namespaces:
             namespaces = {value for value in raw_namespaces if isinstance(value, str)}
-            return bool(namespaces.intersection(self._namespaces))
+            return bool(namespaces.intersection(owned))
         return True
 
     async def close(self) -> None:

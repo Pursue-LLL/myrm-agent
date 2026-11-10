@@ -76,6 +76,7 @@ class MemoryManagerHost:
     _embedding: EmbeddingProtocol | None
     _cache: EmbeddingCacheProtocol | None
     _namespaces: list[str]
+    _all_scopes: bool
     _scope: MemoryScope
     _recall_mode: RecallMode
     _memory_policy: AgentMemoryPolicy | None

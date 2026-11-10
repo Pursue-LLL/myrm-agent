@@ -59,8 +59,9 @@ describe('DualLayerMemoryCard', () => {
 
     expect(screen.getByText('用户长期偏好')).toBeDefined();
     expect(screen.getByText('智能体专属笔记')).toBeDefined();
-    expect(screen.getByDisplayValue('用户偏好使用 Python PEP8 规范')).toBeDefined();
-    expect(screen.getByDisplayValue('框架与业务分层架构，禁止反向依赖')).toBeDefined();
+    // The card frame renders before the notes arrive, so the text areas are awaited rather than read at once.
+    expect(await screen.findByDisplayValue('用户偏好使用 Python PEP8 规范')).toBeDefined();
+    expect(await screen.findByDisplayValue('框架与业务分层架构，禁止反向依赖')).toBeDefined();
   });
 
   it('triggers save action and updates state', async () => {

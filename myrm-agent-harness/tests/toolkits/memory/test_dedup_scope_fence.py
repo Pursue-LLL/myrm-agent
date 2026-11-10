@@ -19,10 +19,9 @@ from myrm_agent_harness.toolkits.memory._internal.maintenance import dedup_seman
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import _user_filter
 from myrm_agent_harness.toolkits.memory._internal.write_service import MemoryWriter
-from myrm_agent_harness.toolkits.memory.strategies.deduplicator import (
-    DeduplicationDecision,
-    SmartDeduplicator,
-)
+from myrm_agent_harness.toolkits.memory.strategies.dedup_types import DeduplicationDecision
+from myrm_agent_harness.toolkits.memory.strategies.dedup_update import apply_dedup_update
+from myrm_agent_harness.toolkits.memory.strategies.deduplicator import SmartDeduplicator
 from myrm_agent_harness.toolkits.memory.types import MemoryScope, SemanticMemory
 from myrm_agent_harness.toolkits.vector.base import SearchResult, VectorDocument
 
@@ -186,7 +185,6 @@ async def test_dedup_episodic_filters_by_namespace() -> None:
 @pytest.mark.asyncio
 async def test_apply_update_downgrades_cross_scope_target_to_new() -> None:
     """Merging into another agent's memory must downgrade to NEW."""
-    dedup = _new_deduplicator()
     vector = AsyncMock()
     vector.get = AsyncMock(
         return_value=[
@@ -202,7 +200,7 @@ async def test_apply_update_downgrades_cross_scope_target_to_new() -> None:
     )
     mem = _semantic("User prefers Python", ns=["agent:A"])
 
-    result = await dedup._apply_update(
+    result = await apply_dedup_update(
         mem,
         "mem-b",
         "merged content",
@@ -217,7 +215,6 @@ async def test_apply_update_downgrades_cross_scope_target_to_new() -> None:
 @pytest.mark.asyncio
 async def test_apply_update_allows_same_scope_merge() -> None:
     """Same-scope merge still works as before."""
-    dedup = _new_deduplicator()
     vector = AsyncMock()
     vector.get = AsyncMock(
         return_value=[
@@ -233,7 +230,7 @@ async def test_apply_update_allows_same_scope_merge() -> None:
     )
     mem = _semantic("User prefers Python", ns=["agent:A"])
 
-    result = await dedup._apply_update(
+    result = await apply_dedup_update(
         mem,
         "mem-a",
         "merged content",

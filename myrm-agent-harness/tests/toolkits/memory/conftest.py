@@ -175,16 +175,19 @@ async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterato
         *,
         embedding: EmbeddingProtocol | None = None,
         approval_required: bool = False,
+        user_id: str = "u1",
+        all_scopes: bool = False,
     ) -> MemoryManager:
         return MemoryManager(
             config,
-            user_id="u1",
+            user_id=user_id,
             vector=qdrant,
             embedding=embedding or _ConstantEmbedder(),
             relational=relational,
             namespaces=namespaces or ["global"],
             auto_warmup=False,
             approval_required=approval_required,
+            all_scopes=all_scopes,
         )
 
     yield build

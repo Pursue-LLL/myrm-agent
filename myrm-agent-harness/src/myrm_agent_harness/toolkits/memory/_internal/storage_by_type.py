@@ -1,8 +1,9 @@
 """Per-memory-type list / count / delete helpers over the relational and vector stores.
 
 [INPUT]
-- storage_converters::{doc_to_semantic, doc_to_episodic, doc_to_conversation, _user_filter} (POS: stateless
+- storage_converters::{doc_to_semantic, doc_to_episodic, _user_filter} (POS: stateless
   conversion layer)
+- storage_conversation::doc_to_conversation (POS: conversation payload reader)
 - memory.types::{SemanticMemory, EpisodicMemory, ConversationMemory, ProceduralMemory, ProfileEntry, MemoryType}
   (POS: memory data models)
 - memory.protocols.vector::VectorStoreProtocol, memory.protocols.relational::RelationalStoreProtocol (POS: store
@@ -24,9 +25,9 @@ from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.memory._internal.storage_conversation import doc_to_conversation
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
     _user_filter,
-    doc_to_conversation,
     doc_to_episodic,
     doc_to_semantic,
 )

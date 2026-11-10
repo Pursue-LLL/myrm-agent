@@ -345,4 +345,4 @@ class TestCleanupSessionPrivacy:
 
         await asyncio.sleep(0.05)
         assert extract_called is True
-        mm.check_session_recurrence.assert_called_once_with("query")
+        mm.check_session_recurrence.assert_called_once_with("query", source_chat_id=None)

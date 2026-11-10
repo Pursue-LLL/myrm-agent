@@ -670,7 +670,7 @@ class TestArchiveFieldsSurviveRoundTrip:
 
     def test_conversation_archive_metadata_survives_round_trip(self) -> None:
         """Conversation memories accept ARCHIVED status, so their stamps must survive too."""
-        from myrm_agent_harness.toolkits.memory._internal import storage_converters
+        from myrm_agent_harness.toolkits.memory._internal.storage_conversation import doc_to_conversation
         from myrm_agent_harness.toolkits.memory.types import ConversationMemory
 
         now = datetime.now(UTC)
@@ -692,25 +692,25 @@ class TestArchiveFieldsSurviveRoundTrip:
             updated_at=now,
         )
 
-        restored = storage_converters.doc_to_conversation(doc)
+        restored = doc_to_conversation(doc)
 
         for key in self._ARCHIVE_KEYS:
             assert restored.metadata.get(key), f"{key} lost reading an archived conversation"
 
     def test_conversation_converter_defaults_on_sparse_payload(self) -> None:
         """A minimal payload must still produce a usable conversation memory."""
-        from myrm_agent_harness.toolkits.memory._internal import storage_converters
+        from myrm_agent_harness.toolkits.memory._internal.storage_conversation import doc_to_conversation
 
         doc = VectorDocument(id="conv-min", content="summary", embedding=[0.1], metadata={})
 
-        restored = storage_converters.doc_to_conversation(doc)
+        restored = doc_to_conversation(doc)
 
         assert restored.id == "conv-min"
         assert restored.status == MemoryStatus.ACTIVE
 
     def test_conversation_converter_reads_raw_exchange(self) -> None:
         """The raw exchange decode path must return text, not raise."""
-        from myrm_agent_harness.toolkits.memory._internal import storage_converters
+        from myrm_agent_harness.toolkits.memory._internal.storage_conversation import doc_to_conversation
 
         for payload in (
             {"raw_exchange": "plain Q/A"},
@@ -719,13 +719,13 @@ class TestArchiveFieldsSurviveRoundTrip:
         ):
             doc = VectorDocument(id="conv-raw", content="summary", embedding=[0.1], metadata=payload)
 
-            restored = storage_converters.doc_to_conversation(doc, include_raw=True)
+            restored = doc_to_conversation(doc, include_raw=True)
 
             assert isinstance(restored.raw_exchange, str)
 
     def test_conversation_converter_handles_timestamps(self) -> None:
         """A valid string and a malformed string are both accepted without raising."""
-        from myrm_agent_harness.toolkits.memory._internal import storage_converters
+        from myrm_agent_harness.toolkits.memory._internal.storage_conversation import doc_to_conversation
 
         now = datetime.now(UTC)
         for raw in (now.isoformat(), "not-a-date"):
@@ -738,7 +738,7 @@ class TestArchiveFieldsSurviveRoundTrip:
                 updated_at=now,
             )
 
-            restored = storage_converters.doc_to_conversation(doc)
+            restored = doc_to_conversation(doc)
 
             assert isinstance(restored.created_at, datetime)
 

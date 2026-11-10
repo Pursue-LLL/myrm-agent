@@ -52,6 +52,11 @@ class ProfileEntry(BaseModel):
 
 PreferenceType = Literal["explicit", "implicit"]
 
+_SOURCE_CHAT_IDS_DESCRIPTION = (
+    "Every chat a memory built from several sources derives from, source_chat_id included; "
+    "empty when it came from the one chat source_chat_id names"
+)
+
 
 class SemanticMemory(BaseMemory):
     """Factual knowledge stored with vector embeddings.
@@ -64,6 +69,8 @@ class SemanticMemory(BaseMemory):
         language: Primary language of the content ("zh" or "en")
         merge_count: Number of times this memory has been merged/updated
         merge_history: Compact text log of merge operations
+        source_chat_id: The chat the memory was written from, or the latest of the chats it was built from
+        source_chat_ids: Every chat the memory derives from when it was built from several sources
     """
 
     memory_type: Literal[MemoryType.SEMANTIC] = MemoryType.SEMANTIC
@@ -71,6 +78,7 @@ class SemanticMemory(BaseMemory):
     importance: float = Field(default=0.5, ge=0.0, le=1.0)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     source_chat_id: str | None = None
+    source_chat_ids: list[str] = Field(default_factory=list, description=_SOURCE_CHAT_IDS_DESCRIPTION)
     source_message_id: str | None = None
     tags: list[str] = Field(default_factory=list)
     preference_type: PreferenceType | None = None
@@ -93,6 +101,8 @@ class EpisodicMemory(BaseMemory):
         language: Primary language of the content ("zh" or "en")
         merge_count: Number of times this memory has been merged/updated
         merge_history: Compact text log of merge operations
+        source_chat_id: The chat the event was written from, or the latest of the chats it was built from
+        source_chat_ids: Every chat the event derives from when it was built from several sources
         subtask_phase: Software engineering / task workflow phase ("analyze", "locate", "edit", "verify")
         is_failure_attempt: Whether this episodic entry represents a failed attempt or dead-end
         failure_reason: Root-cause error message or reason for failure
@@ -105,6 +115,7 @@ class EpisodicMemory(BaseMemory):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     related_entities: list[str] = Field(default_factory=list)
     source_chat_id: str | None = None
+    source_chat_ids: list[str] = Field(default_factory=list, description=_SOURCE_CHAT_IDS_DESCRIPTION)
     source_message_id: str | None = None
     importance: float = Field(default=0.5, ge=0.0, le=1.0)
     language: Literal["zh", "en"] = "en"
