@@ -66,10 +66,10 @@ Sandbox 模式下 `initialize()` 只 await 核心 key（providers/chatSettings/p
 | T0   | fingerprint 相同       | 不写入                 |
 | T1   | 三向合并成功           | 静默合并               |
 | T2   | 同 `deviceId` 版本冲突 | 静默保留本地           |
-| T3   | 跨设备同字段冲突       | `ConfigConflictDialog` |
+| T3   | 跨设备同字段冲突       | `ConfigConflictDialog`（只能二选一，多个冲突排队逐个作答） |
 
 ## 依赖
 
 - `@/store/config/*` — 类型与迁移函数（providerIdentityMigration）
-- `@/components/features/app-shell/settings-sync-initializer.tsx` — 应用顶层初始化
+- `@/components/features/app-shell/settings-sync-initializer.tsx` — 应用顶层初始化（启动序列在 `settings-sync-bootstrap.ts`）
 - `@/components/features/app-shell/ConfigConflictDialog.tsx` — T3 冲突 UI

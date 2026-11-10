@@ -27,52 +27,25 @@ export interface ConfigConflictData {
 
 interface ConfigConflictDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
   conflict: ConfigConflictData | null;
   onKeepLocal: () => void;
   onUseServer: () => void;
-  t?: (key: string, params?: Record<string, string>) => string;
+  t: (key: string, params?: Record<string, string>) => string;
 }
-
-const defaultTranslations = {
-  title: 'Configuration Conflict Detected',
-  description: '"{configLabel}" has been updated on another device',
-  serverVersion: 'Server Version',
-  localVersion: 'Local Version',
-  device: 'Device',
-  unknown: 'Unknown',
-  keepLocal: 'Keep Local Changes',
-  useServer: 'Use Server Version',
-  keepLocalDesc: 'Overwrite server with your local changes',
-  useServerDesc: 'Discard local changes and adopt server version',
-};
 
 /**
  * 配置冲突解决对话框
  *
- * 当多设备同时修改同一配置时，提供用户友好的冲突解决界面。
- * 替换原生 window.confirm，提供更好的移动端体验和 UI 一致性。
+ * 多设备修改了同一配置时，由用户在「保留本地」与「采用服务端」之间二选一。
+ * 同步流程在等这个决定，所以对话框只能由两个按钮关闭：Esc 与点击遮罩都不会关闭它。
  */
-export const ConfigConflictDialog = ({
-  open,
-  onOpenChange,
-  conflict,
-  onKeepLocal,
-  onUseServer,
-  t = (key, params?) => {
-    const raw = defaultTranslations[key as keyof typeof defaultTranslations] || key;
-    if (!params) {
-      return raw;
-    }
-    return Object.entries(params).reduce((s, [k, v]) => s.replace(`{${k}}`, v), raw);
-  },
-}: ConfigConflictDialogProps) => {
+export const ConfigConflictDialog = ({ open, conflict, onKeepLocal, onUseServer, t }: ConfigConflictDialogProps) => {
   const oldCode = conflict?.serverValue ? JSON.stringify(sortKeys(conflict.serverValue), null, 2) : '';
   const newCode = conflict?.localValue ? JSON.stringify(sortKeys(conflict.localValue), null, 2) : '';
   const showDiff = !!(conflict?.serverValue && conflict?.localValue);
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open}>
       <AlertDialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
