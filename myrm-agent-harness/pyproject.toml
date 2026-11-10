@@ -20,14 +20,12 @@ classifiers = [
 dependencies = [
   # --- LangChain 生态 (Agent 框架基础) ---
   # 1.x 区间：下限是 CI 逐周在最低版本上验证过的；上限防止未经验证的大版本被自动装入（每周金丝雀见 harness-framework-canary.yml）
-  "langchain>=1.4.9",                   # Agent 编排核心
-  "langchain-core>=1.7.7",              # LangChain 基础抽象
-  # 上限 <1.2.20：同一任务连续两次 interrupt()，1.2.19 里两次暂停共用一个 interrupt id，1.2.20 起每次暂停各有一个；
-  # HITL 卡片 id（interrupt id + 轮次，agent/streaming/interrupt_identity.py）按前一种行为寻址，
-  # tests/agent/_internals/test_resume_addressing_rounds.py 的 10 条用例在 1.2.20 全红，在 1.2.16 至 1.2.19 全绿。
-  # 放开上限前须先改造卡片 id 协议。
-  "langgraph>=1.2.20",             # 图状态机 Agent 运行时
-  "langgraph-checkpoint-sqlite>=3.1.3", # SQLite 状态持久化 (checkpoint factory)
+  "langchain>=1.4.9,<2",                   # Agent 编排核心
+  "langchain-core>=1.7.7,<2",              # LangChain 基础抽象
+  # 下限 1.2.20：从该版本起，同一任务连续多次 interrupt() 的每次暂停各有一个 interrupt id，HITL 卡片 id 直接取它
+  # （agent/_internals/resume_addressing.py）；更早的版本里同一任务的各次暂停共用一个 id，卡片无法区分。
+  "langgraph>=1.2.20,<2",                  # 图状态机 Agent 运行时
+  "langgraph-checkpoint-sqlite>=3.1.3,<4", # SQLite 状态持久化 (checkpoint factory)
   "aiosqlite>=0.22.1",                     # async SQLite (memory stores + checkpointer)
   "dill>=0.4.1",                           # checkpoint serde (chat model / complex objects)
   # --- 数据验证与序列化 ---
@@ -59,9 +57,9 @@ dependencies = [
   "pdfplumber>=0.11.10", # PDF 文本+表格提取 (file_read_tool CORE; pypdfium2 由 pdfplumber 传递依赖)
   "pathspec>=1.1.1", # 非 git 目录与 git 读不了的嵌套仓库里各级忽略文件的解析 (file_search/fallback_discovery.py)
   # 非 UTF-8 文本（GBK/Big5/Shift-JIS/EUC/cp1252）的编码识别 (file_parsers/text_decoding.py；pdfminer-six、requests 亦依赖)。
-  # 下限 3.5.0：3.4.x 对 CJK 文本的识别明显更差（同一批样本 128 字节以上的错判与拒绝多出数倍）；上限 <3.6：识别结果随小版本变化，
+  # 下限取 3.5 系列：3.4.x 对 CJK 文本的识别明显更差（同一批样本 128 字节以上的错判与拒绝多出数倍）；上限 <3.6：识别结果随小版本变化，
   # 升级前须重跑 tests/toolkits/file_parsers/test_text_decoding.py。
-  "charset-normalizer>=3.5.2",
+  "charset-normalizer>=3.5.2,<3.6",
 ]
 
 [project.urls]
@@ -97,7 +95,7 @@ acp = [
 ]
 # toolkits/llms/transport/bedrock_sigv4.py - Bedrock 请求用 AWS 凭证链签名（只用 Bedrock API Key 时不需要）
 bedrock = [
-  "botocore>=1.43.127", # AWS 凭证链 + SigV4 签名
+  "botocore>=1.40.0", # AWS 凭证链 + SigV4 签名；下限不得高于 server 经 aioboto3 锁定的 botocore（见 server/pyproject.toml）
 ]
 # utils/media/image_compressor - PNG 量化压缩（延迟导入，失败回退 Pillow）
 image-processing = [

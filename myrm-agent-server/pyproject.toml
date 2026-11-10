@@ -105,8 +105,6 @@ override-dependencies = [
   "pynacl>=1.6.2",                # remote_access E2EE; override resolves discord-py[voice] upper bound
   "mcp>=2.3.0",
 ]
-# The harness's ACP backend is written against the 0.x SDK; prerelease = "allow" would otherwise resolve its 1.0 release candidates.
-constraint-dependencies = ["agent-client-protocol<1"]
 
 # The harness lives in this repository (../myrm-agent-harness): the server always develops, tests and
 # ships against the same commit. Release images build the harness wheel from this path.

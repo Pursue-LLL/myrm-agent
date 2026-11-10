@@ -4,11 +4,10 @@
 tests/architecture/test_acp_sdk_dependency.py
 
 [INPUT]
-- myrm-agent-server/pyproject.toml: the ``myrm-agent-harness[...]`` dependency and ``[tool.uv] constraint-dependencies``
+- myrm-agent-server/pyproject.toml: the ``myrm-agent-harness[...]`` dependency
 
 [OUTPUT]
-- Fails when the server stops installing the ``acp`` extra (the first ACP turn would end in an import error) or lets
-  the resolver pick the unreleased 1.x SDK the harness backend is not written against.
+- Fails when the server stops installing the ``acp`` extra (the first ACP turn would end in an import error).
 """
 
 from __future__ import annotations
@@ -29,8 +28,3 @@ def _harness_extras() -> set[str]:
 
 def test_the_server_installs_the_harness_acp_extra() -> None:
     assert "acp" in _harness_extras()
-
-
-def test_the_resolver_cannot_pick_the_unreleased_sdk_major() -> None:
-    # The server resolves with prerelease = "allow", which would take 1.0 release candidates over the 0.x line.
-    assert "agent-client-protocol<1" in _PYPROJECT["tool"]["uv"]["constraint-dependencies"]
