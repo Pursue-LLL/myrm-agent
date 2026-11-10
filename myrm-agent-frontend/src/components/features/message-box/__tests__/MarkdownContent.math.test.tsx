@@ -69,4 +69,22 @@ describe('MarkdownContent math', () => {
     expect(container.textContent).toContain('Up 100% overall');
     expect(container.textContent).toContain('done');
   });
+
+  it('lets the SVG KaTeX draws for roots and vectors through the element whitelist', () => {
+    const container = renderMarkdown('The root $\\sqrt{x}$ and the vector $\\vec{v}$.');
+    expect(container.querySelectorAll('.katex svg path').length).toBeGreaterThan(0);
+  });
+
+  it('unwraps SVG the model writes itself and keeps its text', () => {
+    const container = renderMarkdown(
+      'Before <svg viewBox="0 0 8 8"><path d="M0 0L8 8"></path><line x1="0" x2="8"></line>inside</svg> after',
+    );
+    expect(container.querySelectorAll('svg, path, line')).toHaveLength(0);
+    expect(container.textContent).toContain('Before inside after');
+  });
+
+  it('does not let a message keep SVG by wrapping it in the markup of a formula', () => {
+    const container = renderMarkdown('<span class="katex"><svg><path d="M0 0L8 8"></path></svg></span>');
+    expect(container.querySelectorAll('svg')).toHaveLength(0);
+  });
 });

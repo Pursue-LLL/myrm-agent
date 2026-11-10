@@ -231,7 +231,8 @@ const MarkdownContent = React.memo(
         />
         <ReactMarkdown
           remarkPlugins={[...chatMathPlugins.remark, remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}
-          rehypePlugins={[...chatMathPlugins.rehype, rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
+          // rehypeRaw 排在公式插件之前：消息里的原始 HTML 先解析成元素，chatMathPlugins 才能展开其中模型自己写的矢量标签
+          rehypePlugins={[rehypeRaw, ...chatMathPlugins.rehype, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
           components={components}
           allowedElements={[
             // 允许渲染的元素
@@ -271,6 +272,10 @@ const MarkdownContent = React.memo(
             // 容器
             'div',
             'span',
+            // 公式：KaTeX 用矢量图画根号、向量箭头、花括号与删除线
+            'svg',
+            'path',
+            'line',
             // 交互元素
             'input',
             'details',

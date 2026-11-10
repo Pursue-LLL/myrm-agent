@@ -6,8 +6,9 @@
  *
  * [OUTPUT]
  * - normalizeMathDelimiters: the text pre-pass, run before parsing
- * - mathPlugins, chatMathPlugins: remark and rehype plugin lists for react-markdown and unified processors; they
- *   differ only in the KaTeX options
+ * - mathPlugins, chatMathPlugins, texSourceMathPlugins: remark and rehype plugin lists for react-markdown and unified
+ *   processors; the chat list differs in the KaTeX options and in unwrapping SVG that a message's raw HTML carries,
+ *   the TeX-source list leaves each formula as `$…$` text for documents that cannot typeset it
  *
  * [POS]
  * What counts as a formula is decided once, inside the parser (`remarkMathPolicy`): a `$` the policy refuses stays
@@ -93,14 +94,22 @@ const remarkMathPolicy: Plugin<[], MdastRoot> = function () {
 };
 
 /**
+ * A formula as the math parser leaves it in the HTML tree: a `code.language-math`, either inline or, for `$$…$$` and a
+ * ```math fence, the only child of a `pre`.
+ */
+function isMathCode(node: Element): boolean {
+  const classNames = node.properties.className;
+  return node.tagName === 'code' && Array.isArray(classNames) && classNames.includes('language-math');
+}
+
+/**
  * `%` opens a TeX comment and would swallow the rest of the formula, yet models write percentages inside formulas
  * (`$$50% \text{done}$$`). Only the nodes the math parser produced are touched, so code and prose keep their `%`.
  */
 const rehypeEscapeMathPercent: Plugin<[], HastRoot> = () => (tree) => {
   // The visitor must not return a value: `false` would stop the walk and a number would jump to that index.
   visit(tree, 'element', (node: Element) => {
-    const classNames = node.properties.className;
-    if (node.tagName !== 'code' || !Array.isArray(classNames) || !classNames.includes('language-math')) {
+    if (!isMathCode(node)) {
       return;
     }
     for (const child of node.children) {
@@ -112,15 +121,55 @@ const rehypeEscapeMathPercent: Plugin<[], HastRoot> = () => (tree) => {
 };
 
 /**
- * What chat messages render with: html-only output, no strict-mode warnings, `\text` set as `\mathrm`, and KaTeX's
- * trusted commands enabled. `throwOnError` is absent on purpose: rehype-katex sets it itself and falls back to
- * KaTeX's inline error markup.
+ * Puts each formula back as the TeX it was written in: `$…$` inline, and `$$…$$` as a paragraph of its own where
+ * the parser made a `pre`. Nothing renders the source here, so it stays as written (a `%` stays a `%`) and only the
+ * whitespace around it goes (a math fence ends with a newline).
+ */
+const rehypeMathAsTexSource: Plugin<[], HastRoot> = () => (tree) => {
+  visit(tree, 'element', (node: Element, index, parent) => {
+    if (!isMathCode(node) || !parent || index === undefined) {
+      return;
+    }
+    const tex = node.children
+      .map((child) => (child.type === 'text' ? child.value : ''))
+      .join('')
+      .trim();
+    if (parent.type === 'element' && parent.tagName === 'pre') {
+      parent.tagName = 'p';
+      parent.children = [{ type: 'text', value: `$$${tex}$$` }];
+    } else {
+      parent.children[index] = { type: 'text', value: `$${tex}$` };
+    }
+  });
+};
+
+const VECTOR_TAGS = new Set(['svg', 'path', 'line']);
+
+/**
+ * Chat messages let `svg`, `path` and `line` through their element whitelist, because KaTeX draws roots, vectors,
+ * braces and arrows with them. SVG a model writes itself is not wanted there, so this unwraps it to its content, the
+ * way the whitelist treats every other element it refuses. It has to run on the tree `rehypeRaw` produced and before
+ * KaTeX renders: KaTeX's own SVG is then the only SVG that reaches the whitelist.
+ */
+const rehypeUnwrapRawVector: Plugin<[], HastRoot> = () => (tree) => {
+  visit(tree, 'element', (node: Element, index, parent) => {
+    if (!VECTOR_TAGS.has(node.tagName) || !parent || index === undefined) {
+      return;
+    }
+    parent.children.splice(index, 1, ...node.children);
+    // The spliced-in children now sit at this index, and visiting resumes there, so nested vector tags go too.
+    return index;
+  });
+};
+
+/**
+ * What chat messages render with: html-only output, no strict-mode warnings, and KaTeX's trusted commands enabled.
+ * `throwOnError` is absent on purpose: rehype-katex sets it itself and falls back to KaTeX's inline error markup.
  */
 const chatKatexOptions: KatexOptions = {
   strict: false,
   output: 'html',
   trust: true,
-  macros: { '\\text': '\\mathrm' },
 };
 
 /** Plugin lists for `react-markdown` (`remarkPlugins`, `rehypePlugins`) and unified processors alike. */
@@ -141,10 +190,23 @@ export const mathPlugins: MathPlugins = {
   rehype: [rehypeEscapeMathPercent, rehypeKatex],
 };
 
-/** For chat messages: the same pipeline with the KaTeX options above. */
+/**
+ * For chat messages: the KaTeX options above, and the unwrapping of SVG the model wrote. The list has to run after
+ * `rehypeRaw`, which turns the raw HTML of a message into elements.
+ */
 export const chatMathPlugins: MathPlugins = {
   remark: remarkPlugins,
-  rehype: [rehypeEscapeMathPercent, [rehypeKatex, chatKatexOptions]],
+  rehype: [rehypeUnwrapRawVector, rehypeEscapeMathPercent, [rehypeKatex, chatKatexOptions]],
+};
+
+/**
+ * For documents that have neither the KaTeX stylesheet nor its fonts and would show KaTeX's markup twice (a Word
+ * file converted from HTML): each formula stays its TeX source, which reads the same everywhere. The parser and the
+ * pre-pass are the same, so what counts as a formula is the same as on screen.
+ */
+export const texSourceMathPlugins: MathPlugins = {
+  remark: remarkPlugins,
+  rehype: [rehypeMathAsTexSource],
 };
 
 /** Fenced code (up to its closing fence, or to the end while a stream has not closed it) and inline code spans. */

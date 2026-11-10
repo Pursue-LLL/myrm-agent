@@ -2,11 +2,13 @@ import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { sanitizeFilename, triggerDownload } from '@/lib/utils/fileUtils';
 import { redactSensitiveClientText } from '@/lib/utils/error-handling';
 import type { Message, Source } from '@/store/chat/types';
+import { printHtmlDocument } from './printHtmlDocument';
 /**
  * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
  *         fileUtils::sanitizeFilename (POS: 通用文件工具 — 文件名非法字符清理)；
  *         fileUtils::triggerDownload (POS: 通用文件工具 — 文件下载，Web a[download] / Tauri 系统保存对话框)；
- *         error-handling::redactSensitiveClientText (POS: 客户端轻量敏感凭据脱敏清洗工具 — OpenAI/GitHub/AWS/私钥/JWT/密钥对脱敏，CWE-312 防护)。
+ *         error-handling::redactSensitiveClientText (POS: 客户端轻量敏感凭据脱敏清洗工具 — OpenAI/GitHub/AWS/私钥/JWT/密钥对脱敏，CWE-312 防护)；
+ *         printHtmlDocument::printHtmlDocument (POS: 隐藏 iframe 打印导出文档，等内嵌字体就绪后再调起打印)。
  * [OUTPUT] Types: ExportMessage, ExportChat, ExportData, ToolUsageEntry, ToolSummary,
  *          UsageSummary, AgentInfo, ToolCallDetail, ExportFormatOptions;
  *          formatChatAsMarkdown, formatChatAsJson, downloadFile,
@@ -293,29 +295,7 @@ export async function printChat(
   lang: 'en' | 'zh' = 'en',
 ): Promise<void> {
   const { buildHtmlDocument } = await import('./chatExportHtml');
-  const html = await buildHtmlDocument(data, theme, lang);
-
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none';
-  document.body.appendChild(iframe);
-
-  const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
-  if (!iframeDoc) {
-    document.body.removeChild(iframe);
-    throw new Error('Failed to access iframe document');
-  }
-
-  iframeDoc.open();
-  iframeDoc.write(html);
-  iframeDoc.close();
-
-  await new Promise<void>((resolve) => {
-    iframe.onload = () => resolve();
-    setTimeout(resolve, 1500);
-  });
-
-  iframe.contentWindow?.print();
-  setTimeout(() => document.body.removeChild(iframe), 3000);
+  await printHtmlDocument(await buildHtmlDocument(data, theme, lang));
 }
 
 // ---------------------------------------------------------------------------
@@ -376,7 +356,10 @@ export async function downloadMessageAsHtml(
 export async function downloadMessageAsDocx(message: Message, includeReasoning: boolean, redact = true): Promise<void> {
   const markdown = formatMessageMarkdown(message, includeReasoning, redact);
   const { buildHtmlDocument } = await import('./chatExportHtml');
-  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), 'light', 'en');
+  // Word has no script and no KaTeX stylesheet, so it gets the static document rather than the interactive page.
+  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), 'light', 'en', {
+    static: true,
+  });
   const { toDocx } = await import('docshift');
   const docxBlob = await toDocx(html);
   await triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
