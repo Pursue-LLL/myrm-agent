@@ -8,13 +8,8 @@ import { Label } from '@/components/primitives/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { GitMerge, Loader2, TriangleAlert } from 'lucide-react';
-import {
-  mergeDryRun,
-  mergeExecute,
-  rollbackAgentProfile,
-  type GovernanceOverview,
-  type MergeDryRun,
-} from '@/services/agent';
+import { rollbackAgentProfile } from '@/services/agentSnapshots';
+import { mergeDryRun, mergeExecute, type GovernanceOverview, type MergeDryRun } from '@/services/agentFleet';
 import { toast } from '@/hooks/shared/useToast';
 import { cn } from '@/lib/utils';
 

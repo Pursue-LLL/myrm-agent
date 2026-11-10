@@ -20,7 +20,7 @@ vi.mock('@/hooks/shared/useToast', () => ({
   toast: mockToast,
 }));
 
-vi.mock('@/services/agent', () => ({
+vi.mock('@/services/agentReadiness', () => ({
   getAgentReadiness: vi.fn().mockResolvedValue({ overall_level: 'ready', items: [], agent_id: 'a', checked_at: 0 }),
 }));
 

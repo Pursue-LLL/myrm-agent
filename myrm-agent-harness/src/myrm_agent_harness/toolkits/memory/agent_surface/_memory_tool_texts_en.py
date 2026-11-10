@@ -36,7 +36,7 @@ MEMORY_SAVE_CORE_EN = """Store a new memory for the user. Memory persists across
 - rule: conditional behavioral rules with a specific condition (requires rule_trigger, e.g., "when writing code"; optional rule_priority)
 - instruction: unconditional global rules that always apply (e.g., "always reply in Chinese") — do not set rule_trigger
 
-**IMPORTANCE** (0–1, primarily for knowledge): 0.8–1.0 the user explicitly asked to remember it, or corrected your behavior; 0.5–0.7 an inferred stable preference or environment fact; 0.2–0.4 supplementary context."""
+**IMPORTANCE** (0–1, knowledge only; other categories ignore it): 0.8–1.0 the user explicitly asked to remember the fact; 0.5–0.7 an inferred stable fact; 0.2–0.4 supplementary context."""
 
 # Appended to the save description only while the write policy allows shared writes.
 MEMORY_SAVE_WRITE_TARGET_EN = """**WRITE TARGET**:

@@ -14,7 +14,7 @@ const agentServiceMock = vi.hoisted(() => ({
   getSaaSPresets: vi.fn(),
   parseOpenAPISpec: vi.fn(),
 }));
-vi.mock('@/services/agent', () => agentServiceMock);
+vi.mock('@/services/agentOpenApi', () => agentServiceMock);
 vi.mock('@/hooks/shared/useToast', () => ({ toast: vi.fn() }));
 
 import { AgentOpenAPIServicesTab } from '../AgentOpenAPIServicesTab';

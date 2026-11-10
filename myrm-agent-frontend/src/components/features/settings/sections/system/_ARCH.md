@@ -217,7 +217,7 @@
 - `@/lib/deploy-mode::getDocsUrl`
 - `@/lib/deploy-mode::getRemoteGatewayConfig` / `setRemoteGatewayConfig` / `isTauriRuntime`（ServerConnectionCard）
 - `@/lib/remote-follow-switch::switchRemoteFollow`（ServerConnectionCard / local-backend-unavailable-banner：连接切换后端生命周期编排入口）
-- `@/services/agent::getActiveSessions`（useActiveSessionsGuard 切断连接前活跃会话查询）
+- `@/services/agentFleet::getActiveSessions`（useActiveSessionsGuard 切断连接前活跃会话查询）
 - `@/lib/remote-profiles::ensureCloudProfile`（ServerConnectionCard 发现沙箱切换成功后建立并激活 Cloud 档案）
 - `@/lib/desktop-oauth::beginDesktopOAuth`（ServerConnectionCloudSection 发起 state + PKCE 登录）
 - `@/lib/connection-switch-guard::setLastGood` / `getLastGood` / `setPendingSwitch` / `getPendingSwitch` / `isPendingFresh`（ServerConnectionCard 切换守卫存储）

@@ -2,7 +2,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { TemplateListItem } from '@/services/agent';
+import type { TemplateListItem } from '@/services/agentTemplates';
 import { AgentSettingsPreviewGate } from '../AgentSettingsPreviewGate';
 
 const stableT = (key: string, values?: { fallback?: string }) => values?.fallback ?? key;

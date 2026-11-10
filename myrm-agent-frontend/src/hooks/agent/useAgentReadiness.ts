@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/services/agent::getAgentReadiness (POS: readiness API)
+ * - @/services/agentReadiness::getAgentReadiness (POS: readiness API)
  * - @/store/useChatStore::agentConfig (POS: current agent selection)
  *
  * [OUTPUT]
@@ -19,7 +19,7 @@ import {
   type ReadinessLevel,
   getAgentReadiness,
   READINESS_SWR_KEY_PREFIX,
-} from '@/services/agent';
+} from '@/services/agentReadiness';
 
 const REVALIDATE_INTERVAL_MS = 5 * 60 * 1000; // 5min — matches server TTL
 

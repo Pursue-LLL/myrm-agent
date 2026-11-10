@@ -1,6 +1,6 @@
 import { apiRequest } from '@/lib/api';
 import { isMobileRemoteSurface, mobileApiRequest, mobileRemotePost } from '@/lib/mobileRemote';
-import type { ActiveSessionsResponse } from '@/services/agent';
+import type { ActiveSessionsResponse } from '@/services/agentFleet';
 
 export type TunnelStatus = {
   state: 'stopped' | 'starting' | 'running' | 'error';

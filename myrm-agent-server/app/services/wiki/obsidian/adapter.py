@@ -1,12 +1,13 @@
 """Obsidian Vault adapter for Wiki import.
 
 [INPUT]
+myrm_agent_harness.toolkits.file_parsers.text_decoding::TextDecodingError, read_text_file (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
 myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: YAML FM parse SSOT)
 myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::infer_type_for_import, serialize_frontmatter (POS: wiki page type gate SSOT)
 myrm_agent_harness.toolkits.wiki.portability::extract_canvas_text_nodes (POS: .canvas text extraction)
 
 [OUTPUT]
-- prepare_obsidian_file: Transforms Obsidian syntax without writing raw/.
+- prepare_obsidian_file: Transforms Obsidian syntax without writing raw/; returns None for a canvas without text or a note whose encoding cannot be identified reliably.
 - adapt_obsidian_file: Legacy/test direct write to a raw directory.
 - rewrite_image_embeds: Rewrites Obsidian image embeds to standard Markdown.
 - parse_frontmatter: Re-exported harness SSOT parser for tests and callers.
@@ -26,6 +27,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from myrm_agent_harness.toolkits.file_parsers.text_decoding import TextDecodingError, read_text_file
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     infer_type_for_import,
     serialize_frontmatter,
@@ -162,12 +164,10 @@ def prepare_obsidian_file(
         return _prepare_canvas_file(source_file, vault_root)
 
     try:
-        content = source_file.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        try:
-            content = source_file.read_text(encoding="latin-1")
-        except Exception:
-            return None
+        content = read_text_file(source_file)
+    except TextDecodingError:
+        logger.warning("Skipped %s: not UTF-8 text and its encoding could not be identified reliably", source_file)
+        return None
 
     metadata, body = parse_frontmatter(content)
     body, inline_tags = extract_inline_obsidian_tags(body)

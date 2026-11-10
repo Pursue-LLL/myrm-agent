@@ -1,5 +1,5 @@
 /**
- * [INPUT] agent.ts::listAgentSecrets, throwUserAgentFetchError (POS: /user-agents API client)
+ * [INPUT] agentSecrets.ts::listAgentSecrets, agentFetchError.ts::throwUserAgentFetchError (POS: /user-agents API client)
  * [OUTPUT] parseUserAgentFetchErrorMessage, normalizeAgentSecretKeyNames
  * [POS] Pure helpers for /user-agents fetch error parsing and secret list normalization.
  */

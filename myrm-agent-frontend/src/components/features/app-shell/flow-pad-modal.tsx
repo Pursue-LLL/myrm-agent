@@ -33,7 +33,7 @@ import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { buildAgentConfig } from '@/lib/utils/agent-config';
 import type { AgentConfig } from '@/store/chat/types';
-import { getTemplates, type TemplateListItem } from '@/services/agent';
+import { getTemplates, type TemplateListItem } from '@/services/agentTemplates';
 import {
   recordExpertSummonFirstMessageSent,
   recordExpertSummonRouteApplied,

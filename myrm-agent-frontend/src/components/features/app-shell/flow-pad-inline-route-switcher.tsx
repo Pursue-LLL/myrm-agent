@@ -14,7 +14,7 @@ import type { RefObject } from 'react';
 import { Check, ChevronDown, Loader2, Search, Sparkles } from 'lucide-react';
 
 import { AgentAvatar } from '@/components/agent/AgentAvatar';
-import type { TemplateListItem } from '@/services/agent';
+import type { TemplateListItem } from '@/services/agentTemplates';
 
 interface RouteAgentLite {
   id: string;

@@ -1,4 +1,5 @@
 """[INPUT]
+- myrm_agent_harness.toolkits.file_parsers.text_decoding::TextDecodingError / read_text_file (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
 - myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map::WikiMapEventType (POS: OKF 认知地图模块入口。提供 wiki/index.md, wiki/log.md, wiki/hot.md 与 wiki/SCHEMA.md 的确定性免 LLM 构建与刷新。)
 - app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
 - app.api.wiki.routes::vault_effects (POS: Wiki API route submodules.)
@@ -11,17 +12,20 @@
 - import_zip: Upload and import a ZIP archive of documents into the wiki.
 
 [POS]
-Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。
+Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。文本经 read_text_file 解码，编码无法可靠识别的文件被跳过
+（计入 files_scanned，不计入 files_enqueued）。
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import tempfile
 from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from myrm_agent_harness.toolkits.file_parsers.text_decoding import TextDecodingError, read_text_file
 from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
     WikiMapEventType,
 )
@@ -44,6 +48,18 @@ from app.services.wiki import MemoryToWikiArchiver
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["wiki"])
+
+
+async def _read_import_text(src_file: Path) -> str | None:
+    """The text of one file to import, or None when its encoding cannot be identified reliably.
+
+    Reading runs in a worker thread because identifying a legacy encoding is CPU-bound.
+    """
+    try:
+        return await asyncio.to_thread(read_text_file, src_file)
+    except TextDecodingError:
+        logger.warning("Skipped %s: not UTF-8 text and its encoding could not be identified reliably", src_file)
+        return None
 
 
 @router.post("/import/folder", response_model=ImportResultResponse)
@@ -74,14 +90,9 @@ async def import_folder(
         files_superseded = 0
 
         for src_file in scanned_files:
-            try:
-                content = src_file.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                try:
-                    content = src_file.read_text(encoding="latin-1")
-                except Exception:
-                    logger.warning(f"Skipping unreadable file: {src_file}")
-                    continue
+            content = await _read_import_text(src_file)
+            if content is None:
+                continue
 
             rel_path = src_file.relative_to(source_dir).as_posix()
             result = await _publish_import_raw(
@@ -206,14 +217,9 @@ async def import_zip(
             files_superseded = 0
 
             for src_file in scanned_files:
-                try:
-                    file_content = src_file.read_text(encoding="utf-8")
-                except UnicodeDecodeError:
-                    try:
-                        file_content = src_file.read_text(encoding="latin-1")
-                    except Exception:
-                        logger.warning(f"Skipping unreadable file in ZIP: {src_file}")
-                        continue
+                file_content = await _read_import_text(src_file)
+                if file_content is None:
+                    continue
 
                 rel_path = src_file.relative_to(extracted_dir).as_posix()
                 result = await _publish_import_raw(

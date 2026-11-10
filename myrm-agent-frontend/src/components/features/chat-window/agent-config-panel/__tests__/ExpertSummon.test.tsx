@@ -22,7 +22,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-vi.mock('@/services/agent', () => ({
+vi.mock('@/services/agentTemplates', () => ({
   getTemplates: (...args: unknown[]) => mockGetTemplates(...args),
 }));
 

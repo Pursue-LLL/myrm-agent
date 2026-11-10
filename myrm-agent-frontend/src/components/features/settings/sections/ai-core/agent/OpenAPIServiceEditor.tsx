@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * [INPUT] @/services/agent::OpenAPIServiceConfig, parseOpenAPISpec (POS: OpenAPI 服务配置与规格解析), ./OpenAPIAuthEditor, ./openApiTokenBudget
+ * [INPUT] @/services/agent::OpenAPIServiceConfig, @/services/agentOpenApi::parseOpenAPISpec (POS: OpenAPI 服务配置与规格解析), ./OpenAPIAuthEditor, ./openApiTokenBudget
  * [OUTPUT] ServiceEditor: 单个 OpenAPI 服务的编辑卡片（名称、规格地址或内容的解析、端点勾选、鉴权、超时、启停与删除）
  * [POS] AgentOpenAPIServicesTab 列表里的服务条目，字段变化经 onUpdate / onRemove 回传。
  */
@@ -12,12 +12,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { Switch } from '@/components/primitives/switch';
-import {
-  type OpenAPIServiceConfig,
-  type OpenAPIAuthConfig,
-  type ParseSpecResponse,
-  parseOpenAPISpec,
-} from '@/services/agent';
+import { type OpenAPIServiceConfig, type OpenAPIAuthConfig } from '@/services/agent';
+import { type ParseSpecResponse, parseOpenAPISpec } from '@/services/agentOpenApi';
 import { toast } from '@/hooks/shared/useToast';
 import { OPENAPI_DIRECT_TOKEN_BUDGET, estimateEndpointTokenLoad } from './openApiTokenBudget';
 import { AuthEditor } from './OpenAPIAuthEditor';

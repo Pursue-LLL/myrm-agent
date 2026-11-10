@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - `@/services/agent::getActiveSessions` (POS: 当前连接后端的进行中会话查询)
+ * - `@/services/agentFleet::getActiveSessions` (POS: 当前连接后端的进行中会话查询)
  *
  * [OUTPUT]
  * - `useActiveSessionsGuard`: 切断当前连接前的活跃会话守卫，返回 `guard`（有生成中会话时挂起 `proceed` 等待确认）与确认对话框状态。
@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { getActiveSessions } from '@/services/agent';
+import { getActiveSessions } from '@/services/agentFleet';
 
 /** 超过该时长无应答即视为当前连接不可达：切走不可达连接不应被前置查询卡住。 */
 const QUERY_TIMEOUT_MS = 3000;

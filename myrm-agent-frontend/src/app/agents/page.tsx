@@ -14,7 +14,8 @@ import {
   Store,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { listAgents, deleteAgent, getFleetOverview, AgentListItem, AgentFleetStats } from '@/services/agent';
+import { listAgents, deleteAgent, AgentListItem } from '@/services/agent';
+import { getFleetOverview, AgentFleetStats } from '@/services/agentFleet';
 import { toast } from '@/hooks/shared/useToast';
 import { AgentCard } from './AgentCard';
 import { FleetKPIBar } from './FleetKPIBar';

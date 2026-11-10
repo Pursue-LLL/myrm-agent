@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - @/services/agent::getTemplates, TemplateListItem (POS: 专家与团队模板 DTO)
+ * - @/services/agentTemplates::getTemplates, TemplateListItem (POS: 专家与团队模板 DTO)
  * - @/services/templateDiscovery::templateMatchesSearchQuery, resolveTemplateKind (POS: 模板搜索与类型判定)
  * - @/services/templateSummon::instantiateTemplateWithMetrics (POS: 专家召唤统一入口与漏斗埋点)
  * - ./prefillComposerWithUseCase (POS: 召唤后预填输入框且不覆盖草稿)
@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
-import { getTemplates, type TemplateListItem } from '@/services/agent';
+import { getTemplates, type TemplateListItem } from '@/services/agentTemplates';
 import { templateMatchesSearchQuery, resolveTemplateKind } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
 import { recordExpertSummonSearchUsed, recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetTemplates = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services/agent', () => ({
+vi.mock('@/services/agentTemplates', () => ({
   getTemplates: (...args: unknown[]) => mockGetTemplates(...args),
 }));
 

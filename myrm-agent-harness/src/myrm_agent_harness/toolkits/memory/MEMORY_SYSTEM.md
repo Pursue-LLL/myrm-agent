@@ -536,6 +536,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 - 语义分数是权重最大的一项（Semantic 类型 0.65）；相关度接近时由新近度、重要度、用户评分与类型先验决定先后，相关度差距大时语义分数决定
 - **召回次数不参与排序**：每条返回的命中都会被记一次使用，次数衡量的是曝光而不是有用性；用它排序会让先被展示的记忆一直被展示，新写入的事实挤不进前列（本仓库金标准召回基准，离线 32 维词哈希向量、另写入 16 条干扰记忆：使用戳开启且次数参与排序时三次运行 ndcg@5 0.81–0.83、mrr 0.78–0.80，次数移出排序后恢复到使用戳关闭时的 0.88 / 0.88；语料很小，只说明使用戳不再拉低质量，不代表真实嵌入模型下的绝对分数）。使用戳只服务生命周期（遗忘、陈旧性复审、健康度、记忆卡片，见「访问计数」）。唯一例外是可选的 `enable_gravity_decay`（默认关闭），它的幂律衰减把召回次数并入 recency 项
 - `type_prior` 是常量信号（下限 0.01）的指数，等价于每类记忆固定的折扣，与记忆个体无关：Profile 无折扣，Semantic / Claim 约 ×0.79（`0.01^0.05`），Episodic / Procedural 约 ×0.58（`0.01^0.12`）。它与 `RetrievalConfig.type_weights`（RRF 融合阶段的类型权重）是两处独立的类型先验
+- Procedural 的 Importance 权重（0.45）同样是固定折扣：规则没有 `importance` 字段，每条规则读到的都是缺省 0.5（`0.5^0.45` ≈ ×0.73），与规则个体无关。规则的强弱由 `priority`（规则的 SQL 查询按它降序，`relational/_rule_mixin.py`）和 `tool_rule_priority`（CRITICAL 规则在遗忘中受保护）承载；`memory_save_tool` 的 `importance` 只对 knowledge 生效（见 `agent_surface/memory_agent_tools/save_tool.py`）
 - 纠正链抑制：被纠正记忆的分数乘以 `correction_penalty`（默认 0.1）
 - Source Decay：MMR 选择时对已选来源的记忆施加软惩罚，促进跨会话多样性。`penalty = content_sim + source_diversity_weight × (same_source_count / selected_count)`，默认 weight=0.5，设为 0 退化为纯内容 MMR。`content_sim` 取候选与已选集合的最大 Jaccard 相似度，每轮只并入最新选中的一条；MMR 值并列时取在候选列表中靠前者
 
@@ -552,7 +553,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 **信号计算**（见 `signals.py`）：
 
 - **Recency**: `exp(-ln(2) × age_days / half_life_days)`
-- **Importance**: 直接提取 `memory.importance`（缺省 0.5）
+- **Importance**: 直接提取 `memory.importance`（缺省 0.5；Procedural 没有该字段，恒取缺省值）
 - **Preference**: 直接提取 `memory.preference_strength`（仅 Profile 权重大于 0）
 - **Rating**: 直接提取 `memory.user_rating`（用户反馈经非对称 EMA 更新，缺省 0.5 为中性，见「非对称信任评分」）
 - **Type prior**: 常量，见上

@@ -17,7 +17,7 @@ vi.mock('@/store/useAgentStore', () => ({
 vi.mock('@/hooks/shared/useToast', () => ({ toast: vi.fn() }));
 
 const { mockReadiness } = vi.hoisted(() => ({ mockReadiness: vi.fn() }));
-vi.mock('@/services/agent', () => ({ getAgentReadiness: mockReadiness }));
+vi.mock('@/services/agentReadiness', () => ({ getAgentReadiness: mockReadiness }));
 
 vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), {
