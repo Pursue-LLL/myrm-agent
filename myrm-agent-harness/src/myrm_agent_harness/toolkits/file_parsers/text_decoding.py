@@ -10,11 +10,11 @@
 - read_text_file: the text of a file on disk with LF line endings (blocking)
 
 [POS]
-The one place where file bytes become text for the file parsers, the Wiki source loader and the source-sync
-converters. UTF-8 comes first, then UTF-16/32 with a byte-order mark, then UTF-8 with a few damaged bytes, then the
-legacy encodings of the supported locales (GBK/GB18030, Big5, Shift-JIS, EUC-JP, EUC-KR, Windows-1252). A legacy guess
-needs strong evidence and is otherwise refused, because a wrong decode is garbage that looks like text and would be
-compiled into the knowledge base.
+The one place where file bytes become text for the file parsers, the Wiki source loader, the source-sync converters
+and the Wiki folder, ZIP and Obsidian imports. UTF-8 comes first, then UTF-16/32 with a byte-order mark, then UTF-8
+with a few damaged bytes, then the legacy encodings of the supported locales (GBK/GB18030, Big5, Shift-JIS, EUC-JP,
+EUC-KR, Windows-1252). A legacy guess needs strong evidence and is otherwise refused, because a wrong decode is
+garbage that looks like text and would be compiled into the knowledge base.
 """
 
 from __future__ import annotations

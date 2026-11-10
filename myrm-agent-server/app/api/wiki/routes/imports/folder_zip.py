@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.file_parsers.text_decoding::TextDecodingError / read_text_file (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
+- myrm_agent_harness.toolkits.file_parsers::TextDecodingError / read_text_file (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
 - myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map::WikiMapEventType (POS: OKF 认知地图模块入口。提供 wiki/index.md, wiki/log.md, wiki/hot.md 与 wiki/SCHEMA.md 的确定性免 LLM 构建与刷新。)
 - app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
 - app.api.wiki.routes::vault_effects (POS: Wiki API route submodules.)
@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from myrm_agent_harness.toolkits.file_parsers.text_decoding import TextDecodingError, read_text_file
+from myrm_agent_harness.toolkits.file_parsers import TextDecodingError, read_text_file
 from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
     WikiMapEventType,
 )

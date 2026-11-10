@@ -20,11 +20,11 @@ Provides parsers for various file formats:
 - pdf.pdf_content_extractor::PDFExtractConfig, PDFExtractResult, PDFImageContent, extract_pdf_content (POS: PDF content extraction)
 - pdf.pdf_smart::SmartPDFParser (POS: PDF parser adapter over the smart extraction orchestrator. Returns plain text with tables rendered inline; scanned PDFs (sparse text layer) are OCR'd so text-only consumers (@-mentions, wiki imports, web downloads) read them too)
 - text::TextParser (POS: plain text and Markdown parser)
-- text_decoding::TextDecodingError, decode_text_bytes (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
+- text_decoding::TextDecodingError, decode_text_bytes, read_text_file (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
 - ipynb::IpynbParser (POS: Jupyter Notebook parser)
 [OUTPUT]
 - FileParser, PDFPlumberParser, DocxParser, ExcelParser, PptxParser, TextParser, IpynbParser: parser classes
-- decode_text_bytes, TextDecodingError: text bytes to str for callers that hold bytes instead of a file; bytes that are binary or in an unidentifiable encoding raise TextDecodingError
+- decode_text_bytes, read_text_file, TextDecodingError: text bytes or a text file to str for callers that do their own file handling; bytes that are binary or in an unidentifiable encoding raise TextDecodingError
 - LegacyFormatParser: OLE2 legacy format parser with soffice auto-conversion
 - PDFParseResult, PDFTable, PDFHeading: PDF-specific result models
 - PDFExtractConfig, PDFExtractResult, PDFImageContent, extract_pdf_content: PDF extraction utilities
@@ -74,7 +74,7 @@ from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_smart import SmartPDFParse
 from myrm_agent_harness.toolkits.file_parsers.pptx import PptxParser
 from myrm_agent_harness.toolkits.file_parsers.rtf_parser import RtfParser
 from myrm_agent_harness.toolkits.file_parsers.text import TextParser
-from myrm_agent_harness.toolkits.file_parsers.text_decoding import TextDecodingError, decode_text_bytes
+from myrm_agent_harness.toolkits.file_parsers.text_decoding import TextDecodingError, decode_text_bytes, read_text_file
 
 __all__ = [
     "DocxParser",
@@ -102,6 +102,7 @@ __all__ = [
     "get_parser",
     "get_pdf_parser",
     "is_supported",
+    "read_text_file",
 ]
 
 

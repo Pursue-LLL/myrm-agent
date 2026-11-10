@@ -156,6 +156,7 @@ async def _process_obsidian_vault(
         success=True,
         files_scanned=stats.files_scanned,
         files_processed=stats.files_processed,
+        files_enqueued=len(enqueued_paths),
         files_skipped=stats.files_skipped,
         files_skipped_conflict=stats.files_skipped_conflict,
         files_superseded=stats.files_superseded,

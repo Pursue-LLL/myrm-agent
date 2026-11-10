@@ -24,7 +24,7 @@ auto-conversion).
 | pptx.py | Core | PowerPoint document parser. Supports markdown (slide text, tables, speaker notes) and structure mode (JSON metadata with shape IDs, types, positions, layouts for incremental edits). | ✅ |
 | rtf_parser.py | Core | RTF parser with font/color group handling and Markdown output | ✅ |
 | text.py | Core | Text file parser; reads through `text_decoding.read_text_file` | ✅ |
-| text_decoding.py | Core | The one place where file bytes become text: UTF-8, UTF-16/32 with a byte-order mark, UTF-8 with a few damaged bytes, then GBK/GB18030, Big5, Shift-JIS, EUC-JP, EUC-KR and Windows-1252 identified with `charset-normalizer`. A legacy guess needs strong evidence and must decode the whole text; binary data and text that cannot be identified reliably raise `TextDecodingError` instead of becoming replacement-character garbage. Shared by `TextParser`, `CsvParser`, the Wiki source loader and the server source-sync converter | ✅ |
+| text_decoding.py | Core | The one place where file bytes become text: UTF-8, UTF-16/32 with a byte-order mark, UTF-8 with a few damaged bytes, then GBK/GB18030, Big5, Shift-JIS, EUC-JP, EUC-KR and Windows-1252 identified with `charset-normalizer`. A legacy guess needs strong evidence and must decode the whole text; binary data and text that cannot be identified reliably raise `TextDecodingError` instead of becoming replacement-character garbage. Shared by `TextParser`, `CsvParser`, the Wiki source loader, the server source-sync converter and the server Wiki folder, ZIP and Obsidian imports | ✅ |
 | ipynb.py | Core | Jupyter Notebook parser. Extracts Markdown/code/raw cells, outputs plots (multimodal blocks), preserves cell tags, and applies 10K/100-line safe truncation. | ✅ |
 
 ## Dependencies

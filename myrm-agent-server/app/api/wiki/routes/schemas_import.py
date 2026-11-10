@@ -174,6 +174,7 @@ class ObsidianImportResultResponse(BaseModel):
     success: bool
     files_scanned: int
     files_processed: int
+    files_enqueued: int
     files_skipped: int
     files_skipped_conflict: int = 0
     files_superseded: int = 0

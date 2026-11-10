@@ -1,7 +1,7 @@
 """Obsidian Vault adapter for Wiki import.
 
 [INPUT]
-myrm_agent_harness.toolkits.file_parsers.text_decoding::TextDecodingError, read_text_file (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
+myrm_agent_harness.toolkits.file_parsers::TextDecodingError, read_text_file (POS: file bytes to text in UTF-8, a Unicode BOM encoding or an identifiable legacy encoding such as GBK)
 myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: YAML FM parse SSOT)
 myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::infer_type_for_import, serialize_frontmatter (POS: wiki page type gate SSOT)
 myrm_agent_harness.toolkits.wiki.portability::extract_canvas_text_nodes (POS: .canvas text extraction)
@@ -27,7 +27,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.file_parsers.text_decoding import TextDecodingError, read_text_file
+from myrm_agent_harness.toolkits.file_parsers import TextDecodingError, read_text_file
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     infer_type_for_import,
     serialize_frontmatter,

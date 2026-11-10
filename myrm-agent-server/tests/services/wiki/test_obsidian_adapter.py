@@ -223,16 +223,16 @@ class TestAdaptObsidianFile:
         assert dest is None
         assert meta == {}
 
-    def test_handles_unicode_error(self, tmp_path: Path) -> None:
+    def test_skips_a_note_whose_encoding_cannot_be_identified(self, tmp_path: Path) -> None:
         vault = tmp_path / "vault"
         vault.mkdir()
-        binary = vault / "broken.md"
-        binary.write_bytes(b"\x80\x81\x82\x83" * 100)
+        broken = vault / "broken.md"
+        broken.write_bytes(b"\x80\x81\x82\x83" * 100)
         raw = tmp_path / "raw"
         assets = tmp_path / "assets"
 
-        dest, meta, imgs = adapt_obsidian_file(binary, vault, raw, assets)
-        assert dest is not None or dest is None  # Should not raise
+        assert adapt_obsidian_file(broken, vault, raw, assets) == (None, {}, 0)
+        assert not raw.exists()
 
     def test_preserves_directory_structure(self, tmp_path: Path) -> None:
         vault = tmp_path / "vault"
@@ -302,6 +302,22 @@ class TestAdaptObsidianFile:
         assert meta["title"] == "Roadmap"
         assert meta["tags"] == ["plan"]
         assert dest.read_text().count("title: Roadmap") == 1
+
+    def test_note_saved_in_gbk_keeps_its_characters(self, tmp_path: Path) -> None:
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "note.md"
+        body = "知识库导入、重复内容审核与向量索引重建。每一项都需要负责人与截止日期。"
+        note.write_bytes(f"---\ntitle: 项目路线图\ntags: [计划]\n---\n# 本季度重点\n\n{body}\n".encode("gbk"))
+        raw = tmp_path / "raw"
+        assets = tmp_path / "assets"
+
+        dest, meta, _ = adapt_obsidian_file(note, vault, raw, assets)
+
+        assert dest is not None
+        assert meta["title"] == "项目路线图"
+        assert meta["tags"] == ["计划"]
+        assert body in dest.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -459,5 +475,4 @@ class TestAdaptFullPipeline:
         raw = tmp_path / "raw"
         assets = tmp_path / "assets"
 
-        dest, meta, imgs = adapt_obsidian_file(vault / "binary.md", vault, raw, assets)
-        assert imgs == 0
+        assert adapt_obsidian_file(vault / "binary.md", vault, raw, assets) == (None, {}, 0)
