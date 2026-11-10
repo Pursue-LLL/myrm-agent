@@ -17,7 +17,6 @@ import { expectNonNull } from '@/test-utils/expectDefined';
 
 const mocks = vi.hoisted(() => {
   const noop = () => undefined;
-  const identity = (key: string) => key;
   return {
     externalAgents: undefined as { agents: ExternalAgentConfig[] } | undefined,
     panel: {
@@ -40,8 +39,6 @@ const mocks = vi.hoisted(() => {
       handleSaveAsNewAgent: noop,
       handleTypewriterComplete: noop,
       refreshSkills: noop,
-      t: identity,
-      tIndicator: identity,
     },
   };
 });

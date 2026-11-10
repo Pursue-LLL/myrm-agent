@@ -25,9 +25,7 @@ import { createSaveConfigHandler } from './config-panel/handlers';
  */
 export const useAgentConfigPanel = () => {
   const router = useRouter();
-  const t = useTranslations('agent.configPanel');
   const tAgent = useTranslations('agent');
-  const tIndicator = useTranslations('agent.indicator');
 
   // ==================== Store Hooks ====================
 
@@ -267,9 +265,5 @@ export const useAgentConfigPanel = () => {
     handleSaveAsNewAgent,
     handleTypewriterComplete,
     refreshSkills,
-
-    // Translations
-    t,
-    tIndicator,
   };
 };

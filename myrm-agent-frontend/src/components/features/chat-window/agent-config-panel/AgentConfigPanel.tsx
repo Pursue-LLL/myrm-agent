@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, lazy, Suspense, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Save } from 'lucide-react';
 import AgentConfigCards from './AgentConfigCards';
@@ -54,12 +55,10 @@ const AgentConfigPanel = ({ className }: AgentConfigPanelProps) => {
     handleTypewriterComplete,
 
     refreshSkills,
-
-    // Translations
-    t,
-    tIndicator,
   } = useAgentConfigPanel();
 
+  const t = useTranslations('agent.configPanel');
+  const tIndicator = useTranslations('agent.indicator');
   const { triggerPrewarm } = useChatTurnPrewarm();
 
   useEffect(() => {

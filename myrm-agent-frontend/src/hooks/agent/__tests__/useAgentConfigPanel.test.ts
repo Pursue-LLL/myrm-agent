@@ -238,7 +238,7 @@ describe('useAgentConfigPanel: what the conversation uses', () => {
     expect(result.current.selectedMcpDetails).toEqual([]);
   });
 
-  it('passes the chat state through and reads each text from its own namespace', () => {
+  it('passes the chat state through', () => {
     useChatStore.setState({ isConfigPanelExpanded: false, actionMode: 'fast' });
 
     const { result } = renderHook(() => useAgentConfigPanel());
@@ -246,8 +246,6 @@ describe('useAgentConfigPanel: what the conversation uses', () => {
     expect(result.current.isConfigPanelExpanded).toBe(false);
     expect(result.current.actionMode).toBe('fast');
     expect(result.current.currentBuiltinTools).toEqual(DEFAULT_ENABLED_BUILTIN_TOOLS);
-    expect(result.current.t('x')).toBe('agent.configPanel:x');
-    expect(result.current.tIndicator('x')).toBe('agent.indicator:x');
   });
 });
 

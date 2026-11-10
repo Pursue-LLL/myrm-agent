@@ -44,8 +44,6 @@ interface PanelState {
   handleSaveAsNewAgent: () => Promise<void>;
   handleTypewriterComplete: () => void;
   refreshSkills: () => Promise<void>;
-  t: (key: string) => string;
-  tIndicator: (key: string) => string;
 }
 
 const mocks = vi.hoisted(() => ({
@@ -70,6 +68,7 @@ vi.mock('@/hooks/agent/useAgentConfigPanel', () => ({
     return mocks.panel;
   },
 }));
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 vi.mock('@/hooks/chat/useChatTurnPrewarm', () => ({
   useChatTurnPrewarm: () => ({ triggerPrewarm: mocks.triggerPrewarm }),
 }));
@@ -102,7 +101,9 @@ vi.mock('../AgentConfigEditDialog', () => ({
 
 import AgentConfigPanel from '../AgentConfigPanel';
 
-const identity = (key: string) => key;
+const WELCOME_MESSAGE =
+  'Configure capabilities for your intelligent agent or use saved agents. Unleash your creativity to build powerful AI agents!';
+const SAVE_TIP = 'Save frequently used capability combinations as agents for direct use next time';
 
 function panelState(overrides: Partial<PanelState> = {}): PanelState {
   return {
@@ -125,8 +126,6 @@ function panelState(overrides: Partial<PanelState> = {}): PanelState {
     handleSaveAsNewAgent: mocks.handleSaveAsNewAgent,
     handleTypewriterComplete: mocks.handleTypewriterComplete,
     refreshSkills: mocks.refreshSkills,
-    t: identity,
-    tIndicator: identity,
     ...overrides,
   };
 }
@@ -190,7 +189,7 @@ describe('AgentConfigPanel: shell', () => {
       }),
     });
 
-    expect(screen.getByTestId('typewriter')).toHaveTextContent('welcomeMessage');
+    expect(screen.getByTestId('typewriter').textContent).toBe(WELCOME_MESSAGE);
     expect(mocks.typewriterProps).toMatchObject({ show: true, typingSpeed: 35, displayDuration: 1200 });
     expect(mocks.cardsProps).toMatchObject({
       selectedSkills: selectedSkillDetails,
@@ -200,9 +199,9 @@ describe('AgentConfigPanel: shell', () => {
       enabledBuiltinTools: currentBuiltinTools,
       ephemeralSubagents: { writer: {} },
     });
-    expect(screen.getByText('jitTeam')).toBeInTheDocument();
-    expect(screen.getByText('memoryDecay')).toBeInTheDocument();
-    expect(screen.getByText('memoryExtractionPreset')).toBeInTheDocument();
+    expect(screen.getByText('Virtual team')).toBeInTheDocument();
+    expect(screen.getByText('Memory Decay')).toBeInTheDocument();
+    expect(screen.getByText('Memory Focus')).toBeInTheDocument();
   });
 
   it('hands the cards defaults while no configuration exists', () => {
@@ -332,35 +331,35 @@ describe('AgentConfigPanel: saving', () => {
   it('offers nothing to save while the hook finds nothing worth saving', () => {
     show({ hasSavableConfig: false, agentConfig: config({ autoRestoreDomains: ['example.com'] }) });
 
-    expect(screen.queryByRole('button', { name: /saveAsNewAgent/ })).toBeNull();
-    expect(screen.queryByText('saveAsNewAgentTip')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Save as New Agent/ })).toBeNull();
+    expect(screen.queryByText(SAVE_TIP)).toBeNull();
   });
 
   it('offers to save a configuration without a saved agent as a new agent', () => {
     show({ hasSavableConfig: true, agentConfig: config({ selectedSkillIds: ['s1'] }) });
 
-    expect(screen.getByText('saveAsNewAgentTip')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'saveAsNewAgent' }));
+    expect(screen.getByText(SAVE_TIP)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as New Agent' }));
     expect(mocks.handleSaveAsNewAgent).toHaveBeenCalledTimes(1);
   });
 
   it('also offers it before any configuration exists once the hook finds something to save', () => {
     show({ hasSavableConfig: true, agentConfig: null });
 
-    expect(screen.getByRole('button', { name: 'saveAsNewAgent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save as New Agent' })).toBeInTheDocument();
   });
 
   it('shows the saving state and blocks the button while the agent is created', () => {
     show({ hasSavableConfig: true, isSavingAgent: true, agentConfig: config({ systemPrompt: 'Be brief' }) });
 
-    const button = screen.getByRole('button', { name: 'savingAgent' });
+    const button = screen.getByRole('button', { name: 'Saving...' });
     expect(button).toBeDisabled();
   });
 
   it('offers no save button for a conversation backed by a saved agent, whatever was changed', () => {
     show({ hasSavableConfig: true, agentConfig: config({ agentId: 'agent-1', selectedSkillIds: ['s1'] }) });
 
-    expect(screen.queryByRole('button', { name: /sav/i })).toBeNull();
-    expect(screen.queryByText('saveAsNewAgentTip')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Sav/ })).toBeNull();
+    expect(screen.queryByText(SAVE_TIP)).toBeNull();
   });
 });
