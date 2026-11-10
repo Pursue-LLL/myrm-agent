@@ -18,7 +18,10 @@ import { admitAndCompressFiles } from '@/lib/utils/imageAdmission';
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100MB — aligned with backend VideoAnalysisEngine limit
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25MB — aligned with STT provider limits (Whisper/Groq/Deepgram)
 
-const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files: FileType[]) => void }) => {
+/** 附件列表的写入口：追加走函数式更新，上传期间别处（粘贴、拖拽）加入的附件才不会被覆盖 */
+type SetFiles = (update: FileType[] | ((previous: FileType[]) => FileType[])) => void;
+
+const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: SetFiles }) => {
   const t = useTranslations('files');
   const [loading, setLoading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -43,7 +46,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
     const hasVisionCapability = hasConfiguredVisionCapability(defaultModelConfig, getModelInfo);
     const hasVisionFallback = hasVisionFallbackForVideo(defaultModelConfig, getModelInfo);
 
-    if (hasImages && !modelInfo?.supports_vision && !hasVisionCapability) {
+    if (hasImages && !hasVisionCapability) {
       return 'image';
     }
     if (hasVideos && !modelInfo?.supports_video_input && !hasVisionFallback) {
@@ -89,7 +92,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
 
       // 转换为 store 格式并添加
       const storeFiles = selectedFiles.map(toStoreFile);
-      setFiles([...files, ...storeFiles]);
+      setFiles((previous) => [...previous, ...storeFiles]);
     } catch (error) {
       console.error('File selection failed:', error);
       toast({
@@ -194,7 +197,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
           storeFile.contentHash = hashMap.get(ref.fileName);
           return storeFile;
         });
-        setFiles([...files, ...storeFiles]);
+        setFiles((previous) => [...previous, ...storeFiles]);
       } else {
         toast({
           title: t('uploadFailed'),

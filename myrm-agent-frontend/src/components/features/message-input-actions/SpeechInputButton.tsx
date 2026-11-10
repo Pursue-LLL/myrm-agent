@@ -31,7 +31,7 @@ function VolumeWaveform({ level }: { level: number }) {
         <span
           key={i}
           className="w-[2px] rounded-full bg-red-500 transition-[height] duration-75"
-          style={{ height: `${Math.max(15, h * 100)}%` }}
+          style={{ height: `${h * 100}%` }}
         />
       ))}
     </div>
