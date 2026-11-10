@@ -18,6 +18,7 @@ from typing import Any
 import acp
 from acp.schema import (
     AgentCapabilities,
+    AgentMessageChunk,
     CloseSessionResponse,
     ImageContentBlock,
     Implementation,
@@ -100,7 +101,7 @@ class MockAcpAgent:
         if self._conn is not None:
             await self._conn.session_update(
                 session_id=session_id,
-                update=acp.update_agent_message_text(f"[echo] {user_text}"),
+                update=AgentMessageChunk(content=TextContentBlock(text=f"[echo] {user_text}")),
             )
             received = [
                 f"{block.mime_type}:{len(block.data)}:{hashlib.sha256(block.data.encode()).hexdigest()[:16]}"
@@ -110,7 +111,7 @@ class MockAcpAgent:
             if received:
                 await self._conn.session_update(
                     session_id=session_id,
-                    update=acp.update_agent_message_text(f"[images] {' '.join(received)}"),
+                    update=AgentMessageChunk(content=TextContentBlock(text=f"[images] {' '.join(received)}")),
                 )
 
         return PromptResponse(stop_reason="end_turn")

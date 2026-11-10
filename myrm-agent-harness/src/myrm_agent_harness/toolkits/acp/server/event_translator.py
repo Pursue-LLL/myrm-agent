@@ -4,10 +4,11 @@ Pure translation layer: maps myrm agent streaming events to ACP protocol
 notifications. No business logic, no state management.
 
 [INPUT]
-- (none)
+- acp.schema::AgentMessageChunk, AgentThoughtChunk, SessionNotification, TextContentBlock, ToolCallProgress, ToolCallStart (POS: ACP official SDK models)
 
 [OUTPUT]
-- translate_agent_event: Translate a single agent streaming event to an ACP Sessio...
+- translate_agent_event: Translate a single agent streaming event to an ACP SessionNotification
+- message_notification: The ACP notification that shows ``text`` to the user as an agent message
 
 [POS]
 AgentEvent → ACP SessionNotification translation.
@@ -15,15 +16,11 @@ AgentEvent → ACP SessionNotification translation.
 
 from __future__ import annotations
 
-from acp import (
-    session_notification,
-    start_tool_call,
-    update_agent_message_text,
-    update_agent_thought_text,
-    update_tool_call,
-)
 from acp.schema import (
+    AgentMessageChunk,
+    AgentThoughtChunk,
     SessionNotification,
+    TextContentBlock,
     ToolCallProgress,
     ToolCallStart,
     ToolCallStatus,
@@ -87,18 +84,35 @@ def translate_agent_event(
     return None
 
 
+def message_notification(session_id: str, text: str) -> SessionNotification:
+    """The ACP notification that shows ``text`` to the user as an agent message."""
+    return SessionNotification(
+        session_id=session_id,
+        update=AgentMessageChunk(session_update="agent_message_chunk", content=_text_block(text)),
+    )
+
+
+def _text_block(text: str) -> TextContentBlock:
+    # The SDK models default their discriminator fields, but the type checker sees them as required arguments,
+    # so every model below states its discriminator explicitly.
+    return TextContentBlock(type="text", text=text)
+
+
 def _translate_text(session_id: str, event: dict[str, object]) -> SessionNotification | None:
     data = event.get("data")
     if not data or not isinstance(data, str):
         return None
-    return session_notification(session_id, update_agent_message_text(data))
+    return message_notification(session_id, data)
 
 
 def _translate_thinking(session_id: str, event: dict[str, object]) -> SessionNotification | None:
     data = event.get("data")
     if not data or not isinstance(data, str):
         return None
-    return session_notification(session_id, update_agent_thought_text(data))
+    return SessionNotification(
+        session_id=session_id,
+        update=AgentThoughtChunk(session_update="agent_thought_chunk", content=_text_block(data)),
+    )
 
 
 def _translate_tool_call(
@@ -119,16 +133,12 @@ def _translate_tool_call(
     update: ToolCallStart | ToolCallProgress
     if tool_call_id not in active_tool_calls:
         active_tool_calls.add(tool_call_id)
-        update = start_tool_call(
-            tool_call_id=tool_call_id,
-            title=tool_name,
-            status=acp_status,
+        update = ToolCallStart(
+            session_update="tool_call", tool_call_id=tool_call_id, title=tool_name, status=acp_status
         )
     else:
-        update = update_tool_call(
-            tool_call_id=tool_call_id,
-            title=tool_name,
-            status=acp_status,
+        update = ToolCallProgress(
+            session_update="tool_call_update", tool_call_id=tool_call_id, title=tool_name, status=acp_status
         )
 
-    return session_notification(session_id, update)
+    return SessionNotification(session_id=session_id, update=update)
