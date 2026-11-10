@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
@@ -24,6 +24,9 @@ import { IconStar, IconConfetti, IconSparkle } from '@/components/features/icons
 import SettingsSection from '../SettingsSection';
 
 import type { Hat, Rarity, Species } from '@/components/features/companion/companionGenerator';
+
+const SAVE_DEBOUNCE_MS = 500;
+const CELEBRATION_MS = 3000;
 
 interface EvolutionStatusData {
   metrics: { conversations: number; active_days: number; total_messages: number };
@@ -56,7 +59,7 @@ function EvolutionProgress({ label, current, target }: { label: string; current:
 
 const CompanionSection = memo(() => {
   const t = useTranslations('companion');
-  const user = useAuthStore((s) => s.user);
+  const userId = useAuthStore((s) => s.user?.id);
   const {
     enabled,
     muted,
@@ -75,16 +78,11 @@ const CompanionSection = memo(() => {
     saveConfigToServer,
   } = useCompanionStore();
 
-  const bones = useMemo(() => {
-    if (!user?.id) {
-      return null;
-    }
-    return generateCompanion(user.id);
-  }, [user?.id]);
+  const bones = useMemo(() => (userId ? generateCompanion(userId) : null), [userId]);
 
   const [evoStatus, setEvoStatus] = useState<EvolutionStatusData | null>(null);
-  const [evoLoading, setEvoLoading] = useState(false);
   const [justEvolved, setJustEvolved] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const effectiveRarity: Rarity = (evolvedRarity ?? bones?.rarity ?? 'Common') as Rarity;
   const effectiveRarityIdx = RARITIES.indexOf(effectiveRarity);
@@ -94,26 +92,40 @@ const CompanionSection = memo(() => {
     loadConfigFromServer();
   }, [loadConfigFromServer]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      saveConfigToServer();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [nameOverride, speciesOverride, hatOverride, saveConfigToServer]);
+  // Only the user's own edits are written back (coalesced while typing). Saving on mount would overwrite the
+  // server copy with local defaults whenever the load is still in flight; a pending edit is flushed on leaving.
+  const scheduleSave = useCallback(() => {
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = undefined;
+      void saveConfigToServer();
+    }, SAVE_DEBOUNCE_MS);
+  }, [saveConfigToServer]);
+
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current !== undefined) {
+        clearTimeout(saveTimerRef.current);
+        void saveConfigToServer();
+      }
+    },
+    [saveConfigToServer],
+  );
 
   useEffect(() => {
-    if (!enabled || !bones || !user?.id) {
+    if (!enabled || !bones || !userId) {
       return;
     }
     let cancelled = false;
 
     const fetchStatus = async () => {
       try {
-        const resp = await apiRequest<{ data: EvolutionStatusData }>(
+        const status = await apiRequest<EvolutionStatusData>(
           `/companion/evolution-status?current_rarity=${effectiveRarity}`,
+          { silent: true },
         );
         if (!cancelled) {
-          setEvoStatus(resp.data);
+          setEvoStatus(status);
         }
       } catch {
         /* non-critical */
@@ -124,23 +136,43 @@ const CompanionSection = memo(() => {
     return () => {
       cancelled = true;
     };
-  }, [enabled, bones, user?.id, effectiveRarity, evolvedAt]);
+  }, [enabled, bones, userId, effectiveRarity, evolvedAt]);
 
   const handleEvolve = useCallback(() => {
-    if (!evoStatus?.can_evolve || !bones || !user?.id || evoLoading) {
+    if (!bones || !userId) {
       return;
     }
-    setEvoLoading(true);
-
-    const nextRarityIdx = RARITIES.indexOf(effectiveRarity) + 1;
-    const nextRarity = RARITIES[nextRarityIdx];
-    const newStats = evolveStats(bones.stats, bones.peakStat, user.id, nextRarity);
+    const nextRarity = RARITIES[RARITIES.indexOf(effectiveRarity) + 1];
+    const newStats = evolveStats(bones.stats, bones.peakStat, userId, nextRarity);
 
     evolve(nextRarity, newStats);
+    // The status described the previous rarity; until the next one arrives it must not offer another evolution.
+    setEvoStatus(null);
     setJustEvolved(true);
-    setEvoLoading(false);
-    setTimeout(() => setJustEvolved(false), 3000);
-  }, [evoStatus, bones, user?.id, evoLoading, effectiveRarity, evolve]);
+    setTimeout(() => setJustEvolved(false), CELEBRATION_MS);
+  }, [bones, userId, effectiveRarity, evolve]);
+
+  const changeName = useCallback(
+    (value: string | null) => {
+      setNameOverride(value);
+      scheduleSave();
+    },
+    [setNameOverride, scheduleSave],
+  );
+  const changeSpecies = useCallback(
+    (value: Species | null) => {
+      setSpeciesOverride(value);
+      scheduleSave();
+    },
+    [setSpeciesOverride, scheduleSave],
+  );
+  const changeHat = useCallback(
+    (value: Hat | null | undefined) => {
+      setHatOverride(value);
+      scheduleSave();
+    },
+    [setHatOverride, scheduleSave],
+  );
 
   if (!bones) {
     return null;
@@ -174,7 +206,7 @@ const CompanionSection = memo(() => {
           <Label>{t('rename')}</Label>
           <Input
             value={currentName}
-            onChange={(e) => setNameOverride(e.target.value || null)}
+            onChange={(e) => changeName(e.target.value || null)}
             placeholder={t('renamePlaceholder')}
             maxLength={16}
             disabled={!enabled}
@@ -188,7 +220,7 @@ const CompanionSection = memo(() => {
               <button
                 key={s}
                 type="button"
-                onClick={() => setSpeciesOverride(s === bones.species ? null : (s as Species))}
+                onClick={() => changeSpecies(s === bones.species ? null : (s as Species))}
                 className={`rounded-full p-1 text-lg transition-colors ${
                   currentSpecies === s ? 'bg-primary/15 ring-1 ring-primary' : 'hover:bg-muted'
                 }`}
@@ -205,7 +237,7 @@ const CompanionSection = memo(() => {
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
-              onClick={() => setHatOverride(undefined)}
+              onClick={() => changeHat(undefined)}
               className={`rounded-full px-2 py-1 text-xs transition-colors ${
                 hatOverride === undefined ? 'bg-primary/15 ring-1 ring-primary' : 'hover:bg-muted'
               }`}
@@ -215,7 +247,7 @@ const CompanionSection = memo(() => {
             </button>
             <button
               type="button"
-              onClick={() => setHatOverride(null)}
+              onClick={() => changeHat(null)}
               className={`rounded-full px-2 py-1 text-xs transition-colors ${
                 currentHat === null && hatOverride !== undefined
                   ? 'bg-primary/15 ring-1 ring-primary'
@@ -229,7 +261,7 @@ const CompanionSection = memo(() => {
               <button
                 key={h}
                 type="button"
-                onClick={() => setHatOverride(h as Hat)}
+                onClick={() => changeHat(h as Hat)}
                 className={`rounded-full p-1 text-lg transition-colors ${
                   currentHat === h ? 'bg-primary/15 ring-1 ring-primary' : 'hover:bg-muted'
                 }`}
@@ -285,34 +317,32 @@ const CompanionSection = memo(() => {
               <p className="text-xs text-muted-foreground text-center py-1">
                 <IconSparkle className="inline w-4 h-4 mr-1" /> {t('evolution.maxLevel')}
               </p>
-            ) : evoStatus?.next_threshold ? (
+            ) : evoStatus && (evoStatus.next_threshold || evoStatus.can_evolve) ? (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">{t('evolution.progress')}</p>
-                <EvolutionProgress
-                  label={t('evolution.conversations')}
-                  current={evoStatus.metrics.conversations}
-                  target={evoStatus.next_threshold.conversations}
-                />
-                <EvolutionProgress
-                  label={t('evolution.activeDays')}
-                  current={evoStatus.metrics.active_days}
-                  target={evoStatus.next_threshold.active_days}
-                />
-                <EvolutionProgress
-                  label={t('evolution.totalMessages')}
-                  current={evoStatus.metrics.total_messages}
-                  target={evoStatus.next_threshold.total_messages}
-                />
+                {evoStatus.next_threshold && (
+                  <>
+                    <p className="text-xs text-muted-foreground">{t('evolution.progress')}</p>
+                    <EvolutionProgress
+                      label={t('evolution.conversations')}
+                      current={evoStatus.metrics.conversations}
+                      target={evoStatus.next_threshold.conversations}
+                    />
+                    <EvolutionProgress
+                      label={t('evolution.activeDays')}
+                      current={evoStatus.metrics.active_days}
+                      target={evoStatus.next_threshold.active_days}
+                    />
+                    <EvolutionProgress
+                      label={t('evolution.totalMessages')}
+                      current={evoStatus.metrics.total_messages}
+                      target={evoStatus.next_threshold.total_messages}
+                    />
+                  </>
+                )}
                 {evoStatus.can_evolve && (
-                  <Button size="sm" className="w-full" onClick={handleEvolve} disabled={evoLoading}>
-                    {evoLoading ? (
-                      '...'
-                    ) : (
-                      <>
-                        <IconStar className="inline w-4 h-4 mr-1" />
-                        {t('evolution.evolveButton')}
-                      </>
-                    )}
+                  <Button size="sm" className="w-full" onClick={handleEvolve}>
+                    <IconStar className="inline w-4 h-4 mr-1" />
+                    {t('evolution.evolveButton')}
                   </Button>
                 )}
               </div>
