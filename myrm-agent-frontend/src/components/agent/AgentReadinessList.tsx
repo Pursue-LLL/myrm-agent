@@ -10,7 +10,7 @@ import {
   type IconProps,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { AgentReadinessItem, ReadinessLevel } from '@/services/agent';
+import type { AgentReadinessItem, ReadinessLevel } from '@/services/agentReadiness';
 
 import { useReadinessText } from './useReadinessText';
 

@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileHostControlRoster } from '../MobileHostControlRoster';
 import type { SpawnOptionAgent } from '@/services/remoteAccess';
-import type { ActiveSession } from '@/services/agent';
+import type { ActiveSession } from '@/services/agentFleet';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
     if (params && 'count' in params) {

@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/agent::getAgent, getAgentReadiness (POS: Agent profile and readiness API client)
+ * @/services/agent::getAgent, @/services/agentReadiness::getAgentReadiness (POS: Agent profile and readiness API client)
  * @/services/memory/sharedContexts::listSharedContextBindingsForTarget, listSharedContexts, listSharedContextWriteProposals (POS: Shared Context frontend API client)
  * @/store/useConfigStore (POS: Global memory policy configuration store)
  *
@@ -17,13 +17,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-  getAgent,
-  getAgentReadiness,
-  type Agent,
-  type AgentReadinessReport,
-  type ReadinessLevel,
-} from '@/services/agent';
+import { getAgent, type Agent } from '@/services/agent';
+import { getAgentReadiness, type AgentReadinessReport, type ReadinessLevel } from '@/services/agentReadiness';
 import {
   listSharedContextBindingsForTarget,
   listSharedContexts,

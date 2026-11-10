@@ -21,7 +21,7 @@ import { AlertTriangle, XCircle } from 'lucide-react';
 import { useReadinessText } from '@/components/agent/useReadinessText';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { useAgentReadiness } from '@/hooks/agent/useAgentReadiness';
-import type { ReadinessLevel, AgentReadinessItem } from '@/services/agent';
+import type { ReadinessLevel, AgentReadinessItem } from '@/services/agentReadiness';
 
 const DOT_STYLES: Record<Exclude<ReadinessLevel, 'ready'>, string> = {
   warning: 'bg-amber-500',

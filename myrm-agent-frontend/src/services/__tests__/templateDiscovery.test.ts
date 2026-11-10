@@ -4,7 +4,7 @@ import {
   resolveTemplateKind,
   templateMatchesSearchQuery,
 } from '../templateDiscovery';
-import type { TemplateListItem } from '@/services/agent';
+import type { TemplateListItem } from '@/services/agentTemplates';
 
 describe('templateDiscovery', () => {
   const sampleIndividual: TemplateListItem = {

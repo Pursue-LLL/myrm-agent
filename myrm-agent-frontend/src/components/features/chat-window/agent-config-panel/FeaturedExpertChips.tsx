@@ -27,7 +27,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useScrollEdgeFade } from '@/hooks/ui/useScrollEdgeFade';
 import { dismissProactive, isProactiveDismissed, useProactiveDismissed } from '@/hooks/ui/useProactiveDismissal';
-import type { TemplateListItem } from '@/services/agent';
+import type { TemplateListItem } from '@/services/agentTemplates';
 import { loadFeaturedTemplates, peekFeaturedTemplates } from '@/services/featuredTemplates';
 import { resolveTemplateKind } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';

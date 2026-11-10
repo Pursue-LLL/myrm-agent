@@ -1,14 +1,15 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type { GovernanceOverview } from '@/services/agent';
+import type { GovernanceOverview } from '@/services/agentFleet';
 
 const swrState = vi.hoisted(() => ({
   value: { data: undefined as GovernanceOverview | undefined, isLoading: false, mutate: vi.fn() },
 }));
 
 vi.mock('swr', () => ({ default: () => swrState.value }));
-vi.mock('@/services/agent', () => ({ deleteAgent: vi.fn(), getGovernanceOverview: vi.fn() }));
+vi.mock('@/services/agent', () => ({ deleteAgent: vi.fn() }));
+vi.mock('@/services/agentFleet', () => ({ getGovernanceOverview: vi.fn() }));
 vi.mock('@/components/agent/GovernanceMergeWizard', () => ({ MergeWizard: () => null }));
 
 import { GovernancePanel } from '../GovernancePanel';

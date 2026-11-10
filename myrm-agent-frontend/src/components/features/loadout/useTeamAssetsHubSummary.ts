@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/agent::listAgents, getFleetOverview, getAgentReadiness (POS: Agent profile/fleet/readiness API client)
+ * @/services/agent::listAgents, @/services/agentFleet::getFleetOverview, @/services/agentReadiness::getAgentReadiness (POS: Agent profile/fleet/readiness API client)
  * @/services/skill::listSkills (POS: Skills API client)
  * @/services/memory::getPendingMemories (POS: Memory API client)
  * @/store/useConfigStore (POS: Global memory policy configuration store)
@@ -19,14 +19,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-  getAgentReadiness,
-  getFleetOverview,
-  listAgents,
-  type AgentFleetStats,
-  type AgentListItem,
-  type ReadinessLevel,
-} from '@/services/agent';
+import { listAgents, type AgentListItem } from '@/services/agent';
+import { getFleetOverview, type AgentFleetStats } from '@/services/agentFleet';
+import { getAgentReadiness, type ReadinessLevel } from '@/services/agentReadiness';
 import { getPendingMemories } from '@/services/memory';
 import { listSkills } from '@/services/skill';
 import useConfigStore from '@/store/useConfigStore';

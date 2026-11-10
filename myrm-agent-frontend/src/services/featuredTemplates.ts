@@ -1,13 +1,13 @@
 /**
  * Featured expert templates for the empty-chat suggestion strip.
  *
- * [INPUT] services/agent::getTemplates (POS: template list API)
+ * [INPUT] services/agentTemplates::getTemplates (POS: template list API)
  * [OUTPUT] peekFeaturedTemplates, loadFeaturedTemplates, invalidateFeaturedTemplates
  * [POS] The strip remounts on every new chat. A short cache plus one shared in-flight request keeps the template
  * request off the first-screen path, and a cached answer lets the strip render without a loading placeholder.
  */
 
-import { getTemplates, type TemplateListItem } from '@/services/agent';
+import { getTemplates, type TemplateListItem } from '@/services/agentTemplates';
 
 const FEATURED_LIMIT = 4;
 const FEATURED_CACHE_TTL_MS = 60_000;

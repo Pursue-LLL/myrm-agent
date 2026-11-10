@@ -29,9 +29,12 @@ const { mockGetTemplates, mockInstantiateTemplate, mockGetAgentReadiness } = vi.
   mockGetAgentReadiness: vi.fn(),
 }));
 
-vi.mock('@/services/agent', () => ({
+vi.mock('@/services/agentTemplates', () => ({
   getTemplates: mockGetTemplates,
   instantiateTemplate: mockInstantiateTemplate,
+}));
+
+vi.mock('@/services/agentReadiness', () => ({
   getAgentReadiness: mockGetAgentReadiness,
 }));
 

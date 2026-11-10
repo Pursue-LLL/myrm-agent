@@ -26,9 +26,9 @@ import {
   AgentCreate,
   OpenAPIServiceConfig,
   TrustedDesktopAppEntry,
-  invalidateAgentReadiness,
   type WorkspacePolicy,
 } from '@/services/agent';
+import { invalidateAgentReadiness } from '@/services/agentReadiness';
 import { isRiskHeldError } from '@/services/riskHeldToast';
 import { DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 import { type ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';

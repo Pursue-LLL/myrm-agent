@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * @/services/agent::getActiveSessions (POS: Agent session API client)
+ * @/services/agentFleet::getActiveSessions (POS: Agent session API client)
  *
  * [OUTPUT]
  * useWorkspaceStore: Zustand store for multi-tab workspace management, including active panes, background snapshots, and lifecycle controllers.
@@ -11,8 +11,8 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { ActiveSession, ActiveSessionsResponse } from '@/services/agent';
-import { getActiveSessions } from '@/services/agent';
+import type { ActiveSession, ActiveSessionsResponse } from '@/services/agentFleet';
+import { getActiveSessions } from '@/services/agentFleet';
 import type { ChatState } from './chat/types';
 
 export interface PaneConfig {

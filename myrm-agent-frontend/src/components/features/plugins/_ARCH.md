@@ -41,7 +41,7 @@ Agent Plugins 1.0.0 的两条用户流程，共用同一份 ZIP 契约（harness
 
 ## 依赖
 
-- `@/services/expertPackage`（导出契约）、`@/lib/api`（导入契约走 `apiRequest`）、`@/store/useAgentStore`（导入后刷新列表）、`@/services/agent`（就绪度）
+- `@/services/expertPackage`（导出契约）、`@/lib/api`（导入契约走 `apiRequest`）、`@/store/useAgentStore`（导入后刷新列表）、`@/services/agentReadiness`（就绪度）
 - `@/components/agent/AgentReadinessList`、`@/components/features/redaction/*`
 - `@/components/primitives/*`
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

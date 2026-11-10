@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentReadinessItem, AgentReadinessReport } from '@/services/agent';
+import type { AgentReadinessItem, AgentReadinessReport } from '@/services/agentReadiness';
 
 import ReadinessBadge from '../ReadinessBadge';
 

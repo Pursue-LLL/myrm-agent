@@ -7,13 +7,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import {
-  listAgentSecrets,
-  createOrUpdateAgentSecret,
-  deleteAgentSecret,
-  invalidateAgentReadiness,
-  READINESS_SWR_KEY_PREFIX,
-} from '@/services/agent';
+import { listAgentSecrets, createOrUpdateAgentSecret, deleteAgentSecret } from '@/services/agentSecrets';
+import { invalidateAgentReadiness, READINESS_SWR_KEY_PREFIX } from '@/services/agentReadiness';
 import { toast } from '@/hooks/shared/useToast';
 import { mutate } from 'swr';
 

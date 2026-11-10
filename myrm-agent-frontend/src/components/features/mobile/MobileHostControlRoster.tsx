@@ -24,7 +24,7 @@ import {
   IconChevronRight,
 } from '@/components/features/icons/PremiumIcons';
 import type { SpawnOptionAgent } from '@/services/remoteAccess';
-import type { ActiveSession } from '@/services/agent';
+import type { ActiveSession } from '@/services/agentFleet';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
 export interface MobileHostControlRosterProps {

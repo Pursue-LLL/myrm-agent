@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - services/agent::instantiateTemplate (POS: 模板实例化 API)
+ * - services/agentTemplates::instantiateTemplate (POS: 模板实例化 API)
  * - services/expertSummonMetrics::* (POS: 漏斗可观测事件上报)
  *
  * [OUTPUT]
@@ -10,7 +10,8 @@
  * [POS]
  * 收敛 ExpertSummonPopover、FeaturedExpertChips 与 FlowPad 的模板实例化逻辑，确保召唤尝试/成功/失败口径一致，透传真实错误。
  */
-import { instantiateTemplate, type Agent } from '@/services/agent';
+import { type Agent } from '@/services/agent';
+import { instantiateTemplate } from '@/services/agentTemplates';
 import {
   inferExpertSummonFailureReason,
   recordExpertSummonAttempted,

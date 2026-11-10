@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { extractSummonErrorMessage, instantiateTemplateWithMetrics } from '../templateSummon';
-import * as agentModule from '@/services/agent';
+import type { Agent } from '@/services/agent';
+import * as templatesModule from '@/services/agentTemplates';
 import * as metricsModule from '@/services/expertSummonMetrics';
 
 describe('templateSummon', () => {
@@ -30,8 +31,8 @@ describe('templateSummon', () => {
 
   describe('instantiateTemplateWithMetrics', () => {
     it('records attempted and succeeded metrics on successful instantiation', async () => {
-      const mockAgent = { id: 'test-agent-123', name: 'Test Agent' } as unknown as agentModule.Agent;
-      vi.spyOn(agentModule, 'instantiateTemplate').mockResolvedValue(mockAgent);
+      const mockAgent = { id: 'test-agent-123', name: 'Test Agent' } as unknown as Agent;
+      vi.spyOn(templatesModule, 'instantiateTemplate').mockResolvedValue(mockAgent);
       const spyAttempted = vi.spyOn(metricsModule, 'recordExpertSummonAttempted');
       const spySucceeded = vi.spyOn(metricsModule, 'recordExpertSummonSucceeded');
 
@@ -51,7 +52,7 @@ describe('templateSummon', () => {
 
     it('records failed metrics and re-throws when instantiation fails', async () => {
       const testError = new Error('Backend failed');
-      vi.spyOn(agentModule, 'instantiateTemplate').mockRejectedValue(testError);
+      vi.spyOn(templatesModule, 'instantiateTemplate').mockRejectedValue(testError);
       const spyFailed = vi.spyOn(metricsModule, 'recordExpertSummonFailed');
 
       await expect(

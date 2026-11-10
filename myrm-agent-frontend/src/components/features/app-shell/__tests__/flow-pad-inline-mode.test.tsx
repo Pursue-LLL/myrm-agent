@@ -120,7 +120,7 @@ vi.mock('@/lib/deploy-mode', () => ({
   normalizeConfiguredBaseUrl: (val: string) => val || 'http://localhost:8000',
 }));
 
-vi.mock('@/services/agent', () => ({
+vi.mock('@/services/agentTemplates', () => ({
   getTemplates: (...args: unknown[]) => mockGetTemplates(...args),
 }));
 

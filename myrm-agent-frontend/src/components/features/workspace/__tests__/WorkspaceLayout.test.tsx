@@ -21,7 +21,7 @@ vi.mock('@/lib/utils/authHeaders', () => ({
   getAuthHeaders: () => ({ Authorization: 'Bearer test' }),
 }));
 
-vi.mock('@/services/agent', () => ({
+vi.mock('@/services/agentFleet', () => ({
   getActiveSessions: vi.fn().mockResolvedValue({ activeSessions: [], maxConcurrent: 3, availableSlots: 3 }),
 }));
 

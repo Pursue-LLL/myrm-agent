@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 
-import type { AgentReadinessItem } from '@/services/agent';
+import type { AgentReadinessItem } from '@/services/agentReadiness';
 
 /** A finding can list dozens of servers or keys; a row names the first few and signals there are more. */
 const MAX_NAMES_SHOWN = 3;
