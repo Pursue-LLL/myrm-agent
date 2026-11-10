@@ -96,7 +96,6 @@ export interface Skill {
 
   /** Required permissions (from SKILL.md frontmatter) */
   required_permissions?: string[];
-  missing_credentials?: string[];
 
   /** Allowed domains for outbound network requests (DLP protection) */
   allowed_domains?: string[] | null;

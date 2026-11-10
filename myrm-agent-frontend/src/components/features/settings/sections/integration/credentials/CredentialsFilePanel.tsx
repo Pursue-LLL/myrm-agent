@@ -1,34 +1,15 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import {
-  IconAlertCircle,
-  IconCheckCircle,
-  IconClock,
-  IconTrash,
-  IconUpload,
-} from '@/components/features/icons/PremiumIcons';
+import { IconAlertCircle, IconCheckCircle, IconClock, IconTrash } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import type { CredentialFile } from '@/services/credentials';
 import type { CredentialsSectionState } from './useCredentialsSection';
 
-type CredentialsFilePanelProps = Pick<
-  CredentialsSectionState,
-  | 'credentials'
-  | 'handleUpload'
-  | 'isLoading'
-  | 'isUploading'
-  | 'missingCredentials'
-  | 'setDeleteTarget'
-  | 'uploadingFilename'
->;
+type CredentialsFilePanelProps = Pick<CredentialsSectionState, 'credentials' | 'isLoading' | 'setDeleteTarget'>;
 
 function CredentialExpiryBadge({ cred, t }: { cred: CredentialFile; t: ReturnType<typeof useTranslations> }) {
-  if (!cred.expiry_status || cred.expiry_status === 'error') {
-    return null;
-  }
-
   if (cred.expiry_status === 'valid') {
     return (
       <Badge variant="outline" className="text-green-600 border-green-600">
@@ -59,53 +40,18 @@ function CredentialExpiryBadge({ cred, t }: { cred: CredentialFile; t: ReturnTyp
   return null;
 }
 
-export function CredentialsFilePanel({
-  credentials,
-  handleUpload,
-  isLoading,
-  isUploading,
-  missingCredentials,
-  setDeleteTarget,
-  uploadingFilename,
-}: CredentialsFilePanelProps) {
+export function CredentialsFilePanel({ credentials, isLoading, setDeleteTarget }: CredentialsFilePanelProps) {
   const t = useTranslations('settings.credentials');
 
   return (
     <div className="border-t border-border pt-6">
       <h3 className="font-medium mb-3 flex items-center gap-2">
         <IconCheckCircle className="h-5 w-5 text-green-500" />
-        {t('uploadedTitle')} (Files)
+        {t('uploadedTitle')}
         <Badge variant="secondary" className="ml-auto">
           {credentials.length}
         </Badge>
       </h3>
-
-      {missingCredentials.length > 0 && (
-        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 mb-4">
-          <div className="flex items-start gap-3">
-            <IconAlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-medium text-amber-500 mb-2">{t('missingTitle')}</h3>
-              <div className="space-y-2">
-                {missingCredentials.map((filename) => (
-                  <div key={filename} className="flex items-center justify-between p-2 rounded bg-background/50">
-                    <span className="text-sm font-mono">{filename}</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleUpload(filename)}
-                      disabled={isUploading && uploadingFilename === filename}
-                    >
-                      <IconUpload className="h-4 w-4 mr-2" />
-                      {t('upload')}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isLoading ? (
         <div className="space-y-2">
@@ -139,6 +85,7 @@ export function CredentialsFilePanel({
               <Button
                 size="sm"
                 variant="ghost"
+                aria-label={t('deleteFile', { filename: cred.filename })}
                 onClick={() => setDeleteTarget(cred.filename)}
                 className="text-red-500 hover:text-red-700 hover:bg-red-500/10"
               >

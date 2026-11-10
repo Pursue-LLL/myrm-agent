@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/hooks/shared/useToast';
 import {
@@ -10,7 +10,6 @@ import {
   listCredentials,
   listVaultCredentials,
   updateVaultCredential,
-  uploadCredential,
   type CredentialFile,
   type VaultCredential,
 } from '@/services/credentials';
@@ -31,9 +30,6 @@ export function useCredentialsStorage() {
   const [vaultTotp, setVaultTotp] = useState('');
   const [vaultDesc, setVaultDesc] = useState('');
   const [deleteVaultTarget, setDeleteVaultTarget] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadingFilename, setUploadingFilename] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const loadCredentials = useCallback(async () => {
@@ -131,47 +127,6 @@ export function useCredentialsStorage() {
     }
   }, [deleteVaultTarget, loadVaultCredentials, t]);
 
-  const handleUpload = useCallback(
-    async (targetFilename: string) => {
-      if (!fileInputRef.current) {
-        return;
-      }
-
-      setUploadingFilename(targetFilename);
-      fileInputRef.current.accept = '*';
-      fileInputRef.current.onchange = async (event: Event) => {
-        const input = event.target as HTMLInputElement;
-        const file = input.files?.[0];
-        if (!file) {
-          setUploadingFilename(null);
-          return;
-        }
-
-        try {
-          setIsUploading(true);
-          await uploadCredential(file, targetFilename);
-          toast({
-            title: t('uploadSuccess'),
-          });
-          await loadCredentials();
-        } catch (error) {
-          console.error('Failed to upload credential:', error);
-          toast({
-            title: t('uploadError'),
-            variant: 'destructive',
-          });
-        } finally {
-          setIsUploading(false);
-          setUploadingFilename(null);
-          input.value = '';
-        }
-      };
-
-      fileInputRef.current.click();
-    },
-    [loadCredentials, t],
-  );
-
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget) {
       return;
@@ -200,13 +155,10 @@ export function useCredentialsStorage() {
     deleteTarget,
     deleteVaultTarget,
     editingVaultCred,
-    fileInputRef,
     handleDeleteConfirm,
     handleDeleteVaultConfirm,
     handleSaveVaultCredential,
-    handleUpload,
     isLoading,
-    isUploading,
     isVaultLoading,
     loadCredentials,
     loadVaultCredentials,
@@ -219,7 +171,6 @@ export function useCredentialsStorage() {
     setVaultModalOpen,
     setVaultPassword,
     setVaultTotp,
-    uploadingFilename,
     vaultCredentials,
     vaultDesc,
     vaultLabel,

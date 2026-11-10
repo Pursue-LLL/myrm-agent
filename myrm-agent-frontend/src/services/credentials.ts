@@ -18,22 +18,6 @@ export interface CredentialListResponse {
 }
 
 /**
- * Upload credential file
- */
-export async function uploadCredential(file: File, filename?: string): Promise<CredentialFile> {
-  const formData = new FormData();
-  formData.append('file', file);
-  if (filename) {
-    formData.append('filename', filename);
-  }
-
-  return await apiRequest<CredentialFile>('/credentials/upload', {
-    method: 'POST',
-    body: formData,
-  });
-}
-
-/**
  * List all credential files
  */
 export async function listCredentials(): Promise<CredentialFile[]> {

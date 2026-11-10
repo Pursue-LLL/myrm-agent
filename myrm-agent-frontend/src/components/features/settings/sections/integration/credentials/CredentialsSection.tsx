@@ -8,7 +8,7 @@
  * CredentialsSection: Vault, file, and OAuth credential management UI.
  *
  * [POS]
- * Settings integration tab for credential upload, vault secrets, and OAuth integrations.
+ * Settings integration tab for credential files, vault secrets, and OAuth integrations.
  */
 
 import { memo } from 'react';
@@ -29,8 +29,6 @@ const CredentialsSection = memo(() => {
 
   return localizeReactNode(
     <SettingsSection title={t('title')} description={t('description')}>
-      <input ref={state.fileInputRef} type="file" className="hidden" aria-label={t('fileInputLabel')} />
-
       <div className="space-y-6">
         <CredentialsVaultPanel
           isVaultLoading={state.isVaultLoading}
@@ -42,12 +40,8 @@ const CredentialsSection = memo(() => {
         <SSHVaultPanel />
         <CredentialsFilePanel
           credentials={state.credentials}
-          handleUpload={state.handleUpload}
           isLoading={state.isLoading}
-          isUploading={state.isUploading}
-          missingCredentials={state.missingCredentials}
           setDeleteTarget={state.setDeleteTarget}
-          uploadingFilename={state.uploadingFilename}
         />
       </div>
 
