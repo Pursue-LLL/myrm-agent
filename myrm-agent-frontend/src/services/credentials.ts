@@ -7,7 +7,6 @@ import { apiRequest } from '@/lib/api';
 export interface CredentialFile {
   filename: string;
   size: number;
-  upload_time?: string;
   expiry_status?: string;
   expiry_message?: string;
   remaining_days?: number;

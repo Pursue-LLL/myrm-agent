@@ -1,15 +1,14 @@
 """Credentials management API router.
 
-Endpoints for uploading, listing, and deleting credential files.
+Endpoints for listing and deleting credential files.
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from myrm_agent_harness.backends.skills.credential_checker import (
     CredentialExpiryChecker,
     ExpiryStatus,
@@ -34,9 +33,6 @@ class CredentialFile(BaseModel):
     size: int
     """File size in bytes"""
 
-    upload_time: str | None = None
-    """Upload timestamp (ISO format)"""
-
     expiry_status: str | None = None
     """Expiry status: valid, expiring_soon, expired, error"""
 
@@ -54,63 +50,11 @@ class CredentialListResponse(BaseModel):
     """List of credential files"""
 
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload_credential(
-    file: Annotated[UploadFile, File(description="Credential file to upload")],
-    filename: Annotated[str | None, Form(description="Optional custom filename")] = None,
-    workspace_root: Path = Depends(get_workspace_root),
-) -> CredentialFile:
-    """Upload a credential file to workspace.
-
-    Files are stored in {workspace}/.credentials/ directory.
-    """
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Filename is required",
-        )
-
-    # Use custom filename if provided, otherwise use original filename
-    target_filename = filename or file.filename
-
-    # Security: reject absolute paths and path traversal
-    if Path(target_filename).is_absolute() or ".." in target_filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid filename (absolute paths or '..' not allowed)",
-        )
-
-    # Create credentials directory if it doesn't exist
-    credentials_dir = workspace_root / _CREDENTIALS_DIR
-    credentials_dir.mkdir(parents=True, exist_ok=True)
-
-    # Write file
-    target_path = credentials_dir / target_filename
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        content = await file.read()
-        target_path.write_bytes(content)
-
-        logger.info("Uploaded credential file: %s (%d bytes)", target_filename, len(content))
-
-        return CredentialFile(
-            filename=target_filename,
-            size=len(content),
-        )
-    except Exception as e:
-        logger.error("Failed to upload credential file %s: %s", target_filename, e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to upload file",
-        ) from e
-
-
 @router.get("", response_model=CredentialListResponse)
 async def list_credentials(
     workspace_root: Path = Depends(get_workspace_root),
 ) -> CredentialListResponse:
-    """List all uploaded credential files with expiry status."""
+    """List the credential files with expiry status."""
     credentials_dir = workspace_root / _CREDENTIALS_DIR
 
     if not credentials_dir.exists():
