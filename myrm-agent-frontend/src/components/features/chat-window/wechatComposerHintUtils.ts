@@ -1,6 +1,7 @@
 export const WECHAT_ARTICLE_FORMATTER_SKILL = 'wechat-article-formatter';
 
-const WEIXIN_ARTICLE_URL_PATTERN = /https?:\/\/(?:[\w-]+\.)*mp\.weixin\.qq\.com\/s\//i;
+// 文章链接有短链 `/s/<id>` 与长链 `/s?__biz=…` 两种写法，都算。
+const WEIXIN_ARTICLE_URL_PATTERN = /https?:\/\/(?:[\w-]+\.)*mp\.weixin\.qq\.com\/s[/?]/i;
 
 export function containsWeixinArticleUrl(text: string): boolean {
   return WEIXIN_ARTICLE_URL_PATTERN.test(text);
@@ -19,9 +20,6 @@ export function isWechatArticleFormatterActive(params: {
   formatterSkillIds: string[];
 }): boolean {
   const { selectedSkillIds, sessionSkillOverrides, formatterSkillIds } = params;
-  if (formatterSkillIds.length === 0) {
-    return false;
-  }
   const mountedFormatter = formatterSkillIds.some((id) => selectedSkillIds.includes(id));
   if (!mountedFormatter) {
     return false;

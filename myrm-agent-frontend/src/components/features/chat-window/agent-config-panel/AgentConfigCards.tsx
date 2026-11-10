@@ -124,18 +124,11 @@ const AgentConfigCards = ({
               'group relative flex flex-col p-3 rounded-lg',
               'border transition-all duration-200',
               // 选中：毛玻璃效果，不选中：透明
-              hasContent ? 'backdrop-blur-md border-primary/15' : 'bg-transparent border-border/30',
+              hasContent ? 'bg-card/30 backdrop-blur-md border-primary/15' : 'bg-transparent border-border/30',
               // hover: 只加阴影，不改背景
               'hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20',
               'cursor-pointer text-left',
             )}
-            style={
-              hasContent
-                ? {
-                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                  }
-                : undefined
-            }
           >
             {/* 头部：图标 + 数量/添加按钮 */}
             <div className="flex items-center justify-between mb-1.5">

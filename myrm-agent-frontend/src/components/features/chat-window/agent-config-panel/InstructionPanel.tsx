@@ -3,8 +3,10 @@
 import { Loader2, Eye } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Switch } from '@/components/primitives/switch';
+import { HIDDEN_SYSTEM_PROMPT } from '@/services/agent';
 import dynamic from 'next/dynamic';
 import HarnessAblationLeverageTooltip from './HarnessAblationLeverageTooltip';
+import type { ProfileHistory } from './SmartPromptEditor';
 
 const SmartPromptEditor = dynamic(
   () => import('./SmartPromptEditor').then((module) => ({ default: module.SmartPromptEditor })),
@@ -28,7 +30,7 @@ export interface InstructionPanelProps {
   onShowSystemPrompt?: () => void;
   onAiGenerate: (intent: string) => Promise<void>;
   isGeneratingAi: boolean;
-  history: Array<{ id: string; version: number; systemPrompt: string; createdAt: string }>;
+  history: ProfileHistory[];
   t: (key: string) => string;
   tCommon: (key: string) => string;
 }
@@ -59,7 +61,7 @@ export const InstructionPanel = ({
 
       <HarnessAblationLeverageTooltip />
 
-      {isSystemPromptHidden && localPrompt === '⚠️ [Hidden for security]' && (
+      {isSystemPromptHidden && localPrompt === HIDDEN_SYSTEM_PROMPT && (
         <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
           <div className="flex items-center justify-between">
             <div className="flex-1">

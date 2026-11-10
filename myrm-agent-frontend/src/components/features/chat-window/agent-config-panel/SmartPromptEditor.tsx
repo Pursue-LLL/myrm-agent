@@ -19,10 +19,11 @@ import type { editor } from 'monaco-editor';
 
 type MonacoNamespace = typeof import('monaco-editor');
 
-interface ProfileHistory {
+export interface ProfileHistory {
   id: string;
   version: number;
-  systemPrompt: string;
+  /** A version saved without a prompt has none. */
+  systemPrompt: string | null;
   createdAt: string;
 }
 

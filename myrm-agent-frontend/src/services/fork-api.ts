@@ -68,8 +68,9 @@ export async function forkConversation(
 }
 
 /**
- * Get fork relationship information
+ * Get fork relationship information.
+ * Silent: the only reader is a header link that simply stays hidden when the read fails.
  */
 export async function getForkInfo(chatId: string): Promise<ForkInfoResponse> {
-  return apiRequest<ForkInfoResponse>(`/chats/${chatId}/fork-info`);
+  return apiRequest<ForkInfoResponse>(`/chats/${chatId}/fork-info`, { silent: true });
 }

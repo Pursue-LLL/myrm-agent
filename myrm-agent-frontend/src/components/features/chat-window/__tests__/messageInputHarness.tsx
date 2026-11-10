@@ -199,8 +199,6 @@ const initialFeatureState = useFeatureGateStore.getState();
 export function makeHook(overrides: Partial<MessageInputHook> = {}): MessageInputHook {
   return {
     showLinkDialog: false,
-    setShowLinkDialog: vi.fn(),
-    detectedLink: null,
     dontRemindAgain: false,
     setDontRemindAgain: vi.fn(),
     isUploadingPaste: false,

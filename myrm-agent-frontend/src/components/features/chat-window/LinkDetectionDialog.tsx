@@ -10,7 +10,6 @@ import {
 
 interface LinkDetectionDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
   dontRemindAgain: boolean;
   setDontRemindAgain: (checked: boolean) => void;
   onAddAtSymbol: () => void;
@@ -19,11 +18,10 @@ interface LinkDetectionDialogProps {
 
 /**
  * 链接检测对话框
- * 当用户输入链接时，提示是否添加@符号
+ * 当用户输入链接时，提示是否添加@符号；除了选「是」，以任何方式关闭（含 Esc、点遮罩）都等同选「否」。
  */
 export const LinkDetectionDialog = ({
   open,
-  onOpenChange,
   dontRemindAgain,
   setDontRemindAgain,
   onAddAtSymbol,
@@ -33,7 +31,7 @@ export const LinkDetectionDialog = ({
   const commonT = useTranslations('common');
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => !next && onSkip()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('linkDetected')}</DialogTitle>

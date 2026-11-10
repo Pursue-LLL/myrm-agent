@@ -57,7 +57,7 @@
 
 | `__tests__/SessionExportModal.test.tsx` | 测试 | 会话导出模态框测试套件：覆盖 HTML/MD/JSON/ZIP 四模式切换、initialFormat 初始选中、脱敏选项变更、Markdown/JSON/ZIP 下载触发、剪贴板复制通知、空消息保护与导出网络异常 Toast 提示 | ✅ |
 | `__tests__/SessionExportButton.test.tsx` | 测试 | 会话导出按钮测试套件：覆盖点击打开弹窗、全局 `myrm:open-session-export` 事件监听、Slash 参数解析与 format 别名透传校验 | ✅ |
-| `ChatCronLink.tsx` | 组件 | 会话内关联定时任务 Badge（计数 → `/settings/cron?chat_id=`） | ✅ |
+| `ChatCronLink.tsx` | 组件 | 会话内关联定时任务 Badge：按当前会话读取任务数（`countChatCronJobs`，失败静默、只当作没有；切会话时丢弃迟到的答案与上一个会话的数字），有任务才出现，点开 `/settings/cron?chat_id=`（`__tests__/ChatCronLink.test.tsx`） | ✅ |
 | `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + 锚点胶囊展示 + archive 归档抽屉 + 快照书签 list/fork（`forkContextBranch` + `router.push` 导航新会话）；摘要正文的公式经 `@/lib/utils/markdownMath` 渲染；状态与动作全部来自 `useCompactedSummaryState`（`__tests__/CompactedSummaryView.behavior.test.tsx` 守卫） | ✅ |
 | `useCompactedSummaryState.ts` | 辅助 | 压缩摘要视图的状态与动作：快照列表读取只采纳当前会话的应答（切走后迟到的应答与失败都被丢弃，进度提示照常结束）；摘要编辑保存期间切到别的会话时不把文本写进新会话，失败保留编辑内容并提示 `summarySaveFailed`；归档读取失败时关闭空窗口并提示 `archiveLoadFailed`、下次重新读取；保存快照；从快照派生新会话（回复流式期间拒绝并提示，E2E 浏览器额外整页跳转） | ✅ |
 | `CompactionAnchorStrip.tsx` | 组件 | 确定性机器符号锚点晶透微流光胶囊条：展示 Commit SHA、文件路径、代码符号、API 端点与关键报错，支持一键复制与折叠展开 | ✅ |
@@ -123,14 +123,14 @@
 | `__tests__/TrajectoryDiffModal.test.tsx` | 测试 | 对比弹窗：关闭时不读取、当前会话逐轮展示、加载中、可选会话（不含当前）、B 侧占位与选择、分歧标记落在对应轮次、参数键序不算分歧、一方先结束、迟到的旧选择被丢弃、上一个选择不在加载期间显示、各处读取失败的提示、关闭 | ✅ |
 | `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 种子回填；失败（含 409 会话忙）由本弹窗统一提示，`rewindToMessage` 为 silent，请求层不重复弹 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件 | 后台空闲任务状态胶囊：按 `task_name` + `status` 本地化文案（`backgroundTasks.idleStatus.*`），未知任务回退通用文案 | ✅ |
-| `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
+| `LinkDetectionDialog.tsx` | 组件 | 输入里出现没加 `@` 的链接时的询问对话框：「是」补上 `@`，「否」或任何其他关闭方式（Esc、点遮罩、右上角叉）都不改文本；可勾「不再提醒」；状态与落盘在 `useLinkAtPrompt`（`__tests__/LinkDetectionDialog.test.tsx`） | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
 | `MessageInput.tsx` | 核心 | 主输入框的装配层：持有各块之间共享的状态（编辑器是否全屏、光标位置、斜杠与 `@` 面板、输入历史弹窗），把 `useMessageInput` 的输入状态接到 `composer/` 的单元（文本区、发送控制、面板开合、拖放、按键分流、手机「+」与操作表）；附件、Slash、`@`/Tauri 侧栏 session drop→prior_chat cite、语音、模式切换、队列与流式发送；挂载 `WechatArticleComposerHint`；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送；桌面主行只有 5 个控件（`ComposerPrimaryControls`），其余选项收在「+」展开的 `ComposerOptionsRegion`，手机（<`sm`）由 `sendbox-mobile-plus-btn` 打开操作表；输入框字号手机上为 `text-base`（16px，iOS 对更小的输入框聚焦时会自动放大页面）、≥`sm` 为 `text-sm`；空会话首屏传 `focusOnMount`，由 `ComposerTextarea` 在桌面（≥`sm` 且 `pointer: fine`）把光标放进来；服务端自启回合（后台任务完成后的唤醒）运行时 `loading` 不置位，仍并排显示停止按钮（`selectChatGenerating`），会话历史载入期间停止按钮保留位置并禁用（`useTurnStoppable`）；各单元的职责与契约见 [composer/_ARCH.md](composer/_ARCH.md) | ✅ |
 | `__tests__/MessageInput.{keyboard,controls,panels}.test.tsx`、`__tests__/messageInputHarness.tsx` | 测试 | 输入区接线的集成测试：子组件与重 Hook 换成记录属性的替身，只验证 `MessageInput` 自己的决定；覆盖键盘分流与文本区（回车、IME、队列、全屏编辑、退格删芯片、斜杠 / @ / 历史、typing 节流、聚焦预热与失焦取消）、发送控制（发送 / 停止 / 纠偏 / 引导 / 排队的出现条件、语音与热词）、面板与拖放（手机操作表、能力编辑落点、选项区、拖放覆盖层与合并处理器、压缩确认、链接检测、工作目录行的显示条件）；测试文件必须先导入替身模块再导入被测组件 | ✅ |
-| `WechatArticleComposerHint.tsx` | 组件 | 输入区 banner：检测 `mp.weixin.qq.com/s/` 链接 → 引导挂载 `wechat-article-formatter` skill | ✅ |
+| `WechatArticleComposerHint.tsx` | 组件 | 输入区 banner：输入里有微信公众号文章链接（短链 `/s/<id>` 与长链 `/s?__biz=…` 都算）→ 引导挂载 `wechat-article-formatter` skill；已挂载且本会话没关掉它时改为「已就绪」；可关闭，关闭后在组件存活期内不再出现（`__tests__/WechatArticleComposerHint.test.tsx`） | ✅ |
 | `wechatComposerHintUtils.ts` | 辅助 | 微信文章 URL 检测、formatter skill 挂载态判定、Agent 技能设置深链 | ✅ |
 | `speechKeyterms.ts` | 辅助 | STT 领域热词提取纯函数（近 6 轮消息词频 Top15）；主 composer 与移动端指挥条共用，保证两端口述识别词表一致 | ✅ |
-| `__tests__/wechatComposerHintUtils.test.ts` | 测试 | 微信文章 URL 检测与 formatter skill 挂载态 | ✅ |
+| `__tests__/wechatComposerHintUtils.test.ts` | 测试 | 微信文章 URL 检测（短链、长链、子域、大小写、非文章页、仿冒域名）、技能设置深链（转义与无 Agent 回退）与 formatter skill 挂载态矩阵（未安装、未挂载、会话覆盖含/不含、多份副本） | ✅ |
 | `__tests__/speechKeyterms.test.ts` | 测试 | STT 热词提取回归：空输入与单字 CJK 丢弃、大小写去重与降频、缩写与带点标识符、词频排序、近 6 轮窗口、Top15 上界 | ✅ |
 | `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + 悬停全路径与一键复制 + revoke 撤销）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
 | `QueuedMessagesList.tsx` | 组件 | 消息队列 Dock 栏可视化：支持 Dock 折叠/展开胶囊头、按会话持久化偏好、全局 Esc 暂停自动展开、DnD 拖拽排序（复用 @dnd-kit；键盘拖拽的说明与播报经 `useDndAccessibility`，按「排队中 (n/m)」称呼每条消息，不念消息内容）与全部清空 | ✅ |
@@ -139,9 +139,9 @@
 | `__tests__/useComposerFastFocus.test.ts` | 测试 | 快速聚焦单测：有输入框时聚焦且光标落末尾、无输入框返回 false、Mod+K 与 Mod+Shift+C 快捷键、`myrm:focus-composer` 事件，`enabled=false` 时不拦截快捷键 | ✅ |
 | `QueuedMessageItem.tsx` | 组件 | 单条排队消息：就地多行编辑（IME 守卫）、一键置顶 Move to top（ArrowUp 快捷提速）、附件角标、能力覆写摘要 | ✅ |
 | `MessageListSkeleton.tsx` | 辅助 | 消息列表首屏加载 skeleton | ✅ |
-| `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow） | ✅ |
-| `LivenessIndicator.tsx` | 组件 | 聊天输入区 Agent 状态指示灯（6px 圆点，idle 隐藏，非 idle 显示颜色 + i18n tooltip；消费 useLivenessState 五态） | ✅ |
-| `QuoteCard.tsx` | 组件 | 引用消息预览卡片（回复/转发上下文） | ✅ |
+| `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow）：读分叉信息失败静默（链接不出现）；「第 N 条消息」由 0 起的 `fork_point` 加 1 得出；切会话时丢弃迟到的答案与上一个会话的链接（`__tests__/ParentChatLink.test.tsx`） | ✅ |
+| `LivenessIndicator.tsx` | 组件 | 聊天输入区 Agent 状态指示灯（6px 圆点，idle 隐藏，非 idle 显示颜色 + i18n tooltip，圆点内含仅读屏可见的状态文字；消费 useLivenessState 五态；`__tests__/LivenessIndicator.test.tsx`） | ✅ |
+| `QuoteCard.tsx` | 组件 | 引用消息预览卡片（回复/转发上下文）；移除按钮的无障碍名称取自 `chat.removeQuote`（`__tests__/QuoteCard.test.tsx`） | ✅ |
 | `ReferenceMentionPopover.tsx` | 组件 | `@` 引用文件/记忆/会话的 Popover 选择器 | ✅ |
 | `ProjectBoundaryBadge.tsx` | 组件 | 输入框上方的项目隔离徽标：当前会话属于某个项目时显示沙箱边界与记忆隔离状态，悬浮提示给出工作区或沙箱路径；文案取自 `chat.projectBoundary`（`__tests__/ProjectBoundaryBadge.test.tsx`） | ✅ |
 | `ScopedArtifactChip.tsx` | 组件 | 输入框上方的限定目标芯片：显示被选中的工件、表格行或文档片段（名称、范围标签与截断预览），可一键清除；文案取自 `chat`（`__tests__/ScopedArtifactChip.test.tsx`） | ✅ |

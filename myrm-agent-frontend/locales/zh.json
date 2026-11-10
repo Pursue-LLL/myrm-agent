@@ -1968,6 +1968,7 @@
     "send": "发送",
     "copy": "复制",
     "quoteSelection": "引用",
+    "removeQuote": "移除引用",
     "copySelection": "复制",
     "copyMarkdown": "复制 Markdown",
     "copyText": "复制纯文本",

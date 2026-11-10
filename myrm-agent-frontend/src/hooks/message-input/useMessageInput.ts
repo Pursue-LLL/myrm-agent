@@ -3,6 +3,7 @@
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
  * - @/store/chat/archiveRestoreActions::resolveArchiveRestoreActionsForMessage (POS: Typed archive restore action utility layer. Keeps parsing, normalization and send-time matching outside the chat stream reducer and input hook.)
  * - @/hooks/message-input/useInputFileUpload::useInputFileUpload (POS: 聊天输入文件上传 Hook)
+ * - @/hooks/message-input/useLinkAtPrompt::useLinkAtPrompt (POS: 输入里没加 @ 的链接的询问)
  * - @/hooks/message-input/useMessageQueue::useMessageQueue (POS: 排队消息的 React 视图层)
  * - @/hooks/message-input/useQueueDrain::useQueueDrain (POS: 排队消息发送循环)
  * - @/hooks/message-input/messageInputKeyRouter::resolveBusySubmitMode (POS: 聊天输入框双通道键盘交互路由核心)
@@ -34,6 +35,7 @@ import { useMessageQueue } from './useMessageQueue';
 import { useQueueDrain } from './useQueueDrain';
 import { resolveBusySubmitMode } from './messageInputKeyRouter';
 import { useInputFileUpload } from './useInputFileUpload';
+import { useLinkAtPrompt } from './useLinkAtPrompt';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
 import { recordChatWikiQueryAttempt, queuePendingChatWikiQuerySuccess } from './useMessageInputWikiEvidenceCore';
 import { addInputHistory } from './useInputHistory';
@@ -75,17 +77,6 @@ function confirmInstructionLanded(): void {
 
 export const useMessageInput = () => {
   const t = useTranslations('chat');
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
-  const [detectedLink, setDetectedLink] = useState<{ text: string; position: number } | null>(null);
-  const [dontRemindAgain, setDontRemindAgain] = useState(false);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dontRemindLinkDialog');
-      if (saved === 'true') {
-        setDontRemindAgain(true);
-      }
-    }
-  }, []);
   const [showCompactConfirm, setShowCompactConfirm] = useState(false);
   const [dontRemindCompact, setDontRemindCompact] = useState(false);
   const pendingCompactTopicRef = useRef<string | undefined>(undefined);
@@ -136,6 +127,7 @@ export const useMessageInput = () => {
   );
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const linkPrompt = useLinkAtPrompt({ inputMessage, setInputMessage, inputRef });
 
   const { validateMessageQuota } = useQuotaGuard();
   const { isUploadingPaste, handlePaste, handleDroppedFiles } = useInputFileUpload({
@@ -553,70 +545,20 @@ export const useMessageInput = () => {
     telemetry,
   ]);
 
+  const { detectLink } = linkPrompt;
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
 
-      const httpMatch = newValue.match(/(^|[^@])(https?:\/\/[^\s]+)/);
-
-      if (httpMatch && !dontRemindAgain) {
-        const matchIndex = (httpMatch.index ?? 0) + (httpMatch[1] ? httpMatch[1].length : 0);
-        setDetectedLink({
-          text: httpMatch[2],
-          position: matchIndex,
-        });
-        setShowLinkDialog(true);
-      }
-
+      detectLink(newValue);
       setInputMessage(newValue);
 
       if (newValue.trim() === '' && files.length === 0) {
         clearCurrentSessionMessageId();
       }
     },
-    [dontRemindAgain, files.length, setInputMessage, clearCurrentSessionMessageId],
+    [detectLink, files.length, setInputMessage, clearCurrentSessionMessageId],
   );
-
-  /**
-   * 添加@符号到链接前
-   */
-  const handleAddAtSymbol = useCallback(() => {
-    if (detectedLink) {
-      const { text, position } = detectedLink;
-      const beforeMatch = inputMessage.substring(0, position);
-      const afterMatch = inputMessage.substring(position);
-      const processedValue = beforeMatch + '@' + afterMatch;
-
-      setInputMessage(processedValue);
-
-      setTimeout(() => {
-        if (inputRef.current) {
-          const newCursorPos = position + text.length + 1;
-          inputRef.current.selectionStart = newCursorPos;
-          inputRef.current.selectionEnd = newCursorPos;
-          inputRef.current.focus();
-        }
-      }, 0);
-    }
-
-    if (dontRemindAgain) {
-      localStorage.setItem('dontRemindLinkDialog', 'true');
-    }
-
-    setShowLinkDialog(false);
-    setDetectedLink(null);
-  }, [detectedLink, inputMessage, dontRemindAgain, setInputMessage]);
-
-  /**
-   * 跳过添加@符号
-   */
-  const handleSkipAtSymbol = useCallback(() => {
-    if (dontRemindAgain) {
-      localStorage.setItem('dontRemindLinkDialog', 'true');
-    }
-    setShowLinkDialog(false);
-    setDetectedLink(null);
-  }, [dontRemindAgain]);
 
   /**
    * 键盘快捷键监听
@@ -635,11 +577,9 @@ export const useMessageInput = () => {
 
   return {
     // State
-    showLinkDialog,
-    setShowLinkDialog,
-    detectedLink,
-    dontRemindAgain,
-    setDontRemindAgain,
+    showLinkDialog: linkPrompt.showLinkDialog,
+    dontRemindAgain: linkPrompt.dontRemindAgain,
+    setDontRemindAgain: linkPrompt.setDontRemindAgain,
     isUploadingPaste,
     showCompactConfirm,
     setShowCompactConfirm,
@@ -683,8 +623,8 @@ export const useMessageInput = () => {
     handleRedirectSubmit,
     handleQueueSubmit,
     handleInputChange,
-    handleAddAtSymbol,
-    handleSkipAtSymbol,
+    handleAddAtSymbol: linkPrompt.handleAddAtSymbol,
+    handleSkipAtSymbol: linkPrompt.handleSkipAtSymbol,
     executeCompact,
     confirmCompact: useCallback(() => {
       const topic = pendingCompactTopicRef.current;

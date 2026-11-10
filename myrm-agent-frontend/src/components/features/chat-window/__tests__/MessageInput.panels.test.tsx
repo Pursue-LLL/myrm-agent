@@ -222,7 +222,6 @@ describe('MessageInput dialogs and strips', () => {
 
     expect(stubProps('LinkDetectionDialog')).toMatchObject({
       open: true,
-      onOpenChange: hookOf().setShowLinkDialog,
       dontRemindAgain: true,
       setDontRemindAgain: hookOf().setDontRemindAgain,
       onAddAtSymbol: hookOf().handleAddAtSymbol,

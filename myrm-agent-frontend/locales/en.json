@@ -1968,6 +1968,7 @@
     "send": "Send",
     "copy": "Copy",
     "quoteSelection": "Quote",
+    "removeQuote": "Remove quote",
     "copySelection": "Copy",
     "copyMarkdown": "Copy Markdown",
     "copyText": "Copy Plain Text",

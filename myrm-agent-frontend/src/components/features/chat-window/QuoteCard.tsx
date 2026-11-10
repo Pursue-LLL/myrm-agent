@@ -2,11 +2,13 @@
 
 import { X, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import useQuoteStore from '@/store/useQuoteStore';
 
 const PREVIEW_MAX_LEN = 120;
 
 export function QuoteCard() {
+  const t = useTranslations('chat');
   const quote = useQuoteStore((s) => s.quote);
   const clearQuote = useQuoteStore((s) => s.clearQuote);
 
@@ -30,6 +32,7 @@ export function QuoteCard() {
             <button
               type="button"
               onClick={clearQuote}
+              aria-label={t('removeQuote')}
               className="flex-shrink-0 p-0.5 rounded hover:bg-muted transition-colors"
             >
               <X className="h-3.5 w-3.5 text-muted-foreground" />

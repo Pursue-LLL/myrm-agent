@@ -82,7 +82,6 @@ const MessageInput = ({ loading, focusOnMount }: MessageInputProps) => {
 
   const {
     showLinkDialog,
-    setShowLinkDialog,
     dontRemindAgain,
     setDontRemindAgain,
     showCompactConfirm,
@@ -367,7 +366,6 @@ const MessageInput = ({ loading, focusOnMount }: MessageInputProps) => {
 
       <LinkDetectionDialog
         open={showLinkDialog}
-        onOpenChange={setShowLinkDialog}
         dontRemindAgain={dontRemindAgain}
         setDontRemindAgain={setDontRemindAgain}
         onAddAtSymbol={handleAddAtSymbol}

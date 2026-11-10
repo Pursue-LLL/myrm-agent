@@ -74,6 +74,16 @@ export async function listCronJobs(params?: {
   return apiRequest(`/cron${qs ? `?${qs}` : ''}`);
 }
 
+/**
+ * How many scheduled tasks are bound to a chat. Only the server-side total is read, and a failed read stays quiet:
+ * the caller is a badge that simply stays hidden.
+ */
+export async function countChatCronJobs(chatId: string): Promise<number> {
+  const query = new URLSearchParams({ chat_id: chatId, limit: '1' });
+  const { total } = await apiRequest<CronJobsListResponse>(`/cron?${query.toString()}`, { silent: true });
+  return total;
+}
+
 export async function createCronJob(data: CreateCronJobRequest): Promise<CronJob> {
   return apiRequest('/cron', {
     method: 'POST',

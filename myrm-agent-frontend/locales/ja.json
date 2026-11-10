@@ -1968,6 +1968,7 @@
     "send": "送信",
     "copy": "コピー",
     "quoteSelection": "引用",
+    "removeQuote": "引用を削除",
     "copySelection": "コピー",
     "copyMarkdown": "Markdownをコピー",
     "copyText": "テキストをコピー",

@@ -10,7 +10,8 @@
  * - ParentChatLink: Conditional navigation link back to parent conversation.
  *
  * [POS]
- * Renders only when the current chat is a fork. Fetches fork-info once on mount.
+ * Renders only when the current chat is a fork. Reads fork-info for the chat it is given and never shows
+ * the link (or a late answer) of another chat.
  */
 
 'use client';
@@ -25,43 +26,51 @@ interface ParentChatLinkProps {
   chatId: string;
 }
 
+interface ParentOfChat {
+  chatId: string;
+  parentChatId: string;
+  /** Position of the message the fork was made at, counted from 0 like the fork request. */
+  forkPoint: number | null;
+}
+
 export function ParentChatLink({ chatId }: ParentChatLinkProps) {
   const t = useTranslations('chat.fork');
-  const [parentChatId, setParentChatId] = useState<string | null>(null);
-  const [forkPoint, setForkPoint] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [parent, setParent] = useState<ParentOfChat | null>(null);
 
   useEffect(() => {
-    async function loadForkInfo() {
-      try {
-        const response = await getForkInfo(chatId);
-
-        if (response.success && response.data.parent_chat_id) {
-          setParentChatId(response.data.parent_chat_id);
-          setForkPoint(response.data.fork_point);
+    let cancelled = false;
+    getForkInfo(chatId)
+      .then(({ success, data }) => {
+        if (!cancelled) {
+          setParent(
+            success && data.parent_chat_id
+              ? { chatId, parentChatId: data.parent_chat_id, forkPoint: data.fork_point }
+              : null,
+          );
         }
-      } catch (error) {
+      })
+      .catch((error: unknown) => {
         console.error('Failed to load fork info:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadForkInfo();
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [chatId]);
 
-  if (loading || !parentChatId) {
+  if (parent?.chatId !== chatId) {
     return null;
   }
 
   return (
     <div className="px-4 py-1.5">
       <Link
-        href={`/${parentChatId}`}
+        href={`/${parent.parentChatId}`}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        <span>{forkPoint !== null ? t('parentLinkWithIndex', { index: forkPoint }) : t('parentLink')}</span>
+        <span>
+          {parent.forkPoint !== null ? t('parentLinkWithIndex', { index: parent.forkPoint + 1 }) : t('parentLink')}
+        </span>
       </Link>
     </div>
   );

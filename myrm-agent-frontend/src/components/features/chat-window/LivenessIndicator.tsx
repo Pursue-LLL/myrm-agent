@@ -5,7 +5,7 @@
  * - @/hooks/shell/useLivenessState::useLivenessState (POS: 全局 Agent liveness SSOT 五态轮询)
  *
  * [OUTPUT]
- * - LivenessIndicator: 6px 圆点状态灯，idle 时隐藏，非 idle 时显示颜色 + i18n tooltip。
+ * - LivenessIndicator: 6px 圆点状态灯，idle 时隐藏，非 idle 时显示颜色 + i18n tooltip；状态文字同时作为屏幕阅读器文本。
  *
  * [POS]
  * 聊天输入区 Agent 状态指示灯。消费 useLivenessState 五态，
@@ -16,8 +16,7 @@ import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { useLivenessState, type LivenessState } from '@/hooks/shell/useLivenessState';
 
-const DOT_COLOR: Record<LivenessState, string> = {
-  idle: 'bg-emerald-500',
+const DOT_COLOR: Record<Exclude<LivenessState, 'idle'>, string> = {
   busy: 'bg-amber-500',
   degraded: 'bg-red-400',
   draining: 'bg-orange-400',
@@ -38,8 +37,9 @@ const LivenessIndicator = memo(() => {
         <TooltipTrigger asChild>
           <span
             className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${DOT_COLOR[state]} ${state === 'busy' ? 'animate-pulse' : ''}`}
-            aria-label={t(state)}
-          />
+          >
+            <span className="sr-only">{t(state)}</span>
+          </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">
           {t(state)}

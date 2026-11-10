@@ -20,6 +20,7 @@ import {
   AgentModelSelection,
   AgentSessionPolicy,
   getAgent,
+  HIDDEN_SYSTEM_PROMPT,
   updateAgent,
   createAgent,
   AgentUpdate,
@@ -154,8 +155,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editDialogType, setEditDialogType] = useState<ConfigCardType>('skills');
 
-  // System Prompt显示状态
-  const [isSystemPromptHidden, setIsSystemPromptHidden] = useState(false);
+  // System Prompt显示状态：服务端把读者无权看的提示词换成占位文本，读到真实文本后自然不再是占位
+  const isSystemPromptHidden = agent?.system_prompt === HIDDEN_SYSTEM_PROMPT;
   const [loadingSystemPrompt, setLoadingSystemPrompt] = useState(false);
 
   const { enabledSkills, selectedSkillDetails, selectedMcpDetails, enabledMcps } = useAgentResources(
@@ -387,15 +388,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     void reloadAgent();
   }, [reloadAgent]);
 
-  // 检测system prompt是否被隐藏
-  useEffect(() => {
-    if (agent && agent.system_prompt === '⚠️ [Hidden for security]') {
-      setIsSystemPromptHidden(true);
-    } else {
-      setIsSystemPromptHidden(false);
-    }
-  }, [agent]);
-
   const handleShowSystemPrompt = useCallback(async () => {
     if (!agentId || !agent) {
       return;
@@ -407,7 +399,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       const realPrompt = data.system_prompt || '';
       setSystemPrompt(realPrompt);
       setAgent((prev) => (prev ? { ...prev, system_prompt: realPrompt } : null));
-      setIsSystemPromptHidden(false);
       toast({ title: t('agent.systemPromptLoaded') });
     } catch (error: unknown) {
       const err = error as { response?: { status?: number } };

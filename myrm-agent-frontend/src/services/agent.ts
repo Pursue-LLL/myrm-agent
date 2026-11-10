@@ -286,6 +286,9 @@ export async function listAllAgents(): Promise<AgentListItem[]> {
   }
 }
 
+/** 不带 `show_system_prompt=true` 读取（或读者不是所有者）时，服务端用它代替 `system_prompt`。 */
+export const HIDDEN_SYSTEM_PROMPT = '⚠️ [Hidden for security]';
+
 /**
  * 获取单个智能体详情
  */
