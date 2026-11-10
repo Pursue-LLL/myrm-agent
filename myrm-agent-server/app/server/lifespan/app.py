@@ -1,11 +1,14 @@
 """[INPUT]
 - .startup / .shutdown (POS: lifespan phases)
+- .background::schedule_background_work (POS: starts the boot's background tasks once uvicorn accepts connections)
+- app.lifecycle (POS: channel gateway, cron and remote backup schedulers, kanban dispatch preparation)
 
 [OUTPUT]
 - optimized_lifespan
 
 [POS]
-The FastAPI lifespan: runs the sequential and parallel startup phases, then shutdown.
+The FastAPI lifespan: runs the sequential and parallel startup phases, schedules the background work for after the
+socket bind, then shutdown.
 """
 
 from __future__ import annotations
@@ -37,16 +40,25 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     """Application lifecycle manager with startup performance optimization.
 
     Startup phases (optimized for minimal HTTP latency):
-        Phase 1a (Critical - Sequential):  Database → Config Migration → Local Admin
-        Phase 1b (Critical - Parallel):    Subagent Configs ‖ Code Exec Config ‖ Checkpointer ‖
-                                            State Manager ‖ Allowlist Store ‖ Permission Logger ‖
-                                            Context Cleanup ‖ Built-in Agents
-        Phase 2  (Essential - Parallel):   Channel Gateway ‖ Cron Scheduler ‖ Kanban Dispatchers
-        Phase 3  (Warmup - Async):         Schedulers ‖ Browser Pool ‖ Batch Recovery ‖
-                                            Tokenizer ‖ Risk Rules ‖ Vector Cache (background, started
-                                            once the socket is bound; see ``background``)
+        Phase 1a (Critical - Sequential):  Pending Instance Swap → Database → Feature Flags → Config Migration →
+                                            Provider Credentials → TLS / Privacy / Control Plane SSRF Policy
+        Phase 1b (Critical - Parallel):    Code Exec Config ‖ Checkpointer ‖ State Manager ‖ Allowlist Store ‖
+                                            Workspace Trust Store ‖ Permission Logger ‖ Context Cleanup ‖
+                                            Idle Handlers ‖ Prebuilt Skills ‖ Built-in Agents ‖ Harness Bridge ‖
+                                            Security Reviewer ‖ Vault Credentials ‖ Wiki Vault
+        Phase 2  (Essential - Parallel):   Channel Gateway ‖ Cron Scheduler ‖ Remote Backup Scheduler ‖
+                                            Kanban Dispatch Preparation (boot recovery, runner wiring)
+        Phase 3  (Background - Async):     Warmup (Schedulers ‖ Browser Pool ‖ Batch Recovery ‖ Tokenizer ‖
+                                            Risk Rules ‖ Vector Cache) ‖ Orphaned Goals ‖ Kanban Dispatchers ‖
+                                            @startup Events ‖ Trunk Templates ‖ Agent Tool Layers
+                                            (started once the socket is bound; see ``background``)
 
-    Shutdown: Storage → (Schedulers ‖ Cron ‖ Channel Gateway ‖ Browser Pool ‖ Checkpointer)
+    Shutdown (see ``shutdown``):
+        1. Cancel the delayed background start; stop the curtain watcher and the wake daemons
+        2. Drain the agent gateway; stop the tunnel, the frontend server and the periodic background tasks
+        3. Stop in parallel: Cron ‖ Channel Gateway ‖ Kanban Dispatchers ‖ Browser Pool ‖ Checkpointer ‖
+           Schedulers ‖ Workers ‖ MCP Endpoint ‖ the remaining components
+        4. Close the model transport, then the database (WAL checkpoint, engine dispose, backup)
     """
 
     print(f"🐍 Python {sys.version.split()[0]}")

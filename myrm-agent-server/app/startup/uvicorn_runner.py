@@ -1,5 +1,5 @@
 """
-@input: 依赖 health_check 的「启动健康检查」，依赖 uvicorn 外部库
+@input: 依赖 gc_policy 的「启动期暂停循环 GC」、health_check 的「启动健康检查」，依赖 uvicorn 外部库
 @output: 对外提供 uvicorn 单进程启动（含 WebUI 模式、QR 码、浏览器自动打开）
 @pos: uvicorn 服务器启动器 —— 默认启动模式
 

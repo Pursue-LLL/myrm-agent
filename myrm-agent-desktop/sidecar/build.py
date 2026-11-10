@@ -6,6 +6,22 @@ Builds the desktop sidecar for the Tauri desktop app:
 One-folder on purpose: a one-file executable unpacks its whole payload (hundreds of MB) into a temp
 directory on every launch, which dominates cold-start time. The folder is shipped as a Tauri resource,
 so the unpacking happens once, at install time.
+
+[INPUT]
+- bundle_inventory::HARNESS_PACKAGE, HOOKS_DIR, write_inventory_hooks, script_data_options, exclude_options,
+  installed_package_dir (POS: what the bundle must contain and which channel SDKs stay out)
+- bundle_verify.py (POS: post-build gate that reads the finished bundle back; run as a subprocess)
+- stdio_runtime_hook.py, gc_runtime_hook.py (POS: runtime hooks for the standard streams and the boot's cycle GC)
+- The server's `app/main.py`, its SERVER_DATA files and shared/config/provider_legacy_remap.json (POS: the entry
+  script and the data shipped beside it)
+
+[OUTPUT]
+- main, build_backend: build the one-folder bundle at src-tauri/binaries/myrmagent-backend/
+- pyinstaller_command: the PyInstaller invocation, composed without running it
+
+[POS]
+Sidecar build entry: composes the PyInstaller command from the inventory, data, runtime hooks and exclusions, runs it,
+then verifies the finished bundle.
 """
 
 import os
