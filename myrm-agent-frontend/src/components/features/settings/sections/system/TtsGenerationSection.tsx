@@ -112,10 +112,11 @@ async function fetchVoiceRecord(): Promise<{ value: VoiceConfigValue; version: s
   return null;
 }
 
+/** Every config write names its device; the channel voice settings, which write this same key, send 'web' too. */
 async function putVoiceConfig(next: VoiceConfigValue, expectedVersion: string): Promise<void> {
   await apiRequest('/config/voice', {
     method: 'PUT',
-    body: JSON.stringify({ value: next, expectedVersion: expectedVersion || undefined }),
+    body: JSON.stringify({ value: next, expectedVersion: expectedVersion || undefined, deviceId: 'web' }),
     silent: true,
   });
 }
@@ -309,9 +310,7 @@ const TtsGenerationSection = memo(() => {
         {keyConfigured !== true && (
           <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              {isDoubao
-                ? t('ttsDoubaoKeyHint')
-                : t('apiKeyHint')}
+              {isDoubao ? t('ttsDoubaoKeyHint') : t('apiKeyHint')}
             </p>
             <div className="space-y-2">
               <label className="text-xs font-medium text-foreground">{t('apiKey')}</label>
@@ -346,9 +345,7 @@ const TtsGenerationSection = memo(() => {
           </div>
         )}
 
-        {isSeedAudio && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">{t('ttsProbeSlowHint')}</p>
-        )}
+        {isSeedAudio && <p className="text-xs text-amber-600 dark:text-amber-400">{t('ttsProbeSlowHint')}</p>}
         <button
           type="button"
           onClick={handleTest}

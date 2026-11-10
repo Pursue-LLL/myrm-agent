@@ -196,6 +196,9 @@
 | `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
 | `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务；创建 / 编辑 board 的默认工作目录被服务端因过宽 / 受保护拒绝时，按 `workspacePathIssueMessageKey` 弹对应的本地化提示，测试 `__tests__/KanbanSection.workdirRefusal.test.tsx`；board 行是并列的「打开 / 编辑 / 删除」三个按钮而非嵌套交互元素，测试 `__tests__/KanbanSection.boardRow.test.tsx`） |
 | `MediaGenerationSection.tsx` | 媒体生成配置                                                                                                                                                |
+| `TtsGenerationSection.tsx` | 语音合成配置卡：读写与渠道语音共用的 `voice` 配置（提供商 / 模型 / 音色 / 密钥）；保存密钥时以保存当下读到的版本和设备标识 `web` 写回并保留其余语音设置；含连通性测试 |
+| `__tests__/TtsGenerationSection.test.tsx` | 语音合成卡单测：静默读取、旧模型名映射、提供商自带密钥算已配置、较早发出的读取后到不覆盖较新结果；换提供商联动模型与音色；保存密钥的请求体（修剪后的密钥、所选提供商 / 模型 / 音色、保存时读到的版本、设备标识）、首次保存用默认值、失败保留输入并提示、保存中不可重复提交、保存后不留存密钥 |
+| `__tests__/TtsGenerationSection.probe.test.tsx` | 语音合成卡「测试连接」单测：请求体与认证头、嵌套成功应答、失败（服务端信息 / 无信息 / 请求出错）的标记、进行中禁用按钮 |
 | `TimezoneSelector.tsx`       | 时区选择器（搜索提示、常用分组标题与无结果提示均取自 `settings.system` 文案） |
 | `ProjectExperienceWizardModal.tsx` | 项目实战六步经验向导弹窗：界面文案与六步内容均来自 `evidencePack` 命名空间（`services/evidencePackGenerator.ts` 以传入的翻译函数生成），复制 / 下载的 Markdown 与界面同语言 |
 
