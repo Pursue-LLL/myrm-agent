@@ -22,7 +22,9 @@ export const createSaveConfigHandler = (
     if (agentConfig) {
       updateAgentConfig(promptRewritten ? { ...data, systemPromptEdited: true } : data);
     } else {
+      // 会话还没有配置：弹窗保存的各项叠加在默认值上，弹窗新增的配置项无需在此登记也不会丢
       setAgentConfig({
+        ...data,
         selectedSkillIds: data.selectedSkillIds || [],
         skillConfigs: data.skillConfigs || {},
         selectedMcpNames: data.selectedMcpNames || [],
