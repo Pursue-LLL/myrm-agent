@@ -282,7 +282,7 @@ class KanbanDispatcherMixin(KanbanServiceCore):
         """Gated on a usable model configuration: while none exists the dispatchers hold their READY tasks,
         so a boot cannot fail queued work or write a failure row for every task.
 
-        The stale-RUNNING reset ran once before this, which is why each dispatcher skips its own per-board
+        The stale-RUNNING reset runs once before this, which is why each dispatcher skips its own per-board
         rescue query. The gate is evaluated here only, when there is at least one board to start; a
         dispatcher re-checks it on every wake cycle through the memoised `dispatch_allowed`.
 

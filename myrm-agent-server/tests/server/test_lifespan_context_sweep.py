@@ -7,9 +7,9 @@
 - Coverage that phase 1b runs no workspace sweep inline and that the maintenance daemon runs the only one
 
 [POS]
-Server tests. Phase 1b used to sweep the same workspace root twice inline, ahead of the daemon's own sweep: on a
-machine with hundreds of workspaces each pass held the event loop for seconds before the server could answer.
-Reads the startup functions' source, like the other lifespan tests.
+Server tests. Phase 1b sweeps nothing inline: on a machine with hundreds of workspaces every pass would hold the
+event loop for seconds before the server could answer, so the one boot sweep runs in a thread under the maintenance
+daemon. Reads the startup functions' source, like the other lifespan tests.
 """
 
 from __future__ import annotations
