@@ -161,7 +161,6 @@ def job_to_domain(m: CronJobModel) -> CronJob:
 
     return CronJob(
         id=m.id,
-        user_id=str(getattr(m, "user_id", "default") or "default"),
         name=m.name,
         job_type=JobType(m.job_type),
         schedule=schedule,

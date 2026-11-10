@@ -58,7 +58,6 @@ async def test_set_reminder_execution_relative_minutes():
 
     mock_job = CronJob(
         id="cron-reminder-123",
-        user_id="default",
         name="Voice Reminder: drink water",
         job_type=JobType.REMINDER,
         schedule=Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(timezone.utc)),
@@ -99,8 +98,8 @@ async def test_cancel_and_list_reminders():
     store = InMemoryCronStore()
     mgr = CronManager(store=store, scheduler=MagicMock(), shell_enabled=False)
     schedule = Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(timezone.utc) + timedelta(hours=1))
-    standup = await mgr.create_job("default", "Voice Reminder: team standup", JobType.REMINDER, schedule, prompt="team standup")
-    water = await mgr.create_job("default", "Voice Reminder: drink water", JobType.REMINDER, schedule, prompt="drink water")
+    standup = await mgr.create_job("Voice Reminder: team standup", JobType.REMINDER, schedule, prompt="team standup")
+    water = await mgr.create_job("Voice Reminder: drink water", JobType.REMINDER, schedule, prompt="drink water")
 
     with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mgr):
         # 1. List reminders

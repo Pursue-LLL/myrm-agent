@@ -28,7 +28,6 @@ _NOW = datetime(2026, 3, 29, 12, 0, 0, tzinfo=UTC)
 def _job(command: str | None = "echo hello") -> CronJob:
     return CronJob(
         id="j1",
-        user_id="u1",
         name="test",
         job_type=JobType.SHELL,
         command=command,
@@ -140,7 +139,6 @@ class TestNotificationRunner:
     async def test_delivers_prompt(self, runner: NotificationRunner) -> None:
         job = CronJob(
             id="r1",
-            user_id="u1",
             name="reminder",
             job_type=JobType.REMINDER,
             prompt="Stand up now",
@@ -157,7 +155,6 @@ class TestNotificationRunner:
     async def test_missing_prompt(self, runner: NotificationRunner) -> None:
         job = CronJob(
             id="r2",
-            user_id="u1",
             name="reminder",
             job_type=JobType.REMINDER,
             prompt=None,

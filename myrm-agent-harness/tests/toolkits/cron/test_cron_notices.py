@@ -33,14 +33,7 @@ EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger
 
 
 def _job() -> CronJob:
-    return CronJob(
-        id="job-1",
-        user_id="user-1",
-        name="Water the plants",
-        job_type=JobType.AGENT,
-        schedule=EVERY_HOUR,
-        prompt="prompt",
-    )
+    return CronJob(id="job-1", name="Water the plants", job_type=JobType.AGENT, schedule=EVERY_HOUR, prompt="prompt")
 
 
 class _Delivery:

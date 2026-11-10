@@ -217,7 +217,6 @@ async def _execute_set_reminder(req: RealtimeToolExecRequest) -> RealtimeToolExe
 
     try:
         job = await mgr.create_job(
-            user_id="default",
             name=name,
             job_type=JobType.REMINDER,
             schedule=Schedule(kind=ScheduleKind.ONCE, run_at=run_at),
@@ -282,7 +281,7 @@ async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeTool
                 )
             )
 
-        success = await mgr.delete_job(target_job.id, "default")
+        success = await mgr.delete_job(target_job.id)
         return RealtimeToolExecResponse(
             result=json.dumps(
                 {

@@ -59,11 +59,10 @@ class UsageAggregateResult(TypedDict):
 
 
 async def aggregate_usage(
-    user_id: str,
     *,
     days: int | None = 7,
 ) -> UsageAggregateResult:
-    """Aggregate token usage across runs for a user's jobs.
+    """Aggregate token usage across the runs of every job.
 
     Returns dict with keys: summary, by_day, by_job, by_model.
     """

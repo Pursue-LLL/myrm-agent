@@ -23,7 +23,6 @@ def test_is_feishu_bot_hook_url() -> None:
 async def test_deliver_feishu_bot_webhook_posts_text_payload() -> None:
     job = CronJob(
         id="job-1",
-        user_id="user-1",
         name="daily",
         job_type=JobType.AGENT,
         prompt="brief",
@@ -61,7 +60,6 @@ async def test_channel_delivery_routes_feishu_hook_via_bot_webhook() -> None:
 
     job = CronJob(
         id="job-2",
-        user_id="user-1",
         name="daily",
         job_type=JobType.AGENT,
         prompt="brief",

@@ -147,7 +147,6 @@ class CronJobUpdate(BaseModel):
 
 class CronJobResponse(BaseModel):
     id: str
-    user_id: str
     name: str
     job_type: JobType
     status: JobStatus

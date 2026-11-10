@@ -35,8 +35,6 @@ _CRON_DELTA_JOB_NAME = "Second Brain · Wiki Morning Delta"
 
 _CRON_MAINTAIN_JOB_NAME = "Second Brain · Wiki Maintenance"
 
-_USER_ID = "default"
-
 _DEVICE_ID = "second-brain-preset"
 
 _REQUIRED_TOOLS = frozenset({"memory", "wiki", "cron"})

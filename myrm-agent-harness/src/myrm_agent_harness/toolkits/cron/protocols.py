@@ -56,9 +56,8 @@ if TYPE_CHECKING:
 class CronStore(Protocol):
     """Persistence contract for cron jobs and run records.
 
-    All datetime values are UTC.  The store is auth-agnostic: owner checks on
-    single-job operations belong to ``CronManager``, and no listing is scoped
-    by owner.
+    All datetime values are UTC.  A deployment serves a single user, so no
+    operation is scoped by owner.
     """
 
     async def list_jobs(

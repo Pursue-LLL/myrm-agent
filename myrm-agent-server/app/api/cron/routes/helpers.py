@@ -101,7 +101,6 @@ def _to_response(
         )
     return CronJobResponse(
         id=job.id,
-        user_id="default",
         name=job.name,
         job_type=job.job_type,
         status=job.status,
@@ -364,7 +363,7 @@ async def _run_test_delivery(
     from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
     from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
 
-    job = await mgr.get_job(job_id, "default")
+    job = await mgr.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -385,7 +384,6 @@ async def _run_test_delivery(
 
     test_job = CronJob(
         id=job.id,
-        user_id=job.user_id,
         name=job.name,
         job_type=job.job_type,
         schedule=job.schedule,
@@ -411,7 +409,6 @@ async def _run_test_delivery(
 
             await mgr.update_job(
                 job.id,
-                job.user_id,
                 CronJobPatch(consecutive_failures=0, clear_last_error=True),
             )
 

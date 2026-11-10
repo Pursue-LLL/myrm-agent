@@ -143,16 +143,13 @@ class CronConfig:
     All fields have sensible defaults — zero-config is valid.
     """
 
-    max_concurrent: int = 5
-    max_per_user: int = 3
+    max_concurrent: int = 3
     failure_delivery: DeliveryConfig | None = None
     failure_alert: FailureAlertConfig | None = None
 
     def __post_init__(self) -> None:
         if self.max_concurrent > 100:
             raise ValueError("max_concurrent must be <= 100 to prevent resource exhaustion")
-        if self.max_per_user > 100:
-            raise ValueError("max_per_user must be <= 100 to prevent resource exhaustion")
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,7 +187,6 @@ class CronJob:
     """In-memory representation of a cron job."""
 
     id: str
-    user_id: str
     name: str
     job_type: JobType
     schedule: Schedule

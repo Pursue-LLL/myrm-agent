@@ -67,7 +67,6 @@ def _job(
 ) -> CronJob:
     return CronJob(
         id=job_id,
-        user_id="user",
         name=name or job_id,
         job_type=JobType.ROUTER,
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0),

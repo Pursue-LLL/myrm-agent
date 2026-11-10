@@ -177,7 +177,6 @@ async def _fire(job: CronJob, runner: _Runner) -> CronJob:
 def _job(*, expires_at: datetime | None = None, max_fires: int | None = None, fire_count: int = 0) -> CronJob:
     return CronJob(
         id="job-1",
-        user_id="default",
         name=_JOB,
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0),

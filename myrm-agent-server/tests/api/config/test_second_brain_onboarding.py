@@ -99,7 +99,7 @@ def _triple_cron_mock_mgr(
         job_type="router",
     )
 
-    async def _get_job(job_id: str, _user_id: str) -> SimpleNamespace | None:
+    async def _get_job(job_id: str) -> SimpleNamespace | None:
         if job_id == read_later_job.id:
             return read_later_job
         if job_id == delta_job.id:
@@ -255,7 +255,7 @@ def test_apply_second_brain_preset_idempotent_reuses_cron() -> None:
         "cron-existing-maintain": existing_maintain,
     }
 
-    async def _get_job(job_id: str, _user_id: str) -> SimpleNamespace | None:
+    async def _get_job(job_id: str) -> SimpleNamespace | None:
         return _jobs_by_id.get(job_id)
 
     mock_mgr = SimpleNamespace(
@@ -395,7 +395,7 @@ def test_apply_second_brain_preset_rollback_on_cron_failure() -> None:
             response = client.post("/api/v1/config/onboarding/second-brain/apply")
             assert response.status_code == 500
             delete_agent.assert_called_once_with("agent-second-brain-1")
-            mock_mgr.delete_job.assert_called_once_with("cron-read-later-1", "default")
+            mock_mgr.delete_job.assert_called_once_with("cron-read-later-1")
     finally:
         app.router.lifespan_context = original_lifespan
 
@@ -641,11 +641,11 @@ def test_apply_second_brain_wiki_morning_delta_uses_blueprint() -> None:
             response = client.post("/api/v1/config/onboarding/second-brain/apply")
             assert response.status_code == 200, response.text
             second_call = mock_mgr.create_job.await_args_list[1]
-            assert second_call.args[1] == "Second Brain · Wiki Morning Delta"
+            assert second_call.args[0] == "Second Brain · Wiki Morning Delta"
             assert second_call.kwargs["tools_allowed"] == ("wiki", "memory", "file_ops")
             assert second_call.kwargs["required_capabilities"] == ("file_read", "knowledge_read", "knowledge_write")
             assert second_call.kwargs["allowed_roots"] == (str(resolve_agent_wiki_vault_path("agent-second-brain-1")),)
-            assert second_call.args[3].expr == "0 7 * * *"
+            assert second_call.args[2].expr == "0 7 * * *"
             other_calls = [mock_mgr.create_job.await_args_list[0], mock_mgr.create_job.await_args_list[2]]
             assert [call.kwargs["allowed_roots"] for call in other_calls] == [(), ()]
     finally:

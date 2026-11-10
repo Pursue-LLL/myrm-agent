@@ -59,9 +59,7 @@ class Cron:
         return job
 
     async def create_other(self, command: str) -> CronJob:
-        return await self.manager.create_job(
-            job_module._USER_ID, command, JobType.ROUTER, _HOURLY, prompt="other job", command=command
-        )
+        return await self.manager.create_job(command, JobType.ROUTER, _HOURLY, prompt="other job", command=command)
 
     async def defer_next_run(self) -> None:
         job = await self.only()

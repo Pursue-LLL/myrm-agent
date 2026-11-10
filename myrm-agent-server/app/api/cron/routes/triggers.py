@@ -25,12 +25,11 @@ from app.api.cron.schemas import (
     IntegrityVerifyResponse,
     SystemEventTriggerDispatchRequest,
 )
+from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
 
 from . import helpers as _h
 
 router = APIRouter()
-
-USER_ID = "default"
 
 
 @router.post("/trigger/event")
@@ -39,7 +38,7 @@ async def dispatch_event(body: EventTriggerDispatchRequest) -> dict[str, int]:
     count = await scheduler.dispatch_event(
         message=body.message,
         channel=body.channel,
-        user_id=USER_ID,
+        user_id=SINGLE_TENANT_USER_ID,
     )
     return {"triggered": count}
 
@@ -78,11 +77,11 @@ async def verify_integrity(job_id: str) -> IntegrityVerifyResponse:
     from myrm_agent_harness.toolkits.cron.engine.integrity import verify_chain
 
     mgr = _h._get_manager()
-    job = await mgr.get_job(job_id, USER_ID)
+    job = await mgr.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    runs = await mgr.list_runs(USER_ID, job_id=job_id, limit=10_000, offset=0)
+    runs = await mgr.list_runs(job_id=job_id, limit=10_000, offset=0)
     runs_sorted = sorted(runs, key=lambda r: r.started_at)
     verified_runs = [r for r in runs_sorted if r.integrity_hash]
 

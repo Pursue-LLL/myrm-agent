@@ -44,7 +44,6 @@ async def test_sqlalchemy_provider_dispatches_matching_event_job(
     manager, _scheduler = cron_integration_env
 
     await manager.create_job(
-        user_id="default",
         name="feishu-alert",
         job_type=JobType.SHELL,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 0 * * *"),
@@ -72,7 +71,6 @@ async def test_non_matching_channel_does_not_dispatch(
     manager, _scheduler = cron_integration_env
 
     job = await manager.create_job(
-        user_id="default",
         name="telegram-only",
         job_type=JobType.SHELL,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 0 * * *"),
@@ -118,7 +116,6 @@ async def test_channel_ingress_queues_single_router_dispatch(
 
     manager, _scheduler = cron_integration_env
     await manager.create_job(
-        user_id="default",
         name="cp-alert",
         job_type=JobType.SHELL,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 0 * * *"),
@@ -199,7 +196,6 @@ async def _create_fence_probe_job(manager: CronManager, scheduler: CronScheduler
     probe = _FenceProbe()
     scheduler._runners[JobType.AGENT] = probe
     job = await manager.create_job(
-        user_id="default",
         name=f"fence-probe-{channel}",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 0 * * *", stagger_ms=0),

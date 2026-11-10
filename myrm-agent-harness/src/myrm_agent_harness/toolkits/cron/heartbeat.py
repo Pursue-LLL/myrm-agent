@@ -11,11 +11,11 @@ Usage (framework-only, no business coupling)::
     from myrm_agent_harness.toolkits.cron.types import Schedule, ScheduleKind
 
     # Fixed interval (legacy)
-    job = await enable_heartbeat(manager, owner_id)
+    job = await enable_heartbeat(manager)
 
     # Time-of-day (cron)
     job = await enable_heartbeat(
-        manager, owner_id,
+        manager,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *", tz="Asia/Shanghai"),
     )
 
@@ -91,7 +91,6 @@ def _build_schedule(
 
 async def enable_heartbeat(
     manager: CronManager,
-    owner_id: str,
     *,
     interval_ms: int = _DEFAULT_INTERVAL_MS,
     schedule: Schedule | None = None,
@@ -121,13 +120,12 @@ async def enable_heartbeat(
             model=model,
             agent_id=agent_id if agent_id is not None else "",
         )
-        updated = await manager.update_job(existing.id, owner_id, patch)
+        updated = await manager.update_job(existing.id, patch)
         if updated is not None:
             return updated
         return existing
 
     return await manager.create_job(
-        user_id=owner_id,
         name=HEARTBEAT_JOB_NAME,
         job_type=JobType.AGENT,
         schedule=sched,
@@ -141,12 +139,12 @@ async def enable_heartbeat(
     )
 
 
-async def disable_heartbeat(manager: CronManager, owner_id: str) -> bool:
+async def disable_heartbeat(manager: CronManager) -> bool:
     """Disable (pause) the heartbeat.  Returns False if no heartbeat exists."""
     existing = await _find_heartbeat(manager)
     if existing is None:
         return False
-    result = await manager.pause_job(existing.id, owner_id)
+    result = await manager.pause_job(existing.id)
     return result is not None
 
 

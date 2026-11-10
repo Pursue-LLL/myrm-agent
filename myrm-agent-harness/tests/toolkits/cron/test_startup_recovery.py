@@ -34,7 +34,6 @@ def _make_job(
 ) -> CronJob:
     return CronJob(
         id="test-job",
-        user_id="u1",
         name="Test Job",
         job_type=JobType.AGENT,
         schedule=schedule or Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),

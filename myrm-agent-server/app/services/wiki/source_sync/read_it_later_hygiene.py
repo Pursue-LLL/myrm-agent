@@ -27,7 +27,6 @@ from app.core.cron.blueprints.job_spec import create_blueprint_job, to_job_spec
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_USER_ID = "default"
 _READ_IT_LATER_BLUEPRINT = "read_it_later"
 
 _LEGACY_PROMPT_MARKERS: tuple[str, ...] = (
@@ -69,7 +68,7 @@ def is_stale_read_it_later_job(job: CronJob) -> bool:
     return False
 
 
-async def migrate_stale_read_it_later_jobs(*, user_id: str = _DEFAULT_USER_ID) -> ReadItLaterHygieneResult:
+async def migrate_stale_read_it_later_jobs() -> ReadItLaterHygieneResult:
     mgr = get_cron_manager()
     jobs = await mgr.list_jobs()
     result = ReadItLaterHygieneResult()
@@ -90,10 +89,9 @@ async def migrate_stale_read_it_later_jobs(*, user_id: str = _DEFAULT_USER_ID) -
 
         old_id = job.id
         try:
-            await mgr.delete_job(old_id, user_id)
+            await mgr.delete_job(old_id)
             recreated = await create_blueprint_job(
                 mgr,
-                user_id,
                 to_job_spec(fill),
                 name=job.name,
                 schedule=job.schedule,

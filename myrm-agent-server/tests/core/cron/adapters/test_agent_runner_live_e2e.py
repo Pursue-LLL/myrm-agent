@@ -26,7 +26,6 @@ pytestmark = pytest.mark.e2e
 def _make_ping_job() -> CronJob:
     return CronJob(  # type: ignore[arg-type]
         id="cron-trust-latch-ping",
-        user_id="user-1",
         name="TrustLatchPing",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 2 * * *"),

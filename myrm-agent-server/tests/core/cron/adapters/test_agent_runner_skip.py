@@ -33,6 +33,7 @@ from app.core.cron.adapters.agent_runner.stream import (
     _StreamAccumulator,
 )
 from app.core.cron.adapters.agent_runner.support import _resolve_cron_enable_memory
+from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
 
 _BUDGET_MODULE = "app.services.budget.enforcer.should_block_execution"
 _SCAN_MODULE = "app.core.cron.adapters.agent_runner.runner.scan_cron_prompt"
@@ -50,7 +51,6 @@ def _fake_user_configs() -> object:
 def _make_heartbeat_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "hb-1",
-        "user_id": "user-1",
         "name": HEARTBEAT_JOB_NAME,
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="*/30 * * * *"),
@@ -65,7 +65,6 @@ def _make_heartbeat_job(**overrides: object) -> CronJob:
 def _make_regular_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "cron-1",
-        "user_id": "user-1",
         "name": "Daily Report",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),
@@ -146,6 +145,18 @@ class TestInjectSituationReport:
         assert "<situation_report>" in prompt
         assert "Pending Commitments" in prompt
         assert "original prompt" in prompt
+
+    @pytest.mark.asyncio
+    async def test_report_is_built_for_the_user_the_commitments_are_filed_under(self) -> None:
+        builder = AsyncMock(spec=SituationReportBuilder)
+        builder.build = AsyncMock(return_value=None)
+        runner = AgentJobRunner(situation_builder=builder)
+
+        with patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()):
+            await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
+
+        (context,) = builder.build.await_args.args
+        assert context.user_id == SINGLE_TENANT_USER_ID
 
     @pytest.mark.asyncio
     async def test_build_exception_returns_true_for_safety(self) -> None:

@@ -21,7 +21,7 @@ _STOP_CRITERIA: tuple[dict[str, object], ...] = (
 # Arguments the lifecycle scan reads need real text; every other harness argument is an opaque marker.
 _SCANNED_TEXT: dict[str, object] = {"prompt": "p", "command": "c", "pre_condition_script": "s", "acceptance_criteria": ()}
 # Supplied by name in the test below, or rewritten by the wrapper (``tools_allowed`` is normalised).
-_NOT_MARKERS = {"self", "user_id", "name", "job_type", "schedule", "tools_allowed"}
+_NOT_MARKERS = {"self", "name", "job_type", "schedule", "tools_allowed"}
 _ORDINARY_CRITERIA: tuple[dict[str, object], ...] = (
     {"type": "shell", "command": "test -f /tmp/done"},
     {"type": "shell", "command": "curl -s http://example.com"},
@@ -32,7 +32,6 @@ _ORDINARY_CRITERIA: tuple[dict[str, object], ...] = (
 def _existing_job(*, pre_condition_script: str | None = None, acceptance_criteria: tuple[dict[str, object], ...] = ()) -> CronJob:
     return CronJob(
         id="job-1",
-        user_id="user-1",
         name="Probe",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),
@@ -59,7 +58,7 @@ async def test_create_job_enforces_slot_before_inner() -> None:
     mgr = EntitlementGuardedCronManager(inner)
 
     with patch(_SLOT_FN) as mock_slot:
-        await mgr.create_job("user-1", name="t", job_type=MagicMock(), schedule=MagicMock())
+        await mgr.create_job(name="t", job_type=MagicMock(), schedule=MagicMock())
 
     inner.count_jobs.assert_awaited_once_with()
     mock_slot.assert_called_once_with(2)
@@ -74,7 +73,7 @@ async def test_create_job_maps_entitlement_error_to_value_error() -> None:
 
     with patch(_SLOT_FN, side_effect=EntitlementGuardError("upgrade required")):
         with pytest.raises(ValueError, match="upgrade required") as exc_info:
-            await mgr.create_job("user-1", name="t", job_type=MagicMock(), schedule=MagicMock())
+            await mgr.create_job(name="t", job_type=MagicMock(), schedule=MagicMock())
 
     assert isinstance(exc_info.value.__cause__, EntitlementGuardError)
     inner.create_job.assert_not_called()
@@ -89,7 +88,6 @@ async def test_create_job_passes_workflow_template_to_inner() -> None:
 
     with patch(_SLOT_FN):
         await mgr.create_job(
-            "user-1",
             name="t",
             job_type=MagicMock(),
             schedule=MagicMock(),
@@ -110,10 +108,10 @@ async def test_duplicate_job_delegates_after_slot_check() -> None:
     mgr = EntitlementGuardedCronManager(inner)
 
     with patch(_SLOT_FN):
-        result = await mgr.duplicate_job("src-id", "user-1")
+        result = await mgr.duplicate_job("src-id")
 
     assert result is not None
-    inner.duplicate_job.assert_awaited_once_with("src-id", "user-1")
+    inner.duplicate_job.assert_awaited_once_with("src-id")
 
 
 @pytest.mark.asyncio
@@ -124,7 +122,7 @@ async def test_duplicate_job_maps_entitlement_error_to_value_error() -> None:
 
     with patch(_SLOT_FN, side_effect=EntitlementGuardError("duplicate blocked")):
         with pytest.raises(ValueError, match="duplicate blocked"):
-            await mgr.duplicate_job("src-id", "user-1")
+            await mgr.duplicate_job("src-id")
 
     inner.duplicate_job.assert_not_called()
 
@@ -144,8 +142,8 @@ async def test_list_runs_forwards_every_argument() -> None:
     inner.list_runs = AsyncMock(return_value=runs)
     mgr = EntitlementGuardedCronManager(inner)
 
-    assert await mgr.list_runs("user-1", job_id="job-1", limit=5, offset=2, status="ok") is runs
-    inner.list_runs.assert_awaited_once_with("user-1", job_id="job-1", limit=5, offset=2, status="ok")
+    assert await mgr.list_runs(job_id="job-1", limit=5, offset=2, status="ok") is runs
+    inner.list_runs.assert_awaited_once_with(job_id="job-1", limit=5, offset=2, status="ok")
 
 
 @pytest.mark.asyncio
@@ -158,7 +156,6 @@ async def test_update_job_clear_pre_condition_script_merges_for_lifecycle_guard(
 
     await mgr.update_job(
         "job-1",
-        "user-1",
         CronJobPatch(clear_pre_condition_script=True),
     )
 
@@ -176,19 +173,19 @@ async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> Non
     inner.trigger_now = AsyncMock(return_value=True)
     mgr = EntitlementGuardedCronManager(inner)
 
-    assert await mgr.get_job("j1", "user-1") is inner.get_job.return_value
+    assert await mgr.get_job("j1") is inner.get_job.return_value
     assert await mgr.list_jobs(name_filter="x", limit=5, offset=2) is inner.list_jobs.return_value
-    assert await mgr.pause_job("j1", "user-1") is inner.pause_job.return_value
-    assert await mgr.resume_job("j1", "user-1") is inner.resume_job.return_value
-    assert await mgr.delete_job("j1", "user-1") is True
-    assert await mgr.trigger_now("j1", "user-1") is True
+    assert await mgr.pause_job("j1") is inner.pause_job.return_value
+    assert await mgr.resume_job("j1") is inner.resume_job.return_value
+    assert await mgr.delete_job("j1") is True
+    assert await mgr.trigger_now("j1") is True
 
-    inner.get_job.assert_awaited_once_with("j1", "user-1")
+    inner.get_job.assert_awaited_once_with("j1")
     inner.list_jobs.assert_awaited_once_with(name_filter="x", chat_id=None, project_id=None, limit=5, offset=2)
-    inner.pause_job.assert_awaited_once_with("j1", "user-1")
-    inner.resume_job.assert_awaited_once_with("j1", "user-1")
-    inner.delete_job.assert_awaited_once_with("j1", "user-1")
-    inner.trigger_now.assert_awaited_once_with("j1", "user-1")
+    inner.pause_job.assert_awaited_once_with("j1")
+    inner.resume_job.assert_awaited_once_with("j1")
+    inner.delete_job.assert_awaited_once_with("j1")
+    inner.trigger_now.assert_awaited_once_with("j1")
     inner.count_jobs.assert_not_called()
 
 
@@ -203,7 +200,7 @@ async def test_create_job_forwards_every_harness_field() -> None:
     harness_params = set(inspect.signature(CronManager.create_job).parameters)
     assert harness_params <= wrapper_params, sorted(harness_params - wrapper_params)
 
-    named = {"user_id": "user-1", "name": "t", "job_type": object(), "schedule": object()}
+    named = {"name": "t", "job_type": object(), "schedule": object()}
     values = {name: _SCANNED_TEXT.get(name, object()) for name in harness_params - _NOT_MARKERS}
     mgr, inner = _manager_around()
     with patch(_SLOT_FN):
@@ -224,7 +221,7 @@ async def test_create_job_rejects_a_shell_acceptance_criterion_that_stops_the_se
     mgr, inner = _manager_around()
 
     with patch(_SLOT_FN), pytest.raises(ValueError, match="acceptance criterion command"):
-        await mgr.create_job("user-1", name="t", job_type=MagicMock(), schedule=MagicMock(), acceptance_criteria=(criterion,))
+        await mgr.create_job(name="t", job_type=MagicMock(), schedule=MagicMock(), acceptance_criteria=(criterion,))
 
     inner.create_job.assert_not_called()
 
@@ -234,9 +231,7 @@ async def test_create_job_forwards_ordinary_acceptance_criteria() -> None:
     mgr, inner = _manager_around()
 
     with patch(_SLOT_FN):
-        await mgr.create_job(
-            "user-1", name="t", job_type=MagicMock(), schedule=MagicMock(), acceptance_criteria=_ORDINARY_CRITERIA
-        )
+        await mgr.create_job(name="t", job_type=MagicMock(), schedule=MagicMock(), acceptance_criteria=_ORDINARY_CRITERIA)
 
     assert inner.create_job.await_args.kwargs["acceptance_criteria"] == _ORDINARY_CRITERIA
 
@@ -247,7 +242,7 @@ async def test_update_job_rejects_a_shell_acceptance_criterion_that_stops_the_se
     mgr, inner = _manager_around(_existing_job(acceptance_criteria=_ORDINARY_CRITERIA))
 
     with pytest.raises(ValueError, match="acceptance criterion command"):
-        await mgr.update_job("job-1", "user-1", CronJobPatch(acceptance_criteria=(criterion,)))
+        await mgr.update_job("job-1", CronJobPatch(acceptance_criteria=(criterion,)))
 
     inner.update_job.assert_not_called()
 
@@ -257,7 +252,7 @@ async def test_update_job_checks_the_stored_criteria_a_patch_leaves_unchanged() 
     mgr, inner = _manager_around(_existing_job(acceptance_criteria=_STOP_CRITERIA))
 
     with pytest.raises(ValueError, match="acceptance criterion command"):
-        await mgr.update_job("job-1", "user-1", CronJobPatch(name="Renamed"))
+        await mgr.update_job("job-1", CronJobPatch(name="Renamed"))
 
     inner.update_job.assert_not_called()
 
@@ -266,7 +261,7 @@ async def test_update_job_checks_the_stored_criteria_a_patch_leaves_unchanged() 
 async def test_update_job_clearing_the_criteria_lets_a_stored_stop_criterion_go() -> None:
     mgr, inner = _manager_around(_existing_job(acceptance_criteria=_STOP_CRITERIA))
 
-    await mgr.update_job("job-1", "user-1", CronJobPatch(clear_acceptance_criteria=True))
+    await mgr.update_job("job-1", CronJobPatch(clear_acceptance_criteria=True))
 
     inner.update_job.assert_awaited_once()
 
@@ -275,7 +270,7 @@ async def test_update_job_clearing_the_criteria_lets_a_stored_stop_criterion_go(
 async def test_update_job_accepts_ordinary_criteria_stored_or_patched() -> None:
     mgr, inner = _manager_around(_existing_job(acceptance_criteria=_ORDINARY_CRITERIA))
 
-    await mgr.update_job("job-1", "user-1", CronJobPatch(name="Renamed"))
-    await mgr.update_job("job-1", "user-1", CronJobPatch(acceptance_criteria=_ORDINARY_CRITERIA[:2]))
+    await mgr.update_job("job-1", CronJobPatch(name="Renamed"))
+    await mgr.update_job("job-1", CronJobPatch(acceptance_criteria=_ORDINARY_CRITERIA[:2]))
 
     assert inner.update_job.await_count == 2

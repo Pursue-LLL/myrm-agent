@@ -78,7 +78,6 @@ def exit_cron_execution_context(token: Token[bool]) -> None:
 
 def create_cron_tools(
     manager: CronManager,
-    user_id: str,
     *,
     current_model: str = "",
     chat_id: str | None = None,
@@ -89,7 +88,7 @@ def create_cron_tools(
     default_delivery: DeliveryConfig | None = None,
     description_locale: str | None = None,
 ) -> list[BaseTool]:
-    """Create a single cron management tool bound to a user.
+    """Create the cron management tool.
 
     ``current_model`` is the model name of the calling Agent session,
     used as default when the user doesn't specify a model for a new cron job.
@@ -195,7 +194,6 @@ def create_cron_tools(
         dispatch = {
             "add": lambda: _do_add(
                 mgr=manager,
-                user_id=user_id,
                 prompt=spec.prompt if spec else prompt,
                 command=command,
                 model=effective_model,
@@ -237,7 +235,6 @@ def create_cron_tools(
             "blueprints": lambda: _do_blueprints(blueprint_catalog_provider),
             "update": lambda: _do_update(
                 manager,
-                user_id,
                 job_id,
                 prompt,
                 command,
@@ -259,10 +256,10 @@ def create_cron_tools(
                 tools_allowed=tuple(_parse_csv_tuple(tools_allowed)) if tools_allowed.strip() else None,
                 skill_ids=tuple(_parse_csv_tuple(skill_ids)) if skill_ids.strip() else None,
             ),
-            "remove": lambda: _do_remove(manager, user_id, job_id),
-            "run": lambda: _do_run(manager, user_id, job_id),
-            "pause": lambda: _do_pause(manager, user_id, job_id),
-            "resume": lambda: _do_resume(manager, user_id, job_id),
+            "remove": lambda: _do_remove(manager, job_id),
+            "run": lambda: _do_run(manager, job_id),
+            "pause": lambda: _do_pause(manager, job_id),
+            "resume": lambda: _do_resume(manager, job_id),
         }
         handler = dispatch.get(action)
         if not handler:

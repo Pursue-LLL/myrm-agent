@@ -267,7 +267,6 @@ class TestTestDeliveryEndpoint:
         asyncio.run(
             cron_manager.update_job(
                 job["id"],
-                "default",
                 CronJobPatch(consecutive_failures=3, last_error="502 Bad Gateway"),
             )
         )

@@ -22,8 +22,6 @@ from . import helpers as _h
 
 router = APIRouter()
 
-USER_ID = "default"
-
 
 @router.get("/{job_id}/runs", response_model=CronRunsListResponse)
 async def list_job_runs(
@@ -33,10 +31,10 @@ async def list_job_runs(
     status: str | None = Query(None),
 ) -> CronRunsListResponse:
     mgr = _h._get_manager()
-    runs = await mgr.list_runs(USER_ID, job_id=job_id, limit=limit, offset=offset, status=status)
-    total = await mgr.count_runs(USER_ID, job_id=job_id, status=status)
+    runs = await mgr.list_runs(job_id=job_id, limit=limit, offset=offset, status=status)
+    total = await mgr.count_runs(job_id=job_id, status=status)
 
-    job = await mgr.get_job(job_id, USER_ID)
+    job = await mgr.get_job(job_id)
     job_name = job.name if job else None
 
     return CronRunsListResponse(
@@ -55,8 +53,8 @@ async def list_all_runs(
     status: str | None = Query(None),
 ) -> CronRunsListResponse:
     mgr = _h._get_manager()
-    runs = await mgr.list_runs(USER_ID, limit=limit, offset=offset, status=status)
-    total = await mgr.count_runs(USER_ID, status=status)
+    runs = await mgr.list_runs(limit=limit, offset=offset, status=status)
+    total = await mgr.count_runs(status=status)
 
     job_ids = list({r.job_id for r in runs})
     all_jobs = await mgr.list_jobs() if job_ids else []

@@ -28,8 +28,8 @@ def test_build_general_agent_gates_cron_setup_on_entitlement() -> None:
 
 
 def test_build_general_agent_defaults_single_tenant_user_id() -> None:
-    """Single-tenant agent-stream must bind cron tools when caller omits user_id."""
+    """An agent built without a user id is bound to the single-tenant user key, like every other run."""
     factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory" / "builder.py"
     source = factory_path.read_text(encoding="utf-8")
     assert "if not user_id:" in source
-    assert 'user_id = "default"' in source
+    assert "user_id = SINGLE_TENANT_USER_ID" in source

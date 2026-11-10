@@ -462,7 +462,6 @@ def test_cron_delivery_revoked_identity_fails_closed(client):
 
     job = CronJob(
         id=f"job-{unique_id}",
-        user_id="e2e-user",
         name="revoke-probe",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600_000),

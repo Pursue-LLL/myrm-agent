@@ -27,7 +27,8 @@ from app.services.agent.execution_cache.types import ExecutionMode
 
 logger = logging.getLogger(__name__)
 
-# Single-tenant SSOT: matches the cron REST ``USER_ID`` and the agent factory's fallback id.
+# The one user key of a single-tenant instance: the agent factory's fallback, and the key the work that has
+# no requesting user (cron situation reports, outbound deliveries, event dispatch) carries where a key is required.
 SINGLE_TENANT_USER_ID = "default"
 
 

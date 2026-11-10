@@ -90,7 +90,6 @@ def feishu_hook_url() -> str:
 def _build_job(target: str) -> CronJob:
     return CronJob(
         id="job-integration-feishu",
-        user_id="user-integration",
         name="daily-brief",
         job_type=JobType.AGENT,
         prompt="brief",
@@ -146,7 +145,6 @@ async def test_channel_delivery_generic_webhook_myrm_schema(
     monkeypatch.setenv("MYRM_ALLOWED_INTERNAL_HOSTS", "127.0.0.1")
     job = CronJob(
         id="job-generic-webhook",
-        user_id="user-1",
         name="report",
         job_type=JobType.AGENT,
         prompt="run",

@@ -50,7 +50,6 @@ class TestMonitorConfigIntegration:
     async def test_create_job_with_monitor_config(self, manager: CronManager):
         """Test creating a job with monitor_config."""
         job = await manager.create_job(
-            user_id="user1",
             name="RSS Monitor",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -70,7 +69,6 @@ class TestMonitorConfigIntegration:
     async def test_create_job_without_monitor_config(self, manager: CronManager):
         """Test creating a job without monitor_config (default behavior)."""
         job = await manager.create_job(
-            user_id="user1",
             name="Regular Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -83,7 +81,6 @@ class TestMonitorConfigIntegration:
         """Test adding monitor_config to existing job."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Test Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -98,7 +95,6 @@ class TestMonitorConfigIntegration:
 
         updated_job = await manager.update_job(
             "job1",
-            "user1",
             CronJobPatch(
                 monitor_config=MonitorConfig(
                     monitor_type="set",
@@ -116,7 +112,6 @@ class TestMonitorConfigIntegration:
         """Test modifying existing monitor_config."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Test Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -135,7 +130,6 @@ class TestMonitorConfigIntegration:
 
         updated_job = await manager.update_job(
             "job1",
-            "user1",
             CronJobPatch(
                 monitor_config=MonitorConfig(
                     monitor_type="set",
@@ -153,7 +147,6 @@ class TestMonitorConfigIntegration:
         """Test clearing monitor_config."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Test Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -172,7 +165,6 @@ class TestMonitorConfigIntegration:
 
         updated_job = await manager.update_job(
             "job1",
-            "user1",
             CronJobPatch(clear_monitor_config=True),
         )
 
@@ -185,7 +177,6 @@ class TestMonitorConfigIntegration:
 
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Test Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -210,7 +201,7 @@ class TestMonitorConfigIntegration:
         mock_store.get_monitor_state.return_value = existing_state
         mock_store.save_monitor_state.return_value = None
 
-        reset = await manager.reset_monitor_baseline("job1", "user1")
+        reset = await manager.reset_monitor_baseline("job1")
 
         assert reset is True
         mock_store.get_monitor_state.assert_called_once_with("job1")
@@ -221,33 +212,12 @@ class TestMonitorConfigIntegration:
         assert saved_state.last_reset_at is not None
         assert saved_state.last_reset_reason == "manual"
 
-    async def test_reset_baseline_wrong_user(self, manager: CronManager, mock_store):
-        """Test baseline reset fails for wrong user."""
-        existing_job = CronJob(
-            id="job1",
-            user_id="user1",
-            name="Test Job",
-            job_type=JobType.SHELL,
-            schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
-            command="echo 'test'",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-
-        mock_store.get_job.return_value = existing_job
-
-        reset = await manager.reset_monitor_baseline("job1", "wrong_user")
-
-        assert reset is False
-        mock_store.delete_monitor_state.assert_not_called()
-
     async def test_auto_reset_baseline_on_command_change(self, manager: CronManager, mock_store):
         """Test baseline auto-resets when command changes with enabled monitor."""
         from myrm_agent_harness.infra.incremental.types import MonitorState
 
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="RSS Monitor",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -274,7 +244,7 @@ class TestMonitorConfigIntegration:
         mock_store.save_monitor_state.return_value = None
 
         patch = CronJobPatch(command="echo 'url2'")
-        await manager.update_job("job1", "user1", patch)
+        await manager.update_job("job1", patch)
 
         mock_store.get_monitor_state.assert_called_once_with("job1")
         mock_store.save_monitor_state.assert_called_once()
@@ -289,7 +259,6 @@ class TestMonitorConfigIntegration:
 
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="AI Task",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -316,7 +285,7 @@ class TestMonitorConfigIntegration:
         mock_store.save_monitor_state.return_value = None
 
         patch = CronJobPatch(prompt="Analyze new data")
-        await manager.update_job("job1", "user1", patch)
+        await manager.update_job("job1", patch)
 
         mock_store.get_monitor_state.assert_called_once_with("job1")
         mock_store.save_monitor_state.assert_called_once()
@@ -329,7 +298,6 @@ class TestMonitorConfigIntegration:
         """Test no baseline reset when monitor is disabled."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -347,7 +315,7 @@ class TestMonitorConfigIntegration:
         mock_store.save_job.return_value = existing_job
 
         patch = CronJobPatch(command="echo 'new'")
-        await manager.update_job("job1", "user1", patch)
+        await manager.update_job("job1", patch)
 
         mock_store.delete_monitor_state.assert_not_called()
 
@@ -355,7 +323,6 @@ class TestMonitorConfigIntegration:
         """Test no baseline reset when command is unchanged."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -373,7 +340,7 @@ class TestMonitorConfigIntegration:
         mock_store.save_job.return_value = existing_job
 
         patch = CronJobPatch(command="echo 'same'")
-        await manager.update_job("job1", "user1", patch)
+        await manager.update_job("job1", patch)
 
         mock_store.delete_monitor_state.assert_not_called()
 
@@ -381,7 +348,6 @@ class TestMonitorConfigIntegration:
         """Test auto-reset calls delete when no existing state."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -400,7 +366,7 @@ class TestMonitorConfigIntegration:
         mock_store.get_monitor_state.return_value = None
 
         patch = CronJobPatch(command="echo 'new'")
-        await manager.update_job("job1", "user1", patch)
+        await manager.update_job("job1", patch)
 
         mock_store.get_monitor_state.assert_called_once_with("job1")
         mock_store.save_monitor_state.assert_not_called()
@@ -412,7 +378,6 @@ class TestMonitorConfigIntegration:
 
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Agent Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -440,7 +405,7 @@ class TestMonitorConfigIntegration:
         mock_store.save_monitor_state.return_value = None
 
         patch = CronJobPatch(command="echo 'new'", prompt="Analyze new data")
-        await manager.update_job("job1", "user1", patch)
+        await manager.update_job("job1", patch)
 
         mock_store.save_monitor_state.assert_called_once()
         saved_state = mock_store.save_monitor_state.call_args[0][0]
@@ -451,7 +416,6 @@ class TestMonitorConfigIntegration:
         """Test that job update succeeds even when baseline reset fails."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -470,7 +434,7 @@ class TestMonitorConfigIntegration:
         mock_store.get_monitor_state.side_effect = RuntimeError("DB connection lost")
 
         patch = CronJobPatch(command="echo 'new'")
-        updated_job = await manager.update_job("job1", "user1", patch)
+        updated_job = await manager.update_job("job1", patch)
 
         assert updated_job is not None
         assert updated_job.command == "echo 'new'"
@@ -482,7 +446,6 @@ class TestMonitorConfigIntegration:
 
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -509,7 +472,7 @@ class TestMonitorConfigIntegration:
         mock_store.save_monitor_state.return_value = None
 
         patch = CronJobPatch(monitor_config=MonitorConfig(monitor_type="hash", ttl_days=30, enabled=True))
-        await manager.update_job("job1", "user1", patch)
+        await manager.update_job("job1", patch)
 
         mock_store.save_monitor_state.assert_called_once()
         saved_state = mock_store.save_monitor_state.call_args[0][0]
@@ -520,7 +483,6 @@ class TestMonitorConfigIntegration:
         """Test no baseline reset when monitor_type stays the same."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -538,7 +500,7 @@ class TestMonitorConfigIntegration:
         mock_store.save_job.return_value = existing_job
 
         patch = CronJobPatch(monitor_config=MonitorConfig(monitor_type="set", ttl_days=90, enabled=True))
-        await manager.update_job("job1", "user1", patch)
+        await manager.update_job("job1", patch)
 
         mock_store.save_monitor_state.assert_not_called()
 
@@ -546,7 +508,6 @@ class TestMonitorConfigIntegration:
         """Test that delete_job delegates to delete_job_cascade."""
         existing_job = CronJob(
             id="job1",
-            user_id="user1",
             name="Job",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -563,7 +524,7 @@ class TestMonitorConfigIntegration:
         mock_store.get_job.return_value = existing_job
         mock_store.delete_job_cascade = AsyncMock(return_value=True)
 
-        deleted = await manager.delete_job("job1", "user1")
+        deleted = await manager.delete_job("job1")
 
         assert deleted is True
         mock_store.delete_job_cascade.assert_called_once_with("job1")

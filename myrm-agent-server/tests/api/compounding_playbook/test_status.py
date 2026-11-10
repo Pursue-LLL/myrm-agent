@@ -20,7 +20,6 @@ from app.services.memory.manager_deps import get_crud_memory_manager
 def _sample_job(*, with_acceptance: bool) -> CronJob:
     return CronJob(
         id="job-1",
-        user_id="default",
         name="Digest",
         job_type=JobType.AGENT,
         status=JobStatus.ACTIVE,

@@ -4,7 +4,6 @@ import { buildCronAuditFields } from '@/lib/cron/buildCronAuditFields';
 
 const baseJob: CronJob = {
   id: 'job-1',
-  user_id: 'default',
   name: 'Weekly digest',
   job_type: 'agent',
   status: 'active',

@@ -24,7 +24,6 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-USER = "user-1"
 EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0)
 
 _SUCCEEDED = JobResult(success=True, output="done")
@@ -73,7 +72,7 @@ class Stack:
     delivery: _Delivery
 
     async def create(self, **options: object) -> CronJob:
-        return await self.manager.create_job(USER, "job", JobType.AGENT, EVERY_HOUR, prompt="prompt", **options)
+        return await self.manager.create_job("job", JobType.AGENT, EVERY_HOUR, prompt="prompt", **options)
 
     async def dispatch(self, job: CronJob, result: JobResult | None = None) -> None:
         """What the timer does for a due job: read it, claim it, hand the snapshot to the scheduler."""
@@ -94,7 +93,7 @@ def stack() -> Stack:
     store = InMemoryCronStore()
     runner, condition, delivery = _Runner(), _Condition(), _Delivery()
     scheduler = CronScheduler(
-        store, {JobType.AGENT: runner}, delivery, config=CronConfig(max_per_user=1), pre_condition=condition
+        store, {JobType.AGENT: runner}, delivery, config=CronConfig(max_concurrent=1), pre_condition=condition
     )
     return Stack(store, CronManager(store, scheduler), scheduler, runner, condition, delivery)
 

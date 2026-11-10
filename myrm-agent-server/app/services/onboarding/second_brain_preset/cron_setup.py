@@ -23,7 +23,6 @@ from .common import (
     _CRON_DELTA_JOB_NAME,
     _CRON_JOB_NAME,
     _CRON_MAINTAIN_JOB_NAME,
-    _USER_ID,
     logger,
 )
 from .job_repair import repair_wiki_delta_job
@@ -36,7 +35,7 @@ async def _find_preset_cron_job(*, job_name: str, stored_job_id: str | None) -> 
         if job.name == job_name or job.name.startswith(f"{job_name} ("):
             return job.id
     if stored_job_id:
-        existing = await mgr.get_job(stored_job_id, _USER_ID)
+        existing = await mgr.get_job(stored_job_id)
         if existing is not None:
             return existing.id
     return None
@@ -77,16 +76,15 @@ async def _ensure_blueprint_cron(
 
     existing_id = await find_existing_job_id()
     if existing_id:
-        job = await mgr.get_job(existing_id, _USER_ID)
+        job = await mgr.get_job(existing_id)
         if job is not None:
             needs_rebuild = fill.command is not None and (job.command != fill.command or job.job_type != JobType(fill.job_type))
             if needs_rebuild:
-                await mgr.delete_job(existing_id, _USER_ID)
+                await mgr.delete_job(existing_id)
                 existing_id = None
             elif job.agent_id != agent_id:
                 await mgr.update_job(
                     existing_id,
-                    _USER_ID,
                     CronJobPatch(agent_id=agent_id, allowed_roots=allowed_roots or None),
                 )
                 return existing_id, False
@@ -95,7 +93,6 @@ async def _ensure_blueprint_cron(
 
     job = await create_blueprint_job(
         mgr,
-        _USER_ID,
         to_job_spec(fill),
         name=job_name,
         agent_id=agent_id,
@@ -171,7 +168,7 @@ async def reconcile_second_brain_cron_ids(id_remaps: dict[str, str]) -> None:
 async def repair_wiki_delta_job_security() -> bool:
     """Startup repair of a wiki-delta job created before its capability declaration was fixed."""
     job_id = await _find_wiki_morning_delta_cron_job()
-    return job_id is not None and await repair_wiki_delta_job(job_id, user_id=_USER_ID)
+    return job_id is not None and await repair_wiki_delta_job(job_id)
 
 
 async def _run_read_it_later_hygiene() -> None:

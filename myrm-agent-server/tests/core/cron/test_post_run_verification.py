@@ -13,7 +13,6 @@ from app.core.cron.adapters.post_run_verification import apply_cron_post_run_ver
 def _minimal_cron_job(**overrides: object) -> CronJob:
     payload: dict[str, object] = {
         "id": "job-1",
-        "user_id": "user-1",
         "name": "test",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),

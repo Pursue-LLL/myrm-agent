@@ -30,7 +30,6 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-USER = "user-1"
 HOUR_MS = 3_600_000
 EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=HOUR_MS, stagger_ms=0)
 STAGGERED = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=HOUR_MS, stagger_ms=1000)
@@ -81,7 +80,7 @@ class Stack:
     delivery: _Delivery
 
     async def create(self, *, schedule: Schedule = EVERY_HOUR, **options: object) -> CronJob:
-        return await self.manager.create_job(USER, "job", JobType.AGENT, schedule, prompt="old prompt", **options)
+        return await self.manager.create_job("job", JobType.AGENT, schedule, prompt="old prompt", **options)
 
     async def dispatch(self, job: CronJob) -> None:
         """What the timer does: read the due job, claim it, hand the snapshot to the scheduler."""
@@ -95,20 +94,20 @@ class Stack:
         return found
 
     async def pause(self, job: CronJob) -> object:
-        return await self.manager.pause_job(job.id, USER)
+        return await self.manager.pause_job(job.id)
 
     async def delete(self, job: CronJob) -> object:
-        return await self.manager.delete_job(job.id, USER)
+        return await self.manager.delete_job(job.id)
 
     async def edit(self, job: CronJob, **fields_to_change: object) -> object:
-        return await self.manager.update_job(job.id, USER, CronJobPatch(**fields_to_change))
+        return await self.manager.update_job(job.id, CronJobPatch(**fields_to_change))
 
 
 @pytest.fixture
 def stack() -> Stack:
     store = InMemoryCronStore()
     runner, delivery = _Runner(), _Delivery()
-    scheduler = CronScheduler(store, {JobType.AGENT: runner}, delivery, config=CronConfig(max_per_user=1))
+    scheduler = CronScheduler(store, {JobType.AGENT: runner}, delivery, config=CronConfig(max_concurrent=1))
     return Stack(store, CronManager(store, scheduler), scheduler, runner, delivery)
 
 
@@ -280,8 +279,8 @@ async def test_an_edit_during_the_stagger_wait_reaches_the_run(stack: Stack, mon
 
 async def test_a_pause_while_queued_for_a_slot_stops_the_run(stack: Stack) -> None:
     job = await stack.create()
-    slot = stack.scheduler._user_sem(USER)
-    await slot.acquire()  # the user's only concurrency slot is busy
+    slot = stack.scheduler._global_sem
+    await slot.acquire()  # the scheduler's only concurrency slot is busy
 
     dispatched = asyncio.create_task(stack.dispatch(job))
     await _wait_until_parked_on_the_slot(stack, job)

@@ -24,7 +24,6 @@ from app.core.cron.adapters.setup import get_cron_manager
 from app.core.cron.adapters.wiki_router_job_runner import WIKI_IMA_SYNC_COMMAND
 from app.services.wiki.agent_scope import normalize_agent_scope
 
-_USER_ID = "default"
 SYNC_INTERVAL_MS = 6 * 3600 * 1000
 # A slice is time-boxed well below this; the headroom absorbs the last in-flight items.
 JOB_TIMEOUT_S = 600
@@ -52,7 +51,7 @@ async def find_active_job(agent_id: str | None) -> CronJob | None:
 
 async def is_job_active(job_id: str) -> bool:
     """Whether the job still exists and is neither paused nor removed; asked by id, so it is a single-row read."""
-    job = await get_cron_manager().get_job(job_id, _USER_ID)
+    job = await get_cron_manager().get_job(job_id)
     return job is not None and job.status == JobStatus.ACTIVE
 
 
@@ -63,7 +62,6 @@ async def start_job(agent_id: str | None, *, locale: str) -> None:
     if job is None:
         name, description = _COPY["zh" if locale.lower().startswith("zh") else "en"]
         job = await manager.create_job(
-            _USER_ID,
             name,
             JobType.ROUTER,
             Schedule(kind=ScheduleKind.INTERVAL, interval_ms=SYNC_INTERVAL_MS),
@@ -76,15 +74,15 @@ async def start_job(agent_id: str | None, *, locale: str) -> None:
             session_target=SessionTarget.ISOLATED,
         )
     elif job.status == JobStatus.PAUSED:
-        await manager.resume_job(job.id, _USER_ID)
-    await manager.trigger_now(job.id, _USER_ID)
+        await manager.resume_job(job.id)
+    await manager.trigger_now(job.id)
 
 
 async def pause_job(agent_id: str | None) -> bool:
     job = await find_job(agent_id)
     if job is None:
         return False
-    await get_cron_manager().pause_job(job.id, _USER_ID)
+    await get_cron_manager().pause_job(job.id)
     return True
 
 
@@ -93,19 +91,19 @@ async def resume_job(agent_id: str | None) -> bool:
     if job is None:
         return False
     manager = get_cron_manager()
-    await manager.resume_job(job.id, _USER_ID)
-    await manager.trigger_now(job.id, _USER_ID)
+    await manager.resume_job(job.id)
+    await manager.trigger_now(job.id)
     return True
 
 
 async def stop_all_jobs() -> int:
     manager = get_cron_manager()
     jobs = [job for job in await manager.list_jobs() if job.command == WIKI_IMA_SYNC_COMMAND]
-    deleted = [await manager.delete_job(job.id, _USER_ID) for job in jobs]
+    deleted = [await manager.delete_job(job.id) for job in jobs]
     return sum(1 for ok in deleted if ok)
 
 
 async def trigger_if_active(agent_id: str | None) -> None:
     job = await find_active_job(agent_id)
     if job is not None:
-        await get_cron_manager().trigger_now(job.id, _USER_ID)
+        await get_cron_manager().trigger_now(job.id)

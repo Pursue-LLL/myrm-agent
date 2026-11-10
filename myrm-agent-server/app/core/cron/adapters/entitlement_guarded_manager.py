@@ -57,7 +57,6 @@ class EntitlementGuardedCronManager:
 
     async def create_job(
         self,
-        user_id: str,
         name: str,
         job_type: JobType,
         schedule: Schedule,
@@ -108,7 +107,6 @@ class EntitlementGuardedCronManager:
         await self._enforce_slot()
         normalized_tools = normalize_cron_tools_allowed(tools_allowed) if tools_allowed else None
         return await self._inner.create_job(
-            user_id,
             name,
             job_type,
             schedule,
@@ -147,11 +145,11 @@ class EntitlementGuardedCronManager:
             workflow_template_args=workflow_template_args,
         )
 
-    async def update_job(self, job_id: str, user_id: str, patch: CronJobPatch) -> CronJob | None:
+    async def update_job(self, job_id: str, patch: CronJobPatch) -> CronJob | None:
         from app.core.cron.adapters.lifecycle_guard import assert_cron_job_lifecycle_safe
         from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
 
-        existing = await self._inner.get_job(job_id, user_id)
+        existing = await self._inner.get_job(job_id)
         if existing:
             next_prompt = existing.prompt if patch.prompt is None else patch.prompt
             next_command = existing.command if patch.command is None else patch.command
@@ -178,14 +176,14 @@ class EntitlementGuardedCronManager:
             normalized = normalize_cron_tools_allowed(list(patch.tools_allowed))
             patch = replace(patch, tools_allowed=normalized)
 
-        return await self._inner.update_job(job_id, user_id, patch)
+        return await self._inner.update_job(job_id, patch)
 
-    async def duplicate_job(self, job_id: str, user_id: str) -> CronJob | None:
+    async def duplicate_job(self, job_id: str) -> CronJob | None:
         await self._enforce_slot()
-        return await self._inner.duplicate_job(job_id, user_id)
+        return await self._inner.duplicate_job(job_id)
 
-    async def get_job(self, job_id: str, user_id: str) -> CronJob | None:
-        return await self._inner.get_job(job_id, user_id)
+    async def get_job(self, job_id: str) -> CronJob | None:
+        return await self._inner.get_job(job_id)
 
     async def list_jobs(
         self,
@@ -200,28 +198,27 @@ class EntitlementGuardedCronManager:
             name_filter=name_filter, chat_id=chat_id, project_id=project_id, limit=limit, offset=offset
         )
 
-    async def pause_job(self, job_id: str, user_id: str) -> CronJob | None:
-        return await self._inner.pause_job(job_id, user_id)
+    async def pause_job(self, job_id: str) -> CronJob | None:
+        return await self._inner.pause_job(job_id)
 
-    async def resume_job(self, job_id: str, user_id: str) -> CronJob | None:
-        return await self._inner.resume_job(job_id, user_id)
+    async def resume_job(self, job_id: str) -> CronJob | None:
+        return await self._inner.resume_job(job_id)
 
-    async def delete_job(self, job_id: str, user_id: str) -> bool:
-        return await self._inner.delete_job(job_id, user_id)
+    async def delete_job(self, job_id: str) -> bool:
+        return await self._inner.delete_job(job_id)
 
-    async def trigger_now(self, job_id: str, user_id: str) -> bool:
-        return await self._inner.trigger_now(job_id, user_id)
+    async def trigger_now(self, job_id: str) -> bool:
+        return await self._inner.trigger_now(job_id)
 
     async def list_runs(
         self,
-        user_id: str,
         *,
         job_id: str | None = None,
         limit: int = 20,
         offset: int = 0,
         status: str | None = None,
     ) -> list[CronRunRecord]:
-        return await self._inner.list_runs(user_id, job_id=job_id, limit=limit, offset=offset, status=status)
+        return await self._inner.list_runs(job_id=job_id, limit=limit, offset=offset, status=status)
 
     def __getattr__(self, name: str) -> object:
         return getattr(self._inner, name)

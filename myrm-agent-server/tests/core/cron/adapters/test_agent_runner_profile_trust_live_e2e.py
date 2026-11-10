@@ -46,7 +46,6 @@ async def test_live_cron_run_with_profile_trust() -> None:
 
         job = CronJob(  # type: ignore[arg-type]
             id="cron-trust-profile-ping",
-            user_id="user-1",
             name="TrustProfilePing",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 2 * * *"),

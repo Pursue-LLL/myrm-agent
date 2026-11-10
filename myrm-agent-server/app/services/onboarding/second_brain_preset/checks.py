@@ -27,7 +27,6 @@ from . import common
 from .common import (
     _REQUIRED_TOOLS,
     _TEMPLATE_ID,
-    _USER_ID,
     logger,
 )
 
@@ -70,9 +69,9 @@ async def _build_checklist(
     cron_ready = False
     if cron_job_id and delta_cron_job_id and maintain_cron_job_id:
         mgr = common.get_cron_manager()
-        read_later_job = await mgr.get_job(cron_job_id, _USER_ID)
-        delta_job = await mgr.get_job(delta_cron_job_id, _USER_ID)
-        maintain_job = await mgr.get_job(maintain_cron_job_id, _USER_ID)
+        read_later_job = await mgr.get_job(cron_job_id)
+        delta_job = await mgr.get_job(delta_cron_job_id)
+        maintain_job = await mgr.get_job(maintain_cron_job_id)
         cron_ready = read_later_job is not None and delta_job is not None and maintain_job is not None
 
     vault_ready = _wiki_has_content(agent_id)

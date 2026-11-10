@@ -88,7 +88,6 @@ async def test_run_skips_without_consuming_attempts(
     monkeypatch.setattr(runner, "_run_once", _never_runs)
     job = cron_types.CronJob(
         id="job-1",
-        user_id="default",
         name="ping",
         job_type=cron_types.JobType.AGENT,
         schedule=cron_types.Schedule(kind=cron_types.ScheduleKind.INTERVAL, interval_ms=3_600_000),

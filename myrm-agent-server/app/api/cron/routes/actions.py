@@ -31,8 +31,6 @@ from . import helpers as _h
 
 router = APIRouter()
 
-USER_ID = "default"
-
 
 @router.post("/{job_id}/duplicate", response_model=CronJobResponse, status_code=201)
 async def duplicate_job(job_id: str) -> CronJobResponse:
@@ -42,7 +40,7 @@ async def duplicate_job(job_id: str) -> CronJobResponse:
 
     mgr = _h._get_manager()
     try:
-        job = await mgr.duplicate_job(job_id, USER_ID)
+        job = await mgr.duplicate_job(job_id)
     except ValueError as exc:
         if isinstance(exc.__cause__, EntitlementGuardError):
             raise HTTPException(status_code=403, detail=str(exc)) from exc
@@ -56,7 +54,7 @@ async def duplicate_job(job_id: str) -> CronJobResponse:
 @router.post("/{job_id}/pause", response_model=CronJobResponse)
 async def pause_job(job_id: str) -> CronJobResponse:
     mgr = _h._get_manager()
-    job = await mgr.pause_job(job_id, USER_ID)
+    job = await mgr.pause_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return _h._to_response(job)
@@ -66,7 +64,7 @@ async def pause_job(job_id: str) -> CronJobResponse:
 async def resume_job(job_id: str) -> CronJobResponse:
     mgr = _h._get_manager()
     try:
-        job = await mgr.resume_job(job_id, USER_ID)
+        job = await mgr.resume_job(job_id)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not job:
@@ -77,7 +75,7 @@ async def resume_job(job_id: str) -> CronJobResponse:
 @router.post("/{job_id}/trigger", status_code=202)
 async def trigger_job(job_id: str) -> dict[str, bool]:
     mgr = _h._get_manager()
-    triggered = await mgr.trigger_now(job_id, USER_ID)
+    triggered = await mgr.trigger_now(job_id)
     if not triggered:
         raise HTTPException(status_code=404, detail="Job not found or not active")
     return {"triggered": True}
@@ -96,7 +94,7 @@ async def test_delivery(
 @router.post("/{job_id}/reset-baseline")
 async def reset_baseline(job_id: str) -> dict[str, bool]:
     mgr = _h._get_manager()
-    reset = await mgr.reset_monitor_baseline(job_id, USER_ID)
+    reset = await mgr.reset_monitor_baseline(job_id)
     if not reset:
         raise HTTPException(status_code=404, detail="Job not found or no monitor baseline")
     return {"reset": True}

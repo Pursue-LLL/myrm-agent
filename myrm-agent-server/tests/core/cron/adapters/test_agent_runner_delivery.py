@@ -28,7 +28,6 @@ _RESET_MODULE = "app.core.memory.proactive.delivery_tracker.reset_follow_up_deli
 def _make_heartbeat_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "hb-1",
-        "user_id": "user-1",
         "name": HEARTBEAT_JOB_NAME,
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="*/30 * * * *"),
@@ -43,7 +42,6 @@ def _make_heartbeat_job(**overrides: object) -> CronJob:
 def _make_regular_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "cron-1",
-        "user_id": "user-1",
         "name": "Daily Report",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),

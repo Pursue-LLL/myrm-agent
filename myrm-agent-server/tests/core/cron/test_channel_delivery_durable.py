@@ -16,6 +16,7 @@ from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError, DeliveryUnconfirmedError
 from app.channels.types import ChannelCapabilities, ChannelStatus, OutboundMessage
 from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
+from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
 
 
 @pytest.mark.asyncio
@@ -29,7 +30,6 @@ async def test_deliver_channel_unconfirmed_send_raises_and_moves_to_dlq(tmp_path
 
     job = CronJob(
         id="cron-unit-null",
-        user_id="u1",
         name="report",
         job_type=JobType.AGENT,
         prompt="p",
@@ -72,7 +72,6 @@ async def test_deliver_disabled_channel_raises() -> None:
 
     job = CronJob(
         id="cron-disabled",
-        user_id="u1",
         name="report",
         job_type=JobType.AGENT,
         prompt="p",
@@ -102,7 +101,6 @@ async def test_deliver_disabled_channel_raises() -> None:
 async def test_deliver_missing_channel_raises() -> None:
     job = CronJob(
         id="cron-missing",
-        user_id="u1",
         name="report",
         job_type=JobType.AGENT,
         prompt="p",
@@ -117,7 +115,6 @@ async def test_deliver_missing_channel_raises() -> None:
 def test_resolve_recipient_requires_target() -> None:
     job = CronJob(
         id="cron-no-target",
-        user_id="u1",
         name="report",
         job_type=JobType.AGENT,
         prompt="p",
@@ -132,7 +129,6 @@ def test_resolve_recipient_requires_target() -> None:
 async def test_deliver_silent_channel_is_noop() -> None:
     job = CronJob(
         id="cron-silent",
-        user_id="u1",
         name="report",
         job_type=JobType.AGENT,
         prompt="p",
@@ -156,7 +152,6 @@ async def test_deliver_appends_error_to_content(tmp_path) -> None:
 
     job = CronJob(
         id="cron-error-body",
-        user_id="u1",
         name="report",
         job_type=JobType.AGENT,
         prompt="p",
@@ -179,3 +174,42 @@ async def test_deliver_appends_error_to_content(tmp_path) -> None:
     finally:
         channel_bridge.channel_gateway = previous
         await gateway.stop()
+
+
+@pytest.mark.asyncio
+async def test_deliver_files_the_message_under_the_single_tenant_user(tmp_path) -> None:
+    sent: list[OutboundMessage] = []
+
+    class _RecordingChannel(BaseChannel):
+        name = "feishu"
+        capabilities = ChannelCapabilities()
+
+        async def send(self, msg: OutboundMessage) -> str | None:
+            sent.append(msg)
+            return "ok-id"
+
+    from app.channels.core.gateway import ChannelGateway
+
+    job = CronJob(
+        id="cron-user-key",
+        name="report",
+        job_type=JobType.AGENT,
+        prompt="p",
+        schedule=Schedule(kind="cron", expr="0 9 * * *"),
+        delivery=DeliveryConfig(channel="feishu", target="chat-1"),
+    )
+    gateway = ChannelGateway(dlq_dir=tmp_path)
+    gateway.register(_RecordingChannel())
+    await gateway.start()
+
+    import app.core.channel_bridge as channel_bridge
+
+    previous = channel_bridge.channel_gateway
+    channel_bridge.channel_gateway = gateway
+    try:
+        await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
+    finally:
+        channel_bridge.channel_gateway = previous
+        await gateway.stop()
+
+    assert [msg.user_id for msg in sent] == [SINGLE_TENANT_USER_ID]

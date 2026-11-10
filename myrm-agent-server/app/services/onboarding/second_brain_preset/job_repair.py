@@ -30,10 +30,10 @@ _BLUEPRINT_ID = "wiki_morning_delta"
 _SUPERSEDED_CAPABILITIES = frozenset({"file_read", "file_write"})
 
 
-async def repair_wiki_delta_job(job_id: str, *, user_id: str) -> bool:
+async def repair_wiki_delta_job(job_id: str) -> bool:
     """Declare the wiki capabilities and vault access the job's prompt relies on."""
     mgr = get_cron_manager()
-    job = await mgr.get_job(job_id, user_id)
+    job = await mgr.get_job(job_id)
     if job is None or job.job_type != JobType.AGENT:
         return False
     if frozenset(job.required_capabilities) != _SUPERSEDED_CAPABILITIES:
@@ -45,7 +45,6 @@ async def repair_wiki_delta_job(job_id: str, *, user_id: str) -> bool:
     allowed_roots = job.allowed_roots or (str(resolve_agent_wiki_vault_path(job.agent_id)),)
     await mgr.update_job(
         job_id,
-        user_id,
         CronJobPatch(
             required_capabilities=blueprint.default_required_capabilities,
             allowed_roots=allowed_roots,

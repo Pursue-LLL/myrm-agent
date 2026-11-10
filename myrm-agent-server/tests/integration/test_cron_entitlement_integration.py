@@ -38,7 +38,6 @@ async def test_create_job_succeeds_in_local_entitlement_mode() -> None:
     with patch("app.platform_utils.deployment_capabilities.get_deployment_capabilities") as mock_caps:
         mock_caps.return_value.uses_cp_entitlements = False
         job = await mgr.create_job(
-            user_id="default",
             name="integration-local",
             job_type=JobType.AGENT,
             schedule=schedule,
@@ -75,7 +74,6 @@ async def test_create_job_blocked_when_sandbox_not_entitled() -> None:
         mock_caps.return_value.uses_cp_entitlements = True
         with pytest.raises(ValueError, match="blocked"):
             await mgr.create_job(
-                user_id="default",
                 name="integration-blocked",
                 job_type=JobType.AGENT,
                 schedule=schedule,
@@ -102,7 +100,6 @@ async def test_create_job_blocked_at_max_cron_triggers() -> None:
     ):
         mock_caps.return_value.uses_cp_entitlements = True
         await mgr.create_job(
-            user_id="default",
             name="first-job",
             job_type=JobType.AGENT,
             schedule=schedule,
@@ -110,7 +107,6 @@ async def test_create_job_blocked_at_max_cron_triggers() -> None:
         )
         with pytest.raises(ValueError, match="limit reached"):
             await mgr.create_job(
-                user_id="default",
                 name="second-job",
                 job_type=JobType.AGENT,
                 schedule=schedule,

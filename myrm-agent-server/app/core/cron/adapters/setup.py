@@ -12,7 +12,7 @@ Usage::
 
     # In agent tool creation:
     manager = get_cron_manager()
-    tools = create_cron_tools(manager, user_id)
+    tools = create_cron_tools(manager)
 """
 
 from __future__ import annotations

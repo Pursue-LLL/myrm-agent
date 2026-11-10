@@ -24,8 +24,6 @@ from myrm_agent_harness.toolkits.cron.types import (
     SessionTarget,
 )
 
-_USER = "spec-user"
-
 
 class _NoDelivery:
     async def deliver(self, job: object, result: object) -> None:
@@ -64,7 +62,7 @@ class _Harness:
             self.requests.append((bp_id, values, tz))
             return spec
 
-        self.tool = create_cron_tools(manager, _USER, current_model="m", blueprint_filler=filler)[0]
+        self.tool = create_cron_tools(manager, current_model="m", blueprint_filler=filler)[0]
 
     async def add(self, **args: object) -> str:
         args.setdefault("blueprint", "bp")

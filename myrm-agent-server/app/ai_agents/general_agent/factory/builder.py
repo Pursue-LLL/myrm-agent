@@ -34,6 +34,7 @@ from app.ai_agents.general_agent.factory.support import (
     _should_enable_cron_tools,
     _should_enable_subagent_tools,
 )
+from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,8 @@ async def build_general_agent(
     user_id: str | None = None,
 ) -> "SkillAgent":
     """Initialize Agent: create LLMs, tools, middlewares, and call framework API."""
-    # Single-tenant SSOT — matches cron REST ``USER_ID`` so discover/eager cron tools bind jobs.
     if not user_id:
-        user_id = "default"
+        user_id = SINGLE_TENANT_USER_ID
 
     workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
     effective_prompt_locale = getattr(agent_wrapper, "prompt_locale", None) or getattr(agent_wrapper, "locale", None)
@@ -78,7 +78,7 @@ async def build_general_agent(
 
     # 4. Create tools (delegated to ToolSetupMixin)
     tools: list[object] = []
-    agent_wrapper._task_user_id = user_id or "default"
+    agent_wrapper._task_user_id = user_id
     agent_wrapper._setup_search_and_basic_tools(tools)
     agent_wrapper._setup_clarification_tools(tools)
 
@@ -105,7 +105,7 @@ async def build_general_agent(
         memory_manager = await agent_wrapper._create_memory_tools(tools, memory_binding)
 
     if agent_wrapper.enable_cron_eager and _should_enable_cron_tools():
-        await agent_wrapper._setup_cron_tools(tools, user_id=user_id)
+        await agent_wrapper._setup_cron_tools(tools)
 
     if mount_plan.mount_browser:
         await agent_wrapper._setup_browser_tools(tools, effective_chat_id, vision_llm=llm, memory_manager=memory_manager)
@@ -421,7 +421,7 @@ async def build_general_agent(
         on_skill_review_ready=_build_skill_review_callback(agent_wrapper),
         on_session_cleanup=_build_session_cleanup_callback(
             agent_wrapper,
-            user_id or "default",
+            user_id,
             memory_manager=memory_manager,
         ),
         on_loaded_skills_persist=(None if agent_wrapper.incognito_mode else make_loaded_skills_persist_callback()),

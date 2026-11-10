@@ -287,7 +287,6 @@ class TestSessionTarget:
         """CronJob defaults to ISOLATED; DAILY is selectable via override."""
         defaults = {
             "id": "j1",
-            "user_id": "u1",
             "name": "Test",
             "job_type": JobType.AGENT,
             "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -394,17 +393,15 @@ class TestFailureAlertConfig:
 class TestCronConfig:
     def test_defaults(self):
         cfg = CronConfig()
-        assert cfg.max_concurrent == 5
-        assert cfg.max_per_user == 3
+        assert cfg.max_concurrent == 3
         assert cfg.failure_delivery is None
         assert cfg.failure_alert is None
 
     def test_custom_values(self):
         d = DeliveryConfig(channel="webhook", target="https://ops.example.com")
         fa = FailureAlertConfig(after=10)
-        cfg = CronConfig(max_concurrent=10, max_per_user=5, failure_delivery=d, failure_alert=fa)
+        cfg = CronConfig(max_concurrent=10, failure_delivery=d, failure_alert=fa)
         assert cfg.max_concurrent == 10
-        assert cfg.max_per_user == 5
         assert cfg.failure_delivery is not None
         assert cfg.failure_alert is not None
         assert cfg.failure_alert.after == 10
@@ -424,7 +421,6 @@ class TestCronJobNewFields:
     def _make_job(self, **kwargs: object) -> CronJob:
         defaults = {
             "id": "j1",
-            "user_id": "u1",
             "name": "Test",
             "job_type": JobType.AGENT,
             "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),

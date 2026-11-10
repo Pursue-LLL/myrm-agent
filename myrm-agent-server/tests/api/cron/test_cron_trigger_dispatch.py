@@ -35,7 +35,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-USER_ID = "test-user"
+from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
 
 
 class FakeDelivery:
@@ -46,7 +46,6 @@ class FakeDelivery:
 def _make_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "job-trigger-1",
-        "user_id": USER_ID,
         "name": "Trigger Test",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -122,6 +121,7 @@ class TestEventTriggerEndpoint:
         call_args = trigger_provider.check_event_triggers.call_args[0]
         assert call_args[0] == "Error: connection failed $AAPL&timeout=30"
         assert call_args[1] == "slack"
+        assert call_args[2] == SINGLE_TENANT_USER_ID
 
     def test_event_trigger_empty_message_rejected(self, client: TestClient) -> None:
         resp = client.post(

@@ -39,7 +39,6 @@ _SESSION_CREDENTIALS = "app.services.agent.session_credential_assembler.assemble
 def _job(**overrides: object) -> CronJob:
     fields: dict[str, object] = {
         "id": "cron-1",
-        "user_id": "user-1",
         "name": "Daily report",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),

@@ -79,7 +79,6 @@ export interface TriggerConfig {
 
 export interface CronJob {
   id: string;
-  user_id: string;
   name: string;
   job_type: 'agent' | 'shell' | 'router' | 'reminder';
   status: JobStatus;

@@ -52,16 +52,6 @@ class TestCronConfigValidation:
         with pytest.raises(ValueError, match="max_concurrent must be <= 100"):
             CronConfig(max_concurrent=10000)
 
-    def test_max_per_user_ceiling_100(self):
-        """max_per_user must be <= 100 to prevent resource exhaustion."""
-        # Valid: exactly 100
-        config = CronConfig(max_per_user=100)
-        assert config.max_per_user == 100
-
-        # Invalid: 101 (above ceiling)
-        with pytest.raises(ValueError, match="max_per_user must be <= 100"):
-            CronConfig(max_per_user=101)
-
 
 class TestCronJobValidation:
     """Test CronJob config validation."""
@@ -70,7 +60,6 @@ class TestCronJobValidation:
         """Helper to create a minimal valid CronJob."""
         defaults = {
             "id": "test-id",
-            "user_id": "test-user",
             "name": "test-job",
             "job_type": JobType.AGENT,
             "schedule": Schedule(kind=ScheduleKind.INTERVAL, interval_ms=1000),
@@ -161,7 +150,6 @@ class TestConfigRejectionStrategy:
         with pytest.raises(ValueError, match="timeout_seconds must be >= 10"):
             CronJob(
                 id="test-id",
-                user_id="test-user",
                 name="test-job",
                 job_type=JobType.AGENT,
                 schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=1000),
