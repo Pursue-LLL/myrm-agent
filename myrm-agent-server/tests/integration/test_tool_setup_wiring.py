@@ -162,7 +162,7 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
     mock_manager = MagicMock()
     captured: dict[str, object] = {}
 
-    def _capture_create_cron_tools(manager: object, user_id: str, **kwargs: object) -> list[BaseTool]:
+    def _capture_create_cron_tools(manager: object, **kwargs: object) -> list[BaseTool]:
         captured["delivery_resolver"] = kwargs.get("delivery_resolver")
         captured["blueprint_catalog_provider"] = kwargs.get("blueprint_catalog_provider")
         captured["default_delivery"] = kwargs.get("default_delivery")
@@ -182,7 +182,7 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
             return_value="",
         ),
     ):
-        await mixin._setup_cron_tools(tools, user_id="user-1")
+        await mixin._setup_cron_tools(tools)
 
     from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
 
@@ -321,7 +321,7 @@ async def test_cron_tools_turn1_eager_when_enabled() -> None:
             return_value="",
         ),
     ):
-        await mixin._setup_cron_tools(tools, user_id="user-1")
+        await mixin._setup_cron_tools(tools)
 
     assert len(tools) == 1
 

@@ -45,7 +45,6 @@ def _make_job(
 ) -> CronJob:
     return CronJob(
         id=f"job-{name}",
-        user_id="user-1",
         name=name,
         job_type=JobType.AGENT,
         schedule=Schedule(

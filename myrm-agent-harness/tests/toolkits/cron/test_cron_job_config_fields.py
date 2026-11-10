@@ -22,7 +22,6 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-_USER = "user-1"
 _LONG_AGO = datetime(2020, 1, 1, tzinfo=UTC)
 
 # Fields a duplicate must not inherit: the run history of the source job.
@@ -46,7 +45,6 @@ def _manager() -> tuple[CronManager, InMemoryCronStore]:
 
 async def _create(mgr: CronManager, **kwargs: object) -> CronJob:
     return await mgr.create_job(
-        _USER,
         "Nightly",
         JobType.AGENT,
         Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -88,13 +86,13 @@ async def test_update_job_applies_skip_if_active_and_keeps_it_when_the_patch_is_
     mgr, store = _manager()
     job = await _create(mgr)
 
-    await mgr.update_job(job.id, _USER, CronJobPatch(skip_if_active=True))
+    await mgr.update_job(job.id, CronJobPatch(skip_if_active=True))
     assert (await store.get_job(job.id)).skip_if_active is True  # type: ignore[union-attr]
 
-    await mgr.update_job(job.id, _USER, CronJobPatch(name="Renamed"))
+    await mgr.update_job(job.id, CronJobPatch(name="Renamed"))
     assert (await store.get_job(job.id)).skip_if_active is True  # type: ignore[union-attr]
 
-    await mgr.update_job(job.id, _USER, CronJobPatch(skip_if_active=False))
+    await mgr.update_job(job.id, CronJobPatch(skip_if_active=False))
     assert (await store.get_job(job.id)).skip_if_active is False  # type: ignore[union-attr]
 
 
@@ -102,7 +100,7 @@ async def test_duplicate_job_carries_every_configuration_field() -> None:
     mgr, store = _manager()
     source = await _configured_source(mgr, store)
 
-    copy = await mgr.duplicate_job(source.id, _USER)
+    copy = await mgr.duplicate_job(source.id)
 
     assert copy is not None
     assert copy.acceptance_criteria == source.acceptance_criteria != ()
@@ -118,7 +116,7 @@ async def test_duplicate_job_starts_paused_with_a_new_identity_and_no_run_histor
     mgr, store = _manager()
     source = await _configured_source(mgr, store)
 
-    copy = await mgr.duplicate_job(source.id, _USER)
+    copy = await mgr.duplicate_job(source.id)
 
     assert copy is not None
     assert copy.id != source.id
@@ -135,7 +133,7 @@ async def test_duplicate_job_differs_from_its_source_only_in_identity_and_run_st
     mgr, store = _manager()
     source = await _configured_source(mgr, store)
 
-    copy = await mgr.duplicate_job(source.id, _USER)
+    copy = await mgr.duplicate_job(source.id)
 
     assert copy is not None
     changed = {f.name for f in fields(CronJob) if getattr(copy, f.name) != getattr(source, f.name)}
@@ -146,7 +144,7 @@ async def test_duplicate_job_gives_every_webhook_its_own_path_and_secret() -> No
     mgr, _ = _manager()
     source = await _create(mgr, triggers=TriggerConfig(webhooks=(WebhookTrigger(), WebhookTrigger())))
 
-    copy = await mgr.duplicate_job(source.id, _USER)
+    copy = await mgr.duplicate_job(source.id)
 
     assert copy is not None and copy.triggers is not None and source.triggers is not None
     assert len(copy.triggers.webhooks) == 2
@@ -159,19 +157,17 @@ async def test_duplicating_twice_gives_distinct_names() -> None:
     mgr, _ = _manager()
     source = await _create(mgr)
 
-    first = await mgr.duplicate_job(source.id, _USER)
-    second = await mgr.duplicate_job(source.id, _USER)
+    first = await mgr.duplicate_job(source.id)
+    second = await mgr.duplicate_job(source.id)
 
     assert first is not None and second is not None
     assert len({source.name, first.name, second.name}) == 3
 
 
-async def test_duplicate_job_of_a_missing_or_foreign_job_is_none() -> None:
+async def test_duplicate_job_of_a_missing_job_is_none() -> None:
     mgr, _ = _manager()
-    source = await _create(mgr)
 
-    assert await mgr.duplicate_job("missing", _USER) is None
-    assert await mgr.duplicate_job(source.id, "someone-else") is None
+    assert await mgr.duplicate_job("missing") is None
 
 
 def test_every_job_field_is_either_creatable_or_classified() -> None:

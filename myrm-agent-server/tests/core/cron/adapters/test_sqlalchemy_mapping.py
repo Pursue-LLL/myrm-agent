@@ -319,14 +319,10 @@ def test_every_orm_column_is_mapped_on_each_path(
     assert not unmapped, f"{mapper.__name__} never maps {sorted(unmapped)}"
 
 
-# ``user_id`` is read back as the single user "default".
-_NOT_PERSISTED_FIELDS = frozenset({"user_id"})
-
-
-def test_every_cron_job_field_has_a_column_or_is_listed_as_not_persisted() -> None:
+def test_every_cron_job_field_has_a_column() -> None:
     """A field without a column is accepted by every layer above the store and is lost when the job is read back."""
     without_column = {field.name for field in fields(CronJob)} - _COLUMNS
-    assert without_column == _NOT_PERSISTED_FIELDS, sorted(without_column ^ _NOT_PERSISTED_FIELDS)
+    assert not without_column, sorted(without_column)
 
 
 @pytest.mark.parametrize(
@@ -363,7 +359,6 @@ async def policy_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIte
 def _job(pre_condition_script: str | None = None) -> CronJob:
     return CronJob(
         id="mapped",
-        user_id="user",
         name="mapped",
         job_type=JobType.ROUTER,
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0),

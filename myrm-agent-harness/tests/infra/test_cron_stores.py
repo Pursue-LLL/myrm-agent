@@ -24,13 +24,11 @@ _NOW = datetime(2026, 3, 29, 12, 0, 0, tzinfo=UTC)
 
 def _job(
     job_id: str = "j1",
-    user_id: str = "u1",
     status: JobStatus = JobStatus.ACTIVE,
     next_run_at: datetime | None = None,
 ) -> CronJob:
     return CronJob(
         id=job_id,
-        user_id=user_id,
         name=f"test-{job_id}",
         job_type=JobType.SHELL,
         command="echo hi",

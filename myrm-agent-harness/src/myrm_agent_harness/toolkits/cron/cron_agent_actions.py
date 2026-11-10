@@ -71,7 +71,6 @@ async def _do_blueprints(provider: BlueprintCatalogProvider | None) -> str:
 
 async def _do_add(
     mgr: CronManager,
-    user_id: str,
     prompt: str,
     command: str,
     model: str,
@@ -199,7 +198,6 @@ async def _do_add(
 
     try:
         job = await mgr.create_job(
-            user_id=user_id,
             name=task_name,
             job_type=job_type,
             schedule=schedule,
@@ -275,7 +273,6 @@ async def _do_list(mgr: CronManager, name_filter: str) -> str:
 
 async def _do_update(
     mgr: CronManager,
-    user_id: str,
     job_id: str,
     prompt: str,
     command: str,
@@ -340,7 +337,7 @@ async def _do_update(
     )
 
     try:
-        job = await mgr.update_job(job_id, user_id, patch)
+        job = await mgr.update_job(job_id, patch)
     except ValueError as exc:
         return str(exc)
 
@@ -376,24 +373,24 @@ async def _do_update(
     return json.dumps(result, ensure_ascii=False)
 
 
-async def _do_remove(mgr: CronManager, user_id: str, job_id: str) -> str:
+async def _do_remove(mgr: CronManager, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
-    deleted = await mgr.delete_job(job_id, user_id)
+    deleted = await mgr.delete_job(job_id)
     return f"Task {job_id} deleted." if deleted else f"Task {job_id} not found."
 
 
-async def _do_run(mgr: CronManager, user_id: str, job_id: str) -> str:
+async def _do_run(mgr: CronManager, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
-    triggered = await mgr.trigger_now(job_id, user_id)
+    triggered = await mgr.trigger_now(job_id)
     return f"Task {job_id} triggered." if triggered else f"Task {job_id} not found or not active."
 
 
-async def _do_pause(mgr: CronManager, user_id: str, job_id: str) -> str:
+async def _do_pause(mgr: CronManager, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
-    job = await mgr.pause_job(job_id, user_id)
+    job = await mgr.pause_job(job_id)
     if not job:
         return f"Task {job_id} not found."
     return json.dumps(
@@ -402,11 +399,11 @@ async def _do_pause(mgr: CronManager, user_id: str, job_id: str) -> str:
     )
 
 
-async def _do_resume(mgr: CronManager, user_id: str, job_id: str) -> str:
+async def _do_resume(mgr: CronManager, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
     try:
-        job = await mgr.resume_job(job_id, user_id)
+        job = await mgr.resume_job(job_id)
     except ValueError:
         return f"Cannot resume task {job_id}"
     if not job:

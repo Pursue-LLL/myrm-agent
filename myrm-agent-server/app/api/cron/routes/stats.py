@@ -25,8 +25,6 @@ from app.api.cron.schemas import (
 
 router = APIRouter()
 
-USER_ID = "default"
-
 
 @router.get("/stats/usage", response_model=UsageStatsResponse)
 async def usage_stats(
@@ -34,7 +32,7 @@ async def usage_stats(
 ) -> UsageStatsResponse:
     from app.core.cron.adapters.sqlalchemy_aggregation import aggregate_usage
 
-    result = await aggregate_usage(USER_ID, days=days)
+    result = await aggregate_usage(days=days)
     return UsageStatsResponse(
         summary=UsageSummary(**result["summary"]),
         by_day=[UsageByDay(**d) for d in result["by_day"]],

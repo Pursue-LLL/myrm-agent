@@ -36,8 +36,6 @@ from app.api.runs.stop_reason import (
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
-USER_ID = "default"
-
 
 def _safe_dt(dt: datetime | None, fallback: datetime | None = None) -> datetime:
     """Ensure a datetime is timezone-aware."""
@@ -71,7 +69,7 @@ async def _fetch_cron_runs(
 
     filter_status = cron_status_map[status_filter] if status_filter else None
 
-    runs = await mgr.list_runs(USER_ID, limit=limit, offset=0, status=filter_status)
+    runs = await mgr.list_runs(limit=limit, offset=0, status=filter_status)
 
     job_ids = list({r.job_id for r in runs})
     all_jobs = await mgr.list_jobs() if job_ids else []

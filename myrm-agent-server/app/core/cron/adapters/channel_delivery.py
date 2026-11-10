@@ -19,6 +19,7 @@ from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
 
 from app.channels import OutboundMessage
+from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
 
 from .channel_deliverables import collect_cron_deliverables
 from .feishu_bot_webhook import deliver_feishu_bot_webhook, is_feishu_bot_hook_url
@@ -93,7 +94,7 @@ class ChannelResultDelivery:
             channel=job.delivery.channel,
             recipient_id=recipient_id,
             content=content,
-            user_id=job.user_id,
+            user_id=SINGLE_TENANT_USER_ID,
             thread_id=job.delivery.thread_id,
             media=deliverables.media,
             components=deliverables.components,

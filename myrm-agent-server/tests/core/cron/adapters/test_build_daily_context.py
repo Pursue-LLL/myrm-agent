@@ -35,7 +35,6 @@ _STORE_PATH = "app.core.cron.adapters.setup.get_cron_store"
 def _make_daily_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "daily-1",
-        "user_id": "user-1",
         "name": "test-daily",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),

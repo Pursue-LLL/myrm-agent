@@ -36,7 +36,6 @@ from app.core.cron.blueprints import (
 )
 from app.core.cron.blueprints.job_spec import create_blueprint_job, fill_job_spec, to_job_spec
 
-_USER = "blueprint-user"
 _DEFAULT_TIMEOUT = 300
 
 
@@ -113,7 +112,6 @@ async def test_agent_tool_creates_the_job_the_blueprint_defines(blueprint: CronB
     store, manager = _manager()
     tool = create_cron_tools(
         manager,
-        _USER,
         current_model="model",
         blueprint_filler=lambda bp_id, slot_values, tz: fill_job_spec(bp_id, slot_values, locale="en", tz=tz),
     )[0]
@@ -139,7 +137,7 @@ async def test_blueprint_job_creator_creates_the_job_the_blueprint_defines(bluep
     store, manager = _manager()
 
     await create_blueprint_job(
-        EntitlementGuardedCronManager(manager), _USER, to_job_spec(fill), default_timeout_seconds=_DEFAULT_TIMEOUT
+        EntitlementGuardedCronManager(manager), to_job_spec(fill), default_timeout_seconds=_DEFAULT_TIMEOUT
     )
 
     (job,) = await store.list_jobs()
@@ -225,7 +223,6 @@ async def test_creator_applies_the_callers_own_name_schedule_agent_roots_and_tim
 
     await create_blueprint_job(
         EntitlementGuardedCronManager(manager),
-        _USER,
         spec,
         default_timeout_seconds=120,
         name="Own name",
@@ -250,7 +247,7 @@ async def test_creator_prefers_the_blueprints_declared_timeout_over_the_fallback
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 6 * * *"), prompt="p", name="n", timeout_seconds=900
     )
 
-    await create_blueprint_job(EntitlementGuardedCronManager(manager), _USER, spec, default_timeout_seconds=120)
+    await create_blueprint_job(EntitlementGuardedCronManager(manager), spec, default_timeout_seconds=120)
 
     (job,) = await store.list_jobs()
     assert job.timeout_seconds == 900

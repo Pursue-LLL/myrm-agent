@@ -46,20 +46,12 @@ class CronToolsMixin(ToolSetupBaseMixin):
             return None
         return DeliveryConfig(channel=channel, target=str(recipient))
 
-    async def _setup_cron_tools(
-        self,
-        tools: list[object],
-        user_id: str | None = None,
-    ) -> None:
+    async def _setup_cron_tools(self, tools: list[object]) -> None:
         """Set up scheduled task (cron) tools as Turn1 eager.
 
         Only called when ``enable_cron_eager=True`` (user opted in).
         """
         try:
-            if not user_id:
-                logger.warning("Cron tools load skipped: user_id is missing")
-                return
-
             from myrm_agent_harness.toolkits import create_cron_tools
 
             from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
@@ -71,7 +63,6 @@ class CronToolsMixin(ToolSetupBaseMixin):
 
             cron_tools = create_cron_tools(
                 get_cron_manager(),
-                user_id=user_id,
                 current_model=self.model_cfg.model,
                 chat_id=self.chat_id,
                 agent_id=self.agent_id,

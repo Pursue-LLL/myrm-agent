@@ -34,7 +34,6 @@ def _make_schedule(kind: ScheduleKind = ScheduleKind.CRON) -> Schedule:
 def _make_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "job-1",
-        "user_id": "user-1",
         "name": "Test Job",
         "job_type": JobType.AGENT,
         "schedule": _make_schedule(),

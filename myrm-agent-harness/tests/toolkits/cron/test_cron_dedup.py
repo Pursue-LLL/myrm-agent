@@ -21,7 +21,6 @@ from myrm_agent_harness.toolkits.cron.types import (
 def _make_job(*, deduplicate: bool = False, last_output_hash: str | None = None) -> CronJob:
     return CronJob(
         id="test-job",
-        user_id="user-1",
         name="Test Job",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),

@@ -21,7 +21,6 @@ from app.core.cron.adapters.acceptance_verification import (
 def _minimal_job(**overrides: object) -> CronJob:
     payload: dict[str, object] = {
         "id": "job-ac-1",
-        "user_id": "user-1",
         "name": "test-acceptance",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.INTERVAL, interval_ms=60_000),

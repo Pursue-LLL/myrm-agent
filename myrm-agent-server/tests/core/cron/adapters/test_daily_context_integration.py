@@ -35,7 +35,6 @@ _STORE_PATCH = "app.core.cron.adapters.setup.get_cron_store"
 def _make_daily_job(job_id: str = "daily-integ-1") -> CronJob:
     return CronJob(
         id=job_id,
-        user_id="user-integ",
         name="Hourly Monitor",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -154,7 +153,6 @@ async def test_daily_context_isolated_job_not_affected() -> None:
     store = InMemoryCronStore()
     isolated_job = CronJob(
         id="isolated-1",
-        user_id="user-integ",
         name="Isolated Task",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -216,7 +214,6 @@ async def test_main_session_target_not_affected() -> None:
     store = InMemoryCronStore()
     main_job = CronJob(
         id="main-1",
-        user_id="user-integ",
         name="Main Session",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),

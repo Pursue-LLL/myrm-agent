@@ -36,8 +36,6 @@ from . import helpers as _h
 
 router = APIRouter()
 
-USER_ID = "default"
-
 
 def _job_to_response(job: CronJob, enabled: bool) -> HeartbeatStatusResponse:
     """Build a HeartbeatStatusResponse from a CronJob."""
@@ -108,7 +106,6 @@ async def heartbeat_enable(body: HeartbeatEnableRequest) -> HeartbeatStatusRespo
     try:
         job = await enable_heartbeat(
             mgr,
-            USER_ID,
             interval_ms=body.interval_ms,
             schedule=schedule,
             prompt=body.prompt,
@@ -128,7 +125,7 @@ async def heartbeat_disable() -> HeartbeatStatusResponse:
     )
 
     mgr = _h._get_manager()
-    disabled = await disable_heartbeat(mgr, USER_ID)
+    disabled = await disable_heartbeat(mgr)
     if not disabled:
         raise HTTPException(status_code=404, detail="Heartbeat not found")
     status = await get_heartbeat_status(mgr)

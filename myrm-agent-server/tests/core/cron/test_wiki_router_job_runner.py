@@ -34,7 +34,6 @@ from app.services.wiki.source_sync.schemas import (
 def _router_job(*, command: str) -> CronJob:
     return CronJob(
         id="job-1",
-        user_id="default",
         name="Wiki router",
         job_type=JobType.ROUTER,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 3 * * 0,6"),

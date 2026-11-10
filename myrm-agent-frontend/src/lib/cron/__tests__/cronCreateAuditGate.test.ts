@@ -18,7 +18,6 @@ import { getCronJob, pauseCronJob, resumeCronJob } from '@/services/cron';
 
 const baseJob: CronJob = {
   id: 'job-1',
-  user_id: 'default',
   name: 'Digest',
   job_type: 'agent',
   status: 'active',

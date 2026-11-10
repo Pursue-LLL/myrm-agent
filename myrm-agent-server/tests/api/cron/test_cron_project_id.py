@@ -157,7 +157,6 @@ async def test_agent_runner_workspace_path_inheritance() -> None:
 
     job = CronJob(
         id="test-job-proj",
-        user_id="default",
         name="Scheduled Repo Sync",
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=10000),
         job_type=JobType.AGENT,

@@ -14,7 +14,6 @@ from app.services.agent.agent_service import AgentService
 
 from . import common
 from .common import (
-    _USER_ID,
     _ApplyMutation,
     logger,
 )
@@ -43,7 +42,7 @@ async def _rollback_apply(mutation: _ApplyMutation) -> None:
         mgr = common.get_cron_manager()
         for cron_job_id in mutation.created_cron_job_ids:
             try:
-                await mgr.delete_job(cron_job_id, _USER_ID)
+                await mgr.delete_job(cron_job_id)
             except Exception as exc:
                 logger.warning("Rollback failed to delete cron job %s: %s", cron_job_id, exc)
     if mutation.created_agent_id:

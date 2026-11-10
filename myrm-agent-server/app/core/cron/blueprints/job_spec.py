@@ -97,7 +97,6 @@ def fill_job_spec(blueprint_id: str, values: dict[str, str], *, locale: str, tz:
 
 async def create_blueprint_job(
     manager: EntitlementGuardedCronManager,
-    user_id: str,
     spec: BlueprintJobSpec,
     *,
     default_timeout_seconds: int,
@@ -106,13 +105,12 @@ async def create_blueprint_job(
     agent_id: str | None = None,
     allowed_roots: tuple[str, ...] = (),
 ) -> CronJob:
-    """Create the job ``spec`` defines. The caller supplies what a blueprint cannot: owner binding and roots.
+    """Create the job ``spec`` defines. The caller supplies what a blueprint cannot: the agent and the allowed roots.
 
     ``name`` and ``schedule`` replace the blueprint's when the caller keeps its own (an existing job being
     rebuilt); ``default_timeout_seconds`` applies when the blueprint declares no timeout.
     """
     return await manager.create_job(
-        user_id,
         name or spec.name,
         spec.job_type,
         schedule or spec.schedule,

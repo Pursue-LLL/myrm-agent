@@ -24,7 +24,6 @@ def _job(url: str = "https://example.com/hook", secret: str | None = None) -> Cr
 
     return CronJob(
         id="j1",
-        user_id="u1",
         name="test",
         job_type=JobType.SHELL,
         command="echo hi",

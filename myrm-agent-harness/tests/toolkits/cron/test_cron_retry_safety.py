@@ -32,7 +32,6 @@ def _job(**overrides: object) -> CronJob:
     schedule = overrides.pop("schedule", Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"))
     fields: dict[str, object] = {
         "id": "job-1",
-        "user_id": "user-1",
         "name": "Morning digest",
         "job_type": JobType.AGENT,
         "schedule": schedule,

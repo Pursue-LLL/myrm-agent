@@ -27,13 +27,11 @@ _SENTINEL = object()
 
 def _make_job(
     job_id: str = "j1",
-    user_id: str = "u1",
     status: JobStatus = JobStatus.ACTIVE,
     next_run_at: datetime | object | None = _SENTINEL,
 ) -> CronJob:
     return CronJob(
         id=job_id,
-        user_id=user_id,
         name=f"Job {job_id}",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -70,8 +68,8 @@ def store() -> InMemoryCronStore:
 class TestCountJobs:
     @pytest.mark.asyncio
     async def test_counts_every_job(self, store: InMemoryCronStore):
-        await store.save_job(_make_job("j1", "u1"))
-        await store.save_job(_make_job("j2", "u2"))
+        await store.save_job(_make_job("j1"))
+        await store.save_job(_make_job("j2"))
         assert await store.count_jobs() == 2
 
 

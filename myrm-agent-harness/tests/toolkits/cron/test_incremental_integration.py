@@ -53,7 +53,6 @@ class TestIncrementalIntegration:
         """Create test job with monitoring enabled."""
         return CronJob(
             id="test-job",
-            user_id="user1",
             name="RSS Monitor",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),

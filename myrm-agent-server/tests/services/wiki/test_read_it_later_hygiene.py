@@ -18,7 +18,6 @@ from app.services.wiki.source_sync.read_it_later_hygiene import (
 def _legacy_job(*, job_id: str = "job-1") -> CronJob:
     return CronJob(
         id=job_id,
-        user_id="default",
         name="Second Brain · Read-it-Later",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 6 * * *"),
@@ -30,7 +29,6 @@ def _legacy_job(*, job_id: str = "job-1") -> CronJob:
 def _router_job(*, job_id: str = "job-2") -> CronJob:
     return CronJob(
         id=job_id,
-        user_id="default",
         name="Second Brain · Read-it-Later",
         job_type=JobType.ROUTER,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 6 * * *"),
@@ -61,9 +59,9 @@ async def test_migrate_recreates_stale_job() -> None:
 
     assert result.migrated_count == 1
     assert result.id_remaps == {"job-1": "job-new"}
-    mgr.delete_job.assert_awaited_once_with("job-1", "default")
+    mgr.delete_job.assert_awaited_once_with("job-1")
     mgr.create_job.assert_awaited_once()
     call = mgr.create_job.await_args
-    assert call.args == ("default", legacy.name, JobType.ROUTER, legacy.schedule)
+    assert call.args == (legacy.name, JobType.ROUTER, legacy.schedule)
     assert call.kwargs["command"] == WIKI_SOURCE_SYNC_COMMAND
     assert (call.kwargs["deduplicate"], call.kwargs["skip_if_active"], call.kwargs["timeout_seconds"]) == (True, True, 120)

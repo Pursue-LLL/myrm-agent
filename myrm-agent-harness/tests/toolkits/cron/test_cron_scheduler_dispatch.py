@@ -26,7 +26,6 @@ from myrm_agent_harness.toolkits.cron.types import (
 def _make_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "job-1",
-        "user_id": "user-1",
         "name": "Test Job",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),

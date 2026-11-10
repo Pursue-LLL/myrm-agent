@@ -110,38 +110,30 @@ class CronManager(CronValidationMixin):
             project_id=project_id,
         )
 
-    async def get_job(self, job_id: str, user_id: str) -> CronJob | None:
-        job = await self._store.get_job(job_id)
-        if job and job.user_id != user_id:
-            return None
-        return job
+    async def get_job(self, job_id: str) -> CronJob | None:
+        return await self._store.get_job(job_id)
 
     async def list_runs(
         self,
-        user_id: str,
         *,
         job_id: str | None = None,
         limit: int = 20,
         offset: int = 0,
         status: str | None = None,
     ) -> list[CronRunRecord]:
-        if job_id:
-            job = await self._store.get_job(job_id)
-            if not job or job.user_id != user_id:
-                return []
+        # Run records outlive a deleted job (a one-shot job is deleted after it ran) but are not served by its id.
+        if job_id and await self._store.get_job(job_id) is None:
+            return []
         return await self._store.list_runs(job_id, limit=limit, offset=offset, status=status)
 
     async def count_runs(
         self,
-        user_id: str,
         *,
         job_id: str | None = None,
         status: str | None = None,
     ) -> int:
-        if job_id:
-            job = await self._store.get_job(job_id)
-            if not job or job.user_id != user_id:
-                return 0
+        if job_id and await self._store.get_job(job_id) is None:
+            return 0
         return await self._store.count_runs(job_id, status=status)
 
     async def get_monitor_state(self, job_id: str) -> MonitorState | None:
@@ -161,7 +153,6 @@ class CronManager(CronValidationMixin):
 
     async def create_job(
         self,
-        user_id: str,
         name: str,
         job_type: JobType,
         schedule: Schedule,
@@ -219,7 +210,6 @@ class CronManager(CronValidationMixin):
         try:
             job = CronJob(
                 id=job_id,
-                user_id=user_id,
                 name=final_name,
                 job_type=job_type,
                 schedule=schedule,
@@ -271,7 +261,7 @@ class CronManager(CronValidationMixin):
         logger.warning("Cron job created: %s (%s)", name, job.id)
         return job
 
-    async def duplicate_job(self, job_id: str, user_id: str) -> CronJob | None:
+    async def duplicate_job(self, job_id: str) -> CronJob | None:
         """Duplicate an existing job with all configuration fields.
 
         Every ``CronJob`` field is carried over except the identity (id, name,
@@ -281,7 +271,7 @@ class CronManager(CronValidationMixin):
         The new job starts in PAUSED status to prevent accidental triggering.
         Webhook triggers get fresh path/secret to avoid conflicts.
         """
-        source = await self.get_job(job_id, user_id)
+        source = await self._store.get_job(job_id)
         if source is None:
             return None
 
@@ -349,14 +339,14 @@ class CronManager(CronValidationMixin):
             job_id,
         )
 
-    async def update_job(self, job_id: str, user_id: str, patch: CronJobPatch) -> CronJob | None:
+    async def update_job(self, job_id: str, patch: CronJobPatch) -> CronJob | None:
         """Update job fields via patch.
 
         Auto-resets monitor baseline when command/prompt/monitor_type changes
         with enabled monitor.
         """
         job = await self._store.get_job(job_id)
-        if not job or job.user_id != user_id:
+        if not job:
             return None
         self._validate_update_content(job, patch)
 
@@ -506,21 +496,19 @@ class CronManager(CronValidationMixin):
         self._scheduler.notify_change()
         return job
 
-    async def delete_job(self, job_id: str, user_id: str) -> bool:
-        job = await self._store.get_job(job_id)
-        if not job or job.user_id != user_id:
+    async def delete_job(self, job_id: str) -> bool:
+        if await self._store.get_job(job_id) is None:
             return False
         deleted = await self._store.delete_job_cascade(job_id)
         if deleted:
             self._scheduler.notify_change()
         return deleted
 
-    async def reset_monitor_baseline(self, job_id: str, user_id: str) -> bool:
+    async def reset_monitor_baseline(self, job_id: str) -> bool:
         """Reset monitor baseline to restart incremental tracking.
 
         Args:
             job_id: Job identifier.
-            user_id: User identifier (for permission check).
 
         Returns:
             True if baseline was reset, False if job not found or no baseline exists.
@@ -530,8 +518,7 @@ class CronManager(CronValidationMixin):
             - Restart monitoring after changing job scope
             - Testing and debugging
         """
-        job = await self._store.get_job(job_id)
-        if not job or job.user_id != user_id:
+        if await self._store.get_job(job_id) is None:
             return False
 
         state = await self._store.get_monitor_state(job_id)
@@ -542,16 +529,16 @@ class CronManager(CronValidationMixin):
         state.last_reset_at = datetime.now(UTC)
         state.last_reset_reason = "manual"
         await self._store.save_monitor_state(state)
-        logger.info("Manually reset monitor baseline for job %s (user: %s)", job_id, user_id)
+        logger.info("Manually reset monitor baseline for job %s", job_id)
 
         return True
 
-    async def pause_job(self, job_id: str, user_id: str) -> CronJob | None:
-        return await self.update_job(job_id, user_id, CronJobPatch(status=JobStatus.PAUSED))
+    async def pause_job(self, job_id: str) -> CronJob | None:
+        return await self.update_job(job_id, CronJobPatch(status=JobStatus.PAUSED))
 
-    async def resume_job(self, job_id: str, user_id: str) -> CronJob | None:
+    async def resume_job(self, job_id: str) -> CronJob | None:
         job = await self._store.get_job(job_id)
-        if not job or job.user_id != user_id:
+        if not job:
             return None
 
         now = datetime.now(UTC)
@@ -566,10 +553,10 @@ class CronManager(CronValidationMixin):
         self._scheduler.notify_change()
         return job
 
-    async def trigger_now(self, job_id: str, user_id: str) -> bool:
+    async def trigger_now(self, job_id: str) -> bool:
         """Set next_run_at to now so the scheduler picks it up immediately."""
         job = await self._store.get_job(job_id)
-        if not job or job.user_id != user_id or job.status != JobStatus.ACTIVE:
+        if not job or job.status != JobStatus.ACTIVE:
             return False
 
         job.next_run_at = datetime.now(UTC)

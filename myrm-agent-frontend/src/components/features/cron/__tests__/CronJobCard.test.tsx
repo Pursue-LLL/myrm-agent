@@ -72,7 +72,6 @@ vi.mock('../CronWorkflowTemplateBinding', () => ({ CronWorkflowTemplateBadge: ()
 
 const BASE_JOB: CronJob = {
   id: 'job-1',
-  user_id: 'u1',
   name: 'Daily digest',
   job_type: 'agent',
   status: 'active',

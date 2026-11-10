@@ -177,7 +177,6 @@ async def _fire(job: CronJob, runner: _Runner) -> CronJob:
 def _job(**overrides: object) -> CronJob:
     fields: dict[str, object] = {
         "id": "job-1",
-        "user_id": "default",
         "name": _JOB,
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0),

@@ -45,7 +45,6 @@ def _make_heartbeat_job(
 ) -> CronJob:
     return CronJob(
         id="hb-1",
-        user_id="owner-1",
         name=HEARTBEAT_JOB_NAME,
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=interval_ms),
@@ -71,12 +70,11 @@ class TestEnableHeartbeat:
         created = _make_heartbeat_job()
         mgr.create_job = AsyncMock(return_value=created)
 
-        result = await enable_heartbeat(mgr, "owner-1")
+        result = await enable_heartbeat(mgr)
 
         assert result is created
         mgr.create_job.assert_awaited_once()
         call_kwargs = mgr.create_job.call_args[1]
-        assert call_kwargs["user_id"] == "owner-1"
         assert call_kwargs["name"] == HEARTBEAT_JOB_NAME
         assert call_kwargs["job_type"] == JobType.AGENT
         assert call_kwargs["prompt"] == _DEFAULT_PROMPT
@@ -90,7 +88,7 @@ class TestEnableHeartbeat:
         created = _make_heartbeat_job(interval_ms=60_000, prompt="custom", model="gpt-4o-mini")
         mgr.create_job = AsyncMock(return_value=created)
 
-        result = await enable_heartbeat(mgr, "owner-1", interval_ms=60_000, prompt="custom", model="gpt-4o-mini")
+        result = await enable_heartbeat(mgr, interval_ms=60_000, prompt="custom", model="gpt-4o-mini")
 
         assert result is created
         call_kwargs = mgr.create_job.call_args[1]
@@ -107,12 +105,12 @@ class TestEnableHeartbeat:
         updated = _make_heartbeat_job(status=JobStatus.ACTIVE)
         mgr.update_job = AsyncMock(return_value=updated)
 
-        result = await enable_heartbeat(mgr, "owner-1")
+        result = await enable_heartbeat(mgr)
 
         assert result is updated
         mgr.create_job.assert_not_awaited()
         mgr.update_job.assert_awaited_once()
-        patch = mgr.update_job.call_args[0][2]
+        patch = mgr.update_job.call_args[0][1]
         assert patch.status == JobStatus.ACTIVE
 
     @pytest.mark.asyncio
@@ -123,7 +121,7 @@ class TestEnableHeartbeat:
         mgr.list_jobs = AsyncMock(return_value=[existing])
         mgr.update_job = AsyncMock(return_value=None)
 
-        result = await enable_heartbeat(mgr, "owner-1")
+        result = await enable_heartbeat(mgr)
 
         assert result is existing
 
@@ -135,9 +133,9 @@ class TestEnableHeartbeat:
         mgr.list_jobs = AsyncMock(return_value=[existing])
         mgr.update_job = AsyncMock(return_value=existing)
 
-        await enable_heartbeat(mgr, "owner-1")
+        await enable_heartbeat(mgr)
 
-        patch = mgr.update_job.call_args[0][2]
+        patch = mgr.update_job.call_args[0][1]
         assert patch.prompt == "my custom prompt"
 
 
@@ -154,16 +152,16 @@ class TestDisableHeartbeat:
         mgr.list_jobs = AsyncMock(return_value=[existing])
         mgr.pause_job = AsyncMock(return_value=existing)
 
-        result = await disable_heartbeat(mgr, "owner-1")
+        result = await disable_heartbeat(mgr)
 
         assert result is True
-        mgr.pause_job.assert_awaited_once_with("hb-1", "owner-1")
+        mgr.pause_job.assert_awaited_once_with("hb-1")
 
     @pytest.mark.asyncio
     async def test_disable_nonexistent(self):
         mgr = _make_manager()
 
-        result = await disable_heartbeat(mgr, "owner-1")
+        result = await disable_heartbeat(mgr)
 
         assert result is False
         mgr.pause_job.assert_not_awaited()
@@ -176,7 +174,7 @@ class TestDisableHeartbeat:
         mgr.list_jobs = AsyncMock(return_value=[existing])
         mgr.pause_job = AsyncMock(return_value=None)
 
-        result = await disable_heartbeat(mgr, "owner-1")
+        result = await disable_heartbeat(mgr)
 
         assert result is False
 
@@ -231,7 +229,6 @@ class TestFindHeartbeat:
         """Heartbeat job should be found even among other jobs."""
         other_job = CronJob(
             id="other-1",
-            user_id="owner-1",
             name="Other Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -266,7 +263,6 @@ class TestCronSchedule:
         cron_sched = Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *", tz="Asia/Shanghai")
         created = CronJob(
             id="hb-cron",
-            user_id="owner-1",
             name=HEARTBEAT_JOB_NAME,
             job_type=JobType.AGENT,
             schedule=cron_sched,
@@ -278,7 +274,7 @@ class TestCronSchedule:
         )
         mgr.create_job = AsyncMock(return_value=created)
 
-        result = await enable_heartbeat(mgr, "owner-1", schedule=cron_sched)
+        result = await enable_heartbeat(mgr, schedule=cron_sched)
 
         assert result is created
         call_kwargs = mgr.create_job.call_args[1]
@@ -294,7 +290,7 @@ class TestCronSchedule:
         created = _make_heartbeat_job()
         mgr.create_job = AsyncMock(return_value=created)
 
-        await enable_heartbeat(mgr, "owner-1", interval_ms=60_000, schedule=cron_sched)
+        await enable_heartbeat(mgr, interval_ms=60_000, schedule=cron_sched)
 
         call_kwargs = mgr.create_job.call_args[1]
         assert call_kwargs["schedule"].kind == ScheduleKind.CRON
@@ -310,9 +306,9 @@ class TestCronSchedule:
         mgr.update_job = AsyncMock(return_value=updated)
         cron_sched = Schedule(kind=ScheduleKind.CRON, expr="30 8 * * 1-5")
 
-        await enable_heartbeat(mgr, "owner-1", schedule=cron_sched)
+        await enable_heartbeat(mgr, schedule=cron_sched)
 
-        patch = mgr.update_job.call_args[0][2]
+        patch = mgr.update_job.call_args[0][1]
         assert patch.schedule.kind == ScheduleKind.CRON
         assert patch.schedule.expr == "30 8 * * 1-5"
 
@@ -323,7 +319,7 @@ class TestCronSchedule:
         created = _make_heartbeat_job()
         mgr.create_job = AsyncMock(return_value=created)
 
-        await enable_heartbeat(mgr, "owner-1", interval_ms=3_600_000)
+        await enable_heartbeat(mgr, interval_ms=3_600_000)
 
         call_kwargs = mgr.create_job.call_args[1]
         assert call_kwargs["schedule"].kind == ScheduleKind.INTERVAL
@@ -343,7 +339,7 @@ class TestAgentIdBinding:
         created = _make_heartbeat_job()
         mgr.create_job = AsyncMock(return_value=created)
 
-        await enable_heartbeat(mgr, "owner-1", agent_id="agent-scout")
+        await enable_heartbeat(mgr, agent_id="agent-scout")
 
         call_kwargs = mgr.create_job.call_args[1]
         assert call_kwargs["agent_id"] == "agent-scout"
@@ -355,7 +351,7 @@ class TestAgentIdBinding:
         created = _make_heartbeat_job()
         mgr.create_job = AsyncMock(return_value=created)
 
-        await enable_heartbeat(mgr, "owner-1")
+        await enable_heartbeat(mgr)
 
         call_kwargs = mgr.create_job.call_args[1]
         assert call_kwargs["agent_id"] is None
@@ -368,9 +364,9 @@ class TestAgentIdBinding:
         mgr.list_jobs = AsyncMock(return_value=[existing])
         mgr.update_job = AsyncMock(return_value=existing)
 
-        await enable_heartbeat(mgr, "owner-1", agent_id="agent-patrol")
+        await enable_heartbeat(mgr, agent_id="agent-patrol")
 
-        patch = mgr.update_job.call_args[0][2]
+        patch = mgr.update_job.call_args[0][1]
         assert patch.agent_id == "agent-patrol"
 
     @pytest.mark.asyncio
@@ -381,9 +377,9 @@ class TestAgentIdBinding:
         mgr.list_jobs = AsyncMock(return_value=[existing])
         mgr.update_job = AsyncMock(return_value=existing)
 
-        await enable_heartbeat(mgr, "owner-1", agent_id=None)
+        await enable_heartbeat(mgr, agent_id=None)
 
-        patch = mgr.update_job.call_args[0][2]
+        patch = mgr.update_job.call_args[0][1]
         assert patch.agent_id == ""
 
 

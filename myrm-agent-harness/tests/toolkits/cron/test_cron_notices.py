@@ -35,7 +35,6 @@ EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger
 def _job(**overrides: object) -> CronJob:
     fields: dict[str, object] = {
         "id": "job-1",
-        "user_id": "user-1",
         "name": "Water the plants",
         "job_type": JobType.AGENT,
         "schedule": EVERY_HOUR,

@@ -34,8 +34,6 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-USER_ID = "test-user"
-
 
 class FakeDelivery:
     async def deliver(self, job, result):
@@ -64,7 +62,7 @@ def manager(store: InMemoryCronStore, scheduler: CronScheduler) -> CronManager:
 
 @pytest.fixture
 def tool(manager: CronManager):
-    tools = create_cron_tools(manager, USER_ID, current_model="test-model")
+    tools = create_cron_tools(manager, current_model="test-model")
     return tools[0]
 
 
@@ -118,7 +116,6 @@ class TestPauseResume:
     @pytest.mark.asyncio
     async def test_pause_active_job(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test-job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -130,20 +127,19 @@ class TestPauseResume:
         assert parsed["action"] == "pause"
         assert parsed["job_id"] == job.id
 
-        updated = await manager.get_job(job.id, USER_ID)
+        updated = await manager.get_job(job.id)
         assert updated is not None
         assert updated.status == JobStatus.PAUSED
 
     @pytest.mark.asyncio
     async def test_resume_paused_job(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test-job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
             prompt="check something",
         )
-        await manager.pause_job(job.id, USER_ID)
+        await manager.pause_job(job.id)
 
         result = await tool.ainvoke({"action": "resume", "job_id": job.id})
         parsed = json.loads(result)
@@ -151,7 +147,7 @@ class TestPauseResume:
         assert parsed["action"] == "resume"
         assert "next_run" in parsed
 
-        updated = await manager.get_job(job.id, USER_ID)
+        updated = await manager.get_job(job.id)
         assert updated is not None
         assert updated.status == JobStatus.ACTIVE
 
@@ -197,7 +193,7 @@ class TestAddWithLimits:
         assert parsed["status"] == "success"
         assert parsed["max_fires"] == 100
 
-        job = await manager.get_job(parsed["job_id"], USER_ID)
+        job = await manager.get_job(parsed["job_id"])
         assert job is not None
         assert job.max_fires == 100
 
@@ -216,7 +212,7 @@ class TestAddWithLimits:
         assert parsed["status"] == "success"
         assert "expires_at" in parsed
 
-        job = await manager.get_job(parsed["job_id"], USER_ID)
+        job = await manager.get_job(parsed["job_id"])
         assert job is not None
         assert job.expires_at is not None
         assert (job.expires_at - datetime.now(UTC)).days in (6, 7)
@@ -262,7 +258,7 @@ class TestAddWithLimits:
         assert parsed["status"] == "success"
         assert "max_fires" not in parsed
 
-        job = await manager.get_job(parsed["job_id"], USER_ID)
+        job = await manager.get_job(parsed["job_id"])
         assert job is not None
         assert job.max_fires is None
 
@@ -276,7 +272,6 @@ class TestUpdateWithLimits:
     @pytest.mark.asyncio
     async def test_update_max_fires(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -296,7 +291,6 @@ class TestUpdateWithLimits:
     @pytest.mark.asyncio
     async def test_update_expires_after(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -323,7 +317,6 @@ class TestListProgress:
     @pytest.mark.asyncio
     async def test_list_shows_fire_count_progress(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="auction-monitor",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -340,7 +333,6 @@ class TestListProgress:
     @pytest.mark.asyncio
     async def test_list_no_progress_without_max_fires(self, tool, manager: CronManager) -> None:
         await manager.create_job(
-            user_id=USER_ID,
             name="unlimited-job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -353,13 +345,12 @@ class TestListProgress:
     @pytest.mark.asyncio
     async def test_list_paused_job_icon(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="paused-task",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
             prompt="check",
         )
-        await manager.pause_job(job.id, USER_ID)
+        await manager.pause_job(job.id)
 
         result = await tool.ainvoke({"action": "list"})
         assert "||" in result
@@ -376,7 +367,6 @@ class TestEdgeCases:
     async def test_pause_resume_round_trip_preserves_history(self, tool, manager: CronManager) -> None:
         """Pause+resume preserves fire_count and configuration."""
         job = await manager.create_job(
-            user_id=USER_ID,
             name="round-trip",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -391,7 +381,7 @@ class TestEdgeCases:
         parsed = json.loads(result)
         assert parsed["status"] == "success"
 
-        updated = await manager.get_job(job.id, USER_ID)
+        updated = await manager.get_job(job.id)
         assert updated is not None
         assert updated.fire_count == 10
         assert updated.max_fires == 50
@@ -569,7 +559,7 @@ class TestExecutionPolicy:
         )
         parsed = json.loads(result)
         assert parsed["status"] == "success"
-        job = await manager.get_job(str(parsed["job_id"]), USER_ID)
+        job = await manager.get_job(str(parsed["job_id"]))
         assert job is not None
         assert job.required_capabilities == ("web_search_tool", "net_fetch")
         assert job.tools_allowed == ("web_search", "memory")
@@ -577,7 +567,6 @@ class TestExecutionPolicy:
     @pytest.mark.asyncio
     async def test_update_persists_tools_allowed_and_capabilities(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="policy-job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 10 * * *"),
@@ -593,7 +582,7 @@ class TestExecutionPolicy:
         )
         parsed = json.loads(result)
         assert parsed["status"] == "success"
-        updated = await manager.get_job(job.id, USER_ID)
+        updated = await manager.get_job(job.id)
         assert updated is not None
         assert updated.tools_allowed == ("web_search",)
         assert updated.required_capabilities == ("web_search_tool",)
@@ -611,7 +600,7 @@ class TestExecutionPolicy:
         )
         parsed = json.loads(result)
         assert parsed["status"] == "success"
-        job = await manager.get_job(str(parsed["job_id"]), USER_ID)
+        job = await manager.get_job(str(parsed["job_id"]))
         assert job is not None
         assert job.tools_allowed == ("web_search", "wiki")
 
@@ -738,7 +727,6 @@ class TestRemoveRun:
     @pytest.mark.asyncio
     async def test_remove_existing_job(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="to-delete",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -777,7 +765,6 @@ class TestUpdateEdgeCases:
     @pytest.mark.asyncio
     async def test_update_invalid_expires_after(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -795,7 +782,6 @@ class TestUpdateEdgeCases:
     @pytest.mark.asyncio
     async def test_update_with_schedule_change(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -814,7 +800,6 @@ class TestUpdateEdgeCases:
     @pytest.mark.asyncio
     async def test_update_schedule_build_error(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -833,7 +818,6 @@ class TestUpdateEdgeCases:
     @pytest.mark.asyncio
     async def test_update_with_max_fires_shows_fire_count(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -853,7 +837,6 @@ class TestUpdateEdgeCases:
     @pytest.mark.asyncio
     async def test_update_with_expires_at_in_response(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -884,7 +867,6 @@ class TestListEdgeCases:
     @pytest.mark.asyncio
     async def test_list_shell_job_type_tag(self, tool, manager: CronManager) -> None:
         await manager.create_job(
-            user_id=USER_ID,
             name="backup",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -896,14 +878,12 @@ class TestListEdgeCases:
     @pytest.mark.asyncio
     async def test_list_with_name_filter(self, tool, manager: CronManager) -> None:
         await manager.create_job(
-            user_id=USER_ID,
             name="daily-backup",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
             prompt="backup",
         )
         await manager.create_job(
-            user_id=USER_ID,
             name="stock-monitor",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -915,7 +895,6 @@ class TestListEdgeCases:
     @pytest.mark.asyncio
     async def test_list_shows_model_tag(self, tool, manager: CronManager) -> None:
         await manager.create_job(
-            user_id=USER_ID,
             name="model-job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -929,7 +908,6 @@ class TestListEdgeCases:
     async def test_list_multiple_jobs_count(self, tool, manager: CronManager) -> None:
         for i in range(3):
             await manager.create_job(
-                user_id=USER_ID,
                 name=f"job-{i}",
                 job_type=JobType.AGENT,
                 schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -947,7 +925,7 @@ class TestListEdgeCases:
 class TestModelFallback:
     @pytest.mark.asyncio
     async def test_add_uses_current_model_when_model_empty(self, manager: CronManager) -> None:
-        tools = create_cron_tools(manager, USER_ID, current_model="openai/gpt-4o")
+        tools = create_cron_tools(manager, current_model="openai/gpt-4o")
         t = tools[0]
         result = await t.ainvoke(
             {
@@ -963,7 +941,7 @@ class TestModelFallback:
 
     @pytest.mark.asyncio
     async def test_add_explicit_model_overrides_current(self, manager: CronManager) -> None:
-        tools = create_cron_tools(manager, USER_ID, current_model="openai/gpt-4o")
+        tools = create_cron_tools(manager, current_model="openai/gpt-4o")
         t = tools[0]
         result = await t.ainvoke(
             {
@@ -986,7 +964,7 @@ class TestModelFallback:
 class TestChatIdPassing:
     @pytest.mark.asyncio
     async def test_add_with_chat_id(self, manager: CronManager) -> None:
-        tools = create_cron_tools(manager, USER_ID, current_model="test", chat_id="chat-123")
+        tools = create_cron_tools(manager, current_model="test", chat_id="chat-123")
         t = tools[0]
         result = await t.ainvoke(
             {
@@ -997,7 +975,7 @@ class TestChatIdPassing:
             }
         )
         parsed = json.loads(result)
-        job = await manager.get_job(parsed["job_id"], USER_ID)
+        job = await manager.get_job(parsed["job_id"])
         assert job is not None
         assert job.chat_id == "chat-123"
 
@@ -1021,7 +999,7 @@ class TestFailureWebhook:
         )
         parsed = json.loads(result)
         assert parsed["status"] == "success"
-        job = await manager.get_job(parsed["job_id"], USER_ID)
+        job = await manager.get_job(parsed["job_id"])
         assert job is not None
         assert job.failure_delivery is not None
         assert job.failure_delivery.channel == "webhook"
@@ -1156,7 +1134,6 @@ class TestCronGuardMutatingBlocked:
     @pytest.mark.asyncio
     async def test_pause_blocked_during_cron_execution(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -1172,13 +1149,12 @@ class TestCronGuardMutatingBlocked:
     @pytest.mark.asyncio
     async def test_resume_blocked_during_cron_execution(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
             prompt="check",
         )
-        await manager.pause_job(job.id, USER_ID)
+        await manager.pause_job(job.id)
         token = enter_cron_execution_context()
         try:
             result = await tool.ainvoke({"action": "resume", "job_id": job.id})
@@ -1189,7 +1165,6 @@ class TestCronGuardMutatingBlocked:
     @pytest.mark.asyncio
     async def test_remove_blocked_during_cron_execution(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -1205,7 +1180,6 @@ class TestCronGuardMutatingBlocked:
     @pytest.mark.asyncio
     async def test_run_blocked_during_cron_execution(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -1259,7 +1233,6 @@ class TestUpdateFieldChanges:
     @pytest.mark.asyncio
     async def test_update_prompt(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -1275,14 +1248,13 @@ class TestUpdateFieldChanges:
         parsed = json.loads(result)
         assert parsed["status"] == "success"
 
-        updated = await manager.get_job(job.id, USER_ID)
+        updated = await manager.get_job(job.id)
         assert updated is not None
         assert updated.prompt == "new prompt"
 
     @pytest.mark.asyncio
     async def test_update_name(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="old-name",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -1301,7 +1273,6 @@ class TestUpdateFieldChanges:
     @pytest.mark.asyncio
     async def test_update_model(self, tool, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id=USER_ID,
             name="test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000),
@@ -1366,7 +1337,7 @@ class TestAgentIdInheritance:
 
     @pytest.mark.asyncio
     async def test_add_inherits_agent_id(self, manager: CronManager, store: InMemoryCronStore) -> None:
-        tools = create_cron_tools(manager, USER_ID, current_model="m", agent_id="my-agent")
+        tools = create_cron_tools(manager, current_model="m", agent_id="my-agent")
         tool = tools[0]
         result = await tool.ainvoke(
             {
@@ -1383,7 +1354,7 @@ class TestAgentIdInheritance:
 
     @pytest.mark.asyncio
     async def test_add_without_agent_id(self, manager: CronManager, store: InMemoryCronStore) -> None:
-        tools = create_cron_tools(manager, USER_ID, current_model="m")
+        tools = create_cron_tools(manager, current_model="m")
         tool = tools[0]
         result = await tool.ainvoke(
             {
@@ -1440,13 +1411,12 @@ class TestCronManageContextFrom:
     @pytest.mark.asyncio
     async def test_add_with_context_from(self, manager: CronManager, store: InMemoryCronStore) -> None:
         ref_job = await manager.create_job(
-            user_id=USER_ID,
             name="Data Collector",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.ONCE, run_at=datetime(2099, 1, 1, tzinfo=UTC)),
             prompt="collect data",
         )
-        tools = create_cron_tools(manager, USER_ID, current_model="m")
+        tools = create_cron_tools(manager, current_model="m")
         tool = tools[0]
         result = await tool.ainvoke(
             {
@@ -1466,7 +1436,7 @@ class TestCronManageContextFrom:
 
     @pytest.mark.asyncio
     async def test_add_with_invalid_context_from(self, manager: CronManager) -> None:
-        tools = create_cron_tools(manager, USER_ID, current_model="m")
+        tools = create_cron_tools(manager, current_model="m")
         tool = tools[0]
         result = await tool.ainvoke(
             {
@@ -1481,21 +1451,19 @@ class TestCronManageContextFrom:
     @pytest.mark.asyncio
     async def test_list_shows_context_from(self, manager: CronManager, store: InMemoryCronStore) -> None:
         ref_job = await manager.create_job(
-            user_id=USER_ID,
             name="Source",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.ONCE, run_at=datetime(2099, 1, 1, tzinfo=UTC)),
             prompt="collect",
         )
         await manager.create_job(
-            user_id=USER_ID,
             name="Consumer",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.ONCE, run_at=datetime(2099, 1, 1, tzinfo=UTC)),
             prompt="analyze",
             context_from=(ref_job.id,),
         )
-        tools = create_cron_tools(manager, USER_ID, current_model="m")
+        tools = create_cron_tools(manager, current_model="m")
         tool = tools[0]
         result = await tool.ainvoke({"action": "list"})
         assert ref_job.id in result
@@ -1601,7 +1569,7 @@ class TestMonitorViaCronManageTool:
         job_id = parsed["job_id"]
         assert parsed.get("monitor") == "set"
 
-        job = await manager.get_job(job_id, USER_ID)
+        job = await manager.get_job(job_id)
         assert job is not None
         assert job.monitor_config is not None
         assert job.monitor_config.monitor_type == "set"
@@ -1617,7 +1585,7 @@ class TestMonitorViaCronManageTool:
         parsed2 = json.loads(result2)
         assert parsed2["status"] == "success"
 
-        job_after = await manager.get_job(job_id, USER_ID)
+        job_after = await manager.get_job(job_id)
         assert job_after is not None
         assert job_after.monitor_config is None
 
@@ -1647,7 +1615,7 @@ class TestMonitorViaCronManageTool:
         parsed2 = json.loads(result2)
         assert parsed2.get("monitor") == "hash"
 
-        job = await manager.get_job(job_id, USER_ID)
+        job = await manager.get_job(job_id)
         assert job is not None
         assert job.monitor_config is not None
         assert job.monitor_config.monitor_type == "hash"
@@ -1698,7 +1666,6 @@ class TestCronPlatformV2:
     async def test_blueprints_action_on_demand(self, manager: CronManager) -> None:
         tools = create_cron_tools(
             manager,
-            USER_ID,
             blueprint_catalog_provider=lambda: "catalog-line-1",
         )
         result = await tools[0].ainvoke({"action": "blueprints"})
@@ -1708,7 +1675,6 @@ class TestCronPlatformV2:
     async def test_tool_description_has_no_injected_catalog(self, manager: CronManager) -> None:
         tools = create_cron_tools(
             manager,
-            USER_ID,
             blueprint_catalog_provider=lambda: "INJECTED_SHOULD_NOT_APPEAR",
         )
         description = tools[0].description or ""
@@ -1736,7 +1702,6 @@ class TestCronPlatformV2:
 
         tools = create_cron_tools(
             manager,
-            USER_ID,
             default_delivery=DeliveryConfig(channel="telegram", target="chat-99"),
         )
         result = await tools[0].ainvoke(
@@ -1757,13 +1722,13 @@ class TestCronPlatformV2:
             CRON_MANAGE_TOOL_DESCRIPTION_ZH,
         )
 
-        tools_en = create_cron_tools(manager, USER_ID, description_locale="en-US")
+        tools_en = create_cron_tools(manager, description_locale="en-US")
         assert tools_en[0].description == CRON_MANAGE_TOOL_DESCRIPTION_EN
         assert "Manage scheduled tasks" in (tools_en[0].description or "")
         assert "Event/Stream Task" in (tools_en[0].description or "")
         assert "LiteLLM" not in (tools_en[0].description or "")
 
-        tools_zh = create_cron_tools(manager, USER_ID, description_locale="zh-CN")
+        tools_zh = create_cron_tools(manager, description_locale="zh-CN")
         assert tools_zh[0].description == CRON_MANAGE_TOOL_DESCRIPTION_ZH
         assert "管理定时任务" in (tools_zh[0].description or "")
         assert "实时流/轮询事件任务" in (tools_zh[0].description or "")

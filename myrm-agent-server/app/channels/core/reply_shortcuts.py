@@ -111,7 +111,7 @@ class ReplyShortcutsMixin:
                 channel="slack",
                 recipient_id="C12345",
                 content="Cron job completed!",
-                user_id=job.user_id,
+                user_id=SINGLE_TENANT_USER_ID,
                 metadata={"job_name": "daily_report"}
             ))
 
@@ -119,7 +119,7 @@ class ReplyShortcutsMixin:
             await channel.broadcast(
                 "C12345",
                 "Cron job completed!",
-                user_id=job.user_id,
+                user_id=SINGLE_TENANT_USER_ID,
                 metadata={"job_name": "daily_report"}
             )
         """

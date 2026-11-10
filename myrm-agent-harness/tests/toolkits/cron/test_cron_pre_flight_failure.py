@@ -28,7 +28,6 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-USER = "user-1"
 EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0)
 CRASH = "exit code 1: RuntimeError: all_sources_failed"
 ALERT_AFTER_TWO = FailureAlertConfig(after=2, cooldown_seconds=900)
@@ -81,7 +80,7 @@ class Stack:
 
     async def create(self, schedule: Schedule = EVERY_HOUR, **options: object) -> CronJob:
         return await self.manager.create_job(
-            USER, "job", JobType.AGENT, schedule, prompt="prompt", pre_condition_script="check", **options
+            "job", JobType.AGENT, schedule, prompt="prompt", pre_condition_script="check", **options
         )
 
     async def dispatch(self, job: CronJob) -> None:
@@ -106,7 +105,7 @@ def stack() -> Stack:
     store = InMemoryCronStore()
     runner, condition, delivery = _Runner(), _Condition(), _Delivery()
     scheduler = CronScheduler(
-        store, {JobType.AGENT: runner}, delivery, config=CronConfig(max_per_user=1), pre_condition=condition
+        store, {JobType.AGENT: runner}, delivery, config=CronConfig(max_concurrent=1), pre_condition=condition
     )
     return Stack(store, CronManager(store, scheduler), scheduler, runner, condition, delivery)
 

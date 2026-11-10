@@ -33,7 +33,6 @@ async def policy_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIte
 def _job(job_id: str) -> CronJob:
     return CronJob(
         id=job_id,
-        user_id="user",
         name=job_id,
         job_type=JobType.ROUTER,
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0),

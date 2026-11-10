@@ -36,7 +36,6 @@ class _FakeAgent:
 def _job(*capabilities: str, timeout_seconds: int = 300) -> CronJob:
     return CronJob(  # type: ignore[arg-type]
         id="job-1",
-        user_id="user-1",
         name="Research digest",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),

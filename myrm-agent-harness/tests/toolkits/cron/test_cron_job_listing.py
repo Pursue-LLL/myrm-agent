@@ -21,7 +21,6 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-USER_ID = "listing-user"
 LAST_RUN = datetime(2026, 10, 30, 9, 5, tzinfo=UTC)
 SECRET = "sk-" + "A1b2C3d4" * 5
 
@@ -29,7 +28,6 @@ SECRET = "sk-" + "A1b2C3d4" * 5
 def _job(**overrides: object) -> CronJob:
     fields: dict[str, object] = {
         "id": "job-1",
-        "user_id": USER_ID,
         "name": "daily-report",
         "job_type": JobType.AGENT,
         "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *", tz="Asia/Shanghai"),
@@ -145,9 +143,8 @@ async def test_list_action_carries_the_last_failure_to_the_model() -> None:
         CronScheduler(store=store, runners={}, delivery=_NoDelivery(), config=CronConfig()),
         shell_enabled=True,
     )
-    tool = create_cron_tools(manager, USER_ID, current_model="test-model")[0]
+    tool = create_cron_tools(manager, current_model="test-model")[0]
     job = await manager.create_job(
-        user_id=USER_ID,
         name="nightly-sync",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000),

@@ -24,7 +24,6 @@ _HANDOFF_ROW = ((ActionButton(label="Continue in browser", action_id="web:contin
 def _job(*, chat_id: str | None = "chat-1") -> CronJob:
     return CronJob(
         id="cron-deliverables",
-        user_id="u1",
         name="weekly",
         job_type=JobType.AGENT,
         prompt="p",

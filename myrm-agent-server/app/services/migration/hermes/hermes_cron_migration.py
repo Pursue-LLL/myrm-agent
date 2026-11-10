@@ -27,8 +27,6 @@ from .hermes_cron_converter import (
 
 logger = logging.getLogger(__name__)
 
-_MIGRATION_USER_ID = "default"
-
 
 @dataclass(frozen=True, slots=True)
 class HermesCronApplyResult:
@@ -93,7 +91,7 @@ async def rollback_hermes_cron_migration(raw: dict[str, object] | None) -> int:
     deleted = 0
     for job_id in result.created_job_ids:
         try:
-            if await manager.delete_job(job_id, _MIGRATION_USER_ID):
+            if await manager.delete_job(job_id):
                 deleted += 1
         except Exception as exc:
             logger.warning("Hermes cron migration rollback failed for job %s: %s", job_id, exc)
@@ -108,7 +106,6 @@ async def _create_paused_job(
 ) -> CronJob:
     schedule = spec.to_schedule()
     job = await manager.create_job(
-        _MIGRATION_USER_ID,
         spec.name,
         spec.job_type,
         schedule,
@@ -118,7 +115,6 @@ async def _create_paused_job(
     )
     paused = await manager.update_job(
         job.id,
-        _MIGRATION_USER_ID,
         CronJobPatch(status=JobStatus.PAUSED),
     )
     return paused or job

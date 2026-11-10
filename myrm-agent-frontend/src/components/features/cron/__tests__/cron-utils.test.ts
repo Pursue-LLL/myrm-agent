@@ -12,7 +12,6 @@ import type { CronJob } from '@/services/cron.types';
 function makeJob(overrides: Partial<CronJob>): CronJob {
   return {
     id: 'job-1',
-    user_id: 'user-1',
     name: 'Test Job',
     job_type: 'agent',
     status: 'active',

@@ -39,7 +39,6 @@ def _schedule(kind: ScheduleKind) -> Schedule:
 def _job(kind: ScheduleKind = ScheduleKind.INTERVAL, **overrides: object) -> CronJob:
     fields: dict[str, object] = {
         "id": "job-1",
-        "user_id": "default",
         "name": "Inbox triage",
         "job_type": JobType.AGENT,
         "schedule": _schedule(kind),

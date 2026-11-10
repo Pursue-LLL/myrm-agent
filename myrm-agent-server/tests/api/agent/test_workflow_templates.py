@@ -118,7 +118,6 @@ def test_workflow_template_detail_reports_bound_cron_count(
         await store.save_job(
             CronJob(
                 id="cron-bound-1",
-                user_id="default",
                 name="bound job",
                 job_type=JobType.AGENT,
                 status=JobStatus.ACTIVE,

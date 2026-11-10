@@ -176,13 +176,12 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
             is_referencing_job = any(tn in job_prompt_lower for tn in target_names)
 
             if is_plugin_job:
-                deleted = await mgr.delete_job(job.id, "default")
+                deleted = await mgr.delete_job(job.id)
                 if deleted:
                     purged_cron_jobs += 1
             elif is_referencing_job and job.status == JobStatus.ACTIVE:
                 await mgr.update_job(
                     job.id,
-                    "default",
                     CronJobPatch(
                         status=JobStatus.PAUSED,
                     ),

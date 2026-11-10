@@ -30,7 +30,6 @@ def _make_schedule(kind: ScheduleKind = ScheduleKind.CRON, expr: str = "0 * * * 
 def _make_job(**kwargs: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "job-1",
-        "user_id": "user-1",
         "name": "Test Job",
         "job_type": JobType.AGENT,
         "schedule": _make_schedule(),
@@ -68,7 +67,7 @@ class TestCreateJobNewFields:
     @pytest.mark.asyncio
     async def test_defaults(self):
         mgr = _make_manager()
-        job = await mgr.create_job("user-1", "Test", JobType.AGENT, _make_schedule(), prompt="hello")
+        job = await mgr.create_job("Test", JobType.AGENT, _make_schedule(), prompt="hello")
         assert job.cooldown_seconds == 0
         assert job.max_fires is None
         assert job.expires_at is None
@@ -82,7 +81,6 @@ class TestCreateJobNewFields:
         fa = FailureAlertConfig(after=5, cooldown_seconds=600)
         mgr = _make_manager()
         job = await mgr.create_job(
-            "user-1",
             "Test",
             JobType.AGENT,
             _make_schedule(),
@@ -105,18 +103,14 @@ class TestCreateJobNewFields:
     async def test_failure_alert_true_is_stored_as_the_global_default(self):
         """``True`` has no per-job config to keep; a stored bool would break serialisation."""
         mgr = _make_manager()
-        job = await mgr.create_job(
-            "user-1", "Test", JobType.AGENT, _make_schedule(), prompt="hello", failure_alert=True
-        )
+        job = await mgr.create_job("Test", JobType.AGENT, _make_schedule(), prompt="hello", failure_alert=True)
         assert job.failure_alert is None
         assert failure_alert_to_dict(job.failure_alert) is None
 
     @pytest.mark.asyncio
     async def test_failure_alert_false_stays_disabled(self):
         mgr = _make_manager()
-        job = await mgr.create_job(
-            "user-1", "Test", JobType.AGENT, _make_schedule(), prompt="hello", failure_alert=False
-        )
+        job = await mgr.create_job("Test", JobType.AGENT, _make_schedule(), prompt="hello", failure_alert=False)
         assert job.failure_alert is False
         assert failure_alert_to_dict(job.failure_alert) is False
 
@@ -133,7 +127,7 @@ class TestUpdateJobPatch:
 
     async def _do_update(self, mgr: CronManager, job: CronJob, patch: CronJobPatch) -> CronJob:
         mgr._store.get_job = AsyncMock(return_value=job)
-        result = await mgr.update_job(job.id, job.user_id, patch)
+        result = await mgr.update_job(job.id, patch)
         assert result is not None
         return result
 
@@ -272,19 +266,12 @@ class TestUpdateJobPatch:
         result = await self._do_update(mgr, job, CronJobPatch(delete_after_run=True))
         assert result.delete_after_run is True
 
-    # --- ownership check ---
-
-    @pytest.mark.asyncio
-    async def test_wrong_user_returns_none(self, mgr: CronManager):
-        job = _make_job(user_id="user-1")
-        mgr._store.get_job = AsyncMock(return_value=job)
-        result = await mgr.update_job(job.id, "user-2", CronJobPatch(name="hack"))
-        assert result is None
+    # --- missing job ---
 
     @pytest.mark.asyncio
     async def test_missing_job_returns_none(self, mgr: CronManager):
         mgr._store.get_job = AsyncMock(return_value=None)
-        result = await mgr.update_job("nonexistent", "user-1", CronJobPatch(name="x"))
+        result = await mgr.update_job("nonexistent", CronJobPatch(name="x"))
         assert result is None
 
     # --- empty patch ---
@@ -338,42 +325,40 @@ class TestQueryMethods:
         mgr = _make_manager()
         job = _make_job()
         mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.get_job("job-1", "user-1") == job
-
-    @pytest.mark.asyncio
-    async def test_get_job_wrong_user(self) -> None:
-        mgr = _make_manager()
-        job = _make_job(user_id="user-1")
-        mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.get_job("job-1", "user-2") is None
+        assert await mgr.get_job("job-1") == job
 
     @pytest.mark.asyncio
     async def test_get_job_not_found(self) -> None:
         mgr = _make_manager()
         mgr._store.get_job = AsyncMock(return_value=None)
-        assert await mgr.get_job("nonexistent", "user-1") is None
+        assert await mgr.get_job("nonexistent") is None
 
     @pytest.mark.asyncio
-    async def test_list_runs_with_job_id_wrong_user(self) -> None:
+    async def test_list_runs_with_missing_job_returns_empty(self) -> None:
         mgr = _make_manager()
-        job = _make_job(user_id="user-1")
-        mgr._store.get_job = AsyncMock(return_value=job)
-        result = await mgr.list_runs("user-2", job_id="job-1")
+        mgr._store.get_job = AsyncMock(return_value=None)
+        result = await mgr.list_runs(job_id="job-1")
         assert result == []
         mgr._store.list_runs.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_list_runs_with_existing_job_delegates_to_store(self) -> None:
+        mgr = _make_manager()
+        mgr._store.get_job = AsyncMock(return_value=_make_job())
+        await mgr.list_runs(job_id="job-1", limit=5, offset=10, status="failed")
+        mgr._store.list_runs.assert_awaited_once_with("job-1", limit=5, offset=10, status="failed")
+
+    @pytest.mark.asyncio
     async def test_list_runs_without_job_id(self) -> None:
         mgr = _make_manager()
-        await mgr.list_runs("user-1")
+        await mgr.list_runs()
         mgr._store.list_runs.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_count_runs_with_job_id_wrong_user(self) -> None:
+    async def test_count_runs_with_missing_job_returns_zero(self) -> None:
         mgr = _make_manager()
-        job = _make_job(user_id="user-1")
-        mgr._store.get_job = AsyncMock(return_value=job)
-        result = await mgr.count_runs("user-2", job_id="job-1")
+        mgr._store.get_job = AsyncMock(return_value=None)
+        result = await mgr.count_runs(job_id="job-1")
         assert result == 0
         mgr._store.count_runs.assert_not_awaited()
 
@@ -381,7 +366,7 @@ class TestQueryMethods:
     async def test_count_runs_without_job_id(self) -> None:
         mgr = _make_manager()
         mgr._store.count_runs = AsyncMock(return_value=3)
-        result = await mgr.count_runs("user-1")
+        result = await mgr.count_runs()
         assert result == 3
 
     @pytest.mark.asyncio
@@ -408,22 +393,15 @@ class TestDeleteJob:
         mgr = _make_manager()
         job = _make_job()
         mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.delete_job("job-1", "user-1") is True
+        assert await mgr.delete_job("job-1") is True
         mgr._store.delete_job_cascade.assert_awaited_once_with("job-1")
         mgr._scheduler.notify_change.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_delete_wrong_user(self) -> None:
-        mgr = _make_manager()
-        job = _make_job(user_id="user-1")
-        mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.delete_job("job-1", "user-2") is False
 
     @pytest.mark.asyncio
     async def test_delete_not_found(self) -> None:
         mgr = _make_manager()
         mgr._store.get_job = AsyncMock(return_value=None)
-        assert await mgr.delete_job("nonexistent", "user-1") is False
+        assert await mgr.delete_job("nonexistent") is False
 
 
 # ---------------------------------------------------------------------------
@@ -441,7 +419,7 @@ class TestResetMonitorBaseline:
         state = MonitorState(job_id="job-1", monitor_type="text_diff", data={"some": "data"})
         mgr._store.get_job = AsyncMock(return_value=job)
         mgr._store.get_monitor_state = AsyncMock(return_value=state)
-        assert await mgr.reset_monitor_baseline("job-1", "user-1") is True
+        assert await mgr.reset_monitor_baseline("job-1") is True
         assert state.data == {}
         assert state.last_reset_reason == "manual"
         mgr._store.save_monitor_state.assert_awaited_once()
@@ -452,14 +430,14 @@ class TestResetMonitorBaseline:
         job = _make_job()
         mgr._store.get_job = AsyncMock(return_value=job)
         mgr._store.get_monitor_state = AsyncMock(return_value=None)
-        assert await mgr.reset_monitor_baseline("job-1", "user-1") is False
+        assert await mgr.reset_monitor_baseline("job-1") is False
 
     @pytest.mark.asyncio
-    async def test_reset_wrong_user(self) -> None:
+    async def test_reset_job_not_found(self) -> None:
         mgr = _make_manager()
-        job = _make_job(user_id="user-1")
-        mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.reset_monitor_baseline("job-1", "user-2") is False
+        mgr._store.get_job = AsyncMock(return_value=None)
+        assert await mgr.reset_monitor_baseline("job-1") is False
+        mgr._store.save_monitor_state.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -473,7 +451,7 @@ class TestPauseResumeTrigger:
         mgr = _make_manager()
         job = _make_job()
         mgr._store.get_job = AsyncMock(return_value=job)
-        result = await mgr.pause_job("job-1", "user-1")
+        result = await mgr.pause_job("job-1")
         assert result is not None
         assert result.status == JobStatus.PAUSED
 
@@ -482,25 +460,25 @@ class TestPauseResumeTrigger:
         mgr = _make_manager()
         job = _make_job(status=JobStatus.PAUSED, consecutive_failures=5)
         mgr._store.get_job = AsyncMock(return_value=job)
-        result = await mgr.resume_job("job-1", "user-1")
+        result = await mgr.resume_job("job-1")
         assert result is not None
         assert result.status == JobStatus.ACTIVE
         assert result.consecutive_failures == 0
         assert result.next_run_at is not None
 
     @pytest.mark.asyncio
-    async def test_resume_wrong_user(self) -> None:
+    async def test_resume_job_not_found(self) -> None:
         mgr = _make_manager()
-        job = _make_job(user_id="user-1")
-        mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.resume_job("job-1", "user-2") is None
+        mgr._store.get_job = AsyncMock(return_value=None)
+        assert await mgr.resume_job("job-1") is None
+        mgr._store.save_job.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_trigger_now(self) -> None:
         mgr = _make_manager()
         job = _make_job(status=JobStatus.ACTIVE)
         mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.trigger_now("job-1", "user-1") is True
+        assert await mgr.trigger_now("job-1") is True
         mgr._store.save_job.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -508,14 +486,14 @@ class TestPauseResumeTrigger:
         mgr = _make_manager()
         job = _make_job(status=JobStatus.PAUSED)
         mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.trigger_now("job-1", "user-1") is False
+        assert await mgr.trigger_now("job-1") is False
 
     @pytest.mark.asyncio
-    async def test_trigger_now_wrong_user(self) -> None:
+    async def test_trigger_now_job_not_found(self) -> None:
         mgr = _make_manager()
-        job = _make_job(user_id="user-1")
-        mgr._store.get_job = AsyncMock(return_value=job)
-        assert await mgr.trigger_now("job-1", "user-2") is False
+        mgr._store.get_job = AsyncMock(return_value=None)
+        assert await mgr.trigger_now("job-1") is False
+        mgr._store.save_job.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -568,7 +546,7 @@ class TestUpdateJobMonitorReset:
         state = MonitorState(job_id="job-1", monitor_type="text_diff", data={"old": True})
         mgr._store.get_job = AsyncMock(return_value=job)
         mgr._store.get_monitor_state = AsyncMock(return_value=state)
-        result = await mgr.update_job("job-1", "user-1", CronJobPatch(prompt="new prompt"))
+        result = await mgr.update_job("job-1", CronJobPatch(prompt="new prompt"))
         assert result is not None
         assert result.prompt == "new prompt"
         mgr._store.save_monitor_state.assert_awaited_once()
@@ -583,7 +561,7 @@ class TestUpdateJobMonitorReset:
         state = MonitorState(job_id="job-1", monitor_type="text_diff", data={"old": True})
         mgr._store.get_job = AsyncMock(return_value=job)
         mgr._store.get_monitor_state = AsyncMock(return_value=state)
-        result = await mgr.update_job("job-1", "user-1", CronJobPatch(command="echo new"))
+        result = await mgr.update_job("job-1", CronJobPatch(command="echo new"))
         assert result is not None
         mgr._store.save_monitor_state.assert_awaited_once()
 
@@ -592,7 +570,7 @@ class TestUpdateJobMonitorReset:
         mgr = _make_manager()
         job = _make_job(deduplicate=True, last_output_hash="abc123")
         mgr._store.get_job = AsyncMock(return_value=job)
-        result = await mgr.update_job("job-1", "user-1", CronJobPatch(deduplicate=False))
+        result = await mgr.update_job("job-1", CronJobPatch(deduplicate=False))
         assert result is not None
         assert result.deduplicate is False
         assert result.last_output_hash is None
@@ -605,7 +583,7 @@ class TestUpdateJobMonitorReset:
         mc = MonitorConfig(enabled=True, monitor_type="text_diff")
         job = _make_job(monitor_config=mc)
         mgr._store.get_job = AsyncMock(return_value=job)
-        result = await mgr.update_job("job-1", "user-1", CronJobPatch(clear_monitor_config=True))
+        result = await mgr.update_job("job-1", CronJobPatch(clear_monitor_config=True))
         assert result is not None
         assert result.monitor_config is None
 
@@ -649,7 +627,6 @@ class TestContextFrom:
         mgr._store.get_job = AsyncMock(return_value=ref_job)
 
         job = await mgr.create_job(
-            user_id="user-1",
             name="Analyzer",
             job_type=JobType.AGENT,
             schedule=_make_schedule(),
@@ -666,7 +643,6 @@ class TestContextFrom:
 
         with pytest.raises(ValueError, match="non-existent job"):
             await mgr.create_job(
-                user_id="user-1",
                 name="Bad Ref",
                 job_type=JobType.AGENT,
                 schedule=_make_schedule(),
@@ -689,7 +665,7 @@ class TestContextFrom:
             return None
 
         mgr._store.get_job = AsyncMock(side_effect=mock_get)
-        result = await mgr.update_job("job-1", "user-1", CronJobPatch(context_from=("ref-1",)))
+        result = await mgr.update_job("job-1", CronJobPatch(context_from=("ref-1",)))
         assert result is not None
         assert result.context_from == ("ref-1",)
 
@@ -699,6 +675,6 @@ class TestContextFrom:
         mgr = _make_manager()
         existing = _make_job(context_from=("ref-1",))
         mgr._store.get_job = AsyncMock(return_value=existing)
-        result = await mgr.update_job("job-1", "user-1", CronJobPatch(clear_context_from=True))
+        result = await mgr.update_job("job-1", CronJobPatch(clear_context_from=True))
         assert result is not None
         assert result.context_from == ()

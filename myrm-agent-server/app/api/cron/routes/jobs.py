@@ -41,8 +41,6 @@ from . import helpers as _h
 
 router = APIRouter()
 
-USER_ID = "default"
-
 
 @router.get("/", response_model=CronJobsListResponse)
 async def list_jobs(
@@ -106,7 +104,6 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
         )
         tools_allowed = normalize_cron_tools_allowed(body.tools_allowed)
         job = await mgr.create_job(
-            user_id=USER_ID,
             name=body.name,
             job_type=body.job_type,
             schedule=_h._build_schedule(body.schedule),
@@ -155,7 +152,7 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
 @router.get("/{job_id}", response_model=CronJobResponse)
 async def get_job(job_id: str) -> CronJobResponse:
     mgr = _h._get_manager()
-    job = await mgr.get_job(job_id, USER_ID)
+    job = await mgr.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     state = await mgr.get_monitor_state(job_id) if job.monitor_config else None
@@ -181,7 +178,7 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
                 body.workflow_template_args,
             )
         elif "workflow_template_args" in body.model_fields_set and body.workflow_template_args is not None:
-            existing = await mgr.get_job(job_id, USER_ID)
+            existing = await mgr.get_job(job_id)
             if existing and existing.workflow_template_id:
                 validate_cron_workflow_template_binding(
                     existing.workflow_template_id,
@@ -205,7 +202,7 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
         failure_delivery_patch: DeliveryConfig | None = None
         failure_alert_patch: FailureAlertConfig | Literal[False] | None = None
         if body.delivery or body.failure_delivery or body.failure_alert is not None:
-            existing = await mgr.get_job(job_id, USER_ID)
+            existing = await mgr.get_job(job_id)
             delivery_secret = existing.delivery.secret if existing else None
             failure_delivery_secret = existing.failure_delivery.secret if existing and existing.failure_delivery else None
             failure_alert_secret: str | None = None
@@ -284,7 +281,7 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
             workflow_template_args=body.workflow_template_args,
             clear_workflow_template=(body.workflow_template_id is None and "workflow_template_id" in body.model_fields_set),
         )
-        job = await mgr.update_job(job_id, USER_ID, patch)
+        job = await mgr.update_job(job_id, patch)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if not job:
@@ -296,7 +293,7 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
 @router.delete("/{job_id}", status_code=204)
 async def delete_job(job_id: str) -> None:
     mgr = _h._get_manager()
-    deleted = await mgr.delete_job(job_id, USER_ID)
+    deleted = await mgr.delete_job(job_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Job not found")
     invalidate_ingress_requirement_cache()

@@ -119,7 +119,6 @@ class TestFullLifecycle:
         delivery: FakeDelivery,
     ) -> None:
         job = await manager.create_job(
-            user_id="user-1",
             name="Daily Report",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),
@@ -162,7 +161,6 @@ class TestFullLifecycle:
         shell_runner = FakeShellRunner(output="disk usage: 42%")
 
         job = await manager.create_job(
-            user_id="user-1",
             name="Disk Check",
             job_type=JobType.SHELL,
             schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600000),
@@ -187,7 +185,6 @@ class TestFullLifecycle:
     ) -> None:
         run_at = datetime.now(UTC) + timedelta(minutes=5)
         job = await manager.create_job(
-            user_id="user-1",
             name="One-time Task",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.ONCE, run_at=run_at),
@@ -240,7 +237,6 @@ class TestFailureHandling:
         failing_runner = FakeAgentRunner(success=False)
 
         job = await manager.create_job(
-            user_id="user-1",
             name="Flaky Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="*/5 * * * *"),
@@ -264,7 +260,6 @@ class TestFailureHandling:
         store: InMemoryCronStore,
     ) -> None:
         job = await manager.create_job(
-            user_id="user-1",
             name="Recovery Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -312,7 +307,6 @@ class TestCRUDOperations:
     @pytest.mark.asyncio
     async def test_create_list_get_delete(self, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id="user-1",
             name="Test CRUD",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -323,30 +317,27 @@ class TestCRUDOperations:
         assert len(jobs) == 1
         assert jobs[0].id == job.id
 
-        fetched = await manager.get_job(job.id, "user-1")
+        fetched = await manager.get_job(job.id)
         assert fetched is not None
         assert fetched.name == "Test CRUD"
 
-        assert await manager.get_job(job.id, "user-2") is None
-
-        assert await manager.delete_job(job.id, "user-1") is True
-        assert await manager.get_job(job.id, "user-1") is None
+        assert await manager.delete_job(job.id) is True
+        assert await manager.get_job(job.id) is None
 
     @pytest.mark.asyncio
     async def test_pause_and_resume(self, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id="user-1",
             name="Pausable",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
             prompt="test",
         )
 
-        paused = await manager.pause_job(job.id, "user-1")
+        paused = await manager.pause_job(job.id)
         assert paused is not None
         assert paused.status == JobStatus.PAUSED
 
-        resumed = await manager.resume_job(job.id, "user-1")
+        resumed = await manager.resume_job(job.id)
         assert resumed is not None
         assert resumed.status == JobStatus.ACTIVE
         assert resumed.next_run_at is not None
@@ -354,14 +345,13 @@ class TestCRUDOperations:
     @pytest.mark.asyncio
     async def test_trigger_now(self, manager: CronManager) -> None:
         job = await manager.create_job(
-            user_id="user-1",
             name="Triggerable",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 0 1 1 *"),
             prompt="test",
         )
 
-        triggered = await manager.trigger_now(job.id, "user-1")
+        triggered = await manager.trigger_now(job.id)
         assert triggered is True
 
 
@@ -401,7 +391,6 @@ class TestDeliveryEdgeCases:
         delivery: FakeDelivery,
     ) -> None:
         job = await manager.create_job(
-            user_id="user-1",
             name="Silent Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -421,7 +410,6 @@ class TestDeliveryEdgeCases:
         delivery: FakeDelivery,
     ) -> None:
         job = await manager.create_job(
-            user_id="user-1",
             name="No Delivery",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -442,7 +430,6 @@ class TestDeliveryEdgeCases:
         delivery: FakeDelivery,
     ) -> None:
         job = await manager.create_job(
-            user_id="user-1",
             name="Dedup Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -476,13 +463,12 @@ class TestSchedulerOnTick:
             store=store,
             runners={JobType.AGENT: agent_runner},
             delivery=delivery,
-            config=CronConfig(max_concurrent=5, max_per_user=3),
+            config=CronConfig(max_concurrent=3),
         )
 
         now = datetime.now(UTC)
         job = CronJob(
             id="tick-job-1",
-            user_id="user-1",
             name="Due Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="* * * * *"),
@@ -525,7 +511,6 @@ class TestSchedulerOnTick:
         now = datetime.now(UTC)
         job = CronJob(
             id="stale-job",
-            user_id="user-1",
             name="Stale Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -570,7 +555,6 @@ class TestIntegrityChain:
     ) -> None:
         job = CronJob(
             id="chain-job",
-            user_id="user-1",
             name="Chain Test",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -635,7 +619,6 @@ class TestTracingContextPropagation:
         executor = JobExecutor(store=store, delivery=delivery)
         job = CronJob(
             id="traced-job-1",
-            user_id="user-1",
             name="Traced Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
@@ -668,7 +651,6 @@ class TestTracingContextPropagation:
         now = datetime.now(UTC)
         job = CronJob(
             id="tick-traced",
-            user_id="user-1",
             name="Tick Traced Job",
             job_type=JobType.AGENT,
             schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *", stagger_ms=0),
@@ -722,7 +704,6 @@ class TestTracingContextPropagation:
         for i in range(3):
             job = CronJob(
                 id=f"parallel-{i}",
-                user_id="user-1",
                 name=f"Parallel Job {i}",
                 job_type=JobType.AGENT,
                 schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),

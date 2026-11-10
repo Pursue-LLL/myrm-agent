@@ -114,8 +114,6 @@ class CronScheduler:
         self._startup_tick_pending = True
         self._tick_errors: int = 0
         self._global_sem = asyncio.Semaphore(cfg.max_concurrent)
-        self._user_sems: dict[str, asyncio.Semaphore] = {}
-        self._max_per_user = cfg.max_per_user
 
         self._last_purge_at: datetime | None = None
         self._active_jobs: set[str] = set()
@@ -387,13 +385,6 @@ class CronScheduler:
     # Execution dispatch (stagger + concurrency + delegate to executor)
     # ------------------------------------------------------------------
 
-    def _user_sem(self, user_id: str) -> asyncio.Semaphore:
-        sem = self._user_sems.get(user_id)
-        if sem is None:
-            sem = asyncio.Semaphore(self._max_per_user)
-            self._user_sems[user_id] = sem
-        return sem
-
     async def _execute_and_persist(
         self,
         job: CronJob,
@@ -433,7 +424,7 @@ class CronScheduler:
 
             self._active_jobs.add(job.id)
             try:
-                async with self._global_sem, self._user_sem(job.user_id):
+                async with self._global_sem:
                     # The waits above can last minutes; the stored job decides whether the run still happens.
                     if not await adopt_latest(self._store, job) or job.status != JobStatus.ACTIVE:
                         logger.info("Job %s was deleted or paused before it started, skipping", job.id)

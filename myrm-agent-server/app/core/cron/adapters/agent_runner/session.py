@@ -107,6 +107,7 @@ async def inject_situation_report(job: CronJob, prompt: str, builder: SituationR
         reset_follow_up_delivery,
     )
     from app.core.memory.proactive.settings import resolve_memory_enabled
+    from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
 
     begin_follow_up_delivery()
     try:
@@ -117,7 +118,7 @@ async def inject_situation_report(job: CronJob, prompt: str, builder: SituationR
         ctx = SituationContext(
             last_tick_at=job.last_run_at,
             agent_id=job.agent_id or "",
-            user_id=job.user_id,
+            user_id=SINGLE_TENANT_USER_ID,
             memory_enabled=memory_enabled,
         )
         report = await builder.build(ctx)

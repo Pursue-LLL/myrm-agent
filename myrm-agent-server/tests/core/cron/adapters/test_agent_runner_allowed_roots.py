@@ -19,7 +19,6 @@ _GET_PROJECT_TARGET = "app.services.project.project_service.ProjectService.get_p
 def _job(*, allowed_roots: tuple[str, ...] = (), project_id: str | None = None) -> CronJob:
     return CronJob(
         id="job-1",
-        user_id="default",
         name="digest",
         job_type=JobType.AGENT,
         schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000),

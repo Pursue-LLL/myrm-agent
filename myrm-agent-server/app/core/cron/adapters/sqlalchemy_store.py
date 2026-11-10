@@ -1,8 +1,7 @@
 """SQLAlchemy implementation of the CronStore protocol.
 
 CRUD operations for jobs, run records, and monitor state.
-ORM mapping is delegated to ``sqlalchemy_mapping``;
-usage aggregation lives in ``sqlalchemy_aggregation``.
+ORM mapping is delegated to ``sqlalchemy_mapping``.
 """
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ from myrm_agent_harness.toolkits.cron.types import (
 from sqlalchemy import delete, select, update
 from sqlalchemy.sql import func as sqlfunc
 
-from app.core.cron.adapters.sqlalchemy_aggregation import UsageAggregateResult, aggregate_usage
 from app.core.cron.adapters.sqlalchemy_mapping import (
     apply_job_to_model,
     job_to_domain,
@@ -429,15 +427,3 @@ class SqlAlchemyCronStore:
             result = await session.execute(delete(MonitorStateModel).where(MonitorStateModel.job_id == job_id))
             await session.commit()
             return _exec_rowcount(result) > 0
-
-    # ------------------------------------------------------------------
-    # Usage aggregation (delegates to sqlalchemy_aggregation module)
-    # ------------------------------------------------------------------
-
-    async def aggregate_usage(
-        self,
-        user_id: str,
-        *,
-        days: int | None = 7,
-    ) -> UsageAggregateResult:
-        return await aggregate_usage(user_id, days=days)

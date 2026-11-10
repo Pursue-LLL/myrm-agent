@@ -214,7 +214,6 @@ async def test_cron_im_delivery_clears_disk_obligation(tmp_path) -> None:
     try:
         job = CronJob(
             id="cron-durable-1",
-            user_id="u-integration",
             name="daily-report",
             job_type=JobType.AGENT,
             prompt="report",
@@ -302,7 +301,6 @@ async def test_cron_send_returns_none_is_failure_not_delivery(tmp_path) -> None:
     try:
         job = CronJob(
             id="cron-null-send",
-            user_id="u-integration",
             name="null-send-report",
             job_type=JobType.AGENT,
             prompt="report",

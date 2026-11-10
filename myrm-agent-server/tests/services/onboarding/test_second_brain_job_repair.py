@@ -37,7 +37,7 @@ def _manager(job: SimpleNamespace | None) -> SimpleNamespace:
 
 async def _repair(mgr: SimpleNamespace) -> bool:
     with patch("app.services.onboarding.second_brain_preset.job_repair.get_cron_manager", return_value=mgr):
-        return await repair_wiki_delta_job("job-delta", user_id="default")
+        return await repair_wiki_delta_job("job-delta")
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +53,6 @@ async def test_superseded_declaration_gets_wiki_capabilities_and_vault_root(tmp_
     vault = str(tmp_path.resolve() / "wiki" / "agents" / "agent-sb")
     mgr.update_job.assert_awaited_once_with(
         "job-delta",
-        "default",
         CronJobPatch(required_capabilities=_NEW_CAPABILITIES, allowed_roots=(vault,)),
     )
 
@@ -63,7 +62,7 @@ async def test_existing_allowed_roots_are_kept() -> None:
 
     assert await _repair(mgr) is True
 
-    patch_arg = mgr.update_job.await_args.args[2]
+    patch_arg = mgr.update_job.await_args.args[1]
     assert patch_arg.allowed_roots == ("/data/my-vault",)
     assert patch_arg.required_capabilities == _NEW_CAPABILITIES
 
