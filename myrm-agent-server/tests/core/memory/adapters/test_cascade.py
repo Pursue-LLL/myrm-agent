@@ -1,4 +1,4 @@
-"""The cascade manager deletes chat-derived memories whatever embedding model wrote them."""
+"""The cascade manager deletes chat-derived memories whatever embedding model or scope wrote them."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from myrm_agent_harness.toolkits.vector.base import VectorDocument
 from app.core.memory import get_cascade_memory_manager
 
 _MODELS = ("cascade-test-model-a", "cascade-test-model-b")
+_USER = "sandbox_user"
 
 
 @pytest_asyncio.fixture
@@ -55,3 +56,33 @@ async def test_purge_removes_the_chats_memories_from_every_models_collection(
     # Each collection held only this chat's memory, so purging empties them and they are retired.
     for collection in collections:
         assert not await manager._vector.collection_exists(collection)  # type: ignore[union-attr]
+
+
+@pytest.mark.asyncio
+async def test_purge_reaches_memories_written_under_an_agent_channel_or_project_scope() -> None:
+    manager = await get_cascade_memory_manager()
+    chat_id = f"chat-{uuid4().hex}"
+    collection = f"memory_semantic_{_MODELS[0]}"
+
+    def doc(user_id: str, primary_namespace: str) -> VectorDocument:
+        return VectorDocument(
+            id=str(uuid4()),
+            content="a memory of the chat",
+            vector=[0.1, 0.2, 0.3],
+            metadata={"source_chat_id": chat_id, "user_id": user_id, "primary_namespace": primary_namespace},
+        )
+
+    scoped = [doc(_USER, scope) for scope in ("agent:default", "client:web", "project:demo", "global")]
+    another_users = doc("another-user", "agent:default")
+    await manager._vector.upsert(collection, [*scoped, another_users])  # type: ignore[union-attr]
+    try:
+        preview = await manager.count_by_source_chat_id(chat_id)
+        purged = await manager.purge_by_source_chat_id(chat_id)
+
+        assert preview["semantic"] == len(scoped)
+        assert purged["semantic"] == len(scoped)
+        left, _ = await manager._vector.scroll(collection, limit=10, filters={"source_chat_id": chat_id})  # type: ignore[union-attr]
+        assert [remaining.id for remaining in left] == [another_users.id]
+    finally:
+        if await manager._vector.collection_exists(collection):  # type: ignore[union-attr]
+            await manager._vector.delete_by_filter(collection, {"source_chat_id": chat_id})  # type: ignore[union-attr]

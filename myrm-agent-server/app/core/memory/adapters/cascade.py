@@ -10,7 +10,7 @@ get_cascade_memory_manager: 获取全局级联删除专用 MemoryManager 单例
 shutdown_cascade_manager: 关闭级联管理器并释放资源
 
 [POS]
-GDPR 遗忘权实现层。提供全局 namespace 的 MemoryManager 单例，仅用于按 source_chat_id
+GDPR 遗忘权实现层。提供拥有该用户全部 scope 的 MemoryManager 单例，仅用于按 source_chat_id
 元数据删除/计数记忆，无需 embedding 服务。MemoryManager 的元数据删除/计数会覆盖每个 embedding
 模型的集合，所以该单例不必知道当前模型，切换模型后也无需重建。由 chat_disposal.py 在永久删除会话时调用。
 """
@@ -33,9 +33,10 @@ _CASCADE_EMBEDDING_MODEL = "cascade-deletion"
 
 
 async def get_cascade_memory_manager() -> MemoryManager:
-    """Get a global-scope MemoryManager for cascade deletion operations.
+    """Get the MemoryManager that owns every scope of the user, for cascade deletion operations.
 
-    Uses namespace=["global"] to reach all memories regardless of agent/channel scope.
+    A deleted chat cannot say which agent, channel or project scope wrote a memory, so the manager owns all of
+    them (``all_scopes``); a manager bound to the global scope alone would leave those memories behind.
     Embedding service is unused — cascade only performs metadata-based scroll/delete.
     """
     global _cascade_manager
@@ -65,6 +66,7 @@ async def get_cascade_memory_manager() -> MemoryManager:
             config=config,
             user_id="sandbox_user",
             namespaces=["global"],
+            all_scopes=True,
             vector=vector_store,
             relational=relational_store,
             fts5_searcher=relational_store.search_fts5,
@@ -81,12 +83,6 @@ async def purge_project_memories(project_id: str) -> dict[str, int]:
 
     manager = await get_cascade_memory_manager()
     project_ns = f"project:{clean_id}"
-
-    # Temporarily grant project namespace to cascade manager so ownership check passes
-    orig_namespaces = list(getattr(manager, "_namespaces", []))
-    if project_ns not in orig_namespaces:
-        manager._namespaces = [*orig_namespaces, project_ns]
-
     counts: dict[str, int] = {}
     try:
         # Purge by primary_namespace metadata
@@ -100,8 +96,6 @@ async def purge_project_memories(project_id: str) -> dict[str, int]:
             counts[k] = counts.get(k, 0) + v
     except Exception as exc:
         logger.warning("Project memory purge failed (project=%s): %s", clean_id, exc)
-    finally:
-        manager._namespaces = orig_namespaces
 
     return counts
 
