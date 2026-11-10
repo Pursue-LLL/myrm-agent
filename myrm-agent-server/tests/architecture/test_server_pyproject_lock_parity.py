@@ -6,6 +6,10 @@ import re
 import tomllib
 from pathlib import Path
 
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import Version
+
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _PYPROJECT = _SERVER_ROOT / "pyproject.toml"
 _LOCK_PATH = _SERVER_ROOT / "uv.lock"
@@ -141,3 +145,31 @@ def test_lock_includes_matrix_extra_markers() -> None:
     assert "extra == 'matrix'" in block or 'extra == "matrix"' in block
     assert "aiohttp-socks" in block
     assert "mautrix" in block
+
+
+def _locked_versions() -> dict[str, set[Version]]:
+    """Every version the lock resolves per package (a universal lock may fork one package per platform)."""
+    versions: dict[str, set[Version]] = {}
+    for package in tomllib.loads(_LOCK_PATH.read_text(encoding="utf-8"))["package"]:
+        if "version" in package:
+            versions.setdefault(canonicalize_name(package["name"]), set()).add(Version(package["version"]))
+    return versions
+
+
+def test_every_locked_version_satisfies_its_declared_requirement() -> None:
+    """A floor in ``[project]`` means nothing when an ``override-dependencies`` entry replaces it during resolution:
+    ``uv lock`` keeps the older pin, and images and CI install the lock, not the floor."""
+    project = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
+    declared = [
+        *project["project"]["dependencies"],
+        *(dep for extra in project["project"].get("optional-dependencies", {}).values() for dep in extra),
+        *(dep for group in project.get("dependency-groups", {}).values() for dep in group if isinstance(dep, str)),
+    ]
+    locked = _locked_versions()
+    violations = []
+    for text in declared:
+        requirement = Requirement(text)
+        versions = locked.get(canonicalize_name(requirement.name))
+        if versions and not any(requirement.specifier.contains(version, prereleases=True) for version in versions):
+            violations.append(f"{text} (locked: {', '.join(sorted(map(str, versions)))})")
+    assert not violations, "uv.lock pins versions outside the declared requirements:\n  " + "\n  ".join(violations)

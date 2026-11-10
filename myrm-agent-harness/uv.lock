@@ -2375,7 +2375,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agent-client-protocol", marker = "extra == 'acp'", specifier = ">=1.0.0" },
+    { name = "agent-client-protocol", marker = "extra == 'acp'", specifier = ">=1.0.0,<2" },
     { name = "aiofiles", specifier = ">=25.1.0" },
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "beautifulsoup4", specifier = ">=4.15.0" },

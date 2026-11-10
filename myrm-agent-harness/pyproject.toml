@@ -91,7 +91,7 @@ retrieval = [
 ]
 # toolkits/acp/ - ACP 协议（外部 Agent 委托 + ACP Server）
 acp = [
-  "agent-client-protocol>=1.0.0",
+  "agent-client-protocol>=1.0.0,<2",
 ]
 # toolkits/llms/transport/bedrock_sigv4.py - Bedrock 请求用 AWS 凭证链签名（只用 Bedrock API Key 时不需要）
 bedrock = [
