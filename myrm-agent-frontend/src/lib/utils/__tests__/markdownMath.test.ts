@@ -292,9 +292,11 @@ describe('math rendering', () => {
   });
 
   it('renders Chinese text inside a formula', () => {
-    const html = render('$$\\text{面积} = \\pi r^2$$');
-    expect(html).toContain('面积');
-    expect(html).not.toContain('katex-error');
+    for (const run of [render, renderChat]) {
+      const html = run('$$\\text{面积} = \\pi r^2$$');
+      expect(html).toContain('面积');
+      expect(html).not.toContain('katex-error');
+    }
   });
 
   it('degrades invalid TeX to KaTeX error markup instead of throwing', () => {
@@ -323,6 +325,19 @@ describe('KaTeX options per preset', () => {
     for (const run of [render, renderChat]) {
       expect(run('Costs $5 and $10 and $$50% \\text{done}$$')).not.toContain('katex-error');
       expect(run('Costs $5 and $10')).not.toContain('class="katex"');
+    }
+  });
+
+  it('sets \\text as text in both, so its spaces survive', () => {
+    for (const run of [render, renderChat]) {
+      // KaTeX writes the space of text mode as a no-break space.
+      expect(run('$\\text{total cost} = 5$')).toContain('total\u00a0cost');
+    }
+  });
+
+  it('lets \\text hold inline math in both', () => {
+    for (const run of [render, renderChat]) {
+      expect(run('$$\n\\text{for $x>0$ we have}\n$$')).not.toContain('katex-error');
     }
   });
 });

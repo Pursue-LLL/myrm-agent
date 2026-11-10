@@ -131,15 +131,13 @@ const rehypeUnwrapRawVector: Plugin<[], HastRoot> = () => (tree) => {
 };
 
 /**
- * What chat messages render with: html-only output, no strict-mode warnings, `\text` set as `\mathrm`, and KaTeX's
- * trusted commands enabled. `throwOnError` is absent on purpose: rehype-katex sets it itself and falls back to
- * KaTeX's inline error markup.
+ * What chat messages render with: html-only output, no strict-mode warnings, and KaTeX's trusted commands enabled.
+ * `throwOnError` is absent on purpose: rehype-katex sets it itself and falls back to KaTeX's inline error markup.
  */
 const chatKatexOptions: KatexOptions = {
   strict: false,
   output: 'html',
   trust: true,
-  macros: { '\\text': '\\mathrm' },
 };
 
 /** Plugin lists for `react-markdown` (`remarkPlugins`, `rehypePlugins`) and unified processors alike. */
