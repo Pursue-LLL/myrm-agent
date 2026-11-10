@@ -36,14 +36,13 @@ def test_each_interrupt_kind_maps_to_its_event_type_and_keeps_its_value() -> Non
             _interrupt(other, "d"),
         ],
         "msg-1",
-        {},
     )
 
     assert [(e["type"], e["data"], e[INTERRUPT_ID_KEY]) for e in events] == [
-        (AgentEventType.CLARIFICATION_REQUIRED.value, clarification, "a.0"),
-        ("swarm_fission", swarm, "b.0"),
-        (AgentEventType.TOOL_APPROVAL_REQUEST.value, tool_approval, "c.0"),
-        (AgentEventType.APPROVAL_REQUIRED.value, other, "d.0"),
+        (AgentEventType.CLARIFICATION_REQUIRED.value, clarification, "a"),
+        ("swarm_fission", swarm, "b"),
+        (AgentEventType.TOOL_APPROVAL_REQUEST.value, tool_approval, "c"),
+        (AgentEventType.APPROVAL_REQUIRED.value, other, "d"),
     ]
     assert {e["messageId"] for e in events} == {"msg-1"}
 
@@ -51,39 +50,27 @@ def test_each_interrupt_kind_maps_to_its_event_type_and_keeps_its_value() -> Non
 def test_a_tool_stuck_pause_travels_as_an_approval_event_told_apart_by_action_type() -> None:
     pause = ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1")
 
-    [event] = interrupt_events([_interrupt(pause)], "msg-1", {})
+    [event] = interrupt_events([_interrupt(pause)], "msg-1")
 
     assert event["type"] == AgentEventType.APPROVAL_REQUIRED.value
     assert event["data"] == pause
 
 
 def test_an_empty_action_request_list_is_a_plain_approval() -> None:
-    [event] = interrupt_events([_interrupt({"actionRequests": []})], "msg-1", {})
+    [event] = interrupt_events([_interrupt({"actionRequests": []})], "msg-1")
 
     assert event["type"] == AgentEventType.APPROVAL_REQUIRED.value
 
 
 @pytest.mark.parametrize("missing_id", [None, "", 7])
 def test_an_interrupt_without_a_usable_id_is_still_announced_without_the_key(missing_id: object) -> None:
-    [event] = interrupt_events([_interrupt({"tool_name": "x"}, missing_id)], "msg-1", {})
-
-    assert INTERRUPT_ID_KEY not in event
-
-
-def test_each_card_id_carries_the_round_of_the_task_that_paused() -> None:
-    events = interrupt_events([_interrupt({"tool_name": "x"}, "a"), _interrupt({"tool_name": "y"}, "b")], "m", {"b": 3})
-
-    assert [e[INTERRUPT_ID_KEY] for e in events] == ["a.0", "b.3"]
-
-
-def test_pauses_whose_rounds_are_unknown_carry_no_card_id() -> None:
-    [event] = interrupt_events([_interrupt({"tool_name": "x"})], "msg-1", None)
+    [event] = interrupt_events([_interrupt({"tool_name": "x"}, missing_id)], "msg-1")
 
     assert INTERRUPT_ID_KEY not in event
 
 
 def test_an_interrupt_whose_value_is_not_a_dict_is_skipped() -> None:
-    assert interrupt_events([_interrupt("plain text"), _interrupt(None)], "msg-1", {}) == []
+    assert interrupt_events([_interrupt("plain text"), _interrupt(None)], "msg-1") == []
 
 
 class _ScriptedModel(FakeMessagesListChatModel):
@@ -107,10 +94,10 @@ async def test_the_card_id_names_the_interrupt_langgraph_resumes_the_pending_pau
     announced: dict[str, str] = {}
     async for chunk in agent.astream({"messages": [HumanMessage("go")]}, config, stream_mode="updates"):
         if "__interrupt__" in chunk:
-            for event in interrupt_events(chunk["__interrupt__"], "msg-1", {}):
+            for event in interrupt_events(chunk["__interrupt__"], "msg-1"):
                 action = event["data"]["actionRequests"][0]["action"]  # type: ignore[index]
                 announced[action] = str(event[INTERRUPT_ID_KEY])
 
     pending = {i.value["actionRequests"][0]["action"]: i.id for i in (await agent.aget_state(config)).interrupts}
     assert set(announced) == {"alpha", "beta"}
-    assert announced == {action: f"{interrupt_id}.0" for action, interrupt_id in pending.items()}
+    assert announced == pending

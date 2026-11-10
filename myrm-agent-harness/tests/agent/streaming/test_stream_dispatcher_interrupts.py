@@ -2,7 +2,7 @@
 
 覆盖：
 - 不同形态的中断分发为对应事件（工具审批 / 审批 / 澄清）；空元组与非 dict 值被忽略
-- 同一分片里的每个中断各带自己的卡片 id；恢复运行按 `AddressedResume` 给出的轮次盖章，未寻址的恢复不带 id
+- 同一分片里的每个中断各带自己的卡片 id，与这次运行是新开还是恢复无关
 """
 
 import asyncio
@@ -11,7 +11,6 @@ from unittest.mock import MagicMock
 import pytest
 from langgraph.types import Command
 
-from myrm_agent_harness.agent.streaming.interrupt_identity import AddressedResume
 from myrm_agent_harness.agent.streaming.stream_executor import (
     StreamContext,
     StreamExecutor,
@@ -96,32 +95,19 @@ async def test_dispatch_updates_announces_every_interrupt_of_a_chunk_with_its_id
     announced = [
         (e.data["actionRequests"][0]["action"], e.extra_data["interruptId"]) for e in executor._compactor.events
     ]
-    assert announced == [("alpha", "id-a.0"), ("beta", "id-b.0")]
+    assert announced == [("alpha", "id-a"), ("beta", "id-b")]
 
 
 @pytest.mark.asyncio
-async def test_dispatch_updates_stamps_the_rounds_the_resume_was_addressed_at(ctx):
-    """A resumed run announces the pause its answer unlocked one round later than the one it answered."""
-    ctx.agent_input = AddressedResume(resume={}, announce_rounds={"id-a": 2, "id-b": 1})
-    executor = _make_executor(ctx)
-    first = MagicMock(value={"actionRequests": [{"action": "alpha"}]}, id="id-a")
-    second = MagicMock(value={"actionRequests": [{"action": "beta"}]}, id="id-b")
-    new_task = MagicMock(value={"actionRequests": [{"action": "gamma"}]}, id="id-c")
-
-    await executor._dispatch_chunk(("updates", {"__interrupt__": (first, second, new_task)}), ctx, [])
-
-    assert [e.extra_data["interruptId"] for e in executor._compactor.events] == ["id-a.2", "id-b.1", "id-c.0"]
-
-
-@pytest.mark.asyncio
-async def test_dispatch_updates_gives_no_card_id_when_the_resume_was_not_addressed(ctx):
+async def test_dispatch_updates_announces_a_resumed_runs_pause_under_its_own_id(ctx):
+    """The card id belongs to the pause, not to how the run that reached it was started."""
     ctx.agent_input = Command(resume={"answer": "yes"})
     executor = _make_executor(ctx)
     pause = MagicMock(value={"actionRequests": [{"action": "alpha"}]}, id="id-a")
 
     await executor._dispatch_chunk(("updates", {"__interrupt__": (pause,)}), ctx, [])
 
-    assert "interruptId" not in executor._compactor.events[0].extra_data
+    assert executor._compactor.events[0].extra_data["interruptId"] == "id-a"
 
 
 @pytest.mark.asyncio

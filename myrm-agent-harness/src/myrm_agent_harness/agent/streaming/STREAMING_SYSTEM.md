@@ -38,7 +38,7 @@ dispatcher  handlers      events         recovery*
 
 | Mixin / 模块 | 职责 |
 |--------------|------|
-| `stream_dispatcher.py` | chunk → output_queue；`__interrupt__` 分片交 `interrupt_events.py` 逐中断转事件，卡片 id 的轮次取自 `interrupt_identity.announced_rounds(ctx.agent_input)`（swarm_fission 专路由）；`_record_cancellation` 是 Stop 的统一收尾（标记 `was_cancelled` 并发出 `cancelled` 事件） |
+| `stream_dispatcher.py` | chunk → output_queue；`__interrupt__` 分片交 `interrupt_events.py` 逐中断转事件，卡片 id 即该中断的 LangGraph id（swarm_fission 专路由）；`_record_cancellation` 是 Stop 的统一收尾（标记 `was_cancelled` 并发出 `cancelled` 事件） |
 | `recovery/stream_recovery.py` | 主恢复策略组合：overflow、failover、安全拒答回退、瞬时重试，并混入下列各恢复 mixin |
 | `recovery/stream_recovery_turn_end.py` | 一轮结束后的处理：迭代上限的无工具总结、空回复恢复（判断对象是本轮最后一次回复 `_latest_reply`，空回复不在 `collected_messages` 里；推理被输出上限截断的回复归截断恢复，放弃后不再当空回复重问） |
 | `recovery/stream_recovery_redrive.py` | 「追加一条提示再跑一遍」的统一入口（新一轮重建输入，续跑轮从检查点续） |
@@ -58,13 +58,12 @@ dispatcher  handlers      events         recovery*
 
 ### 并行中断与按卡片 id 作答
 
-图可以同时在多个任务上挂起（并行子智能体各自等待审批）。LangGraph 为每个中断分配稳定 id，但它只取决于挂起它的任务（`xxh3_128(checkpoint_ns)`，重放时不变），不区分同一任务的第几次挂起：委派在每一步前都要审批、一个任务连续 `interrupt()` 三次时，三次挂起共用一个 id。有多个待决中断时，不带 id 的 resume 会被 LangGraph 拒绝（`When there are multiple pending interrupts, you must specify the interrupt id when resuming`）。
+图可以同时在多个任务上挂起（并行子智能体各自等待审批）。LangGraph 给每一次挂起各分配一个中断 id：并行任务的 id 互不相同，同一任务连续 `interrupt()` 三次（委派在每一步前都要审批）也得到三个不同的 id。有多个待决中断时，不带 id 的 resume 会被 LangGraph 拒绝（`When there are multiple pending interrupts, you must specify the interrupt id when resuming`）；带着一个已不待决的中断 id 的 resume 却不会被拒绝，LangGraph 可能把答复交给该任务的下一次挂起（旧卡的再次作答因此会被当成下一张卡的答复）。
 
-卡片 id（`interruptId`）因此是 `<LangGraph 中断 id>.<轮次>`，轮次 = 该任务已消费的答复数（LangGraph 以待写入通道 `__resume__` 的列表长度记录，`interrupt()` 用它决定返回已有答复还是再次挂起）。每次挂起各有各的卡片 id：同一任务的下一次挂起不会被客户端当作上一张卡的重复，上一张卡的答复也不会落到它上面。
+卡片 id（`interruptId`）因此直接取该中断的 LangGraph id：每次挂起各有各的卡片 id，同一任务的下一次挂起不会被客户端当作上一张卡的重复；上一张卡的答复由 resume 咽喉校验（见下文「作答」），不会落到它上面。
 
-- 轮次的来源：只在 resume 咽喉、运行开始前读一次（`_internals/resume_addressing.py` 读 `aget_state` 的待决中断与任务、`checkpointer.aget_tuple` 的 `__resume__`），经 `AddressedResume.announce_rounds` 交给分发器：被这次 resume 作答的中断为原轮次 +1，其余待决中断不变，运行中新出现的任务从 0 开始。运行中不读检查点：宣告新挂起的那一刻，它自己的待写入还没落盘，此时读到的是旧轮次（人为拖慢写盘 50 ms 的实测里，并行任务下第 1、2 轮分别被读成 0、1）。
-- 发出：`interrupt_events.interrupt_events` 把一个 `__interrupt__` 分片里的每个中断转换为一个流事件，事件顶层带卡片 id。部分作答后图重新挂起，仍待决的中断会作为新分片再次发出（轮次不变），客户端按卡片 id 去重。resume 未经寻址（线程读不出）时轮次未知，事件不带卡片 id，客户端按无 id 处理。
-- 作答：resume 载荷可携带 `interruptId`；`_internals/resume_addressing.address_resume_to_pending` 在 resume 咽喉只在「该中断待决且其任务已消费的答复数恰为卡片 id 的轮次」时把它改写为 `Command(resume={中断 id: 载荷})`。其余一律（已处理、轮次未到、不是 `<中断 id>.<轮次>` 的形状）改写为一个无人持有的合法中断 id，LangGraph 忽略它：答复不会送给任何人，运行回到真正待决的挂起上重新宣告，而不是把答复当成纯值交给别的挂起。
+- 发出：`interrupt_events.interrupt_events` 把一个 `__interrupt__` 分片里的每个中断转换为一个流事件，事件顶层带卡片 id。部分作答后图重新挂起，仍待决的中断会作为新分片再次发出（id 不变），客户端按卡片 id 去重。没有可用 id 的中断不带卡片 id，客户端按无 id 处理。
+- 作答：resume 载荷可携带 `interruptId`；`_internals/resume_addressing.address_resume_to_pending` 在 resume 咽喉读 `aget_state` 的待决中断，只在该 id 此刻仍待决时把它改写为 `Command(resume={中断 id: 载荷})`。其余一律（已处理、从未存在、不是中断 id 的形状）改写为一个无人持有的合法中断 id，LangGraph 忽略它：答复不会送给任何人，运行回到真正待决的挂起上重新宣告，而不是把答复当成纯值交给别的挂起。
 - 不带 id 的答复：待决 ≤1 个时原样透传（既有调用方行为不变）；待决 ≥2 个时，只有全局驳回（`{"decision": "reject"}` 且无 `decisions`，超时计时器所用）会广播给全部待决中断，其余答复（含批准）原样交给 LangGraph 拒绝——批准从不广播。
 - 提示缓存：只有流事件与 resume 载荷变化，提示词与工具 schema 不变；`interruptId` 在咽喉处从答复里剥掉，不进入工具收到的值。
 

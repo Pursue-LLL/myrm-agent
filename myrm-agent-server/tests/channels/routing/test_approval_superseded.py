@@ -2,7 +2,7 @@
 
 Runs on the real ``AgentRouter``, ``SessionGate`` and ``ApprovalTimeoutScheduler`` with a scripted agent. What the
 harness does with a session that has moved on (an answer to the suspended run reaches nobody) is covered where the
-harness is: ``test_resume_addressing_rounds.py``.
+harness is: ``test_resume_addressing_pauses.py``.
 """
 
 from __future__ import annotations

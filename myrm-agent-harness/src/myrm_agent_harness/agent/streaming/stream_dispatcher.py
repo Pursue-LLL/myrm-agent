@@ -4,7 +4,6 @@
 - agent.streaming.event_handlers::process_messages_chunk, process_updates_chunk (POS: 事件处理器)
 - agent.streaming.artifact_events::collect_inline_artifacts, process_realtime_content_events (POS: Artifact 事件处理器)
 - agent.streaming.interrupt_events::interrupt_events (POS: 中断 → 带卡片 id 的流事件)
-- agent.streaming.interrupt_identity::announced_rounds (POS: 本次运行各中断所处的轮次)
 - agent.streaming.latest_reply::latest_model_reply (POS: 一次 updates 分片携带的最后一条助手回复，含 collected_messages 不收的空回复)
 
 [OUTPUT]
@@ -35,7 +34,6 @@ if TYPE_CHECKING:
 from .artifact_events import collect_inline_artifacts, process_realtime_content_events
 from .event_handlers import process_messages_chunk, process_updates_chunk
 from .interrupt_events import interrupt_events
-from .interrupt_identity import announced_rounds
 from .latest_reply import latest_model_reply
 
 if TYPE_CHECKING:
@@ -99,7 +97,7 @@ class StreamDispatcherMixin:
         if isinstance(data_dict, dict) and "__interrupt__" in data_dict:
             interrupts = data_dict["__interrupt__"]
             if interrupts and isinstance(interrupts, tuple):
-                for event in interrupt_events(interrupts, ctx.message_id, announced_rounds(ctx.agent_input)):
+                for event in interrupt_events(interrupts, ctx.message_id):
                     await self._emit_event(event, ctx)
             return
 

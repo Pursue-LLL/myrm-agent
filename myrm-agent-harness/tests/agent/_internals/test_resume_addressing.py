@@ -18,9 +18,11 @@ from langgraph.types import Command, interrupt
 
 from myrm_agent_harness.agent._internals.resume_addressing import address_resume, address_resume_to_pending
 from myrm_agent_harness.agent.streaming.interrupt_events import INTERRUPT_ID_KEY
-from myrm_agent_harness.agent.streaming.interrupt_identity import AddressedResume, encode_interrupt_id
 
 _PENDING_ID = "a" * 32
+_OTHER_PENDING_ID = "b" * 32
+# The id the rule rewrites an answer to when it names no pending pause: well-formed, held by nobody.
+_NO_INTERRUPT_ID = "0" * 32
 
 _THREAD = "chat"
 _CONFIG = {"configurable": {"thread_id": _THREAD}}
@@ -62,8 +64,8 @@ async def _answer(agent: object, command: Command[object]) -> dict[str, object]:
 
 
 def _addressed(interrupt_id: str, answer: str) -> Command[object]:
-    """An answer carrying the card id of the first (and, here, only) pause of ``interrupt_id``'s task."""
-    return Command(resume={"answer": answer, INTERRUPT_ID_KEY: encode_interrupt_id(interrupt_id, 0)})
+    """An answer carrying the card id of the pause ``interrupt_id``."""
+    return Command(resume={"answer": answer, INTERRUPT_ID_KEY: interrupt_id})
 
 
 def _tool_outputs(state: dict[str, object]) -> dict[str, str]:
@@ -147,33 +149,37 @@ async def test_an_addressed_answer_on_a_finished_thread_changes_nothing() -> Non
 
 
 def test_the_card_id_is_removed_from_the_answer_the_interrupt_receives() -> None:
-    addressed = address_resume(_addressed(_PENDING_ID, "yes"), {_PENDING_ID: 0})
+    addressed = address_resume(_addressed(_PENDING_ID, "yes"), {_PENDING_ID})
 
     assert addressed.resume == {_PENDING_ID: {"answer": "yes"}}
 
 
 def test_a_command_keeps_its_other_fields_when_addressed() -> None:
-    command = Command[object](
-        resume={"answer": "yes", INTERRUPT_ID_KEY: encode_interrupt_id(_PENDING_ID, 0)}, update={"messages": []}
-    )
+    command = Command[object](resume={"answer": "yes", INTERRUPT_ID_KEY: _PENDING_ID}, update={"messages": []})
 
-    assert address_resume(command, {_PENDING_ID: 0}).update == {"messages": []}
+    assert address_resume(command, {_PENDING_ID}).update == {"messages": []}
 
 
-def test_the_addressed_command_announces_the_answered_interrupt_one_round_later() -> None:
-    pending = {_PENDING_ID: 2, "b" * 32: 1}
+def test_an_answer_naming_a_pause_that_is_not_pending_is_rewritten_to_an_id_nobody_holds() -> None:
+    addressed = address_resume(_addressed("c" * 32, "yes"), {_PENDING_ID, _OTHER_PENDING_ID})
 
-    answer = Command[object](resume={"answer": "yes", INTERRUPT_ID_KEY: encode_interrupt_id(_PENDING_ID, 2)})
-    answered = address_resume(answer, pending)
-    rejected = address_resume(Command(resume={"decision": "reject"}), pending)
-    untouched = address_resume(Command(resume={"answer": "yes"}), {"b" * 32: 1})
-    ignored = address_resume(_addressed("c" * 32, "yes"), pending)
+    assert addressed.resume == {_NO_INTERRUPT_ID: {"answer": "yes"}}
 
-    assert isinstance(answered, AddressedResume)
-    assert answered.announce_rounds == {_PENDING_ID: 3, "b" * 32: 1}
-    assert rejected.announce_rounds == {_PENDING_ID: 3, "b" * 32: 2}
-    assert untouched.announce_rounds == {"b" * 32: 2}
-    assert ignored.announce_rounds == pending
+
+def test_a_global_rejection_is_broadcast_only_while_several_interrupts_are_pending() -> None:
+    rejection = Command[object](resume={"decision": "reject", "feedback": "timed out"})
+
+    several = address_resume(rejection, {_PENDING_ID, _OTHER_PENDING_ID})
+    one = address_resume(rejection, {_PENDING_ID})
+
+    assert several.resume == {_PENDING_ID: rejection.resume, _OTHER_PENDING_ID: rejection.resume}
+    assert one.resume == rejection.resume
+
+
+def test_an_unaddressed_approval_is_never_broadcast() -> None:
+    approval = Command[object](resume={"decisions": [{"type": "approve"}]})
+
+    assert address_resume(approval, {_PENDING_ID, _OTHER_PENDING_ID}).resume == approval.resume
 
 
 def test_the_log_of_an_ignored_answer_stays_short_however_long_the_client_id_is(
@@ -182,7 +188,7 @@ def test_the_log_of_an_ignored_answer_stays_short_however_long_the_client_id_is(
     hostile = Command[object](resume={"answer": "yes", INTERRUPT_ID_KEY: "x" * 100_000})
 
     with caplog.at_level("WARNING"):
-        address_resume(hostile, {_PENDING_ID: 0})
+        address_resume(hostile, {_PENDING_ID})
 
     [record] = caplog.records
     assert "xxxx" in record.getMessage()

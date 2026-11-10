@@ -2,7 +2,6 @@
 
 [INPUT]
 - core.events.types::AgentEventType (POS: 事件类型契约)
-- agent.streaming.interrupt_identity::encode_interrupt_id (POS: 卡片 id = 中断 id + 轮次)
 
 [OUTPUT]
 - INTERRUPT_ID_KEY: 流事件与 resume 载荷共用的键，携带卡片 id
@@ -10,16 +9,15 @@
 
 [POS]
 图在多个任务上同时挂起时（并行子 agent 各自要审批），每个中断都必须是一张可单独作答的卡片。
-事件带上卡片 id（LangGraph 的中断 id 加该任务已消费的答复数，见 `interrupt_identity.py`），客户端作答时原样回传
+事件带上卡片 id（即 LangGraph 的中断 id：每次挂起各有一个，同一任务连续多次挂起也各不相同），客户端作答时原样回传
 （见 `_internals/resume_addressing.py`），答复只会落到它所针对的那一次挂起上，不会落到同一任务的下一次挂起，
 也不会落到别的任务的挂起上。
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 
-from myrm_agent_harness.agent.streaming.interrupt_identity import encode_interrupt_id
 from myrm_agent_harness.core.events.types import AgentEventType
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
@@ -28,13 +26,11 @@ logger = get_agent_logger(__name__)
 INTERRUPT_ID_KEY = "interruptId"
 
 
-def interrupt_events(
-    interrupts: Sequence[object], message_id: str, rounds: Mapping[str, int] | None
-) -> list[dict[str, object]]:
+def interrupt_events(interrupts: Sequence[object], message_id: str) -> list[dict[str, object]]:
     """One stream event per interrupt the graph paused on; interrupts whose value is not a dict are skipped.
 
-    ``rounds`` is the round each interrupt's task is at (a task absent from it has not been answered yet). ``None``
-    means the rounds are unknown, so the events carry no card id and the client falls back to its id-less handling.
+    Each event carries the interrupt's own id as its card id. An interrupt without a usable id is announced without
+    one, and the client falls back to its id-less handling.
     """
     events: list[dict[str, object]] = []
     for interrupt in interrupts:
@@ -43,8 +39,8 @@ def interrupt_events(
             continue
         event: dict[str, object] = {"type": _event_type(value), "data": value, "messageId": message_id}
         interrupt_id = getattr(interrupt, "id", None)
-        if rounds is not None and isinstance(interrupt_id, str) and interrupt_id:
-            event[INTERRUPT_ID_KEY] = encode_interrupt_id(interrupt_id, rounds.get(interrupt_id, 0))
+        if isinstance(interrupt_id, str) and interrupt_id:
+            event[INTERRUPT_ID_KEY] = interrupt_id
         events.append(event)
     return events
 
