@@ -35,7 +35,7 @@ describe('FlowPadModal: inline route', () => {
       renderFlowPad();
 
       expect(agentState.fetchAgents).toHaveBeenCalledTimes(1);
-      expect(agentState.fetchAgents).toHaveBeenCalledWith(1, 100, true);
+      expect(agentState.fetchAgents).toHaveBeenCalledWith(true);
     });
 
     it('leaves the roster alone for the chat pad', () => {

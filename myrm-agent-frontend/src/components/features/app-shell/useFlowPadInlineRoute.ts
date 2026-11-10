@@ -105,7 +105,7 @@ export function useFlowPadInlineRoute({ isOpen, mode, agentConfig, clearSummon }
     if (!isOpen || mode !== 'inline') {
       return;
     }
-    void fetchAgents(1, 100, true);
+    void fetchAgents(true);
   }, [isOpen, mode, fetchAgents]);
 
   useEffect(() => {

@@ -114,7 +114,7 @@ describe('useGlobalEvents: goals, subagents and agent config', () => {
       expect(mocks.syncBoundChatAgentConfig).toHaveBeenCalledTimes(1);
       expect(mocks.syncBoundChatAgentConfig).toHaveBeenCalledWith('a1');
       expect(mocks.fetchAgents).toHaveBeenCalledTimes(1);
-      expect(mocks.fetchAgents).toHaveBeenCalledWith(1, 20, true);
+      expect(mocks.fetchAgents).toHaveBeenCalledWith(true);
       expect(mocks.fetchAgent).not.toHaveBeenCalled();
       expect(events().map((event) => event.type)).toEqual(['agent-config-updated', 'agent-config-updated']);
       expect(mocks.toast.success).not.toHaveBeenCalled();

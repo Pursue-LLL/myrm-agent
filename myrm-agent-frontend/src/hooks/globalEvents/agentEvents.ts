@@ -69,7 +69,7 @@ const handleAgentConfigUpdated: GlobalEventHandler = (payload, { t, router, push
       import('@/store/useAgentStore')
         .then((mod) => {
           const store = mod.default.getState();
-          store.fetchAgents(1, 20, true);
+          store.fetchAgents(true);
           if (store.selectedAgent?.id === agentId) {
             store.fetchAgent(agentId);
           }

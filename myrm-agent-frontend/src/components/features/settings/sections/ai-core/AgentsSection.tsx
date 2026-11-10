@@ -35,7 +35,7 @@ import {
 import { Input } from '@/components/primitives/input';
 import useAuthStore from '@/store/useAuthStore';
 import { toast } from '@/hooks/shared/useToast';
-import { AgentListItem, listAgents, deleteAgent, AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
+import { AgentListItem, listAllAgents, deleteAgent } from '@/services/agent';
 import SettingsSection from '../SettingsSection';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import AgentEditPanel from './AgentEditPanel';
@@ -110,8 +110,7 @@ export default function AgentsSection() {
 
     try {
       setLoading(true);
-      const data = await listAgents(1, AGENT_LIST_BUILTIN_PAGE_SIZE);
-      setAgents(data.items || []);
+      setAgents(await listAllAgents());
     } catch {
       toast({
         title: t('agent.operationFailed'),

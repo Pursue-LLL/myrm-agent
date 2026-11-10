@@ -151,7 +151,7 @@ export function useFlowPadExpertTemplates({
           usedUseCase,
           contextKey: 'flowpad:inline',
         });
-        await fetchAgents(1, 100, true);
+        await fetchAgents(true);
         const routeApplied = await selectRouteAgent(newAgent.id);
         if (routeApplied) {
           recordExpertSummonRouteApplied('flow_pad_inline', trigger, funnel);

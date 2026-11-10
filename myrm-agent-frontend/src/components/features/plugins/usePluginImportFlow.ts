@@ -174,7 +174,7 @@ export function usePluginImportFlow({ onOpenChange, onImportComplete }: UsePlugi
       setResult(data);
       onImportComplete();
       if (data.agents.length > 0) {
-        fetchAgents(1, undefined, true).catch(() => {});
+        fetchAgents(true).catch(() => {});
       }
     } catch (error: unknown) {
       console.error('Plugin import confirm failed:', error);

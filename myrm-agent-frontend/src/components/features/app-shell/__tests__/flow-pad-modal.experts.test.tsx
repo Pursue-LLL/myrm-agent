@@ -184,7 +184,7 @@ describe('FlowPadModal: expert templates and summon', () => {
         contextKey: 'flowpad:inline',
       });
       expect(agentState.fetchAgents).toHaveBeenCalledTimes(2);
-      expect(agentState.fetchAgents).toHaveBeenLastCalledWith(1, 100, true);
+      expect(agentState.fetchAgents).toHaveBeenLastCalledWith(true);
       expect(agentState.fetchAgent).toHaveBeenCalledWith('cloudq-instance', expect.any(AbortSignal));
       expect(routeTrigger()).toHaveTextContent('CloudQ Team');
       expect(mocks.metrics.routeApplied).toHaveBeenCalledWith('flow_pad_inline', 'template_card', {

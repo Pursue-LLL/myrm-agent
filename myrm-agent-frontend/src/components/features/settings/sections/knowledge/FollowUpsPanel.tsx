@@ -46,7 +46,7 @@ const FollowUpsPanel = memo(function FollowUpsPanel() {
   const fetchAgents = useAgentStore((s) => s.fetchAgents);
 
   useEffect(() => {
-    void fetchAgents(1, 50, true);
+    void fetchAgents(true);
   }, [fetchAgents]);
 
   const load = useCallback(async () => {

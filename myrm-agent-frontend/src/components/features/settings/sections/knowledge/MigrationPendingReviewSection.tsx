@@ -72,7 +72,7 @@ const MigrationPendingReviewSection = memo(({ refreshToken = 0 }: MigrationPendi
 
   useEffect(() => {
     void loadPending();
-    void fetchAgents(1, 50, true);
+    void fetchAgents(true);
   }, [loadPending, refreshToken, fetchAgents]);
 
   const handleApprove = useCallback(
