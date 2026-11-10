@@ -47,10 +47,16 @@ if TYPE_CHECKING:
 
 
 class MemoryManagerCore(MemoryManagerHost):
-    """Orchestrates all memory operations. Bound to a single user via ``user_id``."""
+    """Orchestrates all memory operations. Bound to a single user via ``user_id``.
+
+    ``all_scopes=True`` makes the manager own every namespace of that user: deletion, metadata lookups and rule
+    lookups then reach memories written under any agent, channel or project scope. A chat-deletion cascade needs
+    this because it cannot know which scope wrote a memory.
+    """
 
     __slots__ = (
         "_active_session",
+        "_all_scopes",
         "_approval_required",
         "_cache",
         "_config",
@@ -108,8 +114,10 @@ class MemoryManagerCore(MemoryManagerHost):
         preference_facet_store: PreferenceFacetStoreProtocol | None = None,
         on_conflict: ConflictCallback | None = None,
         on_consolidation_complete: ConsolidationCompleteCallback | None = None,
+        all_scopes: bool = False,
     ) -> None:
         self._user_id = user_id
+        self._all_scopes = all_scopes
         self._recall_mode = recall_mode
         self._memory_policy = memory_policy
         self._on_conflict = on_conflict
@@ -219,7 +227,13 @@ class MemoryManagerCore(MemoryManagerHost):
             PreferenceStabilityStrategy(preference_facet_store) if preference_facet_store is not None else None
         )
         self._recurrence_detector = (
-            self._init_recurrence_detector(config, self._vector, embedding)
+            self._init_recurrence_detector(
+                config,
+                self._vector,
+                embedding,
+                user_id=self._user_id,
+                primary_namespace=self._scope.primary_namespace,
+            )
             if config.recurrence.enabled and self._vector is not None and embedding is not None
             else None
         )
@@ -259,17 +273,25 @@ class MemoryManagerCore(MemoryManagerHost):
 
     @staticmethod
     def _init_recurrence_detector(
-        config: MemoryConfig, vector: VectorStoreProtocol, embedding: EmbeddingProtocol
+        config: MemoryConfig,
+        vector: VectorStoreProtocol,
+        embedding: EmbeddingProtocol,
+        *,
+        user_id: str,
+        primary_namespace: str,
     ) -> RecurrenceDetector:
         """Initialize recurrence detector with config params.
 
-        ``vector`` is the manager's wrapped store, so the detector shares the BM25 sparse mirror.
+        ``vector`` is the manager's wrapped store, so the detector shares the BM25 sparse mirror. The detector reads
+        only the buffer rows of this manager's user and write scope.
         """
         rc = config.recurrence
         return RecurrenceDetector(
             embedding=embedding,
             vector=vector,
             collection_prefix=config.collection_prefix,
+            user_id=user_id,
+            primary_namespace=primary_namespace,
             similarity_threshold=rc.similarity_threshold,
             recurrence_k=rc.recurrence_k,
             buffer_capacity=rc.buffer_capacity,

@@ -39,6 +39,8 @@ def detector(mock_embedding: AsyncMock, mock_vector: AsyncMock) -> RecurrenceDet
         embedding=mock_embedding,
         vector=mock_vector,
         collection_prefix="test_memory",
+        user_id="u1",
+        primary_namespace="global",
         similarity_threshold=0.70,
         recurrence_k=3,
         buffer_capacity=100,
@@ -49,18 +51,18 @@ def detector(mock_embedding: AsyncMock, mock_vector: AsyncMock) -> RecurrenceDet
 class TestRecurrenceDetector:
     @pytest.mark.asyncio
     async def test_empty_summary_returns_not_triggered(self, detector: RecurrenceDetector) -> None:
-        result = await detector.check_recurrence("")
+        result = await detector.check_recurrence("", source_chat_id=None)
         assert not result.triggered
         assert result.consolidated_content is None
 
     @pytest.mark.asyncio
     async def test_whitespace_only_summary_not_triggered(self, detector: RecurrenceDetector) -> None:
-        result = await detector.check_recurrence("   \n  ")
+        result = await detector.check_recurrence("   \n  ", source_chat_id=None)
         assert not result.triggered
 
     @pytest.mark.asyncio
     async def test_importance_preemption_allergy(self, detector: RecurrenceDetector) -> None:
-        result = await detector.check_recurrence("I have a peanut allergy")
+        result = await detector.check_recurrence("I have a peanut allergy", source_chat_id=None)
         assert result.triggered
         assert result.consolidated_content == "I have a peanut allergy"
         assert result.topic_summary == "importance_preemption"
@@ -68,7 +70,7 @@ class TestRecurrenceDetector:
 
     @pytest.mark.asyncio
     async def test_importance_preemption_chinese(self, detector: RecurrenceDetector) -> None:
-        result = await detector.check_recurrence("我对花生过敏")
+        result = await detector.check_recurrence("我对花生过敏", source_chat_id=None)
         assert result.triggered
         assert result.consolidated_content == "我对花生过敏"
 
@@ -78,15 +80,17 @@ class TestRecurrenceDetector:
             embedding=mock_embedding,
             vector=mock_vector,
             collection_prefix="test",
+            user_id="u1",
+            primary_namespace="global",
             importance_preemption=False,
         )
-        result = await det.check_recurrence("I have a peanut allergy")
+        result = await det.check_recurrence("I have a peanut allergy", source_chat_id=None)
         assert not result.triggered
 
     @pytest.mark.asyncio
     async def test_no_recurrence_below_threshold(self, detector: RecurrenceDetector, mock_vector: AsyncMock) -> None:
         mock_vector.search.return_value = []  # 0 similar results
-        result = await detector.check_recurrence("I like Python programming")
+        result = await detector.check_recurrence("I like Python programming", source_chat_id=None)
         assert not result.triggered
         assert result.recurrence_count == 1  # Only current
 
@@ -101,7 +105,7 @@ class TestRecurrenceDetector:
         ]
         mock_vector.search.return_value = similar_results
 
-        result = await detector.check_recurrence("I like Python programming")
+        result = await detector.check_recurrence("I like Python programming", source_chat_id=None)
         assert result.triggered
         assert result.recurrence_count == 3  # 2 similar + 1 current = k
         assert result.consolidated_content == "I like Python programming"
@@ -120,7 +124,7 @@ class TestRecurrenceDetector:
         async def mock_llm(system: str, user: str) -> str:
             return "User's primary programming language is Python"
 
-        result = await detector.check_recurrence("Writing Python again", llm_func=mock_llm)
+        result = await detector.check_recurrence("Writing Python again", source_chat_id=None, llm_func=mock_llm)
         assert result.triggered
         assert result.consolidated_content == "User's primary programming language is Python"
         assert result.recurrence_count == 4
@@ -139,7 +143,7 @@ class TestRecurrenceDetector:
         async def failing_llm(system: str, user: str) -> str:
             raise RuntimeError("LLM error")
 
-        result = await detector.check_recurrence("topic again", llm_func=failing_llm)
+        result = await detector.check_recurrence("topic again", source_chat_id=None, llm_func=failing_llm)
         assert result.triggered
         assert result.consolidated_content == "topic again"
 
@@ -149,7 +153,7 @@ class TestRecurrenceDetector:
         docs = [MagicMock(id=f"old_{i}") for i in range(50)]
         mock_vector.scroll.return_value = (docs, None)
 
-        await detector.check_recurrence("normal topic")
+        await detector.check_recurrence("normal topic", source_chat_id=None)
         mock_vector.delete.assert_called()
 
     @pytest.mark.asyncio
@@ -157,14 +161,14 @@ class TestRecurrenceDetector:
         mock_vector.count.return_value = 50
         mock_vector.search.return_value = []
 
-        await detector.check_recurrence("normal topic")
+        await detector.check_recurrence("normal topic", source_chat_id=None)
         mock_vector.scroll.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_collection_initialized_once(self, detector: RecurrenceDetector, mock_vector: AsyncMock) -> None:
         mock_vector.search.return_value = []
-        await detector.check_recurrence("topic 1")
-        await detector.check_recurrence("topic 2")
+        await detector.check_recurrence("topic 1", source_chat_id=None)
+        await detector.check_recurrence("topic 2", source_chat_id=None)
         mock_vector.ensure_collection.assert_called_once()
 
     @pytest.mark.asyncio
@@ -180,7 +184,7 @@ class TestRecurrenceDetector:
         ]
         mock_vector.search.return_value = similar_results
 
-        await detector.check_recurrence("recurrent topic again")
+        await detector.check_recurrence("recurrent topic again", source_chat_id=None)
         upsert_calls = mock_vector.upsert.call_args_list
         assert len(upsert_calls) >= 2
         deprecated_docs = upsert_calls[-1].args[1]
@@ -196,6 +200,8 @@ class TestRecurrenceDetector:
             embedding=mock_embedding,
             vector=mock_vector,
             collection_prefix="test",
+            user_id="u1",
+            primary_namespace="global",
             soft_deprecation=False,
         )
         similar_results = [
@@ -207,7 +213,7 @@ class TestRecurrenceDetector:
         ]
         mock_vector.search.return_value = similar_results
 
-        await det.check_recurrence("recurrent topic again")
+        await det.check_recurrence("recurrent topic again", source_chat_id=None)
         delete_calls = mock_vector.delete.call_args_list
         triggered_ids = ["triggered_0", "triggered_1", "triggered_2"]
         assert any(call.args == (det._collection, triggered_ids) for call in delete_calls)
@@ -221,6 +227,8 @@ class TestRecurrenceDetector:
             embedding=mock_embedding,
             vector=mock_vector,
             collection_prefix="test",
+            user_id="u1",
+            primary_namespace="global",
             recurrence_k=4,
         )
         similar_results = [
@@ -231,7 +239,7 @@ class TestRecurrenceDetector:
             for i in range(2)
         ]
         mock_vector.search.return_value = similar_results
-        result = await det.check_recurrence("some topic")
+        result = await det.check_recurrence("some topic", source_chat_id=None)
         assert not result.triggered
         assert result.recurrence_count == 3
 
@@ -242,7 +250,7 @@ class TestRecurrenceDetector:
         """If embedding fails, exception propagates (caught by manager layer)."""
         mock_embedding.embed.side_effect = RuntimeError("Embedding service down")
         with pytest.raises(RuntimeError, match="Embedding service down"):
-            await detector.check_recurrence("test topic")
+            await detector.check_recurrence("test topic", source_chat_id=None)
 
     @pytest.mark.asyncio
     async def test_search_results_with_empty_content_filtered(
@@ -264,7 +272,7 @@ class TestRecurrenceDetector:
                     consolidated_snippets.append(line)
             return "consolidated result"
 
-        result = await detector.check_recurrence("topic C", llm_func=capture_llm)
+        result = await detector.check_recurrence("topic C", source_chat_id=None, llm_func=capture_llm)
         assert result.triggered
         assert "[Session 1]: topic A" in "\n".join(consolidated_snippets)
         assert "[Session 2]: topic B" in "\n".join(consolidated_snippets)
@@ -278,7 +286,7 @@ class TestRecurrenceDetector:
     ) -> None:
         """Verify upsert uses the correct collection name."""
         mock_vector.search.return_value = []
-        await detector.check_recurrence("test topic")
+        await detector.check_recurrence("test topic", source_chat_id=None)
         assert mock_vector.upsert.call_args[0][0] == "test_memory_recurrence_buffer"
 
 

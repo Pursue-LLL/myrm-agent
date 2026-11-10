@@ -123,6 +123,7 @@ _SEMANTIC_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
         "correction_of",
         "source_error",
         "tags",
+        "source_chat_ids",
         "last_accessed_at",
         STORED_TS_KEY,
     }
@@ -133,6 +134,7 @@ _EPISODIC_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
         "event_type",
         "related_entities",
         "tags",
+        "source_chat_ids",
         "last_accessed_at",
         STORED_TS_KEY,
     }
@@ -147,7 +149,7 @@ def _parse_domain(raw_domain: object) -> MemoryDomain:
 
 
 def _string_list_from_metadata(meta: Mapping[str, object], key: str) -> list[str]:
-    """Restore a list-valued payload key (tags, related entities) as strings.
+    """Restore a list-valued payload key (tags, related entities, source chats) as strings.
 
     The payload keeps tags and entities under single keys, which are excluded
     from the free-form ``extra`` metadata, so a read that skips them loses the
@@ -208,6 +210,7 @@ def doc_to_semantic(doc: VectorDocument) -> SemanticMemory:
         domain=_parse_domain(meta.get("domain")),
         domain_category=str(meta.get("domain_category", "")),
         tags=_string_list_from_metadata(meta, "tags"),
+        source_chat_ids=_string_list_from_metadata(meta, "source_chat_ids"),
     )
 
 
@@ -249,6 +252,7 @@ def doc_to_episodic(doc: VectorDocument) -> EpisodicMemory:
         domain=_parse_domain(meta.get("domain")),
         domain_category=str(meta.get("domain_category", "")),
         related_entities=_string_list_from_metadata(meta, "related_entities"),
+        source_chat_ids=_string_list_from_metadata(meta, "source_chat_ids"),
     )
 
 
@@ -260,6 +264,7 @@ def semantic_to_doc(m: SemanticMemory) -> VectorDocument:
         "importance": m.importance,
         "confidence": m.confidence,
         "source_chat_id": m.source_chat_id or "",
+        "source_chat_ids": list(m.source_chat_ids),
         "preference_type": m.preference_type or "",
         "preference_strength": m.preference_strength,
         "correction_of": m.correction_of or "",
@@ -308,6 +313,7 @@ def episodic_to_doc(m: EpisodicMemory) -> VectorDocument:
         "event_type": m.event_type,
         "importance": m.importance,
         "source_chat_id": m.source_chat_id or "",
+        "source_chat_ids": list(m.source_chat_ids),
         "related_entities": list(m.related_entities),
         "access_count": m.access_count,
         "user_rating": m.user_rating,

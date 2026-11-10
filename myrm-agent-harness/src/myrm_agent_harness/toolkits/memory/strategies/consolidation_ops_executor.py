@@ -5,6 +5,7 @@
 - memory.config::ConsolidationConfig (POS: consolidation configuration)
 - strategies.consolidation_models::* (POS: consolidation operations and data contracts)
 - strategies.consolidation_undo::CycleWrites (POS: the write gateway that journals what a cycle changes)
+- strategies.lineage::origin_chat_ids (POS: the chats a set of memories derives from)
 
 [OUTPUT]
 - execute_operations: Executes atomic merge/correct/update operations against memory storage
@@ -13,11 +14,14 @@
 [POS]
 Executes operations against memory primitives with transactional care, conflict routing,
 and deterministic three-state merge arbitration. Every write goes through the cycle's write gateway,
-so what the cycle changed is journaled for undo.
+so what the cycle changed is journaled for undo. A memory the cycle creates derives from the chats of the
+memories it was built from, so a merge whose source no longer exists is skipped rather than folding in text
+whose chat may just have been deleted.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -34,6 +38,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     UpdateContentOp,
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import CycleWrites
+from myrm_agent_harness.toolkits.memory.strategies.lineage import origin_chat_ids
 from myrm_agent_harness.toolkits.memory.strategies.merger import (
     DeterministicThreeStateMerger,
     MergeState,
@@ -201,10 +206,18 @@ async def execute_operations(
         failed_with_exception = False
         try:
             if isinstance(op, MergeOp):
+                fetched = await asyncio.gather(*(manager.get_memory(resolve(sid)) for sid in op.source_ids))
+                sources = [memory for memory in fetched if memory is not None]
+                if len(sources) < len(op.source_ids):
+                    logger.warning("Consolidation: merge skipped, a source memory no longer exists: %s", op.source_ids)
+                    continue
+                chat_ids = origin_chat_ids(sources)
                 new_mem = SemanticMemory(
                     content=op.merged_content,
                     importance=op.importance,
                     confidence=0.9,
+                    source_chat_id=chat_ids[0] if chat_ids else None,
+                    source_chat_ids=chat_ids,
                     metadata={CONSOLIDATION_SOURCE_KEY: ",".join(op.source_ids)},
                 )
                 await writes.store(new_mem)
@@ -274,6 +287,8 @@ async def execute_operations(
                             importance=op.importance,
                             confidence=merge_dec.candidate_confidence or 0.35,
                             scope=existing.scope,
+                            source_chat_id=existing.source_chat_id,
+                            source_chat_ids=list(existing.source_chat_ids),
                         )
                         await writes.store(counterpart)
                         stats.updated += 1

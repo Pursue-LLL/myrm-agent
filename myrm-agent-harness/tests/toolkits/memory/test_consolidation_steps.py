@@ -23,6 +23,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     _persist_insights,
     execute_operations,
 )
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import UndoJournal
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import (
     _SYSTEM_PROMPT,
     _build_id_map,
@@ -80,21 +81,21 @@ class TestPersistInsights:
     async def test_no_vector_skips(self) -> None:
         manager = make_manager()
         manager.has_vector = False
-        await _persist_insights(manager, ["an insight"])
+        await _persist_insights(manager, ["an insight"], [], UndoJournal())
         manager.store.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_short_insight_skipped(self) -> None:
         manager = make_manager()
         manager.store = AsyncMock()
-        await _persist_insights(manager, ["too short"])
+        await _persist_insights(manager, ["too short"], [], UndoJournal())
         manager.store.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_store_error_is_tolerated(self) -> None:
         manager = make_manager()
         manager.store = AsyncMock(side_effect=RuntimeError("store down"))
-        await _persist_insights(manager, ["this is a sufficiently long insight"])
+        await _persist_insights(manager, ["this is a sufficiently long insight"], [], UndoJournal())
         manager.store.assert_awaited_once()
 
 

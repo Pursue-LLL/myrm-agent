@@ -30,6 +30,14 @@ from myrm_agent_harness.toolkits.memory.types import (
 )
 
 
+def _origin_chat_id(memory: AnyMemory) -> str | None:
+    """The chat a memory was written from: a field on vector-backed memories, a metadata entry on a rule."""
+    if isinstance(memory, ProceduralMemory):
+        chat_id = memory.metadata.get("source_chat_id")
+        return str(chat_id) if chat_id else None
+    return getattr(memory, "source_chat_id", None)
+
+
 def memory_to_pending(
     memory: AnyMemory,
     *,
@@ -51,7 +59,7 @@ def memory_to_pending(
         memory_type=MemoryType(memory.memory_type),
         content=memory.content,
         memory_data=data,
-        source_chat_id=getattr(memory, "source_chat_id", None),
+        source_chat_id=_origin_chat_id(memory),
         source_message_id=getattr(memory, "source_message_id", None),
         resolution_action=resolution_action,
         target_memory_id=target_memory_id,

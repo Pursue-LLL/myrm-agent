@@ -235,7 +235,7 @@ class DeniedMemoryWrites:
     ) -> EpisodicMemory:
         self._deny()
 
-    async def check_session_recurrence(self, session_summary: str) -> None:
+    async def check_session_recurrence(self, session_summary: str, *, source_chat_id: str | None) -> None:
         self._deny()
 
     async def delete_memories_by_ids(self, memory_ids_by_type: dict[str, list[str]]) -> MemoryMutationResult:

@@ -155,6 +155,7 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
             confidence=0.95,
             tags=existing.tags,
             source_chat_id=existing.source_chat_id,
+            source_chat_ids=list(existing.source_chat_ids),
             preference_type=existing.preference_type,
             preference_strength=pref_strength,
             correction_of=memory_id,

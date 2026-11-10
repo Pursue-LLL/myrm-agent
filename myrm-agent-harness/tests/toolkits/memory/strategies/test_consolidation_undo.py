@@ -26,7 +26,17 @@ from myrm_agent_harness.toolkits.memory.strategies.merger import (
     MergeState,
 )
 from myrm_agent_harness.toolkits.memory.types import MemoryStatus, SemanticMemory
-from tests.support.consolidation_cycles import TEA, TEA_TOO, correct, merge, rewrite, run_cycle, store_fresh, undo
+from tests.support.consolidation_cycles import (
+    TEA,
+    TEA_TOO,
+    correct,
+    merge,
+    merged_pair,
+    rewrite,
+    run_cycle,
+    store_fresh,
+    undo,
+)
 from tests.support.consolidation_seeds import NewManager, seed, semantic
 
 
@@ -287,11 +297,24 @@ async def test_a_cycle_that_changed_nothing_leaves_the_earlier_undo_in_place(new
     earlier = await get_undo_summary(manager)
 
     await store_fresh(manager, "User owns a bicycle", "User rides to work")
-    quiet = await run_cycle(manager, insights=("User prefers low-effort commutes",))
+    quiet = await run_cycle(manager)
 
     assert quiet.undo.change_count == 0
     assert await get_undo_summary(manager) == earlier
     assert await undo(manager) == UndoResult(rolled_back=3)
+
+
+async def test_an_insight_is_part_of_its_cycle_so_undoing_the_cycle_removes_it(new_manager: NewManager) -> None:
+    manager = new_manager()
+    _, _, merged_id = await merged_pair(manager)
+    await store_fresh(manager, "User owns a bicycle", "User rides to work")
+
+    stats = await run_cycle(manager, insights=("User prefers low-effort commutes",))
+
+    [insight_id] = stats.undo.created
+    assert await undo(manager) == UndoResult(rolled_back=1)
+    assert await manager.get_memory(insight_id) is None
+    assert await manager.get_memory(merged_id) is not None
 
 
 async def test_the_card_of_an_older_cycle_cannot_undo_a_newer_one(new_manager: NewManager) -> None:

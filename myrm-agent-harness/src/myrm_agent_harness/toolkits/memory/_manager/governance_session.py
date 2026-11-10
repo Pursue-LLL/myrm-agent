@@ -135,25 +135,29 @@ class MemoryManagerGovernanceSessionMixin(MemoryManagerHost):
         self._maybe_consolidate()
         return persisted
 
-    async def check_session_recurrence(self, session_summary: str) -> None:
+    async def check_session_recurrence(self, session_summary: str, *, source_chat_id: str | None) -> None:
         """Check for topic recurrence across sessions and auto-store consolidated memory.
 
         Should be called by the agent after session end with a summary of the session's
         key topics (typically derived from user messages, not stored memories).
+        ``source_chat_id`` is the chat the summary came from: deleting that chat removes the summary's buffer
+        row and any memory consolidated from it.
 
         This is a fire-and-forget operation — failures are logged and silently ignored.
         """
         if not self._recurrence_detector or not session_summary.strip():
             return
-        await self._check_recurrence_and_store(session_summary)
+        await self._check_recurrence_and_store(session_summary, source_chat_id)
 
-    async def _check_recurrence_and_store(self, summary: str) -> None:
+    async def _check_recurrence_and_store(self, summary: str, source_chat_id: str | None) -> None:
         """Run recurrence detection and store consolidated memory if triggered."""
         if self._recurrence_detector is None:
             return
         try:
             llm_func = self._build_text_llm_func()
-            result = await self._recurrence_detector.check_recurrence(summary, llm_func=llm_func)
+            result = await self._recurrence_detector.check_recurrence(
+                summary, source_chat_id=source_chat_id, llm_func=llm_func
+            )
 
             if not result.triggered or not result.consolidated_content:
                 return
@@ -166,6 +170,8 @@ class MemoryManagerGovernanceSessionMixin(MemoryManagerHost):
                 content=result.consolidated_content,
                 memory_type=MemoryType.SEMANTIC,
                 importance=0.8,
+                source_chat_id=source_chat_id,
+                source_chat_ids=list(result.source_chat_ids),
             )
             await self.store(memory, _bypass_approval=True)
         except Exception as e:

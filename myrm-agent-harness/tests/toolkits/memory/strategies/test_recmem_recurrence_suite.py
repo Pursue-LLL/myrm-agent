@@ -42,6 +42,8 @@ def detector(mock_embedding: AsyncMock, mock_vector: AsyncMock) -> RecurrenceDet
         embedding=mock_embedding,
         vector=mock_vector,
         collection_prefix="test_memory",
+        user_id="u1",
+        primary_namespace="global",
         similarity_threshold=0.75,
         recurrence_k=2,
         buffer_capacity=10,
@@ -71,7 +73,7 @@ class TestRecurrenceDetectorEnhancements:
         mock_vector: AsyncMock,
         mock_embedding: AsyncMock,
     ) -> None:
-        result = await detector.check_recurrence("你好")
+        result = await detector.check_recurrence("你好", source_chat_id=None)
         assert not result.triggered
         assert result.consolidated_content is None
         mock_embedding.embed.assert_not_called()
@@ -90,7 +92,9 @@ class TestRecurrenceDetectorEnhancements:
         mock_vector.search.return_value = [SearchResult(document=existing_doc, score=0.88)]
 
         mock_llm = AsyncMock(return_value="Consolidated: User strictly prefers asyncio over threading")
-        result = await detector.check_recurrence("User prefers async python everywhere", llm_func=mock_llm)
+        result = await detector.check_recurrence(
+            "User prefers async python everywhere", source_chat_id=None, llm_func=mock_llm
+        )
         assert result.triggered
         assert "asyncio" in str(result.consolidated_content)
 
@@ -113,7 +117,7 @@ class TestRecurrenceDetectorEnhancements:
             metadata={"is_deprecated": True, "superseded_by": "new-doc-1"},
         )
         mock_vector.search.return_value = [SearchResult(document=deprecated_doc, score=0.92)]
-        result = await detector.check_recurrence("User prefers async python code")
+        result = await detector.check_recurrence("User prefers async python code", source_chat_id=None)
         # Since the hit was deprecated, effective hits should be 0 (< recurrence_k=2)
         assert not result.triggered
 

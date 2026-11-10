@@ -358,7 +358,7 @@ class TestCheckSessionRecurrence:
         )
         manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
         assert manager._recurrence_detector is None
-        await manager.check_session_recurrence("user likes python")
+        await manager.check_session_recurrence("user likes python", source_chat_id=None)
         mock_vector_store.search.assert_not_called()
 
     @pytest.mark.asyncio
@@ -366,8 +366,8 @@ class TestCheckSessionRecurrence:
         """Empty or whitespace summary is silently skipped."""
         config = MemoryConfig(embedding_model="test-model")
         manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
-        await manager.check_session_recurrence("")
-        await manager.check_session_recurrence("   ")
+        await manager.check_session_recurrence("", source_chat_id=None)
+        await manager.check_session_recurrence("   ", source_chat_id=None)
         mock_vector_store.search.assert_not_called()
 
     @pytest.mark.asyncio
@@ -378,7 +378,7 @@ class TestCheckSessionRecurrence:
         config = MemoryConfig(embedding_model="test-model")
         manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
 
-        await manager.check_session_recurrence("user asked about python")
+        await manager.check_session_recurrence("user asked about python", source_chat_id=None)
 
         mock_embedding.embed.assert_called_once()
         mock_vector_store.upsert.assert_called_once()
@@ -410,7 +410,7 @@ class TestCheckSessionRecurrence:
         )
         manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
 
-        await manager.check_session_recurrence("user asked about python again")
+        await manager.check_session_recurrence("user asked about python again", source_chat_id=None)
 
         # The manager-level contract is "consolidate into long-term memory and
         # supersede the contributors". The deprecation mechanism itself (and the
@@ -434,7 +434,7 @@ class TestCheckSessionRecurrence:
         config = MemoryConfig(embedding_model="test-model")
         manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
 
-        await manager.check_session_recurrence("I have a severe allergy to penicillin")
+        await manager.check_session_recurrence("I have a severe allergy to penicillin", source_chat_id=None)
 
         assert mock_vector_store.upsert.called
 
@@ -445,7 +445,7 @@ class TestCheckSessionRecurrence:
         config = MemoryConfig(embedding_model="test-model")
         manager = MemoryManager(config, user_id="u1", vector=mock_vector_store, embedding=mock_embedding)
 
-        await manager.check_session_recurrence("test topic")
+        await manager.check_session_recurrence("test topic", source_chat_id=None)
 
     @pytest.mark.asyncio
     async def test_recurrence_with_consolidation_llm(self, mock_vector_store, mock_embedding):
@@ -483,7 +483,7 @@ class TestCheckSessionRecurrence:
             consolidation_llm=mock_llm,
         )
 
-        await manager.check_session_recurrence("python data processing again")
+        await manager.check_session_recurrence("python data processing again", source_chat_id=None)
 
         mock_llm.ainvoke.assert_called_once()
 

@@ -53,9 +53,7 @@ _ENABLED_TYPE_MAP: dict[MemoryType, str] = {
 class MemoryExtractor:
     """Extracts memorable information from conversations via LLM."""
 
-    def __init__(
-        self, config: ExtractionConfig | None = None, llm_func: LLMFunc | None = None
-    ) -> None:
+    def __init__(self, config: ExtractionConfig | None = None, llm_func: LLMFunc | None = None) -> None:
         self.config = config or ExtractionConfig()
         self.llm_func = llm_func
         self._last_detected_language: Literal["zh", "en"] = "en"
@@ -170,10 +168,7 @@ class MemoryExtractor:
         detected_language = detect_language(full_text)
         self._last_detected_language = detected_language
 
-        formatted = "\n".join(
-            f"[{str(m.get('role') or 'user').upper()}]: {m.get('content', '')}"
-            for m in messages
-        )
+        formatted = "\n".join(f"[{str(m.get('role') or 'user').upper()}]: {m.get('content', '')}" for m in messages)
         session_date = start.strftime("%Y-%m-%d (%A)")
         prompt = f"Session date: {session_date}\n\n## Conversation to Analyze\n\n{formatted}\n\n"
         prompt += "## Instructions\n\nAnalyze the conversation. If and ONLY if it contains critical constraints, high-leverage knowledge, or valuable personal facts, output them. Otherwise, output [].\n"
@@ -205,9 +200,7 @@ class MemoryExtractor:
             ]
             memories = fragments[: self.config.max_extractions_per_turn] + digests
             if self.config.enable_task_digest:
-                has_digest = any(
-                    m.memory_type == MemoryType.TASK_DIGEST for m in memories
-                )
+                has_digest = any(m.memory_type == MemoryType.TASK_DIGEST for m in memories)
                 logger.debug(
                     "Task digest %s",
                     "generated" if has_digest else "skipped (no substantive task)",
@@ -234,11 +227,7 @@ class MemoryExtractor:
         result: list[ConcreteMemory] = []
         language = self._last_detected_language
         for m in extracted:
-            first_msg_id = (
-                m.evidence[0].message_id
-                if m.evidence and m.evidence[0].message_id
-                else None
-            )
+            first_msg_id = m.evidence[0].message_id if m.evidence and m.evidence[0].message_id else None
             meta: dict[str, str | int | float | bool] = {}
             if m.evidence:
                 first_ev = m.evidence[0]
@@ -250,11 +239,7 @@ class MemoryExtractor:
                     meta["evidence_author"] = first_ev.author_id
                 meta["evidence_count"] = len(m.evidence)
 
-            if (
-                m.memory_type == MemoryType.PROFILE
-                and m.profile_key
-                and m.profile_value
-            ):
+            if m.memory_type == MemoryType.PROFILE and m.profile_key and m.profile_value:
                 result.append(
                     ProfileEntry(
                         key=m.profile_key,
@@ -302,9 +287,7 @@ class MemoryExtractor:
                 )
             elif m.memory_type == MemoryType.PROCEDURAL and m.trigger and m.action:
                 priority_val = (
-                    ToolRulePriority(m.tool_rule_priority)
-                    if m.tool_rule_priority
-                    else ToolRulePriority.NORMAL
+                    ToolRulePriority(m.tool_rule_priority) if m.tool_rule_priority else ToolRulePriority.NORMAL
                 )
                 result.append(
                     ProceduralMemory(
@@ -318,7 +301,8 @@ class MemoryExtractor:
                         tool_rule_priority=priority_val,
                         expected_valid_days=m.expected_valid_days,
                         evidence=m.evidence,
-                        metadata=meta,
+                        # A rule has no chat field: the chat deletion cascade finds it through this metadata key.
+                        metadata={**meta, "source_chat_id": source_chat_id} if source_chat_id else meta,
                     )
                 )
             elif m.memory_type == MemoryType.TASK_DIGEST:

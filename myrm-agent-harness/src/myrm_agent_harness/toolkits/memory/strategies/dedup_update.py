@@ -5,6 +5,7 @@
 - memory.protocols.vector::VectorStoreProtocol (POS: vector store protocol)
 - memory.types::SemanticMemory (POS: memory data models)
 - strategies.conflict_merger::merge_evidence_references (POS: evidence reference merging)
+- strategies.lineage::origin_chat_ids (POS: the chats a set of memories derives from)
 - strategies.dedup_types::{DeduplicatableMemory, DeduplicationDecision} (POS: the memory types deduplication compares and merges, and the judgment verdicts)
 
 [OUTPUT]
@@ -12,7 +13,8 @@
 
 [POS]
 Applies an UPDATE verdict. The target is refused (the new memory is created instead) when it is user-protected,
-sourced from the user, or scoped to a namespace the new memory does not share.
+sourced from the user, or scoped to a namespace the new memory does not share. The updated memory derives from
+the chats of both memories, so deleting either chat reaches it.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory.strategies.dedup_types import DeduplicatableMemory, DeduplicationDecision
+from myrm_agent_harness.toolkits.memory.strategies.lineage import origin_chat_ids
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
 if TYPE_CHECKING:
@@ -47,7 +50,8 @@ async def apply_dedup_update(
     - UPDATE_REPLACE: new metadata fully replaces existing metadata
     - UPDATE_MERGE: new metadata merges into existing (new keys override)
     Tags are always union-merged and deduplicated.
-    Source fields always update to the latest provenance.
+    The source chat and message always update to the latest provenance, and every chat either memory derives from
+    stays linked to the result.
     """
     from myrm_agent_harness.toolkits.memory._internal.storage import (
         doc_to_episodic,
@@ -105,6 +109,7 @@ async def apply_dedup_update(
         if isinstance(new_memory, SemanticMemory) and isinstance(existing, SemanticMemory) and new_memory.tags:
             existing.tags = list(dict.fromkeys(existing.tags + new_memory.tags))
 
+        existing.source_chat_ids = origin_chat_ids([new_memory, existing])
         if new_memory.source_chat_id:
             existing.source_chat_id = new_memory.source_chat_id
         if new_memory.source_message_id:

@@ -3,6 +3,7 @@
 [INPUT]
 - memory._manager.deletion::MemoryManagerDeletionMixin (POS: single-memory deletion primitives and the ownership gate)
 - memory._manager.model_collections::{current_collection, family_lock, memory_collections, retire_if_drained} (POS: every embedding model's collections and the lock shared with the migration)
+- memory.strategies.recurrence::{buffer_collection, purge_recurrence_buffer} (POS: the recurrence buffer, which holds the opening words of sessions)
 
 [OUTPUT]
 - MemoryManagerBulkDeletionMixin: delete_memories_by_metadata (chat-purge cascade), delete_all
@@ -12,6 +13,7 @@ Bulk deletion — a metadata cascade or a full erase reaches the memories an emb
 previous models' collections, because those are the same memories. Both run under the collection family's
 lock so a migration page in flight cannot write back what they removed. They visit every collection
 themselves, so they call the unlocked, single-collection ``_delete_owned`` (``asyncio.Lock`` is not re-entrant).
+Erasing everything also clears the user's recurrence buffer rows.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
     Sequence,
     logger,
 )
+from myrm_agent_harness.toolkits.memory.strategies.recurrence import buffer_collection, purge_recurrence_buffer
 
 
 class MemoryManagerBulkDeletionMixin(MemoryManagerDeletionMixin):
@@ -81,7 +84,7 @@ class MemoryManagerBulkDeletionMixin(MemoryManagerDeletionMixin):
                     active_only=False,
                     limit=500,
                     offset=offset,
-                    namespaces=self._namespaces,
+                    namespaces=self._ownership_namespaces(),
                 )
                 if not rules:
                     break
@@ -132,6 +135,12 @@ class MemoryManagerBulkDeletionMixin(MemoryManagerDeletionMixin):
                         except Exception as e:
                             logger.warning("Error deleting %s: %s", coll, e)
                             failed.append(coll)
+            try:
+                await purge_recurrence_buffer(self._vector, self._config.collection_prefix, user_id=uid)
+            except Exception as e:
+                buffer = buffer_collection(self._config.collection_prefix)
+                logger.warning("Error deleting %s: %s", buffer, e)
+                failed.append(buffer)
         if self._graph is not None:
             try:
                 counts["graph"] = await self._graph.delete_all_by_owner(uid)

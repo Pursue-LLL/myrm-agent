@@ -9,8 +9,9 @@
 - strategies.consolidation_models::* (POS: Domain models, DTOs, and protocol callback types for cross-session memory consolidation)
 - strategies.consolidation_prompts::* (POS: Prompts and payload compression helpers for memory consolidation)
 - strategies.consolidation_ops_executor::* (POS: Executes operations against memory primitives with transactional care, conflict routing, and deterministic three-state merge arbitration)
-- strategies.consolidation_undo::save_undo (POS: Exact undo of the latest consolidation cycle)
+- strategies.consolidation_undo::{CycleWrites, save_undo} (POS: Exact undo of the latest consolidation cycle)
 - strategies.consolidation_window::fetch_candidate_window (POS: Oldest-first window of memories a consolidation run has not covered yet)
+- strategies.lineage::origin_chat_ids (POS: the chats a set of memories derives from)
 - strategies.named_entity_guard::NamedEntityGuard (POS: 确定性命名实体与关键技术标识符守卫)
 
 [OUTPUT]
@@ -23,12 +24,15 @@ detect contradictions and redundancies. Executes merge/correct/update and genera
 at near-zero marginal cost. Triggered by end_session() on configured intervals. The stored timestamp
 is a covered-through mark over the order in which memories reached the store; it advances only as far as
 the analyzed window reached and never past a write still being persisted, so a backlog larger than one run
-is drained over consecutive runs and no memory is skipped for arriving late.
+is drained over consecutive runs and no memory is skipped for arriving late. The insights a cycle persists derive
+from the chats of every memory it read and are journaled with the cycle's other writes, so deleting one of those
+chats reaches them and undoing the cycle removes them.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -48,6 +52,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     ConsolidationStats,
     CorrectOp,
     MergeOp,
+    UndoJournal,
     UpdateContentOp,
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_ops_executor import (
@@ -59,8 +64,9 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import 
     _build_id_map,
     _build_user_prompt,
 )
-from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import save_undo
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import CycleWrites, save_undo
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
+from myrm_agent_harness.toolkits.memory.strategies.lineage import origin_chat_ids
 from myrm_agent_harness.toolkits.memory.types import ClaimMemory, ProceduralMemory
 
 if TYPE_CHECKING:
@@ -213,9 +219,9 @@ async def run_consolidation(
     stats.insights = tuple(parsed.insights)
     stats.guard_patched = guard_patched_count
 
-    await save_undo(manager, stats)
     if parsed.insights:
-        await _persist_insights(manager, parsed.insights)
+        await _persist_insights(manager, parsed.insights, memories, stats.undo)
+    await save_undo(manager, stats)
 
     should_advance_timestamp = not stats.aborted and not (
         stats.errors > 0 and (stats.merged + stats.corrected + stats.updated == 0)
@@ -263,13 +269,21 @@ _MIN_INSIGHT_LENGTH = 10
 _INSIGHT_IMPORTANCE_THRESHOLD = 0.6
 
 
-async def _persist_insights(manager: MemoryManager, insights: list[str]) -> None:
-    """Persist quality insights as SemanticMemory with implicit preference type."""
+async def _persist_insights(
+    manager: MemoryManager, insights: list[str], sources: Sequence[AnyMemory], journal: UndoJournal
+) -> None:
+    """Persist quality insights as SemanticMemory with implicit preference type.
+
+    An insight is drawn from the whole window the model read, so it derives from the chats of every memory in
+    ``sources``. It is written through the cycle's write gateway, so ``journal`` records it for undo.
+    """
     if not manager.has_vector:
         return
 
     from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
+    writes = CycleWrites(manager, journal)
+    chat_ids = origin_chat_ids(sources)
     stored = 0
     for text in insights:
         text = text.strip()
@@ -283,9 +297,11 @@ async def _persist_insights(manager: MemoryManager, insights: list[str]) -> None
             preference_type="implicit",
             preference_strength=0.6,
             tags=[CONSOLIDATION_INSIGHT_TAG],
+            source_chat_id=chat_ids[0] if chat_ids else None,
+            source_chat_ids=chat_ids,
         )
         try:
-            await manager.store(mem, _bypass_approval=True)
+            await writes.store(mem)
             stored += 1
         except Exception as e:
             logger.warning("Failed to persist consolidation insight: %s", e)

@@ -11,7 +11,7 @@
 | `__init__.py` | 门面 | 导出全部类型与 `AnyMemory`，执行 `model_rebuild` | ✅ |
 | `enums.py` | 核心 | 记忆分类、层级、摘要/蒸发/声明状态、冲突处置、规则优先级 | ✅ |
 | `base.py` | 基础 | BaseMemory（含 `stored_at`：存储层写入时盖的到达戳，不同于业务时间 `created_at`）/ MemoryScope / MemoryLifecycle / EvidenceReference / 归档窗口 / 变更 DTO | ✅ |
-| `records.py` | 核心 | ProfileEntry 与八类具体记忆模型 | ✅ |
+| `records.py` | 核心 | ProfileEntry 与八类具体记忆模型；语义与情景记忆用 `source_chat_ids` 记录由多个对话合成时所源自的全部对话 | ✅ |
 | `search.py` | 核心 | 检索来源、白盒追踪、搜索结果与待审候选 | ✅ |
 
 ## 依赖关系

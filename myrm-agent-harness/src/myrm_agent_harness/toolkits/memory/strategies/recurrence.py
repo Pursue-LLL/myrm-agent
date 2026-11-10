@@ -1,6 +1,5 @@
 """Recurrence-triggered memory consolidation strategy.
 
-
 [INPUT]
 - memory.config::RecurrenceConfig (POS: recurrence detection configuration)
 - memory.protocols.embedding::EmbeddingProtocol (POS: text to vector)
@@ -9,13 +8,17 @@
 
 [OUTPUT]
 - RecurrenceDetector: Detects recurrent topics across sessions and triggers LLM consolidation.
-- RecurrenceResult: Detection result with triggered flag and consolidated content.
+- RecurrenceResult: Detection result with triggered flag, consolidated content and the chats it derives from.
+- purge_recurrence_buffer: Deletes a user's buffer rows, or only those one chat contributed.
 
 [POS]
 Recurrence-triggered memory consolidation. Detects topics that appear repeatedly across
 sessions via embedding similarity, then triggers LLM refinement to produce high-quality
 long-term memories. Includes an importance-preemption bypass for safety/health/identity
-signals that consolidate immediately on first occurrence.
+signals that consolidate immediately on first occurrence. The buffer is one collection per
+deployment prefix, so every row names its owner, write scope and chat: a detector reads only
+the rows of its own user and scope, and deleting a chat deletes the rows (the opening words of
+its sessions) and the memories that derive from it.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from datetime import UTC, datetime
 
 from myrm_agent_harness.toolkits.memory.protocols.embedding import EmbeddingProtocol
 from myrm_agent_harness.toolkits.memory.protocols.vector import (
+    FilterDict,
     VectorDocument,
     VectorStoreProtocol,
 )
@@ -53,14 +57,38 @@ Rules:
 """
 
 
+def buffer_collection(collection_prefix: str) -> str:
+    """The vector collection holding the recurrence buffer of the deployment with this prefix."""
+    return f"{collection_prefix}{_RECURRENCE_COLLECTION_SUFFIX}"
+
+
+async def purge_recurrence_buffer(
+    vector: VectorStoreProtocol, collection_prefix: str, *, user_id: str, chat_id: str | None = None
+) -> int:
+    """Delete the buffer rows of ``user_id``, or only those ``chat_id`` contributed; returns how many were removed.
+
+    The rows hold the opening words of sessions, so they go with the chat, or with all of the user's memories,
+    whether or not recurrence detection is enabled now. A buffer that was never created has no rows.
+    """
+    filters: FilterDict = {"user_id": user_id}
+    if chat_id is not None:
+        filters["source_chat_id"] = chat_id
+    return await vector.delete_by_filter(buffer_collection(collection_prefix), filters)
+
+
 @dataclass(frozen=True, slots=True)
 class RecurrenceResult:
-    """Result of recurrence detection for a session."""
+    """Result of recurrence detection for a session.
+
+    ``source_chat_ids`` lists every chat a consolidated memory built from several sessions derives from; it is empty
+    when the memory came from the one session being checked.
+    """
 
     triggered: bool
     consolidated_content: str | None = None
     recurrence_count: int = 0
     topic_summary: str | None = None
+    source_chat_ids: tuple[str, ...] = ()
 
 
 class RecurrenceDetector:
@@ -69,6 +97,8 @@ class RecurrenceDetector:
     Uses a dedicated vector collection as a lightweight ring buffer: each session's
     summary embedding is stored, and on each new session end, similarity search
     identifies whether the topic has appeared >= k times (recurrence threshold).
+    Only the rows of ``user_id`` written in ``primary_namespace`` count: the collection is shared by
+    every user and scope of the deployment.
 
     When triggered, an LLM call produces a refined memory from the accumulated snippets.
     """
@@ -79,6 +109,8 @@ class RecurrenceDetector:
         embedding: EmbeddingProtocol,
         vector: VectorStoreProtocol,
         collection_prefix: str,
+        user_id: str,
+        primary_namespace: str,
         similarity_threshold: float = 0.70,
         recurrence_k: int = 4,
         buffer_capacity: int = 200,
@@ -87,7 +119,9 @@ class RecurrenceDetector:
     ) -> None:
         self._embedding = embedding
         self._vector = vector
-        self._collection = f"{collection_prefix}{_RECURRENCE_COLLECTION_SUFFIX}"
+        self._collection = buffer_collection(collection_prefix)
+        self._user_id = user_id
+        self._primary_namespace = primary_namespace
         self._similarity_threshold = similarity_threshold
         self._recurrence_k = recurrence_k
         self._buffer_capacity = buffer_capacity
@@ -109,12 +143,15 @@ class RecurrenceDetector:
         self,
         session_summary: str,
         *,
+        source_chat_id: str | None,
         llm_func: LLMFunc | None = None,
     ) -> RecurrenceResult:
         """Check if this session's topic recurs across previous sessions.
 
         Args:
             session_summary: A concise summary of the current session's key topics.
+            source_chat_id: The chat the summary came from, recorded on its buffer row so deleting the chat
+                removes the row and any memory consolidated from it; ``None`` for a session without a chat.
             llm_func: Optional LLM call for consolidation (system_prompt, user_prompt) -> response.
 
         Returns:
@@ -146,6 +183,7 @@ class RecurrenceDetector:
             self._collection,
             query_vec,
             limit=self._recurrence_k + 10,
+            filters=self._scope_filter(),
             score_threshold=self._similarity_threshold,
         )
 
@@ -155,16 +193,17 @@ class RecurrenceDetector:
 
         doc_id = str(uuid.uuid4())
         now_iso = datetime.now(UTC).isoformat()
+        row_metadata: dict[str, str | int | float | bool | list[str]] = {
+            "created_at": now_iso,
+            "is_deprecated": False,
+            "user_id": self._user_id,
+            "primary_namespace": self._primary_namespace,
+        }
+        if source_chat_id:
+            row_metadata["source_chat_id"] = source_chat_id
         await self._vector.upsert(
             self._collection,
-            [
-                VectorDocument(
-                    id=doc_id,
-                    content=session_summary,
-                    vector=query_vec,
-                    metadata={"created_at": now_iso, "is_deprecated": False},
-                )
-            ],
+            [VectorDocument(id=doc_id, content=session_summary, vector=query_vec, metadata=row_metadata)],
         )
 
         await self._evict_old_entries()
@@ -201,12 +240,21 @@ class RecurrenceDetector:
             else:
                 await self._vector.delete(self._collection, triggered_ids)
 
+        chat_ids = dict.fromkeys(
+            chat_id
+            for chat_id in (source_chat_id, *(r.document.metadata.get("source_chat_id") for r in similar_active))
+            if isinstance(chat_id, str) and chat_id
+        )
         return RecurrenceResult(
             triggered=True,
             consolidated_content=consolidated,
             recurrence_count=recurrence_count,
             topic_summary=session_summary[:100],
+            source_chat_ids=tuple(chat_ids),
         )
+
+    def _scope_filter(self) -> FilterDict:
+        return {"user_id": self._user_id, "primary_namespace": self._primary_namespace}
 
     async def _consolidate(
         self,
