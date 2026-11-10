@@ -6,13 +6,14 @@
 - .startup (POS: boot housekeeping coroutines)
 
 [OUTPUT]
-- schedule_background_work
+- schedule_background_work, cancel_scheduled_background_work
 
 [POS]
 Starts the boot's background tasks once uvicorn is accepting connections. They are CPU-heavy on the single event loop
 (scheduler wiring, tokenizer and vector store warmup, the agent tool chain import, the kanban dispatchers' first
 queries); started before the lifespan yields, their first synchronous slices would delay the socket bind, which
-uvicorn performs only after startup completes. When they have all ended, the boot GC pause ends with them.
+uvicorn performs only after startup completes. When they have all ended, the boot GC pause ends with them. A shutdown
+that arrives before the delay has passed cancels the start, so no scheduler is started once components are stopping.
 """
 
 from __future__ import annotations
@@ -33,10 +34,20 @@ BACKGROUND_START_DELAY_SECONDS = 0.25
 # The loop keeps only weak references to tasks; a running background task must be held until it ends.
 _running: set[asyncio.Task[None]] = set()
 
+# The scheduled start, held so that a shutdown within the delay can cancel it.
+_scheduled_start: asyncio.TimerHandle | None = None
+
 
 def schedule_background_work() -> None:
     """Start the background tasks shortly after the lifespan yields, i.e. once the socket is bound."""
-    asyncio.get_running_loop().call_later(BACKGROUND_START_DELAY_SECONDS, _start_background_work)
+    global _scheduled_start
+    _scheduled_start = asyncio.get_running_loop().call_later(BACKGROUND_START_DELAY_SECONDS, _start_background_work)
+
+
+def cancel_scheduled_background_work() -> None:
+    """Called when the server shuts down: background work that has not started yet is not started."""
+    if _scheduled_start is not None:
+        _scheduled_start.cancel()
 
 
 def _start_background_work() -> None:

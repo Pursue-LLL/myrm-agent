@@ -11,11 +11,12 @@
 - recover_stale_tasks, start_dispatcher, stop_dispatcher, shutdown_dispatchers, _make_task_completed_merge_hook
 
 [POS]
-Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful shutdown. Registers a task_completed hook that schedules async worktree merge (sync dispatcher emit → tracked background task registered as the task's landing) so auto-completed tasks land their commits on the target branch before their dependents build a workspace.
+Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful concurrent shutdown. Registers a task_completed hook that schedules async worktree merge (sync dispatcher emit → tracked background task registered as the task's landing) so auto-completed tasks land their commits on the target branch before their dependents build a workspace.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -117,14 +118,25 @@ async def stop_dispatcher(
     dispatchers: dict[str, KanbanDispatcher],
     board_id: str,
 ) -> bool:
-    if board_id not in dispatchers:
+    dispatcher = dispatchers.get(board_id)
+    if dispatcher is None:
         return False
-    await dispatchers[board_id].stop()
-    del dispatchers[board_id]
+    await dispatcher.stop()
+    # The board may have been started again while this one was stopping; only this dispatcher's entry goes.
+    if dispatchers.get(board_id) is dispatcher:
+        del dispatchers[board_id]
     return True
 
 
 async def shutdown_dispatchers(dispatchers: dict[str, KanbanDispatcher]) -> None:
-    """Stop all dispatchers."""
-    for board_id in list(dispatchers):
-        await stop_dispatcher(dispatchers, board_id)
+    """Stop every dispatcher at once, so that one slow board does not hold back the others.
+
+    A stop lets the dispatcher's loops finish the database call they are in and may wait for running tasks;
+    done one board after the other those waits would add up with the number of boards. A dispatcher that
+    fails to stop is logged and left registered; the rest are stopped regardless.
+    """
+    board_ids = list(dispatchers)
+    results = await asyncio.gather(*(stop_dispatcher(dispatchers, board_id) for board_id in board_ids), return_exceptions=True)
+    for board_id, result in zip(board_ids, results, strict=True):
+        if isinstance(result, BaseException):
+            logger.error("Kanban dispatcher of board %s failed to stop: %s", board_id, result, exc_info=result)

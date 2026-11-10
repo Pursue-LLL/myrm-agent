@@ -4,8 +4,8 @@
 - app.server.lifespan.background (POS: schedules the boot's background tasks)
 
 [OUTPUT]
-- Coverage that nothing starts before the delay, that every task runs, that a failure is logged, and that the
-  settle step waits for all of them
+- Coverage that nothing starts before the delay, that every task runs, that a failure is logged, that the
+  settle step waits for all of them, and that a shutdown within the delay cancels the start
 
 [POS]
 Server tests. Uvicorn binds its socket only after the lifespan yields; background work that starts earlier delays
@@ -99,3 +99,34 @@ async def test_a_failed_task_is_logged_and_does_not_stop_the_others(
     assert sorted(started) == sorted(_TASK_NAMES)
     assert "Background task" in caplog.text
     assert "warmup exploded" in caplog.text
+
+
+async def test_a_shutdown_within_the_delay_cancels_the_start(monkeypatch: pytest.MonkeyPatch) -> None:
+    started: list[str] = []
+    _install_fakes(monkeypatch, started)
+    settled: list[asyncio.Future[object]] = []
+    monkeypatch.setattr(background, "settle_collection_after", settled.append)
+
+    background.schedule_background_work()
+    background.cancel_scheduled_background_work()
+    await asyncio.sleep(0.2)
+
+    assert started == []
+    assert settled == []
+    assert background._running == set()
+
+
+async def test_cancelling_after_the_start_leaves_the_running_tasks_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    started: list[str] = []
+    release = _install_fakes(monkeypatch, started)
+    settled: list[asyncio.Future[object]] = []
+    monkeypatch.setattr(background, "settle_collection_after", settled.append)
+
+    background.schedule_background_work()
+    await asyncio.sleep(0.2)
+    background.cancel_scheduled_background_work()
+
+    assert len(background._running) == len(_TASK_NAMES)
+    release.set()
+    await settled[0]
+    assert background._running == set()

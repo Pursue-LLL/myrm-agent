@@ -2,8 +2,8 @@
 
 A machine with 525 boards spent seconds in this step: every board read its own row again, and each dispatcher ran
 its first queries before the next board was started. The boot now prepares kanban cheaply before the HTTP bind,
-and starts the dispatchers afterwards: the boards are read once, started in batches, a first start can be held
-back, and shutdown cancels a start that is still waiting or going.
+and starts the dispatchers afterwards: the boards are read once, started in batches, and a first start can be held
+back. How a shutdown ends a start that is waiting or going is covered in test_dispatcher_shutdown.py.
 """
 
 from __future__ import annotations
@@ -57,13 +57,14 @@ async def _boot_started(service: KanbanService) -> None:
 
 
 def _record_sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
-    """Replace the mixin's sleep with a recorder so pauses and the start delay are observable without waiting."""
+    """Replace the mixin's interruptible sleep with a recorder so pauses and the start delay are observable."""
     sleeps: list[float] = []
 
-    async def record(delay: float) -> None:
+    async def record(stop: asyncio.Event, delay: float) -> bool:
         sleeps.append(delay)
+        return stop.is_set()
 
-    monkeypatch.setattr(mixin, "asyncio", SimpleNamespace(sleep=record, CancelledError=asyncio.CancelledError))
+    monkeypatch.setattr(mixin, "_sleep_unless_stopped", record)
     return sleeps
 
 
@@ -207,41 +208,6 @@ async def test_boot_start_needs_the_runner_prepared_first() -> None:
 
     with pytest.raises(RuntimeError, match="runner"):
         service.start_boot_dispatchers()
-
-
-@pytest.mark.asyncio
-async def test_shutdown_cancels_a_boot_start_that_is_still_going(monkeypatch: pytest.MonkeyPatch) -> None:
-    service = await _service(monkeypatch, _boards(3))
-    entered = asyncio.Event()
-
-    async def blocked(*args: object, **kwargs: object) -> object:
-        entered.set()
-        await asyncio.Event().wait()
-        return None
-
-    monkeypatch.setattr(mixin, "run_start_dispatcher", blocked)
-
-    service.start_boot_dispatchers()
-    await entered.wait()
-    await asyncio.wait_for(service.shutdown(), timeout=2)
-
-    task = service._boot_dispatchers_task
-    assert task is not None
-    assert task.cancelled()
-
-
-@pytest.mark.asyncio
-async def test_shutdown_cancels_a_boot_start_that_is_still_waiting(monkeypatch: pytest.MonkeyPatch) -> None:
-    service = await _service(monkeypatch, _boards(3))
-
-    service.start_boot_dispatchers(start_after_seconds=3600)
-    await asyncio.sleep(0)
-    await asyncio.wait_for(service.shutdown(), timeout=2)
-
-    task = service._boot_dispatchers_task
-    assert task is not None
-    assert task.cancelled()
-    assert service._dispatchers == {}
 
 
 @pytest.mark.asyncio
