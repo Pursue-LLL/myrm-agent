@@ -195,14 +195,16 @@ async def test_a_failing_index_operation_surfaces_and_leaves_the_store_usable(
     assert [hit.memory.id for hit in await store.search_fts5("10.0.0.2:81")] == ["m1"]
 
 
-async def test_a_failure_that_reads_as_corruption_drops_the_connection_and_the_next_write_reconnects(
+async def test_a_failure_that_reads_as_corruption_closes_the_connection_and_the_next_write_reconnects(
     store: SQLiteRelationalStore,
 ) -> None:
     dropped = await store._get_connection()
 
     with failing("save_exact_fact", "database disk image is malformed"), pytest.raises(CorruptedMemoryIndexError):
         await record(store, "10.0.0.1:80")
-    await dropped.close()
+
+    with pytest.raises(ValueError, match="no active connection"):
+        await dropped.execute("SELECT 1")
 
     await asyncio.wait_for(record(store, "10.0.0.2:81"), timeout=5)
     assert [hit.memory.id for hit in await store.search_fts5("10.0.0.2:81")] == ["m1"]
