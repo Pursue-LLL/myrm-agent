@@ -5,13 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
 import { Loader2, MessageSquare, Sparkles } from 'lucide-react';
-import {
-  getTemplates,
-  instantiateTemplate,
-  getAgentReadiness,
-  type TemplateListItem,
-  type AgentReadinessReport,
-} from '@/services/agent';
+import { getTemplates, instantiateTemplate, type TemplateListItem } from '@/services/agentTemplates';
+import { getAgentReadiness, type AgentReadinessReport } from '@/services/agentReadiness';
 import { toast } from '@/hooks/shared/useToast';
 import AgentReadinessList from './AgentReadinessList';
 import { AgentSettingsPreviewGate } from './AgentSettingsPreviewGate';

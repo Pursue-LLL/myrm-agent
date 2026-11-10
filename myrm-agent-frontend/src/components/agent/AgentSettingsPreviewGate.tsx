@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - services/agent::TemplateListItem, TemplateSettingsPreview (POS: Agent template and preview metadata)
+ * - services/agentTemplates::TemplateListItem, TemplateSettingsPreview (POS: Agent template and preview metadata)
  * - next-intl::useTranslations (POS: Internationalization)
  * - lucide-react::Wrench, Puzzle, Server, Brain, ShieldCheck, ArrowRight, ArrowLeft, Sparkles (POS: Icons)
  *
@@ -29,7 +29,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import type { TemplateListItem } from '@/services/agent';
+import type { TemplateListItem } from '@/services/agentTemplates';
 
 export interface AgentSettingsPreviewGateProps {
   template: TemplateListItem;

@@ -1,5 +1,5 @@
 /**
- * [INPUT] '@/services/agent'::listAgentSnapshots, rollbackAgentProfileToSnapshot
+ * [INPUT] '@/services/agentSnapshots'::listAgentSnapshots, rollbackAgentProfileToSnapshot
  * [OUTPUT] AgentProfileTimeMachine: Agent 配置快照历史与按版本回滚
  * [POS] AgentEditPanel 底部折叠面板，提供 WebUI 配置时光机能力
  */
@@ -24,7 +24,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
-import { listAgentSnapshots, rollbackAgentProfileToSnapshot, type AgentProfileSnapshotItem } from '@/services/agent';
+import {
+  listAgentSnapshots,
+  rollbackAgentProfileToSnapshot,
+  type AgentProfileSnapshotItem,
+} from '@/services/agentSnapshots';
 import { IconChevronDown } from '@/components/features/icons/PremiumIcons';
 
 interface AgentProfileTimeMachineProps {

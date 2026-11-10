@@ -112,7 +112,7 @@ class SQLiteProfileMixin(SQLiteStoreHost):
             )
             await conn.commit()
         except Exception as e:
-            self._handle_query_error("set_profile", e)
+            await self._handle_query_error("set_profile", e)
 
     async def delete_profile(self, key: str, *, namespaces: list[str] | None = None) -> bool:
         await self._ensure_integrity_before_write()
@@ -126,7 +126,7 @@ class SQLiteProfileMixin(SQLiteStoreHost):
             await conn.commit()
             return cursor.rowcount > 0
         except Exception as e:
-            self._handle_query_error("delete_profile", e)
+            await self._handle_query_error("delete_profile", e)
             return False
 
     async def list_profiles(

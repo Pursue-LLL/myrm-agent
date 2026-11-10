@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - services/agent::TemplateListItem (POS: 模板 DTO 类型定义)
+ * - services/agentTemplates::TemplateListItem (POS: 模板 DTO 类型定义)
  *
  * [OUTPUT]
  * - normalizeTemplateSearchText: 模板搜索标准化。
@@ -11,7 +11,7 @@
  * 专家模板发现层共享纯函数。收敛 ExpertSummonPopover、FeaturedExpertChips 与 FlowPad 的检索口径，
  * 避免多端逻辑漂移导致召唤体验不一致。
  */
-import type { TemplateListItem } from '@/services/agent';
+import type { TemplateListItem } from '@/services/agentTemplates';
 import { WB_TOP20_SKILL_MIGRATION_MAP } from '@/services/skillMigrationMap';
 
 export type ExpertTemplateKind = 'team' | 'individual';

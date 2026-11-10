@@ -86,7 +86,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
             rule.id = rule_id
             return rule
         except Exception as e:
-            self._handle_query_error("create_rule", e)
+            await self._handle_query_error("create_rule", e)
             return rule
 
     async def get_rule(self, rule_id: str, *, namespaces: list[str] | None = None) -> ProceduralMemory | None:
@@ -100,7 +100,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                 row = await cursor.fetchone()
             return row_to_procedural(tuple(row)) if row else None
         except Exception as e:
-            self._handle_query_error("get_rule", e)
+            await self._handle_query_error("get_rule", e)
             return None
 
     async def search_rules(
@@ -217,7 +217,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
         except RelationalNotFoundError:
             raise
         except Exception as e:
-            self._handle_query_error("update_rule", e)
+            await self._handle_query_error("update_rule", e)
             return rule
 
     async def delete_rule(self, rule_id: str) -> bool:
@@ -228,5 +228,5 @@ class SQLiteRuleMixin(SQLiteStoreHost):
             await conn.commit()
             return cursor.rowcount > 0
         except Exception as e:
-            self._handle_query_error("delete_rule", e)
+            await self._handle_query_error("delete_rule", e)
             return False

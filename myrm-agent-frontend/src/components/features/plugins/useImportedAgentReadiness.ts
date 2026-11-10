@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { getAgentReadiness, type AgentReadinessReport } from '@/services/agent';
+import { getAgentReadiness, type AgentReadinessReport } from '@/services/agentReadiness';
 
 export type ImportedAgentReadiness =
   { status: 'loading' } | { status: 'ok'; report: AgentReadinessReport } | { status: 'unavailable' };

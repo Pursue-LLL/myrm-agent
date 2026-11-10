@@ -25,6 +25,9 @@ const configState = vi.hoisted(() => ({
 
 vi.mock('@/services/agent', () => ({
   getAgent: agentApi.getAgent,
+}));
+
+vi.mock('@/services/agentReadiness', () => ({
   getAgentReadiness: agentApi.getAgentReadiness,
 }));
 

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
-import { type OpenAPIServiceConfig, type OpenAPIAuthType, getSaaSPresets, type SaaSPreset } from '@/services/agent';
+import { type OpenAPIServiceConfig, type OpenAPIAuthType } from '@/services/agent';
+import { getSaaSPresets, type SaaSPreset } from '@/services/agentOpenApi';
 import { toast } from '@/hooks/shared/useToast';
 import { OPENAPI_DIRECT_TOKEN_BUDGET, estimateEndpointTokenLoad } from './openApiTokenBudget';
 import { ServiceEditor } from './OpenAPIServiceEditor';

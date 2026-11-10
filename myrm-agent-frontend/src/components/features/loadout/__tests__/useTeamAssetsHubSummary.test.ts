@@ -23,7 +23,13 @@ const configState = vi.hoisted(() => ({
 
 vi.mock('@/services/agent', () => ({
   listAgents: agentApi.listAgents,
+}));
+
+vi.mock('@/services/agentFleet', () => ({
   getFleetOverview: agentApi.getFleetOverview,
+}));
+
+vi.mock('@/services/agentReadiness', () => ({
   getAgentReadiness: agentApi.getAgentReadiness,
 }));
 

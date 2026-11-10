@@ -576,12 +576,14 @@ export const runMemoryDiagnosticRepair = async (
   });
 };
 
+export type MemoryRecallScopeLevel = 'global' | 'agent' | 'channel' | 'conversation' | 'task' | 'shared';
+
+export type MemoryRecallWritePolicy = 'inherit' | 'global' | 'client' | 'agent' | 'channel' | 'conversation' | 'task';
+
 export interface MemoryRecallScopeBoundary {
-  level: string;
-  label: string;
+  level: MemoryRecallScopeLevel;
   is_active: boolean;
   namespace_pattern: string;
-  description: string;
 }
 
 export interface MemoryFourPartitionSummary {
@@ -595,8 +597,8 @@ export interface MemoryCandidateRecord {
   id: string;
   memory_type: MemoryType;
   content_preview: string;
-  confidence: number;
-  source: string;
+  /** Null when the proposal carries no confidence score. */
+  confidence: number | null;
   created_at: string;
   status: 'pending' | 'review_required';
 }
@@ -617,7 +619,7 @@ export interface MemoryRecallBoundaryData {
   agent_id?: string | null;
   task_id?: string | null;
   read_scopes: MemoryRecallScopeBoundary[];
-  write_policy: string;
+  write_policy: MemoryRecallWritePolicy;
   partitions: MemoryFourPartitionSummary;
   candidate_records: MemoryCandidateRecord[];
   /** A sample of the approved memories; `total_approved` counts all of them. */

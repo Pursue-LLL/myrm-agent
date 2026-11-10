@@ -889,7 +889,7 @@ tools = create_memory_tools(manager=manager)
 
 | 方法                                                                              | 功能                                                                              |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重），并声明批准后应执行的落库语义与待审目标展示内容 |
+| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：同一 manager 内相同提案并行提交也只入队一次，画像提案同理；同库的其他 manager 各持自己的锁），并声明批准后应执行的落库语义与待审目标展示内容 |
 | `approve(pending_id, *, edited_content=None)`                                     | 按 `resolution_action` 分派：`STORE` 持久化新记忆 / `CORRECT` 纠正目标记忆 / `DELETE` 归档目标记忆；`edited_content` 为审批者改写后的文本 |
 | `reject(pending_id)`                                                              | 拒绝；记录不存在抛 `MemoryNotFoundError`，已处理（非 `pending`）的记录重复拒绝/批准是空操作，不会重复落库或改写已批准状态 |
 | `get_pending(pending_id)`                                                         | 按 id 读取单条待审批记录（含已处理状态），不存在返回 `None`；供业务层在批准/拒绝前取得审计所需元数据 |
@@ -996,7 +996,7 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 ```
 Agent: memory_manage_tool(action="correct", memory_id="abc", new_content="正确的事实")
   → 新记忆 "xyz": confidence=0.95, importance=min(旧+0.2, 1.0), correction_of="abc"（纠正链）；写入被拒绝则到此为止，旧记忆原样保留
-  → 旧记忆 "abc": importance ×0.3（下限 0.05）, confidence → 0.1, metadata["corrected"]=True；精确事实标记与索引行一并清除，被取代的事实不再与它的纠正争抢精确置顶
+  → 旧记忆 "abc": importance ×0.3（下限 0.05）, confidence → 0.1, metadata["corrected"]=True；精确事实标记与索引行一并清除，被取代的事实不会与它的纠正争抢精确置顶
   → 检索时抑制: importance降权 × confidence降权 × correction_penalty(0.1)
 ```
 

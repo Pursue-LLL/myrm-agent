@@ -31,7 +31,7 @@ import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { cancelActiveChatAgent } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
-import type { ActiveSession, RecentSession, CurtainStatus } from '@/services/agent';
+import type { ActiveSession, RecentSession, CurtainStatus } from '@/services/agentFleet';
 import { remoteAccessService } from '@/services/remoteAccess';
 import type { SpawnOptionAgent, SpawnOptionProject } from '@/services/remoteAccess';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';

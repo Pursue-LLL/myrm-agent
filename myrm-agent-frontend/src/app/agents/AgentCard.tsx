@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - services/agent::AgentListItem
- * - services/agent::AgentFleetStats
+ * - services/agentFleet::AgentFleetStats
  * - next-intl::useTranslations
  * - next/link
  *
@@ -21,7 +21,8 @@ import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { Button } from '@/components/primitives/button';
 import { agentSettingsHref } from '@/components/features/loadout/loadoutDeepLinks';
 import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
-import type { AgentListItem, AgentFleetStats } from '@/services/agent';
+import type { AgentListItem } from '@/services/agent';
+import type { AgentFleetStats } from '@/services/agentFleet';
 import {
   Settings,
   Trash2,

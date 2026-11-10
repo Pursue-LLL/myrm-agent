@@ -89,7 +89,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
     }
     try {
       setRollingBack(true);
-      const { rollbackAgentProfile } = await import('@/services/agent');
+      const { rollbackAgentProfile } = await import('@/services/agentSnapshots');
       await rollbackAgentProfile(agentId);
       toast({ title: t('agent.rollbackSuccess') });
       await editor.reloadAgent();
