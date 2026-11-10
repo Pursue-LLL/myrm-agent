@@ -1,6 +1,6 @@
 """Contract tests of the tail-of-turn injection primitive in ``core/message_tail``.
 
-The primitive is shared by the delta, proactive-pack and two-layer injectors and by the todo and goal focus notices, so
+The primitive is shared by the delta and proactive-pack injectors and by the todo and goal focus notices, so
 its targeting rule (the user's own latest message, never a notice the runtime appended behind it) is locked here.
 """
 
