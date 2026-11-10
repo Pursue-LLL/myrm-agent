@@ -5,7 +5,6 @@ src/app/subscription/page.tsx
 src/components/agent/builtin-agent-i18n-data.ts
 src/components/billing/QuotaDisplay.tsx
 src/components/dev/E2EChatBridge.tsx
-src/components/features/app-shell/flow-pad-modal.tsx
 src/components/features/app-shell/search-dialog.tsx
 src/components/features/artifacts/ArtifactCard.tsx
 src/components/features/artifacts/ArtifactPortal.tsx
@@ -14,8 +13,6 @@ src/components/features/artifacts/renderers/MediaPreview.tsx
 src/components/features/artifacts/renderers/architecture/ArchitecturePreview.tsx
 src/components/features/chat-window/Chat.tsx
 src/components/features/chat-window/ChatWindow.tsx
-src/components/features/chat-window/agent-config-panel/AgentConfigEditDialog.tsx
-src/components/features/chat-window/agent-config-panel/AgentConfigPanel.tsx
 src/components/features/chat-window/agent-config-panel/BuiltinToolsPanel.tsx
 src/components/features/chat-window/playbook/ModelOrchestrationPlaybookDialog.tsx
 src/components/features/chat-window/subagent/SubagentDashboard.tsx
@@ -79,7 +76,6 @@ src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
 src/components/features/settings/sections/knowledge/MigrationWizardSection.tsx
 src/components/features/settings/sections/knowledge/WikiDuplicateReviewPanel.tsx
 src/components/features/settings/sections/knowledge/wiki/useWikiConceptsList.ts
-src/components/features/settings/sections/system/AboutSection.tsx
 src/components/features/settings/sections/system/AccessCard.tsx
 src/components/features/settings/sections/system/BudgetPolicySection.tsx
 src/components/features/settings/sections/system/DataFlowDisclosurePanel.tsx
@@ -100,9 +96,7 @@ src/components/features/theme-studio/ThemeStudioGalleryPanel.tsx
 src/components/features/theme-studio/ThemeStudioSection.tsx
 src/components/features/workspace/ReviewPanel.tsx
 src/components/layout/NavBar.tsx
-src/hooks/agent/useAgentConfigPanel.ts
 src/hooks/agent/useAgentEditor.ts
-src/hooks/globalEvents/useGlobalEvents.ts
 src/hooks/message-input/useMessageInput.ts
 src/hooks/settings/useMCPConfig.ts
 src/hooks/voice/useGeminiLiveVoice.ts
@@ -113,7 +107,6 @@ src/hooks/voice/useVoiceSession.ts
 src/lib/api.ts
 src/lib/deploy-mode.ts
 src/lib/widget-theme-bridge.ts
-src/services/agent.ts
 src/services/channels/providersMessaging.ts
 src/services/chat.ts
 src/services/config/ConfigSyncManager.ts
