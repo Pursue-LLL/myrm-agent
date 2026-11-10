@@ -4,6 +4,7 @@ import { makeMessages, openChat, probes, setUpChatTest, tearDownChatTest, type B
 import Chat from '../Chat';
 import { useUserQuestionNavStore } from '../question-nav';
 import type { Message } from '@/store/chat/types';
+import useChatStore from '@/store/useChatStore';
 
 interface ChatProps {
   loading?: boolean;
@@ -47,6 +48,18 @@ describe('Chat rendering', () => {
       ]);
       expect(screen.queryByTestId('virtual-list')).toBeNull();
       expect(screen.getByTestId('clearance-spacer')).toBeInTheDocument();
+    });
+
+    it('shows messages appended to the store in the same mounted list and composer', () => {
+      openChat('chat-1', makeMessages(2));
+      renderChat();
+      expect(probes.messageInputMounts).toEqual(['chat-1']);
+
+      act(() => useChatStore.setState({ messages: makeMessages(3) }));
+      act(() => useChatStore.setState({ messages: makeMessages(4) }));
+
+      expect(boxes().map((box) => box.dataset.message)).toEqual(['m1', 'm2', 'm3', 'm4']);
+      expect(probes.messageInputMounts).toEqual(['chat-1']);
     });
 
     it('draws a rule under an assistant message unless it is the last one', () => {

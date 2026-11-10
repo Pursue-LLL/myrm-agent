@@ -84,8 +84,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const [activeTab, setActiveTab] = useState<ChatWindowTab>('chat');
   const advisor = useSessionAdvisor();
   const { handleInspectorInstruction, handleDesktopInspectorInstruction } = useInspectorInstructions();
-  const { chatMessages, chatMessagesForRender, chatRouteHydrated, routeHydrationEpoch, storeMessageCount } =
-    useChatRouteHydration(id);
+  const { chatMessages, chatMessagesForRender, chatRouteHydrated, routeHydrationEpoch } = useChatRouteHydration(id);
   useChatUrlEntries(id);
   useAsyncAgentStream(id);
   useChatSystemNotifications(id);
@@ -209,7 +208,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                   ) : null}
                   <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
                     <Chat
-                      key={`${id ?? 'home'}-${routeHydrationEpoch}-${storeMessageCount}-${chatRouteHydrated ? 'hydrated' : 'pending'}`}
+                      key={`${id ?? 'home'}-${routeHydrationEpoch}-${chatRouteHydrated ? 'hydrated' : 'pending'}`}
                       loading={loading}
                       messageAppeared={messageAppeared}
                       messagesOverride={

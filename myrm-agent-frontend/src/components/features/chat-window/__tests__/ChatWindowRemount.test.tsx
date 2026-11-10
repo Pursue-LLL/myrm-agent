@@ -70,6 +70,8 @@ vi.mock('@/components/features/memory/pending/PendingMemoryDialog', () => ({ def
 
 const CHAT_ID = 'session-remount-1';
 const FIRST_MESSAGE = { id: 'msg-1', role: 'user', content: 'hello' } as unknown as Message;
+const REPLY = { id: 'msg-2', role: 'assistant', content: 'hi' } as unknown as Message;
+const FOLLOW_UP = { id: 'msg-3', role: 'user', content: 'and then?' } as unknown as Message;
 
 describe('ChatWindow keeps the chat view mounted', () => {
   beforeEach(() => {
@@ -116,6 +118,30 @@ describe('ChatWindow keeps the chat view mounted', () => {
     act(() => useChatStore.setState({ inputMessage: 'hello' }));
     act(() => useChatStore.setState({ activeKnowledgeBaseIds: [], activeKnowledgeBaseNames: {} }));
     expect(chatView.mounts).toBe(mountsBeforeLoad + 1);
+  });
+
+  it('re-creates the view once when the window moves to another conversation that is ready to show', () => {
+    const view = render(<ChatWindow id={CHAT_ID} />);
+    const mountsBeforeSwitch = chatView.mounts;
+
+    // The route and the store move to the other conversation in one commit.
+    act(() => {
+      useChatStore.setState({ chatId: 'session-remount-2', messages: [FIRST_MESSAGE], isMessagesLoaded: true });
+      view.rerender(<ChatWindow id="session-remount-2" />);
+    });
+
+    expect(chatView.mounts).toBe(mountsBeforeSwitch + 1);
+  });
+
+  it('keeps the view mounted while messages are appended to the open conversation', () => {
+    render(<ChatWindow id={CHAT_ID} />);
+    const mountsAfterRender = chatView.mounts;
+
+    // A turn appends the reply, and the next turn appends the user's follow-up.
+    act(() => useChatStore.setState({ messages: [FIRST_MESSAGE, REPLY] }));
+    act(() => useChatStore.setState({ messages: [FIRST_MESSAGE, REPLY, FOLLOW_UP] }));
+
+    expect(chatView.mounts).toBe(mountsAfterRender);
   });
 
   it('keeps the chat the store chose for home instead of replacing it with a new one', () => {

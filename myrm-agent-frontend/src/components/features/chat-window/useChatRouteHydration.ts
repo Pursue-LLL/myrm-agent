@@ -24,7 +24,6 @@ export interface ChatRouteHydration {
   chatMessagesForRender: Message[];
   chatRouteHydrated: boolean;
   routeHydrationEpoch: number;
-  storeMessageCount: number;
 }
 
 export function useChatRouteHydration(id: string | undefined): ChatRouteHydration {
@@ -89,16 +88,6 @@ export function useChatRouteHydration(id: string | undefined): ChatRouteHydratio
     () => false,
   );
 
-  const storeMessageCountDirect =
-    id && useChatStore.getState().chatId === id ? useChatStore.getState().messages.length : 0;
-
-  const storeMessageCountSync = useStoreSnapshot(
-    (onStoreChange) => useChatStore.subscribe(onStoreChange),
-    () => (id && useChatStore.getState().chatId === id ? useChatStore.getState().messages.length : 0),
-    () => 0,
-    id,
-  );
-
   const storeMessagesDirect = id && useChatStore.getState().chatId === id ? useChatStore.getState().messages : [];
 
   const chatMessagesForRender = chatMessages.length > 0 ? chatMessages : storeMessagesDirect;
@@ -111,6 +100,5 @@ export function useChatRouteHydration(id: string | undefined): ChatRouteHydratio
     chatMessagesForRender,
     chatRouteHydrated,
     routeHydrationEpoch,
-    storeMessageCount: Math.max(storeMessageCountSync, storeMessageCountDirect),
   };
 }
