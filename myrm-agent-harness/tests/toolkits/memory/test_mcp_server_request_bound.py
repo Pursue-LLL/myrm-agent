@@ -8,6 +8,7 @@ must fail loudly instead of reaching a stand-in manager.
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 
 from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
     build_mcp_memory_store_tool_description,
@@ -100,5 +101,9 @@ async def test_request_bound_manager_serves_calls_without_default() -> None:
 async def test_unbound_request_fails_instead_of_reaching_a_stand_in_manager() -> None:
     server = MemoryMCPServer(approval_required=False)
 
-    with pytest.raises(Exception, match="No MemoryManager is bound"):
+    with pytest.raises(ToolError) as raised:
         await server.mcp.call_tool("memory_recall", {"query": "anything"})
+
+    # The MCP runtime wraps the failure; whether the wrapper's own message repeats the original
+    # text depends on the runtime version, so the original error is read from its cause.
+    assert "No MemoryManager is bound" in str(raised.value.__cause__)
