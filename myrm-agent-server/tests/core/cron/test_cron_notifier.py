@@ -147,6 +147,24 @@ async def test_titles_and_messages_speak_the_users_language(
     assert max_fires_message in pause["message"]
 
 
+@pytest.mark.parametrize("locale", ["en", "zh-CN", "zh-TW", "ja"])
+@pytest.mark.parametrize("kind", list(CronNoticeKind))
+async def test_every_notice_kind_reads_in_every_language(
+    bus: _RecordingBus, monkeypatch: pytest.MonkeyPatch, kind: CronNoticeKind, locale: str
+) -> None:
+    """A kind without wording raises inside the scheduler's notice isolation and its notice vanishes; a catalog key
+    that does not resolve reaches the user as the raw key."""
+    _speak(monkeypatch, locale)
+
+    await publish_cron_notice(CronNotice(kind, _JOB, "what the run said", "chat-1", max_fires=3))
+
+    (notification,) = bus.notifications()
+    for field in ("title", "message"):
+        text = notification.data[field]
+        assert text
+        assert "cron_notice_" not in text
+
+
 class _Delivery:
     async def deliver(self, job: CronJob, result: JobResult) -> None:
         return None
