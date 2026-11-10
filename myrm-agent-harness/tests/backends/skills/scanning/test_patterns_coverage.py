@@ -1,4 +1,4 @@
-"""Tests for patterns.py — verify all 26 threat categories load and match."""
+"""Tests for the scanning patterns package — every registered threat category loads and matches."""
 
 from myrm_agent_harness.backends.skills.scanning.scanner import (
     ScanSeverity,
@@ -39,7 +39,7 @@ EXPECTED_CATEGORIES = {
 class TestAllPatternGroupsLoad:
     """Verify pattern groups can be loaded and have correct structure."""
 
-    def test_all_26_categories_present(self):
+    def test_all_categories_present(self):
         from myrm_agent_harness.backends.skills.scanning.patterns import ALL_PATTERN_GROUPS
 
         loaded_categories = {name for name, _ in ALL_PATTERN_GROUPS}

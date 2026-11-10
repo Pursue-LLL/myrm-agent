@@ -1,6 +1,6 @@
 """Skill content security scanning subsystem.
 
-Provides static pattern scanning (26 threat categories, 108 patterns),
+Provides static pattern scanning (``patterns.ALL_PATTERN_GROUPS``),
 Python AST analysis, package.json audit, multi-file directory scanning,
 dependency extraction (package.json, requirements.txt, pyproject.toml),
 offline known-compromised package advisories matching,
