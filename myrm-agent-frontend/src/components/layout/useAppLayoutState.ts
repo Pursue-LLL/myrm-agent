@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { checkIsMobile } from '@/lib/utils/device';
 import { requestManager } from '@/lib/utils/requestManager';
-import { consumeMigrationChatAgent } from '@/lib/migrationChatHandoff';
 import { isMobileRemotePath } from '@/lib/mobileRemote';
 import { useResizableSidebar } from '@/hooks/ui/useResizableSidebar';
 import type { NavTab } from './NavBar';
@@ -72,7 +71,6 @@ export function useAppLayoutState() {
   const [activeTab, setActiveTab] = useState<NavTab>(() => getTabFromPathname(pathname));
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
   const [isNavButtonHidden, setIsNavButtonHidden] = useState(false);
   const [savedRoutes] = useState(readSavedRoutes);
   const [lastChatUrl, setLastChatUrl] = useState<string | null>(savedRoutes.chat ?? null);
@@ -91,14 +89,6 @@ export function useAppLayoutState() {
     handleMouseDown: handleSidebarResizeStart,
     handleDoubleClick: handleSidebarDoubleClick,
   } = useResizableSidebar({ onCollapse: handleSidebarCollapse });
-
-  useEffect(() => {
-    const pendingAgentId = consumeMigrationChatAgent();
-    if (pendingAgentId) {
-      setSelectedAgentId(pendingAgentId);
-      setActiveTab('chat');
-    }
-  }, []);
 
   useEffect(() => {
     const newTab = getTabFromPathname(pathname);
@@ -226,8 +216,6 @@ export function useAppLayoutState() {
     isSidebarCollapsed,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
-    selectedAgentId,
-    setSelectedAgentId,
     isNavButtonHidden,
     lastChatUrl,
     lastWorkUrl,

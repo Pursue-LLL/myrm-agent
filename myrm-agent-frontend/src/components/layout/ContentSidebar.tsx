@@ -4,21 +4,18 @@
  * 内容侧边栏组件
  *
  * [INPUT]
- * - activeTab: 当前激活的导航标签
  * - isCollapsed: 是否折叠
- * - onToggleCollapse: 折叠切换回调
+ * - onToggleCollapse: 折叠切换回调（移动端抽屉里同时是关闭抽屉的回调）
  * - navbarWidth: 导航栏宽度
- * - selectedAgentId: 选中的智能体 ID
- * - onSelectAgent: 智能体选择回调
  * - isMobile: 是否移动端
+ * - width / isDragging / onResizeStart / onResizeDoubleClick: 桌面端宽度与拖拽
  *
  * [OUTPUT]
- * - ContentSidebar: 内容侧边栏组件
+ * - ContentSidebar: 聊天标签页的侧边栏外壳
  *
  * [POS]
- * 根据 activeTab 显示不同的侧边栏内容：
- * - chat: 聊天历史 + CLI 工作区（ChatSidebarContent）
- * - work: 智能体列表（AgentSidebarContent）
+ * 折叠时只显示展开按钮；展开时桌面端贴着导航栏定位并带拖拽手柄，移动端铺满抽屉。
+ * 侧边栏内容（聊天历史、工作区文件）见 ChatSidebarContent；移动端在用户选定会话或发起新会话后关闭抽屉。
  */
 
 import { memo, useCallback } from 'react';
@@ -26,18 +23,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import useChatStore from '@/store/useChatStore';
-import { useShallow } from 'zustand/react/shallow';
-import type { NavTab } from './NavBar';
 import { ChatSidebarContent } from './ChatSidebarContent';
-import { AgentSidebarContent } from './AgentSidebarContent';
+import { SidebarPanelIcon } from './SidebarPanelIcon';
 
 interface ContentSidebarProps {
-  activeTab: NavTab;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   navbarWidth: number;
-  selectedAgentId?: string;
-  onSelectAgent?: (id: string | undefined) => void;
   isMobile?: boolean;
   width?: number;
   isDragging?: boolean;
@@ -47,12 +39,9 @@ interface ContentSidebarProps {
 
 const ContentSidebar = memo<ContentSidebarProps>(
   ({
-    activeTab,
     isCollapsed,
     onToggleCollapse,
     navbarWidth,
-    selectedAgentId,
-    onSelectAgent,
     isMobile = false,
     width,
     isDragging = false,
@@ -62,7 +51,7 @@ const ContentSidebar = memo<ContentSidebarProps>(
     const t = useTranslations('layout');
     const router = useRouter();
     const pathname = usePathname();
-    const { initializeChat } = useChatStore(useShallow((state) => ({ initializeChat: state.initializeChat })));
+    const initializeChat = useChatStore((state) => state.initializeChat);
 
     const handleNewChat = useCallback(() => {
       if (pathname !== '/') {
@@ -70,18 +59,6 @@ const ContentSidebar = memo<ContentSidebarProps>(
       }
       initializeChat(undefined);
     }, [initializeChat, router, pathname]);
-
-    // 折叠时显示展开按钮
-    const SidebarIcon = () => (
-      <svg width="20" height="20" fill="none" viewBox="0 0 20 20" className="text-muted-foreground">
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M2.167 6.667A2.833 2.833 0 0 1 5 3.833h2.708v12.334H5a2.833 2.833 0 0 1-2.833-2.834V6.667ZM9.042 17.5H5a4.167 4.167 0 0 1-4.167-4.167V6.667A4.167 4.167 0 0 1 5 2.5h10a4.167 4.167 0 0 1 4.167 4.167v6.666A4.167 4.167 0 0 1 15 17.5H9.042Zm0-13.667H15a2.833 2.833 0 0 1 2.833 2.834v6.666A2.833 2.833 0 0 1 15 16.167H9.042V3.833ZM3.583 6.5c0-.368.336-.667.75-.667H5.75c.414 0 .75.299.75.667 0 .368-.336.667-.75.667H4.333c-.414 0-.75-.299-.75-.667Zm.75 1.833c-.414 0-.75.299-.75.667 0 .368.336.667.75.667H5.75c.414 0 .75-.299.75-.667 0-.368-.336-.667-.75-.667H4.333Z"
-          fill="currentColor"
-        />
-      </svg>
-    );
 
     if (isCollapsed) {
       return (
@@ -95,7 +72,7 @@ const ContentSidebar = memo<ContentSidebarProps>(
           style={{ left: `${navbarWidth + 8}px` }}
           aria-label={t('showSidebar')}
         >
-          <SidebarIcon />
+          <SidebarPanelIcon />
         </button>
       );
     }
@@ -116,15 +93,12 @@ const ContentSidebar = memo<ContentSidebarProps>(
           transition: isDragging ? 'none' : undefined,
         }}
       >
-        {activeTab === 'chat' ? (
-          <ChatSidebarContent onNewChat={handleNewChat} onToggleCollapse={onToggleCollapse} isMobile={isMobile} />
-        ) : activeTab === 'work' ? (
-          <AgentSidebarContent
-            selectedId={selectedAgentId}
-            onSelect={onSelectAgent}
-            onToggleCollapse={onToggleCollapse}
-          />
-        ) : null}
+        <ChatSidebarContent
+          onNewChat={handleNewChat}
+          onToggleCollapse={onToggleCollapse}
+          isMobile={isMobile}
+          onMobileItemClick={isMobile ? onToggleCollapse : undefined}
+        />
 
         {/* 拖拽手柄 - 仅桌面端 */}
         {!isMobile && onResizeStart && (

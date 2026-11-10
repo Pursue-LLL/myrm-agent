@@ -5,12 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   pathname: '/',
-  handoffAgent: null as string | null,
 }));
 
 vi.mock('next/navigation', () => ({ usePathname: () => mocks.pathname }));
 vi.mock('@/lib/utils/device', () => ({ checkIsMobile: () => false }));
-vi.mock('@/lib/migrationChatHandoff', () => ({ consumeMigrationChatAgent: () => mocks.handoffAgent }));
 vi.mock('@/hooks/ui/useResizableSidebar', () => ({
   useResizableSidebar: () => ({
     width: 280,
@@ -40,7 +38,6 @@ describe('useAppLayoutState: tabs and remembered pages', () => {
   beforeEach(() => {
     localStorage.clear();
     mocks.pathname = '/';
-    mocks.handoffAgent = null;
   });
 
   afterEach(() => {
@@ -185,25 +182,6 @@ describe('useAppLayoutState: tabs and remembered pages', () => {
       const view = mountAt('/c-1');
 
       expect(view.result.current.lastChatUrl).toBe('/c-1');
-    });
-  });
-
-  describe('a conversation handed over by a migration', () => {
-    it('selects that agent in the chat tab', () => {
-      mocks.handoffAgent = 'agent-7';
-
-      const view = mountAt('/');
-
-      expect(view.result.current).toMatchObject({ selectedAgentId: 'agent-7', activeTab: 'chat' });
-    });
-
-    it('selects nobody when nothing was handed over, and lets the viewer pick', () => {
-      const view = mountAt('/');
-      expect(view.result.current.selectedAgentId).toBeUndefined();
-
-      act(() => view.result.current.setSelectedAgentId('agent-3'));
-
-      expect(view.result.current.selectedAgentId).toBe('agent-3');
     });
   });
 });

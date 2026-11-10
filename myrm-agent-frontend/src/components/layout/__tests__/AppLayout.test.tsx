@@ -133,8 +133,6 @@ function layoutState(overrides: Partial<LayoutState> = {}): LayoutState {
     isSidebarCollapsed: false,
     isMobileSidebarOpen: false,
     setIsMobileSidebarOpen: vi.fn(),
-    selectedAgentId: undefined,
-    setSelectedAgentId: vi.fn(),
     isNavButtonHidden: false,
     lastChatUrl: null,
     lastWorkUrl: null,
@@ -252,9 +250,8 @@ describe('AppLayout: start-up', () => {
 describe('AppLayout: desktop window', () => {
   it('shows the rail and the content sidebar, handing them the layout state', () => {
     const layout = useLayout({
-      pathname: '/work/2',
-      activeTab: 'work',
-      selectedAgentId: 'agent-1',
+      pathname: '/c-9',
+      activeTab: 'chat',
       lastChatUrl: '/c-9',
       lastWorkUrl: '/work/2',
       lastProjectsUrl: '/projects/3',
@@ -267,7 +264,7 @@ describe('AppLayout: desktop window', () => {
     expect(screen.queryByTestId('mobile-drawer')).toBeNull();
     expect(screen.queryByRole('button', { name: 'showSidebar' })).toBeNull();
     expect(kit.navBar).toMatchObject({
-      activeTab: 'work',
+      activeTab: 'chat',
       onTabChange: layout.handleTabChange,
       isSidebarCollapsed: false,
       onToggleSidebar: layout.handleToggleSidebar,
@@ -276,16 +273,13 @@ describe('AppLayout: desktop window', () => {
       lastChatUrl: '/c-9',
       lastWorkUrl: '/work/2',
       lastProjectsUrl: '/projects/3',
-      currentPathname: '/work/2',
+      currentPathname: '/c-9',
     });
     expect(screen.getByTestId('content-sidebar')).toBeInTheDocument();
     expect(kit.sidebar).toMatchObject({
-      activeTab: 'work',
       isCollapsed: false,
       onToggleCollapse: layout.handleToggleSidebar,
       navbarWidth: 60,
-      selectedAgentId: 'agent-1',
-      onSelectAgent: layout.setSelectedAgentId,
       width: 300,
       isDragging: true,
       onResizeStart: layout.handleSidebarResizeStart,
@@ -348,7 +342,6 @@ describe('AppLayout: phone', () => {
       showMobileLayout: true,
       isMobileSidebarOpen: true,
       activeTab: 'projects',
-      selectedAgentId: 'agent-1',
       lastChatUrl: '/c-9',
       lastWorkUrl: '/work/2',
       lastProjectsUrl: '/projects/3',
@@ -365,8 +358,6 @@ describe('AppLayout: phone', () => {
       onTabChange: layout.handleTabChange,
       isSettingsPage: false,
       shouldShowContentSidebar: true,
-      selectedAgentId: 'agent-1',
-      onSelectAgent: layout.setSelectedAgentId,
       lastChatUrl: '/c-9',
       lastWorkUrl: '/work/2',
       lastProjectsUrl: '/projects/3',

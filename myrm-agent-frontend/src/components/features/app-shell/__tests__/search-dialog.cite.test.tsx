@@ -10,6 +10,7 @@ const mockSearchChatHistory = vi.hoisted(() => vi.fn());
 const mockAddMentionReference = vi.hoisted(() => vi.fn());
 const mockToastInfo = vi.hoisted(() => vi.fn());
 const mockOnOpenChange = vi.hoisted(() => vi.fn());
+const mockOnPick = vi.hoisted(() => vi.fn());
 
 const mockChatState = vi.hoisted(() => ({
   chatId: 'current-chat-id',
@@ -159,5 +160,79 @@ describe('SearchDialog cite to composer', () => {
     const badge = await screen.findByTestId('relaxed-badge');
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveTextContent('search.fuzzyMatchBadge');
+  });
+});
+
+describe('SearchDialog telling its host that a result was taken', () => {
+  beforeEach(() => {
+    mockPush.mockReset();
+    mockSearchChatHistory.mockReset();
+    mockAddMentionReference.mockReset();
+    mockToastInfo.mockReset();
+    mockOnOpenChange.mockReset();
+    mockOnPick.mockReset();
+    mockChatState.chatId = 'current-chat-id';
+  });
+
+  async function searchFor(item: SearchResult) {
+    mockSearchChatHistory.mockResolvedValue({ items: [item], total: 1 });
+    render(
+      <SearchDialog open onOpenChange={mockOnOpenChange} onPick={mockOnPick}>
+        <div />
+      </SearchDialog>,
+    );
+    const input = await screen.findByPlaceholderText('search.placeholder');
+    fireEvent.change(input, { target: { value: 'hello' } });
+    await screen.findByRole('button', { name: new RegExp(item.chat_title ?? '') });
+    return input;
+  }
+
+  it('opens the chat at the matched message and then tells the host', async () => {
+    await searchFor(otherChatItem);
+
+    fireEvent.click(screen.getByRole('button', { name: /Other chat/ }));
+
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/other-chat-id?highlight=43');
+    expect(mockOnOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    expect(mockOnPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('does the same when the result is opened from the keyboard', async () => {
+    await searchFor(otherChatItem);
+
+    fireEvent.keyDown(screen.getByRole('button', { name: /Other chat/ }), { key: 'Enter' });
+
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/other-chat-id?highlight=43');
+    expect(mockOnPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells the host after a result of another chat is cited into the composer', async () => {
+    await searchFor(otherChatItem);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'search.citeToComposer' })[0]);
+
+    expect(mockAddMentionReference).toHaveBeenCalledTimes(1);
+    expect(mockOnPick).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('tells the host even when the cited result belongs to the chat that is already open', async () => {
+    await searchFor(searchItem);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'search.citeToComposer' })[0]);
+
+    expect(mockToastInfo).toHaveBeenCalledWith('search.citeSameChat');
+    expect(mockOnPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not tell the host when the dialog is only dismissed', async () => {
+    const input = await searchFor(otherChatItem);
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('presentation'));
+
+    expect(mockOnOpenChange).toHaveBeenCalledTimes(2);
+    expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+    expect(mockOnPick).not.toHaveBeenCalled();
   });
 });

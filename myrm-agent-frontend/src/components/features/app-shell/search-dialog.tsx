@@ -39,11 +39,13 @@ function computePresetRange(preset: TimePreset): { since?: string; until?: strin
 interface SearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called once the user has taken a result (opened it or cited it), as opposed to dismissing the dialog. */
+  onPick?: () => void;
   className?: string;
   children: React.ReactNode;
 }
 
-export function SearchDialog({ open, onOpenChange, className, children }: SearchDialogProps) {
+export function SearchDialog({ open, onOpenChange, onPick, className, children }: SearchDialogProps) {
   const t = useTranslations();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -150,12 +152,17 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
     [onOpenChange],
   );
 
+  const closeAfterPick = useCallback(() => {
+    onOpenChange(false);
+    onPick?.();
+  }, [onOpenChange, onPick]);
+
   const handleResultClick = useCallback(
     (chatId: string, messageId: string) => {
       router.push(`/${chatId}?highlight=${messageId}`);
-      onOpenChange(false);
+      closeAfterPick();
     },
-    [router, onOpenChange],
+    [router, closeAfterPick],
   );
 
   const focusComposerInput = useCallback(() => {
@@ -177,7 +184,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
       const title = item.chat_title?.trim() || t('chat.newChat');
       const composerChatId = useChatStore.getState().chatId;
       if (composerChatId && composerChatId === item.chat_id) {
-        onOpenChange(false);
+        closeAfterPick();
         toast.info(t('search.citeSameChat'));
         return;
       }
@@ -189,10 +196,10 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
         source: 'special',
         size: null,
       });
-      onOpenChange(false);
+      closeAfterPick();
       focusComposerInput();
     },
-    [focusComposerInput, onOpenChange, t],
+    [closeAfterPick, focusComposerInput, t],
   );
 
   const handleBackdropClick = useCallback(

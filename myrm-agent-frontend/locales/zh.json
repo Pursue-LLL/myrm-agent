@@ -457,7 +457,6 @@
   },
   "sidebar": {
     "searchPlaceholder": "搜索对话",
-    "searchAgents": "搜索智能体",
     "chatHistory": "聊天",
     "workspace": "工作区",
     "files": "文件"
@@ -469,8 +468,6 @@
     "download": "下载",
     "close": "关闭",
     "noContent": "无内容可预览",
-    "selectDir": "请选择工作目录以浏览文件",
-    "selectDirButton": "选择目录",
     "upload": "上传文件",
     "dropToUpload": "拖放文件到此处上传",
     "uploading": "上传中... {percent}%",
@@ -1017,7 +1014,6 @@
     "cancel": "取消",
     "delete": "删除",
     "edit": "编辑",
-    "use": "使用",
     "confirmDelete": "确认删除",
     "confirmDeleteDesc": "确定要删除智能体「{name}」吗？相关的定时任务和渠道绑定也会自动解除。此操作不可撤销。",
     "createSuccess": "智能体创建成功",

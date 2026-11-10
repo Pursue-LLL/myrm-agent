@@ -9,7 +9,6 @@ import useChatStore from '@/store/useChatStore';
 import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
 
 const mockPush = vi.fn();
-const mockQueueMigrationChatAgent = vi.fn();
 const mockQueueMigrationReadinessAnchor = vi.fn();
 const mockRecheckImportReadiness = vi.fn();
 
@@ -18,7 +17,6 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/lib/migrationChatHandoff', () => ({
-  queueMigrationChatAgent: (...args: unknown[]) => mockQueueMigrationChatAgent(...args),
   queueMigrationReadinessAnchor: (...args: unknown[]) => mockQueueMigrationReadinessAnchor(...args),
 }));
 
@@ -82,7 +80,6 @@ const baseResult = {
 describe('ResultStep readiness gating', () => {
   beforeEach(() => {
     mockPush.mockReset();
-    mockQueueMigrationChatAgent.mockReset();
     mockQueueMigrationReadinessAnchor.mockReset();
     mockRecheckImportReadiness.mockReset();
     mockRecheckImportReadiness.mockResolvedValue({
@@ -183,17 +180,39 @@ describe('ResultStep readiness gating', () => {
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(mockQueueMigrationChatAgent).toHaveBeenCalledWith('agent-123');
+      expect(mockPush).toHaveBeenCalledExactlyOnceWith('/?agent_id=agent-123');
     });
     expect(mockQueueMigrationReadinessAnchor).toHaveBeenCalledWith({
       importBatchId: 'memory-import-batch:test',
       readinessStatus: 'ready',
       targetAgentId: 'agent-123',
     });
-    expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('prefills a verification prompt into the composer and queues the imported agent', async () => {
+  it('opens the imported agent by an address that is safe to put in a link', async () => {
+    render(
+      <ResultStep
+        result={{ ...baseResult, target_agent_id: 'my agent&1' }}
+        skillSubmitResult={null}
+        skillSubmitFailed={false}
+        secretsImportMessage={null}
+        rollingBack={false}
+        onRollback={() => undefined}
+        onRetrySkillSubmit={() => undefined}
+        retryingSkills={false}
+        onDone={() => undefined}
+        t={t}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'result.startChat' }));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledExactlyOnceWith('/?agent_id=my%20agent%261');
+    });
+  });
+
+  it('prefills a verification prompt into the composer and opens the imported agent', async () => {
     render(
       <ResultStep
         result={baseResult}
@@ -211,9 +230,8 @@ describe('ResultStep readiness gating', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'result.verifyMemory' }));
 
-    expect(mockQueueMigrationChatAgent).toHaveBeenCalledWith('agent-123');
     expect(useChatStore.getState().inputMessage).toBe('result.verifyPrompt');
-    expect(mockPush).toHaveBeenCalledWith('/');
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/?agent_id=agent-123');
   });
 
   it('renders MCP issue quick-fix action', () => {

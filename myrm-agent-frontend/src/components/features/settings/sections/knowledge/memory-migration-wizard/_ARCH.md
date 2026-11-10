@@ -17,7 +17,7 @@
 | `PreviewCards.tsx`       | 组件 | 常显卡片：覆盖矩阵、泳道矩阵（标题只翻译 `LANE_LABEL_CODES` 内的取值、详情按服务端 `detail_parts` 本地化，未知取值与未知码原样显示）、会话预览、Hermes 架构映射、token 经济对比、摘要单元 | ✅    |
 | `PreviewPanels.tsx`      | 组件 | 可折叠的参考性面板：解析样例（分组名只翻译 `PREVIEW_BUCKET_CODES` 内的取值，其余原样显示）、映射表、MCP 服务器预览、指令预览、cron 跳过清单（均由自身决定空态与徽标）                     | ✅    |
 | `CollapsibleSection.tsx` | 组件 | 原生 `<details>/<summary>` 折叠壳（标题 + 数量徽标 + 箭头旋转），供预览面板复用                                                                                                           | ✅    |
-| `ResultStep.tsx`         | 核心 | 第三步：导入结果计数、readiness 复查与就绪锚点、一键开启历史会话搜索、验证记忆入口、后续动作链接与回滚                                                                                    | ✅    |
+| `ResultStep.tsx`         | 核心 | 第三步：导入结果计数、readiness 复查与就绪锚点、一键开启历史会话搜索、验证记忆入口（与开始聊天一样，经 `/?agent_id=` 让聊天窗口应用导入的智能体）、后续动作链接与回滚                                                                                    | ✅    |
 
 ## 依赖边界
 

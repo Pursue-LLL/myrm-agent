@@ -125,12 +125,9 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
 
       {layout.shouldShowContentSidebar && !layout.showMobileLayout && (
         <ContentSidebar
-          activeTab={layout.activeTab}
           isCollapsed={layout.isSidebarCollapsed}
           onToggleCollapse={layout.handleToggleSidebar}
           navbarWidth={NAVBAR_WIDTH}
-          selectedAgentId={layout.selectedAgentId}
-          onSelectAgent={layout.setSelectedAgentId}
           width={layout.sidebarWidth}
           isDragging={layout.isSidebarDragging}
           onResizeStart={layout.handleSidebarResizeStart}
@@ -146,8 +143,6 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
           onTabChange={layout.handleTabChange}
           isSettingsPage={layout.isSettingsPage}
           shouldShowContentSidebar={layout.shouldShowContentSidebar}
-          selectedAgentId={layout.selectedAgentId}
-          onSelectAgent={layout.setSelectedAgentId}
           lastChatUrl={layout.lastChatUrl}
           lastWorkUrl={layout.lastWorkUrl}
           lastProjectsUrl={layout.lastProjectsUrl}

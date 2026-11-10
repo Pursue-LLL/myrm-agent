@@ -457,7 +457,6 @@
   },
   "sidebar": {
     "searchPlaceholder": "Search chats",
-    "searchAgents": "Search agents",
     "chatHistory": "Chats",
     "workspace": "Workspace",
     "files": "Files"
@@ -469,8 +468,6 @@
     "download": "Download",
     "close": "Close",
     "noContent": "No content to preview",
-    "selectDir": "Select a workspace directory to browse files",
-    "selectDirButton": "Select Directory",
     "upload": "Upload Files",
     "dropToUpload": "Drop files here to upload",
     "uploading": "Uploading... {percent}%",
@@ -1017,7 +1014,6 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
-    "use": "Use",
     "confirmDelete": "Confirm Delete",
     "confirmDeleteDesc": "Are you sure you want to delete agent \"{name}\"? Associated scheduled tasks and channel bindings will also be unlinked. This action cannot be undone.",
     "createSuccess": "Agent created successfully",

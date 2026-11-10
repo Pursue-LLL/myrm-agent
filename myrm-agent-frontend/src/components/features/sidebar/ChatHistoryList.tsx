@@ -23,12 +23,11 @@ import { createPriorChatDragStartHandler } from '@/lib/chat/priorChatDrag';
 
 interface ChatHistoryListProps {
   isExpanded: boolean;
-  currentChatId?: string;
   isMobile?: boolean;
   onItemClick?: () => void;
 }
 
-const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId, isMobile = false, onItemClick }) => {
+const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, isMobile = false, onItemClick }) => {
   const t = useTranslations();
 
   const {
@@ -167,7 +166,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
   const rowProps = (chat: ChatItem): HistoryRowProps => ({
     chat,
     isMobile,
-    isActive: currentChatId === chat.id,
+    isActive: activeChatId === chat.id,
     isGenerating: (isActiveLoading && activeChatId === chat.id) || sessionStatuses[chat.id] === 'generating',
     sessionStatus: sessionStatuses[chat.id] as 'generating' | 'awaiting_approval' | undefined,
     renameId: actions.renameId,

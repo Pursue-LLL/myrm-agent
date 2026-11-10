@@ -11,8 +11,6 @@ interface MobileSidebarDrawerProps {
   onTabChange: (tab: NavTab) => void;
   isSettingsPage: boolean;
   shouldShowContentSidebar: boolean;
-  selectedAgentId: string | undefined;
-  onSelectAgent: (id: string | undefined) => void;
   lastChatUrl: string | null;
   lastWorkUrl: string | null;
   lastProjectsUrl: string | null;
@@ -26,8 +24,6 @@ export function MobileSidebarDrawer({
   onTabChange,
   isSettingsPage,
   shouldShowContentSidebar,
-  selectedAgentId,
-  onSelectAgent,
   lastChatUrl,
   lastWorkUrl,
   lastProjectsUrl,
@@ -65,18 +61,7 @@ export function MobileSidebarDrawer({
           currentPathname={currentPathname}
         />
         {shouldShowContentSidebar && isOpen && (
-          <ContentSidebar
-            activeTab={activeTab}
-            isCollapsed={false}
-            onToggleCollapse={onClose}
-            navbarWidth={0}
-            selectedAgentId={selectedAgentId}
-            onSelectAgent={(id) => {
-              onSelectAgent(id);
-              onClose();
-            }}
-            isMobile
-          />
+          <ContentSidebar isCollapsed={false} onToggleCollapse={onClose} navbarWidth={0} isMobile />
         )}
       </div>
     </>

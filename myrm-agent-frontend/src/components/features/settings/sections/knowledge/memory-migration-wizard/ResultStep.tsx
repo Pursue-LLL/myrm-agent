@@ -8,11 +8,7 @@ import { toast } from 'sonner';
 
 import { agentSettingsHref, teamAssetsHubHref } from '@/components/features/loadout/loadoutDeepLinks';
 import { Button } from '@/components/primitives/button';
-import {
-  queueMigrationChatAgent,
-  queueMigrationReadinessAnchor,
-  type MigrationWorkspaceBindCandidate,
-} from '@/lib/migrationChatHandoff';
+import { queueMigrationReadinessAnchor, type MigrationWorkspaceBindCandidate } from '@/lib/migrationChatHandoff';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
 import { recheckImportReadiness } from '@/services/memory/archive';
@@ -30,6 +26,11 @@ import {
 } from '../MigrationWizardReadiness';
 import MigrationVaultBindPanel from '../MigrationVaultBindPanel';
 import type { TranslationFn } from './wizardShared';
+
+/** The chat start page, with the imported agent applied by the chat window's URL entry. */
+function chatWithAgentHref(agentId: string): string {
+  return `/?agent_id=${encodeURIComponent(agentId)}`;
+}
 
 export function ResultStep({
   result,
@@ -124,8 +125,7 @@ export function ResultStep({
         readinessStatus: recheck.readiness.status,
         targetAgentId: result.target_agent_id,
       });
-      queueMigrationChatAgent(result.target_agent_id);
-      router.push('/');
+      router.push(chatWithAgentHref(result.target_agent_id));
     } catch {
       toast.error(t('result.readinessRecheckFailed'));
     } finally {
@@ -137,9 +137,8 @@ export function ResultStep({
     if (!result.target_agent_id) {
       return;
     }
-    queueMigrationChatAgent(result.target_agent_id);
     useChatStore.getState().setInputMessage(t('result.verifyPrompt'));
-    router.push('/');
+    router.push(chatWithAgentHref(result.target_agent_id));
   };
 
   return (

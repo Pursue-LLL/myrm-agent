@@ -4,13 +4,12 @@
  * - localStorage / sessionStorage for one-shot migration anchors
  *
  * [OUTPUT]
- * - queue/consume helpers for agent, readiness anchor, bound project, obsidian vault import
+ * - queue/consume helpers for readiness anchor, bound project, obsidian vault import
  *
  * [POS]
  * FE-only migration handoff SSOT between Settings/Onboarding and chat stream.
  */
 
-export const MIGRATION_CHAT_AGENT_STORAGE_KEY = 'myrm:migration-chat-agent-id';
 const MIGRATION_READINESS_ANCHOR_STORAGE_KEY = 'myrm:migration-readiness-anchor';
 const MIGRATION_BOUND_PROJECT_STORAGE_KEY = 'myrm:migration-bound-project-id';
 const MIGRATION_OBSIDIAN_VAULT_IMPORT_STORAGE_KEY = 'myrm:migration-obsidian-vault-import';
@@ -65,25 +64,6 @@ function migrateLegacySessionAnchorToLocalStorage(): void {
     window.localStorage.setItem(MIGRATION_READINESS_ANCHOR_STORAGE_KEY, legacyRaw);
   }
   window.sessionStorage.removeItem(LEGACY_MIGRATION_READINESS_ANCHOR_SESSION_KEY);
-}
-
-export function queueMigrationChatAgent(agentId: string): void {
-  if (typeof window === 'undefined' || !agentId.trim()) {
-    return;
-  }
-  sessionStorage.setItem(MIGRATION_CHAT_AGENT_STORAGE_KEY, agentId.trim());
-}
-
-export function consumeMigrationChatAgent(): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  const agentId = sessionStorage.getItem(MIGRATION_CHAT_AGENT_STORAGE_KEY);
-  if (!agentId) {
-    return null;
-  }
-  sessionStorage.removeItem(MIGRATION_CHAT_AGENT_STORAGE_KEY);
-  return agentId;
 }
 
 export function queueMigrationReadinessAnchor(anchor: {

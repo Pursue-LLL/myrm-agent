@@ -7,25 +7,24 @@
  * - onNewChat: 新建对话回调
  * - onToggleCollapse: 侧边栏折叠切换回调
  * - isMobile: 是否移动端模式
- * - onMobileItemClick: 移动端项目点击回调
+ * - onMobileItemClick: 用户选定会话 / 新建对话 / 回到首页 / 选定搜索结果后的回调（移动端用来关闭抽屉）
  *
  * [OUTPUT]
  * - ChatSidebarContent: 聊天侧边栏内容组件
- *   - 聊天历史列表
- *   - CLI 工作区文件树（Tauri 环境，ACP 模式）
- *   - Agent vault 文件浏览器（Local Web / Tauri / Cloud，主 Agent 模式）
+ *   - 聊天历史列表与回收站入口
+ *   - Agent vault 文件浏览器（主 Agent 对话已有工作目录时）
  *
  * [POS]
  * 侧边栏聊天内容区域。显示搜索、新建对话按钮、聊天历史列表。
- * 主 Agent 有 workspaceDir 时显示 WorkspaceFileBrowser（含 P1 SSE 自动刷新）。
+ * 主 Agent 对话有 workspaceDir 时多出「文件」页签，显示 WorkspaceFileBrowser（含 P1 SSE 自动刷新）。
  */
 
-import { memo, useState, useCallback, useEffect, Suspense } from 'react';
+import { memo, useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
-import { FolderOpen, Trash2, UploadCloud } from 'lucide-react';
+import { Trash2, UploadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import SessionImportModal from '@/components/features/sidebar/SessionImportModal';
 import { SearchDialog, SearchTrigger } from '@/components/features/app-shell/search-dialog';
@@ -38,6 +37,7 @@ import { CatchupInbox } from '@/components/features/chat-window/catchup/CatchupI
 import SessionTrashPanel from '@/components/features/chat-window/SessionTrashPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { getTrashCount } from '@/services/chatTrash';
+import { SidebarPanelIcon } from './SidebarPanelIcon';
 
 const sidebarPanelLoading = (
   <div className="flex h-full items-center justify-center p-6">
@@ -61,36 +61,36 @@ const WorkspaceFilePreview = dynamic(
   { ssr: false },
 );
 
-export interface ChatSidebarContentProps {
+interface ChatSidebarContentProps {
   onNewChat: () => void;
   onToggleCollapse: () => void;
   isMobile?: boolean;
   onMobileItemClick?: () => void;
 }
 
-const SidebarCollapseIcon = memo(() => (
-  <svg width="20" height="20" fill="none" viewBox="0 0 20 20" className="text-muted-foreground">
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M2.167 6.667A2.833 2.833 0 0 1 5 3.833h2.708v12.334H5a2.833 2.833 0 0 1-2.833-2.834V6.667ZM9.042 17.5H5a4.167 4.167 0 0 1-4.167-4.167V6.667A4.167 4.167 0 0 1 5 2.5h10a4.167 4.167 0 0 1 4.167 4.167v6.666A4.167 4.167 0 0 1 15 17.5H9.042Zm0-13.667H15a2.833 2.833 0 0 1 2.833 2.834v6.666A2.833 2.833 0 0 1 15 16.167H9.042V3.833ZM3.583 6.5c0-.368.336-.667.75-.667H5.75c.414 0 .75.299.75.667 0 .368-.336.667-.75.667H4.333c-.414 0-.75-.299-.75-.667Zm.75 1.833c-.414 0-.75.299-.75.667 0 .368.336.667.75.667H5.75c.414 0 .75-.299.75-.667 0-.368-.336-.667-.75-.667H4.333Z"
-      fill="currentColor"
-    />
-  </svg>
-));
-SidebarCollapseIcon.displayName = 'SidebarCollapseIcon';
+type SidebarView = 'chat' | 'workspace';
 
 const TrashButton = memo(function TrashButton() {
   const t = useTranslations('chat.trash');
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
+  // Counts come from our own reads and from the panel; only the newest one may stand.
+  const latestCount = useRef(0);
+
+  const showCount = useCallback((next: number) => {
+    latestCount.current += 1;
+    setCount(next);
+  }, []);
 
   const refreshCount = useCallback(async () => {
+    const read = ++latestCount.current;
     try {
-      const c = await getTrashCount();
-      setCount(c);
+      const next = await getTrashCount();
+      if (read === latestCount.current) {
+        setCount(next);
+      }
     } catch {
-      // silent
+      // The badge is a convenience: a failed read keeps what it already shows.
     }
   }, []);
 
@@ -119,7 +119,7 @@ const TrashButton = memo(function TrashButton() {
             <SheetTitle>{t('title')}</SheetTitle>
           </SheetHeader>
           <div className="mt-4">
-            <SessionTrashPanel onRestored={refreshCount} onCountChange={setCount} />
+            <SessionTrashPanel onRestored={refreshCount} onCountChange={showCount} />
           </div>
         </SheetContent>
       </Sheet>
@@ -135,31 +135,19 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     const [importModalOpen, setImportModalOpen] = useState(false);
 
     // -----------------------------------------------------------------------
-    // Main Agent workspace (Web/SaaS)
+    // Main Agent workspace (Web/SaaS): only a saved agent chat that has a folder has files to show.
     // -----------------------------------------------------------------------
     const chatId = useChatStore((s) => s.chatId);
     const actionMode = useChatStore((s) => s.actionMode);
     const workspaceDir = useChatStore((s) => s.workspaceDir);
-    const [webWorkspaceDir, setWebWorkspaceDir] = useState<string | null>(null);
+    const webWorkspaceDir = chatId && actionMode === 'agent' && workspaceDir ? workspaceDir : null;
 
-    useEffect(() => {
-      if (!chatId || actionMode !== 'agent') {
-        setWebWorkspaceDir(null);
-        return;
-      }
-      setWebWorkspaceDir(workspaceDir);
-    }, [chatId, actionMode, workspaceDir]);
-
-    const showWebWorkspace = actionMode === 'agent' && !!webWorkspaceDir;
-    const showTabs = showWebWorkspace;
-
-    const [activeView, setActiveView] = useState<'chat' | 'workspace'>('chat');
-
-    useEffect(() => {
-      if (!showTabs && activeView === 'workspace') {
-        setActiveView('chat');
-      }
-    }, [showTabs, activeView]);
+    const [activeView, setActiveView] = useState<SidebarView>('chat');
+    // The Files page goes away together with the workspace and does not come back when a workspace does.
+    if (webWorkspaceDir === null && activeView === 'workspace') {
+      setActiveView('chat');
+    }
+    const filesDir = activeView === 'workspace' ? webWorkspaceDir : null;
 
     // Web file browser (HTTP API)
     const {
@@ -169,25 +157,41 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
       truncated: webFilesTruncated,
       refresh: webRefresh,
       loadChildren: webLoadChildren,
-    } = useWorkspaceFiles(showWebWorkspace && activeView === 'workspace' ? webWorkspaceDir : null);
+    } = useWorkspaceFiles(filesDir);
 
-    // Web file preview state
-    const [webPreviewFile, setWebPreviewFile] = useState<FileEntry | null>(null);
+    // A preview belongs to the Files page and to the folder it was opened from: off that page `filesDir` is null.
+    const [preview, setPreview] = useState<{ workspace: string; file: FileEntry } | null>(null);
+    const openPreview = preview?.workspace === filesDir ? preview : null;
 
-    const handleWebFileClick = useCallback((file: FileEntry) => {
-      if (file.type === 'file') {
-        setWebPreviewFile(file);
-      }
-    }, []);
+    const showView = (view: SidebarView) => {
+      setActiveView(view);
+      setPreview(null);
+    };
+
+    const handleWebFileClick = useCallback(
+      (file: FileEntry) => {
+        if (file.type === 'file' && webWorkspaceDir !== null) {
+          setPreview({ workspace: webWorkspaceDir, file });
+        }
+      },
+      [webWorkspaceDir],
+    );
+
+    const handleHome = () => {
+      router.push('/');
+      onMobileItemClick?.();
+    };
+
+    const handleNewChat = () => {
+      onNewChat();
+      onMobileItemClick?.();
+    };
 
     return (
       <div className="flex flex-col h-full">
         {/* Header: Logo + Collapse Button */}
         <div className="p-3 flex items-center justify-between flex-shrink-0">
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
+          <button onClick={handleHome} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <BrandLogo size={56} priority decorative className="w-10 h-10" />
             <span className="text-lg font-semibold brand-gradient-text">MyrmAgent</span>
           </button>
@@ -198,7 +202,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
               className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground"
               aria-label={t('common.collapseMenu')}
             >
-              <SidebarCollapseIcon />
+              <SidebarPanelIcon />
             </button>
           </div>
         </div>
@@ -207,7 +211,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
 
         {/* Search */}
         <div className="p-3 flex-shrink-0">
-          <SearchDialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
+          <SearchDialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen} onPick={onMobileItemClick}>
             <SearchTrigger
               placeholder={t('sidebar.searchPlaceholder')}
               onOpenDialog={() => setSearchDialogOpen(true)}
@@ -218,7 +222,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
         {/* New Chat & Import Session Buttons */}
         <div className="px-3 pb-3 flex-shrink-0 flex items-center gap-2">
           <button
-            onClick={onNewChat}
+            onClick={handleNewChat}
             className={cn(
               'flex-1 flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer text-sm brand-interactive-hover',
               'bg-background dark:bg-background',
@@ -265,10 +269,10 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
         </div>
 
         {/* Tab: Chat / Files (when workspace available) */}
-        {showTabs && (
+        {webWorkspaceDir !== null && (
           <div className="px-3 pb-2 flex gap-1 flex-shrink-0">
             <button
-              onClick={() => setActiveView('chat')}
+              onClick={() => showView('chat')}
               className={cn(
                 'flex-1 py-1.5 px-3 text-sm rounded-lg transition-colors',
                 activeView === 'chat' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50',
@@ -277,7 +281,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
               {t('sidebar.chatHistory')}
             </button>
             <button
-              onClick={() => setActiveView('workspace')}
+              onClick={() => showView('workspace')}
               className={cn(
                 'flex-1 py-1.5 px-3 text-sm rounded-lg transition-colors',
                 activeView === 'workspace' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50',
@@ -290,20 +294,10 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
 
         {/* Content area */}
         <div className="flex-1 overflow-y-auto relative">
-          {activeView === 'chat' ? (
-            <>
-              <ChatHistoryList
-                isExpanded={true}
-                currentChatId={undefined}
-                isMobile={isMobile}
-                onItemClick={onMobileItemClick}
-              />
-              <TrashButton />
-            </>
-          ) : showWebWorkspace && webWorkspaceDir ? (
+          {filesDir !== null ? (
             <Suspense fallback={sidebarPanelLoading}>
               <WorkspaceFileBrowser
-                workspacePath={webWorkspaceDir}
+                workspacePath={filesDir}
                 files={webFiles}
                 loading={webFilesLoading}
                 error={webFilesError}
@@ -313,20 +307,20 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
                 onLoadChildren={webLoadChildren}
               />
             </Suspense>
-          ) : actionMode === 'agent' && !webWorkspaceDir ? (
-            <div className="flex flex-col items-center justify-center py-8 px-4 text-muted-foreground">
-              <FolderOpen className="h-8 w-8 mb-2" />
-              <p className="text-sm text-center mb-3">{t('workspace.selectDir')}</p>
-            </div>
-          ) : null}
+          ) : (
+            <>
+              <ChatHistoryList isExpanded isMobile={isMobile} onItemClick={onMobileItemClick} />
+              <TrashButton />
+            </>
+          )}
 
-          {webPreviewFile && webWorkspaceDir ? (
+          {openPreview ? (
             <Suspense fallback={sidebarPanelLoading}>
               <div className="absolute inset-0 z-10 bg-background">
                 <WorkspaceFilePreview
-                  file={webPreviewFile}
-                  workspace={webWorkspaceDir}
-                  onClose={() => setWebPreviewFile(null)}
+                  file={openPreview.file}
+                  workspace={openPreview.workspace}
+                  onClose={() => setPreview(null)}
                   className="h-full"
                 />
               </div>
@@ -345,5 +339,3 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
 );
 
 ChatSidebarContent.displayName = 'ChatSidebarContent';
-
-export default ChatSidebarContent;

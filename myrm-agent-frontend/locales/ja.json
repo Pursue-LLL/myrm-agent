@@ -457,7 +457,6 @@
   },
   "sidebar": {
     "searchPlaceholder": "会話を検索",
-    "searchAgents": "エージェントを検索",
     "chatHistory": "チャット",
     "workspace": "ワークスペース",
     "files": "ファイル"
@@ -469,8 +468,6 @@
     "download": "ダウンロード",
     "close": "閉じる",
     "noContent": "プレビューする内容はありません",
-    "selectDir": "ファイルを閲覧するワークスペースディレクトリを選択",
-    "selectDirButton": "ディレクトリを選択",
     "upload": "ファイルをアップロード",
     "dropToUpload": "アップロードするファイルをここにドロップ",
     "uploading": "アップロード中... {percent}%",
@@ -1017,7 +1014,6 @@
     "cancel": "キャンセル",
     "delete": "削除",
     "edit": "編集",
-    "use": "使用",
     "confirmDelete": "削除を確認",
     "confirmDeleteDesc": "エージェント「{name}」を削除しますか？関連するスケジュールタスクとチャンネルバインドも自動的に解除されます。この操作は元に戻せません。",
     "createSuccess": "エージェントを作成しました",

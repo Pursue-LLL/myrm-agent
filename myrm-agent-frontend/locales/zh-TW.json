@@ -457,7 +457,6 @@
   },
   "sidebar": {
     "searchPlaceholder": "搜尋對話",
-    "searchAgents": "搜尋智慧體",
     "chatHistory": "聊天",
     "workspace": "工作區",
     "files": "檔案"
@@ -469,8 +468,6 @@
     "download": "下載",
     "close": "關閉",
     "noContent": "無內容可預覽",
-    "selectDir": "請選擇工作目錄以瀏覽檔案",
-    "selectDirButton": "選擇目錄",
     "upload": "上傳檔案",
     "dropToUpload": "拖放檔案到此處上傳",
     "uploading": "上傳中... {percent}%",
@@ -1017,7 +1014,6 @@
     "cancel": "取消",
     "delete": "刪除",
     "edit": "編輯",
-    "use": "使用",
     "confirmDelete": "確認刪除",
     "confirmDeleteDesc": "確定要刪除智慧體「{name}」嗎？相關的定時任務和渠道繫結也會自動解除。此操作不可撤銷。",
     "createSuccess": "智慧體建立成功",

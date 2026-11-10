@@ -457,7 +457,6 @@
   },
   "sidebar": {
     "searchPlaceholder": "채팅 검색",
-    "searchAgents": "에이전트 검색",
     "chatHistory": "채팅",
     "workspace": "작업 공간",
     "files": "파일"
@@ -469,8 +468,6 @@
     "download": "다운로드",
     "close": "닫기",
     "noContent": "미리볼 콘텐츠가 없습니다",
-    "selectDir": "파일을 탐색할 작업 공간 디렉터리를 선택하세요",
-    "selectDirButton": "디렉터리 선택",
     "upload": "파일 업로드",
     "dropToUpload": "업로드할 파일을 여기에 끌어다 놓으세요",
     "uploading": "업로드 중... {percent}%",
@@ -1017,7 +1014,6 @@
     "cancel": "취소",
     "delete": "삭제",
     "edit": "편집",
-    "use": "사용",
     "confirmDelete": "삭제 확인",
     "confirmDeleteDesc": "에이전트 \"{name}\"을(를) 삭제하시겠습니까? 관련 예약 태스크와 채널 바인딩도 함께 해제됩니다. 이 작업은 되돌릴 수 없습니다.",
     "createSuccess": "에이전트가 생성되었습니다",

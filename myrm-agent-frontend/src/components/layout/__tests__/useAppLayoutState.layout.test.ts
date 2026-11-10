@@ -19,7 +19,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ usePathname: () => mocks.pathname }));
 vi.mock('@/lib/utils/device', () => ({ checkIsMobile: mocks.checkIsMobile }));
 vi.mock('@/lib/utils/requestManager', () => ({ requestManager: { cancelAllRequests: mocks.cancelAllRequests } }));
-vi.mock('@/lib/migrationChatHandoff', () => ({ consumeMigrationChatAgent: () => null }));
 vi.mock('@/lib/mobileRemote', () => ({ isMobileRemotePath: mocks.isMobileRemotePath }));
 vi.mock('@/hooks/ui/useResizableSidebar', () => ({
   useResizableSidebar: (options?: { onCollapse?: () => void }) => {

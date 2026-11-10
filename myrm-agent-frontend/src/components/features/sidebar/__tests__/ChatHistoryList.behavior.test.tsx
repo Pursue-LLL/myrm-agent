@@ -626,22 +626,47 @@ describe('ChatHistoryList grouping', () => {
 });
 
 describe('ChatHistoryList rows', () => {
-  it('marks the open chat and shows which chats are working', async () => {
+  const isMarked = (title: string) =>
+    screen.getByRole('link', { name: new RegExp(title) }).className.includes('brand-selected-surface');
+
+  it('marks the chat that is open in the window, and moves the mark when another one is opened', async () => {
+    seed({ chatHistoryItems: [makeChat('first'), makeChat('second')], chatId: 'first' });
+
+    await renderList();
+
+    expect(isMarked('Title first')).toBe(true);
+    expect(isMarked('Title second')).toBe(false);
+
+    act(() => useChatStore.setState({ chatId: 'second' }));
+
+    expect(isMarked('Title first')).toBe(false);
+    expect(isMarked('Title second')).toBe(true);
+  });
+
+  it('marks nothing while no saved chat is open', async () => {
+    seed({ chatHistoryItems: [makeChat('first')], chatId: undefined });
+
+    await renderList();
+
+    expect(isMarked('Title first')).toBe(false);
+  });
+
+  it('shows which chats are working', async () => {
     seed({
-      chatHistoryItems: [makeChat('open'), makeChat('busy'), makeChat('asking'), makeChat('current')],
+      chatHistoryItems: [makeChat('idle'), makeChat('busy'), makeChat('asking'), makeChat('current')],
       sessionStatuses: { busy: 'generating', asking: 'awaiting_approval' },
       chatId: 'current',
       loading: true,
     });
 
-    await renderList({ currentChatId: 'open' });
+    await renderList();
 
-    expect(screen.getByRole('link', { name: /Title open/ }).className).toContain('brand-selected-surface');
-    expect(screen.getByRole('link', { name: /Title busy/ }).className).not.toContain('brand-selected-surface');
+    expect(isMarked('Title current')).toBe(true);
+    expect(isMarked('Title busy')).toBe(false);
     expect(rowOf('Title busy').querySelector('.bg-emerald-500')).not.toBeNull();
     expect(rowOf('Title asking').querySelector('.bg-amber-500')).not.toBeNull();
     expect(rowOf('Title current').querySelector('.bg-emerald-500')).not.toBeNull();
-    expect(rowOf('Title open').querySelector('.bg-emerald-500, .bg-amber-500')).toBeNull();
+    expect(rowOf('Title idle').querySelector('.bg-emerald-500, .bg-amber-500')).toBeNull();
   });
 
   it('reports a row click so a drawer can close', async () => {
