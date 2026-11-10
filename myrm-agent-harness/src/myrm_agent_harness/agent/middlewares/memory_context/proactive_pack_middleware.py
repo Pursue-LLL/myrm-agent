@@ -1,14 +1,14 @@
 """Per-turn knowledge pack: snippets of the mounted knowledge bases for the current question.
 
 The server retrieves the snippets for each turn's question and hands them over through the run
-context. This middleware appends them, wrapped as untrusted data, to the tail of the final
-HumanMessage. The SystemMessage and the history before that message are never touched. The block is
+context. This middleware appends them, wrapped as untrusted data, to the tail of the user's latest
+message. The SystemMessage and the history before that message are never touched. The block is
 not persisted, so the next turn recomputes the previous turn's reply and tool results, like the other
 Human-tail blocks (session deltas, base context).
 
 [INPUT]
 - toolkits.memory.config::RecallMode (POS: Memory configuration — functional switches and retrieval params only.)
-- toolkits.memory.ephemeral_delta.tail_injector::append_block_to_last_human (POS: Tail-of-turn injection primitive.)
+- core.message_tail::append_block_to_last_user_message (POS: Tail-of-turn injection primitive.)
 - agent.security.detection.content_boundary::sanitize, wrap_untrusted (POS: Untrusted content folding, marker neutralization, randomized UNTRUSTED_DATA envelopes.)
 
 [OUTPUT]
@@ -27,8 +27,8 @@ from collections.abc import Awaitable, Callable, Mapping
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 
 from myrm_agent_harness.agent.security.detection.content_boundary import sanitize, wrap_untrusted
+from myrm_agent_harness.core.message_tail import append_block_to_last_user_message
 from myrm_agent_harness.toolkits.memory.config import RecallMode
-from myrm_agent_harness.toolkits.memory.ephemeral_delta.tail_injector import append_block_to_last_human
 
 from .memory_context_budget import escape_xml_item
 
@@ -90,7 +90,7 @@ class ProactivePackMiddleware(AgentMiddleware):
             block = format_proactive_pack(pack) or ""
             context[_RENDERED_BLOCK_KEY] = block
         if block:
-            request = request.override(messages=append_block_to_last_human(request.messages, block))
+            request = request.override(messages=append_block_to_last_user_message(request.messages, block))
         return await handler(request)
 
 

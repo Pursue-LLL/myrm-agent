@@ -2,6 +2,7 @@
 
 [INPUT]
 - langchain_core.messages::BaseMessage
+- myrm_agent_harness.core.message_origin::count_user_authored_messages
 - myrm_agent_harness.agent.streaming.types::ContextBudgetSnapshot
 - myrm_agent_harness.agent.types::AgentRunStatistics
 
@@ -22,6 +23,7 @@ from langchain_core.messages import BaseMessage
 
 from myrm_agent_harness.agent.streaming.types import ContextBudgetSnapshot
 from myrm_agent_harness.agent.types import AgentRunStatistics
+from myrm_agent_harness.core.message_origin import count_user_authored_messages
 
 
 def compute_context_budget_snapshot(
@@ -49,8 +51,9 @@ def compute_context_budget_snapshot(
 
     Optional breakdown fields are GUI-only estimates; they do not affect pipeline
     compress/summarize decisions. ``turn_count`` mirrors the runtime
-    compress_processor human-message count so the GUI preflight can reuse the
-    same dynamic-threshold input as the pipeline.
+    compress_processor count of messages the user wrote (runtime notices are not
+    counted) so the GUI preflight can reuse the same dynamic-threshold input as
+    the pipeline.
     """
 
     if not stats.token_usage or not stats.token_usage.last_call:
@@ -99,8 +102,9 @@ async def resolve_context_budget_breakdown(
     """Resolve GUI breakdown: messages est., tool schema est., system/other remainder,
 
     along with fine-grained AgentLens 6-category breakdown (System / Memory / Rules / MCP / Skills).
-    Also returns ``turn_count`` = number of human messages in the checkpoint, so
-    the preflight can reuse the same dynamic-threshold input as compress_processor.
+    Also returns ``turn_count`` = number of messages the user wrote in the
+    checkpoint (runtime notices excluded), so the preflight can reuse the same
+    dynamic-threshold input as compress_processor.
     """
 
     from myrm_agent_harness.utils.text_utils import get_token_count
@@ -120,7 +124,7 @@ async def resolve_context_budget_breakdown(
     messages = [msg for msg in raw_messages if isinstance(msg, BaseMessage)]
     if messages:
         messages_tokens = estimate_messages_tokens(messages)
-        turn_count = sum(1 for m in messages if m.type == "human")
+        turn_count = count_user_authored_messages(messages)
         has_messages = True
 
     builtin_tokens = 0

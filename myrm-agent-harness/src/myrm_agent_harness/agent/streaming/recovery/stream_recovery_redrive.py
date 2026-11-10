@@ -1,7 +1,7 @@
 """Re-driving a turn from its thread: the input every "append a hint and run again" recovery hands back.
 
 [INPUT]
-- agent.middlewares._message_origin::runtime_human_message (POS: a hint the runtime wrote, which user-input screens skip)
+- core.message_origin::runtime_human_message (POS: a hint the runtime wrote, which user-input screens skip)
 - langgraph.types::Command (POS: the one-shot input of a turn resumed after an approval)
 
 [OUTPUT]
@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, cast
 
 from langgraph.types import Command
 
-from myrm_agent_harness.agent.middlewares._message_origin import runtime_human_message
+from myrm_agent_harness.core.message_origin import runtime_human_message
 
 if TYPE_CHECKING:
     from langchain_core.messages import AnyMessage, BaseMessage

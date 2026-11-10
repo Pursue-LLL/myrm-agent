@@ -2,7 +2,7 @@
 
 [INPUT]
 - Sequence of BaseMessage objects from conversation state, maximum character budget.
-- agent.middlewares._message_origin::is_user_authored_human_message (POS: Message-provenance predicate shared by the approval and security middlewares.)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - Curated user intent context string preserving initial task anchor, latest directives,
@@ -18,7 +18,7 @@ from collections.abc import Sequence
 
 from langchain_core.messages import BaseMessage
 
-from myrm_agent_harness.agent.middlewares._message_origin import is_user_authored_human_message
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 
 OMITTED_MARKER = "[earlier user messages omitted]"
 NO_USER_MESSAGE_VISIBLE = "[no user message visible]"
@@ -100,15 +100,7 @@ def extract_user_intent_ledger(messages: Sequence[BaseMessage], max_chars: int =
 
     selected_middle.reverse()
 
-    if omitted_any or middle_candidates:
-        if omitted_any:
-            parts = [anchor, OMITTED_MARKER]
-            parts.extend(selected_middle)
-            parts.append(latest)
-            return "\n".join(parts)
-        parts = [anchor]
-        parts.extend(selected_middle)
-        parts.append(latest)
-        return "\n".join(parts)
-
-    return f"{anchor}\n{latest}"
+    parts = [anchor, OMITTED_MARKER] if omitted_any else [anchor]
+    parts.extend(selected_middle)
+    parts.append(latest)
+    return "\n".join(parts)

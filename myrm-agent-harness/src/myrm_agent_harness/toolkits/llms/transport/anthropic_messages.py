@@ -1,6 +1,7 @@
 """Anthropic Messages wire: OpenAI-shaped input to ``POST /v1/messages``.
 
 [INPUT]
+- core.thinking_blocks (POS: the signed reasoning blocks an assistant message carries)
 - transport.profile (POS: Route — endpoint root and credential)
 - transport.params (POS: CallOptions split of the call's keyword arguments)
 - transport.http (POS: PreparedRequest)
@@ -14,7 +15,8 @@
 [POS]
 Request half of the Anthropic wire (answers are read by ``anthropic_response``). Messages and tools arrive
 OpenAI-shaped and leave as content blocks; cache_control markers on content parts, tools and system blocks are
-carried through unchanged; consecutive turns of one role are merged because the API demands alternation. What the
+carried through unchanged; consecutive turns of one role are merged because the API demands alternation; the signed
+reasoning blocks of an assistant message lead the turn that replays it. What the
 model itself accepts shapes the body: the newest generation takes no sampling parameters, and an unstated output
 budget is the model's ceiling. A request that replays tool calls but declares no tools gets a placeholder tool,
 which the API demands. An API key travels as ``x-api-key``; a Claude subscription token (``sk-ant-oat…``) travels as
@@ -30,6 +32,7 @@ from collections.abc import Mapping, Sequence
 from typing import Final
 from urllib.parse import urlsplit
 
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, coerce_thinking_blocks
 from myrm_agent_harness.toolkits.llms.transport.anthropic_schema import to_output_schema
 from myrm_agent_harness.toolkits.llms.transport.anthropic_thinking import request_thinking
 from myrm_agent_harness.toolkits.llms.transport.capabilities import claude_traits
@@ -166,11 +169,11 @@ def _tool_result_block(message: Mapping[str, object]) -> Block:
 
 
 def _thinking_blocks(message: Mapping[str, object]) -> list[Block]:
-    """Signed thinking blocks the previous answer carried; unsigned reasoning text cannot be replayed."""
-    blocks = message.get("thinking_blocks")
-    return (
-        [dict(b) for b in blocks if isinstance(b, Mapping) and b.get("signature")] if isinstance(blocks, list) else []
-    )
+    """The signed reasoning (``thinking`` and ``redacted_thinking``) the answer carried, replayed as received.
+
+    Unsigned reasoning text cannot be replayed: the API takes back only what it signed.
+    """
+    return [dict(block) for block in coerce_thinking_blocks(message.get(THINKING_BLOCKS_KEY))]
 
 
 def _trim_prefill(blocks: list[Block]) -> None:

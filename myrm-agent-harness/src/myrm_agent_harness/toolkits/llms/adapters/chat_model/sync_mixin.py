@@ -44,7 +44,6 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.usage_recording import
 from myrm_agent_harness.toolkits.llms.adapters.metrics import EmptyRetryMetrics
 from myrm_agent_harness.toolkits.llms.adapters.stream_aggregator import (
     StreamAggregator,
-    XmlStreamBuffer,
     finalize_stream,
 )
 from myrm_agent_harness.toolkits.llms.adapters.streaming import (
@@ -57,6 +56,7 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.invocation import (
     invoke_responses_sync,
     stream_responses_sync,
 )
+from myrm_agent_harness.toolkits.llms.adapters.xml_stream_buffer import XmlStreamBuffer
 
 logger = logging.getLogger(__name__)
 
@@ -226,15 +226,12 @@ class TransportChatModelSyncMixin:
         content = delta.get("content") or ""
 
         # Non-standard OpenAI gateway fallback: reasoning_content, reasoning, thinking, thoughts, etc.
-        from myrm_agent_harness.toolkits.llms.adapters.streaming import extract_reasoning_payload
+        from myrm_agent_harness.toolkits.llms.adapters.streaming import extract_reasoning_payload, extract_replay_state
 
         reasoning_content = extract_reasoning_payload(delta)
-        additional_kwargs: dict[str, Any] = {}
+        additional_kwargs: dict[str, object] = extract_replay_state(delta)
         if reasoning_content:
             additional_kwargs["reasoning_content"] = reasoning_content
-        replay_items = delta.get("responses_reasoning_items")
-        if isinstance(replay_items, list) and replay_items:
-            additional_kwargs["responses_reasoning_items"] = replay_items
 
         # Use keyword argument content= since BaseMessageChunk rejects positional args
         msg_chunk: BaseMessageChunk

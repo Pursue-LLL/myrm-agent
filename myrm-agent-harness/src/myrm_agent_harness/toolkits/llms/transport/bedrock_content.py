@@ -1,6 +1,7 @@
 """Converse messages: OpenAI-shaped chat messages become strictly alternating Converse turns.
 
 [INPUT]
+- core.thinking_blocks (POS: the signed reasoning blocks an assistant message carries)
 - transport.capabilities (POS: claude_version — which models take an explicit cache point lifetime)
 
 [OUTPUT]
@@ -27,6 +28,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Final
 
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, coerce_thinking_blocks
 from myrm_agent_harness.toolkits.llms.transport.capabilities import claude_version
 
 logger = logging.getLogger(__name__)
@@ -171,15 +173,12 @@ def _tool_use_blocks(tool_calls: object) -> list[Block]:
 
 def _thinking_blocks(message: Mapping[str, object]) -> list[Block]:
     """The reasoning the previous answer carried and the API will take back: signed text and redacted data."""
-    raw = message.get("thinking_blocks")
     blocks: list[Block] = []
-    for block in raw if isinstance(raw, list) else []:
-        if not isinstance(block, Mapping):
-            continue
-        if block.get("type") == "redacted_thinking" and block.get("data"):
+    for block in coerce_thinking_blocks(message.get(THINKING_BLOCKS_KEY)):
+        if block["type"] == "redacted_thinking":
             blocks.append({"reasoningContent": {"redactedContent": block["data"]}})
-        elif block.get("signature"):
-            text = {"text": block.get("thinking") or "", "signature": block["signature"]}
+        else:
+            text = {"text": block["thinking"], "signature": block["signature"]}
             blocks.append({"reasoningContent": {"reasoningText": text}})
     return blocks
 

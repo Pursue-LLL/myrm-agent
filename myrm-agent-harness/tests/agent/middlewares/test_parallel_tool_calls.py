@@ -107,10 +107,16 @@ def test_an_engine_that_leaves_the_switch_unset_has_no_such_middleware(engine: E
 
 
 @pytest.mark.parametrize("parallel", [True, False])
-def test_the_middleware_goes_last_of_the_model_call_wrappers(parallel: bool) -> None:
+def test_the_middleware_goes_last_of_the_wrappers_that_rewrite_a_request(parallel: bool) -> None:
     names = _names(EngineParams(enable_parallel_tool_calls=parallel))
 
-    assert names[-3:] == ["stringified_json_args_middleware", "ParallelToolCallsMiddleware", "debug_logger_middleware"]
+    assert names[-5:] == [
+        "stringified_json_args_middleware",
+        "ParallelToolCallsMiddleware",
+        "ThinkingReplayGuardMiddleware",
+        "RequestViewGuardMiddleware",
+        "debug_logger_middleware",
+    ]
 
 
 @pytest.fixture(autouse=True)

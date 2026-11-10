@@ -7,22 +7,25 @@
    - 非最新 assistant turn：始终剥离
    - 最新 assistant turn：当前模型为 Anthropic 时保留（API 要求），否则剥离（防模型切换泄漏）
 2. additional_kwargs 中的 reasoning_content / thinking_blocks
-   - Anthropic 模型：清理 reasoning_content，保留 thinking_blocks
+   - Anthropic 模型：清理 reasoning_content；thinking_blocks 只保留在当前 turn（用户最新消息之后），更早 turn 的签名块清除
    - DeepSeek/MiMo/Kimi 等：有 tool_calls 时保留 reasoning_content（API 要求），否则清理
    - 其他模型：清理 thinking_blocks，保留 reasoning_content
 
 [INPUT]
-- (none)
+- core.thinking_blocks::THINKING_BLOCKS_KEY, thinking_blocks_text (POS: Signed reasoning blocks an Anthropic-family answer carries.)
+- core.message_origin::last_user_authored_index (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - ThinkingBlockCleaner: class — Thinking Block Cleaner
 
 [POS]
-Provides ThinkingBlockCleaner.
+Provides ThinkingBlockCleaner. A turn starts at the user's own message; a notice the runtime appended behind it does not end the turn.
 """
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage
 
+from myrm_agent_harness.core.message_origin import last_user_authored_index
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, thinking_blocks_text
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from ..base import BaseProcessor, ProcessorContext
@@ -47,15 +50,7 @@ def _has_tool_calls(msg: AIMessage) -> bool:
     return bool(tc and isinstance(tc, list) and len(tc) > 0)
 
 
-def _find_last_human_index(messages: list) -> int:
-    """Find the index of the last HumanMessage. Returns -1 if none found."""
-    for i in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[i], HumanMessage):
-            return i
-    return -1
-
-
-def _find_last_ai_index(messages: list) -> int:
+def _find_last_ai_index(messages: list[BaseMessage]) -> int:
     """Find the index of the last AIMessage. Returns -1 if none found."""
     for i in range(len(messages) - 1, -1, -1):
         if isinstance(messages[i], AIMessage):
@@ -112,7 +107,7 @@ class ThinkingBlockCleaner(BaseProcessor):
         cleaned_responses_items = 0
         chars_dropped = 0
 
-        last_human_idx = _find_last_human_index(context.messages)
+        last_human_idx = last_user_authored_index(context.messages)
         last_ai_idx = _find_last_ai_index(context.messages)
 
         for i, msg in enumerate(context.messages):
@@ -137,9 +132,7 @@ class ThinkingBlockCleaner(BaseProcessor):
                                 thinking_text = b.get("thinking", "")
                                 if isinstance(thinking_text, str):
                                     chars_dropped += len(thinking_text)
-                        if not new_content:
-                            new_content = [{"type": "text", "text": _OMITTED_PLACEHOLDER}]
-                        msg.content = new_content  # type: ignore[assignment]
+                        msg.content = new_content or [{"type": "text", "text": _OMITTED_PLACEHOLDER}]
                         cleaned_content_tb += dropped_count
 
             # --- Phase 2: Clean additional_kwargs ---
@@ -148,16 +141,22 @@ class ThinkingBlockCleaner(BaseProcessor):
                 continue
 
             rc = kwargs.get("reasoning_content")
-            tb = kwargs.get("thinking_blocks")
+            tb = kwargs.get(THINKING_BLOCKS_KEY)
 
             if is_anthropic:
                 if rc:
                     chars_dropped += len(rc) if isinstance(rc, str) else 0
                     del kwargs["reasoning_content"]
                     cleaned_rc += 1
+                # A signed block is valid only inside the tool loop that produced it: the API takes earlier turns
+                # without their reasoning, so the blocks of finished turns are pruned once the user speaks again.
+                if tb and i < last_human_idx:
+                    chars_dropped += len(thinking_blocks_text(msg))
+                    del kwargs[THINKING_BLOCKS_KEY]
+                    cleaned_tb += 1
             else:
                 if tb:
-                    del kwargs["thinking_blocks"]
+                    del kwargs[THINKING_BLOCKS_KEY]
                     cleaned_tb += 1
 
                 if rc and isinstance(rc, str) and i < last_human_idx and not _has_tool_calls(msg):

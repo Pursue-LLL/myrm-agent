@@ -12,10 +12,10 @@ from langchain_core.outputs import ChatGenerationChunk
 from myrm_agent_harness.toolkits.llms.adapters.stream_aggregator import (
     StreamAggregator,
     StreamFinalization,
-    XmlStreamBuffer,
-    attach_responses_reasoning_items_to_final_chunk,
+    attach_replay_state_to_final_chunk,
     finalize_stream,
 )
+from myrm_agent_harness.toolkits.llms.adapters.xml_stream_buffer import XmlStreamBuffer
 
 
 class TestStreamAggregator:
@@ -841,12 +841,12 @@ class TestResponsesReasoningReplayStreamExport:
                 chunk_position="last",
             )
         )
-        attached = attach_responses_reasoning_items_to_final_chunk(source, reasoning_items)
+        attached = attach_replay_state_to_final_chunk(source, {"responses_reasoning_items": reasoning_items})
         assert attached is not None
         assert attached.message.additional_kwargs["responses_reasoning_items"] == reasoning_items
 
     def test_attach_empty_items_passthrough(self) -> None:
-        assert attach_responses_reasoning_items_to_final_chunk(None, []) is None
+        assert attach_replay_state_to_final_chunk(None, {}) is None
 
     def test_finalize_stream_exports_reasoning_items_on_final_tool_chunk(self) -> None:
         agg = StreamAggregator(AIMessageChunk)

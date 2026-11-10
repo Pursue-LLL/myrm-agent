@@ -15,7 +15,7 @@ or safety caution, and the tracker rises to their level once. A policy that acts
 rewrites are stable under repetition, so rescanning the state on every call changes nothing after the first.
 
 [INPUT]
-- agent.middlewares._message_origin::is_user_authored_human_message (POS: Message-provenance predicate shared by the approval and security middlewares.)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - agent.middlewares._session_context::get_security_config (POS: Middleware session context — shared ContextVars for the middleware chain.)
 - agent.middlewares.security.text_blocks::MessageContent, map_text_blocks (POS: Content-shape adapter between a message and the security layers that rewrite its text.)
 - agent.middlewares.security.pii_actions::apply_pii_actions, blocking_level, levels_to_process (POS: PII action engine shared by the guardrail's input and output layers and by the tool-result PII guard.)
@@ -40,7 +40,6 @@ from typing import Literal
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
-from myrm_agent_harness.agent.middlewares._message_origin import is_user_authored_human_message
 from myrm_agent_harness.agent.middlewares._session_context import get_security_config
 from myrm_agent_harness.agent.middlewares.security.pii_actions import (
     apply_pii_actions,
@@ -54,6 +53,7 @@ from myrm_agent_harness.agent.security.detection.pii_classifier import classify_
 from myrm_agent_harness.agent.security.detection.prompt_guard import log_guard_result, scan_input
 from myrm_agent_harness.agent.security.guards.privacy_tracker import get_privacy_tracker
 from myrm_agent_harness.agent.security.types import PrivacyPolicy, SecurityConfig, SensitivityLevel
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 
 logger = logging.getLogger(__name__)
 

@@ -10,6 +10,7 @@
 2. **可组合**：各 middleware 独立文件，通过 `_factory/builder.py` 或 Server 注入组装
 3. **安全 fail-closed**：`ToolConflictGateMiddleware` 对未知工具默认独占运行；security 层验证 tool result
 4. **Cache 安全**：context/progress/replan 类 middleware 通过 `request.override` 注入 HumanMessage，不污染 system 前缀
+5. **运行内视图只增不改**：同一次运行里，每个模型请求都延续上一个请求（提供商按请求前缀缓存，它回传的签名推理块也只对写下它的那段前缀有效）。运行期通知因此只有两种写法：每个请求逐字节相同（`frozen_for_run`，首个请求渲染一次，之后原样复用），或写一次后留在当时最后一条消息之后（`NoticeLedger`）；随回合变化的内容只放在用户亲写的最新消息尾部，不放在其后的运行时通知上（`core/message_tail.py`）。宿主侧中间件写运行时通知、找回合起点时经 `myrm_agent_harness.api` 取用 `runtime_human_message` 与 `last_user_authored_index`，通知才不会被当成用户的新一轮发言。`request_view_guard_middleware` 在请求出门前记录前缀摘要，缓存断点检测据此指出哪条消息让前缀变了，并区分有公告的改写与无公告的改写
 
 ---
 
@@ -41,6 +42,8 @@
 │ rate_limit                              │  ← Provider 429 主动节流
 │ concurrency/ (tool_conflict_gate)        │  ← 并发安全的调用共享，其余调用独占
 │ parallel_tool_calls (engine 开关设定时)   │  ← 带工具的模型调用携带 parallel_tool_calls 设定
+│ thinking_replay_guard                   │  ← 提供商拒绝回放的签名推理块时，去掉全部块重发一次
+│ request_view_guard                      │  ← 记录请求消息前缀摘要（只记录，不改写）
 │ debug_logger_middleware (dev)           │
 └─────────────────────────────────────────┘
     │
@@ -60,6 +63,7 @@
 |-------------|------|
 | `tooling/` | 工具执行子系统：`tool_interceptor_middleware.py`（唯一编排入口；GraphInterrupt on stuck）、`tool_executor.py`（超时、重试、指数退避）、`tool_history_hygiene.py`（within-AIMessage re-id → ToolMessage keep-last dedup → cross-turn re-id；导出 `sanitize_tool_history()`）、`dangling_tool_call_middleware.py`（修复 strict provider 400；invalid_tool_calls 出站隔离——升级为合法声明并回填结构化诊断，畸形原文不回喂 provider）、`skill_attenuation_middleware.py`（skill attenuation + runtime intent-aware narrowing via `tool_choice.allowed_tools`）、`stringified_json_args.py`（模型把列表/对象参数发成 JSON 字符串时，在工具运行前解析成原生值；装配在最内层，经公开的 `awrap_tool_call` 改写请求）、`_tool_guards/`/`_circuit_breaker.py`/`_tool_helpers/`（拦截辅助；熔断检查独立成 `_circuit_breaker.py`）、`_mutation_verifier.py`（文件变更 per-turn 验证 → SSE）、`_skill_failure_tracking.py`（技能失败事件 + 单技能执行计数）、`_tool_execution_lifecycle.py`（执行生命周期 hook）、`_runtime_tool_governance.py`（回合级工具面收敛 UI intent gate + readonly intent gate）、`_skill_tool_choice.py`（attenuation tool_choice 构建） |
 | `_session_context.py` | Middleware 链共享 ContextVar |
+| `_run_notices.py` | 运行期通知的位置与文本在整次运行内保持稳定：`run_scope`（请求携带的每次运行一份的字典）、`frozen_for_run`（首个请求渲染，之后原样返回）、`NoticeLedger`（只追加，每条通知留在写下它时的最后一条消息之后）；todo 焦点与熔断约束使用 |
 | `_run_workspace.py` | 运行工作区解析：`run_workspace` 从 LangGraph `Runtime` 上下文取 `workspace_path`，todo 焦点注入与 CompletionGuard 共用。哪些运行保有 todo 清单由构建方决定（`_agent_build.build_middlewares` 按本 Agent 的注册表是否持有 `todo_write`）：与父共用工作区、但没有 `todo_write` 的子 Agent，既看不到父的 todo，也不受「未完成 todo」约束。清单按 chat 分开存放（`.myrm/progress/<chat>/todos.json`），两处读到的都是运行中 chat 自己的那份；未完成 todo 只在本 run 用过 `file_write_tool` / `file_edit_tool` 之后才阻断收尾，否则只是一条不拦截的 WARNING（仅在守卫因验证失败拦下收尾时，随复核清单送达模型） |
 | `approval/` | HITL 审批：`evaluation/`（评估节点，工具调用只评估一次）、`middleware.py`（发问节点：batch interrupt 与决策落地）、`refusal/`（拒绝如何到达模型）、scheduler |
 | `guardrails/` | Provider 链 + `GuardrailMiddleware` |
@@ -70,13 +74,15 @@
 | `security/` | `security_boundary_middleware.py`（SECURITY_BOUNDARY_SYSTEM_RULES 每次运行注入一次，state 以追加方式合并，落在最新用户消息之后）、`canary_middleware.py`（canary 指令作为独立 SystemMessage 每个对话线程注入一次，落在最新用户消息之后；线程已带 canary 指令就沿用，system prompt 不含任何每会话随机文本，前缀缓存跨会话共享；护栏对线程历史里带的每个 token 都做泄露检测）、`security_guardrail_middleware.py`（八层防御：circuit-breaker cognition / intent router / prompt guard / PII / leak / canary / history redact）、`user_input_guard.py`（意图 / 注入 / PII 三层筛查用户亲写消息，文本或图文块均可；runtime 追加的 `is_system_synthetic` 消息不筛。最新一条完整筛查：审计、日志、安全告诫前缀与 PII 改写只在该输入的首次模型调用写入，之后每轮工具调用字节不变；更早的用户消息随历史在每轮再次送入模型，故静默执行同一策略（PII 改写；注入 / 危险意图为 `fail_closed` 时拦截），不写审计、日志与告诫，且无任何策略生效时整段跳过）、`pii_actions.py`（按级别执行 warn / redact / pseudonymize / block，入站、出站、工具结果与模型调用出口共用）、`outbound_privacy_guard.py`（模型调用出口闸门：注册到 `toolkits.llms` 的 `outbound_guard`，对每一次 TransportChatModel 调用的非 system 消息按隐私策略处理（直连模型传输层 / 厂商 SDK 的调用与 embedding、语音、图像、视频等非对话调用不经过它）——运行策略优先，其次进程级策略；与主循环同一动作语义，主循环已处理过的文本字节不变，不伤 prompt cache；主循环自带 `privacy_enforced_by_loop` 标记避免重复处理；出错即中止调用，不放行）、`text_blocks.py`（文本与图文块内容的统一文本变换） |
 | `subagent_limit_middleware.py` | 单轮 delegate 上限 |
 | `plan_confirm_middleware.py` | 计划阶段人机协同确认与重大 Re-plan 拦截门禁 |
-| `progress_middleware.py` | 活跃 todo 紧凑焦点注入与幂等清洗（末位 HumanMessage）；仅持有 `todo_write` 的 Agent 注入 |
+| `progress_middleware.py` | 活跃 todo 紧凑焦点：首个请求渲染一次，整次运行内原样写在用户亲写最新消息的尾部（并幂等清洗它的旧块）；仅持有 `todo_write` 的 Agent 注入 |
 | `advisor_risk_trigger_router.py` | 自适应事件门禁路由：多维感知 Replan 连续失败与 LoopGuard 异常模式，兼具致命错误旁路与冷却免疫/会话配额门禁 |
 | `moa_advisor_middleware.py` | Agent 环 MoA 顾问叠加（支持 `risk_triggered` 模式自适应路由接入；`moa_overlay_active` 透传 `trigger_reason` + 渐进 SSE `moa_ref_done` + 6s 硬超时静默降级 + 瞬态 Cache-Safe 尾注入与 KV-Cache 保全 + `privacy_filter` display/full 分流） |
 | `replan_middleware.py` | 动态重规划循环（导出 `get_replan_error_summary` 与 `get_max_consecutive_replan_errors` 只读遥测） |
 
 | `model_call_cancel.py` | 最外层模型调用包装：Stop 时在一个轮询周期内中断在途模型请求（含其内侧中间件的限流等待与重试），抛 `OperationCancelledError`，执行器按 Stop 收尾 |
-| `parallel_tool_calls.py` | `EngineParams.enable_parallel_tool_calls` 设定后，每次带工具的模型调用经 `ModelRequest.model_settings` 带上 `parallel_tool_calls`（请求已带的设定保留；不带工具的调用不加）；装配在模型调用包装的最内侧，故故障切换重建图时同样作用于新模型 |
+| `parallel_tool_calls.py` | `EngineParams.enable_parallel_tool_calls` 设定后，每次带工具的模型调用经 `ModelRequest.model_settings` 带上 `parallel_tool_calls`（请求已带的设定保留；不带工具的调用不加）；装配在所有会重写请求的中间件之后、两个守卫包装之前，故故障切换重建图时同样作用于新模型 |
+| `thinking_replay_guard_middleware.py` | 签名推理块回放的安全网：提供商拒绝回放的块（`FailoverReason.THINKING_SIGNATURE`）时，请求副本去掉全部块重发一次，并在本次运行内不再回放（拒绝记忆放在运行字典里，下一次运行重新回放）；执行器层的一次性恢复仍是最后一道。回放由环境变量 `MYRM_THINKING_BLOCK_REPLAY`（`0/false/no/off` 关闭，默认开启）控制，关闭后捕获与回放同时停止，工具循环里不再带推理，行为等同于不返回签名块的模型 |
+| `request_view_guard_middleware.py` | 离提供商最近的模型调用包装：把请求各消息的摘要交给本次运行的缓存断点检测器，由它指出请求从哪条消息起不再延续上一个请求；只记录，不改写 |
 | `rate_limit.py` | Provider 级主动 sleep |
 | `debug_logger_middleware.py` | 完整消息 debug 日志 |
 

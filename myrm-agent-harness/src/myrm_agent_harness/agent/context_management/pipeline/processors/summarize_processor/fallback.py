@@ -2,6 +2,7 @@
 
 [INPUT]
 - langchain_core.messages (POS: 消息类型)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - utils.chat_utils::extract_text_content (POS: 多模态消息可见文本提取)
 - agent.context_management.infra.schemas::StructuredSummary (POS: 结构化摘要类型)
 
@@ -16,8 +17,9 @@ from __future__ import annotations
 
 import re
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage
 
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.utils.chat_utils import extract_text_content
 
 from ....infra.schemas import StructuredSummary
@@ -33,7 +35,7 @@ def _build_deterministic_summary(
     """Extract key information from messages without LLM.
 
     Extracts:
-    - user_goal from the last HumanMessage
+    - user_goal from the last message the user wrote
     - last_action from the last AIMessage content
     - completed_actions from COMPACTED: patterns in compressed tool results
     - files_modified from ArtifactTracker
@@ -46,7 +48,7 @@ def _build_deterministic_summary(
     files_modified: list[str] = []
 
     for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
+        if is_user_authored_human_message(msg):
             content = extract_text_content(msg.content)
             goal = content[:_FALLBACK_GOAL_MAX_CHARS] + ("…" if len(content) > _FALLBACK_GOAL_MAX_CHARS else "")
             if not active_task:

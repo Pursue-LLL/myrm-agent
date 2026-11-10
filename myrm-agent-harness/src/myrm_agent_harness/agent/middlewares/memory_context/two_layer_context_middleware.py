@@ -1,16 +1,19 @@
-"""Inject Layer-1 base context at the tail of the current HumanMessage (prefix cache safe).
+"""Inject Layer-1 base context at the tail of the user's latest message (prefix cache safe).
 
 [INPUT]
 - toolkits.memory.two_layer_dialectic.injector::TwoLayerContextInjector
-- toolkits.memory.ephemeral_delta.tail_injector::append_block_to_last_human (POS: Tail-of-turn injection primitive: per-turn content lives only on the final HumanMessage so the SystemMessage and earlier history keep their prompt-cache prefix.)
+- core.message_tail::append_block_to_last_user_message (POS: Tail-of-turn injection primitive: per-turn content lives only on the user's latest message so the SystemMessage and earlier history keep their prompt-cache prefix.)
 - core.context_vars::chat_id_var
+- core.message_origin::count_user_authored_messages, is_user_authored_human_message, last_user_authored_index (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - two_layer_context_middleware: AgentMiddleware applying cadence-governed base context tail blocks.
 
 [POS]
-Runs after ephemeral_delta_middleware; mutates only the last HumanMessage tail. Layer 2 dialectic is
-disabled on the live path (no candidate_memories); use Lab/API for dialectic experiments.
+Runs after ephemeral_delta_middleware; mutates only the tail of the user's latest message. The turn number is the
+count of the user's own messages, so a notice the runtime appends mid-run neither moves the block nor advances the
+cadence. Layer 2 dialectic is disabled on the live path (no candidate_memories); use Lab/API for dialectic
+experiments.
 """
 
 from __future__ import annotations
@@ -25,7 +28,12 @@ from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, HumanMes
 
 from myrm_agent_harness.agent.middlewares._session_context import get_session_notes_summary
 from myrm_agent_harness.core.context_vars import chat_id_var
-from myrm_agent_harness.toolkits.memory.ephemeral_delta.tail_injector import append_block_to_last_human
+from myrm_agent_harness.core.message_origin import (
+    count_user_authored_messages,
+    is_user_authored_human_message,
+    last_user_authored_index,
+)
+from myrm_agent_harness.core.message_tail import append_block_to_last_user_message
 from myrm_agent_harness.toolkits.memory.two_layer_dialectic.injector import (
     TwoLayerContextInjector,
 )
@@ -51,10 +59,6 @@ def _live_enabled() -> bool:
     return os.getenv(_LIVE_ENV, "1").strip().lower() not in ("0", "false", "no", "off")
 
 
-def _human_turn_index(messages: Sequence[BaseMessage]) -> int:
-    return sum(1 for m in messages if isinstance(m, HumanMessage))
-
-
 def _message_text(content: object) -> str:
     if isinstance(content, str):
         return content.strip()
@@ -75,11 +79,11 @@ def _build_session_digest(messages: Sequence[BaseMessage]) -> str:
     for msg in reversed(messages):
         if len(snippets) >= 6:
             break
-        if isinstance(msg, (HumanMessage, AIMessage)):
+        if is_user_authored_human_message(msg) or isinstance(msg, AIMessage):
             text = _message_text(msg.content)
             if not text:
                 continue
-            role = "User" if isinstance(msg, HumanMessage) else "Assistant"
+            role = "Assistant" if isinstance(msg, AIMessage) else "User"
             line = f"{role}: {text[:280]}"
             snippets.append(line)
     if not snippets:
@@ -117,14 +121,14 @@ def _strip_prior_tail_blocks(text: str) -> str:
     return stripped.rstrip()
 
 
-def _append_text_to_last_human(
+def _append_text_to_last_user_message(
     messages: Sequence[AnyMessage],
     appendix: str,
 ) -> list[AnyMessage] | None:
     if not appendix.strip():
         return None
 
-    target_idx = next((i for i in range(len(messages) - 1, -1, -1) if isinstance(messages[i], HumanMessage)), -1)
+    target_idx = last_user_authored_index(messages)
     if target_idx == -1:
         return None
 
@@ -137,7 +141,7 @@ def _append_text_to_last_human(
             id=original.id,
             name=original.name,
         )
-    return append_block_to_last_human(out, appendix)
+    return append_block_to_last_user_message(out, appendix)
 
 
 class TwoLayerContextMiddleware(AgentMiddleware):
@@ -155,7 +159,7 @@ class TwoLayerContextMiddleware(AgentMiddleware):
         if not session_id or session_id == "default":
             return await handler(request)
 
-        turn = _human_turn_index(request.messages)
+        turn = count_user_authored_messages(request.messages)
         if turn < 1:
             return await handler(request)
 
@@ -187,7 +191,7 @@ class TwoLayerContextMiddleware(AgentMiddleware):
             return await handler(request)
 
         appendix = "\n\n".join(blocks)
-        updated = _append_text_to_last_human(request.messages, appendix)
+        updated = _append_text_to_last_user_message(request.messages, appendix)
         if updated is None:
             return await handler(request)
 

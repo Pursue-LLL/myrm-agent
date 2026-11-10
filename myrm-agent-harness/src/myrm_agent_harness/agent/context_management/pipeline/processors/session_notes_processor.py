@@ -7,7 +7,7 @@ When notes are not ready, passes through to SummarizeProcessor (natural degradat
 Pipeline order: Filter -> Compress -> **SessionNotesProcessor** -> Summarize -> ExplicitCache
 
 [INPUT]
-- (none)
+- core.message_origin::last_user_authored_index (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - SessionNotesProcessor: class — Session Notes Processor
@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
+from myrm_agent_harness.core.message_origin import last_user_authored_index
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_estimation import estimate_messages_tokens
 
@@ -153,7 +154,7 @@ def _calculate_keep_index(messages: list[BaseMessage], last_summarized_idx: int)
     - Start from last_summarized_idx + 1
     - Expand backwards until minTokens + minTextMessages are met or maxTokens reached
     - Ensure tool_use/tool_result pairs are not split
-    - Anchor: the last HumanMessage is always in the kept region
+    - Anchor: the user's latest message is always in the kept region
     """
     if not messages:
         return 0
@@ -192,22 +193,17 @@ def _calculate_keep_index(messages: list[BaseMessage], last_summarized_idx: int)
 
 
 def _anchor_last_user_message(messages: list[BaseMessage], start: int) -> int:
-    """Ensure the last HumanMessage is in the kept region (messages[start:]).
+    """Ensure the user's latest message is in the kept region (messages[start:]).
 
     Prevents active-task loss after compression when large tool results push
-    the keep boundary past the user's latest instruction.
+    the keep boundary past the user's latest instruction. A notice the runtime appended behind it is
+    not the instruction, so it is not the anchor.
     """
-    for idx in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[idx], HumanMessage):
-            if idx < start:
-                logger.debug(
-                    "Anchored last user message (idx=%d) into kept region (was %d)",
-                    idx,
-                    start,
-                )
-                return idx
-            return start
-    return start
+    idx = last_user_authored_index(messages)
+    if idx == -1 or idx >= start:
+        return start
+    logger.debug("Anchored last user message (idx=%d) into kept region (was %d)", idx, start)
+    return idx
 
 
 def _adjust_for_tool_pairs(messages: list[BaseMessage], start_index: int) -> int:
@@ -228,8 +224,7 @@ def _adjust_for_tool_pairs(messages: list[BaseMessage], start_index: int) -> int
     for i in range(start_index, len(messages)):
         msg = messages[i]
         if isinstance(msg, AIMessage) and msg.tool_calls:
-            for tc in msg.tool_calls:
-                kept_tool_use_ids.add(tc["id"])
+            kept_tool_use_ids.update(tc["id"] for tc in msg.tool_calls if tc["id"] is not None)
 
     needed = tool_result_ids - kept_tool_use_ids
     if not needed:

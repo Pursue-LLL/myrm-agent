@@ -3,6 +3,7 @@
 [INPUT]
 - schemas::StructuredSummary (POS: structured summary dataclass)
 - artifact_tracker::get_artifact_tracker (POS: Artifact tracker singleton)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - langchain_core.messages::BaseMessage (POS: LangChain message base class)
 
 [OUTPUT]
@@ -30,6 +31,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_estimation import estimate_message_tokens
 
@@ -61,6 +63,11 @@ UNVERIFIED_CONTEXT_MARKER = (
 SUMMARY_END_MARKER = "--- END OF CONTEXT SUMMARY — respond to the message below, not the summary above ---"
 
 
+def _is_genuine_user_message(msg: BaseMessage) -> bool:
+    """A message the user wrote: neither a notice the runtime appended nor a context summary block."""
+    return is_user_authored_human_message(msg) and not is_summary_message(msg)
+
+
 def extract_protected_head(messages: list[BaseMessage]) -> list[BaseMessage]:
     """Extract protected head messages (U-curve memory protection).
 
@@ -84,7 +91,7 @@ def extract_protected_head(messages: list[BaseMessage]) -> list[BaseMessage]:
     i = start_idx
     while i < len(messages):
         msg = messages[i]
-        if isinstance(msg, HumanMessage) and not is_summary_message(msg):
+        if _is_genuine_user_message(msg):
             head.append(msg)
             if i + 1 < len(messages) and isinstance(messages[i + 1], AIMessage):
                 head.append(messages[i + 1])
@@ -129,7 +136,7 @@ def extract_recent_messages_with_split_context(
     until the tail_budget_tokens is exhausted. Falls back to a minimum of 2
     messages if the budget is too small.
 
-    If the cut point lands mid-turn (after the latest HumanMessage but before the end),
+    If the cut point lands mid-turn (after the user's latest message but before the end),
     identifies this as a Split Turn and extracts the turn prefix messages so the
     summarizer can preserve the active user intent and early progress.
     """
@@ -158,12 +165,8 @@ def extract_recent_messages_with_split_context(
 
     cut_idx = _align_boundary_backward(messages, cut_idx)
 
-    # Find the most recent genuine HumanMessage before or at cut_idx
-    last_human_idx = -1
-    for i in range(n - 1, -1, -1):
-        if isinstance(messages[i], HumanMessage) and not is_summary_message(messages[i]):
-            last_human_idx = i
-            break
+    # Find the most recent genuine user message before or at cut_idx
+    last_human_idx = next((i for i in range(n - 1, -1, -1) if _is_genuine_user_message(messages[i])), -1)
 
     is_split_turn = False
     turn_prefix_messages: list[BaseMessage] = []
@@ -171,7 +174,8 @@ def extract_recent_messages_with_split_context(
 
     if last_human_idx != -1 and cut_idx > last_human_idx:
         is_split_turn = True
-        split_human_msg = messages[last_human_idx] if isinstance(messages[last_human_idx], HumanMessage) else None
+        last_human = messages[last_human_idx]
+        split_human_msg = last_human if isinstance(last_human, HumanMessage) else None
         # Prefix encompasses from the HumanMessage up to (exclusive) cut_idx
         turn_prefix_messages = [m for m in messages[last_human_idx:cut_idx] if not is_summary_message(m)]
 

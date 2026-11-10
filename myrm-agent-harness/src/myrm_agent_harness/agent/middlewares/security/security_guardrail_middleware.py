@@ -3,11 +3,13 @@
 Eight-layer defense integrated as a LangChain AgentMiddleware:
 
 awrap_model_call (wraps each LLM call, non-persistent request.override):
-    0. Circuit Breaker Cognition — injects a transient HumanMessage via
+    0. Circuit Breaker Cognition — shows the LLM a transient runtime HumanMessage via
        request.override when terminal errors are active (e.g. network_blocked,
        sandbox_ro, config_or_auth:search, config_or_auth:browser), so the LLM
-       avoids planning doomed tool calls. Uses
-       request.override so it never pollutes graph state or accumulates.
+       avoids planning doomed tool calls. Each distinct constraint list is written
+       once and stays behind the message that was last then (_run_notices.NoticeLedger),
+       so no request changes the prefix of the one before it.
+       Uses request.override so it never pollutes graph state.
        Uses HumanMessage to preserve SystemMessage hash stability (prompt cache).
     Also marks the model call as covered by this middleware when a privacy policy is enabled, so the wire-level
        outbound privacy guard leaves the call alone.
@@ -43,6 +45,7 @@ execution and are unaffected by these hooks. The primary value of layer ②③
 is that the LLM never receives raw credentials/PII, so it cannot echo them.
 
 [INPUT]
+- agent.middlewares._run_notices::NoticeLedger, run_scope (POS: Request-local notices that keep their place and their text for the whole run.)
 - agent.middlewares._session_context::get_canary_token, get_privacy_policy, get_terminal_errors (POS: Middleware session context — shared ContextVars for the middleware chain.)
 - agent.security.detection.leak_detector::scan_for_leaks, redact_leaks, log_leaks (POS: Output-side credential leak detector. 40+ credential pattern matchers (API key prefixes + blockchain + cloud infra + ENV/JSON/Header context + Shannon entropy + PEM block-level multiline redaction) for preventing secret exfiltration.)
 - agent.security.detection.canary_guard::check_canary, scrub_canary (POS: Output-side injection detector. Deterministic canary token for prompt injection success detection.)
@@ -70,6 +73,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from langchain_core.messages.tool import ToolCall
 from langgraph.runtime import Runtime
 
+from myrm_agent_harness.agent.middlewares._run_notices import NoticeLedger, run_scope
 from myrm_agent_harness.agent.middlewares._session_context import (
     get_canary_token,
     get_privacy_policy,
@@ -111,6 +115,25 @@ _CIRCUIT_BREAKER_HINTS: dict[str, str] = {
         "Use search tools or web_fetch tools to gather information instead."
     ),
 }
+
+
+_CONSTRAINT_LEDGER_KEY = "circuit_breaker_notice_ledger"
+
+
+def _constraint_notice(terminal_errors: set[str]) -> str | None:
+    """The constraint text for the terminal errors of the run, or None when none of them needs a constraint."""
+    # A global network block supersedes family-scoped config/auth guidance: showing both would contradict each other
+    # ("don't call browser" + "use browser tools").
+    network_blocked = "network_blocked" in terminal_errors
+    constraints = [
+        _CIRCUIT_BREAKER_HINTS.get(err)
+        or f"Capability '{err}' is UNAVAILABLE in this environment. Do NOT call tools that depend on '{err}'."
+        for err in sorted(terminal_errors)
+        if not (network_blocked and err.startswith("config_or_auth:"))
+    ]
+    if not constraints:
+        return None
+    return "[SYSTEM_ENFORCED] Environment capability constraints detected:\n" + "\n".join(f"- {c}" for c in constraints)
 
 
 def _last_ai_message(messages: Sequence[BaseMessage]) -> AIMessage | None:
@@ -192,33 +215,19 @@ class SecurityGuardrailMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         """Layer 0: Circuit Breaker Cognition via transient request.override.
 
-        Injects a HumanMessage with environment constraints when terminal errors
-        are active. Uses request.override so it never persists into graph state.
+        Shows the model the environment constraints once the terminal errors of the run name any. The terminal
+        errors only grow within a run, so each distinct constraint list is written once, behind the message that was
+        last at that moment, and every later request of the run carries it at the same place. The messages are never
+        persisted into graph state.
         """
         terminal_errors = get_terminal_errors().get_all()
-        if terminal_errors:
-            constraints: list[str] = []
-            # A global network block supersedes family-scoped config/auth
-            # guidance — injecting both would contradict each other
-            # ("don't call browser" + "use browser tools").
-            network_blocked = "network_blocked" in terminal_errors
-            for err in sorted(terminal_errors):
-                if network_blocked and err.startswith("config_or_auth:"):
-                    continue
-                if err in _CIRCUIT_BREAKER_HINTS:
-                    constraints.append(_CIRCUIT_BREAKER_HINTS[err])
-                else:
-                    constraints.append(
-                        f"Capability '{err}' is UNAVAILABLE in this environment. "
-                        f"Do NOT call tools that depend on '{err}'."
-                    )
-            if constraints:
-                constraint_text = "[SYSTEM_ENFORCED] Environment capability constraints detected:\n" + "\n".join(
-                    f"- {c}" for c in constraints
-                )
-                new_messages = [*list(request.messages), HumanMessage(content=constraint_text)]
+        notice = _constraint_notice(terminal_errors)
+        if notice is not None:
+            ledger = NoticeLedger.of(run_scope(request), _CONSTRAINT_LEDGER_KEY)
+            if notice != ledger.latest_text():
+                ledger.record(request.messages[-1] if request.messages else None, notice)
                 logger.info("Circuit breaker cognition injected: %s", sorted(terminal_errors))
-                request = request.override(messages=new_messages)
+            request = request.override(messages=ledger.placed_in(request.messages))
         # The model call below carries messages this middleware already screened under the policy; the wire-level
         # guard must not process them a second time.
         with privacy_enforced_by_loop(get_privacy_policy().enabled):

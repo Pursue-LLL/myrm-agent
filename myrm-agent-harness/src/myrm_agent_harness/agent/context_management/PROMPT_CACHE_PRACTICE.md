@@ -8,6 +8,7 @@
 > | §2.3 Cron 场景 | `app/core/cron/adapters/agent_runner/` |
 > | §2.4 安全边界与用户指令注入 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` |
 > | §2.5–2.6 记忆 / 入账 Human 前缀 | `agent/middlewares/memory_context/memory_context_middleware.py`；`app/core/utils/delivery_provenance.py`、`app/core/channel_bridge/agent_executor/helpers.py`、`app/ai_agents/general_agent/stream_pipeline.py`、`myrm-agent-server/app/api/agents/general_agent/streaming.py`、`app/services/agent/wakeup_handler.py` |
+> | §2.6.3 运行内视图稳定与签名推理块回放 | `agent/middlewares/_run_notices.py`, `core/message_tail.py`, `core/thinking_blocks.py`, `agent/middlewares/thinking_replay_guard_middleware.py`, `toolkits/llms/transport/anthropic_messages.py` |
 > | §3 显式缓存优化器 | `pipeline/processors/cache_optimizer.py` |
 > | §4.1 批量清理 | `pipeline/processors/compress_processor.py` |
 > | §4.2 compress_min_save | `infra/schemas/` |
@@ -29,7 +30,7 @@
 ## 目录
 
 1. [整体策略](#1-整体策略)
-2. [前缀稳定性保障](#2-前缀稳定性保障) — 工具分层排序、时间戳注入、用户指令注入、记忆上下文注入
+2. [前缀稳定性保障](#2-前缀稳定性保障) — 工具分层排序、时间戳注入、用户指令注入、记忆上下文注入、运行内视图稳定与签名推理块回放
 3. [显式缓存优化器](#3-显式缓存优化器) — ExplicitCacheProcessor 断点策略
 4. [缓存友好的上下文缩减](#4-缓存友好的上下文缩减) — 批量清理、compress_min_save、动态阈值、缓存生命周期
 5. [Pipeline 架构与缓存协同](#5-pipeline-架构与缓存协同) — 处理器执行顺序与缓存感知
@@ -309,6 +310,35 @@ LangGraph 线程保存模型实际看到的消息（含工具调用与结果）�
 | `append`（缺省） | 调用方未接管线程卫生（IM / 定时 / 唤醒 / 一次性调用） | `chat_history` 叠加在线程之上，与既有行为一致 |
 
 Resume 从不解析历史，线程原样续接，遥测记为 `history_mode=resume`。`replace` 会丢掉被丢弃线程里的工具轨迹，数量记入 `turn_context.history_discarded_tool_messages`。何时 `continue` 由调用方决定：server 用「活跃分支 + 压缩摘要」的摘要（`chats.history_sync_token`），只在回合完整结束后写入，撤销、编辑、重新生成、切换兄弟、压缩、服务端追加的通知、失败或取消的回合都会让摘要失配而重建。
+
+#### 2.6.3 运行内视图稳定与签名推理块回放
+
+同一次运行里，每个模型请求都必须延续上一个请求：提供商按请求前缀缓存，Claude 回传的签名推理块（`thinking` / `redacted_thinking`）也只对写下它的那段前缀有效（块绑定系统提示、工具集、此前的每条消息和签发它的模型）。运行内改写前缀既让缓存失效，也让下一次回放被拒。
+
+**运行期通知只有两种写法**（`agent/middlewares/_run_notices.py`）：
+
+- 每个请求逐字节相同：`frozen_for_run` 在运行的首个请求渲染一次，之后原样复用（todo 焦点；目标焦点的计数在运行结束时才结算，同样整次运行不变）。
+- 写一次后留在当时最后一条消息之后：`NoticeLedger`（熔断约束），之后新增的约束追加在后面，已写入的不挪位。
+
+随回合变化的内容只放在用户亲写的最新消息尾部（`core/message_tail.py::append_block_to_last_user_message`），不放在其后的运行时通知上。谁算「用户亲写」由 `core/message_origin.py` 判定；压缩、锚点、摘要、工具治理、回合计数与笔记触发读同一条回合边界。
+
+**签名块的捕获与回放**（块存在 `AIMessage.additional_kwargs["thinking_blocks"]`，`core/thinking_blocks.py` 定义形状）：
+
+| 环节 | 行为 |
+|------|------|
+| 捕获 | Anthropic 与 Bedrock 的流式解码器在内容块结束时拼出完整块（`ThinkingBlockAssembler`：按服务商 content index 一块一份草稿，signature 与 redacted 数据原样保留），`StreamAggregator` 在最后一个分片上交出整张列表；非流式经 `convert_dict_to_message` |
+| 回放 | `convert_message_to_dict` 把块写回助手消息；Anthropic 与 Bedrock 线路把块放在该轮内容之首，OpenAI 兼容线路在 `prepare` 里剥掉 |
+| 待答轮策略 | 思考开启时，等待工具结果的最后一条助手消息必须以块开头；当前工具循环里有工具调用轮缺块时，该请求不带 `thinking`，不让整个请求撞 400（`anthropic_thinking.py`，Bedrock 共用同一判定） |
+| 回合级清理 | `ThinkingBlockCleaner` 的 Anthropic 分支只保留用户最新消息之后的块，更早回合的块整体清除（保留下来的块须是签发链上连续的一段），清除后不再放回 |
+| 辅助调用 | 优雅收尾调用与摘要调用的提示词与该会话不同，发送前先 `without_thinking_blocks`；其余辅助调用只用全新文本 |
+| 估算 | `estimate_message_tokens` 计入回放的块文本 |
+| 安全网 | `thinking_replay_guard_middleware`：提供商拒绝回放（`FailoverReason.THINKING_SIGNATURE`，覆盖三种 400 措辞）时，请求副本去掉全部块重发一次，本次运行不再回放；执行器层的 `stream_recovery_oneshot` 一次性恢复保留为最后一道 |
+
+**临时开关**：环境变量 `MYRM_THINKING_BLOCK_REPLAY`（`0` / `false` / `no` / `off` 关闭，默认开启），每次调用读取。关闭后既不捕获也不回放，行为等同于不返回签名块的模型：工具循环里首个请求之后不带 `thinking`。退出条件：真实 Anthropic 接口探针通过（发布闸门，需要官方密钥）、且在一个完整发布周期内生产日志没有出现 `[ThinkingReplay]` 重试的 WARNING 后，删除该开关，使回放成为唯一路径。
+
+**钉住它的测试**：`tests/support/enforcing_anthropic.py` 是按提供商规则逐请求核验的类型化替身（块未知、块之前的提示变了、块序列有缺口、待答轮缺块，各拒绝一次）；`tests/agent/middlewares/test_thinking_replay_shipped_stack.py` 经真实装配的中间件栈跑通：流式与非流式各 21 个请求全部带 `thinking`、零拒绝；守卫重试场景恰好 1 次拒绝；开关关闭时每个回合只有首个请求带 `thinking`。`tests/agent/middlewares/test_run_view_stability_shipped_stack.py` 钉住通知的运行内稳定。
+
+**无法离线验证的部分**：真实接口按账号的校验强度、签名块的真实体积与缓存成本、5.x 隐式思考型号的待答轮规则、Bedrock 在合成续写轮之后的行为、回答质量的提升、生产环境的缓存断点翻转频率。块里的签名文本不能被脱敏改写（改写会让签名失效）。
 
 ---
 
@@ -949,9 +979,11 @@ Turn 12 (会话结束):
 | ``recorded_at_utc`` | ISO8601 时间戳（UTC） |
 | ``response_model`` | 响应中的模型名 |
 | ``prompt_tokens`` / ``completion_tokens`` / ``cached_tokens`` | 来自传输层统一后的 ``usage``（仅支持 int/float/None，其他类型抛出 TypeError） |
+| ``cache_creation_tokens`` | 本次调用写入提供商提示缓存的 token 数（``usage`` 没有报告时为 0） |
 | ``actual_cache_hit_rate`` | ``compute_prompt_cache_stats`` 返回的 ``cache_hit_rate``（``prompt_tokens <= 0`` 时为 0） |
 | ``cost_savings_pct_vs_uncached_input`` | ``compute_prompt_cache_stats`` 返回的 ``cost_savings_pct``（与 §6.3 层次 3 一致） |
 | ``explicit_cache_snapshot`` | 本次是否与显式缓存 pending 配对成功 |
+| ``prefix_shift`` | 可选；仅在本次请求改动了更早的消息（前缀不再延续上一个请求）时出现：``first_index``（第一条不同的消息）、``previous_length`` / ``current_length``、``kind``（``rewritten`` 改写 / ``truncated`` 尾部被截）、``announced``（上下文管线是否声明过这次改写，如压缩与剪枝；``false`` 表示请求自己改了历史） |
 | ``explicit_cache`` | 可选；仅含核心缓存指标：``turn_count``、``breakpoint_count``、``message_count``、``total_estimated_tokens``、``expected_cacheable_tokens``、``compression_count``（预期命中率可通过 ``expected_cacheable_tokens / total_estimated_tokens`` 实时计算） |
 
 **部署与配置**：
@@ -1019,6 +1051,7 @@ Turn 12 (会话结束):
 | ``tool schema changed (tool_name)`` | 逐工具 hash diff |
 | ``likely 5min/1h TTL expiry`` | 两次调用间隔推测 |
 | ``likely server-side`` | 所有客户端指标不变，<5min 间隔 |
+| ``message N rewritten (A → B messages)`` / ``history truncated (A → B messages)`` | ``request_view_guard_middleware`` 记录每个请求各消息的摘要（``infra/prefix_chain.py``，不含 ``cache_control`` 断点），与上一个请求比较，指出第一条不同的消息（或尾部被截）；NDJSON 的 ``prefix_shift`` 另带 ``announced`` 区分压缩、剪枝等有公告的改写与请求自己的改动 |
 
 #### 技能目录与 Cache
 
@@ -1266,6 +1299,11 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户指令注入到 System Prompt 之后（跨用户缓存感知） |
 | `workspace_rules/middleware.py` | Workspace 规则注入（user_instructions 之后、memory_context 之前） |
 | `middlewares/memory_context/memory_context_middleware.py` | 记忆上下文注入位置的缓存感知设计 |
+| `middlewares/_run_notices.py` | 运行期通知整次运行内保持位置与文本（`frozen_for_run`、`NoticeLedger`） |
+| `core/message_tail.py` | 随回合变化的内容只写在用户亲写最新消息的尾部 |
+| `core/thinking_blocks.py` | 签名推理块的形状、拼装、估算文本、剥离与回放开关 |
+| `middlewares/thinking_replay_guard_middleware.py` | 提供商拒绝回放的推理块时，去掉全部块重发一次 |
+| `middlewares/request_view_guard_middleware.py` + `infra/prefix_chain.py` | 记录请求消息摘要，供缓存断点归因指出被改写的第一条消息 |
 | `app/core/cron/adapters/agent_runner/` | `_SILENT_SUFFIX` 条件性内容注入（确定性常量，缓存安全） |
 
 ### 显式缓存

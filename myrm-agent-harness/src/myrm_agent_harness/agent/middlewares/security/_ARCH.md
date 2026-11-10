@@ -25,5 +25,5 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](../MIDDLEWARE_SYSTEM.md)
 
 - `agent.security.detection` — content_boundary, intent_router, leak_detector, prompt_guard, pii, canary_guard
 - `agent.security.guards.privacy_tracker`, `agent.security.audit` — per-run privacy level and decision audit log
-- `agent.middlewares._message_origin` — tells the user's own message from a runtime-injected one
+- `core.message_origin` — tells the user's own message from a runtime-injected one
 - `agent.middlewares._session_context` — canary token, privacy policy, terminal errors

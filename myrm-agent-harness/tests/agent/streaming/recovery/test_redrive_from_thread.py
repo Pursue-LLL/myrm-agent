@@ -14,8 +14,8 @@ import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.types import Command
 
-from myrm_agent_harness.agent.middlewares._message_origin import is_user_authored_human_message
 from myrm_agent_harness.agent.streaming.stream_executor import StreamExecutor
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.toolkits.llms.ephemeral_output_tokens import reset_ephemeral_max_output_tokens
 
 from ..scripted_agent import (

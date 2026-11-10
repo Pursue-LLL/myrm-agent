@@ -28,12 +28,12 @@ HumanMessage或AIMessage。这确保LLM始终收到语义完整的消息历史�
 Smart fallback strategy for extreme token overflow scenarios.
 """
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_estimation import estimate_messages_tokens
 
-from ...infra.message_priority import MessagePriority, classify_message_priority
+from ...infra.message_priority import MessagePriority, classify_message_priority, last_iteration_flags
 from ..compression.compression_formatting import shrink_tool_call_args
 from ..tool_call_groups import build_tool_call_groups
 from .integrity_guard import ensure_tool_pair_integrity
@@ -61,7 +61,7 @@ async def apply_smart_fallback(
     protected_tool_calls = failed_tool_call_ids or frozenset()
 
     # Detect last iteration
-    is_last_iteration = _detect_last_iteration_ids(messages)
+    is_last_iteration = last_iteration_flags(messages)
 
     # Phase 1: Keep all CRITICAL (priority 0-1) messages
     critical_messages: list[tuple[int, BaseMessage]] = []
@@ -162,17 +162,6 @@ async def apply_smart_fallback(
     )
 
     return result_messages, tokens_saved
-
-
-def _detect_last_iteration_ids(messages: list[BaseMessage]) -> dict[int, bool]:
-    """Detect which messages belong to last iteration."""
-    last_human_idx = -1
-    for i in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[i], HumanMessage):
-            last_human_idx = i
-            break
-
-    return {id(msg): i > last_human_idx if last_human_idx >= 0 else False for i, msg in enumerate(messages)}
 
 
 def _truncate_tool_message(msg: ToolMessage, budget_tokens: int) -> ToolMessage:

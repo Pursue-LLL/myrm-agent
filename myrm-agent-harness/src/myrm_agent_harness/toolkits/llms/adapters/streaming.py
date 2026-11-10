@@ -3,10 +3,12 @@
 [INPUT]
 - langchain_core.messages::AIMessageChunk, BaseMessageChunk, ToolCallChunk (POS: LangChain message chunk types)
 - langchain_core.outputs::ChatGenerationChunk (POS: LangChain generation chunk type)
+- core.thinking_blocks (POS: the signed reasoning blocks of an Anthropic-family answer)
 
 [OUTPUT]
 - safe_get(), extract_chunk_metadata(), build_tool_call_chunks(), and other stream processing utilities
 - provider_reported_finish(): whether the provider itself reported how a stream ended
+- extract_replay_state(): the reasoning state (Responses items, signed thinking blocks) a stream delta hands back
 
 [POS]
 Streaming response processing module. Provides stream response parsing, incremental tool call merging,
@@ -23,6 +25,8 @@ from typing import Any, cast
 
 from langchain_core.messages import AIMessageChunk, ToolCallChunk
 from langchain_core.outputs import ChatGenerationChunk
+
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, carried_thinking_blocks
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +212,17 @@ def extract_reasoning_payload(obj: Any) -> str:
                 return "".join(parts)
 
     return ""
+
+
+def extract_replay_state(delta: Mapping[str, object]) -> dict[str, object]:
+    """The reasoning state a stream delta hands back to the next request: Responses items, signed thinking blocks."""
+    state: dict[str, object] = {}
+    reasoning_items = delta.get("responses_reasoning_items")
+    if isinstance(reasoning_items, list) and reasoning_items:
+        state["responses_reasoning_items"] = reasoning_items
+    if signed_blocks := carried_thinking_blocks(delta.get(THINKING_BLOCKS_KEY)):
+        state[THINKING_BLOCKS_KEY] = signed_blocks
+    return state
 
 
 def normalize_usage(usage: Any) -> dict[str, Any]:

@@ -106,7 +106,7 @@ class TestBuildMiddlewares:
 
         result = build_middlewares(create_registry(), [])
         class_names = _middleware_class_names(result)
-        assert class_names[-3:-1] == ["SkillAttenuationMiddleware", "stringified_json_args_middleware"]
+        assert class_names[class_names.index("SkillAttenuationMiddleware") + 1] == "stringified_json_args_middleware"
         assert class_names.index("SkillAttenuationMiddleware") > class_names.index("ToolApprovalMiddleware")
 
     def test_conflict_gate_wraps_the_interceptor_so_waiting_does_not_run_down_a_call_timeout(self):

@@ -32,7 +32,7 @@ from langchain_core.messages.tool import ToolCall
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.text_utils import get_token_count
 
-from ...infra.message_priority import MessagePriority, classify_message_priority
+from ...infra.message_priority import MessagePriority, classify_message_priority, last_iteration_flags
 from ...infra.schemas import (
     CompactToolCall,
     ContextCompressEvictionCallback,
@@ -81,29 +81,6 @@ def _tool_content_text(content: str | list[str | dict[str, object]]) -> str:
         if len(texts) == len(items):
             return "\n".join(texts)
     return json.dumps(items)
-
-
-def _detect_last_iteration(messages: list[BaseMessage]) -> dict[int, bool]:
-    """Detect which messages belong to the last iteration.
-
-    Returns:
-        Dict mapping message id() to is_last_iteration boolean
-    """
-    from langchain_core.messages import HumanMessage
-
-    # Find last human message index
-    last_human_idx = -1
-    for i in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[i], HumanMessage):
-            last_human_idx = i
-            break
-
-    # Messages after last human are in final iteration
-    result: dict[int, bool] = {}
-    for i, msg in enumerate(messages):
-        result[id(msg)] = i > last_human_idx if last_human_idx >= 0 else False
-
-    return result
 
 
 def find_tool_message_pairs(messages: list[BaseMessage]) -> list[tuple[int, int, AIMessage, ToolMessage]]:
@@ -177,7 +154,7 @@ async def compress_messages_async(
 
     # P0: Priority-aware filtering - skip CRITICAL messages
     # Classify all messages by priority (is_last_iteration detection)
-    is_last_iteration_msg = _detect_last_iteration(messages)
+    is_last_iteration_msg = last_iteration_flags(messages)
     message_priorities = [
         classify_message_priority(
             msg, is_last_iteration=is_last_iteration_msg.get(id(msg), False), failed_tool_call_ids=failed_tool_call_ids
@@ -279,7 +256,6 @@ async def compress_messages_async(
     _compress_elapsed_ms = int((time.monotonic() - _compress_start) * 1000)
     _record_compression_to_metrics(
         final_saved,
-        "compress",
         f"Compressed {compressed_count} tool call groups "
         f"(dedup: {dedup_saved} tokens, integrity_skipped: {unmatched_tool_calls})",
         group_count=compressed_count,
@@ -297,7 +273,6 @@ async def compress_messages_async(
 
 def _record_compression_to_metrics(
     tokens_saved: int,
-    compression_type: str,
     details: str = "",
     *,
     group_count: int = 0,
@@ -318,11 +293,9 @@ def _record_compression_to_metrics(
         if chat_id:
             metrics = get_task_metrics(chat_id)
             if metrics:
-                valid_types = ("filter", "cache_ttl_prune", "compress", "summarize")
-                ct = compression_type if compression_type in valid_types else "compress"
                 metrics.record_compression(
                     tokens_saved=tokens_saved,
-                    compression_type=ct,  # type: ignore
+                    compression_type="compress",
                     details=details,
                     group_count=group_count,
                     dedup_tokens_saved=dedup_tokens_saved,
@@ -432,7 +405,7 @@ async def compress_tool_message_async(
     # Shrink corresponding AIMessage tool_call args to prevent
     # oversized JSON arguments from causing API 400 after compression
     if ai_msg and ai_msg.tool_calls:
-        shrunk_tool_calls = shrink_tool_call_args(cast(list[dict[str, object]], ai_msg.tool_calls))
+        shrunk_tool_calls = shrink_tool_call_args(ai_msg.tool_calls)
         ai_msg.tool_calls = cast(list[ToolCall], shrunk_tool_calls)
 
     # Record file reference and access if offloaded

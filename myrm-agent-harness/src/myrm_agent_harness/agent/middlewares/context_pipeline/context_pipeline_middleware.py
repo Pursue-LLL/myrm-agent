@@ -31,6 +31,7 @@ Usage:
 - agent.context_management.pipeline::ContextPipeline, (POS: Message filter pipeline for composing multiple filters.)
 - agent.context_management.strategies.session_notes.updater::NotesLoadCallback, (POS: Session Notes callback)
 - middlewares.context_pipeline.context_pipeline_helpers::* (POS: Helper layer for context pipeline middleware. Keeps request metadata parsing and tool schema stable canonicalization separate from middleware orchestration.)
+- core.message_origin::count_user_authored_messages (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - create_context_pipeline_middleware: Context pipeline middleware factory
@@ -111,6 +112,7 @@ from myrm_agent_harness.agent.middlewares.context_pipeline.context_pipeline_help
     resolve_context_budget_metadata,
     safe_persist_summary,
 )
+from myrm_agent_harness.core.message_origin import count_user_authored_messages
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 logger = get_agent_logger(__name__)
@@ -251,6 +253,14 @@ def create_context_pipeline_middleware(
         """Pipeline middleware (Session Notes + summary persistence bridge)."""
 
         name = "context_pipeline_middleware"
+        session_notes_manager = _notes_manager
+
+        def get_tools(self) -> list[object]:
+            from myrm_agent_harness.agent.meta_tools import create_file_read_tool
+
+            file_read_tool = create_file_read_tool(skills=[])
+            logger.info("file_read_tool provided by context pipeline middleware")
+            return [file_read_tool]
 
         async def awrap_model_call(
             self,
@@ -266,7 +276,7 @@ def create_context_pipeline_middleware(
             model_name = getattr(llm, "model", None) or getattr(llm, "model_name", "")
             model_name_str = str(model_name)
             current_pipeline = _get_or_create_pipeline(max_context_tokens, model_name_str, compress_start_ratio)
-            turn_count = sum(1 for m in messages if m.type == "human")
+            turn_count = count_user_authored_messages(messages)
             total_tokens = estimate_request_context_tokens(messages, request)
             budget_metadata = resolve_context_budget_metadata(request)
             metrics = get_or_create_task_metrics(chat_id)
@@ -411,7 +421,10 @@ def create_context_pipeline_middleware(
 
                     # Re-register files that PostCompactionRereadProcessor injected
                     # so the integrity guard knows these files were freshly read.
-                    reread_paths: list[str] = result.metadata.get("post_compaction_reread_files") or []  # type: ignore[assignment]
+                    reread = result.metadata.get("post_compaction_reread_files")
+                    reread_paths = (
+                        [path for path in reread if isinstance(path, str)] if isinstance(reread, list) else []
+                    )
                     if reread_paths:
                         for guard in _integrity_guards.values():
                             for path in reread_paths:
@@ -453,16 +466,4 @@ def create_context_pipeline_middleware(
             _last_successful_call_time = time.time()
             return response
 
-    context_pipeline_middleware = ContextPipelineMiddleware()
-
-    def get_tools() -> list[object]:
-        from myrm_agent_harness.agent.meta_tools import create_file_read_tool
-
-        file_read_tool = create_file_read_tool(skills=[])
-        logger.info("file_read_tool provided by context pipeline middleware")
-        return [file_read_tool]
-
-    context_pipeline_middleware.get_tools = get_tools  # type: ignore[attr-defined]
-    context_pipeline_middleware.session_notes_manager = _notes_manager  # type: ignore[attr-defined]
-
-    return context_pipeline_middleware
+    return ContextPipelineMiddleware()

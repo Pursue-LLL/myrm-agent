@@ -375,6 +375,8 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.runtime.context.tree_state",
         "extract_todo_store_from_payload",
     ),
+    "last_user_authored_index": ("myrm_agent_harness.core.message_origin", "last_user_authored_index"),
+    "runtime_human_message": ("myrm_agent_harness.core.message_origin", "runtime_human_message"),
 }
 
 # ``__all__`` is derived from ``_EXPORTS`` so the two cannot drift: every name is declared once,

@@ -6,14 +6,14 @@
 - adapters.model_capability (POS: Model capability detection; xAI Grok tool-argument decoding gate)
 - adapters.safety_termination_detector (POS: Safety termination detector for truncated tool call suppression)
 - utils.token_economics.tracker::record_finish_reason (POS: Token tracking API)
+- core.thinking_blocks (POS: the signed reasoning blocks an Anthropic-family answer carries)
 - adapters.usage_estimate::estimate_stream_usage (POS: local token count for a stream the provider reported no usage for)
 - utils.token_economics.usage_ledger::DROPPED_STREAM_FINISH_REASON (POS: finish_reason sentinel for streams closed without a final chunk)
 
 [OUTPUT]
 - StreamAggregator: Mutable accumulator for stream chunks (content, tool calls, reasoning, timing)
-- XmlStreamBuffer: State machine buffer for intercepting DSML tags across streaming chunks.
 - finalize_stream(): Build aggregated response, record usage (counted locally when the provider sent none), yield final tool chunk
-- attach_responses_reasoning_items_to_final_chunk(): Export Responses wire reasoning blobs on final stream chunk
+- attach_replay_state_to_final_chunk(): Export the reasoning state the next request replays (Responses blobs, signed thinking blocks) on the final stream chunk
 
 [POS]
 Stream data aggregation module. Eliminates duplication between sync _stream and async
@@ -31,6 +31,7 @@ from typing import Any, TypeVar
 from langchain_core.messages import BaseMessage, BaseMessageChunk
 from langchain_core.outputs import ChatGenerationChunk
 
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, SignedThinkingBlock, coerce_thinking_blocks
 from myrm_agent_harness.toolkits.llms.adapters.model_capability import ModelCapabilityDetector
 from myrm_agent_harness.toolkits.llms.adapters.safety_termination_detector import (
     detect_safety_termination,
@@ -62,99 +63,6 @@ _StreamT = TypeVar("_StreamT")
 _capability_detector = ModelCapabilityDetector()
 
 
-class XmlStreamBuffer:
-    """State machine buffer for intercepting DSML tags across streaming chunks.
-
-    Prevents DSML tags (like <｜DSML｜tool_calls> or <｜｜DSML｜｜tool_calls>) from
-    leaking into the yielded stream by buffering text when a potential tag is detected.
-    """
-
-    __slots__ = (
-        "buffer",
-        "end_tag_pattern",
-        "is_swallowing",
-        "prefix_pattern",
-        "start_tag_pattern",
-    )
-
-    def __init__(self) -> None:
-        self.buffer: str = ""
-        self.is_swallowing: bool = False
-        import re
-
-        self.start_tag_pattern = re.compile(
-            r"^(?:<[｜|]+DSML[｜|]+tool_calls>|<tool_call>|<invoke(?:\s+name=[\"'][^\"']*[\"'])?>)"
-        )
-        self.end_tag_pattern = re.compile(r"(?:</[｜|]+DSML[｜|]+tool_calls>|</tool_call>|</invoke>)")
-
-    def _is_prefix_of_start_tag(self, s: str) -> bool:
-        if not s.startswith("<"):
-            return False
-        if s == "<":
-            return True
-
-        clean_s = s.replace("｜", "").replace("|", "")
-        if "<DSMLtool_calls>".startswith(clean_s):
-            return True
-        if "<DSMLinvoke".startswith(clean_s):
-            return True
-
-        if "<tool_call>".startswith(s):
-            return True
-
-        if "<invoke".startswith(s):
-            return True
-
-        import re
-
-        return bool(re.match(r"^<invoke(?:\s+(?:n(?:a(?:m(?:e(?:=(?:[\"'][^\"']*[\"']?)?)?)?)?)?)?)?$", s))
-
-    def process(self, text: str) -> str:
-        if not text:
-            return ""
-
-        if self.is_swallowing:
-            self.buffer += text
-            match = self.end_tag_pattern.search(self.buffer)
-            if match:
-                end_pos = match.end()
-                remaining = self.buffer[end_pos:]
-                self.buffer = ""
-                self.is_swallowing = False
-                return self.process(remaining)
-            return ""
-
-        self.buffer += text
-        pos = self.buffer.find("<")
-
-        if pos == -1:
-            res = self.buffer
-            self.buffer = ""
-            return res
-
-        safe_text = self.buffer[:pos]
-        potential_tag = self.buffer[pos:]
-
-        match = self.start_tag_pattern.search(potential_tag)
-        if match:
-            self.is_swallowing = True
-            self.buffer = potential_tag
-            return safe_text + self.process("")
-
-        if self._is_prefix_of_start_tag(potential_tag):
-            self.buffer = potential_tag
-            return safe_text
-
-        self.buffer = potential_tag[1:]
-        return safe_text + "<" + self.process("")
-
-    def flush(self) -> str:
-        res = self.buffer if not self.is_swallowing else ""
-        self.buffer = ""
-        self.is_swallowing = False
-        return res
-
-
 class StreamAggregator:
     """Mutable accumulator that collects stream chunks and produces an aggregated response."""
 
@@ -171,6 +79,7 @@ class StreamAggregator:
         "reasoning",
         "responses_reasoning_items",
         "stream_start",
+        "thinking_blocks",
         "tool_calls",
     )
 
@@ -183,6 +92,7 @@ class StreamAggregator:
         self.tool_calls: list[dict[str, Any]] = []
         self.reasoning: list[str] = []
         self.responses_reasoning_items: list[dict[str, Any]] = []
+        self.thinking_blocks: list[SignedThinkingBlock] = []
         self.last_model: str = ""
         self.finish_reason: str = ""
         self.last_usage: Any = None
@@ -243,6 +153,8 @@ class StreamAggregator:
         replay_items = additional_kwargs.get("responses_reasoning_items")
         if isinstance(replay_items, list) and replay_items:
             self.responses_reasoning_items = list(replay_items)
+        # The provider closes its reasoning blocks one by one, in the order the next request must replay them.
+        self.thinking_blocks.extend(coerce_thinking_blocks(additional_kwargs.get(THINKING_BLOCKS_KEY)))
 
     @property
     def is_empty(self) -> bool:
@@ -273,20 +185,20 @@ class StreamFinalization:
         self.aggregated_response = aggregated_response
 
 
-def attach_responses_reasoning_items_to_final_chunk(
+def attach_replay_state_to_final_chunk(
     final_tool_chunk: ChatGenerationChunk | None,
-    reasoning_items: list[dict[str, Any]],
+    replay_state: Mapping[str, object],
 ) -> ChatGenerationChunk | None:
-    """Ensure Responses wire reasoning blobs reach agenerate_from_stream merged AIMessage."""
-    if not reasoning_items:
+    """Ensure the reasoning state the next request must replay (Responses blobs, signed thinking blocks) reaches the
+    merged AIMessage: it rides on the final chunk because the chunks that carried it are not yielded."""
+    if not replay_state:
         return final_tool_chunk
 
     from langchain_core.messages import AIMessageChunk
 
     if final_tool_chunk is not None and isinstance(final_tool_chunk.message, AIMessageChunk):
         msg = final_tool_chunk.message
-        additional_kwargs = dict(msg.additional_kwargs or {})
-        additional_kwargs["responses_reasoning_items"] = reasoning_items
+        additional_kwargs = {**(msg.additional_kwargs or {}), **replay_state}
         chunk_kwargs: dict[str, Any] = {
             "content": msg.content or "",
             "tool_call_chunks": list(msg.tool_call_chunks or []),
@@ -299,7 +211,7 @@ def attach_responses_reasoning_items_to_final_chunk(
     return ChatGenerationChunk(
         message=AIMessageChunk(
             content="",
-            additional_kwargs={"responses_reasoning_items": reasoning_items},
+            additional_kwargs=dict(replay_state),
         )
     )
 
@@ -374,6 +286,8 @@ def finalize_stream(
 
     if agg.responses_reasoning_items:
         aggregated_message["responses_reasoning_items"] = agg.responses_reasoning_items
+    if agg.thinking_blocks:
+        aggregated_message[THINKING_BLOCKS_KEY] = agg.thinking_blocks
 
     parsed_tool_calls, _ = parse_tool_calls_from_reasoning(agg.reasoning, valid_tool_calls, is_async=is_async)
 
@@ -443,9 +357,12 @@ def finalize_stream(
 
     record_finish_reason(final_finish_reason)
 
-    reasoning_items = aggregated_message.get("responses_reasoning_items")
-    if isinstance(reasoning_items, list) and reasoning_items:
-        final_tool_chunk = attach_responses_reasoning_items_to_final_chunk(final_tool_chunk, reasoning_items)
+    replay_state: dict[str, object] = {
+        key: aggregated_message[key]
+        for key in ("responses_reasoning_items", THINKING_BLOCKS_KEY)
+        if key in aggregated_message
+    }
+    final_tool_chunk = attach_replay_state_to_final_chunk(final_tool_chunk, replay_state)
 
     return StreamFinalization(
         final_tool_chunk=final_tool_chunk,

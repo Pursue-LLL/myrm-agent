@@ -10,8 +10,8 @@
 Request half of extended thinking for the Anthropic wire. A generation that thinks adaptively takes
 ``thinking: {"type": "adaptive"}`` steered by ``output_config.effort``; every earlier one takes a token budget. The
 level the caller names is clamped to what the model offers, because an unsupported effort is a 400. Thinking is
-switched off for a turn whose earlier tool calls carry no signed thinking block, because the API rejects such a
-replay.
+switched off for a request in the middle of a tool loop whose tool-calling turns carry no signed thinking block,
+because the API rejects such a replay; turns before the user's latest message are not judged.
 """
 
 from __future__ import annotations
@@ -44,9 +44,26 @@ def _clamp_effort(effort: str, traits: ClaudeTraits) -> str:
     return effort
 
 
+def _answers_tool_calls(turn: Mapping[str, object]) -> bool:
+    blocks = turn.get("content")
+    return isinstance(blocks, list) and any(isinstance(b, Mapping) and b.get("type") == "tool_result" for b in blocks)
+
+
+def _tool_loop(turns: Sequence[Mapping[str, object]]) -> Sequence[Mapping[str, object]]:
+    """The turns of the tool loop in progress: those after the user's latest message that is not just tool results."""
+    for position in range(len(turns) - 1, -1, -1):
+        if turns[position].get("role") == "user" and not _answers_tool_calls(turns[position]):
+            return turns[position + 1 :]
+    return turns
+
+
 def _lacks_replay(turns: Sequence[Mapping[str, object]]) -> bool:
-    """Whether an assistant turn calls tools without the thinking block the API demands first when thinking is on."""
-    for turn in turns:
+    """Whether a turn of the tool loop in progress calls tools without the thinking block the API demands first.
+
+    Earlier conversation turns are not judged: the API takes them with or without their reasoning, so history that was
+    pruned at a turn boundary does not switch thinking off.
+    """
+    for turn in _tool_loop(turns):
         blocks = turn.get("content")
         if turn.get("role") != "assistant" or not isinstance(blocks, list):
             continue

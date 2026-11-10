@@ -1,4 +1,4 @@
-"""Inject ephemeral session deltas at the tail of the current HumanMessage (prefix cache safe).
+"""Inject ephemeral session deltas at the tail of the user's current message (prefix cache safe).
 
 [INPUT]
 - toolkits.memory.ephemeral_delta (shared store + tail injector)
@@ -8,7 +8,7 @@
 - ephemeral_delta_middleware: AgentMiddleware applying human-tail delta tags before each model call.
 
 [POS]
-Runs after memory_context_middleware; mutates only the last HumanMessage tail, never the frozen system prefix.
+Runs after memory_context_middleware; mutates only the tail of the user's last message, never the frozen system prefix.
 """
 
 from __future__ import annotations

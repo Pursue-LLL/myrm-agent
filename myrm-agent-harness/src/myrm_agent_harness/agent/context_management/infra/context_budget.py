@@ -72,7 +72,12 @@ def estimate_processor_context_tokens(
     metadata: Mapping[str, object],
 ) -> int:
     """Full request context estimate for pipeline processors (messages + tools + optional API max)."""
-    return estimate_context_tokens(messages, **resolve_budget_kwargs_from_metadata(metadata))
+    budget = resolve_budget_kwargs_from_metadata(metadata)
+    return estimate_context_tokens(
+        messages,
+        bound_tool_overhead_tokens=budget["bound_tool_overhead_tokens"],
+        last_provider_prompt_tokens=budget.get("last_provider_prompt_tokens"),
+    )
 
 
 class ContextHealthStatus(StrEnum):
@@ -186,7 +191,7 @@ class ContextBudget:
         - 接近上限时：阈值最低，积极压缩
 
         Args:
-            turn_count: 当前会话轮数（human 消息数）
+            turn_count: 当前会话轮数（用户本人写的消息数，不含运行时通知）
             estimated_remaining_turns: 预估剩余轮数
 
         Returns:

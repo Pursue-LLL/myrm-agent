@@ -2,11 +2,12 @@
 
 [INPUT]
 - langchain_core.messages::HumanMessage (POS: message extraction)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - core.security.tool_registry::resolve_permission_type, resolve_safety_metadata
   (POS: tool capability metadata)
 
 [OUTPUT]
-- extract_recent_human_text(): best-effort recent user text extraction
+- extract_recent_human_text(): best-effort recent user text extraction (the user's own messages only)
 - derive_runtime_allowed_tools(): per-turn allowed-tools restriction decision
 - compute_turn_allowed_names(): skill trust + intent gates merged allowlist
 
@@ -23,6 +24,7 @@ import re
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.backends.skills.types import SkillMetadata
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.core.security.tool_registry import (
     resolve_permission_type,
     resolve_safety_metadata,
@@ -136,9 +138,13 @@ _ACTION_INTENT_KEYWORDS: tuple[str, ...] = (
 
 
 def extract_recent_human_text(messages: list[object]) -> str | None:
-    """Extract the latest human message text from LangChain messages."""
+    """Extract the text of the user's latest message.
+
+    The intent gates read what the user asked; a notice the runtime appended behind it (a constraint, citation
+    rules) is not the question and would change the allowlist from one request of a run to the next.
+    """
     for message in reversed(messages):
-        if not isinstance(message, HumanMessage):
+        if not (isinstance(message, HumanMessage) and is_user_authored_human_message(message)):
             continue
         text = _content_to_text(message.content)
         if text:

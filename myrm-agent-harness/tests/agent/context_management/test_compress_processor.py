@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 from myrm_agent_harness.agent.context_management.infra.retention_helpers import (
     effective_keep_recent_calls,
@@ -12,6 +12,7 @@ from myrm_agent_harness.agent.context_management.infra.retention_helpers import 
     extract_focus_modules,
     extract_user_goal_hint,
 )
+from myrm_agent_harness.agent.context_management.infra.schemas import ContextConfig
 from myrm_agent_harness.agent.context_management.pipeline.base import ProcessorContext
 from myrm_agent_harness.agent.context_management.pipeline.processors.compress_processor import (
     CompressProcessor,
@@ -38,7 +39,9 @@ class _FakeBudget:
         return self._dynamic_min_save
 
 
-def _build_context(*, messages: list | None = None, metadata: dict[str, object] | None = None) -> ProcessorContext:
+def _build_context(
+    *, messages: list[BaseMessage] | None = None, metadata: dict[str, object] | None = None
+) -> ProcessorContext:
     return ProcessorContext(
         messages=messages or [HumanMessage(content="Please continue")],
         user_query="Please continue",
@@ -138,6 +141,7 @@ class TestCompressProcessorProcess:
         ):
             result = await processor.process(context)
 
+        assert mock_compress.await_args is not None
         compress_kwargs = mock_compress.await_args.kwargs
         assert compress_kwargs["dynamic_min_save"] == 120
         assert compress_kwargs["failed_tool_call_ids"] == frozenset({"call_2"})
@@ -145,6 +149,7 @@ class TestCompressProcessorProcess:
         assert compress_kwargs["focus_modules"] == frozenset({"agent.context_management"})
         assert compress_kwargs["user_goal_hint"] == "fix login timeout"
 
+        assert snapshot_callback.await_args is not None
         snapshot_kwargs = snapshot_callback.await_args.kwargs
         assert snapshot_kwargs["messages"] is original_messages
         assert snapshot_kwargs["chat_id"] == "chat-1"
@@ -289,9 +294,11 @@ class TestEcoMode:
         processor = CompressProcessor(max_context_tokens=1000, keep_recent_calls=5)
         context = _build_context(metadata={"eco_mode": True})
 
-        captured_config = {}
+        captured_config: dict[str, int | None] = {}
 
-        async def mock_compress(messages, *, config=None, **kw):
+        async def mock_compress(
+            messages: list[BaseMessage], *, config: ContextConfig | None = None, **kwargs: object
+        ) -> tuple[list[BaseMessage], int]:
             captured_config["keep_recent_calls"] = config.keep_recent_calls if config else None
             return messages, 0
 
@@ -321,9 +328,11 @@ class TestEcoMode:
         processor = CompressProcessor(max_context_tokens=1000, keep_recent_calls=5)
         context = _build_context(metadata={"eco_mode": False})
 
-        captured_config = {}
+        captured_config: dict[str, int | None] = {}
 
-        async def mock_compress(messages, *, config=None, **kw):
+        async def mock_compress(
+            messages: list[BaseMessage], *, config: ContextConfig | None = None, **kwargs: object
+        ) -> tuple[list[BaseMessage], int]:
             captured_config["keep_recent_calls"] = config.keep_recent_calls if config else None
             return messages, 0
 
@@ -352,3 +361,32 @@ class TestEcoMode:
         assert processor._is_eco_mode(_build_context(metadata={"eco_mode": True}))
         eco_keep = effective_keep_recent_calls(keep_recent_calls=processor.config.keep_recent_calls, eco_mode=True)
         assert eco_keep == 2
+
+
+class TestCompressionCount:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("stored", "expected"), [(None, 1), (2, 3), ("garbled", 1)], ids=["first", "counting", "garbled"]
+    )
+    async def test_each_compression_adds_one_to_the_count_whatever_was_stored(
+        self, stored: object, expected: int
+    ) -> None:
+        processor = CompressProcessor(max_context_tokens=1000)
+        context = _build_context(metadata={} if stored is None else {"compression_count": stored})
+        module = "myrm_agent_harness.agent.context_management.pipeline.processors.compress_processor"
+
+        async def keep(messages: list[BaseMessage], **kwargs: object) -> tuple[list[BaseMessage], int]:
+            return messages, 0
+
+        with (
+            patch(
+                f"{module}.calculate_context_budget",
+                return_value=_FakeBudget(dynamic_threshold=100, dynamic_min_save=50),
+            ),
+            patch(f"{module}.CompressProcessor._estimate_context_tokens", return_value=200),
+            patch(f"{module}.compress_messages_async", side_effect=keep),
+            patch.object(processor, "_should_skip_for_cache_preservation", return_value=False),
+        ):
+            result = await processor.process(context)
+
+        assert result.metadata["compression_count"] == expected

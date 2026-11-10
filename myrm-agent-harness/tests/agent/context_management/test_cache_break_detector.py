@@ -1,6 +1,6 @@
 """Unit tests for cache_break_detector module."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -186,13 +186,13 @@ class TestCacheBreakDetector:
 
     @patch("myrm_agent_harness.agent.context_management.infra.cache_break_detector.time")
     def test_ttl_5min_attribution(
-        self, mock_time: object, msgs: list[SystemMessage | HumanMessage | AIMessage]
+        self, mock_time: MagicMock, msgs: list[SystemMessage | HumanMessage | AIMessage]
     ) -> None:
         detector = CacheBreakDetector()
-        mock_time.monotonic = lambda: 0.0  # type: ignore[attr-defined]
+        mock_time.monotonic = lambda: 0.0
         detector.record_prompt_state(msgs, "claude-3-sonnet")
         detector.check_cache_break(10000)
-        mock_time.monotonic = lambda: 400.0  # type: ignore[attr-defined]
+        mock_time.monotonic = lambda: 400.0
         detector.record_prompt_state(msgs, "claude-3-sonnet")
         event = detector.check_cache_break(3000)
         assert event is not None
@@ -202,13 +202,13 @@ class TestCacheBreakDetector:
 
     @patch("myrm_agent_harness.agent.context_management.infra.cache_break_detector.time")
     def test_ttl_1hour_attribution(
-        self, mock_time: object, msgs: list[SystemMessage | HumanMessage | AIMessage]
+        self, mock_time: MagicMock, msgs: list[SystemMessage | HumanMessage | AIMessage]
     ) -> None:
         detector = CacheBreakDetector()
-        mock_time.monotonic = lambda: 0.0  # type: ignore[attr-defined]
+        mock_time.monotonic = lambda: 0.0
         detector.record_prompt_state(msgs, "claude-3-sonnet")
         detector.check_cache_break(10000)
-        mock_time.monotonic = lambda: 4000.0  # type: ignore[attr-defined]
+        mock_time.monotonic = lambda: 4000.0
         detector.record_prompt_state(msgs, "claude-3-sonnet")
         event = detector.check_cache_break(3000)
         assert event is not None

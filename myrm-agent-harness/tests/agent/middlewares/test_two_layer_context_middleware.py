@@ -9,11 +9,12 @@ from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage
 
 from myrm_agent_harness.agent.middlewares.memory_context.two_layer_context_middleware import (
-    _append_text_to_last_human,
+    _append_text_to_last_user_message,
     _injector,
     two_layer_context_middleware,
 )
 from myrm_agent_harness.core.context_vars import chat_id_var
+from myrm_agent_harness.core.message_origin import runtime_human_message
 
 
 @pytest.fixture(autouse=True)
@@ -137,5 +138,20 @@ async def test_a_stale_base_context_block_on_the_question_is_replaced_not_stacke
     assert 'cache_hash="stale"' not in tail
 
 
-def test_without_a_human_message_there_is_nothing_to_append_to() -> None:
-    assert _append_text_to_last_human([SystemMessage(content="frozen")], "<base_context/>") is None
+@pytest.mark.asyncio
+async def test_the_block_lands_on_the_users_message_and_a_runtime_notice_does_not_advance_the_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MYRM_TWO_LAYER_CONTEXT_LIVE", raising=False)
+    notice = runtime_human_message("[constraint] the sandbox has no network")
+
+    sent = await _messages_sent_to_model([HumanMessage(content="Continue the checklist.", id="u1"), notice])
+
+    assert "<base_context" in str(sent[0].content)
+    assert 'turn="1"' in str(sent[0].content)
+    assert sent[-1] is notice
+
+
+def test_without_a_user_message_there_is_nothing_to_append_to() -> None:
+    assert _append_text_to_last_user_message([SystemMessage(content="frozen")], "<base_context/>") is None
+    assert _append_text_to_last_user_message([runtime_human_message("notice")], "<base_context/>") is None

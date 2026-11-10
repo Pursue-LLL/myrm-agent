@@ -17,7 +17,7 @@ Agent build utilities — middleware chain construction, tool registry, tool bui
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from langchain.agents.middleware import ToolCallLimitMiddleware
 from langchain_core.tools import BaseTool
@@ -34,6 +34,7 @@ from myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate import 
 )
 from myrm_agent_harness.agent.middlewares.model_call_cancel import ModelCallCancelMiddleware
 from myrm_agent_harness.agent.middlewares.parallel_tool_calls import ParallelToolCallsMiddleware
+from myrm_agent_harness.agent.middlewares.request_view_guard_middleware import RequestViewGuardMiddleware
 from myrm_agent_harness.agent.middlewares.security.canary_middleware import CanaryMiddleware
 from myrm_agent_harness.agent.middlewares.security.security_boundary_middleware import (
     SecurityBoundaryMiddleware,
@@ -47,6 +48,7 @@ from myrm_agent_harness.agent.middlewares.session_access_middleware import (
 from myrm_agent_harness.agent.middlewares.subagent_limit_middleware import (
     subagent_limit_middleware,
 )
+from myrm_agent_harness.agent.middlewares.thinking_replay_guard_middleware import ThinkingReplayGuardMiddleware
 from myrm_agent_harness.agent.middlewares.tooling.dangling_tool_call_middleware import (
     dangling_tool_call_middleware,
 )
@@ -61,6 +63,8 @@ from myrm_agent_harness.agent.tool_management import ToolRegistry, ToolSource
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoStore
     from myrm_agent_harness.agent.types import EngineParams
 
@@ -79,7 +83,7 @@ def build_middlewares(
     The ordering matters: model-call-cancel -> dedup -> dangling -> subagent-limit -> conflict-gate ->
     interceptor -> approval -> approval-evaluation -> clarification-guard -> completion -> progress ->
     goal-focus -> replan -> call-limits -> budget -> security -> user -> completion-directive ->
-    skill-attenuation -> json-args -> parallel-tool-calls (only when the engine sets it) -> debug.
+    skill-attenuation -> json-args -> parallel-tool-calls (only when the engine sets it) -> view-guard -> debug.
     The first middleware wraps every later model-call wrapper, so model-call-cancel sits first to cut a model request
     that is still in flight, retries and backoff waits of the wrappers inside it included, the moment the run is stopped.
     LangChain runs the ``after_model`` hooks from the last middleware to the first, so a model
@@ -93,7 +97,9 @@ def build_middlewares(
     and the json-args middleware sits behind it so the tool it reads the schema of is the tool that will
     run; the completion directive sits innermost of the middlewares that rewrite the request, so the others
     append to the user's own message. The parallel-tool-calls setting goes on last of the model-call
-    wrappers, so it is judged on the tool list the model is bound to.
+    wrappers, so it is judged on the tool list the model is bound to. The view guard sits behind every wrapper that
+    rewrites the request and only reads it, so the message list it records is the one the model receives; the debug
+    logger stays last and prints that same list.
     """
     from myrm_agent_harness.agent.middlewares.approval.guidance_delivery import (
         approval_guidance_delivery,
@@ -182,6 +188,8 @@ def build_middlewares(
     middlewares.append(stringified_json_args_middleware)
     if params.enable_parallel_tool_calls is not None:
         middlewares.append(ParallelToolCallsMiddleware(params.enable_parallel_tool_calls))
+    middlewares.append(ThinkingReplayGuardMiddleware())
+    middlewares.append(RequestViewGuardMiddleware())
     middlewares.append(debug_logger_middleware)
 
     return middlewares
@@ -208,9 +216,10 @@ def _weave_dynamic_schemas(resolved_tools: list[BaseTool]) -> list[BaseTool]:
     weaved_tools = []
 
     for tool in resolved_tools:
-        if hasattr(tool, "dynamic_schema_modifier") and callable(tool.dynamic_schema_modifier):
+        schema_modifier = getattr(tool, "dynamic_schema_modifier", None)
+        if callable(schema_modifier):
             try:
-                modified_tool = tool.dynamic_schema_modifier(available_names)
+                modified_tool = schema_modifier(available_names)
                 weaved_tools.append(modified_tool)
                 continue
             except Exception as e:
@@ -240,9 +249,10 @@ async def build_tools(
     )
 
     for mw in cached_middlewares:
-        if hasattr(mw, "get_tools") and callable(mw.get_tools):
+        get_tools = getattr(mw, "get_tools", None)
+        if callable(get_tools):
             try:
-                mw_tools = mw.get_tools()
+                mw_tools = cast("Sequence[BaseTool]", get_tools())
                 if mw_tools:
                     for t in mw_tools:
                         is_internal = t.name.startswith("_")

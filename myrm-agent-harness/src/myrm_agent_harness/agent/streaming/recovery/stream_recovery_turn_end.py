@@ -3,6 +3,7 @@
 [INPUT]
 - agent.streaming.recovery.stream_recovery_truncation (POS: reply-shape helpers and the re-run input shared with the truncation recoveries)
 - agent.config.llm_safety::normalize_messages (POS: re-pairs tool calls with their results for a direct LLM call)
+- core.thinking_blocks::without_thinking_blocks (POS: drops the signed reasoning a call under another prompt cannot replay)
 - utils.chat_utils::extract_answer_text (POS: answer extraction that falls back for reasoning models with empty content)
 
 [OUTPUT]
@@ -21,6 +22,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from myrm_agent_harness.agent.errors.fault_side import FaultSide
 from myrm_agent_harness.agent.streaming.recovery.stream_recovery_truncation import StreamTruncationRecoveryMixin
 from myrm_agent_harness.agent.streaming.types import AgentEventType
+from myrm_agent_harness.core.thinking_blocks import without_thinking_blocks
 from myrm_agent_harness.utils.chat_utils import extract_answer_text
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
@@ -135,7 +137,8 @@ class StreamTurnEndRecoveryMixin(StreamTruncationRecoveryMixin):
         tail = repaired_messages[-20:]
         while tail and getattr(tail[0], "type", None) == "tool":
             tail = tail[1:]
-        summary_messages = [*tail, grace_prompt]
+        # The grace call has no system prompt and no tools, so the provider could not take the signed reasoning back.
+        summary_messages = [*without_thinking_blocks(tail), grace_prompt]
 
         try:
             response: AIMessage = await llm.ainvoke(summary_messages)

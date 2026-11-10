@@ -7,11 +7,12 @@ Four priority levels:
 - LOW (4): Tool success results
 
 [INPUT]
-- (none)
+- core.message_origin::last_user_authored_index (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - MessagePriority: Outbound message priority (lower value = higher priority).
 - classify_message_priority: Classify a message's priority for compression.
+- last_iteration_flags: Which messages belong to the iteration in progress (behind the user's latest message).
 
 [POS]
 Message priority classification for intelligent compression.
@@ -19,9 +20,12 @@ Message priority classification for intelligent compression.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import IntEnum
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+
+from myrm_agent_harness.core.message_origin import last_user_authored_index
 
 
 class MessagePriority(IntEnum):
@@ -84,6 +88,16 @@ def classify_message_priority(
 
     # Default: medium priority
     return MessagePriority.MEDIUM_REASONING
+
+
+def last_iteration_flags(messages: Sequence[BaseMessage]) -> dict[int, bool]:
+    """Map ``id(message)`` to whether the message stands behind the user's latest message.
+
+    A notice the runtime appended mid-turn does not end the iteration in progress, so only the user's own
+    message counts as its start; without one nothing is in the last iteration.
+    """
+    start = last_user_authored_index(messages)
+    return {id(msg): start >= 0 and i > start for i, msg in enumerate(messages)}
 
 
 def _is_tool_error(msg: ToolMessage) -> bool:

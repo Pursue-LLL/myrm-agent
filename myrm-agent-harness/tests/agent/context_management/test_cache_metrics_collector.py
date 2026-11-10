@@ -132,6 +132,60 @@ def test_persist_writes_ndjson(metrics_dir: Path) -> None:
     assert "safe_block_interval" not in row["explicit_cache"]
 
 
+def test_a_record_carries_the_cache_write_of_the_call(metrics_dir: Path) -> None:
+    clear_pending_explicit_cache_snapshot()
+    try_persist_cache_call_metrics({"model": "m", "usage": {"prompt_tokens": 1000, "cache_creation_input_tokens": 300}})
+    try_persist_cache_call_metrics({"model": "m", "usage": {"prompt_tokens": 1000}})
+
+    first, second = (
+        json.loads(line) for line in next(metrics_dir.glob("cache_metrics_*.ndjson")).read_text().splitlines()
+    )
+
+    assert first["cache_creation_tokens"] == 300
+    assert second["cache_creation_tokens"] == 0
+
+
+def test_a_response_without_a_usage_mapping_records_no_cache_write(metrics_dir: Path) -> None:
+    clear_pending_explicit_cache_snapshot()
+    try_persist_cache_call_metrics({"model": "m", "usage": None})
+
+    row = json.loads(next(metrics_dir.glob("cache_metrics_*.ndjson")).read_text().splitlines()[0])
+
+    assert row["cache_creation_tokens"] == 0
+    assert row["prompt_tokens"] == 0
+
+
+def test_a_record_names_the_message_the_request_edited_and_only_for_that_call(metrics_dir: Path) -> None:
+    from myrm_agent_harness.agent.context_management.infra.cache_break_detector import (
+        init_cache_break_detector,
+        reset_cache_break_detector,
+    )
+
+    clear_pending_explicit_cache_snapshot()
+    detector = init_cache_break_detector()
+    try:
+        detector.record_message_prefix(("a", "b"))
+        try_persist_cache_call_metrics({"model": "m", "usage": {"prompt_tokens": 100}})
+        detector.record_message_prefix(("a", "x", "c"))
+        try_persist_cache_call_metrics({"model": "m", "usage": {"prompt_tokens": 100}})
+        detector.record_message_prefix(("a", "x", "c", "d"))
+        try_persist_cache_call_metrics({"model": "m", "usage": {"prompt_tokens": 100}})
+    finally:
+        reset_cache_break_detector()
+
+    rows = [json.loads(line) for line in next(metrics_dir.glob("cache_metrics_*.ndjson")).read_text().splitlines()]
+
+    assert "prefix_shift" not in rows[0]
+    assert rows[1]["prefix_shift"] == {
+        "first_index": 1,
+        "previous_length": 2,
+        "current_length": 3,
+        "kind": "rewritten",
+        "announced": False,
+    }
+    assert "prefix_shift" not in rows[2]
+
+
 def test_invalid_usage_fields_raise_type_error(metrics_dir: Path) -> None:
     """Invalid types (str) raise TypeError and skip metrics collection."""
     clear_pending_explicit_cache_snapshot()

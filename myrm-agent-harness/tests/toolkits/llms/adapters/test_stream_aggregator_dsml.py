@@ -5,9 +5,9 @@ from langchain_core.outputs import ChatGenerationChunk
 
 from myrm_agent_harness.toolkits.llms.adapters.stream_aggregator import (
     StreamAggregator,
-    XmlStreamBuffer,
     finalize_stream,
 )
+from myrm_agent_harness.toolkits.llms.adapters.xml_stream_buffer import XmlStreamBuffer
 
 
 def test_finalize_stream_dsml_clean():

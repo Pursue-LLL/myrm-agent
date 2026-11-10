@@ -154,8 +154,9 @@ def _tool_choice(choice: object, *, may_force: bool) -> Block | None:
 
 
 def _anthropic_view(turns: Sequence[Turn]) -> list[dict[str, object]]:
-    """The turns as ``anthropic_thinking`` reads them: which assistant turn calls tools and which opens with thinking."""
-    kinds = {"reasoningContent": "thinking", "toolUse": "tool_use"}
+    """The turns as ``anthropic_thinking`` reads them: which assistant turn calls tools, which opens with thinking,
+    and which user turn answers tool calls."""
+    kinds = {"reasoningContent": "thinking", "toolUse": "tool_use", "toolResult": "tool_result"}
     return [
         {"role": role, "content": [{"type": next((v for k, v in kinds.items() if k in b), "text")} for b in blocks]}
         for role, blocks in turns

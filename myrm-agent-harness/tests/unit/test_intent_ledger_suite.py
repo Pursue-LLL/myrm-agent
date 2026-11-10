@@ -9,14 +9,14 @@ Tests:
 
 from __future__ import annotations
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
-from myrm_agent_harness.agent.middlewares._message_origin import is_user_authored_human_message
 from myrm_agent_harness.agent.middlewares.approval.intent_ledger import (
     NO_USER_MESSAGE_VISIBLE,
     OMITTED_MARKER,
     extract_user_intent_ledger,
 )
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 
 
 def test_intent_ledger_basic_extraction() -> None:
@@ -33,7 +33,7 @@ def test_intent_ledger_basic_extraction() -> None:
 
 def test_intent_ledger_multimodal_text_extraction() -> None:
     # Multimodal message with text and image block
-    multimodal_content = [
+    multimodal_content: list[str | dict[str, object]] = [
         {"type": "text", "text": "Inspect the screenshot and"},
         {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}},
         {"type": "text", "text": "do not run build commands yet."},
@@ -41,6 +41,16 @@ def test_intent_ledger_multimodal_text_extraction() -> None:
     msgs = [HumanMessage(content=multimodal_content)]
     result = extract_user_intent_ledger(msgs, max_chars=1000)
     assert "Inspect the screenshot and do not run build commands yet." in result
+
+
+def test_intent_ledger_ignores_blocks_that_carry_no_text() -> None:
+    content: list[str | dict[str, object]] = [
+        "bare string block",
+        {"type": "text", "text": "   "},
+        {"type": "text", "text": "kept"},
+    ]
+
+    assert extract_user_intent_ledger([HumanMessage(content=content)], max_chars=1000) == "kept"
 
 
 def test_intent_ledger_synthetic_message_exclusion() -> None:
@@ -102,11 +112,50 @@ def test_intent_ledger_budget_truncation_preserves_anchor_and_latest() -> None:
     assert "Old message 2" not in result
 
 
+def test_intent_ledger_skips_a_user_message_without_text() -> None:
+    msgs = [HumanMessage.model_construct(content=None), HumanMessage(content="Real directive.")]
+
+    assert extract_user_intent_ledger(msgs, max_chars=1000) == "Real directive."
+
+
+def test_intent_ledger_keeps_the_middle_messages_that_still_fit_the_budget() -> None:
+    anchor = "ANCHOR: never push."
+    latest = "LATEST: leave pyproject.toml alone."
+    too_long = "OLD: " + "x" * 150
+    small = "RECENT: small note."
+    # Room for the omission marker and the small note, not for the long one.
+    budget = len(anchor) + len(latest) + 1 + len(OMITTED_MARKER) + 2 + len(small) + 1 + 5
+    msgs = [HumanMessage(content=text) for text in (anchor, too_long, small, latest)]
+
+    assert extract_user_intent_ledger(msgs, max_chars=budget) == "\n".join([anchor, OMITTED_MARKER, small, latest])
+
+
+def test_intent_ledger_trims_anchor_and_latest_when_even_they_exceed_the_budget() -> None:
+    anchor = "A" * 100
+    latest = "L" * 100
+    # The latest directive gets 3/5 of the budget; the anchor keeps what is left, never less than ten characters.
+    expected = "A" * 10 + "..." + "\n" + OMITTED_MARKER + "\n" + "L" * 30
+
+    assert (
+        extract_user_intent_ledger([HumanMessage(content=anchor), HumanMessage(content=latest)], max_chars=50)
+        == expected
+    )
+
+
+def test_intent_ledger_budget_equal_to_anchor_plus_latest_leaves_no_room_for_either_in_full() -> None:
+    anchor, middle, latest = "A" * 10, "M" * 5, "L" * 10
+    budget = len(anchor) + len(latest) + 1
+    msgs = [HumanMessage(content=text) for text in (anchor, middle, latest)]
+
+    # Anchor and latest alone fill the budget, so both are trimmed to make room for the omission marker.
+    assert (
+        extract_user_intent_ledger(msgs, max_chars=budget) == "A" * 10 + "..." + "\n" + OMITTED_MARKER + "\n" + "L" * 10
+    )
+
+
 def test_intent_ledger_survives_extended_tool_calls() -> None:
     # User states a boundary in turn 0
-    msgs = [
-        HumanMessage(content="BOUNDARY: Do NOT run pytest until I say so.")
-    ]
+    msgs: list[BaseMessage] = [HumanMessage(content="BOUNDARY: Do NOT run pytest until I say so.")]
     # Simulate 12 turns of tool calls (AIMessage + ToolMessage)
     for i in range(12):
         msgs.append(AIMessage(content=f"Calling tool {i}"))

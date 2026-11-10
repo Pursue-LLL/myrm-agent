@@ -20,37 +20,37 @@ classifiers = [
 dependencies = [
   # --- LangChain 生态 (Agent 框架基础) ---
   # 1.x 区间：下限是 CI 逐周在最低版本上验证过的；上限防止未经验证的大版本被自动装入（每周金丝雀见 harness-framework-canary.yml）
-  "langchain>=1.4.3,<2",                   # Agent 编排核心
-  "langchain-core>=1.6.6,<2",              # LangChain 基础抽象
+  "langchain>=1.4.9",                   # Agent 编排核心
+  "langchain-core>=1.7.7",              # LangChain 基础抽象
   # 上限 <1.2.20：同一任务连续两次 interrupt()，1.2.19 里两次暂停共用一个 interrupt id，1.2.20 起每次暂停各有一个；
   # HITL 卡片 id（interrupt id + 轮次，agent/streaming/interrupt_identity.py）按前一种行为寻址，
   # tests/agent/_internals/test_resume_addressing_rounds.py 的 10 条用例在 1.2.20 全红，在 1.2.16 至 1.2.19 全绿。
   # 放开上限前须先改造卡片 id 协议。
-  "langgraph>=1.2.13,<1.2.20",             # 图状态机 Agent 运行时
-  "langgraph-checkpoint-sqlite>=3.1.1,<4", # SQLite 状态持久化 (checkpoint factory)
+  "langgraph>=1.2.20",             # 图状态机 Agent 运行时
+  "langgraph-checkpoint-sqlite>=3.1.3", # SQLite 状态持久化 (checkpoint factory)
   "aiosqlite>=0.22.1",                     # async SQLite (memory stores + checkpointer)
   "dill>=0.4.1",                           # checkpoint serde (chat model / complex objects)
   # --- 数据验证与序列化 ---
-  "pydantic>=2.13.5", # 数据模型验证
-  "PyYAML>=6.0.2",    # YAML 配置解析（下限 6.0.2：pdf-ocr 的 paddlex 固定 PyYAML==6.0.2）
-  "json_repair>=0.63.5", # LLM 脏 JSON 修复兜底 (chat_utils 解析链末层)
+  "pydantic>=2.14.3", # 数据模型验证
+  "PyYAML>=6.0.3",    # YAML 配置解析（下限 6.0.2：pdf-ocr 的 paddlex 固定 PyYAML==6.0.2）
+  "json_repair>=0.64.9", # LLM 脏 JSON 修复兜底 (chat_utils 解析链末层)
   # --- HTTP 与异步 I/O ---
   "httpx>=0.28.1",        # 异步 HTTP 客户端（统一网络栈；SOCKS 由 server/渠道层按需安装）
-  "httpx2>=2.13.1",        # MCP SDK v2 传输层 HTTP 客户端（TLS/mTLS、auth headers）
-  "idna>=3.7",            # UTS 46 域名映射（utils/url_syntax.py 把域名折成浏览器拨号时的写法；httpx 亦依赖）
-  "truststore>=0.10",     # 企业 TLS 兼容：连接按操作系统信任库校验服务端证书链（infra/tls_compat.py）
+  "httpx2>=2.16.0",        # MCP SDK v2 传输层 HTTP 客户端（TLS/mTLS、auth headers）
+  "idna>=3.20",            # UTS 46 域名映射（utils/url_syntax.py 把域名折成浏览器拨号时的写法；httpx 亦依赖）
+  "truststore>=0.10.5",     # 企业 TLS 兼容：连接按操作系统信任库校验服务端证书链（infra/tls_compat.py）
   "aiofiles>=25.1.0",     # 异步文件 I/O
   # --- 图片处理 (7 模块跨 4 层使用) ---
-  "Pillow>=12.3.0",       # 图片读写/resize/压缩 (image_reader + image_compressor + browser/diff + file_parsers + computer_use)
+  "Pillow>=13.0.0",       # 图片读写/resize/压缩 (image_reader + image_compressor + browser/diff + file_parsers + computer_use)
   # --- Token 计数 ---
   "tiktoken>=0.14.0", # OpenAI tokenizer (上下文窗口管理)
-  "regex>=2026.9.29", # 隐私自定义规则的正则引擎（Unicode 属性类 + 单次匹配超时保护；tiktoken 亦依赖；file_search/glob_match.py 用它匹配叠加通配符而不回溯爆炸）
+  "regex>=2026.11.9", # 隐私自定义规则的正则引擎（Unicode 属性类 + 单次匹配超时保护；tiktoken 亦依赖；file_search/glob_match.py 用它匹配叠加通配符而不回溯爆炸）
   # --- 系统监控 (健康诊断核心依赖) ---
   "psutil>=7.2.2", # 进程与系统监控 (CPU/Memory health probes)
   # --- 监控与可观测性 (仅保留轻量级 API，SDK 移至 optional) ---
-  "opentelemetry-api>=1.45.0",
+  "opentelemetry-api>=1.45.2",
   # --- Cron 定时任务 ---
-  "croniter>=6.2.4", # Cron 表达式解析与计算
+  "croniter>=7.0.0", # Cron 表达式解析与计算
   # --- 网页爬取与内容提取（基础） ---
   "beautifulsoup4>=4.15.0", # HTML DOM 解析与清洗（ContentPruningFilter）
   "lxml>=6.1.3",            # bs4 lxml parser (content_pruning + tree_truncator)
@@ -61,7 +61,7 @@ dependencies = [
   # 非 UTF-8 文本（GBK/Big5/Shift-JIS/EUC/cp1252）的编码识别 (file_parsers/text_decoding.py；pdfminer-six、requests 亦依赖)。
   # 下限 3.5.0：3.4.x 对 CJK 文本的识别明显更差（同一批样本 128 字节以上的错判与拒绝多出数倍）；上限 <3.6：识别结果随小版本变化，
   # 升级前须重跑 tests/toolkits/file_parsers/test_text_decoding.py。
-  "charset-normalizer>=3.5.0,<3.6",
+  "charset-normalizer>=3.5.2",
 ]
 
 [project.urls]
@@ -75,29 +75,29 @@ verify-harness-distribution = "myrm_agent_harness.runtime.install_guard.verify:m
 [project.optional-dependencies]
 # toolkits/browser/ - 浏览器自动化（需要 Patchright）
 browser = [
-  "patchright>=1.63.0",   # CDP 泄露修补浏览器引擎
-  "camoufox>=0.5.7", # Firefox stealth fallback (auto-upgrade ladder)
-  "orjson>=3.12.0",       # session vault / persistence JSON (browser toolkit only)
+  "patchright>=1.64.4",   # CDP 泄露修补浏览器引擎
+  "camoufox>=0.5.9", # Firefox stealth fallback (auto-upgrade ladder)
+  "orjson>=3.13.0",       # session vault / persistence JSON (browser toolkit only)
 ]
 # toolkits/vector/ - 向量存储（Qdrant 嵌入式/远程）
 qdrant = [
-  "qdrant-client>=1.19.1", # Qdrant SDK (embedded + remote)
+  "qdrant-client>=1.20.0", # Qdrant SDK (embedded + remote)
 ]
 # toolkits/retriever/ - 高级检索功能（中文分词、向量检索、稀疏检索）
 retrieval = [
   "langchain-text-splitters>=1.1.3,<2", # 代码感知文本分块 (retriever/splitter/code_utils.py)
-  "numpy>=2.5.3",     # embedding 序列化 + BM25 数值计算
-  "tenacity>=9.1.4",  # cloud embedding retries
+  "numpy>=2.5.4",     # embedding 序列化 + BM25 数值计算
+  "tenacity>=9.2.1",  # cloud embedding retries
   "jieba>=0.42.1",    # 中文分词 (BM25 tokenizer)
   "rank-bm25>=0.2.2", # BM25 稀疏检索算法
 ]
 # toolkits/acp/ - ACP 协议（外部 Agent 委托 + ACP Server）
 acp = [
-  "agent-client-protocol>=0.12.1",
+  "agent-client-protocol>=1.0.0",
 ]
 # toolkits/llms/transport/bedrock_sigv4.py - Bedrock 请求用 AWS 凭证链签名（只用 Bedrock API Key 时不需要）
 bedrock = [
-  "botocore>=1.40.0", # AWS 凭证链 + SigV4 签名
+  "botocore>=1.43.127", # AWS 凭证链 + SigV4 签名
 ]
 # utils/media/image_compressor - PNG 量化压缩（延迟导入，失败回退 Pillow）
 image-processing = [
@@ -108,12 +108,12 @@ computer-use = [
   "pyautogui>=0.9.54; sys_platform == 'win32'",  # Windows 键鼠输入模拟 (ctypes, 无 rubicon-objc)
   "mss>=10.2.0; sys_platform == 'win32'",  # Windows 屏幕截图 (backends/windows/backend.py、backends/windows/background.py)
   "uiautomation>=2.0.29; sys_platform == 'win32'",  # Windows UI Automation 无障碍树与窗口文本 (perception/windows_ax.py、backends/windows/text_io.py)
-  "pyobjc-framework-Quartz>=12.2.2; sys_platform == 'darwin'",  # macOS 原生 CGEvent（绕开 rubicon-objc arm64 缺陷）
+  "pyobjc-framework-Quartz>=13.0; sys_platform == 'darwin'",  # macOS 原生 CGEvent（绕开 rubicon-objc arm64 缺陷）
 ]
 # toolkits/web_fetch/ - L1 HTTP / L3 stealth 爬取 + YouTube 字幕快路径
 web = [
-  "scrapling[fetchers]>=0.4.15",      # L1: curl_cffi TLS 指纹 HTTP / L3: Patchright+BrowserForge 反检测
-  "youtube-transcript-api>=1.2.4",   # YouTube 字幕提取 (youtube_extractor; HTML fallback when missing)
+  "scrapling[fetchers]>=0.5.1",      # L1: curl_cffi TLS 指纹 HTTP / L3: Patchright+BrowserForge 反检测
+  "youtube-transcript-api>=1.2.5",   # YouTube 字幕提取 (youtube_extractor; HTML fallback when missing)
 ]
 
 # toolkits/file_parsers/ - Office 扩展（pdfplumber + pypdfium2 已在 core / pdfplumber 传递依赖）
@@ -126,20 +126,20 @@ file-parsers = [
 pdf-ocr = [
   "rapidocr>=3.10.0",  # OCR 引擎（PP-OCR 检测+识别+方向分类，模型随包分发）
   # ONNX Runtime 是 RapidOCR 的默认推理后端。Pyodide 无 wheel，须排除以保证跨平台锁可解。
-  "onnxruntime>=1.20.0; sys_platform != 'emscripten'",
+  "onnxruntime>=1.31.1; sys_platform != 'emscripten'",
 ]
 # FastAPI pin for hosts that embed the harness behind FastAPI (no harness module imports it)
 fastapi = [
-  "fastapi>=0.142.2",
+  "fastapi>=0.162.2",
 ]
 
 # 全链路追踪与指标 (SaaS 级监控)
 observability = [
   "prometheus-client>=0.26.0",
-  "opentelemetry-sdk>=1.45.0",
-  "opentelemetry-exporter-otlp-proto-grpc>=1.45.0",
-  "opentelemetry-exporter-otlp-proto-http>=1.45.0",
-  "openinference-instrumentation-langchain>=0.1.78",
+  "opentelemetry-sdk>=1.45.2",
+  "opentelemetry-exporter-otlp-proto-grpc>=1.45.2",
+  "opentelemetry-exporter-otlp-proto-http>=1.45.2",
+  "openinference-instrumentation-langchain>=0.1.82",
 ]
 compiled-core = [
 # BEGIN compiled-core (generated — do not edit)
@@ -181,10 +181,10 @@ exclude-dependencies = [
   "myrm-agent-harness-core-win32-arm64",
 ]
 override-dependencies = [
-  "click>=8.5.0",
-  "patchright>=1.59.1",
-  "opentelemetry-semantic-conventions>=0.61b0",
-  "mcp>=2.0.0",                   # MCP SDK 2.x
+  "click>=8.5.1",
+  "patchright>=1.64.4",
+  "opentelemetry-semantic-conventions>=0.66b2",
+  "mcp>=2.3.0",                   # MCP SDK 2.x
 ]
 
 # uv.lock must pin PyPI itself (tests/architecture/test_core_dependencies.py). Declaring the default index here keeps a
@@ -448,32 +448,32 @@ exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "^\\s*\\.\\.\\.\\s*$"]
 
 [dependency-groups]
 build = [
-  "nuitka>=4.1.2",
-  "build>=1.5.0",
+  "nuitka>=4.3.5",
+  "build>=1.6.1",
   # The release pipeline syncs this group with --no-install-project, so the manifest loader's
   # YAML parser has to come from here: the project dependency is not installed in that venv.
-  "PyYAML>=6.0.2",
+  "PyYAML>=6.0.3",
 ]
 dev = [
-  "pytest>=9.1.1",                   # 测试框架
-  "pytest-asyncio>=1.4.0",           # 异步测试支持
+  "pytest>=9.2.0",                   # 测试框架
+  "pytest-asyncio>=1.4.1.post1",           # 异步测试支持
   "pytest-cov>=7.1.0",               # 覆盖率报告
-  "pytest-benchmark>=5.3.0",         # 性能基准测试（5.2.3 在 pytest -n 2 + filterwarnings=error 下 INTERNALERROR）
+  "pytest-benchmark>=5.3.1",         # 性能基准测试（5.2.3 在 pytest -n 2 + filterwarnings=error 下 INTERNALERROR）
   "pytest-xdist>=3.8.0",             # 并行测试执行
   "pytest-timeout>=2.4.0",           # 测试超时保护
-  "ruff>=0.15.18",                   # Linter + Formatter
-  "mypy>=2.1.0",                    # 静态类型检查
-  "pyright>=1.1.408",                # 双重类型检查（互补 mypy）
-  "sqlalchemy>=2.0.51",              # migration_engine unit tests
-  "greenlet>=3.5.1",                 # sqlalchemy async engine (dev/tests)
+  "ruff>=0.17.4",                   # Linter + Formatter
+  "mypy>=2.4.1",                    # 静态类型检查
+  "pyright>=1.1.414",                # 双重类型检查（互补 mypy）
+  "sqlalchemy>=2.1.8",              # migration_engine unit tests
+  "greenlet>=3.5.6",                 # sqlalchemy async engine (dev/tests)
   "respx>=0.23.1",                   # HTTPX mock
-  "scikit-learn>=1.9.0",             # ML utilities (test)
-  "types-aiofiles>=25.1.0.20251011", # Type stubs
-  "types-psutil>=7.2.2.20260130",
-  "types-regex>=2026.9.29.20261005",
-  "types-pyyaml>=6.0.12.20250915",
-  "blockbuster>=1.5.26",
-  "openai>=3.24.0",                  # real SDK exception shapes for the error-classification tests
-  "aiohttp>=3.14.3",                 # library-contract and loopback tests of infra/tls_compat.py
-  "python-dotenv>=1.2.2",            # live tests load the server's .env.test
+  "scikit-learn>=1.9.1",             # ML utilities (test)
+  "types-aiofiles>=25.1.0.20261107", # Type stubs
+  "types-psutil>=7.2.2.20260906",
+  "types-regex>=2026.11.8.20261109",
+  "types-pyyaml>=6.0.12.20261103",
+  "blockbuster>=1.5.29",
+  "openai>=3.48.0",                  # real SDK exception shapes for the error-classification tests
+  "aiohttp>=3.14.5",                 # library-contract and loopback tests of infra/tls_compat.py
+  "python-dotenv>=1.2.4",            # live tests load the server's .env.test
 ]

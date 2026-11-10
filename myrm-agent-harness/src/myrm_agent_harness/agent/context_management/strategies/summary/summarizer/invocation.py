@@ -2,6 +2,7 @@
 - myrm_agent_harness.agent.config.llm_safety::normalize_messages (POS: Provider safety normalization. Pure function for direct LLM paths; agent middleware covers the primary runtime.)
 - myrm_agent_harness.agent.security.detection.leak_detector::redact_leaks (POS: Leak detector — re-exported from core.security.detection.leak_detector.)
 - myrm_agent_harness.agent.security.detection.pii_redactor::redact_pii (POS: PII redactor. Type-aware smart masking (phone numbers retain first 3 and last 4 digits, emails retain domain, cards)
+- myrm_agent_harness.core.thinking_blocks::without_thinking_blocks (POS: drops the signed reasoning a call under another prompt cannot replay)
 - myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods)
 - myrm_agent_harness.agent.context_management.infra.schemas::StructuredSummary (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
 - myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout::ProgressClock / SummaryProgressTracker (POS: Progress-aware timeout primitives for summarization. Decouples timeout detection)
@@ -30,6 +31,7 @@ from pydantic import BaseModel, Field
 from myrm_agent_harness.agent.config.llm_safety import normalize_messages
 from myrm_agent_harness.agent.security.detection.leak_detector import redact_leaks
 from myrm_agent_harness.agent.security.detection.pii_redactor import redact_pii
+from myrm_agent_harness.core.thinking_blocks import without_thinking_blocks
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from ....infra.schemas import StructuredSummary
@@ -205,4 +207,5 @@ def _build_summary_invocation_messages(
     cache_prefix_messages: list[BaseMessage] | None,
 ) -> list[BaseMessage]:
     # Aux-guard head trimming can orphan tool results; re-pair like the main call (healthy prefix stays identical).
-    return [*normalize_messages(cache_prefix_messages or []), HumanMessage(content=prompt)]
+    # The summary call runs under its own prompt, so the provider could not take signed reasoning back.
+    return [*without_thinking_blocks(normalize_messages(cache_prefix_messages or [])), HumanMessage(content=prompt)]

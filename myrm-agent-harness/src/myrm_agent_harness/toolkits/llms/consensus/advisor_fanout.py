@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message, last_user_authored_index
 from myrm_agent_harness.toolkits.llms.consensus._history import flatten_tool_free_history
 from myrm_agent_harness.toolkits.llms.consensus._streaming import collect_stream
 from myrm_agent_harness.toolkits.llms.consensus.advisor_prompts import ADVISOR_SYSTEM
@@ -45,8 +46,9 @@ def _redact_for_privacy(
 
 
 def _extract_last_human_query(messages: list[BaseMessage]) -> str:
+    """The text of the latest message the user wrote; notices the runtime appended behind it are not the question."""
     for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
+        if isinstance(msg, HumanMessage) and is_user_authored_human_message(msg):
             content = msg.content
             if isinstance(content, str) and content.strip():
                 return content.strip()
@@ -88,10 +90,10 @@ def should_run_fanout(
     if fanout == "every_n":
         n = max(1, every_n)
         return iteration % n == 0
-    # user_turn: only when the acting model call starts on a fresh user message
-    if not messages:
-        return False
-    return isinstance(messages[-1], HumanMessage)
+    # user_turn: only when the acting model call starts on a fresh user message. Notices the runtime appended behind
+    # it are HumanMessages too, but a request that ends on one is a step of the tool loop, not a new turn.
+    user_index = last_user_authored_index(messages)
+    return user_index != -1 and all(isinstance(msg, HumanMessage) for msg in messages[user_index + 1 :])
 
 
 class AdvisorFanoutRunner:

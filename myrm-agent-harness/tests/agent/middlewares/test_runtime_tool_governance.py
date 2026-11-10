@@ -10,6 +10,7 @@ from myrm_agent_harness.agent.middlewares.tooling._runtime_tool_governance impor
     derive_runtime_allowed_tools,
     extract_recent_human_text,
 )
+from myrm_agent_harness.core.message_origin import runtime_human_message
 
 
 def test_extract_recent_human_text_uses_latest_human_message() -> None:
@@ -20,6 +21,16 @@ def test_extract_recent_human_text_uses_latest_human_message() -> None:
     ]
 
     assert extract_recent_human_text(messages) == "latest user input"
+
+
+def test_extract_recent_human_text_skips_notices_the_runtime_appended() -> None:
+    messages: list[object] = [
+        HumanMessage(content="deploy the service"),
+        AIMessage(content="ack"),
+        runtime_human_message("[constraint] the sandbox has no network?"),
+    ]
+
+    assert extract_recent_human_text(messages) == "deploy the service"
 
 
 def test_extract_recent_human_text_handles_segment_list_content() -> None:

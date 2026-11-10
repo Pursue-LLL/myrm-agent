@@ -3,12 +3,14 @@
 [INPUT]
 - langchain_core.messages::BaseMessage, AIMessage, ToolMessage (POS: LangChain 消息类)
 - langchain_core.tools::BaseTool (POS: LangChain tool definitions)
+- pydantic::BaseModel (POS: v2 schema models, the only ones that can render a JSON Schema)
+- core.thinking_blocks::thinking_blocks_text (POS: 签名 thinking 块回放给模型的推理文本)
 - utils.text_utils::get_token_count, PLANNING_ENCODING (POS: Token 计数工具)
 - utils.image_utils::IMAGE_TOKEN_ESTIMATE, is_image_content_item (POS: 图片 Token 估算)
 
 [OUTPUT]
 - estimate_content_tokens(): 估算单条 message content 的 token 数
-- estimate_message_tokens(): 估算单条完整 message 的 token 数
+- estimate_message_tokens(): 估算单条完整 message 的 token 数（含回放的签名 thinking 块文本）
 - estimate_messages_tokens(): 估算 message 列表总 token 数
 - estimate_tool_descriptions_tokens(): Turn-1 inventory approximation (descriptions + wrapper)
 - estimate_request_tools_tokens(): Live ModelRequest tools overhead（含参数 schema）
@@ -32,7 +34,9 @@ from typing import cast
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.tools import BaseTool
+from pydantic import BaseModel
 
+from myrm_agent_harness.core.thinking_blocks import thinking_blocks_text
 from myrm_agent_harness.utils.image_utils import (
     IMAGE_TOKEN_ESTIMATE,
     is_image_content_item,
@@ -70,10 +74,13 @@ estimate_text_tokens = estimate_content_tokens
 def estimate_message_tokens(msg: BaseMessage) -> int:
     """Estimate token count for a complete message including all token-consuming fields.
 
-    Covers: content, AIMessage.tool_calls args, ToolMessage metadata, and per-message
-    framing overhead (~4 tokens for role/separators).
+    Covers: content, AIMessage.tool_calls args, the signed reasoning an AIMessage replays, ToolMessage
+    metadata, and per-message framing overhead (~4 tokens for role/separators).
     """
     total = estimate_content_tokens(msg.content) + _PER_MESSAGE_OVERHEAD
+
+    if reasoning := thinking_blocks_text(msg):
+        total += get_token_count(reasoning)
 
     if isinstance(msg, AIMessage) and msg.tool_calls:
         for tc in msg.tool_calls:
@@ -114,6 +121,8 @@ def tool_input_schema(tool: BaseTool) -> dict[str, object]:
         if isinstance(args_schema, dict):
             return cast("dict[str, object]", args_schema)
         schema_model = tool.get_input_schema()
+        if not issubclass(schema_model, BaseModel):
+            return {}
         return cast("dict[str, object]", schema_model.model_json_schema())
     except Exception:
         return {}

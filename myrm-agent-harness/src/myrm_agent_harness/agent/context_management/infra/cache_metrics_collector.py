@@ -13,7 +13,7 @@ directory. Each completed LLM response appends one JSON line (NDJSON) per day fi
 - clear_pending_explicit_cache_snapshot(): reset pending (middleware / cleanup)
 - set_pending_explicit_cache_snapshot(): store snapshot for next LLM response
 - take_pending_explicit_cache_snapshot(): consume snapshot (pairing)
-- try_persist_cache_call_metrics(): run cache break detection (always-on) + append NDJSON (opt-in)
+- try_persist_cache_call_metrics(): run cache break detection (always-on) + append NDJSON (opt-in); a record carries the call's ``cache_creation_tokens`` and, when the request edited an earlier message, its ``prefix_shift``
 - get_pending_cache_break_event(): consume pending cache break event for SSE dispatch
 
 [POS]
@@ -42,13 +42,18 @@ from contextvars import ContextVar
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.utils.token_economics.cache_economics import (
     coerce_usage_non_negative_int,
     compute_prompt_cache_stats,
 )
 
+from .prefix_chain import PrefixShift
 from .schemas import CacheUsageFeedback
+
+if TYPE_CHECKING:
+    from .cache_break_detector import CacheBreakDetector
 
 logger = logging.getLogger(__name__)
 
@@ -185,22 +190,34 @@ def _append_ndjson_line(base_dir: str, payload: dict[str, object]) -> None:
         logger.exception("Failed to append cache metrics")
 
 
-def _check_cache_break(cached_tokens: int, response: Mapping[str, object]) -> dict[str, object] | None:
-    """Run cache break detection (always-on, independent of NDJSON persistence)."""
+def _current_detector() -> "CacheBreakDetector | None":
+    # Resolved per call: the detector is bound to the run that is answering now.
     from .cache_break_detector import get_cache_break_detector
 
-    detector = get_cache_break_detector()
+    return get_cache_break_detector()
+
+
+def _cache_creation_tokens(response: Mapping[str, object]) -> int:
+    """Tokens the provider wrote to its prompt cache for this call; 0 when the usage reports none."""
+    token_usage = response.get("usage", {})
+    if not isinstance(token_usage, dict):
+        return 0
+    return coerce_usage_non_negative_int(token_usage.get("cache_creation_input_tokens"))
+
+
+def _take_prefix_shift() -> PrefixShift | None:
+    """The message-prefix shift recorded for this call (always-on, independent of NDJSON persistence)."""
+    detector = _current_detector()
+    return None if detector is None else detector.consume_prefix_shift()
+
+
+def _check_cache_break(cached_tokens: int, response: Mapping[str, object]) -> dict[str, object] | None:
+    """Run cache break detection (always-on, independent of NDJSON persistence)."""
+    detector = _current_detector()
     if detector is None:
         return None
 
-    token_usage = response.get("usage", {})
-    cache_creation = 0
-    if isinstance(token_usage, dict):
-        raw = token_usage.get("cache_creation_input_tokens")
-        if raw is not None:
-            cache_creation = coerce_usage_non_negative_int(raw)
-
-    event = detector.check_cache_break(cached_tokens, cache_creation)
+    event = detector.check_cache_break(cached_tokens, _cache_creation_tokens(response))
     if event is None:
         return None
 
@@ -220,6 +237,7 @@ def try_persist_cache_call_metrics(response: Mapping[str, object]) -> None:
     prompt_tokens, completion_tokens, cached_tokens = _usage_ints(response)
     _record_cache_usage_feedback(prompt_tokens, cached_tokens)
 
+    prefix_shift = _take_prefix_shift()
     break_info = _check_cache_break(cached_tokens, response)
 
     # Store break event in ContextVar for SSE dispatch (always-on, independent of NDJSON)
@@ -244,6 +262,7 @@ def try_persist_cache_call_metrics(response: Mapping[str, object]) -> None:
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
         "cached_tokens": cached_tokens,
+        "cache_creation_tokens": _cache_creation_tokens(response),
         "actual_cache_hit_rate": cache_hit_rate,
         "cost_savings_pct_vs_uncached_input": cost_savings_pct,
         "explicit_cache_snapshot": pending is not None,
@@ -254,6 +273,9 @@ def try_persist_cache_call_metrics(response: Mapping[str, object]) -> None:
 
     if break_info is not None:
         record["cache_break"] = break_info
+
+    if prefix_shift is not None:
+        record["prefix_shift"] = prefix_shift.as_record()
 
     _append_ndjson_line(base, record)
 

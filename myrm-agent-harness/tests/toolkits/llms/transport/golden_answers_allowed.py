@@ -21,6 +21,15 @@ from typing import Final
 from .golden_compare import Allowed
 
 ANSWER_ALLOWED: Final[Mapping[str, Allowed]] = {
+    **{
+        f"anthropic.{name}": Allowed(
+            {"thinking_blocks": 1},
+            "The signed reasoning block the provider sent stays on the message, because the provider takes it back only "
+            "when the next request replays it unchanged; the previous stack kept the reasoning text and dropped the "
+            "block.",
+        )
+        for name in ("thinking", "redacted_thinking", "s_thinking")
+    },
     "anthropic.server_tool": Allowed(
         {"tool_calls": []},
         "A tool the provider ran itself (server_tool_use, its result sits in the same message) is not a call for the "

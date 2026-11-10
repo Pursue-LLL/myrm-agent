@@ -1,15 +1,19 @@
 """Citation rules middleware for GeneralAgent.
 
-Appends citation formatting rules as a transient HumanMessage (via request.override)
-when the current user turn contains UNTRUSTED external sources.
-Uses HumanMessage to preserve SystemMessage hash stability for prompt caching.
+Shows the citation formatting rules as a transient runtime HumanMessage (via request.override) once the current
+turn holds UNTRUSTED external sources. Uses a HumanMessage to preserve SystemMessage hash stability for prompt caching.
+
+The notice is a pure function of the history: it stands right behind the tool results that first brought a source
+into the turn, on that request and on every later one. A request therefore always extends the one before it, which
+keeps the provider's cached prefix and the reasoning blocks written under it valid for the rest of the run.
 """
 
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import BaseMessage, ToolMessage
+from myrm_agent_harness.api import last_user_authored_index, runtime_human_message
 from myrm_agent_harness.utils.locale import is_chinese
 
 from app.ai_agents.prompts.general_agent_prompt import get_citation_rules_if_needed
@@ -17,59 +21,52 @@ from app.ai_agents.prompts.general_agent_prompt import get_citation_rules_if_nee
 logger = logging.getLogger(__name__)
 
 _UNTRUSTED_DATA_MARKER = "<<<UNTRUSTED_DATA "
-_CITATION_RULES_TURN_KEY = "citation_rules_injected_for_turn"
+_SKIPPED_PROMPT_MODES = ("naked", "search")
+
+_REMINDER_ZH = (
+    "\n\n【任务完整性提醒】\n你必须同时严格遵循并满足上方用户原始提问中要求的所有特定输出格式、末尾特定标记及约束条件。"
+)
+_REMINDER_EN = (
+    "\n\n[TASK INTEGRITY REMINDER]\n"
+    "You must also strictly fulfill all output format instructions, custom endings, "
+    "and specific constraints specified in the original user request above."
+)
 
 
-def _get_last_human_turn_index(messages: Sequence[object]) -> int:
-    """Return the index of the latest HumanMessage, or -1 when absent."""
-    for i in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[i], HumanMessage):
-            return i
+def _end_of_first_source_group(messages: Sequence[BaseMessage]) -> int:
+    """Index of the last tool result of the group that first brought an external source into the current turn.
+
+    Only the messages behind the user's latest one are scanned, so sources of earlier turns never trigger the
+    rules. A group is the run of tool results one assistant message asked for; the notice may only follow all of
+    them, since a message between two results of one call is rejected by the providers. Returns -1 when there is no
+    turn or the turn holds no source.
+    """
+    turn_start = last_user_authored_index(messages)
+    if turn_start == -1:
+        return -1
+    for i in range(turn_start + 1, len(messages)):
+        message = messages[i]
+        if isinstance(message, ToolMessage) and isinstance(message.content, str) and _UNTRUSTED_DATA_MARKER in message.content:
+            end = i
+            while end + 1 < len(messages) and isinstance(messages[end + 1], ToolMessage):
+                end += 1
+            return end
     return -1
 
 
-def _has_external_sources_in_current_turn(messages: Sequence[object]) -> bool:
-    """Check whether current turn contains UNTRUSTED_DATA boundary markers.
-
-    Only scans messages after the last HumanMessage to avoid false positives
-    from previous turns.
-    """
-    last_human_idx = _get_last_human_turn_index(messages)
-    if last_human_idx == -1:
-        logger.debug("No HumanMessage found when checking for external sources")
-        return False
-
-    for msg in messages[last_human_idx + 1 :]:
-        if isinstance(msg, ToolMessage):
-            content = msg.content
-            if isinstance(content, str) and _UNTRUSTED_DATA_MARKER in content:
-                return True
-
-    return False
+def _rules_notice(prompt_locale: object) -> str | None:
+    """The citation rules in the language of the run, with the reminder that the user's own format rules still hold."""
+    locale = prompt_locale if isinstance(prompt_locale, str) else None
+    rules = get_citation_rules_if_needed(True, locale=locale)
+    if not rules:
+        return None
+    return f"[SYSTEM INSTRUCTION]\n{rules}{_REMINDER_ZH if is_chinese(locale) else _REMINDER_EN}"
 
 
-def _should_inject_citation_rules(
-    messages: Sequence[object],
-    ctx: dict[str, object] | None,
-) -> tuple[bool, int]:
-    """Return whether to inject full citation rules and the active turn index."""
-    turn_idx = _get_last_human_turn_index(messages)
-    if turn_idx == -1:
-        return False, turn_idx
+class CitationRulesMiddleware(AgentMiddleware):
+    """Shows citation formatting rules when external sources exist in the user turn.
 
-    if not _has_external_sources_in_current_turn(messages):
-        return False, turn_idx
-
-    if ctx is not None and ctx.get(_CITATION_RULES_TURN_KEY) == turn_idx:
-        return False, turn_idx
-
-    return True, turn_idx
-
-
-class CitationRulesMiddleware(AgentMiddleware):  # type: ignore[type-arg]
-    """Injects citation formatting rules when external sources exist in the user turn.
-
-    Uses request.override() with HumanMessage (non-persistent, cache-safe).
+    Uses request.override() with a runtime-written HumanMessage (non-persistent, cache-safe).
     """
 
     name = "citation_rules_middleware"
@@ -86,59 +83,22 @@ class CitationRulesMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        ctx: dict[str, object] | None = None
-        if request.runtime is not None:
-            runtime_ctx = getattr(request.runtime, "context", None)
-            if isinstance(runtime_ctx, dict):
-                ctx = runtime_ctx
-                prompt_mode = runtime_ctx.get("prompt_mode")
-                if prompt_mode in ("naked", "search"):
-                    return await handler(request)
+        run_context = getattr(request.runtime, "context", None) if request.runtime is not None else None
+        ctx: dict[str, object] = run_context if isinstance(run_context, dict) else {}
+        if ctx.get("prompt_mode") in _SKIPPED_PROMPT_MODES:
+            return await handler(request)
 
-        state = request.state
-        raw_messages = state.get("messages", [])
-        messages: list[object] = list(raw_messages) if isinstance(raw_messages, list) else []
+        group_end = _end_of_first_source_group(request.messages)
+        if group_end == -1:
+            return await handler(request)
+        notice = _rules_notice(ctx.get("prompt_locale"))
+        if notice is None:
+            return await handler(request)
 
-        should_inject, turn_idx = _should_inject_citation_rules(messages, ctx)
-        if should_inject:
-            locale_val = ctx.get("prompt_locale") if ctx is not None else None
-            locale = locale_val if isinstance(locale_val, str) else None
-
-            # Fallback to detecting language from the current turn's HumanMessage
-            if not locale or not is_chinese(locale):
-                if 0 <= turn_idx < len(messages):
-                    h_msg = messages[turn_idx]
-                    h_content = getattr(h_msg, "content", None)
-                    if isinstance(h_content, str) and is_chinese(h_content):
-                        locale = "zh-CN"
-
-            citation_content = get_citation_rules_if_needed(True, locale=locale)
-
-            logger.info(
-                "Citation rules: turn_idx=%s, has_external_sources=True, will_inject=%s, locale=%s",
-                turn_idx,
-                citation_content is not None,
-                locale,
-            )
-
-            if citation_content:
-                reminder = (
-                    "\n\n【任务完整性提醒】\n你必须同时严格遵循并满足上方用户原始提问中要求的所有特定输出格式、末尾特定标记及约束条件。"
-                    if is_chinese(locale)
-                    else (
-                        "\n\n[TASK INTEGRITY REMINDER]\n"
-                        "You must also strictly fulfill all output format instructions, custom endings, "
-                        "and specific constraints specified in the original user request above."
-                    )
-                )
-                instruction_text = f"[SYSTEM INSTRUCTION]\n{citation_content}{reminder}"
-                new_messages = list(request.messages)
-                new_messages.append(HumanMessage(content=instruction_text))
-                request = request.override(messages=new_messages)
-                if ctx is not None:
-                    ctx[_CITATION_RULES_TURN_KEY] = turn_idx
-
-        return await handler(request)
+        logger.debug("Citation rules placed behind message %d of %d", group_end, len(request.messages))
+        messages = list(request.messages)
+        messages.insert(group_end + 1, runtime_human_message(notice))
+        return await handler(request.override(messages=messages))
 
 
 citation_rules_middleware = CitationRulesMiddleware()

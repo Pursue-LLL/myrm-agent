@@ -27,7 +27,7 @@ Design message order:
 - toolkits.memory.config::RecallMode, RetrievalConfig (POS: Memory configuration — functional switches and retrieval params only.)
 - toolkits.memory.manager::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit. Orchestrates all memory operations via pure dependency injection — no concrete backends, only protocols.)
 - toolkits.memory.tool_guidance::ToolGuidanceItem, synthesize_tool_guidance (POS: Tool memory procedural contract & synthesis domain layer.)
-- agent.middlewares._message_origin::is_user_authored_human_message (POS: Message-provenance predicate shared by the approval, security and memory-context middlewares, and the constructor of the messages it skips.)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - .memory_context_format::MemoryBlock, MEMORY_BLOCK_BUDGET_CHARS, _format_memory_context, _has_memory_context, _memory_context_message, _bound_tool_names, _memory_search_tool_bound (POS: Memory block renderer for MemoryContextMiddleware: renders the block text and builds and recognises the flagged message that carries it.)
 
 [OUTPUT]
@@ -49,7 +49,7 @@ from typing import TYPE_CHECKING
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_core.messages import AIMessage, AnyMessage, SystemMessage
 
-from myrm_agent_harness.agent.middlewares._message_origin import is_user_authored_human_message
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.toolkits.memory.config import RecallMode, RetrievalConfig
 from myrm_agent_harness.toolkits.memory.tool_guidance import (
     ToolGuidanceItem,

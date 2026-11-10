@@ -1,4 +1,4 @@
-"""Tests for progress_middleware — todo blueprint injection into last HumanMessage."""
+"""Tests for progress_middleware — todo blueprint injection into the user's latest message."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from langchain.agents.middleware import ModelRequest, ModelResponse
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import (
@@ -65,7 +65,7 @@ async def test_injects_into_last_string_human_message() -> None:
     )
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg, HumanMessage)
     assert "t1" in last_msg.content
@@ -82,7 +82,7 @@ async def test_injects_into_list_content_human_message() -> None:
     )
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg.content, list)
     assert any(part.get("type") == "text" and "t1" in part["text"] for part in last_msg.content)
@@ -98,7 +98,7 @@ async def test_appends_when_no_human_message() -> None:
     )
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg, HumanMessage)
     assert "t1" in last_msg.content
@@ -114,7 +114,7 @@ async def test_workspace_path_from_runtime_context() -> None:
     )
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    assert get_todos.await_args.args[0] == "/tmp/ws"
+    assert get_todos.await_args_list[-1].args[0] == "/tmp/ws"
     handler.assert_awaited_once()
 
 
@@ -136,7 +136,7 @@ async def test_idempotent_strip_on_repeated_calls() -> None:
     request = ModelRequest(model=AsyncMock(), messages=[initial_human_msg])
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg, HumanMessage)
     # Ensure "original query" is present and only ONE "[SYSTEM INSTRUCTION]" block exists
@@ -165,7 +165,7 @@ async def test_compact_focus_view_for_many_tasks() -> None:
     request = ModelRequest(model=AsyncMock(), messages=[HumanMessage(content="start")])
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg, HumanMessage)
     # Check compact summary
@@ -188,7 +188,7 @@ async def test_blocked_task_focus_skip_and_warning() -> None:
     request = ModelRequest(model=AsyncMock(), messages=[HumanMessage(content="start")])
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg, HumanMessage)
     # Check that focus skipped blocked t1 and targeted pending t2
@@ -212,7 +212,7 @@ async def test_compact_summary_with_cancelled_items() -> None:
     request = ModelRequest(model=AsyncMock(), messages=[HumanMessage(content="start")])
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg, HumanMessage)
     assert "[✓] 1 completed, 2 cancelled" in last_msg.content
@@ -241,7 +241,7 @@ async def test_list_content_with_previous_progress_stripped() -> None:
     )
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg.content, list)
     text_parts = [p for p in last_msg.content if p.get("type") == "text"]
@@ -265,38 +265,11 @@ async def test_all_incomplete_blocked_triggers_special_instruction() -> None:
     request = ModelRequest(model=AsyncMock(), messages=[HumanMessage(content="what now?")])
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
+    passed_request = handler.await_args_list[-1].args[0]
     last_msg = passed_request.messages[-1]
     assert isinstance(last_msg, HumanMessage)
     assert "[ALL REMAINING TASKS BLOCKED]" in last_msg.content
     assert "Call `todo_write(merge=true)` to mark unachievable tasks as 'cancelled'" in last_msg.content
-
-
-@pytest.mark.asyncio
-async def test_tool_loop_does_not_modify_earlier_messages_preserving_cache() -> None:
-    """During tool calling loops, historical HumanMessages must remain bit-for-bit unchanged."""
-    store = TodoStore(
-        goal="Refactor",
-        todos=[TodoItem(id="t1", content="step 1", status=TodoStatus.IN_PROGRESS)],
-    )
-    middleware = progress_middleware(AsyncMock(return_value=store))
-    original_human = HumanMessage(content="Please refactor auth module")
-    tool_msg = ToolMessage(content="file content", tool_call_id="call_1")
-    request = ModelRequest(
-        model=AsyncMock(),
-        messages=[
-            original_human,
-            AIMessage(content="", tool_calls=[{"name": "file_read", "args": {}, "id": "call_1"}]),
-            tool_msg,
-        ],
-    )
-    handler = AsyncMock(return_value=ModelResponse(result=[]))
-    await middleware.awrap_model_call(request, handler)
-    passed_request = handler.await_args.args[0]
-    # First HumanMessage must be completely untouched to guarantee KV cache preservation
-    assert passed_request.messages[0] is original_human
-    assert passed_request.messages[0].content == "Please refactor auth module"
-    assert passed_request.messages == request.messages
 
 
 @pytest.mark.asyncio
@@ -310,7 +283,7 @@ async def test_focus_lands_on_the_user_message_when_system_messages_follow_it() 
 
     await middleware.awrap_model_call(request, handler)
 
-    sent = handler.await_args.args[0].messages
+    sent = handler.await_args_list[-1].args[0].messages
     assert sent[0].id == "u1"
     assert "do it" in sent[0].content
     assert "Ship it" in sent[0].content

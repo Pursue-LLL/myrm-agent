@@ -3,6 +3,7 @@
 [INPUT]
 - memory.manager::MemoryManager (POS: unified memory facade)
 - memory.agent_surface.memory_recall_budget::* (POS: recall output budget guardrails)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - MemoryPreCompactService: default ContextPreCompactCallback implementation
@@ -24,6 +25,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from myrm_agent_harness.agent.context_management.infra.schemas import (
     PreCompactInjection,
 )
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.core.security.detection.content_boundary import (
     sanitize,
     wrap_untrusted,
@@ -152,7 +154,8 @@ def _build_query(messages: list[BaseMessage], user_goal_hint: str) -> str:
 
     recent_turns: list[str] = []
     for message in reversed(messages):
-        if isinstance(message, HumanMessage):
+        # What the user asked is the query; a notice the runtime appended says nothing about the topic.
+        if is_user_authored_human_message(message):
             text = _message_text(message)
             if text and _PRE_COMPACT_RECALL_MARKER not in text:
                 recent_turns.append(text)

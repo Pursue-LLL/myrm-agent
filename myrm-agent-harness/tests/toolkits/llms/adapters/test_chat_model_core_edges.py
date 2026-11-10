@@ -16,9 +16,9 @@ from pydantic import BaseModel
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel, clean_model_kwargs
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import EmptyChoicesError
-from myrm_agent_harness.toolkits.llms.adapters.converters import (
-    _convert_raw_tool_call_to_langchain,
-    _resolve_tool_schema,
+from myrm_agent_harness.toolkits.llms.adapters.tool_call_conversion import (
+    convert_raw_tool_call_to_langchain,
+    resolve_tool_schema,
 )
 from myrm_agent_harness.toolkits.llms.adapters.tool_call_parsers import ToolCallDict
 
@@ -71,7 +71,7 @@ class TestAinvokeFallbacks:
             result = await _make_model().ainvoke("hi", config=None, _in_fallback=True, temperature=0.5)
         assert result.content == "ok"
         mock_ainvoke.assert_awaited_once()
-        fallback_kwargs = mock_ainvoke.await_args.kwargs
+        fallback_kwargs = mock_ainvoke.await_args_list[-1].kwargs
         assert "temperature" in fallback_kwargs
 
     async def test_json_mode_fallback_returns_reasoning_content(self) -> None:
@@ -90,7 +90,7 @@ class TestAinvokeFallbacks:
             result = await _make_model().ainvoke("hi", config=None, _json_mode_fallback=True)
         assert result.content == "ok"
         assert mock_ainvoke.await_count == 2
-        second_kwargs = mock_ainvoke.await_args.kwargs
+        second_kwargs = mock_ainvoke.await_args_list[-1].kwargs
         assert second_kwargs["_in_fallback"] is True
 
 
@@ -346,8 +346,8 @@ class TestCreateChatResultEdges:
 class TestConverterUtilities:
     def test_resolve_tool_schema_strips_namespace(self) -> None:
         schemas = {"echo": {"name": "echo"}}
-        assert _resolve_tool_schema("ns:echo", schemas) == {"name": "echo"}
-        assert _resolve_tool_schema("missing", schemas) is None
+        assert resolve_tool_schema("ns:echo", schemas) == {"name": "echo"}
+        assert resolve_tool_schema("missing", schemas) is None
 
     def test_raw_tool_call_with_dict_args_and_generated_id(self) -> None:
         tc: ToolCallDict = {
@@ -358,7 +358,7 @@ class TestConverterUtilities:
                 "arguments": {"text": "hi"},
             },
         }
-        tool_call, metadata = _convert_raw_tool_call_to_langchain(tc)
+        tool_call, metadata = convert_raw_tool_call_to_langchain(tc)
         assert tool_call is not None
         assert tool_call["name"] == "echo"
         assert tool_call["args"] == {"text": "hi"}

@@ -110,7 +110,7 @@ class TestHtmlEntityRegex:
         assert HTML_ENTITY_RE.search(text) is None
 
 
-# ── Integration with _parse_tool_call_args_result ────────────────────
+# ── Integration with parse_tool_call_args_result ────────────────────
 
 
 class TestParseToolCallArgsIntegration:
@@ -118,12 +118,12 @@ class TestParseToolCallArgsIntegration:
 
     @pytest.fixture(autouse=True)
     def _import_parser(self) -> None:
-        from myrm_agent_harness.toolkits.llms.adapters.converters import (
-            _parse_tool_call_args_result,
+        from myrm_agent_harness.toolkits.llms.adapters.tool_call_conversion import (
+            parse_tool_call_args_result,
         )
 
         def parse(args: str | dict[str, object], tool_name: str) -> dict[str, object]:
-            return _parse_tool_call_args_result(args, tool_name, decode_html_entities=True)[0]
+            return parse_tool_call_args_result(args, tool_name, decode_html_entities=True)[0]
 
         self.parse = parse
 

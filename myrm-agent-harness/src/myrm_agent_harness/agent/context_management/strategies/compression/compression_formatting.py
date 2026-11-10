@@ -18,6 +18,8 @@ Compression formatting utilities. Provides shared formatting functions used by c
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 from langchain_core.messages import AIMessage, ToolMessage
 
 from myrm_agent_harness.agent.context_management.infra.schemas import CompactToolCall
@@ -219,7 +221,7 @@ def _shrink_value(value: object, head: int = _SHRINK_HEAD, tail: int = _SHRINK_T
     return value
 
 
-def shrink_tool_call_args(tool_calls: list[dict[str, object]]) -> list[dict[str, object]]:
+def shrink_tool_call_args(tool_calls: Sequence[Mapping[str, object]]) -> list[dict[str, object]]:
     """Shrink long string values in tool_call args, preserving valid JSON structure.
 
     Used during context compression to prevent oversized tool_call arguments
@@ -235,5 +237,5 @@ def shrink_tool_call_args(tool_calls: list[dict[str, object]]) -> list[dict[str,
             shrunk_args = _shrink_value(args)
             result.append({**tc, "args": shrunk_args})
         else:
-            result.append(tc)
+            result.append(dict(tc))
     return result

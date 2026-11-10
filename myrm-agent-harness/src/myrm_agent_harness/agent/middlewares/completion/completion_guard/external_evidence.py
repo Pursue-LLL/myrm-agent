@@ -12,6 +12,7 @@ Whether a request needs external data at all is decided by
 
 [INPUT]
 - langchain_core.messages::HumanMessage (POS: human turn content extraction)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - completion.completion_guard.freshness::demands_external_evidence (POS: does the request need fresh external data)
 - agent.security.guards.loop_guard::CallRecord (POS: loop guard types)
 - toolkits.mcp.config::is_mcp_tool_name (POS: Direct FC MCP tool-name recognition)
@@ -20,7 +21,7 @@ Whether a request needs external data at all is decided by
 - build_external_evidence_reason(): block reason when evidence is required but missing
 - has_external_evidence(): True when web/browser or MCP evidence exists
 - can_produce_external_evidence(): True when a set of mounted tools could ever produce such evidence
-- extract_latest_human_text(): latest non-empty human message text
+- extract_latest_human_text(): latest non-empty text the user wrote (notices the runtime appended behind it are skipped)
 
 [POS]
 CompletionGuard external-evidence policy module. Like ``deliverable.write_verifier``, it holds a check on its own so
@@ -34,6 +35,7 @@ from collections.abc import Iterable, Sequence
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.agent.middlewares.completion.completion_guard.freshness import demands_external_evidence
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.toolkits.mcp.config import is_mcp_tool_name
 
 _BASH_TOOL_NAME = "bash_code_execute_tool"
@@ -57,7 +59,7 @@ def extract_latest_human_text(messages: Sequence[object]) -> str | None:
     )
 
     for message in reversed(messages):
-        if not isinstance(message, HumanMessage):
+        if not (isinstance(message, HumanMessage) and is_user_authored_human_message(message)):
             continue
         if isinstance(message.content, str):
             text = strip_catalog_blocks(message.content).strip()

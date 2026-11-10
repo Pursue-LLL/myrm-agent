@@ -8,7 +8,7 @@ appends (a recovery hint) nor a rewrite an outer middleware makes to the request
 
 [INPUT]
 - agent.middlewares.memory_context.memory_context_middleware::memory_context_middleware (POS: builds the block on every model call)
-- agent.middlewares._message_origin::runtime_human_message (POS: builds the notices the runtime appends behind the user's message)
+- core.message_origin::runtime_human_message (POS: builds the notices the runtime appends behind the user's message)
 - agent.middlewares.progress_middleware::progress_middleware (POS: surfaces the active todos on the message at the tail of a request)
 - agent.meta_tools.progress.schemas::TodoStore, TodoItem (POS: the active todos)
 - agent.skill_agent.context::get_memory_runtime_injection (POS: the injection status a call leaves for the server)
@@ -31,12 +31,12 @@ from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemM
 from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStore
-from myrm_agent_harness.agent.middlewares._message_origin import runtime_human_message
 from myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware import memory_context_middleware
 from myrm_agent_harness.agent.middlewares.progress_middleware import progress_middleware
 from myrm_agent_harness.agent.skill_agent.context import (
     get_memory_runtime_injection,
 )
+from myrm_agent_harness.core.message_origin import runtime_human_message
 from myrm_agent_harness.toolkits.memory.config import RecallMode
 from tests.support.memory_context_stubs import bound_manager, make_request
 

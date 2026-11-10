@@ -328,3 +328,20 @@ class TestToolInputSchemaBranches:
         tool.args_schema = None
         tool.get_input_schema.side_effect = RuntimeError("boom")
         assert tool_input_schema(tool) == {}
+
+    def test_a_schema_class_that_cannot_render_json_schema_returns_empty_schema(self) -> None:
+        tool = MagicMock()
+        tool.args_schema = None
+        tool.get_input_schema.return_value = dict
+        assert tool_input_schema(tool) == {}
+
+    def test_only_a_real_pydantic_model_is_asked_for_its_json_schema(self) -> None:
+        class LooksLikeAModel:
+            @classmethod
+            def model_json_schema(cls) -> dict[str, object]:
+                return {"type": "object", "properties": {"q": {"type": "string"}}}
+
+        tool = MagicMock()
+        tool.args_schema = None
+        tool.get_input_schema.return_value = LooksLikeAModel
+        assert tool_input_schema(tool) == {}

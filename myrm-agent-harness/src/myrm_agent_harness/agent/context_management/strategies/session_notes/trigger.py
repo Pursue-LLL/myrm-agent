@@ -3,6 +3,7 @@
 [INPUT]
 - schemas::SessionNotesConfig (POS: 笔记配置)
 - utils.token_estimation::estimate_messages_tokens (POS: Token 估算)
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - SessionNotesTrigger: 触发策略管理器（双阈值门控 + 状态追踪）
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .schemas import SessionNotesConfig
@@ -111,7 +113,7 @@ def _has_tool_calls_in_last_assistant_turn(messages: list[BaseMessage]) -> bool:
         if msg.type == "ai":
             if isinstance(msg.content, list):
                 return any(isinstance(block, dict) and block.get("type") == "tool_use" for block in msg.content)
-            return bool(hasattr(msg, "tool_calls") and msg.tool_calls)
-        if msg.type == "human":
+            return bool(getattr(msg, "tool_calls", None))
+        if is_user_authored_human_message(msg):
             break
     return False

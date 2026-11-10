@@ -247,7 +247,7 @@ class TestRecoveryMetricsRecording:
                 mock_registry,
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.adapters.converters.parse_tool_call_arguments_with_recovery",
+                "myrm_agent_harness.toolkits.llms.adapters.tool_call_conversion.parse_tool_call_arguments_with_recovery",
                 return_value=MagicMock(
                     args={"x": 1},
                     strategy="repair_x",

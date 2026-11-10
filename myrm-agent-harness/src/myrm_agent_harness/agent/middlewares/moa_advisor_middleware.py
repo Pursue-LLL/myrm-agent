@@ -8,6 +8,7 @@ at the prompt tail with KV-cache preservation without persisting to checkpoint h
 - toolkits.llms.consensus.advisor_fanout::AdvisorFanoutRunner
 - toolkits.llms.consensus.advisor_prompts::build_advisor_injection_block
 - langchain_core.messages::HumanMessage
+- core.message_origin::is_user_authored_human_message, runtime_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - utils.runtime.progress_sink::get_tool_progress_sink
 
 [OUTPUT]
@@ -34,6 +35,7 @@ from langchain_core.messages import HumanMessage
 from myrm_agent_harness.agent.middlewares.advisor_risk_trigger_router import (
     AdvisorRiskTriggerRouter,
 )
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message, runtime_human_message
 from myrm_agent_harness.toolkits.llms.consensus.advisor_fanout import (
     AdvisorFanoutRunner,
     apply_privacy_to_ref,
@@ -147,33 +149,32 @@ def _inject_advisor_block_cache_safe(
 ) -> list[object]:
     """Inject advisor guidance preserving prompt KV-cache prefixes.
 
-    If the current trailing message is a HumanMessage (e.g. user turn), append
-    to it in-place. If the trailing message is a ToolMessage/AIMessage (tool loop),
-    append a transient HumanMessage at the tail to preserve prefix cache matching
-    for preceding turns.
+    If the trailing message is the user's own (a fresh turn), append to it in-place. Otherwise (a tool loop, or a
+    notice the runtime appended behind the user's message) append a transient runtime notice at the tail to preserve
+    prefix cache matching for preceding turns. The notice stays marked as the runtime's, so the injectors behind this
+    middleware keep placing their blocks on the user's own message instead of on the advisor's.
     """
     if not messages:
-        return [HumanMessage(content=injection_text)]
+        return [runtime_human_message(injection_text)]
 
     new_messages = list(messages)
     last_msg = new_messages[-1]
 
-    if isinstance(last_msg, HumanMessage):
+    if isinstance(last_msg, HumanMessage) and is_user_authored_human_message(last_msg):
         if isinstance(last_msg.content, str):
             new_messages[-1] = HumanMessage(
                 content=f"{last_msg.content}\n\n{injection_text}",
                 id=last_msg.id,
             )
-        elif isinstance(last_msg.content, list):
+            return new_messages
+        if isinstance(last_msg.content, list):
             new_messages[-1] = HumanMessage(
                 content=[*last_msg.content, {"type": "text", "text": f"\n\n{injection_text}"}],
                 id=last_msg.id,
             )
-        else:
-            new_messages.append(HumanMessage(content=injection_text))
-    else:
-        new_messages.append(HumanMessage(content=injection_text))
+            return new_messages
 
+    new_messages.append(runtime_human_message(injection_text))
     return new_messages
 
 

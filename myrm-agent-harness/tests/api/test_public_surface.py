@@ -23,6 +23,7 @@ def test_api_package_exports_match_all() -> None:
 def test_api_stub_mirrors_lazy_registry() -> None:
     """The ``.pyi`` stub is what gives type checkers the real type of each lazy export."""
     api = importlib.import_module("myrm_agent_harness.api")
+    assert api.__file__ is not None
     stub = ast.parse(Path(api.__file__).with_suffix(".pyi").read_text(encoding="utf-8"))
     imports = [(node.module, alias) for node in stub.body if isinstance(node, ast.ImportFrom) for alias in node.names]
 
@@ -42,6 +43,17 @@ def test_api_lazy_exports_resolve_and_cache() -> None:
         value = getattr(api, name)
         assert value is not None
         assert api.__dict__[name] is value
+
+
+@pytest.mark.api
+def test_api_dir_lists_every_export_and_an_unknown_name_is_an_attribute_error() -> None:
+    api = importlib.import_module("myrm_agent_harness.api")
+
+    # ``dir()`` sorts whatever ``__dir__`` returns, so the module hook is read directly for what completers see.
+    assert api.__dir__() == sorted(api.__all__)
+    assert dir(api) == sorted(api.__all__)
+    with pytest.raises(AttributeError, match="has no attribute 'no_such_export'"):
+        _ = api.no_such_export
 
 
 @pytest.mark.api

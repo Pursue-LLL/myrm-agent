@@ -1,8 +1,8 @@
-"""Unit tests for citation pipeline: StreamContentCollector sources + CitationRulesMiddleware.
+"""Unit tests for citation pipeline: StreamContentCollector sources + citation rules content.
 
 Validates:
 1. StreamContentCollector correctly collects, deduplicates, and merges sources
-2. CitationRulesMiddleware UNTRUSTED_DATA scanning helpers
+2. Citation rules prompt content
 3. Source model structure integrity for frontend consumption
 """
 
@@ -278,76 +278,6 @@ class TestSourcesInSnapshot:
         assert source["snippet"] == "new"
         assert source["extra_field"] == "added"
         assert source["title"] == "Old"
-
-
-class TestCitationRulesMiddlewareLogic:
-    """Tests for citation_rules_middleware internal helpers."""
-
-    def test_has_external_sources_with_untrusted_data(self) -> None:
-        from langchain_core.messages import HumanMessage, ToolMessage
-
-        from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-            _has_external_sources_in_current_turn,
-        )
-
-        messages = [
-            HumanMessage(content="search for python"),
-            ToolMessage(
-                content="<<<UNTRUSTED_DATA web_search>>>\nPython is a language\n<<<END_UNTRUSTED_DATA>>>",
-                name="web_search",
-                tool_call_id="tc1",
-            ),
-        ]
-        assert _has_external_sources_in_current_turn(messages) is True
-
-    def test_has_external_sources_without_untrusted_data(self) -> None:
-        from langchain_core.messages import HumanMessage, ToolMessage
-
-        from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-            _has_external_sources_in_current_turn,
-        )
-
-        messages = [
-            HumanMessage(content="hello"),
-            ToolMessage(content="regular tool output", name="calculator", tool_call_id="tc1"),
-        ]
-        assert _has_external_sources_in_current_turn(messages) is False
-
-    def test_has_external_sources_only_scans_current_turn(self) -> None:
-        from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-
-        from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-            _has_external_sources_in_current_turn,
-        )
-
-        messages = [
-            HumanMessage(content="search web"),
-            ToolMessage(
-                content="<<<UNTRUSTED_DATA web>>>\nold data\n<<<END>>>",
-                name="web_search",
-                tool_call_id="tc0",
-            ),
-            AIMessage(content="previous answer"),
-            HumanMessage(content="now calculate 2+2"),
-            ToolMessage(content="4", name="calculator", tool_call_id="tc1"),
-        ]
-        assert _has_external_sources_in_current_turn(messages) is False
-
-    def test_has_external_sources_no_human_message(self) -> None:
-        from langchain_core.messages import ToolMessage
-
-        from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-            _has_external_sources_in_current_turn,
-        )
-
-        messages = [
-            ToolMessage(
-                content="<<<UNTRUSTED_DATA>>>data<<<END>>>",
-                name="web_search",
-                tool_call_id="tc1",
-            ),
-        ]
-        assert _has_external_sources_in_current_turn(messages) is False
 
 
 class TestCitationRulesContent:

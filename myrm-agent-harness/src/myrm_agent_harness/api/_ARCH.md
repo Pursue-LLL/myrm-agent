@@ -15,7 +15,7 @@ Stable public import surface for external consumers (`myrm-agent-server`, third-
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Core | Lazy export registry for public API | ✅ |
+| __init__.py | Core | Lazy export registry for public API; includes the message-provenance primitives (`runtime_human_message`, `last_user_authored_index`) a host middleware needs to write a runtime notice that the harness never mistakes for a new user turn | ✅ |
 | __init__.pyi | Core | Static type mirror of the lazy registry: type checkers resolve every export to its real type; kept one-to-one with `_EXPORTS` by `test_api_stub_mirrors_lazy_registry` | ✅ |
 | factory.py | Core | `create_skill_agent`, `SkillAgent` | ✅ |
 | types.py | Core | Runtime and streaming DTOs | ✅ |

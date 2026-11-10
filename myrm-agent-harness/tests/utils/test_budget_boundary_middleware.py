@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-from myrm_agent_harness.agent.middlewares._message_origin import is_user_authored_human_message
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.utils.token_economics.budget_boundary_middleware import (
     _HINT_PREFIX,
     BudgetBoundaryMiddleware,
@@ -190,7 +190,7 @@ class TestAfterModel:
     def test_strips_tool_calls_on_finalization(self) -> None:
         mw = BudgetBoundaryMiddleware()
         ai_msg = AIMessage(content="thinking", id="a1")
-        ai_msg.tool_calls = [{"name": "search", "args": {}, "id": "tc1"}]  # type: ignore[assignment]
+        ai_msg.tool_calls = [{"name": "search", "args": {}, "id": "tc1"}]
 
         with patch(
             "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
@@ -218,7 +218,7 @@ class TestAfterModel:
     def test_no_op_when_disabled(self) -> None:
         mw = BudgetBoundaryMiddleware(enabled=False)
         ai_msg = AIMessage(content="x")
-        ai_msg.tool_calls = [{"name": "t", "args": {}, "id": "tc"}]  # type: ignore[assignment]
+        ai_msg.tool_calls = [{"name": "t", "args": {}, "id": "tc"}]
         result = mw.after_model({"messages": [ai_msg]}, None)
         assert result is None
 

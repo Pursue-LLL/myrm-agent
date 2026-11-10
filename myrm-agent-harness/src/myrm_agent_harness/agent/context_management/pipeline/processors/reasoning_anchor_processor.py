@@ -5,6 +5,7 @@ strips them, and injects preserved decision anchors into the latest user message
 without disrupting Prompt Prefix Cache.
 
 [INPUT]
+- core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - pipeline.base::BaseProcessor, ProcessorContext (POS: Pipeline processor base class)
 - strategies.reasoning.anchor_extractor::extract_raw_reasoning, extract_reasoning_anchors (POS: Extraction logic)
 - strategies.reasoning.anchor_ledger::get_session_anchor_ledger (POS: Session anchor ledger)
@@ -24,8 +25,9 @@ from __future__ import annotations
 
 import re
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from ...strategies.reasoning.anchor_extractor import extract_raw_reasoning, extract_reasoning_anchors
@@ -67,7 +69,7 @@ class ReasoningAnchorProcessor(BaseProcessor):
 
     1. Scans messages for reasoning content and extracts core decision anchors
        into the session's immutable ledger before ThinkingBlockCleaner strips raw thoughts.
-    2. Injects the anchors known at the start of the turn into the latest HumanMessage.
+    2. Injects the anchors known at the start of the turn into the user's latest message.
        Anchors recorded while the turn runs appear from the next turn on, so the message
        stays byte-identical across tool rounds and the Prompt Prefix Cache keeps matching.
     """
@@ -92,7 +94,8 @@ class ReasoningAnchorProcessor(BaseProcessor):
         last_human_idx = -1
         human_count = 0
         for idx, msg in enumerate(context.messages):
-            if isinstance(msg, HumanMessage):
+            # A notice the runtime appended behind the user's message is not a turn of its own.
+            if is_user_authored_human_message(msg):
                 last_human_idx = idx
                 human_count += 1
             elif isinstance(msg, AIMessage):
@@ -129,7 +132,7 @@ class ReasoningAnchorProcessor(BaseProcessor):
         if last_human_idx == -1:
             return context
 
-        # Step 2: Inject the block frozen for this turn into the latest HumanMessage
+        # Step 2: Inject the block frozen for this turn into the user's latest message
         human_msg = context.messages[last_human_idx]
         block = ledger.render_for_turn(f"{human_count}:{human_msg.id or id(human_msg)}")
         if not block:

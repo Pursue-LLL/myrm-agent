@@ -20,6 +20,7 @@ IMPORTANT: Self-update reminder: once this file is updated, also update:
 - strategies.compactor.compactor::compress_messages_async (POS: priority-aware message compactor)
 - strategies.compactor.smart_fallback::apply_smart_fallback (POS: extreme overflow fallback)
 - meta_tools.file_ops.core.read_dedup::reset_all_read_dedup (POS: 读取时 dedup 守卫,压缩后重置)
+- core.message_origin::count_user_authored_messages (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - CompressProcessor: priority-aware compression with keep_recent ToolCallGroup protection and compression_intent consumption
@@ -33,6 +34,7 @@ from dataclasses import replace
 
 from langchain_core.messages import BaseMessage
 
+from myrm_agent_harness.core.message_origin import count_user_authored_messages
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_estimation import (
     estimate_messages_tokens,
@@ -146,7 +148,7 @@ class CompressProcessor(BaseProcessor):
         cfg = self.config
         eco_mode = self._is_eco_mode(context)
 
-        turn_count = sum(1 for m in context.messages if m.type == "human")
+        turn_count = count_user_authored_messages(context.messages)
 
         budget = calculate_context_budget(context.messages, cfg, **self._budget_kwargs(context))
         dynamic_threshold, _ = budget.calculate_dynamic_thresholds(
@@ -297,7 +299,8 @@ class CompressProcessor(BaseProcessor):
         if boundary_idx >= 0:
             context.metadata["last_compress_boundary_index"] = boundary_idx
 
-        compression_count = context.metadata.get("compression_count", 0) + 1
+        previous_count = context.metadata.get("compression_count", 0)
+        compression_count = (previous_count if isinstance(previous_count, int) else 0) + 1
         context.metadata["compression_count"] = compression_count
 
         logger.info(

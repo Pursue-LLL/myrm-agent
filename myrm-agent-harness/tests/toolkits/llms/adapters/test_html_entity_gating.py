@@ -14,12 +14,10 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.messages.tool import ToolCall
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
-from myrm_agent_harness.toolkits.llms.adapters.converters import (
-    _parse_tool_call_args_result,
-    convert_dict_to_message,
-)
+from myrm_agent_harness.toolkits.llms.adapters.converters import convert_dict_to_message
 from myrm_agent_harness.toolkits.llms.adapters.model_capability import ModelCapabilityDetector
 from myrm_agent_harness.toolkits.llms.adapters.stream_aggregator import StreamAggregator, finalize_stream
+from myrm_agent_harness.toolkits.llms.adapters.tool_call_conversion import parse_tool_call_args_result
 from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import (
     build_final_tool_call_chunk,
     recover_tool_call_payloads,
@@ -78,12 +76,12 @@ class TestIsXaiModel:
 
 class TestDecodingIsOptInThroughTheChain:
     def test_args_result_keeps_entities_by_default(self) -> None:
-        parsed, _ = _parse_tool_call_args_result({"command": ESCAPED_COMMAND}, "bash_code_execute_tool")
+        parsed, _ = parse_tool_call_args_result({"command": ESCAPED_COMMAND}, "bash_code_execute_tool")
 
         assert parsed == {"command": ESCAPED_COMMAND}
 
     def test_args_result_decodes_when_requested(self) -> None:
-        parsed, _ = _parse_tool_call_args_result(
+        parsed, _ = parse_tool_call_args_result(
             {"command": ESCAPED_COMMAND}, "bash_code_execute_tool", decode_html_entities=True
         )
 

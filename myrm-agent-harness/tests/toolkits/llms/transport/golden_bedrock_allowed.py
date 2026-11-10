@@ -168,6 +168,17 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
         providers=("bedrock_opus47",),
     ),
     AllowedDiff(
+        "bedrock-thinking-after-completed-tool-turn",
+        "Converse puts a short assistant turn between a tool result and the user text that follows it, so the last "
+        "assistant turn calls no tool and asks for no thinking block; only a tool loop in progress makes the API demand "
+        "one. The previous library switched thinking off because an earlier assistant turn had called tools without a "
+        "signed block.",
+        "+",
+        r"/body/additionalModelRequestFields/thinking",
+        providers=_CLAUDE_LIKE,
+        scenarios=("reasoning_tools",),
+    ),
+    AllowedDiff(
         "bedrock-thinking-default-temperature",
         "Extended thinking takes only the default temperature (the Anthropic wire drops it the same way); the previous "
         "request sent 0.2 beside the thinking block.",

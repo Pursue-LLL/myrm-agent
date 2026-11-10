@@ -2,9 +2,9 @@
 
 [INPUT]
 - agent.goals.continuation::check_continuation (POS: goal continuation verdict builder)
-- agent.middlewares._message_origin::runtime_human_message (POS: marks a teammate injection as runtime-authored, not user words)
 - agent.streaming.recovery.goal_session::goal_session_id (POS: goal lookup key of a run)
 - agent.streaming.types::AgentEventType (POS: streaming event type constants)
+- core.message_origin::runtime_human_message (POS: marks a teammate injection as runtime-authored, not user words)
 
 [OUTPUT]
 - StreamContinuationRecoveryMixin: handles steering/redirect (with partial AIMessage preservation), teammate P2P drain, subagent completion events, and goal continuation.
@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING, cast
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
-from myrm_agent_harness.agent.middlewares._message_origin import runtime_human_message
 from myrm_agent_harness.agent.streaming.recovery.goal_session import goal_session_id
 from myrm_agent_harness.agent.streaming.types import AgentEventType
+from myrm_agent_harness.core.message_origin import runtime_human_message
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:

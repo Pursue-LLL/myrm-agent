@@ -32,12 +32,12 @@ def _answer(*blocks: Body, reason: object = "end_turn", usage: object = None) ->
 
 
 def _message(body: Body) -> Body:
-    choice = body["choices"][0]  # type: ignore[index]
-    return choice["message"]  # type: ignore[no-any-return]
+    choice = body["choices"][0]
+    return choice["message"]
 
 
 def _finish(body: Body) -> object:
-    return body["choices"][0]["finish_reason"]  # type: ignore[index]
+    return body["choices"][0]["finish_reason"]
 
 
 def _call(tool_use_id: str, name: str, arguments: object) -> Body:
@@ -85,11 +85,11 @@ class TestAnswer:
             ROUTE, _answer(_call("1", "t", {"city": "東京"}), _call("2", "t", None), reason="tool_use")
         )
         calls = _message(body)["tool_calls"]
-        assert [c["function"]["arguments"] for c in calls] == ['{"city": "東京"}', "{}"]  # type: ignore[index]
+        assert [c["function"]["arguments"] for c in calls] == ['{"city": "東京"}', "{}"]
 
     def test_a_tool_name_comes_back_as_the_agent_registered_it(self) -> None:
         body = bedrock_response.parse(ROUTE, _answer(_call("1", encode_tool_name("web.search"), {}), reason="tool_use"))
-        assert _message(body)["tool_calls"][0]["function"]["name"] == "web.search"  # type: ignore[index]
+        assert _message(body)["tool_calls"][0]["function"]["name"] == "web.search"
 
     def test_reasoning_is_text_for_the_reader_and_signed_blocks_for_the_replay(self) -> None:
         thought = {"reasoningContent": {"reasoningText": {"text": "hm", "signature": "sig"}}}
@@ -113,11 +113,11 @@ class TestAnswer:
 class TestUsage:
     def test_the_counts_are_the_providers_and_the_total_is_the_providers_total(self) -> None:
         usage = bedrock_response.parse(ROUTE, _answer({"text": "x"}, usage=USAGE))["usage"]
-        assert (usage["prompt_tokens"], usage["completion_tokens"], usage["total_tokens"]) == (10, 5, 15)  # type: ignore[index]
+        assert (usage["prompt_tokens"], usage["completion_tokens"], usage["total_tokens"]) == (10, 5, 15)
 
     def test_a_total_that_is_not_the_sum_of_the_counts_stays_the_providers(self) -> None:
         usage = {"inputTokens": 10, "outputTokens": 5, "totalTokens": 99}
-        assert bedrock_response.parse(ROUTE, _answer({"text": "x"}, usage=usage))["usage"]["total_tokens"] == 99  # type: ignore[index]
+        assert bedrock_response.parse(ROUTE, _answer({"text": "x"}, usage=usage))["usage"]["total_tokens"] == 99
 
     def test_cache_reads_and_writes_count_toward_the_prompt_like_every_other_provider_reports_it(self) -> None:
         cached = {
@@ -140,14 +140,14 @@ class TestUsage:
         usage = bedrock_response.parse(ROUTE, _answer({"text": "x"}, usage={"inputTokens": 3, "outputTokens": 4}))[
             "usage"
         ]
-        assert usage["total_tokens"] == 7  # type: ignore[index]
+        assert usage["total_tokens"] == 7
 
     @pytest.mark.parametrize("junk", [None, "12", -3, True, 1.5, [1]])
     def test_a_count_that_is_no_positive_integer_is_zero(self, junk: object) -> None:
         parsed = bedrock_response.parse(
             ROUTE, _answer({"text": "x"}, usage={"inputTokens": junk, "outputTokens": junk})
         )
-        assert (parsed["usage"]["prompt_tokens"], parsed["usage"]["completion_tokens"]) == (0, 0)  # type: ignore[index]
+        assert (parsed["usage"]["prompt_tokens"], parsed["usage"]["completion_tokens"]) == (0, 0)
 
     @pytest.mark.parametrize("usage", [None, [], "x"])
     def test_an_answer_without_usage_is_still_an_answer(self, usage: object) -> None:
@@ -211,7 +211,7 @@ class TestStructuredAnswer:
         )
         message = _message(body)
         assert message["content"] == '{"a": 1}'
-        assert [c["function"]["name"] for c in message["tool_calls"]] == ["get_weather"]  # type: ignore[attr-defined,union-attr]
+        assert [c["function"]["name"] for c in message["tool_calls"]] == ["get_weather"]
         assert _finish(body) == "tool_calls"
 
 
@@ -239,7 +239,7 @@ def _play(*events: tuple[str, str]) -> list[Body]:
 
 
 def _delta(chunk: Body) -> Body:
-    return chunk["choices"][0]["delta"]  # type: ignore[index,no-any-return]
+    return chunk["choices"][0]["delta"]
 
 
 def _tool_start(index: int, tool_use_id: str, name: str) -> tuple[str, str]:
@@ -272,8 +272,8 @@ class TestStream:
             {"content": "lo"},
         ]
         last = chunks[-1]
-        assert last["choices"][0]["finish_reason"] == "stop"  # type: ignore[index]
-        assert last["usage"]["total_tokens"] == 15  # type: ignore[index]
+        assert last["choices"][0]["finish_reason"] == "stop"
+        assert last["usage"]["total_tokens"] == 15
         assert {c["id"] for c in chunks} == {last["id"]}
         assert all(c["object"] == "chat.completion.chunk" for c in chunks)
 
@@ -287,7 +287,7 @@ class TestStream:
 
     def test_a_stream_that_never_said_how_it_ended_gets_no_invented_finish(self) -> None:
         chunks = _play(_event("messageStart", role="assistant"), _text(0, "cut"))
-        assert [c["choices"][0]["finish_reason"] for c in chunks] == [None, None]  # type: ignore[index]
+        assert [c["choices"][0]["finish_reason"] for c in chunks] == [None, None]
 
     def test_tool_calls_are_announced_then_filled_and_numbered_from_zero(self) -> None:
         chunks = _play(
@@ -301,7 +301,7 @@ class TestStream:
             _event("messageStop", stopReason="tool_use"),
             _event("metadata", usage=USAGE),
         )
-        calls = [_delta(c)["tool_calls"][0] for c in chunks if "tool_calls" in _delta(c)]  # type: ignore[index]
+        calls = [_delta(c)["tool_calls"][0] for c in chunks if "tool_calls" in _delta(c)]
         assert calls == [
             {"index": 0, "id": "t1", "type": "function", "function": {"name": "get_weather", "arguments": ""}},
             {"index": 0, "function": {"arguments": '{"city": '}},
@@ -309,39 +309,30 @@ class TestStream:
             {"index": 1, "id": "t2", "type": "function", "function": {"name": "get_time", "arguments": ""}},
             {"index": 1, "function": {"arguments": "{}"}},
         ]
-        assert chunks[-1]["choices"][0]["finish_reason"] == "tool_calls"  # type: ignore[index]
+        assert chunks[-1]["choices"][0]["finish_reason"] == "tool_calls"
 
     def test_a_tool_that_takes_no_arguments_still_gets_an_object_to_parse(self) -> None:
         chunks = _play(_tool_start(0, "t1", "now"), _stop(0), *_END[1:])
         assert [_delta(c)["tool_calls"][0]["function"]["arguments"] for c in chunks if "tool_calls" in _delta(c)] == [
             "",
             "{}",
-        ]  # type: ignore[index]
+        ]
 
     def test_an_empty_piece_of_arguments_is_no_chunk(self) -> None:
         chunks = _play(_tool_start(0, "t1", "get_time"), _tool_input(0, ""), _tool_input(0, "{}"), _stop(0))
-        pieces = [_delta(c)["tool_calls"][0]["function"]["arguments"] for c in chunks if "tool_calls" in _delta(c)]  # type: ignore[index]
+        pieces = [_delta(c)["tool_calls"][0]["function"]["arguments"] for c in chunks if "tool_calls" in _delta(c)]
         assert pieces == ["", "{}"]  # the announcement, then the one real piece; no "{}" is added to arguments given
 
     def test_an_event_that_names_no_block_belongs_to_the_first(self) -> None:
         chunks = _play(
             _tool_start(0, "t1", "get_time"), _event("contentBlockDelta", delta={"toolUse": {"input": "{}"}})
         )
-        pieces = [_delta(c)["tool_calls"][0]["function"]["arguments"] for c in chunks if "tool_calls" in _delta(c)]  # type: ignore[index]
+        pieces = [_delta(c)["tool_calls"][0]["function"]["arguments"] for c in chunks if "tool_calls" in _delta(c)]
         assert pieces == ["", "{}"]
 
     def test_a_tool_name_comes_back_as_the_agent_registered_it(self) -> None:
         chunks = _play(_tool_start(0, "t1", encode_tool_name("web.search")))
-        assert _delta(chunks[0])["tool_calls"][0]["function"]["name"] == "web.search"  # type: ignore[index]
-
-    def test_reasoning_text_is_streamed_and_its_signature_and_redactions_are_not_chunks(self) -> None:
-        chunks = _play(
-            _event("contentBlockDelta", contentBlockIndex=0, delta={"reasoningContent": {"text": "thinking"}}),
-            _event("contentBlockDelta", contentBlockIndex=0, delta={"reasoningContent": {"signature": "sig"}}),
-            _event("contentBlockDelta", contentBlockIndex=0, delta={"reasoningContent": {"redactedContent": "QUJD"}}),
-            _stop(0),
-        )
-        assert [_delta(c) for c in chunks] == [{"reasoning_content": "thinking"}]
+        assert _delta(chunks[0])["tool_calls"][0]["function"]["name"] == "web.search"
 
     def test_the_structured_answer_is_buffered_and_comes_as_text_without_its_wrapper(self) -> None:
         chunks = _play(
@@ -353,7 +344,7 @@ class TestStream:
             _event("metadata", usage=USAGE),
         )
         assert [_delta(c) for c in chunks[:-1]] == [{"content": '{"a": "x"}'}]
-        assert chunks[-1]["choices"][0]["finish_reason"] == "stop"  # type: ignore[index]
+        assert chunks[-1]["choices"][0]["finish_reason"] == "stop"
 
     def test_a_structured_answer_that_is_not_json_comes_through_as_the_model_wrote_it(self) -> None:
         chunks = _play(_tool_start(0, "j", JSON_TOOL), _tool_input(0, '{"a": "x'), _stop(0))
@@ -374,13 +365,13 @@ class TestStream:
             _event("metadata", usage=USAGE),
         )
         assert _delta(chunks[0]) == {"content": '{"a": 1}'}
-        assert _delta(chunks[1])["tool_calls"][0]["index"] == 0  # type: ignore[index]
-        assert chunks[-1]["choices"][0]["finish_reason"] == "tool_calls"  # type: ignore[index]
+        assert _delta(chunks[1])["tool_calls"][0]["index"] == 0
+        assert chunks[-1]["choices"][0]["finish_reason"] == "tool_calls"
 
     def test_cache_counters_in_the_usage_are_folded_into_the_prompt(self) -> None:
         usage = {"inputTokens": 10, "outputTokens": 5, "cacheReadInputTokens": 6, "cacheWriteInputTokens": 4}
         chunks = _play(_event("messageStop", stopReason="end_turn"), _event("metadata", usage=usage))
-        assert chunks[-1]["usage"]["prompt_tokens"] == 20  # type: ignore[index]
+        assert chunks[-1]["usage"]["prompt_tokens"] == 20
 
     def test_events_the_adapter_has_no_use_for_are_skipped_and_odd_indexes_do_not_crash(self) -> None:
         chunks = _play(

@@ -1,12 +1,15 @@
-"""Progress middleware — inject todo blueprint into HumanMessage when todos exist.
+"""Progress middleware — inject the todo blueprint into the user's message when todos exist.
 
 [INPUT]
 - progress.schemas::TodoStore (POS: active todos)
+- agent.middlewares._run_notices::frozen_for_run, run_scope (POS: Request-local notices that keep their place and their text for the whole run.)
 - agent.middlewares._run_workspace::run_workspace (POS: the workspace of the current run)
+- core.message_origin::last_user_authored_index, runtime_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
+- core.message_tail::append_block_to_last_user_message (POS: Tail-of-turn injection primitive.)
 - langchain.agents.middleware::ModelRequest, wrap_model_call (POS: LC middleware)
 
 [OUTPUT]
-- progress_middleware: Injects non-persistent todo focus into last HumanMessage
+- progress_middleware: Injects the non-persistent todo focus into the user's latest message, the same text on every request of a run
 
 [POS]
 Surfaces active todos to the model without polluting persistent message history. Which runs keep a todo list is
@@ -15,17 +18,22 @@ decided by the ``get_todos_fn`` the host passes (it returns None for a run that 
 
 from __future__ import annotations
 
-import logging
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 
 from langchain.agents.middleware import AgentMiddleware, AgentState, ModelRequest, ModelResponse, wrap_model_call
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AnyMessage
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStatus, TodoStore
+from myrm_agent_harness.agent.middlewares._run_notices import frozen_for_run, run_scope
 from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
+from myrm_agent_harness.core.message_origin import last_user_authored_index, runtime_human_message
+from myrm_agent_harness.core.message_tail import append_block_to_last_user_message
 
-logger = logging.getLogger(__name__)
+# Run-context key of the focus the run rendered on its first request.
+_FOCUS_KEY = "progress_focus_block"
+
+_SNAPSHOT_NOTE = "(Snapshot from the start of this turn; todo_write results later in the conversation are newer.)"
 
 _PROGRESS_BLOCK_PATTERN = re.compile(
     r"\n*\s*\[SYSTEM INSTRUCTION\]\s*\n## Task progress \(active todos\)[\s\S]*$",
@@ -102,72 +110,74 @@ def _build_progress_injection(store: TodoStore, incomplete: list[TodoItem]) -> s
             "[BLOCKED TASKS DETECTED] Focus on unblocked tasks first, or use `todo_write(merge=true)` to replan/cancel unexecutable steps."
         )
 
+    lines.append(_SNAPSHOT_NOTE)
     return "\n".join(lines)
+
+
+def _without_previous_progress(message: AnyMessage) -> AnyMessage:
+    """``message`` without a progress block an earlier request left in its content."""
+    content = message.content
+    if isinstance(content, str):
+        return message.model_copy(update={"content": _strip_previous_progress(content)})
+    cleaned_parts: list[str | dict[str, object]] = []
+    for part in content:
+        if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
+            cleaned_text = _strip_previous_progress(part["text"])
+            if cleaned_text:
+                cleaned_parts.append({**part, "text": cleaned_text})
+        else:
+            cleaned_parts.append(part)
+    return message.model_copy(update={"content": cleaned_parts})
+
+
+def _with_focus(messages: Sequence[AnyMessage], focus: str) -> list[AnyMessage]:
+    """``messages`` with the todo focus at the tail of the user's latest message, or behind them all when the user wrote none.
+
+    The SystemMessages that sit behind the user's message on the first model call (the boundary rules, the session
+    directories) stay where they are: the focus belongs on the user's message, not after them.
+    """
+    index = last_user_authored_index(messages)
+    if index == -1:
+        return [*messages, runtime_human_message(focus)]
+    cleaned = list(messages)
+    cleaned[index] = _without_previous_progress(cleaned[index])
+    return append_block_to_last_user_message(cleaned, focus)
+
+
+async def _render_focus(
+    get_todos_fn: Callable[[str | None], Awaitable[TodoStore | None]],
+    request: ModelRequest,
+) -> str | None:
+    """The todo focus for the todos the run holds now, or None when there is nothing left to do."""
+    store = await get_todos_fn(run_workspace(getattr(request, "runtime", None)))
+    if store is None:
+        return None
+    incomplete = store.incomplete_todos()
+    return _build_progress_injection(store, incomplete) if incomplete else None
 
 
 def progress_middleware(
     get_todos_fn: Callable[[str | None], Awaitable[TodoStore | None]],
 ) -> AgentMiddleware[AgentState[object], None, object]:
-    """Inject active todo focus into the last HumanMessage, ignoring SystemMessages behind it (non-persistent)."""
+    """Inject the todo focus into the user's latest message once per run (non-persistent).
+
+    The focus is rendered on the first request of the run and shown unchanged on every later one: rewriting the
+    user's message between two requests of a tool loop would change the prefix the provider caches and invalidate
+    the reasoning blocks written under it. The model reads the todo state of the moment from the ``todo_write``
+    results the loop produces. A run that holds no open todos when it starts shows no focus for the rest of it.
+    """
 
     @wrap_model_call(name="progress_middleware")
     async def _middleware(
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        store = await get_todos_fn(run_workspace(getattr(request, "runtime", None)))
-        if not store or not store.todos:
+        if not request.messages:
             return await handler(request)
-
-        incomplete = store.incomplete_todos()
-        if not incomplete:
+        focus = await frozen_for_run(run_scope(request), _FOCUS_KEY, lambda: _render_focus(get_todos_fn, request))
+        if focus is None:
             return await handler(request)
-
-        injection_text = _build_progress_injection(store, incomplete)
-
-        new_messages = list(request.messages)
-        if not new_messages:
-            return await handler(request)
-
-        # Append-Only cache preservation:
-        # In multi-turn tool loops (where last message is AIMessage or ToolMessage),
-        # past HumanMessages MUST NOT be rewritten or stripped, as modifying historical
-        # messages breaks KV cache prefix matching. The model already sees latest task
-        # state via the ToolMessage from todo_write.
-        # The boundary rules and the session directories are SystemMessages behind the user's message on the first
-        # model call; the todo focus belongs on the user's message, not after them.
-        tail = len(new_messages) - 1
-        while tail > 0 and isinstance(new_messages[tail], SystemMessage):
-            tail -= 1
-        if not isinstance(new_messages[tail], HumanMessage):
-            if not any(isinstance(m, HumanMessage) for m in new_messages):
-                # Fallback for synthetic requests without any HumanMessage
-                new_messages.append(HumanMessage(content=injection_text))
-                return await handler(request.override(messages=new_messages))
-            return await handler(request)
-
-        last_msg = new_messages[tail]
-        if isinstance(last_msg.content, str):
-            cleaned_content = _strip_previous_progress(last_msg.content)
-            new_messages[tail] = HumanMessage(
-                content=f"{cleaned_content}\n\n{injection_text}" if cleaned_content else injection_text,
-                id=last_msg.id,
-            )
-        elif isinstance(last_msg.content, list):
-            cleaned_parts: list[str | dict[str, object]] = []
-            for part in last_msg.content:
-                if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
-                    cleaned_text = _strip_previous_progress(part["text"])
-                    if cleaned_text:
-                        cleaned_parts.append({**part, "text": cleaned_text})
-                else:
-                    cleaned_parts.append(part)
-            new_messages[tail] = HumanMessage(
-                content=[*cleaned_parts, {"type": "text", "text": f"\n\n{injection_text}"}],
-                id=last_msg.id,
-            )
-
-        return await handler(request.override(messages=new_messages))
+        return await handler(request.override(messages=_with_focus(request.messages, focus)))
 
     return _middleware
 

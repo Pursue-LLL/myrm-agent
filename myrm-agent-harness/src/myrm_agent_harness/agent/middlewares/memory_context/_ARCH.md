@@ -23,10 +23,10 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](../MIDDLEWARE_SYSTEM.md)
 | `memory_context_budget.py` | Internal | One char budget over the memory sections (`render_budgeted_sections`, which also reports the characters the kept sections use) and its limit (`MEMORY_BLOCK_MAX_TOKENS`, `MEMORY_BLOCK_BUDGET_CHARS`), `bound_tool_names` (the one reader of the tool names a request binds), `defang_markup` (rewrites every tag opener, ASCII and look-alike, to `&lt;` and leaves `&`, `>` and code untouched), `escape_xml_item` (full XML escaping, used by the knowledge pack), the search-guidance and cold-start prompt texts. | ✅ |
 | `proactive_pack_middleware.py` | Core | Per-turn knowledge pack: renders the snippets the server passes in the run context (`PROACTIVE_PACK_CONTEXT_KEY`) as one untrusted-data block, memoized per turn so every model call of the tool loop sends the same bytes, and appends it to the tail of the final HumanMessage; follows the memory switches (no manager or `RecallMode.TOOLS` skips); nothing is persisted to the thread. | ✅ |
 | `ephemeral_delta_middleware.py` | Core | Human-tail injection via `toolkits.memory.ephemeral_delta` SSOT store; runs after `memory_context_middleware`. | ✅ |
-| `two_layer_context_middleware.py` | Core | Layer-1 `<base_context>` tail via `two_layer_dialectic/injector.py`, appended through `append_block_to_last_human` (multimodal parts stay intact; a stale block on a text question is replaced, not stacked); runs after ephemeral; live dialectic off (`MYRM_TWO_LAYER_CONTEXT_LIVE=0` disables). | ✅ |
+| `two_layer_context_middleware.py` | Core | Layer-1 `<base_context>` tail via `two_layer_dialectic/injector.py`, appended through `core.message_tail.append_block_to_last_user_message` (lands on the user's own latest message, never on a runtime notice behind it; multimodal parts stay intact; a stale block on a text question is replaced, not stacked); runs after ephemeral; live dialectic off (`MYRM_TWO_LAYER_CONTEXT_LIVE=0` disables). | ✅ |
 
 ## Key Dependencies
 
 - `agent.memory` — memory manager
-- `agent.middlewares._message_origin` — tells the user's own message from one the runtime appended (the turn's identity)
+- `core.message_origin` — tells the user's own message from one the runtime appended (the turn's identity)
 - `langchain_core.messages` — message models

@@ -6,14 +6,20 @@ change, model switch, TTL expiry, or server-side eviction).
 
 Two-phase architecture:
   1. Pre-call: ``record_prompt_state()`` captures digests of system prompt,
-     tool definitions, and model name. Compares against previous turn to
-     record pending changes.
+     tool definitions, and model name; ``record_message_prefix()`` (from the
+     innermost model-call wrapper) captures a digest per message and finds
+     where the list stopped extending the previous request's. Both record
+     pending changes against the previous call of the run.
   2. Post-call: ``check_cache_break()`` compares cache_read_tokens against
      the previous turn. If a significant drop is detected (>5% AND >2000
      tokens), attributes it using the pending changes from phase 1.
 
+The detector lives for one run, so every comparison it makes is between two
+requests of the same tool loop.
+
 Compression awareness: ``notify_compaction()`` resets the baseline so that
-the natural cache rebuild after compaction is not reported as a break.
+the natural cache rebuild after compaction is not reported as a break; a
+message-prefix shift recorded while it is pending is flagged as announced.
 
 Lifecycle via ContextVar (mirrors ``TokenTracker`` pattern):
   - ``init_cache_break_detector()`` at agent startup
@@ -21,7 +27,7 @@ Lifecycle via ContextVar (mirrors ``TokenTracker`` pattern):
   - ``reset_cache_break_detector()`` at session end
 
 [INPUT]
-- (none)
+- infra.prefix_chain::PrefixShift, find_prefix_shift (POS: Where a request's message list stopped extending the previous request's.)
 
 [OUTPUT]
 - PromptStateDigest: Immutable hash snapshot of the prompt state at a given turn.
@@ -42,6 +48,8 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 
 from langchain_core.messages import BaseMessage
+
+from .prefix_chain import PrefixShift, find_prefix_shift
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +93,7 @@ class _PendingChanges:
     new_model: str = ""
     tool_count_delta: int = 0
     changed_tools: tuple[str, ...] = ()
+    prefix_shift: PrefixShift | None = None
 
 
 @dataclass(slots=True)
@@ -93,6 +102,8 @@ class _SessionCacheState:
 
     prev_cache_read: int | None = None
     prev_digest: PromptStateDigest | None = None
+    prev_message_digests: tuple[str, ...] | None = None
+    last_prefix_shift: PrefixShift | None = None
     prev_timestamp: float = field(default_factory=time.monotonic)
     compaction_pending: bool = False
     pending_changes: _PendingChanges | None = None
@@ -206,6 +217,29 @@ class CacheBreakDetector:
 
         self._state.prev_digest = digest
 
+    def record_message_prefix(self, digests: Sequence[str]) -> None:
+        """Phase 1 (pre-call, innermost view): record where the messages stopped extending the previous request's.
+
+        Runs after ``record_prompt_state`` for the same call, so a shift joins the changes it found.
+        """
+        current = tuple(digests)
+        previous = self._state.prev_message_digests
+        self._state.prev_message_digests = current
+        announced = self._state.compaction_pending
+        shift = None if previous is None else find_prefix_shift(previous, current, announced=announced)
+        self._state.last_prefix_shift = shift
+        if shift is None:
+            return
+        changes = self._state.pending_changes or _PendingChanges()
+        changes.prefix_shift = shift
+        self._state.pending_changes = changes
+
+    def consume_prefix_shift(self) -> PrefixShift | None:
+        """The shift recorded for the call that just answered; each shift is handed out once."""
+        shift = self._state.last_prefix_shift
+        self._state.last_prefix_shift = None
+        return shift
+
     def check_cache_break(self, cache_read_tokens: int, cache_creation_tokens: int = 0) -> CacheBreakEvent | None:
         """Phase 2 (post-call): detect break and attribute causes.
 
@@ -302,6 +336,18 @@ class CacheBreakDetector:
                     reasons.append("tool definitions changed")
                 actions.append(
                     "Avoid adding/removing tools mid-session. Use deferred tool loading or skill invocation instead."
+                )
+            if changes.prefix_shift is not None:
+                shift = changes.prefix_shift
+                if shift.truncated:
+                    reasons.append(f"history truncated ({shift.previous_length} → {shift.current_length} messages)")
+                else:
+                    reasons.append(
+                        f"message {shift.first_index} rewritten ({shift.previous_length} → {shift.current_length} messages)"
+                    )
+                actions.append(
+                    "Keep earlier messages byte-identical while a run is in progress; "
+                    "append new context after them instead of editing them."
                 )
 
         if not reasons:

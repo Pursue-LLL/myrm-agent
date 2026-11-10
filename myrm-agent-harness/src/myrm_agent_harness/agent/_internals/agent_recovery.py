@@ -6,6 +6,7 @@ Shared recovery functions used by ``base_agent.py`` and ``streaming/recovery/str
 - agent.base_agent::BaseAgent (POS: Base Agent — lightweight agent with streaming, token tracking, and artifacts.)
 - agent.context_management.infra.schemas::ContextConfig (POS: Planner Schema Definitions)
 - agent.errors.diagnostics::ErrorContext, (POS: Agent)
+- core.message_origin::is_user_authored_human_message, runtime_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
 - emergency_compact: Aggressively compact *messages* in-place after a context ...
@@ -21,8 +22,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message, runtime_human_message
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
@@ -104,8 +106,9 @@ def truncate_oldest_rounds(messages: list[BaseMessage]) -> int:
     """Drop the oldest API-round groups from *messages* in-place.
 
     Keeps SystemMessages at the front intact. Groups non-system messages
-    into API rounds (Human → AI → Tool*) and drops the oldest ~20 %
-    (minimum 1 group). Inserts a synthetic HumanMessage marker at the
+    into API rounds (the user's message → AI → Tool*, with the runtime's
+    notices staying inside their round) and drops the oldest ~20 %
+    (minimum 1 group). Inserts a runtime notice marker at the
     truncation point so the LLM knows context was lost.
 
     Returns estimated tokens freed.
@@ -128,7 +131,9 @@ def truncate_oldest_rounds(messages: list[BaseMessage]) -> int:
     groups: list[list[BaseMessage]] = []
     current: list[BaseMessage] = []
     for msg in rest:
-        if isinstance(msg, HumanMessage) and current:
+        # A round opens with the user's own message; a notice the runtime appended inside a tool loop must not
+        # split the loop, or the oldest group could be the user's request of the turn in progress.
+        if is_user_authored_human_message(msg) and current:
             groups.append(current)
             current = [msg]
         else:
@@ -148,7 +153,7 @@ def truncate_oldest_rounds(messages: list[BaseMessage]) -> int:
     freed = estimate_messages_tokens(dropped_msgs)
 
     kept = groups[drop_count:]
-    marker = HumanMessage(content=_TRUNCATION_MARKER)
+    marker = runtime_human_message(_TRUNCATION_MARKER)
 
     messages.clear()
     messages.extend(system_prefix)

@@ -161,6 +161,12 @@ from myrm_agent_harness.core.artifacts.fact_check import (
 from myrm_agent_harness.core.artifacts.fact_check import (
     SourceClaim as SourceClaim,
 )
+from myrm_agent_harness.core.message_origin import (
+    last_user_authored_index as last_user_authored_index,
+)
+from myrm_agent_harness.core.message_origin import (
+    runtime_human_message as runtime_human_message,
+)
 from myrm_agent_harness.core.security.bounded_communicate import (
     communicate_bounded as communicate_bounded,
 )

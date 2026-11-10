@@ -1,6 +1,7 @@
 """Bedrock Converse wire: ``converse`` answers and ``converse-stream`` event streams as chat.completion objects.
 
 [INPUT]
+- core.thinking_blocks (POS: ThinkingBlockAssembler — builds the signed reasoning blocks of a stream)
 - transport.profile (POS: Route — provider id and bare model)
 - transport.http (POS: Chunk, StreamDecoder)
 - transport.errors (POS: LLMAnswerError for an exception of an open stream)
@@ -10,8 +11,10 @@
 - transport.bedrock_structured (POS: JSON_TOOL, the synthetic tool of a structured answer)
 
 [OUTPUT]
-- parse: a Converse answer as a chat.completion dict (content, reasoning, tool_calls, usage with cache accounting)
-- decoder: the event-stream decoder yielding chat.completion.chunk dicts
+- parse: a Converse answer as a chat.completion dict (content, reasoning, signed thinking_blocks, tool_calls, usage with
+  cache accounting)
+- decoder: the event-stream decoder yielding chat.completion.chunk dicts; each signed reasoning block is delivered
+  whole, as one ``thinking_blocks`` delta, when the provider closes it
 
 [POS]
 Response half of the Bedrock wire (the request half is ``bedrock_converse``). The answer is returned in the
@@ -28,6 +31,7 @@ import uuid
 from collections.abc import Mapping
 from typing import Final
 
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, ThinkingBlockAssembler
 from myrm_agent_harness.toolkits.llms.transport.bedrock_content import Block, decode_tool_name
 from myrm_agent_harness.toolkits.llms.transport.bedrock_structured import JSON_TOOL
 from myrm_agent_harness.toolkits.llms.transport.chat_shape import FINISH_REASONS, answered_without
@@ -166,6 +170,7 @@ class BedrockStreamDecoder:
         "_model",
         "_provider",
         "_stop",
+        "_thinking",
         "_tool_index",
         "_tool_of_block",
         "_usage",
@@ -176,6 +181,7 @@ class BedrockStreamDecoder:
         self._provider = provider
         self._model = model
         self._id = _answer_id()
+        self._thinking = ThinkingBlockAssembler()
         self._json: dict[int, list[str]] = {}
         self._tool_of_block: dict[int, int] = {}
         self._args_seen: set[int] = set()
@@ -244,11 +250,22 @@ class BedrockStreamDecoder:
                 return [self._chunk({"tool_calls": [call]})]
             return []
         thought = delta.get("reasoningContent")
-        if isinstance(thought, Mapping) and isinstance(text := thought.get("text"), str):
+        return self._thought(index, thought) if isinstance(thought, Mapping) else []
+
+    def _thought(self, index: int, thought: Mapping[str, object]) -> list[Chunk]:
+        """Reasoning has no block-start event: its text, signature or redacted data arrives as deltas of its index."""
+        if isinstance(redacted := thought.get("redactedContent"), str):
+            self._thinking.set_redacted(index, redacted)
+        if isinstance(signature := thought.get("signature"), str):
+            self._thinking.add_signature(index, signature)
+        if isinstance(text := thought.get("text"), str):
+            self._thinking.add_text(index, text)
             return [self._chunk({"reasoning_content": text})]
         return []
 
     def _stop_block(self, index: int) -> list[Chunk]:
+        if (finished := self._thinking.close(index)) is not None:
+            return [self._chunk({THINKING_BLOCKS_KEY: [finished]})]
         if index in self._json:
             text = "".join(self._json.pop(index))
             return [self._chunk({"content": _structured_text(text)})] if text else []

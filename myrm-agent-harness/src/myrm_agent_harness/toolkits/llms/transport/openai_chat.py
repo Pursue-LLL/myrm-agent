@@ -31,6 +31,7 @@ from collections.abc import Mapping, Sequence
 from typing import Final
 from urllib.parse import urlsplit
 
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY
 from myrm_agent_harness.toolkits.llms.transport.capabilities import keeps_temperature_without_reasoning
 from myrm_agent_harness.toolkits.llms.transport.errors import BASE_RESP_STATUS, LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
@@ -164,10 +165,21 @@ def openai_endpoint(route: Route, opts: CallOptions, path: str) -> tuple[str, di
     return url, query, merge_headers(headers, opts.headers)
 
 
+def _without_thinking_blocks(messages: Sequence[Mapping[str, object]]) -> list[Mapping[str, object]]:
+    """Signed reasoning blocks belong to the Anthropic wires: an OpenAI-shaped API rejects the unknown message field."""
+    return [
+        {key: value for key, value in message.items() if key != THINKING_BLOCKS_KEY}
+        if THINKING_BLOCKS_KEY in message
+        else message
+        for message in messages
+    ]
+
+
 def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapping[str, object]) -> PreparedRequest:
     opts = split_params(params)
     profile = route.profile
     params_body = opts.body
+    messages = _without_thinking_blocks(messages)
     if not _keeps_cache_control(route):
         messages = [_strip_mapping(m) for m in messages]
         params_body = _strip_mapping(params_body)

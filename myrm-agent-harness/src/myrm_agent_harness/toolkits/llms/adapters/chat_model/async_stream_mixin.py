@@ -54,7 +54,6 @@ from myrm_agent_harness.toolkits.llms.adapters.concurrency import (
 from myrm_agent_harness.toolkits.llms.adapters.metrics import EmptyRetryMetrics
 from myrm_agent_harness.toolkits.llms.adapters.stream_aggregator import (
     StreamAggregator,
-    XmlStreamBuffer,
     finalize_stream,
 )
 from myrm_agent_harness.toolkits.llms.adapters.wire.anthropic_params import (
@@ -63,6 +62,7 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.anthropic_params import (
 from myrm_agent_harness.toolkits.llms.adapters.wire.invocation import (
     stream_responses_async,
 )
+from myrm_agent_harness.toolkits.llms.adapters.xml_stream_buffer import XmlStreamBuffer
 
 logger = logging.getLogger(__name__)
 
