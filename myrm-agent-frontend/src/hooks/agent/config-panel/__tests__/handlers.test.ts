@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AgentConfig } from '@/store/chat/types';
+import { DEFAULT_ENABLED_BUILTIN_TOOLS, type AgentConfig } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import { createSaveConfigHandler } from '../handlers';
 
@@ -65,6 +65,58 @@ describe('createSaveConfigHandler - chat-level prompt edit', () => {
 
     expect(setAgentConfig).toHaveBeenCalledWith(
       expect.objectContaining({ systemPrompt: '', systemPromptEdited: false }),
+    );
+  });
+});
+
+describe('createSaveConfigHandler - first configuration of a conversation', () => {
+  it('starts from the defaults for every part the dialog did not save', () => {
+    const { save, setAgentConfig } = setup(null);
+
+    save({ selectedSkillIds: ['skill-a'] });
+
+    expect(setAgentConfig).toHaveBeenCalledWith({
+      selectedSkillIds: ['skill-a'],
+      skillConfigs: {},
+      selectedMcpNames: [],
+      systemPrompt: '',
+      systemPromptEdited: false,
+      useGlobalInstruction: true,
+      enabledBuiltinTools: DEFAULT_ENABLED_BUILTIN_TOOLS,
+      autoRestoreDomains: [],
+      ephemeralSubagents: {},
+    });
+  });
+
+  it('keeps the tool choice per MCP server that the MCP tab saved', () => {
+    const { save, setAgentConfig } = setup(null);
+
+    save({ selectedMcpNames: ['docs'], mcpToolSelections: { docs: ['search'] } });
+
+    expect(setAgentConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedMcpNames: ['docs'], mcpToolSelections: { docs: ['search'] } }),
+    );
+  });
+
+  it('keeps the browser source, the dialog policy and the recording mode that the tools tab saved', () => {
+    const { save, setAgentConfig } = setup(null);
+
+    save({
+      enabledBuiltinTools: ['web_search'],
+      autoRestoreDomains: ['example.com'],
+      browserSource: 'extension',
+      dialogPolicy: 'auto_dismiss',
+      sessionRecording: 'on_failure',
+    });
+
+    expect(setAgentConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabledBuiltinTools: ['web_search'],
+        autoRestoreDomains: ['example.com'],
+        browserSource: 'extension',
+        dialogPolicy: 'auto_dismiss',
+        sessionRecording: 'on_failure',
+      }),
     );
   });
 });

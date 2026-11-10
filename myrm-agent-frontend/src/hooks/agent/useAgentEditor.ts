@@ -33,7 +33,7 @@ import { isRiskHeldError } from '@/services/riskHeldToast';
 import { DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 import { type ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { useAgentResources } from './useAgentResources';
-import { areSkillConfigsEqual } from './config-panel/configChanges';
+import { areSkillConfigsEqual } from '@/lib/utils/agent-config';
 import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 
 const EMPTY_SKILL_CONFIGS: AgentSkillConfigMap = {};

@@ -7,4 +7,5 @@
  */
 export { buildAgentConfig } from './agentConfigMapper';
 export { buildMissingDependenciesParts, validateAgentDependencies } from './agentConfigValidator';
+export { areSkillConfigsEqual } from './skillConfigs';
 export type { ValidationResult } from './agentConfigValidator';

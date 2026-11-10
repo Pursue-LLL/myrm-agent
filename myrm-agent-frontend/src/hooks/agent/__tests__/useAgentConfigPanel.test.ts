@@ -247,7 +247,6 @@ describe('useAgentConfigPanel: what the conversation uses', () => {
     expect(result.current.actionMode).toBe('fast');
     expect(result.current.currentBuiltinTools).toEqual(DEFAULT_ENABLED_BUILTIN_TOOLS);
     expect(result.current.t('x')).toBe('agent.configPanel:x');
-    expect(result.current.tAgent('x')).toBe('agent:x');
     expect(result.current.tIndicator('x')).toBe('agent.indicator:x');
   });
 });
@@ -319,8 +318,12 @@ describe('useAgentConfigPanel: saving the combination as a new agent', () => {
     selectedSkillIds: ['skill-1'],
     skillConfigs: { 'skill-1': { is_core: true, instance_name: 'main' } },
     selectedMcpNames: ['docs'],
+    mcpToolSelections: { docs: ['search'] },
     systemPrompt: 'You are precise.',
     autoRestoreDomains: ['example.com'],
+    browserSource: 'extension',
+    dialogPolicy: 'auto_dismiss',
+    sessionRecording: 'on_failure',
     suggestionPrompts: ['Ask me anything'],
     memoryDecayProfile: 'fast',
     memoryExtractionPreset: 'research',
@@ -346,10 +349,14 @@ describe('useAgentConfigPanel: saving the combination as a new agent', () => {
       description: '',
       system_prompt: 'You are precise.',
       mcp_ids: ['docs'],
+      mcp_tool_selections: { docs: ['search'] },
       skill_ids: ['skill-1'],
       skill_configs: { 'skill-1': { is_core: true, instance_name: 'main' } },
       enabled_builtin_tools: ['web_search', 'kanban'],
       auto_restore_domains: ['example.com'],
+      browser_source: 'extension',
+      dialog_policy: 'auto_dismiss',
+      session_recording: 'on_failure',
       suggestion_prompts: ['Ask me anything'],
       model_selection: {
         providerId: 'p1',
@@ -411,6 +418,22 @@ describe('useAgentConfigPanel: saving the combination as a new agent', () => {
       safetyFallbackProviderId: undefined,
       safetyFallbackModel: undefined,
     });
+  });
+
+  it.each([
+    ['no configuration at all', null, false],
+    ['an empty configuration', config(), false],
+    ['an instruction of blanks only', config({ systemPrompt: '   \n ' }), false],
+    ['a selected skill', config({ selectedSkillIds: ['skill-1'] }), true],
+    ['a selected MCP server', config({ selectedMcpNames: ['docs'] }), true],
+    ['an instruction', config({ systemPrompt: 'Be brief.' }), true],
+    ['restore domains alone', config({ autoRestoreDomains: ['example.com'] }), true],
+  ])('reports that %s is worth saving as an agent: %s', (_label, agentConfig, expected) => {
+    useChatStore.setState({ agentConfig });
+
+    const { result } = renderHook(() => useAgentConfigPanel());
+
+    expect(result.current.hasSavableConfig).toBe(expected);
   });
 
   it.each([

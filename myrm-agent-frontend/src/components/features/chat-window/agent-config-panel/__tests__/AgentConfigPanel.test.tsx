@@ -28,7 +28,7 @@ interface PanelState {
   editDialogOpen: boolean;
   editDialogType: ConfigCardType;
   showTypewriter: boolean;
-  hasConfigChanges: boolean;
+  hasSavableConfig: boolean;
   agentConfig: AgentConfig | null;
   actionMode: ActionMode;
   isConfigPanelExpanded: boolean;
@@ -41,7 +41,6 @@ interface PanelState {
   handleCardClick: (type: ConfigCardType) => void;
   handleSaveConfig: (data: Partial<AgentConfig>) => void;
   handleSaveAsNewAgent: () => Promise<void>;
-  handleUpdateAgent: () => Promise<void>;
   handleTypewriterComplete: () => void;
   refreshSkills: () => Promise<void>;
   t: (key: string) => string;
@@ -57,7 +56,6 @@ const mocks = vi.hoisted(() => ({
   handleCardClick: vi.fn<(type: ConfigCardType) => void>(),
   handleSaveConfig: vi.fn<(data: Partial<AgentConfig>) => void>(),
   handleSaveAsNewAgent: vi.fn<() => Promise<void>>(),
-  handleUpdateAgent: vi.fn<() => Promise<void>>(),
   handleTypewriterComplete: vi.fn<() => void>(),
   refreshSkills: vi.fn<() => Promise<void>>(),
   triggerPrewarm: vi.fn<() => Promise<void>>(),
@@ -111,7 +109,7 @@ function panelState(overrides: Partial<PanelState> = {}): PanelState {
     editDialogOpen: false,
     editDialogType: 'skills',
     showTypewriter: false,
-    hasConfigChanges: false,
+    hasSavableConfig: false,
     agentConfig: null,
     actionMode: 'agent',
     isConfigPanelExpanded: true,
@@ -124,7 +122,6 @@ function panelState(overrides: Partial<PanelState> = {}): PanelState {
     handleCardClick: mocks.handleCardClick,
     handleSaveConfig: mocks.handleSaveConfig,
     handleSaveAsNewAgent: mocks.handleSaveAsNewAgent,
-    handleUpdateAgent: mocks.handleUpdateAgent,
     handleTypewriterComplete: mocks.handleTypewriterComplete,
     refreshSkills: mocks.refreshSkills,
     t: identity,
@@ -328,31 +325,38 @@ describe('AgentConfigPanel: turn prewarm', () => {
 });
 
 describe('AgentConfigPanel: saving', () => {
-  it('offers nothing to save while the configuration has no skills, MCP servers or instruction', () => {
-    show({ agentConfig: config({ autoRestoreDomains: ['example.com'], systemPrompt: '  ' }) });
+  it('offers nothing to save while the hook finds nothing worth saving', () => {
+    show({ hasSavableConfig: false, agentConfig: config({ autoRestoreDomains: ['example.com'] }) });
 
     expect(screen.queryByRole('button', { name: /saveAsNewAgent/ })).toBeNull();
     expect(screen.queryByText('saveAsNewAgentTip')).toBeNull();
   });
 
   it('offers to save a configuration without a saved agent as a new agent', () => {
-    show({ agentConfig: config({ selectedSkillIds: ['s1'] }) });
+    show({ hasSavableConfig: true, agentConfig: config({ selectedSkillIds: ['s1'] }) });
 
     expect(screen.getByText('saveAsNewAgentTip')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'saveAsNewAgent' }));
     expect(mocks.handleSaveAsNewAgent).toHaveBeenCalledTimes(1);
   });
 
+  it('also offers it before any configuration exists once the hook finds something to save', () => {
+    show({ hasSavableConfig: true, agentConfig: null });
+
+    expect(screen.getByRole('button', { name: 'saveAsNewAgent' })).toBeInTheDocument();
+  });
+
   it('shows the saving state and blocks the button while the agent is created', () => {
-    show({ isSavingAgent: true, agentConfig: config({ systemPrompt: 'Be brief' }) });
+    show({ hasSavableConfig: true, isSavingAgent: true, agentConfig: config({ systemPrompt: 'Be brief' }) });
 
     const button = screen.getByRole('button', { name: 'savingAgent' });
     expect(button).toBeDisabled();
   });
 
-  it('offers no new-agent button for a conversation backed by a saved agent', () => {
-    show({ agentConfig: config({ agentId: 'agent-1', selectedSkillIds: ['s1'] }) });
+  it('offers no save button for a conversation backed by a saved agent, whatever was changed', () => {
+    show({ hasSavableConfig: true, agentConfig: config({ agentId: 'agent-1', selectedSkillIds: ['s1'] }) });
 
-    expect(screen.queryByRole('button', { name: 'saveAsNewAgent' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /sav/i })).toBeNull();
+    expect(screen.queryByText('saveAsNewAgentTip')).toBeNull();
   });
 });

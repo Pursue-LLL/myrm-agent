@@ -33,7 +33,7 @@ const AgentConfigPanel = ({ className }: AgentConfigPanelProps) => {
     editDialogOpen,
     editDialogType,
     showTypewriter,
-    hasConfigChanges,
+    hasSavableConfig,
 
     // Config
     agentConfig,
@@ -52,7 +52,6 @@ const AgentConfigPanel = ({ className }: AgentConfigPanelProps) => {
     handleCardClick,
     handleSaveConfig,
     handleSaveAsNewAgent,
-    handleUpdateAgent,
     handleTypewriterComplete,
 
     refreshSkills,
@@ -127,67 +126,28 @@ const AgentConfigPanel = ({ className }: AgentConfigPanelProps) => {
               <MemoryDecaySelector />
               <MemoryExtractionPresetSelector />
 
-              {/* 保存按钮逻辑 */}
-              {(() => {
-                const hasConfig =
-                  (agentConfig?.selectedSkillIds?.length || 0) > 0 ||
-                  (agentConfig?.selectedMcpNames?.length || 0) > 0 ||
-                  (agentConfig?.systemPrompt?.trim().length || 0) > 0;
-
-                // 如果没有任何配置，不显示按钮
-                if (!hasConfig) {
-                  return null;
-                }
-
-                // 如果是已保存的智能体，只有配置有变化时才显示"保存"按钮
-                if (agentConfig?.agentId) {
-                  // 如果没有变化，不显示保存按钮
-                  if (!hasConfigChanges) {
-                    return null;
-                  }
-
-                  return (
-                    <button
-                      onClick={handleUpdateAgent}
-                      disabled={isSavingAgent}
-                      className={cn(
-                        'w-full mt-4 py-2.5 px-4 rounded-xl',
-                        'flex items-center justify-center gap-2',
-                        'text-sm font-medium transition-all duration-200',
-                        'border border-primary text-foreground',
-                        'hover:bg-accent hover:text-accent-foreground',
-                        'disabled:opacity-50 disabled:cursor-not-allowed',
-                      )}
-                    >
-                      <Save size={14} />
-                      <span>{isSavingAgent ? t('saving') : t('save')}</span>
-                    </button>
-                  );
-                }
-
-                // 否则显示"保存为新智能体"
-                return (
-                  <div className="mt-4 space-y-2">
-                    <button
-                      onClick={handleSaveAsNewAgent}
-                      disabled={isSavingAgent}
-                      className={cn(
-                        'w-full py-2 px-4 rounded-lg',
-                        'flex items-center justify-center gap-2',
-                        'text-sm font-medium transition-all duration-200',
-                        'border border-dashed border-border/60',
-                        'text-muted-foreground hover:text-foreground',
-                        'hover:border-primary/40 hover:bg-primary/5',
-                        'disabled:opacity-50 disabled:cursor-not-allowed',
-                      )}
-                    >
-                      <Save size={14} />
-                      <span>{isSavingAgent ? t('savingAgent') : t('saveAsNewAgent')}</span>
-                    </button>
-                    <p className="text-xs text-center text-muted-foreground/70">{t('saveAsNewAgentTip')}</p>
-                  </div>
-                );
-              })()}
+              {/* 保存为新智能体：已保存的智能体在 Settings 的智能体页编辑，这里不提供保存入口 */}
+              {!agentConfig?.agentId && hasSavableConfig && (
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={handleSaveAsNewAgent}
+                    disabled={isSavingAgent}
+                    className={cn(
+                      'w-full py-2 px-4 rounded-lg',
+                      'flex items-center justify-center gap-2',
+                      'text-sm font-medium transition-all duration-200',
+                      'border border-dashed border-border/60',
+                      'text-muted-foreground hover:text-foreground',
+                      'hover:border-primary/40 hover:bg-primary/5',
+                      'disabled:opacity-50 disabled:cursor-not-allowed',
+                    )}
+                  >
+                    <Save size={14} />
+                    <span>{isSavingAgent ? t('savingAgent') : t('saveAsNewAgent')}</span>
+                  </button>
+                  <p className="text-xs text-center text-muted-foreground/70">{t('saveAsNewAgentTip')}</p>
+                </div>
+              )}
             </div>
           </div>
         )}
