@@ -135,8 +135,8 @@ def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description
         Args:
             content: The memory content to store.
             category: knowledge | event | preference | rule | instruction.
-            importance: 0.0-1.0 importance score (default 0.5).
-            tags: Tags (knowledge/event only). Accepts a comma-separated
+            importance: 0.0-1.0 importance score (default 0.5); knowledge only, other categories ignore it.
+            tags: Tags (knowledge only). Accepts a comma-separated
                 string, a JSON array, or a raw list.
             write_target: "bound" (agent scope) or "shared" (broadest namespace).
             preference_key: Required for preference category (e.g. "language", "framework").

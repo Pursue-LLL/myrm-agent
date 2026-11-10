@@ -35,9 +35,10 @@ ForgettableMemory = SemanticMemory | EpisodicMemory | ProceduralMemory
 def _importance_score(memory: ForgettableMemory) -> float:
     """Read the shared importance signal without assuming a vector-only field.
 
-    Procedural rules predate the vector-memory importance column and persist
-    their optional score in metadata. Forgetting must still score them instead
-    of raising ``AttributeError`` and silently aborting the whole maintenance
+    A procedural rule has no ``importance`` field: its score is
+    ``metadata["importance"]`` when the rule carries one (the CRITICAL floor
+    sets it) and the neutral 0.5 otherwise. The fallback keeps one rule from
+    raising ``AttributeError`` and silently aborting the whole maintenance
     scan.
     """
     raw = getattr(memory, "importance", None)

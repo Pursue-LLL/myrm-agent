@@ -76,6 +76,10 @@ def test_write_target_is_offered_only_while_shared_writes_are_allowed(policy: Me
         assert write_target is None
 
 
+def test_importance_names_the_one_category_that_reads_it() -> None:
+    assert "knowledge" in str(_wire_properties(_SHARED_WRITE)["importance"]["description"])
+
+
 def test_blocking_shared_writes_removes_no_other_argument() -> None:
     assert set(_wire_properties(_SHARED_WRITE)) - {"write_target"} == set(_wire_properties(_BOUND_ONLY))
 

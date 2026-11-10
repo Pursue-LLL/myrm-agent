@@ -12,13 +12,11 @@ from collections.abc import Awaitable, Callable
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import MemoryMCPServer
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import AnyMemory, MemoryType
+from tests.support.memory_save_surfaces import SAVES, Save, save_with_agent_tool
 
 NewManager = Callable[..., MemoryManager]
-Save = Callable[[MemoryManager, dict[str, str]], Awaitable[str]]
 
 KNOWLEDGE = {"category": "knowledge", "content": "The user keeps design notes in a shared notebook"}
 CASES = [
@@ -42,19 +40,6 @@ CASES = [
         id="instruction",
     ),
 ]
-
-
-async def save_with_agent_tool(manager: MemoryManager, arguments: dict[str, str]) -> str:
-    tool = next(tool for tool in create_memory_tools(manager) if tool.name == "memory_save_tool")
-    return await tool.ainvoke(arguments)
-
-
-async def save_with_mcp_tool(manager: MemoryManager, arguments: dict[str, str]) -> str:
-    result = await MemoryMCPServer(manager, server_name="test-memory").mcp.call_tool("memory_store", dict(arguments))
-    return "".join(str(getattr(block, "text", "")) for block in result.content)
-
-
-SAVES = [pytest.param(save_with_agent_tool, id="agent-tool"), pytest.param(save_with_mcp_tool, id="mcp-tool")]
 
 
 @pytest.mark.parametrize("save", SAVES)

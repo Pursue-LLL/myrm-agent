@@ -156,6 +156,34 @@ def test_memory_tool_descriptions_preserve_guardrails_zh() -> None:
     assert "profile_key" in search
 
 
+@pytest.mark.parametrize(
+    ("locale", "marker", "scope", "other_categories"),
+    [
+        pytest.param("en", "**IMPORTANCE**", "knowledge only", ("preference", "rule", "behavior"), id="en"),
+        pytest.param("zh", "**重要性**", "仅 knowledge", ("偏好", "规则", "行为"), id="zh"),
+    ],
+)
+def test_the_importance_rubric_scores_only_knowledge(
+    locale: str, marker: str, scope: str, other_categories: tuple[str, ...]
+) -> None:
+    """Only a knowledge save reads ``importance``.
+
+    A rubric that scores preferences or corrected behavior invites values nothing reads.
+    """
+    from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
+        build_mcp_memory_store_tool_description,
+    )
+
+    descriptions = {
+        "agent": build_memory_save_tool_description(MemorySearchPolicy(), locale=locale),
+        "mcp": build_mcp_memory_store_tool_description(locale=locale),
+    }
+    for surface, description in descriptions.items():
+        rubric = description.split(marker, 1)[1].split("\n\n", 1)[0]
+        assert scope in rubric, surface
+        assert not [word for word in other_categories if word in rubric], surface
+
+
 @pytest.mark.parametrize("locale", ["en", "zh"])
 def test_write_tool_texts_never_point_at_the_schema(locale: str) -> None:
     """A description states what the schema does not say; it never points at the schema or repeats its enum."""

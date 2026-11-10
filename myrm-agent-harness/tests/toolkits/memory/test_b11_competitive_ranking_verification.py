@@ -327,7 +327,7 @@ class TestGeometricScoringVsSqlRanking:
         assert semantic_w["semantic"] >= 0.6
         # Episodic: recency important (0.25)
         assert episodic_w["recency"] > semantic_w["recency"]
-        # Procedural: importance-dominant (0.45)
+        # Procedural: importance carries the largest weight (0.45); rules have no importance field, so it is constant
         assert procedural_w["importance"] >= 0.4
 
 

@@ -197,7 +197,9 @@ def get_default_signal_weights(memory_type: MemoryType) -> dict[str, float]:
 
     Each profile sums to 1.0. ``type_prior`` is the exponent of a constant signal, so it is a fixed
     per-type discount (none for profile, small for semantic and claim, largest for episodic and
-    procedural) that does not depend on the individual memory.
+    procedural) that does not depend on the individual memory. The PROCEDURAL ``importance`` weight acts the
+    same way: a rule has no ``importance`` field, so every rule reads the 0.5 default and rule strength is
+    carried by ``priority`` instead.
 
     Args:
         memory_type: Memory type

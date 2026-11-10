@@ -26,12 +26,25 @@ def test_notices_behind_the_users_message_leave_the_call_a_fresh_turn() -> None:
     assert _opens_a_turn([user, runtime_human_message("[restore] files"), runtime_human_message("[hint]")]) is True
 
 
-def test_a_notice_behind_the_tool_results_does_not_open_a_turn() -> None:
-    assert _opens_a_turn([HumanMessage(content="question"), _CALL, _RESULT, runtime_human_message("[notice]")]) is False
+@pytest.mark.parametrize(
+    "after_the_user_message",
+    [
+        [_CALL, _RESULT, runtime_human_message("[notice]")],
+        [AIMessage(content="working on it"), runtime_human_message("[notice]")],
+        [runtime_human_message("[notice]"), _CALL, _RESULT],
+    ],
+    ids=["behind-the-tool-results", "behind-an-assistant-message", "notice-then-tool-round"],
+)
+def test_a_notice_behind_the_assistant_does_not_open_a_turn(after_the_user_message: list[BaseMessage]) -> None:
+    assert _opens_a_turn([HumanMessage(content="question"), *after_the_user_message]) is False
 
 
 def test_the_users_latest_message_opens_the_turn_whatever_came_before_it() -> None:
-    history: list[BaseMessage] = [HumanMessage(content="first"), AIMessage(content="answer"), HumanMessage(content="second")]
+    history: list[BaseMessage] = [
+        HumanMessage(content="first"),
+        AIMessage(content="answer"),
+        HumanMessage(content="second"),
+    ]
 
     assert _opens_a_turn(history) is True
 
