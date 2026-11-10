@@ -10,6 +10,7 @@ import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChat
 import { usePresenceReadMark } from '@/hooks/chat/usePresenceReadMark';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
+import type { InspectorInstructionHandler } from './useInspectorInstructions';
 
 const VisualDesktopToggle = dynamic(
   () =>
@@ -138,8 +139,8 @@ const ContextFootprintInspector = dynamic(() => import('./ContextFootprintInspec
 
 interface ChatWindowSatellitesProps {
   chatId?: string;
-  onInspectorInstruction: (instruction: string, refId: string | null) => void;
-  onDesktopInspectorInstruction: (instruction: string, refId: string | null) => void;
+  onInspectorInstruction: InspectorInstructionHandler;
+  onDesktopInspectorInstruction: InspectorInstructionHandler;
 }
 
 export default function ChatWindowSatellites({

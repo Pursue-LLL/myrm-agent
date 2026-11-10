@@ -8,7 +8,7 @@ vi.mock('@/store/useFeatureGateStore', () => ({
     selector({ isEnabled: (key: string) => (key === 'companion_mode' ? isCompanionEnabledMock() : false) }),
 }));
 
-vi.mock('../SubagentDashboard', () => ({
+vi.mock('../subagent/SubagentDashboard', () => ({
   default: () => null,
 }));
 

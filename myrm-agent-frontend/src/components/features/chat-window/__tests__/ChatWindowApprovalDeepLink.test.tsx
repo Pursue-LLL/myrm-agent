@@ -115,6 +115,32 @@ describe('ChatWindow approval deep link', () => {
     expect(navigationMock.replace).toHaveBeenCalledWith('/session-1', { scroll: false });
   });
 
+  it('opens the approval the link names, not whichever is first in the pending list', async () => {
+    fetchPendingApprovalsMock.mockResolvedValue([
+      {
+        approval_id: 'ap-other',
+        user_id: 'local-user',
+        action_type: 'run_command',
+        status: 'PENDING',
+        chat_id: 'session-1',
+      },
+      {
+        approval_id: 'ap-deep-link-1',
+        user_id: 'local-user',
+        action_type: 'delete_file',
+        status: 'PENDING',
+        chat_id: 'session-1',
+      },
+    ]);
+    useChatStore.setState({ isMessagesLoaded: true });
+    render(<ChatWindow id="session-1" />);
+
+    await waitFor(() => {
+      expect(useApprovalStore.getState().queue).toHaveLength(1);
+    });
+    expect(useApprovalStore.getState().queue[0]?.approval_id).toBe('ap-deep-link-1');
+  });
+
   it('does not reapply the same approval query', async () => {
     useChatStore.setState({ isMessagesLoaded: true });
     const { rerender } = render(<ChatWindow id="session-1" />);
@@ -126,5 +152,17 @@ describe('ChatWindow approval deep link', () => {
     rerender(<ChatWindow id="session-1" />);
     expect(fetchPendingApprovalsMock).toHaveBeenCalledTimes(1);
     expect(navigationMock.replace).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens nothing but still strips the query param when the approval is no longer pending', async () => {
+    fetchPendingApprovalsMock.mockResolvedValue([]);
+    useChatStore.setState({ isMessagesLoaded: true });
+    render(<ChatWindow id="session-1" />);
+
+    await waitFor(() => {
+      expect(navigationMock.replace).toHaveBeenCalledWith('/session-1', { scroll: false });
+    });
+    expect(useApprovalStore.getState().queue).toHaveLength(0);
+    expect(useApprovalStore.getState().isOpen).toBe(false);
   });
 });

@@ -159,4 +159,27 @@ describe('ChatWindow keeps the chat view mounted', () => {
 
     expect(useChatStore.getState().chatId).not.toBe('c-missing');
   });
+
+  it.each([
+    ['its load failed', { loadError: true }],
+    ['its messages are not in yet', { isMessagesLoaded: false }],
+    ['a summary stands for earlier turns', { compactedSummary: 'earlier turns' }],
+    ['the store holds no chat id', { chatId: '' }],
+  ])('starts a new chat when home is reached while %s', (_reason, held) => {
+    useChatStore.setState({
+      chatId: 'c-held',
+      incognitoMode: true,
+      messages: [],
+      isMessagesLoaded: true,
+      compactedSummary: null,
+      notFound: false,
+      loadError: false,
+      ...held,
+    });
+
+    render(<ChatWindow />);
+
+    expect(useChatStore.getState().chatId).toMatch(/^c-.+/);
+    expect(useChatStore.getState().chatId).not.toBe('c-held');
+  });
 });
