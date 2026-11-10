@@ -39,7 +39,7 @@ describe('useChatActions share lifecycle', () => {
       expires_at: 1700000000,
     });
 
-    const { result } = renderHook(() => useChatActions([], t));
+    const { result } = renderHook(() => useChatActions(t));
 
     await act(async () => {
       await result.current.handleShare('chat-1');
@@ -63,7 +63,7 @@ describe('useChatActions share lifecycle', () => {
       expires_at: null,
     });
 
-    const { result } = renderHook(() => useChatActions([], t));
+    const { result } = renderHook(() => useChatActions(t));
 
     await act(async () => {
       await result.current.handleShare('chat-1');
@@ -76,7 +76,7 @@ describe('useChatActions share lifecycle', () => {
   it('stays usable when the status query fails', async () => {
     vi.mocked(getChatShareStatus).mockRejectedValue(new Error('network'));
 
-    const { result } = renderHook(() => useChatActions([], t));
+    const { result } = renderHook(() => useChatActions(t));
 
     await act(async () => {
       await result.current.handleShare('chat-1');
@@ -103,7 +103,7 @@ describe('useChatActions share lifecycle', () => {
       password_protected: false,
     });
 
-    const { result } = renderHook(() => useChatActions([], t));
+    const { result } = renderHook(() => useChatActions(t));
 
     await act(async () => {
       await result.current.handleShare('chat-1');
@@ -130,7 +130,7 @@ describe('useChatActions share lifecycle', () => {
     });
     vi.mocked(revokeChatShare).mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useChatActions([], t));
+    const { result } = renderHook(() => useChatActions(t));
 
     await act(async () => {
       await result.current.handleShare('chat-1');
@@ -156,7 +156,7 @@ describe('useChatActions share lifecycle', () => {
     });
     vi.mocked(revokeChatShare).mockRejectedValue(new Error('boom'));
 
-    const { result } = renderHook(() => useChatActions([], t));
+    const { result } = renderHook(() => useChatActions(t));
 
     await act(async () => {
       await result.current.handleShare('chat-1');

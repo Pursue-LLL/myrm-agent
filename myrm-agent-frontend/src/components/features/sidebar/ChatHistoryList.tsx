@@ -7,6 +7,7 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, memo, useMemo, useRef, type DragEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useShallow } from 'zustand/react/shallow';
 import { ChatHistoryDialogs } from './ChatHistoryDialogs';
 import { DateGroupSection, PinnedSection, type HistoryRowProps } from './ChatHistorySections';
 import { ChatHistoryToolbar } from './ChatHistoryToolbar';
@@ -30,6 +31,8 @@ interface ChatHistoryListProps {
 const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, isMobile = false, onItemClick }) => {
   const t = useTranslations();
 
+  // Only what the list shows: the rest of the chat store (draft text, streaming messages) changes many times a
+  // second, and a whole-store subscription would redraw every row each time.
   const {
     chatHistoryItems,
     chatHistoryPagination,
@@ -42,15 +45,32 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, isMobile = fal
     loadMoreChatHistory,
     setChatHistorySourceFilter,
     setChatHistorySearchKeyword,
-    chatId: activeChatId,
-    loading: isActiveLoading,
+    activeChatId,
+    isActiveLoading,
     sessionStatuses,
-  } = useChatStore();
+  } = useChatStore(
+    useShallow((state) => ({
+      chatHistoryItems: state.chatHistoryItems,
+      chatHistoryPagination: state.chatHistoryPagination,
+      chatHistoryLoading: state.chatHistoryLoading,
+      chatHistoryError: state.chatHistoryError,
+      chatHistorySourceFilter: state.chatHistorySourceFilter,
+      chatHistorySearchKeyword: state.chatHistorySearchKeyword,
+      chatHistoryAvailableSources: state.chatHistoryAvailableSources,
+      loadChatHistory: state.loadChatHistory,
+      loadMoreChatHistory: state.loadMoreChatHistory,
+      setChatHistorySourceFilter: state.setChatHistorySourceFilter,
+      setChatHistorySearchKeyword: state.setChatHistorySearchKeyword,
+      activeChatId: state.chatId,
+      isActiveLoading: state.loading,
+      sessionStatuses: state.sessionStatuses,
+    })),
+  );
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const search = useHistorySearch(chatHistorySearchKeyword, setChatHistorySearchKeyword);
-  const { activeFilter: projectFilter } = useProjectStore();
-  const actions = useChatActions(chatHistoryItems, t);
+  const projectFilter = useProjectStore((state) => state.activeFilter);
+  const actions = useChatActions(t);
   const batch = useBatchMode(chatHistoryItems, t);
 
   const handleOpenInNewWindow = useCallback(async (chatId: string) => {
@@ -86,6 +106,21 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, isMobile = fal
     }
   }, []);
 
+  // Starts the history over from the first page when the sidebar mounts and whenever the project filter changes: the
+  // list the store still holds may belong to another project. It is declared before the effect below so that its
+  // request is already in flight when that one looks, instead of both asking the server for the same page.
+  useEffect(() => {
+    useChatStore.setState({
+      chatHistoryItems: [],
+      chatHistoryPagination: null,
+      chatHistoryLoading: false,
+      chatHistoryError: null,
+    });
+    loadChatHistory(1, 20);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectFilter]);
+
+  // Fills a list that has become empty once the sidebar is expanded, but not while a login token is still in the URL.
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -98,17 +133,6 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, isMobile = fal
       loadChatHistory(1, 20);
     }
   }, [isExpanded, loadChatHistory, chatHistoryItems.length]);
-
-  useEffect(() => {
-    useChatStore.setState({
-      chatHistoryItems: [],
-      chatHistoryPagination: null,
-      chatHistoryLoading: false,
-      chatHistoryError: null,
-    });
-    loadChatHistory(1, 20);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectFilter]);
 
   const { batchMode, handleExitBatchMode } = batch;
   useEffect(() => {

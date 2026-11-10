@@ -61,7 +61,7 @@ describe('useChatActions handleOpenInIDE', () => {
 
   it('copies the bundle, launches the IDE and toasts readiness', async () => {
     vi.mocked(exportChat).mockResolvedValue(nonEmptyExport as unknown as Awaited<ReturnType<typeof exportChat>>);
-    const { result } = renderHook(() => useChatActions([], mockT));
+    const { result } = renderHook(() => useChatActions(mockT));
 
     await act(async () => {
       await result.current.handleOpenInIDE('chat-1', 'cursor');
@@ -82,7 +82,7 @@ describe('useChatActions handleOpenInIDE', () => {
       messages: [],
       redacted: false,
     } as unknown as Awaited<ReturnType<typeof exportChat>>);
-    const { result } = renderHook(() => useChatActions([], mockT));
+    const { result } = renderHook(() => useChatActions(mockT));
 
     await act(async () => {
       await result.current.handleOpenInIDE('chat-empty', 'vscode');
@@ -97,7 +97,7 @@ describe('useChatActions handleOpenInIDE', () => {
 
   it('reports export failures destructively', async () => {
     vi.mocked(exportChat).mockRejectedValue(new Error('boom'));
-    const { result } = renderHook(() => useChatActions([], mockT));
+    const { result } = renderHook(() => useChatActions(mockT));
 
     await act(async () => {
       await result.current.handleOpenInIDE('chat-1', 'vscode');

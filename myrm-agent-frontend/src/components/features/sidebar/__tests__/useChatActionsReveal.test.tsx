@@ -51,7 +51,7 @@ describe('useChatActions handleRevealArtifacts', () => {
       artifact_count: 2,
     });
 
-    const { result } = renderHook(() => useChatActions([], mockT));
+    const { result } = renderHook(() => useChatActions(mockT));
 
     await act(async () => {
       await result.current.handleRevealArtifacts('chat-1');
@@ -72,7 +72,7 @@ describe('useChatActions handleRevealArtifacts', () => {
       artifact_count: 0,
     });
 
-    const { result } = renderHook(() => useChatActions([], mockT));
+    const { result } = renderHook(() => useChatActions(mockT));
 
     await act(async () => {
       await result.current.handleRevealArtifacts('chat-empty');
@@ -91,7 +91,7 @@ describe('useChatActions handleRevealArtifacts', () => {
       artifact_count: 1,
     });
 
-    const { result } = renderHook(() => useChatActions([], mockT));
+    const { result } = renderHook(() => useChatActions(mockT));
 
     await act(async () => {
       await result.current.handleRevealArtifacts('chat-missing');
@@ -106,7 +106,7 @@ describe('useChatActions handleRevealArtifacts', () => {
   it('triggers destructive toast on API failure', async () => {
     vi.spyOn(fileService, 'revealChatArtifacts').mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useChatActions([], mockT));
+    const { result } = renderHook(() => useChatActions(mockT));
 
     await act(async () => {
       await result.current.handleRevealArtifacts('chat-fail');

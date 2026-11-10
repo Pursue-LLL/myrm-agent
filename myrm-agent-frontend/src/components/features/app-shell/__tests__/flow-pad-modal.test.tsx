@@ -33,7 +33,7 @@ vi.mock('@/store/useChatStore', () => {
     setFiles: (...args: unknown[]) => mockSetFiles(...args),
     files: [] as unknown[],
   };
-  const hook = vi.fn(() => state);
+  const hook = vi.fn((select?: (current: typeof state) => unknown) => (select ? select(state) : state));
   Object.assign(hook, {
     getState: () => state,
     subscribe: vi.fn(() => () => {}),

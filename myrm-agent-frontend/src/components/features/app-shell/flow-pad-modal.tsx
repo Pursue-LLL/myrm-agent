@@ -47,7 +47,7 @@ export function FlowPadModal() {
   const t = useTranslations('flowPad');
   const { isOpen, mode, captures, initialText, sourcePid, inlineResult, inlineGenerating, close, removeCapture } =
     useFlowPadStore();
-  const { agentConfig } = useChatStore();
+  const agentConfig = useChatStore((state) => state.agentConfig);
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
 
   const { text, setText, lightboxSrc, setLightboxSrc } = useFlowPadDraft({ isOpen, mode, sourcePid, initialText });

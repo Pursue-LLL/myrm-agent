@@ -9,7 +9,13 @@ import { toast } from '@/hooks/shared/useToast';
 import type { useTranslations } from 'next-intl';
 import { useChatShareActions } from './useChatShareActions';
 
-export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeof useTranslations>) {
+/** Applies `update` to the history as it is now, not as it was when the action started: requests take time. */
+function editHistory(update: (items: ChatItem[]) => ChatItem[]): void {
+  const { chatHistoryItems, setChatHistoryItems } = useChatStore.getState();
+  setChatHistoryItems(update(chatHistoryItems));
+}
+
+export function useChatActions(t: ReturnType<typeof useTranslations>) {
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -75,7 +81,8 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     }
   }, [captureEvalChatId, captureEvalDatasetId, t]);
 
-  const { pinChat, unpinChat } = useChatStore();
+  const pinChat = useChatStore((state) => state.pinChat);
+  const unpinChat = useChatStore((state) => state.unpinChat);
 
   const handleRename = (chat: ChatItem) => {
     setRenameId(chat.id);
@@ -85,10 +92,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   const handleRenameSubmit = async (chatId: string) => {
     try {
       await updateChatTitle(chatId, renameValue);
-      const updatedItems = chatHistoryItems.map((chat) =>
-        chat.id === chatId ? { ...chat, title: renameValue } : chat,
-      );
-      useChatStore.getState().setChatHistoryItems(updatedItems);
+      editHistory((items) => items.map((chat) => (chat.id === chatId ? { ...chat, title: renameValue } : chat)));
       setRenameId(null);
       setRenameValue('');
     } catch (error) {
@@ -116,9 +120,8 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     const chatIdToDelete = deletingChatId;
     try {
       await deleteChat(chatIdToDelete);
-      const removedChat = chatHistoryItems.find((chat) => chat.id === chatIdToDelete);
-      const updatedItems = chatHistoryItems.filter((chat) => chat.id !== chatIdToDelete);
-      useChatStore.getState().setChatHistoryItems(updatedItems);
+      const removedChat = useChatStore.getState().chatHistoryItems.find((chat) => chat.id === chatIdToDelete);
+      editHistory((items) => items.filter((chat) => chat.id !== chatIdToDelete));
 
       toast(t('chat.deleteChat.movedToTrash'), {
         description: t('chat.deleteChat.undoHint'),
@@ -129,7 +132,9 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
               restoreChat(chatIdToDelete)
                 .then(() => {
                   if (removedChat) {
-                    useChatStore.getState().setChatHistoryItems([removedChat, ...updatedItems]);
+                    editHistory((items) =>
+                      items.some((chat) => chat.id === removedChat.id) ? items : [removedChat, ...items],
+                    );
                   }
                 })
                 .catch(() => {

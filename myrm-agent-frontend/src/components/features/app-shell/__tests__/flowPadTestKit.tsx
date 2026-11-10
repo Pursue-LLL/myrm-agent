@@ -64,7 +64,9 @@ export const agentState = hoisted.agentState;
 export const mocks = hoisted.mocks;
 
 vi.mock('@/store/useChatStore', () => {
-  const hook = vi.fn(() => hoisted.chatState);
+  const hook = vi.fn((select?: (state: typeof hoisted.chatState) => unknown) =>
+    select ? select(hoisted.chatState) : hoisted.chatState,
+  );
   Object.assign(hook, {
     getState: () => hoisted.chatState,
     subscribe: (listener: StoreListener) => {

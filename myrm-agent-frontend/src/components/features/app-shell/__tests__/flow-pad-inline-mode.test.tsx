@@ -67,7 +67,9 @@ const mockAgentStoreState = {
 };
 
 vi.mock('@/store/useChatStore', () => {
-  const hook = vi.fn(() => mockChatState);
+  const hook = vi.fn((select?: (current: typeof mockChatState) => unknown) =>
+    select ? select(mockChatState) : mockChatState,
+  );
   Object.assign(hook, {
     getState: () => mockChatState,
     subscribe: (listener: Listener) => {

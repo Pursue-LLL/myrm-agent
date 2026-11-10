@@ -59,6 +59,12 @@ function mergeChatHistoryItems(existing: ChatItem[], incoming: ChatItem[]): Chat
   return [...byId.values()];
 }
 
+/**
+ * Numbers the history requests. A response whose number is no longer the latest was asked for under a filter the
+ * list has since left, so it is dropped instead of replacing what the newer request shows.
+ */
+let latestChatHistoryRequest = 0;
+
 function readStoredBuiltinTools(): BuiltinToolId[] {
   if (typeof window === 'undefined') {
     return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
@@ -1081,12 +1087,16 @@ const useChatStore = create<ChatState>()(
         if (chatHistoryLoading || chatHistoryItems.length > 0) {
           return;
         }
+        const request = ++latestChatHistoryRequest;
         set({ chatHistoryLoading: true });
         try {
           const projectFilter = useProjectStore.getState().activeFilter;
           const projectId = projectFilter === undefined ? undefined : projectFilter;
           const kw = chatHistorySearchKeyword.trim() || undefined;
           const response = await getChatHistory(page, pageSize, chatHistorySourceFilter ?? undefined, projectId, kw);
+          if (request !== latestChatHistoryRequest) {
+            return;
+          }
           const updates: Partial<ChatState> = {
             chatHistoryItems: mergeChatHistoryItems([], response.items),
             chatHistoryPagination: response.pagination,
@@ -1102,6 +1112,9 @@ const useChatStore = create<ChatState>()(
           set(updates);
         } catch (error) {
           console.error('加载聊天历史失败:', error);
+          if (request !== latestChatHistoryRequest) {
+            return;
+          }
           // Record the failure so the sidebar can show the error and offer a retry: otherwise a
           // transient backend hiccup leaves the history silently empty until a full page reload.
           set({
@@ -1112,18 +1125,13 @@ const useChatStore = create<ChatState>()(
       },
 
       loadMoreChatHistory: async () => {
-        const {
-          chatHistoryPagination,
-          chatHistoryItems,
-          chatHistoryLoading,
-          chatHistorySourceFilter,
-          chatHistorySearchKeyword,
-        } = get();
+        const { chatHistoryPagination, chatHistoryLoading, chatHistorySourceFilter, chatHistorySearchKeyword } = get();
 
         if (chatHistoryLoading || !chatHistoryPagination?.has_next) {
           return;
         }
 
+        const request = ++latestChatHistoryRequest;
         set({ chatHistoryLoading: true });
         try {
           const nextPage = chatHistoryPagination.page + 1;
@@ -1138,14 +1146,20 @@ const useChatStore = create<ChatState>()(
             kw,
           );
 
+          if (request !== latestChatHistoryRequest) {
+            return;
+          }
           set({
-            chatHistoryItems: mergeChatHistoryItems(chatHistoryItems, response.items),
+            // The list as it is now: chats were renamed, deleted or added while the page was on its way.
+            chatHistoryItems: mergeChatHistoryItems(get().chatHistoryItems, response.items),
             chatHistoryPagination: response.pagination,
             chatHistoryLoading: false,
           });
         } catch (error) {
           console.error('加载更多聊天历史失败:', error);
-          set({ chatHistoryLoading: false });
+          if (request === latestChatHistoryRequest) {
+            set({ chatHistoryLoading: false });
+          }
         }
       },
 

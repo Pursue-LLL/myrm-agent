@@ -46,7 +46,9 @@ export function useFlowPadSend({
   reportSummonFirstMessage,
 }: UseFlowPadSendOptions) {
   const t = useTranslations('flowPad');
-  const { sendMessage, setFiles, getCurrentSessionMessageId } = useChatStore();
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const setFiles = useChatStore((state) => state.setFiles);
+  const getCurrentSessionMessageId = useChatStore((state) => state.getCurrentSessionMessageId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inlineActiveRequestIdRef = useRef<string | null>(null);
 
