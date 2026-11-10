@@ -158,15 +158,33 @@ export function resetGlobalEventsKit(): void {
   vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
 }
 
+/** The stream the hook opened last (undefined while this tab is not the leader). */
+export function lastSource(): FakeEventSource {
+  return FakeEventSource.instances[FakeEventSource.instances.length - 1];
+}
+
+/** The BroadcastChannel the hook opened last. */
+export function lastChannel(): FakeBroadcastChannel {
+  return FakeBroadcastChannel.instances[FakeBroadcastChannel.instances.length - 1];
+}
+
 /** Mounts the hook; with no leader recorded in localStorage this tab becomes the leader and opens the stream. */
 export function mountGlobalEvents() {
   const view = renderHook(() => useGlobalEvents());
-  return { ...view, source: FakeEventSource.instances[FakeEventSource.instances.length - 1] };
+  return { ...view, source: lastSource() };
+}
+
+/** Delivers a message another tab posted on the shared BroadcastChannel. */
+export function broadcastFromOtherTab(message: { kind: string; payload?: unknown; tabId?: string }): void {
+  const channel = lastChannel();
+  act(() => {
+    channel.onmessage?.({ data: message } as MessageEvent<typeof message>);
+  });
 }
 
 /** Delivers one server-sent event to the leader tab's stream. */
 export function emit(type: string, data: Record<string, unknown> = {}): void {
-  const source = FakeEventSource.instances[FakeEventSource.instances.length - 1];
+  const source = lastSource();
   act(() => {
     source.onmessage?.({
       data: JSON.stringify({ type, data, timestamp: '2026-01-01T00:00:00Z' }),

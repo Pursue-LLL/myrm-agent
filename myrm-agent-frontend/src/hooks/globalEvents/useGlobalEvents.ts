@@ -16,6 +16,15 @@ const LEADER_KEY = 'myrm-sse-leader';
 const HEARTBEAT_INTERVAL = 3_000;
 const HEARTBEAT_TIMEOUT = 6_000;
 
+/** Mutable state shared by stream callbacks, timers and cleanup; one object, so closures mutate fields instead of reassigning variables. */
+interface StreamSession {
+  disposed: boolean;
+  /** A resync after (re)connect is in flight; a second open waits for it. */
+  reconciling: boolean;
+  heartbeatTimer: ReturnType<typeof setInterval> | null;
+  watchdogTimer: ReturnType<typeof setTimeout> | null;
+}
+
 /**
  * Cross-tab SSE sharing via BroadcastChannel + leader election.
  * Only the leader tab maintains the actual EventSource connection;
@@ -36,10 +45,8 @@ export function useGlobalEvents(): void {
 
   useEffect(() => {
     const bc = new BroadcastChannel(BC_CHANNEL);
-    let disposed = false;
-    let reconciling = false;
-    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-    let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+    const claimId = tabId.current;
+    const session: StreamSession = { disposed: false, reconciling: false, heartbeatTimer: null, watchdogTimer: null };
 
     const pushToast: PushToast = {
       info: (...args: Parameters<typeof appToast.info>) => {
@@ -78,7 +85,7 @@ export function useGlobalEvents(): void {
     }
 
     function connectSSE() {
-      if (disposed || !isLeaderRef.current) {
+      if (session.disposed || !isLeaderRef.current) {
         return;
       }
       sourceRef.current?.close();
@@ -92,10 +99,10 @@ export function useGlobalEvents(): void {
         window.dispatchEvent(new CustomEvent('app_resync_required'));
         bc.postMessage({ kind: 'resync-pulse' });
 
-        if (reconciling) {
+        if (session.reconciling) {
           return;
         }
-        reconciling = true;
+        session.reconciling = true;
         try {
           const { default: useChatStore } = await import('@/store/useChatStore');
           const { chatId } = useChatStore.getState();
@@ -106,7 +113,7 @@ export function useGlobalEvents(): void {
             await refreshOpenChatTranscript(chatId);
           }
         } finally {
-          reconciling = false;
+          session.reconciling = false;
         }
       };
 
@@ -123,7 +130,7 @@ export function useGlobalEvents(): void {
       es.onerror = () => {
         es.close();
         sourceRef.current = null;
-        if (disposed || !isLeaderRef.current) {
+        if (session.disposed || !isLeaderRef.current) {
           return;
         }
         const delay = Math.min(1000 * 2 ** retryRef.current, 30_000);
@@ -137,29 +144,29 @@ export function useGlobalEvents(): void {
         return;
       }
       isLeaderRef.current = true;
-      localStorage.setItem(LEADER_KEY, tabId.current);
+      localStorage.setItem(LEADER_KEY, claimId);
       connectSSE();
-      heartbeatTimer = setInterval(() => {
-        bc.postMessage({ kind: 'heartbeat', tabId: tabId.current });
+      session.heartbeatTimer = setInterval(() => {
+        bc.postMessage({ kind: 'heartbeat', tabId: claimId });
       }, HEARTBEAT_INTERVAL);
     }
 
     function stepDown() {
       isLeaderRef.current = false;
-      if (heartbeatTimer) {
-        clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
+      if (session.heartbeatTimer) {
+        clearInterval(session.heartbeatTimer);
+        session.heartbeatTimer = null;
       }
       sourceRef.current?.close();
       sourceRef.current = null;
     }
 
     function resetWatchdog() {
-      if (watchdogTimer) {
-        clearTimeout(watchdogTimer);
+      if (session.watchdogTimer) {
+        clearTimeout(session.watchdogTimer);
       }
-      watchdogTimer = setTimeout(() => {
-        if (!disposed) {
+      session.watchdogTimer = setTimeout(() => {
+        if (!session.disposed) {
           becomeLeader();
         }
       }, HEARTBEAT_TIMEOUT);
@@ -171,12 +178,12 @@ export function useGlobalEvents(): void {
         handleEvent(msg.payload);
       } else if (msg.kind === 'resync-pulse' && !isLeaderRef.current) {
         window.dispatchEvent(new CustomEvent('app_resync_required'));
-      } else if (msg.kind === 'heartbeat' && msg.tabId !== tabId.current) {
+      } else if (msg.kind === 'heartbeat' && msg.tabId !== claimId) {
         if (isLeaderRef.current) {
           stepDown();
         }
         resetWatchdog();
-      } else if (msg.kind === 'leader-claim' && msg.tabId !== tabId.current) {
+      } else if (msg.kind === 'leader-claim' && msg.tabId !== claimId) {
         if (isLeaderRef.current) {
           stepDown();
         }
@@ -187,14 +194,14 @@ export function useGlobalEvents(): void {
     const existingLeader = localStorage.getItem(LEADER_KEY);
     if (!existingLeader) {
       becomeLeader();
-      bc.postMessage({ kind: 'leader-claim', tabId: tabId.current });
+      bc.postMessage({ kind: 'leader-claim', tabId: claimId });
     } else {
       resetWatchdog();
-      bc.postMessage({ kind: 'leader-claim', tabId: tabId.current });
+      bc.postMessage({ kind: 'leader-claim', tabId: claimId });
       setTimeout(() => {
-        if (!disposed && !isLeaderRef.current) {
+        if (!session.disposed && !isLeaderRef.current) {
           const current = localStorage.getItem(LEADER_KEY);
-          if (!current || current === tabId.current) {
+          if (!current || current === claimId) {
             becomeLeader();
           }
         }
@@ -202,12 +209,15 @@ export function useGlobalEvents(): void {
     }
 
     return () => {
-      disposed = true;
+      // Read before stepDown() clears the flag: only the leader gives the claim back, so that the next
+      // mount (or another tab) takes over at once instead of waiting out the heartbeat timeout.
+      const wasLeader = isLeaderRef.current;
+      session.disposed = true;
       stepDown();
-      if (watchdogTimer) {
-        clearTimeout(watchdogTimer);
+      if (session.watchdogTimer) {
+        clearTimeout(session.watchdogTimer);
       }
-      if (isLeaderRef.current) {
+      if (wasLeader && localStorage.getItem(LEADER_KEY) === claimId) {
         localStorage.removeItem(LEADER_KEY);
       }
       bc.close();
