@@ -230,3 +230,34 @@ describe.each(MODES)('Chat shell around the %s list', (mode, count) => {
     });
   });
 });
+
+/** Everything around the list that must survive the list changing form. */
+const SHELL = ['message-input', 'analytics', 'turn-rail', 'mobile-outline'];
+const shellNodes = () => SHELL.map((testId) => screen.getByTestId(testId));
+
+describe('Chat shell across the virtual-list threshold', () => {
+  beforeEach(() => {
+    setUpChatTest();
+  });
+
+  afterEach(() => {
+    tearDownChatTest();
+  });
+
+  it('keeps the composer, rails and open dialogs mounted when the conversation grows into a virtual list and back', () => {
+    openChat('chat-1', makeMessages(20));
+    renderChat();
+    act(() => useChatStore.setState({ activeSessionAnalyticsId: 'chat-1', activeSessionAnalyticsMessageId: 'm2' }));
+    const before = shellNodes();
+    expect(screen.queryByTestId('virtual-list')).toBeNull();
+
+    act(() => useChatStore.setState({ messages: makeMessages(21) }));
+    expect(screen.getByTestId('virtual-list')).toBeInTheDocument();
+    shellNodes().forEach((node, index) => expect(node).toBe(before[index]));
+
+    act(() => useChatStore.setState({ messages: makeMessages(20) }));
+    expect(screen.queryByTestId('virtual-list')).toBeNull();
+    shellNodes().forEach((node, index) => expect(node).toBe(before[index]));
+    expect(probes.messageInputMounts).toEqual(['chat-1']);
+  });
+});

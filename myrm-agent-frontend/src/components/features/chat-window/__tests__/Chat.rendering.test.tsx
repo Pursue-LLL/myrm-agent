@@ -62,6 +62,17 @@ describe('Chat rendering', () => {
       expect(probes.messageInputMounts).toEqual(['chat-1']);
     });
 
+    it('lets the page column scroll for the plain list and leaves scrolling to the virtual list', () => {
+      openChat('chat-1', makeMessages(4));
+      const plain = renderChat();
+      expect(dock(plain.container)?.parentElement?.parentElement?.className).toContain('overflow-y-auto');
+      plain.unmount();
+
+      openChat('chat-1', makeMessages(26));
+      const virtual = renderChat();
+      expect(dock(virtual.container)?.parentElement?.parentElement?.className).not.toContain('overflow-y-auto');
+    });
+
     it('draws a rule under an assistant message unless it is the last one', () => {
       openChat('chat-1', makeMessages(4));
       const { container } = renderChat();

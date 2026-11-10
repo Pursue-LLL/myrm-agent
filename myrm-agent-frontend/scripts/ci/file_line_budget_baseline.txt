@@ -11,8 +11,6 @@ src/components/features/artifacts/ArtifactPortal.tsx
 src/components/features/artifacts/PublishModal.tsx
 src/components/features/artifacts/renderers/MediaPreview.tsx
 src/components/features/artifacts/renderers/architecture/ArchitecturePreview.tsx
-src/components/features/chat-window/Chat.tsx
-src/components/features/chat-window/ChatWindow.tsx
 src/components/features/chat-window/agent-config-panel/BuiltinToolsPanel.tsx
 src/components/features/chat-window/playbook/ModelOrchestrationPlaybookDialog.tsx
 src/components/features/chat-window/subagent/SubagentDashboard.tsx
