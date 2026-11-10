@@ -43,13 +43,12 @@ def _make_job(**overrides: object) -> CronJob:
         "delivery": DeliveryConfig(channel="chat"),
     }
     defaults.update(overrides)
-    return CronJob(**defaults)  # type: ignore[arg-type]
+    return CronJob(**defaults)
 
 
 def _make_executor(
     *,
     config: CronConfig | None = None,
-    push_callback: AsyncMock | None = None,
 ) -> tuple[JobExecutor, AsyncMock, AsyncMock]:
     store = AsyncMock()
     store.save_job = AsyncMock(side_effect=lambda j: j)
@@ -63,7 +62,6 @@ def _make_executor(
         store=store,
         delivery=delivery,
         config=config,
-        push_callback=push_callback,
     )
     return executor, store, delivery
 
@@ -187,59 +185,6 @@ class TestTryDeliver:
         result = JobResult(success=True, output="new output")
         await executor._try_deliver(job, result)
         assert job.last_output_hash == _output_hash("new output")
-
-
-# ---------------------------------------------------------------------------
-# _push_notification
-# ---------------------------------------------------------------------------
-
-
-class TestPushNotification:
-    @pytest.mark.asyncio
-    async def test_no_callback(self) -> None:
-        executor, _, _ = _make_executor()
-        job = _make_job()
-        result = JobResult(success=True, output="hi")
-        await executor._push_notification(job, result, DeliveryStatus.DELIVERED)
-
-    @pytest.mark.asyncio
-    async def test_skipped_delivery_no_push(self) -> None:
-        cb = AsyncMock()
-        executor, _, _ = _make_executor(push_callback=cb)
-        job = _make_job()
-        result = JobResult(success=True, output="hi")
-        await executor._push_notification(job, result, DeliveryStatus.SKIPPED)
-        cb.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_success_push(self) -> None:
-        cb = AsyncMock()
-        executor, _, _ = _make_executor(push_callback=cb)
-        job = _make_job()
-        result = JobResult(success=True, output="hello world")
-        await executor._push_notification(job, result, DeliveryStatus.DELIVERED)
-        cb.assert_awaited_once()
-        args = cb.call_args[0]
-        assert args[0] == "user-1"
-        assert "success" in args[3]
-
-    @pytest.mark.asyncio
-    async def test_error_push(self) -> None:
-        cb = AsyncMock()
-        executor, _, _ = _make_executor(push_callback=cb)
-        job = _make_job()
-        result = JobResult(success=False, error="something broke")
-        await executor._push_notification(job, result, DeliveryStatus.DELIVERED)
-        cb.assert_awaited_once()
-        assert "error" in cb.call_args[0][3]
-
-    @pytest.mark.asyncio
-    async def test_push_failure_logged(self) -> None:
-        cb = AsyncMock(side_effect=RuntimeError("push failed"))
-        executor, _, _ = _make_executor(push_callback=cb)
-        job = _make_job()
-        result = JobResult(success=True, output="hi")
-        await executor._push_notification(job, result, DeliveryStatus.DELIVERED)
 
 
 # ---------------------------------------------------------------------------

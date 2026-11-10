@@ -142,6 +142,23 @@ describe('useGlobalEvents: skill and system notices', () => {
       ]);
     });
 
+    it.each(['info', 'warning', 'error'] as const)(
+      'shows a notice that declares the %s level as that toast',
+      (level) => {
+        mountGlobalEvents();
+
+        emit('system_notification', { title: 'Task paused', message: 'Reached its end time.', meta_data: { level } });
+
+        expect(toastMessage(mocks.toast[level])).toBe('Task paused');
+        expect(toastOptions(mocks.toast[level])).toEqual({
+          description: 'Reached its end time.',
+          duration: 10_000,
+          dismissible: true,
+        });
+        expect(mocks.toast.success).not.toHaveBeenCalled();
+      },
+    );
+
     it('falls back to a default title and stays silent for snapshot_created notices', () => {
       mountGlobalEvents();
 

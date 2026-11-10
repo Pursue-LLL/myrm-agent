@@ -39,6 +39,7 @@ from app.core.cron.adapters.situation_sections import build_situation_report_bui
 from app.core.cron.adapters.sqlalchemy_store import SqlAlchemyCronStore
 from app.core.cron.adapters.sqlalchemy_trigger_provider import SqlAlchemyTriggerProvider
 from app.core.cron.adapters.wiki_router_job_runner import WikiRouterJobRunner
+from app.core.cron.notifier import publish_cron_notice
 
 logger = logging.getLogger(__name__)
 
@@ -76,19 +77,6 @@ def get_cron_manager() -> EntitlementGuardedCronManager:
     return _manager
 
 
-async def _push_callback(
-    user_id: str,
-    job_name: str,
-    text: str,
-    level: str,
-    *,
-    chat_id: str | None = None,
-) -> None:
-    from app.core.cron.push_store import PushLevel, push
-
-    await push(user_id, job_name, text, PushLevel(level), chat_id=chat_id)
-
-
 def _build_scheduler() -> CronScheduler:
     store = get_cron_store()
     runners = _build_runners()
@@ -103,7 +91,7 @@ def _build_scheduler() -> CronScheduler:
         delivery=delivery,
         config=config,
         lock=CrossProcessCronLock(),
-        push_callback=_push_callback,
+        on_notice=publish_cron_notice,
         trigger_provider=SqlAlchemyTriggerProvider(),
         pre_condition=SandboxedPythonCondition(timeout_seconds=60),
     )

@@ -115,7 +115,7 @@ _PRESS_STOP_JS = f"""(() => {{
 _FINISHED_FETCHES_JS = """(() => ({
   nowMs: Math.round(performance.now()),
   fetches: performance.getEntriesByType('resource')
-    .filter((entry) => entry.initiatorType === 'fetch' && !/liveness|_rsc=|browser\\/spaces|dev-ports|loop\\/status|push-messages|\\/tasks\\?/.test(entry.name))
+    .filter((entry) => entry.initiatorType === 'fetch' && !/liveness|_rsc=|browser\\/spaces|dev-ports|loop\\/status|\\/tasks\\?/.test(entry.name))
     .slice(-14)
     .map((entry) => `${entry.name.replace(/^.*\\/api\\/v1/, '')} @${Math.round(entry.startTime)}ms ${Math.round(entry.duration)}ms ${entry.responseStatus}`),
 }))()"""

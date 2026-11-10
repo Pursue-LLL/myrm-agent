@@ -12,6 +12,8 @@ Consumed by scheduler, manager, tools, and application adapters.
 - JobStatus: class — Job Status
 - RunStatus: class — Run Status
 - TransientErrorKind: class — Transient Error Kind
+- CronNoticeKind: what a notice reports — a run's outcome or an automatic pause
+- CronNotice: one user-facing fact about a job, handed to the application layer's notice callback
 
 [POS]
 Cron job domain types.
@@ -399,3 +401,32 @@ class JobResult:
     circuit_broken: bool = False
     retry_at: datetime | None = None
     retry_safe: bool = True
+
+
+class CronNoticeKind(StrEnum):
+    """What a ``CronNotice`` reports.
+
+    The engine states the fact; the application layer owns severity and wording, so a notice
+    never carries presentation vocabulary of its own.
+    """
+
+    RUN_SUCCEEDED = "run_succeeded"
+    RUN_FAILED = "run_failed"
+    JOB_EXPIRED = "job_expired"
+    JOB_MAX_FIRES_REACHED = "job_max_fires_reached"
+
+
+@dataclass(frozen=True, slots=True)
+class CronNotice:
+    """One user-facing fact about a job: a run's outcome, or the scheduler pausing the job by itself.
+
+    ``text`` is the run outcome (``[job name] output-or-error snippet``) for the ``RUN_*`` kinds and
+    empty for the pauses. ``chat_id`` is the chat the job is bound to and is set on run outcomes only.
+    ``max_fires`` is the limit a ``JOB_MAX_FIRES_REACHED`` pause hit.
+    """
+
+    kind: CronNoticeKind
+    job_name: str
+    text: str = ""
+    chat_id: str | None = None
+    max_fires: int | None = None

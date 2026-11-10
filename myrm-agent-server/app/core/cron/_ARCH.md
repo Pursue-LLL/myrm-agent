@@ -36,7 +36,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ |
 | `adapters/acceptance_verification.py` | 核心 | Cron 直接执行路径的 acceptance_criteria 验证：复用 harness VerificationGatekeeper 对成功结果做结构化验收 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
-| `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
+| `notifier.py` | 核心 | 调度器的通知回调：把引擎抛出的 `CronNotice`（运行结果、自动暂停）按种类定级别、标题与文案（`channel_t` 按用户语言渲染），发布 `CRON_UPDATED` 与 `SYSTEM_NOTIFICATION` | ✅ |
 | `blueprints/` | 子包 | 自动化蓝图：`core/` 类型与注册/填充逻辑，`catalog/` 按主题存放 21 个内置蓝图；详见 [blueprints/_ARCH.md](blueprints/_ARCH.md) | — |
 | `__init__.py` | 入口 | 包标记，不导出名称；`adapters/` 不经此入口 | — |
 
@@ -241,16 +241,15 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 - **状态更新**：hash 不同时更新 `job.last_output_hash`，通过 `save_job` 持久化
 - **关闭时清除**：通过 patch 关闭 deduplicate 时自动清除 `last_output_hash`
 
-### ConsoleCronBubble（实时 Toast 通知）
+### Cron 通知（实时 Toast）
 
-用更轻量的方式实现等效能力：
+引擎只陈述事实：每次运行结果与每次自动暂停都以 `CronNotice` 交给调度器的 `on_notice` 回调（`adapters/setup.py` 接 `notifier.publish_cron_notice`），级别与措辞由本层决定。
 
-- **后端**：`push_store.py` 内存队列 + `/cron/push-messages` API
-- **前端**：`CronPushPoller` 组件每 10s 轮询，用 `sonner` toast 展示
-- **触发**：`scheduler._push_notification()` 在每次执行完成后写入 push store
-- **过滤**：`delivery_status=skipped`（SILENT 响应）不推送 toast
-- **消息级别**：`success`（绿色）/ `error`（红色）/ `info`（蓝色）
-- **去重**：前端维护 `seenIds` Set，同一消息不重复 toast
+- **后端**：`notifier.py` 发布 `CRON_UPDATED`（刷新定时任务视图）与 `SYSTEM_NOTIFICATION`（用户读到的提示），经 SSE 到 WebUI，同一事件也进 Web Push、IM 卡片与语音播报
+- **种类与级别**：`RUN_SUCCEEDED` → `success`，`RUN_FAILED` → `error`，`JOB_EXPIRED` / `JOB_MAX_FIRES_REACHED`（调度器已自动暂停该任务）→ `warning`；级别写入 `meta_data.level`，前端 toast 按级别展示
+- **语言**：标题与暂停说明由 `channel_t` 按用户语言渲染（`cron_notice_*` 键，覆盖 en / zh-CN / zh-TW / ja）；运行结果的正文是执行输出（失败时是错误）的前 100 个字符
+- **过滤**：`delivery_status=skipped`（SILENT 响应）不发通知
+- **语音**：运行结果沿用 `voice_background_task_done` 类型；任务绑定了聊天时，双工语音在该聊天里播报
 
 ### Webhook 投递
 
@@ -293,7 +292,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 限制任务总执行次数，适用于有限次数的自动化场景：
 
 - **数据模型**：`CronJob.max_fires: int | None = None`（None 表示不限制），`CronJob.fire_count: int = 0`
-- **调度层**：scheduler 在运行开始时递增 `fire_count`，下一次触发前 `pre_execution_check` 发现 `fire_count >= max_fires` 即把任务置为 PAUSED 并推送通知；跳过（前置条件不满足、预算阻断、内存紧张、心跳无内容）与推迟（`retry_at`）的运行没有真正执行，由 `skipped_runs.py` 退回这一次计数，所以上限统计的是真正执行过的次数；失败的运行已经执行过，仍然计数
+- **调度层**：scheduler 在运行开始时递增 `fire_count`，下一次触发前 `pre_execution_check` 发现 `fire_count >= max_fires` 即把任务置为 PAUSED 并通知用户（`JOB_MAX_FIRES_REACHED`）；跳过（前置条件不满足、预算阻断、内存紧张、心跳无内容）与推迟（`retry_at`）的运行没有真正执行，由 `skipped_runs.py` 退回这一次计数，所以上限统计的是真正执行过的次数；失败的运行已经执行过，仍然计数
 - **API 层**：`CronJobCreate/Update` 支持 `max_fires`（≥1），`CronJobResponse` 返回 `fire_count`
 - **前端**：CronJobCard 显示 `fire_count / max_fires` 标签，CronRunHistory 提供 MaxFiresEditor
 
@@ -302,7 +301,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 任务自动过期停用：
 
 - **数据模型**：`CronJob.expires_at: datetime | None = None`
-- **调度层**：scheduler tick 时检查 `expires_at <= now`，满足则自动标记为 COMPLETED
+- **调度层**：运行前检查（`pre_execution_check`）发现 `expires_at <= now`，把任务置为 PAUSED 并通知用户（`JOB_EXPIRED`）
 - **API 层**：`CronJobCreate/Update` 支持 `expires_at`（ISO 格式）
 - **前端**：CronJobCard 显示过期时间图标，CronRunHistory 提供 ExpiresAtEditor
 

@@ -180,6 +180,13 @@ goal_usage_limit_paused_message =
 airbag_rolled_back_title = Changes undone
 airbag_rolled_back_message =
     Your workspace files are back to how they were before the goal started.
+cron_notice_title = Reminder: { $job_name }
+cron_notice_failed_title = Scheduled task failed: { $job_name }
+cron_notice_paused_title = Scheduled task paused: { $job_name }
+cron_notice_expired_message =
+    It reached its end time, so it was paused automatically.
+cron_notice_max_fires_message =
+    It has run { $max_fires } times, which is its limit, so it was paused automatically.
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }

@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - @/services/backgroundTasksRefresh (POS: 后台任务列表刷新通知)
- * - ./memoryOperationToasts / locatorHealedToast / kanbanTaskToast / reauthToasts / subsumptionUndoToast (POS: 各事件的 toast)
+ * - ./memoryOperationToasts / locatorHealedToast / kanbanTaskToast / reauthToasts / subsumptionUndoToast / systemNotificationToast (POS: 各事件的 toast)
  *
  * [OUTPUT]
  * - systemEventHandlers: 空闲状态 / 运行摘要 / 系统通知 / 记忆 / 定位器自愈 / 重新授权 / 看板事件的处理器表
@@ -14,6 +14,7 @@ import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast'
 import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
 import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
 import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
+import { showSystemNotificationToast } from '@/hooks/globalEvents/systemNotificationToast';
 import {
   notifyBackgroundTasksChangedForShellJobFinish,
   notifyBackgroundTasksChangedForVoiceJobFinish,
@@ -68,15 +69,7 @@ const handleSystemNotification: GlobalEventHandler = (payload, { t, pushToast })
     }
   }
 
-  // Only show global toast if it's not a snapshot_created event
-  // (snapshot_created is handled specifically by ChatWindow with a custom icon)
-  if (meta.type !== 'snapshot_created') {
-    pushToast.success(title, {
-      description: message,
-      duration: 10_000,
-      dismissible: true,
-    });
-  }
+  showSystemNotificationToast(title, message, meta, { pushToast });
 };
 
 const handleMemoryOperation: GlobalEventHandler = (payload, { t, router }) => {

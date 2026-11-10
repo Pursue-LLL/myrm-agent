@@ -22,5 +22,6 @@
 | `reauthToasts.ts`             | `mcp_auth_required` / `oauth_reauth_required` 重新授权 toast：MCP → `/settings/mcp`，OAuth 账号 → `/settings/credentials`，文案用 `formatOAuthIssuerLabel` 的账号展示名称呼账号且不展示后端 reason                  |
 | `backupAlertToast.ts`         | 自动备份连续失败的 `health_alert`：整机备份（`component=instance_backup`）直达 `/settings/workbench#auto-backup`，云端记忆备份（`component=remote_memory_backup`）直达 `/settings/memory?sub=cloud-backup`；仅本地化文案（不展示服务端措辞与组件名），两类各用独立 toast id，互不覆盖 |
 | `kanbanTaskToast.ts`          | 看板任务完成/阻塞/失败的 toast 与系统通知：toast 的「查看看板」操作与系统通知的点击都直达该状态列（`buildKanbanBoardDeepLink` 的 `board_id` + `status`，事件没有 `board_id` 时不给操作）；完成的结果与阻塞原因按服务端原文显示，认识的阻塞原因按界面语言显示（`lib/kanban/kanbanBlockedReason`），不认识的原样显示，超过 200 字符截断并加省略号；失败不带说明文字（服务端不发运行的异常原文，运行记录在看板里）；定时阻塞（`block_kind=scheduled`，任务自己恢复）不弹窗也不发系统通知 |
+| `systemNotificationToast.ts`  | `system_notification` 的 toast：按服务端在 `meta_data.level` 声明的级别（`success` / `info` / `warning` / `error`）展示，缺省或不认识的级别按 `success`，失败与警告不会呈现成绿色的成功提示；快照创建通知（`meta_data.type=snapshot_created`）由聊天窗口自带图标展示，这里不重复弹出 |
 
 Hook 层允许的 JSX 例外（toast 渲染）。消费者：`global-events-initializer.tsx`、workspace-browser。

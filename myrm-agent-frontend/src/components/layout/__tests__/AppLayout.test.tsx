@@ -123,7 +123,6 @@ vi.mock('@/components/features/app-shell/config-unreadable-banner', () => ({
   default: () => <div data-testid="config-banner" />,
 }));
 vi.mock('@/components/dev/E2ECompanionBridge', () => ({ default: () => <div data-testid="e2e-bridge" /> }));
-vi.mock('@/components/features/cron/CronPushPoller', () => ({ default: () => <div data-testid="cron-poller" /> }));
 
 import AppLayout from '../AppLayout';
 
@@ -237,14 +236,13 @@ describe('AppLayout: start-up', () => {
     }
   });
 
-  it('puts the page between the banners and keeps the dialogs and the poller around it', async () => {
+  it('puts the page between the banners and keeps the dialogs around it', () => {
     render(page());
 
     expect(within(main()).getByText('page content')).toBeInTheDocument();
     for (const id of ['backend-banner', 'cron-banner', 'config-banner']) {
       expect(within(main()).getByTestId(id), id).toBeInTheDocument();
     }
-    await screen.findByTestId('cron-poller');
     for (const id of ['budget-dialog', 'upgrade-dialog', 'e2e-bridge', 'crash-dialog']) {
       expect(screen.getByTestId(id), id).toBeInTheDocument();
     }

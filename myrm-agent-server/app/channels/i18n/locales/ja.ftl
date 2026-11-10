@@ -180,6 +180,13 @@ goal_usage_limit_paused_message =
 airbag_rolled_back_title = 変更を元に戻しました
 airbag_rolled_back_message =
     ワークスペースのファイルを、目標の開始前の状態に戻しました。
+cron_notice_title = リマインダー：{ $job_name }
+cron_notice_failed_title = スケジュールタスクが失敗しました：{ $job_name }
+cron_notice_paused_title = スケジュールタスクを一時停止しました：{ $job_name }
+cron_notice_expired_message =
+    終了時刻に達したため、自動的に一時停止しました。
+cron_notice_max_fires_message =
+    実行回数が上限の { $max_fires } 回に達したため、自動的に一時停止しました。
 new_session_started =  新しい会話を開始しました。次のメッセージから新しいセッションになります。
 compact_not_configured = ℹ 圧縮が設定されていません。
 compact_success =  コンテキストを圧縮しました：{ $message_count } メッセージを要約、約 { $tokens_saved } トークンを節約。{ $topic_hint }

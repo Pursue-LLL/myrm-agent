@@ -180,6 +180,13 @@ goal_usage_limit_paused_message =
 airbag_rolled_back_title = 改动已撤销
 airbag_rolled_back_message =
     工作区文件已恢复到目标开始前的状态。
+cron_notice_title = 提醒：{ $job_name }
+cron_notice_failed_title = 定时任务执行失败：{ $job_name }
+cron_notice_paused_title = 定时任务已暂停：{ $job_name }
+cron_notice_expired_message =
+    已到结束时间，已自动暂停。
+cron_notice_max_fires_message =
+    已执行 { $max_fires } 次，达到执行次数上限，已自动暂停。
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }

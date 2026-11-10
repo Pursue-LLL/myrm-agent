@@ -3,7 +3,7 @@
 Orchestrates the complete lifecycle of a single cron job execution:
 run → record → deliver → update state → failure alert.
 
-The ``JobExecutor`` holds references to store, delivery, and push callback
+The ``JobExecutor`` holds references to store, delivery, and the notice callback
 but owns no scheduling state — that remains in ``CronScheduler``.
 
 [INPUT]
@@ -14,6 +14,7 @@ but owns no scheduling state — that remains in ``CronScheduler``.
 - observability.tracing::TracingContext (POS: Request-scoped trace_id/session_id for log correlation.)
 - toolkits.cron.engine.failure_alerts::FailureAlertMixin (POS: failure alert decision and delivery, mixed into the executor)
 - toolkits.cron.engine.incremental_monitoring::IncrementalMonitoringMixin (POS: diff of a run's output against its baseline, mixed into the executor)
+- toolkits.cron.engine.run_notices::RunNoticeMixin (POS: notices about a run's outcome and an automatic pause, mixed into the executor)
 
 [OUTPUT]
 - JobExecutor: Manages the complete lifecycle of a single job execution.
@@ -55,6 +56,7 @@ from myrm_agent_harness.toolkits.cron.engine.integrity import (
 )
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
 from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
+from myrm_agent_harness.toolkits.cron.engine.run_notices import RunNoticeMixin
 from myrm_agent_harness.toolkits.cron.engine.skipped_runs import SkippedRunMixin
 from myrm_agent_harness.toolkits.cron.protocols import PreFlightConditionError
 from myrm_agent_harness.toolkits.cron.types import (
@@ -69,17 +71,13 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Coroutine
-
     from myrm_agent_harness.toolkits.cron.protocols import (
+        CronNoticeCallback,
         CronStore,
         JobRunner,
         PreFlightCondition,
         ResultDelivery,
     )
-
-    # (user_id, job_name, text, level) with an optional ``chat_id`` keyword.
-    PushCallback = Callable[..., Coroutine[None, None, None]]
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +91,7 @@ def _output_hash(text: str) -> str:
     return hashlib.sha256(text.strip().encode()).hexdigest()[:32]
 
 
-class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, SkippedRunMixin):
+class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunNoticeMixin, SkippedRunMixin):
     """Manages the complete lifecycle of a single job execution.
 
     Stateful only in the sense that it holds injected dependencies.
@@ -108,13 +106,13 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, SkippedRunMixin
         store: CronStore,
         delivery: ResultDelivery,
         config: CronConfig | None = None,
-        push_callback: PushCallback | None = None,
+        on_notice: CronNoticeCallback | None = None,
         pre_condition: PreFlightCondition | None = None,
     ) -> None:
         cfg = config or CronConfig()
         self._store = store
         self._delivery = delivery
-        self._push_callback = push_callback
+        self._on_notice = on_notice
         self._pre_condition = pre_condition
         self._global_failure_delivery = cfg.failure_delivery
         self._global_failure_alert = cfg.failure_alert
@@ -212,7 +210,7 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, SkippedRunMixin
         started: datetime,
         trigger_source: str,
     ) -> None:
-        """Close a run with a known outcome: monitoring, delivery, the run record, the push, the job's new state."""
+        """Close a run with a known outcome: monitoring, delivery, the run record, the notice, the job's new state."""
         finished = datetime.now(UTC)
         duration_ms = int((finished - started).total_seconds() * 1000)
 
@@ -265,7 +263,7 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, SkippedRunMixin
         run = dc_replace(run, integrity_hash=integrity_hash)
 
         await self._store.save_run(run)
-        await self._push_notification(job, result, delivery_status)
+        await self._notify_run_outcome(job, result, delivery_status)
 
         new_failures = 0 if result.success else job.consecutive_failures + 1
         await self._update_after_run(job, result, new_failures, finished)
@@ -350,29 +348,6 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, SkippedRunMixin
                 job.last_output_hash = _output_hash(output_text)
 
         return DeliveryStatus.DELIVERED, None
-
-    async def _push_notification(
-        self,
-        job: CronJob,
-        result: JobResult,
-        delivery_status: DeliveryStatus,
-    ) -> None:
-        if not self._push_callback:
-            return
-        if delivery_status == DeliveryStatus.SKIPPED:
-            return
-
-        level = "success" if result.success else "error"
-        snippet = (result.output or "")[:100] if result.success else (result.error or "unknown")[:100]
-        text = f"[{job.name}] {snippet}"
-        try:
-            # Support both 4-arg and 5-arg (with chat_id kwarg) push callbacks
-            try:
-                await self._push_callback(job.user_id, job.name, text, level, chat_id=job.chat_id)
-            except TypeError:
-                await self._push_callback(job.user_id, job.name, text, level)
-        except Exception as exc:
-            logger.warning("Push notification failed for job %s: %s", job.id, exc)
 
     # ------------------------------------------------------------------
     # Context-from resolution

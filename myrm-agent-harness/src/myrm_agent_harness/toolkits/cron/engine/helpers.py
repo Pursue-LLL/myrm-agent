@@ -1,5 +1,5 @@
 """[INPUT]
-- toolkits.cron.types::ActiveHours, CronJob, FailureAlertConfig (POS: Cron job domain types.)
+- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig (POS: Cron job domain types.)
 
 [OUTPUT]
 - resolve_stagger_ms: function — resolve_stagger_ms
@@ -7,9 +7,11 @@
 - compute_stagger_offset_s: Return the stagger upper-bound in seconds for a given sch...
 - is_within_active_hours: Return True if *now* falls within the active window, or i...
 - is_stale_run: Detect a zombie task whose execution was interrupted by a...
+- auto_pause_notice: The notice for a pre-execution verdict that paused the job.
 
 [POS]
-Provides resolve_stagger_ms, is_top_of_hour_cron, compute_stagger_offset_s.
+Pure engine helpers: stagger resolution, schedule-window and backoff checks, the pre-execution guards with the
+notice an automatic pause raises, failure-alert resolution and telemetry extraction.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
-from myrm_agent_harness.toolkits.cron.types import FailureAlertConfig
+from myrm_agent_harness.toolkits.cron.types import CronNotice, CronNoticeKind, FailureAlertConfig
 
 """Scheduling, alert, and error helpers for the cron engine.
 
@@ -201,6 +203,15 @@ def pre_execution_check(job: CronJob, now: datetime) -> str | None:
         elapsed = (now - _ensure_utc(job.last_run_at)).total_seconds()
         if elapsed < job.cooldown_seconds:
             return "cooldown_active"
+    return None
+
+
+def auto_pause_notice(job: CronJob, skip_reason: str) -> CronNotice | None:
+    """The notice for a ``pre_execution_check`` verdict that paused the job; None for a verdict that did not."""
+    if skip_reason == "expired":
+        return CronNotice(kind=CronNoticeKind.JOB_EXPIRED, job_name=job.name)
+    if skip_reason == "max_fires_reached":
+        return CronNotice(kind=CronNoticeKind.JOB_MAX_FIRES_REACHED, job_name=job.name, max_fires=job.max_fires)
     return None
 
 

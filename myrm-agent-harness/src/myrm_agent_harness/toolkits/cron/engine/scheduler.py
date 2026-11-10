@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.cron.engine.executor import JobExecutor
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     _ensure_utc,
+    auto_pause_notice,
     is_within_active_hours,
     pre_execution_check,
 )
@@ -56,18 +57,17 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Coroutine
+    from collections.abc import Coroutine
 
     from myrm_agent_harness.toolkits.cron.protocols import (
         ConcurrencyLock,
+        CronNoticeCallback,
         CronStore,
         JobRunner,
         PreFlightCondition,
         ResultDelivery,
         TriggerProvider,
     )
-
-    PushCallback = Callable[[str, str, str, str], Coroutine[None, None, None]]
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ class CronScheduler:
         delivery: ResultDelivery,
         config: CronConfig | None = None,
         lock: ConcurrencyLock | None = None,
-        push_callback: PushCallback | None = None,
+        on_notice: CronNoticeCallback | None = None,
         trigger_provider: TriggerProvider | None = None,
         pre_condition: PreFlightCondition | None = None,
     ) -> None:
@@ -120,13 +120,12 @@ class CronScheduler:
         self._last_purge_at: datetime | None = None
         self._active_jobs: set[str] = set()
         self._bg_tasks: set[asyncio.Task[None]] = set()
-        self._push_callback = push_callback
 
         self._executor = JobExecutor(
             store=store,
             delivery=delivery,
             config=cfg,
-            push_callback=push_callback,
+            on_notice=on_notice,
             pre_condition=pre_condition,
         )
         self._recovery = StartupRecovery(
@@ -407,18 +406,10 @@ class CronScheduler:
             skip_reason = pre_execution_check(job, now)
             if skip_reason:
                 logger.warning("Job %s skipped: %s", job.id, skip_reason)
-                if skip_reason in ("expired", "max_fires_reached"):
+                pause_notice = auto_pause_notice(job, skip_reason)
+                if pause_notice is not None:
                     await self._store.save_job(job)
-                    if self._push_callback:
-                        reason_text = (
-                            f"[{job.name}] 已到期，自动暂停"
-                            if skip_reason == "expired"
-                            else f"[{job.name}] 已达最大执行次数({job.max_fires})，自动暂停"
-                        )
-                        try:
-                            await self._push_callback(job.user_id, job.name, reason_text, "warning")
-                        except Exception as exc:
-                            logger.warning("Push notification failed for paused job %s: %s", job.id, exc)
+                    await self._executor.emit_notice(pause_notice)
                 return
 
             if not is_within_active_hours(job.active_hours):
