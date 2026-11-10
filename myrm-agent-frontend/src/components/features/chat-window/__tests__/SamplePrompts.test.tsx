@@ -177,7 +177,7 @@ describe('SamplePrompts', () => {
       cardTexts().forEach((text) => expect(AGENT_POOL).toContain(text));
     });
 
-    it('offers a different set to a different agent, and a different one again as the level grows', () => {
+    it('offers a different set to a different agent, and the same set whatever the user level', () => {
       const picksFor = (agentId: string, level: number) => {
         useChatStore.setState({ agentConfig: agentConfigWith({ agentId }) });
         useProgressionStore.setState({ currentLevel: level });
@@ -192,7 +192,8 @@ describe('SamplePrompts', () => {
       const byLevel = new Set([1, 2, 3, 4, 5].map((level) => picksFor('a', level).join('|')));
 
       expect(byAgent.size).toBeGreaterThan(1);
-      expect(byLevel.size).toBeGreaterThan(1);
+      // The progression loads after the first paint; the cards on screen must not reshuffle when it arrives.
+      expect(byLevel.size).toBe(1);
     });
   });
 
