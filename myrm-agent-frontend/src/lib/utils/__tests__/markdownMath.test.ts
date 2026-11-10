@@ -1,3 +1,4 @@
+import rehypeRaw from 'rehype-raw';
 import rehypeStringify from 'rehype-stringify';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
@@ -323,5 +324,45 @@ describe('KaTeX options per preset', () => {
       expect(run('Costs $5 and $10 and $$50% \\text{done}$$')).not.toContain('katex-error');
       expect(run('Costs $5 and $10')).not.toContain('class="katex"');
     }
+  });
+});
+
+/** The chat order: the raw HTML of a message becomes elements first, then the chat math list runs on that tree. */
+const rawChatRenderer = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(chatMathPlugins.remark)
+  .use(remarkRehype, { allowDangerousHtml: true })
+  .use(rehypeRaw)
+  .use(chatMathPlugins.rehype)
+  .use(rehypeStringify);
+const renderChatRaw = (markdown: string): string =>
+  String(rawChatRenderer.processSync(normalizeMathDelimiters(markdown)));
+const countOf = (html: string, tag: string): number => html.split(`<${tag}`).length - 1;
+
+describe('SVG in chat messages', () => {
+  it('unwraps the vector markup a message carries and keeps what is inside it', () => {
+    const html = renderChatRaw('a <svg viewBox="0 0 4 4"><path d="M0 0"></path><line x1="0"></line>kept</svg> b');
+    for (const tag of ['svg', 'path', 'line']) {
+      expect(countOf(html, tag)).toBe(0);
+    }
+    expect(html).toContain('a kept b');
+  });
+
+  it('unwraps vector tags nested in vector tags', () => {
+    const html = renderChatRaw('<svg><svg><path d="M0 0"></path>deep</svg></svg>');
+    expect(countOf(html, 'svg') + countOf(html, 'path')).toBe(0);
+    expect(html).toContain('deep');
+  });
+
+  it('keeps the SVG KaTeX draws for roots and vectors', () => {
+    const html = renderChatRaw('$\\sqrt{x}$ and $\\vec{v}$');
+    expect(countOf(html, 'svg')).toBeGreaterThan(0);
+    expect(countOf(html, 'path')).toBeGreaterThan(0);
+  });
+
+  it('leaves no SVG behind a forged formula wrapper except what KaTeX draws itself', () => {
+    const forged = '<span class="katex"><svg><path d="M0 0"></path></svg></span>';
+    expect(countOf(renderChatRaw(`${forged} $\\sqrt{x}$`), 'svg')).toBe(countOf(renderChatRaw('$\\sqrt{x}$'), 'svg'));
   });
 });

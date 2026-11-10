@@ -6,8 +6,8 @@
  *
  * [OUTPUT]
  * - normalizeMathDelimiters: the text pre-pass, run before parsing
- * - mathPlugins, chatMathPlugins: remark and rehype plugin lists for react-markdown and unified processors; they
- *   differ only in the KaTeX options
+ * - mathPlugins, chatMathPlugins: remark and rehype plugin lists for react-markdown and unified processors; the chat
+ *   list differs in the KaTeX options and in unwrapping SVG that a message's raw HTML carries
  *
  * [POS]
  * What counts as a formula is decided once, inside the parser (`remarkMathPolicy`): a `$` the policy refuses stays
@@ -111,6 +111,25 @@ const rehypeEscapeMathPercent: Plugin<[], HastRoot> = () => (tree) => {
   });
 };
 
+const VECTOR_TAGS = new Set(['svg', 'path', 'line']);
+
+/**
+ * Chat messages let `svg`, `path` and `line` through their element whitelist, because KaTeX draws roots, vectors,
+ * braces and arrows with them. SVG a model writes itself is not wanted there, so this unwraps it to its content, the
+ * way the whitelist treats every other element it refuses. It has to run on the tree `rehypeRaw` produced and before
+ * KaTeX renders: KaTeX's own SVG is then the only SVG that reaches the whitelist.
+ */
+const rehypeUnwrapRawVector: Plugin<[], HastRoot> = () => (tree) => {
+  visit(tree, 'element', (node: Element, index, parent) => {
+    if (!VECTOR_TAGS.has(node.tagName) || !parent || index === undefined) {
+      return;
+    }
+    parent.children.splice(index, 1, ...node.children);
+    // The spliced-in children now sit at this index, and visiting resumes there, so nested vector tags go too.
+    return index;
+  });
+};
+
 /**
  * What chat messages render with: html-only output, no strict-mode warnings, `\text` set as `\mathrm`, and KaTeX's
  * trusted commands enabled. `throwOnError` is absent on purpose: rehype-katex sets it itself and falls back to
@@ -141,10 +160,13 @@ export const mathPlugins: MathPlugins = {
   rehype: [rehypeEscapeMathPercent, rehypeKatex],
 };
 
-/** For chat messages: the same pipeline with the KaTeX options above. */
+/**
+ * For chat messages: the KaTeX options above, and the unwrapping of SVG the model wrote. The list has to run after
+ * `rehypeRaw`, which turns the raw HTML of a message into elements.
+ */
 export const chatMathPlugins: MathPlugins = {
   remark: remarkPlugins,
-  rehype: [rehypeEscapeMathPercent, [rehypeKatex, chatKatexOptions]],
+  rehype: [rehypeUnwrapRawVector, rehypeEscapeMathPercent, [rehypeKatex, chatKatexOptions]],
 };
 
 /** Fenced code (up to its closing fence, or to the end while a stream has not closed it) and inline code spans. */
