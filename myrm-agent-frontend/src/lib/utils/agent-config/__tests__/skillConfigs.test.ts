@@ -34,6 +34,7 @@ describe('areSkillConfigsEqual', () => {
 
   it('detects a skill that is present on one side only, whatever the sizes', () => {
     expect(areSkillConfigsEqual({ a: {} }, {})).toBe(false);
+    expect(areSkillConfigsEqual({}, { a: {} })).toBe(false);
     expect(areSkillConfigsEqual({ a: {} }, { b: {} })).toBe(false);
   });
 

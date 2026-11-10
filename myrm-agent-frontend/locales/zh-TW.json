@@ -1178,7 +1178,7 @@
       "memoryPresetNone": "通用",
       "jitTeam": "虛擬團隊",
       "jitTeamOff": "單 Agent (無下屬團隊)",
-      "jitTeamPlaceholder": "不使用虛擬團隊",
+      "jitTeamCustom": "自訂虛擬團隊",
       "jitInheritMemory": "繼承父級對話記憶",
       "categoryAll": "全部",
       "categoryOffice": "職場辦公",

@@ -1,10 +1,27 @@
+/** fork：成员继承父级对话记忆；isolated：成员只看到自己的任务。 */
+export type ContextMode = 'fork' | 'isolated';
+
+export interface BlueprintSubagent {
+  display_name: string;
+  system_prompt: string;
+  tools: string[];
+  max_turns: number;
+  context_mode: ContextMode;
+}
+
+export interface BlueprintTemplate {
+  id: 'research_squad' | 'code_audit_squad';
+  /** 首个成员的名字用来识别当前团队属于哪个蓝图。 */
+  subagents: Record<string, BlueprintSubagent>;
+}
+
 /**
  * JIT 一键编队的蓝图模板
  *
  * 每个成员的 tools 必须是 harness 注册的工具全名，且不能为空（空数组 = 继承父级全部工具）；
  * 由 server tests/architecture/test_blueprint_template_tools_parity.py 校验。
  */
-export const BLUEPRINT_TEMPLATES = [
+export const BLUEPRINT_TEMPLATES: BlueprintTemplate[] = [
   {
     id: 'research_squad',
     subagents: {

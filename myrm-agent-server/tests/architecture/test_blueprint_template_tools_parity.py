@@ -19,7 +19,7 @@ _TEMPLATES_FILE = (
     / "blueprintTemplates.ts"
 )
 
-_TEMPLATES_BLOCK = re.compile(r"const BLUEPRINT_TEMPLATES = \[(.*?)\n\];", re.DOTALL)
+_TEMPLATES_BLOCK = re.compile(r"const BLUEPRINT_TEMPLATES(?::[^=\n]+)? = \[(.*?)\n\];", re.DOTALL)
 _MEMBER_NAME = re.compile(r"^ {6}(\w+): \{$", re.MULTILINE)
 _TOOLS_LIST = re.compile(r"tools:\s*\[([^\]]*)\]")
 _QUOTED = re.compile(r"'([^']+)'")

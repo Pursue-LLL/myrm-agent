@@ -1178,7 +1178,7 @@
       "memoryPresetNone": "Generic",
       "jitTeam": "Virtual team",
       "jitTeamOff": "Single Agent (no team)",
-      "jitTeamPlaceholder": "No virtual team",
+      "jitTeamCustom": "Custom virtual team",
       "jitInheritMemory": "Inherit parent conversation memory",
       "categoryAll": "All",
       "categoryOffice": "Office & Business",

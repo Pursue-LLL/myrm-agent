@@ -1178,7 +1178,7 @@
       "memoryPresetNone": "Allgemein",
       "jitTeam": "Virtuelles Team",
       "jitTeamOff": "Einzelner Agent (kein Team)",
-      "jitTeamPlaceholder": "Kein virtuelles Team",
+      "jitTeamCustom": "Eigenes virtuelles Team",
       "jitInheritMemory": "Übergeordneten Konversationsspeicher erben",
       "categoryAll": "Alle",
       "categoryOffice": "Büro & Business",

@@ -7,6 +7,7 @@
  * message is sent with.
  */
 import { render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -85,8 +86,28 @@ async function optionsOf(user: User, shown: string): Promise<string[]> {
 
 const sessionConfig = () => useChatStore.getState().agentConfig;
 
+function configureTeam(ephemeralSubagents: Record<string, unknown>) {
+  useChatStore.setState({
+    agentConfig: {
+      selectedSkillIds: [],
+      selectedMcpNames: [],
+      systemPrompt: '',
+      useGlobalInstruction: true,
+      ephemeralSubagents,
+    },
+  });
+}
+
+// The panel is memoized: a re-render needs a changed prop to read the hook state again.
+let rerenderCount = 0;
+function refresh(rerender: (ui: ReactElement) => void) {
+  rerenderCount += 1;
+  rerender(<AgentConfigPanel className={`render-${rerenderCount}`} />);
+}
+
 beforeEach(() => {
   mocks.externalAgents = undefined;
+  mocks.panel.isConfigPanelExpanded = true;
   useChatStore.setState({ agentConfig: null });
 });
 
@@ -229,22 +250,16 @@ describe('just-in-time team blueprints', () => {
     );
     expect(blueprintModes).toEqual(['fork', 'fork', 'fork', 'fork']);
     const [, audit] = BLUEPRINT_TEMPLATES;
-    expect(sessionConfig()?.ephemeralSubagents?.security_expert).not.toBe(audit.subagents.security_expert);
+    const squad = sessionConfig()?.ephemeralSubagents as Record<string, { tools: string[] }>;
+    expect(squad.security_expert).not.toBe(audit.subagents.security_expert);
+    expect(squad.security_expert.tools).not.toBe(audit.subagents.security_expert.tools);
   });
 
   it.each([
     ['the research squad', { web_researcher: { context_mode: 'fork' } }, 'blueprints.research_squad'],
     ['the code audit squad', { security_expert: { context_mode: 'fork' } }, 'blueprints.code_audit_squad'],
   ])('recognises %s in the conversation configuration', (_label, ephemeralSubagents, shown) => {
-    useChatStore.setState({
-      agentConfig: {
-        selectedSkillIds: [],
-        selectedMcpNames: [],
-        systemPrompt: '',
-        useGlobalInstruction: true,
-        ephemeralSubagents,
-      },
-    });
+    configureTeam(ephemeralSubagents);
 
     render(<AgentConfigPanel />);
 
@@ -252,20 +267,77 @@ describe('just-in-time team blueprints', () => {
     expect(screen.getByRole('switch')).toBeInTheDocument();
   });
 
-  it('keeps the memory switch for a team that matches no blueprint', () => {
-    useChatStore.setState({
-      agentConfig: {
-        selectedSkillIds: [],
-        selectedMcpNames: [],
-        systemPrompt: '',
-        useGlobalInstruction: true,
-        ephemeralSubagents: { custom_helper: { context_mode: 'fork' } },
-      },
+  it('labels a team that matches no blueprint as a custom team and keeps the memory switch', () => {
+    configureTeam({ custom_helper: { context_mode: 'fork' } });
+
+    render(<AgentConfigPanel />);
+
+    expect(screen.getByText('jitTeamCustom')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'jitInheritMemory' })).toBeChecked();
+  });
+
+  it('shows the memory choice the configured team really has', () => {
+    configureTeam({
+      web_researcher: { context_mode: 'isolated' },
+      data_analyst: { context_mode: 'isolated' },
     });
 
     render(<AgentConfigPanel />);
 
-    expect(screen.getByRole('switch')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'jitInheritMemory' })).not.toBeChecked();
+  });
+
+  it('treats a member without a context mode as isolated, the way the agent runs it', () => {
+    configureTeam({ custom_helper: {} });
+
+    render(<AgentConfigPanel />);
+
+    expect(screen.getByRole('switch', { name: 'jitInheritMemory' })).not.toBeChecked();
+  });
+
+  it.each([null, 'shared'])('treats the context mode %j as isolated: only fork inherits the memory', (mode) => {
+    configureTeam({ custom_helper: { context_mode: mode } });
+
+    render(<AgentConfigPanel />);
+
+    expect(screen.getByRole('switch', { name: 'jitInheritMemory' })).not.toBeChecked();
+  });
+
+  it('treats a member that is not an object as isolated instead of failing', () => {
+    configureTeam({ broken: null });
+
+    render(<AgentConfigPanel />);
+
+    expect(screen.getByRole('switch', { name: 'jitInheritMemory' })).not.toBeChecked();
+  });
+
+  it('keeps the memory choice when the panel is collapsed and opened again', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<AgentConfigPanel />);
+    await pick(user, 'jitTeamOff', 'blueprints.research_squad');
+    await user.click(screen.getByRole('switch', { name: 'jitInheritMemory' }));
+
+    mocks.panel.isConfigPanelExpanded = false;
+    refresh(rerender);
+    expect(screen.queryByRole('switch')).toBeNull();
+    mocks.panel.isConfigPanelExpanded = true;
+    refresh(rerender);
+
+    expect(screen.getByRole('switch', { name: 'jitInheritMemory' })).not.toBeChecked();
+  });
+
+  it('switches every member of a team whose members differ, to the same choice', async () => {
+    configureTeam({ web_researcher: { context_mode: 'fork' }, data_analyst: { context_mode: 'isolated' } });
+    const user = userEvent.setup();
+    render(<AgentConfigPanel />);
+    const memorySwitch = screen.getByRole('switch', { name: 'jitInheritMemory' });
+    expect(memorySwitch).not.toBeChecked();
+
+    await user.click(memorySwitch);
+
+    const squad = sessionConfig()?.ephemeralSubagents as Record<string, { context_mode: string }>;
+    expect(Object.values(squad).map((member) => member.context_mode)).toEqual(['fork', 'fork']);
+    expect(screen.getByRole('switch', { name: 'jitInheritMemory' })).toBeChecked();
   });
 });
 

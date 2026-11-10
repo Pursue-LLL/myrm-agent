@@ -1178,7 +1178,7 @@
       "memoryPresetNone": "汎用",
       "jitTeam": "仮想チーム",
       "jitTeamOff": "単体Agent（チームなし）",
-      "jitTeamPlaceholder": "仮想チームなし",
+      "jitTeamCustom": "カスタム仮想チーム",
       "jitInheritMemory": "親会話メモリを継承",
       "categoryAll": "すべて",
       "categoryOffice": "オフィス・業務",
