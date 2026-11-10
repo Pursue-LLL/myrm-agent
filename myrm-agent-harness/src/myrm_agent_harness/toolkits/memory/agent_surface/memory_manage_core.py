@@ -17,7 +17,7 @@ not found.
 [POS]
 Single implementation of update / delete / correct / rate for ``memory_agent_tools.manage_tool`` and
 ``mcp_server.manage_tool``. Failures the manager raises propagate; each surface translates them with
-``write_failure_feedback``.
+``write_failure_feedback``. An update reply says so when the importance it was given did not reach the stored memory.
 """
 
 from __future__ import annotations
@@ -84,6 +84,20 @@ def _agent_may_modify(memory: AnyMemory) -> bool:
     return not (memory.pinned or memory.is_user_locked)
 
 
+def _unstored_importance_note(updated: AnyMemory, requested: float | None) -> str:
+    """Say so when the importance the caller asked for is not what the updated memory holds.
+
+    The stored result decides, not a list of types: a memory type that cannot take the value drops it silently, and
+    a reply that only says "updated" would let the model tell the user the importance changed.
+    """
+    if requested is None or getattr(updated, "importance", None) == requested:
+        return ""
+    note = "Importance was not changed: only knowledge and event memories store it."
+    if updated.memory_type == MemoryType.PROCEDURAL:
+        note += " To change a rule's strength, save it again with rule_priority and delete this entry."
+    return note
+
+
 async def _update(
     manager: MemoryManager, memory: AnyMemory, new_content: str | None, new_importance: float | None
 ) -> str:
@@ -95,7 +109,9 @@ async def _update(
         importance=new_importance,
         allow_protected=_agent_may_modify(memory),
     )
-    return f"Memory updated (ID: {updated.id})"
+    reply = f"Memory updated (ID: {updated.id})"
+    note = _unstored_importance_note(updated, new_importance)
+    return f"{reply}. {note}" if note else reply
 
 
 async def _correct(manager: MemoryManager, memory: AnyMemory, new_content: str | None) -> str:

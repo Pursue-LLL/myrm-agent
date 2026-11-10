@@ -10,6 +10,8 @@
 - toolkits.memory.agent_surface.memory_recall_formatting::{format_preference_save_ack, format_write_ack} (POS: recall sanitize and save-ack SSOT)
 - toolkits.memory.agent_surface.wiki_memory_boundary / transient_fact_boundary (POS: pre-write rejection heuristics)
 - toolkits.memory.agent_surface.write_failure_feedback (POS: LLM-readable write failure messages)
+- toolkits.memory._internal.unit_interval::require_unit_interval (POS: 0.0-1.0 score range check shared with update)
+- toolkits.memory.agent_surface._memory_agent_tool_descriptions::MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION (POS: argument-level scope note for importance)
 
 [OUTPUT]
 - MemorySaveInput: pydantic args schema of memory_save_tool
@@ -30,6 +32,10 @@ from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 
 from myrm_agent_harness.toolkits.memory._internal.scope import MemoryWriteTarget
+from myrm_agent_harness.toolkits.memory._internal.unit_interval import require_unit_interval
+from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
+    MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION,
+)
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.common import parse_string_list
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
     format_preference_save_ack,
@@ -55,7 +61,7 @@ from myrm_agent_harness.toolkits.memory.types import MemoryType, RuleSource
 class MemorySaveInput(BaseModel):
     content: str = Field(description="Declarative fact text; concise and standalone.")
     category: Literal["knowledge", "event", "preference", "rule", "instruction"] = Field(default="knowledge")
-    importance: float = Field(default=0.5, description="0–1; knowledge category only.")
+    importance: float = Field(default=0.5, description=MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION)
     tags: list[str] | str | None = Field(
         default=None,
         description='Filter labels; knowledge category only (e.g. ["python", "auth"]).',
@@ -116,6 +122,9 @@ async def _save_knowledge(ctx: _SaveContext, *, importance: float, tags: list[st
     # lives in the BM25 sparse mirror and stays writable.
     if MemoryType.SEMANTIC not in ctx.manager.get_enabled_types():
         return "Knowledge memory is not enabled."
+    # Knowledge is the only category that stores the score, so only here is a bad one refused; any other
+    # category ignores it and must never fail on it. Checked before the buffer, the approval queue and the store.
+    require_unit_interval("importance", importance, action="saved")
     if (buffer := ctx.bound_buffer) is not None:
         buffered = buffer.add_knowledge(ctx.content, importance=importance, tags=tags)
         if buffered is None:

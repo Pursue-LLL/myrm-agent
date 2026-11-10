@@ -2,29 +2,48 @@
 
 A mock manager cannot show what a refused update leaves behind, nor that a score the model gets wrong
 can make the memory unreadable. Each case drives a real manager over SQLite and an embedded Qdrant: the
-tool answers, then the memory is read back.
+tool answers, then the memory is read back. An update the memory keeps only in part says which part it dropped,
+so the model never reports a change the store did not make.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable, Mapping
 
 import pytest
 
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError as StoreError
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryRejectedError
+from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import MemoryMCPServer
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.manage_tool import build_memory_manage_tool
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_manage_core import _unstored_importance_note
 from myrm_agent_harness.toolkits.memory.agent_surface.transient_fact_boundary import (
     transient_fact_save_rejection_message,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.write_failure_feedback import write_failure_feedback
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-from myrm_agent_harness.toolkits.memory.types import SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, ProceduralMemory, SemanticMemory, TaskDigestMemory
 
 NewManager = Callable[..., MemoryManager]
+type Manage = Callable[[MemoryManager, Mapping[str, str | float]], Awaitable[str]]
 
 ORIGINAL = "User prefers dark mode"
 TRANSIENT = "Your order #123456 is out for delivery with courier"
+RULE_TRIGGER = "when editing tests"
+RULE_TEXT = "Run the whole test suite before committing"
+RULE_REWORDED = "Run every test before committing"
+
+
+async def manage_with_agent_tool(manager: MemoryManager, arguments: Mapping[str, str | float]) -> str:
+    return await build_memory_manage_tool(manager, description="manage").ainvoke(dict(arguments))
+
+
+async def manage_with_mcp_tool(manager: MemoryManager, arguments: Mapping[str, str | float]) -> str:
+    result = await MemoryMCPServer(manager, server_name="test-memory").mcp.call_tool("memory_manage", dict(arguments))
+    return "".join(str(getattr(block, "text", "")) for block in result.content)
+
+
+MANAGES = [pytest.param(manage_with_agent_tool, id="agent-tool"), pytest.param(manage_with_mcp_tool, id="mcp-tool")]
 
 
 async def store_original(manager: MemoryManager) -> SemanticMemory:
@@ -79,6 +98,70 @@ async def test_the_ends_of_the_scale_are_accepted(new_manager: NewManager, impor
     assert answer == f"Memory updated (ID: {stored.id})"
     kept = await read_back(manager, stored.id)
     assert (kept.content, kept.importance) == ("User prefers light mode", importance)
+
+
+@pytest.mark.parametrize("manage", MANAGES)
+async def test_an_importance_a_rule_cannot_hold_is_reported_and_the_rest_of_the_update_is_kept(
+    new_manager: NewManager, manage: Manage
+) -> None:
+    manager = new_manager()
+    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT, priority=3)
+
+    answer = await manage(
+        manager,
+        {"action": "update", "memory_id": rule.id, "new_content": RULE_REWORDED, "new_importance": 1.0},
+    )
+
+    assert answer.startswith(f"Memory updated (ID: {rule.id}). Importance was not changed")
+    assert "rule_priority" in answer
+    kept = await manager.get_memory(rule.id)
+    assert isinstance(kept, ProceduralMemory)
+    assert (kept.content, kept.priority) == (RULE_REWORDED, 3)
+
+
+@pytest.mark.parametrize("manage", MANAGES)
+async def test_a_rule_update_that_sets_no_importance_replies_plainly(new_manager: NewManager, manage: Manage) -> None:
+    manager = new_manager()
+    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT, priority=3)
+
+    answer = await manage(manager, {"action": "update", "memory_id": rule.id, "new_content": RULE_REWORDED})
+
+    assert answer == f"Memory updated (ID: {rule.id})"
+
+
+@pytest.mark.parametrize("manage", MANAGES)
+async def test_an_event_stores_the_importance_it_is_given_and_the_reply_stays_plain(
+    new_manager: NewManager, manage: Manage
+) -> None:
+    manager = new_manager()
+    event = await manager.add_event("Deployed the billing service to staging on Monday")
+
+    answer = await manage(
+        manager,
+        {
+            "action": "update",
+            "memory_id": event.id,
+            "new_content": "Deployed the billing service to staging on Tuesday",
+            "new_importance": 0.9,
+        },
+    )
+
+    assert answer == f"Memory updated (ID: {event.id})"
+    kept = await manager.get_memory(event.id)
+    assert isinstance(kept, EpisodicMemory)
+    assert kept.importance == 0.9
+
+
+def test_the_note_follows_what_the_memory_holds_and_names_rules_only_for_rules() -> None:
+    held = SemanticMemory(content="fact", importance=0.9)
+    digest = TaskDigestMemory(task_goal="ship the release")
+
+    assert _unstored_importance_note(held, 0.9) == ""
+    assert _unstored_importance_note(held, None) == ""
+    assert (
+        _unstored_importance_note(digest, 0.9)
+        == "Importance was not changed: only knowledge and event memories store it."
+    )
 
 
 async def test_a_confidence_outside_the_scale_is_refused_and_the_memory_stays_readable(new_manager: NewManager) -> None:

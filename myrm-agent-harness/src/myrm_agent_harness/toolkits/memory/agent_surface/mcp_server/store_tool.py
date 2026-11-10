@@ -9,6 +9,8 @@
 - toolkits.memory.agent_surface.memory_recall_formatting::{format_preference_save_ack, format_write_ack} (POS: recall sanitize and save-ack SSOT)
 - toolkits.memory.agent_surface.wiki_memory_boundary (POS: wiki-memory write boundary heuristics)
 - toolkits.memory.agent_surface.write_failure_feedback (POS: LLM-readable write failure messages)
+- toolkits.memory._internal.unit_interval::require_unit_interval (POS: 0.0-1.0 score range check shared with update)
+- toolkits.memory.agent_surface._memory_agent_tool_descriptions::MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION (POS: argument-level scope note for importance)
 
 [OUTPUT]
 - register_store_tool: register memory_store on an MCPServer
@@ -19,11 +21,16 @@ Write plane (create) of the MCP adapter; external agents write straight to the m
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from mcp.server.mcpserver import MCPServer
+from pydantic import Field
 
 from myrm_agent_harness.toolkits.memory._internal.scope import MemoryWriteTarget
+from myrm_agent_harness.toolkits.memory._internal.unit_interval import require_unit_interval
+from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
+    MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION,
+)
 from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server.common import ManagerResolver, parse_string_list
 from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server.request_context import (
     get_request_wiki_boundary_enabled,
@@ -66,6 +73,8 @@ async def _store_knowledge(
     # lives in the BM25 sparse mirror and stays writable.
     if MemoryType.SEMANTIC not in mgr.get_enabled_types():
         return "Knowledge memory is not enabled."
+    # Only knowledge stores the score; any other category ignores it and must never fail on it.
+    require_unit_interval("importance", importance, action="saved")
     mem = await mgr.add_knowledge(
         content, importance=importance, tags=tags, write_target=write_target, honor_approval=True
     )
@@ -122,7 +131,7 @@ def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description
     async def memory_store(
         content: str,
         category: str = "knowledge",
-        importance: float = 0.5,
+        importance: Annotated[float, Field(description=MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION)] = 0.5,
         tags: str | list[str] | None = None,
         write_target: str = "bound",
         preference_key: str | None = None,

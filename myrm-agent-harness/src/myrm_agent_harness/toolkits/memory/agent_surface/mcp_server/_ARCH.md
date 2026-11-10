@@ -16,7 +16,7 @@ MCP adapter exposing `MemoryManager` to external agents as `memory_recall`, `mem
 | `common.py` | Util | `CATEGORY_TO_TYPE`, `parse_string_list`, `ManagerResolver`. | ✅ |
 | `recall_tool.py` | Core | `memory_recall`: semantic search, profile lookup, budgeted and sanitized rendering. | ✅ |
 | `list_tool.py` | Core | `memory_list`: category overview and paginated enumeration. | ✅ |
-| `store_tool.py` | Core | `memory_store`: validation, wiki boundary, per-category writes that follow the manager's approval switch (the result tells a stored memory from one submitted for approval); knowledge/event gates follow the manager's enabled types, so an embeddings-less deployment stores through the BM25 mirror. | ✅ |
+| `store_tool.py` | Core | `memory_store`: validation, wiki boundary, per-category writes that follow the manager's approval switch (the result tells a stored memory from one submitted for approval); knowledge/event gates follow the manager's enabled types, so an embeddings-less deployment stores through the BM25 mirror; a knowledge `importance` outside 0.0-1.0 is refused before the write (other categories ignore the score and never fail on it), and the `importance` argument carries the shared scope note so a client listing only the arguments sees it is knowledge-only. | ✅ |
 | `manage_tool.py` | Core | `memory_manage`: MCP binding over `../memory_manage_core.py` (rate / delete / update / correct by memory id). | ✅ |
 
 ## Key Dependencies

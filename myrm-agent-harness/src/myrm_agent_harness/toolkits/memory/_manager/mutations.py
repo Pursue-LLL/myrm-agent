@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Literal, cast
 
+from myrm_agent_harness.toolkits.memory._internal.unit_interval import require_unit_interval
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     UTC,
@@ -32,15 +33,6 @@ from myrm_agent_harness.toolkits.memory.strategies.exact_fact import ExactFactCl
 from myrm_agent_harness.toolkits.memory.strategies.sparse_mutation import (
     apply_sparse_mutation,
 )
-
-
-def _require_unit_interval(name: str, value: float | None) -> None:
-    """Refuse a score outside 0.0-1.0, which the memory models cannot read back once it is stored."""
-    if value is not None and not 0.0 <= value <= 1.0:
-        raise MemoryRejectedError(
-            f"Not updated: {name} must be between 0.0 and 1.0 (got {value}). Retry with a value in that range."
-        )
-
 
 ExactFactIndexAction = Literal["record", "delete"]
 
@@ -292,8 +284,8 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
         transient business fact is refused; both raise ``MemoryRejectedError`` before
         anything is written.
         """
-        _require_unit_interval("importance", importance)
-        _require_unit_interval("confidence", confidence)
+        require_unit_interval("importance", importance, action="updated")
+        require_unit_interval("confidence", confidence, action="updated")
         existing = await self.get_memory(memory_id)
         if existing is None:
             raise MemoryNotFoundError(f"Memory {memory_id} not found")

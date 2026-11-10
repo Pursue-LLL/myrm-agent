@@ -17,6 +17,7 @@ Default locale is English; callers pass BCP-47 locale strings (e.g. ``zh-CN``).
 - build_memory_save_tool_description: Dynamic memory_save_tool description (policy + approval)
 - resolve_memory_save_tool_description / resolve_memory_manage_tool_description
 - MEMORY_SAVE_CORE_* / MEMORY_SAVE_WRITE_TARGET_* / MEMORY_MANAGE_TOOL_DESCRIPTION_EN / _ZH: locale-specific SSOT constants
+- MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION: the argument-level scope note for ``importance``, shared by the agent and MCP save tools
 
 [POS]
 Prompt SSOT for memory agent tools. Imported by memory_agent_tools/, mcp_server/ (memory_manage/memory_store with surface=mcp), and static tests.
@@ -72,6 +73,10 @@ def _apply_tool_surface_names(description: str, *, surface: MemoryToolDescriptio
 
 # The save description is composed per runtime policy; only the manage description is a plain constant.
 MEMORY_MANAGE_TOOL_DESCRIPTION = MEMORY_MANAGE_TOOL_DESCRIPTION_EN
+
+# Only a knowledge save stores ``importance``. Both save surfaces repeat this at the argument itself, because an
+# MCP client lists the arguments with no other text and would otherwise offer a score for every category.
+MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION = "0–1; knowledge category only."
 
 
 def build_memory_search_tool_description(
@@ -193,6 +198,7 @@ __all__ = [
     "MEMORY_MANAGE_TOOL_DESCRIPTION_ZH",
     "MEMORY_SAVE_CORE_EN",
     "MEMORY_SAVE_CORE_ZH",
+    "MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION",
     "MEMORY_SAVE_WRITE_TARGET_EN",
     "MEMORY_SAVE_WRITE_TARGET_ZH",
     "MemoryToolDescriptionSurface",
