@@ -2,8 +2,8 @@
 
 /**
  * [INPUT]
- * @/services/memory/preferences::getPreferenceRadarState, tunePreferenceRadar, RadarDimensionValues, RADAR_PRESETS
- * @/components/chat/DynamicPreferenceRadarDrawer::DynamicPreferenceRadarDrawer
+ * @/services/memory/preferences::getPreferenceRadarState, tunePreferenceRadar, RadarDimensionValues
+ * @/components/chat/DynamicPreferenceRadarDrawer::DynamicPreferenceRadarDrawer, RADAR_PRESETS
  * @/lib/utils/classnameUtils::cn
  * next-intl::useTranslations (POS: Internationalization hook)
  *
@@ -14,18 +14,20 @@
  * Chat window satellite widget for real-time memory preference radar inspection and fine-tuning.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { DynamicPreferenceRadarDrawer, RADAR_PRESETS } from '@/components/chat/DynamicPreferenceRadarDrawer';
 import {
-  DynamicPreferenceRadarDrawer,
-  RadarDimensionValues,
-  RADAR_PRESETS,
-} from '@/components/chat/DynamicPreferenceRadarDrawer';
-import { getPreferenceRadarState, tunePreferenceRadar } from '@/services/memory/preferences';
+  getPreferenceRadarState,
+  tunePreferenceRadar,
+  type PreferenceRadarStateResponse,
+  type PreferenceRadarTuneRequest,
+  type RadarDimensionValues,
+} from '@/services/memory/preferences';
 import { cn } from '@/lib/utils/classnameUtils';
 
-const DEFAULT_DIMENSIONS: RadarDimensionValues = {
+const NEUTRAL_DIMENSIONS: RadarDimensionValues = {
   recency: 1.0,
   actionability: 1.0,
   technical_depth: 1.0,
@@ -33,97 +35,71 @@ const DEFAULT_DIMENSIONS: RadarDimensionValues = {
   breadth: 1.0,
 };
 
+const dimensionsOf = ({
+  recency,
+  actionability,
+  technical_depth,
+  conciseness,
+  breadth,
+}: PreferenceRadarStateResponse): RadarDimensionValues => ({
+  recency,
+  actionability,
+  technical_depth,
+  conciseness,
+  breadth,
+});
+
 export interface PreferenceRadarToggleProps {
   chatId?: string;
   className?: string;
 }
 
-export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({ chatId, className = '' }) => {
+interface SessionRadarToggleProps {
+  sessionId: string;
+  className?: string;
+}
+
+function SessionRadarToggle({ sessionId, className = '' }: SessionRadarToggleProps) {
   const t = useTranslations('chat.preferenceRadar');
   const [isOpen, setIsOpen] = useState(false);
   const [locked, setLocked] = useState(false);
-  const [values, setValues] = useState<RadarDimensionValues>(DEFAULT_DIMENSIONS);
+  const [values, setValues] = useState<RadarDimensionValues>(NEUTRAL_DIMENSIONS);
+  // Counts the user's edits: what the server answered to a request sent before the latest edit is out of date.
+  const editsRef = useRef(0);
 
-  const effectiveSessionId = chatId?.trim() || 'default';
-
-  // Load session radar state on mount or session switch
-  useEffect(() => {
-    let isMounted = true;
-    const fetchState = async () => {
-      try {
-        const data = await getPreferenceRadarState(effectiveSessionId);
-        if (isMounted && data?.dimensions) {
-          setValues(data.dimensions);
-          setLocked(Boolean(data.locked));
-        }
-      } catch {
-        // Fallback to defaults when offline or initial creation
-      }
-    };
-
-    fetchState();
-    return () => {
-      isMounted = false;
-    };
-  }, [effectiveSessionId]);
-
-  const handleValueChange = useCallback(
-    async (dim: keyof RadarDimensionValues, val: number) => {
-      const nextValues = { ...values, [dim]: val };
-      setValues(nextValues);
-      try {
-        await tunePreferenceRadar(effectiveSessionId, {
-          dimensions: { [dim]: val },
-        });
-      } catch {
-        // Optimistic UI updates
-      }
-    },
-    [effectiveSessionId, values],
-  );
-
-  const handleToggleLock = useCallback(
-    async (nextLocked: boolean) => {
-      setLocked(nextLocked);
-      try {
-        await tunePreferenceRadar(effectiveSessionId, {
-          locked: nextLocked,
-        });
-      } catch {
-        // Optimistic UI updates
-      }
-    },
-    [effectiveSessionId],
-  );
-
-  const handleReset = useCallback(async () => {
-    setValues(DEFAULT_DIMENSIONS);
+  const refresh = useCallback(async () => {
+    const editsBefore = editsRef.current;
     try {
-      await tunePreferenceRadar(effectiveSessionId, {
-        reset_to_baseline: true,
-      });
-    } catch {
-      // Optimistic UI updates
-    }
-  }, [effectiveSessionId]);
-
-  const handleSelectPreset = useCallback(
-    async (presetKey: 'balanced' | 'code' | 'research') => {
-      const targetPreset = RADAR_PRESETS[presetKey];
-      if (!targetPreset) {
-        return;
+      const state = await getPreferenceRadarState(sessionId);
+      if (editsRef.current === editsBefore) {
+        setValues(dimensionsOf(state));
+        setLocked(state.locked);
       }
-      setValues(targetPreset.values);
+    } catch {
+      // The drawer keeps what it shows; opening it again asks again.
+    }
+  }, [sessionId]);
+
+  const tune = useCallback(
+    async (request: PreferenceRadarTuneRequest) => {
+      editsRef.current += 1;
       try {
-        await tunePreferenceRadar(effectiveSessionId, {
-          dimensions: targetPreset.values,
-        });
+        await tunePreferenceRadar(sessionId, request);
       } catch {
-        // Optimistic UI updates
+        // The request has told the user it failed; show what the server really holds.
+        await refresh();
       }
     },
-    [effectiveSessionId],
+    [sessionId, refresh],
   );
+
+  // The server keeps fitting the radar while the user chats, so every opening shows its current state.
+  const toggleDrawer = () => {
+    if (!isOpen) {
+      refresh();
+    }
+    setIsOpen(!isOpen);
+  };
 
   return (
     <>
@@ -131,7 +107,7 @@ export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({ ch
         <button
           type="button"
           data-testid="preference-radar-toggle-button"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={toggleDrawer}
           className={cn(
             'flex h-9 w-9 items-center justify-center rounded-full border border-border/80 shadow-md transition-all duration-200',
             isOpen
@@ -150,11 +126,30 @@ export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({ ch
         onClose={() => setIsOpen(false)}
         values={values}
         locked={locked}
-        onValueChange={handleValueChange}
-        onToggleLock={handleToggleLock}
-        onReset={handleReset}
-        onSelectPreset={handleSelectPreset}
+        onValueChange={(dimension, value) => {
+          setValues((prev) => ({ ...prev, [dimension]: value }));
+          tune({ [dimension]: value });
+        }}
+        onToggleLock={(nextLocked) => {
+          setLocked(nextLocked);
+          tune({ locked: nextLocked });
+        }}
+        onReset={() => {
+          setValues(NEUTRAL_DIMENSIONS);
+          tune({ reset_to_neutral: true });
+        }}
+        onSelectPreset={(preset) => {
+          const presetValues = RADAR_PRESETS[preset].values;
+          setValues(presetValues);
+          tune(presetValues);
+        }}
       />
     </>
   );
+}
+
+/** One radar per session: switching sessions starts again from that session's own state instead of keeping the last one's. */
+export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({ chatId, className }) => {
+  const sessionId = chatId?.trim() || 'default';
+  return <SessionRadarToggle key={sessionId} sessionId={sessionId} className={className} />;
 };

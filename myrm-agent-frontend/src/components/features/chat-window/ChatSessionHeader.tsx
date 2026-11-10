@@ -36,6 +36,7 @@ interface TabButtonProps {
 const TabButton = ({ active, onClick, icon, label }: TabButtonProps) => (
   <button
     type="button"
+    aria-pressed={active}
     onClick={onClick}
     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
       active ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'
@@ -57,7 +58,8 @@ const ChatSessionHeader = ({ chatId, activeTab, onTabChange }: ChatSessionHeader
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 border-b border-border/30 bg-muted/20">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Everything in this group belongs to one chat: another chat starts it afresh, so nothing of the last one lingers. */}
+      <div key={chatId} className="flex flex-wrap items-center gap-2">
         <ParentChatLink chatId={chatId} />
         <ChatCronLink chatId={chatId} />
         <SessionRevertButton sessionId={chatId} />

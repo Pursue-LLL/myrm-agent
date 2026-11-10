@@ -50,6 +50,7 @@
     "replaySuccessDeterministic": "Replay complete: High Deterministic Match ({score}%)",
     "replaySuccessDrift": "Replay complete: Trajectory Drift Detected ({score}%)",
     "replayFailed": "Replay verification failed",
+    "matchScore": "{score}% Match",
     "badgeTitle": "Click to inspect trajectory differences"
   },
   "emptyState": {

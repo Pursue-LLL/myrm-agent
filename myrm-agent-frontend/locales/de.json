@@ -50,6 +50,7 @@
     "replaySuccessDeterministic": "Wiedergabe abgeschlossen: Hohe deterministische Übereinstimmung ({score}%)",
     "replaySuccessDrift": "Wiedergabe abgeschlossen: Trajektoriendrift erkannt ({score}%)",
     "replayFailed": "Wiedergabeprüfung fehlgeschlagen",
+    "matchScore": "{score}% Übereinstimmung",
     "badgeTitle": "Klicken, um Trajektoriendifferenzen anzuzeigen"
   },
   "emptyState": {

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from app.schemas.memory.radar import UpdatePreferenceRadarRequest
 from app.services.memory.preference_radar_service import PreferenceRadarService
@@ -47,11 +48,23 @@ async def test_manual_fine_tuning_and_clamping(radar_service: PreferenceRadarSer
     assert state.actionability == 3.0
     assert state.locked is True
 
-    from pydantic import ValidationError
-
     # Ensure out-of-bound is rejected by Pydantic schema validation
     with pytest.raises(ValidationError):
         UpdatePreferenceRadarRequest(actionability=3.5)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"dimensions": {"recency": 1.5}},
+        {"reset_to_baseline": True},
+        {"recency": 1.5, "unknown": 1},
+    ],
+)
+def test_request_refuses_fields_it_does_not_know(payload: dict[str, object]) -> None:
+    """A misnamed field is an error, never a silently ignored no-op."""
+    with pytest.raises(ValidationError):
+        UpdatePreferenceRadarRequest.model_validate(payload)
 
 
 @pytest.mark.asyncio

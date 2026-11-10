@@ -12,18 +12,14 @@
  * 输入历史弹窗组件。以列表形式展示历史 prompt，支持键盘高亮和鼠标选择。
  */
 
-import { memo, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { memo, useEffect, useMemo, useRef } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import type { InputHistoryPopupState } from '@/hooks/message-input/useInputHistory';
 
-const rtf = typeof Intl !== 'undefined' ? new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }) : null;
-
-function formatRelativeTime(timestamp: number): string {
+/** Up to a week back an entry reads as "5 minutes ago"; older ones as a date. */
+function formatRelativeTime(timestamp: number, rtf: Intl.RelativeTimeFormat, locale: string): string {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60000);
-  if (!rtf) {
-    return new Date(timestamp).toLocaleString();
-  }
   if (minutes < 1) {
     return rtf.format(0, 'minute');
   }
@@ -38,7 +34,7 @@ function formatRelativeTime(timestamp: number): string {
   if (days < 7) {
     return rtf.format(-days, 'day');
   }
-  return new Date(timestamp).toLocaleDateString();
+  return new Date(timestamp).toLocaleDateString(locale);
 }
 
 function getPreviewText(text: string): string {
@@ -54,6 +50,8 @@ interface InputHistoryPopupProps {
 
 const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHover, onClose }) => {
   const t = useTranslations('chat');
+  const locale = useLocale();
+  const relativeTime = useMemo(() => new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }), [locale]);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,10 +68,8 @@ const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHov
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [popup.open, onClose]);
 
+  // The list only exists while open, so there is nothing to scroll while closed.
   useEffect(() => {
-    if (!popup.open) {
-      return;
-    }
     const node = rootRef.current?.querySelector<HTMLElement>(`[data-history-index="${popup.activeIndex}"]`);
     node?.scrollIntoView({ block: 'nearest' });
   }, [popup.activeIndex, popup.open]);
@@ -104,7 +100,7 @@ const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHov
           className={`cursor-pointer truncate rounded-md px-3 py-1.5 text-sm transition-colors ${
             index === popup.activeIndex ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-muted'
           }`}
-          title={`${getPreviewText(entry.text)}\n${formatRelativeTime(entry.createdAt)}`}
+          title={`${getPreviewText(entry.text)}\n${formatRelativeTime(entry.createdAt, relativeTime, locale)}`}
         >
           {getPreviewText(entry.text)}
         </div>

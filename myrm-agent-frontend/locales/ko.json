@@ -50,6 +50,7 @@
     "replaySuccessDeterministic": "재생 완료: 높은 결정성 일치 ({score}%)",
     "replaySuccessDrift": "재생 완료: 궤적 드리프트 감지됨 ({score}%)",
     "replayFailed": "재생 검증 실패",
+    "matchScore": "{score}% 일치",
     "badgeTitle": "클릭하여 궤적 차이 확인"
   },
   "emptyState": {

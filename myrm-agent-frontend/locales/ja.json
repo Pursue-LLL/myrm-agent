@@ -50,6 +50,7 @@
     "replaySuccessDeterministic": "再生完了：高い決定性の一致 ({score}%)",
     "replaySuccessDrift": "再生完了：軌跡のドリフトを検出 ({score}%)",
     "replayFailed": "再生検証に失敗しました",
+    "matchScore": "{score}% 一致",
     "badgeTitle": "クリックして軌跡の差分を確認"
   },
   "emptyState": {

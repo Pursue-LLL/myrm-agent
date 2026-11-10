@@ -74,25 +74,28 @@ export interface RadarDimensionValues {
   breadth: number;
 }
 
-export interface PreferenceRadarStateResponse {
+/** The server's radar state for one session: the five weights sit directly on the object. */
+export interface PreferenceRadarStateResponse extends RadarDimensionValues {
   session_id: string;
-  dimensions: RadarDimensionValues;
-  effective_signal_weights: Record<string, number>;
   locked: boolean;
-  updated_at: string;
+  last_updated: string;
+  effective_signal_weights: Record<string, number>;
 }
 
+/** Weights to set, the lock flag, and `reset_to_neutral` to put every weight back to 1.0. */
+export type PreferenceRadarTuneRequest = Partial<RadarDimensionValues> & {
+  locked?: boolean;
+  reset_to_neutral?: boolean;
+};
+
+/** A background read: a failure must not raise an error notice of its own. */
 export const getPreferenceRadarState = async (sessionId: string): Promise<PreferenceRadarStateResponse> => {
-  return apiRequest<PreferenceRadarStateResponse>(`/memory/radar/${encodeURIComponent(sessionId)}`);
+  return apiRequest<PreferenceRadarStateResponse>(`/memory/radar/${encodeURIComponent(sessionId)}`, { silent: true });
 };
 
 export const tunePreferenceRadar = async (
   sessionId: string,
-  req: {
-    dimensions?: Partial<RadarDimensionValues>;
-    locked?: boolean;
-    reset_to_baseline?: boolean;
-  },
+  req: PreferenceRadarTuneRequest,
 ): Promise<PreferenceRadarStateResponse> => {
   return apiRequest<PreferenceRadarStateResponse>(`/memory/radar/${encodeURIComponent(sessionId)}/tune`, {
     method: 'POST',

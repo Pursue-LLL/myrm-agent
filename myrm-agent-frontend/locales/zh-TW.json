@@ -50,6 +50,7 @@
     "replaySuccessDeterministic": "重放完成：高度確定性吻合 ({score}%)",
     "replaySuccessDrift": "重放完成：檢測到邏輯分支漂移 ({score}%)",
     "replayFailed": "重放驗證失敗",
+    "matchScore": "{score}% 吻合",
     "badgeTitle": "點選對比執行軌跡差異"
   },
   "emptyState": {

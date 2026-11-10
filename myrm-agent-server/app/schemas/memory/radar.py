@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PreferenceRadarStateResponse(BaseModel):
@@ -36,6 +36,9 @@ class PreferenceRadarStateResponse(BaseModel):
 
 class UpdatePreferenceRadarRequest(BaseModel):
     """Request to manually tune or lock radar dimensions."""
+
+    # A client that misspells a field must get an error, not a silent no-op.
+    model_config = ConfigDict(extra="forbid")
 
     recency: float | None = Field(None, ge=0.05, le=3.0)
     actionability: float | None = Field(None, ge=0.05, le=3.0)

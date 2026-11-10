@@ -50,6 +50,7 @@
     "replaySuccessDeterministic": "重放完成：高度确定性吻合 ({score}%)",
     "replaySuccessDrift": "重放完成：检测到逻辑分支漂移 ({score}%)",
     "replayFailed": "重放验证失败",
+    "matchScore": "{score}% 吻合",
     "badgeTitle": "点击对比执行轨迹差异"
   },
   "emptyState": {

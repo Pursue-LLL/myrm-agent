@@ -28,7 +28,8 @@
 | `useChatSystemNotifications.tsx` | Hook | ChatWindow 的系统通知层，只响应当前会话：`snapshot_created` 弹出提示，`background_job_finish` / `voice_background_task_done` 重新读取转录，`goal_needs_review` / `goal_usage_limit` 刷新当前目标 | ✅ |
 | `useSessionAdvisor.ts` | Hook | 会话顾问面板的受控状态：监听 `copilot-open-advisor` 带入问题与选中文本，关闭时清空 | ✅ |
 | `useInspectorInstructions.ts` | Hook | 浏览器 / 桌面检查器「发给 Agent」回调：选中元素时套用 `chat.inspector.*` 本地化模板，未填指令回落默认指令，无元素时原样发出 | ✅ |
-| `ChatSessionHeader.tsx` | 组件 | 活跃会话顶部工具条（父会话 / 定时任务 / 回退 / 回放 / 导出 / 工作区入口）与「对话 / 执行轨迹」标签切换；标签状态由 ChatWindow 持有 | ✅ |
+| `ChatSessionHeader.tsx` | 组件 | 活跃会话顶部工具条（父会话 / 定时任务 / 回退 / 回放 / 导出 / 工作区入口）与「对话 / 执行轨迹」标签切换；标签状态由 ChatWindow 持有，当前页用 `aria-pressed` 标出；工具条那一组按会话 id 作 key，换会话时整组重新开始，不留上一个会话的回放得分或进行中的状态（`__tests__/ChatSessionHeader.test.tsx`） | ✅ |
+| `ReplayAction.tsx` | 组件 | 工具条里的「回放验证」：实时回放当前会话并给出确定性得分（≥95% 记为确定性，其余为漂移）；运行期间按钮禁用并显示进行中；完成后 toast 通知并留下得分徽标（文案取自 `replayAction.*`，随语言显示），徽标是原生按钮（键盘可达），激活后打开 `TrajectoryDiffModal`；失败时 toast 错误文本，没有文本时用通用提示（`__tests__/ReplayAction.test.tsx`） | ✅ |
 | `__tests__/chatWindowMocks.tsx` | 测试 | ChatWindow 行为测试的共享底座（须先于 `../ChatWindow` 导入）：登记 next/navigation、next-intl 与全部子组件的替身，提供 `navigation` 与 `openChatInStore` | ✅ |
 | `__tests__/ChatWindow.panels.test.tsx` | 测试 | 窗口布局与面板：404 / 连接错误早退（两者并存取 404）、有 id 与首页两种布局（首条消息到达后首页切为聊天布局且不挂顾问）、已加载会话原位重载时重建视图、骨架只盖到消息就绪、Goal 卡片与控制面板、对话 / 执行轨迹标签（横幅、交付面板、仅在回合进行时每 2 秒轮询轨迹）、顾问面板携带问题与选区并在关闭时清空、待审记忆徽章三种去向、E2E 水合信号只重建对应会话的视图 | ✅ |
 | `__tests__/ChatWindow.asyncStream.test.tsx` | 测试 | 后台流收件箱与系统通知：分片只处理当前会话、同批到达按序在同一调度器播放、用户回合流式期间暂存并在回合结束后补放（无关 store 写入不算结束，补放途中再开新回合会重新暂存）、切换会话与卸载后不再处理；系统通知按会话与类型分发（快照提示、转录刷新、目标刷新） | ✅ |
@@ -124,13 +125,15 @@
 | `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 种子回填；失败（含 409 会话忙）由本弹窗统一提示，`rewindToMessage` 为 silent，请求层不重复弹 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件 | 后台空闲任务状态胶囊：按 `task_name` + `status` 本地化文案（`backgroundTasks.idleStatus.*`），未知任务回退通用文案 | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 输入里出现没加 `@` 的链接时的询问对话框：「是」补上 `@`，「否」或任何其他关闭方式（Esc、点遮罩、右上角叉）都不改文本；可勾「不再提醒」；状态与落盘在 `useLinkAtPrompt`（`__tests__/LinkDetectionDialog.test.tsx`） | ✅ |
-| `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
+| `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、click-outside 关闭）；tooltip 里的时间按界面语言排版（一周内为相对时间，更早为日期），不随浏览器语言；按下即选中且不抢走输入框焦点，活动项随键盘移动滚入视野（`__tests__/InputHistoryPopup.test.tsx`） | ✅ |
 | `MessageInput.tsx` | 核心 | 主输入框的装配层：持有各块之间共享的状态（编辑器是否全屏、光标位置、斜杠与 `@` 面板、输入历史弹窗），把 `useMessageInput` 的输入状态接到 `composer/` 的单元（文本区、发送控制、面板开合、拖放、按键分流、手机「+」与操作表）；附件、Slash、`@`/Tauri 侧栏 session drop→prior_chat cite、语音、模式切换、队列与流式发送；挂载 `WechatArticleComposerHint`；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送；桌面主行只有 5 个控件（`ComposerPrimaryControls`），其余选项收在「+」展开的 `ComposerOptionsRegion`，手机（<`sm`）由 `sendbox-mobile-plus-btn` 打开操作表；输入框字号手机上为 `text-base`（16px，iOS 对更小的输入框聚焦时会自动放大页面）、≥`sm` 为 `text-sm`；空会话首屏传 `focusOnMount`，由 `ComposerTextarea` 在桌面（≥`sm` 且 `pointer: fine`）把光标放进来；服务端自启回合（后台任务完成后的唤醒）运行时 `loading` 不置位，仍并排显示停止按钮（`selectChatGenerating`），会话历史载入期间停止按钮保留位置并禁用（`useTurnStoppable`）；各单元的职责与契约见 [composer/_ARCH.md](composer/_ARCH.md) | ✅ |
 | `__tests__/MessageInput.{keyboard,controls,panels}.test.tsx`、`__tests__/messageInputHarness.tsx` | 测试 | 输入区接线的集成测试：子组件与重 Hook 换成记录属性的替身，只验证 `MessageInput` 自己的决定；覆盖键盘分流与文本区（回车、IME、队列、全屏编辑、退格删芯片、斜杠 / @ / 历史、typing 节流、聚焦预热与失焦取消）、发送控制（发送 / 停止 / 纠偏 / 引导 / 排队的出现条件、语音与热词）、面板与拖放（手机操作表、能力编辑落点、选项区、拖放覆盖层与合并处理器、压缩确认、链接检测、工作目录行的显示条件）；测试文件必须先导入替身模块再导入被测组件 | ✅ |
 | `WechatArticleComposerHint.tsx` | 组件 | 输入区 banner：输入里有微信公众号文章链接（短链 `/s/<id>` 与长链 `/s?__biz=…` 都算）→ 引导挂载 `wechat-article-formatter` skill；已挂载且本会话没关掉它时改为「已就绪」；可关闭，关闭后在组件存活期内不再出现（`__tests__/WechatArticleComposerHint.test.tsx`） | ✅ |
 | `wechatComposerHintUtils.ts` | 辅助 | 微信文章 URL 检测、formatter skill 挂载态判定、Agent 技能设置深链 | ✅ |
 | `speechKeyterms.ts` | 辅助 | STT 领域热词提取纯函数（近 6 轮消息词频 Top15）；主 composer 与移动端指挥条共用，保证两端口述识别词表一致 | ✅ |
 | `__tests__/wechatComposerHintUtils.test.ts` | 测试 | 微信文章 URL 检测（短链、长链、子域、大小写、非文章页、仿冒域名）、技能设置深链（转义与无 Agent 回退）与 formatter skill 挂载态矩阵（未安装、未挂载、会话覆盖含/不含、多份副本） | ✅ |
+| `__tests__/ReplayAction.test.tsx` | 测试 | 回放验证：空闲/进行中/完成的按钮状态与转圈、95% 边界（确定性与漂移的提示、颜色、图标）、取整、失败文案与兜底、重复回放换分、徽标打开与关闭对比弹窗（含键盘）、得分随语言 | ✅ |
+| `__tests__/ChatSessionHeader.test.tsx` | 测试 | 会话工具条：各入口拿到当前会话 id、标签的 `aria-pressed` 与回报、换会话后回放得分与进行中状态不串到下一个会话、同会话换标签时保留 | ✅ |
 | `__tests__/speechKeyterms.test.ts` | 测试 | STT 热词提取回归：空输入与单字 CJK 丢弃、大小写去重与降频、缩写与带点标识符、词频排序、近 6 轮窗口、Top15 上界 | ✅ |
 | `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + 悬停全路径与一键复制 + revoke 撤销）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
 | `QueuedMessagesList.tsx` | 组件 | 消息队列 Dock 栏可视化：支持 Dock 折叠/展开胶囊头、按会话持久化偏好、全局 Esc 暂停自动展开、DnD 拖拽排序（复用 @dnd-kit；键盘拖拽的说明与播报经 `useDndAccessibility`，按「排队中 (n/m)」称呼每条消息，不念消息内容）与全部清空 | ✅ |
@@ -145,7 +148,7 @@
 | `ReferenceMentionPopover.tsx` | 组件 | `@` 引用文件/记忆/会话的 Popover 选择器 | ✅ |
 | `ProjectBoundaryBadge.tsx` | 组件 | 输入框上方的项目隔离徽标：当前会话属于某个项目时显示沙箱边界与记忆隔离状态，悬浮提示给出工作区或沙箱路径；文案取自 `chat.projectBoundary`（`__tests__/ProjectBoundaryBadge.test.tsx`） | ✅ |
 | `ScopedArtifactChip.tsx` | 组件 | 输入框上方的限定目标芯片：显示被选中的工件、表格行或文档片段（名称、范围标签与截断预览），可一键清除；文案取自 `chat`（`__tests__/ScopedArtifactChip.test.tsx`） | ✅ |
-| `PreferenceRadarToggle.tsx` | 组件 | 聊天窗口的卫星浮钮：打开停靠的偏好雷达抽屉，实时查看并微调记忆偏好的五个维度，可锁定；空会话不挂载，有消息后出现；标题与无障碍标签取自 `chat.preferenceRadar`（`__tests__/PreferenceRadarToggle.test.tsx`） | ✅ |
+| `PreferenceRadarToggle.tsx` | 组件 | 聊天窗口的卫星浮钮：打开停靠的偏好雷达抽屉，每次打开都读取该会话服务端当前的五维权重与锁定态（服务端会在对话中持续拟合；抽屉关闭时不发请求），可微调（只发被改的维度）、套用预设、锁定、重置为中性；保存失败时重读服务端状态，用户在答案返回前又改过则丢弃过期答案；每个会话各一份状态（切会话不沿用上一个会话的雷达，迟到的答案不串会话）；空会话不挂载，有消息后出现；标题与无障碍标签取自 `chat.preferenceRadar`（`__tests__/PreferenceRadarToggle.test.tsx`） | ✅ |
 | `ContextFootprintInspector.tsx` | 组件 | 会话初始上下文底噪透视面板与闲置 MCP 快速裁决器：清晰透视 System Prompt、Persona、Workspace Rules、MCP Tools 与 Skills 五层底层初始 Token 占用，支持 `/context` 指令直达与一键启闭闲置 MCP 服务；三档底噪基线说明取自 `chat.contextFootprint` | ✅ |
 | `__tests__/ContextFootprintInspector.test.tsx` | 测试 | 上下文底噪透视组件单元测试套件：覆盖 5 层底噪 breakdown 渲染、formatTokenNumber 紧凑格式化、空服务状态、MCP 实时切换回调与关闭事件触发 | ✅ |
 | `__tests__/ReferenceMentionPopover.dedup.test.tsx` | 测试 | 引用建议气泡去重指示单元测试套件：覆盖会话隔离账本下已注入文件的 `[已在上下文]` 胶囊标签渲染与防膨胀提示 | ✅ |
@@ -251,7 +254,7 @@
 | `ModelPricingPopover.tsx`                    | 组件 | 模型四维单价矩阵与 Prompt Cache 经济学透视浮层：展示当前模型与主流标杆的 $/1M 单价与节省率                                                                                          | ✅    |
 | `__tests__/ModelPricingPopover.test.tsx`     | 测试 | 模型单价浮层单元测试：加载态与单价矩阵、对比列表经翻译键渲染覆盖                                                                                                                    | ✅    |
 | `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：初始就绪态、低阈值普通态、高阈值绿色高亮与节省额度渲染覆盖                                                                                                   | ✅    |
-| `__tests__/InputHistoryPopup.test.tsx`       | 测试 | 输入历史弹窗单元测试：listbox 的无障碍名称取自翻译键                                                                                                                              | ✅    |
+| `__tests__/InputHistoryPopup.test.tsx` | 测试 | 输入历史弹窗：listbox 名称、条目单行预览与完整 tooltip、选中态、同一时刻的条目不撞 key、时间边界（刚刚/分钟/小时/昨天/天/日期）与按界面语言排版、悬停与按下回报、点击外部关闭（只在打开期间监听）、活动项滚入视野 | ✅ |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                                              | ✅    |
 | `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                                         | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                                          | ✅    |

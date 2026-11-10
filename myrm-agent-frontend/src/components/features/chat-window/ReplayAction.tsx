@@ -7,7 +7,11 @@ import { Button } from '@/components/primitives/button';
 import { toast } from '@/hooks/shared/useToast';
 import { replayChatSession, type ReplayDeterminismResponse } from '@/services/chat';
 import TrajectoryDiffModal from './TrajectoryDiffModal';
-import { activateOnKey } from '@/lib/utils/a11y';
+
+/** A replay that scores at least this well counts as deterministic. */
+const DETERMINISTIC_THRESHOLD = 0.95;
+
+const toPercent = (score: number) => (score * 100).toFixed(0);
 
 interface ReplayActionProps {
   chatId: string;
@@ -24,10 +28,11 @@ export default function ReplayAction({ chatId }: ReplayActionProps) {
       setLoading(true);
       const res = await replayChatSession(chatId);
       setResult(res);
-      if (res.determinism_score >= 0.95) {
-        toast.success(t('replaySuccessDeterministic', { score: (res.determinism_score * 100).toFixed(0) }));
+      const score = toPercent(res.determinism_score);
+      if (res.determinism_score >= DETERMINISTIC_THRESHOLD) {
+        toast.success(t('replaySuccessDeterministic', { score }));
       } else {
-        toast.warning(t('replaySuccessDrift', { score: (res.determinism_score * 100).toFixed(0) }));
+        toast.warning(t('replaySuccessDrift', { score }));
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('replayFailed'));
@@ -35,6 +40,8 @@ export default function ReplayAction({ chatId }: ReplayActionProps) {
       setLoading(false);
     }
   };
+
+  const deterministic = result !== null && result.determinism_score >= DETERMINISTIC_THRESHOLD;
 
   return (
     <div className="inline-flex items-center gap-1.5">
@@ -55,25 +62,19 @@ export default function ReplayAction({ chatId }: ReplayActionProps) {
       </Button>
 
       {result && (
-        <div
+        <button
+          type="button"
           onClick={() => setDiffOpen(true)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={activateOnKey}
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono cursor-pointer border transition-all ${
-            result.determinism_score >= 0.95
+            deterministic
               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
               : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
           }`}
           title={t('badgeTitle')}
         >
-          {result.determinism_score >= 0.95 ? (
-            <CheckCircle2 className="h-3 w-3" />
-          ) : (
-            <AlertTriangle className="h-3 w-3" />
-          )}
-          <span>{(result.determinism_score * 100).toFixed(0)}% Match</span>
-        </div>
+          {deterministic ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+          <span>{t('matchScore', { score: toPercent(result.determinism_score) })}</span>
+        </button>
       )}
 
       {diffOpen && <TrajectoryDiffModal open={diffOpen} currentSessionId={chatId} onClose={() => setDiffOpen(false)} />}

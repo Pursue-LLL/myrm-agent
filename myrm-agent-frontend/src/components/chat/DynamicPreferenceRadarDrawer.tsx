@@ -3,14 +3,7 @@
 import React, { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Code, Compass, Cpu, Flame, Lock, Minimize2, RotateCcw, SlidersHorizontal, Unlock, X } from 'lucide-react';
-
-export interface RadarDimensionValues {
-  recency: number;
-  actionability: number;
-  technical_depth: number;
-  conciseness: number;
-  breadth: number;
-}
+import type { RadarDimensionValues } from '@/services/memory/preferences';
 
 type RadarPresetKey = 'balanced' | 'code' | 'research';
 

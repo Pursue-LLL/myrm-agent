@@ -2,7 +2,8 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DynamicPreferenceRadarDrawer, RADAR_PRESETS, RadarDimensionValues } from '../DynamicPreferenceRadarDrawer';
+import type { RadarDimensionValues } from '@/services/memory/preferences';
+import { DynamicPreferenceRadarDrawer, RADAR_PRESETS } from '../DynamicPreferenceRadarDrawer';
 
 // 带参数回显：同时验证翻译键与插值参数
 const stableT = (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key);

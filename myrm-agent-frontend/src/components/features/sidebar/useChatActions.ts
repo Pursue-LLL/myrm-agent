@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { ChatItem, updateChatTitle, deleteChat, exportChat } from '@/services/chat';
+import { restoreChat } from '@/services/chatTrash';
 import { revealChatArtifacts } from '@/services/file';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chat-export';
 import { desktopBridge } from '@/lib/desktopBridge';
@@ -128,19 +129,17 @@ export function useChatActions(t: ReturnType<typeof useTranslations>) {
         action: {
           label: t('chat.deleteChat.undo'),
           onClick: () => {
-            import('@/services/chatTrash').then(({ restoreChat }) => {
-              restoreChat(chatIdToDelete)
-                .then(() => {
-                  if (removedChat) {
-                    editHistory((items) =>
-                      items.some((chat) => chat.id === removedChat.id) ? items : [removedChat, ...items],
-                    );
-                  }
-                })
-                .catch(() => {
-                  toast({ title: t('chat.deleteChat.undoFailed'), variant: 'destructive' });
-                });
-            });
+            restoreChat(chatIdToDelete)
+              .then(() => {
+                if (removedChat) {
+                  editHistory((items) =>
+                    items.some((chat) => chat.id === removedChat.id) ? items : [removedChat, ...items],
+                  );
+                }
+              })
+              .catch(() => {
+                toast({ title: t('chat.deleteChat.undoFailed'), variant: 'destructive' });
+              });
           },
         },
       });
