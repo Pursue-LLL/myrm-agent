@@ -9,6 +9,7 @@
  * - @/store/chat/types::Message (POS: 消息类型定义)
  * - ./MessageRow (POS: 单条消息行组件)
  * - ./useMessageHeights (POS: 消息高度缓存 Hook)
+ * - ./useVirtualListScroll (POS: 滚动监听：用户滚动意图、触顶翻页、防抖保存镜像)
  * - @/hooks/ui/useScrollPositionRestore (POS: 滚动跟随持久化镜像总线)
  * - ../ComposerClearanceSpacer (POS: 列表末尾随浮动输入框高度变化的底部间距)
  *
@@ -18,7 +19,7 @@
  *   - 支持动态高度
  *   - 支持流式更新自动滚动
  *   - 支持向上滚动加载历史
- *   - 支持搜索结果跳转定位和高亮
+ *   - 支持搜索结果跳转定位和高亮：每条高亮只居中一次，记录在页面传入的 centeredHighlightRef 里
  *   - 支持 L1/L2 自动滚动跟随与视口持久化镜像恢复
  *   - 通过 scrollToMessageRef 暴露 scrollToIndex 给外部组件
  *   - 通过 scrollToBottomRef 暴露 scrollToBottom 给外部组件
@@ -35,12 +36,11 @@
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Message } from '@/store/chat/types';
-import useChatStore from '@/store/useChatStore';
 import { useScrollPositionRestore } from '@/hooks/ui/useScrollPositionRestore';
-import MessageBox from '../../message-box/MessageBox';
 import MessageBoxLoading from '../../message-box/MessageBoxLoading';
+import { MessageRow } from './MessageRow';
 import { useMessageHeights } from './useMessageHeights';
-import { CompactedSummaryView } from '../CompactedSummaryView';
+import { useVirtualListScroll } from './useVirtualListScroll';
 import { ComposerClearanceSpacer } from '../ComposerClearanceSpacer';
 
 /** 虚拟消息列表属性 */
@@ -59,6 +59,8 @@ interface VirtualMessageListProps {
   chatId?: string;
   /** 搜索结果高亮的消息 ID */
   highlightMessageId?: string | null;
+  /** 已居中过的高亮消息 ID：与页面共用，同一条高亮只居中一次（列表切换形态或流式更新都不再重复居中） */
+  centeredHighlightRef: React.MutableRefObject<string | null>;
   /** 外部跳转到指定消息：赋值后可调用 ref.current(index) */
   scrollToMessageRef?: React.MutableRefObject<((index: number) => void) | null>;
   /** 外部 scrollToBottom：赋值后可调用 ref.current() 平滑滚动到底部 */
@@ -90,6 +92,7 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
     containerRef,
     chatId,
     highlightMessageId,
+    centeredHighlightRef,
     scrollToMessageRef,
     scrollToBottomRef,
     onUserScrolledChange,
@@ -97,7 +100,6 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
     const parentRef = useRef<HTMLDivElement>(null);
     const { heightCache, setHeight, clearCache } = useMessageHeights();
     const prevChatIdRef = useRef(chatId);
-    const highlightScrolledRef = useRef(false);
 
     // 虚拟滚动容器获取器
     const getScrollElement = useCallback(() => parentRef.current, []);
@@ -105,24 +107,17 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
     // 接入通用滚动跟随与视口持久化镜像总线
     const { saveScrollPosition, restoreScrollPosition, saveTimerRef } = useScrollPositionRestore({
       id: chatId,
-      enabled: Boolean(chatId),
       getScrollElement,
       onRestore: (entry) => {
-        if (entry.isUserScrolledUp) {
-          userScrolledRef.current = true;
-          onUserScrolledChange?.(true);
-        } else {
-          userScrolledRef.current = false;
-          onUserScrolledChange?.(false);
-        }
+        userScrolledRef.current = entry.isUserScrolledUp;
+        onUserScrolledChange?.(entry.isUserScrolledUp);
       },
     });
 
-    // 聊天切换时清理高度缓存与高亮标记
+    // 聊天切换时清理高度缓存
     useEffect(() => {
       if (chatId && chatId !== prevChatIdRef.current) {
         clearCache();
-        highlightScrolledRef.current = false;
         prevChatIdRef.current = chatId;
       }
     }, [chatId, clearCache]);
@@ -222,14 +217,14 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
       }
     }, [messages, loading, scrollToBottom, userScrolledRef, onUserScrolledChange]);
 
-    // 搜索结果跳转：滚动到高亮消息
+    // 搜索结果跳转：每条高亮只居中一次，高亮换成另一条时再居中
     useEffect(() => {
-      if (!highlightMessageId || highlightScrolledRef.current || messages.length === 0) {
+      if (!highlightMessageId || centeredHighlightRef.current === highlightMessageId) {
         return;
       }
       const targetIndex = messages.findIndex((m) => String(m.messageId) === highlightMessageId);
       if (targetIndex >= 0) {
-        highlightScrolledRef.current = true;
+        centeredHighlightRef.current = highlightMessageId;
         userScrolledRef.current = true;
         onUserScrolledChange?.(true);
         requestAnimationFrame(() => {
@@ -237,73 +232,24 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
           saveScrollPosition({ isFollowingBottom: false, isUserScrolledUp: true });
         });
       }
-    }, [highlightMessageId, messages, virtualizer, userScrolledRef, onUserScrolledChange, saveScrollPosition]);
+    }, [
+      highlightMessageId,
+      messages,
+      virtualizer,
+      centeredHighlightRef,
+      userScrolledRef,
+      onUserScrolledChange,
+      saveScrollPosition,
+    ]);
 
-    const { loadOlderMessages, hasMoreMessages, loadingOlder } = useChatStore();
-    const loadingOlderRef = useRef(false);
-
-    // 监听滚动事件，检测用户是否手动滚动 + 向上加载更多 + 防抖持久化镜像
-    useEffect(() => {
-      const scrollElement = parentRef.current;
-      if (!scrollElement) {
-        return;
-      }
-
-      let lastScrollTop = scrollElement.scrollTop;
-
-      const handleScroll = () => {
-        const currentScrollTop = scrollElement.scrollTop;
-        const scrollHeight = scrollElement.scrollHeight;
-        const clientHeight = scrollElement.clientHeight;
-        const isNearBottom = scrollHeight - currentScrollTop - clientHeight < 100;
-        const isNearTop = currentScrollTop < 200;
-
-        if (currentScrollTop < lastScrollTop - 5) {
-          if (!userScrolledRef.current) {
-            userScrolledRef.current = true;
-            onUserScrolledChange?.(true);
-          }
-        }
-        if (currentScrollTop > lastScrollTop + 5 && isNearBottom) {
-          if (userScrolledRef.current) {
-            userScrolledRef.current = false;
-            onUserScrolledChange?.(false);
-          }
-        }
-
-        // 防抖保存当前滚动状态镜像
-        if (saveTimerRef.current) {
-          clearTimeout(saveTimerRef.current);
-        }
-        saveTimerRef.current = setTimeout(() => {
-          saveScrollPosition();
-        }, 200);
-
-        if (isNearTop && hasMoreMessages && !loadingOlderRef.current) {
-          loadingOlderRef.current = true;
-          const prevHeight = scrollHeight;
-          loadOlderMessages().finally(() => {
-            loadingOlderRef.current = false;
-            requestAnimationFrame(() => {
-              if (parentRef.current) {
-                const newHeight = parentRef.current.scrollHeight;
-                parentRef.current.scrollTop = newHeight - prevHeight + currentScrollTop;
-              }
-            });
-          });
-        }
-
-        lastScrollTop = currentScrollTop;
-      };
-
-      scrollElement.addEventListener('scroll', handleScroll, { passive: true });
-      return () => {
-        scrollElement.removeEventListener('scroll', handleScroll);
-        if (saveTimerRef.current) {
-          clearTimeout(saveTimerRef.current);
-        }
-      };
-    }, [userScrolledRef, hasMoreMessages, loadOlderMessages, onUserScrolledChange, saveScrollPosition, saveTimerRef]);
+    // 监听滚动：识别用户手动滚动、触顶翻页、防抖保存镜像
+    const { loadingOlder } = useVirtualListScroll({
+      parentRef,
+      userScrolledRef,
+      onUserScrolledChange,
+      saveScrollPosition,
+      saveTimerRef,
+    });
 
     // 处理消息高度测量
     const handleHeightMeasure = useCallback(
@@ -386,59 +332,6 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
 );
 
 VirtualMessageList.displayName = 'VirtualMessageList';
-
-/** 单条消息行组件属性 */
-interface MessageRowProps {
-  message: Message;
-  messageIndex: number;
-  loading: boolean;
-  isLast: boolean;
-  highlightMessageId?: string | null;
-  onHeightMeasure?: (messageId: string, height: number) => void;
-}
-
-/**
- * 单条消息行组件
- * 封装单条消息的渲染逻辑，便于高度测量
- */
-const MessageRow = memo<MessageRowProps>(
-  ({ message, messageIndex, loading, isLast, highlightMessageId, onHeightMeasure }) => {
-    const rowRef = useRef<HTMLDivElement>(null);
-
-    // 测量高度并通知父组件
-    useEffect(() => {
-      if (rowRef.current && message?.messageId && onHeightMeasure) {
-        const height = rowRef.current.getBoundingClientRect().height;
-        if (height > 0) {
-          onHeightMeasure(message.messageId, height);
-        }
-      }
-    });
-
-    if (message?.isCompactedSummaryView) {
-      return (
-        <div ref={rowRef} data-message-id={message.messageId} data-testid="compacted-summary-view">
-          <CompactedSummaryView />
-        </div>
-      );
-    }
-
-    const isHighlighted = !!highlightMessageId && String(message.messageId) === highlightMessageId;
-
-    return (
-      <div
-        ref={rowRef}
-        data-message-id={message.messageId}
-        className={isHighlighted ? 'ring-2 ring-primary/40 rounded-lg transition-all duration-1000' : undefined}
-      >
-        <MessageBox message={message} messageIndex={messageIndex} loading={loading} isLast={isLast} />
-        {!isLast && message.role === 'assistant' && <div className="h-px w-full bg-secondary" />}
-      </div>
-    );
-  },
-);
-
-MessageRow.displayName = 'MessageRow';
 
 export default VirtualMessageList;
 export { VirtualMessageList };

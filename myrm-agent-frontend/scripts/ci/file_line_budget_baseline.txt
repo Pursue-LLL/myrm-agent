@@ -15,7 +15,6 @@ src/components/features/chat-window/agent-config-panel/BuiltinToolsPanel.tsx
 src/components/features/chat-window/playbook/ModelOrchestrationPlaybookDialog.tsx
 src/components/features/chat-window/subagent/SubagentDashboard.tsx
 src/components/features/chat-window/subagent/SubagentTree.tsx
-src/components/features/chat-window/virtual-message-list/VirtualMessageList.tsx
 src/components/features/companion/CompanionWidget.tsx
 src/components/features/companion/PetGallery.tsx
 src/components/features/companion/companionGenerator.ts

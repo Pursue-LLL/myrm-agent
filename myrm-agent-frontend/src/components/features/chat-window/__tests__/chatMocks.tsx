@@ -46,6 +46,7 @@ const probes = vi.hoisted(() => ({
     scrollToIndex: vi.fn(),
     scrollToBottom: vi.fn(),
     lastProps: null as { messageCount: number; highlightMessageId: string | null | undefined } | null,
+    centeredHighlightRef: null as MutableRefObject<string | null> | null,
   },
   messageInputMounts: [] as string[],
 }));
@@ -130,6 +131,7 @@ vi.mock('../virtual-message-list', () => ({
   VirtualMessageList: (props: {
     messages: Message[];
     highlightMessageId: string | null | undefined;
+    centeredHighlightRef: MutableRefObject<string | null>;
     scrollToMessageRef: MutableRefObject<((index: number) => void) | null>;
     scrollToBottomRef: MutableRefObject<(() => void) | null>;
     onUserScrolledChange: (scrolledUp: boolean) => void;
@@ -140,6 +142,7 @@ vi.mock('../virtual-message-list', () => ({
       scrollToBottomRef.current = probes.virtual.scrollToBottom;
     }, [scrollToMessageRef, scrollToBottomRef]);
     probes.virtual.lastProps = { messageCount: props.messages.length, highlightMessageId: props.highlightMessageId };
+    probes.virtual.centeredHighlightRef = props.centeredHighlightRef;
     return (
       <div data-testid="virtual-list" data-count={props.messages.length}>
         <button type="button" onClick={() => props.onUserScrolledChange(true)}>
@@ -393,6 +396,7 @@ export function setUpChatTest(): BrowserStubs {
   probes.configError.value = null;
   probes.messageInputMounts.length = 0;
   probes.virtual.lastProps = null;
+  probes.virtual.centeredHighlightRef = null;
   probes.scroll.snapshot.mockReturnValue(null);
   useFeatureGateStore.setState({ enabledFeatures: new Set() });
   useRewindStore.setState({ target: null });

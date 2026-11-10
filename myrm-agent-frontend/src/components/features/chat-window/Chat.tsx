@@ -162,6 +162,7 @@ const Chat = ({
     userScrolledRef,
     scrollToMessageRef,
     virtualScrollToBottomRef,
+    centeredHighlightRef,
     handleJumpToMessage,
     handleJumpToMessageId,
     handleVirtualScrollStateChange,
@@ -282,6 +283,7 @@ const Chat = ({
               containerRef={containerRef}
               chatId={chatId}
               highlightMessageId={highlightMessageId}
+              centeredHighlightRef={centeredHighlightRef}
               scrollToMessageRef={scrollToMessageRef}
               scrollToBottomRef={virtualScrollToBottomRef}
               onUserScrolledChange={handleVirtualScrollStateChange}

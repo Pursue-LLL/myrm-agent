@@ -10,6 +10,7 @@
  *   - 跳转：按消息序号 / id 跳转，滚到底部
  *   - 自动跟随：流式输出与内容增高时跟到底部，用户上滑后不再打扰
  *   - 位置镜像：切换会话时读取、挂载后恢复、滚动停止后防抖保存
+ *   - 高亮：每条高亮消息只居中一次（centeredHighlightRef 与虚拟列表共用），高亮参数消失后可再次居中
  *
  * [POS]
  * Chat 的滚动层。普通列表由 window 滚动，虚拟列表自己滚动并通过 scrollToMessageRef / virtualScrollToBottomRef
@@ -42,6 +43,8 @@ export interface ChatScroll {
   scrollToMessageRef: MutableRefObject<((index: number) => void) | null>;
   /** 虚拟列表挂载后写入：滚到底部。 */
   virtualScrollToBottomRef: MutableRefObject<(() => void) | null>;
+  /** 已居中过的高亮消息 id：同一条高亮只居中一次，两种列表共用；高亮参数消失后清空。 */
+  centeredHighlightRef: MutableRefObject<string | null>;
   handleJumpToMessage: (messageIndex: number) => void;
   handleJumpToMessageId: (messageId: string) => void;
   handleVirtualScrollStateChange: (scrolledUp: boolean) => void;
@@ -58,6 +61,7 @@ export function useChatScroll({ chatId, messages, loading, highlightMessageId }:
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
   const scrollToMessageRef = useRef<((index: number) => void) | null>(null);
+  const centeredHighlightRef = useRef<string | null>(null);
 
   // 使用滚动位置保存/恢复 Hook（支持双模态流式跟随与视口镜像）
   const {
@@ -216,12 +220,18 @@ export function useChatScroll({ chatId, messages, loading, highlightMessageId }:
     }
   }, [messages.length, restoreScrollPosition, chatId]);
 
+  // 高亮消息只居中一次：高亮参数留在地址栏里，流式更新不能再把视口拽回去；参数消失后同一条可以再次居中
   useEffect(() => {
-    if (!highlightMessageId || messages.length === 0) {
+    if (!highlightMessageId) {
+      centeredHighlightRef.current = null;
+      return;
+    }
+    if (centeredHighlightRef.current === highlightMessageId) {
       return;
     }
     const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(highlightMessageId)}"]`);
     if (el) {
+      centeredHighlightRef.current = highlightMessageId;
       requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     }
   }, [highlightMessageId, messages]);
@@ -354,6 +364,7 @@ export function useChatScroll({ chatId, messages, loading, highlightMessageId }:
     userScrolledRef,
     scrollToMessageRef,
     virtualScrollToBottomRef,
+    centeredHighlightRef,
     handleJumpToMessage,
     handleJumpToMessageId,
     handleVirtualScrollStateChange,
