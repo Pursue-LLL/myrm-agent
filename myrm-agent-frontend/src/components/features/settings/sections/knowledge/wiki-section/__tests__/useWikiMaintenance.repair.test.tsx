@@ -45,11 +45,17 @@ describe('useWikiMaintenance: repairs and reindexing', () => {
     expect(result.current[flag]).toBe(false);
   });
 
-  it('shows the server message when the type repair did not succeed, and still rereads the stats', async () => {
-    service.repairPageTypes.mockResolvedValue({ success: false, files_repaired: 0, message: 'nothing to repair' });
+  it('warns with the counts when the type repair only partly succeeded, and still rereads the stats', async () => {
+    service.repairPageTypes.mockResolvedValue({
+      success: false,
+      files_scanned: 9,
+      files_repaired: 4,
+      files_skipped: 3,
+      message: 'Repaired 4 of 9 scanned files; 2 errors',
+    });
     const { result, overview } = renderMaintenance();
     await act(() => result.current.handleRepairPageTypes());
-    expect(toast.warning).toHaveBeenCalledExactlyOnceWith('nothing to repair');
+    expect(toast.warning).toHaveBeenCalledExactlyOnceWith('errors.repairTypesPartial|{"repaired":4,"scanned":9}');
     expect(toast.success).not.toHaveBeenCalled();
     expect(overview.loadStats).toHaveBeenCalledOnce();
   });
@@ -92,18 +98,20 @@ describe('useWikiMaintenance: repairs and reindexing', () => {
     );
   });
 
-  it('shows the server message when the publication repair did not succeed, and reports a failed one', async () => {
+  it('warns with the counts when the publication repair only partly succeeded, and reports a failed one', async () => {
     service.repairPublication.mockResolvedValueOnce({
       success: false,
-      files_scanned: 0,
-      files_repaired: 0,
-      files_skipped: 0,
-      reindexed: 0,
-      message: 'publication warning',
+      files_scanned: 9,
+      files_repaired: 2,
+      files_skipped: 3,
+      reindexed: 1,
+      message: 'Repaired 2 of 9 scanned files; reindexed 1; 1 errors',
     });
     const { result, overview } = renderMaintenance();
     await act(() => result.current.handleRepairPublication());
-    expect(toast.warning).toHaveBeenCalledExactlyOnceWith('publication warning');
+    expect(toast.warning).toHaveBeenCalledExactlyOnceWith(
+      'errors.repairPublicationPartial|{"repaired":2,"scanned":9,"reindexed":1}',
+    );
     expect(overview.loadStats).toHaveBeenCalledOnce();
 
     const failure = new Error('boom');
@@ -144,7 +152,9 @@ describe('useWikiMaintenance: repairs and reindexing', () => {
     const { result } = renderMaintenance();
     await act(() => result.current.handleReindexVectors());
     expect(result.current.reindexErrors).toEqual(['a.md: bad', 'b.md: bad']);
-    expect(toast.warning).toHaveBeenCalledExactlyOnceWith('partly reindexed');
+    expect(toast.warning).toHaveBeenCalledExactlyOnceWith(
+      'errors.reindexVectorsPartial|{"concepts":1,"sidecars":0,"assets":0,"failed":2}',
+    );
 
     const pending = deferred<never>();
     service.reindexVectors.mockReturnValue(pending.promise);

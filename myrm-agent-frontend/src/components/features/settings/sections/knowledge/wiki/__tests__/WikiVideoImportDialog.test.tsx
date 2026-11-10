@@ -14,7 +14,7 @@ vi.mock('sonner', () => ({ toast }));
 const importVideo = vi.hoisted(() => vi.fn());
 vi.mock('@/services/wikiService', () => ({ wikiService: { importVideo } }));
 
-import { WikiVideoImportDialog } from '../WikiVideoImportDialog';
+import { isValidVideoUrl, WikiVideoImportDialog } from '../WikiVideoImportDialog';
 
 const VIDEO_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
@@ -76,11 +76,50 @@ function renderDialog() {
   return { user, box, onOpenChange, onImportFinished };
 }
 
-async function submit(view: ReturnType<typeof renderDialog>) {
+async function submit(view: ReturnType<typeof renderDialog>, url = VIDEO_URL) {
   await view.user.click(view.box);
-  await view.user.paste(VIDEO_URL);
+  await view.user.paste(url);
   await view.user.click(screen.getByRole('button', { name: LABELS[locale].start }));
 }
+
+/** Every form the server reads a video from; the same video id throughout so only the link shape differs. */
+const READABLE_LINKS = [
+  VIDEO_URL,
+  'https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ',
+  'https://www.youtube.com/watch?list=PL1234567890&v=dQw4w9WgXcQ&t=30s',
+  'https://m.youtube.com/watch?v=dQw4w9WgXcQ',
+  'https://www.youtube.com/shorts/dQw4w9WgXcQ',
+  'https://www.youtube.com/live/dQw4w9WgXcQ',
+  'https://www.youtube.com/embed/dQw4w9WgXcQ',
+  'https://youtu.be/dQw4w9WgXcQ?t=30',
+  'https://www.bilibili.com/video/BV1xx411c7mD',
+  'https://b23.tv/abc123',
+];
+
+const UNREADABLE_LINKS = [
+  'https://www.youtube.com/',
+  'https://www.youtube.com/channel/UC1234567890',
+  'https://www.youtube.com/playlist?list=PL1234567890',
+  'https://www.youtube.com/watch?list=PL1234567890',
+  'https://www.bilibili.com/',
+  'https://example.com/watch?v=dQw4w9WgXcQ',
+  'https://vimeo.com/123456789',
+  'not a link',
+];
+
+describe('isValidVideoUrl', () => {
+  it.each(READABLE_LINKS)('accepts %s', (link) => {
+    expect(isValidVideoUrl(link)).toBe(true);
+  });
+
+  it('ignores the whitespace around a link', () => {
+    expect(isValidVideoUrl(`  ${VIDEO_URL}\n`)).toBe(true);
+  });
+
+  it.each(['', '   ', ...UNREADABLE_LINKS])('rejects "%s"', (link) => {
+    expect(isValidVideoUrl(link)).toBe(false);
+  });
+});
 
 describe('WikiVideoImportDialog', () => {
   afterEach(() => {
@@ -190,5 +229,35 @@ describe('WikiVideoImportDialog', () => {
       expect(view.onOpenChange).not.toHaveBeenCalled();
       expect(view.box.value).toBe(VIDEO_URL);
     });
+  });
+
+  describe('link check before the request', () => {
+    it.each([
+      'https://www.youtube.com/shorts/dQw4w9WgXcQ',
+      'https://www.youtube.com/live/dQw4w9WgXcQ',
+      'https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ',
+    ])('sends %s to the server', async (link) => {
+      importVideo.mockResolvedValue(failure({ success: true, status: 'success', error: '' }));
+      const view = renderDialog();
+
+      await submit(view, link);
+
+      await waitFor(() => expect(importVideo).toHaveBeenCalledWith(expect.objectContaining({ url: link }), undefined));
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it.each(['https://www.youtube.com/channel/UC1234567890', 'https://vimeo.com/123456789'])(
+      'refuses %s without asking the server',
+      async (link) => {
+        const view = renderDialog();
+
+        await submit(view, link);
+
+        expect(toast.error).toHaveBeenCalledExactlyOnceWith('Please enter a valid video URL');
+        expect(importVideo).not.toHaveBeenCalled();
+        expect(view.onOpenChange).not.toHaveBeenCalled();
+        expect(view.box.value).toBe(link);
+      },
+    );
   });
 });

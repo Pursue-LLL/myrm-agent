@@ -1,7 +1,7 @@
 /**
  * [INPUT] @/services/wikiService::wikiService (POS: Wiki 导入接口: 文件夹、ZIP、Obsidian、链接、视频), @/lib/migrationChatHandoff (POS: 迁移向导交接的 Obsidian vault 路径), @/lib/utils/clipboardUtils::isTauri (POS: 桌面端判断), ./useWikiOverviewData (POS: 统计重载与原文树同步)
  * [OUTPUT] useWikiImport: 批量导入与 Obsidian 导入的状态、选择器引用与动作, 导入冲突 / 安全提示 / 链接 / 视频对话框的开关与回调
- * [POS] Wiki 面板的导入层: 导入成功后重读统计并切到重复审核页; 命中冲突时保留重试信息, 用户选择“覆盖”后以 supersede 重试; 迁移向导交接的 vault 路径在首次进入时自动导入一次。
+ * [POS] Wiki 面板的导入层: 导入结果按界面语言汇总（文件夹与 ZIP 报告导入与跳过的文件数, Obsidian 报告笔记、标签与图片数）, 汇总形式取决于结果本身的形状; 总会重读统计, 有文件入队时才提示重复扫描并切到重复审核页; 命中冲突时保留重试信息, 用户选择“覆盖”后以 supersede 重试; 迁移向导交接的 vault 路径在首次进入时自动导入一次。
  */
 
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
@@ -24,6 +24,11 @@ interface PendingImportRetry {
   folderPath?: string;
   zipFile?: File;
 }
+
+type ImportOutcome = ImportResultResponse | ObsidianImportResultResponse;
+
+/** An Obsidian import answers with note counts, a folder or ZIP import with file counts. */
+const isObsidianResult = (result: ImportOutcome): result is ObsidianImportResultResponse => 'files_processed' in result;
 
 interface UseWikiImportParams {
   agentScopeId: string | null;
@@ -70,19 +75,31 @@ export function useWikiImport({
     });
   };
 
-  const finishImportResult = async (
-    result: ImportResultResponse | ObsidianImportResultResponse,
-    retry: PendingImportRetry | null,
-    toastMode: 'default' | 'obsidian' = 'default',
-  ) => {
+  const showFolderResult = (result: ImportResultResponse) => {
+    if (result.files_scanned === 0) {
+      toast.message(t('import.noFilesFound'));
+      return;
+    }
+    const skipped = result.files_scanned - result.files_enqueued;
+    toast.success(
+      skipped > 0
+        ? t('import.folderResultWithSkips', { imported: result.files_enqueued, skipped })
+        : t('import.folderResult', { imported: result.files_enqueued }),
+    );
+  };
+
+  const finishImportResult = async (result: ImportOutcome, retry: PendingImportRetry | null) => {
     if (result.success) {
-      if (toastMode === 'obsidian') {
-        showObsidianResult(result as ObsidianImportResultResponse);
+      if (isObsidianResult(result)) {
+        showObsidianResult(result);
       } else {
-        toast.success(result.message);
+        showFolderResult(result);
       }
-      toast.message(t('import.dedupScanStarted'));
-      handleWikiTabChange('duplicateReview');
+      // The server starts its duplicate scan only when it queued files.
+      if (result.files_enqueued > 0) {
+        toast.message(t('import.dedupScanStarted'));
+        handleWikiTabChange('duplicateReview');
+      }
       await loadStats();
       const blocked = result.security_blocked_paths ?? [];
       const redacted = result.security_redacted_paths ?? [];
@@ -98,7 +115,7 @@ export function useWikiImport({
         setImportConflictOpen(true);
       }
     } else {
-      toast.error(result.message);
+      toast.error(t('errors.importFailed'));
     }
   };
 
@@ -122,11 +139,7 @@ export function useWikiImport({
     void wikiService
       .importObsidianFolder(handoff.vaultPath, true, agentScopeId)
       .then(async (result) => {
-        await finishMigrationVaultImport(
-          result,
-          { kind: 'obsidian-folder', folderPath: handoff.vaultPath },
-          'obsidian',
-        );
+        await finishMigrationVaultImport(result, { kind: 'obsidian-folder', folderPath: handoff.vaultPath });
       })
       .catch(() => {
         toast.error(t('import.migrationVaultHandoffFailed'));
@@ -291,7 +304,7 @@ export function useWikiImport({
       setIsImportingObsidian(true);
       const vaultPath = selected as string;
       const result = await wikiService.importObsidianFolder(vaultPath, true, agentScopeId);
-      await finishImportResult(result, { kind: 'obsidian-folder', folderPath: vaultPath }, 'obsidian');
+      await finishImportResult(result, { kind: 'obsidian-folder', folderPath: vaultPath });
     } catch (error) {
       console.error('Obsidian folder import failed:', error);
       toast.error(t('errors.importFailed'));
@@ -309,7 +322,7 @@ export function useWikiImport({
     setIsImportingObsidian(true);
     try {
       const result = await wikiService.importObsidianZip(file, true, agentScopeId);
-      await finishImportResult(result, { kind: 'obsidian-zip', zipFile: file }, 'obsidian');
+      await finishImportResult(result, { kind: 'obsidian-zip', zipFile: file });
     } catch (error) {
       console.error('Obsidian ZIP import failed:', error);
       toast.error(t('errors.importFailed'));

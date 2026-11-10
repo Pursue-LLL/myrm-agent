@@ -144,7 +144,9 @@ export function useWikiMaintenance({ agentScopeId, overview, handleWikiTabChange
       if (result.success) {
         toast.success(t('success.repairTypesComplete', { count: result.files_repaired }));
       } else {
-        toast.warning(result.message);
+        toast.warning(
+          t('errors.repairTypesPartial', { repaired: result.files_repaired, scanned: result.files_scanned }),
+        );
       }
       await loadStats();
     } catch (error) {
@@ -174,7 +176,13 @@ export function useWikiMaintenance({ agentScopeId, overview, handleWikiTabChange
               }),
         );
       } else {
-        toast.warning(result.message);
+        toast.warning(
+          t('errors.repairPublicationPartial', {
+            repaired: result.files_repaired,
+            scanned: result.files_scanned,
+            reindexed: result.reindexed,
+          }),
+        );
       }
       await loadStats();
     } catch (error) {
@@ -200,7 +208,14 @@ export function useWikiMaintenance({ agentScopeId, overview, handleWikiTabChange
           }),
         );
       } else {
-        toast.warning(result.message);
+        toast.warning(
+          t('errors.reindexVectorsPartial', {
+            concepts: result.concepts_reindexed,
+            sidecars: result.sidecars_reindexed,
+            assets: result.assets_indexed,
+            failed: result.failed,
+          }),
+        );
       }
       await loadStats();
       bumpTreeSync();

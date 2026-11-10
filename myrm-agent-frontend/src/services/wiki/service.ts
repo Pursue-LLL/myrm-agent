@@ -486,6 +486,7 @@ export interface ObsidianImportResultResponse {
   success: boolean;
   files_scanned: number;
   files_processed: number;
+  files_enqueued: number;
   files_skipped: number;
   files_skipped_conflict?: number;
   files_superseded?: number;

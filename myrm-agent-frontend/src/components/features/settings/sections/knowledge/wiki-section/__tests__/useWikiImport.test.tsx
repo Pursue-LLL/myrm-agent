@@ -11,6 +11,7 @@ import { fileOf, importResultOf, obsidianResultOf } from './wikiSectionFixtures'
 import { renderImport } from './wikiImportBench';
 
 const TEXT_EXTENSIONS = ['.md', '.txt', '.org'];
+const FOLDER_SUMMARY = 'import.folderResult|{"imported":3}';
 const OBSIDIAN_SUMMARY = 'import.obsidianResult|{"processed":5,"tags":2,"images":1,"skipped":1}';
 let consoleError: ReturnType<typeof vi.spyOn>;
 
@@ -39,7 +40,7 @@ describe('useWikiImport: desktop folder import', () => {
       title: 'import.selectFolder',
     });
     expect(service.importFolder).toHaveBeenCalledExactlyOnceWith('/picked/folder', TEXT_EXTENSIONS, true, 'a1');
-    expect(toastTexts('success')).toEqual(['Imported 3 files']);
+    expect(toastTexts('success')).toEqual([FOLDER_SUMMARY]);
     expect(toastTexts('message')).toEqual(['import.dedupScanStarted']);
     expect(toast.error).not.toHaveBeenCalled();
     expect(bench.handleWikiTabChange).toHaveBeenCalledExactlyOnceWith('duplicateReview');
@@ -72,15 +73,46 @@ describe('useWikiImport: desktop folder import', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it('reports a refusal from the server without reviewing duplicates', async () => {
+  it('reports a refusal from the server in the interface language, not with its own text', async () => {
     service.importFolder.mockResolvedValue(importResultOf({ success: false, message: 'The folder is empty' }));
     const bench = renderImport();
     await act(() => bench.current().handleImportFolder());
-    expect(toastTexts('error')).toEqual(['The folder is empty']);
+    expect(toastTexts('error')).toEqual(['errors.importFailed']);
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.message).not.toHaveBeenCalled();
     expect(bench.handleWikiTabChange).not.toHaveBeenCalled();
     expect(bench.overview.loadStats).not.toHaveBeenCalled();
+  });
+
+  it('counts the files it left out next to the ones it imported', async () => {
+    service.importFolder.mockResolvedValue(importResultOf({ files_scanned: 5, files_enqueued: 3 }));
+    const bench = renderImport();
+    await act(() => bench.current().handleImportFolder());
+    expect(toastTexts('success')).toEqual(['import.folderResultWithSkips|{"imported":3,"skipped":2}']);
+    expect(bench.handleWikiTabChange).toHaveBeenCalledExactlyOnceWith('duplicateReview');
+  });
+
+  it('says so, and neither announces a duplicate scan nor leaves the page, when the folder holds nothing to import', async () => {
+    service.importFolder.mockResolvedValue(
+      importResultOf({ files_scanned: 0, files_enqueued: 0, message: 'No matching files found' }),
+    );
+    const bench = renderImport();
+    await act(() => bench.current().handleImportFolder());
+    expect(toastTexts('message')).toEqual(['import.noFilesFound']);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(bench.handleWikiTabChange).not.toHaveBeenCalled();
+    expect(bench.overview.loadStats).toHaveBeenCalledOnce();
+  });
+
+  it('starts no duplicate review when every file was left out', async () => {
+    service.importFolder.mockResolvedValue(importResultOf({ files_scanned: 2, files_enqueued: 0 }));
+    const bench = renderImport();
+    await act(() => bench.current().handleImportFolder());
+    expect(toastTexts('success')).toEqual(['import.folderResultWithSkips|{"imported":0,"skipped":2}']);
+    expect(toast.message).not.toHaveBeenCalled();
+    expect(bench.handleWikiTabChange).not.toHaveBeenCalled();
+    expect(bench.overview.loadStats).toHaveBeenCalledOnce();
   });
 
   it('reports a failed request and logs it', async () => {
@@ -140,7 +172,7 @@ describe('useWikiImport: folder import in the browser', () => {
     ).toEqual(['loose.md', 'vault/a.md', 'vault/c.org', 'vault/sub/B.TXT']);
     expect(await entries.file('vault/a.md')?.async('string')).toBe('alpha');
     expect(await entries.file('loose.md')?.async('string')).toBe('delta');
-    expect(toastTexts('success')).toEqual(['Imported 3 files']);
+    expect(toastTexts('success')).toEqual([FOLDER_SUMMARY]);
     expect(bench.handleWikiTabChange).toHaveBeenCalledExactlyOnceWith('duplicateReview');
   });
 
@@ -194,7 +226,7 @@ describe('useWikiImport: ZIP import', () => {
     const reset = vi.spyOn(bench.input('zip'), 'value', 'set');
     await bench.choose('zip', [archive]);
     expect(service.importZip).toHaveBeenCalledExactlyOnceWith(archive, '.md,.txt,.org', true, 'a1');
-    expect(toastTexts('success')).toEqual(['Imported 3 files']);
+    expect(toastTexts('success')).toEqual([FOLDER_SUMMARY]);
     expect(bench.handleWikiTabChange).toHaveBeenCalledExactlyOnceWith('duplicateReview');
     expect(reset).toHaveBeenCalledExactlyOnceWith('');
     expect(bench.current().isImporting).toBe(false);
@@ -295,13 +327,34 @@ describe('useWikiImport: Obsidian folder import', () => {
       expect(bench.current().isImportingObsidian).toBe(false);
     });
 
-    it('reports a refusal from the server', async () => {
+    it('reports a refusal from the server in the interface language, not with its own text', async () => {
       service.importObsidianFolder.mockResolvedValue(obsidianResultOf({ success: false, message: 'Not a vault' }));
       const bench = renderImport();
       await act(() => bench.current().handleImportObsidianFolder());
-      expect(toastTexts('error')).toEqual(['Not a vault']);
+      expect(toastTexts('error')).toEqual(['errors.importFailed']);
       expect(toast.success).not.toHaveBeenCalled();
       expect(bench.handleWikiTabChange).not.toHaveBeenCalled();
+    });
+
+    it('announces no duplicate scan when the vault held no note to process', async () => {
+      service.importObsidianFolder.mockResolvedValue(
+        obsidianResultOf({ files_scanned: 0, files_processed: 0, files_enqueued: 0, files_skipped: 0 }),
+      );
+      const bench = renderImport();
+      await act(() => bench.current().handleImportObsidianFolder());
+      expect(toastTexts('message')).toEqual(['obsidianVault.postWorkflowHint']);
+      expect(bench.handleWikiTabChange).not.toHaveBeenCalled();
+      expect(bench.overview.loadStats).toHaveBeenCalledOnce();
+    });
+
+    it('announces no duplicate scan when every note of the vault was already imported unchanged', async () => {
+      service.importObsidianFolder.mockResolvedValue(obsidianResultOf({ files_enqueued: 0 }));
+      const bench = renderImport();
+      await act(() => bench.current().handleImportObsidianFolder());
+      expect(toastTexts('success')).toEqual([OBSIDIAN_SUMMARY]);
+      expect(toast.message).toHaveBeenCalledExactlyOnceWith('obsidianVault.postWorkflowHint', expect.anything());
+      expect(bench.handleWikiTabChange).not.toHaveBeenCalled();
+      expect(bench.overview.loadStats).toHaveBeenCalledOnce();
     });
 
     it('reports a failed request and logs it', async () => {

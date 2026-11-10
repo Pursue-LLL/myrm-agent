@@ -22,13 +22,14 @@ interface WikiVideoImportDialogProps {
   onImportFinished: (result: ImportVideoResponse) => void;
 }
 
+/** The video links the server can read subtitles from: Bilibili video and short links, YouTube watch, shorts, live, embed and youtu.be links. */
 export function isValidVideoUrl(url: string): boolean {
   const trimmed = url.trim();
   if (!trimmed) {
     return false;
   }
   const isBili = /(?:bilibili\.com\/video\/|b23\.tv\/)/i.test(trimmed);
-  const isYt = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)/i.test(trimmed);
+  const isYt = /(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/|live\/)|youtu\.be\/)/i.test(trimmed);
   return isBili || isYt;
 }
 

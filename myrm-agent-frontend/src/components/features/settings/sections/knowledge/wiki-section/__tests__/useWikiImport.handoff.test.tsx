@@ -131,7 +131,7 @@ describe('useWikiImport: migration vault handoff', () => {
     service.importObsidianFolder.mockResolvedValue(obsidianResultOf({ success: false, message: 'Not a vault' }));
     const bench = renderImport();
     await settle();
-    expect(toastTexts('error')).toEqual(['Not a vault']);
+    expect(toastTexts('error')).toEqual(['errors.importFailed']);
     expect(bench.current().isImportingObsidian).toBe(false);
   });
 

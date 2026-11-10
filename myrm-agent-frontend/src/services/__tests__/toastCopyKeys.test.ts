@@ -43,6 +43,14 @@ const WITH_VALUES: ReadonlyArray<readonly [string, Values]> = [
   ['notifications.budgetRemaining', { dimension: 'dimension-x', remaining: '0.1234' }],
   ['notifications.subagentStaleDescription', { minutes: 3, tokens: 25 }],
   ['notifications.subagentStaleStats', { minutes: 3, tokens: 25 }],
+  ['settings.wiki.errors.repairTypesPartial', { repaired: 4, scanned: 9 }],
+  ['settings.wiki.errors.repairPublicationPartial', { repaired: 4, scanned: 9, reindexed: 7 }],
+  ['settings.wiki.errors.reindexVectorsPartial', { concepts: 22, sidecars: 33, assets: 44, failed: 1 }],
+  ['settings.wiki.errors.reindexVectorsPartial', { concepts: 22, sidecars: 33, assets: 44, failed: 5 }],
+  ['settings.wiki.import.folderResult', { imported: 1 }],
+  ['settings.wiki.import.folderResult', { imported: 5 }],
+  ['settings.wiki.import.folderResultWithSkips', { imported: 1, skipped: 2 }],
+  ['settings.wiki.import.folderResultWithSkips', { imported: 5, skipped: 2 }],
 ];
 
 const WITHOUT_VALUES = [
@@ -62,6 +70,7 @@ const WITHOUT_VALUES = [
   'Goal.subgoalRemoveNetworkError',
   'settings.skills.permissions.approveFailed',
   'settings.skills.detail.forceEnableFailed',
+  'settings.wiki.import.noFilesFound',
 ] as const;
 
 describe.each(Object.entries(locales))('toast copy keys in %s', (locale, messages) => {

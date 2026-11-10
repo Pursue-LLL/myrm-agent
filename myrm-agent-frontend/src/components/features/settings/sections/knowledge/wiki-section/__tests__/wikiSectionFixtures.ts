@@ -142,6 +142,7 @@ export const obsidianResultOf = (over: Partial<ObsidianImportResultResponse> = {
   success: true,
   files_scanned: 8,
   files_processed: 5,
+  files_enqueued: 5,
   files_skipped: 1,
   tags_extracted: 2,
   images_copied: 1,

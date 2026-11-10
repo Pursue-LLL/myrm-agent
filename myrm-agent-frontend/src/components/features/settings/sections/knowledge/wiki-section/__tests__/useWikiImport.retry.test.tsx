@@ -20,6 +20,8 @@ import {
 import { renderImport, type ImportBench } from './wikiImportBench';
 
 const CONFLICTS = ['notes/a.md', 'notes/b.md'];
+const FOLDER_REPLACED_SUMMARY = 'import.folderResultWithSkips|{"imported":2,"skipped":3}';
+const OBSIDIAN_SUMMARY = 'import.obsidianResult|{"processed":5,"tags":2,"images":1,"skipped":1}';
 const SUPERSEDE: WikiImportConflictOptions = { onConflict: 'supersede', supersedeReason: 'newer notes' };
 const ARCHIVE = fileOf('notes.zip');
 let consoleError: ReturnType<typeof vi.spyOn>;
@@ -42,6 +44,8 @@ const RETRIES = [
     busy: 'isImporting',
     method: 'importFolder',
     conflicted: importResultOf({ conflict_paths: CONFLICTS }),
+    replaced: importResultOf({ files_scanned: 5, files_enqueued: 2, conflict_paths: CONFLICTS }),
+    summary: FOLDER_REPLACED_SUMMARY,
     begin: (bench: ImportBench) => act(() => bench.current().handleImportFolder()),
     replay: ['/picked/folder', ['.md', '.txt', '.org'], true, 'a1', SUPERSEDE],
   },
@@ -51,6 +55,8 @@ const RETRIES = [
     busy: 'isImporting',
     method: 'importZip',
     conflicted: importResultOf({ conflict_paths: CONFLICTS }),
+    replaced: importResultOf({ files_scanned: 5, files_enqueued: 2, conflict_paths: CONFLICTS }),
+    summary: FOLDER_REPLACED_SUMMARY,
     begin: (bench: ImportBench) => bench.choose('zip', [ARCHIVE]),
     replay: [ARCHIVE, '.md,.txt,.org', true, 'a1', SUPERSEDE],
   },
@@ -60,6 +66,8 @@ const RETRIES = [
     busy: 'isImportingObsidian',
     method: 'importObsidianFolder',
     conflicted: obsidianResultOf({ conflict_paths: CONFLICTS }),
+    replaced: obsidianResultOf({ conflict_paths: CONFLICTS }),
+    summary: OBSIDIAN_SUMMARY,
     begin: (bench: ImportBench) => act(() => bench.current().handleImportObsidianFolder()),
     replay: ['/picked/folder', true, 'a1', SUPERSEDE],
   },
@@ -69,6 +77,8 @@ const RETRIES = [
     busy: 'isImportingObsidian',
     method: 'importObsidianZip',
     conflicted: obsidianResultOf({ conflict_paths: CONFLICTS }),
+    replaced: obsidianResultOf({ conflict_paths: CONFLICTS }),
+    summary: OBSIDIAN_SUMMARY,
     begin: (bench: ImportBench) => bench.choose('obsidian-zip', [ARCHIVE]),
     replay: [ARCHIVE, true, 'a1', SUPERSEDE],
   },
@@ -101,17 +111,19 @@ describe.each(RETRIES)('useWikiImport: replacing the conflicting notes of $label
     expect(bench.current()[kind.busy]).toBe(true);
     expect(service[kind.method]).toHaveBeenCalledTimes(2);
     expect(service[kind.method]).toHaveBeenLastCalledWith(...kind.replay);
-    pending.resolve(importResultOf());
+    pending.resolve(kind.replaced);
     await act(() => retrying);
     expect(bench.current()[kind.busy]).toBe(false);
   });
 
-  it('reports the replacement like any import and never asks about conflicts a second time', async () => {
+  it('reports the replacement like the import it repeats and never asks about conflicts a second time', async () => {
     const bench = renderImport('a1');
     await kind.begin(bench);
-    service[kind.method].mockResolvedValue(importResultOf({ message: 'Replaced 2 notes', conflict_paths: CONFLICTS }));
+    service[kind.method].mockResolvedValue(kind.replaced);
     await act(() => bench.current().retryImportWithSupersede('newer notes'));
-    expect(toastTexts('success')).toContain('Replaced 2 notes');
+    const summaries = toastTexts('success');
+    expect(summaries).toHaveLength(2);
+    expect(summaries.at(-1)).toBe(kind.summary);
     expect(bench.handleWikiTabChange).toHaveBeenCalledTimes(2);
     expect(bench.overview.loadStats).toHaveBeenCalledTimes(2);
     expect(bench.current().importConflictOpen).toBe(false);
@@ -232,6 +244,17 @@ describe('useWikiImport: conflict and security notices', () => {
     expect(bench.current().importConflictOpen).toBe(true);
   });
 
+  it('still asks about the conflicts of an import that queued nothing, without announcing a duplicate scan', async () => {
+    service.importZip.mockResolvedValue(
+      importResultOf({ files_scanned: 2, files_enqueued: 0, conflict_paths: CONFLICTS }),
+    );
+    const bench = renderImport();
+    await bench.choose('zip', [ARCHIVE]);
+    expect(bench.current().importConflictOpen).toBe(true);
+    expect(toast.message).not.toHaveBeenCalled();
+    expect(bench.handleWikiTabChange).not.toHaveBeenCalled();
+  });
+
   it('opens no notice for a refused import even when it lists paths', async () => {
     service.importZip.mockResolvedValue(
       importResultOf({
@@ -243,7 +266,7 @@ describe('useWikiImport: conflict and security notices', () => {
     );
     const bench = renderImport();
     await bench.choose('zip', [ARCHIVE]);
-    expect(toastTexts('error')).toEqual(['Refused']);
+    expect(toastTexts('error')).toEqual(['errors.importFailed']);
     expect(bench.current().importConflictOpen).toBe(false);
     expect(bench.current().importSecurityOpen).toBe(false);
   });
