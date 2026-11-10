@@ -81,9 +81,15 @@ __all__ = [
 
 _MEMORY_CONTEXT_FLAG = "memory_context"
 
-# A stored rule whose action carries one of these is a prohibition. An ASCII word stands alone ("whenever" and
-# "nevertheless" are not "never"); "不得不" and "不得已" say the opposite of "不得".
-_PROHIBITION = re.compile(r"(?<![a-z])(?:never|forbidden|prohibited|do not)(?![a-z])|禁止|严禁|不得(?![不已])")
+# A stored rule whose action carries one of these is a prohibition. An ASCII word stands alone: "whenever" and
+# "nevertheless" are not "never", and neither are the identifier ``never_expire``, the compound "never-ending" or the
+# negated "non-prohibited", all of which a veto line would turn into the opposite of what the rule says. A word
+# beside CJK text or punctuation still stands alone. "不得不" and "不得已" say the opposite of "不得".
+_WORD_CHAR = r"[a-z0-9_]"
+_PROHIBITION = re.compile(
+    rf"(?<!{_WORD_CHAR})(?<!{_WORD_CHAR}-)(?:never|forbidden|prohibited|do not)(?!{_WORD_CHAR})(?!-{_WORD_CHAR})"
+    r"|禁止|严禁|不得(?![不已])"
+)
 
 
 @dataclass(frozen=True)

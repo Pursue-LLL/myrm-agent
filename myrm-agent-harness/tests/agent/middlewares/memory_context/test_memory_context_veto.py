@@ -1,8 +1,9 @@
 """Which stored rules the memory block presents as vetoes, and what a veto line says.
 
 A rule reaches the block as ``{"trigger", "action", "priority", "user_endorsed"}``: nothing marks it as a veto, so the
-action's wording decides. A positive rule that merely contains "never" ("whenever", "nevertheless") would be shown to
-the model as ``[NEVER] ...``, the opposite of what it says, and a veto that drops its trigger would bind everywhere.
+action's wording decides. A positive rule that merely contains "never" ("whenever", "nevertheless", the identifier
+``NEVER_EXPIRE``) would be shown to the model as ``[NEVER] ...``, the opposite of what it says, and a veto that drops
+its trigger would bind everywhere.
 
 [INPUT]
 - agent.middlewares.memory_context.memory_context_format::_format_memory_context, MANDATORY_VETO_TITLE, STABLE_RULES_TITLE (POS: renders the block and classifies its rules)
@@ -49,6 +50,10 @@ def _lines(rules: list[dict[str, object]]) -> list[str]:
         pytest.param("不得提交密钥", id="zh-must-not"),
         pytest.param("绝对never使用sudo", id="never-next-to-cjk"),
         pytest.param("永远forbidden这个操作", id="forbidden-next-to-cjk"),
+        pytest.param("never, ever commit secrets", id="never-before-a-comma"),
+        pytest.param("'never' push to main", id="never-in-quotes"),
+        pytest.param("never- push to main", id="never-before-a-dangling-hyphen"),
+        pytest.param("deploy--never on friday", id="never-after-a-dash"),
     ],
 )
 def test_a_prohibition_is_presented_as_a_veto(action: str) -> None:
@@ -63,6 +68,12 @@ def test_a_prohibition_is_presented_as_a_veto(action: str) -> None:
         pytest.param("ask the user whenever the requirement is unclear", id="whenever"),
         pytest.param("nevertheless keep answers short", id="nevertheless"),
         pytest.param("keep neverending lists short", id="neverending"),
+        pytest.param("keep NEVER_EXPIRE as the sentinel constant", id="never-in-a-constant"),
+        pytest.param("rename never_expire to keep_forever", id="never-in-an-identifier"),
+        pytest.param("prefer prohibited_words over a blocklist", id="prohibited-in-an-identifier"),
+        pytest.param("Never2Sleep is the watchdog name", id="never-before-a-digit"),
+        pytest.param("never-ending retries are fine", id="never-in-a-hyphenated-compound"),
+        pytest.param("allow non-prohibited actions without asking", id="prohibited-after-a-hyphen-prefix"),
         pytest.param("不得不修改配置时，先备份再改", id="zh-have-to"),
         pytest.param("万不得已才使用 sudo", id="zh-no-choice"),
         pytest.param("add tests when behavior changes", id="no-negation"),
