@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -39,7 +40,7 @@ async def _service(monkeypatch: pytest.MonkeyPatch, count: int) -> KanbanService
         await store.save_board(board)
     service = KanbanService()
     monkeypatch.setattr(service, "_store", store)
-    service.set_runner(_RUNNER)  # type: ignore[arg-type]
+    service.set_runner(_RUNNER)
 
     async def list_boards(*, project_id: str | None = None) -> list[KanbanBoard]:
         return list(boards)
@@ -52,8 +53,13 @@ async def _service(monkeypatch: pytest.MonkeyPatch, count: int) -> KanbanService
     return service
 
 
+def _as_dispatcher(double: SimpleNamespace) -> KanbanDispatcher:
+    """The shutdown paths only call `stop()`, so a namespace with that one coroutine stands in for a dispatcher."""
+    return cast(KanbanDispatcher, double)
+
+
 def _fake_dispatcher() -> KanbanDispatcher:
-    return SimpleNamespace(stop=AsyncMock())  # type: ignore[return-value]
+    return _as_dispatcher(SimpleNamespace(stop=AsyncMock()))
 
 
 @pytest.mark.asyncio
@@ -207,23 +213,26 @@ async def test_dispatchers_are_stopped_at_the_same_time() -> None:
         # Stopped one after the other, the first stop would wait here for two that never begin.
         await asyncio.wait_for(all_arrived.wait(), timeout=1)
 
-    dispatchers = {board_id: SimpleNamespace(stop=stop) for board_id in ("b0", "b1", "b2")}
+    dispatchers = {board_id: _as_dispatcher(SimpleNamespace(stop=stop)) for board_id in ("b0", "b1", "b2")}
 
-    await shutdown_dispatchers(dispatchers)  # type: ignore[arg-type]
+    await shutdown_dispatchers(dispatchers)
 
     assert dispatchers == {}
 
 
 @pytest.mark.asyncio
 async def test_a_dispatcher_that_fails_to_stop_does_not_keep_the_others_running(caplog: pytest.LogCaptureFixture) -> None:
-    healthy = SimpleNamespace(stop=AsyncMock())
-    broken = SimpleNamespace(stop=AsyncMock(side_effect=RuntimeError("stop exploded")))
-    dispatchers = {"ok": healthy, "broken": broken}
+    healthy_stop = AsyncMock()
+    broken_stop = AsyncMock(side_effect=RuntimeError("stop exploded"))
+    dispatchers = {
+        "ok": _as_dispatcher(SimpleNamespace(stop=healthy_stop)),
+        "broken": _as_dispatcher(SimpleNamespace(stop=broken_stop)),
+    }
 
     with caplog.at_level("ERROR"):
-        await shutdown_dispatchers(dispatchers)  # type: ignore[arg-type]
+        await shutdown_dispatchers(dispatchers)
 
-    healthy.stop.assert_awaited_once()
+    healthy_stop.assert_awaited_once()
     assert list(dispatchers) == ["broken"]
     assert "board broken failed to stop" in caplog.text
     assert "stop exploded" in caplog.text
@@ -231,13 +240,13 @@ async def test_a_dispatcher_that_fails_to_stop_does_not_keep_the_others_running(
 
 @pytest.mark.asyncio
 async def test_a_board_started_again_while_it_stops_keeps_its_new_dispatcher() -> None:
-    replacement = SimpleNamespace(stop=AsyncMock())
+    replacement = _fake_dispatcher()
     dispatchers: dict[str, KanbanDispatcher] = {}
 
     async def stop() -> None:
-        dispatchers["b0"] = replacement  # type: ignore[assignment]
+        dispatchers["b0"] = replacement
 
-    dispatchers["b0"] = SimpleNamespace(stop=stop)  # type: ignore[assignment]
+    dispatchers["b0"] = _as_dispatcher(SimpleNamespace(stop=stop))
 
     assert await stop_dispatcher(dispatchers, "b0") is True
 

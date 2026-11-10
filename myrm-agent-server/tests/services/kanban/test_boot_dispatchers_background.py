@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import BoardSettings, KanbanBoard
 
@@ -37,7 +39,7 @@ async def _service(monkeypatch: pytest.MonkeyPatch, boards: list[KanbanBoard], *
         await store.save_board(board)
     service = KanbanService()
     monkeypatch.setattr(service, "_store", store)
-    service.set_runner(_RUNNER)  # type: ignore[arg-type]
+    service.set_runner(_RUNNER)
 
     async def list_boards(*, project_id: str | None = None) -> list[KanbanBoard]:
         return list(boards)
@@ -138,14 +140,15 @@ async def test_boot_start_holds_back_the_first_start_by_the_requested_delay(monk
 @pytest.mark.asyncio
 async def test_boot_start_does_not_replace_a_dispatcher_that_is_already_running(monkeypatch: pytest.MonkeyPatch) -> None:
     service = await _service(monkeypatch, _boards(3))
-    live = SimpleNamespace(stop=AsyncMock())
-    service._dispatchers["b1"] = live  # type: ignore[assignment]
+    live_stop = AsyncMock()
+    live = cast(KanbanDispatcher, SimpleNamespace(stop=live_stop))
+    service._dispatchers["b1"] = live
 
     service.start_boot_dispatchers()
     await _boot_started(service)
 
     assert service._dispatchers["b1"] is live
-    live.stop.assert_not_awaited()
+    live_stop.assert_not_awaited()
     assert sorted(service._dispatchers) == ["b0", "b1", "b2"]
     await service.shutdown()
 
