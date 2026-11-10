@@ -136,7 +136,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
 
   useEffect(() => {
     void handleScan();
-    void fetchAgents(1, 50, true);
+    void fetchAgents(true);
   }, [handleScan, fetchAgents]);
 
   const handlePreview = useCallback(

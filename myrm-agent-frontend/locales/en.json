@@ -9890,6 +9890,7 @@
     "forcePushReceived": "Agent profile updated by organization",
     "forcePushRollbackHint": "A snapshot was saved. You can rollback from agent settings.",
     "subagentRebindRequired": "Subagent bindings changed. Start a new chat to use updated delegation tools.",
+    "systemNotificationTitle": "System notification",
     "subagentStale": "Subagent stalled",
     "viewAgent": "View",
     "approvalRequired": "Agent requires approval: {actionType}",

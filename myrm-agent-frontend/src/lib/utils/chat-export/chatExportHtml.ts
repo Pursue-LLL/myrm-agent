@@ -1,7 +1,7 @@
 /**
- * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ../markdownMath.ts::mathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render).
- * [OUTPUT] buildHtmlDocument.
- * [POS] Markdown-to-HTML export renderer for chat conversations.
+ * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ./katexExportStyle.ts::getKatexExportStyle (POS: the KaTeX stylesheet and fonts an export with formulas embeds); ../markdownMath.ts::mathPlugins, texSourceMathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render).
+ * [OUTPUT] buildHtmlDocument, HtmlDocumentOptions.
+ * [POS] Markdown-to-HTML export renderer for chat conversations: the interactive page, and the static document that a converter (DOCX) reads.
  */
 import type { ExportData, ExportFormatOptions, ExportMessage } from './chatExport';
 import {
@@ -16,10 +16,23 @@ import {
   renderToolCallDetailsHtml,
 } from './chatExportHtmlTemplates';
 import { isSafeLinkUrl, rehypeSafeLinks } from './exportUrlPolicy';
-import { mathPlugins, normalizeMathDelimiters } from '../markdownMath';
+import { getKatexExportStyle } from './katexExportStyle';
+import { mathPlugins, normalizeMathDelimiters, texSourceMathPlugins } from '../markdownMath';
 import type { Element, ElementContent } from 'hast';
 
+export interface HtmlDocumentOptions extends ExportFormatOptions {
+  /**
+   * A document for a converter (Word) instead of a browser. It has no theme button, copy buttons or script, which a
+   * converter would print as text, and each formula is its TeX source instead of KaTeX's markup, which a converter
+   * would write out twice (the MathML half and the HTML half).
+   */
+  static?: boolean;
+}
+
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
+
+/** What KaTeX renders every formula into, inline or display; code and prose escape their `<`, so only a formula matches. */
+const KATEX_MARKUP = '<span class="katex">';
 
 function formatTs(iso: string): string {
   try {
@@ -97,13 +110,15 @@ interface MarkdownProcessor {
   process(content: string): Promise<{ toString(): string }>;
 }
 
-let _processorPromise: Promise<MarkdownProcessor> | null = null;
+/** One engine per mode (keyed by `isStatic`), built on first use; a failed build is not kept, so the next call retries. */
+const processorPromises = new Map<boolean, Promise<MarkdownProcessor>>();
 
-async function getMarkdownEngine() {
-  if (_processorPromise) {
-    return _processorPromise;
+async function getMarkdownEngine(isStatic: boolean): Promise<MarkdownProcessor> {
+  const cached = processorPromises.get(isStatic);
+  if (cached) {
+    return cached;
   }
-  _processorPromise = (async () => {
+  const pending = (async () => {
     try {
       const { unified } = await import('unified');
       const { default: remarkParse } = await import('remark-parse');
@@ -113,12 +128,16 @@ async function getMarkdownEngine() {
       const { default: rehypeStringify } = await import('rehype-stringify');
       const { visit, SKIP } = await import('unist-util-visit');
 
+      const math = isStatic ? texSourceMathPlugins : mathPlugins;
+      const copyButton = isStatic
+        ? ''
+        : '<button class="copy-code-btn" type="button" aria-label="Copy code">Copy</button>';
       const processor = unified()
         .use(remarkParse)
         .use(remarkGfm)
-        .use(mathPlugins.remark)
+        .use(math.remark)
         .use(remarkRehype, { allowDangerousHtml: false })
-        .use(mathPlugins.rehype)
+        .use(math.rehype)
         .use(rehypeHighlight)
         .use(() => (tree: Element) => {
           visit(tree, 'element', (node: Element) => {
@@ -152,7 +171,7 @@ async function getMarkdownEngine() {
               const langSpan = lang
                 ? `<span class="code-lang">${esc(lang)}</span>`
                 : '<span class="code-lang">code</span>';
-              const headerHtml = `<div class="code-header">${langSpan}<button class="copy-code-btn" type="button" aria-label="Copy code">Copy</button></div>`;
+              const headerHtml = `<div class="code-header">${langSpan}${copyButton}</div>`;
               node.tagName = 'div';
               node.properties = { className: ['code-block'] };
               node.children = [
@@ -174,15 +193,16 @@ async function getMarkdownEngine() {
 
       return processor;
     } catch (err) {
-      _processorPromise = null;
+      processorPromises.delete(isStatic);
       throw err;
     }
   })();
-  return _processorPromise;
+  processorPromises.set(isStatic, pending);
+  return pending;
 }
 
-async function renderMarkdown(content: string): Promise<string> {
-  const processor = await getMarkdownEngine();
+async function renderMarkdown(content: string, isStatic: boolean): Promise<string> {
+  const processor = await getMarkdownEngine(isStatic);
   const result = await processor.process(normalizeMathDelimiters(content));
   return String(result);
 }
@@ -221,10 +241,11 @@ export async function buildHtmlDocument(
   data: ExportData,
   theme: 'light' | 'dark' = 'light',
   lang: 'en' | 'zh' = 'en',
-  options?: ExportFormatOptions,
+  options?: HtmlDocumentOptions,
 ): Promise<string> {
   const includeReasoning = options?.includeReasoning ?? true;
   const includeToolCalls = options?.includeToolCalls ?? true;
+  const isStatic = options?.static ?? false;
   const title = data.chat.title || 'Untitled';
   const stats = computeStats(data.messages);
   const exportDate = new Date().toLocaleString();
@@ -236,7 +257,7 @@ export async function buildHtmlDocument(
     if (!VISIBLE_ROLES.has(msg.role)) {
       continue;
     }
-    const htmlContent = await renderMarkdown(msg.content);
+    const htmlContent = await renderMarkdown(msg.content, isStatic);
     let msgHtml = renderMessageHtml(msg, htmlContent);
 
     if (includeReasoning) {
@@ -263,7 +284,14 @@ export async function buildHtmlDocument(
     renderedMessages.push(msgHtml);
   }
 
-  const themeToggleText = theme === 'dark' ? 'Light' : 'Dark';
+  // The file carries the stylesheet and fonts its formulas need, but only an export that has KaTeX markup pays for
+  // them (a static document has none: its formulas are text).
+  const katexStyle = renderedMessages.some((html) => html.includes(KATEX_MARKUP)) ? await getKatexExportStyle() : '';
+
+  const themeToggleHtml = isStatic
+    ? ''
+    : `<button class="theme-toggle" id="theme-toggle">${theme === 'dark' ? 'Light' : 'Dark'}</button>`;
+  const interactiveScriptHtml = isStatic ? '' : `<script>${getInteractiveJs()}</script>`;
   const usageHtml = renderUsageStats(data.usageSummary, labels);
   const toolActivityHtml = includeToolCalls ? renderToolActivityHtml(data.toolSummary, labels) : '';
   const agentCardHtml = renderAgentCard(data.agentInfo, labels);
@@ -274,11 +302,11 @@ export async function buildHtmlDocument(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} - Myrm</title>
-<style>${getStyles()}${getHljsTheme()}</style>
+<style>${getStyles()}${getHljsTheme()}${katexStyle}</style>
 </head>
 <body>
 <div class="export-header">
-<button class="theme-toggle" id="theme-toggle">${themeToggleText}</button>
+${themeToggleHtml}
 <div class="export-title">${esc(title)}</div>
 <div class="export-meta">${labels.exported} · ${exportDate}</div>
 ${data.redacted ? `<div class="redacted-notice">${lang === 'zh' ? '[Security] 本会话已启用敏感凭据自动脱敏安全保护' : '[Security] Sensitive secrets and credentials have been automatically redacted.'}</div>` : ''}
@@ -300,7 +328,7 @@ ${usageHtml}
 ${toolActivityHtml}
 ${renderedMessages.join('\n')}
 <div class="footer">${labels.exported} · ${exportDate}</div>
-<script>${getInteractiveJs()}</script>
+${interactiveScriptHtml}
 </body>
 </html>`;
 }

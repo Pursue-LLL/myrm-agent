@@ -44,7 +44,7 @@ export function ProjectDefaultAgentDialog({ open, onOpenChange, project }: Proje
   useEffect(() => {
     if (open) {
       setSelectedId(project.defaultAgentId ?? null);
-      fetchAgents(1, 50, true);
+      fetchAgents(true);
     }
   }, [open, project.defaultAgentId, fetchAgents]);
 

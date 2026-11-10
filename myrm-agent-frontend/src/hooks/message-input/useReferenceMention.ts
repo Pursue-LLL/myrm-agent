@@ -48,7 +48,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
   const requestSeqRef = useRef(0);
 
   useEffect(() => {
-    void useAgentStore.getState().fetchAgents(1, 100, false);
+    void useAgentStore.getState().fetchAgents();
   }, []);
 
   useEffect(() => {
@@ -153,7 +153,8 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
 
         setState((prev) => ({
           ...prev,
-          results: folderMode || wikiMode ? serverResults : [...currentAgentResults, ...specialResults, ...serverResults],
+          results:
+            folderMode || wikiMode ? serverResults : [...currentAgentResults, ...specialResults, ...serverResults],
           selectedIndex: 0,
         }));
       } catch {

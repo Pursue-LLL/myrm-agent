@@ -87,6 +87,11 @@ class _ToolFunction:
     def __init__(self, name: str):
         self._name = name
 
+    @property
+    def __name__(self) -> str:
+        # Scripts label results with ``fn.__name__``; a proxy without it fails the whole script.
+        return self._name
+
     async def __call__(self, **kwargs):
         return await _call("__builtin__", self._name, kwargs)
 
@@ -165,6 +170,11 @@ class _SkillFunction:
 
     def __init__(self, skill: str, func: str):
         self._skill, self._func = skill, func
+
+    @property
+    def __name__(self) -> str:
+        # Scripts label results with ``fn.__name__``; a proxy without it fails the whole script.
+        return self._func
 
     async def __call__(self, *args, **kwargs):
         if args:

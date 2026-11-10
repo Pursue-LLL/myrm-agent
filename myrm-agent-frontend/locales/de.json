@@ -9890,6 +9890,7 @@
     "forcePushReceived": "Agenten-Konfiguration wurde von der Organisation aktualisiert",
     "forcePushRollbackHint": "Ein Snapshot wurde gespeichert. Sie können in den Agenten-Einstellungen zurücksetzen.",
     "subagentRebindRequired": "Subagentenbindungen geändert. Starten Sie einen neuen Chat, um aktualisierte Delegationstools zu verwenden.",
+    "systemNotificationTitle": "Systembenachrichtigung",
     "subagentStale": "Subagent ist ins Stocken geraten",
     "viewAgent": "Anzeigen",
     "approvalRequired": "Agent erfordert Genehmigung: {actionType}",

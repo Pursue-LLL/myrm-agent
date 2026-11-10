@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AGENT_LIST_BUILTIN_PAGE_SIZE, type AgentListItem } from '@/services/agent';
+import type { AgentListItem } from '@/services/agent';
 import { expectDefined } from '@/test-utils/expectDefined';
 import type { PresetAgent } from '@/types/presetAgent';
 
@@ -68,12 +68,12 @@ describe('useAgentGallery', () => {
   });
 
   describe('loading what the list needs', () => {
-    it('starts the providers and fetches enough built-in agents for the whole gallery', () => {
+    it('starts the providers and force-loads the whole agent roster for the gallery', () => {
       mountGallery();
 
       expect(mocks.initProviders).toHaveBeenCalledTimes(1);
       expect(mocks.fetchAgents).toHaveBeenCalledTimes(1);
-      expect(mocks.fetchAgents).toHaveBeenCalledWith(1, AGENT_LIST_BUILTIN_PAGE_SIZE, true);
+      expect(mocks.fetchAgents).toHaveBeenCalledWith(true);
     });
 
     it('leaves the providers alone when they are already up', () => {

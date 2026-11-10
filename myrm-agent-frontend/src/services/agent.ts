@@ -4,8 +4,8 @@ import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 import { throwUserAgentFetchError } from './agentFetchError';
 
-/** 28 built-in presets exceed API default page_size=20. */
-export const AGENT_LIST_BUILTIN_PAGE_SIZE = 50;
+/** Largest `page_size` the roster endpoint accepts. */
+const AGENT_LIST_MAX_PAGE_SIZE = 100;
 
 /** Metadata for a built-in subagent preset exposed by the Agent editor. */
 export interface SubagentPresetItem {
@@ -260,14 +260,30 @@ export interface AgentListResponse {
   };
 }
 
-export async function listAgents(
-  page: number = 1,
-  pageSize: number = AGENT_LIST_BUILTIN_PAGE_SIZE,
-): Promise<AgentListResponse> {
+export async function listAgents(page: number, pageSize: number): Promise<AgentListResponse> {
   return apiRequest<AgentListResponse>(`/user-agents?page=${page}&page_size=${pageSize}`, {
     method: 'GET',
     silent: true,
   });
+}
+
+/**
+ * Every agent of the roster, newest first. It follows the pagination so a long roster is never cut off, and lists an
+ * agent once even when a concurrent create shifts it onto the next page. A failing page rejects the whole load.
+ */
+export async function listAllAgents(): Promise<AgentListItem[]> {
+  const agentsById = new Map<string, AgentListItem>();
+  for (let page = 1; ; page += 1) {
+    const { items, pagination } = await listAgents(page, AGENT_LIST_MAX_PAGE_SIZE);
+    const knownBefore = agentsById.size;
+    for (const item of items) {
+      agentsById.set(item.id, item);
+    }
+    // A page that adds nothing new ends the loop even if the server still announces more pages.
+    if (!pagination.has_next || agentsById.size === knownBefore) {
+      return [...agentsById.values()];
+    }
+  }
 }
 
 /**

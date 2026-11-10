@@ -271,7 +271,7 @@ describe('PluginImportDialog - agents', () => {
       'href',
       '/settings/agents?agentId=agent-new#loadout',
     );
-    await waitFor(() => expect(mockFetchAgents).toHaveBeenCalledWith(1, undefined, true));
+    await waitFor(() => expect(mockFetchAgents).toHaveBeenCalledWith(true));
     expect(mockReadiness).toHaveBeenCalledWith('agent-new');
   });
 

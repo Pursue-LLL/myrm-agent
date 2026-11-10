@@ -5,8 +5,7 @@ import {
   AgentListItem,
   AgentCreate,
   AgentUpdate,
-  AGENT_LIST_BUILTIN_PAGE_SIZE,
-  listAgents,
+  listAllAgents,
   createAgent,
   updateAgent,
   deleteAgent,
@@ -18,17 +17,10 @@ interface AgentState {
   selectedAgent: Agent | null;
   loading: boolean;
   error: string | null;
-  pagination: {
-    page: number;
-    pageSize: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  } | null;
 
   // Actions
-  fetchAgents: (page?: number, pageSize?: number, forceRefresh?: boolean) => Promise<void>;
+  /** Loads the whole roster; without `forceRefresh` it is skipped while a load runs or the roster is already there. */
+  fetchAgents: (forceRefresh?: boolean) => Promise<void>;
   fetchAgent: (agentId: string, signal?: AbortSignal) => Promise<Agent | null>;
   create: (data: AgentCreate) => Promise<Agent | null>;
   update: (agentId: string, data: AgentUpdate) => Promise<Agent | null>;
@@ -37,40 +29,38 @@ interface AgentState {
   clearError: () => void;
 }
 
+// Roster reads overlap (events, gallery mount) and can finish out of order. A read only counts when it started after
+// the one already applied, so a slow old read never brings back an outdated roster.
+let latestRosterRequest = 0;
+let appliedRosterRequest = 0;
+
 const useAgentStore = create<AgentState>()(
   immer((set, get) => ({
     agents: [],
     selectedAgent: null,
     loading: false,
     error: null,
-    pagination: null,
 
-    fetchAgents: async (page = 1, pageSize = AGENT_LIST_BUILTIN_PAGE_SIZE, forceRefresh = false) => {
+    fetchAgents: async (forceRefresh = false) => {
       const { loading, agents } = get();
-      // Skip duplicate fetches unless caller forces refresh (gallery needs page_size=50 for 27 presets).
       if (!forceRefresh && (loading || agents.length > 0)) {
         return;
       }
+      const request = ++latestRosterRequest;
       set({ loading: true, error: null });
       try {
-        const response = await listAgents(page, pageSize);
-        set({
-          agents: response.items,
-          pagination: {
-            page: response.pagination.page,
-            pageSize: response.pagination.page_size,
-            total: response.pagination.total,
-            totalPages: response.pagination.total_pages,
-            hasNext: response.pagination.has_next,
-            hasPrev: response.pagination.has_prev,
-          },
-          loading: false,
-        });
+        const roster = await listAllAgents();
+        if (request > appliedRosterRequest) {
+          appliedRosterRequest = request;
+          set({ agents: roster, loading: false, error: null });
+        }
       } catch (error) {
-        set({
-          error: error instanceof Error ? error.message : 'Failed to fetch agents',
-          loading: false,
-        });
+        if (request > appliedRosterRequest) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to fetch agents',
+            loading: false,
+          });
+        }
       }
     },
 

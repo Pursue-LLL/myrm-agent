@@ -18,7 +18,6 @@ import { AgentFaqTab } from './agent/AgentFaqTab';
 import { AgentInstinctInboxTab } from './agent/AgentInstinctInboxTab';
 import { AgentCapabilitiesTab } from './agent/AgentCapabilitiesTab';
 import { IconKey } from '@/components/features/icons/PremiumIcons';
-import { AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
 import ExpertExportDialog from '@/components/features/plugins/ExpertExportDialog';
 import { toast } from '@/hooks/shared/useToast';
 import { Textarea } from '@/components/primitives/textarea';
@@ -95,7 +94,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
       await editor.reloadAgent();
       import('@/store/useAgentStore').then((mod) => {
         const store = mod.default.getState();
-        store.fetchAgents(1, AGENT_LIST_BUILTIN_PAGE_SIZE, true);
+        store.fetchAgents(true);
         store.fetchAgent(agentId);
       });
     } catch (e: unknown) {

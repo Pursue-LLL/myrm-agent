@@ -19,7 +19,7 @@ const sources = readdirSync(SRC_ROOT, { recursive: true, encoding: 'utf8' })
 
 const importsMathPackage = (text: string): boolean =>
   MATH_PACKAGES.some((name) => new RegExp(`['"]${name}['"]`).test(text));
-const surfaces = sources.filter(({ text }) => /\b(mathPlugins|chatMathPlugins)\b/.test(text));
+const surfaces = sources.filter(({ text }) => /\b(mathPlugins|chatMathPlugins|texSourceMathPlugins)\b/.test(text));
 
 describe('markdown math pipeline contracts', () => {
   it('finds the known surfaces, so the scan cannot silently go empty', () => {
