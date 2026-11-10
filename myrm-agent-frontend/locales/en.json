@@ -3073,7 +3073,8 @@
       "requiredMcp": "MCP Service Required"
     },
     "subagent": {
-      "viewResults": "View Results"
+      "viewResults": "View Results",
+      "viewResultsFailed": "Couldn't ask for the results. Try again in a moment."
     },
     "inspector": {
       "browserElementPrompt": "I selected the page element [ref={refId}]: {instruction}",

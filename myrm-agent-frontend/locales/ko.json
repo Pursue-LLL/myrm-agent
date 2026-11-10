@@ -3064,7 +3064,8 @@
       "requiredMcp": "MCP 서비스 필요"
     },
     "subagent": {
-      "viewResults": "결과 보기"
+      "viewResults": "결과 보기",
+      "viewResultsFailed": "결과 확인을 요청하지 못했습니다. 잠시 후 다시 시도해 주세요"
     },
     "inspector": {
       "browserElementPrompt": "페이지 요소 [ref={refId}]를 선택했습니다. {instruction}",

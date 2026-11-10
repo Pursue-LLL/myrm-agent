@@ -3064,7 +3064,8 @@
       "requiredMcp": "MCP-Dienst erforderlich"
     },
     "subagent": {
-      "viewResults": "Ergebnisse anzeigen"
+      "viewResults": "Ergebnisse anzeigen",
+      "viewResultsFailed": "Die Ergebnisse konnten nicht angefordert werden. Bitte versuche es gleich noch einmal"
     },
     "inspector": {
       "browserElementPrompt": "Ich habe das Seitenelement [ref={refId}] ausgewählt: {instruction}",

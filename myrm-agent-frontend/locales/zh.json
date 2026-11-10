@@ -3073,7 +3073,8 @@
       "requiredMcp": "需要 MCP 服务"
     },
     "subagent": {
-      "viewResults": "查看结果"
+      "viewResults": "查看结果",
+      "viewResultsFailed": "无法请求查看结果，请稍后重试"
     },
     "inspector": {
       "browserElementPrompt": "我选中了页面元素 [ref={refId}]，{instruction}",

@@ -20,11 +20,16 @@ import { Button } from '@/components/primitives/button';
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-import { cn } from '@/lib/utils/classnameUtils';
 import { type AgentThemeColor } from '@/components/features/message-box/progress-steps/toolIcons';
 import { SubagentCard, type EphemeralSubagentConfig, type SubagentControlScope } from './SubagentCard';
 
 export type { EphemeralSubagentConfig, SubagentControlScope } from './SubagentCard';
+
+const withoutKey = <T,>(record: Record<string, T>, key: string): Record<string, T> => {
+  const next = { ...record };
+  delete next[key];
+  return next;
+};
 
 export interface SubagentsPanelProps {
   localEphemeralSubagents: Record<string, EphemeralSubagentConfig>;
@@ -84,7 +89,7 @@ export const SubagentsPanel = ({
     if (!/^[a-z0-9_-]+$/.test(id)) {
       return t('errorIdInvalid');
     }
-    if (localEphemeralSubagents[id]) {
+    if (Object.hasOwn(localEphemeralSubagents, id)) {
       return t('errorIdDuplicate');
     }
     return '';
@@ -107,7 +112,7 @@ export const SubagentsPanel = ({
       setNewSubagentIdError(error);
       return;
     }
-    const preset = SUBAGENT_PRESETS[idToAdd];
+    const preset = Object.hasOwn(SUBAGENT_PRESETS, idToAdd) ? SUBAGENT_PRESETS[idToAdd] : undefined;
     const newConfig: EphemeralSubagentConfig = preset
       ? {
           display_name: preset.display_name,
@@ -118,17 +123,20 @@ export const SubagentsPanel = ({
 
     setLocalEphemeralSubagents((prev) => ({ ...prev, [idToAdd]: newConfig }));
     setIsAddingSubagent(false);
+  };
+
+  // 每次打开都从空白开始，关闭动画期间对话框内容保持不变
+  const handleOpenAddDialog = () => {
     setNewSubagentId('');
     setNewSubagentIdError('');
     setSelectedPreset('');
+    setIsAddingSubagent(true);
   };
 
   const handleDeleteSubagent = (key: string) => {
-    setLocalEphemeralSubagents((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
+    setLocalEphemeralSubagents((prev) => withoutKey(prev, key));
+    // 已删除角色的校验错误不能继续挡住保存
+    setDisplayNameErrors((prev) => withoutKey(prev, key));
     setSubagentToDelete(null);
   };
 
@@ -168,11 +176,7 @@ export const SubagentsPanel = ({
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">{t('builtinSpecialistsHint')}</p>
-      <Button
-        onClick={() => setIsAddingSubagent(true)}
-        variant="outline"
-        className="w-full gap-2 border-dashed cursor-pointer"
-      >
+      <Button onClick={handleOpenAddDialog} variant="outline" className="w-full gap-2 border-dashed cursor-pointer">
         <Plus size={16} />
         {t('addSubagent')}
       </Button>
@@ -214,12 +218,8 @@ export const SubagentsPanel = ({
                 value={selectedPreset}
                 onValueChange={(value) => {
                   setSelectedPreset(value);
-                  if (value !== 'custom') {
-                    setNewSubagentId(value);
-                    setNewSubagentIdError('');
-                  } else {
-                    setNewSubagentId('');
-                  }
+                  setNewSubagentId('');
+                  setNewSubagentIdError('');
                 }}
               >
                 <SelectTrigger>
@@ -227,7 +227,7 @@ export const SubagentsPanel = ({
                 </SelectTrigger>
                 <SelectContent>
                   {Object.keys(SUBAGENT_PRESETS).map((preset) => (
-                    <SelectItem key={preset} value={preset}>
+                    <SelectItem key={preset} value={preset} disabled={Object.hasOwn(localEphemeralSubagents, preset)}>
                       {SUBAGENT_PRESETS[preset].display_name}
                     </SelectItem>
                   ))}
@@ -246,10 +246,16 @@ export const SubagentsPanel = ({
                     setNewSubagentIdError('');
                   }}
                   placeholder={t('subagentIdPlaceholder')}
-                  className={cn(newSubagentIdError && 'border-destructive focus-visible:ring-destructive')}
+                  aria-invalid={newSubagentIdError ? true : undefined}
+                  aria-describedby={newSubagentIdError ? 'new-subagent-id-error' : undefined}
+                  className="aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive"
                 />
                 {newSubagentIdError && (
-                  <div className="flex items-center gap-1.5 text-xs text-destructive-text">
+                  <div
+                    id="new-subagent-id-error"
+                    role="alert"
+                    className="flex items-center gap-1.5 text-xs text-destructive-text"
+                  >
                     <AlertCircle size={12} />
                     {newSubagentIdError}
                   </div>

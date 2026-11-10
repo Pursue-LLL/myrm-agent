@@ -3064,7 +3064,8 @@
       "requiredMcp": "需要 MCP 服務"
     },
     "subagent": {
-      "viewResults": "檢視結果"
+      "viewResults": "檢視結果",
+      "viewResultsFailed": "無法請求檢視結果，請稍後再試"
     },
     "inspector": {
       "browserElementPrompt": "我選取了頁面元素 [ref={refId}]，{instruction}",

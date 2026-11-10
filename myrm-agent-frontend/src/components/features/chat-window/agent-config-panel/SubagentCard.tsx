@@ -93,6 +93,7 @@ export const SubagentCard = memo(function SubagentCard({
         <div className="text-sm font-medium text-foreground">{subagentKey}</div>
         <Button
           onClick={onDelete}
+          aria-label={t('deleteSubagent')}
           variant="ghost"
           size="sm"
           className="h-7 px-2 text-destructive-text hover:text-destructive-text hover:bg-destructive/10 cursor-pointer"
@@ -111,10 +112,16 @@ export const SubagentCard = memo(function SubagentCard({
           value={config.display_name || ''}
           onChange={(e) => onDisplayNameChange(subagentKey, e.target.value)}
           placeholder={t('subagentDisplayNamePlaceholder')}
-          className={cn('h-9 text-sm', displayNameError && 'border-destructive focus-visible:ring-destructive')}
+          aria-invalid={displayNameError ? true : undefined}
+          aria-describedby={displayNameError ? `display-name-error-${subagentKey}` : undefined}
+          className="h-9 text-sm aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive"
         />
         {displayNameError && (
-          <div className="flex items-center gap-1.5 text-xs text-destructive-text">
+          <div
+            id={`display-name-error-${subagentKey}`}
+            role="alert"
+            className="flex items-center gap-1.5 text-xs text-destructive-text"
+          >
             <AlertCircle size={12} />
             {displayNameError}
           </div>
@@ -164,10 +171,7 @@ export const SubagentCard = memo(function SubagentCard({
         <EnabledModelSelect
           value={selectedModel}
           onChange={(selection) =>
-            onModelChange(
-              subagentKey,
-              selection ? `${selection.providerId}/${selection.model}` : undefined,
-            )
+            onModelChange(subagentKey, selection ? `${selection.providerId}/${selection.model}` : undefined)
           }
           enabledModels={enabledModels}
           providers={providers}
@@ -181,7 +185,7 @@ export const SubagentCard = memo(function SubagentCard({
           {t('subagentThemeColor')}
         </Label>
         <Select value={themeColor} onValueChange={(value) => onThemeColorChange(subagentKey, value as AgentThemeColor)}>
-          <SelectTrigger className="h-9 text-sm">
+          <SelectTrigger id={`theme-color-${subagentKey}`} className="h-9 text-sm">
             <SelectValue>
               <div className="flex items-center gap-2">
                 <div
