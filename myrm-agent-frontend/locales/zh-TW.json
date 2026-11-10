@@ -11346,7 +11346,16 @@
     "compareWith": "對比目標會話",
     "selectSessionPlaceholder": "選擇一個歷史會話進行對比...",
     "divergenceDetected": "在第 {step} 步檢測到執行分歧點 (Divergence)",
-    "noSessionSelected": "請在上方選擇一個會話以開始雙軌軌跡對比"
+    "noSessionSelected": "請在上方選擇一個會話以開始雙軌軌跡對比",
+    "sessionA": "會話 A（目前：{title}）",
+    "sessionB": "會話 B（{title}）",
+    "none": "未選擇",
+    "summary": "{calls} 次呼叫 | {tokens} 個 token",
+    "prompt": "提示詞：{text}",
+    "tokensShort": "{count} token",
+    "loading": "正在載入執行軌跡...",
+    "loadFailed": "無法載入該會話的執行軌跡。",
+    "sessionListFailed": "無法載入會話列表。"
   },
   "evalLab": {
     "golden5Pack": {

@@ -58,8 +58,9 @@ export default function ToolApprovalDialog() {
   const allHandover = modalQueue.every((r) => r.displayMode === 'handover');
 
   return (
-    <Dialog open={modalQueue.length > 0} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh]" onPointerDownOutside={(e) => e.preventDefault()}>
+    // No onOpenChange: Escape, outside clicks and a close button would all leave approvals unanswered.
+    <Dialog open>
+      <DialogContent className="sm:max-w-lg max-h-[80vh]" hideCloseButton>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {allHandover ? (

@@ -11346,7 +11346,16 @@
     "compareWith": "Compare with Session",
     "selectSessionPlaceholder": "Select a historical session to compare...",
     "divergenceDetected": "Execution divergence detected at Step #{step}",
-    "noSessionSelected": "Select a session above to start side-by-side trajectory comparison"
+    "noSessionSelected": "Select a session above to start side-by-side trajectory comparison",
+    "sessionA": "Session A (current: {title})",
+    "sessionB": "Session B ({title})",
+    "none": "none",
+    "summary": "{calls} calls | {tokens} tokens",
+    "prompt": "Prompt: {text}",
+    "tokensShort": "{count} tok",
+    "loading": "Loading trajectory...",
+    "loadFailed": "Could not load this session's trajectory.",
+    "sessionListFailed": "Could not load the session list."
   },
   "evalLab": {
     "golden5Pack": {

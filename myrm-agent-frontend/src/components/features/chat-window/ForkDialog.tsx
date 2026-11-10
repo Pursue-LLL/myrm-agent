@@ -42,6 +42,15 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
   const [forkMode, setForkMode] = useState<'full_clone' | 'acceptance_verifier'>('full_clone');
   const [acceptanceScope, setAcceptanceScope] = useState('');
   const [isForking, setIsForking] = useState(false);
+  // The server counts messages from 0; people count from 1.
+  const messageNumber = messageIndex + 1;
+
+  // A fork cannot be called back once sent, so the dialog stays until the server has answered.
+  const handleOpenChange = (next: boolean) => {
+    if (!isForking) {
+      onOpenChange(next);
+    }
+  };
 
   const handleFork = async () => {
     if (useChatStore.getState().loading) {
@@ -59,21 +68,21 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
       const response = await forkConversation(
         chatId,
         messageIndex,
-        title || undefined,
+        title.trim() || undefined,
         forkMode,
-        forkMode === 'acceptance_verifier' ? acceptanceScope || undefined : undefined,
+        forkMode === 'acceptance_verifier' ? acceptanceScope.trim() || undefined : undefined,
       );
 
       if (response.success && response.data.new_chat_id) {
         toast({
           title: t('success'),
-          description: t('successDescription', { index: messageIndex }),
+          description: t('successDescription', { index: messageNumber }),
         });
 
         router.push(`/${response.data.new_chat_id}`);
         onOpenChange(false);
       } else {
-        throw new Error(t('failed'));
+        throw new Error(t('unknownError'));
       }
     } catch (error) {
       toast({
@@ -87,14 +96,14 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[480px]" hideCloseButton={isForking}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitFork className="h-5 w-5 text-primary" />
             {t('title')}
           </DialogTitle>
-          <DialogDescription>{t('description', { index: messageIndex })}</DialogDescription>
+          <DialogDescription>{t('description', { index: messageNumber })}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-3">
@@ -105,6 +114,7 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
               <button
                 type="button"
                 onClick={() => setForkMode('full_clone')}
+                aria-pressed={forkMode === 'full_clone'}
                 className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-all ${
                   forkMode === 'full_clone'
                     ? 'border-primary bg-primary/5 shadow-xs'
@@ -121,6 +131,7 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
               <button
                 type="button"
                 onClick={() => setForkMode('acceptance_verifier')}
+                aria-pressed={forkMode === 'acceptance_verifier'}
                 className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-all ${
                   forkMode === 'acceptance_verifier'
                     ? 'border-primary bg-primary/5 shadow-xs'

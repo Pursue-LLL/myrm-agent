@@ -26,17 +26,20 @@ export function useToolApprovalResolve() {
   const t = useTranslations('toolApproval');
   const queue = useToolApprovalStore((state) => state.queue);
   const isLoading = useToolApprovalStore((state) => state.isResolving);
-  const batchDecisions = useToolApprovalStore((state) => state.batchDecisions);
   const removeRequest = useToolApprovalStore((state) => state.removeRequest);
   const setResolving = useToolApprovalStore((state) => state.setResolving);
-  const clearBatchDecisions = useToolApprovalStore((state) => state.clearBatchDecisions);
+  const setBatchDecision = useToolApprovalStore((state) => state.setBatchDecision);
+  const removeBatchDecisions = useToolApprovalStore((state) => state.removeBatchDecisions);
 
   const resolveRequest = useCallback(
     async (requestId: string, decision: DecisionType, extra?: ToolApprovalResolveExtra) => {
       setResolving(true);
       let requestsToRemove: ToolApprovalRequest[] = [];
       try {
-        let request = queue.find((r) => r.requestId === requestId);
+        // Read the store, not this render's snapshot: approvals answered in the same tick (a whole batch timing out)
+        // must see each other's decisions.
+        const { queue: pending } = useToolApprovalStore.getState();
+        let request = pending.find((r) => r.requestId === requestId);
         if (!request) {
           return;
         }
@@ -46,28 +49,21 @@ export function useToolApprovalResolve() {
 
         if (request.batchId) {
           const currentBatchId = request.batchId;
-          const nextDecisions = new Map(batchDecisions);
-          nextDecisions.set(requestId, { type: decision, extra });
-          useToolApprovalStore.setState({ batchDecisions: nextDecisions });
+          setBatchDecision(requestId, { type: decision, extra });
+          const { batchDecisions } = useToolApprovalStore.getState();
 
-          const batchRequests = queue.filter((r) => r.batchId === currentBatchId);
-          const allDecided = batchRequests.every((r) => nextDecisions.has(r.requestId));
+          const batchRequests = pending.filter((r) => r.batchId === currentBatchId);
+          const decided = batchRequests.filter((r) => batchDecisions.has(r.requestId)).length;
 
-          if (!allDecided) {
-            toast.info(
-              t('batchPending', {
-                decided: nextDecisions.size,
-                total: batchRequests.length,
-              }),
-            );
-            setResolving(false);
+          if (decided < batchRequests.length) {
+            toast.info(t('batchPending', { decided, total: batchRequests.length }));
             return;
           }
 
           const sortedRequests = batchRequests.sort((a, b) => (a.batchIndex ?? 0) - (b.batchIndex ?? 0));
           resumeValue = {
             decisions: sortedRequests.map((r) => {
-              const dec = nextDecisions.get(r.requestId);
+              const dec = batchDecisions.get(r.requestId);
               if (!dec) {
                 throw new Error(`Approval decision missing for request ${r.requestId}`);
               }
@@ -76,7 +72,7 @@ export function useToolApprovalResolve() {
           };
           request = sortedRequests[0];
           requestsToRemove = batchRequests;
-          clearBatchDecisions();
+          removeBatchDecisions(batchRequests.map((r) => r.requestId));
         } else {
           resumeValue = {
             decisions: [buildApprovalDecision(decision, extra)],
@@ -115,7 +111,7 @@ export function useToolApprovalResolve() {
         setResolving(false);
       }
     },
-    [batchDecisions, clearBatchDecisions, queue, removeRequest, setResolving, t],
+    [removeBatchDecisions, removeRequest, setBatchDecision, setResolving, t],
   );
 
   const runBulkDecision = useCallback(
@@ -125,10 +121,9 @@ export function useToolApprovalResolve() {
       }
 
       setResolving(true);
+      let answeredElsewhere = false;
       try {
-        const groups = groupRequestsForBulkResume(requests);
-
-        for (const group of groups) {
+        for (const group of groupRequestsForBulkResume(requests)) {
           const resumeValue = {
             decisions: group.map(() =>
               buildApprovalDecision(
@@ -138,29 +133,33 @@ export function useToolApprovalResolve() {
             ),
           };
 
-          await resumeApprovalStream(group[0], resumeValue, t('resumeError'));
+          try {
+            await resumeApprovalStream(group[0], resumeValue, t('resumeError'));
+          } catch (error) {
+            // The timeout or another device answered this interrupt first; the other interrupts still wait for us.
+            if (!(error instanceof ApprovalAlreadyResolvedError)) {
+              throw error;
+            }
+            answeredElsewhere = true;
+          }
 
           for (const req of group) {
             removeRequest(req.requestId);
           }
         }
 
-        clearBatchDecisions();
+        removeBatchDecisions(requests.map((r) => r.requestId));
       } catch (error) {
         console.error('[APPROVAL] Bulk resume failed:', error);
-        if (error instanceof ApprovalAlreadyResolvedError) {
-          toast.warning(t('approvalAlreadyHandled'));
-          for (const req of requests) {
-            removeRequest(req.requestId);
-          }
-        } else {
-          toast.error(t('resumeError'));
-        }
+        toast.error(t('resumeError'));
       } finally {
+        if (answeredElsewhere) {
+          toast.warning(t('approvalAlreadyHandled'));
+        }
         setResolving(false);
       }
     },
-    [clearBatchDecisions, removeRequest, setResolving, t],
+    [removeBatchDecisions, removeRequest, setResolving, t],
   );
 
   const approveAll = useCallback(

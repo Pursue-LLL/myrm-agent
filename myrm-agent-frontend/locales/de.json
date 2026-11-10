@@ -11346,7 +11346,16 @@
     "compareWith": "Mit Sitzung vergleichen",
     "selectSessionPlaceholder": "Historische Sitzung zum Vergleichen auswählen...",
     "divergenceDetected": "Ausführungsdivergenz bei Schritt #{step} erkannt",
-    "noSessionSelected": "Wählen Sie oben eine Sitzung aus, um den Trajektorienvergleich zu starten"
+    "noSessionSelected": "Wählen Sie oben eine Sitzung aus, um den Trajektorienvergleich zu starten",
+    "sessionA": "Sitzung A (aktuell: {title})",
+    "sessionB": "Sitzung B ({title})",
+    "none": "keine",
+    "summary": "{calls} Aufrufe | {tokens} Tokens",
+    "prompt": "Prompt: {text}",
+    "tokensShort": "{count} Tokens",
+    "loading": "Trajektorie wird geladen...",
+    "loadFailed": "Die Trajektorie dieser Sitzung konnte nicht geladen werden.",
+    "sessionListFailed": "Die Sitzungsliste konnte nicht geladen werden."
   },
   "evalLab": {
     "golden5Pack": {

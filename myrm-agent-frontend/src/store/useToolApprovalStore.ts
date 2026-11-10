@@ -24,7 +24,7 @@ interface ToolApprovalState {
   clearAll: () => void;
   setResolving: (isResolving: boolean) => void;
   setBatchDecision: (requestId: string, decision: BatchApprovalDecision) => void;
-  clearBatchDecisions: () => void;
+  removeBatchDecisions: (requestIds: readonly string[]) => void;
 
   markProcessing: (messageId: string) => void;
   unmarkProcessing: (messageId: string) => void;
@@ -74,7 +74,14 @@ const useToolApprovalStore = create<ToolApprovalState>((set, get) => ({
       next.set(requestId, decision);
       return { batchDecisions: next };
     }),
-  clearBatchDecisions: () => set({ batchDecisions: new Map() }),
+  removeBatchDecisions: (requestIds) =>
+    set((state) => {
+      const next = new Map(state.batchDecisions);
+      for (const requestId of requestIds) {
+        next.delete(requestId);
+      }
+      return { batchDecisions: next };
+    }),
 
   markProcessing: (messageId) =>
     set((state) => {

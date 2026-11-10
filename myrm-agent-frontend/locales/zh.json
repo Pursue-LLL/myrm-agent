@@ -11346,7 +11346,16 @@
     "compareWith": "对比目标会话",
     "selectSessionPlaceholder": "选择一个历史会话进行对比...",
     "divergenceDetected": "在第 {step} 步检测到执行分歧点 (Divergence)",
-    "noSessionSelected": "请在上方选择一个会话以开始双轨轨迹对比"
+    "noSessionSelected": "请在上方选择一个会话以开始双轨轨迹对比",
+    "sessionA": "会话 A（当前：{title}）",
+    "sessionB": "会话 B（{title}）",
+    "none": "未选择",
+    "summary": "{calls} 次调用 | {tokens} 个 token",
+    "prompt": "提示词：{text}",
+    "tokensShort": "{count} token",
+    "loading": "正在加载执行轨迹...",
+    "loadFailed": "无法加载该会话的执行轨迹。",
+    "sessionListFailed": "无法加载会话列表。"
   },
   "evalLab": {
     "golden5Pack": {

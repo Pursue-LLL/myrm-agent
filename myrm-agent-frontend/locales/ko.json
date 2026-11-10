@@ -11346,7 +11346,16 @@
     "compareWith": "비교 대상 세션",
     "selectSessionPlaceholder": "비교할 이전 세션을 선택하세요...",
     "divergenceDetected": "{step}단계에서 실행 분기점 감지됨",
-    "noSessionSelected": "위에서 세션을 선택하여 나란히 궤적 비교를 시작하세요"
+    "noSessionSelected": "위에서 세션을 선택하여 나란히 궤적 비교를 시작하세요",
+    "sessionA": "세션 A (현재: {title})",
+    "sessionB": "세션 B ({title})",
+    "none": "선택 안 됨",
+    "summary": "호출 {calls}회 | 토큰 {tokens}개",
+    "prompt": "프롬프트: {text}",
+    "tokensShort": "토큰 {count}개",
+    "loading": "궤적을 불러오는 중...",
+    "loadFailed": "이 세션의 궤적을 불러오지 못했습니다.",
+    "sessionListFailed": "세션 목록을 불러오지 못했습니다."
   },
   "evalLab": {
     "golden5Pack": {

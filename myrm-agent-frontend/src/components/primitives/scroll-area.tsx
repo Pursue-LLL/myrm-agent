@@ -5,12 +5,16 @@ import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
 
 import { cn } from '@/lib/utils/classnameUtils';
 
+// The viewport repeats the root's max-height: `h-full` does not resolve against a max-height alone (block layout),
+// so without it a capped root clips its content instead of scrolling.
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
 >(({ className, children, ...props }, ref) => (
   <ScrollAreaPrimitive.Root ref={ref} className={cn('relative overflow-hidden', className)} {...props}>
-    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">{children}</ScrollAreaPrimitive.Viewport>
+    <ScrollAreaPrimitive.Viewport className="h-full w-full max-h-[inherit] rounded-[inherit]">
+      {children}
+    </ScrollAreaPrimitive.Viewport>
     <ScrollBar />
     <ScrollAreaPrimitive.Corner />
   </ScrollAreaPrimitive.Root>

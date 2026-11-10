@@ -11346,7 +11346,16 @@
     "compareWith": "比較対象セッション",
     "selectSessionPlaceholder": "比較する過去のセッションを選択...",
     "divergenceDetected": "ステップ #{step} で実行分岐を検出",
-    "noSessionSelected": "上でセッションを選択して並行軌跡比較を開始してください"
+    "noSessionSelected": "上でセッションを選択して並行軌跡比較を開始してください",
+    "sessionA": "セッション A（現在：{title}）",
+    "sessionB": "セッション B（{title}）",
+    "none": "未選択",
+    "summary": "{calls} 回の呼び出し | {tokens} トークン",
+    "prompt": "プロンプト：{text}",
+    "tokensShort": "{count} トークン",
+    "loading": "軌跡を読み込み中...",
+    "loadFailed": "このセッションの軌跡を読み込めませんでした。",
+    "sessionListFailed": "セッション一覧を読み込めませんでした。"
   },
   "evalLab": {
     "golden5Pack": {

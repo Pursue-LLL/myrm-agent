@@ -107,7 +107,20 @@
 | `__tests__/ResourcePressureBanner.test.tsx` | 测试 | 资源压力告警测试（假时钟驱动轮询）：磁盘严重 > 内存严重 > 磁盘偏高 > 内存偏高的取值优先级与大小写、无压力/空应答/未知级别/错误状态/不可达/非 JSON 时静默、挂载即查并每 60 秒再查（卸载后停止，迟到的应答不改动忽略记录）、忽略仅限本会话且逐项累积、被忽略的告警只在比屏幕上的更严重时重开、只剩被忽略的告警时撤下旧横幅、恢复后清除记录、损坏的忽略记录视为空、写入失败仍收起、「打开」跳到系统设置 | ✅ |
 | `playbook/` | 子包 | 模型编排最佳实践领域子包：包含首屏轻量发现胶囊、交互式看板弹窗、三大黄金预设与一键增量下发引擎（详见 `playbook/_ARCH.md`） | ✅ |
 | `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与输入框选项区 `ComposerOptionsRegion`） | ✅ |
-| `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 + streaming 防护 | ✅ |
+| `ForkDialog.tsx` | 组件 | Fork 确认弹窗：普通分支 / 独立验收两种模式（`aria-pressed` 标出当前模式）+ 标题与验收范围（去首尾空白，空白视为未填）+ 调 POST /fork + 自动导航 + streaming 防护；请求发出后不可撤回，期间 Escape / 遮罩 / 关闭键都不关闭弹窗；消息序号按人的习惯从 1 起展示（服务端从 0 起） | ✅ |
+| `TrajectoryDiffModal.tsx` | 组件 | 跨会话执行轨迹对比弹窗（`ReplayAction` 打开）：当前会话与所选会话的工具调用并排；分歧点按全部轮次的步骤序号定位并在两侧标出（参数按内容比较，键序不同不算分歧）；读取失败在对应一侧给出提示，而不是留白或让人重新选择；文案取自 `trajectoryDiff.*` | ✅ |
+| `TrajectoryColumn.tsx` | 组件 | 轨迹单列：标题与合计、按轮次分组的提问与工具调用卡（`data-divergent` 标出分歧步骤）、四种读取状态（未选择占位 / 加载中 / 失败 / 已就绪） | ✅ |
+| `useTrajectoryDiff.ts` | Hook | 对比弹窗的数据层：当前会话与所选会话的轨迹、可选会话（最近 30 个，去掉当前）与分歧点；每次读取只对当前选择生效（选择变了就丢弃迟到的结果，也不把上一个选择的内容当作这一个的） | ✅ |
+| `trajectoryDiffModel.ts` | 模块 | 对比规则纯函数：`findDivergence`（首个工具或参数不同的步骤，或一方先结束；参数深度比较）、`turnStartIndexes`（各轮首步在全部步骤中的位置） | ✅ |
+| `__tests__/approvalKit.ts` | 测试 | 审批测试共享底座（供 mock 工厂动态导入）：resume 与 toast 替身、审批请求构造器 | ✅ |
+| `__tests__/ToolApprovalExpiryWatcher.test.tsx` | 测试 | 审批过期 watcher（假时钟）：无审批时不起计时器、到期按 `timeoutBehavior` 应答并带原因、到点即答（不晚一秒）、只答已到期的、同一审批只答一次、应答没送达时不声称已处理且卡片保留、整批同刻到期一次送达并只提示一条、部分成员到期时先记下决定等其余成员、卸载后停止 | ✅ |
+| `__tests__/ToolApprovalDialog.test.tsx` | 测试 | 审批弹窗：无审批或全为页内审批时不出现、单条 / 批量 / 交接的标题与说明、批次成员按序分组并排在单条之前、应答后关闭、不可由用户关闭（无关闭键）、应答中禁用按钮、一键同意 / 拒绝按审批中断分组各发一次 | ✅ |
+| `__tests__/ForkDialog.test.tsx` | 测试 | Fork 弹窗：消息序号从 1 起、模式切换与范围输入、发送内容（去空白、范围只随验收模式发送）、Enter 行为、进行中不可关闭、成功导航、streaming 拒绝、各类失败的提示 | ✅ |
+| `__tests__/ForkButton.test.tsx` | 测试 | Fork 按钮：标签、打开 / Cancel 关闭、转发会话与消息、每次打开都是干净表单 | ✅ |
+| `__tests__/RewindButton.test.tsx` | 测试 | Rewind 按钮：登记自己的消息为回退目标、点击不冒泡也不触发默认行为、智能体工作中禁用并说明原因 | ✅ |
+| `__tests__/trajectoryKit.ts` | 测试 | 轨迹对比测试的构造器（步骤 / 轮次 / 会话） | ✅ |
+| `__tests__/trajectoryDiffModel.test.ts` | 测试 | 对比规则：分歧按全部步骤计数、参数按内容比较、一方先结束、轮次起点 | ✅ |
+| `__tests__/TrajectoryDiffModal.test.tsx` | 测试 | 对比弹窗：关闭时不读取、当前会话逐轮展示、加载中、可选会话（不含当前）、B 侧占位与选择、分歧标记落在对应轮次、参数键序不算分歧、一方先结束、迟到的旧选择被丢弃、上一个选择不在加载期间显示、各处读取失败的提示、关闭 | ✅ |
 | `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 种子回填；失败（含 409 会话忙）由本弹窗统一提示，`rewindToMessage` 为 silent，请求层不重复弹 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件 | 后台空闲任务状态胶囊：按 `task_name` + `status` 本地化文案（`backgroundTasks.idleStatus.*`），未知任务回退通用文案 | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
@@ -147,7 +160,7 @@
 | `AgentToolDiagnostics.tsx` | 组件 | Agent 工具健康诊断弹窗（tool 成功率/耗时）；文案取自 `chat.toolDiagnostics`，`__tests__/AgentToolDiagnostics.test.tsx` 覆盖触发按钮、标题、各指标标签与空态 | ✅ |
 | `SubagentPromptButton.tsx` | 组件 | 子代理完成后延迟 5s 出现的「查看结果」入口按钮：倒计时仅作提示（结束后按钮保留、不再有计时器），点击才发送按界面语言本地化的 `chat.subagent.viewResults`；发送被拒（如智能体仍在忙）时提示 `chat.subagent.viewResultsFailed`，store 已提示过的拒绝不重复；撤回提示或卸载时清除计时器，每次重新出现从 5 重新计 | ✅ |
 | `__tests__/SubagentPromptButton.test.tsx` | 测试 | 查看结果入口测试（假时钟）：无提示不显示、store 给出提示即显示并从 5 倒数、子代理完成 5 秒后出现且中途有回复则不出现、store 撤回即消失 / 每秒一格、结束后保留按钮且无计时器、重新出现从头计、撤回或卸载不留计时器 / 点击撤回提示与待触发计时器并只发送一次本地化请求、发送被拒时提示失败、store 已提示过的拒绝不重复提示 | ✅ |
-| `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher（queue 过期 toast） | ✅ |
+| `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher：到期按 `timeoutBehavior` 自动应答（同一批次的成员一并送达），应答确已送达才提示（每个批次一条）；没送达则卡片保留、由 hook 报错 | ✅ |
 | `WorkspaceDirPicker.tsx` | 组件 | 会话工作目录的唯一入口，渲染在输入框与操作栏之间的一行（桌面与手机同一位置）：未绑定时显示「会话目录」并说明只在该会话目录内工作，已绑定显示紧凑路径；Popover 内路径输入+Enter 导航、子目录过滤（>8 项）、最近使用 LRU 5（`lib/directoryBrowseRecent.ts`：弹层打开时才读存储，存储拒绝写入不影响选目录；Windows 路径按 `\` 紧凑显示）、返回上级按钮有名称、Tauri 桌面端原生 OS picker（`@tauri-apps/plugin-dialog`）、一键初始化办公目录（只创建缺失目录）；选目录先写入本地 store 再 PATCH，会话尚未落库时 404 视为成功（目录随首条消息提交），服务端拒绝的目录按原因提示并回滚本地状态 | ✅ |
 | `EvidenceStageHUD.tsx` | 组件 | "Evidence Before Claims" 执行阶段 HUD：Prepared/Executing/Observed/Verified 四态派生流转与证据快照抽屉；步骤错误/警告按 `getDisplayStatus` 派生（用户拒绝、审批超时记为警告阶段）；证据卡的结果与责任方用界面语言的词（`getStatusLabelKey`、`faultSides`），拒绝类调用写「用户已拒绝 / 审批超时」而不是状态码 | ✅ |
 | `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
@@ -232,7 +245,7 @@
 | `approval/ShellCommandDisplay.tsx`           | UI   | shell 命令终端展示 + span 高亮 + unknown 段 risk reason tooltip                                                                                                                     | ✅    |
 | `approval/AllowAlwaysConfirmDialog.tsx`      | UI   | allow-always 范围选择；pattern 无法推导时禁用 Confirm                                                                                                                               | ✅    |
 | `SingleApprovalCard.tsx`                     | UI   | 主 Agent 单条/批量审批：持有决定状态（编辑、拒绝、记住授权、一次性凭据），只读内容与按钮分给 `approval/ApprovalDetails`、`ApprovalActions` 等（shell edit 经 mergeShellEditedArgs） | ✅    |
-| `ToolApprovalDialog.tsx`                     | UI   | modal 非 visual 审批                                                                                                                                                                | ✅    |
+| `ToolApprovalDialog.tsx`                     | UI   | modal 非 visual 审批；只能靠应答关闭（无关闭键、Escape 与点遮罩都不关）；批次成员按 batchIndex 分组展示在单条之前                                                                                                                                                                | ✅    |
 | `MobileStatusBoard.tsx`                      | UI   | 移动端审批面板                                                                                                                                                                      | ✅    |
 | `RealTimeCostAndCacheHud.tsx`                | 组件 | 输入框底栏常驻算力胶囊 HUD：显示 Token 水位、Prompt Cache 命中率与绿色微徽章（测量衰减纠偏门限保护：cached>=1024 且 net_savings>=$0.0001），点击弹出单价浮层；浮层标题/节省额/待命文案取自 `chat.costHud.*`                        | ✅    |
 | `ModelPricingPopover.tsx`                    | 组件 | 模型四维单价矩阵与 Prompt Cache 经济学透视浮层：展示当前模型与主流标杆的 $/1M 单价与节省率                                                                                          | ✅    |
