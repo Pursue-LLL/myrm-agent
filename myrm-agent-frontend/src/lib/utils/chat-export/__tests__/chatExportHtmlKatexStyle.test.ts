@@ -55,3 +55,14 @@ describe('exported HTML carries the KaTeX style only for formulas', () => {
     expect(getKatexExportStyle).not.toHaveBeenCalled();
   });
 });
+
+describe('exported HTML keeps formula scripts at their typeset size', () => {
+  // Chrome raises em-relative sizes below its minimum logical font size when the chain is rooted in the
+  // browser default; a px root would ignore the reader's default font size, so only rem fits.
+  it('declares the body font size in rem', async () => {
+    const doc = await exportOf('Energy is $E = mc^2$.');
+    const bodyRule = /(?:^|\n)body\{([^}]*)\}/.exec(doc.querySelector('head style')?.textContent ?? '')?.[1];
+
+    expect(bodyRule).toMatch(/(?:^|;)font-size:1rem(?:;|$)/);
+  });
+});

@@ -24,12 +24,18 @@ export function esc(text: string): string {
   return text.replace(/[&<>"']/g, (ch) => HTML_ESCAPE_MAP[ch] ?? ch);
 }
 
+/**
+ * The body font size is declared in `rem` on purpose: when an em-chain is rooted in the browser default,
+ * Chrome raises relative sizes that fall below its minimum logical font size, which stretches the script
+ * sizes inside every formula. A `rem` root counts as an absolute size that adjustment leaves alone, and it
+ * still follows the reader's default font size.
+ */
 export function getStyles(): string {
   return `
 :root{--bg:#fff;--fg:#1a1a1a;--card:#f8f9fa;--card-user:#e8f0fe;--border:#e0e0e0;--muted:#666;--accent:#1d4ed8;--on-accent:#fff;--ok:#047857;--danger:#b91c1c;--code-bg:#f5f5f5;--widget-bg:#fafafa;--header-bg:#f0f4f8;--stats-bg:#e8eef6}
 [data-theme="dark"]{--bg:#0f0f10;--fg:#e0e0e0;--card:#1a1a1e;--card-user:#1a2333;--border:#2a2a2e;--muted:#999;--accent:#60a5fa;--on-accent:#0f0f10;--ok:#10b981;--danger:#fc8181;--code-bg:#1e1e22;--widget-bg:#16161a;--header-bg:#14141a;--stats-bg:#1a1a22}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;max-width:900px;margin:0 auto;padding:16px}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:1rem;background:var(--bg);color:var(--fg);line-height:1.6;max-width:900px;margin:0 auto;padding:16px}
 .export-header{background:var(--header-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px}
 .export-title{font-size:1.4em;font-weight:700;margin-bottom:4px}
 .export-meta{color:var(--muted);font-size:0.85em}
