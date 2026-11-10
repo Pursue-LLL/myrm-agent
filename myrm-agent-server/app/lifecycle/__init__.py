@@ -15,6 +15,7 @@ from .monitors import (
 )
 from .risk_rules import init_risk_rules
 from .schedulers import (
+    prepare_kanban_dispatch,
     start_approval_ttl_scheduler,
     start_auth_log_cleanup_scheduler,
     start_cancellation_cleanup_scheduler,
@@ -63,6 +64,7 @@ __all__ = [
     "start_memory_brief_status_telemetry_dispatcher",
     "start_memory_guardian_guard_telemetry_dispatcher",
     "start_cron_scheduler",
+    "prepare_kanban_dispatch",
     "start_db_maintenance_scheduler",
     "start_kanban_dispatchers",
     "start_login_session_cleanup_scheduler",

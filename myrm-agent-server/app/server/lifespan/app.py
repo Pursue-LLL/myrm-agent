@@ -14,25 +14,20 @@ import asyncio
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from myrm_agent_harness.runtime.survival.startup import StartupTimer
 
 from app.config.settings import settings
 from app.lifecycle import (
-    pause_orphaned_active_goals,
+    prepare_kanban_dispatch,
     start_channel_gateway,
     start_cron_scheduler,
-    start_kanban_dispatchers,
     start_remote_backup_scheduler,
 )
-from app.server.warmup import run_async_warmup
-
-if TYPE_CHECKING:
-    pass
 
 from . import startup
+from .background import schedule_background_work
 from .shutdown import _shutdown
 from .state import logger
 
@@ -48,17 +43,20 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
                                             Context Cleanup ‖ Built-in Agents
         Phase 2  (Essential - Parallel):   Channel Gateway ‖ Cron Scheduler ‖ Kanban Dispatchers
         Phase 3  (Warmup - Async):         Schedulers ‖ Browser Pool ‖ Batch Recovery ‖
-                                            Tokenizer ‖ Risk Rules ‖ Vector Cache (background)
+                                            Tokenizer ‖ Risk Rules ‖ Vector Cache (background, started
+                                            once the socket is bound; see ``background``)
 
     Shutdown: Storage → (Schedulers ‖ Cron ‖ Channel Gateway ‖ Browser Pool ‖ Checkpointer)
     """
 
     print(f"🐍 Python {sys.version.split()[0]}")
 
-    # Before any subsystem spawns a child process or checks skill `requires.bins` against PATH.
+    # The login-shell probe waits on a child process (about a second with a heavy rc file), so it runs beside phase 1a
+    # (database, migrations) and is awaited before phase 1b, the first to spawn a child process or check skill
+    # `requires.bins` against PATH.
     from app.startup.desktop_path import hydrate_desktop_path
 
-    await asyncio.to_thread(hydrate_desktop_path)
+    path_hydration = asyncio.create_task(asyncio.to_thread(hydrate_desktop_path))
 
     from myrm_agent_harness.infra.tls_compat import apply_global_tls_relaxation
 
@@ -86,6 +84,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     # === Phase 1: Critical tasks ===
     async with timer.phase("critical"):
         await startup._phase_1a_sequential()
+        await path_hydration
         await startup._phase_1b_parallel()
 
     # === Phase 1.5: Observability setup ===
@@ -153,7 +152,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         gw_result, cron_result, kanban_result, backup_result = await asyncio.gather(
             start_channel_gateway(),
             start_cron_scheduler(),
-            start_kanban_dispatchers(),
+            prepare_kanban_dispatch(),
             start_remote_backup_scheduler(),
             return_exceptions=True,
         )
@@ -163,7 +162,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         if isinstance(cron_result, Exception):
             logger.error("[Startup] Cron scheduler failed to start: %s", cron_result)
         if isinstance(kanban_result, Exception):
-            logger.error("[Startup] Kanban dispatchers failed to start: %s", kanban_result)
+            logger.error("[Startup] Kanban dispatch preparation failed: %s", kanban_result)
         if isinstance(backup_result, Exception):
             logger.error("[Startup] Remote backup scheduler failed to start: %s", backup_result)
 
@@ -184,10 +183,6 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         logger.warning("[Startup] MCP endpoint setup skipped: %s", e)
 
     logger.info(f"[Startup] HTTP server ready: {timer.metrics.to_dict()}")
-
-    # === Phase 3: Async warmup (background, non-blocking) ===
-    logger.info("[Startup] Starting background warmup...")
-    asyncio.create_task(run_async_warmup())
 
     try:
         from app.services.memory.extract_retry.extract_retry_worker import (
@@ -232,11 +227,6 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.error("[Startup] Wake schedule reporter failed to start: %s", e)
 
-    asyncio.create_task(pause_orphaned_active_goals())
-
-    # Dispatch @startup system event for trigger-based cron jobs
-    asyncio.create_task(startup._dispatch_startup_event())
-
     # Initialize per-channel budget guards from persisted policies
     try:
         from app.services.budget.channel_budget import initialize_channel_budgets
@@ -246,12 +236,8 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.debug("[Startup] Channel budget init skipped: %s", e)
 
-    # Seed prebuilt trunk workflow templates (idempotent, never fails boot)
-    asyncio.create_task(startup._seed_trunk_templates())
-
-    # Registering server-layer tools imports the full agent tool chain. Do it after the HTTP server is ready so
-    # the UI can load; the first agent turn awaits the same idempotent bootstrap.
-    asyncio.create_task(startup._preload_agent_tool_layers())
+    # === Phase 3: background work (warmup, housekeeping), started once the socket is bound ===
+    schedule_background_work()
 
     yield
 

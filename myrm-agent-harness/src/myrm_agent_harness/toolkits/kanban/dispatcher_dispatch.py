@@ -10,7 +10,9 @@
 [POS]
 Dispatch loop half of KanbanDispatcher. The loop asks the injected dispatch gate before claiming, so a
 server with no usable model configuration leaves READY tasks queued instead of failing them in a burst
-at boot; execution bookkeeping failures are absorbed into one log line per task.
+at boot; execution bookkeeping failures are absorbed into one log line per task. Stopping the dispatcher
+ends the loops at an iteration boundary (never inside a store call) with cancellation as a bounded fallback.
+Mixin host must provide the state and handlers declared in the class body.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.kanban.types import (
     BlockKind,
@@ -28,14 +31,63 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from myrm_agent_harness.toolkits.kanban.protocols import KanbanStore, TaskRunner
+    from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask
+
 logger = get_agent_logger(__name__)
 
 # Returns True when a task may be claimed right now (server: a usable model configuration exists).
 DispatchGate = Callable[[], Awaitable[bool]]
 
+# How long a loop gets to reach its next iteration boundary once the dispatcher is stopped, and again after the
+# cancellation fallback, before it is abandoned.
+_LOOP_EXIT_GRACE_SECONDS = 5.0
+
 
 class KanbanDispatcherDispatchMixin:
     """Mixin for the dispatch loop and single-task execution."""
+
+    if TYPE_CHECKING:
+        # Provided by KanbanDispatcher and its other mixins (the mixin host).
+        _store: KanbanStore
+        _runner: TaskRunner
+        _board: KanbanBoard
+        _worker_id: str
+        _running: bool
+        _wake_event: asyncio.Event
+        _stop_event: asyncio.Event
+        _dispatch_allowed: DispatchGate | None
+        _dispatch_task: asyncio.Task[None] | None
+        _zombie_task: asyncio.Task[None] | None
+        _exec_tasks: set[asyncio.Task[None]]
+        _task_id_to_exec: dict[str, asyncio.Task[None]]
+
+        def emit(self, event_type: str, task: KanbanTask) -> None: ...
+        async def _heartbeat_loop(self, task_id: str) -> None: ...
+        async def _handle_success(self, task_id: str, result: str, run_id: str) -> None: ...
+        async def _handle_blocked(
+            self,
+            task_id: str,
+            reason: str,
+            run_id: str,
+            *,
+            block_kind: BlockKind = ...,
+            scheduled_until: datetime | None = ...,
+            metadata_patch: dict[str, object] | None = ...,
+        ) -> None: ...
+        async def _handle_failure(self, task_id: str, error: str, run_id: str) -> None: ...
+        async def _handle_timeout(
+            self,
+            task_id: str,
+            error: str,
+            run_id: str,
+            *,
+            elapsed_seconds: float,
+            limit_seconds: int,
+        ) -> None: ...
 
     # -- Dispatch loop --
 
@@ -58,9 +110,12 @@ class KanbanDispatcherDispatchMixin:
                 running_count = len(await self._store.list_running_tasks(self._board.board_id))
                 available_slots = settings.max_concurrent_tasks - running_count
 
-                if available_slots > 0:
+                if available_slots > 0 and self._running:
                     ready_tasks = await self._store.list_ready_tasks(self._board.board_id)
                     for task in ready_tasks[:available_slots]:
+                        if not self._running:
+                            # Stopped while claiming: take no further work, the loop ends at this boundary.
+                            break
                         claimed = await self._store.claim_task(task.task_id, self._worker_id)
                         if claimed:
                             t = asyncio.create_task(
@@ -85,12 +140,44 @@ class KanbanDispatcherDispatchMixin:
                 break
             except Exception:
                 logger.exception("Kanban dispatch loop error")
-                await asyncio.sleep(5)
+                await self._sleep_unless_stopped(5)
 
     async def _wait_for_wake(self, timeout_seconds: float) -> None:
         """Block until ``wake()`` or the heartbeat interval, whichever comes first."""
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(self._wake_event.wait(), timeout=timeout_seconds)
+
+    async def _sleep_unless_stopped(self, seconds: float) -> None:
+        """Sleep for ``seconds``, returning early once the dispatcher is stopped."""
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(self._stop_event.wait(), timeout=seconds)
+
+    async def _join_loops(self) -> None:
+        """End the dispatch and zombie loops without interrupting a store call.
+
+        Once the dispatcher is stopped each loop leaves at its next iteration boundary, so a store call in flight
+        completes first: cancelling a loop inside a database call aborts the call, and the connection's teardown
+        that follows can wait forever, which would block the stop itself. A loop still running after the grace
+        period is cancelled; one that outlives the cancellation too is abandoned with a warning so that
+        ``stop`` always returns.
+        """
+        loops = {task for task in (self._dispatch_task, self._zombie_task) if task is not None}
+        self._dispatch_task = None
+        self._zombie_task = None
+        if not loops:
+            return
+        _, pending = await asyncio.wait(loops, timeout=_LOOP_EXIT_GRACE_SECONDS)
+        if not pending:
+            return
+        for task in pending:
+            task.cancel()
+        _, abandoned = await asyncio.wait(pending, timeout=_LOOP_EXIT_GRACE_SECONDS)
+        if abandoned:
+            logger.warning(
+                "%d kanban loop(s) of board=%s did not end after cancellation; abandoned",
+                len(abandoned),
+                self._board.board_id,
+            )
 
     async def _execute_task(self, task_id: str) -> None:
         """Execute a single task, absorbing bookkeeping failures.

@@ -13,6 +13,7 @@ Core singleton state: store, dispatchers, runner, specifier, decomposer referenc
 
 from __future__ import annotations
 
+import asyncio
 from typing import ClassVar
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
@@ -35,6 +36,8 @@ class KanbanServiceCore:
     _runner: TaskRunner | None
     _specifier: TaskSpecifier | None
     _decomposer: TaskDecomposer | None
+    _boot_dispatchers_task: asyncio.Task[None] | None
+    _boot_stop: asyncio.Event
 
     def __init__(self) -> None:
         self._store = SqlAlchemyKanbanStore()
@@ -42,6 +45,10 @@ class KanbanServiceCore:
         self._runner = None
         self._specifier = None
         self._decomposer = None
+        self._boot_dispatchers_task = None
+        # Set by shutdown: ends the boot start at its next step instead of cancelling it mid-query. Each boot
+        # start brings its own event, so an instance used on another event loop never waits on a stale one.
+        self._boot_stop = asyncio.Event()
 
     @property
     def store(self) -> SqlAlchemyKanbanStore:

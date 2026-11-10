@@ -1,7 +1,11 @@
-"""Wiring tests: the lifespan hydrates the desktop PATH and consumes a pending Python environment reset before any
-other startup work, and a reset that cannot be carried out never keeps the server from starting."""
+"""Wiring tests: the lifespan hydrates the desktop PATH beside phase 1a and finishes it before phase 1b, consumes a
+pending Python environment reset before any other startup work, and a reset that cannot be carried out never keeps the
+server from starting."""
 
 from __future__ import annotations
+
+import threading
+import time
 
 import pytest
 from fastapi import FastAPI
@@ -10,29 +14,65 @@ from app.server import lifespan as lifespan_module
 
 
 class _StopStartup(Exception):
-    """Raised by the step right after hydration so the test never boots the real server."""
+    """Raised by the phase a test stops at, so the test never boots the real server."""
 
 
 @pytest.mark.asyncio
-async def test_lifespan_hydrates_path_before_tls_and_subsystem_startup(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_lifespan_finishes_path_hydration_before_phase_1b(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 1b is the first to spawn a child process or to check skill `requires.bins` against PATH."""
     calls: list[str] = []
 
     def _hydrate() -> list[str]:
+        time.sleep(0.1)  # a slow login shell; runs in the executor thread
         calls.append("hydrate")
         return []
 
-    def _next_step() -> bool:
-        calls.append("next")
+    async def _phase_1a() -> None:
+        calls.append("phase-1a")
+
+    async def _phase_1b() -> None:
+        calls.append("phase-1b")
         raise _StopStartup
 
     monkeypatch.setattr("app.startup.desktop_path.hydrate_desktop_path", _hydrate)
-    monkeypatch.setattr("myrm_agent_harness.infra.tls_compat.apply_global_tls_relaxation", _next_step)
+    monkeypatch.setattr(lifespan_module.startup, "_phase_1a_sequential", _phase_1a)
+    monkeypatch.setattr(lifespan_module.startup, "_phase_1b_parallel", _phase_1b)
 
     with pytest.raises(_StopStartup):
         async with lifespan_module.optimized_lifespan(FastAPI()):
             pass
 
-    assert calls == ["hydrate", "next"]
+    assert calls == ["phase-1a", "hydrate", "phase-1b"]
+
+
+@pytest.mark.asyncio
+async def test_lifespan_hydrates_path_beside_phase_1a(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 1a (database, migrations) needs no PATH, so the login-shell probe must not hold it back."""
+    calls: list[str] = []
+    phase_1a_started = threading.Event()
+
+    def _hydrate() -> list[str]:
+        # Ends only once phase 1a has begun: hydration that ran before phase 1a would wait here for nothing.
+        assert phase_1a_started.wait(timeout=5), "phase 1a never started while the PATH was being hydrated"
+        calls.append("hydrate")
+        return []
+
+    async def _phase_1a() -> None:
+        calls.append("phase-1a")
+        phase_1a_started.set()
+
+    async def _phase_1b() -> None:
+        raise _StopStartup
+
+    monkeypatch.setattr("app.startup.desktop_path.hydrate_desktop_path", _hydrate)
+    monkeypatch.setattr(lifespan_module.startup, "_phase_1a_sequential", _phase_1a)
+    monkeypatch.setattr(lifespan_module.startup, "_phase_1b_parallel", _phase_1b)
+
+    with pytest.raises(_StopStartup):
+        async with lifespan_module.optimized_lifespan(FastAPI()):
+            pass
+
+    assert calls == ["phase-1a", "hydrate"]
 
 
 @pytest.mark.asyncio

@@ -359,36 +359,17 @@ class _MCPTokenAuthMiddleware:
 async def setup_mcp_endpoint(app: FastAPI) -> None:
     """Create and mount the MCP memory endpoint at /mcp.
 
-    Should be called during application startup (Phase 2 or later).
-    Gracefully skips if memory system is not available.
+    Should be called during application startup (Phase 2 or later). No MemoryManager is
+    built here: ``_MCPTokenAuthMiddleware`` binds the manager of the token's agent on every
+    request, so startup never opens the vector store or reaches the embedding backend.
+    Gracefully skips if the MCP server cannot be built or started.
     """
     global _session_manager_task
 
     try:
         from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import MemoryMCPServer
 
-        from app.core.memory.adapters.setup import (
-            create_memory_manager,
-            resolve_context_binding,
-        )
-        from app.services.agent.platform_config import load_platform_retrieval_configs
-
-        embedding_cfg, _ = await load_platform_retrieval_configs()
-
-        binding = resolve_context_binding(
-            namespaces=None,
-            agent_id="default",
-            channel_id=None,
-            conversation_id=None,
-            task_id=None,
-        )
-        memory_manager = await create_memory_manager(
-            binding,
-            embedding_cfg,
-            approval_required=False,
-        )
-
-        mcp_server = MemoryMCPServer(memory_manager, stateless_http=True)
+        mcp_server = MemoryMCPServer(approval_required=False, stateless_http=True)
 
         from myrm_agent_harness.toolkits.computer_use.mcp_server import (
             get_request_desktop_session,
@@ -455,7 +436,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
         logger.info("MCP memory endpoint mounted at /mcp (DNS-rebinding protected)")
 
     except Exception as e:
-        logger.warning("MCP endpoint not mounted (memory system unavailable): %s", e)
+        logger.warning("MCP endpoint not mounted: %s", e)
 
 
 async def shutdown_mcp_endpoint() -> None:

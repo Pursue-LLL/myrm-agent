@@ -24,6 +24,7 @@ Tauri Desktop Sidecar 构建入口：PyInstaller（`--onedir`）把 Python 后�
 | `bundle_inventory.py` | 核心 | 读源码树得出「必须随包」的第一方模块清单并生成 PyInstaller hook；登记有意不随包的渠道 SDK；产出领域技能工具脚本的 `--add-data`；列出 harness 按 `__file__` 读取的数据文件（`harness_data_files`：模型目录与分词表）| ✅ |
 | `bundle_verify.py` | 核心 | 打包后读回产物，与清单逐项对账（模块都在、渠道 SDK 不在、工具脚本与 harness 数据文件在位），不一致则构建失败 | ✅ |
 | `stdio_runtime_hook.py` | 辅助 | PyInstaller 运行期钩子：补齐缺失的标准流、把输出流改为 UTF-8，由 `build.py` 以 `--runtime-hook` 注入 | ✅ |
+| `gc_runtime_hook.py` | 辅助 | PyInstaller 运行期钩子：入口导入整个 server 之前暂停循环 GC（省约 1s 的 full collection 暂停），由 server lifespan 的后台任务结束后经 `app.startup.gc_policy.settle_collection_after` 冻结启动堆并恢复；排在 stdio 钩子之后以 `--runtime-hook` 注入 | ✅ |
 
 ## 使用方法
 

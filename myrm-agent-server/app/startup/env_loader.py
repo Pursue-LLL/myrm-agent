@@ -1,6 +1,6 @@
 """
 @input: 无外部依赖，纯环境变量与文件系统操作
-@output: 对外提供分层 .env 加载、__pycache__ 清理、浏览器路径设置
+@output: 对外提供分层 .env 加载、浏览器路径设置
 @pos: 启动环境加载器 —— 最先执行的初始化逻辑
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
@@ -8,7 +8,6 @@
 
 import logging
 import os
-import shutil
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -56,15 +55,6 @@ def load_env_files() -> None:
         load_dotenv(env_local_file, override=False)
 
 
-def clean_pycache() -> None:
-    """清理 app/ 下所有 __pycache__ 目录，防止旧 .pyc 与源码不一致导致幽灵 bug。"""
-    # __file__ = .../myrm-agent-server/app/startup/env_loader.py
-    # parent.parent = .../myrm-agent-server/app/
-    app_root = Path(__file__).resolve().parent.parent
-    for pyc_dir in app_root.rglob("__pycache__"):
-        shutil.rmtree(pyc_dir, ignore_errors=True)
-
-
 def setup_browser_path() -> None:
     """Set Patchright/Playwright browser binary search path.
 
@@ -83,5 +73,4 @@ def setup_browser_path() -> None:
 def init_environment() -> None:
     """执行所有环境初始化（按顺序）。"""
     load_env_files()
-    clean_pycache()
     setup_browser_path()

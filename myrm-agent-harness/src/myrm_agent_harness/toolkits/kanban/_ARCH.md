@@ -321,6 +321,19 @@ Protocol-first architecture with strict framework-business separation.
     re-run sees the earlier attempts through the `Prior attempts` section of the worker
     context.
 
+30. **Cooperative stop (`KanbanDispatcher.stop`)**: the dispatch and zombie loops are never
+    cancelled while they are inside a store call. `stop()` clears `_running`, wakes the
+    dispatch loop and sets `_stop_event`; every loop sleep (`_sleep_unless_stopped`) returns
+    at once on that event, and a loop that is mid-iteration finishes its current store call
+    and leaves at the iteration boundary without claiming further work. `_join_loops()` waits
+    `_LOOP_EXIT_GRACE_SECONDS` for the loops to leave, cancels stragglers only as a fallback,
+    waits the same grace again and finally abandons a loop that ignores cancellation with a
+    warning, so `stop()` always returns. Cancelling a task in the middle of a pooled database
+    call can make the driver tear the connection down twice and leave the shutdown waiting on
+    a worker thread that is already gone; ending loops at a boundary keeps the connection
+    lifecycle single-owner. `start()` clears `_stop_event`, so a stopped dispatcher can start
+    again.
+
 ## Domain Model
 
 - `KanbanBoard`: Top-level grouping with `BoardSettings` (includes `default_workdir`, `block_recurrence_limit` for block→unblock→TRIAGE escalation)
@@ -352,11 +365,12 @@ Protocol-first architecture with strict framework-business separation.
 | `types/` | 纯领域类型子包：`enums.py`（状态/阻塞/优先级/运行与事件枚举及派生集合）、`metadata.py`（来源会话与完成意图键）、`models.py`（Board/Task/Edge/Claim/Run/Event/执行结果）；门面保持原导入面。详见 [types/_ARCH.md](types/_ARCH.md) |
 | `protocols.py` | KanbanStore (CRUD + edges + runs + events + `transition_task_status` 原子 CAS) + TaskRunner + CompletionVerifier + TaskSpecifier + TaskDecomposer protocol contracts |
 | `stores.py` | InMemoryKanbanStore (test/reference, with DFS cycle detection) |
-| `dispatcher.py` | Event-driven scheduler facade — completion verification, dependency promotion, event emission, lifecycle |
-| `dispatcher_dispatch.py` | Dispatch loop and single-task execution mixin: the loop asks `DispatchGate` before claiming (a closed gate leaves READY tasks queued), execution bookkeeping failures become one log line |
+| `dispatcher.py` | Event-driven scheduler facade — event emission, wake, board hot-swap and the start/stop lifecycle (cooperative `stop`) |
+| `dispatcher_dispatch.py` | Dispatch loop and single-task execution mixin: the loop asks `DispatchGate` before claiming (a closed gate leaves READY tasks queued), execution bookkeeping failures become one log line; owns the cooperative loop shutdown (`_sleep_unless_stopped`, `_join_loops`) |
+| `dispatcher_outcome.py` | Success/blocked handling mixin: completion verification, IN_REVIEW routing, result persistence and dependency promotion (`_promote_dependents`) |
 | `dispatcher_failure.py` | Failure/timeout/retry pipeline mixin for KanbanDispatcher, plus the `retry_task` entry point for FAILED tasks |
 | `retry.py` | `retry_failed_task` — the single manual-retry implementation (reset, CAS to READY, audit event, double-submit lock) shared by the dispatcher and the orchestrator tool |
-| `dispatcher_zombie.py` | Zombie detection, heartbeat monitoring, scheduled wakeup, and startup orphan rescue mixin |
+| `dispatcher_zombie.py` | Zombie detection, heartbeat monitoring, scheduled wakeup, and startup orphan rescue mixin (its loop sleeps end on stop) |
 | `diagnostics.py` | Task diagnostic framework — DTOs, DiagnosticRule Protocol, DiagnosticEngine |
 | `kanban_agent_tools.py` | Facade — `create_kanban_tools` factory, shared helpers (`_parse_until`, `get_worker_lifecycle_guidance`), routes to worker/orchestrator sub-modules |
 | `_worker_tools.py` | Worker-scoped LLM tools (6 tools: show/complete/block/heartbeat/comment/attach) with ownership enforcement |

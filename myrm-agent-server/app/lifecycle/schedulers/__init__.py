@@ -32,6 +32,7 @@ from .cron import (
     start_cron_scheduler,
 )
 from .kanban import (
+    prepare_kanban_dispatch,
     start_kanban_dispatchers,
     stop_kanban_dispatchers,
 )
@@ -89,6 +90,7 @@ __all__ = [
     "stop_login_session_cleanup_scheduler",
     "start_auth_log_cleanup_scheduler",
     "stop_auth_log_cleanup_scheduler",
+    "prepare_kanban_dispatch",
     "start_kanban_dispatchers",
     "stop_kanban_dispatchers",
     "start_remote_backup_scheduler",
