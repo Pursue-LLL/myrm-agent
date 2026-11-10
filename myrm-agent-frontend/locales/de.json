@@ -2598,6 +2598,7 @@
       "edit": "Zusammenfassung bearbeiten",
       "cancel": "Abbrechen",
       "save": "Speichern",
+      "summarySaveFailed": "Zusammenfassung konnte nicht gespeichert werden",
       "tokensSaved": "Bei der letzten Komprimierung wurden ~{tokens}-Tokens gespeichert",
       "saveBookmark": "Snapshot-Lesezeichen speichern",
       "savingBookmark": "Wird gespeichert…",
@@ -2614,6 +2615,7 @@
       "bookmarkForkFailed": "Snapshot konnte nicht in neuem Chat geöffnet werden",
       "archiveTitle": "Archivierte Nachrichten",
       "archiveEmpty": "Keine archivierten Nachrichten gefunden",
+      "archiveLoadFailed": "Archivierte Nachrichten konnten nicht geladen werden",
       "roleUser": "Sie",
       "roleAssistant": "Assistent"
     },

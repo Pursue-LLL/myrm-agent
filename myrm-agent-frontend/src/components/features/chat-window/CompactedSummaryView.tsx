@@ -11,9 +11,7 @@
  * - CompactedSummaryView: Context compaction view hosting milestone cards, anchors, bookmarks & archive time machine
  *
  * [POS]
- * Context compaction summary host view in chat stream (Item 27 refactor).
- * Decoupled state management via useCompactedSummaryState.
- * File length < 400 lines. Zero `any` types. Zero native emoji.
+ * Context compaction summary host view in chat stream; its state lives in useCompactedSummaryState.
  */
 
 import React, { useEffect, useMemo, useRef } from 'react';
@@ -108,7 +106,7 @@ export const CompactedSummaryView = () => {
         return;
       }
       const forkBtn = target.closest('[data-testid="compacted-summary-bookmark-fork"]');
-      if (!forkBtn || forkBtn.hasAttribute('disabled')) {
+      if (!forkBtn) {
         return;
       }
       const branchId = forkBtn.getAttribute('data-branch-id');
@@ -119,7 +117,6 @@ export const CompactedSummaryView = () => {
       if (!bookmark) {
         return;
       }
-      event.preventDefault();
       void handleForkFromBookmark(bookmark);
     };
     root.addEventListener('click', onNativeClick);

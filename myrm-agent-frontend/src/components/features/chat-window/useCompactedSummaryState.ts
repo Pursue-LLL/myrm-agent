@@ -10,9 +10,8 @@
  * - useCompactedSummaryState: Custom hook for managing compaction summary view state and actions
  *
  * [POS]
- * Extracted state manager for CompactedSummaryView (Item 27 refactor).
- * Decouples bookmarks loading, editing, saving, and branch forking logic.
- * Strictly typed, zero `any`, file length < 250 lines.
+ * State manager for CompactedSummaryView: bookmarks loading, summary editing and saving, archive loading and
+ * forking a chat from a snapshot.
  */
 
 import { useState, useCallback, useMemo } from 'react';
@@ -102,7 +101,6 @@ export function useCompactedSummaryState() {
     const requestChatId = chatId;
     if (!requestChatId) {
       setContextBranches([]);
-      setContextBranchesLoadError(null);
       return [];
     }
     setBookmarksLoading(true);
@@ -112,7 +110,6 @@ export function useCompactedSummaryState() {
         return [];
       }
       setContextBranches(branches);
-      setContextBranchesLoadError(null);
       return branches.slice(-MAX_BOOKMARKS_DISPLAY).reverse();
     } catch (err) {
       console.error('[CompactedSummaryView] failed to load bookmarks', err);
@@ -121,9 +118,7 @@ export function useCompactedSummaryState() {
       }
       return [];
     } finally {
-      if (useChatStore.getState().chatId === requestChatId) {
-        setBookmarksLoading(false);
-      }
+      setBookmarksLoading(false);
     }
   }, [chatId, setContextBranches, setContextBranchesLoadError]);
 
@@ -146,10 +141,14 @@ export function useCompactedSummaryState() {
     setIsSaving(true);
     try {
       await updateCompactionSummary(chatId, editValue);
-      setCompactedSummary(editValue);
+      // The store holds the open chat's summary; the user may have opened another chat while the request ran.
+      if (useChatStore.getState().chatId === chatId) {
+        setCompactedSummary(editValue);
+      }
       setIsEditing(false);
     } catch (err) {
       console.error('[CompactedSummaryView] failed to save summary', err);
+      showI18nToast('chat.compactedSummary.summarySaveFailed', undefined, { type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -167,6 +166,8 @@ export function useCompactedSummaryState() {
       setArchiveMessages(res.messages || []);
     } catch (err) {
       console.error('[CompactedSummaryView] failed to fetch archive', err);
+      setIsArchiveOpen(false);
+      showI18nToast('chat.compactedSummary.archiveLoadFailed', undefined, { type: 'error' });
     } finally {
       setIsLoadingArchive(false);
     }

@@ -2598,6 +2598,7 @@
       "edit": "サマリーを編集",
       "cancel": "キャンセル",
       "save": "保存",
+      "summarySaveFailed": "要約を保存できませんでした",
       "tokensSaved": "前回の圧縮で約{tokens}トークンを節約",
       "saveBookmark": "スナップショットブックマークを保存",
       "savingBookmark": "保存中…",
@@ -2614,6 +2615,7 @@
       "bookmarkForkFailed": "新しいチャットでスナップショットを開けませんでした",
       "archiveTitle": "アーカイブされたメッセージ",
       "archiveEmpty": "アーカイブされたメッセージは見つかりませんでした",
+      "archiveLoadFailed": "アーカイブされたメッセージを読み込めませんでした",
       "roleUser": "あなた",
       "roleAssistant": "アシスタント"
     },

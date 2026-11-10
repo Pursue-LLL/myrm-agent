@@ -2598,6 +2598,7 @@
       "edit": "요약 편집",
       "cancel": "취소",
       "save": "저장",
+      "summarySaveFailed": "요약을 저장하지 못했습니다",
       "tokensSaved": "마지막 압축으로 약 {tokens} 토큰 절약됨",
       "saveBookmark": "스냅샷 북마크 저장",
       "savingBookmark": "저장 중…",
@@ -2614,6 +2615,7 @@
       "bookmarkForkFailed": "새 채팅에서 스냅샷을 열 수 없습니다",
       "archiveTitle": "보관된 메시지",
       "archiveEmpty": "보관된 메시지를 찾을 수 없습니다",
+      "archiveLoadFailed": "보관된 메시지를 불러오지 못했습니다",
       "roleUser": "나",
       "roleAssistant": "어시스턴트"
     },

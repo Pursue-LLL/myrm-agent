@@ -2607,6 +2607,7 @@
       "edit": "Edit summary",
       "cancel": "Cancel",
       "save": "Save",
+      "summarySaveFailed": "Failed to save the summary",
       "tokensSaved": "Last compression saved ~{tokens} tokens",
       "saveBookmark": "Save snapshot bookmark",
       "savingBookmark": "Saving…",
@@ -2623,6 +2624,7 @@
       "bookmarkForkFailed": "Could not open snapshot in a new chat",
       "archiveTitle": "Archived messages",
       "archiveEmpty": "No archived messages found",
+      "archiveLoadFailed": "Could not load archived messages",
       "roleUser": "You",
       "roleAssistant": "Assistant"
     },

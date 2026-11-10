@@ -2598,6 +2598,7 @@
       "edit": "編輯摘要",
       "cancel": "取消",
       "save": "儲存",
+      "summarySaveFailed": "儲存摘要失敗",
       "tokensSaved": "上次壓縮節省約 {tokens} tokens",
       "saveBookmark": "儲存快照書籤",
       "savingBookmark": "儲存中…",
@@ -2614,6 +2615,7 @@
       "bookmarkForkFailed": "無法從快照開新對話",
       "archiveTitle": "歸檔訊息",
       "archiveEmpty": "暫無歸檔訊息",
+      "archiveLoadFailed": "無法載入封存訊息",
       "roleUser": "你",
       "roleAssistant": "助手"
     },

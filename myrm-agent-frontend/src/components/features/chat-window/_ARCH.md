@@ -58,12 +58,19 @@
 | `__tests__/SessionExportModal.test.tsx` | 测试 | 会话导出模态框测试套件：覆盖 HTML/MD/JSON/ZIP 四模式切换、initialFormat 初始选中、脱敏选项变更、Markdown/JSON/ZIP 下载触发、剪贴板复制通知、空消息保护与导出网络异常 Toast 提示 | ✅ |
 | `__tests__/SessionExportButton.test.tsx` | 测试 | 会话导出按钮测试套件：覆盖点击打开弹窗、全局 `myrm:open-session-export` 事件监听、Slash 参数解析与 format 别名透传校验 | ✅ |
 | `ChatCronLink.tsx` | 组件 | 会话内关联定时任务 Badge（计数 → `/settings/cron?chat_id=`） | ✅ |
-| `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + 锚点胶囊展示 + archive 归档抽屉 + 快照书签 list/fork（`forkContextBranch` + `router.push` 导航新会话，对齐 ForkDialog）；摘要正文的公式经 `@/lib/utils/markdownMath` 渲染 | ✅ |
+| `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + 锚点胶囊展示 + archive 归档抽屉 + 快照书签 list/fork（`forkContextBranch` + `router.push` 导航新会话）；摘要正文的公式经 `@/lib/utils/markdownMath` 渲染；状态与动作全部来自 `useCompactedSummaryState`（`__tests__/CompactedSummaryView.behavior.test.tsx` 守卫） | ✅ |
+| `useCompactedSummaryState.ts` | 辅助 | 压缩摘要视图的状态与动作：快照列表读取只采纳当前会话的应答（切走后迟到的应答与失败都被丢弃，进度提示照常结束）；摘要编辑保存期间切到别的会话时不把文本写进新会话，失败保留编辑内容并提示 `summarySaveFailed`；归档读取失败时关闭空窗口并提示 `archiveLoadFailed`、下次重新读取；保存快照；从快照派生新会话（回复流式期间拒绝并提示，E2E 浏览器额外整页跳转） | ✅ |
 | `CompactionAnchorStrip.tsx` | 组件 | 确定性机器符号锚点晶透微流光胶囊条：展示 Commit SHA、文件路径、代码符号、API 端点与关键报错，支持一键复制与折叠展开 | ✅ |
 | `CompactedArchiveModal.tsx` | 组件 | 上下文压缩历史归档消息全屏弹窗模态框：纯展示与安全降级、时间线格式化、代码渲染，公式经 `@/lib/utils/markdownMath` 渲染 | ✅ |
 | `CompactedBookmarksList.tsx` | 组件 | 上下文压缩快照书签轻量列表与快速 Fork 派生控件：状态机感知（loading/error/empty/ready）、一键导航与事件代理 | ✅ |
 | `parseExactAnchors.ts` | 辅助 | 上下文压缩摘要机器符号精确解析纯函数：双模式安全提取（JSON 元数据块 / Markdown 符号段落）、智能剔除多余正文防止双重渲染、强类型 0 Any | ✅ |
 | `__tests__/CompactionAnchorStrip.test.tsx` | 测试 | 锚点胶囊条单元测试：空状态保护、符号汇总计数、折叠/展开交互、剪贴板复制及回调触发、翻译键与插值参数、复制按钮无障碍名称、折叠预览剩余计数覆盖 | ✅ |
+| `__tests__/compactedSummaryKit.ts` | 测试 | 压缩摘要测试的服务底座（供 mock 工厂动态导入，不引入 store）：服务 / 提示 / 路由 / 多语言替身、快照与归档记录构造器 | ✅ |
+| `__tests__/compactedSummarySetup.ts` | 测试 | 压缩摘要测试的逐用例准备：把 store 置为有摘要与快照文件的 `chat-1`（`seedChat`），并重置替身与全局桩（`setUpSummaryTest`） | ✅ |
+| `__tests__/useCompactedSummaryState.bookmarks.test.tsx` | 测试 | 压缩摘要状态单测（书签部分）：书签名称与五条上限（新的在前）、列表读取（无会话清空、应答只采纳当前会话、失败不记到新会话、进度提示照常结束）、保存快照与去重 | ✅ |
+| `__tests__/useCompactedSummaryState.actions.test.tsx` | 测试 | 压缩摘要状态单测（动作部分）：摘要编辑保存（失败保留编辑、切走的会话不被写入）、归档（缓存、失败关闭并重试）、派生新会话（流式拒绝、各阶段诊断、E2E 整页跳转） | ✅ |
+| `__tests__/CompactedSummaryView.behavior.test.tsx` | 测试 | 压缩摘要视图行为：外链新标签页且无 opener、锚点与里程碑卡片的入参、节省 token 的缩写、编辑 / 保存 / 取消 / 保存失败、归档窗口、快照列表与分支卡片、保存快照进度、失败重试、点击快照只派生被点的那条 | ✅ |
+| `__tests__/CompactedBookmarksList.test.tsx` | 测试 | 快照书签列表：加载 / 失败（可重试）/ 空 / 就绪四态及优先级、名称与时间与文件提示、派生按钮标注与进行中状态 | ✅ |
 | `__tests__/parseExactAnchors.test.ts` | 测试 | 机器符号解析器单元测试：空文本容错、metaAnchors 优先契约、Markdown 区块提取与正文剥离、JSON 注释提取覆盖 | ✅ |
 | `__tests__/CompactedArchiveModal.test.tsx` | 测试 | 归档弹窗公式测试：`$…$`、`$$…$$`、`\(…\)` 都渲染成公式而价格句保持原文，`\href` / `\includegraphics` 不产生链接或图片 | ✅ |
 | `__tests__/CompactedSummaryView.math.test.tsx` | 测试 | 压缩摘要公式测试（状态 hook 与子卡片桩化）：同归档弹窗的两条 | ✅ |

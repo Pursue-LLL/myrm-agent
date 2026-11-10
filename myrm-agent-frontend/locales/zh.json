@@ -2607,6 +2607,7 @@
       "edit": "编辑摘要",
       "cancel": "取消",
       "save": "保存",
+      "summarySaveFailed": "保存摘要失败",
       "tokensSaved": "上次压缩节省约 {tokens} tokens",
       "saveBookmark": "保存快照书签",
       "savingBookmark": "保存中…",
@@ -2623,6 +2624,7 @@
       "bookmarkForkFailed": "无法从快照开新会话",
       "archiveTitle": "归档消息",
       "archiveEmpty": "暂无归档消息",
+      "archiveLoadFailed": "无法加载归档消息",
       "roleUser": "你",
       "roleAssistant": "助手"
     },
