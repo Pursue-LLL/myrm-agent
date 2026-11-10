@@ -5,11 +5,13 @@ Tests coverage:
 2. ContextCleanupScheduler lifecycle (start/stop)
 3. Error handling (file permission, missing dirs)
 4. Logging (CONTEXT_CLEANUP_ORPHAN)
+5. The pass runs in a worker thread, so a large sandboxes root never holds up the event loop
 """
 
 import asyncio
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -330,3 +332,41 @@ async def test_cleanup_multiple_sessions_per_user(tmp_path: Path, caplog: pytest
 
     orphan_logs = [r for r in caplog.records if "CONTEXT_CLEANUP_ORPHAN" in r.message]
     assert len(orphan_logs) == 3
+
+
+@pytest.mark.asyncio
+async def test_cleanup_pass_runs_off_the_event_loop_thread(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The directory walk blocks for seconds on hundreds of workspaces, so it must not run on the loop thread."""
+    scheduler = ContextCleanupScheduler(tmp_path, max_age_days=7)
+    loop_thread = threading.get_ident()
+    pass_threads: list[int] = []
+    monkeypatch.setattr(scheduler, "_cleanup_pass", lambda: pass_threads.append(threading.get_ident()))
+
+    await scheduler._run_cleanup()
+
+    assert len(pass_threads) == 1
+    assert pass_threads[0] != loop_thread
+
+
+@pytest.mark.asyncio
+async def test_event_loop_keeps_running_during_a_slow_cleanup_pass(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pass that takes 0.3 s leaves the loop free to run other tasks the whole time."""
+    scheduler = ContextCleanupScheduler(tmp_path, max_age_days=7)
+    monkeypatch.setattr(scheduler, "_cleanup_pass", lambda: time.sleep(0.3))
+    ticks = 0
+
+    async def tick() -> None:
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.01)
+            ticks += 1
+
+    ticker = asyncio.create_task(tick())
+    try:
+        await scheduler._run_cleanup()
+    finally:
+        ticker.cancel()
+
+    assert ticks >= 10

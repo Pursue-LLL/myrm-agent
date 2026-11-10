@@ -266,12 +266,12 @@ class TestRefreshBoard:
 
         real_sleep = asyncio.sleep
 
-        async def _fast_sleep(_seconds: float) -> None:
+        async def _fast_sleep(_dispatcher: KanbanDispatcher, _seconds: float) -> None:
             # Collapse the loop's 30s+ zombie check interval so the next cycle
             # runs immediately while still yielding control to the event loop.
             await real_sleep(0.01)
 
-        monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+        monkeypatch.setattr(KanbanDispatcher, "_sleep_unless_stopped", _fast_sleep)
 
         d = KanbanDispatcher(store, _FakeRunner(), board)
         await d.start()

@@ -34,6 +34,7 @@ HARNESS_SOURCE_DIR = HARNESS_ROOT / "src" / HARNESS_PACKAGE
 OUTPUT_DIR = PROJECT_ROOT / "myrm-agent-desktop" / "src-tauri" / "binaries"
 SHARED_PROVIDER_REMAP = PROJECT_ROOT / "shared" / "config" / "provider_legacy_remap.json"
 STDIO_RUNTIME_HOOK = Path(__file__).parent / "stdio_runtime_hook.py"
+GC_RUNTIME_HOOK = Path(__file__).parent / "gc_runtime_hook.py"
 BUNDLE_VERIFY = Path(__file__).parent / "bundle_verify.py"
 
 # Server data that code opens by a path relative to its own module (`Path(__file__)...`), as paths under the server
@@ -188,6 +189,7 @@ def pyinstaller_command(server_python: Path, work_dir: Path, harness_dir: Path =
         "--exclude-module", "PyQt5",
         *exclude_options(),
         "--runtime-hook", str(STDIO_RUNTIME_HOOK),
+        "--runtime-hook", str(GC_RUNTIME_HOOK),
         "--distpath", str(OUTPUT_DIR),
         "--workpath", str(work_dir / "build"),
         "--specpath", str(work_dir),

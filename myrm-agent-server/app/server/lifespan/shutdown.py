@@ -1,5 +1,6 @@
 """[INPUT]
 - .state (POS: shared startup state)
+- .background::cancel_scheduled_background_work (POS: cancels the boot's delayed background start)
 
 [OUTPUT]
 - _shutdown
@@ -51,11 +52,16 @@ if TYPE_CHECKING:
     pass
 
 from . import state
+from .background import cancel_scheduled_background_work
 from .state import logger
 
 
 async def _shutdown(app_instance: FastAPI) -> None:
     """Graceful shutdown: drain in-flight Agent turns, then stop all components."""
+    # A boot that is stopped right after the bind has not started its background work yet, and must not start
+    # schedulers once the components below are being stopped.
+    cancel_scheduled_background_work()
+
     # First, before the (slow) drain: the desktop shell only waits seconds for a self-exit and
     # takes the curtain down with it, so a lease still held would leave the Mac unlocked and uncovered.
     try:

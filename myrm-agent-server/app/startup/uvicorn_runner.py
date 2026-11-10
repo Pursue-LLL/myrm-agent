@@ -12,6 +12,7 @@ import sys
 import webbrowser
 
 from app.config.env import is_debug_mode
+from app.startup.gc_policy import defer_collection
 from app.startup.health_check import run_startup_health_check
 
 
@@ -66,6 +67,9 @@ def start_with_uvicorn(
         skip_health_check: 是否跳过健康检查
         no_auto_recovery: 是否禁用自动恢复
     """
+    # 先于 `from app.main import app`：导入阶段的循环 GC 暂停由 lifespan 就绪后的 settle_collection_after 恢复。
+    defer_collection()
+
     # 运行健康检查
     run_startup_health_check(
         skip_health_check=skip_health_check,
