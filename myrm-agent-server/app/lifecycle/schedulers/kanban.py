@@ -19,7 +19,8 @@ async def start_kanban_dispatchers() -> None:
     1. Boot recovery: reset stale RUNNING → READY, once for every board.
     2. Create KanbanTaskRunner and store on KanbanService for dynamic use.
     3. Wire PlatformTaskSpecifier for TRIAGE → spec rewrites.
-    4. Start a dispatcher per board (dispatcher sleeps when no READY tasks).
+    4. Start a dispatcher per board in the background (dispatcher sleeps when no READY tasks); the
+       boot does not wait for them, so its length does not grow with the number of boards.
 
     The dispatchers share one boot gate: while no usable model configuration exists they leave
     READY tasks queued, so a boot cannot claim every queued task and record a failure for each.
@@ -41,12 +42,7 @@ async def start_kanban_dispatchers() -> None:
     svc.set_specifier(PlatformTaskSpecifier())
     svc.set_decomposer(PlatformTaskDecomposer())
 
-    started, gated = await svc.start_boot_dispatchers(runner)
-    logger.info(
-        "[Startup] Kanban dispatchers started for %d board(s)%s",
-        started,
-        "; their READY tasks wait for a model provider" if gated else "",
-    )
+    svc.start_boot_dispatchers(runner)
 
 
 async def stop_kanban_dispatchers() -> None:

@@ -14,6 +14,10 @@ Schedule:
 - Repeats every interval (default: 24 hours)
 - Stops gracefully on shutdown
 
+Each pass walks every workspace directory with blocking filesystem calls, so it runs in a worker thread: on a
+machine with hundreds of workspaces it takes seconds, and on the event loop it would hold up everything else
+(the server's startup included).
+
 [INPUT]
 - (none)
 
@@ -120,7 +124,10 @@ class ContextCleanupScheduler:
         logger.info("Context cleanup task stopped")
 
     async def _run_cleanup(self) -> None:
-        """Execute one cleanup pass over all workspace context directories."""
+        """Execute one cleanup pass over all workspace context directories, off the event loop."""
+        await asyncio.to_thread(self._cleanup_pass)
+
+    def _cleanup_pass(self) -> None:
         if not self._sandboxes_root.exists():
             logger.debug("Sandboxes root not found: %s", self._sandboxes_root)
             return

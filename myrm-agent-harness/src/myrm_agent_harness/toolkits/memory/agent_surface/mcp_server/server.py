@@ -19,7 +19,9 @@ via the standard MCP protocol by wrapping MemoryManager. Four tools: recall (sem
 categories/time/profile), list (enumeration and audit), store (5 categories) and manage
 (update/delete/correct/rate). `memory_store` and `memory_manage` descriptions come from the
 `_memory_agent_tool_descriptions` SSOT with `surface="mcp"`; recall/list descriptions are MCP-specific.
-Supports an optional manager_resolver for per-request dynamic scoping (e.g. per-token agent binding).
+Supports an optional manager_resolver for per-request dynamic scoping (e.g. per-token agent binding);
+the default MemoryManager is optional too, so a server whose requests all bind their own manager
+builds without opening any storage or embedding backend.
 """
 
 from __future__ import annotations
@@ -60,10 +62,14 @@ class MemoryMCPServer:
     Provides memory_recall, memory_list, memory_store, and memory_manage
     tools that external agents can invoke via MCP protocol.
 
-    Supports two modes:
+    Supports three modes:
     - Fixed: a single MemoryManager bound at construction.
     - Resolver: a callable that returns the MemoryManager for the current
       request context (e.g. per-token agent scoping via ContextVar).
+    - Request-bound: no manager at construction; the HTTP layer binds one per
+      request with ``set_request_memory_manager``. The server then builds without
+      touching any storage or embedding backend, and ``approval_required`` (which
+      only shapes the ``memory_store`` description) must be stated explicitly.
 
     Usage:
         # Fixed mode
@@ -71,16 +77,24 @@ class MemoryMCPServer:
 
         # Resolver mode (multi-scope)
         mcp_server = MemoryMCPServer(manager, manager_resolver=my_resolver)
+
+        # Request-bound mode
+        mcp_server = MemoryMCPServer(approval_required=False)
     """
 
     def __init__(
         self,
-        memory_manager: MemoryManager,
+        memory_manager: MemoryManager | None = None,
         *,
         server_name: str = "myrm-memory",
         manager_resolver: Callable[[], MemoryManager] | None = None,
+        approval_required: bool | None = None,
         stateless_http: bool = False,
     ) -> None:
+        if approval_required is None:
+            if memory_manager is None:
+                raise ValueError("approval_required must be given when no default memory_manager is bound")
+            approval_required = memory_manager.approval_required
         self._default_manager = memory_manager
         self._manager_resolver = manager_resolver
         self._stateless_http = stateless_http
@@ -90,9 +104,7 @@ class MemoryMCPServer:
         register_store_tool(
             self._mcp,
             self._resolve_manager,
-            description=build_mcp_memory_store_tool_description(
-                approval_required=memory_manager.approval_required,
-            ),
+            description=build_mcp_memory_store_tool_description(approval_required=approval_required),
         )
         register_manage_tool(
             self._mcp,
@@ -107,6 +119,8 @@ class MemoryMCPServer:
             return bound
         if self._manager_resolver is not None:
             return self._manager_resolver()
+        if self._default_manager is None:
+            raise RuntimeError("No MemoryManager is bound to the current MCP request")
         return self._default_manager
 
     @property

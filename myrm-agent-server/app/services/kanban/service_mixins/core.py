@@ -13,6 +13,7 @@ Core singleton state: store, dispatchers, runner, specifier, decomposer referenc
 
 from __future__ import annotations
 
+import asyncio
 from typing import ClassVar
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
@@ -35,6 +36,7 @@ class KanbanServiceCore:
     _runner: TaskRunner | None
     _specifier: TaskSpecifier | None
     _decomposer: TaskDecomposer | None
+    _boot_dispatchers_task: asyncio.Task[None] | None
 
     def __init__(self) -> None:
         self._store = SqlAlchemyKanbanStore()
@@ -42,6 +44,7 @@ class KanbanServiceCore:
         self._runner = None
         self._specifier = None
         self._decomposer = None
+        self._boot_dispatchers_task = None
 
     @property
     def store(self) -> SqlAlchemyKanbanStore:

@@ -21,7 +21,7 @@ from collections.abc import Awaitable, Callable
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask
+from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
 from app.services.batch_directory import BatchDirectoryService
@@ -71,14 +71,19 @@ async def start_dispatcher(
     *,
     rescue_orphans: bool = True,
     dispatch_allowed: Callable[[], Awaitable[bool]] | None = None,
+    board: KanbanBoard | None = None,
 ) -> KanbanDispatcher | None:
     """Start a dispatcher for a board.
 
     ``dispatch_allowed`` is the boot gate: while it returns False the dispatcher leaves READY tasks
     queued instead of claiming and failing them. Callers that start a board at runtime (a user is
     present and can configure a provider) leave it None, so their behaviour is unchanged.
+
+    ``board`` is the row the caller has just read; passing it spares one query per board when
+    hundreds of boards start together.
     """
-    board = await store.get_board(board_id)
+    if board is None:
+        board = await store.get_board(board_id)
     if board is None:
         return None
 

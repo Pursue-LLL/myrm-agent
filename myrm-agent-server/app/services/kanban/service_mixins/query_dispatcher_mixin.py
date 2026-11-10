@@ -16,6 +16,8 @@ Query and dispatcher mixin: board/task reads, event/run history, dispatcher star
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from datetime import datetime
 
@@ -31,6 +33,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 from sqlalchemy.exc import OperationalError
 
+from app.core.infra.background_task import spawn_observed_task
 from app.core.kanban.adapters.sqlalchemy_store import BoardEventRow
 from app.services.kanban.board_summary import build_board_summary
 from app.services.kanban.dispatcher_lifecycle import (
@@ -86,6 +89,10 @@ from app.services.kanban.service_mixins.core import KanbanServiceCore
 from app.services.kanban.service_mixins.types import BoardSummaryData
 
 logger = logging.getLogger(__name__)
+
+# Boards whose dispatchers start between two pauses at boot, and the length of that pause.
+_BOOT_BATCH_SIZE = 25
+_BOOT_BATCH_PAUSE_SECONDS = 0.05
 
 
 class KanbanReadMixin(KanbanServiceCore):
@@ -237,25 +244,32 @@ class KanbanDispatcherMixin(KanbanServiceCore):
             worker_id=worker_id,
         )
 
-    async def start_boot_dispatchers(self, runner: TaskRunner) -> tuple[int, bool]:
-        """Start every board's dispatcher for a server boot, gated on a usable model configuration.
+    def start_boot_dispatchers(self, runner: TaskRunner) -> None:
+        """Start every board's dispatcher for a server boot in the background and return at once.
 
-        Returns ``(started, gated)``. ``gated`` is True when no model is configured: the dispatchers
-        exist but hold their READY tasks, so a boot cannot fail queued work or write a failure row
-        for every task. The stale-RUNNING reset runs once here, which is why each dispatcher then
-        skips its own per-board rescue query.
+        A dispatcher issues its first queries as soon as it exists, so a machine with hundreds of boards
+        would otherwise keep the server from answering until all of them had been through that burst. A
+        board whose dispatcher has not started yet loses nothing: the dispatcher scans for READY tasks
+        when it starts. ``shutdown`` cancels a start that is still going.
+        """
+        self._boot_dispatchers_task = spawn_observed_task(self._start_boot_dispatchers(runner), name="kanban-boot-dispatchers")
 
-        The gate is evaluated here only, when there is at least one board to start; a dispatcher
-        re-checks it on every wake cycle through the memoised `dispatch_allowed`.
+    async def _start_boot_dispatchers(self, runner: TaskRunner) -> None:
+        """Gated on a usable model configuration: while none exists the dispatchers hold their READY tasks,
+        so a boot cannot fail queued work or write a failure row for every task.
+
+        The stale-RUNNING reset ran once before this, which is why each dispatcher skips its own per-board
+        rescue query. The gate is evaluated here only, when there is at least one board to start; a
+        dispatcher re-checks it on every wake cycle through the memoised `dispatch_allowed`.
         """
         from app.services.kanban.dispatch_gate import dispatch_allowed
 
         boards = await self.list_boards()
         if not boards:
-            return 0, False
+            return
         gated = not await dispatch_allowed()
         started = 0
-        for board in boards:
+        for position, board in enumerate(boards, start=1):
             dispatcher = await run_start_dispatcher(
                 self._store,
                 self._dispatchers,
@@ -263,13 +277,26 @@ class KanbanDispatcherMixin(KanbanServiceCore):
                 runner,
                 rescue_orphans=False,
                 dispatch_allowed=dispatch_allowed if gated else None,
+                board=board,
             )
             if dispatcher is not None:
                 started += 1
-        return started, gated
+            if position % _BOOT_BATCH_SIZE == 0:
+                # Lets requests and the rest of the boot in between the batches' first queries.
+                await asyncio.sleep(_BOOT_BATCH_PAUSE_SECONDS)
+        logger.info(
+            "[Startup] Kanban dispatchers started for %d board(s)%s",
+            started,
+            "; their READY tasks wait for a model provider" if gated else "",
+        )
 
     async def stop_dispatcher(self, board_id: str) -> bool:
         return await run_stop_dispatcher(self._dispatchers, board_id)
 
     async def shutdown(self) -> None:
+        boot_start = self._boot_dispatchers_task
+        if boot_start is not None and not boot_start.done():
+            boot_start.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await boot_start
         await shutdown_dispatchers(self._dispatchers)
