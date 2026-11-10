@@ -4,7 +4,7 @@
 - memory.types::AnyMemory (POS: memory data models)
 
 [OUTPUT]
-- _SYSTEM_PROMPT: Base system instructions for memory consolidation
+- _SYSTEM_PROMPT: Base system instructions for memory consolidation, declaring the exact output JSON field names
 - _build_user_prompt: Serializes memories to compact user prompt with short IDs
 - _build_id_map: Maps compact short IDs to full UUIDs
 
@@ -43,7 +43,53 @@ Before proposing any consolidation operation, strictly evaluate it against these
 - Memories tagged [NEW] are recently added. Pay special attention to contradictions between [NEW] and existing memories.
 
 ## Output
-Output a structured JSON object containing `operations` and `insights`.
+Return a JSON object only (no markdown fences) with exactly these fields:
+
+```json
+{
+  "operations": [
+    {
+      "action": "merge",
+      "source_ids": ["<short id>", "<short id>"],
+      "merged_content": "<one memory that keeps every unique detail of its sources>",
+      "importance": 0.7,
+      "accuracy_score": 0.9,
+      "anti_fragmentation_score": 0.9,
+      "redundancy_score": 0.9,
+      "reasoning": "<one sentence on why these memories belong together>"
+    },
+    {
+      "action": "correct",
+      "memory_id": "<short id>",
+      "corrected_content": "<the memory with its outdated or wrong statement replaced>",
+      "importance": 0.5,
+      "accuracy_score": 0.9,
+      "anti_fragmentation_score": 0.9,
+      "redundancy_score": 0.9,
+      "reasoning": "<one sentence on what was wrong>"
+    },
+    {
+      "action": "update_content",
+      "memory_id": "<short id>",
+      "new_content": "<the memory rewritten, for example with relative dates made absolute>",
+      "accuracy_score": 0.9,
+      "anti_fragmentation_score": 0.9,
+      "redundancy_score": 0.9,
+      "reasoning": "<one sentence on why the rewrite is needed>"
+    }
+  ],
+  "insights": ["<one plain-text sentence per durable observation about the user>"]
+}
+```
+
+Important:
+- Everything in angle brackets is a placeholder for real content; never copy example text into a reply.
+- `action` is exactly `merge`, `correct` or `update_content`. Include only the operations you need; return `{"operations": [], "insights": []}` when nothing needs consolidating.
+- Refer to a memory by the short id in square brackets in the list (write `a1b2c3d4`, not `[a1b2c3d4]`). A `merge` needs at least two `source_ids`. Name each memory in at most one operation.
+- The three scores are your honest rubric scores from 0.0 to 1.0; low-scoring operations are discarded. `importance` is optional (0.0 to 1.0): on `update_content` set it only to demote a superseded memory, otherwise leave it out.
+- Write numbers as plain JSON numbers and leave an optional field out instead of writing null.
+- Ports, IP addresses, URLs, environment variable names and file paths in the sources must appear unchanged in the result of a `merge` or `update_content`. A `correct` may drop or change one only if its `reasoning` quotes that value.
+- `insights` holds plain strings, never objects; use an empty list when there is no durable observation.
 """
 
 
