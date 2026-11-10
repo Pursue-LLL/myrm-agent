@@ -61,6 +61,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_no_ghost_registry_metadata.py` | Gate | `tool_registry.py` metadata maps 不得含无 @tool 源的幽灵键 | — |
 | `test_types_reexport.py` | Gate | `backends/skills/types/` `__all__` 聚合 re-export 完整性 | — |
 | `test_validate_arch_inventory.py` | Gate | `_ARCH.md` 文件表 vs 同级 `.py` 一致性（table-only 解析）；含 agent/ 与全 harness subprocess gate、单测与跨仓 server md-refs gate | — |
+| `test_md_ref_validator.py` | Gate | `md_ref_validator.py` 单测：引用提取（显式路径·模块快捷引用·表格行首列目录）、渐退 symbol 剥离、解析顺序（相对路径·跨仓别名·包根·tests 镜像）、源码根发现、整树扫描的跳过规则（`prebuilt_skills/`·隐藏目录·白名单文档·本地台账 `*_BUGFIX_LOG.md`）、server 快捷引用 | — |
 | `test_md_ref_inline_links.py` | Gate | md 反引号 span 与内联链接统一解析回归（链接提取·anchor 剥离、裸文件名链接、`{placeholder}` 符号行跳过、导入规格表首列源文件锚定、TS/JS 扩展名探测、拒绝截断父级标记、非 UTF-8 跳过） | — |
 | `test_readme_claims.py` | Gate | README 声明与实际代码/性能基准一致性校验 | — |
 | `test_md_python_imports.py` | Gate | tracked md 的 python 围栏只解析不执行，其中 `myrm_agent_harness` 的 import 经 `scripts/import_resolvability_engine` 静态解析（模块与名称须存在）；含 harness import 却无法解析的围栏同样判错；自带缺失模块/缺失名称/不可解析围栏的检测器自证，防退化为 no-op；只校验 import，不校验调用签名 | — |

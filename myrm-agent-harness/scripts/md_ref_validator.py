@@ -27,7 +27,7 @@ file like ``assets/ad_domains.txt`` or ``docker/Dockerfile.official`` resolves
 before any stripping is attempted. Non-path spans (IP ranges, API routes,
 timezones, env vars, globs) are skipped. Docs whose refs carry planning
 semantics (e.g. competitor benchmark tables) are exempted via
-``_MD_REF_SKIP_FILES``.
+``_MD_REF_SKIP_FILES``; local bug ledgers (``*_BUGFIX_LOG.md``) are skipped by name.
 """
 
 from __future__ import annotations
@@ -85,6 +85,9 @@ _SUBREPO_ALIASES = {
 }
 # Directories whose .md are runtime/packaging artifacts, not source refs.
 _MD_SKIP_DIR_NAMES = frozenset({"prebuilt_skills"})
+# Local-only bug ledgers (``<module>_<start>_<end>_BUGFIX_LOG.md``, ignored by git) record code as it was
+# when each entry was written, so their path refs are not assertions about the current tree.
+_LOCAL_LEDGER_SUFFIX = "_BUGFIX_LOG.md"
 # Docs whose backtick refs carry planning/benchmark semantics (competitor
 # comparison tables, candidate-placement verdicts) rather than assertions about
 # existing files.
@@ -363,7 +366,7 @@ def scan_md_refs(root: Path, monorepo_root: Path, repo_root: Path) -> list[MdRef
     for md in sorted(root.rglob("*.md")):
         if any(part in PRUNE_DIR_NAMES for part in md.parts):
             continue
-        if _MD_SKIP_DIR_NAMES.intersection(md.parts):
+        if _MD_SKIP_DIR_NAMES.intersection(md.parts) or md.name.endswith(_LOCAL_LEDGER_SUFFIX):
             continue
         try:
             rel = md.relative_to(repo_root).as_posix()
