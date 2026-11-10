@@ -1130,7 +1130,6 @@
       "externalCliLocalOnlyHint": "External CLI delegation requires local or desktop mode. Cloud and sandbox hosts cannot start local CLI processes.",
       "externalCliNoBackendHint": "No CLI backend is configured yet. Add one in Settings before this agent can delegate to an external CLI.",
       "externalCliUnavailableHint": "The configured CLI is not available on PATH. Install it, or point the command to its full path in Settings.",
-      "externalCliSaveBlocked": "Configure an external CLI backend in Settings before enabling this switch.",
       "externalCliPermissionHint": "External CLI runs local agent processes that may use broad permissions. Use only on devices you trust.",
       "externalCliOpenSettings": "Configure External Agents in Settings",
       "kanbanBoardHint": "Tasks from chat go to the selected board below.",

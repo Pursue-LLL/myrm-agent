@@ -1130,7 +1130,6 @@
       "externalCliLocalOnlyHint": "外部 CLI 委派需要本地或桌面模式；雲端/沙箱環境無法啟動本地 CLI 程序。",
       "externalCliNoBackendHint": "尚未配置 CLI 後端。請先在設定中新增，否則無法啟用外部 CLI 委派。",
       "externalCliUnavailableHint": "已設定的命令列程式不在 PATH 中，無法呼叫。請安裝它，或在設定中將命令改為完整路徑。",
-      "externalCliSaveBlocked": "請先在設定中配置外部 CLI 後端，再開啟此開關。",
       "externalCliPermissionHint": "外部 CLI 會在本機啟動 Agent 程序，可能擁有較高許可權。請僅在您信任的裝置上使用。",
       "externalCliOpenSettings": "前往設定配置外部 Agent",
       "kanbanBoardHint": "聊天中的任務會寫入下方所選看板。",

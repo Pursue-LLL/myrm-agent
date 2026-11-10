@@ -1130,7 +1130,6 @@
       "externalCliLocalOnlyHint": "Externe CLI-Delegation erfordert lokalen oder Desktop-Modus. Cloud- und Sandbox-Hosts können keine lokalen CLI-Prozesse starten.",
       "externalCliNoBackendHint": "Noch kein CLI-Backend konfiguriert. Bitte zuerst in den Einstellungen hinzufügen.",
       "externalCliUnavailableHint": "Das konfigurierte CLI ist nicht im PATH verfügbar. Installiere es oder gib in den Einstellungen den vollständigen Pfad an.",
-      "externalCliSaveBlocked": "Bitte zuerst ein externes CLI-Backend in den Einstellungen konfigurieren.",
       "externalCliPermissionHint": "Externe CLI startet lokale Agent-Prozesse mit ggf. weitreichenden Berechtigungen. Nur auf vertrauenswürdigen Geräten nutzen.",
       "externalCliOpenSettings": "Externe Agenten in den Einstellungen konfigurieren",
       "kanbanBoardHint": "Chat tasks are written to the board selected below.",

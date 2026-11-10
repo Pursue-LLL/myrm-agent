@@ -18,6 +18,7 @@ import type AgentConfigCards from '../AgentConfigCards';
 import type { ConfigCardType } from '../AgentConfigCards';
 import type AgentConfigEditDialog from '../AgentConfigEditDialog';
 import type TypewriterWelcome from '../TypewriterWelcome';
+import { mcp, skill } from './editDialogKit';
 
 type CardsProps = ComponentProps<typeof AgentConfigCards>;
 type DialogProps = ComponentProps<typeof AgentConfigEditDialog>;
@@ -235,8 +236,8 @@ describe('AgentConfigPanel: shell', () => {
 
 describe('AgentConfigPanel: edit dialog', () => {
   it('receives the configuration of the conversation and the hook actions', async () => {
-    const enabledSkills: Skill[] = [];
-    const enabledMcps: MCPServiceConfig[] = [];
+    const enabledSkills = [skill('s1')];
+    const enabledMcps = [mcp('m1')];
     show({
       editDialogOpen: true,
       editDialogType: 'instruction',
@@ -252,6 +253,7 @@ describe('AgentConfigPanel: edit dialog', () => {
         useGlobalInstruction: false,
         browserSource: 'extension',
         dialogPolicy: 'auto_dismiss',
+        sessionRecording: 'always',
         autoRestoreDomains: ['example.com'],
         ephemeralSubagents: { writer: {} },
       }),
@@ -272,6 +274,7 @@ describe('AgentConfigPanel: edit dialog', () => {
       enabledBuiltinTools: ['browser'],
       browserSource: 'extension',
       dialogPolicy: 'auto_dismiss',
+      sessionRecording: 'always',
       autoRestoreDomains: ['example.com'],
       ephemeralSubagents: { writer: {} },
       onOpenChange: mocks.setEditDialogOpen,
@@ -280,25 +283,26 @@ describe('AgentConfigPanel: edit dialog', () => {
     });
   });
 
-  it('receives empty defaults without a configuration, with one shared list for the restore domains', async () => {
-    const { rerender } = show({ agentConfig: null });
+  it('passes no settings without a configuration, leaving the defaults to the dialog', async () => {
+    show({ agentConfig: null, currentBuiltinTools: ['browser'] });
     await screen.findByTestId('edit-dialog');
-    const firstDomains = mocks.dialogProps?.autoRestoreDomains;
 
-    expect(mocks.dialogProps).toMatchObject({
-      selectedSkillIds: [],
-      skillConfigs: {},
-      selectedMcpNames: [],
-      systemPrompt: '',
-      useGlobalInstruction: true,
-      ephemeralSubagents: {},
-      autoRestoreDomains: [],
-    });
-
-    mocks.dialogProps = undefined;
-    refresh(rerender, { agentConfig: null });
-    const latestDialogProps = (): DialogProps | undefined => mocks.dialogProps;
-    expect(latestDialogProps()?.autoRestoreDomains).toBe(firstDomains);
+    expect(mocks.dialogProps).toMatchObject({ open: false, type: 'skills', enabledBuiltinTools: ['browser'] });
+    for (const setting of [
+      'selectedSkillIds',
+      'skillConfigs',
+      'selectedMcpNames',
+      'mcpToolSelections',
+      'systemPrompt',
+      'useGlobalInstruction',
+      'browserSource',
+      'dialogPolicy',
+      'sessionRecording',
+      'autoRestoreDomains',
+      'ephemeralSubagents',
+    ] as const) {
+      expect(mocks.dialogProps?.[setting], setting).toBeUndefined();
+    }
   });
 });
 

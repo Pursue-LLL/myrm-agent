@@ -1130,7 +1130,6 @@
       "externalCliLocalOnlyHint": "外部 CLI 委任にはローカルまたはデスクトップモードが必須です。クラウド/サンドボックスではローカル CLI を起動できません。",
       "externalCliNoBackendHint": "CLI バックエンドが未設定です。設定で追加してから有効にしてください。",
       "externalCliUnavailableHint": "設定された CLI が PATH に見つかりません。インストールするか、設定でコマンドをフルパスに変更してください。",
-      "externalCliSaveBlocked": "このスイッチをオンにする前に、設定で外部 CLI バックエンドを構成してください。",
       "externalCliPermissionHint": "外部 CLI はローカルで Agent プロセスを起動し、広い権限を使う場合があります。信頼できるデバイスでのみ使用してください。",
       "externalCliOpenSettings": "設定で外部 Agent を構成",
       "kanbanBoardHint": "チャットのタスクは下の選択したカンバンに入ります。",
