@@ -40,7 +40,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
-import { useProgressionStore } from '@/store/useProgressionStore';
 import type { ActionMode } from '@/store/chat/types';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -95,16 +94,6 @@ const PROMPT_ICONS: Record<string, LucideIcon> = {
   time_night_3: PenTool,
 };
 
-const PROMPT_LEVEL_AFFINITY: Record<string, number> = {
-  agent_0: 2,
-  agent_3: 3,
-  agent_5: 2,
-  agent_6: 4,
-  agent_9: 2,
-  agent_10: 3,
-  agent_11: 4,
-};
-
 const SUPPORTED_MODES: ActionMode[] = ['fast', 'agent'];
 
 function getCurrentTimeSlot(): TimeSlot {
@@ -146,7 +135,6 @@ const SamplePrompts = React.memo(() => {
   const actionMode = useChatStore((state) => state.actionMode);
   const setInputMessage = useChatStore((state) => state.setInputMessage);
   const agentConfig = useChatStore((state) => state.agentConfig);
-  const currentLevel = useProgressionStore((state) => state.currentLevel);
 
   const [currentTimeSlot, setCurrentTimeSlot] = useState<TimeSlot>('morning');
   const [selectedSlot, setSelectedSlot] = useState<ActiveFilter>('auto');
@@ -163,7 +151,7 @@ const SamplePrompts = React.memo(() => {
   const mode = SUPPORTED_MODES.includes(actionMode) ? actionMode : 'agent';
 
   const prompts = useMemo(() => {
-    const pickSeed = `${mode}:${agentConfig?.agentId ?? agentConfig?.presetId ?? 'default'}:${effectiveSlot}:L${currentLevel}`;
+    const pickSeed = `${mode}:${agentConfig?.agentId ?? agentConfig?.presetId ?? 'default'}:${effectiveSlot}`;
 
     if (agentConfig?.suggestionPrompts && agentConfig.suggestionPrompts.length > 0) {
       const agentPrompts = agentConfig.suggestionPrompts.map((text, i) => ({
@@ -203,26 +191,8 @@ const SamplePrompts = React.memo(() => {
       });
     }
 
-    if (currentLevel >= 3 && mode === 'agent') {
-      pool.sort((a, b) => {
-        const aAffinity = PROMPT_LEVEL_AFFINITY[a.key] ?? 1;
-        const bAffinity = PROMPT_LEVEL_AFFINITY[b.key] ?? 1;
-        const aMatch = aAffinity <= currentLevel ? 1 : 0;
-        const bMatch = bAffinity <= currentLevel ? 1 : 0;
-        return bMatch - aMatch;
-      });
-    }
-
     return stablePick(pool, DISPLAY_COUNT, pickSeed);
-  }, [
-    mode,
-    t,
-    agentConfig?.agentId,
-    agentConfig?.presetId,
-    agentConfig?.suggestionPrompts,
-    currentLevel,
-    effectiveSlot,
-  ]);
+  }, [mode, t, agentConfig?.agentId, agentConfig?.presetId, agentConfig?.suggestionPrompts, effectiveSlot]);
 
   const handleSelectSlot = useCallback((slot: ActiveFilter) => {
     setSelectedSlot(slot);

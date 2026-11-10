@@ -21,6 +21,28 @@ import { useMemoryAbEval } from './hooks/useMemoryAbEval';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { getGolden5PackJson } from './constants/golden5PackTemplate';
 
+async function loadDatasets(): Promise<EvalDataset[] | null> {
+  try {
+    const res = await fetch('/api/v1/eval/datasets');
+    const data = (await res.json()) as { status?: string; datasets?: EvalDataset[] };
+    return data.status === 'success' && data.datasets ? data.datasets : null;
+  } catch (e) {
+    console.error('Failed to fetch datasets:', e);
+    return null;
+  }
+}
+
+async function loadProfiles(locale: string): Promise<EvalProfile[] | null> {
+  try {
+    const { listAllAgents } = await import('@/services/agent');
+    const agents = await listAllAgents();
+    return agents.map((item) => ({ agent_id: item.id, name: getBuiltinAgentName(item.id, item.name, locale) }));
+  } catch (e) {
+    console.error('Failed to fetch profiles', e);
+    return null;
+  }
+}
+
 export default function EvalLabDashboard() {
   const locale = useLocale();
   const t = useTranslations('evalLab');
@@ -43,33 +65,25 @@ export default function EvalLabDashboard() {
   const anyBusy = casesEval.running || matrixEval.matrixRunning || memoryAbEval.memoryAbRunning;
   const loading = !(globalReady && casesEval.ready && matrixEval.ready && memoryAbEval.ready);
 
-  const fetchDatasets = useCallback(async () => {
-    try {
-      const res = await fetch('/api/v1/eval/datasets');
-      const data = (await res.json()) as { status?: string; datasets?: EvalDataset[] };
-      if (data.status === 'success' && data.datasets) {
-        setDatasets(data.datasets);
-      }
-    } catch (e) {
-      console.error('Failed to fetch datasets:', e);
+  const refreshDatasets = useCallback(async () => {
+    const loaded = await loadDatasets();
+    if (loaded) {
+      setDatasets(loaded);
     }
   }, []);
 
-  const fetchProfiles = useCallback(async () => {
-    try {
-      const { listAgents } = await import('@/services/agent');
-      const res = await listAgents(1, 200);
-      setProfiles(
-        res.items.map((item) => ({ agent_id: item.id, name: getBuiltinAgentName(item.id, item.name, locale) })),
-      );
-    } catch (e) {
-      console.error('Failed to fetch profiles', e);
-    }
-  }, [locale]);
-
   useEffect(() => {
-    Promise.all([fetchDatasets(), fetchProfiles()]).finally(() => setGlobalReady(true));
-  }, [fetchDatasets, fetchProfiles]);
+    Promise.all([loadDatasets(), loadProfiles(locale)])
+      .then(([loadedDatasets, loadedProfiles]) => {
+        if (loadedDatasets) {
+          setDatasets(loadedDatasets);
+        }
+        if (loadedProfiles) {
+          setProfiles(loadedProfiles);
+        }
+      })
+      .finally(() => setGlobalReady(true));
+  }, [locale]);
 
   const armNames = useMemo(
     () => ({
@@ -162,7 +176,7 @@ export default function EvalLabDashboard() {
       });
       if (res.ok) {
         toast.success(t('datasetCreated'));
-        await fetchDatasets();
+        await refreshDatasets();
         setSelectedDatasetId(name);
         setNewDatasetName('new_dataset');
       } else {

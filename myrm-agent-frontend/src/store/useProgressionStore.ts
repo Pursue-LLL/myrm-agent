@@ -2,7 +2,7 @@
  * [INPUT] /api/v1/progression
  * [OUTPUT] useProgressionStore: user capability progression state
  * [POS] Manages the user's current level and milestone completion status.
- *       Consumed by SamplePrompts for level-aware prompt selection.
+ *       Loaded by AppLayout on start; lib/progression/tryMarkMilestone reads it to detect level-ups.
  */
 
 import { create } from 'zustand';

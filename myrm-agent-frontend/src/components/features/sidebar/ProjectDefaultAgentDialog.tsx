@@ -38,15 +38,25 @@ export function ProjectDefaultAgentDialog({ open, onOpenChange, project }: Proje
   const { toast } = useToast();
   const { agents, fetchAgents, loading: agentsLoading } = useAgentStore();
   const { updateProject } = useProjectStore();
-  const [selectedId, setSelectedId] = useState<string | null>(project.defaultAgentId ?? null);
   const [saving, setSaving] = useState(false);
+
+  // Until the user picks, the saved default shows (`undefined` = no pick yet); a pick lasts for one opening of the dialog.
+  const [pickedId, setPickedId] = useState<string | null | undefined>(undefined);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setPickedId(undefined);
+    }
+  }
+  const savedId = project.defaultAgentId ?? null;
+  const selectedId = pickedId === undefined ? savedId : pickedId;
 
   useEffect(() => {
     if (open) {
-      setSelectedId(project.defaultAgentId ?? null);
       fetchAgents(true);
     }
-  }, [open, project.defaultAgentId, fetchAgents]);
+  }, [open, fetchAgents]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -64,7 +74,7 @@ export function ProjectDefaultAgentDialog({ open, onOpenChange, project }: Proje
     }
   };
 
-  const hasChanged = selectedId !== (project.defaultAgentId ?? null);
+  const hasChanged = selectedId !== savedId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -87,7 +97,7 @@ export function ProjectDefaultAgentDialog({ open, onOpenChange, project }: Proje
                   'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors text-left',
                   selectedId === null ? 'bg-accent text-accent-foreground' : 'hover:bg-black/5 dark:hover:bg-white/5',
                 )}
-                onClick={() => setSelectedId(null)}
+                onClick={() => setPickedId(null)}
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
                   <X size={14} className="text-muted-foreground" />
@@ -105,7 +115,7 @@ export function ProjectDefaultAgentDialog({ open, onOpenChange, project }: Proje
                       ? 'bg-accent text-accent-foreground'
                       : 'hover:bg-black/5 dark:hover:bg-white/5',
                   )}
-                  onClick={() => setSelectedId(agent.id)}
+                  onClick={() => setPickedId(agent.id)}
                 >
                   <AgentAvatar url={agent.avatar_url} name={agent.name} agentId={agent.id} className="h-7 w-7" />
                   <div className="flex flex-col min-w-0 flex-1">
