@@ -50,7 +50,6 @@ def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
         helpers,
         jobs_router,
         prerequisite_router,
-        push_messages_router,
         runs_router,
         scheduler_health_router,
         stats_router,
@@ -65,7 +64,6 @@ def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
     test_app.include_router(scheduler_health_router, prefix="/cron")
     test_app.include_router(triggers_router, prefix="/cron")
     test_app.include_router(stats_router, prefix="/cron")
-    test_app.include_router(push_messages_router, prefix="/cron")
     test_app.include_router(runs_router, prefix="/cron")
     test_app.include_router(actions_router, prefix="/cron")
     test_app.include_router(jobs_router, prefix="/cron")

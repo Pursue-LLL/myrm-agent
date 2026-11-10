@@ -3,7 +3,7 @@
 Validates:
 1. Realtime & Gemini Live function declarations include reminder tools.
 2. Direct execution via BACKGROUND_TOOL_HANDLERS creates/cancels/lists JobType.REMINDER cron jobs.
-3. Push notification emits voice_background_task_done for duplex voice announce.
+3. A run notice publishes voice_background_task_done for duplex voice announce.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.cron import CronNotice, CronNoticeKind
 from myrm_agent_harness.toolkits.cron.manager import CronManager
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, Schedule, ScheduleKind
@@ -21,7 +22,7 @@ from app.api.voice.realtime import RealtimeToolExecRequest
 from app.api.voice.realtime_background import BACKGROUND_TOOL_HANDLERS
 from app.api.voice.tool_catalog import build_realtime_tools
 from app.api.voice.voice_memory_context import VoiceMemoryContext
-from app.core.cron.push_store import PushLevel, push
+from app.core.cron.notifier import publish_cron_notice
 
 
 @pytest.mark.asyncio
@@ -132,27 +133,28 @@ async def test_cancel_and_list_reminders():
 
 
 @pytest.mark.asyncio
-async def test_cron_push_triggers_system_notification_with_voice_bg_done():
-    """Test push store emits SYSTEM_NOTIFICATION with kind=voice_background_task_done."""
+async def test_cron_run_notice_triggers_system_notification_with_voice_bg_done():
+    """A run notice publishes SYSTEM_NOTIFICATION with kind=voice_background_task_done."""
     from app.services.event.app_event_bus import AppEventType, get_event_bus
 
     bus = get_event_bus()
     q = bus.subscribe()
 
     try:
-        await push(
-            user_id="default",
-            job_name="Voice Reminder: Drink Water",
-            text="[Voice Reminder: Drink Water] Drink water now",
-            level=PushLevel.SUCCESS,
-            chat_id="chat-voice-777",
+        await publish_cron_notice(
+            CronNotice(
+                kind=CronNoticeKind.RUN_SUCCEEDED,
+                job_name="Voice Reminder: Drink Water",
+                text="[Voice Reminder: Drink Water] Drink water now",
+                chat_id="chat-voice-777",
+            )
         )
 
         events = []
         while not q.empty():
             events.append(q.get_nowait())
 
-        # The bus is process-global: keep only this push's notification, other tests may publish concurrently.
+        # The bus is process-global: keep only this notice's notification, other tests may publish concurrently.
         cron_events = [e for e in events if e.event_type == AppEventType.CRON_UPDATED]
         sys_events = [
             e

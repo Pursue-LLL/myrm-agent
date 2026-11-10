@@ -32,6 +32,7 @@ Provides:
 - CronScheduler, CronManager: core scheduling components
 - Heartbeat utilities: enable_heartbeat, disable_heartbeat, get_heartbeat_status, etc.
 - Protocols: CronStore, JobRunner, ResultDelivery, ConcurrencyLock, TriggerProvider, StreamListener
+- Notices: CronNotice, CronNoticeKind, CronNoticeCallback
 - Built-in implementations: ShellJobRunner, InMemoryCronStore, WebhookDelivery
 - Triggers: EventTrigger, SystemEventTrigger, WebhookTrigger, PollTrigger, StreamTrigger, TriggerConfig
 - Situation Report: SituationSection, SituationReportBuilder, SituationContext
@@ -72,6 +73,7 @@ from myrm_agent_harness.toolkits.cron.heartbeat import (
 from myrm_agent_harness.toolkits.cron.manager import CronManager
 from myrm_agent_harness.toolkits.cron.protocols import (
     ConcurrencyLock,
+    CronNoticeCallback,
     CronStore,
     JobRunner,
     ResultDelivery,
@@ -107,6 +109,8 @@ from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
     CronJob,
     CronJobPatch,
+    CronNotice,
+    CronNoticeKind,
     CronRunRecord,
     DeliveryConfig,
     DeliveryStatus,
@@ -136,6 +140,9 @@ __all__ = [
     "CronJob",
     "CronJobPatch",
     "CronManager",
+    "CronNotice",
+    "CronNoticeCallback",
+    "CronNoticeKind",
     "CronRunRecord",
     "CronScheduler",
     "CronStore",

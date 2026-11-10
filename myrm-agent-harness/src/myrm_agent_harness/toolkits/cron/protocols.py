@@ -10,8 +10,13 @@ Seven contracts that the application layer must satisfy:
 - ``TriggerProvider``  — optional event/webhook/poll trigger matching
 - ``StreamListener``   — optional outbound stream (WS/SSE) lifecycle management
 
+and one callback it may provide:
+
+- ``CronNoticeCallback`` — optional sink for the notices the engine raises about a job
+
 [INPUT]
 - infra.incremental.types::MonitorState (POS: Domain types for incremental monitoring.)
+- cron.types::CronNotice (POS: one user-facing fact about a job)
 
 [OUTPUT]
 - CronStore: Persistence contract for cron jobs and run records.
@@ -22,6 +27,7 @@ Seven contracts that the application layer must satisfy:
 - ConcurrencyLock: Optional lock for leader election or cross-process coordi...
 - TriggerProvider: Optional trigger provider for event-driven job execution.
 - StreamListener: Manages outbound WS/SSE stream connections for real-time ...
+- CronNoticeCallback: Async callback receiving each notice the engine raises about a job.
 
 [POS]
 Protocols for the cron toolkit.
@@ -32,6 +38,8 @@ from __future__ import annotations
 from collections.abc import Callable, Coroutine
 from datetime import datetime
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+from myrm_agent_harness.toolkits.cron.types import CronNotice
 
 if TYPE_CHECKING:
     from myrm_agent_harness.infra.incremental.types import MonitorState
@@ -405,3 +413,15 @@ class StreamListener(Protocol):
         Used by the frontend status indicator and health checks.
         """
         ...
+
+
+# ---------------------------------------------------------------------------
+# CronNoticeCallback — what the engine tells the user about a job
+# ---------------------------------------------------------------------------
+
+CronNoticeCallback = Callable[[CronNotice], Coroutine[None, None, None]]
+"""Async callback ``(notice) -> None`` receiving each ``CronNotice`` the engine raises.
+
+The application layer wires it to its notification channel. A callback that raises is
+logged and never fails the run or the scheduler tick.
+"""

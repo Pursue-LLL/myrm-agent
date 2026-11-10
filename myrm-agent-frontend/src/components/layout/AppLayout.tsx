@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import useAuthStore from '@/store/useAuthStore';
@@ -33,10 +33,6 @@ import { useProgressionStore } from '@/store/useProgressionStore';
 import { useWuBalanceWatcher } from '@/hooks/billing/useWuBalanceWatcher';
 import { useExtensionWebUiOriginSeed } from '@/hooks/extension/useExtensionWebUiOriginSeed';
 import E2ECompanionBridge from '@/components/dev/E2ECompanionBridge';
-
-const CronPushPoller = lazy(() =>
-  import('@/components/features/cron/CronPushPoller').then((mod) => ({ default: mod.default })),
-);
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -193,9 +189,6 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
         </div>
       </main>
 
-      <Suspense fallback={null}>
-        <CronPushPoller />
-      </Suspense>
       <BudgetExceededDialog />
       <UpgradeNudgeDialog />
       <E2ECompanionBridge />

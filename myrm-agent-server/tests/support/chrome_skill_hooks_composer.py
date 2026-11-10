@@ -216,7 +216,7 @@ _SEND_DIAGNOSTICS_JS = """(() => {
     sseTail: (window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? []).slice(-40),
     // Without the pollers, the send's own requests are still in the tail after a minute of waiting.
     requests: (window.__MYRM_SEND_TRACE__ ?? [])
-      .filter((entry) => !entry.url || !/health\\/liveness|_rsc=|browser\\/spaces|dev-ports|loop\\/status|cron\\/push-messages|\\/tasks\\?/.test(entry.url))
+      .filter((entry) => !entry.url || !/health\\/liveness|_rsc=|browser\\/spaces|dev-ports|loop\\/status|\\/tasks\\?/.test(entry.url))
       .slice(-40),
     composerChanges: (window.__MYRM_INPUT_CHANGES__ ?? []).slice(-12),
   };

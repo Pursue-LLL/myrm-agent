@@ -39,7 +39,6 @@ app/api/context/router.py
 app/api/credentials/router.py
 app/api/cron/routes/__init__.py
 app/api/cron/routes/helpers.py
-app/api/cron/routes/push_messages.py
 app/api/events/notifications.py
 app/api/features/router.py
 app/api/files/__init__.py
@@ -114,7 +113,6 @@ app/core/cron/adapters/setup.py
 app/core/cron/adapters/sqlalchemy_aggregation.py
 app/core/cron/adapters/sqlalchemy_mapping.py
 app/core/cron/adapters/sqlalchemy_store.py
-app/core/cron/push_store.py
 app/core/errors/llm_errors.py
 app/core/infra/cors_validator.py
 app/core/infra/frontend_launcher.py
