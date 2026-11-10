@@ -2,6 +2,7 @@
 - .startup / .shutdown (POS: lifespan phases)
 - .background::schedule_background_work (POS: starts the boot's background tasks once uvicorn accepts connections)
 - app.lifecycle (POS: channel gateway, cron and remote backup schedulers, kanban dispatch preparation)
+- app.startup.desktop_path::hydrate_desktop_path (POS: recovers the login-shell PATH for a GUI-launched desktop sidecar)
 
 [OUTPUT]
 - optimized_lifespan
@@ -39,19 +40,36 @@ from .state import logger
 async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     """Application lifecycle manager with startup performance optimization.
 
-    Startup phases (optimized for minimal HTTP latency):
-        Phase 1a (Critical - Sequential):  Pending Instance Swap → Database → Feature Flags → Config Migration →
-                                            Provider Credentials → TLS / Privacy / Control Plane SSRF Policy
-        Phase 1b (Critical - Parallel):    Code Exec Config ‖ Checkpointer ‖ State Manager ‖ Allowlist Store ‖
-                                            Workspace Trust Store ‖ Permission Logger ‖ Context Cleanup ‖
-                                            Idle Handlers ‖ Prebuilt Skills ‖ Built-in Agents ‖ Harness Bridge ‖
-                                            Security Reviewer ‖ Vault Credentials ‖ Wiki Vault
-        Phase 2  (Essential - Parallel):   Channel Gateway ‖ Cron Scheduler ‖ Remote Backup Scheduler ‖
-                                            Kanban Dispatch Preparation (boot recovery, runner wiring)
-        Phase 3  (Background - Async):     Warmup (Schedulers ‖ Browser Pool ‖ Batch Recovery ‖ Tokenizer ‖
-                                            Risk Rules ‖ Vector Cache) ‖ Orphaned Goals ‖ Kanban Dispatchers ‖
-                                            @startup Events ‖ Trunk Templates ‖ Agent Tool Layers
-                                            (started once the socket is bound; see ``background``)
+    Everything before the ``yield`` delays the socket bind (uvicorn binds after the lifespan startup returns), so
+    slow work stays off this path.
+
+    Startup:
+        Prelude:                           Desktop PATH completion (login-shell probe on a worker thread, awaited
+                                            before phase 1b) → TLS compatibility → sandbox validation (when the
+                                            deployment runs it) → Python environment reset
+        Phase 1a (Critical - Sequential):  Persistent Root (local dev) → Pending Instance Swap →
+                                            Database (with rescue) → Compression Streak Store → SaaS Provider Seed →
+                                            DB Pool Metrics → Feature Flags → Config Migration →
+                                            Provider Key Consolidation → Retired Provider OAuth Purge →
+                                            Subscription Token Refresher → TLS Config → Privacy Policy →
+                                            Control Plane SSRF Policy
+        Phase 1b (Critical - Parallel):    Managed Approval Policy (synchronous), then Code Exec Config ‖
+                                            Checkpointer ‖ State Manager ‖ Allowlist Store ‖ Workspace Trust Store ‖
+                                            Permission Logger ‖ Context Cleanup ‖ Idle Handlers ‖ Prebuilt Skills ‖
+                                            Built-in Agents ‖ Harness Bridge ‖ Security Reviewer ‖ Vault Credentials ‖
+                                            Wiki Vault
+        Phase 1.5 (Observability):         Monitoring → orphan eval workspace sweep → expired migration upload sweep
+        Phase 2  (Essential):              Lifecycle Outbound Webhook → Maintenance Daemon (spillover and
+                                            channel-image sweeps queued) → Channel Gateway ‖ Cron Scheduler ‖
+                                            Remote Backup Scheduler ‖ Kanban Dispatch Preparation (boot recovery,
+                                            runner wiring)
+        Then, in order:                    Channel Routes → MCP Memory Endpoint → Memory Extract Retry Worker →
+                                            Branch Watcher → Unattended Curtain Watcher → Usage-Limit Wake Daemon →
+                                            Wake Schedule Reporter → Channel Budget Guards
+        Phase 3  (Background - Async):     Warmup (schedulers, browser pool, batch recovery, tokenizer, risk rules,
+                                            vector cache and more; see ``warmup``) ‖ Orphaned Goals ‖
+                                            Kanban Dispatchers ‖ @startup Events ‖ Trunk Templates ‖
+                                            Agent Tool Layers (started once the socket is bound; see ``background``)
 
     Shutdown (see ``shutdown``):
         1. Cancel the delayed background start; stop the curtain watcher and the wake daemons
