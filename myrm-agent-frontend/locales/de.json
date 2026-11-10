@@ -11353,7 +11353,7 @@
     "sessionB": "Sitzung B ({title})",
     "none": "keine",
     "summary": "{calls} Aufrufe | {tokens} Tokens",
-    "prompt": "Prompt: {text}",
+    "prompt": "Eingabeaufforderung: {text}",
     "tokensShort": "{count} Tokens",
     "loading": "Trajektorie wird geladen...",
     "loadFailed": "Die Trajektorie dieser Sitzung konnte nicht geladen werden.",
