@@ -9888,6 +9888,7 @@
     "budgetExceeded": "Tagesbudget überschritten",
     "budgetWarning": "Das tägliche Budgetlimit nähert sich",
     "ecoModeActive": "Eco-Modus: Kontext komprimieren, um Token zu sparen",
+    "budgetCostSummary": "Sitzung ${session} / Heute ${today}",
     "kanbanTaskCompleted": "Kanban-Aufgabe abgeschlossen",
     "kanbanTaskBlocked": "Kanban-Aufgabe blockiert",
     "kanbanTaskFailed": "Die Kanban-Aufgabe ist fehlgeschlagen",

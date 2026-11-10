@@ -9888,6 +9888,7 @@
     "budgetExceeded": "Daily budget exceeded",
     "budgetWarning": "Approaching daily budget limit",
     "ecoModeActive": "Eco mode: compressing context to save tokens",
+    "budgetCostSummary": "Session ${session} / Today ${today}",
     "kanbanTaskCompleted": "Kanban task completed",
     "kanbanTaskBlocked": "Kanban task blocked",
     "kanbanTaskFailed": "Kanban task failed",

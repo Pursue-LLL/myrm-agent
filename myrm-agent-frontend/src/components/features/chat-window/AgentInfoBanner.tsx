@@ -14,7 +14,6 @@ import { buildAgentConfig } from '@/lib/utils/agent-config';
 import useAgentStore from '@/store/useAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 interface AgentInfoBannerProps {
   agentId: string;
@@ -26,7 +25,6 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
   const locale = useLocale();
   const t = useTranslations('agent.configPanel');
   const [agent, setAgent] = useState<Agent | null>(null);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [switchOpen, setSwitchOpen] = useState(false);
   const agents = useAgentStore((s) => s.agents);
   const fetchAgents = useAgentStore((s) => s.fetchAgents);
@@ -43,10 +41,6 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
       } catch {
         if (!stale) {
           setAgent(null);
-        }
-      } finally {
-        if (!stale) {
-          setInitialLoading(false);
         }
       }
     };
@@ -85,7 +79,7 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
     [agentId, locale, t],
   );
 
-  if (initialLoading || !agent) {
+  if (!agent) {
     return null;
   }
 
@@ -115,22 +109,20 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
         <PopoverContent className="w-[240px] p-1" align="end">
           <div className="flex flex-col max-h-[300px] overflow-y-auto">
             {agents.map((item) => (
-              <div
+              <button
                 key={item.id}
+                type="button"
                 className={cn(
-                  'relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm',
+                  'relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm',
                   'hover:bg-accent hover:text-accent-foreground',
                   item.id === agentId ? 'bg-accent/50' : '',
                 )}
                 onClick={() => handleSwitchAgent(item.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={activateOnKey}
               >
                 <AgentAvatar url={item.avatar_url} name={item.name} agentId={item.id} size="sm" className="h-6 w-6" />
                 <span className="flex-1 truncate">{getBuiltinAgentName(item.id, item.name, locale)}</span>
                 {item.id === agentId && <Check className="h-4 w-4 shrink-0 text-primary" />}
-              </div>
+              </button>
             ))}
           </div>
         </PopoverContent>

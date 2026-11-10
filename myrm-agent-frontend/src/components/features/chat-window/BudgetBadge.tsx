@@ -13,7 +13,7 @@
  * Only visible when budget control is enabled.
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconCreditCard, IconShield } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -30,14 +30,20 @@ const ECO_ACTIVE_STATUSES = new Set(['warning', 'finalization', 'exceeded']);
 
 const BudgetBadge = memo(() => {
   const [status, setStatus] = useState<BudgetStatus | null>(null);
+  const latestRead = useRef(0);
   const t = useTranslations('notifications');
 
+  // Budget events can arrive faster than the server answers; only the newest read may decide what is shown.
   const refresh = useCallback(async () => {
+    const read = ++latestRead.current;
+    let next: BudgetStatus | null = null;
     try {
-      const s = await getBudgetStatus();
-      setStatus(s);
+      next = await getBudgetStatus();
     } catch {
-      setStatus(null);
+      next = null;
+    }
+    if (read === latestRead.current) {
+      setStatus(next);
     }
   }, []);
 
@@ -59,9 +65,11 @@ const BudgetBadge = memo(() => {
   const colorClass = STATUS_COLORS[status.status] ?? STATUS_COLORS.ok;
   const ecoActive = ECO_ACTIVE_STATUSES.has(status.status);
 
-  const tooltip = ecoActive
-    ? `${t('ecoModeActive')}\nSession: $${status.session_cost_usd.toFixed(4)} / Daily: $${status.today_cost_usd.toFixed(4)}`
-    : `Session: $${status.session_cost_usd.toFixed(4)} / Daily: $${status.today_cost_usd.toFixed(4)}`;
+  const costSummary = t('budgetCostSummary', {
+    session: status.session_cost_usd.toFixed(4),
+    today: status.today_cost_usd.toFixed(4),
+  });
+  const tooltip = ecoActive ? `${t('ecoModeActive')}\n${costSummary}` : costSummary;
 
   return (
     <div

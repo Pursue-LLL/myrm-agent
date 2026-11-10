@@ -9888,6 +9888,7 @@
     "budgetExceeded": "일일 예산 초과",
     "budgetWarning": "일일 예산 한도에 근접 중",
     "ecoModeActive": "에코 모드: 토큰 절약을 위해 컨텍스트 압축 중",
+    "budgetCostSummary": "세션 ${session} / 오늘 ${today}",
     "kanbanTaskCompleted": "칸반 작업 완료",
     "kanbanTaskBlocked": "칸반 작업 차단됨",
     "kanbanTaskFailed": "칸반 작업 실패",

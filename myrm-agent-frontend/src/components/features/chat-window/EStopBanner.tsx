@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { OctagonPause } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
@@ -19,17 +19,20 @@ export default function EStopBanner() {
   const t = useTranslations('estopBanner');
   const [status, setStatus] = useState<EStopStatus | null>(null);
   const [resuming, setResuming] = useState(false);
+  const latestRead = useRef(0);
 
+  // Reads overlap (mount, focus, change events); only the newest one may decide what is shown.
   const fetchStatus = useCallback(async () => {
+    const read = ++latestRead.current;
+    let next: EStopStatus | null = null;
     try {
       const data = await apiRequest<EStopStatus>('/security/estop');
-      if (data.level === 'none') {
-        setStatus(null);
-      } else {
-        setStatus(data);
-      }
+      next = data.level === 'none' ? null : data;
     } catch {
-      setStatus(null);
+      next = null;
+    }
+    if (read === latestRead.current) {
+      setStatus(next);
     }
   }, []);
 

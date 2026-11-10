@@ -50,6 +50,7 @@ export default function ExtensionTakeoverBanner() {
       <div className="flex flex-col gap-3 px-3 py-3 pl-4 sm:flex-row sm:items-start sm:justify-between sm:px-4 sm:pl-5">
         <div className="flex min-w-0 flex-1 gap-3">
           {screenshotBase64 ? (
+            // oxlint-disable-next-line next/no-img-element -- the screenshot is an in-memory base64 data URL, which next/image cannot optimize
             <img
               src={`data:image/jpeg;base64,${screenshotBase64}`}
               alt=""

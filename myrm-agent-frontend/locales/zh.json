@@ -9888,6 +9888,7 @@
     "budgetExceeded": "已超出每日预算上限",
     "budgetWarning": "接近每日预算上限",
     "ecoModeActive": "省钱模式：正在压缩上下文以节省 Token",
+    "budgetCostSummary": "本话 ${session} / 今日 ${today}",
     "kanbanTaskCompleted": "看板任务已完成",
     "kanbanTaskBlocked": "看板任务已阻塞",
     "kanbanTaskFailed": "看板任务已失败",

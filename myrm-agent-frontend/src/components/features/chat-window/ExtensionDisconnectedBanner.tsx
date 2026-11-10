@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -15,11 +15,10 @@ export default function ExtensionDisconnectedBanner() {
   const badges = useNavBadges();
   const browserSource = useChatStore(useShallow((s) => s.agentConfig?.browserSource));
 
-  useEffect(() => {
-    if (badges.extensionConnected) {
-      setDismissed(false);
-    }
-  }, [badges.extensionConnected]);
+  // Reconnecting forgets an earlier dismissal, so the next disconnect is announced again.
+  if (badges.extensionConnected && dismissed) {
+    setDismissed(false);
+  }
 
   const needsExtension = browserSource === 'extension';
   if (!needsExtension || badges.extensionConnected || dismissed) {

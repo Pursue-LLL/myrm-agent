@@ -9888,6 +9888,7 @@
     "budgetExceeded": "毎日の予算上限を超えました",
     "budgetWarning": "毎日の予算上限に近づいています",
     "ecoModeActive": "エコモード: コンテキストを圧縮して Token を節約",
+    "budgetCostSummary": "セッション ${session} / 本日 ${today}",
     "kanbanTaskCompleted": "カンバンタスクが完了しました",
     "kanbanTaskBlocked": "カンバンタスクがブロックされました",
     "kanbanTaskFailed": "カンバンタスクが失敗しました",
