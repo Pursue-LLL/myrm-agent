@@ -9890,6 +9890,7 @@
     "forcePushReceived": "智慧體配置已被組織更新",
     "forcePushRollbackHint": "快照已儲存，可在智慧體設定中回滾。",
     "subagentRebindRequired": "子 Agent 繫結已變更。請開啟新對話以使用更新後的委派工具。",
+    "systemNotificationTitle": "系統通知",
     "subagentStale": "子 Agent 停滯",
     "viewAgent": "檢視",
     "approvalRequired": "Agent 需要審批授權：{actionType}",

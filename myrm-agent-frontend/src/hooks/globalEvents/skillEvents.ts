@@ -1,18 +1,23 @@
 /**
  * [INPUT]
  * - ./skillGrowthToasts::showSkillLearnedToast / showSkillEvolvedToast (POS: 技能成长 toast)
+ * - ./scheduleDebounced::scheduleDebounced (POS: 事件突发合并刷新)
+ * - @/store/skill/useSkillStore (POS: 本地技能与启用配置，按需动态加载)
  *
  * [OUTPUT]
- * - skillEventHandlers: 技能草稿 / 成长 / 进化事件的处理器表
+ * - skillEventHandlers: 技能草稿 / 成长 / 进化 / 技能池变更事件的处理器表
  *
  * [POS]
- * 全局事件中与技能自我成长相关的部分：提示用户去审阅，并把事件转给技能页刷新自己。
+ * 全局事件中与技能相关的部分：提示用户去审阅，把事件转给技能页，并在技能池变化后刷新技能列表。
  */
 import { showSkillEvolvedToast, showSkillLearnedToast } from '@/hooks/globalEvents/skillGrowthToasts';
 
 import type { GlobalEventDeps, GlobalEventHandler } from './eventTypes';
+import { scheduleDebounced } from './scheduleDebounced';
 
 const SKILL_GROWTH_PATH = '/settings/evolutionPending';
+/** Install, uninstall, sync and archive often arrive in bursts; one reload after the burst is enough. */
+const SKILL_POOL_REFRESH_DELAY_MS = 300;
 
 function skillGrowthOpener({ router }: GlobalEventDeps): () => void {
   return () => router.push(SKILL_GROWTH_PATH);
@@ -93,8 +98,22 @@ const handleSkillEvolved: GlobalEventHandler = (payload, deps) => {
   );
 };
 
+const handleSkillPoolUpdated: GlobalEventHandler = (payload, { debouncedRefetches }) => {
+  scheduleDebounced(debouncedRefetches, 'skill_pool_updated', SKILL_POOL_REFRESH_DELAY_MS, () => {
+    import('@/store/skill/useSkillStore')
+      .then(({ default: useSkillStore }) => {
+        const { fetchLocalSkills, fetchUserSkillConfig } = useSkillStore.getState();
+        void fetchLocalSkills();
+        void fetchUserSkillConfig(true);
+      })
+      .catch(() => {});
+  });
+  window.dispatchEvent(new CustomEvent('skill_pool_updated', { detail: payload.data }));
+};
+
 export const skillEventHandlers: Record<string, GlobalEventHandler> = {
   new_skill_draft: handleNewSkillDraft,
   skill_growth_updated: handleSkillGrowthUpdated,
   skill_evolved: handleSkillEvolved,
+  skill_pool_updated: handleSkillPoolUpdated,
 };

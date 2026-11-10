@@ -9890,6 +9890,7 @@
     "forcePushReceived": "エージェント設定が組織によって更新されました",
     "forcePushRollbackHint": "スナップショットが保存されました。エージェント設定からロールバックできます。",
     "subagentRebindRequired": "サブエージェントのバインドが変更されました。更新後の委譲ツールを使用するには新しいチャットを開始してください。",
+    "systemNotificationTitle": "システム通知",
     "subagentStale": "サブエージェントが停滞",
     "viewAgent": "表示",
     "approvalRequired": "Agent に承認が必要です：{actionType}",

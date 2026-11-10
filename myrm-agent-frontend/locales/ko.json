@@ -9890,6 +9890,7 @@
     "forcePushReceived": "에이전트 설정이 조직에 의해 업데이트되었습니다",
     "forcePushRollbackHint": "스냅샷이 저장되었습니다. 에이전트 설정에서 롤백할 수 있습니다.",
     "subagentRebindRequired": "하위 에이전트 바인딩이 변경되었습니다. 업데이트된 위임 도구를 사용하려면 새 채팅을 시작하세요.",
+    "systemNotificationTitle": "시스템 알림",
     "subagentStale": "하위 에이전트가 중단되었습니다",
     "viewAgent": "보기",
     "approvalRequired": "에이전트가 승인을 요청합니다: {actionType}",

@@ -42,8 +42,8 @@ const handleRunDigestUpdated: GlobalEventHandler = (payload) => {
   );
 };
 
-const handleSystemNotification: GlobalEventHandler = (payload, { pushToast }) => {
-  const title = String(payload.data.title ?? '系统通知');
+const handleSystemNotification: GlobalEventHandler = (payload, { t, pushToast }) => {
+  const title = String(payload.data.title ?? t('systemNotificationTitle'));
   const message = String(payload.data.message ?? '');
   const meta = asRecord(payload.data.meta_data);
 

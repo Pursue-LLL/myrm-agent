@@ -25,7 +25,6 @@ const RELAYED_EVENTS: Readonly<Record<string, string>> = {
   subagents_updated: 'subagents_updated',
   cron_updated: 'cron_updated',
   budget_updated: 'budget_updated',
-  skill_pool_updated: 'skill_pool_updated',
   'goal:branch_switched': 'goal:branch_switched',
   workspace_file_changed: 'workspace-file-changed',
   async_agent_stream_chunk: 'async-agent-stream-chunk',

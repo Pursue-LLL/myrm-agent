@@ -80,6 +80,43 @@ describe('useGlobalEvents: skill and system notices', () => {
     });
   });
 
+  describe('skill_pool_updated', () => {
+    it('relays every update and reloads the skill lists once after the burst settles', async () => {
+      mountGlobalEvents();
+      const events = recordWindowEvents();
+
+      emit('skill_pool_updated', { action: 'install', skill_id: 'local::a' });
+      await vi.advanceTimersByTimeAsync(200);
+      emit('skill_pool_updated', { action: 'uninstall', skill_id: 'local::a' });
+      await vi.advanceTimersByTimeAsync(299);
+      await vi.dynamicImportSettled();
+      expect(mocks.fetchLocalSkills).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      await vi.dynamicImportSettled();
+
+      expect(mocks.fetchLocalSkills).toHaveBeenCalledTimes(1);
+      expect(mocks.fetchUserSkillConfig).toHaveBeenCalledTimes(1);
+      expect(mocks.fetchUserSkillConfig).toHaveBeenCalledWith(true);
+      expect(events()).toEqual([
+        { type: 'skill_pool_updated', detail: { action: 'install', skill_id: 'local::a' } },
+        { type: 'skill_pool_updated', detail: { action: 'uninstall', skill_id: 'local::a' } },
+      ]);
+    });
+
+    it('drops a pending reload when the hook unmounts', async () => {
+      const { unmount } = mountGlobalEvents();
+
+      emit('skill_pool_updated', { action: 'install' });
+      unmount();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.dynamicImportSettled();
+
+      expect(mocks.fetchLocalSkills).not.toHaveBeenCalled();
+      expect(mocks.fetchUserSkillConfig).not.toHaveBeenCalled();
+    });
+  });
+
   describe('system_notification', () => {
     it('shows the notice as a toast and relays the whole payload', () => {
       mountGlobalEvents();
@@ -112,7 +149,7 @@ describe('useGlobalEvents: skill and system notices', () => {
       emit('system_notification', { title: 'Snapshot', message: 'y', meta_data: { type: 'snapshot_created' } });
 
       expect(mocks.toast.success).toHaveBeenCalledTimes(1);
-      expect(toastMessage(mocks.toast.success)).toBe('系统通知');
+      expect(toastMessage(mocks.toast.success)).toBe('systemNotificationTitle');
     });
 
     it('refreshes the goal and the background task list when a background job finishes', async () => {

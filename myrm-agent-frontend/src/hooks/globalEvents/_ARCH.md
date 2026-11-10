@@ -4,12 +4,12 @@
 
 | 文件                          | 职责                                                                                                                                                                                |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useGlobalEvents.ts`          | SSE 订阅与跨标签页领导者选举：只有领导者标签页持有 `EventSource`，其余经 `BroadcastChannel` 接收；事件交给 `dispatchGlobalEvent`；组装 `GlobalEventDeps`（翻译、路由、受 `enableWebNotifications` 控制的 toast 与系统通知、防抖计时器表）；断线指数退避重连，重连后广播 `app_resync_required` 并校准当前会话；卸载时清理计时器与领导者标记 |
-| `dispatchGlobalEvent.ts`      | 事件类型 → 处理器注册表（两张表认领同一类型时加载即抛错）；只需唤醒页面的事件（`memory_history_updated` / `subagents_updated` / `cron_updated` / `budget_updated` / `skill_pool_updated` / `goal:branch_switched` / `workspace_file_changed` / `async_agent_stream_chunk` / `extension_status_changed` / `managed_policy_updated`）直接转成 window 事件；未知类型忽略 |
+| `useGlobalEvents.ts`          | SSE 订阅与跨标签页领导者选举：只有领导者标签页持有 `EventSource`，其余经 `BroadcastChannel` 接收；事件交给 `dispatchGlobalEvent`；组装 `GlobalEventDeps`（翻译、路由、受 `enableWebNotifications` 控制的 toast 与系统通知、防抖计时器表）；断线指数退避重连，重连后广播 `app_resync_required` 并校准当前会话；卸载时清理计时器，领导者交还自己的领导者标记（下次挂载或其他标签页无需等心跳超时即可接管） |
+| `dispatchGlobalEvent.ts`      | 事件类型 → 处理器注册表（两张表认领同一类型时加载即抛错）；只需唤醒页面的事件（`memory_history_updated` / `subagents_updated` / `cron_updated` / `budget_updated` / `goal:branch_switched` / `workspace_file_changed` / `async_agent_stream_chunk` / `extension_status_changed` / `managed_policy_updated`）直接转成 window 事件；未知类型忽略 |
 | `eventTypes.ts`               | 共享契约：`SSEPayload`、`GlobalEventDeps`、`GlobalEventHandler`、`PushToast`、`GlobalEventTranslator`、`DebounceTimers` |
 | `scheduleDebounced.ts`        | 按 key 防抖：成串到达的事件合并为静默 `delayMs` 后的一次刷新 |
 | `channelApprovalEvents.ts`    | `pairing_pending` / `channel_connected` / `channel_disconnected` / `groups_updated` / `message_dead_lettered` / `approval_required` / `approval_resolved` |
-| `skillEvents.ts`              | `new_skill_draft` / `skill_growth_updated` / `skill_evolved`：提示直达 `/settings/evolutionPending`，并转成技能页订阅的 window 事件 |
+| `skillEvents.ts`              | `new_skill_draft` / `skill_growth_updated` / `skill_evolved`：提示直达 `/settings/evolutionPending`，并转成技能页订阅的 window 事件；`skill_pool_updated`（安装 / 卸载 / 同步 / 归档）静默 300ms 后合并为一次本地技能列表与启用配置重载，并转成 window 事件 |
 | `systemEvents.ts`             | `idle_status` / `run_digest_updated` / `system_notification`（含后台任务完成时刷新目标与任务列表、`voice-bg-done`）/ `memory_operation` / `locator_healed` / `mcp_auth_required` / `oauth_reauth_required` / `kanban_task_updated` |
 | `alertEvents.ts`              | `health_alert`（整机 / 云端记忆备份失败走专用 toast，其余失败为通用错误 toast 与系统通知）/ `budget_alert`（`work_units` 用尽弹对话框并刷新权益，其余按严重度 toast） |
 | `goalEvents.ts`               | `goal_terminal` / `goal_dequeued`：提示结果，点击直达会话；出队后重载该会话的目标队列 |
