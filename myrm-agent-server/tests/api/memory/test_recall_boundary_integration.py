@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.memory import MemoryType
+from myrm_agent_harness.toolkits.memory.config import MemoryWritePolicy
 
 from app.schemas.memory.command_center import (
     MemoryApprovedRecord,
@@ -36,22 +37,10 @@ def test_recall_boundary_schema_contracts() -> None:
         agent_id="test-agent",
         task_id="test-task",
         read_scopes=[
-            MemoryRecallScopeBoundary(
-                level="global",
-                label="Global Shared",
-                is_active=True,
-                namespace_pattern="global",
-                description="System-wide knowledge",
-            ),
-            MemoryRecallScopeBoundary(
-                level="task",
-                label="Task Isolated",
-                is_active=True,
-                namespace_pattern="task:test-task",
-                description="Task ephemeral memory",
-            ),
+            MemoryRecallScopeBoundary(level="global", is_active=True, namespace_pattern="global"),
+            MemoryRecallScopeBoundary(level="task", is_active=True, namespace_pattern="task:test-task"),
         ],
-        write_policy="inherit",
+        write_policy=MemoryWritePolicy.INHERIT,
         partitions=MemoryFourPartitionSummary(
             identity_count=2,
             session_memory_count=4,
@@ -64,10 +53,15 @@ def test_recall_boundary_schema_contracts() -> None:
                 memory_type="semantic",
                 content_preview="User prefers dark mode",
                 confidence=0.88,
-                source="extraction",
                 created_at=datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc),
                 status="pending",
-            )
+            ),
+            MemoryCandidateRecord(
+                id="cand-2",
+                memory_type="semantic",
+                content_preview="User may move to Lisbon",
+                created_at=datetime(2026, 8, 20, 12, 5, tzinfo=timezone.utc),
+            ),
         ],
         approved_records=[
             MemoryApprovedRecord(
@@ -81,14 +75,14 @@ def test_recall_boundary_schema_contracts() -> None:
                 is_pinned=True,
             )
         ],
-        total_candidates=1,
+        total_candidates=2,
         total_approved=17,
     )
 
     assert boundary.agent_id == "test-agent"
     assert len(boundary.read_scopes) == 2
     assert boundary.partitions.identity_count == 2
-    assert len(boundary.candidate_records) == 1
+    assert [record.confidence for record in boundary.candidate_records] == [0.88, None]
     assert len(boundary.approved_records) == 1
     assert boundary.approved_records[0].is_pinned is True
 
@@ -135,7 +129,18 @@ async def test_get_memory_recall_boundary_api() -> None:
             response = await client.get("/api/v1/memory/command-center/recall-boundary?agent_id=ag-1&task_id=task-1")
             assert response.status_code == 200
             data = response.json()
-            assert "read_scopes" in data
+            assert [scope["level"] for scope in data["read_scopes"]] == [
+                "global",
+                "agent",
+                "channel",
+                "conversation",
+                "task",
+                "shared",
+            ]
+            assert {key for scope in data["read_scopes"] for key in scope} == {"level", "is_active", "namespace_pattern"}
+            patterns = {scope["level"]: scope["namespace_pattern"] for scope in data["read_scopes"]}
+            assert (patterns["agent"], patterns["task"]) == ("agent:ag-1", "task:task-1")
+            assert data["write_policy"] == "inherit"
             assert data["partitions"] == {
                 "identity_count": 0,
                 "session_memory_count": 0,

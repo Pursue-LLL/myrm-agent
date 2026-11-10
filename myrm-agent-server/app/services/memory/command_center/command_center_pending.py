@@ -35,9 +35,6 @@ from app.services.memory.command_center.command_center_projection_utils import p
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_CONFIDENCE = 0.8
-_DEFAULT_SOURCE = "extraction"
-
 
 async def count_pending_review(db: AsyncSession, manager: MemoryManager) -> int:
     """Everything awaiting the user's decision: queued proposals plus unresolved memory conflicts."""
@@ -61,8 +58,7 @@ async def build_candidate_records(db: AsyncSession, manager: MemoryManager, *, l
             id=record.id,
             memory_type=record.memory_type.value,
             content_preview=preview_content(record.content, limit=120),
-            confidence=record.confidence if record.confidence is not None else _DEFAULT_CONFIDENCE,
-            source=_DEFAULT_SOURCE,
+            confidence=record.confidence,
             created_at=record.created_at,
             status="pending",
         )
@@ -81,8 +77,7 @@ async def build_candidate_records(db: AsyncSession, manager: MemoryManager, *, l
                 id=row.id,
                 memory_type=row.memory_type,
                 content_preview=preview_content(row.content, limit=120),
-                confidence=float(row.confidence if row.confidence is not None else _DEFAULT_CONFIDENCE),
-                source=_DEFAULT_SOURCE,
+                confidence=row.confidence,
                 created_at=row.created_at,
                 status="pending",
             )

@@ -74,6 +74,7 @@ from .recall import (
     MemoryFourPartitionSummary,
     MemoryRecallBoundaryData,
     MemoryRecallScopeBoundary,
+    ScopeLevel,
 )
 from .replay import (
     MemoryCommandConflictItem,
@@ -128,6 +129,7 @@ __all__ = [
     "MemoryCommandActionResponse",
     "MemoryCommandRepairActionRequest",
     "MemoryCommandRepairActionResponse",
+    "ScopeLevel",
     "MemoryRecallScopeBoundary",
     "MemoryFourPartitionSummary",
     "MemoryCandidateRecord",

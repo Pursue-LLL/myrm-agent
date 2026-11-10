@@ -1,11 +1,13 @@
 """[INPUT]
 - pydantic::BaseModel (POS: request/response model base)
+- myrm_agent_harness.toolkits.memory.config::MemoryWritePolicy (POS: where an agent-bound manager writes new memories)
 
 [OUTPUT]
-- MemoryRecallScopeBoundary, MemoryFourPartitionSummary, MemoryCandidateRecord, MemoryApprovedRecord, MemoryRecallBoundaryData, MemoryBehavioralInsightsResponse
+- ScopeLevel, MemoryRecallScopeBoundary, MemoryFourPartitionSummary, MemoryCandidateRecord, MemoryApprovedRecord, MemoryRecallBoundaryData, MemoryBehavioralInsightsResponse
 
 [POS]
 Memory command center schemas: recall scope boundaries, four-partition summary, candidate/approved records and behavioral insights.
+Records carry stored facts only; display wording belongs to the client, which localizes it from the scope level and write policy.
 """
 
 from __future__ import annotations
@@ -13,17 +15,18 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
+from myrm_agent_harness.toolkits.memory.config import MemoryWritePolicy
 from pydantic import BaseModel, Field
+
+ScopeLevel = Literal["global", "agent", "channel", "conversation", "task", "shared"]
 
 
 class MemoryRecallScopeBoundary(BaseModel):
     """Single scope boundary specification in review-first recall."""
 
-    level: str
-    label: str
+    level: ScopeLevel
     is_active: bool
     namespace_pattern: str
-    description: str
 
 
 class MemoryFourPartitionSummary(BaseModel):
@@ -41,8 +44,7 @@ class MemoryCandidateRecord(BaseModel):
     id: str
     memory_type: str
     content_preview: str
-    confidence: float
-    source: str
+    confidence: float | None = Field(default=None, description="None when the proposal carries no confidence score.")
     created_at: datetime
     status: Literal["pending", "review_required"] = "pending"
 
@@ -66,7 +68,7 @@ class MemoryRecallBoundaryData(BaseModel):
     agent_id: str | None = None
     task_id: str | None = None
     read_scopes: list[MemoryRecallScopeBoundary] = Field(default_factory=list)
-    write_policy: str = "inherit"
+    write_policy: MemoryWritePolicy = MemoryWritePolicy.INHERIT
     partitions: MemoryFourPartitionSummary = Field(default_factory=MemoryFourPartitionSummary)
     candidate_records: list[MemoryCandidateRecord] = Field(default_factory=list)
     approved_records: list[MemoryApprovedRecord] = Field(default_factory=list)
