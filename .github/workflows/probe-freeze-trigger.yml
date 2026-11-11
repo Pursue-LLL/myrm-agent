@@ -1,0 +1,63 @@
+name: Probe freeze trigger (do not merge)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/probe-freeze-trigger.yml'
+
+env:
+  BASIC_MODEL: openai/ci-offline-placeholder
+  LITE_MODEL: openai/ci-offline-placeholder
+
+jobs:
+  probe:
+    name: probe ${{ matrix.variant }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: control
+            pins: ''
+          - variant: pytest-asyncio-1.4.0
+            pins: 'pytest-asyncio==1.4.0'
+          - variant: pytest-9.1.1
+            pins: 'pytest==9.1.1'
+          - variant: sqlalchemy-2.1.0b2
+            pins: 'sqlalchemy==2.1.0b2'
+          - variant: langgraph-old
+            pins: 'langgraph==1.2.15 langgraph-checkpoint==4.3.0 langgraph-checkpoint-sqlite==3.1.2'
+          - variant: qdrant-client-1.19.1
+            pins: 'qdrant-client==1.19.1'
+          - variant: blockbuster-1.5.27
+            pins: 'blockbuster==1.5.27'
+    defaults:
+      run:
+        working-directory: myrm-agent-server
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install promtool
+        run: bash scripts/ci/install_promtool.sh
+
+      - name: Install the locked dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Pin the variant
+        if: matrix.pins != ''
+        run: uv pip install --python .venv/bin/python ${{ matrix.pins }}
+
+      - name: Versions of the suspects
+        run: uv pip list --python .venv/bin/python | grep -iE '^(pytest|pytest-asyncio|sqlalchemy|langgraph|langgraph-checkpoint|langgraph-checkpoint-sqlite|qdrant-client|blockbuster|aiosqlite|anyio|starlette) '
+
+      - name: Run the default suite for 25 minutes
+        run: |
+          set +e
+          PYTHONUNBUFFERED=1 timeout -s INT -k 30 1500 .venv/bin/python -m pytest -n0 --tb=short -v -p no:cacheprovider -o faulthandler_timeout=120
+          echo "pytest exit status: $?"
