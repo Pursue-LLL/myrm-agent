@@ -159,6 +159,27 @@ describe('expertSummonMetrics', () => {
       expect(sentPayload(0).context_key).toBe(filed);
     });
 
+    describe('a context as long as the server allows (128 characters)', () => {
+      const emoji = String.fromCodePoint(0x1f600);
+
+      it.each([
+        ['a context of exactly 128 characters stays whole', 'a'.repeat(128), 'a'.repeat(128)],
+        ['a longer context is cut to 128 characters', 'a'.repeat(300), 'a'.repeat(128)],
+        ['spaces around a long context are dropped before it is cut', `  ${'a'.repeat(300)}  `, 'a'.repeat(128)],
+        [
+          'a character at the limit is kept whole, not split in half',
+          `${'a'.repeat(127)}${emoji}tail`,
+          `${'a'.repeat(127)}${emoji}`,
+        ],
+        ['characters are counted, not UTF-16 units, so 100 emoji stay whole', emoji.repeat(100), emoji.repeat(100)],
+      ])('%s', async (_name, given, filed) => {
+        recordExpertSummonSurfaceViewed('template_market', given);
+        await __flushExpertSummonMetricsForTest();
+
+        expect(sentPayload(0).context_key).toBe(filed);
+      });
+    });
+
     it('posts council phase, consensus, and rebuttal events', async () => {
       recordExpertCouncilPhaseCompleted('flow_pad_inline', 'plus_popover_card', {
         contextKey: 'council:session:1',

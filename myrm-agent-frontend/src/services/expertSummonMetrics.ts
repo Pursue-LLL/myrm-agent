@@ -77,6 +77,8 @@ export interface ExpertSummonSummary {
 /** The most events one request may carry; the server rejects a larger `count`. */
 const MAX_COUNT_PER_REQUEST = 200;
 const MAX_QUERY_LENGTH = 200;
+/** The longest `context_key` the server accepts; a longer one makes it reject the whole event. */
+const MAX_CONTEXT_KEY_LENGTH = 128;
 const MAX_PENDING_DROPPED_EVENTS = 1_000;
 const DEFAULT_CONTEXT_KEY = 'global';
 const DROPPED_BUFFER_STORAGE_KEY = 'expertSummonDroppedBufferV1';
@@ -100,8 +102,11 @@ function clampWhole(value: number | undefined, max: number): number {
 }
 
 function normalizeContextKey(contextKey?: string): string {
-  const normalized = contextKey?.trim();
-  return normalized && normalized.length > 0 ? normalized : DEFAULT_CONTEXT_KEY;
+  // The server counts characters, so cut by characters: an emoji at the limit must not be split in half.
+  const normalized = Array.from(contextKey?.trim() ?? '')
+    .slice(0, MAX_CONTEXT_KEY_LENGTH)
+    .join('');
+  return normalized || DEFAULT_CONTEXT_KEY;
 }
 
 function totalPendingDroppedEvents(): number {
