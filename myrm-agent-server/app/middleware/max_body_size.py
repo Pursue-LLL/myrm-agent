@@ -1,6 +1,6 @@
 """
 @input: 依赖 starlette.types 的 ASGI 相关类型
-@output: 对外提供 MaxBodySizeMiddleware
+@output: 对外提供 MaxBodySizeMiddleware 与全局请求体上限 MAX_REQUEST_BODY_BYTES
 @pos: ASGI 层的请求体大小限制中间件，防止 OOM 和磁盘耗尽攻击。
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
@@ -12,6 +12,10 @@ from starlette.requests import ClientDisconnect
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
+
+# The server-wide request-body ceiling. A route that takes whole pages as form text fields uses it as its field limit,
+# so a field is refused only when the whole body is already too large for the server.
+MAX_REQUEST_BODY_BYTES = 15 * 1024 * 1024
 
 
 class MaxBodySizeMiddleware:

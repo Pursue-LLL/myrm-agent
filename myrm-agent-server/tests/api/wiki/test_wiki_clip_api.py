@@ -4,72 +4,28 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass
+from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
-from app.core.security.auth.identity import LOCAL_USER_ID
-from app.services.wiki.clip import MAX_CLIP_PAYLOAD_BYTES, clip_form_payload_bytes
-from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
-from tests.support.minimal_app import build_minimal_app
-
-
-@dataclass(frozen=True, slots=True)
-class _FakeIdentity:
-    user_id: str = LOCAL_USER_ID
-    auth_source: str = "loopback"
-    loopback: bool = True
-    client_ip: str = "127.0.0.1"
-    private_net: bool = False
+from tests.support.wiki_clip_client import (
+    build_wiki_client,
+    bypass_loopback_auth,
+    cleanup_wiki_client,
+    poll_clip_job,
+)
 
 
 @pytest.fixture(autouse=True)
-def _bypass_auth() -> None:
-    with patch(
-        "app.middleware.auth.resolve_identity",
-        return_value=_FakeIdentity(),
-    ):
+def _bypass_auth() -> Iterator[None]:
+    with bypass_loopback_auth():
         yield
 
 
-def _build_wiki_client(
-    tmp_path: Path,
-) -> tuple[TestClient, MemoryToWikiArchiver, WikiStructure]:
-    from app.api.wiki.router import _get_wiki_archiver
-
-    archiver = MemoryToWikiArchiver(MagicMock(), wiki_dir=str(tmp_path / "wiki"))
-    structure = archiver._structure
-    structure.ensure_structure()
-
-    app = build_minimal_app(preset="wiki")
-
-    async def _override_archiver() -> MemoryToWikiArchiver:
-        return archiver
-
-    app.dependency_overrides[_get_wiki_archiver] = _override_archiver
-    patcher = patch(
-        "app.services.wiki.vault.get_wiki_structure",
-        return_value=structure,
-    )
-    patcher.start()
-    client = TestClient(app)
-    client._wiki_archiver_patcher = patcher  # type: ignore[attr-defined]
-    return client, archiver, structure
-
-
-def _cleanup_wiki_client(client: TestClient) -> None:
-    client.app.dependency_overrides.clear()
-    patcher = getattr(client, "_wiki_archiver_patcher", None)
-    if patcher is not None:
-        patcher.stop()
-
-
 def test_wikiignore_get_and_put(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     try:
         empty = client.get("/api/v1/wiki/wikiignore")
         assert empty.status_code == 200
@@ -87,23 +43,11 @@ def test_wikiignore_get_and_put(tmp_path: Path) -> None:
         assert "drafts/**" in again.json()["content"]
         assert structure.load_wikiignore_patterns() == ("drafts/**", "*.tmp")
     finally:
-        _cleanup_wiki_client(client)
-
-
-def _poll_clip_job(client: TestClient, job_id: str) -> dict[str, object]:
-    final: dict[str, object] | None = None
-    for _ in range(40):
-        status = client.get(f"/api/v1/wiki/clip/{job_id}")
-        assert status.status_code == 200
-        final = status.json()
-        if final["state"] in {"succeeded", "failed"}:
-            return final
-        time.sleep(0.05)
-    raise AssertionError(f"clip job timed out: {final}")
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     try:
         with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
@@ -120,7 +64,7 @@ def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
         job_id = response.json()["job_id"]
         assert job_id
 
-        final = _poll_clip_job(client, job_id)
+        final = poll_clip_job(client, job_id)
 
         assert final["state"] == "succeeded"
         assert final["written"] is True
@@ -130,11 +74,11 @@ def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
         assert raw_path.is_file()
         assert "Hello from clip." in raw_path.read_text(encoding="utf-8")
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_queue_compile_false_string(tmp_path: Path) -> None:
-    client, archiver, structure = _build_wiki_client(tmp_path)
+    client, archiver, structure = build_wiki_client(tmp_path)
     try:
         with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
@@ -162,11 +106,11 @@ def test_wiki_clip_queue_compile_false_string(tmp_path: Path) -> None:
         assert final["state"] == "succeeded"
         assert archiver._queue.get_stats()["pending"] == 0
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_queue_compile_true_enqueues_raw(tmp_path: Path) -> None:
-    client, archiver, _structure = _build_wiki_client(tmp_path)
+    client, archiver, _structure = build_wiki_client(tmp_path)
     try:
         with (
             patch(
@@ -186,67 +130,26 @@ def test_wiki_clip_queue_compile_true_enqueues_raw(tmp_path: Path) -> None:
                 },
             )
         assert response.status_code == 202
-        final = _poll_clip_job(client, response.json()["job_id"])
+        final = poll_clip_job(client, response.json()["job_id"])
         assert final["state"] == "succeeded"
         assert final["written"] is True
         assert archiver._queue.get_stats()["pending"] == 1
         start_worker.assert_called_once()
     finally:
-        _cleanup_wiki_client(client)
-
-
-def test_wiki_clip_payload_too_large(tmp_path: Path) -> None:
-    client, _, _ = _build_wiki_client(tmp_path)
-    try:
-        # Starlette rejects a text form field above 1 MB before the route runs, so only an uploaded
-        # asset can carry a payload large enough to reach the route's own limit.
-        huge_asset = b"x" * (MAX_CLIP_PAYLOAD_BYTES + 1)
-        response = client.post(
-            "/api/v1/wiki/clip",
-            data={
-                "source_url": "https://example.com/huge",
-                "title": "Huge",
-                "clip_mode": "full_page",
-                "queue_compile": "false",
-                "asset_urls": json.dumps(["https://example.com/huge.bin"]),
-            },
-            files=[("asset_files", ("asset.bin", huge_asset, "application/octet-stream"))],
-        )
-        assert response.status_code == 413
-    finally:
-        _cleanup_wiki_client(client)
-
-
-def test_wiki_clip_payload_bytes_counts_asset_urls_field() -> None:
-    small_body = {
-        "source_url": "https://example.com/small-body",
-        "title": "Small",
-        "clip_mode": "full_page",
-        "html": "",
-        "markdown": "# Small",
-        "folder_path": "",
-        "queue_compile": "false",
-    }
-    huge_asset_urls = json.dumps([f"https://example.com/{'a' * (MAX_CLIP_PAYLOAD_BYTES + 1)}"])
-    payload_bytes = clip_form_payload_bytes(
-        **small_body,
-        asset_urls=huge_asset_urls,
-        asset_file_bytes=(b"x",),
-    )
-    assert payload_bytes > MAX_CLIP_PAYLOAD_BYTES
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_job_not_found(tmp_path: Path) -> None:
-    client, _, _ = _build_wiki_client(tmp_path)
+    client, _, _ = build_wiki_client(tmp_path)
     try:
         response = client.get("/api/v1/wiki/clip/does-not-exist")
         assert response.status_code == 404
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_html_path_writes_raw(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     try:
         with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
@@ -261,7 +164,7 @@ def test_wiki_clip_html_path_writes_raw(tmp_path: Path) -> None:
                 },
             )
         assert response.status_code == 202
-        final = _poll_clip_job(client, response.json()["job_id"])
+        final = poll_clip_job(client, response.json()["job_id"])
         assert final["state"] == "succeeded"
         assert final["written"] is True
         rel_path = str(final["relative_path"])
@@ -269,11 +172,11 @@ def test_wiki_clip_html_path_writes_raw(tmp_path: Path) -> None:
         content = raw_path.read_text(encoding="utf-8")
         assert "Body from HTML path." in content
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_custom_folder_path_writes_raw(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     try:
         with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
@@ -288,7 +191,7 @@ def test_wiki_clip_custom_folder_path_writes_raw(tmp_path: Path) -> None:
                 },
             )
         assert response.status_code == 202
-        final = _poll_clip_job(client, response.json()["job_id"])
+        final = poll_clip_job(client, response.json()["job_id"])
         assert final["state"] == "succeeded"
         assert final["written"] is True
         rel_path = str(final["relative_path"])
@@ -298,11 +201,11 @@ def test_wiki_clip_custom_folder_path_writes_raw(tmp_path: Path) -> None:
         assert raw_path.is_file()
         assert "Custom folder" in raw_path.read_text(encoding="utf-8")
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_conflict_job_response(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     try:
         rel = "clips/manual/existing.md"
         existing = structure.get_raw_file_path(rel)
@@ -322,17 +225,17 @@ def test_wiki_clip_conflict_job_response(tmp_path: Path) -> None:
                 },
             )
         assert response.status_code == 202
-        final = _poll_clip_job(client, response.json()["job_id"])
+        final = poll_clip_job(client, response.json()["job_id"])
         assert final["state"] == "succeeded"
         assert final["written"] is False
         assert final["conflict"] is True
         assert existing.read_text(encoding="utf-8") == "existing content"
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_publishes_ingest_snapshot_on_write(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     try:
         with (
             patch(
@@ -355,16 +258,16 @@ def test_wiki_clip_publishes_ingest_snapshot_on_write(tmp_path: Path) -> None:
                 },
             )
         assert response.status_code == 202
-        final = _poll_clip_job(client, response.json()["job_id"])
+        final = poll_clip_job(client, response.json()["job_id"])
         assert final["state"] == "succeeded"
         assert final["written"] is True
         publish_snapshot.assert_awaited_once()
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_redacts_credential_content(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
     try:
         with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
@@ -379,17 +282,17 @@ def test_wiki_clip_redacts_credential_content(tmp_path: Path) -> None:
                 },
             )
         assert response.status_code == 202
-        final = _poll_clip_job(client, response.json()["job_id"])
+        final = poll_clip_job(client, response.json()["job_id"])
         assert final["state"] == "succeeded"
         assert final["written"] is True and final["security_blocked"] is False
         stored = structure.get_raw_file_path(str(final["relative_path"])).read_text(encoding="utf-8")
         assert secret not in stored and "[REDACTED:" in stored
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_multipart_assets(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     try:
         png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
         with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
@@ -406,18 +309,18 @@ def test_wiki_clip_multipart_assets(tmp_path: Path) -> None:
                 files=[("asset_files", ("asset.bin", png_bytes, "image/png"))],
             )
         assert response.status_code == 202
-        final = _poll_clip_job(client, response.json()["job_id"])
+        final = poll_clip_job(client, response.json()["job_id"])
         assert final["state"] == "succeeded"
         assert final["written"] is True
         rel_path = str(final["relative_path"])
         content = structure.get_raw_file_path(rel_path).read_text(encoding="utf-8")
         assert "wiki/assets/" in content or "assets/" in content
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)
 
 
 def test_wiki_clip_reclip_same_source_url_replaces_raw(tmp_path: Path) -> None:
-    client, _archiver, structure = _build_wiki_client(tmp_path)
+    client, _archiver, structure = build_wiki_client(tmp_path)
     source_url = "https://example.com/reclip-api"
     try:
         with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
@@ -432,7 +335,7 @@ def test_wiki_clip_reclip_same_source_url_replaces_raw(tmp_path: Path) -> None:
                 },
             )
         assert first.status_code == 202
-        first_final = _poll_clip_job(client, first.json()["job_id"])
+        first_final = poll_clip_job(client, first.json()["job_id"])
         assert first_final["written"] is True
         rel_path = str(first_final["relative_path"])
 
@@ -448,11 +351,11 @@ def test_wiki_clip_reclip_same_source_url_replaces_raw(tmp_path: Path) -> None:
                 },
             )
         assert second.status_code == 202
-        second_final = _poll_clip_job(client, second.json()["job_id"])
+        second_final = poll_clip_job(client, second.json()["job_id"])
         assert second_final["written"] is True
         assert second_final.get("conflict") is not True
         assert str(second_final["relative_path"]) == rel_path
         content = structure.get_raw_file_path(rel_path).read_text(encoding="utf-8")
         assert "Version 2" in content
     finally:
-        _cleanup_wiki_client(client)
+        cleanup_wiki_client(client)

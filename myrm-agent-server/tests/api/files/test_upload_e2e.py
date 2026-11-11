@@ -14,7 +14,7 @@ from app.api.files.upload import router as upload_router
 from app.core.storage import files_service
 from app.database.connection import get_db
 from app.database.models import Base
-from app.middleware.max_body_size import MaxBodySizeMiddleware
+from app.middleware.max_body_size import MAX_REQUEST_BODY_BYTES, MaxBodySizeMiddleware
 
 
 @pytest_asyncio.fixture
@@ -35,7 +35,7 @@ def client(_upload_db_session: AsyncSession):
     test_app = FastAPI()
     test_app.include_router(upload_router, prefix="/api/v1/files")
     test_app.include_router(storage_router, prefix="/api/v1/files/storage")
-    test_app.add_middleware(MaxBodySizeMiddleware, max_size=15 * 1024 * 1024)
+    test_app.add_middleware(MaxBodySizeMiddleware, max_size=MAX_REQUEST_BODY_BYTES)
 
     async def override_get_db():
         yield _upload_db_session
@@ -112,9 +112,8 @@ def test_upload_small_image_no_downsampling(client):
 
 
 def test_upload_exceeds_max_body_size(client):
-    # Create a 16MB payload (exceeds the 15MB limit)
-    # We use a simple text file to test the raw body size limit
-    large_payload = b"a" * (16 * 1024 * 1024)
+    # A simple text file above the body ceiling exercises the raw body size limit
+    large_payload = b"a" * (MAX_REQUEST_BODY_BYTES + 1024 * 1024)
 
     response = client.post("/api/v1/files/upload", files={"files": ("huge_test.txt", large_payload, "text/plain")})
 

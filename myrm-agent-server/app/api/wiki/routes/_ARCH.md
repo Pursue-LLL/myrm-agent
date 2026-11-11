@@ -11,7 +11,7 @@ Extension clip、wikiignore 与 ima 导入 REST 子路由，与 Brain Console �
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
 | `__init__.py` | 入口 | 子路由包 | — |
-| `clip.py` | 路由 | **POST/GET /clip** · **GET/PUT /wikiignore** | ✅ |
+| `clip.py` | 路由 | **POST/GET /clip** · **GET/PUT /wikiignore**；路由类 `_WholePageFormRoute` 先用全局请求体上限解析 POST 表单，整页内容可作为单个文本字段提交（Starlette 默认每个文本字段上限 1MB），超过 8MB 由路由自身返回 413；表单读不出来（格式错误、客户端上传中途断开）与 FastAPI 自身一致返回 400 | ✅ |
 | `ima.py` | 路由 | **GET /sources/ima**（聚合状态）· **PUT/DELETE /sources/ima/credentials**（写入前先向 ima 校验；API Key 只写不回显；DELETE 即断开，账号级：停掉所有智能体的同步任务与运行中的切片，再清密钥）· **GET /sources/ima/libraries** · **PUT /sources/ima/config** · **POST /sources/ima/sync/{start,pause,resume,retry-failed}**（`start` 也承担「立即检查」：已有任务则立刻触发下一轮；`pause` 同时让该智能体运行中的切片在下一条处收尾；`retry-failed` 只重排当前所选范围） · **POST /sources/ima/compile**（只编译 ima 已导入且属于当前所选知识库/笔记的文档，与卡片计数口径一致；去重待审 409）· **GET /sources/ima/items?bucket=attention\|lossy\|remote_deleted**；错误一律 `{code, message}`，不透传上游原文；cron 管理器拒绝（`ValueError`）映射为 409 `sync_unavailable`，原因记为 WARNING | ✅ |
 | `query.py` | 路由 | **POST /query**（先过风控闸门）· **GET /assets/{filename}** · **POST /compile**（202 入队）· **GET /health-report** | ✅ |
 | `dedup.py` | 路由 | **/dedup/\*** 扫描、分组、处置、进度、vault 卫生、回收站恢复与排除撤销 | ✅ |
@@ -40,6 +40,7 @@ Extension clip、wikiignore 与 ima 导入 REST 子路由，与 Brain Console �
 
 ## 依赖
 
+- `app.middleware.max_body_size` (POS: server-wide body ceiling, the clip form text field limit)
 - `app.services.wiki.clip` (POS: clip job orchestration + multipart cap)
 - `app.services.wiki.source_sync.ima` (POS: ima sync facade)
 - `app.services.wiki.vault` (POS: wiki archiver)

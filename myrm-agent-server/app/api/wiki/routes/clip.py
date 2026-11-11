@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.api.wiki.archiver_dependency::get_scoped_wiki_archiver (POS: archiver bound to the user's model, for clips queued to compile)
+- app.middleware.max_body_size::MAX_REQUEST_BODY_BYTES (POS: server-wide body ceiling, used as the form text field limit)
 - app.services.wiki.clip (POS: clip job orchestration + multipart cap)
 - app.services.wiki.vault::get_wiki_structure (POS: vault layout for .wikiignore, no archiver needed)
 - myrm_agent_harness.toolkits.wiki.pipeline.ingress (POS: clip ingress + wikiignore)
@@ -10,18 +11,23 @@
 - POST/GET /clip · GET/PUT /wikiignore
 
 [POS]
-REST layer for browser extension wiki clip upload and vault .wikiignore rules.
+REST layer for browser extension wiki clip upload and vault .wikiignore rules. A clip form carries a whole page as one
+text field, so the router parses it with the field limit raised to the server-wide body ceiling.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Coroutine
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver
+from app.middleware.max_body_size import MAX_REQUEST_BODY_BYTES
 from app.services.wiki import MemoryToWikiArchiver
 from app.services.wiki.clip import (
     MAX_CLIP_PAYLOAD_BYTES,
@@ -30,7 +36,35 @@ from app.services.wiki.clip import (
     schedule_wiki_clip,
 )
 
-router = APIRouter(tags=["wiki-clip"])
+
+class _WholePageFormRoute(APIRoute):
+    """Route whose form may carry a whole page as one text field.
+
+    Starlette refuses any form text field above 1 MB unless ``Request.form`` is given a larger limit, and FastAPI
+    parses declared ``Form`` parameters with the default. Every POST on this router is a clip form, so it is parsed
+    here first with the limit raised to the server-wide body ceiling; the request caches the parsed form, so FastAPI
+    reads this result and the route's own payload guard answers an oversize clip with 413. A form that cannot be read
+    (malformed, or the client aborted the upload) gets the same 400 FastAPI gives its own body-parsing failures.
+    """
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[None, None, Response]]:
+        route_handler = super().get_route_handler()
+
+        async def parse_form_then_handle(request: Request) -> Response:
+            if request.method == "POST":
+                try:
+                    await request.form(max_part_size=MAX_REQUEST_BODY_BYTES)
+                except StarletteHTTPException:
+                    # Starlette's own 400s (field too large, missing boundary) already carry a specific message.
+                    raise
+                except Exception as exc:
+                    raise HTTPException(status_code=400, detail="There was an error parsing the body") from exc
+            return await route_handler(request)
+
+        return parse_form_then_handle
+
+
+router = APIRouter(tags=["wiki-clip"], route_class=_WholePageFormRoute)
 
 
 class WikiClipAcceptResponse(BaseModel):

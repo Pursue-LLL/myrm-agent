@@ -19,7 +19,7 @@ Server 侧 clip 任务编排：multipart 大小守卫 + 异步 job runner，委�
 | Caller | Entry |
 | --- | --- |
 | `app/api/wiki/routes/clip.py` | REST `/wiki/clip` + job poll |
-| Tests | `tests/api/wiki/test_wiki_clip_api.py` · `tests/services/extension/clip/test_agent_config.py` |
+| Tests | `tests/api/wiki/test_wiki_clip_api.py` · `tests/api/wiki/test_wiki_clip_form_parsing.py` · `tests/services/extension/clip/test_agent_config.py` |
 
 ## 依赖
 

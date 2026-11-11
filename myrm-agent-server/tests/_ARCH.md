@@ -29,6 +29,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
+| `support/wiki_clip_client.py` | 辅助 | 剪藏 API 测试共用：`build_wiki_client`（临时 vault 上的 wiki 路由客户端）、`cleanup_wiki_client`、`bypass_loopback_auth`（回环身份）、`poll_clip_job`（轮询剪藏任务到终态） |
 | `support/workspace_text_api.py` | 辅助 | 文本编辑 API 测试共用：挂载 files 路由 + 净化中间件的客户端、含各类文件的示例工作区、读/存/另存请求封装 |
 | `support/otlp_receiver.py` | 辅助 | 进程内 OTLP/HTTP 接收端（`OtlpReceiver`）：解码收到的追踪、指标与日志（`spans()`、`metric_export_count`、`metric_attribute_values`、`log_attribute_values`），断言「运维后端真正收到了什么」；遥测装配与 FastAPI 原生遥测策略的子进程测试共用 |
 | `support/public_api_app.py` | 辅助 | `public_api_openapi()`：公开 API（`app/main.py` 直接挂载的内部/管理路由、`/mem0`、OpenAI 兼容接口与 `/health` 除外）的 OpenAPI 路径表（`MYRM_MEMORY_LABS` 关闭时补挂 Labs 路由，客户端目标路径保持完整），并带回生成期间捕获的 `Duplicate Operation ID` 警告与指向不存在组件的 `$ref`；`public_api_handlers()`：每个操作背后的端点函数（`app/` 下的文件、函数名、方法、客户端路径，经 `fastapi.routing.iter_route_contexts` 读出，同名函数 `create_task` / `create_job` 靠 operationId 分不出文件）；共享应用与两张表在进程内只生成一次，`tests/architecture` 路由类测试共用；`build_public_api_app()`：每次新建一份挂好全部公开路由的应用，要补挂路由的测试用它（`middleware/test_trailing_slash_alias.py` 补挂 `/mem0`），共享应用不可改；不 import `app.main` |
@@ -503,6 +504,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_wiki_knowledge_pack_real_chat_chrome_e2e.py` | E2E | 知识包真实链路 Chrome E2E（PRIVATE+NAMESPACE_WRITE×4，真实模型）：挂载的知识库经每轮知识包让模型答出只有该库才有的随机暗号。已索引库里名为 `SKILL.md` 的页面（同一智能体的未挂载会话答不出）、中文页面与未发布草稿（草稿暗号不出现）、无索引与索引文件损坏的纯笔记库、无痕会话挂载了知识库也没有知识包（同一库在普通会话答得出） |
 | `e2e/test_wiki_index_migration_chrome_e2e.py` | E2E | 旧身份规则的索引迁移 E2E（PRIVATE+NAMESPACE_WRITE×1）：智能体 vault 的索引写成旧版本的样子（页面键为编译名、`user_version` 3），运行中的服务端收到前端 wiki 服务同款的概念检索请求后，索引键为页面文件名、版本为当前版本，检索命中 |
 | `api/wiki/test_wiki_clip_model_binding.py` | 模块 | 剪藏排队编译用用户的模型，无论哪个请求唤醒 worker；`.wikiignore` 读写不构建归档器 |
+| `api/wiki/test_wiki_clip_form_parsing.py` | 模块 | 剪藏表单的整页文本字段（multipart part 与 urlencoded 字段）超过解析器默认的 1 MB 仍被接受并写入 raw，超过 8 MB 返回 413（超大资源文件与 `asset_urls` 计入同一个上限）；缺 boundary 的表单保留解析器的具体报错，客户端上传中途断开返回 400 且不向外抛异常 |
 | `api/wiki/test_wiki_governance_routes.py` | 模块 | 治理工作台端点跑在真实归档器上：overview 计数、archive/revive 经 vault 索引（`archiver._query_engine._indexer`）完成 |
 | `api/wiki/test_wiki_dedup_hold_release.py` | 模块 | 被「先扫描后编译」暂扣的文档，在用户经 REST 处理重复组（trash/dismiss）后由用户的模型编译，无需手动点「编译」；暂扣期间队列与模型都没被触碰 |
 | `services/wiki/test_dedup_runner_model_binding.py` | 模块 | 排重扫描/列表/水合只读 vault，不构建无模型归档器、不抢编译 worker 槽位；处置与恢复走带模型的归档器 |

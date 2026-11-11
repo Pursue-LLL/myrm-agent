@@ -10,7 +10,7 @@ from app.middleware.cache import CacheControlMiddleware
 from app.middleware.e2ee import E2EEMiddleware
 from app.middleware.host_allowlist import HostAllowlistMiddleware
 from app.middleware.ingress import PublicIngressMiddleware
-from app.middleware.max_body_size import MaxBodySizeMiddleware
+from app.middleware.max_body_size import MAX_REQUEST_BODY_BYTES, MaxBodySizeMiddleware
 from app.middleware.observability import TracingMiddleware
 from app.middleware.session_idle import SessionIdleMiddleware
 from app.middleware.text_sanitizer_middleware import TextSanitizerMiddleware
@@ -30,7 +30,7 @@ def register_middlewares(app: FastAPI) -> None:
     app.add_middleware(WsAuthMiddleware)
     app.add_middleware(CacheControlMiddleware)
     app.add_middleware(RawBodyLimitMiddleware, max_size=1024 * 1024)
-    app.add_middleware(MaxBodySizeMiddleware, max_size=15 * 1024 * 1024)  # 全局 15MB 熔断器
+    app.add_middleware(MaxBodySizeMiddleware, max_size=MAX_REQUEST_BODY_BYTES)  # 全局请求体熔断器
 
     # CORS 最后注册，最先执行（处理 OPTIONS 预检）
     cors_origins = resolve_cors_origins(settings.cors_origins or CORS_ORIGINS_DEFAULT)
