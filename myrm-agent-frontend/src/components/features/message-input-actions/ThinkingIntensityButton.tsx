@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
+import { createPersistedStringStore } from '@/hooks/ui/persistedStringStore';
 import { resolveActiveModelSelection } from '@/lib/model-binding';
 import { detectReasoningSupport } from '@/lib/reasoning-model-detection';
 import { isImeComposing } from '@/lib/utils/imeUtils';
@@ -39,15 +40,16 @@ interface StoredIntensity {
   customValue: string;
 }
 
+// A browser that refuses storage keeps each model's choice for the page instead of dropping it.
+const savedLevels = createPersistedStringStore(STORAGE_PREFIX);
+const savedCustomValues = createPersistedStringStore(CUSTOM_STORAGE_PREFIX);
+
 function getStoredIntensity(modelName: string): StoredIntensity | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  const customStored = localStorage.getItem(`${CUSTOM_STORAGE_PREFIX}${modelName}`);
+  const customStored = savedCustomValues.read(modelName);
   if (customStored) {
     return { intensity: 'off', customValue: customStored };
   }
-  const stored = localStorage.getItem(`${STORAGE_PREFIX}${modelName}`);
+  const stored = savedLevels.read(modelName);
   if (stored && INTENSITY_OPTIONS.some((o) => o.value === stored)) {
     return { intensity: stored as IntensityLevel, customValue: '' };
   }
@@ -55,26 +57,20 @@ function getStoredIntensity(modelName: string): StoredIntensity | null {
 }
 
 function storeIntensity(modelName: string, level: IntensityLevel): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  localStorage.removeItem(`${CUSTOM_STORAGE_PREFIX}${modelName}`);
+  savedCustomValues.remove(modelName);
   if (level === DEFAULT_INTENSITY) {
-    localStorage.removeItem(`${STORAGE_PREFIX}${modelName}`);
+    savedLevels.remove(modelName);
   } else {
-    localStorage.setItem(`${STORAGE_PREFIX}${modelName}`, level);
+    savedLevels.write(modelName, level);
   }
 }
 
 function storeCustomValue(modelName: string, value: string): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  localStorage.removeItem(`${STORAGE_PREFIX}${modelName}`);
+  savedLevels.remove(modelName);
   if (value) {
-    localStorage.setItem(`${CUSTOM_STORAGE_PREFIX}${modelName}`, value);
+    savedCustomValues.write(modelName, value);
   } else {
-    localStorage.removeItem(`${CUSTOM_STORAGE_PREFIX}${modelName}`);
+    savedCustomValues.remove(modelName);
   }
 }
 
@@ -88,6 +84,7 @@ const ThinkingIcon = ({ className, intensity }: { className?: string; intensity:
 
   return (
     <svg
+      aria-hidden="true"
       xmlns="http://www.w3.org/2000/svg"
       width="16"
       height="16"
@@ -260,6 +257,7 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
             <PopoverTrigger asChild>
               <button
                 type="button"
+                aria-label={displayLabel ? `${t('title')}: ${displayLabel}` : t('title')}
                 className={cn(
                   'group relative flex items-center gap-1 px-2 h-8 rounded-lg transition-all duration-200',
                   'hover:bg-black/[0.06] dark:hover:bg-white/[0.08]',
@@ -296,6 +294,7 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
                 <button
                   key={option.value}
                   type="button"
+                  aria-pressed={isSelected}
                   onClick={() => handleSelect(option.value)}
                   className={cn(
                     'w-full flex items-center gap-2.5 px-2 py-1.5 rounded-full text-sm transition-colors',
@@ -320,6 +319,7 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
                 <input
                   ref={inputRef}
                   type="text"
+                  aria-label={t('custom')}
                   value={customInputValue}
                   onChange={(e) => setCustomInputValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -348,6 +348,7 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
             ) : (
               <button
                 type="button"
+                aria-pressed={Boolean(customValue)}
                 onClick={() => {
                   setShowCustomInput(true);
                   setCustomInputValue(customValue || '');

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useThinkingBudgetStore } from '../useThinkingBudgetStore';
 import * as legacyIntensity from '@/components/features/message-input-actions/ThinkingIntensityButton';
 
@@ -12,6 +12,11 @@ describe('useThinkingBudgetStore', () => {
       reasoningEffort: undefined,
     });
     vi.restoreAllMocks();
+    legacyIntensity.setGlobalIntensity('off');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('initializes with default off tier and 0 token budget', () => {
@@ -46,6 +51,71 @@ describe('useThinkingBudgetStore', () => {
     expect(state.level).toBe('high');
     expect(state.tokenBudget).toBe(16384);
     expect(state.reasoningEffort).toBe('high');
+  });
+
+  it('moves the intensity bus to the hydrated level', () => {
+    localStorage.setItem('myrm_thinking_budget_o3-mini', 'high');
+    legacyIntensity.setGlobalIntensity('low');
+
+    useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
+
+    expect(legacyIntensity.getThinkingEffort()).toBe('high');
+  });
+
+  it('keeps the preference the intensity control saved for a model when switching to it', () => {
+    localStorage.setItem('thinkingIntensity_o3-mini', 'max');
+    legacyIntensity.setGlobalIntensity('high', 'gpt-4o');
+
+    useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
+
+    expect(localStorage.getItem('thinkingIntensity_o3-mini')).toBe('max');
+    expect(localStorage.getItem('thinkingIntensity_gpt-4o')).toBe('high');
+  });
+
+  it('keeps a custom value the intensity control saved for a model when switching to it', () => {
+    localStorage.setItem('thinkingIntensityCustom_o3-mini', '24k');
+    legacyIntensity.setGlobalIntensity('medium', 'gpt-4o');
+
+    useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
+
+    expect(localStorage.getItem('thinkingIntensityCustom_o3-mini')).toBe('24k');
+  });
+
+  it('ignores hydration for an empty model name or the model already hydrated', () => {
+    legacyIntensity.setGlobalIntensity('low');
+
+    useThinkingBudgetStore.getState().hydrateForModel('');
+    expect(useThinkingBudgetStore.getState().currentModel).toBe('');
+
+    useThinkingBudgetStore.setState({ currentModel: 'o3-mini' });
+    localStorage.setItem('myrm_thinking_budget_o3-mini', 'max');
+    useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
+
+    expect(useThinkingBudgetStore.getState().level).toBe('off');
+    expect(legacyIntensity.getThinkingEffort()).toBe('low');
+  });
+
+  it('falls back to off for an unrecognised stored level', () => {
+    localStorage.setItem('myrm_thinking_budget_o3-mini', 'turbo');
+
+    useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
+
+    expect(useThinkingBudgetStore.getState().level).toBe('off');
+    expect(useThinkingBudgetStore.getState().tokenBudget).toBe(0);
+  });
+
+  it('still changes level when storage is blocked', () => {
+    const refuse = () => {
+      throw new DOMException('blocked', 'SecurityError');
+    };
+    vi.stubGlobal('localStorage', { getItem: refuse, setItem: refuse, removeItem: refuse });
+
+    useThinkingBudgetStore.getState().hydrateForModel('blocked-model');
+    useThinkingBudgetStore.getState().setLevel('high', 'blocked-model');
+
+    expect(useThinkingBudgetStore.getState().currentModel).toBe('blocked-model');
+    expect(useThinkingBudgetStore.getState().level).toBe('high');
+    expect(legacyIntensity.getThinkingEffort()).toBe('high');
   });
 
   it('removes storage entry when setting level to off', () => {

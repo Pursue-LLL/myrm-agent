@@ -13,10 +13,7 @@
  */
 
 import { create } from 'zustand';
-import {
-  type ThinkingEffortLevel,
-  THINKING_BUDGET_TIERS,
-} from './thinkingPermissionTypes';
+import { type ThinkingEffortLevel, THINKING_BUDGET_TIERS } from './thinkingPermissionTypes';
 import { setGlobalIntensity } from '@/components/features/message-input-actions/ThinkingIntensityButton';
 
 const STORAGE_PREFIX = 'myrm_thinking_budget_';
@@ -96,8 +93,9 @@ export const useThinkingBudgetStore = create<ThinkingBudgetState>((set, get) => 
     const stored = getStoredLevel(modelName);
     const tier = resolveTierConfig(stored);
 
-    // Sync legacy intensity bus
-    setGlobalIntensity(stored, modelName);
+    // Move the intensity bus (getThinkingEffort) in memory only. Passing the model name would also rewrite the
+    // keys the intensity control saved for this model, erasing its saved preference on every model switch.
+    setGlobalIntensity(stored);
 
     set({
       currentModel: modelName,

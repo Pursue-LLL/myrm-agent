@@ -6,22 +6,31 @@
  * - createPersistedStringStore: a namespaced key → string memory that survives reloads and notifies its readers.
  *
  * [POS]
- * Storage layer under per-device UI memory (closed proactive cards, the composer's options region). Storage can be
- * unavailable (private mode, quota), so a value it refuses is kept in this module instead: the write then lasts for
- * the page's lifetime rather than silently doing nothing. Such a value outranks storage, because storage may still
- * hold an older one. A missing value reads as null.
+ * Storage layer under per-device UI memory (closed proactive cards, the composer's options region, per-model
+ * thinking intensity). Storage can be unavailable (private mode, quota), so a value it refuses is kept in this
+ * module instead: the write then lasts for the page's lifetime rather than silently doing nothing. Such a value
+ * outranks storage, because storage may still hold an older one. A missing value reads as null.
  */
 
 export interface PersistedStringStore {
   read: (key: string) => string | null;
   write: (key: string, value: string) => void;
-  /** Shaped for `useSyncExternalStore`: fires after a write on this page and when another tab changes the namespace. */
+  /** Forgets the value, both in storage and on this page. */
+  remove: (key: string) => void;
+  /**
+   * Shaped for `useSyncExternalStore`: fires after a write or removal on this page and when another tab
+   * changes the namespace.
+   */
   subscribe: (listener: () => void) => () => void;
 }
 
 export function createPersistedStringStore(keyPrefix: string): PersistedStringStore {
   const unpersisted = new Map<string, string>();
   const listeners = new Set<() => void>();
+
+  const notify = (): void => {
+    listeners.forEach((listener) => listener());
+  };
 
   const read = (key: string): string | null => {
     const storageKey = keyPrefix + key;
@@ -44,7 +53,18 @@ export function createPersistedStringStore(keyPrefix: string): PersistedStringSt
     } catch {
       unpersisted.set(storageKey, value);
     }
-    listeners.forEach((listener) => listener());
+    notify();
+  };
+
+  const remove = (key: string): void => {
+    const storageKey = keyPrefix + key;
+    unpersisted.delete(storageKey);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // Storage is unavailable, so it holds nothing to forget.
+    }
+    notify();
   };
 
   const subscribe = (listener: () => void): (() => void) => {
@@ -61,5 +81,5 @@ export function createPersistedStringStore(keyPrefix: string): PersistedStringSt
     };
   };
 
-  return { read, write, subscribe };
+  return { read, write, remove, subscribe };
 }

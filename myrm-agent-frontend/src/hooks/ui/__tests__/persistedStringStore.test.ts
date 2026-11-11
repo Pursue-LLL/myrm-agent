@@ -21,6 +21,12 @@ function stubLocalStorage(initial: Record<string, string> = {}) {
       }
       control.data.set(key, value);
     },
+    removeItem: (key: string) => {
+      if (control.refuseWrites) {
+        throw new DOMException('denied', 'SecurityError');
+      }
+      control.data.delete(key);
+    },
   });
   return control;
 }
@@ -81,6 +87,50 @@ describe('persisted string store', () => {
     // Another tab's value is visible again: the page no longer holds a value that shadows storage.
     control.data.set('ns.flag', '1');
     expect(store.read('flag')).toBe('1');
+  });
+
+  it('forgets a removed value in storage and keeps the rest of the namespace', () => {
+    const store = createPersistedStringStore('ns.');
+    store.write('flag', '1');
+    store.write('other', '2');
+
+    store.remove('flag');
+
+    expect(localStorage.getItem('ns.flag')).toBeNull();
+    expect(store.read('flag')).toBeNull();
+    expect(store.read('other')).toBe('2');
+  });
+
+  it('forgets a value the page was holding because storage refused it', () => {
+    const control = stubLocalStorage();
+    const store = createPersistedStringStore('ns.');
+    control.refuseWrites = true;
+    store.write('flag', '1');
+    expect(store.read('flag')).toBe('1');
+
+    store.remove('flag');
+
+    expect(store.read('flag')).toBeNull();
+  });
+
+  it('removes a value nobody wrote, and does not throw when storage refuses the removal', () => {
+    const control = stubLocalStorage();
+    const store = createPersistedStringStore('ns.');
+    control.refuseWrites = true;
+
+    expect(() => store.remove('missing')).not.toThrow();
+    expect(store.read('missing')).toBeNull();
+  });
+
+  it('notifies subscribers after a removal', () => {
+    const store = createPersistedStringStore('ns.');
+    store.write('flag', '1');
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    store.remove('flag');
+
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it('notifies subscribers after a write and after another tab changes the namespace, and only then', () => {
