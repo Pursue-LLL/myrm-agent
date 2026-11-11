@@ -441,26 +441,40 @@ def _clear_agent_test_process_state() -> None:
             frame = getattr(cur, "cr_frame", None) or getattr(cur, "gi_frame", None) or getattr(cur, "ag_frame", None)
             if frame is not None:
                 chain.append(f"{frame.f_code.co_filename}:{frame.f_lineno}:{frame.f_code.co_name}")
-            cur = getattr(cur, "cr_await", None) or getattr(cur, "gi_yieldfrom", None) or getattr(cur, "ag_await", None)
+                cur = getattr(cur, "cr_await", None) or getattr(cur, "gi_yieldfrom", None) or getattr(cur, "ag_await", None)
+            else:
+                get_loop = getattr(cur, "get_loop", None)
+                loop_note = ""
+                if get_loop is not None:
+                    try:
+                        loop_note = f" loop_is_running_loop={get_loop() is asyncio.get_running_loop()} loop_closed={get_loop().is_closed()}"
+                    except Exception as exc:  # diagnostic only
+                        loop_note = f" loop_probe_failed={exc!r}"
+                chain.append(f"AWAITING {cur!r}{loop_note}")
+                break
         return chain
 
     async def _diag_shutdown() -> None:
-        import sys
+        import os
+        import threading
+
+        from myrm_agent_harness.toolkits.vector.qdrant import factory as qdrant_factory
 
         from app.core.memory.adapters import setup as memory_setup
 
         task = asyncio.ensure_future(shutdown_cached_memory_managers())
-        _done, pending = await asyncio.wait({task}, timeout=20)
+        _done, pending = await asyncio.wait({task}, timeout=15)
         if pending:
             out = [
-                "[DIAG] shutdown_cached_memory_managers still running after 20 s; "
-                f"cache lock locked={memory_setup._memory_manager_cache_lock.locked()}, cache size={len(memory_setup._memory_manager_cache)}"
+                "[DIAG] shutdown_cached_memory_managers still running after 15 s",
+                f"[DIAG] memory cache lock={memory_setup._memory_manager_cache_lock!r} cache size={len(memory_setup._memory_manager_cache)}",
+                f"[DIAG] embedded lock={qdrant_factory._embedded_lock!r} embedded clients={len(qdrant_factory._embedded_clients)}",
+                f"[DIAG] threads={[t.name for t in threading.enumerate()]}",
             ]
             for t in asyncio.all_tasks():
                 out.append(f"[DIAG] task {t.get_name()} done={t.done()}")
                 out.extend(f"[DIAG]     {line}" for line in _await_chain(t.get_coro()))
-            sys.stderr.write("\n".join(out) + "\n")
-            sys.stderr.flush()
+            os.write(2, ("\n".join(out) + "\n").encode())
             task.cancel()
             await asyncio.wait({task}, timeout=5)
 
