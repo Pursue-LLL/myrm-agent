@@ -1,6 +1,6 @@
 'use client';
 
-import { RefObject, useCallback, useRef, useState } from 'react';
+import { RefObject, useCallback, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Download, FileText, FileImage, Globe, FileType } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -18,6 +18,7 @@ import {
   downloadMessageAsDocx,
   downloadMessageAsHtml,
   downloadMessageAsImage,
+  getExportLang,
 } from '@/lib/utils/chat-export';
 import { confirmAction } from '@/lib/app-dialog';
 import type { Message } from '@/store/chat/types';
@@ -31,6 +32,7 @@ interface ExportMenuProps {
 
 export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
   const t = useTranslations('chat');
+  const tSources = useTranslations('sources');
   const { resolvedTheme } = useTheme();
   const [includeReasoning, setIncludeReasoning] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -58,17 +60,23 @@ export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
     [t],
   );
 
+  // The file reads in the interface's language, with the words the reader sees on screen.
+  const labels = useMemo(
+    () => ({ reasoning: t('reasoningTitle'), sources: tSources('title'), untitledSource: tSources('untitled') }),
+    [t, tSources],
+  );
+
   const handleMarkdown = useCallback(() => {
-    downloadMessageAsMarkdown(message, includeReasoning);
-  }, [message, includeReasoning]);
+    downloadMessageAsMarkdown(message, includeReasoning, labels);
+  }, [message, includeReasoning, labels]);
 
   const handleHtml = useCallback(() => {
-    void withGuard(() => downloadMessageAsHtml(message, includeReasoning, theme));
-  }, [message, includeReasoning, theme, withGuard]);
+    void withGuard(() => downloadMessageAsHtml(message, includeReasoning, labels, theme, getExportLang()));
+  }, [message, includeReasoning, labels, theme, withGuard]);
 
   const handleDocx = useCallback(() => {
-    void withGuard(() => downloadMessageAsDocx(message, includeReasoning));
-  }, [message, includeReasoning, withGuard]);
+    void withGuard(() => downloadMessageAsDocx(message, includeReasoning, labels));
+  }, [message, includeReasoning, labels, withGuard]);
 
   const handleImage = useCallback(async () => {
     if (!markdownRef.current) {

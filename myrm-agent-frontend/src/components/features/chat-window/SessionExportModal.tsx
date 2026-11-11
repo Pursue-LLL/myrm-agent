@@ -35,6 +35,7 @@ import {
   downloadAsMarkdown,
   downloadAsJson,
   copyAsMarkdown,
+  getExportLang,
   type ExportFormatOptions,
 } from '@/lib/utils/chat-export';
 
@@ -102,11 +103,10 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
       };
 
       const isDark = resolvedTheme === 'dark';
-      const lang = typeof navigator !== 'undefined' && navigator.language.startsWith('zh') ? 'zh' : 'en';
 
       switch (selectedFormat) {
         case 'html':
-          await downloadAsHtml(exportData, isDark ? 'dark' : 'light', lang, formatOptions);
+          await downloadAsHtml(exportData, isDark ? 'dark' : 'light', getExportLang(), formatOptions);
           break;
         case 'markdown':
           downloadAsMarkdown(exportData, formatOptions);

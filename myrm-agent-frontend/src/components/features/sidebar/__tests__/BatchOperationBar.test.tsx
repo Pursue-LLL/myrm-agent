@@ -8,6 +8,7 @@ import BatchOperationBar from '../BatchOperationBar';
 
 const batchMoveChats = vi.hoisted(() => vi.fn());
 const batchExportAsZip = vi.hoisted(() => vi.fn());
+const getExportLang = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() =>
   Object.assign(vi.fn(), {
     success: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('@/services/projects', () => ({
 
 vi.mock('@/lib/utils/chat-export', () => ({
   batchExportAsZip,
+  getExportLang,
 }));
 
 vi.mock('@/hooks/shared/useToast', () => ({
@@ -74,6 +76,7 @@ const defaultProps = {
 describe('BatchOperationBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getExportLang.mockReturnValue('zh');
   });
 
   it('renders batch operation bar with project picker toggle', () => {
@@ -96,6 +99,23 @@ describe('BatchOperationBar', () => {
     const disabled = screen.getByRole('button', { name: 'chat.batch.delete' });
     expect(disabled).toBeDisabled();
     expect(disabled.className).not.toContain('text-destructive-text');
+  });
+
+  it('lays the exported pages out in the app language', async () => {
+    batchExportAsZip.mockResolvedValueOnce({ blob: new Blob(), result: { exported: 0, skipped: 0, failed: 0 } });
+    const user = userEvent.setup();
+    render(<BatchOperationBar {...defaultProps} />);
+
+    await user.click(screen.getByRole('button', { name: 'chat.batch.export' }));
+    await user.click(await screen.findByRole('button', { name: 'chat.batch.exportFormatHtml' }));
+
+    await waitFor(() =>
+      expect(batchExportAsZip).toHaveBeenCalledExactlyOnceWith(
+        ['chat-1', 'chat-2'],
+        'html',
+        expect.objectContaining({ theme: 'light', lang: 'zh' }),
+      ),
+    );
   });
 
   it('writes the cancel-export hover color in the readable destructive text color', async () => {
