@@ -2651,6 +2651,7 @@
       "tooltip": "현재 생성을 중단하고 에이전트를 리디렉션합니다"
     },
     "input": {
+      "label": "메시지",
       "placeholder": "메시지 입력...",
       "uploadingImage": "이미지 업로드 중...",
       "collapseToolbar": "도구 모음 접기",

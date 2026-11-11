@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { type ComponentProps, createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -182,6 +182,29 @@ describe('ComposerTextarea releasing the warm turn on blur', () => {
     });
 
     expect(prewarm.cancelPrewarm).not.toHaveBeenCalled();
+  });
+});
+
+describe('ComposerTextarea accessible name', () => {
+  beforeEach(() => {
+    stubViewport(true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // The placeholder is a hint that changes with the busy state and a previewed history entry; the name must not.
+  it.each<[state: string, props: Partial<ComponentProps<typeof ComposerTextarea>>]>([
+    ['idle', {}],
+    ['expanded', { expanded: true }],
+    ['busy', { loading: true }],
+    ['previewing a history entry', { ghostText: 'an earlier prompt' }],
+  ])('is the same while %s', (_state, props) => {
+    const { textarea } = renderTextarea(props);
+
+    expect(screen.getByRole('textbox', { name: 'input.label' })).toBe(textarea);
+    expect(textarea.placeholder).not.toBe('input.label');
   });
 });
 

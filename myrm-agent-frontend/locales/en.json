@@ -2660,6 +2660,7 @@
       "tooltip": "Interrupt current generation and redirect the agent (Enter)"
     },
     "input": {
+      "label": "Message",
       "placeholder": "Type a message...",
       "uploadingImage": "Uploading image...",
       "collapseToolbar": "Collapse toolbar",

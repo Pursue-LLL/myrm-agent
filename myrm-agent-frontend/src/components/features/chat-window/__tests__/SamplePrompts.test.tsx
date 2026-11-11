@@ -104,6 +104,52 @@ describe('SamplePrompts', () => {
   });
 
   describe('slot tabs', () => {
+    it('tells assistive technology which tab is pressed: the current slot until another is chosen', () => {
+      const pressedStates = () =>
+        Object.fromEntries(
+          (['morning', 'afternoon', 'evening', 'night', 'all'] as const).map((label) => [
+            label,
+            tab(label).getAttribute('aria-pressed'),
+          ]),
+        );
+      render(<SamplePrompts />);
+      expect(pressedStates()).toEqual({
+        morning: 'false',
+        afternoon: 'true',
+        evening: 'false',
+        night: 'false',
+        all: 'false',
+      });
+
+      fireEvent.click(tab('morning'));
+      expect(pressedStates()).toEqual({
+        morning: 'true',
+        afternoon: 'false',
+        evening: 'false',
+        night: 'false',
+        all: 'false',
+      });
+
+      fireEvent.click(tab('all'));
+      expect(pressedStates()).toEqual({
+        morning: 'false',
+        afternoon: 'false',
+        evening: 'false',
+        night: 'false',
+        all: 'true',
+      });
+
+      // Choosing the current slot again hands control back to the clock.
+      fireEvent.click(tab('afternoon'));
+      expect(pressedStates()).toEqual({
+        morning: 'false',
+        afternoon: 'true',
+        evening: 'false',
+        night: 'false',
+        all: 'false',
+      });
+    });
+
     it('shows another slot on request and returns to the automatic one when the current tab is clicked', async () => {
       setClock(17, 59, 30);
       render(<SamplePrompts />);

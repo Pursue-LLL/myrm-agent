@@ -2651,6 +2651,7 @@
       "tooltip": "現在の生成を中断してエージェントをリダイレクト"
     },
     "input": {
+      "label": "メッセージ",
       "placeholder": "メッセージを入力...",
       "uploadingImage": "画像アップロード中...",
       "collapseToolbar": "ツールバーを折りたたむ",

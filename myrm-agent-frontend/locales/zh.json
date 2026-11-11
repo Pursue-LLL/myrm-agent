@@ -2660,6 +2660,7 @@
       "tooltip": "中断当前生成并纠正 Agent 方向 (Enter)"
     },
     "input": {
+      "label": "消息",
       "placeholder": "输入消息...",
       "uploadingImage": "上传图片中...",
       "collapseToolbar": "收起工具栏",

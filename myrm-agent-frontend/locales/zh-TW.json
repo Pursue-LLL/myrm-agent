@@ -2651,6 +2651,7 @@
       "tooltip": "中斷當前生成並糾正 Agent 方向"
     },
     "input": {
+      "label": "訊息",
       "placeholder": "輸入訊息...",
       "uploadingImage": "上傳圖片中...",
       "collapseToolbar": "收起工具欄",

@@ -215,6 +215,7 @@ const SamplePrompts = React.memo(() => {
             return (
               <button
                 key={id}
+                aria-pressed={isActive}
                 onClick={() => handleSelectSlot(id === currentTimeSlot && selectedSlot !== 'auto' ? 'auto' : id)}
                 className={cn(
                   'inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 sm:py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer select-none',
