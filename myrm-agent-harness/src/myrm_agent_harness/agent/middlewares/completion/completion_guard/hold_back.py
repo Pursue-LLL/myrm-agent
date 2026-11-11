@@ -1,8 +1,9 @@
 """How a held-back answer leaves the conversation, and what the model is owed on its next request.
 
 When the completion guard holds an answer back it routes the run to the model (``jump_to="model"``) and leaves the
-instruction pending in the turn's guard state; ``directive_middleware`` appends it to the next request only. This
-module decides what happens to the draft itself and which message the instruction follows.
+instruction pending in the turn's guard state; ``directive_middleware`` places it behind the message it follows on
+the next request and on every later request of the run. This module decides what happens to the draft itself and
+which message the instruction follows.
 
 [INPUT]
 - agent.middlewares.completion.completion_guard.directive::BlockReasons, render_completion_directive (POS: what the model reads for each held-back answer)

@@ -12,11 +12,13 @@ either stays the same on every request, or is written once and placed behind the
 [OUTPUT]
 - run_scope: the per-run dict a request carries, or None when it carries none
 - frozen_for_run: renders a notice on the run's first request and hands back that one rendering on every later request
+- last_stored_message: the newest message of a request that a notice can stand behind and keep its place
 - NoticeLedger: append-only notices of one run, each placed behind the message that was last when it was written
 
 [POS]
-Shared by the middlewares whose notices change while a run goes on (todo focus, circuit-breaker constraints). The run
-dict is the LangGraph run context, which is new for every run, so nothing here outlives the run it was written in.
+Shared by the middlewares whose notices change while a run goes on (todo focus, circuit-breaker constraints, the
+advisor block, the completion guard's instruction). The run dict is the LangGraph run context, which is new for every
+run, so nothing here outlives the run it was written in.
 """
 
 from __future__ import annotations
@@ -57,6 +59,14 @@ async def frozen_for_run(
     return rendered
 
 
+def last_stored_message(messages: Sequence[BaseMessage]) -> BaseMessage | None:
+    """The newest message of ``messages`` that carries an id, which only a message the graph stored does.
+
+    A request-local notice has no id to be found by, so a notice cannot stand behind it and keep its place.
+    """
+    return next((message for message in reversed(messages) if message.id), None)
+
+
 class NoticeLedger:
     """The notices of one run in the order they were written.
 
@@ -84,8 +94,10 @@ class NoticeLedger:
         return self._entries[-1][1] if self._entries else None
 
     def record(self, anchor: BaseMessage | None, text: str) -> None:
-        """Write a notice that stands behind ``anchor`` from now on."""
-        self._entries.append([(anchor.id if anchor is not None else None) or "", text])
+        """Write a notice that stands behind ``anchor`` from now on, unless the newest notice already is that one."""
+        entry = [(anchor.id if anchor is not None else None) or "", text]
+        if not self._entries or self._entries[-1] != entry:
+            self._entries.append(entry)
 
     def placed_in(self, messages: Sequence[AnyMessage]) -> list[AnyMessage]:
         """``messages`` with every notice of the ledger behind its anchor, as runtime-written HumanMessages."""

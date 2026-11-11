@@ -318,7 +318,8 @@ Resume 从不解析历史，线程原样续接，遥测记为 `history_mode=resu
 **运行期通知只有两种写法**（`agent/middlewares/_run_notices.py`）：
 
 - 每个请求逐字节相同：`frozen_for_run` 在运行的首个请求渲染一次，之后原样复用（todo 焦点；目标焦点的计数在运行结束时才结算，同样整次运行不变）。
-- 写一次后留在当时最后一条消息之后：`NoticeLedger`（熔断约束），之后新增的约束追加在后面，已写入的不挪位。
+- 写一次后留在当时最后一条已存消息之后：`NoticeLedger`（熔断约束、MoA 顾问建议、完成复核指令），之后新增的通知追加在后面，已写入的不挪位，同一条不重复写。
+  MoA 顾问建议写在那次调用的最后一条已存消息之后，完成复核指令写在被拦草稿之后；写下它们之后，这次运行的每个请求都带着它们，`per_iteration` 的建议逐轮累加。账本只活一次运行，下一次运行从空账本开始。
 
 随回合变化的内容只放在用户亲写的最新消息尾部（`core/message_tail.py::append_block_to_last_user_message`），不放在其后的运行时通知上。谁算「用户亲写」由 `core/message_origin.py` 判定；压缩、锚点、摘要、工具治理、回合计数与笔记触发读同一条回合边界。
 
@@ -334,7 +335,7 @@ Resume 从不解析历史，线程原样续接，遥测记为 `history_mode=resu
 | 估算 | `estimate_message_tokens` 计入回放的块文本 |
 | 安全网 | `thinking_replay_guard_middleware`：提供商拒绝回放（`FailoverReason.THINKING_SIGNATURE`，覆盖三种 400 措辞）时，请求副本去掉全部块重发一次，本次运行不再回放；执行器层的 `stream_recovery_oneshot` 一次性恢复保留为最后一道 |
 
-**钉住它的测试**：`tests/support/enforcing_anthropic.py` 是按提供商规则逐请求核验的类型化替身（块未知、块之前的提示变了、块序列有缺口、待答轮缺块，各拒绝一次）；`tests/agent/middlewares/test_thinking_replay_shipped_stack.py` 经真实装配的中间件栈跑通：流式与非流式各 21 个请求全部带 `thinking`、零拒绝；守卫重试场景恰好 1 次拒绝。`tests/agent/middlewares/test_run_view_stability_shipped_stack.py` 钉住通知的运行内稳定。
+**钉住它的测试**：`tests/support/enforcing_anthropic.py` 是按提供商规则逐请求核验的类型化替身（块未知、块之前的提示变了、块序列有缺口、待答轮缺块，各拒绝一次）；`tests/agent/middlewares/test_thinking_replay_shipped_stack.py` 经真实装配的中间件栈跑通：流式与非流式各 21 个请求全部带 `thinking`、零拒绝；守卫重试场景恰好 1 次拒绝。`tests/agent/middlewares/test_run_view_stability_shipped_stack.py` 钉住通知的运行内稳定。`tests/agent/middlewares/test_moa_advisor_signed_replay.py`（`user_turn`、`per_iteration`、`every_n`、`risk_triggered` 四种扇出策略）与 `tests/agent/middlewares/completion/completion_guard/test_directive_signed_replay.py` 在同一个替身上各跑三个回合的工具循环：顾问建议与复核指令写下之后，本次运行的每个请求原样带着它，每个请求都带 `thinking`、零拒绝。
 
 **无法离线验证的部分**：真实接口按账号的校验强度、签名块的真实体积与缓存成本、5.x 隐式思考型号的待答轮规则、Bedrock 在合成续写轮之后的行为、回答质量的提升、生产环境的缓存断点翻转频率。块里的签名文本不能被脱敏改写（改写会让签名失效）。
 

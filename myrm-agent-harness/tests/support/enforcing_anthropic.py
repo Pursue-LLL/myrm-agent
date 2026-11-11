@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - EnforcingAnthropic: answers a tool loop round by round, signs the reasoning it returns and refuses what the API refuses
-- RequestRecord: what one request carried and how the double answered it
+- RequestRecord: what one request carried (its replayed blocks, the text the model read) and how the double answered it
 
 [POS]
 A test of signed-reasoning replay needs a provider that checks the blocks, because a double that accepts anything
@@ -40,12 +40,16 @@ _NO_LEADING_BLOCK: Final = (
 
 @dataclass(frozen=True, slots=True)
 class RequestRecord:
-    """What one request carried and how the double answered it."""
+    """What one request carried and how the double answered it.
+
+    ``text`` is what the model read: the text of every message and tool result, reasoning blocks left out.
+    """
 
     status: int
     thinking: bool
     replayed: int
     reason: str = ""
+    text: str = field(default="", repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +89,22 @@ def _blocks(content: object) -> list[Json]:
 def _turns(body: Json) -> list[Json]:
     messages = body.get("messages")
     return [turn for turn in messages if isinstance(turn, dict)] if isinstance(messages, list) else []
+
+
+def _text_of(blocks: Sequence[Json]) -> list[str]:
+    """The text a run of blocks puts in front of the model: text blocks and the text inside tool results."""
+    parts: list[str] = []
+    for block in blocks:
+        if block.get("type") == "text":
+            parts.append(str(block["text"]))
+        elif block.get("type") == "tool_result":
+            inner = block.get("content")
+            parts.extend(_text_of(inner) if isinstance(inner, list) else [])
+    return parts
+
+
+def _visible_text(turns: Sequence[Json]) -> str:
+    return "\n".join(part for turn in turns for part in _text_of(_blocks(turn.get("content"))))
 
 
 def _declared_tools(body: Json) -> list[Json]:
@@ -162,7 +182,7 @@ def _block_events(index: int, block: Json) -> list[Json]:
 
 @dataclass(slots=True)
 class EnforcingAnthropic:
-    """Answers a tool loop: ``tool_rounds`` tool calls to the user's message, then a text answer.
+    """Answers a tool loop: ``tool_rounds`` tool calls to the user's message, then ``answer`` as the closing text.
 
     Every answer to a request with thinking on opens with a freshly signed reasoning block. A request that breaks a
     rule is answered with the 400 the API gives, and its record says which rule.
@@ -170,6 +190,7 @@ class EnforcingAnthropic:
 
     tool_rounds: int
     tool_name: str = "read_file"
+    answer: str = "done"
     requests: list[RequestRecord] = field(default_factory=list)
     _minted: dict[str, _Minted] = field(default_factory=dict, init=False, repr=False)
 
@@ -190,6 +211,16 @@ class EnforcingAnthropic:
     @property
     def refused(self) -> list[RequestRecord]:
         return [record for record in self.requests if record.status != 200]
+
+    @property
+    def turns(self) -> list[list[RequestRecord]]:
+        """The accepted requests grouped by user turn: a turn opens with the one request that replays no block."""
+        grouped: list[list[RequestRecord]] = []
+        for record in self.accepted:
+            if record.replayed == 0 or not grouped:
+                grouped.append([])
+            grouped[-1].append(record)
+        return grouped
 
     def _refusal(self, body: Json, turns: Sequence[Json], replayed: Sequence[tuple[int, str]]) -> _Refusal | None:
         for position, (index, signature) in enumerate(replayed):
@@ -218,7 +249,7 @@ class EnforcingAnthropic:
             self._minted[signature] = _Minted(_prefix_digest(body, len(turns)), replayed[-1][1] if replayed else None)
             content.append({"type": "thinking", "thinking": f"reasoning {number}", "signature": signature})
         if not _declared_tools(body) or _tool_rounds_so_far(turns) >= self.tool_rounds:
-            content.append({"type": "text", "text": "done"})
+            content.append({"type": "text", "text": self.answer})
         else:
             call = {
                 "type": "tool_use",
@@ -236,12 +267,13 @@ class EnforcingAnthropic:
         turns = _turns(body)
         replayed = _replayed(turns)
         thinking = "thinking" in body
+        read = _visible_text(turns)
         if (refusal := self._refusal(body, turns, replayed)) is not None:
-            self.requests.append(RequestRecord(400, thinking, len(replayed), refusal.reason))
+            self.requests.append(RequestRecord(400, thinking, len(replayed), refusal.reason, read))
             error = {"type": "invalid_request_error", "message": refusal.message}
             return httpx.Response(400, json={"type": "error", "error": error})
         content = self._answer(body, turns, replayed)
-        self.requests.append(RequestRecord(200, thinking, len(replayed)))
+        self.requests.append(RequestRecord(200, thinking, len(replayed), text=read))
         stop = "tool_use" if content[-1]["type"] == "tool_use" else "end_turn"
         usage = {"input_tokens": 20, "output_tokens": 20}
         message: Json = {

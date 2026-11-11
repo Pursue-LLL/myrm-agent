@@ -1,14 +1,16 @@
 """A held-back answer reaches the model as one request-only instruction, not as a made-up tool call.
 
 The guard routes the run back to the model and leaves its instruction in the turn's guard state;
-``CompletionDirectiveMiddleware`` appends it after the held-back draft for that one request. The instruction is
-never stored in the conversation, so no approval, loop, trace or analytics path ever sees it as a tool call.
-The delivery cases drive the middleware on its own; the chain case pins where it sits; the real-agent cases run
-the whole agent under the default web chat security preset with only the model scripted.
+``CompletionDirectiveMiddleware`` writes it once behind the held-back draft, and every later request of the run
+carries it at that place. The instruction is never stored in the conversation, so no approval, loop, trace or
+analytics path ever sees it as a tool call. The delivery cases drive the middleware on its own; the chain case pins
+where it sits; the real-agent cases run the whole agent under the default web chat security preset with only the
+model scripted.
 """
 
 from __future__ import annotations
 
+import itertools
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -16,6 +18,7 @@ import pytest
 from langchain.agents.middleware import AgentMiddleware, ModelRequest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
@@ -29,6 +32,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.state impo
 )
 from myrm_agent_harness.agent.security.channel_presets import build_channel_security_config
 from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
+from myrm_agent_harness.core.message_origin import runtime_human_message
 from tests.support.completion_guard_harness import CHECK_MARK, CountingModel, registry_of, run_agent
 
 _REQUEST = "今天最新的 AI 新闻是什么？"
@@ -43,6 +47,10 @@ class _ServerMiddleware(AgentMiddleware):
     """Stands for a middleware the server supplies."""
 
 
+def _user() -> HumanMessage:
+    return HumanMessage(content=_REQUEST, id="user-1")
+
+
 def _draft() -> AIMessage:
     return AIMessage(content=_FROM_MEMORY, id="draft-1")
 
@@ -51,10 +59,15 @@ def _owe(anchor_id: str, text: str = _DIRECTIVE) -> None:
     current_run_state().pending_directive = PendingDirective(anchor_id=anchor_id, text=text)
 
 
-async def _delivered(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """The messages the model call receives when the middleware wraps a request holding ``messages``."""
+async def _delivered(messages: list[BaseMessage], *, run: dict[str, object] | None = None) -> list[BaseMessage]:
+    """The messages the model call receives when the middleware wraps a request holding ``messages``.
+
+    Requests that share ``run`` belong to one run of the agent, so they share what the middleware wrote.
+    """
     handler = AsyncMock(return_value=MagicMock())
-    request = ModelRequest(model=MagicMock(), messages=messages)
+    request = ModelRequest(
+        model=MagicMock(), messages=messages, runtime=Runtime(context=run) if run is not None else None
+    )
     await CompletionDirectiveMiddleware().awrap_model_call(request, handler)
     return list(handler.await_args.args[0].messages)
 
@@ -68,7 +81,7 @@ class TestDelivery:
         draft = _draft()
         _owe(draft.id)
 
-        sent = await _delivered([HumanMessage(content=_REQUEST), draft])
+        sent = await _delivered([_user(), draft])
 
         assert [type(m) for m in sent] == [HumanMessage, AIMessage, HumanMessage]
         assert sent[1] is draft
@@ -76,24 +89,77 @@ class TestDelivery:
 
     @pytest.mark.asyncio
     async def test_nothing_owed_changes_nothing(self) -> None:
-        messages = [HumanMessage(content=_REQUEST), _draft()]
+        messages = [_user(), _draft()]
 
         assert await _delivered(messages) == messages
 
     @pytest.mark.asyncio
-    async def test_the_instruction_is_not_sent_once_the_conversation_moved_past_the_draft(self) -> None:
+    async def test_the_instruction_is_not_written_once_the_conversation_moved_past_the_draft(self) -> None:
         draft = _draft()
         _owe(draft.id)
-        with_tool_result = [HumanMessage(content=_REQUEST), draft, ToolMessage(content="ok", tool_call_id="t1")]
-        with_follow_up = [HumanMessage(content=_REQUEST), draft, HumanMessage(content="and tomorrow?")]
+        with_tool_result = [_user(), draft, ToolMessage(content="ok", tool_call_id="t1", id="tool-1")]
+        with_follow_up = [_user(), draft, HumanMessage(content="and tomorrow?", id="user-2")]
 
         assert await _delivered(with_tool_result) == with_tool_result
         assert await _delivered(with_follow_up) == with_follow_up
 
     @pytest.mark.asyncio
+    async def test_a_notice_of_a_middleware_in_front_does_not_hide_the_draft(self) -> None:
+        draft = _draft()
+        _owe(draft.id)
+        notice = runtime_human_message("[restore] files")
+
+        sent = await _delivered([_user(), draft, notice])
+
+        assert len(sent) == 4
+        assert sent[1] is draft
+        assert sent[2].content == _DIRECTIVE
+        assert sent[3] is notice
+
+    @pytest.mark.asyncio
+    async def test_the_instruction_stays_behind_the_draft_on_every_later_request_of_the_run(self) -> None:
+        run: dict[str, object] = {}
+        draft = _draft()
+        _owe(draft.id)
+        first = await _delivered([_user(), draft], run=run)
+        answer = AIMessage(content="a second answer", id="answer-2")
+
+        later = await _delivered([_user(), draft, answer], run=run)
+
+        assert later == [*first, answer]
+
+    @pytest.mark.asyncio
+    async def test_a_second_instruction_stands_behind_its_own_draft_and_the_first_stays(self) -> None:
+        run: dict[str, object] = {}
+        draft = _draft()
+        _owe(draft.id)
+        await _delivered([_user(), draft], run=run)
+        second_draft = AIMessage(content=_FROM_MEMORY, id="draft-2")
+        _owe(second_draft.id, "CRITICAL SYSTEM DIRECTIVE: answer now.")
+
+        sent = await _delivered([_user(), draft, second_draft], run=run)
+
+        assert [m.content for m in sent] == [
+            _REQUEST,
+            _FROM_MEMORY,
+            _DIRECTIVE,
+            _FROM_MEMORY,
+            "CRITICAL SYSTEM DIRECTIVE: answer now.",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_the_instruction_of_one_run_is_not_carried_into_the_next(self) -> None:
+        draft = _draft()
+        _owe(draft.id)
+        await _delivered([_user(), draft], run={})
+        next_run = [_user(), draft, AIMessage(content="a second answer", id="answer-2")]
+
+        assert await _delivered(next_run, run={}) == next_run
+
+    @pytest.mark.asyncio
     async def test_an_instruction_for_another_draft_is_not_sent(self) -> None:
         _owe("draft-0")
-        messages = [HumanMessage(content=_REQUEST), _draft()]
+        messages = [_user(), _draft()]
 
         assert await _delivered(messages) == messages
 
@@ -101,7 +167,7 @@ class TestDelivery:
     async def test_delivery_leaves_the_conversation_the_run_keeps_untouched(self) -> None:
         draft = _draft()
         _owe(draft.id)
-        messages = [HumanMessage(content=_REQUEST), draft]
+        messages = [_user(), draft]
         handler = AsyncMock(return_value=MagicMock())
         request = ModelRequest(model=MagicMock(), messages=messages)
 
@@ -153,16 +219,29 @@ class TestRealAgent:
         assert 1 < len(model.requests) <= 5
 
     @pytest.mark.asyncio
-    async def test_the_model_reads_the_instruction_only_after_the_draft_it_answers(self, tmp_path: Path) -> None:
+    async def test_the_model_reads_the_instructions_only_after_the_draft_they_answer(self, tmp_path: Path) -> None:
         model, _ = await self._run(tmp_path)
 
         assert not any(CHECK_MARK in str(m.content) for m in model.transcripts[0])
         for transcript in model.transcripts[1:]:
-            *earlier, draft, instruction = transcript
-            assert isinstance(draft, AIMessage)
-            assert isinstance(instruction, HumanMessage)
-            assert str(instruction.content).startswith(("CRITICAL COMPLETION CHECK", "CRITICAL SYSTEM DIRECTIVE"))
-            assert not any(str(m.content).startswith("CRITICAL") for m in earlier)
+            draft_at = next(i for i, m in enumerate(transcript) if isinstance(m, AIMessage))
+            instructions = transcript[draft_at + 1 :]
+            assert instructions
+            assert all(isinstance(m, HumanMessage) for m in instructions)
+            assert all(
+                str(m.content).startswith(("CRITICAL COMPLETION CHECK", "CRITICAL SYSTEM DIRECTIVE"))
+                for m in instructions
+            )
+            assert not any(str(m.content).startswith("CRITICAL") for m in transcript[:draft_at])
+
+    @pytest.mark.asyncio
+    async def test_every_request_of_the_run_extends_the_one_before_it(self, tmp_path: Path) -> None:
+        """What the model was sent stays as it was, so a reply it signed to an earlier request still verifies."""
+        model, _ = await self._run(tmp_path)
+
+        assert len(model.transcripts) > 2
+        for earlier, later in itertools.pairwise(model.transcripts):
+            assert later[: len(earlier)] == earlier
 
     @pytest.mark.asyncio
     async def test_no_request_carries_a_tool_call_made_for_a_rejection(self, tmp_path: Path) -> None:

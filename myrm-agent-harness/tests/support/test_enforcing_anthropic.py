@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import httpx
 
-from tests.support.enforcing_anthropic import EnforcingAnthropic
+from tests.support.enforcing_anthropic import EnforcingAnthropic, RequestRecord
 
 type Json = dict[str, object]
 
@@ -72,3 +72,26 @@ def test_the_tool_turn_awaiting_its_result_must_lead_with_a_block_while_thinking
     assert refused.status_code == 400
     assert "Expected `thinking` or `redacted_thinking`" in refused.json()["error"]["message"]
     assert [record.reason for record in double.refused] == ["the tool turn awaiting its result lacks a block"]
+
+
+def test_a_record_holds_the_text_the_model_read_and_none_of_the_reasoning() -> None:
+    double = EnforcingAnthropic(tool_rounds=1)
+    answer = _first_answer(double)
+
+    assert double.handle(_follow_up(answer)).status_code == 200
+
+    assert [record.text for record in double.accepted] == ["go", "go\nok"]
+
+
+def test_the_closing_answer_is_the_text_the_double_was_given() -> None:
+    response = EnforcingAnthropic(tool_rounds=0, answer="closing words").handle(_request())
+
+    assert [block["text"] for block in response.json()["content"]] == ["closing words"]
+
+
+def test_a_turn_opens_with_the_one_request_that_replays_no_block() -> None:
+    double = EnforcingAnthropic(tool_rounds=1)
+    double.requests += [RequestRecord(200, True, replayed) for replayed in (0, 1, 2, 0, 1, 0)]
+    double.requests.append(RequestRecord(400, True, 3, "the run of blocks has a gap"))
+
+    assert [[record.replayed for record in turn] for turn in double.turns] == [[0, 1, 2], [0, 1], [0]]

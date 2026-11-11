@@ -38,7 +38,7 @@
 │   └─ tool_executor (timeout/retry)      │
 │   └─ approval/                          │  ← HITL 审批
 │ completion_guard                        │  ← 完成门控 + 外部证据门控 + 混合消息 guard
-│ completion_directive_middleware         │  ← 被拦草稿的复核指令，仅随下一次模型请求送达
+│ completion_directive_middleware         │  ← 被拦草稿的复核指令，写一次后留在该草稿之后
 │ rate_limit                              │  ← Provider 429 主动节流
 │ concurrency/ (tool_conflict_gate)        │  ← 并发安全的调用共享，其余调用独占
 │ parallel_tool_calls (engine 开关设定时)   │  ← 带工具的模型调用携带 parallel_tool_calls 设定
@@ -63,7 +63,7 @@
 |-------------|------|
 | `tooling/` | 工具执行子系统：`tool_interceptor_middleware.py`（唯一编排入口；GraphInterrupt on stuck）、`tool_executor.py`（超时、重试、指数退避）、`tool_history_hygiene.py`（within-AIMessage re-id → ToolMessage keep-last dedup → cross-turn re-id；导出 `sanitize_tool_history()`）、`dangling_tool_call_middleware.py`（修复 strict provider 400；invalid_tool_calls 出站隔离——升级为合法声明并回填结构化诊断，畸形原文不回喂 provider）、`skill_attenuation_middleware.py`（skill attenuation + runtime intent-aware narrowing via `tool_choice.allowed_tools`）、`stringified_json_args.py`（模型把列表/对象参数发成 JSON 字符串时，在工具运行前解析成原生值；装配在最内层，经公开的 `awrap_tool_call` 改写请求）、`_tool_guards/`/`_circuit_breaker.py`/`_tool_helpers/`（拦截辅助；熔断检查独立成 `_circuit_breaker.py`）、`_mutation_verifier.py`（文件变更 per-turn 验证 → SSE）、`_skill_failure_tracking.py`（技能失败事件 + 单技能执行计数）、`_tool_execution_lifecycle.py`（执行生命周期 hook）、`_runtime_tool_governance.py`（回合级工具面收敛 UI intent gate + readonly intent gate）、`_skill_tool_choice.py`（attenuation tool_choice 构建） |
 | `_session_context.py` | Middleware 链共享 ContextVar |
-| `_run_notices.py` | 运行期通知的位置与文本在整次运行内保持稳定：`run_scope`（请求携带的每次运行一份的字典）、`frozen_for_run`（首个请求渲染，之后原样返回）、`NoticeLedger`（只追加，每条通知留在写下它时的最后一条消息之后）；todo 焦点与熔断约束使用 |
+| `_run_notices.py` | 运行期通知的位置与文本在整次运行内保持稳定：`run_scope`（请求携带的每次运行一份的字典）、`frozen_for_run`（首个请求渲染，之后原样返回）、`NoticeLedger`（只追加，每条通知留在写下它时最后一条已存消息之后，同一条不重复写）；todo 焦点、熔断约束、MoA 顾问建议与完成复核指令使用 |
 | `_run_workspace.py` | 运行工作区解析：`run_workspace` 从 LangGraph `Runtime` 上下文取 `workspace_path`，todo 焦点注入与 CompletionGuard 共用。哪些运行保有 todo 清单由构建方决定（`_agent_build.build_middlewares` 按本 Agent 的注册表是否持有 `todo_write`）：与父共用工作区、但没有 `todo_write` 的子 Agent，既看不到父的 todo，也不受「未完成 todo」约束。清单按 chat 分开存放（`.myrm/progress/<chat>/todos.json`），两处读到的都是运行中 chat 自己的那份；未完成 todo 只在本 run 用过 `file_write_tool` / `file_edit_tool` 之后才阻断收尾，否则只是一条不拦截的 WARNING（仅在守卫因验证失败拦下收尾时，随复核清单送达模型） |
 | `approval/` | HITL 审批：`evaluation/`（评估节点，工具调用只评估一次）、`middleware.py`（发问节点：batch interrupt 与决策落地）、`refusal/`（拒绝如何到达模型）、scheduler |
 | `guardrails/` | Provider 链 + `GuardrailMiddleware` |
@@ -76,7 +76,7 @@
 | `plan_confirm_middleware.py` | 计划阶段人机协同确认与重大 Re-plan 拦截门禁 |
 | `progress_middleware.py` | 活跃 todo 紧凑焦点：首个请求渲染一次，整次运行内原样写在用户亲写最新消息的尾部（并幂等清洗它的旧块）；仅持有 `todo_write` 的 Agent 注入 |
 | `advisor_risk_trigger_router.py` | 自适应事件门禁路由：多维感知 Replan 连续失败与 LoopGuard 异常模式，兼具致命错误旁路与冷却免疫/会话配额门禁 |
-| `moa_advisor_middleware.py` | Agent 环 MoA 顾问叠加（支持 `risk_triggered` 模式自适应路由接入；`moa_overlay_active` 透传 `trigger_reason` + 渐进 SSE `moa_ref_done` + 6s 硬超时静默降级 + 瞬态 Cache-Safe 尾注入与 KV-Cache 保全 + `privacy_filter` display/full 分流） |
+| `moa_advisor_middleware.py` | Agent 环 MoA 顾问叠加（支持 `risk_triggered` 模式自适应路由接入；`moa_overlay_active` 透传 `trigger_reason` + 渐进 SSE `moa_ref_done` + 6s 硬超时静默降级 + 顾问建议作为运行期通知写一次，之后本次运行的每个请求都带着它（回合内前缀不变，`per_iteration` 的建议逐轮累加）+ `privacy_filter` display/full 分流） |
 | `replan_middleware.py` | 动态重规划循环（导出 `get_replan_error_summary` 与 `get_max_consecutive_replan_errors` 只读遥测） |
 
 | `model_call_cancel.py` | 最外层模型调用包装：Stop 时在一个轮询周期内中断在途模型请求（含其内侧中间件的限流等待与重试），抛 `OperationCancelledError`，执行器按 Stop 收尾 |

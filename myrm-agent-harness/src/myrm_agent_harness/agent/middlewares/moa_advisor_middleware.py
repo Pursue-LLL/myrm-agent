@@ -1,41 +1,46 @@
 """Agent-loop MoA advisor overlay middleware.
 
 Runs lightweight reference-model fan-out before each acting-model call (per
-fanout policy), emits SSE progress events, and injects advisor perspectives
-at the prompt tail with KV-cache preservation without persisting to checkpoint history.
+fanout policy), emits SSE progress events, and shows the advisors' perspectives
+to the acting model without persisting them to checkpoint history.
+
+The advice of a round is written once into the run's notice ledger, behind the
+message that was last at that moment, and every later request of the run carries
+it there unchanged. A reasoning block the provider signed is valid only under the
+prompt it was written in, so a request that showed the advice followed by one
+that did not (or showed it elsewhere) would be refused.
 
 [INPUT]
 - toolkits.llms.consensus.advisor_fanout::AdvisorFanoutRunner
 - toolkits.llms.consensus.advisor_prompts::build_advisor_injection_block
-- langchain_core.messages::HumanMessage
-- core.message_origin::is_user_authored_human_message, runtime_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
+- agent.middlewares._run_notices::NoticeLedger, last_stored_message, run_scope (POS: Request-local notices that keep their place and their text for the whole run.)
 - utils.runtime.progress_sink::get_tool_progress_sink
 
 [OUTPUT]
 - create_moa_advisor_middleware(): factory returning wrap_model_call middleware
 
 [POS]
-Transient advisor injection for agent tool loops. Mount after context_pipeline
+Advisor injection for agent tool loops. Mount after context_pipeline
 (server factory) so compression runs before fan-out. Skips unattended runs,
 budget pressure (emits moa_overlay_skipped when fan-out would run), and when
-overlay is disabled.
+overlay is disabled. Every round of a run keeps its advice, so under
+``per_iteration`` the notes of a long run add up.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
-from langchain_core.messages import AnyMessage, HumanMessage
+from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse, wrap_model_call
 
+from myrm_agent_harness.agent.middlewares._run_notices import NoticeLedger, last_stored_message, run_scope
 from myrm_agent_harness.agent.middlewares.advisor_risk_trigger_router import (
     AdvisorRiskTriggerRouter,
 )
-from myrm_agent_harness.core.message_origin import is_user_authored_human_message, runtime_human_message
 from myrm_agent_harness.toolkits.llms.consensus.advisor_fanout import (
     AdvisorFanoutRunner,
     apply_privacy_to_ref,
@@ -64,6 +69,7 @@ MOA_OVERLAY_SKIP_BUDGET_PRESSURE = "budget_pressure"
 MOA_OVERLAY_SKIP_INSUFFICIENT_REFS = "insufficient_refs"
 MOA_OVERLAY_SKIP_RISK_TIMEOUT = "risk_trigger_timeout"
 
+_ADVICE_LEDGER_KEY = "moa_advisor_notice_ledger"
 
 _moa_budget_skip_notified_var: ContextVar[bool] = ContextVar("moa_budget_skip_notified", default=False)
 
@@ -107,7 +113,7 @@ async def _emit_overlay_active(reference_models: list[str], trigger_reason: str 
     sink = get_tool_progress_sink()
     if sink is None:
         return
-    payload: dict[str, Any] = {"reference_models": reference_models}
+    payload: dict[str, object] = {"reference_models": reference_models}
     if trigger_reason:
         payload["trigger_reason"] = trigger_reason
     await sink.emit(
@@ -143,41 +149,6 @@ def _model_name(llm: BaseChatModel) -> str:
     return type(llm).__name__
 
 
-def _inject_advisor_block_cache_safe(
-    messages: Sequence[AnyMessage],
-    injection_text: str,
-) -> list[AnyMessage]:
-    """Inject advisor guidance preserving prompt KV-cache prefixes.
-
-    If the trailing message is the user's own (a fresh turn), append to it in-place. Otherwise (a tool loop, or a
-    notice the runtime appended behind the user's message) append a transient runtime notice at the tail to preserve
-    prefix cache matching for preceding turns. The notice stays marked as the runtime's, so the injectors behind this
-    middleware keep placing their blocks on the user's own message instead of on the advisor's.
-    """
-    if not messages:
-        return [runtime_human_message(injection_text)]
-
-    new_messages = list(messages)
-    last_msg = new_messages[-1]
-
-    if isinstance(last_msg, HumanMessage) and is_user_authored_human_message(last_msg):
-        if isinstance(last_msg.content, str):
-            new_messages[-1] = HumanMessage(
-                content=f"{last_msg.content}\n\n{injection_text}",
-                id=last_msg.id,
-            )
-            return new_messages
-        if isinstance(last_msg.content, list):
-            new_messages[-1] = HumanMessage(
-                content=[*last_msg.content, {"type": "text", "text": f"\n\n{injection_text}"}],
-                id=last_msg.id,
-            )
-            return new_messages
-
-    new_messages.append(runtime_human_message(injection_text))
-    return new_messages
-
-
 def create_moa_advisor_middleware(
     reference_llms: list[BaseChatModel],
     *,
@@ -185,7 +156,7 @@ def create_moa_advisor_middleware(
     unattended: bool = False,
     privacy_redactor: PrivacyRedactor | None = None,
     risk_router: AdvisorRiskTriggerRouter | None = None,
-) -> Any:
+) -> AgentMiddleware:
     """Build MoA advisor overlay middleware bound to pre-resolved reference LLMs."""
     overlay_cfg = config or MoAOverlayConfig()
     runner = AdvisorFanoutRunner(reference_llms, overlay_cfg)
@@ -205,6 +176,12 @@ def create_moa_advisor_middleware(
             return await handler(request)
 
         messages = list(request.messages)
+        ledger = NoticeLedger.of(run_scope(request), _ADVICE_LEDGER_KEY)
+
+        async def forward() -> ModelResponse:
+            # Advice of the run's earlier rounds stands behind its message on every request, this one included.
+            return await handler(request.override(messages=ledger.placed_in(messages)))
+
         next_iteration = runner.iteration + 1
         trigger_reason: str | None = None
 
@@ -222,14 +199,14 @@ def create_moa_advisor_middleware(
             )
 
         if overlay_cfg.fanout == "risk_triggered" and not fanout_this_call:
-            return await handler(request)
+            return await forward()
 
         if _budget_pressure_active():
             if fanout_this_call and not _moa_budget_skip_notified_var.get():
                 await _emit_overlay_skipped(MOA_OVERLAY_SKIP_BUDGET_PRESSURE)
                 _moa_budget_skip_notified_var.set(True)
             logger.debug("MoA overlay skipped: budget pressure active")
-            return await handler(request)
+            return await forward()
 
         if fanout_this_call:
             ref_names = [_model_name(llm) for llm in reference_llms]
@@ -250,13 +227,11 @@ def create_moa_advisor_middleware(
                 if overlay_cfg.fanout == "risk_triggered"
                 else overlay_cfg.timeout_total
             )
-            run_kwargs: dict[str, Any] = {"on_ref_done": _on_ref_done}
             if overlay_cfg.fanout == "risk_triggered":
-                run_kwargs["force_run"] = fanout_this_call
-            ref_responses = await asyncio.wait_for(
-                runner.run(messages, **run_kwargs),
-                timeout=timeout_limit,
-            )
+                fanout = runner.run(messages, on_ref_done=_on_ref_done, force_run=fanout_this_call)
+            else:
+                fanout = runner.run(messages, on_ref_done=_on_ref_done)
+            ref_responses = await asyncio.wait_for(fanout, timeout=timeout_limit)
         except TimeoutError:
             logger.warning(
                 "MoA overlay: hard timeout reached (%.1fs) during fan-out; silent fallback to acting model",
@@ -264,10 +239,10 @@ def create_moa_advisor_middleware(
             )
             if fanout_this_call:
                 await _emit_overlay_skipped(MOA_OVERLAY_SKIP_RISK_TIMEOUT)
-            return await handler(request)
+            return await forward()
 
         if not ref_responses:
-            return await handler(request)
+            return await forward()
 
         if router is not None and fanout_this_call:
             router.record_trigger(next_iteration)
@@ -281,15 +256,13 @@ def create_moa_advisor_middleware(
                 len(successful),
                 overlay_cfg.min_successful,
             )
-            return await handler(request)
+            return await forward()
 
         inject_refs = [apply_privacy_to_ref(r, inject_privacy_mode(privacy_mode), privacy_redactor) for r in successful]
         injection = build_advisor_injection_block(inject_refs)
-        if not injection:
-            return await handler(request)
-
-        new_messages = _inject_advisor_block_cache_safe(messages, injection)
-        return await handler(request.override(messages=new_messages))
+        if injection:
+            ledger.record(last_stored_message(messages), injection)
+        return await forward()
 
     return _middleware
 
@@ -298,6 +271,5 @@ __all__ = [
     "MOA_OVERLAY_SKIP_BUDGET_PRESSURE",
     "MOA_OVERLAY_SKIP_INSUFFICIENT_REFS",
     "MOA_OVERLAY_SKIP_RISK_TIMEOUT",
-    "_inject_advisor_block_cache_safe",
     "create_moa_advisor_middleware",
 ]

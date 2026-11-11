@@ -14,8 +14,8 @@ this run's tool records.
 - render_completion_directive(): the model-facing instruction for a set of reasons
 
 [POS]
-The only place the guard's model-facing wording is defined. The directive reaches the model as a request-only
-message after the held-back draft (see ``directive_middleware``), never as a tool call or a stored message.
+The only place the guard's model-facing wording is defined. The directive reaches the model as a notice the runtime
+places behind the held-back draft (see ``directive_middleware``), never as a tool call or a stored message.
 """
 
 from __future__ import annotations

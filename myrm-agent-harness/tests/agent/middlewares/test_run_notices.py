@@ -11,8 +11,13 @@ from langchain.agents.middleware import ModelRequest
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage
 from langgraph.runtime import Runtime
 
-from myrm_agent_harness.agent.middlewares._run_notices import NoticeLedger, frozen_for_run, run_scope
-from myrm_agent_harness.core.message_origin import is_user_authored_human_message
+from myrm_agent_harness.agent.middlewares._run_notices import (
+    NoticeLedger,
+    frozen_for_run,
+    last_stored_message,
+    run_scope,
+)
+from myrm_agent_harness.core.message_origin import is_user_authored_human_message, runtime_human_message
 
 
 def _request(context: object | None) -> ModelRequest:
@@ -98,6 +103,17 @@ def _history() -> list[AnyMessage]:
     ]
 
 
+class TestLastStoredMessage:
+    def test_it_is_the_newest_message_that_carries_an_id(self) -> None:
+        messages = [*_history(), runtime_human_message("request-local notice")]
+
+        assert last_stored_message(messages) is messages[2]
+
+    def test_a_request_without_a_stored_message_has_none(self) -> None:
+        assert last_stored_message([HumanMessage(content="no id")]) is None
+        assert last_stored_message([]) is None
+
+
 class TestNoticeLedger:
     def test_a_ledger_with_nothing_written_changes_nothing(self) -> None:
         messages = _history()
@@ -157,6 +173,27 @@ class TestNoticeLedger:
         ledger.record(HumanMessage(content="no id"), "second")
 
         assert [m.content for m in ledger.placed_in(_history())][-2:] == ["constraint", "second"]
+
+    def test_the_notice_that_already_stands_last_behind_an_anchor_is_not_written_twice(self) -> None:
+        ledger = NoticeLedger.of({}, "k")
+        ledger.record(_history()[2], "constraint")
+        ledger.record(_history()[2], "constraint")
+
+        assert [m.content for m in ledger.placed_in(_history())] == ["go", "", "result", "constraint"]
+
+    def test_the_same_text_behind_another_anchor_is_another_notice(self) -> None:
+        ledger = NoticeLedger.of({}, "k")
+        ledger.record(_history()[1], "constraint")
+        ledger.record(_history()[2], "constraint")
+
+        assert [m.content for m in ledger.placed_in(_history())] == ["go", "", "constraint", "result", "constraint"]
+
+    def test_only_the_newest_notice_is_compared_when_a_notice_is_written(self) -> None:
+        ledger = NoticeLedger.of({}, "k")
+        for text in ("first", "second", "first"):
+            ledger.record(_history()[2], text)
+
+        assert [m.content for m in ledger.placed_in(_history())][-3:] == ["first", "second", "first"]
 
     def test_the_notices_are_written_by_the_runtime_not_the_user(self) -> None:
         ledger = NoticeLedger.of({}, "k")

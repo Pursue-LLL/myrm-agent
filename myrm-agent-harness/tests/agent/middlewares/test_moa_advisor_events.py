@@ -110,3 +110,42 @@ async def test_a_round_the_stream_was_never_told_about_is_not_reported_as_short_
 
     handler.assert_awaited_once()
     assert sink.events == []
+
+
+@pytest.mark.asyncio
+async def test_emit_ref_done_no_sink_is_noop() -> None:
+    from myrm_agent_harness.agent.middlewares.moa_advisor_middleware import (
+        _emit_ref_done,
+    )
+
+    with patch(
+        "myrm_agent_harness.utils.runtime.progress_sink.get_tool_progress_sink",
+        return_value=None,
+    ):
+        await _emit_ref_done("ref-a", success=True, elapsed=0.1, content="x")
+
+
+@pytest.mark.asyncio
+async def test_emit_overlay_active_no_sink_is_noop() -> None:
+    from myrm_agent_harness.agent.middlewares.moa_advisor_middleware import (
+        _emit_overlay_active,
+    )
+
+    with patch(
+        "myrm_agent_harness.utils.runtime.progress_sink.get_tool_progress_sink",
+        return_value=None,
+    ):
+        await _emit_overlay_active(["ref-a"])
+
+
+@pytest.mark.asyncio
+async def test_emit_overlay_skipped_no_sink_is_noop() -> None:
+    from myrm_agent_harness.agent.middlewares.moa_advisor_middleware import (
+        _emit_overlay_skipped,
+    )
+
+    with patch(
+        "myrm_agent_harness.utils.runtime.progress_sink.get_tool_progress_sink",
+        return_value=None,
+    ):
+        await _emit_overlay_skipped("budget_pressure")

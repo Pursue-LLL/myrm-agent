@@ -28,9 +28,9 @@ Internal tools (``_``-prefixed names) are no part of the run's work and are left
 
 A held-back answer is never turned into a tool call: the guard routes the run back to the model
 (``jump_to="model"``) and records the instruction in the turn's guard state; ``CompletionDirectiveMiddleware``
-appends it to the next model request only. Nothing the guard says to the model is stored in the conversation, shown
-as a task step, approved, counted by the loop guard or scanned as tool output. What happens to the draft itself is
-decided by ``hold_back``.
+places it behind the message it follows on the next model request and on every later request of the run. Nothing the
+guard says to the model is stored in the conversation, shown as a task step, approved, counted by the loop guard or
+scanned as tool output. What happens to the draft itself is decided by ``hold_back``.
 
 A demand is made only of a run that could meet it (``CompletionCapabilities``): a deliverable code block is held to
 being saved (and staged into the workspace on a forced finish) only when the run can save a file, an unfinished

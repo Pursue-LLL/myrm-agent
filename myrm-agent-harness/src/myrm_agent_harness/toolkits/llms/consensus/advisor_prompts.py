@@ -5,7 +5,7 @@ agent. They must not hallucinate tool execution or claim side effects occurred.
 
 [OUTPUT]
 - ADVISOR_SYSTEM: fixed system instruction for reference model calls
-- build_advisor_injection_block(): format successful refs for HumanMessage tail
+- build_advisor_injection_block(): format successful refs as the text of the runtime notice the acting model reads
 
 
 [POS]
@@ -33,7 +33,7 @@ _INJECTION_HEADER = "[Multi-model advisor perspectives — reference only; the a
 
 
 def build_advisor_injection_block(successful: list[ReferenceResponse]) -> str:
-    """Format reference responses for transient HumanMessage tail injection."""
+    """Format reference responses as the text of the runtime notice the acting model reads."""
     if not successful:
         return ""
     numbered = "\n".join(

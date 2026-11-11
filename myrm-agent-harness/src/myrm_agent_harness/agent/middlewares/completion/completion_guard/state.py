@@ -27,7 +27,7 @@ and inline deliverables stay clean).
 [OUTPUT]
 - current_run_state / reset_run_state: 当前回合的拦截预算、强制收尾闩锁、"已请求如实声明无法核实"标记、待交付的拦截指令与整轮调用账本
 - record_evidence(): 把 LoopGuard 窗口并入整轮调用账本（按调用顺序、按记录对象身份）并返回账本，拦截判定都读它
-- PendingDirective: 拦截后欠模型的一条指令，仅在它所跟随的那条消息仍是最后一条时交付
+- PendingDirective: 拦截后欠模型的一条指令，写入本轮通知账本后留在它所跟随的那条消息之后，整轮其余请求逐字节不变地带着它
 - isolated_run_state: 嵌套运行（子 agent）期间与调用方回合隔离，结束时不留痕
 - publish_disclosure / pop_run_disclosure / publish_tier_disclosure: 每轮披露载荷的写入与取用
 - attach_disclosure_to_event(): 把披露载荷挂到 message_end 事件
@@ -57,8 +57,9 @@ _NESTED_RUN_KEY_PREFIX = "nested:"
 class PendingDirective:
     """The instruction owed to the model after the guard held a draft back.
 
-    It is delivered with the next model request only while the message it follows (``anchor_id``) is still the last
-    one, so a later request never carries a stale instruction; it is never stored in the conversation.
+    It is written into the run's notice ledger on the request where the message it follows (``anchor_id``) is the
+    last one the graph stored. From then on every request of the run carries it behind that message, unchanged; it is
+    never stored in the conversation.
     """
 
     anchor_id: str
