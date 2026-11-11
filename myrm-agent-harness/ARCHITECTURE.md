@@ -167,7 +167,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 - **`[observability]`**: prometheus-client, opentelemetry-sdk, opentelemetry-exporter-otlp-proto-grpc, opentelemetry-exporter-otlp-proto-http, openinference-instrumentation-langchain（Prometheus 指标 + Phoenix / OTLP 追踪，OTLP 支持 HTTP/protobuf 与 gRPC）
 - **`[compiled-core]`** / **`[compiled-core-musl]`**: 平台 native 扩展 wheel（8 平台，见 `harness_packaging/DISTRIBUTION_SYSTEM.md`）
 - **`[all]`**: 包含上述全部 extras（含 `[web]`）
-- **E2B / S3 / ripgrep**: 由业务层或运行时可选接入
+- **S3 / ripgrep**: 由业务层或运行时可选接入
 
 ---
 

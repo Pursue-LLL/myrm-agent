@@ -34,5 +34,5 @@ SessionResetModeLiteral = Literal["persistent", "daily", "idle"]
 
 
 def normalize_workspace_policy(stored: object) -> WorkspacePolicyLiteral:
-    """Read a stored policy: anything but READ_ONLY_SANDBOX (e.g. the retired ISOLATED_COPY) inherits."""
+    """Read a stored policy: anything but READ_ONLY_SANDBOX (including a stored ISOLATED_COPY) inherits."""
     return "READ_ONLY_SANDBOX" if stored == "READ_ONLY_SANDBOX" else "INHERIT_REQUESTER"

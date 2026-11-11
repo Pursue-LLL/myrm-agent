@@ -39,13 +39,13 @@ async def agent_liveness() -> dict[str, object]:
     """Global agent liveness state (SSOT).
 
     Returns a single JSON object that answers:
-    - Is any agent currently running? (state: busy / idle / degraded)
+    - Is any agent currently running? (state: busy / idle / degraded / draining)
     - Which sessions are active?
     - Are all channels healthy?
     - Is the system under memory pressure?
 
     Designed for:
-    - Frontend tray / Pet three-state indicator (HV-02)
+    - Frontend tray / Pet status indicator (HV-02)
     - Cloud monitoring / curl health probes
     - Multi-pane workspace status bar
     """

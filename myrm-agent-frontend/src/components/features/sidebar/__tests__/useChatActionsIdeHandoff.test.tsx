@@ -1,13 +1,13 @@
 import { useTranslations } from 'next-intl';
 /**
- * Unit tests for useChatActions external IDE handoff action.
+ * Unit tests for useChatActions: the external IDE handoff action and the page language of the HTML and print exports.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useChatActions } from '../useChatActions';
 import { exportChat } from '@/services/chat';
-import { copyAsMarkdown } from '@/lib/utils/chat-export';
+import { copyAsMarkdown, downloadAsHtml, getExportLang, printChat } from '@/lib/utils/chat-export';
 import { desktopBridge } from '@/lib/desktopBridge';
 import { toast } from '@/hooks/shared/useToast';
 
@@ -29,6 +29,7 @@ vi.mock('@/lib/utils/chat-export', () => ({
   downloadAsHtml: vi.fn(),
   downloadAsJson: vi.fn(),
   downloadAsMarkdown: vi.fn(),
+  getExportLang: vi.fn(),
   printChat: vi.fn(),
 }));
 
@@ -109,5 +110,26 @@ describe('useChatActions handleOpenInIDE', () => {
       variant: 'destructive',
     });
     expect(result.current.exportingId).toBeNull();
+  });
+});
+
+describe('useChatActions handleExport page language', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(exportChat).mockResolvedValue(nonEmptyExport as unknown as Awaited<ReturnType<typeof exportChat>>);
+    vi.mocked(getExportLang).mockReturnValue('zh');
+  });
+
+  it.each([
+    ['html', downloadAsHtml],
+    ['print', printChat],
+  ] as const)('lays the %s export out in the app language', async (mode, exporter) => {
+    const { result } = renderHook(() => useChatActions(mockT));
+
+    await act(async () => {
+      await result.current.handleExport('chat-1', mode);
+    });
+
+    expect(exporter).toHaveBeenCalledExactlyOnceWith(nonEmptyExport, 'light', 'zh');
   });
 });

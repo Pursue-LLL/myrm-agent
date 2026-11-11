@@ -15,8 +15,8 @@
 - GeneralAgentParams: 通用自主决策 Agent 配置参数模型
 
 [POS]
-Agent 参数定义层。从 agents.py 拆分出的纯参数数据结构，
-解耦 AgentFactory 创建逻辑与 Pydantic 参数校验，避免单一文件超出行数预算。
+Agent 参数定义层：纯参数数据结构，
+把 Pydantic 参数校验与 AgentFactory 的创建逻辑解耦。
 """
 
 from __future__ import annotations

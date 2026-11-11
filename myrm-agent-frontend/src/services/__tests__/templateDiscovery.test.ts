@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  normalizeTemplateSearchText,
-  resolveTemplateKind,
-  templateMatchesSearchQuery,
-} from '../templateDiscovery';
+import { normalizeTemplateSearchText, resolveTemplateKind, templateMatchesSearchQuery } from '../templateDiscovery';
 import type { TemplateListItem } from '@/services/agentTemplates';
 
 describe('templateDiscovery', () => {
@@ -56,6 +52,36 @@ describe('templateDiscovery', () => {
     // 搜索 WB 迁移条目别名 "wb-meeting-minutes" 或中文 "会议纪要"
     expect(templateMatchesSearchQuery(meetingTemplate, 'wb-meeting-minutes')).toBe(true);
     expect(templateMatchesSearchQuery(meetingTemplate, '会议纪要')).toBe(true);
+  });
+
+  it('matches every template when the query is blank', () => {
+    expect(templateMatchesSearchQuery(sampleIndividual, '')).toBe(true);
+    expect(templateMatchesSearchQuery(sampleIndividual, '   ')).toBe(true);
+  });
+
+  it('finds a bare template by its id, and does not claim it for a migration alias it has nothing to do with', () => {
+    const bare: TemplateListItem = { id: 'bare_template', name: 'Bare', agent_type: 'individual' };
+
+    expect(templateMatchesSearchQuery(bare, 'bare_template')).toBe(true);
+    expect(templateMatchesSearchQuery(bare, 'wb-meeting-minutes')).toBe(false);
+  });
+
+  it('matches a team template through the names and descriptions of its members', () => {
+    const team: TemplateListItem = {
+      id: 'release_squad',
+      name: 'Release Squad',
+      description: 'Ships the weekly build',
+      agent_type: 'team',
+      members: [
+        { role: 'lead', name: 'Reviewer Bot', description: 'checks pull requests' },
+        { role: 'dev', name: 'Builder' },
+      ],
+    };
+
+    expect(templateMatchesSearchQuery(team, 'reviewer')).toBe(true);
+    expect(templateMatchesSearchQuery(team, 'pull requests')).toBe(true);
+    expect(templateMatchesSearchQuery(team, 'builder')).toBe(true);
+    expect(templateMatchesSearchQuery(team, 'translator')).toBe(false);
   });
 
   it('matches id and category search queries', () => {

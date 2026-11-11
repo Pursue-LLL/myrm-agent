@@ -24,15 +24,20 @@ detect contradictions and redundancies. Executes merge/correct/update and genera
 at near-zero marginal cost. Triggered by end_session() on configured intervals. The stored timestamp
 is a covered-through mark over the order in which memories reached the store; it advances only as far as
 the analyzed window reached and never past a write still being persisted, so a backlog larger than one run
-is drained over consecutive runs and no memory is skipped for arriving late. The insights a cycle persists derive
-from the chats of every memory it read and are journaled with the cycle's other writes, so deleting one of those
-chats reaches them and undoing the cycle removes them.
+is drained over consecutive runs and no memory is skipped for arriving late. Once the model has answered, writing
+its answer (operations, insights, undo journal, covered-through stamp, completion callback) is not interrupted by a
+cancel of the caller, which is delivered when the writes are done, so a cycle is never left half applied. The insights
+a cycle persists derive from the chats of every memory it read, so deleting one of those chats reaches them. They are
+journaled with the cycle's other writes, so undoing a cycle that changed existing memories removes them; a cycle that
+only adds insights leaves the undo slot to the earlier cycle that did.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from collections.abc import Sequence
+from collections.abc import Coroutine, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -207,27 +212,66 @@ async def run_consolidation(
                 logger.warning("Consolidation complete hook failed (non-fatal): %s", exc)
         return empty_stats
 
+    answer = _Answer(
+        operations=parsed.operations,
+        insights=parsed.insights,
+        memories=memories,
+        id_map=id_map,
+        advance_to=window.advance_to,
+        started=start,
+        enriched_count=enriched_count,
+        guard_patched=guard_patched_count,
+    )
+    return await _run_to_completion(_apply(manager, answer, config, on_conflict, on_complete))
+
+
+@dataclass(frozen=True, slots=True)
+class _Answer:
+    """What the model answered for one window, with everything that writing it needs."""
+
+    operations: list[ConsolidationOp]
+    insights: list[str]
+    memories: Sequence[AnyMemory]
+    id_map: dict[str, str]
+    advance_to: datetime | None
+    started: datetime
+    enriched_count: int
+    guard_patched: int
+
+
+async def _apply(
+    manager: MemoryManager,
+    answer: _Answer,
+    config: ConsolidationConfig,
+    on_conflict: ConflictCallback | None,
+    on_complete: ConsolidationCompleteCallback | None,
+) -> ConsolidationStats:
+    """Write the answer: its operations and insights, the undo journal and the covered-through stamp."""
+    input_count = len(answer.memories)
     stats = (
-        await execute_operations(parsed.operations, manager, id_map, on_conflict=on_conflict, config=config)
-        if parsed.operations
+        await execute_operations(answer.operations, manager, answer.id_map, on_conflict=on_conflict, config=config)
+        if answer.operations
         else ConsolidationStats()
     )
-    elapsed_ms = (datetime.now(UTC) - start).total_seconds() * 1000
+    elapsed_ms = (datetime.now(UTC) - answer.started).total_seconds() * 1000
     stats.duration_ms = elapsed_ms
     stats.input_count = input_count
-    stats.enriched_count = enriched_count
-    stats.insights = tuple(parsed.insights)
-    stats.guard_patched = guard_patched_count
+    stats.enriched_count = answer.enriched_count
+    stats.insights = tuple(answer.insights)
+    stats.guard_patched = answer.guard_patched
 
-    if parsed.insights:
-        await _persist_insights(manager, parsed.insights, memories, stats.undo)
+    # A cycle that only adds insights changes no existing memory, so it must not take the undo slot from an earlier
+    # cycle that did.
+    insight_journal = stats.undo if stats.undo.change_count else UndoJournal()
+    if answer.insights:
+        await _persist_insights(manager, answer.insights, answer.memories, insight_journal)
     await save_undo(manager, stats)
 
     should_advance_timestamp = not stats.aborted and not (
         stats.errors > 0 and (stats.merged + stats.corrected + stats.updated == 0)
     )
     if should_advance_timestamp:
-        await _advance_stamp(manager, window.advance_to)
+        await _advance_stamp(manager, answer.advance_to)
     else:
         logger.warning(
             "Consolidation skipped timestamp advancement (aborted=%s, errors=%d)",
@@ -238,13 +282,13 @@ async def run_consolidation(
     logger.info(
         "Consolidation complete: input=%d, enriched=%d, merged=%d, corrected=%d, updated=%d, errors=%d, guard_patched=%d, insights=%d (%.0fms)",
         input_count,
-        enriched_count,
+        answer.enriched_count,
         stats.merged,
         stats.corrected,
         stats.updated,
         stats.errors,
         stats.guard_patched,
-        len(parsed.insights),
+        len(answer.insights),
         elapsed_ms,
     )
     if on_complete is not None:
@@ -253,6 +297,28 @@ async def run_consolidation(
         except Exception as exc:
             logger.warning("Consolidation complete hook failed (non-fatal): %s", exc)
     return stats
+
+
+async def _run_to_completion(work: Coroutine[None, None, ConsolidationStats]) -> ConsolidationStats:
+    """Await ``work`` without letting a cancel of the caller interrupt it; the cancel is delivered once ``work`` is done.
+
+    The idle worker cancels a running cycle when the user's next turn ends. A cycle cut off between its writes would
+    leave merges half applied, with no undo journal and no covered-through stamp, so the next cycle would read the same
+    memories again and merge them a second time. Holding the caller until the writes are done also keeps its maintenance
+    lock, so a cycle triggered meanwhile is turned away instead of merging the same memories.
+    """
+    task = asyncio.create_task(work)
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.wait({task})
+        except asyncio.CancelledError:
+            cancelled = True
+    if not cancelled:
+        return task.result()
+    if not task.cancelled() and (error := task.exception()) is not None:
+        logger.error("Consolidation apply failed while its caller was being cancelled: %r", error)
+    raise asyncio.CancelledError
 
 
 async def _advance_stamp(manager: MemoryManager, advance_to: datetime | None) -> None:

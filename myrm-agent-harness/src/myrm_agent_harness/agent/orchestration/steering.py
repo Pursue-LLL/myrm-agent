@@ -37,8 +37,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-#: Upper bound for queued notes per queue instance. Matches the transcript
-#: discovery window used by the reference implementation (newest 400 logs).
+#: Upper bound for queued notes per queue instance.
 MAX_STEERING_NOTES = 400
 
 #: Rejection cap for a single note body. Long steering content must reference

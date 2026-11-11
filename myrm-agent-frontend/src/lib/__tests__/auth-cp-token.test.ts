@@ -2,7 +2,7 @@ import { createHmac } from 'crypto';
 import { describe, expect, it } from 'vitest';
 import { parseCpAuthTokenUserId } from '@/lib/auth-cp-token';
 
-/** Mirrors myrm_control_plane.auth.tokens.generate_api_token for tests. */
+/** Builds a control-plane-format HMAC API token for tests. */
 function generateCpAuthToken(userId: string, secret: string, ttlSeconds = 3600): string {
   const expiry = Math.floor(Date.now() / 1000) + ttlSeconds;
   const payload = `${userId}:${expiry}`;

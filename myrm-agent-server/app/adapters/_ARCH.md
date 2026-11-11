@@ -198,25 +198,7 @@ class SQLAlchemyStorage:
 
 ---
 
-## 参考架构
-
-### langchain 的设计
-
-```python
-# langchain/storage/_base.py
-class BaseStore(ABC):
-    """Abstract base class for storage"""
-    @abstractmethod
-    def mset(self, key_value_pairs): ...
-
-# langchain/storage/redis.py
-class RedisStore(BaseStore):
-    """Redis implementation"""
-    def mset(self, key_value_pairs):
-        # Redis-specific implementation
-```
-
-### 我们的对标
+## 契约与实现分离示意
 
 ```python
 # myrm_agent_harness.agent.skills.optimization.protocols

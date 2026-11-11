@@ -12,7 +12,7 @@ app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 
 MemoryCommandCenterInsights: influence, conflict, eval, connector, privacy, plane-summary, and migration projections.
 
 [POS]
-个人大脑指挥中心洞察服务。把可解释性、冲突、eval、连接器、隐私与迁移投影从主聚合服务中拆出，保持单一职责；
+个人大脑指挥中心洞察服务：只负责可解释性、冲突、eval、连接器、隐私与迁移投影；
 回放/瀑布/时间线/健康/追踪等纯投影位于同目录的独立模块。
 """
 

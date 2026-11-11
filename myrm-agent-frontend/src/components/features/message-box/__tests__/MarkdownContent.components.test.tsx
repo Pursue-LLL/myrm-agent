@@ -336,6 +336,22 @@ describe('MarkdownContent element mapping', () => {
     `);
   });
 
+  it('stands in for an MCP skill or a conversation that has no name with the interface wording', () => {
+    const nameless: Source[] = [
+      { index: 1, type: 'mcp' },
+      { index: 2, type: 'conversation_history' },
+    ];
+    const citations = nameless
+      .map((source, position) => `<citation data-source-index="${position}" data-num="${source.index}"></citation>`)
+      .join(' ');
+
+    const html = renderBody(citations, { sources: nameless });
+
+    // The test translator answers with the key it was asked for, so a fixed English word shows as itself.
+    expect(html).toContain('data-title="mcp_skill"');
+    expect(html).toContain('data-title="conversation_history"');
+  });
+
   it('hands the knowledge-base source to the drawer with every field in place', () => {
     const { container } = renderContent(CITATIONS, { sources: SOURCES });
     const drawer = () => container.querySelector('[data-mock="kb-drawer"]');

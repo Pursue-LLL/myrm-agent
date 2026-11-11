@@ -12,7 +12,7 @@
  * - MoveDialog: modal for specifying move-target directory; Escape cancels it
  *
  * [POS]
- * Extracted from WorkspaceFileOps.tsx to keep each file under 400 lines.
+ * Confirmation and move dialogs of the workspace write operations, re-exported by WorkspaceFileOps.tsx.
  */
 
 import React, { useState, useCallback, type KeyboardEvent } from 'react';

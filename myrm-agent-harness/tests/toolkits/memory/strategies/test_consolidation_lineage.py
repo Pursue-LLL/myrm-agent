@@ -16,7 +16,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     ConsolidationResponse,
 )
 from myrm_agent_harness.toolkits.memory.types import MemoryType, SemanticMemory
-from tests.support.consolidation_cycles import CONFIG, TEA, TEA_TOO, correct, merge, run_cycle, undo
+from tests.support.consolidation_cycles import CONFIG, TEA, TEA_TOO, correct, merge, run_cycle, stored_insights, undo
 from tests.support.consolidation_seeds import NewManager, seed, semantic
 
 SHARED = ["chat-b", "chat-a"]
@@ -99,24 +99,25 @@ async def test_an_insight_derives_from_every_chat_of_the_window_it_was_drawn_fro
         ],
     )
 
-    stats = await run_cycle(manager, insights=(INSIGHT,))
+    await run_cycle(manager, insights=(INSIGHT,))
 
-    [insight_id] = stats.undo.created
-    insight = await stored(manager, insight_id)
+    [insight] = await stored_insights(manager)
     assert insight.content == INSIGHT and CONSOLIDATION_INSIGHT_TAG in insight.tags
     assert insight.source_chat_id == "chat-b"
     assert sorted(insight.source_chat_ids) == ["chat-a", "chat-b", "chat-d"]
     await manager.purge_by_source_chat_id("chat-d")
-    assert await manager.get_memory(insight_id) is None
+    assert await manager.get_memory(insight.id) is None
 
 
 async def test_undoing_a_cycle_deletes_the_insights_it_drew(new_manager: NewManager) -> None:
     manager = new_manager()
-    await seed(manager, [semantic(TEA, 1, source_chat_id="chat-a"), semantic(TEA_TOO, 2, source_chat_id="chat-b")])
-    stats = await run_cycle(manager, insights=(INSIGHT,))
-    [insight_id] = stats.undo.created
+    first = semantic(TEA, 1, source_chat_id="chat-a")
+    second = semantic(TEA_TOO, 2, source_chat_id="chat-b")
+    await seed(manager, [first, second])
+    await run_cycle(manager, merge(first, second, TEA), insights=(INSIGHT,))
+    [insight] = await stored_insights(manager)
 
     result = await undo(manager)
 
-    assert result.rolled_back == 1
-    assert await manager.get_memory(insight_id) is None
+    assert result.rolled_back == 4
+    assert await manager.get_memory(insight.id) is None

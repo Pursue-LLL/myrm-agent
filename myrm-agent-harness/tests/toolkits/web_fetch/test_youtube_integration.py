@@ -23,7 +23,7 @@ async def test_youtube_url_routes_to_transcript_extractor() -> None:
     youtube_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+        "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
     ) as mock_extract:
         mock_extract.return_value = MagicMock(
             page_content="00:00 Hello\n00:05 World",
@@ -50,7 +50,7 @@ async def test_non_youtube_url_skips_transcript_extractor() -> None:
     normal_url = "https://example.com/article"
 
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+        "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
     ) as mock_extract:
         with patch.object(engine, "_crawl_with_degradation") as mock_crawl:
             mock_crawl.return_value = (
@@ -73,7 +73,7 @@ async def test_youtube_fallback_to_html_on_transcript_failure() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+            "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
             new_callable=AsyncMock,
             return_value=None,
         ),
@@ -104,7 +104,7 @@ async def test_youtube_languages_passed_to_extractor() -> None:
     youtube_url = "https://www.youtube.com/watch?v=abc123XYZ00"
 
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+        "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
         new_callable=AsyncMock,
     ) as mock_extract:
         mock_extract.return_value = MagicMock(page_content="transcript", metadata={"video_id": "abc123XYZ00"})
@@ -129,7 +129,7 @@ async def test_youtube_transcript_cached_after_success() -> None:
     )
 
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+        "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
         new_callable=AsyncMock,
     ) as mock_extract:
         mock_extract.return_value = mock_doc
@@ -155,7 +155,7 @@ async def test_youtube_fail_does_not_pollute_fail_cache() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+            "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
             new_callable=AsyncMock,
             return_value=None,
         ),
@@ -184,7 +184,7 @@ async def test_youtube_shorts_url_recognized() -> None:
     shorts_url = "https://www.youtube.com/shorts/abc123XYZ00"
 
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+        "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
         new_callable=AsyncMock,
     ) as mock_extract:
         mock_extract.return_value = MagicMock(
@@ -210,7 +210,7 @@ async def test_youtu_be_short_link_recognized() -> None:
     short_url = "https://youtu.be/dQw4w9WgXcQ"
 
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+        "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
         new_callable=AsyncMock,
     ) as mock_extract:
         mock_extract.return_value = MagicMock(
@@ -236,7 +236,7 @@ async def test_youtube_force_refresh_bypasses_cache() -> None:
     youtube_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+        "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
         new_callable=AsyncMock,
     ) as mock_extract:
         mock_extract.return_value = MagicMock(
@@ -282,7 +282,7 @@ async def test_youtube_timeout_triggers_fallback() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+            "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
             side_effect=slow_extract,
         ),
         patch.object(engine, "_crawl_with_degradation") as mock_crawl,
@@ -324,7 +324,7 @@ async def test_youtube_concurrent_requests_coalescing() -> None:
         )
 
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+        "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
         side_effect=mock_extract_fn,
     ):
         results = await aio.gather(
@@ -350,7 +350,7 @@ async def test_youtube_both_transcript_and_fallback_fail() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_youtube_transcript",
+            "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_youtube_transcript",
             new_callable=AsyncMock,
             return_value=None,
         ),

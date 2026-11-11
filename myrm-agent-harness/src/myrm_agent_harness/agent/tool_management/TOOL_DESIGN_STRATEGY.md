@@ -205,7 +205,7 @@ class ToolLayer(IntEnum):
 | **OpenAPI 拒绝** | enabled 但 0 tools 加载失败 | `ConfigIncompleteError`（`openapi_load_failed`）；检查 spec/认证/endpoint |
 | **OpenAPI 拒绝** | schema > `AGGREGATE_DIRECT_TOKEN_BUDGET`（非 `direct_fc`） | `ConfigIncompleteError`（`openapi_direct_budget_exceeded`）；Agent 设置减少 endpoint |
 
-**已删除的形态及其问题（评估输入）**：
+**不采用的形态及其问题（评估输入）**：
 
 1. **catalog_invoke / capability_invoke_tool** — RUNTIME 池 + Turn1 proxy gateway，schema 藏在 catalog 一行摘要里，模型盲调；准确性与 PTC 重叠且更差。
 2. **多档 aggregate 阈值**（11,250 单服 + 15,000 聚合之外再加档位）— 会制造灰色地带，维护与认知成本上升；当前只有这两个数。
@@ -505,9 +505,9 @@ def get_tool_layer(tool_name: str) -> ToolLayer:
 
 **评估应基于下列事实与理由，而不是预设结论**：
 
-| 已删除或已评估的形态 | 评估结论与理由 |
+| 不采用或已评估的形态 | 评估结论与理由 |
 | --- | --- |
-| `catalog_invoke` / `capability_invoke` / RUNTIME proxy gateway | 这些是**盲调**（只给工具名 + `arguments: dict`，不把真实 schema 交给模型），准确性劣于 PTC。已被删除的 `invoke_deferred_tool` 正属此类（入参就是 `arguments: dict`），所以删除它**技术方向是对的** |
+| `catalog_invoke` / `capability_invoke` / RUNTIME proxy gateway | 这些是**盲调**（只给工具名 + `arguments: dict`，不把真实 schema 交给模型），准确性劣于 PTC。`invoke_deferred_tool`（入参就是 `arguments: dict`）正属此类，所以不提供它**技术方向是对的** |
 | 双 aggregate 阈值 | 制造灰色地带，与本节无关 |
 | 新增调用范式 | 与 PTC 重叠的部分没有增量；是否有增量需要实测 |
 

@@ -1,53 +1,81 @@
 /**
- * [INPUT] error-handling::redactSensitiveClientText (POS: client-side secret redaction, CWE-312); store/chat/types::Message, Source (type-only).
- * [OUTPUT] ReasoningLayout; formatReasoning, formatMessageMarkdown, extractMessageTitle.
- * [POS] The text one exported message is made of: its Markdown (reasoning, answer, citations) and the title its file is named after. Pure functions, so the single-message exports of every format share one source.
+ * [INPUT] error-handling::redactSensitiveClientText (POS: client-side secret redaction, CWE-312); citations/sourceName::sourceName, SectionLabeler (POS: what a source is called); store/chat/types::Message, Source (type-only), resolveSourceClickUrl.
+ * [OUTPUT] ReasoningLayout, MessageLabels; formatReasoning, formatSourcesFootnotes, formatMessageMarkdown, extractMessageTitle.
+ * [POS] The text one copied or exported message is made of: its Markdown (reasoning, answer, sources) and the title its file is named after. Pure functions, so the single-message exports of every format and the copy button share one source. The wording of the labels is the caller's, so this module holds no language.
  */
+import { sourceName, type SectionLabeler } from '@/lib/citations/sourceName';
 import { redactSensitiveClientText } from '@/lib/utils/error-handling';
 import type { Message, Source } from '@/store/chat/types';
+import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 
-const REASONING_LABEL = 'Thinking';
 const TITLE_MAX_CHARS = 80;
 
 /** How the reasoning sits in the text: folded into a `<details>` the reader can open, or as a labelled quote. */
 export type ReasoningLayout = 'fold' | 'quote';
 
 /**
- * Markdown and HTML fold the reasoning away. Word has no collapsible block and its converter ignores raw HTML, which
- * would leave the reasoning as paragraphs in front of the answer with nothing to tell the two apart, so a Word file
- * gets a labelled quote.
+ * The wording of the labelled parts of a copied or exported message. The caller takes it from the interface
+ * translations, so the text reads in the language of the interface that made it, with the same words the reader saw on
+ * screen.
  */
-export function formatReasoning(reasoning: string, layout: ReasoningLayout): string[] {
-  if (layout === 'fold') {
-    return ['<details>', `<summary>${REASONING_LABEL}</summary>`, '', reasoning, '', '</details>', ''];
-  }
-  return [`> **${REASONING_LABEL}**`, '>', ...reasoning.split('\n').map((line) => (line ? `> ${line}` : '>')), ''];
+export interface MessageLabels {
+  reasoning: string;
+  sources: string;
+  /** Stands in for a source that has no address and no name of any kind. */
+  untitledSource: string;
+  /** Words a wiki section the way the interface does; a section is left as it is when absent. */
+  sectionLabel?: SectionLabeler;
 }
 
-function formatSourcesFootnotes(sources?: Source[]): string {
+/**
+ * Markdown folds the reasoning away. The HTML and Word exports are built from the Markdown and both drop the raw HTML
+ * in it, which would leave the reasoning as paragraphs in front of the answer, label gone, with nothing to tell the two
+ * apart, so those two get a labelled quote.
+ */
+export function formatReasoning(reasoning: string, layout: ReasoningLayout, label: string): string[] {
+  if (layout === 'fold') {
+    return ['<details>', `<summary>${label}</summary>`, '', reasoning, '', '</details>', ''];
+  }
+  return [`> **${label}**`, '>', ...reasoning.split('\n').map((line) => (line ? `> ${line}` : '>')), ''];
+}
+
+/**
+ * The block that lists a message's sources, empty when it has none. It starts with the blank line that sets it off from
+ * the text before it. A source is listed under the number the answer cites it by, which runs on across the turns of a
+ * chat, so it is not the source's place in the list. A web page is listed by its address, the other kinds by the name
+ * they carry, and a source with neither gets the caller's stand-in.
+ */
+export function formatSourcesFootnotes(
+  sources: Source[] | undefined,
+  labels: Pick<MessageLabels, 'sources' | 'untitledSource' | 'sectionLabel'>,
+): string {
   if (!sources || sources.length === 0) {
     return '';
   }
-  const lines = sources.map((s, i) => `[${i + 1}] ${s.url || s.title || 'Unknown source'}`);
-  // Two trailing spaces make each citation its own line wherever the Markdown is rendered; a plain newline would run
+  const lines = sources.map(
+    (source) =>
+      `[${source.index}] ${resolveSourceClickUrl(source) || sourceName(source, labels.sectionLabel) || labels.untitledSource}`,
+  );
+  // Two trailing spaces make each source its own line wherever the Markdown is rendered; a plain newline would run
   // them together into one paragraph.
-  return `\n\nCitations:  \n${lines.join('  \n')}`;
+  return `\n\n${labels.sources}:  \n${lines.join('  \n')}`;
 }
 
 export function formatMessageMarkdown(
   message: Message,
   includeReasoning: boolean,
+  labels: MessageLabels,
   redact = true,
   reasoningLayout: ReasoningLayout = 'fold',
 ): string {
+  // A source's address or name is text from the page as much as the answer is, and a URL often carries a key.
+  const mask = (text: string): string => (redact ? redactSensitiveClientText(text) : text);
   const lines: string[] = [];
-  const reasoning = redact && message.reasoning ? redactSensitiveClientText(message.reasoning) : message.reasoning;
-  if (includeReasoning && reasoning) {
-    lines.push(...formatReasoning(reasoning, reasoningLayout));
+  if (includeReasoning && message.reasoning) {
+    lines.push(...formatReasoning(mask(message.reasoning), reasoningLayout, labels.reasoning));
   }
-  const content = redact ? redactSensitiveClientText(message.content) : message.content;
-  lines.push(content);
-  lines.push(formatSourcesFootnotes(message.sources));
+  lines.push(mask(message.content));
+  lines.push(mask(formatSourcesFootnotes(message.sources, labels)));
   return lines.join('\n').trim();
 }
 

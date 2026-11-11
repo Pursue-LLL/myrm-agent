@@ -6,7 +6,7 @@
  *
  * 设计原则：
  * - 覆盖主流 reasoning 模型（Claude、GPT-o系列、Gemini、DeepSeek、Qwen 等）
- * - 保持简洁，不照搬竞品的 30+ 模型类型函数（过度设计）
+ * - 保持简洁：只判断「是否支持 reasoning」，不按模型类型细分
  * - 易于维护和扩展
  */
 

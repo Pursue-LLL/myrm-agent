@@ -22,7 +22,6 @@ web_fetch.processing.antibot_detector::is_blocked (POS: Anti-bot detection)
 web_fetch.probe.http3_probe::get_http3_retry_metrics (POS: QUIC egress probe and L1 retry metrics)
 web_fetch.router.tier_breaker::get_global_tier_breaker (POS: Per-domain start-tier policy)
 web_fetch.router.domain_metrics::get_global_domain_metrics_manager (POS: Per-domain failure history behind the staleness hint)
-web_fetch.extractors.youtube_extractor::is_youtube_url, extract_youtube_transcript (POS: YouTube transcript fast-path extractor with oEmbed metadata)
 browser.pool.proxy::ProxyPool (POS: Proxy pool for browser fetchers)
 browser.domain_filter::DomainAllowlist (POS: Domain allowlist filter)
 utils.lru_cache::LRUCache (POS: Generic TTL-based LRU cache)
@@ -56,25 +55,6 @@ if TYPE_CHECKING:
 
 from myrm_agent_harness.utils.lru_cache import LRUCache
 
-from ..extractors.bilibili_extractor import extract_bilibili_subtitle, is_bilibili_url
-from ..extractors.weixin_extractor import (
-    extract_weixin_article as extract_weixin_article,
-)
-from ..extractors.weixin_extractor import (
-    is_weixin_article_url,
-)
-from ..extractors.x_extractor import (
-    extract_x_post as extract_x_post,
-)
-from ..extractors.x_extractor import (
-    is_x_url,
-)
-from ..extractors.youtube_extractor import (
-    extract_youtube_transcript as extract_youtube_transcript,
-)
-from ..extractors.youtube_extractor import (
-    is_youtube_url,
-)
 from ..fetchers.browser_fetcher import BrowserFetcher
 from ..fetchers.http_fetcher import HttpFetcher
 from ..fetchers.stealth_fetcher import StealthFetcher
@@ -111,9 +91,6 @@ __all__ = [
     "FailedResult",
     "FetchEngine",
     "SuccessResult",
-    "extract_weixin_article",
-    "extract_x_post",
-    "extract_youtube_transcript",
 ]
 
 
@@ -283,94 +260,13 @@ class FetchEngine(
         last_modified = cached_item.last_modified if cached_item and self._enable_http_validation else None
 
         try:
-            if is_youtube_url(url):
-                async with asyncio.timeout(self._crawl_timeout):
-                    doc = await extract_youtube_transcript(
-                        url,
-                        preferred_languages=self._youtube_languages,
-                        proxy_pool=self._http_fetcher._proxy_pool,
-                    )
-                if doc is not None:
-                    fetch_result = None
-                else:
-                    async with asyncio.timeout(self._crawl_timeout):
-                        doc, fetch_result = await self._crawl_with_degradation(
-                            url,
-                            etag=etag,
-                            last_modified=last_modified,
-                            max_chars=max_chars,
-                            allow_escalation=allow_escalation,
-                        )
-            elif is_bilibili_url(url):
-                async with asyncio.timeout(self._crawl_timeout):
-                    bilibili_cookies = await self._load_bilibili_cookies()
-                    doc = await extract_bilibili_subtitle(
-                        url,
-                        cookies=bilibili_cookies,
-                        proxy_pool=self._http_fetcher._proxy_pool,
-                    )
-                if doc is not None:
-                    fetch_result = None
-                else:
-                    async with asyncio.timeout(self._crawl_timeout):
-                        doc, fetch_result = await self._crawl_with_degradation(
-                            url,
-                            etag=etag,
-                            last_modified=last_modified,
-                            max_chars=max_chars,
-                            allow_escalation=allow_escalation,
-                        )
-            elif is_weixin_article_url(url):
-                async with asyncio.timeout(self._crawl_timeout):
-                    doc = await extract_weixin_article(
-                        url,
-                        proxy_pool=self._http_fetcher._proxy_pool,
-                    )
-                if doc is not None:
-                    fetch_result = None
-                    logger.info("Weixin article fast-path succeeded: %s", url)
-                else:
-                    logger.info("Weixin article fast-path missed, degrading to browser: %s", url)
-                    async with asyncio.timeout(self._crawl_timeout):
-                        doc, fetch_result = await self._crawl_with_degradation(
-                            url,
-                            etag=etag,
-                            last_modified=last_modified,
-                            max_chars=max_chars,
-                            allow_escalation=allow_escalation,
-                        )
-                    if doc is not None:
-                        logger.info("Weixin article browser degradation succeeded: %s", url)
-                    else:
-                        logger.warning("Weixin article fetch failed after degradation: %s", url)
-            elif is_x_url(url):
-                async with asyncio.timeout(self._crawl_timeout):
-                    doc = await extract_x_post(
-                        url,
-                        proxy_pool=self._http_fetcher._proxy_pool,
-                    )
-                if doc is not None:
-                    fetch_result = None
-                    logger.info("Twitter/X post fast-path succeeded: %s", url)
-                else:
-                    logger.info("Twitter/X post fast-path missed, degrading to standard fetch: %s", url)
-                    async with asyncio.timeout(self._crawl_timeout):
-                        doc, fetch_result = await self._crawl_with_degradation(
-                            url,
-                            etag=etag,
-                            last_modified=last_modified,
-                            max_chars=max_chars,
-                            allow_escalation=allow_escalation,
-                        )
-            else:
-                async with asyncio.timeout(self._crawl_timeout):
-                    doc, fetch_result = await self._crawl_with_degradation(
-                        url,
-                        etag=etag,
-                        last_modified=last_modified,
-                        max_chars=max_chars,
-                        allow_escalation=allow_escalation,
-                    )
+            doc, fetch_result = await self._fetch_from_network(
+                url,
+                etag=etag,
+                last_modified=last_modified,
+                max_chars=max_chars,
+                allow_escalation=allow_escalation,
+            )
 
             if fetch_result and fetch_result.status_code == 304 and cached_item:
                 logger.info(f"HTTP 304: cache still valid: {url}")

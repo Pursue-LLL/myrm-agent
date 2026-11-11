@@ -56,6 +56,25 @@ describe('useNoticeSlot', () => {
     expect(shown('update-nudge')).toBe(false);
   });
 
+  it('keeps the slot with the holder when a notice that was still waiting goes away', () => {
+    const { rerender } = render(
+      <>
+        <Notice id="update-nudge" wants />
+        <Notice id="migration-discovery" wants />
+      </>,
+    );
+
+    rerender(
+      <>
+        <Notice id="update-nudge" wants />
+        <Notice id="migration-discovery" wants={false} />
+      </>,
+    );
+
+    expect(shown('update-nudge')).toBe(true);
+    expect(shown('migration-discovery')).toBe(false);
+  });
+
   it('hands the slot to the waiting notice once the holder is closed', () => {
     const { rerender } = render(
       <>

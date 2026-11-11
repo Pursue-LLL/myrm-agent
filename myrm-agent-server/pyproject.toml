@@ -103,6 +103,10 @@ override-dependencies = [
   "pynacl>=1.6.2",                # remote_access E2EE; override resolves discord-py[voice] upper bound
   "mcp>=2.3.0",
 ]
+# Caps on transitive packages (no dependency is added). av: faster-whisper 1.2.1 calls av.open(metadata_errors=...), an
+# argument PyAV 19 removed, so local speech-to-text raises TypeError on every audio file; lift the cap once
+# faster-whisper stops passing it.
+constraint-dependencies = ["av<19"]
 
 # The harness lives in this repository (../myrm-agent-harness): the server always develops, tests and
 # ships against the same commit. Release images build the harness wheel from this path.

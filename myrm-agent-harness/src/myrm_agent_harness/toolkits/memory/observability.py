@@ -109,9 +109,7 @@ class MemoryOperationEvent(BaseModel):
 class MemoryTraceStep(BaseModel):
     """One business-neutral step in a memory retrieval trace."""
 
-    phase: Literal[
-        "sanitize", "route", "embed", "collect", "rank", "graph", "rerank", "budget", "cite"
-    ]
+    phase: Literal["sanitize", "route", "embed", "collect", "rank", "graph", "rerank", "budget", "cite"]
     status: Literal["success", "skipped", "warning", "error"] = "success"
     title: str
     summary: str = ""
@@ -194,7 +192,7 @@ class MemoryRecallRoiGrade(StrEnum):
 
 
 class MemoryPhaseLatency(BaseModel):
-    """Omri et al. 2026 three-phase latency telemetry in milliseconds."""
+    """Latency of the three phases of a memory turn (construction, retrieval, injection) in milliseconds."""
 
     construction_ms: float = 0.0
     retrieval_ms: float = 0.0

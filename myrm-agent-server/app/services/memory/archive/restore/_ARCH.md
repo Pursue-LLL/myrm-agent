@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-记忆归档恢复域：把归档的记忆快照恢复回会话记忆空间，支持规划（planner）、执行（executor）、回滚（rollback）与通用工具。由 `app/services/memory/archive/` 拆分而来。上级文档：[../_ARCH.md](../_ARCH.md)。
+记忆归档恢复域：把归档的记忆快照恢复回会话记忆空间，支持规划（planner）、执行（executor）、回滚（rollback）与通用工具。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

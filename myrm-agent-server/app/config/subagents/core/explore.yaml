@@ -1,7 +1,6 @@
 # Explore Subagent Configuration
 # Strict read-only codebase exploration specialist that maps architecture,
 # traces call graphs, and extracts exact code citations with zero side effects.
-# Aligned with ZCode Subagents and Harness read-only tool shadowing principles.
 
 name: explore
 

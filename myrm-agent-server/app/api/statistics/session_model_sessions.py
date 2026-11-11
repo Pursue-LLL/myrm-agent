@@ -7,7 +7,7 @@
 - router: GET /usage/model-sessions endpoint
 
 [POS]
-Split from session_analytics.py to satisfy file line budget.
+Per-model session usage endpoint of the statistics API, alongside session_analytics.py.
 """
 
 from __future__ import annotations

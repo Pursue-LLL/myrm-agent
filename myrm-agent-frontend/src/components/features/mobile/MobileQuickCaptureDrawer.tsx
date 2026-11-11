@@ -4,7 +4,7 @@
  * [INPUT]
  * - store/offline/offlineStagingStore::offlineStagingStore, StagingRecord (POS: Offline staging queue)
  * - next-intl::useTranslations (POS: Internationalization)
- * - lucide-react::Mic, MicOff, Lock, Wifi, WifiOff, Send, X, RefreshCw, Tag, PenLine, Inbox (POS: Icons)
+ * - lucide-react::Mic, MicOff, Lock, Wifi, WifiOff, Send, X, RefreshCw, Tag, PenLine, Inbox, CheckCircle2 (POS: Icons)
  *
  * [OUTPUT]
  * - MobileQuickCaptureDrawer: One-handed mobile bottom sheet drawer for instant multi-modal note capture
