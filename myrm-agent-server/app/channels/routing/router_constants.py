@@ -20,6 +20,8 @@ _SILENCE_REASSURANCE_THRESHOLD = 120.0
 _MAX_REASSURANCE_COUNT = 3
 _STUCK_TASK_TIMEOUT = 600.0
 _NOTICE_SEND_TIMEOUT = 3.0
+# How long ``stop`` waits for the turns it cancelled to finish unwinding before the shutdown goes on.
+_SHUTDOWN_TURN_GRACE_SECONDS = 5.0
 
 _SILENT_MARKER = "[SILENT]"
 _FENCE_RE = re.compile(r"^```(?:\w+)?\s*\n?(.*?)\n?```\s*$", re.DOTALL)

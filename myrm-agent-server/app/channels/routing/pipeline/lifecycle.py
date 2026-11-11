@@ -2,7 +2,7 @@
 
 [INPUT]
 - channels.routing.pipeline.hosts::RouterLifecycleHost (POS: typing protocol for the host attributes this mixin reads)
-- channels.routing.router_constants::_CLEANUP_TTL, _JANITOR_INTERVAL, _MAX_CONCURRENT_AGENTS, _NOTICE_SEND_TIMEOUT, _STUCK_TASK_TIMEOUT (POS: concurrency, cleanup TTL, watchdog limits and the longest a notice to a chat may take)
+- channels.routing.router_constants::_CLEANUP_TTL, _JANITOR_INTERVAL, _MAX_CONCURRENT_AGENTS, _NOTICE_SEND_TIMEOUT, _SHUTDOWN_TURN_GRACE_SECONDS, _STUCK_TASK_TIMEOUT (POS: concurrency, cleanup TTL, watchdog limits, the longest a notice to a chat may take and how long a stop waits for the turns it cancelled)
 - channels.routing.router_models::_ActiveTask (POS: record of one running agent turn)
 - channels.i18n::get_text (POS: localized channel copy)
 - core.infra.background_task::spawn_observed_task (POS: background task whose failure is logged)
@@ -13,7 +13,7 @@
 - RouterLifecycleMixin: ``start`` / ``stop`` / ``is_consume_loop_alive``, the consume loop that hands every inbound message to dispatch, the janitor (expired callbacks, streaming-session TTL, stale session state) and the stuck-task reaper
 
 [POS]
-Run-loop segment of ``AgentRouter``. ``stop`` parks the messages its gate still holds, those that have not started a turn, in the inbound journal, then ends every in-flight turn and approval wait and tells each turn's chat to send the request again (an ended turn is not replayed; the notices go out together and each is bounded, so an unresponsive channel API cannot hold the shutdown up); the janitor is the only evictor of expired callbacks and stuck turns, so one failed sweep never ends it.
+Run-loop segment of ``AgentRouter``. ``stop`` parks the messages its gate still holds, those that have not started a turn, in the inbound journal, then ends every in-flight turn and approval wait, gives the ended turns a bounded time to finish unwinding, and tells each turn's chat to send the request again (an ended turn is not replayed; the notices go out together and each is bounded, so an unresponsive channel API cannot hold the shutdown up); the janitor is the only evictor of expired callbacks and stuck turns, so one failed sweep never ends it.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from app.channels.routing.router_constants import (
     _JANITOR_INTERVAL,
     _MAX_CONCURRENT_AGENTS,
     _NOTICE_SEND_TIMEOUT,
+    _SHUTDOWN_TURN_GRACE_SECONDS,
     _STUCK_TASK_TIMEOUT,
 )
 from app.channels.routing.router_models import _ActiveTask
@@ -109,9 +110,11 @@ class RouterLifecycleMixin:
         replays them; taking them out of the gate also keeps the turns cancelled below from starting the next ones. A message
         that reaches the bus after this has begun is not journaled: the gateway keeps the channels open until the router and
         the outbound drain are done. Delegated tasks are interrupted next, while the channels are still up, so each tells its
-        chat the work was cut short. A turn the stop cancels is not replayed, so its chat is told to send the request again; the
-        chats are told together and a send that does not finish in time is given up on, so a stalled channel API cannot hold the
-        shutdown up.
+        chat the work was cut short. The turns the stop cancels get ``_SHUTDOWN_TURN_GRACE_SECONDS`` to finish unwinding, since
+        they release their database sessions and channel resources on the event loop and the shutdown goes on to close what they
+        share; a turn still unwinding after that is logged and left behind. A cancelled turn is not replayed, so its chat is told
+        to send the request again; the chats are told together and a send that does not finish in time is given up on, so a
+        stalled channel API cannot hold the shutdown up.
         """
         self._running = False
         for msg in self._gate.drain_unstarted():
@@ -128,6 +131,14 @@ class RouterLifecycleMixin:
         self._active_tasks.clear()
         self._cleanups.clear()
         self._pending_approvals.clear()
+        if interrupted:
+            _, unwinding = await asyncio.wait([entry.task for entry in interrupted], timeout=_SHUTDOWN_TURN_GRACE_SECONDS)
+            if unwinding:
+                logger.warning(
+                    "%d cancelled turn(s) still unwinding after %.1fs; shutting down anyway",
+                    len(unwinding),
+                    _SHUTDOWN_TURN_GRACE_SECONDS,
+                )
         await asyncio.gather(
             *(
                 _notify_chat(self._bus, self._fx, entry, get_text(_locale_probe(entry), "turn_interrupted_by_restart"))

@@ -122,15 +122,13 @@ class TestRouterLifecycle:
         router = _make_router()
         await router.start()
 
-        mock_task = MagicMock()
-        mock_task.done.return_value = False
-        mock_task.cancel = MagicMock()
+        task = asyncio.create_task(asyncio.sleep(3600))
         mock_token = MagicMock()
 
         from app.channels.routing.router_models import _ActiveTask
 
         router._active_tasks["key1"] = _ActiveTask(
-            task=mock_task,
+            task=task,
             cancel_token=mock_token,
             channel="test",
             chat_id="chat-1",
@@ -139,7 +137,7 @@ class TestRouterLifecycle:
         )
         await router.stop()
         mock_token.cancel.assert_called_once()
-        mock_task.cancel.assert_called_once()
+        assert task.cancelled()
 
 
 # ── Consume loop ──────────────────────────────────────────────────────

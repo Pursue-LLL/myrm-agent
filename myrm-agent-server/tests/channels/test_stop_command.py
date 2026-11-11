@@ -282,10 +282,8 @@ class TestRouterStopCleansActiveTasks:
     async def test_stop_cancels_all_active_tasks(self, router: AgentRouter) -> None:
         token1 = CancellationToken(request_id="req-1")
         token2 = CancellationToken(request_id="req-2")
-        task1 = MagicMock(spec=asyncio.Task)
-        task1.done.return_value = False
-        task2 = MagicMock(spec=asyncio.Task)
-        task2.done.return_value = False
+        task1 = asyncio.create_task(asyncio.sleep(3600))
+        task2 = asyncio.create_task(asyncio.sleep(3600))
 
         router._active_tasks["telegram:chat1"] = _ActiveTask(
             task=task1,
@@ -308,8 +306,8 @@ class TestRouterStopCleansActiveTasks:
 
         assert token1.is_cancelled
         assert token2.is_cancelled
-        task1.cancel.assert_called_once()
-        task2.cancel.assert_called_once()
+        assert task1.cancelled()
+        assert task2.cancelled()
         assert len(router._active_tasks) == 0
 
 
