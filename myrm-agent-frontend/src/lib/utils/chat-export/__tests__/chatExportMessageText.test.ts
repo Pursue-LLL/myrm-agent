@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Message, Source } from '@/store/chat/types';
-import { formatMessageMarkdown, formatReasoning, type MessageLabels } from '../chatExportMessageText';
+import {
+  formatMessageMarkdown,
+  formatReasoning,
+  formatSourcesFootnotes,
+  type MessageLabels,
+} from '../chatExportMessageText';
 
 const OPENAI_KEY = 'sk-live1234567890abcdef1234567890';
 const LABELS: MessageLabels = { reasoning: '思考过程', sources: '来源', untitledSource: '未命名' };
@@ -79,7 +84,21 @@ describe('formatMessageMarkdown', () => {
     );
   });
 
-  it.each([undefined, []])('adds no sources section to a message whose sources are %j', (sources) => {
+  it.each([[undefined], [[]]])('adds no sources section to a message whose sources are %j', (sources) => {
     expect(formatMessageMarkdown(messageOf({ sources }), false, LABELS)).toBe('Answer.');
+  });
+});
+
+describe('formatSourcesFootnotes', () => {
+  it('leads with the blank line that sets the list off from the text before it', () => {
+    const sources: Source[] = [{ index: 1, type: 'web_search', url: 'https://one.example/a' }];
+
+    expect(formatSourcesFootnotes(sources, { sources: 'Sources', untitledSource: 'Untitled' })).toBe(
+      '\n\nSources:  \n[1] https://one.example/a',
+    );
+  });
+
+  it.each([[undefined], [[]]])('is empty when the sources are %j', (sources) => {
+    expect(formatSourcesFootnotes(sources, LABELS)).toBe('');
   });
 });
