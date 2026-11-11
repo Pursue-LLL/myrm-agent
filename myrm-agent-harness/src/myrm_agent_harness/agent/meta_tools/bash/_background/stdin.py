@@ -7,7 +7,7 @@
 - write_background_stdin: Send bytes to a running child's stdin (optional newline / EOF)
 
 [POS]
-Isolated stdin I/O helper — keeps BackgroundProcessRegistry under size budget.
+Isolated stdin I/O helper for BackgroundProcessRegistry.
 """
 
 from __future__ import annotations

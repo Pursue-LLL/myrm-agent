@@ -140,7 +140,7 @@ PTC（程序化工具调用）
 Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截 `matplotlib.pyplot` 首次导入并强制 `Agg` 无头后端，随后接管图表呈现：
 
 - **捕获全部图**：`plt.show()` 被替换为遍历 `plt.get_fignums()` 的例程，将**每一张**打开的 figure 存为 WebP，并以零拷贝 `vault://.myrm_plots/<id>` 指针经 APC 转义序列写入真实 stdout（前端 `LiveTerminal` 逐行渲染为内联 `<img>`）。emit 后即 `close`，使「打开的图」成为单一真相源，从根本上避免漏渲染或重复渲染。
-- **结束兜底 flush**：在 `finally` 块中对仍打开（即未调用 `plt.show()`）的 figure 再 flush 一次。无论用户代码成功还是异常退出，已建好的图都会展示——对齐 Jupyter 的行为（cell 报错不吞掉已渲染的图）。
+- **结束兜底 flush**：在 `finally` 块中对仍打开（即未调用 `plt.show()`）的 figure 再 flush 一次。无论用户代码成功还是异常退出，已建好的图都会展示（报错不吞掉已渲染的图）。
 - **零拷贝**：传递 `vault://` 指针而非图字节，遵循框架「不用长字符串拼接大数据」原则，不污染 LLM 上下文与提示词缓存。
 
 > 相比依赖整套 Jupyter 内核的方案（如 open-webui 经 websocket 连 Jupyter server 取 `display_data` 的 base64 PNG），本实现仅用轻量 import 钩子即达到等价的多图正确性，无内核生命周期与额外进程开销，契合 Agent-in-Sandbox 架构。WebP 字体保真依赖镜像内置的 `fonts-noto-cjk` 与 `matplotlibrc`（见 myrm-agent-server 镜像）。
@@ -356,8 +356,7 @@ from myrm_agent_harness.toolkits.code_execution import (
   └── 监控 + 告警
   │
   PostgreSQL（平台数据 + 企业治理）：
-  cp_users / cp_subscriptions / cp_quota_usage / sandboxes / cp_wake_triggers
-  cp_orgs / cp_org_members / cp_org_oidc_configs / cp_org_mcp_servers / ...
+  用户 / 订阅 / 配额用量 / 沙箱登记 / 唤醒触发器 / 组织与策略 / ...
 
 沙箱（per-user）
   └── myrm-agent-server 完整应用
@@ -403,13 +402,13 @@ Agent 执行循环需要实时访问业务数据（检查配额、读取记忆�
 
 **控制平面 PostgreSQL（平台数据 + 企业治理，非穷举）**：
 
-| 分类 | 主要表 | 为什么在控制平面 |
+| 分类 | 主要数据 | 为什么在控制平面 |
 |---|---|---|
-| 用户/订阅 | `cp_users`、`cp_subscriptions` | 创建沙箱前验证身份；处理支付 webhook |
-| 配额/计费 | `cp_quota_usage`、`cp_work_unit_*`、`cp_billing_webhook_events` | 跨设备/会话统计 |
-| 沙箱/唤醒 | `sandboxes`、`cp_wake_triggers`、`cp_channel_bindings` | 生命周期与定时唤醒 |
-| 企业治理 | `cp_orgs`、`cp_org_members`、`cp_org_oidc_configs`、`cp_org_mcp_servers`、`cp_org_model_policies`、`cp_org_approval_policies` | 组织、SSO、MCP/模型/审批策略 |
-| 其他 | `secrets`、`cp_volume_handoff_logs`、`cp_tunnel_registrations`、`security_alerts` | 密钥、卷交接、隧道与安全告警 |
+| 用户/订阅 | 账号、订阅 | 创建沙箱前验证身份；处理支付 webhook |
+| 配额/计费 | 配额用量、工作单元、计费 webhook 事件 | 跨设备/会话统计 |
+| 沙箱/唤醒 | 沙箱登记、唤醒触发器、渠道绑定 | 生命周期与定时唤醒 |
+| 企业治理 | 组织、成员、SSO 配置、MCP/模型/审批策略 | 组织、SSO、MCP/模型/审批策略 |
+| 其他 | 密钥、卷交接记录、隧道注册、安全告警 | 密钥、卷交接、隧道与安全告警 |
 
 **沙箱 SQLite（用户个人数据，主要表，非穷举）**：
 
@@ -460,7 +459,7 @@ Agent 执行循环需要实时访问业务数据（检查配额、读取记忆�
 | 蚂蚁灵光 | 架构未公开（无云电脑披露） |
 | **Myrm** | **每用户 Agent 专用云电脑（agent-in-sandbox）** |
 
-**结论**：2026 年 Personal Agent 的标准架构是 **harness 跑在云电脑内**，本地设备只是客户端（聊天入口、审批、看屏幕）；平台侧只有控制面（创建 / 回收 / 计费 / 网关 / 恢复），不跑 agent loop。逐项证据（官方文档 / 媒体）由维护者的竞品核验记录承载，不随本仓库分发。
+**结论**：2026 年 Personal Agent 的标准架构是 **harness 跑在云电脑内**，本地设备只是客户端（聊天入口、审批、看屏幕）；平台侧只有控制面（创建 / 回收 / 计费 / 网关 / 恢复），不跑 agent loop。
 
 **差异化优势**：本地模式（SQLite）与开源产品层自托管（主流云端 Personal Agent 均不支持）、结构化数据管理（SQL + 向量库）、无外部凭据。
 
@@ -469,26 +468,6 @@ Agent 执行循环需要实时访问业务数据（检查配额、读取记忆�
 - [PingCAP](https://www.pingcap.com/blog/local-first-rag-using-sqlite-ai-agent-memory-openclaw/)：local-first + zero-ops 嵌入式数据库是 2026 趋势
 - [Fly.io: Code And Let Live](https://fly.io/blog/code-and-let-live)（Annie Ruygt）："we're calling it: ephemeral sandboxes are obsolete"、"They don't want containers. They don't want 'sandboxes'. They want computers." — 推出 Sprites（持久化 Firecracker microVM + 100GB ext4 + Checkpoint/Restore），专为 per-user 持久化 Agent 场景设计
 - 沙箱内 SQLite + 嵌入式 Qdrant 的方案与 Sprites 的 stateful sandbox 理念高度一致
-
-### 云电脑供给（2026-10）
-
-> 完整调研与来源（含逐项核验与修正记录）由维护者的竞品核验记录承载，不随本仓库分发。
-
-**SaaS 最终选型：Fly Sprites 作为唯一云供给**（E2B 支持已移除；Machines 仅作为 Sprites 适配完成前的过渡实现，随后删除）。
-
-**企业私有化**：单 VM Docker Compose（CP + PostgreSQL + Redis + 每用户 Docker 沙箱）。**本地**：OS 进程沙箱（sandbox-exec / bwrap / AppContainer）。两者都不使用 Sprites。
-
-| 项 | 方案 |
-|----|------|
-| 云供给 | **Fly Sprites**：8 vCPU、100GB ext4、内存按负载自动伸缩 |
-| 休眠 | 空闲约 30s 自动进入 warm（内存冻结，100–500ms）→ cold（进程重启，1–2s）；空闲不计 compute 费 |
-| 常驻 | Service 随开机 / 崩溃 / cold wake 自动拉起；请求命中 Sprite URL 自动唤醒 |
-| 计费 | CPU $0.0385/CPU-h；RAM $0.021875/GB-h；热存储 ≈$0.50/GB-月；冷存储 $0.02/GB-月（空闲仅计存储） |
-| 迁移状态 | 当前 `flyio` 适配器仍是 Machines（`auto_stop = "stop"`）；Sprites 适配尚未实现，完成后删除 Machines 代码 |
-
-- **不采用 Modal**：默认寿命 5 分钟、最长 24 小时，不适合常驻个人云电脑。
-- **不接外部任务沙箱**：一台用户云电脑已覆盖隔离、执行、持久化；不可信第三方代码、GPU、大规模并行等场景在 Sprites 内以进程级隔离处理，必要时再评估独立供给。
-- **终态**：自建 Firecracker / microVM 平台，掌握成本与体验上限。
 
 ## Bash Execution Resilience & Command Rewriting
 

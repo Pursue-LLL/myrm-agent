@@ -3,173 +3,34 @@
 /**
  * [INPUT]
  * @/store/chat/types::Source (POS: Chat state and SSE event type definitions)
+ * @/lib/citations/sourceName::sourceKind, sourceName (POS: which kind a source is and what it is called)
+ * @/services/wiki/sectionLabels::wikiSectionLabeler (POS: how a wiki section is worded)
  * @/services/chat::deleteChat, updateChatRecallExclusion (POS: Chat API client)
  * @/hooks/agent/useAgentName::useAgentName (POS: Resolve agent_id to human-friendly name)
  *
  * [OUTPUT]
- * SourcesButton: Message source sheet for Web, MCP and conversation history sources.
+ * SourceItem: One source as a card: a web page, a wiki hit, an MCP skill or a past conversation.
  *
  * [POS]
- * Message source action component. Renders source provenance and lets users inspect, navigate, exclude or delete
- * conversation-history sources without mixing them into memory feedback.
+ * Source row component. Renders the provenance of one source and lets users navigate to, exclude or delete a
+ * conversation-history source without mixing it into memory feedback.
  */
 
 /* eslint-disable @next/next/no-img-element */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { deleteChat, updateChatRecallExclusion } from '@/services/chat';
 import { toast } from '@/hooks/shared/useToast';
 import type { Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
+import { sourceKind, sourceName } from '@/lib/citations/sourceName';
+import { wikiSectionLabeler } from '@/services/wiki/sectionLabels';
 import { buildWikiAssetUrl } from '@/services/wikiService';
-import { Database, ExternalLink, EyeOff, Globe, Plug, Trash2, BookOpen, Copy } from 'lucide-react';
+import { Database, ExternalLink, EyeOff, Globe, Plug, Trash2, BookOpen } from 'lucide-react';
 import { useAgentName } from '@/hooks/agent/useAgentName';
-
-interface SourcesButtonProps {
-  sources: Source[];
-}
-
-const formatSourcesForCopy = (sources: Source[]): string =>
-  sources
-    .map((source) => {
-      const url = resolveSourceClickUrl(source) || source.url || '';
-      const title = source.title || source.filename || source.kb_name || 'Untitled';
-      return `[${source.index}] ${title}${url ? ` - ${url}` : ''}`;
-    })
-    .join('\n');
-
-/**
- * 来源按钮组件 - 显示重叠favicon和来源数量，点击打开右侧弹出层
- */
-const SourcesButton: React.FC<SourcesButtonProps> = ({ sources }) => {
-  const t = useTranslations('sources');
-  const [open, setOpen] = useState(false);
-
-  const handleCopyAll = async () => {
-    try {
-      await navigator.clipboard.writeText(formatSourcesForCopy(sources));
-      toast({ title: t('copyAllSuccess') });
-    } catch {
-      toast({ title: t('operation_failed'), variant: 'destructive' });
-    }
-  };
-
-  if (!sources || sources.length === 0) {
-    return null;
-  }
-
-  // 获取唯一域名列表（用于显示favicon）
-  const getUniqueDomains = () => {
-    const domains: { domain: string; faviconUrl: string }[] = [];
-    const seen = new Set<string>();
-
-    for (const source of sources) {
-      const clickUrl = resolveSourceClickUrl(source);
-      if (clickUrl && !source.skill_name) {
-        try {
-          const url = new URL(clickUrl);
-          const domain = url.hostname;
-          if (!seen.has(domain)) {
-            seen.add(domain);
-            domains.push({
-              domain,
-              faviconUrl: `https://www.google.com/s2/favicons?sz=128&domain=${domain}`,
-            });
-          }
-        } catch {
-          // 忽略无效URL
-        }
-      }
-    }
-    return domains.slice(0, 4); // 最多显示4个favicon
-  };
-
-  const uniqueDomains = getUniqueDomains();
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <button
-          className={cn(
-            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/30',
-            'bg-secondary/50 hover:bg-secondary',
-            'text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white',
-            'active:scale-95 transition-all duration-200',
-          )}
-        >
-          {/* 重叠的 Favicon 和 MCP 图标 */}
-          <div className="relative flex shrink-0 items-center h-5">
-            {/* MCP 来源检查 */}
-            {sources.some((s) => s.type === 'mcp' || !!s.skill_name) && (
-              <Plug className="w-4 h-4 text-black/60 dark:text-white/60" />
-            )}
-            {sources.some((s) => s.type === 'conversation_history') && (
-              <Database className="w-4 h-4 text-black/60 dark:text-white/60" />
-            )}
-
-            {/* 重叠的 Favicon 图标 */}
-            {uniqueDomains.length > 0 && (
-              <div className="flex -space-x-1">
-                {uniqueDomains.map((item, index) => (
-                  <div
-                    key={item.domain}
-                    className={cn(
-                      'relative shrink-0 overflow-hidden rounded-full',
-                      'w-4 h-4 bg-white border border-border/30',
-                    )}
-                    style={{ zIndex: uniqueDomains.length - index }}
-                  >
-                    <img
-                      src={item.faviconUrl}
-                      alt={`${item.domain} favicon`}
-                      width={16}
-                      height={16}
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        img.style.display = 'none';
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 来源数量文案 */}
-          <span className="text-xs font-semibold whitespace-nowrap">{t('count', { count: sources.length })}</span>
-        </button>
-      </SheetTrigger>
-
-      <SheetContent side="right" className="w-full max-w-[400px] overflow-y-auto">
-        <SheetHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pr-8">
-          <SheetTitle className="text-left">{t('title')}</SheetTitle>
-          <button
-            type="button"
-            onClick={handleCopyAll}
-            className={cn(
-              'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium',
-              'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
-            )}
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {t('copyAll')}
-          </button>
-        </SheetHeader>
-
-        <div className="mt-6 space-y-3">
-          {sources.map((source, index) => (
-            <SourceItem key={`${source.index}-${index}`} source={source} />
-          ))}
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-};
 
 /**
  * 单个来源项组件
@@ -177,18 +38,15 @@ const SourcesButton: React.FC<SourcesButtonProps> = ({ sources }) => {
 export function SourceItem({ source }: { source: Source }) {
   const t = useTranslations('sources');
   const tWiki = useTranslations('settings.wiki.concepts');
+  const tSections = useTranslations('MessageSources');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const isMcp = source.type === 'mcp' || !!source.skill_name;
-  const isConversation = source.type === 'conversation_history';
-  const isKnowledge = source.type === 'knowledge' || !!source.kb_name;
-  const agentName = useAgentName(isConversation ? source.agent_id : null);
+  const kind = sourceKind(source);
+  const name = sourceName(source, wikiSectionLabeler(tSections));
+  const agentName = useAgentName(kind === 'conversation' ? source.agent_id : null);
 
-  if (isKnowledge) {
-    const sectionLabel = source.section ? source.section : undefined;
-    const title = source.filename
-      ? `${source.filename}${sectionLabel ? ` § ${sectionLabel}` : ''}`
-      : source.kb_name || 'LLM-Wiki';
+  if (kind === 'knowledge') {
+    const title = name ?? 'LLM-Wiki';
     const description = source.snippet || source.summary;
     const assetThumbnailUrl =
       source.hit_kind === 'asset' && source.asset_filename
@@ -253,7 +111,7 @@ export function SourceItem({ source }: { source: Source }) {
     );
   }
 
-  if (isConversation) {
+  if (kind === 'conversation') {
     const chatId = source.conversation_id;
     const jumpToChat = () => {
       if (!chatId) {
@@ -313,7 +171,7 @@ export function SourceItem({ source }: { source: Source }) {
                 onClick={jumpToChat}
                 disabled={!chatId}
               >
-                {source.title || t('conversation_source')}
+                {name ?? t('conversation_source')}
               </button>
               {chatId && <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
             </div>
@@ -369,7 +227,7 @@ export function SourceItem({ source }: { source: Source }) {
     );
   }
 
-  if (isMcp) {
+  if (kind === 'mcp') {
     return (
       <div className={cn('p-3 rounded-lg', 'bg-accent hover:bg-muted transition-colors')}>
         <div className="flex items-start gap-3">
@@ -381,7 +239,7 @@ export function SourceItem({ source }: { source: Source }) {
               <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                 [{source.index}]
               </span>
-              <span className="text-sm font-medium truncate">{source.skill_name || t('mcpSkillFallback')}</span>
+              <span className="text-sm font-medium truncate">{name ?? t('mcpSkillFallback')}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {t('mcp_source')}
@@ -454,7 +312,7 @@ export function SourceItem({ source }: { source: Source }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">[{source.index}]</span>
-          <span className="text-sm font-medium truncate flex-1">{source.title || t('untitled')}</span>
+          <span className="text-sm font-medium truncate flex-1">{name ?? t('untitled')}</span>
           {clickUrl && <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
         </div>
 
@@ -483,5 +341,3 @@ function formatSourceDate(value: string): string {
   }
   return date.toLocaleString();
 }
-
-export default SourcesButton;

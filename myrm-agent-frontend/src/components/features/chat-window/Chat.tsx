@@ -246,7 +246,7 @@ const Chat = ({
       <button
         className="fixed bottom-24 right-3 z-30 md:hidden
           w-9 h-9 rounded-full bg-secondary/80 backdrop-blur-sm
-          border border-border shadow-sm
+          border border-border
           flex items-center justify-center
           text-muted-foreground hover:text-foreground
           transition-colors"

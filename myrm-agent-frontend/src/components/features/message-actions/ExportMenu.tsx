@@ -18,9 +18,11 @@ import {
   downloadMessageAsDocx,
   downloadMessageAsHtml,
   downloadMessageAsImage,
+  getExportLang,
 } from '@/lib/utils/chat-export';
 import { confirmAction } from '@/lib/app-dialog';
 import type { Message } from '@/store/chat/types';
+import { useMessageLabels } from './useMessageLabels';
 
 const LONG_CONTENT_THRESHOLD = 50_000;
 
@@ -31,6 +33,7 @@ interface ExportMenuProps {
 
 export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
   const t = useTranslations('chat');
+  const labels = useMessageLabels();
   const { resolvedTheme } = useTheme();
   const [includeReasoning, setIncludeReasoning] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -59,16 +62,16 @@ export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
   );
 
   const handleMarkdown = useCallback(() => {
-    downloadMessageAsMarkdown(message, includeReasoning);
-  }, [message, includeReasoning]);
+    downloadMessageAsMarkdown(message, includeReasoning, labels);
+  }, [message, includeReasoning, labels]);
 
   const handleHtml = useCallback(() => {
-    void withGuard(() => downloadMessageAsHtml(message, includeReasoning, theme));
-  }, [message, includeReasoning, theme, withGuard]);
+    void withGuard(() => downloadMessageAsHtml(message, includeReasoning, labels, theme, getExportLang()));
+  }, [message, includeReasoning, labels, theme, withGuard]);
 
   const handleDocx = useCallback(() => {
-    void withGuard(() => downloadMessageAsDocx(message, includeReasoning));
-  }, [message, includeReasoning, withGuard]);
+    void withGuard(() => downloadMessageAsDocx(message, includeReasoning, labels));
+  }, [message, includeReasoning, labels, withGuard]);
 
   const handleImage = useCallback(async () => {
     if (!markdownRef.current) {

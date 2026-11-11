@@ -18,6 +18,6 @@
 | `command_center_recall_boundary.py` | 核心 | 审查优先召回边界：任务级 read_scopes（层级、命名空间模式、是否生效；只有已知的 agent/task id 才进入模式）、写入策略、Candidate 候选池、四职责分区的真实记忆数量与已生效记忆样本 | ✅ |
 | `command_center_pending.py` | 核心 | 指挥中心读取待审内容的唯一入口：待审阅计数（审批队列 + 待裁决冲突）、候选列表（置信度取自提案或冲突记录本身，没有就留空）、治理项（仅批准/拒绝，纠正/遗忘提案披露目标记忆）与时间线回退，全部读 harness 审批队列；ORM `pending_memories` 仅保留冲突待裁决行 | ✅ |
 | `command_center_insights.py` | 核心 | 个人大脑指挥中心洞察服务。生成冲突/纠正/声明、eval checks、连接器状态、隐私信号、含导入回滚与归档恢复健康的部署边界摘要、迁移来源聚合（含 source_manifest authoritative 完整性降级守卫）、最近导入批次、导入后验证建议、自动诊断状态和导入审查清理指标；影响证据委托 `command_center_influence` | ✅ |
-| `command_center_economics.py` | 核心 | 长程任务记忆经济学分析服务。对标 Omri et al. (2026)，拆解构建/检索/注入三阶段开销，量化长程任务有效召回 ROI 与 Prompt Cache 保持率，支持模型自适应单价，识别沉睡低效记忆池并联动一键归档与置顶保护免杀 | ✅ |
+| `command_center_economics.py` | 核心 | 长程任务记忆经济学分析服务。拆解构建/检索/注入三阶段开销，量化长程任务有效召回 ROI 与 Prompt Cache 保持率，支持模型自适应单价，识别沉睡低效记忆池并联动一键归档与置顶保护免杀 | ✅ |
 | `command_center_projection_utils.py` | 辅助 | 个人大脑指挥中心投影辅助。集中维护阶段映射、瀑布流状态、预览、数值解析、per-turn 记忆遥测解析（`read_memory_telemetry`）、按项目收窄 SharedContext 查询（`restrict_to_context_ids`）和 eval metric 构建 | ✅ |
 

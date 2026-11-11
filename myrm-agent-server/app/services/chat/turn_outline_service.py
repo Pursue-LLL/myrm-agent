@@ -6,7 +6,7 @@
 - myrm_agent_harness.utils.text_sanitizer::extract_and_strip_think_blocks (POS: 剥离推理思维链)
 
 [OUTPUT]
-- TurnOutlineProjectionService: 极轻量会话轮次大纲投影生成器 (对标 DeepSeek Harness turnOutline fold 投影)
+- TurnOutlineProjectionService: 极轻量会话轮次大纲投影生成器 (纯 fold 投影)
 
 [POS]
 全会话大纲增量投影服务。提供 600 字节级精炼大纲折叠计算，

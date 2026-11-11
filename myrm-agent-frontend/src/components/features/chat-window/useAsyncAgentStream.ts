@@ -29,9 +29,6 @@ export function useAsyncAgentStream(id: string | undefined): void {
 
   useEffect(() => {
     const processInbox = async () => {
-      if (pendingInboxRef.current.length === 0) {
-        return;
-      }
       // 双流防撞锁：用户自己的回合在流式时分片留在收件箱，回合结束后由下面的订阅补放
       if (useChatStore.getState().loading) {
         return;

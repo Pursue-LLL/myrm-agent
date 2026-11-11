@@ -7,7 +7,7 @@
 
 平台适配层。通过协议接口抽象 Sandbox 和本地模式的差异，实现运行时自动切换。
 
-**核心原则**：`myrm-agent-server` 在用户专属云电脑内以单用户实例运行（容器或 microVM 由供给后端决定）。Sandbox 模式下 CP **在基础设施层**调度云电脑并注入 env；`platform_utils/sandbox/` 通过 HTTP 调用 CP internal API（entitlements/budget）。**CP 不对用户暴露**；AgentScope/QwenPaw 等托管云端同样在后台编排实例，差异见 `myrm-control-plane/ARCHITECTURE.md`「术语澄清」。
+**核心原则**：`myrm-agent-server` 在用户专属云电脑内以单用户实例运行（容器或 microVM 由供给后端决定）。Sandbox 模式下 CP **在基础设施层**调度云电脑并注入 env；`platform_utils/sandbox/` 通过 HTTP 调用 CP internal API（entitlements/budget）。**CP 不对用户暴露**；AgentScope/QwenPaw 等托管云端同样在后台编排实例。
 
 ---
 
@@ -166,7 +166,7 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 |---------|------|------|
 | 控制平面 → myrm-agent-server | 环境变量注入（创建时一次性） | 创建云电脑时注入 `DEPLOY_MODE`、`MYRM_DATA_DIR` 等配置 |
 | 用户 → agent-server | HTTP/WS（`/proxy/me/*` 或 `/proxy/{sandbox_id}/*`） | CP 反向代理 + HMAC 验签头注入；SaaS 前端 `NEXT_PUBLIC_API_BASE_URL=https://<cp>/proxy/me/api/v1` |
-| 控制平面 → 云电脑 | Docker / Fly / E2B API（按后端） | 云电脑生命周期管理（pause/stop/rm），`myrm-agent-server` 业务逻辑本身不参与 |
+| 控制平面 → 云电脑 | Docker / Fly API（按后端） | 云电脑生命周期管理（pause/stop/rm），`myrm-agent-server` 业务逻辑本身不参与 |
 | myrm-agent-server / 云电脑 → 控制平面 | stdout 日志采集 + 可选 HTTP 遥测上报 + 下次唤醒时刻上报 | 结构化日志被动采集；少量 `sandbox` 专属指标可通过显式适配器上报控制平面；`services/sandbox_wake` 把 goal/cron/看板的下一次必须运行时间 `PUT` 给 CP（`/api/internal/sandboxes/{id}/wake-schedule`），CP 到点唤醒已暂停的云电脑 |
 
 **per-user 模型下的通信流程**（当前真实实现）：

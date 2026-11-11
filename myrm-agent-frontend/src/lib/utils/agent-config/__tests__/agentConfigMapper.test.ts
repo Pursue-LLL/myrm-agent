@@ -294,4 +294,41 @@ describe('buildAgentConfig', () => {
     const config = buildAgentConfig(makeAgent({ model_selection: null }));
     expect(config.routingConfig).toBeUndefined();
   });
+
+  describe('command bindings', () => {
+    it('keeps what the composer needs from each binding and leaves the channel-only aliases behind', () => {
+      const config = buildAgentConfig(
+        makeAgent({
+          command_bindings: [
+            {
+              command_name: 'daily-report',
+              skill_ids: ['skill-a', 'skill-b'],
+              description: 'Summarise yesterday',
+              aliases: ['dr'],
+              instruction: 'Keep it short',
+            },
+            { command_name: 'review', skill_ids: [] },
+          ],
+        }),
+      );
+
+      expect(config.commandBindings).toEqual([
+        {
+          command_name: 'daily-report',
+          skill_ids: ['skill-a', 'skill-b'],
+          description: 'Summarise yesterday',
+          instruction: 'Keep it short',
+        },
+        { command_name: 'review', skill_ids: [], description: undefined, instruction: undefined },
+      ]);
+      expect(config.commandBindings?.[0]).not.toHaveProperty('aliases');
+    });
+
+    it.each<{ name: string; bindings: Agent['command_bindings'] }>([
+      { name: 'null', bindings: null },
+      { name: 'missing', bindings: undefined },
+    ])('has no command bindings when the agent has $name', ({ bindings }) => {
+      expect(buildAgentConfig(makeAgent({ command_bindings: bindings })).commandBindings).toBeUndefined();
+    });
+  });
 });

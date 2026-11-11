@@ -19,7 +19,7 @@ _DEFAULT_QUEUE_SIZE: int = 256
 _PENDING_STATE_FILENAME: str = "memory_guardian_guard_pending_envelopes.json"
 _LABEL_UNKNOWN: str = "unknown"
 _LABEL_MAX_LENGTH: int = 64
-# SSOT: myrm-control-plane/src/myrm_control_plane/telemetry/guardian_labels.py
+# Label vocabulary shared with the control plane's telemetry intake; any other value normalizes to "unknown".
 _ALLOWED_REASONS: frozenset[str] = frozenset(
     {
         "active_session_guard_unavailable",

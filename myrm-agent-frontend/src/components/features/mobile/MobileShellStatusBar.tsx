@@ -67,7 +67,7 @@ export function MobileShellStatusBar({
       className="fixed inset-x-0 top-0 z-50 pt-[env(safe-area-inset-top,0px)] transition-all duration-300"
     >
       {isDisconnected ? (
-        <div className="flex items-center justify-between border-b border-rose-500/30 bg-rose-950/90 px-4 py-2 text-xs text-rose-200 backdrop-blur-md shadow-sm">
+        <div className="flex items-center justify-between border-b border-rose-500/30 bg-rose-950/90 px-4 py-2 text-xs text-rose-200 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <IconAlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
             <span className="font-medium">{!isOnline ? t('offlineNotice') : t('connectionErrorNotice')}</span>
@@ -76,7 +76,7 @@ export function MobileShellStatusBar({
             <button
               type="button"
               onClick={onRetry}
-              className="flex items-center gap-1 rounded-md bg-rose-600/40 px-2 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-600/60 transition-colors"
+              className="flex items-center gap-1 rounded-lg bg-rose-600/40 px-2 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-600/60 transition-colors"
             >
               <IconZap className="h-3 w-3" />
               <span>{t('retryButton')}</span>

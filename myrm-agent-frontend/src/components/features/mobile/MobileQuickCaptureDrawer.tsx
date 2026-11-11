@@ -4,7 +4,7 @@
  * [INPUT]
  * - store/offline/offlineStagingStore::offlineStagingStore, StagingRecord (POS: Offline staging queue)
  * - next-intl::useTranslations (POS: Internationalization)
- * - lucide-react::Mic, MicOff, Lock, Wifi, WifiOff, Send, X, RefreshCw, Tag, Sparkles, Inbox (POS: Icons)
+ * - lucide-react::Mic, MicOff, Lock, Wifi, WifiOff, Send, X, RefreshCw, Tag, PenLine, Inbox, CheckCircle2 (POS: Icons)
  *
  * [OUTPUT]
  * - MobileQuickCaptureDrawer: One-handed mobile bottom sheet drawer for instant multi-modal note capture
@@ -15,22 +15,9 @@
  * even in airplane mode without needing multi-level navigation.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Mic,
-  MicOff,
-  Lock,
-  Wifi,
-  WifiOff,
-  Send,
-  X,
-  RefreshCw,
-  Tag,
-  Sparkles,
-  Inbox,
-  CheckCircle2,
-} from 'lucide-react';
+import { Mic, MicOff, Lock, Wifi, WifiOff, Send, X, RefreshCw, Tag, PenLine, Inbox, CheckCircle2 } from 'lucide-react';
 import { offlineStagingStore, type StagingRecord } from '@/store/offline/offlineStagingStore';
 import { showI18nToast } from '@/services/i18nToastService';
 import { StagedVaultQueueView } from './StagedVaultQueueView';
@@ -44,6 +31,16 @@ export interface MobileQuickCaptureDrawerProps {
 }
 
 const PRESET_TAGS = ['Idea', 'Todo', 'Secret', 'Meeting'];
+
+/** The browser raises `online` / `offline` whenever connectivity flips; the snapshot reads the current value. */
+const subscribeToConnectivity = (onChange: () => void) => {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+};
 
 export default function MobileQuickCaptureDrawer({
   open,
@@ -86,7 +83,6 @@ export default function MobileQuickCaptureDrawer({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [isOffline, setIsOffline] = useState(false);
   const [stagedRecords, setStagedRecords] = useState<StagingRecord[]>([]);
   const [showQueue, setShowQueue] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,31 +90,20 @@ export default function MobileQuickCaptureDrawer({
   const [justSavedNotice, setJustSavedNotice] = useState(false);
 
   // Hook-based voice dictation
-  const { isListening, transcript, toggleRecognition, resetTranscript, stopRecognition } =
-    useVoiceRecognition({
-      onTranscriptChunk: (chunk) => {
-        setContent((prev) => (prev ? `${prev} ${chunk}` : chunk));
-      },
-      onUnsupported: () => {
-        showI18nToast('mobile.quickCapture.speechUnsupported', undefined, { type: 'warning' });
-      },
-    });
+  const { isListening, transcript, toggleRecognition, resetTranscript, stopRecognition } = useVoiceRecognition({
+    onTranscriptChunk: (chunk) => {
+      setContent((prev) => (prev ? `${prev} ${chunk}` : chunk));
+    },
+    onUnsupported: () => {
+      showI18nToast('mobile.quickCapture.speechUnsupported', undefined, { type: 'warning' });
+    },
+  });
 
-  // Network state detection
-  useEffect(() => {
-    if (typeof navigator !== 'undefined') {
-      setIsOffline(!navigator.onLine);
-    }
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  const isOffline = useSyncExternalStore(
+    subscribeToConnectivity,
+    () => !navigator.onLine,
+    () => false,
+  );
 
   // Subscribe to offline staging store records
   useEffect(() => {
@@ -129,9 +114,7 @@ export default function MobileQuickCaptureDrawer({
   }, []);
 
   const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((tItem) => tItem !== tag) : [...prev, tag],
-    );
+    setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((tItem) => tItem !== tag) : [...prev, tag]));
   };
 
   const handleSave = async () => {
@@ -199,7 +182,7 @@ export default function MobileQuickCaptureDrawer({
 
         <div className="flex items-center justify-between pb-2 border-b border-border/40">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <PenLine className="w-4 h-4 text-primary" />
             <h2 id="mobile-quick-capture-title" className="text-sm font-semibold">
               {t('title')}
             </h2>
@@ -214,19 +197,17 @@ export default function MobileQuickCaptureDrawer({
               type="button"
               onClick={() => setShowQueue(!showQueue)}
               data-testid="quick-capture-queue-toggle"
-              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-md bg-muted/60 hover:bg-muted text-muted-foreground transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground transition-colors"
             >
               <Inbox className="w-3.5 h-3.5" />
               <span>{stagedRecords.length}</span>
-              {unsyncedCount > 0 && (
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-              )}
+              {unsyncedCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-500" />}
             </button>
             <button
               type="button"
               onClick={handleClose}
               aria-label={t('close')}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground"
+              className="p-1 rounded-lg text-muted-foreground hover:text-foreground"
             >
               <X className="w-4 h-4" />
             </button>
@@ -234,7 +215,7 @@ export default function MobileQuickCaptureDrawer({
         </div>
 
         {/* Network & Save Banner */}
-        <div className="flex items-center justify-between py-1.5 px-2 mt-2 rounded-md bg-muted/30 text-[11px]">
+        <div className="flex items-center justify-between py-1.5 px-2 mt-2 rounded-lg bg-muted/30 text-[11px]">
           <div className="flex items-center gap-1.5">
             {isOffline ? (
               <>
@@ -281,7 +262,7 @@ export default function MobileQuickCaptureDrawer({
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('titlePlaceholder')}
               data-testid="quick-capture-title-input"
-              className="w-full px-3 py-1.5 text-xs rounded-md bg-muted/30 border border-border/40 focus:outline-hidden focus:border-primary text-foreground placeholder:text-muted-foreground/60"
+              className="w-full px-3 py-1.5 text-xs rounded-lg bg-muted/30 border border-border/40 focus:outline-hidden focus:border-primary text-foreground placeholder:text-muted-foreground/60"
             />
 
             {/* Content Textarea */}
@@ -291,7 +272,7 @@ export default function MobileQuickCaptureDrawer({
               placeholder={t('contentPlaceholder')}
               rows={4}
               data-testid="quick-capture-content-input"
-              className="w-full px-3 py-2 text-xs rounded-md bg-muted/30 border border-border/40 focus:outline-hidden focus:border-primary resize-none text-foreground placeholder:text-muted-foreground/60"
+              className="w-full px-3 py-2 text-xs rounded-lg bg-muted/30 border border-border/40 focus:outline-hidden focus:border-primary resize-none text-foreground placeholder:text-muted-foreground/60"
             />
 
             {/* Preset Tags */}

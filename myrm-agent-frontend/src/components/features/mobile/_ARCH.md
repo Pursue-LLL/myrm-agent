@@ -15,7 +15,7 @@
 | `../chat-window/mobile/MobileStatusBoard.tsx` | 单会话控制 UI（SSE attach、HITL、steer、语音、**Stop** → `cancelActiveChatAgent` + toast 反馈、**Live Preview** — Browser/Desktop 截图实时预览 + Lightbox 全屏放大、**Artifact Deliverables** — 交付物列表预览/下载、**autoStart** — sessionStorage 消费初始消息自动 sendMessage、run 中 **查看完整对话** → 主 Chat 划词旁路；localhost dev **`window.__MYRM_E2E_MOBILE_CC__.setLoading`** Chrome E2E 桥） |
 | `MobileTakeoverBoard.tsx`                     | takeover 专用轻量面板（读取 `mid/reason/page/pair` 签名参数，轮询 `/api/v1/remote-access/mobile/takeover/{chatId}/snapshot` 实时预览，Done/Skip resume + 会话跳转）                                                                                                                                                                                                                                        |
 | `MobileQuickCaptureDrawer.tsx`                | 移动端单手极速倾倒抽屉：支持受控与全局自定义事件（`myrm:open-quick-capture`）双模态唤起，集成 Web Crypto AES-GCM-256 E2EE 护盾徽章、离线 IndexedDB 本地暂存箱持久化、离线/在线自适应感知、语音实时转写上屏、标签点选、一键手动/自动同步队列与“派发任务”直接回填 |
-| `MobileQuickCaptureFab.tsx`                   | 单手易触达常驻悬浮按钮（FAB）：固定于移动端 Hub 页面右下角（距边 `1.5rem` / `1.25rem` 再叠加 `env(safe-area-inset-*)`，避开 Home 指示条与横屏刘海），胶囊药丸造型与 Lucide Sparkles 图标，作为极速倾倒抽屉常驻入口 |
+| `MobileQuickCaptureFab.tsx`                   | 单手易触达常驻悬浮按钮（FAB）：固定于移动端 Hub 页面右下角（距边 `1.5rem` / `1.25rem` 再叠加 `env(safe-area-inset-*)`，避开 Home 指示条与横屏刘海），胶囊药丸造型与 Lucide PenLine 图标，作为极速倾倒抽屉常驻入口 |
 | `StagedVaultQueueView.tsx`                    | 独立展示型子组件：负责渲染离线加密暂存箱队列列表、同步状态徽标（staged/synced 等）、空态占位及每条暂存笔记的“派发任务”（`onConvertToTask`）轻按钮                                                                                                                                                                                    |
 | `useVoiceRecognition.ts`                      | Web Speech API 独立 Hook：管理语音听写录音启停、连续识别、语言配置、实时文本分块上屏与浏览器兼容性兜底                                                                                                                                                                        |
 | `useMobileViewportAdapter.ts`                 | 移动端动态视口与键盘避让 Hook：基于 Visual Viewport API 监听 resize/scroll，动态计算并注入 `--mobile-viewport-height` 与 `--mobile-keyboard-height` CSS 变量，提供 `isKeyboardOpen` 与 `isStandalone` 模式检测 |
@@ -32,7 +32,7 @@
 | `__tests__/MobileTaskSpawnForm.test.tsx`      | 任务表单单测：覆盖展开/折叠切换、表单字段渲染、回车键触发提交、Shift+Enter 换行以及额度满按钮禁用 |
 | `__tests__/useMobileViewportAdapter.test.ts`  | 视口适配器单测：覆盖默认高度计算、CSS 变量注入、Standalone 模式感知以及动态软键盘弹出时的视口偏移重算 |
 | `__tests__/MobileSessionHub.test.tsx`         | Hub 回归：集成状态条、控制台看板、安装引导与抽屉，覆盖新建任务输入法守卫、双区渲染、额度满阻断、Stop 终止及 FAB 唤起 |
-| `__tests__/MobileQuickCaptureDrawer.test.tsx` | 抽屉单测：覆盖受控渲染、全局事件唤起、标签选择切换、空内容校验、E2EE 离线存储提交、暂存队列切换展示与手动同步触发 |
+| `__tests__/MobileQuickCaptureDrawer.test.tsx` | 抽屉单测：覆盖受控渲染、全局事件唤起、标签选择切换、空内容校验、E2EE 离线存储提交、暂存队列切换展示与手动同步触发、网络状态感知（首帧即为真实在线/离线、随 online/offline 事件翻转、离线时禁用手动同步、卸载后停止监听） |
 | `__tests__/StagedVaultQueueView.test.tsx`     | 队列组件单测：覆盖空态提示、标题回退、状态徽标渲染与“派发任务”回调点击触发 |
 | `__tests__/useVoiceRecognition.test.ts`       | 语音 Hook 单测：覆盖 Web Speech 存在与不存在兜底、启停切换、分块派发与状态重置 |
 

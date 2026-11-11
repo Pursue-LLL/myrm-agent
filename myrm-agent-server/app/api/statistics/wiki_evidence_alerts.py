@@ -11,7 +11,7 @@
 
 [POS]
 Centralizes governance alert query/emit logic so API route files stay focused on
-request/response handling and remain within line-budget constraints.
+request/response handling.
 """
 
 from __future__ import annotations

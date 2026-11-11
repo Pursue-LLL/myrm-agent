@@ -10,9 +10,9 @@
 - dict[str, float]: signal weights aligned with memory retriever
 
 [POS]
-Online adaptive preference fitting based on single-step momentum SGD with L2 prior shrinkage.
-Runs deterministically in sub-millisecond time without LLM calls.
-Guarantees strict convergence within hard safety bounds [0.05, 3.0], eliminating Goodhart collapse.
+Online adaptive preference fitting: one gradient step per feedback action, pulled back toward the neutral prior
+by L2 shrinkage. Runs deterministically in sub-millisecond time without LLM calls.
+Every weight stays inside the hard bounds [0.05, 3.0].
 """
 
 from __future__ import annotations

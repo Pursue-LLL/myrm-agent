@@ -20,15 +20,17 @@ import {
   downloadMessageAsImage,
   downloadMessageAsMarkdown,
 } from '../chatExport';
+import type { MessageLabels } from '../chatExportMessageText';
 
 const OPENAI_KEY = 'sk-live1234567890abcdef1234567890';
 const SUFFIX = /-\d{4}-\d{2}-\d{2}\.[a-z]+$/;
+const LABELS: MessageLabels = { reasoning: 'Reasoning', sources: 'Sources', untitledSource: 'Untitled' };
 
 type Exporter = (message: Message, redact: boolean) => Promise<void> | void;
 const FORMATS: Record<string, { extension: string; run: Exporter }> = {
-  Markdown: { extension: 'md', run: (m, redact) => downloadMessageAsMarkdown(m, false, redact) },
-  HTML: { extension: 'html', run: (m, redact) => downloadMessageAsHtml(m, false, 'light', 'en', redact) },
-  Word: { extension: 'docx', run: (m, redact) => downloadMessageAsDocx(m, false, redact) },
+  Markdown: { extension: 'md', run: (m, redact) => downloadMessageAsMarkdown(m, false, LABELS, redact) },
+  HTML: { extension: 'html', run: (m, redact) => downloadMessageAsHtml(m, false, LABELS, 'light', 'en', redact) },
+  Word: { extension: 'docx', run: (m, redact) => downloadMessageAsDocx(m, false, LABELS, redact) },
   Image: { extension: 'png', run: (m, redact) => downloadMessageAsImage(document.createElement('div'), m, redact) },
 };
 

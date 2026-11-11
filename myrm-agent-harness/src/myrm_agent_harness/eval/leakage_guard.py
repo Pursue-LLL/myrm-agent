@@ -11,7 +11,7 @@
 - partition_dataset_split: stratified auto-split algorithm
 
 [POS]
-Part of the closed-source eval harness framework. Implements Meta-Harness
+Dataset hygiene layer of the eval framework. Implements Meta-Harness
 (arxiv:2603.28052) Dual-Split Protocol to physically block test-set leakage
 to variant proposers, preventing Goodhart's law and shortcut overfitting.
 """

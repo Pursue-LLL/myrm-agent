@@ -142,11 +142,11 @@ myrm_agent_harness/
 │       ├── conflict_merger.py          # 候选冲突三态判定与治理队列挂起
 │       ├── llm_prompt.py               # Layer 3 LLM 去重判断 prompt 模板
 │       ├── forgetting.py              # 遗忘策略
-│       └── extractor.py               # LLM 自动提取
+│       └── extractor/                 # LLM 自动提取（pipeline / runner / prompt / parse / signals / models）
 │
 ├── agent/
 │   └── middlewares/
-│       └── memory_context_middleware.py # 记忆上下文注入
+│       └── memory_context/            # 记忆上下文注入（context / budget / format / ephemeral delta / proactive pack 中间件）
 ```
 
 ---
@@ -176,29 +176,29 @@ myrm_agent_harness/
 >
 > **去重、遗忘、蒸发与编译作用域安全**：三层去重 Layer 2 候选检索、`dedup_semantics` 兜底、`run_forgetting` 向量遗忘、`evaporate_task_digests` 消化蒸发与 `compile_claim_graph` 图谱编译均按 `primary_namespace ∈ 内存自身 namespaces` **精确过滤**（`_user_filter` 中央函数），保证同 scope 内去重/合并/删除/消化/编译，绝不跨 scope 抑制、清理或消费他人记忆；Hash 缓存键绑定 namespaces 防串台；Qdrant 为 `primary_namespace`/`namespaces` payload 建 KEYWORD 索引保证过滤性能。
 >
-> **来源对话谱系（按对话级联删除）**：自动管线写入的记忆都记录它源自哪些对话；删除一个对话，就整条删除谱系里含该对话的全部记忆（模型从不对「一条记忆里某个对话的贡献」做减法）。`source_chat_id` 是最近一次写入该记忆的对话；语义、情景与程序性记忆另有 `source_chat_ids`，记录由多个对话合成时所源自的全部对话（含 `source_chat_id`；只来自一个对话时为空），记忆属于对话 C 当且仅当 C ∈ {`source_chat_id`} ∪ `source_chat_ids`。读取这两条链接的唯一入口是 `strategies/lineage.py` 的 `chat_links`，`origin_chat_ids` 取一批来源记忆的对话并集（最新记忆的对话在前）。向量记忆的 `source_chat_ids` 由 `storage_converters` 持久化为一等字段；规则（`ProceduralMemory`）的两个字段是带类型的字段，随规则行的元数据 JSON 以同名键存放（`source_chat_ids` 存为 JSON 字符串，读回时还原成字段，无需 schema 迁移），元数据被整体替换也不会丢，所以内容改写、纠错、归档与再次读改写都保留谱系；向量记忆的导出再导入同样保留。
+> **来源对话谱系（按对话级联删除）**：自动管线写入的记忆都记录它源自哪些对话；删除一个对话，就整条删除谱系里含该对话的全部记忆（模型从不对「一条记忆里某个对话的贡献」做减法）。`source_chat_id` 是最近一次写入该记忆的对话；语义、情景与程序性记忆另有 `source_chat_ids`，记录由多个对话合成时所源自的全部对话（含 `source_chat_id`；只来自一个对话时为空），记忆属于对话 C 当且仅当 C ∈ {`source_chat_id`} ∪ `source_chat_ids`。读取这两条链接的唯一入口是 `strategies/lineage.py` 的 `chat_links`，`origin_chat_ids` 取一批来源记忆的对话并集（最新记忆的对话在前）。向量记忆的 `source_chat_ids` 由 `storage_converters` 持久化为一等字段；规则（`ProceduralMemory`）的两个字段是带类型的字段，随规则行的元数据 JSON 以同名键存放（`source_chat_ids` 存为 JSON 字符串，读回时还原成字段），元数据被整体替换也不会丢，所以内容改写、纠错、归档与再次读改写都保留谱系；向量记忆的导出再导入同样保留。
 >
 > 谱系在这些位置形成：整理合并（取全部来源记忆的并集，最新记忆的对话在前）、整理洞察（取本次窗口内全部记忆的并集）、整理冲突对立记忆（沿用被质疑记忆的谱系）、写入去重的 UPDATE_MERGE（最近对话为主，并集保留两条记忆的全部对话）、纠错（沿用被纠错记忆的谱系）、复发整合（取本次会话与全部相似的未弃用会话的对话）、模式发现（周度模式事件与提升出的规则取模型读到的全部记忆的对话并集：提示词列出的最新 100 条加上全部整理洞察，宁可多删也不留残余，所以其中任一对话被删，模式事件与规则一并清除）。直接写入的记忆记录当次对话：后台提取器提出的记忆、规则与档案类提议（取被提取的对话）、会话缓冲里的规则、智能体 `memory_save_tool` 经管理器直写的知识、事件、规则与指令，以及它提出的偏好提议（取该工具所属会话的对话，工具没有所属会话时无对话可记）、skill 草稿落地时写入的记忆（取被复盘的对话）。档案条目生效后只有承载单个对话任务摘要的 `__working_state` 与 `__working_state_updated_at`（`CHAT_SCOPED_PROFILE_KEYS`）记录它出自哪个对话：`profiles.source_chat_id` 在每次写入时被替换，所以用户在设置里改写后它不再属于任何对话，之后由另一个对话写入则归那个对话；姓名、时区、偏好等其余档案事实无论由哪个对话提议、是否被批准，都不带这条链接。
 >
-> `purge_by_source_chat_id` 与预览 `count_by_source_chat_id` 读同样的链接（两条都命中的记忆只算一次）：向量记忆按 `source_chat_id` 与 `source_chat_ids` 两个元数据键过滤；规则分页读取全部规则（含已归档）后按两个字段匹配；待审批记录存 `source_chat_id` 列，另在载荷里带 `source_chat_ids`，由多个对话合成的记录还置位 `built_from_chats` 标志列（已有数据库打开时补列），经部分索引 `idx_pending_source_chat` 与 `idx_pending_built_from_chats` 取出候选行，再逐条核对载荷里的对话列表，所以查找代价不随已处理记录的历史增长（2 万行实测：对载荷做 LIKE 全表扫描 47.9 ms/次，两步索引查找 0.179 ms/次）。待审批记录（档案类提议也在内）与批准后的规则都带这条链接（批准后的审批记录仍保存着提议正文，同样按对话清除）。档案行的 `source_chat_id` 列（已有数据库打开时补列）由部分索引 `idx_profiles_source_chat` 支撑，清理按它删除该对话写下的工作状态，并以 `profile` 计数报告（按档案行计：工作状态由内容与更新时间两行组成，计 2），预览读同一条链接。清理同时删除该对话在复发缓冲里的行；`delete_all` 同样清空本用户的复发缓冲行。级联用的 manager 以 `all_scopes=True` 构造，拥有该用户全部 namespace，所以 agent、渠道、项目 scope 写入的记忆都能被已删除的对话找到；只绑定某些 namespace 的 manager 仍只能删自己 namespace 里的记忆，任何 manager 都不会碰其他用户的记忆。
+> `purge_by_source_chat_id` 与预览 `count_by_source_chat_id` 读同样的链接（两条都命中的记忆只算一次）：向量记忆按 `source_chat_id` 与 `source_chat_ids` 两个元数据键过滤；规则分页读取全部规则（含已归档）后按两个字段匹配；待审批记录存 `source_chat_id` 列，另在载荷里带 `source_chat_ids`，由多个对话合成的记录还置位 `built_from_chats` 标志列（已有数据库打开时补列），经部分索引 `idx_pending_source_chat` 与 `idx_pending_built_from_chats` 取出候选行，再逐条核对载荷里的对话列表，所以查找代价不随已处理记录的历史增长（2 万行实测：0.179 ms/次）。待审批记录（档案类提议也在内）与批准后的规则都带这条链接（批准后的审批记录仍保存着提议正文，同样按对话清除）。档案行的 `source_chat_id` 列（已有数据库打开时补列）由部分索引 `idx_profiles_source_chat` 支撑，清理按它删除该对话写下的工作状态，并以 `profile` 计数报告（按档案行计：工作状态由内容与更新时间两行组成，计 2），预览读同一条链接。清理同时删除该对话在复发缓冲里的行；`delete_all` 同样清空本用户的复发缓冲行。级联用的 manager 以 `all_scopes=True` 构造，拥有该用户全部 namespace，所以 agent、渠道、项目 scope 写入的记忆都能被已删除的对话找到；只绑定某些 namespace 的 manager 仍只能删自己 namespace 里的记忆，任何 manager 都不会碰其他用户的记忆。
 >
 > **已删对话围栏（`strategies/chat_fence.py`）**：对话被清理时，早先启动的写入方可能晚于清理才落盘：提取、整理、复发检查与纠错提案各自运行数秒到数分钟，写入的记忆都带着该对话的链接。`purge_by_source_chat_id` 先把该对话关闭 15 分钟（进程内注册表，键为用户与对话，只收录本进程亲眼见到被删的对话，没见过的对话永不被拒），其间谱系含该对话的写入一律被拒绝，而不是把清理掉的记忆带回来：写入层 `store`（抛 `MemoryRejectedError`）与 `store_batch`（去重前后各过滤一次）、提交审批 `submit_pending`（返回空串）、档案写入 `set_profile_attribute`（直写与入队都返回空串）与批准档案提议（抛 `MemoryRejectedError`）、复发整合（入口、查完相似会话之后写缓冲行之前，以及把相似会话行标为已弃用时跳过已删对话的行）；维护里同样是「先读、数秒后写回」的两处：主张图谱编译（`compile_claim_graph` 在循环入口跳过源自已删对话的摘要，把摘要标为已编译写回前再过滤一次）与遗忘归档（`run_forgetting` 写回归档副本前过滤）。围栏只拒绝，不删除；`import_memories` 导入的记忆引用了已关闭的对话时，说明用户有意带回它们，这些对话会被重新打开。围栏的边界：注册表在进程内，多进程部署里另一个进程仍在运行的写入方不受约束；关闭期只有 15 分钟；在清理发生的那一刻恰好通过围栏检查的写入也不在其内；其余读改写式维护在写回前都会重新读取，剩下毫秒级窗口。
 >
-> **主张图谱随对话清理**：摘要被维护编译成的 `Evidence`/`Claim` 节点不带谱系字段（`ClaimMemory` 是读取时由图节点构造的视图），清理靠节点上本来就有的关联：`purge_by_source_chat_id` 在删除摘要记忆之前，先由 `Evidence.source_chat_id` 取出该对话的证据节点，把它们连同 `latest_source_memory_id` 指向这些摘要的主张整条删除（`_internal/graph_cascade.py::drop_chat_claims`，分页处理，单个对话的失败只记 WARNING，不拦住记忆本身的清理）。主张的文字取自哪条摘要，就由那条摘要的对话决定，所以另有其他对话的摘要也佐证过的主张同样整条删除，不会保留已删对话的文字。逐条记忆删除沿用 `cascade_clean_derived_graph_nodes`（`latest_source_memory_id` 指向被删摘要的主张：证据计数不超过 1 则整条删除，否则只递减计数）。级联用的 manager 与记忆写入方通过 `setup.open_local_graph_store` 打开同一份 `graph.db`（WAL，多连接一致）；若级联 manager 没有挂图存储，上述清理就是对一张不存在的图的空操作。证据与主张的查找由 `graph_nodes` 上 `source_memory_id`、`source_chat_id`、`latest_source_memory_id` 三个部分索引支撑（1 万节点图上 300 条记忆的级联清理 1.34 s → 0.20 s，单次实测，同机后台有测试在跑）。边界：文字取自另一个对话摘要的主张保留，其证据计数仍含被删对话那一份；项目级清理（`purge_project_memories`）只走逐条级联，不做上述整条清理。
+> **主张图谱随对话清理**：摘要被维护编译成的 `Evidence`/`Claim` 节点不带谱系字段（`ClaimMemory` 是读取时由图节点构造的视图），清理靠节点上本来就有的关联：`purge_by_source_chat_id` 在删除摘要记忆之前，先由 `Evidence.source_chat_id` 取出该对话的证据节点，把它们连同 `latest_source_memory_id` 指向这些摘要的主张整条删除（`_internal/graph_cascade.py::drop_chat_claims`，分页处理，单个对话的失败只记 WARNING，不拦住记忆本身的清理）。主张的文字取自哪条摘要，就由那条摘要的对话决定，所以另有其他对话的摘要也佐证过的主张同样整条删除，不会保留已删对话的文字。逐条记忆删除沿用 `cascade_clean_derived_graph_nodes`（`latest_source_memory_id` 指向被删摘要的主张：证据计数不超过 1 则整条删除，否则只递减计数）。级联用的 manager 与记忆写入方通过 `setup.open_local_graph_store` 打开同一份 `graph.db`（WAL，多连接一致）；若级联 manager 没有挂图存储，上述清理就是对一张不存在的图的空操作。证据与主张的查找由 `graph_nodes` 上 `source_memory_id`、`source_chat_id`、`latest_source_memory_id` 三个部分索引支撑（1 万节点图上 300 条记忆的级联清理 0.20 s，单次实测，同机后台有测试在跑）。边界：文字取自另一个对话摘要的主张保留，其证据计数仍含被删对话那一份；项目级清理（`purge_project_memories`）只走逐条级联，不做上述整条清理。
 >
 > 不在覆盖范围内的：已生效的档案事实（姓名、时区、偏好等跨对话的用户事实，没有单个对话拥有它：提议它的审批记录随对话清除，事实本身保留；`__working_state` 工作状态则随写下它的对话清除，未被清除时 7 天后自行过期，用户也可在设置里改写或清除）、手工添加的规则、MCP 客户端的写入（它们没有对话），SDK 的会话终态巩固（`HyperConsolidator`）提炼出的自愈规则（它写的任务摘要情景记忆带对话链接），以及没有记录过来源对话的存量数据（合成记忆、提取出的规则、档案类提议、工作状态与缓冲行；不回填：合成记忆仍只按 `source_chat_id` 级联，缓冲行靠容量淘汰，规则需手动删除，档案类提议留在审批队列等待处理，工作状态 7 天后自行过期）。
 >
-> **Façade 编排边界**：`MemoryManager` 负责统一 façade，不再内联 `namespace` 派生、scope 绑定、写入目标裁剪和渠道亲和力重加权，这些纯逻辑统一收敛到 `_internal/scope.py`；扫描、审批路由、分桶、批量去重以及 convenience memory 构造统一收敛到 `_internal/write_service.py`；sanitize、typed recall 路由、RRF 前后编排、graph enrich 与 raw 裁剪统一收敛到 `_internal/search_service/`；审批流、profile 写入和安全扫描统一收敛到 `_internal/governance_service.py`；health、snapshot 和 maintenance cycle 统一收敛到 `_internal/maintenance_service.py`。
+> **Façade 编排边界**：`MemoryManager` 是统一 façade；`namespace` 派生、scope 绑定、写入目标裁剪和渠道亲和力重加权这类纯逻辑位于 `_internal/scope.py`；扫描、审批路由、分桶、批量去重以及 convenience memory 构造位于 `_internal/write_service.py`；sanitize、typed recall 路由、RRF 前后编排、graph enrich 与 raw 裁剪位于 `_internal/search_service/`；审批流、profile 写入和安全扫描位于 `_internal/governance_service.py`；health、snapshot 和 maintenance cycle 位于 `_internal/maintenance_service.py`。
 >
 > **Digest 生命周期**：`task_digest` 会以 `EpisodicMemory(event_type='task_digest')` 存储，并通过 `MemoryLifecycle` 建模为 `tier='l2'`、`evaporation_state='pending'`、`claim_graph_state='pending'`。向量层会将它扁平化持久化为 metadata 字段，但业务逻辑统一基于 typed lifecycle 推进。
 >
 > **Claim Graph Binding 继承**：已蒸发的 L2 digest 会被 maintenance 编译成图中的 `Claim` 节点和 `Evidence` 节点，二者会继承 digest 的 `primary_namespace/namespaces/agent_id/channel_id/conversation_id/task_id`，并以 `primary_namespace + claim_key` 作为编译层 Claim 身份，避免不同 task/channel/agent 下的同名结论被错误合并。
 >
-> **Claim Graph 语义关系闭环**：编译后的 `Claim` / `Evidence` 节点会按语义关系连接，而不再只看 success/fail polarity。当前支持 `SUPPORTED_BY`、`CONTRADICTED_BY`、`SUPERSEDED_BY`、`CONSTRAINED_BY`；Claim 节点保留 `confidence`、`freshness_days`、`contradiction_status` 与 `latest_relationship_type`，Digest lifecycle 会推进到 `claim_graph_state='compiled'` 并回写 `claim_graph_node_id/claim_graph_updated_at/claim_graph_conflict`，保证后续增量编译可重复执行且不重复消费。
+> **Claim Graph 语义关系闭环**：编译后的 `Claim` / `Evidence` 节点会按语义关系连接（不只是 success/fail polarity）。当前支持 `SUPPORTED_BY`、`CONTRADICTED_BY`、`SUPERSEDED_BY`、`CONSTRAINED_BY`；Claim 节点保留 `confidence`、`freshness_days`、`contradiction_status` 与 `latest_relationship_type`，Digest lifecycle 会推进到 `claim_graph_state='compiled'` 并回写 `claim_graph_node_id/claim_graph_updated_at/claim_graph_conflict`，保证后续增量编译可重复执行且不重复消费。
 >
-> **显式变更语义**：`task_digest` 现在允许额外提供 `**Change Kind**: support|contradict|supersede|constrain|none`。当该字段存在时，Claim 编译会优先使用它判定图关系；只有缺失时才回退到关键词和 token overlap 规则。这样可以减少“迁移/替代/约束变化”被误判成普通 polarity 冲突。
+> **显式变更语义**：`task_digest` 可额外提供 `**Change Kind**: support|contradict|supersede|constrain|none`。该字段存在时，Claim 编译优先使用它判定图关系；缺失时回退到关键词和 token overlap 规则。这样可以减少“迁移/替代/约束变化”被误判成普通 polarity 冲突。
 >
-> **Claim 一等检索对象**：`Claim` 节点在 recall 阶段会被恢复成正式的 `ClaimMemory(memory_type='claim')`，不再伪装成 `SemanticMemory`。Recall 会先按 `primary_namespace` 逐 namespace **精确过滤**当前 manager 可见的 Claim，再叠加 freshness / contradiction / channel affinity 排序。这保证了事实层和编译知识层的类型边界清晰，也避免 L3 compiled knowledge 重新变成串台源。
+> **Claim 一等检索对象**：`Claim` 节点在 recall 阶段会被恢复成正式的 `ClaimMemory(memory_type='claim')`，而不是 `SemanticMemory`。Recall 会先按 `primary_namespace` 逐 namespace **精确过滤**当前 manager 可见的 Claim，再叠加 freshness / contradiction / channel affinity 排序。这保证了事实层和编译知识层的类型边界清晰，也避免 L3 compiled knowledge 重新变成串台源。
 >
 > **Digest Recall 隐藏规则**：`task_digest` 属于 L2 编译原料，不属于用户侧普通 recall 对象。搜索编排会在普通 recall 阶段主动隐藏 `event_type='task_digest'` 的 episodic 结果，避免“原始 digest + 编译后 claim”同时进入模型上下文，浪费 token 并打乱知识层次。
 >
@@ -343,16 +343,14 @@ class GeneralAgentRequest(BaseModel):
 为了解决 Qdrant 存储超大 `raw_exchange` 导致的内存和性能瓶颈，系统实现了透明的 BLOB 外部化存储：
 
 ```python
-# 当 raw_exchange 超过 4KB 时，自动进行 Gzip 压缩并写入文件系统
-if len(raw_exchange) > 4096:
-    blob_path = write_to_blob_dir(gzip.compress(raw_exchange))
-    # Qdrant payload 中仅存储极轻量的指针
-    payload["raw_exchange"] = f"blob://{content_hash}"
+# raw_exchange 达到 blob_storage_threshold（默认 4096 字节）时，Gzip 压缩后以 SHA-256 命名落盘，
+# Qdrant payload 中仅存储极轻量的指针
+payload["raw_exchange"] = externalize_payload(raw_exchange, threshold=4096)  # -> "blob://<sha256>"
 ```
 - **零感知**：对上层业务完全透明，检索时自动拦截 `blob://` 前缀并从文件系统解压还原。
 - **性能提升**：避免 Qdrant 内存膨胀，提升向量检索速度。
-- **多租户隔离**：BLOB 存储路径动态绑定到 `WorkspaceContext`，确保多租户沙箱环境下的数据绝对隔离。
-- **自动垃圾回收 (Blob GC)**：通过 `maintenance.py` 中的后台任务定期扫描，自动清理未被 Qdrant 活跃指针引用的孤儿 BLOB 文件，彻底解决磁盘泄漏风险。
+- **目录与去重**：BLOB 目录默认是状态根目录（`$MYRM_DATA_DIR`，缺省 `~/.myrm`）下的 `blobs/`，可由 `blob_storage_path` 覆盖；文件按内容 SHA-256 命名（`<sha256>.gz`，临时文件加 `os.replace` 原子写入），同内容只落一份。
+- **自动垃圾回收 (Blob GC)**：通过 `_internal/maintenance.py` 的 `sweep_orphaned_blobs` 后台任务定期扫描，自动清理未被 Qdrant 活跃指针引用的孤儿 BLOB 文件（一小时内修改过的文件不动，避免与尚未落库的写入竞争），彻底解决磁盘泄漏风险。
 
 **Compression（内联压缩）：**
 
@@ -375,17 +373,17 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 
 ### 4.6 测试覆盖
 
-- **Unit tests**: 845/845 (100%)
-  - `test_adaptive_channel.py`: 12 tests（3-factor logic）
-  - `test_text_utils.py`: 28 tests（multi-language tokenization）
-  - `test_compression.py`: 12 tests（gzip compression）
-  - `test_rrf_dedup.py`: 4 tests（RRF deduplication）
-- **Integration tests**: `test_conversation_integration.py`（dual-channel storage + retrieval）
-- **Coverage**: >80%（framework requirement）
+- **Unit tests**（`tests/toolkits/memory/`）：
+  - `test_adaptive_channel.py`：三因子自适应通道逻辑
+  - `test_text_utils.py`：多语言分词
+  - `test_compression.py`：gzip 压缩
+  - `test_rrf_dedup.py`：RRF 去重
+- **Integration tests**：`test_conversation_integration.py`（双通道存储 + 检索）
+- **Coverage**：核心模块行覆盖率 ≥80%（`pyproject.toml` 的 `fail_under`，带 `--cov` 运行时生效）
 
 ### 4.7 与竞品对比
 
-以下对比为 **定性**。若需在文档中对「自适应召回、检索成本或延迟」声称具体百分比，须在仓库内附上可重复的基准脚本或原始数据集与版本号——**本节不再预设未核验的百分比**。
+以下对比为 **定性**。若需在文档中对「自适应召回、检索成本或延迟」声称具体百分比，须在仓库内附上可重复的基准脚本或原始数据集与版本号——**本节不预设未核验的百分比**。
 
 | 维度               | MemPalace | MyrmAgent                         | 说明 |
 | ------------------ | --------------------- | --------------------------------- | ---- |
@@ -546,7 +544,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 
 - 加权几何平均，类型感知权重（见 `signals.py`），每套权重之和为 1；除语义分数外各信号下限 0.01，权重为 0 的信号不参与
 - 语义分数是权重最大的一项（Semantic 类型 0.65）；相关度接近时由新近度、重要度、用户评分与类型先验决定先后，相关度差距大时语义分数决定
-- **召回次数不参与排序**：每条返回的命中都会被记一次使用，次数衡量的是曝光而不是有用性；用它排序会让先被展示的记忆一直被展示，新写入的事实挤不进前列（本仓库金标准召回基准，离线 32 维词哈希向量、另写入 16 条干扰记忆：使用戳开启且次数参与排序时三次运行 ndcg@5 0.81–0.83、mrr 0.78–0.80，次数移出排序后恢复到使用戳关闭时的 0.88 / 0.88；语料很小，只说明使用戳不再拉低质量，不代表真实嵌入模型下的绝对分数）。使用戳只服务生命周期（遗忘、陈旧性复审、健康度、记忆卡片，见「访问计数」）。唯一例外是可选的 `enable_gravity_decay`（默认关闭），它的幂律衰减把召回次数并入 recency 项
+- **召回次数不参与排序**：每条返回的命中都会被记一次使用，次数衡量的是曝光而不是有用性；用它排序会让先被展示的记忆一直被展示，新写入的事实挤不进前列（本仓库金标准召回基准，离线 32 维词哈希向量、另写入 16 条干扰记忆：使用戳开启且次数参与排序时三次运行 ndcg@5 0.81–0.83、mrr 0.78–0.80，次数移出排序后恢复到使用戳关闭时的 0.88 / 0.88；语料很小，只说明使用戳不会拉低质量，不代表真实嵌入模型下的绝对分数）。使用戳只服务生命周期（遗忘、陈旧性复审、健康度、记忆卡片，见「访问计数」）。唯一例外是可选的 `enable_gravity_decay`（默认关闭），它的幂律衰减把召回次数并入 recency 项
 - `type_prior` 是常量信号（下限 0.01）的指数，等价于每类记忆固定的折扣，与记忆个体无关：Profile 无折扣，Semantic / Claim 约 ×0.79（`0.01^0.05`），Episodic / Procedural 约 ×0.58（`0.01^0.12`）。它与 `RetrievalConfig.type_weights`（RRF 融合阶段的类型权重）是两处独立的类型先验
 - Procedural 的 Importance 权重（0.45）同样是固定折扣：规则没有 `importance` 字段，每条规则读到的都是缺省 0.5（`0.5^0.45` ≈ ×0.73），与规则个体无关。规则的强弱由 `priority`（规则的 SQL 查询按它降序，`relational/_rule_mixin.py`）和 `tool_rule_priority`（CRITICAL 规则在遗忘中受保护）承载；`memory_save_tool` 与 MCP `memory_store` 的 `importance` 只对 knowledge 生效（见 `agent_surface/memory_agent_tools/save_tool.py`、`agent_surface/mcp_server/store_tool.py`；两个入口都在 `importance` 参数本身写明 “knowledge category only”，共用常量 `MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION`，MCP 客户端只看参数列表时也不会给其它类别传分）；`memory_manage(update)` 带 `new_importance` 改规则时，规则不存该值，回执在 `Memory updated (ID: …)` 之后如实说明 “Importance was not changed”，并指向 `rule_priority`（`agent_surface/memory_manage_core.py`）
 - 纠正链抑制：被纠正记忆的分数乘以 `correction_penalty`（默认 0.1）
@@ -591,7 +589,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 
 - 调用方未显式传入 `since/until` 时，从查询中的过去向时间标记（中英双语：昨天 / 上周 / 上个月 / 上季度 / 去年 / 去年春天 / 最近三个月 / 三天前 / last spring / 3 weeks ago…）推导宽窗口 `(since, until)` 注入 collect 阶段做硬过滤；显式边界永远优先（explicit-scope invariance，与 ChannelPruner 同一原则）。
 - 窗口刻意放宽：每类标记的语义周期双侧加溢出（day ±1d / week ±2d / month ±5d / quarter ±7d / year·season ±15d / relative ±max(1d, span/4)），吸收时区偏差与口语模糊；窗口内的精确定位交给结果侧时间邻近加权（`query_analyzer`）——硬过滤剪枝，软加权排序。
-- 纯本地正则、微秒级开销（实测 2.9 µs/call）；中文数字（三天前 / 三个月）原生解析，「3月前」不会被误判为「三个月前」（月单位必须带「个」）。全未来窗口（如秋季问「今年冬天」）跳过该标记并落到更宽的「今年」规则；命中信息记入 route trace 的 `temporal_window` metadata（marker / kind / 窗口边界）。
+- 纯本地正则、微秒级开销（单次约几微秒）；中文数字（三天前 / 三个月）原生解析，「3月前」不会被误判为「三个月前」（月单位必须带「个」）。全未来窗口（如秋季问「今年冬天」）跳过该标记并落到更宽的「今年」规则；命中信息记入 route trace 的 `temporal_window` metadata（marker / kind / 窗口边界）。
 
 **跨引擎精排门**（`_internal/rerank_gate.py`，`RetrievalConfig.enable_cross_rerank` + 构造注入 `RerankerService`，实例注入即生效）：
 
@@ -649,7 +647,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 - 近重复带（0.94 ≤ sim < 0.95）即使文本包含关系成立也强制穿透 LLM 仲裁，杜绝语义替换盲合并；中低相似度 `semantic_ambiguity` 模糊带穿透 LLM 仲裁（事实合成 + 元数据合并）
 - 确定性 facet/polarity 冲突零 LLM 短路；`USER_OVERRIDE_PROTECTED` 直接 NEW 保护用户锁定记忆
 
-**稀疏语义掩码最小覆盖与知情保留**（`strategies/sparse_*.py`，对标 MEMOIR NeurIPS 2025）：
+**稀疏语义掩码最小覆盖与知情保留**（`strategies/sparse_*.py`）：
 
 - **数据模型与契约解耦**（`strategies/sparse_types.py`）：强类型定义 `SemanticSlot`、`SparseMaskItem`、`SparseMutationResult` 与动作枚举，杜绝臃肿混杂，守护单文件 <400 行架构红线。
 - **槽位解析状态机**（`strategies/sparse_parser.py`）：单趟正则扫描 YAML/配置风格键值对、Markdown Bullet 列表与分号规约子句，自动抽取语义槽位与结构缩进。
@@ -672,7 +670,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 - 合并追踪：`merge_count` 和 `merge_history` 记录演化历史
 - Metadata 合并：UPDATE_REPLACE 全替换 / UPDATE_MERGE 合并覆盖；tags 去重合并；source 字段始终更新为最新来源
 - 失败降级：LLM 失败时默认为 NEW（避免丢失）
-- 作用域栅栏：Layer 2 候选检索按 `primary_namespace ∈ 记忆自身 scope.namespaces` 精确过滤（仅召回同 scope 候选，仅共享 `global` 广播的他人记忆不进入候选）；`_apply_update` 拒绝跨 scope 的 merge/replace 并降级为 NEW；Hash 缓存键绑定 namespaces（`namespaces|hash`），同内容写入不同 scope 互不抑制，旧格式键加载时自动废弃
+- 作用域栅栏：Layer 2 候选检索按 `primary_namespace ∈ 记忆自身 scope.namespaces` 精确过滤（仅召回同 scope 候选，仅共享 `global` 广播的他人记忆不进入候选）；`apply_dedup_update`（`strategies/dedup_update.py`）在双方都带显式命名空间且互不相交时拒绝 merge/replace 并降级为 NEW（命名空间为空即全局，不设边界）；Hash 缓存键绑定 namespaces（`namespaces|hash`），同内容写入不同 scope 互不抑制，旧格式键加载时自动废弃
 
 ### 7.2 遗忘策略 (`strategies/forgetting.py`)
 
@@ -748,10 +746,10 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 - **确定性命名实体守卫 (`NamedEntityGuard`)**：零 I/O 确定性检测器，自动提取源码记忆中的 5 类关键技术实体（`PORT` 端口、`IP_ADDRESS` IP、`URL_DSN` 数据库/API 链接、`ENV_VAR` 环境变量名、`FILE_PATH` 文件与系统路径）。在 LLM 提议 `merge`、`correct` 或 `update_content` 操作时，强制要求新文本完整保留所有关键实体；若关键实体发生篡改或丢失，直接拒绝该候选操作，杜绝模型摘要压缩产生的幻觉。
 - **Class-First Rubric 评分与短 ID 映射**：在系统提示词与执行前置过滤中固化准确性、防碎片化、冗余度三维标准，以短 ID 压缩减少 Token 开销并捍卫 Prompt Cache 静态前缀。**回复结构写在系统提示词里**：本项目的结构化输出只开 JSON 模式、响应模式从不发给模型，提示词没写明的字段名模型只能猜，而且每次猜得不一样，整份回复校验失败、周期以 `errors=1` 收场、窗口原地不动；所以提示词给出一份可解析的 JSON 示例（三种 `action` 各一条，写明字段名、取值范围、`insights` 是字符串，没有可整理的内容时回 `{"operations": [], "insights": []}`）。示例必须是合法的 `ConsolidationResponse`，且模型读取的每个字段都在提示词里点名；示例里的文字一律是尖括号占位符，因为洞察会原样存成记忆，模型照抄一条像真的示例就会写入一条假事实（`tests/toolkits/memory/test_consolidation_prompt_contract.py` 逐项校验）。三个评分与 `reasoning` 也在其中：评分缺省为 1.0，不输出评分就等于绕过前置过滤的评分门槛（加权低于 0.7 的操作丢弃）和高重要度纠错的用户路由（`accuracy_score` 低于置信阈值时交给冲突回调裁决）；`correct` 要替换技术实体时须在 `reasoning` 里引用被替换的值，否则实体守卫拒绝该操作。
 - **一次整理对每条记忆只动一次**：模型对每条操作都是按「读到时的原样」规划的，所以前置过滤在通过评分与实体守卫后，只保留模型最先提出的那一条涉及某条记忆的操作（合并的各个来源、纠错与改写的目标都算「涉及」，短 ID 与完整 ID 视为同一条）；后到的、与已保留操作共用任何一条记忆的操作整条丢弃并记一行 INFO 日志，被评分或守卫拒绝的操作不占用记忆，被丢弃的操作也不计入 `guard_patched`。
-- **跨子阶段毫秒级协作避让 (`check_cooperative_yield`)**：在 `maintenance_service.py` 编排的 8 个维护子阶段（合并、BLOB GC、遗忘、摘要蒸发、因果图编译、陈旧审查、偏好重建、健康体检）入口处注入协作让出检查。当高优先级交互触发 `CooperativePauseSignal` 时，维护任务在毫秒内优雅退出并安全释放锁，保留已执行阶段的指标于 `MaintenanceReport.interrupted_by_pause`，确保前台交互零延迟。
+- **跨子阶段协作避让 (`_should_yield`)**：`maintenance_service.py` 编排的 8 个维护子阶段（合并、BLOB GC、摘要蒸发、因果图编译、遗忘、陈旧审查、偏好重建、健康体检）在入口处检查 `CooperativePauseSignal`（合并、因果图编译、陈旧审查、偏好重建只在对应能力启用时才执行与检查）。前台交互发出暂停请求后，维护任务在进入下一个子阶段之前退出并释放锁（不打断正在执行的子阶段），返回的 `MaintenanceReport` 带 `interrupted_by_pause=True`，已执行子阶段的统计保留在报告里。
 - **覆盖水位线与候选窗口**：`_system.last_consolidated_at` 是「已覆盖到哪里」的水位线，记在记账行里（`bookkeeping.py`：按管理器的归属命名空间分行，不经画像治理，确认模式下不进待审队列、不向聊天上下文追加增量）。水位线走记忆到达存储的顺序，而不是业务时间 `created_at`：存储层在每条语义、情节记忆写入向量库时盖一个到达戳 `stored_at`（`_internal/store_stamp.py`，落为文档 payload 的 `stored_ts`），取自进程内严格递增的微秒时钟，调用方自带的值一律被覆盖，经模型重写的 `update_memory` 沿用原戳。晚到的审批（保留提案时的 `created_at`）、带历史时间戳的导入、纠错写入，以及批量写入里创建时间完全相同的多条记忆，因此都按真正入库的先后被读到，窗口的截断处也不会再并列。每次整理只分析水位线之后最早的 `max_memories` 条记忆（`consolidation_window.py`）：语义与情节向量源按到达戳升序读取，水位线与本次的水位上界都下推到存储层（`stored_ts` 是 FLOAT payload 索引，由服务端预热统一建立）；规则不进窗口（规则靠 `trigger` / `action` 生效，整理改写的 `content` 影响不到它们，因此规则既不被分析、也不写到达戳），用户归档或停用的记忆同样不进窗口（模型不该看到用户已经移出的内容，合并也不该把它们写回仍然生效的记忆）；合并后的候选池不会被截断劈开同一到达时刻（截断点后移到上一个时刻，整批同一时刻则整批入窗）。水位线只推进到该窗口实际覆盖的位置，大于一批的积压在连续几次整理中按到达顺序依次消化。早于到达戳存在的存量文档，在读取前由 `VectorStore.backfill_payload_copy` 按集合惰性补上由创建时间推得的到达戳（幂等；补写失败按该来源不可读处理，水位线停住；不能原位改写 payload 的后端保持默认的什么都不做）。存量文档补上的到达戳就是创建时间：创建时间完全相同的一组存量文档，若被某个来源的截断落在中间（每个来源只比窗口多读一条），该组其后的几条不会再被读到；新写入的记忆在进程内戳互不相同，不受影响。窗口不越过任何一个被截断的源已读到的位置（该位置取自读到的文档，而不是解码成功的记忆），否则另一个源里更晚的记忆会被分析、而该源没展示的更早记忆被永久跳过；整理自己的产物（洞察、合并结果）不进入窗口。任一来源读取失败时其余来源照常分析，但水位线不动，读不到的记忆留给下一次；集合不存在（从未写入）按空处理。向量源按文档逐条解码：无法解码的文档被跳过，日志只记文档 ID 与异常类型、不记内容，也不会遮住同一来源的其余记忆；只有某个来源的整批非空文档一条都解不出来时，才按该来源不可读处理，水位线停住，其他来源的记忆随后续窗口再次入窗，直到该来源最早的一批未覆盖文档里解出至少一条。积压消化期间水位线落后于当前时间，24 小时门槛与 1 小时软锁据此更早放行下一批。
 - **批次熔断与水位线脏推进保护**：原子操作执行器跟踪连续存储异常，当连续遭遇 3 次底层异常时自动熔断并中止当前批次。主编排门面在批次被熔断、全量操作失败或模型调用失败时不推进水位线，保障未完成项在后续周期可被重新抓取；模型返回的任一操作带有越界取值（如 `update_content` 的 `importance` 超出 0–1，即存量记忆校验所用的区间）时整份响应校验失败，按模型调用失败处理。读取侧同样设防：`get_last_consolidated_at` 丢弃无法解析、无时区或晚于当前时间的存量值并记 WARNING（视同从未整理，下一次从最早的记忆重新分析），外部写入的异常值不会让时间门槛与软锁抛错或长期停摆；窗口推进的目标不会超过本次整理的水位上界 `settled_through()`——所有早于它盖章的写入都已落盘的最晚时刻，仍在落盘的写入会把它压在自己的戳之下——因此水位线不会越过尚不可见的写入；它取自戳钟，墙钟回拨后戳钟会领先墙钟，此时写下的水位线可能晚于当前时间，读取侧同样把它当作异常值丢弃并记 WARNING，直到墙钟追上；到达戳按进程盖章，其他进程里的写入方不在这道保护之内。
-- **整理周期的精确撤销**：整理对已有记忆的合并、纠错与改写，以及由此新建的记忆，都经写入网关 `CycleWrites`（`consolidation_undo.py`）落盘：网关在第一次写某条记忆之前记下它可恢复的字段（重要度、置信度、状态、元数据键名、文本是否被改写），并记下本周期新建的记忆 id；被改写的记忆把上一版文本留在自己的元数据（`previous_content`），所以日志只存数字与名字，已删除的记忆不会在日志里留下文本。日志存在一条记账行（`_system.last_consolidation_undo`，随用户的记忆一并清除），只有改动了记忆（含新写的洞察）的周期才写入，空转的周期不会顶掉上一次可撤销的整理。只能撤销最近一次、只能撤销一次，且调用方须带上用户所见的 `cycle_id`，该次已被撤销或已被更新的整理取代时返回「不可撤销」（`None`）。撤销时删除新建的记忆、恢复被改动的记忆；整理之后被用户改过或删掉的记忆保持原样，用户之后置顶的新建记忆也不删，二者计入 `skipped_conflict`；单条失败计入 `errors` 并记 WARNING，不中断其余条目；无论结果如何，日志槽位都会被消耗（只在槽位里仍是这一次的日志时才释放：撤销期间有新周期保存了自己的日志，就保留它）。整理产出的洞察同样经这个网关落盘并记入日志，撤销时一并删除；只产出洞察的周期也会占用撤销槽位。整理任务被硬取消（任务被 `cancel`）时，已落盘的改动不会留下日志：该周期没有撤销入口、水位线不推进，下一次整理会重新读到这些已被改写的记忆；若又改写其中一条，对那一次的撤销只回到第一次改写后的文字，原文取不回来。批次熔断（`aborted`）正常返回并保存日志，不在此列。
+- **整理周期的精确撤销**：整理对已有记忆的合并、纠错与改写，以及由此新建的记忆，都经写入网关 `CycleWrites`（`consolidation_undo.py`）落盘：网关在第一次写某条记忆之前记下它可恢复的字段（重要度、置信度、状态、元数据键名、文本是否被改写），并记下本周期新建的记忆 id；被改写的记忆把上一版文本留在自己的元数据（`previous_content`），所以日志只存数字与名字，已删除的记忆不会在日志里留下文本。日志存在一条记账行（`_system.last_consolidation_undo`，随用户的记忆一并清除），只有改动了已有记忆（合并、纠错、改写，及由此新建的记忆）的周期才写入，空转的周期和只产出洞察的周期都不会顶掉上一次可撤销的整理。只能撤销最近一次、只能撤销一次，且调用方须带上用户所见的 `cycle_id`，该次已被撤销或已被更新的整理取代时返回「不可撤销」（`None`）。撤销时删除新建的记忆、恢复被改动的记忆；整理之后被用户改过或删掉的记忆保持原样，用户之后置顶的新建记忆也不删，二者计入 `skipped_conflict`；单条失败计入 `errors` 并记 WARNING，不中断其余条目；无论结果如何，日志槽位都会被消耗（只在槽位里仍是这一次的日志时才释放：撤销期间有新周期保存了自己的日志，就保留它）。整理产出的洞察同样经这个网关落盘：周期改动了已有记忆时，洞察记入同一份日志，撤销时一并删除；只产出洞察的周期没有改动任何已有记忆，洞察不进日志、不占撤销槽位，撤销也就不会移除它们（它们是带 `consolidation-insight` 标签的普通记忆，删除其来源对话会一并删除）。模型回答之后，对记忆的写入、撤销日志、水位线与完成回调作为一个整体跑完：同一会话的下一轮对话结束、重新安排空闲任务时会取消仍在跑的整理（`cancel_idle_task`），但写入阶段不会被取消打断：`_run_to_completion` 等它跑完才把取消交给调用方，所以不会留下半个周期，维护锁也持有到那时（期间再触发的维护返回「已在运行」）；取消发生在模型回答之前则什么都没写、水位线不动，下次重新整理。进程被杀或事件循环关闭仍会打断写入：已落盘的改动不会留下日志，该周期没有撤销入口、水位线不推进，下一次整理会重新读到这些已被改写的记忆；若又改写其中一条，对那一次的撤销只回到第一次改写后的文字，原文取不回来。批次熔断（`aborted`）正常返回并保存日志，不在此列。
 - **合并的前置确认与来源对话谱系**：合并只在全部来源记忆仍存在时才进行（来源在模型思考期间被删，例如其对话被删除，则整条合并跳过并记 WARNING，不计入 `merged`），合并结果、洞察与冲突对立记忆都带上来源记忆的对话谱系（见第三章「来源对话谱系」）；来源的对话在模型思考期间被删时，写入由已删对话围栏拒绝（洞察记 WARNING 后丢弃，合并计入 `errors`）。
 - **全生命周期完成回调**：主编排门面确保在所有退出路径（包含 0 操作早退与正常完成）均触发 `on_complete` 回调并回传 `ConsolidationStats`，为前端状态通知与 WebSocket 管道提供可靠的生命周期事件流。
 - **受保护条目豁免**：自动化合并与纠错传递 `allow_protected=False`，用户主动锁定的关键记忆永不被覆写或合并。
@@ -763,7 +761,7 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 
 **核心特性**：
 
-- **6 大原则**：防注入、穷尽提取、细节保留、时间精度、**No-Op Default (严格精度门控)**、主体归属隔离 (Attribution)。
+- **10 条核心规则**：防注入、穷尽提取、细节保留、时间精度、**No-Op Default (严格精度门控)**、第三人称、记录结果而非请求、简洁、主体归属隔离 (Attribution)、自我排除与出处（Self-Exclusion & Provenance）。
 - **No-Op Default (严格精度门控)**：彻底颠覆传统的高召回倾向，向大模型施加极其严厉的 `Strict Precision` 惩罚指令。默认返回空数组 `[]`，仅在存在高杠杆价值知识、明确用户约束时才允许提取。从源头阻断日常闲聊产生的碎片垃圾入库，保护长期上下文纯净度。
 - **主体归属隔离 (Attribution)**：严格区分用户本人与第三方（家人、朋友、同事等），禁止将第三方的特征、疾病或偏好归因于用户本人。
 - **瞬态情绪过滤 (Transient State Filter)**：过滤掉短暂的情绪和心理状态（如“今天很焦虑”、“感觉很抑郁”），除非明确说明是慢性疾病，防止 AI 永久存储瞬态情绪。
@@ -771,7 +769,6 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 - **流程型/FAQ Agent L2 记忆策略预设 (Flow-Type Agent L2-Only Memory Policy Preset)**：`AgentMemoryPolicy` 扩展 `allow_l3_extraction`，提供 `preset_l2_flow`（任务级局部读写、禁用 L3 抽取）与 `preset_faq_retrieval`（会话级局部读写、禁用 L3 抽取）；在 `review.py` 会话结算时短路阻断后台 LLM 抽取，从源头防止工单、即时搜索等瞬态临时数据污染长期库。
 - **Per-Fact TTL**：提取时 LLM 为每条记忆预估有效期 `expected_valid_days`（瞬态 30-90d、项目 90-180d、习惯 180-365d、永久 null），供遗忘策略和 staleness review 使用
 - **动态提示词**：根据 `ExtractionConfig` 动态生成，仅包含启用的记忆类型
-- **Token 优化**：337 tokens（全类型）→ 229 tokens（最小配置），节省 32%
 
 ```python
 from myrm_agent_harness.toolkits.memory.strategies.extractor import MemoryExtractor
@@ -1088,18 +1085,18 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 解决传统检索打分静态刻板、无法感知用户即时会话反馈与热度时效衰退的问题，实现多维实时脉冲偏好拟合与物理幂律衰减：
 
 - **连续时间幂律重力衰减（`GravityDecayScorer` & `compute_gravity_decay`）**：
-  - 基于 Hacker News 物理幂律衰减模型：
-    $$\text{DecayFactor} = \frac{\text{Interactions} + \text{QualityWeight}}{(\text{ElapsedHours} + \text{GravityOffset})^G}$$
-  - 具备连续时间浮点小时解析，支持时钟向后回退漂移防护（$\Delta t < 0$ 时按 $0$ 兜底），输出严格归一化并在极端输入下保底闭式解，保证纯正实数与有限区间。
+  - 得分随记忆年龄（小时，亚小时精度）按幂律平滑下降，互动次数与质量评分把它抬高：
+    $$\text{DecayFactor} = \max\left(\varepsilon,\ \frac{1 + w_{int}\cdot\text{Interactions} + w_{qual}\cdot\text{Quality}}{\left(1 + \text{ElapsedHours} / T\right)^{G}}\right)$$
+  - 默认 $G = 1.8$、$T = 24$ 小时、$w_{int} = 0.15$、$w_{qual} = 0.25$、$\varepsilon = 10^{-4}$（`GravityDecayConfig`）；时钟回退或未来时间戳按 $\Delta t = 0$ 兜底，互动数下限为 $0$、质量评分截断到 $[0, 1]$；结果是不小于 $\varepsilon$ 的有限正数，不归一化到 $[0, 1]$。
 - **5 维自适应用户偏好向量（`DynamicPreferenceVector`）**：
-  - 维护五个核心维度：`recency`（时效性）、`actionability`（行动落地导向）、`code_focus`（代码实操浓度）、`depth`（技术原理深度）、`pitfall_sensitivity`（踩坑避坑敏感度）；
-  - 强类型硬截断区间守卫：所有维度均被严格限制在 $[0.05, 3.0]$ 安全区间内，默认基准为 $1.0$。
-- **确定性在线单步动量自适应拟合器（`DynamicPreferenceFitter`）**：
-  - 单步动量随机梯度自适应更新：结合学习率（$\eta = 0.08$）与动量因子（$\beta = 0.35$），单步最大梯度幅度硬截断 $\le 0.15$，防止剧烈振荡；
-  - L2 先验收缩阻尼（Shrinkage Damping）：每一步拟合时微量向基准向量 $1.0$ 软收敛，防止长期漂移或极化；
-  - 启发式意图与反馈捕获：支持从自然语言文本中提取偏好意图（`fit_from_feedback_text`），支持结构化行为反馈（`fit_step`，如 `MORE_CODE`, `MORE_RECENCY` 等）。
-- **检索打分层平滑融合（`retriever.py`）**：
-  - 在几何加权检索 `_geometric_score` 中，可选激活 `enable_gravity_decay`（默认关闭；这是唯一让召回次数进入评分的路径），并实时将 `dynamic_signal_weights` 动态偏好融入信号向量乘积运算；
+  - 维护五个核心维度：`recency`（时效性）、`actionability`（行动落地导向）、`technical_depth`（技术深度）、`conciseness`（简洁度）、`breadth`（覆盖广度）；
+  - 强类型硬截断区间守卫：所有维度均被严格限制在 $[0.05, 3.0]$ 安全区间内，默认基准为 $1.0$；`locked=True` 的向量不参与拟合。
+- **确定性在线单步拟合器（`DynamicPreferenceFitter`）**：
+  - 单步梯度更新：每个反馈动作（`FeedbackAction`：`MORE_CODE`、`MORE_CONCISE`、`MORE_IN_DEPTH`、`MORE_RECENT`、`MORE_OVERVIEW`、`POSITIVE_ACCEPT`、`NEGATIVE_RETRY`）对应一组各维度的方向系数，乘以学习率（$\eta = 0.08$）后，单维步长硬截断到 $\pm 0.15$，防止剧烈振荡；没有动量项，每一步只取决于当前权重与本次动作；
+  - L2 先验收缩阻尼（Shrinkage Damping）：每一步拟合时按 $\lambda = 0.02$ 向基准 $1.0$ 回拉（$w' = \text{clamp}(w + \text{step} - \lambda (w - 1),\ 0.05,\ 3.0)$），防止长期漂移或极化；
+  - 启发式意图与反馈捕获：`detect_implicit_action` 用正则从自然语言文本中识别偏好意图（按规则顺序取第一个命中），`fit_step` 接收结构化行为反馈（如 `MORE_CODE`、`MORE_RECENT`）。
+- **检索打分层平滑融合（`retriever_scoring.py`）**：
+  - 在几何加权打分 `_geometric_score` 中，`RetrievalConfig.enable_gravity_decay`（默认关闭，幂指数 `gravity_power`、时间尺度 `gravity_time_scale_hours`）开启后用重力衰减因子取代半衰期时效信号，互动数取记忆的 `access_count`——这是唯一让召回次数进入评分的路径；`dynamic_signal_weights` 动态偏好按信号名缩放各信号的类型先验权重（先验为 0 的信号保持为 0，缩放系数下限 $0.01$）并重新归一化；
   - 零大模型调用开销（<0.1ms），纯算术确定性推导，实现毫秒级会话粒度个性化检索重排。
 - **详细设计**：详见 [strategies/_ARCH.md](strategies/_ARCH.md)。
 
@@ -1109,8 +1106,8 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 - **核心位置**：`myrm_agent_harness.toolkits.memory.consolidation`；
 - **宿主供给快照**：`TaskSessionSnapshot` 是框架中立的输入契约，由宿主按自己的任务模型构造；框架不内置运行时工作台，也不强制任何计划工具；
-- **异步蒸馏**：具备轻量门禁（会话交互 <= 1 轮且无子任务推进时跳过），从会话轨迹与宿主快照中产出 `TaskDigestMemory`（写入 `episodic_store`）；
-- **程序性规程**：仅提炼当前会话验证自愈成功的规程（`trap.resolved is True`），跳过开局注入的历史先验规则与未解决推测，避免规程库克隆膨胀。
+- **异步蒸馏**：具备轻量门禁（快照没有目标，或交互 <= 1 轮且既无子任务也无陷阱记录时跳过），从宿主快照（目标、子任务、陷阱、草稿）中产出 `TaskDigestMemory`，并以 `event_type=task_digest` 的情节记忆（`EpisodicMemory`，重要度 0.8，带来源对话）经 `MemoryManager.store` 落盘；
+- **程序性规程**：仅在会话状态为 `completed` 时，提炼当前会话验证自愈成功的规程（`trap.resolved is True` 且 `occurred_turn != 0`）；开局注入的历史先验规则（`occurred_turn == 0`）与未解决推测都跳过，避免规程库克隆膨胀。
 
 ---
 
@@ -1144,7 +1141,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **争议冻结**：`conflict_status=conflicted` 写回已存记录，使遗忘通道在人工裁决前保留双方；
   - **撤回退役**：确认由替换产生时标记 `superseded`，排序召回路径不再返回该记录；存储、衰减与治理列表不受影响，记录仍可审计、仍会衰减。
 - **自愈式装配与单机开箱即用**：
-  - `MemoryManager` 核心构造层与 `setup_local_memory` 启动工厂原生内聚自愈装配逻辑，在未显式传递 `fts5_searcher` 时自动挂载 `relational_store.search_fts5` 通道，保障单机本地、Tauri 桌面端与云端沙箱三种部署形态下精确事实双轨召回通道 100% 畅通。
+  - `MemoryManager` 核心构造层在未显式传递 `fts5_searcher` 时自动挂载 `relational_store.search_fts5` 通道，`create_local_memory_manager` 启动工厂同样显式接入该通道，保障单机本地、Tauri 桌面端与云端沙箱三种部署形态下精确事实双轨召回通道 100% 畅通。
 
 ---
 
@@ -1216,9 +1213,9 @@ rating_new = rating_old + alpha * (normalized - rating_old)
     - `USER`（用户域）：`PROFILE` / `PREFERENCES` / `ENTITIES` / `EVENTS`；
     - `ASSISTANT`（助手域）：`IDENTITY` / `SOUL`；
     - `TASK`（任务域）：`EXPERIENCES` / `TRAJECTORIES` / `TRAPS`；
-  - `infer_domain_and_category` 按记忆类型、事件类型与偏好类型启发式归类，`BaseMemory.domain` / `domain_category`（`types.py`）持久化该归属。
+  - `infer_domain_and_category` 按记忆类型、事件类型与偏好类型启发式归类，`BaseMemory.domain` / `domain_category`（`types/base.py`）持久化该归属。
 - **L0/L1/L2 渐进式披露**：
-  - 字段位于 `BaseMemory`（`types.py`）：`summary_l0`（L0 语义锚点，缺省取正文前 120 字）、`overview_l1`（L1 结构化概览）、`content`（L2 完整原文）；
+  - 字段位于 `BaseMemory`（`types/base.py`）：`summary_l0`（L0 语义锚点，缺省取正文前 120 字）、`overview_l1`（L1 结构化概览）、`content`（L2 完整原文）；
   - 检索工具 `memory_search_tool` 的 `detail_level` 默认为 `overview`：命中项渲染 L1 概览并附按 ID 展开的提示，`detail_level='full'` 按 `memory_id` 取回完整原文（`agent_surface/memory_search_execution.py`）；
 - **持久化与注入（生产路径）**：`setup.create_local_memory_manager` 使用 `SQLiteRelationalStore` + Qdrant；注入块的预算见 `memory_context_budget.render_budgeted_sections`；画像字符水位见 `profile_notes/watermark_governor`；写入去重与冲突/取代见 `strategies/deduplicator.SmartDeduplicator`（含 `strategies/merger.DeterministicThreeStateMerger`）与向量 metadata `superseded`（检索过滤见 `_internal/search_service`）。
 - **服务端接口与前端双端自适应可视化闭环**：

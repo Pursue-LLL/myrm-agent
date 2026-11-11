@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-工件分享（artifact share）域：分享 bundle 打包、分享登记、无状态分享令牌的签发与校验。由 `app/services/artifacts/` 平铺模块拆分而来，通过 `__init__.py` 门面聚合导出以保持外部 import 稳定。上级文档：[../_ARCH.md](../_ARCH.md)。
+工件分享（artifact share）域：分享 bundle 打包、分享登记、无状态分享令牌的签发与校验；`__init__.py` 为聚合门面，外部 import 经由门面。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

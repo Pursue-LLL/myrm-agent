@@ -12,13 +12,12 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
 export function useMessageInputWidth(columnRef: RefObject<HTMLElement | null>): void {
-  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
+    // Every call restarts the 100ms wait, so a window drag is measured once, after it stops.
     const updateContainerWidth = () => {
-      if (resizeTimerRef.current) {
-        clearTimeout(resizeTimerRef.current);
-      }
+      clearTimeout(resizeTimerRef.current);
       resizeTimerRef.current = setTimeout(() => {
         if (columnRef.current) {
           document.documentElement.style.setProperty(
@@ -32,9 +31,7 @@ export function useMessageInputWidth(columnRef: RefObject<HTMLElement | null>): 
     updateContainerWidth();
     window.addEventListener('resize', updateContainerWidth);
     return () => {
-      if (resizeTimerRef.current) {
-        clearTimeout(resizeTimerRef.current);
-      }
+      clearTimeout(resizeTimerRef.current);
       window.removeEventListener('resize', updateContainerWidth);
     };
   }, [columnRef]);

@@ -1,4 +1,4 @@
-"""Tests for memory system economics and Omri et al. 2026 telemetry models."""
+"""Tests for memory system economics and the three-phase telemetry models."""
 
 from __future__ import annotations
 

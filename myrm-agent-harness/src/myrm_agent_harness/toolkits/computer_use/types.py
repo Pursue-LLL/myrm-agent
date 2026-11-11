@@ -242,7 +242,7 @@ class ExecutionMode(Enum):
 
 
 class ForegroundPermissionScope(Enum):
-    """Scope of a foreground permission grant (modeled after iOS permission UX)."""
+    """Scope of a foreground permission grant."""
 
     once = "once"
     session = "session"

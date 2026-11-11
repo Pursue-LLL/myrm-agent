@@ -15,6 +15,7 @@ and 400 errors from text-only models.
 - strip_all_media_from_content(): Replace all media (image/video/audio) with placeholders
 - content_has_images(): Check if content contains any image items
 - content_has_media(): Check if content contains any media items
+- count_media_items(): Count the media items in content
 
 [POS]
 Central media processing utilities. Used by context_management (token estimation),
@@ -23,6 +24,8 @@ to prevent context overflow and multimodal rejection errors.
 """
 
 from __future__ import annotations
+
+from collections.abc import Sequence
 
 MAX_IMAGE_READ_BYTES = 50 * 1024 * 1024  # 50MB — max allowed file size to read into memory
 MAX_IMAGE_PAYLOAD_BYTES = 20 * 1024 * 1024  # 20MB — max payload size sent to LLM API
@@ -147,6 +150,13 @@ def content_has_media(content: str | list[object]) -> bool:
     if isinstance(content, str):
         return False
     return any(is_media_content_item(item) for item in content)
+
+
+def count_media_items(content: str | Sequence[object]) -> int:
+    """Count the media items (image / video / audio) in message content."""
+    if isinstance(content, str):
+        return 0
+    return sum(1 for item in content if is_media_content_item(item))
 
 
 _PLACEHOLDER_MEDIA_STRIPPED = "[Media removed — model does not support multimodal input]"

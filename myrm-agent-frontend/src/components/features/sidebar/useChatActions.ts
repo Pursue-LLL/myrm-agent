@@ -2,7 +2,14 @@ import { useCallback, useState } from 'react';
 import { ChatItem, updateChatTitle, deleteChat, exportChat } from '@/services/chat';
 import { restoreChat } from '@/services/chatTrash';
 import { revealChatArtifacts } from '@/services/file';
-import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chat-export';
+import {
+  copyAsMarkdown,
+  downloadAsHtml,
+  downloadAsJson,
+  downloadAsMarkdown,
+  getExportLang,
+  printChat,
+} from '@/lib/utils/chat-export';
 import { desktopBridge } from '@/lib/desktopBridge';
 import { buildIdeDeepLink, type IdeHandoffTarget } from '@/lib/ide-handoff';
 import useChatStore from '@/store/useChatStore';
@@ -184,15 +191,13 @@ export function useChatActions(t: ReturnType<typeof useTranslations>) {
             break;
           case 'html': {
             const isDark = document.documentElement.classList.contains('dark');
-            const htmlLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
-            await downloadAsHtml(data, isDark ? 'dark' : 'light', htmlLang as 'en' | 'zh');
+            await downloadAsHtml(data, isDark ? 'dark' : 'light', getExportLang());
             toast({ title: successTitle, variant: 'default' });
             break;
           }
           case 'print': {
             const printDark = document.documentElement.classList.contains('dark');
-            const printLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
-            await printChat(data, printDark ? 'dark' : 'light', printLang as 'en' | 'zh');
+            await printChat(data, printDark ? 'dark' : 'light', getExportLang());
             break;
           }
           case 'copy':

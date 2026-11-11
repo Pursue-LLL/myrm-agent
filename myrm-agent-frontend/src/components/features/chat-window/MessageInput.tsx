@@ -291,7 +291,7 @@ const MessageInput = ({ loading, focusOnMount }: MessageInputProps) => {
                 <ContextSpilloverBadge text={inputMessage} />
                 <WechatArticleComposerHint inputMessage={inputMessage} />
                 {showBtwDisambiguation ? (
-                  <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                  <p className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
                     {commandsT('builtin.btwDisambiguation')}
                   </p>
                 ) : null}

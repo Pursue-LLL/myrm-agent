@@ -10,7 +10,7 @@ count_memories_by_type: per-type memory counts (failures degrade to 0).
 list_archived_memory_ids / list_pinned_memory_ids / list_active_memory_previews: id and preview collections for economics and exemption logic.
 
 [POS]
-指挥中心对 MemoryManager 的只读扫描层。把「枚举类型、统计、归档/置顶/预览收集」从聚合服务中拆出，单个类型扫描失败只记日志并跳过，不影响整体快照。
+指挥中心对 MemoryManager 的只读扫描层：负责枚举类型、统计、归档/置顶/预览收集；单个类型扫描失败只记日志并跳过，不影响整体快照。
 """
 
 from __future__ import annotations

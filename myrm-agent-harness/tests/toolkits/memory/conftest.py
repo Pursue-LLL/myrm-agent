@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from langchain_core.language_models import BaseChatModel
 
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -179,6 +180,7 @@ async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterato
         user_id: str = "u1",
         all_scopes: bool = False,
         graph: GraphStoreProtocol | None = None,
+        consolidation_llm: BaseChatModel | None = None,
     ) -> MemoryManager:
         return MemoryManager(
             config,
@@ -187,6 +189,7 @@ async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterato
             embedding=embedding or _ConstantEmbedder(),
             relational=relational,
             graph=graph,
+            consolidation_llm=consolidation_llm,
             namespaces=namespaces or ["global"],
             auto_warmup=False,
             approval_required=approval_required,

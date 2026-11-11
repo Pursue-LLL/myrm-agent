@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-会话分享子包：时间受限的只读公开链接（支持可选密码）。上级文档：[../_ARCH.md](../_ARCH.md)。由单文件 `share.py` 拆分而来（纯搬迁，行为不变）：管理端路由与公开页路由各自成文件，互不依赖；`__init__.py` 为聚合门面，`from .share import router` 挂到会话路由，`public_router` 由 `app/api/router.py` 以 `/public/chat-share` 单独挂载（免鉴权）。
+会话分享子包：时间受限的只读公开链接（支持可选密码）。上级文档：[../_ARCH.md](../_ARCH.md)。管理端路由与公开页路由各自成文件，互不依赖；`__init__.py` 为聚合门面，`from .share import router` 挂到会话路由，`public_router` 由 `app/api/router.py` 以 `/public/chat-share` 单独挂载（免鉴权）。
 
 ## 文件清单
 

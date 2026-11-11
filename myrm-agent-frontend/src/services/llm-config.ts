@@ -439,7 +439,7 @@ const defaultCapabilities: ModelCapabilities = {
 };
 
 /**
- * 获取单个模型的能力信息（新版本，支持候选模型）
+ * 获取单个模型的能力信息；精确匹配未命中时返回模糊匹配的候选模型
  *
  * @returns ModelInfoResponse - 包含 found 标志和 capabilities 或 candidates
  */
@@ -466,18 +466,6 @@ export const fetchModelInfo = async (model: string): Promise<ModelInfoResponse> 
     // 返回未找到状态
     return { found: false, capabilities: null, candidates: [] };
   }
-};
-
-/**
- * 获取单个模型的能力信息（兼容旧版本）
- * @deprecated 请使用 fetchModelInfo 获取完整响应
- */
-export const fetchModelCapabilities = async (model: string): Promise<ModelCapabilities> => {
-  const response = await fetchModelInfo(model);
-  if (response.found && response.capabilities) {
-    return response.capabilities;
-  }
-  return defaultCapabilities;
 };
 
 /**
