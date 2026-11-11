@@ -104,7 +104,7 @@ async def test_benchmark_large_outputs_with_io() -> None:
         nonlocal io_call_count, total_io_time_ms
         _ = content
         io_call_count += 1
-        # 模拟文件写入耗时(Local: ~1-5ms, E2B: ~10-50ms)
+        # 模拟文件写入耗时(Local: ~1-5ms, 远程沙箱: ~10-50ms)
         start = time.perf_counter()
         await __import__("asyncio").sleep(0.002)  # 模拟 2ms I/O
         total_io_time_ms += (time.perf_counter() - start) * 1000

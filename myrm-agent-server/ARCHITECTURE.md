@@ -183,7 +183,7 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 - **Glue 层（强制）**：会话 ContextVar、记忆提取、后台 bash 注册表、权限失效、task intent 等集成胶水 **必须** 经 `myrm_agent_harness.api.hooks` 与 `myrm_agent_harness.api.skills` 导入；**禁止** `from myrm_agent_harness.*._*`。门禁：`tests/architecture/test_server_harness_imports.py::test_no_server_harness_private_module_imports`。
 - **工厂与 DTO**：Agent 创建与流式类型经 `myrm_agent_harness.api`（factory / types / config / protocols）。
 - **业务编排深 import**：对 harness 公开模块（如 `agent.skills.*`、`toolkits.*`）的路径由 `tests/architecture/data/server_harness_import_baseline.txt` **冻结**；新增路径须刻意更新 baseline（`test_no_new_server_deep_harness_imports`）。
-- **版本与升级路径**：local/tauri 通过 `uv.lock` 锁定 harness；SaaS 沙箱由 Control Plane 按用户滚动 **runtime Docker 镜像 tag**（`resolve_agent_server_image`，见 `myrm-control-plane/ARCHITECTURE.md`），非沙箱内单独 pip 换 wheel。
+- **版本与升级路径**：local/tauri 通过 `uv.lock` 锁定 harness；SaaS 沙箱由 Control Plane 按用户滚动 **runtime Docker 镜像 tag**，非沙箱内单独 pip 换 wheel。
 - **SaaS 收益**：滚动新 runtime 镜像（内含新 harness）时，`api.hooks` / `api.skills` 稳定面保证 Server 胶水层不因 harness 内部重构而断裂。
 - **Harness 文档**：`myrm-agent-harness/src/myrm_agent_harness/api/_ARCH.md`。
 

@@ -10,7 +10,7 @@
 - SecondBrainStatusResponse: API response for preset status query
 
 [POS]
-Pure data models extracted from second_brain_preset for line-budget compliance.
+Pure data models of the second-brain preset API.
 No business logic; consumed by second_brain_preset.py and API layer.
 """
 

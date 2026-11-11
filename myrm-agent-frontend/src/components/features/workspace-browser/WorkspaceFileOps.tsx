@@ -18,7 +18,7 @@
  *
  * [POS]
  * Write-operation UI primitives for WorkspaceFileBrowser.
- * The context menu is in WorkspaceContextMenu.tsx and the dialogs in WorkspaceDialogs.tsx, to stay under 400 lines.
+ * The context menu is in WorkspaceContextMenu.tsx and the dialogs in WorkspaceDialogs.tsx.
  */
 
 import React, { useRef, useState, useCallback, useEffect, type DragEvent, type KeyboardEvent } from 'react';

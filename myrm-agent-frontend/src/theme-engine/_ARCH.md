@@ -25,4 +25,4 @@ Pure TypeScript Theme Engine v2: Recipe schema, layout surfaces, compiler, built
 
 - Frontend-only pure TS; no React, no server I/O.
 - Hero sampling (`sample-hero-image.ts`) runs in browser only; callers pass Blob (image or video poster).
-- `ThemeProfileProvider` passes both layout + scene to `compileThemeProfile`; `data-myrm-theme-layout` no longer overridden by route.
+- `ThemeProfileProvider` passes both layout + scene to `compileThemeProfile`; `data-myrm-theme-layout` is not overridden by route.

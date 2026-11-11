@@ -5,7 +5,7 @@
 # a caller that does not spell the path (an HTML form posting to its own URL) adds the text it shows as `(file:line `anchor`)`.
 GET /memory/head | read-only sequence probe; exercised by the route contract test (myrm-agent-server/tests/api/memory/test_memory_head_probe_api.py:1)
 GET /memory/search | documented memory search API (myrm-agent-brand/myrm-docs/docs/api-reference/memory.mdx:64)
-POST /system/drain | control plane sandbox recycler drains in-flight turns before recycling (myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:120-128)
+POST /system/drain | control plane pre-drains a sandbox's in-flight turns before recycling it; the handler documents that contract (myrm-agent-server/app/api/system/shutdown.py:13)
 POST /system/shutdown | desktop shell stops the bundled backend (myrm-agent-desktop/src-tauri/src/runtime/python_backend_stop.rs:41)
 POST /remote-access/node/events | remote node callback documented with a curl example (myrm-agent-brand/myrm-docs/docs/guides/scheduled-tasks.mdx:297)
 GET /public/artifact-share/{token} | share link opened in a browser by its recipient (myrm-agent-server/app/core/channel_bridge/agent_executor/deliverable/deep_links.py:192)

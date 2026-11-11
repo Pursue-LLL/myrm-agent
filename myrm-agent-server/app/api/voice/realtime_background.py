@@ -14,8 +14,8 @@ to ChannelBackgroundTaskHandler, reminder tools (set/cancel/list) to CronManager
 - RealtimeToolExecRequest, RealtimeToolExecResponse re-exported for convenience
 
 [POS]
-Voice background task and reminder lifecycle. Extracted from realtime.py to keep
-file sizes manageable. All handlers return RealtimeToolExecResponse directly.
+Voice background task and reminder lifecycle, kept apart from the realtime session
+routes in realtime.py. All handlers return RealtimeToolExecResponse directly.
 """
 
 from __future__ import annotations

@@ -123,7 +123,7 @@ def extract_safe_regions(
 
 
 # ---------------------------------------------------------------------------
-# Format downgrade utilities (moved from renderer.py for line-budget)
+# Format downgrade utilities
 # ---------------------------------------------------------------------------
 
 _CODE_BLOCK_PLACEHOLDER = "\x00CODEBLOCK_{}\x00"

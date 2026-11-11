@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-技能批量导入（GUI-First 技能迁移）接口域：由 `app/api/skills/batch_import*.py` 平铺模块拆分而来，聚合批量导入的声明、执行、辅助与 schema。上级文档：[../_ARCH.md](../_ARCH.md)。
+技能批量导入（GUI-First 技能迁移）接口域：聚合批量导入的声明、执行、辅助与 schema。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

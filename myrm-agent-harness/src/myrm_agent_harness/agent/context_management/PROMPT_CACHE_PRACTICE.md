@@ -611,7 +611,7 @@ META: tokens_saved=5000 time=2024-12-20T15:30:00
 **关键设计**：
 - **显式系统隔离 (Fencing)**：摘要块采用 `<memory-context>` 包裹，并硬编码前缀 `[System note: The following is recalled memory context...]`。这彻底阻断了模型将“过去的摘要”误认为“当前用户指令”的幻觉。
 - **100% 缓存继承**：由于生成的 `<memory-context>` 被严格插入在受保护的头部（System Prompt + 首轮对话）**之后**，即使发生摘要重置，占据最多 Token 的头部信息依然完全静止，**完美命中 Prompt Cache**。
-- **结构化输出保证 (with_structured_output)**：由于摘要作为上下文的关键基石，不可出现 JSON 损坏或格式错误。框架已废弃早期容易失败的正则表达式提取，全面采用 LLM 的 `with_structured_output(StructuredSummary)` 机制强制确保输出符合 12 字段结构，消除了因上下文内容干扰导致摘要结构错乱的问题。
+- **结构化输出保证 (with_structured_output)**：由于摘要作为上下文的关键基石，不可出现 JSON 损坏或格式错误。框架不做正则表达式提取，而是用 LLM 的 `with_structured_output(StructuredSummary)` 机制强制输出符合 12 字段结构，避免上下文内容干扰导致摘要结构错乱。
 - **服务端防并发控制 (Concurrent Compaction Lock)**：在多用户 / 多任务 Server 侧（`compact_chat`），同一 `chat_id` 的压缩操作由进程级 `asyncio.Lock` 保护。这防止了用户短时间内多次发起任务导致两个并行任务同时触发 `Summarize` 并写入相同的锚点，进而导致持久化内容被覆盖或历史上下文意外损坏。
 
 ### 4.6 工具保护机制
