@@ -8,6 +8,7 @@ from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import (
     ToolTurnBudgetGuard,
     TurnBudgetAction,
     get_tool_turn_budget_guard,
+    isolated_tool_turn_budget_guard,
     reset_tool_turn_budget_guard,
     resolve_turn_budget_units,
 )
@@ -70,10 +71,11 @@ class TestToolTurnBudgetGuard:
         assert verdict.action == TurnBudgetAction.ALLOW
 
     def test_contextvar_reset(self):
-        guard = get_tool_turn_budget_guard()
-        guard.record("web_search_tool", message_id="msg-ctx")
-        reset_tool_turn_budget_guard()
-        verdict = guard.check("web_search_tool", message_id="msg-ctx")
+        with isolated_tool_turn_budget_guard():
+            guard = get_tool_turn_budget_guard()
+            guard.record("web_search_tool", message_id="msg-ctx")
+            reset_tool_turn_budget_guard()
+            verdict = guard.check("web_search_tool", message_id="msg-ctx")
         assert verdict.action == TurnBudgetAction.ALLOW
 
     def test_invalid_tool_limit_raises(self):

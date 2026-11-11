@@ -313,13 +313,9 @@ class TestResetAllGuards:
     def test_resets_context_budget_cumulative_usage(self):
         """Per-run budget must start clean, else predictive truncation stays pinned."""
         from myrm_agent_harness.agent._internals.agent_runtime import reset_all_guards
-        from myrm_agent_harness.agent.security.guards.context_budget import (
-            get_context_budget_guard,
-            reset_context_budget_guard,
-        )
+        from myrm_agent_harness.agent.security.guards.context_budget import isolated_context_budget_guard
 
-        guard = get_context_budget_guard()
-        try:
+        with isolated_context_budget_guard() as guard:
             for i in range(45):
                 guard.check_and_truncate("x" * 20_000, f"tool_{i}")
 
@@ -330,19 +326,13 @@ class TestResetAllGuards:
 
             fresh = guard.check_and_truncate("z" * 20_000, "probe_after_reset")
             assert len(fresh.content) == 20_000
-        finally:
-            reset_context_budget_guard()
 
     def test_preserves_context_budget_on_approval_resume(self):
         """An approval resume continues the same run, so its usage must carry over."""
         from myrm_agent_harness.agent._internals.agent_runtime import reset_all_guards
-        from myrm_agent_harness.agent.security.guards.context_budget import (
-            get_context_budget_guard,
-            reset_context_budget_guard,
-        )
+        from myrm_agent_harness.agent.security.guards.context_budget import isolated_context_budget_guard
 
-        guard = get_context_budget_guard()
-        try:
+        with isolated_context_budget_guard() as guard:
             for i in range(45):
                 guard.check_and_truncate("x" * 20_000, f"pre_approval_{i}")
             exhausted = guard.check_and_truncate("y" * 20_000, "probe_before_resume")
@@ -352,8 +342,6 @@ class TestResetAllGuards:
 
             carried = guard.check_and_truncate("z" * 20_000, "probe_after_resume")
             assert len(carried.content) < 20_000
-        finally:
-            reset_context_budget_guard()
 
 
 class TestSchedulePostRunIdleTasks:

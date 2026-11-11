@@ -1,18 +1,27 @@
-"""A test starts without the completion-guard turn state or disclosure the test before it left behind.
+"""A test starts without the per-run guard state the test before it left behind.
 
 [INPUT]
 - agent.middlewares.completion.completion_guard.state::publish_disclosure, pop_run_disclosure, current_run_state (POS: the registries the isolation fixture empties)
 - agent.meta_tools.file_ops.observers.snapshot_observer::scoped_message_id (POS: binds a turn's message id)
+- tests.support.run_guard_isolation (POS: the plugin whose budget-guard check an inner pytest session loads)
 
 [OUTPUT]
 - TestGuardRegistriesBetweenTests: one chain, three tests, each of which must meet empty registries
+- test_a_test_that_leaves_a_budget_guard_behind_errors_at_its_own_teardown: the check that keeps a budget guard out of the
+  context every later test of the worker starts from
 
 [POS]
 Pins ``_isolate_run_guard_registries`` through the behaviour it protects: the ``post_run_events`` call of one test
-must not carry the ``deliverable_tier`` a guard test published with no message bound.
+must not carry the ``deliverable_tier`` a guard test published with no message bound. Pins
+``_budget_guards_stay_out_of_the_main_context`` on an inner session, whose process the guard it catches cannot leak out of.
 """
 
 from __future__ import annotations
+
+import re
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -25,6 +34,22 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.state impo
 )
 
 _TURN = "turn-leaked"
+_HARNESS_ROOT = Path(__file__).resolve().parents[2]
+_BUDGET_GUARD_TESTS = """
+from myrm_agent_harness.agent.security.guards.context_budget import (
+    get_context_budget_guard,
+    isolated_context_budget_guard,
+)
+
+
+def test_scopes_the_guard_it_asks_for():
+    with isolated_context_budget_guard():
+        get_context_budget_guard()
+
+
+def test_leaves_the_guard_it_asks_for_in_the_context():
+    get_context_budget_guard()
+"""
 
 
 def _nothing_left_behind() -> None:
@@ -53,3 +78,31 @@ class TestGuardRegistriesBetweenTests:
 
     def test_a_sync_test_after_that_starts_empty(self) -> None:
         _nothing_left_behind()
+
+
+def test_a_test_that_leaves_a_budget_guard_behind_errors_at_its_own_teardown(tmp_path: Path) -> None:
+    session = tmp_path / "test_budget_guards.py"
+    session.write_text(_BUDGET_GUARD_TESTS)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-p",
+            "tests.support.run_guard_isolation",
+            "-p",
+            "no:cacheprovider",
+            "-q",
+            str(session),
+        ],
+        cwd=_HARNESS_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert "2 passed, 1 error" in result.stdout, result.stdout
+    assert re.search(rf"^ERROR .*{session.name}::test_leaves_the_guard_it_asks_for_in_the_context", result.stdout, re.M)
+    assert "left a context-budget or tool-turn-budget guard" in result.stdout

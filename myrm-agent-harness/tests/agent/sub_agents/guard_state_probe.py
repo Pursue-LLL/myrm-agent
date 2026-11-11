@@ -30,9 +30,15 @@ from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware im
     discard_session_loop_guard,
     get_loop_guard,
 )
-from myrm_agent_harness.agent.security.guards.context_budget import get_context_budget_guard
+from myrm_agent_harness.agent.security.guards.context_budget import (
+    get_context_budget_guard,
+    isolated_context_budget_guard,
+)
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord
-from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import get_tool_turn_budget_guard
+from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import (
+    get_tool_turn_budget_guard,
+    isolated_tool_turn_budget_guard,
+)
 from myrm_agent_harness.core.context_vars import approval_session_var, chat_id_var, scoped_value
 
 MESSAGE = "msg_1"
@@ -97,15 +103,19 @@ def turn_registries() -> tuple[frozenset[str], frozenset[str]]:
 def parent_run_in_progress() -> Iterator[None]:
     """A parent run in progress: its guards are reset and it has done some work.
 
-    The bindings and the terminal-error registry the test started with and the loop guards the run registered are put
-    back afterwards.
+    The bindings, the terminal-error registry and the two budget guards the test started with and the loop guards the run
+    registered are put back afterwards.
     """
     sessions_before = set(_session_loop_guards)
     # ``set_approval_session`` overwrites both session vars; the scopes hand the test's own values back. The run's
     # terminal errors stay in a registry of their own: the circuit breaker refuses every network tool while
-    # ``network_blocked`` is registered, so a registry that outlived the run would fail whichever test runs next.
+    # ``network_blocked`` is registered, so a registry that outlived the run would fail whichever test runs next. The
+    # run's two budget guards are scoped for the same reason: ``use_every_guard`` creates them in the context the test
+    # runs in, and a guard that outlived the run would count its tokens against every later test of the worker.
     with (
         isolated_terminal_errors(),
+        isolated_context_budget_guard(),
+        isolated_tool_turn_budget_guard(),
         scoped_value(approval_session_var, approval_session_var.get()),
         scoped_value(chat_id_var, chat_id_var.get()),
         scoped_message_id(get_bound_message_id()),
