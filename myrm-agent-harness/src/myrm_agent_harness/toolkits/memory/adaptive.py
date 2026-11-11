@@ -1,13 +1,10 @@
 """Adaptive dual-channel selection for ConversationMemory retrieval.
 
-Optimizes query cost by intelligently choosing between single-channel (summary)
-and dual-channel (raw + summary) based on query characteristics.
+Chooses between single-channel (summary) and dual-channel (raw + summary) retrieval
+from query characteristics, so queries that need no verbatim text skip the raw channel.
 
-Real-world impact:
-- 35% cost reduction for typical workloads
-- Zero recall loss (validated via A/B testing)
-- 90% scenario coverage with 3-factor decision logic
-- Multi-language support (English, Chinese, Japanese, Korean)
+Decision factors: quoted phrases, token count and word diversity, with multi-language
+tokenization (English, Chinese, Japanese, Korean).
 
 [INPUT]
 - toolkits.memory.config::RetrievalConfig (POS: retrieval configuration)
@@ -21,9 +18,8 @@ Real-world impact:
 [POS]
 Adaptive dual-channel selection logic. Analyzes query characteristics (token count,
 quoted phrases, word diversity) to decide whether to use dual-channel (raw + summary)
-or single-channel (summary only) retrieval. Reduces cost by 35% while maintaining
-recall. Supports custom strategies via AdaptiveChannelStrategy Protocol. OTEL metrics
-track decision distribution and latency.
+or single-channel (summary only) retrieval. Supports custom strategies via
+AdaptiveChannelStrategy Protocol. OTEL metrics track decision distribution and latency.
 """
 
 from __future__ import annotations
@@ -51,6 +47,9 @@ _decision_latency = _meter.create_histogram(
     unit="ms",
 )
 
+# Characters that mark an exact-phrase lookup: ASCII quotes, backtick and CJK corner brackets.
+_QUOTE_CHARS: tuple[str, ...] = ('"', "'", "`", "「", "」", "『", "』")
+
 
 def should_use_dual_channel(query: str, config: RetrievalConfig) -> bool:
     """Decide whether to use dual-channel retrieval for ConversationMemory.
@@ -65,7 +64,7 @@ def should_use_dual_channel(query: str, config: RetrievalConfig) -> bool:
 
     Metrics:
     - adaptive_channel_decision_count{channel="single"|"dual"}: Decision distribution
-    - adaptive_channel_decision_latency_ms: Decision latency (should be <1ms)
+    - adaptive_channel_decision_latency_ms: Decision latency
 
     Args:
         query: User query string
@@ -82,8 +81,8 @@ def should_use_dual_channel(query: str, config: RetrievalConfig) -> bool:
         True  # Quoted phrase → needs exact match
         >>> should_use_dual_channel("async optimization best practices", config)
         True  # High diversity → complex semantics
-        >>> should_use_dual_channel("Pythonperformanceoptimize", config)
-        True  # Multi-language query → dual-channel
+        >>> should_use_dual_channel("What did 张三 say?", config)
+        True  # Long mixed-language query → dual-channel
     """
     start_time = time.perf_counter()
 
@@ -93,8 +92,8 @@ def should_use_dual_channel(query: str, config: RetrievalConfig) -> bool:
         _record_decision(decision, time.perf_counter() - start_time, is_override=True)
         return decision
 
-    # Factor 1: Quotes (forcedual-channel for exact matching)
-    has_quotes = any(q in query for q in ['"', "'", "`", """, """, """, """])
+    # Factor 1: Quotes (forces dual-channel for exact matching)
+    has_quotes = any(q in query for q in _QUOTE_CHARS)
     if has_quotes:
         _record_decision(True, time.perf_counter() - start_time)
         return True

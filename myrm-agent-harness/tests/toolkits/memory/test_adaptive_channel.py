@@ -27,6 +27,21 @@ def test_quoted_phrase_forces_dual_channel() -> None:
     assert should_use_dual_channel('search for "memory leak"', config)
 
 
+def test_cjk_corner_quotes_and_backticks_force_dual_channel() -> None:
+    """CJK corner brackets and backticks mark exact phrases just like ASCII quotes."""
+    config = RetrievalConfig()
+    assert should_use_dual_channel("找「内存泄漏」", config)
+    assert should_use_dual_channel("找『内存泄漏』", config)
+    assert should_use_dual_channel("run `make`", config)
+
+
+def test_comma_alone_does_not_force_dual_channel() -> None:
+    """Punctuation that is not a quote leaves the decision to the token and diversity factors."""
+    config = RetrievalConfig()
+    assert not should_use_dual_channel("a, b", config)
+    assert not should_use_dual_channel("Python, Rust", config)
+
+
 def test_high_diversity_triggers_dual_channel() -> None:
     """High word diversity indicates semantic complexity."""
     config = RetrievalConfig(adaptive_diversity_threshold=0.7)
