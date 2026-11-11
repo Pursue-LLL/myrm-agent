@@ -1,7 +1,7 @@
 /**
  * [INPUT] error-handling::redactSensitiveClientText (POS: client-side secret redaction, CWE-312); store/chat/types::Message, Source (type-only).
- * [OUTPUT] ReasoningLayout, MessageLabels; formatReasoning, formatMessageMarkdown, extractMessageTitle.
- * [POS] The text one exported message is made of: its Markdown (reasoning, answer, sources) and the title its file is named after. Pure functions, so the single-message exports of every format share one source. The wording of the labels is the caller's, so this module holds no language.
+ * [OUTPUT] ReasoningLayout, MessageLabels; formatReasoning, formatSourcesFootnotes, formatMessageMarkdown, extractMessageTitle.
+ * [POS] The text one copied or exported message is made of: its Markdown (reasoning, answer, sources) and the title its file is named after. Pure functions, so the single-message exports of every format and the copy button share one source. The wording of the labels is the caller's, so this module holds no language.
  */
 import { redactSensitiveClientText } from '@/lib/utils/error-handling';
 import type { Message, Source } from '@/store/chat/types';
@@ -12,8 +12,9 @@ const TITLE_MAX_CHARS = 80;
 export type ReasoningLayout = 'fold' | 'quote';
 
 /**
- * The wording of an exported message's labelled parts. The caller takes it from the interface translations, so a file
- * reads in the language of the interface that made it, with the same words the reader saw on screen.
+ * The wording of the labelled parts of a copied or exported message. The caller takes it from the interface
+ * translations, so the text reads in the language of the interface that made it, with the same words the reader saw on
+ * screen.
  */
 export interface MessageLabels {
   reasoning: string;
@@ -34,7 +35,14 @@ export function formatReasoning(reasoning: string, layout: ReasoningLayout, labe
   return [`> **${label}**`, '>', ...reasoning.split('\n').map((line) => (line ? `> ${line}` : '>')), ''];
 }
 
-function formatSourcesFootnotes(sources: Source[] | undefined, labels: MessageLabels): string {
+/**
+ * The block that lists a message's sources, empty when it has none. It starts with the blank line that sets it off from
+ * the text before it.
+ */
+export function formatSourcesFootnotes(
+  sources: Source[] | undefined,
+  labels: Pick<MessageLabels, 'sources' | 'untitledSource'>,
+): string {
   if (!sources || sources.length === 0) {
     return '';
   }

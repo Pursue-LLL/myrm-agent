@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useTransition } from 'react';
+import { useState, useCallback, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import {
@@ -61,11 +61,16 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
   const [isCopied, setIsCopied] = useState(false);
   const [, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (open && initialFormat) {
-      setSelectedFormat(initialFormat);
+  // The format the caller asks for applies when the dialog opens or the ask changes, and only then, so the user's own
+  // pick stands while the dialog stays open. Adjusting during render puts it on the first frame of the open dialog.
+  const requestedFormat = open ? initialFormat : undefined;
+  const [prevRequestedFormat, setPrevRequestedFormat] = useState(requestedFormat);
+  if (requestedFormat !== prevRequestedFormat) {
+    setPrevRequestedFormat(requestedFormat);
+    if (requestedFormat) {
+      setSelectedFormat(requestedFormat);
     }
-  }, [open, initialFormat]);
+  }
 
   const handleExport = useCallback(async () => {
     if (!chatId || isExporting) {

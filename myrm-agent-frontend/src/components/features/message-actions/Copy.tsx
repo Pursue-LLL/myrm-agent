@@ -3,22 +3,16 @@ import { Message } from '@/store/useChatStore';
 import { RefObject, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { writeToClipboard, writeRichToClipboard } from '@/lib/utils/clipboardUtils';
+import { formatSourcesFootnotes } from '@/lib/utils/chat-export';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
+import { useMessageLabels } from './useMessageLabels';
 
 type CopiedState = 'idle' | 'markdown' | 'text';
-
-function buildMarkdownContent(content: string, sources?: { url?: string }[]): string {
-  if (!sources || sources.length === 0) {
-    return content;
-  }
-  const citations = sources.map((s, i) => `[${i + 1}] ${s.url || 'Unknown source'}`).join('\n');
-  return `${content}\n\nCitations:\n${citations}`;
-}
 
 function getRenderedHtml(markdownRef: RefObject<HTMLDivElement | null>): string {
   const el = markdownRef.current;
@@ -37,6 +31,7 @@ function getPlainText(markdownRef: RefObject<HTMLDivElement | null>): string {
 const Copy = ({ message, markdownRef }: { message: Message; markdownRef: RefObject<HTMLDivElement | null> }) => {
   const [copied, setCopied] = useState<CopiedState>('idle');
   const t = useTranslations('chat');
+  const labels = useMessageLabels();
 
   const flash = useCallback((state: CopiedState) => {
     setCopied(state);
@@ -44,7 +39,7 @@ const Copy = ({ message, markdownRef }: { message: Message; markdownRef: RefObje
   }, []);
 
   const handleCopyMarkdown = useCallback(() => {
-    const markdown = buildMarkdownContent(message.content, message.sources);
+    const markdown = `${message.content}${formatSourcesFootnotes(message.sources, labels)}`;
     const html = getRenderedHtml(markdownRef);
     if (html) {
       writeRichToClipboard(markdown, html);
@@ -52,7 +47,7 @@ const Copy = ({ message, markdownRef }: { message: Message; markdownRef: RefObje
       writeToClipboard(markdown);
     }
     flash('markdown');
-  }, [message.content, message.sources, markdownRef, flash]);
+  }, [message.content, message.sources, labels, markdownRef, flash]);
 
   const handleCopyText = useCallback(() => {
     const text = getPlainText(markdownRef);

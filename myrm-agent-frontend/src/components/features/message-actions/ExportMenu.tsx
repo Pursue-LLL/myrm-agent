@@ -1,6 +1,6 @@
 'use client';
 
-import { RefObject, useCallback, useMemo, useRef, useState } from 'react';
+import { RefObject, useCallback, useRef, useState } from 'react';
 import { ChevronDown, Download, FileText, FileImage, Globe, FileType } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -22,6 +22,7 @@ import {
 } from '@/lib/utils/chat-export';
 import { confirmAction } from '@/lib/app-dialog';
 import type { Message } from '@/store/chat/types';
+import { useMessageLabels } from './useMessageLabels';
 
 const LONG_CONTENT_THRESHOLD = 50_000;
 
@@ -32,7 +33,7 @@ interface ExportMenuProps {
 
 export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
   const t = useTranslations('chat');
-  const tSources = useTranslations('sources');
+  const labels = useMessageLabels();
   const { resolvedTheme } = useTheme();
   const [includeReasoning, setIncludeReasoning] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -58,12 +59,6 @@ export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
       }
     },
     [t],
-  );
-
-  // The file reads in the interface's language, with the words the reader sees on screen.
-  const labels = useMemo(
-    () => ({ reasoning: t('reasoningTitle'), sources: tSources('title'), untitledSource: tSources('untitled') }),
-    [t, tSources],
   );
 
   const handleMarkdown = useCallback(() => {
