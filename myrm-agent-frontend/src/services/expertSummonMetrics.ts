@@ -10,7 +10,8 @@
  * 专家召唤漏斗可观测客户端。负责 ExpertSummonPopover/FeaturedExpertChips/FlowPad 的统一埋点口径、
  * 离线丢样聚合回补，以及主路径成功率/失败率/首条发送转化率观测。
  */
-import { apiRequest } from '@/lib/api';
+import { ApiError, apiRequest } from '@/lib/api';
+import { BACKEND_UNREACHABLE_CODE } from '@/lib/local-backend-dev';
 import type { ExpertTemplateKind } from '@/services/templateDiscovery';
 
 export type ExpertSummonMetricSurface =
@@ -73,7 +74,8 @@ export interface ExpertSummonSummary {
   failure_reason_breakdown: Record<string, number>;
 }
 
-const MAX_EVENT_COUNT = 200;
+/** The most events one request may carry; the server rejects a larger `count`. */
+const MAX_COUNT_PER_REQUEST = 200;
 const MAX_QUERY_LENGTH = 200;
 const MAX_PENDING_DROPPED_EVENTS = 1_000;
 const DEFAULT_CONTEXT_KEY = 'global';
@@ -89,18 +91,12 @@ const SUMMON_SURFACES: ExpertSummonMetricSurface[] = [
 let pendingDroppedEventsBySurface = loadDroppedBufferFromStorage();
 let postQueue: Promise<void> = Promise.resolve();
 
-function clampCount(count: number): number {
-  if (!Number.isFinite(count)) {
-    return 1;
-  }
-  return Math.max(1, Math.min(MAX_EVENT_COUNT, Math.floor(count)));
-}
-
-function clampQueryLength(length: number): number {
-  if (!Number.isFinite(length)) {
+/** A whole number in `0..max`; anything that is not a finite number counts as 0. */
+function clampWhole(value: number | undefined, max: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
     return 0;
   }
-  return Math.max(0, Math.min(MAX_QUERY_LENGTH, Math.floor(length)));
+  return Math.max(0, Math.min(max, Math.floor(value)));
 }
 
 function normalizeContextKey(contextKey?: string): string {
@@ -109,7 +105,7 @@ function normalizeContextKey(contextKey?: string): string {
 }
 
 function totalPendingDroppedEvents(): number {
-  return SUMMON_SURFACES.reduce((sum, surface) => sum + (pendingDroppedEventsBySurface[surface] ?? 0), 0);
+  return SUMMON_SURFACES.reduce((sum, surface) => sum + pendingDroppedEventsBySurface[surface], 0);
 }
 
 function createEmptyDroppedBuffer(): Record<ExpertSummonMetricSurface, number> {
@@ -122,13 +118,6 @@ function createEmptyDroppedBuffer(): Record<ExpertSummonMetricSurface, number> {
   };
 }
 
-function clampPendingCount(count: number | undefined): number {
-  if (count === undefined || !Number.isFinite(count)) {
-    return 0;
-  }
-  return Math.max(0, Math.min(MAX_PENDING_DROPPED_EVENTS, Math.floor(count)));
-}
-
 function loadDroppedBufferFromStorage(): Record<ExpertSummonMetricSurface, number> {
   if (typeof window === 'undefined') {
     return createEmptyDroppedBuffer();
@@ -139,13 +128,11 @@ function loadDroppedBufferFromStorage(): Record<ExpertSummonMetricSurface, numbe
       return createEmptyDroppedBuffer();
     }
     const parsed = JSON.parse(raw) as Partial<Record<ExpertSummonMetricSurface, number>>;
-    return {
-      template_market: clampPendingCount(parsed.template_market),
-      flow_pad_inline: clampPendingCount(parsed.flow_pad_inline),
-      empty_chat_featured: clampPendingCount(parsed.empty_chat_featured),
-      message_input_plus: clampPendingCount(parsed.message_input_plus),
-      mobile_hub_chip: clampPendingCount(parsed.mobile_hub_chip),
-    };
+    const buffer = createEmptyDroppedBuffer();
+    for (const surface of SUMMON_SURFACES) {
+      buffer[surface] = clampWhole(parsed[surface], MAX_PENDING_DROPPED_EVENTS);
+    }
+    return buffer;
   } catch {
     return createEmptyDroppedBuffer();
   }
@@ -166,12 +153,11 @@ function persistDroppedBufferToStorage(): void {
   }
 }
 
-function addPendingDroppedEvents(surface: ExpertSummonMetricSurface, increment: number): void {
-  const remainingCapacity = Math.max(0, MAX_PENDING_DROPPED_EVENTS - totalPendingDroppedEvents());
-  if (remainingCapacity <= 0) {
+function addPendingDroppedEvent(surface: ExpertSummonMetricSurface): void {
+  if (totalPendingDroppedEvents() >= MAX_PENDING_DROPPED_EVENTS) {
     return;
   }
-  pendingDroppedEventsBySurface[surface] += Math.min(remainingCapacity, clampCount(increment));
+  pendingDroppedEventsBySurface[surface] += 1;
   persistDroppedBufferToStorage();
 }
 
@@ -187,36 +173,32 @@ async function postExpertSummonEvent(
     });
     return true;
   } catch {
-    if (countAsDropped && payload.event_type !== 'dropped_report') {
-      addPendingDroppedEvents(payload.surface, payload.count ?? 1);
+    if (countAsDropped) {
+      addPendingDroppedEvent(payload.surface);
     }
     return false;
   }
 }
 
+/**
+ * Reports the events that could not be sent earlier. A backlog goes out in requests of at most
+ * `MAX_COUNT_PER_REQUEST`, and a part leaves the buffer only once the server has taken it, so a refused
+ * part is retried with the next event that gets through.
+ */
 async function flushDroppedEvents(contextKey: string): Promise<void> {
-  if (totalPendingDroppedEvents() <= 0) {
-    return;
-  }
   let changed = false;
   for (const surface of SUMMON_SURFACES) {
-    const droppedCount = pendingDroppedEventsBySurface[surface];
-    if (droppedCount <= 0) {
-      continue;
-    }
-    pendingDroppedEventsBySurface[surface] = 0;
-    changed = true;
-    const flushed = await postExpertSummonEvent(
-      {
-        event_type: 'dropped_report',
-        surface,
-        context_key: contextKey,
-        count: droppedCount,
-      },
-      false,
-    );
-    if (!flushed) {
-      addPendingDroppedEvents(surface, droppedCount);
+    while (pendingDroppedEventsBySurface[surface] > 0) {
+      const count = Math.min(pendingDroppedEventsBySurface[surface], MAX_COUNT_PER_REQUEST);
+      const reported = await postExpertSummonEvent(
+        { event_type: 'dropped_report', surface, context_key: contextKey, count },
+        false,
+      );
+      if (!reported) {
+        break;
+      }
+      pendingDroppedEventsBySurface[surface] -= count;
+      changed = true;
     }
   }
   if (changed) {
@@ -237,18 +219,28 @@ function enqueueExpertSummonEvent(payload: ExpertSummonMetricEventPayload, conte
     });
 }
 
+interface SummonEventOptions {
+  contextKey?: string;
+  templateKind?: ExpertTemplateKind;
+  fromSearch?: boolean;
+  usedUseCase?: boolean;
+}
+
+interface CouncilEventOptions {
+  contextKey?: string;
+  templateKind?: ExpertTemplateKind;
+}
+
+interface SimpleEventOptions extends SummonEventOptions {
+  trigger?: ExpertSummonMetricTrigger;
+  queryLength?: number;
+  failureReason?: ExpertSummonFailureReason;
+}
+
 function enqueueSimpleEvent(
   eventType: Exclude<ExpertSummonMetricEventType, 'dropped_report'>,
   surface: ExpertSummonMetricSurface,
-  options?: {
-    contextKey?: string;
-    trigger?: ExpertSummonMetricTrigger;
-    templateKind?: ExpertTemplateKind;
-    fromSearch?: boolean;
-    usedUseCase?: boolean;
-    queryLength?: number;
-    failureReason?: ExpertSummonFailureReason;
-  },
+  options?: SimpleEventOptions,
 ): void {
   const normalizedContextKey = normalizeContextKey(options?.contextKey);
   enqueueExpertSummonEvent(
@@ -261,16 +253,30 @@ function enqueueSimpleEvent(
       template_kind: options?.templateKind,
       from_search: options?.fromSearch,
       used_use_case: options?.usedUseCase,
-      query_length: options?.queryLength === undefined ? undefined : clampQueryLength(options.queryLength),
+      query_length: options?.queryLength === undefined ? undefined : clampWhole(options.queryLength, MAX_QUERY_LENGTH),
       failure_reason: options?.failureReason,
     },
     normalizedContextKey,
   );
 }
 
+/** `ApiError.businessCode` values for a request that never got an answer from the server. */
+const UNANSWERED_REQUEST_CODES: ReadonlySet<string> = new Set([
+  'NETWORK_ERROR',
+  'TIMEOUT_ERROR',
+  BACKEND_UNREACHABLE_CODE,
+]);
+
 export function inferExpertSummonFailureReason(error: unknown): ExpertSummonFailureReason {
   if (error instanceof DOMException && error.name === 'AbortError') {
     return 'unknown_error';
+  }
+  if (error instanceof ApiError) {
+    if (error.businessCode && UNANSWERED_REQUEST_CODES.has(error.businessCode)) {
+      return 'network_error';
+    }
+    // For answers from the server `code` is the HTTP status; the message is the server's own words.
+    return error.code >= 500 ? 'server_error' : 'unknown_error';
   }
   if (error instanceof TypeError) {
     return 'network_error';
@@ -280,7 +286,7 @@ export function inferExpertSummonFailureReason(error: unknown): ExpertSummonFail
     if (message.includes('network') || message.includes('fetch')) {
       return 'network_error';
     }
-    if (message.includes('5') || message.includes('server')) {
+    if (/\b5\d{2}\b/.test(message) || message.includes('server')) {
       return 'server_error';
     }
   }
@@ -302,163 +308,74 @@ export function recordExpertSummonSearchUsed(
 export function recordExpertSummonAttempted(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-    fromSearch?: boolean;
-    usedUseCase?: boolean;
-  },
+  options?: SummonEventOptions,
 ): void {
-  enqueueSimpleEvent('summon_attempted', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-    fromSearch: options?.fromSearch,
-    usedUseCase: options?.usedUseCase,
-  });
+  enqueueSimpleEvent('summon_attempted', surface, { ...options, trigger });
 }
 
 export function recordExpertSummonSucceeded(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-    fromSearch?: boolean;
-    usedUseCase?: boolean;
-  },
+  options?: SummonEventOptions,
 ): void {
-  enqueueSimpleEvent('summon_succeeded', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-    fromSearch: options?.fromSearch,
-    usedUseCase: options?.usedUseCase,
-  });
+  enqueueSimpleEvent('summon_succeeded', surface, { ...options, trigger });
 }
 
 export function recordExpertSummonFailed(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
   failureReason: ExpertSummonFailureReason,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-    fromSearch?: boolean;
-    usedUseCase?: boolean;
-  },
+  options?: SummonEventOptions,
 ): void {
-  enqueueSimpleEvent('summon_failed', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-    fromSearch: options?.fromSearch,
-    usedUseCase: options?.usedUseCase,
-    failureReason,
-  });
+  enqueueSimpleEvent('summon_failed', surface, { ...options, trigger, failureReason });
 }
 
 export function recordExpertSummonRouteApplied(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-    fromSearch?: boolean;
-    usedUseCase?: boolean;
-  },
+  options?: SummonEventOptions,
 ): void {
-  enqueueSimpleEvent('route_applied', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-    fromSearch: options?.fromSearch,
-    usedUseCase: options?.usedUseCase,
-  });
+  enqueueSimpleEvent('route_applied', surface, { ...options, trigger });
 }
 
 export function recordExpertSummonRouteApplyFailed(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-    fromSearch?: boolean;
-    usedUseCase?: boolean;
-  },
+  options?: SummonEventOptions,
 ): void {
-  enqueueSimpleEvent('route_apply_failed', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-    fromSearch: options?.fromSearch,
-    usedUseCase: options?.usedUseCase,
-    failureReason: 'route_apply_failed',
-  });
+  enqueueSimpleEvent('route_apply_failed', surface, { ...options, trigger, failureReason: 'route_apply_failed' });
 }
 
 export function recordExpertSummonFirstMessageSent(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-    fromSearch?: boolean;
-    usedUseCase?: boolean;
-  },
+  options?: SummonEventOptions,
 ): void {
-  enqueueSimpleEvent('first_message_sent', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-    fromSearch: options?.fromSearch,
-    usedUseCase: options?.usedUseCase,
-  });
+  enqueueSimpleEvent('first_message_sent', surface, { ...options, trigger });
 }
 
 export function recordExpertCouncilPhaseCompleted(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-  },
+  options?: CouncilEventOptions,
 ): void {
-  enqueueSimpleEvent('council_phase_completed', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-  });
+  enqueueSimpleEvent('council_phase_completed', surface, { ...options, trigger });
 }
 
 export function recordExpertCouncilConsensusReached(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-  },
+  options?: CouncilEventOptions,
 ): void {
-  enqueueSimpleEvent('council_consensus_reached', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-  });
+  enqueueSimpleEvent('council_consensus_reached', surface, { ...options, trigger });
 }
 
 export function recordExpertRebuttalEffective(
   surface: ExpertSummonMetricSurface,
   trigger: ExpertSummonMetricTrigger,
-  options?: {
-    contextKey?: string;
-    templateKind?: ExpertTemplateKind;
-  },
+  options?: CouncilEventOptions,
 ): void {
-  enqueueSimpleEvent('expert_rebuttal_effective', surface, {
-    contextKey: options?.contextKey,
-    trigger,
-    templateKind: options?.templateKind,
-  });
+  enqueueSimpleEvent('expert_rebuttal_effective', surface, { ...options, trigger });
 }
 
 export async function getExpertSummonSummary(days: number = 30): Promise<ExpertSummonSummary> {
