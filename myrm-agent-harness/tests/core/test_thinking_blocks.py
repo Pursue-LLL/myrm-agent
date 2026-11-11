@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from myrm_agent_harness.core.thinking_blocks import (
     THINKING_BLOCKS_KEY,
     ThinkingBlockAssembler,
+    carries_signed_blocks,
     coerce_thinking_blocks,
     thinking_blocks_text,
     without_thinking_blocks,
@@ -131,3 +132,24 @@ def test_stripping_leaves_the_original_messages_untouched() -> None:
     assert carrying.additional_kwargs[THINKING_BLOCKS_KEY] == blocks
     assert stripped[0] is human
     assert stripped[2] is bare
+
+
+def test_a_conversation_carries_blocks_when_a_message_would_replay_one() -> None:
+    blocks = [{"type": "thinking", "thinking": "plan", "signature": "sig"}]
+    carrying = AIMessage(content="", additional_kwargs={THINKING_BLOCKS_KEY: blocks})
+
+    assert carries_signed_blocks([HumanMessage(content="go"), carrying])
+
+
+def test_a_conversation_without_a_replayable_block_carries_none() -> None:
+    unsigned = AIMessage(content="", additional_kwargs={THINKING_BLOCKS_KEY: [{"type": "thinking", "thinking": "x"}]})
+    emptied = AIMessage(content="", additional_kwargs={THINKING_BLOCKS_KEY: []})
+
+    assert not carries_signed_blocks([HumanMessage(content="go"), AIMessage(content="plain"), unsigned, emptied])
+    assert not carries_signed_blocks([])
+
+
+def test_only_an_assistant_message_can_carry_blocks() -> None:
+    blocks = [{"type": "thinking", "thinking": "plan", "signature": "sig"}]
+
+    assert not carries_signed_blocks([HumanMessage(content="go", additional_kwargs={THINKING_BLOCKS_KEY: blocks})])

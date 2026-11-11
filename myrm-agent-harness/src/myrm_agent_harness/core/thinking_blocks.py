@@ -14,17 +14,18 @@ continues that conversation.
 - coerce_thinking_blocks: the replayable blocks of a raw ``thinking_blocks`` value, validated and copied
 - ThinkingBlockAssembler: builds the blocks of one stream from their deltas, one draft per provider content index
 - thinking_blocks_text: the reasoning text a message's blocks put in the prompt, for token estimation
+- carries_signed_blocks: whether a request built from some messages would replay a block
 - without_thinking_blocks: messages with the blocks removed, for a call whose prompt is not the conversation's
 
 [POS]
 Shared by the transports (capture and replay on the Anthropic and Bedrock wires), the chat-model adapter (state
-capture), the context pipeline (turn-scoped pruning) and the token estimator. It lives in ``core`` so ``toolkits/`` and
-``agent/`` agree on one block shape without depending on each other.
+capture), the context pipeline (turn-scoped pruning, the media window), the replay guard and the token estimator. It
+lives in ``core`` so ``toolkits/`` and ``agent/`` agree on one block shape without depending on each other.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final, Literal, TypedDict
 
@@ -126,6 +127,17 @@ def thinking_blocks_text(message: BaseMessage) -> str:
         return ""
     blocks = coerce_thinking_blocks(message.additional_kwargs.get(THINKING_BLOCKS_KEY))
     return "".join(block["data"] if block["type"] == "redacted_thinking" else block["thinking"] for block in blocks)
+
+
+def carries_signed_blocks(messages: Iterable[BaseMessage]) -> bool:
+    """Whether a request built from ``messages`` would replay at least one signed block.
+
+    Every block is bound to the messages before it, so this is the question to ask before rewriting an earlier message.
+    """
+    return any(
+        isinstance(message, AIMessage) and coerce_thinking_blocks(message.additional_kwargs.get(THINKING_BLOCKS_KEY))
+        for message in messages
+    )
 
 
 def _without_blocks[M: BaseMessage](message: M) -> M:
