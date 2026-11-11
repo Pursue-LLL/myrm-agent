@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-桌面输入框的操作栏分两层：每条消息都会用到的 5 个控件常驻主行（`ComposerPrimaryControls`），其余选项收在「+」展开的选项区（`ComposerOptionsRegion`，分「思考 / 模式 / 能力」三组）。主行不再横向滚动，原先 14 个控件里有 11 个藏在横滑之后；手机（<`sm`）不显示这两块，由 `../composer/MobileComposerEntry` 的「+」打开 `../composer/MobileComposerSheet`。
+桌面输入框的操作栏分两层：每条消息都会用到的 5 个控件常驻主行（`ComposerPrimaryControls`），其余选项收在「+」展开的选项区（`ComposerOptionsRegion`，分「思考 / 模式 / 能力」三组）。主行不横向滚动；手机（<`sm`）不显示这两块，由 `../composer/MobileComposerEntry` 的「+」打开 `../composer/MobileComposerSheet`。
 
 选项区关着时不能让改变下一条消息的模式（编排、长期目标、深度搜索、无痕）无声地留在看不见的地方：「+」按钮上的小圆点、它的无障碍名称与悬停提示都会说出「已启用：…」（`useActiveComposerOptions`）。
 

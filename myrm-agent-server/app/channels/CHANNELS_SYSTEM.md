@@ -92,12 +92,12 @@
 
 ```python
 # respond() - 回复消息（所有参数自动推断：channel/recipient_id/user_id/reply_to_id）
-await channel.respond(incoming_msg, "Hello!")  # 代码简洁度提升80%
+await channel.respond(incoming_msg, "Hello!")
 
 # broadcast() - 主动发送（Cron/通知场景，需要user_id）
 await channel.broadcast("channel_id", "Alert!", user_id=user_id)
 
-# send() - 底层统一接口（仍然完全可用，保持向后兼容）
+# send() - 底层统一接口（显式构造 OutboundMessage）
 await channel.send(OutboundMessage(...))
 ```
 

@@ -107,7 +107,7 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
 
 5. **浏览器可用性检测禁止用 `shutil.which("chromium")`**：macOS/Windows 上 patchright 管理的
    Chromium 装在 Playwright 缓存目录（`~/Library/Caches/ms-playwright` 或 `$PLAYWRIGHT_BROWSERS_PATH`），
-   不在 PATH，导致 `requires_browser` 误判跳过整个浏览器池测试（曾经 31 个池/并发测试静默未跑）。
+   不在 PATH，导致 `requires_browser` 误判并静默跳过整个浏览器池/并发测试。
    统一走 `tests/toolkits/browser/_browser_available.py::chromium_available()`——
    它通过 patchright registry 解析真实 `executable_path` 并检查文件存在。
 

@@ -1,6 +1,6 @@
 # 工具设计策略 (Tool Design Strategy)
 
-> **文档状态**: Active | **最后更新**: 2026-06-26  
+> **范围**: 工具层级体系、核心/外围技能机制、动作空间复杂度评估（ASCS）、智能剪枝、Token 预算、工具加载策略、MCP 工具处理与前端反馈  
 > **作者**: MyrmAgent Team | **维护**: Agent Engineering
 
 <!-- TOOL_COUNT_BEGIN -->

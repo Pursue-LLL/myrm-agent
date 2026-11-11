@@ -22,6 +22,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import TypedDict
+
 # 作为脚本直接执行时（`python .../e2e_core/browser_tab_hygiene.py`），sys.path[0] 指向模块自身所在
 # 目录而非 dev lib 根，导致模块级导入 e2e_core.* / dev_gate.* 失败；
 # 自举 dev lib 根（当前目录的父目录或向上两级），与 dev_gate/cli.py 保持同模式。
@@ -225,10 +226,10 @@ def prune_orphan_cdp_pages(
     Two sweeps run, both exact-targetId only:
 
     1. Dead-session pages — the owner process is gone and its wave lease lapsed.
-       These are precisely the leak the old code could never see, because it only
-       ever looked at ``about:blank`` pages. A session page (navigated to the real
-       UI) therefore stayed alive forever, and its own context was the only thing
-       that ever reclaimed it.
+       A page qualifies whatever it shows: pages navigated to the real UI are
+       reclaimed the same way as ``about:blank`` ones. Neither the opt-in
+       switch nor the threshold applies to this sweep; ownership comes from
+       the session-page ledger, never from the page URL.
     2. Self-owned leftovers — blank pages this very process registered. The
        opt-in ``MYRM_BROWSER_ORCHESTRATOR_PRUNE`` switch and the ``threshold``
        bound belong to this conservative sweep, which is the only one safe to
@@ -268,9 +269,9 @@ def _prune_self_owned_blanks(*, cdp_port: int, threshold: int) -> tuple[int, int
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
-    import e2e_core.infra_browser_registry as registry
-
     from dev_gate.owner_identity import capture_owner_process_start
+
+    import e2e_core.infra_browser_registry as registry
 
     self_pid = os.getpid()
     self_start = capture_owner_process_start(self_pid)

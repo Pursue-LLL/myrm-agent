@@ -24,7 +24,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Smithery migrated from registry.smithery.ai/api/v1/* to api.smithery.ai/* (2026).
+# Smithery registry API root (endpoints live under api.smithery.ai/*).
 SMITHERY_BASE_URL = "https://api.smithery.ai"
 DEFAULT_PAGE_SIZE = 20
 CACHE_TTL_SECONDS = 300  # 5 minutes

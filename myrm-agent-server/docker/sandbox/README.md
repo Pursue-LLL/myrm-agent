@@ -26,5 +26,3 @@ docker run --rm myrm/skill-sandbox:latest python -c "import pandas; print('ok')"
 - 非 root、`ReadonlyRootfs`、CapDrop ALL
 - 轻量健康检查（60s）+ 深度检查（5min）
 - 多架构：PR 单架构，main 双架构
-
-详细运维说明见 `_ARCH.md` 与 `CHANGELOG.md`。

@@ -131,8 +131,8 @@ def _socket_listener_probe(socket_path: Path) -> bool | None:
 
     ``None`` means the probe itself failed (e.g. lsof timed out under load). Callers that
     decide whether to *destroy* something must treat ``None`` as "do not act": a probe
-    error was previously indistinguishable from "no listener", which let the plane remove
-    a live daemon's socket and then reap that daemon, spiralling the whole cluster.
+    error is not "no listener", and acting on it would remove a live daemon's socket
+    and then reap that daemon, spiralling the whole cluster.
     """
     if not socket_path.is_socket():
         return False

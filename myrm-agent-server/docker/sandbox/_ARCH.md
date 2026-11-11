@@ -29,5 +29,4 @@ docker run --rm myrm/skill-sandbox:latest python -c "import pandas"
 | `benchmark.sh` | 辅助 | 性能基准测试脚本 |
 | `deep_health_check.py` | 辅助 | 深度健康检查 |
 | `test_image.py` | 辅助 | 镜像集成测试 |
-| `CHANGELOG.md` | 文档 | 版本更新日志 |
 | `README.md` | 文档 | GitHub 入口快速开始 |

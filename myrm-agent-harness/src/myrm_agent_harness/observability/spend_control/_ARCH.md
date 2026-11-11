@@ -1,7 +1,7 @@
 # observability/spend_control/
 
 ## Overview
-Four-tier progressive spend control and soft quota intervention engine. Replaces legacy abrupt task hard-kills with an anti-disruption progressive intervention ladder:
+Four-tier progressive spend control and soft quota intervention engine. Escalates through an anti-disruption progressive intervention ladder instead of abruptly hard-killing tasks:
 1. **Tier 1 (70% quota)**: Real-time spend visibility & model downgrade recommendation.
 2. **Tier 2 (90% quota)**: Soft spend gate with self-confirmation bypass token to allow execution to proceed smoothly.
 3. **Tier 3 (100% quota)**: Seamless auto-downgrade to cost-efficient economy model (`gpt-4o-mini` / `claude-3-5-haiku`) to preserve task context and execution continuity without data loss.

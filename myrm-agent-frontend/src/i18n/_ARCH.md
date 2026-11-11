@@ -45,11 +45,11 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 
 ## 首屏体积（prod `next start`，2026-07-13 实测）
 
-| 指标                  | 优化前（历史） | 当前 prod             |
-| --------------------- | -------------- | --------------------- |
-| HTML transfer         | ~943KB         | ~447KB                |
-| TTFB                  | 120–430ms      | ~105ms                |
-| SSR `MISSING_MESSAGE` | —              | 无（memory 在 shell） |
+| 指标                  | 当前 prod             |
+| --------------------- | --------------------- |
+| HTML transfer         | ~447KB                |
+| TTFB                  | ~105ms                |
+| SSR `MISSING_MESSAGE` | 无（memory 在 shell） |
 
 deferred 顶层 namespace 仅 `channels`；`memory` 必须在 SSR shell（`ChatWindow` 等首屏组件引用）。
 home-route `settings.*` 引用必须通过 `scripts/scan-home-i18n-shell.mjs`（CI 在 verify-i18n 内执行）。

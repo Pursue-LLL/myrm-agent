@@ -131,9 +131,9 @@ def acquire_server_lock(
     except Timeout:
         # 锁被占用。区分「僵尸锁」（持锁者已死 → 清理接管）与「活跃实例」
         # （另一 backend 正常运行 → 本次启动退出）。
-        # 旧实现会全量指纹扫描并猎杀 workspace 内所有 run.py 进程来实现
-        # 「无感接管」，但多人开发 / 并行 E2E 下并发启动会互相猎杀——这正是
-        # shared backend 反复崩溃的根因。
+        # 不靠全量指纹扫描并猎杀 workspace 内所有 run.py 进程来实现
+        # 「无感接管」：多人开发 / 并行 E2E 下并发启动会互相猎杀，
+        # 使 shared backend 反复崩溃。
         holder_pid = _read_pid_file(pid_file)
         if holder_pid is not None and _process_alive(holder_pid):
             # 持锁进程存活。仅当它最终监听 target_port 才视为「活跃实例」：
