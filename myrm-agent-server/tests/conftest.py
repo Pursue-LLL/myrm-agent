@@ -45,8 +45,10 @@ _isolate_test_data_dir()
 # top-level conftest only; the referenced modules define explicit-request fixtures
 # (db_session/fts_db), an artifact-upsert autouse mock that is inert for tests that
 # never touch the artifact pipeline, and autouse resets of the process-wide singletons
-# tests mutate (event bus history, agent gateway drain, task metrics registry), and the
-# aiosqlite worker that keeps a connection usable after the loop that queried it closed.
+# tests mutate (event bus history, agent gateway drain, task metrics registry, settings
+# singleton, the harness's registry of tracked background tasks), and the aiosqlite worker
+# and stop that keep a connection usable after the loop that queried it closed and let two
+# closers of one connection both return.
 # The first four are plain support modules: a conftest that is also listed here is
 # registered twice, and a run targeting its directory aborts.
 pytest_plugins = (
