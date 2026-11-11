@@ -14,8 +14,8 @@
 [POS]
 Metadata and session query mixin — extracts memory ids/refs by metadata and aggregates chat stats. A chat's
 purge and its preview read the same two links, so the preview counts exactly what the purge deletes. The purge also
-clears the chat's rows from the recurrence buffer, which holds the opening words of its sessions, and the claim graph
-its task digests were compiled into.
+clears the chat's rows from the recurrence buffer, which holds the opening words of its sessions, the claim graph
+its task digests were compiled into, and the profile entries that hold its working state.
 """
 
 from __future__ import annotations
@@ -166,10 +166,11 @@ class MemoryManagerQueriesMixin(MemoryManagerHost):
 
         Deletes every Semantic, Episodic, Conversation, and Procedural memory linked to the chat, whether it was
         written from that chat (``source_chat_id``) or built from it among others (``source_chat_ids``), plus any
-        PendingRecords linked to this chat, the chat's recurrence buffer rows, and the claim graph compiled from its
-        task digests (reported in no count: it is a view over the digests). A failing link is skipped with a warning
-        and the others still run; missing vector collections count 0. The chat is closed first, so a writer still
-        running for it cannot bring back what the purge removes.
+        PendingRecords linked to this chat, the profile entries it wrote as its own working state, the chat's
+        recurrence buffer rows, and the claim graph compiled from its task digests (reported in no count: it is a view
+        over the digests). A failing vector link is skipped with a warning and the others still run; missing vector
+        collections count 0. The chat is closed first, so a writer still running for it cannot bring back what the
+        purge removes.
         """
         close_chat(self._user_id, chat_id)
         # Before the digests go: their evidence is how the claims worded from them are found.
@@ -194,6 +195,9 @@ class MemoryManagerQueriesMixin(MemoryManagerHost):
             pending_deleted = await self._relational.delete_pending_by_source_chat_id(chat_id)
             if pending_deleted:
                 counts["pending"] = pending_deleted
+            profiles_deleted = await self._relational.delete_profiles_by_source_chat_id(chat_id)
+            if profiles_deleted:
+                counts[MemoryType.PROFILE.value] = profiles_deleted
         return counts
 
     async def count_by_source_chat_id(self, chat_id: str) -> dict[str, int]:
@@ -215,6 +219,9 @@ class MemoryManagerQueriesMixin(MemoryManagerHost):
             pending_count = await self._relational.count_pending_by_source_chat_id(chat_id)
             if pending_count:
                 result["pending"] = pending_count
+            profile_count = await self._relational.count_profiles_by_source_chat_id(chat_id)
+            if profile_count:
+                result[MemoryType.PROFILE.value] = profile_count
         return result
 
 

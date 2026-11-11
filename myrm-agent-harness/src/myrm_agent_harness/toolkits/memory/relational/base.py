@@ -57,10 +57,18 @@ class RelationalStore(ABC):
     ) -> ProfileAttributeSnapshot: ...
 
     @abstractmethod
-    async def set_profile(self, key: str, value: str, *, scope: MemoryScope | None = None) -> None: ...
+    async def set_profile(
+        self, key: str, value: str, *, scope: MemoryScope | None = None, source_chat_id: str | None = None
+    ) -> None: ...
 
     @abstractmethod
     async def delete_profile(self, key: str, *, namespaces: list[str] | None = None) -> bool: ...
+
+    @abstractmethod
+    async def delete_profiles_by_source_chat_id(self, source_chat_id: str) -> int: ...
+
+    @abstractmethod
+    async def count_profiles_by_source_chat_id(self, source_chat_id: str) -> int: ...
 
     @abstractmethod
     async def list_profiles(

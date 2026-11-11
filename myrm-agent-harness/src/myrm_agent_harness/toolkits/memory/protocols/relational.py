@@ -43,9 +43,21 @@ class RelationalStoreProtocol(Protocol):
         self, key: str, *, namespaces: list[str] | None = None
     ) -> ProfileAttributeSnapshot: ...
 
-    async def set_profile(self, key: str, value: str, *, scope: MemoryScope | None = None) -> None: ...
+    async def set_profile(
+        self, key: str, value: str, *, scope: MemoryScope | None = None, source_chat_id: str | None = None
+    ) -> None:
+        """Upsert one entry; ``source_chat_id`` names the chat it was written from and replaces any earlier link."""
+        ...
 
     async def delete_profile(self, key: str, *, namespaces: list[str] | None = None) -> bool: ...
+
+    async def delete_profiles_by_source_chat_id(self, source_chat_id: str) -> int:
+        """Delete the entries whose current value was written from one chat; returns the number removed."""
+        ...
+
+    async def count_profiles_by_source_chat_id(self, source_chat_id: str) -> int:
+        """Count the entries ``delete_profiles_by_source_chat_id`` would remove."""
+        ...
 
     async def list_profiles(
         self, *, limit: int = 1000, offset: int = 0, namespaces: list[str] | None = None

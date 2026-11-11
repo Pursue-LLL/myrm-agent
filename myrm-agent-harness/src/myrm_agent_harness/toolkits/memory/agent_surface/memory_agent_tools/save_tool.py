@@ -172,7 +172,7 @@ async def _save_preference(ctx: _SaveContext, *, preference_key: str | None) -> 
     if (buffer := ctx.buffer) is not None:
         await buffer.set_profile(preference_key, ctx.content)
     else:
-        result = await ctx.manager.set_profile_attribute(preference_key, ctx.content)
+        result = await ctx.manager.set_profile_attribute(preference_key, ctx.content, source_chat_id=ctx.chat_id)
         if result is not None:
             return f"Preference '{preference_key}' submitted for approval"
     return format_preference_save_ack(preference_key, ctx.content)

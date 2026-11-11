@@ -31,13 +31,19 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
         value: str,
         *,
         _force_pending: bool = False,
+        source_chat_id: str | None = None,
     ) -> str | None:
-        """Set a profile attribute. Returns pending_id if approval is required, else None."""
+        """Set a profile attribute. Returns pending_id if approval is required, else None.
+
+        ``source_chat_id`` is the chat the value was inferred or saved in: a queued proposal is deleted with that chat,
+        and so is the working state once live. A write from a deleted chat is refused (returns ``""``).
+        """
         approval_required = True if _force_pending else self.approval_required
         return await self._governance.set_profile_attribute(
             key,
             value,
             approval_required=approval_required,
+            source_chat_id=source_chat_id,
         )
 
     async def set_system_profile_attribute(self, key: str, value: str) -> None:

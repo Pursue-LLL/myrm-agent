@@ -4,16 +4,19 @@
 [INPUT]
 - memory._internal.approval::{apply_edited_content, memory_to_pending, pending_to_memory} (POS: approval queue helpers)
 - memory._internal.memory_scanner::{scan_and_clean_memory} (POS: content safety scanner)
+- memory._internal.storage_context::CHAT_SCOPED_PROFILE_KEYS (POS: the profile entries that leave with their chat)
 - memory.protocols.relational::RelationalStoreProtocol (POS: relational store protocol)
-- memory.strategies.chat_fence::derives_from_deleted_chat (POS: refusal of writes derived from a deleted chat)
+- memory.strategies.chat_fence::{DELETED_CHAT_REJECTION, derives_from_deleted_chat, is_closed} (POS: refusal of writes derived from a deleted chat)
 
 [OUTPUT]
 - GovernanceService: Governance orchestrator (approval flow, profile updates, scanning)
 
 [POS]
 Governance-side orchestration. Handles approval flow (including the stale-target guard
-that refuses proposals whose target changed after queueing), the queue's refusal of proposals derived from a deleted
-chat, profile updates, and content scanning. Not part of the public API.
+that refuses proposals whose target changed after queueing), the queue's and the profile writes' refusal of proposals
+derived from a deleted chat, profile updates, and content scanning. A profile proposal carries the chat it was raised
+from; a live profile entry keeps it only when it is a chat's own digest (``CHAT_SCOPED_PROFILE_KEYS``). Not part of
+the public API.
 """
 
 from __future__ import annotations
@@ -36,11 +39,17 @@ from myrm_agent_harness.toolkits.memory._internal.memory_scanner import (
 from myrm_agent_harness.toolkits.memory._internal.storage import (
     MemoryError,
     MemoryNotFoundError,
+    MemoryRejectedError,
     PendingTargetChangedError,
 )
+from myrm_agent_harness.toolkits.memory._internal.storage_context import CHAT_SCOPED_PROFILE_KEYS
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.protocols.relational import RelationalStoreProtocol
-from myrm_agent_harness.toolkits.memory.strategies.chat_fence import derives_from_deleted_chat
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import (
+    DELETED_CHAT_REJECTION,
+    derives_from_deleted_chat,
+    is_closed,
+)
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
     MemoryScope,
@@ -55,6 +64,10 @@ logger = logging.getLogger(__name__)
 StoreFunc = Callable[[AnyMemory], Awaitable[AnyMemory]]
 ReadFunc = Callable[[str], Awaitable[AnyMemory | None]]
 ExistsFunc = Callable[[str], Awaitable[bool]]
+
+
+def _from_closed_chat(user_id: str, chat_id: str | None) -> bool:
+    return chat_id is not None and is_closed(user_id, chat_id)
 
 
 def _drift_reason(record: PendingRecord, target: AnyMemory) -> str | None:
@@ -189,19 +202,16 @@ class GovernanceService:
         if edited_content is not None:
             record = apply_edited_content(record, edited_content)
         if record.memory_type == MemoryType.PROFILE:
+            if _from_closed_chat(self._user_id, record.source_chat_id):
+                raise MemoryRejectedError(DELETED_CHAT_REJECTION)
             data = record.memory_data
             scope_data = data.get("scope")
             scope = MemoryScope.model_validate(scope_data) if isinstance(scope_data, dict) else self._scope
-            profile_key = str(data.get("key", ""))
-            profile_value = str(data.get("value", ""))
-            await rel.set_profile(profile_key, profile_value, scope=scope)
-            from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
-                record_ephemeral_memory_delta,
-            )
-
-            record_ephemeral_memory_delta(
-                key=f"profile:{profile_key}",
-                value=profile_value,
+            await self._write_profile(
+                str(data.get("key", "")),
+                str(data.get("value", "")),
+                scope=scope,
+                source_chat_id=record.source_chat_id,
             )
             await rel.mark_pending(pending_id, "approved")
             return None
@@ -275,7 +285,17 @@ class GovernanceService:
     async def batch_reject(self, pending_ids: list[str]) -> int:
         return await self._rel().batch_mark_pending(pending_ids, "rejected")
 
-    async def set_profile_attribute(self, key: str, value: str, *, approval_required: bool) -> str | None:
+    async def set_profile_attribute(
+        self, key: str, value: str, *, approval_required: bool, source_chat_id: str | None = None
+    ) -> str | None:
+        """Write a profile entry, or queue it when approval is required; ``source_chat_id`` is the chat it came from.
+
+        Returns ``None`` after a direct write, the pending id once queued, and ``""`` when nothing was applied because
+        the proposal is already queued or comes from a deleted chat.
+        """
+        if _from_closed_chat(self._user_id, source_chat_id):
+            logger.info("Refused a profile write derived from a deleted chat")
+            return ""
         if self._config.security_scan_enabled:
             result = scan_memory_content(value, block_threshold=self._config.injection_block_threshold)
             if result.verdict == ScanVerdict.BLOCKED:
@@ -310,19 +330,25 @@ class GovernanceService:
                 memory_type=MemoryType.PROFILE,
                 content=f"{key}: {value}",
                 memory_data={"key": key, "value": value, "scope": profile_scope.model_dump()},
+                source_chat_id=source_chat_id,
             )
             async with self._submit_lock:
                 if await rel.pending_exists(MemoryType.PROFILE.value, record.content):
                     return ""
                 return await rel.submit_pending(record)
 
-        await rel.set_profile(key, value, scope=profile_scope)
+        await self._write_profile(key, value, scope=profile_scope, source_chat_id=source_chat_id)
+        return None
+
+    async def _write_profile(self, key: str, value: str, *, scope: MemoryScope, source_chat_id: str | None) -> None:
+        """Write a live profile entry; only a chat's own digest keeps the chat it was written from."""
+        chat_link = source_chat_id if key in CHAT_SCOPED_PROFILE_KEYS else None
+        await self._rel().set_profile(key, value, scope=scope, source_chat_id=chat_link)
         from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
             record_ephemeral_memory_delta,
         )
 
         record_ephemeral_memory_delta(key=f"profile:{key}", value=value)
-        return None
 
     async def get_profile_attribute(self, key: str) -> str | None:
         return await self._rel().get_profile(key, namespaces=self._namespaces)

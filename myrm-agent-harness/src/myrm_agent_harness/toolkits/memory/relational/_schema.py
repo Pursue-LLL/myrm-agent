@@ -65,6 +65,9 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             )
             await conn.execute("DROP TABLE profiles_legacy")
 
+    if await _table_exists(conn, "profiles") and "source_chat_id" not in await _table_columns(conn, "profiles"):
+        await conn.execute("ALTER TABLE profiles ADD COLUMN source_chat_id TEXT")
+
     if await _table_exists(conn, "procedural_rules"):
         rule_columns = await _table_columns(conn, "procedural_rules")
         if "primary_namespace" not in rule_columns:
@@ -151,6 +154,7 @@ async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
             channel_id TEXT,
             conversation_id TEXT,
             task_id TEXT,
+            source_chat_id TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
@@ -211,6 +215,7 @@ async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
         "CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id)",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_user_key_scope ON profiles(user_id, key, primary_namespace)",
         "CREATE INDEX IF NOT EXISTS idx_profiles_user_scope ON profiles(user_id, primary_namespace)",
+        "CREATE INDEX IF NOT EXISTS idx_profiles_source_chat ON profiles(source_chat_id) WHERE source_chat_id IS NOT NULL",
         "CREATE INDEX IF NOT EXISTS idx_rules_user ON procedural_rules(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_rules_user_active ON procedural_rules(user_id, is_active)",
         "CREATE INDEX IF NOT EXISTS idx_rules_user_scope ON procedural_rules(user_id, primary_namespace)",

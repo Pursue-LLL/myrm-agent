@@ -7,12 +7,14 @@
 - toolkits.memory.types::MemoryScope, ProfileAttributeSnapshot, ProfileEntry (POS: Memory type definitions)
 
 [OUTPUT]
-- SQLiteProfileMixin: get_profile, get_profile_snapshot, set_profile, delete_profile, list_profiles, count_profiles
+- SQLiteProfileMixin: get_profile, get_profile_snapshot, set_profile, delete_profile, list_profiles, count_profiles,
+  delete_profiles_by_source_chat_id, count_profiles_by_source_chat_id
 
 [POS]
 Profile key-value persistence of SQLiteRelationalStore, scoped by namespace. Listings and counts skip the
 maintenance code's ``_system.`` bookkeeping rows. ``get_profile_snapshot`` returns the value together with a
-revision hash of its key, value and update time.
+revision hash of its key, value and update time. A row may name the chat it was written from (``source_chat_id``);
+every write replaces that link, so a value written without one is never taken away with a chat.
 """
 
 import hashlib
@@ -68,7 +70,9 @@ class SQLiteProfileMixin(SQLiteStoreHost):
         except Exception as e:
             raise RelationalQueryError(f"get_profile_snapshot failed: {e}") from e
 
-    async def set_profile(self, key: str, value: str, *, scope: MemoryScope | None = None) -> None:
+    async def set_profile(
+        self, key: str, value: str, *, scope: MemoryScope | None = None, source_chat_id: str | None = None
+    ) -> None:
         await self._ensure_integrity_before_write()
         conn = await self._get_connection()
         now = now_iso()
@@ -81,12 +85,13 @@ class SQLiteProfileMixin(SQLiteStoreHost):
             task_id,
         ) = self._scope_values(scope)
         try:
+            # The chat link is replaced on every write: a value is linked only to the chat that wrote it last.
             await conn.execute(
                 """INSERT INTO profiles (
                        id, user_id, key, value, primary_namespace, namespaces, agent_id,
-                       channel_id, conversation_id, task_id, created_at, updated_at
+                       channel_id, conversation_id, task_id, source_chat_id, created_at, updated_at
                    )
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(user_id, key, primary_namespace) DO UPDATE SET
                        value = excluded.value,
                        namespaces = excluded.namespaces,
@@ -94,6 +99,7 @@ class SQLiteProfileMixin(SQLiteStoreHost):
                        channel_id = excluded.channel_id,
                        conversation_id = excluded.conversation_id,
                        task_id = excluded.task_id,
+                       source_chat_id = excluded.source_chat_id,
                        updated_at = excluded.updated_at""",
                 (
                     str(uuid4()),
@@ -106,6 +112,7 @@ class SQLiteProfileMixin(SQLiteStoreHost):
                     channel_id,
                     conversation_id,
                     task_id,
+                    source_chat_id,
                     now,
                     now,
                 ),
@@ -113,6 +120,28 @@ class SQLiteProfileMixin(SQLiteStoreHost):
             await conn.commit()
         except Exception as e:
             await self._handle_query_error("set_profile", e)
+
+    async def delete_profiles_by_source_chat_id(self, source_chat_id: str) -> int:
+        await self._ensure_integrity_before_write()
+        conn = await self._get_connection()
+        try:
+            cursor = await conn.execute("DELETE FROM profiles WHERE source_chat_id = ?", (source_chat_id,))
+            await conn.commit()
+            return cursor.rowcount or 0
+        except Exception as e:
+            await self._handle_query_error("delete_profiles_by_source_chat_id", e)
+            return 0
+
+    async def count_profiles_by_source_chat_id(self, source_chat_id: str) -> int:
+        conn = await self._get_connection()
+        try:
+            async with conn.execute(
+                "SELECT COUNT(*) FROM profiles WHERE source_chat_id = ?", (source_chat_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+            return row[0] if row else 0
+        except Exception as e:
+            raise RelationalQueryError(f"count_profiles_by_source_chat_id failed: {e}") from e
 
     async def delete_profile(self, key: str, *, namespaces: list[str] | None = None) -> bool:
         await self._ensure_integrity_before_write()

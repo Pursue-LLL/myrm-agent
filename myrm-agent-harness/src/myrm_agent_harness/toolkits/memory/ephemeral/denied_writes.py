@@ -159,7 +159,9 @@ class DeniedMemoryWrites:
     ) -> MaintenanceReport:
         self._deny()
 
-    async def set_profile_attribute(self, key: str, value: str, *, _force_pending: bool = False) -> str | None:
+    async def set_profile_attribute(
+        self, key: str, value: str, *, _force_pending: bool = False, source_chat_id: str | None = None
+    ) -> str | None:
         self._deny()
 
     async def approve(self, pending_id: str, *, edited_content: str | None = None) -> AnyMemory | None:

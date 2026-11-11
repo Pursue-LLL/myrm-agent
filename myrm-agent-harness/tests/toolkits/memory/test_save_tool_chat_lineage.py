@@ -91,3 +91,62 @@ async def test_a_save_over_the_mcp_server_belongs_to_no_chat(new_manager: NewMan
 
     assert await manager.count_by_source_chat_id("chat-a") == {}
     assert await manager.count_memories(MemoryType.SEMANTIC) == 1
+
+
+# A preference is a profile fact the user keeps: only its proposal belongs to the chat, and the key that holds a chat's
+# own digest is the one entry a save can bind to its chat.
+PREFERENCE = {"category": "preference", "content": "brief answers", "preference_key": "reply_style"}
+DIGEST = {"category": "preference", "content": "Quarterly report done", "preference_key": "__working_state"}
+
+
+async def test_a_preference_that_waits_for_approval_names_its_chat_and_the_approved_fact_stays(
+    new_manager: NewManager,
+) -> None:
+    manager = new_manager(approval_required=True)
+    manager.begin_session("chat-a")
+
+    await save_with_agent_tool(manager, PREFERENCE)
+
+    [queued] = await manager.list_pending()
+    assert queued.source_chat_id == "chat-a"
+    await manager.approve(queued.id)
+    assert await manager.count_by_source_chat_id("chat-a") == {"pending": 1}
+    await manager.purge_by_source_chat_id("chat-a")
+    assert await manager.get_profile_attribute("reply_style") == "brief answers"
+    assert await manager.count_by_source_chat_id("chat-a") == {}
+
+
+async def test_a_preference_proposal_is_discarded_with_its_chat(new_manager: NewManager) -> None:
+    manager = new_manager(approval_required=True)
+    manager.begin_session("chat-a")
+    await save_with_agent_tool(manager, PREFERENCE)
+
+    assert await manager.count_by_source_chat_id("chat-a") == {"pending": 1}
+    await manager.purge_by_source_chat_id("chat-a")
+
+    assert await manager.list_pending() == []
+    assert await manager.get_profile_attribute("reply_style") is None
+
+
+async def test_a_saved_digest_is_bound_to_its_chat_and_an_ordinary_preference_is_not(new_manager: NewManager) -> None:
+    manager = new_manager()
+    manager.begin_session("chat-a")
+
+    await save_with_agent_tool(manager, PREFERENCE)
+    await save_with_agent_tool(manager, DIGEST)
+
+    assert await manager.count_by_source_chat_id("chat-a") == {"profile": 1}
+    await manager.purge_by_source_chat_id("chat-a")
+    assert await manager.get_profile_attribute("__working_state") is None
+    assert await manager.get_profile_attribute("reply_style") == "brief answers"
+
+
+async def test_a_preference_saved_over_the_mcp_server_belongs_to_no_chat(new_manager: NewManager) -> None:
+    manager = new_manager(approval_required=True)
+    manager.begin_session("chat-a")
+
+    await save_with_mcp_tool(manager, PREFERENCE)
+
+    [queued] = await manager.list_pending()
+    assert queued.source_chat_id is None
+    assert await manager.count_by_source_chat_id("chat-a") == {}

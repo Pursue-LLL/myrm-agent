@@ -244,7 +244,7 @@ class MemorySession:
         return mem
 
     async def set_profile(self, key: str, value: str) -> None:
-        await self.manager.set_profile_attribute(key, value)
+        await self.manager.set_profile_attribute(key, value, source_chat_id=self.chat_id)
 
     def search_buffer(self, query: str, *, limit: int = 5) -> list[AnyMemory]:
         q = query.lower()

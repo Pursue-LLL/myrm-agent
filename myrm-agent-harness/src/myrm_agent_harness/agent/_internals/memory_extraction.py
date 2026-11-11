@@ -213,6 +213,7 @@ async def persist_extracted_memories(
                 mem.key,
                 str(mem.value),
                 _force_pending=force_pending,
+                source_chat_id=source_chat_id,
             )
         else:
             batch.append(mem)

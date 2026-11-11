@@ -7,6 +7,7 @@
 [OUTPUT]
 - load_context: Loads profile, rules, and working state for agent prompt
 - WORKING_STATE_PROFILE_KEY, WORKING_STATE_UPDATED_AT_KEY, WORKING_STATE_TTL_DAYS: Constants
+- CHAT_SCOPED_PROFILE_KEYS: the profile entries that hold one chat's own words and leave with it
 
 [POS]
 Context loading for agent system prompt injection. Fetches user profile entries,
@@ -35,6 +36,10 @@ logger = logging.getLogger(__name__)
 WORKING_STATE_PROFILE_KEY = "__working_state"
 WORKING_STATE_UPDATED_AT_KEY = "__working_state_updated_at"
 WORKING_STATE_TTL_DAYS = 7
+
+# The working state is the digest of one chat, injected into later chats until it expires, so it records the chat it was
+# written from and goes when that chat is deleted. Every other profile entry is a fact the user keeps.
+CHAT_SCOPED_PROFILE_KEYS = frozenset({WORKING_STATE_PROFILE_KEY, WORKING_STATE_UPDATED_AT_KEY})
 
 
 async def load_context(
@@ -72,10 +77,10 @@ async def load_context(
                 if not isinstance(e, ProfileEntry):
                     continue
                 if e.key == WORKING_STATE_PROFILE_KEY:
-                    working_state = e.value
+                    working_state = str(e.value)
                     continue
                 if e.key == WORKING_STATE_UPDATED_AT_KEY:
-                    working_state_updated_at = e.value
+                    working_state_updated_at = str(e.value)
                     continue
                 if e.scope.primary_namespace == "global":
                     global_profile[e.key] = e.value

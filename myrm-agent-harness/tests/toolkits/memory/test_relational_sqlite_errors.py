@@ -71,6 +71,8 @@ async def test_query_error_branches_raise(store: SQLiteRelationalStore, monkeypa
         lambda: store.get_profile_snapshot("k"),
         lambda: store.set_profile("k", "v"),
         lambda: store.delete_profile("k"),
+        lambda: store.delete_profiles_by_source_chat_id("chat"),
+        lambda: store.count_profiles_by_source_chat_id("chat"),
         lambda: store.list_profiles(),
         lambda: store.count_profiles(),
         lambda: store.create_rule(make_rule()),

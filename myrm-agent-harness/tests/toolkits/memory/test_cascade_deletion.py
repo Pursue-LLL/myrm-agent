@@ -3,6 +3,7 @@
 Tests cover:
 - SQLiteRelationalStore.delete_pending_by_source_chat_id
 - SQLiteRelationalStore.count_pending_by_source_chat_id
+- SQLiteRelationalStore.delete_profiles_by_source_chat_id, count_profiles_by_source_chat_id
 - MemoryManagerDeletionMixin.purge_by_source_chat_id (including closing the chat to later writers)
 - MemoryManagerDeletionMixin.count_by_source_chat_id
 """
@@ -14,7 +15,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.relational.sqlite_store import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.memory.strategies.chat_fence import is_closed
-from myrm_agent_harness.toolkits.memory.types import MemoryType, PendingRecord
+from myrm_agent_harness.toolkits.memory.types import MemoryScope, MemoryType, PendingRecord
 
 
 @pytest.fixture
@@ -113,6 +114,46 @@ async def test_delete_pending_with_null_source_chat_id(store: SQLiteRelationalSt
 
 
 @pytest.mark.asyncio
+async def test_profiles_leave_with_the_chat_they_were_written_from(store: SQLiteRelationalStore) -> None:
+    await store.set_profile("__working_state", "digest of chat a", source_chat_id="chat-a")
+    await store.set_profile("__working_state_updated_at", "2026-11-11T00:00:00Z", source_chat_id="chat-a")
+    await store.set_profile("reply_style", "brief", source_chat_id="chat-b")
+    await store.set_profile("timezone", "UTC+8")
+
+    assert await store.count_profiles_by_source_chat_id("chat-a") == 2
+    assert await store.delete_profiles_by_source_chat_id("chat-a") == 2
+
+    assert await store.count_profiles_by_source_chat_id("chat-a") == 0
+    assert await store.get_profile("__working_state") is None
+    assert await store.get_profile("reply_style") == "brief"
+    assert await store.get_profile("timezone") == "UTC+8"
+
+
+@pytest.mark.asyncio
+async def test_a_write_replaces_the_chat_link_of_the_value(store: SQLiteRelationalStore) -> None:
+    await store.set_profile("__working_state", "from chat a", source_chat_id="chat-a")
+    await store.set_profile("__working_state", "the user's own text")
+    assert await store.delete_profiles_by_source_chat_id("chat-a") == 0
+    assert await store.get_profile("__working_state") == "the user's own text"
+
+    await store.set_profile("__working_state", "from chat b", source_chat_id="chat-b")
+    assert await store.delete_profiles_by_source_chat_id("chat-a") == 0
+    assert await store.delete_profiles_by_source_chat_id("chat-b") == 1
+    assert await store.get_profile("__working_state") is None
+
+
+@pytest.mark.asyncio
+async def test_the_entry_of_every_namespace_leaves_with_its_chat(store: SQLiteRelationalStore) -> None:
+    for agent in ("a", "b"):
+        scope = MemoryScope(primary_namespace=f"agent:{agent}", namespaces=["global", f"agent:{agent}"])
+        await store.set_profile("__working_state", f"digest for {agent}", scope=scope, source_chat_id="chat-a")
+
+    assert await store.count_profiles_by_source_chat_id("chat-a") == 2
+    assert await store.delete_profiles_by_source_chat_id("chat-a") == 2
+    assert await store.get_profile("__working_state") is None
+
+
+@pytest.mark.asyncio
 async def test_purge_by_source_chat_id_integration() -> None:
     """The purge deletes through both chat links and the chat's pending records."""
     from myrm_agent_harness.toolkits.memory._manager.deletion import MemoryManagerDeletionMixin
@@ -124,10 +165,11 @@ async def test_purge_by_source_chat_id_integration() -> None:
     mixin._vector = None
     mixin._relational = MagicMock()
     mixin._relational.delete_pending_by_source_chat_id = AsyncMock(return_value=3)
+    mixin._relational.delete_profiles_by_source_chat_id = AsyncMock(return_value=2)
 
     result = await MemoryManagerDeletionMixin.purge_by_source_chat_id(mixin, "chat-xyz")
 
-    assert result == {"semantic": 3, "episodic": 1, "pending": 3}
+    assert result == {"semantic": 3, "episodic": 1, "pending": 3, "profile": 2}
     assert is_closed("u1", "chat-xyz")
     assert mixin.delete_memories_by_metadata.await_args_list == [
         call("source_chat_id", "chat-xyz", memory_types=None),
@@ -138,6 +180,7 @@ async def test_purge_by_source_chat_id_integration() -> None:
         ),
     ]
     mixin._relational.delete_pending_by_source_chat_id.assert_called_once_with("chat-xyz")
+    mixin._relational.delete_profiles_by_source_chat_id.assert_called_once_with("chat-xyz")
 
 
 @pytest.mark.asyncio
@@ -172,6 +215,7 @@ async def test_a_failing_cascade_step_does_not_stop_the_others() -> None:
     mixin._vector.delete_by_filter = AsyncMock(side_effect=RuntimeError("buffer down"))
     mixin._relational = MagicMock()
     mixin._relational.delete_pending_by_source_chat_id = AsyncMock(return_value=2)
+    mixin._relational.delete_profiles_by_source_chat_id = AsyncMock(return_value=0)
 
     result = await MemoryManagerDeletionMixin.purge_by_source_chat_id(mixin, "chat-x")
 
@@ -191,10 +235,11 @@ async def test_count_by_source_chat_id_integration() -> None:
     mixin.list_memory_ids_by_metadata = AsyncMock(return_value={"semantic": ["id1", "id2"], "episodic": ["id3"]})
     mixin._relational = MagicMock()
     mixin._relational.count_pending_by_source_chat_id = AsyncMock(return_value=4)
+    mixin._relational.count_profiles_by_source_chat_id = AsyncMock(return_value=2)
 
     result = await MemoryManagerDeletionMixin.count_by_source_chat_id(mixin, "chat-count")
 
-    assert result == {"semantic": 2, "episodic": 1, "pending": 4}
+    assert result == {"semantic": 2, "episodic": 1, "pending": 4, "profile": 2}
 
 
 @pytest.mark.asyncio
@@ -206,8 +251,10 @@ async def test_count_by_source_chat_id_no_pending() -> None:
     mixin.list_memory_ids_by_metadata = AsyncMock(return_value={"semantic": ["id1"]})
     mixin._relational = MagicMock()
     mixin._relational.count_pending_by_source_chat_id = AsyncMock(return_value=0)
+    mixin._relational.count_profiles_by_source_chat_id = AsyncMock(return_value=0)
 
     result = await MemoryManagerDeletionMixin.count_by_source_chat_id(mixin, "chat-zero")
 
     assert result == {"semantic": 1}
     assert "pending" not in result
+    assert "profile" not in result
