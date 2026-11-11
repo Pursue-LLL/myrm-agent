@@ -3,7 +3,7 @@
 Provides data models for 7 trigger kinds (cron, event, system_event,
 webhook, poll, stream, manual), ``TriggerConfig`` (container for per-job
 trigger rules), and security utilities (SSRF protection, ReDoS prevention,
-constant-time HMAC comparison).
+constant-time secret comparison).
 
 Concrete trigger matching and dispatching is implemented by the application
 layer via the ``TriggerProvider`` protocol in ``protocols.py``.
@@ -87,7 +87,7 @@ class WebhookTrigger:
     """Fires when an HTTP request hits the job's webhook endpoint.
 
     ``path`` defaults to the job ID if not set.
-    ``secret`` is used for HMAC-SHA256 signature verification.
+    ``secret`` is a shared secret the caller must present; ``validate_webhook_secret`` compares it in constant time.
     """
 
     path: str | None = None
