@@ -1,9 +1,10 @@
 """A consolidation cycle the idle worker cancels is never left half applied.
 
 The worker cancels a running cycle when the user's next turn ends. Each case delivers a real ``task.cancel()`` over a
-real manager (SQLite and an embedded Qdrant). Cancelled while the cycle writes, the cycle finishes, journals itself and
-advances its stamp before the cancel reaches the caller, and a maintenance triggered meanwhile is turned away;
-cancelled before the model has answered, it has written nothing.
+real manager (SQLite and an embedded Qdrant). Cancelled while the cycle writes, however often, the cycle finishes,
+journals itself, advances its stamp and runs its completion callback before the cancel reaches the caller, and a
+maintenance triggered meanwhile is turned away; a failure of those writes reaches the caller as it was raised, or is
+logged beside the cancel it would otherwise hide. Cancelled before the model has answered, the cycle has written nothing.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from myrm_agent_harness.toolkits.memory.strategies import consolidation
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import get_last_consolidated_at, run_consolidation
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     CONSOLIDATION_SOURCE_KEY,
+    ConsolidationCompleteCallback,
     ConsolidationResponse,
     ConsolidationStats,
     MergeOp,
@@ -64,26 +66,29 @@ async def merge_products(manager: MemoryManager) -> list[AnyMemory]:
     return [memory for memory in memories if CONSOLIDATION_SOURCE_KEY in memory.metadata]
 
 
-def start_cycle(manager: MemoryManager, memories: Sequence[SemanticMemory]) -> asyncio.Task[ConsolidationStats]:
+def start_cycle(
+    manager: MemoryManager,
+    memories: Sequence[SemanticMemory],
+    on_complete: ConsolidationCompleteCallback | None = None,
+) -> asyncio.Task[ConsolidationStats]:
     response = ConsolidationResponse(operations=merges(memories))
-    return asyncio.create_task(run_consolidation(manager, llm_returning(response), CONFIG))
+    return asyncio.create_task(run_consolidation(manager, llm_returning(response), CONFIG, on_complete=on_complete))
 
 
 def cancel_when_update_begins(
     monkeypatch: pytest.MonkeyPatch,
     cycle: asyncio.Task[object],
-    number: int,
-    *,
+    *numbers: int,
     meanwhile: Callable[[], object] = lambda: None,
 ) -> None:
-    """Cancel ``cycle`` as its ``number``-th memory update begins and run ``meanwhile``; that update itself runs on."""
+    """Cancel ``cycle`` as each of its ``numbers``-th memory updates begins and run ``meanwhile``; those updates run on."""
     update_memory = MemoryManager.update_memory
     updates = 0
 
     async def update(self: MemoryManager, memory_id: str, **fields: object) -> AnyMemory:
         nonlocal updates
         updates += 1
-        if updates == number:
+        if updates in numbers:
             cycle.cancel()
             meanwhile()
             await asyncio.sleep(0)  # a cycle that is not held back receives the cancel right here
@@ -93,21 +98,28 @@ def cancel_when_update_begins(
     monkeypatch.setattr(MemoryManager, "update_memory", update)
 
 
-async def cycle_cancelled_mid_write(manager: MemoryManager, monkeypatch: pytest.MonkeyPatch) -> list[SemanticMemory]:
+async def cycle_cancelled_mid_write(
+    manager: MemoryManager, monkeypatch: pytest.MonkeyPatch, cancels_at: Sequence[int] = (SECOND_MERGE_BEGINS,)
+) -> list[SemanticMemory]:
     memories = await seed_pairs(manager)
     cycle = start_cycle(manager, memories)
-    cancel_when_update_begins(monkeypatch, cycle, SECOND_MERGE_BEGINS)
+    cancel_when_update_begins(monkeypatch, cycle, *cancels_at)
     with pytest.raises(asyncio.CancelledError):
         await cycle
     return memories
 
 
+@pytest.mark.parametrize(
+    "cancels_at",
+    [(SECOND_MERGE_BEGINS,), (SECOND_MERGE_BEGINS, SECOND_MERGE_BEGINS + 1)],
+    ids=["cancelled once", "cancelled again while it still writes"],
+)
 async def test_a_cycle_cancelled_while_it_writes_is_finished_when_the_cancel_arrives(
-    new_manager: NewManager, monkeypatch: pytest.MonkeyPatch
+    new_manager: NewManager, monkeypatch: pytest.MonkeyPatch, cancels_at: tuple[int, ...]
 ) -> None:
     manager = new_manager()
 
-    memories = await cycle_cancelled_mid_write(manager, monkeypatch)
+    memories = await cycle_cancelled_mid_write(manager, monkeypatch, cancels_at)
 
     summary = await get_undo_summary(manager)
     assert summary is not None and (summary.merged, summary.change_count) == (3, 9)
@@ -130,6 +142,23 @@ async def test_the_next_cycle_does_not_merge_what_a_cancelled_cycle_already_merg
     await run_cycle(manager, *merges(memories))
 
     assert len(await merge_products(manager)) == 3
+
+
+async def test_the_completion_callback_of_a_cycle_cancelled_while_it_writes_still_runs(
+    new_manager: NewManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = new_manager()
+    completed: list[ConsolidationStats] = []
+
+    async def on_complete(stats: ConsolidationStats) -> None:
+        completed.append(stats)
+
+    cycle = start_cycle(manager, await seed_pairs(manager), on_complete)
+    cancel_when_update_begins(monkeypatch, cycle, SECOND_MERGE_BEGINS)
+    with pytest.raises(asyncio.CancelledError):
+        await cycle
+
+    assert [stats.merged for stats in completed] == [3]
 
 
 async def test_a_maintenance_triggered_while_a_cancelled_cycle_still_writes_is_turned_away(
@@ -178,6 +207,25 @@ async def test_a_cycle_cancelled_before_the_model_answers_writes_nothing(new_man
     assert await get_undo_summary(manager) is None
     assert await get_last_consolidated_at(manager) is None
     assert len(await manager.list_memories(MemoryType.SEMANTIC)) == len(memories)
+
+
+async def test_a_failure_while_the_cycle_writes_reaches_the_caller_as_it_was_raised(
+    new_manager: NewManager, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    manager = new_manager()
+    failure = RuntimeError("store unavailable")
+
+    async def fails(*_args: object, **_kwargs: object) -> ConsolidationStats:
+        raise failure
+
+    monkeypatch.setattr(consolidation, "execute_operations", fails)
+    caplog.set_level(logging.ERROR, logger=consolidation.logger.name)
+
+    with pytest.raises(RuntimeError) as raised:
+        await start_cycle(manager, await seed_pairs(manager))
+
+    assert raised.value is failure
+    assert "caller was being cancelled" not in caplog.text
 
 
 async def test_a_failure_while_the_cancel_is_pending_is_logged_and_the_cancel_still_arrives(

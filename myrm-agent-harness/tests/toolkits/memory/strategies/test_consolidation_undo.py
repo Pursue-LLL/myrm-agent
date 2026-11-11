@@ -333,6 +333,17 @@ async def test_an_insight_is_part_of_its_cycle_so_undoing_the_cycle_removes_it(n
     assert await manager.get_memory(insight_id) is None
 
 
+async def test_an_insight_of_a_rewrite_only_cycle_is_undone_with_it(new_manager: NewManager) -> None:
+    manager = new_manager()
+    target, other = semantic("User uses vim", 1, importance=0.3), semantic("Unrelated fact about gardening", 2)
+    await seed(manager, [target, other])
+
+    await run_cycle(manager, rewrite(target, "User uses neovim", 0.8), insights=("User prefers modal editors",))
+
+    assert await undo(manager) == UndoResult(rolled_back=2)
+    assert await stored_insights(manager) == []
+
+
 async def test_the_card_of_an_older_cycle_cannot_undo_a_newer_one(new_manager: NewManager) -> None:
     manager = new_manager()
     first, second = semantic(TEA, 1, importance=0.4), semantic(TEA_TOO, 2, importance=0.9)
