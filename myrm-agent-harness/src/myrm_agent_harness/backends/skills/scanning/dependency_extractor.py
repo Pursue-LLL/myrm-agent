@@ -42,6 +42,13 @@ _REQ_COMMENT_RE = re.compile(r"#.*$")
 _REQ_ENV_MARKER_RE = re.compile(r";.*$")
 _REQ_NAME_SPEC_RE = re.compile(r"^([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)\s*(?:\[[^\]]*\])?\s*([<>=!~].*)?$")
 
+# bun.lock is JSONC: Bun writes a trailing comma after the last member of every object and array, which
+# json.loads rejects. The first alternative consumes whole string literals (an unterminated one runs to the end
+# of the text), so commas inside strings are never touched and every character is scanned once, even for
+# adversarial skill-supplied input.
+_JSONC_TRAILING_COMMA_RE = re.compile(r'("[^"\\]*(?:\\(?:.|\Z)[^"\\]*)*(?:"|\Z))|,(?=\s*[}\]])', re.DOTALL)
+_NPM_RELEASE_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?$")
+
 
 @dataclass(frozen=True, slots=True)
 class DeclaredDependency:
@@ -271,63 +278,39 @@ def extract_dependencies_from_bun_lock(
     content: str,
     file_path: str = "",
 ) -> list[DeclaredDependency]:
-    """Extract npm dependencies from bun.lock (v1 JSON format) content."""
-    dependencies: list[DeclaredDependency] = []
+    """Extract npm packages locked to an exact registry version from bun.lock content.
+
+    Each ``packages`` entry is ``[ident, registry, metadata, integrity]`` where ``ident`` is the resolved
+    ``name@version``. Workspace, git, file and tarball idents carry no registry version and are skipped, and a
+    package resolved several times (nested copies) is reported once.
+    """
     try:
-        data = json.loads(content)
-    except Exception as exc:
+        data = json.loads(_JSONC_TRAILING_COMMA_RE.sub(r"\1", content))
+    except (ValueError, RecursionError) as exc:
+        # ValueError covers JSONDecodeError and the integer-digit limit; RecursionError covers hostile nesting.
         logger.debug("Failed to parse bun.lock for dependencies (%s): %s", file_path, exc)
-        return dependencies
+        return []
 
-    if not isinstance(data, dict):
-        return dependencies
+    packages = data.get("packages") if isinstance(data, dict) else None
+    if not isinstance(packages, dict):
+        return []
 
-    workspaces = data.get("workspaces")
-    if isinstance(workspaces, dict):
-        for _ws_key, ws_val in workspaces.items():
-            if not isinstance(ws_val, dict):
-                continue
-            for section, is_dev in (
-                ("dependencies", False),
-                ("devDependencies", True),
-                ("optionalDependencies", False),
-            ):
-                deps_dict = ws_val.get(section)
-                if isinstance(deps_dict, dict):
-                    for pkg_name, ver_spec in deps_dict.items():
-                        if isinstance(pkg_name, str) and pkg_name.strip():
-                            # Remove npm spec prefixes like ^, ~, >=, etc. for lock entry base or keep raw spec
-                            normalized_spec = str(ver_spec).strip() if ver_spec is not None else ""
-                            dependencies.append(
-                                DeclaredDependency(
-                                    name=pkg_name.strip().lower(),
-                                    version_spec=normalized_spec,
-                                    ecosystem="npm",
-                                    file_path=file_path,
-                                    is_dev=is_dev,
-                                )
-                            )
-
-    # In addition, check flat packages if present in bun.lock
-    packages = data.get("packages")
-    if isinstance(packages, dict):
-        for pkg_key, pkg_info in packages.items():
-            if not isinstance(pkg_info, dict):
-                continue
-            name = pkg_info.get("name") or pkg_key.split("@")[0]
-            version = pkg_info.get("version") or ""
-            if isinstance(name, str) and name.strip():
-                dependencies.append(
-                    DeclaredDependency(
-                        name=name.strip().lower(),
-                        version_spec=str(version).strip(),
-                        ecosystem="npm",
-                        file_path=file_path,
-                        is_dev=False,
-                    )
-                )
-
-    return dependencies
+    locked: dict[tuple[str, str], DeclaredDependency] = {}
+    for entry in packages.values():
+        ident = entry[0] if isinstance(entry, list) and entry else None
+        if not isinstance(ident, str):
+            continue
+        # A scope's leading "@" belongs to the name, so the version separator is the first "@" after index 0.
+        separator = ident.find("@", 1)
+        if separator < 1:
+            continue
+        name, version = ident[:separator].lower(), ident[separator + 1 :]
+        if _NPM_RELEASE_VERSION_RE.match(version):
+            locked.setdefault(
+                (name, version),
+                DeclaredDependency(name=name, version_spec=version, ecosystem="npm", file_path=file_path),
+            )
+    return list(locked.values())
 
 
 def extract_dependencies_from_package_lock_json(
