@@ -16,7 +16,7 @@ describe('requestManager', () => {
     await loadRequestManager();
 
     const pageExitListeners = addListener.mock.calls
-      .map(([type]) => type)
+      .map(([type]): string => type)
       .filter((type) => type === 'beforeunload' || type === 'unload');
     expect(pageExitListeners).toEqual([]);
   });
