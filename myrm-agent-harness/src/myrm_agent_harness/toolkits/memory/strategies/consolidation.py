@@ -25,11 +25,11 @@ at near-zero marginal cost. Triggered by end_session() on configured intervals. 
 is a covered-through mark over the order in which memories reached the store; it advances only as far as
 the analyzed window reached and never past a write still being persisted, so a backlog larger than one run
 is drained over consecutive runs and no memory is skipped for arriving late. Once the model has answered, writing
-its answer (operations, insights, undo journal, covered-through stamp, completion callback) runs to the end even if the
-caller is cancelled, so a cycle is never left half applied. The insights a cycle persists derive
-from the chats of every memory it read, so deleting one of those chats reaches them. They are journaled with the
-cycle's other writes, so undoing a cycle that changed existing memories removes them; a cycle that only adds insights
-leaves the undo slot to the earlier cycle that did.
+its answer (operations, insights, undo journal, covered-through stamp, completion callback) is not interrupted by a
+cancel of the caller, which is delivered when the writes are done, so a cycle is never left half applied. The insights
+a cycle persists derive from the chats of every memory it read, so deleting one of those chats reaches them. They are
+journaled with the cycle's other writes, so undoing a cycle that changed existing memories removes them; a cycle that
+only adds insights leaves the undo slot to the earlier cycle that did.
 """
 
 from __future__ import annotations
@@ -299,31 +299,26 @@ async def _apply(
     return stats
 
 
-# The loop keeps only weak references to tasks; an apply nobody awaits any more must not be collected mid-write.
-_unfinished_applies: set[asyncio.Task[ConsolidationStats]] = set()
-
-
 async def _run_to_completion(work: Coroutine[None, None, ConsolidationStats]) -> ConsolidationStats:
-    """Await ``work`` so that cancelling the caller does not interrupt it.
+    """Await ``work`` without letting a cancel of the caller interrupt it; the cancel is delivered once ``work`` is done.
 
     The idle worker cancels a running cycle when the user's next turn ends. A cycle cut off between its writes would
     leave merges half applied, with no undo journal and no covered-through stamp, so the next cycle would read the same
-    memories again and merge them a second time.
+    memories again and merge them a second time. Holding the caller until the writes are done also keeps its maintenance
+    lock, so a cycle triggered meanwhile is turned away instead of merging the same memories.
     """
     task = asyncio.create_task(work)
-    _unfinished_applies.add(task)
-    task.add_done_callback(_unfinished_applies.discard)
-    try:
-        return await asyncio.shield(task)
-    except asyncio.CancelledError:
-        task.add_done_callback(_report_orphaned_failure)
-        raise
-
-
-def _report_orphaned_failure(task: asyncio.Task[ConsolidationStats]) -> None:
-    """Log the failure of an apply whose caller was cancelled: nobody is left to see it raised."""
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.wait({task})
+        except asyncio.CancelledError:
+            cancelled = True
+    if not cancelled:
+        return task.result()
     if not task.cancelled() and (error := task.exception()) is not None:
-        logger.error("Consolidation apply failed after its caller was cancelled: %r", error)
+        logger.error("Consolidation apply failed while its caller was being cancelled: %r", error)
+    raise asyncio.CancelledError
 
 
 async def _advance_stamp(manager: MemoryManager, advance_to: datetime | None) -> None:
