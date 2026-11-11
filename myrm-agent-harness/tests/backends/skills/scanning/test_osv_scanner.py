@@ -197,6 +197,40 @@ async def test_query_osv_batch_pins_the_version_only_for_exact_specs() -> None:
     assert [query.get("version") for query in client.queries_per_batch[0]] == [None, "2.0.0", "3.0.0"]
 
 
+@pytest.mark.parametrize(
+    ("spec", "pinned"),
+    [
+        ("312", "312"),  # pywin32 in uv.lock
+        ("20260107", "20260107"),  # pdfminer-six in uv.lock
+        ("1.2.3", "1.2.3"),
+        ("==2.0.0", "2.0.0"),
+        (">=1.0", None),
+        ("^1.2.3", None),
+        ("*", None),
+        ("latest", None),
+        ("", None),
+    ],
+)
+async def test_query_osv_batch_pins_a_bare_version_even_without_a_dot(spec: str, pinned: str | None) -> None:
+    client = _FakeOsvClient({}, {})
+
+    with patch(_CREATE_CLIENT, return_value=client):
+        await query_osv_batch([_dep("pywin32", spec, "PyPI", "uv.lock")], cache=VulnScanCache())
+
+    assert [query.get("version") for query in client.queries_per_batch[0]] == [pinned]
+
+
+async def test_query_osv_batch_does_not_report_advisories_fixed_before_a_dotless_locked_version() -> None:
+    # OSV answers a version query with the advisories that affect that version: pywin32 312 is past the fix (301),
+    # whereas a query without the version would return every advisory ever filed for the package.
+    client = _FakeOsvClient({"pywin32@*": ["GHSA-aaaa-bbbb-cccc"]}, {"GHSA-aaaa-bbbb-cccc": _GHSA_RECORD})
+
+    with patch(_CREATE_CLIENT, return_value=client):
+        findings = await query_osv_batch([_dep("pywin32", "312", "PyPI", "uv.lock")], cache=VulnScanCache())
+
+    assert findings == []
+
+
 async def test_query_osv_batch_defaults_to_medium_and_skips_the_cache_when_a_record_is_unavailable(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
