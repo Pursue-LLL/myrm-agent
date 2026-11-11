@@ -6796,7 +6796,6 @@
   },
   "sources": {
     "title": "来源",
-    "count": "{count} 个来源",
     "untitled": "未命名",
     "mcp_source": "MCP 技能调用",
     "mcp_calls_count": "共 {count} 次工具调用",
@@ -6812,8 +6811,6 @@
     "conversation_excluded": "已从会话召回中排除",
     "conversation_deleted": "会话已删除",
     "operation_failed": "操作失败",
-    "copyAll": "复制全部",
-    "copyAllSuccess": "来源已复制到剪贴板",
     "mcpSkillFallback": "MCP 技能"
   },
   "auth": {

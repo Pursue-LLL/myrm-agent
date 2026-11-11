@@ -6796,7 +6796,6 @@
   },
   "sources": {
     "title": "ソース",
-    "count": "{count} 個のソース",
     "untitled": "無題",
     "mcp_source": "MCP スキル呼び出し",
     "mcp_calls_count": "ツール呼び出し {count} 回",
@@ -6812,8 +6811,6 @@
     "conversation_excluded": "会話リコールから除外",
     "conversation_deleted": "会話を削除しました",
     "operation_failed": "操作に失敗しました",
-    "copyAll": "すべてコピー",
-    "copyAllSuccess": "ソースをクリップボードにコピーしました",
     "mcpSkillFallback": "MCP スキル"
   },
   "auth": {

@@ -1,5 +1,5 @@
 /**
- * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ./katexExportStyle.ts::getKatexExportStyle (POS: the KaTeX stylesheet and fonts an export with formulas embeds); ../markdownMath.ts::mathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render).
+ * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ./katexExportStyle.ts::getKatexExportStyle (POS: the KaTeX stylesheet and fonts an export with formulas embeds); ../markdownMath.ts::mathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render); @/lib/citations/sourceName::sourceName, NamedSource (POS: what a source is called).
  * [OUTPUT] buildHtmlDocument.
  * [POS] Markdown-to-HTML export renderer for chat conversations.
  */
@@ -18,6 +18,7 @@ import {
 import { isSafeLinkUrl, rehypeSafeLinks } from './exportUrlPolicy';
 import { getKatexExportStyle } from './katexExportStyle';
 import { mathPlugins, normalizeMathDelimiters } from '../markdownMath';
+import { sourceName, type NamedSource } from '@/lib/citations/sourceName';
 import type { Element, ElementContent } from 'hast';
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
@@ -201,15 +202,16 @@ function renderMessageHtml(msg: ExportMessage, renderedContent: string): string 
   const ts = formatTs(msg.createdAt);
 
   let sourcesHtml = '';
-  const sources = msg.metadata?.sources as
-    Array<{ type?: string; title?: string; url?: string; snippet?: string }> | undefined;
+  const sources = msg.metadata?.sources as Array<NamedSource & { index?: number; url?: string }> | undefined;
   if (sources?.length) {
     sourcesHtml = '<div class="sources"><div class="sources-title">Sources</div><ul>';
     for (const s of sources) {
-      const title = esc(s.title || s.url || 'Source');
+      const title = esc(sourceName(s) || s.url || 'Source');
       const link =
         s.url && isSafeLinkUrl(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${title}</a>` : title;
-      sourcesHtml += `<li>${link}</li>`;
+      // The answer cites a source by this number, which runs on across the turns of a chat.
+      const number = s.index ? `[${esc(String(s.index))}] ` : '';
+      sourcesHtml += `<li>${number}${link}</li>`;
     }
     sourcesHtml += '</ul></div>';
   }

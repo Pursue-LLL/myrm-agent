@@ -85,17 +85,19 @@ describe('Copy as Markdown', () => {
     expect(writeRichToClipboard).toHaveBeenCalledExactlyOnceWith('The answer.', '<p>The answer.</p>');
   });
 
-  it('names a knowledge-base source and an MCP source by the name they carry, not as untitled', () => {
+  // Numbers run on across the turns of a chat, so a later answer's own sources start above 1 and its text cites them by
+  // those numbers. A wiki hit and an MCP call have no address, only the name they carry.
+  it('lists a source under the number the answer cites it by, named the way the interface names it', () => {
     const sources: Source[] = [
-      { index: 1, type: 'knowledge', kb_name: 'Work', filename: 'deploy-notes', section: 'Rollback' },
-      { index: 2, type: 'mcp', skill_name: 'github' },
+      { index: 4, type: 'knowledge', kb_name: 'Work', filename: 'index', section: 'index_routing' },
+      { index: 5, type: 'mcp', skill_name: 'github' },
     ];
-    render(<Copy message={messageOf({ sources })} markdownRef={{ current: null }} />);
+    render(<Copy message={messageOf({ content: 'See [4] and [5].', sources })} markdownRef={{ current: null }} />);
 
     copyAs(COPY_MARKDOWN.zh);
 
     expect(writeToClipboard).toHaveBeenCalledExactlyOnceWith(
-      'The answer.\n\n来源:  \n[1] deploy-notes § Rollback  \n[2] github',
+      'See [4] and [5].\n\n来源:  \n[4] index § 目录索引  \n[5] github',
     );
   });
 

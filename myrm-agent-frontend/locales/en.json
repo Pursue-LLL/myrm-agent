@@ -6796,7 +6796,6 @@
   },
   "sources": {
     "title": "Sources",
-    "count": "{count} sources",
     "untitled": "Untitled",
     "mcp_source": "MCP Skill Call",
     "mcp_calls_count": "{count} tool calls",
@@ -6812,8 +6811,6 @@
     "conversation_excluded": "Excluded from Conversation Recall",
     "conversation_deleted": "Conversation deleted",
     "operation_failed": "Operation failed",
-    "copyAll": "Copy all",
-    "copyAllSuccess": "Sources copied to clipboard",
     "mcpSkillFallback": "MCP skill"
   },
   "auth": {

@@ -6796,7 +6796,6 @@
   },
   "sources": {
     "title": "소스",
-    "count": "{count}개 소스",
     "untitled": "제목 없음",
     "mcp_source": "MCP 스킬 호출",
     "mcp_calls_count": "{count}회 도구 호출",
@@ -6812,8 +6811,6 @@
     "conversation_excluded": "대화 회상에서 제외됨",
     "conversation_deleted": "대화가 삭제되었습니다",
     "operation_failed": "작업 실패",
-    "copyAll": "모두 복사",
-    "copyAllSuccess": "출처가 클립보드에 복사되었습니다",
     "mcpSkillFallback": "MCP 스킬"
   },
   "auth": {

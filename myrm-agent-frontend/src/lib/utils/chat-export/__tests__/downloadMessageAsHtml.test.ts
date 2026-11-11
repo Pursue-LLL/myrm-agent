@@ -89,4 +89,19 @@ describe('downloadMessageAsHtml', () => {
     expect(list.querySelectorAll('br')).toHaveLength(3);
     expect([...list.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual(['https://one.example/a']);
   });
+
+  // A wiki file or a conversation is named by text its author chose, so a name is data that never runs as markup.
+  it('keeps the name of a source that carries markup or a script link from running', async () => {
+    const sources: Source[] = [
+      { index: 1, type: 'conversation_history', title: '<img src=x onerror=alert(1)><script>alert(2)</script>' },
+      { index: 2, type: 'knowledge', kb_name: 'Work', filename: '[open](javascript:alert(3))' },
+    ];
+
+    await downloadMessageAsHtml(messageOf({ content: 'Claim.', sources }), false, LABELS);
+
+    const list = (await bodyOfDownload(0)).lastElementChild;
+    expectNonNull(list, 'sources paragraph');
+    expect(list.querySelector('img, script, [onerror]')).toBeNull();
+    expect(list.querySelector('a[href]')).toBeNull();
+  });
 });

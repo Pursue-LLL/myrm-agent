@@ -1,10 +1,12 @@
 /**
- * [INPUT] error-handling::redactSensitiveClientText (POS: client-side secret redaction, CWE-312); store/chat/types::Message, Source (type-only).
+ * [INPUT] error-handling::redactSensitiveClientText (POS: client-side secret redaction, CWE-312); citations/sourceName::sourceName, SectionLabeler (POS: what a source is called); store/chat/types::Message, Source (type-only), resolveSourceClickUrl.
  * [OUTPUT] ReasoningLayout, MessageLabels; formatReasoning, formatSourcesFootnotes, formatMessageMarkdown, extractMessageTitle.
  * [POS] The text one copied or exported message is made of: its Markdown (reasoning, answer, sources) and the title its file is named after. Pure functions, so the single-message exports of every format and the copy button share one source. The wording of the labels is the caller's, so this module holds no language.
  */
+import { sourceName, type SectionLabeler } from '@/lib/citations/sourceName';
 import { redactSensitiveClientText } from '@/lib/utils/error-handling';
 import type { Message, Source } from '@/store/chat/types';
+import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 
 const TITLE_MAX_CHARS = 80;
 
@@ -21,6 +23,8 @@ export interface MessageLabels {
   sources: string;
   /** Stands in for a source that has no address and no name of any kind. */
   untitledSource: string;
+  /** Words a wiki section the way the interface does; a section is left as it is when absent. */
+  sectionLabel?: SectionLabeler;
 }
 
 /**
@@ -36,35 +40,22 @@ export function formatReasoning(reasoning: string, layout: ReasoningLayout, labe
 }
 
 /**
- * A web page is named by its address, else its title. The other kinds carry their name in a field of their own: a wiki
- * hit in its file (with the section, as the interface shows it) or its knowledge base, an MCP call in its skill. A
- * source with none of them gets the caller's stand-in.
- */
-function sourceName(source: Source, untitled: string): string {
-  if (source.url) {
-    return source.url;
-  }
-  if (source.title) {
-    return source.title;
-  }
-  if (source.filename) {
-    return source.section ? `${source.filename} § ${source.section}` : source.filename;
-  }
-  return source.skill_name || source.kb_name || untitled;
-}
-
-/**
  * The block that lists a message's sources, empty when it has none. It starts with the blank line that sets it off from
- * the text before it.
+ * the text before it. A source is listed under the number the answer cites it by, which runs on across the turns of a
+ * chat, so it is not the source's place in the list. A web page is listed by its address, the other kinds by the name
+ * they carry, and a source with neither gets the caller's stand-in.
  */
 export function formatSourcesFootnotes(
   sources: Source[] | undefined,
-  labels: Pick<MessageLabels, 'sources' | 'untitledSource'>,
+  labels: Pick<MessageLabels, 'sources' | 'untitledSource' | 'sectionLabel'>,
 ): string {
   if (!sources || sources.length === 0) {
     return '';
   }
-  const lines = sources.map((s, i) => `[${i + 1}] ${sourceName(s, labels.untitledSource)}`);
+  const lines = sources.map(
+    (source) =>
+      `[${source.index}] ${resolveSourceClickUrl(source) || sourceName(source, labels.sectionLabel) || labels.untitledSource}`,
+  );
   // Two trailing spaces make each source its own line wherever the Markdown is rendered; a plain newline would run
   // them together into one paragraph.
   return `\n\n${labels.sources}:  \n${lines.join('  \n')}`;
@@ -77,14 +68,14 @@ export function formatMessageMarkdown(
   redact = true,
   reasoningLayout: ReasoningLayout = 'fold',
 ): string {
+  // A source's address or name is text from the page as much as the answer is, and a URL often carries a key.
+  const mask = (text: string): string => (redact ? redactSensitiveClientText(text) : text);
   const lines: string[] = [];
-  const reasoning = redact && message.reasoning ? redactSensitiveClientText(message.reasoning) : message.reasoning;
-  if (includeReasoning && reasoning) {
-    lines.push(...formatReasoning(reasoning, reasoningLayout, labels.reasoning));
+  if (includeReasoning && message.reasoning) {
+    lines.push(...formatReasoning(mask(message.reasoning), reasoningLayout, labels.reasoning));
   }
-  const content = redact ? redactSensitiveClientText(message.content) : message.content;
-  lines.push(content);
-  lines.push(formatSourcesFootnotes(message.sources, labels));
+  lines.push(mask(message.content));
+  lines.push(mask(formatSourcesFootnotes(message.sources, labels)));
   return lines.join('\n').trim();
 }
 
