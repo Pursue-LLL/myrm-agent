@@ -198,16 +198,19 @@ def test_wiki_clip_queue_compile_true_enqueues_raw(tmp_path: Path) -> None:
 def test_wiki_clip_payload_too_large(tmp_path: Path) -> None:
     client, _, _ = _build_wiki_client(tmp_path)
     try:
-        huge = "x" * (MAX_CLIP_PAYLOAD_BYTES + 1)
+        # Starlette rejects a text form field above 1 MB before the route runs, so only an uploaded
+        # asset can carry a payload large enough to reach the route's own limit.
+        huge_asset = b"x" * (MAX_CLIP_PAYLOAD_BYTES + 1)
         response = client.post(
             "/api/v1/wiki/clip",
             data={
                 "source_url": "https://example.com/huge",
                 "title": "Huge",
                 "clip_mode": "full_page",
-                "markdown": huge,
                 "queue_compile": "false",
+                "asset_urls": json.dumps(["https://example.com/huge.bin"]),
             },
+            files=[("asset_files", ("asset.bin", huge_asset, "application/octet-stream"))],
         )
         assert response.status_code == 413
     finally:
