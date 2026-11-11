@@ -282,8 +282,8 @@ async def query_osv_batch(
             advisory_ids_per_dep = await _query_advisory_ids(client, uncached_deps, semaphore)
             wanted_ids = {advisory_id for ids in advisory_ids_per_dep if ids for advisory_id in ids}
             records = await _fetch_records(client, wanted_ids, semaphore) if resolve_severity else {}
-    except Exception as exc:  # Fail open: an unreachable OSV must not break the caller's scan.
-        logger.debug("OSV query failed: %s", exc)
+    except Exception as exc:  # Fail open: an unusable OSV client must not break the caller's scan.
+        logger.warning("OSV client failed (%s); dependencies without a cached result were not checked.", exc)
         return findings
 
     for dep, advisory_ids in zip(uncached_deps, advisory_ids_per_dep, strict=True):

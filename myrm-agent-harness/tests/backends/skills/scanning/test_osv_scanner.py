@@ -351,7 +351,9 @@ async def test_query_osv_batch_keeps_the_other_batches_when_one_fails() -> None:
     assert cache.get("npm", "pkg-120", "1.0.0") is not None
 
 
-async def test_query_osv_batch_returns_cached_findings_when_osv_is_unreachable() -> None:
+async def test_query_osv_batch_warns_and_returns_cached_findings_when_the_client_cannot_be_used(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     cache = VulnScanCache()
     cached = AdvisoryFinding(
         advisory_id="GHSA-cached",
@@ -364,10 +366,12 @@ async def test_query_osv_batch_returns_cached_findings_when_osv_is_unreachable()
     )
     cache.set("npm", "cached-pkg", "1.0.0", [cached])
 
-    with patch(_CREATE_CLIENT, side_effect=ConnectionError("offline")):
+    with patch(_CREATE_CLIENT, side_effect=ConnectionError("offline")), caplog.at_level(logging.WARNING):
         findings = await query_osv_batch([_dep("cached-pkg"), _dep("uncached-pkg")], cache=cache)
 
     assert [f.advisory_id for f in findings] == ["GHSA-cached"]
+    # A scan that silently skipped every uncached dependency would look like a clean result.
+    assert "OSV client failed (offline)" in caplog.text
 
 
 async def test_query_osv_batch_without_dependencies_never_touches_the_network() -> None:
