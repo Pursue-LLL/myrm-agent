@@ -188,17 +188,17 @@ myrm_agent_harness/
 >
 > 不在覆盖范围内的：已生效的档案事实（姓名、时区、偏好等跨对话的用户事实，没有单个对话拥有它：提议它的审批记录随对话清除，事实本身保留；`__working_state` 工作状态则随写下它的对话清除，未被清除时 7 天后自行过期，用户也可在设置里改写或清除）、手工添加的规则、MCP 客户端的写入（它们没有对话），SDK 的会话终态巩固（`HyperConsolidator`）提炼出的自愈规则（它写的任务摘要情景记忆带对话链接），以及没有记录过来源对话的存量数据（合成记忆、提取出的规则、档案类提议、工作状态与缓冲行；不回填：合成记忆仍只按 `source_chat_id` 级联，缓冲行靠容量淘汰，规则需手动删除，档案类提议留在审批队列等待处理，工作状态 7 天后自行过期）。
 >
-> **Façade 编排边界**：`MemoryManager` 负责统一 façade，不再内联 `namespace` 派生、scope 绑定、写入目标裁剪和渠道亲和力重加权，这些纯逻辑统一收敛到 `_internal/scope.py`；扫描、审批路由、分桶、批量去重以及 convenience memory 构造统一收敛到 `_internal/write_service.py`；sanitize、typed recall 路由、RRF 前后编排、graph enrich 与 raw 裁剪统一收敛到 `_internal/search_service/`；审批流、profile 写入和安全扫描统一收敛到 `_internal/governance_service.py`；health、snapshot 和 maintenance cycle 统一收敛到 `_internal/maintenance_service.py`。
+> **Façade 编排边界**：`MemoryManager` 是统一 façade；`namespace` 派生、scope 绑定、写入目标裁剪和渠道亲和力重加权这类纯逻辑位于 `_internal/scope.py`；扫描、审批路由、分桶、批量去重以及 convenience memory 构造位于 `_internal/write_service.py`；sanitize、typed recall 路由、RRF 前后编排、graph enrich 与 raw 裁剪位于 `_internal/search_service/`；审批流、profile 写入和安全扫描位于 `_internal/governance_service.py`；health、snapshot 和 maintenance cycle 位于 `_internal/maintenance_service.py`。
 >
 > **Digest 生命周期**：`task_digest` 会以 `EpisodicMemory(event_type='task_digest')` 存储，并通过 `MemoryLifecycle` 建模为 `tier='l2'`、`evaporation_state='pending'`、`claim_graph_state='pending'`。向量层会将它扁平化持久化为 metadata 字段，但业务逻辑统一基于 typed lifecycle 推进。
 >
 > **Claim Graph Binding 继承**：已蒸发的 L2 digest 会被 maintenance 编译成图中的 `Claim` 节点和 `Evidence` 节点，二者会继承 digest 的 `primary_namespace/namespaces/agent_id/channel_id/conversation_id/task_id`，并以 `primary_namespace + claim_key` 作为编译层 Claim 身份，避免不同 task/channel/agent 下的同名结论被错误合并。
 >
-> **Claim Graph 语义关系闭环**：编译后的 `Claim` / `Evidence` 节点会按语义关系连接，而不再只看 success/fail polarity。当前支持 `SUPPORTED_BY`、`CONTRADICTED_BY`、`SUPERSEDED_BY`、`CONSTRAINED_BY`；Claim 节点保留 `confidence`、`freshness_days`、`contradiction_status` 与 `latest_relationship_type`，Digest lifecycle 会推进到 `claim_graph_state='compiled'` 并回写 `claim_graph_node_id/claim_graph_updated_at/claim_graph_conflict`，保证后续增量编译可重复执行且不重复消费。
+> **Claim Graph 语义关系闭环**：编译后的 `Claim` / `Evidence` 节点会按语义关系连接（不只是 success/fail polarity）。当前支持 `SUPPORTED_BY`、`CONTRADICTED_BY`、`SUPERSEDED_BY`、`CONSTRAINED_BY`；Claim 节点保留 `confidence`、`freshness_days`、`contradiction_status` 与 `latest_relationship_type`，Digest lifecycle 会推进到 `claim_graph_state='compiled'` 并回写 `claim_graph_node_id/claim_graph_updated_at/claim_graph_conflict`，保证后续增量编译可重复执行且不重复消费。
 >
-> **显式变更语义**：`task_digest` 现在允许额外提供 `**Change Kind**: support|contradict|supersede|constrain|none`。当该字段存在时，Claim 编译会优先使用它判定图关系；只有缺失时才回退到关键词和 token overlap 规则。这样可以减少“迁移/替代/约束变化”被误判成普通 polarity 冲突。
+> **显式变更语义**：`task_digest` 可额外提供 `**Change Kind**: support|contradict|supersede|constrain|none`。该字段存在时，Claim 编译优先使用它判定图关系；缺失时回退到关键词和 token overlap 规则。这样可以减少“迁移/替代/约束变化”被误判成普通 polarity 冲突。
 >
-> **Claim 一等检索对象**：`Claim` 节点在 recall 阶段会被恢复成正式的 `ClaimMemory(memory_type='claim')`，不再伪装成 `SemanticMemory`。Recall 会先按 `primary_namespace` 逐 namespace **精确过滤**当前 manager 可见的 Claim，再叠加 freshness / contradiction / channel affinity 排序。这保证了事实层和编译知识层的类型边界清晰，也避免 L3 compiled knowledge 重新变成串台源。
+> **Claim 一等检索对象**：`Claim` 节点在 recall 阶段会被恢复成正式的 `ClaimMemory(memory_type='claim')`，而不是 `SemanticMemory`。Recall 会先按 `primary_namespace` 逐 namespace **精确过滤**当前 manager 可见的 Claim，再叠加 freshness / contradiction / channel affinity 排序。这保证了事实层和编译知识层的类型边界清晰，也避免 L3 compiled knowledge 重新变成串台源。
 >
 > **Digest Recall 隐藏规则**：`task_digest` 属于 L2 编译原料，不属于用户侧普通 recall 对象。搜索编排会在普通 recall 阶段主动隐藏 `event_type='task_digest'` 的 episodic 结果，避免“原始 digest + 编译后 claim”同时进入模型上下文，浪费 token 并打乱知识层次。
 >
@@ -383,7 +383,7 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 
 ### 4.7 与竞品对比
 
-以下对比为 **定性**。若需在文档中对「自适应召回、检索成本或延迟」声称具体百分比，须在仓库内附上可重复的基准脚本或原始数据集与版本号——**本节不再预设未核验的百分比**。
+以下对比为 **定性**。若需在文档中对「自适应召回、检索成本或延迟」声称具体百分比，须在仓库内附上可重复的基准脚本或原始数据集与版本号——**本节不预设未核验的百分比**。
 
 | 维度               | MemPalace | MyrmAgent                         | 说明 |
 | ------------------ | --------------------- | --------------------------------- | ---- |
@@ -544,7 +544,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 
 - 加权几何平均，类型感知权重（见 `signals.py`），每套权重之和为 1；除语义分数外各信号下限 0.01，权重为 0 的信号不参与
 - 语义分数是权重最大的一项（Semantic 类型 0.65）；相关度接近时由新近度、重要度、用户评分与类型先验决定先后，相关度差距大时语义分数决定
-- **召回次数不参与排序**：每条返回的命中都会被记一次使用，次数衡量的是曝光而不是有用性；用它排序会让先被展示的记忆一直被展示，新写入的事实挤不进前列（本仓库金标准召回基准，离线 32 维词哈希向量、另写入 16 条干扰记忆：使用戳开启且次数参与排序时三次运行 ndcg@5 0.81–0.83、mrr 0.78–0.80，次数移出排序后恢复到使用戳关闭时的 0.88 / 0.88；语料很小，只说明使用戳不再拉低质量，不代表真实嵌入模型下的绝对分数）。使用戳只服务生命周期（遗忘、陈旧性复审、健康度、记忆卡片，见「访问计数」）。唯一例外是可选的 `enable_gravity_decay`（默认关闭），它的幂律衰减把召回次数并入 recency 项
+- **召回次数不参与排序**：每条返回的命中都会被记一次使用，次数衡量的是曝光而不是有用性；用它排序会让先被展示的记忆一直被展示，新写入的事实挤不进前列（本仓库金标准召回基准，离线 32 维词哈希向量、另写入 16 条干扰记忆：使用戳开启且次数参与排序时三次运行 ndcg@5 0.81–0.83、mrr 0.78–0.80，次数移出排序后恢复到使用戳关闭时的 0.88 / 0.88；语料很小，只说明使用戳不会拉低质量，不代表真实嵌入模型下的绝对分数）。使用戳只服务生命周期（遗忘、陈旧性复审、健康度、记忆卡片，见「访问计数」）。唯一例外是可选的 `enable_gravity_decay`（默认关闭），它的幂律衰减把召回次数并入 recency 项
 - `type_prior` 是常量信号（下限 0.01）的指数，等价于每类记忆固定的折扣，与记忆个体无关：Profile 无折扣，Semantic / Claim 约 ×0.79（`0.01^0.05`），Episodic / Procedural 约 ×0.58（`0.01^0.12`）。它与 `RetrievalConfig.type_weights`（RRF 融合阶段的类型权重）是两处独立的类型先验
 - Procedural 的 Importance 权重（0.45）同样是固定折扣：规则没有 `importance` 字段，每条规则读到的都是缺省 0.5（`0.5^0.45` ≈ ×0.73），与规则个体无关。规则的强弱由 `priority`（规则的 SQL 查询按它降序，`relational/_rule_mixin.py`）和 `tool_rule_priority`（CRITICAL 规则在遗忘中受保护）承载；`memory_save_tool` 与 MCP `memory_store` 的 `importance` 只对 knowledge 生效（见 `agent_surface/memory_agent_tools/save_tool.py`、`agent_surface/mcp_server/store_tool.py`；两个入口都在 `importance` 参数本身写明 “knowledge category only”，共用常量 `MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION`，MCP 客户端只看参数列表时也不会给其它类别传分）；`memory_manage(update)` 带 `new_importance` 改规则时，规则不存该值，回执在 `Memory updated (ID: …)` 之后如实说明 “Importance was not changed”，并指向 `rule_priority`（`agent_surface/memory_manage_core.py`）
 - 纠正链抑制：被纠正记忆的分数乘以 `correction_penalty`（默认 0.1）
@@ -1090,7 +1090,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - 默认 $G = 1.8$、$T = 24$ 小时、$w_{int} = 0.15$、$w_{qual} = 0.25$、$\varepsilon = 10^{-4}$（`GravityDecayConfig`）；时钟回退或未来时间戳按 $\Delta t = 0$ 兜底，互动数下限为 $0$、质量评分截断到 $[0, 1]$；结果是不小于 $\varepsilon$ 的有限正数，不归一化到 $[0, 1]$。
 - **5 维自适应用户偏好向量（`DynamicPreferenceVector`）**：
   - 维护五个核心维度：`recency`（时效性）、`actionability`（行动落地导向）、`technical_depth`（技术深度）、`conciseness`（简洁度）、`breadth`（覆盖广度）；
-  - 强类型硬截断区间守卫：所有维度均被严格限制在 $[0.05, 3.0]$ 安全区间内，默认基准为 $1.0$；`locked=True` 的向量不再被拟合。
+  - 强类型硬截断区间守卫：所有维度均被严格限制在 $[0.05, 3.0]$ 安全区间内，默认基准为 $1.0$；`locked=True` 的向量不参与拟合。
 - **确定性在线单步拟合器（`DynamicPreferenceFitter`）**：
   - 单步梯度更新：每个反馈动作（`FeedbackAction`：`MORE_CODE`、`MORE_CONCISE`、`MORE_IN_DEPTH`、`MORE_RECENT`、`MORE_OVERVIEW`、`POSITIVE_ACCEPT`、`NEGATIVE_RETRY`）对应一组各维度的方向系数，乘以学习率（$\eta = 0.08$）后，单维步长硬截断到 $\pm 0.15$，防止剧烈振荡；没有动量项，每一步只取决于当前权重与本次动作；
   - L2 先验收缩阻尼（Shrinkage Damping）：每一步拟合时按 $\lambda = 0.02$ 向基准 $1.0$ 回拉（$w' = \text{clamp}(w + \text{step} - \lambda (w - 1),\ 0.05,\ 3.0)$），防止长期漂移或极化；
