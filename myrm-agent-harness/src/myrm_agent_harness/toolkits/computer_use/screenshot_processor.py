@@ -3,7 +3,7 @@
 Pre-resize screenshots to satisfy model vision encoder constraints, avoiding
 server-side resize that causes coordinate drift (~14% on Retina displays).
 
-Algorithm ported from Anthropic's reference implementation with multi-model support.
+The target size is searched against the configured ``ImageConstraints`` (edge length and token budget).
 
 [INPUT]
 - types::ImageConstraints, ScreenInfo (POS: shared type definitions)
@@ -50,7 +50,7 @@ def target_image_size(
 ) -> tuple[int, int]:
     """Largest (w, h) preserving aspect ratio within vision encoder budget.
 
-    Binary-search algorithm from Anthropic's reference implementation.
+    Binary-searches the longer edge; the other edge follows from the aspect ratio.
     Returns input unchanged if already within constraints.
     """
     ppt = constraints.px_per_token

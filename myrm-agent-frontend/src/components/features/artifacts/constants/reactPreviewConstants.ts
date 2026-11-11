@@ -2,7 +2,7 @@
  * React预览配置常量
  */
 
-/** 预装依赖版本（与 Claude Artifacts 对齐） */
+/** 预览沙箱始终安装的依赖及版本（与按代码检测到的可选依赖合并后交给 Sandpack） */
 export const PRESET_DEPENDENCIES: Record<string, string> = {
   // UI 相关
   'lucide-react': 'latest',
