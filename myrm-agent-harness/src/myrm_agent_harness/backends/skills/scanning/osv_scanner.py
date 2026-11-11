@@ -105,14 +105,17 @@ def parse_osv_severity(vuln_data: Mapping[str, object]) -> ScanSeverity:
 
 
 def _normalize_exact_version(version_spec: str) -> str | None:
-    """Extract exact version string if pinned with == or exact numbers, else None."""
+    """Extract the exact version a spec pins: ``==1.2.3``, or a bare version such as ``1.2.3``, ``312`` or ``20260107``.
+
+    A lockfile entry is a bare version and not every project's versions contain a dot, so the dot is optional.
+    """
     spec = version_spec.strip()
     if not spec:
         return None
     match = re.match(r"^==?\s*([0-9A-Za-z._-]+)$", spec)
     if match:
         return match.group(1).strip()
-    if re.match(r"^[0-9]+(?:\.[0-9A-Za-z._-]+)+$", spec):
+    if re.match(r"^[0-9]+(?:\.[0-9A-Za-z._-]+)*$", spec):
         return spec
     return None
 
