@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 # Assumes T_prefix=30k, T_cleared > T_prefix * (1-P), at 90% discount: 30k * 0.1 = 3k.
 # 3000 tokens balances cache protection without being overly conservative.
 
+
 @dataclass(frozen=True, slots=True)
 class CacheTtlPruneConfig:
     """Cache-TTL based context pruning configuration.
@@ -32,6 +33,14 @@ class CacheTtlPruneConfig:
 
     ttl_seconds: float = 300.0
     """Cache TTL in seconds. Default 5min covers Anthropic/Google/DeepSeek."""
+
+    cold_cache_prune_enabled: bool = True
+    """Whether a prompt cache that looks cold (idle past ``ttl_seconds``, or a stably low provider hit rate) may start a prune.
+
+    Off for a route that signs its reasoning: the prune lasts one request, but a block signed in that request is bound
+    to the pruned prompt and refused against the full one in the next. Context pressure
+    (``emergency_prune_ratio``) prunes regardless.
+    """
 
     soft_trim_ratio: float = 0.3
     """Context-to-window ratio at which soft trimming begins."""
@@ -105,15 +114,19 @@ class CacheTtlPruneConfig:
     archive_summary_max_tasks_per_chat: int = 2
     """Maximum queued/running archive summary jobs for one chat."""
 
+
 DEFAULT_CACHE_TTL_PRUNE_CONFIG = CacheTtlPruneConfig()
+
 
 def _non_negative_int(value: object) -> int:
     return max(int(value), 0) if isinstance(value, (int, float)) else 0
+
 
 def _ratio(value: object) -> float:
     if not isinstance(value, (int, float)):
         return 0.0
     return min(max(float(value), 0.0), 1.0)
+
 
 @dataclass(frozen=True, slots=True)
 class CacheUsageFeedback:

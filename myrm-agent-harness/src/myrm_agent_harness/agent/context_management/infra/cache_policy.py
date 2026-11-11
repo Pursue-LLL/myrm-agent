@@ -59,6 +59,7 @@ _POLICY_PROFILES: tuple[CacheTtlPrunePolicyProfile, ...] = (
             soft_trim_ratio=0.25,
             hard_clear_ratio=0.45,
             min_prunable_tokens=8_000,
+            cold_cache_prune_enabled=False,
         ),
         reason="anthropic_short_cache_ttl_profile",
         source_url="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching",

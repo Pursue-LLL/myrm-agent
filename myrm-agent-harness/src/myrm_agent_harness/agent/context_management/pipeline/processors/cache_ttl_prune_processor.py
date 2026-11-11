@@ -118,7 +118,10 @@ class CacheTtlPruneProcessor(BaseProcessor):
         return "cache_ttl_prune"
 
     def _is_cache_expired(self, context: ProcessorContext) -> bool:
-        """Determine if prompt cache has likely expired."""
+        """Determine if prompt cache has likely expired; never while the config does not prune on a cold cache."""
+        if not self._config.cold_cache_prune_enabled:
+            return False
+
         feedback = CacheUsageFeedback.from_mapping(context.metadata.get("cache_usage_feedback"))
         feedback_decision = self._cache_feedback_expired(feedback)
         if feedback_decision is not None:
