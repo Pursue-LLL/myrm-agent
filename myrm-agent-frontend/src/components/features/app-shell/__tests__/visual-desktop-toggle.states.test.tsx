@@ -5,8 +5,9 @@
  * - ../VisualDesktopToggle (POS: 沙箱/本地 VNC 浮动面板与接管控制条)
  *
  * [OUTPUT]
- * Vitest: 桌面视图只在浏览器端按需加载、没有沙箱、关掉又重开后迟到的加载结果、套餐无 VNC 权益、
- * 沙箱之外直连本地桌面、浮动入口关闭面板、持有控制时卸载、托管接管的 Skip/Done 与自动检测。
+ * Vitest: 桌面视图只在浏览器端按需加载、没有沙箱、关掉重开或重连后迟到的加载结果、套餐无 VNC 权益、
+ * 沙箱之外直连本地桌面（含重连）、浮动入口关闭面板、持有控制时卸载、
+ * 托管接管只在开始时打开一次、Skip/Done 与自动检测。
  *
  * [POS]
  * 与 visual-desktop-toggle.test.tsx 共用 visualDesktopToggleKit 的替身；这里覆盖面板的各种状态与边界。
@@ -107,6 +108,24 @@ describe('VisualDesktopToggle states', () => {
         expect(screen.queryByText('loadFailed')).not.toBeInTheDocument();
       },
     );
+
+    it('ignores a reply that a reconnect has overtaken', async () => {
+      const first = deferred<ReturnType<typeof vncResponse>>();
+      const second = deferred<ReturnType<typeof vncResponse>>();
+      mocks.fetchSandboxVncUrl.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+      openPanel();
+      await waitFor(() => expect(mocks.fetchSandboxVncUrl).toHaveBeenCalledTimes(1));
+      fireEvent.click(screen.getAllByRole('button', { name: 'reconnect' })[0]);
+      await waitFor(() => expect(mocks.fetchSandboxVncUrl).toHaveBeenCalledTimes(2));
+
+      await act(async () => second.resolve(vncResponse('wss://second.example/sb-1')));
+      await act(async () => first.resolve(vncResponse('wss://first.example/sb-1')));
+
+      expect(await screen.findByTestId('visual-desktop')).toHaveAttribute(
+        'data-ws-url',
+        'wss://second.example/sb-1?token=tok',
+      );
+    });
   });
 
   describe('plan and deployment', () => {
@@ -133,6 +152,19 @@ describe('VisualDesktopToggle states', () => {
       openPanel();
 
       expect(await screen.findByTestId('visual-desktop')).toHaveAttribute('data-ws-url', 'ws://localhost:6080');
+      expect(mocks.fetchUserSandbox).not.toHaveBeenCalled();
+    });
+
+    it('reconnects the local desktop without looking for a sandbox that is not there', async () => {
+      mocks.sandbox = false;
+      mocks.fetchUserSandbox.mockResolvedValue(null);
+      openPanel();
+      const before = await screen.findByTestId('visual-desktop');
+
+      fireEvent.click(screen.getByRole('button', { name: 'reconnect' }));
+
+      await waitFor(() => expect(screen.getByTestId('visual-desktop')).not.toBe(before));
+      expect(screen.getByTestId('visual-desktop')).toHaveAttribute('data-ws-url', 'ws://localhost:6080');
       expect(mocks.fetchUserSandbox).not.toHaveBeenCalled();
     });
   });
@@ -178,6 +210,47 @@ describe('VisualDesktopToggle states', () => {
         ui_mode: 'managed',
         auto_detect_completion: autoDetectCompletion,
       });
+
+    it('opens for a takeover that starts while the page is up, and again for the next one', async () => {
+      render(<VisualDesktopToggle />);
+      expect(desktop()).not.toBeInTheDocument();
+
+      act(() => ask(false));
+      expect(await screen.findByTestId('visual-desktop')).toBeInTheDocument();
+
+      act(() => useBrowserTakeoverStore.getState().completeTakeover());
+      fireEvent.click(screen.getByRole('button', { name: 'close' }));
+      await waitFor(() => expect(desktop()).not.toBeInTheDocument());
+
+      act(() => ask(false));
+      expect(await screen.findByTestId('visual-desktop')).toBeInTheDocument();
+    });
+
+    it('stays closed once the person closes it, and the launcher brings it back with Skip and Done', async () => {
+      ask(false);
+      render(<VisualDesktopToggle />);
+      await screen.findByTestId('visual-desktop');
+
+      fireEvent.click(screen.getByRole('button', { name: 'close' }));
+      await settle();
+      expect(desktop()).not.toBeInTheDocument();
+
+      fireEvent.click(launcher());
+      expect(await screen.findByRole('button', { name: 'takeoverDone' })).toBeInTheDocument();
+    });
+
+    it('does not pop open when the takeover ends while the panel is closed', async () => {
+      ask(false);
+      render(<VisualDesktopToggle />);
+      await screen.findByTestId('visual-desktop');
+      fireEvent.click(screen.getByRole('button', { name: 'close' }));
+      await settle();
+
+      act(() => useBrowserTakeoverStore.getState().completeTakeover());
+      await settle();
+
+      expect(desktop()).not.toBeInTheDocument();
+    });
 
     it('puts Skip and Done in the hands of the person the agent is waiting on', async () => {
       ask(false);

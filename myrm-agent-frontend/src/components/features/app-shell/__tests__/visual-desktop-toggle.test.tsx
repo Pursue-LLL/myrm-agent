@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mocks, openPanel, prepareToggleKit, releaseToggleKit, resumeCalls } from './visualDesktopToggleKit';
 import { openVisualDesktop } from '@/lib/visualDesktopEvents';
+import { settle } from '@/test-utils/fakeClock';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useUserControlStore from '@/store/useUserControlStore';
 import { VisualDesktopToggle } from '../VisualDesktopToggle';
@@ -21,18 +22,39 @@ describe('VisualDesktopToggle', () => {
     expect(screen.getAllByRole('button', { name: 'reconnect' })).toHaveLength(2);
   });
 
-  it('retries from the reconnect action and recovers once the sandbox has a VNC endpoint', async () => {
+  it.each([
+    { from: 'the panel header', pick: 0 },
+    { from: 'the load failure message', pick: 1 },
+  ])('retries from $from and recovers once the sandbox has a VNC endpoint', async ({ pick }) => {
     mocks.fetchSandboxVncUrl
       .mockResolvedValueOnce({ vnc_url: '', token: 'tok', sandbox_id: 'sb-1' })
       .mockResolvedValueOnce({ vnc_url: 'wss://vnc.example/sb-1', token: 'tok', sandbox_id: 'sb-1' });
 
     openPanel();
     await screen.findByText('loadFailed');
-    fireEvent.click(screen.getAllByRole('button', { name: 'reconnect' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'reconnect' })[pick]);
 
     const desktop = await screen.findByTestId('visual-desktop');
     expect(desktop).toHaveAttribute('data-ws-url', 'wss://vnc.example/sb-1?token=tok');
     expect(screen.queryByText('loadFailed')).not.toBeInTheDocument();
+  });
+
+  it('asks the sandbox for a fresh address when the desktop view offers to reconnect', async () => {
+    mocks.fetchSandboxVncUrl
+      .mockResolvedValueOnce({ vnc_url: 'wss://vnc.example/first', token: 'tok', sandbox_id: 'sb-1' })
+      .mockResolvedValueOnce({ vnc_url: 'wss://vnc.example/second', token: 'tok', sandbox_id: 'sb-1' });
+
+    openPanel();
+    expect(await screen.findByTestId('visual-desktop')).toHaveAttribute(
+      'data-ws-url',
+      'wss://vnc.example/first?token=tok',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'viewerReconnect' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('visual-desktop')).toHaveAttribute('data-ws-url', 'wss://vnc.example/second?token=tok'),
+    );
+    expect(mocks.fetchSandboxVncUrl).toHaveBeenCalledTimes(2);
   });
 
   it('renders the desktop when the sandbox has a VNC endpoint', async () => {
@@ -192,8 +214,9 @@ describe('VisualDesktopToggle', () => {
       mocks.fetchWithTimeout.mockClear();
 
       fireEvent.click(screen.getByRole('button', { name: 'close' }));
+      await settle();
 
-      await waitFor(() => expect(screen.queryByTestId('visual-desktop')).not.toBeInTheDocument());
+      expect(screen.queryByTestId('visual-desktop')).not.toBeInTheDocument();
       expect(useUserControlStore.getState().held).toBe(true);
       expect(resumeCalls()).toHaveLength(0);
     });

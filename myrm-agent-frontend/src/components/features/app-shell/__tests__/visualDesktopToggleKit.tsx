@@ -42,8 +42,12 @@ vi.mock('next-intl', () => ({
 vi.mock('next/dynamic', () => ({
   default: (load: () => Promise<{ default: unknown }>, options: unknown) => {
     mocks.lazyViews.push({ load, options });
-    return (props: { wsUrl: string; viewOnly?: boolean }) => (
-      <div data-testid="visual-desktop" data-ws-url={props.wsUrl} data-view-only={String(Boolean(props.viewOnly))} />
+    return (props: { wsUrl: string; viewOnly?: boolean; onReconnect?: () => void }) => (
+      <div data-testid="visual-desktop" data-ws-url={props.wsUrl} data-view-only={String(Boolean(props.viewOnly))}>
+        <button type="button" onClick={props.onReconnect}>
+          viewerReconnect
+        </button>
+      </div>
     );
   },
 }));

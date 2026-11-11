@@ -3,7 +3,7 @@
  * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
  * - useBrowserTakeoverActions (POS: Complete/Skip 与 VNC resume 同步)
  * - useUserControlStore (POS: 用户是否正在操作 Agent 的浏览器/桌面，接管与交还)
- * - VisualDesktop (POS: VNC/noVNC 实时桌面嵌入视图)
+ * - VisualDesktopSession (POS: 面板里的桌面区：一次 VNC 会话的取地址与显示)
  *
  * [OUTPUT]
  * VisualDesktopToggle: managed 模式 VNC 浮动面板、接管/交还控制条与 HITL takeover 条；`hideLauncher` 让空会话不显示浮动入口（打开事件、已打开的面板与接管提示照常生效）
@@ -15,7 +15,6 @@
 
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -23,15 +22,11 @@ import { MonitorPlay, X, RefreshCw, CheckCircle2, XCircle, Eye, MousePointerClic
 import { useFeatureEntitlements } from '@/hooks/billing/useFeatureEntitlements';
 import { useBrowserTakeoverActions } from '@/hooks/approval/useBrowserTakeoverActions';
 import { isSandbox } from '@/lib/deploy-mode';
-import { buildVncWebSocketUrl, fetchSandboxVncUrl, fetchUserSandbox } from '@/lib/cp-sandbox';
 import { cn } from '@/lib/utils/classnameUtils';
 import { OPEN_VISUAL_DESKTOP_EVENT, type OpenVisualDesktopDetail } from '@/lib/visualDesktopEvents';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useUserControlStore from '@/store/useUserControlStore';
-
-const VisualDesktop = dynamic(() => import('./VisualDesktop').then((module) => ({ default: module.VisualDesktop })), {
-  ssr: false,
-});
+import { VisualDesktopSession } from './VisualDesktopSession';
 
 export interface VisualDesktopToggleProps {
   /** Drops the floating launcher while nothing needs it (an empty chat); the open event and takeover prompts stay live. */
@@ -41,9 +36,8 @@ export interface VisualDesktopToggleProps {
 export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggleProps) => {
   const t = useTranslations('billing.vnc');
   const [isOpen, setIsOpen] = useState(false);
-  const [wsUrl, setWsUrl] = useState('');
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+  // Each value is one VNC session; bumping it remounts the desktop area and starts a fresh connection.
+  const [session, setSession] = useState(0);
   const { canUseVnc, isLoading: entitlementsLoading } = useFeatureEntitlements();
   const sandboxMode = isSandbox();
   const pending = useBrowserTakeoverStore((s) => s.pending);
@@ -94,11 +88,15 @@ export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggl
     setIsOpen(false);
   }, [handBack, shouldHandBackOnLeave]);
 
-  useEffect(() => {
-    if (managedTakeoverPending && !isOpen) {
+  // A managed takeover opens the panel once, when it starts; closing it afterwards sticks, and the pulsing launcher
+  // brings it back. Adjusting state while rendering makes React redo this render before anything is painted.
+  const [sawTakeover, setSawTakeover] = useState(false);
+  if (managedTakeoverPending !== sawTakeover) {
+    setSawTakeover(managedTakeoverPending);
+    if (managedTakeoverPending) {
       setIsOpen(true);
     }
-  }, [managedTakeoverPending, isOpen]);
+  }
 
   useEffect(() => {
     const handleOpenVisualDesktop = (event: Event) => {
@@ -125,60 +123,12 @@ export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggl
     [shouldHandBackOnLeave],
   );
 
-  const loadVnc = useCallback(
-    async (isMounted: { current: boolean }) => {
-      setIsLoadingUrl(true);
-      setLoadError(null);
-      try {
-        const sandbox = await fetchUserSandbox();
-        if (!sandbox) {
-          throw new Error('no_sandbox');
-        }
-        const vnc = await fetchSandboxVncUrl(sandbox.id);
-        const url = buildVncWebSocketUrl(vnc.vnc_url, vnc.token);
-        if (!url) {
-          // A sandbox without a VNC endpoint is a load failure (message + reconnect), not a blank panel.
-          throw new Error('no_vnc_url');
-        }
-        if (isMounted.current) {
-          setWsUrl(url);
-        }
-      } catch {
-        if (isMounted.current) {
-          setLoadError(t('loadFailed'));
-          setWsUrl('');
-        }
-      } finally {
-        if (isMounted.current) {
-          setIsLoadingUrl(false);
-        }
-      }
-    },
-    [t],
-  );
-
-  const handleReconnect = useCallback(() => {
-    void loadVnc({ current: true });
-  }, [loadVnc]);
-
-  useEffect(() => {
-    if (!isOpen || !sandboxMode) {
-      return;
-    }
-
-    const isMounted = { current: true };
-    void loadVnc(isMounted);
-
-    return () => {
-      isMounted.current = false;
-    };
-  }, [isOpen, sandboxMode, loadVnc]);
+  const handleReconnect = useCallback(() => setSession((current) => current + 1), []);
 
   if (sandboxMode && !entitlementsLoading && !canUseVnc) {
     return null;
   }
 
-  const effectiveWsUrl = sandboxMode ? wsUrl : 'ws://localhost:6080';
   const showLauncher = !hideLauncher || isOpen || held || managedTakeoverPending;
 
   return (
@@ -281,32 +231,12 @@ export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggl
               ) : null}
             </div>
           )}
-          <div className="flex-1 relative bg-muted/30">
-            {sandboxMode && isLoadingUrl ? (
-              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                {t('connecting')}
-              </div>
-            ) : null}
-            {sandboxMode && loadError ? (
-              <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center px-6 text-center text-sm text-destructive-text">
-                <p>{loadError}</p>
-                <button
-                  onClick={handleReconnect}
-                  className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded hover:bg-primary/90 transition-colors"
-                >
-                  {t('reconnect')}
-                </button>
-              </div>
-            ) : null}
-            {!loadError && effectiveWsUrl && !isLoadingUrl ? (
-              <VisualDesktop
-                wsUrl={effectiveWsUrl}
-                className="w-full h-full"
-                onReconnect={handleReconnect}
-                viewOnly={!interactive}
-              />
-            ) : null}
-          </div>
+          <VisualDesktopSession
+            key={session}
+            sandboxMode={sandboxMode}
+            viewOnly={!interactive}
+            onReconnect={handleReconnect}
+          />
         </div>
       )}
     </>
