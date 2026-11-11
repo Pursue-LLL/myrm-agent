@@ -183,6 +183,7 @@ class TestRestrictedShadowContext:
         root = logging.getLogger()
         stream = io.StringIO()
         handler = logging.StreamHandler(stream)
+        previous_level = root.level
         root.addHandler(handler)
         root.setLevel(logging.INFO)
         try:
@@ -191,6 +192,7 @@ class TestRestrictedShadowContext:
             root.info("visible after")
         finally:
             root.removeHandler(handler)
+            root.setLevel(previous_level)
 
         output = stream.getvalue()
         assert "shadow noise" not in output
