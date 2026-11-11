@@ -21,7 +21,7 @@
 
 - `@/store/*`、`@/services/*` — 配置与 API
 - `../multimodal/useCameraInput.ts`、`../multimodal/useVisionIntent.ts` — 跨域组合依赖
-- 消费者：`message-input-actions/`、`features/voice/`、`app-shell/voice-ptt-initializer.tsx`、设置页 `settings/sections/personal/VoiceSessionToggles.tsx` 与 `settings/sections/integration/channels/VoiceSection.tsx`（经 `voiceDeviceSettings`）
+- 消费者：`message-input-actions/`、`features/voice/`、`app-shell/voice-ptt-initializer.tsx`、设置页 `settings/sections/personal/VoiceSessionToggles.tsx` 与 `settings/sections/integration/channels/VoiceSessionModeSettings.tsx`（经 `voiceDeviceSettings`）
 
 ## 约束
 
