@@ -1,6 +1,7 @@
 /**
  * 全局请求管理器
- * 用于跟踪和取消正在进行的AI搜索流式请求
+ * 跟踪仍在等待响应的请求（流式请求的建立阶段、建议与标题生成），布局卸载时统一取消；
+ * 响应开始后的流由各自的 AbortController 管理
  */
 
 class RequestManager {
@@ -28,11 +29,11 @@ class RequestManager {
   /**
    * 取消所有正在进行的请求
    */
-  cancelAllRequests(reason = 'Request cancelled'): void {
+  cancelAllRequests(): void {
     this.activeRequests.forEach((abortController) => {
       try {
         if (!abortController.signal.aborted) {
-          abortController.abort(reason);
+          abortController.abort('Request cancelled');
         }
       } catch {
         // Ignore already-aborted controllers.
@@ -41,28 +42,7 @@ class RequestManager {
 
     this.activeRequests.clear();
   }
-
-  /**
-   * 获取当前活跃请求数量
-   */
-  getActiveRequestCount(): number {
-    return this.activeRequests.size;
-  }
 }
 
 // 创建单例实例
 export const requestManager = new RequestManager();
-
-// 页面卸载时取消所有请求（切换标签页不取消，避免长任务 Agent 流被误杀）
-if (typeof window !== 'undefined') {
-  const handleBeforeUnload = () => {
-    requestManager.cancelAllRequests('Page refresh or unload');
-  };
-
-  const handleUnload = () => {
-    requestManager.cancelAllRequests('Page unload');
-  };
-
-  window.addEventListener('beforeunload', handleBeforeUnload);
-  window.addEventListener('unload', handleUnload);
-}
