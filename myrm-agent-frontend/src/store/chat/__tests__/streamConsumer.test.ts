@@ -3,6 +3,7 @@ import type { ChatActionsMethods, ChatActionsState } from '../messageRequest';
 import type { Message } from '@/store/chat/types';
 import { FatalNetworkError } from '@/lib/utils/networkResilience';
 import { consumeStream } from '../consumeStream';
+import { STREAM_SILENCE_TIMEOUT_MS } from '../messageStream/streamWatchdog';
 import { AgentBusyError, ApprovalAlreadyResolvedError, RequestRefusedError } from '../streamErrors';
 import { executeStreamWithRetry } from '../streamConsumer';
 
@@ -163,6 +164,23 @@ function createSilentResponse(onCancel: () => void = () => undefined): Response 
     cancel: onCancel,
   });
   return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+const HEARTBEAT_FRAME = 'event: heartbeat\ndata: null\n\n';
+
+/** One event, then only what the test pushes: a stream that stays open while the model works without output. */
+function createPushedResponse(): { response: Response; push: (raw: string) => void } {
+  const pusher = { push: (_raw: string): void => undefined };
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(textEncoder.encode(STOP_TEST_EVENT));
+      pusher.push = (raw) => controller.enqueue(textEncoder.encode(raw));
+    },
+  });
+  return {
+    response: new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+    push: (raw) => pusher.push(raw),
+  };
 }
 
 /** One event, then a read failure the moment the turn is stopped: how an aborted fetch body behaves. */
@@ -705,13 +723,13 @@ describe('streamConsumer resilience paths', () => {
       await eventually(() => expect(mockHandleMessageStream).toHaveBeenCalledTimes(1));
 
       abortController.abort();
-      // Far below the 3.5 s silence threshold: only the stop itself can end the consumer this early.
+      // Far below the silence threshold: only the stop itself can end the consumer this early.
       await vi.advanceTimersByTimeAsync(100);
 
       expect(run.isSettled()).toBe(true);
       expect(run.error()).toMatchObject({ name: 'AbortError' });
       expect(onCancel).toHaveBeenCalledTimes(1);
-      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(STREAM_SILENCE_TIMEOUT_MS + 1_000);
       expect(actions.setLoading).not.toHaveBeenCalled();
       expect(actions._processSuggestions).not.toHaveBeenCalled();
     });
@@ -864,6 +882,37 @@ describe('streamConsumer resilience paths', () => {
         warnSpy.mockRestore();
         errorSpy.mockRestore();
       }
+    });
+  });
+
+  describe('when the stream goes quiet', () => {
+    it('keeps the turn alive while heartbeats arrive and heals it once they stop', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const state = createBaseState();
+      const actions = createActions(state);
+      const abortController = new AbortController();
+      const stream = createPushedResponse();
+      mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'm-quiet', data: 'hi' });
+      mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'hi' });
+
+      const run = observe(consumeStream(stream.response, 'hello', state, actions, abortController, false, ''));
+      await eventually(() => expect(mockHandleMessageStream).toHaveBeenCalledTimes(1));
+
+      // Each beat arrives inside the silence window; together they span three windows without a business event.
+      for (let beat = 0; beat < 3; beat += 1) {
+        await vi.advanceTimersByTimeAsync(STREAM_SILENCE_TIMEOUT_MS - 1_000);
+        stream.push(HEARTBEAT_FRAME);
+        await vi.advanceTimersByTimeAsync(1);
+      }
+      expect(actions.setLoading).not.toHaveBeenCalled();
+      expect(mockHandleMessageStream).toHaveBeenCalledTimes(1);
+
+      // A transport that stops sending anything is healed once the window has passed.
+      await vi.advanceTimersByTimeAsync(STREAM_SILENCE_TIMEOUT_MS);
+      expect(actions.setLoading).toHaveBeenCalledWith(false);
+
+      abortController.abort();
+      await eventually(() => expect(run.isSettled()).toBe(true));
     });
   });
 

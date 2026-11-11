@@ -9,8 +9,8 @@
  *
  * [POS]
  * E2E bridge diagnostics. At `send-turn-observe-timeout` the page's `streaming` flag cannot tell a turn that is
- * still starting from one that ended without output (the stream watchdog turns it off 3.5 s after the last event
- * while the model still works); this record can.
+ * still starting from one that ended without output (it stays off until the send pipeline has loaded, and a stream
+ * watchdog heal turns it off while the server may still be working); this record can.
  */
 
 export interface TurnTraceEntry {

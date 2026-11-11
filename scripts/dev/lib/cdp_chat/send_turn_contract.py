@@ -104,10 +104,10 @@ def format_turn_trace(debug: dict[str, object]) -> str:
     """Log fragment for what the turn did, empty when the page reported none.
 
     The page's `streaming` flag cannot tell a turn that is still starting from one that ended
-    without output (its stream watchdog turns the flag off 3.5 s after the last event while the
-    model still works). The SSE events the page received, with their times in seconds after the
-    hand-over, and how the send promise ended, can: `settle=pending` means the request had not
-    ended when the page gave up. A malformed report is cut down, never raised: this runs while
+    without output (it stays off until the send pipeline has loaded, and a stream watchdog heal
+    turns it off while the server may still be working). The SSE events the page received, with
+    their times in seconds after the hand-over, and how the send promise ended, can:
+    `settle=pending` means the request had not ended when the page gave up. A malformed report is cut down, never raised: this runs while
     another failure is being reported.
     """
     trace = debug.get("turnTrace")

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createStreamWatchdog } from '../streamWatchdog';
+import { createStreamWatchdog, STREAM_SILENCE_TIMEOUT_MS } from '../streamWatchdog';
 
 describe('createStreamWatchdog', () => {
   beforeEach(() => {
@@ -179,5 +179,72 @@ describe('createStreamWatchdog', () => {
     vi.advanceTimersByTime(5000);
     expect(watchdog.isHealed()).toBe(false);
     expect(setLoading).not.toHaveBeenCalled();
+  });
+
+  describe('transport liveness', () => {
+    // The server's stream buffer sends a heartbeat after this much idle time (`heartbeat_interval`).
+    const SERVER_HEARTBEAT_INTERVAL_MS = 15_000;
+
+    it('tolerates three missed server heartbeats before it heals a silent stream', () => {
+      const setLoading = vi.fn();
+      const onHeal = vi.fn();
+      const watchdog = createStreamWatchdog({ onHeal, actions: { setLoading } });
+
+      watchdog.feed('tasks_steps');
+      vi.advanceTimersByTime(3 * SERVER_HEARTBEAT_INTERVAL_MS - 1);
+      expect(setLoading).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(setLoading).toHaveBeenCalledWith(false);
+      expect(onHeal).toHaveBeenCalledWith(expect.stringContaining('silence timeout'));
+      watchdog.dispose();
+    });
+
+    it('postpones the heal with every heartbeat of a stream that already delivered data', () => {
+      const setLoading = vi.fn();
+      const watchdog = createStreamWatchdog({ actions: { setLoading } });
+
+      watchdog.feed('tasks_steps');
+      for (let beat = 0; beat < 3; beat += 1) {
+        vi.advanceTimersByTime(STREAM_SILENCE_TIMEOUT_MS - 1);
+        watchdog.keepAlive();
+      }
+      expect(setLoading).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(STREAM_SILENCE_TIMEOUT_MS);
+      expect(setLoading).toHaveBeenCalledWith(false);
+      watchdog.dispose();
+    });
+
+    it('does not start watching a stream that has delivered no business event yet', () => {
+      const setLoading = vi.fn();
+      const watchdog = createStreamWatchdog({ actions: { setLoading } });
+
+      watchdog.keepAlive();
+      vi.advanceTimersByTime(2 * STREAM_SILENCE_TIMEOUT_MS);
+
+      expect(setLoading).not.toHaveBeenCalled();
+      watchdog.dispose();
+    });
+
+    it('lets a heartbeat neither revive a finished turn nor re-arm a healed one', () => {
+      const finishedLoading = vi.fn();
+      const finished = createStreamWatchdog({ actions: { setLoading: finishedLoading } });
+      finished.feed('message_chunk');
+      finished.markTerminalReceived();
+      finished.keepAlive();
+      vi.advanceTimersByTime(2 * STREAM_SILENCE_TIMEOUT_MS);
+      expect(finishedLoading).not.toHaveBeenCalled();
+      finished.dispose();
+
+      const healedLoading = vi.fn();
+      const healed = createStreamWatchdog({ actions: { setLoading: healedLoading } });
+      healed.feed('message_chunk');
+      vi.advanceTimersByTime(STREAM_SILENCE_TIMEOUT_MS);
+      healed.keepAlive();
+      vi.advanceTimersByTime(2 * STREAM_SILENCE_TIMEOUT_MS);
+      expect(healedLoading).toHaveBeenCalledTimes(1);
+      healed.dispose();
+    });
   });
 });
