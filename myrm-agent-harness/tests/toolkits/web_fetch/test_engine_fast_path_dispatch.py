@@ -128,7 +128,7 @@ async def test_a_miss_goes_down_the_ladder_once_with_the_callers_arguments(
     ladder = AsyncMock(return_value=(page("ladder"), None))
 
     with faked(engine, platform.extractor, fast_path, ladder):
-        result = await engine.crawl(platform.url, max_chars=777, allow_escalation=False)
+        result = await engine.crawl(platform.url, allow_escalation=False)
 
     assert result is not None and result.page_content == "ladder"
     fast_path.assert_awaited_once()
@@ -137,7 +137,6 @@ async def test_a_miss_goes_down_the_ladder_once_with_the_callers_arguments(
     assert ladder.await_args.kwargs == {
         "etag": None,
         "last_modified": None,
-        "max_chars": 777,
         "allow_escalation": False,
     }
 

@@ -39,7 +39,7 @@ class TestRealCrawl:
     async def test_crawl_public_url_returns_document(self) -> None:
         engine = FetchEngine()
         try:
-            doc = await engine.crawl("https://example.com/", max_chars=2000)
+            doc = await engine.crawl("https://example.com/")
             assert doc is not None
             assert doc.page_content.strip()
         finally:

@@ -27,36 +27,7 @@ from .types import DEGRADABLE_4XX
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
 
-    from ..processing.pipeline import ContentPipeline
-
 logger = logging.getLogger(__name__)
-
-
-async def _process_and_warn_if_truncated(
-    pipeline: ContentPipeline, fetch_result: FetchResult, url: str, max_chars: int
-) -> Document | None:
-    """Run the content pipeline and warn the user when the content was truncated to fit the context."""
-    doc = await pipeline.aprocess(fetch_result, max_chars=max_chars)
-    if doc and doc.metadata.get("was_truncated"):
-        try:
-            from myrm_agent_harness.utils.event_utils import dispatch_custom_event
-
-            await dispatch_custom_event(
-                "agent_status",
-                {
-                    "step_key": "ux_warning_truncated",
-                    "status": "warning",
-                    "items": [
-                        {
-                            "text": f"Warning: Content from {url} was intelligently truncated to fit within context limits."
-                        }
-                    ],
-                    "metadata": {"type": "html_truncation", "url": url},
-                },
-            )
-        except Exception as e:
-            logger.warning(f"Failed to dispatch truncation event: {e}")
-    return doc
 
 
 class FetchEngineFetchMixin:
@@ -67,7 +38,6 @@ class FetchEngineFetchMixin:
         *,
         etag: str | None = None,
         last_modified: str | None = None,
-        max_chars: int = 0,
     ) -> tuple[Document | None, bool, FetchResult | None]:
         """Fetch with a specified fetcher and process through the pipeline."""
         fetcher_map: dict[FetcherType, Fetcher] = {
@@ -120,8 +90,7 @@ class FetchEngineFetchMixin:
         # Text (plain, markdown, csv, feeds, source files) is already the content; the HTML-only checks below
         # (empty shell, anti-bot) would reject it for lacking markup.
         if fetch_result.kind is PayloadKind.TEXT and fetch_result.status_code < 400:
-            doc = await _process_and_warn_if_truncated(self._pipeline, fetch_result, url, max_chars)
-            return doc, True, fetch_result
+            return await self._pipeline.aprocess(fetch_result), True, fetch_result
 
         if fetcher_type == FetcherType.HTTP and not fetch_result.has_content:
             logger.warning(f"L1 HTTP returned empty shell, will degrade: {url}")
@@ -145,8 +114,7 @@ class FetchEngineFetchMixin:
             logger.warning(f"Anti-bot detected ({reason}): {url}")
             return None, True, None
 
-        doc = await _process_and_warn_if_truncated(self._pipeline, fetch_result, url, max_chars)
-        return doc, True, fetch_result
+        return await self._pipeline.aprocess(fetch_result), True, fetch_result
 
     async def _try_and_report(
         self: FetchEngine,
@@ -155,7 +123,6 @@ class FetchEngineFetchMixin:
         *,
         etag: str | None = None,
         last_modified: str | None = None,
-        max_chars: int = 0,
     ) -> tuple[Document | None, bool, FetchResult | None]:
         """Attempt fetch and report the outcome to the tier breaker."""
         doc, degradable, fetch_result = await self._try_fetch_and_process(
@@ -163,7 +130,6 @@ class FetchEngineFetchMixin:
             fetcher_type,
             etag=etag,
             last_modified=last_modified,
-            max_chars=max_chars,
         )
         # A miss that is final (404, 304, a file no parser reads) says nothing about whether this tier can fetch the
         # site, so it must not count against the tier.
@@ -177,38 +143,37 @@ class FetchEngineFetchMixin:
         *,
         etag: str | None = None,
         last_modified: str | None = None,
-        max_chars: int = 0,
         allow_escalation: bool = True,
     ) -> tuple[Document | None, FetchResult | None]:
         """Smart degradation: start on the tier the breaker selects for the domain, degrade tier by tier."""
         start_type = self._tier_breaker.select(domain_key(url))
 
         if start_type == FetcherType.STEALTH:
-            doc, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
+            doc, _, result = await self._try_and_report(url, FetcherType.STEALTH)
             if doc:
                 return doc, result
 
             logger.warning(f"Stealth failed, trying browser: {url}")
-            doc, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
+            doc, _, result = await self._try_and_report(url, FetcherType.BROWSER)
             if doc:
                 return doc, result
             if allow_escalation:
-                esc_doc, esc_result = await self._try_escalation(url, max_chars=max_chars)
+                esc_doc, esc_result = await self._try_escalation(url)
                 if esc_doc:
                     return esc_doc, esc_result
             return doc, result
 
         if start_type == FetcherType.BROWSER:
-            doc, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
+            doc, _, result = await self._try_and_report(url, FetcherType.BROWSER)
             if doc:
                 return doc, result
 
             logger.warning(f"Browser failed, trying stealth: {url}")
-            doc, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
+            doc, _, result = await self._try_and_report(url, FetcherType.STEALTH)
             if doc:
                 return doc, result
             if allow_escalation:
-                esc_doc, esc_result = await self._try_escalation(url, max_chars=max_chars)
+                esc_doc, esc_result = await self._try_escalation(url)
                 if esc_doc:
                     return esc_doc, esc_result
             return doc, result
@@ -218,30 +183,29 @@ class FetchEngineFetchMixin:
             FetcherType.HTTP,
             etag=etag,
             last_modified=last_modified,
-            max_chars=max_chars,
         )
         if doc:
             return doc, result
         if not degradable:
             # A browser cannot read a file the parsers could not, but a remote provider can still try.
             if allow_escalation and result is not None and result.kind is PayloadKind.BINARY:
-                esc_doc, esc_result = await self._try_escalation(url, max_chars=max_chars)
+                esc_doc, esc_result = await self._try_escalation(url)
                 if esc_doc:
                     return esc_doc, esc_result
             return doc, result
 
         logger.warning(f"HTTP insufficient, degrading to browser: {url}")
-        doc, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
+        doc, _, result = await self._try_and_report(url, FetcherType.BROWSER)
         if doc:
             return doc, result
 
         logger.warning(f"Browser failed, degrading to stealth: {url}")
-        doc, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
+        doc, _, result = await self._try_and_report(url, FetcherType.STEALTH)
         if doc:
             return doc, result
 
         if allow_escalation:
-            esc_doc, esc_result = await self._try_escalation(url, max_chars=max_chars)
+            esc_doc, esc_result = await self._try_escalation(url)
             if esc_doc:
                 return esc_doc, esc_result
 
@@ -260,7 +224,6 @@ class FetchEngineFetchMixin:
         *,
         etag: str | None,
         last_modified: str | None,
-        max_chars: int,
         allow_escalation: bool,
     ) -> tuple[Document | None, FetchResult | None]:
         """Fetch ``url`` over the network: the platform fast-path when it has one, then the tier ladder.
@@ -274,7 +237,6 @@ class FetchEngineFetchMixin:
                     url,
                     etag=etag,
                     last_modified=last_modified,
-                    max_chars=max_chars,
                     allow_escalation=allow_escalation,
                 )
 

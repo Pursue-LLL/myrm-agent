@@ -28,14 +28,13 @@ class MarkdownResult:
     raw_markdown: str = ""
     fit_markdown: str = ""
     fit_html: str = ""
-    was_truncated: bool = False
 
 
 @runtime_checkable
 class ContentFilter(Protocol):
     """Content filter protocol."""
 
-    def filter_content(self, html: str, max_chars: int = 0) -> tuple[list[str], bool]: ...
+    def filter_content(self, html: str) -> list[str]: ...
 
 
 class MarkdownGenerator:
@@ -55,7 +54,6 @@ class MarkdownGenerator:
         base_url: str = "",
         html2text_options: dict[str, object] | None = None,
         content_filter: ContentFilter | None = None,
-        max_chars: int = 0,
     ) -> MarkdownResult:
         from .html_to_markdown import CustomHTML2Text
 
@@ -93,10 +91,9 @@ class MarkdownGenerator:
             fit_markdown: str = ""
             filtered_html: str = ""
             active_filter = content_filter or self.content_filter
-            was_truncated = False
             if active_filter:
                 try:
-                    filtered_segments, was_truncated = active_filter.filter_content(input_html, max_chars)
+                    filtered_segments = active_filter.filter_content(input_html)
                     filtered_html = "\n".join(f"<div>{s}</div>" for s in filtered_segments)
                     fit_markdown = h.handle(filtered_html)
                 except Exception as e:
@@ -107,7 +104,6 @@ class MarkdownGenerator:
                 raw_markdown=raw_markdown or "",
                 fit_markdown=fit_markdown or "",
                 fit_html=filtered_html or "",
-                was_truncated=was_truncated,
             )
         except Exception as e:
             return MarkdownResult(raw_markdown=f"Error in markdown generation: {e}")

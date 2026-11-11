@@ -45,7 +45,7 @@ class TestDomPathUnits:
 
 class TestScoringLimit:
     def test_page_within_the_limit_is_scored(self) -> None:
-        blocks, _ = ContentPruningFilter().filter_content(_PAGE)
+        blocks = ContentPruningFilter().filter_content(_PAGE)
 
         joined = "".join(blocks)
         assert _ARTICLE_SENTENCE.strip() in joined
@@ -54,7 +54,7 @@ class TestScoringLimit:
     def test_page_over_the_limit_skips_only_the_scoring(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(content_pruning, "_MAX_SCORING_PATH_UNITS", 0)
 
-        blocks, _ = ContentPruningFilter().filter_content(_PAGE)
+        blocks = ContentPruningFilter().filter_content(_PAGE)
 
         joined = "".join(blocks)
         assert _ARTICLE_SENTENCE.strip() in joined
@@ -75,6 +75,6 @@ class TestScoringLimit:
             + "</body></html>"
         )
 
-        blocks, _ = ContentPruningFilter().filter_content(bomb)
+        blocks = ContentPruningFilter().filter_content(bomb)
 
         assert _ARTICLE_SENTENCE.strip() in "".join(blocks)

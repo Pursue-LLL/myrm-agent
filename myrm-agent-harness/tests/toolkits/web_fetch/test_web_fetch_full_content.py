@@ -65,9 +65,9 @@ def crawl(monkeypatch: pytest.MonkeyPatch) -> _Crawl:
         calls: list[dict[str, object]] = []
 
         async def fake_crawl_many(
-            urls: list[str], *, max_chars: int = 0, **_kwargs: object
+            urls: list[str], **kwargs: object
         ) -> tuple[list[tuple[str, Document]], list[tuple[str, None]]]:
-            calls.append({"urls": urls, "max_chars": max_chars})
+            calls.append({"urls": urls, **kwargs})
             return list(success), list(failed)
 
         monkeypatch.setattr(web_fetch_tools, "crawl_many", fake_crawl_many)
@@ -122,7 +122,7 @@ async def test_pages_within_budget_are_delivered_whole(crawl: _Crawl) -> None:
         "raw_chars": len(payload),
     }
     assert result["evicted_ref"] is None
-    assert calls == [{"urls": ["https://a.test/1", "https://b.test/2"], "max_chars": 0}]
+    assert calls == [{"urls": ["https://a.test/1", "https://b.test/2"]}]
 
 
 @pytest.mark.asyncio
@@ -282,9 +282,7 @@ async def test_custom_engine_flags_are_honoured(monkeypatch: pytest.MonkeyPatch)
         def __init__(self, **kwargs: object) -> None:
             created.append(kwargs)
 
-        async def crawl_many(
-            self, urls: list[str], *, max_chars: int = 0
-        ) -> tuple[list[tuple[str, Document]], list[tuple[str, None]]]:
+        async def crawl_many(self, urls: list[str]) -> tuple[list[tuple[str, Document]], list[tuple[str, None]]]:
             return [_doc(urls[0], "private page")], []
 
     monkeypatch.setattr("myrm_agent_harness.toolkits.web_fetch.FetchEngine", FakeEngine)

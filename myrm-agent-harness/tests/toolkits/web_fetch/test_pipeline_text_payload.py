@@ -36,31 +36,11 @@ def test_text_keeps_its_line_breaks_and_markup(pipeline: ContentPipeline, body: 
     assert doc is not None
     assert doc.page_content == body.strip()
     assert doc.metadata["url"] == URL
-    assert doc.metadata["was_truncated"] is False
 
 
 @pytest.mark.parametrize("body", ["", "   ", "\n\t\n"])
 def test_blank_text_has_no_document(pipeline: ContentPipeline, body: str) -> None:
     assert pipeline.process(_text(body)) is None
-
-
-@pytest.mark.parametrize(
-    ("max_chars", "expected", "truncated"),
-    [
-        (0, "0123456789" * 3, False),
-        (30, "0123456789" * 3, False),
-        (29, "0123456789" * 2 + "012345678" + "\n\n[TRUNCATED]", True),
-        (5, "01234\n\n[TRUNCATED]", True),
-    ],
-)
-def test_text_is_cut_to_the_character_budget(
-    pipeline: ContentPipeline, max_chars: int, expected: str, truncated: bool
-) -> None:
-    doc = pipeline.process(_text("0123456789" * 3), max_chars=max_chars)
-
-    assert doc is not None
-    assert doc.page_content == expected
-    assert doc.metadata["was_truncated"] is truncated
 
 
 def test_json_text_keeps_the_fenced_structured_document(pipeline: ContentPipeline) -> None:

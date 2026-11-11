@@ -104,9 +104,7 @@ def _page_document(url: str, *, cut: bool) -> Document:
 def _serve(monkeypatch: pytest.MonkeyPatch, *, cut: frozenset[str]) -> None:
     """Make the tool's engine return one short page per URL; the URLs in ``cut`` carry the source-cut flag."""
 
-    async def crawl_many(
-        urls: list[str], *, max_chars: int = 0, **_kwargs: object
-    ) -> tuple[list[tuple[str, Document]], list[tuple[str, None]]]:
+    async def crawl_many(urls: list[str]) -> tuple[list[tuple[str, Document]], list[tuple[str, None]]]:
         return [(url, _page_document(url, cut=url in cut)) for url in urls], []
 
     monkeypatch.setattr(web_fetch_tools, "crawl_many", crawl_many)

@@ -194,7 +194,6 @@ class FetchEngine(
         url: str,
         *,
         force_refresh: bool = False,
-        max_chars: int = 0,
         allow_escalation: bool = True,
     ) -> Document | None:
         """Crawl a single URL, return Document or None."""
@@ -264,7 +263,6 @@ class FetchEngine(
                 url,
                 etag=etag,
                 last_modified=last_modified,
-                max_chars=max_chars,
                 allow_escalation=allow_escalation,
             )
 

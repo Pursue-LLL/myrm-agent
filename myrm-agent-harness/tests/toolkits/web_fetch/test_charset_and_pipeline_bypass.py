@@ -189,22 +189,6 @@ def test_pipeline_json_data_bypass():
     assert doc.metadata["url"] == "https://api.example.com/v1/items"
 
 
-def test_pipeline_json_data_bypass_with_max_chars():
-    pipeline = ContentPipeline()
-    raw_json = json.dumps({"status": "success", "long_text": "a" * 500})
-    fetch_res = FetchResult(
-        html=raw_json,
-        url="https://api.example.com/v1/items",
-        status_code=200,
-        headers={"content-type": "application/json"},
-        fetcher_type=FetcherType.HTTP,
-    )
-    doc = pipeline.process(fetch_res, max_chars=100)
-    assert doc is not None
-    assert "[TRUNCATED]" in doc.page_content
-    assert doc.metadata["was_truncated"] is True
-
-
 def test_pipeline_xml_data_bypass():
     pipeline = ContentPipeline()
     raw_xml = "<rss version='2.0'><channel><title>News Feed</title></channel></rss>"
@@ -219,19 +203,3 @@ def test_pipeline_xml_data_bypass():
     assert doc is not None
     assert "```xml" in doc.page_content
     assert "News Feed" in doc.page_content
-
-
-def test_pipeline_xml_data_bypass_with_max_chars():
-    pipeline = ContentPipeline()
-    raw_xml = "<root>" + ("<item>content</item>" * 50) + "</root>"
-    fetch_res = FetchResult(
-        html=raw_xml,
-        url="https://example.com/feed.xml",
-        status_code=200,
-        headers={"content-type": "text/xml"},
-        fetcher_type=FetcherType.HTTP,
-    )
-    doc = pipeline.process(fetch_res, max_chars=80)
-    assert doc is not None
-    assert "[TRUNCATED]" in doc.page_content
-    assert doc.metadata["was_truncated"] is True

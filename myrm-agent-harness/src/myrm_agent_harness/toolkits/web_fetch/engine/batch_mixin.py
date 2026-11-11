@@ -67,7 +67,6 @@ class FetchEngineBatchMixin:
         *,
         max_concurrency: int = 10,
         force_refresh: bool = False,
-        max_chars: int = 0,
         allow_escalation: bool = True,
     ) -> tuple[SuccessResult, FailedResult]:
         """Batch-crawl URLs in parallel under one concurrency cap; one slow URL cannot hold the call hostage.
@@ -94,7 +93,6 @@ class FetchEngineBatchMixin:
                     fetch = self.crawl(
                         url,
                         force_refresh=force_refresh,
-                        max_chars=max_chars,
                         allow_escalation=allow_escalation,
                     )
                     running[asyncio.create_task(fetch)] = (url, loop.time())

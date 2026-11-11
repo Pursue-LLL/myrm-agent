@@ -21,7 +21,6 @@ def test_markdown_result_dataclass():
     assert result.raw_markdown == "# Title"
     assert result.fit_markdown == "## Fit"
     assert result.fit_html == ""
-    assert result.was_truncated is False
 
 
 def test_generate_markdown_keeps_links_inline_and_adds_no_reference_section():

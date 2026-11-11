@@ -168,7 +168,7 @@ async def _fetch_full_content(
         if need_custom_engine
         else web_fetch_tools
     )
-    success_results, failed_results = await engine.crawl_many(urls, max_chars=0)
+    success_results, failed_results = await engine.crawl_many(urls)
 
     if not success_results and not failed_results:
         raise ToolError(

@@ -122,7 +122,6 @@ async def test_text_is_returned_as_it_is(
     assert doc is not None
     assert doc.page_content == text.strip()
     assert doc.metadata["url"] == URL
-    assert doc.metadata["was_truncated"] is False
 
 
 @pytest.mark.parametrize("status_code", [403, 429])
@@ -146,21 +145,6 @@ async def test_empty_text_degrades(engine_with_http: tuple[FetchEngine, AsyncMoc
 
     assert doc is None
     assert degradable is True
-
-
-async def test_truncated_text_warns_the_user(engine_with_http: tuple[FetchEngine, AsyncMock]) -> None:
-    engine, http = engine_with_http
-    http.fetch.return_value = _text_result("0123456789" * 20)
-
-    with patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", new_callable=AsyncMock) as dispatch:
-        doc, _, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP, max_chars=50)
-
-    assert doc is not None
-    assert doc.metadata["was_truncated"] is True
-    assert doc.page_content.endswith("[TRUNCATED]")
-    dispatch.assert_awaited_once()
-    assert dispatch.await_args is not None
-    assert dispatch.await_args.args[1]["step_key"] == "ux_warning_truncated"
 
 
 async def test_crawl_reads_text_without_any_browser_tier(engine_with_http: tuple[FetchEngine, AsyncMock]) -> None:

@@ -51,28 +51,6 @@ class TestEscalationMixin:
         await engine.shutdown()
 
     @pytest.mark.asyncio
-    async def test_escalation_markdown_truncated(self) -> None:
-        engine = FetchEngine()
-        provider = SimpleNamespace(
-            provider_id="reader3",
-            fetch_url=AsyncMock(
-                return_value=SimpleNamespace(
-                    content="x" * 100,
-                    is_markdown=True,
-                    url="http://example.com/page",
-                    title="t",
-                )
-            ),
-        )
-        engine.set_escalation_providers([provider])
-
-        doc, _result = await engine._try_escalation("http://example.com/page", max_chars=10)
-
-        assert doc is not None
-        assert doc.page_content == "x" * 10
-        await engine.shutdown()
-
-    @pytest.mark.asyncio
     async def test_escalation_html_content_pipeline(self) -> None:
         engine = FetchEngine()
         engine._pipeline = mock_pipeline()  # type: ignore[assignment]

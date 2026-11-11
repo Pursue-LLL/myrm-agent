@@ -33,9 +33,7 @@ class FetchEngineEscalationMixin:
         except Exception:
             return None
 
-    async def _try_escalation(
-        self: FetchEngine, url: str, *, max_chars: int = 0
-    ) -> tuple[Document | None, FetchResult | None]:
+    async def _try_escalation(self: FetchEngine, url: str) -> tuple[Document | None, FetchResult | None]:
         """Try injected remote providers after local L1-L3 exhaustion."""
         from ..escalation.context import get_bound_escalation_providers
 
@@ -49,7 +47,7 @@ class FetchEngineEscalationMixin:
 
         for provider in providers:
             try:
-                escalation_result = await provider.fetch_url(url, max_chars=max_chars)
+                escalation_result = await provider.fetch_url(url)
             except Exception as exc:
                 logger.warning(
                     "Escalation provider %s failed for %s: %s",
@@ -64,11 +62,8 @@ class FetchEngineEscalationMixin:
 
             doc: Document | None
             if escalation_result.is_markdown:
-                content = escalation_result.content
-                if max_chars > 0 and len(content) > max_chars:
-                    content = content[:max_chars]
                 doc = Document(
-                    page_content=content,
+                    page_content=escalation_result.content,
                     metadata={
                         "url": escalation_result.url or url,
                         "title": escalation_result.title,
@@ -81,7 +76,7 @@ class FetchEngineEscalationMixin:
                     url=escalation_result.url or url,
                     fetcher_type=FetcherType.HTTP,
                 )
-                doc = await self._pipeline.aprocess(remote_fetch, max_chars=max_chars)
+                doc = await self._pipeline.aprocess(remote_fetch)
                 if doc is None:
                     continue
                 doc.metadata["escalation_provider"] = provider.provider_id

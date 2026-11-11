@@ -3,9 +3,6 @@
 Scores every node by text density, link density, tag weight, class/id hints and text length, drops the nodes below a
 threshold and removes navigation, ads and other boilerplate. A ``header`` inside a content region is kept.
 
-[INPUT]
-utils.tree_truncator::truncate_html_soup (POS: Budget-aware truncation of HTML and ARIA trees) [lazy]
-
 [OUTPUT]
 ContentPruningFilter: Reduces a page to its main-content HTML blocks (``filter_content``)
 
@@ -247,10 +244,8 @@ class ContentPruningFilter:
     # Core filter
     # ------------------------------------------------------------------
 
-    def filter_content(self, html: str, max_chars: int = 0) -> tuple[list[str], bool]:
-        """Prune *html* to its content blocks (outer HTML strings) and report whether they were truncated."""
-        from myrm_agent_harness.utils.tree_truncator import truncate_html_soup
-
+    def filter_content(self, html: str) -> list[str]:
+        """Prune *html* to its content blocks (outer HTML strings)."""
         soup = BeautifulSoup(html, "lxml")
         if not soup.body:
             soup = BeautifulSoup(f"<body>{html}</body>", "lxml")
@@ -267,9 +262,9 @@ class ContentPruningFilter:
 
         body = soup.body
         if not body:
-            return [], False
+            return []
 
-        # Over the limit only the scoring is skipped: comments, excluded tags, truncation and block extraction still run.
+        # Over the limit only the scoring is skipped: comments, excluded tags and block extraction still run.
         within_scoring_limit = _dom_path_units(body, _MAX_SCORING_PATH_UNITS) <= _MAX_SCORING_PATH_UNITS
         scored_elements = list(body.find_all(True)) if within_scoring_limit else []
 
@@ -335,15 +330,10 @@ class ContentPruningFilter:
 
             body = soup.find("body")
             if not body:
-                return [], False
+                return []
 
             if within_scoring_limit:
                 self._prune_tree(body)
-
-            if max_chars > 0:
-                body, was_truncated = truncate_html_soup(body, max_chars)
-            else:
-                was_truncated = False
 
             content_blocks: list[str] = []
             for element in body.children:
@@ -351,10 +341,10 @@ class ContentPruningFilter:
                     continue
                 if len(element.get_text(strip=True)) > 0:
                     content_blocks.append(str(element))
-            return content_blocks, was_truncated
+            return content_blocks
         except Exception as e:
             logger.warning(f"Pruning failed: {e}")
-            return [], False
+            return []
 
     # ------------------------------------------------------------------
     # Scoring

@@ -46,20 +46,11 @@ async def test_aprocess_propagates_none_for_unusable_pages() -> None:
 
 
 @pytest.mark.asyncio
-async def test_aprocess_passes_max_chars_through() -> None:
-    document = await ContentPipeline(use_raw_markdown=True).aprocess(_fetch_result(), max_chars=100)
-
-    assert document is not None
-    assert document.metadata["was_truncated"] is True
-    assert document.page_content.endswith("[TRUNCATED]")
-
-
-@pytest.mark.asyncio
 async def test_aprocess_runs_off_the_event_loop_thread(monkeypatch: pytest.MonkeyPatch) -> None:
     pipeline = ContentPipeline()
     threads: list[str] = []
 
-    def record_thread(_fetch_result: FetchResult, _max_chars: int = 0) -> Document:
+    def record_thread(_fetch_result: FetchResult) -> Document:
         threads.append(threading.current_thread().name)
         return Document(page_content="x")
 
@@ -74,7 +65,7 @@ async def test_aprocess_runs_off_the_event_loop_thread(monkeypatch: pytest.Monke
 async def test_event_loop_keeps_ticking_while_a_conversion_is_busy(monkeypatch: pytest.MonkeyPatch) -> None:
     pipeline = ContentPipeline()
 
-    def busy(_fetch_result: FetchResult, _max_chars: int = 0) -> Document:
+    def busy(_fetch_result: FetchResult) -> Document:
         time.sleep(0.4)  # stands in for a CPU-bound conversion
         return Document(page_content="x")
 
@@ -104,7 +95,7 @@ async def test_conversions_are_serialised(monkeypatch: pytest.MonkeyPatch) -> No
     peak = 0
     guard = threading.Lock()
 
-    def tracked(_fetch_result: FetchResult, _max_chars: int = 0) -> Document:
+    def tracked(_fetch_result: FetchResult) -> Document:
         nonlocal running, peak
         with guard:
             running += 1
@@ -126,7 +117,7 @@ async def test_cancelled_conversion_that_never_started_is_dropped(monkeypatch: p
     started: list[str] = []
     release = threading.Event()
 
-    def blocking(fetch_result: FetchResult, _max_chars: int = 0) -> Document:
+    def blocking(fetch_result: FetchResult) -> Document:
         started.append(fetch_result.url)
         if fetch_result.url.endswith("/first"):
             release.wait(timeout=5)
@@ -154,7 +145,7 @@ async def test_aprocess_propagates_the_callers_context(monkeypatch: pytest.Monke
     pipeline = ContentPipeline()
     seen: list[str] = []
 
-    def read_context(_fetch_result: FetchResult, _max_chars: int = 0) -> Document:
+    def read_context(_fetch_result: FetchResult) -> Document:
         seen.append(_request_id.get())
         return Document(page_content="x")
 
@@ -172,7 +163,7 @@ async def test_aprocess_propagates_the_callers_context(monkeypatch: pytest.Monke
 async def test_aprocess_surfaces_conversion_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     pipeline = ContentPipeline()
 
-    def explode(_fetch_result: FetchResult, _max_chars: int = 0) -> Document:
+    def explode(_fetch_result: FetchResult) -> Document:
         raise RuntimeError("conversion failed")
 
     monkeypatch.setattr(pipeline, "process", explode)

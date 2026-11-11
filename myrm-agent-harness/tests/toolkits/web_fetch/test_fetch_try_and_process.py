@@ -1,7 +1,7 @@
 """Tests for ``FetchEngine._try_fetch_and_process`` result handling.
 
 Covers 304, non-degradable 4xx, empty shell, binary bodies, weixin fast path, anti-bot detection,
-truncation events and browser launch mode.
+the pipeline's document and browser launch mode.
 """
 
 from __future__ import annotations
@@ -158,22 +158,18 @@ class TestTryFetchAndProcess:
         await engine.shutdown()
 
     @pytest.mark.asyncio
-    async def test_pipeline_doc_returns_with_truncation_event(self) -> None:
+    async def test_pipeline_doc_is_returned(self) -> None:
         engine = FetchEngine()
         http, _, _ = stub_fetchers(engine)
         http.fetch.return_value = http_result(RICH_HTML)
-        truncated = make_document("truncated content")
-        truncated.metadata["was_truncated"] = True
-        engine._pipeline.aprocess.return_value = truncated
-        with patch(
-            "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
-            new=AsyncMock(return_value=None),
-        ):
-            doc, degradable, result = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
+        converted = make_document("converted content")
+        engine._pipeline.aprocess.return_value = converted
 
-            assert doc is not None
-            assert degradable is True
-            assert result is not None
+        doc, degradable, result = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
+
+        assert doc is converted
+        assert degradable is True
+        assert result is not None
         await engine.shutdown()
 
     @pytest.mark.asyncio

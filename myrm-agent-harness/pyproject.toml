@@ -51,7 +51,7 @@ dependencies = [
   "croniter>=7.0.0", # Cron 表达式解析与计算
   # --- 网页爬取与内容提取（基础） ---
   "beautifulsoup4>=4.15.0", # HTML DOM 解析与清洗（ContentPruningFilter）
-  "lxml>=6.1.3",            # bs4 lxml parser (content_pruning + tree_truncator)
+  "lxml>=6.1.3",            # bs4 lxml parser (content_pruning)
   # --- Agent 协议与基础设施 ---
   "mcp>=2.3.0",        # MCP 协议 SDK 2.x (2026-07-28 spec: stateless HTTP, Client API)
   "pdfplumber>=0.11.10", # PDF 文本+表格提取 (file_read_tool CORE; pypdfium2 由 pdfplumber 传递依赖)

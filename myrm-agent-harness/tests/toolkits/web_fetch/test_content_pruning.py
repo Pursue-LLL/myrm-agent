@@ -37,9 +37,8 @@ def test_filter_with_min_words():
     assert filter.min_word_threshold == 10
 
 
-def test_process_with_truncation():
-    """测试带截断的process方法"""
-    filter = ContentPruningFilter()
+def test_filter_content_keeps_the_article_and_drops_navigation_and_footer():
+    """正文保留，导航与页脚被剪掉"""
     html_content = """
     <html>
         <body>
@@ -50,20 +49,11 @@ def test_process_with_truncation():
     </html>
     """
 
-    # 无截断
-    result_no_truncation, was_truncated = filter.filter_content(html_content, max_chars=0)
-    assert not was_truncated
-    joined_result_no_truncation = "".join(result_no_truncation)
-    assert "This is an important article" in joined_result_no_truncation
+    joined = "".join(ContentPruningFilter().filter_content(html_content))
 
-    # 截断（截断为非常短的内容，足以触发截断）
-    # 注意 max_chars 是字符数
-    result_truncation, was_truncated2 = filter.filter_content(html_content, max_chars=20)
-    assert was_truncated2
-    joined_result_truncation = "".join(result_truncation)
-    assert len(joined_result_truncation) > 0
-    # 至少不会包含全部内容，结构会更紧凑
-    assert len(joined_result_truncation) < len(joined_result_no_truncation)
+    assert "This is an important article" in joined
+    assert "Some links" not in joined
+    assert "Copyright 2026" not in joined
 
 
 if __name__ == "__main__":
