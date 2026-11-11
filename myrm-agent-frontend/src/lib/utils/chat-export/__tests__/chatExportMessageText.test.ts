@@ -101,4 +101,32 @@ describe('formatSourcesFootnotes', () => {
   it.each([[undefined], [[]]])('is empty when the sources are %j', (sources) => {
     expect(formatSourcesFootnotes(sources, LABELS)).toBe('');
   });
+
+  // The kinds the server emits: a web result has an address and a title, a wiki hit a knowledge base and a file, an MCP
+  // call only its skill, and a recalled conversation maybe a title.
+  it('names each kind of source by the field that carries its name, as the interface shows it', () => {
+    const sources: Source[] = [
+      { index: 1, type: 'web_search', url: 'https://docs.example.com/guide', title: 'Guide' },
+      { index: 2, type: 'web_fetch', url: 'https://example.com/post' },
+      { index: 3, type: 'knowledge', kb_name: 'Work', filename: 'deploy-notes', section: 'Rollback' },
+      { index: 4, type: 'knowledge', kb_name: 'Work', filename: 'runbook' },
+      { index: 5, type: 'knowledge', kb_name: 'Work', section: 'Intro' },
+      { index: 6, type: 'mcp', skill_name: 'github' },
+      { index: 7, type: 'conversation_history', title: 'Earlier planning chat' },
+      { index: 8, type: 'conversation_history' },
+    ];
+
+    expect(formatSourcesFootnotes(sources, LABELS)).toBe(
+      `\n\n来源:  \n${[
+        '[1] https://docs.example.com/guide',
+        '[2] https://example.com/post',
+        '[3] deploy-notes § Rollback',
+        '[4] runbook',
+        '[5] Work',
+        '[6] github',
+        '[7] Earlier planning chat',
+        '[8] 未命名',
+      ].join('  \n')}`,
+    );
+  });
 });
