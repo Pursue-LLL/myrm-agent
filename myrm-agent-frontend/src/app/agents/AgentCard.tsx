@@ -9,7 +9,7 @@
  * - AgentCard: Agent item card for agents overview list
  *
  * [POS]
- * Extracted from app/agents/page.tsx to keep page under 400 lines limit.
+ * Agent card rendered per agent by app/agents/page.tsx.
  */
 
 'use client';

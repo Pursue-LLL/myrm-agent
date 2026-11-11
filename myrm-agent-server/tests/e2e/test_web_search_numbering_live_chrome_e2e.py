@@ -12,7 +12,8 @@ Contract asserted on the real UI and on the persisted history:
   settles, so the check waits up to 30 s for it);
 * the same numbers and bindings come back after a full reload of the chat.
 
-Both sends assert that the chat is still in fast mode and print the mode around the send.
+Both turns are sent by ``run_fast_search_turn``, which proves each one ran in fast mode (the modes are
+printed) and waits for its terminal event rather than for the page's ``loading`` flag.
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ from cdp_chat.support import (  # noqa: E402
     put_config_value,
     wait_e2e_provider_ready,
 )
+from e2e_core.wave_ledger import maybe_register_e2e_chat  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
@@ -49,6 +51,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 )
 from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  # noqa: E402
+from tests.support.fast_search_turn import run_fast_search_turn  # noqa: E402
 from tests.support.test_secrets import resolve_test_env  # noqa: E402
 
 _TURN_WAIT_SEC = 180.0
@@ -99,18 +102,6 @@ _PREP_FAST_SEARCH_JS = """(async () => {
   };
 })()"""
 
-# What the page reports about the chat right now; read around every send to tell a mode flip from a stalled send.
-_PAGE_PROBE_JS = """(() => {
-  const bridge = window.__MYRM_E2E_CHAT__;
-  const store = window.__myrmChatStore?.getState?.();
-  return {
-    actionMode: bridge?.getActionMode?.() ?? null,
-    sendReady: bridge?.isSendReady?.() ?? null,
-    loading: Boolean(store?.loading || store?.isStreaming),
-    messageCount: Array.isArray(store?.messages) ? store.messages.length : null,
-  };
-})()"""
-
 # One row per assistant message: its numbered sources, the numeric citation anchors rendered inside the
 # message element, and any fullwidth marker that stayed literal in the prose.
 _CITATION_STATE_JS = """(() => {
@@ -132,7 +123,7 @@ _CITATION_STATE_JS = """(() => {
       literalMarkers: ((el ? el.textContent : '') || '').match(/【\\d+】/g) ?? [],
     };
   });
-  return { loading: Boolean(store?.loading || store?.isStreaming), assistants: rows };
+  return { loading: Boolean(store?.loading), assistants: rows };
 })()"""
 
 
@@ -228,32 +219,6 @@ async def _wait_cited_messages(chat: McpChatSession, *, expected: int, timeout_s
     return last
 
 
-async def _probe_page(chat: McpChatSession) -> dict[str, object]:
-    """Action mode and send readiness as the page reports them.
-
-    A page that cannot answer is reported instead of raised: this runs while a failure is being described,
-    and the probe must not replace the failure it describes.
-    """
-    try:
-        raw = await chat.evaluate(_PAGE_PROBE_JS, await_promise=False)
-    except Exception as exc:
-        return {"probeError": f"{type(exc).__name__}: {exc}"[:200]}
-    return raw if isinstance(raw, dict) else {"raw": raw}
-
-
-async def _send_fast_search_turn(chat: McpChatSession, prompt: str, *, chat_id_hint: str | None = None) -> None:
-    """Send one turn after asserting the chat is in fast mode; report the page state around the send."""
-    before = await _probe_page(chat)
-    assert before.get("actionMode") == "fast", f"the chat was not in fast mode when the send started: {before}"
-    try:
-        await chat.send_message(prompt, prompt, skip_model_sync=True, chat_id_hint=chat_id_hint)
-    except (RuntimeError, TimeoutError) as exc:
-        message = f"send failed (page before: {before}, after: {await _probe_page(chat)}): {exc}"
-        raise (TimeoutError if isinstance(exc, TimeoutError) else RuntimeError)(message) from exc
-    after = await _probe_page(chat)
-    print(f"E2E_NUMBERING_SEND: mode before={before.get('actionMode')} after={after.get('actionMode')}", flush=True)
-
-
 async def _wait_persisted_source_indexes(api_url: str, chat_id: str, expected: list[list[int]]) -> list[list[int]]:
     """Poll the persisted source numbers until they equal ``expected`` or the wait runs out.
 
@@ -312,15 +277,11 @@ async def test_fast_search_numbers_continue_and_bind_across_turns_chrome_e2e(
         assert isinstance(prep, dict) and prep.get("ready") is True, prep
         heartbeat_once()
 
-        await _send_fast_search_turn(chat, _FIRST_PROMPT)
-        first_turn = await chat.wait_turn_settled(timeout_sec=_TURN_WAIT_SEC)
+        first_turn = await run_fast_search_turn(chat, _FIRST_PROMPT, turn=1, timeout_sec=_TURN_WAIT_SEC)
         chat_id = str(first_turn.get("chatId") or "")
         assert chat_id, first_turn
-        print(f"E2E_NUMBERING_TURN1: {json.dumps(first_turn, ensure_ascii=False)[:500]}", flush=True)
-
-        await _send_fast_search_turn(chat, _SECOND_PROMPT, chat_id_hint=chat_id)
-        second_turn = await chat.wait_turn_settled(chat_id_hint=chat_id, min_user_msgs=2, timeout_sec=_TURN_WAIT_SEC)
-        print(f"E2E_NUMBERING_TURN2: {json.dumps(second_turn, ensure_ascii=False)[:500]}", flush=True)
+        maybe_register_e2e_chat(chat_id)
+        await run_fast_search_turn(chat, _SECOND_PROMPT, turn=2, timeout_sec=_TURN_WAIT_SEC)
 
         live_state = await _wait_cited_messages(chat, expected=2, timeout_sec=60.0)
         print(f"E2E_NUMBERING_LIVE_STATE: {json.dumps(live_state, ensure_ascii=False)}", flush=True)

@@ -27,6 +27,7 @@ from tests.api.agent.utils import (
     build_memory_e2e_embedding_retrieval_dict,
     hide_sse_heartbeats,
 )
+from tests.support.memory_manager_shutdown import shutdown_cached_memory_managers_bounded
 from tests.support.real_model_workspace_turns import (  # noqa: F401  (fixtures of the real-model workspace tests)
     applied,
     routes_and_trust,
@@ -416,7 +417,6 @@ def _clear_agent_test_process_state() -> None:
         ApprovalTimeoutScheduler,
     )
 
-    from app.core.memory.adapters.setup import shutdown_cached_memory_managers
     from app.platform_utils import (
         _reset_checkpointer_for_testing,
         _reset_quota_manager_for_testing,
@@ -434,11 +434,11 @@ def _clear_agent_test_process_state() -> None:
     _reset_quota_manager_for_testing()
     ApprovalTimeoutScheduler.get().cancel_all()
     try:
-        asyncio.run(shutdown_cached_memory_managers())
+        asyncio.run(shutdown_cached_memory_managers_bounded())
     except RuntimeError:
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(shutdown_cached_memory_managers())
+            loop.run_until_complete(shutdown_cached_memory_managers_bounded())
         finally:
             loop.close()
 

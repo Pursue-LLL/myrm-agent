@@ -6796,7 +6796,6 @@
   },
   "sources": {
     "title": "来源",
-    "count": "{count} 个来源",
     "untitled": "未命名",
     "mcp_source": "MCP 技能调用",
     "mcp_calls_count": "共 {count} 次工具调用",
@@ -6812,8 +6811,6 @@
     "conversation_excluded": "已从会话召回中排除",
     "conversation_deleted": "会话已删除",
     "operation_failed": "操作失败",
-    "copyAll": "复制全部",
-    "copyAllSuccess": "来源已复制到剪贴板",
     "mcpSkillFallback": "MCP 技能"
   },
   "auth": {
@@ -8786,7 +8783,7 @@
     "credentialGuideGooglechat": "在 Google Cloud Console 创建服务账号并配置 Chat API",
     "credentialGuideMatrix": "配置 Matrix Homeserver 地址和 Bot 账号凭证",
     "credentialGuideMattermost": "在 Mattermost 系统控制台创建 Bot 并获取 Token",
-    "credentialGuideGithub": "在 GitHub Settings 中创建 Personal Access Token，并在仓库设置中配置 Webhook Secret",
+    "credentialGuideGithub": "在 GitHub Settings 中创建 Personal Access Token",
     "channelEnableSuccess": "渠道 {name} 已启用",
     "channelDisableSuccess": "渠道 {name} 已禁用",
     "channelToggleError": "切换渠道状态失败",

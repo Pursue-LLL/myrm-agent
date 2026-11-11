@@ -2,7 +2,7 @@
 
 ## Overview
 
-Third-party content extractors — fast-path parsing for WeChat / Bilibili / YouTube,
+Third-party content extractors — fast-path parsing for WeChat / Bilibili / YouTube / X,
 used by the FetchEngine before L2/L3 browser fallback. Each extractor owns parsing
 for a single source and may leverage optional deps (`youtube-transcript-api`) or the
 SessionVault cookie store (Bilibili AI subtitles) without requiring a browser.
@@ -34,4 +34,4 @@ SessionVault cookie store (Bilibili AI subtitles) without requiring a browser.
 
 ## Consumers
 
-- `web_fetch/engine/fetch_mixin.py` / `web_fetch/engine/base.py` — fast-path before L2/L3 fallback
+- `web_fetch/engine/fetch_mixin.py` (`_fetch_from_network`) — fast-path ahead of the L1/L2/L3 tier ladder

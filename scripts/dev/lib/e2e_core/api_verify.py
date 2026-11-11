@@ -30,7 +30,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
@@ -379,7 +379,7 @@ def _supervisor_state_health(state_dir: Path) -> bool | None:
     except ValueError:
         return None
     if observed_at.tzinfo is None:
-        observed_at = observed_at.replace(tzinfo=timezone.utc)
+        observed_at = observed_at.replace(tzinfo=UTC)
     age_sec = time.time() - observed_at.timestamp()
     if age_sec < -5.0 or age_sec > SUPERVISOR_STATE_MAX_AGE_SEC:
         return None
@@ -810,7 +810,7 @@ def _resolve_e2e_api_context_impl(
     wave_snapshot = load_wave_snapshot()
     active_leases = shared_effective_lease_count(wave_snapshot)
 
-    # P0-A: drift apply removed from observation path — Coordinator daemon owns mutation.
+    # P0-A: the observation path never applies drift — the Coordinator daemon owns mutation.
     # Here we only read drift state for context reporting.
     drift_pending = pending_drift_exists(resolved_state)
     drift_action = decide_drift_heal(

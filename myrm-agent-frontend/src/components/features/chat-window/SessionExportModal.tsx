@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useTransition } from 'react';
+import { useState, useCallback, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import {
@@ -35,6 +35,7 @@ import {
   downloadAsMarkdown,
   downloadAsJson,
   copyAsMarkdown,
+  getExportLang,
   type ExportFormatOptions,
 } from '@/lib/utils/chat-export';
 
@@ -60,11 +61,17 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
   const [isCopied, setIsCopied] = useState(false);
   const [, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (open && initialFormat) {
-      setSelectedFormat(initialFormat);
+  // The format the caller asks for applies when the dialog opens or the ask changes, and only then, so the user's own
+  // pick stands while the dialog stays open. Adjusting during render lands it in the same commit as the ask, so an ask
+  // that changes while the dialog is open never paints the previous selection.
+  const requestedFormat = open ? initialFormat : undefined;
+  const [prevRequestedFormat, setPrevRequestedFormat] = useState(requestedFormat);
+  if (requestedFormat !== prevRequestedFormat) {
+    setPrevRequestedFormat(requestedFormat);
+    if (requestedFormat) {
+      setSelectedFormat(requestedFormat);
     }
-  }, [open, initialFormat]);
+  }
 
   const handleExport = useCallback(async () => {
     if (!chatId || isExporting) {
@@ -102,11 +109,10 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
       };
 
       const isDark = resolvedTheme === 'dark';
-      const lang = typeof navigator !== 'undefined' && navigator.language.startsWith('zh') ? 'zh' : 'en';
 
       switch (selectedFormat) {
         case 'html':
-          await downloadAsHtml(exportData, isDark ? 'dark' : 'light', lang, formatOptions);
+          await downloadAsHtml(exportData, isDark ? 'dark' : 'light', getExportLang(), formatOptions);
           break;
         case 'markdown':
           downloadAsMarkdown(exportData, formatOptions);

@@ -1,11 +1,13 @@
-"""FetchEngine fetch, degradation, and tier-breaker feedback helpers.
+"""FetchEngine network fetch, platform fast-path, degradation, and tier-breaker feedback helpers.
 
 [POS]
-Mixin: L1/L2/L3 fetch+pipeline, tier degradation, tier-breaker and failure-history feedback.
+Mixin: platform fast-paths (YouTube, Bilibili, WeChat, X) ahead of the L1/L2/L3 tier ladder, L1/L2/L3
+fetch+pipeline, tier degradation, tier-breaker and failure-history feedback.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -13,6 +15,10 @@ from langchain_core.documents import Document
 
 from myrm_agent_harness.utils.content_sniff import PayloadKind
 
+from ..extractors.bilibili_extractor import extract_bilibili_subtitle, is_bilibili_url
+from ..extractors.weixin_extractor import extract_weixin_article, is_weixin_article_url
+from ..extractors.x_extractor import extract_x_post, is_x_url
+from ..extractors.youtube_extractor import extract_youtube_transcript, is_youtube_url
 from ..fetchers.protocols import Fetcher, FetcherType, FetchResult
 from ..processing.antibot_detector import is_blocked as detect_antibot
 from ..router import domain_key
@@ -121,11 +127,7 @@ class FetchEngineFetchMixin:
             logger.warning(f"L1 HTTP returned empty shell, will degrade: {url}")
             return None, True, None
 
-        from ..extractors.weixin_extractor import (
-            has_weixin_js_content,
-            is_weixin_article_url,
-            parse_weixin_article_html,
-        )
+        from ..extractors.weixin_extractor import has_weixin_js_content, parse_weixin_article_html
 
         if is_weixin_article_url(url):
             weixin_doc = parse_weixin_article_html(fetch_result.html, url=url)
@@ -251,3 +253,65 @@ class FetchEngineFetchMixin:
         self._tier_breaker.report(domain, fetcher_type, success=success)
         if not success:
             self._domain_metrics.record_failure(domain, fetcher_type)
+
+    async def _fetch_from_network(
+        self: FetchEngine,
+        url: str,
+        *,
+        etag: str | None,
+        last_modified: str | None,
+        max_chars: int,
+        allow_escalation: bool,
+    ) -> tuple[Document | None, FetchResult | None]:
+        """Fetch ``url`` over the network: the platform fast-path when it has one, then the tier ladder.
+
+        Each stage runs under its own crawl timeout, so a URL whose fast-path misses can take twice the cap.
+        """
+
+        async def degrade() -> tuple[Document | None, FetchResult | None]:
+            async with asyncio.timeout(self._crawl_timeout):
+                return await self._crawl_with_degradation(
+                    url,
+                    etag=etag,
+                    last_modified=last_modified,
+                    max_chars=max_chars,
+                    allow_escalation=allow_escalation,
+                )
+
+        proxy_pool = self._http_fetcher._proxy_pool
+        if is_youtube_url(url):
+            async with asyncio.timeout(self._crawl_timeout):
+                doc = await extract_youtube_transcript(
+                    url, preferred_languages=self._youtube_languages, proxy_pool=proxy_pool
+                )
+            return (doc, None) if doc is not None else await degrade()
+
+        if is_bilibili_url(url):
+            async with asyncio.timeout(self._crawl_timeout):
+                cookies = await self._load_bilibili_cookies()
+                doc = await extract_bilibili_subtitle(url, cookies=cookies, proxy_pool=proxy_pool)
+            return (doc, None) if doc is not None else await degrade()
+
+        if is_weixin_article_url(url):
+            async with asyncio.timeout(self._crawl_timeout):
+                doc = await extract_weixin_article(url, proxy_pool=proxy_pool)
+            if doc is not None:
+                logger.info("Weixin article fast-path succeeded: %s", url)
+                return doc, None
+            logger.info("Weixin article fast-path missed, degrading to browser: %s", url)
+            doc, fetch_result = await degrade()
+            if doc is not None:
+                logger.info("Weixin article browser degradation succeeded: %s", url)
+            else:
+                logger.warning("Weixin article fetch failed after degradation: %s", url)
+            return doc, fetch_result
+
+        if is_x_url(url):
+            async with asyncio.timeout(self._crawl_timeout):
+                doc = await extract_x_post(url, proxy_pool=proxy_pool)
+            if doc is not None:
+                logger.info("Twitter/X post fast-path succeeded: %s", url)
+                return doc, None
+            logger.info("Twitter/X post fast-path missed, degrading to standard fetch: %s", url)
+
+        return await degrade()

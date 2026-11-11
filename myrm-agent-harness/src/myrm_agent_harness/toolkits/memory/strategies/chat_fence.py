@@ -20,9 +20,9 @@
 Deleting a chat purges what it produced, but a writer that started earlier can finish later: post-turn extraction, a
 consolidation cycle, a recurrence check and a correction proposal each run for seconds to minutes and persist memories
 linked to the chat, and a maintenance pass that read documents before the purge writes them back after it. Closing the
-chat for ``_CLOSED_FOR_SECONDS`` makes them refuse instead of bringing the purged memories back. The registry holds only chats the memory system saw deleted, so a chat it never saw deleted is never
-refused, and it lives in the process: a write that passed the fence in the instant of the purge, or one made through
-another process, is not covered.
+chat for ``_CLOSED_FOR_SECONDS`` makes them refuse instead of bringing the purged memories back. The registry holds only
+chats the memory system saw deleted, so a chat it never saw deleted is never refused, and it lives in the process: a
+write that passed the fence in the instant of the purge, or one made through another process, is not covered.
 """
 
 from __future__ import annotations

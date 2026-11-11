@@ -25,7 +25,8 @@ import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
 import ResponsiveTable from '../markdown-render-tools/ResponsiveTable';
 import type { Artifact, Source, WikiSourceLevel } from '@/store/chat/types';
 import { buildWikiAssetUrl } from '@/services/wikiService';
-import { resolveWikiSectionLabel } from '@/services/wiki/sectionLabels';
+import { sourceName } from '@/lib/citations/sourceName';
+import { resolveWikiSectionLabel, wikiSectionLabeler } from '@/services/wiki/sectionLabels';
 import { detectEmbed, UrlEmbed } from '@/components/features/embeds';
 import { OgCard } from '@/components/features/embeds/OgCard';
 import DeliverableReferenceLink from './DeliverableReferenceLink';
@@ -215,7 +216,7 @@ export function createMarkdownComponents({
       const source = sources[sourceIndex];
 
       if (source?.type === 'mcp') {
-        const mcpTitle = source.skill_name || 'MCP Skill';
+        const mcpTitle = sourceName(source) ?? tSources('mcp_skill');
         const mcpCalls = Array.isArray(source.calls) ? source.calls : [];
         const mcpDescription =
           mcpCalls.length > 0
@@ -231,9 +232,7 @@ export function createMarkdownComponents({
 
       if (source?.kb_name) {
         const sectionLabel = resolveWikiSectionLabel(source.section, tSources);
-        const kbTitle = source.filename
-          ? `${source.filename}${sectionLabel ? ` § ${sectionLabel}` : ''}`
-          : source.kb_name;
+        const kbTitle = sourceName(source, wikiSectionLabeler(tSources)) ?? source.kb_name;
         const kbSnippet = source.snippet || source.summary || '';
         const assetThumbnailUrl =
           source.hit_kind === 'asset' && source.asset_filename
@@ -271,7 +270,7 @@ export function createMarkdownComponents({
         return (
           <LinkPopover
             url="#"
-            title={source.title || 'Conversation'}
+            title={sourceName(source) ?? tSources('conversation_history')}
             description={source.snippet || source.summary || ''}
             label={num}
           />

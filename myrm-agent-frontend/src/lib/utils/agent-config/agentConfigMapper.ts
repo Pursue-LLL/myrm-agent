@@ -81,7 +81,7 @@ export function buildAgentConfig(agent: Agent): AgentConfig {
     mcpToolSelections: agent.mcp_tool_selections,
     commandBindings: agent.command_bindings?.map((b) => ({
       command_name: b.command_name,
-      skill_ids: b.skill_ids ?? [],
+      skill_ids: b.skill_ids,
       description: b.description,
       instruction: b.instruction,
     })),

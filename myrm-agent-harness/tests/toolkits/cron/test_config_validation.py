@@ -30,7 +30,7 @@ class TestScheduleValidation:
             Schedule(kind=ScheduleKind.INTERVAL, interval_ms=1)
 
     def test_interval_ms_zero_rejected(self):
-        """interval_ms=0 is rejected (was previously allowed as <= 0)."""
+        """interval_ms=0 is rejected."""
         with pytest.raises(ValueError, match="interval_ms must be >= 100"):
             Schedule(kind=ScheduleKind.INTERVAL, interval_ms=0)
 

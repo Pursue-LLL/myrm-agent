@@ -14,6 +14,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | `turbopack.root` | monorepo 根（`myrm-agent/`） | dev/build 解析跨包 JSON |
 | `outputFileTracingRoot` | monorepo 根 | standalone/Tauri 打包 trace |
 | Docker build | [Dockerfile](Dockerfile) | builder 布局 `/app/frontend` + `/app/shared`（context = `myrm-agent/` 根） |
+| 依赖版本约束 | `package.json` `overrides` · `devDependencies.vite` | `overrides` 只收「第三方包用精确版本固定了带漏洞的版本，该包的最新发布仍未修复，且修复版本与被固定的版本同属一个大版本」的依赖：`monaco-editor` 固定 `dompurify`、`@serwist/*` 固定 `zod`、`@tailwindcss/typography` 固定 `postcss-selector-parser`；覆盖后嵌套副本与直接依赖收敛到同一个已修复版本，上游发布修复后删掉对应条目。需要跨大版本才能修复的固定（`@serwist/*` 固定的 `glob`）不加 override。`overrides` 不作用于 peer 依赖，所以 `vitest` 的 peer `vite`（范围含 8.x）显式声明在 `devDependencies`，固定在 7.x 的已修复版本。其余传递依赖的漏洞靠刷新 `bun.lock` 解决，不加 override |
 | CI | `frontend-build.yml` | `myrm-agent-frontend/**` / `shared/**` 变更触发：先 `bun run i18n:split` 生成 gitignored 的 `locales/namespaces/`，其后 lint 门禁（`bun run lint`：oxlint 与七道静态门禁）+ strict TS + fractal docs + 孤儿模块（相对对照点无新增）+ barrel policy + module resolution + verify:i18n + remap vitest + `bun run build`（末段含 verify-sw-push）互相独立执行（单个红灯不掩盖其余，一次运行列出全部失败门禁） |
 
 ## 脚本

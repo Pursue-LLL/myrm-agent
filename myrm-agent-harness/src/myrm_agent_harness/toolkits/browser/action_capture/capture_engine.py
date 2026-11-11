@@ -68,7 +68,7 @@ logger = logging.getLogger(__name__)
 
 # A navigation arriving within this window after an action step (click/dblclick/press)
 # is considered caused by that action and folded into its URL instead of producing
-# a standalone NAVIGATE step. Mirrors BrowserSkill's `expects_navigation` semantics.
+# a standalone NAVIGATE step.
 _NAV_ACTION_WINDOW_S = 1.5
 
 _CAPTURE_JS = files(__package__).joinpath("capture_script.js").read_text(encoding="utf-8")

@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 |
 | --- | --- | --- |
 | `__init__.py` | 入口 | 包入口（不再导出符号，调用方按模块路径导入） |
-| `agent_core_rules.py` | 核心 | 核心行为规则（所有模型共用的反叙述、工具结果诚实、反幻觉规则，与模型名无关） |
+| `agent_core_rules.py` | 核心 | 核心行为规则（所有模型共用，与模型名无关）：反叙述、工具结果诚实、断言缺失前先验证、主动检索求证、仅原生 Function Calling（禁输出 XML 工具调用）、调用工具前先查已有上下文 |
 | `answer_draft.py` | 核心 | 流式回复文本累积器 `AnswerDraft` 与重启契约判定 `is_answer_restart`：恢复重放时只丢弃“最近一次 `tool_start` 之后”的在途段落（已完成的工具步骤由检查点保留，模型从其后续写，之前的文本不会重发）；所有从 `process_stream` 事件拼最终回复的消费者统一使用，禁止各自重写该规则 |
 | `artifact_events.py` | 核心 | 工件事件处理（文件工件、UI工件、内联图片工件与实时内容更新） |
 | `channel_output_hints.py` | 核心 | 交付渠道输出格式提示词生成（Channel-Aware Output Guidance）与前置提示保障 |

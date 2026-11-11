@@ -10,7 +10,7 @@
 - SecureHttpTarget: Pinned request URL and headers for streaming fetch
 
 [POS]
-Extracted from MediaDownloader to keep downloader.py under the line budget gate.
+Resolves a media URL into an SSRF-safe pinned target (URL + headers) for MediaDownloader's streaming fetch.
 """
 
 from __future__ import annotations

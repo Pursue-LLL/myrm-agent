@@ -1,8 +1,8 @@
 """Cron job validation and normalization helpers.
 
-Split from ``manager.py`` so the CRUD orchestration file stays about persistence
-ordering and scheduler notification, while the field-level rules that reject a job
-live together and can be read (and tested) on their own.
+The field-level rules that reject a job live together here, apart from the CRUD
+orchestration's persistence ordering and scheduler notification, so they can be read
+(and tested) on their own.
 
 [INPUT]
 - cron.engine.parser::validate_cron_expr, validate_timezone (POS: cron 表达式与时区校验)

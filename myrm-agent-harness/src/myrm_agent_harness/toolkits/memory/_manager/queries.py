@@ -2,10 +2,12 @@
 
 [INPUT]
 - memory._manager.helpers::_memory_ref (POS: memory reference serializer)
+- memory._manager.helpers::_rule_has_metadata (POS: whether a rule carries a metadata pair, its chat links read from the rule's own fields)
 - memory._manager.model_collections::memory_collections (POS: every embedding model's collections)
 - memory._manager.shared::MemoryType (POS: memory taxonomy enum)
 - memory._manager.shared::Sequence (POS: collection sequence protocol)
 - memory._internal.graph_cascade::drop_chat_claims (POS: deletes the claim graph a chat's digests produced)
+- memory.strategies.chat_fence::close_chat (POS: refuses writes derived from a chat while its memories are purged)
 - memory.strategies.recurrence::purge_recurrence_buffer (POS: deletes the recurrence buffer rows one chat contributed)
 
 [OUTPUT]
@@ -13,9 +15,10 @@
 
 [POS]
 Metadata and session query mixin — extracts memory ids/refs by metadata and aggregates chat stats. A chat's
-purge and its preview read the same two links, so the preview counts exactly what the purge deletes. The purge also
-clears the chat's rows from the recurrence buffer, which holds the opening words of its sessions, the claim graph
-its task digests were compiled into, and the profile entries that hold its working state.
+purge and its preview read the same two links, so the preview counts exactly what the purge deletes. The purge first
+closes the chat to writers still running for it, then also clears the chat's rows from the recurrence buffer, which holds
+the opening words of its sessions, the claim graph its task digests were compiled into, and the profile entries that
+hold its working state.
 """
 
 from __future__ import annotations

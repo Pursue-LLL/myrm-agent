@@ -22,8 +22,8 @@ dynamic voice control.
 - strip_tts_tags(): strip TTS tags
 
 [POS]
-Voice processing module. Extracted from Router core routing logic as a collection
-of pure/utility functions, invoked by AgentRouter during message processing.
+Voice processing module: a collection of pure/utility functions invoked by AgentRouter
+during message processing.
 """
 
 from __future__ import annotations

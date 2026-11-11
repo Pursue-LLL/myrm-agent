@@ -8,7 +8,7 @@
  * - FleetKPIBar: Fleet KPI metrics banner for agents page
  *
  * [POS]
- * Extracted from app/agents/page.tsx to keep page under 400 lines limit.
+ * Fleet KPI banner rendered by app/agents/page.tsx.
  */
 
 'use client';

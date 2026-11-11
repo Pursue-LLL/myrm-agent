@@ -7,7 +7,7 @@
 - HookRegistry: 钩子注册管理器（get() 按 -priority 稳定排序，安全钩子恒定最先；activate_scope/release_scope 让一组钩子的生命周期短于会话）
 
 [POS]
-Hook storage layer. Split from the executor so registration lifetime (session vs. run) and execution evolve independently.
+Hook storage layer: owns registration and its lifetime (session vs. run); execution lives in the executor.
 """
 
 from __future__ import annotations

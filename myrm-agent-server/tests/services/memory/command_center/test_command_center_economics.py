@@ -1,4 +1,4 @@
-"""Tests for MemoryEconomicsService and Omri et al. 2026 telemetry in server."""
+"""Tests for MemoryEconomicsService and its three-phase telemetry."""
 
 from __future__ import annotations
 

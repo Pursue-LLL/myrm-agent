@@ -28,7 +28,7 @@ import {
 import { cn } from '@/lib/utils/classnameUtils';
 import { IconBrain, IconFolder } from '@/components/features/icons/PremiumIcons';
 import { listSharedContexts, type SharedContext } from '@/services/memory/sharedContexts';
-import { SourceItem } from '@/components/features/message-actions/SourcesButton';
+import { SourceItem } from '@/components/features/message-actions/SourceItem';
 import type { CitedMemoryReference, Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { normalizeCitationTitle } from '@/lib/citations/preprocessCitationMarkers';

@@ -35,6 +35,7 @@ from tests.support.consolidation_cycles import (
     rewrite,
     run_cycle,
     store_fresh,
+    stored_insights,
     undo,
 )
 from tests.support.consolidation_seeds import NewManager, seed, semantic
@@ -304,17 +305,32 @@ async def test_a_cycle_that_changed_nothing_leaves_the_earlier_undo_in_place(new
     assert await undo(manager) == UndoResult(rolled_back=3)
 
 
-async def test_an_insight_is_part_of_its_cycle_so_undoing_the_cycle_removes_it(new_manager: NewManager) -> None:
+async def test_a_cycle_that_only_adds_insights_leaves_the_earlier_undo_in_place(new_manager: NewManager) -> None:
     manager = new_manager()
     _, _, merged_id = await merged_pair(manager)
+    earlier = await get_undo_summary(manager)
     await store_fresh(manager, "User owns a bicycle", "User rides to work")
 
-    stats = await run_cycle(manager, insights=("User prefers low-effort commutes",))
+    await run_cycle(manager, insights=("User prefers low-effort commutes",))
 
-    [insight_id] = stats.undo.created
-    assert await undo(manager) == UndoResult(rolled_back=1)
+    assert await get_undo_summary(manager) == earlier
+    assert len(await stored_insights(manager)) == 1
+    assert await undo(manager) == UndoResult(rolled_back=3)
+    assert await manager.get_memory(merged_id) is None
+    assert len(await stored_insights(manager)) == 1
+
+
+async def test_an_insight_is_part_of_its_cycle_so_undoing_the_cycle_removes_it(new_manager: NewManager) -> None:
+    manager = new_manager()
+    first, second = semantic(TEA, 1, importance=0.4), semantic(TEA_TOO, 2, importance=0.9)
+    await seed(manager, [first, second])
+
+    stats = await run_cycle(manager, merge(first, second, TEA), insights=("User prefers low-effort commutes",))
+
+    [merged_id, insight_id] = stats.undo.created
+    assert await undo(manager) == UndoResult(rolled_back=4)
+    assert await manager.get_memory(merged_id) is None
     assert await manager.get_memory(insight_id) is None
-    assert await manager.get_memory(merged_id) is not None
 
 
 async def test_the_card_of_an_older_cycle_cannot_undo_a_newer_one(new_manager: NewManager) -> None:

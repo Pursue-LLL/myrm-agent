@@ -8,7 +8,7 @@
 定时任务系统的**业务层适配器**。核心调度引擎和工具位于框架层
 `myrm_agent_harness.toolkits.cron`；本目录提供 SQLAlchemy 存储、Agent 执行器、Channel 推送与跨进程文件锁实现。
 
-Agent 执行时**不再使用配置快照**，而是从 `config_loader` 实时读取用户最新的
+Agent 执行时不使用配置快照，而是从 `config_loader` 实时读取用户最新的
 providers/search 配置。模型优先级：`智能体配置的 model` > `CronJob.model` > `用户默认模型`。
 所有解析的模型均为用户在前端可见的配置，无隐式 fallback。
 

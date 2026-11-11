@@ -114,3 +114,35 @@ describe('chatExportHtml - buildHtmlDocument', () => {
     expect(html).toContain('background:#fff!important;color:#0f172a!important');
   });
 });
+
+describe('chatExportHtml - the sources of a message', () => {
+  // The kinds the server stores: a web page has an address and maybe a title, a wiki hit a knowledge base and a file, an
+  // MCP call only its skill. The numbers run on across the turns of a chat, so this answer's start above 1.
+  it('lists each source under the number the answer cites it by, named as the interface names it', async () => {
+    const sources = [
+      { index: 4, type: 'web_search', title: 'Deploy guide', url: 'https://docs.example.com/guide' },
+      { index: 5, type: 'web_fetch', url: 'https://example.com/post' },
+      { index: 6, type: 'knowledge', kb_name: 'Work', filename: 'deploy-notes', section: 'Rollback' },
+      { index: 7, type: 'mcp', skill_name: 'github' },
+      { index: 8, type: 'conversation_history', title: 'Planning the launch' },
+      { index: 9, type: 'knowledge' },
+    ];
+    const data = createMockExportData({
+      messages: [
+        { role: 'assistant', content: 'Answer [4].', createdAt: '2026-10-01T10:02:00Z', metadata: { sources } },
+      ],
+    });
+
+    const doc = new DOMParser().parseFromString(await buildHtmlDocument(data, 'light', 'en'), 'text/html');
+
+    expect([...doc.querySelectorAll('.sources li')].map((item) => item.textContent)).toEqual([
+      '[4] Deploy guide',
+      '[5] https://example.com/post',
+      '[6] deploy-notes § Rollback',
+      '[7] github',
+      '[8] Planning the launch',
+      '[9] Source',
+    ]);
+    expect(doc.querySelector('.sources li a')?.getAttribute('href')).toBe('https://docs.example.com/guide');
+  });
+});

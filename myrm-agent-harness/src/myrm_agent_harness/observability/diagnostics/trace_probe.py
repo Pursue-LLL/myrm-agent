@@ -8,7 +8,7 @@
 - check_local_trace_export_audit: Audit that trace export stays local while local-trace-only mode is on.
 
 [POS]
-Harness-level doctor probe registered through probes.py; kept apart so the probe module stays within its line budget.
+Harness-level doctor probe registered through probes.py.
 """
 
 from myrm_agent_harness.observability.diagnostics.protocols import HealthReport

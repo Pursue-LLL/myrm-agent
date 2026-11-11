@@ -20,6 +20,7 @@ export {
   formatChatAsMarkdown,
   formatChatAsJson,
   downloadFile,
+  getExportLang,
   downloadAsMarkdown,
   downloadAsJson,
   downloadAsHtml,
@@ -32,3 +33,5 @@ export {
 } from './chatExport';
 export type { BatchExportFormat, BatchExportProgress, BatchExportResult } from './batchExport';
 export { batchExportAsZip } from './batchExport';
+export type { MessageLabels } from './chatExportMessageText';
+export { formatSourcesFootnotes } from './chatExportMessageText';

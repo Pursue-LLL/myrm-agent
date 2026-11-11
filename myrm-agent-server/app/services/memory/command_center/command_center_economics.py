@@ -7,11 +7,11 @@ myrm_agent_harness.toolkits.memory.observability::MemoryPhaseLatency (POS: Harne
 app.services.memory.command_center.command_center_projection_utils::read_memory_telemetry (POS: per-turn 记忆遥测解析)
 
 [OUTPUT]
-MemoryCommandEconomicsDashboard: Long-horizon memory cost, Omri 2026 three-phase latency,
+MemoryCommandEconomicsDashboard: Long-horizon memory cost, three-phase latency,
 ROI grade, turn-by-turn trajectory, and parasitic memory identification.
 
 [POS]
-长程任务记忆经济学分析服务。对标 Omri et al. (2026)，拆解构建/检索/注入三阶段开销，
+长程任务记忆经济学分析服务。拆解构建/检索/注入三阶段开销，
 量化长程任务有效召回 ROI 与 Prompt Cache 保持率，识别沉睡低效记忆池并联动 Doctor 治理。
 """
 

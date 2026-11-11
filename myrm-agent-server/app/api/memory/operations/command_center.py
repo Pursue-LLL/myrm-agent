@@ -159,7 +159,7 @@ async def get_memory_economics(
     db: AsyncSession = Depends(get_db_session),
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryCommandEconomicsDashboard:
-    """Return Omri et al. 2026 three-phase economics, turn trajectories, and parasitic memory identification."""
+    """Return three-phase economics, turn trajectories, and parasitic memory identification."""
     command_service = MemoryCommandCenterService(db, memory_manager)
     influence = await command_service._insights.build_influence()
     archived_ids = await command_service.get_archived_memory_ids()

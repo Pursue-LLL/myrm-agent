@@ -175,7 +175,7 @@ class UpdateSummaryRequest(BaseModel):
 
 
 class TurnOutlineItem(BaseModel):
-    """会话轮次大纲轻量投影项（对标 DeepSeek Harness turnOutline 600字节纯 fold 投影）"""
+    """会话轮次大纲轻量投影项（600 字节纯 fold 投影）"""
 
     turn_index: int = Field(..., description="轮次序号（从1开始）")
     user_message_id: str = Field(..., description="本轮用户首条提问消息ID")
