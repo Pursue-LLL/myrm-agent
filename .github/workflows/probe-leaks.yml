@@ -1,0 +1,131 @@
+name: Probe background-task leaks (do not merge)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/probe-leaks.yml'
+
+env:
+  BASIC_MODEL: openai/ci-offline-placeholder
+  LITE_MODEL: openai/ci-offline-placeholder
+
+jobs:
+  probe:
+    name: probe ${{ matrix.variant }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: tip-a
+            ref: a36e110e0b82057955519dc854e5a86407118e33
+          - variant: tip-b
+            ref: a36e110e0b82057955519dc854e5a86407118e33
+          - variant: mid-d25683aec7
+            ref: d25683aec75981219b965cd129ef97274af22266
+          - variant: p53-c2901b7cfd
+            ref: c2901b7cfdc1431eb027fcd3c1293067cb3faf69
+          - variant: p00-91f3c577ea
+            ref: 91f3c577ea757d6cc5b361c2cb25059e484b5822
+    defaults:
+      run:
+        working-directory: myrm-agent-server
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ matrix.ref }}
+
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install promtool
+        run: bash scripts/ci/install_promtool.sh
+
+      - name: Install the locked dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Write the probe plugin
+        run: |
+          mkdir -p "$RUNNER_TEMP/probe"
+          cat > "$RUNNER_TEMP/probe/probe_leaks.py" <<'PY'
+          """Counts abandoned memory-manager shutdowns and the growth of the harness background-task set, per test."""
+
+          from __future__ import annotations
+
+          import asyncio
+          import sys
+          from collections.abc import Awaitable, Callable
+
+          import pytest
+
+          BOUND_SECONDS = 2.0
+          CANCEL_ROUNDS = 5
+          CANCEL_ROUND_SECONDS = 0.2
+
+          _current = {"test": ""}
+          _counts = {"abandoned": 0, "stale": 0}
+          _patched = {"done": False}
+
+
+          def _emit(message: str) -> None:
+              stream = sys.__stderr__
+              if stream is not None:
+                  stream.write(f"PROBE {message}\n")
+                  stream.flush()
+
+
+          def _install() -> None:
+              from app.core.memory.adapters import setup
+
+              original: Callable[[], Awaitable[None]] = setup.shutdown_cached_memory_managers
+
+              async def bounded() -> None:
+                  task = asyncio.ensure_future(original())
+                  await asyncio.wait({task}, timeout=BOUND_SECONDS)
+                  if task.done():
+                      task.result()
+                      return
+                  _counts["abandoned"] += 1
+                  _emit(f"ABANDON n={_counts['abandoned']} test={_current['test']}")
+                  for _ in range(CANCEL_ROUNDS):
+                      task.cancel()
+                      await asyncio.wait({task}, timeout=CANCEL_ROUND_SECONDS)
+                      if task.done():
+                          return
+
+              setup.shutdown_cached_memory_managers = bounded
+
+
+          def _stale_background_tasks() -> int:
+              from myrm_agent_harness.agent.skill_agent import context
+
+              return sum(1 for task in context._background_tasks if not task.done())
+
+
+          def pytest_runtest_setup(item: pytest.Item) -> None:
+              _current["test"] = item.nodeid
+              if not _patched["done"]:
+                  _patched["done"] = True
+                  _install()
+
+
+          def pytest_runtest_logfinish(nodeid: str, location: tuple[str, int | None, str]) -> None:
+              stale = _stale_background_tasks()
+              if stale != _counts["stale"]:
+                  _emit(f"STALE {_counts['stale']}->{stale} after {nodeid}")
+                  _counts["stale"] = stale
+
+
+          def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+              _emit(f"SUMMARY abandoned={_counts['abandoned']} stale_final={_counts['stale']}")
+          PY
+
+      - name: Run the default suite with the probe
+        run: |
+          set +e
+          git log -1 --format='checked out: %H %cI %s'
+          PYTHONUNBUFFERED=1 PYTHONPATH="$RUNNER_TEMP/probe" timeout -s INT -k 30 4200 .venv/bin/python -m pytest -n0 --tb=short -q -p no:cacheprovider -p probe_leaks
+          echo "pytest exit status: $?"
