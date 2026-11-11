@@ -61,7 +61,7 @@ export function useAgentGallery({ onSelectPreset, onSelectCustomAgent }: UseAgen
     }
   }, [isInitialized, initProviders]);
 
-  // 27 built-in presets exceed default page_size=20; fetch enough for gallery SSOT.
+  // The built-in presets alone exceed default page_size=20; fetch enough for gallery SSOT.
   // A forced fetch is not de-duplicated by the store, so it must not re-run when the providers finish starting.
   useEffect(() => {
     fetchAgents(true);
