@@ -395,8 +395,8 @@ describe('chatExport', () => {
 
       const blobContent = (blobSpy.mock.instances[0] as unknown as { _content: string })._content;
       expect(blobContent).toContain('Citations:');
-      expect(blobContent).toContain('[1] https://example.com');
-      expect(blobContent).toContain('[2] https://test.com');
+      // A hard break after every line (two spaces) keeps each citation on its own line when the Markdown is rendered.
+      expect(blobContent).toContain('Citations:  \n[1] https://example.com  \n[2] https://test.com');
 
       blobSpy.mockRestore();
     });
@@ -489,15 +489,7 @@ describe('chatExport', () => {
       vi.restoreAllMocks();
     });
 
-    it('should call docshift toDocx and download', async () => {
-      const mockDocxBlob = new Blob(['docx content'], {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      });
-      vi.doMock('docshift', () => ({ toDocx: vi.fn().mockResolvedValue(mockDocxBlob) }));
-      vi.doMock('../chatExportHtml', () => ({
-        buildHtmlDocument: vi.fn().mockResolvedValue('<html><body>Test</body></html>'),
-      }));
-
+    it('should build a Word file and download it through the page', async () => {
       const linkMock = { href: '', download: '', click: vi.fn(), style: {} };
       vi.spyOn(document, 'createElement').mockReturnValue(linkMock as unknown as HTMLAnchorElement);
       vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
@@ -511,6 +503,8 @@ describe('chatExport', () => {
 
       expect(linkMock.click).toHaveBeenCalled();
       expect(linkMock.download).toContain('.docx');
+      const blob = vi.mocked(URL.createObjectURL).mock.calls[0][0] as Blob;
+      expect(new Uint8Array(await blob.arrayBuffer()).slice(0, 2)).toEqual(new Uint8Array([0x50, 0x4b]));
     });
   });
 

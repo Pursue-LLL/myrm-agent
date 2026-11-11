@@ -30,7 +30,7 @@ dependencies = [
   "dill>=0.4.1",                           # checkpoint serde (chat model / complex objects)
   # --- 数据验证与序列化 ---
   "pydantic>=2.14.3", # 数据模型验证
-  "PyYAML>=6.0.3",    # YAML 配置解析（下限 6.0.2：pdf-ocr 的 paddlex 固定 PyYAML==6.0.2）
+  "PyYAML>=6.0.3",    # YAML 配置解析
   "json_repair>=0.64.9", # LLM 脏 JSON 修复兜底 (chat_utils 解析链末层)
   # --- HTTP 与异步 I/O ---
   "httpx>=0.28.1",        # 异步 HTTP 客户端（统一网络栈；SOCKS 由 server/渠道层按需安装）

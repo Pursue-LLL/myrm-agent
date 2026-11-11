@@ -1,7 +1,7 @@
 /**
- * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ./katexExportStyle.ts::getKatexExportStyle (POS: the KaTeX stylesheet and fonts an export with formulas embeds); ../markdownMath.ts::mathPlugins, texSourceMathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render).
- * [OUTPUT] buildHtmlDocument, HtmlDocumentOptions.
- * [POS] Markdown-to-HTML export renderer for chat conversations: the interactive page, and the static document that a converter (DOCX) reads.
+ * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps); ./katexExportStyle.ts::getKatexExportStyle (POS: the KaTeX stylesheet and fonts an export with formulas embeds); ../markdownMath.ts::mathPlugins, normalizeMathDelimiters (POS: which `$` are formulas and how they render).
+ * [OUTPUT] buildHtmlDocument.
+ * [POS] Markdown-to-HTML export renderer for chat conversations.
  */
 import type { ExportData, ExportFormatOptions, ExportMessage } from './chatExport';
 import {
@@ -17,17 +17,8 @@ import {
 } from './chatExportHtmlTemplates';
 import { isSafeLinkUrl, rehypeSafeLinks } from './exportUrlPolicy';
 import { getKatexExportStyle } from './katexExportStyle';
-import { mathPlugins, normalizeMathDelimiters, texSourceMathPlugins } from '../markdownMath';
+import { mathPlugins, normalizeMathDelimiters } from '../markdownMath';
 import type { Element, ElementContent } from 'hast';
-
-export interface HtmlDocumentOptions extends ExportFormatOptions {
-  /**
-   * A document for a converter (Word) instead of a browser. It has no theme button, copy buttons or script, which a
-   * converter would print as text, and each formula is its TeX source instead of KaTeX's markup, which a converter
-   * would write out twice (the MathML half and the HTML half).
-   */
-  static?: boolean;
-}
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
 
@@ -110,15 +101,13 @@ interface MarkdownProcessor {
   process(content: string): Promise<{ toString(): string }>;
 }
 
-/** One engine per mode (keyed by `isStatic`), built on first use; a failed build is not kept, so the next call retries. */
-const processorPromises = new Map<boolean, Promise<MarkdownProcessor>>();
+let _processorPromise: Promise<MarkdownProcessor> | null = null;
 
-async function getMarkdownEngine(isStatic: boolean): Promise<MarkdownProcessor> {
-  const cached = processorPromises.get(isStatic);
-  if (cached) {
-    return cached;
+async function getMarkdownEngine() {
+  if (_processorPromise) {
+    return _processorPromise;
   }
-  const pending = (async () => {
+  _processorPromise = (async () => {
     try {
       const { unified } = await import('unified');
       const { default: remarkParse } = await import('remark-parse');
@@ -128,16 +117,12 @@ async function getMarkdownEngine(isStatic: boolean): Promise<MarkdownProcessor> 
       const { default: rehypeStringify } = await import('rehype-stringify');
       const { visit, SKIP } = await import('unist-util-visit');
 
-      const math = isStatic ? texSourceMathPlugins : mathPlugins;
-      const copyButton = isStatic
-        ? ''
-        : '<button class="copy-code-btn" type="button" aria-label="Copy code">Copy</button>';
       const processor = unified()
         .use(remarkParse)
         .use(remarkGfm)
-        .use(math.remark)
+        .use(mathPlugins.remark)
         .use(remarkRehype, { allowDangerousHtml: false })
-        .use(math.rehype)
+        .use(mathPlugins.rehype)
         .use(rehypeHighlight)
         .use(() => (tree: Element) => {
           visit(tree, 'element', (node: Element) => {
@@ -171,7 +156,7 @@ async function getMarkdownEngine(isStatic: boolean): Promise<MarkdownProcessor> 
               const langSpan = lang
                 ? `<span class="code-lang">${esc(lang)}</span>`
                 : '<span class="code-lang">code</span>';
-              const headerHtml = `<div class="code-header">${langSpan}${copyButton}</div>`;
+              const headerHtml = `<div class="code-header">${langSpan}<button class="copy-code-btn" type="button" aria-label="Copy code">Copy</button></div>`;
               node.tagName = 'div';
               node.properties = { className: ['code-block'] };
               node.children = [
@@ -193,16 +178,15 @@ async function getMarkdownEngine(isStatic: boolean): Promise<MarkdownProcessor> 
 
       return processor;
     } catch (err) {
-      processorPromises.delete(isStatic);
+      _processorPromise = null;
       throw err;
     }
   })();
-  processorPromises.set(isStatic, pending);
-  return pending;
+  return _processorPromise;
 }
 
-async function renderMarkdown(content: string, isStatic: boolean): Promise<string> {
-  const processor = await getMarkdownEngine(isStatic);
+async function renderMarkdown(content: string): Promise<string> {
+  const processor = await getMarkdownEngine();
   const result = await processor.process(normalizeMathDelimiters(content));
   return String(result);
 }
@@ -241,11 +225,10 @@ export async function buildHtmlDocument(
   data: ExportData,
   theme: 'light' | 'dark' = 'light',
   lang: 'en' | 'zh' = 'en',
-  options?: HtmlDocumentOptions,
+  options?: ExportFormatOptions,
 ): Promise<string> {
   const includeReasoning = options?.includeReasoning ?? true;
   const includeToolCalls = options?.includeToolCalls ?? true;
-  const isStatic = options?.static ?? false;
   const title = data.chat.title || 'Untitled';
   const stats = computeStats(data.messages);
   const exportDate = new Date().toLocaleString();
@@ -257,7 +240,7 @@ export async function buildHtmlDocument(
     if (!VISIBLE_ROLES.has(msg.role)) {
       continue;
     }
-    const htmlContent = await renderMarkdown(msg.content, isStatic);
+    const htmlContent = await renderMarkdown(msg.content);
     let msgHtml = renderMessageHtml(msg, htmlContent);
 
     if (includeReasoning) {
@@ -284,14 +267,10 @@ export async function buildHtmlDocument(
     renderedMessages.push(msgHtml);
   }
 
-  // The file carries the stylesheet and fonts its formulas need, but only an export that has KaTeX markup pays for
-  // them (a static document has none: its formulas are text).
+  // The file carries the stylesheet and fonts its formulas need, but only an export that has formulas pays for them.
   const katexStyle = renderedMessages.some((html) => html.includes(KATEX_MARKUP)) ? await getKatexExportStyle() : '';
 
-  const themeToggleHtml = isStatic
-    ? ''
-    : `<button class="theme-toggle" id="theme-toggle">${theme === 'dark' ? 'Light' : 'Dark'}</button>`;
-  const interactiveScriptHtml = isStatic ? '' : `<script>${getInteractiveJs()}</script>`;
+  const themeToggleText = theme === 'dark' ? 'Light' : 'Dark';
   const usageHtml = renderUsageStats(data.usageSummary, labels);
   const toolActivityHtml = includeToolCalls ? renderToolActivityHtml(data.toolSummary, labels) : '';
   const agentCardHtml = renderAgentCard(data.agentInfo, labels);
@@ -306,7 +285,7 @@ export async function buildHtmlDocument(
 </head>
 <body>
 <div class="export-header">
-${themeToggleHtml}
+<button class="theme-toggle" id="theme-toggle">${themeToggleText}</button>
 <div class="export-title">${esc(title)}</div>
 <div class="export-meta">${labels.exported} · ${exportDate}</div>
 ${data.redacted ? `<div class="redacted-notice">${lang === 'zh' ? '[Security] 本会话已启用敏感凭据自动脱敏安全保护' : '[Security] Sensitive secrets and credentials have been automatically redacted.'}</div>` : ''}
@@ -328,7 +307,7 @@ ${usageHtml}
 ${toolActivityHtml}
 ${renderedMessages.join('\n')}
 <div class="footer">${labels.exported} · ${exportDate}</div>
-${interactiveScriptHtml}
+<script>${getInteractiveJs()}</script>
 </body>
 </html>`;
 }

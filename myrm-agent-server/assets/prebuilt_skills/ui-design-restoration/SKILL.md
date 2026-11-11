@@ -66,10 +66,9 @@ This skill guides the Agent in faithfully reconstructing high-fidelity UI compon
 When analyzing screenshots, run a lightweight sandbox script if needed to extract the dominant color palette:
 ```python
 from PIL import Image
-from collections import Counter
 
-img = Image.open("screenshot.png")
-colors = Counter(img.convert("RGB").getdata()).most_common(5)
+img = Image.open("screenshot.png").convert("RGB")
+colors = sorted(img.getcolors(img.width * img.height), reverse=True)[:5]
 for count, col in colors:
     print(f"#{col[0]:02x}{col[1]:02x}{col[2]:02x}: {count}")
 ```

@@ -440,11 +440,6 @@ declare module '@novnc/novnc' {
   }
 }
 
-declare module 'docshift' {
-  export function toDocx(html: string): Promise<Blob>;
-  export function toHtml(docx: ArrayBuffer): Promise<string>;
-}
-
 declare module '*.svg' {
   const src: string;
   export default src;
