@@ -324,8 +324,18 @@ function formatMessageMarkdown(message: Message, includeReasoning: boolean, reda
   return lines.join('\n').trim();
 }
 
-function extractMessageTitle(content: string): string {
-  return content.split('\n')[0]?.slice(0, 80) || 'message';
+/** What a heading, quote or list item starts with is Markdown syntax, not a word of the title. */
+const TITLE_BLOCK_MARKERS = /^(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)+/;
+
+/**
+ * The file name is drawn from the text the file holds, so an export made with redaction on does not give the secret
+ * away through its name. The line is redacted whole before it is cut, so a secret that crosses the cut is not left
+ * half visible.
+ */
+function extractMessageTitle(message: Message, redact: boolean): string {
+  const firstLine = message.content.split('\n', 1)[0];
+  const text = redact ? redactSensitiveClientText(firstLine) : firstLine;
+  return text.trim().replace(TITLE_BLOCK_MARKERS, '').slice(0, 80) || 'message';
 }
 
 function buildSingleMessageExportData(message: Message, markdown: string, redacted = true): ExportData {
@@ -339,7 +349,7 @@ function buildSingleMessageExportData(message: Message, markdown: string, redact
 
 export function downloadMessageAsMarkdown(message: Message, includeReasoning: boolean, redact = true): void {
   const content = formatMessageMarkdown(message, includeReasoning, redact);
-  downloadFile(content, buildFilename(extractMessageTitle(message.content), 'md'), 'text/markdown;charset=utf-8');
+  downloadFile(content, buildFilename(extractMessageTitle(message, redact), 'md'), 'text/markdown;charset=utf-8');
 }
 
 export async function downloadMessageAsHtml(
@@ -352,13 +362,13 @@ export async function downloadMessageAsHtml(
   const markdown = formatMessageMarkdown(message, includeReasoning, redact);
   const { buildHtmlDocument } = await import('./chatExportHtml');
   const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), theme, lang);
-  downloadFile(html, buildFilename(extractMessageTitle(message.content), 'html'), 'text/html;charset=utf-8');
+  downloadFile(html, buildFilename(extractMessageTitle(message, redact), 'html'), 'text/html;charset=utf-8');
 }
 
 export async function downloadMessageAsDocx(message: Message, includeReasoning: boolean, redact = true): Promise<void> {
   const markdown = formatMessageMarkdown(message, includeReasoning, redact);
   const { buildDocxBlob } = await import('./chatExportDocx');
-  await triggerDownload(await buildDocxBlob(markdown), buildFilename(extractMessageTitle(message.content), 'docx'));
+  await triggerDownload(await buildDocxBlob(markdown), buildFilename(extractMessageTitle(message, redact), 'docx'));
 }
 
 export async function downloadMessageAsImage(element: HTMLElement, message: Message, redact = true): Promise<void> {
@@ -382,5 +392,5 @@ export async function downloadMessageAsImage(element: HTMLElement, message: Mess
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))), 'image/png');
   });
-  await triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
+  await triggerDownload(blob, buildFilename(extractMessageTitle(message, redact), 'png'));
 }
