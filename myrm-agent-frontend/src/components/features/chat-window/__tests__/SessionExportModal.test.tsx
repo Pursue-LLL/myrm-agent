@@ -2,7 +2,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SessionExportModal } from '../SessionExportModal';
+import { SessionExportModal, type SessionExportModalProps } from '../SessionExportModal';
 
 const {
   toastMock,
@@ -252,6 +252,90 @@ describe('SessionExportModal', () => {
         includeSubagents: true,
       });
       expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe('which format is selected', () => {
+    type Request = Pick<SessionExportModalProps, 'open' | 'initialFormat'>;
+    const EXPORTERS = {
+      html: downloadAsHtmlMock,
+      markdown: downloadAsMarkdownMock,
+      json: downloadAsJsonMock,
+      zip: exportSessionZipPackMock,
+    };
+
+    /** Renders the dialog and returns a way to change what the caller asks of it, as the parent does. */
+    function renderDialog(first: Request) {
+      const dialog = (request: Request) => (
+        <SessionExportModal chatId="c123" chatTitle="Test Session" onOpenChange={vi.fn()} {...request} />
+      );
+      const view = render(dialog(first));
+      return (next: Request) => view.rerender(dialog(next));
+    }
+
+    /** Downloads with whatever is selected and names the format that was exported. */
+    async function formatDownloaded(): Promise<string> {
+      const exported = () =>
+        Object.entries(EXPORTERS)
+          .filter(([, exporter]) => exporter.mock.calls.length > 0)
+          .map(([format]) => format);
+      fireEvent.click(screen.getByText('下载所选格式'));
+      await waitFor(() => expect(exported()).not.toHaveLength(0));
+      return exported().join();
+    }
+
+    it('keeps the format the user picked for as long as the dialog stays open', async () => {
+      const ask = renderDialog({ open: true, initialFormat: 'zip' });
+      fireEvent.click(screen.getByText('Markdown'));
+
+      ask({ open: true, initialFormat: 'zip' });
+
+      expect(await formatDownloaded()).toBe('markdown');
+    });
+
+    it('applies the asked-for format again each time the dialog opens', async () => {
+      const ask = renderDialog({ open: true, initialFormat: 'zip' });
+      fireEvent.click(screen.getByText('Markdown'));
+
+      ask({ open: false, initialFormat: 'zip' });
+      ask({ open: true, initialFormat: 'zip' });
+
+      expect(await formatDownloaded()).toBe('zip');
+    });
+
+    it('keeps the earlier pick when the dialog opens again without an asked-for format', async () => {
+      const ask = renderDialog({ open: true });
+      fireEvent.click(screen.getByText('JSON'));
+
+      ask({ open: false });
+      ask({ open: true });
+
+      expect(await formatDownloaded()).toBe('json');
+    });
+
+    it('follows a different format asked for while the dialog is open', async () => {
+      const ask = renderDialog({ open: true, initialFormat: 'zip' });
+
+      ask({ open: true, initialFormat: 'json' });
+
+      expect(await formatDownloaded()).toBe('json');
+    });
+
+    it('applies a format asked for while the dialog was closed once it opens', async () => {
+      const ask = renderDialog({ open: false });
+
+      ask({ open: false, initialFormat: 'json' });
+      ask({ open: true, initialFormat: 'json' });
+
+      expect(await formatDownloaded()).toBe('json');
+    });
+
+    it('leaves the selection alone when the ask is withdrawn while the dialog is open', async () => {
+      const ask = renderDialog({ open: true, initialFormat: 'zip' });
+
+      ask({ open: true });
+
+      expect(await formatDownloaded()).toBe('zip');
     });
   });
 });
