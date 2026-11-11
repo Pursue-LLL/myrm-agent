@@ -339,7 +339,7 @@ function requireE2eChatBridge(): NonNullable<Window['__MYRM_E2E_CHAT__']> {
   return bridge;
 }
 
-const SEND_TURN_REV = 'R72-J';
+const SEND_TURN_REV = 'R72-K';
 const SEND_TURN_NO_OP_MS = 3_000;
 /**
  * No-progress budget of a page bound to an injected E2E backend. The first send of a page waits for the dev
