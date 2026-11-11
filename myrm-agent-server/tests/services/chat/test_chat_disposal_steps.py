@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import AsyncMock
 
+import aiosqlite
 import pytest
 import pytest_asyncio
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
+from myrm_agent_harness.toolkits.memory.ephemeral_delta.delta_store import EphemeralDeltaStore
+from myrm_agent_harness.toolkits.memory.ephemeral_delta.models import EphemeralDeltaItem
+from myrm_agent_harness.toolkits.memory.ephemeral_delta.sqlite_persistence import EphemeralDeltaSqlitePersistence
 
 from app.platform_utils import _reset_checkpointer_for_testing
 from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
@@ -173,3 +178,30 @@ async def test_clear_runtime_caches_forgets_the_wake_budget_and_stop_flag_of_the
 
     spies.runtime_pool.assert_awaited_once_with(CHAT_ID)
     assert not service.get_budget_state(CHAT_ID).is_user_stopped
+
+
+@pytest.mark.asyncio
+async def test_clear_runtime_caches_leaves_the_loop_running_while_the_delta_store_waits_for_its_lock(
+    tmp_path: Path,
+    spies: Spies,
+) -> None:
+    """A coroutine holding the write lock can only release it when the loop runs, so a clear that waits for the lock on
+    the loop thread is refused once its timeout is over."""
+    db_path = tmp_path / "memory.db"
+    persistence = EphemeralDeltaSqlitePersistence(db_path)
+    store = EphemeralDeltaStore(persistence=persistence)
+    store.record_delta(CHAT_ID, EphemeralDeltaItem(delta_id="delta-1", target_key="name", content="Ada"))
+    spies.ephemeral_delta.side_effect = store.clear
+
+    async with aiosqlite.connect(db_path) as writer:
+        await writer.execute("BEGIN IMMEDIATE")
+
+        async def release_the_lock() -> None:
+            await asyncio.sleep(0.3)
+            await writer.commit()
+
+        release = asyncio.create_task(release_the_lock())
+        await chat_disposal.clear_runtime_caches(CHAT_ID)
+        await release
+
+    assert persistence.load_raw_deltas(CHAT_ID) == []

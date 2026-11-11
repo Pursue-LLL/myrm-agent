@@ -31,6 +31,7 @@ is logged and recoverable while an exception would abort a deletion that already
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Sequence
 from pathlib import Path
@@ -91,7 +92,9 @@ async def clear_runtime_caches(chat_id: str) -> None:
 
     await close_external_agent_pool_for_chat(chat_id)
     await close_execution_cache_for_chat_all_agents(chat_id)
-    _clear_ephemeral_deltas(chat_id)
+    # The delta store deletes its SQLite rows synchronously and waits up to 30 s for the write lock. A coroutine that
+    # holds the lock can only release it when the loop runs, so the wait must not happen on the loop thread.
+    await asyncio.to_thread(_clear_ephemeral_deltas, chat_id)
     get_adaptive_wakeup_service().forget_chat(chat_id)
 
 
