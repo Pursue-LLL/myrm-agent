@@ -409,6 +409,9 @@ def setup_random_mcp_port():
     yield
 
 
+_CAPMAN: list[object] = []
+
+
 def _clear_agent_test_process_state() -> None:
     import asyncio
 
@@ -455,7 +458,6 @@ def _clear_agent_test_process_state() -> None:
         return chain
 
     async def _diag_shutdown() -> None:
-        import os
         import threading
 
         from myrm_agent_harness.toolkits.vector.qdrant import factory as qdrant_factory
@@ -474,7 +476,17 @@ def _clear_agent_test_process_state() -> None:
             for t in asyncio.all_tasks():
                 out.append(f"[DIAG] task {t.get_name()} done={t.done()}")
                 out.extend(f"[DIAG]     {line}" for line in _await_chain(t.get_coro()))
-            os.write(2, ("\n".join(out) + "\n").encode())
+            import sys
+
+            capman = _CAPMAN[0] if _CAPMAN else None
+            if capman is not None:
+                capman.suspend_global_capture(in_=False)
+            try:
+                sys.__stdout__.write("\n".join(out) + "\n")
+                sys.__stdout__.flush()
+            finally:
+                if capman is not None:
+                    capman.resume_global_capture()
             task.cancel()
             await asyncio.wait({task}, timeout=5)
 
@@ -494,6 +506,7 @@ def _reset_agent_test_singletons(request: pytest.FixtureRequest):
     if "test_phase_stepper" in request.node.nodeid:
         yield
         return
+    _CAPMAN[:] = [request.config.pluginmanager.getplugin("capturemanager")]
     _clear_agent_test_process_state()
 
     from langgraph.checkpoint.memory import MemorySaver
