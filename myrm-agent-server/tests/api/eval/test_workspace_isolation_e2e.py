@@ -1,9 +1,6 @@
 import os
 from unittest.mock import patch
 
-os.environ["MYRM_DATA_DIR"] = "/tmp/myrm_test"
-os.environ["MYRM_DLQ_DIR"] = "/tmp/myrm_test/dlq"
-
 import pytest
 from myrm_agent_harness.eval.protocols import EvalCase, MultiTurnEvalCase, SandboxAssertion
 from myrm_agent_harness.eval.runner import EvalRunner

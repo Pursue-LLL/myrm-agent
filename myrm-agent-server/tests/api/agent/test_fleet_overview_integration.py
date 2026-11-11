@@ -59,6 +59,20 @@ def client(db_session) -> TestClient:
     return TestClient(_app)
 
 
+@pytest.fixture(autouse=True)
+def _no_kanban_boards(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The kanban part of the overview reads the process-wide database, where other suites leave IN_REVIEW tasks.
+
+    The tests here count what the injected database holds; the kanban contribution has its own tests below.
+    """
+    from app.services.kanban.service_mixins import query_dispatcher_mixin as qdm
+
+    async def _no_boards(*args: object, **kwargs: object) -> list[object]:
+        return []
+
+    monkeypatch.setattr(qdm, "run_list_boards", _no_boards)
+
+
 async def _seed_chats(db: AsyncSession, agent_id: str, count: int, tokens: int = 100) -> None:
     now = datetime.now(UTC)
     for _ in range(count):

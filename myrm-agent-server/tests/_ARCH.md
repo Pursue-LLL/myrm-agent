@@ -8,7 +8,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 
 | 路径 | 地位 | 职责 |
 |------|------|------|
-| `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace（自动写入 `.metadata_never_index` 阻断 macOS Spotlight 索引风暴）、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 + `@chrome_e2e` timeout 时 `reset_database_engine()` + `reap_chrome_e2e_session_hygiene()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`_chrome_e2e_epoch_pin` 会话级保持 `MYRM_E2E_SESSION_PREPIN_API` 与 `_SESSION_EPOCH_PIN_RUNTIMES` 并在 `pytest_sessionfinish` 统一释放 holder 引用（含同会话 skip 结果缓存防连拉 3 次）；`@pytest.mark.chrome_e2e` 三维 profile + **PRIVATE 必填 `private_reason`** + **`global_write_non_namespace`⇒`GLOBAL_WRITE` 语义校验**（与 `scripts/dev/e2e_session/profile.py` 对齐） |
+| `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace（`MYRM_DATA_DIR` 指向进程私有的临时目录，测试模块不得在导入期改写它——被 `-m` 排除的模块同样会被导入；自动写入 `.metadata_never_index` 阻断 macOS Spotlight 索引风暴）、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 + `@chrome_e2e` timeout 时 `reset_database_engine()` + `reap_chrome_e2e_session_hygiene()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`_chrome_e2e_epoch_pin` 会话级保持 `MYRM_E2E_SESSION_PREPIN_API` 与 `_SESSION_EPOCH_PIN_RUNTIMES` 并在 `pytest_sessionfinish` 统一释放 holder 引用（含同会话 skip 结果缓存防连拉 3 次）；`@pytest.mark.chrome_e2e` 三维 profile + **PRIVATE 必填 `private_reason`** + **`global_write_non_namespace`⇒`GLOBAL_WRITE` 语义校验**（与 `scripts/dev/e2e_session/profile.py` 对齐） |
 | `support/browser_process_cleanup.py` | 辅助 | pytest 进程树内 browser 自动化子进程 teardown |
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
 | `support/pending_task_report.py` | 辅助 | 线程式 pytest 超时只给线程栈（事件循环线程停在 `select`，看不出哪个 await 没完成）：`pending_task_report()` 列出所有运行中事件循环里未完成任务，每个任务给出从它的协程经异步生成器的一步和被等待的任务一直到最后等的那个 Future 的整条 await 链（与 `cancelling` 状态），`report_pending_tasks_after(秒)` 在代码块超时未结束时把它写到真实 stderr |
@@ -708,7 +708,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/statistics/test_badges.py` | 模块 | Nav badges API 单测（monkeypatch kanban 合并 + OperationalError 降级；`TestKanbanCountRealStore` 真 SQL store 链验证 `count_tasks_by_agent`/`count_tasks` 聚合） |
 | `api/statistics/test_model_sessions_listing.py` | 模块 | 模型会话列表（真实消息表）：每个会话的调用数/token/费用汇总、按总 token 降序排列，以及 `lastUsedAt`——取用过该模型的最新一条消息的时间，与行的先后顺序无关 |
 | `api/statistics/test_pending_approvals_integration.py` | 模块 | pendingApprovals 全链路集成（真实 store seed IN_REVIEW → badges/fleet KPI 反映真实行；approve/reject 后回落；goal+kanban 合并） |
-| `api/agent/test_fleet_overview_integration.py` | 模块 | Fleet Overview API 集成（Chat/CronJob/Approval 真实 DB 聚合 + kanban IN_REVIEW 并入 pendingApprovals + kanban store 故障降级） |
+| `api/agent/test_fleet_overview_integration.py` | 模块 | Fleet Overview API 集成（Chat/CronJob/Approval 真实 DB 聚合 + kanban IN_REVIEW 并入 pendingApprovals + kanban store 故障降级）；聚合用例把 kanban 读取固定为没有看板（它读进程库，别的套件会在里面留下 IN_REVIEW 任务），kanban 两条用例各自替换读取 |
 | `api/chats/test_kanban_in_review_seed_integration.py` | 模块 | IN_REVIEW seed fixture 集成（fixture → badges 计数 + approve/reject 转换回落） |
 | `core/web_push/test_push_deep_links.py` | 模块 | Web Push 点击路由（resolve_push_url：APPROVAL_REQUIRED 深链、pending_review+board_id 直达看板 in_review 列、非 review 状态回退聊天页、缺 chat 回首页、自动备份告警直达备份设置、云端同步告警直达云端备份页） |
 | `api/kanban/test_in_review_api.py` | 模块 | IN_REVIEW 审批 API（approve/reject 转换、守卫、pending_review 通知 payload 含 board_id） |

@@ -37,6 +37,10 @@ async def sandbox_db(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[None]:
     monkeypatch.setenv("MYRM_SAAS_DEFAULT_LITE_MODEL", _LITE_MODEL)
     monkeypatch.setenv("CP_PUBLIC_INGRESS_URL", _INGRESS)
     get_deploy_mode.cache_clear()
+    # The process-wide encryption service is built once from whichever deploy mode ran first; a service of
+    # its own keeps the stored rows sealed no matter which suites ran before.
+    sandbox_sealing = ConfigEncryptionService(encryption_key=os.urandom(32), is_sandbox=True, is_local=False)
+    monkeypatch.setattr(config_service_module, "get_encryption_service", lambda: sandbox_sealing)
 
     async def _clear_providers() -> None:
         session_factory = get_session_factory()

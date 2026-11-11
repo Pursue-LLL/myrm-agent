@@ -15,11 +15,6 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-_test_root = "/tmp/myrm_test"
-if not os.environ.get("MYRM_DATA_DIR"):
-    os.environ["MYRM_DATA_DIR"] = _test_root
-if not os.environ.get("MYRM_DLQ_DIR"):
-    os.environ["MYRM_DLQ_DIR"] = f"{_test_root}/dlq"
 os.environ.setdefault("METRICS_ENABLED", "true")
 
 

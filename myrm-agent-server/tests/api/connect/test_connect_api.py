@@ -17,11 +17,13 @@ API_PREFIX = "/api/v1"
 
 
 @pytest.fixture(scope="module")
-def client() -> Iterator[TestClient]:
+def client(tmp_path_factory: pytest.TempPathFactory) -> Iterator[TestClient]:
     """Create test client from the real application with auth bypassed."""
     import app.services.connect.service as svc
 
-    svc._service = None
+    # The connector state is a file in the data directory: a private one keeps the status
+    # assertions independent of the connectors other suites generated in the shared one.
+    svc._service = svc.ConnectService(data_dir=tmp_path_factory.mktemp("connect_state"))
     with (
         patch(
             "app.core.security.auth.identity.is_loopback_ip",
@@ -35,6 +37,7 @@ def client() -> Iterator[TestClient]:
         ),
     ):
         yield TestClient(_app)
+    svc._service = None
 
 
 class TestConnectProfilesAPI:

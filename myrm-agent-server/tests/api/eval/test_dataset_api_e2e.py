@@ -1,16 +1,8 @@
-import os
 from collections.abc import Generator
 from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-
-# Must be set before importing the app (SQLite and storage paths)
-_test_root = os.environ.get("MYRM_TEST_DIR", "/tmp/myrm_test")
-if not os.environ.get("MYRM_DATA_DIR"):
-    os.environ["MYRM_DATA_DIR"] = _test_root
-if not os.environ.get("MYRM_DLQ_DIR"):
-    os.environ["MYRM_DLQ_DIR"] = f"{_test_root}/dlq"
 
 
 @pytest.fixture(scope="module")

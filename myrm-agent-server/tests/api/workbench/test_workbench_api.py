@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -154,10 +155,14 @@ def test_timeout_kills_the_whole_process_tree(client: TestClient, workspace: Pat
 
     assert response.status_code == 408
     child = int(pid_file.read_text().strip())
-    try:
-        os.kill(child, 0)
-    except ProcessLookupError:
-        return
+    # The killed tree needs a moment to disappear on a busy machine, as in the cancellation test below.
+    for _ in range(40):
+        try:
+            os.kill(child, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.05)
+    os.kill(child, 9)
     pytest.fail(f"process {child} survived the timeout")
 
 
