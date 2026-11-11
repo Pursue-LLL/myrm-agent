@@ -32,6 +32,28 @@ def _isolate_event_bus_history() -> Iterator[None]:
     _forget_event_history()
 
 
+def forget_tasks_of_closed_loops() -> None:
+    """Drop every tracked background task whose event loop is closed: such a task can never finish."""
+    module = sys.modules.get("myrm_agent_harness.agent.skill_agent.context")
+    if module is None:
+        return
+    # A snapshot, because the done callbacks of tasks on live loops discard from the set while this runs.
+    stale = [task for task in list(module._background_tasks) if task.get_loop().is_closed()]
+    module._background_tasks.difference_update(stale)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_background_task_registry() -> Iterator[None]:
+    """The harness drains its registry of tracked background tasks with one ``gather``, which raises for a task of
+    another loop ("The future belongs to a different loop") and so ends the drain for the tasks that are still alive.
+    The cleanup tasks of a streamed agent turn can still be pending when the loop of its TestClient closes; they stay
+    in the registry for the rest of the process, and the kanban tests that drain it stop waiting for their own
+    operations."""
+    forget_tasks_of_closed_loops()
+    yield
+    forget_tasks_of_closed_loops()
+
+
 @pytest.fixture(autouse=True)
 def _isolate_agent_gateway_drain() -> Iterator[None]:
     """A test that drains the agent gateway (shutdown API, lifespan teardown) would leave it rejecting every agent

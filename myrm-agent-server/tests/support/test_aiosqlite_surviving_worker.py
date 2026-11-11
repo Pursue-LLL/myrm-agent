@@ -1,4 +1,4 @@
-"""A connection keeps answering after the event loop that asked its last query has closed."""
+"""A connection keeps answering after the loop that asked its last query has closed, and closes however many tasks close it."""
 
 from __future__ import annotations
 
@@ -52,3 +52,27 @@ def test_the_library_worker_stops_answering_once_its_loop_closed_mid_query() -> 
 
     with pytest.raises(TimeoutError):
         asyncio.run(_select_one(connection, _NO_ANSWER_BOUND_SECONDS))
+
+
+async def _closers_left_waiting(bound: float) -> int:
+    """Close one connection from two tasks at once and count the closers that have not returned after ``bound``."""
+    connection = await aiosqlite.connect(":memory:")
+    closers = {asyncio.ensure_future(connection.close()), asyncio.ensure_future(connection.close())}
+    _, waiting = await asyncio.wait(closers, timeout=bound)
+    for closer in waiting:
+        closer.cancel()
+    return len(waiting)
+
+
+@pytest.mark.asyncio
+@pytest.mark.timeout(60)
+async def test_two_tasks_closing_one_connection_at_once_both_return() -> None:
+    assert await _closers_left_waiting(_ANSWER_BOUND_SECONDS) == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.timeout(60)
+@pytest.mark.usefixtures("library_aiosqlite_stop")
+async def test_the_library_leaves_one_of_two_closers_waiting_forever() -> None:
+    """The premise of the guard: without it the second closer waits for a stop that no worker thread serves."""
+    assert await _closers_left_waiting(_NO_ANSWER_BOUND_SECONDS) == 1

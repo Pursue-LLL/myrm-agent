@@ -1,4 +1,4 @@
-"""Plugin: an aiosqlite connection keeps answering after the event loop that last awaited it has closed.
+"""Plugin: no request on an aiosqlite connection, and no wait for its close, is left unanswered by a gone worker thread.
 
 aiosqlite hands every result back through ``future.get_loop().call_soon_threadsafe``. The suite opens connections in one
 test's loop and keeps them in process-wide caches and shared engines that a later test uses from another loop. A worker
@@ -8,8 +8,12 @@ single cancellation does not interrupt a ``close()`` that waits for the stopped 
 a connection (the ``client`` fixture of the agent API tests cancelling a turn, an engine disposal, a cache shutdown) holds
 the session until the CI time limit.
 
-The worker installed here drops an answer nobody can read and goes on serving the queue. ``library_aiosqlite_worker``
-restores the library's own worker for a test that needs a connection to die that way.
+The same wait happens when two tasks close one connection at once: the worker thread ends with the first stop it serves,
+so the stop that the second ``close()`` queues afterwards is never answered.
+
+The worker installed here drops an answer nobody can read and goes on serving the queue, and ``stop`` queues one stop
+per connection. ``library_aiosqlite_worker`` and ``library_aiosqlite_stop`` restore the library's own worker and
+``stop`` for a test that needs a connection to fail that way.
 """
 
 from __future__ import annotations
@@ -17,13 +21,18 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from queue import SimpleQueue
+from weakref import WeakSet
 
+import aiosqlite
 import aiosqlite.core as aiosqlite_core
 import pytest
 
 _Request = tuple[asyncio.Future[object] | None, Callable[[], object]]
 
 LIBRARY_WORKER = aiosqlite_core._connection_worker_thread
+LIBRARY_STOP = aiosqlite.Connection.stop
+
+_stopped: WeakSet[aiosqlite.Connection] = WeakSet()
 
 
 def _answer(future: asyncio.Future[object] | None, settle: Callable[..., None], value: object) -> None:
@@ -48,12 +57,32 @@ def surviving_worker(tx: SimpleQueue[_Request]) -> None:
             _answer(future, aiosqlite_core.set_exception, error)
 
 
+def stop_once(connection: aiosqlite.Connection) -> asyncio.Future[object] | None:
+    """The first stop ends the worker thread, and a later one would queue behind a thread that is gone."""
+    if connection in _stopped:
+        return None
+    _stopped.add(connection)
+    return LIBRARY_STOP(connection)
+
+
+def _restore_library() -> None:
+    aiosqlite_core._connection_worker_thread = LIBRARY_WORKER
+    aiosqlite.Connection.stop = LIBRARY_STOP
+
+
 def pytest_configure(config: pytest.Config) -> None:
     aiosqlite_core._connection_worker_thread = surviving_worker
-    config.add_cleanup(lambda: setattr(aiosqlite_core, "_connection_worker_thread", LIBRARY_WORKER))
+    aiosqlite.Connection.stop = stop_once
+    config.add_cleanup(_restore_library)
 
 
 @pytest.fixture
 def library_aiosqlite_worker(monkeypatch: pytest.MonkeyPatch) -> None:
     """Connections opened during the test run on aiosqlite's own worker, which ends when its loop closes mid-query."""
     monkeypatch.setattr(aiosqlite_core, "_connection_worker_thread", LIBRARY_WORKER)
+
+
+@pytest.fixture
+def library_aiosqlite_stop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Connections stop through aiosqlite's own ``stop``, which a second closer of the same connection waits on forever."""
+    monkeypatch.setattr(aiosqlite.Connection, "stop", LIBRARY_STOP)
