@@ -4,6 +4,7 @@
 [INPUT]
 - memory._internal.hash_utils::compute_normalized_hash (POS: text normalization and hashing)
 - memory._internal.memory_scanner::reject_if_blocked (POS: up-front BLOCKED probe so a rejected memory never enters the buffer)
+- memory._internal.rule_text::rule_texts (POS: the content and action a buffered rule is stored with, so a display line written back as the action is not wrapped twice)
 - memory.types::{AnyMemory, EpisodicMemory, ProceduralMemory, SemanticMemory} (POS: memory data models)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 
@@ -25,6 +26,7 @@ from typing import TYPE_CHECKING, Literal
 
 from myrm_agent_harness.toolkits.memory._internal.hash_utils import NormalizationLevel, compute_normalized_hash
 from myrm_agent_harness.toolkits.memory._internal.memory_scanner import reject_if_blocked
+from myrm_agent_harness.toolkits.memory._internal.rule_text import rule_texts
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
     EpisodicMemory,
@@ -220,7 +222,7 @@ class MemorySession:
         Returns:
             ProceduralMemory if added, None if duplicate detected
         """
-        content = f"When: {trigger} → Do: {action}"
+        content, instruction = rule_texts(trigger, action)
         self._reject_if_blocked(content)
         if self._check_duplicate(content):
             return None
@@ -231,7 +233,7 @@ class MemorySession:
             user_id=self.user_id,
             content=content,
             trigger=trigger,
-            action=action,
+            action=instruction,
             priority=priority,
             trigger_keywords=trigger_keywords or [],
             source=source,

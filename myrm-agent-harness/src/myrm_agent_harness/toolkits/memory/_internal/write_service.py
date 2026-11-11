@@ -5,6 +5,7 @@
 - memory._internal.storage::{store_*} (POS: internal vector storage operations)
 - memory._internal.dedup_funcs::{SemanticDedupFunc, EpisodicDedupFunc} (POS: batch deduplication callable types)
 - memory._internal.memory_scanner::scan_and_clean_memory (POS: content safety scanner)
+- memory._internal.rule_text::rule_texts (POS: the content and action a rule is stored with, so a display line written back as the action is not wrapped twice)
 - memory.agent_surface.transient_fact_boundary::filter_transient_business_memories (POS: L3 write gate for transient business facts)
 - memory.strategies.deduplicator::Deduplicator (POS: three-layer dedup: hash→vector→LLM)
 
@@ -30,6 +31,7 @@ from myrm_agent_harness.toolkits.memory._internal.memory_scanner import (
     MemoryTaintedError,
     scan_and_clean_memory,
 )
+from myrm_agent_harness.toolkits.memory._internal.rule_text import rule_texts
 from myrm_agent_harness.toolkits.memory._internal.scope import (
     MemoryWriteTarget,
     scope_for_write_target,
@@ -345,10 +347,11 @@ class MemoryWriter:
         trigger_keywords: list[str] | None = None,
         source: RuleSource = RuleSource.USER_EXTRACTED,
     ) -> ProceduralMemory:
+        content, instruction = rule_texts(trigger, action)
         return ProceduralMemory(
-            content=f"When: {trigger} → Do: {action}",
+            content=content,
             trigger=trigger,
-            action=action,
+            action=instruction,
             priority=priority,
             trigger_keywords=trigger_keywords or [],
             source=source,

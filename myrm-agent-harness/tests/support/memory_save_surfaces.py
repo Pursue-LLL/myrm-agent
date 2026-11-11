@@ -32,12 +32,15 @@ type Save = Callable[[MemoryManager, SaveArguments], Awaitable[str]]
 
 async def save_with_agent_tool(manager: MemoryManager, arguments: SaveArguments) -> str:
     tool = next(tool for tool in create_memory_tools(manager) if tool.name == "memory_save_tool")
-    return await tool.ainvoke(dict(arguments))
+    reply = await tool.ainvoke(dict(arguments))
+    assert isinstance(reply, str)
+    return reply
 
 
 async def save_with_mcp_tool(manager: MemoryManager, arguments: SaveArguments) -> str:
-    result = await MemoryMCPServer(manager, server_name="test-memory").mcp.call_tool("memory_store", dict(arguments))
-    return "".join(str(getattr(block, "text", "")) for block in result.content)
+    server = MemoryMCPServer(manager, server_name="test-memory")
+    result: object = await server.mcp.call_tool("memory_store", dict(arguments))
+    return "".join(str(getattr(block, "text", "")) for block in getattr(result, "content", []))
 
 
 SAVES = [pytest.param(save_with_agent_tool, id="agent-tool"), pytest.param(save_with_mcp_tool, id="mcp-tool")]

@@ -4,11 +4,12 @@
 [INPUT]
 - memory.types::{AnyMemory, SemanticMemory, EpisodicMemory, ProceduralMemory, PendingRecord, MemoryType} (POS: memory data models)
 - memory._internal.storage::InvalidPendingEditError (POS: memory error hierarchy)
+- memory._internal.rule_text::{RuleFields, edited_rule_fields} (POS: the trigger, action and content a queued rule holds once the reviewer rewords it)
 
 [OUTPUT]
 - memory_to_pending: AnyMemory → PendingRecord serialization
 - pending_to_memory: PendingRecord → AnyMemory deserialization
-- apply_edited_content: reviewer-edited wording applied to a PendingRecord
+- apply_edited_content: reviewer-edited wording applied to a PendingRecord (a rule's trigger and action follow it)
 
 [POS]
 Approval queue helpers. Handles AnyMemory ↔ PendingRecord conversion for the approval
@@ -17,6 +18,7 @@ pipeline. Internal only — not part of the public API.
 
 from __future__ import annotations
 
+from myrm_agent_harness.toolkits.memory._internal.rule_text import RuleFields, edited_rule_fields
 from myrm_agent_harness.toolkits.memory._internal.storage import InvalidPendingEditError
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
@@ -74,8 +76,10 @@ def apply_edited_content(record: PendingRecord, edited_content: str) -> PendingR
     rebuild the memory for ``STORE``) are updated so every approval path persists
     the same wording. The exact-fact identifiers stamped on the proposed wording no
     longer describe the reworded text, so they are cleared and derived again from the
-    text that is stored. Profile entries and ``DELETE`` proposals persist no free
-    text, so an edit there is an error rather than a silently dropped change.
+    text that is stored. A proposed rule is stored from its ``trigger`` and ``action``
+    (the prompt reads those), so they follow the reworded text as an edit of a stored
+    rule would (see ``rule_text``). Profile entries and ``DELETE`` proposals persist no
+    free text, so an edit there is an error rather than a silently dropped change.
 
     Raises:
         InvalidPendingEditError: the edit is blank or the proposal has no editable text.
@@ -88,6 +92,13 @@ def apply_edited_content(record: PendingRecord, edited_content: str) -> PendingR
     if content == record.content:
         return record
     reworded_data = {**record.memory_data, "content": content, "exact_identifiers": []}
+    if record.memory_type == MemoryType.PROCEDURAL:
+        held = RuleFields(
+            str(record.memory_data.get("trigger", "")), str(record.memory_data.get("action", "")), record.content
+        )
+        rule = edited_rule_fields(held, content)
+        reworded_data.update(trigger=rule.trigger, action=rule.action, content=rule.content)
+        content = rule.content
     return record.model_copy(update={"content": content, "memory_data": reworded_data})
 
 

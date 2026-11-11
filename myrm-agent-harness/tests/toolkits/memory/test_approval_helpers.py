@@ -133,6 +133,37 @@ def test_apply_edited_content_updates_content_and_rebuild_source() -> None:
     assert record.content == "Original"
 
 
+def test_apply_edited_content_rewrites_the_trigger_and_action_of_a_queued_rule() -> None:
+    record = memory_to_pending(
+        ProceduralMemory(
+            id="r-1", content="When: before commit → Do: run tests", trigger="before commit", action="run tests"
+        )
+    )
+
+    edited = apply_edited_content(record, "run only the changed tests")
+
+    reworded = "When: before commit → Do: run only the changed tests"
+    assert (edited.content, edited.memory_data["content"]) == (reworded, reworded)
+    assert (edited.memory_data["trigger"], edited.memory_data["action"]) == (
+        "before commit",
+        "run only the changed tests",
+    )
+    assert record.memory_data["action"] == "run tests"
+
+
+def test_apply_edited_content_keeps_the_fields_of_a_queued_rule_whose_content_is_a_title() -> None:
+    record = memory_to_pending(
+        ProceduralMemory(
+            id="r-1", content="Prefers concise answers", trigger="a factual question", action="answer briefly"
+        )
+    )
+
+    edited = apply_edited_content(record, "Prefers short answers")
+
+    assert (edited.content, edited.memory_data["content"]) == ("Prefers short answers", "Prefers short answers")
+    assert (edited.memory_data["trigger"], edited.memory_data["action"]) == ("a factual question", "answer briefly")
+
+
 def test_apply_edited_content_unchanged_text_returns_same_record() -> None:
     record = memory_to_pending(SemanticMemory(id="mem-1", content="Original"))
 

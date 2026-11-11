@@ -8,13 +8,12 @@ so the model never reports a change the store did not make.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Callable
 
 import pytest
 
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError as StoreError
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryRejectedError
-from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import MemoryMCPServer
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.manage_tool import build_memory_manage_tool
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_manage_core import _unstored_importance_note
 from myrm_agent_harness.toolkits.memory.agent_surface.transient_fact_boundary import (
@@ -23,27 +22,15 @@ from myrm_agent_harness.toolkits.memory.agent_surface.transient_fact_boundary im
 from myrm_agent_harness.toolkits.memory.agent_surface.write_failure_feedback import write_failure_feedback
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, ProceduralMemory, SemanticMemory, TaskDigestMemory
+from tests.support.memory_manage_surfaces import MANAGES, Manage
 
 NewManager = Callable[..., MemoryManager]
-type Manage = Callable[[MemoryManager, Mapping[str, str | float]], Awaitable[str]]
 
 ORIGINAL = "User prefers dark mode"
 TRANSIENT = "Your order #123456 is out for delivery with courier"
 RULE_TRIGGER = "when editing tests"
 RULE_TEXT = "Run the whole test suite before committing"
 RULE_REWORDED = "Run every test before committing"
-
-
-async def manage_with_agent_tool(manager: MemoryManager, arguments: Mapping[str, str | float]) -> str:
-    return await build_memory_manage_tool(manager, description="manage").ainvoke(dict(arguments))
-
-
-async def manage_with_mcp_tool(manager: MemoryManager, arguments: Mapping[str, str | float]) -> str:
-    result = await MemoryMCPServer(manager, server_name="test-memory").mcp.call_tool("memory_manage", dict(arguments))
-    return "".join(str(getattr(block, "text", "")) for block in result.content)
-
-
-MANAGES = [pytest.param(manage_with_agent_tool, id="agent-tool"), pytest.param(manage_with_mcp_tool, id="mcp-tool")]
 
 
 async def store_original(manager: MemoryManager) -> SemanticMemory:
@@ -116,7 +103,8 @@ async def test_an_importance_a_rule_cannot_hold_is_reported_and_the_rest_of_the_
     assert "rule_priority" in answer
     kept = await manager.get_memory(rule.id)
     assert isinstance(kept, ProceduralMemory)
-    assert (kept.content, kept.priority) == (RULE_REWORDED, 3)
+    assert (kept.action, kept.priority) == (RULE_REWORDED, 3)
+    assert kept.content == f"When: {RULE_TRIGGER} → Do: {RULE_REWORDED}"
 
 
 @pytest.mark.parametrize("manage", MANAGES)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Literal, cast
 
+from myrm_agent_harness.toolkits.memory._internal.rule_text import RuleFields, edited_rule_fields
 from myrm_agent_harness.toolkits.memory._internal.unit_interval import require_unit_interval
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
@@ -194,6 +195,10 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
         ``importance`` and ``confidence`` must lie in 0.0-1.0 and content that reads as a
         transient business fact is refused; both raise ``MemoryRejectedError`` before
         anything is written.
+
+        Replacing the ``content`` of a rule stored as its display line rewrites its ``trigger`` and
+        ``action`` as well, because the prompt is built from those (see ``rule_text``); any other rule
+        keeps them. An empty rule text is refused the same way.
         """
         require_unit_interval("importance", importance, action="updated")
         require_unit_interval("confidence", confidence, action="updated")
@@ -212,7 +217,11 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
                 **updated.metadata,
                 "previous_content": existing.content,
             }
-            updated.content = content
+            stored_content = content
+            if isinstance(updated, ProceduralMemory):
+                held = RuleFields(updated.trigger, updated.action, updated.content)
+                updated.trigger, updated.action, stored_content = edited_rule_fields(held, content)
+            updated.content = stored_content
             if isinstance(updated, (SemanticMemory, EpisodicMemory)):
                 from myrm_agent_harness.toolkits.memory.agent_surface.transient_fact_boundary import (
                     looks_like_transient_business_fact,
