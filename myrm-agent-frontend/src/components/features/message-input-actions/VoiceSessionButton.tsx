@@ -34,12 +34,36 @@ const VOICE_FULL_DUPLEX_KEY = 'voiceFullDuplexEnabled';
 const VOICE_AGENT_BRIDGE_KEY = 'voiceAgentBridgeEnabled';
 const VOICE_MODE_KEY = 'voiceSessionMode';
 
+// A record over the mode type, so a mode added to the type cannot be left out of what settings may save.
+const VOICE_MODES: Record<VoiceSessionMode, true> = {
+  audio_only: true,
+  agent_bridge: true,
+  openai_realtime: true,
+  gemini_live: true,
+};
+
+function isVoiceMode(value: string | null): value is VoiceSessionMode {
+  return value !== null && Object.hasOwn(VOICE_MODES, value);
+}
+
+/**
+ * A browser can refuse storage access outright (privacy settings, sandboxed frames);
+ * a setting it will not give counts as unset.
+ */
+function readSetting(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 function resolveVoiceMode(): VoiceSessionMode {
-  const stored = localStorage.getItem(VOICE_MODE_KEY);
-  if (stored === 'openai_realtime' || stored === 'agent_bridge' || stored === 'audio_only') {
+  const stored = readSetting(VOICE_MODE_KEY);
+  if (isVoiceMode(stored)) {
     return stored;
   }
-  return localStorage.getItem(VOICE_AGENT_BRIDGE_KEY) === 'true' ? 'agent_bridge' : 'audio_only';
+  return readSetting(VOICE_AGENT_BRIDGE_KEY) === 'true' ? 'agent_bridge' : 'audio_only';
 }
 
 interface VoiceSessionButtonProps {
@@ -59,17 +83,14 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   const [voiceMode, setVoiceMode] = useState<VoiceSessionMode>('audio_only');
 
   useEffect(() => {
-    setVoiceEnabled(localStorage.getItem(VOICE_SESSION_KEY) === 'true');
-    setFullDuplex(localStorage.getItem(VOICE_FULL_DUPLEX_KEY) !== 'false');
-    setVoiceMode(resolveVoiceMode());
-
-    const handler = () => {
-      setVoiceEnabled(localStorage.getItem(VOICE_SESSION_KEY) === 'true');
-      setFullDuplex(localStorage.getItem(VOICE_FULL_DUPLEX_KEY) !== 'false');
+    const syncSettings = () => {
+      setVoiceEnabled(readSetting(VOICE_SESSION_KEY) === 'true');
+      setFullDuplex(readSetting(VOICE_FULL_DUPLEX_KEY) !== 'false');
       setVoiceMode(resolveVoiceMode());
     };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    syncSettings();
+    window.addEventListener('storage', syncSettings);
+    return () => window.removeEventListener('storage', syncSettings);
   }, []);
 
   const handleSendMessage = useCallback(
@@ -232,9 +253,6 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
 
   // Sync voice state to pet surface
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
     window.dispatchEvent(
       new CustomEvent('myrm-voice-state-update', {
         detail: {
