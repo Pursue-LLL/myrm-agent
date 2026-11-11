@@ -15,6 +15,7 @@
 - merge, correct, rewrite: the operations a model proposes, named by the short ids of the memories they act on
 - merged_pair: TEA and TEA_TOO seeded and folded by one cycle: both sources and the id of the memory the merge created
 - store_fresh: memories written through the manager after a finished cycle, so the next cycle has something to analyze
+- stored_insights: the insights the cycles have persisted, whether or not an undo journal knows them
 - undo: what the settings card does: read the undoable cycle's summary and undo the cycle it names
 
 [POS]
@@ -28,6 +29,7 @@ from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import run_consolidation
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
+    CONSOLIDATION_INSIGHT_TAG,
     ConsolidationOp,
     ConsolidationResponse,
     ConsolidationStats,
@@ -40,7 +42,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import (
     get_undo_summary,
     undo_last_consolidation,
 )
-from myrm_agent_harness.toolkits.memory.types import AnyMemory, SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import AnyMemory, MemoryType, SemanticMemory
 from tests.support.consolidation_seeds import llm_returning, seed, semantic
 
 # A test runs several cycles back to back, so the soft lock that spaces real runs apart is off.
@@ -80,6 +82,11 @@ async def merged_pair(manager: MemoryManager) -> tuple[SemanticMemory, SemanticM
 async def store_fresh(manager: MemoryManager, *texts: str) -> list[AnyMemory]:
     """Memories that reach the store after a finished cycle, so the next cycle has something to analyze."""
     return [await manager.store(SemanticMemory(content=text), _bypass_approval=True) for text in texts]
+
+
+async def stored_insights(manager: MemoryManager) -> list[SemanticMemory]:
+    memories = await manager.list_memories(MemoryType.SEMANTIC, tag_filter=CONSOLIDATION_INSIGHT_TAG)
+    return [memory for memory in memories if isinstance(memory, SemanticMemory)]
 
 
 async def undo(manager: MemoryManager) -> UndoResult:

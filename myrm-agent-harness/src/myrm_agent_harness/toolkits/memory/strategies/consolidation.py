@@ -27,8 +27,9 @@ the analyzed window reached and never past a write still being persisted, so a b
 is drained over consecutive runs and no memory is skipped for arriving late. Once the model has answered, writing
 its answer (operations, insights, undo journal, covered-through stamp, completion callback) runs to the end even if the
 caller is cancelled, so a cycle is never left half applied. The insights a cycle persists derive
-from the chats of every memory it read and are journaled with the cycle's other writes, so deleting one of those
-chats reaches them and undoing the cycle removes them.
+from the chats of every memory it read, so deleting one of those chats reaches them. They are journaled with the
+cycle's other writes, so undoing a cycle that changed existing memories removes them; a cycle that only adds insights
+leaves the undo slot to the earlier cycle that did.
 """
 
 from __future__ import annotations
@@ -259,8 +260,11 @@ async def _apply(
     stats.insights = tuple(answer.insights)
     stats.guard_patched = answer.guard_patched
 
+    # A cycle that only adds insights changes no existing memory, so it must not take the undo slot from an earlier
+    # cycle that did.
+    insight_journal = stats.undo if stats.undo.change_count else UndoJournal()
     if answer.insights:
-        await _persist_insights(manager, answer.insights, answer.memories, stats.undo)
+        await _persist_insights(manager, answer.insights, answer.memories, insight_journal)
     await save_undo(manager, stats)
 
     should_advance_timestamp = not stats.aborted and not (
