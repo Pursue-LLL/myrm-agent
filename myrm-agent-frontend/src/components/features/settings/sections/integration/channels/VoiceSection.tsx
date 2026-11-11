@@ -1,11 +1,12 @@
 'use client';
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { IconMic } from '@/components/features/icons/PremiumIcons';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
+import { VOICE_SETTING_KEYS, voiceDeviceSettings } from '@/hooks/voice/voiceDeviceSettings';
 import { Switch } from '@/components/primitives/switch';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
@@ -93,6 +94,8 @@ const TTS_PROVIDERS = [
   { value: 'minimax', label: 'MiniMax' },
 ];
 
+const DEFAULT_VOICE_MODE = 'audio_only';
+
 const REALTIME_VOICES = ['alloy', 'ash', 'ballad', 'cedar', 'coral', 'echo', 'marin', 'sage', 'shimmer', 'verse'];
 
 const GEMINI_LIVE_MODELS = [
@@ -133,7 +136,12 @@ const VoiceSection = memo(() => {
   const [edgeTtsAvailable, setEdgeTtsAvailable] = useState<boolean | null>(null);
   const [localSttAvailable, setLocalSttAvailable] = useState<boolean | null>(null);
   const [localTtsAvailable, setLocalTtsAvailable] = useState<boolean | null>(null);
-  const [voiceMode, setVoiceMode] = useState('audio_only');
+  // The mode lives in the device settings the chat's voice button reads, so both always agree.
+  const voiceMode = useSyncExternalStore(
+    voiceDeviceSettings.subscribe,
+    () => voiceDeviceSettings.read(VOICE_SETTING_KEYS.mode) || DEFAULT_VOICE_MODE,
+    () => DEFAULT_VOICE_MODE,
+  );
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -153,7 +161,6 @@ const VoiceSection = memo(() => {
         setLocalSttAvailable(null);
         setLocalTtsAvailable(null);
       });
-    setVoiceMode(localStorage.getItem('voiceSessionMode') || 'audio_only');
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -485,14 +492,7 @@ const VoiceSection = memo(() => {
       <SettingsSection title={t('voiceSessionModeTitle')} description={t('voiceSessionModeDesc')}>
         <div className="space-y-4">
           <FieldRow label={t('voiceMode')}>
-            <Select
-              value={voiceMode}
-              onValueChange={(v) => {
-                setVoiceMode(v);
-                localStorage.setItem('voiceSessionMode', v);
-                window.dispatchEvent(new StorageEvent('storage'));
-              }}
-            >
+            <Select value={voiceMode} onValueChange={(v) => voiceDeviceSettings.write(VOICE_SETTING_KEYS.mode, v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

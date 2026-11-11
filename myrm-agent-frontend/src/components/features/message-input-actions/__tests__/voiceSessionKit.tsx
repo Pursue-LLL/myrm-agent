@@ -6,7 +6,7 @@
  * [OUTPUT]
  * - kit: 替身句柄：语音会话 hook、聊天 store、最近一次朗读的文本、浮层与气泡收到的属性
  * - VOICE_KEYS: 按钮读取的设置键（用户浏览器里已有的存档，属于契约）
- * - resetVoiceKit: 清空存储、语音会话回到空闲、聊天回到安静
+ * - resetVoiceKit: 卸载组件、清空存储（含页面内存里替浏览器暂存的设置）、语音会话回到空闲、聊天回到安静
  * - mockVoiceSession: 从下一次渲染起语音会话 hook 返回的状态
  * - enableVoice: 在设置里打开语音会话按钮，可顺带写入其他设置
  * - renderVoiceButton: 渲染按钮，附带 refresh（memo 组件需要新属性才会重新读取替身）
@@ -19,6 +19,7 @@
 import { cleanup, render } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { vi } from 'vitest';
+import { VOICE_SETTING_KEYS, voiceDeviceSettings } from '@/hooks/voice/voiceDeviceSettings';
 import type { useVoiceSession, VoiceSessionState } from '@/hooks/voice/useVoiceSession';
 import { expectDefined } from '@/test-utils/expectDefined';
 import VoiceSessionButton from '../VoiceSessionButton';
@@ -123,6 +124,11 @@ export function mockVoiceSession(shape: Partial<VoiceSessionShape> = {}): void {
 
 export function resetVoiceKit(): void {
   cleanup();
+  // A value the settings store kept because storage refused it outlives localStorage.clear(). It is forgotten only
+  // after the unmount, while nothing listens: otherwise the mounted button would update outside act.
+  for (const key of Object.values(VOICE_SETTING_KEYS)) {
+    voiceDeviceSettings.remove(key);
+  }
   vi.clearAllMocks();
   localStorage.clear();
   Object.assign(kit.chat, { chatId: 'chat-1', messages: [], loading: false, agentConfig: undefined });

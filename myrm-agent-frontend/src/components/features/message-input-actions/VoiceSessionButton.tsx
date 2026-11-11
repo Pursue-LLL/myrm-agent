@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - @/hooks/voice/useVoiceSession::useVoiceSession (POS: Full-duplex voice session orchestrator with PTT screen context)
+ * - @/hooks/voice/voiceDeviceSettings::voiceDeviceSettings (POS: Voice settings shared with the settings pages)
  * - @/lib/vision/frameSelector::VisualFrame (POS: Intelligent frame selector for vision)
  * - @/components/features/voice/VoiceSessionOverlay (POS: Full-screen voice session UI)
  * - @/store/useChatStore::useChatStore (POS: Chat state bus)
@@ -26,13 +27,9 @@ import type { VisualFrame } from '@/lib/vision/frameSelector';
 import VoiceSessionOverlay from '@/components/features/voice/VoiceSessionOverlay';
 import VoiceBubble from '@/components/features/voice/VoiceBubble';
 import { isStopCommand } from '@/hooks/voice/voiceCommands';
+import { VOICE_SETTING_KEYS, voiceDeviceSettings } from '@/hooks/voice/voiceDeviceSettings';
 import Tooltip from '@/components/features/settings/Tooltip';
 import useChatStore from '@/store/useChatStore';
-
-const VOICE_SESSION_KEY = 'voiceSessionEnabled';
-const VOICE_FULL_DUPLEX_KEY = 'voiceFullDuplexEnabled';
-const VOICE_AGENT_BRIDGE_KEY = 'voiceAgentBridgeEnabled';
-const VOICE_MODE_KEY = 'voiceSessionMode';
 
 // A record over the mode type, so a mode added to the type cannot be left out of what settings may save.
 const VOICE_MODES: Record<VoiceSessionMode, true> = {
@@ -46,24 +43,12 @@ function isVoiceMode(value: string | null): value is VoiceSessionMode {
   return value !== null && Object.hasOwn(VOICE_MODES, value);
 }
 
-/**
- * A browser can refuse storage access outright (privacy settings, sandboxed frames);
- * a setting it will not give counts as unset.
- */
-function readSetting(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
 function resolveVoiceMode(): VoiceSessionMode {
-  const stored = readSetting(VOICE_MODE_KEY);
+  const stored = voiceDeviceSettings.read(VOICE_SETTING_KEYS.mode);
   if (isVoiceMode(stored)) {
     return stored;
   }
-  return readSetting(VOICE_AGENT_BRIDGE_KEY) === 'true' ? 'agent_bridge' : 'audio_only';
+  return voiceDeviceSettings.read(VOICE_SETTING_KEYS.agentBridge) === 'true' ? 'agent_bridge' : 'audio_only';
 }
 
 interface VoiceSessionButtonProps {
@@ -84,13 +69,12 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
 
   useEffect(() => {
     const syncSettings = () => {
-      setVoiceEnabled(readSetting(VOICE_SESSION_KEY) === 'true');
-      setFullDuplex(readSetting(VOICE_FULL_DUPLEX_KEY) !== 'false');
+      setVoiceEnabled(voiceDeviceSettings.read(VOICE_SETTING_KEYS.sessionEnabled) === 'true');
+      setFullDuplex(voiceDeviceSettings.read(VOICE_SETTING_KEYS.fullDuplex) !== 'false');
       setVoiceMode(resolveVoiceMode());
     };
     syncSettings();
-    window.addEventListener('storage', syncSettings);
-    return () => window.removeEventListener('storage', syncSettings);
+    return voiceDeviceSettings.subscribe(syncSettings);
   }, []);
 
   const handleSendMessage = useCallback(

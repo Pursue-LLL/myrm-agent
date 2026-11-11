@@ -1,30 +1,19 @@
 'use client';
 
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/primitives/skeleton';
-import {
-  Mic01Icon,
-  Video01Icon,
-  TextFontIcon,
-  BulbIcon,
-  File01Icon,
-  Coins01Icon,
-  CircleIcon,
-  Wifi01Icon,
-  VoiceIcon,
-  ArrowDataTransferHorizontalIcon,
-} from 'hugeicons-react';
+import { TextFontIcon, BulbIcon, File01Icon, Coins01Icon, CircleIcon, Wifi01Icon, VoiceIcon } from 'hugeicons-react';
 import { IconAlertCircle, IconFlask } from '@/components/features/icons/PremiumIcons';
 import useConfigStore from '@/store/useConfigStore';
 import useEmbedConsentStore, { type EmbedMode } from '@/store/useEmbedConsentStore';
 import ThemeSwitcher from '../../Switcher';
 import AppearancePanel from '@/components/features/theme/AppearancePanel';
 import LanguageSwitcher from '../../LanguageSwitcher';
-import ConfigToggleItem from '../../ConfigToggleItem';
 import SettingsSection from '../SettingsSection';
 import NotificationChannelEditor from '../integration/channels/NotificationChannelEditor';
 import WebPushCard from './WebPushCard';
+import VoiceSessionToggles from './VoiceSessionToggles';
 import { SchemaForm } from '../../SchemaForm';
 import { ConfigTimeMachine } from '../../ConfigTimeMachine';
 import { usePersonalSettings } from '@/hooks/settings/usePersonalSettings';
@@ -41,14 +30,8 @@ const WEB_TTS_OPTIONS: Array<{ value: WebTtsProvider; labelKey: string; descKey:
   { value: 'edge', labelKey: 'webTts.edge', descKey: 'webTts.edgeDesc' },
 ];
 
-const VOICE_SESSION_KEY = 'voiceSessionEnabled';
-const VOICE_CAMERA_KEY = 'voiceCameraEnabled';
-const VOICE_FULL_DUPLEX_KEY = 'voiceFullDuplexEnabled';
-const VOICE_AGENT_BRIDGE_KEY = 'voiceAgentBridgeEnabled';
-
 const PreferencesSection = memo(() => {
   const t = useTranslations('settings');
-  const tVoice = useTranslations('voiceSession');
   const { initConfig } = useConfigStore();
   const { personalSettings, updatePersonalSettings } = usePersonalSettings();
   const isLocal = isLocalMode();
@@ -63,39 +46,6 @@ const PreferencesSection = memo(() => {
   const clearAllowed = useEmbedConsentStore((s) => s.clearAllowed);
 
   const [isLoading, setIsLoading] = useState(true);
-
-  const [voiceSessionEnabled, setVoiceSessionEnabled] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem(VOICE_SESSION_KEY) === 'true' : false,
-  );
-  const [voiceCameraEnabled, setVoiceCameraEnabled] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem(VOICE_CAMERA_KEY) === 'true' : false,
-  );
-  const [voiceFullDuplexEnabled, setVoiceFullDuplexEnabled] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem(VOICE_FULL_DUPLEX_KEY) !== 'false' : true,
-  );
-  const [voiceAgentBridgeEnabled, setVoiceAgentBridgeEnabled] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem(VOICE_AGENT_BRIDGE_KEY) === 'true' : false,
-  );
-
-  const handleVoiceSessionToggle = useCallback((checked: boolean) => {
-    setVoiceSessionEnabled(checked);
-    localStorage.setItem(VOICE_SESSION_KEY, String(checked));
-  }, []);
-
-  const handleVoiceCameraToggle = useCallback((checked: boolean) => {
-    setVoiceCameraEnabled(checked);
-    localStorage.setItem(VOICE_CAMERA_KEY, String(checked));
-  }, []);
-
-  const handleVoiceFullDuplexToggle = useCallback((checked: boolean) => {
-    setVoiceFullDuplexEnabled(checked);
-    localStorage.setItem(VOICE_FULL_DUPLEX_KEY, String(checked));
-  }, []);
-
-  const handleVoiceAgentBridgeToggle = useCallback((checked: boolean) => {
-    setVoiceAgentBridgeEnabled(checked);
-    localStorage.setItem(VOICE_AGENT_BRIDGE_KEY, String(checked));
-  }, []);
 
   useEffect(() => {
     initConfig();
@@ -252,38 +202,7 @@ const PreferencesSection = memo(() => {
         </div>
       </SettingsSection>
 
-      <SettingsSection title={tVoice('enableVoiceSession')}>
-        <div className="flex flex-col space-y-4">
-          <ConfigToggleItem
-            icon={Mic01Icon}
-            title={tVoice('enableVoiceSession')}
-            description={tVoice('enableVoiceSessionDesc')}
-            checked={voiceSessionEnabled}
-            onCheckedChange={handleVoiceSessionToggle}
-          />
-          <ConfigToggleItem
-            icon={ArrowDataTransferHorizontalIcon}
-            title={tVoice('fullDuplex')}
-            description={tVoice('fullDuplexDesc')}
-            checked={voiceFullDuplexEnabled}
-            onCheckedChange={handleVoiceFullDuplexToggle}
-          />
-          <ConfigToggleItem
-            icon={Video01Icon}
-            title={tVoice('enableCamera')}
-            description={tVoice('enableCameraDesc')}
-            checked={voiceCameraEnabled}
-            onCheckedChange={handleVoiceCameraToggle}
-          />
-          <ConfigToggleItem
-            icon={Wifi01Icon}
-            title={tVoice('agentBridge')}
-            description={tVoice('agentBridgeDesc')}
-            checked={voiceAgentBridgeEnabled}
-            onCheckedChange={handleVoiceAgentBridgeToggle}
-          />
-        </div>
-      </SettingsSection>
+      <VoiceSessionToggles />
 
       <SettingsSection title={t('notifications')}>
         <div className="flex flex-col space-y-4">

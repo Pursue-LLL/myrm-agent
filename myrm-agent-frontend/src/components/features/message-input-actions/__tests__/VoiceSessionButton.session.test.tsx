@@ -4,6 +4,7 @@
  */
 import { act, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { VOICE_SETTING_KEYS, voiceDeviceSettings } from '@/hooks/voice/voiceDeviceSettings';
 import type { VisualFrame } from '@/lib/vision/frameSelector';
 import { expectDefined } from '@/test-utils/expectDefined';
 import {
@@ -16,6 +17,14 @@ import {
   resetVoiceKit,
   voiceOptions,
 } from './voiceSessionKit';
+
+/** A browser that throws on every storage access (privacy settings, sandboxed frames). */
+function refuseStorage(): void {
+  const refuse = () => {
+    throw new DOMException('blocked', 'SecurityError');
+  };
+  vi.stubGlobal('localStorage', { getItem: refuse, setItem: refuse, removeItem: refuse });
+}
 
 describe('VoiceSessionButton', () => {
   beforeEach(resetVoiceKit);
@@ -54,16 +63,37 @@ describe('VoiceSessionButton', () => {
       expect(screen.getByRole('button', { name: 'startSession' })).toBeInTheDocument();
     });
 
+    it('hears a change made on this page without any storage event', () => {
+      const { container } = renderVoiceButton();
+      expect(container).toBeEmptyDOMElement();
+
+      act(() => {
+        voiceDeviceSettings.write(VOICE_SETTING_KEYS.sessionEnabled, 'true');
+      });
+
+      expect(screen.getByRole('button', { name: 'startSession' })).toBeInTheDocument();
+    });
+
     it('treats storage the browser refuses as "not enabled" instead of crashing', () => {
-      const refuse = () => {
-        throw new DOMException('blocked', 'SecurityError');
-      };
-      vi.stubGlobal('localStorage', { getItem: refuse, setItem: refuse, removeItem: refuse });
+      refuseStorage();
 
       const { container } = renderVoiceButton();
 
       expect(container).toBeEmptyDOMElement();
       expect(voiceOptions()).toMatchObject({ enabled: false, mode: 'audio_only', fullDuplex: true });
+    });
+
+    it('follows what the settings chose for this page when the browser refuses to store it', () => {
+      refuseStorage();
+      renderVoiceButton();
+
+      act(() => {
+        voiceDeviceSettings.write(VOICE_SETTING_KEYS.sessionEnabled, 'true');
+        voiceDeviceSettings.write(VOICE_SETTING_KEYS.mode, 'gemini_live');
+      });
+
+      expect(screen.getByRole('button', { name: 'startSession' })).toBeInTheDocument();
+      expect(voiceOptions().mode).toBe('gemini_live');
     });
 
     it.each([
