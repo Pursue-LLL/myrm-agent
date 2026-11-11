@@ -10,10 +10,47 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
+import re
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+
+SERVER_ROOT = Path(__file__).resolve().parents[3]
+UNSAFE_COMPARISONS = (
+    re.compile(r"signature\s*=="),
+    re.compile(r"==\s*signature"),
+    re.compile(r"token\s*==\s*['\"]"),
+    re.compile(r"secret\s*==\s*['\"]"),
+)
+SECURITY_PATH_MARKERS = ("security", "auth", "crypto", "webhook")
+
+
+def security_sources(root: Path) -> Iterator[Path]:
+    """The Python files below ``root`` whose path marks them as security code, tests and the risk classifier excepted.
+
+    Dot-folders (virtualenv, caches) are not walked.
+    """
+    for folder, subfolders, names in os.walk(root):
+        subfolders[:] = [name for name in subfolders if not name.startswith(".") and name != "__pycache__"]
+        for name in names:
+            path = Path(folder) / name
+            relative = path.relative_to(root).as_posix()
+            if (
+                name.endswith(".py")
+                and any(marker in relative for marker in SECURITY_PATH_MARKERS)
+                and "test_" not in relative
+                and "risk_classifier" not in relative
+            ):
+                yield path
+
+
+def has_unsafe_comparison(path: Path) -> bool:
+    """Whether one line of ``path`` compares a signature, token or secret with ``==``."""
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    return any(pattern.search(line) for line in lines for pattern in UNSAFE_COMPARISONS)
 
 
 class TestConstantTimeComparison:
@@ -230,40 +267,13 @@ class TestCodebaseAudit:
 
     def test_no_direct_signature_comparison(self):
         """Verify no direct == comparison for signatures in security code."""
-        import subprocess
-
-        # Search for potentially unsafe comparisons in security-related files
-        patterns = [
-            r"signature\s*==",
-            r"==\s*signature",
-            r"token\s*==\s*['\"]",
-            r"secret\s*==\s*['\"]",
-        ]
-
-        unsafe_files = []
-        for pattern in patterns:
-            result = subprocess.run(
-                ["rg", pattern, "--type", "py", "--files-with-matches"],
-                cwd=str(Path(__file__).resolve().parents[3]),
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode == 0:
-                files = result.stdout.strip().split("\n")
-                # Filter out test files
-                security_files = [
-                    f
-                    for f in files
-                    if f
-                    and ("security" in f or "auth" in f or "crypto" in f or "webhook" in f)
-                    and "test_" not in f
-                    and "risk_classifier" not in f
-                ]
-                unsafe_files.extend(security_files)
+        unsafe_files = sorted(
+            path.relative_to(SERVER_ROOT).as_posix() for path in security_sources(SERVER_ROOT) if has_unsafe_comparison(path)
+        )
 
         # All security-related files should use hmac.compare_digest
         if unsafe_files:
-            pytest.fail("Found potentially unsafe signature comparisons in:\n" + "\n".join(set(unsafe_files)))
+            pytest.fail("Found potentially unsafe signature comparisons in:\n" + "\n".join(unsafe_files))
 
 
 if __name__ == "__main__":

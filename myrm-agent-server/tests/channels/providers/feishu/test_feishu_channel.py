@@ -1187,7 +1187,8 @@ class TestCollectIssues:
 
     def test_configured_no_issues(self) -> None:
         ch = _make_channel()
-        issues = ch.collect_issues()
+        with patch("app.channels.providers.feishu.ws_transport.SDK_AVAILABLE", True):
+            issues = ch.collect_issues()
         assert len(issues) == 0
 
     def test_health_error_reported(self) -> None:

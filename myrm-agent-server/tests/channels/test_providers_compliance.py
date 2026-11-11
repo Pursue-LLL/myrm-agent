@@ -5,18 +5,16 @@ from __future__ import annotations
 import pytest
 
 from app.channels.core.base import BaseChannel
-from app.channels.providers.registry import (
-    CHANNEL_META,
-    get_channel_class,
-)
+from app.channels.providers.registry import CHANNEL_META
 from app.channels.types import ChannelCapabilities
+from tests.channels.channel_class_testkit import channel_class_or_skip
 
 ALL_CHANNEL_NAMES = list(CHANNEL_META.keys())
 
 
 @pytest.fixture(params=ALL_CHANNEL_NAMES)
 def channel_class(request: pytest.FixtureRequest) -> type[BaseChannel]:
-    return get_channel_class(request.param)
+    return channel_class_or_skip(request.param)
 
 
 class TestProviderCompliance:

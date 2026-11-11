@@ -170,9 +170,9 @@ class TestRequireGrantableRoots:
     def test_ordinary_roots_pass(self, tmp_path: Path) -> None:
         require_grantable_roots([str(tmp_path), "~/Documents"], subject="Job a")
 
-    def test_the_message_names_the_subject_and_the_root(self) -> None:
+    def test_the_message_names_the_subject_and_the_root(self, tmp_path: Path) -> None:
         with pytest.raises(WorkspacePathValidationError) as excinfo:
-            require_grantable_roots(["/tmp", HOME], subject="Job a")
+            require_grantable_roots([str(tmp_path), HOME], subject="Job a")
         assert excinfo.value.issue is WorkspacePathIssue.TOO_BROAD
         assert str(excinfo.value).startswith("Job a: ")
         assert repr(HOME) in str(excinfo.value)

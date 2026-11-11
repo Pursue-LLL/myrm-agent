@@ -495,7 +495,8 @@ async def test_merge_auto_commit_without_git_identity(tmp_path: Path) -> None:
     _run_git(repo, "config", "commit.gpgsign", "false")
     (repo / "a.txt").write_text("v1\n", encoding="utf-8")
     _run_git(repo, "add", ".")
-    _run_git(repo, "commit", "-q", "-m", "initial")
+    # The setup commit brings its own identity: the repo itself must stay without one.
+    _run_git(repo, "-c", "user.name=Setup", "-c", "user.email=setup@example.com", "commit", "-q", "-m", "initial")
     # No identity configured locally (independent of any global/dev config).
     assert _run_git(repo, "config", "--local", "--get", "user.email").returncode != 0
 

@@ -3,7 +3,7 @@
 import pytest
 
 from app.channels.protocols.inbound_profile import CHANNEL_INBOUND_SPECS, resolve_channel_ingress_mode
-from app.channels.providers.registry import get_channel_class
+from tests.channels.channel_class_testkit import channel_class_or_skip
 
 # Derived once at collection time from the SSOT so a newly added channel is
 # automatically covered instead of requiring a manual parameter sync.
@@ -167,7 +167,7 @@ def test_configured_field_matches_channel_credential_spec(channel: str, configur
     # the channel's credential db_keys (app.channels.core.credentials resolve loop).
     # Any drift between the two silently skips configured channels during Ingress
     # assessment, so this assertion must fail CI the moment they diverge.
-    cls = get_channel_class(channel)
+    cls = channel_class_or_skip(channel)
     credential_spec = cls.credential_spec
     assert credential_spec is not None
     db_keys = {field.db_key for _, field in credential_spec.fields}

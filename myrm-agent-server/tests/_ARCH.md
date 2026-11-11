@@ -188,7 +188,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/reactions/test_turn_reaction_sequence.py` | 集成 | 真实 `_handle_merged` 加真实 `_execute_prepared_context`（运行本身是脚本）在类 Telegram 渠道上，用户消息上的平台表情调用序列：完成的回合是「标记、撤标记、结果」各一次（共 3 次），失败的回合先发出错误文本再撤标记并显示失败表情，被停止的回合只有标记与撤标记；平台还没回应标记时智能体已开始运行、顺序仍是「标记、撤标记、结果」；服务关停时平台一直不应答的标记请求被取消而不遗留 |
 | `channels/routing/reactions/test_reaction_funnel.py` | 单元 | 表情出口 `ReactionFunnel`：表情请求失败不进入回合，但按「渠道 + 错误类型」每 10 分钟告警一次（其余只记 debug）：另一个渠道、同渠道另一类错误各自告警，窗口过后再次告警，成功时不记日志；没有平台消息 id、渠道不支持表情或渠道不存在时不发请求；平台不应答时在超时处放弃并按失败告警、而回合被取消的取消不被吞掉；`accepted` 先取首选再按回退链选渠道接受的第一个，首选为空串表示关闭、不回退 |
 | `channels/core/test_reaction_ledger.py` | 单元 | `ReactionLedger`：取走一次后不再有、没反应过的消息取不到、同消息号不同聊天是不同条目、后一次反应覆盖前一次、满了淘汰最旧、被刷新的条目不被淘汰 |
-| `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情（`StatusReaction`）在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里 |
+| `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情（`StatusReaction`）在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里（可选 SDK 没装的渠道跳过，不参与比较） |
 | `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束的回合以结果表情替换处理中表情（先按名撤销刚加的那一个），被停止的回合不留处理中表情 |
 | `channels/providers/test_connect_failure_retry_contract.py` | 单元 | 八家 Provider（Slack、钉钉、LINE、Mattermost、Telegram、SMS、Zalo、Signal）经真实 Channel、真实 HTTP 客户端（`MockTransport`）与真实总线：建立不了的连接（`httpx.ConnectError`）都按重试策略重试，等答复时的读、写超时、连接被重置、协议错误都只发一次，不取决于 Provider 把错误原样抛出还是包成 `ChannelSendError`；把错误包成 `ChannelSendError` 的五家（LINE、Mattermost、SMS、Zalo、Signal）对连接超时、连接池超时、代理拒绝同样重试 |
 | `channels/providers/test_stop_releases_connection_contract.py` | 单元 | 渠道的 `stop()` 被网关的上限打断时已经释放了长连接：Telegram（草稿清理卡住）、钉钉与飞书（流式卡片结算卡住）经真实 `stop_channel` 截断后状态为 STOPPED，轮询循环、流任务、传输层都不再存活；Telegram 与钉钉再经真实 `_restart_channel` 重启，恰好留下 1 个连接（5 例；网络的卡住用永不返回的假请求代替，不连真实平台） |
@@ -288,6 +288,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/reliability/test_inbound_replay_merging.py` | 集成 | 重放经过会话闸门的合并：同一聊天的两条重放合并成一个回合，回合带着两条日志条目，经真实闸门、`_handle_merged` 与 SQLite 日志走完后两个条目都被确认；重放与实时消息不合并，按到达顺序各占一个回合（两种先后顺序），实时消息不带条目 |
 | `channels/inbound_message_testkit.py` | 辅助 | `full_message()`：每个会持久化的字段都取非默认值的 `InboundMessage`（含两层嵌套的引用回复、群上下文、关联上下文与一个本地附件），`test_inbound_wire.py` 与 `test_inbound_replay.py` 共用 |
 | `channels/policy_resolver_testkit.py` | 辅助 | `make_message()` / `make_resolver()`：`PolicyResolver` 各测试文件共用的 `InboundMessage` 与解析器构造（配对与策略仓库、消息副作用为替身，群上下文缓冲为真实对象） |
+| `channels/channel_class_testkit.py` | 辅助 | `channel_class_or_skip()` / `channels_missing_their_sdk()`：遍历全部注册渠道的测试解析渠道类，可选 SDK（`ChannelSpec.sdk_package`）没装的渠道跳过，其余导入失败照常抛出；合规、入站画像、默认状态表情测试共用 |
+| `channels/test_channel_class_testkit.py` | 单元 | 渠道类查找辅助：可导入的渠道正常返回，可选 SDK 缺失的渠道被跳过并列入缺失清单，没有可选 SDK 的渠道导入失败不被当作缺失（照常抛出，不会掩盖真缺陷） |
 | `channels/test_routing_policy_resolver.py` | 单元 | `PolicyResolver` 私聊解析与 LID 回退：控制面转发带来的身份只在带控制面标记时采纳；关闭 / 开放（未映射 LID 与未配对发送者成为访客）/ 配对（通过、被拒、待审、新发送者）/ 白名单（通过、被拒、未配对）各模式，缺省策略按白名单；LID 经缓存解析并继承其手机号的状态、角色与配额，未配对手机号的 LID 不绑定，缓存未命中且白名单策略下无结果 |
 | `channels/test_routing_policy_group_resolution.py` | 单元 | `PolicyResolver` 群聊解析：预先解析的群用户绕过策略检查；策略关闭或群未启用；访客须显式点名（只回复不算）；点名触发、未配对发送者在已启用群里为访客、未点名只缓冲；all / prefix 触发模式（前缀不匹配不触发）；无默认用户返回空，无策略时缺省关闭 |
 | `channels/test_routing_policy_group_gates.py` | 单元 | 群聊的跟进豁免（追踪器的 LRU 与 TTL、按 thread 的豁免与静音、自由回复聊天白名单）与机器人发送者闸门：机器人闲聊即使在自由回复群里也被忽略、显式点名可触发、闸门触发后点名与私聊被拒、真人点名不受影响；机器人闲聊不进上下文缓冲，缓冲下来的闲聊凭据已打码，触发归因只写一次 |

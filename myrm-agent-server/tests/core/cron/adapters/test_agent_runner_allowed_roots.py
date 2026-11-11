@@ -35,9 +35,9 @@ async def test_ordinary_roots_are_used_as_stored(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("stored", [HOME, "/", "~"])
-async def test_a_stored_root_containing_protected_locations_fails_the_run(stored: str) -> None:
+async def test_a_stored_root_containing_protected_locations_fails_the_run(stored: str, tmp_path: Path) -> None:
     with pytest.raises(WorkspacePathValidationError) as refusal:
-        await _resolve_effective_allowed_roots(_job(allowed_roots=("/tmp", stored)))
+        await _resolve_effective_allowed_roots(_job(allowed_roots=(str(tmp_path), stored)))
 
     assert refusal.value.issue is WorkspacePathIssue.TOO_BROAD
     assert "job-1" in str(refusal.value)

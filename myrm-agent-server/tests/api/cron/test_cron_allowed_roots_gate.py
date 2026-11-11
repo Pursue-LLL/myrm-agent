@@ -68,8 +68,8 @@ class TestCreate:
             ("notes", "not_absolute"),
         ],
     )
-    def test_a_root_the_gate_refuses_is_refused(self, client: TestClient, root: str, issue: str) -> None:
-        response = client.post("/cron/", json=_job_body(allowed_roots=["/tmp", root]))
+    def test_a_root_the_gate_refuses_is_refused(self, client: TestClient, tmp_path: Path, root: str, issue: str) -> None:
+        response = client.post("/cron/", json=_job_body(allowed_roots=[str(tmp_path), root]))
 
         assert _refusal(response) == issue
 

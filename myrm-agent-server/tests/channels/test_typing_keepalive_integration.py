@@ -33,6 +33,7 @@ class TestRealChannelCapabilities:
         assert caps.typing_keepalive_interval == 4.0
 
     def test_discord_capabilities(self) -> None:
+        pytest.importorskip("discord")
         from app.channels.providers.discord.channel import DiscordChannel
 
         caps = DiscordChannel.capabilities
