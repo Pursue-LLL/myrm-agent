@@ -185,6 +185,7 @@
   },
   "overrides": {
     "dompurify": "^3.4.17",
+    "postcss-selector-parser": "^6.1.5",
     "zod": "^4.6.7"
   },
   "packageManager": "bun@1.2.21",
