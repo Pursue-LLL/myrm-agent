@@ -2,6 +2,7 @@
 
 [INPUT]
 - memory._manager.deletion::MemoryManagerDeletionMixin (POS: single-memory deletion primitives and the ownership gate)
+- memory._manager.helpers::_rule_has_metadata (POS: whether a rule carries a metadata pair, its chat links read from the rule's own fields)
 - memory._manager.model_collections::{current_collection, family_lock, memory_collections, retire_if_drained} (POS: every embedding model's collections and the lock shared with the migration)
 - memory.strategies.recurrence::{buffer_collection, purge_recurrence_buffer} (POS: the recurrence buffer, which holds the opening words of sessions)
 
