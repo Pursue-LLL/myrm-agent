@@ -8786,7 +8786,7 @@
     "credentialGuideGooglechat": "Create service account in Google Cloud Console and configure Chat API",
     "credentialGuideMatrix": "Configure Matrix Homeserver URL and Bot account credentials",
     "credentialGuideMattermost": "Create bot in Mattermost System Console and obtain Token",
-    "credentialGuideGithub": "Create Personal Access Token in GitHub Settings and configure webhook secret in repository settings",
+    "credentialGuideGithub": "Create Personal Access Token in GitHub Settings",
     "channelEnableSuccess": "Channel {name} enabled",
     "channelDisableSuccess": "Channel {name} disabled",
     "channelToggleError": "Failed to toggle channel status",

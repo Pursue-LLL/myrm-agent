@@ -8786,7 +8786,7 @@
     "credentialGuideGooglechat": "Google Cloud Console에서 서비스 계정을 만들고 Chat API 구성",
     "credentialGuideMatrix": "Matrix Homeserver URL과 봇 계정 자격 증명 구성",
     "credentialGuideMattermost": "Mattermost System Console에서 봇을 만들고 토큰을 얻으세요",
-    "credentialGuideGithub": "GitHub Settings에서 Personal Access Token을 생성하고 리포지토리 설정에서 Webhook Secret을 구성하세요",
+    "credentialGuideGithub": "GitHub Settings에서 Personal Access Token을 생성하세요",
     "channelEnableSuccess": "채널 {name} 활성화됨",
     "channelDisableSuccess": "채널 {name} 비활성화됨",
     "channelToggleError": "채널 상태 전환 실패",

@@ -8786,7 +8786,7 @@
     "credentialGuideGooglechat": "Erstellen Sie ein Dienstkonto in der Google Cloud Console und konfigurieren Sie Chat API",
     "credentialGuideMatrix": "Konfigurieren Sie die Anmeldeinformationen für Matrix Homeserver URL und Bot-Konto",
     "credentialGuideMattermost": "Erstellen Sie einen Bot in der Mattermost-Systemkonsole und erhalten Sie ein Token",
-    "credentialGuideGithub": "Erstellen Sie einen Personal Access Token in den GitHub Settings und konfigurieren Sie das Webhook Secret in den Repository-Einstellungen",
+    "credentialGuideGithub": "Erstellen Sie einen Personal Access Token in den GitHub Settings",
     "channelEnableSuccess": "Kanal {name} aktiviert",
     "channelDisableSuccess": "Kanal {name} deaktiviert",
     "channelToggleError": "Der Kanalstatus konnte nicht umgeschaltet werden",
