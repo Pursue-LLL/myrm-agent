@@ -6,12 +6,10 @@ and offline guardian detection.
 from __future__ import annotations
 
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi.responses import StreamingResponse
 
-from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.agent.params import AgentRequest
 from app.services.agent.stream_session.stream_disconnect import build_disconnect_checker
 from app.services.agent.stream_session.stream_pump import _is_client_detached
@@ -132,35 +130,3 @@ async def test_is_client_detached_is_false_while_a_tab_is_attached_to_the_turn()
         assert await _is_client_detached(session) is False
     finally:
         session.collector.unsubscribe(queue)
-
-
-@pytest.mark.asyncio
-async def test_retried_post_same_message_id_attaches_to_buffer() -> None:
-    chat_id = "chat_retry_test"
-    message_id = "msg_retry_same"
-
-    mock_gateway = MagicMock()
-    mock_gateway.get_active_message_id.return_value = message_id
-
-    mock_buffer = MagicMock()
-    mock_buffer.subscribe.return_value = iter([b"event: data\n\n"])
-
-    mock_registry = MagicMock()
-    mock_registry.has_buffer = AsyncMock(return_value=True)
-    mock_registry.get_or_create = AsyncMock(return_value=mock_buffer)
-
-    # Verify the retried attach logic
-    with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway):
-        active_msg_id = mock_gateway.get_active_message_id(chat_id)
-        assert active_msg_id == message_id
-        assert await mock_registry.has_buffer(message_id) is True
-
-        buffer = await mock_registry.get_or_create(message_id)
-        resp = StreamingResponse(
-            buffer.subscribe(None),
-            media_type="text/event-stream",
-            headers=SSE_RESPONSE_HEADERS,
-        )
-        assert isinstance(resp, StreamingResponse)
-        assert resp.media_type == "text/event-stream"
-        assert resp.headers["content-type"] == "text/event-stream; charset=utf-8"

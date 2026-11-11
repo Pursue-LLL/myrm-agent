@@ -5,6 +5,8 @@ Prerequisites:
   Wave READ lease recommended when parallel agents are active.
   Run one test at a time: path::test_name (whole-file batch denied by E2E_FILE_BATCH_DENIED).
   Chrome UI tests also need: ./myrm-dev test -m chrome_e2e path::test_name
+  The live HTTP tests (test_live_*) carry the e2e marker, so the default suite deselects them; run them with
+  ./myrm-dev test -m e2e path::test_name (a lease is required, direct pytest is refused).
 
 Covers:
   - Voice Settings: no amber banner when edge_tts_available=true
@@ -574,6 +576,7 @@ def test_voice_settings_no_edge_banner_when_available(
     assert state.get("onChannelsSettings") is True, state
 
 
+@pytest.mark.e2e
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_live_tts_synthesize_after_voice_config() -> None:
@@ -674,6 +677,7 @@ async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) ->
     assert int(read_result.get("bytes", 0)) > 0, read_result
 
 
+@pytest.mark.e2e
 @pytest.mark.integration
 @pytest.mark.timeout(60)
 def test_live_health_info_includes_local_stt() -> None:
@@ -684,6 +688,7 @@ def test_live_health_info_includes_local_stt() -> None:
     assert isinstance(info["local_stt_available"], bool)
 
 
+@pytest.mark.e2e
 @pytest.mark.integration
 @pytest.mark.timeout(60)
 def test_live_stt_status_reflects_local_install() -> None:
