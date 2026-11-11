@@ -85,6 +85,20 @@ describe('Copy as Markdown', () => {
     expect(writeRichToClipboard).toHaveBeenCalledExactlyOnceWith('The answer.', '<p>The answer.</p>');
   });
 
+  it('names a knowledge-base source and an MCP source by the name they carry, not as untitled', () => {
+    const sources: Source[] = [
+      { index: 1, type: 'knowledge', kb_name: 'Work', filename: 'deploy-notes', section: 'Rollback' },
+      { index: 2, type: 'mcp', skill_name: 'github' },
+    ];
+    render(<Copy message={messageOf({ sources })} markdownRef={{ current: null }} />);
+
+    copyAs(COPY_MARKDOWN.zh);
+
+    expect(writeToClipboard).toHaveBeenCalledExactlyOnceWith(
+      'The answer.\n\n来源:  \n[1] deploy-notes § Rollback  \n[2] github',
+    );
+  });
+
   it('writes plain Markdown when there is no rendered page to take from', () => {
     render(<Copy message={messageOf({ sources: SOURCES.slice(0, 1) })} markdownRef={{ current: null }} />);
 

@@ -62,7 +62,8 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
   const [, startTransition] = useTransition();
 
   // The format the caller asks for applies when the dialog opens or the ask changes, and only then, so the user's own
-  // pick stands while the dialog stays open. Adjusting during render puts it on the first frame of the open dialog.
+  // pick stands while the dialog stays open. Adjusting during render lands it in the same commit as the ask, so an ask
+  // that changes while the dialog is open never paints the previous selection.
   const requestedFormat = open ? initialFormat : undefined;
   const [prevRequestedFormat, setPrevRequestedFormat] = useState(requestedFormat);
   if (requestedFormat !== prevRequestedFormat) {

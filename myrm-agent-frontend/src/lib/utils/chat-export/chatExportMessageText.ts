@@ -19,7 +19,7 @@ export type ReasoningLayout = 'fold' | 'quote';
 export interface MessageLabels {
   reasoning: string;
   sources: string;
-  /** Stands in for a source that has neither an address nor a title. */
+  /** Stands in for a source that has no address and no name of any kind. */
   untitledSource: string;
 }
 
@@ -36,6 +36,24 @@ export function formatReasoning(reasoning: string, layout: ReasoningLayout, labe
 }
 
 /**
+ * A web page is named by its address, else its title. The other kinds carry their name in a field of their own: a wiki
+ * hit in its file (with the section, as the interface shows it) or its knowledge base, an MCP call in its skill. A
+ * source with none of them gets the caller's stand-in.
+ */
+function sourceName(source: Source, untitled: string): string {
+  if (source.url) {
+    return source.url;
+  }
+  if (source.title) {
+    return source.title;
+  }
+  if (source.filename) {
+    return source.section ? `${source.filename} § ${source.section}` : source.filename;
+  }
+  return source.skill_name || source.kb_name || untitled;
+}
+
+/**
  * The block that lists a message's sources, empty when it has none. It starts with the blank line that sets it off from
  * the text before it.
  */
@@ -46,7 +64,7 @@ export function formatSourcesFootnotes(
   if (!sources || sources.length === 0) {
     return '';
   }
-  const lines = sources.map((s, i) => `[${i + 1}] ${s.url || s.title || labels.untitledSource}`);
+  const lines = sources.map((s, i) => `[${i + 1}] ${sourceName(s, labels.untitledSource)}`);
   // Two trailing spaces make each source its own line wherever the Markdown is rendered; a plain newline would run
   // them together into one paragraph.
   return `\n\n${labels.sources}:  \n${lines.join('  \n')}`;
