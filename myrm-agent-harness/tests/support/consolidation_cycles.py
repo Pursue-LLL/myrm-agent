@@ -6,6 +6,7 @@
 - toolkits.memory.strategies.consolidation::run_consolidation (POS: One consolidation cycle)
 - toolkits.memory.strategies.consolidation_models::* (POS: Consolidation operations, responses and run statistics)
 - toolkits.memory.strategies.consolidation_undo::{UndoResult, get_undo_summary, undo_last_consolidation} (POS: Exact undo of the latest consolidation cycle)
+- toolkits.memory.types::{AnyMemory, MemoryType, SemanticMemory} (POS: Memory type definitions)
 - support.consolidation_seeds::{llm_returning, seed, semantic} (POS: A chat model that answers every consolidation call with one response; seeded memories)
 
 [OUTPUT]

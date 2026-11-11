@@ -740,7 +740,7 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 
 ### 7.2.2 跨会话认知整理与确定性命名实体守卫 (`strategies/consolidation.py`, `consolidation_models.py`, `consolidation_prompts.py`, `consolidation_ops_executor.py`, `consolidation_window.py`, `consolidation_undo.py`, `bookkeeping.py`, `named_entity_guard.py`)
 
-跨会话记忆整理（Memory Consolidation）在空闲时段对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、候选窗口层（`consolidation_window`）、原子执行层（`consolidation_ops_executor`）、撤销层（`consolidation_undo`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成；水位线等维护行由记账层（`bookkeeping`）读写。
+跨会话记忆整理（Memory Consolidation）对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。触发路径有三条：会话结束（`end_session()`）与累计写入 `message_count_trigger` 条（默认 50）后台调度，二者都先过间隔门（`interval_hours`，默认 24 小时）；维护周期（`run_maintenance_cycle`）由调用方驱动，`force=True` 时跳过间隔门，框架自带的空闲 worker 即以 `force=True` 运行它。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、候选窗口层（`consolidation_window`）、原子执行层（`consolidation_ops_executor`）、撤销层（`consolidation_undo`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成；水位线等维护行由记账层（`bookkeeping`）读写。
 
 **核心机制与安全边界**：
 - **确定性命名实体守卫 (`NamedEntityGuard`)**：零 I/O 确定性检测器，自动提取源码记忆中的 5 类关键技术实体（`PORT` 端口、`IP_ADDRESS` IP、`URL_DSN` 数据库/API 链接、`ENV_VAR` 环境变量名、`FILE_PATH` 文件与系统路径）。在 LLM 提议 `merge`、`correct` 或 `update_content` 操作时，强制要求新文本完整保留所有关键实体；若关键实体发生篡改或丢失，直接拒绝该候选操作，杜绝模型摘要压缩产生的幻觉。

@@ -4,7 +4,7 @@
 - memory.config::ConsolidationConfig (POS: consolidation configuration)
 - memory._internal.store_stamp::settled_through (POS: arrival stamp of a stored memory and the writes still in flight)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
-- memory.types::{AnyMemory, ClaimMemory, ProceduralMemory} (POS: memory data models)
+- memory.types::{AnyMemory, ClaimMemory, ProceduralMemory, SemanticMemory} (POS: memory data models)
 - strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Persistence of maintenance counters, hashes and timestamps)
 - strategies.consolidation_models::* (POS: Domain models, DTOs, and protocol callback types for cross-session memory consolidation)
 - strategies.consolidation_prompts::* (POS: Prompts and payload compression helpers for memory consolidation)
@@ -12,24 +12,24 @@
 - strategies.consolidation_undo::{CycleWrites, save_undo} (POS: Exact undo of the latest consolidation cycle)
 - strategies.consolidation_window::fetch_candidate_window (POS: Oldest-first window of memories a consolidation run has not covered yet)
 - strategies.lineage::origin_chat_ids (POS: the chats a set of memories derives from)
-- strategies.named_entity_guard::NamedEntityGuard (POS: 确定性命名实体与关键技术标识符守卫)
 
 [OUTPUT]
 - run_consolidation: Cross-session consolidation (contradiction detection, redundancy merge, insight generation)
+- should_consolidate, get_last_consolidated_at: The time gate of a cycle and the covered-through timestamp it reads
 - ConsolidationStats: Consolidation result statistics
 
 [POS]
-Cross-session memory consolidation strategy. Analyzes the oldest memories not yet covered via LLM to
-detect contradictions and redundancies. Executes merge/correct/update and generates 0-3 insights
-at near-zero marginal cost. Triggered by end_session() on configured intervals. The stored timestamp
-is a covered-through mark over the order in which memories reached the store; it advances only as far as
-the analyzed window reached and never past a write still being persisted, so a backlog larger than one run
-is drained over consecutive runs and no memory is skipped for arriving late. Once the model has answered, writing
-its answer (operations, insights, undo journal, covered-through stamp, completion callback) is not interrupted by a
-cancel of the caller, which is delivered when the writes are done, so a cycle is never left half applied. The insights
-a cycle persists derive from the chats of every memory it read, so deleting one of those chats reaches them. They are
-journaled with the cycle's other writes, so undoing a cycle that changed existing memories removes them; a cycle that
-only adds insights leaves the undo slot to the earlier cycle that did.
+Cross-session memory consolidation strategy. Analyzes the oldest memories not yet covered via LLM to detect
+contradictions and redundancies. Executes merge/correct/update and generates 0-3 insights at near-zero marginal cost.
+Triggered by end_session() and by a count of stored memories, both behind the interval gate, and by the maintenance
+cycle, which the idle worker forces past it. The stored timestamp is a covered-through mark over the order in which
+memories reached the store; it advances only as far as the analyzed window reached and never past a write still being
+persisted, so a backlog larger than one run is drained over consecutive runs and no memory is skipped for arriving late.
+Once the model has answered, writing its answer (operations, insights, undo journal, covered-through stamp, completion
+callback) is not interrupted by a cancel of the caller, which is delivered when the writes are done, so a cycle is never
+left half applied. The insights a cycle persists derive from the chats of every memory it read, so deleting one of those
+chats reaches them. They are journaled with the cycle's other writes, so undoing a cycle that changed existing memories
+removes them; a cycle that only adds insights leaves the undo slot to the earlier cycle that did.
 """
 
 from __future__ import annotations
