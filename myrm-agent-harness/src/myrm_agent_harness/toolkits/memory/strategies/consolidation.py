@@ -19,17 +19,11 @@
 - ConsolidationStats: Consolidation result statistics
 
 [POS]
-Cross-session memory consolidation strategy. Analyzes the oldest memories not yet covered via LLM to detect
-contradictions and redundancies. Executes merge/correct/update and generates 0-3 insights at near-zero marginal cost.
-Triggered by end_session() and by a count of stored memories, both behind the interval gate, and by the maintenance
-cycle, which the idle worker forces past it. The stored timestamp is a covered-through mark over the order in which
-memories reached the store; it advances only as far as the analyzed window reached and never past a write still being
-persisted, so a backlog larger than one run is drained over consecutive runs and no memory is skipped for arriving late.
-Once the model has answered, writing its answer (operations, insights, undo journal, covered-through stamp, completion
-callback) is not interrupted by a cancel of the caller, which is delivered when the writes are done, so a cycle is never
-left half applied. The insights a cycle persists derive from the chats of every memory it read, so deleting one of those
-chats reaches them. They are journaled with the cycle's other writes, so undoing a cycle that changed existing memories
-removes them; a cycle that only adds insights leaves the undo slot to the earlier cycle that did.
+Cross-session memory consolidation: one cycle has the LLM analyze the oldest memories not yet covered, applies the
+merge/correct/update operations it proposes, persists the insights it draws, journals the writes for undo and advances
+the covered-through stamp, and finishes those writes even when its caller is cancelled. Triggered by end_session() and
+by a count of stored memories, both behind the interval gate, and by the maintenance cycle, which the idle worker
+forces past it.
 """
 
 from __future__ import annotations
