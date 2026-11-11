@@ -1,16 +1,16 @@
 """Agent Templates API
 Exposes endpoints to list and instantiate pre-configured agent templates (YAML seeds).
 
-Supports both individual and team templates. Team templates atomically create all
-member agents plus a leader, with full rollback on failure.
+Team templates atomically create all member agents plus a leader, with full rollback on failure.
 
 [INPUT]
 - app.services.agent.template_utils::ensure_skills_enabled (POS: Pre-flight skill check and enablement)
 - app.database.dto::AgentCreate (POS: Agent creation request model)
 - app.services.agent.agent_service::AgentService (POS: Agent CRUD service)
+- app.services.features.product_surface::is_hidden_prebuilt_template (POS: Product-surface SSOT for hidden templates)
 
 [OUTPUT]
-- list_templates(): GET endpoint returning available template metadata (with team members/use_cases)
+- list_templates(): GET endpoint returning visible template metadata (with team members/use_cases); hidden templates are omitted
 - instantiate_template(): POST endpoint creating agent(s) from a template atomically
 
 [POS]

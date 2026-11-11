@@ -10,7 +10,7 @@ initialize_builtin_agents: 服务启动时自动创建预置智能体
 
 [POS]
 业务层预置智能体初始化。在服务启动时幂等创建 _BUILTIN_AGENTS 中的全部内置智能体
-（分段规格见 builtin_agent_specs；产品面对其中部分智能体隐藏，见 product_surface），
+（含产品面隐藏的智能体，可见性由智能体列表接口过滤），
 确保用户首次使用时有可用的默认智能体覆盖常见场景。
 搜索智能体的提示词由 prompt_mode="search" 单一提供（KV Cache 稳定），
 其 system_prompt 留空以避免在 Agent 模式下经 user_instructions 重复注入。

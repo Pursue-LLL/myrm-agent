@@ -7,7 +7,7 @@ Agent CRUD请求、agent_id、user_id
 AgentProfile 实例、AgentUpdateOutcome（含 snapshot_saved）、操作结果
 
 [POS]
-业务层Agent服务。
+业务层Agent服务（列表排除产品面隐藏的内置智能体）。
 - 单机/沙箱模式，无多租户隔离（忽略 user_id）
 - 所有额外字段存入 metadata
 - 负责维护数据一致性（删除时级联清理渠道绑定、更新/删除时失效 IM 渠道的 agent overrides 缓存、CRUD 后异步热重载技能命令绑定）
