@@ -1,13 +1,15 @@
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { sanitizeFilename, triggerDownload } from '@/lib/utils/fileUtils';
 import { redactSensitiveClientText } from '@/lib/utils/error-handling';
-import type { Message, Source } from '@/store/chat/types';
+import type { Message } from '@/store/chat/types';
+import { extractMessageTitle, formatMessageMarkdown, formatReasoning } from './chatExportMessageText';
 import { printHtmlDocument } from './printHtmlDocument';
 /**
  * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
  *         fileUtils::sanitizeFilename (POS: 通用文件工具 — 文件名非法字符清理)；
  *         fileUtils::triggerDownload (POS: 通用文件工具 — 文件下载，Web a[download] / Tauri 系统保存对话框)；
  *         error-handling::redactSensitiveClientText (POS: 客户端轻量敏感凭据脱敏清洗工具 — OpenAI/GitHub/AWS/私钥/JWT/密钥对脱敏，CWE-312 防护)；
+ *         chatExportMessageText::formatMessageMarkdown, extractMessageTitle, formatReasoning (POS: 单条消息导出文本 — Markdown 排版（思考链、引用）与文件名标题)；
  *         printHtmlDocument::printHtmlDocument (POS: 隐藏 iframe 打印导出文档，等内嵌字体就绪后再调起打印)。
  * [OUTPUT] Types: ExportMessage, ExportChat, ExportData, ToolUsageEntry, ToolSummary,
  *          UsageSummary, AgentInfo, ToolCallDetail, ExportFormatOptions;
@@ -189,7 +191,7 @@ export function formatChatAsMarkdown(data: ExportData, options?: ExportFormatOpt
     if (includeReasoning) {
       const reasoning = (msg.metadata?.reasoning_content ?? msg.metadata?.reasoning) as string | undefined;
       if (reasoning) {
-        lines.push('<details>', '<summary>Thinking</summary>', '', reasoning, '', '</details>', '');
+        lines.push(...formatReasoning(reasoning, 'fold'));
       }
     }
     lines.push(msg.content);
@@ -302,42 +304,6 @@ export async function printChat(
 // 单条消息导出
 // ---------------------------------------------------------------------------
 
-function formatSourcesFootnotes(sources?: Source[]): string {
-  if (!sources || sources.length === 0) {
-    return '';
-  }
-  const lines = sources.map((s, i) => `[${i + 1}] ${s.url || s.title || 'Unknown source'}`);
-  // Two trailing spaces make each citation its own line wherever the Markdown is rendered; a plain newline would run
-  // them together into one paragraph.
-  return `\n\nCitations:  \n${lines.join('  \n')}`;
-}
-
-function formatMessageMarkdown(message: Message, includeReasoning: boolean, redact = true): string {
-  const lines: string[] = [];
-  const reasoning = redact && message.reasoning ? redactSensitiveClientText(message.reasoning) : message.reasoning;
-  if (includeReasoning && reasoning) {
-    lines.push('<details>', '<summary>Thinking</summary>', '', reasoning, '', '</details>', '');
-  }
-  const content = redact ? redactSensitiveClientText(message.content) : message.content;
-  lines.push(content);
-  lines.push(formatSourcesFootnotes(message.sources));
-  return lines.join('\n').trim();
-}
-
-/** What a heading, quote or list item starts with is Markdown syntax, not a word of the title. */
-const TITLE_BLOCK_MARKERS = /^(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)+/;
-
-/**
- * The file name is drawn from the text the file holds, so an export made with redaction on does not give the secret
- * away through its name. The line is redacted whole before it is cut, so a secret that crosses the cut is not left
- * half visible.
- */
-function extractMessageTitle(message: Message, redact: boolean): string {
-  const firstLine = message.content.split('\n', 1)[0];
-  const text = redact ? redactSensitiveClientText(firstLine) : firstLine;
-  return text.trim().replace(TITLE_BLOCK_MARKERS, '').slice(0, 80) || 'message';
-}
-
 function buildSingleMessageExportData(message: Message, markdown: string, redacted = true): ExportData {
   const ts = message.createdAt?.toISOString?.() ?? new Date().toISOString();
   return {
@@ -366,7 +332,7 @@ export async function downloadMessageAsHtml(
 }
 
 export async function downloadMessageAsDocx(message: Message, includeReasoning: boolean, redact = true): Promise<void> {
-  const markdown = formatMessageMarkdown(message, includeReasoning, redact);
+  const markdown = formatMessageMarkdown(message, includeReasoning, redact, 'quote');
   const { buildDocxBlob } = await import('./chatExportDocx');
   await triggerDownload(await buildDocxBlob(markdown), buildFilename(extractMessageTitle(message, redact), 'docx'));
 }

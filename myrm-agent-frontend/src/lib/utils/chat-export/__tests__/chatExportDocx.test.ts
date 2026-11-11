@@ -110,6 +110,28 @@ describe('Word file structure', () => {
     expect(`${docx.parts['word/document.xml']}${docx.parts['word/footnotes.xml']}`).not.toContain('↩');
   });
 
+  it('writes a displayed formula as an equation that fills a paragraph of its own, and an inline one inside its line', async () => {
+    const docx = await docxOf('Before.\n\n$$x^2 = 4$$\n\nAfter, with $y$ inline.');
+    const paragraphsOfOnlyAnEquation = elements(docx.document, 'w:p').filter((paragraph) => {
+      const content = Array.from(paragraph.children).filter((child) => child.tagName !== 'w:pPr');
+      return content.length === 1 && content[0].tagName === 'm:oMath';
+    });
+
+    expect(elements(docx.document, 'm:oMath')).toHaveLength(2);
+    expect(paragraphsOfOnlyAnEquation).toHaveLength(1);
+    // The converter has no displayed-equation element, so a block formula is an `m:oMath` alone in its paragraph.
+    expect(elements(docx.document, 'm:oMathPara')).toHaveLength(0);
+  });
+
+  it('writes a footnote cited twice as two Word footnotes, which Word numbers in the order they appear', async () => {
+    const docx = await docxOf('One[^1] and again[^1], then two[^2].\n\n[^1]: First note.\n[^2]: Second note.');
+    const notes = paragraphTexts(parseXml(docx.parts['word/footnotes.xml']));
+
+    expect(elements(docx.document, 'w:footnoteReference')).toHaveLength(3);
+    expect(notes.filter((note) => note.includes('First note.'))).toHaveLength(2);
+    expect(notes.filter((note) => note.includes('Second note.'))).toHaveLength(1);
+  });
+
   it('writes a rule as a bordered paragraph and keeps a quote', async () => {
     const docx = await docxOf('above\n\n---\n\n> quoted words');
 
