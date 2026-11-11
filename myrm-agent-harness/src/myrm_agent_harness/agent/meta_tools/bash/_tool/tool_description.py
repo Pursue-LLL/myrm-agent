@@ -1,7 +1,6 @@
 """Bash code execution tool description (prompt visible to the LLM).
 
-Decoupled from ``bash_code_execute_tool.py`` to keep the tool factory focused on wiring
-and to satisfy the file-size guideline (single file ≤ 500 lines).
+Kept apart from ``bash_code_execute_tool.py`` so the tool factory stays focused on wiring.
 
 [INPUT]
 - utils.locale::is_chinese (POS: BCP-47 Chinese detection for description locale)

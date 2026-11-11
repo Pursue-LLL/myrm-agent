@@ -180,7 +180,12 @@
     "prettier": "^3.9.10",
     "tailwindcss": "^4.3.4",
     "typescript": "7.0.2",
+    "vite": "^7.3.7",
     "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "dompurify": "^3.4.17",
+    "zod": "^4.6.7"
   },
   "packageManager": "bun@1.2.21",
   "trustedDependencies": [

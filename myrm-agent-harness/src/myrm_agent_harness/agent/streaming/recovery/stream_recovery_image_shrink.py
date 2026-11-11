@@ -1,8 +1,7 @@
 """Provider image-limit recovery: measure, shrink, and evict oversized base64 images.
 
-Split out of the one-shot recovery mixin because the image machinery is pure message
-surgery with no dependency on the executor: it only needs the provider's stated
-ceiling and the messages to rewrite.
+The image machinery is pure message surgery with no dependency on the executor: it
+only needs the provider's stated ceiling and the messages to rewrite.
 
 [INPUT]
 - utils.media.image_compressor::ImageCompressor, SEND_COMPRESS_TRIGGER_BYTES (POS: 压缩器与 base64 字节阈值)

@@ -8,7 +8,7 @@
 - check_desktop_permissions_health: DesktopControl probe, grants plus capture (`probe_capture=True`); PASS only when `PermissionStatus.capture_ready`.
 
 [POS]
-Harness-level doctor probe registered through probes.py; kept apart so the probe module stays within its line budget.
+Harness-level doctor probe registered through probes.py.
 """
 
 import logging

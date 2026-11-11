@@ -37,7 +37,7 @@ Workspace file versioning and rollback subsystem. Provides transparent file-leve
 - **Max file count**: 50,000 files per workspace to prevent timeouts on oversized directories.
 - **Runtime excludes**: `.agent/` (artifact vault) and `.myrm/` (workspace runtime metadata) are excluded from shadow git and local snapshots.
 - **Structured commit messages**: Metadata stored as key=value in commit body for reliable parsing.
-- **Maintenance mixin separation**: Pruning, repair, and validation logic in ShadowGitMaintenance mixin keeps ShadowGitSnapshotStore under 500 lines.
+- **Maintenance mixin separation**: Pruning, repair, and validation logic lives in the ShadowGitMaintenance mixin that ShadowGitSnapshotStore inherits.
 - **No-change skip**: `git diff-index --cached --quiet` avoids creating redundant commits when no files changed.
 - **CAS concurrency safety**: `git update-ref ref new old` prevents concurrent snapshot overwrites.
 - **Restore context injection**: `restore_inbox.py` bridges the server restore API and agent_runtime. After GUI rollback, a notification is pushed to the in-process deque; agent_runtime drains it as a HumanMessage at the end of the messages list (preserving prompt cache prefix). 600s TTL auto-expires stale notifications.

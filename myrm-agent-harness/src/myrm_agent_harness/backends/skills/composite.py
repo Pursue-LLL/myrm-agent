@@ -31,9 +31,6 @@ class CompositeSkillBackend(SkillBackend):
       顺序与 ``list_skills`` 的同名去重一致：后注册的路由优先，默认后端最后。
       因此被列出的技能一定能取回内容与资源。
 
-    类似 LangChain 的 CompositeBackend Router：
-    https://docs.langchain.com/oss/python/deepagents/backends#compositebackend-router
-
     Example:
         >>> backend = CompositeSkillBackend(
         ...     routes={

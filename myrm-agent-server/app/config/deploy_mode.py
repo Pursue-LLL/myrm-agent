@@ -45,7 +45,7 @@
     AgentScope Platform、QwenPaw「一键云端部署」等在后台同样会创建/调度托管实例。
     控制平面（CP）是基础设施层，**不面向最终用户**；用户只见 WebUI。
     Myrm 差异在于：local/Tauri/cloud 同一套 GUI 与 agent-server；CP 负责 per-user 容器+Volume、
-    OAuth/计费/LLM Relay 等（见 myrm-control-plane/ARCHITECTURE.md），而非「独有 CP」本身。
+    OAuth/计费/LLM Relay 等，而非「独有 CP」本身。
 
 使用方式：
     from app.config.deploy_mode import get_deploy_mode, DeployMode, is_local_mode, is_sandbox

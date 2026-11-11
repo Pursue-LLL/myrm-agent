@@ -102,7 +102,7 @@ MCP / OpenAPI 工具溢出目前走两条路（`agent/_factory/mcp_routing.py`�
 - `mcp_surface_mode=direct_fc` 强制 direct 并跳过合计降级（`agent/_factory/mcp_routing.py` 的 `MCP direct_fc override` 分支）。
 - Direct FC 的 schema 预处理：描述截断到 2048 字符、`$ref` 内联、key 规范化排序（保 prompt cache 前缀稳定）、非规范 key 重命名、深层 schema 扁平化为点号路径、调用时反向还原；工具名统一加 `mcp__{server}__{tool}` 前缀。
 - PTC 的三级渐进披露：L1 元数据 → L2 SKILL.md（带工具签名，超预算退化为仅列名）→ L3 单工具文档（`agent/skills/mcp/core_generator.py`）。
-- **已删除的形态**：`catalog_invoke` / `capability_invoke_tool` /「一个 invoke 工具代理所有 deferred MCP」/ RUNTIME 池 + Turn1 proxy gateway（盲调，准确性劣于 PTC）。`mcp_surface_mode=catalog_invoke` 会被解析成 `auto` 并打 WARNING（`agent/_factory/mcp_surface.py`）。
+- **不采用的形态**：`catalog_invoke` / `capability_invoke_tool` /「一个 invoke 工具代理所有 deferred MCP」/ RUNTIME 池 + Turn1 proxy gateway（盲调，准确性劣于 PTC）。`mcp_surface_mode=catalog_invoke` 会被解析成 `auto` 并打 WARNING（`agent/_factory/mcp_surface.py`）。
 - 阈值目前只有 11,250（单服）与 15,000（合计）两个。
 - 目前的工具暴露模型与动作空间就是上述两个结局；连接稳定性、OAuth、stdio 生命周期、重试属于实现细节，可独立演进。
 
