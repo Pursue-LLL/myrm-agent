@@ -1,278 +1,105 @@
-/** @vitest-environment jsdom */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+/**
+ * @vitest-environment jsdom
+ *
+ * [INPUT]
+ * - ../AgentIndicator (POS: 输入区的智能体指示器按钮)
+ *
+ * [OUTPUT]
+ * Vitest: 按钮旁的名称（来源优先级、截断、内置智能体按语言翻译、没有名称时的默认称呼）、
+ * 什么样的会话配置算「已选择智能体」、悬停提示。
+ *
+ * [POS]
+ * 真实的 Radix 提示；状态总线、画廊、路由与提示由 agentIndicatorKit 替身，文案是真实语言包。
+ * 切换与菜单见 AgentIndicator.switching.test.tsx，头像见 AgentIndicatorAvatar.test.tsx。
+ */
+import { fireEvent, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { kit, renderIndicator, resetIndicatorKit } from './agentIndicatorKit';
+import type { AgentConfig } from '@/store/chat/types/sessionConfig';
 
-const stableT = (key: string) => key;
-vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-  useLocale: () => 'zh',
-}));
+const config = (overrides: Partial<AgentConfig> = {}): AgentConfig => ({
+  selectedSkillIds: [],
+  selectedMcpNames: [],
+  systemPrompt: '',
+  useGlobalInstruction: true,
+  ...overrides,
+});
 
-const mockPush = vi.fn();
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
-}));
-
-const mockToast = vi.fn();
-vi.mock('@/hooks/shared/useToast', () => ({
-  toast: (args: unknown) => mockToast(args),
-}));
-
-const chatStoreMock = vi.hoisted(() => ({
-  agentConfig: null as Record<string, unknown> | null,
-  setAgentConfig: vi.fn(),
-  actionMode: 'agent' as string,
-  toggleConfigPanel: vi.fn(),
-  loading: false,
-}));
-
-vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: typeof chatStoreMock) => unknown) => selector(chatStoreMock),
-}));
-
-const mockFetchAgent = vi.fn();
-vi.mock('@/store/useAgentStore', () => ({
-  default: {
-    getState: () => ({
-      fetchAgent: mockFetchAgent,
-    }),
-  },
-}));
-
-const mockUseAgentGallery = vi.hoisted(() => vi.fn());
-vi.mock('@/hooks/agent/useAgentGallery', () => ({
-  useAgentGallery: (options: unknown) => mockUseAgentGallery(options),
-}));
-
-vi.mock('@/components/primitives/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock('@/components/primitives/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu">{children}</div>,
-  DropdownMenuTrigger: ({
-    children,
-    disabled,
-  }: {
-    children: React.ReactElement<{ disabled?: boolean }>;
-    disabled?: boolean;
-  }) => (
-    <div data-testid="dropdown-trigger" aria-disabled={disabled}>
-      {children}
-    </div>
-  ),
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dropdown-content">{children}</div>
-  ),
-  DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dropdown-label">{children}</div>
-  ),
-  DropdownMenuSeparator: () => <hr data-testid="dropdown-separator" />,
-  DropdownMenuItem: ({
-    children,
-    onClick,
-    className,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    className?: string;
-  }) => (
-    <button type="button" onClick={onClick} className={className} data-testid="dropdown-item">
-      {children}
-    </button>
-  ),
-}));
-
-import AgentIndicator from '../AgentIndicator';
-
-describe('AgentIndicator Component', () => {
-  const dummyPresets = [
-    {
-      id: 'coder-preset',
-      name: '代码专家',
-      description: '全栈编程助手',
-      icon: 'Code',
-      skillIds: ['code_edit'],
-      systemPrompt: 'You are an expert coder.',
-    },
-    {
-      id: 'search-preset',
-      name: '调研专家',
-      description: '深度搜索与分析',
-      icon: 'Search',
-      skillIds: ['deep_search'],
-      systemPrompt: 'You are an expert researcher.',
-    },
-  ];
-
-  const dummyCustomAgents = [
-    {
-      id: 'custom-finance',
-      name: '财务顾问',
-      description: '财务分析与报表',
-      avatar_url: 'gradient:2',
-      skill_ids: ['calc_sheet'],
-      mcp_ids: ['finance_mcp'],
-      system_prompt: 'You are a financial advisor.',
-    },
-    {
-      id: 'custom-emoji',
-      name: '表情专家',
-      description: '带emoji头像的智能体',
-      avatar_url: 'emoji:🚀',
-      skill_ids: [],
-    },
-    {
-      id: 'custom-img',
-      name: '视觉设计',
-      description: '带图片头像的智能体',
-      avatar_url: 'image:https://example.com/avatar.png',
-      skill_ids: [],
-    },
-  ];
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    chatStoreMock.agentConfig = null;
-    chatStoreMock.actionMode = 'agent';
-    chatStoreMock.loading = false;
-
-    mockUseAgentGallery.mockImplementation(({ onSelectPreset, onSelectCustomAgent }) => ({
-      presetAgents: dummyPresets,
-      customAgents: dummyCustomAgents,
-      handlePresetClick: (preset: (typeof dummyPresets)[0]) => onSelectPreset(preset),
-      handleCustomAgentClick: (agent: (typeof dummyCustomAgents)[0]) => onSelectCustomAgent(agent),
-    }));
+describe('AgentIndicator display', () => {
+  beforeEach(resetIndicatorKit);
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  it('renders nothing when actionMode is not agent (e.g. fast mode)', () => {
-    chatStoreMock.actionMode = 'fast';
-    const { container } = render(<AgentIndicator />);
-    expect(container).toBeEmptyDOMElement();
-  });
+  describe('the name next to the avatar', () => {
+    it.each([
+      { source: 'a short preset name', overrides: { presetId: 'p', presetName: 'Coder' }, shown: 'Coder' },
+      { source: 'a long preset name', overrides: { presetId: 'p', presetName: 'Code Expert' }, shown: 'Code ...' },
+      {
+        source: 'a long saved name',
+        overrides: { agentId: 'finance', agentName: 'Finance Advisor' },
+        shown: 'Finan...',
+      },
+      {
+        source: 'a name cut next to an emoji',
+        overrides: { agentId: 'x', agentName: 'abcd🚀xyz' },
+        shown: 'abcd🚀...',
+      },
+      {
+        source: 'a preset on top of a built-in agent',
+        overrides: { agentId: 'builtin-general', presetName: 'Coder' },
+        shown: 'Coder',
+      },
+      { source: 'no name at all', overrides: { agentId: 'x' }, shown: 'Agent' },
+    ])('reads $shown for $source', ({ overrides, shown }) => {
+      kit.chat.agentConfig = config(overrides);
 
-  it('renders default icon and trigger button in agent mode without active config', () => {
-    render(<AgentIndicator />);
-    const trigger = screen.getByTestId('dropdown-trigger');
-    expect(trigger).toBeInTheDocument();
-    expect(screen.getByTestId('dropdown-menu')).toBeInTheDocument();
-  });
+      renderIndicator();
 
-  it('disables the dropdown trigger button when loading is true', () => {
-    chatStoreMock.loading = true;
-    render(<AgentIndicator />);
-    const trigger = screen.getByTestId('dropdown-trigger');
-    expect(trigger).toHaveAttribute('aria-disabled', 'true');
-  });
+      expect(screen.getByText(shown)).toBeInTheDocument();
+    });
 
-  it('renders active preset agent details when agentConfig is set', () => {
-    chatStoreMock.agentConfig = {
-      presetId: 'coder-preset',
-      presetName: '代码专家',
-      presetIcon: 'Code',
-      selectedSkillIds: ['code_edit'],
-    };
-    render(<AgentIndicator />);
-    const matchingElements = screen.getAllByText('代码专家');
-    expect(matchingElements.length).toBeGreaterThanOrEqual(1);
-    expect(matchingElements[0]).toBeInTheDocument();
-  });
+    it.each([
+      { locale: 'en', shown: 'Gener...' },
+      { locale: 'zh', shown: '通用助手' },
+    ] as const)('shows a built-in agent in $locale as $shown', ({ locale, shown }) => {
+      kit.locale = locale;
+      kit.chat.agentConfig = config({ agentId: 'builtin-general', agentName: 'Whatever the server called it' });
 
-  it('renders custom agent avatar variants (gradient, emoji, image) cleanly without crashing', () => {
-    // 1. Emoji avatar
-    chatStoreMock.agentConfig = {
-      agentId: 'custom-emoji',
-      agentName: '表情专家',
-      avatarUrl: 'emoji:🚀',
-    };
-    const { rerender } = render(<AgentIndicator />);
-    expect(screen.getAllByText('表情专家')[0]).toBeInTheDocument();
+      renderIndicator();
 
-    // 2. Image avatar
-    chatStoreMock.agentConfig = {
-      agentId: 'custom-img',
-      agentName: '视觉设计',
-      avatarUrl: 'image:https://example.com/avatar.png',
-    };
-    rerender(<AgentIndicator />);
-    expect(screen.getAllByText('视觉设计')[0]).toBeInTheDocument();
-  });
-
-  it('switches preset agent when preset item is clicked', async () => {
-    mockFetchAgent.mockResolvedValueOnce(null);
-    render(<AgentIndicator />);
-
-    const presetItems = screen.getAllByText('代码专家');
-    fireEvent.click(presetItems[presetItems.length - 1]);
-
-    await waitFor(() => {
-      expect(chatStoreMock.setAgentConfig).toHaveBeenCalledWith(
-        expect.objectContaining({
-          agentId: 'coder-preset',
-          presetId: 'coder-preset',
-          presetName: '代码专家',
-          selectedSkillIds: ['code_edit'],
-        }),
-      );
-      expect(mockToast).toHaveBeenCalledWith({
-        title: 'switchSuccess',
-        description: '代码专家',
-      });
+      expect(screen.getByText(shown)).toBeInTheDocument();
     });
   });
 
-  it('switches custom agent when custom agent item is clicked', async () => {
-    mockFetchAgent.mockResolvedValueOnce(null);
-    render(<AgentIndicator />);
+  describe('whether an agent counts as selected', () => {
+    it.each([
+      { when: 'there is no configuration', current: null, selected: false },
+      { when: 'the configuration is empty', current: config(), selected: false },
+      { when: 'it only has an agent id', current: config({ agentId: 'a' }), selected: true },
+      { when: 'it only has a preset id', current: config({ presetId: 'p' }), selected: true },
+      { when: 'it only has a skill', current: config({ selectedSkillIds: ['web'] }), selected: true },
+      { when: 'it only has a connection', current: config({ selectedMcpNames: ['git'] }), selected: true },
+      { when: 'it only has an instruction', current: config({ systemPrompt: 'Be brief.' }), selected: true },
+      { when: 'its instruction is blank', current: config({ systemPrompt: '   ' }), selected: false },
+    ])('is $selected when $when', ({ current, selected }) => {
+      kit.chat.agentConfig = current;
 
-    const customAgentItem = screen.getByText('财务顾问');
-    fireEvent.click(customAgentItem);
+      renderIndicator();
 
-    await waitFor(() => {
-      expect(chatStoreMock.setAgentConfig).toHaveBeenCalledWith(
-        expect.objectContaining({
-          agentId: 'custom-finance',
-          agentName: '财务顾问',
-          selectedSkillIds: ['calc_sheet'],
-          selectedMcpNames: ['finance_mcp'],
-        }),
-      );
-      expect(mockToast).toHaveBeenCalledWith({
-        title: 'switchSuccess',
-        description: '财务顾问',
-      });
+      expect(screen.queryAllByText('Agent')).toHaveLength(selected ? 1 : 0);
     });
   });
 
-  it('handles empty agent list gracefully', () => {
-    mockUseAgentGallery.mockReturnValueOnce({
-      presetAgents: [],
-      customAgents: [],
-      handlePresetClick: vi.fn(),
-      handleCustomAgentClick: vi.fn(),
+  describe('the hint', () => {
+    it('explains what the button is for when it is focused', async () => {
+      renderIndicator();
+
+      fireEvent.focus(screen.getByRole('button', { name: 'Switch Agent' }));
+
+      const hint = await screen.findByRole('tooltip');
+      expect(hint).toHaveTextContent('Configure capabilities or use saved agents');
+      expect(hint).toHaveTextContent('Unleash your creativity to build powerful AI agents!');
     });
-
-    render(<AgentIndicator />);
-    expect(screen.getByTestId('dropdown-content')).toBeInTheDocument();
-    expect(screen.getByText('openConfigPanel')).toBeInTheDocument();
-  });
-
-  it('triggers toggleConfigPanel when configuration entry is clicked', () => {
-    render(<AgentIndicator />);
-    const configItem = screen.getByText('openConfigPanel');
-    fireEvent.click(configItem);
-    expect(chatStoreMock.toggleConfigPanel).toHaveBeenCalledTimes(1);
-  });
-
-  it('navigates to settings/agents when manageAgents entry is clicked', () => {
-    render(<AgentIndicator />);
-    const manageItem = screen.getByText('manageAgents');
-    fireEvent.click(manageItem);
-    expect(mockPush).toHaveBeenCalledWith('/settings/agents');
   });
 });
