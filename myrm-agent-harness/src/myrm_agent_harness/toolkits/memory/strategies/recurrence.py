@@ -10,6 +10,7 @@
 [OUTPUT]
 - RecurrenceDetector: Detects recurrent topics across sessions and triggers LLM consolidation.
 - RecurrenceResult: Detection result with triggered flag, consolidated content and the chats it derives from.
+- buffer_collection: The vector collection holding the recurrence buffer of the deployment with a given prefix.
 - purge_recurrence_buffer: Deletes a user's buffer rows, or only those one chat contributed.
 
 [POS]

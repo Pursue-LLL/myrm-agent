@@ -1,10 +1,11 @@
 """A rule the model writes, or a person or reviewer edits, reads the same to the agent's prompt as it does in recall.
 
 The prompt is built from a rule's trigger and action while recall shows its content line, and recall prints
-``When: <trigger> → Do: <action>``. A model that writes that line back as the rule's text used to wrap it a second time in
-the action, so every prompt carried the doubled line; an edit, and a reviewer's rewording of a queued rule, used to replace
-the content line only, so the prompt kept the old action while the reply said the rule was updated. Each case drives a real
-manager over SQLite and an embedded Qdrant, reads the rule back, then reads the context the prompt is built from.
+``When: <trigger> → Do: <action>``. A model that writes that line back as the rule's text must not get it wrapped a
+second time in the action, or every prompt would carry the doubled line; an edit, and a reviewer's rewording of a queued
+rule, must replace the action along with the content line, or the prompt would keep the old action while the reply says
+the rule was updated. Each case drives a real manager over SQLite and an embedded Qdrant, reads the rule back, then
+reads the context the prompt is built from.
 """
 
 from __future__ import annotations
