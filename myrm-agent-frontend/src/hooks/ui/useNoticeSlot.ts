@@ -43,10 +43,8 @@ export function useNoticeSlot(id: NoticeId, wantsSlot: boolean): boolean {
     queue.push(id);
     notify();
     return () => {
-      const position = queue.indexOf(id);
-      if (position !== -1) {
-        queue.splice(position, 1);
-      }
+      // Only this effect run removes the entry it pushed, so it is always still queued.
+      queue.splice(queue.indexOf(id), 1);
       notify();
     };
   }, [id, wantsSlot]);
