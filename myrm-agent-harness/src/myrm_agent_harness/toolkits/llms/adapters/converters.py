@@ -40,7 +40,7 @@ from langchain_core.messages import (
 )
 from langchain_core.messages.ai import UsageMetadata
 
-from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, carried_thinking_blocks
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, coerce_thinking_blocks
 from myrm_agent_harness.toolkits.llms.adapters.tool_call_conversion import (
     build_invalid_tool_call,
     convert_raw_tool_call_to_langchain,
@@ -118,7 +118,7 @@ def convert_message_to_dict(message: BaseMessage, *, wire_protocol: str | None =
             message_dict["responses_reasoning_items"] = message.additional_kwargs["responses_reasoning_items"]
         # Signed reasoning is replayed whatever the adapter protocol: an Anthropic-family model sits behind the
         # ``chat_completions`` protocol too, and each transport wire keeps or drops the blocks as its API requires.
-        if signed_blocks := carried_thinking_blocks(message.additional_kwargs.get(THINKING_BLOCKS_KEY)):
+        if signed_blocks := coerce_thinking_blocks(message.additional_kwargs.get(THINKING_BLOCKS_KEY)):
             message_dict[THINKING_BLOCKS_KEY] = signed_blocks
         # Process function_call (OpenAI deprecated format)
         if "function_call" in message.additional_kwargs:
@@ -251,7 +251,7 @@ def convert_dict_to_message(
         if isinstance(reasoning_items, list) and reasoning_items:
             additional_kwargs["responses_reasoning_items"] = reasoning_items
 
-        if signed_blocks := carried_thinking_blocks(_dict.get(THINKING_BLOCKS_KEY)):
+        if signed_blocks := coerce_thinking_blocks(_dict.get(THINKING_BLOCKS_KEY)):
             additional_kwargs[THINKING_BLOCKS_KEY] = signed_blocks
 
         citations = _extract_citations(_dict)

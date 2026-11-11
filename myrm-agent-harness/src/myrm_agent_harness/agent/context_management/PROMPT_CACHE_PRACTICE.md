@@ -334,9 +334,7 @@ Resume 从不解析历史，线程原样续接，遥测记为 `history_mode=resu
 | 估算 | `estimate_message_tokens` 计入回放的块文本 |
 | 安全网 | `thinking_replay_guard_middleware`：提供商拒绝回放（`FailoverReason.THINKING_SIGNATURE`，覆盖三种 400 措辞）时，请求副本去掉全部块重发一次，本次运行不再回放；执行器层的 `stream_recovery_oneshot` 一次性恢复保留为最后一道 |
 
-**临时开关**：环境变量 `MYRM_THINKING_BLOCK_REPLAY`（`0` / `false` / `no` / `off` 关闭，默认开启），每次调用读取。关闭后既不捕获也不回放，行为等同于不返回签名块的模型：工具循环里首个请求之后不带 `thinking`。退出条件：真实 Anthropic 接口探针通过（发布闸门，需要官方密钥）、且在一个完整发布周期内生产日志没有出现 `[ThinkingReplay]` 重试的 WARNING 后，删除该开关，使回放成为唯一路径。
-
-**钉住它的测试**：`tests/support/enforcing_anthropic.py` 是按提供商规则逐请求核验的类型化替身（块未知、块之前的提示变了、块序列有缺口、待答轮缺块，各拒绝一次）；`tests/agent/middlewares/test_thinking_replay_shipped_stack.py` 经真实装配的中间件栈跑通：流式与非流式各 21 个请求全部带 `thinking`、零拒绝；守卫重试场景恰好 1 次拒绝；开关关闭时每个回合只有首个请求带 `thinking`。`tests/agent/middlewares/test_run_view_stability_shipped_stack.py` 钉住通知的运行内稳定。
+**钉住它的测试**：`tests/support/enforcing_anthropic.py` 是按提供商规则逐请求核验的类型化替身（块未知、块之前的提示变了、块序列有缺口、待答轮缺块，各拒绝一次）；`tests/agent/middlewares/test_thinking_replay_shipped_stack.py` 经真实装配的中间件栈跑通：流式与非流式各 21 个请求全部带 `thinking`、零拒绝；守卫重试场景恰好 1 次拒绝。`tests/agent/middlewares/test_run_view_stability_shipped_stack.py` 钉住通知的运行内稳定。
 
 **无法离线验证的部分**：真实接口按账号的校验强度、签名块的真实体积与缓存成本、5.x 隐式思考型号的待答轮规则、Bedrock 在合成续写轮之后的行为、回答质量的提升、生产环境的缓存断点翻转频率。块里的签名文本不能被脱敏改写（改写会让签名失效）。
 
@@ -1301,7 +1299,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `middlewares/memory_context/memory_context_middleware.py` | 记忆上下文注入位置的缓存感知设计 |
 | `middlewares/_run_notices.py` | 运行期通知整次运行内保持位置与文本（`frozen_for_run`、`NoticeLedger`） |
 | `core/message_tail.py` | 随回合变化的内容只写在用户亲写最新消息的尾部 |
-| `core/thinking_blocks.py` | 签名推理块的形状、拼装、估算文本、剥离与回放开关 |
+| `core/thinking_blocks.py` | 签名推理块的形状、拼装、估算文本与剥离 |
 | `middlewares/thinking_replay_guard_middleware.py` | 提供商拒绝回放的推理块时，去掉全部块重发一次 |
 | `middlewares/request_view_guard_middleware.py` + `infra/prefix_chain.py` | 记录请求消息摘要，供缓存断点归因指出被改写的第一条消息 |
 | `app/core/cron/adapters/agent_runner/` | `_SILENT_SUFFIX` 条件性内容注入（确定性常量，缓存安全） |

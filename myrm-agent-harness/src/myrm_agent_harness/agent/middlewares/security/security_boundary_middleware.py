@@ -14,6 +14,7 @@ Placement:
 
 [INPUT]
 - agent.security.detection.content_boundary::SECURITY_BOUNDARY_SYSTEM_RULES (POS: Content boundary defense core. Five-layer defense-in-depth (Unicode folding, structural framing strip, marker sanitization, random boundaries, pattern detection) for prompt injection prevention.)
+- core.message_origin::runtime_system_message (POS: Marks the block as the runtime's, so models that only advise are not shown it.)
 
 [OUTPUT]
 - SecurityBoundaryMiddleware: Middleware to add the security boundary rules as a SystemMessage.
@@ -31,6 +32,7 @@ from langchain_core.messages import AnyMessage, BaseMessage, SystemMessage
 from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.security.detection.content_boundary import SECURITY_BOUNDARY_SYSTEM_RULES
+from myrm_agent_harness.core.message_origin import runtime_system_message
 
 _RULES_MARKER = "<data_boundary_rules"
 
@@ -49,4 +51,4 @@ class SecurityBoundaryMiddleware(AgentMiddleware):
         messages = state.get("messages", [])
         if not messages or _carries_rules(messages):
             return None
-        return {"messages": [SystemMessage(content=SECURITY_BOUNDARY_SYSTEM_RULES)]}
+        return {"messages": [runtime_system_message(SECURITY_BOUNDARY_SYSTEM_RULES)]}

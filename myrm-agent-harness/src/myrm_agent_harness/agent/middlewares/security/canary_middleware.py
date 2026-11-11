@@ -16,6 +16,7 @@ Placement:
 [INPUT]
 - agent.security.detection.canary_guard::build_canary_instruction, instruction_canaries (POS: Output-side injection detector. Deterministic canary token for prompt injection success detection.)
 - agent.middlewares._session_context::get_canary_token (POS: Middleware session context — shared ContextVars for the middleware chain.)
+- core.message_origin::runtime_system_message (POS: Marks the instruction as the runtime's, so models that only advise are not shown the token.)
 
 [OUTPUT]
 - CanaryMiddleware: Middleware to add the canary instruction as a SystemMessage once per thread.
@@ -35,6 +36,7 @@ from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.middlewares._session_context import get_canary_token
 from myrm_agent_harness.agent.security.detection.canary_guard import build_canary_instruction, instruction_canaries
+from myrm_agent_harness.core.message_origin import runtime_system_message
 
 
 def carried_canaries(messages: Sequence[BaseMessage]) -> list[str]:
@@ -55,4 +57,4 @@ class CanaryMiddleware(AgentMiddleware):
         messages = state.get("messages", [])
         if not canary or not messages or carried_canaries(messages):
             return None
-        return {"messages": [SystemMessage(content=build_canary_instruction(canary))]}
+        return {"messages": [runtime_system_message(build_canary_instruction(canary))]}

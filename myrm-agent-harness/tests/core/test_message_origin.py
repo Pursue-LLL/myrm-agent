@@ -1,7 +1,7 @@
 """Contract tests of the message-provenance primitives in ``core/message_origin``.
 
 Every layer that treats the user's message as the start of a turn (the anchors the context pipeline keeps, the blocks the
-tail injectors place, the turn counter) relies on these four functions agreeing on who wrote a HumanMessage.
+tail injectors place, the turn counter) relies on these functions agreeing on who wrote a message.
 """
 
 from __future__ import annotations
@@ -10,9 +10,11 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from myrm_agent_harness.core.message_origin import (
     count_user_authored_messages,
+    is_runtime_system_block,
     is_user_authored_human_message,
     last_user_authored_index,
     runtime_human_message,
+    runtime_system_message,
 )
 
 
@@ -67,3 +69,24 @@ def test_no_user_message_means_no_turn() -> None:
     assert last_user_authored_index(history) == -1
     assert count_user_authored_messages(history) == 0
     assert last_user_authored_index([]) == -1
+
+
+def test_the_runtime_system_block_carries_its_text_and_the_marker() -> None:
+    block = runtime_system_message("<session-access>")
+
+    assert isinstance(block, SystemMessage)
+    assert block.content == "<session-access>"
+    assert block.additional_kwargs == {"is_system_synthetic": True}
+    assert is_runtime_system_block(block)
+
+
+def test_only_a_system_message_the_runtime_marked_is_a_runtime_system_block() -> None:
+    assert not is_runtime_system_block(SystemMessage(content="s"))
+    assert not is_runtime_system_block(SystemMessage(content="s", additional_kwargs={"memory_context": True}))
+    assert not is_runtime_system_block(SystemMessage(content="s", additional_kwargs={"is_system_synthetic": "yes"}))
+    assert not is_runtime_system_block(runtime_human_message("notice"))
+    assert not is_runtime_system_block(AIMessage(content="a", additional_kwargs={"is_system_synthetic": True}))
+
+
+def test_a_system_message_rebuilt_without_its_kwargs_is_no_runtime_block() -> None:
+    assert not is_runtime_system_block(SystemMessage.model_construct(content="s", additional_kwargs=None))

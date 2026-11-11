@@ -18,6 +18,7 @@ from langchain_core.messages import (
 )
 from langchain_core.messages.base import BaseMessage
 
+from myrm_agent_harness.core.message_origin import runtime_human_message, runtime_system_message
 from myrm_agent_harness.toolkits.llms.adapters.converters import (
     convert_dict_to_message,
     convert_message_to_dict,
@@ -90,6 +91,11 @@ class TestConvertMessageToDict:
         tm = ToolMessage(content="t", tool_call_id="tid", name="tn")
         td = convert_message_to_dict(tm)
         assert td["role"] == "tool" and td["tool_call_id"] == "tid"
+
+    def test_a_runtime_message_reaches_the_wire_without_its_provenance_marker(self) -> None:
+        # The marker lives in additional_kwargs for the runtime's own readers; a strict provider rejects unknown fields.
+        assert convert_message_to_dict(runtime_system_message("rules")) == {"content": "rules", "role": "system"}
+        assert convert_message_to_dict(runtime_human_message("notice")) == {"content": "notice", "role": "user"}
 
     def test_ai_message_reasoning_function_call_tool_calls_kwargs(self) -> None:
         ai = AIMessage(

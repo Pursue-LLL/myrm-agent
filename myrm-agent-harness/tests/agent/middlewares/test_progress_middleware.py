@@ -289,3 +289,25 @@ async def test_focus_lands_on_the_user_message_when_system_messages_follow_it() 
     assert "Ship it" in sent[0].content
     assert sent[1] is rules
     assert sent[2] is session
+
+
+@pytest.mark.asyncio
+async def test_a_text_part_that_held_only_a_previous_progress_block_is_dropped() -> None:
+    store = TodoStore(goal="Now", todos=[TodoItem(id="t1", content="step one")])
+    middleware = progress_middleware(AsyncMock(return_value=store))
+    old_block = "[SYSTEM INSTRUCTION]\n## Task progress (active todos)\n**Goal:** old goal\n> [pending] t0: old step\n"
+    image = {"type": "image_url", "image_url": {"url": "data:image/png;base64,abc"}}
+    request = ModelRequest(
+        model=AsyncMock(),
+        messages=[HumanMessage(content=[{"type": "text", "text": old_block}, image])],
+    )
+    handler = AsyncMock(return_value=ModelResponse(result=[]))
+
+    await middleware.awrap_model_call(request, handler)
+
+    content = handler.await_args_list[-1].args[0].messages[-1].content
+    texts = [part["text"] for part in content if part.get("type") == "text"]
+    assert len(texts) == 1
+    assert "t1" in texts[0]
+    assert "t0" not in texts[0]
+    assert image in content

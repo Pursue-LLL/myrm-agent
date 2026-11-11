@@ -10,12 +10,16 @@ import asyncio
 import hashlib
 import logging
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
-from myrm_agent_harness.core.message_origin import is_user_authored_human_message, last_user_authored_index
+from myrm_agent_harness.core.message_origin import (
+    is_runtime_system_block,
+    is_user_authored_human_message,
+    last_user_authored_index,
+)
 from myrm_agent_harness.toolkits.llms.consensus._history import flatten_tool_free_history
 from myrm_agent_harness.toolkits.llms.consensus._streaming import collect_stream
 from myrm_agent_harness.toolkits.llms.consensus.advisor_prompts import ADVISOR_SYSTEM
@@ -45,7 +49,7 @@ def _redact_for_privacy(
     return redact_fn(text)
 
 
-def _extract_last_human_query(messages: list[BaseMessage]) -> str:
+def _extract_last_human_query(messages: Sequence[BaseMessage]) -> str:
     """The text of the latest message the user wrote; notices the runtime appended behind it are not the question."""
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage) and is_user_authored_human_message(msg):
@@ -64,7 +68,7 @@ def _extract_last_human_query(messages: list[BaseMessage]) -> str:
     return ""
 
 
-def _state_cache_key(messages: list[BaseMessage]) -> str:
+def _state_cache_key(messages: Sequence[BaseMessage]) -> str:
     digest = hashlib.sha256()
     for msg in messages:
         role = type(msg).__name__
@@ -73,9 +77,41 @@ def _state_cache_key(messages: list[BaseMessage]) -> str:
     return digest.hexdigest()
 
 
+def _opens_a_turn(messages: Sequence[BaseMessage]) -> bool:
+    """Whether the call starts on the user's own message: behind it stands only what the runtime appended.
+
+    The runtime appends notices as HumanMessages and, on the first call of a chat, the data-boundary rules, the
+    canary and the session directories as SystemMessages. A request that ends on an assistant or a tool message is a
+    step of the tool loop, not a new turn.
+    """
+    user_index = last_user_authored_index(messages)
+    return user_index != -1 and all(
+        isinstance(msg, (HumanMessage, SystemMessage)) for msg in messages[user_index + 1 :]
+    )
+
+
+def _is_runtime_appendix(msg: BaseMessage) -> bool:
+    """Whether the runtime appended the message for the acting model (a notice or a system block), not the user."""
+    return is_runtime_system_block(msg) or (isinstance(msg, HumanMessage) and not is_user_authored_human_message(msg))
+
+
+def _conversation_end(messages: Sequence[BaseMessage]) -> int:
+    """Where the conversation the advisors read ends, leaving out what the runtime appended behind it.
+
+    A call that opens a turn reads what precedes the user's message, which the query already carries. A step of the
+    tool loop reads up to its latest message: the tool result is what the advisors are consulted about.
+    """
+    if _opens_a_turn(messages):
+        return last_user_authored_index(messages)
+    end = len(messages)
+    while end and _is_runtime_appendix(messages[end - 1]):
+        end -= 1
+    return end
+
+
 def should_run_fanout(
     *,
-    messages: list[BaseMessage],
+    messages: Sequence[BaseMessage],
     fanout: str,
     every_n: int,
     iteration: int,
@@ -90,10 +126,7 @@ def should_run_fanout(
     if fanout == "every_n":
         n = max(1, every_n)
         return iteration % n == 0
-    # user_turn: only when the acting model call starts on a fresh user message. Notices the runtime appended behind
-    # it are HumanMessages too, but a request that ends on one is a step of the tool loop, not a new turn.
-    user_index = last_user_authored_index(messages)
-    return user_index != -1 and all(isinstance(msg, HumanMessage) for msg in messages[user_index + 1 :])
+    return _opens_a_turn(messages)
 
 
 class AdvisorFanoutRunner:
@@ -121,7 +154,7 @@ class AdvisorFanoutRunner:
 
     async def run(
         self,
-        messages: list[BaseMessage],
+        messages: Sequence[BaseMessage],
         *,
         on_ref_done: Callable[[ReferenceResponse], Awaitable[None]] | None = None,
         force_run: bool = False,
@@ -149,7 +182,10 @@ class AdvisorFanoutRunner:
                     await on_ref_done(ref)
             return cached
 
-        flat_history = flatten_tool_free_history(messages[:-1]) if len(messages) > 1 else None
+        # The system blocks the runtime wrote for the acting model (security rules, the canary, the session
+        # directories) are never shown to an advisor, from any turn.
+        history = [msg for msg in messages[: _conversation_end(messages)] if not is_runtime_system_block(msg)]
+        flat_history = flatten_tool_free_history(history) if history else None
         responses = await self._query_references(query, flat_history, on_ref_done=on_ref_done)
         self._cache[cache_key] = responses
         return responses

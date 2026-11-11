@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AnyMessage, HumanMessage
 
 from myrm_agent_harness.agent.middlewares.advisor_risk_trigger_router import (
     AdvisorRiskTriggerRouter,
@@ -144,9 +144,9 @@ def _model_name(llm: BaseChatModel) -> str:
 
 
 def _inject_advisor_block_cache_safe(
-    messages: list[object],
+    messages: Sequence[AnyMessage],
     injection_text: str,
-) -> list[object]:
+) -> list[AnyMessage]:
     """Inject advisor guidance preserving prompt KV-cache prefixes.
 
     If the trailing message is the user's own (a fresh turn), append to it in-place. Otherwise (a tool loop, or a
@@ -196,7 +196,7 @@ def create_moa_advisor_middleware(
         else (AdvisorRiskTriggerRouter(overlay_cfg) if overlay_cfg.fanout == "risk_triggered" else None)
     )
 
-    @wrap_model_call(name="moa_advisor_middleware")  # type: ignore[arg-type]
+    @wrap_model_call(name="moa_advisor_middleware")
     async def _middleware(
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],

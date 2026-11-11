@@ -11,7 +11,7 @@ against a provider double that enforces those checks, so what they count is what
 
 [POS]
 Graph-level guard of the signed-reasoning replay: capture on the stream and the non-stream path, replay inside the
-tool loop, pruning at the turn boundary, the retry net and the operations switch.
+tool loop, pruning at the turn boundary and the retry net.
 """
 
 from __future__ import annotations
@@ -39,7 +39,6 @@ _TURNS = 3
 _ROUNDS = 6
 _WINDOW = 200_000
 _OUTPUT = ("line of tool output with distinct words alpha beta gamma delta epsilon zeta eta theta. " * 100)[:8000]
-_SWITCH = "MYRM_THINKING_BLOCK_REPLAY"
 
 
 @tool
@@ -131,17 +130,3 @@ async def test_a_refused_replay_is_retried_once_and_that_run_goes_on_without_rea
     # The refused fourth request is sent again bare; the rest of the run asks for no reasoning, the next runs do.
     assert [record.thinking for record in first_turn] == [True, True, True] + [False] * (per_turn - 3)
     assert all(record.thinking for record in double.accepted[per_turn:])
-
-
-@pytest.mark.asyncio
-async def test_with_replay_switched_off_a_tool_loop_runs_without_reasoning_after_its_first_request(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv(_SWITCH, "0")
-    double = EnforcingAnthropic(tool_rounds=_ROUNDS)
-
-    await _run_session(double, streaming=True)
-
-    assert double.refused == []
-    assert [record.thinking for record in double.accepted] == ([True] + [False] * _ROUNDS) * _TURNS
-    assert all(record.replayed == 0 for record in double.accepted)

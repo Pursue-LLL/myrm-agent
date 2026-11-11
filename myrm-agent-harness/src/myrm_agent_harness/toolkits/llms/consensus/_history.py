@@ -6,10 +6,12 @@ See module docstring.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
 
-def flatten_tool_free_history(chat_history: list[BaseMessage]) -> list[BaseMessage]:
+def flatten_tool_free_history(chat_history: Sequence[BaseMessage]) -> list[BaseMessage]:
     """Strip tool artifacts so tool-less reference models avoid provider 400 errors."""
     flat: list[BaseMessage] = []
     for msg in chat_history:

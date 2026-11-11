@@ -12,7 +12,6 @@ continues that conversation.
 - THINKING_BLOCKS_KEY: the ``additional_kwargs`` key, and the wire-message key, the blocks travel under
 - ThinkingBlock, RedactedThinkingBlock, SignedThinkingBlock: the two block shapes
 - coerce_thinking_blocks: the replayable blocks of a raw ``thinking_blocks`` value, validated and copied
-- carried_thinking_blocks: the same blocks, or none while ``MYRM_THINKING_BLOCK_REPLAY`` switches replay off
 - ThinkingBlockAssembler: builds the blocks of one stream from their deltas, one draft per provider content index
 - thinking_blocks_text: the reasoning text a message's blocks put in the prompt, for token estimation
 - without_thinking_blocks: messages with the blocks removed, for a call whose prompt is not the conversation's
@@ -25,7 +24,6 @@ capture), the context pipeline (turn-scoped pruning) and the token estimator. It
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final, Literal, TypedDict
@@ -33,11 +31,6 @@ from typing import Final, Literal, TypedDict
 from langchain_core.messages import AIMessage, BaseMessage
 
 THINKING_BLOCKS_KEY: Final = "thinking_blocks"
-
-# Operations switch: with replay off no block enters conversation state or a request, so a tool loop runs without
-# reasoning, exactly as a model that returns no signed blocks does.
-_REPLAY_SWITCH_ENV: Final = "MYRM_THINKING_BLOCK_REPLAY"
-_OFF_VALUES: Final = frozenset({"0", "false", "no", "off"})
 
 
 class ThinkingBlock(TypedDict):
@@ -79,16 +72,6 @@ def coerce_thinking_blocks(raw: object) -> list[SignedThinkingBlock]:
     if not isinstance(raw, list):
         return []
     return [block for item in raw if isinstance(item, Mapping) and (block := _coerce_block(item)) is not None]
-
-
-def carried_thinking_blocks(raw: object) -> list[SignedThinkingBlock]:
-    """The blocks that may enter conversation state or leave in a request; none while the replay switch is off.
-
-    The switch is read on every call, so flipping it takes effect on the next request without a restart.
-    """
-    if os.environ.get(_REPLAY_SWITCH_ENV, "1").strip().lower() in _OFF_VALUES:
-        return []
-    return coerce_thinking_blocks(raw)
 
 
 @dataclass(slots=True)

@@ -11,6 +11,7 @@ that run cannot touch and mark it ``[read-write]``.
 - agent.middlewares._session_context::get_security_config, get_workspace_root (POS: the policy and the workspace of the turn)
 - agent.security.session_access::render_session_access_context (POS: the directory list, with the grants of the session)
 - agent.tool_management::ToolRegistry (POS: the tools the run holds)
+- core.message_origin::runtime_system_message (POS: marks the block as the runtime's, so models that only advise are not shown the paths)
 
 [OUTPUT]
 - SessionAccessMiddleware: appends the ``<session-access>`` block once per thread to a run that holds a tool taking paths
@@ -34,6 +35,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     get_workspace_root,
 )
 from myrm_agent_harness.agent.security.session_access import render_session_access_context
+from myrm_agent_harness.core.message_origin import runtime_system_message
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.tool_management import ToolRegistry
@@ -82,4 +84,4 @@ class SessionAccessMiddleware(AgentMiddleware):
                 return None
 
         content = f"{_SESSION_ACCESS_MARKER}\n{block}\n</session-access>"
-        return {"messages": [SystemMessage(content=content)]}
+        return {"messages": [runtime_system_message(content)]}

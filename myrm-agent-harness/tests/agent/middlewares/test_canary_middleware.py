@@ -12,6 +12,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from myrm_agent_harness.agent.middlewares._session_context import set_canary_token
 from myrm_agent_harness.agent.middlewares.security.canary_middleware import CanaryMiddleware, carried_canaries
 from myrm_agent_harness.agent.security.detection.canary_guard import build_canary_instruction, generate_canary
+from myrm_agent_harness.core.message_origin import is_runtime_system_block
 from tests.support.shipped_graph import shipped_agent, shipped_session
 
 CANARY = "CANARY-0123456789AB"
@@ -41,6 +42,7 @@ def test_the_instruction_is_appended_once_with_the_session_token() -> None:
     [message] = result["messages"]
     assert isinstance(message, SystemMessage)
     assert message.content == build_canary_instruction(CANARY)
+    assert is_runtime_system_block(message)
 
 
 def test_a_history_that_carries_a_canary_is_left_alone_whatever_the_current_token() -> None:

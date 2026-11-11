@@ -26,7 +26,7 @@ from typing import Any, cast
 from langchain_core.messages import AIMessageChunk, ToolCallChunk
 from langchain_core.outputs import ChatGenerationChunk
 
-from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, carried_thinking_blocks
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, coerce_thinking_blocks
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +220,7 @@ def extract_replay_state(delta: Mapping[str, object]) -> dict[str, object]:
     reasoning_items = delta.get("responses_reasoning_items")
     if isinstance(reasoning_items, list) and reasoning_items:
         state["responses_reasoning_items"] = reasoning_items
-    if signed_blocks := carried_thinking_blocks(delta.get(THINKING_BLOCKS_KEY)):
+    if signed_blocks := coerce_thinking_blocks(delta.get(THINKING_BLOCKS_KEY)):
         state[THINKING_BLOCKS_KEY] = signed_blocks
     return state
 

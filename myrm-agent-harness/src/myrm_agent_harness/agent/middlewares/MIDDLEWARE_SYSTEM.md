@@ -81,7 +81,7 @@
 
 | `model_call_cancel.py` | 最外层模型调用包装：Stop 时在一个轮询周期内中断在途模型请求（含其内侧中间件的限流等待与重试），抛 `OperationCancelledError`，执行器按 Stop 收尾 |
 | `parallel_tool_calls.py` | `EngineParams.enable_parallel_tool_calls` 设定后，每次带工具的模型调用经 `ModelRequest.model_settings` 带上 `parallel_tool_calls`（请求已带的设定保留；不带工具的调用不加）；装配在所有会重写请求的中间件之后、两个守卫包装之前，故故障切换重建图时同样作用于新模型 |
-| `thinking_replay_guard_middleware.py` | 签名推理块回放的安全网：提供商拒绝回放的块（`FailoverReason.THINKING_SIGNATURE`）时，请求副本去掉全部块重发一次，并在本次运行内不再回放（拒绝记忆放在运行字典里，下一次运行重新回放）；执行器层的一次性恢复仍是最后一道。回放由环境变量 `MYRM_THINKING_BLOCK_REPLAY`（`0/false/no/off` 关闭，默认开启）控制，关闭后捕获与回放同时停止，工具循环里不再带推理，行为等同于不返回签名块的模型 |
+| `thinking_replay_guard_middleware.py` | 签名推理块回放的安全网：提供商拒绝回放的块（`FailoverReason.THINKING_SIGNATURE`）时，请求副本去掉全部块重发一次，并在本次运行内不再回放（拒绝记忆放在运行字典里，下一次运行重新回放）；执行器层的一次性恢复仍是最后一道 |
 | `request_view_guard_middleware.py` | 离提供商最近的模型调用包装：把请求各消息的摘要交给本次运行的缓存断点检测器，由它指出请求从哪条消息起不再延续上一个请求；只记录，不改写 |
 | `rate_limit.py` | Provider 级主动 sleep |
 | `debug_logger_middleware.py` | 完整消息 debug 日志 |

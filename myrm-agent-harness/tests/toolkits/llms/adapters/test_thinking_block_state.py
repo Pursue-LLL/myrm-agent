@@ -1,8 +1,7 @@
 """Signed reasoning between the wire and the conversation: captured into a message, handed back from it.
 
 The transports return a block as the provider wrote it; the adapter keeps it on the AIMessage in ``additional_kwargs``
-and puts it back on the next request. A block the provider would refuse (unsigned, empty) never enters the message,
-and ``MYRM_THINKING_BLOCK_REPLAY`` switches the whole round trip off.
+and puts it back on the next request. A block the provider would refuse (unsigned, empty) never enters the message.
 """
 
 from __future__ import annotations
@@ -13,12 +12,11 @@ import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk
 from langchain_core.outputs import ChatGenerationChunk
 
-from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY, carried_thinking_blocks
+from myrm_agent_harness.core.thinking_blocks import THINKING_BLOCKS_KEY
 from myrm_agent_harness.toolkits.llms.adapters.converters import convert_dict_to_message, convert_message_to_dict
 from myrm_agent_harness.toolkits.llms.adapters.stream_aggregator import StreamAggregator, finalize_stream
 from myrm_agent_harness.toolkits.llms.adapters.streaming import extract_replay_state
 
-_SWITCH = "MYRM_THINKING_BLOCK_REPLAY"
 _SIGNED = {"type": "thinking", "thinking": "plan", "signature": "sig-1"}
 _REDACTED = {"type": "redacted_thinking", "data": "opaque"}
 _UNSIGNED = {"type": "thinking", "thinking": "no signature"}
@@ -58,40 +56,6 @@ class TestMessageConversion:
         message = convert_dict_to_message({"role": "assistant", "content": "ok"})
 
         assert THINKING_BLOCKS_KEY not in message.additional_kwargs
-
-
-class TestReplaySwitch:
-    @pytest.mark.parametrize("value", ["0", "false", "no", "off", " OFF ", "False"])
-    def test_an_off_value_carries_nothing_in_either_direction(
-        self, monkeypatch: pytest.MonkeyPatch, value: str
-    ) -> None:
-        monkeypatch.setenv(_SWITCH, value)
-
-        assert carried_thinking_blocks([_SIGNED]) == []
-        assert THINKING_BLOCKS_KEY not in convert_message_to_dict(_answer(_SIGNED))
-        assert (
-            THINKING_BLOCKS_KEY
-            not in convert_dict_to_message(
-                {"role": "assistant", "content": "ok", THINKING_BLOCKS_KEY: [_SIGNED]}
-            ).additional_kwargs
-        )
-        assert THINKING_BLOCKS_KEY not in extract_replay_state({THINKING_BLOCKS_KEY: [_SIGNED]})
-
-    @pytest.mark.parametrize("value", [None, "", "1", "true", "yes", "on"])
-    def test_anything_else_leaves_replay_on(self, monkeypatch: pytest.MonkeyPatch, value: str | None) -> None:
-        if value is None:
-            monkeypatch.delenv(_SWITCH, raising=False)
-        else:
-            monkeypatch.setenv(_SWITCH, value)
-
-        assert carried_thinking_blocks([_SIGNED]) == [_SIGNED]
-
-    def test_the_switch_is_read_on_every_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv(_SWITCH, "0")
-        assert carried_thinking_blocks([_SIGNED]) == []
-
-        monkeypatch.setenv(_SWITCH, "1")
-        assert carried_thinking_blocks([_SIGNED]) == [_SIGNED]
 
 
 class TestStreamState:

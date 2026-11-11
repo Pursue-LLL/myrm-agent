@@ -14,7 +14,7 @@
 - registry_of / named_tool / built_guard: the guard of the chain ``build_middlewares`` assembles over a registry of mounted tools
 - writes_allowed / writes_denied: a policy that lets a run write files, and one with the Read Only profile's deny set on top
 - CountingModel: scripted model that counts its calls, keeps what each call was shown, and can answer differently once the guard has spoken
-- run_agent / tool_names: a ``create_skill_agent`` run over a scripted model (optionally collecting its events, keeping the chat across turns), and the tools it mounted
+- run_agent / tool_names: a ``create_skill_agent`` run over a scripted model (optionally collecting its events, keeping the chat across turns, adding host middlewares), and the tools it mounted
 
 [POS]
 Harness pytest-only helper shared by the completion-guard capability tests, so each one states its case
@@ -28,6 +28,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
+from langchain.agents.middleware import AgentMiddleware
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -181,11 +182,13 @@ async def run_agent(
     events: list[dict[str, object]] | None = None,
     checkpointer: BaseCheckpointSaver | bool = False,
     then: Sequence[str] = (),
+    middlewares: Sequence[AgentMiddleware] = (),
 ) -> tuple[SkillAgent, Path]:
     """Run ``request`` through a real agent whose only scripted part is the model; returns it and its workspace.
 
     The events the run streams are appended to ``events`` when given. Each request in ``then`` is a further turn of
-    the same chat, which sees what the checkpointer kept of the turns before it.
+    the same chat, which sees what the checkpointer kept of the turns before it. ``middlewares`` are the host's own,
+    added the way a deployment adds them behind the built-in chain.
     """
     workspace = (tmp_path / "project").resolve()
     workspace.mkdir()
@@ -202,6 +205,7 @@ async def run_agent(
         ),
         llm=model,
         tools=[],
+        middlewares=list(middlewares) or None,
         storage_backend=LocalStorageBackend(str(tmp_path / "storage")),
         checkpointer=checkpointer,
         file_access_mode=file_access_mode,

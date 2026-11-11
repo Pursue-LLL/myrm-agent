@@ -11,6 +11,7 @@ from pydantic import Field
 
 from myrm_agent_harness.agent.middlewares.security.security_boundary_middleware import SecurityBoundaryMiddleware
 from myrm_agent_harness.agent.security.detection.content_boundary import SECURITY_BOUNDARY_SYSTEM_RULES
+from myrm_agent_harness.core.message_origin import is_runtime_system_block
 
 
 def test_security_boundary_middleware_no_system_message():
@@ -24,6 +25,7 @@ def test_security_boundary_middleware_no_system_message():
     assert len(messages) == 1
     assert isinstance(messages[0], SystemMessage)
     assert messages[0].content == SECURITY_BOUNDARY_SYSTEM_RULES
+    assert is_runtime_system_block(messages[0])
 
 
 def test_security_boundary_middleware_with_system_message():

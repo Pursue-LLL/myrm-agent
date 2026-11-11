@@ -23,6 +23,7 @@ from myrm_agent_harness.agent.middlewares.session_access_middleware import (
 )
 from myrm_agent_harness.agent.security.types import PathPolicy
 from myrm_agent_harness.agent.tool_management import ToolSource
+from myrm_agent_harness.core.message_origin import is_runtime_system_block
 from tests.support.completion_guard_harness import (
     CountingModel,
     named_tool,
@@ -78,6 +79,7 @@ class TestBeforeModel:
         assert isinstance(messages[0], SystemMessage)
         assert _SESSION_ACCESS_MARKER in messages[0].content
         assert "</session-access>" in messages[0].content
+        assert is_runtime_system_block(messages[0])
 
     def test_skips_when_marker_already_present(self) -> None:
         existing = SystemMessage(content=f"{_SESSION_ACCESS_MARKER}\nblock")
