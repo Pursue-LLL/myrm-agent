@@ -1,69 +1,12 @@
 /** @vitest-environment jsdom */
-import rehypeStringify from 'rehype-stringify';
-import remarkParse from 'remark-parse';
-import remarkRehype from 'remark-rehype';
-import { unified } from 'unified';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildDocxBlob } from '../chatExportDocx';
-import { rehypeWordImages, type WordImageLimits } from '../chatExportDocxImages';
+import { BMP, GIF, JPEG, PNG, WEBP, bytesOf, htmlWith, imageResponse, stubFetch, type Reply } from './docxImageTestKit';
 import { elements, externalTargets, openDocx, paragraphTexts, type DocxPackage } from './docxTestKit';
-
-/** 1x1 files written by ImageMagick; the first bytes are what the export recognises an image by. */
-const PNG =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURTNmzP///w3eOY0AAAABYktHRAH/Ai3eAAAAB3RJTUUH6gsLAgMaDhFagwAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAldEVYdGRhdGU6Y3JlYXRlADIwMjYtMTEtMTFUMDI6MDM6MjYrMDA6MDBPuOGxAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDI2LTExLTExVDAyOjAzOjI2KzAwOjAwPuVZDQAAACh0RVh0ZGF0ZTp0aW1lc3RhbXAAMjAyNi0xMS0xMVQwMjowMzoyNiswMDowMGnweNIAAAAASUVORK5CYII=';
-const JPEG =
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAB//EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAVAQEBAAAAAAAAAAAAAAAAAAAHCP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AC9UAkf/2Q==';
-const GIF = 'R0lGODlhAQABAPAAADNmzAAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
-const BMP = 'Qk06AAAAAAAAADYAAAAoAAAAAQAAAAEAAAABABgAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAzGYzAA==';
-const WEBP = 'UklGRjYAAABXRUJQVlA4ICoAAADQAQCdASoBAAEAAgA0JaACdLoB+AADsAD+7L2P/PTNeYP8nP+3Jl5tsAA=';
-const GIF_BYTES = 43;
-
-const bytesOf = (base64: string): Uint8Array<ArrayBuffer> => Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-
-type Reply =
-  { body: Uint8Array<ArrayBuffer> | string; status?: number; contentLength?: number } | 'network-error' | 'hang';
-
-/** The part of a fetch response the export reads; `contentLength` is the size the host states. */
-function imageResponse(body: Uint8Array<ArrayBuffer> | string, status = 200, contentLength?: number) {
-  return {
-    ok: status < 400,
-    status,
-    headers: new Headers(contentLength === undefined ? {} : { 'content-length': String(contentLength) }),
-    blob: async () => new Blob([body], { type: 'image/png' }),
-  };
-}
-
-/** Stands in for the browser's fetch: each address gets its reply; an unlisted one is a 404. */
-function stubFetch(replies: Record<string, Reply>): ReturnType<typeof vi.fn> {
-  const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-    const reply = replies[url] ?? { body: 'not found', status: 404 };
-    if (reply === 'network-error') {
-      throw new TypeError('Failed to fetch');
-    }
-    if (reply === 'hang') {
-      return new Promise<never>((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () =>
-          reject(new DOMException('The operation was aborted.', 'AbortError')),
-        );
-      });
-    }
-    return imageResponse(reply.body, reply.status, reply.contentLength);
-  });
-  vi.stubGlobal('fetch', fetchMock);
-  return fetchMock;
-}
 
 const docxOf = async (markdown: string): Promise<DocxPackage> => openDocx(await buildDocxBlob(markdown));
 const textOf = (docx: DocxPackage): string => paragraphTexts(docx.document).join('\n');
 const targetsOf = (docx: DocxPackage): string[] => externalTargets(docx.parts['word/_rels/document.xml.rels']);
-
-/** What the plugin leaves in the HTML, for limits that would need megabytes of real data in the Word file. */
-async function htmlWith(markdown: string, limits?: Partial<WordImageLimits>): Promise<string> {
-  const processor = unified().use(remarkParse).use(remarkRehype).use(rehypeWordImages, limits).use(rehypeStringify);
-  return String(await processor.process(markdown));
-}
-
-const embedded = (html: string): number => (html.match(/src="data:image\/gif;base64,/g) ?? []).length;
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -162,6 +105,26 @@ describe('images in the Word file', () => {
     expect(textOf(docx)).toContain('the alt');
   });
 
+  it('puts the pieces of a body back together in order', async () => {
+    stubFetch({ 'https://img.example/a.png': { body: bytesOf(PNG), pieceSize: 5 } });
+
+    const html = await htmlWith('![a](https://img.example/a.png)');
+
+    expect(html).toContain(`src="data:image/png;base64,${PNG}"`);
+  });
+
+  it('keeps the alt text of an image whose response has no body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => imageResponse(null, 204)),
+    );
+
+    const html = await htmlWith('![the alt](https://img.example/a.png)');
+
+    expect(html).not.toContain('<img');
+    expect(html).toContain('the alt');
+  });
+
   it('shows no address for an image inside a link, and keeps the link', async () => {
     stubFetch({});
 
@@ -179,83 +142,5 @@ describe('images in the Word file', () => {
     expect(targetsOf(docx)).toEqual([]);
     expect(textOf(docx)).toContain('/files/a.png');
     expect(textOf(docx)).not.toContain('base64');
-  });
-});
-
-describe('limits on images', () => {
-  const gif = (n: number): string => `https://img.example/${n}.gif`;
-  const gifs = (count: number): Record<string, Reply> =>
-    Object.fromEntries(Array.from({ length: count }, (_, i) => [gif(i), { body: bytesOf(GIF) } as Reply]));
-  const markdownOf = (count: number): string =>
-    Array.from({ length: count }, (_, i) => `![g${i}](${gif(i)})`).join('\n\n');
-
-  it('embeds an image of exactly the largest size and leaves out one byte more', async () => {
-    stubFetch(gifs(1));
-
-    expect(embedded(await htmlWith(markdownOf(1), { maxImageBytes: GIF_BYTES }))).toBe(1);
-    expect(embedded(await htmlWith(markdownOf(1), { maxImageBytes: GIF_BYTES - 1 }))).toBe(0);
-  });
-
-  it('does not download an image the host says is over the largest size', async () => {
-    const fetchMock = stubFetch({
-      [gif(0)]: { body: bytesOf(GIF), contentLength: GIF_BYTES + 1 },
-      [gif(1)]: { body: bytesOf(GIF), contentLength: GIF_BYTES },
-    });
-
-    const html = await htmlWith(markdownOf(2), { maxImageBytes: GIF_BYTES });
-
-    // Both bodies are small enough to embed, so only the size the host states can have kept the first one out.
-    expect(embedded(html)).toBe(1);
-    expect(html).toContain('g0');
-    expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
-    expect((fetchMock.mock.calls[1][1] as RequestInit).signal?.aborted).toBe(false);
-  });
-
-  it('stops the body of a failed response from going on downloading', async () => {
-    const fetchMock = stubFetch({ [gif(0)]: { body: 'not found', status: 404 } });
-
-    await htmlWith(markdownOf(1));
-
-    expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
-  });
-
-  it('embeds images until the total would go over, and leaves the rest as text', async () => {
-    stubFetch(gifs(3));
-
-    const html = await htmlWith(markdownOf(3), { maxTotalBytes: GIF_BYTES * 2 + 1 });
-
-    expect(embedded(html)).toBe(2);
-    expect(html.match(/<img /g)).toHaveLength(2);
-    expect(html.match(/<a href="https:\/\/img\.example\/\d\.gif">g\d<\/a>/g)).toHaveLength(1);
-  });
-
-  it('gives up on a host that does not answer in time, and the export goes on', async () => {
-    const fetchMock = stubFetch({ [gif(0)]: 'hang', [gif(1)]: { body: bytesOf(GIF) } });
-    const started = Date.now();
-
-    const html = await htmlWith(markdownOf(2), { timeoutMs: 30 });
-
-    expect(Date.now() - started).toBeLessThan(2000);
-    expect(embedded(html)).toBe(1);
-    expect(html).toContain('g0');
-    expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
-  });
-
-  it('asks for all images at once, not one after the other', async () => {
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const fetchMock = vi.fn(async () => {
-      await gate;
-      return imageResponse(bytesOf(GIF));
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const pending = htmlWith(markdownOf(3));
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    release();
-
-    expect(embedded(await pending)).toBe(3);
   });
 });

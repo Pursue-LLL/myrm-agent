@@ -9,7 +9,7 @@ import type { Plugin } from 'unified';
 export interface WordImageLimits {
   /** Word shows an image at page width, so a bigger file only makes the document heavier. */
   maxImageBytes: number;
-  /** However many images a message links, one document embeds no more than this: each costs several copies in memory while it is built. */
+  /** However many images a message links, one document embeds no more than this: each costs several copies in memory while it is built. The downloads under way count against it too, so it also caps what the export holds at once. */
   maxTotalBytes: number;
   /** A host that never answers would otherwise hold the export for as long as the browser keeps the connection open. */
   timeoutMs: number;
@@ -49,31 +49,100 @@ async function detectImageMime(blob: Blob): Promise<string | null> {
   return IMAGE_SIGNATURES.find(({ bytes }) => bytes.every((byte, i) => head[i] === byte))?.mime ?? null;
 }
 
+/** What the document may still take in: a download holds the bytes it has received until its image is in the document, and gives them back when it ends without one. */
+interface ByteBudget {
+  take(bytes: number): boolean;
+  give(bytes: number): void;
+}
+
+function createByteBudget(total: number): ByteBudget {
+  let remaining = total;
+  return {
+    take(bytes) {
+      if (bytes > remaining) {
+        return false;
+      }
+      remaining -= bytes;
+      return true;
+    },
+    give(bytes) {
+      remaining += bytes;
+    },
+  };
+}
+
+/**
+ * The body as a Blob, read piece by piece and cancelled the moment it goes over the image limit or `hold` refuses a
+ * piece, so a host that states no size, or a false one, cannot make the browser buffer more than the limits allow.
+ * Null when it went over, or when there is no body to read.
+ */
+async function readBody(
+  response: Response,
+  maxImageBytes: number,
+  hold: (bytes: number) => boolean,
+): Promise<Blob | null> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return null;
+  }
+  const pieces: Uint8Array<ArrayBuffer>[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      return new Blob(pieces);
+    }
+    size += value.byteLength;
+    if (size > maxImageBytes || !hold(value.byteLength)) {
+      await reader.cancel();
+      return null;
+    }
+    pieces.push(value);
+  }
+}
+
 /** The image as a data URL, or null when it cannot be had, is not a raster Word shows, or would go over a limit. */
 async function fetchWordImage(
   src: string,
   { maxImageBytes, timeoutMs }: WordImageLimits,
-  reserve: (bytes: number) => boolean,
+  budget: ByteBudget,
 ): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let held = 0;
+  let embedded = false;
+  const hold = (bytes: number): boolean => {
+    if (!budget.take(bytes)) {
+      return false;
+    }
+    held += bytes;
+    return true;
+  };
   try {
     const response = await fetch(src, { referrerPolicy: 'no-referrer', signal: controller.signal });
-    // A host that states a size over the limit is not downloaded: the limit would otherwise only apply once the whole
-    // file had arrived. Aborting also stops the body of a failed response from going on downloading.
+    // A host that states a size over the limit is not downloaded at all. Aborting also stops the body of a failed
+    // response from going on downloading.
     if (!response.ok || Number(response.headers.get('content-length')) > maxImageBytes) {
       controller.abort();
       return null;
     }
-    const blob = await response.blob();
-    const mime = blob.size <= maxImageBytes ? await detectImageMime(blob) : null;
-    return mime && reserve(blob.size) ? await readAsDataUrl(blob.slice(0, blob.size, mime)) : null;
+    const blob = await readBody(response, maxImageBytes, hold);
+    const mime = blob && (await detectImageMime(blob));
+    if (!blob || !mime) {
+      return null;
+    }
+    const dataUrl = await readAsDataUrl(blob.slice(0, blob.size, mime));
+    embedded = true;
+    return dataUrl;
   } catch {
     // Offline, refused by the host's CORS policy, an address the browser cannot fetch, or the timeout: the image stays
     // text and the export goes on.
     return null;
   } finally {
     clearTimeout(timer);
+    if (!embedded) {
+      budget.give(held);
+    }
   }
 }
 
@@ -105,19 +174,12 @@ export const rehypeWordImages: Plugin<[Partial<WordImageLimits>?], Root> = (over
   const images: ImageRef[] = [];
   collectImages(tree, false, images);
 
-  let remaining = limits.maxTotalBytes;
-  const reserve = (bytes: number): boolean => {
-    if (bytes > remaining) {
-      return false;
-    }
-    remaining -= bytes;
-    return true;
-  };
+  const budget = createByteBudget(limits.maxTotalBytes);
 
   await Promise.all(
     images.map(async ({ img, insideLink }) => {
       const src = String(img.properties.src);
-      const dataUrl = await fetchWordImage(src, limits, reserve);
+      const dataUrl = await fetchWordImage(src, limits, budget);
       if (dataUrl) {
         img.properties.src = dataUrl;
       } else {
