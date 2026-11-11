@@ -212,7 +212,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.warning("[Startup] MCP endpoint setup skipped: %s", e)
 
-    logger.info(f"[Startup] HTTP server ready: {timer.metrics.to_dict()}")
+    logger.info(f"[Startup] Core services and routes ready: {timer.metrics.to_dict()}")
 
     try:
         from app.services.memory.extract_retry.extract_retry_worker import (
