@@ -91,9 +91,6 @@ data-viz = [
 
 [tool.uv]
 # Universal lock; the harness is the in-repo editable path source declared in [tool.uv.sources].
-# A stable release always wins; a pre-release is locked only where no stable one satisfies the requirements
-# (apscheduler 4.x, OpenTelemetry), so a lock refresh never pulls in an unrelated beta or release candidate.
-prerelease = "if-necessary"
 # Supported targets only: patchright (browser extra) ships no wheels for emscripten/other platforms,
 # so a universal fork over them is unsatisfiable under current uv resolvers.
 environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'", "sys_platform == 'win32'"]
