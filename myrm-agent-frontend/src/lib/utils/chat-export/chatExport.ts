@@ -307,7 +307,9 @@ function formatSourcesFootnotes(sources?: Source[]): string {
     return '';
   }
   const lines = sources.map((s, i) => `[${i + 1}] ${s.url || s.title || 'Unknown source'}`);
-  return `\n\nCitations:\n${lines.join('\n')}`;
+  // Two trailing spaces make each citation its own line wherever the Markdown is rendered; a plain newline would run
+  // them together into one paragraph.
+  return `\n\nCitations:  \n${lines.join('  \n')}`;
 }
 
 function formatMessageMarkdown(message: Message, includeReasoning: boolean, redact = true): string {
@@ -355,14 +357,8 @@ export async function downloadMessageAsHtml(
 
 export async function downloadMessageAsDocx(message: Message, includeReasoning: boolean, redact = true): Promise<void> {
   const markdown = formatMessageMarkdown(message, includeReasoning, redact);
-  const { buildHtmlDocument } = await import('./chatExportHtml');
-  // Word has no script and no KaTeX stylesheet, so it gets the static document rather than the interactive page.
-  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), 'light', 'en', {
-    static: true,
-  });
-  const { toDocx } = await import('docshift');
-  const docxBlob = await toDocx(html);
-  await triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
+  const { buildDocxBlob } = await import('./chatExportDocx');
+  await triggerDownload(await buildDocxBlob(markdown), buildFilename(extractMessageTitle(message.content), 'docx'));
 }
 
 export async function downloadMessageAsImage(element: HTMLElement, message: Message, redact = true): Promise<void> {
