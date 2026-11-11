@@ -4,6 +4,8 @@
 - memory._manager.host::MemoryManagerHost (POS: typed declaration of the shared manager state)
 - memory._manager.shared::iter_pages_by_type (POS: page-by-page walk of one memory type)
 - memory._manager.import_export.markdown_render (POS: Markdown and privacy-safe rendering)
+- memory.strategies.chat_fence::reopen_chats (POS: the deleted-chat fence an import lifts)
+- memory.strategies.lineage::chat_links (POS: every chat one memory derives from)
 - memory.types::{AnyMemory, ConversationMemory, EpisodicMemory, MemoryType, ProceduralMemory, SemanticMemory} (POS: memory data models)
 
 [OUTPUT]
@@ -12,7 +14,8 @@
 [POS]
 Store-facing half of the import/export mixin. ``export_all`` walks every type to its last page and raises
 on a store failure, so a backup or export never passes off a truncated result as complete.
-``import_memories(skip_duplicates=False)`` has the writer bypass deduplication, so a replace restore lands each entry.
+``import_memories(skip_duplicates=False)`` has the writer bypass deduplication, so a replace restore lands each entry,
+and it lifts the deleted-chat fence for the chats the entries derive from.
 """
 
 from __future__ import annotations
@@ -34,6 +37,8 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
     iter_pages_by_type,
     logger,
 )
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import reopen_chats
+from myrm_agent_harness.toolkits.memory.strategies.lineage import chat_links
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
     ConversationMemory,
@@ -264,6 +269,8 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
                 counts[type_name] = 0
                 continue
 
+            # Importing is the user bringing memories back on purpose, whichever chats they derive from.
+            reopen_chats(self._user_id, (chat_id for memory in memories for chat_id in chat_links(memory)))
             try:
                 stored = await self.store_batch(memories, _skip_dedup=not skip_duplicates)
                 counts[type_name] = len(stored)

@@ -132,6 +132,8 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             await conn.execute("ALTER TABLE pending_records ADD COLUMN target_memory_id TEXT")
         if "target_content" not in pending_columns:
             await conn.execute("ALTER TABLE pending_records ADD COLUMN target_content TEXT")
+        if "built_from_chats" not in pending_columns:
+            await conn.execute("ALTER TABLE pending_records ADD COLUMN built_from_chats INTEGER NOT NULL DEFAULT 0")
 
 
 async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
@@ -199,7 +201,8 @@ async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
             resolved_at TEXT,
             resolution_action TEXT NOT NULL DEFAULT 'store',
             target_memory_id TEXT,
-            target_content TEXT
+            target_content TEXT,
+            built_from_chats INTEGER NOT NULL DEFAULT 0
         )
     """
     )
@@ -215,6 +218,7 @@ async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
         "CREATE INDEX IF NOT EXISTS idx_pending_user ON pending_records(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_pending_user_status ON pending_records(user_id, status)",
         "CREATE INDEX IF NOT EXISTS idx_pending_source_chat ON pending_records(source_chat_id) WHERE source_chat_id IS NOT NULL",
+        "CREATE INDEX IF NOT EXISTS idx_pending_built_from_chats ON pending_records(built_from_chats) WHERE built_from_chats = 1",
     ):
         await conn.execute(idx_sql)
     fts5_supported = await init_exact_fact_tables(conn)

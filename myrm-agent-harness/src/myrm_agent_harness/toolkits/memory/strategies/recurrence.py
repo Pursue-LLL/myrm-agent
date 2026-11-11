@@ -4,6 +4,7 @@
 - memory.config::RecurrenceConfig (POS: recurrence detection configuration)
 - memory.protocols.embedding::EmbeddingProtocol (POS: text to vector)
 - memory.protocols.vector::VectorStoreProtocol (POS: vector storage)
+- strategies.chat_fence::is_closed (POS: whether writes derived from a chat are refused)
 - strategies.recurrence_signals::{is_important, is_trivial_summary} (POS: keyword rules for must-remember signals and chitchat)
 
 [OUTPUT]
@@ -18,7 +19,8 @@ long-term memories. Includes an importance-preemption bypass for safety/health/i
 signals that consolidate immediately on first occurrence. The buffer is one collection per
 deployment prefix, so every row names its owner, write scope and chat: a detector reads only
 the rows of its own user and scope, and deleting a chat deletes the rows (the opening words of
-its sessions) and the memories that derive from it.
+its sessions) and the memories that derive from it. A check that outlives its chat's deletion
+buffers nothing for it and leaves the rows of deleted chats out of what it rewrites.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from myrm_agent_harness.toolkits.memory.protocols.vector import (
     VectorDocument,
     VectorStoreProtocol,
 )
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import is_closed
 from myrm_agent_harness.toolkits.memory.strategies.recurrence_signals import is_important, is_trivial_summary
 
 logger = logging.getLogger(__name__)
@@ -157,7 +160,7 @@ class RecurrenceDetector:
         Returns:
             RecurrenceResult indicating whether consolidation was triggered.
         """
-        if not session_summary.strip():
+        if not session_summary.strip() or self._is_deleted(source_chat_id):
             return RecurrenceResult(triggered=False)
 
         if self._importance_preemption and is_important(session_summary):
@@ -191,6 +194,10 @@ class RecurrenceDetector:
 
         recurrence_count = len(similar_active) + 1  # +1 for current session
 
+        # Embedding and searching take time, and the chat may have been deleted meanwhile.
+        if self._is_deleted(source_chat_id):
+            return RecurrenceResult(triggered=False)
+
         doc_id = str(uuid.uuid4())
         now_iso = datetime.now(UTC).isoformat()
         row_metadata: dict[str, str | int | float | bool | list[str]] = {
@@ -222,6 +229,7 @@ class RecurrenceDetector:
         triggered_ids = [r.document.id for r in similar_active]
         if triggered_ids:
             if self._soft_deprecation:
+                # Rewriting a row of a chat deleted since the search would bring the row back.
                 deprecated_docs = [
                     VectorDocument(
                         id=r.document.id,
@@ -235,8 +243,10 @@ class RecurrenceDetector:
                         },
                     )
                     for r in similar_active
+                    if not self._is_deleted(r.document.metadata.get("source_chat_id"))
                 ]
-                await self._vector.upsert(self._collection, deprecated_docs)
+                if deprecated_docs:
+                    await self._vector.upsert(self._collection, deprecated_docs)
             else:
                 await self._vector.delete(self._collection, triggered_ids)
 
@@ -252,6 +262,10 @@ class RecurrenceDetector:
             topic_summary=session_summary[:100],
             source_chat_ids=tuple(chat_ids),
         )
+
+    def _is_deleted(self, chat_id: object) -> bool:
+        """Whether the chat named by a summary or a buffer row was deleted; a row without a chat never is."""
+        return isinstance(chat_id, str) and bool(chat_id) and is_closed(self._user_id, chat_id)
 
     def _scope_filter(self) -> FilterDict:
         return {"user_id": self._user_id, "primary_namespace": self._primary_namespace}

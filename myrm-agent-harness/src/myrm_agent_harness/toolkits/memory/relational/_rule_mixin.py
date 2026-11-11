@@ -10,7 +10,8 @@
 - SQLiteRuleMixin: create_rule, get_rule, search_rules, list_rules, count_rules, update_rule, delete_rule
 
 [POS]
-Procedural-rule persistence of SQLiteRelationalStore; trigger keywords and extra metadata are stored as JSON columns.
+Procedural-rule persistence of SQLiteRelationalStore; trigger keywords and extra metadata are stored as JSON columns,
+the metadata one also carrying the rule's error fingerprint, resolution steps and chat links.
 """
 
 import json
@@ -32,6 +33,10 @@ class SQLiteRuleMixin(SQLiteStoreHost):
             meta["error_fingerprint"] = rule.error_fingerprint
         if rule.resolution_steps and "resolution_steps" not in meta:
             meta["resolution_steps"] = json.dumps(list(rule.resolution_steps))
+        if rule.source_chat_id:
+            meta["source_chat_id"] = rule.source_chat_id
+        if rule.source_chat_ids:
+            meta["source_chat_ids"] = json.dumps(list(rule.source_chat_ids))
         return json.dumps(meta) if meta else None
 
     async def create_rule(self, rule: ProceduralMemory) -> ProceduralMemory:

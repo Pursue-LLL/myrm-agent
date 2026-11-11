@@ -4,6 +4,7 @@
 - maintenance_claim_support (POS: claim helper utilities)
 - memory.protocols.vector::VectorStoreProtocol (POS: vector store protocol)
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store protocol)
+- memory.strategies.chat_fence (POS: skips the digests of a chat that is being deleted)
 
 [OUTPUT]
 - compile_claim_graph(): compile L2 digests into L3 claim/evidence nodes
@@ -32,6 +33,10 @@ from myrm_agent_harness.toolkits.memory._internal.storage import _user_filter
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.protocols.graph import GraphStoreProtocol
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorStoreProtocol
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import (
+    document_derives_from_deleted_chat,
+    keep_live_documents,
+)
 from myrm_agent_harness.toolkits.memory.types import (
     ClaimConflictState,
     ClaimGraphState,
@@ -53,7 +58,9 @@ async def compile_claim_graph(
 
     Namespaces restrict the scan so claims are only compiled from digests
     owned by the current agent scope, never from other scopes sharing the
-    same collection.
+    same collection. The pass reads its digests, works through them and writes them
+    back, so it skips those of a chat whose deletion started meanwhile: the purge
+    removes them, and writing them back would bring them back.
     """
     filters = _user_filter(namespaces=namespaces)
     filters["event_type"] = "task_digest"
@@ -72,6 +79,8 @@ async def compile_claim_graph(
     now = datetime.now(UTC)
 
     for doc in docs:
+        if document_derives_from_deleted_chat(doc):
+            continue
         fields = _parse_task_digest_fields(doc.content)
         digest_scope = _scope_from_digest_doc(doc)
         digest_scope_channel = digest_scope.channel_id or "unknown"
@@ -224,5 +233,6 @@ async def compile_claim_graph(
         doc.metadata["claim_graph_conflict"] = contradiction_status
         compiled_count += 1
 
-    await vector.upsert(config.episodic_collection, docs)
+    if live_docs := keep_live_documents(docs):
+        await vector.upsert(config.episodic_collection, live_docs)
     return compiled_count

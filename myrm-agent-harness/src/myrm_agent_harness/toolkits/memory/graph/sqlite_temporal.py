@@ -32,6 +32,9 @@ RELATIONSHIP_COLUMNS = (
     "id, source_id, target_id, rel_type, properties, created_at, valid_from, valid_until, superseded_by, supersedes_id"
 )
 
+# Properties that tie an evidence or claim node back to the memory and the chat it was compiled from.
+_LINEAGE_KEYS = ("source_memory_id", "source_chat_id", "latest_source_memory_id")
+
 
 async def migrate_temporal_schema(conn: aiosqlite.Connection) -> None:
     """Ensure graph tables and bi-temporal columns/partial indexes exist."""
@@ -85,6 +88,13 @@ async def migrate_temporal_schema(conn: aiosqlite.Connection) -> None:
     indexes = (
         "CREATE INDEX IF NOT EXISTS idx_graph_nodes_labels ON graph_nodes(labels)",
         "CREATE INDEX IF NOT EXISTS idx_graph_nodes_ns ON graph_nodes(json_extract(properties, '$.primary_namespace'))",
+        # Deleting a memory or a chat finds the evidence and claims derived from it by these properties; only the
+        # nodes that carry one are indexed, so the other nodes pay nothing on write.
+        *(
+            f"CREATE INDEX IF NOT EXISTS idx_graph_nodes_{key} ON graph_nodes(json_extract(properties, '$.{key}')) "
+            f"WHERE json_extract(properties, '$.{key}') IS NOT NULL"
+            for key in _LINEAGE_KEYS
+        ),
         "CREATE INDEX IF NOT EXISTS idx_graph_rel_source ON graph_relationships(source_id)",
         "CREATE INDEX IF NOT EXISTS idx_graph_rel_target ON graph_relationships(target_id)",
         "CREATE INDEX IF NOT EXISTS idx_graph_rel_type ON graph_relationships(rel_type)",

@@ -69,7 +69,7 @@ from myrm_agent_harness.toolkits.memory.reliability import (
     MemoryRepairExecutionResult,
     summarize_recall_benchmark,
 )
-from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
+from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager, open_local_graph_store
 from myrm_agent_harness.toolkits.memory.strategies import (
     DynamicPreferenceFitter,
     DynamicPreferenceVector,
@@ -148,6 +148,7 @@ __all__ = [
     "ToolGuidanceItem",
     "synthesize_tool_guidance",
     "create_local_memory_manager",
+    "open_local_graph_store",
     "clear_ephemeral_deltas_for_session",
     "get_shared_ephemeral_delta_store",
     "record_ephemeral_memory_delta",

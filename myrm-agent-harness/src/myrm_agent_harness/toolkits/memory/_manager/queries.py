@@ -5,6 +5,7 @@
 - memory._manager.model_collections::memory_collections (POS: every embedding model's collections)
 - memory._manager.shared::MemoryType (POS: memory taxonomy enum)
 - memory._manager.shared::Sequence (POS: collection sequence protocol)
+- memory._internal.graph_cascade::drop_chat_claims (POS: deletes the claim graph a chat's digests produced)
 - memory.strategies.recurrence::purge_recurrence_buffer (POS: deletes the recurrence buffer rows one chat contributed)
 
 [OUTPUT]
@@ -13,12 +14,14 @@
 [POS]
 Metadata and session query mixin — extracts memory ids/refs by metadata and aggregates chat stats. A chat's
 purge and its preview read the same two links, so the preview counts exactly what the purge deletes. The purge also
-clears the chat's rows from the recurrence buffer, which holds the opening words of its sessions.
+clears the chat's rows from the recurrence buffer, which holds the opening words of its sessions, and the claim graph
+its task digests were compiled into.
 """
 
 from __future__ import annotations
 
-from myrm_agent_harness.toolkits.memory._manager.helpers import _memory_ref
+from myrm_agent_harness.toolkits.memory._internal.graph_cascade import drop_chat_claims
+from myrm_agent_harness.toolkits.memory._manager.helpers import _memory_ref, _rule_has_metadata
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.model_collections import memory_collections
 from myrm_agent_harness.toolkits.memory._manager.shared import (
@@ -27,13 +30,14 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
     Sequence,
     logger,
 )
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import close_chat
 from myrm_agent_harness.toolkits.memory.strategies.recurrence import purge_recurrence_buffer
 
 # The two links that tie a memory to a chat: the chat it was written from, and every chat a memory built from several
-# sources derives from. Only semantic and episodic memories carry the second.
+# sources derives from. Conversation memories are written from one chat and carry only the first.
 _CHAT_LINKS: tuple[tuple[str, tuple[MemoryType, ...] | None], ...] = (
     ("source_chat_id", None),
-    ("source_chat_ids", (MemoryType.SEMANTIC, MemoryType.EPISODIC)),
+    ("source_chat_ids", (MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL)),
 )
 
 
@@ -54,7 +58,8 @@ class MemoryManagerQueriesMixin(MemoryManagerHost):
         """List owned memory ids whose flat metadata contains an exact key/value pair.
 
         Memories a model switch left in a previous model's collections are listed too,
-        so the ids match what ``delete_memories_by_metadata`` removes.
+        so the ids match what ``delete_memories_by_metadata`` removes. A rule's chat links are
+        fields of the rule rather than metadata entries and match by the same key names.
         """
 
         selected_types = tuple(
@@ -92,7 +97,7 @@ class MemoryManagerQueriesMixin(MemoryManagerHost):
                 )
                 if not rules:
                     break
-                rule_ids.extend(rule.id for rule in rules if rule.metadata.get(metadata_key) == metadata_value)
+                rule_ids.extend(rule.id for rule in rules if _rule_has_metadata(rule, metadata_key, metadata_value))
                 offset += len(rules)
             matches[MemoryType.PROCEDURAL.value] = rule_ids
 
@@ -149,7 +154,7 @@ class MemoryManagerQueriesMixin(MemoryManagerHost):
                 rule_refs.extend(
                     _memory_ref(rule.id, rule.metadata)
                     for rule in rules
-                    if rule.metadata.get(metadata_key) == metadata_value
+                    if _rule_has_metadata(rule, metadata_key, metadata_value)
                 )
                 offset += len(rules)
             refs[MemoryType.PROCEDURAL.value] = rule_refs
@@ -161,9 +166,14 @@ class MemoryManagerQueriesMixin(MemoryManagerHost):
 
         Deletes every Semantic, Episodic, Conversation, and Procedural memory linked to the chat, whether it was
         written from that chat (``source_chat_id``) or built from it among others (``source_chat_ids``), plus any
-        PendingRecords linked to this chat, and the chat's recurrence buffer rows. A failing link is skipped with a
-        warning and the others still run; missing vector collections count 0.
+        PendingRecords linked to this chat, the chat's recurrence buffer rows, and the claim graph compiled from its
+        task digests (reported in no count: it is a view over the digests). A failing link is skipped with a warning
+        and the others still run; missing vector collections count 0. The chat is closed first, so a writer still
+        running for it cannot bring back what the purge removes.
         """
+        close_chat(self._user_id, chat_id)
+        # Before the digests go: their evidence is how the claims worded from them are found.
+        await drop_chat_claims(self._graph, chat_id, namespaces=self._ownership_namespaces())
         counts: dict[str, int] = {}
         for key, memory_types in _CHAT_LINKS:
             try:

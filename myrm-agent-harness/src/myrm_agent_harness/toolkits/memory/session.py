@@ -237,6 +237,7 @@ class MemorySession:
             priority=priority,
             trigger_keywords=trigger_keywords or [],
             source=source,
+            source_chat_id=self.chat_id,
             trace_id=resolve_current_trace_id(),
         )
         self._buffer.append(mem)

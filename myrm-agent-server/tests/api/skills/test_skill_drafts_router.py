@@ -568,6 +568,7 @@ async def test_approve_semantic_memory_draft(mock_local_skills_dir: Path) -> Non
             "skill_name": "memory-draft",
             "content": "The user prefers concise replies.",
             "skill_description": "Memory about user preference",
+            "chat_id": "chat-that-was-reviewed",
         }
     )
     assert draft is not None
@@ -604,7 +605,13 @@ async def test_approve_semantic_memory_draft(mock_local_skills_dir: Path) -> Non
     assert result["materialized"] is True
     assert result["materialized_type"] == "memory"
     assert result["memory_id"] == "mem-123"
-    fake_manager.add_knowledge.assert_awaited_once()
+    # The memory records the chat the review ran on, so deleting that chat removes it.
+    fake_manager.add_knowledge.assert_awaited_once_with(
+        "The user prefers concise replies.",
+        importance=0.6,
+        tags=["auto-review"],
+        source_chat_id="chat-that-was-reviewed",
+    )
 
     async with get_session() as db:
         await db.execute(delete(ExperienceLedgerEvent))

@@ -116,6 +116,11 @@ class _SaveContext:
         """Session buffer for vector writes, which are buffered only when agent-bound."""
         return self.buffer if self.write_target == "bound" else None
 
+    @property
+    def chat_id(self) -> str | None:
+        """The chat the save is made in, which a memory written through the manager records as its origin."""
+        return self.session.chat_id if self.session is not None else None
+
 
 async def _save_knowledge(ctx: _SaveContext, *, importance: float, tags: list[str]) -> str:
     # Type-enabled, not dense-capable: without an embedding backend the type
@@ -134,6 +139,7 @@ async def _save_knowledge(ctx: _SaveContext, *, importance: float, tags: list[st
         ctx.content,
         importance=importance,
         tags=tags,
+        source_chat_id=ctx.chat_id,
         write_target=ctx.write_target,
         honor_approval=True,
     )
@@ -151,6 +157,7 @@ async def _save_event(ctx: _SaveContext) -> str:
     stored = await ctx.manager.add_event(
         ctx.content,
         event_type="agent_observation",
+        source_chat_id=ctx.chat_id,
         write_target=ctx.write_target,
         honor_approval=True,
     )
@@ -181,7 +188,9 @@ async def _save_rule(ctx: _SaveContext, *, trigger: str | None, priority: int) -
         if buffered is None:
             return "Rule already exists in session (duplicate detected)"
         return f"Rule buffered (ID: {buffered.id})"
-    stored = await ctx.manager.add_rule(trigger, ctx.content, priority=priority, honor_approval=True)
+    stored = await ctx.manager.add_rule(
+        trigger, ctx.content, priority=priority, source_chat_id=ctx.chat_id, honor_approval=True
+    )
     return format_write_ack("Rule", stored)
 
 
@@ -204,6 +213,7 @@ async def _save_instruction(ctx: _SaveContext, *, priority: int) -> str:
         ctx.content,
         priority=instruction_priority,
         source=RuleSource.AGENT_SELF,
+        source_chat_id=ctx.chat_id,
         honor_approval=True,
     )
     return format_write_ack("Instruction", stored)

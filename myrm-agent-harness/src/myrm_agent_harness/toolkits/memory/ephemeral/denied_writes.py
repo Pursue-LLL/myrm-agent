@@ -112,6 +112,7 @@ class DeniedMemoryWrites:
         priority: int = 0,
         trigger_keywords: list[str] | None = None,
         source: RuleSource = RuleSource.USER_EXTRACTED,
+        source_chat_id: str | None = None,
         honor_approval: bool = False,
     ) -> ProceduralMemory:
         self._deny()

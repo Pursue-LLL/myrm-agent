@@ -299,10 +299,10 @@ class MemoryExtractor:
                         language=language,
                         tool_name=m.tool_name,
                         tool_rule_priority=priority_val,
+                        source_chat_id=source_chat_id,
                         expected_valid_days=m.expected_valid_days,
                         evidence=m.evidence,
-                        # A rule has no chat field: the chat deletion cascade finds it through this metadata key.
-                        metadata={**meta, "source_chat_id": source_chat_id} if source_chat_id else meta,
+                        metadata=meta,
                     )
                 )
             elif m.memory_type == MemoryType.TASK_DIGEST:

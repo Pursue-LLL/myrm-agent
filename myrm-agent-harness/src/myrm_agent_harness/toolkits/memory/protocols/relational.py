@@ -106,11 +106,14 @@ class RelationalStoreProtocol(Protocol):
         ...
 
     async def delete_pending_by_source_chat_id(self, source_chat_id: str) -> int:
-        """Delete the pending records raised from one chat. Returns the number removed."""
+        """Delete the pending records raised from one chat or built from it among others, resolved ones included.
+
+        Returns the number removed.
+        """
         ...
 
     async def count_pending_by_source_chat_id(self, source_chat_id: str) -> int:
-        """Count the pending records raised from one chat."""
+        """Count the pending records ``delete_pending_by_source_chat_id`` would remove."""
         ...
 
     # ── Exact facts & full-text index ────────────────────────────────

@@ -8,6 +8,8 @@
 [OUTPUT]
 - cascade_clean_derived_graph_nodes: awaitable removal of graph nodes derived from a
   deleted memory id
+- drop_chat_claims: awaitable removal of the evidence a deleted chat's digests produced and of
+  every claim last worded from one of them
 
 [POS]
 Internal consistency guard of the memory toolkit. Deleting a memory must not leave derived
@@ -22,6 +24,8 @@ import logging
 from myrm_agent_harness.toolkits.memory.protocols.graph import GraphStoreProtocol
 
 logger = logging.getLogger(__name__)
+
+_PAGE_SIZE = 200
 
 
 async def cascade_clean_derived_graph_nodes(graph: GraphStoreProtocol | None, memory_id: str) -> None:
@@ -79,3 +83,44 @@ async def cascade_clean_derived_graph_nodes(graph: GraphStoreProtocol | None, me
                 )
             except Exception as exc:
                 logger.warning("Graph claim update failed for %s: %s", claim.id, exc)
+
+
+async def drop_chat_claims(
+    graph: GraphStoreProtocol | None, chat_id: str, *, namespaces: list[str] | None = None
+) -> None:
+    """Delete the evidence a chat's digests produced and every claim last worded from one of them.
+
+    A claim carries the wording of the digest that updated it last, so a claim last updated from this chat's digest goes
+    whole, even when other chats' digests also back it: what a deleted chat said must not live on in the graph. A claim
+    worded from another chat keeps its text; only its evidence count still includes this chat. ``namespaces`` limits the
+    sweep to the scopes the caller owns, ``None`` covers every scope. A graph failure is logged and skipped so the
+    purge it belongs to still deletes the memories.
+    """
+    if graph is None:
+        return
+    for namespace in (None,) if namespaces is None else namespaces:
+        filters: dict[str, str | int | float | bool] = {"source_chat_id": chat_id}
+        if namespace is not None:
+            filters["primary_namespace"] = namespace
+        try:
+            await _drop_evidence_and_claims(graph, filters)
+        except Exception as exc:
+            logger.warning("Graph cleanup failed for chat %s: %s", chat_id, exc)
+
+
+async def _drop_evidence_and_claims(graph: GraphStoreProtocol, filters: dict[str, str | int | float | bool]) -> None:
+    """Delete every evidence node matching ``filters`` and the claims last worded from their digests."""
+    handled: set[str] = set()
+    while True:
+        batch = [
+            node for node in await graph.find_nodes(["Evidence"], filters, limit=_PAGE_SIZE) if node.id not in handled
+        ]
+        if not batch:
+            return
+        for evidence in batch:
+            handled.add(evidence.id)
+            digest_id = evidence.properties.get("source_memory_id")
+            if isinstance(digest_id, str):
+                for claim in await graph.find_nodes(["Claim"], {"latest_source_memory_id": digest_id}):
+                    await graph.delete_subgraph(claim.id)
+            await graph.delete_subgraph(evidence.id)

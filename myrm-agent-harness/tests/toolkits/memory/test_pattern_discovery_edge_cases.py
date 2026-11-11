@@ -38,7 +38,6 @@ def _mature_manager(**overrides: object) -> AsyncMock:
     manager.has_graph = False
     manager.count_memories = AsyncMock(side_effect=lambda mt: 60)
     manager.search = AsyncMock(return_value=[])
-    manager.add_event = AsyncMock()
     manager.store = AsyncMock(return_value=SimpleNamespace(id="stored-rule"))
     for key, value in overrides.items():
         setattr(manager, key, value)
@@ -151,7 +150,7 @@ class TestRunPatternDiscoveryResponseShapes:
         assert all(isinstance(pattern, DiscoveredPattern) for pattern in report.patterns)
         assert [pattern.title for pattern in report.patterns] == ["morning review"]
         assert report.meta_observation == "more structured"
-        manager.add_event.assert_awaited_once()
+        manager.store.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -170,7 +169,7 @@ class TestRunPatternDiscoveryResponseShapes:
 
         assert report.skipped is True
         assert "LLM call failed" in report.skip_reason
-        manager.add_event.assert_not_awaited()
+        manager.store.assert_not_awaited()
         # The analysed-set hash is written only after a usable answer, so the next cycle retries.
         assert _PROFILE_KEY_MEMORY_SET_HASH not in bookkeeping_rows
 
@@ -187,7 +186,7 @@ class TestRunPatternDiscoveryResponseShapes:
 
         assert report.skipped is True
         assert "Unexpected response type" in report.skip_reason
-        manager.add_event.assert_not_awaited()
+        manager.store.assert_not_awaited()
         assert _PROFILE_KEY_MEMORY_SET_HASH not in bookkeeping_rows
 
 

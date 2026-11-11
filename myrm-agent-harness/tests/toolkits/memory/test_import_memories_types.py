@@ -19,6 +19,7 @@ class _Importer(MemoryManagerImportExportMixin):
     """The import mixin with a recording ``store_batch`` in place of the real writer."""
 
     def __init__(self) -> None:
+        self._user_id = "u1"
         self._relational = None
         self.batches: list[list[AnyMemory]] = []
         self.skip_dedup_flags: list[bool] = []

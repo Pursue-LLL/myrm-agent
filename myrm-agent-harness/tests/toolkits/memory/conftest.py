@@ -11,6 +11,7 @@ import pytest_asyncio
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.protocols.embedding import EmbeddingProtocol
+from myrm_agent_harness.toolkits.memory.protocols.graph import GraphStoreProtocol
 from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores, create_embedded_store
 from myrm_agent_harness.toolkits.vector.qdrant.store import QdrantVectorStore
@@ -177,6 +178,7 @@ async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterato
         approval_required: bool = False,
         user_id: str = "u1",
         all_scopes: bool = False,
+        graph: GraphStoreProtocol | None = None,
     ) -> MemoryManager:
         return MemoryManager(
             config,
@@ -184,6 +186,7 @@ async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterato
             vector=qdrant,
             embedding=embedding or _ConstantEmbedder(),
             relational=relational,
+            graph=graph,
             namespaces=namespaces or ["global"],
             auto_warmup=False,
             approval_required=approval_required,

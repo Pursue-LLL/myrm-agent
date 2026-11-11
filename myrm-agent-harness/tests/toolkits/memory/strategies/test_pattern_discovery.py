@@ -59,6 +59,8 @@ def _make_memory(mem_id: str, content: str = "test") -> MagicMock:
     mem.content = content
     mem.memory_type = "semantic"
     mem.created_at = datetime(2026, 5, 1, tzinfo=UTC)
+    mem.source_chat_id = None
+    mem.source_chat_ids = []
     return mem
 
 
@@ -250,7 +252,6 @@ class TestRunPatternDiscovery:
         mock_manager.count_memories = AsyncMock(return_value=60)
         mock_manager.list_memories = AsyncMock(return_value=memories)
         bookkeeping_rows["_system.consolidation_count"] = "5"
-        mock_manager.add_event = AsyncMock()
         mock_manager.search = AsyncMock(return_value=[])
 
         pattern_response = PatternDiscoveryResponse(
@@ -274,7 +275,7 @@ class TestRunPatternDiscovery:
         assert len(report.patterns) == 1
         assert report.patterns[0].title == "Late night coding"
         assert report.meta_observation == "Active developer"
-        mock_manager.add_event.assert_called_once()
+        mock_manager.store.assert_awaited_once()
         assert bookkeeping_rows["_system.pattern_discovery_memory_hash"] == _compute_memory_set_hash(
             memories + memories
         )
@@ -287,7 +288,6 @@ class TestRunPatternDiscovery:
         mock_manager.count_memories = AsyncMock(return_value=60)
         mock_manager.list_memories = AsyncMock(return_value=memories)
         bookkeeping_rows["_system.consolidation_count"] = "5"
-        mock_manager.add_event = AsyncMock()
         mock_manager.search = AsyncMock(return_value=[])
 
         pattern_response = PatternDiscoveryResponse(
@@ -306,7 +306,7 @@ class TestRunPatternDiscovery:
 
         report = await run_pattern_discovery(mock_manager, mock_llm)
         assert report.has_patterns is False
-        mock_manager.add_event.assert_not_called()
+        mock_manager.store.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_llm_failure(self, mock_manager: AsyncMock, mock_llm: AsyncMock, bookkeeping_rows: dict[str, str]):
