@@ -8,7 +8,11 @@ from myrm_agent_harness.toolkits.browser.session_vault import SessionEntry, Sess
 from myrm_agent_harness.toolkits.browser.session_vault.backends.file_backend import (
     FileVaultBackend,
 )
-from myrm_agent_harness.toolkits.web_fetch.fetchers.http_fetcher import MAX_TEXT_BODY_BYTES, HttpFetcher
+from myrm_agent_harness.toolkits.web_fetch.fetchers.http_fetcher import (
+    MAX_HTML_BODY_BYTES,
+    MAX_PLAIN_TEXT_BODY_BYTES,
+    HttpFetcher,
+)
 
 
 @pytest.mark.asyncio
@@ -132,8 +136,8 @@ def _mock_response(url: str, content_type: str, body: bytes) -> MagicMock:
 
 @pytest.mark.asyncio
 async def test_http_fetcher_keeps_non_text_body_whole(install_fake_scrapling: AsyncMock) -> None:
-    """A truncated PDF or Office file cannot be parsed, so the text size cap must not apply to it."""
-    document = b"%PDF-1.7\n" + b"x" * (MAX_TEXT_BODY_BYTES + 1_000)
+    """A truncated PDF or Office file cannot be parsed, so no text size ceiling applies to it."""
+    document = b"%PDF-1.7\n" + b"x" * (MAX_PLAIN_TEXT_BODY_BYTES + 1_000)
     install_fake_scrapling.return_value = _mock_response("https://example.com/paper.pdf", "application/pdf", document)
 
     with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false", "MYRM_HTTP3_RETRY": "0"}):
@@ -146,8 +150,8 @@ async def test_http_fetcher_keeps_non_text_body_whole(install_fake_scrapling: As
 
 @pytest.mark.asyncio
 async def test_http_fetcher_truncates_text_body_above_cap(install_fake_scrapling: AsyncMock) -> None:
-    """Text pages stay capped: the HTML pipeline's worst-case input size is bounded by it."""
-    page = b"<html><body>" + b"a" * (MAX_TEXT_BODY_BYTES + 1_000) + b"</body></html>"
+    """Web pages stay capped at the lower ceiling: the HTML pipeline's worst-case input size is bounded by it."""
+    page = b"<html><body>" + b"a" * (MAX_HTML_BODY_BYTES + 1_000) + b"</body></html>"
     install_fake_scrapling.return_value = _mock_response("https://example.com/long", "text/html", page)
 
     with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false", "MYRM_HTTP3_RETRY": "0"}):
@@ -155,7 +159,8 @@ async def test_http_fetcher_truncates_text_body_above_cap(install_fake_scrapling
 
     assert result is not None
     assert result.raw_body is None
-    assert len(result.html) == MAX_TEXT_BODY_BYTES
+    assert len(result.html) == MAX_HTML_BODY_BYTES
+    assert result.source_truncated is True
 
 
 @pytest.mark.asyncio

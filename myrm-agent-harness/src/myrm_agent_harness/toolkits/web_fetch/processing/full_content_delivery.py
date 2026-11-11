@@ -6,11 +6,12 @@
 - core.security.detection.content_boundary::wrap_untrusted (POS: UNTRUSTED_DATA boundary) [lazy]
 
 [OUTPUT]
-- FetchedPage: one fetched page (source URL, title, Markdown body)
+- FetchedPage: one fetched page (source URL, title, Markdown body, whether the fetcher cut its source short)
 - ReadRange: omitted lines of the stored copy, labelled with the page they belong to
-- FullContentDelivery: the model-visible text, the full text to persist, and the omitted-line ranges
-- plan_full_content(): split the shared budget fairly, cut each long page, locate the omitted lines; the pages carry
-  the numbers the caller gives (the run's source numbers), from 1 when none
+- FullContentDelivery: the model-visible text, the full text to persist, the omitted-line ranges, and the trusted
+  notice about pages whose source was cut at the fetch size ceiling
+- plan_full_content(): split the shared budget fairly, cut each long page, locate the omitted lines, name the
+  source-cut pages; the pages carry the numbers the caller gives (the run's source numbers), from 1 when none
 - clamp_read_ranges(): drop the ranges a capped stored copy no longer holds
 - all_failed_content(): tool result when no URL could be read
 - MAX_LINE_CHARS: longest line kept in the stored copy of a cut page
@@ -24,7 +25,7 @@ the model. The text to persist uses the same layout, which makes the line ranges
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import NamedTuple
 
 from myrm_agent_harness.utils.context_format import format_document_header
@@ -39,6 +40,11 @@ _WRAP_SEARCH_FRACTION = 0.3
 _BLOCK_FRAME_CHARS = 4  # "\n\n" after the header and after the body
 _MAX_FAILED_URL_CHARS = 200
 _FAILED_LEAD = "[web_fetch]: Could not retrieve content from:"
+_SOURCE_CUT_NOTICE = (
+    "\n\n[web_fetch]: Size limit reached for {pages}: each of these pages was cut off, so only its beginning was "
+    "fetched and everything after that point is missing. Do not conclude that something is absent from a page just "
+    "because it is not in the fetched text; look for a narrower source if you need the rest."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +52,8 @@ class FetchedPage:
     url: str
     title: str
     body: str
+    # The fetcher cut the source at its size ceiling: ``body`` is only the beginning of the page.
+    source_truncated: bool = False
 
 
 class ReadRange(NamedTuple):
@@ -58,12 +66,14 @@ class ReadRange(NamedTuple):
 
 @dataclass(frozen=True, slots=True)
 class FullContentDelivery:
-    """What to show, what to persist, and where the omitted parts sit in the persisted text."""
+    """What to show, what to persist, where the omitted parts sit in it, and the notice about cut sources."""
 
     visible_text: str
     stored_text: str | None
     read_ranges: tuple[ReadRange, ...]
     raw_chars: int
+    # Trusted guidance naming the pages whose source was cut at the fetch size ceiling; empty when none was.
+    source_notice: str = ""
 
     @property
     def truncated(self) -> bool:
@@ -79,9 +89,14 @@ def plan_full_content(
     """Lay out ``pages`` within one budget; ``stored_text`` is set only when some page had to be cut.
 
     ``indices`` holds the number each page carries in its header and in its read range (one per page); without it
-    the pages are numbered from 1.
+    the pages are numbered from 1. ``source_notice`` names, by those numbers, the pages whose source was cut short.
     """
     numbers = list(range(1, len(pages) + 1)) if indices is None else list(indices)
+    delivery = _layout(pages, failed_urls, numbers)
+    return replace(delivery, source_notice=_source_cut_notice(pages, numbers))
+
+
+def _layout(pages: Sequence[FetchedPage], failed_urls: Sequence[str], numbers: Sequence[int]) -> FullContentDelivery:
     headers = [
         format_document_header(number, page.url, page.title, include_title=True, include_date=False)
         for number, page in zip(numbers, pages, strict=True)
@@ -242,3 +257,9 @@ def _failure_listing(urls: Sequence[str]) -> str:
 def _failure_block(failed_urls: Sequence[str]) -> str:
     listing = _failure_listing(failed_urls)
     return f"{_FAILED_LEAD}\n{listing}\n\n" if listing else ""
+
+
+def _source_cut_notice(pages: Sequence[FetchedPage], numbers: Sequence[int]) -> str:
+    """Name the pages whose source was cut; only page numbers go in, so it may sit outside the untrusted boundary."""
+    cut = "".join(f"【{number}】" for number, page in zip(numbers, pages, strict=True) if page.source_truncated)
+    return _SOURCE_CUT_NOTICE.format(pages=cut) if cut else ""

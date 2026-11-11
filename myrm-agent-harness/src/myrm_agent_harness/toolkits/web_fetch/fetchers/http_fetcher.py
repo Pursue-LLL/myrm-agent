@@ -56,9 +56,12 @@ _MAX_REDIRECTS = 5
 _HTTP3_RETRY_STATUS = frozenset({403})
 
 
-# Only text bodies are truncated, to bound the HTML pipeline's work. A truncated PDF or Office file cannot be
-# parsed, so non-text bodies stay whole; the binary router enforces its own size limit on them.
-MAX_TEXT_BODY_BYTES = 750_000
+# A readable body is cut where reading further stops paying off. A web page is converted to Markdown on one CPU-bound
+# thread (about a second per 750 KB), so its ceiling is low. Text is kept as it is and costs milliseconds, so its
+# ceiling follows what a stored copy of a page can hold (2,000,000 characters). A truncated PDF or Office file cannot
+# be parsed, so file bodies stay whole; the binary router enforces its own size limit on them.
+MAX_HTML_BODY_BYTES = 750_000
+MAX_PLAIN_TEXT_BODY_BYTES = 2_000_000
 
 
 class HttpFetcher:
@@ -362,15 +365,13 @@ class HttpFetcher:
         if kind is not PayloadKind.BINARY:
             from ..probe.charset_detector import detect_and_decode_html
 
-            if len(body) > MAX_TEXT_BODY_BYTES:
-                logger.warning(
-                    "L1 HTTP response body capped: %d -> %d bytes for %s",
-                    len(body),
-                    MAX_TEXT_BODY_BYTES,
-                    current_url,
-                )
-                body = body[:MAX_TEXT_BODY_BYTES]
-            html, _detected_enc = detect_and_decode_html(body, encoding)
+            ceiling = MAX_HTML_BODY_BYTES if kind is PayloadKind.WEB else MAX_PLAIN_TEXT_BODY_BYTES
+            source_truncated = len(body) > ceiling
+            if source_truncated:
+                logger.warning("L1 HTTP response body capped: %d -> %d bytes for %s", len(body), ceiling, current_url)
+                body = body[:ceiling]
+            # The cut can leave half a character at the end; decoding it as partial keeps that from failing the decode.
+            html, _detected_enc = detect_and_decode_html(body, encoding, partial=source_truncated)
             return FetchResult(
                 html=html,
                 url=response_url,
@@ -378,6 +379,7 @@ class HttpFetcher:
                 headers=resp_headers,
                 fetcher_type=FetcherType.HTTP,
                 kind=kind,
+                source_truncated=source_truncated,
             )
 
         return FetchResult(

@@ -10,7 +10,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from myrm_agent_harness.toolkits.web_fetch.fetchers.http_fetcher import MAX_TEXT_BODY_BYTES, HttpFetcher
+from myrm_agent_harness.toolkits.web_fetch.fetchers.http_fetcher import (
+    MAX_HTML_BODY_BYTES,
+    MAX_PLAIN_TEXT_BODY_BYTES,
+    HttpFetcher,
+)
 from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetchResult
 from myrm_agent_harness.utils.content_sniff import PayloadKind
 
@@ -77,13 +81,57 @@ def test_text_in_a_declared_charset_is_decoded_with_it() -> None:
     assert result.html == text
 
 
-def test_oversized_text_is_capped_but_a_file_is_kept_whole() -> None:
-    text = _convert(b"a" * (MAX_TEXT_BODY_BYTES + 1000), "text/plain")
-    assert text.kind is PayloadKind.TEXT
-    assert len(text.html) == MAX_TEXT_BODY_BYTES
+def test_web_page_above_its_ceiling_is_cut_and_flagged() -> None:
+    page = b"<html><body><p>" + b"a" * MAX_HTML_BODY_BYTES + b"</p></body></html>"
+    result = _convert(page, "text/html")
 
-    big_file = PDF + b"\x00" * (MAX_TEXT_BODY_BYTES + 1000)
-    assert _convert(big_file, "application/pdf").raw_body == big_file
+    assert result.kind is PayloadKind.WEB
+    assert len(result.html) == MAX_HTML_BODY_BYTES
+    assert result.source_truncated is True
+
+
+def test_text_has_a_higher_ceiling_than_a_web_page() -> None:
+    whole = _convert(b"a" * (MAX_HTML_BODY_BYTES + 1_000), "text/plain")
+    assert whole.kind is PayloadKind.TEXT
+    assert len(whole.html) == MAX_HTML_BODY_BYTES + 1_000
+    assert whole.source_truncated is False
+
+    cut = _convert(b"a" * (MAX_PLAIN_TEXT_BODY_BYTES + 1_000), "text/plain")
+    assert len(cut.html) == MAX_PLAIN_TEXT_BODY_BYTES
+    assert cut.source_truncated is True
+
+
+@pytest.mark.parametrize(
+    ("body", "content_type", "ceiling"),
+    [
+        (b"a" * MAX_HTML_BODY_BYTES, "text/html", MAX_HTML_BODY_BYTES),
+        (b"a" * MAX_PLAIN_TEXT_BODY_BYTES, "text/plain", MAX_PLAIN_TEXT_BODY_BYTES),
+    ],
+    ids=["web-page", "text"],
+)
+def test_body_exactly_at_its_ceiling_is_not_cut(body: bytes, content_type: str, ceiling: int) -> None:
+    result = _convert(body, content_type)
+
+    assert len(result.html) == ceiling
+    assert result.source_truncated is False
+
+
+def test_a_file_is_kept_whole_and_never_flagged() -> None:
+    big_file = PDF + b"\x00" * (MAX_PLAIN_TEXT_BODY_BYTES + 1_000)
+    result = _convert(big_file, "application/pdf")
+
+    assert result.raw_body == big_file
+    assert result.source_truncated is False
+
+
+def test_cut_inside_a_multibyte_character_decodes_the_whole_characters() -> None:
+    # The odd-length prefix puts the ceiling after the first byte of a two-byte character; the half character must
+    # be dropped, not turn the page into another charset's reading of its bytes.
+    page = b"<p>" + "é".encode() * MAX_HTML_BODY_BYTES
+    result = _convert(page, "text/html")
+
+    assert result.source_truncated is True
+    assert result.html == "<p>" + "é" * ((MAX_HTML_BODY_BYTES - 3) // 2)
 
 
 def test_not_modified_response_stays_an_empty_web_result() -> None:

@@ -16,6 +16,7 @@ utils.text_cleaner::clean_text (POS: Generic text cleaning utility)
 ContentPipeline: Transforms raw FetchResult HTML into cleaned, Markdown-formatted Documents; text responses
 (plain, markdown, csv, feeds) become Documents verbatim
 (``process`` synchronously, ``aprocess`` on a dedicated conversion thread)
+SOURCE_TRUNCATED_KEY: Document metadata flag set when the fetcher cut the source at its size ceiling
 
 [POS]
 Content processing pipeline. Sits between the fetcher layer and the consumer layer,
@@ -31,6 +32,7 @@ import contextvars
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from typing import Final
 
 from langchain_core.documents import Document
 
@@ -47,6 +49,10 @@ logger = logging.getLogger(__name__)
 _MIN_CONTENT_LENGTH = 50
 _FIT_MARKDOWN_THRESHOLD = 100
 _TRUNCATION_MARKER = "\n\n[TRUNCATED]"
+
+# Document metadata flag: the fetcher cut the source at its size ceiling, so the Document holds only the beginning of
+# the page. Distinct from ``was_truncated``, which marks a cut to the caller's character budget.
+SOURCE_TRUNCATED_KEY: Final = "source_truncated"
 
 # One worker on purpose: conversions stay serial (as they were on the event loop) and a conversion that keeps running
 # after its awaiting task was cancelled is the only orphan there can be; futures still queued are dropped unstarted.
@@ -168,7 +174,17 @@ class ContentPipeline:
         )
 
     def process(self, fetch_result: FetchResult, max_chars: int = 0) -> Document | None:
-        """Converts FetchResult HTML, structured data or a text response into a clean Document."""
+        """Converts FetchResult HTML, structured data or a text response into a clean Document.
+
+        A Document built from a source the fetcher cut short carries ``SOURCE_TRUNCATED_KEY``: it holds only the
+        beginning of the page, whichever of the paths below produced it.
+        """
+        document = self._convert(fetch_result, max_chars)
+        if document is not None and fetch_result.source_truncated:
+            document.metadata[SOURCE_TRUNCATED_KEY] = True
+        return document
+
+    def _convert(self, fetch_result: FetchResult, max_chars: int) -> Document | None:
         # Fast path: check for structured JSON / XML data bypass
         structured_doc = self._try_structured_data_bypass(fetch_result, max_chars)
         if structured_doc is not None:

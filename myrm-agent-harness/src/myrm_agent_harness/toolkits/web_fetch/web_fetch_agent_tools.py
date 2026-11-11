@@ -154,6 +154,7 @@ async def _fetch_full_content(
         all_failed_content,
         plan_full_content,
     )
+    from myrm_agent_harness.toolkits.web_fetch.processing.pipeline import SOURCE_TRUNCATED_KEY
     from myrm_agent_harness.toolkits.web_fetch.processing.spill import emit_web_fetch_evicted_ref, store_full_text
     from myrm_agent_harness.utils.context_format import wrap_with_external_sources_tag
 
@@ -190,6 +191,7 @@ async def _fetch_full_content(
                 url=str(page_url),
                 title=str(title or ""),
                 body=strip_base64_images_from_markdown(doc.page_content),
+                source_truncated=bool(doc.metadata.get(SOURCE_TRUNCATED_KEY)),
             )
         )
     index_for = source_indexer_var.get()
@@ -204,8 +206,8 @@ async def _fetch_full_content(
         stored = await store_full_text(delivery.stored_text, delivery.read_ranges)
 
     content = wrap_with_external_sources_tag(delivery.visible_text, source="web_fetch")
+    # Outside the untrusted boundary: the guide and the cut-source notice are ours, not page content.
     if stored is not None:
-        # Outside the untrusted boundary: the guide is ours, not page content.
         content += stored.read_guide
         await emit_web_fetch_evicted_ref(
             stored.evicted_ref,
@@ -213,6 +215,7 @@ async def _fetch_full_content(
             total_lines=stored.total_lines,
             storage_truncated=stored.storage_truncated,
         )
+    content += delivery.source_notice
     return _full_content_result(
         content,
         sources=sources,

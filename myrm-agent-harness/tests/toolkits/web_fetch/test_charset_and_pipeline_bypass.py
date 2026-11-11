@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetcherType, FetchResult
 from myrm_agent_harness.toolkits.web_fetch.probe.charset_detector import (
     _normalize_encoding_name,
@@ -147,6 +149,27 @@ def test_binary_unrecognized_fallback():
     text, enc = detect_and_decode_html(un_decodable)
     assert isinstance(text, str)
     assert enc in ("utf-8", "gb18030", "shift_jis")
+
+
+@pytest.mark.parametrize(
+    ("text", "codec", "header"),
+    [
+        ("<p>Größe und Übung für Mädchen und Köln ü", "utf-8", None),
+        ("<p>春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少", "utf-8", None),
+        ("<p>春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少", "gb18030", "gbk"),
+        ("<p>これは日本語のテキストです。吾輩は猫である", "shift_jis", "shift_jis"),
+        ("<p>대한민국은 민주공화국이다. 한글은 세종대왕이 창제하였다", "euc_kr", "euc-kr"),
+        ("<p>這是一段繁體中文測試內容。歡迎光臨", "big5", "big5"),
+    ],
+    ids=["utf-8-latin", "utf-8-cjk", "gbk", "shift_jis", "euc_kr", "big5"],
+)
+def test_partial_body_drops_the_character_cut_in_half(text: str, codec: str, header: str | None) -> None:
+    cut = text.encode(codec)[:-1]
+
+    decoded, enc = detect_and_decode_html(cut, header, partial=True)
+
+    assert enc == codec
+    assert decoded == text[:-1]
 
 
 def test_pipeline_json_data_bypass():

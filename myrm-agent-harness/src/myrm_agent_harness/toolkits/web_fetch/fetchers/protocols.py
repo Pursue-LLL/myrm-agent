@@ -41,6 +41,8 @@ class FetchResult:
     fetcher_type: FetcherType = FetcherType.HTTP
     raw_body: bytes | None = None
     kind: PayloadKind = PayloadKind.WEB
+    # The fetcher stopped at its body size ceiling: ``html`` holds only the beginning of the source.
+    source_truncated: bool = False
 
     def __post_init__(self) -> None:
         # A result that carries raw bytes is a file for a parser; deriving the kind keeps the two fields from
