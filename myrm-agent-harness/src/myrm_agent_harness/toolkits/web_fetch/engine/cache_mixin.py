@@ -1,7 +1,7 @@
 """FetchEngine cache, coalescing, and background revalidation helpers.
 
 [POS]
-Mixin: LRU cache hits, SWR background workers, fetch error normalization.
+Mixin: LRU cache hits, request-coalescing waits, SWR background workers, fetch error normalization.
 """
 
 from __future__ import annotations
@@ -15,12 +15,28 @@ from langchain_core.documents import Document
 
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 
-from .types import BackgroundTask, CachedDocument
+from .types import NO_SHARED_RESULT, BackgroundTask, CachedDocument, InFlightFetch, NoSharedResult
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
 
 logger = logging.getLogger(__name__)
+
+
+async def await_shared_result(
+    in_flight: InFlightFetch, *, url: str, timeout_s: float
+) -> Document | NoSharedResult | None:
+    """Wait for the fetch another caller has in flight for the same URL.
+
+    ``NO_SHARED_RESULT`` means it has nothing to share: its leader was cancelled, or it did not finish within
+    ``timeout_s``. The wait is shielded, so cancelling this waiter (or its timeout) never cancels the future that
+    the leader and the other waiters are bound to.
+    """
+    try:
+        return await asyncio.wait_for(asyncio.shield(in_flight), timeout=timeout_s)
+    except TimeoutError:
+        logger.warning(f"Request coalescing timeout ({timeout_s}s), retrying: {url}")
+        return NO_SHARED_RESULT
 
 
 class FetchEngineCacheMixin:
@@ -92,7 +108,7 @@ class FetchEngineCacheMixin:
         self: FetchEngine,
         url: str,
         cache_key: str,
-        future: asyncio.Future[Document | None],
+        future: InFlightFetch,
         error: Exception,
     ) -> Document | None:
         """Unified fetch error handling."""

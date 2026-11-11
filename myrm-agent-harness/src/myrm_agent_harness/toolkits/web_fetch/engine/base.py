@@ -7,7 +7,7 @@ Three-tier architecture:
 
 Tier breaker: a domain's L1/L2 tier that a higher tier keeps making up for is skipped, and probed again now and then
 Cache: In-memory LRU (default 1 h TTL, 500 entries, 100 MB cap)
-  - Request coalescing: concurrent requests for the same URL trigger only one network call (30 s timeout guard)
+  - Request coalescing: concurrent requests for the same URL trigger only one network call (30 s timeout guard; waiters take over a cancelled leader's fetch)
   - URL normalisation: strips 35+ tracking params for better hit rate
   - HTTP conditional requests: sends ETag / Last-Modified on cache expiry to save bandwidth
   - Stale-While-Revalidate: returns stale cache immediately, refreshes via background priority queue (30 s timeout)
@@ -82,14 +82,17 @@ from ..probe.http3_probe import get_http3_retry_metrics
 from ..processing.pipeline import ContentPipeline
 from ..router import get_global_domain_metrics_manager, get_global_tier_breaker
 from .batch_mixin import FetchEngineBatchMixin
-from .cache_mixin import FetchEngineCacheMixin
+from .cache_mixin import FetchEngineCacheMixin, await_shared_result
 from .escalation_mixin import FetchEngineEscalationMixin
 from .fetch_mixin import FetchEngineFetchMixin
 from .types import (
+    NO_SHARED_RESULT,
     AccessStats,
     BackgroundTask,
     CachedDocument,
     FailedResult,
+    InFlightFetch,
+    NoSharedResult,
     SuccessResult,
 )
 
@@ -171,7 +174,7 @@ class FetchEngine(
             size_fn=_doc_size,
         )
         self._fail_cache: LRUCache[bool] = LRUCache(maxsize=200, ttl=300, id="fetch_engine_fail_cache")
-        self._pending_requests: dict[str, asyncio.Future[Document | None]] = {}
+        self._pending_requests: dict[str, InFlightFetch] = {}
         self._enable_http_validation = True
         self._stale_while_revalidate = stale_while_revalidate
         self._coalescing_timeout = coalescing_timeout
@@ -246,13 +249,16 @@ class FetchEngine(
         if len(self._url_access_stats) > self._max_access_stats_size:
             self._url_access_stats.popitem(last=False)
 
-        if not force_refresh and cache_key in self._pending_requests:
+        # A leader that ended without a result (cancelled) sends its waiters round again: the first becomes the
+        # new leader and the rest coalesce on it, so one fetch still serves them all.
+        while not force_refresh and cache_key in self._pending_requests:
             logger.info(f"Request coalescing: waiting for in-flight request: {url}")
-            try:
-                return await asyncio.wait_for(self._pending_requests[cache_key], timeout=self._coalescing_timeout)
-            except TimeoutError:
-                logger.warning(f"Request coalescing timeout ({self._coalescing_timeout}s), retrying: {url}")
-                self._pending_requests.pop(cache_key, None)
+            in_flight = self._pending_requests[cache_key]
+            shared = await await_shared_result(in_flight, url=url, timeout_s=self._coalescing_timeout)
+            if not isinstance(shared, NoSharedResult):
+                return shared
+            if self._pending_requests.get(cache_key) is in_flight:
+                del self._pending_requests[cache_key]  # stalled leader: stop sending newcomers to wait on it
 
         if force_refresh:
             self._crawl_cache.delete(cache_key)
@@ -268,7 +274,7 @@ class FetchEngine(
             logger.info(f"Fail cache hit (skipping): {url}")
             return None
 
-        future: asyncio.Future[Document | None] = asyncio.Future()
+        future: InFlightFetch = asyncio.Future()
         self._pending_requests[cache_key] = future
 
         etag = cached_item.etag if cached_item and self._enable_http_validation else None
@@ -393,6 +399,8 @@ class FetchEngine(
             return await self._handle_fetch_error(url, cache_key, future, e)
         finally:
             self._pending_requests.pop(cache_key, None)
+            if not future.done():  # cancelled mid-fetch: let the waiters fetch for themselves, not wait out the timeout
+                future.set_result(NO_SHARED_RESULT)
 
     async def shutdown(self) -> None:
         if self._background_workers:
