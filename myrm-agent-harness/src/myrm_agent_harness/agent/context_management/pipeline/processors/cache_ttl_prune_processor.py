@@ -28,6 +28,7 @@ restore-contract-backed pruning of expired tool results with scoped offload idem
 
 import time
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 from langchain_core.messages import BaseMessage, ToolMessage
 from langchain_core.runnables.config import RunnableConfig
@@ -366,8 +367,9 @@ class CacheTtlPruneProcessor(BaseProcessor):
     ) -> None:
         """Queue a background summary of a tool result that was just archived."""
         if self._archive_summary_service is not None:
+            # RunnableConfig is a TypedDict, which isinstance() rejects; a plain dict is its runtime form.
             runnable_config = context.metadata.get("runnable_config")
-            config = runnable_config if isinstance(runnable_config, RunnableConfig) else None
+            config = cast(RunnableConfig, runnable_config) if isinstance(runnable_config, dict) else None
             self._archive_summary_service.dispatch(
                 tool_name=msg.name or "unknown",
                 content=content,

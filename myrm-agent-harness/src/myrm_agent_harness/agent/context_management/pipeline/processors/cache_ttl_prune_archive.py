@@ -6,7 +6,7 @@
 - processors.cache_ttl_prune_helpers::ArchiveAttempt, build_archived_placeholder (POS: attempt outcome and the reference text)
 
 [OUTPUT]
-- ToolResultArchiver: offload a tool result through the host's callback, at most once per chat and content
+- ToolResultArchiver: offload a tool result through the host's callback, at most once per chat, tool call and content
 
 [POS]
 Archive half of the TTL prune. The host supplies the store; this class owns the idempotency cache that keeps a retried
@@ -35,7 +35,7 @@ _OFFLOAD_IDEMPOTENCY_CACHE_LIMIT = 512
 
 
 class ToolResultArchiver:
-    """Offloads tool results through the host's callback; the same content of the same chat is stored once.
+    """Offloads tool results through the host's callback; the same tool call's content in the same chat is stored once.
 
     ``on_stored`` is called with the message, its text, the archive path and the run's context whenever the offload
     callback has just answered with a path; a payload this archiver stored before is answered from its cache instead.
