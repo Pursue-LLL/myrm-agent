@@ -25,7 +25,9 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from http.client import HTTPResponse
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -148,7 +150,7 @@ def _ensure_search_services(api_url: str) -> None:
 def _api(method: str, url: str, timeout: float = 30.0) -> tuple[int, str]:
     request = urllib.request.Request(url, method=method)
     try:
-        with guarded_urlopen(request, timeout_sec=timeout) as response:
+        with cast(HTTPResponse, guarded_urlopen(request, timeout_sec=timeout)) as response:
             return response.status, response.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as error:
         return error.code, error.read().decode("utf-8", "replace")
@@ -172,6 +174,13 @@ def _source_numbers(row: dict[str, object]) -> list[int]:
     sources = row.get("sources")
     assert isinstance(sources, list), row
     return sorted(int(source["index"]) for source in sources)
+
+
+def _message_source_numbers(state: dict[str, object]) -> list[list[int]]:
+    """Source numbers per assistant message of a page snapshot."""
+    rows = state.get("assistants")
+    assert isinstance(rows, list), state
+    return [_source_numbers(row) for row in rows]
 
 
 def _assert_numbering_and_binding(state: dict[str, object]) -> None:
@@ -286,7 +295,7 @@ async def test_fast_search_numbers_continue_and_bind_across_turns_chrome_e2e(
         live_state = await _wait_cited_messages(chat, expected=2, timeout_sec=60.0)
         print(f"E2E_NUMBERING_LIVE_STATE: {json.dumps(live_state, ensure_ascii=False)}", flush=True)
         _assert_numbering_and_binding(live_state)
-        live_numbers = [_source_numbers(row) for row in live_state["assistants"]]
+        live_numbers = _message_source_numbers(live_state)
         persisted = await _wait_persisted_source_indexes(active_api_base, chat_id, live_numbers)
         assert persisted == live_numbers, (
             f"persisted source numbers differ from the live ones: persisted={persisted} live={live_numbers}"
@@ -296,7 +305,7 @@ async def test_fast_search_numbers_continue_and_bind_across_turns_chrome_e2e(
         reloaded = await _wait_cited_messages(chat, expected=2, timeout_sec=90.0)
         print(f"E2E_NUMBERING_RELOADED_STATE: {json.dumps(reloaded, ensure_ascii=False)}", flush=True)
         _assert_numbering_and_binding(reloaded)
-        assert [_source_numbers(row) for row in reloaded["assistants"]] == live_numbers
+        assert _message_source_numbers(reloaded) == live_numbers
     finally:
         if chat_id:
             _api("DELETE", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}", timeout=30.0)
