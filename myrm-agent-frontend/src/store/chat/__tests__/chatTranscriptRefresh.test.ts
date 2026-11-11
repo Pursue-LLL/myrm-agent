@@ -36,6 +36,8 @@ function seedStore(messages: Message[], extra: Partial<ReturnType<typeof useChat
     nextCursor: 'older-cursor',
     files: [],
     activeKnowledgeBaseIds: [],
+    loadError: false,
+    notFound: false,
     ...extra,
   });
 }
@@ -223,6 +225,38 @@ describe('refreshOpenChatTranscript', () => {
     await refreshOpenChatTranscript(undefined);
 
     expect(getMessagesMock).not.toHaveBeenCalled();
+  });
+
+  it('does not ask for the transcript of a new chat nothing was sent in: the server has no such chat yet', async () => {
+    seedStore([]);
+
+    await refreshOpenChatTranscript(CHAT_ID);
+
+    expect(getMessagesMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['its first load failed', { loadError: true }],
+    ['it was not found', { notFound: true }],
+  ])('still refreshes an empty chat when %s, so a later reconnect can heal it', async (_label, override) => {
+    seedStore([], override);
+    getMessagesMock.mockResolvedValue(page([message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')]));
+
+    await refreshOpenChatTranscript(CHAT_ID);
+
+    expect(getMessagesMock).toHaveBeenCalledTimes(1);
+    expect(ids(useChatStore.getState().messages)).toEqual(['r-1', 'uuid-1']);
+  });
+
+  it('refreshes as soon as the first message is on screen', async () => {
+    seedStore([]);
+    useChatStore.setState({ messages: [message('r-1', 'user', 'go')] });
+    getMessagesMock.mockResolvedValue(page([message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')]));
+
+    await refreshOpenChatTranscript(CHAT_ID);
+
+    expect(getMessagesMock).toHaveBeenCalledTimes(1);
+    expect(ids(useChatStore.getState().messages)).toEqual(['r-1', 'uuid-1']);
   });
 
   it('discards the fetched page when a turn started while the request was in flight', async () => {

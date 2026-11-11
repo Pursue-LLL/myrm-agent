@@ -13,13 +13,13 @@
  * background work. Rows already on screen are never rewritten, so store-injected fields and card state survive; only
  * turns the screen has never seen are appended. Unlike initializeChat / loadMessages it never toggles loading flags,
  * resets session config, attaches to a turn or clears attachments, and a failed fetch leaves the visible transcript
- * untouched.
+ * untouched. A new chat nothing was sent in is never asked for: the server creates a chat with its first message.
  */
 
 import { getMessages } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import { parseMessages } from './messageHydration';
-import type { Message } from './types';
+import type { ChatState, Message } from './types';
 
 const TAIL_PAGE_SIZE = 10;
 
@@ -64,8 +64,17 @@ function isRefreshable(chatId: string): boolean {
   return state.chatId === chatId && !state.loading && !state.abortController;
 }
 
+/**
+ * A new chat's id is minted in the browser and the server only creates the chat with its first message, so a chat
+ * that shows no rows has nothing stored to sync and asking for its transcript can only 404. A failed or missing load
+ * is the exception: the chat may exist, so it stays eligible and a later refresh can heal it.
+ */
+function isUnsentDraft(state: Pick<ChatState, 'messages' | 'loadError' | 'notFound'>): boolean {
+  return state.messages.length === 0 && !state.loadError && !state.notFound;
+}
+
 export async function refreshOpenChatTranscript(chatId: string | undefined): Promise<void> {
-  if (!chatId || refreshesInFlight.has(chatId) || !isRefreshable(chatId)) {
+  if (!chatId || refreshesInFlight.has(chatId) || !isRefreshable(chatId) || isUnsentDraft(useChatStore.getState())) {
     return;
   }
   refreshesInFlight.add(chatId);
