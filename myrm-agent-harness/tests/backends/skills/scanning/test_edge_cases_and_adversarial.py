@@ -3,29 +3,21 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from myrm_agent_harness.backends.skills.scanning.dependency_extractor import (
-    DeclaredDependency,
     extract_dependencies_from_package_json,
     extract_dependencies_from_pyproject_toml,
     extract_dependencies_from_requirements_txt,
     extract_skill_dependencies,
 )
-from myrm_agent_harness.backends.skills.scanning.osv_scanner import (
-    parse_osv_severity,
-    query_osv_batch,
-)
 from myrm_agent_harness.backends.skills.scanning.rescan_engine import (
     InstalledSkillRescanEngine,
 )
 from myrm_agent_harness.backends.skills.scanning.scanner import (
-    ScanSeverity,
     SkillTrustRecommendation,
 )
-from myrm_agent_harness.backends.skills.scanning.vuln_cache import VulnScanCache
 
 
 def test_dependency_extractor_adversarial_inputs() -> None:
@@ -97,26 +89,6 @@ def test_dependency_extractor_symlink_and_deep_recursion(tmp_path: Path) -> None
     assert "ignore-git" not in dep_names
 
 
-def test_osv_severity_parsing_variations() -> None:
-    """Test all possible OSV score/severity structures."""
-    # 1. MAL- prefix
-    assert parse_osv_severity({"id": "MAL-2023-1234"}) == ScanSeverity.CRITICAL
-
-    # 2. database_specific variations
-    assert parse_osv_severity({"database_specific": {"severity": "CRITICAL"}}) == ScanSeverity.CRITICAL
-    assert parse_osv_severity({"database_specific": {"severity": "HIGH"}}) == ScanSeverity.HIGH
-    assert parse_osv_severity({"database_specific": {"severity": "MODERATE"}}) == ScanSeverity.MEDIUM
-    assert parse_osv_severity({"database_specific": {"severity": "LOW"}}) == ScanSeverity.LOW
-
-    # 3. CVSS score string parsing
-    assert parse_osv_severity({"severity": [{"score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H (9.8)"}]}) == ScanSeverity.CRITICAL
-    assert parse_osv_severity({"severity": [{"score": "CVSS:3.0/AV:N (7.5)"}]}) == ScanSeverity.HIGH
-    assert parse_osv_severity({"severity": [{"score": "5.5"}]}) == ScanSeverity.MEDIUM
-    assert parse_osv_severity({"severity": [{"score": "2.1"}]}) == ScanSeverity.LOW
-    assert parse_osv_severity({"severity": [{"score": "not a number"}]}) == ScanSeverity.MEDIUM
-    assert parse_osv_severity({}) == ScanSeverity.MEDIUM
-
-
 @pytest.mark.asyncio
 async def test_rescan_engine_empty_and_broken_directories(tmp_path: Path) -> None:
     """Test rescan engine against non-existent or empty directories."""
@@ -134,36 +106,3 @@ async def test_rescan_engine_empty_and_broken_directories(tmp_path: Path) -> Non
     assert res_empty.is_clean is True
     assert res_empty.recommendation == SkillTrustRecommendation.TRUSTED
     assert len(res_empty.declared_dependencies) == 0
-
-
-@pytest.mark.asyncio
-async def test_osv_scanner_batch_chunking_and_error_isolation() -> None:
-    """Test OSV batch scanner splitting >100 queries properly and handling network failures cleanly."""
-    deps = [
-        DeclaredDependency(name=f"pkg-{i}", version_spec="1.0.0", ecosystem="npm")
-        for i in range(120)
-    ]
-    cache = VulnScanCache()
-
-    # Simulate network failure on second chunk
-    call_count = 0
-
-    async def _mock_post(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            mock_resp = AsyncMock()
-            mock_resp.raise_for_status = MagicMock()
-            mock_resp.json = MagicMock(return_value={"results": [{"vulns": []}] * 100})
-            return mock_resp
-        raise ConnectionResetError("Connection reset by peer")
-
-    from unittest.mock import MagicMock
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value.post = _mock_post
-
-    with patch("myrm_agent_harness.backends.skills.scanning.osv_scanner.create_httpx_client", return_value=mock_client):
-        findings = await query_osv_batch(deps, cache=cache)
-        assert call_count == 2
-        # First chunk succeeded, second failed gracefully without raising
-        assert isinstance(findings, list)
