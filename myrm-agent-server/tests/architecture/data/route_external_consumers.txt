@@ -4,10 +4,10 @@
 # repositories, to the directory holding them. The cited lines must spell the route's last static segment as a whole word;
 # a caller that does not spell the path (an HTML form posting to its own URL) adds the text it shows as `(file:line `anchor`)`.
 GET /memory/head | read-only sequence probe; exercised by the route contract test (myrm-agent-server/tests/api/memory/test_memory_head_probe_api.py:1)
-GET /memory/search | documented memory search API (myrm-agent-brand/myrm-docs/docs/api-reference/memory.mdx:48)
+GET /memory/search | documented memory search API (myrm-agent-brand/myrm-docs/docs/api-reference/memory.mdx:64)
 POST /system/drain | control plane sandbox recycler drains in-flight turns before recycling (myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:120-128)
 POST /system/shutdown | desktop shell stops the bundled backend (myrm-agent-desktop/src-tauri/src/runtime/python_backend_stop.rs:41)
-POST /remote-access/node/events | remote node callback documented with a curl example (myrm-agent-brand/myrm-docs/docs/guides/scheduled-tasks.mdx:301)
+POST /remote-access/node/events | remote node callback documented with a curl example (myrm-agent-brand/myrm-docs/docs/guides/scheduled-tasks.mdx:297)
 GET /public/artifact-share/{token} | share link opened in a browser by its recipient (myrm-agent-server/app/core/channel_bridge/agent_executor/deliverable/deep_links.py:192)
 POST /public/artifact-share/{token} | share link unlock form submitted by its recipient (myrm-agent-server/app/core/security/share/share_password_page.py:82 `<form method="post" action="">`)
 GET /public/artifact-share/{token}/ | share link opened in a browser by its recipient (myrm-agent-server/app/core/channel_bridge/agent_executor/deliverable/deep_links.py:192)
@@ -23,5 +23,5 @@ POST /wiki/clip | browser extension posts page clips (myrm-agent-extension/src/w
 GET /wiki/clip/{job_id} | browser extension polls the clip job (myrm-agent-extension/src/wiki/clip_client.js:18)
 POST /cron/trigger/event | documented external webhook trigger (myrm-agent-brand/myrm-docs/docs/api-reference/webhooks.mdx:26)
 POST /cron/trigger/system-event | documented external webhook trigger (myrm-agent-brand/myrm-docs/docs/api-reference/webhooks.mdx:34)
-POST /cron/{job_id}/verify-integrity | documented audit-chain verification API (myrm-agent-brand/myrm-docs/docs/guides/scheduled-tasks.mdx:263)
-POST /browser/domain-skills/distill | documented skill distillation API (myrm-agent-brand/myrm-docs/docs/guides/browser-automation.mdx:638)
+POST /cron/{job_id}/verify-integrity | documented audit-chain verification API (myrm-agent-brand/myrm-docs/docs/guides/scheduled-tasks.mdx:261)
+POST /browser/domain-skills/distill | documented skill distillation API (myrm-agent-brand/myrm-docs/docs/guides/browser-automation.mdx:632)
