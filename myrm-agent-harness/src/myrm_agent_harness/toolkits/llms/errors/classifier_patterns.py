@@ -223,11 +223,13 @@ _SAFETY_BLOCK_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Anthropic refuses replayed reasoning in three wordings: a block signed for another prompt ("Invalid `signature` in
-# `thinking` block"), an edited one ("`thinking` blocks in the latest assistant message cannot be modified") and a tool
-# turn that lost its leading block ("Expected `thinking` or `redacted_thinking`, but found `text`").
+# Anthropic refuses replayed reasoning in four wordings: a block signed for another prompt ("Invalid `signature` in
+# `thinking` block"), a redacted one whose opaque data no longer checks out ("Invalid `data` in `redacted_thinking`
+# block"), an edited one ("`thinking` blocks in the latest assistant message cannot be modified") and a tool turn that
+# lost its leading block ("Expected `thinking` or `redacted_thinking`, but found `text`").
 _THINKING_SIGNATURE_RE = re.compile(
     r"signature.*thinking|thinking.*signature"
+    r"|invalid .{0,2}data.{0,2} in .{0,2}redacted_thinking"
     r"|expected .{0,2}thinking.{0,2} or .{0,2}redacted_thinking"
     r"|thinking.{0,2} blocks? in the (?:latest|final) assistant message cannot be modified",
     re.IGNORECASE,

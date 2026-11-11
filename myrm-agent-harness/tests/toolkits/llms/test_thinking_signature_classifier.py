@@ -18,10 +18,12 @@ class _FakeError(Exception):
         self.status_code = status_code
 
 
-# The provider's three wordings for a refused replay of signed reasoning.
+# The provider's wordings for a refused replay of signed reasoning: a block signed for another prompt, a redacted block
+# whose opaque data no longer checks out, a tool turn that lost its leading block, and an edited block.
 _REFUSALS = [
     "messages.1.content.0: Invalid `signature` in `thinking` block",
     "messages.3.content.0: Invalid `signature` in `thinking` block: the block was written for a different conversation",
+    "messages.3.content.10: Invalid `data` in `redacted_thinking` block",
     (
         "messages.5.content.0.type: Expected `thinking` or `redacted_thinking`, but found `text`. When `thinking` is "
         "enabled, a final `assistant` message must start with a thinking block (preceding the lastmost set of "
@@ -49,6 +51,7 @@ class TestThinkingSignatureClassification:
         "msg",
         [
             "messages.0.content: Input should be a valid list",
+            "messages.1.content.0: Invalid `data` in `image` block",
             "thinking.budget_tokens: must be less than max_tokens",
             "Thinking is mandatory for this model and cannot be disabled.",
         ],
