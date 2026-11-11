@@ -31,12 +31,15 @@ describe('checkIsMobile', () => {
 });
 
 /**
- * The layout only learns it is mobile after the client mounts, so globals.css hides the wide layout's shell and its
- * left padding below the same width through a plain media query. The two must flip at the same width, or a window in
- * between shows the wrong layout: a sidebar covering a phone, or a wide layout with no navigation at all.
+ * The layout only learns it is mobile after the client mounts, so narrow-layout.css hides the wide layout's shell and
+ * its left padding below the same width through a plain media query. The two must flip at the same width, or a window
+ * in between shows the wrong layout: a sidebar covering a phone, or a wide layout with no navigation at all.
  */
-describe('the narrow-window fallback in globals.css', () => {
-  const css = readFileSync(resolve(__dirname, '../../../../app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+describe('the narrow-window fallback in narrow-layout.css', () => {
+  const css = readFileSync(resolve(__dirname, '../../../../app/narrow-layout.css'), 'utf8').replace(
+    /\/\*[\s\S]*?\*\//g,
+    '',
+  );
 
   /** Each `@media (max-width: Npx) { ... }` block with its body, found by matching braces. */
   const maxWidthBlocks = Array.from(css.matchAll(/@media \(max-width: (\d+)px\) \{/g)).map((match) => {

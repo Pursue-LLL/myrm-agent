@@ -3,7 +3,7 @@
  *
  * 布局是否进入移动形态只在客户端判定：useAppLayoutState 在挂载后读取 window.innerWidth，
  * 之后监听 resize 更新，所以服务端与水合那一帧永远按宽屏布局渲染。
- * globals.css 里 `max-width: 1023px` 的窄屏兜底（主内容区左内边距、`.wide-layout-only` 外壳）
+ * narrow-layout.css 里 `max-width: 1023px` 的窄屏兜底（主内容区左内边距、`.wide-layout-only` 外壳）
  * 与这里的断点成对，由 `__tests__/deviceDetection.test.ts` 绑定。
  *
  * 用 window.innerWidth 而不是 User-Agent：支持分屏与浏览器缩放。
