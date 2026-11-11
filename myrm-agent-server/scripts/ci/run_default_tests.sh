@@ -11,6 +11,7 @@ source "${SERVER_ROOT}/scripts/ci/lib_harness_deps.sh"
 
 _run_pytest() {
   # pyproject addopts already applies: -m 'not e2e and not performance' --timeout=300
+  export PYTHONUNBUFFERED=1
   local pytest_args=(-n0 --tb=short -v -o faulthandler_timeout=150)
   if [[ -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
     timeout -s INT -k 30 1200 "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"

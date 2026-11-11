@@ -433,8 +433,39 @@ def _clear_agent_test_process_state() -> None:
     _reset_checkpointer_for_testing()
     _reset_quota_manager_for_testing()
     ApprovalTimeoutScheduler.get().cancel_all()
+
+    def _await_chain(coro: object) -> list[str]:
+        chain: list[str] = []
+        cur = coro
+        while cur is not None:
+            frame = getattr(cur, "cr_frame", None) or getattr(cur, "gi_frame", None) or getattr(cur, "ag_frame", None)
+            if frame is not None:
+                chain.append(f"{frame.f_code.co_filename}:{frame.f_lineno}:{frame.f_code.co_name}")
+            cur = getattr(cur, "cr_await", None) or getattr(cur, "gi_yieldfrom", None) or getattr(cur, "ag_await", None)
+        return chain
+
+    async def _diag_shutdown() -> None:
+        import sys
+
+        from app.core.memory.adapters import setup as memory_setup
+
+        task = asyncio.ensure_future(shutdown_cached_memory_managers())
+        _done, pending = await asyncio.wait({task}, timeout=20)
+        if pending:
+            out = [
+                "[DIAG] shutdown_cached_memory_managers still running after 20 s; "
+                f"cache lock locked={memory_setup._memory_manager_cache_lock.locked()}, cache size={len(memory_setup._memory_manager_cache)}"
+            ]
+            for t in asyncio.all_tasks():
+                out.append(f"[DIAG] task {t.get_name()} done={t.done()}")
+                out.extend(f"[DIAG]     {line}" for line in _await_chain(t.get_coro()))
+            sys.stderr.write("\n".join(out) + "\n")
+            sys.stderr.flush()
+            task.cancel()
+            await asyncio.wait({task}, timeout=5)
+
     try:
-        asyncio.run(shutdown_cached_memory_managers())
+        asyncio.run(_diag_shutdown())
     except RuntimeError:
         loop = asyncio.new_event_loop()
         try:
