@@ -50,16 +50,14 @@ def _dhash(image_bytes: bytes) -> int:
     img = img.convert("L")  # type: ignore[assignment]
     img = img.resize((9, 8), Image.Resampling.LANCZOS)  # type: ignore[assignment]
 
-    try:
-        pixels = img.get_flattened_data()  # type: ignore[attr-defined]
-    except AttributeError:
-        pixels = list(img.getdata())
+    # Mode "L" stores one byte per pixel, row after row.
+    pixels = img.tobytes()
 
     hash_value = 0
     for row in range(8):
         for col in range(8):
             idx = row * 9 + col
-            if int(pixels[idx]) < int(pixels[idx + 1]):
+            if pixels[idx] < pixels[idx + 1]:
                 hash_value |= 1 << (row * 8 + col)
     return hash_value
 
