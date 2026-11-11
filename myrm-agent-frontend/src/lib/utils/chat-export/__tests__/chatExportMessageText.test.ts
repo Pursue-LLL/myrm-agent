@@ -99,12 +99,30 @@ describe('formatMessageMarkdown', () => {
     const redacted = formatMessageMarkdown(withSources, false, LABELS);
     expect(redacted).not.toContain('abcd1234efgh5678');
     expect(redacted).not.toContain('sk-live');
-    expect(redacted).toContain('[1] https://api.example.com/v1/data?api_key=');
+    expect(redacted).toContain('[1] https://api.example.com/v1/data?api_key=[REDACTED_SECRET]&page=2');
     expect(redacted).toContain('[2] Notes on ');
 
     const verbatim = formatMessageMarkdown(withSources, false, LABELS, false);
     expect(verbatim).toContain('abcd1234efgh5678');
     expect(verbatim).toContain(OPENAI_KEY);
+  });
+
+  // The answer links to a file the way an object store hands the link out, and the page the answer drew on does too.
+  it('masks the signature of a presigned link in the answer and in a source, and keeps the link itself', () => {
+    const link =
+      'https://bucket.s3.amazonaws.com/report.pdf?X-Amz-Expires=3600&X-Amz-Signature=abcd1234efgh5678abcd1234efgh5678';
+    const message = messageOf({
+      content: `Download [the report](${link}) within the hour.`,
+      sources: [{ index: 1, type: 'web_search', url: link }],
+    });
+    const masked = 'https://bucket.s3.amazonaws.com/report.pdf?X-Amz-Expires=3600&X-Amz-Signature=[REDACTED_SECRET]';
+
+    const markdown = formatMessageMarkdown(message, false, LABELS);
+    expect(markdown).toContain(`Download [the report](${masked}) within the hour.`);
+    expect(markdown).toContain(`[1] ${masked}`);
+    expect(markdown).not.toContain('abcd1234efgh5678');
+
+    expect(formatMessageMarkdown(message, false, LABELS, false)).toContain(`[the report](${link})`);
   });
 });
 

@@ -8,7 +8,7 @@
 
 - `index.ts`：域门面 barrel — 显式导出清单聚合四文件公开符号，组件层统一导入入口；新增导出须同步本清单（漏加即 typecheck 断裂，编译器护栏）。
 - `errorRedactor.ts`：展示脱敏引擎 — `redactErrorMessage` / `redactErrorObject` 覆盖 API Key、Bearer Token、JWT、数据库 URI 密码、主目录路径与私有内网 IP，保障 Toast、API 响应解析与内联错误文本零凭据泄漏；`maskToken` 单体脱敏与 `REDACTION_MASK` 常量。
-- `clientRedact.ts`：客户端轻量脱敏清洗 — `redactSensitiveClientText` 与 `containsSensitiveData` 覆盖 OpenAI/Anthropic 风格 API Keys、GitHub Tokens、AWS 密钥、PEM 私钥、JWT 签名凭据与键值对密码，防御单条消息与前端导出 CWE-312 敏感信息明文泄露。
+- `clientRedact.ts`：客户端轻量脱敏清洗 — `redactSensitiveClientText` 与 `containsSensitiveData` 覆盖 OpenAI/Anthropic 风格 API Keys、GitHub Tokens、AWS 密钥、PEM 私钥、JWT 签名凭据、URL 查询串里的令牌 / API Key / 口令 / 预签名链接签名（只遮盖取值，到 `&`、`#`、空白、引号、括号为止，其余参数与片段保留）与键值对密码，防御单条消息与前端导出 CWE-312 敏感信息明文泄露。自由文本里单独的 `token=` 不脱敏：`token` 在代码里是最常见的变量名，遮盖会毁掉代码示例。
 - `skillErrorMapper.ts`：技能错误映射 — `mapSkillErrorToTranslationKey` 后端技术性错误关键词到翻译键的正则映射与 `getFriendlyErrorMessage` 用户友好文案构建。
 - `errorManager.ts`：错误去重管理器 — 30 秒窗口内相同错误去重展示（errorCache Map 时间戳记录），提升用户体验。
 

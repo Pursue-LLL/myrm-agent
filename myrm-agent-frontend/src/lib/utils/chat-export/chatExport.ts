@@ -15,7 +15,7 @@ import { printHtmlDocument } from './printHtmlDocument';
  * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
  *         fileUtils::sanitizeFilename (POS: 通用文件工具 — 文件名非法字符清理)；
  *         fileUtils::triggerDownload (POS: 通用文件工具 — 文件下载，Web a[download] / Tauri 系统保存对话框)；
- *         error-handling::redactSensitiveClientText (POS: 客户端轻量敏感凭据脱敏清洗工具 — OpenAI/GitHub/AWS/私钥/JWT/密钥对脱敏，CWE-312 防护)；
+ *         error-handling::redactSensitiveClientText (POS: 客户端轻量敏感凭据脱敏清洗工具 — OpenAI/GitHub/AWS/私钥/JWT/URL 查询串凭据/密钥对脱敏，CWE-312 防护)；
  *         locale::getClientLocale, parseLocaleQueryParam; i18n/config::defaultLocale (POS: 界面语言 — 客户端读取并校验 NEXT_LOCALE cookie，缺省回退与服务端一致)；
  *         chatExportMessageText::formatMessageMarkdown, extractMessageTitle, formatReasoning, MessageLabels (POS: 单条消息导出文本 — Markdown 排版（思考链、来源；标签措辞由调用方给出）与文件名标题)；
  *         printHtmlDocument::printHtmlDocument (POS: 隐藏 iframe 打印导出文档，等内嵌字体就绪后再调起打印)。
