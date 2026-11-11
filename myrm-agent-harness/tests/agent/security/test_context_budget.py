@@ -232,7 +232,9 @@ class TestCumulativeBudgetTracking:
 
 class TestGetContextBudgetGuard:
     def test_get_guard_creates_default_instance(self) -> None:
-        ctx = contextvars.copy_context()
+        # An empty context: a copy of the current one would inherit the guard (and its accumulated usage)
+        # that an earlier test left bound in this worker.
+        ctx = contextvars.Context()
 
         def _run_in_clean_context() -> ContextBudgetGuard:
             return get_context_budget_guard()
