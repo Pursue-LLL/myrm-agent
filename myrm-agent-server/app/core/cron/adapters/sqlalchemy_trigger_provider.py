@@ -117,7 +117,11 @@ class SqlAlchemyTriggerProvider:
             for wh in job.triggers.webhooks:
                 if wh.path != path:
                     continue
-                if wh.secret and not validate_webhook_secret(wh.secret, secret):
+                if not wh.secret:
+                    # A trigger without a stored secret would accept any caller that knows its path.
+                    logger.warning("Webhook trigger of job %s has no secret and is never fired", job.id)
+                    continue
+                if not validate_webhook_secret(wh.secret, secret):
                     logger.warning("Webhook secret mismatch for job %s", job.id)
                     continue
                 return job

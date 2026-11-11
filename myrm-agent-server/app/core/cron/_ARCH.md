@@ -353,7 +353,7 @@ AgentJobRunner 将 context 追加到 prompt 末尾，让 Agent 知道触发来�
 使用 keyword-only 参数（`*, context: str = ""`）而非修改 CronJob，避免数据污染。
 
 安全机制：
-- Webhook secret 自动生成（32 字节 hex），请求头里的密钥原文经 `hmac.compare_digest` 常量时间比较（共享密钥，不是对请求体做 HMAC 签名）
+- Webhook secret 自动生成（32 字节 hex），请求头里的密钥原文经 `hmac.compare_digest` 常量时间比较（共享密钥，不是对请求体做 HMAC 签名）；没有密钥的触发器一律不触发
 - Event regex ReDoS 防护（`max_pattern_bytes=65536`）
 - SSRF 防护（DNS 解析检测私有 IP）
 
