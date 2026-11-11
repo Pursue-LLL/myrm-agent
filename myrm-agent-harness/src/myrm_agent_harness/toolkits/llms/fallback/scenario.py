@@ -5,9 +5,9 @@ Provides intelligent model selection based on usage scenario.
 [INPUT]
 
 [OUTPUT]
-- ScenarioType: scenariotypeenum
-- ModelMetrics: modelmetricsdataclass
-- select_by_scenario: scenarioknownselectfunction
+- ScenarioType: Usage scenario type enum
+- ModelMetrics: Model performance metrics dataclass
+- select_by_scenario: Scenario-aware model selection function
 
 [POS]
 Scenario-aware model selection. Optimizes model choice based on scenario (realtime/batch/balanced).

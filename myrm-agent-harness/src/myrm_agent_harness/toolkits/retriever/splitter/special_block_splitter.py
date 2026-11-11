@@ -8,7 +8,7 @@ When a detected special block (code / table / list) exceeds the chunk-size limit
 it is split intelligently:
 
 ### 1. Oversized code blocks
-Split via AST to preserve code integrity:
+Split at definition boundaries (language-aware) to preserve code integrity:
 ```python
 # Original oversized code block (exceeds chunk_size)
 def func1():
@@ -95,7 +95,7 @@ logger = logging.getLogger(__name__)
 
 
 class SpecialBlockSplitter:
-    """Special block分割器"""
+    """Splitter for oversized special blocks."""
 
     def __init__(
         self,
@@ -107,10 +107,10 @@ class SpecialBlockSplitter:
         """Initialize
 
         Args:
-            chunk_size: 目标chunkSize
-            max_with_special: Special block allow  MaximumSize
-            length_function: Token计数Function
-            detector: Special block检测器
+            chunk_size: Target chunk size
+            max_with_special: Maximum size allowed for a special block
+            length_function: Token counting function
+            detector: Special block detector
         """
         self.chunk_size = chunk_size
         self.max_with_special = max_with_special
@@ -118,13 +118,13 @@ class SpecialBlockSplitter:
         self._detector = detector
 
     def handle_special_block(self, block: dict) -> list[str]:
-        """ProcessSpecial block（code blocks, tables, lists）
+        """Handle a special block (code block, table, or list)
 
         Args:
-            block: Special blockinformation
+            block: Special block information
 
         Returns:
-            Processed块List
+            List of processed blocks
         """
         if block["type"] == "code":
             return self._handle_code_block(block)
@@ -135,18 +135,18 @@ class SpecialBlockSplitter:
         return []
 
     def _handle_code_block(self, block: dict) -> list[str]:
-        """ProcessCode blocks
+        """Handle a code block
 
         Args:
-            block: Code blocksinformation
+            block: Code block information
 
         Returns:
-            ProcessedCode blocksList
+            List of processed code blocks
         """
         language = block.get("language") or ""
         code_body = block.get("content") or ""
 
-        # 检测语言
+        # Detect the language
         detected_lang = language
         if not detected_lang or detected_lang in ("text", "txt"):
             maybe = detect_code_language(code_body)
@@ -156,9 +156,9 @@ class SpecialBlockSplitter:
         code_block_text = self._fenced_code(detected_lang, code_body)
         code_tokens = self._length_function(code_block_text)
 
-        # IfCode blocks太大， need Split
+        # Split the code block if it is too large
         if code_tokens > self.max_with_special:
-            logger.warning(f"超大Code blocks({detected_lang}): {code_tokens}Token，ExecuteASTSplit")
+            logger.warning(f"Oversized code block ({detected_lang}): {code_tokens} tokens, splitting it")
 
             code_pieces = split_large_code_block(code_body, detected_lang or "text", max_tokens=self.chunk_size)
             return [self._fenced_code(detected_lang, cp) for cp in code_pieces]
@@ -166,35 +166,35 @@ class SpecialBlockSplitter:
             return [code_block_text]
 
     def _handle_table_block(self, block: dict) -> list[str]:
-        """ProcessTable块
+        """Handle a table block
 
         Args:
-            block: Table块information
+            block: Table block information
 
         Returns:
-            ProcessedTable块List
+            List of processed table blocks
         """
         table_content = block.get("content") or ""
         table_tokens = self._length_function(table_content)
 
         if table_tokens > self.max_with_special:
-            logger.warning(f"超大Table: {table_tokens}Token，ExecuteTableSplit（保留表头）")
+            logger.warning(f"Oversized table: {table_tokens} tokens, splitting by rows (header kept)")
             return self._split_large_table(table_content)
         else:
             return [table_content]
 
     def _handle_list_block(self, block: dict) -> list[str]:
-        """ProcessList块
+        """Handle a list block
 
         Strategy:
-        - IfListtoken数 <= max_with_special，保持complete
-        - Otherwise，尝试按顶级List项分割（保持子项 and 父项 in 一起）
+        - If the list token count <= max_with_special, keep it whole
+        - Otherwise, try splitting by top-level list items (keeping child items together with their parent)
 
         Args:
-            block: List块information
+            block: List block information
 
         Returns:
-            ProcessedList块List
+            List of processed list blocks
         """
         list_content = block.get("content") or ""
         list_tokens = self._length_function(list_content)
@@ -202,17 +202,17 @@ class SpecialBlockSplitter:
         if list_tokens <= self.max_with_special:
             return [list_content]
 
-        # List太大，按顶级List项分割
+        # The list is too large: split by top-level list items
         return self._split_large_list(list_content)
 
     def _split_large_table(self, table_text: str) -> list[str]:
-        """Split超大Table（保留表头）
+        """Split an oversized table (the header rows are kept in every chunk)
 
         Args:
-            table_text: Tabletext
+            table_text: Table text
 
         Returns:
-            Split后 Table块List
+            List of split table chunks
         """
         lines = table_text.strip().split("\n")
 
@@ -226,7 +226,7 @@ class SpecialBlockSplitter:
         data_lines = lines[2:]
 
         if header_tokens > self.chunk_size * 0.8:
-            logger.warning(f"表头过大({header_tokens}Token)， no 法SplitTable")
+            logger.warning(f"Table header too large ({header_tokens} tokens), cannot split the table")
             return [table_text]
 
         chunks = []
@@ -247,21 +247,21 @@ class SpecialBlockSplitter:
         if len(current_lines) > 2:
             chunks.append("\n".join(current_lines))
 
-        logger.warning(f"TableSplit: original{len(data_lines)}行 -> {len(chunks)}块")
+        logger.warning(f"Table split: {len(data_lines)} original rows -> {len(chunks)} chunks")
         return chunks
 
     def _split_large_list(self, list_content: str) -> list[str]:
-        """分割超大List（按顶级List项分割，保持子项complete）
+        """Split an oversized list by top-level items, keeping child items intact
 
         Args:
-            list_content: ListContent
+            list_content: List content
 
         Returns:
-            分割后 List块List
+            List of split list chunks
         """
         lines = list_content.split("\n")
 
-        # 找 to basic缩进（第一个List项 缩进）
+        # Find the base indent (the indent of the first list item)
         base_indent = None
         for line in lines:
             if self._detector.is_list_item_line(line):
@@ -269,10 +269,10 @@ class SpecialBlockSplitter:
                 break
 
         if base_indent is None:
-            #  no 法识别List项，ReturnentireContent
+            # No list item recognized: return the whole content
             return [list_content]
 
-        # 按顶级List项分组
+        # Group by top-level list items
         chunks = []
         current_item_lines = []
         current_tokens = 0
@@ -281,9 +281,9 @@ class SpecialBlockSplitter:
             if self._detector.is_list_item_line(line):
                 indent = self._detector.get_list_item_indent(line)
                 if indent == base_indent:
-                    # 顶级List项
+                    # Top-level list item
                     if current_item_lines:
-                        # Save前一个List项
+                        # Save the previous list item
                         item_content = "\n".join(current_item_lines)
                         chunks.append(item_content)
                         current_item_lines = []
@@ -292,15 +292,15 @@ class SpecialBlockSplitter:
                     current_item_lines.append(line)
                     current_tokens = self._length_function(line)
                 else:
-                    # 子项
+                    # Child item
                     current_item_lines.append(line)
                     current_tokens += self._length_function(line)
             else:
-                # 延续行
+                # Continuation line
                 current_item_lines.append(line)
                 current_tokens += self._length_function(line)
 
-        # Save最后一个List项
+        # Save the last list item
         if current_item_lines:
             item_content = "\n".join(current_item_lines)
             chunks.append(item_content)
@@ -309,13 +309,13 @@ class SpecialBlockSplitter:
 
     @staticmethod
     def _fenced_code(lang: str, body: str) -> str:
-        """GenerateCode blockstext
+        """Build the text of a fenced code block
 
         Args:
-            lang: 语言标识
-            body: 代码Content
+            lang: Language identifier
+            body: Code content
 
         Returns:
-            带围栏 Code blockstext
+            Fenced code block text
         """
         return f"```{lang}\n{body}\n```" if lang else f"```\n{body}\n```"

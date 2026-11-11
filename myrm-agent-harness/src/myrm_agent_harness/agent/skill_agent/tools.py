@@ -299,8 +299,8 @@ class SkillAgentToolsMixin:
     def _create_wiki_tools(self) -> list[BaseTool]:
         """Auto-create wiki tools if wiki_base_dir is configured.
 
-        Creates 2 LangChain tools for the agent: wiki_ingest, wiki_query.
-        Compile/maintain remain Settings/REST-only operations.
+        Creates 3 LangChain tools for the agent: wiki_ingest, wiki_query, wiki_apply.
+        Manual compile and maintain remain Settings/REST-only operations.
         """
         if self._wiki_base_dir is None:  # type: ignore[attr-defined]
             return []

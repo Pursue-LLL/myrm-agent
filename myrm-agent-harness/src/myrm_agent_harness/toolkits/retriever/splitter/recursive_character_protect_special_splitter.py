@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
     """Unified recursive character splitter
 
-    特性：
+    Features:
     1. Independent tiktoken token counting
     2. Protects special blocks during recursive splitting
     3. All processing completed in a single pass
@@ -40,7 +40,8 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
     5. Better performance and maintainability
 
     Important notes:
-    - Normal content stays within chunk_size; special blocks (code/tables) expand up to max_with_special (1.3x)
+    - Normal content stays within chunk_size; special blocks (code/tables) expand up to max_with_special
+      (2x chunk_size; in the character-count fallback 1.3x of the character-scaled chunk_size)
     - Overlap is duplicate content (from previous chunk) and does not consume the current chunk quota
     - Therefore, total size after overlap is approximately: chunk_size + overlap_size
     - If downstream processing adds frontmatter or other extra content, callers should reserve space in chunk_size
@@ -98,9 +99,8 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
             encoding = encoding_for_model(model_name)
             self._length_function = lambda text: len(encoding.encode(text, disallowed_special=()))
             self._use_tiktoken = True
-            # logger.warning(f"tiktoken分割器: chunk={self.chunk_size}, overlap={self.chunk_overlap}")
         except Exception as e:
-            logger.warning(f"tiktoken not 可用({e!s}), using character count")
+            logger.warning(f"tiktoken unavailable ({e!s}), using character count")
             self._length_function = len
             self._use_tiktoken = False
             self.chunk_size = self.chunk_size * 4
@@ -204,36 +204,36 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
         """Get effective separator list based on split mode
 
         Args:
-            split_mode: Split mode（"semantic"  or  "paragraph"）
+            split_mode: Split mode ("semantic" or "paragraph")
 
         Returns:
             Separator list
         """
         if split_mode == "semantic":
-            # 语义分割：SkipHeading分割符，只 using Paragraph and 句子分割符
+            # Semantic split: skip heading separators, use only paragraph and sentence separators
             return [sep for sep in self.separators if not sep.startswith("\n#")]
         else:
-            # Paragraph分割： using All分割符
+            # Paragraph split: use all separators
             return self.separators
 
     def _split_with_protection(
         self, text: str, separators: list[str] | None = None, add_overlap: bool = True
     ) -> list[str]:
-        """一体化recursive分割（built-inSpecial block保护）
+        """Unified recursive split (built-in special block protection)
 
-        core算法：
-        1. 检测Special block
-        2. If has Special block，分段recursiveProcess
-        3. If no Special block，normalrecursive分割
-        4.  in Allchunks间添加overlap
+        Core algorithm:
+        1. Detect special blocks
+        2. If special blocks exist, process segment by segment recursively
+        3. If there are no special blocks, split normally and recursively
+        4. Add overlap between all chunks
 
         Args:
             text: Text to split
-            separators: 分隔符List
-            add_overlap: Whether添加overlap（recursiveCall时可能 is False）
+            separators: Separator list
+            add_overlap: Whether to add overlap (may be False in recursive calls)
 
         Returns:
-            ChunkList
+            Chunk list
         """
         if not text or not text.strip():
             return []
@@ -241,59 +241,60 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
         if separators is None:
             separators = self.separators
 
-        # Iftext already 足够小， directly Return
+        # Return directly if the text is already small enough
         text_len = self._length_function(text)
         if text_len <= self.chunk_size:
             return [text]
 
-        # 检测Special block
+        # Detect special blocks
         special_blocks = self._detector.extract_special_structures(text)
 
         if not special_blocks:
-            #  no Special block，normalrecursive分割
+            # No special blocks: normal recursive split
             return self._recursive_split_text(text, separators, add_overlap)
 
-        #  has Special block，分段Process
+        # Special blocks present: process segment by segment
         chunks = []
         pos = 0
 
         for block in special_blocks:
-            # ProcessSpecial block前 text
+            # Process the text before the special block
             if block["start"] > pos:
                 prefix_text = text[pos : block["start"]]
                 if prefix_text.strip():
-                    # recursive分割前text（ not 添加overlap，最后统一Process）
+                    # Split the preceding text recursively (no overlap here; added once at the end)
                     prefix_chunks = self._recursive_split_text(prefix_text, separators, add_overlap=False)
                     chunks.extend(prefix_chunks)
 
-            # ProcessSpecial block本身
+            # Process the special block itself
             block_chunks = self._block_splitter.handle_special_block(block)
             chunks.extend(block_chunks)
 
             pos = block["end"]
 
-        # Process最后 text
+        # Process the trailing text
         if pos < len(text):
             suffix_text = text[pos:]
             if suffix_text.strip():
                 suffix_chunks = self._recursive_split_text(suffix_text, separators, add_overlap=False)
                 chunks.extend(suffix_chunks)
 
-        # Merge过小 chunks（ less than chunk_size 80%）
+        # Merge undersized chunks (less than 80% of chunk_size)
         if len(chunks) > 1:
             chunks = self._overlap_processor.merge_small_chunks(chunks)
 
-        # CheckWhether has 超大chunk（Special block可能本身就很大）
-        #  allow Special block弹性 to max_with_special，超出才强制分割
+        # Check for oversized chunks (a special block can be large by itself);
+        # special blocks may stretch up to max_with_special, only chunks beyond that are force-split
         new_chunks = []
         for chunk in chunks:
             chunk_tokens = self._length_function(chunk)
             if chunk_tokens > self.max_with_special:
-                # 这个chunk太大了，连弹性限制都超过了， need 强制分割
+                # This chunk exceeds even the elastic limit and must be force-split
                 logger.warning(
-                    f"检测 to 超大chunk({chunk_tokens}T > {self.max_with_special}T), 将强制分割（可能是超大Code blocks or Table）"
+                    f"Oversized chunk detected ({chunk_tokens}T > {self.max_with_special}T), "
+                    "force-splitting (likely an oversized code block or table)"
                 )
-                # 用Minimum分隔符强制分割
+                # Force-split by length
                 sub_chunks = self._split_by_length(chunk)
                 new_chunks.extend(sub_chunks)
             else:
@@ -301,22 +302,22 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
 
         chunks = new_chunks
 
-        # 统一添加overlap
+        # Add overlap uniformly
         if add_overlap and len(chunks) > 1:
             chunks = self._overlap_processor.add_overlap_to_chunks(chunks)
 
         return chunks
 
     def _recursive_split_text(self, text: str, separators: list[str], add_overlap: bool = True) -> list[str]:
-        """纯text recursive分割（ no Special block）
+        """Recursively split plain text (no special blocks)
 
         Args:
-            text: 纯text
-            separators: 分隔符List
-            add_overlap: Whether添加overlap
+            text: Plain text
+            separators: Separator list
+            add_overlap: Whether to add overlap
 
         Returns:
-            ChunkList
+            Chunk list
         """
         text_len = self._length_function(text)
 
@@ -324,10 +325,10 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
             return [text] if text.strip() else []
 
         if not separators:
-            #  no 分隔符，强制Truncate
+            # No separators left: force-truncate
             return self._split_by_length(text)
 
-        # 尝试用Current分隔符分割
+        # Try splitting with the current separator
         separator = separators[0]
         remaining_seps = separators[1:]
 
@@ -336,7 +337,7 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
         else:
             splits = list(text)
 
-        # Mergesplits is chunks
+        # Merge the splits into chunks
         chunks = []
         current_parts = []
         current_len = 0
@@ -345,11 +346,11 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
             if not split:
                 continue
 
-            # Restore分隔符
+            # Restore the separator
             split_with_sep = split + separator if i < len(splits) - 1 and separator else split
             split_len = self._length_function(split_with_sep)
 
-            # singlesplit超限， need recursive
+            # A single split exceeds the limit and needs recursive splitting
             if split_len > self.chunk_size:
                 if current_parts:
                     chunks.append("".join(current_parts))
@@ -363,12 +364,12 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
                     chunks.extend(self._split_by_length(split))
                 continue
 
-            # CheckWhether can 添加 to Currentchunk
+            # Check whether it fits into the current chunk
             if current_len + split_len <= self.chunk_size:
                 current_parts.append(split_with_sep)
                 current_len += split_len
             else:
-                # Currentchunk already 满
+                # The current chunk is full
                 if current_parts:
                     chunks.append("".join(current_parts))
                 current_parts = [split_with_sep]
@@ -377,14 +378,14 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
         if current_parts:
             chunks.append("".join(current_parts))
 
-        # 添加overlap
+        # Add overlap
         if add_overlap and len(chunks) > 1:
             chunks = self._overlap_processor.add_overlap_to_chunks(chunks)
 
         return chunks
 
     def _split_by_length(self, text: str) -> list[str]:
-        """按Length强制Truncatetext
+        """Force-truncate text by length
 
         Args:
             text: Text to split
@@ -413,13 +414,13 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
         return chunks
 
     def _resplit_oversized_chunk(self, oversized_content: str) -> list[str]:
-        """重new分割超大chunk（ for LinkRestore后 Process）
+        """Re-split an oversized chunk (used after link restoration)
 
         Args:
-            oversized_content: 超大chunkContent
+            oversized_content: Oversized chunk content
 
         Returns:
-            重new分割后 chunkList
+            Re-split chunk list
         """
         protected_content, chunk_link_map = self._link_handler.protect_markdown_links(oversized_content)
         resplit_protected = self._split_with_protection(protected_content, self.separators, add_overlap=False)

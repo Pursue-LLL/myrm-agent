@@ -1096,8 +1096,8 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - L2 先验收缩阻尼（Shrinkage Damping）：每一步拟合时按 $\lambda = 0.02$ 向基准 $1.0$ 回拉（$w' = \text{clamp}(w + \text{step} - \lambda (w - 1),\ 0.05,\ 3.0)$），防止长期漂移或极化；
   - 启发式意图与反馈捕获：`detect_implicit_action` 用正则从自然语言文本中识别偏好意图（按规则顺序取第一个命中），`fit_step` 接收结构化行为反馈（如 `MORE_CODE`、`MORE_RECENT`）。
 - **检索打分层平滑融合（`retriever_scoring.py`）**：
-  - 在几何加权打分 `_geometric_score` 中，`RetrievalConfig.enable_gravity_decay`（默认关闭，幂指数 `gravity_power`、时间尺度 `gravity_time_scale_hours`）开启后用重力衰减因子取代半衰期时效信号，互动数取记忆的 `access_count`——这是唯一让召回次数进入评分的路径；`dynamic_signal_weights` 动态偏好按信号名缩放各信号的类型先验权重（先验为 0 的信号保持为 0，缩放系数下限 $0.01$）并重新归一化；
-  - 零大模型调用开销（<0.1ms），纯算术确定性推导，实现毫秒级会话粒度个性化检索重排。
+  - 在几何加权打分 `_geometric_score` 中，`RetrievalConfig.enable_gravity_decay`（默认关闭，幂指数 `gravity_power`、时间尺度 `gravity_time_scale_hours`）开启后用重力衰减因子取代半衰期时效信号，互动数取记忆的 `access_count`（这是唯一让召回次数进入评分的路径），质量评分取 `importance` 与 `user_rating` 中较大者（默认值均为 0.5，所以未被评价的记忆都按 0.5 计）；`dynamic_signal_weights` 动态偏好按信号名缩放各信号的类型先验权重（先验为 0 的信号保持为 0，缩放系数下限 $0.01$）并重新归一化；
+  - 零大模型调用，纯算术确定性推导（开发机实测 CPU 时间：单次重力衰减因子约 2 µs，50 个候选的完整重排约 0.55 ms，开启与关闭重力衰减无可测差异），实现毫秒级会话粒度个性化检索重排。
 - **详细设计**：详见 [strategies/_ARCH.md](strategies/_ARCH.md)。
 
 ---

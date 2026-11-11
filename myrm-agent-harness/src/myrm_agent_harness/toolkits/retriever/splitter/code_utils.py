@@ -1,18 +1,18 @@
 """Code-related text splitting utilities.
 
-Provides programming language detection, code block protection, and AST-aware splitting.
+Provides programming language detection, code block protection, and language-aware splitting.
 
 [INPUT]
 - langchain_text_splitters (optional `[retrieval]` extra)::Language, RecursiveCharacterTextSplitter
 
 [OUTPUT]
 - detect_code_language: Detect programming language from code block or text
-- split_large_code_block: Split large code block using AST-aware splitter
+- split_large_code_block: Split large code block with a language-aware splitter
 - protect_code_blocks: Protect code blocks with placeholders during splitting
 - restore_code_blocks: Restore code blocks from placeholders
 
 [POS]
-Code-aware splitting utilities for AST-guided chunking and syntax block protection.
+Code-aware splitting utilities for language-aware chunking and code block protection.
 """
 
 import logging
@@ -34,7 +34,7 @@ def _get_langchain_splitters():
     return Language, RecursiveCharacterTextSplitter
 
 
-# 语言映射表（映射 to langchain Language枚举）
+# Language aliases mapped to langchain Language enum names
 LANGUAGE_MAP = {
     "cpp": "cpp",
     "c++": "cpp",
@@ -80,16 +80,16 @@ LANGUAGE_MAP = {
 
 
 def detect_code_language(code: str) -> str | None:
-    """Auto检测代码语言（Only检测langchain from_languageSupport 语言）
+    """Auto-detect the programming language of code (only languages supported by langchain's from_language)
 
     Args:
-        code: 代码Content
+        code: Code content
 
     Returns:
-        检测 to  语言名称，If no 法检测则ReturnNone
+        Detected language name, or None if it cannot be detected
 
     Note:
-        只检测langchain RecursiveCharacterTextSplitter.from_languageSupport 语言：
+        Only languages supported by langchain's RecursiveCharacterTextSplitter.from_language are detected:
         cpp, go, java, kotlin, js, ts, php, proto, python, rst, ruby, rust,
         scala, swift, markdown, latex, html, sol, csharp, cobol, c, lua,
         perl, haskell, elixir, powershell, visualbasic6
@@ -97,7 +97,7 @@ def detect_code_language(code: str) -> str | None:
     if not code or len(code.strip()) < 10:
         return None
 
-    # 语言特征Mode（只保留langchainSupport ）
+    # Language signature patterns (only languages langchain supports)
     language_patterns = {
         "python": [
             r"\bdef\s+\w+\s*\(",
@@ -160,7 +160,7 @@ def detect_code_language(code: str) -> str | None:
         ],
     }
 
-    # Statistics每种语言 Match数
+    # Count the matching patterns of each language
     scores = {}
     for lang, patterns in language_patterns.items():
         score = 0
@@ -173,27 +173,27 @@ def detect_code_language(code: str) -> str | None:
     if not scores:
         return None
 
-    # 特殊Process：HTML优先（ avoid  and JSX混淆）
+    # Special case: prefer HTML (avoids confusion with JSX)
     if "html" in scores and scores["html"] >= 3:
         detected_lang = "html"
     else:
-        # Return得分最高 语言
+        # Pick the language with the highest score
         detected_lang = max(scores.items(), key=lambda x: x[1])[0]
 
-    logger.warning(f"Auto检测代码语言: {detected_lang} (Match度: {scores[detected_lang]})")
+    logger.warning(f"Auto-detected code language: {detected_lang} (match score: {scores[detected_lang]})")
     return detected_lang
 
 
 def split_large_code_block(code_content: str, language: str, max_tokens: int = 2000) -> list[str]:
-    """对大型Code blocks using ASTPerform智能分割
+    """Split a large code block with the language-aware splitter
 
     Args:
-        code_content: 代码Content（ not including```标记）
-        language: 代码语言
-        max_tokens: Maximumtoken数阈Value
+        code_content: Code content (without the ``` fence markers)
+        language: Code language
+        max_tokens: Maximum token count per fragment
 
     Returns:
-        分割后 代码片段List
+        List of split code fragments
     """
     from myrm_agent_harness.utils.text_utils import get_token_count
 
@@ -203,7 +203,7 @@ def split_large_code_block(code_content: str, language: str, max_tokens: int = 2
 
     lang_key = LANGUAGE_MAP.get(language.lower())
     if not lang_key:
-        logger.warning(f" not Support 代码语言: {language}， using simple行分割")
+        logger.warning(f"Unsupported code language: {language}, falling back to line-based splitting")
         return _split_by_lines(code_content, max_tokens)
 
     try:
@@ -215,16 +215,16 @@ def split_large_code_block(code_content: str, language: str, max_tokens: int = 2
         )
 
         chunks = splitter.split_text(code_content)
-        logger.warning(f"AST分割大型{language}Code blocks: {code_tokens}Token -> {len(chunks)}个片段")
+        logger.warning(f"Split large {language} code block: {code_tokens} tokens -> {len(chunks)} fragments")
         return chunks
 
     except Exception as e:
-        logger.warning(f"AST分割Failure: {e!s}，保持Code blockscomplete")
+        logger.warning(f"Language-aware split failed: {e!s}; keeping the code block intact")
         return [code_content]
 
 
 def _split_by_lines(code_content: str, max_tokens: int) -> list[str]:
-    """按行simple分割代码"""
+    """Split code by lines, packing lines into fragments of at most max_tokens."""
     from myrm_agent_harness.utils.text_utils import get_token_count
 
     lines = code_content.split("\n")
@@ -248,14 +248,14 @@ def _split_by_lines(code_content: str, max_tokens: int) -> list[str]:
 
 
 def protect_code_blocks(text: str, max_chunk_tokens: int = 675) -> tuple[str, dict[str, str]]:
-    """保护markdownCode blocks not 被分割，对大型Code blocks using AST智能分割
+    """Replace markdown fenced code blocks with placeholders so that later splitting cannot cut them
 
     Args:
-        text: originaltext
-        max_chunk_tokens: 目标Chunk MaximumToken数
+        text: Original text
+        max_chunk_tokens: Not used; code blocks are always kept whole
 
     Returns:
-        (Processedtext, 占位符映射Dict)
+        (Processed text, placeholder-to-code-block mapping)
     """
     code_block_pattern = r"```(\w*)\n([\s\S]*?)```"
     code_blocks = {}
@@ -266,34 +266,34 @@ def protect_code_blocks(text: str, max_chunk_tokens: int = 675) -> tuple[str, di
         language = match.group(1) or ""
         code_content = match.group(2)
 
-        # If没 has 标记语言，尝试Auto检测
+        # Without a language tag, try auto-detection
         if not language or language in ("text", "txt", ""):
             detected = detect_code_language(code_content)
             if detected:
                 language = detected
-                logger.warning(f"Code blocks not yet 标记语言，Auto检测 is : {language}")
+                logger.warning(f"Code block has no language tag; auto-detected: {language}")
             else:
                 language = "text"
 
-        #  not 预先分割Code blocks,保持complete性
-        # IfToken超限, in 整体ChunkStageProcess
+        # Code blocks are not pre-split, so they stay whole;
+        # oversized ones are handled at the whole-chunk stage
         code_chunks = [code_content]
 
         if len(code_chunks) == 1:
-            # 小Code blocks，保持complete( using 修正后 language)
+            # Keep the code block whole (using the corrected language)
             placeholder = f"__CODE_BLOCK_{counter}__"
             code_blocks[placeholder] = f"```{language}\n{code_content}\n```"
             counter += 1
             return placeholder
         else:
-            # 大Code blocks被分割成multiple片段
+            # The code block was split into multiple fragments
             placeholders = []
             for chunk in code_chunks:
                 placeholder = f"__CODE_BLOCK_{counter}__"
                 code_blocks[placeholder] = f"```{language}\n{chunk}\n```"
                 placeholders.append(placeholder)
                 counter += 1
-            logger.warning(f"Code blocks already 分割 is {len(code_chunks)}个片段")
+            logger.warning(f"Code block split into {len(code_chunks)} fragments")
             return "\n\n".join(placeholders)
 
     protected_text = re.sub(code_block_pattern, replace_code_block, text)
@@ -301,14 +301,14 @@ def protect_code_blocks(text: str, max_chunk_tokens: int = 675) -> tuple[str, di
 
 
 def restore_code_blocks(text: str, code_blocks: dict[str, str]) -> str:
-    """RestoreCode blocks
+    """Restore code blocks from their placeholders
 
     Args:
-        text: Contains占位符 text
-        code_blocks: 占位符映射Dict
+        text: Text containing placeholders
+        code_blocks: Placeholder-to-code-block mapping
 
     Returns:
-        Restore后 text
+        Text with the code blocks restored
     """
     for placeholder, code_block in code_blocks.items():
         text = text.replace(placeholder, code_block)

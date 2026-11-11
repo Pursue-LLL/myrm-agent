@@ -1,4 +1,4 @@
-"""LLM toollayer: JSON handles, modelparameter, log"""
+"""LLM utility layer: JSON handling, model parameters, logging, proxy validation"""
 
 from myrm_agent_harness.toolkits.llms.utils.logger import (
     is_verbose_request_logging_enabled,

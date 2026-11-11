@@ -166,7 +166,7 @@ def downgrade_components(msg: OutboundMessage, capabilities: ChannelCapabilities
     internationalization compliance). Business layer should inject user's preferred
     locale via metadata (e.g., from UserConfig or browser Accept-Language header).
     Fallback messages are rendered in the specified language:
-    - "zh": "item", "reply countselect"
+    - "zh": "选项", "回复数字选择"
     - "en": "Options", "Reply with a number to select"
 
     **Logging**: When components are downgraded, an INFO-level log is emitted:

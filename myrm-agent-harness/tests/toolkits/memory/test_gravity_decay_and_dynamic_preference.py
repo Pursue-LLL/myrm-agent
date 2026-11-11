@@ -175,10 +175,32 @@ class TestRetrieverIntegration:
             content="Kafka rebalance storm incident report",
             created_at=datetime.now(UTC) - timedelta(hours=2),
             access_count=10,
-            rating=0.8,
+            user_rating=0.8,
         )
         factor = SignalCalculator.gravity_decay_factor(mem)
         assert factor > 0.0
+
+    def test_gravity_decay_quality_term_reads_importance_and_user_rating(self) -> None:
+        created = datetime.now(UTC) - timedelta(hours=2)
+
+        def factor(importance: float = 0.5, user_rating: float = 0.5) -> float:
+            memory = SemanticMemory(
+                id="mem-q",
+                content="Kafka rebalance storm incident report",
+                created_at=created,
+                importance=importance,
+                user_rating=user_rating,
+            )
+            return SignalCalculator.gravity_decay_factor(memory)
+
+        neutral = factor()
+        # Default weights: numerator 1 + 0.25 * quality, so quality 1.0 against the neutral 0.5 is 1.25 / 1.125.
+        lift = 1.25 / 1.125
+        assert factor(importance=1.0) / neutral == pytest.approx(lift, rel=1e-4)
+        assert factor(user_rating=1.0) / neutral == pytest.approx(lift, rel=1e-4)
+        # Quality is the larger of the two fields.
+        assert factor(importance=0.2, user_rating=0.9) == pytest.approx(factor(importance=0.9), rel=1e-4)
+        assert factor(importance=0.0, user_rating=0.0) < neutral
 
     def test_retriever_ranking_with_gravity_decay(self) -> None:
         now = datetime.now(UTC)
@@ -187,14 +209,14 @@ class TestRetrieverIntegration:
             content="Legacy Kafka concepts from 2021",
             created_at=now - timedelta(days=90),
             access_count=1,
-            rating=0.2,
+            user_rating=0.2,
         )
         new_hot_mem = SemanticMemory(
             id="new-pulse",
             content="Kafka rebalance storm live incident fix",
             created_at=now - timedelta(minutes=30),
             access_count=15,
-            rating=0.9,
+            user_rating=0.9,
         )
 
         res_old = MemorySearchResult(
@@ -239,9 +261,7 @@ class TestRetrieverIntegration:
         )
 
         # Apply high recency multiplier in dynamic weights
-        cfg_dynamic = RetrievalConfig(
-            dynamic_signal_weights={"recency": 3.0, "importance": 1.0}
-        )
+        cfg_dynamic = RetrievalConfig(dynamic_signal_weights={"recency": 3.0, "importance": 1.0})
         retriever = MemoryRetriever(cfg_dynamic)
 
         # Procedural rule should NOT be suppressed by its 120-day age because recency prior is 0

@@ -4,9 +4,9 @@
 (No external dependencies, pure data type definitions)
 
 [OUTPUT]
-- ActionButton, QuickReply, SelectMenu, ComponentRow: 交互Component
-- ToolStep: ToolExecuteStep
-- render_components_as_text, render_quick_replies_as_text: textdegradation渲染（Support in 英文国际化）
+- ActionButton, QuickReply, SelectMenu, ComponentRow: Interactive components
+- ToolStep: Tool execution step
+- render_components_as_text, render_quick_replies_as_text: Plain-text fallback rendering (English and Chinese locales)
 
 [POS]
 UI component type definitions. Cross-channel interactive component abstractions for buttons, quick replies, and select menus.

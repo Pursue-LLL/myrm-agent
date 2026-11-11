@@ -5,7 +5,7 @@ Provides consistent tokenization across different memory components
 
 Supports:
 - English word segmentation (whitespace + punctuation)
-- CJK character segmentation (per-character for Chinese/Japanese/Korean)
+- CJK text: a run of consecutive CJK characters is one token (no per-character splitting)
 - Lowercase normalization for case-insensitive matching
 - Efficient single-pass processing
 
@@ -23,7 +23,7 @@ Supports:
 [POS]
 Unified multi-language tokenization for memory retrieval. Uses re.UNICODE
 \w+ pattern for both English and CJK languages. Consecutive CJK characters
-are treated as single tokens (e.g., "performanceoptimize" → 1 token). Supports adaptive
+are treated as single tokens (e.g., "性能优化" → 1 token). Supports adaptive
 dual-channel selection, keyword overlap scoring, and diversity analysis.
 """
 
@@ -35,7 +35,7 @@ _WORD_PATTERN = re.compile(r"\w+", re.UNICODE)
 
 
 def tokenize_query(text: str) -> list[str]:
-    """Tokenize Query text preserving token order.
+    """Tokenize query text preserving token order.
 
     Used by adaptive channel selection where token count and order matter.
 
@@ -50,8 +50,10 @@ def tokenize_query(text: str) -> list[str]:
         ['python', 'performance']
         >>> tokenize_query("hello,world")
         ['hello', 'world']
-        >>> tokenize_query("Pythonperformanceoptimize")
-        ['python', '', 'can', '', '']
+        >>> tokenize_query("Python 性能优化")
+        ['python', '性能优化']
+        >>> tokenize_query("Python性能优化")
+        ['python性能优化']
     """
     if not text:
         return []

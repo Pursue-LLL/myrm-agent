@@ -1,13 +1,13 @@
 """Standardized webhook error responses.
 
-遵循RFC 7807 Problem Details规范，provides机器可Parse ErrorFormat。
+Follows the RFC 7807 Problem Details specification and provides a machine-parsable error format.
 
 [INPUT]
-( no Externaldepends on)
+(no external dependencies)
 
 [OUTPUT]
-- WebhookResponseError: RFC 7807standard化ErrorResponse
-- SecurityViolation: Security违规Exception
+- WebhookResponseError: Standardized RFC 7807 error response
+- SecurityViolation: Security violation exception
 
 [POS]
 Webhook error response layer. Provides RFC 7807 standardized error format,
@@ -20,14 +20,14 @@ import time
 
 
 class WebhookResponseError(Exception):
-    """RFC 7807 Problem Detailsstandard化ErrorResponse（封装trace_id）
+    """Standardized RFC 7807 Problem Details error response (wraps trace_id)
 
-    特性：
-    - 机器可Parse（type/status/detailField）
-    - 人类可读（titleField）
-    - 脱敏Process（ not ContainsInternalPath、敏感时间戳 etc.）
-    - 国际化友好（ErrorTypeindependent于Error消息）
-    - 强制追踪（trace_id in 构造时注入， avoid 遗漏）
+    Features:
+    - Machine-parsable (type/status/detail fields)
+    - Human-readable (title field)
+    - Sanitized (no internal paths, sensitive timestamps, etc.)
+    - i18n-friendly (the error type is independent of the error message)
+    - Mandatory tracing (trace_id is injected at construction so it cannot be forgotten)
 
     Example:
         {
@@ -49,15 +49,15 @@ class WebhookResponseError(Exception):
         trace_id: str,
         retry_after: int | None = None,
     ) -> None:
-        """构造ErrorResponse
+        """Build the error response
 
         Args:
-            status_code: HTTPState码
-            error_type: ErrorType标识（如body-too-large）
-            title: ErrorHeading（人类可读）
-            detail: Error详情（Concreteoriginal因）
-            trace_id: 分布式追踪ID（required， ensure 可追踪）
-            retry_after: Retry延迟秒数（Support429/503 etc.State码）
+            status_code: HTTP status code
+            error_type: Error type identifier (e.g. body-too-large)
+            title: Error title (human-readable)
+            detail: Error detail (the concrete cause)
+            trace_id: Distributed trace ID (required, keeps the error traceable)
+            retry_after: Retry delay in seconds (supports status codes such as 429/503)
         """
         self.status_code = status_code
         self.error_type = error_type
@@ -68,10 +68,10 @@ class WebhookResponseError(Exception):
         super().__init__(detail)
 
     def to_dict(self) -> dict[str, object]:
-        """Convert is RFC 7807 Problem DetailsFormat
+        """Convert to the RFC 7807 Problem Details format
 
         Returns:
-            RFC 7807standardFormat ErrorResponseDict（含trace_id）
+            Error response dict in RFC 7807 format (including trace_id)
         """
         result: dict[str, object] = {
             "type": f"https://docs.example.com/errors/webhook/{self.error_type}",
@@ -82,7 +82,7 @@ class WebhookResponseError(Exception):
             "trace_id": self.trace_id,
         }
 
-        # RFC 6585/7231: Supportretry_after（429 Rate Limit, 503 Service Unavailable etc.）
+        # RFC 6585/7231: support retry_after (429 Rate Limit, 503 Service Unavailable, etc.)
         if self.retry_after is not None:
             result["retry_after"] = self.retry_after
 
@@ -90,7 +90,7 @@ class WebhookResponseError(Exception):
 
 
 class SecurityViolationError(WebhookResponseError):
-    """Security违规Exception（SignatureValidateFailure、重放攻击 etc.）"""
+    """Security violation exception (signature validation failure, replay attack, etc.)"""
 
     def __init__(
         self,
@@ -98,12 +98,12 @@ class SecurityViolationError(WebhookResponseError):
         trace_id: str,
         error_type: str = "security-violation",
     ) -> None:
-        """构造Security违规Exception
+        """Build the security violation exception
 
         Args:
-            detail: Error详情（如"Invalid signature"）
-            trace_id: 分布式追踪ID
-            error_type: ErrorType标识（Defaultsecurity-violation）
+            detail: Error detail (e.g. "Invalid signature")
+            trace_id: Distributed trace ID
+            error_type: Error type identifier (defaults to security-violation)
         """
         super().__init__(
             status_code=401,
