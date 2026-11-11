@@ -71,17 +71,31 @@ describe('downloadMessageAsDocx', () => {
     expect(raw).toContain(OPENAI_KEY);
   });
 
-  it('includes the reasoning, before the answer, only when asked to', async () => {
-    const message = messageOf({ content: 'The answer.', reasoning: 'Step by step thinking.' });
+  it('sets the reasoning apart from the answer, in a labelled indented block, only when asked to', async () => {
+    const message = messageOf({
+      content: 'The answer.',
+      reasoning: 'First I weigh the options.\n\n- option a\n- option b',
+    });
 
     await downloadMessageAsDocx(message, true);
     await downloadMessageAsDocx(message, false);
 
-    const withReasoning = paragraphTexts((await openDocx(triggerDownload.mock.calls[0][0])).document).join('\n');
-    const without = paragraphTexts((await openDocx(triggerDownload.mock.calls[1][0])).document).join('\n');
-    expect(withReasoning.indexOf('Step by step thinking.')).toBeGreaterThanOrEqual(0);
-    expect(withReasoning.indexOf('Step by step thinking.')).toBeLessThan(withReasoning.indexOf('The answer.'));
-    expect(without).not.toContain('Step by step thinking.');
+    const withReasoning = (await openDocx(triggerDownload.mock.calls[0][0])).document;
+    const without = (await openDocx(triggerDownload.mock.calls[1][0])).document;
+    const paragraphs = elements(withReasoning, 'w:p');
+    const indentOf = (paragraph: Element): number =>
+      Number(elements(paragraph, 'w:ind')[0]?.getAttribute('w:left') ?? 0);
+    expect(paragraphTexts(withReasoning)).toEqual([
+      'Thinking',
+      'First I weigh the options.',
+      'option a',
+      'option b',
+      'The answer.',
+    ]);
+    expect(elements(paragraphs[0], 'w:b')).toHaveLength(1);
+    expect(paragraphs.slice(0, 4).every((paragraph) => indentOf(paragraph) > 0)).toBe(true);
+    expect(indentOf(paragraphs[4])).toBe(0);
+    expect(paragraphTexts(without)).toEqual(['The answer.']);
   });
 
   it('lists each citation on a line of its own, as a link when it has an address', async () => {

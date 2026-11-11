@@ -84,6 +84,17 @@ describe.each(Object.keys(FORMATS))('the file name of a single message exported 
     expect(await titleOf(format, `${line}\nBody`)).toBe(title);
   });
 
+  it.each(['#', '-', '1.', '>', '> #'])(
+    'falls back to a plain name when the first line is nothing but the marker %j',
+    async (line) => {
+      expect(await titleOf(format, `${line}\nBody`)).toBe('message');
+    },
+  );
+
+  it('cuts the name by character, so an emoji at the cut is kept whole', async () => {
+    expect(await titleOf(format, `${'a'.repeat(79)}😀${'b'.repeat(10)}`)).toBe(`${'a'.repeat(79)}😀`);
+  });
+
   it('keeps what is not a marker: a hashtag and a number that is not a list item', async () => {
     expect(await titleOf(format, '#hashtag first')).toBe('#hashtag first');
     expect(await titleOf(format, '2026 plan')).toBe('2026 plan');
