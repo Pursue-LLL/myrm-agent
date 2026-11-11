@@ -1,8 +1,9 @@
-"""API contract: idempotent user retry while agent-stream is still active.
+"""API contract: a user retry while agent-stream is still active.
 
 Locks the cross-layer behavior for client retries:
-- same chat_id + message_id + content must not create a second user turn
-- a retry while the chat session is still active must surface AgentBusyError (409 SSE)
+- a retry of the message the chat is running attaches to that turn: it replays the turn's stream and follows it to
+  the end, with no second execution and no second user row (a different message on the busy chat is refused as busy,
+  which test_reconnect_integration covers)
 - a resume that lost the race to the approval timeout is refused with a real HTTP 409
 """
 
@@ -11,11 +12,13 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.agent.streaming.stream_buffer import ResilientStreamBuffer
 
 from app.database.dto import MessageDTO
 from app.services.agent.execution_cache.prewarm.types import TurnPrewarmJoinResult
@@ -30,18 +33,6 @@ _SKIP_PREWARM = TurnPrewarmJoinResult(
     prewarm_ms=None,
     still_warming=False,
 )
-
-
-class _SessionRegisteredSet(set[str]):
-    """Fire an asyncio.Event when a chat_id is registered as active."""
-
-    def __init__(self, event: asyncio.Event) -> None:
-        super().__init__()
-        self._event = event
-
-    def add(self, item: str) -> None:
-        super().add(item)
-        self._event.set()
 
 
 async def _collect_agent_stream_events(
@@ -83,16 +74,10 @@ async def _list_user_messages(chat_id: str) -> list[MessageDTO]:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> None:
-    """Same message_id retry during an active turn must not duplicate the user row."""
-    from app.services.agent.gateway import get_agent_gateway
-
-    gateway = get_agent_gateway()
-    session_registered = asyncio.Event()
+async def test_agent_stream_retry_while_active_attaches_to_the_running_turn(app) -> None:
+    """The retry gets the running turn's stream: no busy refusal, no second execution, no second user row."""
     release_first_stream = asyncio.Event()
-
-    original_sessions = gateway._active_sessions
-    gateway._active_sessions = _SessionRegisteredSet(session_registered)
+    retry_attached = asyncio.Event()
 
     async def _mock_process_stream(*_args: object, **_kwargs: object):
         yield {"type": "message", "data": "retry-contract-ok"}
@@ -119,6 +104,21 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
     mock_coordinator = MagicMock()
     mock_coordinator.join_for_turn = AsyncMock(return_value=_SKIP_PREWARM)
 
+    subscribe = ResilientStreamBuffer.subscribe
+    subscriptions = 0
+
+    def _count_subscriptions(buffer: ResilientStreamBuffer, last_event_id: str | None = None) -> AsyncGenerator[str]:
+        # The turn's own response subscribes to its buffer once; a second subscription is the retry attaching.
+        # The in-process test client hands back a response only after its body is complete, so this is the one
+        # signal that the retry reached the running turn.
+        nonlocal subscriptions
+        if buffer.run_id == message_id:
+            subscriptions += 1
+            if subscriptions == 2:
+                retry_attached.set()
+        return subscribe(buffer, last_event_id)
+
+    turns: list[asyncio.Task[list[dict[str, object]]]] = []
     try:
         with (
             patch(
@@ -137,61 +137,47 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
                 "app.services.agent.execution_cache.prewarm.coordinator.get_turn_prewarm_coordinator",
                 return_value=mock_coordinator,
             ),
+            patch.object(ResilientStreamBuffer, "subscribe", _count_subscriptions),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
                 base_url="http://testserver",
             ) as client:
-                first_task = asyncio.create_task(_collect_agent_stream_events(client, payload))
+                first_turn = asyncio.create_task(_collect_agent_stream_events(client, payload))
+                turns.append(first_turn)
 
-                try:
-                    await asyncio.wait_for(session_registered.wait(), timeout=30.0)
-                except TimeoutError:
-                    if not first_task.done():
-                        first_task.cancel()
-                    with pytest.raises(asyncio.CancelledError):
-                        await first_task
-                    pytest.fail("First agent-stream never registered an active chat session")
-
+                # The turn reserves the chat before it persists the user message, so a retry sent after the
+                # persist always meets an active session.
                 persist_deadline = asyncio.get_running_loop().time() + 30.0
-                while asyncio.get_running_loop().time() < persist_deadline:
-                    if await _list_user_messages(chat_id):
-                        break
+                while not await _list_user_messages(chat_id):
+                    assert not first_turn.done(), f"first agent-stream ended before persisting: {first_turn.result()}"
+                    assert asyncio.get_running_loop().time() < persist_deadline, (
+                        "first agent-stream never persisted the user message"
+                    )
                     await asyncio.sleep(0.05)
-                else:
-                    if not first_task.done():
-                        first_task.cancel()
-                    pytest.fail("First agent-stream never persisted the user message")
 
-                retry_events = await _collect_agent_stream_events(client, payload)
-
-                user_messages = await _list_user_messages(chat_id)
-                assert len(user_messages) == 1, (
-                    f"expected one persisted user turn, found {len(user_messages)} for chat_id={chat_id}"
-                )
-                assert user_messages[0].id == message_id
-                assert user_messages[0].content == query_text
-
-                assert retry_events, "Retry request should emit at least one SSE event"
-                retry_error = next(
-                    (event for event in retry_events if event.get("type") == "error"),
-                    None,
-                )
-                assert retry_error is not None, f"Expected busy error event, got: {retry_events}"
-                assert retry_error.get("error_type") == "AgentBusyError"
-                assert retry_error.get("status_code") == 409
-                assert retry_error.get("data") == ("Agent is busy processing another request for this session.")
+                retry_turn = asyncio.create_task(_collect_agent_stream_events(client, payload))
+                turns.append(retry_turn)
+                try:
+                    await asyncio.wait_for(retry_attached.wait(), timeout=30.0)
+                except TimeoutError:
+                    outcome = retry_turn.result() if retry_turn.done() else "still pending"
+                    pytest.fail(f"retry never attached to the running turn: {outcome}")
 
                 release_first_stream.set()
-                first_events = await asyncio.wait_for(first_task, timeout=30.0)
+                first_events, retry_events = await asyncio.wait_for(asyncio.gather(first_turn, retry_turn), timeout=30.0)
+
+                assert retry_events == first_events
                 assert any(event.get("type") == "message" for event in first_events)
+                assert mock_agent.process_stream.call_count == 1
+                user_messages = await _list_user_messages(chat_id)
+                assert [message.id for message in user_messages] == [message_id]
+                assert user_messages[0].content == query_text
     finally:
         release_first_stream.set()
-        gateway._active_sessions = original_sessions
-        if "first_task" in locals() and not first_task.done():
-            first_task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await first_task
+        for turn in turns:
+            turn.cancel()
+        await asyncio.gather(*turns, return_exceptions=True)
 
 
 @pytest.mark.integration

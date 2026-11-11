@@ -1,4 +1,7 @@
-"""Chrome READ E2E: same message_id retry surfaces AgentBusy without duplicating user rows."""
+"""Chrome READ E2E: a same-message_id retry against a reserved session that has no stream buffer to attach to.
+
+It surfaces AgentBusy without duplicating user rows.
+"""
 
 from __future__ import annotations
 
