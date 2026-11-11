@@ -278,6 +278,18 @@ async def _wait_citation_ui(chat: McpChatSession, *, timeout_sec: float) -> dict
     return last
 
 
+def _assert_citations_shown(ui_state: dict[str, object]) -> None:
+    """The reply lists its sources and carries inline citation badges and a marker."""
+    sources, badges = ui_state.get("sourceCount"), ui_state.get("citationBadgeCount")
+    assert ui_state.get("ready") is True, ui_state
+    assert isinstance(sources, int | float) and sources > 0, ui_state
+    assert ui_state.get("hasEvidenceButton") is True, ui_state
+    assert isinstance(badges, int | float) and badges >= 1, ui_state
+    assert ui_state.get("hasInlineBadge") is True, ui_state
+    assert ui_state.get("hasCitationMarker") is True, ui_state
+    assert ui_state.get("triggerTag") in ("A", "SPAN"), ui_state
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -328,13 +340,7 @@ async def test_general_agent_web_search_citations_live_chrome_e2e(
 
         ui_state = await _wait_citation_ui(chat, timeout_sec=90.0)
         print(f"E2E_WEB_CITE_UI_STATE: {json.dumps(ui_state, ensure_ascii=False)}", flush=True)
-        assert ui_state.get("ready") is True, ui_state
-        assert int(ui_state.get("sourceCount") or 0) > 0, ui_state
-        assert ui_state.get("hasEvidenceButton") is True, ui_state
-        assert int(ui_state.get("citationBadgeCount") or 0) >= 1, ui_state
-        assert ui_state.get("hasInlineBadge") is True, ui_state
-        assert ui_state.get("hasCitationMarker") is True, ui_state
-        assert ui_state.get("triggerTag") in ("A", "SPAN"), ui_state
+        _assert_citations_shown(ui_state)
     finally:
         await session.aclose()
 
@@ -389,12 +395,6 @@ async def test_fast_search_web_search_citations_live_chrome_e2e(
 
         ui_state = await _wait_citation_ui(chat, timeout_sec=60.0)
         print(f"E2E_FAST_CITE_UI_STATE: {json.dumps(ui_state, ensure_ascii=False)}", flush=True)
-        assert ui_state.get("ready") is True, ui_state
-        assert int(ui_state.get("sourceCount") or 0) > 0, ui_state
-        assert ui_state.get("hasEvidenceButton") is True, ui_state
-        assert int(ui_state.get("citationBadgeCount") or 0) >= 1, ui_state
-        assert ui_state.get("hasInlineBadge") is True, ui_state
-        assert ui_state.get("hasCitationMarker") is True, ui_state
-        assert ui_state.get("triggerTag") in ("A", "SPAN"), ui_state
+        _assert_citations_shown(ui_state)
     finally:
         await session.aclose()
