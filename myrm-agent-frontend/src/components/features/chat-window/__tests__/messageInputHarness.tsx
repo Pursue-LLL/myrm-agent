@@ -168,7 +168,12 @@ vi.mock('../mobile/useMobileSheetEntries', () => ({ useMobileSheetEntries: state
 vi.mock('@/hooks/message-input/useMessageInput', () => ({ useMessageInput: () => state.hook.current }));
 vi.mock('@/hooks/message-input/useSlashCommand', () => ({ useSlashCommand: state.useSlashCommand }));
 vi.mock('@/hooks/message-input/useReferenceMention', () => ({ useReferenceMention: state.useReferenceMention }));
-vi.mock('@/hooks/message-input/useInputHistory', () => ({ useInputHistory: () => state.history.current }));
+vi.mock('@/hooks/message-input/useInputHistory', () => ({
+  useInputHistory: (params: Record<string, unknown>) => {
+    state.propsByStub.set('useInputHistory', params);
+    return state.history.current;
+  },
+}));
 vi.mock('@/hooks/message-input/useComposerContextChips', () => ({
   useComposerContextChips: (params: Record<string, unknown>) => {
     state.propsByStub.set('useComposerContextChips', params);
