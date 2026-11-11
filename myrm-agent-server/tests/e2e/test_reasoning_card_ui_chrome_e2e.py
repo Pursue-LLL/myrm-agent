@@ -125,6 +125,7 @@ def test_reasoning_card_ui_chrome_e2e() -> None:
         assert len(labelled) >= 2, res
         assert all(int(button["width"]) >= 40 and int(button["height"]) >= 40 for button in labelled), res
         assert not any(button["aria"] in {"Expand", "Collapse"} for button in labelled), res
-        assert "tokens" in str(res.get("text", "")).lower(), res
+        # zh renders "N 个推理 Token", en renders "N tokens": the singular stem is in both.
+        assert "token" in str(res.get("text", "")).lower(), res
     finally:
         _request("DELETE", f"{api_url}/api/v1/chats/{chat_id}", None, 30.0)

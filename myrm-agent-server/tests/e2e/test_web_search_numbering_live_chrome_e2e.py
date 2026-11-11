@@ -8,7 +8,11 @@ tool-call -> sources SSE -> numbering -> inline citation chain without spending 
 Contract asserted on the real UI and on the persisted history:
 * every source of a turn carries a unique number and the second turn continues after the first;
 * every inline citation anchor of a message opens the source carrying its number;
+* the persisted history carries the live numbers (the second row may be saved a moment after the turn
+  settles, so the check waits up to 30 s for it);
 * the same numbers and bindings come back after a full reload of the chat.
+
+Both sends assert that the chat is still in fast mode and print the mode around the send.
 """
 
 from __future__ import annotations
@@ -48,6 +52,7 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  #
 from tests.support.test_secrets import resolve_test_env  # noqa: E402
 
 _TURN_WAIT_SEC = 180.0
+_PERSIST_WAIT_SEC = 30.0
 _FIRST_PROMPT = (
     "请必须使用 web_search 工具搜索，query 参数逐字使用「Python 3.14 新特性 site:bilibili.com/video」，"
     "不要改写，也不要追加其他词。用一句话总结搜索结果，正文中用【1】标注引用来源，末尾单独一行写 SCOPE_ONE_OK。"
@@ -91,6 +96,18 @@ _PREP_FAST_SEARCH_JS = """(async () => {
     actionMode: mode,
     searchEnabled: Number(search?.enabledCount ?? 0),
     selection: debug?.selection ?? null,
+  };
+})()"""
+
+# What the page reports about the chat right now; read around every send to tell a mode flip from a stalled send.
+_PAGE_PROBE_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  const store = window.__myrmChatStore?.getState?.();
+  return {
+    actionMode: bridge?.getActionMode?.() ?? null,
+    sendReady: bridge?.isSendReady?.() ?? null,
+    loading: Boolean(store?.loading || store?.isStreaming),
+    messageCount: Array.isArray(store?.messages) ? store.messages.length : null,
   };
 })()"""
 
@@ -211,6 +228,53 @@ async def _wait_cited_messages(chat: McpChatSession, *, expected: int, timeout_s
     return last
 
 
+async def _probe_page(chat: McpChatSession) -> dict[str, object]:
+    """Action mode and send readiness as the page reports them.
+
+    A page that cannot answer is reported instead of raised: this runs while a failure is being described,
+    and the probe must not replace the failure it describes.
+    """
+    try:
+        raw = await chat.evaluate(_PAGE_PROBE_JS, await_promise=False)
+    except Exception as exc:
+        return {"probeError": f"{type(exc).__name__}: {exc}"[:200]}
+    return raw if isinstance(raw, dict) else {"raw": raw}
+
+
+async def _send_fast_search_turn(chat: McpChatSession, prompt: str, *, chat_id_hint: str | None = None) -> None:
+    """Send one turn after asserting the chat is in fast mode; report the page state around the send."""
+    before = await _probe_page(chat)
+    assert before.get("actionMode") == "fast", f"the chat was not in fast mode when the send started: {before}"
+    try:
+        await chat.send_message(prompt, prompt, skip_model_sync=True, chat_id_hint=chat_id_hint)
+    except (RuntimeError, TimeoutError) as exc:
+        message = f"send failed (page before: {before}, after: {await _probe_page(chat)}): {exc}"
+        raise (TimeoutError if isinstance(exc, TimeoutError) else RuntimeError)(message) from exc
+    after = await _probe_page(chat)
+    print(f"E2E_NUMBERING_SEND: mode before={before.get('actionMode')} after={after.get('actionMode')}", flush=True)
+
+
+async def _wait_persisted_source_indexes(api_url: str, chat_id: str, expected: list[list[int]]) -> list[list[int]]:
+    """Poll the persisted source numbers until they equal ``expected`` or the wait runs out.
+
+    The second assistant row can be saved a moment after the live state settles. The moment each row appears
+    is printed, so a late row reads as a delay and a missing row as a failure.
+    """
+    started = time.monotonic()
+    appeared_at: dict[int, float] = {}
+    while True:
+        persisted = _persisted_source_indexes(api_url, chat_id)
+        elapsed = time.monotonic() - started
+        for row_count in range(1, len(persisted) + 1):
+            appeared_at.setdefault(row_count, elapsed)
+        if persisted == expected or elapsed >= _PERSIST_WAIT_SEC:
+            rows = ", ".join(f"row{count}@{at:.1f}s" for count, at in sorted(appeared_at.items())) or "no row yet"
+            print(f"E2E_NUMBERING_PERSISTED: {rows}; matches_live={persisted == expected}; waited={elapsed:.1f}s", flush=True)
+            return persisted
+        heartbeat_once()
+        await asyncio.sleep(1.0)
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -248,13 +312,13 @@ async def test_fast_search_numbers_continue_and_bind_across_turns_chrome_e2e(
         assert isinstance(prep, dict) and prep.get("ready") is True, prep
         heartbeat_once()
 
-        await chat.send_message(_FIRST_PROMPT, _FIRST_PROMPT, skip_model_sync=True)
+        await _send_fast_search_turn(chat, _FIRST_PROMPT)
         first_turn = await chat.wait_turn_settled(timeout_sec=_TURN_WAIT_SEC)
         chat_id = str(first_turn.get("chatId") or "")
         assert chat_id, first_turn
         print(f"E2E_NUMBERING_TURN1: {json.dumps(first_turn, ensure_ascii=False)[:500]}", flush=True)
 
-        await chat.send_message(_SECOND_PROMPT, _SECOND_PROMPT, skip_model_sync=True, chat_id_hint=chat_id)
+        await _send_fast_search_turn(chat, _SECOND_PROMPT, chat_id_hint=chat_id)
         second_turn = await chat.wait_turn_settled(chat_id_hint=chat_id, min_user_msgs=2, timeout_sec=_TURN_WAIT_SEC)
         print(f"E2E_NUMBERING_TURN2: {json.dumps(second_turn, ensure_ascii=False)[:500]}", flush=True)
 
@@ -262,7 +326,10 @@ async def test_fast_search_numbers_continue_and_bind_across_turns_chrome_e2e(
         print(f"E2E_NUMBERING_LIVE_STATE: {json.dumps(live_state, ensure_ascii=False)}", flush=True)
         _assert_numbering_and_binding(live_state)
         live_numbers = [_source_numbers(row) for row in live_state["assistants"]]
-        assert _persisted_source_indexes(active_api_base, chat_id) == live_numbers
+        persisted = await _wait_persisted_source_indexes(active_api_base, chat_id, live_numbers)
+        assert persisted == live_numbers, (
+            f"persisted source numbers differ from the live ones: persisted={persisted} live={live_numbers}"
+        )
 
         await chat.navigate_to_chat(chat_id, ui_base)
         reloaded = await _wait_cited_messages(chat, expected=2, timeout_sec=90.0)

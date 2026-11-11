@@ -163,17 +163,17 @@ def test_reasoning_live_and_stop_chrome_e2e() -> None:
                 assert "思考" in str(thinking.get("cardText") or ""), thinking
                 stopped = client.evaluate(page, _STOP_JS, timeout_sec=30.0)
                 assert isinstance(stopped, dict) and stopped.get("ok") is True, stopped
-                done = wait_for_state(client, page, _STOPPED_JS, timeout_sec=120.0)
-                assert isinstance(done, dict) and done.get("ready") is True, done
-                assert done.get("hasCard") is True, done
-                assert any("思考" in label for label in done.get("labels") or []), done
+                finished = wait_for_state(client, page, _STOPPED_JS, timeout_sec=120.0)
+                assert isinstance(finished, dict) and finished.get("ready") is True, finished
             else:
-                assert int(last_done.get("replyLength", 0)) > 0, last_done
+                # The model answered without streaming a visible thinking phase: the settled turn is the evidence.
+                finished = last_done
+                assert int(finished.get("replyLength", 0)) > 0, finished
 
             # Whenever the turn produced a chain, the card must be mounted with localized controls.
-            if int(done.get("reasoningLength", 0)) > 0 or saw_thinking:
-                assert done.get("hasCard") is True, done
-                assert any("思考" in label for label in done.get("labels") or []), done
+            if int(finished.get("reasoningLength", 0)) > 0 or saw_thinking:
+                assert finished.get("hasCard") is True, finished
+                assert any("思考" in label for label in finished.get("labels") or []), finished
     finally:
         for chat_id in _chat_ids(api_url) - before:
             _api("DELETE", f"{api_url}/api/v1/chats/{chat_id}", timeout=30.0)

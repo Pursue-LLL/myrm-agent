@@ -8,7 +8,9 @@ Two nodes, one UI scenario each:
   the answer settled, and a chain the reader reopens is not folded again.
 
 Model reasoning is non-deterministic, so the live node retries the turn when the model produced no
-reasoning chain, and fails loudly (instead of passing vacuously) when no attempt produced one.
+reasoning chain, and fails loudly (instead of passing vacuously) when no attempt produced one. The
+"open while thinking" assertion applies only when a thinking phase (loading, no answer yet) was observed;
+otherwise the run prints E2E_FOLD_THINKING_PHASE_NOT_SEEN.
 """
 
 from __future__ import annotations
@@ -40,6 +42,9 @@ _PROMPT = "请一步步推理：一个农夫有17只羊，除了9只以外都死
 _HOLD_OPEN_MS = 3500
 _HOLD_CLOSED_MS = 2500
 _LIVE_ATTEMPTS = 2
+# The auto-fold timer restarts on every content or reasoning change and fires 1 s later: the live observer
+# waits for 2 s of silence plus 1.5 s of render slack before the fold is judged.
+_STREAM_QUIET_MS = 3500
 
 _ACCORDION_STATE_JS = """(() => {
   const acc = document.querySelector('[data-testid="reasoning-process-accordion"]');
@@ -74,20 +79,28 @@ _HOLD_JS = """(async () => {
 })()"""
 
 # Sends the prompt without awaiting the bridge's own completion heuristic, then samples the store and the
-# card every 100 ms until the answer has been settled for 4 s. Sampling in-page keeps the timeline free of
-# CDP round-trip jitter.
+# card every 100 ms until the stream has been quiet (no content or reasoning change) for QUIET_MS. The
+# fold timer restarts on every change and fires 1 s later, so a bursty stream cannot end the observation
+# before the fold is due. Sampling in-page keeps the timeline free of CDP round-trip jitter; `transitions`
+# records every loading/card/expanded change so a failure shows what the page was doing.
 _SEND_AND_OBSERVE_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return { ok: false, reason: 'no-bridge' };
   if (bridge.setActionMode) bridge.setActionMode('agent');
+  // Only the assistant row and card added by this send count: a retry must not observe the previous turn's.
+  const assistantsOf = (state) => (Array.isArray(state?.messages) ? state.messages : []).filter((m) => m?.role === 'assistant');
+  const cardsOf = () => Array.from(document.querySelectorAll('[data-testid="reasoning-process-accordion"]'));
+  const baselineRows = assistantsOf(window.__myrmChatStore?.getState?.()).length;
+  const baselineCards = cardsOf().length;
   void bridge.sendChatMessage(PROMPT).catch(() => undefined);
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const sample = () => {
     const state = window.__myrmChatStore?.getState?.();
-    const messages = Array.isArray(state?.messages) ? state.messages : [];
-    const last = [...messages].reverse().find((m) => m?.role === 'assistant') ?? null;
-    const acc = document.querySelector('[data-testid="reasoning-process-accordion"]');
+    const rows = assistantsOf(state);
+    const last = rows.length > baselineRows ? rows[rows.length - 1] : null;
+    const cards = cardsOf();
+    const acc = cards.length > baselineCards ? cards[cards.length - 1] : null;
     const toggles = acc ? Array.from(acc.querySelectorAll('button[aria-expanded]')) : [];
     return {
       loading: Boolean(state?.loading || state?.isStreaming),
@@ -105,10 +118,15 @@ _SEND_AND_OBSERVE_JS = """(async () => {
     thinkingExpandedSeen: false,
     firstContentMs: null,
     lastContentChangeMs: null,
+    lastReasoningChangeMs: null,
     settledMs: null,
     firstFoldedAfterContentMs: null,
   };
+  const transitions = [];
+  let previousShape = '';
   let lastLength = 0;
+  let lastReasoningLength = 0;
+  let lastChangeMs = 0;
   let final = sample();
   while (at() < DEADLINE_MS) {
     final = sample();
@@ -120,18 +138,36 @@ _SEND_AND_OBSERVE_JS = """(async () => {
     if (trimmed && timeline.firstContentMs === null) timeline.firstContentMs = at();
     if (final.content.length !== lastLength) {
       lastLength = final.content.length;
-      timeline.lastContentChangeMs = at();
+      lastChangeMs = timeline.lastContentChangeMs = at();
+    }
+    if (final.reasoningLength !== lastReasoningLength) {
+      lastReasoningLength = final.reasoningLength;
+      lastChangeMs = timeline.lastReasoningChangeMs = at();
     }
     if (trimmed && !final.loading && timeline.settledMs === null) timeline.settledMs = at();
     if (trimmed && final.hasCard && !final.expanded && timeline.firstFoldedAfterContentMs === null) {
       timeline.firstFoldedAfterContentMs = at();
     }
-    if (timeline.settledMs !== null && at() - timeline.settledMs > 4000) break;
+    const shape = `${final.loading}|${final.hasCard}|${final.expanded}`;
+    if (shape !== previousShape) {
+      previousShape = shape;
+      transitions.push({
+        atMs: at(),
+        loading: final.loading,
+        hasCard: final.hasCard,
+        expanded: final.expanded,
+        contentLength: final.content.length,
+        reasoningLength: final.reasoningLength,
+      });
+    }
+    if (trimmed && at() - lastChangeMs >= QUIET_MS) break;
     await sleep(100);
   }
   return {
     ok: true,
     timeline,
+    transitions,
+    endedAtMs: at(),
     reasoningLength: final.reasoningLength,
     contentLength: final.content.trim().length,
     hasCard: final.hasCard,
@@ -266,7 +302,11 @@ def test_reasoning_live_folds_after_answer_chrome_e2e() -> None:
 
             observed: dict[str, object] = {}
             for _attempt in range(_LIVE_ATTEMPTS):
-                script = _SEND_AND_OBSERVE_JS.replace("PROMPT", json.dumps(_PROMPT)).replace("DEADLINE_MS", "150000")
+                script = (
+                    _SEND_AND_OBSERVE_JS.replace("PROMPT", json.dumps(_PROMPT))
+                    .replace("DEADLINE_MS", "150000")
+                    .replace("QUIET_MS", str(_STREAM_QUIET_MS))
+                )
                 raw = client.evaluate(page, script, timeout_sec=200.0)
                 assert isinstance(raw, dict) and raw.get("ok") is True, raw
                 observed = raw
@@ -282,6 +322,12 @@ def test_reasoning_live_folds_after_answer_chrome_e2e() -> None:
             assert isinstance(timeline, dict), observed
             if timeline.get("thinkingPhaseSeen"):
                 assert timeline.get("thinkingExpandedSeen") is True, f"chain was folded while thinking: {observed}"
+            else:
+                print(
+                    "E2E_FOLD_THINKING_PHASE_NOT_SEEN",
+                    "no visible thinking phase was streamed, so 'open while thinking' was not asserted",
+                    flush=True,
+                )
             assert timeline.get("firstFoldedAfterContentMs") is not None, f"chain never folded after the answer: {observed}"
             assert observed.get("finalExpanded") is False, f"chain is still open after the answer settled: {observed}"
 
