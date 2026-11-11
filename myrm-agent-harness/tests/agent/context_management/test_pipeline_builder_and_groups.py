@@ -83,7 +83,7 @@ def test_build_default_processors_shares_offload_with_cache_ttl_prune() -> None:
     )
     cache_prune = next(processor for processor in processors if isinstance(processor, CacheTtlPruneProcessor))
 
-    assert cache_prune._on_prune_offload is offload
+    assert cache_prune._archiver._offload is offload
 
 
 def test_build_default_processors_accepts_cache_ttl_prune_config() -> None:

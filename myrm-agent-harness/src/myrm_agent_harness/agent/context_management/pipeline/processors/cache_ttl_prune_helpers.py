@@ -6,13 +6,14 @@
 - infra.tool_result_trimming::trim_tool_result_content
 
 [OUTPUT]
-- Small helper DTOs and pure message/content transformation helpers for cache TTL pruning.
+- Small helper DTOs, the archive budget of one pass and pure message/content transformation helpers for cache TTL pruning.
 
 [POS]
-Cache TTL pruning helper layer. Keeps the processor focused on orchestration and budget decisions.
+Cache TTL pruning helper layer. Keeps the processor focused on when to prune and which tool results to prune.
 """
 
 import json
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -159,11 +160,44 @@ def replace_tool_content(msg: ToolMessage, content: str) -> ToolMessage:
     return copied
 
 
+def archive_budget_decision(
+    config: CacheTtlPruneConfig,
+    *,
+    stats: PruneStats,
+    offload_bytes_used: int,
+    content_bytes: int,
+    started_at: float,
+) -> ArchiveBudgetDecision:
+    """Enforce bounded archive IO and wall-clock cost per pruning pass."""
+    if config.max_prune_wall_ms > 0:
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        if elapsed_ms >= config.max_prune_wall_ms:
+            return ArchiveBudgetDecision(
+                allowed=False,
+                reason="wall_time_budget",
+            )
+    if config.max_archives_per_pass >= 0 and stats.archived >= config.max_archives_per_pass:
+        return ArchiveBudgetDecision(
+            allowed=False,
+            reason="archive_count_budget",
+        )
+    if (
+        config.max_offload_bytes_per_pass >= 0
+        and offload_bytes_used + content_bytes > config.max_offload_bytes_per_pass
+    ):
+        return ArchiveBudgetDecision(
+            allowed=False,
+            reason="offload_bytes_budget",
+        )
+    return ArchiveBudgetDecision(allowed=True)
+
+
 __all__ = [
     "ArchiveAttempt",
     "ArchiveBudgetDecision",
     "EffectivePrunePolicy",
     "PruneStats",
+    "archive_budget_decision",
     "build_archived_placeholder",
     "content_to_text",
     "find_assistant_cutoff",

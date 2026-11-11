@@ -12,9 +12,11 @@ This creates a complete cache lifecycle:
 
 [INPUT]
 - infra.schemas::CacheTtlPruneConfig, ContextCompressOffloadCallback
-- infra.schemas::CacheUsageFeedback, ContextOffloadResult
+- infra.schemas::CacheUsageFeedback
 - utils.token_estimation::estimate_content_tokens, estimate_message_tokens
-- processors.cache_ttl_prune_helpers::* (POS: Cache TTL pruning helper layer. Keeps the processor focused on orchestration and budget decisions.)
+- processors.cache_ttl_prune_helpers::* (POS: Cache TTL pruning helper layer. Keeps the processor focused on when to prune and which tool results to prune.)
+- processors.cache_ttl_prune_archive::ToolResultArchiver (POS: Offloads a pruned tool result once and builds the reference that replaces it)
+- processors.cache_ttl_prune_roi::effective_prune_policy, record_prune_metrics (POS: ROI ledger and backoff of the passes)
 
 [OUTPUT]
 - CacheTtlPruneProcessor: class — Cache TTL Prune Processor with optional async archive-summary checkpoints
@@ -25,10 +27,7 @@ restore-contract-backed pruning of expired tool results with scoped offload idem
 """
 
 import time
-from collections import OrderedDict
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from hashlib import sha256
 
 from langchain_core.messages import BaseMessage, ToolMessage
 from langchain_core.runnables.config import RunnableConfig
@@ -48,32 +47,26 @@ from ...infra.schemas import (
     CacheTtlPruneConfig,
     CacheUsageFeedback,
     ContextCompressOffloadCallback,
-    ContextOffloadResult,
     ToolProtectionConfig,
-    normalize_context_offload_result,
 )
-from ...tracking.task_metrics import TaskMetrics, get_task_metrics
 from ..base import BaseProcessor, ProcessorContext
+from .cache_ttl_prune_archive import ToolResultArchiver
 from .cache_ttl_prune_helpers import (
-    ArchiveAttempt,
-    ArchiveBudgetDecision,
     EffectivePrunePolicy,
     PruneStats,
-    build_archived_placeholder,
+    archive_budget_decision,
     content_to_text,
     find_assistant_cutoff,
     find_first_human_index,
     replace_tool_content,
     soft_trim_content,
 )
+from .cache_ttl_prune_roi import effective_prune_policy, record_prune_metrics
 
 logger = get_agent_logger(__name__)
 
-_ArchiveAttempt = ArchiveAttempt
-_ArchiveBudgetDecision = ArchiveBudgetDecision
 _EffectivePrunePolicy = EffectivePrunePolicy
 _PruneStats = PruneStats
-_build_archived_placeholder = build_archived_placeholder
 _content_to_text = content_to_text
 _find_assistant_cutoff = find_assistant_cutoff
 _find_first_human_index = find_first_human_index
@@ -84,20 +77,6 @@ _CACHE_FEEDBACK_MIN_CALLS = 2
 _CACHE_FEEDBACK_MIN_INPUT_TOKENS = 4_000
 _CACHE_FEEDBACK_HOT_HIT_RATE = 0.35
 _CACHE_FEEDBACK_COLD_HIT_RATE = 0.12
-_OFFLOAD_IDEMPOTENCY_CACHE_LIMIT = 512
-_BACKOFF_NEGATIVE_NET_SAVINGS = "negative_net_savings"
-_BACKOFF_HIGH_REFETCH_RATIO = "high_refetch_ratio"
-_BACKOFF_HIGH_RESTORE_COST_RATIO = "high_restore_cost_ratio"
-_BACKOFF_LOW_RESTORE_ROI_RATIO = "low_restore_roi_ratio"
-_BACKOFF_RECOVERY_HYSTERESIS = "recovery_hysteresis"
-
-
-@dataclass(frozen=True, slots=True)
-class _BackoffWindow:
-    reasons: tuple[str, ...] = ()
-    sample_count: int = 0
-    bad_signal_count: int = 0
-    recovery_sample_count: int = 0
 
 
 class CacheTtlPruneProcessor(BaseProcessor):
@@ -126,9 +105,12 @@ class CacheTtlPruneProcessor(BaseProcessor):
         self._config = config or DEFAULT_CACHE_TTL_PRUNE_CONFIG
         self._protection = protection_config or TOOL_PROTECTION_CONFIG
         self._max_context_tokens = max_context_tokens
-        self._on_prune_offload = on_prune_offload
         self._archive_summary_service = archive_summary_service
-        self._offload_result_cache: OrderedDict[str, ContextOffloadResult] = OrderedDict()
+        self._archiver = ToolResultArchiver(
+            on_prune_offload,
+            estimate_tokens=self._estimate_content_tokens_for_pruning,
+            on_stored=self._dispatch_archive_summary,
+        )
 
     @property
     def name(self) -> str:
@@ -230,144 +212,8 @@ class CacheTtlPruneProcessor(BaseProcessor):
         return self._estimate_context_ratio(context.messages, context.metadata) >= self._config.emergency_prune_ratio
 
     def _effective_policy(self, context: ProcessorContext) -> _EffectivePrunePolicy:
-        """Back off pruning when previous archive restores made ROI poor."""
-        config = self._config
-        policy = _EffectivePrunePolicy(
-            soft_trim_ratio=config.soft_trim_ratio,
-            hard_clear_ratio=config.hard_clear_ratio,
-            min_prunable_tokens=config.min_prunable_tokens,
-        )
-        if not context.chat_id:
-            return policy
-
-        metrics = get_task_metrics(context.chat_id)
-        if metrics is None:
-            return policy
-
-        backoff_window = self._backoff_window(metrics)
-        reasons = backoff_window.reasons
-
-        if not reasons:
-            return _EffectivePrunePolicy(
-                soft_trim_ratio=policy.soft_trim_ratio,
-                hard_clear_ratio=policy.hard_clear_ratio,
-                min_prunable_tokens=policy.min_prunable_tokens,
-                backoff_sample_count=backoff_window.sample_count,
-                backoff_bad_signal_count=backoff_window.bad_signal_count,
-                backoff_recovery_sample_count=backoff_window.recovery_sample_count,
-            )
-
-        bump = max(config.roi_soft_trim_ratio_bump, 0.0)
-        return _EffectivePrunePolicy(
-            soft_trim_ratio=min(policy.soft_trim_ratio + bump, 1.0),
-            hard_clear_ratio=min(policy.hard_clear_ratio + bump, 1.0),
-            min_prunable_tokens=max(policy.min_prunable_tokens * 2, policy.min_prunable_tokens),
-            backoff_applied=True,
-            backoff_reasons=reasons,
-            backoff_sample_count=backoff_window.sample_count,
-            backoff_bad_signal_count=backoff_window.bad_signal_count,
-            backoff_recovery_sample_count=backoff_window.recovery_sample_count,
-        )
-
-    def _backoff_window(self, metrics: TaskMetrics) -> _BackoffWindow:
-        """Evaluate recent cache-TTL prune ROI with minimum samples and release hysteresis."""
-        config = self._config
-        window_size = max(config.roi_backoff_window_size, 1)
-        recent_prunes = [
-            event
-            for event in metrics.compression_events
-            if event.compression_type == "cache_ttl_prune" and event.tokens_saved > 0
-        ][-window_size:]
-        sample_count = len(recent_prunes)
-        if sample_count == 0:
-            return _BackoffWindow()
-
-        minimum_samples = max(config.roi_backoff_min_samples, 1)
-        recovery_samples = max(config.roi_backoff_recovery_samples, minimum_samples)
-        if sample_count < minimum_samples:
-            if metrics.pruning_backoff_applied and sample_count < recovery_samples:
-                return _BackoffWindow(
-                    reasons=(_BACKOFF_RECOVERY_HYSTERESIS,),
-                    sample_count=sample_count,
-                    recovery_sample_count=sample_count,
-                )
-            return _BackoffWindow(sample_count=sample_count)
-
-        window_start = recent_prunes[0].timestamp
-        tokens_saved = sum(event.tokens_saved for event in recent_prunes)
-        window_refetch_events = [
-            event
-            for event in metrics.refetch_events
-            if event.timestamp >= window_start and event.reason == "archive_reference_read"
-        ]
-        window_restore_events = [
-            event for event in metrics.archive_restore_result_events if event.timestamp >= window_start
-        ]
-        refetch_ratio = len(window_refetch_events) / sample_count if sample_count > 0 else 0.0
-        restore_tokens = sum(event.estimated_tokens for event in window_restore_events)
-        net_tokens_saved = (
-            tokens_saved - sum(event.estimated_tokens for event in window_refetch_events) - restore_tokens
-        )
-        restore_cost_ratio = restore_tokens / tokens_saved if tokens_saved > 0 else 0.0
-        restore_roi_ratio = net_tokens_saved / tokens_saved if tokens_saved > 0 else 0.0
-
-        bad_reasons: list[str] = []
-        if net_tokens_saved < 0:
-            bad_reasons.append(_BACKOFF_NEGATIVE_NET_SAVINGS)
-        if refetch_ratio >= config.roi_refetch_ratio_backoff:
-            bad_reasons.append(_BACKOFF_HIGH_REFETCH_RATIO)
-        if window_restore_events:
-            if restore_cost_ratio >= config.roi_restore_cost_ratio_backoff:
-                bad_reasons.append(_BACKOFF_HIGH_RESTORE_COST_RATIO)
-            if restore_roi_ratio < config.roi_restore_roi_ratio_backoff:
-                bad_reasons.append(_BACKOFF_LOW_RESTORE_ROI_RATIO)
-
-        recovery_sample_count = sample_count if not bad_reasons else 0
-        if not bad_reasons and metrics.pruning_backoff_applied and recovery_sample_count < recovery_samples:
-            return _BackoffWindow(
-                reasons=(_BACKOFF_RECOVERY_HYSTERESIS,),
-                sample_count=sample_count,
-                recovery_sample_count=recovery_sample_count,
-            )
-
-        return _BackoffWindow(
-            reasons=tuple(bad_reasons),
-            sample_count=sample_count,
-            bad_signal_count=len(bad_reasons),
-            recovery_sample_count=recovery_sample_count,
-        )
-
-    def _archive_budget_decision(
-        self,
-        *,
-        stats: _PruneStats,
-        offload_bytes_used: int,
-        content_bytes: int,
-        started_at: float,
-    ) -> _ArchiveBudgetDecision:
-        """Enforce bounded archive IO and wall-clock cost per pruning pass."""
-        config = self._config
-        if config.max_prune_wall_ms > 0:
-            elapsed_ms = (time.perf_counter() - started_at) * 1000
-            if elapsed_ms >= config.max_prune_wall_ms:
-                return _ArchiveBudgetDecision(
-                    allowed=False,
-                    reason="wall_time_budget",
-                )
-        if config.max_archives_per_pass >= 0 and stats.archived >= config.max_archives_per_pass:
-            return _ArchiveBudgetDecision(
-                allowed=False,
-                reason="archive_count_budget",
-            )
-        if (
-            config.max_offload_bytes_per_pass >= 0
-            and offload_bytes_used + content_bytes > config.max_offload_bytes_per_pass
-        ):
-            return _ArchiveBudgetDecision(
-                allowed=False,
-                reason="offload_bytes_budget",
-            )
-        return _ArchiveBudgetDecision(allowed=True)
+        """The thresholds of this decision: the configured ones, raised while earlier prunes did not pay off."""
+        return effective_prune_policy(self._config, context.chat_id)
 
     async def should_process(self, context: ProcessorContext) -> bool:
         emergency_prune = self._is_emergency_prune(context)
@@ -441,14 +287,15 @@ class CacheTtlPruneProcessor(BaseProcessor):
             archive_deferred_reason = ""
             if prune_mode == "allow" and ratio >= policy.hard_clear_ratio:
                 content_bytes = self._estimate_content_bytes_for_budget(content)
-                budget_decision = self._archive_budget_decision(
+                budget_decision = archive_budget_decision(
+                    self._config,
                     stats=stats,
                     offload_bytes_used=offload_bytes_used,
                     content_bytes=content_bytes,
                     started_at=started_at,
                 )
                 if budget_decision.allowed:
-                    archive_attempt = await self._try_archive_tool_message(
+                    archive_attempt = await self._archiver.try_archive(
                         msg=msg,
                         content=content,
                         context=context,
@@ -492,7 +339,7 @@ class CacheTtlPruneProcessor(BaseProcessor):
             context.messages = messages
             context.tokens_saved += tokens_saved
             prune_elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-            self._record_metrics(context, tokens_saved, stats, policy, elapsed_ms=prune_elapsed_ms)
+            record_prune_metrics(context.chat_id, tokens_saved, stats, policy, elapsed_ms=prune_elapsed_ms)
             detector = get_cache_break_detector()
             if detector is not None:
                 detector.notify_compaction()
@@ -506,216 +353,32 @@ class CacheTtlPruneProcessor(BaseProcessor):
             )
         elif stats.deferred > 0 or stats.offload_failed > 0 or stats.archive_deferred > 0:
             prune_elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-            self._record_metrics(context, 0, stats, policy, elapsed_ms=prune_elapsed_ms)
+            record_prune_metrics(context.chat_id, 0, stats, policy, elapsed_ms=prune_elapsed_ms)
 
         return context
 
-    async def _try_archive_tool_message(
+    def _dispatch_archive_summary(
         self,
-        *,
         msg: ToolMessage,
         content: str,
+        archive_path: str,
         context: ProcessorContext,
-    ) -> _ArchiveAttempt:
-        """Archive full content and replace the message with a restorable reference."""
-        if self._on_prune_offload is None:
-            return _ArchiveAttempt(archived=False, failure_kind="unsupported")
-
-        tool_name = msg.name or "unknown"
-        cache_key = None
-        scope_id = context.chat_id
-        if scope_id:
-            cache_key = self._offload_cache_key(
-                msg=msg,
-                tool_name=tool_name,
-                content=content,
-                context=context,
-            )
-            cached_result = self._get_cached_offload_result(cache_key)
-            if cached_result is not None:
-                return self._build_archive_attempt(
-                    tool_name=tool_name,
-                    archive_path=cached_result.path,
-                    content=content,
-                    offload_reused=True,
-                    original_bytes=cached_result.original_bytes,
-                    stored_bytes=cached_result.stored_bytes,
-                )
-
-        try:
-            offload_result = normalize_context_offload_result(
-                await self._on_prune_offload(
-                    content=content,
-                    tool_name=tool_name,
-                    scope_id=scope_id,
-                )
-            )
-        except Exception as exc:
-            logger.warning(
-                "[CacheTtlPrune] offload failed for tool=%s: %s",
-                tool_name,
-                exc,
-            )
-            return _ArchiveAttempt(archived=False, failure_kind="temporary_failure")
-
-        if not offload_result.succeeded:
-            if offload_result.message:
-                logger.warning(
-                    "[CacheTtlPrune] offload denied for tool=%s kind=%s: %s",
-                    tool_name,
-                    offload_result.failure_kind,
-                    offload_result.message,
-                )
-            return _ArchiveAttempt(
-                archived=False,
-                failure_kind=offload_result.failure_kind or "temporary_failure",
-            )
-
+    ) -> None:
+        """Queue a background summary of a tool result that was just archived."""
         if self._archive_summary_service is not None:
             runnable_config = context.metadata.get("runnable_config")
             config = runnable_config if isinstance(runnable_config, RunnableConfig) else None
             self._archive_summary_service.dispatch(
-                tool_name=tool_name,
+                tool_name=msg.name or "unknown",
                 content=content,
-                archive_path=offload_result.path,
+                archive_path=archive_path,
                 chat_id=context.chat_id,
                 summarizer_llm=context.summarizer_llm or context.llm,
                 tool_call_id=getattr(msg, "tool_call_id", None),
                 runnable_config=config,
             )
 
-        if cache_key is not None:
-            self._remember_successful_offload(cache_key, offload_result)
-        return self._build_archive_attempt(
-            tool_name=tool_name,
-            archive_path=offload_result.path,
-            content=content,
-            offload_reused=offload_result.reused,
-            original_bytes=offload_result.original_bytes,
-            stored_bytes=offload_result.stored_bytes,
-        )
-
-    def _offload_cache_key(
-        self,
-        *,
-        msg: ToolMessage,
-        tool_name: str,
-        content: str,
-        context: ProcessorContext,
-    ) -> str:
-        """Build a scoped idempotency key for retry-safe archive offload."""
-        content_sha = sha256(content.encode("utf-8")).hexdigest()
-        parts = [
-            context.chat_id or "",
-            tool_name,
-            msg.tool_call_id or "",
-            str(len(content)),
-            content_sha,
-        ]
-        return "\0".join(parts)
-
-    def _get_cached_offload_result(self, cache_key: str) -> ContextOffloadResult | None:
-        result = self._offload_result_cache.get(cache_key)
-        if result is None:
-            return None
-        self._offload_result_cache.move_to_end(cache_key)
-        return result
-
-    def _remember_successful_offload(
-        self,
-        cache_key: str,
-        offload_result: ContextOffloadResult,
-    ) -> None:
-        self._offload_result_cache[cache_key] = offload_result
-        self._offload_result_cache.move_to_end(cache_key)
-        while len(self._offload_result_cache) > _OFFLOAD_IDEMPOTENCY_CACHE_LIMIT:
-            self._offload_result_cache.popitem(last=False)
-
-    def _build_archive_attempt(
-        self,
-        *,
-        tool_name: str,
-        archive_path: str,
-        content: str,
-        offload_reused: bool,
-        original_bytes: int = 0,
-        stored_bytes: int = 0,
-    ) -> _ArchiveAttempt:
-        placeholder = _build_archived_placeholder(
-            tool_name=tool_name,
-            archive_path=archive_path,
-            content=content,
-            original_tokens=self._estimate_content_tokens_for_pruning(content),
-            original_chars=len(content),
-        )
-        return _ArchiveAttempt(
-            archived=True,
-            replacement_content=placeholder,
-            offload_reused=offload_reused,
-            original_bytes=original_bytes,
-            stored_bytes=stored_bytes,
-        )
-
     def _soft_trim_replacement(self, content: str) -> str | None:
         """Build a soft-trimmed replacement without mutating the source message."""
         trimmed = _soft_trim_content(content, self._config)
         return trimmed
-
-    def _record_metrics(
-        self,
-        context: ProcessorContext,
-        tokens_saved: int,
-        stats: _PruneStats,
-        policy: _EffectivePrunePolicy,
-        *,
-        elapsed_ms: int = 0,
-    ) -> None:
-        """Record task-level pruning metrics when a chat-scoped metrics object exists."""
-        if not context.chat_id:
-            return
-        if tokens_saved <= 0 and stats.deferred == 0 and stats.offload_failed == 0 and stats.archive_deferred == 0:
-            return
-        metrics = get_task_metrics(context.chat_id)
-        if metrics is None:
-            return
-        metrics.record_compression(
-            tokens_saved=tokens_saved,
-            compression_type="cache_ttl_prune",
-            details=(
-                f"Cache TTL prune archived={stats.archived}, "
-                f"soft_trimmed={stats.soft_trimmed}, offload_failed={stats.offload_failed}, "
-                f"archive_written={stats.archive_written}, archive_reused={stats.archive_reused}, "
-                f"unmodified_deferred={stats.deferred}, archive_deferred={stats.archive_deferred}, "
-                f"archive_deferred_soft_trimmed={stats.archive_deferred_soft_trimmed}, "
-                f"original_tokens={stats.original_tokens}, backoff={policy.backoff_applied}, "
-                f"backoff_reasons={','.join(policy.backoff_reasons)}, "
-                f"backoff_samples={policy.backoff_sample_count}, "
-                f"backoff_bad_signals={policy.backoff_bad_signal_count}, "
-                f"backoff_recovery_samples={policy.backoff_recovery_sample_count}"
-            ),
-            group_count=stats.archived + stats.soft_trimmed,
-            archive_count=stats.archived,
-            soft_trimmed_count=stats.soft_trimmed,
-            offload_failed_count=stats.offload_failed,
-            offload_failure_kinds=stats.offload_failure_kinds,
-            deferred_count=stats.deferred,
-            deferred_reasons=stats.deferred_reasons,
-            archive_deferred_count=stats.archive_deferred,
-            archive_deferred_reasons=stats.archive_deferred_reasons,
-            archive_deferred_soft_trimmed_count=stats.archive_deferred_soft_trimmed,
-            archive_deferred_soft_trimmed_reasons=stats.archive_deferred_soft_trimmed_reasons,
-            original_tokens=stats.original_tokens,
-            archive_written_count=stats.archive_written,
-            archive_reused_count=stats.archive_reused,
-            archive_bytes_written=stats.archive_bytes_written,
-            archive_bytes_reused=stats.archive_bytes_reused,
-            backoff_applied=policy.backoff_applied,
-            backoff_reasons=list(policy.backoff_reasons),
-            effective_soft_trim_ratio=policy.soft_trim_ratio,
-            effective_hard_clear_ratio=policy.hard_clear_ratio,
-            effective_min_prunable_tokens=policy.min_prunable_tokens,
-            backoff_sample_count=policy.backoff_sample_count,
-            backoff_bad_signal_count=policy.backoff_bad_signal_count,
-            backoff_recovery_sample_count=policy.backoff_recovery_sample_count,
-            elapsed_ms=elapsed_ms,
-        )
