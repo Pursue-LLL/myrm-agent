@@ -1,3 +1,17 @@
+# [INPUT]
+# - bundle_inventory::first_party_modules, harness_data_files, domain_tool_scripts, HARNESS_PACKAGE,
+#   CHANNEL_SDKS_NOT_SHIPPED (POS: what the bundle must contain and which channel SDKs stay out)
+# - PyInstaller.archive.readers::CArchiveReader (POS: reads the modules archived inside the bundle's executable)
+#
+# [OUTPUT]
+# - bundle_problems: one sentence per way the finished bundle departs from the inventory
+# - main: the CLI; exits 1 when the bundle has a problem
+#
+# [POS]
+# Post-build gate: the build fails when the finished bundle lacks an inventory item or holds a channel SDK that is meant
+# to stay out.
+#
+# The header is a comment because the docstring below is the CLI's --help text.
 """Check a built sidecar bundle against bundle_inventory: every first-party module and data file in, channel SDKs out.
 
 PyInstaller answers a hidden import it cannot resolve with a warning and builds on, so a bundle that lost modules still

@@ -97,8 +97,8 @@ flowchart TD
   E --> F[uvicorn_runner / granian_runner]
   F --> G[app/main.py FastAPI]
   G --> H[app/server/lifespan Phase 1 Critical]
-  H --> I[Phase 2 Essential: DB + channel_gateway + cron + kanban]
-  I --> J[Phase 3 app/server/warmup 异步]
+  H --> I[Phase 2 Essential: channel_gateway + cron + 远程备份 + kanban 派发准备]
+  I --> J[Phase 3 后台，端口绑定后启动: app/server/warmup + kanban dispatcher 等 异步]
   J --> K[app/lifecycle/schedulers 定时任务]
   G --> L[HTTP 请求 → app/api → app/services]
 ```

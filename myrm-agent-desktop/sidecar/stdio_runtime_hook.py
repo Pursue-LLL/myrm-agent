@@ -10,6 +10,17 @@ Two Windows launches break a backend that prints text:
 
 A null stream replaces a missing one, and the output streams switch to UTF-8 with replacement characters, so no
 message can stop the backend.
+
+[INPUT]
+- os, sys (POS: the null device and the process's standard streams)
+
+[OUTPUT]
+- Import side effect: stdin, stdout and stderr always exist, and the output streams encode UTF-8 with replacement
+  characters
+
+[POS]
+Runtime hook that build.py injects with ``--runtime-hook``; it runs before the sidecar entry imports the server, so
+uvicorn's logging and every startup message find usable standard streams.
 """
 
 import os

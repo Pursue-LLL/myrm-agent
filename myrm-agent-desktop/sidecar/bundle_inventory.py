@@ -16,6 +16,23 @@ importable name.
 
 The data files the harness reads by `__file__` are shipped by `--collect-data`; the build does not take that on trust
 either, and bundle_verify.py looks for the files this module lists.
+
+[INPUT]
+- The server's `app/` and the harness package source trees (POS: the first-party code the bundle must contain)
+- The build's Python interpreter (POS: asked where an installed package lives, without importing it)
+
+[OUTPUT]
+- first_party_modules, write_inventory_hooks: every first-party module as a hidden import, one generated hook per
+  top-level package
+- domain_tool_scripts, script_data_options: the domain skills' tool scripts, shipped as data at their own relative path
+- harness_data_files, HARNESS_DATA_DIRS: the data files the harness reads by `__file__`
+- CHANNEL_SDKS_NOT_SHIPPED, exclude_options: the channel SDKs the bundle leaves out
+- installed_package_dir: the directory the build's Python imports a package from
+- HARNESS_PACKAGE, HOOKS_DIR: the harness package's import name and the directory name of the generated hooks
+
+[POS]
+Single source of truth for what the sidecar bundle must contain and which channel SDKs stay out: build.py turns it
+into PyInstaller options and bundle_verify.py checks the finished bundle against it.
 """
 
 from __future__ import annotations
