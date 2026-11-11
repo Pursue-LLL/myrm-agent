@@ -33,7 +33,7 @@ function resolveTierConfig(level: ThinkingEffortLevel) {
 }
 
 function getStoredLevel(modelName: string): ThinkingEffortLevel {
-  if (typeof window === 'undefined' || !modelName) {
+  if (typeof window === 'undefined') {
     return 'off';
   }
   try {
@@ -48,7 +48,7 @@ function getStoredLevel(modelName: string): ThinkingEffortLevel {
 }
 
 function persistLevel(modelName: string, level: ThinkingEffortLevel): void {
-  if (typeof window === 'undefined' || !modelName) {
+  if (typeof window === 'undefined') {
     return;
   }
   try {
