@@ -9,6 +9,7 @@
 - memory._internal.maintenance_enrichment::enrich_with_graph (POS: Graph enrichment for memory search)
 - memory.protocols.vector::{VectorDocument, VectorStoreProtocol} (POS: vector store protocol)
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store protocol)
+- memory.strategies.chat_fence::keep_live_documents (POS: leaves out the documents of a chat that is being deleted)
 - memory.types::{memory data models} (POS: memory data models)
 
 [OUTPUT]
@@ -58,6 +59,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
 )
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import _stamp_access
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import keep_live_documents
 from myrm_agent_harness.toolkits.memory.types import (
     ClaimConflictState,
     ClaimGraphState,
@@ -220,6 +222,8 @@ async def run_forgetting(
                     doc.metadata.update(archive_retention_stamps(datetime.fromisoformat(now_iso)))
                     doc.metadata["archive_reason"] = f"retention={score.total_score:.3f}"
                     archive_docs.append(doc)
+                # The scan took seconds; a chat deleted meanwhile must not come back as an archived memory.
+                archive_docs = keep_live_documents(archive_docs)
                 if archive_docs:
                     await vector.upsert(collection, archive_docs)
                 result.archived_count += len(archive_docs)

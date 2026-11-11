@@ -168,6 +168,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
         priority: int = 0,
         trigger_keywords: list[str] | None = None,
         source: RuleSource = RuleSource.USER_EXTRACTED,
+        source_chat_id: str | None = None,
         honor_approval: bool = False,
     ) -> ProceduralMemory:
         memory = self._writer.build_rule(
@@ -176,6 +177,7 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
             priority=priority,
             trigger_keywords=trigger_keywords,
             source=source,
+            source_chat_id=source_chat_id,
         )
         result = await self.store(memory, _bypass_approval=not honor_approval)
         return result if isinstance(result, ProceduralMemory) else memory

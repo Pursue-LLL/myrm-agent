@@ -6,6 +6,7 @@
 - utils.coercion::parse_int (POS: defensive numeric coercion utilities)
 - strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Direct persistence of maintenance counters, hashes and timestamps)
 - strategies.consolidation_models::CONSOLIDATION_INSIGHT_TAG (POS: markers of consolidation's own output)
+- strategies.lineage::origin_chat_ids (POS: the chats a set of memories derives from)
 - strategies.pattern_discovery_models::* (POS: Domain models and result DTO for pattern discovery)
 - strategies.pattern_discovery_prompts::* (POS: Prompts for cross-cycle pattern discovery)
 
@@ -24,6 +25,10 @@ scheduling and persistence are server-layer responsibilities.
 Closed-loop pipeline: high-confidence ESTABLISHED patterns are also promoted to
 ProceduralRule (pending user approval) so the agent can apply learned behavioral
 preferences automatically in future conversations.
+
+A pattern is drawn from everything the model reads, so the event and the promoted rules record the chats of every
+memory the prompt lists and of every insight it quotes; deleting any of those chats removes them. The claim graph
+carries no chat link, so claims are not part of the lineage.
 """
 
 from __future__ import annotations
@@ -39,6 +44,7 @@ from langchain_core.language_models import BaseChatModel
 
 from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import CONSOLIDATION_INSIGHT_TAG
+from myrm_agent_harness.toolkits.memory.strategies.lineage import origin_chat_ids
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
     DiscoveredPattern,
     PatternDiscoveryResponse,
@@ -47,13 +53,14 @@ from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models impo
 )
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_prompts import (
     _SYSTEM_PROMPT,
+    MAX_PROMPT_MEMORIES,
     _build_discovery_prompt,
 )
 from myrm_agent_harness.utils.coercion import parse_int
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-    from myrm_agent_harness.toolkits.memory.types import AnyMemory
+    from myrm_agent_harness.toolkits.memory.types import AnyMemory, SemanticMemory
 
 logger = logging.getLogger(__name__)
 
@@ -103,15 +110,21 @@ async def increment_consolidation_count(manager: MemoryManager) -> None:
     await write_bookkeeping(manager, _PROFILE_KEY_CONSOLIDATION_COUNT, str(current + 1))
 
 
-async def _collect_insights(manager: MemoryManager, limit: int = 30) -> list[str]:
+async def _collect_insights(manager: MemoryManager, limit: int = 30) -> list[SemanticMemory]:
     """Collect the insights consolidation stored as semantic memories (tagged ``CONSOLIDATION_INSIGHT_TAG``)."""
+    from myrm_agent_harness.toolkits.memory.types import SemanticMemory
+
     try:
         results = await manager.search(
             "consolidation insight pattern observation",
             limit=limit,
             track_access=False,
         )
-        return [r.memory.content for r in results if CONSOLIDATION_INSIGHT_TAG in getattr(r.memory, "tags", [])]
+        return [
+            memory
+            for result in results
+            if isinstance(memory := result.memory, SemanticMemory) and CONSOLIDATION_INSIGHT_TAG in memory.tags
+        ]
     except Exception as exc:
         logger.warning("Pattern discovery: failed to collect insights: %s", exc)
         return []
@@ -148,7 +161,7 @@ async def run_pattern_discovery(
     2. Collect recent memories; skip if memory set unchanged since last run
     3. Collect consolidation insights, claims
     4. LLM analysis → structured patterns
-    5. Persist patterns as episodic events + record the memory-set hash
+    5. Persist patterns as an episodic event, linked to the chats the model read, + record the memory-set hash
     """
     start = datetime.now(UTC)
 
@@ -183,9 +196,10 @@ async def run_pattern_discovery(
 
     insights = await _collect_insights(manager)
     claims = await _collect_claims(manager)
+    chat_ids = origin_chat_ids([*all_memories[:MAX_PROMPT_MEMORIES], *insights])
 
     today = start.strftime("%Y-%m-%d")
-    user_prompt = _build_discovery_prompt(all_memories, insights, claims, today)
+    user_prompt = _build_discovery_prompt(all_memories, [insight.content for insight in insights], claims, today)
 
     try:
         from langchain_core.messages import HumanMessage, SystemMessage
@@ -218,7 +232,7 @@ async def run_pattern_discovery(
     valid_patterns = [p for p in response.patterns if p.confidence >= 0.5][:5]
 
     if valid_patterns:
-        await _persist_patterns(manager, valid_patterns, response.meta_observation)
+        await _persist_patterns(manager, valid_patterns, response.meta_observation, chat_ids)
 
     if manager.has_relational:
         with contextlib.suppress(Exception):
@@ -266,6 +280,7 @@ def _is_promotable_to_rule(pattern: DiscoveredPattern) -> bool:
 async def _promote_patterns_to_rules(
     manager: MemoryManager,
     patterns: list[DiscoveredPattern],
+    chat_ids: list[str],
 ) -> int:
     """Promote qualifying patterns to ProceduralRule (pending approval).
 
@@ -292,6 +307,8 @@ async def _promote_patterns_to_rules(
                 reasoning=pattern.evidence_summary,
                 source=RuleSource.AGENT_SELF,
                 priority=10,
+                source_chat_id=chat_ids[0] if chat_ids else None,
+                source_chat_ids=chat_ids,
             )
             await manager.store(rule)
             promoted += 1
@@ -314,8 +331,11 @@ async def _persist_patterns(
     manager: MemoryManager,
     patterns: list[DiscoveredPattern],
     meta_observation: str,
+    chat_ids: list[str],
 ) -> None:
-    """Store discovered patterns as episodic memory events for auditability and Heartbeat injection.
+    """Store discovered patterns as an episodic memory event for auditability and Heartbeat injection.
+
+    The event and every promoted rule derive from ``chat_ids``, the chats of the memories the model read.
 
     Also promotes high-confidence ESTABLISHED patterns to ProceduralRule via the
     standard Pending approval queue, closing the loop between pattern discovery and
@@ -332,17 +352,21 @@ async def _persist_patterns(
     if meta_observation:
         summary_parts.append(f"Overall: {meta_observation}")
 
-    content = "\n".join(summary_parts)
+    from myrm_agent_harness.toolkits.memory.types import EpisodicMemory
+
+    event = EpisodicMemory(
+        content="\n".join(summary_parts),
+        event_type="pattern_discovery",
+        related_entities=["memory_system", "behavioral_patterns"],
+        source_chat_id=chat_ids[0] if chat_ids else None,
+        source_chat_ids=chat_ids,
+    )
     try:
-        await manager.add_event(
-            content=content,
-            event_type="pattern_discovery",
-            related_entities=["memory_system", "behavioral_patterns"],
-        )
+        await manager.store(event, _bypass_approval=True)
     except Exception as exc:
         logger.warning("Failed to persist pattern discovery event: %s", exc)
 
-    promoted = await _promote_patterns_to_rules(manager, patterns)
+    promoted = await _promote_patterns_to_rules(manager, patterns, chat_ids)
     if promoted:
         logger.info("Pattern discovery: %d pattern(s) queued for ProceduralRule promotion", promoted)
 

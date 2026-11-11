@@ -1,7 +1,7 @@
 """Cascade-deletion MemoryManager singleton for purging memories by source_chat_id.
 
 [INPUT]
-myrm_agent_harness.toolkits.memory.MemoryManager (POS: 记忆管理器框架)
+myrm_agent_harness.toolkits.memory::{MemoryManager, open_local_graph_store} (POS: 记忆管理器框架；与记忆库同目录的主张图存储)
 myrm_agent_harness.toolkits.memory.relational.sqlite_store (POS: SQLite 关系存储 - cascade 直接操作)
 app.core.retriever.vector.defaults::create_default_vector_store (POS: 默认向量存储工厂)
 
@@ -12,7 +12,8 @@ shutdown_cascade_manager: 关闭级联管理器并释放资源
 [POS]
 GDPR 遗忘权实现层。提供拥有该用户全部 scope 的 MemoryManager 单例，仅用于按 source_chat_id
 元数据删除/计数记忆，无需 embedding 服务。MemoryManager 的元数据删除/计数会覆盖每个 embedding
-模型的集合，所以该单例不必知道当前模型，切换模型后也无需重建。由 chat_disposal.py 在永久删除会话时调用。
+模型的集合，所以该单例不必知道当前模型，切换模型后也无需重建。它与记忆写入方打开同一份主张图存储，
+删除会话时才能一并清理由其任务摘要编译出的证据与主张。由 chat_disposal.py 在永久删除会话时调用。
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from myrm_agent_harness.toolkits.memory import MemoryManager
+from myrm_agent_harness.toolkits.memory import MemoryManager, open_local_graph_store
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ async def get_cascade_memory_manager() -> MemoryManager:
             all_scopes=True,
             vector=vector_store,
             relational=relational_store,
+            graph=open_local_graph_store(base_path),
             fts5_searcher=relational_store.search_fts5,
             auto_warmup=False,
         )

@@ -7,10 +7,12 @@ myrm_agent_harness.toolkits.vector.qdrant.factory::create_vector_store (POS: Qdr
 
 [OUTPUT]
 create_local_memory_manager: zero-config local memory manager factory function
+open_local_graph_store: the claim-graph store kept beside the local memory databases
 
 [POS]
 Out-of-the-box local memory factory. Combines SQLite and embedded Qdrant to provide zero-config
-persistent memory capability for standalone deployments and single-machine sandboxes.
+persistent memory capability for standalone deployments and single-machine sandboxes. A manager that deletes
+memories must open the same graph store, or the claims compiled from what it deletes would outlive it.
 """
 
 from __future__ import annotations
@@ -46,6 +48,7 @@ from myrm_agent_harness.toolkits.vector.qdrant.factory import create_vector_stor
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.file_sync.sync import FileMemorySyncEngine
+    from myrm_agent_harness.toolkits.memory.graph.sqlite_store import SQLiteGraphStore
     from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
         ConflictCallback,
         ConsolidationCompleteCallback,
@@ -63,6 +66,13 @@ The config field feeds model-switch detection (collection lineage); without
 an embedding backend no dense vectors exist, so the marker stays stable and
 can never collide with a real model name.
 """
+
+
+def open_local_graph_store(base_path: Path) -> SQLiteGraphStore:
+    """The claim-graph store kept in its own database file beside the local memory databases under ``base_path``."""
+    from myrm_agent_harness.toolkits.memory.graph.sqlite_store import SQLiteGraphStore
+
+    return SQLiteGraphStore(db_path=str(base_path / "graph.db"))
 
 
 async def _probe_embedding_dimension(embedding_service: object) -> int:
@@ -214,10 +224,7 @@ async def create_local_memory_manager(
     preference_facet_store = SQLitePreferenceFacetStore(db_path=str(sqlite_path))
 
     # 5. Initialize Graph Store (shares data directory, separate DB file)
-    from myrm_agent_harness.toolkits.memory.graph.sqlite_store import SQLiteGraphStore
-
-    graph_db_path = base_path / "graph.db"
-    graph_store = SQLiteGraphStore(db_path=str(graph_db_path))
+    graph_store = open_local_graph_store(base_path)
 
     # 6. Create and return the MemoryManager
     # An explicit consolidation model wins; callers that pass only a dedup model

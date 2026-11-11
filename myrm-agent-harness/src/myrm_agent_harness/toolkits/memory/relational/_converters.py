@@ -44,6 +44,22 @@ def now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _json_string_list(raw: object) -> list[str]:
+    """A list kept in the flat rule metadata, either as a list or as the JSON text of one.
+
+    Text that is not a JSON list is one entry itself, and anything else is empty.
+    """
+    if isinstance(raw, list):
+        return [str(item) for item in raw]
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except ValueError:
+            return [raw]
+        return [str(item) for item in parsed] if isinstance(parsed, list) else [raw]
+    return []
+
+
 def parse_dt(s: str) -> datetime:
     dt = datetime.fromisoformat(s)
     if dt.tzinfo is None:
@@ -94,18 +110,10 @@ def row_to_procedural(row: tuple[object, ...]) -> ProceduralMemory:
     cleaned_metadata = dict(metadata)
     raw_error_fp = cleaned_metadata.pop("error_fingerprint", None)
     raw_steps = cleaned_metadata.pop("resolution_steps", None)
+    raw_chat_id = cleaned_metadata.pop("source_chat_id", None)
+    raw_chat_ids = cleaned_metadata.pop("source_chat_ids", None)
 
     error_fp = str(raw_error_fp) if raw_error_fp else None
-    if isinstance(raw_steps, list):
-        res_steps = [str(step) for step in raw_steps]
-    elif isinstance(raw_steps, str):
-        try:
-            parsed = json.loads(raw_steps)
-            res_steps = [str(step) for step in parsed] if isinstance(parsed, list) else [raw_steps]
-        except Exception:
-            res_steps = [raw_steps]
-    else:
-        res_steps = []
 
     return ProceduralMemory(
         id=str(row[0]),
@@ -136,7 +144,9 @@ def row_to_procedural(row: tuple[object, ...]) -> ProceduralMemory:
         is_user_locked=is_locked,
         expected_valid_days=expected_valid_days,
         error_fingerprint=error_fp,
-        resolution_steps=res_steps,
+        resolution_steps=_json_string_list(raw_steps),
+        source_chat_id=str(raw_chat_id) if raw_chat_id else None,
+        source_chat_ids=_json_string_list(raw_chat_ids),
     )
 
 

@@ -31,6 +31,7 @@ from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models impo
 )
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_prompts import _build_discovery_prompt
 from myrm_agent_harness.toolkits.memory.types import (
+    EpisodicMemory,
     ProceduralMemory,
     SemanticMemory,
 )
@@ -44,7 +45,6 @@ def _mature_manager(**overrides: object) -> AsyncMock:
     manager.has_graph = False
     manager.count_memories = AsyncMock(side_effect=lambda mt: 60)
     manager.search = AsyncMock(return_value=[])
-    manager.add_event = AsyncMock()
     manager.store = AsyncMock(return_value=SimpleNamespace(id="stored-rule"))
     manager.list_memories = AsyncMock(return_value=[])
     for key, value in overrides.items():
@@ -84,11 +84,11 @@ class TestCollectInsights:
 
     @pytest.mark.asyncio
     async def test_filters_tagged_insights(self) -> None:
-        tagged = SimpleNamespace(memory=SimpleNamespace(content="insight A", tags=["consolidation-insight"]))
-        untagged = SimpleNamespace(memory=SimpleNamespace(content="plain", tags=["other"]))
+        tagged = SemanticMemory(content="insight A", tags=["consolidation-insight"])
+        untagged = SemanticMemory(content="plain", tags=["other"])
         manager = _mature_manager()
-        manager.search = AsyncMock(return_value=[tagged, untagged])
-        assert await _collect_insights(manager) == ["insight A"]
+        manager.search = AsyncMock(return_value=[SimpleNamespace(memory=tagged), SimpleNamespace(memory=untagged)])
+        assert await _collect_insights(manager) == [tagged]
 
 
 class TestCollectClaims:
@@ -176,42 +176,46 @@ class TestRunPatternDiscoverySuccess:
         assert report.has_patterns is True
         assert report.memory_count == 10  # SEMANTIC + EPISODIC passes.
         assert report.insight_count == 0
-        # Patterns persisted as an episodic event.
-        manager.add_event.assert_awaited_once()
-        # Established high-confidence pattern promoted to a ProceduralRule.
-        store_args = manager.store.await_args.args[0]
-        assert isinstance(store_args, ProceduralMemory)
-        assert store_args.source.value == "agent_self"
+        # Patterns persisted as an episodic event, then the established high-confidence one promoted to a rule.
+        event, rule = [call.args[0] for call in manager.store.await_args_list]
+        assert isinstance(event, EpisodicMemory)
+        assert event.event_type == "pattern_discovery"
+        assert isinstance(rule, ProceduralMemory)
+        assert rule.source.value == "agent_self"
         # Memory-set hash recorded (SEMANTIC + EPISODIC passes list the same memories).
         assert bookkeeping_rows[_PROFILE_KEY_MEMORY_SET_HASH] == _compute_memory_set_hash(memories + memories)
 
 
 class TestPersistPatternsFailure:
     @pytest.mark.asyncio
-    async def test_add_event_failure_swallowed(self) -> None:
+    async def test_event_store_failure_swallowed(self) -> None:
         manager = _mature_manager()
-        manager.add_event = AsyncMock(side_effect=RuntimeError("vector down"))
-        # Emerging pattern is not promotable; the add_event failure must not raise.
-        await _persist_patterns(manager, [_pattern(title="t", confidence=0.6)], "obs")
-        manager.store.assert_not_called()
+        manager.store = AsyncMock(side_effect=RuntimeError("vector down"))
+        # Emerging pattern is not promotable; the event failure must not raise.
+        await _persist_patterns(manager, [_pattern(title="t", confidence=0.6)], "obs", [])
+        manager.store.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_add_event_failure_still_promotes_qualifying(self) -> None:
+    async def test_event_store_failure_still_promotes_qualifying(self) -> None:
         manager = _mature_manager()
-        manager.add_event = AsyncMock(side_effect=RuntimeError("vector down"))
+        manager.store = AsyncMock(side_effect=[RuntimeError("vector down"), SimpleNamespace(id="stored-rule")])
         await _persist_patterns(
             manager,
             [_pattern(title="t", confidence=0.9, durability="established")],
             "obs",
+            [],
         )
-        manager.store.assert_awaited_once()  # Promotion unaffected by event failure.
+        # Promotion is unaffected by the event failure.
+        event, rule = [call.args[0] for call in manager.store.await_args_list]
+        assert isinstance(event, EpisodicMemory)
+        assert isinstance(rule, ProceduralMemory)
 
     @pytest.mark.asyncio
-    async def test_store_failure_swallowed(self) -> None:
+    async def test_rule_store_failure_swallowed(self) -> None:
         manager = _mature_manager()
-        manager.store = AsyncMock(side_effect=RuntimeError("relational down"))
-        await _persist_patterns(manager, [_pattern(title="t", confidence=0.9, durability="established")], "")
-        manager.add_event.assert_awaited_once()
+        manager.store = AsyncMock(side_effect=[SimpleNamespace(id="stored-event"), RuntimeError("relational down")])
+        await _persist_patterns(manager, [_pattern(title="t", confidence=0.9, durability="established")], "", [])
+        assert manager.store.await_count == 2
 
 
 class TestPromotePatternsToRules:
@@ -219,7 +223,7 @@ class TestPromotePatternsToRules:
     async def test_returns_zero_without_relational(self) -> None:
         manager = _mature_manager(has_relational=False)
         promoted = await _promote_patterns_to_rules(
-            manager, [_pattern(title="t", confidence=0.9, durability="established")]
+            manager, [_pattern(title="t", confidence=0.9, durability="established")], []
         )
         assert promoted == 0
         manager.store.assert_not_called()
@@ -233,6 +237,7 @@ class TestPromotePatternsToRules:
                 _pattern(title="good", confidence=0.9, durability="established"),
                 _pattern(title="weak", confidence=0.6),
             ],
+            [],
         )
         assert promoted == 1
         stored = manager.store.await_args.args[0]

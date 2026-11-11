@@ -258,7 +258,7 @@ async def materialize_semantic_memory(
             embedding_config=embedding_cfg,
             approval_required=False,
         )
-        memory = await manager.add_knowledge(content, importance=0.6, tags=["auto-review"])
+        memory = await manager.add_knowledge(content, importance=0.6, tags=["auto-review"], source_chat_id=draft.chat_id)
         logger.info("Semantic memory materialized from draft %s: id=%s", draft.id, memory.id)
         return {
             "materialized": True,

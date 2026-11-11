@@ -5,14 +5,15 @@
 - memory._internal.approval::{apply_edited_content, memory_to_pending, pending_to_memory} (POS: approval queue helpers)
 - memory._internal.memory_scanner::{scan_and_clean_memory} (POS: content safety scanner)
 - memory.protocols.relational::RelationalStoreProtocol (POS: relational store protocol)
+- memory.strategies.chat_fence::derives_from_deleted_chat (POS: refusal of writes derived from a deleted chat)
 
 [OUTPUT]
 - GovernanceService: Governance orchestrator (approval flow, profile updates, scanning)
 
 [POS]
 Governance-side orchestration. Handles approval flow (including the stale-target guard
-that refuses proposals whose target changed after queueing), profile updates, and content
-scanning. Not part of the public API.
+that refuses proposals whose target changed after queueing), the queue's refusal of proposals derived from a deleted
+chat, profile updates, and content scanning. Not part of the public API.
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
 )
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.protocols.relational import RelationalStoreProtocol
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import derives_from_deleted_chat
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
     MemoryScope,
@@ -115,7 +117,7 @@ class GovernanceService:
     def __init__(
         self,
         *,
-        user_id: str | None,
+        user_id: str,
         config: MemoryConfig,
         relational: RelationalStoreProtocol | None,
         namespaces: list[str],
@@ -139,6 +141,10 @@ class GovernanceService:
         target_memory_id: str | None = None,
         target_content: str | None = None,
     ) -> str:
+        """Queue the memory for approval; ``""`` when it is already queued or derives from a deleted chat."""
+        if derives_from_deleted_chat(self._user_id, memory):
+            logger.info("Refused a pending proposal derived from a deleted chat")
+            return ""
         rel = self._rel()
         async with self._submit_lock:
             if await rel.pending_exists(memory.memory_type.value, memory.content):

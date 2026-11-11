@@ -2,10 +2,11 @@
 
 [INPUT]
 - memory.strategies.preference_stability::PreferenceCategory (POS: preference taxonomy)
-- memory.types::SemanticMemory (POS: typed semantic memory schema)
+- memory.types::{ProceduralMemory, SemanticMemory} (POS: typed memory schemas)
 
 [OUTPUT]
 - _memory_ref: metadata-scoped memory ref dict
+- _rule_has_metadata: whether a rule carries a metadata pair, its chat links read from the rule's own fields
 - _infer_preference_category: keyword-based preference category inference
 
 [POS]
@@ -17,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory.strategies.preference_stability import PreferenceCategory
-from myrm_agent_harness.toolkits.memory.types import SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import ProceduralMemory, SemanticMemory
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -29,6 +30,15 @@ def _memory_ref(memory_id: str, metadata: Mapping[str, object]) -> dict[str, str
     if isinstance(import_item_id, str):
         ref["import_item_id"] = import_item_id
     return ref
+
+
+def _rule_has_metadata(rule: ProceduralMemory, key: str, value: str) -> bool:
+    """Whether a rule carries the metadata pair; its chat links are fields of the rule, not metadata entries."""
+    if key == "source_chat_id":
+        return rule.source_chat_id == value
+    if key == "source_chat_ids":
+        return value in rule.source_chat_ids
+    return rule.metadata.get(key) == value
 
 
 def _infer_preference_category(memory: SemanticMemory) -> PreferenceCategory:

@@ -5,15 +5,19 @@
 - memory._internal.storage::{store_*} (POS: internal vector storage operations)
 - memory._internal.dedup_funcs::{SemanticDedupFunc, EpisodicDedupFunc} (POS: batch deduplication callable types)
 - memory._internal.memory_scanner::scan_and_clean_memory (POS: content safety scanner)
+- memory._internal.write_builders::MemoryBuildersMixin (POS: constructors of the convenience writes)
 - memory.agent_surface.transient_fact_boundary::filter_transient_business_memories (POS: L3 write gate for transient business facts)
+- memory.strategies.chat_fence::{DELETED_CHAT_REJECTION, derives_from_deleted_chat, keep_live} (POS: refusal of writes derived from a deleted chat)
 - memory.strategies.deduplicator::Deduplicator (POS: three-layer dedup: hash→vector→LLM)
 
 [OUTPUT]
-- MemoryWriter: Write-side orchestrator (scan, transient business fact L3 write gate, approval routing, explicit/inferred write gates, batch dedup, persistence)
+- MemoryWriter: Write-side orchestrator (scan, transient business fact L3 write gate, deleted-chat fence, approval routing, explicit/inferred write gates, batch dedup, persistence)
 
 [POS]
-Write-side orchestration for memory persistence. Handles memory scanning, transient business fact filtering at the L3 write gate, approval routing,
-explicit bypass vs inferred force-pending gates, batch deduplication, and persistence.
+Write-side orchestration for memory persistence. Handles memory scanning, transient business fact filtering at the L3 write gate,
+the refusal of memories derived from a chat that was just deleted (once before approval routing and, for a batch, again after
+deduplication, which can merge a stored memory into the write), approval routing, explicit bypass vs inferred force-pending gates,
+batch deduplication, and persistence.
 Not part of the public API.
 """
 
@@ -23,19 +27,20 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Literal
 
 from myrm_agent_harness.toolkits.memory._internal.dedup_funcs import EpisodicDedupFunc, SemanticDedupFunc
 from myrm_agent_harness.toolkits.memory._internal.memory_scanner import (
     MemoryTaintedError,
     scan_and_clean_memory,
 )
-from myrm_agent_harness.toolkits.memory._internal.scope import (
-    MemoryWriteTarget,
-    scope_for_write_target,
-)
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError, MemoryRejectedError
+from myrm_agent_harness.toolkits.memory._internal.write_builders import MemoryBuildersMixin
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import (
+    DELETED_CHAT_REJECTION,
+    derives_from_deleted_chat,
+    keep_live,
+)
 from myrm_agent_harness.toolkits.memory.strategies.exact_fact import ExactFactClassifier
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
@@ -62,7 +67,7 @@ class PartitionedMemories:
     conversation: list[ConversationMemory]
 
 
-class MemoryWriter:
+class MemoryWriter(MemoryBuildersMixin):
     """Owns write-side validation, batching, and convenience constructors."""
 
     __slots__ = (
@@ -172,6 +177,9 @@ class MemoryWriter:
         bound_memory = self._require_transient_fact_allowed(bound_memory)
         bound_memory = self._apply_exact_fact_lock(bound_memory)
 
+        if derives_from_deleted_chat(self._user_id, bound_memory):
+            raise MemoryRejectedError(DELETED_CHAT_REJECTION)
+
         if self._routes_to_pending(bypass_approval=bypass_approval, force_pending=force_pending):
             pending_id = await self._submit_pending(bound_memory)
             if not pending_id:
@@ -228,7 +236,9 @@ class MemoryWriter:
         safe_memories = self._filter_transient_business_batch(safe_memories)
         if not safe_memories:
             return []
-        safe_memories = [self._apply_exact_fact_lock(m) for m in safe_memories]
+        safe_memories = keep_live(self._user_id, [self._apply_exact_fact_lock(m) for m in safe_memories])
+        if not safe_memories:
+            return []
 
         if self._routes_to_pending(bypass_approval=bypass_approval, force_pending=force_pending):
             results: list[AnyMemory] = []
@@ -241,10 +251,16 @@ class MemoryWriter:
 
         partitioned = self._partition_memories(safe_memories)
         if not skip_dedup:
+            # Deduplication can merge a stored memory into the write, and the chat that memory derives from may have
+            # been deleted while it ran.
             if partitioned.semantic:
-                partitioned.semantic = await self._deduplicate_semantic_batch(partitioned.semantic)
+                partitioned.semantic = keep_live(
+                    self._user_id, await self._deduplicate_semantic_batch(partitioned.semantic)
+                )
             if partitioned.episodic:
-                partitioned.episodic = await self._deduplicate_episodic_batch(partitioned.episodic)
+                partitioned.episodic = keep_live(
+                    self._user_id, await self._deduplicate_episodic_batch(partitioned.episodic)
+                )
 
         stores: list[Awaitable[Sequence[AnyMemory]]] = []
         if partitioned.semantic:
@@ -258,102 +274,6 @@ class MemoryWriter:
 
         batches = await asyncio.gather(*stores)
         return [memory for batch in batches for memory in batch]
-
-    def build_knowledge(
-        self,
-        content: str,
-        *,
-        importance: float = 0.5,
-        tags: list[str] | None = None,
-        source_chat_id: str | None = None,
-        write_target: MemoryWriteTarget = "bound",
-    ) -> SemanticMemory:
-        return SemanticMemory(
-            content=content,
-            importance=importance,
-            tags=tags or [],
-            source_chat_id=source_chat_id,
-            scope=scope_for_write_target(self._scope, self._namespaces, write_target),
-        )
-
-    def build_event(
-        self,
-        content: str,
-        *,
-        event_type: str = "conversation",
-        related_entities: list[str] | None = None,
-        source_chat_id: str | None = None,
-        source_message_id: str | None = None,
-        subtask_phase: Literal["analyze", "locate", "edit", "verify"] | None = None,
-        is_failure_attempt: bool = False,
-        failure_reason: str | None = None,
-        negative_lesson: str | None = None,
-        confidence_tier: Literal["strong", "weak", "shadow"] = "strong",
-        write_target: MemoryWriteTarget = "bound",
-    ) -> EpisodicMemory:
-        return EpisodicMemory(
-            content=content,
-            event_type=event_type,
-            related_entities=related_entities or [],
-            source_chat_id=source_chat_id,
-            source_message_id=source_message_id,
-            subtask_phase=subtask_phase,
-            is_failure_attempt=is_failure_attempt,
-            failure_reason=failure_reason,
-            negative_lesson=negative_lesson,
-            confidence_tier=confidence_tier,
-            scope=scope_for_write_target(self._scope, self._namespaces, write_target),
-        )
-
-    def build_pitfall(
-        self,
-        content: str,
-        *,
-        failure_reason: str,
-        negative_lesson: str,
-        subtask_phase: Literal["analyze", "locate", "edit", "verify"] | None = None,
-        confidence_tier: Literal["strong", "weak", "shadow"] = "strong",
-        related_entities: list[str] | None = None,
-        source_chat_id: str | None = None,
-        source_message_id: str | None = None,
-        write_target: MemoryWriteTarget = "bound",
-    ) -> EpisodicMemory:
-        cleaned_reason = failure_reason.strip() if failure_reason else ""
-        cleaned_lesson = negative_lesson.strip() if negative_lesson else ""
-        fallback_lesson = cleaned_lesson or cleaned_reason or content.strip()
-
-        return EpisodicMemory(
-            content=content,
-            event_type="failed_attempt",
-            related_entities=related_entities or [],
-            source_chat_id=source_chat_id,
-            source_message_id=source_message_id,
-            subtask_phase=subtask_phase,
-            is_failure_attempt=True,
-            failure_reason=cleaned_reason or "Unspecified failure cause",
-            negative_lesson=fallback_lesson,
-            confidence_tier=confidence_tier,
-            scope=scope_for_write_target(self._scope, self._namespaces, write_target),
-        )
-
-    def build_rule(
-        self,
-        trigger: str,
-        action: str,
-        *,
-        priority: int = 0,
-        trigger_keywords: list[str] | None = None,
-        source: RuleSource = RuleSource.USER_EXTRACTED,
-    ) -> ProceduralMemory:
-        return ProceduralMemory(
-            content=f"When: {trigger} → Do: {action}",
-            trigger=trigger,
-            action=action,
-            priority=priority,
-            trigger_keywords=trigger_keywords or [],
-            source=source,
-            scope=self._scope.model_copy(deep=True),
-        )
 
     def _filter_transient_business_batch(self, memories: Sequence[AnyMemory]) -> list[AnyMemory]:
         from myrm_agent_harness.toolkits.memory.agent_surface.transient_fact_boundary import (

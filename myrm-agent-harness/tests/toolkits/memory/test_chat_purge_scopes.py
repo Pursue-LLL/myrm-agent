@@ -28,7 +28,7 @@ def rule_of_chat(chat_id: str) -> ProceduralMemory:
         content="Deliver spreadsheets as xlsx",
         trigger="the user asks for a spreadsheet",
         action="produce an xlsx file",
-        metadata={"source_chat_id": chat_id},
+        source_chat_id=chat_id,
     )
 
 

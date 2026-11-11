@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
+from myrm_agent_harness.toolkits.memory.setup import open_local_graph_store
 from myrm_agent_harness.toolkits.vector.base import VectorDocument
 
+from app.config.settings import settings
 from app.core.memory import get_cascade_memory_manager
 
 _MODELS = ("cascade-test-model-a", "cascade-test-model-b")
@@ -86,3 +90,44 @@ async def test_purge_reaches_memories_written_under_an_agent_channel_or_project_
     finally:
         if await manager._vector.collection_exists(collection):  # type: ignore[union-attr]
             await manager._vector.delete_by_filter(collection, {"source_chat_id": chat_id})  # type: ignore[union-attr]
+
+
+@pytest.mark.asyncio
+async def test_the_cascade_manager_opens_the_claim_graph_the_memory_writers_use() -> None:
+    manager = await get_cascade_memory_manager()
+    memory_path = Path(ContextBundleFacade.from_state_dir(settings.database.state_dir, ensure_layout=False).memory_path())
+    writers_graph = open_local_graph_store(memory_path)
+    try:
+        assert manager._graph is not None
+        assert manager._graph._db_path == writers_graph._db_path  # type: ignore[attr-defined]
+    finally:
+        await writers_graph.close()
+
+
+@pytest.mark.asyncio
+async def test_purge_removes_the_claim_graph_compiled_from_the_chats_digests() -> None:
+    manager = await get_cascade_memory_manager()
+    graph = manager._graph
+    assert graph is not None
+    chats = {name: f"chat-{uuid4().hex}" for name in ("deleted", "kept")}
+    digests = {name: f"digest-{uuid4().hex}" for name in chats}
+    node_ids: list[str] = []
+    for name, chat_id in chats.items():
+        evidence = await graph.create_node(
+            ["Evidence"],
+            {"id": f"evidence:{digests[name]}", "source_memory_id": digests[name], "source_chat_id": chat_id},
+        )
+        claim = await graph.create_node(
+            ["Claim"], {"id": f"claim:{digests[name]}", "latest_source_memory_id": digests[name], "evidence_count": 3}
+        )
+        node_ids += [evidence.id, claim.id]
+    try:
+        await manager.purge_by_source_chat_id(chats["deleted"])
+
+        assert await graph.find_nodes(["Evidence"], {"source_chat_id": chats["deleted"]}) == []
+        assert await graph.find_nodes(["Claim"], {"latest_source_memory_id": digests["deleted"]}) == []
+        assert len(await graph.find_nodes(["Evidence"], {"source_chat_id": chats["kept"]})) == 1
+        assert len(await graph.find_nodes(["Claim"], {"latest_source_memory_id": digests["kept"]})) == 1
+    finally:
+        for node_id in node_ids:
+            await graph.delete_subgraph(node_id)

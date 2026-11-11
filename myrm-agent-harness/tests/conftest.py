@@ -18,7 +18,11 @@ from blockbuster import BlockBuster
 
 logger = logging.getLogger(__name__)
 
-pytest_plugins = ["tests.support.run_guard_isolation", "tests.support.llm_endpoint_env"]
+pytest_plugins = [
+    "tests.support.run_guard_isolation",
+    "tests.support.llm_endpoint_env",
+    "tests.support.chat_fence_isolation",
+]
 
 # Run at import time to isolate harness tests as well
 _temp_workspace = tempfile.mkdtemp(prefix="myrm_harness_test_")

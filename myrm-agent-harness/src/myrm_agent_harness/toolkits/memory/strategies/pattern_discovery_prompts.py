@@ -4,6 +4,7 @@
 - memory.types::AnyMemory (POS: memory data models)
 
 [OUTPUT]
+- MAX_PROMPT_MEMORIES: How many of the newest memories the user prompt lists
 - _SYSTEM_PROMPT: Base system instructions declaring the exact output JSON field names
 - _build_discovery_prompt: Serializes memories, insights and claims into the user prompt
 
@@ -20,6 +21,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
+# The prompt lists the newest memories up to this count; the chats a discovered pattern derives from are those of the
+# memories listed, so the strategy reads the same bound.
+MAX_PROMPT_MEMORIES = 100
 
 _SYSTEM_PROMPT = """You are a behavioral pattern analyst. Given a user's accumulated memories, consolidation insights, and knowledge claims, identify cross-cycle behavioral patterns the user may not be aware of.
 
@@ -72,7 +76,7 @@ def _build_discovery_prompt(
     lines = [f"Analysis date: {today}", ""]
 
     lines.append("## Recent Memories (sorted by recency)")
-    for mem in memories[:100]:
+    for mem in memories[:MAX_PROMPT_MEMORIES]:
         created = mem.created_at.strftime("%Y-%m-%d")
         lines.append(f"- [{created}] ({mem.memory_type}) {mem.content[:200]}")
     lines.append("")
@@ -94,6 +98,7 @@ def _build_discovery_prompt(
 
 
 __all__ = [
+    "MAX_PROMPT_MEMORIES",
     "_SYSTEM_PROMPT",
     "_build_discovery_prompt",
 ]

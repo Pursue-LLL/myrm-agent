@@ -215,6 +215,8 @@ class ProceduralMemory(BaseMemory):
         language: Primary language of the rule content ("zh" or "en")
         tool_name: Tool this rule is scoped to (None = global rule)
         tool_rule_priority: Durability level for tool-scoped rules
+        source_chat_id: The chat the rule was written from, or the latest of the chats it was built from
+        source_chat_ids: Every chat the rule derives from when it was built from several sources
     """
 
     memory_type: Literal[MemoryType.PROCEDURAL] = MemoryType.PROCEDURAL
@@ -228,6 +230,8 @@ class ProceduralMemory(BaseMemory):
     trigger_keywords: list[str] = Field(default_factory=list)
     source: RuleSource = RuleSource.USER_EXTRACTED
     language: Literal["zh", "en"] = "en"
+    source_chat_id: str | None = None
+    source_chat_ids: list[str] = Field(default_factory=list, description=_SOURCE_CHAT_IDS_DESCRIPTION)
     tool_name: str | None = Field(default=None, description="Tool this rule is scoped to (None = global)")
     tool_rule_priority: ToolRulePriority = Field(
         default=ToolRulePriority.NORMAL,

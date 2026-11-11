@@ -19,6 +19,7 @@ Erasing everything also clears the user's recurrence buffer rows.
 from __future__ import annotations
 
 from myrm_agent_harness.toolkits.memory._manager.deletion import MemoryManagerDeletionMixin
+from myrm_agent_harness.toolkits.memory._manager.helpers import _rule_has_metadata
 from myrm_agent_harness.toolkits.memory._manager.model_collections import (
     current_collection,
     family_lock,
@@ -48,7 +49,8 @@ class MemoryManagerBulkDeletionMixin(MemoryManagerDeletionMixin):
         """Delete owned memories whose flat metadata contains an exact key/value pair.
 
         User-initiated cascades (chat session purge) run with the user's
-        consent, so protected entries are deleted together with the rest.
+        consent, so protected entries are deleted together with the rest. A rule's chat links
+        are fields of the rule rather than metadata entries and match by the same key names.
         """
 
         selected_types = tuple(
@@ -89,7 +91,7 @@ class MemoryManagerBulkDeletionMixin(MemoryManagerDeletionMixin):
                 if not rules:
                     break
                 for rule in rules:
-                    if rule.metadata.get(metadata_key) == metadata_value:
+                    if _rule_has_metadata(rule, metadata_key, metadata_value):
                         matching_rule_ids.append(rule.id)
                 offset += len(rules)
             deleted_rules = 0

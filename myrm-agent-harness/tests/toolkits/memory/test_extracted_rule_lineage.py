@@ -39,18 +39,19 @@ async def approved_rule(manager: MemoryManager, chat_id: str, action: str) -> Pr
     return rule
 
 
-def test_a_proposed_rule_names_its_chat_in_its_metadata() -> None:
+def test_a_proposed_rule_names_its_chat() -> None:
     [rule] = MemoryExtractor().to_concrete_memories([rule_from("chat-a")], source_chat_id="chat-a")
 
     assert isinstance(rule, ProceduralMemory)
-    assert rule.metadata["source_chat_id"] == "chat-a"
+    assert rule.source_chat_id == "chat-a"
+    assert "source_chat_id" not in rule.metadata
 
 
 def test_a_rule_proposed_outside_any_chat_names_none() -> None:
     [rule] = MemoryExtractor().to_concrete_memories([rule_from("chat-a")])
 
     assert isinstance(rule, ProceduralMemory)
-    assert "source_chat_id" not in rule.metadata
+    assert rule.source_chat_id is None
 
 
 async def test_deleting_a_chat_discards_the_rule_proposed_from_it(new_manager: NewManager) -> None:

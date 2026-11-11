@@ -12,6 +12,8 @@
 
 [POS]
 Approval-queue persistence of SQLiteRelationalStore: a record stays pending until it is marked with a resolution status.
+A record is linked to a chat when it was written from it (its ``source_chat_id`` column) or built from it among others
+(the ``source_chat_ids`` of the memory it carries); a resolved record keeps the proposed text and stays linked.
 """
 
 import json
@@ -20,6 +22,23 @@ from myrm_agent_harness.toolkits.memory.relational._converters import now_iso, r
 from myrm_agent_harness.toolkits.memory.relational._store_host import SQLiteStoreHost
 from myrm_agent_harness.toolkits.memory.relational.exceptions import RelationalQueryError
 from myrm_agent_harness.toolkits.memory.types import PendingRecord
+
+_DELETE_CHUNK = 500
+
+
+def _like_pattern_for_json_string(value: str) -> str:
+    """LIKE pattern for ``value`` as a JSON string anywhere in a payload; a candidate filter, verified afterwards."""
+    escaped = json.dumps(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _built_from(memory_data_json: str, chat_id: str) -> bool:
+    """Whether the proposed memory lists the chat among the chats it was built from."""
+    try:
+        chat_ids = json.loads(memory_data_json).get("source_chat_ids")
+    except (ValueError, AttributeError):
+        return False
+    return isinstance(chat_ids, list) and chat_id in chat_ids
 
 
 class SQLitePendingMixin(SQLiteStoreHost):
@@ -32,8 +51,8 @@ class SQLitePendingMixin(SQLiteStoreHost):
         try:
             await conn.execute(
                 """INSERT INTO pending_records
-                   (id, user_id, memory_type, content, memory_data, source_chat_id, source_message_id, status, created_at, resolution_action, target_memory_id, target_content)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)""",
+                   (id, user_id, memory_type, content, memory_data, source_chat_id, source_message_id, status, created_at, resolution_action, target_memory_id, target_content, built_from_chats)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)""",
                 (
                     record.id,
                     "default",
@@ -46,6 +65,7 @@ class SQLitePendingMixin(SQLiteStoreHost):
                     record.resolution_action.value,
                     record.target_memory_id,
                     record.target_content,
+                    int(bool(record.memory_data.get("source_chat_ids"))),
                 ),
             )
             await conn.commit()
@@ -128,28 +148,42 @@ class SQLitePendingMixin(SQLiteStoreHost):
             await self._handle_query_error("batch_mark_pending", e)
             return 0
 
+    async def _pending_ids_linked_to_chat(self, chat_id: str) -> list[str]:
+        """Ids of the records written from the chat or built from it among others, whatever their status.
+
+        Only the records that list the chats they were built from are read for the second link, through a partial
+        index, so the lookup does not grow with the history of resolved records.
+        """
+        conn = await self._get_connection()
+        async with conn.execute("SELECT id FROM pending_records WHERE source_chat_id = ?", (chat_id,)) as cursor:
+            written_from = [str(row[0]) for row in await cursor.fetchall()]
+        async with conn.execute(
+            "SELECT id, memory_data FROM pending_records WHERE built_from_chats = 1 AND memory_data LIKE ? ESCAPE '\\'",
+            (_like_pattern_for_json_string(chat_id),),
+        ) as cursor:
+            built_from = [str(row[0]) for row in await cursor.fetchall() if _built_from(str(row[1] or ""), chat_id)]
+        return list(dict.fromkeys([*written_from, *built_from]))
+
     async def delete_pending_by_source_chat_id(self, source_chat_id: str) -> int:
         await self._ensure_integrity_before_write()
         conn = await self._get_connection()
         try:
-            cursor = await conn.execute(
-                "DELETE FROM pending_records WHERE source_chat_id = ?",
-                (source_chat_id,),
-            )
+            ids = await self._pending_ids_linked_to_chat(source_chat_id)
+            deleted = 0
+            for start in range(0, len(ids), _DELETE_CHUNK):
+                chunk = ids[start : start + _DELETE_CHUNK]
+                cursor = await conn.execute(
+                    f"DELETE FROM pending_records WHERE id IN ({','.join('?' for _ in chunk)})", chunk
+                )
+                deleted += cursor.rowcount or 0
             await conn.commit()
-            return cursor.rowcount or 0
+            return deleted
         except Exception as e:
             await self._handle_query_error("delete_pending_by_source_chat_id", e)
             return 0
 
     async def count_pending_by_source_chat_id(self, source_chat_id: str) -> int:
-        conn = await self._get_connection()
         try:
-            async with conn.execute(
-                "SELECT COUNT(*) FROM pending_records WHERE source_chat_id = ?",
-                (source_chat_id,),
-            ) as cursor:
-                row = await cursor.fetchone()
-            return row[0] if row else 0
+            return len(await self._pending_ids_linked_to_chat(source_chat_id))
         except Exception as e:
             raise RelationalQueryError(f"count_pending_by_source_chat_id failed: {e}") from e

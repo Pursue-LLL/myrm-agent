@@ -3,7 +3,7 @@
 Tests cover:
 - SQLiteRelationalStore.delete_pending_by_source_chat_id
 - SQLiteRelationalStore.count_pending_by_source_chat_id
-- MemoryManagerDeletionMixin.purge_by_source_chat_id
+- MemoryManagerDeletionMixin.purge_by_source_chat_id (including closing the chat to later writers)
 - MemoryManagerDeletionMixin.count_by_source_chat_id
 """
 
@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, call
 import pytest
 
 from myrm_agent_harness.toolkits.memory.relational.sqlite_store import SQLiteRelationalStore
+from myrm_agent_harness.toolkits.memory.strategies.chat_fence import is_closed
 from myrm_agent_harness.toolkits.memory.types import MemoryType, PendingRecord
 
 
@@ -117,6 +118,8 @@ async def test_purge_by_source_chat_id_integration() -> None:
     from myrm_agent_harness.toolkits.memory._manager.deletion import MemoryManagerDeletionMixin
 
     mixin = MagicMock(spec=MemoryManagerDeletionMixin)
+    mixin._user_id = "u1"
+    mixin._graph = None
     mixin.delete_memories_by_metadata = AsyncMock(side_effect=[{"semantic": 2, "episodic": 1}, {"semantic": 1}])
     mixin._vector = None
     mixin._relational = MagicMock()
@@ -125,9 +128,14 @@ async def test_purge_by_source_chat_id_integration() -> None:
     result = await MemoryManagerDeletionMixin.purge_by_source_chat_id(mixin, "chat-xyz")
 
     assert result == {"semantic": 3, "episodic": 1, "pending": 3}
+    assert is_closed("u1", "chat-xyz")
     assert mixin.delete_memories_by_metadata.await_args_list == [
         call("source_chat_id", "chat-xyz", memory_types=None),
-        call("source_chat_ids", "chat-xyz", memory_types=(MemoryType.SEMANTIC, MemoryType.EPISODIC)),
+        call(
+            "source_chat_ids",
+            "chat-xyz",
+            memory_types=(MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL),
+        ),
     ]
     mixin._relational.delete_pending_by_source_chat_id.assert_called_once_with("chat-xyz")
 
@@ -138,6 +146,8 @@ async def test_purge_by_source_chat_id_no_relational() -> None:
     from myrm_agent_harness.toolkits.memory._manager.deletion import MemoryManagerDeletionMixin
 
     mixin = MagicMock(spec=MemoryManagerDeletionMixin)
+    mixin._user_id = "u1"
+    mixin._graph = None
     mixin.delete_memories_by_metadata = AsyncMock(side_effect=[{"semantic": 1}, {}])
     mixin._vector = None
     mixin._relational = None
@@ -156,6 +166,7 @@ async def test_a_failing_cascade_step_does_not_stop_the_others() -> None:
     mixin = MagicMock(spec=MemoryManagerDeletionMixin)
     mixin.delete_memories_by_metadata = AsyncMock(side_effect=[RuntimeError("vector down"), {"semantic": 1}])
     mixin._user_id = "u1"
+    mixin._graph = None
     mixin._config = MagicMock(collection_prefix="memory")
     mixin._vector = MagicMock()
     mixin._vector.delete_by_filter = AsyncMock(side_effect=RuntimeError("buffer down"))
@@ -165,6 +176,7 @@ async def test_a_failing_cascade_step_does_not_stop_the_others() -> None:
     result = await MemoryManagerDeletionMixin.purge_by_source_chat_id(mixin, "chat-x")
 
     assert result == {"semantic": 1, "pending": 2}
+    assert is_closed("u1", "chat-x")
     mixin._vector.delete_by_filter.assert_awaited_once_with(
         "memory_recurrence_buffer", {"user_id": "u1", "source_chat_id": "chat-x"}
     )
