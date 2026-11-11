@@ -39,6 +39,7 @@
 | `__tests__/ChatWindowRestoreArg.test.tsx` | 测试 | `restore_arg` 预填：骨架只在加载已有会话时出现、首页不等 `isMessagesLoaded`、等会话初始化后才应用、不自动发送也不重复应用、同一会话换新参数会再应用一次 | ✅ |
 | `__tests__/ChatWindowDualTab.test.tsx` | 测试 | 对话 / 执行轨迹标签：默认对话视图，点击轨迹标签后切换 | ✅ |
 | `__tests__/ChatWindowSatellites.wiring.test.tsx` | 测试 | 卫星接线：两个检查器各拿到自己的指令回调、上下文底噪面板随全局事件开合且卸载后停止监听、会话级入口（回退按钮、偏好雷达）只在有会话 id 且有消息时出现、启动恢复弹窗只在有待恢复智能体时出现且关闭才清 store、打开的会话以 store 为准（去空白）并在用户切换会话时关闭两个检查器面板 | ✅ |
+| `__tests__/ChatWindowSatellites.loaders.test.tsx` | 测试 | 懒加载器守卫：`next/dynamic` 只收集加载器、不渲染，逐个真实执行后每个卫星都落在可渲染组件上，导入路径或命名导出被改名时在这里先于线上白屏报错 | ✅ |
 | `__tests__/ChatWindowSatellites.companionGate.test.tsx` | 测试 | `companion_mode` 门禁：打开时挂出 PetOverlay 与 PetPalette，关闭时都不挂 | ✅ |
 | `__tests__/chatMocks.tsx` | 测试 | Chat 行为测试的共享底座（须先于 `../Chat` 导入）：登记 next/navigation、next-intl 与输入框、消息盒子、虚拟列表、大纲导轨、问题导航、各类浮层的探针替身（属性写进 DOM、回调变按钮），提供浏览器替身（`scrollIntoView`、`ResizeObserver`、按帧推进的 `requestAnimationFrame`、window 滚动）与 `openChat` / `makeMessages` / `setUpChatTest` | ✅ |
 | `__tests__/Chat.rendering.test.tsx` | 测试 | 列表渲染：20 / 21 条的虚拟列表阈值（压缩摘要行计入）、普通列表的页面列自带纵向滚动而虚拟列表自己滚动、消息盒子序号与末条标记、助手消息分隔线、覆盖消息优先、压缩摘要行、加载占位只到助手消息出现、高亮圈与下一帧居中；输入框坞站（随会话重挂、默认露出、快捷聚焦）；首条消息作页面标题；输入框宽度（短延迟、740 回落、缩放防抖、卸载释放监听与定时器）；向问题导航同步消息 | ✅ |
@@ -250,10 +251,10 @@
 | `SingleApprovalCard.tsx`                     | UI   | 主 Agent 单条/批量审批：持有决定状态（编辑、拒绝、记住授权、一次性凭据），只读内容与按钮分给 `approval/ApprovalDetails`、`ApprovalActions` 等（shell edit 经 mergeShellEditedArgs） | ✅    |
 | `ToolApprovalDialog.tsx`                     | UI   | modal 非 visual 审批；只能靠应答关闭（无关闭键、Escape 与点遮罩都不关）；批次成员按 batchIndex 分组展示在单条之前                                                                                                                                                                | ✅    |
 | `MobileStatusBoard.tsx`                      | UI   | 移动端审批面板                                                                                                                                                                      | ✅    |
-| `RealTimeCostAndCacheHud.tsx`                | 组件 | 输入框底栏常驻算力胶囊 HUD：显示 Token 水位、Prompt Cache 命中率与绿色微徽章（测量衰减纠偏门限保护：cached>=1024 且 net_savings>=$0.0001），点击弹出单价浮层；浮层标题/节省额/待命文案取自 `chat.costHud.*`                        | ✅    |
+| `RealTimeCostAndCacheHud.tsx`                | 组件 | 输入框底栏常驻算力胶囊 HUD：显示整段会话累计的 Token 水位、Prompt Cache 命中率（由累计 cached/prompt token 得出，不使用服务端逐轮 0–1 的 `cache_hit_rate`）与绿色微徽章（服务端判定有效，或累计 cached>=1024 且 net_savings>=$0.0001），点击弹出单价浮层并按所选基础模型（未选时 `default`）查价；浮层标题/节省额/待命文案取自 `chat.costHud.*`                        | ✅    |
 | `ModelPricingPopover.tsx`                    | 组件 | 模型四维单价矩阵与 Prompt Cache 经济学透视浮层：展示当前模型与主流标杆的 $/1M 单价与节省率                                                                                          | ✅    |
 | `__tests__/ModelPricingPopover.test.tsx`     | 测试 | 模型单价浮层单元测试：加载态与单价矩阵、对比列表经翻译键渲染覆盖                                                                                                                    | ✅    |
-| `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：初始就绪态、低阈值普通态、高阈值绿色高亮与节省额度渲染覆盖                                                                                                   | ✅    |
+| `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：就绪态、整段会话累计与 K/M 缩写、缓存读取低于门限的普通态、门限达成/累计达成/服务端标记三种绿色高亮与节省额（不足 1 美分取四位小数，其余三位）、命中率取累计值，以及单价浮层拿到所选或默认模型                                                                                                   | ✅    |
 | `__tests__/InputHistoryPopup.test.tsx` | 测试 | 输入历史弹窗：listbox 名称、条目单行预览与完整 tooltip、选中态、同一时刻的条目不撞 key、时间边界（刚刚/分钟/小时/昨天/天/日期）与按界面语言排版、悬停与按下回报、点击外部关闭（只在打开期间监听）、活动项滚入视野 | ✅ |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                                              | ✅    |
 | `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                                         | ✅    |

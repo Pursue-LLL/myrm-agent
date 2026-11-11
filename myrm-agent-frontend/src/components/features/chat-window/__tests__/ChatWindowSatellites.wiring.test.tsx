@@ -232,6 +232,13 @@ describe('ChatWindowSatellites wiring', () => {
       expect(probe.presence).toHaveBeenLastCalledWith('prop-chat', false);
     });
 
+    it('has no chat at all before either the store or the route names one', () => {
+      useChatStore.setState({ chatId: undefined, messages: [] });
+      renderSatellites();
+
+      expect(probe.presence).toHaveBeenLastCalledWith('', false);
+    });
+
     it('closes both open inspector panels when the user moves to another chat', () => {
       useBrowserInspectorStore.setState({ isOpen: true });
       useDesktopInspectorStore.setState({ isOpen: true });

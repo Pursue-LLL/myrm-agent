@@ -30,25 +30,20 @@ function formatTokens(tokens: number): string {
   return `${tokens}`;
 }
 
+// 只在有节省金额（> 0）时才展示，故无需处理非正数
 function formatCost(usd: number): string {
-  if (usd <= 0) {
-    return '$0.0000';
-  }
-  if (usd < 0.01) {
-    return `$${usd.toFixed(4)}`;
-  }
-  return `$${usd.toFixed(3)}`;
+  return usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(3)}`;
 }
+
+// 旧会话或外部代理回传的用量可能缺字段，缺失按 0 累计
+const amount = (value: number | undefined): number => (typeof value === 'number' ? value : 0);
 
 export const RealTimeCostAndCacheHud: React.FC = memo(() => {
   const t = useTranslations('chat.costHud');
   const messages = useChatStore((state) => state.messages);
-  const selectedModels = useChatStore((state) => state.selectedModels);
+  const baseModel = useChatStore((state) => state.selectedModels.base);
 
-  // 当前主模型名
-  const currentModelName = useMemo(() => {
-    return selectedModels?.base || 'default';
-  }, [selectedModels?.base]);
+  const currentModelName = baseModel || 'default';
 
   // 从当前对话历史中聚合统计 Token 用量与 Prompt Cache 经济学指标
   const sessionEconomics = useMemo(() => {
@@ -56,53 +51,26 @@ export const RealTimeCostAndCacheHud: React.FC = memo(() => {
     let totalCachedTokens = 0;
     let totalPromptTokens = 0;
     let totalNetSavingsUsd = 0;
-    let latestCacheHitRate = 0;
-    let latestHasEffectiveCache = false;
+    let hasEffectiveCache = false;
 
-    // 倒序遍历查找最近一轮的用量快照与全量累计
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
-      const usage = msg.usage;
+    for (const { usage } of messages) {
       if (!usage) {
         continue;
       }
-
-      if (typeof usage.total_tokens === 'number') {
-        totalTokens += usage.total_tokens;
-      }
-      if (typeof usage.prompt_tokens === 'number') {
-        totalPromptTokens += usage.prompt_tokens;
-      }
-      if (typeof usage.cached_tokens === 'number') {
-        totalCachedTokens += usage.cached_tokens;
-      }
-      if (typeof usage.net_savings_usd === 'number') {
-        totalNetSavingsUsd += usage.net_savings_usd;
-      }
-
-      // 提取最新一轮的命中率指示
-      if (latestCacheHitRate === 0 && typeof usage.cache_hit_rate === 'number') {
-        latestCacheHitRate = usage.cache_hit_rate;
-      }
-      if (!latestHasEffectiveCache && usage.has_effective_cache === true) {
-        latestHasEffectiveCache = true;
-      }
+      totalTokens += amount(usage.total_tokens);
+      totalPromptTokens += amount(usage.prompt_tokens);
+      totalCachedTokens += amount(usage.cached_tokens);
+      totalNetSavingsUsd += amount(usage.net_savings_usd);
+      hasEffectiveCache ||= usage.has_effective_cache === true;
     }
 
-    // 全局命中率：若最近一轮无独立率，则使用累计 prompt tokens 计算
-    const overallHitRate = totalPromptTokens > 0 ? (totalCachedTokens / totalPromptTokens) * 100 : latestCacheHitRate;
+    // 命中率由累计 token 得出：服务端逐轮的 cache_hit_rate 是 0–1 比例，不能与百分比混用
+    const hitRate = totalPromptTokens > 0 ? (totalCachedTokens / totalPromptTokens) * 100 : 0;
 
-    // 测量衰减纠偏门限：只有当 cached_tokens >= 1024 且 net_savings >= 0.0001 时才高亮
-    const isCacheActive = latestHasEffectiveCache || (totalCachedTokens >= 1024 && totalNetSavingsUsd >= 0.0001);
+    // 测量衰减纠偏门限：服务端判定有效，或累计 cached_tokens >= 1024 且 net_savings >= 0.0001 时才高亮
+    const isCacheActive = hasEffectiveCache || (totalCachedTokens >= 1024 && totalNetSavingsUsd >= 0.0001);
 
-    return {
-      totalTokens,
-      totalCachedTokens,
-      totalPromptTokens,
-      totalNetSavingsUsd,
-      hitRate: overallHitRate,
-      isCacheActive,
-    };
+    return { totalTokens, totalCachedTokens, totalNetSavingsUsd, hitRate, isCacheActive };
   }, [messages]);
 
   // 当会话没有任何 Token 消耗时，显示极简就绪状态胶囊
