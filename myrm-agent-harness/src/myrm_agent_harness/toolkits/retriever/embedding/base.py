@@ -19,38 +19,38 @@ from abc import ABC, abstractmethod
 
 
 class EmbeddingService(ABC):
-    """VectorEmbeddingServiceAbstractInterface
+    """Abstract interface for vector embedding services.
 
-    AllEmbeddingServiceimplements都 must 继承此类并implementsAbstractMethod。
-    Interface and  ``EmbeddingProtocol``  completely 一致，可 directly 传给 ``MemoryManager``。
+    Every embedding service implementation must inherit this class and implement the abstract methods.
+    The interface matches ``EmbeddingProtocol`` exactly, so an implementation can be passed directly to ``MemoryManager``.
     """
 
     @property
     @abstractmethod
     def dimension(self) -> int:
-        """ReturnEmbeddingVectorDimension"""
+        """Return the embedding vector dimension."""
         ...
 
     @abstractmethod
     async def embed(self, text: str) -> list[float]:
-        """Embeddingsingletext
+        """Embed a single text.
 
         Args:
-            text: inputtext
+            text: Input text
 
         Returns:
-            EmbeddingVector
+            Embedding vector
         """
         ...
 
     @abstractmethod
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """批量Embeddingtext
+        """Embed a batch of texts.
 
         Args:
-            texts: textList
+            texts: Input texts
 
         Returns:
-            EmbeddingVectorList
+            List of embedding vectors
         """
         ...

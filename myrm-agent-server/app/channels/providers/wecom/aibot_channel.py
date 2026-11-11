@@ -11,7 +11,7 @@ Outbound: aibot_respond_msg frames with stream support, aibot_send_msg for proac
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
-- WeComAiBotChannel: WeCom AI Bot WebSocket longconnect Channel
+- WeComAiBotChannel: WeCom AI Bot WebSocket long-connection channel
 
 [POS]
 WeCom AI Bot channel: WebSocket long-lived connection, no public IP required,

@@ -51,25 +51,25 @@ if TYPE_CHECKING:
 __all__ = [
     # Embedding service
     "EmbeddingService",
-    # hybrid retrieval(newarchitecture)
+    # Hybrid retrieval
     "HybridSearchCoordinator",
-    # purememoryvectorretrieval(recommended)
+    # Pure in-memory vector retrieval (recommended)
     "NumpyVectorRetriever",
     # Reranker service
     "RerankerConfig",
     "RerankerService",
     "RetrievalResult",
     "RetrieverConfig",
-    # retrievalmanagerandconfiguration
+    # Retrieval manager and configuration
     "RetrieverManager",
-    # chunk
+    # Text chunker
     "TextChunker",
     # BM25
     "bm25_retrieval",
     "get_embedding_service",
     "get_reranker_service",
     "hybrid_retriever",
-    # pre-load function
+    # Preload functions
     "preload_retriever_models",
     "preload_tokenizer",
     "search_with_numpy_retriever",
@@ -181,10 +181,10 @@ def __getattr__(name: str):
         logger = logging.getLogger(__name__)
 
         def start_background_preload() -> threading.Thread:
-            """inbackgroundthreadinstartmodelpre-load
+            """Start model preloading in a background thread.
 
             Returns:
-                backgroundpre-loadthread
+                The background preload thread
             """
             from myrm_agent_harness.toolkits.retriever import preload_retriever_models
 

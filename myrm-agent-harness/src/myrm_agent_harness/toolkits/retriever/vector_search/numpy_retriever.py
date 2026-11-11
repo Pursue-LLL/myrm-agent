@@ -28,28 +28,28 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RetrievalResult:
-    """检索Result"""
+    """A retrieved document with its similarity score."""
 
     document: Document
     score: float
 
 
 class NumpyVectorRetriever:
-    """基于 NumPy  纯内存Vector检索器
+    """NumPy-based in-memory vector retriever.
 
-     for temporary文档集合 Vector检索（Web SearchResult、爬取Content etc.）。
-     using 预归一化 + float32 optimized，适 for  < 10,000 文档。
+    Vector search over temporary document collections (web search results, crawled content, etc.).
+    Uses pre-normalized vectors and float32; suited to fewer than 10,000 documents.
 
-    Performance optimization：
-    - 预归一化文档Vector（ avoid 重复Compute）
-    -  using  float32（节省 50% 内存）
-    - 批量矩阵运算（批量Queryspeedup）
-    - argpartition Top-K 选择（O(n) vs O(n log n)）
+    Performance optimizations:
+    - Pre-normalized document vectors (avoids repeated computation)
+    - float32 (saves 50% memory versus float64)
+    - Batched matrix operations (speeds up multi-query search)
+    - argpartition Top-K selection (O(n) vs O(n log n))
 
-     and  Qdrant  区别：
-    -  no 需Startindependent进程，零Start开销
-    - 纯内存Compute，适合i.e.时Scenario
-    -  not Support持久化，适合temporaryData
+    Differences from Qdrant:
+    - No separate process to start, zero startup overhead
+    - Pure in-memory computation, suited to real-time scenarios
+    - No persistence, suited to temporary data
     """
 
     def __init__(
@@ -66,7 +66,7 @@ class NumpyVectorRetriever:
         self._embedding_computed = False
 
     async def ensure_embeddings(self) -> None:
-        """ensure 文档Embedding already Compute并归一化"""
+        """Make sure the document embeddings are computed and normalized."""
         if self._embedding_computed:
             return
 
@@ -87,15 +87,15 @@ class NumpyVectorRetriever:
         limit: int = 10,
         score_threshold: float = 0.0,
     ) -> list[RetrievalResult]:
-        """单Query检索
+        """Search for a single query.
 
         Args:
-            query: Querytext
-            limit: ReturnMaximumCount
-            score_threshold: 最低相似度阈Value
+            query: Query text
+            limit: Maximum number of results to return
+            score_threshold: Minimum similarity score
 
         Returns:
-            检索ResultList
+            List of retrieval results
         """
         await self.ensure_embeddings()
 
@@ -145,15 +145,15 @@ class NumpyVectorRetriever:
         limit: int = 10,
         score_threshold: float = 0.0,
     ) -> dict[str, list[RetrievalResult]]:
-        """批量Query检索
+        """Search for multiple queries in a batch.
 
         Args:
-            queries: QuerytextList
-            limit: EachQueryReturn MaximumCount
-            score_threshold: 最低相似度阈Value
+            queries: Query texts
+            limit: Maximum number of results per query
+            score_threshold: Minimum similarity score
 
         Returns:
-            EachQuery 检索Result
+            Retrieval results of each query, keyed by query text
         """
         if not queries:
             return {}
@@ -222,7 +222,7 @@ async def search_with_numpy_retriever(
     limit: int = 10,
     score_threshold: float = 0.0,
 ) -> dict[str, list[tuple[Document, float]]]:
-    """纯内存Vector检索便捷Function"""
+    """Convenience function for in-memory vector search."""
     if not queries or not documents:
         return {}
 

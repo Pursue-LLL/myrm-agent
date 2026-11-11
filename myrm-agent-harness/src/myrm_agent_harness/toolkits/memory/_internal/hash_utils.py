@@ -2,7 +2,7 @@
 
 Configurable normalization strategy balances performance vs deduplication accuracy.
 
-Performance (tested 10000 timeaverage):
+Performance (measured, average of 10000 runs):
 - NONE: ~0.6μs (8.3x faster than FULL)
 - BASIC: ~3.5μs (1.5x faster than FULL)
 - FULL: ~5μs (maximum deduplication)

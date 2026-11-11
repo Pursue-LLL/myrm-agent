@@ -5,9 +5,9 @@ Provides structured error classification with recoverability and strategy mappin
 [INPUT]
 
 [OUTPUT]
-- RecoverabilityLevel: canrestorehierarchy
-- FailoverReason: concreteerrortype
-- ProbePolicy: probesstrategyconfiguration
+- RecoverabilityLevel: Layer 1 error recoverability classification
+- FailoverReason: Layer 2 specific error type classification
+- ProbePolicy: Layer 3 probe strategy configuration
 
 [POS]
 Three-layer error classification system. Layer 1: recoverability, Layer 2: concrete types, Layer 3: strategy mapping.

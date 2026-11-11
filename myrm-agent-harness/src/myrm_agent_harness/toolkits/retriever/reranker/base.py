@@ -22,17 +22,17 @@ from dataclasses import dataclass
 
 @dataclass
 class RerankResult:
-    """rerankingresult"""
+    """Rerank result of one document."""
 
-    index: int  # originaldocumentindex
-    score: float  # rerank score
-    text: str  # documenttext
+    index: int  # Index of the document in the input list
+    score: float  # Rerank score
+    text: str  # Document text
 
 
 class RerankerService(ABC):
-    """rerankingserviceabstractinterface
+    """Abstract interface for reranking services.
 
-    allrerankingserviceimplementationallrequiredinheritsthisclassandimplementationabstractmethod.
+    Every reranking service implementation must inherit this class and implement the abstract method.
     """
 
     @abstractmethod
@@ -42,15 +42,15 @@ class RerankerService(ABC):
         documents: list[str],
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        """rerankingdocument
+        """Rerank documents against a query.
 
         Args:
             query: Query text
-            documents: documenttextlist
-            top_k: returns top k result, None means return all
+            documents: Document texts
+            top_k: Return only the top k results; None returns all
 
         Returns:
-            reranked results sorted by score descendingsortresultlist
+            Rerank results sorted by score in descending order
         """
         ...
 
@@ -58,16 +58,16 @@ class RerankerService(ABC):
         self,
         pairs: list[tuple[str, str]],
     ) -> list[float]:
-        """batchreranking query-document pairs
+        """Rerank query-document pairs in a batch.
 
-        defaultImplementation:forcalls rerank.
-        classcanwithoverridesthismethodwithprovidesefficient'sbatchimplementation.
+        Default implementation: calls rerank once per pair.
+        Subclasses can override this method to provide a more efficient batch implementation.
 
         Args:
-            pairs: (query, document) forlist
+            pairs: List of (query, document) pairs
 
         Returns:
-            forshouldeach pair 'srerank scorelist
+            Rerank score of each pair
         """
         scores = []
         for query, doc in pairs:

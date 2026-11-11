@@ -1,8 +1,8 @@
-"""Browser Fetcher — 基于 Patchright + GlobalBrowserPool  Browser抓取
+"""Browser Fetcher — browser-based fetching on Patchright + GlobalBrowserPool.
 
- using  GlobalBrowserPool 零拷贝Page复用。
-Patchright  from 源码层面修补了 CDP 泄露，provides in  etc.反检测能力。
-复用 Navigator implements导航逻辑，Auto获得限流能力。
+Uses GlobalBrowserPool for zero-copy page reuse.
+Patchright patches CDP leaks at the source level, providing moderate anti-detection capability.
+Reuses Navigator for navigation logic and gets throttling for free.
 
 [INPUT]
 - toolkits.browser.pool::GlobalBrowserPool (POS: Runtime pool management layer. Provides multi-backend unified management, concurrency control, health monitoring, and config-driven registration — the central dispatcher of the runtime system.)
@@ -34,10 +34,11 @@ logger = logging.getLogger(__name__)
 
 
 class BrowserFetcher:
-    """L2 层：Patchright + GlobalBrowserPool
+    """L2 tier: Patchright + GlobalBrowserPool
 
-    using  GlobalBrowserPool implements零拷贝Page复用，消除资源分裂。
-    via  DomainMetricsManager 共享Domain级学习Data，使 SMART WaitStrategy能基于历史DataDynamic调整。
+    Uses GlobalBrowserPool for zero-copy page reuse, which removes resource fragmentation.
+    Shares domain-level learning data through DomainMetricsManager so the SMART wait strategy
+    can adjust dynamically from historical data.
     """
 
     fetcher_type = FetcherType.BROWSER
@@ -53,7 +54,7 @@ class BrowserFetcher:
         """Initialize BrowserFetcher
 
         Args:
-            browser_pool: GlobalBrowserPool Instance（optional，Default using Globalsingleton）
+            browser_pool: GlobalBrowserPool instance (optional; defaults to the global singleton)
             allow_private_networks: Skip SSRF private-IP blocking in Navigator (local mode).
             session_vault: Optional SessionVault for cookie/state sharing.
         """
@@ -69,13 +70,13 @@ class BrowserFetcher:
         self._launch_mode_preference = launch_mode
 
     async def fetch(self, url: str) -> FetchResult | None:
-        """抓取 URL Content（复用 Navigator，Auto获得限流 and Domain学习能力）
+        """Fetch URL content (reuses Navigator, which brings throttling and domain learning)
 
         Args:
-            url: 目标 URL
+            url: Target URL
 
         Returns:
-            FetchResult  or  None（Failure时）
+            FetchResult, or None on failure
         """
         from urllib.parse import urlparse
 
@@ -151,5 +152,5 @@ class BrowserFetcher:
                     logger.warning(f"BrowserFetcher release failed: {exc}")
 
     async def shutdown(self) -> None:
-        """Close资源（V2 架构由 GlobalBrowserPool 统一管理， no 需ManualClose）"""
+        """Release resources (GlobalBrowserPool manages them centrally, so no manual close is needed)"""
         pass
