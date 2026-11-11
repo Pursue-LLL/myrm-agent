@@ -110,6 +110,34 @@ async def test_straggler_is_given_up_once_a_page_is_in_hand_and_its_fetch_keeps_
     assert any(_HANG in record.getMessage() and "stopped waiting" in record.getMessage() for record in caplog.records)
 
 
+async def test_hung_url_with_no_page_in_hand_is_given_up_after_its_crawl_timeout_plus_the_grace(
+    engine: FetchEngine,
+) -> None:
+    cancelled = script_crawl(engine, {_HANG: None})
+
+    started = time.perf_counter()
+    async with asyncio.timeout(5):
+        success, failed = await engine.crawl_many([_HANG])
+    elapsed = time.perf_counter() - started
+
+    assert success == []
+    assert failed == [(_HANG, None)]
+    assert cancelled == []
+    assert _CRAWL_TIMEOUT_S + _GRACE_S - 0.05 <= elapsed < 5
+
+
+async def test_a_page_in_hand_never_stretches_the_patience_past_the_hard_limit(
+    engine: FetchEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(batch_mixin, "_STRAGGLER_AFTER_S", 60.0)  # longer than the crawl timeout plus the grace
+    script_crawl(engine, {_FAST: 0.01, _HANG: None})
+
+    async with asyncio.timeout(5):
+        _, failed = await engine.crawl_many([_FAST, _HANG])
+
+    assert failed == [(_HANG, None)]
+
+
 async def test_shutdown_cancels_the_fetches_a_call_stopped_waiting_for(engine: FetchEngine) -> None:
     cancelled = script_crawl(engine, {_FAST: 0.01, _HANG: None})
     await engine.crawl_many([_FAST, _HANG])
