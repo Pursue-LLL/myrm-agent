@@ -27,7 +27,6 @@ import {
   Salad,
   Search,
   ShieldAlert,
-  Sparkles,
   Sun,
   Sunrise,
   Sunset,
@@ -157,7 +156,7 @@ const SamplePrompts = React.memo(() => {
       const agentPrompts = agentConfig.suggestionPrompts.map((text, i) => ({
         key: `agent_custom_${i}`,
         text,
-        Icon: PROMPT_ICONS[`agent_${i % POOL_SIZE}`] ?? Brain,
+        Icon: PROMPT_ICONS[`agent_${i % POOL_SIZE}`],
       }));
       return stablePick(agentPrompts, DISPLAY_COUNT, `${pickSeed}:custom`);
     }
@@ -168,7 +167,7 @@ const SamplePrompts = React.memo(() => {
         return {
           key,
           text: t(`samplePrompts.${key}`),
-          Icon: PROMPT_ICONS[key] ?? Sparkles,
+          Icon: PROMPT_ICONS[key],
         };
       });
       return timePool;
@@ -179,7 +178,7 @@ const SamplePrompts = React.memo(() => {
       return {
         key,
         text: t(`samplePrompts.${key}`),
-        Icon: PROMPT_ICONS[key] ?? Search,
+        Icon: PROMPT_ICONS[key],
       };
     });
 
@@ -187,7 +186,7 @@ const SamplePrompts = React.memo(() => {
       pool.push({
         key: 'agent_pptx',
         text: t('samplePrompts.agent_pptx'),
-        Icon: PROMPT_ICONS.agent_pptx ?? Presentation,
+        Icon: PROMPT_ICONS.agent_pptx,
       });
     }
 

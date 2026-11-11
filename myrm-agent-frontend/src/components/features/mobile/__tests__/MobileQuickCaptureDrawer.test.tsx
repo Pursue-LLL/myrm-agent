@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import type { StagingRecord } from '@/store/offline/offlineStagingStore';
 import MobileQuickCaptureDrawer from '../MobileQuickCaptureDrawer';
 
@@ -71,9 +71,7 @@ describe('MobileQuickCaptureDrawer', () => {
   });
 
   it('renders nothing when open is false', () => {
-    const { container } = render(
-      <MobileQuickCaptureDrawer open={false} onClose={defaultOnClose} />,
-    );
+    const { container } = render(<MobileQuickCaptureDrawer open={false} onClose={defaultOnClose} />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -244,5 +242,87 @@ describe('MobileQuickCaptureDrawer', () => {
     });
 
     expect(screen.queryByTestId('mobile-quick-capture-drawer')).toBeNull();
+  });
+
+  describe('connectivity', () => {
+    let onLine: MockInstance<() => boolean>;
+    const stagedRecord = (): StagingRecord => ({
+      id: 'staged-3',
+      payload: { content: 'Draft written offline' },
+      envelope: {
+        version: 1,
+        ciphertext: 'enc',
+        iv: 'iv',
+        salt: 'salt',
+        algorithm: 'AES-GCM-256',
+        createdAt: 1760000000000,
+      },
+      status: 'staged',
+      createdAt: 1760000000000,
+      updatedAt: 1760000000000,
+      retryCount: 0,
+    });
+    const setConnectivity = (online: boolean) => {
+      onLine.mockReturnValue(online);
+      act(() => {
+        window.dispatchEvent(new Event(online ? 'online' : 'offline'));
+      });
+    };
+
+    beforeEach(() => {
+      onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    });
+    afterEach(() => {
+      onLine.mockRestore();
+    });
+
+    it('shows the browser as online when it is', () => {
+      render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+
+      expect(screen.getByText('网络已连接')).toBeInTheDocument();
+      expect(screen.queryByText('离线模式')).toBeNull();
+    });
+
+    it('shows offline mode from the first render when the browser starts offline', () => {
+      onLine.mockReturnValue(false);
+
+      render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+
+      expect(screen.getByText('离线模式')).toBeInTheDocument();
+      expect(screen.queryByText('网络已连接')).toBeNull();
+    });
+
+    it('follows the browser going offline and coming back', () => {
+      render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+
+      setConnectivity(false);
+      expect(screen.getByText('离线模式')).toBeInTheDocument();
+
+      setConnectivity(true);
+      expect(screen.getByText('网络已连接')).toBeInTheDocument();
+    });
+
+    it('cannot sync staged notes while offline, and can once back online', () => {
+      onLine.mockReturnValue(false);
+      render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+      act(() => {
+        triggerSubscribers([stagedRecord()]);
+      });
+
+      expect(screen.getByTestId('quick-capture-manual-sync')).toBeDisabled();
+
+      setConnectivity(true);
+      expect(screen.getByTestId('quick-capture-manual-sync')).not.toBeDisabled();
+    });
+
+    it('stops listening to connectivity when unmounted', () => {
+      const removed = vi.spyOn(window, 'removeEventListener');
+      const { unmount } = render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+
+      unmount();
+
+      expect(removed.mock.calls.map(([type]) => type)).toEqual(expect.arrayContaining(['online', 'offline']));
+      removed.mockRestore();
+    });
   });
 });

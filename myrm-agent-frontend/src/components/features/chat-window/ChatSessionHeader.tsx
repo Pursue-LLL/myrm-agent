@@ -38,7 +38,7 @@ const TabButton = ({ active, onClick, icon, label }: TabButtonProps) => (
     type="button"
     aria-pressed={active}
     onClick={onClick}
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all ${
       active ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'
     }`}
   >

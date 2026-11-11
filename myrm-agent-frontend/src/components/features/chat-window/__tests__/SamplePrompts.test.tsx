@@ -34,12 +34,10 @@ const isTabSelected = (label: Slot | 'all') => tab(label).classList.contains('bg
 const hasCurrentTimeDot = (label: Slot) => tab(label).querySelector('.animate-pulse') !== null;
 
 /** Prompt cards are every button that is not a time-slot tab, in display order. */
-function cardTexts(): string[] {
-  return screen
-    .getAllByRole('button')
-    .map((button) => button.textContent ?? '')
-    .filter((text) => !text.startsWith('lifeOperator.'));
-}
+const promptCards = (): HTMLElement[] =>
+  screen.getAllByRole('button').filter((button) => !(button.textContent ?? '').startsWith('lifeOperator.'));
+
+const cardTexts = (): string[] => promptCards().map((card) => card.textContent ?? '');
 
 const timeSlotCards = (slot: Slot) => [0, 1, 2, 3].map((i) => `samplePrompts.time_${slot}_${i}`);
 
@@ -153,20 +151,24 @@ describe('SamplePrompts', () => {
     it.each<[ActionMode, string[]]>([
       ['agent', AGENT_POOL],
       ['fast', FAST_POOL],
-    ])('rotates through every %s prompt across agents, so none is dropped from the pool', (actionMode, pool) => {
-      useChatStore.setState({ actionMode });
-      const seen = new Set<string>();
+    ])(
+      'rotates through every %s prompt across agents, each with its own icon, so none is dropped from the pool',
+      (actionMode, pool) => {
+        useChatStore.setState({ actionMode });
+        const seen = new Set<string>();
 
-      for (let agent = 0; agent < 40; agent += 1) {
-        useChatStore.setState({ agentConfig: agentConfigWith({ agentId: `agent-${agent}` }) });
-        const view = render(<SamplePrompts />);
-        fireEvent.click(tab('all'));
-        cardTexts().forEach((text) => seen.add(text));
-        view.unmount();
-      }
+        for (let agent = 0; agent < 40; agent += 1) {
+          useChatStore.setState({ agentConfig: agentConfigWith({ agentId: `agent-${agent}` }) });
+          const view = render(<SamplePrompts />);
+          fireEvent.click(tab('all'));
+          cardTexts().forEach((text) => seen.add(text));
+          promptCards().forEach((card) => expect(card.querySelector('svg')).not.toBeNull());
+          view.unmount();
+        }
 
-      expect([...seen].sort()).toEqual([...pool].sort());
-    });
+        expect([...seen].sort()).toEqual([...pool].sort());
+      },
+    );
 
     it('treats an action mode it has no prompts for as agent mode', () => {
       useChatStore.setState({ actionMode: 'retired-mode' as unknown as ActionMode });

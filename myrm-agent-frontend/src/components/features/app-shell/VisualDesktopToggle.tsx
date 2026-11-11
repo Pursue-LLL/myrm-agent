@@ -244,7 +244,7 @@ export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggl
                 disabled={controlBusy}
                 data-testid={held ? 'visual-desktop-hand-back' : 'visual-desktop-take-control'}
                 className={cn(
-                  'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-60',
+                  'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-60',
                   held
                     ? 'bg-muted text-foreground hover:bg-muted/80'
                     : 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -265,14 +265,14 @@ export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggl
                 <div className="shrink-0 flex items-center gap-2">
                   <button
                     onClick={() => void handleTakeoverSkip()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground rounded-md hover:bg-muted/80 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors"
                   >
                     <XCircle size={14} />
                     {t('takeoverSkip')}
                   </button>
                   <button
                     onClick={() => void handleTakeoverComplete()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                   >
                     <CheckCircle2 size={14} />
                     {t('takeoverDone')}
