@@ -7,10 +7,11 @@ import MobileQuickCaptureDrawer from '../MobileQuickCaptureDrawer';
 
 type SubscriberFn = (records: StagingRecord[]) => void;
 
-const { mockAddItem, mockSyncQueue, mockSubscribe, triggerSubscribers, stableT } = vi.hoisted(() => {
+const { mockAddItem, mockSyncQueue, mockSubscribe, mockShowI18nToast, triggerSubscribers, stableT } = vi.hoisted(() => {
   const subs: SubscriberFn[] = [];
   return {
     mockAddItem: vi.fn().mockResolvedValue('rec-test-123'),
+    mockShowI18nToast: vi.fn(),
     mockSyncQueue: vi.fn().mockResolvedValue(undefined),
     mockSubscribe: vi.fn((fn: SubscriberFn) => {
       subs.push(fn);
@@ -53,6 +54,10 @@ const { mockAddItem, mockSyncQueue, mockSubscribe, triggerSubscribers, stableT }
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
+}));
+
+vi.mock('@/services/i18nToastService', () => ({
+  showI18nToast: mockShowI18nToast,
 }));
 
 vi.mock('@/store/offline/offlineStagingStore', () => ({
@@ -148,6 +153,104 @@ describe('MobileQuickCaptureDrawer', () => {
 
     // Success notice is displayed
     expect(screen.getByText('已加密保存至本地暂存箱')).toBeInTheDocument();
+  });
+
+  describe('saving', () => {
+    const SAVED_NOTICE = '已加密保存至本地暂存箱';
+
+    async function save(text: string) {
+      fireEvent.change(screen.getByTestId('quick-capture-content-input'), { target: { value: text } });
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('quick-capture-submit-button'));
+      });
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('tells the user and keeps the draft when the note cannot be staged', async () => {
+      mockAddItem.mockRejectedValueOnce(new Error('IndexedDB is unavailable'));
+      render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+      fireEvent.change(screen.getByTestId('quick-capture-title-input'), { target: { value: 'Plan' } });
+      fireEvent.click(screen.getByTestId('quick-capture-tag-Todo'));
+
+      await save('Call the vendor');
+
+      expect(mockShowI18nToast).toHaveBeenCalledWith('mobile.quickCapture.saveFailed', undefined, { type: 'error' });
+      expect((screen.getByTestId('quick-capture-content-input') as HTMLTextAreaElement).value).toBe('Call the vendor');
+      expect((screen.getByTestId('quick-capture-title-input') as HTMLInputElement).value).toBe('Plan');
+      expect(screen.getByTestId('quick-capture-tag-Todo').className).toContain('bg-primary/15');
+      expect(screen.queryByText(SAVED_NOTICE)).toBeNull();
+      expect(screen.getByTestId('quick-capture-submit-button')).not.toBeDisabled();
+    });
+
+    it('saves the same draft once the staging store works again', async () => {
+      mockAddItem.mockRejectedValueOnce(new Error('IndexedDB is unavailable'));
+      render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+
+      await save('Call the vendor');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('quick-capture-submit-button'));
+      });
+
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
+      expect(screen.getByText(SAVED_NOTICE)).toBeInTheDocument();
+      expect(mockShowI18nToast).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides the saved notice after 2.5 seconds', async () => {
+      vi.useFakeTimers();
+      render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+
+      await save('First note');
+      expect(screen.getByText(SAVED_NOTICE)).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(2499);
+      });
+      expect(screen.getByText(SAVED_NOTICE)).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.queryByText(SAVED_NOTICE)).toBeNull();
+    });
+
+    it('keeps the notice of a second save for its full time', async () => {
+      vi.useFakeTimers();
+      render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+
+      await save('First note');
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      await save('Second note');
+
+      // The first save's timer would have run out here.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText(SAVED_NOTICE)).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      expect(screen.queryByText(SAVED_NOTICE)).toBeNull();
+    });
+
+    it('leaves no notice timer behind when it is unmounted', async () => {
+      vi.useFakeTimers();
+      const { unmount } = render(<MobileQuickCaptureDrawer open={true} onClose={defaultOnClose} />);
+
+      await save('First note');
+      const running = vi.getTimerCount();
+      expect(running).toBeGreaterThan(0);
+
+      unmount();
+
+      expect(vi.getTimerCount()).toBeLessThan(running);
+    });
   });
 
   it('toggles queue view and displays staged records', () => {

@@ -14281,6 +14281,7 @@
       "titlePlaceholder": "Title (optional)",
       "saveToVault": "Save to Vault",
       "savedNotice": "Encrypted & saved to local vault",
+      "saveFailed": "Could not save the note. Your draft is kept, please try again.",
       "convertToTask": "Convert to Task"
     }
   },

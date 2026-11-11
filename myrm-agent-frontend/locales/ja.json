@@ -14281,6 +14281,7 @@
       "titlePlaceholder": "タイトル（任意）",
       "saveToVault": "ボルトに保存",
       "savedNotice": "暗号化してローカルボルトに保存しました",
+      "saveFailed": "保存できませんでした。下書きは残っています。もう一度お試しください",
       "convertToTask": "タスクに変換"
     }
   },

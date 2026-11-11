@@ -14281,6 +14281,7 @@
       "titlePlaceholder": "标题 (可选)",
       "saveToVault": "保存到暂存箱",
       "savedNotice": "已加密保存至本地暂存箱",
+      "saveFailed": "保存失败，草稿已保留，请重试",
       "convertToTask": "转为任务"
     }
   },

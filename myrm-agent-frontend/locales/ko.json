@@ -14281,6 +14281,7 @@
       "titlePlaceholder": "제목(선택 사항)",
       "saveToVault": "보관함에 저장",
       "savedNotice": "암호화하여 로컬 보관함에 저장했습니다",
+      "saveFailed": "저장하지 못했습니다. 초안은 그대로 남아 있으니 다시 시도해 주세요",
       "convertToTask": "작업으로 변환"
     }
   },

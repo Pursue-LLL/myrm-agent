@@ -4,6 +4,7 @@
  * [INPUT]
  * - store/offline/offlineStagingStore::offlineStagingStore, StagingRecord (POS: Offline staging queue)
  * - next-intl::useTranslations (POS: Internationalization)
+ * - services/i18nToastService::showI18nToast (POS: Localised toast for a failed save or an unsupported microphone)
  * - lucide-react::Mic, MicOff, Lock, Wifi, WifiOff, Send, X, RefreshCw, Tag, PenLine, Inbox, CheckCircle2 (POS: Icons)
  *
  * [OUTPUT]
@@ -31,6 +32,9 @@ export interface MobileQuickCaptureDrawerProps {
 }
 
 const PRESET_TAGS = ['Idea', 'Todo', 'Secret', 'Meeting'];
+
+/** How long the "saved" notice stays up. */
+const SAVED_NOTICE_MS = 2500;
 
 /** The browser raises `online` / `offline` whenever connectivity flips; the snapshot reads the current value. */
 const subscribeToConnectivity = (onChange: () => void) => {
@@ -88,6 +92,9 @@ export default function MobileQuickCaptureDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [justSavedNotice, setJustSavedNotice] = useState(false);
+  const savedNoticeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => () => clearTimeout(savedNoticeTimerRef.current), []);
 
   // Hook-based voice dictation
   const { isListening, transcript, toggleRecognition, resetTranscript, stopRecognition } = useVoiceRecognition({
@@ -138,7 +145,12 @@ export default function MobileQuickCaptureDrawer({
       stopRecognition();
 
       setJustSavedNotice(true);
-      setTimeout(() => setJustSavedNotice(false), 2500);
+      // One timer at a time, so a second save keeps its notice for the full time.
+      clearTimeout(savedNoticeTimerRef.current);
+      savedNoticeTimerRef.current = setTimeout(() => setJustSavedNotice(false), SAVED_NOTICE_MS);
+    } catch {
+      // Nothing was staged and the draft is still in the form, so saving again is safe.
+      showI18nToast('mobile.quickCapture.saveFailed', undefined, { type: 'error' });
     } finally {
       setIsSubmitting(false);
     }

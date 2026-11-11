@@ -14281,6 +14281,7 @@
       "titlePlaceholder": "Titel (optional)",
       "saveToVault": "Im Tresor speichern",
       "savedNotice": "Verschlüsselt und im lokalen Tresor gespeichert",
+      "saveFailed": "Speichern fehlgeschlagen. Der Entwurf bleibt erhalten, bitte erneut versuchen.",
       "convertToTask": "In Aufgabe umwandeln"
     }
   },
