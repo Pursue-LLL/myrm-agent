@@ -168,7 +168,7 @@ function UsageStatisticsSection() {
         <DailyChart data={daily} t={t} />
       </SettingsSection>
 
-      {/* Per-Agent Usage (auto-hidden when <=1 agent) */}
+      {/* Per-Agent Usage (hidden until an agent has recorded usage) */}
       <AgentUsageCard />
 
       {/* Routing analytics (conditional) */}

@@ -14,11 +14,15 @@ import {
 import type { Message } from '@/store/chat/types';
 import ExportMenu from '../ExportMenu';
 
-// Keys of the `sources` namespace carry a prefix, so a test can tell which namespace a label was read from.
+// Keys of the `sources` and `MessageSources` namespaces carry a prefix, so a test can tell which namespace a label was
+// read from.
 const stableT = (key: string) => key;
-const stableSourcesT = (key: string) => `sources.${key}`;
+const prefixed: Record<string, (key: string) => string> = {
+  sources: (key) => `sources.${key}`,
+  MessageSources: (key) => `MessageSources.${key}`,
+};
 vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (namespace === 'sources' ? stableSourcesT : stableT),
+  useTranslations: (namespace: string) => prefixed[namespace] ?? stableT,
 }));
 vi.mock('next-themes', () => ({ useTheme: () => ({ resolvedTheme: 'light' }) }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
@@ -134,7 +138,12 @@ describe('ExportMenu image export', () => {
 
 describe('ExportMenu text exports', () => {
   // The interface wording as the mocks above give it back: reasoning from `chat`, sources from `sources`.
-  const LABELS = { reasoning: 'reasoningTitle', sources: 'sources.title', untitledSource: 'sources.untitled' };
+  const LABELS = {
+    reasoning: 'reasoningTitle',
+    sources: 'sources.title',
+    untitledSource: 'sources.untitled',
+    sectionLabel: expect.any(Function),
+  };
   const markdownRef: RefObject<HTMLDivElement | null> = { current: null };
 
   beforeEach(() => {
@@ -149,6 +158,15 @@ describe('ExportMenu text exports', () => {
     exportAs('exportMessage.markdown');
 
     expect(downloadMessageAsMarkdown).toHaveBeenCalledExactlyOnceWith(message, false, LABELS);
+  });
+
+  it('words a wiki section from the namespace that holds its translation', () => {
+    render(<ExportMenu message={messageOfLength(100)} markdownRef={markdownRef} />);
+
+    exportAs('exportMessage.markdown');
+
+    const labels = vi.mocked(downloadMessageAsMarkdown).mock.calls[0][2];
+    expect(labels.sectionLabel?.('index_routing')).toBe('MessageSources.kb_section_index_routing');
   });
 
   it('hands the interface wording, the theme and the interface language to the HTML export', async () => {

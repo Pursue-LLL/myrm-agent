@@ -6796,7 +6796,6 @@
   },
   "sources": {
     "title": "ソース",
-    "count": "{count} 個のソース",
     "untitled": "無題",
     "mcp_source": "MCP スキル呼び出し",
     "mcp_calls_count": "ツール呼び出し {count} 回",
@@ -6812,8 +6811,6 @@
     "conversation_excluded": "会話リコールから除外",
     "conversation_deleted": "会話を削除しました",
     "operation_failed": "操作に失敗しました",
-    "copyAll": "すべてコピー",
-    "copyAllSuccess": "ソースをクリップボードにコピーしました",
     "mcpSkillFallback": "MCP スキル"
   },
   "auth": {
@@ -8786,7 +8783,7 @@
     "credentialGuideGooglechat": "Google Cloud Console でサービスアカウントを作成し Chat API を設定します",
     "credentialGuideMatrix": "Matrix Homeserver の URL と Bot アカウントの認証情報を設定します",
     "credentialGuideMattermost": "Mattermost システムコンソールで Bot を作成して Token を取得",
-    "credentialGuideGithub": "GitHub Settings で Personal Access Token を作成し、リポジトリ設定で Webhook Secret を構成します",
+    "credentialGuideGithub": "GitHub Settings で Personal Access Token を作成します",
     "channelEnableSuccess": "チャンネル {name} 有効",
     "channelDisableSuccess": "チャンネル {name} 無効",
     "channelToggleError": "チャンネルステータスの切り替えに失敗",

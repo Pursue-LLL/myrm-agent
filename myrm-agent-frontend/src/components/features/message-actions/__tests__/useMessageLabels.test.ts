@@ -10,12 +10,16 @@ vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createR
 
 describe('useMessageLabels', () => {
   it.each([
-    ['zh', { reasoning: '思考过程', sources: '来源', untitledSource: '未命名' }],
-    ['en', { reasoning: 'Reasoning', sources: 'Sources', untitledSource: 'Untitled' }],
-  ] as const)('words the labels in the interface language (%s)', (locale, labels) => {
+    ['zh', { reasoning: '思考过程', sources: '来源', untitledSource: '未命名' }, '目录索引'],
+    ['en', { reasoning: 'Reasoning', sources: 'Sources', untitledSource: 'Untitled' }, 'Catalog index'],
+  ] as const)('words the labels in the interface language (%s)', (locale, labels, catalogSection) => {
     intl.locale = locale;
 
-    expect(renderHook(() => useMessageLabels()).result.current).toEqual(labels);
+    const { sectionLabel, ...words } = renderHook(() => useMessageLabels()).result.current;
+
+    expect(words).toEqual(labels);
+    expect(sectionLabel('index_routing')).toBe(catalogSection);
+    expect(sectionLabel('Rollback')).toBe('Rollback');
   });
 
   it('hands back the same object while the language stays, so callers that depend on it do not rerun', () => {

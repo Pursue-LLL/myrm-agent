@@ -259,14 +259,14 @@ vectors_config = {
 
 ### 4.3 Adaptive Dual-channel Retrieval
 
-**成本问题：**Dual-channel（同时查询raw + summary）成本+100%，但并非所有查询都需要dual-channel。
+**成本问题：**Dual-channel（同时查询 raw + summary）要多查一个通道，但并非所有查询都需要 dual-channel。
 
 **Adaptive 3-factor decision logic：**
 
 ```python
 def should_use_dual_channel(query: str, config: RetrievalConfig) -> bool:
     # Factor 1: Quoted phrases（精确匹配需求）
-    if any(q in query for q in ['"', "'", "`", "「", "」"]):
+    if any(q in query for q in ('"', "'", "`", "「", "」", "『", "』")):
         return True  # 有引号 → dual-channel
 
     # Factor 2: Token count（长查询更可能需要精确信息）
@@ -283,10 +283,10 @@ def should_use_dual_channel(query: str, config: RetrievalConfig) -> bool:
     return False  # 短查询/简单查询 → single-channel (summary only)
 ```
 
-**真实收益：**
+**效果与度量：**
 
-- **-35% query cost**（实测，90%查询single-channel足够）
-- **0% recall loss**（需要dual-channel时自动触发）
+- 单通道只查摘要通道，省掉原文通道的检索与排序；引号、长查询和高词汇多样性的查询自动走双通道，需要原文的查询仍能命中 `raw_exchange`
+- 决策分布与耗时由 OTEL 指标 `adaptive_channel_decision_count{channel="single"|"dual"}` 与 `adaptive_channel_decision_latency_ms` 记录，可据此在自己的负载上评估节省
 
 **Extensibility：**
 

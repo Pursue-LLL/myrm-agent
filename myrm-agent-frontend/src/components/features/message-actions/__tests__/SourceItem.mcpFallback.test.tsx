@@ -7,7 +7,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-import { SourceItem } from '../SourcesButton';
+import { SourceItem } from '../SourceItem';
 
 describe('SourceItem for MCP skills', () => {
   it('shows the skill name when the source carries one', () => {

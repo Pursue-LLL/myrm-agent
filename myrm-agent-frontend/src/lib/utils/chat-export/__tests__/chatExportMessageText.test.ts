@@ -87,6 +87,25 @@ describe('formatMessageMarkdown', () => {
   it.each([[undefined], [[]]])('adds no sources section to a message whose sources are %j', (sources) => {
     expect(formatMessageMarkdown(messageOf({ sources }), false, LABELS)).toBe('Answer.');
   });
+
+  // A source's address or name is as much the page's own text as the answer is, and a URL often carries a key.
+  it('redacts a secret in a source address or name along with the text, and keeps it when redaction is off', () => {
+    const sources: Source[] = [
+      { index: 1, type: 'web_search', url: 'https://api.example.com/v1/data?api_key=abcd1234efgh5678&page=2' },
+      { index: 2, type: 'web_search', title: `Notes on ${OPENAI_KEY}` },
+    ];
+    const withSources = messageOf({ sources });
+
+    const redacted = formatMessageMarkdown(withSources, false, LABELS);
+    expect(redacted).not.toContain('abcd1234efgh5678');
+    expect(redacted).not.toContain('sk-live');
+    expect(redacted).toContain('[1] https://api.example.com/v1/data?api_key=');
+    expect(redacted).toContain('[2] Notes on ');
+
+    const verbatim = formatMessageMarkdown(withSources, false, LABELS, false);
+    expect(verbatim).toContain('abcd1234efgh5678');
+    expect(verbatim).toContain(OPENAI_KEY);
+  });
 });
 
 describe('formatSourcesFootnotes', () => {
@@ -100,6 +119,32 @@ describe('formatSourcesFootnotes', () => {
 
   it.each([[undefined], [[]]])('is empty when the sources are %j', (sources) => {
     expect(formatSourcesFootnotes(sources, LABELS)).toBe('');
+  });
+
+  // Numbering runs on across the turns of a chat, so a later answer's own sources start above 1 and its text cites them
+  // by those numbers.
+  it('numbers a source by the citation number the answer uses, not by its place in the list', () => {
+    const sources: Source[] = [
+      { index: 4, type: 'web_search', url: 'https://four.example' },
+      { index: 5, type: 'web_search', url: 'https://five.example' },
+    ];
+
+    expect(formatSourcesFootnotes(sources, LABELS)).toBe(
+      '\n\n来源:  \n[4] https://four.example  \n[5] https://five.example',
+    );
+  });
+
+  it('words a wiki section the way the caller does, and leaves it as it is when the caller gives no wording', () => {
+    const sources: Source[] = [
+      { index: 1, type: 'knowledge', kb_name: 'Work', filename: 'index', section: 'index_routing' },
+    ];
+    const labels: MessageLabels = {
+      ...LABELS,
+      sectionLabel: (section) => (section === 'index_routing' ? '目录索引' : section),
+    };
+
+    expect(formatSourcesFootnotes(sources, labels)).toBe('\n\n来源:  \n[1] index § 目录索引');
+    expect(formatSourcesFootnotes(sources, LABELS)).toBe('\n\n来源:  \n[1] index § index_routing');
   });
 
   // The kinds the server emits: a web result has an address and a title, a wiki hit a knowledge base and a file, an MCP

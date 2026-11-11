@@ -185,7 +185,7 @@ class RetrievalConfig:
         mmr_lambda: MMR diversity balance (1.0 = pure relevance, 0.0 = pure diversity)
         keyword_overlap_weight: Keyword overlap boost weight
         keyword_overlap_min_tokens: Minimum token overlap to apply boost
-        enable_adaptive_channel: Enable adaptive dual-channel selection (saves ~35% query cost)
+        enable_adaptive_channel: Enable adaptive dual-channel selection (queries that need no verbatim text skip the raw channel)
         adaptive_threshold: Token count threshold for dual-channel (queries < threshold use summary only)
         adaptive_diversity_threshold: Word diversity ratio threshold (unique_words/total_words)
         adaptive_strategy: Optional custom strategy for adaptive channel selection (overrides default 3-factor logic)
