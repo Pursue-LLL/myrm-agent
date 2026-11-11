@@ -11,7 +11,7 @@
  * [POS]
  * 路由、徽标、部署模式与桌面端留白由 navBarKit 提供替身；文案是真实英文。账号菜单见 NavBar.account.test.tsx。
  */
-import { fireEvent, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { kit, renderNavBar, resetNavBarKit } from './navBarKit';
@@ -189,6 +189,15 @@ describe('NavBar rail', () => {
       renderNavBar({ isMobile: false });
 
       expect(screen.getByRole('navigation')).toHaveClass('fixed', 'inset-y-0', 'left-0');
+    });
+
+    it('is left out of narrow windows until the layout has turned mobile, but stays in the drawer', () => {
+      renderNavBar({ isMobile: false });
+      expect(screen.getByRole('navigation')).toHaveClass('wide-layout-only');
+      cleanup();
+
+      renderNavBar({ isMobile: true });
+      expect(screen.getByRole('navigation')).not.toHaveClass('wide-layout-only');
     });
 
     it('flows with its parent on mobile, so it moves together with the sidebar', () => {

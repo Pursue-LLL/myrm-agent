@@ -47,6 +47,12 @@ describe('ContentSidebar when collapsed', () => {
     fireEvent.click(button);
     expect(handlers.onToggleCollapse).toHaveBeenCalledTimes(1);
   });
+
+  it('leaves that button out of narrow windows until the layout has turned mobile', () => {
+    renderSidebar({ isCollapsed: true });
+
+    expect(screen.getByRole('button', { name: 'showSidebar' })).toHaveClass('wide-layout-only');
+  });
 });
 
 describe('ContentSidebar on a desktop', () => {
@@ -55,6 +61,12 @@ describe('ContentSidebar on a desktop', () => {
 
     expect(sidebar(container)).toHaveStyle({ left: '72px', width: '280px' });
     expect(screen.getByTestId('chat-sidebar')).toHaveAttribute('data-mobile', 'false');
+  });
+
+  it('is left out of narrow windows until the layout has turned mobile, so it never covers a phone', () => {
+    const { container } = renderSidebar();
+
+    expect(sidebar(container)).toHaveClass('wide-layout-only');
   });
 
   it('takes the width it is given', () => {
@@ -119,6 +131,7 @@ describe('ContentSidebar on a phone', () => {
     const { container } = renderSidebar({ isMobile: true, width: 336, onResizeStart: handlers.onResizeStart });
 
     expect(sidebar(container)).toHaveClass('flex-1', 'h-full');
+    expect(sidebar(container)).not.toHaveClass('wide-layout-only');
     expect(sidebar(container)?.style.left).toBe('');
     expect(sidebar(container)?.style.width).toBe('');
     expect(screen.getByTestId('chat-sidebar')).toHaveAttribute('data-mobile', 'true');

@@ -88,8 +88,8 @@ function NavBarInner({
         'border-r border-border/50',
         'transition-all duration-300 ease-in-out',
         // 移动端使用相对定位，以便跟随父容器变换
-        // 桌面端使用固定定位
-        isMobile ? 'relative h-full' : 'fixed inset-y-0 left-0 z-50',
+        // 桌面端使用固定定位，窄屏在客户端判定出移动布局之前由 globals.css 先隐藏
+        isMobile ? 'relative h-full' : 'wide-layout-only fixed inset-y-0 left-0 z-50',
       )}
       style={{ width: NAVBAR_WIDTH }}
     >

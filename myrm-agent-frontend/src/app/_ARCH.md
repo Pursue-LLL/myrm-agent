@@ -52,6 +52,7 @@
 
 ## globals.css
 
+- 窄屏兜底（`@media (max-width: 1023px)`）：布局是否进入移动形态要等客户端挂载后才判定，服务端与水合那一帧按宽屏渲染，所以这一块去掉主内容区为侧栏留的左内边距（`.main-content-area`），并隐藏宽屏专属的外壳（`.wide-layout-only`：导航栏、内容侧栏及其折叠按钮；抽屉里的形态不带这个类）。断点用 px 而不是 Tailwind 的 `lg`：`lg` 是 rem，媒体查询里的 rem 跟随浏览器默认字号，默认字号调大后会与 JS 判定错开，导航会整个消失。它与 `lib/utils/device/deviceDetection.ts` 的 1024 成对，由 `lib/utils/device/__tests__/deviceDetection.test.ts` 按宽度逐一比对。
 - 产品界面统一关闭 `backdrop-filter`（`[class*='backdrop-blur']` 覆盖）：实测同页 GPU 69% → 38%，深色半透明底色已足够可读；新增玻璃质感请用更实的底色而不是模糊。
 - `.scroll-fade-x`：不显示滚动条的横向滚动区的边缘渐隐。遮罩只在元素带 `data-fade-start` / `data-fade-end`（由 `hooks/ui/useScrollEdgeFade` 写入，表示该侧确有内容被裁）时才出现，且只渐隐被裁的那一侧 1.5rem；放得下时不加任何遮罩。两侧宽度变量都带 `0px` 默认值，只有一侧被裁时遮罩也完整。契约由 `src/app/__tests__/scroll-fade-css.test.ts` 钉住。
 - 表面语义：暗色 `--card` 由 `color-mix(background 94%, foreground 6%)` 派生、`--popover` 取 88%/12%，亮色两者取纯白；`--muted-foreground` 统一取 `foreground 60%`（暗色实测 7.08:1、亮色 5.22:1）。均由主题 token 派生，新增主题/art 组合无需逐个补色值；不要在组件里写死近黑/近白。

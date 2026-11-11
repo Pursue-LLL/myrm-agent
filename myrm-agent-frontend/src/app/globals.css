@@ -782,10 +782,18 @@ a[href] {
   }
 }
 
-/* 主内容区响应式布局 - 移动端 paddingLeft 为 0，避免 hydration 闪烁 */
+/* 窄屏布局兜底：是否进入移动布局要等客户端挂载后才知道，服务端与水合那一帧按宽屏布局渲染。
+   主内容区先去掉为侧栏留的左内边距，宽屏专属的外壳（导航栏、内容侧栏及其折叠按钮）先不显示，
+   否则手机首屏会被固定定位的侧栏盖住，直到挂载后才消失。
+   断点与 deviceDetection 的移动端判定成对（由其测试绑定）。这里用 px 而不是 Tailwind 的 lg：
+   lg 是 rem，媒体查询里的 rem 跟随浏览器默认字号，默认字号调大后会与 JS 判定错开，导航会整个消失。 */
 @media (max-width: 1023px) {
   .main-content-area {
     padding-left: 0 !important;
+  }
+
+  .wide-layout-only {
+    display: none;
   }
 }
 

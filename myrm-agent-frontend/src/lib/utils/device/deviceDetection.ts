@@ -1,17 +1,15 @@
 /**
  * 设备检测工具
  *
- * 架构说明：
- * 1. 客户端直接检测 window.innerWidth（更准确）
- * 2. AppLayout 在初始化时检测，并监听 resize 事件动态更新
- * 3. PageLayout 在 SSR 时返回 null，避免 hydration mismatch
+ * 布局是否进入移动形态只在客户端判定：useAppLayoutState 在挂载后读取 window.innerWidth，
+ * 之后监听 resize 更新，所以服务端与水合那一帧永远按宽屏布局渲染。
+ * globals.css 里 `max-width: 1023px` 的窄屏兜底（主内容区左内边距、`.wide-layout-only` 外壳）
+ * 与这里的断点成对，由 `__tests__/deviceDetection.test.ts` 绑定。
  *
- * 优势：
- * - 使用 window.innerWidth < 1024px 作为移动端判断标准
- * - 比 User-Agent 检测更准确（支持分屏、浏览器缩放等场景）
+ * 用 window.innerWidth 而不是 User-Agent：支持分屏与浏览器缩放。
  */
 
-/** 移动端断点：屏幕宽度小于此值视为移动端 */
+/** 移动端断点：窗口宽度小于此值视为移动端 */
 const MOBILE_BREAKPOINT = 1024;
 
 /**

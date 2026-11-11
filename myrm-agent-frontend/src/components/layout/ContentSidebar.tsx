@@ -15,6 +15,7 @@
  *
  * [POS]
  * 折叠时只显示展开按钮；展开时桌面端贴着导航栏定位并带拖拽手柄，移动端铺满抽屉。
+ * 桌面端形态带 `wide-layout-only`：窄屏在客户端判定出移动布局之前（服务端与水合那一帧）由 globals.css 隐藏。
  * 侧边栏内容（聊天历史、工作区文件）见 ChatSidebarContent；移动端在用户选定会话或发起新会话后关闭抽屉。
  */
 
@@ -68,6 +69,7 @@ const ContentSidebar = memo<ContentSidebarProps>(
             'fixed top-4 z-40 w-9 h-9 rounded-lg flex items-center justify-center',
             'bg-background/80 backdrop-blur-sm border border-border/50',
             'hover:bg-muted transition-colors',
+            !isMobile && 'wide-layout-only',
           )}
           style={{ left: `${navbarWidth + 8}px` }}
           aria-label={t('showSidebar')}
@@ -84,7 +86,7 @@ const ContentSidebar = memo<ContentSidebarProps>(
           'flex flex-col relative',
           isMobile
             ? 'flex-1 min-w-0 h-full bg-background'
-            : 'fixed top-0 bottom-0 border-r border-border bg-background z-30',
+            : 'wide-layout-only fixed top-0 bottom-0 border-r border-border bg-background z-30',
           isDragging && 'select-none',
         )}
         style={{
@@ -100,9 +102,10 @@ const ContentSidebar = memo<ContentSidebarProps>(
           onMobileItemClick={isMobile ? onToggleCollapse : undefined}
         />
 
-        {/* 拖拽手柄 - 仅桌面端 */}
+        {/* 拖拽手柄 - 仅桌面端；只服务鼠标，没有键盘与读屏语义 */}
         {!isMobile && onResizeStart && (
           <div
+            role="presentation"
             className={cn(
               'absolute top-0 bottom-0 right-0 w-[6px] cursor-col-resize z-50',
               'group hover:bg-primary/20 active:bg-primary/30',
