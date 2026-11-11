@@ -41,6 +41,7 @@ from myrm_agent_harness.toolkits.memory.strategies.extractor import (
     extract_memories_from_conversation,
 )
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.routing.channel_data_plane import ChannelDataPlaneService
@@ -148,8 +149,16 @@ async def test_anti_drift_distillation_full_business_task_flow(
         await ChannelMessageRepository.record_message(db_session, msg)
     await db_session.commit()
 
-    # Verify DWD persistence
-    stored_history = await ChannelMessageRepository.get_recent_context(db_session, channel=channel, chat_id=chat_id, limit=10)
+    # Verify DWD persistence: the prompt-context reader leaves out self-authored rows, so read the chat's rows directly
+    stored_history = list(
+        (
+            await db_session.execute(
+                select(ChannelMessageModel)
+                .where(ChannelMessageModel.channel == channel, ChannelMessageModel.chat_id == chat_id)
+                .order_by(ChannelMessageModel.id)
+            )
+        ).scalars()
+    )
     assert len(stored_history) == 6
 
     # -------------------------------------------------------------------------

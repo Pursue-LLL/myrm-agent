@@ -55,11 +55,13 @@ async def test_run_opens_watches_and_publishes_digest() -> None:
     assert report.watches_verified == 0
     assert len(report.finding_summaries) == 1
 
+    # Notifications other tests leave in the shared database are none of the digest's business.
     async with get_session() as db:
-        notes = (await db.execute(select(SystemNotification))).scalars().all()
+        notes = (
+            (await db.execute(select(SystemNotification).where(SystemNotification.source == "nightly-review"))).scalars().all()
+        )
     assert len(notes) == 1
     assert notes[0].title == "夜间体检报告"
-    assert notes[0].source == "nightly-review"
 
 
 @pytest.mark.asyncio

@@ -2,13 +2,28 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Iterator
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="health")
+from app.server import runtime_dev_info
 from app.server.runtime_dev_info import WEBUI_DEV_PORT, set_runtime_listen
+
+
+@pytest.fixture(autouse=True)
+def _restore_runtime_listen(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """``set_runtime_listen`` writes PORT and HOST into the process environment and the listen state into its module,
+    and every test that builds settings or reads the listen port afterwards would see them."""
+    monkeypatch.setattr(runtime_dev_info, "_listen_port", runtime_dev_info._listen_port)
+    monkeypatch.setattr(runtime_dev_info, "_dev_mode", runtime_dev_info._dev_mode)
+    with patch.dict(os.environ):
+        yield
 
 
 def test_health_includes_runtime_dev_fields() -> None:

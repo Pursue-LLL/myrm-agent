@@ -17,6 +17,7 @@ from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
 class TestProviderChainIntegration:
     """Provider chain integration (uses real services when available)."""
 
+    @pytest.mark.e2e
     @pytest.mark.asyncio
     async def test_chain_with_invalid_tavily_key(self):
         chain = [

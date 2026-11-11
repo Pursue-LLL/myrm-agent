@@ -226,6 +226,13 @@ def test_wiki_compound_live_api_rejects_user_message_role() -> None:
     assert detail.get("detail", {}).get("code") == "invalid_role"
 
 
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_wiki_compound_approve_publishes_provenance() -> None:

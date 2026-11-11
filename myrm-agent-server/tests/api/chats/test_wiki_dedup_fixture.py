@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -21,12 +23,19 @@ class _FakeIdentity:
 
 
 @pytest.fixture(autouse=True)
-def _bypass_auth() -> None:
+def _bypass_auth() -> Iterator[None]:
     with patch(
         "app.middleware.auth.resolve_identity",
         return_value=_FakeIdentity(),
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+def _vault_in_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The seed endpoint leaves duplicate raw files and open dedup groups in the vault, and a compile is refused
+    while the default vault holds any, so the process-wide one must not be where they land."""
+    monkeypatch.setattr("app.services.wiki.vault.resolver.wiki_root", lambda: tmp_path / "wiki")
 
 
 @pytest.fixture

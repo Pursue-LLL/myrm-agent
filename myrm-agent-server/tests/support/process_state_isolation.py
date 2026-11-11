@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Iterator
+from unittest.mock import patch
 
 import pytest
 
@@ -51,3 +52,17 @@ def _isolate_task_metrics_registry() -> Iterator[None]:
     if module is not None:
         for chat_id in module.get_all_active_metrics():
             module.clear_task_metrics(chat_id)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_settings_singleton() -> Iterator[None]:
+    """``get_settings`` builds a new object after its cache is cleared, and the one every module imported as
+    ``settings`` stays the old one: a test that patches ``settings`` would then not reach code that calls
+    ``get_settings()``. The singleton goes back to being the imported object after each test."""
+    yield
+    module = sys.modules.get("app.config.settings.singleton")
+    if module is None:
+        return
+    module.get_settings.cache_clear()
+    with patch.object(module, "AppSettings", return_value=module.settings):
+        module.get_settings()

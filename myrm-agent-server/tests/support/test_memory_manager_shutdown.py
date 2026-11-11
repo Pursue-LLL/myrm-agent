@@ -15,6 +15,9 @@ from myrm_agent_harness.toolkits.memory import MemoryManager
 from app.core.memory.adapters import setup
 from tests.support.memory_manager_shutdown import shutdown_cached_memory_managers_bounded
 
+# The orphaned connection must lose its worker the way aiosqlite's own worker does; the suite's surviving worker would keep it answering.
+pytestmark = pytest.mark.usefixtures("library_aiosqlite_worker")
+
 # Keeps a connection's worker thread inside one query long enough for the loop that asked for it to close first.
 _LONG_QUERY = "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 4000000) SELECT count(*) FROM c"
 _CLOSE_BOUND_SECONDS = 0.5

@@ -24,7 +24,10 @@ _MAX_ATTEMPTS = 4
 
 _FIRST_SESSION = [
     {"role": "user", "content": "帮我定一下我们项目的技术方案。"},
-    {"role": "assistant", "content": "好的，我先从缓存层开始。缓存层我们决定使用 Redis，因为它的读写性能足够好。请记住这个决定。"},
+    {
+        "role": "assistant",
+        "content": "好的，我先从缓存层开始。缓存层我们决定使用 Redis，因为它的读写性能足够好。请记住这个决定。",
+    },
     {"role": "user", "content": "很好，就用 Redis。"},
 ]
 _SECOND_SESSION = [
@@ -90,6 +93,7 @@ async def _build_manager(base_path):
     )
 
 
+@pytest.mark.e2e
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

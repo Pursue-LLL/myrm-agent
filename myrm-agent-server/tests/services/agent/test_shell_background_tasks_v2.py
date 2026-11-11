@@ -206,8 +206,11 @@ def test_shell_dto_reports_what_a_finished_job_left_running() -> None:
     assert rows["job-clean"].leftover_processes == 0
 
 
-def test_shell_registry_is_ephemeral() -> None:
-    assert shell_registry_is_ephemeral() is True
+def test_shell_registry_is_ephemeral_until_a_durable_job_store_is_configured() -> None:
+    with patch("myrm_agent_harness.api.hooks.get_background_job_store", return_value=None):
+        assert shell_registry_is_ephemeral() is True
+    with patch("myrm_agent_harness.api.hooks.get_background_job_store", return_value=object()):
+        assert shell_registry_is_ephemeral() is False
 
 
 def test_redact_preview_strips_secrets() -> None:
