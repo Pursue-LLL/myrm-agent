@@ -2,18 +2,28 @@
 
 Strips image / video / audio content from messages before sending to the LLM
 when the target model does not support multimodal input, preventing 400 errors
-and wasted API calls.
+and wasted API calls. A model that does take media keeps the newest screenshots
+only (sliding visual evidence window).
 
 Decision logic (two sources, OR-combined):
 1. Static config: ``supports_vision`` flag from LLMConfig (metadata)
 2. Runtime learning: ``ModelCapabilityLearner`` records models that have
    previously rejected media at runtime (set by MEDIA_REJECTED recovery).
 
+The window waits while the current turn's signed reasoning blocks are in flight: a block is bound to every message
+before it, screenshots included, so retiring one would make the provider refuse the blocks written after it. The
+user's next message ends the turn and lets the window apply; a request that would carry more than
+``MAX_MEDIA_BLOCKS_HELD`` media blocks is windowed at once.
+
+Stripping is written into the messages themselves, so media retired once stays retired in every later request.
+
 When media is stripped, an ``agent_status`` event is emitted so the frontend
 can inform the user.
 
 [INPUT]
 - base::BaseProcessor, ProcessorContext (POS: processor base class)
+- core.message_origin::last_user_authored_index (POS: start of the current turn)
+- core.thinking_blocks::carries_signed_blocks (POS: whether signed reasoning blocks are in flight)
 - utils.image_utils (POS: image content detection & stripping)
 - toolkits.llms.capability_learner (POS: runtime model capability cache)
 
@@ -21,13 +31,21 @@ can inform the user.
 - MediaFilterProcessor: proactive media filter processor
 
 [POS]
-Proactive media filter processor. Strips multimodal content for text-only models.
+Proactive media filter processor. Strips multimodal content for text-only models and retires historical media for
+the others.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from langchain_core.messages import BaseMessage
+
+from myrm_agent_harness.core.message_origin import last_user_authored_index
+from myrm_agent_harness.core.thinking_blocks import carries_signed_blocks
 from myrm_agent_harness.utils.image_utils import (
     content_has_media,
+    count_media_items,
     strip_all_media_from_content,
 )
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -37,7 +55,21 @@ from ..base import BaseProcessor, ProcessorContext
 logger = get_agent_logger(__name__)
 
 CAPABILITY_REJECTS_MEDIA = "rejects_media"
-DEFAULT_RETAIN_MEDIA_BLOCKS = 2
+
+# Newest messages carrying media that the window keeps, whatever their role.
+RETAIN_MEDIA_MESSAGES = 2
+
+# Anthropic applies a stricter per-image size limit to a request with more than 20 images, so past this count the
+# window takes over again even while signed blocks are in flight.
+MAX_MEDIA_BLOCKS_HELD = 20
+
+
+def _media_held_by_signed_turn(messages: Sequence[BaseMessage]) -> bool:
+    """Whether the window must wait: the turn's signed blocks are still to be replayed over its media."""
+    turn = messages[last_user_authored_index(messages) + 1 :]
+    if not carries_signed_blocks(turn):
+        return False
+    return sum(count_media_items(message.content) for message in messages) <= MAX_MEDIA_BLOCKS_HELD
 
 
 class MediaFilterProcessor(BaseProcessor):
@@ -56,9 +88,7 @@ class MediaFilterProcessor(BaseProcessor):
         return "media_filter"
 
     async def should_process(self, context: ProcessorContext) -> bool:
-        # We now process EVERY request:
-        # - Text-only models: strip ALL media
-        # - Vision models: strip HISTORICAL media (save tokens)
+        # Text-only models lose all media; vision models lose the historical media the window has left behind.
         return not self._should_skip_for_cache_preservation(context)
 
     async def process(self, context: ProcessorContext) -> ProcessorContext:
@@ -79,12 +109,15 @@ class MediaFilterProcessor(BaseProcessor):
 
         strip_all = not supports_vision or rejects_media
 
+        if not strip_all and _media_held_by_signed_turn(context.messages):
+            return context
+
         # Determine the safe tail boundary for historical media stripping.
         # We use a Sliding Visual Evidence Window: keep the last K=2 messages that contain media,
         # regardless of role (Human, Tool, etc.). This ensures Computer Use screenshots aren't stripped.
         safe_tail_start = len(context.messages)
         if not strip_all:
-            keep_media_count = DEFAULT_RETAIN_MEDIA_BLOCKS
+            keep_media_count = RETAIN_MEDIA_MESSAGES
             for i in range(len(context.messages) - 1, -1, -1):
                 content = getattr(context.messages[i], "content", None)
                 if isinstance(content, list) and content_has_media(content):

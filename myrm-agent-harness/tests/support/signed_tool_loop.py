@@ -1,4 +1,4 @@
-"""Three turns of the shipped agent in a tool loop, against a provider that checks the reasoning it signed.
+"""Turns of the shipped agent in a tool loop, against a provider that checks the reasoning it signed.
 
 [INPUT]
 - tests.support.enforcing_anthropic::EnforcingAnthropic (POS: a Messages API double that refuses a replay the API would refuse)
@@ -8,7 +8,8 @@
 [OUTPUT]
 - TURNS, ROUNDS, PER_TURN: how many turns the session runs, tool rounds per turn, and requests a turn makes
 - signed_loop_session: the session context the loop runs in, with its tool declared safe to run unasked
-- run_signed_loop: the turns themselves, through the chat model, transport, adapter, context pipeline and middleware stack
+- signed_agent: the shipped agent over the chat model, transport, adapter, context pipeline and middleware stack
+- run_signed_loop: the turns themselves, run on that agent
 
 [POS]
 A signed reasoning block is valid only under the exact prompt it was written in, so a test of what a middleware does
@@ -18,7 +19,7 @@ what a provider would have refused.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
@@ -26,8 +27,9 @@ from unittest.mock import patch
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import HumanMessage
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph.state import CompiledStateGraph
 
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares, create_registry
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import reset_completion_guard
@@ -60,16 +62,18 @@ def signed_loop_session(workspace: Path) -> Iterator[None]:
         yield
 
 
-async def run_signed_loop(
-    double: EnforcingAnthropic,
+def signed_agent(
     *,
     streaming: bool = True,
     extra: Sequence[AgentMiddleware] = (),
-    prompt: str = "Turn {turn}: investigate the repository and report.",
-) -> None:
-    """``TURNS`` runs of one chat, each ending in a closing answer after ``ROUNDS`` tool rounds of the double.
+    tools: Sequence[BaseTool] = (read_file,),
+    reasoning_effort: str | None = "medium",
+) -> CompiledStateGraph:
+    """The shipped agent over a Claude route.
 
-    ``extra`` are the middlewares a server adds to the stack, ``prompt`` is what the user says each turn.
+    ``extra`` are the middlewares a server adds to the stack. ``tools`` stand in for ``read_file``, so each must be
+    named ``read_file``: that is the call the double makes and the tool the session declares safe to run unasked.
+    Without a ``reasoning_effort`` the route signs nothing.
     """
     llm = create_chat_model(
         "anthropic/claude-sonnet-5-5",
@@ -77,23 +81,45 @@ async def run_signed_loop(
         api_key="sk-test",
         streaming=streaming,
         max_tokens=1024,
-        reasoning_effort="medium",
+        reasoning_effort=reasoning_effort,
     )
     pipeline = create_context_pipeline_middleware(llm, enable_active_tool_prune=True, compress_batch_rounds=5)
-    agent = create_agent(
+    return create_agent(
         llm,
-        tools=[read_file],
+        tools=list(tools),
         middleware=build_middlewares(create_registry(), [pipeline, *extra], None),
         checkpointer=InMemorySaver(),
         system_prompt="You are a careful coding agent.",
         context_schema=dict,
     )
+
+
+async def run_signed_loop(
+    double: EnforcingAnthropic,
+    *,
+    streaming: bool = True,
+    extra: Sequence[AgentMiddleware] = (),
+    prompt: str = "Turn {turn}: investigate the repository and report.",
+    tools: Sequence[BaseTool] = (read_file,),
+    reasoning_effort: str | None = "medium",
+    turns: int = TURNS,
+    window: int = _WINDOW,
+    before_turn: Callable[[int], None] | None = None,
+) -> None:
+    """``turns`` runs of one chat, each ending in a closing answer after the double's tool rounds.
+
+    ``prompt`` is what the user says each turn, ``window`` the context window of the model and ``before_turn`` what
+    happens between the end of one run and the start of the next (given the number of the turn about to start).
+    """
+    agent = signed_agent(streaming=streaming, extra=extra, tools=tools, reasoning_effort=reasoning_effort)
     with double.serving():
-        for turn in range(1, TURNS + 1):
+        for turn in range(1, turns + 1):
             # A run resets the completion guard's state for its turn when it starts.
             reset_completion_guard()
+            if before_turn is not None:
+                before_turn(turn)
             await agent.ainvoke(
                 {"messages": [HumanMessage(content=prompt.format(turn=turn))]},
                 {"configurable": {"thread_id": "t"}, "recursion_limit": 400},
-                context={"chat_id": "chat", "max_context_tokens": _WINDOW},
+                context={"chat_id": "chat", "max_context_tokens": window},
             )
