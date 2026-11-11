@@ -10,9 +10,11 @@ vi.mock('@/lib/utils/fileUtils', async (importOriginal) => ({
 }));
 
 import { downloadMessageAsDocx } from '../chatExport';
+import type { MessageLabels } from '../chatExportMessageText';
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const OPENAI_KEY = 'sk-live1234567890abcdef1234567890';
+const LABELS: MessageLabels = { reasoning: '思考过程', sources: '来源', untitledSource: '未命名' };
 
 function messageOf(overrides: Partial<Message>): Message {
   return {
@@ -38,7 +40,7 @@ beforeEach(() => {
 
 describe('downloadMessageAsDocx', () => {
   it('hands over a Word file named after the first line of the message', async () => {
-    await downloadMessageAsDocx(messageOf({ content: 'Quarterly plan\n\nFirst we ship.' }), false);
+    await downloadMessageAsDocx(messageOf({ content: 'Quarterly plan\n\nFirst we ship.' }), false, LABELS);
 
     const { blob, filename, text } = await downloaded();
     expect(blob.type).toBe(DOCX_MIME);
@@ -50,6 +52,7 @@ describe('downloadMessageAsDocx', () => {
     await downloadMessageAsDocx(
       messageOf({ content: '## Results\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n- one\n- two\n\nSolve $x^2 = 4$.' }),
       false,
+      LABELS,
     );
 
     const { docx } = await downloaded();
@@ -61,8 +64,8 @@ describe('downloadMessageAsDocx', () => {
   it('hides secrets by default and keeps them only when redaction is turned off', async () => {
     const message = messageOf({ content: `Use ${OPENAI_KEY} for auth.` });
 
-    await downloadMessageAsDocx(message, false);
-    await downloadMessageAsDocx(message, false, false);
+    await downloadMessageAsDocx(message, false, LABELS);
+    await downloadMessageAsDocx(message, false, LABELS, false);
 
     const redacted = paragraphTexts((await openDocx(triggerDownload.mock.calls[0][0])).document).join('\n');
     const raw = paragraphTexts((await openDocx(triggerDownload.mock.calls[1][0])).document).join('\n');
@@ -77,8 +80,8 @@ describe('downloadMessageAsDocx', () => {
       reasoning: 'First I weigh the options.\n\n- option a\n- option b',
     });
 
-    await downloadMessageAsDocx(message, true);
-    await downloadMessageAsDocx(message, false);
+    await downloadMessageAsDocx(message, true, LABELS);
+    await downloadMessageAsDocx(message, false, LABELS);
 
     const withReasoning = (await openDocx(triggerDownload.mock.calls[0][0])).document;
     const without = (await openDocx(triggerDownload.mock.calls[1][0])).document;
@@ -86,7 +89,7 @@ describe('downloadMessageAsDocx', () => {
     const indentOf = (paragraph: Element): number =>
       Number(elements(paragraph, 'w:ind')[0]?.getAttribute('w:left') ?? 0);
     expect(paragraphTexts(withReasoning)).toEqual([
-      'Thinking',
+      '思考过程',
       'First I weigh the options.',
       'option a',
       'option b',
@@ -98,19 +101,17 @@ describe('downloadMessageAsDocx', () => {
     expect(paragraphTexts(without)).toEqual(['The answer.']);
   });
 
-  it('lists each citation on a line of its own, as a link when it has an address', async () => {
+  it('lists each source on a line of its own, as a link when it has an address', async () => {
     const sources: Source[] = [
       { index: 1, type: 'web_search', url: 'https://one.example/a', title: 'One' },
       { index: 2, type: 'web_search', url: 'https://two.example/b', title: 'Two' },
       { index: 3, type: 'web_search', title: 'Third, with no address' },
     ];
 
-    await downloadMessageAsDocx(messageOf({ content: 'Claim.', sources }), false);
+    await downloadMessageAsDocx(messageOf({ content: 'Claim.', sources }), false, LABELS);
 
     const { docx, text } = await downloaded();
-    expect(text).toContain(
-      'Citations:\n[1] https://one.example/a\n[2] https://two.example/b\n[3] Third, with no address',
-    );
+    expect(text).toContain('来源:\n[1] https://one.example/a\n[2] https://two.example/b\n[3] Third, with no address');
     expect(externalTargets(docx.parts['word/_rels/document.xml.rels'])).toEqual([
       'https://one.example/a',
       'https://two.example/b',

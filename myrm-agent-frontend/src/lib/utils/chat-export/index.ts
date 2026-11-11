@@ -20,6 +20,7 @@ export {
   formatChatAsMarkdown,
   formatChatAsJson,
   downloadFile,
+  getExportLang,
   downloadAsMarkdown,
   downloadAsJson,
   downloadAsHtml,

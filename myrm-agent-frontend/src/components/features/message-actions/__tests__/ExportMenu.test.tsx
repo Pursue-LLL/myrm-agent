@@ -4,12 +4,22 @@ import type { ReactNode, RefObject } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { confirmAction } from '@/lib/app-dialog';
-import { downloadMessageAsImage } from '@/lib/utils/chat-export';
+import {
+  downloadMessageAsDocx,
+  downloadMessageAsHtml,
+  downloadMessageAsImage,
+  downloadMessageAsMarkdown,
+  getExportLang,
+} from '@/lib/utils/chat-export';
 import type { Message } from '@/store/chat/types';
 import ExportMenu from '../ExportMenu';
 
+// Keys of the `sources` namespace carry a prefix, so a test can tell which namespace a label was read from.
 const stableT = (key: string) => key;
-vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
+const stableSourcesT = (key: string) => `sources.${key}`;
+vi.mock('next-intl', () => ({
+  useTranslations: (namespace: string) => (namespace === 'sources' ? stableSourcesT : stableT),
+}));
 vi.mock('next-themes', () => ({ useTheme: () => ({ resolvedTheme: 'light' }) }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@/lib/app-dialog', () => ({ confirmAction: vi.fn() }));
@@ -18,6 +28,7 @@ vi.mock('@/lib/utils/chat-export', () => ({
   downloadMessageAsDocx: vi.fn(),
   downloadMessageAsHtml: vi.fn(),
   downloadMessageAsImage: vi.fn(),
+  getExportLang: vi.fn(),
 }));
 // The menu's items are plain buttons here: opening a Radix menu is not what is under test.
 vi.mock('@/components/primitives/dropdown-menu', () => ({
@@ -46,7 +57,8 @@ const settle = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-const exportAsImage = () => fireEvent.click(screen.getByRole('button', { name: 'exportMessage.image' }));
+const exportAs = (item: string) => fireEvent.click(screen.getByRole('button', { name: item }));
+const exportAsImage = () => exportAs('exportMessage.image');
 
 describe('ExportMenu image export', () => {
   let element: HTMLDivElement;
@@ -117,5 +129,61 @@ describe('ExportMenu image export', () => {
 
     expect(confirmAction).not.toHaveBeenCalled();
     expect(downloadMessageAsImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('ExportMenu text exports', () => {
+  // The interface wording as the mocks above give it back: reasoning from `chat`, sources from `sources`.
+  const LABELS = { reasoning: 'reasoningTitle', sources: 'sources.title', untitledSource: 'sources.untitled' };
+  const markdownRef: RefObject<HTMLDivElement | null> = { current: null };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getExportLang).mockReturnValue('zh');
+  });
+
+  it('hands the interface wording to the Markdown export', () => {
+    const message = messageOfLength(100);
+    render(<ExportMenu message={message} markdownRef={markdownRef} />);
+
+    exportAs('exportMessage.markdown');
+
+    expect(downloadMessageAsMarkdown).toHaveBeenCalledExactlyOnceWith(message, false, LABELS);
+  });
+
+  it('hands the interface wording, the theme and the interface language to the HTML export', async () => {
+    const message = messageOfLength(100);
+    render(<ExportMenu message={message} markdownRef={markdownRef} />);
+
+    exportAs('exportMessage.html');
+    await settle();
+
+    expect(downloadMessageAsHtml).toHaveBeenCalledExactlyOnceWith(message, false, LABELS, 'light', 'zh');
+  });
+
+  it('hands the interface wording to the Word export', async () => {
+    const message = messageOfLength(100);
+    render(<ExportMenu message={message} markdownRef={markdownRef} />);
+
+    exportAs('exportMessage.word');
+    await settle();
+
+    expect(downloadMessageAsDocx).toHaveBeenCalledExactlyOnceWith(message, false, LABELS);
+  });
+
+  it.each([
+    ['exportMessage.markdown', downloadMessageAsMarkdown],
+    ['exportMessage.word', downloadMessageAsDocx],
+    ['exportMessage.html', downloadMessageAsHtml],
+  ] as const)('passes the choice to include the reasoning on to the %s export', async (item, exporter) => {
+    const message = { ...messageOfLength(100), reasoning: 'Because.' };
+    render(<ExportMenu message={message} markdownRef={markdownRef} />);
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    exportAs(item);
+    await settle();
+
+    expect(exporter).toHaveBeenCalledOnce();
+    expect(vi.mocked(exporter).mock.calls[0].slice(0, 3)).toEqual([message, true, LABELS]);
   });
 });

@@ -12,6 +12,7 @@ const {
   downloadAsMarkdownMock,
   downloadAsJsonMock,
   copyAsMarkdownMock,
+  getExportLangMock,
 } = vi.hoisted(() => ({
   toastMock: vi.fn(),
   exportChatMock: vi.fn(),
@@ -20,6 +21,7 @@ const {
   downloadAsMarkdownMock: vi.fn(),
   downloadAsJsonMock: vi.fn(),
   copyAsMarkdownMock: vi.fn(),
+  getExportLangMock: vi.fn(),
 }));
 
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
@@ -45,6 +47,7 @@ vi.mock('@/lib/utils/chat-export', () => ({
   downloadAsMarkdown: (...args: unknown[]) => downloadAsMarkdownMock(...args),
   downloadAsJson: (...args: unknown[]) => downloadAsJsonMock(...args),
   copyAsMarkdown: (...args: unknown[]) => copyAsMarkdownMock(...args),
+  getExportLang: () => getExportLangMock(),
 }));
 
 const mockExportData = {
@@ -75,6 +78,7 @@ describe('SessionExportModal', () => {
     downloadAsMarkdownMock.mockReturnValue(undefined);
     downloadAsJsonMock.mockReturnValue(undefined);
     copyAsMarkdownMock.mockResolvedValue(true);
+    getExportLangMock.mockReturnValue('zh');
   });
 
   afterEach(() => {
@@ -110,7 +114,7 @@ describe('SessionExportModal', () => {
 
     await waitFor(() => {
       expect(exportChatMock).toHaveBeenCalledWith('c123', { redactSecrets: true });
-      expect(downloadAsHtmlMock).toHaveBeenCalledWith(mockExportData, 'light', expect.any(String), {
+      expect(downloadAsHtmlMock).toHaveBeenCalledWith(mockExportData, 'light', 'zh', {
         includeReasoning: true,
         includeToolCalls: true,
       });

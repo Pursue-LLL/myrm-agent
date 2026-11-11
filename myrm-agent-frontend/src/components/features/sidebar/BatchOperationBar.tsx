@@ -9,7 +9,12 @@ import { batchMoveChats } from '@/services/projects';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
 import { triggerDownload } from '@/lib/utils/fileUtils';
-import { batchExportAsZip, type BatchExportFormat, type BatchExportProgress } from '@/lib/utils/chat-export';
+import {
+  batchExportAsZip,
+  getExportLang,
+  type BatchExportFormat,
+  type BatchExportProgress,
+} from '@/lib/utils/chat-export';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 
 interface BatchOperationBarProps {
@@ -79,12 +84,11 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
         abortRef.current = controller;
 
         const isDark = document.documentElement.classList.contains('dark');
-        const lang = navigator.language.startsWith('zh') ? 'zh' : 'en';
 
         try {
           const { blob, result } = await batchExportAsZip([...selectedIds], format, {
             theme: isDark ? 'dark' : 'light',
-            lang: lang as 'en' | 'zh',
+            lang: getExportLang(),
             onProgress: setExportProgress,
             signal: controller.signal,
           });
