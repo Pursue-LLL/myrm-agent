@@ -95,6 +95,10 @@ class ResilientStreamBuffer:
 
         If last_event_id is provided, replays all buffered events that occurred AFTER it.
         Then blocks and yields new events as they arrive, until end_stream() is called.
+
+        While no event arrives, a heartbeat frame is yielded every ``heartbeat_interval`` seconds. The WebUI stream
+        watchdog (``STREAM_SILENCE_TIMEOUT_MS``) treats three silent intervals as a dead connection, so a longer
+        default interval must move that constant too.
         """
         async with self._condition:
             start_index = 0
