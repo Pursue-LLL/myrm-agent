@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - FetchEngineBatchMixin: ``crawl_many``, ``prefetch_with_retry`` and ``prefetch`` built on ``FetchEngine.crawl``
+- cancel_fetches: cancels fetches that are not already unwinding and waits briefly for them to release their pages
 
 [POS]
 Mixin: concurrent crawling of many URLs under one concurrency cap and a per-URL patience, retrying warm-up,
@@ -21,7 +22,7 @@ from typing import TYPE_CHECKING
 from .types import FailedResult, SuccessResult
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable
 
     from langchain_core.documents import Document
 
@@ -29,11 +30,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Once any page is in hand, a URL that has run this long is cancelled instead of holding the whole call.
+# Once any page is in hand, a URL whose fetch has run this long is no longer waited for.
 _STRAGGLER_AFTER_S = 25.0
-# A URL past its own crawl timeout is only unwinding (closing its browser page): the call stops waiting this long after.
-_UNWIND_GRACE_S = 5.0
-# A cancelled URL gets this long to release its browser page before it is left to finish on its own.
+# With no page in hand, a URL is waited for this long past its crawl timeout (time to close its browser page).
+_UNWIND_GRACE_S = 3.0
+# When a call is torn down, its cancelled fetches get this long to release their browser pages.
 _CANCEL_SETTLE_S = 2.0
 
 
@@ -43,18 +44,16 @@ def _consume_outcome(task: asyncio.Task[Document | None]) -> None:
         task.exception()
 
 
-async def _abandon(fetches: Mapping[asyncio.Task[Document | None], tuple[str, float]], *, crawl_timeout: float) -> None:
-    """Stop waiting for ``fetches`` ({task: (url, start time)}).
+async def cancel_fetches(fetches: Iterable[asyncio.Task[Document | None]]) -> None:
+    """Cancel the fetches of a call that is torn down (or of an engine shutting down) and let them release their pages.
 
-    A fetch still inside its crawl timeout is cancelled and given ``_CANCEL_SETTLE_S`` to release its browser page.
-    One past it is already unwinding from that timeout's own cancel; a second cancel would cut its page cleanup
-    short, so it is left to finish on its own.
+    A fetch the engine's crawl timeout has already cancelled is unwinding (closing its browser page); a second cancel
+    would cut that cleanup short, so it is left to finish on its own.
     """
-    now = asyncio.get_running_loop().time()
     cancelled: list[asyncio.Task[Document | None]] = []
-    for task, (_, started_at) in fetches.items():
+    for task in fetches:
         task.add_done_callback(_consume_outcome)
-        if now - started_at < crawl_timeout:
+        if not task.cancelling():
             task.cancel()
             cancelled.append(task)
     if cancelled:
@@ -74,8 +73,10 @@ class FetchEngineBatchMixin:
         """Batch-crawl URLs in parallel under one concurrency cap; one slow URL cannot hold the call hostage.
 
         Each URL is judged by how long its own fetch has run. With no page in hand yet it is awaited until its crawl
-        timeout plus ``_UNWIND_GRACE_S``; once any page is in hand it gets ``_STRAGGLER_AFTER_S`` and is then
-        cancelled. A URL given up on is reported as failed, so a call holding a page never ends up empty-handed.
+        timeout plus ``_UNWIND_GRACE_S``; once any page is in hand it gets ``_STRAGGLER_AFTER_S``. A URL the call
+        stops waiting for is reported as failed, so a call holding a page never ends up empty-handed. Its fetch is
+        left running under the engine's own crawl timeout: other callers may be coalesced on it, and its page or
+        failure still lands in the engine's caches.
         """
         self._ensure_workers_started()
         loop = asyncio.get_running_loop()
@@ -99,19 +100,21 @@ class FetchEngineBatchMixin:
                     running[asyncio.create_task(fetch)] = (url, loop.time())
 
                 patience_s = soft_s if success_results else hard_s
-                # A fetch that finished while an earlier give-up was settling is collected below, not given up on.
-                overdue = {
-                    task: run for task, run in running.items() if not task.done() and loop.time() - run[1] >= patience_s
-                }
+                overdue = [task for task, (_, started_at) in running.items() if loop.time() - started_at >= patience_s]
                 if overdue:
+                    skipped: list[str] = []
                     for task in overdue:
-                        del running[task]
-                    skipped = [url for url, _ in overdue.values()]
+                        self._detached_fetches.add(task)
+                        task.add_done_callback(self._detached_fetches.discard)
+                        task.add_done_callback(_consume_outcome)
+                        skipped.append(running.pop(task)[0])
                     logger.warning(
-                        "Batch crawl gave up on %d slow URL(s) after %.0fs: %s", len(skipped), patience_s, skipped
+                        "Batch crawl stopped waiting for %d slow URL(s) after %.0fs: %s",
+                        len(skipped),
+                        patience_s,
+                        skipped,
                     )
                     failed_results.extend((url, None) for url in skipped)
-                    await _abandon(overdue, crawl_timeout=self._crawl_timeout)
                     continue
 
                 next_deadline = min(started_at for _, started_at in running.values()) + patience_s
@@ -126,7 +129,7 @@ class FetchEngineBatchMixin:
                     else:
                         failed_results.append((url, None))
         except (Exception, asyncio.CancelledError):  # not BaseException: a coroutine closed at teardown must not await
-            await _abandon(running, crawl_timeout=self._crawl_timeout)
+            await cancel_fetches(running)
             raise
         return success_results, failed_results
 

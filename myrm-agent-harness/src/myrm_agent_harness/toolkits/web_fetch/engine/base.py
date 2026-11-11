@@ -81,7 +81,7 @@ from ..fetchers.stealth_fetcher import StealthFetcher
 from ..probe.http3_probe import get_http3_retry_metrics
 from ..processing.pipeline import ContentPipeline
 from ..router import get_global_domain_metrics_manager, get_global_tier_breaker
-from .batch_mixin import FetchEngineBatchMixin
+from .batch_mixin import FetchEngineBatchMixin, cancel_fetches
 from .cache_mixin import FetchEngineCacheMixin, await_shared_result
 from .escalation_mixin import FetchEngineEscalationMixin
 from .fetch_mixin import FetchEngineFetchMixin
@@ -175,6 +175,8 @@ class FetchEngine(
         )
         self._fail_cache: LRUCache[bool] = LRUCache(maxsize=200, ttl=300, id="fetch_engine_fail_cache")
         self._pending_requests: dict[str, InFlightFetch] = {}
+        # Fetches a batch call stopped waiting for: the engine owns them until they end (the loop holds tasks weakly).
+        self._detached_fetches: set[asyncio.Task[Document | None]] = set()
         self._enable_http_validation = True
         self._stale_while_revalidate = stale_while_revalidate
         self._coalescing_timeout = coalescing_timeout
@@ -403,6 +405,8 @@ class FetchEngine(
                 future.set_result(NO_SHARED_RESULT)
 
     async def shutdown(self) -> None:
+        await cancel_fetches(list(self._detached_fetches))
+
         if self._background_workers:
             logger.info(f"Stopping {len(self._background_workers)} background workers")
             for _ in self._background_workers:
