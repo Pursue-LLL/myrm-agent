@@ -63,7 +63,7 @@ class TestCrawlGuardsAndFastPaths:
         engine._http_fetcher._session_vault = None
 
         with patch(
-            "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_bilibili_subtitle",
+            "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_bilibili_subtitle",
             new=AsyncMock(return_value=_doc("bilibili transcript")),
         ):
             doc = await engine.crawl(BILIBILI_URL)
@@ -79,7 +79,7 @@ class TestCrawlGuardsAndFastPaths:
         degraded = _doc("degraded")
         with (
             patch(
-                "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_bilibili_subtitle",
+                "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_bilibili_subtitle",
                 new=AsyncMock(return_value=None),
             ),
             patch.object(
@@ -101,7 +101,7 @@ class TestCrawlGuardsAndFastPaths:
         degraded = _doc("weixin degraded")
         with (
             patch(
-                "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_weixin_article",
+                "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.extract_weixin_article",
                 new=AsyncMock(return_value=None),
             ) as fast_path,
             patch.object(

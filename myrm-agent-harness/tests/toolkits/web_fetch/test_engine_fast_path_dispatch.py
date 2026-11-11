@@ -1,9 +1,9 @@
 """``FetchEngine.crawl`` tries a platform's fast path first and falls back to the tier ladder.
 
 For YouTube, Bilibili, WeChat and X the same contract holds: a hit skips the ladder and is cached, a miss goes down the
-ladder exactly once with the caller's arguments and the cached validators, each stage has its own crawl timeout, and a
-failing fast path never reaches the ladder. The extractors and the ladder are faked; the engine's dispatch, timeouts,
-caches and logging run for real.
+ladder exactly once with the caller's arguments and the cached validators and what the ladder answers is what gets
+cached, each stage has its own crawl timeout, and a failing fast path never reaches the ladder. The extractors and the
+ladder are faked; the engine's dispatch, timeouts, caches and logging run for real.
 """
 
 from __future__ import annotations
@@ -22,10 +22,11 @@ from langchain_core.documents import Document
 from myrm_agent_harness.toolkits.browser.pool.proxy import ProxyPool
 from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
 from myrm_agent_harness.toolkits.web_fetch.engine.types import CachedDocument
+from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetchResult
 from myrm_agent_harness.toolkits.web_fetch.processing.url_normalizer import normalize_url
 
 # The module whose names the dispatch looks the platform extractors up in.
-_DISPATCH = "myrm_agent_harness.toolkits.web_fetch.engine.base"
+_DISPATCH = "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin"
 _CAP_S = 0.2
 # A hang is cut off by this guard, so a missing timeout fails a test instead of hanging the run.
 _GUARD_S = 5.0
@@ -170,6 +171,20 @@ async def test_a_fast_path_that_times_out_ends_the_crawl_without_the_ladder(
     assert engine._fail_cache.contains(normalize_url(platform.url))
 
 
+async def test_loading_the_bilibili_cookies_is_part_of_the_fast_path_stage(engine: FetchEngine) -> None:
+    bilibili = next(platform for platform in PLATFORMS if platform.name == "bilibili")
+    extractor = AsyncMock(return_value=page("fast"))
+    ladder = AsyncMock(return_value=(page("ladder"), None))
+
+    with faked(engine, bilibili.extractor, extractor, ladder), patch.object(engine, "_load_bilibili_cookies", new=hang):
+        async with asyncio.timeout(_GUARD_S):
+            result = await engine.crawl(bilibili.url)
+
+    assert result is None  # a hung cookie load is cut off by the stage's timeout
+    extractor.assert_not_awaited()
+    ladder.assert_not_awaited()
+
+
 @pytest.mark.parametrize(
     ("error", "propagates"), [(RuntimeError("extractor broke"), True), (ConnectionError("down"), False)]
 )
@@ -248,7 +263,7 @@ async def test_wechat_and_x_log_which_path_served_the_url(
         assert not any(fragment in message for message in messages), (fragment, messages)
 
 
-async def test_a_miss_passes_the_validators_of_an_expired_entry_to_the_ladder() -> None:
+async def test_the_validators_go_to_the_ladder_and_the_ladders_come_back_to_the_cache() -> None:
     # One engine per platform, so one wait covers them all: the first miss to fill a cache would otherwise purge the
     # other expired entries of that cache.
     async with AsyncExitStack() as stack:
@@ -267,10 +282,16 @@ async def test_a_miss_passes_the_validators_of_an_expired_entry_to_the_ladder() 
         await asyncio.sleep(1.1)  # the cache's ttl is whole seconds
 
         for platform, engine in engines:
-            ladder = AsyncMock(return_value=(page("new"), None))
+            answer = FetchResult(
+                html="", url=platform.url, headers={"etag": f"new-{platform.name}", "last-modified": "Tue"}
+            )
+            ladder = AsyncMock(return_value=(page("new"), answer))
             with faked(engine, platform.extractor, AsyncMock(return_value=None), ladder):
                 result = await engine.crawl(platform.url)
 
             assert result is not None and result.page_content == "new"
             assert ladder.await_args.kwargs["etag"] == f"etag-{platform.name}"
             assert ladder.await_args.kwargs["last_modified"] == "Mon"
+            cached = engine._crawl_cache.get(normalize_url(platform.url))
+            assert cached is not None
+            assert (cached.etag, cached.last_modified) == (f"new-{platform.name}", "Tue")
