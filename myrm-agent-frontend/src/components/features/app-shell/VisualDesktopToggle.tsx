@@ -145,7 +145,9 @@ export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggl
       ) : null}
 
       {isOpen && (
-        <div className="fixed bottom-36 right-6 w-[min(800px,calc(100vw-2rem))] h-[min(600px,calc(100vh-8rem))] bg-background rounded-xl shadow-2xl overflow-hidden z-50 border border-border flex flex-col max-sm:bottom-32 max-sm:right-4 max-sm:left-4">
+        // Height = viewport minus the bottom offset (9rem; 8rem on phones) minus 1rem, so a short window never clips
+        // the title.
+        <div className="fixed bottom-36 right-6 w-[min(800px,calc(100vw-2rem))] h-[min(600px,calc(100vh-10rem))] bg-background rounded-xl shadow-2xl overflow-hidden z-50 border border-border flex flex-col max-sm:bottom-32 max-sm:right-4 max-sm:left-4 max-sm:h-[min(600px,calc(100vh-9rem))]">
           <div className="flex justify-between items-center px-4 py-2 bg-muted border-b border-border">
             <span className="text-foreground font-medium flex items-center gap-2 text-sm sm:text-base">
               <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
