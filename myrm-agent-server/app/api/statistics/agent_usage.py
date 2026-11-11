@@ -7,8 +7,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import datetime, time, timedelta, timezone
+from typing import TypedDict
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
@@ -22,6 +22,33 @@ from app.database.models import Chat
 from app.database.models.agent import Agent
 
 router = APIRouter()
+
+
+class _AgentTotals(TypedDict):
+    """Running totals of one agent, with the share that came from each origin."""
+
+    tokens: int
+    usd: float
+    calls: int
+    sessions: int
+    web_usd: float
+    cron_usd: float
+    channel_usd: float
+    subagents_usd: float
+    web_tokens: int
+    cron_tokens: int
+    channel_tokens: int
+    subagents_tokens: int
+
+
+def _sparkline_window(days: int) -> tuple[datetime, list[str]]:
+    """Return the UTC midnight the window opens at and the `days` dates it covers, today last.
+
+    Whole-day buckets at both ends keep the first point complete and the newest day visible.
+    """
+    first_day = datetime.now(timezone.utc).date() - timedelta(days=days - 1)
+    window_start = datetime.combine(first_day, time.min, tzinfo=timezone.utc)
+    return window_start, [(first_day + timedelta(days=offset)).isoformat() for offset in range(days)]
 
 
 @router.get("/usage/by-agent")
@@ -54,7 +81,7 @@ async def get_usage_by_agent(
         if not totals_rows:
             return success_response(data={"agents": [], "total_agents": 0})
 
-        agent_agg: dict[str, dict[str, Any]] = {}
+        agent_agg: dict[str, _AgentTotals] = {}
         for row in totals_rows:
             aid = row.agent_id
             tokens = getattr(row, "tokens", 0) or 0
@@ -115,7 +142,7 @@ async def get_usage_by_agent(
         agents_result = await db.execute(agents_stmt)
         agent_map: dict[str, tuple[str, str | None]] = {row.id: (row.name, row.avatar) for row in agents_result.all()}
 
-        start_dt = datetime.now(timezone.utc) - timedelta(days=days)
+        window_start, window_days = _sparkline_window(days)
         daily_stmt = (
             select(
                 Chat.agent_id,
@@ -123,7 +150,7 @@ async def get_usage_by_agent(
                 func.sum(Chat.total_tokens).label("tokens"),
                 func.sum(Chat.total_usd).label("usd"),
             )
-            .where(Chat.agent_id.isnot(None), Chat.created_at >= start_dt)
+            .where(Chat.agent_id.isnot(None), Chat.created_at >= window_start)
             .group_by(Chat.agent_id, func.date(Chat.created_at))
         )
         daily_result = await db.execute(daily_stmt)
@@ -142,12 +169,8 @@ async def get_usage_by_agent(
             percent_tokens = (tokens / grand_total_tokens * 100) if grand_total_tokens > 0 else 0
             percent_usd = (usd / grand_total_usd * 100) if grand_total_usd > 0 else 0
 
-            sparkline = []
             agent_daily = daily_map.get(aid, {})
-            for i in range(days):
-                day_str = (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
-                day_data = agent_daily.get(day_str, {"tokens": 0, "usd": 0.0})
-                sparkline.append({"date": day_str, **day_data})
+            sparkline = [{"date": day, **agent_daily.get(day, {"tokens": 0, "usd": 0.0})} for day in window_days]
 
             attribution = {
                 "webUsd": round(item["web_usd"], 6),
