@@ -13,6 +13,7 @@ from myrm_agent_harness.core.thinking_blocks import (
     ThinkingBlockAssembler,
     carries_signed_blocks,
     coerce_thinking_blocks,
+    first_signed_index,
     thinking_blocks_text,
     without_thinking_blocks,
 )
@@ -153,3 +154,18 @@ def test_only_an_assistant_message_can_carry_blocks() -> None:
     blocks = [{"type": "thinking", "thinking": "plan", "signature": "sig"}]
 
     assert not carries_signed_blocks([HumanMessage(content="go", additional_kwargs={THINKING_BLOCKS_KEY: blocks})])
+
+
+def test_the_first_signed_message_is_where_the_prompt_a_block_is_bound_to_ends() -> None:
+    blocks = [{"type": "thinking", "thinking": "plan", "signature": "sig"}]
+    unsigned = AIMessage(content="", additional_kwargs={THINKING_BLOCKS_KEY: [{"type": "thinking", "thinking": "x"}]})
+    signed = AIMessage(content="", additional_kwargs={THINKING_BLOCKS_KEY: blocks})
+
+    messages = [HumanMessage(content="go"), AIMessage(content="plain"), unsigned, signed, signed]
+
+    assert first_signed_index(messages) == 3
+
+
+def test_a_conversation_with_nothing_to_replay_has_no_first_signed_message() -> None:
+    assert first_signed_index([HumanMessage(content="go"), AIMessage(content="plain")]) is None
+    assert first_signed_index([]) is None

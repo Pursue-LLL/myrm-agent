@@ -22,6 +22,7 @@ import json
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from itertools import pairwise
 from typing import Final
 from unittest.mock import patch
 
@@ -211,6 +212,12 @@ class EnforcingAnthropic:
     @property
     def refused(self) -> list[RequestRecord]:
         return [record for record in self.requests if record.status != 200]
+
+    @property
+    def shrinks(self) -> list[int]:
+        """The numbers (from 1) of the requests that show the model less text than the request before them: a prune ran."""
+        sizes = [len(record.text) for record in self.requests]
+        return [number for number, (before, after) in enumerate(pairwise(sizes), start=2) if after < before]
 
     @property
     def turns(self) -> list[list[RequestRecord]]:

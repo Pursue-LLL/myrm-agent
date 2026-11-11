@@ -9,6 +9,7 @@
 - agent.context_management.infra.schemas (POS: 预算、配置与结构化摘要类型)
 - agent.context_management.strategies.summary.summarizer::should_summarize (POS: 何时触发摘要)
 - agent.context_management.strategies.summary.summary_builder (POS: 摘要消息构造与近期消息提取)
+- core.thinking_blocks::carries_signed_blocks (POS: 本轮是否还有签名推理块在途)
 - utils.token_estimation::estimate_messages_tokens (POS: token 估算)
 
 [OUTPUT]
@@ -21,7 +22,9 @@
 from __future__ import annotations
 
 import time
+from typing import cast
 
+from myrm_agent_harness.core.thinking_blocks import carries_signed_blocks
 from myrm_agent_harness.observability.metrics.circuit_breaker_metrics import (
     circuit_breaker_failures_total,
     circuit_breaker_state,
@@ -70,6 +73,11 @@ logger = get_agent_logger(__name__)
 _skip_next_api_token_check: bool = False
 
 
+def _as_int(value: object) -> int:
+    """A number the caller left in the pipeline metadata, as an int."""
+    return int(cast("int | float | str", value))
+
+
 class SummarizeProcessor(BaseProcessor):
     """Summarize processor.
 
@@ -83,6 +91,9 @@ class SummarizeProcessor(BaseProcessor):
     - L1: LLM summary + output hard-truncation (summarizer.py)
     - L2: Deterministic fallback (this file)
     - L3: Emergency conversation truncation (stream_executor.py)
+
+    Below the 90% hard limit it waits while the cache is hot or the turn's signed reasoning blocks are in flight
+    (every block is bound to the messages it rewrites), marking compaction_debt_pending for the drain after the turn.
     """
 
     def __init__(
@@ -119,10 +130,14 @@ class SummarizeProcessor(BaseProcessor):
             pass
 
     def _should_bypass_for_hot_cache(self, context: ProcessorContext, current_tokens: int) -> bool:
-        """Check whether to bypass summarization due to hot cache."""
+        """Check whether summarization waits for a later request: the cache is hot, or signed reasoning is in flight."""
         max_tokens = self.config.max_context_tokens or 128000
         if current_tokens >= max_tokens * 0.90:
             return False  # MUST summarize synchronously to avoid OOM
+
+        # Every signed block is bound to the messages summarization rewrites; the debt is left to the drain after the turn.
+        if carries_signed_blocks(context.messages):
+            return True
 
         last_active = context.metadata.get("last_activity_time")
         return bool(
@@ -156,7 +171,8 @@ class SummarizeProcessor(BaseProcessor):
         total_tokens = estimate_processor_context_tokens(context.messages, context.metadata)
         if self._should_bypass_for_hot_cache(context, total_tokens):
             logger.info(
-                "[Summarize] Hot cache bypass (tokens=%d), marking compaction_debt_pending",
+                "[Summarize] Bypass (hot cache or signed reasoning in flight, tokens=%d), "
+                "marking compaction_debt_pending",
                 total_tokens,
             )
             context.metadata["compaction_debt_pending"] = True
@@ -208,11 +224,14 @@ class SummarizeProcessor(BaseProcessor):
         if context.metadata.get("enable_pre_compact_tool_prune", True):
             from ..active_tool_result_prune_processor import prune_tool_results_deterministic
 
-            pre_prune_thresh = int(context.metadata.get("pre_compact_prune_threshold_tokens", 1024))
-            raw_keep = int(context.metadata.get("pre_compact_keep_recent_calls", 2))
+            pre_prune_thresh = _as_int(context.metadata.get("pre_compact_prune_threshold_tokens", 1024))
+            raw_keep = _as_int(context.metadata.get("pre_compact_keep_recent_calls", 2))
             # Hard boundary guard against Goodhart's Law: never discard last 2 tool interactions
             pre_prune_keep = max(raw_keep, 2)
-            effective_offload = context.metadata.get("on_prune_offload", self._on_prune_offload)
+            effective_offload = cast(
+                "ContextCompressOffloadCallback | None",
+                context.metadata.get("on_prune_offload", self._on_prune_offload),
+            )
 
             new_msgs, pruned_cnt, saved_tokens = await prune_tool_results_deterministic(
                 context.messages,
@@ -283,12 +302,12 @@ class SummarizeProcessor(BaseProcessor):
         fence = CompactorPreflightFence(safe_watermark_ratio=0.85)
         # Physical model capacity limit: defaults to 128k tokens (or higher if configured),
         # distinguishing between logical conversation threshold and physical LLM window.
-        max_ctx = int(
+        max_ctx = _as_int(
             context.metadata.get("llm_max_context_tokens")
             or getattr(self.config, "llm_max_context_tokens", None)
             or max(self.config.max_context_tokens or 128_000, 128_000)
         )
-        skills_tokens = int(context.metadata.get("loaded_skills_tokens") or 0)
+        skills_tokens = _as_int(context.metadata.get("loaded_skills_tokens") or 0)
         safety_verdict = fence.evaluate_safety(
             messages_tokens=original_tokens,
             loaded_skills_tokens=skills_tokens,

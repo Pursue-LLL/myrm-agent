@@ -4,6 +4,7 @@
 - agent.context_management.infra.cache_break_detector (POS: times the gap since the last model call)
 - agent.context_management.infra.cache_metrics_collector::clear_cache_usage_feedback (POS: the provider's cache figures of a run)
 - agent.context_management.pipeline.processors.cache_ttl_prune_processor (POS: judges from that gap whether the prompt cache has expired)
+- agent.context_management.pipeline.processors.compress_processor, summarize_processor.processor (POS: hold a compaction back while the prompt cache is hot)
 - agent.middlewares.context_pipeline.context_pipeline_middleware (POS: stamps the time of the last successful model call)
 
 [OUTPUT]
@@ -28,7 +29,13 @@ from unittest.mock import patch
 
 from myrm_agent_harness.agent.context_management.infra import cache_break_detector
 from myrm_agent_harness.agent.context_management.infra.cache_metrics_collector import clear_cache_usage_feedback
-from myrm_agent_harness.agent.context_management.pipeline.processors import cache_ttl_prune_processor
+from myrm_agent_harness.agent.context_management.pipeline.processors import (
+    cache_ttl_prune_processor,
+    compress_processor,
+)
+from myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor import (
+    processor as summarize_processor,
+)
 from myrm_agent_harness.agent.middlewares.context_pipeline import context_pipeline_middleware
 
 
@@ -54,6 +61,8 @@ def virtual_clock() -> Iterator[VirtualClock]:
         patch.object(cache_break_detector, "time", shim),
         patch.object(context_pipeline_middleware, "time", shim),
         patch.object(cache_ttl_prune_processor, "time", shim),
+        patch.object(compress_processor, "time", shim),
+        patch.object(summarize_processor, "time", shim),
     ):
         yield clock
 

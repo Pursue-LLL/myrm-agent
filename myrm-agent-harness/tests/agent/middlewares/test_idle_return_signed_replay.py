@@ -7,7 +7,7 @@ clock moved past the five minutes Anthropic keeps a prompt cached.
 
 [INPUT]
 - tests.support.enforcing_anthropic::EnforcingAnthropic (POS: a Messages API double that refuses a replay the API would refuse)
-- tests.support.signed_tool_loop::run_signed_loop, signed_loop_session (POS: turns of the shipped agent in a tool loop against that double)
+- tests.support.signed_tool_loop::file_reader, run_signed_loop, signed_loop_session (POS: turns of the shipped agent in a tool loop against that double)
 - tests.support.virtual_clock::virtual_clock, start_run (POS: an idle gap without the wait)
 
 [POS]
@@ -18,38 +18,24 @@ window that is running out still does, and the one refusal that costs is healed 
 from __future__ import annotations
 
 from collections.abc import Iterator
-from itertools import pairwise
 from pathlib import Path
 
 import pytest
-from langchain_core.tools import tool
 
 from tests.support.enforcing_anthropic import EnforcingAnthropic
-from tests.support.signed_tool_loop import run_signed_loop, signed_loop_session
+from tests.support.signed_tool_loop import file_reader, run_signed_loop, signed_loop_session
 from tests.support.virtual_clock import start_run, virtual_clock
 
 # Past the five minutes a prompt stays cached and short of the thirty an agent stays built for.
 _IDLE_SECONDS = 400.0
 _WINDOW = 60_000
-_OUTPUT = ("line of tool output with distinct words alpha beta gamma delta epsilon zeta eta theta. " * 150)[:10_000]
-
-
-@tool("read_file")
-async def read_file(path: str) -> str:
-    """Read a file."""
-    return f"{path}\n{_OUTPUT}"
+read_file = file_reader(10_000)
 
 
 @pytest.fixture(autouse=True)
 def _session(tmp_path: Path) -> Iterator[None]:
     with signed_loop_session(tmp_path):
         yield
-
-
-def _shrinks(double: EnforcingAnthropic) -> list[int]:
-    """The requests that show the model less text than the request before them: something was pruned."""
-    sizes = [len(record.text) for record in double.requests]
-    return [number for number, (before, after) in enumerate(pairwise(sizes), start=1) if after < before]
 
 
 async def test_a_run_after_an_idle_gap_prunes_nothing_and_keeps_its_reasoning() -> None:
@@ -66,7 +52,7 @@ async def test_a_run_after_an_idle_gap_prunes_nothing_and_keeps_its_reasoning() 
 
     assert double.refused == []
     assert all(record.thinking for record in double.accepted)
-    assert _shrinks(double) == []
+    assert double.shrinks == []
 
 
 async def test_a_window_that_is_running_out_still_prunes_and_the_guard_heals_the_one_refusal() -> None:
@@ -74,5 +60,5 @@ async def test_a_window_that_is_running_out_still_prunes_and_the_guard_heals_the
 
     await run_signed_loop(double, tools=[read_file], turns=1, window=30_000)
 
-    assert _shrinks(double)
+    assert double.shrinks
     assert [record.reason for record in double.refused] == ["the prompt before the block changed"]

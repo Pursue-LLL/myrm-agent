@@ -8,7 +8,8 @@ Strategy:
 3. Keep N most recent complete calls as few-shot examples
 4. Compress oldest first to preserve fresh examples for the model
 5. Use tool-specific templates preserving identifiers and metadata
-6. Cold Cache Drain Architecture: bypass when cache is hot to protect Prompt Cache
+6. Cold Cache Drain Architecture: bypass while the cache is hot (protects the Prompt Cache) or the turn's signed
+   reasoning blocks are in flight (every block is bound to the messages compression rewrites)
 7. Anti-Thrashing: skip compression when recent attempts saved <10% each (streak >= 2),
    with 90% hard-limit safety net to prevent OOM
 
@@ -21,6 +22,7 @@ IMPORTANT: Self-update reminder: once this file is updated, also update:
 - strategies.compactor.smart_fallback::apply_smart_fallback (POS: extreme overflow fallback)
 - meta_tools.file_ops.core.read_dedup::reset_all_read_dedup (POS: 读取时 dedup 守卫,压缩后重置)
 - core.message_origin::count_user_authored_messages (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
+- core.thinking_blocks::carries_signed_blocks (POS: whether signed reasoning blocks are in flight)
 
 [OUTPUT]
 - CompressProcessor: priority-aware compression with keep_recent ToolCallGroup protection and compression_intent consumption
@@ -35,6 +37,7 @@ from dataclasses import replace
 from langchain_core.messages import BaseMessage
 
 from myrm_agent_harness.core.message_origin import count_user_authored_messages
+from myrm_agent_harness.core.thinking_blocks import carries_signed_blocks
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_estimation import (
     estimate_messages_tokens,
@@ -79,6 +82,8 @@ class CompressProcessor(BaseProcessor):
     Cold Cache Drain Architecture (Hot Cache Bypass):
     - If cache is "hot" (last activity < 5 min) and below 90% physical limit,
       intercept and mark compaction_debt_pending to avoid breaking Prompt Cache
+    - The same holds while the turn carries signed reasoning blocks, hot cache or not: compacting mid-run would make
+      the provider refuse the blocks written after it. The debt is left to the drain that follows the turn.
 
     Anti-Thrashing Protection:
     - If last 2+ compressions each saved <10%, skip compression to protect Prompt Cache
@@ -120,10 +125,14 @@ class CompressProcessor(BaseProcessor):
         return bool(context.metadata.get("eco_mode", False))
 
     def _should_bypass_for_hot_cache(self, context: ProcessorContext, current_tokens: int) -> bool:
-        """Check whether to bypass compression due to hot cache."""
+        """Check whether compression waits for a later request: the cache is hot, or signed reasoning is in flight."""
         max_tokens = self.config.max_context_tokens or 128000
         if current_tokens >= max_tokens * 0.90:
             return False  # MUST compress synchronously to avoid OOM
+
+        # Every signed block is bound to the messages compression rewrites; the debt is left to the drain after the turn.
+        if carries_signed_blocks(context.messages):
+            return True
 
         last_active = context.metadata.get("last_activity_time")
         return isinstance(last_active, (int, float)) and (time.time() - last_active < self._HOT_CACHE_WINDOW_SECONDS)
@@ -184,7 +193,8 @@ class CompressProcessor(BaseProcessor):
         # --- Cold Cache Drain Architecture (Hot Cache Bypass) ---
         if self._should_bypass_for_hot_cache(context, total_tokens):
             logger.info(
-                "[Compress] Hot cache bypass (tokens=%d), marking compaction_debt_pending",
+                "[Compress] Bypass (hot cache or signed reasoning in flight, tokens=%d), "
+                "marking compaction_debt_pending",
                 total_tokens,
             )
             context.metadata["compaction_debt_pending"] = True

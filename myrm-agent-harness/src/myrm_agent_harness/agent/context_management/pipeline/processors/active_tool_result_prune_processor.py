@@ -13,6 +13,7 @@ results; this processor reclaims that waste proactively.
 - infra.schemas::BUILTIN_PROTECTED_TOOLS, ContextCompressOffloadCallback (POS: Context management shared types)
 - infra.schemas::ContextOffloadResult, normalize_context_offload_result (POS: Context management shared types)
 - infra.archive_reference::build_tool_result_archive_reference (POS: Archive reference builder)
+- core.thinking_blocks::carries_signed_blocks, first_signed_index (POS: where signed reasoning blocks are in flight)
 - tracking.task_metrics::get_task_metrics (POS: Public task metrics API)
 - utils.token_estimation::estimate_content_tokens (POS: Token estimation utilities)
 - utils.logger_utils::get_agent_logger (POS: Agent logger utilities)
@@ -23,6 +24,11 @@ results; this processor reclaims that waste proactively.
 [POS]
 Per-step active tool-result pruning. Positioned after FilterProcessor
 and before CacheTtlPruneProcessor in the default pipeline.
+
+On a route that signs its reasoning, results are pruned between turns, not within one: every signed block is bound
+to the messages before it, so a prune that appears mid-run makes the provider refuse the blocks written after it.
+From the first block of a turn on, the results before it are shown as the request that wrote it showed them, in every
+later request and in the resume after an approval, also when that resume runs in a new pipeline.
 """
 
 from __future__ import annotations
@@ -34,6 +40,7 @@ from typing import TYPE_CHECKING, cast
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
+from myrm_agent_harness.core.thinking_blocks import carries_signed_blocks, first_signed_index
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_estimation import estimate_content_tokens
 
@@ -278,6 +285,12 @@ class ActiveToolResultPruneProcessor(BaseProcessor):
     3. Are not from protected tools (``BUILTIN_PROTECTED_TOOLS``).
     4. Pass the ``min_reclaim_tokens`` gate (protects prompt cache prefix from thrashing).
 
+    From the first signed reasoning block of a turn on, it looks only at the results before that block: the list the
+    request that wrote the block saw. Every later request of the turn, the resume after an approval included, then
+    shows those results as that request did, and the results that fall out of the recent window meanwhile are pruned
+    when the next turn starts. The outcome depends on the messages alone, so a pipeline built for a new stream reaches
+    it again. A forced prune (``force_prune``) is never held back.
+
     When the offload callback is unavailable or fails:
     - By default, original content is preserved (fail-safe, no data loss).
     - When ``enable_memory_fallback=True`` or ``force_prune=True`` (e.g. before compaction),
@@ -310,7 +323,8 @@ class ActiveToolResultPruneProcessor(BaseProcessor):
         return "active_tool_result_prune"
 
     async def should_process(self, context: ProcessorContext) -> bool:
-        if self._should_skip_for_cache_preservation(context):
+        # A resume leaves the prompt alone, except under signed reasoning, which has to read what it read before.
+        if self._should_skip_for_cache_preservation(context) and not carries_signed_blocks(context.messages):
             return False
         if not context.metadata.get("enable_active_tool_prune", True):
             return False
@@ -338,8 +352,12 @@ class ActiveToolResultPruneProcessor(BaseProcessor):
         )
 
         prune_reason = str(context.metadata.get("prune_reason", "active_prune"))
-        new_messages, pruned, tokens_saved = await prune_tool_results_deterministic(
-            messages,
+        # The first signed block of the turn is bound to the messages before it, as the request that wrote it showed
+        # them; deciding over just those messages gives the same prune again.
+        signed_from = None if force_prune else first_signed_index(messages)
+        scope = messages if signed_from is None else messages[:signed_from]
+        new_scope, pruned, tokens_saved = await prune_tool_results_deterministic(
+            scope,
             threshold_tokens=self._threshold_tokens,
             keep_recent_calls=keep_recent,
             min_reclaim_tokens=min_reclaim,
@@ -354,7 +372,7 @@ class ActiveToolResultPruneProcessor(BaseProcessor):
         )
 
         if pruned > 0:
-            context.messages = new_messages
+            context.messages = [*new_scope, *messages[len(scope) :]]
             context.tokens_saved += tokens_saved
             context.operations.append(f"active_prune: replaced {pruned} tool results, saved ~{tokens_saved} tokens")
             logger.info(

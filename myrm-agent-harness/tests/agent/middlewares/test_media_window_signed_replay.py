@@ -24,6 +24,7 @@ from pathlib import Path
 import pytest
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command, interrupt
 
 from tests.support.enforcing_anthropic import EnforcingAnthropic, RequestRecord
@@ -117,17 +118,20 @@ async def test_a_route_that_signs_nothing_keeps_the_plain_window() -> None:
 
 async def test_an_approval_that_takes_ten_minutes_resumes_without_a_refusal() -> None:
     double = EnforcingAnthropic(tool_rounds=6)
-    agent = signed_agent(tools=[screenshot_after_approval])
+    saver = InMemorySaver()
     config = {"configurable": {"thread_id": "t"}, "recursion_limit": 400}
     context = {"chat_id": "chat", "max_context_tokens": _WINDOW}
 
     with double.serving(), virtual_clock() as clock:
         start_run()
+        agent = signed_agent(tools=[screenshot_after_approval], checkpointer=saver)
         paused = await agent.ainvoke({"messages": [HumanMessage(content="Investigate.")]}, config, context=context)
         assert paused.get("__interrupt__")
         clock.advance(600.0)
         start_run()
-        await agent.ainvoke(Command(resume="approved"), config, context={**context, "is_resume": True})
+        # The side of a resume that gives the pipeline nothing in memory: a new agent over the same checkpoint.
+        resumed_agent = signed_agent(tools=[screenshot_after_approval], checkpointer=saver)
+        await resumed_agent.ainvoke(Command(resume="approved"), config, context={**context, "is_resume": True})
 
     assert double.refused == []
     assert [record.replayed for record in double.accepted] == list(range(7))

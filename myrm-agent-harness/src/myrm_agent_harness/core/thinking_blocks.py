@@ -15,6 +15,7 @@ continues that conversation.
 - ThinkingBlockAssembler: builds the blocks of one stream from their deltas, one draft per provider content index
 - thinking_blocks_text: the reasoning text a message's blocks put in the prompt, for token estimation
 - carries_signed_blocks: whether a request built from some messages would replay a block
+- first_signed_index: where in some messages the first replayed block sits
 - without_thinking_blocks: messages with the blocks removed, for a call whose prompt is not the conversation's
 
 [POS]
@@ -129,15 +130,26 @@ def thinking_blocks_text(message: BaseMessage) -> str:
     return "".join(block["data"] if block["type"] == "redacted_thinking" else block["thinking"] for block in blocks)
 
 
+def _is_signed(message: BaseMessage) -> bool:
+    return isinstance(message, AIMessage) and bool(
+        coerce_thinking_blocks(message.additional_kwargs.get(THINKING_BLOCKS_KEY))
+    )
+
+
 def carries_signed_blocks(messages: Iterable[BaseMessage]) -> bool:
     """Whether a request built from ``messages`` would replay at least one signed block.
 
     Every block is bound to the messages before it, so this is the question to ask before rewriting an earlier message.
     """
-    return any(
-        isinstance(message, AIMessage) and coerce_thinking_blocks(message.additional_kwargs.get(THINKING_BLOCKS_KEY))
-        for message in messages
-    )
+    return any(_is_signed(message) for message in messages)
+
+
+def first_signed_index(messages: Sequence[BaseMessage]) -> int | None:
+    """Position of the first message a request built from ``messages`` replays a signed block from, if any.
+
+    The messages before it are the prompt that block is bound to, which no later request may change.
+    """
+    return next((index for index, message in enumerate(messages) if _is_signed(message)), None)
 
 
 def _without_blocks[M: BaseMessage](message: M) -> M:
