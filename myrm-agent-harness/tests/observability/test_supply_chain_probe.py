@@ -69,3 +69,24 @@ async def test_supply_chain_health_critical_finding() -> None:
         assert report.meta_data is not None
         assert report.meta_data["critical_vuln_count"] == 1
         assert report.fix_suggestion is not None
+
+
+@pytest.mark.asyncio
+async def test_supply_chain_health_rates_by_advisory_id_to_stay_within_the_hook_time_limit() -> None:
+    mock_dist = MagicMock()
+    mock_dist.metadata = {"Name": "pydantic"}
+    mock_dist.version = "2.10.0"
+    osv_query = AsyncMock(return_value=[])
+
+    with (
+        patch("importlib.metadata.distributions", return_value=[mock_dist]),
+        patch(
+            "myrm_agent_harness.observability.diagnostics.supply_chain.match_known_advisories",
+            return_value=[],
+        ),
+        patch("myrm_agent_harness.observability.diagnostics.supply_chain.query_osv_batch", osv_query),
+    ):
+        await check_supply_chain_health()
+
+    assert osv_query.await_args is not None
+    assert osv_query.await_args.kwargs["resolve_severity"] is False

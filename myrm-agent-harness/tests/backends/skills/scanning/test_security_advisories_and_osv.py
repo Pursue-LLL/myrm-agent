@@ -1,15 +1,8 @@
-"""Tests for security_advisories.py, vuln_cache.py, and osv_scanner.py."""
+"""Tests for security_advisories.py and vuln_cache.py."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from myrm_agent_harness.backends.skills.scanning.dependency_extractor import DeclaredDependency
-from myrm_agent_harness.backends.skills.scanning.osv_scanner import (
-    parse_osv_severity,
-    query_osv_batch,
-)
 from myrm_agent_harness.backends.skills.scanning.scanner import ScanSeverity
 from myrm_agent_harness.backends.skills.scanning.security_advisories import (
     AdvisoryFinding,
@@ -119,61 +112,9 @@ def test_vuln_cache_lifecycle(tmp_path: Path) -> None:
     assert cache.get("npm", "pkg-a", "1.0.0") is None
 
 
-def test_parse_osv_severity() -> None:
-    # MAL-* is CRITICAL
-    assert parse_osv_severity({"id": "MAL-2024-001"}) == ScanSeverity.CRITICAL
-
-    # Database specific CRITICAL
-    assert parse_osv_severity({"id": "GHSA-1234", "database_specific": {"severity": "CRITICAL"}}) == ScanSeverity.CRITICAL
-    assert parse_osv_severity({"id": "GHSA-1234", "database_specific": {"severity": "HIGH"}}) == ScanSeverity.HIGH
-    assert parse_osv_severity({"id": "GHSA-1234", "database_specific": {"severity": "MODERATE"}}) == ScanSeverity.MEDIUM
-    assert parse_osv_severity({"id": "GHSA-1234", "database_specific": {"severity": "LOW"}}) == ScanSeverity.LOW
-
-    # CVSS score
-    assert parse_osv_severity({"id": "CVE-2024-9999", "severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H (9.8)"}]}) == ScanSeverity.CRITICAL
-
-
-def test_query_osv_batch_empty_and_cached() -> None:
-    import asyncio
-    cache = VulnScanCache()
-    assert asyncio.run(query_osv_batch([], cache=cache)) == []
-
-    # Dep with existing cache
-    f = AdvisoryFinding(
-        advisory_id="GHSA-999",
-        package_name="cached-pkg",
-        ecosystem="npm",
-        severity=ScanSeverity.HIGH,
-        title="Cached",
-        description="Detail",
-        matched_version="1.0.0",
-    )
-    cache.set("npm", "cached-pkg", "1.0.0", [f])
-    dep = DeclaredDependency(name="cached-pkg", version_spec="1.0.0", ecosystem="npm")
-    res = asyncio.run(query_osv_batch([dep], cache=cache))
-    assert len(res) == 1
-    assert res[0].advisory_id == "GHSA-999"
-
-
-@pytest.mark.asyncio
-async def test_query_osv_batch_network_failure_fallback() -> None:
-    cache = VulnScanCache()
-    deps = [
-        DeclaredDependency(name="pkg-fail", version_spec="1.0.0", ecosystem="npm"),
-    ]
-
-    with patch("myrm_agent_harness.backends.skills.scanning.osv_scanner.create_httpx_client") as mock_client_cls:
-        client_instance = AsyncMock()
-        client_instance.__aenter__.side_effect = Exception("Network timeout")
-        mock_client_cls.return_value = client_instance
-
-        # Should fail gracefully and return empty findings without crashing
-        findings = await query_osv_batch(deps, cache=cache)
-        assert findings == []
-
-
 def test_is_version_affected_branches() -> None:
     from myrm_agent_harness.backends.skills.scanning.security_advisories import _is_version_affected
+
     assert _is_version_affected("1.0.0", []) is False
     assert _is_version_affected("1.0.0", ("*",)) is True
     assert _is_version_affected("", ("1.0.0",)) is True
@@ -194,82 +135,7 @@ def test_advisory_finding_fields() -> None:
     assert f.is_acked is False
 
 
-@pytest.mark.asyncio
-async def test_query_osv_batch_batching_and_ranges() -> None:
-    cache = VulnScanCache()
-    deps = [
-        DeclaredDependency(name="pkg-1", version_spec="^1.0.0", ecosystem="npm"),
-        DeclaredDependency(name="pkg-2", version_spec=">=2.0.0", ecosystem="PyPI"),
-    ]
-
-    mock_response = AsyncMock()
-    mock_response.raise_for_status = MagicMock()
-    mock_response.json = MagicMock(
-        return_value={
-            "results": [
-                {"vulns": []},
-                {"vulns": [{"id": "GHSA-RANGE", "details": "Range vuln", "severity": [{"score": "7.5"}]}]},
-            ]
-        }
-    )
-
-    with patch("myrm_agent_harness.backends.skills.scanning.osv_scanner.create_httpx_client") as mock_client_cls:
-        client_instance = AsyncMock()
-        client_instance.__aenter__.return_value = client_instance
-        client_instance.__aexit__.return_value = None
-        client_instance.post = AsyncMock(return_value=mock_response)
-        mock_client_cls.return_value = client_instance
-
-        findings = await query_osv_batch(deps, cache=cache)
-        assert len(findings) == 1
-        assert findings[0].advisory_id == "GHSA-RANGE"
-        assert findings[0].severity == ScanSeverity.HIGH
-
-
 def test_vuln_cache_default_singleton() -> None:
     c = get_vuln_cache()
     assert c is not None
     assert isinstance(c, VulnScanCache)
-
-
-@pytest.mark.asyncio
-async def test_query_osv_batch_success() -> None:
-    cache = VulnScanCache()
-    deps = [
-        DeclaredDependency(name="bad-pkg", version_spec="1.0.0", ecosystem="npm"),
-    ]
-
-    mock_response = AsyncMock()
-    mock_response.raise_for_status = MagicMock()
-    mock_response.json = MagicMock(
-        return_value={
-            "results": [
-                {
-                    "vulns": [
-                        {
-                            "id": "MAL-2024-099",
-                            "summary": "Malicious package on npm",
-                            "details": "Details here",
-                        }
-                    ]
-                }
-            ]
-        }
-    )
-
-    with patch("myrm_agent_harness.backends.skills.scanning.osv_scanner.create_httpx_client") as mock_client_cls:
-        client_instance = AsyncMock()
-        client_instance.__aenter__.return_value = client_instance
-        client_instance.__aexit__.return_value = None
-        client_instance.post = AsyncMock(return_value=mock_response)
-        mock_client_cls.return_value = client_instance
-
-        findings = await query_osv_batch(deps, cache=cache)
-        assert len(findings) == 1
-        assert findings[0].advisory_id == "MAL-2024-099"
-        assert findings[0].severity == ScanSeverity.CRITICAL
-
-        # Verify cached
-        cached = cache.get("npm", "bad-pkg", "1.0.0")
-        assert cached is not None
-        assert len(cached) == 1

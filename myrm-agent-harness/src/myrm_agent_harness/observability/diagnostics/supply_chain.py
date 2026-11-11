@@ -12,7 +12,7 @@
 
 [POS]
 Harness 框架层统一供应链依赖安全性探针。自动审计当前 Python 运行时已安装的分发包与关键依赖，
-检测是否存在已知恶意供应链包或高危 CVE 漏洞。
+检测是否存在已知恶意供应链包（按公告编号判级；不逐条拉取公告详情，故 CVE 严重度不在本探针内评级）。
 """
 
 from __future__ import annotations
@@ -54,7 +54,9 @@ async def check_supply_chain_health() -> HealthReport:
 
         offline_findings = match_known_advisories(deps)
         cache = get_vuln_cache()
-        osv_findings = await query_osv_batch(deps, cache=cache)
+        # Resolving advisory records costs one more request per advisory, which does not fit the hook's time limit
+        # (DIAGNOSTIC_HOOK_TIMEOUT_S) on a slow network, so the probe rates by advisory id alone: malware is critical.
+        osv_findings = await query_osv_batch(deps, cache=cache, resolve_severity=False)
 
         critical_findings = []
         high_findings = []
