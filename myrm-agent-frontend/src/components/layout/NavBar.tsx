@@ -1,46 +1,29 @@
 'use client';
 
-import { memo, type ComponentType, useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { memo, type ComponentType, useCallback, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import Link from 'next/link';
-import {
-  Settings,
-  User,
-  Sidebar,
-  Plug,
-  LogOut,
-  Crown,
-  Zap,
-  FlaskConical,
-  CreditCard,
-  Briefcase,
-  FolderKanban,
-} from 'lucide-react';
+import { Settings, Sidebar, Plug, Briefcase, FolderKanban } from 'lucide-react';
 import { AiGenerativeIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
-import useAuthStore from '@/store/useAuthStore';
-import { useSubscription } from '@/hooks/billing/useSubscription';
-import { isLocalMode, isRemoteGatewayActive } from '@/lib/deploy-mode';
-import { buildAuthLoginPath } from '@/lib/auth-redirect';
+import { isRemoteGatewayActive } from '@/lib/deploy-mode';
 import { useNavBadges } from '@/hooks/shell/useNavBadges';
 
 import { NavMoreMenu } from './NavMoreMenu';
+import { NavAccountMenu } from './NavAccountMenu';
 import NotificationBell from '@/components/features/notifications/NotificationBell';
 import BackgroundTasksPanel from '@/components/features/background-tasks/BackgroundTasksPanel';
 import { IconTerminal } from '@/components/features/icons/PremiumIcons';
 import { ExtensionSlot } from '@/components/features/extension-slots';
 import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
 
-const isDev = process.env.NODE_ENV === 'development';
 type NavIconComponent = ComponentType<{ size?: number; className?: string }>;
 
 export type NavTab = 'chat' | 'work' | 'projects';
 
 const NAVBAR_WIDTH = '60px';
+const DEFAULT_HREFS: Record<NavTab, string> = { chat: '/', work: '/work', projects: '/projects' };
 
 interface NavBarProps {
   activeTab: NavTab;
@@ -71,15 +54,8 @@ function NavBarInner({
   lastWorkUrl,
   lastProjectsUrl,
 }: NavBarProps) {
-  const router = useRouter();
   const t = useTranslations();
-  const tPricing = useTranslations('pricing');
-  const tUserMenu = useTranslations('userMenu');
   const tBackgroundTasks = useTranslations('backgroundTasks');
-  const { user, isLoading, logout, loginMock } = useAuthStore();
-  const { isPro } = useSubscription();
-  const [avatarError, setAvatarError] = useState(false);
-  const isLocal = isLocalMode();
   const badges = useNavBadges();
   const { isImmersiveMac } = useTrafficLightInsets();
   const projectsBadgeCount = badges.cronFailures + badges.pendingApprovals;
@@ -90,59 +66,18 @@ function NavBarInner({
     }
   }, [isMobile, onCloseMobileSidebar]);
 
+  const isOnSettingsPage = currentPathname.startsWith('/settings');
+  const lastUrls: Record<NavTab, string | null | undefined> = {
+    chat: lastChatUrl,
+    work: lastWorkUrl,
+    projects: lastProjectsUrl,
+  };
+
   const navItems: { id: NavTab; icon: NavIconComponent; label: string }[] = [
     { id: 'chat', icon: AiGenerativeIcon, label: t('nav.chat') },
     { id: 'work', icon: Briefcase, label: t('nav.work') },
     { id: 'projects', icon: FolderKanban, label: t('nav.projects') },
   ];
-
-  // 用户头像
-  const UserAvatar = ({ size = 28 }: { size?: number }) => {
-    if (user?.avatar_url && !avatarError) {
-      return (
-        <Image
-          src={user.avatar_url}
-          alt={user.display_name || 'User'}
-          width={size}
-          height={size}
-          className="rounded-full object-cover"
-          style={{ width: size, height: size }}
-          onError={() => setAvatarError(true)}
-          referrerPolicy="no-referrer"
-          unoptimized
-        />
-      );
-    }
-    return (
-      <div
-        className="rounded-full bg-primary/10 flex items-center justify-center"
-        style={{ width: size, height: size }}
-      >
-        <User size={size * 0.5} className="text-primary" />
-      </div>
-    );
-  };
-
-  const handleSignIn = useCallback(() => {
-    closeMobileSidebar();
-    const returnPath = currentPathname || '/';
-    router.push(buildAuthLoginPath(returnPath));
-  }, [closeMobileSidebar, currentPathname, router]);
-
-  const handleTestLogin = useCallback(() => {
-    if (isMobile && onCloseMobileSidebar) {
-      onCloseMobileSidebar();
-    }
-    loginMock();
-  }, [isMobile, onCloseMobileSidebar, loginMock]);
-
-  const handleLogout = useCallback(() => {
-    closeMobileSidebar();
-    logout();
-  }, [closeMobileSidebar, logout]);
-
-  // 显示名称
-  const displayName = user?.display_name || user?.email || tUserMenu('guest');
 
   return (
     <nav
@@ -160,133 +95,7 @@ function NavBarInner({
     >
       {/* Header: User Avatar with Popover Menu */}
       <div className={cn('p-2 flex flex-col items-center gap-2', isImmersiveMac && !isMobile && 'pt-9')}>
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
-              aria-label={displayName}
-            >
-              <UserAvatar />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent side="right" align="start" sideOffset={8} className="w-64 p-0 overflow-hidden">
-            {user ? (
-              <>
-                {/* 用户信息区域 */}
-                <div className="px-4 py-3 border-b border-border flex items-center gap-3">
-                  <UserAvatar size={32} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                    {user.email && user.email !== displayName && (
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* 菜单项 */}
-                <div className="py-1">
-                  {/* 订阅入口（仅 Sandbox 模式） */}
-                  {!isLocal && (
-                    <>
-                      <Link
-                        href="/pricing"
-                        onClick={closeMobileSidebar}
-                        className={cn(
-                          'flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-colors',
-                          isPro ? 'text-foreground hover:bg-accent' : 'text-primary bg-primary/5 hover:bg-primary/10',
-                        )}
-                      >
-                        {isPro ? (
-                          <Crown size={16} className="text-primary" />
-                        ) : (
-                          <Zap size={16} className="text-primary" />
-                        )}
-                        <span className="flex-1 text-left">{isPro ? tPricing('pro.name') : tPricing('upgrade')}</span>
-                      </Link>
-                      <Link
-                        href="/subscription"
-                        onClick={closeMobileSidebar}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                      >
-                        <CreditCard size={16} className="text-muted-foreground" />
-                        <span className="flex-1 text-left">{tUserMenu('subscription')}</span>
-                      </Link>
-                    </>
-                  )}
-
-                  {/* 设置 */}
-                  <Link
-                    href="/settings"
-                    onClick={closeMobileSidebar}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                  >
-                    <Settings size={16} className="text-muted-foreground" />
-                    <span>{tUserMenu('settings')}</span>
-                  </Link>
-                </div>
-
-                {/* 退出登录 */}
-                <div className="border-t border-border py-1">
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                  >
-                    <LogOut size={16} className="text-muted-foreground" />
-                    <span>{tUserMenu('logout')}</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* 登录选项 */}
-                <div className="p-4 space-y-3">
-                  <p className="text-sm font-medium text-foreground">{tUserMenu('loginTitle')}</p>
-                  <button
-                    onClick={handleSignIn}
-                    disabled={isLoading}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
-                  >
-                    <User size={16} className="text-primary shrink-0" />
-                    <span>{tUserMenu('login')}</span>
-                  </button>
-                  {isDev && (
-                    <button
-                      onClick={handleTestLogin}
-                      disabled={isLoading}
-                      className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-muted-foreground bg-accent/50 border border-dashed border-border rounded-lg hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
-                    >
-                      <FlaskConical size={16} />
-                      <span>{tUserMenu('loginForTest')}</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* 升级入口 + 设置链接 */}
-                <div className="border-t border-border py-1">
-                  {/* 升级入口（仅 Sandbox 模式） */}
-                  {!isLocal && (
-                    <Link
-                      href="/pricing"
-                      onClick={closeMobileSidebar}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-accent-warm bg-accent-warm/8 hover:bg-accent-warm/12 transition-colors shadow-brand"
-                    >
-                      <Zap size={16} className="text-accent-warm" />
-                      <span>{tPricing('upgrade')}</span>
-                    </Link>
-                  )}
-                  <Link
-                    href="/settings"
-                    onClick={closeMobileSidebar}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                  >
-                    <Settings size={16} className="text-muted-foreground" />
-                    <span>{tUserMenu('settings')}</span>
-                  </Link>
-                </div>
-              </>
-            )}
-          </PopoverContent>
-        </Popover>
+        <NavAccountMenu currentPathname={currentPathname} onNavigate={closeMobileSidebar} />
       </div>
 
       {/* Divider */}
@@ -296,23 +105,9 @@ function NavBarInner({
       <div className="flex-1 py-3 flex flex-col gap-1 items-center">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isInSettingsPage = currentPathname.startsWith('/settings');
-          let isActive = false;
-
-          if (item.id === 'chat') {
-            isActive = !isInSettingsPage && activeTab === 'chat';
-          } else if (item.id === 'work') {
-            isActive = activeTab === 'work';
-          } else if (item.id === 'projects') {
-            isActive = activeTab === 'projects';
-          }
-
-          const href =
-            item.id === 'chat'
-              ? lastChatUrl || '/'
-              : item.id === 'work'
-                ? lastWorkUrl || '/work'
-                : lastProjectsUrl || '/projects';
+          // Settings is its own destination: the Chat tab stays unlit there even though a chat is the active tab.
+          const isActive = item.id === 'chat' ? !isOnSettingsPage && activeTab === 'chat' : activeTab === item.id;
+          const href = lastUrls[item.id] || DEFAULT_HREFS[item.id];
 
           return (
             <Tooltip key={item.id}>
@@ -419,6 +214,7 @@ function NavBarInner({
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
               aria-label={t('userMenu.settings')}
+              aria-current={isSettingsPage ? 'page' : undefined}
             >
               <Settings size={18} />
             </Link>
@@ -430,18 +226,18 @@ function NavBarInner({
   );
 }
 
+// Nothing here ever changes: the snapshot is `false` on the server and while hydrating, `true` once on the client.
+const subscribeToNothing = () => () => {};
+
+// The rail depends on client-only state, so the server and the hydrating render draw nothing.
 const NavBar = memo<NavBarProps>((props) => {
-  const [mounted, setMounted] = useState(false);
+  const isClient = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
-  return <NavBarInner {...props} />;
+  return isClient ? <NavBarInner {...props} /> : null;
 });
 
 NavBar.displayName = 'NavBar';
