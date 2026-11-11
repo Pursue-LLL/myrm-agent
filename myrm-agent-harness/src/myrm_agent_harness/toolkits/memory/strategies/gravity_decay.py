@@ -11,8 +11,8 @@
 - float: continuous gravity decay factor in (0.0, +inf)
 
 [POS]
-Continuous power-law gravity model inspired by physical decay and Hacker News ranking.
-Replaces discrete day-based half-life with sub-hour precision continuous dynamics.
+Continuous power-law gravity decay: a score falls smoothly with the item's age (sub-hour precision) and is
+lifted by its interactions and quality rating.
 Provides bounded, positive-definite values resistant to zero-division and clock-skew.
 """
 

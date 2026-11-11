@@ -1088,9 +1088,9 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 解决传统检索打分静态刻板、无法感知用户即时会话反馈与热度时效衰退的问题，实现多维实时脉冲偏好拟合与物理幂律衰减：
 
 - **连续时间幂律重力衰减（`GravityDecayScorer` & `compute_gravity_decay`）**：
-  - 基于 Hacker News 物理幂律衰减模型：
-    $$\text{DecayFactor} = \frac{\text{Interactions} + \text{QualityWeight}}{(\text{ElapsedHours} + \text{GravityOffset})^G}$$
-  - 具备连续时间浮点小时解析，支持时钟向后回退漂移防护（$\Delta t < 0$ 时按 $0$ 兜底），输出严格归一化并在极端输入下保底闭式解，保证纯正实数与有限区间。
+  - 得分随记忆年龄（小时，亚小时精度）按幂律平滑下降，互动次数与质量评分把它抬高：
+    $$\text{DecayFactor} = \max\left(\varepsilon,\ \frac{1 + w_{int}\cdot\text{Interactions} + w_{qual}\cdot\text{Quality}}{\left(1 + \text{ElapsedHours} / T\right)^{G}}\right)$$
+  - 默认 $G = 1.8$、$T = 24$ 小时、$w_{int} = 0.15$、$w_{qual} = 0.25$、$\varepsilon = 10^{-4}$（`GravityDecayConfig`）；时钟回退或未来时间戳按 $\Delta t = 0$ 兜底，互动数下限为 $0$、质量评分截断到 $[0, 1]$；结果是不小于 $\varepsilon$ 的有限正数，不归一化到 $[0, 1]$。
 - **5 维自适应用户偏好向量（`DynamicPreferenceVector`）**：
   - 维护五个核心维度：`recency`（时效性）、`actionability`（行动落地导向）、`code_focus`（代码实操浓度）、`depth`（技术原理深度）、`pitfall_sensitivity`（踩坑避坑敏感度）；
   - 强类型硬截断区间守卫：所有维度均被严格限制在 $[0.05, 3.0]$ 安全区间内，默认基准为 $1.0$。
