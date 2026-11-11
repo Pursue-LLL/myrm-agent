@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   BarChart3,
@@ -109,6 +109,22 @@ function getCurrentTimeSlot(): TimeSlot {
   return 'night';
 }
 
+/** Slots are six hours wide, so re-reading the clock once a minute keeps the recommendation current. */
+const CLOCK_TICK_MS = 60_000;
+
+/** Until the viewer's clock is read, the cards are laid out from this set but hidden, so they keep their place. */
+const LAYOUT_SLOT: TimeSlot = 'morning';
+
+function subscribeToClock(onTick: () => void): () => void {
+  const timer = setInterval(onTick, CLOCK_TICK_MS);
+  return () => clearInterval(timer);
+}
+
+/** The server and a hydrating client cannot know the viewer's time of day; null keeps their markup identical. */
+function getServerTimeSlot(): TimeSlot | null {
+  return null;
+}
+
 function hashSeed(seed: string): number {
   let hash = 2166136261;
   for (let i = 0; i < seed.length; i++) {
@@ -135,18 +151,15 @@ const SamplePrompts = React.memo(() => {
   const setInputMessage = useChatStore((state) => state.setInputMessage);
   const agentConfig = useChatStore((state) => state.agentConfig);
 
-  const [currentTimeSlot, setCurrentTimeSlot] = useState<TimeSlot>('morning');
+  const currentTimeSlot = useSyncExternalStore<TimeSlot | null>(
+    subscribeToClock,
+    getCurrentTimeSlot,
+    getServerTimeSlot,
+  );
   const [selectedSlot, setSelectedSlot] = useState<ActiveFilter>('auto');
 
-  useEffect(() => {
-    setCurrentTimeSlot(getCurrentTimeSlot());
-    const timer = setInterval(() => {
-      setCurrentTimeSlot(getCurrentTimeSlot());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const effectiveSlot: TimeSlot | 'all' = selectedSlot === 'auto' ? currentTimeSlot : selectedSlot;
+  const clockKnown = currentTimeSlot !== null;
+  const effectiveSlot: TimeSlot | 'all' = selectedSlot === 'auto' ? (currentTimeSlot ?? LAYOUT_SLOT) : selectedSlot;
   const mode = SUPPORTED_MODES.includes(actionMode) ? actionMode : 'agent';
 
   const prompts = useMemo(() => {
@@ -234,8 +247,15 @@ const SamplePrompts = React.memo(() => {
       )}
 
       {/* Prompts Cards: a swipeable row on phones (the next card peeks in, and the row bleeds through EmptyChat's
-          px-4 gutter to reach the screen edge), a grid from sm up */}
-      <div className="-mx-4 flex snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto scrollbar-hide px-4 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+          px-4 gutter to reach the screen edge), a grid from sm up. The server and the hydrating client cannot tell
+          which slot to recommend, so the row keeps its place but stays invisible until the clock is read: the
+          viewer never sees one set swapped for another. */}
+      <div
+        className={cn(
+          '-mx-4 flex snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto scrollbar-hide px-4 transition-opacity duration-300 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4',
+          !clockKnown && 'invisible opacity-0',
+        )}
+      >
         {prompts.map(({ key, text, Icon }) => (
           <button
             key={key}

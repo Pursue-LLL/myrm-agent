@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -73,15 +74,6 @@ describe('SamplePrompts', () => {
       expect(hasCurrentTimeDot(slot)).toBe(true);
     });
 
-    it('renders the server markup for the morning set, then switches to the real slot once mounted', () => {
-      setClock(15);
-      expect(renderToString(<SamplePrompts />)).toContain('samplePrompts.time_morning_0');
-
-      render(<SamplePrompts />);
-
-      expect(cardTexts()).toEqual(timeSlotCards('afternoon'));
-    });
-
     it('moves the recommendation when the hour changes while the page stays open', async () => {
       setClock(11, 59, 30);
       render(<SamplePrompts />);
@@ -100,6 +92,67 @@ describe('SamplePrompts', () => {
       unmount();
 
       expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+
+  describe("before the viewer's clock is read", () => {
+    // jsdom loads no stylesheet, so a hidden row is pinned through its `invisible` class.
+    const cardsRow = (root: ParentNode = document) => root.querySelector('.snap-x');
+    const isHidden = (row: Element | null) => row?.classList.contains('invisible') ?? false;
+
+    let host: HTMLElement;
+    let root: Root | undefined;
+
+    beforeEach(() => {
+      host = document.body.appendChild(document.createElement('div'));
+    });
+
+    afterEach(() => {
+      act(() => root?.unmount());
+      root = undefined;
+      host.remove();
+      vi.restoreAllMocks();
+    });
+
+    it('puts nothing time-dependent in the server markup: no pressed tab, no live dot, the cards laid out but hidden', () => {
+      setClock(15);
+      host.innerHTML = renderToString(<SamplePrompts />);
+
+      const tabs = Array.from(host.querySelectorAll('button[aria-pressed]'));
+      expect(tabs).toHaveLength(5);
+      tabs.forEach((button) => {
+        expect(button.getAttribute('aria-pressed')).toBe('false');
+        expect(button.classList.contains('bg-primary/15')).toBe(false);
+      });
+      expect(host.querySelector('.animate-pulse')).toBeNull();
+      expect(isHidden(cardsRow(host))).toBe(true);
+    });
+
+    it("hydrates that markup without a mismatch even when the viewer's clock is in another time of day", async () => {
+      setClock(9);
+      host.innerHTML = renderToString(<SamplePrompts />);
+      setClock(20);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const recoverable: unknown[] = [];
+
+      await act(async () => {
+        root = hydrateRoot(host, <SamplePrompts />, { onRecoverableError: (error) => recoverable.push(error) });
+      });
+
+      expect(recoverable).toEqual([]);
+      expect(consoleError).not.toHaveBeenCalled();
+      expect(cardTexts()).toEqual(timeSlotCards('evening'));
+      expect(isTabSelected('evening')).toBe(true);
+      expect(hasCurrentTimeDot('evening')).toBe(true);
+      expect(isHidden(cardsRow(host))).toBe(false);
+    });
+
+    it('shows the real slot from the first render when it mounts on the client', () => {
+      setClock(20);
+      render(<SamplePrompts />);
+
+      expect(isHidden(cardsRow())).toBe(false);
+      expect(cardTexts()).toEqual(timeSlotCards('evening'));
     });
   });
 
