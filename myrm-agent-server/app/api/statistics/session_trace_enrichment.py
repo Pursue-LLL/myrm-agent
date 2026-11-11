@@ -25,12 +25,17 @@ from app.services.memory.command_center.command_center_projection_utils import (
     event_phase,
 )
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger_guardian import as_aware
 
 logger = logging.getLogger(__name__)
 
 
 async def _build_session_memory_events(db: AsyncSession, session_id: str) -> list[dict[str, object]]:
-    """Load session-scoped memory ledger events for replay overlay."""
+    """Load session-scoped memory ledger events for replay overlay.
+
+    SQLite returns the stored UTC wall time without a zone; ``as_aware`` reads it as UTC
+    instead of the server's local time, so the overlay lines up with the other trace events.
+    """
     ledger = MemoryOperationLedgerService(db)
     rows = await ledger.list_events_for_session(session_id, limit=48)
     return [
@@ -39,7 +44,7 @@ async def _build_session_memory_events(db: AsyncSession, session_id: str) -> lis
             "kind": row.kind,
             "phase": event_phase(row.kind),
             "status": row.status,
-            "timestamp": row.occurred_at.timestamp(),
+            "timestamp": as_aware(row.occurred_at).timestamp(),
             "title": row.memory_type or row.kind,
             "summary": row.summary,
             "target_kind": row.target_kind,
@@ -85,6 +90,11 @@ def _empty_trace_payload(session_id: str, memory_events: list[dict[str, object]]
             "gantt_spans": [],
         },
     }
+
+
+def _span_start(span: dict[str, object]) -> float:
+    start = span.get("start_time")
+    return start if isinstance(start, float) else 0.0
 
 
 def _enrich_performance_and_gantt(trace_data: dict[str, object]) -> None:
@@ -152,7 +162,7 @@ def _enrich_performance_and_gantt(trace_data: dict[str, object]) -> None:
                 }
             )
 
-    gantt_spans.sort(key=lambda x: float(x.get("start_time") or 0.0))
+    gantt_spans.sort(key=_span_start)
 
     hit_ratio = round(total_cache_read_tokens / total_prompt_tokens, 4) if total_prompt_tokens > 0 else 0.0
 

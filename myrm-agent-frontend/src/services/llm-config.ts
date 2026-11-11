@@ -34,20 +34,6 @@ export interface ModelCapabilities {
   max_output_tokens: number | null;
 }
 
-// 候选模型信息
-export interface ModelCandidate {
-  provider: string;
-  model_key: string;
-  capabilities: ModelCapabilities;
-}
-
-// 模型信息响应
-export interface ModelInfoResponse {
-  found: boolean;
-  capabilities: ModelCapabilities | null;
-  candidates: ModelCandidate[] | null;
-}
-
 // 重新导出类型，便于其他模块使用
 export type { ValidationResult, SearchServiceConfig, MCPServiceConfig };
 
@@ -436,36 +422,6 @@ const defaultCapabilities: ModelCapabilities = {
   output_cost_per_token: null,
   max_input_tokens: null,
   max_output_tokens: null,
-};
-
-/**
- * 获取单个模型的能力信息；精确匹配未命中时返回模糊匹配的候选模型
- *
- * @returns ModelInfoResponse - 包含 found 标志和 capabilities 或 candidates
- */
-export const fetchModelInfo = async (model: string): Promise<ModelInfoResponse> => {
-  // 检查缓存
-  const cached = modelCapabilitiesCache.get(model);
-  if (cached) {
-    return { found: true, capabilities: cached, candidates: null };
-  }
-
-  try {
-    const response = await apiRequest<ModelInfoResponse>('/integrations/llm/model-info', {
-      method: 'POST',
-      body: JSON.stringify({ model }),
-    });
-
-    // 如果精确匹配找到，缓存结果
-    if (response.found && response.capabilities) {
-      modelCapabilitiesCache.set(model, response.capabilities);
-    }
-
-    return response;
-  } catch {
-    // 返回未找到状态
-    return { found: false, capabilities: null, candidates: [] };
-  }
 };
 
 /**

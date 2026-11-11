@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone, tzinfo
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.api.statistics import agent_usage
 from app.api.statistics.agent_usage import get_usage_by_agent
 
 
@@ -323,3 +326,47 @@ class TestGetUsageByAgent:
         assert attribution["webTokens"] == 500
         assert attribution["cronTokens"] == 300
         assert attribution["subagentsTokens"] == 200
+
+
+class _FixedNow(datetime):
+    """`datetime` whose `now()` is fixed, so the sparkline window does not depend on the day the test runs."""
+
+    @classmethod
+    def now(cls, tz: tzinfo | None = None) -> datetime:
+        return datetime(2026, 11, 11, 15, 30, tzinfo=tz)
+
+
+@pytest.fixture
+def fixed_now(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(agent_usage, "datetime", _FixedNow)
+
+
+class TestSparklineWindow:
+    """The sparkline covers `days` whole UTC days and ends today."""
+
+    def test_window_opens_at_utc_midnight_and_ends_today(self, fixed_now: None) -> None:
+        window_start, window_days = agent_usage._sparkline_window(3)
+
+        assert window_start == datetime(2026, 11, 9, tzinfo=timezone.utc)
+        assert window_days == ["2026-11-09", "2026-11-10", "2026-11-11"]
+
+    def test_a_one_day_window_is_today(self, fixed_now: None) -> None:
+        assert agent_usage._sparkline_window(1)[1] == ["2026-11-11"]
+
+    async def test_usage_of_today_lands_on_the_last_point(self, fixed_now: None) -> None:
+        totals_result = MagicMock()
+        totals_result.all.return_value = [_make_totals_row("a1", 1000, 0.05, 10, 5)]
+        agents_result = MagicMock()
+        agents_result.all.return_value = [_make_agent_row("a1", "Agent")]
+        daily_result = MagicMock()
+        daily_result.all.return_value = [_make_daily_row("a1", "2026-11-11", 700, 0.07)]
+        mock_db = AsyncMock()
+        mock_db.execute.side_effect = [totals_result, agents_result, daily_result]
+
+        response = await get_usage_by_agent(days=3, db=mock_db)
+
+        assert json.loads(response.body)["data"]["agents"][0]["sparkline"] == [
+            {"date": "2026-11-09", "tokens": 0, "usd": 0.0},
+            {"date": "2026-11-10", "tokens": 0, "usd": 0.0},
+            {"date": "2026-11-11", "tokens": 700, "usd": 0.07},
+        ]

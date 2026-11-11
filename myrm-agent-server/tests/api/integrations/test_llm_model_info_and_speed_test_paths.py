@@ -1,4 +1,4 @@
-"""Tests for /integrations/llm/model-info, batch model-info, and the speed-test streaming paths.
+"""Tests for /integrations/llm/model-info/batch and the speed-test streaming paths.
 
 Covers the remaining llms.py branches with LLM/tooling calls mocked out,
 including catalog-backed capability lookup.
@@ -27,59 +27,8 @@ def client() -> Iterator[TestClient]:
         yield TestClient(app)
 
 
-class TestModelInfoEndpoints:
-    """model-info and model-info/batch exact-match and fallback behavior."""
-
-    def test_model_info_exact_match(self, client: TestClient) -> None:
-        """Exact catalog match returns found=True with capabilities."""
-        info = {
-            "supports_vision": True,
-            "supports_function_calling": True,
-            "max_input_tokens": 8192,
-        }
-        with patch(
-            "app.api.integrations.llms.model_info.model_facts",
-            return_value=info,
-        ):
-            response = client.post(
-                "/api/v1/integrations/llm/model-info",
-                json={"model": "gpt-4o"},
-            )
-        assert response.status_code == 200
-        data = response.json()["data"]
-        assert data["found"] is True
-        assert data["capabilities"]["supports_vision"] is True
-
-    def test_model_info_fuzzy_search(self, client: TestClient) -> None:
-        """No exact match falls back to name search candidates."""
-        from app.api.integrations.llms import (
-            ModelCandidate,
-            ModelCapabilities,
-        )
-
-        candidate = ModelCandidate(
-            provider="openai",
-            model_key="openai/gpt-4o-mini",
-            capabilities=ModelCapabilities(supports_vision=False),
-        )
-        with (
-            patch(
-                "app.api.integrations.llms.model_info.model_facts",
-                return_value=None,
-            ),
-            patch(
-                "app.api.integrations.llms.model_info._search_models_by_name",
-                return_value=[candidate],
-            ),
-        ):
-            response = client.post(
-                "/api/v1/integrations/llm/model-info",
-                json={"model": "gpt-4o"},
-            )
-        assert response.status_code == 200
-        data = response.json()["data"]
-        assert data["found"] is False
-        assert data["candidates"][0]["model_key"] == "openai/gpt-4o-mini"
+class TestModelInfoBatchEndpoint:
+    """model-info/batch exact-match and fallback behavior."""
 
     def test_model_info_batch_mixed(self, client: TestClient) -> None:
         """Batch lookup mixes exact matches and empty capability fallbacks."""
@@ -182,46 +131,3 @@ class TestSpeedTestStreamingPaths:
             results = self._post(client)
         assert results[0]["status"] == "error"
         assert "bad config" in (results[0]["error"] or "")
-
-
-class TestCatalogBackedHelpers:
-    """_search_models_by_name against the model catalog."""
-
-    def test_search_models_by_name_builds_candidates(self) -> None:
-        """Name search iterates the catalog and builds the candidate list."""
-        from app.api.integrations.llms import _search_models_by_name
-
-        fake_catalog = {
-            "openai/gpt-4o": {"max_input_tokens": 8192},
-            "anthropic/claude-3.5": {"max_input_tokens": 200000},
-            "openai/other": {},
-        }
-        with patch("app.api.integrations.llms.model_info.known_models", return_value=fake_catalog):
-            candidates = _search_models_by_name("gpt-4o")
-        assert len(candidates) == 1
-        assert candidates[0].model_key == "openai/gpt-4o"
-        assert candidates[0].provider == "openai"
-        assert candidates[0].capabilities.max_input_tokens == 8192
-
-    def test_search_models_by_name_no_provider_prefix(self) -> None:
-        """Keys without a provider prefix resolve to 'unknown'."""
-        from app.api.integrations.llms import _search_models_by_name
-
-        with patch("app.api.integrations.llms.model_info.known_models", return_value={"plain-name": {"max_input_tokens": 4096}}):
-            candidates = _search_models_by_name("plain")
-        assert len(candidates) == 1
-        assert candidates[0].provider == "unknown"
-        assert candidates[0].model_key == "plain-name"
-
-    def test_search_models_by_name_skips_entries_past_their_deprecation_date(self) -> None:
-        """A retired model keeps answering fact lookups but is no longer offered as a candidate."""
-        from app.api.integrations.llms import _search_models_by_name
-
-        fake_catalog = {
-            "openai/plain-retired": {"deprecation_date": "2020-01-01"},
-            "openai/plain-upcoming": {"deprecation_date": "2999-01-01"},
-            "openai/plain-current": {},
-        }
-        with patch("app.api.integrations.llms.model_info.known_models", return_value=fake_catalog):
-            candidates = _search_models_by_name("plain")
-        assert [c.model_key for c in candidates] == ["openai/plain-upcoming", "openai/plain-current"]

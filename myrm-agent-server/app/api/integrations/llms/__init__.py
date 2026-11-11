@@ -21,13 +21,8 @@ from .discovery import (
     discover_models,
 )
 from .model_info import (
-    ModelCandidate,
     ModelCapabilities,
     ModelInfoBatchRequest,
-    ModelInfoRequest,
-    ModelInfoResponse,
-    _search_models_by_name,
-    get_model_info,
     get_model_info_batch,
 )
 from .preflight import (
@@ -63,13 +58,11 @@ __all__ = [
     "_extract_model_ids",
     "_is_loopback_host",
     "_is_trusted_split_stack_host",
-    "_search_models_by_name",
     "router",
     "discover_models",
     "verify_llm_connection",
     "check_model_reachability",
     "speed_test",
-    "get_model_info",
     "get_model_info_batch",
     "model_switch_preflight",
     "ModelDiscoveryRequest",
@@ -78,9 +71,6 @@ __all__ = [
     "LLMVerifyData",
     "ReachabilityResult",
     "ModelCapabilities",
-    "ModelCandidate",
-    "ModelInfoResponse",
-    "ModelInfoRequest",
     "ModelInfoBatchRequest",
     "ModelSwitchPreflightItem",
     "ModelSwitchPreflightRequest",
