@@ -55,7 +55,7 @@ def _post_seed_loopback(api_base: str, *, variant: str) -> dict[str, object]:
     return payload
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 class TestMigrationReadinessLiveSeedIntegration:
     """Hit epoch-matched verify-api backend — validates real DB seed path."""
 

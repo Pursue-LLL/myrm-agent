@@ -44,6 +44,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/policy_sqlite.py` | 辅助 | 跑着生产事务策略（deferred 读 + 写语句升级 IMMEDIATE）的文件库：`policy_database(path, monkeypatch)` 建全表并让 `get_session()` 指向它，`hold_write_lock` 开一个持写锁不提交的写者，`PolicyDb.read_issued` / `wait_until` 观察被测单元是否已开始读；普通 `sqlite+aiosqlite` 夹具没有这套策略，「读后写被并发提交打断」只在这里能复现 |
 | `support/real_schema_db.py` | 辅助 | 文件库上的完整真实 schema：`create_real_schema_engine`（ORM 全表 + `ensure_raw_sql_schema` 的 FTS 表/触发器/原生表，外键与生产一样开启）、`seed_row`（只写关心的列，其余必填列补唯一占位值）；断言「删除了什么」的测试用它，手写的小 schema 会认同拼错的表名 |
 | `support/artifact_upsert_fixture.py` | 辅助 | 制品 upsert 自动 mock 插件（autouse，`pytest_plugins` 全局注册）：把 `app.core.artifacts.listener.upsert_processor_artifact` 换成 `AsyncMock`；`core/artifacts` 与 `api/artifacts` 测试共用，对不碰制品管线的测试无副作用 |
+| `support/process_state_isolation.py` | 辅助 | 进程级单例隔离插件（autouse，`pytest_plugins` 全局注册），让一个测试的结果不再取决于同一 worker 里它之前跑过什么：事件总线——每个测试前后清空各主题的积压（新订阅者会收到回放）与连续重复抑制记录；Agent 网关——每个测试后取消排空（停机 API 测试会把进程级网关置为 draining，之后所有 Agent 回合都被 `AgentDrainingError` 拒绝）；任务指标注册表——每个测试后清空（按 chat id 存放，`chat-1` 这类 id 被各测试共用，残留的归档重取事件会耗尽下一个恢复同一路径的测试的单任务预算）；单例所在模块还没被导入时什么也不做 |
 | `support/oversized_paste.py` | 辅助 | `paste_over_the_limit`（刚过人写文本停车线 `USER_TEXT_LIMITS` 的重复文本）、`paste_between_the_limits`（过了 harness 默认线、没过人写文本线：渠道文档会被停车、人写的文本原样进提示）：测试按限额常量定样本大小，不写死字符数 |
 | `support/chat_workspace.py` | 辅助 | `chats_bound_to_workspaces`：把会话 id 映射到各自的临时工作区（`default=` 给所有未列出的会话），让读取会话文件的接口测试不依赖进程目录 |
 | `support/bounded_wait.py` | 辅助 | `assert_bounded_wait(timeout, *, limit=60)`：断言传给连接的等待上限是正数且不超过上限（`None` 表示永不放弃，`0` 与布尔值也不是等待上限，都不通过）；渠道连接测试与邮件技能脚本测试共用 |
@@ -73,7 +74,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
-| `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
+| `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试；`/shutdown` 端点只断言入队后台任务（任务本身被替换为空操作，真实任务会排空进程级网关并向测试进程自发 SIGTERM），任务流程由 mock 的 `test_graceful_shutdown_task_flow` 覆盖 |
 | `api/system/test_update_snapshots_api.py` | 单元 | 系统 API 恢复点路由：创建、列表、排队恢复（下次启动生效，运行库不被写）、删除 |
 | `api/instance_archive/test_auto_backup_router.py` | 单元 | 定时备份 HTTP 面：读取/保存/立即备份、参数错误与导出进行中的稳定码、备份文件夹读不到时报告 `folder_available=false`（不当作空）、无法解析的 `~用户名` 路径保存不返回 500（关闭状态 200 并原样回显，开启状态 400 `backup_dir_invalid`）、云端沙箱与非标准布局的 `supported=false`、配对 token 默认拒绝 |
 | `api/instance_archive/test_router.py` | 单元 | 整实例备份 HTTP 面：完整流程、稳定错误码、布局守卫、一次性 outcome 外壳、配对 token 默认拒绝、导出结果带回读不到的数据项数量（`unreadable_count`），导入预览报告带同名字段 |
@@ -129,6 +130,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/channel_bridge/test_execute_preamble_security_config.py` | 单元 | 回合安全配置组装：回合审批等待覆盖配置值且不改动入参、无配置时也生效、非正数/布尔/非数值被忽略、与 YOLO 状态并存 |
 | `channels/delegation/test_delegation_heartbeat.py` | 单元 | 委托运行心跳：长运行原地更新同一条消息并带任务编号与步数，短于一个间隔不发，任务时限内的次数上限，随运行结束、被 `/stop`、停在审批处而结束（交接期间不发） |
 | `core/channel_bridge/test_approval_card.py` | 单元 | 审批卡：句式、超时行、安全审查前缀与按钮取自渠道目录并按发送者语言出（工具名与理由原样），批量按钮、无理由不带悬空冒号、超时自动批准/拒绝措辞、长时限无千分位、时限缺失或不可读回退默认，无目录的语言读英文 |
+| `core/channel_bridge/test_config_parsers_provider_keys.py` | 单元 | 回退槽位（对话与轻量回退、视觉、视频）按设置页存储的形态读凭据：`apiKeys` 里启用的条目可解析，全部停用则不解析，OAuth 注入的令牌在没有存储密钥时可解析 |
 | `core/channel_bridge/test_config_parsers_retrieval.py` | 单元 | 设置页检索块转成嵌入与重排配置：按服务商给出路由模型 id（SiliconFlow 走 OpenAI 兼容并带自己的默认地址）、用户填的地址优先、未应用或缺密钥、缺模型、不是配置块的一半被略去且不影响另一半、没有设置得到两个空 |
 | `core/channel_bridge/test_executor_approval_card_locale.py` | 单元 | 真实 `ChannelAgentExecutor` 停在审批请求处：审批卡按发送者 locale 出并带 `expiry` |
 | `channels/routing/test_stop_ends_pending_approval_timer.py` | 集成 | 真实 `AgentRouter` 加真实审批超时调度器：`/stop` 与 `/new` 结束会话正在等待的审批及其超时计时（前台、委托交接两种，交接带或不带审批卡消息号；前台一例由真实 `_execute_prepared_context` 跑完一个停在审批请求处的回合，计时器由路由器按请求自带的等待时长布防），多话题时只有自己在等审批的话题才能结束该聊天的计时，没在等审批的回合被停时别的话题的计时不动 |
@@ -533,7 +535,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_bash_failure_dual_evicted_drawer_chrome_e2e.py` | 模块 | 失败 bash 双 evicted 流 Chrome MCP E2E（SHARED+NAMESPACE_WRITE×1：seed `bash_failure` variant → LiveTerminal stdout/stderr 双入口 → 各自 Drawer 读回；`evicted_view_full_output` / `evicted_view_full_stderr_output` data-testid） |
 | `api/files/test_evicted_web_fetch_spill.py` | 模块 | UECD evicted-file API 单测（`web_fetch_{hex8}.md` basename + GET content） |
 | `api/files/test_evicted_background_spill.py` | 模块 | UECD bash/background spill → evicted API 单测 |
-| `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（`resolve_verify_api_base()` 私池 · seed POST `_LIVE_SEED_POST_TIMEOUT_SEC=60` · GET evicted · 404 `expired` envelope） |
+| `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（`@pytest.mark.e2e`，默认套件排除；进程内的 seed 夹具契约类仍是 `integration`；`resolve_verify_api_base()` 私池 · seed POST `_LIVE_SEED_POST_TIMEOUT_SEC=60` · GET evicted · 404 `expired` envelope） |
 | `integration/test_artifact_share_integration.py` | 模块 | 工件分享真实全链路集成（无 mock）：`ArtifactVault.put` 真实落盘 → DB artifact/version → create share 真实物化 → public entry redirect → 静态资源放行；密码分享 gate + 签名解锁 cookie 授权 asset；SQLite 内存库 + TestClient 进程内 |
 | `integration/test_lone_surrogate_real_model_e2e.py` | 模块 | 真实提供方：含孤立代理项的消息经 LITE 模型的原生路由与 OpenAI 兼容路由（openai SDK）都被回答；无净化的源在 OpenAI 兼容路由上于 `openai/_utils/_json.py` 抛 `UnicodeEncodeError`；`@pytest.mark.e2e` + 需要 `LITE_API_KEY`，默认套件 deselect |
 | `integration/test_chat_share_integration.py` | 模块 | 会话分享真实全链路集成（无 mock 关键路径）：SQLite 内存库 + TestClient 进程内——create 非加密分享 → status 反映活跃链接 → public GET 200；revoke → status revoked → public GET 404 → 重建链接不可复活已撤销链接；密码分享 gate（错误密码 403）→ 签名 unlock cookie → 放行 → revoke 后死链（含**无 cookie 新访客直接 404「Link Revoked」，不显示密码 gate**）；未分享/过期链接按 unshared 上报；chat 删除后 public GET 404 |

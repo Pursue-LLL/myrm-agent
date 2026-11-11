@@ -22,6 +22,12 @@ def _reset_snapshot_store() -> None:
     SnapshotStore.reset()
 
 
+def _pin_harness_root(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:
+    """Make the resolver answer ``root`` without detection; its memo only counts for the current env and cwd."""
+    monkeypatch.setattr(WorkspacePathResolver, "_cached_workspace_root", root)
+    monkeypatch.setattr(WorkspacePathResolver, "_cache_key", WorkspacePathResolver._current_cache_key())
+
+
 class TestResolveSnapshotSearchRoots:
     @pytest.mark.asyncio
     async def test_includes_workspace_env_and_deduplicates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -29,7 +35,7 @@ class TestResolveSnapshotSearchRoots:
 
         root = tmp_path.resolve()
         monkeypatch.setenv("WORKSPACE_ROOT", str(root))
-        WorkspacePathResolver._cached_workspace_root = root
+        _pin_harness_root(monkeypatch, root)
 
         session_id = f"chat_{uuid.uuid4().hex[:8]}"
         fake_chat = MagicMock()
@@ -60,7 +66,7 @@ class TestResolveSnapshotSearchRoots:
         chat_root = (tmp_path / "chat_root").resolve()
         chat_root.mkdir()
         harness_root.mkdir()
-        WorkspacePathResolver._cached_workspace_root = harness_root
+        _pin_harness_root(monkeypatch, harness_root)
 
         session_id = f"chat_{uuid.uuid4().hex[:8]}"
         fake_chat = MagicMock()
@@ -83,11 +89,12 @@ class TestResolveSnapshotSearchRoots:
         assert roots == [harness_root, chat_root]
 
     @pytest.mark.asyncio
-    async def test_swallows_chat_lookup_errors(self, tmp_path: Path) -> None:
+    async def test_swallows_chat_lookup_errors(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.files.revert_hydrate import _resolve_snapshot_search_roots
 
+        monkeypatch.delenv("WORKSPACE_ROOT", raising=False)
         harness_root = tmp_path.resolve()
-        WorkspacePathResolver._cached_workspace_root = harness_root
+        _pin_harness_root(monkeypatch, harness_root)
 
         with (
             patch(
@@ -137,7 +144,7 @@ class TestResolveSnapshotSearchRoots:
 
         monkeypatch.delenv("WORKSPACE_ROOT", raising=False)
         harness_root = tmp_path.resolve()
-        WorkspacePathResolver._cached_workspace_root = harness_root
+        _pin_harness_root(monkeypatch, harness_root)
 
         with (
             patch(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -13,9 +14,12 @@ from myrm_agent_harness.core.features import _reset_for_testing
 
 from app.api.tts.router import _ensure_edge_tts_if_needed
 from app.channels.types import TTSMode, VoiceConfig
+from app.channels.voice.tts import EDGE_TTS_INSTALL_HINT
 from app.core.channel_bridge.config_loader import UserConfigs
 from tests.support.feature_flags import seed_voice_interaction_flags
 from tests.support.minimal_app import API_PREFIX, build_minimal_app
+
+EDGE_UNAVAILABLE_DETAIL = "Edge TTS is not available"
 
 
 def _edge_voice() -> VoiceConfig:
@@ -39,13 +43,18 @@ def test_ensure_edge_passes_when_available() -> None:
         _ensure_edge_tts_if_needed(_edge_voice())
 
 
-def test_ensure_edge_raises_503_when_unavailable() -> None:
-    with patch("app.channels.voice.tts.is_edge_tts_available", return_value=False):
-        with pytest.raises(HTTPException) as exc_info:
-            _ensure_edge_tts_if_needed(_edge_voice())
+def test_ensure_edge_raises_503_when_unavailable(caplog: pytest.LogCaptureFixture) -> None:
+    with (
+        caplog.at_level(logging.WARNING, logger="app.api.tts.router"),
+        patch("app.channels.voice.tts.is_edge_tts_available", return_value=False),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        _ensure_edge_tts_if_needed(_edge_voice())
 
     assert exc_info.value.status_code == 503
-    assert "voice-tts" in str(exc_info.value.detail)
+    # The install command is operator guidance: it goes to the server log, never to the API client.
+    assert exc_info.value.detail == EDGE_UNAVAILABLE_DETAIL
+    assert EDGE_TTS_INSTALL_HINT in caplog.text
 
 
 def test_ensure_edge_skips_non_edge_provider() -> None:
@@ -66,7 +75,7 @@ def test_synthesize_returns_503_when_edge_unavailable(client: TestClient) -> Non
         )
 
     assert response.status_code == 503
-    assert "voice-tts" in response.json()["detail"]
+    assert response.json()["detail"] == EDGE_UNAVAILABLE_DETAIL
 
 
 def test_synthesize_stream_returns_503_when_edge_unavailable(client: TestClient) -> None:
@@ -81,7 +90,7 @@ def test_synthesize_stream_returns_503_when_edge_unavailable(client: TestClient)
         )
 
     assert response.status_code == 503
-    assert "voice-tts" in response.json()["detail"]
+    assert response.json()["detail"] == EDGE_UNAVAILABLE_DETAIL
 
 
 async def _empty_stream(_text: str, _config: VoiceConfig) -> AsyncIterator[bytes]:

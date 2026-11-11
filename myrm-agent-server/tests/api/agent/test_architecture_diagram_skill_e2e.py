@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -22,8 +23,16 @@ from app.core.skills import prebuilt_sync
 from app.core.skills.store.reader import list_prebuilt_skills
 
 
+@pytest.fixture(autouse=True)
+def reset_sync_flag() -> Iterator[None]:
+    # The seeds sync once per process; a sync an earlier test already ran would leave this test's storage empty.
+    prebuilt_sync._synced = False  # noqa: SLF001
+    yield
+    prebuilt_sync._synced = False  # noqa: SLF001
+
+
 @pytest.fixture
-def temp_workspace_dir() -> Path:
+def temp_workspace_dir() -> Iterator[Path]:
     temp_dir = tempfile.mkdtemp(prefix="arch_skill_e2e_")
     yield Path(temp_dir)
     import shutil

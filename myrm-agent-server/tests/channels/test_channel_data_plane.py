@@ -100,7 +100,7 @@ class TestChannelDataPlaneService:
                 new_callable=AsyncMock,
             ) as mock_prune,
             patch("app.platform_utils.session_factory") as mock_session_factory,
-            patch("app.lifecycle.schedulers.logger"),
+            patch("app.lifecycle.schedulers.maintenance.logger"),
         ):
             mock_session = AsyncMock()
             mock_session_factory.return_value.__aenter__.return_value = mock_session

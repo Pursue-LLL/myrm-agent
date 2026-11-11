@@ -64,9 +64,11 @@ class TestLlmMapWithdrawalTemplatesIntegration:
 
 class TestLlmMapWithdrawalProductSurfaceIntegration:
     def test_general_agent_factory_has_no_enable_llm_map_wiring(self) -> None:
-        factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
-        text = factory_path.read_text(encoding="utf-8")
-        assert "enable_llm_map" not in text
+        factory_dir = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory"
+        sources = sorted(factory_dir.glob("*.py"))
+        assert sources, f"no factory modules found under {factory_dir}"
+        wired = [source.name for source in sources if "enable_llm_map" in source.read_text(encoding="utf-8")]
+        assert wired == []
 
     def test_general_agent_params_has_no_enable_llm_map_field(self) -> None:
         from app.ai_agents.agents import GeneralAgentParams

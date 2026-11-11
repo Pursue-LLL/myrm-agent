@@ -37,7 +37,7 @@ def test_extract_video_fallback_model_configs_from_slot() -> None:
                 "isEnabled": True,
                 "providerType": "openai",
                 "apiUrl": "https://api.openai.com/v1",
-                "apiKey": "sk-video",
+                "apiKeys": [{"key": "sk-video", "isActive": True}],
                 "enabledModels": ["gpt-4o-mini"],
             }
         ],
@@ -74,7 +74,7 @@ def test_build_video_fallback_probe_engine_from_video_and_vision_chain() -> None
                 "isEnabled": True,
                 "providerType": "openai",
                 "apiUrl": "https://api.openai.com/v1",
-                "apiKey": "sk-test",
+                "apiKeys": [{"key": "sk-test", "isActive": True}],
                 "enabledModels": ["gpt-4o-mini", "gpt-4o"],
             }
         ],

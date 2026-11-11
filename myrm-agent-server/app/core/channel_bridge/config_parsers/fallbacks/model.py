@@ -1,6 +1,7 @@
 """[INPUT]
-- app.core.channel_bridge.config_parsers.common::_append_unique_model_config / _build_enriched_model_config / _extract_active_key (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+- app.core.channel_bridge.config_parsers.common::_append_unique_model_config / _build_enriched_model_config (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
 - app.core.channel_bridge.config_parsers.fallbacks.resolution::_resolve_slot_fallback (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+- app.core.channel_bridge.model_resolver::_extract_active_key (POS: Aggregate exit of the model resolver package; import path unchanged.)
 
 [OUTPUT]
 - extract_lite_model_config: Extract the filter/summary model config from the frontend's providers config.
@@ -31,9 +32,9 @@ if TYPE_CHECKING:
 from app.core.channel_bridge.config_parsers.common import (
     _append_unique_model_config,
     _build_enriched_model_config,
-    _extract_active_key,
 )
 from app.core.channel_bridge.config_parsers.fallbacks.resolution import _resolve_slot_fallback
+from app.core.channel_bridge.model_resolver import _extract_active_key
 
 logger = logging.getLogger(__name__)
 

@@ -58,18 +58,26 @@ def _api_client_request() -> Request:
     )
 
 
+@pytest.fixture
+def workspace(tmp_path: Path) -> Path:
+    """Directory the tests write vault objects into; a sibling of the state dir, which no workspace may contain."""
+    path = tmp_path / "workspace"
+    path.mkdir()
+    return path
+
+
 @pytest.fixture(autouse=True)
-def chats_share_tmp_workspace(tmp_path: Path) -> Iterator[None]:
-    """Every chat these tests mint ran in ``tmp_path``, where the tests write the vault objects."""
-    with chats_bound_to_workspaces(default=tmp_path):
+def chats_share_workspace(workspace: Path) -> Iterator[None]:
+    """Every chat these tests mint ran in ``workspace``, where the tests write the vault objects."""
+    with chats_bound_to_workspaces(default=workspace):
         yield
 
 
 @pytest.fixture
-def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+def share_client(db_session, tmp_path, workspace, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(
         "app.services.artifacts.share.share_bundle.settings.database.state_dir",
-        str(tmp_path),
+        str(tmp_path / "state"),
     )
     test_app = FastAPI()
     test_app.include_router(share_router)
@@ -79,7 +87,7 @@ def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestC
         yield db_session
 
     async def override_workspace_root() -> str:
-        return str(tmp_path)
+        return str(workspace)
 
     test_app.dependency_overrides[get_db] = override_get_db
     test_app.dependency_overrides[get_workspace_root] = override_workspace_root
@@ -543,11 +551,11 @@ async def test_share_rematerialization_uses_pinned_version(share_client, html_ar
 
 
 @pytest.mark.asyncio
-async def test_share_version_pinning_integration(share_client, db_session, tmp_path) -> None:
+async def test_share_version_pinning_integration(share_client, db_session, workspace) -> None:
     """Integration: full share→delete→re-materialize chain with real vault, no key-path mocks."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     v1_uri = vault.put("<html>v1</html>", "index.html")
     v2_uri = vault.put("<html>v2-latest</html>", "index.html")
 
@@ -618,13 +626,13 @@ async def test_share_version_pinning_integration(share_client, db_session, tmp_p
 
 
 @pytest.mark.asyncio
-async def test_share_pinned_version_survives_new_version(share_client, db_session, tmp_path) -> None:
+async def test_share_pinned_version_survives_new_version(share_client, db_session, workspace) -> None:
     """Share pins v1, then v2 is added; re-materialization still serves v1 content."""
     from datetime import datetime, timedelta
 
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     v1_uri = vault.put("<html>v1-pinned</html>", "index.html")
 
     art_id = str(uuid.uuid4())
@@ -697,11 +705,11 @@ async def test_share_pinned_version_survives_new_version(share_client, db_sessio
 
 
 @pytest.mark.asyncio
-async def test_share_invalid_version_returns_404(share_client, db_session, tmp_path) -> None:
+async def test_share_invalid_version_returns_404(share_client, db_session, workspace) -> None:
     """Re-materialization with a deleted/invalid version_id returns 404."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     v1_uri = vault.put("<html>v1</html>", "index.html")
 
     artifact = Artifact(
@@ -758,7 +766,7 @@ def _make_detached_artifact(*, artifact_id, name, chat_id, versions):
 
 
 @pytest.mark.asyncio
-async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(db_session, tmp_path) -> None:
+async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(db_session, workspace) -> None:
     """When version_id=None, resolve_artifact_deploy_files picks the latest version."""
     from datetime import datetime, timedelta
 
@@ -766,7 +774,7 @@ async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(db_sess
 
     from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     v1_uri = vault.put("<html>old</html>", "index.html")
     v2_uri = vault.put("<html>new-latest</html>", "index.html")
 
@@ -797,7 +805,7 @@ async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(db_sess
         new_callable=AsyncMock,
         return_value=detached,
     ):
-        _, files = await resolve_artifact_deploy_files(db_session, art_id, str(tmp_path))
+        _, files = await resolve_artifact_deploy_files(db_session, art_id, str(workspace))
 
     import base64
 
@@ -807,7 +815,7 @@ async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(db_sess
 
 
 @pytest.mark.asyncio
-async def test_resolve_artifact_deploy_files_explicit_version(db_session, tmp_path) -> None:
+async def test_resolve_artifact_deploy_files_explicit_version(db_session, workspace) -> None:
     """When version_id is given, resolve_artifact_deploy_files picks that exact version."""
     from datetime import datetime, timedelta
 
@@ -815,7 +823,7 @@ async def test_resolve_artifact_deploy_files_explicit_version(db_session, tmp_pa
 
     from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     v1_uri = vault.put("<html>first</html>", "index.html")
     v2_uri = vault.put("<html>second</html>", "index.html")
 
@@ -846,7 +854,7 @@ async def test_resolve_artifact_deploy_files_explicit_version(db_session, tmp_pa
         new_callable=AsyncMock,
         return_value=detached,
     ):
-        _, files_v1 = await resolve_artifact_deploy_files(db_session, art_id, str(tmp_path), version_id=ver1.id)
+        _, files_v1 = await resolve_artifact_deploy_files(db_session, art_id, str(workspace), version_id=ver1.id)
     raw_v1 = next(iter(files_v1.values())).content
     # Vault object is extension-less but named from artifact.name (index.html),
     # so the HTML payload is stored as UTF-8 text rather than base64.
@@ -857,19 +865,19 @@ async def test_resolve_artifact_deploy_files_explicit_version(db_session, tmp_pa
         new_callable=AsyncMock,
         return_value=detached,
     ):
-        _, files_v2 = await resolve_artifact_deploy_files(db_session, art_id, str(tmp_path), version_id=ver2.id)
+        _, files_v2 = await resolve_artifact_deploy_files(db_session, art_id, str(workspace), version_id=ver2.id)
     raw_v2 = next(iter(files_v2.values())).content
     assert "second" in raw_v2
 
 
 @pytest.mark.asyncio
-async def test_resolve_artifact_deploy_files_invalid_version_raises(db_session, tmp_path) -> None:
+async def test_resolve_artifact_deploy_files_invalid_version_raises(db_session, workspace) -> None:
     """When version_id doesn't match any version, LookupError is raised."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
     from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     v1_uri = vault.put("<html>only</html>", "index.html")
 
     art_id = str(uuid.uuid4())
@@ -887,7 +895,7 @@ async def test_resolve_artifact_deploy_files_invalid_version_raises(db_session, 
         return_value=detached,
     ):
         with pytest.raises(LookupError, match="not found"):
-            await resolve_artifact_deploy_files(db_session, art_id, str(tmp_path), version_id="nonexistent-id")
+            await resolve_artifact_deploy_files(db_session, art_id, str(workspace), version_id="nonexistent-id")
 
 
 @pytest.mark.asyncio
@@ -909,11 +917,11 @@ async def test_create_share_rejects_ambiguous_multi_html(share_client, html_arti
 
 
 @pytest.mark.asyncio
-async def test_csp_integration_html_real_vault(share_client, db_session, tmp_path) -> None:
+async def test_csp_integration_html_real_vault(share_client, db_session, workspace) -> None:
     """Integration: real Vault → create share → public GET → CSP headers present."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     uri = vault.put("<html><body>hello</body></html>", "index.html")
 
     artifact = Artifact(
@@ -957,11 +965,11 @@ async def test_csp_integration_html_real_vault(share_client, db_session, tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_csp_integration_multi_file_bundle(share_client, db_session, tmp_path) -> None:
+async def test_csp_integration_multi_file_bundle(share_client, db_session, workspace) -> None:
     """Integration: multi-file bundle with real Vault → CSP on HTML, no CSP on CSS asset."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     uri = vault.put(
         '<html><link rel="stylesheet" href="style.css"/><body>test</body></html>',
         "index.html",
@@ -1014,7 +1022,7 @@ async def test_csp_integration_multi_file_bundle(share_client, db_session, tmp_p
 
 
 @pytest.mark.asyncio
-async def test_csp_integration_pdf_real_vault(share_client, db_session, tmp_path) -> None:
+async def test_csp_integration_pdf_real_vault(share_client, db_session, workspace) -> None:
     """Integration: real Vault PDF → public GET → correct media type + no HTML headers.
 
     Vault objects are extension-less UUID files; the entry name now derives
@@ -1023,7 +1031,7 @@ async def test_csp_integration_pdf_real_vault(share_client, db_session, tmp_path
     """
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     uri = vault.put("%PDF-1.4 dummy", "report.pdf")
 
     artifact = Artifact(
@@ -1063,7 +1071,7 @@ async def test_csp_integration_pdf_real_vault(share_client, db_session, tmp_path
 
 
 @pytest.mark.asyncio
-async def test_password_share_unlock_cookie_keeps_extensionless_media_type(share_client, db_session, tmp_path) -> None:
+async def test_password_share_unlock_cookie_keeps_extensionless_media_type(share_client, db_session, workspace) -> None:
     """Unlock-cookie auth keeps artifact_type for extension-less PDF entries.
 
     A password share of a PDF whose artifact name has no suffix (entry file has
@@ -1072,7 +1080,7 @@ async def test_password_share_unlock_cookie_keeps_extensionless_media_type(share
     """
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     uri = vault.put("%PDF-1.4 dummy", "report")
 
     artifact = Artifact(

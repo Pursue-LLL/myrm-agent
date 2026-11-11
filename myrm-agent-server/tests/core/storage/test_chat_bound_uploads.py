@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import base64
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
+from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import PDFImageContent
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.api.files import pdf_extract
@@ -125,7 +125,7 @@ async def test_the_pdf_extract_api_marks_page_images_the_way_the_cleanup_looks_f
     monkeypatch.setattr(pdf_extract, "is_local_mode", lambda: False)
     monkeypatch.setattr(pdf_extract, "files_service", service)
     upload = await service.upload_file("scan.pdf", b"x", source_chat_id="chat-1")
-    image = SimpleNamespace(data=base64.b64encode(b"png").decode(), mime_type="image/png")
+    image = PDFImageContent(data=base64.b64encode(b"png").decode(), mime_type="image/png", page_number=1)
     body = pdf_extract.PDFExtractRequest(file_id=upload.id)
 
     items = await pdf_extract._persist_pdf_images([image], body)

@@ -1,5 +1,5 @@
 """[INPUT]
-- app.core.channel_bridge.model_resolver::_to_route_model_id (POS: Aggregate exit of the model resolver package; import path unchanged.)
+- app.core.channel_bridge.model_resolver::_extract_active_key / _to_route_model_id (POS: Aggregate exit of the model resolver package; import path unchanged.)
 
 [OUTPUT]
 - _int_setting: _int_setting
@@ -8,7 +8,6 @@
 - _append_unique_model_config: _append_unique_model_config
 - _build_enriched_model_config: Build ModelConfig with wire enrich + capabilities + context window.
 - _infer_supports_video: Infer native video support from custom model info or model id.
-- _extract_active_key: Extract active API key from provider dict.
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。
@@ -19,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from app.core.channel_bridge.model_resolver import _to_route_model_id
+from app.core.channel_bridge.model_resolver import _extract_active_key, _to_route_model_id
 
 if TYPE_CHECKING:
     from app.core.types import ModelConfig
@@ -138,26 +137,3 @@ def _infer_supports_video(
         if "supports_video_input" in custom:
             return bool(custom["supports_video_input"])
     return False
-
-
-def _extract_active_key(provider: dict[str, object]) -> str | None:
-    """Extract active API key from provider dict."""
-    if not provider:
-        return None
-
-    # Try direct apiKey first
-    api_key = provider.get("apiKey")
-    if api_key and isinstance(api_key, str):
-        return api_key
-
-    # Try keys array
-    keys = provider.get("keys")
-    if isinstance(keys, list) and len(keys) > 0:
-        # Find active key or first key
-        active_key = next((k for k in keys if isinstance(k, dict) and k.get("isActive")), keys[0])
-        if isinstance(active_key, dict):
-            key_val = active_key.get("key")
-            if isinstance(key_val, str) and key_val:
-                return key_val
-
-    return None

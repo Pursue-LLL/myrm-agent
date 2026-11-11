@@ -1,7 +1,8 @@
 """[INPUT]
-- app.core.channel_bridge.config_parsers.common::_append_unique_model_config / _build_enriched_model_config / _extract_active_key (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+- app.core.channel_bridge.config_parsers.common::_append_unique_model_config / _build_enriched_model_config (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
 - app.core.channel_bridge.config_parsers.fallbacks.model::extract_vision_fallback_model_configs (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
 - app.core.channel_bridge.config_parsers.fallbacks.resolution::_resolve_slot_fallback / extract_slot_fallback_chain (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+- app.core.channel_bridge.model_resolver::_extract_active_key (POS: Aggregate exit of the model resolver package; import path unchanged.)
 
 [OUTPUT]
 - _resolve_video_fallback_primary_config: Resolve videoFallbackModel primary selection to ModelConfig.
@@ -38,10 +39,10 @@ if TYPE_CHECKING:
 from app.core.channel_bridge.config_parsers.common import (
     _append_unique_model_config,
     _build_enriched_model_config,
-    _extract_active_key,
 )
 from app.core.channel_bridge.config_parsers.fallbacks.model import extract_vision_fallback_model_configs
 from app.core.channel_bridge.config_parsers.fallbacks.resolution import _resolve_slot_fallback, extract_slot_fallback_chain
+from app.core.channel_bridge.model_resolver import _extract_active_key
 
 logger = logging.getLogger(__name__)
 

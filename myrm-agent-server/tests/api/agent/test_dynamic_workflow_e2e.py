@@ -78,6 +78,7 @@ def _collect_workflow_events(
     return collected
 
 
+@pytest.mark.e2e
 def test_dynamic_workflow_e2e(client: TestClient):
     """use_workflow=True triggers DW, resolves plan_confirm, then executes."""
     message_id = "test_msg_456"
@@ -125,6 +126,7 @@ def test_dynamic_workflow_e2e(client: TestClient):
     assert len(final_content) > 0, "Workflow should produce non-empty summarized output"
 
 
+@pytest.mark.e2e
 def test_dynamic_workflow_deterministic_id(client: TestClient):
     """workflow_id must be derived deterministically from chat_id + message_id."""
     import hashlib
@@ -157,6 +159,7 @@ def test_dynamic_workflow_deterministic_id(client: TestClient):
     assert wf_id == expected_wf
 
 
+@pytest.mark.e2e
 def test_dynamic_workflow_verification_modes_integration(client: TestClient):
     """Verify DW orchestration script with auditor_blind and multi_skeptic spawns."""
     import uuid

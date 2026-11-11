@@ -42,7 +42,7 @@ def test_build_enriched_model_config_with_egress_proxy() -> None:
     """Test that _build_enriched_model_config extracts egressProxy from provider."""
     provider = {
         "id": "openai",
-        "apiKey": "sk-openai-key",
+        "apiKeys": [{"key": "sk-openai-key", "isActive": True}],
         "egressProxy": "http://proxy.corp.internal:8080",
     }
     cfg = _build_enriched_model_config(
@@ -120,4 +120,3 @@ def test_resolve_override_with_egress_proxy() -> None:
     cfg = _resolve_override(providers_dict, "anthropic/claude-3-5-sonnet-20241022")
     assert cfg is not None
     assert cfg.egress_proxy == "socks5://sec-proxy.corp:1080"
-

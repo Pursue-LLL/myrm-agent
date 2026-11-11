@@ -52,10 +52,18 @@ async def db_session():
 
 
 @pytest.fixture
-def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+def workspace(tmp_path: Path) -> Path:
+    """Directory the tests write vault objects into; a sibling of the state dir, which no workspace may contain."""
+    path = tmp_path / "workspace"
+    path.mkdir()
+    return path
+
+
+@pytest.fixture
+def share_client(db_session, tmp_path, workspace, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(
         "app.services.artifacts.share.share_bundle.settings.database.state_dir",
-        str(tmp_path),
+        str(tmp_path / "state"),
     )
     test_app = FastAPI()
     test_app.include_router(share_router)
@@ -65,11 +73,11 @@ def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestC
         yield db_session
 
     async def override_workspace_root() -> str:
-        return str(tmp_path)
+        return str(workspace)
 
     test_app.dependency_overrides[get_db] = override_get_db
     test_app.dependency_overrides[get_workspace_root] = override_workspace_root
-    with chats_bound_to_workspaces(default=tmp_path), TestClient(test_app) as test_client:
+    with chats_bound_to_workspaces(default=workspace), TestClient(test_app) as test_client:
         yield test_client
 
 
@@ -128,9 +136,9 @@ HTML_WITH_CSS = '<!doctype html><html><head><link rel="stylesheet" href="styles.
 
 
 @pytest.mark.asyncio
-async def test_single_file_html_share_real_vault(share_client, db_session, tmp_path) -> None:
+async def test_single_file_html_share_real_vault(share_client, db_session, workspace) -> None:
     """Single-file share serves the vault object directly with security headers."""
-    artifact, _ = await _seed_html_artifact(db_session, tmp_path, html=HTML_WITH_CSS)
+    artifact, _ = await _seed_html_artifact(db_session, workspace, html=HTML_WITH_CSS)
 
     response = share_client.post(
         f"/{artifact.id}/share-preview",
@@ -151,11 +159,11 @@ async def test_single_file_html_share_real_vault(share_client, db_session, tmp_p
 
 
 @pytest.mark.asyncio
-async def test_multi_file_share_real_vault_and_sandbox(share_client, db_session, tmp_path) -> None:
+async def test_multi_file_share_real_vault_and_sandbox(share_client, db_session, workspace) -> None:
     """Multi-file bundle redirects to a trailing slash and serves sandbox assets."""
     artifact, _ = await _seed_html_artifact(
         db_session,
-        tmp_path,
+        workspace,
         html=HTML_WITH_CSS,
         sandbox_assets={
             "index.html": HTML_WITH_CSS,
@@ -190,11 +198,11 @@ async def test_multi_file_share_real_vault_and_sandbox(share_client, db_session,
 
 
 @pytest.mark.asyncio
-async def test_password_share_full_flow_real_vault(share_client, db_session, tmp_path) -> None:
+async def test_password_share_full_flow_real_vault(share_client, db_session, workspace) -> None:
     """Password share gate + signed unlock cookie authorize real asset requests."""
     artifact, _ = await _seed_html_artifact(
         db_session,
-        tmp_path,
+        workspace,
         html=HTML_WITH_CSS,
         sandbox_assets={
             "index.html": HTML_WITH_CSS,
@@ -235,14 +243,14 @@ async def test_password_share_full_flow_real_vault(share_client, db_session, tmp
 
 
 @pytest.mark.asyncio
-async def test_pdf_share_real_vault_serves_pdf_media_type(share_client, db_session, tmp_path) -> None:
+async def test_pdf_share_real_vault_serves_pdf_media_type(share_client, db_session, workspace) -> None:
     """Extension-less vault PDF object must be served as application/pdf.
 
     Regression for the physical-uuid naming bug: without the artifact-name hint
     the bundle entry was the opaque UUID, so ``_guess_media_type`` fell back to
     text/html and served corrupted PDF bytes.
     """
-    vault = ArtifactVault(str(tmp_path))
+    vault = ArtifactVault(str(workspace))
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
     vault_uri = vault.put(pdf_bytes, "report.pdf", content_type="application/pdf")
 
@@ -279,9 +287,9 @@ async def test_pdf_share_real_vault_serves_pdf_media_type(share_client, db_sessi
 
 
 @pytest.mark.asyncio
-async def test_bundle_removed_then_re_materialized(share_client, db_session, tmp_path) -> None:
+async def test_bundle_removed_then_re_materialized(share_client, db_session, workspace) -> None:
     """Deleting the materialized bundle self-heals on the next public access."""
-    artifact, _ = await _seed_html_artifact(db_session, tmp_path, html="<h1>self-heal</h1>")
+    artifact, _ = await _seed_html_artifact(db_session, workspace, html="<h1>self-heal</h1>")
     response = share_client.post(
         f"/{artifact.id}/share-preview",
         json={"ttl_days": 7, "artifact_type": "html"},
@@ -303,11 +311,11 @@ async def test_bundle_removed_then_re_materialized(share_client, db_session, tmp
 
 
 @pytest.mark.asyncio
-async def test_invalid_manifest_and_traversal_rejected(share_client, db_session, tmp_path) -> None:
+async def test_invalid_manifest_and_traversal_rejected(share_client, db_session, workspace) -> None:
     """Invalid token, manifest.json, and traversal attempts all return 404."""
     artifact, _ = await _seed_html_artifact(
         db_session,
-        tmp_path,
+        workspace,
         html=HTML_WITH_CSS,
         sandbox_assets={
             "index.html": HTML_WITH_CSS,
@@ -342,12 +350,12 @@ async def test_invalid_manifest_and_traversal_rejected(share_client, db_session,
 
 
 @pytest.mark.asyncio
-async def test_nested_asset_and_binary_real_vault(share_client, db_session, tmp_path) -> None:
+async def test_nested_asset_and_binary_real_vault(share_client, db_session, workspace) -> None:
     """Deeply nested resources and binary assets are served from the bundle."""
     html = '<!doctype html><html><body><img src="assets/img/logo.png"></body></html>'
     artifact, _ = await _seed_html_artifact(
         db_session,
-        tmp_path,
+        workspace,
         html=html,
         sandbox_assets={
             "index.html": html,
@@ -370,10 +378,10 @@ async def test_nested_asset_and_binary_real_vault(share_client, db_session, tmp_
 
 
 @pytest.mark.asyncio
-async def test_document_share_without_suffix_real_vault(share_client, db_session, tmp_path) -> None:
+async def test_document_share_without_suffix_real_vault(share_client, db_session, workspace) -> None:
     """Extension-less document artifacts share via the SSE artifact_type hint."""
     markdown = "# 季度报告\n\n已完成全部交付物。"
-    artifact, _ = await _seed_html_artifact(db_session, tmp_path, html=markdown, name="季度报告")
+    artifact, _ = await _seed_html_artifact(db_session, workspace, html=markdown, name="季度报告")
     response = share_client.post(
         f"/{artifact.id}/share-preview",
         json={"ttl_days": 7, "artifact_type": "document"},

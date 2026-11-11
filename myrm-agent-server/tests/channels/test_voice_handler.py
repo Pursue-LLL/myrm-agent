@@ -375,7 +375,7 @@ class TestTtsSynthesize:
 
         config = _voice_config(tts_provider="edge")
         with patch(
-            "app.channels.voice.tts._synthesize_edge",
+            "app.channels.voice.tts.core._synthesize_edge",
             new_callable=AsyncMock,
             return_value=Path("/tmp/edge.mp3"),
         ) as mock_edge:
@@ -389,7 +389,7 @@ class TestTtsSynthesize:
 
         config = _voice_config(tts_provider="openai")
         with patch(
-            "app.channels.voice.tts._synthesize_api",
+            "app.channels.voice.tts.core._synthesize_api",
             new_callable=AsyncMock,
             return_value=Path("/tmp/openai.mp3"),
         ) as mock_api:
@@ -404,16 +404,16 @@ class TestTtsSynthesize:
         config = _voice_config(tts_provider="openai")
         with (
             patch(
-                "app.channels.voice.tts._synthesize_api",
+                "app.channels.voice.tts.core._synthesize_api",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("API down"),
             ),
             patch(
-                "app.channels.voice.tts.is_edge_tts_available",
+                "app.channels.voice.tts.core.is_edge_tts_available",
                 return_value=True,
             ),
             patch(
-                "app.channels.voice.tts._synthesize_edge",
+                "app.channels.voice.tts.core._synthesize_edge",
                 new_callable=AsyncMock,
                 return_value=Path("/tmp/fallback.mp3"),
             ) as mock_edge,
@@ -428,7 +428,7 @@ class TestTtsSynthesize:
 
         config = _voice_config(tts_provider="edge")
         with patch(
-            "app.channels.voice.tts._synthesize_edge",
+            "app.channels.voice.tts.core._synthesize_edge",
             new_callable=AsyncMock,
             side_effect=RuntimeError("Edge down"),
         ):
@@ -442,16 +442,16 @@ class TestTtsSynthesize:
         config = _voice_config(tts_provider="openai")
         with (
             patch(
-                "app.channels.voice.tts._synthesize_api",
+                "app.channels.voice.tts.core._synthesize_api",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("API down"),
             ),
             patch(
-                "app.channels.voice.tts.is_edge_tts_available",
+                "app.channels.voice.tts.core.is_edge_tts_available",
                 return_value=True,
             ),
             patch(
-                "app.channels.voice.tts._synthesize_edge",
+                "app.channels.voice.tts.core._synthesize_edge",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("Edge down"),
             ),
@@ -470,12 +470,12 @@ class TestTtsSynthesize:
         )
         with (
             patch(
-                "app.channels.voice.tts._summarize_for_tts",
+                "app.channels.voice.tts.core._summarize_for_tts",
                 new_callable=AsyncMock,
                 return_value="short summary",
             ) as mock_summary,
             patch(
-                "app.channels.voice.tts._synthesize_edge",
+                "app.channels.voice.tts.core._synthesize_edge",
                 new_callable=AsyncMock,
                 return_value=Path("/tmp/edge.mp3"),
             ) as mock_edge,

@@ -17,20 +17,26 @@ from app.core.security.auth.identity import LOCAL_USER_ID
 
 
 def cleanup_shared_test_db(db_path: Path) -> None:
-    """Reset the global engine then delete the test DB files.
+    """Reset the global engine, delete the test DB files and recreate the empty schema.
 
     The engine is a process-wide singleton backed by a connection pool. If a
     module-scoped teardown deletes ``data.db`` while pooled connections still
     point at the unlinked inode, the next module's ``init_database()`` sees
     the stale schema and skips ``create_all``, so fresh connections hit
     "no such table". Dispose the engine before unlinking to break that chain.
+
+    The session-wide ``init_test_database`` fixture builds the schema once per process,
+    so it is rebuilt here: a module that runs later in the same process expects the
+    tables to exist, not an empty file.
     """
+    from app.database.connection import init_database
     from app.platform_utils import reset_database_engine
 
     asyncio.run(reset_database_engine())
     db_path.unlink(missing_ok=True)
     for suffix in ("-shm", "-wal", "-journal"):
         Path(f"{db_path}{suffix}").unlink(missing_ok=True)
+    asyncio.run(init_database())
 
 
 @dataclass(frozen=True, slots=True)

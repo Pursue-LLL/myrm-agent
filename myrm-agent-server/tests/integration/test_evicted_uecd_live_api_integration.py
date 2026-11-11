@@ -48,7 +48,7 @@ def _assert_evicted_expired_404(payload: dict[str, object]) -> None:
     raise AssertionError(f"Expected evicted expired 404 payload, got {payload!r}")
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 class TestEvictedUecdLiveServerIntegration:
     """Hit running backend when ./myrm-dev ready is up — critical path uses real disk + HTTP."""
 

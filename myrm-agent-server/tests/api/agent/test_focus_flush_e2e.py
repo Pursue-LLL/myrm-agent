@@ -8,6 +8,7 @@ from starlette.testclient import TestClient
 from tests.api.agent.utils import get_model_selection
 
 
+@pytest.mark.e2e
 def test_focus_flush_session_with_real_model(client: TestClient):
     """
     E2E Test for Intelligent Session Focus & Flush feature with REAL MODEL.

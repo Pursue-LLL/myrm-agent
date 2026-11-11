@@ -73,7 +73,7 @@ async def test_summarize_circuit_breaker_auth_failure():
     processor = SummarizeProcessor()
 
     with patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
         return_value=True,
     ):
         for _ in range(MAX_CONSECUTIVE_SUMMARIZE_FAILURES):
@@ -96,7 +96,7 @@ async def test_summarize_circuit_breaker_timeout():
     processor = SummarizeProcessor()
 
     with patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
         return_value=True,
     ):
         for _ in range(MAX_CONSECUTIVE_SUMMARIZE_FAILURES):

@@ -107,7 +107,7 @@ async def _extract(messages: list[dict[str, str]]) -> list[str]:
     return [m.content for m in result.memories]
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_reversed_decision_is_detected_against_whatever_the_model_wrote() -> None:
     """Whichever way the model words it, the rejection is not silently accepted."""

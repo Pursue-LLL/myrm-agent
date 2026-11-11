@@ -51,11 +51,13 @@ def client(app: FastAPI) -> TestClient:
 async def test_api_export_skill_as_agent_plugin_and_raw(
     app: FastAPI,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     storage = LocalStorageBackend(str(tmp_path))
     svc = SkillsService(storage=storage)
 
-    # Sync prebuilt seeds
+    # The seed sync runs once per process; an earlier sync filled another storage, not this one.
+    monkeypatch.setattr(prebuilt_sync, "_synced", False)
     await prebuilt_sync.sync_prebuilt_seeds(storage)
 
     with (

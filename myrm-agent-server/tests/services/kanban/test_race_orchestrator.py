@@ -6,11 +6,12 @@ creation linkage, cost estimate fallback/history, and winner decision flow.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
+from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskRun, TaskStatus
 
 from app.services.kanban.race_orchestrator import (
     LaneSpec,
@@ -201,10 +202,6 @@ async def test_estimate_falls_back_without_history() -> None:
 
 @pytest.mark.asyncio
 async def test_estimate_uses_completed_history() -> None:
-    from datetime import datetime
-
-    from myrm_agent_harness.toolkits.kanban.types import UTC, TaskRun
-
     svc = _make_svc(_parent())
     done = _parent(task_id="done-1")
     svc.list_tasks.return_value = [done]

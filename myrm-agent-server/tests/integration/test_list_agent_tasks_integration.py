@@ -34,15 +34,13 @@ def _build_app():
 
 
 @pytest.fixture
-def _handler():
-    """Provide a real ChannelBackgroundTaskHandler and ensure singleton cleanup."""
-    import app.core.channel_bridge.setup as setup_mod
+def _handler(monkeypatch: pytest.MonkeyPatch) -> ChannelBackgroundTaskHandler:
+    """Install a real ChannelBackgroundTaskHandler as the gateway's active handler."""
+    from app.core.channel_bridge.setup import state as setup_state
 
     handler = ChannelBackgroundTaskHandler()
-    old = setup_mod._background_task_handler
-    setup_mod._background_task_handler = handler
-    yield handler
-    setup_mod._background_task_handler = old
+    monkeypatch.setattr(setup_state, "_background_task_handler", handler)
+    return handler
 
 
 @pytest.fixture

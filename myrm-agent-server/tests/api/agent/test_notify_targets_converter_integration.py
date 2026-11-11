@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.services.agent.params.models import AgentRequest
 from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
+from tests.api.agent.utils import get_model_selection
 
 
 @pytest.fixture
@@ -17,11 +17,7 @@ def base_request() -> dict:
         "message_id": "test-msg-notify",
         "chat_id": "test-chat-notify",
         "query": "hello",
-        "model_selection": {
-            "providerId": "minimax",
-            "model": os.environ.get("BASIC_MODEL", "minimax/MiniMax-M2.7"),
-            "baseUrl": os.environ.get("BASIC_BASE_URL", "https://api.minimaxi.com/v1"),
-        },
+        "model_selection": get_model_selection(),
         "agent_config": {
             "enabledBuiltinTools": ["web_search"],
         },

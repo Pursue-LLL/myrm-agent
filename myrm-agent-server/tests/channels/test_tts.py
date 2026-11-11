@@ -63,7 +63,7 @@ class TestSynthesizeOpenAI:
             request=httpx.Request("POST", "https://api.openai.com/v1/audio/speech"),
         )
 
-        with patch("app.channels.voice.tts.httpx.AsyncClient") as mock_cls:
+        with patch("app.channels.voice.tts.providers.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_resp
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -88,7 +88,7 @@ class TestSynthesizeOpenAI:
             request=httpx.Request("POST", "https://api.openai.com/v1/audio/speech"),
         )
 
-        with patch("app.channels.voice.tts.httpx.AsyncClient") as mock_cls:
+        with patch("app.channels.voice.tts.providers.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_resp
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -122,7 +122,7 @@ class TestSynthesizeElevenLabs:
             request=httpx.Request("POST", "https://api.elevenlabs.io/v1/text-to-speech/voice123"),
         )
 
-        with patch("app.channels.voice.tts.httpx.AsyncClient") as mock_cls:
+        with patch("app.channels.voice.tts.providers.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_resp
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -189,7 +189,7 @@ class TestSynthesizeEdge:
     @pytest.mark.asyncio
     async def test_edge_not_installed_returns_none(self) -> None:
         with patch(
-            "app.channels.voice.tts._import_edge_tts",
+            "app.channels.voice.tts.providers._import_edge_tts",
             side_effect=ImportError("edge-tts is not installed"),
         ):
             result = await synthesize(
@@ -217,7 +217,7 @@ class TestSynthesizeFallback:
         mock_edge.Communicate.return_value = mock_communicate
 
         with (
-            patch("app.channels.voice.tts.httpx.AsyncClient") as mock_cls,
+            patch("app.channels.voice.tts.providers.httpx.AsyncClient") as mock_cls,
             patch.dict("sys.modules", {"edge_tts": mock_edge}),
         ):
             mock_client = AsyncMock()
@@ -238,8 +238,8 @@ class TestSynthesizeFallback:
     @pytest.mark.asyncio
     async def test_openai_failure_without_edge_returns_none(self) -> None:
         with (
-            patch("app.channels.voice.tts.httpx.AsyncClient") as mock_cls,
-            patch("app.channels.voice.tts.is_edge_tts_available", return_value=False),
+            patch("app.channels.voice.tts.providers.httpx.AsyncClient") as mock_cls,
+            patch("app.channels.voice.tts.core.is_edge_tts_available", return_value=False),
         ):
             mock_client = AsyncMock()
             mock_client.post.side_effect = httpx.ConnectError("Connection refused")

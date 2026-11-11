@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
-from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig, ImageResult
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
 
 from app.tasks.executors.image_executor import ImageTaskExecutor
@@ -66,20 +66,19 @@ async def test_async_image_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
     assert task.payload["chat_id"] == "chat-int"
     assert task.payload["agent_id"] == "agent-int"
 
-    mock_result = MagicMock()
-    mock_result.images = [
-        MagicMock(url="https://cdn.example/int.png", width=1024, height=1024, mime_type="image/png"),
-    ]
-    mock_result.prompt = "a red cube"
-    mock_result.model = "flux-pro"
-    mock_result.provider = "openai"
-    mock_result.latency_ms = 99
+    generated = ImageResult(
+        url="https://cdn.example/int.png",
+        b64_json=None,
+        revised_prompt=None,
+        model="flux-pro",
+        latency_ms=99,
+    )
 
     with patch(
         "app.tasks.executors.image_executor.ImageGenerator",
     ) as generator_cls:
         generator = MagicMock()
-        generator.generate = AsyncMock(return_value=mock_result)
+        generator.generate = AsyncMock(return_value=generated)
         generator_cls.return_value = generator
 
         executor = ImageTaskExecutor(resolve_image_generation_config)

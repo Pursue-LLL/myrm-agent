@@ -256,7 +256,7 @@ class TestSmartRoutingLog:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
-            caplog.at_level(logging.INFO, logger="app.services.agent.params.turn_routing"),
+            caplog.at_level(logging.INFO, logger="app.services.agent.params.routing.turn_routing"),
         ):
             from app.services.agent.params.converter import (
                 convert_to_general_agent_params,

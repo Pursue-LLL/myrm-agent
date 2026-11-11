@@ -48,28 +48,31 @@ def _put_mcp_configs(configs: list[dict[str, object]]) -> dict[str, object]:
     return body
 
 
-def _list_server_names() -> list[str]:
-    record = _get_mcp_record()
-    value = record.get("value")
+def _list_mcp_configs() -> list[dict[str, object]]:
+    value = _get_mcp_record().get("value")
     if not isinstance(value, dict):
         return []
     configs = value.get("mcpConfigs")
     if not isinstance(configs, list):
         return []
-    names: list[str] = []
-    for item in configs:
-        if isinstance(item, dict) and isinstance(item.get("name"), str):
-            names.append(item["name"])
-    return names
+    return [item for item in configs if isinstance(item, dict)]
 
 
-@pytest.mark.integration
+def _find_probe() -> dict[str, object] | None:
+    return next((item for item in _list_mcp_configs() if item.get("name") == _PROBE_NAME), None)
+
+
+@pytest.mark.e2e
 def test_live_mcp_config_put_get_roundtrip() -> None:
-    """Real PUT/GET /config/mcpServers persists probe server on the live shared dev backend."""
-    _require_live_backend()
-    original_names = _list_server_names()
+    """Real PUT/GET /config/mcpServers persists a probe server on the live shared dev backend, then puts the original list back.
 
-    probe = {
+    The PUT replaces the whole list, so the probe is appended to the servers already configured
+    and the configuration read before the test is written back whatever the outcome.
+    """
+    _require_live_backend()
+    original_configs = _list_mcp_configs()
+
+    probe: dict[str, object] = {
         "name": _PROBE_NAME,
         "type": "stdio",
         "command": sys.executable,
@@ -81,35 +84,16 @@ def test_live_mcp_config_put_get_roundtrip() -> None:
     }
 
     try:
-        _put_mcp_configs([probe])
+        _put_mcp_configs([*(item for item in original_configs if item.get("name") != _PROBE_NAME), probe])
         deadline = time.monotonic() + 20.0
         while time.monotonic() < deadline:
-            if _PROBE_NAME in _list_server_names():
+            persisted = _find_probe()
+            if persisted is not None:
                 break
             time.sleep(0.3)
         else:
             raise AssertionError(f"probe server {_PROBE_NAME!r} not persisted via live API")
 
-        record = _get_mcp_record()
-        value = record.get("value")
-        assert isinstance(value, dict)
-        configs = value.get("mcpConfigs")
-        assert isinstance(configs, list)
-        match = next(
-            (item for item in configs if isinstance(item, dict) and item.get("name") == _PROBE_NAME),
-            None,
-        )
-        assert match is not None
-        assert match.get("enabled") is True
+        assert persisted.get("enabled") is True
     finally:
-        if _PROBE_NAME in _list_server_names():
-            restored = [name for name in original_names if name != _PROBE_NAME]
-            if restored != original_names:
-                configs = []
-                record = _get_mcp_record()
-                value = record.get("value")
-                if isinstance(value, dict):
-                    raw = value.get("mcpConfigs")
-                    if isinstance(raw, list):
-                        configs = [item for item in raw if isinstance(item, dict) and item.get("name") != _PROBE_NAME]
-                _put_mcp_configs(configs)
+        _put_mcp_configs(original_configs)

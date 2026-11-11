@@ -2193,7 +2193,10 @@ class TestSyntheticRun:
         assert resp.status_code == 200
         data = resp.json()
         assert data["result"] == "Implemented feature X"
-        assert data["metadata"]["handoff"] == {"changed_files": ["a.py", "b.py"]}
+        handoff = data["metadata"]["handoff"]
+        assert handoff["changed_files"] == ["a.py", "b.py"]
+        assert handoff["summary"] == "Implemented feature X"
+        assert handoff["timestamp"]
 
     def test_move_ready_no_synthetic_run(self, client: TestClient) -> None:
         """Moving to READY should NOT create a synthetic run."""

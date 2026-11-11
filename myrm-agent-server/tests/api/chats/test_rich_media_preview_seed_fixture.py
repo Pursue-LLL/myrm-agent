@@ -61,25 +61,15 @@ class TestRichMediaPreviewSeedIntegration:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
         asyncio.run(_seed_visible_agent(agent_id, display_name="Rich Media Seed Agent"))
 
+        from app.api.chats.test_fixtures.rich_media_preview import _FIXTURE_FILES
+
         body = _seed(client, agent_id=agent_id)
         workspace_dir = Path(str(body["workspace_dir"]))
         files = body["files"]
         assert isinstance(files, dict)
-        assert sorted(files) == ["bundle.zip", "preview.pdf", "preview.png", "readme.txt"]
-
-        from app.api.chats.test_fixtures.rich_media_preview import (
-            _minimal_pdf,
-            _png_bytes,
-        )
-
-        png_path = Path(str(files["preview.png"]))
-        assert png_path.read_bytes() == _png_bytes()
-        pdf_path = Path(str(files["preview.pdf"]))
-        assert pdf_path.read_bytes() == _minimal_pdf()
-        zip_path = Path(str(files["bundle.zip"]))
-        assert zip_path.read_bytes().startswith(b"PK\x03\x04")
-        txt_path = Path(str(files["readme.txt"]))
-        assert txt_path.read_text(encoding="utf-8") == "rich media preview E2E fixture\n"
+        assert sorted(files) == sorted(_FIXTURE_FILES)
+        for name, payload in _FIXTURE_FILES.items():
+            assert Path(str(files[name])).read_bytes() == payload
         assert workspace_dir.is_dir()
 
         chat_id = str(body["chat_id"])

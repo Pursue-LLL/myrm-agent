@@ -10,11 +10,13 @@ This test ensures the llm_info optimization (StreamContext.llm_info) is working 
 import json
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import force_invalid_model_llm_error
 
 
+@pytest.mark.e2e
 class TestLLMInfoPrecision:
     """Test precise model_name and endpoint info in diagnostic_result."""
 

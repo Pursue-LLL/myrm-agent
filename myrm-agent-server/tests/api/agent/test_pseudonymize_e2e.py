@@ -58,6 +58,7 @@ def _collect_stream_events(
     return "".join(chunks), events
 
 
+@pytest.mark.e2e
 class TestPseudonymizeE2E:
     """Real model E2E tests for pseudonymization."""
 

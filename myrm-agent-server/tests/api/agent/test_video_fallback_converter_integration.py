@@ -11,24 +11,18 @@ from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.types import ModelConfig
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest
-from tests.api.agent.utils import (
-    _infer_provider_id,
-    _strip_provider_prefix,
-    get_model_selection,
-)
-from tests.support.test_secrets import resolve_test_env
+
+# A slot resolves to the first enabled row carrying its provider id, so the chat provider
+# must not reuse the id of the video provider ("openai") whatever the environment's chat model is.
+_CHAT_PROVIDER_ID = "chat-provider"
+_CHAT_MODEL = "chat-model"
 
 
 def _providers_with_video_fallback() -> dict[str, object]:
-    raw_model = resolve_test_env("BASIC_MODEL") or "openai/gpt-4o-mini"
-    chat_provider = _infer_provider_id(raw_model)
-    chat_model = _strip_provider_prefix(raw_model)
-    chat_key = resolve_test_env("BASIC_API_KEY") or "sk-chat-test"
-    chat_url = resolve_test_env("BASIC_BASE_URL") or "https://api.openai.com/v1"
     return {
         "defaultModelConfig": {
             "baseModel": {
-                "primary": {"providerId": chat_provider, "model": chat_model},
+                "primary": {"providerId": _CHAT_PROVIDER_ID, "model": _CHAT_MODEL},
             },
             "videoFallbackModel": {
                 "primary": {"providerId": "openai", "model": "gpt-4o-mini"},
@@ -39,19 +33,19 @@ def _providers_with_video_fallback() -> dict[str, object]:
         },
         "providers": [
             {
-                "id": chat_provider,
+                "id": _CHAT_PROVIDER_ID,
                 "isEnabled": True,
                 "providerType": "openai",
-                "apiUrl": chat_url,
-                "apiKeys": [{"key": chat_key, "isActive": True}],
-                "enabledModels": [chat_model],
+                "apiUrl": "https://chat.example.test/v1",
+                "apiKeys": [{"key": "sk-chat-test", "isActive": True}],
+                "enabledModels": [_CHAT_MODEL],
             },
             {
                 "id": "openai",
                 "isEnabled": True,
                 "providerType": "openai",
                 "apiUrl": "https://api.openai.com/v1",
-                "apiKey": "sk-video-test",
+                "apiKeys": [{"key": "sk-video-test", "isActive": True}],
                 "enabledModels": ["gpt-4o-mini", "gpt-4o"],
             },
         ],
@@ -80,7 +74,7 @@ def base_request() -> dict[str, object]:
         "message_id": "test-msg-video-fallback",
         "chat_id": "test-chat-video-fallback",
         "query": "summarize the attached video",
-        "model_selection": get_model_selection(),
+        "model_selection": {"providerId": _CHAT_PROVIDER_ID, "model": _CHAT_MODEL},
         "action_mode": "agent",
         "agent_config": {"enabledBuiltinTools": ["web_search"]},
     }

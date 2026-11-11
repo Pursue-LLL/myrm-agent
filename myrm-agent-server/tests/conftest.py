@@ -43,12 +43,15 @@ _isolate_test_data_dir()
 
 # Shared fixtures re-exported to every suite. pytest 9 requires pytest_plugins at the
 # top-level conftest only; the referenced modules define explicit-request fixtures
-# (db_session/fts_db) and an artifact-upsert autouse mock that is inert for tests that
-# never touch the artifact pipeline. The first three are plain support modules: a conftest
-# that is also listed here is registered twice, and a run targeting its directory aborts.
+# (db_session/fts_db), an artifact-upsert autouse mock that is inert for tests that
+# never touch the artifact pipeline, and autouse resets of the process-wide singletons
+# tests mutate (event bus history, agent gateway drain, task metrics registry).
+# The first three are plain support modules: a conftest that is also listed here is
+# registered twice, and a run targeting its directory aborts.
 pytest_plugins = (
     "tests.support.chat_db_fixtures",
     "tests.support.artifact_upsert_fixture",
+    "tests.support.process_state_isolation",
     "tests.api.agent.conftest",
 )
 

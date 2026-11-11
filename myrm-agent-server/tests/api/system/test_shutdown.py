@@ -39,11 +39,20 @@ def test_cancel_drain_api(client: TestClient) -> None:
     assert "was_draining" in data
 
 
-def test_shutdown_endpoint(client: TestClient) -> None:
+def test_shutdown_endpoint(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """POST /api/v1/system/shutdown queues graceful shutdown background task."""
+    queued: list[str] = []
+
+    async def record_shutdown_task() -> None:
+        queued.append("graceful_shutdown_task")
+
+    # The real task drains the process-wide gateway and sends SIGTERM to the test process.
+    monkeypatch.setattr("app.api.system.shutdown.graceful_shutdown_task", record_shutdown_task)
+
     response = client.post("/api/v1/system/shutdown")
     assert response.status_code == 200
     assert response.json()["status"] == "shutting_down"
+    assert queued == ["graceful_shutdown_task"]
 
 
 @pytest.mark.asyncio
