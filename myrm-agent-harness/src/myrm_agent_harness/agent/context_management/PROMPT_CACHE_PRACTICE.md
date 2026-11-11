@@ -8,14 +8,14 @@
 > | §2.3 Cron 场景 | `app/core/cron/adapters/agent_runner/` |
 > | §2.4 安全边界与用户指令注入 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` |
 > | §2.5–2.6 记忆 / 入账 Human 前缀 | `agent/middlewares/memory_context/memory_context_middleware.py`；`app/core/utils/delivery_provenance.py`、`app/core/channel_bridge/agent_executor/helpers.py`、`app/ai_agents/general_agent/stream_pipeline.py`、`myrm-agent-server/app/api/agents/general_agent/streaming.py`、`app/services/agent/wakeup_handler.py` |
-> | §2.6.3 运行内视图稳定与签名推理块回放 | `agent/middlewares/_run_notices.py`, `core/message_tail.py`, `core/thinking_blocks.py`, `agent/middlewares/thinking_replay_guard_middleware.py`, `toolkits/llms/transport/anthropic_messages.py` |
+> | §2.6.3 运行内视图稳定与签名推理块回放 | `agent/middlewares/_run_notices.py`, `core/message_tail.py`, `core/thinking_blocks.py`, `agent/middlewares/thinking_replay_guard_middleware.py`, `toolkits/llms/transport/anthropic_messages.py`, `pipeline/processors/media_filter.py`, `infra/cache_policy.py` |
 > | §3 显式缓存优化器 | `pipeline/processors/cache_optimizer.py` |
 > | §4.1 批量清理 | `pipeline/processors/compress_processor.py` |
 > | §4.2 compress_min_save | `infra/schemas/` |
 > | §4.3 动态阈值 | `infra/context_budget.py` |
 > | §4.4 可逆压缩 | `strategies/compactor/compactor.py` |
 > | §4.5 摘要与缓存生命周期 | `strategies/summary/summarizer/` |
-> | §5.1 Cache-TTL 归档与恢复 | `pipeline/processors/cache_ttl_prune_processor.py`, `infra/archive_reference.py`, `tracking/task_metrics.py`, `meta_tools/file_ops/core/file_operation_service.py` |
+> | §5.1 Cache-TTL 归档与恢复 | `pipeline/processors/cache_ttl_prune_processor.py`, `pipeline/processors/cache_ttl_prune_archive.py`, `pipeline/processors/cache_ttl_prune_roi.py`, `infra/archive_reference.py`, `tracking/task_metrics.py`, `meta_tools/file_ops/core/file_operation_service.py` |
 > | §5 Pipeline | `pipeline/engine.py`, `middlewares/context_pipeline/context_pipeline_middleware.py` |
 > | §6.1-6.2 LLM 层 | `toolkits/llms/core/llm.py` |
 > | §6.3 缓存可观测性 | `utils/token_economics/tracker.py`, `toolkits/llms/utils/logger.py` |
@@ -333,11 +333,19 @@ Resume 从不解析历史，线程原样续接，遥测记为 `history_mode=resu
 | 回合级清理 | `ThinkingBlockCleaner` 的 Anthropic 分支只保留用户最新消息之后的块，更早回合的块整体清除（保留下来的块须是签发链上连续的一段），清除后不再放回 |
 | 辅助调用 | 优雅收尾调用与摘要调用的提示词与该会话不同，发送前先 `without_thinking_blocks`；其余辅助调用只用全新文本 |
 | 估算 | `estimate_message_tokens` 计入回放的块文本 |
-| 安全网 | `thinking_replay_guard_middleware`：提供商拒绝回放（`FailoverReason.THINKING_SIGNATURE`，覆盖三种 400 措辞）时，请求副本去掉全部块重发一次，本次运行不再回放；执行器层的 `stream_recovery_oneshot` 一次性恢复保留为最后一道 |
+| 安全网 | `thinking_replay_guard_middleware`：提供商拒绝回放（`FailoverReason.THINKING_SIGNATURE`，覆盖四种 400 措辞：块的签名对不上、redacted 块的数据对不上、块被改过、工具轮丢了开头的块）时，请求副本去掉全部块重发一次，本次运行不再回放；请求是否带着签名块由 `core/thinking_blocks.py::carries_signed_blocks` 判定；执行器层的 `stream_recovery_oneshot` 一次性恢复保留为最后一道 |
 
-**钉住它的测试**：`tests/support/enforcing_anthropic.py` 是按提供商规则逐请求核验的类型化替身（块未知、块之前的提示变了、块序列有缺口、待答轮缺块，各拒绝一次）；`tests/agent/middlewares/test_thinking_replay_shipped_stack.py` 经真实装配的中间件栈跑通：流式与非流式各 21 个请求全部带 `thinking`、零拒绝；守卫重试场景恰好 1 次拒绝。`tests/agent/middlewares/test_run_view_stability_shipped_stack.py` 钉住通知的运行内稳定。`tests/agent/middlewares/test_moa_advisor_signed_replay.py`（`user_turn`、`per_iteration`、`every_n`、`risk_triggered` 四种扇出策略）与 `tests/agent/middlewares/completion/completion_guard/test_directive_signed_replay.py` 在同一个替身上各跑三个回合的工具循环：顾问建议与复核指令写下之后，本次运行的每个请求原样带着它，每个请求都带 `thinking`、零拒绝。
+**签名块在途时的运行内改写**：回合内被回放的块绑定此前的每条消息（含工具结果里的图片字节），所以块还要被回放期间只做必要的改写，可选的改写等到用户的下一条消息。「在途」由同一个谓词判定：用户最新消息之后有会被回放的块（`carries_signed_blocks`，守卫与媒体窗口共用）。
 
-**无法离线验证的部分**：真实接口按账号的校验强度、签名块的真实体积与缓存成本、5.x 隐式思考型号的待答轮规则、Bedrock 在合成续写轮之后的行为、回答质量的提升、生产环境的缓存断点翻转频率。块里的签名文本不能被脱敏改写（改写会让签名失效）。
+| 改写 | 签名块在途时 | 原因 |
+|------|-------------|------|
+| 媒体窗口（`MediaFilterProcessor`：视觉模型只保留最新 `RETAIN_MEDIA_MESSAGES = 2` 条带媒体的消息） | 让位，回合内的历史截图原样保留；用户的下一条消息结束回合后窗口生效，剥离写进消息本身，之后的请求不再带 | 窗口在回合内剥掉较早的截图，此后回放的块就被拒。请求里的媒体块超过 `MAX_MEDIA_BLOCKS_HELD = 20` 时窗口立即接管：Anthropic 对超过 20 张图的请求给每张图加严尺寸限制 |
+| Cache-TTL 剪枝的冷缓存触发 | Anthropic / Claude profile 关闭（`CacheTtlPruneConfig.cold_cache_prune_enabled=False`，`infra/cache_policy.py`）：空闲过久或命中率偏低都不启动剪枝，上下文占比达到 `emergency_prune_ratio` 仍剪；其余型号族保持开启 | 剪枝只持续一个请求，下一个请求回到未剪的提示，在剪枝请求里签发的块随即被拒 |
+| 压缩、摘要、紧急剪枝、`MediaBudgetGovernor` 的体积整形 | 照常执行 | 不做会超出窗口或体积上限；被拒一次，守卫去块重发，本次运行不再带 `thinking` |
+
+**钉住它的测试**：`tests/support/enforcing_anthropic.py` 是按提供商规则逐请求核验的类型化替身（块未知、块之前的提示变了、块序列有缺口、待答轮缺块，各拒绝一次）；`tests/agent/middlewares/test_thinking_replay_shipped_stack.py` 经真实装配的中间件栈跑通：流式与非流式各 21 个请求全部带 `thinking`、零拒绝；守卫重试场景恰好 1 次拒绝。`tests/agent/middlewares/test_run_view_stability_shipped_stack.py` 钉住通知的运行内稳定。`tests/agent/middlewares/test_moa_advisor_signed_replay.py`（`user_turn`、`per_iteration`、`every_n`、`risk_triggered` 四种扇出策略）与 `tests/agent/middlewares/completion/completion_guard/test_directive_signed_replay.py` 在同一个替身上各跑三个回合的工具循环：顾问建议与复核指令写下之后，本次运行的每个请求原样带着它，每个请求都带 `thinking`、零拒绝。`tests/agent/middlewares/test_media_window_signed_replay.py` 与 `tests/agent/middlewares/test_idle_return_signed_replay.py` 在同一个替身上钉住上表的两处让位：截图循环回放到最后一个块；媒体块超过 20 个时窗口一步接管；下一个回合退役窗口之外的截图且保持退役；不签名的线路沿用原窗口；批准等待十分钟后续跑不被拒；空闲超过 TTL 后回到会话时不剪枝、提示不变，窗口快用完时仍剪枝、被拒一次由守卫治愈。`tests/agent/context_management/test_media_filter_in_flight.py` 与 `tests/agent/context_management/test_cache_ttl_prune_cold_gate.py` 是对应的单元测试。
+
+**无法离线验证的部分**：真实接口按账号的校验强度、签名块的真实体积与缓存成本、回合内保留截图与关闭冷缓存剪枝对真实成本的影响、5.x 隐式思考型号的待答轮规则、Bedrock 在合成续写轮之后的行为、回答质量的提升、生产环境的缓存断点翻转频率。块里的签名文本不能被脱敏改写（改写会让签名失效）。
 
 ---
 
@@ -641,13 +649,13 @@ ThinkingBlockCleaner     ← 清理历史非活跃 thinking blocks，减少无�
        ↓
 VisionFallbackProcessor  ← text-only 主模型 + visionFallbackModel 时将 image block 转为文本（在 MediaFilter 剥离前）
        ↓
-MediaFilterProcessor     ← 文本模型主动剥离 image/video/audio（避免 400 + 省 token）
+MediaFilterProcessor     ← 文本模型主动剥离 image/video/audio（避免 400 + 省 token）；视觉模型只保留最新 2 条带媒体的消息，签名块在途的回合内让位（至多 20 个媒体块）
        ↓
 FilterProcessor                ← 大型工具结果 → 磁盘持久化 + 智能预览 + 文件引用
        ↓
 ActiveToolResultPruneProcessor ← 消费感知型每步主动归档超 2048 tok 的已消费工具结果（零 API 成本、protected tools 豁免）
        ↓
-CacheTtlPruneProcessor         ← cache 过期时归档/裁剪旧工具结果（零 API 成本、结构化引用、预算化恢复）
+CacheTtlPruneProcessor         ← cache 过期时归档/裁剪旧工具结果（零 API 成本、结构化引用、预算化恢复）；Claude 路线只在上下文占比逼近窗口时启动
        ↓
 CompressProcessor        ← 旧工具调用 → 紧凑格式（批量清理、提取错误与定义）
        ↓
@@ -671,10 +679,10 @@ ExplicitCacheProcessor   ← 注入 cache_control 断点（最后执行）
 `CacheTtlPruneProcessor` 不只依赖时间推断缓存过期。Pipeline middleware 会优先读取业务层显式注入的 `ProcessorContext.metadata["cache_usage_feedback"]`；没有显式值时，使用 `cache_metrics_collector` 从当前请求内真实 provider response usage 累计出的 `CacheUsageFeedback`。该对象包含 `cache_hit_rate`、`cached_tokens`、`input_tokens`、`calls`：
 
 - 热缓存：存在 `cached_tokens` 且命中率达到热阈值时跳过 TTL 裁剪，保护仍然有效的前缀。
-- 冷缓存：调用次数或输入 tokens 达到稳定样本后，低命中率会提前触发旧工具结果裁剪，避免等待固定 TTL。
+- 冷缓存：调用次数或输入 tokens 达到稳定样本后，低命中率会提前触发旧工具结果裁剪，避免等待固定 TTL。`CacheTtlPruneConfig.cold_cache_prune_enabled=False` 的 profile（Anthropic / Claude）不因缓存看起来冷了而启动，只有下面的紧急剪枝会启动它（原因见 §2.6.3）。
 - 安全阀：即使命中率判断为冷，仍必须满足上下文占比和可裁剪 token 门槛，避免为了很小收益破坏消息历史。
 
-处理器执行时先在工作消息列表中生成替换后的 `ToolMessage`，再一次性提交到 `ProcessorContext.messages`。归档成功、soft trim 成功、offload 失败、预算延后分别进入 `TaskMetrics`。成功归档结果按 `chat_id`、工具名、`tool_call_id`、内容长度和 `content_sha256` 组成处理器内幂等键；运行时归档存储按会话、工具、原始内容哈希和原始字节数生成内容寻址路径，并在复用前校验 metadata、归档 payload 哈希和 schema-v2 restore-map sidecar。restore-map 由 runtime 层统一契约生成和读取，包含 `content_index`、推荐范围来源、路径归一化和行号边界校验；快速复用与写入复用都会自愈损坏、schema 不匹配或缺失的 restore-map sidecar。同一会话 retry 同一工具结果时保持 archive ref 和恢复路径稳定，且不会重复写入归档。无 `chat_id` 的匿名上下文不写入共享归档目录。失败结果不进入缓存，后续 retry 仍会重新尝试 offload。预算指标区分两类语义：`deferred_reasons` 只表示未修改消息的真实剪枝延期；归档写入预算不足进入 `archive_deferred_reasons`，若随后结构感知 soft trim 成功，则同时记录 `archive_deferred_soft_trimmed_reasons`；归档写入和归档复用分别进入 `archive_written_count`、`archive_reused_count`、`archive_bytes_written`、`archive_bytes_reused`。当会话内 pruning 净收益为负、refetch 比例达到配置阈值、typed restore 成本占比达到阈值，或 typed restore 后保留 ROI 低于阈值时，后续 pass 会提高裁剪阈值和最小可裁剪 token 门槛，避免同一会话在低收益归档/恢复之间震荡。接近硬上下文上限时，`emergency_prune_ratio` 会允许 cache-TTL 剪枝在 HITL / resume 状态下绕过热缓存保护执行，优先避免请求越过模型窗口。
+处理器执行时先在工作消息列表中生成替换后的 `ToolMessage`，再一次性提交到 `ProcessorContext.messages`。归档成功、soft trim 成功、offload 失败、预算延后分别进入 `TaskMetrics`。成功归档结果按 `chat_id`、工具名、`tool_call_id`、内容长度和 `content_sha256` 组成归档器（`ToolResultArchiver`）内的幂等键，缓存容量有界（512 条，淘汰最久未用）；运行时归档存储按会话、工具、原始内容哈希和原始字节数生成内容寻址路径，并在复用前校验 metadata、归档 payload 哈希和 schema-v2 restore-map sidecar。restore-map 由 runtime 层统一契约生成和读取，包含 `content_index`、推荐范围来源、路径归一化和行号边界校验；快速复用与写入复用都会自愈损坏、schema 不匹配或缺失的 restore-map sidecar。同一会话 retry 同一工具结果时保持 archive ref 和恢复路径稳定，且不会重复写入归档。无 `chat_id` 的匿名上下文不写入共享归档目录。失败结果不进入缓存，后续 retry 仍会重新尝试 offload。预算指标区分两类语义：`deferred_reasons` 只表示未修改消息的真实剪枝延期；归档写入预算不足进入 `archive_deferred_reasons`，若随后结构感知 soft trim 成功，则同时记录 `archive_deferred_soft_trimmed_reasons`；归档写入和归档复用分别进入 `archive_written_count`、`archive_reused_count`、`archive_bytes_written`、`archive_bytes_reused`。当会话内 pruning 净收益为负、refetch 比例达到配置阈值、typed restore 成本占比达到阈值，或 typed restore 后保留 ROI 低于阈值时，后续 pass 会提高裁剪阈值和最小可裁剪 token 门槛，避免同一会话在低收益归档/恢复之间震荡。接近硬上下文上限时，`emergency_prune_ratio` 会允许 cache-TTL 剪枝在 HITL / resume 状态下绕过热缓存保护执行，优先避免请求越过模型窗口。
 
 归档写入回调返回 `ContextOffloadResult`，用 `temporary_failure`、`permission_denied`、`quota_exceeded`、`unsupported` 区分失败类型；失败类型以 `offload_failure_kinds` 进入 `CompressionEvent` 与 `TaskMetrics`。归档引用由 `ContextArchiveReference` 生成，除路径、哈希、原始 token/字符数外，还带轻量 `content_index` 和可直接传给文件读取工具的 `chunk_restore_args`：
 
@@ -777,7 +785,7 @@ def _should_skip_for_cache_preservation(self, context: ProcessorContext) -> bool
 | Processor | Normal | Resume | HITL会话期间 |
 |-----------|--------|--------|-------------|
 | VisionFallbackProcessor | ✅ 图像转文本 | ❌ 完全跳过 | ❌ 完全跳过 |
-| MediaFilterProcessor | ✅ 剥离媒体 | ❌ 完全跳过 | ❌ 完全跳过 |
+| MediaFilterProcessor | ✅ 剥离媒体（签名块在途的回合内让位） | ❌ 完全跳过 | ❌ 完全跳过 |
 | FilterProcessor | ✅ 过滤 | ❌ 完全跳过 | ❌ 完全跳过 |
 | CompressProcessor | ✅ 压缩 | ❌ 完全跳过 | ❌ 完全跳过 |
 | SessionNotesProcessor | ✅ 更新 | ❌ 完全跳过 | ❌ 完全跳过 |
@@ -1324,9 +1332,11 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | 文件 | 职责 |
 |------|------|
 | `pipeline/processors/cache_ttl_prune_processor.py` | `CacheTtlPruneProcessor` — cache TTL 过期或接近硬上下文上限时将旧工具结果归档为结构化引用或结构感知裁剪 |
-| `pipeline/processors/cache_ttl_prune_helpers.py` | Cache TTL pruning helpers — 归档/裁剪 DTO、内容转换、占位符渲染和消息替换 |
+| `pipeline/processors/cache_ttl_prune_archive.py` | `ToolResultArchiver` — 经业务层回调把工具结果写入归档存储，同一会话、工具调用与内容只写一次，并在存储应答后通知业务层排入摘要 |
+| `pipeline/processors/cache_ttl_prune_roi.py` | 剪枝收益回路 — 按会话已记录的指标抬高裁剪门槛（`effective_prune_policy`），并把本次剪枝写入 `TaskMetrics`（`record_prune_metrics`） |
+| `pipeline/processors/cache_ttl_prune_helpers.py` | Cache TTL pruning helpers — 归档/裁剪 DTO、内容转换、占位符渲染、消息替换和归档写入预算判定 |
 | `infra/archive_reference.py` | `ContextArchiveReference` — 对归档工具结果提供稳定 DTO、内容哈希、会话归属、结构索引和模型可读恢复提示 |
-| `infra/cache_policy.py` | `CacheTtlPrunePolicy` — 按模型/供应商解析官方 TTL 校准 profile，并允许业务层注入覆盖 |
+| `infra/cache_policy.py` | `CacheTtlPrunePolicy` — 按模型/供应商解析官方 TTL 校准 profile，并允许业务层注入覆盖；Anthropic / Claude profile 不因缓存看起来冷了而启动剪枝（`cold_cache_prune_enabled=False`） |
 | `tracking/task_metrics.py` | `TaskMetrics` — 记录真实剪枝延期、归档预算延期、归档写入/复用、归档恢复读取成本、净节省和执行层恢复读取预算 |
 | `pipeline/processors/compress_processor.py` | `CompressProcessor` + `BatchCompactState` — 批量清理策略 |
 | `strategies/compactor/compactor.py` | 可逆压缩实现（紧凑格式 + 外部化到文件，减 tokens 不减 blocks） |
@@ -1339,7 +1349,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | 文件 | 职责 |
 |------|------|
 | `pipeline/engine.py` | `ContextPipeline` — 处理器链执行引擎 |
-| `pipeline/processors/media_filter.py` | 文本模型主动剥离 image/video/audio（避免 400） |
+| `pipeline/processors/media_filter.py` | 文本模型主动剥离 image/video/audio（避免 400）；视觉模型只保留最新 2 条带媒体的消息，签名块在途的回合内让位 |
 | `pipeline/processors/vision_fallback_processor.py` | text-only 主模型 + visionFallbackModel 时将 image block 转为文本（MediaFilter 之前） |
 | `pipeline/processors/filter_processor.py` | 大型工具结果过滤（工具保护机制） |
 | `pipeline/processors/summarize_processor/` | 结构化摘要（最后手段） |

@@ -148,8 +148,8 @@ class ThinkingBlockCleaner(BaseProcessor):
                     chars_dropped += len(rc) if isinstance(rc, str) else 0
                     del kwargs["reasoning_content"]
                     cleaned_rc += 1
-                # A signed block is valid only inside the tool loop that produced it: the API takes earlier turns
-                # without their reasoning, so the blocks of finished turns are pruned once the user speaks again.
+                # Blocks of finished turns are dropped once the user speaks again; only the running tool loop has to
+                # replay its own.
                 if tb and i < last_human_idx:
                     chars_dropped += len(thinking_blocks_text(msg))
                     del kwargs[THINKING_BLOCKS_KEY]
