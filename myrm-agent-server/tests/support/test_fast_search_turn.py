@@ -24,18 +24,22 @@ class _ScriptedPage:
         assistants: int = 1,
         send_ok: bool = True,
         completes: bool = True,
+        loading_drops: tuple[dict[str, int], ...] | None = (),
     ) -> None:
         self._modes = {"before": mode_before, "after": mode_after}
         self._wire = list(wire)
         self._assistants = assistants
         self._send_ok = send_ok
         self._completes = completes
+        self._loading_drops = loading_drops
         self._probes = 0
         self.sent_scripts: list[str] = []
 
     async def evaluate(self, expression: str, *, await_promise: bool = True) -> object:
         if expression == fast_search_turn._WIRE_MODES_JS:
             return list(self._wire)
+        if expression == fast_search_turn._LOADING_DROPS_JS:
+            return None if self._loading_drops is None else list(self._loading_drops)
         if expression == fast_search_turn._TURN_STATE_JS:
             return {"assistants": self._assistants, "completed": self._completes, "loading": False}
         if expression == fast_search_turn._PAGE_PROBE_JS:
@@ -63,7 +67,7 @@ async def test_a_fast_turn_returns_the_page_state_and_sends_the_prompt_unchanged
     assert len(page.sent_scripts) == 1
     assert json.dumps(_PROMPT) in page.sent_scripts[0]
     assert fast_search_turn._PROMPT_PLACEHOLDER not in page.sent_scripts[0]
-    assert "wire=['fast']" in capsys.readouterr().out
+    assert "wire=['fast'] loadingDrops=[]" in capsys.readouterr().out
 
 
 async def test_a_second_fast_turn_passes_with_two_fast_requests() -> None:
@@ -102,6 +106,20 @@ async def test_a_request_that_did_not_go_out_in_fast_mode_fails(wire: tuple[str,
 
     with pytest.raises(AssertionError, match="did not go out in fast mode"):
         await run_fast_search_turn(page, _PROMPT, turn=turn, timeout_sec=5.0)
+
+
+@pytest.mark.parametrize(
+    "loading_drops",
+    [
+        pytest.param(({"assistants": 1, "atMs": 4200},), id="loading-went-off-mid-turn"),
+        pytest.param(None, id="page-without-the-chat-store"),
+    ],
+)
+async def test_a_turn_the_page_showed_as_idle_cannot_pass(loading_drops: tuple[dict[str, int], ...] | None) -> None:
+    page = _ScriptedPage(loading_drops=loading_drops)
+
+    with pytest.raises(AssertionError, match="idle chat while the turn was still running"):
+        await run_fast_search_turn(page, _PROMPT, turn=1, timeout_sec=5.0)
 
 
 async def test_a_send_that_was_not_issued_fails() -> None:

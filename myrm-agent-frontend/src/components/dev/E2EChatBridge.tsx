@@ -341,6 +341,13 @@ function requireE2eChatBridge(): NonNullable<Window['__MYRM_E2E_CHAT__']> {
 
 const SEND_TURN_REV = 'R72-J';
 const SEND_TURN_NO_OP_MS = 3_000;
+/**
+ * No-progress budget of a page bound to an injected E2E backend. The first send of a page waits for the dev
+ * server to serve the lazily loaded send pipeline (about 15 s while it is cold), and persisting the user row and
+ * arming SSE can exceed 3 s under parallel load. The budget has to outlast both, or a healthy send is reported
+ * as dead.
+ */
+const SEND_TURN_NO_OP_INJECTED_MS = 45_000;
 /** Trace of the latest send: the SSE recorder feeds it, the send's own results report it. */
 let activeTurnTrace: TurnTrace | null = null;
 /**
@@ -355,13 +362,12 @@ const SEND_TURN_OBSERVE_MS = 90_000;
  */
 const SEND_TURN_API_POLL_TIMEOUT_MS = 10_000;
 
-/** SHPOIB private-backend E2E: user persist + SSE arm can exceed 3s under parallel MUX. */
 function resolveSendTurnNoOpMs(): number {
   if (typeof window === 'undefined') {
     return SEND_TURN_NO_OP_MS;
   }
   if (resolveE2eApiBase()) {
-    return 12_000;
+    return SEND_TURN_NO_OP_INJECTED_MS;
   }
   return SEND_TURN_NO_OP_MS;
 }

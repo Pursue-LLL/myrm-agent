@@ -31,6 +31,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 from tests.support.e2e_provider_seed import seed_live_e2e_providers
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
+from tests.support.fast_search_turn import run_fast_search_turn
 from tests.support.test_secrets import resolve_test_env
 
 _TURN_WAIT_SEC = 360.0
@@ -267,7 +268,10 @@ async def _wait_citation_ui(chat: McpChatSession, *, timeout_sec: float) -> dict
         await chat.evaluate(_SCROLL_ASSISTANT_INTO_VIEW_JS, await_promise=False)
         raw = await chat.evaluate(_CITATION_LIVE_READY_JS, await_promise=False)
         last = raw if isinstance(raw, dict) else {"raw": raw}
-        print(f"E2E_CIT_PROBE: loading={last.get('loading')} srcLen={last.get('sourceCount')} btn={last.get('hasEvidenceButton')} citeOk={last.get('hasCiteOk')} badge={last.get('hasInlineBadge')} marker={last.get('hasCitationMarker')} fullwidth={last.get('proseHasFullwidth')} contentSample={last.get('contentSample')!r}", flush=True)
+        print(
+            f"E2E_CIT_PROBE: loading={last.get('loading')} srcLen={last.get('sourceCount')} btn={last.get('hasEvidenceButton')} citeOk={last.get('hasCiteOk')} badge={last.get('hasInlineBadge')} marker={last.get('hasCitationMarker')} fullwidth={last.get('proseHasFullwidth')} contentSample={last.get('contentSample')!r}",
+            flush=True,
+        )
         if last.get("ready") is True:
             return last
         await asyncio.sleep(3.0)
@@ -380,8 +384,7 @@ async def test_fast_search_web_search_citations_live_chrome_e2e(
         assert isinstance(pinned, dict) and pinned.get("ok") is True and pinned.get("actionMode") == "fast", pinned
         heartbeat_once()
 
-        await chat.send_message(_FAST_PROMPT, _FAST_PROMPT, skip_model_sync=True)
-        turn = await chat.wait_turn_settled(timeout_sec=_TURN_WAIT_SEC)
+        turn = await run_fast_search_turn(chat, _FAST_PROMPT, turn=1, timeout_sec=_TURN_WAIT_SEC)
         print(f"E2E_FAST_CITE_TURN_DONE: {json.dumps(turn, ensure_ascii=False)[:800]}", flush=True)
 
         ui_state = await _wait_citation_ui(chat, timeout_sec=60.0)

@@ -7,7 +7,9 @@ request the page issued carried ``action_mode: fast``. The request body is what 
 page's own mode and the lane an event names are not evidence of it.
 
 A turn has ended once its assistant message carries the completion status the terminal event writes. The page's
-``loading`` flag cannot mark the end: the stream watchdog can clear it while the answer is still streaming.
+``loading`` flag cannot mark the end: it is off until the send pipeline has loaded, and a stream watchdog heal clears it
+while the server may still be working. That is also what a turn must not suffer: it fails when the flag went off
+while the newest assistant message had not completed, because the page then shows an idle chat for a running turn.
 """
 
 from __future__ import annotations
@@ -29,8 +31,8 @@ class PageEvaluator(Protocol):
 
 
 # Sends without waiting for the bridge's kickoff verdict: the bridge gives up on a send that shows no UI
-# progress within 12 s, which only reports the send; the turn itself is not cancelled. The verdict is kept in
-# `lastSubmitResult`, which `_PAGE_PROBE_JS` reports.
+# progress within its no-progress budget, which only reports the send; the turn itself is not cancelled. The
+# verdict is kept in `lastSubmitResult`, which `_PAGE_PROBE_JS` reports.
 _SEND_TURN_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return { ok: false, reason: 'no-bridge' };
@@ -58,6 +60,30 @@ _WIRE_MODES_JS = """(() => {
     window.__fastTurnWireModes = modes;
   }
   return window.__fastTurnWireModes;
+})()"""
+
+# Every moment the chat's `loading` flag went off while the newest assistant message had not completed. The first
+# call installs the recorder, later calls read it; a page without the chat store reports null, which fails the turn
+# instead of passing it unobserved.
+_LOADING_DROPS_JS = """(() => {
+  if (!window.__fastTurnLoadingDrops) {
+    const store = window.__myrmChatStore;
+    if (!store?.subscribe) return null;
+    const drops = [];
+    let wasLoading = Boolean(store.getState().loading);
+    store.subscribe((state) => {
+      const loading = Boolean(state.loading);
+      if (wasLoading && !loading) {
+        const assistants = (state.messages ?? []).filter((m) => m?.role === 'assistant');
+        if (!assistants[assistants.length - 1]?.completionStatus) {
+          drops.push({ assistants: assistants.length, atMs: Math.round(performance.now()) });
+        }
+      }
+      wasLoading = loading;
+    });
+    window.__fastTurnLoadingDrops = drops;
+  }
+  return window.__fastTurnLoadingDrops;
 })()"""
 
 # What the page reports about the chat right now, including how the bridge's last send ended; a failed turn is
@@ -128,18 +154,21 @@ async def run_fast_search_turn(chat: PageEvaluator, prompt: str, *, turn: int, t
     before = await _probe_page(chat)
     assert before.get("actionMode") == "fast", f"turn {turn}: the chat was not in fast mode when the send started: {before}"
     await chat.evaluate(_WIRE_MODES_JS, await_promise=False)
+    await chat.evaluate(_LOADING_DROPS_JS, await_promise=False)
     sent = await chat.evaluate(_SEND_TURN_JS.replace(_PROMPT_PLACEHOLDER, json.dumps(prompt)), await_promise=False)
     assert isinstance(sent, dict) and sent.get("ok") is True, f"turn {turn}: the send was not issued: {sent}"
     await _wait_turn_completed(chat, assistants=turn, timeout_sec=timeout_sec)
     after = await _probe_page(chat)
     wire = await chat.evaluate(_WIRE_MODES_JS, await_promise=False)
+    drops = await chat.evaluate(_LOADING_DROPS_JS, await_promise=False)
     print(
         f"E2E_FAST_TURN{turn}: mode before={before.get('actionMode')} after={after.get('actionMode')} "
-        f"wire={wire} send={after.get('lastSubmit')}",
+        f"wire={wire} loadingDrops={drops} send={after.get('lastSubmit')}",
         flush=True,
     )
     assert after.get("actionMode") == "fast", f"turn {turn}: the chat left fast mode during the turn: {after}"
     assert isinstance(wire, list) and len(wire) >= turn and set(wire) == {"fast"}, (
         f"turn {turn}: the request did not go out in fast mode: wire={wire} page={after}"
     )
+    assert drops == [], f"turn {turn}: the page showed an idle chat while the turn was still running: drops={drops} page={after}"
     return after
