@@ -87,10 +87,8 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({ onSummone
   }, [templates, searchQuery]);
 
   const handleSummon = useCallback(
+    // Every summon entry is disabled while one runs, so a second one cannot start from the UI.
     async (template: TemplateListItem, useCase?: string) => {
-      if (summoningId) {
-        return;
-      }
       setSummoningId(template.id);
       try {
         const newAgent = await instantiateTemplateWithMetrics({
@@ -113,7 +111,7 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({ onSummone
         setSummoningId(null);
       }
     },
-    [summoningId, searchQuery, t, onSummoned, router],
+    [searchQuery, t, onSummoned, router],
   );
 
   return (
