@@ -46,6 +46,21 @@ function decodePairPayload(token: string): PairTokenPayload | null {
   }
 }
 
+/**
+ * The token for this page when the browser refused to keep it in session storage (privacy settings, in-app
+ * browsers): the remote has to work with it until the page is closed. It outranks storage, which may still hold
+ * an older token.
+ */
+let heldPairToken: string | undefined;
+
+function readStoredPairToken(): string | undefined {
+  try {
+    return sessionStorage.getItem(MOBILE_PAIR_STORAGE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function getMobilePairToken(): string | undefined {
   if (typeof window === 'undefined') {
     return undefined;
@@ -64,14 +79,19 @@ export function getMobilePairToken(): string | undefined {
     );
     return fromUrl;
   }
-  return sessionStorage.getItem(MOBILE_PAIR_STORAGE_KEY) ?? undefined;
+  return heldPairToken ?? readStoredPairToken();
 }
 
 export function storeMobilePairToken(token: string): void {
   if (typeof window === 'undefined') {
     return;
   }
-  sessionStorage.setItem(MOBILE_PAIR_STORAGE_KEY, token);
+  try {
+    sessionStorage.setItem(MOBILE_PAIR_STORAGE_KEY, token);
+    heldPairToken = undefined;
+  } catch {
+    heldPairToken = token;
+  }
 }
 
 export async function ensureMobileE2EE(): Promise<E2EEClientSession | null> {
