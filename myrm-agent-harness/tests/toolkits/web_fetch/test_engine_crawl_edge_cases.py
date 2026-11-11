@@ -101,9 +101,9 @@ class TestCrawlGuardsAndFastPaths:
         degraded = _doc("weixin degraded")
         with (
             patch(
-                "myrm_agent_harness.toolkits.web_fetch.extractors.weixin_extractor.extract_weixin_article",
+                "myrm_agent_harness.toolkits.web_fetch.engine.base.extract_weixin_article",
                 new=AsyncMock(return_value=None),
-            ),
+            ) as fast_path,
             patch.object(
                 engine,
                 "_crawl_with_degradation",
@@ -114,6 +114,7 @@ class TestCrawlGuardsAndFastPaths:
 
             assert doc is not None
             assert doc.page_content == "weixin degraded"
+            fast_path.assert_awaited_once()
         await engine.shutdown()
 
     @pytest.mark.asyncio
