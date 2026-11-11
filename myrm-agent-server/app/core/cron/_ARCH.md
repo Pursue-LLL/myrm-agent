@@ -341,7 +341,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 
 - **Event Trigger**：入站消息通过 regex 模式匹配触发任务，支持按 channel 过滤
 - **System Event Trigger**：结构化系统事件（source + event_type + filters 精确匹配）
-- **Webhook Trigger**：HTTP 请求命中 webhook 端点，path + secret HMAC 验证
+- **Webhook Trigger**：HTTP 请求命中 webhook 端点，path + 请求头 `x-webhook-secret` 携带的共享密钥校验（常量时间比较）
 
 架构分层：
 - **框架层**（harness）：`TriggerConfig` 容器 + `TriggerProvider` 协议 + `dispatch_*` 调度方法 + 安全工具
@@ -353,7 +353,7 @@ AgentJobRunner 将 context 追加到 prompt 末尾，让 Agent 知道触发来�
 使用 keyword-only 参数（`*, context: str = ""`）而非修改 CronJob，避免数据污染。
 
 安全机制：
-- Webhook secret 自动生成（32 字节 hex），HMAC-SHA256 constant-time 验证
+- Webhook secret 自动生成（32 字节 hex），请求头里的密钥原文经 `hmac.compare_digest` 常量时间比较（共享密钥，不是对请求体做 HMAC 签名）
 - Event regex ReDoS 防护（`max_pattern_bytes=65536`）
 - SSRF 防护（DNS 解析检测私有 IP）
 
