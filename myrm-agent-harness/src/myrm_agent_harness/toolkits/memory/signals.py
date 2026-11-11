@@ -15,7 +15,7 @@ for recency, importance, preference, rating and confidence. All signals are inde
 and composable via weighted geometric mean. Recall counts are deliberately not a signal: every
 returned hit is stamped, so a count measures exposure, and ranking on it would keep showing
 whatever was shown first. Only the opt-in gravity decay (off by default) lets the count into
-the recency term.
+the recency term, together with the larger of importance and user rating.
 """
 
 from __future__ import annotations
@@ -68,14 +68,14 @@ class SignalCalculator:
         """Calculate continuous gravity decay factor using power-law model.
 
         Evaluates age with sub-hour precision, boosting items with higher
-        access_count (interactions) and higher rating/importance (quality).
+        access_count (interactions) and a higher importance or user rating (quality).
 
         Args:
-            memory: Memory object with created_at, access_count, and rating fields.
+            memory: Memory object with created_at, access_count, importance and user_rating fields.
             gravity: Power-law decay exponent.
             time_scale_hours: Scaling factor for elapsed hours.
             interaction_weight: Boost weight per interaction/access.
-            quality_weight: Boost weight for quality rating.
+            quality_weight: Boost weight for quality (the larger of importance and user rating).
 
         Returns:
             Continuous positive factor in (0.0, +inf).
@@ -85,9 +85,7 @@ class SignalCalculator:
 
         created = memory.created_at
         interactions = getattr(memory, "access_count", 0) or 0
-        rating = getattr(memory, "rating", 0.0) or 0.0
-        importance = getattr(memory, "importance_score", 0.0) or 0.0
-        quality = max(rating, importance)
+        quality = max(SignalCalculator.importance_factor(memory), SignalCalculator.rating_factor(memory))
 
         from myrm_agent_harness.toolkits.memory.strategies.gravity_decay import (
             GravityDecayConfig,
