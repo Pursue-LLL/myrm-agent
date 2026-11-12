@@ -27,7 +27,7 @@
 scripts/ ──→ app/ (仅 deploy.py 和部分运维脚本导入 app 模块)
 scripts/ci/ ──→ lib_harness_deps.sh（共享 harness uv sync）
 scripts/ci/ ──→ run_architecture_gates.sh（fractal + ruff lint + promtool rules check + architecture pytest）
-scripts/ci/ ──→ run_default_tests.sh（ruff lint + 默认 pytest；-m 'not e2e and not performance'）
+scripts/ci/ ──→ run_default_tests.sh（ruff lint + 默认 pytest；标记过滤取自 `pyproject.toml` 的 `addopts`）
 ```
 
 - 所有脚本均为独立入口，不被 `app/` 反向引用

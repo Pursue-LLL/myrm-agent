@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Default server pytest suite (unit + API integration; excludes @pytest.mark.e2e and performance/benchmark).
+# Default server pytest suite (unit + API integration); the marker filter in pyproject addopts leaves out the e2e,
+# chrome_e2e and performance (benchmark) tests.
 # The harness comes from the sibling ../myrm-agent-harness directory (editable path source).
 set -euo pipefail
 
@@ -10,7 +11,7 @@ cd "${SERVER_ROOT}"
 source "${SERVER_ROOT}/scripts/ci/lib_harness_deps.sh"
 
 _run_pytest() {
-  # pyproject addopts already applies: -m 'not e2e and not performance' --timeout=300
+  # pyproject addopts already applies the marker filter, --timeout and --import-mode.
   local pytest_args=(-n0 --tb=short -q)
   if [[ -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
     "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"
