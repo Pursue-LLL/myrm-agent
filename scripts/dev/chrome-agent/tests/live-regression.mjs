@@ -3,7 +3,7 @@
 // Spins up an isolated proxy + Chrome (random port, temp profile) and drives real
 // chrome-devtools-mcp processes. Invariant under test: whatever other clients do
 // (start, stop, attach, detach, exit), every live MCP's list_pages equals Chrome's
-// real page set.
+// real page set, and a browser context lives exactly as long as the client that created it.
 //
 //   node tests/live-regression.mjs [--only t1,t2b] [--rounds 20] [--proxy-dir <dir>]
 //
@@ -14,6 +14,7 @@
 // context from tests/live/context.mjs and returning { name: async () => {...} }.
 import { createContext } from './live/context.mjs';
 import { findMcpEntry } from './live/harness.mjs';
+import { contextScenarios } from './live/scenarios/contexts.mjs';
 import { isolationScenarios } from './live/scenarios/isolation.mjs';
 import { tabScenarios } from './live/scenarios/tabs.mjs';
 import { visibilityScenarios } from './live/scenarios/visibility.mjs';
@@ -32,7 +33,9 @@ if (!findMcpEntry()) {
 
 const ctx = createContext(option);
 const { proxy, results, check } = ctx;
-const scenarios = { ...isolationScenarios(ctx), ...visibilityScenarios(ctx), ...tabScenarios(ctx) };
+const scenarios = {
+    ...isolationScenarios(ctx), ...visibilityScenarios(ctx), ...tabScenarios(ctx), ...contextScenarios(ctx),
+};
 
 await proxy.start();
 console.log(`sandbox proxy on ${proxy.base} (log: ${proxy.logPath})`);
