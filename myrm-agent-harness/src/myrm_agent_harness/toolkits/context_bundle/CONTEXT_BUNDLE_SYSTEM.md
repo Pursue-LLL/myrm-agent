@@ -36,7 +36,7 @@ Task cwd (user project directory) is not part of the bundle: callers pass it per
 ### Task workspace artifact vault
 
 Sub-agent and tool outputs too large for the LLM context use the Shared Artifact Vault
-(`agent/artifacts/vault.py`) under the task workspace — default `{task_workspace}/.agent/vault`.
+(`agent/artifacts/vault.py`) under the task workspace — default `{workspace}/.agent/vault`.
 Agents exchange `vault://<uuid>` pointers only (zero-copy within the sandbox).
 Path resolution: `core/artifacts/paths.py` (`AGENT_WORKSPACE_VAULT_RELATIVE` optional override).
 `ContextBundleFacade.vault_dir()` exposes the same path for health and server GC alignment.

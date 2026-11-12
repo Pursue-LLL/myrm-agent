@@ -336,19 +336,8 @@ Reply context is injected into the LLM query via `build_channel_inbound_query()`
 
 ---
 
-## Code Quality Metrics
+## Design Principles
 
-| Channel | Lines | Lints | Refactor Benefit |
-|---------|-------|-------|------------------|
-| Framework | 18 | 0 | Unified protocol |
-| WeCom | 净减44行 | 0 | DRY: `_parse_msg_item` |
-| Telegram | 64 | 0 | - |
-| Feishu | 47 | 0 | flat string → structured |
-| Discord | 55 | 0 | Implemented: _parse_reply_context + _resolve_mentioned + outbound reference |
-| Slack | 73 | 0 | async refactor |
-| **Total** | **~280净增** | **0** | **Cross-channel consistency** |
-
-**Architecture principles**:
 - Single responsibility: Each method parses one aspect
 - Type safety: `isinstance` checks + optional chaining
 - Defensive programming: Multiple layers of None guards
@@ -359,20 +348,11 @@ Reply context is injected into the LLM query via `build_channel_inbound_query()`
 ## Testing Strategy
 
 **Unit tests**:
-- `tests/channels/providers/discord/test_discord_reply_context.py` ✅ — 14 cases covering `_parse_reply_context` + `_resolve_mentioned`
-- `tests/unit/test_wecom_quote_parsing.py` (planned)
-- `tests/unit/test_telegram_reply_parsing.py` (planned)
-- `tests/unit/test_feishu_reply_fetch.py` (planned)
-- `tests/unit/test_slack_thread_fetch.py` (planned)
-
-**Coverage**:
-- All msgtype/attachment types per channel
-- Edge cases (empty content, missing fields, API failures)
-- Integration with `_build_inbound` → `InboundMessage`
-
-**Integration tests** (planned):
-- Mock external API calls (Feishu/Slack)
-- Verify `reply_to` field propagates to agent context
+- `tests/channels/providers/discord/test_discord_reply_context.py` — `_parse_reply_context` + `_resolve_mentioned`
+- `tests/channels/providers/telegram/test_telegram_parse_mentions_replies.py` — reply parsing
+- `tests/channels/providers/feishu/test_feishu_channel.py::TestFetchReplyContext` — parent-message fetch
+- `tests/channels/providers/slack/test_slack_thread_replies.py` — thread fetch
+- `tests/channels/providers/wecom/test_wecom_aibot_extra.py` — `_parse_quoted_message`
 
 ---
 

@@ -8,7 +8,7 @@
 
 1. **自动检测与路由**：根据主模型的 `supports_vision` / `supports_video` 标志自动判断是否需要 fallback
 2. **辅助模型调用**：使用配置的 `visionFallbackModel` 将图像/视频转为文本描述
-3. **实时状态通知**：通过 SSE 事件（`analyzing_image/video` + `analyzing_image/video_clear`）向前端通知处理状态
+3. **实时状态通知**：通过 SSE 状态步骤（`analyzing_image` / `analyzing_video` 开始，`analyzing_image_clear` / `analyzing_video_clear` 结束）向前端通知处理状态
 4. **优雅降级**：失败时返回友好的错误信息，不影响整体请求流程
 5. 视频双策略：支持原生视频的模型（如 Gemini）直传，不支持的通过 ffmpeg 帧提取 + 视觉模型分析
 6. **Agent 统一多模态读取**：收敛至 `file_read_tool`，支持原生 ImageBlock 直传与自适应降级，像素几何运算由沙箱代码执行接管

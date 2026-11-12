@@ -14,7 +14,7 @@
 
 ## 边界
 
-- 只上报「时间」，不携带任何业务内容；控制平面侧存储与唤醒见 control-plane `orchestration/wake_scheduler.py`。
+- 只上报「时间」，不携带任何业务内容；控制平面负责存储这些时间并在到点前唤醒沙箱。
 - 触发式 cron（event/system/webhook）没有 `next_run_at`，不上报；其入站流量本身经反向代理唤醒沙箱。
 - 看板 `SCHEDULED` 改期任务（`scheduled_until`，含用户/agent 设定的定时解除、瞬时失败退避与额度窗口改期）计入上报；到点后由各看板调度器的进程内僵尸巡检（周期 `max(zombie_timeout/2, 30)` 秒）解除并派发，唤醒提前量 + 套餐最短闲置阈值（300s）足以覆盖一个巡检周期。
 - 唤醒后的执行不经本包：目标由 `usage_limit_resume` 守护进程续跑，cron 由 `CronScheduler` 触发，看板任务由调度器派发；执行期间 `/api/v1/health/liveness` 报告 busy，回收器不会再暂停沙箱。

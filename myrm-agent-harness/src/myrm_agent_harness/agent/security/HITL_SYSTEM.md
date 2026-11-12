@@ -292,7 +292,7 @@ const resumeValue = { decisions };
 - **撤销的生效时机**：撤销（`PATCH session-access-roots`）改的是会话记录，不改正在进行的那次运行：运行入口打开的授权容器在这次运行里不会被撤销改动；下一次运行（含审批恢复）起跑时 `bootstrap_session_access_roots` 按会话记录重新预置，所以撤销自下一次运行起生效。
 - **不提供的授权**：可写且包含危险根的目录（主目录、盘符根、`/`，经其子树可触达 `~/.ssh`）不会被提供，也不会被授权；同一目录的只读授权不受影响。计划与授权共用这条判断，卡片不会承诺一个勾选后被丢弃的文件夹。
 - **锁定**：`PathPolicy.allow_directory_grants=False`（配置键 `pathPolicy.allowDirectoryGrants`）供需要把运行限制在工作区与声明根之内的宿主使用（如把执行范围钉在单一工作区的部署）：工作区与声明根之外的路径由引擎直接 DENY（没有任何审批能放宽它，所以不会弹出注定失败的询问），计划为空、授权被拒。
-- **持久化与部署边界**：授权的持久化与部署边界（沙箱模式、云卷、危险根）由业务层 `session_access_service` 负责：沙箱模式拒绝一切授权，在轮次启动（bootstrap）、拖拽授权（`POST session-access-roots`，被拒返回 403）与审批恢复三处同一道闸门；沙箱模式同时经 `SecurityOverlaySpec.sandbox_isolated` 把策略锁定，卡片因此不提供文件夹授权。harness 在批准后对当次运行的授权不经过部署边界检查，该检查只约束业务层的持久化。
+- **持久化与部署边界**：授权的持久化与部署边界（云卷、危险根）由业务层 `session_access_service` 负责：`is_directory_grant_allowed_for_deployment` 在轮次启动（`bootstrap_session_access_roots`）、拖拽授权（`POST session-access-roots`，被拒返回 403）与审批恢复（`apply_directory_resume_grant`）三处是同一道闸门——云卷部署下授权必须落在持久卷根或工作区之内，可写授权不得包含危险根。harness 在批准后对当次运行的授权不经过部署边界检查，该检查只约束业务层的持久化。
 - **Git 钩子与配置**：向 `.git/hooks` 与 `.git/config`（含子模块 `.git/modules/**`）的写入、编辑，在所有渠道预设下一律 ASK（`is_executable_git_metadata_file`，与受保护指令文件同一道写入闸门）：它们决定用户下一次 `git commit` 会执行什么，注入的提示词不能在 agent 监督之外悄悄写入。读取不受影响。
 
 ### 审批理由的本地化

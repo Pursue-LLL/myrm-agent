@@ -150,7 +150,7 @@
 | **[S] 沙箱** | Control Plane 容器注入 / `.env.sandbox` | sandbox 进程 env | `CONTROL_PLANE_*`, `MYRM_MASTER_KEY`, `MYRM_PUBLIC_WIKI_VOLUMES` |
 
 - **环境变量清单**：`.env.example`（[P/O]）、`.env.sandbox.example`（[S]）、`.env.test.example`（[T]）为唯一权威索引；业务配置不得写入 `.env`。
-- **[S] 注入契约**：沙箱创建时由控制服务注入环境变量；`tests/unit/test_sandbox_env.py` 与 `validate_for_sandbox()` 双向对齐。
+- **[S] 注入契约**：沙箱创建时由控制服务注入环境变量；`validate_for_sandbox()`（`app/config/settings/app.py`）校验注入结果，`tests/config/test_settings.py` 覆盖。
 - **部署能力注册表**：`app/platform_utils/deployment_capabilities.py` — 启动时构建语义能力位，替代散落的 `is_sandbox()` 分支。
 - **单租户认证**：`app/middleware/auth.py` — local 回环 / sandbox CP HMAC 验签（`cp_proxy.py`）→ `SANDBOX_API_KEY` → 回环 / WebUI Remote `SANDBOX_API_KEY`。
 - **WebUI 浏览器登录**（仅 local/remote 产品路径）：`app/api/webui/auth_routes.py` + `app/services/webui/auth_service.py` — admin 密码 + `myrm_webui_session` Cookie；与 CP 邮箱登录（sandbox 前端构建）分离。
@@ -267,7 +267,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 
 为了彻底解决大模型在面临海量工具时的“幻觉率上升”问题，系统实现了跨三层的架构级收束机制，将“配置大而全”的陷阱转变为**“动作空间越小，决策准确率越高”**的实战理念：
 
-- **Harness 层的协议与算力下沉**：不使用粗糙的“Token计数”来评估认知负载。原生内嵌了 `ActionSpaceProfiler` 协议，动态解析所有传入 Agent 的工具 JSON Schema（参数数、嵌套层级），科学地计算出 `ActionSpaceComplexityScore` (ASCS)，作为评估该 Agent 是否容易出现幻觉的标准基准。
+- **Harness 层的协议与算力下沉**：不使用粗糙的“Token计数”来评估认知负载。原生内嵌了 `ActionSpaceProfiler`（`agent/tool_management/action_space.py`），`calculate_score` 动态解析所有传入 Agent 的工具 JSON Schema（参数数、嵌套层级），计算出动作空间复杂度分数（Action Space Complexity Score，ASCS），作为评估该 Agent 是否容易出现幻觉的标准基准。
 - **Harness 层的前缀缓存硬核保护**：动态外部工具（特别是不可控的 MCP 工具库）绝不能污染高频前缀。通过 `tool_layers.py` 严格的层级分发，所有 MCP 和 server vendor 集成被分配到 `ToolLayer.EXTERNAL`（Tools 数组尾部）。CORE 层 file/bash 工具与 frozen System Prompt 构成稳定前缀（API 序列化顺序：`Tools → System → Messages`），使 Prefix Cache 在 EXTERNAL 工具增减时仍命中 harness 段。
 - **Tool loading dual-track**：General（Web 非 fast、Channel/IM）CORE file/bash 始终加载；Search/Fast 仅 Web `action_mode=fast` 无 file/bash。详见 `app/services/agent/_ARCH.md` 与 harness `tool_management/_ARCH.md`。
 - **Server 工具可见性**：运行时由 harness `attenuator`（执行层）与 `SkillAttenuationMiddleware`（`tool_choice.allowed_tools` 模型层）约束；Server `app/tasks/` 不含闲置工具驱逐后台任务。
@@ -285,7 +285,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 
 ### 0.8 统一工具网关 (Unified Tool Gateway)
 
-Agent 级 `tool_gateway_config` 与 Harness `ToolGatewayConfig` 支持 Search / Image / TTS 经 Control Plane `tool_relay` 转发。CP 挂载 `/tool-relay`（2xx commit / 4xx release WU）；沙箱经 internal API 自动注入 gateway 凭据。Local BYOK 由 Models、Search、Media Generation 等 Settings 页配置。Harness 在 gateway 失败且本地 API key 可用时 fallback 至直连 provider。
+Agent 级 `tool_gateway_config` 与 Harness `ToolGatewayConfig` 支持 Search / Image / TTS 经 Control Plane 的工具网关转发；沙箱经 internal API 自动注入 gateway 凭据。Local BYOK 由 Models、Search、Media Generation 等 Settings 页配置。Harness 在 gateway 失败且本地 API key 可用时 fallback 至直连 provider。
 
 ### 1. Core 模块独立性
 

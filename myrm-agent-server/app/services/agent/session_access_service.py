@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 class DirectoryGrantRefusedError(ValueError):
-    """A directory grant the deployment or the path policy refuses (sandbox mode, a write over a home directory)."""
+    """A directory grant the deployment boundary or the path policy refuses (e.g. a write over a home directory)."""
 
 
 def access_roots_to_json(roots: tuple[AccessRoot, ...]) -> list[dict[str, object]]:

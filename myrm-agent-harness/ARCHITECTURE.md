@@ -204,7 +204,7 @@ BaseAgent (基础 Agent)
 ├─ file_snapshot/ (文件快照)
 │   ├─ FileSnapshotProtocol (快照协议)
 │   ├─ LocalFileSnapshotStore (本地文件快照存储)
-│   └─ AutoSnapshotInterceptor (自动快照拦截器)
+│   └─ ShadowGitSnapshotStore (影子 Git 快照存储)
 │
 ├─ middlewares/ (中间件)
 │   ├─ ContextPipelineMiddleware (上下文管道)

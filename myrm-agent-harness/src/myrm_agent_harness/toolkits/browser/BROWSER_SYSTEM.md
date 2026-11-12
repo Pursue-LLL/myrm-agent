@@ -740,7 +740,7 @@ Loop Guard 与 Completion Guard 为兜底；正常路径由 Turn1 工具描述�
 **推荐工作流**（未知页面）：
 1. `browser_inspect_tool()` → 获取结构 metadata（~100 tokens）
 2. 查看推荐 → 决策最优参数
-3. `browser_snapshot_tool(optimized_params)` → 获取目标快照
+3. `browser_snapshot_tool(...)` 按推荐的 `selector` / `scope` / `max_tokens` 获取目标快照
 
 **参数优先级**: `selector` > `scope` > `max_tokens`（优先使用结构化优化，最后才用线性截断）
 
