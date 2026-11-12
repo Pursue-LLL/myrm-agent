@@ -24,7 +24,6 @@ myrm_agent_harness/infra/delivery/storage.py	536
 myrm_agent_harness/infra/sqlite_salvage.py	621
 myrm_agent_harness/runtime/context/instance_metrics.py	694
 myrm_agent_harness/toolkits/browser/pool/browser_launcher.py	535
-myrm_agent_harness/toolkits/browser/pool/browser_pool.py	760
 myrm_agent_harness/toolkits/browser/pool/config.py	603
 myrm_agent_harness/toolkits/browser/session/extractor.py	580
 myrm_agent_harness/toolkits/code_execution/executors/common/wrapper_script.py	596

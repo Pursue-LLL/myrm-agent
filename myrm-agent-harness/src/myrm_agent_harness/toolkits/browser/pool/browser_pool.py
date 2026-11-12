@@ -1,6 +1,5 @@
 """Global browser pool with intelligent scheduling and multi-tenant isolation.
 
-
 [INPUT]
 - patchright.async_api::Page (POS: Patchright page instance)
 - .browser_launcher::BrowserLauncher, BrowserInstance (POS: browser launcher and instance metadata)
@@ -10,6 +9,10 @@
 - .config::BrowserPoolConfig (POS: browser pool config)
 - .throttle::ThrottleStrategy, create_throttle_strategy (POS: throttle strategy)
 - .circuit_breaker::CircuitBreaker (POS: circuit breaker)
+- .crash_watchdog::CrashWatchdogMixin (POS: three-layer crash recovery)
+- .pool_scheduling::PoolSchedulingMixin (POS: launcher cache and least-loaded browser selection)
+- .pool_lifecycle::PoolLifecycleMixin (POS: background loop, close, shutdown, hot reload)
+- .pool_diagnostics::PoolDiagnosticsMixin (POS: statistics, health, page ownership)
 
 [OUTPUT]
 - ContextType: context purpose classification enum (CRAWL/AGENT/STEALTH)
@@ -25,35 +28,31 @@ Global browser resource pool. Manages Browser/Context/Page three-layer resources
 6. Lifecycle management (background loop: idle reclamation + crash detection)
 7. Three-layer automatic crash recovery (L1: browser disconnect event, L2: page crash event, L3: lifecycle fallback)
 8. Semaphore safety net (prevents semaphore leaks or double releases on crash and on a cancelled or failed acquisition)
+
+This module owns the acquire/release/destroy path; scheduling, lifecycle and monitoring are the three mixins above.
 """
 
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import dataclasses
 import logging
 import os
 import sys
 import time
 from enum import Enum
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .browser_launcher import BrowserInstance, BrowserLauncher
 from .circuit_breaker import CircuitBreaker
-from .config import (
-    MAX_CONTEXTS_PER_BROWSER,
-    SCALE_OUT_LOAD_THRESHOLD,
-    BrowserEngine,
-    BrowserPoolConfig,
-    LaunchMode,
-)
+from .config import BrowserEngine, BrowserPoolConfig, LaunchMode
 from .context_factory import ContextFactory
 from .crash_watchdog import CrashWatchdogMixin
 from .memory_guard import MemoryGuard
 from .page_acquisition import PageAcquisition
 from .page_pool import PagePool
+from .pool_diagnostics import PoolDiagnosticsMixin
+from .pool_lifecycle import PoolLifecycleMixin
+from .pool_scheduling import PoolSchedulingMixin
 from .proxy import ProxyPool
 from .throttle import ThrottleStrategy, create_throttle_strategy
 
@@ -102,7 +101,7 @@ class ContextType(Enum):
     STEALTH = "stealth"
 
 
-class GlobalBrowserPool(CrashWatchdogMixin):
+class GlobalBrowserPool(PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnosticsMixin, CrashWatchdogMixin):
     """Global browser pool — zero-copy, smart scheduling, type isolation, concurrency limits, lifecycle management.
 
     Singleton architecture, initialized at app startup, warmup and shutdown during FastAPI lifespan.
@@ -189,34 +188,6 @@ class GlobalBrowserPool(CrashWatchdogMixin):
             f"idle_timeout={self._config.idle_timeout_seconds}s, "
             f"proxy_pool={'enabled' if self._proxy_pool else 'disabled'}",
         )
-
-    def _get_launcher(self, engine: BrowserEngine, launch_mode: LaunchMode | None = None) -> BrowserLauncher:
-        """Get or create a BrowserLauncher for the specified engine and launch mode."""
-        effective_mode = launch_mode or self._config.launch_mode
-        key = (engine, effective_mode)
-        if key not in self._launchers:
-            fp_dir = self._resolve_fingerprint_dir() if engine == BrowserEngine.FIREFOX_CAMOUFOX else None
-            self._launchers[key] = BrowserLauncher(
-                launch_options=self._launch_options,
-                launch_mode=effective_mode,
-                engine=engine,
-                cdp_endpoint=self._config.cdp_endpoint,
-                remote_ws_endpoint=self._config.remote_ws_endpoint,
-                remote_ws_headers=self._config.remote_ws_headers,
-                extension_bridge=self._extension_bridge,
-                fingerprint_dir=fp_dir,
-            )
-        return self._launchers[key]
-
-    @staticmethod
-    def _resolve_fingerprint_dir() -> Path:
-        """Resolve the directory for persisting Camoufox fingerprints.
-
-        Uses ``$MYRM_DATA_DIR/browser_fingerprints`` when the env var is set,
-        otherwise falls back to ``$CWD/.myrm/browser_fingerprints``.
-        """
-        base = os.environ.get("MYRM_DATA_DIR") or os.path.join(os.getcwd(), ".myrm")
-        return Path(base) / "browser_fingerprints"
 
     def _make_page_pool(
         self,
@@ -444,184 +415,10 @@ class GlobalBrowserPool(CrashWatchdogMixin):
             if not skip_semaphore:
                 self._global_semaphore.release()
 
-    async def _get_least_loaded_browser(
-        self, engine: BrowserEngine, launch_mode: LaunchMode | None = None
-    ) -> BrowserInstance:
-        """Load-aware scheduling — select the least-loaded Browser for the given engine.
-
-        Prefers Browsers that have not reached max_contexts_per_browser.
-        When all Browsers are heavily loaded, auto-scales by creating new Browsers (up to max_browsers).
-        When max_browsers is reached, logs a warning and force-assigns to the least-loaded Browser.
-        """
-        launcher = self._get_launcher(engine, launch_mode)
-        effective_mode = launch_mode or self._config.launch_mode
-        prefer_external_browser = effective_mode in (LaunchMode.EXTENSION, LaunchMode.CONNECT)
-
-        if not self._browsers:
-            inst = await launcher.create_browser()
-            self._register_disconnect_handler(inst)
-            self._browsers.append(inst)
-            return inst
-
-        engine_browsers = [
-            b for b in self._browsers if b.engine == engine.value and b.is_managed != prefer_external_browser
-        ]
-
-        if not engine_browsers:
-            inst = await launcher.create_browser()
-            self._register_disconnect_handler(inst)
-            self._browsers.append(inst)
-            return inst
-
-        # Prefer Browsers that have not reached contexts limit
-        available_browsers = [b for b in engine_browsers if len(b.contexts) < MAX_CONTEXTS_PER_BROWSER]
-
-        if available_browsers:
-            least = min(available_browsers, key=lambda b: b.load)
-
-            # If least-loaded Browser is still busy and max_browsers not reached, create new one
-            if least.load > SCALE_OUT_LOAD_THRESHOLD and len(self._browsers) < self._max_browsers:
-                inst = await launcher.create_browser()
-                inst._engine = engine  # type: ignore
-                self._register_disconnect_handler(inst)
-                self._browsers.append(inst)
-                return inst
-
-            return least
-
-        # All Browsers reached contexts limit
-        if len(self._browsers) < self._max_browsers:
-            inst = await launcher.create_browser()
-            inst._engine = engine  # type: ignore
-            self._register_disconnect_handler(inst)
-            self._browsers.append(inst)
-            return inst
-
-        # max_browsers reached, log warning and force-assign
-        logger.warning(
-            f"All browsers at max_contexts_per_browser limit ({MAX_CONTEXTS_PER_BROWSER}), "
-            f"forcing context creation on least loaded browser",
-        )
-        return min(engine_browsers, key=lambda b: b.load)
-
-    def _ensure_lifecycle_loop(self) -> None:
-        """Start the lifecycle background loop if not already running."""
-        if self._lifecycle_task is not None and not self._lifecycle_task.done():
-            return
-        self._lifecycle_task = asyncio.create_task(self._lifecycle_loop())
-
-    async def _lifecycle_loop(self) -> None:
-        """Background loop: health-check crashed browsers and evict idle ones.
-
-        Runs every 30 seconds. Exits automatically when the pool is empty.
-        Health checks are performed outside the lock to avoid blocking acquire/release.
-        """
-        _lifecycle_interval_seconds = 30
-
-        while True:
-            await asyncio.sleep(_lifecycle_interval_seconds)
-
-            if not self._browsers:
-                logger.debug("Lifecycle loop: pool empty, stopping")
-                return
-
-            try:
-                await self._lifecycle_tick()
-                if self._proxy_pool:
-                    self._proxy_pool.cleanup_expired_sessions()
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                logger.exception("Lifecycle loop: unexpected error in tick, will retry next cycle")
-
-    async def _close_browser_instance(self, browser_inst: BrowserInstance) -> None:
-        """Close a specific browser instance and its contexts.
-
-        A close that fails or times out is only logged: the toolkit holds no browser PID to signal, and a
-        process that outlives its launcher is a leftover for Browser Doctor.
-        """
-        for _ctx_key, pool in browser_inst.page_pools.items():
-            with contextlib.suppress(Exception):
-                await pool.shutdown()
-
-        for _ctx_key, context in browser_inst.contexts.items():
-            with contextlib.suppress(Exception):
-                await context.close()
-
-        if browser_inst.is_managed:
-            browser_inst.expected_close = True  # the disconnect this triggers is ours, not a crash
-            try:
-                # Try graceful close first with a timeout
-                await asyncio.wait_for(browser_inst.browser.close(), timeout=5.0)
-            except Exception as e:
-                logger.warning(f"Graceful browser close failed or timed out: {e}")
-
-    async def shutdown(self) -> None:
-        """Close all resources (called at app shutdown)."""
-        logger.info(
-            f"GlobalBrowserPool shutdown — stats: acquires={self._total_acquires}, "
-            f"releases={self._total_releases}, browsers={len(self._browsers)}",
-        )
-
-        if self._lifecycle_task and not self._lifecycle_task.done():
-            self._lifecycle_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._lifecycle_task
-            self._lifecycle_task = None
-
-        async with self._lock:
-            for browser_inst in self._browsers:
-                # Use our new robust close method instead of direct close
-                await self._close_browser_instance(browser_inst)
-
-            self._browsers.clear()
-
-            for launcher in self._launchers.values():
-                await launcher.shutdown()
-            self._launchers.clear()
-
-        logger.info("GlobalBrowserPool shutdown completed")
-
     @property
     def config(self) -> BrowserPoolConfig:
         """Get browser pool configuration."""
         return self._config
-
-    async def update_proxy_pool(self, proxy_pool: ProxyPool | None) -> None:
-        """Hot-reload proxy pool without restarting the browser pool.
-
-        Replaces the internal proxy pool and updates ContextFactory so all
-        subsequent ``acquire_page`` calls use the new proxy configuration.
-        Also toggles DNS-over-HTTPS launch flag to match the new state.
-        """
-        async with self._lock:
-            self._proxy_pool = proxy_pool
-            self._context_factory = ContextFactory(
-                proxy_pool=proxy_pool,
-                default_emulation=self._config.default_emulation,
-            )
-            doh_flag = "--dns-over-https-templates=https://cloudflare-dns.com/dns-query"
-            args = list(raw) if isinstance(raw := self._launch_options.get("args"), list) else []
-            if proxy_pool and doh_flag not in args:
-                args.append(doh_flag)
-            elif not proxy_pool:
-                args = [a for a in args if a != doh_flag]
-            self._launch_options["args"] = args
-        logger.info("Proxy pool updated: %s", "enabled" if proxy_pool else "disabled")
-
-    async def update_remote_endpoint(self, ws_url: str | None, headers: dict[str, str] | None = None) -> None:
-        """Hot-reload remote WebSocket endpoint without restarting the pool.
-
-        Replaces the frozen config with a new instance and evicts any cached REMOTE launcher
-        so the next acquire_page(..., launch_mode_preference=REMOTE) picks up the new endpoint.
-        """
-        async with self._lock:
-            self._config = dataclasses.replace(self._config, remote_ws_endpoint=ws_url, remote_ws_headers=headers)
-            stale_keys = [k for k in self._launchers if k[1] == LaunchMode.REMOTE]
-            for key in stale_keys:
-                launcher = self._launchers.pop(key)
-                await launcher.shutdown()
-        logger.info("Remote endpoint updated: %s", "configured" if ws_url else "cleared")
 
     @property
     def throttle_strategy(self) -> ThrottleStrategy:
@@ -632,129 +429,3 @@ class GlobalBrowserPool(CrashWatchdogMixin):
     def circuit_breaker(self) -> CircuitBreaker | None:
         """Get circuit breaker (used by Navigator)."""
         return self._circuit_breaker
-
-    def is_managed_for_page(self, page: Page) -> bool:
-        """Return True when the page belongs to a sandbox-launched browser (VNC path).
-
-        CDP-attached browsers (connect/auto/extension) return False.
-        """
-        try:
-            browser = page.context.browser
-        except Exception:
-            return True
-
-        for inst in self._browsers:
-            if inst.browser is browser:
-                return inst.is_managed
-        return True
-
-    @property
-    def stats(self) -> dict[str, object]:
-        """Get global statistics (for monitoring)."""
-        current_in_use = self._current_pages_in_use
-        available = self._config.max_concurrent_pages - current_in_use
-        now = time.monotonic()
-        browsers_snapshot = self._browsers
-        return {
-            "total_browsers": len(browsers_snapshot),
-            "external_browsers": sum(1 for b in browsers_snapshot if not b.is_managed),
-            "total_contexts": sum(len(b.contexts) for b in browsers_snapshot),
-            "total_load": sum(b.load for b in browsers_snapshot),
-            "total_acquires": self._total_acquires,
-            "total_releases": self._total_releases,
-            "current_pages_in_use": current_in_use,
-            "available_slots": available,
-            "max_concurrent_pages": self._config.max_concurrent_pages,
-            "launch_mode": self._config.launch_mode.value,
-            "utilization_percent": round(current_in_use / self._config.max_concurrent_pages * 100, 2),
-            "lifecycle_active": self._lifecycle_task is not None and not self._lifecycle_task.done(),
-            "idle_timeout_seconds": self._config.idle_timeout_seconds,
-            "crash_count_browser": self._crash_count_browser,
-            "crash_count_page": self._crash_count_page,
-            "browsers": [
-                {
-                    "load": b.load,
-                    "contexts": len(b.contexts),
-                    "idle_seconds": round(now - b.last_active_at, 1),
-                    "is_managed": b.is_managed,
-                    "pools": {k: v.stats for k, v in b.page_pools.items()},
-                }
-                for b in browsers_snapshot
-            ],
-            "circuit_breaker": self._circuit_breaker.stats if self._circuit_breaker else {},
-            "proxy_pool_active_sessions": self._proxy_pool.active_session_count if self._proxy_pool else 0,
-        }
-
-    async def health(self) -> dict[str, object]:
-        """Get runtime health status for monitoring and diagnostics.
-
-        Returns:
-            Health status dictionary with:
-            - status: "healthy" | "degraded" | "unhealthy"
-            - pool: Current pool statistics
-            - browsers_alive: Number of browsers with successful version() call
-            - browsers_total: Total number of browser instances
-            - memory: Current memory usage (if psutil available)
-            - issues: List of detected issues
-        """
-        issues: list[str] = []
-
-        pool_stats = self.stats
-        utilization = round(self._current_pages_in_use / self._config.max_concurrent_pages * 100, 2)
-
-        if utilization > 90:
-            issues.append(f"High utilization: {utilization:.0f}%")
-
-        browsers_snapshot = list(self._browsers)
-        browsers_total = len(browsers_snapshot)
-
-        async def _probe(index: int, inst: BrowserInstance) -> tuple[int, bool]:
-            return index, await self._check_browser_alive(inst)
-
-        results = await asyncio.gather(
-            *[_probe(i, b) for i, b in enumerate(browsers_snapshot)],
-            return_exceptions=True,
-        )
-
-        browsers_alive = 0
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                issues.append(f"Browser #{i} check failed: {type(result).__name__}")
-            elif isinstance(result, tuple):
-                index, alive = result
-                if alive:
-                    browsers_alive += 1
-                else:
-                    issues.append(f"Browser #{index} unresponsive")
-
-        memory_info: dict[str, object] = {}
-        try:
-            import psutil
-
-            mem = psutil.virtual_memory()
-            memory_info = {
-                "available_gb": round(mem.available / (1024**3), 2),
-                "used_percent": mem.percent,
-            }
-            if mem.available < 1024**3:
-                issues.append(f"Low memory: {memory_info['available_gb']} GB available")
-        except (ImportError, TypeError):
-            pass
-
-        if browsers_alive == 0 and browsers_total > 0:
-            status = "unhealthy"
-        elif issues:
-            status = "degraded"
-        else:
-            status = "healthy"
-
-        return {
-            "status": status,
-            "pool": pool_stats,
-            "browsers_alive": browsers_alive,
-            "browsers_total": browsers_total,
-            "crash_count_browser": self._crash_count_browser,
-            "crash_count_page": self._crash_count_page,
-            "memory": memory_info,
-            "issues": issues,
-        }
