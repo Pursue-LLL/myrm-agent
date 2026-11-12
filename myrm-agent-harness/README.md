@@ -167,7 +167,7 @@ from langchain_openai import ChatOpenAI
 cheap_llm = ChatOpenAI(model="gpt-3.5-turbo", api_key="sk-...")
 context_middleware = create_context_pipeline_middleware(
     llm=cheap_llm,
-    compress_batch_rounds=10,  # 自定义配置
+    compress_min_save=5000,  # 自定义配置
     keep_recent_calls=5,
 )
 

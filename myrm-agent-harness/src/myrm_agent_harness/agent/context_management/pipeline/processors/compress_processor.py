@@ -96,8 +96,8 @@ class CompressProcessor(BaseProcessor):
         max_context_tokens: int = 128000,
         tool_result_evict_threshold: int = 5000,
         compress_min_save: int = 3000,
-        compress_batch_rounds: int = 5,
         keep_recent_calls: int = 5,
+        compress_start_ratio: float | None = None,
         on_compress_offload: ContextCompressOffloadCallback | None = None,
         on_compress_eviction: ContextCompressEvictionCallback | None = None,
         on_context_snapshot: ContextSnapshotCallback | None = None,
@@ -109,8 +109,8 @@ class CompressProcessor(BaseProcessor):
             max_context_tokens=max_context_tokens,
             tool_result_evict_threshold=tool_result_evict_threshold,
             compress_min_save=compress_min_save,
-            compress_batch_rounds=compress_batch_rounds,
             keep_recent_calls=keep_recent_calls,
+            compress_start_ratio=compress_start_ratio,
         )
 
     _ECO_THRESHOLD_FACTOR: float = 0.80

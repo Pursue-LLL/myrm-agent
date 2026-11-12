@@ -124,7 +124,6 @@ def create_context_pipeline_middleware(
     pipeline: ContextPipeline | None = None,
     tool_result_evict_threshold: int = 5000,
     compress_min_save: int = 3000,
-    compress_batch_rounds: int = 5,
     keep_recent_calls: int = 5,
     tail_budget_ratio: float = 0.20,
     on_summary_persist: SummaryPersistCallback | None = None,
@@ -159,7 +158,6 @@ def create_context_pipeline_middleware(
         pipeline: Custom pipeline (optional)
         tool_result_evict_threshold: Tool result eviction threshold (default 5000 tokens)
         compress_min_save: Minimum compression savings threshold (default 3000 tokens)
-        compress_batch_rounds: Batch compression accumulation rounds (default 5)
         keep_recent_calls: Recent tool calls to keep in full format (default 5)
         on_summary_persist: Summary persistence callback (optional). Without it the pipeline
                            works in-memory only; with it summaries are async-written to DB.
@@ -222,7 +220,6 @@ def create_context_pipeline_middleware(
                 compress_start_ratio=compress_start_ratio,
                 tool_result_evict_threshold=tool_result_evict_threshold,
                 compress_min_save=compress_min_save,
-                compress_batch_rounds=compress_batch_rounds,
                 keep_recent_calls=keep_recent_calls,
                 tail_budget_ratio=tail_budget_ratio,
                 on_compress_offload=on_compress_offload,

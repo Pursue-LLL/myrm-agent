@@ -120,7 +120,7 @@ def signed_agent(
         reasoning_effort=reasoning_effort,
     )
     pipeline = create_context_pipeline_middleware(
-        llm, enable_active_tool_prune=True, compress_batch_rounds=5, on_compress_offload=_archive_offload
+        llm, enable_active_tool_prune=True, on_compress_offload=_archive_offload
     )
     return create_agent(
         llm,

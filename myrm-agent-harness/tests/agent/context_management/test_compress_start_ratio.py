@@ -29,21 +29,18 @@ class TestContextConfigDefaultBehavior:
         config = ContextConfig(max_context_tokens=128000)
         assert config.proactive_reset_threshold == 51200  # 128000 * 0.4
         assert config.compress_threshold == 64000  # 128000 * 0.5
-        assert config.compress_force_threshold == 89600  # 128000 * 0.7
         assert config.summarize_trigger_threshold == 115200  # 128000 * 0.9
 
     def test_default_thresholds_200k(self) -> None:
         config = ContextConfig(max_context_tokens=200000)
         assert config.proactive_reset_threshold == 80000
         assert config.compress_threshold == 100000
-        assert config.compress_force_threshold == 140000
         assert config.summarize_trigger_threshold == 180000
 
     def test_default_thresholds_1m(self) -> None:
         config = ContextConfig(max_context_tokens=1000000)
         assert config.proactive_reset_threshold == 400000
         assert config.compress_threshold == 500000
-        assert config.compress_force_threshold == 700000
         assert config.summarize_trigger_threshold == 900000
 
     def test_compress_start_ratio_none_by_default(self) -> None:
@@ -61,11 +58,9 @@ class TestProportionalGapFormula:
         # gap = (0.95 - 0.40) / 3 = 0.1833...
         # proactive_reset = 200000 * 0.40 = 80000
         # compress = 200000 * (0.40 + 0.1833) = 200000 * 0.5833 = 116666
-        # compress_force = 200000 * (0.40 + 0.3666) = 200000 * 0.7666 = 153333
         # summarize_trigger = 200000 * 0.95 = 190000
         assert config.proactive_reset_threshold == 80000
         assert config.compress_threshold == 116666
-        assert config.compress_force_threshold == 153333
         assert config.summarize_trigger_threshold == 190000
 
     def test_ratio_0_60_delayed_compression(self) -> None:
@@ -74,7 +69,6 @@ class TestProportionalGapFormula:
         # gap = (0.95 - 0.60) / 3 = 0.1166...
         assert config.proactive_reset_threshold == 120000  # 200000 * 0.60
         assert config.compress_threshold == 143333  # 200000 * (0.60 + 0.1166) = ~143333
-        assert config.compress_force_threshold == 166666  # 200000 * (0.60 + 0.2333) = ~166666
         assert config.summarize_trigger_threshold == 190000  # 200000 * 0.95
 
     def test_ratio_0_20_aggressive_compression(self) -> None:
@@ -83,7 +77,6 @@ class TestProportionalGapFormula:
         # gap = (0.95 - 0.20) / 3 = 0.25
         assert config.proactive_reset_threshold == 40000  # 200000 * 0.20
         assert config.compress_threshold == 90000  # 200000 * 0.45
-        assert config.compress_force_threshold == 140000  # 200000 * 0.70
         assert config.summarize_trigger_threshold == 190000  # 200000 * 0.95
 
     def test_ratio_0_85_maximum_delayed(self) -> None:
@@ -92,7 +85,6 @@ class TestProportionalGapFormula:
         # gap = (0.95 - 0.85) / 3 = 0.0333...
         assert config.proactive_reset_threshold == 170000  # 200000 * 0.85
         assert config.compress_threshold == 176666  # 200000 * (0.85 + 0.0333) = ~176666
-        assert config.compress_force_threshold == 183333  # 200000 * (0.85 + 0.0666) = ~183333
         assert config.summarize_trigger_threshold == 190000  # 200000 * 0.95
 
     def test_thresholds_always_ascending(self) -> None:
@@ -101,8 +93,7 @@ class TestProportionalGapFormula:
             ratio = ratio_pct / 100.0
             config = ContextConfig(max_context_tokens=200000, compress_start_ratio=ratio)
             assert config.proactive_reset_threshold < config.compress_threshold, f"Failed at ratio={ratio}"
-            assert config.compress_threshold < config.compress_force_threshold, f"Failed at ratio={ratio}"
-            assert config.compress_force_threshold < config.summarize_trigger_threshold, f"Failed at ratio={ratio}"
+            assert config.compress_threshold < config.summarize_trigger_threshold, f"Failed at ratio={ratio}"
 
     def test_thresholds_never_exceed_window(self) -> None:
         """No threshold should exceed max_context_tokens."""
@@ -112,7 +103,6 @@ class TestProportionalGapFormula:
                 config = ContextConfig(max_context_tokens=window, compress_start_ratio=ratio)
                 assert config.proactive_reset_threshold <= window
                 assert config.compress_threshold <= window
-                assert config.compress_force_threshold <= window
                 assert config.summarize_trigger_threshold <= window
 
 
@@ -296,11 +286,9 @@ class TestPureRatioScaling:
         config = ContextConfig(max_context_tokens=8192)
         assert config.proactive_reset_threshold == 3276  # 8192 * 0.4
         assert config.compress_threshold == 4096  # 8192 * 0.5
-        assert config.compress_force_threshold == 5734  # 8192 * 0.7
         assert config.summarize_trigger_threshold == 7372  # 8192 * 0.9
         assert config.proactive_reset_threshold < config.compress_threshold
-        assert config.compress_threshold < config.compress_force_threshold
-        assert config.compress_force_threshold < config.summarize_trigger_threshold
+        assert config.compress_threshold < config.summarize_trigger_threshold
         assert config.summarize_trigger_threshold < 8192
 
     def test_small_window_with_ratio(self) -> None:
@@ -308,15 +296,13 @@ class TestPureRatioScaling:
         config = ContextConfig(max_context_tokens=30000, compress_start_ratio=0.20)
         assert config.proactive_reset_threshold == 6000  # 30000 * 0.20
         assert config.proactive_reset_threshold < config.compress_threshold
-        assert config.compress_threshold < config.compress_force_threshold
-        assert config.compress_force_threshold < config.summarize_trigger_threshold
+        assert config.compress_threshold < config.summarize_trigger_threshold
         assert config.summarize_trigger_threshold < 30000
 
     def test_small_window_50k_default(self) -> None:
         config = ContextConfig(max_context_tokens=50000)
         assert config.proactive_reset_threshold == 20000  # 50000 * 0.4
         assert config.compress_threshold == 25000  # 50000 * 0.5
-        assert config.compress_force_threshold == 35000  # 50000 * 0.7
         assert config.summarize_trigger_threshold == 45000  # 50000 * 0.9
 
 

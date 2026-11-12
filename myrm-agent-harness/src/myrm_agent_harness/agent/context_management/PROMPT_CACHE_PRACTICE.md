@@ -8,14 +8,14 @@
 > | §2.3 Cron 场景 | `app/core/cron/adapters/agent_runner/` |
 > | §2.4 安全边界与用户指令注入 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` |
 > | §2.5–2.6 记忆 / 入账 Human 前缀 | `agent/middlewares/memory_context/memory_context_middleware.py`；`app/core/utils/delivery_provenance.py`、`app/core/channel_bridge/agent_executor/helpers.py`、`app/ai_agents/general_agent/stream_pipeline.py`、`myrm-agent-server/app/api/agents/general_agent/streaming.py`、`app/services/agent/wakeup_handler.py` |
-> | §2.6.3 运行内视图稳定与签名推理块回放 | `agent/middlewares/_run_notices.py`, `core/message_tail.py`, `core/thinking_blocks.py`, `agent/middlewares/thinking_replay_guard_middleware.py`, `toolkits/llms/transport/anthropic_messages.py`, `pipeline/processors/media_filter.py`, `pipeline/processors/active_tool_result_prune_processor.py`, `pipeline/processors/summarize_processor/processor.py`, `infra/cache_policy.py` |
+> | §2.6.3 运行内视图稳定与签名推理块回放 | `agent/middlewares/_run_notices.py`, `core/message_tail.py`, `core/thinking_blocks.py`, `agent/middlewares/thinking_replay_guard_middleware.py`, `toolkits/llms/transport/anthropic_messages.py`, `toolkits/llms/transport/anthropic_thinking.py`, `pipeline/processors/thinking_cleaner.py`, `pipeline/processors/media_filter.py`, `pipeline/processors/active_tool_result_prune_processor.py`, `pipeline/processors/cache_ttl_prune_processor.py`, `pipeline/processors/compress_processor.py`, `pipeline/processors/summarize_processor/processor.py`, `infra/cache_policy.py` |
 > | §3 显式缓存优化器 | `pipeline/processors/cache_optimizer.py` |
-> | §4.1 批量清理 | `pipeline/processors/compress_processor.py`, `pipeline/processors/summarize_processor/processor.py` |
+> | §4.1 压缩的触发与让位 | `pipeline/processors/compress_processor.py`, `pipeline/processors/summarize_processor/processor.py` |
 > | §4.2 compress_min_save | `infra/schemas/` |
 > | §4.3 动态阈值 | `infra/context_budget.py` |
 > | §4.4 可逆压缩 | `strategies/compactor/compactor.py` |
 > | §4.5 摘要与缓存生命周期 | `strategies/summary/summarizer/` |
-> | §5.1 Cache-TTL 归档与恢复 | `pipeline/processors/cache_ttl_prune_processor.py`, `pipeline/processors/cache_ttl_prune_archive.py`, `pipeline/processors/cache_ttl_prune_roi.py`, `infra/archive_reference.py`, `tracking/task_metrics.py`, `meta_tools/file_ops/core/file_operation_service.py` |
+> | §5.1.1 Cache-TTL 归档恢复闭环 | `pipeline/processors/cache_ttl_prune_processor.py`, `pipeline/processors/cache_ttl_prune_archive.py`, `pipeline/processors/cache_ttl_prune_roi.py`, `infra/archive_reference.py`, `tracking/task_metrics.py`, `meta_tools/file_ops/core/file_operation_service.py` |
 > | §5 Pipeline | `pipeline/engine.py`, `middlewares/context_pipeline/context_pipeline_middleware.py` |
 > | §6.1-6.2 LLM 层 | `toolkits/llms/core/llm.py` |
 > | §6.3 缓存可观测性 | `utils/token_economics/tracker.py`, `toolkits/llms/utils/logger.py` |
@@ -32,7 +32,7 @@
 1. [整体策略](#1-整体策略)
 2. [前缀稳定性保障](#2-前缀稳定性保障) — 工具分层排序、时间戳注入、用户指令注入、记忆上下文注入、运行内视图稳定与签名推理块回放
 3. [显式缓存优化器](#3-显式缓存优化器) — ExplicitCacheProcessor 断点策略
-4. [缓存友好的上下文缩减](#4-缓存友好的上下文缩减) — 批量清理、compress_min_save、动态阈值、缓存生命周期
+4. [缓存友好的上下文缩减](#4-缓存友好的上下文缩减) — 压缩的触发与让位、compress_min_save、动态阈值、缓存生命周期
 5. [Pipeline 架构与缓存协同](#5-pipeline-架构与缓存协同) — 处理器执行顺序与缓存感知
 6. [LLM 层集成](#6-llm-层集成) — cache_control 传递链路、缓存可观测性（四层监控）、性能特性、前缀缓存预热与空闲保活
 7. [故障排查指南](#7-故障排查指南) — 常见问题诊断与解决方案
@@ -47,11 +47,11 @@
 ```
 缓存层（成本优化）                     质量层（上下文管理）
 ├─ 工具分层排序 (ToolLayer)            ├─ Filter（立即、可逆）
-├─ System Prompt 冻结                  ├─ Compress（批量、可恢复）
+├─ System Prompt 冻结                  ├─ Compress（缓存热时推迟、可恢复）
 ├─ 时间戳注入到 HumanMessage           ├─ Summarize（最后手段、不可逆）
 ├─ 只增不改的消息历史                   └─ ThinkingBlockCleaner（清理无效 token）
 ├─ 显式 cache_control 断点
-└─ 批量清理（积累-爆发模式）
+└─ 缓存热时推迟压缩（冷缓存排空）
 ```
 
 **核心指标**：KV Cache 命中率。框架的每一个设计决策都围绕"不破坏前缀"展开。
@@ -341,8 +341,8 @@ Resume 从不解析历史，线程原样续接，遥测记为 `history_mode=resu
 |------|-------------|------|
 | 媒体窗口（`MediaFilterProcessor`：视觉模型只保留最新 `RETAIN_MEDIA_MESSAGES = 2` 条带媒体的消息） | 让位，回合内的历史截图原样保留；用户的下一条消息结束回合后窗口生效，剥离写进消息本身，之后的请求不再带 | 窗口在回合内剥掉较早的截图，此后回放的块就被拒。请求里的媒体块超过 `MAX_MEDIA_BLOCKS_HELD = 20` 时窗口立即接管：Anthropic 对超过 20 张图的请求给每张图加严尺寸限制 |
 | Cache-TTL 剪枝的冷缓存触发 | Anthropic / Claude profile 关闭（`CacheTtlPruneConfig.cold_cache_prune_enabled=False`，`infra/cache_policy.py`）：空闲过久或命中率偏低都不启动剪枝，上下文占比达到 `emergency_prune_ratio` 仍剪；其余型号族保持开启 | 剪枝只持续一个请求，下一个请求回到未剪的提示，在剪枝请求里签发的块随即被拒 |
-| 主动工具结果剪枝（`ActiveToolResultPruneProcessor`） | 从回合里第一个签名块起，只对该块之前的消息剪枝，也就是写下该块的那个请求拿到的列表：此后回合内的每个请求，以及批准后的续跑（`is_resume`、HITL 会话），读到的剪枝结果与那个请求相同；回合中途新落出最近窗口的结果等到用户的下一条消息；运行时强制的剪枝（`force_prune`）照常 | 每个请求的剪枝视图由这一步重新生成，回合中途新出现的剪枝让此后签发的块被拒；服务端的执行缓存在聊天活跃期间复用代理，空闲 1800 秒、配置变化或进程重启后新建，续跑可能落在一条管线上，它的内存里没有上次剪过什么的记录，所以结果只由消息决定（归档路径由内容摘要命名，占位文本逐字节相同）。对着替身的实测：每轮 12k–20k 字符的工具结果、24 轮的回合，不让位时第 8 个请求被拒、此后整次运行不再带 `thinking`（8/26 个请求带），让位时 25/25 个带、零拒绝；12 轮 × 16k 字符、第 2 个回合的第 3 次读取等批准、续跑在新建的 agent 与管线上：续跑读到未剪的历史时 16/26 个请求带 `thinking`、被拒 1 次，读到与暂停前相同的剪枝结果时 26/26、零拒绝 |
-| 压缩、摘要（未到窗口的 90%） | 让位：不论缓存冷热都不在回合中途压缩，欠债记入 `compaction_debt_pending`，由回合结束后的服务端后台排空和下一个回合的首个请求（那时没有块在途）偿还 | 缓存空闲超过 5 分钟后这两步原本会在回合中途压缩（Compress 在 50% 窗口、Summarize 在 40% 窗口起算），此后回放的块被拒 |
+| 主动工具结果剪枝（`ActiveToolResultPruneProcessor`） | 从回合里第一个签名块起，只对该块之前的消息剪枝，也就是写下该块的那个请求拿到的列表：此后回合内的每个请求，以及批准后的续跑（`is_resume`、HITL 会话），读到的剪枝结果与那个请求相同；回合中途新落出最近窗口的结果等到用户的下一条消息；运行时强制的剪枝（`force_prune`）照常 | 每个请求的剪枝视图由这一步重新生成，回合中途新出现的剪枝让此后签发的块被拒；服务端的执行缓存在聊天活跃期间复用代理，空闲 1800 秒、配置变化或进程重启后新建，续跑可能落在一条管线上，它的内存里没有上次剪过什么的记录，所以结果只由消息决定（归档路径由内容摘要命名，占位文本逐字节相同） |
+| 压缩、摘要（未到窗口的 90%） | 让位：不论缓存冷热都不在回合中途压缩，欠债记入 `compaction_debt_pending`，由回合结束后的服务端后台排空和下一个回合的首个请求（那时没有块在途）偿还 | 缓存空闲超过 5 分钟后这两步原本会在回合中途压缩（默认 Compress 从 50% 窗口、Summarize 从 40% 窗口起算，`ContextConfig.compress_start_ratio` 可调），此后回放的块被拒 |
 | 到 90% 的压缩与摘要、紧急剪枝、`MediaBudgetGovernor` 的体积整形 | 照常执行 | 不做会超出窗口或体积上限；被拒一次，守卫去块重发，本次运行不再带 `thinking` |
 
 **钉住它的测试**：`tests/support/enforcing_anthropic.py` 是按提供商规则逐请求核验的类型化替身（块未知、块之前的提示变了、块序列有缺口、待答轮缺块，各拒绝一次）。下面的图级用例在这个替身上跑聊天模型、传输、适配器、中间件栈和上下文管线（`tests/support/signed_tool_loop.py`）；管线接了与服务端同样的归档回调，服务端接的其余回调（驱逐、快照、压缩前钩子、会话笔记、轻量模型）不在这套装配里；每个回合、每次续跑都是共用同一检查点的新 agent：服务端在聊天活跃期间复用代理，这套装配取的是管线内存里没有任何东西可依赖的那一侧，状态不会从一个流带到下一个。
@@ -496,32 +496,20 @@ msg.additional_kwargs["cache_control"] = {"type": "ephemeral"}
 
 上下文缩减（Filter/Compress/Summarize）是必要的，但每次缩减都可能破坏缓存前缀。框架通过多种机制平衡缩减需求与缓存保护。
 
-### 4.1 批量清理策略（积累-爆发模式）
+### 4.1 压缩的触发与让位（冷缓存排空）
 
 **问题**：每次超过阈值就压缩，频繁破坏缓存。
 
-**实现**：`CompressProcessor` + `BatchCompactState`（`compress_processor.py`）
+**实现**：`CompressProcessor.should_process`（`compress_processor.py`）按顺序判断，任何一步拦下就不压缩：
 
-```python
-@dataclass
-class BatchCompactState:
-    rounds_accumulated: int = 0
-    is_accumulating: bool = False
-```
-
-三阶段清理逻辑：
-
-| 阶段 | 条件 | 行为 |
+| 步骤 | 条件 | 行为 |
 |------|------|------|
-| 正常 | `tokens < dynamic_threshold` | 正常运行，重置积累 |
-| 积累 | `dynamic_threshold ≤ tokens < force_threshold` | 积累轮数 +1；达到 `compress_batch_rounds`（默认 5）后批量清理 |
-| 强制 | `tokens ≥ force_threshold` | 立即强制清理（安全阀） |
+| 1 | 上下文低于动态阈值（`ContextBudget.calculate_dynamic_thresholds`，见 §4.3；预算压力 `eco_mode` 下再乘 0.8） | 不压缩 |
+| 2 | 连续无效压缩达到上限，且上下文未到窗口的 90%（§4.1.1） | 不压缩 |
+| 3 | 上下文未到窗口的 90%，且缓存还热（上一次模型调用不足 5 分钟）或签名推理块还在途（§2.6.3） | 让位：把欠下的压缩记入 `compaction_debt_pending` |
+| 4 | 其余情况 | 压缩；单次压缩能省的 token 不足 `compress_min_save` 时放弃（§4.2） |
 
-**会话隔离**：使用 `contextvars.ContextVar` 实现每个会话独立的积累状态。
-
-**成本效果**：批量清理相比渐进式清理可节省约 44%（详见 CONTEXT_ENGINEERING.md §4.2）。
-
-**冷缓存排空与让位**：`CompressProcessor`、`SummarizeProcessor` 在上下文未到窗口 90% 时让位，把欠下的压缩记入 `compaction_debt_pending`，由回合结束后的服务端后台排空（`ChatService.schedule_background_drain`，缓存转冷后离线摘要）和下一个回合的首个请求偿还。让位有两个条件：缓存还热（上一次模型调用不足 5 分钟），或签名推理块还在途（块绑定这两步会改写的消息，见 §2.6.3）；到 90% 窗口时无论如何都压缩。
+`SummarizeProcessor` 在 `should_summarize` 判定需要摘要之后，让位规则与第 3 步相同。欠下的压缩由回合结束后的服务端后台排空（`ChatService.schedule_background_drain`，缓存转冷后离线摘要）和下一个回合的首个请求偿还；到 90% 窗口时无论如何都压缩。Resume 与 HITL 会话期间不压缩（§5.5）。
 
 ### 4.1.1 Anti-Thrashing 保护
 
@@ -596,15 +584,21 @@ def calculate_dynamic_thresholds(
 ```
 COMPACTED: web_search_tool
 QUERY: Claude API pricing 2024
-FILE: /workspace/.context/compacted_web_search_tool_20241220_153000_abc123.txt
-RECOVER: cat /workspace/.context/... with bash_code_execute_tool
 META: tokens_saved=5000 time=2024-12-20T15:30:00
+[Tool result offloaded during context compression]
+- archive_ref: {"version":1,"reference_type":"tool_result","archive_path":"...","restore_tool":"file_read_tool",...}
+- archived_path: /persistent/.context/<session_id>/compacted/sha256/<prefix>/web_search_tool_<hash>_<size>.txt
+- restore_tool: file_read_tool
+- original_tokens: 5000
+- original_chars: 20000
+- restore: call restore_tool with restore_args when exact archived details are needed.
+LIFECYCLE: Retained while session active (30d) or file accessed (14d)
 ```
 
 **Tokens vs Blocks**：压缩替换了消息内容（tokens 大幅减少），但不删除消息对象。一条 ToolMessage 压缩前后都是 1 个 `tool_result` content block。因此**压缩减少 tokens，不减少 content blocks 数**。这意味着即使压缩触发，20-block 保护断点的间距计算仍然需要精确的 blocks 计数。
 
 **缓存影响**：紧凑格式替换了消息内容，会破坏该消息之后的缓存。但由于：
-1. 批量清理减少了破坏频率
+1. 缓存热时让位（§4.1）减少了破坏频率
 2. compress_min_save 确保每次破坏都值得
 3. 消息结构不变（类型、顺序），前面的缓存不受影响
 
@@ -670,7 +664,11 @@ ActiveToolResultPruneProcessor ← 消费感知型每步主动归档超 2048 tok
        ↓
 CacheTtlPruneProcessor         ← cache 过期时归档/裁剪旧工具结果（零 API 成本、结构化引用、预算化恢复）；Claude 路线只在上下文占比逼近窗口时启动
        ↓
-CompressProcessor        ← 旧工具调用 → 紧凑格式（批量清理、提取错误与定义）；未到 90% 窗口时缓存热或签名块在途则让位
+SelectiveEvictionProcessor     ← 按标记驱逐提示、草稿等瞬态消息（零 API 成本，保持工具调用成对）
+       ↓
+PreCompactProcessor      ← 仅在装配了 `on_pre_compact` 回调时存在：压缩前召回持久记忆，并可取消或替换这次压缩
+       ↓
+CompressProcessor        ← 旧工具调用 → 紧凑格式（提取错误与定义，原文归档可恢复）；未到 90% 窗口时缓存热或签名块在途则让位
        ↓
 SessionNotesProcessor    ← 笔记就绪时零 API 压缩；未就绪时自然透传
        ↓
@@ -678,9 +676,13 @@ SummarizeProcessor       ← 超大上下文 → 结构化摘要（最后手段�
        ↓
 PostCompactionRereadProcessor ← 压缩后自动重读最近修改的文件注入上下文
        ↓
+PostCompactionRefetchGuardProcessor ← 压缩后反复回读同一归档路径时，在尾部注入一次提示
+       ↓
 NormalizeProcessor       ← 内容标准化（清理空行、换行符）
        ↓
 MediaResolverProcessor   ← 解析 URL/file 图片引用为 base64
+       ↓
+MediaBudgetGovernorProcessor ← 会话累计图片体积超预算时，从旧到新降采样、仍超再转成文字，已稳定的历史消息不再变化
        ↓
 ExplicitCacheProcessor   ← 注入 cache_control 断点（最后执行）
 ```
@@ -731,7 +733,7 @@ if compress_idx is not None and compress_idx not in breakpoints:
 **ThinkingBlockCleaner → 缓存效率**：
 
 清理历史消息中的 `reasoning_content` / `thinking_blocks`，减少无效 token 占用。按模型和消息类型智能处理：
-- Anthropic：保留 `thinking_blocks`，清理 `reasoning_content`
+- Anthropic：清理 `reasoning_content`；`thinking_blocks` 只保留在当前回合（用户最新消息之后），更早回合的签名块清除（见 §2.6.3）
 - DeepSeek/MiMo/Kimi 等 thinking 模型：选择性清理 `reasoning_content`——API 仅要求 tool_calls 消息保留 reasoning_content，纯文本回复的历史 reasoning_content 安全删除
 - 其他模型：清理 `thinking_blocks`，保留 `reasoning_content`
 
@@ -876,7 +878,7 @@ ExplicitCacheProcessor                    模型传输层（toolkits/llms/transp
 
 ### 6.2 自动前缀缓存模型
 
-OpenAI / DeepSeek / Gemini 使用自动前缀缓存，无需显式标记。框架对这些模型的优化是**隐式的**——通过工具分层排序、System Prompt 冻结、批量清理等策略保持前缀稳定，自动享受缓存折扣。
+OpenAI / DeepSeek / Gemini 使用自动前缀缓存，无需显式标记。框架对这些模型的优化是**隐式的**——通过工具分层排序、System Prompt 冻结、缓存热时推迟压缩等策略保持前缀稳定，自动享受缓存折扣。
 
 ### 6.3 缓存效果可观测性
 
@@ -1216,8 +1218,8 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
    - 说明：这是正常行为，工具结果无法提前预测
    - 预期：差异通常 <10%，如果 >20% 则可能有问题
 
-3. **压缩触发（批量清理）**
-   - 原因：`CompressProcessor` 批量清理历史消息，减少 block 数量
+3. **压缩触发**
+   - 原因：`CompressProcessor` 把历史工具结果换成紧凑格式，改写了该位置之后的前缀（tokens 减少，block 数不变，见 §4.4）
    - 说明：压缩后会重置部分缓存（符合设计）
    - 验证：检查 `compression_count` 是否递增
 
@@ -1352,7 +1354,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `infra/archive_reference.py` | `ContextArchiveReference` — 对归档工具结果提供稳定 DTO、内容哈希、会话归属、结构索引和模型可读恢复提示 |
 | `infra/cache_policy.py` | `CacheTtlPrunePolicy` — 按模型/供应商解析官方 TTL 校准 profile，并允许业务层注入覆盖；Anthropic / Claude profile 不因缓存看起来冷了而启动剪枝（`cold_cache_prune_enabled=False`） |
 | `tracking/task_metrics.py` | `TaskMetrics` — 记录真实剪枝延期、归档预算延期、归档写入/复用、归档恢复读取成本、净节省和执行层恢复读取预算 |
-| `pipeline/processors/compress_processor.py` | `CompressProcessor` + `BatchCompactState` — 批量清理策略；未到 90% 窗口时缓存热或签名块在途则让位 |
+| `pipeline/processors/compress_processor.py` | `CompressProcessor` — 压缩的触发判定（动态阈值、Anti-Thrashing、让位）与执行；未到 90% 窗口时缓存热或签名块在途则让位 |
 | `pipeline/processors/active_tool_result_prune_processor.py` | `ActiveToolResultPruneProcessor` — 每步主动归档超阈值的已消费工具结果；回合里出现第一个签名块之后，只对该块之前的消息剪枝（`first_signed_index`），续跑同理 |
 | `strategies/compactor/compactor.py` | 可逆压缩实现（紧凑格式 + 外部化到文件，减 tokens 不减 blocks） |
 | `strategies/summary/summarizer/` | 结构化摘要（缓存重置事件，减 tokens 且减 blocks） |

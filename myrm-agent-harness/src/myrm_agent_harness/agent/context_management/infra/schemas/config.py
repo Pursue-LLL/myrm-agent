@@ -11,10 +11,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 # Minimum compression savings threshold (Prompt Cache protection).
 # See CONTEXT_ENGINEERING.md §5.2.
@@ -22,6 +18,7 @@ if TYPE_CHECKING:
 # 3000 tokens balances cache protection without being overly conservative.
 
 COMPRESS_MIN_SAVE_DEFAULT: int = 3000
+
 
 def get_compress_min_save_for_model(model_name: str) -> int:
     """Get compress_min_save value for a given model.
@@ -37,23 +34,21 @@ def get_compress_min_save_for_model(model_name: str) -> int:
     _ = model_name
     return COMPRESS_MIN_SAVE_DEFAULT
 
+
 @dataclass
 class ContextConfig:
     """Context management configuration.
 
     All thresholds scale dynamically from max_context_tokens using pure proportional ratios.
     When compress_start_ratio is None (default), the classic fixed ratios apply:
-    - proactive_reset_threshold = max_context_tokens * 0.4 — early warning
-    - compress_threshold = max_context_tokens * 0.5 — start compression
-    - compress_force_threshold = max_context_tokens * 0.7 — force compression
+    - proactive_reset_threshold = max_context_tokens * 0.4 — summarization starts (early warning)
+    - compress_threshold = max_context_tokens * 0.5 — compression starts
     - summarize_trigger_threshold = max_context_tokens * 0.9 — last resort
 
-    When compress_start_ratio is set (range [0.20, 0.85]), thresholds are derived using
-    proportional gaps to avoid overflow at any valid ratio:
-        gap = (0.95 - compress_start_ratio) / 3
+    When compress_start_ratio is set (range [0.20, 0.85]), thresholds are derived from it
+    so that they stay ascending and below the window at any valid ratio:
         proactive_reset = compress_start_ratio
-        compress = compress_start_ratio + gap
-        compress_force = compress_start_ratio + 2 * gap
+        compress = compress_start_ratio + (0.95 - compress_start_ratio) / 3
         summarize_trigger = 0.95 (hard ceiling)
 
     Note: summarize_trigger_threshold is the hard ceiling; summarization failure raises and aborts.
@@ -73,8 +68,8 @@ class ContextConfig:
     max_context_tokens: int
 
     # Optional user-configurable compression start ratio. When set, overrides the
-    # default fixed ratios with proportional gap scaling. Valid range: [0.20, 0.85].
-    # None means use default ratios (0.4/0.5/0.7/0.9).
+    # default fixed ratios (see class docstring). Valid range: [0.20, 0.85].
+    # None means use default ratios (0.4/0.5/0.9).
     compress_start_ratio: float | None = None
 
     # Layer 1: single tool result truncation threshold (model-independent)
@@ -82,10 +77,6 @@ class ContextConfig:
 
     # Minimum compression savings (Prompt Cache protection, model-independent)
     compress_min_save: int = 3000
-
-    # Batch compression: accumulate rounds before flushing (reduces cache break frequency).
-    # See CONTEXT_ENGINEERING.md §4.2.
-    compress_batch_rounds: int = 5
 
     # Token budget ratio for tail protection (used in L3 Summarization).
     # Defines the percentage of max_context_tokens to preserve verbatim before compressing.
@@ -115,9 +106,8 @@ class ContextConfig:
 
     @property
     def compress_threshold(self) -> int:
-        """Compression trigger: 50% of model window (default), or proportional gap from start ratio.
+        """Compression trigger: 50% of model window (default), or a third of the way from the start ratio to 95%.
 
-        Acts as the "start water level" for batch compression.
         Pure ratio scaling ensures correct behavior for any context window size,
         from 8K edge models to 1M+ large-window models.
         """
@@ -129,31 +119,13 @@ class ContextConfig:
         return int(max_tokens * 0.5)
 
     @property
-    def compress_force_threshold(self) -> int:
-        """Force compression trigger: 70% of model window (default), or proportional gap.
-
-        Safety valve for batch compression:
-        - Within [compress_threshold, compress_force_threshold]: accumulation mode
-        - Above compress_force_threshold: immediate forced compression (ignores round count)
-
-        Prevents context explosion, controls API costs, and balances batch efficiency
-        with safety protection in extreme cases.
-        """
-        max_tokens = self.max_context_tokens if self.max_context_tokens is not None else 150000
-        ratio = self._effective_ratio()
-        if ratio is not None:
-            gap = (0.95 - ratio) / 3.0
-            return int(max_tokens * (ratio + 2 * gap))
-        return int(max_tokens * 0.7)
-
-    @property
     def proactive_reset_threshold(self) -> int:
         """Proactive reset trigger: 40% of model window (default), or compress_start_ratio.
 
-        Implements Proactive Stage Reset & Compaction. Instead of waiting until the 90%
-        error threshold, triggers compression at this healthy watermark to keep the model
-        in its optimal clarity zone — mitigating long-conversation degradation, amnesia,
-        and hallucination while flattening API token cost from O(n^2) to constant.
+        Summarization starts at this watermark instead of waiting for the 90% last-resort
+        threshold, which keeps the model in its optimal clarity zone — mitigating
+        long-conversation degradation, amnesia, and hallucination while flattening API
+        token cost from O(n^2) to constant.
 
         Fires before compress_threshold (50%) as an "early warning" layer.
         """
@@ -176,5 +148,6 @@ class ContextConfig:
         if ratio is not None:
             return int(max_tokens * 0.95)
         return int(max_tokens * 0.9)
+
 
 DEFAULT_CONTEXT_CONFIG = ContextConfig(max_context_tokens=128000)
