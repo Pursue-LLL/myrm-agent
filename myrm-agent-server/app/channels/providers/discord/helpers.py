@@ -1,12 +1,12 @@
 """Helper functions for Discord channel integration.
 
 [INPUT]
-- channels.types.messages::OutboundMessage, (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
-- channels.types.components::ActionButton, (POS: UI component type definitions Cross-channel interactive component abstractions  Support in)
+- channels.types.messages::OutboundMessage, MediaAttachment (POS: core message and media types)
+- channels.types.components::ActionButton, ButtonStyle, SelectMenu (POS: interactive UI component types)
 
 [OUTPUT]
-- build_discord_components: 将 Myrm ComponentConvert为 discord.ui.View
-- build_discord_embed: 将 Myrm 消息ContentConvert为 discord.Embed
+- build_discord_components: converts Myrm components into a discord.ui.View
+- build_discord_embed: converts a Myrm message's content into a discord.Embed
 - DiscordMedia / build_discord_media: split media attachments into uploads, unfurled links and unsendable ones
 - is_forum_channel / derive_thread_name: forum-channel detection and thread titles from message text
 - reply_reference: native reply target (message id plus channel id) for an outbound reply

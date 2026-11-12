@@ -1,14 +1,14 @@
-"""通道功能 Mixin - 可复用 通道能力Component
+"""Channel capability mixins: reusable building blocks for channels.
 
-provides可组合 通道功能Module，如群组Cache、消息队列 etc.。
+Composable channel features shared through mixins; this module holds the group list cache.
 
 [INPUT]
-- channels.types::GroupInfo (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::GroupInfo (POS: group descriptor type)
 - channels.core.events::EventEmitter (POS: Channel event infrastructure. Channels emit events (status changes, group updates), Gateway or other components subscribe. Provides better extensibility and decoupling than traditional callback patterns.)
 
 [OUTPUT]
-- EventEmitterProtocol: EventEmitter Type约束
-- CachedGroupMixin: 群组ListCache Mixin（Support TTL  and 变化检测）
+- EventEmitterProtocol: type constraint for the emitting class
+- CachedGroupMixin: group list cache mixin (TTL expiry and change detection)
 
 [POS]
 Reusable channel capability components via Mixin pattern. Allows different channels
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class EventEmitterProtocol(Protocol):
-    """EventEmitter Type约束 -  for  Mixin TypeSecurity"""
+    """Type constraint for the emitting class, so the mixin stays type-safe."""
 
     _name: str
 
@@ -38,14 +38,14 @@ class EventEmitterProtocol(Protocol):
 
 
 class CachedGroupMixin:
-    """群组ListCache Mixin
+    """Group list cache mixin.
 
-     is 通道provides群组List Cache能力，Support：
-    - TTL Auto失效（Default 5 分钟）
-    - 变化检测（基于 JID 集合比较）
-    -  via  EventEmitter Auto发布 groups_change 事件
+    Gives a channel a group list cache with:
+    - TTL expiry (default 5 minutes)
+    - Change detection (compares the sets of group JIDs)
+    - ``groups_change`` events published through ``EventEmitter``
 
-     using 方式：
+    Usage:
         class MyChannel(BaseChannel, CachedGroupMixin):
             def __init__(self, ...):
                 BaseChannel.__init__(self)

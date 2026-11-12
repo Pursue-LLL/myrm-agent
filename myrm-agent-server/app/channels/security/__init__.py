@@ -4,47 +4,47 @@
 (No external dependencies, pure protocol definitions)
 
 [OUTPUT]
-Protocol：
-- SignatureVerifier: SignatureValidateProtocol
-- IdempotencyStore: 幂 etc.性StorageProtocol
-- MetricsCollector: SecurityMetrics收集Protocol（ using ObjectParameter）
-- FallbackStrategy: degradationStrategyProtocol
-- FallbackMode: degradationMode枚举
+Protocols:
+- SignatureVerifier: signature verification protocol
+- IdempotencyStore: idempotency storage protocol
+- MetricsCollector: security metrics collection protocol (takes metric objects as parameters)
+- FallbackStrategy: degradation strategy protocol
+- FallbackMode: degradation mode enum
 
-Data类（Result）：
-- VerificationResult: SignatureValidateResult（强Type）
-- IdempotencyResult: 幂 etc.性CheckResult（强Type）
+Result data classes:
+- VerificationResult: signature verification result (strongly typed)
+- IdempotencyResult: idempotency check result (strongly typed)
 
-Data类（Metrics）：
-- WebhookMetrics: SuccessRequestMetrics封装
-- WebhookFailure: FailureRequest详情封装
+Metrics data classes:
+- WebhookMetrics: metrics of a successful request
+- WebhookFailure: details of a failed request
 
-Data类（Config）：
-- SecurityLimits: Security限流Configure（7Parameter分组）
-- IpPolicy: IPStrategyConfigure（黑Whitelist+TrustedProxy）
-- SecurityProtocols: SecurityProtocolConfigure（4个ProtocolInstance分组）
+Config data classes:
+- SecurityLimits: security and rate-limit settings (7-parameter group)
+- IpPolicy: IP policy (blacklist, whitelist and trusted proxies)
+- SecurityProtocols: protocol settings (group of 4 protocol instances)
 
-Data类（Context）：
-- FallbackEvent: degradation事件Record
-- WebhookContext: Validate后 Request上下文
+Context data classes:
+- FallbackEvent: degradation event record
+- WebhookContext: request context after validation
 
-Exception：
-- WebhookResponseError: standard化ErrorResponse（RFC 7807/6585/7231，trace_id + retry_after）
-- SecurityViolationError: Security违规Exception
+Exceptions:
+- WebhookResponseError: standardized error response (RFC 7807/6585/7231, trace_id + retry_after)
+- SecurityViolationError: security violation exception
 
- in 间件：
-- WebhookSecurityMiddleware: 统一Security in 间件（ using 3组ConfigureObject）
+Middleware:
+- WebhookSecurityMiddleware: unified security middleware (takes 3 config objects)
 
-ToolFunction：
-- extract_real_ip: ExtractrealClientIP
-- is_ip_blocked: IPBlacklistCheck
-- is_ip_allowed: IPWhitelistCheck
-- validate_host: Host HeaderValidate
+Utility functions:
+- extract_real_ip: extracts the real client IP
+- is_ip_blocked: IP blacklist check
+- is_ip_allowed: IP whitelist check
+- validate_host: Host header validation
 
 [POS]
 Webhook security layer. Defines inbound security protocols (signature verification,
 idempotency, metrics, degradation). Provides out-of-the-box security middleware.
-Business layer injects platform-specific logic via protocols.PI。
+Business layer injects platform-specific logic via protocols.
 """
 
 from .context import FallbackEvent, IdempotencyResult, VerificationResult, WebhookContext
@@ -65,31 +65,31 @@ from .protocols import (
 from .webhook_middleware import WebhookSecurityMiddleware
 
 __all__ = [
-    # Protocol
+    # Protocols
     "SignatureVerifier",
     "IdempotencyStore",
     "MetricsCollector",
     "FallbackStrategy",
     "FallbackMode",
-    # ResultData类
+    # Result data classes
     "VerificationResult",
     "IdempotencyResult",
-    # MetricsData类
+    # Metrics data classes
     "WebhookMetrics",
     "WebhookFailure",
-    # ConfigData类
+    # Config data classes
     "SecurityLimits",
     "IpPolicy",
     "SecurityProtocols",
-    # ContextData类
+    # Context data classes
     "FallbackEvent",
     "WebhookContext",
-    # Exception
+    # Exceptions
     "WebhookResponseError",
     "SecurityViolationError",
-    #  in 间件
+    # Middleware
     "WebhookSecurityMiddleware",
-    # ToolFunction
+    # Utility functions
     "extract_real_ip",
     "is_ip_blocked",
     "is_ip_allowed",

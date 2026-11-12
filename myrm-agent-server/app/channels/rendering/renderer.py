@@ -15,7 +15,7 @@ hands such a message back as it is, so a channel that renders what it is given (
 add the tool summary, sources or header a second time.
 
 [INPUT]
-- channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::OutboundMessage, RenderStyle (POS: core message and render-style types)
 - channels.rendering.splitter::split_message (POS: smart long-message splitting)
 - channels.rendering.text_utils (POS: format downgrade pure functions)
 
@@ -60,7 +60,7 @@ _RENDERED_METADATA_KEY = "rendered"
 
 @dataclass(frozen=True, slots=True)
 class _PreparedContent:
-    """prepare 层output 结构化 in 间产物"""
+    """Structured intermediate output of the prepare layer."""
 
     reasoning_block: str
     header: str
@@ -71,9 +71,9 @@ class _PreparedContent:
 
 
 def render(msg: OutboundMessage, style: RenderStyle) -> list[str]:
-    """OutboundMessage → channel 可Send text块List
+    """OutboundMessage → list of text chunks a channel can send.
 
-    纯Function， no  I/O。Channel provider 只需Call此FunctionGet chunks 并逐个Send。
+    Pure function, no I/O. A channel provider only calls it to get the chunks and sends them one by one.
     A message ``mark_rendered`` produced is already one rendered chunk and is returned unchanged.
     """
     if msg.metadata and msg.metadata.get(_RENDERED_METADATA_KEY):
@@ -92,7 +92,7 @@ def mark_rendered(msg: OutboundMessage, chunk: str) -> OutboundMessage:
 
 
 # ---------------------------------------------------------------------------
-# Layer 1: Prepare — Extract结构化Content（All channel 共享）
+# Layer 1: Prepare — extract structured content (shared by all channels)
 # ---------------------------------------------------------------------------
 
 

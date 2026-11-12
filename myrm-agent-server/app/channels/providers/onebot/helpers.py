@@ -1,11 +1,11 @@
 """Helper functions for OneBot v11 channel integration.
 
 [INPUT]
-- channels.types.messages::OutboundMessage, (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
+- channels.types.messages::OutboundMessage, MediaAttachment, MediaType (POS: core message and media types)
 
 [OUTPUT]
-- parse_onebot_message: Parse OneBot 消息数组为纯text和媒体附件
-- build_onebot_message: 将 OutboundMessage Convert为 OneBot 消息数组
+- parse_onebot_message: parses a OneBot message array into plain text and media attachments
+- build_onebot_message: converts an OutboundMessage into a OneBot message array
 - can_send_media: Whether an attachment can ride in a OneBot message segment
 
 [POS]
