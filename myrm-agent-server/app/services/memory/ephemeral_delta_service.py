@@ -26,6 +26,7 @@ from myrm_agent_harness.toolkits.memory.ephemeral_delta import (
 )
 
 from app.schemas.ephemeral_delta import (
+    DeltaActionDTO,
     EphemeralDeltaItemDTO,
     PreviewDeltaInjectionRequestDTO,
     PreviewDeltaInjectionResponseDTO,
@@ -34,14 +35,14 @@ from app.schemas.ephemeral_delta import (
     SessionDeltaSnapshotDTO,
 )
 
-
-def _action_kind(action: str) -> DeltaActionKind:
-    normalized = (action or "").strip().lower()
-    if normalized == "retract":
-        return DeltaActionKind.RETRACT
-    if normalized in {"add_fact", "add"}:
-        return DeltaActionKind.ADD_FACT
-    return DeltaActionKind.OVERRIDE
+# The HTTP contract names a tombstone `revoke` while the harness store calls it RETRACT; both directions are
+# mapped here so a revoke suppresses its key and the response DTO stays valid for tombstone items.
+_API_ACTION_TO_KIND: dict[DeltaActionDTO, DeltaActionKind] = {
+    "override": DeltaActionKind.OVERRIDE,
+    "add_fact": DeltaActionKind.ADD_FACT,
+    "revoke": DeltaActionKind.RETRACT,
+}
+_KIND_TO_API_ACTION: dict[DeltaActionKind, DeltaActionDTO] = {kind: name for name, kind in _API_ACTION_TO_KIND.items()}
 
 
 def _item_to_dto(session_id: str, item: EphemeralDeltaItem) -> EphemeralDeltaItemDTO:
@@ -50,7 +51,7 @@ def _item_to_dto(session_id: str, item: EphemeralDeltaItem) -> EphemeralDeltaIte
         session_id=session_id,
         target_key=item.target_key,
         content=item.content,
-        action=item.action.value,
+        action=_KIND_TO_API_ACTION[item.action],
         turn_index=item.turn_index,
         source=item.source,
         confidence=item.confidence,
@@ -77,7 +78,7 @@ class EphemeralDeltaService:
             delta_id=f"delta_{uuid4().hex[:10]}",
             target_key=payload.target_key.strip(),
             content=payload.content.strip(),
-            action=_action_kind(payload.action),
+            action=_API_ACTION_TO_KIND[payload.action],
             turn_index=payload.turn_index,
             source=payload.source,
             confidence=payload.confidence,
