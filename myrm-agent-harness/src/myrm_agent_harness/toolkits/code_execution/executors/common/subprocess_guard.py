@@ -7,6 +7,7 @@ etc.) should use ``guarded_communicate`` instead of bare ``communicate``
 to prevent indefinite hangs.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - (stdout_bytes, stderr_bytes) on success

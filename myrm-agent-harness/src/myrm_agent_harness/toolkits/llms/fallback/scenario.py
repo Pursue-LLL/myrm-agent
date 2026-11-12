@@ -3,6 +3,7 @@
 Provides intelligent model selection based on usage scenario.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ScenarioType: Usage scenario type enum

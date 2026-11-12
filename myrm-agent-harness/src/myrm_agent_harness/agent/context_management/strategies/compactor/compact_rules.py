@@ -1,6 +1,7 @@
 """工具压缩规则定义
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - CompactRule: 工具压缩规则数据类

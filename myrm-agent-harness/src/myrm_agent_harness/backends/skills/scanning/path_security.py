@@ -10,7 +10,8 @@
 - CategoryBucketCollisionError, PathRedirectSecurityError
 
 [POS]
-myrm_agent_harness.backends.skills.scanning.path_security
+Install-target safety guard for skill directories: detects symlinks, Windows junctions and category directories that
+already hold sibling skills, and raises before an install, replacement or uninstall could follow or overwrite them.
 """
 
 from __future__ import annotations

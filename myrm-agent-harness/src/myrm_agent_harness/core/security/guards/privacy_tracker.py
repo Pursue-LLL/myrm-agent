@@ -9,6 +9,7 @@ turn via ``reset_turn()``. ``highestLevel`` accumulates across all turns
 for audit purposes.
 
 [INPUT]
+- core.security.types::PrivacyPolicy, SensitivityLevel (POS: Foundation layer of the security type hierarchy.)
 
 [OUTPUT]
 - PrivacyTracker: per-turn + cumulative sensitivity tracking (`record` every detection, `escalate` only a higher level)

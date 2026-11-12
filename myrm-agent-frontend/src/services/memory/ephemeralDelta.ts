@@ -46,12 +46,6 @@ export interface SessionDeltaSnapshotDTO {
   reconciled_at?: string | null;
 }
 
-export interface ReconcileSessionResponseDTO {
-  session_id: string;
-  active_delta_count: number;
-  injection_still_active: boolean;
-}
-
 export interface PromptCacheMetricsDTO {
   system_prompt_frozen: boolean;
   system_prompt_byte_hash?: string | null;

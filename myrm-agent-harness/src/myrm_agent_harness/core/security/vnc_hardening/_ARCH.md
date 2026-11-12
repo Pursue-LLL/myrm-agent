@@ -2,14 +2,14 @@
 
 ## Overview
 
-VNC Loopback Bind and Rfbauth Hardening Suite. src/myrm_agent_harness/core/security/vnc_hardening/__init__.py VNC Loopback Bind and Rfbauth Hardening Suite. Exports domain types, config sanitizer, password manager, and facade. Strict typing applied: No `Any` types allowed.
+VNC hardening suite for the native x11vnc server: launch arguments are rebuilt so the server binds to loopback (`-localhost`) by default, never runs with `-nopw`, and always authenticates through an rfbauth password file; a non-loopback bind needs an explicit opt-in plus a separate strong password. A raw argument list can also be audited without being rebuilt.
 
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | VNC Loopback Bind and Rfbauth Hardening Suite — src/myrm_agent_harness/core/security/vnc_hardening/__init__.py VNC Loopback Bind and Rfbauth Hardening Suite. Exports domain types, config sanitizer, password manager, and facade. Strict typing applied: No `Any` types allowed. | ✅ |
-| config_sanitizer.py | Core | Sanitizer for x11vnc launch arguments enforcing -localhost default, -nopw removal, and rfbauth — src/myrm_agent_harness/core/security/vnc_hardening/config_sanitizer.py [INPUT] typing, types, passwd_manager [OUTPUT] VncLaunchConfigSanitizer Sanitizer for x11vnc launch arguments enforcing -localhost default, -nopw removal, and rfbauth. Strict typing applied: No `Any` types allowed. | ✅ |
-| facade.py | Core | Unified facade for VNC loopback bind enforcement and rfbauth authentication hardening — src/myrm_agent_harness/core/security/vnc_hardening/facade.py [INPUT] time, typing, types, config_sanitizer, passwd_manager [OUTPUT] VncLoopbackBindAndRfbauthHardeningFacade Unified facade for VNC loopback bind enforcement and rfbauth authentication hardening. Strict typing applied: No `Any` types allowed. | ✅ |
-| passwd_manager.py | Core | VNC credential and password manager enforcing rfbauth complexity and file permission sandboxing — src/myrm_agent_harness/core/security/vnc_hardening/passwd_manager.py [INPUT] os, secrets, string, stat, pathlib, typing [OUTPUT] VncSecurityException, VncPasswdManager VNC credential and password manager enforcing rfbauth complexity and file permission sandboxing. Strict typing applied: No `Any` types allowed. | ✅ |
-| types.py | Core | VncLaunchConfig, VncHardenedLaunchSpec, VncHardeningAuditReport — src/myrm_agent_harness/core/security/vnc_hardening/types.py [INPUT] enum, typing, pydantic [OUTPUT] VncBindMode, VncAuthPolicy, VncSecurityViolationType, VncSecurityAuditViolation, VncLaunchConfig, VncHardenedLaunchSpec, VncHardeningAuditReport Core domain types for VNC loopback bind and rfbauth hardening suite. Strict typing applied: No `Any` types allowed. | ✅ |
+| `__init__.py` | Package | Package facade: the single import point for the facade, the sanitizer, the password manager and the domain types. | ✅ |
+| `config_sanitizer.py` | Core | Rebuilds the x11vnc argument list: requires an rfbauth password file, strips `-nopw`, binds to loopback unless a non-loopback opt-in with a strong dedicated password is given, and checks the password file permissions. | ✅ |
+| `facade.py` | Core | Entry point: builds a hardened launch spec, audits a raw argument list for `-nopw`, a missing `-rfbauth` and a missing `-localhost`, and exposes password generation and strength checks. | ✅ |
+| `passwd_manager.py` | Core | Judges password strength (at least 8 characters with a letter and a digit), generates random passwords and tightens the rfbauth file to owner-only 0600. | ✅ |
+| `types.py` | Types | Bind-mode, auth-policy and violation enums plus the launch-config, hardened-spec, violation and report models. | ✅ |

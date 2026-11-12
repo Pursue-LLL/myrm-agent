@@ -1,14 +1,14 @@
 """Discovery gate scoping dynamically discovered MCP tools to specific employees/agents.
 
 [INPUT]
-- types.EmployeeToolScopePolicy, types.McpDiscoveryCheckResult, types.ScopedMcpFilterVerdict
-- types.EmployeeToolScopeViolationError
+- agent.sub_agents.mcp_scope_gate.types::EmployeeToolScopePolicy, EmployeeToolScopeViolationError, McpDiscoveryCheckResult, ScopedMcpFilterVerdict (POS: Contract layer of the MCP scope gate: the per-agent scope policy, the per-tool and batch check results, and the violation error raised on an out-of-scope call.)
 
 [OUTPUT]
 - EmployeeScopedMcpDiscoveryGate
 
 [POS]
-myrm_agent_harness/agent/sub_agents/mcp_scope_gate/scope_gate.py
+Fail-closed enforcement point of the MCP scope gate: a thread-safe in-memory registry of per-agent scope policies that
+filters dynamically discovered MCP tools and verifies each invocation against the agent's allowed servers and tool allowlists.
 """
 
 from __future__ import annotations
@@ -134,9 +134,7 @@ class EmployeeScopedMcpDiscoveryGate:
             blocked_tools=blocked_results,
         )
 
-    def verify_tool_invocation(
-        self, agent_id: str, server_name: str, tool_name: str
-    ) -> McpDiscoveryCheckResult:
+    def verify_tool_invocation(self, agent_id: str, server_name: str, tool_name: str) -> McpDiscoveryCheckResult:
         """Verify whether an agent is authorized to invoke a target MCP tool."""
         verdict = self.filter_discovered_tools(agent_id, [(server_name, tool_name, "")])
         if verdict.allowed_count == 0 and len(verdict.blocked_tools) > 0:

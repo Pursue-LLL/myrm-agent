@@ -1,6 +1,7 @@
 """Per-session L4 fetch attempt counter (session cap enforcement).
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - SessionEscalationCounter: Thread-safe counter keyed by agent session id.

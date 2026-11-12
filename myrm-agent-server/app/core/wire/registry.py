@@ -1,12 +1,16 @@
 """Global model → wire protocol routing (business layer SSOT).
 
-[POS]
-app.core.wire.registry
-
 [INPUT]
-- model (str)
-- base_url (optional str)
-- provider_id (optional str)
+- myrm_agent_harness.core.config.wire::DEFAULT_WIRE_PROTOCOL, WireProtocol (POS: Framework-level SSOT for wire protocol identifiers. The harness selects completion vs responses vs anthropic messages at the HTTP boundary; vendor-specific routing lives in the business server layer.)
+
+[OUTPUT]
+- WireRouteRule, WireEndpointContext: a model-pattern routing rule and the resolve-time endpoint identity
+- normalize_model_name_for_wire, resolve_wire_protocol: model-name normalization and the wire protocol decision
+
+[POS]
+Routing table of the wire layer: on OpenCode-scoped endpoints (the OpenCode Go provider id, opencode.ai hosts or the local
+relay) it maps model-name patterns (gpt, grok and muse-spark to `responses`; minimax and qwen to `anthropic_messages`) to a
+wire protocol, and every other endpoint keeps the default wire protocol.
 """
 
 from __future__ import annotations

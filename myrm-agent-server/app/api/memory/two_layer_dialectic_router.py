@@ -1,15 +1,16 @@
-"""FastAPI router for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation (Item 112).
-
-[POS]
-app/api/memory/two_layer_dialectic_router.py
+"""REST endpoints of two-layer context injection and multi-pass dialectic reconciliation.
 
 [INPUT]
-- app.schemas.two_layer_dialectic, app.services.memory.two_layer_dialectic_service
+- app.schemas.two_layer_dialectic::AssembleInjectionRequest, BaseContextPayloadDTO, DialecticConflictCandidateDTO, DialecticInspectRequest, DialecticReconcileRequest, DialecticReconciliationResultDTO, TwoLayerContextInjectionResultDTO (POS: API contracts of two-layer context injection and dialectic reconciliation, shared by its router and service.)
+- app.services.memory.two_layer_dialectic_service::TwoLayerDialecticService, get_two_layer_dialectic_service (POS: Service behind the two-layer dialectic API: hands requests to the harness injector and multi-pass reconciler, keeps one injector (and so one per-session base-context cache and cadence state) for the process, and converts the harness results to DTOs.)
 
 [OUTPUT]
-- router (FastAPI APIRouter for Two-Layer Dialectic Suite)
-"""
+- router: POST /two-layer-dialectic/inspect, /reconcile and /assemble, GET /two-layer-dialectic/cache/{session_id} and POST /two-layer-dialectic/reset/{session_id}
 
+[POS]
+HTTP layer of the two-layer dialectic API: inspects statements for conflicts, reconciles them, assembles the two context layers and
+reads or resets a session's cached base context and cadence counters.
+"""
 
 from __future__ import annotations
 

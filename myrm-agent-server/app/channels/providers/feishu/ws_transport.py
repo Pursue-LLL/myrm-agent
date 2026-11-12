@@ -28,6 +28,7 @@ binding semantics. See ``tests/unit/test_feishu_event_loop_isolation.py``
 for validation tests.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - FeishuWSTransport: async-safe WebSocket transport manager

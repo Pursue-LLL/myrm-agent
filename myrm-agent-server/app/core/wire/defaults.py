@@ -1,12 +1,14 @@
 """Default model kwargs for wire-specific model families.
 
-[POS]
-app.core.wire.defaults
-
 [INPUT]
-- model (str)
-- model_kwargs (dict)
-- wire_protocol (str)
+- none (imports no other project module)
+
+[OUTPUT]
+- apply_wire_defaults: merges wire-aware defaults into model_kwargs without overwriting explicit user values
+
+[POS]
+Defaults layer of the wire routing: adds the request defaults that the `responses` wire needs for muse-spark models and the
+gateway headers and provider hint for Vercel AI Gateway endpoints, while explicit user values always win.
 """
 
 from __future__ import annotations

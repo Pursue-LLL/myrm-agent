@@ -1,6 +1,7 @@
 """Feature Flags type definitions.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - FeatureStage: 5-level lifecycle enum

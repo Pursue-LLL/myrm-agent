@@ -1,6 +1,15 @@
-"""[INPUT] Pydantic models for skill solidification and external preview contracts.
-[OUTPUT] Strong-typed schemas for parameter minimization, 4-in-1 asset bundling, and clean preview.
-[POS] app/services/skills/solidify/solidify_types.py.
+"""Pydantic models of skill solidification and clean previews.
+
+[INPUT]
+- none (imports no other project module)
+
+[OUTPUT]
+- ParameterExtractionRule, SolidifySkillRequest, SkillAssetBundle, SolidifySkillResponse: parameter slot, solidify request, rendered bundle and solidify result
+- ExternalPreviewCreateRequest, ExternalPreviewMetadata: clean-preview request and metadata
+
+[POS]
+Contract layer of skill solidification: the parameter, request, bundle and response models plus the clean-preview request and
+metadata models shared by the service and the API router.
 """
 
 from datetime import datetime, timezone

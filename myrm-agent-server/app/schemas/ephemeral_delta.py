@@ -1,13 +1,15 @@
-"""DTOs for prompt cache preserving ephemeral delta memory suite.
-
-[POS]
-app/schemas/ephemeral_delta.py
+"""DTOs of the ephemeral delta memory API.
 
 [INPUT]
-- pydantic BaseModel, Field, ConfigDict, typing literals
+- none (imports no other project module)
 
 [OUTPUT]
-- DTOs for prompt cache preserving ephemeral delta memory suite
+- DeltaActionDTO, DeltaSourceDTO: the action (`override`, `add_fact`, `revoke`) and source (`user_explicit`, `agent_inferred`) vocabularies
+- EphemeralDeltaItemDTO, RecordDeltaRequestDTO, SessionDeltaSnapshotDTO: delta item, record request and session snapshot
+- PromptCacheMetricsDTO, PreviewDeltaInjectionRequestDTO, PreviewDeltaInjectionResponseDTO: layout metrics and injection preview request and response
+
+[POS]
+Wire contracts of the ephemeral delta API shared by its router and service; `revoke` is the API name of a tombstone delta.
 """
 
 from __future__ import annotations
@@ -63,16 +65,6 @@ class SessionDeltaSnapshotDTO(BaseModel):
     reconciled_at: datetime | None = None
 
 
-class ReconcileSessionResponseDTO(BaseModel):
-    """Read-only session delta status (durable memory writes use the memory store on agent turns)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    session_id: str
-    active_delta_count: int = Field(ge=0)
-    injection_still_active: bool = True
-
-
 class PromptCacheMetricsDTO(BaseModel):
     """Layout diagnostics for ephemeral deltas (provider cache hits use chat health / trace SSOT)."""
 
@@ -112,9 +104,3 @@ class PreviewDeltaInjectionResponseDTO(BaseModel):
     tail_tag_snippet: str
     active_deltas: list[EphemeralDeltaItemDTO] = Field(default_factory=list)
     metrics: PromptCacheMetricsDTO
-
-
-# Backwards compatibility and alternative naming aliases
-RecordEphemeralDeltaRequest = RecordDeltaRequestDTO
-EphemeralDeltaBufferSnapshotDTO = SessionDeltaSnapshotDTO
-ReconcileSessionResponse = ReconcileSessionResponseDTO

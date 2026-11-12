@@ -1,9 +1,16 @@
-"""
-[POS] src/myrm_agent_harness/core/security/vnc_hardening/config_sanitizer.py
-[INPUT] typing, types, passwd_manager
-[OUTPUT] VncLaunchConfigSanitizer
-Sanitizer for x11vnc launch arguments enforcing -localhost default, -nopw removal, and rfbauth.
-Strict typing applied: No `Any` types allowed.
+"""Sanitizer for x11vnc launch arguments enforcing -localhost default, -nopw removal, and rfbauth.
+
+[INPUT]
+- core.security.vnc_hardening.passwd_manager::VncPasswdManager, VncSecurityError (POS: Credential leg of the VNC hardening suite: judges password strength (at least 8 characters with a letter and a digit), generates random passwords, and tightens the rfbauth password file to owner-only 0600.)
+- core.security.vnc_hardening.types::VncBindMode, VncHardenedLaunchSpec, VncLaunchConfig, VncSecurityAuditViolation, VncSecurityViolationType (POS: Contract layer of the VNC hardening suite: the bind-mode, auth-policy and violation enums plus the launch-config, hardened-spec, violation and report models shared by the sanitizer and the facade.)
+
+[OUTPUT]
+- VncLaunchConfigSanitizer: turns a VncLaunchConfig into a hardened VncHardenedLaunchSpec, remediating violations or raising VncSecurityError
+
+[POS]
+Launch-command leg of the VNC hardening suite: requires an rfbauth password file, strips -nopw, binds to loopback unless a
+non-loopback opt-in with a strong dedicated password is given, checks the password file permissions and builds the x11vnc
+argument list.
 """
 
 from __future__ import annotations

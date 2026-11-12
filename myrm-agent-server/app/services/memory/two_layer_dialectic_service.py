@@ -1,15 +1,17 @@
-"""Business service implementing Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation (Item 112).
-
-[POS]
-app/services/memory/two_layer_dialectic_service.py
+"""Domain service of the two-layer dialectic API.
 
 [INPUT]
-- app.schemas.two_layer_dialectic, myrm_agent_harness.toolkits.memory
+- myrm_agent_harness.toolkits.memory::BaseContextPayload, DialecticConflictCandidate, DialecticReconciliationConfig, DialecticReconciliationResult, MultiPassDialecticReconciler, TwoLayerContextInjectionResult, TwoLayerContextInjector (POS: Re-exports the two-layer dialectic suite: the context injector and the multi-pass reconciler with their payload, config and result models.)
+- app.schemas.two_layer_dialectic::AssembleInjectionRequest, BaseContextPayloadDTO, DialecticConflictCandidateDTO, DialecticReconciliationResultDTO, TwoLayerContextInjectionResultDTO (POS: API contracts of two-layer context injection and dialectic reconciliation, shared by its router and service.)
 
 [OUTPUT]
-- TwoLayerDialecticService, get_two_layer_dialectic_service
-"""
+- TwoLayerDialecticService: inspects conflicts, reconciles statements, assembles the two context layers, reads the cached base context and resets a session's cadence
+- get_two_layer_dialectic_service: cached single-instance accessor used as the router dependency
 
+[POS]
+Service behind the two-layer dialectic API: hands requests to the harness injector and multi-pass reconciler, keeps one
+injector (and so one per-session base-context cache and cadence state) for the process, and converts the harness results to DTOs.
+"""
 
 from __future__ import annotations
 
@@ -90,27 +92,21 @@ class TwoLayerDialecticService:
     def injector(self) -> TwoLayerContextInjector:
         return self._injector
 
-    def inspect_conflicts(
-        self, statements: list[str], cutoff: float = 0.65
-    ) -> list[DialecticConflictCandidateDTO]:
+    def inspect_conflicts(self, statements: list[str], cutoff: float = 0.65) -> list[DialecticConflictCandidateDTO]:
         """Scan candidate statements for mutual exclusivity."""
         cfg = DialecticReconciliationConfig(conflict_similarity_cutoff=cutoff)
         reconciler = MultiPassDialecticReconciler(cfg)
         conflicts = reconciler.inspect_conflicts(statements)
         return [_candidate_to_dto(c) for c in conflicts]
 
-    def reconcile_conflicts(
-        self, statements: list[str], depth: int = 3
-    ) -> list[DialecticReconciliationResultDTO]:
+    def reconcile_conflicts(self, statements: list[str], depth: int = 3) -> list[DialecticReconciliationResultDTO]:
         """Execute multi-pass dialectic resolution over statements."""
         cfg = DialecticReconciliationConfig(dialectic_depth=depth)
         reconciler = MultiPassDialecticReconciler(cfg)
         results = reconciler.reconcile_all(statements, depth=depth)
         return [_result_to_dto(r) for r in results]
 
-    def assemble_injection(
-        self, request: AssembleInjectionRequest
-    ) -> TwoLayerContextInjectionResultDTO:
+    def assemble_injection(self, request: AssembleInjectionRequest) -> TwoLayerContextInjectionResultDTO:
         """Compose dual-layer context blocks under cadence controls."""
         if (
             self._injector.config.context_cadence != request.context_cadence

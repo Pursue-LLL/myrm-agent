@@ -25,7 +25,7 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `llms_<start>
 | transport/ | Typed protocol wires over `httpx` for every provider (OpenAI chat/Responses, Anthropic Messages, Gemini, Ollama, AWS Bedrock Converse), embeddings, rerank and image calls. See [transport/_ARCH.md](transport/_ARCH.md). |
 | catalog/ | Model facts (context windows, output ceilings, prices, capability flags): bundled snapshot plus runtime registrations. See [catalog/_ARCH.md](catalog/_ARCH.md). |
 | consensus/ | Multi-model consensus (MoA) inference — parallel reference queries + aggregator synthesis (arXiv:2406.04692). |
-| _media_shared/ | Shared across video/ and image/ modules. Keeps media-specific logic |
+| _media_shared/ | Provider mode-capability types and the normalization engine that video generation uses to fit requested parameters to the values a provider supports. |
 | adapters/ | LLM layer: LangChain , messageconverts, handles, toolcallsparse, Schema normalize; **wire/** Responses API transport; `image_payload_evictor.py` framework-neutral 400/413 image eviction |
 | core/ | LLM core: LLM classes, strategy-aware manager, and credential pool. |
 | errors/ | LLM error processing layer: three-tier error classification, fault-tolerant calls, and standardized  |
@@ -44,5 +44,5 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `llms_<start>
 | Layer | Location | Role |
 |-------|----------|------|
 | **Generation** | `image/`, `video/`, `tts/` | LLM engines for image, video, and audio creation (LangChain adapters in server `media_tools/`) |
-| **Shared media** | `_media_shared/` | SSRF-safe fetch, normalization — shared by generation modules |
+| **Shared media** | `_media_shared/` | Mode-capability types and parameter normalization used by `video/` |
 | **Understanding** | `vision/` | Text-mode fallback when the primary model lacks vision; consumed by `file_read_tool`, server chat utils |

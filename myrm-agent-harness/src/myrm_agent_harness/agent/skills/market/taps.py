@@ -13,7 +13,8 @@ from personal or enterprise private/public GitHub repositories.
 - GitHubTapSource: Market source aggregating registered Taps.
 
 [POS]
-myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/taps.py
+Skill-market source for user-registered GitHub repositories (taps): holds the in-memory subscriptions, scans each
+repository's Git tree for SKILL.md and skill.yaml entries behind a five-minute cache, and answers market searches from them.
 """
 
 from __future__ import annotations

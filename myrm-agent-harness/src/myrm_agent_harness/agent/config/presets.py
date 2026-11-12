@@ -3,6 +3,7 @@
 提供内置的配置预设（development, production, saas），帮助用户快速启动 Agent。
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ConfigPreset: 配置预设数据类

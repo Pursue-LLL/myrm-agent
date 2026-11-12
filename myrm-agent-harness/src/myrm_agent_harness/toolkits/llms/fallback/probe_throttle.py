@@ -3,6 +3,7 @@
 Prevents multiple concurrent requests from probing the same model simultaneously.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - GlobalProbeThrottle: Global probe throttler

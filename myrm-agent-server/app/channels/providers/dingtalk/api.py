@@ -5,6 +5,9 @@ remote resources, and managing AI Cards (streaming) via DingTalk's OpenAPI.
 Handles access_token lifecycle with asyncio.Lock for concurrency protection.
 
 [INPUT]
+- app.channels.core.exceptions::ChannelAuthError, ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
+- app.channels.providers.dingtalk.helpers::normalize_file_type (POS: Pure helper functions for the DingTalk channel.)
+- app.channels.media::MAX_FORWARD_DOWNLOAD_BYTES, MediaDownloadConfig, MediaDownloader (POS: Media download system with streaming, validation, retry and cache.)
 
 [OUTPUT]
 - DingTalkApiClient: async API client for DingTalk OpenAPI

@@ -1,6 +1,7 @@
 """Goal engine core types.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - GoalStatus: Enum for goal lifecycle states.

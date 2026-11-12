@@ -1,6 +1,7 @@
 """Bash命令分类器 - 用于审计日志分类
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - CommandClassifier: 命令分类器类

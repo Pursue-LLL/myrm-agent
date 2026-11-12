@@ -1,7 +1,6 @@
-"""Unit tests for Transparent Inspectable Model Private Notebook Suite.
+"""Unit tests for the transparent, inspectable model private notebook suite.
 
-Reference: OpenAI Codex rust-v0.153.0 / PR #42385 (features.context_management).
-Tests Notes 5 tools, History 4 tools, LocalInspectableNoteStorage, and ModelPrivateNotebookManager.
+Covers the 5 notes tools, the 4 history tools, LocalInspectableNoteStorage and ModelPrivateNotebookManager.
 """
 
 import tempfile

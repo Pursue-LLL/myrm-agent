@@ -3,6 +3,7 @@
 1. 本文件的 INPUT/OUTPUT/POS 注释
 
 [INPUT]
+- agent.meta_tools.file_ops.core.file_edit_normalizer::merge_edits_for_diff, normalize_edits_payload (POS: LLM input normalizer for file_edit_tool.)
 
 [OUTPUT]
 - StepBuildResult: 步骤构建结果类型（TypedDict）

@@ -8,7 +8,8 @@
 - EmployeeToolScopeViolationError
 
 [POS]
-myrm_agent_harness/agent/sub_agents/mcp_scope_gate/types.py
+Contract layer of the MCP scope gate: the per-agent scope policy, the per-tool and batch check results, and the violation
+error raised on an out-of-scope call.
 """
 
 from __future__ import annotations
@@ -39,9 +40,7 @@ class EmployeeToolScopePolicy:
     # Mapping of server_name -> list of explicitly permitted tool names. If empty list, all tools of that server are allowed.
     tool_allowlist_map: dict[str, list[str]] = field(default_factory=dict)
     strict_mode: bool = True
-    updated_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat()
-    )
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 @dataclass(slots=True)

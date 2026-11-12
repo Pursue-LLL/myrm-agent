@@ -1,6 +1,14 @@
-"""[POS]: app/schemas/private_notebook.py
-[INPUT]: Pydantic BaseModel, Field, datetime, and typing primitives.
-[OUTPUT]: Request and response DTOs for model private notes, history recall, and context handover.
+"""DTOs of the model private notebook API.
+
+[INPUT]
+- none (imports no other project module)
+
+[OUTPUT]
+- NoteMetadataDTO, NoteEntryDTO, AppendNoteRequestDTO, RewriteNoteRequestDTO, NoteSearchResultDTO: note listing entry, full note, append and rewrite requests and search hit
+- HistoryContextItemDTO, HistoryEntryItemDTO, NewContextRequestDTO, NewContextResponseDTO: archived context summary, history entry, and the context rotation request and response
+
+[POS]
+Wire contracts of the private notebook API shared by its router and service.
 """
 
 from __future__ import annotations

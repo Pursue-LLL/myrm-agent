@@ -2,20 +2,20 @@
 
 ## 架构概述
 
-自托管机群管理与远程实时接管 HTTP 接口层。提供机群列表查询、平台专属一键安装注册命令生成，以及人机同屏接管（Seize Takeover / Release to Agent）状态机流转控制端点。
+机群 HTTP 接口层：列出注册表里的机器、返回单台机器、生成接入命令，以及开始、交还和查询某台机器的接管会话。数据来自 `services/machines` 的进程内注册表，该注册表启动时只有两台示例节点；接口不连接真实机器，也不传输屏幕画面。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `router.py` | 路由 | 机群查询、注册 Token 与接管控制端点 | ✅ |
+| `router.py` | 路由 | 机群查询、接入命令与接管控制端点 | ✅ |
 | `__init__.py` | 入口 | 导出 `router` 门面供主 API 挂载 | ✅ |
 
 ## 端点设计
 
-- `GET /api/v1/machines`：机群列表与多维实时指标（CPU/内存/磁盘/活跃任务）
-- `GET /api/v1/machines/{id}`：单机节点详情
-- `POST /api/v1/machines/token`：生成一键接入 Shell/PowerShell 命令
-- `POST /api/v1/machines/{id}/takeover`：抢占接管远端屏幕
-- `POST /api/v1/machines/{id}/release`：交还控制权给自主 Agent
-- `GET /api/v1/machines/{id}/takeover`：获取当前接管会话状态
+- `GET /api/v1/machines`：注册表中的机器列表，每台机器带一份指标快照（CPU/内存/磁盘/活跃任务）
+- `GET /api/v1/machines/{id}`：单机节点详情，机器不存在返回 404
+- `POST /api/v1/machines/token`：按 `platform` 查询参数（默认 `darwin`）生成 Shell 或 PowerShell 接入命令，返回 201
+- `POST /api/v1/machines/{id}/takeover`：把该机器及其接管会话切到人工接管，机器不存在返回 404
+- `POST /api/v1/machines/{id}/release`：交还给自主 Agent，机器不存在返回 404
+- `GET /api/v1/machines/{id}/takeover`：返回当前接管会话，没有会话时返回 `null`

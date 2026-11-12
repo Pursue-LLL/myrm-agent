@@ -5,6 +5,7 @@ a full FeishuChannel instance. Used by both the channel system and external
 integrations (e.g. control planes).
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - verify_webhook_signature() → bool: Verify Webhook signature

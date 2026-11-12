@@ -1,6 +1,16 @@
-"""[INPUT] SolidifySkillRequest and ExternalPreviewCreateRequest schemas.
-[OUTPUT] SkillSolidifyService orchestrating parameter minimization, 4-in-1 asset bundle creation, and clean browser preview.
-[POS] app/services/skills/solidify/skill_solidify_service.py.
+"""Skill solidification service: parameter extraction, bundle rendering and clean previews.
+
+[INPUT]
+- app.core.skills.utils::yaml_scalar (POS: Shared skill helpers: name normalization, approved-write directory names, description fallback and the single implementation of frontmatter scalar escaping.)
+- app.services.skills.solidify.solidify_types::ExternalPreviewCreateRequest, ExternalPreviewMetadata, ParameterExtractionRule, SkillAssetBundle, SolidifySkillRequest, SolidifySkillResponse (POS: Contract layer of skill solidification: the parameter, request, bundle and response models plus the clean-preview request and metadata models shared by the service and the API router.)
+
+[OUTPUT]
+- SkillSolidifyService: singleton that extracts parameter slots, renders the four-file skill bundle, and registers and serves clean previews
+
+[POS]
+Process-local engine of skill solidification: finds the dynamic parameter slots of a deliverable, renders the four-file bundle
+(SKILL.md, assets/example.html, assets/template.html, references/design_guidelines.md) and keeps bundles and preview pages in
+in-memory registries; nothing is written to the skill library.
 """
 
 import re

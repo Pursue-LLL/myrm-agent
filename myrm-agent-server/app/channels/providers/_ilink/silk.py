@@ -4,6 +4,7 @@ WeChat uses SILK v3 encoding for voice messages. This module converts
 SILK → WAV for STT processing (Whisper/Groq/Deepgram).
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - silk_to_wav: Convert WeChat SILK file to WAV format (requires optional `pilk` / extra `wechat-silk`)

@@ -1,6 +1,7 @@
 """Feature registry — global singleton for feature spec registration and lookup.
 
 [INPUT]
+- core.features.types::FeatureSpec, FeatureStage (POS: Foundation layer.)
 
 [OUTPUT]
 - Thread-safe global registry for querying feature specifications

@@ -11,10 +11,10 @@
 - (none)
 
 [OUTPUT]
-- (none)
+- CONTENT_DESCRIPTION_PROMPT, HTML_DESCRIPTION_PROMPT, MARKDOWN_DESCRIPTION_PROMPT, PLAIN_TEXT_DESCRIPTION_PROMPT: 按内容类型区分的摘要提示词模板
 
 [POS]
-Prompts.
+语义过滤器的提示词层：集中存放通用、HTML、Markdown、纯文本四类内容的摘要提示词模板，由 semantic_filter 按内容类型选用。
 """
 
 # 内容描述 Prompt（强调可恢复性）

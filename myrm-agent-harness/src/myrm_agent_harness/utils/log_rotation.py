@@ -9,6 +9,7 @@ Provides Protocol-based abstraction and file-based implementation for automatic 
 - Atomic rename for reliability
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - LogRotatorProtocol: abstract interface for custom implementations

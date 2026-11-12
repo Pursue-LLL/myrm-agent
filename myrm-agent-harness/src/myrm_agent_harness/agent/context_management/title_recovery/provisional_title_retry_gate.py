@@ -10,12 +10,12 @@
   provisional retry delay, and capped deterministic fallback.
 
 [POS]
-- Sub-package: myrm_agent_harness.agent.context_management.title_recovery
-- Module: provisional_title_retry_gate.py
+- Stateful per-session gate of the title-recovery sub-package: accepts the first clean title, keeps a provisional title
+  while a later turn may regenerate it, and finalizes a deterministic fallback title once the configured number of invalid
+  candidates is reached.
 """
 
 import re
-from typing import Dict, Optional, Tuple
 
 from myrm_agent_harness.agent.context_management.title_recovery.invalid_title_taxonomy import (
     InvalidTitleTaxonomy,
@@ -34,7 +34,7 @@ class ProvisionalTitleRetryGate:
     def __init__(self, config: TitleRecoveryConfig) -> None:
         self._config = config
         self._taxonomy = InvalidTitleTaxonomy(config)
-        self._session_states: Dict[str, TitleRecoveryState] = {}
+        self._session_states: dict[str, TitleRecoveryState] = {}
 
     @property
     def config(self) -> TitleRecoveryConfig:
@@ -46,7 +46,7 @@ class ProvisionalTitleRetryGate:
         session_id: str,
         raw_candidate: str,
         fallback_content: str,
-    ) -> Tuple[TitleRecoveryVerdict, str, TitleValidationResult]:
+    ) -> tuple[TitleRecoveryVerdict, str, TitleValidationResult]:
         """Evaluates a raw LLM title candidate and determines whether to accept, retry, or fallback.
 
         Args:
@@ -102,7 +102,7 @@ class ProvisionalTitleRetryGate:
 
         return title + ("..." if len(cleaned) > preview_len else "")
 
-    def get_state(self, session_id: str) -> Optional[TitleRecoveryState]:
+    def get_state(self, session_id: str) -> TitleRecoveryState | None:
         """Returns the tracked recovery state for a session, if any."""
         return self._session_states.get(session_id)
 

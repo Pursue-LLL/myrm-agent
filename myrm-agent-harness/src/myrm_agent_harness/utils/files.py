@@ -1,6 +1,7 @@
 """File processing utility functions.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - extract_file_id_from_url: str | None (extracted file ID)

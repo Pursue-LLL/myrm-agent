@@ -1,16 +1,16 @@
 # _media_shared/
 
 ## Overview
-Shared across video/ and image/ modules. Keeps media-specific logic
+Provider mode-capability types and the normalization engine that video generation uses to fit requested parameters to the values a provider supports.
 
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | Shared across video/ and image/ modules. Keeps media-specific logic | — |
-| normalization.py | Core | Used by video/generator.py and future image/generator.py to normalize | ✅ |
-| types.py | Config | These types are imported by video/models.py and normalization.py. | — |
+| __init__.py | Package | Provider mode-capability types and the normalization engine that video generation uses to fit requested parameters to the values a provider supports. | — |
+| normalization.py | Core | Snaps a requested aspect ratio, size and duration to the closest values a provider mode declares as supported and reports each adjustment as a NormalizationRecord; video/generator.py applies it for providers that declare mode capabilities. | ✅ |
+| types.py | Config | Defines the contract between provider capability declarations and the normalization engine. | — |
 
 ## Key Dependencies
 
-- Standard library only.
+- Standard library and this package only.

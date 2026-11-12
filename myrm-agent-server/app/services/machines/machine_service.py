@@ -1,6 +1,15 @@
-"""[INPUT] MachineNode, MachineMetrics, and TakeoverSession models.
-[OUTPUT] MachineService managing self-hosted machine fleet and live takeover states.
-[POS] app/services/machines/machine_service.py.
+"""In-memory machine registry and takeover session state.
+
+[INPUT]
+- app.services.machines.machine_types::MachineMetrics, MachineNode, MachinePlatform, MachineStatus, RegistrationTokenResponse, TakeoverSession, TakeoverState (POS: Contract layer of the machines service: the platform, node-status and takeover-state enums plus the telemetry, node, registration-command and takeover-session models shared by the service and the API router.)
+
+[OUTPUT]
+- MachineService: singleton registry with machine listing and lookup, registration command generation, and takeover start, release and read
+
+[POS]
+Process-local machine registry behind the machines API: starts with two sample nodes whose metrics are fixed values (nothing
+collects telemetry), builds the registration command around a fresh token that it neither stores nor verifies, and switches a
+node and its takeover session between agent and human control in memory only.
 """
 
 import uuid

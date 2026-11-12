@@ -1,6 +1,14 @@
-"""[POS]: src/myrm_agent_harness/toolkits/memory/private_notebook/tools.py
-[INPUT]: Tool invocation arguments for history inspection, note taking, and context switching.
-[OUTPUT]: PrivateNotebookToolKit providing the 10 autonomous tools (History 4, Notes 5, NewContext 1).
+"""Model-facing tool methods for private notes, history recall and context handover.
+
+[INPUT]
+- toolkits.memory.private_notebook.manager::ModelPrivateNotebookManager (POS: Orchestrator of the private notebook: owns the notes storage under `<workspace>/.myrm/agent_notes`, the history index and the active context id, rotates to a fresh context while writing a handover note, and offers a bounded fallback summary of recent turns.)
+
+[OUTPUT]
+- PrivateNotebookToolKit: the 10 tools (History 4, Notes 5, NewContext 1)
+
+[POS]
+Tool surface of the private notebook: packages the 10 model-facing tools (4 history, 5 notes, 1 context rotation) as methods
+of one toolkit bound to a manager.
 """
 
 from __future__ import annotations

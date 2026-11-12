@@ -1,6 +1,7 @@
 """Session Notes 数据结构
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - NoteSection: 笔记 section 数据类

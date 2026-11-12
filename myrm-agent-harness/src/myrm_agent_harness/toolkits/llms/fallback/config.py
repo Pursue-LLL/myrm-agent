@@ -1,6 +1,7 @@
 """Probe and cooldown configuration for model fallback.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ProbeConfig: Probe and cooldown configuration dataclass

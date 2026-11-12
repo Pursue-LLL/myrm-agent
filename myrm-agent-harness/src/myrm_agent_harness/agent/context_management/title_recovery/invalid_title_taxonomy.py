@@ -7,12 +7,12 @@
 - InvalidTitleTaxonomy: Classifies and cleanses raw LLM generated titles.
 
 [POS]
-- Sub-package: myrm_agent_harness.agent.context_management.title_recovery
-- Module: invalid_title_taxonomy.py
+- Structural validator of the title-recovery sub-package: flags model-emitted titles that carry chain-of-thought tags,
+  option menus, code fences, first-person prose, an out-of-range length or only punctuation, and returns the cleansed title
+  when none of these applies.
 """
 
 import re
-from typing import List, Tuple
 
 from myrm_agent_harness.agent.context_management.title_recovery.title_recovery_types import (
     InvalidTitleReason,
@@ -39,7 +39,10 @@ class InvalidTitleTaxonomy:
     )
 
     _PROSE_PATTERNS = (
-        re.compile(r"^(?:Here is a title|Sure, here's a title|Certainly! Here's|Sure!|Certainly!|Okay, here is)[:：\s]*", re.IGNORECASE),
+        re.compile(
+            r"^(?:Here is a title|Sure, here's a title|Certainly! Here's|Sure!|Certainly!|Okay, here is)[:：\s]*",
+            re.IGNORECASE,
+        ),
         re.compile(r"^(?:I suggest|I would suggest|How about|My suggestion is)[:：\s]*", re.IGNORECASE),
         re.compile(r"^(?:我建议的标题|生成的标题如下|为你生成的标题)[:：\s]*", re.IGNORECASE),
     )
@@ -64,7 +67,7 @@ class InvalidTitleTaxonomy:
                 diagnostic_details="Candidate title is empty or pure whitespace",
             )
 
-        reasons: List[InvalidTitleReason] = []
+        reasons: list[InvalidTitleReason] = []
         text = raw_title.strip()
 
         # 1. CoT / Thinking tag leak
@@ -107,9 +110,9 @@ class InvalidTitleTaxonomy:
             cleaned,
             re.IGNORECASE,
         )
-        if residual_prose_match:
-            reasons.append(InvalidTitleReason.FIRST_PERSON_PROSE)
-        elif len(cleaned) < self._config.min_length and any(p.search(text) for p in self._PROSE_PATTERNS):
+        if residual_prose_match or (
+            len(cleaned) < self._config.min_length and any(p.search(text) for p in self._PROSE_PATTERNS)
+        ):
             reasons.append(InvalidTitleReason.FIRST_PERSON_PROSE)
 
         # 5. Length checks on cleaned candidate
@@ -123,9 +126,7 @@ class InvalidTitleTaxonomy:
         is_valid = len(reasons) == 0 and len(cleaned) >= self._config.min_length
 
         diagnostics = (
-            "Title is valid and clean"
-            if is_valid
-            else f"Rejected due to: {', '.join(r.value for r in reasons)}"
+            "Title is valid and clean" if is_valid else f"Rejected due to: {', '.join(r.value for r in reasons)}"
         )
 
         return TitleValidationResult(

@@ -29,4 +29,7 @@
 | `reindex_run.py` | 核心 | 更换嵌入模型后的孤儿记忆迁移后台运行：进程内单飞（进行中再次触发直接加入同一轮，检查与占位之间没有 `await`，不需要锁；一轮写进启动时那个嵌入模型的集合，只有同一模型的请求可以加入，另一模型的请求抛 `ReindexBusyError`），实时 done/total 与最终 `ReindexResult`（migrated/skipped/failed）；失败标 FAILED 并 `logger.exception`，不吞错；状态只存进程内存（迁移幂等，重启后重跑即可）。由 `api/memory/operations/reindex.py` 触发与查询 | ✅ |
 | `ephemeral_delta_volume.py` | 核心 | 将 harness shared store 绑定到 Volume `memory.db`（CC/API/agent 共用） | ✅ |
 | `ephemeral_delta_hydration.py` | 核心 | Agent turn 前 rehydrate 会话 tail deltas | ✅ |
-| `ephemeral_delta_service.py` | 核心 | Item 98 CC/API：record/snapshot/preview；layout metrics（无 provider cache hit 伪造） | ✅ |
+| `ephemeral_delta_service.py` | 核心 | 临时增量 API 的业务服务：经进程内共享 store 记录/列出/快照会话增量（API 的 `revoke` 对应 harness 的墓碑 RETRACT），预览增量追加到最后一条用户消息后的效果（系统提示词不变），只报告布局指标（不伪造 provider 缓存命中率） | ✅ |
+| `private_notebook_service.py` | 核心 | 模型私有笔记本 API 的业务服务：包装一个以 `/tmp/myrm_sandbox_workspace` 为根（可传入其他工作目录）的 `ModelPrivateNotebookManager`，提供笔记增删改查与搜索、历史上下文列表与检索、切换到新上下文，并转换为 DTO；只有 Memory Labs 面板调用，仅在 `MYRM_MEMORY_LABS=1` 时经路由暴露 | ✅ |
+| `profile_notes_service.py` | 核心 | 用户画像与工作笔记双层记忆治理服务：容量预算、临时噪声过滤与沙箱隔离的状态持久化；只有 Memory Labs 面板调用，仅在 `MYRM_MEMORY_LABS=1` 时经路由暴露 | ✅ |
+| `two_layer_dialectic_service.py` | 核心 | 两层上下文注入与多轮辩证调和 API 的业务服务：把请求交给 harness 的注入器与多轮调和器，进程内共用一个注入器（按会话缓存基础上下文与节奏状态），结果转成 DTO；只有 Memory Labs 面板调用，仅在 `MYRM_MEMORY_LABS=1` 时经路由暴露 | ✅ |

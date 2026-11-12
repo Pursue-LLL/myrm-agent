@@ -3,8 +3,8 @@
 Handles multi-provider failover, content normalization, and task lifecycle.
 
 [INPUT]
-- toolkits.llms._media_shared.normalization::NormalizationResult (POS: Used by video/generator.py and future image/generator.py to normalize user-requested geometry to provider-supported values before API calls.)
-- toolkits.llms._media_shared.types::ModeCapabilities, NormalizationRecord (POS: These types are imported by video/models.py, normalization.py, and task_store.py. They define the contract between provider declarations and the normalization engine.)
+- toolkits.llms._media_shared.normalization::NormalizationResult (POS: Snaps a requested aspect ratio, size and duration to the closest values a provider mode declares as supported and reports each adjustment as a NormalizationRecord.)
+- toolkits.llms._media_shared.types::ModeCapabilities, NormalizationRecord (POS: Defines the contract between provider capability declarations and the normalization engine.)
 
 [OUTPUT]
 - VideoGenerator: Video generation with failover and override sanitization.

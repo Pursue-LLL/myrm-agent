@@ -1,6 +1,14 @@
-"""[INPUT] SolidifySkillRequest and ExternalPreviewCreateRequest schemas.
-[OUTPUT] Endpoints for 1-click skill solidification and isolated clean preview pages.
-[POS] app/api/skills/solidify_router.py.
+"""REST endpoints of skill solidification and clean previews.
+
+[INPUT]
+- app.services.skills.solidify::ExternalPreviewCreateRequest, ExternalPreviewMetadata, SkillSolidifyService, SolidifySkillRequest, SolidifySkillResponse (POS: Package facade of skill solidification: exposes the service and the solidify and external-preview models.)
+
+[OUTPUT]
+- router: POST /solidify, POST /solidify/preview and GET /solidify/preview/{preview_id}
+
+[POS]
+HTTP layer of skill solidification: builds the skill bundle for a deliverable, registers a clean preview page and serves it with a
+relaxed content security policy and no-referrer policy so that embedded assets render in a full browser tab.
 """
 
 from fastapi import APIRouter, HTTPException, Response, status

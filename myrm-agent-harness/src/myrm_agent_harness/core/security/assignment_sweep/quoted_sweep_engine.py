@@ -1,11 +1,20 @@
-"""
-[POS] src/myrm_agent_harness/core/security/assignment_sweep/quoted_sweep_engine.py
-[INPUT] re, dataclasses, typing, types, database_url_auditor
-[OUTPUT] QuotedKeySecretAssignmentSweepEngine, AssignmentMatch, find_assignment_matches
-Secret assignment sweep engine tolerating quoted keys, separator-prefixed words, and alphanumeric noise shielding.
+"""Secret assignment sweep engine tolerating quoted keys, separator-prefixed words, and alphanumeric noise shielding.
+
 `find_assignment_matches` is the single definition of "a non-benign secret assignment on one line" and reports the
 value span, so persistence can redact exactly the value while the sweep reports masked previews.
-Strict typing applied: No `Any` types allowed.
+
+[INPUT]
+- core.security.assignment_sweep.database_url_auditor::DatabaseUrlAuditor (POS: Database-URL leg of the assignment sweep: recognizes connection URIs that carry credentials and decides whether each is an exempt local-development DSN or a leak; only a loopback host with a standard development credential pair is exempt.)
+- core.security.assignment_sweep.types::AssignmentFormat, AssignmentKeyFamily, AssignmentSweepFinding, AssignmentSweepReport, AssignmentSweepVerdict (POS: Contract layer of the assignment sweep: the key-family, notation and verdict enums plus the finding, report and DSN-audit models shared by the sweep engine and the database URL auditor.)
+
+[OUTPUT]
+- QuotedKeySecretAssignmentSweepEngine: scans multi-line content for sensitive key assignments and database URLs and returns a masked AssignmentSweepReport
+- AssignmentMatch, find_assignment_matches: the one-line match type and the single definition of a non-benign secret assignment, with the value span
+
+[POS]
+Assignment-detection core of the sweep: finds quoted, bracketed and plain key-value assignments of sensitive keys, drops
+placeholders and benign code symbols, and folds the database-URL audit into one verdict (clean, suspected leak or exempted
+local dev).
 """
 
 from __future__ import annotations

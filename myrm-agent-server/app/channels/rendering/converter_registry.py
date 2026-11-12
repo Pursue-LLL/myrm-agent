@@ -5,6 +5,7 @@ Channels register their converters once at startup; renderer uses registry
 for format conversion with automatic fallback chains.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - FormatConverterRegistry: global converter registration and execution

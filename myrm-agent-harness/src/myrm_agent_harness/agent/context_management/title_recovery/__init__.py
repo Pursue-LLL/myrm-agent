@@ -11,8 +11,8 @@
 - Seamless package exports of all domain types, taxonomy, gate, and master facade suite.
 
 [POS]
-- Sub-package: myrm_agent_harness.agent.context_management.title_recovery
-- Module: __init__.py
+- Package facade of the title-recovery sub-package: re-exports the domain types, the structural taxonomy, the retry gate
+  and the master suite as the single import point.
 """
 
 from myrm_agent_harness.agent.context_management.title_recovery.invalid_title_taxonomy import (

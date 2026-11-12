@@ -5,6 +5,7 @@ Handles msg_type=post (rich text), msg_type=text, @mention detection,
 and image/media key extraction.
 
 [INPUT]
+- app.channels.providers.feishu.models::FeishuMessageEvent, FeishuWebhookPayload (POS: Pydantic models for Feishu/Lark event subscription webhook payloads.)
 
 [OUTPUT]
 - parse_post_content() → PostParseResult (markdown + image_keys + mentioned_ids)

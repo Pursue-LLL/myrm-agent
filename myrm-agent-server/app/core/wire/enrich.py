@@ -1,11 +1,16 @@
 """Apply wire routing and defaults to a resolved ModelConfig.
 
-[POS]
-app.core.wire.enrich
-
 [INPUT]
-- cfg (ModelConfig)
-- provider_id (optional str)
+- app.core.types.business::ModelConfig (POS: Business-specific type definitions)
+- app.core.wire.defaults::apply_wire_defaults (POS: Defaults layer of the wire routing: adds the request defaults that the `responses` wire needs for muse-spark models and the gateway headers and provider hint for Vercel AI Gateway endpoints, while explicit user values always win.)
+- app.core.wire.registry::resolve_wire_protocol (POS: Routing table of the wire layer: on OpenCode-scoped endpoints (the OpenCode Go provider id, opencode.ai hosts or the local relay) it maps model-name patterns (gpt, grok and muse-spark to `responses`; minimax and qwen to `anthropic_messages`) to a wire protocol, and every other endpoint keeps the default wire protocol.)
+
+[OUTPUT]
+- enrich_model_config: returns a copy of the ModelConfig with the resolved wire protocol and the wire-aware model kwargs
+
+[POS]
+Entry point of the wire layer: the one call that model-config resolution makes to give a ModelConfig its wire protocol and
+wire-specific model kwargs.
 """
 
 from __future__ import annotations

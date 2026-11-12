@@ -3,6 +3,7 @@
 Prevents metrics explosion by limiting high-cardinality labels.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - DynamicLabelManager: 动态标签管理器

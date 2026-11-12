@@ -1,6 +1,7 @@
 """Failover events for observability and monitoring.
 
 [INPUT]
+- toolkits.llms.errors::FailoverReason (POS: LLM error processing layer: three-tier error classification, fault-tolerant calls and standardized exception handling.)
 
 [OUTPUT]
 - FailoverEvent: Failover event data class

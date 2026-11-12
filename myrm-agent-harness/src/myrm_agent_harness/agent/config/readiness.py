@@ -4,6 +4,7 @@ Provides abstract base classes and interfaces for checking configuration complet
 Business layer can inherit these interfaces to implement specific readiness checks.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ConfigReadinessResult: structured readiness check result

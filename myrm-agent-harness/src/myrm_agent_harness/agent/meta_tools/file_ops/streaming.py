@@ -1,6 +1,7 @@
 """文件流式读取 - 智能自适应大文件处理
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - read_file_smart(): 智能选择最优读取策略（自动模式选择，支持配置注入）

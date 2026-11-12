@@ -1,6 +1,15 @@
-"""[POS]: src/myrm_agent_harness/toolkits/memory/private_notebook/models.py
-[INPUT]: Note attributes, history context items, and new context switching directives.
-[OUTPUT]: Immutable Pydantic models for private notes, search hits, history contexts, and switch results.
+"""Immutable Pydantic models for private notes, search hits, history contexts, and switch results.
+
+[INPUT]
+- none (imports no other project module)
+
+[OUTPUT]
+- NoteMetadata, NoteEntry, NoteSearchResult: note summary, full note and search hit
+- HistoryContextItem, HistoryEntryItem, NewContextResult: archived context window, archived turn and context rotation outcome
+
+[POS]
+Contract layer of the private notebook: the immutable note, search-hit, history-context and context-switch models shared by
+the storage, the history manager and the manager.
 """
 
 from __future__ import annotations

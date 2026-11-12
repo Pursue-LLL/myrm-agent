@@ -1,9 +1,15 @@
-"""
-[POS] src/myrm_agent_harness/core/security/vnc_hardening/passwd_manager.py
-[INPUT] os, secrets, string, stat, pathlib, typing
-[OUTPUT] VncSecurityException, VncPasswdManager
-VNC credential and password manager enforcing rfbauth complexity and file permission sandboxing.
-Strict typing applied: No `Any` types allowed.
+"""VNC credential and password manager enforcing rfbauth complexity and file permission sandboxing.
+
+[INPUT]
+- none (imports no other project module)
+
+[OUTPUT]
+- VncSecurityError: raised when the VNC security baseline is violated
+- VncPasswdManager: password strength check, secure password generation and 0600 permission hardening of the rfbauth file
+
+[POS]
+Credential leg of the VNC hardening suite: judges password strength (at least 8 characters with a letter and a digit),
+generates random passwords, and tightens the rfbauth password file to owner-only 0600.
 """
 
 from __future__ import annotations

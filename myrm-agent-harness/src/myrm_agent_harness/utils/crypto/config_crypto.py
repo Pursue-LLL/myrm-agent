@@ -4,6 +4,7 @@ Provides transparent encrypt/decrypt for config values. Framework layer
 provides encryption primitives; business layer decides encryption policy.
 
 [INPUT]
+- utils.crypto.exceptions::DecryptionError, EncryptionError (POS: Config crypto exceptions.)
 
 [OUTPUT]
 - encrypt_value: dict → base64 ciphertext

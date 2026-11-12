@@ -1,6 +1,8 @@
 """FeatureSet — runtime container for enabled feature flags.
 
 [INPUT]
+- core.features.registry (POS: Thread-safe global registry for feature specification registration and lookup.)
+- core.features.types::FeatureSpec, FeatureStage (POS: Foundation layer.)
 
 [OUTPUT]
 - FeatureSet with enabled/disabled query, dependency normalization, warnings

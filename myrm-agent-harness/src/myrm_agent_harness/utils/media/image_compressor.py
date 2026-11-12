@@ -1,6 +1,7 @@
 """Image compression tool for jpg/jpeg/png formats.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - bytes | None: compressed image bytes if output_path is None

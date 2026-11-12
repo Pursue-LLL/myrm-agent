@@ -6,6 +6,7 @@ Resolves encryption key from multiple sources with fallback chain:
 3. Auto-generate and persist to key file if neither exists
 
 [INPUT]
+- infra.atomic_write::atomic_write (POS: Atomic file write with crash-consistency guarantee.)
 
 [OUTPUT]
 - resolve_local_encryption_key: (state_dir) → bytes (256-bit key)

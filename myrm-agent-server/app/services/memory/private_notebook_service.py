@@ -1,6 +1,16 @@
-"""[POS]: app/services/memory/private_notebook_service.py
-[INPUT]: Harness ModelPrivateNotebookManager, server DTO schemas, and workspace paths.
-[OUTPUT]: PrivateNotebookService providing business operations for model scratchpad and context handover.
+"""Business service of the private notebook API.
+
+[INPUT]
+- myrm_agent_harness.toolkits.memory::ModelPrivateNotebookManager (POS: Orchestrator of the private notebook: owns the notes storage, the history index and the active context id, and rotates to a fresh context with a handover note.)
+- app.schemas.private_notebook::AppendNoteRequestDTO, HistoryContextItemDTO, HistoryEntryItemDTO, NewContextRequestDTO, NewContextResponseDTO, NoteEntryDTO, NoteMetadataDTO, NoteSearchResultDTO, RewriteNoteRequestDTO (POS: Wire contracts of the private notebook API shared by its router and service.)
+
+[OUTPUT]
+- PrivateNotebookService: note CRUD and search, context history listing and search, and context rotation over one ModelPrivateNotebookManager
+- get_private_notebook_service: process-wide service accessor used as the router dependency
+
+[POS]
+Service behind the private notebook API: wraps one ModelPrivateNotebookManager rooted at `/tmp/myrm_sandbox_workspace` (unless a
+workspace directory is passed in), starting in context `ctx_main`, and converts its results to DTOs.
 """
 
 from __future__ import annotations

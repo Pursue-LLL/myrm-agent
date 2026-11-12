@@ -1,6 +1,14 @@
-"""[INPUT] MachineNode, RegistrationTokenResponse, and Takeover schemas.
-[OUTPUT] REST API endpoints for self-hosted machine fleet management and live takeover.
-[POS] app/api/machines/router.py.
+"""REST endpoints of the machines API.
+
+[INPUT]
+- app.services.machines::MachineNode, MachinePlatform, MachineService, RegistrationTokenResponse, TakeoverActionRequest, TakeoverSession (POS: Package facade of the machines service: exposes the service singleton and the machine, metrics, registration-command and takeover-session models.)
+
+[OUTPUT]
+- router: GET /machines, GET /machines/{machine_id}, POST /machines/token, POST /machines/{machine_id}/takeover, POST /machines/{machine_id}/release and GET /machines/{machine_id}/takeover
+
+[POS]
+HTTP layer of the machines API: lists and reads the registry's machines, issues a registration command, and starts, releases
+or reads a machine's takeover session.
 """
 
 from typing import List, Optional

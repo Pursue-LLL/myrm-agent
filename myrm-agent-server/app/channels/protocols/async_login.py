@@ -4,6 +4,7 @@ Provides framework-agnostic async login abstraction supporting multiple
 authentication flows (QR code, OAuth2, API token, etc.).
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - AsyncLoginProtocol: Framework-agnostic async login interface

@@ -1,6 +1,7 @@
 """Signal channel — typed structures, constants, and pure helper functions.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - TypedDict envelope structures for Signal CLI REST API payloads

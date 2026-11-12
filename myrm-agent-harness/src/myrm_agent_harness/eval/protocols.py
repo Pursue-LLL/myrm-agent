@@ -1,6 +1,10 @@
 """Eval Protocol — core types and AgentExecutor contract.
 
 [INPUT]
+- toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
+- eval.ablation_rules::derive_ablation_recommendations (POS: Translates empirical ablation findings (Tools/Middleware >> Prompt) into actionable, deterministic GUI guidance chips and configuration deep-links without incurring extra LLM cost.)
+- eval.failure_clustering::cluster_failure_signatures (POS: Translates disparate evaluation failure traces into actionable, normalized clusters.)
+- eval.trajectory_analysis::aggregate_failure_modes (POS: Provides automated, deterministic failure root-cause analysis across evaluation trajectories.)
 
 [OUTPUT]
 - EvalCase: test case definition

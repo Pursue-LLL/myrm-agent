@@ -1,6 +1,15 @@
-"""[POS]: src/myrm_agent_harness/toolkits/memory/private_notebook/storage.py
-[INPUT]: Filesystem root path, note titles, markdown contents, and query keywords.
-[OUTPUT]: LocalInspectableNoteStorage persisting human-inspectable markdown notes under .myrm/agent_notes.
+"""Human-inspectable Markdown note storage for the model private notebook.
+
+[INPUT]
+- toolkits.memory.private_notebook.models::NoteEntry, NoteMetadata, NoteSearchResult (POS: Contract layer of the private notebook: the immutable note, search-hit, history-context and context-switch models shared by the storage, the history manager and the manager.)
+
+[OUTPUT]
+- LocalInspectableNoteStorage: persists notes as Markdown files in one directory with listing, append, atomic rewrite, delete and keyword search
+- sanitize_filename: normalizes a note title into a safe file name
+
+[POS]
+Notes layer of the private notebook: thread-safe, human-inspectable Markdown note files with sanitized file names, atomic
+rewrites and keyword search.
 """
 
 from __future__ import annotations
@@ -159,9 +168,7 @@ class LocalInspectableNoteStorage:
                 text_lower = text.lower()
                 stem_lower = filepath.stem.lower()
 
-                matched_count = sum(
-                    1 for term in terms if term in stem_lower or term in text_lower
-                )
+                matched_count = sum(1 for term in terms if term in stem_lower or term in text_lower)
                 if matched_count == 0:
                     continue
 
