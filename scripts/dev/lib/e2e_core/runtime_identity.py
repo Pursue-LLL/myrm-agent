@@ -3,12 +3,14 @@
 [INPUT]
 - stack-epoch.json via stack-epoch.sh (POS: Backend generation SSOT for parallel Agent drift)
 - frontend <distDir>/dev-server.lock via frontend-warmup.sh (POS: Frontend compile warmth gate)
+- git work tree of the frontend dir and its sibling `shared/` (POS: committed, uncommitted and untracked state of what the dev server reads)
 - CDP GET /json/version on :9333 (POS: Myrm E2E Chrome attach endpoint)
 - ~/.local/state/cdmcp-mux daemon.pid + upstream-ws-url (POS: mux daemon generation stamp); e2e_core.dev_ports::current_backend_port / shared_api_base / shared_backend_port / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - `build_health_json()` / CLI: unified `CHROME_E2E_HEALTH_JSON` with `runtimeId` and four epochs
 - `read_backend_epoch()`: `stored_source_fingerprint` + `workspace_source_fingerprint` + `epoch_match`
+- `frontend_source_fingerprint()`: key of `frontend-warmth.json`; covers only what the dev server reads (frontend sources and configs, sibling `shared/`), so a commit elsewhere in the repository leaves it unchanged
 - `stack_core_health_errors()` / `api_health_errors()`: stack keepalive (mux epochs + API `/api/v1/health`; no UI curl)
 - CLI `--require-stack-core`: exit 2 when stack core or API health is not ready
 - `read_current_runtime_id()` / `--drift --expect`: see `runtime_probe.py` (mechanical RUNTIME_DRIFT check)
@@ -755,31 +757,51 @@ def read_frontend_hot_state(frontend: FrontendEpoch | None) -> tuple[bool, bool]
     return current, current and warmth.get("client_hot") is True
 
 
+# What the dev server reads from the frontend directory itself.
+_FRONTEND_INPUT_PATHS = (
+    "src",
+    "locales",
+    "public",
+    "next.config.ts",
+    "next.config.js",
+    "next.config.mjs",
+    "package.json",
+    "bun.lock",
+    "postcss.config.mjs",
+    "tailwind.config.ts",
+    "tsconfig.base.json",
+    ".env.local",
+)
+# The sibling directory it imports as `@shared/*` (the alias lives in tsconfig.base.json). Git rejects the pathspec
+# when the frontend directory is the repository root, so it is only listed when the frontend has a parent in the repo.
+_SHARED_INPUT_PATH = "../shared"
+
+
 def frontend_source_fingerprint(frontend_dir: Path) -> str:
-    """Hash tracked changes and untracked frontend sources for HMR drift detection."""
+    """Hash the frontend inputs: their tree ids at HEAD, the uncommitted diff and the untracked files under them."""
     try:
         probe = subprocess.run(
-            ["git", "-C", str(frontend_dir), "rev-parse", "--is-inside-work-tree"],
+            [
+                "git",
+                "-C",
+                str(frontend_dir),
+                "rev-parse",
+                "--is-inside-work-tree",
+                "--show-prefix",
+            ],
             check=False,
             capture_output=True,
             timeout=2,
         )
-        if probe.returncode != 0 or probe.stdout.strip() != b"true":
+        inside, _, prefix = probe.stdout.decode().partition("\n")
+        if probe.returncode != 0 or inside != "true":
             return ""
     except (OSError, subprocess.TimeoutExpired):
         return ""
     tracked_paths = (
-        "src",
-        "locales",
-        "public",
-        "next.config.ts",
-        "next.config.js",
-        "next.config.mjs",
-        "package.json",
-        "bun.lock",
-        "postcss.config.mjs",
-        "tailwind.config.ts",
-        ".env.local",
+        (*_FRONTEND_INPUT_PATHS, _SHARED_INPUT_PATH)
+        if prefix.strip()
+        else _FRONTEND_INPUT_PATHS
     )
     try:
         diff = subprocess.run(
@@ -814,8 +836,9 @@ def frontend_source_fingerprint(frontend_dir: Path) -> str:
             text=True,
             timeout=10,
         ).stdout.splitlines()
-        tree = subprocess.run(
-            ["git", "-C", str(frontend_dir), "rev-parse", "HEAD^{tree}"],
+        # Tree ids of the input paths only: a commit elsewhere in the repository must not look like a source change.
+        committed = subprocess.run(
+            ["git", "-C", str(frontend_dir), "ls-tree", "HEAD", "--", *tracked_paths],
             check=False,
             capture_output=True,
             timeout=10,
@@ -823,7 +846,7 @@ def frontend_source_fingerprint(frontend_dir: Path) -> str:
     except (OSError, subprocess.TimeoutExpired):
         return ""
 
-    digest = hashlib.sha256(tree + diff)
+    digest = hashlib.sha256(committed + diff)
     for relative_path in sorted(item for item in untracked if item):
         path = frontend_dir / relative_path
         try:
