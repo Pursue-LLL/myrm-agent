@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from app.services.extension.cdp_relay.bridge import ExtensionCdpRelayBridge, build_extension_call_extension
+from app.services.extension.cdp_relay.bridge import ExtensionCdpRelayBridge
 from app.services.extension.cdp_relay.protocol import RelayTabInfo
 from app.services.extension.pairing import consume_pairing_ticket, create_pairing_ticket
 
@@ -37,7 +37,7 @@ async def test_relay_extension_call_and_result() -> None:
     async def send(msg: dict[str, object]) -> None:
         outbound.append(msg)
 
-    call_extension = build_extension_call_extension(bridge, send)
+    call_extension = bridge.make_extension_caller(send)
     bridge.set_extension_transport(call_extension)
     bridge.sync_tabs([RelayTabInfo(tab_id=7, url="https://x.com", title="X", active=True)])
 
@@ -48,9 +48,9 @@ async def test_relay_extension_call_and_result() -> None:
 
     seq = outbound[0]["seq"]
     assert isinstance(seq, int)
-    await bridge.handle_extension_result(seq, {"targetId": "tab-7"})
+    await bridge.handle_extension_result(seq, {"targetId": "target-7"})
     result = await task
-    assert result == {"targetId": "tab-7"}
+    assert result == {"targetId": "target-7"}
 
 
 @pytest.mark.asyncio
@@ -62,7 +62,7 @@ async def test_relay_automation_probe_ready() -> None:
     async def send(_msg: dict[str, object]) -> None:
         return None
 
-    bridge.set_extension_transport(build_extension_call_extension(bridge, send))
+    bridge.set_extension_transport(bridge.make_extension_caller(send))
     assert await bridge.probe_automation_ready() is True
 
 
@@ -79,9 +79,9 @@ async def test_relay_target_create_target() -> None:
             if command.get("type") == "createTab":
                 await bridge.handle_extension_result(seq, {"tabId": 99})
             elif command.get("type") == "attach":
-                await bridge.handle_extension_result(seq, {"targetId": "tab-99"})
+                await bridge.handle_extension_result(seq, {"targetId": "target-99"})
 
-    call_extension = build_extension_call_extension(bridge, send)
+    call_extension = bridge.make_extension_caller(send)
     bridge.set_extension_transport(call_extension)
 
     sent: list[str] = []
@@ -99,7 +99,7 @@ async def test_relay_target_create_target() -> None:
 
     payloads = [json.loads(raw) for raw in sent if '"id": 42' in raw or '"id":42' in raw.replace(" ", "")]
     assert payloads
-    assert payloads[0]["result"]["targetId"] == "tab-99"
+    assert payloads[0]["result"]["targetId"] == "target-99"
     on_close()
 
 
@@ -144,7 +144,7 @@ async def test_cdp_relay_manager_dispatch_extension_messages() -> None:
         outbound.append(msg)
 
     await manager.bind_extension_transport(send)
-    call_extension = build_extension_call_extension(bridge, send)
+    call_extension = bridge.make_extension_caller(send)
     task = asyncio.create_task(call_extension({"type": "attach", "tabId": 3}))
     while not outbound:
         await asyncio.sleep(0.01)

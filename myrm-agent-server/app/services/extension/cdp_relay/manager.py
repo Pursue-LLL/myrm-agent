@@ -2,6 +2,7 @@
 
 [INPUT]
 - cdp_relay.bridge::ExtensionCdpRelayBridge (POS: CDP relay bridge)
+- cdp_relay.extension_link::SendToExtension (POS: extension WebSocket sender type)
 - cdp_relay.server::LoopbackCdpRelayServer (POS: loopback DevTools HTTP/WS server)
 
 [OUTPUT]
@@ -16,15 +17,13 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Awaitable, Callable
 
-from .bridge import ExtensionCdpRelayBridge, build_extension_call_extension
+from .bridge import ExtensionCdpRelayBridge
+from .extension_link import SendToExtension
 from .protocol import RelayTabInfo
 from .server import LoopbackCdpRelayServer
 
 logger = logging.getLogger(__name__)
-
-SendToExtension = Callable[[dict[str, object]], Awaitable[None]]
 
 _PROBE_CACHE_TTL_S = 3.0
 
@@ -54,8 +53,7 @@ class CdpRelayManager:
             self._bridge.set_extension_transport(None)
             self._invalidate_probe_cache()
             return
-        call_extension = build_extension_call_extension(self._bridge, send_to_extension)
-        self._bridge.set_extension_transport(call_extension)
+        self._bridge.set_extension_transport(self._bridge.make_extension_caller(send_to_extension))
         self._invalidate_probe_cache()
         if self._http_endpoint is None:
             self._http_endpoint = await self._server.start()

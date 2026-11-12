@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 
 from app.services.extension.cdp_relay.bridge import ExtensionCdpRelayBridge
+from app.services.extension.cdp_relay.models import CdpRequest, TabState
 from app.services.extension.cdp_relay.protocol import BROWSER_TARGET_ID, RelayTabInfo
 
 
@@ -31,7 +32,7 @@ def _attach_extension(bridge: ExtensionCdpRelayBridge, result: object | None = N
         if command.get("type") == "attach":
             if result is not None:
                 return result
-            return {"targetId": f"tab-{command.get('tabId')}"}
+            return {"targetId": f"target-{command.get('tabId')}"}
         if command.get("type") == "detach":
             return {}
         if command.get("type") == "createTab":
@@ -64,7 +65,7 @@ async def test_sync_tabs_attached_tab_removal_emits_detached() -> None:
     _attach_extension(bridge)
     bridge.sync_tabs([_mk_tab(7)])
     attached = await bridge._ensure_tab_attached(7)
-    assert attached.target_id == "tab-7"
+    assert attached.target_id == "target-7"
     bridge._announce_attached(bridge._clients[-1], 7, attached)
 
     bridge.sync_tabs([])
@@ -226,6 +227,41 @@ async def test_browser_scoped_noop_methods() -> None:
 
 
 @pytest.mark.asyncio
+async def test_browser_close_is_answered_exactly_once() -> None:
+    bridge = ExtensionCdpRelayBridge()
+    sent: list[str] = []
+    bridge.attach_cdp_client(sent.append)
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Browser.close", {}, None)
+    assert [json.loads(raw) for raw in sent] == [{"id": 1, "result": {}}]
+
+
+@pytest.mark.asyncio
+async def test_attach_without_an_extension_target_id_fails_closed() -> None:
+    bridge = ExtensionCdpRelayBridge()
+    _attach_extension(bridge, result={})
+    bridge.sync_tabs([_mk_tab(7)])
+
+    with pytest.raises(RuntimeError, match="target id"):
+        await bridge._ensure_tab_attached(7)
+
+    assert bridge._tabs[7].attached is None
+    assert bridge._tabs[7].attaching is None
+
+
+@pytest.mark.asyncio
+async def test_tab_numbers_are_not_target_ids() -> None:
+    bridge = ExtensionCdpRelayBridge()
+    _attach_extension(bridge, result={"targetId": "real-target-7"})
+    bridge.sync_tabs([_mk_tab(7)])
+    assert bridge._tab_by_target("tab-7") is None
+
+    await bridge._ensure_tab_attached(7)
+
+    assert bridge._tab_by_target("tab-7") is None
+    assert bridge._tab_by_target("real-target-7") is bridge._tabs[7]
+
+
+@pytest.mark.asyncio
 async def test_target_get_target_info_branches() -> None:
     bridge = ExtensionCdpRelayBridge()
     sent: list[str] = []
@@ -239,11 +275,11 @@ async def test_target_get_target_info_branches() -> None:
     assert json.loads(sent[-1])["result"]["targetInfo"]["type"] == "browser"
 
     # Unknown target -> error.
-    await bridge._handle_browser_scoped(bridge._clients[-1], 2, "Target.getTargetInfo", {"targetId": "tab-999"}, None)
+    await bridge._handle_browser_scoped(bridge._clients[-1], 2, "Target.getTargetInfo", {"targetId": "target-999"}, None)
     assert json.loads(sent[-1])["error"]["code"] == -32602
 
     # Attached tab target.
-    await bridge._handle_browser_scoped(bridge._clients[-1], 3, "Target.getTargetInfo", {"targetId": "tab-7"}, None)
+    await bridge._handle_browser_scoped(bridge._clients[-1], 3, "Target.getTargetInfo", {"targetId": "target-7"}, None)
     assert json.loads(sent[-1])["result"]["targetInfo"]["url"] == "https://x.com"
 
     # No targetId -> browser info.
@@ -262,7 +298,7 @@ async def test_target_get_targets_only_attached() -> None:
 
     await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.getTargets", {}, None)
     infos = json.loads(sent[-1])["result"]["targetInfos"]
-    assert [i["targetId"] for i in infos] == ["tab-7"]
+    assert [i["targetId"] for i in infos] == ["target-7"]
 
 
 @pytest.mark.asyncio
@@ -301,6 +337,7 @@ async def test_target_attach_to_target_auxiliary_session() -> None:
     bridge.attach_cdp_client(sent.append)
     _attach_extension(bridge)
     bridge.sync_tabs([_mk_tab(7)])
+    await bridge._ensure_tab_attached(7)
 
     # First create a browser session.
     await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.attachToBrowserTarget", {}, None)
@@ -310,7 +347,7 @@ async def test_target_attach_to_target_auxiliary_session() -> None:
         bridge._clients[-1],
         2,
         "Target.attachToTarget",
-        {"targetId": "tab-7"},
+        {"targetId": "target-7"},
         browser_session,
     )
     aux_session = json.loads(sent[-1])["result"]["sessionId"]
@@ -321,7 +358,7 @@ async def test_target_attach_to_target_auxiliary_session() -> None:
         bridge._clients[-1],
         3,
         "Target.attachToTarget",
-        {"targetId": "tab-999"},
+        {"targetId": "target-999"},
         browser_session,
     )
     assert json.loads(sent[-1])["error"]["code"] == -32602
@@ -334,8 +371,9 @@ async def test_target_attach_to_target_root_session() -> None:
     bridge.attach_cdp_client(sent.append)
     _attach_extension(bridge)
     bridge.sync_tabs([_mk_tab(7)])
+    await bridge._ensure_tab_attached(7)
 
-    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.attachToTarget", {"targetId": "tab-7"}, None)
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.attachToTarget", {"targetId": "target-7"}, None)
     assert json.loads(sent[-1])["result"]["sessionId"].startswith("myrm-tab-7-")
 
 
@@ -396,7 +434,7 @@ async def test_target_create_target_success() -> None:
         None,
     )
     payload = json.loads(sent[-1])
-    assert payload["result"]["targetId"] == "tab-99"
+    assert payload["result"]["targetId"] == "target-99"
     assert 99 in bridge._tabs
 
 
@@ -434,8 +472,8 @@ async def test_ensure_tab_attached_tab_replaced_during_attach() -> None:
     async def fake_call(command: dict[str, object]) -> object:
         if command.get("type") == "attach":
             # Simulate the tab being replaced while attach is in flight.
-            bridge._tabs[7] = type(bridge._tabs[7])(info=_mk_tab(7))
-            return {"targetId": "tab-7"}
+            bridge._tabs[7] = TabState(info=_mk_tab(7))
+            return {"targetId": "target-7"}
         if command.get("type") == "detach":
             detach_calls.append(command)
             return {}
@@ -473,11 +511,13 @@ async def test_respond_helpers_include_session_id() -> None:
     sent: list[str] = []
     bridge.attach_cdp_client(sent.append)
     client = bridge._clients[-1]
-    bridge._respond_ok(client, 1, "sess-1", {"a": 1})
+    CdpRequest(client, 1, "Any.method", {}, "sess-1").ok({"a": 1})
     assert json.loads(sent[-1]) == {"id": 1, "sessionId": "sess-1", "result": {"a": 1}}
-    bridge._respond_error(client, 2, "sess-1", "boom", -32001)
+    CdpRequest(client, 2, "Any.method", {}, "sess-1").error("boom", -32001)
     assert json.loads(sent[-1])["error"]["code"] == -32001
     assert json.loads(sent[-1])["sessionId"] == "sess-1"
+    CdpRequest(client, 3, "Any.method", {}, None).ok()
+    assert json.loads(sent[-1]) == {"id": 3, "result": {}}
 
 
 @pytest.mark.asyncio
@@ -494,3 +534,48 @@ async def test_fail_pending_extension_commands() -> None:
     assert bridge._pending_extension == {}
     with pytest.raises(RuntimeError, match="extension disconnected"):
         fut.result()
+
+
+@pytest.mark.asyncio
+async def test_extension_command_is_forgotten_when_sending_it_fails() -> None:
+    bridge = ExtensionCdpRelayBridge()
+
+    async def broken_send(_message: dict[str, object]) -> None:
+        raise ConnectionError("websocket closed")
+
+    call_extension = bridge.make_extension_caller(broken_send)
+    with pytest.raises(ConnectionError):
+        await call_extension({"type": "detach", "tabId": 7})
+    assert bridge._pending_extension == {}
+
+
+@pytest.mark.asyncio
+async def test_extension_command_is_forgotten_when_its_caller_is_cancelled() -> None:
+    bridge = ExtensionCdpRelayBridge()
+    sent: list[dict[str, object]] = []
+
+    async def send(message: dict[str, object]) -> None:
+        sent.append(message)
+
+    caller = asyncio.create_task(bridge.make_extension_caller(send)({"type": "detach", "tabId": 7}))
+    while not sent:
+        await asyncio.sleep(0)
+    assert len(bridge._pending_extension) == 1
+
+    caller.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await caller
+    assert bridge._pending_extension == {}
+
+
+@pytest.mark.asyncio
+async def test_extension_command_times_out_with_a_readable_error() -> None:
+    bridge = ExtensionCdpRelayBridge()
+
+    async def silent_send(_message: dict[str, object]) -> None:
+        return None
+
+    with patch("app.services.extension.cdp_relay.extension_link.RELAY_COMMAND_TIMEOUT_S", 0.01):
+        with pytest.raises(RuntimeError, match="timed out: closeTab"):
+            await bridge.make_extension_caller(silent_send)({"type": "closeTab", "tabId": 7})
+    assert bridge._pending_extension == {}
