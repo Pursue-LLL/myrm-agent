@@ -3,11 +3,12 @@
 Compresses old tool calls when total context exceeds threshold.
 
 Strategy:
-1. Offload original content via on_compress_offload before compressing (lossy but traceable)
-2. Three-tier strategy (Dedup/Truncate/Remove)
+1. Offload original content via on_compress_offload before compacting (lossy but traceable)
+2. Collapse duplicate tool outputs into a back-reference, then compact old tool-call groups into
+   identifier + metadata stubs built from tool-specific templates
 3. Keep N most recent complete calls as few-shot examples
-4. Compress oldest first to preserve fresh examples for the model
-5. Use tool-specific templates preserving identifiers and metadata
+4. Compact the lowest priority first, oldest first within a priority (compression_intent focus raises priority)
+5. Smart fallback when the context still fills 95% of the window after compaction
 6. Cold Cache Drain Architecture: bypass while the cache is hot (protects the Prompt Cache) or the turn's signed
    reasoning blocks are in flight (every block is bound to the messages compression rewrites)
 7. Anti-Thrashing: skip compression when recent attempts saved <10% each (streak >= 2),
@@ -281,7 +282,6 @@ class CompressProcessor(BaseProcessor):
             on_compress_offload=self._on_compress_offload,
             on_compress_eviction=self._on_compress_eviction,
             chat_id=context.chat_id,
-            user_id=context.user_id,
             failed_tool_call_ids=extract_failed_tool_call_ids(context.metadata),
             focus_files=extract_focus_files(context.metadata),
             focus_modules=extract_focus_modules(context.metadata),

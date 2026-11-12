@@ -1414,25 +1414,24 @@ messages.append(SystemMessage(content=dynamic_notification))
 messages.append(HumanMessage(content=dynamic_notification))
 ```
 
-### 框架内已修复的位置
+### 动态内容的注入位置
 
-本框架已在以下位置修复了此问题：
+框架内的动态内容都以 `HumanMessage` 或用户最新消息的尾部块进入请求，没有任何一处使用 `SystemMessage`：
 
-1. **`_internals/agent_runtime.py::drain_notifications`** — 子 Agent 通知注入（HumanMessage via `stale_notifications`）
-2. **`stream_executor.py::_handle_subagent_notifications`** — 子 Agent 完成通知注入
-3. **`progress_middleware.py`** — Active todo focus 注入（HumanMessage via request.override）
-4. **`middlewares/security/security_guardrail_middleware.py`** — Circuit Breaker 环境约束注入（HumanMessage via awrap_model_call + request.override，瞬态不持久化）
-5. **`utils/token_economics/budget_boundary_middleware.py`** — 预算警告/终止提示注入（HumanMessage with `[SYSTEM INSTRUCTION]` prefix）
-6. **`citation_rules_middleware.py`**（server 层）— 引用规则注入（HumanMessage via request.override）
+1. **`_internals/agent_runtime.py::run_agent_loop`** — 运行开始时，文件恢复通知与上一轮遗留的子 Agent 通知（`stale_notifications`）以 `HumanMessage` 追加
+2. **`progress_middleware.py`** — Todo focus 追加到用户最新消息的尾部（用户没写消息时作为运行时 `HumanMessage` 放在最后）；每次运行的首个请求渲染，之后原样复用，经 `request.override` 送出，不写回状态
+3. **`middlewares/security/security_guardrail_middleware.py`** — Circuit Breaker 环境约束以瞬态 `HumanMessage` 经 `request.override` 送出，同一份约束清单只写一次
+4. **`utils/token_economics/budget_boundary_middleware.py`** — 预算警告（每次运行一次）与最终作答提示（每个中间件实例一次）以带 `[SYSTEM INSTRUCTION]` 前缀的 `HumanMessage` 追加
+5. **`citation_rules_middleware.py`**（server 层，`general_agent/agent_middlewares/`）— 本轮出现不可信外部来源时，引用规则以瞬态 `HumanMessage` 经 `request.override` 送出
 
-这些位置已添加代码注释，明确说明使用 `HumanMessage` 的原因。
+流式阶段取走的子 Agent 完成通知只以 SSE 事件送达前端（`streaming/recovery/stream_recovery_continuation.py::_handle_subagent_notifications`），不写入模型上下文；运行开始时仍未取走的通知才由上面第 1 项追加为 `HumanMessage`。
 
 ### 开发者注意事项
 
 **在添加新的动态内容注入时**：
 1. 首先判断内容是否每次调用都可能变化
 2. 如果是动态内容，**必须**使用 `HumanMessage`
-3. 在代码中添加注释说明原因（参考上述三处修复）
+3. 在代码中添加注释说明原因（写法参考上述注入位置）
 4. **【反面避坑禁令】严禁“先注入、后剥离”的反模式**：
    - 不得为了追求“会话历史纯洁”而在下一轮次剥离前一轮注入的文本！任何对前序 `HumanMessage` 内容的修改都会触发 `messages_changed` 导致整段消息缓存彻底失效。
    - 任务清单（Todo/Task）状态演进优先采用 `ToolMessage` 原样追加（Append-Only）的标准实践，严禁搞 In-place 历史重写。

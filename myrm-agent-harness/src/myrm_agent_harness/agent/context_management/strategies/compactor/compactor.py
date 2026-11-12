@@ -11,12 +11,12 @@ deduplication, priority classification, and token-savings metrics.
 - message_priority::classify_message_priority (POS: 优先级分类)
 
 [OUTPUT]
-- compress_messages_async(): 压缩消息列表(Priority-aware三级策略;注意:Smart fallback在compress_processor层)
+- compress_messages_async(): 压缩消息列表(去重后按优先级把旧工具结果紧凑化;注意:Smart fallback在compress_processor层)
 - compress_tool_message_async(): 压缩单个工具消息(可选 ContextCompressOffloadCallback)
 - find_tool_message_pairs(): 基于 tool_call_id 找到完整工具调用对
 
 [POS]
-Message compactor. Priority-aware compression strategy with structured offload result handling for critical, important, and standard messages.
+Message compactor. Deduplicates tool outputs and compacts old tool-call groups by message priority (CRITICAL is never compacted), with structured offload result handling.
 
 """
 
@@ -106,7 +106,6 @@ async def compress_messages_async(
     on_compress_offload: ContextCompressOffloadCallback | None = None,
     on_compress_eviction: ContextCompressEvictionCallback | None = None,
     chat_id: str | None = None,
-    user_id: str | None = None,
     failed_tool_call_ids: frozenset[str] | None = None,
     focus_files: frozenset[str] | None = None,
     focus_modules: frozenset[str] | None = None,
@@ -114,11 +113,9 @@ async def compress_messages_async(
 ) -> tuple[list[BaseMessage], int]:
     """压缩消息列表中的旧工具调用
 
-    四级压缩策略(增强版):
-    L0 Deduplicate: 去重重复内容
-    L1 Dedup: 跳过已压缩内容
-    L2 Truncate: 超大输出截断保留头尾 + 摘要
-    L3 Remove: 替换为紧凑格式(工具标识符 + 元信息)
+    1. 去重: 相同的工具输出折叠为对较新一条的反向引用
+    2. 紧凑化: 保留最近 keep_recent_calls 组,其余按优先级(低优先级先、同级旧的先)把工具结果替换为
+       紧凑格式(工具标识符 + 统计 + 归档指针),配对调用的超长参数只留头尾;已紧凑化的结果不重复处理
 
     Args:
         messages: 原始消息列表
@@ -127,7 +124,6 @@ async def compress_messages_async(
         on_compress_offload: 压缩前落盘回调(可选,由业务层注入)
         on_compress_eviction: 压缩时触发提取记忆的回调(可选,由业务层注入)
         chat_id: 会话 ID(传入回调)
-        user_id: 用户 ID(仅用于兼容上层调用; 不会传入归档回调)
         failed_tool_call_ids: 应优先保护的失败工具调用 ID
         focus_files: 当前任务聚焦的文件路径
         focus_modules: 当前任务聚焦的模块路径
@@ -236,7 +232,6 @@ async def compress_messages_async(
             ai_msg,
             on_offload=on_compress_offload,
             chat_id=chat_id,
-            user_id=user_id,
             offload_results=offload_results,
         )
         if saved > 0:
@@ -316,7 +311,6 @@ async def compress_tool_message_async(
     *,
     on_offload: ContextCompressOffloadCallback | None = None,
     chat_id: str | None = None,
-    user_id: str | None = None,
     offload_results: list[ContextOffloadResult] | None = None,
 ) -> int:
     """将单个工具消息转换为压缩格式
@@ -326,7 +320,6 @@ async def compress_tool_message_async(
         ai_msg: 对应的 AI 消息(包含工具调用参数)
         on_offload: 压缩前将完整原文落盘的回调(可选)
         chat_id: 会话 ID(传入回调)
-        user_id: 用户 ID(仅用于兼容上层调用; 不会传入归档回调)
 
     Returns:
         节省的 token 数
@@ -351,7 +344,7 @@ async def compress_tool_message_async(
                 tool_args = tc.get("args", {})
                 break
 
-    # 【新增】提取统计信息
+    # 统计信息填入紧凑模板
     tool_stats = extract_tool_stats(tool_name, original_content, tool_args)
 
     evicted_path: str | None = None

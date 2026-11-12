@@ -27,7 +27,7 @@ class TestPriorityAwareCompression:
         ]
 
         cfg = ContextConfig(max_context_tokens=10000, keep_recent_calls=0, compress_min_save=100)
-        compressed, _saved_tokens = await compress_messages_async(messages, config=cfg, chat_id="test", user_id="user1")
+        compressed, _saved_tokens = await compress_messages_async(messages, config=cfg, chat_id="test")
 
         # Check human and final AI are NOT compressed
         assert any(isinstance(m, HumanMessage) and m.content == "User query" for m in compressed)
@@ -53,7 +53,7 @@ class TestPriorityAwareCompression:
         ]
 
         cfg = ContextConfig(max_context_tokens=10000, keep_recent_calls=1, compress_min_save=100)  # Keep 1, compress 1
-        compressed, _ = await compress_messages_async(messages, config=cfg, chat_id="test", user_id="user1")
+        compressed, _ = await compress_messages_async(messages, config=cfg, chat_id="test")
 
         # Find which tool message was compressed
         tool_msgs = [m for m in compressed if isinstance(m, ToolMessage)]
@@ -111,7 +111,7 @@ class TestPrioritySorting:
         ]
 
         cfg = ContextConfig(max_context_tokens=10000, keep_recent_calls=1, compress_min_save=100)
-        compressed, saved = await compress_messages_async(messages, config=cfg, chat_id="test", user_id="user1")
+        compressed, saved = await compress_messages_async(messages, config=cfg, chat_id="test")
 
         # At least one LOW priority tool should be compressed
         tool_msgs = [m for m in compressed if isinstance(m, ToolMessage)]
@@ -134,7 +134,7 @@ class TestPrioritySorting:
 
         cfg = ContextConfig(max_context_tokens=10000, keep_recent_calls=1, compress_min_save=100)
         compressed, _ = await compress_messages_async(
-            messages, config=cfg, chat_id="test", user_id="user1", failed_tool_call_ids=frozenset({"call_failed"})
+            messages, config=cfg, chat_id="test", failed_tool_call_ids=frozenset({"call_failed"})
         )
 
         tool_messages = {msg.tool_call_id: msg for msg in compressed if isinstance(msg, ToolMessage)}
@@ -161,7 +161,7 @@ class TestPrioritySorting:
 
         cfg = ContextConfig(max_context_tokens=10000, keep_recent_calls=1, compress_min_save=100)
         compressed, _ = await compress_messages_async(
-            messages, config=cfg, chat_id="test", user_id="user1", focus_files=frozenset({"src/app.py"})
+            messages, config=cfg, chat_id="test", focus_files=frozenset({"src/app.py"})
         )
 
         tool_messages = {msg.tool_call_id: msg for msg in compressed if isinstance(msg, ToolMessage)}
@@ -193,7 +193,7 @@ class TestPrioritySorting:
 
         cfg = ContextConfig(max_context_tokens=10000, keep_recent_calls=1, compress_min_save=100)
         compressed, _ = await compress_messages_async(
-            messages, config=cfg, chat_id="test", user_id="user1", user_goal_hint="fix login timeout issue"
+            messages, config=cfg, chat_id="test", user_goal_hint="fix login timeout issue"
         )
 
         tool_messages = {msg.tool_call_id: msg for msg in compressed if isinstance(msg, ToolMessage)}
@@ -225,7 +225,7 @@ class TestPrioritySorting:
 
         cfg = ContextConfig(max_context_tokens=10000, keep_recent_calls=1, compress_min_save=100)
         compressed, _ = await compress_messages_async(
-            messages, config=cfg, chat_id="test", user_id="user1", focus_files=frozenset({"src/login.py"})
+            messages, config=cfg, chat_id="test", focus_files=frozenset({"src/login.py"})
         )
 
         tool_messages = {msg.tool_call_id: msg for msg in compressed if isinstance(msg, ToolMessage)}

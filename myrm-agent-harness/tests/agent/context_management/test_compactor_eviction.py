@@ -37,7 +37,6 @@ async def test_compress_messages_async_batch_eviction(monkeypatch):
         on_compress_eviction=mock_eviction_cb,
         user_goal_hint="test goal",
         chat_id="chat1",
-        user_id="user1",
     )
 
     mock_eviction_cb.assert_called_once()
@@ -96,7 +95,6 @@ async def test_compress_eviction_preserves_original_content(monkeypatch):
         on_compress_eviction=capture_cb,
         user_goal_hint="test",
         chat_id="chat1",
-        user_id="user1",
     )
 
     assert len(captured_evictions) == 1
@@ -133,7 +131,6 @@ async def test_compress_messages_async_no_eviction_if_small(monkeypatch):
         on_compress_eviction=mock_eviction_cb,
         user_goal_hint="test goal",
         chat_id="chat1",
-        user_id="user1",
     )
 
     # Eviction callback should NOT be called because tokens < 500
@@ -180,7 +177,6 @@ async def test_eviction_original_content_never_carries_image_bytes(monkeypatch):
         on_compress_eviction=capture_cb,
         user_goal_hint="test",
         chat_id="chat1",
-        user_id="user1",
     )
 
     assert len(captured) == 1
@@ -215,7 +211,6 @@ async def test_failing_eviction_callback_never_breaks_compression(monkeypatch):
         on_compress_eviction=failing_cb,
         user_goal_hint="test",
         chat_id="chat1",
-        user_id="user1",
     )
 
     assert tool_msg.content.startswith("COMPACTED:")
@@ -237,7 +232,6 @@ async def test_already_compressed_tool_output_is_not_evicted_again(monkeypatch):
         on_compress_eviction=eviction_cb,
         user_goal_hint="test",
         chat_id="chat1",
-        user_id="user1",
     )
 
     eviction_cb.assert_not_called()
@@ -259,7 +253,6 @@ async def test_recent_tool_calls_are_kept_untouched(monkeypatch):
         on_compress_eviction=None,
         user_goal_hint="test",
         chat_id="chat1",
-        user_id="user1",
     )
 
     assert saved == 0

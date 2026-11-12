@@ -1,7 +1,7 @@
 # compactor/
 
 ## Overview
-Priority-aware message compression: four-level strategy (deduplicate → skip-compressed → truncate → remove) with structured offload, integrity enforcement, and smart fallback for extreme overflow.
+Priority-aware message compression: duplicate tool outputs collapse into back-references, then old tool results become identifier + metadata stubs (lowest priority first), with structured offload, integrity enforcement, and smart fallback for extreme overflow.
 
 ## File Index
 

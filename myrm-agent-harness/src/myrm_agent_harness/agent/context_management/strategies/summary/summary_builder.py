@@ -121,7 +121,7 @@ def _align_boundary_backward(messages: list[BaseMessage], idx: int) -> int:
 def extract_recent_messages(messages: list[BaseMessage], tail_budget_tokens: int) -> list[BaseMessage]:
     """Extract recent messages by token budget, ensuring intact tool-call pairs.
 
-    Backward compatibility wrapper around extract_recent_messages_with_split_context.
+    The messages-only view of extract_recent_messages_with_split_context.
     """
     return extract_recent_messages_with_split_context(messages, tail_budget_tokens).messages
 

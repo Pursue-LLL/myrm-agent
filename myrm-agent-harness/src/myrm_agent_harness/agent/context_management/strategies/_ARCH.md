@@ -14,7 +14,7 @@ Three-tier context reduction strategies: Filter, Compress, Summarize.
 
 | Submodule | Description |
 |-----------|-------------|
-| `compactor/` | Priority-aware message compression: four-level strategy, smart fallback, integrity guard, deduplication, and pre-compact helpers. |
+| `compactor/` | Priority-aware message compression: deduplication, compaction of old tool results into stubs, smart fallback, integrity guard, and pre-compact helpers. |
 | `compression/` | Compression guards: anti-thrash protection, effectiveness tracking, and formatting utilities. |
 | `filters/` | Content-type detection, structural and semantic filtering implementations. |
 | `session_notes/` | Real-time structured session notes. Zero-API-cost compression source. |

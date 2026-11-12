@@ -55,7 +55,8 @@ class ContextConfig:
 
     Three-layer context defense:
     1. Filter (instant) — truncate large outputs + smart preview
-    2. Compress (in-memory) — triggered at compress_threshold, 3-tier strategy (Dedup/Truncate/Remove)
+    2. Compress (in-memory) — triggered at compress_threshold: duplicate outputs collapse into back-references and
+       old tool results become identifier + metadata stubs
     3. Summarize (irreversible) — triggered at summarize_trigger_threshold, structured summary
 
     Example:

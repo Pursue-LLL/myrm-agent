@@ -84,7 +84,7 @@ async def test_benchmark_small_outputs_no_io() -> None:
 
     start = time.perf_counter()
     _, saved = await compress_messages_async(
-        messages, dynamic_min_save=0, config=cfg, on_compress_offload=mock_offload, chat_id="bench", user_id="user"
+        messages, dynamic_min_save=0, config=cfg, on_compress_offload=mock_offload, chat_id="bench"
     )
     elapsed_ms = (time.perf_counter() - start) * 1000
 
@@ -134,7 +134,7 @@ async def test_benchmark_large_outputs_with_io() -> None:
 
     start = time.perf_counter()
     _, saved = await compress_messages_async(
-        messages, dynamic_min_save=0, config=cfg, on_compress_offload=mock_offload, chat_id="bench", user_id="user"
+        messages, dynamic_min_save=0, config=cfg, on_compress_offload=mock_offload, chat_id="bench"
     )
     elapsed_ms = (time.perf_counter() - start) * 1000
 
@@ -179,7 +179,7 @@ async def test_benchmark_mixed_outputs() -> None:
 
     start = time.perf_counter()
     _, saved = await compress_messages_async(
-        messages, dynamic_min_save=0, config=cfg, on_compress_offload=mock_offload, chat_id="bench", user_id="user"
+        messages, dynamic_min_save=0, config=cfg, on_compress_offload=mock_offload, chat_id="bench"
     )
     elapsed_ms = (time.perf_counter() - start) * 1000
 

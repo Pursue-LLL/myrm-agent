@@ -7,7 +7,7 @@
 - persist_large_tool_output
 
 [POS]
-FilterProcessor backup persist layer (replaces legacy .myrm/artifacts path).
+FilterProcessor backup persist layer: writes the full output under the session's evicted directory.
 """
 
 from __future__ import annotations

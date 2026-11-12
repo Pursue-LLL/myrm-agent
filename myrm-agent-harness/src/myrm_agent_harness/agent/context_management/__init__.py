@@ -3,24 +3,21 @@
 提供上下文过滤、压缩、摘要等功能，用于管理 Agent 的上下文窗口。
 
 核心组件：
-1. schemas: 紧凑格式和摘要模式定义
-2. filter: 大型工具结果过滤（任务感知的混合过滤策略）
-   - 结构化数据（JSON/XML/代码）：使用 StructuralFilter
-   - 非结构化数据（HTML/Markdown/纯文本）：使用 SemanticFilter + LLM
-3. compactor: 统一压缩逻辑（合并 Context Editing + Compact）
-4. summarizer: 上下文摘要逻辑（最后手段）
-5. filters: 过滤器子模块
-   - StructuralFilter: 结构化数据过滤器
-   - SemanticFilter: 语义过滤器（使用 LLM）
-6. pipeline: Pipeline 架构的上下文处理
+1. infra: 共享 schema、预算与保留策略、会话锁、归档引用、缓存策略
+2. strategies: 三层降载策略与辅助策略
+   - filter / filters: 大型工具结果过滤（结构化数据用 StructuralFilter，非结构化数据用 SemanticFilter + LLM）
+   - compactor / compression: 去重、按优先级紧凑化旧工具结果、智能回退与防抖保护
+   - summary: 结构化摘要（最后手段）
+   - session_notes / reasoning: 会话笔记与推理锚点
+3. pipeline: 有序处理器链
    - ContextPipeline: 管道引擎
-   - 统一 builder: build_default_processors / create_default_pipeline
-   - 处理器: ThinkingBlockCleaner, FilterProcessor, CompressProcessor,
-     SessionNotesProcessor, SummarizeProcessor, ExplicitCacheProcessor
+   - 统一 builder: build_default_processors / create_default_pipeline（处理器清单见 pipeline/processors/_ARCH.md）
+4. tracking: 工件追踪与任务指标
+5. archive_checkpoint / pre_compact_service / preheat: 归档摘要、压缩前召回、前缀缓存预热
 
-设计理念（来自 Manus + Anthropic）：
+设计理念：
 - 过滤 (Filtering) 是立即的：大结果截断 + 智能预览
-- 压缩 (Compression)：三级策略（Dedup/Truncate/Remove）；通过 ContextCompressOffloadCallback 落盘后再紧凑化（Manus "有损但可追溯"原则）
+- 压缩 (Compression)：确定性规则，不调用 LLM；原文经 ContextCompressOffloadCallback 落盘后，旧工具结果再紧凑化为标识符 + 元信息存根（有损但可追溯）
   - 工具特定模板（保留标识符和元信息）
   - 最小清理保护（避免小清理破坏 Prompt Cache）
 - 摘要 (Summarization) 是不可逆的：原始消息结构被替换，无法恢复

@@ -75,7 +75,7 @@ async def test_compress_tool_message_async_with_offload_large_output() -> None:
         ],
     )
 
-    saved = await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="session123", user_id="u1")
+    saved = await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="session123")
     assert saved > 0
     assert len(written) == 1
     assert written[0][0] == "web_fetch_tool"
@@ -104,7 +104,7 @@ async def test_compress_tool_message_async_small_output_skip_offload() -> None:
         content="", tool_calls=[{"id": "tc2", "name": "bash_code_execute_tool", "args": {"command": "echo hi"}}]
     )
 
-    await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="session123", user_id=None)
+    await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="session123")
     # 关键验证:offload 未被调用(小输出跳过落盘)
     assert not offload_called
     body = str(tool.content)
@@ -130,7 +130,7 @@ async def test_compress_tool_message_async_offload_failure_degrades_gracefully()
         ],
     )
 
-    saved = await compress_tool_message_async(tool, ai, on_offload=offload, chat_id=None, user_id=None)
+    saved = await compress_tool_message_async(tool, ai, on_offload=offload, chat_id=None)
     assert saved >= 0
     body = str(tool.content)
     assert "FILE:" not in body
@@ -166,7 +166,7 @@ async def test_skill_select_tool_compression_preserves_recovery_info() -> None:
         tool_calls=[{"id": "skill_tc1", "name": "skill_select_tool", "args": {"path": "/skills/coding.md"}}],
     )
 
-    saved = await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="chat_skill", user_id="u1")
+    saved = await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="chat_skill")
     assert saved > 0
     assert offload_called
 
@@ -195,7 +195,7 @@ async def test_skill_select_tool_small_content_compresses_without_offload() -> N
         tool_calls=[{"id": "skill_tc2", "name": "skill_select_tool", "args": {"path": "/skills/short.md"}}],
     )
 
-    await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="chat_skill2", user_id="u1")
+    await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="chat_skill2")
 
     body = str(tool.content)
     assert "COMPACTED:" in body
@@ -227,7 +227,7 @@ async def test_compress_messages_async_passes_offload_to_tool_compress() -> None
 
     cfg = ContextConfig(max_context_tokens=128000, compress_min_save=0, keep_recent_calls=2)
     _, saved = await compress_messages_async(
-        messages, dynamic_min_save=0, config=cfg, on_compress_offload=offload, chat_id="chat123", user_id="user1"
+        messages, dynamic_min_save=0, config=cfg, on_compress_offload=offload, chat_id="chat123"
     )
     assert saved > 0
     # 应该有 5 个工具调用被压缩,且都触发了落盘
