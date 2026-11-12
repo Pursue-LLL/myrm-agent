@@ -2,7 +2,7 @@
 
 Each case drives a real manager over SQLite and an embedded Qdrant through run_consolidation, the call the idle worker
 makes: the memory a merge creates, the counterpart a contested correction keeps beside the original, and the insights
-a cycle draws from its whole window.
+a cycle draws from each namespace group.
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ async def test_a_contested_correction_keeps_the_lineage_of_the_memory_it_contest
     assert await manager.get_memory(old.id) is None
 
 
-async def test_an_insight_derives_from_every_chat_of_the_window_it_was_drawn_from(new_manager: NewManager) -> None:
+async def test_an_insight_derives_from_every_chat_of_the_group_it_was_drawn_from(new_manager: NewManager) -> None:
     manager = new_manager()
     await seed(
         manager,

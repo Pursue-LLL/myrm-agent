@@ -45,8 +45,8 @@ def validated_insights(insights: Sequence[str], memories: Sequence[AnyMemory]) -
     """The insights stating no number or identifier absent from ``memories``, and how many were turned away."""
     if not insights:
         return [], 0
-    window_facts = facts_of(*(memory.content for memory in memories))
-    kept = [insight for insight in insights if facts_of(insight).beyond(window_facts).is_empty]
+    group_facts = facts_of(*(memory.content for memory in memories))
+    kept = [insight for insight in insights if facts_of(insight).beyond(group_facts).is_empty]
     if rejected := len(insights) - len(kept):
         logger.info(
             "Consolidation dropped %d insight(s): each states a number or identifier no analyzed memory states",

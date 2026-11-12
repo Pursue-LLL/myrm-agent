@@ -107,7 +107,7 @@ def _guarded(
 
 
 def _review(
-    op: ConsolidationOp, id_map: dict[str, str], texts: dict[str, str], window_facts: Facts, guard: NamedEntityGuard
+    op: ConsolidationOp, id_map: dict[str, str], texts: dict[str, str], group_facts: Facts, guard: NamedEntityGuard
 ) -> tuple[ConsolidationOp, bool] | None:
     """``op`` as it may proceed (full ids, repaired text) and whether the guard repaired it.
 
@@ -122,8 +122,8 @@ def _review(
         return None
     named = _named_ids(resolved)
     sources = [texts[name] for name in named]
-    # A merge is derived from its sources; a correction, rewrite or insight may draw on anything the model read.
-    reference = facts_of(*sources) if isinstance(resolved, MergeOp) else window_facts
+    # A merge is derived from its sources; a correction or rewrite may draw on any memory of its group.
+    reference = facts_of(*sources) if isinstance(resolved, MergeOp) else group_facts
     unsupported = facts_of(_candidate_text(resolved)).beyond(reference)
     if not unsupported.is_empty:
         logger.info(
@@ -158,13 +158,13 @@ def filter_and_guard_operations(
     if not raw_ops:
         return FilteredOperations([])
     texts = {memory.id: memory.content for memory in memories}
-    window_facts = facts_of(*texts.values())
+    group_facts = facts_of(*texts.values())
     guard = NamedEntityGuard()
     kept: list[ConsolidationOp] = []
     handled: set[str] = set()
     patched = rejected = 0
     for raw in raw_ops:
-        reviewed = _review(raw, id_map, texts, window_facts, guard)
+        reviewed = _review(raw, id_map, texts, group_facts, guard)
         if reviewed is None or not _claim(reviewed[0], handled):
             rejected += 1
             continue
