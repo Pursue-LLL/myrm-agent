@@ -26,11 +26,14 @@ Dedicated to BrowserContext creation and configuration, including:
 9. Refusing downloads by default (``accept_downloads=False`` in every context kind): the browser would otherwise keep
    every file a page starts in its temp dir until the context closes, so only a context whose owner passes
    ``accept_downloads=True`` (a ``BrowserSession`` with a download manager) keeps any
+10. Contexts in the user's own browser, reached through the extension (``extension_attached``): the browser keeps its
+    window size, network, identity and certificate checks. No viewport, proxy, header, user-agent, emulation,
+    permission, certificate or stealth override is applied, because the extension's debugger refuses some of them
+    and the rest would change the user's own tab
 """
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import platform
 from typing import TYPE_CHECKING, cast
@@ -49,7 +52,13 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT_MS = 30000  # global default timeout, overrides all page operations (evaluate/click/goto etc.)
 _STEALTH_TYPE = "stealth"  # ContextType.STEALTH.value — avoid circular import
 # create_context kwargs consumed by this factory; never forwarded to Browser.new_context().
-_POLICY_KWARGS = frozenset({"domain_allowlist", "domain_blocklist", "resource_block", "allow_private_networks"})
+_POLICY_KWARGS = frozenset(
+    {"domain_allowlist", "domain_blocklist", "resource_block", "allow_private_networks", "extension_attached"}
+)
+
+# What a context in the user's own browser asks for: nothing beyond refusing downloads. ``no_viewport`` leaves the page
+# at the window's own size instead of resizing it inside the user's window.
+_EXTENSION_CONTEXT_OPTIONS: dict[str, object] = {"no_viewport": True, "accept_downloads": False}
 
 _DEFAULT_CONTEXT_OPTIONS: dict[str, object] = {
     "viewport": {"width": 1920, "height": 1080},
@@ -147,6 +156,8 @@ class ContextFactory:
                 - domain_blocklist (DomainBlocklist): always-blocked domains
                 - resource_block (ResourceBlockConfig): resource type blocking
                 - allow_private_networks (bool): let the HTTP filter pass loopback/private targets
+                - extension_attached (bool): the browser is the user's own, reached through the extension; the
+                  context asks for no emulation, viewport, proxy, certificate or permission override
             context_key: Unique context identifier for proxy sticky session binding.
                 When provided, same context_key always gets the same proxy.
                 Falls back to context_type if not provided.
@@ -167,14 +178,7 @@ class ContextFactory:
         domain_blocklist = cast("DomainBlocklist | None", policy.get("domain_blocklist"))
         resource_block = cast("ResourceBlockConfig | None", policy.get("resource_block"))
         allow_private_networks = bool(policy.get("allow_private_networks"))
-
-        # Try to safely extract permissions, some engines (like Firefox) don't support all Chromium permissions
-        permissions = ctx_opts.get("permissions", [])
-        if isinstance(permissions, list) and "clipboard-read" in permissions:
-            # For Firefox/Camoufox, we might need to remove clipboard-read if it causes issues
-            with contextlib.suppress(Exception):
-                # We can't easily check the browser type here, but we can try/except
-                pass
+        extension_attached = bool(policy.get("extension_attached"))
 
         try:
             context = await browser.new_context(**ctx_opts)  # type: ignore[arg-type]
@@ -210,7 +214,7 @@ class ContextFactory:
             # engines where the network-level inject route does work.
             await context.add_init_script(enhancer_script)
 
-        if context_type == _STEALTH_TYPE:
+        if context_type == _STEALTH_TYPE and not extension_attached:
             await self._apply_stealth(context)
 
         if domain_allowlist or domain_blocklist or resource_block:
@@ -238,10 +242,25 @@ class ContextFactory:
         context_key: str | None = None,
     ) -> dict[str, object]:
         """Build context options based on type and configuration."""
-        if context_type == _STEALTH_TYPE:
-            ctx_opts = dict(_STEALTH_CONTEXT_OPTIONS)
+        if extra_kwargs and extra_kwargs.get("extension_attached"):
+            ctx_opts = dict(_EXTENSION_CONTEXT_OPTIONS)
         else:
-            ctx_opts = dict(_DEFAULT_CONTEXT_OPTIONS)
+            ctx_opts = self._build_launched_context_options(context_type, emulation, context_key)
+
+        if extra_kwargs:
+            playwright_kwargs = {k: v for k, v in extra_kwargs.items() if k not in _POLICY_KWARGS}
+            ctx_opts.update(playwright_kwargs)
+
+        return ctx_opts
+
+    def _build_launched_context_options(
+        self,
+        context_type: str,
+        emulation: EmulationConfig | None,
+        context_key: str | None,
+    ) -> dict[str, object]:
+        """Options of a context in a browser the pool owns or may fully control: identity, proxy and emulation included."""
+        ctx_opts = dict(_STEALTH_CONTEXT_OPTIONS if context_type == _STEALTH_TYPE else _DEFAULT_CONTEXT_OPTIONS)
 
         if self._proxy_pool:
             session_id = context_key or context_type
@@ -253,10 +272,6 @@ class ContextFactory:
             ctx_opts.update(effective_emulation.to_playwright_kwargs())
             if effective_emulation.locale:
                 _sync_accept_language(ctx_opts, effective_emulation.locale)
-
-        if extra_kwargs:
-            playwright_kwargs = {k: v for k, v in extra_kwargs.items() if k not in _POLICY_KWARGS}
-            ctx_opts.update(playwright_kwargs)
 
         return ctx_opts
 

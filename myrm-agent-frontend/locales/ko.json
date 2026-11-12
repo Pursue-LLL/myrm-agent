@@ -16673,6 +16673,7 @@
       "relayCapabilityListTabsLabel": "탭 발견",
       "relayCapabilityAttachLabel": "디버거 연결",
       "relayCapabilityDetachLabel": "디버거 분리",
+      "relayCapabilityAgentTabsLabel": "에이전트 탭 제어",
       "relayCapabilityMissingListHelp": "로컬 myrm-agent-extension 을 업데이트하고 다시 연결하세요. 누락: {missing}.",
       "relayCapabilityHelp": "로컬 myrm-agent-extension 을 업데이트하고 다시 연결하세요.",
       "wildcardWarningTitle": "도메인 정책 참고",

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   extractDomain,
+  isBlankUrl,
   isEligibleHttpUrl,
   isInternalBrowserUrl,
   isNavigationTargetAuthorized,
@@ -16,12 +17,14 @@ interface Access {
   authorizedDomains: string[];
   allowAllEligibleTabs: boolean;
   pausedTabIds: Set<number>;
+  agentTabIds: Set<number>;
 }
 
 const access = (overrides: Partial<Access> = {}): Access => ({
   authorizedDomains: [],
   allowAllEligibleTabs: false,
   pausedTabIds: new Set(),
+  agentTabIds: new Set(),
   ...overrides,
 });
 
@@ -37,6 +40,15 @@ describe('URL classification', () => {
   it('does not treat a blank page or a web page as internal', () => {
     expect(isInternalBrowserUrl('about:blank')).toBe(false);
     expect(isInternalBrowserUrl('https://example.com/')).toBe(false);
+  });
+
+  it('recognises a blank page only by an empty URL or about:blank', () => {
+    for (const url of ['', '  ', 'about:blank', ' ABOUT:BLANK ']) {
+      expect(isBlankUrl(url)).toBe(true);
+    }
+    for (const url of ['about:newtab', 'https://example.com/', 'data:text/html,<p>x</p>', 'chrome://newtab']) {
+      expect(isBlankUrl(url)).toBe(false);
+    }
   });
 
   it('admits http, https and file URLs only', () => {
@@ -98,6 +110,33 @@ describe('tab eligibility', () => {
     expect(isTabEligibleForPolicy(paused, policy)).toBe(true);
     expect(isTabAuthorized(paused, policy)).toBe(false);
     expect(isTabAuthorized(tab(8, 'https://example.com/'), policy)).toBe(true);
+  });
+});
+
+describe('tabs the Agent opened', () => {
+  it('admits a blank tab the Agent opened, even while no domain is authorized', () => {
+    const policy = access({ agentTabIds: new Set([5]) });
+    expect(isTabEligibleForPolicy(tab(5, 'about:blank'), policy)).toBe(true);
+    expect(isTabEligibleForPolicy(tab(5, ''), policy)).toBe(true);
+    expect(isTabAuthorized(tab(5, 'about:blank'), policy)).toBe(true);
+  });
+
+  it('never admits a blank tab the user opened', () => {
+    const policy = access({ agentTabIds: new Set([5]), allowAllEligibleTabs: true });
+    expect(isTabEligibleForPolicy(tab(6, 'about:blank'), policy)).toBe(false);
+  });
+
+  it('applies the normal policy to an Agent tab once it has left the blank page', () => {
+    const policy = access({ agentTabIds: new Set([5]), authorizedDomains: ['example.com'] });
+    expect(isTabEligibleForPolicy(tab(5, 'https://example.com/'), policy)).toBe(true);
+    expect(isTabEligibleForPolicy(tab(5, 'https://other.test/'), policy)).toBe(false);
+    expect(isTabEligibleForPolicy(tab(5, 'chrome://settings'), policy)).toBe(false);
+  });
+
+  it('keeps a paused Agent tab away from the Agent', () => {
+    const policy = access({ agentTabIds: new Set([5]), pausedTabIds: new Set([5]) });
+    expect(isTabEligibleForPolicy(tab(5, 'about:blank'), policy)).toBe(true);
+    expect(isTabAuthorized(tab(5, 'about:blank'), policy)).toBe(false);
   });
 });
 

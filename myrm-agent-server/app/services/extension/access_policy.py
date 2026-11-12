@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - ExtensionAccessPolicy: user-configured access boundaries
-- is_tab_accessible, is_policy_valid_for_automation, is_internal_browser_url
+- is_tab_accessible, is_policy_valid_for_automation, is_internal_browser_url, is_blank_url
 - prune_paused_tab_ids
 
 [POS]
@@ -71,6 +71,11 @@ def is_internal_browser_url(url: str) -> bool:
         "brave://",
     )
     return lowered.startswith(internal_prefixes)
+
+
+def is_blank_url(url: str) -> bool:
+    """Return True for a page that holds nothing yet (the extension judges blankness the same way)."""
+    return (url or "").strip().lower() in {"", "about:blank"}
 
 
 def is_eligible_http_url(url: str) -> bool:

@@ -4,6 +4,7 @@
 - pool.config::HumanizeConfig (POS: interaction humanization config)
 - session.humanize::bezier_move, click_delay, type_delay (POS: humanized delay, Bézier mouse, and wheel-burst scroll helpers)
 - session.interactor_scroll_mixin::ScrollHumanizeMixin (POS: humanized wheel-input scrolling behaviors)
+- session.viewport::page_viewport_size (POS: the area a coordinate may point at)
 - wait::settle_after_action, capped_note (POS: the wait an interaction ends with: the requests the action started, within a cap; the note for a wait that hit it)
 
 [OUTPUT]
@@ -29,6 +30,7 @@ from myrm_agent_harness.toolkits.browser.session.humanize import (
     click_delay,
     type_delay,
 )
+from myrm_agent_harness.toolkits.browser.session.viewport import page_viewport_size
 from myrm_agent_harness.toolkits.browser.wait import capped_note, settle_after_action
 
 if TYPE_CHECKING:
@@ -87,8 +89,7 @@ class CoordInteractMixin:
         if action not in self._COORD_ACTIONS:
             raise ValueError(f"Invalid coordinate action: {action}. Supported: {sorted(self._COORD_ACTIONS)}")
 
-        viewport = self._page.viewport_size or {"width": 1280, "height": 720}
-        vw, vh = viewport["width"], viewport["height"]
+        vw, vh = await page_viewport_size(self._page)
         if not (0 <= x <= vw and 0 <= y <= vh):
             raise ValueError(
                 f"Coordinates ({x}, {y}) out of viewport bounds ({vw}×{vh}). "

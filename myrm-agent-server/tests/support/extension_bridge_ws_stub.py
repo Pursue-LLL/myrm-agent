@@ -20,6 +20,7 @@ _EXTENSION_CAPABILITIES = [
     "list_tabs",
     "attach_debugger",
     "detach_debugger",
+    "agent_tab_control",
 ]
 
 _E2E_STUB_TABS: list[dict[str, object]] = [

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from app.services.extension.access_policy import (
     ExtensionAccessPolicy,
+    is_blank_url,
     is_policy_valid_for_automation,
     is_tab_accessible,
     match_domain,
@@ -52,6 +53,10 @@ class AccessPolicyMixin:
             domain=tab.domain,
             policy=self._current_access_policy(),
         )
+
+    def _is_blank_agent_tab(self, tab: ExtensionTab) -> bool:
+        """A blank page the Agent opened itself: it holds no site data and the Agent must be able to navigate it."""
+        return tab.tab_id in self._agent_tab_ids and is_blank_url(tab.url)
 
     def _tab_is_visible_in_ui(self, tab: ExtensionTab) -> bool:
         return is_tab_accessible(

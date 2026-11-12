@@ -31,7 +31,6 @@ from .common import (
     _HEARTBEAT_INTERVAL,
     _HEARTBEAT_TIMEOUT,
     ExtensionBridgeNotAvailable,
-    ExtensionTab,
     logger,
 )
 
@@ -61,16 +60,26 @@ class RelayMixin:
         except asyncio.CancelledError:
             pass
         finally:
-            self._connected = False
-            self._ws = None
-            self._hello_received = False
-            self._capabilities.clear()
-            for fut in self._pending_requests.values():
-                if not fut.done():
-                    fut.set_exception(ExtensionBridgeNotAvailable("Connection lost"))
-            self._pending_requests.clear()
-            logger.info("Extension bridge WebSocket closed")
-            common._broadcast_extension_status(False)
+            await self._release_connection(ws)
+
+    async def _release_connection(self, ws: WebSocket) -> None:
+        """Forget a closed extension connection and everything that only lived on it, unless a newer one replaced it."""
+        if self._ws is not None and self._ws is not ws:
+            return
+        self._connected = False
+        self._ws = None
+        self._hello_received = False
+        self._capabilities.clear()
+        self._tabs = []
+        self._agent_tab_ids = frozenset()
+        for fut in self._pending_requests.values():
+            if not fut.done():
+                fut.set_exception(ExtensionBridgeNotAvailable("Connection lost"))
+        self._pending_requests.clear()
+        # The debugger sessions died with the connection; the relay must tell its CDP clients instead of leaving them stranded.
+        await common.get_cdp_relay_manager().bind_extension_transport(None)
+        logger.info("Extension bridge WebSocket closed")
+        common._broadcast_extension_status(False)
 
     async def _receive_loop(self) -> None:
         """Main receive loop for extension WebSocket messages."""
@@ -108,16 +117,7 @@ class RelayMixin:
                     await common.get_cdp_relay_manager().dispatch_extension_message(msg)
 
                 elif msg_type == "tabs_update":
-                    self._tabs = [
-                        ExtensionTab(
-                            tab_id=t["id"],
-                            url=t["url"],
-                            title=t.get("title", ""),
-                            domain=t.get("domain", ""),
-                            active=t.get("active", False),
-                        )
-                        for t in msg.get("tabs", [])
-                    ]
+                    self._apply_tab_list(msg.get("tabs"))
                     active_tab_ids = frozenset(tab.tab_id for tab in self._tabs)
                     pruned_paused = prune_paused_tab_ids(
                         self._paused_tab_ids,
@@ -189,16 +189,9 @@ class RelayMixin:
                     active=tab.active,
                 )
                 for tab in self._tabs
-                if self._tab_is_accessible(tab)
+                if self._tab_is_accessible(tab) or self._is_blank_agent_tab(tab)
             ]
         )
-
-    def _pick_preferred_extension_tab(self) -> ExtensionTab | None:
-        authorized = [tab for tab in self._tabs if self._tab_is_accessible(tab)]
-        if not authorized:
-            return None
-        active = [tab for tab in authorized if tab.active]
-        return active[0] if active else authorized[0]
 
     async def _focus_browser_on_domain(self, browser: Browser, domain: str) -> None:
         from urllib.parse import urlparse
@@ -285,17 +278,6 @@ class RelayMixin:
     async def _refresh_tabs(self) -> None:
         """Request fresh tab list from extension."""
         try:
-            result = await self._send_request("list_tabs", timeout=5.0)
-            if isinstance(result, list):
-                self._tabs = [
-                    ExtensionTab(
-                        tab_id=t["id"],
-                        url=t["url"],
-                        title=t.get("title", ""),
-                        domain=t.get("domain", ""),
-                        active=t.get("active", False),
-                    )
-                    for t in result
-                ]
+            self._apply_tab_list(await self._send_request("list_tabs", timeout=5.0))
         except ExtensionBridgeNotAvailable:
             pass

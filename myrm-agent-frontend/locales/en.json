@@ -16673,6 +16673,7 @@
       "relayCapabilityListTabsLabel": "Tab discovery",
       "relayCapabilityAttachLabel": "Debugger attach",
       "relayCapabilityDetachLabel": "Debugger detach",
+      "relayCapabilityAgentTabsLabel": "Agent tab control",
       "relayCapabilityMissingListHelp": "Update your local myrm-agent-extension and reconnect. Missing: {missing}.",
       "relayCapabilityHelp": "Update your local myrm-agent-extension and reconnect.",
       "wildcardWarningTitle": "Domain policy note",

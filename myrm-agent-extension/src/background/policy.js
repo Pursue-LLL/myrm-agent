@@ -2,12 +2,12 @@
  * Access policy decisions: which URLs and tabs the Agent may use. Pure functions, no chrome APIs.
  *
  * [INPUT]
- * - access: { authorizedDomains: string[], allowAllEligibleTabs: boolean, pausedTabIds?: Set<number> }
+ * - access: { authorizedDomains: string[], allowAllEligibleTabs: boolean, pausedTabIds: Set<number>, agentTabIds: Set<number> }
  *   (the service-worker `state` satisfies this shape)
  *
  * [OUTPUT]
- * - isInternalBrowserUrl / isEligibleHttpUrl / extractDomain / matchDomain / isDomainAuthorized
- * - isTabEligibleForPolicy: the tab is on a domain the policy admits (paused or not)
+ * - isInternalBrowserUrl / isBlankUrl / isEligibleHttpUrl / extractDomain / matchDomain / isDomainAuthorized
+ * - isTabEligibleForPolicy: the tab is on a domain the policy admits, or is a blank page the Agent opened (paused or not)
  * - isTabAuthorized: eligible and not paused
  * - isNavigationTargetAuthorized: the policy admits navigating to this URL
  *
@@ -26,6 +26,11 @@ export function isInternalBrowserUrl(url) {
     || lowered.startsWith("edge://")
     || lowered.startsWith("brave://")
   );
+}
+
+export function isBlankUrl(url) {
+  const trimmed = (url || "").trim().toLowerCase();
+  return trimmed === "" || trimmed === "about:blank";
 }
 
 export function isEligibleHttpUrl(url) {
@@ -63,6 +68,8 @@ export function isDomainAuthorized(domain, access) {
 
 export function isTabEligibleForPolicy(tab, access) {
   if (!tab || !Number.isInteger(tab.id)) return false;
+  // A blank page the Agent opened holds no site data; it is admitted so the Agent can take it to the site it needs.
+  if (access.agentTabIds.has(tab.id) && isBlankUrl(tab.url)) return true;
   const url = tab.url || "";
   if (isInternalBrowserUrl(url)) return false;
   if (access.allowAllEligibleTabs) {

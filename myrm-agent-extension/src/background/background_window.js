@@ -3,19 +3,21 @@
  *
  * [INPUT]
  * - state (POS: id of the background window)
+ * - policy.js::isBlankUrl (POS: which of the window's tabs are unused)
  * - chrome.windows / chrome.tabs (POS: window and tab lifecycle)
  *
  * [OUTPUT]
  * - ensureBackgroundWindow: id of the live background window, created unfocused when missing
- * - getOrCreateBackgroundTab: a tab in that window, reusing a blank one
  * - cleanupBackgroundTabs: close the window's tabs that carry content
  *
- * [POS] Background-window lifecycle; forgets the window when the user closes it.
+ * [POS] Background-window lifecycle; forgets the window when the user closes it. Which of its tabs the Agent
+ * owns is agent_tabs.js's business.
  */
 
+import { isBlankUrl } from "./policy.js";
 import { persistBackgroundWindow, state } from "./state.js";
 
-export async function ensureBackgroundWindow() {
+async function openBackgroundWindow() {
   if (state.backgroundWindowId !== null) {
     try {
       await chrome.windows.get(state.backgroundWindowId);
@@ -37,28 +39,19 @@ export async function ensureBackgroundWindow() {
   return state.backgroundWindowId;
 }
 
-export async function getOrCreateBackgroundTab(url) {
-  const windowId = await ensureBackgroundWindow();
-  const tabs = await chrome.tabs.query({ windowId });
-
-  // Reuse existing blank tab if available
-  const blankTab = tabs.find((t) => !t.url || t.url === "about:blank" || t.url === "chrome://newtab/");
-  if (blankTab) {
-    if (url && url !== "about:blank") {
-      await chrome.tabs.update(blankTab.id, { url });
-    }
-    return blankTab.id;
-  }
-
-  const newTab = await chrome.tabs.create({ windowId, url: url || "about:blank", active: false });
-  return newTab.id;
+export function ensureBackgroundWindow() {
+  // Callers that arrive while the window is being opened wait for it instead of opening another.
+  state.backgroundWindowOpening ??= openBackgroundWindow().finally(() => {
+    state.backgroundWindowOpening = null;
+  });
+  return state.backgroundWindowOpening;
 }
 
 export function cleanupBackgroundTabs() {
   if (state.backgroundWindowId === null) return;
   chrome.tabs.query({ windowId: state.backgroundWindowId }, (tabs) => {
     for (const tab of tabs) {
-      if (tab.url && tab.url !== "about:blank" && tab.url !== "chrome://newtab/") {
+      if (!isBlankUrl(tab.url)) {
         chrome.tabs.remove(tab.id).catch(() => {});
       }
     }

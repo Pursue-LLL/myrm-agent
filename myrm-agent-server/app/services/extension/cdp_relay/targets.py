@@ -20,7 +20,7 @@ import json
 import logging
 from collections.abc import Coroutine
 
-from .extension_link import ExtensionLink
+from .extension_link import CallExtension, ExtensionLink
 from .models import AttachedTab, CdpClient, TabState
 from .protocol import BROWSER_CONTEXT_ID, RelayTabInfo
 
@@ -39,6 +39,13 @@ class TargetRegistry(ExtensionLink):
         self._auxiliary_tab_sessions: dict[str, tuple[int, str, CdpClient]] = {}
         self._next_session_ordinal = 1
         self._background_tasks: set[asyncio.Task[None]] = set()
+
+    def set_extension_transport(self, call_extension: CallExtension | None) -> None:
+        super().set_extension_transport(call_extension)
+        if call_extension is None:
+            # Debugger sessions die with the connection: every announced target is gone for the CDP clients as well.
+            for tab_id in list(self._tabs):
+                self._forget_tab(tab_id)
 
     def sync_tabs(self, tabs: list[RelayTabInfo]) -> None:
         next_ids = {tab.tab_id for tab in tabs}
@@ -200,8 +207,14 @@ class TargetRegistry(ExtensionLink):
             self._emit_detached(tab_id, state.attached)
 
     async def _close_tab(self, tab_id: int) -> None:
-        """Close a tab in the browser (the extension only closes tabs the Agent opened), then forget it."""
-        await self._call_extension_cmd({"type": "closeTab", "tabId": tab_id})
+        """Close a tab the Agent opened. Any other tab stays open: the Agent only lets go of it.
+
+        Playwright waits for the target to detach before ``page.close()`` returns, so a tab that is kept open is
+        detached all the same instead of being answered with an error nobody sees.
+        """
+        result = await self._call_extension_cmd({"type": "closeTab", "tabId": tab_id})
+        if not (isinstance(result, dict) and result.get("closed") is True):
+            await self._release_in_extension(tab_id)
         self._forget_tab(tab_id)
 
     async def _release_in_extension(self, tab_id: int) -> None:

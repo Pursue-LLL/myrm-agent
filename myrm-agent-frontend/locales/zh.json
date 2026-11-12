@@ -16673,6 +16673,7 @@
       "relayCapabilityListTabsLabel": "标签页发现",
       "relayCapabilityAttachLabel": "调试器附加",
       "relayCapabilityDetachLabel": "调试器分离",
+      "relayCapabilityAgentTabsLabel": "Agent 标签页控制",
       "relayCapabilityMissingListHelp": "请更新本地 myrm-agent-extension 后重新连接。缺少：{missing}。",
       "relayCapabilityHelp": "请更新本地 myrm-agent-extension 后重新连接。",
       "wildcardWarningTitle": "域名策略提示",

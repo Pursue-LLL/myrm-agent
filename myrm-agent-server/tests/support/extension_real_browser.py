@@ -12,8 +12,12 @@
 [OUTPUT]
 - FixtureSite: loopback site that answers under several host names and gates its pages on a login cookie
 - BridgeServer: the production extension routes on an ephemeral loopback port
-- ExtensionBrowser: the user's daily browser with the extension loaded; popup-style messaging
-- RealExtensionStack / real_extension_stack: all three wired together and connected
+- ExtensionBrowser: the user's daily browser with the extension loaded; popup-style messaging, extension-page scripts,
+  service-worker termination
+- RealExtensionStack / real_extension_stack: all three wired together and connected; user sign-in, the Agent's
+  Playwright browser (the bridge's own connect(), through the CDP relay) and the Agent's BrowserSession on top of the
+  production browser pool
+- new_agent_page: a context and a blank page the way the Agent's browser pool opens them
 - wait_until: bounded polling for asynchronous conditions
 
 [POS]
@@ -36,7 +40,9 @@ import pytest
 import uvicorn
 from aiohttp import web
 from fastapi import FastAPI
-from patchright.async_api import BrowserContext, Page, Playwright, async_playwright
+from myrm_agent_harness.toolkits.browser.pool import BrowserPoolConfig, ContextType, GlobalBrowserPool
+from myrm_agent_harness.toolkits.browser.session import BrowserSession
+from patchright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 
 from app.api.extension.router import router as extension_router
 from app.api.extension.router import ws_router as extension_ws_router
@@ -186,6 +192,33 @@ class ExtensionBrowser:
         assert isinstance(reply, dict), f"Extension answered {reply!r} to {message!r}"
         return reply
 
+    async def evaluate(self, function: str, argument: object = None) -> object:
+        """Run a JavaScript function on an extension page, where every extension API the manifest grants is available."""
+        page = await self.popup()
+        return await page.evaluate(function, argument, isolated_context=False)
+
+    async def stop_service_worker(self) -> None:
+        """Terminate the extension's service worker the way the browser does when it reclaims an idle one.
+
+        The next message or alarm starts a fresh worker with none of the previous worker's memory.
+        """
+        holder = await self.context.new_page()
+        try:
+            session = await self.context.new_cdp_session(holder)
+            versions: list[dict[str, object]] = []
+            session.on("ServiceWorker.workerVersionUpdated", lambda event: versions.extend(event.get("versions", [])))
+            await session.send("ServiceWorker.enable")
+
+            async def worker_known() -> bool:
+                return any(self.extension_id in str(version.get("scriptURL")) for version in versions)
+
+            await wait_until(worker_known, "the extension's service worker to be reported")
+            for version in versions:
+                if self.extension_id in str(version.get("scriptURL")):
+                    await session.send("ServiceWorker.stopWorker", {"versionId": version["versionId"]})
+        finally:
+            await holder.close()
+
     async def connect_through_popup(self, ws_url: str) -> None:
         """Type the server address into the popup and press Connect, as a user would."""
         page = await self.popup()
@@ -222,6 +255,53 @@ class RealExtensionStack:
             return reply.get("authorizedDomains") == domains
 
         await wait_until(pushed, f"the extension to receive authorized domains {domains}")
+
+    async def log_in(self, host: str) -> Page:
+        """The user signs in to a site in a tab of their own, as they would before asking the Agent for help."""
+        return await self.browser.open_user_tab(self.site.url(host, "/login?user=alice"))
+
+    @asynccontextmanager
+    async def agent_browser(self) -> AsyncIterator[Browser]:
+        """A Playwright browser the way the Agent gets one: through the production bridge and its CDP relay."""
+        instance = await self.bridge.connect()
+        try:
+            yield instance.browser
+        finally:
+            await instance.browser.close()
+
+    @asynccontextmanager
+    async def agent_session(self) -> AsyncIterator[BrowserSession]:
+        """The Agent's browser session as the tool setup builds it for the user's own browser (local mode, extension source)."""
+        pool = GlobalBrowserPool(max_browsers=1, config=BrowserPoolConfig.minimal(), extension_bridge=self.bridge)
+        session = BrowserSession(
+            pool,
+            ContextType.AGENT,
+            context_key="e2e-agent",
+            extension_bridge=self.bridge,
+            allow_private_networks=True,
+            launch_mode_preference="extension",
+        )
+        try:
+            yield session
+        finally:
+            await session.close()
+            await pool.shutdown()
+
+    async def handshaken(self) -> bool:
+        """True while the extension is connected and its hello has been processed."""
+        status = await self.bridge.get_status()
+        return status.connected and status.handshake_ready
+
+
+async def new_agent_page(browser: Browser) -> Page:
+    """What the Agent's browser pool does for every task: a context of its own and a blank page in it."""
+    context = await browser.new_context()
+    return await context.new_page()
+
+
+def find_page(browser: Browser, url_part: str) -> Page:
+    """The page whose URL contains `url_part`, in any context: Playwright does not keep the default context first."""
+    return next(page for context in browser.contexts for page in context.pages if url_part in page.url)
 
 
 def _reset_bridge_singletons() -> None:
@@ -262,10 +342,6 @@ async def real_extension_stack(profile_dir: Path) -> AsyncIterator[RealExtension
         worker = context.service_workers[0] if context.service_workers else await context.wait_for_event("serviceworker")
         browser = ExtensionBrowser(context, worker.url.split("/")[2])
         await browser.connect_through_popup(server.ws_url)
-
-        async def handshaken() -> bool:
-            status = await bridge.get_status()
-            return status.connected and status.handshake_ready
-
-        await wait_until(handshaken, "the extension to connect and complete the handshake")
-        yield RealExtensionStack(site, server, browser, bridge, playwright)
+        stack = RealExtensionStack(site, server, browser, bridge, playwright)
+        await wait_until(stack.handshaken, "the extension to connect and complete the handshake")
+        yield stack

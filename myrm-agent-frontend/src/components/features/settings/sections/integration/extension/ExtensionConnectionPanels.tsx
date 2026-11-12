@@ -46,6 +46,7 @@ export const ExtensionConnectionInfoCard = memo(
             list_tabs: t('extension.relayCapabilityListTabsLabel'),
             attach_debugger: t('extension.relayCapabilityAttachLabel'),
             detach_debugger: t('extension.relayCapabilityDetachLabel'),
+            agent_tab_control: t('extension.relayCapabilityAgentTabsLabel'),
           }[cap.key],
           available: cap.available,
         })),

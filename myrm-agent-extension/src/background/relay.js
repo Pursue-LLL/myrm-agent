@@ -1,33 +1,39 @@
 /**
- * Commands the server's CDP relay sends to the browser: attach, detach, forward a CDP call, create a tab.
+ * Commands the server's CDP relay sends to the browser: attach, detach, forward a CDP call, create a tab, close a tab.
  *
  * [INPUT]
  * - state / policy.js (POS: every command re-checks the tab or domain against the access policy)
  * - debugger.js (POS: attaching and detaching)
- * - background_window.js (POS: background tab creation)
+ * - agent_tabs.js (POS: opening and closing the Agent's own tabs)
  * - transport.js::send (POS: relay_result back to the server)
  *
  * [OUTPUT]
  * - executeRelayCommand: run one relay command and send its result; throws when it is refused or fails
  *
- * [POS] The enforcement point for the loopback CDP relay: no tab is attached, driven or created without passing the policy.
+ * [POS] The enforcement point for the loopback CDP relay: no tab is attached, driven or created without passing the
+ * policy, and only a tab the Agent opened is ever closed.
  */
 
-import { getOrCreateBackgroundTab } from "./background_window.js";
+import { closeAgentTab, openAgentTab } from "./agent_tabs.js";
 import { attachDebugger, detachDebugger } from "./debugger.js";
-import { extractDomain, isNavigationTargetAuthorized, isTabAuthorized } from "./policy.js";
+import { extractDomain, isBlankUrl, isNavigationTargetAuthorized, isTabAuthorized } from "./policy.js";
 import { state } from "./state.js";
 import { send } from "./transport.js";
 
 const RELAY_CDP_NAVIGATE_METHODS = new Set(["Page.navigate"]);
 
-function assertRelayCdpNavigateAuthorized(method, params) {
+function assertRelayCdpNavigateAuthorized(tabId, method, params) {
   if (!RELAY_CDP_NAVIGATE_METHODS.has(method)) {
     return;
   }
   const rawParams = params && typeof params === "object" ? params : {};
   const url = typeof rawParams.url === "string" ? rawParams.url : "";
   if (!url) {
+    return;
+  }
+  // A tab the Agent opened may be taken back to a blank page (the browser pool resets a reused page that way); the
+  // policy keeps admitting it while it is blank. A tab the user opened is never navigated away to nothing.
+  if (isBlankUrl(url) && state.agentTabIds.has(tabId)) {
     return;
   }
   if (!isNavigationTargetAuthorized(url, state)) {
@@ -72,7 +78,7 @@ export async function executeRelayCommand(seq, command) {
       if (!Number.isInteger(tabId) || typeof method !== "string") {
         throw new Error("cdp requires tabId and method");
       }
-      assertRelayCdpNavigateAuthorized(method, command.params);
+      assertRelayCdpNavigateAuthorized(tabId, method, command.params);
       await assertRelayTabAuthorized(tabId);
       if (!state.attachedTabs.has(tabId)) {
         await attachDebugger(tabId);
@@ -90,22 +96,20 @@ export async function executeRelayCommand(seq, command) {
     }
     case "createTab": {
       const url = typeof command.url === "string" && command.url ? command.url : "about:blank";
-      const targetDomain = extractDomain(url).toLowerCase();
-      if (targetDomain && !isNavigationTargetAuthorized(url, state)) {
-        throw new Error(`Domain ${targetDomain} is not authorized`);
+      if (!isBlankUrl(url) && !isNavigationTargetAuthorized(url, state)) {
+        throw new Error(`Domain ${extractDomain(url).toLowerCase() || "(empty)"} is not authorized`);
       }
-      const background = command.background === true;
-      let tabId;
-      if (background) {
-        tabId = await getOrCreateBackgroundTab(url);
-      } else {
-        const created = await chrome.tabs.create({ url, active: true });
-        tabId = created.id;
-      }
-      if (!Number.isInteger(tabId)) {
-        throw new Error("createTab failed to allocate tabId");
-      }
+      const tabId = await openAgentTab(url, { background: command.background === true });
       send({ type: "relay_result", seq, result: { tabId } });
+      return;
+    }
+    case "closeTab": {
+      const tabId = command.tabId;
+      if (!Number.isInteger(tabId)) {
+        throw new Error("closeTab requires tabId");
+      }
+      const closed = await closeAgentTab(tabId);
+      send({ type: "relay_result", seq, result: { closed } });
       return;
     }
     default:

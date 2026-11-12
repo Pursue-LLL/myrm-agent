@@ -3,6 +3,7 @@
 [INPUT]
 - pool.config::HumanizeMode (POS: interaction humanization config)
 - session.humanize::bezier_move, wheel_burst, scroll_notch_delta, scroll_burst_break_ms, scroll_phase_steps (POS: humanized delay, Bézier mouse, and wheel-burst scroll helpers)
+- session.viewport::page_viewport_size (POS: the area the scroll cursor stays inside)
 
 [OUTPUT]
 - ScrollHumanizeMixin: scroll-target cursor placement, wheel-burst inertial delivery,
@@ -37,6 +38,7 @@ from myrm_agent_harness.toolkits.browser.session.humanize import (
     scroll_phase_steps,
     wheel_burst,
 )
+from myrm_agent_harness.toolkits.browser.session.viewport import page_viewport_size
 
 if TYPE_CHECKING:
     from patchright.async_api import Locator
@@ -129,8 +131,7 @@ class ScrollHumanizeMixin:
         Prefers the center of the target element (the scroll container) clamped into
         the viewport; falls back to the viewport center when the element is hidden.
         """
-        viewport = self._page.viewport_size or {"width": 1280, "height": 720}
-        vw, vh = viewport["width"], viewport["height"]
+        vw, vh = await page_viewport_size(self._page)
         try:
             await locator.wait_for(state="visible", timeout=2000)
             box = await locator.bounding_box(timeout=1000)
