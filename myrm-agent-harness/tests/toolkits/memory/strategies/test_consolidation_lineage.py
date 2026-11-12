@@ -17,7 +17,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
 )
 from myrm_agent_harness.toolkits.memory.types import MemoryType, SemanticMemory
 from tests.support.consolidation_cycles import CONFIG, TEA, TEA_TOO, correct, merge, run_cycle, stored_insights
-from tests.support.consolidation_seeds import NewManager, seed, semantic
+from tests.support.consolidation_seeds import NewManager, llm_answering_after, seed, semantic
 
 SHARED = ["chat-b", "chat-a"]
 INSIGHT = "User keeps calm daily routines around tea and books"
@@ -99,11 +99,27 @@ async def test_an_insight_derives_from_every_chat_of_the_window_it_was_drawn_fro
         ],
     )
 
-    await run_cycle(manager, insights=(INSIGHT,))
+    stats = await run_cycle(manager, insights=(INSIGHT,))
 
     [insight] = await stored_insights(manager)
+    assert stats.insights == (INSIGHT,)
     assert insight.content == INSIGHT and CONSOLIDATION_INSIGHT_TAG in insight.tags
     assert insight.source_chat_id == "chat-b"
     assert sorted(insight.source_chat_ids) == ["chat-a", "chat-b", "chat-d"]
     await manager.purge_by_source_chat_id("chat-d")
     assert await manager.get_memory(insight.id) is None
+
+
+async def test_an_insight_the_deleted_chat_fence_refuses_is_not_reported_as_stored(new_manager: NewManager) -> None:
+    manager = new_manager()
+    await seed(manager, [semantic(TEA, 1, source_chat_id="chat-a"), semantic(TEA_TOO, 2, source_chat_id="chat-b")])
+    llm = llm_answering_after(
+        ConsolidationResponse(insights=[INSIGHT]), lambda: manager.purge_by_source_chat_id("chat-b")
+    )
+    on_complete = AsyncMock()
+
+    stats = await run_consolidation(manager, llm, CONFIG, on_complete=on_complete)
+
+    assert stats.insights == ()
+    on_complete.assert_awaited_once_with(stats)
+    assert await stored_insights(manager) == []

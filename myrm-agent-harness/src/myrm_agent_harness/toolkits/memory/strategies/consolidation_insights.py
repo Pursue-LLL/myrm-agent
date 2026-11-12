@@ -10,7 +10,7 @@
 
 [OUTPUT]
 - validated_insights: The insights that state nothing the analyzed memories do not, and how many were turned away
-- persist_insights: Store insights as tagged implicit-preference memories through the cycle's write gateway
+- persist_insights: Store insights as tagged implicit-preference memories through the cycle's write gateway, and return the texts the store took
 
 [POS]
 An insight is a durable observation the model drew from the memories it read. It is stored as a memory and later
@@ -57,18 +57,20 @@ def validated_insights(insights: Sequence[str], memories: Sequence[AnyMemory]) -
 
 async def persist_insights(
     manager: MemoryManager, insights: Sequence[str], sources: Sequence[AnyMemory], journal: UndoJournal
-) -> None:
-    """Persist insights of one group as SemanticMemory with implicit preference type.
+) -> list[str]:
+    """Persist insights of one group as SemanticMemory with implicit preference type, and return the texts stored.
 
     ``sources`` are the group's memories: an insight derives from the chats of all of them and takes the scope of
-    the first. It is written through the cycle's write gateway, so ``journal`` records it for undo.
+    the first. It is written through the cycle's write gateway, so ``journal`` records it for undo. An insight that
+    is too short, that the write fence refuses or that fails to store is left out of the result, as is every insight
+    of a manager without a vector store.
     """
     if not manager.has_vector:
-        return
+        return []
 
     writes = CycleWrites(manager, journal)
     chat_ids = origin_chat_ids(sources)
-    stored = 0
+    stored: list[str] = []
     for text in insights:
         text = text.strip()
         if len(text) < _MIN_INSIGHT_LENGTH:
@@ -87,12 +89,13 @@ async def persist_insights(
         )
         try:
             await writes.store(mem)
-            stored += 1
+            stored.append(text)
         except Exception as e:
             logger.warning("Failed to persist consolidation insight: %s", e)
 
     if stored:
-        logger.info("Persisted %d consolidation insights as implicit preferences", stored)
+        logger.info("Persisted %d consolidation insights as implicit preferences", len(stored))
+    return stored
 
 
 __all__ = ["persist_insights", "validated_insights"]

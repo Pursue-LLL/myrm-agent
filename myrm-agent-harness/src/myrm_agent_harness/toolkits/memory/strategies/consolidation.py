@@ -201,16 +201,18 @@ async def _apply(
     stats.duration_ms = elapsed_ms
     stats.input_count = input_count
     stats.enriched_count = answer.enriched_count
-    stats.insights = tuple(insight for batch in batches for insight in batch.insights)
     stats.guard_patched = sum(batch.guard_patched for batch in batches)
     stats.rejected += sum(batch.rejected for batch in batches)
 
     # A cycle that only adds insights changes no existing memory, so it must not take the undo slot from an earlier
     # cycle that did.
     insight_journal = stats.undo if stats.undo.change_count else UndoJournal()
+    stored_insights: list[str] = []
     for batch in batches:
         if batch.insights:
-            await persist_insights(manager, batch.insights, batch.memories, insight_journal)
+            stored_insights += await persist_insights(manager, batch.insights, batch.memories, insight_journal)
+    # The summary and the completion hook report the insights the store took, not every one the model proposed.
+    stats.insights = tuple(stored_insights)
     await save_undo(manager, stats)
 
     should_advance_timestamp = not stats.aborted and not (

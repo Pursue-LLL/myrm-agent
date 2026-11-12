@@ -3,7 +3,7 @@
 Covers:
 - _build_user_prompt: source_error, plain content
 - _build_id_map: short-id collision extension
-- persist_insights: skips, store-error tolerance, the scope and chats an insight takes from its group
+- persist_insights: skips, store-error tolerance, the texts it returns, the scope and chats an insight takes from its group
 - execute_operations: MergeOp demote failure, UpdateContentOp protected memory
 - enrich_with_similar candidate search + error fallback
 """
@@ -88,22 +88,36 @@ class TestPersistInsights:
     async def test_no_vector_skips(self) -> None:
         manager = make_manager()
         manager.has_vector = False
-        await persist_insights(manager, ["an insight"], self._SOURCES, UndoJournal())
+        stored = await persist_insights(manager, ["an insight"], self._SOURCES, UndoJournal())
+        assert stored == []
         manager.store.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_short_insight_skipped(self) -> None:
         manager = make_manager()
         manager.store = AsyncMock()
-        await persist_insights(manager, ["too short"], self._SOURCES, UndoJournal())
+        stored = await persist_insights(manager, ["too short"], self._SOURCES, UndoJournal())
+        assert stored == []
         manager.store.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_store_error_is_tolerated(self) -> None:
         manager = make_manager()
         manager.store = AsyncMock(side_effect=RuntimeError("store down"))
-        await persist_insights(manager, ["this is a sufficiently long insight"], self._SOURCES, UndoJournal())
+        stored = await persist_insights(manager, ["this is a sufficiently long insight"], self._SOURCES, UndoJournal())
+        assert stored == []
         manager.store.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_only_the_insights_the_store_took_are_returned(self) -> None:
+        manager = make_manager()
+        manager.store = AsyncMock(side_effect=[SimpleNamespace(id="stored"), RuntimeError("store down")])
+        insights = ["  the first sufficiently long insight  ", "too short", "the third sufficiently long insight"]
+
+        stored = await persist_insights(manager, insights, self._SOURCES, UndoJournal())
+
+        assert stored == ["the first sufficiently long insight"]
+        assert manager.store.await_count == 2
 
     @pytest.mark.asyncio
     async def test_an_insight_takes_the_scope_and_the_chats_of_its_group(self) -> None:
