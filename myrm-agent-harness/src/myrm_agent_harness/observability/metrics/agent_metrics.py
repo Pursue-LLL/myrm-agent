@@ -1,6 +1,6 @@
 """Agent execution monitoring metrics.
 
-Provides通用Agent执行监控指标，适用于任何使用Myrm框架的项目。
+Generic agent execution metrics, usable by any project built on the Myrm framework.
 
 [INPUT]
 - (none — pure metrics definition)

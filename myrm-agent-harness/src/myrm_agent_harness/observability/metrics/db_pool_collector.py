@@ -1,11 +1,11 @@
 """Database Pool Metrics collector for SQLAlchemy.
 
-Provides通用的数据库连接池监控collector，适用于任何使用SQLAlchemy的项目。
+Works with any project that uses SQLAlchemy connection pools.
 
 [INPUT]
 
 [OUTPUT]
-- DatabasePoolCollector — Prometheus自定义collector
+- DatabasePoolCollector — custom Prometheus collector
 
 [POS]
 Harness-layer generic database connection pool monitor reusable by any Myrm-based project.

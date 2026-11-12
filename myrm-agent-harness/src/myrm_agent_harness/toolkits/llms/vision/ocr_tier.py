@@ -8,7 +8,7 @@ myrm_agent_harness.toolkits.llms.vision.fallback_engine::FileExecutor (POS: Sand
 OcrTierEngine.describe_local_image: last-resort OCR VisionResult from sandbox bytes
 
 [POS]
-Vision pipeline末级 OCR tier. Invoked when VLM chain is exhausted; reads images via sandbox executor only. A missing OCR extra raises ImportError so the caller can keep its own fallback instead of reporting an unexamined image as empty.
+Last tier of the vision pipeline. Invoked when VLM chain is exhausted; reads images via sandbox executor only. A missing OCR extra raises ImportError so the caller can keep its own fallback instead of reporting an unexamined image as empty.
 """
 
 from __future__ import annotations

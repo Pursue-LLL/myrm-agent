@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
-# ── Bounded replace constants (防ReDoS) ──────────────────────────
+# ── Bounded replace constants (ReDoS guard) ──────────────────────────
 _REDACT_REGEX_CHUNK_THRESHOLD = 32768  # 32KB
 _REDACT_REGEX_CHUNK_SIZE = 16384  # 16KB
 _CHUNK_OVERLAP = 4096  # covers RSA-4096 PEM (~3200 chars) + margin

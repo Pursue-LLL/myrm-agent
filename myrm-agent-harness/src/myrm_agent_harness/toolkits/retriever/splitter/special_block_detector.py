@@ -14,77 +14,25 @@ Provides SpecialBlockDetector for markdown structure extraction.
 
 import re
 
-r"""Special block detection module
-
-Identifies and extracts special structures in text（code blocks, tables, lists）
-
-## Description
-
-When splitting Markdown text, the integrity of the following structures must be protected：
-
-### 1. Code blocks
-```markdown
-```python
-def hello():
-    print("world")
-```
-```
-Cannot split in the middle of a code block, or code semantics will be broken。
-
-### 2. Table
-```markdown
-| Col1 | Col2 |
-|-----|-----|
-| A   | B   |
-```
-Table must Contains表头、分隔行 and Data行， not 能拆散。
-
-### 3. Lists (including nested)
-```markdown
-- Item1
-  - Sub-item1.1
-  - Sub-item1.2
-- Item2
-```
-List项 and Sub-item need 保持 in 一起。
-
-## Usage example
-
-```python
-detector = SpecialBlockDetector()
-
-text = '''
-# Heading
-
-普通text。
-
-\`\`\`python
-code here
-\`\`\`
-
-| A | B |
-|---|---|
-| 1 | 2 |
-'''
-
-# 检测AllSpecial block
-blocks = detector.extract_special_structures(text)
-# Return: [
-#   {"type": "code", "start": 20, "end": 50, "language": "python", "content": "code here"},
-#   {"type": "table", "start": 52, "end": 80, "content": "| A | B |\\n|---|---|\\n| 1 | 2 |"}
-# ]
-```
-
-## 检测Rule
-
-- **Code blocks**: Match \`\`\`language...content...\`\`\`
-- **Table**: 表头行 + 分隔行（|---|---）+ Data行
-- **List**: 以 `-`、`*`、`+`  or  `1.` 开头，Support缩进识别嵌套
-"""
-
 
 class SpecialBlockDetector:
-    """Special block detector"""
+    """Finds the Markdown structures a text splitter must not cut through.
+
+    - **Code blocks**: a fenced block, both fences included; a cut inside it breaks the code.
+    - **Tables**: a header row, a separator row (``|---|---|``) and the data rows after it; they only make
+      sense together.
+    - **Lists**: items starting with ``-``, ``*``, ``+`` or ``1.``; nesting is recognised by indentation, and
+      an item stays together with its sub-items.
+
+    ``start`` and ``end`` of every structure are character offsets into the scanned text.
+
+    Example::
+
+        detector = SpecialBlockDetector()
+        blocks = detector.extract_special_structures(text)
+        # [{"type": "code", "start": 20, "end": 50, "language": "python", "content": "<fenced code>"},
+        #  {"type": "table", "start": 52, "end": 80, "content": "<table text>"}]
+    """
 
     def __init__(self):
         # Pre-compiled regex patterns
@@ -93,17 +41,18 @@ class SpecialBlockDetector:
         self._table_separator_pattern = re.compile(r"^[\s|:-]+\|[\s|:-]+$")
 
     def extract_special_structures(self, text: str) -> list[dict]:
-        """ExtractAll特殊结构（code blocks, tables, lists）
+        """Extract every code block, table and list from the text.
 
         Args:
-            text: 待检测text
+            text: Text to scan.
 
         Returns:
-            特殊结构informationList，按startPositionSort
+            Structure descriptors (``type``, ``start``, ``end``, ``content``, plus ``language`` for code),
+            sorted by start offset.
         """
         special_structures = []
 
-        # MatchCode blocks
+        # Code blocks
         for m in self._code_fence_pattern.finditer(text):
             special_structures.append(
                 {
@@ -115,11 +64,11 @@ class SpecialBlockDetector:
                 }
             )
 
-        # MatchTable
+        # Tables
         table_structures = self._extract_tables(text)
         special_structures.extend(table_structures)
 
-        # MatchList
+        # Lists
         list_structures = self._extract_lists(text)
         special_structures.extend(list_structures)
 
@@ -127,15 +76,15 @@ class SpecialBlockDetector:
         return special_structures
 
     def _extract_tables(self, text: str) -> list[dict]:
-        """ExtractTable结构
+        """Extract tables.
 
-        识别Rule：表头行 + 分隔行（|:-:|） + Data行
+        A table is a header row, a separator row (``|:-:|``) and the data rows after it.
 
         Args:
-            text: 待检测text
+            text: Text to scan.
 
         Returns:
-            Table结构informationList
+            Table descriptors.
         """
         table_structures = []
         lines = text.split("\n")
@@ -151,12 +100,12 @@ class SpecialBlockDetector:
                     table_lines = [current_line, next_line]
                     j = i + 2
 
-                    # 收集后续 TableData行
+                    # Collect the data rows that follow
                     while j < len(lines) and "|" in lines[j] and lines[j].strip():
                         table_lines.append(lines[j])
                         j += 1
 
-                    # ComputeCharactersPosition
+                    # Character offset of the table start
                     chars_before = sum(len(lines[k]) + 1 for k in range(table_start_line_idx))
                     table_content = "\n".join(table_lines)
 
@@ -176,18 +125,18 @@ class SpecialBlockDetector:
         return table_structures
 
     def _extract_lists(self, text: str) -> list[dict]:
-        """ExtractList结构（including嵌套List）
+        """Extract lists, including nested ones.
 
-        识别Rule：
-        -  has 序List：以数字+点+Empty格开头（如 "1. "、"2. "）
-        -  no 序List：以 "- "、"* "、"+ " 开头
-        - 嵌套List： via 缩进判断（2 or 4个Empty格）
+        A list starts at an item line (``1. ``, ``- ``, ``* `` or ``+ ``). It continues over items indented at
+        least as far as the first one (nested items), over a blank line followed by another item, and over
+        lines indented at least two spaces deeper than the first item (item continuations). A less-indented
+        item or any other line ends it.
 
         Args:
-            text: 待检测text
+            text: Text to scan.
 
         Returns:
-            List结构informationList
+            List descriptors.
         """
         list_structures = []
         lines = text.split("\n")
@@ -198,52 +147,52 @@ class SpecialBlockDetector:
             match = self._list_item_pattern.match(line)
 
             if match:
-                # 找 to ListStart
+                # Start of the list
                 list_start_idx = i
                 list_lines = []
-                base_indent = len(match.group(1))  # basic缩进
+                base_indent = len(match.group(1))  # indent of the first item
 
-                # 收集complete List（including嵌套项 and 延续行）
+                # Collect the whole list, nested items and continuation lines included
                 j = i
                 while j < len(lines):
                     current_line = lines[j]
                     current_match = self._list_item_pattern.match(current_line)
 
                     if not current_line.strip():
-                        # Empty行，可能是ListEnd，也可能是List内 Empty行
+                        # Blank line: the list may end here or continue after it
                         if j + 1 < len(lines):
                             next_line = lines[j + 1]
                             next_match = self._list_item_pattern.match(next_line)
                             if next_match:
-                                # 下一行还是List项，保留Empty行
+                                # The next line is still a list item, so keep the blank line
                                 list_lines.append(current_line)
                                 j += 1
                                 continue
-                        # OtherwiseListEnd
+                        # Otherwise the list ends
                         break
 
                     if current_match:
-                        # List项
+                        # List item
                         current_indent = len(current_match.group(1))
                         if current_indent < base_indent:
-                            # 缩进减少，回 to 上一级List or ListEnd
+                            # Indent decreased: back to the parent list, or the list ends
                             break
-                        # 同级 or 子级List项
+                        # Sibling or nested item
                         list_lines.append(current_line)
                     else:
-                        # 非List项行
-                        # CheckWhether是List项 延续（缩进）
+                        # Not a list item
+                        # Continuation of the previous item (indented)
                         if current_line.startswith(" " * (base_indent + 2)):
-                            # 缩进延续，属于List项Content
+                            # Indented continuation belongs to the item
                             list_lines.append(current_line)
                         else:
-                            # ListEnd
+                            # End of the list
                             break
 
                     j += 1
 
                 if list_lines:
-                    # ComputeStartCharactersPosition
+                    # Character offset of the list start
                     chars_before = sum(len(lines[k]) + 1 for k in range(list_start_idx))
                     list_content = "\n".join(list_lines)
 
@@ -264,14 +213,14 @@ class SpecialBlockDetector:
         return list_structures
 
     def is_table_separator_line(self, line: str) -> bool:
-        """CheckWhether是Table分隔行"""
+        """Whether the line is a table separator row."""
         return bool(self._table_separator_pattern.match(line.strip()))
 
     def is_list_item_line(self, line: str) -> bool:
-        """CheckWhether是List项行"""
+        """Whether the line is a list item."""
         return bool(self._list_item_pattern.match(line))
 
     def get_list_item_indent(self, line: str) -> int:
-        """GetList项 缩进Length"""
+        """Indent width of a list item line, or -1 when the line is not a list item."""
         match = self._list_item_pattern.match(line)
         return len(match.group(1)) if match else -1

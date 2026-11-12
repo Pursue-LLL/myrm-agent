@@ -59,7 +59,7 @@ _ALERT_BOT_PATTERNS: tuple[re.Pattern[str], ...] = (
 class SelfIdentityState(StrEnum):
     """Tri-state identity classification for distillation candidates.
 
-    - SELF: Verified as the primary user本人. Eligible for profile/preference extraction.
+    - SELF: Verified as the primary user. Eligible for profile/preference extraction.
     - OTHER: Confirmed third party. Never extracted into user profile; only as third-party relations.
     - UNCONFIRMED: Ambiguous / unverified speaker. Hard-rejected to prevent catastrophic misattribution.
     """

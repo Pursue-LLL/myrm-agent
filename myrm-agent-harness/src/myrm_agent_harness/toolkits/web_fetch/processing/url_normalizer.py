@@ -1,19 +1,21 @@
-"""URL 规范化 — 提升Cache命 in 率
+"""URL normalization for a higher cache hit rate.
 
-移除 35+ 追踪Parameter（utm_*, fbclid, gclid, _hsenc, li_fat_id, ttclid  etc.），
-统一Size写，规范化Path，SortQueryParameter。
+Strips known tracking parameters (``utm_*``, ``fbclid``, ``gclid``, ``_hsenc``, ``li_fat_id``, ``ttclid``
+and others), lowercases the scheme and host, drops default ports, collapses repeated slashes in the path
+and sorts the query parameters, so URLs that differ only in those details share one cache key.
 
-Support平台：Google Analytics, Facebook, Google Ads, Bing, Mailchimp,
-HubSpot, Adobe, LinkedIn, Twitter, TikTok  etc.。
+The parameters come from Google Analytics, Facebook, Google Ads, Bing, Mailchimp, HubSpot, Adobe, LinkedIn,
+Twitter and TikTok, plus the generic names ``ref``, ``referrer`` and ``source``.
 
 [INPUT]
 - (none)
 
 [OUTPUT]
-- normalize_url: Args:
+- normalize_url: canonical form of a URL, used as the cache key
 
 [POS]
-HubSpot, Adobe, LinkedIn, Twitter, TikTok  etc.。
+Pure URL canonicalizer. The fetch engine calls it once per request to build the key shared by its crawl
+cache, failure cache, in-flight request map and access statistics.
 """
 
 from __future__ import annotations
@@ -65,21 +67,22 @@ _TRACKING_PARAMS = frozenset(
 
 
 def normalize_url(url: str) -> str:
-    """规范化 URL，提升Cache命 in 率
+    """Normalize a URL so that equivalent URLs map to the same cache key.
 
-    操作：
-    1. 移除追踪Parameter（utm_*, fbclid  etc.）
-    2. 统一 scheme  is 小写
-    3. 统一 netloc  is 小写
-    4. 移除DefaultPort（:80, :443）
-    5. 规范化Path（移除多余斜杠）
-    6. QueryParameter按字母Sort
+    Steps:
+    1. Drop tracking parameters (``utm_*``, ``fbclid``, ...).
+    2. Lowercase the scheme.
+    3. Lowercase the host.
+    4. Drop the default port (``:80`` for http, ``:443`` for https).
+    5. Collapse repeated slashes in the path.
+    6. Sort the query parameters alphabetically.
+    7. Drop the fragment.
 
     Args:
-        url: original URL
+        url: Original URL.
 
     Returns:
-        规范化后  URL
+        The normalized URL.
     """
     parsed = urlparse(url)
 
