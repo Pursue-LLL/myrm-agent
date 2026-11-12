@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/primitives/skeleton';
+import { ConfigLoadError } from '@/components/features/app-shell/config-load-error';
 import { IconMic } from '@/components/features/icons/PremiumIcons';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
@@ -11,19 +12,35 @@ import { VoiceSttSettings } from './VoiceSttSettings';
 import { VoiceTtsSettings } from './VoiceTtsSettings';
 import { DEFAULT_VOICE_FORM, loadVoiceConfig, saveVoiceConfig, type VoiceFormState } from './voiceFormState';
 
+/** `failed`: the saved settings could not be read, so the form stays out of reach instead of showing defaults. */
+type LoadStatus = 'loading' | 'ready' | 'failed';
+
 const VoiceSection = memo(() => {
   const t = useTranslations('voice');
   const [form, setForm] = useState<VoiceFormState>(DEFAULT_VOICE_FORM);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<LoadStatus>('loading');
   const [edgeTtsAvailable, setEdgeTtsAvailable] = useState<boolean | null>(null);
   const [localSttAvailable, setLocalSttAvailable] = useState<boolean | null>(null);
   const [localTtsAvailable, setLocalTtsAvailable] = useState<boolean | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const fetchConfig = useCallback(() => {
+    loadVoiceConfig().then(
+      (config) => {
+        setForm(config);
+        setStatus('ready');
+      },
+      () => setStatus('failed'),
+    );
+  }, []);
+
+  const retryLoad = useCallback(() => {
+    setStatus('loading');
+    fetchConfig();
+  }, [fetchConfig]);
+
   useEffect(() => {
-    loadVoiceConfig()
-      .then(setForm)
-      .finally(() => setLoading(false));
+    fetchConfig();
     apiRequest<{ edge_tts_available?: boolean; local_stt_available?: boolean; local_tts_available?: boolean }>(
       '/health/info',
     )
@@ -42,7 +59,7 @@ const VoiceSection = memo(() => {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, []);
+  }, [fetchConfig]);
 
   const debouncedSave = useCallback(
     (next: VoiceFormState) => {
@@ -72,7 +89,7 @@ const VoiceSection = memo(() => {
     [debouncedSave],
   );
 
-  if (loading) {
+  if (status === 'loading') {
     return (
       <div className="space-y-5">
         <div className="space-y-1.5">
@@ -84,6 +101,10 @@ const VoiceSection = memo(() => {
         <Skeleton className="h-20 w-full rounded-lg" />
       </div>
     );
+  }
+
+  if (status === 'failed') {
+    return <ConfigLoadError onRetry={retryLoad} />;
   }
 
   const isLocalStt = form.sttProvider === 'local';
