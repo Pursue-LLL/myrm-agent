@@ -298,7 +298,6 @@ class CompressProcessor(BaseProcessor):
             context.messages, fallback_saved = await apply_smart_fallback(
                 context.messages,
                 max_tokens=int(self.config.max_context_tokens * 0.9),
-                failed_tool_call_ids=extract_failed_tool_call_ids(context.metadata),
             )
             saved += fallback_saved
 

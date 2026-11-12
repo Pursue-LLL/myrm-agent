@@ -208,11 +208,7 @@ class TestCompressProcessorProcess:
         ):
             result = await processor.process(context)
 
-        mock_fallback.assert_awaited_once_with(
-            original_messages,
-            max_tokens=9000,
-            failed_tool_call_ids=frozenset(),
-        )
+        mock_fallback.assert_awaited_once_with(original_messages, max_tokens=9000)
         assert result.messages == fallback_messages
         assert result.tokens_saved == 70
         assert result.metadata["compression_count"] == 1
