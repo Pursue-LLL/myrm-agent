@@ -53,7 +53,7 @@
 
 ## WebUI E2E（Browser Orchestrator + Myrm E2E Chrome :9333）
 
-产品 WebUI 端到端 UI 验收使用 **Browser Orchestrator daemon** + **Myrm 专用 E2E Profile**（`./myrm-dev ready --chrome` 自动拉起，**零 Allow**），禁止 `@playwright/test`、pytest 无头浏览器，禁止 autoConnect 主 Chrome / `MyrmChromeMcp`。Cursor MCP 的 :9410 ChromeAgent 只服务日常 Agent 浏览器，不承载 formal E2E。
+产品 WebUI 端到端 UI 验收使用 **Browser Orchestrator daemon** + **Myrm 专用 E2E Profile**（`./myrm-dev ready --chrome` 自动拉起，**零 Allow**），禁止 `@playwright/test`、pytest 无头浏览器，禁止 autoConnect 主 Chrome。Cursor MCP 的 :9410 ChromeAgent 只服务日常 Agent 浏览器，不承载 formal E2E。
 
 | 脚本 | 职责 |
 |------|------|

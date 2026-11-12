@@ -1094,11 +1094,6 @@ if [[ "${MYRM_E2E_API_ONLY:-}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; 
   exit 0
 fi
 
-# 2. Legacy second Chrome / debug launchers (attach reuses :9333 SSOT — skip under parallel E2E)
-if [[ "${MYRM_CHROME_E2E_ATTACH:-}" != "1" ]] && pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
-  fail "MyrmChromeMcp Chrome detected — quit it; use ./myrm-dev ready --chrome (Myrm E2E profile on :9333)"
-fi
-
 # 3. Ensure dedicated E2E Chrome (no Allow — launched with --remote-debugging-port)
 [[ -f "${ENSURE_CHROME}" ]] || fail "Missing ${ENSURE_CHROME}"
 
@@ -1463,13 +1458,6 @@ _ensure_mux_upstream() {
   fail "cdmcp-mux upstreamReady still false — Cmd+Q Cursor, then: ./myrm-dev ready --chrome"
 }
 
-_mux_timeout_stamp_matches() {
-  [[ -f "${MUX_TIMEOUT_STAMP}" ]] || return 1
-  local stored
-  stored="$(tr -d '[:space:]' < "${MUX_TIMEOUT_STAMP}")"
-  [[ "${stored}" == "${MUX_REQUEST_TIMEOUT_MS}" ]]
-}
-
 _stamp_mux_request_timeout() {
   mkdir -p "${MUX_STATE_DIR}"
   printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_TIMEOUT_STAMP}"
@@ -1478,13 +1466,6 @@ _stamp_mux_request_timeout() {
 _stamp_mux_daemon_request_timeout() {
   mkdir -p "${MUX_STATE_DIR}"
   printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_DAEMON_TIMEOUT_STAMP}"
-}
-
-_mux_daemon_timeout_matches() {
-  [[ -f "${MUX_DAEMON_TIMEOUT_STAMP}" ]] || return 1
-  local stored
-  stored="$(tr -d '[:space:]' < "${MUX_DAEMON_TIMEOUT_STAMP}")"
-  [[ "${stored}" == "${MUX_REQUEST_TIMEOUT_MS}" ]]
 }
 
 _mux_parallel_active_leases() {
