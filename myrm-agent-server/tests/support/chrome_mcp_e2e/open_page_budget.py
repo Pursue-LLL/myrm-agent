@@ -5,14 +5,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from dev_gate.contract import SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC, is_e2e_signoff_runtime
+from dev_gate.contract import is_e2e_signoff_runtime
 
 from .parallel_load import _parallel_open_page_peer_count
 
 _OPEN_PAGE_REQUEST_TIMEOUT_SEC = 60.0
 _OPEN_PAGE_NEW_PAGE_TIMEOUT_MS = 120_000
 _OPEN_PAGE_ATTEMPTS = 2
-_OPEN_PAGE_LAYOUT_WAIT_SEC = 120.0
 _OPEN_PAGE_WALL_BUDGET_SEC = 150.0
 _OPEN_PAGE_TOTAL_BUDGET_SEC = 280.0
 _OPEN_PAGE_BODY_FRACTION = 0.35
@@ -40,25 +39,6 @@ def _open_page_body_fraction_cap_sec() -> float:
     peers = _parallel_open_page_peer_count()
     if peers >= 2:
         return min(base + peers * 25.0, body_cap * 0.45)
-    return base
-
-
-def _open_page_layout_wait_sec() -> float:
-    peers = _parallel_open_page_peer_count()
-    if is_e2e_signoff_runtime():
-        base = float(SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC)
-        if peers >= 1:
-            return min(base + peers * 15.0, 300.0)
-        return base
-    base = _OPEN_PAGE_LAYOUT_WAIT_SEC
-    if peers >= 1:
-        try:
-            from dev_gate.contract import shared_ui_hydrate_wait_sec
-
-            cap = float(shared_ui_hydrate_wait_sec())
-            return min(base + peers * 30.0, cap)
-        except ImportError:
-            return min(base + peers * 30.0, 240.0)
     return base
 
 
@@ -265,11 +245,6 @@ def _should_skip_attach_preflight_restart() -> bool:
 def _open_page_parallel_total_wall_only() -> bool:
     """parallel mux — one outer total_deadline, no per-tool slice starvation."""
     return _parallel_open_page_peer_count() >= 2
-
-
-def _open_page_allow_mux_budget_extension() -> bool:
-    """parallel peers must not get hidden 3rd+ open_mcp pass via mux restart reset."""
-    return not _open_page_parallel_total_wall_only()
 
 
 def _signoff_mux_drain_budget_sec() -> float:

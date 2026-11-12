@@ -142,24 +142,6 @@ def _wait_for_yolo_dw_plan_skip(
     raise AssertionError(f"YOLO DW stream did not start within {timeout_sec}s for chat {normalized_chat_id}: {last}")
 
 
-def _try_confirm_workflow_plan_via_api(
-    client: ChromeMcpClient,
-    page: McpPage,
-    *,
-    api_base: str,
-    stream_message_id: str | None = None,
-) -> bool:
-    """Resolve DW plan_confirm via REST when UI card fails to render (PhaseWaiter SSOT)."""
-    message_id = _resolve_dw_stream_message_id(
-        client,
-        page,
-        cached=stream_message_id,
-    )
-    if not message_id:
-        return False
-    return _post_plan_confirm_via_api(api_base, message_id)
-
-
 def _messages_from_api_payload(payload: object) -> list[dict[str, object]]:
     raw: list[object]
     if isinstance(payload, list):

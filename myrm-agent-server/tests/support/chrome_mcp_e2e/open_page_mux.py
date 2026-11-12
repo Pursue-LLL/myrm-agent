@@ -1,4 +1,4 @@
-"""Mux-facing steps of opening a page: transport turns, cold-attach drain, threaded new_page and tool-wall deadlines."""
+"""Mux-facing steps of opening a page: cold-attach drain, threaded new_page and tool-wall deadlines."""
 
 from __future__ import annotations
 
@@ -16,8 +16,6 @@ from e2e_core.orchestrator import touch_wall_progress
 from tests.support.e2e_runtime_guard import heartbeat_once
 
 from .open_page_budget import (
-    _extend_open_page_deadlines_for_queue_wait,
-    _mux_cold_attach_drain_budget_sec,
     _mux_transport_wait_budget_sec,
     _open_page_cdp_probe_budget_sec,
     _open_page_parallel_total_wall_only,
@@ -25,62 +23,6 @@ from .open_page_budget import (
     _signoff_mux_drain_budget_sec,
 )
 from .parallel_load import _parallel_open_page_peer_count
-
-
-def _restart_open_page_mux_budget(
-    *,
-    open_page_wall_budget_sec: float,
-    open_page_total_budget_sec: float,
-) -> tuple[float, float, float]:
-    """Reset open_mcp_page clocks after mux restart for signoff retry."""
-    heartbeat_once()
-    touch_wall_progress(current_node="open_mcp_page_mux_retry")
-    if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
-        transport_session_started = time.monotonic()
-        return (
-            transport_session_started,
-            transport_session_started + open_page_wall_budget_sec,
-            transport_session_started + open_page_total_budget_sec,
-        )
-    _force_mux_attach_restart_after_new_page_timeout()
-    try:
-        ChromeMcpClient().recover_mux_transport()
-    except RuntimeError:
-        pass
-    cdp_budget = _open_page_cdp_probe_budget_sec()
-    _require_e2e_cdp_ready(budget_sec=cdp_budget)
-    time.sleep(min(5.0, max(2.0, cdp_budget * 0.05)))
-    try:
-        drain_budget = _mux_cold_attach_drain_budget_sec()
-        _wait_mux_cold_attach_drain(budget_sec=drain_budget)
-    except RuntimeError:
-        pass
-    transport_session_started = time.monotonic()
-    return (
-        transport_session_started,
-        transport_session_started + open_page_wall_budget_sec,
-        transport_session_started + open_page_total_budget_sec,
-    )
-
-
-def _wait_open_page_mux_turn(
-    *,
-    budget_sec: float,
-    current_node: str,
-    transport_session_started: float,
-    wall_deadline: float,
-    total_deadline: float,
-) -> tuple[float, float, float]:
-    from browser_orchestrator import wait_for_operation_credit
-
-    wait_started = time.monotonic()
-    wait_for_operation_credit(budget_sec=budget_sec, current_node=current_node)
-    return _extend_open_page_deadlines_for_queue_wait(
-        elapsed_sec=time.monotonic() - wait_started,
-        transport_session_started=transport_session_started,
-        wall_deadline=wall_deadline,
-        total_deadline=total_deadline,
-    )
 
 
 def _force_mux_attach_restart_after_new_page_timeout() -> None:
@@ -261,7 +203,6 @@ def _open_page_new_page(
 
 def _require_e2e_cdp_ready(*, budget_sec: float | None = None) -> None:
     """SSOT CDP probe for open_mcp_page — mux heal deferred to new_page inner retry."""
-    import os
 
     port = int(os.environ.get("MYRM_CHROME_E2E_PORT", "9333"))
     wait_budget = budget_sec if budget_sec is not None else _open_page_cdp_probe_budget_sec()

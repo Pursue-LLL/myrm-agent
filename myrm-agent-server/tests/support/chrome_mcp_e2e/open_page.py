@@ -6,23 +6,19 @@ import asyncio
 import os
 import threading
 import time
-from collections.abc import Callable, Coroutine, Iterator
+from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from typing import Any
 
-from cdp_chat.support import e2e_api_base_inject_js, e2e_runtime_binding, get_e2e_ui_url
+from cdp_chat.support import e2e_api_base_inject_js, get_e2e_ui_url
 from chrome_mcp.client import ChromeMcpClient, McpPage
 from dev_gate.contract import EvaluateIntent, is_e2e_signoff_runtime, resolve_evaluate_budget
 from e2e_core.orchestrator import touch_wall_progress
 
 from .bridge import _ensure_react_e2e_bridge_timeout_sec, _orchestrator_shared_ui_contract_timeout_sec, wait_for_react_e2e_bridge
-from .open_page_budget import _open_page_layout_wait_sec, _shared_read_parallel_open_page_retry_allowed
-from .page_guard import dismiss_blocking_modals, ensure_desktop_viewport
 from .parallel_load import _bounded_settings_ui_wait_sec
-from .reload import reload_mcp_page
 from .settings_wait import _SETTINGS_LAYOUT_READY_JS, _is_blank_page_url, _is_settings_route, wait_for_settings_layout
-from .wait_state import wait_for_state
 
 _APP_LAYOUT_READY_JS = """(() => ({
   ready: !!document.querySelector('[data-testid="app-layout"]'),
@@ -52,51 +48,6 @@ def _page_shell_ready_js_for_url(url: str) -> str:
     if path.startswith("/settings"):
         return _SETTINGS_LAYOUT_READY_JS
     return _APP_LAYOUT_READY_JS
-
-
-def _wait_for_app_layout_open(
-    client: ChromeMcpClient,
-    page: McpPage,
-    *,
-    url: str,
-    timeout_ms: int,
-) -> None:
-    """Wait for page shell (AppLayout or SettingsLayout); signoff reload-heals stale mux tabs."""
-    shell_ready_js = _page_shell_ready_js_for_url(url)
-    layout_timeout = _open_page_layout_wait_sec()
-    signoff = is_e2e_signoff_runtime()
-    heal_passes = 3 if signoff or _shared_read_parallel_open_page_retry_allowed() else 2
-    last_exc: AssertionError | None = None
-
-    for attempt in range(heal_passes):
-        client.set_tool_wall_deadline(None)
-        if attempt > 0:
-            reload_mcp_page(client, page, target_url=url, timeout_ms=timeout_ms)
-            if signoff:
-                ensure_desktop_viewport(client, page)
-                dismiss_blocking_modals(client, page)
-            client.set_tool_wall_deadline(None)
-        attempt_timeout = layout_timeout if signoff or attempt == 0 else min(120.0, layout_timeout * 0.5)
-        try:
-            wait_for_state(
-                client,
-                page,
-                shell_ready_js,
-                timeout_sec=attempt_timeout,
-            )
-            return
-        except AssertionError as exc:
-            last_exc = exc
-            if (
-                not signoff
-                and attempt == 0
-                and e2e_runtime_binding() is None
-                and not _shared_read_parallel_open_page_retry_allowed()
-            ):
-                raise
-
-    detail = last_exc.args[0] if last_exc is not None else "unknown"
-    raise AssertionError(f"Page shell did not hydrate after {heal_passes} reload-heal attempt(s): {detail}") from last_exc
 
 
 def _require_orchestrator_for_formal_e2e() -> None:
@@ -173,41 +124,6 @@ class _OrchestratorSharedUiChat:
             page_url=getattr(self.page, "url", None) or get_e2e_ui_url(),
             require_attach=True,
         )
-
-
-def _run_coroutine_any_loop(coro_factory: Callable[[], Coroutine[Any, Any, object]]) -> object:
-    """Run a coroutine whether or not an event loop is already running.
-
-    chrome_e2e tests may be sync or async (pytest-asyncio). Inside an async
-    test the surrounding loop is already running, so ``asyncio.run`` would
-    raise here — and Python 3.12+ forbids nesting even a fresh loop
-    (``run_forever`` checks for any running loop). The contract's I/O runs on
-    worker threads (asyncio.to_thread), so a dedicated thread with its own
-    ``asyncio.run`` is safe and never deadlocks the caller's loop.
-    """
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    if loop is None:
-        return asyncio.run(coro_factory())
-
-    outcome: list[object] = []
-    errors: list[BaseException] = []
-
-    def _target() -> None:
-        try:
-            outcome.append(asyncio.run(coro_factory()))
-        except BaseException as exc:  # pragma: no cover - re-raised on caller thread
-            errors.append(exc)
-
-    thread = threading.Thread(target=_target, daemon=True)
-    thread.start()
-    thread.join()
-    if errors:
-        raise errors[0]
-    return outcome[0]
 
 
 def _run_in_isolated_thread_loop(func: Callable[[], Any]) -> Any:

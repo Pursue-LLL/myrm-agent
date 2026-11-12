@@ -49,16 +49,6 @@ _WORKFLOW_PLAN_CARD_JS = """(() => {
 })()"""
 
 
-_GET_ASSISTANT_MESSAGE_ID_JS = """(() => {
-  const debug = window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? {};
-  const streamId = typeof debug.streamRequestMessageId === 'string'
-    ? debug.streamRequestMessageId.trim()
-    : '';
-  const assistantId = window.__MYRM_E2E_CHAT__?.getLastAssistantMessageId?.() ?? null;
-  return { messageId: streamId || assistantId || null };
-})()"""
-
-
 def wait_for_workflow_plan_card(
     client: ChromeMcpClient,
     page: McpPage,
