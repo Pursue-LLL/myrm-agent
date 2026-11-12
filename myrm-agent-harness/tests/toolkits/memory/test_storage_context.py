@@ -1,7 +1,8 @@
-"""Tests for load_context rule partitioning.
+"""Tests for load_context rule assembly.
 
-Agent-authored rules feed ``agent_instructions``, user rules feed ``rules`` (locked
-rules first), and tool-bound rules are additionally exposed as guidance items.
+Every active rule feeds the one ``rules`` list in the order the store hands them out (newest first), locked rules
+ahead; each carries its source so the brief can tell the agent's own instructions apart, and tool-bound rules are
+additionally exposed as guidance items.
 """
 
 from __future__ import annotations
@@ -25,44 +26,52 @@ def _relational(rules: list[ProceduralMemory]) -> AsyncMock:
 
 
 @pytest.mark.asyncio
-async def test_agent_self_rule_goes_to_agent_instructions() -> None:
+async def test_every_rule_feeds_the_one_list_with_its_source() -> None:
     relational = _relational(
         [
             ProceduralMemory(
                 content="self instruction",
-                trigger="trigger",
+                trigger="always",
                 action="Always write tests first",
                 source=RuleSource.AGENT_SELF,
-            )
+            ),
+            ProceduralMemory(content="a", trigger="when A", action="do A", source=RuleSource.USER_EXTRACTED),
         ]
     )
 
     ctx = await load_context(relational)
 
-    assert ctx["agent_instructions"] == [{"instruction": "Always write tests first", "priority": 0}]
-    assert ctx["rules"] == []
+    assert ctx["rules"] == [
+        {"trigger": "always", "action": "Always write tests first", "source": "agent_self", "user_endorsed": False},
+        {"trigger": "when A", "action": "do A", "source": "user_extracted", "user_endorsed": False},
+    ]
+    assert "agent_instructions" not in ctx
 
 
 @pytest.mark.asyncio
-async def test_user_rules_list_locked_rules_first() -> None:
+async def test_locked_rules_come_first_and_each_group_keeps_the_store_order() -> None:
+    def rule(action: str, *, locked: bool) -> ProceduralMemory:
+        return ProceduralMemory(
+            content=action,
+            trigger="any task",
+            action=action,
+            source=RuleSource.USER_EXPLICIT if locked else RuleSource.USER_EXTRACTED,
+            is_user_locked=locked,
+        )
+
     relational = _relational(
         [
-            ProceduralMemory(content="a", trigger="when A", action="do A", source=RuleSource.USER_EXTRACTED),
-            ProceduralMemory(
-                content="b",
-                trigger="when B",
-                action="do B",
-                source=RuleSource.USER_EXPLICIT,
-                is_user_locked=True,
-            ),
+            rule("newest", locked=False),
+            rule("locked newer", locked=True),
+            rule("older", locked=False),
+            rule("locked older", locked=True),
         ]
     )
 
     ctx = await load_context(relational)
 
-    assert [rule["action"] for rule in ctx["rules"]] == ["do B", "do A"]
-    assert [rule["user_endorsed"] for rule in ctx["rules"]] == [True, False]
-    assert ctx["agent_instructions"] == []
+    assert [r["action"] for r in ctx["rules"]] == ["locked newer", "locked older", "newest", "older"]
+    assert [r["user_endorsed"] for r in ctx["rules"]] == [True, True, False, False]
 
 
 @pytest.mark.asyncio

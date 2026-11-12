@@ -1,6 +1,6 @@
 """Memory context injection middleware.
 
-Injects the user's stored memory — profile, self-instructions, behavioral rules (VETO rules first), tool guidance,
+Injects the user's stored memory — profile, behavioral rules (locked first, then newest first), tool guidance,
 working state — as one ``<user_memory_context>`` SystemMessage immediately after the leading System prompts
 (prompt-cache friendly). Learned facts are never injected: the model retrieves them through
 ``memory_search_tool(corpus=memory)``, which keeps the prompt prefix stable across turns. A user with no stored memory
@@ -196,11 +196,7 @@ async def _live_load(manager: MemoryManager) -> _StaticContext:
     """Load the stable memory context from the manager, bounded by its retrieval timeout."""
     try:
         async with asyncio.timeout(_retrieval_timeout_seconds(manager)):
-            loaded = await manager.get_context(
-                include_profile=True,
-                include_rules=True,
-                include_agent_instructions=True,
-            )
+            loaded = await manager.get_context(include_profile=True, include_rules=True)
     except TimeoutError:
         logger.warning("Memory context load timed out; skipping memory injection")
         return _StaticContext("fallback", skip_reason="load_timeout")

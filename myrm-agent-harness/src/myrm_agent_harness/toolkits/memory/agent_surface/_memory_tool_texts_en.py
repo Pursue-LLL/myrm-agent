@@ -32,8 +32,8 @@ MEMORY_SAVE_CORE_EN = """Store a new memory for the user. Memory persists across
 **CATEGORY GUIDE** (pick one):
 - knowledge: stable facts about user's world (project tech stack, environment details)
 - event: significant past occurrences worth recalling (e.g., user started new project) — do not specify importance or tags for events
-- preference: user likes/dislikes
-- rule: conditional behavioral rules with a specific condition (requires rule_trigger, e.g., "when writing code"; optional rule_priority)
+- preference: stable likes/dislikes about the user's world (favorite tools, foods, hobbies); a request about how you should write, format or behave is an instruction or rule, never a preference
+- rule: conditional behavioral rules with a specific condition (requires rule_trigger, e.g., "when writing code")
 - instruction: unconditional global rules that always apply (e.g., "always reply in Chinese") — do not set rule_trigger
 
 **IMPORTANCE** (0–1, knowledge only; other categories ignore it): 0.8–1.0 the user explicitly asked to remember the fact; 0.5–0.7 an inferred stable fact; 0.2–0.4 supplementary context."""

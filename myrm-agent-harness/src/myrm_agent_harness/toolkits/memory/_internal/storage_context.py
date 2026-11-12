@@ -2,16 +2,16 @@
 
 [INPUT]
 - memory.protocols.relational::RelationalStoreProtocol (POS: relational persistence)
-- memory.types::{ProfileEntry, ProceduralMemory, RuleSource} (POS: memory data models)
+- memory.types::{ProfileEntry, ProceduralMemory} (POS: memory data models)
 
 [OUTPUT]
-- load_context: Loads profile, rules, and working state for agent prompt
+- load_context: Loads profile, rules (one list: locked first, then newest first), and working state for agent prompt
 - WORKING_STATE_PROFILE_KEY, WORKING_STATE_UPDATED_AT_KEY, WORKING_STATE_TTL_DAYS: Constants
 - CHAT_SCOPED_PROFILE_KEYS: the profile entries that hold one chat's own words and leave with it
 
 [POS]
 Context loading for agent system prompt injection. Fetches user profile entries,
-active rules, agent self-instructions, and working state from relational storage.
+active rules, and working state from relational storage.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ from myrm_agent_harness.toolkits.memory.tool_guidance import ToolGuidanceItem
 from myrm_agent_harness.toolkits.memory.types import (
     ProceduralMemory,
     ProfileEntry,
-    RuleSource,
 )
 
 if TYPE_CHECKING:
@@ -47,10 +46,9 @@ async def load_context(
     *,
     include_profile: bool = True,
     include_rules: bool = True,
-    include_agent_instructions: bool = True,
     namespaces: list[str] | None = None,
 ) -> dict[str, object]:
-    ctx: dict[str, object] = {"global_profile": {}, "peer_profile": {}, "rules": [], "agent_instructions": []}
+    ctx: dict[str, object] = {"global_profile": {}, "peer_profile": {}, "rules": []}
 
     tasks: dict[str, asyncio.Task[object]] = {}
     if include_profile:
@@ -103,8 +101,7 @@ async def load_context(
 
     if "rules" in results and not isinstance(results["rules"], Exception):
         rules_raw = results["rules"]
-        user_rules: list[dict[str, str | int | bool]] = []
-        agent_instrs: list[dict[str, str | int]] = []
+        rule_entries: list[dict[str, str | bool]] = []
         guidance_items: list[ToolGuidanceItem] = []
         if isinstance(rules_raw, list):
             for r in rules_raw:
@@ -127,21 +124,17 @@ async def load_context(
                             )
                         )
 
-                    if r.source == RuleSource.AGENT_SELF:
-                        agent_instrs.append({"instruction": r.action, "priority": r.priority})
-                    else:
-                        user_rules.append(
-                            {
-                                "trigger": r.trigger,
-                                "action": r.action,
-                                "priority": r.priority,
-                                "user_endorsed": r.is_user_locked,
-                            }
-                        )
-        user_rules.sort(key=lambda rule: not bool(rule["user_endorsed"]))
-        ctx["rules"] = user_rules
+                    rule_entries.append(
+                        {
+                            "trigger": r.trigger,
+                            "action": r.action,
+                            "source": r.source.value,
+                            "user_endorsed": r.is_user_locked,
+                        }
+                    )
+        # Storage hands the rules out newest first; the stable sort puts the locked ones ahead of them.
+        rule_entries.sort(key=lambda rule: not rule["user_endorsed"])
+        ctx["rules"] = rule_entries
         ctx["raw_tool_guidance_items"] = guidance_items
-        if include_agent_instructions:
-            ctx["agent_instructions"] = agent_instrs
 
     return ctx

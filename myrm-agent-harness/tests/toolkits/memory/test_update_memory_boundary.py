@@ -99,8 +99,9 @@ async def test_an_importance_a_rule_cannot_hold_is_reported_and_the_rest_of_the_
         {"action": "update", "memory_id": rule.id, "new_content": RULE_REWORDED, "new_importance": 1.0},
     )
 
-    assert answer.startswith(f"Memory updated (ID: {rule.id}). Importance was not changed")
-    assert "rule_priority" in answer
+    assert answer == (
+        f"Memory updated (ID: {rule.id}). Importance was not changed: only knowledge and event memories store it."
+    )
     kept = await manager.get_memory(rule.id)
     assert isinstance(kept, ProceduralMemory)
     assert (kept.action, kept.priority) == (RULE_REWORDED, 3)
@@ -140,7 +141,37 @@ async def test_an_event_stores_the_importance_it_is_given_and_the_reply_stays_pl
     assert kept.importance == 0.9
 
 
-def test_the_note_follows_what_the_memory_holds_and_names_rules_only_for_rules() -> None:
+@pytest.mark.parametrize("manage", MANAGES)
+async def test_a_correct_on_a_rule_points_to_update_and_leaves_the_rule_as_it_was(
+    new_manager: NewManager, manage: Manage
+) -> None:
+    manager = new_manager()
+    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT)
+
+    answer = await manage(manager, {"action": "correct", "memory_id": rule.id, "new_content": RULE_REWORDED})
+
+    assert answer == (
+        "Correct action is only supported for knowledge memories. To change a rule, use update with new_content."
+    )
+    kept = await manager.get_memory(rule.id)
+    assert isinstance(kept, ProceduralMemory)
+    assert kept.action == RULE_TEXT
+
+
+@pytest.mark.parametrize("manage", MANAGES)
+async def test_a_correct_on_an_event_does_not_mention_rules(new_manager: NewManager, manage: Manage) -> None:
+    manager = new_manager()
+    event = await manager.add_event("Deployed the billing service to staging on Monday")
+
+    answer = await manage(
+        manager,
+        {"action": "correct", "memory_id": event.id, "new_content": "Deployed the billing service on Tuesday"},
+    )
+
+    assert answer == "Correct action is only supported for knowledge memories."
+
+
+def test_the_note_follows_what_the_memory_holds() -> None:
     held = SemanticMemory(content="fact", importance=0.9)
     digest = TaskDigestMemory(task_goal="ship the release")
 

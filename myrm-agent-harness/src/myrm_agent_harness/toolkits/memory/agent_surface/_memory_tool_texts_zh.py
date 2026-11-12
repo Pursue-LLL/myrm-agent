@@ -33,8 +33,8 @@ MEMORY_SAVE_CORE_ZH = """为用户存储新记忆。记忆跨会话持久化并�
 **类别指南**：
 - knowledge：稳定事实（项目技术栈、环境细节）
 - event：重要过往事件（如开始新项目）— 无需指定 importance 与 tags
-- preference：用户喜好/厌恶
-- rule：条件性行为规则（需 rule_trigger 如「写代码时」；可选 rule_priority）
+- preference：用户所处世界里的稳定喜好/厌恶（常用工具、食物、爱好）；对你写作、格式或行为方式的要求属于 instruction 或 rule，不是 preference
+- rule：条件性行为规则（需 rule_trigger 如「写代码时」）
 - instruction：全局无条件指令（如「始终用中文回复」）— 不要设置 rule_trigger
 
 **重要性**（0–1，仅 knowledge 生效，其他类别忽略）：0.8–1.0 用户明确要求记住该事实；0.5–0.7 推断的稳定事实；0.2–0.4 补充上下文。"""

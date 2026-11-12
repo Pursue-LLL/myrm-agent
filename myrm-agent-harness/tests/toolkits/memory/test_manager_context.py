@@ -31,9 +31,7 @@ class TestContextLoading:
             memory_config, user_id="test_user", relational=mock_relational_store
         )
 
-        context = await manager.get_context(
-            include_profile=True, include_rules=True, include_agent_instructions=True
-        )
+        context = await manager.get_context(include_profile=True, include_rules=True)
 
         assert "global_profile" in context
         assert "peer_profile" in context

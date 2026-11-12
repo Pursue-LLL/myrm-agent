@@ -8,7 +8,7 @@
 - search_memory_corpus, search_wiki_corpus, search_sessions_corpus: Corpus-specific recall execution.
 
 [POS]
-Runtime execution layer for memory_search_tool corpus routing and formatting.
+Runtime execution layer for memory_search_tool corpus routing and formatting; an empty search explains rule matching.
 """
 
 from __future__ import annotations
@@ -18,12 +18,15 @@ import logging
 import re
 from collections.abc import Awaitable
 from datetime import datetime
+from typing import Literal
 
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_citations import (
     cited_memory_ref,
     emit_cited_memory_ids,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_budget import (
+    DEFAULT_RECALL_LIMIT,
+    MAX_RECALL_LIMIT,
     MAX_RECALL_OUTPUT_CHARS,
     budget_recall_line,
     line_cost,
@@ -96,6 +99,17 @@ _CODE_PATH_PATTERN = re.compile(
 )
 
 
+def _no_result_reply(types: list[MemoryType] | None) -> str:
+    """The zero-hit reply; a search that covers rules adds how they are matched (one exact phrase, not by meaning)."""
+    if types is not None and MemoryType.PROCEDURAL not in types:
+        return "No relevant memories found."
+    return (
+        "No relevant memories found. Stored rules are matched as one exact phrase against their trigger and action: "
+        'search one distinctive word, or leave query empty with categories=["rule"] to list rules '
+        f"({DEFAULT_RECALL_LIMIT} per call, up to {MAX_RECALL_LIMIT} with limit)."
+    )
+
+
 async def search_memory_corpus(
     manager: MemoryManager,
     *,
@@ -159,13 +173,13 @@ async def search_memory_corpus(
                 codes = manager.last_retrieval_trace.warning_codes
                 code_suffix = f" ({', '.join(codes)})" if codes else ""
                 return f"Memory search degraded due to timeout or internal store error{code_suffix}. Try a more specific query or retry."
-        return "No relevant memories found."
+        return _no_result_reply(types)
 
     for result in results:
         memory = result.memory
         if domain:
             dom = getattr(memory, "domain", None)
-            dom_str = dom.value if hasattr(dom, "value") else str(dom) if dom else ""
+            dom_str = str(getattr(dom, "value", dom) or "")
             if not dom_str:
                 m_type = getattr(memory, "memory_type", "")
                 m_type_str = m_type.value if hasattr(m_type, "value") else str(m_type)
@@ -208,7 +222,7 @@ async def search_memory_corpus(
                 )
             else:
                 suffix += " (may be outdated — verify before citing)"
-        if detail_level == "overview" and getattr(memory, "overview_l1", ""):
+        if detail_level == "overview" and memory.overview_l1:
             content_to_render = f"[L1] {memory.overview_l1}"
             if len(result.content) > len(memory.overview_l1) + 40:
                 suffix += (
@@ -265,7 +279,7 @@ async def search_memory_corpus(
         )
 
     if not output:
-        return "No relevant memories found."
+        return _no_result_reply(types)
 
     text = finalize_recall_tool_output("\n".join(output))
     text += RECALL_DRIFT_DEFENSE_FOOTER
@@ -325,7 +339,7 @@ async def search_sessions_corpus(
         return "Conversation history search is not available."
 
     query_text = query.strip()
-    requested_mode = "recent" if query_text in ("", "*") else None
+    requested_mode: Literal["recent"] | None = "recent" if query_text in ("", "*") else None
     request = ConversationSearchRequest(
         query="" if query_text == "*" else query_text,
         mode=requested_mode,

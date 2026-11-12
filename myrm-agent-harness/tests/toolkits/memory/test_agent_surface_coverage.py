@@ -101,5 +101,6 @@ async def test_search_memory_corpus_empty_results_emit_retrieval_trace() -> None
             until=None,
         )
 
-    assert result == "No relevant memories found."
+    assert result.startswith("No relevant memories found.")
+    assert "degraded" not in result
     emit_mock.assert_awaited_once()

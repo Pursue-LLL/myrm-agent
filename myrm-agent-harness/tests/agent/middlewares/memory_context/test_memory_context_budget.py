@@ -118,6 +118,56 @@ def test_the_characters_used_never_exceed_the_budget(max_tokens: int) -> None:
     assert 0 < rendered.used_chars <= max_tokens * CHARS_PER_TOKEN
 
 
+def _pinned_section(items: list[str], pinned: set[int]) -> BudgetedSection:
+    return BudgetedSection("Rules", items, priority=1, pinned=frozenset(pinned))
+
+
+def _kept_items(body: str) -> list[str]:
+    return [line.removeprefix("- ") for line in body.splitlines() if line.startswith("- ")]
+
+
+def test_a_cut_drops_unpinned_items_from_the_end_and_keeps_every_pinned_one() -> None:
+    items = [f"item {n:02d} " + "x" * 80 for n in range(30)]
+    pinned = {5, 28, 29}
+
+    rendered = render_budgeted_sections([_pinned_section(items, pinned)], max_tokens=300, truncation_message="CUT")
+
+    kept = [int(item.split()[1]) for item in _kept_items(rendered.body)]
+    assert kept == sorted(kept), "the items keep their order"
+    assert pinned <= set(kept)
+    kept_unpinned = [n for n in kept if n not in pinned]
+    unpinned = [n for n in range(len(items)) if n not in pinned]
+    assert kept_unpinned == unpinned[: len(kept_unpinned)]
+    assert 0 < len(kept_unpinned) < len(unpinned)
+    assert rendered.body.endswith("CUT")
+    assert rendered.accepted_by_title == {"Rules": len(kept)}
+    assert rendered.used_chars <= 300 * CHARS_PER_TOKEN
+
+
+def test_the_first_unpinned_item_that_does_not_fit_cuts_every_later_unpinned_item() -> None:
+    items = ["a", "B" * 400, "c", "d"]
+
+    rendered = render_budgeted_sections([_pinned_section(items, {3})], max_tokens=40, truncation_message="CUT")
+
+    assert _kept_items(rendered.body) == ["a", "d"]
+
+
+def test_a_pinned_item_is_dropped_only_when_the_pinned_items_alone_exceed_the_budget() -> None:
+    items = ["P" * 150, "Q" * 150, "r"]
+
+    rendered = render_budgeted_sections([_pinned_section(items, {0, 1})], max_tokens=50, truncation_message="CUT")
+
+    assert _kept_items(rendered.body) == ["P" * 150]
+    assert rendered.body.endswith("CUT")
+
+
+def test_pinned_items_that_fit_leave_nothing_to_truncate() -> None:
+    rendered = render_budgeted_sections([_pinned_section(["a", "b"], {0})], max_tokens=500, truncation_message="CUT")
+
+    assert _kept_items(rendered.body) == ["a", "b"]
+    assert "CUT" not in rendered.body
+
+
 def _request(tools: object) -> MagicMock:
     return MagicMock(tools=tools)
 

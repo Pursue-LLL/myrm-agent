@@ -1,11 +1,11 @@
-"""What the memory block says: its sections, their fixed order, the veto lines, the scope boundary and the budget cut.
+"""What the memory block says: its sections, their fixed order, the rule list, the scope boundary and the budget cut.
 
 [INPUT]
 - agent.middlewares.memory_context.memory_context_format::_format_memory_context (POS: renders the context the store handed out into the block's text)
 - agent.middlewares.memory_context.memory_context_format::_has_memory_context (POS: tells the block the middleware built from any other message)
 
 [POS]
-Formatter guard for the memory block: cold start, profile, instructions, rules, vetoes, tool guidance and the budget cut.
+Formatter guard for the memory block: cold start, profile, rules, tool guidance, the scope boundary and the budget cut.
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def test_format_empty_returns_cold_start():
     assert MEMORY_CONTEXT_MARKER in stable
     assert "conversation_search" not in stable
 
-    stable2 = _format_memory_context({"global_profile": {}, "rules": [], "agent_instructions": []}).text
+    stable2 = _format_memory_context({"global_profile": {}, "rules": []}).text
     assert stable2 == _COLD_START_CONTEXT
 
 
@@ -100,18 +100,20 @@ def test_format_profile():
     assert "role: Developer" in stable
 
 
-def test_format_instructions():
+def test_format_lists_an_instruction_the_agent_saved_among_the_other_rules():
     ctx = {
-        "agent_instructions": [
-            {"instruction": "Always be concise"},
-            {"instruction": "Use Python for examples"},
+        "rules": [
+            {"trigger": "always", "action": "Always be concise", "source": "agent_self"},
+            {"trigger": "writing code", "action": "add tests", "source": "user_extracted"},
         ],
     }
     stable = _format_memory_context(ctx).text
     assert stable is not None
-    assert "## Your Self-Instructions" in stable
-    assert "Always be concise" in stable
-    assert "Use Python for examples" in stable
+    assert "Self-Instructions" not in stable
+    behavioral = stable.partition("## Behavioral Rules")[2]
+    assert behavioral.index("When: always → Do: Always be concise") < behavioral.index(
+        "When: writing code → Do: add tests"
+    )
 
 
 def test_format_rules():
@@ -131,14 +133,12 @@ def test_format_rules():
 def test_format_complete_static():
     ctx = {
         "global_profile": {"name": "Bob"},
-        "agent_instructions": [{"instruction": "Be helpful"}],
         "rules": [{"trigger": "greeting", "action": "respond warmly"}],
     }
     stable = _format_memory_context(ctx).text
     assert stable is not None
     assert "# User Context (stable)" in stable
     assert "## Global User Profile" in stable
-    assert "## Your Self-Instructions" in stable
     assert "## Behavioral Rules" in stable
     assert "<user_memory_context>" in stable
     assert "</user_memory_context>" in stable
@@ -179,61 +179,36 @@ def test_format_cold_start_context_mode_no_injection():
     assert block.budget_used_chars == 0
 
 
-def test_format_veto_negative_constraints():
-    """VETO negative constraints are rendered into their own Priority 0 section."""
+def test_a_prohibition_is_listed_like_any_other_rule():
+    """No separate section and no rewritten wording: a rule is always ``When: <trigger> → Do: <action>``."""
     ctx = {
         "rules": [
-            {
-                "id": "rule-normal",
-                "trigger": "code commit",
-                "action": "run linter",
-            },
-            {
-                "id": "rule-veto-1",
-                "is_veto": True,
-                "tool_name": "bash_tool",
-                "action": "rm -rf /",
-                "reasoning": "Prevent system destruction",
-                "application": "Use safe remove",
-                "priority": 10,
-            },
-            {
-                "id": "rule-veto-2",
-                "trigger": "type annotation",
-                "action": "never use Any type",
-                "reasoning": "Strict type safety",
-            },
+            {"trigger": "code commit", "action": "run linter"},
+            {"trigger": "shell work", "action": "never run rm -rf /"},
+            {"trigger": "type annotation", "action": "never use Any type"},
         ]
     }
     stable = _format_memory_context(ctx).text
     assert stable is not None
-    assert "## Mandatory Negative Constraints (VETO Rules)" in stable
-    assert "[NEVER] rm -rf / (Scope: bash_tool)" in stable
-    assert "Prevent system destruction" in stable
-    assert "[NEVER] never use Any type" in stable
+    assert "VETO" not in stable
+    assert "[NEVER]" not in stable
+    rules_part = stable.partition("## Behavioral Rules")[2]
+    assert [line for line in rules_part.splitlines() if line.startswith("- When:")] == [
+        "- When: code commit → Do: run linter",
+        "- When: shell work → Do: never run rm -rf /",
+        "- When: type annotation → Do: never use Any type",
+    ]
 
-    # Normal rule stays in Behavioral Rules
-    assert "## Behavioral Rules" in stable
-    assert "When: code commit → Do: run linter" in stable
-    assert "[NEVER] run linter" not in stable
 
-
-def test_veto_section_lines_are_byte_stable_and_ordered():
-    """Veto lines keep an exact wording and a (priority desc, id asc) order: they sit in the cached prompt prefix."""
-    ctx = {
-        "rules": [
-            {"id": "b-low", "action": "never push to main", "reasoning": "protected branch"},
-            {"id": "a-low", "action": "do not touch .env", "tool_name": "write_file", "priority": 0},
-            {"id": "z-high", "action": "Never use sudo", "priority": 7},
-        ]
-    }
+def test_rules_keep_the_order_the_store_handed_them_out():
+    """The order is the precedence the scope boundary promises, and the block's bytes depend on it."""
+    ctx = {"rules": [{"trigger": f"t{n}", "action": f"do {n}"} for n in (3, 1, 2)]}
     stable = _format_memory_context(ctx).text
     assert stable is not None
-    veto_lines = [line for line in stable.splitlines() if line.lstrip("- ").startswith("[NEVER]")]
-    assert [line.lstrip("- ") for line in veto_lines] == [
-        "[NEVER] Never use sudo (Scope: *)",
-        "[NEVER] do not touch .env (Scope: write_file)",
-        "[NEVER] never push to main (Scope: *) — Reason: protected branch",
+    assert [line for line in stable.splitlines() if line.startswith("- When:")] == [
+        "- When: t3 → Do: do 3",
+        "- When: t1 → Do: do 1",
+        "- When: t2 → Do: do 2",
     ]
 
 
@@ -255,6 +230,23 @@ class TestScopeBoundary:
         sb_idx = stable.index("Scope Boundary")
         uc_idx = stable.index("# User Context (stable)")
         assert sb_idx < uc_idx
+
+    def test_scope_boundary_ranks_the_users_current_message_above_stored_memories(self):
+        for ctx in ({"global_profile": {"name": "Eve"}}, {"rules": [{"trigger": "t", "action": "a"}]}):
+            stable = _format_memory_context(ctx).text
+            assert stable is not None
+            assert "The user\u2019s current message always takes priority over stored memories." in stable
+
+    def test_scope_boundary_orders_conflicting_rules_only_when_rules_are_listed(self):
+        sentence = (
+            "Behavioral rules are listed in order of precedence: when two rules conflict, follow the earlier one."
+        )
+        with_rules = _format_memory_context({"rules": [{"trigger": "t", "action": "a"}]}).text
+        without_rules = _format_memory_context({"global_profile": {"name": "Eve"}}).text
+        assert with_rules is not None
+        assert without_rules is not None
+        assert sentence in with_rules
+        assert sentence not in without_rules
 
     def test_scope_boundary_absent_in_cold_start(self):
         stable = _format_memory_context({}).text

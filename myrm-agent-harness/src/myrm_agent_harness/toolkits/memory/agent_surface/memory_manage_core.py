@@ -17,7 +17,8 @@ not found.
 [POS]
 Single implementation of update / delete / correct / rate for ``memory_agent_tools.manage_tool`` and
 ``mcp_server.manage_tool``. Failures the manager raises propagate; each surface translates them with
-``write_failure_feedback``. An update reply says so when the importance it was given did not reach the stored memory.
+``write_failure_feedback``. An update reply says so when the importance it was given did not reach the stored memory, and a correct reply on a
+rule points the caller to update.
 """
 
 from __future__ import annotations
@@ -92,10 +93,7 @@ def _unstored_importance_note(updated: AnyMemory, requested: float | None) -> st
     """
     if requested is None or getattr(updated, "importance", None) == requested:
         return ""
-    note = "Importance was not changed: only knowledge and event memories store it."
-    if updated.memory_type == MemoryType.PROCEDURAL:
-        note += " To change a rule's strength, save it again with rule_priority and delete this entry."
-    return note
+    return "Importance was not changed: only knowledge and event memories store it."
 
 
 async def _update(
@@ -118,7 +116,11 @@ async def _correct(manager: MemoryManager, memory: AnyMemory, new_content: str |
     if not new_content:
         return "Correct requires 'new_content' with the corrected fact."
     if memory.memory_type != MemoryType.SEMANTIC:
-        return "Correct action is only supported for knowledge memories."
+        reply = "Correct action is only supported for knowledge memories."
+        if memory.memory_type == MemoryType.PROCEDURAL:
+            # A rule deleted and saved again waits for the user's approval while the old one is already gone.
+            reply += " To change a rule, use update with new_content."
+        return reply
     if MemoryType.SEMANTIC not in manager.get_enabled_types():
         return "Knowledge memory is not enabled."
     correction = await manager.correct_memory(memory.id, new_content, allow_protected=_agent_may_modify(memory))

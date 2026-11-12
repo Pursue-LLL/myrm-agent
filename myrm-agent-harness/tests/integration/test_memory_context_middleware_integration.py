@@ -220,15 +220,16 @@ async def test_hybrid_real_assembly_injects_working_state(
 
 
 @pytest.mark.asyncio
-async def test_hybrid_real_assembly_injects_agent_instructions(
+async def test_hybrid_real_assembly_lists_a_newer_rule_above_the_older_one_it_replaces(
     manager_factory: Callable[[RecallMode], MemoryManager],
     memory_search_tool: object,
 ) -> None:
-    """Real AGENT_SELF procedural memories render as Your Self-Instructions."""
+    """Rules reach the prompt newest first whoever saved them, and the prompt says the earlier rule wins."""
     from myrm_agent_harness.toolkits.memory.types import RuleSource
 
     manager = manager_factory(RecallMode.HYBRID)
-    await manager.add_rule("always", "be concise", priority=5, source=RuleSource.AGENT_SELF)
+    await manager.add_rule("replying", "answer in French")
+    await manager.add_rule("replying", "answer in German", source=RuleSource.AGENT_SELF)
 
     set_memory_manager(manager)
     request = _make_request(
@@ -242,8 +243,10 @@ async def test_hybrid_real_assembly_injects_agent_instructions(
     stable_payload = "\n".join(
         str(m.content) for m in messages if isinstance(m, SystemMessage) and MEMORY_CONTEXT_MARKER in str(m.content)
     )
-    assert "## Your Self-Instructions" in stable_payload
-    assert "be concise" in stable_payload
+    assert stable_payload.count("## Behavioral Rules") == 1
+    assert "Self-Instructions" not in stable_payload
+    assert stable_payload.index("Do: answer in German") < stable_payload.index("Do: answer in French")
+    assert "listed in order of precedence" in stable_payload
 
 
 @pytest.mark.asyncio

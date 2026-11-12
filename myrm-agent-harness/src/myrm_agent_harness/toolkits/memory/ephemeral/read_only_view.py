@@ -99,13 +99,8 @@ class ReadOnlyMemoryView(DeniedMemoryWrites, MemoryManager):
         *,
         include_profile: bool = True,
         include_rules: bool = True,
-        include_agent_instructions: bool = True,
     ) -> dict[str, object]:
-        return await self._parent.get_context(
-            include_profile=include_profile,
-            include_rules=include_rules,
-            include_agent_instructions=include_agent_instructions,
-        )
+        return await self._parent.get_context(include_profile=include_profile, include_rules=include_rules)
 
     async def get_memory(self, memory_id: str) -> AnyMemory | None:
         return await self._parent.get_memory(memory_id)

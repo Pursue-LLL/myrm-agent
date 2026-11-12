@@ -128,21 +128,14 @@ class MemoryManagerRetrievalWriteMixin(MemoryManagerHost):
         *,
         include_profile: bool = True,
         include_rules: bool = True,
-        include_agent_instructions: bool = True,
     ) -> dict[str, object]:
         if not self.has_relational:
-            return {
-                "global_profile": {},
-                "peer_profile": {},
-                "rules": [],
-                "agent_instructions": [],
-            }
+            return {"global_profile": {}, "peer_profile": {}, "rules": []}
         assert self._relational is not None
         ctx = await load_context(
             self._relational,
             include_profile=include_profile,
             include_rules=include_rules,
-            include_agent_instructions=include_agent_instructions,
             namespaces=self._namespaces,
         )
 
