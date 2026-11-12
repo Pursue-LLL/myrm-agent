@@ -62,7 +62,7 @@ class TestRunAgentLoopCatalogWiring:
 
 
 class TestPopCheckpointIncompatibleMergedContext:
-    """Regression: callables must not remain in merged_context for LangGraph checkpoint."""
+    """No callable remains in merged_context: the LangGraph checkpoint cannot serialize one."""
 
     def test_file_content_reader_stripped_from_merged_context(self) -> None:
         from myrm_agent_harness.agent._internals._agent_helpers import (
@@ -114,10 +114,9 @@ class TestPopCheckpointIncompatibleMergedContext:
 
 
 class TestRunAgentLoopModelSlugSource:
-    """Regression: run_agent_loop must resolve the primary model slug from the agent LLM.
+    """run_agent_loop resolves the primary model slug from the agent LLM.
 
-    AgentRuntimeConfig has no ``llm`` field; reading ``agent_state.config.llm.model``
-    raised AttributeError on every agent run before this regression test was added.
+    AgentRuntimeConfig has no ``llm`` field, so the slug comes from ``agent_state.llm``.
     The access is via ``getattr`` so custom LLM objects that omit ``model_name``
     (e.g. test fakes) degrade gracefully instead of raising.
     """
@@ -130,7 +129,7 @@ class TestRunAgentLoopModelSlugSource:
             Path(__file__).resolve().parents[3] / "src/myrm_agent_harness/agent/_internals/agent_runtime.py"
         ).read_text(encoding="utf-8")
         # Compare signatures rebuilt from the AST so quote style and line wrapping
-        # in the module under test cannot invalidate this regression guard.
+        # in the module under test cannot invalidate this guard.
         tree = ast.parse(source)
         calls = {ast.unparse(n) for n in ast.walk(tree) if isinstance(n, ast.Call)}
         attributes = {ast.unparse(n) for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
@@ -189,10 +188,8 @@ class TestRunAgentLoopRoundBudget:
 
 
 class TestRunAgentLoopOuterErrorFaultSide:
-    """Regression: the outer-loop error_event must carry deterministic fault
-    side + recovery actions so the GUI's trace timeline shows who owns the
-    failure even when the executor loop itself raises (measurement decay guard
-    — this branch previously dropped fault_side/recovery_actions)."""
+    """The outer-loop error_event carries the deterministic fault side and recovery actions,
+    so the GUI's trace timeline shows who owns the failure even when the executor loop itself raises."""
 
     def test_outer_error_event_attributes_fault_side(self) -> None:
         import ast

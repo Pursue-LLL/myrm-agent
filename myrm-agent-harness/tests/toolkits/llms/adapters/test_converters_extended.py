@@ -216,7 +216,7 @@ class TestConvertDictToMessage:
             content="done",
             additional_kwargs={"responses_reasoning_items": reasoning_items},
         )
-        # Default (wire_protocol=None): preserves for backward compatibility
+        # Default (wire_protocol=None): the items are kept
         assert convert_message_to_dict(msg)["responses_reasoning_items"] == reasoning_items
 
         # Explicit responses wire: preserves
@@ -271,7 +271,7 @@ class TestRecoveryMetricsRecording:
 
 
 class TestNonStreamingTruncationGate:
-    """Non-streaming parity: when finish_reason reports an abnormal end
+    """Non-streaming calls apply the streaming truncation gate: when finish_reason reports an abnormal end
     (length/max_tokens/safety), `stream_complete=False` refuses to close a
     partial JSON object and the call is surfaced as invalid and never executed."""
 
