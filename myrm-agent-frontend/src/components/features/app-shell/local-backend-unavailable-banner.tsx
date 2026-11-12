@@ -55,6 +55,11 @@ export function dismissLocalBackendBanner(): void {
   }
 }
 
+interface ShellFailureState {
+  backendFailed: boolean;
+  unlisten: (() => void) | undefined;
+}
+
 interface LocalBackendUnavailableBannerProps {
   className?: string;
 }
@@ -65,7 +70,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
   const tRemote = useTranslations('common.remoteGateway');
   const [visible, setVisible] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
-  const [isRemote, setIsRemote] = useState(false);
+  const [isRemote] = useState(isRemoteGatewayActive);
 
   const handleSwitchToLocal = useCallback(async () => {
     // 编排成功才提交连接态：失败保持远程态并提示（可重试），
@@ -87,7 +92,6 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
 
   useEffect(() => {
     const remoteActive = isRemoteGatewayActive();
-    setIsRemote(remoteActive);
 
     if (!isLocalMode() && !remoteActive) {
       return undefined;
@@ -98,8 +102,9 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
     }
 
     let cancelled = false;
-    let backendFailed = false;
-    let unlistenFailureEvents: (() => void) | undefined;
+    // Written by the shell event callbacks, which run after the effect body; an object keeps those writes
+    // property mutations instead of reassignments of captured variables.
+    const shell: ShellFailureState = { backendFailed: false, unlisten: undefined };
 
     // The shell knows when a sidecar is definitively dead; waiting out the whole warmup
     // budget after that would show a false "still starting" state. Listen for its
@@ -111,9 +116,9 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
           const disposers = await Promise.all(
             events.map((event) =>
               listen(event, () => {
-                backendFailed = true;
-                // Release business requests waiting on the readiness gate now; a
-                // definitive shell failure must not leave them hanging for 30s.
+                shell.backendFailed = true;
+                // Drop the cached readiness so the next request re-probes. Ending the requests already parked
+                // on the gate after a final failure is the readiness coordinator's job (`platform-readiness.ts`).
                 markLocalBackendUnreachable();
               }),
             ),
@@ -122,7 +127,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
             disposers.forEach((dispose) => dispose());
             return;
           }
-          unlistenFailureEvents = () => disposers.forEach((dispose) => dispose());
+          shell.unlisten = () => disposers.forEach((dispose) => dispose());
         })
         .catch(() => {
           // Event bridge unavailable (plain browser); health polling remains the source of truth.
@@ -145,9 +150,9 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
       // 12 s window reports a healthy-but-slow boot as an outage. Poll for up to 60 s and
       // let the shell's failure events end the wait early instead of guessing with a timer.
       const maxWarmupRetries = process.env.NODE_ENV === 'test' ? 0 : 40;
-      for (let attempt = 0; attempt < maxWarmupRetries && !ready && !cancelled && !backendFailed; attempt++) {
+      for (let attempt = 0; attempt < maxWarmupRetries && !ready && !cancelled && !shell.backendFailed; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        if (cancelled || backendFailed) {
+        if (cancelled || shell.backendFailed) {
           return;
         }
         ready = await checkBackendReadyOnce();
@@ -173,7 +178,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
 
     return () => {
       cancelled = true;
-      unlistenFailureEvents?.();
+      shell.unlisten?.();
     };
   }, [tHint, tRemote]);
 
