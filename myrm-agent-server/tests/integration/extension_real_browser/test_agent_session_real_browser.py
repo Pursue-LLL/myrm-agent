@@ -129,7 +129,7 @@ async def test_closing_a_page_closes_the_agents_tab_but_only_lets_go_of_a_users(
         await wait_until(agent_tab_closed, "the Agent's tab to close with its page")
 
         borrowed = find_page(browser, "/login")
-        await asyncio.wait_for(borrowed.close(), timeout=20)  # Playwright waits for the target to go away
+        await asyncio.wait_for(borrowed.close(), timeout=45)  # Playwright waits for the target to go away
         assert borrowed.is_closed()
 
     assert not user_tab.is_closed()

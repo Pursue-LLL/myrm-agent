@@ -58,8 +58,12 @@ _FIXTURE_HOSTS = (INTRANET_HOST, OTHER_HOST)
 _PAGE = "<!doctype html><html><head><meta charset='utf-8'><title>{title}</title></head><body>{body}</body></html>"
 
 
-async def wait_until(condition: Callable[[], Awaitable[bool]], what: str, *, timeout: float = 20.0) -> None:
-    """Poll ``condition`` until it holds; the failure names what never happened."""
+async def wait_until(condition: Callable[[], Awaitable[bool]], what: str, *, timeout: float = 60.0) -> None:
+    """Poll ``condition`` until it holds; the failure names what never happened.
+
+    A real Chromium starting on a busy machine needs well over a quiet machine's second or two, so the default
+    waits long: a healthy run returns at once and only a condition that never holds spends the whole time.
+    """
     deadline = time.monotonic() + timeout
     while not await condition():
         if time.monotonic() >= deadline:
@@ -155,7 +159,7 @@ class BridgeServer:
                 raise AssertionError("Bridge server stopped before it started")
             return self._server is not None and self._server.started
 
-        await wait_until(started, "the bridge server to listen", timeout=15.0)
+        await wait_until(started, "the bridge server to listen", timeout=30.0)
         assert self._server is not None
         self.port = self._server.servers[0].sockets[0].getsockname()[1]
 
