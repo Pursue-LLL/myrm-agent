@@ -24,4 +24,4 @@ MV3 extension wiki clip client — REST multipart upload + Settings deep links.
 - `src/content/clip_image_urls.js` — srcset / picture URL SSOT
 - `src/content/clip.js` — dynamic inject page/selection HTML capture
 - `src/i18n.js` — Chrome `_locales` error strings
-- `src/background.js` — context menu delegates clip flow
+- `src/background/clip.js` / `src/background/context_menu.js` — the context menu delegates the clip flow

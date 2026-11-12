@@ -33,6 +33,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
+| `support/extension_real_browser.py` | 辅助 | 真实 Chromium 扩展夹具：加载未打包的扩展、挂载生产的扩展路由（真实 WebSocket，与 bridge 同一事件循环）、需登录 cookie 的夹具站点（主机名只在浏览器内解析到回环，不动系统解析）；`real_extension_stack` 交出已握手的扩展 / bridge / 站点，`wait_until` 有界轮询；缺 Chromium 则跳过 |
 | `support/wiki_clip_client.py` | 辅助 | 剪藏 API 测试共用：`build_wiki_client`（临时 vault 上的 wiki 路由客户端）、`cleanup_wiki_client`、`bypass_loopback_auth`（回环身份）、`poll_clip_job`（轮询剪藏任务到终态） |
 | `support/workspace_text_api.py` | 辅助 | 文本编辑 API 测试共用：挂载 files 路由 + 净化中间件的客户端、含各类文件的示例工作区、读/存/另存请求封装 |
 | `support/otlp_receiver.py` | 辅助 | 进程内 OTLP/HTTP 接收端（`OtlpReceiver`）：解码收到的追踪、指标与日志（`spans()`、`metric_export_count`、`metric_attribute_values`、`log_attribute_values`），断言「运维后端真正收到了什么」；遥测装配与 FastAPI 原生遥测策略的子进程测试共用 |
@@ -311,6 +312,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/plugins/test_third_party_plugin.py` | 模块 | 第三方真实插件（`fixtures/agent_plugins/third_party/hindsight/`）在平铺与单层包裹两种归档下都能解析并预览：技能与远程连接器不丢，外来 `extensions` 命名空间保持外来 |
 | `fixtures/agent_plugins/` | 辅助 | 官方冻结 JSON Schema（`plugin.schema.json` / `mcp.schema.json`）与第三方真实插件夹具（`third_party/hindsight/`，`NOTICE` 记录来源与许可） |
 | `integration/test_expert_exchange_integration.py` | 模块 | 专家交换真实栈集成（真实数据库 + 连接器配置库 + 技能安装流水线 + 导出/导入路由 + ZIP，无 mock）：团队（含泄漏密钥、越权策略、远程连接器）导出 → 空的第二套安装导入（子专家重新连线 · 密钥与越权策略不外带 · 连接器默认停用且头部为占位符）；自定义技能（安装 → 导出 → 卸载 → 导入：路径泄漏被脱敏、专家重新指向新装技能）；同机导入默认生成「(imported)」副本且不动原件，选择「替换」时保存可回滚版本并保持用户自己的安全策略 |
+| `integration/extension_real_browser/test_extension_bridge_real_browser.py` | 集成 | 扩展与 bridge 在真实 Chromium 中的对外契约（`-m e2e` 才运行）：popup 连接后的握手身份、Agent 只看见已授权域名的标签页、撤销授权后标签页隐去、前台导航走用户标签页（带用户登录态）且他域被拒、扩展自身拒绝服务端发来的未授权导航、暂停的标签页退出 Agent 视野 |
 | `integration/test_background_tasks_seed_fixture_integration.py` | 集成 | local-only seed 路由在真实链路上的行为：失败 / 运行中 / 成功 / 带 vault 日志各模式的任务行；`leftover` 模式任务结束后 `leftover_processes=1`、取消响应为 0、按命令行标记查进程表已无该进程，并发起 8 个种子时 8 个子程序都存活 |
 | `core/utils/test_error_redaction.py` | 单元 | 全局异常处理与标准 HTTP 异常响应消息自动凭据与路径脱敏测试 |
 | `core/utils/test_git_worktree_hostile_repo.py` | 集成 | 用真实 git 与会运行程序的恶意仓库配置（`core.fsmonitor`、合并驱动、部分克隆的 `uploadpack`、`reference-transaction` 钩子）验证 worktree 脏检查、合并、创建、删除分支（仓库的 `reference-transaction` 钩子）都不会运行仓库指定的程序，且被拒时映射为稳定的错误；车道 diff 的拒绝映射为失败退出码 |
