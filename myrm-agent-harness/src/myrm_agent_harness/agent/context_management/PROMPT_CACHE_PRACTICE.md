@@ -513,7 +513,7 @@ msg.additional_kwargs["cache_control"] = {"type": "ephemeral"}
 
 ### 4.1.1 Anti-Thrashing 保护
 
-**问题**：当上下文内容本身难以压缩时（如最近的工具调用都在保护范围内），压缩每次只能节省 <10%，却每次都破坏 Prompt Cache。
+**问题**：当上下文内容本身难以压缩时（如保留名额里的工具调用占了大部分上下文），压缩每次只能节省 <10%，却每次都破坏 Prompt Cache。
 
 **实现**：`CompressProcessor`（`compress_processor.py`）与 server `compact_chat` 通过 `compression_anti_thrash_guard` 追踪连续无效压缩次数；streak 持久化在 `chats.compression_ineffective_streak`（server `ChatCompressionStreakStore`），failure cooldown 仍由 DB 兜底。
 

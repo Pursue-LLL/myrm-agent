@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - extract_protected_head: keep system messages + first genuine user turn (skipping stale summary blocks)
-- extract_recent_messages: keep last N tool-call pairs from message history (excluding summary blocks)
+- extract_recent_messages: keep the newest messages that fit a token budget, tool-call pairs intact (excluding summary blocks)
 - extract_recent_messages_with_split_context: extract tail messages with Split Turn awareness and prefix extraction
 - TailExtractionResult: dataclass for tail extraction result with split turn metadata
 - create_summary_message: build HumanMessage with Lost-in-Middle awareness

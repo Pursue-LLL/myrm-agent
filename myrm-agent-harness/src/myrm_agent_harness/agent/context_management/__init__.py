@@ -21,7 +21,7 @@
   - 工具特定模板（保留标识符和元信息）
   - 最小清理保护（避免小清理破坏 Prompt Cache）
 - 摘要 (Summarization) 是不可逆的：原始消息结构被替换，无法恢复
-- 保留最近 N 次工具调用的完整格式，作为 few-shot 示例
+- 保留名额内的工具调用保持完整格式，作为 few-shot 示例（模型还没读过的结果先占名额，其余按优先级）
 """
 
 from .context import AgentContext

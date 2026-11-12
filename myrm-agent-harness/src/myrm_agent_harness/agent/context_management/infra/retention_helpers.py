@@ -16,9 +16,9 @@
 - format_retained_tool_trim_message / structure_trim_tokens_saved: deterministic trim helpers
 
 [POS]
-Cross-processor retention contract. Keeps Filter, ActivePrune, Compress, and smart_fallback
-aligned on failed-tool, focus-file, and goal-hint protection without a separate planner processor.
-ActivePrune and Compress also share the rule that a result the model has not read yet is not rewritten.
+Cross-processor retention contract. Filter and Compress read the same failed-tool, focus-file, and goal-hint
+intent without a separate planner processor. ActivePrune and Compress share the keep_recent_calls window and the
+rule that a result the model has not read yet is not rewritten.
 """
 
 from __future__ import annotations
