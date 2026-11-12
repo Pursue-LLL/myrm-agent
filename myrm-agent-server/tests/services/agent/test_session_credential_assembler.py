@@ -23,7 +23,7 @@ async def test_assemble_oauth_and_xai_provider_credentials() -> None:
     }
     providers_dict = {
         "providers": [
-            {"id": "xai-main", "apiKey": "xai-key", "apiUrl": "https://api.x.ai/v1"},
+            {"id": "xai-main", "apiKeys": [{"key": "xai-key", "isActive": True}], "apiUrl": "https://api.x.ai/v1"},
         ]
     }
 

@@ -42,7 +42,7 @@ _XAI_PROVIDER = {
     "name": "xai",
     "isEnabled": True,
     "apiUrl": "https://api.x.ai/v1",
-    "apiKey": "xai-gate-test-key",
+    "apiKeys": [{"id": "key-1", "key": "xai-gate-test-key", "remark": "", "isActive": True}],
 }
 
 

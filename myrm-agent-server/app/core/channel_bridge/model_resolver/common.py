@@ -97,6 +97,19 @@ def _extract_active_key(provider: dict[str, object]) -> str | None:
     return keys[0] if keys else None
 
 
+def _extract_stored_api_key(provider: dict[str, object]) -> str | None:
+    """Extract the first non-blank active key the user stored for a provider.
+
+    Unlike ``_extract_all_active_keys`` this never falls back to an injected OAuth token or the local no-auth
+    marker, so callers that hand the key to one vendor's host (balance probes, xAI search) only ever send a
+    credential the user typed in.
+    """
+    for key in _stored_active_keys(provider):
+        if stripped := key.strip():
+            return stripped
+    return None
+
+
 def _extract_all_active_keys(provider: dict[str, object]) -> list[str]:
     """Extract all active API keys from a provider config dict.
 
@@ -105,6 +118,22 @@ def _extract_all_active_keys(provider: dict[str, object]) -> list[str]:
 
     Priority: explicit API keys > injected OAuth token > no-auth marker.
     """
+    out = _stored_active_keys(provider)
+    if out:
+        return out
+
+    # Fallback to OAuth token injected by config_loader from provider_oauth credentials
+    oauth_token = provider.get("_oauthToken")
+    if isinstance(oauth_token, str) and oauth_token:
+        return [oauth_token]
+
+    if _supports_provider_no_auth(provider):
+        return [_LOCAL_NO_AUTH_API_KEY_MARKER]
+    return []
+
+
+def _stored_active_keys(provider: dict[str, object]) -> list[str]:
+    """Keys of the active ``apiKeys`` entries in stored order (a blank key is returned as typed)."""
     raw: object = provider.get("apiKeys")
     if not isinstance(raw, list):
         alt = provider.get("api_keys")
@@ -121,17 +150,7 @@ def _extract_all_active_keys(provider: dict[str, object]) -> list[str]:
         key_raw = entry.get("key")
         if active and key_raw is not None:
             out.append(str(key_raw))
-    if out:
-        return out
-
-    # Fallback to OAuth token injected by config_loader from provider_oauth credentials
-    oauth_token = provider.get("_oauthToken")
-    if isinstance(oauth_token, str) and oauth_token:
-        return [oauth_token]
-
-    if _supports_provider_no_auth(provider):
-        return [_LOCAL_NO_AUTH_API_KEY_MARKER]
-    return []
+    return out
 
 
 def _supports_provider_no_auth(provider: dict[str, object]) -> bool:

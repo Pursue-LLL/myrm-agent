@@ -9,6 +9,11 @@ import pytest
 from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 from app.core.skills.gates.x_live_search_skill_enable import maybe_enable_x_live_search_skill
 
+# The xAI provider row as the WebUI stores it: keys live in ``apiKeys``.
+_XAI_PROVIDERS: dict[str, object] = {
+    "providers": [{"id": "xai", "apiKeys": [{"key": "key", "isActive": True}], "apiUrl": "https://api.x.ai/v1"}]
+}
+
 
 @pytest.mark.asyncio
 async def test_maybe_enable_skips_without_xai_provider() -> None:
@@ -19,7 +24,7 @@ async def test_maybe_enable_skips_without_xai_provider() -> None:
 
 @pytest.mark.asyncio
 async def test_maybe_enable_respects_user_disabled() -> None:
-    providers = {"providers": [{"id": "xai", "apiKey": "key", "apiUrl": "https://api.x.ai/v1"}]}
+    providers = _XAI_PROVIDERS
     mock_config = MagicMock()
     mock_config.disabled_prebuilt_ids = [X_LIVE_SEARCH_SKILL_ID]
     mock_config.enabled_prebuilt_ids = []
@@ -39,7 +44,7 @@ async def test_maybe_enable_respects_user_disabled() -> None:
 
 @pytest.mark.asyncio
 async def test_maybe_enable_enables_skill_when_xai_present() -> None:
-    providers = {"providers": [{"id": "xai", "apiKey": "key", "apiUrl": "https://api.x.ai/v1"}]}
+    providers = _XAI_PROVIDERS
     mock_config = MagicMock()
     mock_config.disabled_prebuilt_ids = []
     mock_config.enabled_prebuilt_ids = []

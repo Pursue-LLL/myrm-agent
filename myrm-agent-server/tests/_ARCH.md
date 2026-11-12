@@ -134,6 +134,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/delegation/test_delegation_heartbeat.py` | 单元 | 委托运行心跳：长运行原地更新同一条消息并带任务编号与步数，短于一个间隔不发，任务时限内的次数上限，随运行结束、被 `/stop`、停在审批处而结束（交接期间不发） |
 | `core/channel_bridge/test_approval_card.py` | 单元 | 审批卡：句式、超时行、安全审查前缀与按钮取自渠道目录并按发送者语言出（工具名与理由原样），批量按钮、无理由不带悬空冒号、超时自动批准/拒绝措辞、长时限无千分位、时限缺失或不可读回退默认，无目录的语言读英文 |
 | `core/channel_bridge/test_config_parsers_provider_keys.py` | 单元 | 回退槽位（对话与轻量回退、视觉、视频）按设置页存储的形态读凭据：`apiKeys` 里启用的条目可解析，全部停用则不解析，OAuth 注入的令牌在没有存储密钥时可解析 |
+| `core/channel_bridge/test_model_resolver_stored_api_key.py` | 单元 | `_extract_stored_api_key` 只取用户存下的密钥：第一个非空启用条目胜出并去掉首尾空白，全部停用、空白、不是列表给 `None`，旧的平铺 `apiKey` 字段不算，OAuth 注入的令牌与本地无鉴权标记不算（模型调用的 `_extract_active_key` 仍会退到它们）；模型调用的密钥顺序仍是存储密钥、OAuth 令牌、无鉴权标记 |
+| `api/providers/test_provider_balance_stored_rows.py` | 单元 | 余额探测按设置页存储的行读密钥与端点（内存里的假供应商，不走网络）：四家供应商的预设端点各自落到自己的余额路径，没写端点用供应商自己的地址，自定义端点收到密钥而供应商地址什么都收不到，多个密钥取第一个启用的；没有用户填的密钥（无密钥、全停用、空白、平铺字段、只有 OAuth 令牌）一律不发请求；没有余额端点的供应商拿不到密钥；被拒绝的密钥报 HTTP 状态；`get_all_provider_balances` 只给启用的行出仪表 |
+| `services/agent/test_resolve_xai_search_config.py` | 单元 | `resolve_xai_search_config` 按设置页存储的行找 xAI 凭据：行内的密钥与端点、没写端点用 xAI 默认、去掉结尾斜杠、`xai` 开头的编号或 `x.ai` 地址都能匹配，其他供应商忽略，多个密钥取第一个启用的，前一行没密钥就用后一行；没有用户填的密钥（无密钥、全停用、空白、平铺字段、只有 OAuth 令牌）或设置本身残缺都得 `None` |
 | `core/channel_bridge/test_config_parsers_retrieval.py` | 单元 | 设置页检索块转成嵌入与重排配置：按服务商给出路由模型 id（SiliconFlow 走 OpenAI 兼容并带自己的默认地址）、用户填的地址优先、未应用或缺密钥、缺模型、不是配置块的一半被略去且不影响另一半、没有设置得到两个空 |
 | `core/channel_bridge/test_executor_approval_card_locale.py` | 单元 | 真实 `ChannelAgentExecutor` 停在审批请求处：审批卡按发送者 locale 出并带 `expiry` |
 | `channels/routing/test_stop_ends_pending_approval_timer.py` | 集成 | 真实 `AgentRouter` 加真实审批超时调度器：`/stop` 与 `/new` 结束会话正在等待的审批及其超时计时（前台、委托交接两种，交接带或不带审批卡消息号；前台一例由真实 `_execute_prepared_context` 跑完一个停在审批请求处的回合，计时器由路由器按请求自带的等待时长布防），多话题时只有自己在等审批的话题才能结束该聊天的计时，没在等审批的回合被停时别的话题的计时不动 |

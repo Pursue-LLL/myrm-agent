@@ -25,7 +25,7 @@ async def test_xai_oauth_token_takes_priority_over_api_key() -> None:
     }
     providers_dict = {
         "providers": [
-            {"id": "xai-main", "apiKey": "xai-api-key", "apiUrl": "https://api.x.ai/v1"},
+            {"id": "xai-main", "apiKeys": [{"key": "xai-api-key", "isActive": True}], "apiUrl": "https://api.x.ai/v1"},
         ]
     }
 
@@ -51,7 +51,7 @@ async def test_xai_api_key_used_when_no_oauth() -> None:
     }
     providers_dict = {
         "providers": [
-            {"id": "xai-main", "apiKey": "xai-api-key", "apiUrl": "https://api.x.ai/v1"},
+            {"id": "xai-main", "apiKeys": [{"key": "xai-api-key", "isActive": True}], "apiUrl": "https://api.x.ai/v1"},
         ]
     }
 
@@ -77,7 +77,7 @@ async def test_no_xai_credentials_when_neither_available() -> None:
     }
     providers_dict = {
         "providers": [
-            {"id": "openai-main", "apiKey": "sk-xxx", "apiUrl": "https://api.openai.com/v1"},
+            {"id": "openai-main", "apiKeys": [{"key": "sk-xxx", "isActive": True}], "apiUrl": "https://api.openai.com/v1"},
         ]
     }
 

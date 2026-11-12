@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs
+- app.core.channel_bridge.model_resolver::_extract_stored_api_key
 - myrm_agent_harness.toolkits.llms.probe::ProviderBalanceResult, ProviderBalanceStatus
 - httpx::AsyncClient
 
@@ -294,8 +295,12 @@ class ProviderBalanceService:
                 details="Local provider (zero token bill)",
             )
 
-        api_key = str(provider_cfg.get("apiKey") or provider_cfg.get("api_key") or "").strip()
-        api_base = str(provider_cfg.get("apiHost") or provider_cfg.get("api_base") or "").strip() or None
+        from app.core.channel_bridge.model_resolver import _extract_stored_api_key
+
+        # A stored row keeps its keys in ``apiKeys`` and its endpoint in ``apiUrl``. The key goes only to the endpoint
+        # named by the same row (the vendor's own host when it names none), and only a key the user typed is sent.
+        api_key = _extract_stored_api_key(provider_cfg)
+        api_base = str(provider_cfg.get("apiUrl") or "").strip() or None
 
         if not api_key:
             return ProviderBalanceResult(
@@ -337,7 +342,7 @@ class ProviderBalanceService:
 
             try:
                 user_configs = await load_user_configs()
-                providers_raw = user_configs.providers_dict.get("providers") or []
+                providers_raw = (user_configs.providers_dict or {}).get("providers") or []
             except Exception as exc:
                 logger.warning("Failed to load providers config for balance probe: %s", exc)
                 providers_raw = []

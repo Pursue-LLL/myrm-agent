@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: UserConfig 加载与缓存)
+- app.core.channel_bridge.model_resolver::_extract_stored_api_key (POS: 只取用户存下的密钥)
 
 [OUTPUT]
 - load_platform_model_config: WebUI 默认 LLM ModelConfig
@@ -221,7 +222,10 @@ async def verify_platform_embedding_ready() -> EmbeddingConfig:
 def resolve_xai_search_config(
     providers_dict: dict[str, object] | None,
 ) -> tuple[str, str] | None:
-    """Resolve xAI credentials from WebUI providers (no env fallback)."""
+    """Resolve xAI credentials from WebUI providers (no env fallback).
+
+    Only a key the user stored in the provider's ``apiKeys`` counts; a subscription OAuth token is assembled separately.
+    """
     if not isinstance(providers_dict, dict):
         return None
 
@@ -229,12 +233,14 @@ def resolve_xai_search_config(
     if not isinstance(rows, list):
         return None
 
+    from app.core.channel_bridge.model_resolver import _extract_stored_api_key
+
     for row in rows:
         if not isinstance(row, dict):
             continue
         api_url = str(row.get("apiUrl") or row.get("baseUrl") or "").strip()
         provider_id = str(row.get("id") or row.get("routingProfile") or "").lower()
-        api_key = str(row.get("apiKey") or "").strip()
+        api_key = _extract_stored_api_key(row)
         if not api_key:
             continue
         if "x.ai" in api_url.lower() or provider_id.startswith("xai"):
