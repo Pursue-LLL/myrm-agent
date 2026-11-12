@@ -55,7 +55,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_file_line_limit.py` | Gate | 单文件行数 baseline grandfather（新文件≤500；legacy 登记只许瘦） | — |
 | `test_mixin_mro.py` | Gate | BrowserSession / TransportChatModel / SubagentExecutor / BashExecutor mixin MRO 顺序锁 | — |
 | `test_executor_reexport.py` | Gate | `sub_agents/executor.py` `__all__` 聚合 re-export 完整性 | — |
-| `test_bash_executor_reexport.py` | Gate | `meta_tools/bash/bash_executor.py` `__all__` 聚合 re-export 完整性 | — |
+| `test_bash_executor_reexport.py` | Gate | `meta_tools/bash/_executor/executor.py` `__all__` 聚合 re-export 完整性 | — |
 | `test_bash_code_execute_tool_reexport.py` | Gate | `meta_tools/bash/bash_code_execute_tool.py` `__all__` 聚合 re-export 完整性 | — |
 | `test_bash_native_ptc_removed.py` | Gate | bash 路径禁止 Turn1 native PTC stub（`_ptc_tools_ref` / `inject_ptc_for_python_execution` / `get_ptc_description`） | — |
 | `test_no_ghost_registry_metadata.py` | Gate | `tool_registry.py` metadata maps 不得含无 @tool 源的幽灵键 | — |

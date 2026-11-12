@@ -82,10 +82,6 @@ feishuCredentials, dingtalkCredentials, slackCredentials, ...
 - `complete_onboarding()`：标记首次配置完成
 - `probe_local_search()`：探测本地 SearXNG 是否可达，供 Settings 一键启用搜索使用
 
-### 5. 健康监控 (`health_monitor.py`)
-
-**职责**：周期性检查 provider 配置健康，通过 SSE 推送通知。
-
 ---
 
 ## 依赖关系

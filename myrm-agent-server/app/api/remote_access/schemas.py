@@ -51,32 +51,3 @@ class NodeEventRequest(BaseModel):
     source: str = Field(..., min_length=1, max_length=200)
     event_type: str = Field(..., min_length=1, max_length=200)
     payload: dict[str, object] = Field(default_factory=dict)
-
-
-class SSHHostCreateRequest(BaseModel):
-    host_id: str = Field(..., min_length=1, max_length=64)
-    hostname: str = Field(..., min_length=1, max_length=256)
-    port: int = Field(default=22, ge=1, le=65535)
-    username: str = Field(default="root", min_length=1, max_length=64)
-    auth_type: str = Field(default="password")
-    secret: str | None = Field(default=None)
-    passphrase: str | None = Field(default=None)
-    proxy_jump: str | None = Field(default=None)
-    tags: list[str] = Field(default_factory=list)
-    description: str = Field(default="")
-
-
-class SSHHostImportRequest(BaseModel):
-    config_text: str = Field(..., min_length=1)
-
-
-class TailscaleStatusResponse(BaseModel):
-    installed: bool
-    running: bool
-    ips: list[str] = Field(default_factory=list)
-    fqdn: str | None = None
-    node_name: str | None = None
-    tailnet: str | None = None
-    user: str | None = None
-    serve_url: str | None = None
-

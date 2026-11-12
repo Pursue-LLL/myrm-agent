@@ -25,7 +25,7 @@
 
 ## 依赖关系
 
-- `app.core.security.share.share_hmac.py`（签名原语）
+- `app/core/security/share/share_hmac.py`（签名原语）
 - `app/services/hosting/artifact_files.py`
 - `app/services/hosting/preflight.py`
 - `app/database/models.artifact_share`（分享链接登记行）

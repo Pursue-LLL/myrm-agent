@@ -15,7 +15,7 @@
 
 ## 依赖
 
-- `@/services/skill.ts`、`skill-growth.ts` — REST
+- `@/services/skill.ts`、`@/services/skill/growth.ts` — REST
 - `@/components/features/skills/*` — 消费方
 
 ## 约束

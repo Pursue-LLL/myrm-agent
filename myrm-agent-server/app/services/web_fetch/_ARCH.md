@@ -29,7 +29,6 @@ Omni-Config `webFetchEscalation.enabled`. Vendor httpx calls live here; harness 
 
 - Harness: `FetchEscalationProvider` Protocol + ContextVar + `CrawlEngine._try_escalation`.
 - Server: httpx vendors, user config, SSRF before outbound, session cap.
-- **Not wired**: `mention.py` standalone `CrawlEngine()` — intentional lightweight @url prefetch.
 
 ## Dependencies
 

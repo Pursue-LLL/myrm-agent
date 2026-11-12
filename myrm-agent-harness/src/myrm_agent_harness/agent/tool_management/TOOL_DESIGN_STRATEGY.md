@@ -96,7 +96,7 @@ class ToolLayer(IntEnum):
 补充依据：
 
 - **CORE 而非 HIGH_PRIORITY 的分界**：web_fetch 不依赖搜索账号（`ai_agents/general_agent/tool_setup/` 的 web_fetch 分支独立于 `search_service_cfg`），`web_search_tool` 需要账号且用户可关。
-- **暴露面不因常驻改变**：是否挂载由 Agent Security 能力白名单决定（`services/agent/resolve_enable_web_fetch.py`；白名单为空表示不限制，非空且不含 `net_fetch` 时不挂载；Web、Cron、Eval、Channel、Voice、Goal、Kanban 入口统一调用）。`net_fetch` 为只读、基线放行，并带逐跳 SSRF 钉扎（`toolkits/web_fetch/fetchers/target_guard.py`）；bash 属 `code_interpreter` 默认需确认，其命令内 URL 预检只防外泄、放行私网（`preflight_checks.py` 的 `check_command_url_exfiltration`），不能等价替代。
+- **暴露面不因常驻改变**：是否挂载由 Agent Security 能力白名单决定（`services/agent/resolve_enable_web_fetch.py`；白名单为空表示不限制，非空且不含 `net_fetch` 时不挂载；Web、Cron、Eval、Channel、Voice、Goal、Kanban 入口统一调用）。`net_fetch` 为只读、基线放行，并带逐跳 SSRF 钉扎（`toolkits/web_fetch/fetchers/target_guard.py`）；bash 属 `code_interpreter` 默认需确认，其命令内 URL 预检只防外泄、放行私网（`_security/preflight_checks/url_guard.py` 的 `check_command_url_exfiltration`），不能等价替代。
 - **非英文查询**：词法检索式发现步骤对非英文查询召回差（§11.3），不宜把头部工具放在它后面。
 
 **反转条件**（任一出现即重新评审）：

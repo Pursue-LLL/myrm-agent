@@ -14,7 +14,7 @@
 
 ## 依赖
 
-- `@/services/memory.ts`、`memoryArchive.ts` — REST
+- `@/services/memory.ts`、`@/services/memory/archive.ts` — REST
 - `@/components/features/memory/*` — 消费方
 
 ## 约束

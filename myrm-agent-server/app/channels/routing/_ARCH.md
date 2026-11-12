@@ -30,7 +30,7 @@ Platforms whose reaction vocabulary lacks a glyph cannot express that tier by re
 (six tapbacks) and Feishu (official list has no ♾️/⭐ type) reach `allow_always` only through the
 text aliases.
 
-`_is_reaction_approval_valid` in `commands/router_commands_approval.py` enforces a layered gate:
+`_is_reaction_approval_valid` in `commands/router_commands/approval.py` enforces a layered gate:
 1. **Pending-approval check** — the chat must have an active interrupted task and an open
    request in `_pending_approvals`.
 2. **Target match** — when the reaction carries `target_message_id`, it must
@@ -77,7 +77,7 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
     asyncio.create_task(self._handle_action_button_approval(msg))
 ```
 
-`_handle_action_button_approval` in `commands/router_commands_approval.py` then:
+`_handle_action_button_approval` in `commands/router_commands/approval.py` then:
 
 1. **Parses** action (`approve`/`deny`) and `approval_id` from content.
 2. **Authorises**:
@@ -209,7 +209,7 @@ approved reply could not go out. The router itself never sends or releases a hel
 
 Where the owner's review request carries no buttons (every channel but Telegram), it ends with the commands
 that decide it from chat: `/draft approve <code>` and `/draft reject <code>`
-(`commands/router_commands_draft.py`). The code is the first 8 characters of the approval id
+(`commands/router_commands/draft.py`). The code is the first 8 characters of the approval id
 (`outbound_draft.draft_code`); a command accepts 6 or more hex characters.
 `ApprovalRegistry.find_pending_outbound_drafts` resolves it among pending held replies only, so a draft code
 can never decide any other approval, and a code that fits two replies decides neither. The decision then goes
@@ -217,7 +217,7 @@ through the same `resolve_approval` funnel as every other door.
 
 ## `/new` Session Boundary Cleanup
 
-`_handle_new_session` in `commands/router_commands_session.py` performs a three-phase cleanup
+`_handle_new_session` in `commands/router_commands/session.py` performs a three-phase cleanup
 before marking the peer for a fresh Chat:
 
 1. **Abort running task** — `_abort_session_task(state_key, …)` cancels
