@@ -9,6 +9,7 @@
 `warming → ready | unreachable`
 
 - 探测顺序：`waitForBackendReady()` → `GET /api/v1/health/ready`（`checks.database`）
+- 预算：`/health` 阶段按部署模式取 `getBackendHealthMaxAttempts()`（桌面壳 135 s，其余 60 s；桌面壳的 sidecar 归壳管，壳先放弃之前这里不报 `unreachable`）；`/health/ready` 阶段固定 60 s
 - 失效：`markLocalBackendUnreachable()`（运输层 facade，联动 `markPlatformUnreachable()`）
 
 ## 订阅方
