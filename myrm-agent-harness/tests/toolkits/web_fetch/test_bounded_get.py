@@ -8,6 +8,7 @@ raises once the callback answers with its abort code, so these tests pin the sin
 from __future__ import annotations
 
 import sys
+import tracemalloc
 from collections.abc import Awaitable, Callable, Iterable
 from types import ModuleType, SimpleNamespace
 
@@ -115,6 +116,23 @@ async def test_body_over_the_bound_ends_the_transfer_one_byte_over(install_get: 
     assert len(fetched.body) == MAX_TRANSFER_BYTES + 1
     assert transfer.fed == 21 * len(MIB)
     assert (fetched.status, fetched.headers["x-probe"], fetched.url, fetched.encoding) == (206, "kept", URL, "latin-1")
+
+
+async def test_a_full_body_is_held_once_when_the_transfer_ends(install_get: Callable[[GetFn], None]) -> None:
+    chunk = b"x" * 16_384
+    chunks = (chunk for _ in range(MAX_TRANSFER_BYTES // len(chunk) + 2))
+    install_get(_Transfer(chunks, interrupted=_curl_response()).get)
+
+    tracemalloc.start()
+    try:
+        fetched = await bounded_get(URL, {})
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert len(fetched.body) == MAX_TRANSFER_BYTES + 1
+    # Handing the body over as a copy of a bytearray would put the peak at about twice the bound.
+    assert peak < 1.5 * MAX_TRANSFER_BYTES
 
 
 @pytest.mark.parametrize(("extra_bytes", "expected"), [(0, MAX_TRANSFER_BYTES), (1, MAX_TRANSFER_BYTES + 1)])

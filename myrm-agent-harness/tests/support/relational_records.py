@@ -22,7 +22,6 @@ def make_rule(trigger: str = "user asks", action: str = "respond") -> Procedural
         content=f"When: {trigger} → Do: {action}",
         trigger=trigger,
         action=action,
-        priority=1,
     )
 
 

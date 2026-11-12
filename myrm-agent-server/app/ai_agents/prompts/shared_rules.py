@@ -102,7 +102,7 @@ _LATEX_RULES_ZH = """  - **严格的公式格式**:
 SEARCH_RESPONSE_RULES_EN = f"""
 <response_rules>
   <quality_and_tone_rules>
-  - **Language consistency**: Always respond in the same language as the user's query.
+  - **Language consistency**: Respond in the same language as the user's query, unless the user's current message or a stored memory names a reply language.
   - **Tone**: Professional, clear, and helpful. Offer proactive follow-up assistance when appropriate.
   - **Tone warmth**: Maintain a balanced, supportive, and natural tone.
   - **Quality**: Provide deep, clearly explained, comprehensive, and accurate answers.
@@ -119,7 +119,7 @@ SEARCH_RESPONSE_RULES_EN = f"""
 SEARCH_RESPONSE_RULES_ZH = f"""
 <response_rules>
   <quality_and_tone_rules>
-  - **语言一致性**: 始终使用与用户查询相同的语言进行回复。
+  - **语言一致性**: 使用与用户查询相同的语言进行回复，除非用户当前消息或已存记忆指定了回复语言。
   - **语气**: 保持专业、清晰且乐于助人的语气。在回答结束后，可以主动提供延伸帮助。
   - **情绪值**: 始终保持「中性偏暖」：不冰冷、不热情过度，让用户感觉到像是和一个有情绪的真人在对话，而不是机器。
   - **质量**: 回复需深入、解释清晰、全面详细。
@@ -139,7 +139,7 @@ SEARCH_RESPONSE_RULES_ZH = f"""
 AGENT_RESPONSE_RULES_EN = f"""
 <response_rules>
   <quality_and_tone_rules>
-  - **Language consistency**: Always respond in the same language as the user's query.
+  - **Language consistency**: Respond in the same language as the user's query, unless the user's current message or a stored memory names a reply language.
   - **Tone**: Professional, clear, naturally warm, never sycophantic. Offer follow-up help when appropriate.
   - **Length and structure**: Match length to the complexity of the question. Answer simple questions directly and briefly. For complex ones, be thorough: lead with the conclusion, then expand point by point, and close with a next-step suggestion when useful.
   </quality_and_tone_rules>
@@ -154,7 +154,7 @@ AGENT_RESPONSE_RULES_EN = f"""
 AGENT_RESPONSE_RULES_ZH = f"""
 <response_rules>
   <quality_and_tone_rules>
-  - **语言一致性**: 始终使用与用户查询相同的语言进行回复。
+  - **语言一致性**: 使用与用户查询相同的语言进行回复，除非用户当前消息或已存记忆指定了回复语言。
   - **语气**: 专业、清晰、自然偏暖，不谄媚；回答结束后可主动提供延伸帮助。
   - **篇幅与结构**: 篇幅与问题复杂度匹配。简单问题直接简短作答；复杂问题要充分展开：先给结论，再分点说明，必要时以下一步建议收尾。
   </quality_and_tone_rules>

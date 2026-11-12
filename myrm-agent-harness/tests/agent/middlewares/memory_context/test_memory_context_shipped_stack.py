@@ -75,7 +75,7 @@ async def manager(tmp_path: Path) -> AsyncIterator[MemoryManager]:
         recall_mode=RecallMode.HYBRID,
     )
     await mgr.set_profile_attribute("name", "Li Ming")
-    await mgr.add_rule("commits", "never use git push --force", priority=10)
+    await mgr.add_rule("commits", "never use git push --force")
     set_memory_manager(mgr)
     try:
         yield mgr
@@ -219,7 +219,7 @@ async def test_a_turn_loads_the_memory_once_and_a_memory_saved_mid_turn_waits_fo
     @tool
     async def save_rule() -> str:
         """Save a rule while the turn runs."""
-        await manager.add_rule("deploying", "never deploy on friday", priority=5)
+        await manager.add_rule("deploying", "never deploy on friday")
         return "saved"
 
     model = await _two_turns(

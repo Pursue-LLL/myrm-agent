@@ -1,6 +1,7 @@
 """Memory brief preflight for General Agent streams.
 
 [INPUT]
+- myrm_agent_harness.toolkits.memory.types::RuleSource (POS: 规则来源枚举，区分 agent 自存指令与其余规则)
 - app.ai_agents.agents::GeneralAgentParams (POS: General Agent 单轮执行参数)
 - app.core.memory.adapters.setup::create_memory_manager, resolve_context_binding (POS: 业务层记忆管理器构建与命名空间绑定解析)
 
@@ -17,6 +18,8 @@ import hashlib
 import json
 import logging
 from datetime import UTC, datetime
+
+from myrm_agent_harness.toolkits.memory.types import RuleSource
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
@@ -35,8 +38,15 @@ def _snapshot_id(memory_ctx: MemoryContextPayload) -> str:
 
 
 def _entry_count(value: object) -> int:
-    """Entries in a profile mapping or a rule/instruction list; any other shape carries none."""
-    return len(value) if isinstance(value, (dict, list)) else 0
+    """Entries in a profile mapping; any other shape carries none."""
+    return len(value) if isinstance(value, dict) else 0
+
+
+def _rule_counts(rules: object) -> tuple[int, int]:
+    """The (instructions the agent saved for itself, other rules) of the injected rule list; any other shape has none."""
+    entries = [rule for rule in rules if isinstance(rule, dict)] if isinstance(rules, list) else []
+    instructions = sum(1 for rule in entries if rule.get("source") == RuleSource.AGENT_SELF.value)
+    return instructions, len(entries) - instructions
 
 
 def _build_preview(
@@ -49,8 +59,7 @@ def _build_preview(
     # "peer_profile" every other one (facts saved in chat land there). Counting one side would report an empty profile
     # for a user whose memory is in use.
     profile_count = _entry_count(memory_ctx.get("global_profile")) + _entry_count(memory_ctx.get("peer_profile"))
-    instructions_count = _entry_count(memory_ctx.get("agent_instructions"))
-    rules_count = _entry_count(memory_ctx.get("rules"))
+    instructions_count, rules_count = _rule_counts(memory_ctx.get("rules"))
     working_state_text = memory_ctx.get("working_state")
     working_state = isinstance(working_state_text, str) and bool(working_state_text)
 
@@ -102,7 +111,7 @@ async def build_memory_brief_snapshot(
     )
 
     try:
-        static_context = await manager.get_context(include_profile=True, include_rules=True, include_agent_instructions=True)
+        static_context = await manager.get_context(include_profile=True, include_rules=True)
     except Exception as exc:
         logger.warning("Memory brief static context failed: %s", exc)
         return None

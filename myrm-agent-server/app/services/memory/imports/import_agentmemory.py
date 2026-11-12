@@ -231,7 +231,6 @@ def _procedural_to_procedural(item: dict[object, object]) -> dict[str, object]:
         "content": f"{name}\n{action}".strip() if name else action,
         "trigger": text(typed.get("triggerCondition")) or "Imported agentmemory procedure",
         "action": action or "Review imported procedure",
-        "priority": int(strength_to_score(typed.get("strength")) * 10),
         "trigger_keywords": string_list(typed.get("concepts")),
         "created_at": iso_or_now(typed.get("createdAt")),
         "updated_at": iso_or_now(typed.get("updatedAt")),

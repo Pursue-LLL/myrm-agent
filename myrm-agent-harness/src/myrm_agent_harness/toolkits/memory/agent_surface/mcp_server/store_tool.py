@@ -104,23 +104,20 @@ async def _store_rule(
     content: str,
     *,
     trigger: str | None,
-    priority: int,
     keywords: list[str],
 ) -> str:
     if not mgr.has_relational:
         return "Procedural memory is not enabled."
     if not trigger:
         return "Rule requires 'rule_trigger'."
-    mem = await mgr.add_rule(trigger, content, priority=priority, trigger_keywords=keywords, honor_approval=True)
+    mem = await mgr.add_rule(trigger, content, trigger_keywords=keywords, honor_approval=True)
     return format_write_ack("Rule", mem)
 
 
-async def _store_instruction(mgr: MemoryManager, content: str, *, priority: int) -> str:
+async def _store_instruction(mgr: MemoryManager, content: str) -> str:
     if not mgr.has_relational:
         return "Procedural memory is not enabled."
-    mem = await mgr.add_rule(
-        "always", content, priority=max(priority, 10), source=RuleSource.AGENT_SELF, honor_approval=True
-    )
+    mem = await mgr.add_rule("always", content, source=RuleSource.AGENT_SELF, honor_approval=True)
     return format_write_ack("Instruction", mem)
 
 
@@ -136,7 +133,6 @@ def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description
         write_target: str = "bound",
         preference_key: str | None = None,
         rule_trigger: str | None = None,
-        rule_priority: int = 0,
         rule_keywords: str | list[str] | None = None,
     ) -> str:
         """Store a memory.
@@ -150,7 +146,6 @@ def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description
             write_target: "bound" (agent scope) or "shared" (broadest namespace).
             preference_key: Required for preference category (e.g. "language", "framework").
             rule_trigger: Required for rule category — describes when the rule applies.
-            rule_priority: Priority for rules (higher = stronger, default 0).
             rule_keywords: Trigger keywords for rules. Accepts a comma-separated
                 string, a JSON array, or a raw list.
         """
@@ -185,15 +180,9 @@ def register_store_tool(mcp: MCPServer, resolve: ManagerResolver, *, description
             if category == "preference":
                 return await _store_preference(mgr, content, preference_key=preference_key)
             if category == "rule":
-                return await _store_rule(
-                    mgr,
-                    content,
-                    trigger=rule_trigger,
-                    priority=rule_priority,
-                    keywords=parsed_keywords,
-                )
+                return await _store_rule(mgr, content, trigger=rule_trigger, keywords=parsed_keywords)
             if category == "instruction":
-                return await _store_instruction(mgr, content, priority=rule_priority)
+                return await _store_instruction(mgr, content)
             return f"Unknown category: {category}"
         except Exception as e:
             return write_failure_feedback("MCP memory_store", e, fallback="Failed to store memory")

@@ -40,7 +40,6 @@ _SAVE_ARGUMENTS = {
     "write_target",
     "preference_key",
     "rule_trigger",
-    "rule_priority",
 }
 
 _CORPUS_POLICIES = {

@@ -11,10 +11,13 @@
 
 [POS]
 Procedural-rule persistence of SQLiteRelationalStore; trigger keywords and extra metadata are stored as JSON columns,
-the metadata one also carrying the rule's error fingerprint, resolution steps and chat links.
+the metadata one also carrying the rule's error fingerprint, resolution steps and chat links. Rules are read newest
+first (``created_at DESC, id DESC``); ``create_rule`` stores the creation time the rule carries, in UTC, because the
+column is ordered as text and offsets would misorder it.
 """
 
 import json
+from datetime import UTC
 from uuid import uuid4
 
 from myrm_agent_harness.toolkits.memory.relational._converters import PROCEDURAL_COLUMNS, now_iso, row_to_procedural
@@ -44,6 +47,9 @@ class SQLiteRuleMixin(SQLiteStoreHost):
         conn = await self._get_connection()
         rule_id = rule.id or str(uuid4())
         now = now_iso()
+        # The rule keeps the creation time it carries (an approved proposal keeps the moment it was proposed), in UTC
+        # so that the column's text order is its time order.
+        created_at = rule.created_at.astimezone(UTC).isoformat()
         (
             primary_namespace,
             namespaces_json,
@@ -55,18 +61,17 @@ class SQLiteRuleMixin(SQLiteStoreHost):
         try:
             await conn.execute(
                 """INSERT INTO procedural_rules
-                   (id, user_id, content, trigger_text, action_text, priority, is_active, trigger_keywords,
+                   (id, user_id, content, trigger_text, action_text, is_active, trigger_keywords,
                     source, metadata, primary_namespace, namespaces, agent_id, channel_id, conversation_id,
                     task_id, tool_name, tool_rule_priority, access_count, last_accessed_at,
                     created_at, updated_at, is_user_locked, expected_valid_days)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     rule_id,
                     "default",
                     rule.content,
                     rule.trigger,
                     rule.action,
-                    rule.priority,
                     int(rule.is_active),
                     json.dumps(rule.trigger_keywords),
                     rule.source.value,
@@ -81,7 +86,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                     rule.tool_rule_priority.value,
                     rule.access_count,
                     (rule.last_accessed_at.isoformat() if rule.last_accessed_at else None),
-                    now,
+                    created_at,
                     now,
                     int(rule.is_user_locked),
                     rule.expected_valid_days,
@@ -121,7 +126,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                      AND (trigger_text LIKE ? OR action_text LIKE ?)
                 """
                 + scope_sql
-                + " ORDER BY priority DESC, created_at DESC, id DESC LIMIT ?",
+                + " ORDER BY created_at DESC, id DESC LIMIT ?",
                 (pattern, pattern, *scope_params, limit),
             ) as cursor:
                 rows = list(await cursor.fetchall())
@@ -144,14 +149,14 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                 sql = (
                     f"SELECT {PROCEDURAL_COLUMNS} FROM procedural_rules WHERE is_active = 1"
                     + scope_sql
-                    + " ORDER BY priority DESC, created_at DESC, id DESC LIMIT ? OFFSET ?"
+                    + " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
                 )
                 params: tuple[str | int, ...] = (*scope_params, limit, offset)
             else:
                 sql = (
                     f"SELECT {PROCEDURAL_COLUMNS} FROM procedural_rules WHERE 1=1"
                     + scope_sql
-                    + " ORDER BY priority DESC, created_at DESC, id DESC LIMIT ? OFFSET ?"
+                    + " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
                 )
                 params = (*scope_params, limit, offset)
             async with conn.execute(sql, params) as cursor:
@@ -182,7 +187,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
         try:
             cursor = await conn.execute(
                 """UPDATE procedural_rules
-                   SET content = ?, trigger_text = ?, action_text = ?, priority = ?,
+                   SET content = ?, trigger_text = ?, action_text = ?,
                        is_active = ?, trigger_keywords = ?, source = ?, metadata = ?,
                        primary_namespace = ?, namespaces = ?, agent_id = ?, channel_id = ?,
                        conversation_id = ?, task_id = ?, tool_name = ?,
@@ -193,7 +198,6 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                     rule.content,
                     rule.trigger,
                     rule.action,
-                    rule.priority,
                     int(rule.is_active),
                     json.dumps(rule.trigger_keywords),
                     rule.source.value,

@@ -20,6 +20,7 @@ and ends the transfer, so the cost stops at that size.
 
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -48,23 +49,26 @@ class FetchedResponse:
 class _BodySink:
     """libcurl write callback: keeps the first ``_KEPT_BYTES`` bytes and ends the transfer once they are full."""
 
-    __slots__ = ("_abort", "_buffer", "capped")
+    __slots__ = ("_abort", "_buffer", "_size", "capped")
 
     def __init__(self, abort: int) -> None:
         self._abort = abort
-        self._buffer = bytearray()
+        self._buffer = io.BytesIO()
+        self._size = 0
         self.capped = False
 
     def __call__(self, chunk: bytes) -> int:
-        self._buffer += chunk[: _KEPT_BYTES - len(self._buffer)]
-        if len(self._buffer) < _KEPT_BYTES:
+        self._size += self._buffer.write(chunk[: _KEPT_BYTES - self._size])
+        if self._size < _KEPT_BYTES:
             return len(chunk)
         self.capped = True
         return self._abort
 
     @property
     def body(self) -> bytes:
-        return bytes(self._buffer)
+        # ``getvalue`` shares the buffer instead of copying it, so a full body is held once; ``bytes(bytearray)``
+        # would hold it twice at this point, and every concurrent capped transfer pays that.
+        return self._buffer.getvalue()
 
 
 async def bounded_get(url: str, request: GetRequestParams) -> FetchedResponse:

@@ -16,7 +16,7 @@
 |------|------|------|
 | `general_agent_prompt.py` | ✅ 核心 | 通用 Agent 系统提示词（两档预构建 + get_core_system_prompt API；`coerce_prompt_mode` 把库里存的自由字符串收窄为已知档位，search 以外一律按 full） |
 | `fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（被 general_agent_prompt search 模式静态引用；回复规则取 `SEARCH_RESPONSE_RULES_*`） |
-| `shared_rules.py` | ✅ 辅助 | 跨 Agent 共享规则常量；回复规则分两套：`AGENT_RESPONSE_RULES_*` 供 full 档（篇幅随问题复杂度，Markdown 与表格以渠道 `[Output Format]` 声明为准），`SEARCH_RESPONSE_RULES_*` 供 search 档与快速搜索（全面详细的综合答案），公式契约 `_LATEX_RULES_*` 两套共用 |
+| `shared_rules.py` | ✅ 辅助 | 跨 Agent 共享规则常量；回复规则分两套：`AGENT_RESPONSE_RULES_*` 供 full 档（篇幅随问题复杂度，Markdown 与表格以渠道 `[Output Format]` 声明为准），`SEARCH_RESPONSE_RULES_*` 供 search 档与快速搜索（全面详细的综合答案），公式契约 `_LATEX_RULES_*` 两套共用；语言一致性条款默认跟随用户提问的语言，用户当前消息或已存记忆指定了回复语言时以指定为准 |
 | `deliverable_discipline.py` | ✅ 辅助 | Deliverable-first SSOT（Knowledge Work / builtin-economy user_instructions；含 kanban 任务板引导 + 反幻觉写文件约束；不绑定具体工具名，工具由 schema 暴露） |
 
 ---

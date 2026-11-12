@@ -213,7 +213,6 @@ class MemorySession:
         trigger: str,
         action: str,
         *,
-        priority: int = 0,
         source: RuleSource = RuleSource.USER_EXTRACTED,
         trigger_keywords: list[str] | None = None,
     ) -> ProceduralMemory | None:
@@ -234,7 +233,6 @@ class MemorySession:
             content=content,
             trigger=trigger,
             action=instruction,
-            priority=priority,
             trigger_keywords=trigger_keywords or [],
             source=source,
             source_chat_id=self.chat_id,

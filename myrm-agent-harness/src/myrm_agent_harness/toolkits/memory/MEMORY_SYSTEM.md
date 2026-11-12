@@ -410,7 +410,7 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 **心理安全 (Psychological Safety)：**
 1. **Harmful State Detector**: `memory_scanner.py` 内置了有害心理状态检测器，用于拦截可能导致 "AI Psychosis"（AI 精神病）的严重负面心理状态（如自残、重度抑郁、被害妄想等）。当检测到此类状态时，扫描器会返回 `BLOCKED`，防止 AI 永久存储和强化这些瞬态情绪。
 
-读取路径：`MemoryContextMiddleware` 注入时采用指令层级。用户存储的记忆（Profile / Rules / Self-Instructions / 工作状态 / 工具指引）封装在 `<user_memory_context>` 的 **SystemMessage** 中，每个存储值先过 `defang_markup()`，存储值既关不掉记忆块，也开不出自己的高权限块。已学习的事实不进块，由模型经 `memory_search_tool` 检索。
+读取路径：`MemoryContextMiddleware` 注入时采用指令层级。用户存储的记忆（Profile / Rules / 工作状态 / 工具指引）封装在 `<user_memory_context>` 的 **SystemMessage** 中，每个存储值先过 `defang_markup()`，存储值既关不掉记忆块，也开不出自己的高权限块。已学习的事实不进块，由模型经 `memory_search_tool` 检索。
 
 **工具 recall 路径**（`memory_search_tool` corpus=memory/sessions、MCP `memory_recall` / `memory_list`）：每条 recalled body 经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认调用），SemanticMemory 的 `source_error` 后缀经 `format_recall_source_error_suffix()` 同 SSOT，整段 tool 结果前缀静态 untrusted 提示 `finalize_recall_tool_output()`。与 middleware 注入路径互补，不重复 random `wrap_untrusted` 信封（保留 ToolMessage token 效率与 Prompt Cache 友好）。
 
@@ -546,7 +546,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 - 语义分数是权重最大的一项（Semantic 类型 0.65）；相关度接近时由新近度、重要度、用户评分与类型先验决定先后，相关度差距大时语义分数决定
 - **召回次数不参与排序**：每条返回的命中都会被记一次使用，次数衡量的是曝光而不是有用性；用它排序会让先被展示的记忆一直被展示，新写入的事实挤不进前列（本仓库金标准召回基准，离线 32 维词哈希向量、另写入 16 条干扰记忆：使用戳开启且次数参与排序时三次运行 ndcg@5 0.81–0.83、mrr 0.78–0.80，次数移出排序后恢复到使用戳关闭时的 0.88 / 0.88；语料很小，只说明使用戳不会拉低质量，不代表真实嵌入模型下的绝对分数）。使用戳只服务生命周期（遗忘、陈旧性复审、健康度、记忆卡片，见「访问计数」）。唯一例外是可选的 `enable_gravity_decay`（默认关闭），它的幂律衰减把召回次数并入 recency 项
 - `type_prior` 是常量信号（下限 0.01）的指数，等价于每类记忆固定的折扣，与记忆个体无关：Profile 无折扣，Semantic / Claim 约 ×0.79（`0.01^0.05`），Episodic / Procedural 约 ×0.58（`0.01^0.12`）。它与 `RetrievalConfig.type_weights`（RRF 融合阶段的类型权重）是两处独立的类型先验
-- Procedural 的 Importance 权重（0.45）同样是固定折扣：规则没有 `importance` 字段，每条规则读到的都是缺省 0.5（`0.5^0.45` ≈ ×0.73），与规则个体无关。规则的强弱由 `priority`（规则的 SQL 查询按它降序，`relational/_rule_mixin.py`）和 `tool_rule_priority`（CRITICAL 规则在遗忘中受保护）承载；`memory_save_tool` 与 MCP `memory_store` 的 `importance` 只对 knowledge 生效（见 `agent_surface/memory_agent_tools/save_tool.py`、`agent_surface/mcp_server/store_tool.py`；两个入口都在 `importance` 参数本身写明 “knowledge category only”，共用常量 `MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION`，MCP 客户端只看参数列表时也不会给其它类别传分）；`memory_manage(update)` 带 `new_importance` 改规则时，规则不存该值，回执在 `Memory updated (ID: …)` 之后如实说明 “Importance was not changed”，并指向 `rule_priority`（`agent_surface/memory_manage_core.py`）
+- Procedural 的 Importance 权重（0.45）同样是固定折扣：规则没有 `importance` 字段，每条规则读到的都是缺省 0.5（`0.5^0.45` ≈ ×0.73），与规则个体无关。规则的先后由创建时间承载（`relational/_rule_mixin.py` 的 SQL 查询按 `created_at` 降序、`id` 降序，新规则在前），遗忘中的保护由 `tool_rule_priority`（CRITICAL 规则受保护）承载；`memory_save_tool` 与 MCP `memory_store` 的 `importance` 只对 knowledge 生效（见 `agent_surface/memory_agent_tools/save_tool.py`、`agent_surface/mcp_server/store_tool.py`；两个入口都在 `importance` 参数本身写明 “knowledge category only”，共用常量 `MEMORY_SAVE_IMPORTANCE_FIELD_DESCRIPTION`，MCP 客户端只看参数列表时也不会给其它类别传分）；`memory_manage(update)` 带 `new_importance` 改规则时，规则不存该值，回执在 `Memory updated (ID: …)` 之后如实说明 “Importance was not changed: only knowledge and event memories store it.”（`agent_surface/memory_manage_core.py`）
 - 纠正链抑制：被纠正记忆的分数乘以 `correction_penalty`（默认 0.1）
 - Source Decay：MMR 选择时对已选来源的记忆施加软惩罚，促进跨会话多样性。`penalty = content_sim + source_diversity_weight × (same_source_count / selected_count)`，默认 weight=0.5，设为 0 退化为纯内容 MMR。`content_sim` 取候选与已选集合的最大 Jaccard 相似度，每轮只并入最新选中的一条；MMR 值并列时取在候选列表中靠前者
 
@@ -587,8 +587,9 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 
 **时间范围硬剪枝**（`_internal/temporal_window.py`，`RetrievalConfig.enable_temporal_window`，默认开启）：
 
-- 调用方未显式传入 `since/until` 时，从查询中的过去向时间标记（中英双语：昨天 / 上周 / 上个月 / 上季度 / 去年 / 去年春天 / 最近三个月 / 三天前 / last spring / 3 weeks ago…）推导宽窗口 `(since, until)` 注入 collect 阶段做硬过滤；显式边界永远优先（explicit-scope invariance，与 ChannelPruner 同一原则）。
-- 窗口刻意放宽：每类标记的语义周期双侧加溢出（day ±1d / week ±2d / month ±5d / quarter ±7d / year·season ±15d / relative ±max(1d, span/4)），吸收时区偏差与口语模糊；窗口内的精确定位交给结果侧时间邻近加权（`query_analyzer`）——硬过滤剪枝，软加权排序。
+- 调用方未显式传入 `since/until` 时，从查询中的过去向时间标记（中英双语：昨天 / 上周 / 上上周 / 上个月 / 上季度 / 去年 / 去年春天 / 最近三个月 / 三天前 / last spring / 3 weeks ago…）推导宽窗口 `(since, until)` 注入 collect 阶段做硬过滤；显式边界永远优先（explicit-scope invariance，与 ChannelPruner 同一原则）。周 / 月 / 季度标记前每多一个「上」回退一个周期（上周 = 上一周，上上周 = 再往前一周）。
+- 窗口刻意放宽：每类标记的语义周期双侧加溢出（day ±1d / week ±2d / month ±5d / quarter ±7d / year·season ±15d / relative ±max(1d, span/4)），吸收时区偏差与口语模糊；窗口内的精确定位交给结果侧时间邻近加权——硬过滤剪枝，软加权排序。
+- 软加权的参考点也由本模块产出（`TemporalWindow.anchor`）：昨天 / 上周 / 去年 / 去年春天这类指向具体周期的标记取周期中心，「三天前」这类相对点取该时间点，「最近」类取当前时刻，本周 / 本月 / 今年这类仍包含当前时刻的周期不设参考点；`query_analyzer.analyze_query` 只转交标记与参考点，因此同一个时间短语的硬窗口与软加权必定指向同一个周期。
 - 纯本地正则、微秒级开销（单次约几微秒）；中文数字（三天前 / 三个月）原生解析，「3月前」不会被误判为「三个月前」（月单位必须带「个」）。全未来窗口（如秋季问「今年冬天」）跳过该标记并落到更宽的「今年」规则；命中信息记入 route trace 的 `temporal_window` metadata（marker / kind / 窗口边界）。
 
 **跨引擎精排门**（`_internal/rerank_gate.py`，`RetrievalConfig.enable_cross_rerank` + 构造注入 `RerankerService`，实例注入即生效）：
@@ -785,9 +786,11 @@ result = await extractor.extract(messages=messages)
 1. **模型判断**：会话结束的 LLM 抽取（`strategies/extractor/`，受 No-Op Default 门控）与 Agent 调用 `memory_save_tool`；
 2. **人的明确选择**：用户手动创建并锁定的规则。审批决定不会自动写成规则或记忆：`reject` 不携带修正值，客户端与系统填入的反馈只是固定模板，由它生成的规则是无上下文的永久模板；`edit` 的改写通过 `APPROVAL_CORRECTION` 钩子事件交给用户自定义钩子，框架不内置学习器。需要长期放行或拒绝，走审批的 `allowAlways` / `allowDomain` / `grantDirectory` 选项与安全策略的 `command_denylist`。
 
-> 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：规则统一进入 stable 层的 `Behavioral Rules` 段（`priority=3`），items 按「用户背书（`is_user_locked`）优先」排序，契合 `render_budgeted_sections` 从后截断的行为，使背书规则最后被丢。
+> 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：所有规则（含 Agent 自存的指令）统一进入 stable 层的同一个 `Behavioral Rules` 段（`priority=3`），不再按来源或否定词分段。
 
-> 动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为把这类普通规则渲染成 `[NEVER]` 会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算），或显式标记 `is_veto` 的规则，渲染进优先级 0 的 `Mandatory Negative Constraints (VETO Rules)` 段，行格式 `[NEVER] {动作} (Scope: {适用范围})`，有理由时后接 `— Reason: {reason}`。适用范围依次取 `tool_name`、`veto_scope`、规则存入时的触发条件 `trigger`，都没有才是 `*`：规则只在存入时指定的场合生效，不会变成对所有任务的禁令。该段按（`priority` 降序，`id` 升序）排序；库里取出的规则没有 `id`，同优先级的保持取出的顺序（用户锁定的在前，其后新写入的在前），顺序固定以保持前缀缓存的字节稳定。该段只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
+> 规则的先后就是它们的优先级：段内先排用户锁定的规则（`is_user_locked`），其后新的在前。存储层按 `created_at DESC, id DESC` 读出规则，`_internal/storage_context.py` 用稳定排序把锁定的提到前面；块的 Scope Boundary 在块里有规则时补一句「规则冲突时遵循排在前面的一条」，所以用户改过的偏好排在它替换的旧规则之上。审批队列保留提案的创建时间：`create_rule` 沿用规则携带的 `created_at` 并统一转成 UTC 存储（SQLite 按文本排序，混用时区会错序），`/memory approve all` 之后规则的先后仍是提案的先后。动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为这类普通规则被当成禁令会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算）在预算裁剪时被**钉住**（`BudgetedSection.pinned`）：渲染器先给钉住的条目预留预算，其余规则按顺序放入，放不下时丢的是排在最后的未钉住规则，所以规则很多时禁止类规则最后才被丢；段落整体仍受优先级约束，可被更高优先级的段落挤掉。禁止类规则与其它规则同样以 `When: … → Do: …` 渲染，没有单独的段落或前缀。该约束只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
+
+> 规则没有整数优先级：存储字段、写入入口（`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的 `rule_priority`）和 Markdown 导出行都已删除，先后只由锁定与创建时间决定。已有数据库在首次打开时删掉 `procedural_rules.priority` 列（`relational/_schema.py`，只进不退：仍读写该列的旧版本打不开这个库）；旧导出文件里的 `priority` 字段在导入时被忽略。
 
 | 级别 | 来源 | 生命周期 |
 |------|------|---------|
@@ -860,7 +863,7 @@ tools = create_memory_tools(manager=manager)
 | --------------- | --------------------------------------------------------------------- |
 | `memory_search_tool` | HIGH_PRIORITY 层统一读工具；可检索的 corpus（memory / wiki / sessions）由 Server 传入的 `MemorySearchPolicy` 单源决定：`enabled_search_corpora(policy)` 同时驱动 ACL（`resolve_search_corpora`）、参数 schema（`memory_agent_tools/search_input.py`）、LLM 描述（`_memory_search_description.py`）与语音工具枚举。启用的 corpus ≥2 个时 schema 才带 `corpus`（含 `all`），`expand_*` 只在会话检索可用时出现；仅 memory 时 `corpus` 对模型隐藏但仍校验，传入未启用的 corpus 得到显式拒绝而不是静默改查 memory |
 | `memory_save_tool`   | 存储新记忆，支持 knowledge/event/preference/rule/instruction 五种类别；LLM description 由 `build_memory_save_tool_description(policy, approval_required, locale)` 组装（EN/ZH core + 写入目标块 + 可选 wiki 边界 + 可选审批提示；写入目标块只在 `allow_shared_write=True` 时出现）；参数语义在 `MemorySaveInput` Pydantic schema，`write_target` 参数由 `memory_save_input(policy)` 同样只在 `allow_shared_write=True` 时对模型可见——外部渠道（server 以 `channel_name` 非空且不是 `web_chat` 判定）只写绑定命名空间，模型看不到 `shared`，传入的 `shared` 仍被校验接受并在工具内降为 `bound`；当 `MemorySearchPolicy.allow_wiki=True` 时，≥800 字或 ≥3 个 markdown 标题的 knowledge/event 会被硬拒并指向 `wiki_ingest_tool`；rule / instruction 的正文若已是召回里的展示行 `When: … → Do: …`，或以规则自己的触发词加箭头开头，存入前先还原成不带外壳的动作（`_internal/rule_text.py`，Agent 直写、会话缓冲、MCP、REST 同一处），提示词里的 `Do:` 不会重复包一层 |
-| `memory_manage_tool` | 更新/删除/纠正/评分已有记忆；LLM description 与 save 对称分流（新事实→save；过时/错误事实→correct preserves history；措辞微调→update；rate→knowledge/event）；仅以 `memory_id` 寻址：记忆类型由已存记忆决定，没有 `category` 参数，id 只在管理器绑定的命名空间内解析（范围外的 id 视为不存在），Agent 工具与 MCP `memory_manage` 共用 `agent_surface/memory_manage_core.py`；`[preference]` 召回项没有可管理的 id，改值需以相同 `preference_key` 重新 `memory_save_tool`；工具返回用户向文案（不含内部 demote 术语）；update 带 `new_importance` 而该值没有落到已存记忆时（规则不存 importance），回执在 `Memory updated (ID: …)` 之后如实补一句 “Importance was not changed: …”，规则另指向 `rule_priority`——重存带 `rule_priority` 的规则不会合并旧规则，旧条需按 id 删除；update 改规则文本时，若规则的 `content` 就是由 `trigger` / `action` 生成的展示行（Agent、MCP、REST 与会话缓冲写入的规则都是），这两个字段随之改写（提示词读的是它们，召回与 WebUI 读的是展示行 `content`；文本写成 `When: … → Do: …` 时触发词随之改变）；`content` 是别的形态的规则（晋升的模式规则用标题、提取器的自由文本、巩固规则的 `Avoid …`）保留原 `trigger` / `action`，所写文本只替换 `content`，因为这种 `content` 说不清该替换哪个字段；任何规则的空文本都被拒绝且规则不变（`_internal/rule_text.py`，WebUI / REST 的 `update_memory` 同一处）；参数语义在 `MemoryManageInput` Pydantic schema；Memory MCP HTTP（`agent_surface/mcp_server/`）的 `memory_manage` 同样 import `resolve_memory_manage_tool_description()` SSOT |
+| `memory_manage_tool` | 更新/删除/纠正/评分已有记忆；LLM description 与 save 对称分流（新事实→save；过时/错误事实→correct preserves history；措辞微调→update；rate→knowledge/event）；仅以 `memory_id` 寻址：记忆类型由已存记忆决定，没有 `category` 参数，id 只在管理器绑定的命名空间内解析（范围外的 id 视为不存在），Agent 工具与 MCP `memory_manage` 共用 `agent_surface/memory_manage_core.py`；`[preference]` 召回项没有可管理的 id，改值需以相同 `preference_key` 重新 `memory_save_tool`；工具返回用户向文案（不含内部 demote 术语）；update 带 `new_importance` 而该值没有落到已存记忆时（规则不存 importance），回执在 `Memory updated (ID: …)` 之后如实补一句 “Importance was not changed: …”；`correct` 只支持 knowledge，对规则调用时回执指向 `update`（先删旧规则再重存的做法在审批开启时会让旧规则立刻消失、新规则要等批准才生效）；update 改规则文本时，若规则的 `content` 就是由 `trigger` / `action` 生成的展示行（Agent、MCP、REST 与会话缓冲写入的规则都是），这两个字段随之改写（提示词读的是它们，召回与 WebUI 读的是展示行 `content`；文本写成 `When: … → Do: …` 时触发词随之改变）；`content` 是别的形态的规则（晋升的模式规则用标题、提取器的自由文本、巩固规则的 `Avoid …`）保留原 `trigger` / `action`，所写文本只替换 `content`，因为这种 `content` 说不清该替换哪个字段；任何规则的空文本都被拒绝且规则不变（`_internal/rule_text.py`，WebUI / REST 的 `update_memory` 同一处）；参数语义在 `MemoryManageInput` Pydantic schema；Memory MCP HTTP（`agent_surface/mcp_server/`）的 `memory_manage` 同样 import `resolve_memory_manage_tool_description()` SSOT |
 
 #### Wiki vs Memory 写入边界
 
@@ -924,10 +927,8 @@ tools = create_memory_tools(manager=manager)
 | 段落 | 内容 | 优先级 |
 |-----|------|--------|
 | Active Working Context | 跨会话的任务连续性（`working_state`） | 0 |
-| Mandatory Negative Constraints (VETO Rules) | 否定性规则（显式 veto，或动作含 never / 禁止 等词），适用范围取存入时的触发条件，按优先级降序排序，同优先级保持库里取出的顺序（有 `id` 时按 `id` 升序） | 0 |
 | Global User Profile、Our Relationship & Your Persona | 用户画像、对端关系与人设 | 1 |
-| Your Self-Instructions | Agent 自我指令 | 2 |
-| Behavioral Rules | 其余规则 | 3 |
+| Behavioral Rules | 全部规则（含 Agent 自存的指令）：用户锁定的在前，其余新的在前；禁止类规则在预算裁剪时被钉住 | 3 |
 | Tool Execution Guidance | 工具执行指引，按本次调用绑定的工具挑选 | 3 |
 
 没有任何存储记忆、且 `memory_search_tool` 已绑定时，注入 cold-start Discovery Mode 块（引导 Agent 主动了解用户）。
@@ -941,7 +942,7 @@ tools = create_memory_tools(manager=manager)
 
 **块的身份靠消息标记，不靠文本**：记忆块是带 `additional_kwargs["memory_context"]=True` 的 `SystemMessage`。请求里已有带标记的块时才跳过（`not_applied/already_present`，并记 WARNING）。不按文本判重：数据边界规则（`SECURITY_BOUNDARY_SYSTEM_RULES`）、用户粘贴的片段和工具结果都可能出现 `<user_memory_context` 或 `<<<UNTRUSTED_DATA` 字样，按文本判重会让整个运行的记忆注入被关掉。
 
-**存储值的消毒**：块里的所有条目（Profile、对端 Profile、Self-Instructions、规则与 VETO 规则、working_state、工具指引）进入预算前先过 `defang_markup()`：每个标签起始符（ASCII `<`、全角 `＜`、小号 `﹤`）改写为 `&lt;`，`&`、`>`、URL 和代码围栏原样保留，预算按改写后的字符数计。块以 System 角色送达，存储值若能关闭记忆块，或开出自己的 `<user_instructions priority="highest">` 块，就能冒充高权限指令；改写之后没有任何标签能从存储值里开出来。这不能清除用纯文本写成的指令；写入侧的扫描（`memory_scanner.py`）与待审批队列才是主防线。
+**存储值的消毒**：块里的所有条目（Profile、对端 Profile、规则、working_state、工具指引）进入预算前先过 `defang_markup()`：每个标签起始符（ASCII `<`、全角 `＜`、小号 `﹤`）改写为 `&lt;`，`&`、`>`、URL 和代码围栏原样保留，预算按改写后的字符数计。块以 System 角色送达，存储值若能关闭记忆块，或开出自己的 `<user_instructions priority="highest">` 块，就能冒充高权限指令；改写之后没有任何标签能从存储值里开出来。这不能清除用纯文本写成的指令；写入侧的扫描（`memory_scanner.py`）与待审批队列才是主防线。
 
 前缀顺序（与其它中间件 stacking 对齐后）通常为：
 

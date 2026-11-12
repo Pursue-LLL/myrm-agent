@@ -22,7 +22,7 @@ import json
 import logging
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from myrm_agent_harness.toolkits.memory.types import (
     EpisodicMemory,
@@ -39,6 +39,13 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.session_post_process import SessionCleanupTask
 
 logger = logging.getLogger(__name__)
+
+# A snapshot status the digest cannot hold is recorded as completed.
+_DIGEST_STATUS: dict[str, Literal["completed", "interrupted", "failed"]] = {
+    "completed": "completed",
+    "interrupted": "interrupted",
+    "failed": "failed",
+}
 
 
 @dataclass(slots=True)
@@ -112,14 +119,12 @@ class HyperConsolidator:
         key_findings = [f"{k}: {v}" for k, v in state.scratchpad.items()]
         error_lessons = [f"{trap.tool_name or 'general'}: {trap.avoidance_rule}" for trap in state.traps]
 
-        digest_status = state.status
-        if digest_status not in ("completed", "interrupted", "failed"):
-            digest_status = "completed"
+        digest_status = _DIGEST_STATUS.get(state.status, "completed")
 
         task_digest = TaskDigestMemory(
             id=f"digest-{session_id}-{state.active_turn}",
             task_goal=state.goal,
-            status=digest_status,  # type: ignore[arg-type]
+            status=digest_status,
             completed_steps=completed_steps,
             artifact_paths=[],
             artifact_hashes={},
@@ -144,7 +149,6 @@ class HyperConsolidator:
                     action=trap.avoidance_rule,
                     reasoning=f"Auto-consolidated self-healing avoidance rule from session {session_id}",
                     application="Apply proactively when invoking matching execution commands",
-                    priority=2,
                     is_active=True,
                     status=MemoryStatus.ACTIVE,
                     source=RuleSource.AGENT_SELF,

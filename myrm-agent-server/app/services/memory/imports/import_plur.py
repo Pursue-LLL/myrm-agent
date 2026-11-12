@@ -202,7 +202,6 @@ def _engram_item(entry: dict[str, object], statement: str, bucket: str) -> dict[
     if bucket == "procedural":
         return {
             "content": statement,
-            "priority": 5,
             "trigger_keywords": ["plur"],
             "tags": tags,
             "created_at": created_at,

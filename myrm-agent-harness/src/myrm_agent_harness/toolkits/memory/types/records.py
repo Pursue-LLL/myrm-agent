@@ -208,8 +208,8 @@ class ProceduralMemory(BaseMemory):
     - NORMAL: ordinary rule
 
     Prompt-budget survival is governed by ``is_user_locked``, not by this
-    level: endorsed rules are ordered ahead of generic rules so unendorsed
-    ones are trimmed first.
+    level: the prompt lists locked rules first and then newest first, and the
+    budget cut falls on the rules at the end of that list.
 
     Attributes:
         language: Primary language of the rule content ("zh" or "en")
@@ -225,7 +225,6 @@ class ProceduralMemory(BaseMemory):
     action: str
     reasoning: str = Field(default="", description="Why this rule exists (Context/Rationale)")
     application: str = Field(default="", description="How to apply this rule (Nuances/Boundaries)")
-    priority: int = 0
     is_active: bool = Field(default=True, description="Derived from status on save")
     trigger_keywords: list[str] = Field(default_factory=list)
     source: RuleSource = RuleSource.USER_EXTRACTED

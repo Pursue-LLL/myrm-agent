@@ -37,7 +37,7 @@ async def stored_rule(manager: MemoryManager, memory_id: str) -> ProceduralMemor
     return rule
 
 
-async def saved_rule(manager: MemoryManager, save: Save, **arguments: str | int) -> ProceduralMemory:
+async def saved_rule(manager: MemoryManager, save: Save, **arguments: str) -> ProceduralMemory:
     reply = await save(manager, {"category": "rule", "rule_trigger": TRIGGER, **arguments})
     stored = _STORED_ID.search(reply)
     assert stored, reply
@@ -55,9 +55,9 @@ async def prompt_rules(manager: MemoryManager) -> list[tuple[str, str]]:
 async def test_a_plain_rule_is_stored_with_one_display_line(new_manager: NewManager, save: Save) -> None:
     manager = new_manager()
 
-    rule = await saved_rule(manager, save, content=ACTION, rule_priority=7)
+    rule = await saved_rule(manager, save, content=ACTION)
 
-    assert (rule.trigger, rule.action, rule.content, rule.priority) == (TRIGGER, ACTION, LINE, 7)
+    assert (rule.trigger, rule.action, rule.content) == (TRIGGER, ACTION, LINE)
     assert await prompt_rules(manager) == [(TRIGGER, ACTION)]
 
 
@@ -72,7 +72,7 @@ async def test_a_display_line_written_back_as_the_rule_is_not_wrapped_again(
 ) -> None:
     manager = new_manager()
 
-    rule = await saved_rule(manager, save, content=written, rule_priority=9)
+    rule = await saved_rule(manager, save, content=written)
 
     assert (rule.trigger, rule.action, rule.content) == (TRIGGER, ACTION, LINE)
     assert await prompt_rules(manager) == [(TRIGGER, ACTION)]
@@ -87,9 +87,11 @@ async def test_an_instruction_written_back_as_its_display_line_is_stored_as_the_
     reply = await save(manager, {"category": "instruction", "content": "When: always → Do: Reply in English"})
 
     assert _STORED_ID.search(reply), reply
-    instructions = (await manager.get_context())["agent_instructions"]
-    assert isinstance(instructions, list)
-    assert [item["instruction"] for item in instructions] == ["Reply in English"]
+    rules = (await manager.get_context())["rules"]
+    assert isinstance(rules, list)
+    assert [(rule["trigger"], rule["action"], rule["source"]) for rule in rules] == [
+        ("always", "Reply in English", "agent_self")
+    ]
 
 
 async def test_a_rule_buffered_in_a_session_is_stored_with_one_wrapper_and_a_wrapped_resave_is_a_duplicate(
@@ -112,17 +114,17 @@ async def test_a_rule_buffered_in_a_session_is_stored_with_one_wrapper_and_a_wra
 @pytest.mark.parametrize("manage", MANAGES)
 async def test_an_edit_of_a_rule_reaches_the_prompt(new_manager: NewManager, manage: Manage) -> None:
     manager = new_manager()
-    rule = await manager.add_rule(TRIGGER, ACTION, priority=3)
+    rule = await manager.add_rule(TRIGGER, ACTION, trigger_keywords=["deploy"])
 
     reply = await manage(manager, {"action": "update", "memory_id": rule.id, "new_content": REWORDED})
 
     assert reply == f"Memory updated (ID: {rule.id})"
     kept = await stored_rule(manager, rule.id)
-    assert (kept.trigger, kept.action, kept.content, kept.priority) == (
+    assert (kept.trigger, kept.action, kept.content, kept.trigger_keywords) == (
         TRIGGER,
         REWORDED,
         f"When: {TRIGGER} → Do: {REWORDED}",
-        3,
+        ["deploy"],
     )
     assert await prompt_rules(manager) == [(TRIGGER, REWORDED)]
 
@@ -159,7 +161,7 @@ async def test_an_empty_rule_text_is_refused_and_the_rule_stays_as_it_was(
     new_manager: NewManager, manage: Manage, blank: str
 ) -> None:
     manager = new_manager()
-    rule = await manager.add_rule(TRIGGER, ACTION, priority=3)
+    rule = await manager.add_rule(TRIGGER, ACTION)
 
     reply = await manage(manager, {"action": "update", "memory_id": rule.id, "new_content": blank})
 
@@ -177,18 +179,13 @@ async def queued_rule_id(manager: MemoryManager) -> str:
 @pytest.mark.parametrize("save", SAVES)
 async def test_a_reviewers_rewording_of_a_queued_rule_reaches_the_prompt(new_manager: NewManager, save: Save) -> None:
     manager = new_manager(approval_required=True)
-    await save(manager, {"category": "rule", "rule_trigger": TRIGGER, "content": ACTION, "rule_priority": 7})
+    await save(manager, {"category": "rule", "rule_trigger": TRIGGER, "content": ACTION})
 
     approved = await manager.approve(await queued_rule_id(manager), edited_content=REWORDED)
 
     assert isinstance(approved, ProceduralMemory)
     kept = await stored_rule(manager, approved.id)
-    assert (kept.trigger, kept.action, kept.content, kept.priority) == (
-        TRIGGER,
-        REWORDED,
-        f"When: {TRIGGER} → Do: {REWORDED}",
-        7,
-    )
+    assert (kept.trigger, kept.action, kept.content) == (TRIGGER, REWORDED, f"When: {TRIGGER} → Do: {REWORDED}")
     assert await prompt_rules(manager) == [(TRIGGER, REWORDED)]
 
 

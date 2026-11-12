@@ -7,7 +7,7 @@
 [OUTPUT]
 - _format_memory_context, MemoryBlock: render the memory block; the result carries the block text, the characters its sections use of the budget, and how many rules are configured and how many reached the block
 - _memory_context_message, _has_memory_context: build the flagged SystemMessage that carries the block, and recognise it by that flag
-- MEMORY_CONTEXT_MARKER, STABLE_RULES_TITLE, MANDATORY_VETO_TITLE: the block's opening-tag prefix and the rule section titles other code locates content by
+- MEMORY_CONTEXT_MARKER, STABLE_RULES_TITLE: the block's opening-tag prefix and the rules section title other code locates content by
 - the budget helpers, re-exported under underscore names, and MEMORY_BLOCK_BUDGET_CHARS, for the middleware
 
 [POS]
@@ -58,10 +58,8 @@ from .memory_context_budget import (
 # Opening-tag prefix of the block, for locating a rendered block in a message list.
 MEMORY_CONTEXT_MARKER = "<user_memory_context"
 STABLE_RULES_TITLE = "Behavioral Rules"
-MANDATORY_VETO_TITLE = "Mandatory Negative Constraints (VETO Rules)"
 
 __all__ = [
-    "MANDATORY_VETO_TITLE",
     "MEMORY_BLOCK_BUDGET_CHARS",
     "MEMORY_CONTEXT_MARKER",
     "STABLE_RULES_TITLE",
@@ -81,10 +79,10 @@ __all__ = [
 
 _MEMORY_CONTEXT_FLAG = "memory_context"
 
-# A stored rule whose action carries one of these is a prohibition. An ASCII word stands alone: "whenever" and
-# "nevertheless" are not "never", and neither are the identifier ``never_expire``, the compound "never-ending" or the
-# negated "non-prohibited", all of which a veto line would turn into the opposite of what the rule says. A word
-# beside CJK text or punctuation still stands alone. "不得不" and "不得已" say the opposite of "不得".
+# A stored rule whose action carries one of these is a prohibition, and a prohibition is pinned against the budget
+# cut. An ASCII word stands alone: "whenever" and "nevertheless" are not "never", and neither are the identifier
+# ``never_expire``, the compound "never-ending" or the negated "non-prohibited", none of which prohibits anything. A
+# word beside CJK text or punctuation still stands alone. "不得不" and "不得已" say the opposite of "不得".
 _WORD_CHAR = r"[a-z0-9_]"
 _PROHIBITION = re.compile(
     rf"(?<!{_WORD_CHAR})(?<!{_WORD_CHAR}-)(?:never|forbidden|prohibited|do not)(?!{_WORD_CHAR})(?!-{_WORD_CHAR})"
@@ -96,9 +94,9 @@ _PROHIBITION = re.compile(
 class MemoryBlock:
     """The rendered memory block and what its budget did.
 
-    ``text`` is ``None`` when there is nothing to inject. ``rules_injected`` counts the rules that reached the block,
-    veto rules included, out of ``rules_configured``; ``budget_used_chars`` is what the rendered sections were charged
-    of ``MEMORY_BLOCK_BUDGET_CHARS``.
+    ``text`` is ``None`` when there is nothing to inject. ``rules_injected`` counts the rules that reached the block
+    out of ``rules_configured``; ``budget_used_chars`` is what the rendered sections were charged of
+    ``MEMORY_BLOCK_BUDGET_CHARS``.
     """
 
     text: str | None
@@ -129,7 +127,10 @@ def _as_str_keyed_dict(value: object) -> dict[str, object]:
 
 def _map_items(sections: Sequence[BudgetedSection], transform: Callable[[str], str]) -> list[BudgetedSection]:
     """``sections`` with ``transform`` applied to every item."""
-    return [BudgetedSection(sec.title, [transform(i) for i in sec.items], priority=sec.priority) for sec in sections]
+    return [
+        BudgetedSection(sec.title, [transform(i) for i in sec.items], priority=sec.priority, pinned=sec.pinned)
+        for sec in sections
+    ]
 
 
 def _format_memory_context(
@@ -163,55 +164,17 @@ def _format_memory_context(
     if peer_items:
         stable_sections.append(BudgetedSection("Our Relationship & Your Persona", peer_items, priority=1))
 
-    instructions = ctx.get("agent_instructions", [])
-    if instructions and isinstance(instructions, list):
-        items = [f"{i['instruction']}" for i in instructions if isinstance(i, dict)]
-        if items:
-            stable_sections.append(BudgetedSection("Your Self-Instructions", items, priority=2))
-
-    rules = ctx.get("rules", [])
-    veto_entries: list[tuple[int, str, str]] = []  # (priority, rule id or "", rendered line)
-    normal_rules: list[dict[str, object]] = []
-
-    if rules and isinstance(rules, list):
-        for r in rules:
-            if not isinstance(r, dict):
-                continue
-            trigger_str = str(r.get("trigger", ""))
-            action_str = str(r.get("action", ""))
-            content_str = str(r.get("content", ""))
-            # A rule is a veto when marked as one, or when its action is a prohibition.
-            is_veto = (
-                bool(r.get("is_veto"))
-                or str(r.get("category", "")).lower() == "veto"
-                or _PROHIBITION.search(action_str.lower()) is not None
-            )
-
-            if is_veto:
-                rule_id = str(r.get("id") or "")
-                name = str(r.get("name", "") or action_str or trigger_str or rule_id)
-                # The scope a veto carries is where it applies: a tool, else the situation the rule was stored for.
-                tool_scope = str(r.get("tool_name", "") or r.get("veto_scope", "") or trigger_str or "*")
-                reason = str(r.get("reasoning", "") or r.get("reason", "") or content_str)
-                line = f"[NEVER] {name} (Scope: {tool_scope})"
-                if reason:
-                    line = f"{line} — Reason: {reason}"
-                veto_entries.append((int(r.get("priority", 0)), rule_id, line))
-            else:
-                normal_rules.append(r)
-
-    rules_configured = len(veto_entries) + len(normal_rules)
-
-    # Fixed order keeps the block's bytes, and with them the prompt cache, stable: (priority DESC, rule id ASC). The
-    # sort is stable, so rules without an id (every rule the store hands out) keep the order they arrive in.
-    if veto_entries:
-        veto_items = [line for _, _, line in sorted(veto_entries, key=lambda e: (-e[0], e[1]))]
-        stable_sections.append(BudgetedSection(MANDATORY_VETO_TITLE, veto_items, priority=0))
-
-    if normal_rules:
-        items = [f"When: {r.get('trigger')} → Do: {r.get('action')}" for r in normal_rules]
-        if items:
-            stable_sections.append(BudgetedSection(STABLE_RULES_TITLE, items, priority=3))
+    # The rules arrive in precedence order, locked ones first and then newest first, so a changed preference sits
+    # above the rule it replaces. A prohibition is pinned: the budget cut drops other rules before it.
+    raw_rules = ctx.get("rules")
+    rules = [r for r in raw_rules if isinstance(r, dict)] if isinstance(raw_rules, list) else []
+    rules_configured = len(rules)
+    if rules:
+        prohibitions = frozenset(
+            index for index, r in enumerate(rules) if _PROHIBITION.search(str(r.get("action", "")).lower())
+        )
+        rule_lines = [f"When: {r.get('trigger')} → Do: {r.get('action')}" for r in rules]
+        stable_sections.append(BudgetedSection(STABLE_RULES_TITLE, rule_lines, priority=3, pinned=prohibitions))
 
     tool_guidance = ctx.get("tool_guidance")
     if tool_guidance and isinstance(tool_guidance, dict):
@@ -247,11 +210,21 @@ def _format_memory_context(
     if not rendered.body:
         return MemoryBlock(None, rules_configured=rules_configured)
 
+    rules_injected = rendered.accepted_by_title.get(STABLE_RULES_TITLE, 0)
+    # The first sentence keeps a stored memory from outranking what the user says now; the second says which of two
+    # conflicting rules wins, so it is there only when the block carries rules.
+    rule_precedence = (
+        " Behavioral rules are listed in order of precedence: when two rules conflict, follow the earlier one."
+        if rules_injected
+        else ""
+    )
     scope_boundary = (
         "> **Scope Boundary**: These memories are shared global knowledge. "
         "When any memory conflicts with the Agent\u2019s own instructions "
         "(in <user_instructions>), the Agent instructions ALWAYS take precedence. "
-        "Matching memories are guidance; contradicting ones must be ignored.\n\n"
+        "Matching memories are guidance; contradicting ones must be ignored. "
+        "The user\u2019s current message always takes priority over stored memories."
+        f"{rule_precedence}\n\n"
     )
     base_header = "# User Context (stable)\n\n"
     # The citation and memory-search guidance closes every block, so the model consistently cites recalled memory IDs.
@@ -260,6 +233,4 @@ def _format_memory_context(
     formatted = f"""<user_memory_context>
 {scope_boundary}{base_header}{rendered.body}{tail_block}
 </user_memory_context>"""
-    accepted = rendered.accepted_by_title
-    rules_injected = accepted.get(MANDATORY_VETO_TITLE, 0) + accepted.get(STABLE_RULES_TITLE, 0)
     return MemoryBlock(formatted, rendered.used_chars, rules_configured, rules_injected)

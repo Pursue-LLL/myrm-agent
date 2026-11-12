@@ -9,7 +9,7 @@ discovery prompts.
 - langchain.agents.middleware::ModelRequest (POS: Agent runtime request model)
 
 [OUTPUT]
-- render_budgeted_sections, RenderedSections: Apply the budget and render the sections as one Markdown body, with the item count each kept and the characters they use
+- render_budgeted_sections, RenderedSections: Apply the budget (pinned items are charged before the cut) and render the sections as one Markdown body, with the item count each kept and the characters they use
 - MEMORY_BLOCK_MAX_TOKENS, MEMORY_BLOCK_BUDGET_CHARS: The memory block's budget, in tokens and in characters
 - escape_xml_item: XML item sanitization helper
 - defang_markup: Tag-opener neutralization for stored text in the system-privileged block
@@ -84,7 +84,9 @@ def render_budgeted_sections(
 
     Every section draws on the same budget. Items are kept in order until one does not fit; a section cut after
     keeping some items, or whose header does not fit, ends the render, while a section none of whose items fit is
-    skipped. ``truncation_message`` closes the body when the budget cut anything.
+    skipped. A section's pinned items are charged before the others, so the cut falls on the unpinned items after
+    the cut point and a pinned item is dropped only when the pinned items alone exceed the budget.
+    ``truncation_message`` closes the body when the budget cut anything.
 
     Reports the accepted item count per section title and the characters the kept sections use of the budget, so
     callers can say how many items actually reached the model instead of how many merely exist, and how full the
@@ -110,8 +112,17 @@ def render_budgeted_sections(
         current_length += len(header)
 
         accepted_lines: list[str] = []
-        for item in section.items:
+        # An unpinned item must leave room for the pinned items still to come; the first one that does not fit cuts
+        # every later unpinned item.
+        pinned_left = sum(len(f"- {item}\n") for index, item in enumerate(section.items) if index in section.pinned)
+        cut = False
+        for index, item in enumerate(section.items):
             line = f"- {item}\n"
+            if index in section.pinned:
+                pinned_left -= len(line)
+            elif cut or current_length + len(line) + pinned_left > max_chars:
+                cut = truncated = True
+                continue
             if current_length + len(line) > max_chars:
                 truncated = True
                 break

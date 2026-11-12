@@ -2,7 +2,7 @@
 
 Claims are compiled, retrieval-only knowledge (``ClaimMemory`` says so) and the writer rejects them:
 an exported claim must never reach ``store_batch``, and must not cost the other types in the same
-file their import.
+file their import. A rule exported while rules still carried a priority imports without it.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import pytest
 
 from myrm_agent_harness.toolkits.memory._manager.import_export import MemoryManagerImportExportMixin
-from myrm_agent_harness.toolkits.memory.types import AnyMemory, ClaimMemory, SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import AnyMemory, ClaimMemory, ProceduralMemory, SemanticMemory
 
 
 class _Importer(MemoryManagerImportExportMixin):
@@ -75,3 +75,23 @@ async def test_import_deduplicates_by_default() -> None:
     await importer.import_memories({"semantic": [_exported(SemanticMemory(content="prefers dark mode"))]})
 
     assert importer.skip_dedup_flags == [False]
+
+
+@pytest.mark.asyncio
+async def test_a_rule_exported_with_the_retired_priority_field_still_imports() -> None:
+    importer = _Importer()
+    exported = {
+        "content": "When: reply style → Do: Reply in German.",
+        "trigger": "reply style",
+        "action": "Reply in German.",
+        "priority": 10,
+        "created_at": "2026-03-01T00:00:00+00:00",
+    }
+
+    counts = await importer.import_memories({"procedural": [exported]})
+
+    assert counts == {"procedural": 1}
+    (rule,) = importer.batches[0]
+    assert isinstance(rule, ProceduralMemory)
+    assert (rule.trigger, rule.action) == ("reply style", "Reply in German.")
+    assert not hasattr(rule, "priority")

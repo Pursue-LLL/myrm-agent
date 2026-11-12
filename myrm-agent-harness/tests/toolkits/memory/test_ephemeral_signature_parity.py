@@ -62,7 +62,7 @@ async def test_reads_forward_the_full_signature_to_the_parent() -> None:
     view = ReadOnlyMemoryView(parent)
 
     await view.search("q", use_rrf=False, include_raw=True, track_access=False, dynamic_signal_weights={"bm25": 0.2})
-    await view.get_context(include_profile=False, include_rules=False, include_agent_instructions=False)
+    await view.get_context(include_profile=False, include_rules=False)
     await view.list_memories(MemoryType.SEMANTIC, sort_by="importance", sort_order="asc", tag_filter="t")
     await view.count_memories(MemoryType.SEMANTIC, tag_filter="t")
 

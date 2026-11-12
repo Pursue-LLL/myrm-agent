@@ -194,7 +194,6 @@ def errors_to_procedural(errors: list[dict[str, object]]) -> list[dict[str, obje
                 "content": f"Avoid this error: {error_text[:MAX_TOOL_SUMMARY_CHARS]}",
                 "trigger": "When encountering similar error patterns",
                 "action": f"Review and avoid: {error_text[:MAX_TOOL_SUMMARY_CHARS]}",
-                "priority": 5,
                 "trigger_keywords": [],
                 "created_at": now,
                 "updated_at": now,

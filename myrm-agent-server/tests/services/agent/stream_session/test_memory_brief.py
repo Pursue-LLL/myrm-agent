@@ -64,8 +64,10 @@ class TestBuildMemoryBriefSnapshot:
                 return_value={
                     "global_profile": {"language": "zh-CN"},
                     "peer_profile": {"tone": "concise", "city": "Hangzhou"},
-                    "agent_instructions": [{"instruction": "Always summarize first"}],
-                    "rules": [{"trigger": "doc", "action": "cite sources"}],
+                    "rules": [
+                        {"trigger": "always", "action": "Always summarize first", "source": "agent_self"},
+                        {"trigger": "doc", "action": "cite sources", "source": "user_explicit"},
+                    ],
                     "working_state": "editing the report",
                 }
             ),
@@ -95,6 +97,19 @@ class TestBuildMemoryBriefSnapshot:
         assert preview["is_cold_start"] is False
         assert snapshot["memory_ctx"]["global_profile"]["language"] == "zh-CN"
         assert manager.get_context.await_count == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("rules", [None, "not a list", [None, "x"]], ids=["absent", "wrong-shape", "bad-entries"])
+    async def test_a_rule_list_of_another_shape_carries_no_rules(self, rules: object) -> None:
+        preview, _ = await _brief_for({"global_profile": {}, "peer_profile": {}, "rules": rules})
+
+        assert preview["stable"] == {
+            "working_state": False,
+            "profile_count": 0,
+            "instruction_count": 0,
+            "rule_count": 0,
+        }
+        assert preview["is_cold_start"] is True
 
     @pytest.mark.asyncio
     async def test_no_brief_when_the_stored_context_cannot_be_read(self) -> None:
@@ -164,7 +179,7 @@ class TestKeywordMode:
 
             assert bundle is not None
             preview, snapshot = bundle
-            expected = await manager.get_context(include_profile=True, include_rules=True, include_agent_instructions=True)
+            expected = await manager.get_context(include_profile=True, include_rules=True)
             assert snapshot["memory_ctx"] == expected
             assert snapshot["memory_ctx"]["peer_profile"] == {"language": "zh-CN"}
             assert preview["stable"]["profile_count"] == 1
@@ -177,17 +192,20 @@ class TestKeywordMode:
             await clear_embedded_stores()
 
 
-_NO_MEMORY: dict[str, object] = {"global_profile": {}, "peer_profile": {}, "rules": [], "agent_instructions": []}
+_NO_MEMORY: dict[str, object] = {"global_profile": {}, "peer_profile": {}, "rules": []}
 
 # One context per kind of content the block can render, each differing from the empty one in that kind only.
 _CONTENT_BY_KIND: dict[str, dict[str, object]] = {
     "working_state": {**_NO_MEMORY, "working_state": "editing the report"},
     "global_profile": {**_NO_MEMORY, "global_profile": {"language": "zh-CN"}},
     "peer_profile": {**_NO_MEMORY, "peer_profile": {"language": "zh-CN"}},
-    "instructions": {**_NO_MEMORY, "agent_instructions": [{"instruction": "Always summarize first", "priority": 1}]},
+    "instructions": {
+        **_NO_MEMORY,
+        "rules": [{"trigger": "always", "action": "Always summarize first", "source": "agent_self", "user_endorsed": False}],
+    },
     "rules": {
         **_NO_MEMORY,
-        "rules": [{"trigger": "deploy", "action": "run smoke tests", "priority": 0, "user_endorsed": False}],
+        "rules": [{"trigger": "deploy", "action": "run smoke tests", "source": "user_explicit", "user_endorsed": False}],
     },
 }
 

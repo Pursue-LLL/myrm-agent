@@ -75,10 +75,12 @@ _TAG = re.compile(r"<[^>\n]*>")
 _ENTRY_POINTS: dict[str, Callable[[str], dict[str, object]]] = {
     "profile": lambda text: {"global_profile": {"note": text}},
     "peer-profile": lambda text: {"peer_profile": {"note": text}},
-    "self-instruction": lambda text: {"agent_instructions": [{"instruction": text}]},
-    "rule": lambda text: {"rules": [{"id": "r1", "trigger": "any task", "action": text}]},
-    "veto-rule": lambda text: {"rules": [{"id": "v1", "is_veto": True, "name": text}]},
-    "veto-rule-trigger": lambda text: {"rules": [{"id": "v2", "trigger": text, "action": "never do that"}]},
+    "rule": lambda text: {"rules": [{"trigger": "any task", "action": text}]},
+    "rule-trigger": lambda text: {"rules": [{"trigger": text, "action": "keep answers short"}]},
+    "pinned-prohibition": lambda text: {"rules": [{"trigger": "any task", "action": f"never {text}"}]},
+    "agent-saved-instruction": lambda text: {
+        "rules": [{"trigger": "always", "action": text, "source": "agent_self", "user_endorsed": False}]
+    },
     "working-state": lambda text: {"working_state": text},
     "tool-guidance": lambda text: {"tool_guidance": {"bash_tool": [text]}},
 }

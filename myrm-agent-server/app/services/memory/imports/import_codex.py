@@ -117,7 +117,6 @@ def _parse_instructions(content: str) -> list[dict[str, object]]:
             "content": content,
             "trigger": "When working on Codex-originated project",
             "action": content[:500],
-            "priority": 7,
             "trigger_keywords": ["codex_instructions"],
             "created_at": iso_or_now(None),
             "metadata": build_metadata("codex", {"file": "instructions"}, ("file",)),

@@ -1,17 +1,18 @@
 """Temporal window derivation tests.
 
 Covers every marker family (day/week/month/quarter/year/season/recent/
-relative), bilingual markers, calendar-edge anchoring, the future-window
-fall-through guard, and the March-vs-months disambiguation.
+relative), bilingual markers, stacked “上” prefixes, the proximity anchor,
+calendar-edge anchoring, the future-window fall-through guard, and the
+March-vs-months disambiguation.
 """
 
 from datetime import UTC, datetime, timedelta, timezone
 
 from myrm_agent_harness.toolkits.memory._internal.temporal_window import (
     TemporalWindow,
-    _unit_key,
     derive_temporal_window,
 )
+from myrm_agent_harness.toolkits.memory._internal.temporal_window_resolvers import _unit_key
 
 # Fixed Friday evening: every calendar edge below is deterministic.
 NOW = datetime(2026, 10, 2, 21, 0, tzinfo=UTC)
@@ -206,6 +207,101 @@ def test_first_rule_in_priority_order_wins() -> None:
     # is "day" regardless of marker position in the query.
     assert window is not None
     assert window.window_kind == "day"
+
+
+def test_stacked_prior_prefix_steps_back_one_period_per_character() -> None:
+    # Weeks are Monday-anchored; now is Friday 2026-10-02, so the previous week
+    # is 09-21..09-27 and each extra “上” moves one whole week further back.
+    week_before_last = _derive("上上周的周报")
+    assert week_before_last is not None
+    assert week_before_last.marker == "上上周"
+    assert week_before_last.window_kind == "week"
+    assert week_before_last.since == datetime(2026, 9, 12, tzinfo=UTC)
+    assert week_before_last.until == datetime(2026, 9, 23, tzinfo=UTC)
+
+    third_week_back = _derive("上上上周的周报")
+    assert third_week_back is not None
+    assert third_week_back.marker == "上上上周"
+    assert third_week_back.since == datetime(2026, 9, 5, tzinfo=UTC)
+    assert third_week_back.until == datetime(2026, 9, 16, tzinfo=UTC)
+
+    same_week = _derive("上上星期的事")
+    assert same_week is not None
+    assert (same_week.since, same_week.until) == (week_before_last.since, week_before_last.until)
+
+
+def test_stacked_prior_prefix_for_month_and_quarter() -> None:
+    # Now is 2026-10-02: the month before last is August, the quarter before
+    # last is Q2; the 5-day / 7-day spill margins apply on both sides.
+    month = _derive("上上个月的账单")
+    assert month is not None
+    assert month.marker == "上上个月"
+    assert month.window_kind == "month"
+    assert month.since == datetime(2026, 7, 27, tzinfo=UTC)
+    assert month.until == datetime(2026, 9, 6, tzinfo=UTC)
+
+    quarter = _derive("上上季度的复盘")
+    assert quarter is not None
+    assert quarter.marker == "上上季度"
+    assert quarter.window_kind == "quarter"
+    assert quarter.since == datetime(2026, 3, 25, tzinfo=UTC)
+    assert quarter.until == datetime(2026, 7, 8, tzinfo=UTC)
+
+
+def test_single_prior_prefix_and_english_still_step_back_once() -> None:
+    last_week = _derive("上周五下午的电话")
+    assert last_week is not None
+    assert last_week.marker == "上周"
+    assert last_week.since == datetime(2026, 9, 19, tzinfo=UTC)
+    english = _derive("what we shipped last week")
+    assert english is not None
+    assert (english.since, english.until) == (last_week.since, last_week.until)
+    previous_month = _derive("上月的账单")
+    assert previous_month is not None
+    assert previous_month.since == datetime(2026, 8, 27, tzinfo=UTC)
+
+
+def test_leftmost_prior_marker_decides_the_step() -> None:
+    window = _derive("上周和上上周都聊过这个")
+    assert window is not None
+    assert window.marker == "上周"
+    assert window.since == datetime(2026, 9, 19, tzinfo=UTC)
+
+
+def _anchor(query: str) -> datetime | None:
+    window = _derive(query)
+    assert window is not None
+    return window.anchor
+
+
+def test_anchor_is_period_center_for_finished_periods() -> None:
+    assert _anchor("昨天部署的服务") == datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
+    # Last week 09-21..09-27: Thursday noon.
+    assert _anchor("上周讨论的架构方案") == datetime(2026, 9, 24, 12, 0, tzinfo=UTC)
+    assert _anchor("上个月讨论的部署方案") == datetime(2026, 9, 16, tzinfo=UTC)
+    assert _anchor("去年的目标回顾") == datetime(2025, 7, 2, 12, 0, tzinfo=UTC)
+    assert _anchor("去年春天的招聘计划") == datetime(2025, 4, 16, tzinfo=UTC)
+    assert _anchor("三天前改的配置") == NOW - timedelta(days=3)
+
+
+def test_anchor_is_now_for_recency_markers() -> None:
+    assert _anchor("最近的进展") == NOW
+    assert _anchor("最近三个月的迭代记录") == NOW
+    assert _anchor("recently changed configs") == NOW
+    assert _anchor("errors seen in the last 3 months") == NOW
+
+
+def test_anchor_is_none_for_current_week_month_and_year() -> None:
+    # The period still contains now, so there is no past point to center on;
+    # the hard-filter window is still derived.
+    for query in ("本周的计划", "这个月的账单", "今年做过的重要决定", "what happened this week"):
+        window = _derive(query)
+        assert window is not None
+        assert window.anchor is None
+
+
+def test_today_is_anchored_on_its_center() -> None:
+    assert _anchor("今天的安排") == datetime(2026, 10, 2, 12, 0, tzinfo=UTC)
 
 
 def test_compound_chinese_numerals_parse_to_days() -> None:

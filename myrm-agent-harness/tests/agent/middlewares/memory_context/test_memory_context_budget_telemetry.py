@@ -1,8 +1,8 @@
 """The budget gauge of a reply reads what the model got: characters of the block's budget used, and rules that made it in.
 
 The server forwards the gauge to the UI, which shows ``used / total`` as a percentage and warns when rules were cut.
-The gauge therefore has to be a share of one budget (never above 100%), and every rule rendered into the block, veto
-rules included, has to count as injected.
+The gauge therefore has to be a share of one budget (never above 100%), and every rule rendered into the block,
+prohibitions included, has to count as injected.
 
 [INPUT]
 - agent.middlewares.memory_context.memory_context_middleware::memory_context_middleware (POS: builds the block and publishes the gauge)
@@ -29,9 +29,9 @@ from myrm_agent_harness.toolkits.memory.config import RecallMode
 from tests.support.memory_context_stubs import bound_manager, make_request
 
 
-def _rule(trigger: str, action: str, priority: int = 0) -> dict[str, object]:
-    """A rule as the memory store hands it out: these four keys and no veto marker."""
-    return {"trigger": trigger, "action": action, "priority": priority, "user_endorsed": False}
+def _rule(trigger: str, action: str) -> dict[str, object]:
+    """A rule as the memory store hands it out: these four keys and no prohibition marker."""
+    return {"trigger": trigger, "action": action, "source": "user_extracted", "user_endorsed": False}
 
 
 async def _gauge_and_block(memory_ctx: dict[str, object]) -> tuple[MemoryRuntimeBudget | None, str]:
@@ -50,7 +50,7 @@ async def _gauge_and_block(memory_ctx: dict[str, object]) -> tuple[MemoryRuntime
 
 
 def _rule_lines(block: str) -> int:
-    return sum(1 for line in block.splitlines() if line.startswith(("- When:", "- [NEVER]")))
+    return sum(1 for line in block.splitlines() if line.startswith("- When:"))
 
 
 async def test_a_user_without_memory_has_used_none_of_the_budget() -> None:
@@ -68,7 +68,7 @@ async def test_a_user_without_memory_has_used_none_of_the_budget() -> None:
 async def test_typical_memory_is_a_small_share_of_the_budget_and_every_rule_counts() -> None:
     memory_ctx: dict[str, object] = {
         "global_profile": {"name": "Li Ming", "role": "backend engineer"},
-        "rules": [_rule("committing", "never use git push --force", 10), _rule("writing code", "add type hints")],
+        "rules": [_rule("committing", "never use git push --force"), _rule("writing code", "add type hints")],
     }
 
     budget, block = await _gauge_and_block(memory_ctx)
@@ -80,11 +80,11 @@ async def test_typical_memory_is_a_small_share_of_the_budget_and_every_rule_coun
     assert _rule_lines(block) == 2
 
 
-async def test_rules_that_are_all_vetoes_count_as_injected() -> None:
+async def test_rules_that_are_all_prohibitions_count_as_injected() -> None:
     memory_ctx: dict[str, object] = {
         "rules": [
-            _rule("committing", "never use git push --force", 10),
-            _rule("any task", "do not touch the .env file", 5),
+            _rule("committing", "never use git push --force"),
+            _rule("any task", "do not touch the .env file"),
             _rule("any task", "禁止提交密钥"),
         ]
     }
@@ -108,7 +108,7 @@ async def test_entries_that_are_not_rules_are_not_counted_as_configured() -> Non
 
 async def test_a_heavy_memory_fills_the_budget_without_overflowing_it() -> None:
     memory_ctx: dict[str, object] = {
-        "rules": [_rule(f"trigger {i} " + "t" * 40, f"action {i} " + "a" * 40, i) for i in range(160)]
+        "rules": [_rule(f"trigger {i} " + "t" * 40, f"action {i} " + "a" * 40) for i in range(160)]
     }
 
     budget, block = await _gauge_and_block(memory_ctx)

@@ -78,10 +78,6 @@ class MemorySaveInput(BaseModel):
         default=None,
         description="Required when category=rule.",
     )
-    rule_priority: int = Field(
-        default=0,
-        description="Rule override strength when category=rule; higher wins.",
-    )
 
 
 # Shared writes are blocked: ``write_target`` is accepted but never offered, so a caller that still sends ``shared``
@@ -178,40 +174,31 @@ async def _save_preference(ctx: _SaveContext, *, preference_key: str | None) -> 
     return format_preference_save_ack(preference_key, ctx.content)
 
 
-async def _save_rule(ctx: _SaveContext, *, trigger: str | None, priority: int) -> str:
+async def _save_rule(ctx: _SaveContext, *, trigger: str | None) -> str:
     if not ctx.manager.has_relational:
         return "Procedural memory is not enabled."
     if not trigger:
         return "Rule requires 'rule_trigger'."
     if (buffer := ctx.buffer) is not None:
-        buffered = buffer.add_rule(trigger, ctx.content, priority=priority)
+        buffered = buffer.add_rule(trigger, ctx.content)
         if buffered is None:
             return "Rule already exists in session (duplicate detected)"
         return f"Rule buffered (ID: {buffered.id})"
-    stored = await ctx.manager.add_rule(
-        trigger, ctx.content, priority=priority, source_chat_id=ctx.chat_id, honor_approval=True
-    )
+    stored = await ctx.manager.add_rule(trigger, ctx.content, source_chat_id=ctx.chat_id, honor_approval=True)
     return format_write_ack("Rule", stored)
 
 
-async def _save_instruction(ctx: _SaveContext, *, priority: int) -> str:
+async def _save_instruction(ctx: _SaveContext) -> str:
     if not ctx.manager.has_relational:
         return "Procedural memory is not enabled."
-    instruction_priority = max(priority, 10)
     if (buffer := ctx.buffer) is not None:
-        buffered = buffer.add_rule(
-            "always",
-            ctx.content,
-            priority=instruction_priority,
-            source=RuleSource.AGENT_SELF,
-        )
+        buffered = buffer.add_rule("always", ctx.content, source=RuleSource.AGENT_SELF)
         if buffered is None:
             return "Instruction already exists in session (duplicate detected)"
         return f"Instruction buffered (ID: {buffered.id})"
     stored = await ctx.manager.add_rule(
         "always",
         ctx.content,
-        priority=instruction_priority,
         source=RuleSource.AGENT_SELF,
         source_chat_id=ctx.chat_id,
         honor_approval=True,
@@ -236,7 +223,6 @@ def build_memory_save_tool(
         write_target: MemoryWriteTarget = "bound",
         preference_key: str | None = None,
         rule_trigger: str | None = None,
-        rule_priority: int = 0,
     ) -> str:
         """Persist a new memory entry for the user."""
         parsed_tags = parse_string_list(tags)
@@ -269,9 +255,9 @@ def build_memory_save_tool(
             if category == "preference":
                 return await _save_preference(ctx, preference_key=preference_key)
             if category == "rule":
-                return await _save_rule(ctx, trigger=rule_trigger, priority=rule_priority)
+                return await _save_rule(ctx, trigger=rule_trigger)
             if category == "instruction":
-                return await _save_instruction(ctx, priority=rule_priority)
+                return await _save_instruction(ctx)
             return f"Unknown category: {category}"
         except Exception as e:
             return write_failure_feedback("memory_save", e, fallback="Failed to store memory")

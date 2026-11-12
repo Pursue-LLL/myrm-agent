@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -126,7 +127,6 @@ def _make_tool_rule(
         content=f"When: {trigger} → Do: {action}",
         trigger=trigger,
         action=action,
-        priority=1,
         tool_name=tool_name,
         tool_rule_priority=ToolRulePriority(priority),
     )
@@ -201,3 +201,57 @@ async def test_list_rules_active_only_false(store: SQLiteRelationalStore) -> Non
 
     active_rules = await store.list_rules(active_only=True)
     assert len(active_rules) == 1
+
+
+# ── Rule order: newest first ─────────────────────────────────────────
+
+
+def _rule_created_at(trigger: str, created_at: datetime) -> ProceduralMemory:
+    rule = make_rule(trigger, "act")
+    rule.created_at = created_at
+    return rule
+
+
+@pytest.mark.asyncio
+async def test_rules_come_out_newest_first_whatever_order_they_were_stored_in(store: SQLiteRelationalStore) -> None:
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    for name, days in (("middle", 2), ("oldest", 1), ("newest", 3)):
+        await store.create_rule(_rule_created_at(name, base + timedelta(days=days)))
+
+    assert [rule.trigger for rule in await store.list_rules()] == ["newest", "middle", "oldest"]
+    assert [rule.trigger for rule in await store.list_rules(active_only=False)] == ["newest", "middle", "oldest"]
+    assert [rule.trigger for rule in await store.search_rules("act")] == ["newest", "middle", "oldest"]
+
+
+@pytest.mark.asyncio
+async def test_rules_created_in_the_same_instant_keep_a_stable_order(store: SQLiteRelationalStore) -> None:
+    instant = datetime(2026, 1, 1, tzinfo=UTC)
+    for name in ("a", "b", "c"):
+        await store.create_rule(_rule_created_at(name, instant))
+
+    first = [rule.id for rule in await store.list_rules()]
+    assert first == sorted(first, reverse=True)
+    assert [rule.id for rule in await store.list_rules()] == first
+
+
+@pytest.mark.asyncio
+async def test_a_rule_keeps_the_creation_time_it_carries(store: SQLiteRelationalStore) -> None:
+    proposed_at = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+
+    created = await store.create_rule(_rule_created_at("proposed", proposed_at))
+
+    fetched = await store.get_rule(created.id)
+    assert fetched is not None
+    assert fetched.created_at == proposed_at
+    assert fetched.updated_at > proposed_at
+
+
+@pytest.mark.asyncio
+async def test_creation_times_in_different_offsets_order_by_the_instant(store: SQLiteRelationalStore) -> None:
+    """02:00Z written as 10:00+08:00 sorts after 03:00Z as text, but it is the earlier instant."""
+    earlier = datetime(2026, 1, 1, 10, 0, tzinfo=timezone(timedelta(hours=8)))
+    later = datetime(2026, 1, 1, 3, 0, tzinfo=UTC)
+    await store.create_rule(_rule_created_at("earlier", earlier))
+    await store.create_rule(_rule_created_at("later", later))
+
+    assert [rule.trigger for rule in await store.list_rules()] == ["later", "earlier"]

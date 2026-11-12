@@ -221,7 +221,6 @@ class TestGeometricScoring:
             action="do Y",
             created_at=datetime.now(UTC) - timedelta(days=365),
             access_count=20,
-            priority=1,
         )
 
         result = MemorySearchResult(memory=proc_mem, score=0.8, memory_type=MemoryType.PROCEDURAL)

@@ -619,7 +619,8 @@ class TestMemoryCorpusDegradedNotice:
                 until=None,
             )
 
-        assert text == "No relevant memories found."
+        assert text.startswith("No relevant memories found.")
+        assert "degraded" not in text
 
 
 class TestGraphEnrichTimeout:

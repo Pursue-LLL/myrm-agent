@@ -81,7 +81,6 @@ def test_dry_run_plur_maps_types_and_skips_inactive() -> None:
 
     procedural = res.normalized_data["procedural"]
     assert procedural[0]["content"] == _ACTIVE_ENGRAM["statement"]
-    assert procedural[0]["priority"] == 5
     assert procedural[0]["created_at"] == "2026-05-06T08:30:00Z"
     assert procedural[0]["metadata"]["external_id"] == "ENG-2026-05-06-001"
     assert procedural[0]["metadata"]["external_domain"] == "backend"

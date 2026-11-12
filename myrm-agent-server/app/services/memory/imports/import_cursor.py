@@ -108,7 +108,6 @@ def _parse_rules(rules: list[object]) -> list[dict[str, object]]:
                 "content": f"{name}\n{content}".strip() if name != "Cursor rule" else content,
                 "trigger": f"When working on project: {name}",
                 "action": content[:500],
-                "priority": 7,
                 "trigger_keywords": [tag for tag in [text(rule.get("globs")), "cursor_rule"] if tag],
                 "created_at": iso_or_now(rule.get("created_at")),
                 "metadata": build_metadata("cursor", rule, ("name", "globs", "alwaysApply")),

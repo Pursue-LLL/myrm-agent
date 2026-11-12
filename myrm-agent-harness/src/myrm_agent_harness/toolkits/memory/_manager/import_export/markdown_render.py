@@ -132,7 +132,6 @@ def _procedural_to_markdown(
         "type: procedural",
         f"trigger: {_yaml_safe_value(trigger)}",
         f"action: {_yaml_safe_value(action)}",
-        f"priority: {d.get('priority', 0)}",
         f"source: {d.get('source', '')}",
         f"status: {d.get('status', '')}",
     ]
