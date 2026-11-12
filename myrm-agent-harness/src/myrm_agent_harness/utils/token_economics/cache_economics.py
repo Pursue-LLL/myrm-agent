@@ -4,6 +4,7 @@ Defines hit-rate and savings formulas consumed by LLM response logging, optional
 metrics, and ``TokenUsage.get_cache_effectiveness()``.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - coerce_usage_non_negative_int(): normalize provider usage counters

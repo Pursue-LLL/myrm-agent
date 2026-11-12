@@ -24,8 +24,7 @@
 | 12 | 搜索缓存 | **CORE** | 精确键 + TTL 的查询结果缓存 |
 | 13 | Marketplace 集成 | ENHANCE | 多源 Marketplace 接入 |
 | 14 | 技能创建与评估 | ENHANCE | AI 驱动的创建与评估 |
-| 15 | Skill Packs 技能集合 | ENHANCE | 可组合技能集合 |
-| 16 | Curated Skills 预安装 | ENHANCE | 预安装 curated skills |
+| 15 | 预置技能同步 | ENHANCE | 随版本发布的预置技能启动时同步到存储，三方哈希保护用户修改 |
 
 > **CORE** = 必须实现（竞争力底线），**ENHANCE** = 可选增强。
 
@@ -814,82 +813,28 @@ Scanner（编排器）
 
 ---
 
-## 15. Skill Packs 技能集合 [ENHANCE]
+## 15. 预置技能同步 [ENHANCE]
 
-### 15.1 定义
+### 15.1 设计
 
-Skill Pack 是一组预配置的技能组合，适用于特定场景：
+框架不内置技能清单：宿主把随版本发布的预置技能（`assets/prebuilt_skills/<skill>/SKILL.md` 及 `scripts/` 等附属文件）在启动时同步到存储。Server 的实现是 `app/core/skills/prebuilt_sync.py` 的 `sync_prebuilt_seeds`，由 lifespan 启动阶段的 `_init_prebuilt_skills` 调用，每个进程至多运行一次；同步失败只记 ERROR，不阻塞启动。
 
-```yaml
-# skill-packs/web-developer.yaml
-name: web-developer
-description: Full-stack web development skill pack
-skills:
-  - name: frontend-design
-    enabled: true
-  - name: api-development
-    enabled: true
-  - name: database-query
-    enabled: true
-  - name: testing
-    enabled: true
-```
+### 15.2 同步流程
 
-### 15.2 应用场景
-
-| Pack | 包含技能 |
-|------|----------|
-| Web Developer | frontend-design, api-dev, db-query, testing |
-| Data Analyst | data-analysis, chart-viz, sql-query, report-gen |
-| Research | deep-research, web-search, paper-analysis |
-| DevOps | docker, k8s, ci-cd, monitoring |
-
-### 15.3 应用流程
-
-1. 加载 Pack 定义
-2. 检查所有技能是否已安装
-3. 安装缺失技能（逐个走 §9.2 的安装流水线）
-4. 按 Pack 配置设置启用状态
-5. 应用 Pack 不会影响未包含在 Pack 中的技能状态
+1. 枚举种子目录，跳过以 `_` / `.` 开头的目录与没有 `SKILL.md` 的目录；frontmatter 无效的种子记 ERROR 并跳过。
+2. 存储中还没有该技能：写入 `SKILL.md` 与元数据快照，并以种子内容的 SHA-256 记为 `origin_hash`。
+3. 已存在则做三方哈希比较（种子 / 存储副本 / `origin_hash`）：
+   - 副本未被改过：种子有更新就静默覆盖；
+   - 副本被用户改过：保留用户副本，种子也变了则标记 `has_upstream_update=True`，前端据此提示"有上游更新"；
+   - 旧快照没有 `origin_hash`：副本与种子一致就补写基线，否则保留用户副本并标记上游更新。
+4. 附属文件（如 `scripts/`）始终跟随种子，不参与三方保护；快照里的 `requires` 与实际保留在存储里的 `SKILL.md` 保持一致，技能页与运行时按同一份依赖门控。
+5. 种子目录里已移除的技能，其存储条目被清理。
+6. 同步之后 `ensure_prebuilt_enabled_after_sync` 收敛启用状态：全新安装只启用默认技能集中当前仍存在的技能，既有安装保留用户的启用选择并清理已不存在的 id。
 
 **设计决策**：
-- YAML 格式定义，简单直观
-- 类似的 Agent Template 与 Flavor System
-- 缺失技能自动安装，无需手动逐个安装
-
----
-
-## 16. Curated Skills 预安装 [ENHANCE]
-
-### 16.1 设计
-
-定义一组推荐技能列表，首次启动时自动安装：
-
-```python
-CURATED_SKILL_SLUGS: list[str] = [
-    "web-search",
-    "deep-research",
-    "data-analysis",
-]
-
-STATIC_SKILL_SLUGS: list[str] = [
-    "memory",
-    "core-policies",
-]
-```
-
-### 16.2 安装流程
-
-1. 首次启动时检测 `installed/` 目录
-2. `STATIC_SKILL_SLUGS`：从 builtin 复制到 installed（本地操作，无网络）
-3. `CURATED_SKILL_SLUGS`：经 §9.2 的安装流水线从 Marketplace 下载
-4. 幂等：已安装的跳过
-5. 安装失败不阻塞启动
-
-**设计决策**：
-- 区分静态技能（本地复制）和推荐技能（网络下载）
-- 幂等安装确保重复启动不会重复安装
-- 安装失败不影响系统启动（降级运行）
+- 三方哈希保护用户对预置技能的修改，升级不会静默覆盖
+- 同步幂等：重复启动不产生重复写入
+- 同步失败不影响系统启动（降级运行）
 
 ---
 
@@ -909,7 +854,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 | 目录监听 | watchdog + SQLite 快照（`sync_all` 按 mtime 对账） | 仅 mtime 检查 | 实时性 + 一致性 |
 | 内容安全 | XML 转义 + 标签逃逸检测 | 无 | 防止 Prompt 注入的最后一道防线 |
 | 版本管理 | 语义化版本比较 + 升级提示 | 无版本管理 | 长期维护必备，用户不会错过重要更新 |
-| 预安装 | Curated Skills 种子（按需启用） | 强行装配 / 空白启动 | 遵循所见即所得：种子预置库供用户按需启用，内置通用智能体默认不加载技能（skill_ids = []，纯指令零启动基线） |
+| 预置技能 | 随版本发布的种子（按需启用） | 强行装配 / 空白启动 | 遵循所见即所得：种子预置库供用户按需启用，内置通用智能体默认不加载技能（skill_ids = []，纯指令零启动基线） |
 
 ---
 
@@ -958,8 +903,6 @@ STATIC_SKILL_SLUGS: list[str] = [
 | 权限过滤 | Agent 级别权限 | opencode | **≥** 等价 |
 | 多语言 | 中英双语 + 标签翻译 | nexu (110+ 标签) | **≥** 等价 |
 | 版本管理 | 语义化版本比较 + 升级提示 | CoPaw | **≥** 等价 |
-| 预安装 | Curated + Static 双轨 | nexu | **≥** 等价 |
-| 技能集合 | Skill Packs YAML | NanoClaw Flavor | **≥** 更简洁 |
 
 **综合评估**：除「安装」「状态管理」「搜索缓存」三个维度取舍不同外，其余维度为设计期的对比结论。三层安全防御（信任衰减 + 安全扫描 + 内容转义）+ SHA-256 完整性校验是所有竞品中独一无二的组合。
 
@@ -1005,8 +948,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 
 ### 6. 用户体验完善
 
-- Curated Skills 预安装确保开箱即用
-- Skill Packs 一键配置场景
+- 预置技能随版本同步，用户的修改不会被升级覆盖
 - 版本比较与升级提示确保长期维护
 - 多语言支持（中英双语 + 110+ 标签翻译）
 

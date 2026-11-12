@@ -9,14 +9,15 @@ deduplication, priority classification, and token-savings metrics.
 - schemas::CompactToolCall, ContextConfig, ContextOffloadResult, EvictedToolCall (POS: 上下文配置与数据结构)
 - compact_rules::COMPACT_RULES (POS: 压缩规则)
 - message_priority::classify_message_priority (POS: 优先级分类)
+- retention_helpers::is_tool_result_consumed (POS: 判定工具结果是否已被模型读过)
 
 [OUTPUT]
-- compress_messages_async(): 压缩消息列表(去重后按优先级把旧工具结果紧凑化;注意:Smart fallback在compress_processor层)
+- compress_messages_async(): 压缩消息列表(去重后按优先级把已读的旧工具结果紧凑化;注意:Smart fallback在compress_processor层)
 - compress_tool_message_async(): 压缩单个工具消息(可选 ContextCompressOffloadCallback)
 - find_tool_message_pairs(): 基于 tool_call_id 找到完整工具调用对
 
 [POS]
-Message compactor. Deduplicates tool outputs and compacts old tool-call groups by message priority (CRITICAL is never compacted), with structured offload result handling.
+Message compactor. Deduplicates tool outputs and compacts tool-call groups the model has already read by message priority (a result the model has not read yet is never compacted), with structured offload result handling.
 
 """
 
@@ -32,7 +33,8 @@ from langchain_core.messages.tool import ToolCall
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.text_utils import get_token_count
 
-from ...infra.message_priority import MessagePriority, classify_message_priority, last_iteration_flags
+from ...infra.message_priority import classify_message_priority, last_iteration_flags
+from ...infra.retention_helpers import is_tool_result_consumed
 from ...infra.schemas import (
     CompactToolCall,
     ContextCompressEvictionCallback,
@@ -114,8 +116,9 @@ async def compress_messages_async(
     """压缩消息列表中的旧工具调用
 
     1. 去重: 相同的工具输出折叠为对较新一条的反向引用
-    2. 紧凑化: 保留最近 keep_recent_calls 组,其余按优先级(低优先级先、同级旧的先)把工具结果替换为
-       紧凑格式(工具标识符 + 统计 + 归档指针),配对调用的超长参数只留头尾;已紧凑化的结果不重复处理
+    2. 紧凑化: keep_recent_calls 个保留名额先给模型还没读过的结果(其后没有 AIMessage,永不紧凑化),
+       余下名额按优先级(高优先级先、同级新的先)留给已读结果;其余已读结果按优先级(低优先级先、同级旧的先)
+       替换为紧凑格式(工具标识符 + 统计 + 归档指针),配对调用的超长参数只留头尾;已紧凑化的结果不重复处理
 
     Args:
         messages: 原始消息列表
@@ -148,8 +151,7 @@ async def compress_messages_async(
     if unmatched_tool_calls > 0:
         logger.warning("[压缩] 检测到 %d 个未完整配对的 tool_call,已自动排除在压缩计划之外", unmatched_tool_calls)
 
-    # P0: Priority-aware filtering - skip CRITICAL messages
-    # Classify all messages by priority (is_last_iteration detection)
+    # Classify every message by priority (is_last_iteration detection) to rank the groups below
     is_last_iteration_msg = last_iteration_flags(messages)
     message_priorities = [
         classify_message_priority(
@@ -158,20 +160,16 @@ async def compress_messages_async(
         for msg in messages
     ]
 
-    # Filter pairs: only compress pairs where tool message is not CRITICAL
-    compressible_groups = [
-        group for group in groups if message_priorities[group.tool_index] > MessagePriority.CRITICAL_FINAL
-    ]
+    # A result no AIMessage follows is the unread tail of the step in progress: the next model call needs it verbatim,
+    # so it holds one of the keep_recent_calls survivor slots ahead of any priority ranking.
+    compressible_groups = [group for group in groups if is_tool_result_consumed(messages, group.tool_index)]
+    survivor_slots = max(cfg.keep_recent_calls - (len(groups) - len(compressible_groups)), 0)
 
-    if len(compressible_groups) <= cfg.keep_recent_calls:
-        logger.warning(f"[压缩] 可压缩工具调用数 ({len(compressible_groups)}) <= 保留数 ({cfg.keep_recent_calls}),跳过")
+    if len(compressible_groups) <= survivor_slots:
+        logger.warning(f"[压缩] 可压缩工具调用数 ({len(compressible_groups)}) <= 保留数 ({survivor_slots}),跳过")
         return messages, 0
 
-    # 计算需要压缩的数量(保留最近 N 个)
-    num_to_compress = len(compressible_groups) - cfg.keep_recent_calls
-
-    if num_to_compress <= 0:
-        return messages, 0
+    num_to_compress = len(compressible_groups) - survivor_slots
 
     # Priority-based sorting: compress LOW priority (larger value) first
     groups_with_priority = [

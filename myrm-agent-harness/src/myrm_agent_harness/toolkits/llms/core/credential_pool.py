@@ -7,6 +7,7 @@ pool applies an appropriate cooldown and rotates to the next available key.
 Cooldown durations are always maximized to prevent premature key reuse.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - CredentialPoolStrategy: strategy enum for key dispatch

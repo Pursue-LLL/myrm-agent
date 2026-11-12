@@ -5,6 +5,7 @@ Prevents LLM fan-out (e.g., the model going crazy and emitting 20 delegate_task 
 which could exhaust API rate limits and system resources.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ModelResponse.result with truncated tool_calls if limit exceeded

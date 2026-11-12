@@ -1,6 +1,14 @@
-"""[POS]: src/myrm_agent_harness/toolkits/memory/private_notebook/history_manager.py
-[INPUT]: Context window identifiers, turn contents, author roles, and history queries.
-[OUTPUT]: HistoryContextManager indexing and retrieving archived cross-context execution logs.
+"""Thread-safe catalog of archived context windows and their turns.
+
+[INPUT]
+- toolkits.memory.private_notebook.models::HistoryContextItem, HistoryEntryItem (POS: Contract layer of the private notebook: the immutable note, search-hit, history-context and context-switch models shared by the storage, the history manager and the manager.)
+
+[OUTPUT]
+- HistoryContextManager: records turns per context window and lists, reads and searches the archived history
+
+[POS]
+History layer of the private notebook: a thread-safe catalog of the turns recorded per context window, with listing,
+reading and case-insensitive keyword search across archived contexts.
 """
 
 from __future__ import annotations

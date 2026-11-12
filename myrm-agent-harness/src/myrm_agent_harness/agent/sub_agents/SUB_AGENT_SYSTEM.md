@@ -145,7 +145,7 @@ Layer 5: OCap spawn handle（delegate_task 单/批量模式）
 预算拒绝返回结构化 `payload.reason="budget_exceeded"`，便于上层 UI 和日志解释。
 
 **完成后精确合并**：子 agent 完成后，从 `child_agent.last_run_stats` 获取
-最终 token 用量，通过 `_merge_child_stats()` 精确合并到父 tracker。
+最终 token 用量，通过 `merge_child_stats()`（`builder.py`）精确合并到父 tracker。
 
 合并内容：
 - 7 种 token 类型（prompt/completion/total/cached/cache_write/reasoning/citation）

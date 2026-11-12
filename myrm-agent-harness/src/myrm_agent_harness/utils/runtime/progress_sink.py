@@ -4,6 +4,7 @@ Uses ContextVar so that any tool running inside BaseAgent.run() can push events
 into the Agent's output_queue without explicit parameter passing.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ToolProgressSink: Protocol for emitting progress events

@@ -1,6 +1,7 @@
 """Dataset export type definitions — configuration, formats, and reporting.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ExportFormat: enum of supported output formats

@@ -1,6 +1,18 @@
-"""[POS]: src/myrm_agent_harness/toolkits/memory/private_notebook/manager.py
-[INPUT]: Sandbox workspace directory, initial context ID, note updates, and rotation requests.
-[OUTPUT]: ModelPrivateNotebookManager orchestrating storage, history index, tools, and context switching.
+"""Orchestrator tying notes storage, history index and context rotation together.
+
+[INPUT]
+- toolkits.memory.private_notebook.history_manager::HistoryContextManager (POS: History layer of the private notebook: a thread-safe catalog of the turns recorded per context window, with listing, reading and case-insensitive keyword search across archived contexts.)
+- toolkits.memory.private_notebook.models::NewContextResult (POS: Contract layer of the private notebook: the immutable note, search-hit, history-context and context-switch models shared by the storage, the history manager and the manager.)
+- toolkits.memory.private_notebook.storage::LocalInspectableNoteStorage (POS: Notes layer of the private notebook: thread-safe, human-inspectable Markdown note files with sanitized file names, atomic rewrites and keyword search.)
+- toolkits.memory.private_notebook.tools::PrivateNotebookToolKit (POS: Tool surface of the private notebook: packages the 10 model-facing tools (4 history, 5 notes, 1 context rotation) as methods of one toolkit bound to a manager.)
+
+[OUTPUT]
+- ModelPrivateNotebookManager: storage, history and toolkit accessors, turn recording, context rotation with a handover note, and a bounded fallback summary
+
+[POS]
+Orchestrator of the private notebook: owns the notes storage under `<workspace>/.myrm/agent_notes`, the history index and
+the active context id, rotates to a fresh context while writing a handover note, and offers a bounded fallback summary of
+recent turns.
 """
 
 from __future__ import annotations

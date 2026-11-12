@@ -3,6 +3,7 @@
 Post-validation request context and result objects, avoiding repeated parsing at the business layer.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - FallbackEvent: Fallback event details

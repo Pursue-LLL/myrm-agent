@@ -60,7 +60,7 @@ verify-harness-distribution
 pip install 'myrm-agent-harness[file-parsers,web,...,compiled-core]==0.1.0'
 ```
 
-Or in `myrm-agent-server` after `uv sync` (PyPI, default for this repo).
+In `myrm-agent-server`, `uv sync` resolves the harness from the in-repo path source (`[tool.uv.sources]`, editable), not from PyPI.
 
 Editable dev: `pip install -e /path/to/myrm-agent-harness[...]` when harness source is checked out locally.
 
@@ -68,14 +68,14 @@ Editable dev: `pip install -e /path/to/myrm-agent-harness[...]` when harness sou
 
 Editable install ships all `.py` source. `runtime.install_guard.probe.get_distribution_mode()` returns `source`.
 
-**Monorepo dev** (sibling `myrm-agent-harness`): `myrm-agent/scripts/dev/setup.sh` delegates to `install_harness.sh`; `myrm dev` / `myrm start` exit 1 when the server venv is not editable (set `MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` for PyPI consumer testing). OSS-only clones still use `uv sync` + PyPI wheels. See `myrm-agent/scripts/_ARCH.md`.
+**In-repo dev**: the harness lives in this repository (`myrm-agent-harness/`) and `myrm-agent-server/pyproject.toml` declares `[tool.uv.sources] myrm-agent-harness = { path = "../myrm-agent-harness", editable = true }`, so the `uv sync` run by `scripts/dev/setup.sh` and `scripts/install.sh` installs it editable. `scripts/install.sh` verifies the install with `python -m myrm_agent_harness.runtime.install_guard.verify`; `scripts/dev/dev.ps1` refuses to start when the server venv imports a harness other than the in-repo source. See `scripts/_ARCH.md`.
 
 ## Docker (Server Runtime)
 
 | File | Audience | Harness source |
 |------|----------|----------------|
-| `myrm-agent/myrm-agent-server/docker/Dockerfile.official` | Source-built wheels | `assemble_production.py` in-image |
-| `myrm-agent/myrm-agent-server/Dockerfile` | PyPI consumers | `uv.lock` + PyPI harness |
+| `myrm-agent/myrm-agent-server/docker/Dockerfile.official` | Cloud runtime image (non-root) | wheel built in-image (`uv build --wheel`) from `myrm-agent-harness/`, installed over the `uv.lock` environment |
+| `myrm-agent/myrm-agent-server/Dockerfile` | OSS public image | wheel built in-image (`uv build --wheel`) from `myrm-agent-harness/`, everything else from `uv.lock` |
 
 ```bash
 # OSS public image (myrm-agent repo root context)
@@ -97,7 +97,7 @@ Tag `harness-v*` (e.g. `harness-v0.1.0rc1`, aligned with `project.version`) on t
 5. `publish-core` matrix (one job per platform) uploads each core wheel — OIDC tokens are project-scoped; batch upload fails with 403
 6. `publish-verify` runs `scripts/verify_pypi_publish.py` (release + 6 bootstrapped core wheels mandatory; musl mandatory once indexed; see `bootstrap_pypi_core_upload.sh`)
 
-Alpine/musl deployments: use `compiled-core-musl` extra (or `install.sh` `reinstall_harness_musl_core()` after `uv sync`). PEP 508 cannot distinguish glibc vs musl on Linux; do not install both linux extras on the same host.
+Alpine/musl deployments: use the `compiled-core-musl` extra. PEP 508 cannot distinguish glibc vs musl on Linux; do not install both linux extras on the same host.
 
 `[tool.uv] exclude-dependencies` (uv >= 0.9.8) in `pyproject.toml` lists the eight `myrm-agent-harness-core-*` packages, so `uv lock` / `uv sync` never resolve `compiled-core` or `compiled-core-musl`: their pins name versions that exist on PyPI only after the release is published. The published wheel metadata keeps the pins. A platform added to `harness_packaging/platforms.py` (`PUBLISH_PLATFORMS`) must be added to that list too, otherwise `uv lock` fails on the unsatisfiable pin.
 

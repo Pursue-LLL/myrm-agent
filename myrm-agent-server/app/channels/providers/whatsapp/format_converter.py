@@ -6,6 +6,7 @@ Converts standard Markdown to WhatsApp-supported formatting:
 - Preserves code fences (```...```) and inline code (`...`)
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - WhatsApp-formatted text

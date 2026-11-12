@@ -1,10 +1,15 @@
-"""
-[POS] src/myrm_agent_harness/core/security/vnc_hardening/types.py
-[INPUT] enum, typing, pydantic
-[OUTPUT] VncBindMode, VncAuthPolicy, VncSecurityViolationType, VncSecurityAuditViolation,
-         VncLaunchConfig, VncHardenedLaunchSpec, VncHardeningAuditReport
-Core domain types for VNC loopback bind and rfbauth hardening suite.
-Strict typing applied: No `Any` types allowed.
+"""Core domain types for VNC loopback bind and rfbauth hardening suite.
+
+[INPUT]
+- none (imports no other project module)
+
+[OUTPUT]
+- VncBindMode, VncAuthPolicy, VncSecurityViolationType: bind scope, authentication policy and violation taxonomy enums
+- VncSecurityAuditViolation, VncLaunchConfig, VncHardenedLaunchSpec, VncHardeningAuditReport: audit violation, raw launch config, hardened launch spec and compliance report models
+
+[POS]
+Contract layer of the VNC hardening suite: the bind-mode, auth-policy and violation enums plus the launch-config,
+hardened-spec, violation and report models shared by the sanitizer and the facade.
 """
 
 from __future__ import annotations

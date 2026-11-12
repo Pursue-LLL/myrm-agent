@@ -3,6 +3,7 @@
 提供配置验证和健康检查功能，早期发现配置冲突、危险配置和缺失依赖。
 
 [INPUT]
+- agent.config.llm::AgentConfig (POS: Agent configuration layer.)
 
 [OUTPUT]
 - ConfigIssue: 配置问题数据类

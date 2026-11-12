@@ -1,11 +1,16 @@
 """Pydantic schemas for checkpoint and file snapshot API endpoints.
 
-[POS] app/api/checkpoint/schemas.py
-[INPUT] None
-[OUTPUT] CheckpointInfo, CheckpointListResponse, FileSnapshotCreateRequest,
-         FileSnapshotCreateResponse, FileSnapshotInfoResponse,
-         FileSnapshotListResponse, FileSnapshotRestoreRequest,
-         FileSnapshotRestoreResponse, FileChangeResponse, FileDiffResponse
+[INPUT]
+- none (imports no other project module)
+
+[OUTPUT]
+- CheckpointInfo, CheckpointListResponse: subagent checkpoint info and list responses
+- FileSnapshotInfoResponse, FileSnapshotListResponse, FileSnapshotCreateRequest, FileSnapshotCreateResponse, FileSnapshotRestoreRequest, FileSnapshotRestoreResponse: file snapshot info, list, create and restore models
+- FileChangeResponse, FileDiffResponse: file change and file diff responses
+
+[POS]
+Wire contracts of the checkpoint API: the request and response models for subagent checkpoints, file snapshots, restores and
+diffs.
 """
 
 from __future__ import annotations

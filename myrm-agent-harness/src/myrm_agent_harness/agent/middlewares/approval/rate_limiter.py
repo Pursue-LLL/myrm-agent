@@ -3,6 +3,7 @@
 防止审批请求滥用（恶意用户、Bug 导致的循环请求）。
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ApprovalRateLimiter: 滑动窗口速率限制器

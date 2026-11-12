@@ -4,6 +4,7 @@ Provides structured exception classes for configuration errors,
 with support for i18n messages and resolution guidance.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ConfigIncompleteError: configuration incomplete error

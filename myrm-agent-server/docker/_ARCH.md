@@ -15,7 +15,7 @@ Server 容器构建与运行时入口。两个 Dockerfile 都从本仓库源码�
 
 ## 构建
 
-云托管运行时镜像由 CP 契约 `DEFAULT_AGENT_SERVER_IMAGE` 指向 `Dockerfile.official` 产物；Skill 沙箱镜像由 `sandbox/Dockerfile` 独立构建；`docker-compose.yaml` 不含 agent 镜像 profile。
+云托管运行时镜像是 `Dockerfile.official` 的产物；Skill 沙箱镜像由 `sandbox/Dockerfile` 独立构建；`docker-compose.yaml` 不含 agent 镜像 profile。
 
 **PID-1 治理（tini）**：三个 Dockerfile 均以 `/usr/bin/tini -g --` 作为容器 PID-1（`ENTRYPOINT`）：
 - `Dockerfile` / `Dockerfile.official`：`tini -g -- /app/entrypoint.sh`，`-g` 让 tini 转发信号到整个进程组（配合 `entrypoint.sh` 内 Xvfb/VNC 等长驻子进程优雅退出）；`entrypoint.sh` 依 `$UID` 走 `gosu`（root 本地）或 `exec "$@"`（`USER myrm`）分支。

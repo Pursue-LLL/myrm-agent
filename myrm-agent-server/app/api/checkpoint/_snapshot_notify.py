@@ -2,9 +2,15 @@
 
 Notifies the Agent (via restore_inbox) when a file snapshot is restored.
 
-[POS] app/api/checkpoint/_snapshot_notify.py
-[INPUT] snapshot_id: str, files_restored: int, files: list[str] | None
-[OUTPUT] Side-effect: push_restore_notification → Agent inbox
+[INPUT]
+- myrm_agent_harness.agent.file_snapshot.restore_inbox::push_restore_notification (POS: File restore notification inbox — bridges server restore API and Agent context.)
+
+[OUTPUT]
+- notify_agent_of_restore: pushes the snapshot id, the restored files and the external effects into the Agent's restore inbox
+
+[POS]
+Restore-notification step of the checkpoint API: after a file snapshot is restored it tells the Agent about the rollback, so the
+Agent sees the change on its next turn.
 """
 
 from __future__ import annotations

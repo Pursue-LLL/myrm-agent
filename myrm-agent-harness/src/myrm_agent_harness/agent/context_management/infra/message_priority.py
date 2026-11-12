@@ -3,7 +3,7 @@
 Four priority levels:
 - CRITICAL (0-1): Human messages + Final iteration content
 - HIGH (2): Tool calls + Tool errors (paired)
-- MEDIUM (3): Assistant reasoning + Tool results with summary
+- MEDIUM (3): Assistant reasoning (a goal-hint match also lifts a successful tool result to this level)
 - LOW (4): Tool success results
 
 [INPUT]
@@ -39,7 +39,7 @@ class MessagePriority(IntEnum):
     HIGH_TOOL_CALL = 2  # Tool calls - keep paired with errors
     HIGH_TOOL_ERROR = 2  # Tool errors - same priority as calls
     MEDIUM_REASONING = 3  # Assistant reasoning
-    MEDIUM_TOOL_SUMMARY = 3  # Tool results with embedded summary
+    MEDIUM_TOOL_SUMMARY = 3  # Successful tool results lifted by a goal-hint match
     LOW_TOOL_SUCCESS = 4  # Tool success results - first to compress
 
 
@@ -80,9 +80,6 @@ def classify_message_priority(
         # Error results are high priority (paired with calls)
         if _is_tool_error(msg):
             return MessagePriority.HIGH_TOOL_ERROR
-        # Results with embedded summary are medium
-        if _has_embedded_summary(msg):
-            return MessagePriority.MEDIUM_TOOL_SUMMARY
         # Success results are low priority
         return MessagePriority.LOW_TOOL_SUCCESS
 
@@ -116,14 +113,3 @@ def _is_tool_error(msg: ToolMessage) -> bool:
         or "timed out" in head
         or "traceback" in head
     )
-
-
-def _has_embedded_summary(msg: ToolMessage) -> bool:
-    """Check if tool result has self-generated summary.
-
-    Shell agent and other tools may include "Execution Summary" blocks.
-    """
-    import re
-
-    content = str(msg.content)
-    return bool(re.search(r"(Execution Summary \(\d+ steps?\):.*?)(?:={10,}|$)", content, re.DOTALL))

@@ -1,6 +1,10 @@
 """Eval Protocol — core types and AgentExecutor contract.
 
 [INPUT]
+- toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
+- eval.ablation_rules::derive_ablation_recommendations (POS: Translates empirical ablation findings (Tools/Middleware >> Prompt) into actionable, deterministic GUI guidance chips and configuration deep-links without incurring extra LLM cost.)
+- eval.failure_clustering::cluster_failure_signatures (POS: Translates disparate evaluation failure traces into actionable, normalized clusters.)
+- eval.trajectory_analysis::aggregate_failure_modes (POS: Provides automated, deterministic failure root-cause analysis across evaluation trajectories.)
 
 [OUTPUT]
 - EvalCase: test case definition
@@ -29,7 +33,7 @@ from __future__ import annotations
 
 import enum
 import json
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
@@ -534,39 +538,9 @@ class SkillABReportData:
             "dataset_id": self.dataset_id,
             "baseline_skill_id": self.baseline_skill_id,
             "candidate_skill_id": self.candidate_skill_id,
-            "no_skill_metrics": {
-                "arm_name": self.no_skill_metrics.arm_name,
-                "skill_id": self.no_skill_metrics.skill_id,
-                "pass_count": self.no_skill_metrics.pass_count,
-                "total_cases": self.no_skill_metrics.total_cases,
-                "pass_rate": self.no_skill_metrics.pass_rate,
-                "avg_tool_calls": self.no_skill_metrics.avg_tool_calls,
-                "total_tokens": self.no_skill_metrics.total_tokens,
-                "avg_latency_ms": self.no_skill_metrics.avg_latency_ms,
-                "side_effects_count": self.no_skill_metrics.side_effects_count,
-            },
-            "baseline_metrics": {
-                "arm_name": self.baseline_metrics.arm_name,
-                "skill_id": self.baseline_metrics.skill_id,
-                "pass_count": self.baseline_metrics.pass_count,
-                "total_cases": self.baseline_metrics.total_cases,
-                "pass_rate": self.baseline_metrics.pass_rate,
-                "avg_tool_calls": self.baseline_metrics.avg_tool_calls,
-                "total_tokens": self.baseline_metrics.total_tokens,
-                "avg_latency_ms": self.baseline_metrics.avg_latency_ms,
-                "side_effects_count": self.baseline_metrics.side_effects_count,
-            },
-            "candidate_metrics": {
-                "arm_name": self.candidate_metrics.arm_name,
-                "skill_id": self.candidate_metrics.skill_id,
-                "pass_count": self.candidate_metrics.pass_count,
-                "total_cases": self.candidate_metrics.total_cases,
-                "pass_rate": self.candidate_metrics.pass_rate,
-                "avg_tool_calls": self.candidate_metrics.avg_tool_calls,
-                "total_tokens": self.candidate_metrics.total_tokens,
-                "avg_latency_ms": self.candidate_metrics.avg_latency_ms,
-                "side_effects_count": self.candidate_metrics.side_effects_count,
-            },
+            "no_skill_metrics": asdict(self.no_skill_metrics),
+            "baseline_metrics": asdict(self.baseline_metrics),
+            "candidate_metrics": asdict(self.candidate_metrics),
             "success_rate_delta": round(self.success_rate_delta, 4),
             "token_savings_pct": round(self.token_savings_pct, 4),
             "step_reduction_pct": round(self.step_reduction_pct, 4),

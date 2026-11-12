@@ -5,6 +5,7 @@ Difference from Rate Limiting:
 - In-Flight Limiting: caps the concurrency (number of requests processed simultaneously)
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - InFlightLimiter: Concurrency control protocol

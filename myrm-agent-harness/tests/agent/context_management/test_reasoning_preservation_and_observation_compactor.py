@@ -12,10 +12,10 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
+from myrm_agent_harness.agent.context_management.infra.retention_helpers import is_tool_result_consumed
 from myrm_agent_harness.agent.context_management.pipeline.base import ProcessorContext
 from myrm_agent_harness.agent.context_management.pipeline.processors.active_tool_result_prune_processor import (
     build_memory_truncated_placeholder,
-    is_tool_result_consumed,
 )
 from myrm_agent_harness.agent.context_management.pipeline.processors.reasoning_anchor_processor import (
     ReasoningAnchorProcessor,

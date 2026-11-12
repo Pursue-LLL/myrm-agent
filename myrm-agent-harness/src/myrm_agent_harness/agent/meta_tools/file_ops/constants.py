@@ -6,10 +6,10 @@
 - (none)
 
 [OUTPUT]
-- (none)
+- MAX_FILE_READ_SIZE_BYTES, MAX_RANGED_READ_SIZE_BYTES, MAX_FILE_WRITE_SIZE_BYTES 及其 MB 形式, LINE_NUMBER_WIDTH, SEPARATOR_WIDTH, PATH_RANGE_PATTERN
 
 [POS]
-Constants.
+文件操作工具的常量层：读写大小上限、行号与分隔符的显示宽度，以及解析 `file.py:1-50` 行号范围路径的正则。
 """
 
 import re

@@ -1,6 +1,7 @@
 """Summarization prompt templates
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - SUMMARY_PROMPT_TEMPLATE: Initial summary generation template (Handoff role + Scaled Budget)

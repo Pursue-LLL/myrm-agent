@@ -5,6 +5,7 @@ scan a QR code with their Feishu/Lark mobile app, which automatically
 creates a fully configured bot application and returns credentials.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - FeishuAppRegistration: Device-code flow for QR-based app creation

@@ -3,6 +3,8 @@
 Provides reusable OAuth2 authorization code flow with CSRF protection.
 
 [INPUT]
+- app.channels.core.exceptions::ChannelAuthError (POS: Channel exception hierarchy for precise retry and error handling.)
+- app.channels.protocols.async_login::LoginEvent, LoginMethod, LoginState, LoginStatus (POS: Protocol layer for external channel async login.)
 
 [OUTPUT]
 - OAuth2LoginHelper: Reusable OAuth2 login flow executor

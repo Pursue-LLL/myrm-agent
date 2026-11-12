@@ -3,6 +3,7 @@
 Provides structured error classification with recoverability and strategy mapping.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - RecoverabilityLevel: Layer 1 error recoverability classification

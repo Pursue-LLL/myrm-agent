@@ -52,30 +52,17 @@ checkpointer's `aget_tuple` and `aput`.
 ```sql
 CREATE TABLE conversation_forks (
     child_chat_id VARCHAR(255) PRIMARY KEY,
-    parent_chat_id VARCHAR(255) NOT NULL,
+    parent_chat_id VARCHAR(255) NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
     fork_checkpoint_id VARCHAR(255),
-    fork_message_index INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (parent_chat_id) REFERENCES chat_history(id) ON DELETE CASCADE,
-    FOREIGN KEY (child_chat_id) REFERENCES chat_history(id) ON DELETE CASCADE
+    fork_message_index INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_child_to_parent ON conversation_forks(child_chat_id);
+CREATE INDEX idx_fork_child_to_parent ON conversation_forks(child_chat_id);
+CREATE INDEX idx_fork_parent_children ON conversation_forks(parent_chat_id);
 ```
 
-**Fork Record Model:**
-
-```python
-@dataclass(frozen=True)
-class ForkInfo:
-    parent_thread_id: str      # LangGraph thread_id
-    parent_chat_id: str        # Business layer chat_history.id
-    fork_checkpoint_id: str    # Checkpoint ID at fork point
-    fork_message_index: int    # Message index (0-based, UI display)
-```
-
-**Why frozen?** Immutable to prevent accidental modification of fork history.
+**Fork Record Model:** `ConversationFork` (`app/database/models/chat.py`, `child_chat_id` is the primary key, the other columns are the table above). The service layer returns two NamedTuples: `ForkCreateResult` (`success`, `new_chat_id`, `parent_chat_id`, `fork_point`, `error`) and `ForkInfoResponse` (`parent_chat_id`, `fork_point`, `children`, `root_chat_id`, `depth`).
 
 **Design Decision: Direct Copy (not COW)**
 
@@ -93,31 +80,27 @@ class ForkInfo:
 **Service Implementation:**
 
 ```python
-# services/conversation_fork_manager.py
+# services/chat/conversation_fork_manager.py
 class ConversationForkManager:
+    @staticmethod
     async def fork_conversation(
-        self,
+        db: AsyncSession,
         parent_chat_id: str,
         message_index: int,
         new_title: str | None = None,
-    ) -> str:
+        fork_mode: str = "full_clone",   # or "acceptance_verifier"
+        acceptance_scope: str | None = None,
+    ) -> ForkCreateResult:
         """
-        1. Get checkpoint at message_index
-        2. Create new chat_history record
-        3. Clone checkpoint → new thread_id
-        4. Insert fork record to DB
-        
-        Returns: new_chat_id
+        1. Validate the parent chat and the message_index against its active messages
+        2. Create the new chat (messages + Chat metadata cloned, compacted_before_id remapped)
+        3. Clone the LangGraph checkpoint at the fork point -> new thread_id
+        4. Insert the conversation_forks record
         """
-        ...
-    
-    async def get_fork_info(self, chat_id: str) -> ForkInfoResponse:
-        """
-        Returns:
-          - parent_chat_id (if forked)
-          - children: [{chat_id, title}] (all child forks)
-        """
-        ...
+
+    @staticmethod
+    async def get_fork_info(db: AsyncSession, chat_id: str) -> ForkInfoResponse:
+        """parent / fork point / children / root_chat_id / depth (multi-generation lineage)"""
 ```
 
 ---
@@ -127,8 +110,10 @@ class ConversationForkManager:
 ```python
 # POST /api/v1/chats/{chat_id}/fork
 {
-    "message_index": 5,  # 0-based index, or -1 for last message
-    "new_title": "Alternative Path"  # Optional, auto-generated if omitted
+    "message_index": 5,               # 0-based index, or -1 for the last message
+    "new_title": "Alternative Path",  # Optional, auto-generated if omitted
+    "fork_mode": "full_clone",        # or "acceptance_verifier"
+    "acceptance_scope": null          # Optional, only for the acceptance audit mode
 }
 
 # Response
@@ -144,9 +129,11 @@ class ConversationForkManager:
 {
     "parent_chat_id": "chat-123",  # null if not a fork
     "fork_point": 5,
+    "root_chat_id": "chat-001",
+    "depth": 1,
     "children": [
-        {"chat_id": "chat-789", "title": "Branch A"},
-        {"chat_id": "chat-012", "title": "Branch B"}
+        {"chat_id": "chat-789", "title": "Branch A", "created_at": "2026-01-01T00:00:00Z"},
+        {"chat_id": "chat-012", "title": "Branch B", "created_at": "2026-01-01T00:00:00Z"}
     ]
 }
 ```
@@ -155,24 +142,14 @@ class ConversationForkManager:
 
 ### Frontend Layer
 
-**UI Components (3):**
+`services/fork-api.ts` wraps both endpoints (`forkConversation`, `getForkInfo`). A fork starts from these entry points:
 
-1. **Fork Button** (Message ActionBar)
-   - Location: AI message hover → ActionBar (alongside Copy/Regenerate)
-   - Icon: 🔀 (fork/branch icon)
-   - Action: Opens Fork Dialog
+- the `/fork [title]` slash command (forks at the last message)
+- the context usage panel and the sidebar chat history item (fork at the last message)
+- the mobile chat sheet entries
+- the session replay player (fork at the replayed point)
 
-2. **Fork Dialog**
-   - Title input (default: "Branch from: [message snippet]")
-   - Confirm: "创建分支" / "Create Branch"
-   - Cancel: "取消" / "Cancel"
-
-3. **Parent Link** (Chat Header)
-   - Visibility: Only when `fork_info.parent_chat_id` exists
-   - Display: "← 来自: [parent_title]" / "← From: [parent_title]"
-   - Action: Navigate to parent chat
-
-**No Complex Tree UI:** Avoids user confusion, keeps UX lightweight.
+After the fork succeeds the new chat opens as a new workspace pane. There is no tree view of the fork lineage.
 
 ---
 
@@ -183,7 +160,7 @@ class ConversationForkManager:
 ```
 1. User asks: "Search latest AI papers"
 2. Agent executes bash command (wrong!)
-3. User clicks Fork button on message #4
+3. User forks from message #4 (session replay player)
 4. New conversation starts from message #4
 5. User re-phrases: "Use web search to find papers"
 ```
@@ -220,30 +197,13 @@ class ConversationForkManager:
 
 ## Performance Characteristics
 
-| Operation | Complexity | Latency (95th %ile) |
-|-----------|------------|---------------------|
-| Fork Conversation | O(C) | <500ms (C=checkpoint size) |
-| Query Fork Info | O(1) | <10ms (single query) |
-| Navigate to Parent | O(1) | <10ms (single query) |
-| List Children | O(N) | <50ms (N=children, typically <10) |
+| Operation | Complexity |
+|-----------|------------|
+| Fork Conversation | O(C + M) (C = checkpoint size, M = messages copied) |
+| Query Fork Info | single indexed query per generation |
+| List Children | O(N) (N = children) |
 
-**Storage Overhead:**
-- Per fork: ~1KB metadata + checkpoint size
-- Expected: <1% total storage (fork rate <5%)
-
----
-
-## Comparison with Competitors
-
-| Feature | Letta | **Our Implementation** | Advantage |
-|---------|-------|------------------------|-----------|
-| Fork Object | message_id | **Full checkpoint** | **10x richer state** |
-| State Preservation | None | **agent_state + tools** | **Complete context** |
-| Fork Granularity | Conversation-level | **Message-level** | **10x precision** |
-| Query Performance | Unknown | **O(1)** | **Predictable** |
-| UI Complexity | None | **3 lightweight components** | **User-friendly** |
-
-**Overall:** 🏆 **10/10 (Us) vs 6/10 (Letta)**
+Per fork: one metadata row plus a full copy of the checkpoint and messages.
 
 ---
 
@@ -296,26 +256,24 @@ Works seamlessly with:
 - ✅ Design documentation (this file)
 
 **Business Layer:**
-- ⬜ Database migration: `conversation_forks` table
-- ⬜ `ForkInfo` record model
-- ⬜ `ConversationForkManager` service
-- ⬜ API endpoints: POST `/fork`, GET `/fork-info`
-- ⬜ Checkpoint clone logic
+- ✅ Database migration: `conversation_forks` table
+- ✅ `ConversationFork` ORM model, `ForkCreateResult` / `ForkInfoResponse`
+- ✅ `ConversationForkManager` service
+- ✅ API endpoints: POST `/chats/{chat_id}/fork`, GET `/chats/{chat_id}/fork-info`
+- ✅ Checkpoint clone logic
 
 **Frontend:**
-- ⬜ Fork button (Message ActionBar)
-- ⬜ Fork dialog component
-- ⬜ Parent link (Chat Header)
+- ✅ `fork-api.ts` client and the `/fork` command
+- ✅ Fork entry points: context usage panel, sidebar chat history, mobile sheet, session replay player
+- ⬜ Parent link (Chat Header) and fork lineage UI
 
 **Testing:**
-- ⬜ Unit tests (ForkInfo)
-- ⬜ Integration tests (fork_conversation API)
-- ⬜ E2E tests (fork button → API → new chat)
+- ✅ Server: `tests/services/chat/test_conversation_fork_manager.py`, `test_fork_carries_parked_pastes.py`, `test_context_branch_fork.py`
+- ✅ Client: `services/__tests__/fork-api.test.ts`
 
 ---
 
 ## References
 
 - LangGraph Checkpointer: https://langchain-ai.github.io/langgraph/concepts/persistence/
-- Letta Fork Implementation: (internal competitor analysis)
 - Framework Design Principles: `/myrm-agent-harness/FRAMEWORK_DESIGN_PRINCIPLES.md`

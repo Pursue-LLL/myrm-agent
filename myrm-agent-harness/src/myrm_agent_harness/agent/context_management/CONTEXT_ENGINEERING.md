@@ -477,9 +477,9 @@ RECOVER: cat /persistent/.context/user_001/session_abc/compacted/web_search_tool
 - **被动触发** - 压缩不足时自动触发
 - **不可逆** - 原始消息结构被替换，无法恢复
 - **结构化** - 使用固定模式，非自由形式
-- **保留最近调用** - 最近 N 次工具调用保持完整格式（few-shot 示例）
+- **保留最近调用** - 尾部消息按 token 预算保持完整格式，工具调用与结果成对（few-shot 示例）
 
-**为什么保留最近 N 次调用？**
+**为什么保留最近的调用？**
 > "保留几个完整的工具调用和结果示例非常有帮助。因为这能让模型知道它上次停在了哪里，从而更平滑地继续工作。否则，你会发现摘要之后，模型有时会改变其风格和语气。" —— Manus
 
 **有损但可追溯策略**：
@@ -525,7 +525,7 @@ RECOVER: cat /persistent/.context/user_001/session_abc/compacted/web_search_tool
         │
         ├─ 压缩阈值 ~ 摘要阈值 → 压缩（Compression）
         │     │
-        │     ├─ 压缩旧工具调用，保留最近 N 次完整
+        │     ├─ 压缩旧工具调用，保留名额内的完整（模型还没读过的结果先占名额，其余按优先级）
         │     │  仅当节省 > 最小节省阈值时执行
         │     │
         │     └─ 主动外部化的关键发现不受影响
@@ -536,7 +536,7 @@ RECOVER: cat /persistent/.context/user_001/session_abc/compacted/web_search_tool
               │
               ├─ files_modified 字段记录之前写入的文件路径
               │
-              └─ 保留最近 N 次完整工具调用
+              └─ 尾部消息按 token 预算原样保留（工具调用与结果成对）
 ```
 
 ---

@@ -48,8 +48,8 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 - **优雅降级 (Graceful Degradation)**：当连续拦截次数达到 `max_rejections`（默认 3 次）时，不再粗暴地触发 `interrupt()` 导致前端假死，而是送达一条强制收尾指令（`forced_finish`）。该指令允许 Agent 完工，但**强制要求 Agent 在最终回复中向用户输出明确的 Markdown 警告**，说明其未能成功验证代码，请用户人工审查。拦截预算按轮次消息 id 分桶，并发回合互不干扰。
 - 物理层面彻底杜绝了 AI 的"幻觉式完工"和"偷懒早退"，同时保证了系统的健壮性和用户体验。
 
-### 4. ProgressMiddleware (活跃 todo 焦点注入)
-- 当 workspace 存在未完成 todos 时，在每次模型调用的**最后一个 HumanMessage** 末尾追加当前 todo 焦点（非持久化，不污染 system 前缀 cache）。
+### 4. progress_middleware (活跃 todo 焦点注入)
+- run 开始时 workspace 存在未完成 todos，则在该 run 的首次模型调用渲染 todo 焦点，并在整个 run 的每次请求里以同一文本追加到用户最新消息末尾（非持久化，不污染 system 前缀 cache）：run 中途重写用户消息会改变 provider 缓存的前缀，使其下已写入的推理块失效；run 内的最新 todo 状态由 `todo_write` 的工具结果送达模型。
 - 与 `todo_write` 写入的 SSOT 只读联动，防止长上下文任务漂移。
 
 ### 5. Continuation Guard Chain (自主续航判断)
@@ -91,7 +91,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 - 主 Agent 通过 `todo_write` 创建/合并/完成 todo 项（支持 `pending` / `in_progress` / `completed` / `cancelled` / `blocked` 状态）。
 - 工具返回简短摘要作为 `ToolMessage`；内部 emit `tasks_steps`（`todo_step_*` / `progress_root`）供 Server SSE 转发。
 - 当任务标记为 `blocked` 时，释放 `in_progress` 单并发占用，支持动态自愈重规划。
-- `ProgressMiddleware` 智能跳过 `blocked` 项并聚焦可执行任务；`CompletionGuard` 精准引导模型裁剪不可解的阻塞任务，避免盲目重试。
+- `progress_middleware` 的焦点优先落在 `in_progress`、其次 `pending` 项，`blocked` 项不作为焦点；仍有 `blocked` 项时追加重规划提示，只剩 `blocked` 项时提示把无法达成的项标为 `cancelled` 或更新步骤；`CompletionGuard` 精准引导模型裁剪不可解的阻塞任务，避免盲目重试。
 
 ### 7. GoalControlPlane (前端全局控制面)
 - xl+ 视口：Chat 右侧持久化 todo 侧栏；移动端依赖聊天气泡内 ProgressSteps。
@@ -102,16 +102,11 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 1. 用户输入 `/goal 帮我写个爬虫`。
 2. Server 创建 Goal；Harness `apply_goal_session_invariants` 应用 protected paths / 快照。
 3. 主 Agent 启动；若启用 `planning` 组则 bind `todo_write`，Agent 自行分解 todos。
-4. `ProgressMiddleware` 在末位 HumanMessage 注入活跃 todo 焦点；`goal_focus_middleware` 在 ACTIVE goal 的用户发起轮注入 objective 提醒（continuation/wrap-up 轮自动跳过）。
-5. `ProgressMiddleware` 持续注入活跃 todo 焦点，引导 Agent 执行未完成任务或标记取消/阻塞。
+4. `progress_middleware` 在 run 的首次模型调用把活跃 todo 焦点追加到用户最新消息末尾（整个 run 内同一文本）；`goal_focus_middleware` 在 ACTIVE goal 的用户发起轮注入 objective 提醒（continuation/wrap-up 轮自动跳过）。
+5. Agent 依据 todo 焦点执行未完成任务或标记取消/阻塞，run 内的最新状态来自 `todo_write` 的工具结果。
 6. Agent 调用 `todo_write(merge=true)` 标记完成 → SSE → 前端更新打勾。
 
-### 8. 主动缓存自愈 (Active Cache Healer)
-- 监控长会话中的 Prompt Cache 命中率。
-- 当命中率连续跌破阈值时，主动触发 `MemoryManager.compress_context()`。
-- 保护大模型缓存，防止 Token 成本飙升和响应卡顿。
-
-### 9. 启动时孤儿 Goal 恢复 (Orphaned Goal Recovery)
+### 8. 启动时孤儿 Goal 恢复 (Orphaned Goal Recovery)
 - 服务重启后，之前处于 ACTIVE 状态的 Goal 不再有执行引擎驱动（async task 随旧进程消亡）。
 - Server 层 `pause_orphaned_active_goals()` 在 lifespan Phase 3 异步执行：
   - 调用 `GoalStorage.list_active_sessions()` 枚举所有有 ACTIVE Goal 的 session。
@@ -122,7 +117,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 - 用户在前端看到 GoalStatusCard 的 PAUSED 状态及 reason 提示，可一键 Resume：框架只把 Goal 置回 ACTIVE（`resume_goal`），ACTIVE 目标的下一回合由宿主启动。宿主须先等已被要求停止的回合收尾（该回合的续跑守卫会看到 ACTIVE 目标与已取消令牌，把刚恢复的目标再次暂停），再启动继续运行的无人值守回合；会话正忙或应用排空时不启动，由运行中的回合或下一条消息接力。宿主的 pause / cancel 在目标正在干活时须同时中断它的回合，已产生的副作用保留；暂停经取消令牌终止正在执行的 shell 命令与脚本（连同它启动的子进程，已产生的部分输出保留，之后的命令拿到全新的 shell），其余在途工具调用在下一个流事件处收尾，所以紧接着的恢复仍可能被拒绝、让用户稍后再试。cancel 作用于运行中的 Goal，或任一仍未结束（暂停/预算受限/待复核/等待/排队）的最新 Goal。参考宿主实现（Web `POST /goals/{chat}/status`、IM `/goal`）见 `myrm-agent-server` 的 `app/api/goals/_ARCH.md` 与 `app/services/agent/goals/_ARCH.md`。
 - 设计优势：不自动 Resume（避免 token 浪费和意图漂移），比 Hermes 的 `resume_pending` 懒恢复更透明，比 OpenClaw 的前端 reconcile 更可靠（后端保证数据一致性）。
 
-### 10. 优先级队列与自动串行执行 (Priority Queue)
+### 9. 优先级队列与自动串行执行 (Priority Queue)
 - 当已有 ACTIVE goal 时，新提交的 goal 自动进入 QUEUED 状态（`GoalStatus.QUEUED`），存入持久化队列索引。
 - 当前 goal 到达终态（COMPLETE/CANCELLED/BUDGET_LIMITED）后，`on_goal_terminal` 回调自动调用 `dequeue_next()` 取出下一个 goal。
 - 被 dequeue 的 goal 自动设置 `auto_approve=True`，在 `GoalInterceptor` 中跳过 `interrupt()` 审批，直接执行。

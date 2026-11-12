@@ -11,11 +11,9 @@
   structural taxonomy validation, provisional delayed writes, and capped fallback.
 
 [POS]
-- Sub-package: myrm_agent_harness.agent.context_management.title_recovery
-- Module: title_recovery_suite.py
+- Entry facade of the title-recovery sub-package: wires the taxonomy and the retry gate behind one object that vets a model
+  title, offers stateless validation and the deterministic fallback, and exposes the per-session recovery state.
 """
-
-from typing import Optional, Tuple
 
 from myrm_agent_harness.agent.context_management.title_recovery.invalid_title_taxonomy import (
     InvalidTitleTaxonomy,
@@ -34,7 +32,7 @@ from myrm_agent_harness.agent.context_management.title_recovery.title_recovery_t
 class InvalidGeneratedTitleRecoverySuite:
     """Master facade for vetting LLM titles, deferring dirty DB writes, and self-healing."""
 
-    def __init__(self, config: Optional[TitleRecoveryConfig] = None) -> None:
+    def __init__(self, config: TitleRecoveryConfig | None = None) -> None:
         self._config = config or TitleRecoveryConfig()
         self._taxonomy = InvalidTitleTaxonomy(self._config)
         self._gate = ProvisionalTitleRetryGate(self._config)
@@ -59,7 +57,7 @@ class InvalidGeneratedTitleRecoverySuite:
         session_id: str,
         raw_candidate: str,
         fallback_content: str,
-    ) -> Tuple[TitleRecoveryVerdict, str, TitleValidationResult]:
+    ) -> tuple[TitleRecoveryVerdict, str, TitleValidationResult]:
         """Evaluates a raw LLM title, returning action verdict and effective title."""
         return self._gate.evaluate_title_candidate(session_id, raw_candidate, fallback_content)
 
@@ -75,7 +73,7 @@ class InvalidGeneratedTitleRecoverySuite:
         """Generates a clean deterministic fallback title from conversation text."""
         return self._gate.generate_deterministic_fallback(fallback_content)
 
-    def get_session_state(self, session_id: str) -> Optional[TitleRecoveryState]:
+    def get_session_state(self, session_id: str) -> TitleRecoveryState | None:
         """Retrieves session recovery state."""
         return self._gate.get_state(session_id)
 

@@ -43,15 +43,8 @@ class TestPriorityClassification:
         msg2 = ToolMessage(content="error: timeout occurred", tool_call_id="call_456")
         assert classify_message_priority(msg2, is_last_iteration=False) == MessagePriority.HIGH_TOOL_ERROR
 
-    def test_tool_message_with_summary(self) -> None:
-        """Tool messages with embedded summary are MEDIUM_TOOL_SUMMARY."""
-        msg = ToolMessage(
-            content="Results...\nExecution Summary (3 steps): Created files\n==========", tool_call_id="call_123"
-        )
-        assert classify_message_priority(msg, is_last_iteration=False) == MessagePriority.MEDIUM_TOOL_SUMMARY
-
     def test_tool_message_success(self) -> None:
-        """Tool messages (success, no summary) are LOW_TOOL_SUCCESS."""
+        """Successful tool messages are LOW_TOOL_SUCCESS."""
         msg = ToolMessage(content="Operation completed successfully.", tool_call_id="call_123")
         assert classify_message_priority(msg, is_last_iteration=False) == MessagePriority.LOW_TOOL_SUCCESS
 

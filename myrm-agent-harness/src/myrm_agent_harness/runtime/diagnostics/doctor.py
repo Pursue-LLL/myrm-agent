@@ -293,14 +293,17 @@ class Doctor:
             )
 
     async def _check_plaintext_secrets_hygiene(self) -> DoctorCheckResult:
-        """Audit for plaintext API keys in environment or workspace files."""
+        """Warn about plaintext LLM API keys in the process environment."""
         sensitive_env_keys = [k for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY") if os.getenv(k)]
         if sensitive_env_keys:
             return DoctorCheckResult(
                 "plaintext_secrets",
                 CheckStatus.WARNING,
                 f"Plaintext secrets detected in process environment: {', '.join(sensitive_env_keys)}",
-                fix="Use Secrets Command Provider or OS Keyring to eliminate plaintext keys.",
+                fix=(
+                    "Keep the keys in the encrypted credential vault, or set them as op://, bw:// or bws:// references "
+                    "that the local 1Password or Bitwarden CLI resolves."
+                ),
             )
         return DoctorCheckResult(
             "plaintext_secrets",

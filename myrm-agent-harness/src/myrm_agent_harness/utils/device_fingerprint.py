@@ -4,6 +4,7 @@ Generates a stable device identifier based on hardware characteristics.
 Framework-layer utility with no business logic.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - get_device_fingerprint(): str (stable device identifier)

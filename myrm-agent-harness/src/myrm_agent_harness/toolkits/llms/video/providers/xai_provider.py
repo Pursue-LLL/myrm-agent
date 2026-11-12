@@ -4,7 +4,7 @@ Supports T2V, I2V, video extend, and video edit via xAI /v1/videos endpoints.
 Uses the submit → poll → download pattern consistent with other providers.
 
 [INPUT]
-- toolkits.llms._media_shared.types::ModeCapabilities, ProviderModeCapabilities (POS: These types are imported by video/models.py, normalization.py, and task_store.py. They define the contract between provider declarations and the normalization engine.)
+- toolkits.llms._media_shared.types::ModeCapabilities, ProviderModeCapabilities (POS: Defines the contract between provider capability declarations and the normalization engine.)
 - core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-protected result URL download with size cap)
 
 [OUTPUT]
@@ -107,9 +107,7 @@ class XAIGrokProvider(VideoGenerationProvider):
     def supported_models(self) -> tuple[ModelInfo, ...]:
         return (
             ModelInfo(id="grok-imagine-video", display_name="Grok Imagine Video"),
-            ModelInfo(
-                id="grok-imagine-video-1.5", display_name="Grok Imagine Video 1.5"
-            ),
+            ModelInfo(id="grok-imagine-video-1.5", display_name="Grok Imagine Video 1.5"),
         )
 
     @property
@@ -219,9 +217,7 @@ class XAIGrokProvider(VideoGenerationProvider):
                 raise ValueError("xAI response missing request_id")
 
             if config.progress_callback:
-                await config.progress_callback(
-                    f"Submitted to xAI {mode} (id={request_id}), polling..."
-                )
+                await config.progress_callback(f"Submitted to xAI {mode} (id={request_id}), polling...")
 
             completed = await self._poll(client, base_url, request_id, config)
 
@@ -233,9 +229,7 @@ class XAIGrokProvider(VideoGenerationProvider):
                 raise ValueError("xAI video response missing video URL")
 
             if config.progress_callback:
-                await config.progress_callback(
-                    "Generation complete, downloading video..."
-                )
+                await config.progress_callback("Generation complete, downloading video...")
 
             video_bytes = await self._download(video_url, config)
 

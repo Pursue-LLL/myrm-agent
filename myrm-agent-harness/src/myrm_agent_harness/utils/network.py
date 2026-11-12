@@ -1,6 +1,7 @@
 """Network utility functions.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - get_local_ip: str (local IP address)

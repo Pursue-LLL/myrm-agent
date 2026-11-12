@@ -43,7 +43,7 @@ Harness (CommitmentExtractor, types)
 | `max_per_day` | 3 | Rolling 24h cap on SENT items per agent/user |
 | `max_per_heartbeat` | 3 | Max items injected per heartbeat run |
 | `expire_after_hours` | 72 | Grace after `due_window.latest_ms` before auto-expire |
-| `failed_delivery_snooze` | 6h | Host snooze after `[SILENT]` / empty heartbeat ack |
+| `FAILED_DELIVERY_SNOOZE_MS` | 6h | Host constant (`app/core/memory/proactive/delivery_tracker.py`): snooze applied when a heartbeat's injected follow-ups were not acknowledged as delivered (`[SILENT]` / empty ack) |
 
 ## Boundaries
 

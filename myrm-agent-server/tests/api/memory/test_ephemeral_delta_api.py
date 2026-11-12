@@ -144,3 +144,44 @@ async def test_preview_delta_injection_and_metrics(test_app: FastAPI) -> None:
         assert metrics_data["in_flight_deltas_count"] == 1
         assert metrics_data.get("kv_cache_hit_ratio") is None
         assert metrics_data.get("avoided_recomputation_tokens") is None
+
+
+@pytest.mark.asyncio
+async def test_revoke_action_tombstones_the_target_key(test_app: FastAPI) -> None:
+    """A `revoke` delta tombstones its key instead of overriding it with the revoke text."""
+    session_id = "test-sess-delta-revoke-04"
+
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        override = {
+            "session_id": session_id,
+            "target_key": "pkg_manager",
+            "content": "Use pnpm exclusively",
+            "action": "override",
+            "turn_index": 1,
+        }
+        override_res = await client.post("/api/memory/ephemeral-delta/record", json=override)
+        assert override_res.status_code == 200
+        assert override_res.json()["action"] == "override"
+
+        revoke = {**override, "content": "No longer applies", "action": "revoke", "turn_index": 2}
+        revoke_res = await client.post("/api/memory/ephemeral-delta/record", json=revoke)
+        assert revoke_res.status_code == 200
+        assert revoke_res.json()["action"] == "revoke"
+
+        active_res = await client.get(f"/api/memory/ephemeral-delta/active/{session_id}")
+        assert active_res.status_code == 200
+        assert active_res.json() == []
+
+        snapshot_res = await client.get(f"/api/memory/ephemeral-delta/snapshot/{session_id}")
+        assert snapshot_res.status_code == 200
+        assert snapshot_res.json()["active_deltas"] == []
+
+        preview_req = {
+            "session_id": session_id,
+            "raw_system_prompt": "You are a coding assistant.",
+            "human_messages": ["Which package manager should I use?"],
+        }
+        preview_res = await client.post("/api/memory/ephemeral-delta/preview", json=preview_req)
+        assert preview_res.status_code == 200
+        assert "pnpm" not in preview_res.json()["augmented_final_human_message"]

@@ -5,7 +5,7 @@ content generation tasks API. Uses the async submit → poll → download
 pattern, mirroring the Qwen provider lifecycle.
 
 [INPUT]
-- toolkits.llms._media_shared.types::ModeCapabilities, ProviderModeCapabilities (POS: capability declarations consumed by the normalization engine)
+- toolkits.llms._media_shared.types::ModeCapabilities, ProviderModeCapabilities (POS: Defines the contract between provider capability declarations and the normalization engine.)
 - core.security.http.secure_fetch::secure_get (POS: SSRF-protected result video download with size cap)
 - providers._image_utils.encode_image_data_url (POS: reference image bytes → base64 data URI)
 
@@ -148,8 +148,7 @@ class VolcengineSeedanceProvider(VideoGenerationProvider):
         effective_model = model or config.model or _DEFAULT_MODEL
         if effective_model not in _MODEL_WIRE_IDS:
             raise ValueError(
-                f"Unknown Volcengine Seedance model '{effective_model}'. "
-                f"Supported: {', '.join(_MODEL_WIRE_IDS)}"
+                f"Unknown Volcengine Seedance model '{effective_model}'. Supported: {', '.join(_MODEL_WIRE_IDS)}"
             )
 
         base_url = (config.base_url or _DEFAULT_BASE_URL).rstrip("/")
@@ -181,16 +180,12 @@ class VolcengineSeedanceProvider(VideoGenerationProvider):
                 raise ValueError("Volcengine response missing task id")
 
             if config.progress_callback:
-                await config.progress_callback(
-                    f"Submitted to Volcengine Seedance (task={task_id}), polling..."
-                )
+                await config.progress_callback(f"Submitted to Volcengine Seedance (task={task_id}), polling...")
 
             completed = await self._poll(client, base_url, task_id, config)
 
             if config.progress_callback:
-                await config.progress_callback(
-                    "Generation complete, downloading video..."
-                )
+                await config.progress_callback("Generation complete, downloading video...")
 
             assets = await self._download_videos(client, completed, config)
             return ProviderOutput(assets=assets)
@@ -229,9 +224,7 @@ class VolcengineSeedanceProvider(VideoGenerationProvider):
             "duration": max(_MIN_DURATION, min(_MAX_DURATION, dur)),
         }
 
-        ratio = (
-            _ASPECT_RATIO_TO_ARK_RATIO.get(aspect_ratio or "") if aspect_ratio else None
-        )
+        ratio = _ASPECT_RATIO_TO_ARK_RATIO.get(aspect_ratio or "") if aspect_ratio else None
         if ratio:
             body["ratio"] = ratio
         if resolution:
@@ -260,9 +253,7 @@ class VolcengineSeedanceProvider(VideoGenerationProvider):
         config: VideoGenerationConfig,
     ) -> dict[str, object]:
         for _ in range(config.max_poll_attempts):
-            resp = await client.get(
-                f"{base_url}/api/v3/contents/generations/tasks/{task_id}"
-            )
+            resp = await client.get(f"{base_url}/api/v3/contents/generations/tasks/{task_id}")
             resp.raise_for_status()
             payload: dict[str, object] = resp.json()
             status = str(payload.get("status", "")).strip().lower()
@@ -341,9 +332,7 @@ class VolcengineSeedanceProvider(VideoGenerationProvider):
             ) as client:
                 base_url = (config.base_url or _DEFAULT_BASE_URL).rstrip("/")
                 # Zero-cost credential probe: list one task without creating any.
-                resp = await client.get(
-                    f"{base_url}/api/v3/contents/generations/tasks?page_size=1"
-                )
+                resp = await client.get(f"{base_url}/api/v3/contents/generations/tasks?page_size=1")
                 return resp.status_code == 200
         except Exception:
             return False

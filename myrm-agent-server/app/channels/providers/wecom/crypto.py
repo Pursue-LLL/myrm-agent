@@ -4,6 +4,7 @@ Implements WXBizMsgCrypt: AES-CBC-256 encryption with PKCS7 padding
 and SHA1 signature verification for WeCom callback messages.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - WeComCrypto: encrypt/decrypt/verify for WeCom XML messages

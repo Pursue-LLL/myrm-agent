@@ -41,12 +41,6 @@ from myrm_agent_harness.backends.skills.scanning.path_security import (
     is_category_bucket,
     is_path_redirect,
 )
-from myrm_agent_harness.backends.skills.scanning.path_security import (
-    PathRedirectSecurityError as PathRedirectionError,
-)
-from myrm_agent_harness.backends.skills.scanning.path_security import (
-    assert_safe_install_target as validate_safe_install_target,
-)
 from myrm_agent_harness.backends.skills.scanning.rescan_engine import (
     AdvisoryAck,
     AdvisoryAckRegistry,
@@ -92,7 +86,6 @@ __all__ = [
     "KnownAdvisory",
     "PackageAuditFinding",
     "PathRedirectSecurityError",
-    "PathRedirectionError",
     "ScanFinding",
     "ScanResult",
     "ScanSeverity",
@@ -102,7 +95,6 @@ __all__ = [
     "VulnScanCache",
     "analyze_python_ast",
     "assert_safe_install_target",
-    "validate_safe_install_target",
     "audit_package_json",
     "audit_package_manifest_dict",
     "audit_skill_directory",

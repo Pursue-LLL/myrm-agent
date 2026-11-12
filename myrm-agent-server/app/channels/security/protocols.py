@@ -4,6 +4,7 @@ Framework layer defines protocols; business layer provides implementations.
 Supports signature verification, idempotency checks, metrics collection, and fallback strategies.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 Data classes (Metrics):

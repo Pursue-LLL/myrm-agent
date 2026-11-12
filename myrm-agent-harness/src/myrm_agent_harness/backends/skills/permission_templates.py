@@ -3,6 +3,7 @@
 Predefined permission sets for common Skill categories.
 
 [INPUT]
+- backends.skills.types::SkillPermission (POS: Stable public entry point of the skill type system; the `types_*` implementation modules sit behind this facade.)
 
 [OUTPUT]
 - PermissionTemplate: Enum of standard templates

@@ -1,6 +1,7 @@
 """Zero-LLM citation marker audit for streamed assistant answers.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - CitationAuditResult: marker counts (total / valid / unresolved)

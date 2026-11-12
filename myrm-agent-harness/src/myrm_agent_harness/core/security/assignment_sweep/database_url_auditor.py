@@ -1,9 +1,14 @@
-"""
-[POS] src/myrm_agent_harness/core/security/assignment_sweep/database_url_auditor.py
-[INPUT] re, urllib.parse, typing, types
-[OUTPUT] DatabaseUrlAuditor
-Database DSN auditor evaluating loopback host exemptions and remote leak blocking.
-Strict typing applied: No `Any` types allowed.
+"""Database DSN auditor evaluating loopback host exemptions and remote leak blocking.
+
+[INPUT]
+- core.security.assignment_sweep.types::DatabaseUrlAuditResult (POS: Contract layer of the assignment sweep: the key-family, notation and verdict enums plus the finding, report and DSN-audit models shared by the sweep engine and the database URL auditor.)
+
+[OUTPUT]
+- DatabaseUrlAuditor: finds database connection URIs (postgres, mysql, mongodb, redis, amqp) in text and rates each one
+
+[POS]
+Database-URL leg of the assignment sweep: recognizes connection URIs that carry credentials and decides whether each is an
+exempt local-development DSN or a leak; only a loopback host with a standard development credential pair is exempt.
 """
 
 from __future__ import annotations

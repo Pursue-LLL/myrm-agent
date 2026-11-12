@@ -10,17 +10,22 @@
 - build_tool_call_group_by_id: map tool_call_id to ToolCallGroup for Filter retention
 - tool_message_matches_focus_signals: body-only fallback when group pairing is unavailable
 - should_retain_tool_message: skip LLM semantic filter for failed/error/focus/goal tool outputs (group-aware)
-- effective_keep_recent_calls / find_keep_recent_prune_cutoff: keep_recent alignment for ActivePrune + Compress
+- effective_keep_recent_calls: eco-adjusted keep_recent_calls shared by ActivePrune + Compress
+- find_keep_recent_prune_cutoff: ActivePrune's positional protection window (the newest keep_recent_calls groups)
+- is_tool_result_consumed: whether the model has read a tool result yet (an AIMessage follows it)
 - format_retained_tool_trim_message / structure_trim_tokens_saved: deterministic trim helpers
 
 [POS]
-Cross-processor retention contract. Keeps Filter, ActivePrune, Compress, and smart_fallback
-aligned on failed-tool, focus-file, and goal-hint protection without a separate planner processor.
+Cross-processor retention contract. Filter and Compress read the same failed-tool, focus-file, and goal-hint
+intent without a separate planner processor. ActivePrune and Compress share the keep_recent_calls window and the
+rule that a result the model has not read yet is not rewritten.
 """
 
 from __future__ import annotations
 
-from langchain_core.messages import BaseMessage, ToolMessage
+from collections.abc import Sequence
+
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
 from myrm_agent_harness.utils.text_utils import get_token_count
 
@@ -164,6 +169,16 @@ def format_retained_tool_trim_message(trimmed_content: str, *, saved_path: str |
             "Use file_read_tool to read specific portions of the saved file.",
         ]
     )
+
+
+def is_tool_result_consumed(messages: Sequence[BaseMessage], tool_idx: int) -> bool:
+    """Return True once an AIMessage follows the ToolMessage, i.e. the model has read the result.
+
+    A result with no AIMessage after it is the unread tail of the step in progress, which the next model call still
+    needs verbatim: ActivePrune leaves it alone unless the runtime forces the prune, and Compress counts it against
+    its keep_recent_calls slots instead of rewriting it.
+    """
+    return any(isinstance(messages[i], AIMessage) for i in range(tool_idx + 1, len(messages)))
 
 
 def find_keep_recent_prune_cutoff(messages: list[BaseMessage], keep_recent_calls: int) -> int:

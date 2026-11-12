@@ -274,4 +274,5 @@ class TestPlaintextSecretsHygiene:
             assert result.status == CheckStatus.WARNING
             assert result.name == "plaintext_secrets"
             assert "OPENAI_API_KEY" in result.message
-            assert "Secrets Command Provider" in (result.fix or "")
+            assert "credential vault" in (result.fix or "")
+            assert "op://" in (result.fix or "")

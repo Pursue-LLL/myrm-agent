@@ -1,6 +1,16 @@
-"""[INPUT] MachineNode, MachineMetrics, and Takeover schemas.
-[OUTPUT] Strong-typed Pydantic schemas for self-hosted machine fleet and remote takeover.
-[POS] app/services/machines/machine_types.py.
+"""Pydantic models of the machines service.
+
+[INPUT]
+- none (imports no other project module)
+
+[OUTPUT]
+- MachinePlatform, MachineStatus, TakeoverState: platform, node status and control-state enums
+- MachineMetrics, MachineNode: telemetry snapshot and registered machine node
+- RegistrationTokenResponse, TakeoverSession, TakeoverActionRequest: registration command, takeover session and takeover request
+
+[POS]
+Contract layer of the machines service: the platform, node-status and takeover-state enums plus the telemetry, node,
+registration-command and takeover-session models shared by the service and the API router.
 """
 
 from datetime import datetime, timezone

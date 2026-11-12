@@ -5,6 +5,7 @@ Pure function design with no side effects.
 
 
 [INPUT]
+- toolkits.browser.snapshot.aria_types::AriaNode, BBox, BBoxData, BBoxMap, BBoxMapKey, EnhancedNode, RefInfo, calculate_semantic_position (POS: Core data types and utility functions for the ARIA Snapshot architecture.)
 
 [OUTPUT]
 - EnhancedNode tree with ref IDs and positions (immutable)

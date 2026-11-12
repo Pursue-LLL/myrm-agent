@@ -1,6 +1,7 @@
 """Startup performance monitoring toolkit.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - StartupTimer: Async context manager for phase/task timing (nested support)

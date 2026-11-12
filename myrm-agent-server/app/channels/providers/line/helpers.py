@@ -1,6 +1,7 @@
 """LINE channel — typed structures, constants, and shared utilities.
 
 [INPUT]
+- app.channels.types::MediaType (POS: Channel domain types.)
 
 [OUTPUT]
 - TypedDict webhook structures for LINE Messaging API payloads

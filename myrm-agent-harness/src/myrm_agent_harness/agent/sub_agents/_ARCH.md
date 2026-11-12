@@ -74,7 +74,7 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 
 | Submodule | Description |
 |-----------|-------------|
-| mcp_scope_gate/ | MCP 发现工具按数字员工/Agent 作用域严格隔离门禁（支持 Profile 级 MCP Server/工具白名单绑定、动态发现候选集 Fail-Closed 过滤与越权调用拦截）。详见 [mcp_scope_gate/_ARCH.md](mcp_scope_gate/_ARCH.md)。 |
+| mcp_scope_gate/ | 数字员工/Agent 作用域 MCP 门禁（宿主注册的进程内按 Agent 策略：MCP Server/工具白名单、动态发现候选集 Fail-Closed 过滤，以及 PTC MCP 请求对已注册策略的 Agent 的越权调用拦截）。详见 [mcp_scope_gate/_ARCH.md](mcp_scope_gate/_ARCH.md)。 |
 | checkpoint/ | Subagent checkpoint utilities package. Includes orphan recovery for automatic resumption after restart. |
 | budget_scaling/ | 子任务回合预算自动无损迁移体系（单任务预算扩容至 250、旧版默认值零中断无损平滑迁移、80% 动态自适应水位预警心跳保护）。 |
 

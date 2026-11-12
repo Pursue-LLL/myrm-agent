@@ -5,6 +5,10 @@ Stateless helper functions for processing iLink media items:
 - Outbound: prepare MessageItem from MediaAttachment, upload via CDN
 
 [INPUT]
+- app.channels.providers._ilink.crypto::download_and_decrypt, encrypt_and_upload, generate_aes_key (POS: WeChat iLink media encryption utility.)
+- app.channels.providers._ilink.silk::silk_to_wav (POS: WeChat voice format converter.)
+- app.channels.providers._ilink.types::CDNMediaType, FileItem, ImageItem, ItemType, MediaInfo, MessageItem, VideoItem, VoiceItem (POS: Pure data type definitions and serialization utilities for the iLink Bot protocol.)
+- app.channels.types::MediaAttachment, MediaType (POS: Channel domain types.)
 
 [OUTPUT]
 - process_inbound_item: parse a MessageItem into text + media

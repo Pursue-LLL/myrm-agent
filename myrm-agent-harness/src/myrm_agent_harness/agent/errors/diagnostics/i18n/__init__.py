@@ -1,6 +1,7 @@
 """Internationalization support for error diagnostics.
 
 [INPUT]
+- agent.errors.diagnostics.i18n.manager::LocaleManager (POS: Framework-level i18n for LLM error diagnostics.)
 
 [OUTPUT]
 - Localized error messages and resolution steps

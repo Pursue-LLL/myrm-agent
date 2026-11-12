@@ -1,14 +1,14 @@
 """Geometry and duration normalization engine for media generation.
 
 [INPUT]
+- toolkits.llms._media_shared.types::ModeCapabilities, NormalizationRecord, SizeSpec (POS: Defines the contract between provider capability declarations and the normalization engine.)
 
 [OUTPUT]
 - Resolved parameters snapped to closest supported values
 - NormalizationRecord list for transparency
 
 [POS]
-Used by video/generator.py and future image/generator.py to normalize
-user-requested geometry to provider-supported values before API calls.
+Snaps a requested aspect ratio, size and duration to the closest values a provider mode declares as supported and reports each adjustment as a NormalizationRecord; video/generator.py applies it for providers that declare mode capabilities.
 """
 
 from __future__ import annotations

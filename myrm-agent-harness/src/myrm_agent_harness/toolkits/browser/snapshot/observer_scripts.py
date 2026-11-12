@@ -2,6 +2,7 @@
 
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - MUTATION_OBSERVER_SCRIPT: MutationObserver initialization script

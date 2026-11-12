@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Myrm CLI — product lifecycle (OSS myrm-agent). Harness from PyPI via uv sync.
+# Myrm CLI — product lifecycle (OSS myrm-agent). The harness is the in-repo editable path source installed by uv sync.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

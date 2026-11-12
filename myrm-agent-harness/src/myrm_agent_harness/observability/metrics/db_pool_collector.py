@@ -3,6 +3,7 @@
 Works with any project that uses SQLAlchemy connection pools.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - DatabasePoolCollector — custom Prometheus collector

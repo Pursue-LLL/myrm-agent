@@ -12,6 +12,7 @@ provided callback executes the full resume flow (construct resume_value,
 run agent stream, persist results).
 
 [INPUT]
+- agent.security.audit::record_decision (POS: Security audit log, re-exported from core.security.audit.)
 
 [OUTPUT]
 - Auto-resume callback execution on timeout

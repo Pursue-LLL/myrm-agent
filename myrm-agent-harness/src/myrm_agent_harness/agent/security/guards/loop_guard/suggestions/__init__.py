@@ -3,6 +3,14 @@
 Routes tool-specific suggestion generation to specialized modules.
 
 [INPUT]
+- agent.security.guards.loop_guard.types::CallRecord (POS: Core types for the unified loop guard.)
+- agent.security.guards.loop_guard.suggestions.bash::suggest_bash (POS: Bash tool suggestions for loop detection.)
+- agent.security.guards.loop_guard.suggestions.browser::suggest_browser_snapshot (POS: Browser tool suggestions for loop detection.)
+- agent.security.guards.loop_guard.suggestions.core::DEFAULT_SUGGESTION, TOOL_SUGGESTIONS, analyze_error_pattern, analyze_warning_level, evaluate_success_level, get_severity_level, get_tool_suggestion, is_result_successful, prioritize_suggestions (POS: Core functions and static suggestions for loop detection.)
+- agent.security.guards.loop_guard.suggestions.file::suggest_file_read (POS: File tool suggestions for loop detection.)
+- agent.security.guards.loop_guard.suggestions.memory::suggest_memory_recall (POS: Memory tool suggestions for loop detection.)
+- agent.security.guards.loop_guard.suggestions.meta::suggest_skill_search, suggest_skill_select, suggest_spawn_subagent (POS: Meta tool suggestions (subagent, skill) for loop detection.)
+- agent.security.guards.loop_guard.suggestions.web::suggest_web_search (POS: Web tool suggestions for loop detection.)
 
 [OUTPUT]
 - generate_dynamic_suggestion(): context-aware suggestion string

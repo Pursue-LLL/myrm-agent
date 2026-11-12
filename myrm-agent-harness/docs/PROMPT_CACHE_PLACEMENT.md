@@ -59,5 +59,5 @@ User-facing text should describe **prefix stability** and **measured** hit ratio
 ## Related code index
 
 - Explicit `cache_control` breakpoints: `toolkits/llms/core/llm.py`
-- Roll-forward / preheat: `preheat.py`, `prompt_cache_roll_forward/`
+- Preheat: `agent/context_management/preheat.py`
 - Break detection: `agent/context_management/infra/cache_break_detector.py`, `agent/context_management/infra/cache_metrics_collector.py`

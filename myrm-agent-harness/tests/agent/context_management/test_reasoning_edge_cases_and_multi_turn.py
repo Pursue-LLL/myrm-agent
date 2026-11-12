@@ -15,11 +15,11 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from myrm_agent_harness.agent.context_management.infra.retention_helpers import is_tool_result_consumed
 from myrm_agent_harness.agent.context_management.infra.schemas import ContextOffloadResult
 from myrm_agent_harness.agent.context_management.pipeline.base import ProcessorContext
 from myrm_agent_harness.agent.context_management.pipeline.processors.active_tool_result_prune_processor import (
     build_memory_truncated_placeholder,
-    is_tool_result_consumed,
     prune_tool_results_deterministic,
 )
 from myrm_agent_harness.agent.context_management.pipeline.processors.reasoning_anchor_processor import (
@@ -56,7 +56,7 @@ class TestReasoningEdgeCases:
 
     def test_extract_anchors_giant_reasoning_tail_bound(self) -> None:
         # Giant reasoning string (100k chars)
-        giant_noise = ("Analyzing steps...\n" * 5000)
+        giant_noise = "Analyzing steps...\n" * 5000
         tail_decision = "核心决策: 最终方案确定采用分布式分片架构。"
         full_text = giant_noise + tail_decision
 

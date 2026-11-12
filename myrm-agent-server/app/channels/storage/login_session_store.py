@@ -3,6 +3,7 @@
 Stores temporary session data during external channel authentication.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - LoginSessionStoreProtocol: Abstract interface for session persistence

@@ -82,13 +82,15 @@ context_management **不实现**向量检索；通过 IntegrationProvider / pre_
 
 业务层（如 server GeneralAgent）在 pipeline metadata 注入 `compression_intent`：`focus_files`、`focus_modules`、`failed_tool_call_ids`、`user_goal_hint`、`pinned_files`（volume 注册表，跨压缩 retain）。
 
-| 信号 | Filter | Compress / ActivePrune |
-|------|--------|----------------------|
-| `failed_tool_call_ids` | 结构 trim，跳过 LLM 摘要 | 高优先级；smart_fallback 同步保护 |
+| 信号 | Filter | Compress |
+|------|--------|----------|
+| `failed_tool_call_ids` | 结构 trim，跳过 LLM 摘要 | 高优先级 |
 | `focus_files` / `focus_modules` | group 级匹配（tool_call args + 输出窗口），结构 trim | group 级优先级提升 |
 | `pinned_files` | 与 focus_files 合并 retain 信号 | 跨压缩 volume pin 路径优先 retain |
 | `user_goal_hint` | group 级关键词匹配，结构 trim | group 级优先级提升 |
-| `keep_recent_calls`（默认 5） | — | 最近 N 个 ToolCallGroup 不压缩；ActivePrune cutoff 对齐 |
+| `keep_recent_calls`（默认 5） | — | 保留名额：模型还没读过的结果先占名额（永不压缩），其余名额按优先级保留，同级新者优先 |
+
+ActivePrune 不读取 `compression_intent`：它按同一个 `keep_recent_calls` 划定保护线（最新 N 个 ToolCallGroup 不裁剪），线外模型还没读过的结果也不裁剪（运行时强制裁剪除外）。
 
 SSOT：`infra/retention_helpers.py`（提取 intent、retain 判定）+ `strategies/priority_signals.py`（group haystack 匹配）。
 

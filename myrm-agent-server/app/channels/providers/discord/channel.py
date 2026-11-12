@@ -190,6 +190,7 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
         return instance
 
     capabilities = ChannelCapabilities(
+        markdown=True,
         buttons=True,
         quick_replies=False,
         select_menus=True,

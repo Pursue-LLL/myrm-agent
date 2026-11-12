@@ -8,16 +8,15 @@
   TitleRecoveryVerdict, and TitleRecoveryConfig.
 
 [POS]
-- Sub-package: myrm_agent_harness.agent.context_management.title_recovery
-- Module: title_recovery_types.py
+- Contract layer of the title-recovery sub-package: the reason and verdict enums, the validation result, the per-session
+  state and the configuration shared by the taxonomy, the gate and the suite.
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional, Sequence, Tuple
+from enum import StrEnum
 
 
-class InvalidTitleReason(str, Enum):
+class InvalidTitleReason(StrEnum):
     """Specific structural defect categorizing an unviable generated title."""
 
     VALID = "valid"
@@ -30,7 +29,7 @@ class InvalidTitleReason(str, Enum):
     EMPTY_OR_WHITESPACE = "empty_or_whitespace"
 
 
-class TitleRecoveryVerdict(str, Enum):
+class TitleRecoveryVerdict(StrEnum):
     """Decision produced by the provisional title retry gate."""
 
     ACCEPTED_CLEAN = "accepted_clean"
@@ -44,7 +43,7 @@ class TitleValidationResult:
 
     is_valid: bool
     cleaned_title: str
-    reasons: Tuple[InvalidTitleReason, ...] = field(default_factory=tuple)
+    reasons: tuple[InvalidTitleReason, ...] = field(default_factory=tuple)
     diagnostic_details: str = ""
 
 
@@ -56,7 +55,7 @@ class TitleRecoveryConfig:
     max_length: int = 50
     max_recovery_exchanges: int = 3
     fallback_preview_length: int = 20
-    strip_title_prefixes: Tuple[str, ...] = (
+    strip_title_prefixes: tuple[str, ...] = (
         "title:",
         "标题:",
         "chat title:",

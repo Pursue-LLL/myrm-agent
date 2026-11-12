@@ -3,6 +3,8 @@
 Provides reusable QR code login flow with auto-refresh and polling.
 
 [INPUT]
+- app.channels.core.exceptions::ChannelAuthError (POS: Channel exception hierarchy for precise retry and error handling.)
+- app.channels.protocols.async_login::LoginEvent, LoginMethod, LoginState, LoginStatus (POS: Protocol layer for external channel async login.)
 
 [OUTPUT]
 - QRCodeLoginHelper: Reusable QR login flow executor

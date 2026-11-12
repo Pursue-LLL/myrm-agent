@@ -1,9 +1,16 @@
-"""
-[POS] src/myrm_agent_harness/core/security/vnc_hardening/facade.py
-[INPUT] time, typing, types, config_sanitizer, passwd_manager
-[OUTPUT] VncLoopbackBindAndRfbauthHardeningFacade
-Unified facade for VNC loopback bind enforcement and rfbauth authentication hardening.
-Strict typing applied: No `Any` types allowed.
+"""Unified facade for VNC loopback bind enforcement and rfbauth authentication hardening.
+
+[INPUT]
+- core.security.vnc_hardening.config_sanitizer::VncLaunchConfigSanitizer (POS: Launch-command leg of the VNC hardening suite: requires an rfbauth password file, strips -nopw, binds to loopback unless a non-loopback opt-in with a strong dedicated password is given, checks the password file permissions and builds the x11vnc argument list.)
+- core.security.vnc_hardening.passwd_manager::VncPasswdManager (POS: Credential leg of the VNC hardening suite: judges password strength (at least 8 characters with a letter and a digit), generates random passwords, and tightens the rfbauth password file to owner-only 0600.)
+- core.security.vnc_hardening.types::VncBindMode, VncHardenedLaunchSpec, VncHardeningAuditReport, VncLaunchConfig, VncSecurityAuditViolation, VncSecurityViolationType (POS: Contract layer of the VNC hardening suite: the bind-mode, auth-policy and violation enums plus the launch-config, hardened-spec, violation and report models shared by the sanitizer and the facade.)
+
+[OUTPUT]
+- VncLoopbackBindAndRfbauthHardeningFacade: hardened launch spec builder, raw command auditor and password helpers behind one object
+
+[POS]
+Entry point of the VNC hardening suite: builds a hardened x11vnc launch spec from a launch config, audits a raw argument
+list for -nopw, a missing -rfbauth and a missing -localhost, and exposes password generation and strength checks.
 """
 
 from __future__ import annotations

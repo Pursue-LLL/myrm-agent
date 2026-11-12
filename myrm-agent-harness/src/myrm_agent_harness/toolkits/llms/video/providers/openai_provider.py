@@ -4,7 +4,7 @@ Supports Sora 2 / Sora 2 Pro via the /v1/videos endpoint.
 Uses the submit → poll → download pattern.
 
 [INPUT]
-- toolkits.llms._media_shared.types::ModeCapabilities, ProviderModeCapabilities (POS: These types are imported by video/models.py, normalization.py, and task_store.py. They define the contract between provider declarations and the normalization engine.)
+- toolkits.llms._media_shared.types::ModeCapabilities, ProviderModeCapabilities (POS: Defines the contract between provider capability declarations and the normalization engine.)
 - core.security.http.secure_fetch::secure_request / ContentTooLargeError (POS: SSRF-protected content download with size cap)
 
 [OUTPUT]
@@ -157,16 +157,12 @@ class OpenAISoraProvider(VideoGenerationProvider):
                 raise ValueError("OpenAI response missing video id")
 
             if config.progress_callback:
-                await config.progress_callback(
-                    f"Submitted to OpenAI (id={video_id}), polling..."
-                )
+                await config.progress_callback(f"Submitted to OpenAI (id={video_id}), polling...")
 
             completed = await self._poll(client, base_url, video_id, config)
 
             if config.progress_callback:
-                await config.progress_callback(
-                    "Generation complete, downloading video..."
-                )
+                await config.progress_callback("Generation complete, downloading video...")
 
             video = await self._download(client, base_url, video_id, config)
             video_meta: dict[str, object] = {
@@ -202,9 +198,7 @@ class OpenAISoraProvider(VideoGenerationProvider):
             if status == "failed":
                 err_obj = payload.get("error")
                 err: dict[str, object] = err_obj if isinstance(err_obj, dict) else {}
-                raise RuntimeError(
-                    str(err.get("message", "")) or "OpenAI video generation failed"
-                )
+                raise RuntimeError(str(err.get("message", "")) or "OpenAI video generation failed")
             await asyncio.sleep(config.poll_interval_seconds)
         raise TimeoutError(f"OpenAI video generation {video_id} did not finish in time")
 

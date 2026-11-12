@@ -6,7 +6,8 @@
 [OUTPUT]
 - router: the MCP router the integrations router mounts under /mcp
 
-[POS] app/api/integrations/mcp/__init__.py
+[POS]
+Package facade of the integrations MCP API: exposes the one router that the integrations router mounts under /mcp.
 """
 
 from app.api.integrations.mcp.inspection import router

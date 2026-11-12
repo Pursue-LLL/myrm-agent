@@ -1,15 +1,15 @@
-"""Pydantic schemas for workflow template library API.
+"""Pydantic schemas for the workflow template library API.
 
 [INPUT]
-- (none — leaf module, depends only on pydantic/stdlib)
+- none (imports no other project module)
 
 [OUTPUT]
-- WorkflowTemplateSummary: Summary model for template listing
-- WorkflowTemplateListResponse: Paginated list wrapper
-- SaveWorkflowTemplateRequest: Create/update request body
-- SaveWorkflowTemplateFromRunRequest: Save template from an existing run
-- WorkflowTemplateDetailResponse: Full template detail with script code and bound Cron count
-- AdmitTemplateRunRequest/Response: trunk admission with handoff and prior checklist
+- WorkflowTemplateSummary, WorkflowTemplateListResponse, WorkflowTemplateDetailResponse: template summary, paginated list and full detail (script code and bound Cron count)
+- SaveWorkflowTemplateRequest, SaveWorkflowTemplateFromRunRequest: create/update request body and save-from-run request
+- AdmitHandoffMaterial, AdmitHandoff, AdmitTemplateRunRequest, AdmitTemplateRunResponse: trunk admission request and response with its handoff material and prior checklist
+
+[POS]
+Wire contracts of the workflow template library API shared by its router and service.
 """
 
 from __future__ import annotations

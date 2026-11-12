@@ -493,13 +493,12 @@ def get_tool_layer(tool_name: str) -> ToolLayer:
 
 ### 10.2 竞品 MCP 懒加载：对照与待评估项（AI / Roadmap 必读）
 
-**⚠️ 事实更正（2026-10-19）**：本节原写「Myrm 在此维度已领先」，与代码事实不符。核实结果：
+**当前事实**：Myrm 没有原生的工具级延迟机制，现存只有技能级 `skill_search_tool`（且仅在 `hidden_skill_count > 0` 时挂载）。对照：
 
-- **Hermes-Agent** 有完整三桥 `tool_search` / `tool_describe` / `tool_call`（`tools/tool_search.py`，617 行），MCP 与插件工具默认延迟（`hermes_cli/config_defaults.py:2006-2041`）；
-- **OpenClaw** 有 `tool-search.ts` + `tool-catalog.ts`（824 行），默认开启（`src/agents/tool-search-config.ts:16-21`）；
-- **deepseek-harness** 有 `deferLoading` 字段进入 system prompt 组装（`packages/core/system-prompt/src/index.ts:642-646`）；
-- **Anthropic API** 官方提供 `defer_loading: true` + regex/BM25 搜索工具；
-- **Myrm** 的原生工具延迟机制（`UnifiedCapabilityDefer` + `invoke_deferred_tool`）已于提交 `e180085fe` 删除；现存只有技能级 `skill_search_tool`（且仅在 `hidden_skill_count > 0` 时挂载）。
+- **Hermes-Agent** 有完整三桥 `tool_search` / `tool_describe` / `tool_call`，MCP 与插件工具默认延迟；
+- **OpenClaw** 有 `tool-search` 与 `tool-catalog`，默认开启；
+- **deepseek-harness** 有 `deferLoading` 字段进入 system prompt 组装；
+- **Anthropic API** 官方提供 `defer_loading: true` + regex/BM25 搜索工具。
 
 因此准确表述是：**我们目前只有「技能级检索 + PTC」，没有「工具级延迟加载」**。
 

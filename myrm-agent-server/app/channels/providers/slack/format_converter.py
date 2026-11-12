@@ -4,6 +4,7 @@ Handles special character escaping, Slack token protection, link conversion,
 and CJK formatting boundary insertion.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - str: Slack mrkdwn-formatted text

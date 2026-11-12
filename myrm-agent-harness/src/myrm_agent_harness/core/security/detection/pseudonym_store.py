@@ -13,6 +13,7 @@ Design rationale:
     same pseudonym across sessions.
 
 [INPUT]
+- utils.db.sqlite::SENSITIVE, checkpoint_truncate_sync, harden_connection_sync, prepare_database_file (POS: Public package facade for utils.db.sqlite; every store imports its SQLite helpers from here.)
 
 [OUTPUT]
 - PseudonymStore: persistent pseudonym mapping backed by SQLite

@@ -5,6 +5,7 @@ Uses pyyaml standard library for robust parsing (supports escape chars, multilin
 
 
 [INPUT]
+- toolkits.browser.snapshot.aria_types::AriaNode (POS: Core data types and utility functions for the ARIA Snapshot architecture.)
 
 [OUTPUT]
 - AriaNode tree: Structured representation of accessibility tree

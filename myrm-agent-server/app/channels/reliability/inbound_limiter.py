@@ -5,6 +5,7 @@ Its responsibility differs from outbound rate limiting (rate_limiter.py):
 - Inbound limiting: prevents DoS attacks (per-IP/per-endpoint Token Bucket)
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - InboundRateLimiter: Inbound rate limiting protocol

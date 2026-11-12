@@ -314,7 +314,11 @@ _spawn_detached() {
   if command -v setsid >/dev/null 2>&1; then
     setsid nohup "$@" >>"${log_file}" 2>&1 &
   else
-    nohup "$@" >>"${log_file}" 2>&1 &
+    # macOS has no setsid(1). Without a session of its own the child stays in the caller's
+    # process group and is reaped with it when that group is signalled (agent shell, test
+    # cleanup). Same launcher idea as the backend (lib/backend_bg.sh); exec keeps the pid.
+    "${PREFLIGHT_PY:-python3}" -c 'import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' \
+      nohup "$@" >>"${log_file}" 2>&1 &
     disown $! 2>/dev/null || true
   fi
 }

@@ -977,7 +977,7 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 1. **隐性偏好提取**：`MemoryExtractor` 在对话结束时，通过 Dialectic Reasoning（辩证推理）从对话中提取用户的显性喜好。
 2. **安全偏好写入 (Secure Persona Projection)**：抽取出的隐性偏好只走标准写入管道（审批队列 + 安全扫描），从不直写 Profile；`PreferenceStabilityStrategy` 对多轮观测做稳定性验证（Candidate → Provisional → Active），Profile 仅由用户确认的写入变更，确保外部内容无法通过单次对话污染 Profile。
 3. **Agent 认知注入**：`memory_context_middleware.py` 自动拦截并读取该画像与长期目标、隐性偏好，将其常驻注入到大模型的 System Prompt (`<Our Relationship & Your Persona>`) 中，彻底解决 Agent 认知致盲问题，且完美契合 Prompt Caching。
-4. **AGENT_SELF 信任隔离**：`MemoryWriteService` 强制 AGENT_SELF 来源的 ProceduralMemory 不得拥有 CRITICAL 优先级（硬降级为 HIGH），防止 Agent 自生成规则占据免压缩位。
+4. **AGENT_SELF 信任隔离**：`MemoryWriter`（`_internal/write_service.py`）强制 AGENT_SELF 来源的 ProceduralMemory 不得拥有 CRITICAL 优先级（硬降级为 HIGH），防止 Agent 自生成规则占据免压缩位。
 
 ### 偏好记忆
 

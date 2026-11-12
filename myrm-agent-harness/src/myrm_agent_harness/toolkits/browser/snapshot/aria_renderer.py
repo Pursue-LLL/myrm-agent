@@ -5,6 +5,8 @@ Separates data from presentation (MVC principle).
 
 
 [INPUT]
+- toolkits.browser.snapshot.aria_types::EnhancedNode, SnapshotMeta (POS: Core data types and utility functions for the ARIA Snapshot architecture.)
+- utils.tree_truncator::truncate_aria_tree (POS: Budget-aware truncation of ARIA accessibility trees by token budget and semantic weight, keeping every retained node structurally intact.)
 
 [OUTPUT]
 - text: YAML or compact formatted string

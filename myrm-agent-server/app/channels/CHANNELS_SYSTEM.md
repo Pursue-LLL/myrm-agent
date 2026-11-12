@@ -175,7 +175,7 @@ wechat_d4e5f6   ← 额外实例 2
 - `BaseChannel.display_name` 提供用户友好的实例名称，`BaseChannel.instance_id` property 从 name 和 channel_type 自动派生
 - **配置持久化**：实例元数据（channelType / instanceId / displayName）存储在 `UserConfig` 表中（key=`channel-instances`），服务重启后自动恢复
 - **实例级登录**：每个实例通过 `/{channel_name}/wechat-status` 和 `/{channel_name}/wechat-login` 独立完成 QR 扫码登录，实例登录凭据存储在 `UserConfig.config_key` 列（key 形如 `{channel_name}Credentials`，如 `wechat_a1b2c3Credentials`），读取/删除统一经 `channel_credentials_key()` 解析（默认实例走 `_CHANNEL_CONFIG_KEYS` 映射，额外实例回退 `{channel_name}Credentials`）。凭据经 `ConfigService` 加密落库：凡以 `Credentials` 结尾的 key 均按敏感配置加密存储（`is_sensitive_config` 后缀匹配），读取时透明解密
-- **飞书多应用 QR 注册（`app/api/channels/feishu_register.py`）**：`display_name` 空白归一化为 `None`（无标签 = 刷新默认实例，防止多应用区空标签静默覆盖默认凭据）；`poll` 成功分支以 `_RegistrationSession.consumed` 原子标志（检查与置位间无 `await`）保证并发轮询只创建一次实例——已消费的并发请求保持 pending（等待首个请求的真实结果，避免假成功）；provision 失败即丢弃会话，后续 poll 404。poll 成功时以 `probe_bot` 校验凭据（无法确认 bot 身份返回 502 并丢弃会话），不持久化 `botName`/`botOpenId`
+- **飞书多应用 QR 注册（`app/api/channels/feishu_register.py`）**：`display_name` 空白归一化为 `None`（无标签 = 刷新默认实例，防止多应用区空标签静默覆盖默认凭据）；`poll` 成功分支以 `_RegistrationSession.consumed` 原子标志（检查与置位间无 `await`）保证并发轮询只创建一次实例——已消费的并发请求保持 pending（等待首个请求的真实结果，避免假成功）；provision 失败即丢弃会话，后续 poll 404。poll 成功时以 `probe_bot` 校验凭据（拿不到 `bot_open_id` 即无法确认 bot 身份，返回 502 并丢弃会话），bot 身份信息只用于校验，不随凭据持久化
 - **实例凭据更新（`app/api/channels/instances_credentials.py` `save_channel_credentials`）**：密钥轮换/重置场景下，前端在实例卡片「编辑凭据」提交新 App Secret（留空保留旧值，按 merge 语义落库）；已注册实例按其 `instance_id` 重建 channel 对象（**先 `factory_create` 同 id 成功后再经 `ChannelGateway.swap_channel` 原子替换**，构造失败不影响在跑实例；替换失败自动恢复旧实例，保证重建路径不会静默丢频道；channel_name（`{type}_{id}`）与智能体绑定保持不变）；默认实例复用 `reload_channel_credentials`（`app/services/channels/credential_reload.py`） 热重载（未注册时也发起热注册尝试，使首次配置凭据即生效，失败则下次启动生效；热重载同为 `swap_channel` 原子交换：先解析新凭据并确认启用状态，再移除旧实例，替换失败时恢复旧实例，重建保留 `display_name`）；未注册实例凭据落库后于下次启动生效。实例容量上限经 `GET /channels/manage/instances/meta` 透出（`maxInstancesPerType`），前端不再镜像硬编码常量
 
 ### 3.3 MessageBus
@@ -292,7 +292,7 @@ Discord / Signal / Feishu / iMessage / **Mattermost** / **Matrix**）会把
 
 ### 4.1 声明式凭证规格
 
-每个渠道在 `credential_spec.py` 中声明一个 `ChannelCredentialSpec`，定义凭证字段与数据源的映射：
+每个渠道类在自身声明 `credential_spec`（`app/channels/core/credentials.py` 的 `ChannelCredentialSpec`），定义凭证字段与数据源的映射：
 
 ```
 ChannelCredentialSpec
@@ -303,29 +303,26 @@ ChannelCredentialSpec
     ]
 ```
 
-**解析链**：`resolve_credentials(spec)` 按 DB → 环境变量 → 默认值 优先级解析。
+**解析链**：`resolve_credentials(spec, source)` 按 DB（业务层提供的 `CredentialSource`）→ 环境变量 → 默认值 优先级解析。
 
-### 4.2 声明式绑定
+### 4.2 注册表与业务层数据源
 
-`channel_factory.py` 通过 `ChannelBinding` 将框架层渠道类与业务层凭证规格绑定：
-
-```
-ChannelBinding
-├── channel_class: type[BaseChannel]           # 框架层渠道类
-├── credential_spec: ChannelCredentialSpec      # 凭证规格
-└── creds_transform: CredsTransform | None      # 可选的类型转换函数
-```
+- 渠道注册表（`app/channels/providers/registry.py`）用 `ChannelSpec`（模块路径 + 类名 + 展示名）登记每个内置渠道，首次请求时才 import，未配置的渠道不占内存；自定义渠道经 `register_custom_channel()` 登记。
+- 渠道类用 `from_credentials(creds)` 把解析出的凭证构造成实例。
+- 业务层 `app/core/channel_bridge/credential_spec.py` 提供 `load_from_db`（从 `UserConfig` 读取并透明解密的 `CredentialSource`）与 `is_channel_enabled`。
 
 ### 4.3 实例化流程
 
-`create_all_channels()` 遍历所有绑定：
+`create_all_channels()`（`app/core/channel_bridge/channel_factory.py`）依次产出内置的 `ChatChannel`、`WebhookChannel`，再把框架层 `create_channels(source=load_from_db, skip_empty=False)` 产出的渠道逐个交给 Gateway：
 
 ```
-for binding in _channel_bindings():
-    ├── resolve_credentials(spec) → raw_creds
-    ├── creds_transform(raw_creds) → typed_kwargs  (可选)
-    ├── channel_class(**typed_kwargs) → channel
-    ├── is_channel_enabled(config_key) → enabled?
+for name in sorted(registered_names()):               # 框架层 create_channels
+    ├── cls.credential_spec → resolve_credentials(spec, source) → creds
+    ├── cls.from_credentials(creds) → channel
+    │   └── ValueError（凭证非法）→ WARNING 并跳过；其他异常 → WARNING（带堆栈）并跳过
+    └── yield channel
+for channel in channels:                              # 业务层 create_all_channels
+    ├── is_channel_enabled(spec.config_key)?
     │   └── not enabled → channel._status = DISABLED
     └── yield channel
 ```
@@ -334,11 +331,12 @@ for binding in _channel_bindings():
 
 **错误隔离**：单个渠道实例化失败时记录日志并跳过，不影响其他渠道。
 
+**多实例**：`create_channel_instance(channel_type, instance_id, credentials)` 为同一渠道类型创建名为 `{channel_type}_{instance_id}` 的额外实例；新实例清除会话绑定类凭证（如 WeChat 的 `bot_token`），从未登录状态开始。
+
 ### 4.4 新增渠道步骤
 
-1. 在 `providers/` 下实现 `XxxChannel(BaseChannel)`，声明 `name` 和 `capabilities`
-2. 在 `credential_spec.py` 中声明 `XXX_SPEC = _spec("xxxCredentials", ...)`
-3. 在 `channel_factory.py` 的 `_channel_bindings()` 中添加 `_binding(XxxChannel, XXX_SPEC)`
+1. 在 `providers/` 下实现 `XxxChannel(BaseChannel)`，声明 `name`、`capabilities` 与 `credential_spec`，并实现 `from_credentials`
+2. 在 `providers/registry.py` 登记 `ChannelSpec`（模块路径、类名、展示名）
 
 ---
 
@@ -673,7 +671,7 @@ registry.register_all(app)
 3. **避免过度设计**：不为低频场景引入复杂性
 
 **推荐实现**：
-- 控制平面：硬编码Pipeline routes（如 `channel_webhook.py`）
+- 控制平面：硬编码Pipeline routes
 - 业务层（sandbox内）：使用Custom Routes Registration（高价值）
 
 ### 9.6 Rate Limiting架构说明
@@ -948,9 +946,8 @@ Frontend ← SSE stream ← AsyncIterator[LoginEvent]
 
 #### API服务层
 
-**channels.ts** (`myrm-agent-frontend/src/services/channels.ts`)：
+**channels.ts** (`myrm-agent-frontend/src/services/channels.ts`，对 `services/channels/` 下各分片的再导出；登录相关在 `login.ts`)：
 
-- `listChannelsWithLogin()`: 获取支持登录的channels
 - `startLogin()`: 启动登录流程
 - `subscribeLoginStream()`: 订阅SSE状态流
 - `cancelLogin()`: 取消登录
@@ -986,8 +983,6 @@ Frontend ← SSE stream ← AsyncIterator[LoginEvent]
 
 ---
 
-## 12. 协议接口
-
 ## 11. Thread Auto-Reply (Slack)
 
 Slack Thread自动响应机制：Bot在thread中参与后，后续回复无需@mention即可触发响应。
@@ -1008,25 +1003,24 @@ Slack Thread自动响应机制：Bot在thread中参与后，后续回复无需@m
 **核心类**：`ThreadTracker`（`providers/slack/thread_tracker.py`）
 
 **特性**：
-1. **LRU内存控制**：最多跟踪N个thread（默认1000），超过则淘汰最旧的
-2. **TTL自动过期**：Thread超过T小时（默认24h）自动过期
-3. **asyncio.Lock**：线程安全，支持并发访问
-4. **Metrics可观测性**：`ThreadTrackerMetrics` 导出 hit/miss/eviction 数据
+1. **LRU内存控制**：最多跟踪 `max_size` 个thread（默认1000，`SlackChannel` 以默认值构造），超过则淘汰最旧的；`add()` 与命中的 `contains()` 都把该thread提到最近使用
+2. **同步操作**：`add()` / `contains()` 是普通方法，在渠道的事件循环里直接调用，没有锁，也没有基于时间的过期
+3. **Metrics可观测性**：`ThreadTrackerMetrics` 提供 `hit_count`、`miss_count`、`current_size` 与 `get_hit_rate()`
 
 **数据结构**：
 ```python
-OrderedDict[str, float]  # {thread_id: last_activity_timestamp}
+OrderedDict[str, bool]  # {thread_ts: True}，顺序即LRU顺序
 ```
 
 ### 11.3 配置参数
 
-`SlackChannel` 初始化参数：
+`SlackChannel` 与thread自动响应相关的初始化参数：
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `require_thread_mention` | `bool` | `False` | 是否在thread中强制要求@mention |
-| `thread_tracker_max_size` | `int` | `1000` | 最多跟踪thread数量（LRU） |
-| `thread_tracker_ttl_hours` | `int` | `24` | Thread过期时间（小时） |
+| `require_thread_mention` | `bool` | `False` | 为 `True` 时thread内每条消息都要@mention，关闭自动响应 |
+
+`ThreadTracker` 的容量不是 `SlackChannel` 参数，固定为默认的1000。
 
 **示例**：
 ```python
@@ -1035,119 +1029,41 @@ slack = SlackChannel("xoxb-token")
 
 # 禁用自动响应（传统行为）
 slack = SlackChannel("xoxb-token", require_thread_mention=True)
-
-# 自定义LRU大小和TTL
-slack = SlackChannel(
-    "xoxb-token",
-    thread_tracker_max_size=500,
-    thread_tracker_ttl_hours=12,
-)
 ```
 
 ### 11.4 工作流程
 
-**Bot发送消息时**：
-```python
-async def send(self, msg: OutboundMessage) -> str | None:
-    # ... send logic ...
-    
-    # 记录thread参与
-    effective_thread = thread_ts or msg.reply_to_id or msg.thread_id
-    if effective_thread:
-        await self._thread_tracker.add(str(effective_thread))
-```
+**Bot在thread中发送消息时**：`SlackChannel.send` 每个分片发送成功后，以实际的 `thread_ts` 调用 `self._thread_tracker.add(...)`；带 `thread_id` 的 `send_placeholder` 同样登记。
 
-**用户回复消息时**：
-```python
-async def _parse_message_event(self, event) -> InboundMessage | None:
-    mentioned = f"<@{self._bot_user_id}>" in text
-    
-    # Thread自动响应检查
-    if thread_ts and not mentioned and not self._require_thread_mention:
-        if await self._thread_tracker.contains(str(thread_ts)):
-            mentioned = True  # 自动设置为已@mention
-    
-    return self._build_inbound(..., mentioned=mentioned)
-```
+**用户回复消息时**（`providers/slack/inbound.py`）：
+- 发送者不是bot、`require_thread_mention` 为 `False` 且 `self._thread_tracker.contains(thread_ts)` 为真时，消息视为已@mention
+- 另一条路径按thread父消息判定：父消息由bot发出或含对bot的@mention，同样自动响应（父消息经5分钟 / 100条上限的小缓存读取）
+- bot发来的消息从不触发自动响应
 
 ### 11.5 Metrics导出
 
-框架层提供`ThreadTrackerMetrics`，业务层决定如何导出：
+`slack_channel.thread_tracker_metrics` 返回 `ThreadTrackerMetrics`，业务层决定如何导出：
 
-**可用Metrics**：
-- `hit_count`：缓存命中次数
-- `miss_count`：缓存未命中次数
-- `hit_rate`：命中率（0.0-1.0）
-- `current_size`：当前跟踪thread数
-- `lru_eviction_count`：LRU淘汰次数
-- `ttl_eviction_count`：TTL过期次数
+- `hit_count`：命中次数
+- `miss_count`：未命中次数
+- `current_size`：当前跟踪的thread数
+- `get_hit_rate()`：命中率（0.0-1.0）
 
-**导出示例**（业务层）：
 ```python
-from app.channels.providers.slack import SlackChannel
-
-# 获取metrics
 metrics = slack_channel.thread_tracker_metrics
-
-# Prometheus
-prometheus_gauge.set(metrics.current_size)
-
-# DataDog
-statsd.gauge("slack.thread.hit_rate", metrics.get_hit_rate())
-
-# Logging
-logger.info("Thread tracker: %s", metrics.to_dict())
+logger.info("Thread tracker: size=%d hit_rate=%.2f%%", metrics.current_size, metrics.get_hit_rate() * 100)
 ```
 
 ### 11.6 性能特性
 
-**内存**：
-- O(1) 添加/查询操作
-- OrderedDict 保证 LRU 顺序
-- 默认1000个thread，每个~24字节，总计~24KB
-
-**并发安全**：
-- asyncio.Lock 保护所有操作
-- 无数据竞争风险
-
-**清理策略**：
-- LRU：add()时触发，超过max_size淘汰最旧
-- TTL：contains()时检查，过期自动删除
-
-### 11.7 架构分层
-
-**渠道框架层（app/channels/）**：
-- `ThreadTracker` 类（核心逻辑）
-- `ThreadTrackerMetrics` 数据结构
-- `SlackChannel` 集成
-
-**业务适配层（app/core/channel_bridge/）**：
-- Metrics导出示例
-- 配置参数调优
-- 监控告警集成
-
-**控制平面（plane）**：
-- 聚合多用户metrics
-- 异常检测（hit_rate异常低）
-
-### 11.8 最佳实践
-
-**1. 独立部署（Self-hosted）**：
-- 使用默认配置即可
-- 监控`hit_rate`和`current_size`
-
-**2. SaaS平台（Multi-tenant）**：
-- 框架层不感知user_id
-- 业务层导出时添加`user_id`标签
-- 控制平面聚合所有用户metrics
-
-**3. 性能优化**：
-- hit_rate < 50%：增大`max_size`或延长`ttl_hours`
-- lru_eviction频繁：增大`max_size`
-- ttl_eviction频繁：可缩短`ttl_hours`节省内存
+- `add()` / `contains()` 均为 O(1)
+- `OrderedDict` 保证 LRU 顺序，容量上限即内存上限（默认1000条）
+- 清理只有 LRU 一种：`add()` 新增条目后超过 `max_size` 就淘汰最旧的
 
 ---
 
+
+## 12. 协议接口
 
 框架层通过 Protocol 定义业务层需要实现的接口：
 

@@ -1,6 +1,7 @@
 """Protocol-based budget control for LLM cost management.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - BudgetStatus: 预算状态枚举（OK, WARNING, FINALIZATION, EXCEEDED）

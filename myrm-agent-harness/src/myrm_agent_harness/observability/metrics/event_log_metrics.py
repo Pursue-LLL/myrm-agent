@@ -1,6 +1,7 @@
 """Event log persistence metrics (JSONL backend, etc.).
 
 [INPUT]
+- observability.metrics::create_counter (POS: Harness-layer generic metrics utilities for any project using the Myrm framework.)
 
 [OUTPUT]
 - Counters for oversized JSONL lines and other event-log I/O edge cases

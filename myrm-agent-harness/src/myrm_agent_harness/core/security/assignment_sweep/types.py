@@ -1,10 +1,15 @@
-"""
-[POS] src/myrm_agent_harness/core/security/assignment_sweep/types.py
-[INPUT] enum, typing, pydantic
-[OUTPUT] AssignmentKeyFamily, AssignmentFormat, AssignmentSweepVerdict,
-         AssignmentSweepFinding, AssignmentSweepReport, DatabaseUrlAuditResult
-Domain types for Quoted-Key and Separator-Prefix Secret Assignment Sweep Hardening.
-Strict typing applied: No `Any` types allowed.
+"""Domain types for the quoted-key and separator-prefix secret assignment sweep.
+
+[INPUT]
+- none (imports no other project module)
+
+[OUTPUT]
+- AssignmentKeyFamily, AssignmentFormat, AssignmentSweepVerdict: key family, assignment notation and overall verdict enums
+- AssignmentSweepFinding, AssignmentSweepReport, DatabaseUrlAuditResult: finding, sweep report and DSN audit models
+
+[POS]
+Contract layer of the assignment sweep: the key-family, notation and verdict enums plus the finding, report and DSN-audit
+models shared by the sweep engine and the database URL auditor.
 """
 
 from __future__ import annotations

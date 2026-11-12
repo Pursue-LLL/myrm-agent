@@ -3,6 +3,7 @@
 Validates that skills have the required permissions to perform operations.
 
 [INPUT]
+- backends.skills.types::SkillPermission (POS: Stable public entry point of the skill type system; the `types_*` implementation modules sit behind this facade.)
 
 [OUTPUT]
 - map_permission_to_skill_permission(): Map permission types to SkillPermission

@@ -5,6 +5,7 @@ video, and audio from LLM message content, preventing context window overflow
 and 400 errors from text-only models.
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - is_base64_data_url(): Detect base64 data URLs

@@ -35,17 +35,20 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 
-from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
+from langchain_core.messages import BaseMessage, ToolMessage
 
 from myrm_agent_harness.core.thinking_blocks import carries_signed_blocks, first_signed_index
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_estimation import estimate_content_tokens
 
 from ...infra.archive_reference import build_tool_result_archive_reference
-from ...infra.retention_helpers import effective_keep_recent_calls, find_keep_recent_prune_cutoff
+from ...infra.retention_helpers import (
+    effective_keep_recent_calls,
+    find_keep_recent_prune_cutoff,
+    is_tool_result_consumed,
+)
 from ...infra.schemas import (
     TOOL_PROTECTION_CONFIG,
     ContextCompressOffloadCallback,
@@ -64,16 +67,6 @@ logger = get_agent_logger(__name__)
 def _content_text(content: str | object) -> str | None:
     """Extract string content; returns None for non-string (multimodal) content."""
     return content if isinstance(content, str) else None
-
-
-def is_tool_result_consumed(messages: Sequence[BaseMessage], tool_idx: int) -> bool:
-    """Determine if a ToolMessage has been consumed by a subsequent AIMessage.
-
-    A ToolMessage is considered CONSUMED if there is at least one AIMessage
-    after it in the conversation history. If no subsequent AIMessage exists,
-    the tool result is in the ACTIVE phase and must not be pruned.
-    """
-    return any(isinstance(messages[i], AIMessage) for i in range(tool_idx + 1, len(messages)))
 
 
 def build_memory_truncated_placeholder(

@@ -1,6 +1,15 @@
-"""[POS]: app/api/memory/private_notebook_router.py
-[INPUT]: FastAPI APIRouter, Depends, Query, Path, HTTPException, and DTO schemas.
-[OUTPUT]: API router exposing endpoints for model private notes, human rectification, and context handover.
+"""REST endpoints of the model private notebook.
+
+[INPUT]
+- app.schemas.private_notebook::AppendNoteRequestDTO, HistoryContextItemDTO, HistoryEntryItemDTO, NewContextRequestDTO, NewContextResponseDTO, NoteEntryDTO, NoteMetadataDTO, NoteSearchResultDTO, RewriteNoteRequestDTO (POS: Wire contracts of the private notebook API shared by its router and service.)
+- app.services.memory.private_notebook_service::PrivateNotebookService, get_private_notebook_service (POS: Service behind the private notebook API: wraps one ModelPrivateNotebookManager rooted at `/tmp/myrm_sandbox_workspace` (unless a workspace directory is passed in), starting in context `ctx_main`, and converts its results to DTOs.)
+
+[OUTPUT]
+- router: the /notebook endpoints that list, search, read, append, rewrite and delete notes, list and search archived contexts, and rotate to a new context (POST /notebook/new-context)
+
+[POS]
+HTTP layer of the private notebook: lets a human list, search, read, append to, rewrite and delete the notes, browse the archived
+context history and rotate to a clean context window.
 """
 
 from __future__ import annotations

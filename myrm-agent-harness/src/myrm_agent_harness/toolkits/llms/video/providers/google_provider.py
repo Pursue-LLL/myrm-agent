@@ -4,7 +4,7 @@ Supports Veo 2.0 / 3.0 / 3.1 via the Gemini generateVideos API.
 Uses the Google GenAI SDK's operation-based polling pattern.
 
 [INPUT]
-- toolkits.llms._media_shared.types::ModeCapabilities, ProviderModeCapabilities (POS: These types are imported by video/models.py, normalization.py, and task_store.py. They define the contract between provider declarations and the normalization engine.)
+- toolkits.llms._media_shared.types::ModeCapabilities, ProviderModeCapabilities (POS: Defines the contract between provider capability declarations and the normalization engine.)
 - core.security.http.secure_fetch::secure_get (POS: SSRF-protected result video download with size cap)
 
 [OUTPUT]
@@ -174,18 +174,12 @@ class GoogleVeoProvider(VideoGenerationProvider):
             op_name = operation.get("name", "")
 
             if config.progress_callback:
-                await config.progress_callback(
-                    "Submitted to Google Veo, polling operation..."
-                )
+                await config.progress_callback("Submitted to Google Veo, polling operation...")
 
-            completed = await self._poll_operation(
-                client, base_url, op_name, api_key, config
-            )
+            completed = await self._poll_operation(client, base_url, op_name, api_key, config)
 
             if config.progress_callback:
-                await config.progress_callback(
-                    "Generation complete, downloading video..."
-                )
+                await config.progress_callback("Generation complete, downloading video...")
 
             assets = await self._extract_videos(client, completed, config)
             return ProviderOutput(assets=assets)

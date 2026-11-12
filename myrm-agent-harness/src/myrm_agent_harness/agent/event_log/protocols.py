@@ -4,6 +4,7 @@ Sits alongside SandboxExecutor, StorageProvider, SkillBackend, and
 Checkpointer as a dependency-injected capability.
 
 [INPUT]
+- agent.event_log.types::EventFilter, StructuredEvent (POS: Single source of truth for event log data structures.)
 
 [OUTPUT]
 - EventLogBackend: runtime_checkable Protocol

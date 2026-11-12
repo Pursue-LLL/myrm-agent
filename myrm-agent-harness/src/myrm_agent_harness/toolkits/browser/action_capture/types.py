@@ -2,6 +2,7 @@
 
 
 [INPUT]
+- none (imports no other project module)
 
 [OUTPUT]
 - ActionType: Enum of capturable browser action types

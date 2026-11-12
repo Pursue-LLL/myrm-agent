@@ -4,19 +4,12 @@ When essential content (CRITICAL + HIGH priority) alone exceeds budget,
 this module provides a fallback strategy to gracefully degrade compression.
 
 Fallback策略（当HIGH-priority内容超预算）：
-1. 保留所有Priority 0 (human messages) 完整
-2. Budget-allocate Priority 2 (tool calls/errors)
-3. 一行摘要Priority 3 (reasoning)
-4. 丢弃Priority 4 (success results)
-5. Boundary Guard: 移除开头的孤儿 ToolMessage，防止不完整的工具调用对传递给 LLM
-
-Boundary Guard 保护：
-解决的问题：当Smart Fallback重建消息列表时，可能出现ToolMessage成为第一条消息
-的情况（对应的AIMessage被判定为非CRITICAL而未保留）。这会导致LLM收到不完整
-的工具调用对，产生困惑或错误响应。
-
-实现：在返回前检查result_messages[0]，如果是ToolMessage则循环删除，直到找到
-HumanMessage或AIMessage。这确保LLM始终收到语义完整的消息历史。
+1. 保留所有Priority 0-1 (human messages / 最后一轮内容) 完整
+2. 工具调用组 (AIMessage 调用 + ToolMessage 结果,不论成败) 均分剩余预算,调用与结果各按份额截断;
+   从最新的组往最旧的组装入,预算耗尽就丢弃更旧的组
+3. 一行摘要Priority 3 (reasoning),同样先新后旧
+4. 按原始对话顺序输出,再由 ensure_tool_pair_integrity 清掉孤儿 ToolMessage、去掉没有结果的 tool_call,
+   防止不完整的工具调用对传递给 LLM
 
 [INPUT]
 - (none)
@@ -74,12 +67,13 @@ async def apply_smart_fallback(
         if priority <= MessagePriority.CRITICAL_FINAL:
             critical_messages.append((i, msg))
 
-    result_messages: list[BaseMessage] = [msg for _, msg in critical_messages]
-    used_tokens = estimate_messages_tokens(result_messages)
+    # Every kept message carries its original index so the result can be put back in conversation order.
+    kept: list[tuple[int, BaseMessage]] = list(critical_messages)
+    used_tokens = estimate_messages_tokens([msg for _, msg in kept])
 
     if used_tokens >= max_tokens:
         logger.error(f" Even CRITICAL messages exceed budget ({used_tokens} >= {max_tokens})")
-        return result_messages, 0
+        return [msg for _, msg in kept], 0
 
     remaining_budget = max_tokens - used_tokens
 
@@ -106,7 +100,8 @@ async def apply_smart_fallback(
 
     if high_groups:
         per_group_budget = max(320, remaining_budget // (len(high_groups) + 1))
-        for group in high_groups:
+        # Newest first: when the budget runs out it is the oldest groups that go.
+        for group in reversed(high_groups):
             ai_budget = max(120, per_group_budget // 3)
             tool_budget = max(200, per_group_budget - ai_budget)
 
@@ -122,7 +117,7 @@ async def apply_smart_fallback(
             if used_tokens + pair_tokens > max_tokens:
                 break
 
-            result_messages.extend([ai_message, tool_message])
+            kept.extend([(group.ai_index, ai_message), (group.tool_index, tool_message)])
             used_tokens += pair_tokens
 
     # Phase 3: One-line summaries for MEDIUM priority (reasoning)
@@ -139,19 +134,19 @@ async def apply_smart_fallback(
             if priority == MessagePriority.MEDIUM_REASONING:
                 medium_messages.append((i, msg))
 
-        for _idx, msg in medium_messages:
+        for idx, msg in reversed(medium_messages):
             if isinstance(msg, AIMessage) and msg.content:
                 # One-line summary (first 100 chars)
                 summary = str(msg.content).split("\n")[0][:100]
                 summary_msg = AIMessage(content=f"[Summarized] {summary}...")
-                result_messages.append(summary_msg)
+                kept.append((idx, summary_msg))
                 used_tokens += estimate_messages_tokens([summary_msg])
                 if used_tokens >= max_tokens:
                     break
 
     # Tool Integrity Guard: Ensure semantic completeness of tool call pairs
     # This prevents sending incomplete tool call sequences to the LLM
-    result_messages = ensure_tool_pair_integrity(result_messages)
+    result_messages = ensure_tool_pair_integrity([msg for _, msg in sorted(kept, key=lambda item: item[0])])
 
     # Calculate tokens saved
     original_tokens = estimate_messages_tokens(messages)
