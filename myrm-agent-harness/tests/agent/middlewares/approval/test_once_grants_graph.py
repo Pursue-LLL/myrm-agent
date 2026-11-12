@@ -28,7 +28,7 @@ from myrm_agent_harness.agent.security.session_access import set_session_access_
 from myrm_agent_harness.agent.security.types import PathPolicy, PrivacyPolicy, SecurityConfig
 from myrm_agent_harness.core.context_vars import access_grants_var, open_access_grants, scoped_value, workspace_root_var
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
-from myrm_agent_harness.toolkits.code_execution.executors.base import set_executor
+from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
 
 
@@ -67,7 +67,7 @@ def places(tmp_path: Path) -> Iterator[tuple[Path, Path]]:
     (outside / "b.txt").write_text("beta from outside")
     executor = LocalExecutor(ExecutionConfig())
     executor.bind_workspace(str(workspace))
-    set_executor(executor)
+    executor_token = set_executor(executor)
     workspace_root_var.set(str(workspace))
     clear_all_session_denials_for_tests()
     set_security_config(
@@ -83,6 +83,7 @@ def places(tmp_path: Path) -> Iterator[tuple[Path, Path]]:
         set_session_access_roots(())
         yield workspace, outside
         set_session_access_roots(())
+    reset_executor(executor_token)
     set_security_config(None)
     set_workspace_root("")
     set_approval_session("")

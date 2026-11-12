@@ -15,7 +15,11 @@ OS capabilities) for Action Tools, providing forward inspection and reverse impa
 - TOOL_ENV_DEPENDENCY_REGISTRY: SSOT mapping tool_name -> ToolEnvDependencyProfile
 - get_tool_env_dependencies(): Query dependencies for a tool
 - get_tools_requiring_dependency(): Reverse index query
-- probe_tool_environment(): Probe live host system against tool requirements
+- DependencyProbeResult: Result of probing one environment dependency
+- ToolEnvHealthReport: Health status of one tool's execution environment
+- probe_dependency_satisfaction(): Check whether a single dependency is satisfied in the current runtime
+- probe_tool_env_health(): Probe live runtime health for a single tool
+- export_env_dependency_inventory(): Export a deterministic JSON-serializable inventory for CI audit and documentation
 - correlate_tool_surface_env_health(): Complete matrix check for all tools
 
 [POS]
@@ -224,9 +228,10 @@ def probe_dependency_satisfaction(spec: EnvDependencySpec) -> DependencyProbeRes
             if found_path is not None:
                 return DependencyProbeResult(spec=spec, satisfied=True, detected_version=found_path)
             # Special case for shell on Windows
-            if spec.name in ("sh", "bash"):
-                if shutil.which("powershell") or shutil.which("cmd") or shutil.which("pwsh"):
-                    return DependencyProbeResult(spec=spec, satisfied=True, detected_version="windows_shell")
+            if spec.name in ("sh", "bash") and (
+                shutil.which("powershell") or shutil.which("cmd") or shutil.which("pwsh")
+            ):
+                return DependencyProbeResult(spec=spec, satisfied=True, detected_version="windows_shell")
             return DependencyProbeResult(
                 spec=spec, satisfied=False, probe_error=f"Binary '{spec.name}' not found on PATH"
             )

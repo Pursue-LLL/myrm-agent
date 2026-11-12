@@ -1,4 +1,4 @@
-"""MiniMax (Hailuo Hailuo) video generation provider.
+"""MiniMax Hailuo video generation provider.
 
 Supports Hailuo 2.3 / 02 / I2V models via the MiniMax API.
 Uses the submit → poll → download pattern with file_id or direct URL.
@@ -8,10 +8,10 @@ Uses the submit → poll → download pattern with file_id or direct URL.
 - core.security.http.secure_fetch::secure_get (POS: SSRF-protected result video download with size cap)
 
 [OUTPUT]
-- MiniMaxVideoProvider: class — Mini Max Video Provider
+- MiniMaxVideoProvider: MiniMax Hailuo video generation provider.
 
 [POS]
-MiniMax (Hailuo Hailuo) video generation provider.
+MiniMax Hailuo video generation provider.
 """
 
 from __future__ import annotations
@@ -64,7 +64,7 @@ def _assert_base_resp(base_resp: dict[str, object] | None, context: str) -> None
 
 
 class MiniMaxVideoProvider(VideoGenerationProvider):
-    """MiniMax (Hailuo) video generation provider."""
+    """MiniMax Hailuo video generation provider."""
 
     @property
     def provider_id(self) -> str:
@@ -72,7 +72,7 @@ class MiniMaxVideoProvider(VideoGenerationProvider):
 
     @property
     def display_name(self) -> str:
-        return "MiniMax Hailuo (Hailuo)"
+        return "MiniMax Hailuo"
 
     @property
     def default_model(self) -> str:

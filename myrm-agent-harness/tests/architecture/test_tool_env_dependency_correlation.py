@@ -101,6 +101,24 @@ def test_probe_dependency_and_tool_health() -> None:
 
 
 @pytest.mark.architecture
+@pytest.mark.parametrize(
+    ("available", "expected"),
+    [({"powershell"}, True), ({"cmd"}, True), ({"pwsh"}, True), (set(), False)],
+)
+def test_posix_shell_dependency_falls_back_to_windows_shells(
+    monkeypatch: pytest.MonkeyPatch, available: set[str], expected: bool
+) -> None:
+    """A missing sh/bash counts as satisfied when a Windows shell exists, and as missing otherwise."""
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.tool_management.env_dependency.shutil.which",
+        lambda name: f"/fake/{name}" if name in available else None,
+    )
+    result = probe_dependency_satisfaction(EnvDependencySpec(name="bash", kind=DependencyKind.SYSTEM_BINARY))
+    assert result.satisfied is expected
+    assert (result.detected_version == "windows_shell") is expected
+
+
+@pytest.mark.architecture
 def test_correlate_tool_surface_env_health_matrix() -> None:
     """Verify matrix calculation over all tools."""
     matrix = correlate_tool_surface_env_health(["bash_code_execute_tool", "grep_tool"])

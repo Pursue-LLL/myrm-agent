@@ -1,6 +1,6 @@
 """Code-related text splitting utilities.
 
-Provides programming language detection, code block protection, and language-aware splitting.
+Provides programming language detection and language-aware splitting of oversized code blocks.
 
 [INPUT]
 - langchain_text_splitters (optional `[retrieval]` extra)::Language, RecursiveCharacterTextSplitter
@@ -8,11 +8,9 @@ Provides programming language detection, code block protection, and language-awa
 [OUTPUT]
 - detect_code_language: Detect programming language from code block or text
 - split_large_code_block: Split large code block with a language-aware splitter
-- protect_code_blocks: Protect code blocks with placeholders during splitting
-- restore_code_blocks: Restore code blocks from placeholders
 
 [POS]
-Code-aware splitting utilities for language-aware chunking and code block protection.
+Code-aware splitting utilities: language detection and language-aware chunking of oversized code blocks.
 """
 
 import logging
@@ -245,71 +243,3 @@ def _split_by_lines(code_content: str, max_tokens: int) -> list[str]:
     if current_chunk:
         chunks.append("\n".join(current_chunk))
     return chunks
-
-
-def protect_code_blocks(text: str, max_chunk_tokens: int = 675) -> tuple[str, dict[str, str]]:
-    """Replace markdown fenced code blocks with placeholders so that later splitting cannot cut them
-
-    Args:
-        text: Original text
-        max_chunk_tokens: Not used; code blocks are always kept whole
-
-    Returns:
-        (Processed text, placeholder-to-code-block mapping)
-    """
-    code_block_pattern = r"```(\w*)\n([\s\S]*?)```"
-    code_blocks = {}
-    counter = 0
-
-    def replace_code_block(match):
-        nonlocal counter
-        language = match.group(1) or ""
-        code_content = match.group(2)
-
-        # Without a language tag, try auto-detection
-        if not language or language in ("text", "txt", ""):
-            detected = detect_code_language(code_content)
-            if detected:
-                language = detected
-                logger.warning(f"Code block has no language tag; auto-detected: {language}")
-            else:
-                language = "text"
-
-        # Code blocks are not pre-split, so they stay whole;
-        # oversized ones are handled at the whole-chunk stage
-        code_chunks = [code_content]
-
-        if len(code_chunks) == 1:
-            # Keep the code block whole (using the corrected language)
-            placeholder = f"__CODE_BLOCK_{counter}__"
-            code_blocks[placeholder] = f"```{language}\n{code_content}\n```"
-            counter += 1
-            return placeholder
-        else:
-            # The code block was split into multiple fragments
-            placeholders = []
-            for chunk in code_chunks:
-                placeholder = f"__CODE_BLOCK_{counter}__"
-                code_blocks[placeholder] = f"```{language}\n{chunk}\n```"
-                placeholders.append(placeholder)
-                counter += 1
-            logger.warning(f"Code block split into {len(code_chunks)} fragments")
-            return "\n\n".join(placeholders)
-
-    protected_text = re.sub(code_block_pattern, replace_code_block, text)
-    return protected_text, code_blocks
-
-
-def restore_code_blocks(text: str, code_blocks: dict[str, str]) -> str:
-    """Restore code blocks from their placeholders
-
-    Args:
-        text: Text containing placeholders
-        code_blocks: Placeholder-to-code-block mapping
-
-    Returns:
-        Text with the code blocks restored
-    """
-    for placeholder, code_block in code_blocks.items():
-        text = text.replace(placeholder, code_block)
-    return text
