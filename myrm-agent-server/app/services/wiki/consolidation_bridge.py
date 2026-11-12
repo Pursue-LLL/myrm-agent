@@ -8,7 +8,7 @@ myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::publish_raw (POS: raw public
 make_consolidation_wiki_bridge / archive_consolidation_insights_to_wiki
 
 [POS]
-Server hook: when Memory consolidation yields insights (enable_wiki gate is upstream),
+Server hook: when a Memory consolidation cycle stored insights (enable_wiki gate is upstream),
 writes a digest markdown under wiki/raw/memory/ and enqueues compile.
 """
 
@@ -35,7 +35,7 @@ def make_consolidation_wiki_bridge(
     agent_id: str | None,
     llm: BaseChatModel,
 ) -> Callable[[ConsolidationStats], Awaitable[None]]:
-    """Return a consolidation-complete hook that archives insights into wiki/raw."""
+    """Return a consolidation-complete hook that archives the cycle's stored insights into wiki/raw."""
 
     async def _bridge(stats: ConsolidationStats) -> None:
         await archive_consolidation_insights_to_wiki(stats, agent_id=agent_id, llm=llm)
@@ -49,7 +49,7 @@ async def archive_consolidation_insights_to_wiki(
     agent_id: str | None,
     llm: BaseChatModel,
 ) -> None:
-    """Write consolidation insights to wiki/raw (caller must gate on enable_wiki)."""
+    """Write the insights a consolidation cycle stored to wiki/raw (caller must gate on enable_wiki)."""
     if not stats.insights:
         return
 

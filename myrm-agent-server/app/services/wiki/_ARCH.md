@@ -28,7 +28,7 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `agent_scope.py` | 辅助 | chat_id → agent_id（vault 选择）+ agent_id → UserConfig scope key 规范化（state/config store 共用） | ✅ |
 | `_userconfig_scoped.py` | 辅助 | 共享 UserConfig scoped JSON 持久化（load/save/merge，agent-scoped） | ✅ |
 | `wiki_archive_hook.py` | 钩子 | compaction persist 后 SessionNotes 后台归档（按 chat.agent_id 选 vault） | ✅ |
-| `consolidation_bridge.py` | 钩子 | consolidation 完成后 insight → `publish_raw` + enqueue（上游 enable_wiki 门控） | ✅ |
+| `consolidation_bridge.py` | 钩子 | consolidation 周期完成后，把该周期已落库的 insight 汇成摘要 → `publish_raw` + enqueue（上游 enable_wiki 门控） | ✅ |
 | `structural_stats_cache.py` | 辅助 | `/wiki/stats` structural lint 120s TTL 缓存；`_after_wiki_vault_mutation` SSOT 在 maintain/repair-types/repair-publication/move/import/apply/delete concept/delete folder/pending approve/delete raw 等变更后失效；后台 worker 编译写入的变更由 ingest 快照的 vault 指纹变化触发失效 | ✅ |
 | `knowledge_query_service.py` | SSOT | `execute_wiki_knowledge_query` — Settings POST /query 与 Chat Wiki Knowledge Lane 共用零 LLM 检索 + citations，支持通过 shared_context_ids 挂载多库跨源检索与友好标签解析；证据不足时反射引擎 `refused` 判定并返回拒答文案（清空 sources，与 REST `refused` 字段一致） | ✅ |
 | `vault/service.py` | SSOT | `get_wiki_archiver` 进程级缓存单例（严格按 llm, agent_id, manager, public_dirs, public_dir_labels 联合维度多重隔离，彻底根除跨库与会话挂载污染；无模型 `TypeError`）· `get_wiki_structure` 不带 archiver 的 vault 布局 | ✅ |

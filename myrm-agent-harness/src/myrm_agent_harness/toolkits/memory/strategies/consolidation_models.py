@@ -6,7 +6,7 @@
 [OUTPUT]
 - ConsolidationAction, MergeOp, CorrectOp, UpdateContentOp, ConsolidationOp
 - ConsolidationBatch: the memories of one namespace group with the operations and insights proposed for them
-- ConsolidationStats, ConsolidationResponse
+- ConsolidationStats: one cycle's counters and the insights the store took; ConsolidationResponse: the model's parsed answer
 - PreImage, UndoJournal: what a cycle changed, recorded as it happened
 - ConflictContext, ConflictCallback, ConsolidationCompleteCallback
 - CONSOLIDATION_INSIGHT_TAG, CONSOLIDATION_SOURCE_KEY, CONSOLIDATED_FLAG_KEY, is_folded_fragment: markers of consolidation's own output
@@ -176,7 +176,7 @@ class ConsolidationStats(BaseModel):
     duration_ms: float = 0.0
     input_count: int = 0
     enriched_count: int = 0
-    insights: tuple[str, ...] = ()
+    insights: tuple[str, ...] = ()  # what the store took, not every insight the model proposed
     undo: UndoJournal = Field(default_factory=UndoJournal)
     aborted: bool = False
 
