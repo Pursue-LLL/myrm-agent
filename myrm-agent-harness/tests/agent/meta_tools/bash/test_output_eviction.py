@@ -1,9 +1,13 @@
 """Tests for _output_eviction truncation hints."""
 
+from collections.abc import Callable
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from myrm_agent_harness.agent.context_management.strategies.filters.base import (
+    detect_content_type,
+)
 from myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction import (
     EvictionResult,
     maybe_evict_large_output,
@@ -257,6 +261,55 @@ async def test_eviction_structural_content_preview(mock_executor):
     # Structural summary has no line mapping; footer must fall back to a plain
     # read (no line-range offset) to avoid a misleading read instruction.
     assert 'paths=[".context/s1/evicted/output_ab12cd34.txt"]' in result.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("sniffed_as", "make_row"),
+    [
+        pytest.param(
+            "code",
+            lambda i: f"py/pkg/mod{i % 40}.py:{10 + i}:from pkg.core import alpha_{i}",
+            id="import-lines",
+        ),
+        pytest.param(
+            "csv",
+            lambda i: f'cfg/matrix{i % 5}.json:{i + 2}:  {{"os": "ubuntu", "arch": "x64", "tag": "t{i}"}},',
+            id="comma-rows",
+        ),
+    ],
+)
+async def test_eviction_search_listing_keeps_result_rows(sniffed_as: str, make_row: Callable[[int], str]):
+    """A `path:line:content` search listing that the sniffer reads as code or csv is previewed row by row.
+
+    The sniffer keys on `import`/`def` anywhere in the first 500 chars and on a steady comma
+    count per row, so rg/grep listings trip it. The structural outline of such a listing holds
+    none of its rows, only names its regexes invent, and the model would see no result at all.
+    """
+    rows = [make_row(i) for i in range(400)]
+    listing = "\n".join(rows)
+    assert detect_content_type(listing) == sniffed_as
+
+    result = await maybe_evict_large_output(listing)
+
+    row_set = set(rows)
+    assert sum(line in row_set for line in result.text.splitlines()) >= 10
+
+
+@pytest.mark.asyncio
+async def test_eviction_log_dump_keeps_structural_outline():
+    """A genuine log dump still gets the outline, so its level counts reach the model."""
+    lines = [
+        f"2026-11-12 10:{i // 60:02d}:{i % 60:02d} {'ERROR' if i % 17 == 0 else 'INFO'} worker-{i % 7} job {i} done"
+        for i in range(600)
+    ]
+    dump = "\n".join(lines)
+    assert detect_content_type(dump) == "log"
+
+    result = await maybe_evict_large_output(dump)
+
+    assert f"ERROR: {sum(' ERROR ' in line for line in lines)}" in result.text
+    assert "[Truncated:" not in result.text  # the head/tail preview carries this marker
 
 
 def test_get_session_id_returns_none_on_error():
