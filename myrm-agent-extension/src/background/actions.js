@@ -3,7 +3,7 @@
  *
  * [INPUT]
  * - state / policy.js (POS: each action re-checks the tab or domain against the access policy)
- * - tabs.js / debugger.js / background_window.js (POS: the operations the actions are made of)
+ * - tabs.js / debugger.js / agent_tabs.js (POS: the operations the actions are made of)
  *
  * [OUTPUT]
  * - executeAction: run one named action and return its result; throws when it is refused or fails
@@ -11,7 +11,7 @@
  * [POS] The request/response half of the server protocol (the CDP relay has its own commands in relay.js).
  */
 
-import { getOrCreateBackgroundTab } from "./background_window.js";
+import { claimBackgroundTab } from "./agent_tabs.js";
 import { attachDebugger, detachDebugger } from "./debugger.js";
 import { extractDomain, isNavigationTargetAuthorized, isTabAuthorized, matchDomain } from "./policy.js";
 import { state } from "./state.js";
@@ -38,7 +38,11 @@ export async function executeAction(action, payload) {
       // Background mode: create/reuse isolated window to avoid disrupting user
       if (background && domain) {
         const url = `https://${domain}`;
-        const bgTabId = await getOrCreateBackgroundTab(url);
+        if (!isNavigationTargetAuthorized(url, state)) {
+          throw new Error(`Domain ${domain} is not authorized`);
+        }
+        const bgTabId = await claimBackgroundTab();
+        await chrome.tabs.update(bgTabId, { url });
         return await attachDebugger(bgTabId);
       }
 
@@ -80,7 +84,7 @@ export async function executeAction(action, payload) {
         }
         targetTabId = tabId;
       } else if (background) {
-        targetTabId = await getOrCreateBackgroundTab(url);
+        targetTabId = await claimBackgroundTab();
       } else {
         const tab = await findTabForDomain(lookupDomain);
         if (!tab) {
@@ -90,10 +94,8 @@ export async function executeAction(action, payload) {
       }
 
       await attachDebugger(targetTabId);
-      const updated = await chrome.tabs.update(targetTabId, {
-        url,
-        active: !background,
-      });
+      // The one navigation: a tab claimed for the background is blank until now, so it is never sent to the URL twice.
+      const updated = await chrome.tabs.update(targetTabId, background ? { url } : { url, active: true });
       const loaded = await waitForTabLoad(targetTabId, 20000);
       const finalTab = loaded || updated;
 

@@ -38,7 +38,7 @@ class ContextRegistry(TargetRegistry):
         return context_id
 
     async def _dispose_context(self, context_id: str) -> None:
-        """Forget the context and close the tabs opened in it; a tab the extension will not close joins the default context."""
+        """Forget the context and close the tabs opened in it; a tab that cannot be closed joins the default context."""
         self._contexts.pop(context_id, None)
         for tab_id, tab in list(self._tabs.items()):
             if tab.context_id != context_id or self._tabs.get(tab_id) is not tab:

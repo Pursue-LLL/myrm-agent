@@ -1,4 +1,10 @@
-export const REQUIRED_RELAY_CAPABILITIES = ['navigate_url', 'list_tabs', 'attach_debugger', 'detach_debugger'] as const;
+export const REQUIRED_RELAY_CAPABILITIES = [
+  'navigate_url',
+  'list_tabs',
+  'attach_debugger',
+  'detach_debugger',
+  'agent_tab_control',
+] as const;
 
 export type RelayCapabilityKey = (typeof REQUIRED_RELAY_CAPABILITIES)[number];
 

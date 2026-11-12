@@ -16726,6 +16726,7 @@
       "relayCapabilityListTabsLabel": "分頁探索",
       "relayCapabilityAttachLabel": "除錯器附加",
       "relayCapabilityDetachLabel": "除錯器分離",
+      "relayCapabilityAgentTabsLabel": "Agent 分頁控制",
       "relayCapabilityMissingListHelp": "請更新本地 myrm-agent-extension 後重新連線。缺少：{missing}。",
       "relayCapabilityHelp": "請更新本地 myrm-agent-extension 後重新連線。",
       "wildcardWarningTitle": "網域策略提示",

@@ -53,6 +53,8 @@ class RelayCreateTabCommand(TypedDict, total=False):
 
 
 class RelayCloseTabCommand(TypedDict):
+    """Answered with ``{"closed": bool}``: false when the tab is not one the Agent opened and was left open."""
+
     type: Literal["closeTab"]
     tabId: int
 

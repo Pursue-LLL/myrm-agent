@@ -17,6 +17,7 @@ from pydantic import SecretStr
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from app.services.extension.bridge import ExtensionBridgeService, get_extension_bridge
+from app.services.extension.bridge.common import RELAY_CAPABILITY
 
 
 class TestExtensionBridgeService:
@@ -295,6 +296,7 @@ class TestConnectToDomainWildcard:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._capabilities = {RELAY_CAPABILITY}
         bridge._authorized_domains = ["example.com"]
         bridge._authorized_domains = ["*.google.com"]
 
@@ -333,6 +335,7 @@ class TestConnectToDomainWildcard:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._capabilities = {RELAY_CAPABILITY}
         bridge._authorized_domains = ["example.com"]
         bridge._authorized_domains = ["*.google.com"]
 
@@ -544,6 +547,7 @@ class TestDirectCdpRiskGovernance:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._capabilities = {RELAY_CAPABILITY}
         bridge._authorized_domains = ["example.com"]
 
         mock_pw = MagicMock()
@@ -1334,6 +1338,7 @@ class TestConnectWithoutCdpEndpoint:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._capabilities = {RELAY_CAPABILITY}
         bridge._authorized_domains = ["example.com"]
 
         with (
@@ -1358,6 +1363,7 @@ class TestConnectWithoutCdpEndpoint:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._capabilities = {RELAY_CAPABILITY}
         bridge._authorized_domains = ["example.com"]
 
         with (
@@ -1423,6 +1429,44 @@ class TestHandleWsConnectionLifecycle:
         assert bridge._ws is None
         assert mock_broadcast.call_args_list[0].args[0] is True
         assert mock_broadcast.call_args_list[-1].args[0] is False
+
+    @pytest.mark.asyncio
+    async def test_closing_the_connection_resets_the_relay_and_forgets_the_tab_mirror(self) -> None:
+        bridge = ExtensionBridgeService()
+        mock_ws = MagicMock()
+        mock_ws.accept = AsyncMock()
+
+        async def receive_a_tab_report_then_close() -> None:
+            bridge._apply_tab_list([{"id": 4, "url": "about:blank", "agentOwned": True}])
+
+        with (
+            patch.object(bridge, "_receive_loop", new_callable=AsyncMock, side_effect=receive_a_tab_report_then_close),
+            patch.object(bridge, "_heartbeat_loop", new_callable=AsyncMock),
+            patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
+        ):
+            mock_manager.return_value.bind_extension_transport = AsyncMock()
+            await bridge.handle_ws_connection(mock_ws)
+
+        mock_manager.return_value.bind_extension_transport.assert_awaited_once_with(None)
+        assert bridge._tabs == []
+        assert bridge._agent_tab_ids == frozenset()
+
+    @pytest.mark.asyncio
+    async def test_a_replaced_connection_does_not_reset_its_successor(self) -> None:
+        bridge = ExtensionBridgeService()
+        successor = MagicMock()
+        bridge._ws = successor
+        bridge._connected = True
+        bridge._apply_tab_list([{"id": 4, "url": "about:blank", "agentOwned": True}])
+
+        with patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager:
+            mock_manager.return_value.bind_extension_transport = AsyncMock()
+            await bridge._release_connection(MagicMock())
+
+        mock_manager.return_value.bind_extension_transport.assert_not_awaited()
+        assert bridge._ws is successor
+        assert bridge._connected is True
+        assert bridge._agent_tab_ids == frozenset({4})
 
 
 class TestDisconnectPlaywrightCleanup:
@@ -1516,6 +1560,7 @@ class TestConnectToDomainWithoutCdp:
         bridge._ws = MagicMock()
         bridge._authorized_domains = ["example.com"]
         bridge._hello_received = True
+        bridge._capabilities = {RELAY_CAPABILITY}
         bridge._tabs = [
             ExtensionTab(
                 tab_id=7,

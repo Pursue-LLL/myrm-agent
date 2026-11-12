@@ -55,6 +55,11 @@ _HEARTBEAT_INTERVAL = 15.0
 _HEARTBEAT_TIMEOUT = 30.0
 
 
+# The CDP relay needs an extension that reports the browser's own target ids, opens and closes only its own tabs and
+# admits the blank pages it opened; an older extension would hang Playwright instead of failing.
+RELAY_CAPABILITY = "agent_tab_control"
+
+
 _ACTION_CAPABILITY_MAP: dict[str, str] = {
     "navigate_url": "navigate_url",
     "list_tabs": "list_tabs",

@@ -16726,6 +16726,7 @@
       "relayCapabilityListTabsLabel": "Tab-Erkennung",
       "relayCapabilityAttachLabel": "Debugger anfügen",
       "relayCapabilityDetachLabel": "Debugger abkoppeln",
+      "relayCapabilityAgentTabsLabel": "Agent-Tab-Steuerung",
       "relayCapabilityMissingListHelp": "Aktualisieren Sie Ihre lokale myrm-agent-extension und stellen Sie die Verbindung wieder her. Fehlt: {missing}.",
       "relayCapabilityHelp": "Aktualisieren Sie Ihre lokale myrm-agent-extension und verbinden Sie sich erneut.",
       "wildcardWarningTitle": "Hinweis zur Domain-Richtlinie",

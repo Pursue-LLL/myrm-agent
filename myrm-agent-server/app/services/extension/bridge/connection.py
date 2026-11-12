@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 from . import common
 from .common import (
+    RELAY_CAPABILITY,
     ExtensionBridgeNotAvailable,
     ExtensionStatus,
     ExtensionTab,
@@ -73,6 +74,7 @@ class ConnectionMixin:
         return self._resolve_cdp_endpoint() is not None
 
     async def _resolve_playwright_cdp_endpoint(self) -> str:
+        self._require_capability(RELAY_CAPABILITY)
         relay = common.get_cdp_relay_manager()
         await relay.bind_extension_transport(self._send_ws_message)
         if await relay.relay_cdp_ready():
@@ -96,9 +98,6 @@ class ConnectionMixin:
         pw = await self._ensure_playwright()
 
         browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
-        preferred = self._pick_preferred_extension_tab()
-        if preferred is not None:
-            await self._focus_browser_on_domain(browser, preferred.domain)
         return BrowserInstance(
             browser=browser,
             engine="chromium-patchright",
@@ -253,7 +252,7 @@ class ConnectionMixin:
 
     async def relay_cdp_ready(self) -> bool:
         """True when extension CDP relay responds to automation probe."""
-        if not self.is_access_policy_valid():
+        if not self.is_access_policy_valid() or RELAY_CAPABILITY not in self._capabilities:
             return False
         relay = common.get_cdp_relay_manager()
         if self._connected and self._ws is not None:

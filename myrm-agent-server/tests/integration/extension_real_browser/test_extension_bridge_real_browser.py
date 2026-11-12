@@ -1,8 +1,7 @@
 """The extension and its bridge in a real Chromium: connection, tab visibility, authorization, pause.
 
 [INPUT]
-- tests.support.extension_real_browser::real_extension_stack (POS: the unpacked extension, the production bridge routes
-  and a login-gated fixture site, all real)
+- conftest::stack (POS: the unpacked extension, the production bridge routes and a login-gated fixture site, all real)
 - app.services.extension.bridge::ExtensionBridgeNotAvailable (POS: the bridge's refusal)
 
 [OUTPUT]
@@ -16,31 +15,12 @@ tests notice when the extension's own files stop doing what the server expects o
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from pathlib import Path
-
 import pytest
 
 from app.services.extension.bridge import ExtensionBridgeNotAvailable
-from tests.support.extension_real_browser import (
-    INTRANET_HOST,
-    OTHER_HOST,
-    RealExtensionStack,
-    real_extension_stack,
-    wait_until,
-)
+from tests.support.extension_real_browser import INTRANET_HOST, OTHER_HOST, RealExtensionStack, wait_until
 
 pytestmark = pytest.mark.e2e
-
-
-@pytest.fixture
-async def stack(tmp_path: Path) -> AsyncIterator[RealExtensionStack]:
-    async with real_extension_stack(tmp_path / "profile") as running:
-        yield running
-
-
-async def _log_in(stack: RealExtensionStack, host: str) -> None:
-    await stack.browser.open_user_tab(stack.site.url(host, "/login?user=alice"))
 
 
 async def test_popup_connect_completes_the_handshake(stack: RealExtensionStack) -> None:
@@ -50,12 +30,12 @@ async def test_popup_connect_completes_the_handshake(stack: RealExtensionStack) 
     assert status.handshake_ready
     assert status.extension_version == stack.browser.version
     assert status.browser_name == "Chrome"
-    assert {"navigate_url", "list_tabs", "attach_debugger", "detach_debugger"} <= set(status.capabilities)
+    assert {"navigate_url", "list_tabs", "attach_debugger", "detach_debugger", "agent_tab_control"} <= set(status.capabilities)
 
 
 async def test_agent_sees_only_tabs_on_authorized_domains(stack: RealExtensionStack) -> None:
-    await _log_in(stack, INTRANET_HOST)
-    await _log_in(stack, OTHER_HOST)
+    await stack.log_in(INTRANET_HOST)
+    await stack.log_in(OTHER_HOST)
 
     await stack.authorize([INTRANET_HOST])
 
@@ -65,7 +45,7 @@ async def test_agent_sees_only_tabs_on_authorized_domains(stack: RealExtensionSt
 
 
 async def test_revoking_the_domain_hides_its_tabs_again(stack: RealExtensionStack) -> None:
-    await _log_in(stack, INTRANET_HOST)
+    await stack.log_in(INTRANET_HOST)
     await stack.authorize([INTRANET_HOST])
     assert len(await stack.bridge.list_tabs()) == 1
 
@@ -77,7 +57,7 @@ async def test_revoking_the_domain_hides_its_tabs_again(stack: RealExtensionStac
 async def test_foreground_navigation_runs_in_the_users_tab_and_other_domains_are_refused(
     stack: RealExtensionStack,
 ) -> None:
-    await _log_in(stack, INTRANET_HOST)
+    await stack.log_in(INTRANET_HOST)
     await stack.authorize([INTRANET_HOST])
 
     tab = await stack.bridge.navigate_to_url(stack.site.url(INTRANET_HOST, "/secret"), background=False)
@@ -101,7 +81,7 @@ async def test_extension_refuses_an_unauthorized_navigation_even_when_the_server
 
 
 async def test_paused_tab_leaves_the_agent_view_until_resumed(stack: RealExtensionStack) -> None:
-    await _log_in(stack, INTRANET_HOST)
+    await stack.log_in(INTRANET_HOST)
     await stack.authorize([INTRANET_HOST])
     (tab,) = await stack.bridge.list_tabs()
 

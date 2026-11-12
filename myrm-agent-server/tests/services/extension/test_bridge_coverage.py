@@ -20,6 +20,7 @@ from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from app.services.extension.bridge import ExtensionBridgeService
+from app.services.extension.bridge.common import RELAY_CAPABILITY
 
 
 class FakeWs:
@@ -78,6 +79,7 @@ async def test_relay_cdp_ready_connected_binds_transport() -> None:
     bridge = ExtensionBridgeService()
     bridge._connected = True
     bridge._ws = MagicMock()
+    bridge._capabilities = {RELAY_CAPABILITY}
     await bridge.set_authorized_domains(["example.com"])
     with patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager:
         mock_relay = AsyncMock()
@@ -85,6 +87,32 @@ async def test_relay_cdp_ready_connected_binds_transport() -> None:
         mock_manager.return_value = mock_relay
         assert await bridge.relay_cdp_ready() is True
         mock_relay.bind_extension_transport.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_relay_is_not_ready_for_an_extension_without_the_relay_capability() -> None:
+    bridge = ExtensionBridgeService()
+    bridge._connected = True
+    bridge._ws = MagicMock()
+    bridge._capabilities = {"navigate_url", "list_tabs", "attach_debugger", "detach_debugger"}
+    await bridge.set_authorized_domains(["example.com"])
+    with patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager:
+        mock_manager.return_value = AsyncMock()
+        assert await bridge.relay_cdp_ready() is False
+        mock_manager.return_value.bind_extension_transport.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_connect_asks_an_extension_without_the_relay_capability_to_upgrade() -> None:
+    bridge = ExtensionBridgeService()
+    bridge._connected = True
+    bridge._ws = MagicMock()
+    bridge._hello_received = True
+    bridge._capabilities = {"navigate_url", "list_tabs", "attach_debugger", "detach_debugger"}
+    await bridge.set_authorized_domains(["example.com"])
+
+    with pytest.raises(ExtensionBridgeNotAvailable, match="upgrade the browser extension"):
+        await bridge.connect()
 
 
 @pytest.mark.asyncio
@@ -107,7 +135,7 @@ async def test_connect_policy_invalid_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_connect_success_focuses_preferred_tab() -> None:
+async def test_connect_success_leaves_the_users_tabs_alone() -> None:
     bridge = ExtensionBridgeService()
     bridge._connected = True
     bridge._ws = MagicMock()
@@ -115,8 +143,13 @@ async def test_connect_success_focuses_preferred_tab() -> None:
     await bridge.set_authorized_domains(["example.com"])
     bridge._tabs = [_authorized_example_tab()]
 
+    users_page = MagicMock()
+    users_page.url = "https://example.com/"
+    users_page.bring_to_front = AsyncMock()
+    mock_context = MagicMock()
+    mock_context.pages = [users_page]
     mock_browser = MagicMock()
-    mock_browser.contexts = []
+    mock_browser.contexts = [mock_context]
     mock_pw = MagicMock()
     mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
     with (
@@ -133,6 +166,7 @@ async def test_connect_success_focuses_preferred_tab() -> None:
 
     assert instance.is_managed is False
     assert instance.engine == "chromium-patchright"
+    users_page.bring_to_front.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -167,6 +201,7 @@ async def test_connect_to_domain_navigates_then_finds_tab() -> None:
     bridge._connected = True
     bridge._ws = MagicMock()
     bridge._hello_received = True
+    bridge._capabilities = {RELAY_CAPABILITY}
     await bridge.set_access_policy(allow_all_eligible_tabs=True)
 
     async def fake_send(action: str, payload: dict | None = None, **kwargs: object) -> object:
@@ -371,39 +406,6 @@ async def test_send_ws_message_disconnected_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_pick_preferred_extension_tab_prioritizes_active() -> None:
-    bridge = ExtensionBridgeService()
-    await bridge.set_authorized_domains(["example.com"])
-    inactive = ExtensionTab(
-        tab_id=1,
-        url="https://example.com/",
-        title="",
-        domain="example.com",
-        active=False,
-    )
-    active = ExtensionTab(
-        tab_id=2,
-        url="https://example.com/",
-        title="",
-        domain="example.com",
-        active=True,
-    )
-    bridge._tabs = [inactive, active]
-    assert bridge._pick_preferred_extension_tab().tab_id == 2
-
-    bridge._tabs = [inactive]
-    assert bridge._pick_preferred_extension_tab().tab_id == 1
-
-
-@pytest.mark.asyncio
-async def test_pick_preferred_extension_tab_empty() -> None:
-    bridge = ExtensionBridgeService()
-    await bridge.set_authorized_domains(["example.com"])
-    bridge._tabs = []
-    assert bridge._pick_preferred_extension_tab() is None
-
-
-@pytest.mark.asyncio
 async def test_focus_browser_on_domain_matches_page() -> None:
     mock_page = MagicMock()
     mock_page.url = "https://example.com/path"
@@ -536,3 +538,60 @@ async def test_import_fallback_definitions_when_harness_missing() -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "FALLBACK_OK" in result.stdout
+
+
+def test_apply_tab_list_keeps_well_formed_tabs_and_remembers_which_the_agent_opened() -> None:
+    bridge = ExtensionBridgeService()
+
+    bridge._apply_tab_list(
+        [
+            {"id": 1, "url": "https://example.com/", "title": "Example", "domain": "example.com", "active": True},
+            {"id": 2, "url": "about:blank", "agentOwned": True},
+            {"url": "https://no-id.example/"},
+            "not a tab",
+        ]
+    )
+
+    assert [(tab.tab_id, tab.url, tab.domain, tab.active) for tab in bridge._tabs] == [
+        (1, "https://example.com/", "example.com", True),
+        (2, "about:blank", "", False),
+    ]
+    assert bridge._agent_tab_ids == frozenset({2})
+
+
+def test_apply_tab_list_ignores_a_report_that_is_not_a_list() -> None:
+    bridge = ExtensionBridgeService()
+    bridge._apply_tab_list([{"id": 1, "url": "https://example.com/", "agentOwned": True}])
+
+    bridge._apply_tab_list({"tabs": []})
+
+    assert [tab.tab_id for tab in bridge._tabs] == [1]
+    assert bridge._agent_tab_ids == frozenset({1})
+
+
+@pytest.mark.asyncio
+async def test_relay_admits_a_blank_agent_tab_but_not_a_blank_user_tab() -> None:
+    bridge = ExtensionBridgeService()
+    await bridge.set_authorized_domains(["example.com"])
+    bridge._apply_tab_list(
+        [
+            {"id": 1, "url": "about:blank", "agentOwned": True},
+            {"id": 2, "url": "about:blank"},
+            {"id": 3, "url": "https://example.com/", "domain": "example.com"},
+            {"id": 4, "url": "https://other.example/", "domain": "other.example", "agentOwned": True},
+        ]
+    )
+    synced: list[list[int]] = []
+
+    with patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager:
+        mock_manager.return_value.sync_tabs_from_extension.side_effect = lambda tabs: synced.append([t.tab_id for t in tabs])
+        await bridge._sync_relay_tabs()
+
+    assert synced == [[1, 3]]
+    assert [tab.tab_id for tab in await _listed(bridge)] == [3]
+
+
+async def _listed(bridge: ExtensionBridgeService) -> list[ExtensionTab]:
+    bridge._connected = True
+    with patch.object(bridge, "_refresh_tabs", AsyncMock()):
+        return await bridge.list_tabs()

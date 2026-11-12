@@ -12,14 +12,15 @@
  *   handled types: get_status, connect, disconnect, update_domains, update_access_policy, toggle_pause_tab,
  *   get_access_policy, glow_control
  *
- * [POS] The UI-facing API of the service worker. Unknown message types are ignored; every handled type answers once.
+ * [POS] The UI-facing API of the service worker. Unknown message types are ignored; every handled type answers once,
+ * after the saved state is loaded (a message may be what woke the worker).
  */
 
 import { buildDuplicateReviewUrl, buildWikiIgnoreUrl } from "../wiki/deep_links.js";
 import { applyAccessPolicyPayload, sendAccessPolicyUpdate } from "./access_policy.js";
 import { connect, disconnect } from "./connection.js";
 import { detachDebugger } from "./debugger.js";
-import { EXTENSION_CAPABILITIES, persistAccessPolicyLocal, persistConnection, state } from "./state.js";
+import { EXTENSION_CAPABILITIES, persistAccessPolicyLocal, persistConnection, state, whenRestored } from "./state.js";
 import { sendTabsUpdate } from "./tabs.js";
 import { isSocketOpen } from "./transport.js";
 
@@ -40,10 +41,9 @@ function respondWith(sendResponse, task) {
       sendResponse({ ok: false, error: error?.message || String(error) });
     }
   })();
-  return true;
 }
 
-// Each handler returns true when it answers through `sendResponse`, possibly after the listener returned.
+// Each handler answers once through `sendResponse`, possibly after it returned.
 const HANDLERS = new Map([
   [
     "get_status",
@@ -64,7 +64,6 @@ const HANDLERS = new Map([
         clipSuccessUrl: state.lastClipSuccessUrl,
         clipSavedWithoutOrigin: state.clipSavedWithoutOrigin,
       });
-      return true;
     },
   ],
   [
@@ -75,7 +74,6 @@ const HANDLERS = new Map([
       persistConnection();
       connect();
       sendResponse({ ok: true });
-      return true;
     },
   ],
   [
@@ -83,7 +81,6 @@ const HANDLERS = new Map([
     (_message, sendResponse) => {
       disconnect();
       sendResponse({ ok: true });
-      return true;
     },
   ],
   [
@@ -118,9 +115,9 @@ const HANDLERS = new Map([
       const tabId = Number.parseInt(String(message.tabId), 10);
       if (!Number.isInteger(tabId)) {
         sendResponse({ ok: false });
-        return true;
+        return;
       }
-      return respondWith(sendResponse, async () => {
+      respondWith(sendResponse, async () => {
         if (state.pausedTabIds.has(tabId)) {
           state.pausedTabIds.delete(tabId);
         } else {
@@ -142,18 +139,22 @@ const HANDLERS = new Map([
         allowAllEligibleTabs: state.allowAllEligibleTabs,
         pausedTabIds: [...state.pausedTabIds],
       });
-      return true;
     },
   ],
   [
     "glow_control",
-    (message) => {
+    (message, sendResponse) => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]) sendGlowToTab(tabs[0].id, message.active);
       });
-      return false;
+      sendResponse({ ok: true });
     },
   ],
 ]);
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => HANDLERS.get(message.type)?.(message, sendResponse));
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  const handler = HANDLERS.get(message.type);
+  if (!handler) return false;
+  void whenRestored().then(() => handler(message, sendResponse));
+  return true;
+});

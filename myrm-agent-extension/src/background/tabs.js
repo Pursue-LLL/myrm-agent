@@ -8,7 +8,7 @@
  *
  * [OUTPUT]
  * - getAuthorizedTabs: tabs the Agent may act on right now
- * - getListableTabs: tabs the policy admits, paused ones included (what the settings page lists)
+ * - getListableTabs: tabs the policy admits, paused ones included (what the server learns of; Agent tabs are flagged)
  * - findTabForDomain: the active (else first) authorized tab on a domain
  * - waitForTabLoad: resolve with the tab once it finishes loading, or when the timeout hits
  * - sendTabsUpdate: push the listable tabs to the server
@@ -27,6 +27,7 @@ function describeTab(tab) {
     title: tab.title || "",
     domain: extractDomain(tab.url || ""),
     active: tab.active,
+    agentOwned: state.agentTabIds.has(tab.id),
   };
 }
 

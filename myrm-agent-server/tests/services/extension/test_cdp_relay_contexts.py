@@ -23,7 +23,8 @@ class FakeExtension:
 
     def __init__(self) -> None:
         self.commands: list[dict[str, object]] = []
-        self.refuse_close: str | None = None
+        self.opens_no_tabs_of_its_own = False
+        self.close_fails_with: str | None = None
         self._next_tab_id = 100
 
     async def __call__(self, command: dict[str, object]) -> object:
@@ -34,8 +35,11 @@ class FakeExtension:
             return {"tabId": self._next_tab_id}
         if kind == "attach":
             return {"targetId": f"target-{command['tabId']}"}
-        if kind == "closeTab" and self.refuse_close is not None:
-            raise RuntimeError(self.refuse_close)
+        if kind == "closeTab":
+            if self.close_fails_with is not None:
+                raise RuntimeError(self.close_fails_with)
+            # The extension closes only tabs the Agent opened and leaves every other tab as the user had it.
+            return {"closed": not self.opens_no_tabs_of_its_own}
         return {}
 
     def closed_tab_ids(self) -> list[object]:
@@ -46,6 +50,9 @@ class FakeExtension:
 
     def opened_tabs(self) -> int:
         return sum(1 for command in self.commands if command["type"] == "createTab")
+
+    def detached_tab_ids(self) -> list[object]:
+        return [command["tabId"] for command in self.commands if command["type"] == "detach"]
 
 
 @dataclass(frozen=True)
@@ -201,19 +208,36 @@ async def test_dispose_of_an_unknown_context_is_an_error(bridge: ExtensionCdpRel
 
 
 @pytest.mark.asyncio
-async def test_dispose_still_forgets_the_context_when_the_extension_refuses_to_close_a_tab(
+async def test_dispose_still_forgets_the_context_when_a_tab_cannot_be_closed(
     bridge: ExtensionCdpRelayBridge, extension: FakeExtension
 ) -> None:
     client = Playwright(bridge)
     context_id = await client.create_context()
     await client.create_page(context_id)
-    extension.refuse_close = "Tab is not owned by the agent"
+    extension.close_fails_with = "Extension not connected"
 
     reply = await client.call("Target.disposeBrowserContext", {"browserContextId": context_id})
 
     assert reply.result == {}
+    assert bridge._tabs[101].context_id is None
     again = await client.call("Target.createTarget", {"url": "about:blank", "browserContextId": context_id})
     assert again.error["code"] == -32602
+
+
+@pytest.mark.asyncio
+async def test_dispose_lets_go_of_a_tab_the_extension_keeps_open(
+    bridge: ExtensionCdpRelayBridge, extension: FakeExtension
+) -> None:
+    client = Playwright(bridge)
+    context_id = await client.create_context()
+    target_id = await client.create_page(context_id)
+    extension.opens_no_tabs_of_its_own = True
+
+    reply = await client.call("Target.disposeBrowserContext", {"browserContextId": context_id})
+
+    assert reply.result == {}
+    assert extension.detached_tab_ids() == [101]
+    assert client.detached_targets() == [target_id]
 
 
 @pytest.mark.asyncio
@@ -248,17 +272,36 @@ async def test_close_target_closes_the_tab_and_announces_the_detach(
 
 
 @pytest.mark.asyncio
-async def test_close_target_surfaces_the_extension_refusal_and_keeps_the_tab(
+async def test_closing_a_tab_the_agent_did_not_open_only_lets_go_of_it(
     bridge: ExtensionCdpRelayBridge, extension: FakeExtension
 ) -> None:
     client = Playwright(bridge)
     bridge.sync_tabs([RelayTabInfo(tab_id=7, url="https://intranet.example/", title="Intranet", active=True)])
     attached = await bridge._ensure_tab_attached(7)
-    extension.refuse_close = "Only tabs the agent created can be closed"
+    bridge._announce_attached(client.client, 7, attached)
+    extension.opens_no_tabs_of_its_own = True
 
     reply = await client.call("Target.closeTarget", {"targetId": attached.target_id})
 
-    assert "Only tabs the agent created" in str(reply.error["message"])
+    # Playwright only completes page.close() once the target detaches, so the user's tab is released, not left dangling.
+    assert reply.result == {"success": True}
+    assert client.detached_targets() == [attached.target_id]
+    assert extension.detached_tab_ids() == [7]
+    assert 7 not in bridge._tabs
+
+
+@pytest.mark.asyncio
+async def test_close_target_reports_a_failure_to_reach_the_extension_and_keeps_the_tab(
+    bridge: ExtensionCdpRelayBridge, extension: FakeExtension
+) -> None:
+    client = Playwright(bridge)
+    bridge.sync_tabs([RelayTabInfo(tab_id=7, url="https://intranet.example/", title="Intranet", active=True)])
+    attached = await bridge._ensure_tab_attached(7)
+    extension.close_fails_with = "Extension not connected"
+
+    reply = await client.call("Target.closeTarget", {"targetId": attached.target_id})
+
+    assert "Extension not connected" in str(reply.error["message"])
     assert 7 in bridge._tabs
     assert client.detached_targets() == []
 

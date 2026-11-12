@@ -362,6 +362,7 @@ def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None
             "list_tabs",
             "attach_debugger",
             "detach_debugger",
+            "agent_tab_control",
         }
 
         with open_settings_subroute(f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000) as (client, page):

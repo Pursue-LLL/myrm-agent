@@ -304,5 +304,8 @@
   },
   "allowAllEligibleTabs": {
     "message": "Allow all eligible websites"
+  },
+  "tabGroupTitle": {
+    "message": "Myrm Agent"
   }
 }
