@@ -9,6 +9,7 @@
 - .config::BrowserPoolConfig (POS: browser pool config)
 - .throttle::ThrottleStrategy, create_throttle_strategy (POS: throttle strategy)
 - .circuit_breaker::CircuitBreaker (POS: circuit breaker)
+- .extension_bridge::ExtensionBrowserInstance (POS: the user's own browser reached through the extension)
 - .crash_watchdog::CrashWatchdogMixin (POS: three-layer crash recovery)
 - .pool_scheduling::PoolSchedulingMixin (POS: launcher cache and least-loaded browser selection)
 - .pool_lifecycle::PoolLifecycleMixin (POS: background loop, close, shutdown, hot reload)
@@ -47,6 +48,7 @@ from .circuit_breaker import CircuitBreaker
 from .config import BrowserEngine, BrowserPoolConfig, LaunchMode
 from .context_factory import ContextFactory
 from .crash_watchdog import CrashWatchdogMixin
+from .extension_bridge import ExtensionBrowserInstance
 from .memory_guard import MemoryGuard
 from .page_acquisition import PageAcquisition
 from .page_pool import PagePool
@@ -196,10 +198,14 @@ class GlobalBrowserPool(PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnostics
         *,
         max_size: int = 10,
     ) -> PagePool:
-        """Create a PagePool; external CDP browsers preserve profile session state."""
+        """Create a PagePool; external CDP browsers preserve profile session state.
+
+        A page in the user's own browser (extension) is never kept idle: a tab the Agent let go of is closed
+        instead of staying open in the user's window.
+        """
         return PagePool(
             context,
-            max_size=max_size,
+            max_size=0 if isinstance(browser_inst, ExtensionBrowserInstance) else max_size,
             preserve_session=not browser_inst.is_managed,
         )
 
@@ -228,7 +234,11 @@ class GlobalBrowserPool(PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnostics
 
             for ctx_type in [ContextType.CRAWL, ContextType.AGENT]:
                 ctx_key = f"{ctx_type.value}_warmup"
-                inst.contexts[ctx_key] = await self._context_factory.create_context(inst.browser, ctx_type.value)
+                inst.contexts[ctx_key] = await self._context_factory.create_context(
+                    inst.browser,
+                    ctx_type.value,
+                    extension_attached=isinstance(inst, ExtensionBrowserInstance),
+                )
                 pool = self._make_page_pool(
                     inst,
                     inst.contexts[ctx_key],
@@ -289,6 +299,7 @@ class GlobalBrowserPool(PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnostics
                     context_type.value,
                     extra_kwargs=merged_kwargs,
                     context_key=ctx_key,
+                    extension_attached=isinstance(browser_inst, ExtensionBrowserInstance),
                 )
                 new_pool = self._make_page_pool(browser_inst, new_context)
 

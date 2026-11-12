@@ -31,8 +31,8 @@ function assertRelayCdpNavigateAuthorized(tabId, method, params) {
   if (!url) {
     return;
   }
-  // A tab the Agent opened may be taken back to a blank page (the browser pool resets a reused page that way); the
-  // policy keeps admitting it while it is blank. A tab the user opened is never navigated away to nothing.
+  // The browser toolkit discards a document it refused after loading it by taking the tab back to a blank page, so a tab
+  // the Agent opened may navigate to blank. A tab the user opened is never navigated away to nothing.
   if (isBlankUrl(url) && state.agentTabIds.has(tabId)) {
     return;
   }

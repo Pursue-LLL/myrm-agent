@@ -1,8 +1,10 @@
 """[INPUT]
 - app.services.extension.cdp_relay.manager::get_cdp_relay_manager (POS: relay manager)
+- myrm_agent_harness.toolkits.browser.pool.extension_bridge::ExtensionBridgeNotAvailable, ExtensionStatus, ExtensionTab (POS: the contract types the bridge exchanges with the harness)
 
 [OUTPUT]
 - logger/constants, DomainPolicyWarning, _broadcast_extension_status, get_cdp_relay_manager
+- ExtensionBridgeNotAvailable, ExtensionStatus, ExtensionTab (re-exported contract types)
 
 [POS]
 Shared primitives of the extension bridge: the only place tests patch the status broadcast and the relay manager.
@@ -12,39 +14,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+
+from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
+    ExtensionBridgeNotAvailable as ExtensionBridgeNotAvailable,
+)
+from myrm_agent_harness.toolkits.browser.pool.extension_bridge import ExtensionStatus as ExtensionStatus
+from myrm_agent_harness.toolkits.browser.pool.extension_bridge import ExtensionTab as ExtensionTab
 
 from app.services.event import AppEvent, AppEventType, get_event_bus
 from app.services.extension.cdp_relay.manager import get_cdp_relay_manager as get_cdp_relay_manager
-
-if TYPE_CHECKING:
-    pass
-
-
-try:
-    from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
-        ExtensionBridgeNotAvailable,
-        ExtensionStatus,
-        ExtensionTab,
-    )
-except ImportError:
-    from dataclasses import dataclass
-
-    class ExtensionBridgeNotAvailable(Exception):
-        pass
-
-    @dataclass
-    class ExtensionTab:
-        tab_id: int = 0
-        url: str = ""
-        title: str = ""
-        active: bool = False
-
-    @dataclass
-    class ExtensionStatus:
-        connected: bool = False
-        handshake_ready: bool = False
-
 
 logger = logging.getLogger(__name__)
 

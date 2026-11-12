@@ -53,6 +53,7 @@ Browser session components.
 | vision_verifier.py | Core | 3-Layer Vision Verifier for Action-Verification Fusion. | ✅ |
 | takeover/ | Package | Session-level half of the human-takeover fence: `BrowserSessionTakeoverMixin._ensure_not_user_takeover` (the wait every session call that acts on the page makes first; inside a running script it stops the script once a person used the page) and the two errors it raises. Facade + mixin + errors. | ✅ |
 | structured_extractor.py | Core | LLM-based structured data extraction using JSON Schema → Pydantic validation. Raw JSON fallback extracts answer via `extract_answer_text` (兼容 reasoning 模型 content 空回退) and parses via `parse_llm_json_list`/`parse_llm_json_object` selected by the schema top-level type (`expect_array`), so object schemas containing array fields are never misread as the embedded array. Robust against fences, prose, bare control chars, trailing commas. | ✅ |
+| viewport.py | Core | `page_viewport_size(page)`: the area an interaction may point at (coordinate targeting, humanized mouse paths, scroll cursor placement). The emulated viewport when the context has one, else the window area the page measures for itself (a context in the user's own browser emulates none), else 1280x720. | ✅ |
 
 ## Key Dependencies
 

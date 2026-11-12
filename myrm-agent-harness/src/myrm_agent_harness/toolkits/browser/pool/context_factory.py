@@ -26,8 +26,8 @@ Dedicated to BrowserContext creation and configuration, including:
 9. Refusing downloads by default (``accept_downloads=False`` in every context kind): the browser would otherwise keep
    every file a page starts in its temp dir until the context closes, so only a context whose owner passes
    ``accept_downloads=True`` (a ``BrowserSession`` with a download manager) keeps any
-10. Contexts in the user's own browser, reached through the extension (``extension_attached``): the browser keeps its
-    window size, network, identity and certificate checks. No viewport, proxy, header, user-agent, emulation,
+10. Contexts in the user's own browser, reached through the extension (``extension_attached=True``): the browser keeps
+    its window size, network, identity and certificate checks. No viewport, proxy, header, user-agent, emulation,
     permission, certificate or stealth override is applied, because the extension's debugger refuses some of them
     and the rest would change the user's own tab
 """
@@ -52,9 +52,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT_MS = 30000  # global default timeout, overrides all page operations (evaluate/click/goto etc.)
 _STEALTH_TYPE = "stealth"  # ContextType.STEALTH.value — avoid circular import
 # create_context kwargs consumed by this factory; never forwarded to Browser.new_context().
-_POLICY_KWARGS = frozenset(
-    {"domain_allowlist", "domain_blocklist", "resource_block", "allow_private_networks", "extension_attached"}
-)
+_POLICY_KWARGS = frozenset({"domain_allowlist", "domain_blocklist", "resource_block", "allow_private_networks"})
 
 # What a context in the user's own browser asks for: nothing beyond refusing downloads. ``no_viewport`` leaves the page
 # at the window's own size instead of resizing it inside the user's window.
@@ -143,6 +141,8 @@ class ContextFactory:
         emulation: EmulationConfig | None = None,
         extra_kwargs: dict[str, object] | None = None,
         context_key: str | None = None,
+        *,
+        extension_attached: bool = False,
     ) -> BrowserContext:
         """Create a new BrowserContext with specified configuration.
 
@@ -156,11 +156,11 @@ class ContextFactory:
                 - domain_blocklist (DomainBlocklist): always-blocked domains
                 - resource_block (ResourceBlockConfig): resource type blocking
                 - allow_private_networks (bool): let the HTTP filter pass loopback/private targets
-                - extension_attached (bool): the browser is the user's own, reached through the extension; the
-                  context asks for no emulation, viewport, proxy, certificate or permission override
             context_key: Unique context identifier for proxy sticky session binding.
                 When provided, same context_key always gets the same proxy.
                 Falls back to context_type if not provided.
+            extension_attached: The browser is the user's own, reached through the extension; the context asks
+                for no emulation, viewport, proxy, certificate or permission override.
 
         Returns:
             Configured BrowserContext instance with 30s default timeout
@@ -172,13 +172,14 @@ class ContextFactory:
             All page operations (evaluate, click, goto, etc.) inherit the 30s timeout.
 
         """
-        ctx_opts = self._build_context_options(context_type, emulation, extra_kwargs, context_key)
+        ctx_opts = self._build_context_options(
+            context_type, emulation, extra_kwargs, context_key, extension_attached=extension_attached
+        )
         policy = extra_kwargs or {}
         domain_allowlist = cast("DomainAllowlist | None", policy.get("domain_allowlist"))
         domain_blocklist = cast("DomainBlocklist | None", policy.get("domain_blocklist"))
         resource_block = cast("ResourceBlockConfig | None", policy.get("resource_block"))
         allow_private_networks = bool(policy.get("allow_private_networks"))
-        extension_attached = bool(policy.get("extension_attached"))
 
         try:
             context = await browser.new_context(**ctx_opts)  # type: ignore[arg-type]
@@ -240,9 +241,11 @@ class ContextFactory:
         emulation: EmulationConfig | None,
         extra_kwargs: dict[str, object] | None,
         context_key: str | None = None,
+        *,
+        extension_attached: bool = False,
     ) -> dict[str, object]:
         """Build context options based on type and configuration."""
-        if extra_kwargs and extra_kwargs.get("extension_attached"):
+        if extension_attached:
             ctx_opts = dict(_EXTENSION_CONTEXT_OPTIONS)
         else:
             ctx_opts = self._build_launched_context_options(context_type, emulation, context_key)

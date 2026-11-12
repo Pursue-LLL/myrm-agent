@@ -16,7 +16,7 @@
   service-worker termination
 - RealExtensionStack / real_extension_stack: all three wired together and connected; user sign-in, the Agent's
   Playwright browser (the bridge's own connect(), through the CDP relay) and the Agent's BrowserSession on top of the
-  production browser pool
+  production browser pool (`agent_pool`, `agent_session`)
 - new_agent_page: a context and a blank page the way the Agent's browser pool opens them
 - wait_until: bounded polling for asynchronous conditions
 
@@ -270,22 +270,33 @@ class RealExtensionStack:
             await instance.browser.close()
 
     @asynccontextmanager
-    async def agent_session(self) -> AsyncIterator[BrowserSession]:
-        """The Agent's browser session as the tool setup builds it for the user's own browser (local mode, extension source)."""
+    async def agent_pool(self) -> AsyncIterator[GlobalBrowserPool]:
+        """The browser pool of the Agent's tool setup, reaching the user's own browser through the extension bridge."""
         pool = GlobalBrowserPool(max_browsers=1, config=BrowserPoolConfig.minimal(), extension_bridge=self.bridge)
-        session = BrowserSession(
-            pool,
-            ContextType.AGENT,
-            context_key="e2e-agent",
-            extension_bridge=self.bridge,
-            allow_private_networks=True,
-            launch_mode_preference="extension",
-        )
         try:
-            yield session
+            yield pool
         finally:
-            await session.close()
             await pool.shutdown()
+
+    @asynccontextmanager
+    async def agent_session(self, pool: GlobalBrowserPool | None = None) -> AsyncIterator[BrowserSession]:
+        """The Agent's browser session as the tool setup builds it for the user's own browser (local mode, extension source).
+
+        The session runs on `pool` when one is given (to look at the pool itself), else on a pool of its own.
+        """
+        async with AsyncExitStack() as cleanup:
+            if pool is None:
+                pool = await cleanup.enter_async_context(self.agent_pool())
+            session = BrowserSession(
+                pool,
+                ContextType.AGENT,
+                context_key="e2e-agent",
+                extension_bridge=self.bridge,
+                allow_private_networks=True,
+                launch_mode_preference="extension",
+            )
+            cleanup.push_async_callback(session.close)  # runs before the pool shuts down
+            yield session
 
     async def handshaken(self) -> bool:
         """True while the extension is connected and its hello has been processed."""

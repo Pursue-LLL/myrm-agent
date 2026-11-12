@@ -6,7 +6,8 @@
 
 [OUTPUT]
 - what the Agent's browsing tools do in the user's signed-in browser: navigate, read, click, take a screenshot; where
-  they are stopped; which tabs they leave behind (none, once the session ends)
+  they are stopped; one connection for all tabs of a session; a closed tab is closed in the user's browser; which tabs
+  they leave behind (none, once the session ends)
 
 [POS]
 The top of the end-to-end proof: the harness's own context options, page pool and session logic run against the real
@@ -80,3 +81,36 @@ async def test_session_leaves_no_tab_of_its_own_behind_and_keeps_the_users(stack
 
     await wait_until(only_the_users_tabs_remain, "the Agent's tabs to close with its session")
     assert not user_tab.is_closed()
+
+
+async def test_session_tabs_share_one_connection_and_a_closed_tab_is_closed_in_the_users_browser(
+    stack: RealExtensionStack,
+) -> None:
+    user_tab = await stack.log_in(INTRANET_HOST)
+    await stack.authorize([INTRANET_HOST])
+    secret, orders = stack.site.url(INTRANET_HOST, "/secret"), stack.site.url(INTRANET_HOST, "/orders")
+    users_tabs = sorted(stack.browser.user_tab_urls())
+
+    async with stack.agent_pool() as pool, stack.agent_session(pool) as session:
+        await session.navigate(secret)
+        await session.new_tab()
+        await session.navigate(orders)
+
+        assert pool.stats["total_browsers"] == 1
+        assert pool.stats["total_contexts"] == 1
+
+        await session.close_tab("tab1")
+
+        async def the_closed_tab_is_gone() -> bool:
+            return orders not in stack.browser.user_tab_urls()
+
+        await wait_until(the_closed_tab_is_gone, "the closed tab to disappear from the user's browser")
+        assert secret in stack.browser.user_tab_urls()
+
+        await session.close()
+
+        async def only_the_users_tabs_remain() -> bool:
+            return sorted(stack.browser.user_tab_urls()) == users_tabs
+
+        await wait_until(only_the_users_tabs_remain, "the Agent's last tab to close with its session")
+        assert not user_tab.is_closed()

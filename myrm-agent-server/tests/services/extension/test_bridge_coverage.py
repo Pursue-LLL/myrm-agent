@@ -8,13 +8,14 @@ import fallback, policy payload application, focus helpers, etc.).
 from __future__ import annotations
 
 import json
-import sys
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.browser.pool.config import BrowserEngine
 from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
     ExtensionBridgeNotAvailable,
+    ExtensionBrowserInstance,
     ExtensionTab,
 )
 from starlette.websockets import WebSocketDisconnect, WebSocketState
@@ -164,8 +165,9 @@ async def test_connect_success_leaves_the_users_tabs_alone() -> None:
         mock_manager.return_value = AsyncMock()
         instance = await bridge.connect()
 
+    assert isinstance(instance, ExtensionBrowserInstance)
     assert instance.is_managed is False
-    assert instance.engine == "chromium-patchright"
+    assert instance.engine == BrowserEngine.CHROMIUM_PATCHRIGHT.value  # what the pool matches a later acquire against
     users_page.bring_to_front.assert_not_awaited()
 
 
@@ -490,54 +492,6 @@ async def test_resolve_cdp_endpoint_returns_cached() -> None:
     with patch("myrm_agent_harness.toolkits.browser.pool.chrome_discovery.discover_chrome_cdp_endpoint") as mock_discover:
         assert bridge._resolve_cdp_endpoint() == "http://127.0.0.1:9222"
         mock_discover.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_import_fallback_definitions_when_harness_missing() -> None:
-    """The module-level ImportError fallback defines working stand-ins.
-
-    Run in a subprocess so the fallback is exercised in a pristine interpreter
-    without reloading the module (and perturbing sibling test state).
-    """
-    import os
-    import subprocess
-    import textwrap
-    from pathlib import Path
-
-    script = textwrap.dedent(
-        """
-        import builtins
-        import sys
-
-        real_import = builtins.__import__
-
-        def fake_import(name: str, *args: object, **kwargs: object) -> object:
-            if name == "myrm_agent_harness.toolkits.browser.pool.extension_bridge":
-                raise ImportError("simulated missing harness")
-            return real_import(name, *args, **kwargs)
-
-        builtins.__import__ = fake_import
-
-        import app.services.extension.bridge as bridge_mod
-
-        assert issubclass(bridge_mod.ExtensionBridgeNotAvailable, Exception)
-        assert bridge_mod.ExtensionTab is not None
-        assert bridge_mod.ExtensionStatus is not None
-        print("FALLBACK_OK")
-        """
-    )
-    env = dict(os.environ)
-    server_root = Path(__file__).resolve().parents[3]
-    env["PYTHONPATH"] = os.pathsep.join([str(server_root), *filter(None, env.get("PYTHONPATH", "").split(os.pathsep))])
-    result = subprocess.run(
-        [sys.executable, "-c", script],
-        capture_output=True,
-        text=True,
-        env=env,
-        timeout=90,
-    )
-    assert result.returncode == 0, result.stderr
-    assert "FALLBACK_OK" in result.stdout
 
 
 def test_apply_tab_list_keeps_well_formed_tabs_and_remembers_which_the_agent_opened() -> None:

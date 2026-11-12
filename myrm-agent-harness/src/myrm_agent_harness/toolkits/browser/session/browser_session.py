@@ -214,13 +214,10 @@ class BrowserSession(
         self._domain_blocklist = domain_blocklist
 
         context_kwargs: dict[str, object] = dict(observability.get_context_kwargs()) if observability else {}
-        launch_mode = self._launch_mode_preference or browser_pool.config.launch_mode
         policy_kwargs = {  # consumed by ContextFactory; only the active entries are passed on
             "domain_allowlist": domain_allowlist,
             "domain_blocklist": domain_blocklist,
             "allow_private_networks": allow_private_networks,
-            # The user's own browser keeps its window, identity and certificate checks; the pool must not emulate over it.
-            "extension_attached": launch_mode == LaunchMode.EXTENSION,
         }
         context_kwargs.update({key: value for key, value in policy_kwargs.items() if value})
         # Without a download manager nothing judges a download, so the browser must keep none: by default it

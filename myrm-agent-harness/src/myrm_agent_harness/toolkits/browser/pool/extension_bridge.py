@@ -2,9 +2,11 @@
 
 [INPUT]
 - typing::Protocol, runtime_checkable (POS: Python Protocol for structural subtyping)
+- .browser_launcher::BrowserInstance (POS: browser instance metadata the extension instance extends)
 
 [OUTPUT]
 - ExtensionBridge: Protocol defining the contract for browser extension bridge implementations
+- ExtensionBrowserInstance: the user's own browser reached through the extension
 - ExtensionTab: data class representing a browser tab exposed by the extension
 
 [POS]
@@ -19,10 +21,9 @@ Chrome/Edge MV3 extension that acts as a CDP proxy over WebSocket.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-if TYPE_CHECKING:
-    from .browser_launcher import BrowserInstance
+from .browser_launcher import BrowserInstance
 
 
 @dataclass(frozen=True)
@@ -73,18 +74,30 @@ class ExtensionStatus:
     capabilities: list[str] = field(default_factory=list)
 
 
+@dataclass
+class ExtensionBrowserInstance(BrowserInstance):
+    """The user's own browser, reached through the extension.
+
+    The pool never launches or closes it, and treats it unlike a CDP-attached browser: its contexts ask the browser for
+    no override, so the user's window size, network and identity stay as they are, and its pages are never kept idle for
+    reuse, so a tab the Agent let go of is closed instead of staying open in the user's window.
+    """
+
+    is_managed: bool = False
+
+
 @runtime_checkable
 class ExtensionBridge(Protocol):
     """Protocol for browser extension bridge implementations.
 
     Business layer (myrm-agent-server) implements this Protocol to provide
     the actual WebSocket connection management and CDP message routing.
-    The harness layer's BrowserLauncher uses this to obtain a BrowserInstance
+    The harness layer's BrowserLauncher uses this to obtain an ExtensionBrowserInstance
     when LaunchMode.EXTENSION is configured.
     """
 
-    async def connect(self, *, timeout: float = 10.0) -> BrowserInstance:
-        """Obtain a BrowserInstance by connecting through the extension.
+    async def connect(self, *, timeout: float = 10.0) -> ExtensionBrowserInstance:
+        """Obtain the user's browser by connecting through the extension.
 
         The implementation should:
         1. Verify the extension WebSocket is connected
@@ -96,14 +109,14 @@ class ExtensionBridge(Protocol):
             timeout: Maximum seconds to wait for connection.
 
         Returns:
-            BrowserInstance with is_managed=False (we don't own the browser lifecycle).
+            ExtensionBrowserInstance (the pool does not own the browser lifecycle).
 
         Raises:
             BrowserLaunchError: If extension is not connected or connection fails.
         """
         ...
 
-    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> BrowserInstance:
+    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> ExtensionBrowserInstance:
         """Connect to a specific authorized domain's tab.
 
         Args:
@@ -111,7 +124,7 @@ class ExtensionBridge(Protocol):
             timeout: Maximum seconds to wait.
 
         Returns:
-            BrowserInstance connected to a tab matching the domain.
+            ExtensionBrowserInstance connected to a tab matching the domain.
 
         Raises:
             BrowserLaunchError: If no tab for the domain exists or domain is not authorized.

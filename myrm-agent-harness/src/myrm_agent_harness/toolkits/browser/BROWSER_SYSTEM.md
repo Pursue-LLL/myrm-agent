@@ -24,6 +24,8 @@
 
 Extension Bridge 与 SessionVault 覆盖竞品（orca/holaboss）cookie 导入的核心收益，且无需读取 OS 浏览器数据库。
 
+`browser_source=extension` 时，池把用户的浏览器当作 `ExtensionBrowserInstance`：它的上下文不加视口、代理、请求头、UA、仿真、权限与 stealth 覆盖（扩展的 debugger 会拒绝其中一部分，其余会改动用户自己的标签页），页面不空闲留存，会话里关掉的标签页就是在用户浏览器里关掉。Agent 用的上下文只是对标签页的分组，与用户浏览器共享 cookie 与存储，不是独立账号或沙箱。
+
 ---
 
 ## 系统架构

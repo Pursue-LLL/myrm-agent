@@ -88,7 +88,7 @@ async def test_agent_can_take_its_own_page_back_to_blank_but_never_a_users(stack
         page = await new_agent_page(browser)
         await page.goto(stack.site.url(INTRANET_HOST, "/secret"))
 
-        await page.goto("about:blank")  # the browser pool resets a reused page this way
+        await page.goto("about:blank")  # the toolkit discards a document it refused this way
         await page.goto(stack.site.url(INTRANET_HOST, "/secret"))
         assert await page.inner_text("#data") == "private-data-42"
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.browser.pool.browser_launcher import BrowserInstance
+from myrm_agent_harness.toolkits.browser.pool.extension_bridge import ExtensionBrowserInstance
 from starlette.websockets import WebSocketState
 
 from app.services.extension.access_policy import (
@@ -82,7 +82,7 @@ class ConnectionMixin:
 
         raise ExtensionBridgeNotAvailable("Extension CDP relay is not ready. Reconnect the browser extension and retry.")
 
-    async def connect(self, *, timeout: float = 10.0) -> BrowserInstance:
+    async def connect(self, *, timeout: float = 10.0) -> ExtensionBrowserInstance:
         if not self._connected or self._ws is None:
             raise ExtensionBridgeNotAvailable("Browser extension is not connected. Please install and connect the extension.")
         if not self._hello_received:
@@ -98,13 +98,9 @@ class ConnectionMixin:
         pw = await self._ensure_playwright()
 
         browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
-        return BrowserInstance(
-            browser=browser,
-            engine="chromium-patchright",
-            is_managed=False,
-        )
+        return ExtensionBrowserInstance(browser=browser)
 
-    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> BrowserInstance:
+    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> ExtensionBrowserInstance:
         policy = self._current_access_policy()
         domain_lower = domain.strip().lower().rstrip(".")
         if not domain_lower:
@@ -149,11 +145,7 @@ class ConnectionMixin:
 
         browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
         await self._focus_browser_on_domain(browser, target_tab.domain)
-        return BrowserInstance(
-            browser=browser,
-            engine="chromium-patchright",
-            is_managed=False,
-        )
+        return ExtensionBrowserInstance(browser=browser)
 
     async def navigate_to_url(
         self,
