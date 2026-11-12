@@ -2,7 +2,7 @@
 
 [OUTPUT]
 - heal_chrome_attach_before_reopen
-- should_abort_desktop_e2e_retries, is_retriable_page_transport
+- should_abort_desktop_e2e_retries, is_mux_new_page_retriable, is_retriable_page_transport
 
 [POS]
 Transport error classification + attach heal only. Page open SSOT: open_mcp_page / open_mcp_page_async.

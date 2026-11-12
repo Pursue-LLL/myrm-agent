@@ -38,7 +38,8 @@
 
 ## 消费方（示例）
 
-- `features/chat-window/` — `AgentBrickCard`、`AgentInfoBanner`、`AgentIndicator`
+- `features/chat-window/` — `AgentInfoBanner`
+- `features/message-input-actions/` — `AgentIndicator`
 - `features/settings/sections/ai-core/` — `AgentsSection`
 - `features/cron/` — 定时任务智能体展示
 - `app/agents/page.tsx` — 智能体管理页

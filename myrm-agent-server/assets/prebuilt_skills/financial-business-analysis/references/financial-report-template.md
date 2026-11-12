@@ -98,7 +98,7 @@ $$ROE = \text{Net Profit Margin} \times \text{Asset Turnover} \times \text{Finan
 
 ### 6.1 Multi-Source Conflict Arbitration Reference
 
-> When this report relies on arbitrated figures (figures that differ across official filings), cite the Fact Check Sheet: see **`fact_check.json`** in the deliverables board for the full conflict matrix — each adopted value's source authority, rationale, and confidence score. Every conflicted metric in Sections 2–6 must trace to a fact-check item ID (`fci_*`).
+> When this report relies on arbitrated figures (figures that differ across official filings), cite the Fact Check Sheet: see **`fact_check.json`** in the task deliverable bundle for the full conflict matrix — each adopted value's source authority, rationale, and confidence score. Every conflicted metric in Sections 2–6 must trace to a fact-check item ID (`fci_*`).
 
 ---
 

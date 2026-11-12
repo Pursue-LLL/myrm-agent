@@ -763,26 +763,37 @@ class AllowlistEntry:
 
 ### 5.3 中间件集成决策流
 
-`ToolApprovalMiddleware` 的完整决策流程：
+审批分两个 graph 节点（见 `HITL_SYSTEM.md`）：`ApprovalEvaluationMiddleware`（`middlewares/approval/evaluation/`）对一次模型响应里的调用只判定一次——审核模型、拒绝计数、限流这些副作用都发生在这里，结论存入私有状态键 `approval_evaluation`；`ToolApprovalMiddleware` 只读这份结论并向用户发问。用户答复后 LangGraph 会从发问节点的第一行重跑，副作用因此不会重复。
+
+`batch_processor.evaluate_tool_batch`（`batch_processor/{core,decide,yolo}.py`）对每个调用的判定顺序：
 
 ```
-1. resolve_permission_type(tool_name) → 抽象权限类型
-2. evaluate_tool_call(permission, tool_input, config, workspace_root=..., tool_name=...) → (action, reason)
+0. YOLO 生效且组织策略允许该模型 → 走 5.0 的 YOLO 分支（DENY 仍然拒绝）
+1. 前置拒绝（直接 DENY）：桌面视觉按键只给了单个可打印运算符；不可信入口栅栏剥离的工具；只读研究租约不允许的工具
+2. resolve_permission_type(tool_name, tool_input) → evaluate_tool_call(permission, tool_input, config, workspace_root=..., tool_name=...) → (action, reason)
    - tool_name 用于 mcp_invoke 的 per-tool target resolution（如 mcp__gmail__send_email）
-3. if ALLOW:
-     taint_check → 冲突? → 提升为 ASK
-     无冲突 → 执行工具
-4. if DENY:
-     记录审计 → 记录拒绝计数 → 返回错误 ToolMessage
-5. if ASK:
-     a. MCP Fast-Path: permission_type=="mcp_invoke" && is_read_only && !is_open_world && !is_destructive → ALLOW
-     b. Cron 会话? → ASK 提升为 ALLOW（能力声明 = 预授权）
-     c. Allowlist 命中? → ALLOW
-     d. 创建 ApprovalRequest → 通过 callback 发送 SSE 事件 → 等待用户响应
-     e. match response.decision:
-          APPROVE → 执行（可选 allow_always 写入 Allowlist）
-          EDIT    → 替换参数后执行（可选 allow_always）
-          REJECT  → 返回用户反馈给 Agent（记录拒绝计数）
+   - PTC 调用先过路径策略
+   - ASK 且为只读 MCP / PTC 工具（is_read_only && !is_open_world && !is_destructive）→ ALLOW
+3. ASK → Allowlist：可信工作区声明的 shell 命令前缀，或用户 allowlist 命中 → ALLOW
+   批次高风险双保险、资金类工具、社交不可逆动作、受保护指令文件不可由 allowlist 放行；组织策略（MAP）可让该模型忽略 allowlist
+4. ALLOW → 升级检查（命中任一项即改为 ASK）：社交不可逆动作；破坏性 shell（同时创建工作区快照）；auto-mode 下拒绝阈值被突破；
+   污点冲突（auto-mode 下先交 LLM 审核：ALLOW 放行 / DENY 拒绝 / UNCERTAIN 回到 ASK）
+   auto-mode 下，invoke_external_agent 与非平凡 shell 在放行前还要过一次 LLM 审核（拒绝或存疑时不放行）
+   全部通过 → 执行工具
+5. DENY → 记录审计 → 记录拒绝计数 → 返回错误 ToolMessage
+6. ASK 的后续裁决，依次：
+     a. Cron 会话 → resolve_cron_ask：能力声明视为预授权，凭据外送、越界路径、集成写入除外；未声明能力集 fail-closed 拒绝
+     b. 技能钩子：BLOCK → 拒绝；REQUIRE_APPROVAL → 待审
+     c. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
+     d. auto-mode LLM 审核：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
+     e. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）
+7. 限流（evaluate_target）：同一用户在滑动窗口内审批请求过多 → 本批待审调用全部拒绝
+8. 发问（ToolApprovalMiddleware）：被拒调用 → 错误 ToolMessage；待审调用合并为一次 interrupt(payload) 批量审批
+     子 Agent 的 payload 带 action_type=subagent_approval 与 subagent_task_id（缺 task_id 时直接拒绝）；影子 Agent 没有 UI 通道，直接拒绝
+     match decision.type:
+          approve → 执行（可选 allow_always 写入 Allowlist）
+          edit    → 替换参数后执行（可选 allow_always），并触发 APPROVAL_CORRECTION 钩子
+          reject  → 返回用户反馈给 Agent（记录拒绝计数）
 ```
 
 ### 5.4 Edit 决策实现
