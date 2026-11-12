@@ -285,7 +285,7 @@ class TestMemoryRecallTool:
     async def test_recall_no_results(self, mcp_server, mock_manager):
         mock_manager.search.return_value = []
         result = await _get_tool_fn(mcp_server, "memory_recall")(query="test query")
-        assert result == "No relevant memories found."
+        assert result.startswith("No relevant memories found.")
 
     @pytest.mark.asyncio
     async def test_recall_no_results_degraded_returns_timeout_notice(self, mcp_server, mock_manager):

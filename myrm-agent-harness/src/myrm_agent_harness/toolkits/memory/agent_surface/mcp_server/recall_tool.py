@@ -5,12 +5,13 @@
 - toolkits.memory.types::{MemorySearchResult, MemoryType, ClaimMemory, SemanticMemory} (POS: memory data models)
 - toolkits.memory.agent_surface.memory_recall_formatting (POS: recall sanitize / label / footer SSOT)
 - toolkits.memory.agent_surface.memory_recall_budget (POS: recall output budget guardrails)
+- toolkits.memory.agent_surface.memory_recall_no_result::no_result_reply (POS: the reply to a search that finds nothing)
 
 [OUTPUT]
 - register_recall_tool: register memory_recall on an MCPServer
 
 [POS]
-Read plane of the MCP adapter. Recalled bodies are sanitized and followed by a static untrusted advisory.
+Read plane of the MCP adapter. Recalled bodies are sanitized and followed by a static untrusted advisory; an empty recall explains rule matching.
 """
 
 from __future__ import annotations
@@ -48,6 +49,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
     parse_time_bound as _parse_time_bound,
 )
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_no_result import no_result_reply
 from myrm_agent_harness.toolkits.memory.types import (
     ClaimMemory,
     MemorySearchResult,
@@ -185,6 +187,6 @@ def register_recall_tool(mcp: MCPServer, resolve: ManagerResolver) -> None:
         if not results:
             if mgr.last_retrieval_trace is not None and mgr.last_retrieval_trace.degraded:
                 return "Memory search timed out. Try a more specific query or retry."
-            return "No relevant memories found."
+            return no_result_reply(types)
 
         return _format_recall_results(results)

@@ -3,6 +3,7 @@
 [INPUT]
 - toolkits.memory.manager::MemoryManager (POS: Memory store orchestrator)
 - toolkits.memory.conversation_search.types::ConversationSearchRequest (POS: Conversation search request DTO)
+- toolkits.memory.agent_surface.memory_recall_no_result::no_result_reply (POS: the reply to a search that finds nothing)
 
 [OUTPUT]
 - search_memory_corpus, search_wiki_corpus, search_sessions_corpus: Corpus-specific recall execution.
@@ -25,8 +26,6 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_citations import (
     emit_cited_memory_ids,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_budget import (
-    DEFAULT_RECALL_LIMIT,
-    MAX_RECALL_LIMIT,
     MAX_RECALL_OUTPUT_CHARS,
     budget_recall_line,
     line_cost,
@@ -49,6 +48,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
     parse_time_bound as _parse_time_bound,
 )
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_no_result import no_result_reply
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import MemorySearchBackends
 from myrm_agent_harness.toolkits.memory.agent_surface.tool_result_sources import (
     pack_tool_result_with_sources,
@@ -97,17 +97,6 @@ async def _run_with_timeout[T](
 _CODE_PATH_PATTERN = re.compile(
     r"(\/[a-zA-Z0-9_\-\.]+)+\/?|[a-zA-Z0-9_\-\.]+\.(py|ts|tsx|js|jsx|json|yaml|yml|md|rs|go|java|c|cpp|h|hpp)"
 )
-
-
-def _no_result_reply(types: list[MemoryType] | None) -> str:
-    """The zero-hit reply; a search that covers rules adds how they are matched (one exact phrase, not by meaning)."""
-    if types is not None and MemoryType.PROCEDURAL not in types:
-        return "No relevant memories found."
-    return (
-        "No relevant memories found. Stored rules are matched as one exact phrase against their trigger and action: "
-        'search one distinctive word, or leave query empty with categories=["rule"] to list rules '
-        f"({DEFAULT_RECALL_LIMIT} per call, up to {MAX_RECALL_LIMIT} with limit)."
-    )
 
 
 async def search_memory_corpus(
@@ -173,7 +162,7 @@ async def search_memory_corpus(
                 codes = manager.last_retrieval_trace.warning_codes
                 code_suffix = f" ({', '.join(codes)})" if codes else ""
                 return f"Memory search degraded due to timeout or internal store error{code_suffix}. Try a more specific query or retry."
-        return _no_result_reply(types)
+        return no_result_reply(types)
 
     for result in results:
         memory = result.memory
@@ -279,7 +268,7 @@ async def search_memory_corpus(
         )
 
     if not output:
-        return _no_result_reply(types)
+        return no_result_reply(types)
 
     text = finalize_recall_tool_output("\n".join(output))
     text += RECALL_DRIFT_DEFENSE_FOOTER
