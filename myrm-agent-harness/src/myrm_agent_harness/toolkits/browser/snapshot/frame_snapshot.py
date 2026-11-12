@@ -126,11 +126,10 @@ class FrameState:
 
         # A page can load a new document (link click, form submit, script redirect) or replace
         # document.body without any call here. The observer must be installed or re-anchored on
-        # the live body and the cached tree (from the old document) must be rebuilt.
+        # the live body and the cached tree (from the old document) must be rebuilt; with no
+        # working observer nothing vouches for the cached tree either.
         observer_renewed = await self._observer.ensure_active()
-        if self._observer.is_cross_origin:
-            return AriaSnapshot.create_cross_origin()
-        if observer_renewed:
+        if observer_renewed or not self._observer.is_installed:
             self._cached_aria_tree = None
             self._cached_refs = None
             self._cached_cursor_elements = None
