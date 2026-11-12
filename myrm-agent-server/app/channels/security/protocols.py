@@ -119,7 +119,7 @@ class WebhookFailure:
     request_path: str
     """Request path (e.g., /webhook/telegram)"""
 
-    details: dict | None = None
+    details: dict[str, object] | None = None
     """Additional details (e.g., status_code, trace_id, etc.)"""
 
 

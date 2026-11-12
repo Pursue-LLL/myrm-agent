@@ -627,14 +627,15 @@ class WebhookSecurityMiddleware:
             },
         )
 
-    def _get_parsed_body(self, request: Request, body: bytes) -> dict | None:
+    def _get_parsed_body(self, request: Request, body: bytes) -> dict[str, object] | None:
         """Parse body as JSON and cache on request.state (avoid repeated parsing)."""
         if not hasattr(request.state, "_webhook_parsed_body"):
             try:
                 request.state._webhook_parsed_body = json.loads(body)
             except json.JSONDecodeError:
                 request.state._webhook_parsed_body = None
-        return request.state._webhook_parsed_body  # type: ignore[return-value]
+        parsed: dict[str, object] | None = request.state._webhook_parsed_body
+        return parsed
 
     def _extract_timestamp(self, request: Request, body: bytes) -> int | None:
         """Extract request timestamp (platform-adaptive, using cached parsed_data)."""
