@@ -7,11 +7,15 @@ import time
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import (
+from tests.support.chrome_mcp_e2e import open_page_budget, open_page_mux
+from tests.support.chrome_mcp_e2e.open_page_budget import (
     _open_page_attempt_count,
+    _open_page_cdp_probe_budget_sec,
     _open_page_parallel_budgets,
     _shared_read_parallel_open_page_retry_allowed,
 )
+from tests.support.chrome_mcp_e2e.open_page_mux import _retryable_open_page_error
+from tests.support.chrome_mcp_e2e.patching import patch_everywhere
 
 
 def test_open_page_cdp_probe_budget_scales_with_mux_load(
@@ -33,29 +37,24 @@ def test_open_page_cdp_probe_budget_scales_with_mux_load(
             {"snapshot_mux_load": staticmethod(lambda: _Load(wave_leases=5, mux_contexts=2))},
         )(),
     )
-    from tests.support.chrome_mcp_e2e import _open_page_cdp_probe_budget_sec
 
     assert _open_page_cdp_probe_budget_sec() == 105.0
 
 
 def test_retryable_open_page_error_includes_connection_reset() -> None:
-    from tests.support.chrome_mcp_e2e import _retryable_open_page_error
-
     assert _retryable_open_page_error(RuntimeError("Chrome MCP connection reset during tools/call; retry this call"))
 
 
 def test_open_page_parallel_budgets_scale_with_live_peer_count(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 0)
     idle = _open_page_parallel_budgets(300.0, new_page_timeout_ms=120_000, peers=3)
     assert idle == (60.0, 120_000, 150.0, 280.0, 2)
 
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 6)
-    monkeypatch.setattr(
-        chrome_mcp_e2e,
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 6)
+    patch_everywhere(
+        monkeypatch,
         "_open_page_body_fraction_cap_sec",
         lambda: 210.0,
     )
@@ -72,12 +71,10 @@ def test_phase_c_burst_open_mcp_uses_signoff_parallel_budgets(
 ) -> None:
     from dev_gate.contract import signoff_open_mcp_budgets
 
-    from tests.support import chrome_mcp_e2e
-
     monkeypatch.delenv("E2E_SIGNOFF", raising=False)
     monkeypatch.setenv("MYRM_E2E_PHASE_C_BURST_LANES", "4")
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 0)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: False)
     expected = signoff_open_mcp_budgets(parallel_peers=4)
     result = _open_page_parallel_budgets(300.0, new_page_timeout_ms=120_000, peers=0)
     assert result[2] == expected.wall_budget_sec
@@ -88,8 +85,6 @@ def test_phase_c_burst_open_mcp_uses_signoff_parallel_budgets(
 def test_open_page_body_fraction_cap_scales_with_live_body_wall(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
     monkeypatch.delenv("MYRM_E2E_SIGNOFF", raising=False)
     monkeypatch.setitem(
         sys.modules,
@@ -102,21 +97,19 @@ def test_open_page_body_fraction_cap_scales_with_live_body_wall(
             },
         )(),
     )
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
-    assert chrome_mcp_e2e._open_page_body_fraction_cap_sec() == pytest.approx(252.0)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 0)
+    assert open_page_budget._open_page_body_fraction_cap_sec() == pytest.approx(252.0)
 
 
 def test_open_page_queue_wait_extends_bootstrap_deadlines(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
-    monkeypatch.setattr(
-        chrome_mcp_e2e,
+    patch_everywhere(
+        monkeypatch,
         "_open_page_queue_wait_extends_deadlines",
         lambda: True,
     )
-    started, wall, total = chrome_mcp_e2e._extend_open_page_deadlines_for_queue_wait(
+    started, wall, total = open_page_budget._extend_open_page_deadlines_for_queue_wait(
         elapsed_sec=45.0,
         transport_session_started=100.0,
         wall_deadline=200.0,
@@ -142,30 +135,27 @@ def test_open_page_body_fraction_cap_scales_with_parallel_peers(
             },
         )(),
     )
-    from tests.support import chrome_mcp_e2e
 
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
-    assert chrome_mcp_e2e._open_page_body_fraction_cap_sec() == pytest.approx(270.0)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 4)
+    assert open_page_budget._open_page_body_fraction_cap_sec() == pytest.approx(270.0)
 
 
 def test_open_page_attempt_count_is_one_under_parallel_peers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
-    assert chrome_mcp_e2e._open_page_attempt_count() == 1
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    assert chrome_mcp_e2e._open_page_attempt_count() == 2
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 3)
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    assert chrome_mcp_e2e._open_page_attempt_count() == 3
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    assert chrome_mcp_e2e._open_page_attempt_count() == 2
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
-    assert chrome_mcp_e2e._open_page_attempt_count() == chrome_mcp_e2e._OPEN_PAGE_ATTEMPTS
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 4)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: False)
+    assert open_page_budget._open_page_attempt_count() == 1
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    assert open_page_budget._open_page_attempt_count() == 2
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 3)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    assert open_page_budget._open_page_attempt_count() == 3
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 0)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    assert open_page_budget._open_page_attempt_count() == 2
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: False)
+    assert open_page_budget._open_page_attempt_count() == open_page_budget._OPEN_PAGE_ATTEMPTS
 
 
 def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
@@ -173,12 +163,10 @@ def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
 ) -> None:
     from unittest.mock import MagicMock
 
-    from tests.support import chrome_mcp_e2e
-
     captured: list[float] = []
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    monkeypatch.setattr(
-        chrome_mcp_e2e,
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    patch_everywhere(
+        monkeypatch,
         "_signoff_threaded_new_page",
         lambda client, url, *, timeout_ms, join_timeout_sec: captured.append(join_timeout_sec) or MagicMock(),
     )
@@ -191,10 +179,10 @@ def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
         "mux.load.snapshot_mux_load",
         lambda **kwargs: type("_Snap", (), {"mux_contexts": 0, "wave_leases": 0})(),
     )
-    monkeypatch.setattr(chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None)
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
+    patch_everywhere(monkeypatch, "_signoff_wait_mux_before_new_page", lambda **_: None)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 0)
     client = MagicMock()
-    chrome_mcp_e2e._open_page_new_page(
+    open_page_mux._open_page_new_page(
         client,
         "http://127.0.0.1:3000",
         timeout_ms=90_000,
@@ -210,12 +198,10 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
 ) -> None:
     from unittest.mock import MagicMock
 
-    from tests.support import chrome_mcp_e2e
-
     captured: list[float] = []
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    monkeypatch.setattr(
-        chrome_mcp_e2e,
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    patch_everywhere(
+        monkeypatch,
         "_signoff_threaded_new_page",
         lambda client, url, *, timeout_ms, join_timeout_sec: captured.append(join_timeout_sec) or MagicMock(),
     )
@@ -228,10 +214,10 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
         "mux.load.snapshot_mux_load",
         lambda **kwargs: type("_Snap", (), {"mux_contexts": 3, "wave_leases": 3})(),
     )
-    monkeypatch.setattr(chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None)
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 3)
+    patch_everywhere(monkeypatch, "_signoff_wait_mux_before_new_page", lambda **_: None)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 3)
     client = MagicMock()
-    chrome_mcp_e2e._open_page_new_page(
+    open_page_mux._open_page_new_page(
         client,
         "http://127.0.0.1:3000",
         timeout_ms=90_000,
@@ -245,12 +231,10 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
 def test_signoff_mux_drain_budget_uses_bootstrap_remaining(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
-    monkeypatch.setattr(
-        chrome_mcp_e2e,
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 0)
+    patch_everywhere(
+        monkeypatch,
         "_mux_cold_attach_drain_budget_sec",
         lambda: 57.0,
     )
@@ -262,18 +246,16 @@ def test_signoff_mux_drain_budget_uses_bootstrap_remaining(
         "e2e_session_runtime.lifecycle.remaining_wall_sec",
         lambda: 387.0,
     )
-    assert chrome_mcp_e2e._signoff_mux_drain_budget_sec() == 57.0
+    assert open_page_budget._signoff_mux_drain_budget_sec() == 57.0
 
 
 def test_signoff_mux_drain_budget_parallel_skips_bootstrap_remaining_cap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 2)
-    monkeypatch.setattr(
-        chrome_mcp_e2e,
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 2)
+    patch_everywhere(
+        monkeypatch,
         "_mux_cold_attach_drain_budget_sec",
         lambda: 69.0,
     )
@@ -285,7 +267,7 @@ def test_signoff_mux_drain_budget_parallel_skips_bootstrap_remaining_cap(
         "e2e_session_runtime.lifecycle.remaining_wall_sec",
         lambda: 45.0,
     )
-    assert chrome_mcp_e2e._signoff_mux_drain_budget_sec() >= 69.0
+    assert open_page_budget._signoff_mux_drain_budget_sec() >= 69.0
 
 
 def test_shared_read_parallel_open_page_retry_allowed(
@@ -301,11 +283,9 @@ def test_shared_read_parallel_open_page_retry_allowed(
 def test_open_page_attempt_count_allows_read_lane_parallel_retry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
     monkeypatch.setenv("MYRM_E2E_LANE", "READ")
     monkeypatch.delenv("MYRM_E2E_SHARED_HOT", raising=False)
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
-    monkeypatch.setattr(chrome_mcp_e2e, "_dev_private_shpoib_bootstrap_phase", lambda: False)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 4)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: False)
+    patch_everywhere(monkeypatch, "_dev_private_shpoib_bootstrap_phase", lambda: False)
     assert _open_page_attempt_count() == 2

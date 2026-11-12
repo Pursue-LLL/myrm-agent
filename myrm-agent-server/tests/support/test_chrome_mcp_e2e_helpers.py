@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 
+import inspect
 import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from tests.support import chrome_mcp_e2e
-from tests.support.chrome_mcp_e2e import (
-    _APP_LAYOUT_READY_JS,
-    _SETTINGS_LAYOUT_READY_JS,
-    _page_shell_ready_js_for_url,
-    navigate_mcp_page,
-    wait_for_state,
-)
+from tests.support.chrome_mcp_e2e import navigate_mcp_page, open_page, reload, transport_progress, wait_for_state, warm_ui
+from tests.support.chrome_mcp_e2e.open_page import _APP_LAYOUT_READY_JS, _page_shell_ready_js_for_url
+from tests.support.chrome_mcp_e2e.patching import patch_everywhere
+from tests.support.chrome_mcp_e2e.settings_wait import _SETTINGS_LAYOUT_READY_JS
 
 
 def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> None:
@@ -28,8 +25,7 @@ def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> No
 
 def test_reapply_shpoib_bootstrap_runs_after_navigate() -> None:
     """Navigation clears window globals; bootstrap evaluate must run after target load."""
-    source = Path(__file__).with_name("chrome_mcp_e2e.py").read_text(encoding="utf-8")
-    block = source.split("def _reapply_shpoib_runtime_after_reload", 1)[1].split("\ndef ", 1)[0]
+    block = inspect.getsource(reload._reapply_shpoib_runtime_after_reload)
     assert "MYRM_BROWSER_ORCHESTRATOR" not in block
     nav_idx = block.index("client.navigate(page, normalized_target")
     bootstrap_eval_idx = block.index("observed = client.evaluate(\n            page,\n            bootstrap_js,")
@@ -38,8 +34,7 @@ def test_reapply_shpoib_bootstrap_runs_after_navigate() -> None:
 
 def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
     """TAB-FINAL: open_mcp_page must delegate to orchestrator, not mux blocking."""
-    source = Path(__file__).with_name("chrome_mcp_e2e.py").read_text(encoding="utf-8")
-    block = source.split("def open_mcp_page", 1)[1].split("\ndef ", 1)[0]
+    block = inspect.getsource(open_page.open_mcp_page)
     assert "_require_orchestrator_for_formal_e2e" in block
     assert "open_app_route_page" in block
     assert "complete_bootstrap_phase" in block
@@ -47,7 +42,7 @@ def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
     assert "BROWSER_ORCHESTRATOR_REQUIRED" in block
     assert "open_mcp_page_blocking" not in block
     assert "ChromeMcpClient(request_timeout_sec=" not in block
-    reload_block = source.split("def reload_mcp_page", 1)[1].split("\ndef ", 1)[0]
+    reload_block = inspect.getsource(reload.reload_mcp_page)
     assert "client.reload" in reload_block
     assert "_reapply_shpoib_runtime_after_reload" in reload_block
     assert "_is_isolated_stack()" in reload_block
@@ -86,17 +81,15 @@ def test_blocking_progress_loop_emits_transport_progress_token(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
-    monkeypatch.setattr(chrome_mcp_e2e, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
-    monkeypatch.setattr(chrome_mcp_e2e, "_TRANSPORT_PROGRESS_INTERVAL_SEC", 0.01)
-    monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_once", lambda: None)
-    monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
+    patch_everywhere(monkeypatch, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
+    patch_everywhere(monkeypatch, "_TRANSPORT_PROGRESS_INTERVAL_SEC", 0.01)
+    patch_everywhere(monkeypatch, "heartbeat_once", lambda: None)
+    patch_everywhere(monkeypatch, "touch_wall_progress", lambda **_: None)
     import e2e_core.stall_guard as e2e_stall_guard
 
     monkeypatch.setattr(e2e_stall_guard, "assert_transport_node_not_stuck", lambda **_: None)
 
-    with chrome_mcp_e2e._blocking_progress_loop(current_node="open_mcp_page_blocking"):
+    with transport_progress._blocking_progress_loop(current_node="open_mcp_page_blocking"):
         time.sleep(0.05)
 
     captured = capsys.readouterr()
@@ -107,16 +100,14 @@ def test_blocking_progress_loop_emits_transport_progress_token(
 def test_blocking_progress_loop_stall_sends_sigint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-
-    monkeypatch.setattr(chrome_mcp_e2e, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
-    monkeypatch.setattr(
-        chrome_mcp_e2e,
+    patch_everywhere(monkeypatch, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
+    patch_everywhere(
+        monkeypatch,
         "_open_page_parallel_budgets",
         lambda *args, **kwargs: (60.0, 120_000, 30.0, 5.0, 2),
     )
-    monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_once", lambda: None)
-    monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
+    patch_everywhere(monkeypatch, "heartbeat_once", lambda: None)
+    patch_everywhere(monkeypatch, "touch_wall_progress", lambda **_: None)
 
     import e2e_core.stall_guard as e2e_stall_guard
 
@@ -141,7 +132,7 @@ def test_blocking_progress_loop_stall_sends_sigint(
 
     monkeypatch.setattr("os.kill", _record_sigint)
 
-    with chrome_mcp_e2e._blocking_progress_loop(current_node="open_mcp_page_blocking"):
+    with transport_progress._blocking_progress_loop(current_node="open_mcp_page_blocking"):
         time.sleep(0.05)
 
     assert len(sigint_calls) >= 1
@@ -150,10 +141,7 @@ def test_blocking_progress_loop_stall_sends_sigint(
 
 def test_warm_heal_guard_launch_force_before_debounced_call() -> None:
     """§26.31 / +: warm_ui heal skips launch-force only when the shared UI is reachable."""
-    from pathlib import Path
-
-    source = Path(__file__).resolve().parent / "chrome_mcp_e2e.py"
-    text = source.read_text(encoding="utf-8")
+    text = inspect.getsource(warm_ui)
     start = text.index("def _heal_shared_frontend")
     block = text[start : start + 900]
     assert "launch_force_blocks_frontend_heal" in block
@@ -167,9 +155,9 @@ class TestNavigateMcpPage:
 
     def test_an_isolated_stack_navigates_without_rebinding(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MYRM_E2E_ISOLATED", "1")
-        monkeypatch.setattr(chrome_mcp_e2e, "e2e_runtime_binding", lambda: {"runtimeId": "private"})
+        patch_everywhere(monkeypatch, "e2e_runtime_binding", lambda: {"runtimeId": "private"})
         rebind = MagicMock()
-        monkeypatch.setattr(chrome_mcp_e2e, "_reapply_shpoib_runtime_after_reload", rebind)
+        patch_everywhere(monkeypatch, "_reapply_shpoib_runtime_after_reload", rebind)
         client = MagicMock()
 
         navigate_mcp_page(client, "page", self._TARGET, timeout_ms=5000)
@@ -180,9 +168,9 @@ class TestNavigateMcpPage:
 
     def test_a_shared_stack_with_a_private_binding_rebinds_the_page(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MYRM_E2E_ISOLATED", raising=False)
-        monkeypatch.setattr(chrome_mcp_e2e, "e2e_runtime_binding", lambda: {"runtimeId": "private"})
+        patch_everywhere(monkeypatch, "e2e_runtime_binding", lambda: {"runtimeId": "private"})
         rebind = MagicMock()
-        monkeypatch.setattr(chrome_mcp_e2e, "_reapply_shpoib_runtime_after_reload", rebind)
+        patch_everywhere(monkeypatch, "_reapply_shpoib_runtime_after_reload", rebind)
         client = MagicMock()
 
         navigate_mcp_page(client, "page", self._TARGET, timeout_ms=5000)

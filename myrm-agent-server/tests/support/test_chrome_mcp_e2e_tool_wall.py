@@ -8,14 +8,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests.support.chrome_mcp_e2e.open_page_mux import _refresh_signoff_open_nav_tool_wall, _sync_open_page_tool_wall
+from tests.support.chrome_mcp_e2e.patching import patch_everywhere
+
 
 def test_sync_open_page_tool_wall_allocates_remaining_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-    from tests.support.chrome_mcp_e2e import _sync_open_page_tool_wall
-
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 0)
     client = MagicMock()
     now = time.monotonic()
     _sync_open_page_tool_wall(
@@ -33,10 +33,7 @@ def test_sync_open_page_tool_wall_allocates_remaining_steps(
 def test_sync_open_page_tool_wall_parallel_uses_total_deadline_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-    from tests.support.chrome_mcp_e2e import _sync_open_page_tool_wall
-
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 4)
     client = MagicMock()
     now = time.monotonic()
     total_deadline = now + 460.0
@@ -55,16 +52,13 @@ def test_refresh_signoff_open_nav_tool_wall_restores_bootstrap_remaining(
 ) -> None:
     from dataclasses import dataclass
 
-    from tests.support import chrome_mcp_e2e
-    from tests.support.chrome_mcp_e2e import _refresh_signoff_open_nav_tool_wall
-
     @dataclass(frozen=True)
     class _Budgets:
         layout_wait_sec: float = 120.0
         wall_budget_sec: float = 210.0
 
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 4)
     monkeypatch.setitem(
         sys.modules,
         "dev_gate.contract",
@@ -102,16 +96,13 @@ def test_refresh_signoff_open_nav_tool_wall_grants_nav_slice_when_mux_queue_exha
 ) -> None:
     from dataclasses import dataclass
 
-    from tests.support import chrome_mcp_e2e
-    from tests.support.chrome_mcp_e2e import _refresh_signoff_open_nav_tool_wall
-
     @dataclass(frozen=True)
     class _Budgets:
         layout_wait_sec: float = 120.0
         wall_budget_sec: float = 210.0
 
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
-    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 5)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
+    patch_everywhere(monkeypatch, "_parallel_open_page_peer_count", lambda: 5)
     monkeypatch.setitem(
         sys.modules,
         "dev_gate.contract",
@@ -147,10 +138,7 @@ def test_refresh_signoff_open_nav_tool_wall_grants_nav_slice_when_mux_queue_exha
 def test_sync_open_page_tool_wall_signoff_skips_immediate_expiry_when_attempt_wall_exhausted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-    from tests.support.chrome_mcp_e2e import _sync_open_page_tool_wall
-
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: True)
     client = MagicMock()
     now = time.monotonic()
     _sync_open_page_tool_wall(
@@ -165,10 +153,7 @@ def test_sync_open_page_tool_wall_signoff_skips_immediate_expiry_when_attempt_wa
 def test_refresh_signoff_open_nav_tool_wall_noop_outside_signoff(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support import chrome_mcp_e2e
-    from tests.support.chrome_mcp_e2e import _refresh_signoff_open_nav_tool_wall
-
-    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
+    patch_everywhere(monkeypatch, "is_e2e_signoff_runtime", lambda: False)
     client = MagicMock()
     now = time.monotonic()
     _refresh_signoff_open_nav_tool_wall(
