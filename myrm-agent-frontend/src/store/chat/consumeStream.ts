@@ -2,14 +2,15 @@
  * [INPUT]
  * ./schema::parseSseEnvelope (POS: SSE JSON 校验)
  * ./messageStreamHandler::handleMessageStream (POS: SSE 事件 reducer)
- * ./messageStream/streamWatchdog::createStreamWatchdog (POS: 流静默自愈)
+ * ./messageStream/streamWatchdog::createStreamWatchdog (POS: 终止事件缺失自愈)
  * ./streamErrors (POS: busy / risk-blocked / interrupted 错误分类)
  *
  * [OUTPUT]
- * consumeStream: 读取一个 SSE Response（agent-stream POST 响应体或 attach 响应）→ 解密 e2ee 帧 → 校验 → reducer；busy 帧在 reducer 之前抛 AgentBusyError，reducer 抛出的 RiskBlockedError（服务端风控拦下）原样上抛，首帧之后读取失败抛 StreamInterruptedError；回合被中止时立即以 AbortError 结束（取消 reader 唤醒挂起的读取，不触发 watchdog 自愈）
+ * consumeStream: 读取一个 SSE Response（agent-stream POST 响应体或 attach 响应）→ 解密 e2ee 帧 → 校验 → reducer；busy 帧在 reducer 之前抛 AgentBusyError，reducer 抛出的 RiskBlockedError（服务端风控拦下）原样上抛，连接静默超过存活预算（含首帧前）或首帧之后读取失败抛 StreamInterruptedError；回合被中止时立即以 AbortError 结束（取消 reader 唤醒挂起的读取，不触发 watchdog 自愈）
+ * STREAM_LIVENESS_BUDGET_MS: 一次读取允许无任何数据块的时长
  *
  * [POS]
- * 单段 SSE 消费循环（心跳帧不进 reducer、只续 watchdog 的存活计时；业务事件喂养 watchdog；流结束清理调度器）；重试与 attach 编排由 streamConsumer 负责。
+ * 单段 SSE 消费循环：本循环拥有传输存活判定（每次读取一个预算，任何数据块——心跳帧也算——都续上；心跳帧本身不进 reducer）；流结束清理调度器；终止事件缺失的 UI 自愈交给 watchdog；重试与 attach 编排由 streamConsumer 负责。
  */
 import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
@@ -22,6 +23,13 @@ import { recoverPendingApprovals } from '@/hooks/approval/usePendingApprovalsRec
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { createStreamWatchdog } from './messageStream/streamWatchdog';
 import { AgentBusyError, RiskBlockedError, StreamInterruptedError, isAgentBusySseEvent } from './streamErrors';
+
+/**
+ * How long one read may deliver nothing before the connection counts as dead. The server sends a heartbeat on its run stream
+ * and on its attach stream after every 15 s without events, so three intervals tolerate late heartbeats, while a turn the
+ * model works on silently keeps its connection alive on heartbeats alone.
+ */
+export const STREAM_LIVENESS_BUDGET_MS = 45_000;
 
 export type ConsumeStreamOptions = {
   /** Stop once the approval queue holds a card of this chat (HITL attach recovery); the cards of other chats do not count. */
@@ -58,13 +66,6 @@ export async function consumeStream(
   const dataPrefix = 'data: ';
   let currentSseEvent = '';
 
-  let lastDataTime = Date.now();
-  const DATA_TIMEOUT = 5 * 60 * 1000;
-  // 首帧超时必须独立于「有数据后」的空窗预算：reader.read() 在没有数据时会一直挂起，
-  // 循环顶部的 DATA_TIMEOUT 检查根本不会执行（桌面 WebView 里出现过流已 200 但永远无首帧，
-  // 结果输入框骨架永久转圈）。首帧缺失 60s 即视为链路中断，交由 streamConsumer 的
-  // StreamInterruptedError 分支 attach / 拉取最终消息自愈。
-  const FIRST_DATA_TIMEOUT = 60 * 1000;
   let firstDataReceived = false;
   let stoppedEarly = false;
   const recoveryDeadline = options?.maxWaitMs !== undefined ? Date.now() + Math.max(0, options.maxWaitMs) : null;
@@ -103,8 +104,8 @@ export async function consumeStream(
     },
   });
 
-  // A stop must wake a read that waits for the next chunk; otherwise the watchdog would heal the shared turn state
-  // only once its silence window has passed.
+  // A stop must wake a read that waits for the next chunk; otherwise it would take effect only once the liveness
+  // budget ends that read.
   const cancelReaderOnAbort = (): void => {
     reader.cancel().catch(() => undefined);
   };
@@ -112,28 +113,21 @@ export async function consumeStream(
 
   try {
     while (true) {
-      if (Date.now() - lastDataTime > DATA_TIMEOUT) {
-        console.warn('Stream timeout: no data received for 5 minutes');
-        throw new Error('Service response timeout, please try again');
-      }
-
       abortController.signal.throwIfAborted();
 
       let readResult;
-      // 用原生 AbortSignal.timeout（不经过全局 setTimeout）做空窗预算：reader.read() 在无数据时
-      // 会一直挂起，循环顶部的 DATA_TIMEOUT 检查永远轮不到，界面就会永久停在骨架态。
-      // 超时先取消 reader 让挂起的读取返回，再按 StreamInterruptedError 交给 attach / 拉取最终消息自愈。
-      const idleBudget = firstDataReceived ? DATA_TIMEOUT : FIRST_DATA_TIMEOUT;
-      // 老版本浏览器（Safari < 16）没有 AbortSignal.timeout：降级为不设空窗看门狗，
-      // 而不是抛 TypeError 把整轮聊天打死；有该能力时才有首帧/空窗自愈。
-      const idleSignal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(idleBudget) : undefined;
+      // reader.read() waits for ever on a connection that stopped delivering, and any chunk (a heartbeat included) proves the
+      // connection alive, so every read gets its own budget. A read that outlasts it cancels the reader, which ends the read,
+      // and the turn goes to streamConsumer as an interrupted stream: it attaches to the turn again or fetches the final
+      // messages. The budget is the native AbortSignal.timeout, independent of the global setTimeout.
+      const idleSignal = AbortSignal.timeout(STREAM_LIVENESS_BUDGET_MS);
       const cancelOnIdle = (): void => {
         reader.cancel().catch(() => undefined);
       };
-      idleSignal?.addEventListener('abort', cancelOnIdle, { once: true });
+      idleSignal.addEventListener('abort', cancelOnIdle, { once: true });
       try {
         readResult = await reader.read();
-        if (idleSignal?.aborted && !abortController.signal.aborted) {
+        if (idleSignal.aborted && !abortController.signal.aborted) {
           throw new StreamInterruptedError(
             firstDataReceived
               ? 'Stream stalled after data started'
@@ -148,7 +142,7 @@ export async function consumeStream(
         }
         throw e;
       } finally {
-        idleSignal?.removeEventListener('abort', cancelOnIdle);
+        idleSignal.removeEventListener('abort', cancelOnIdle);
       }
       // Cancelling the reader on stop ends a pending read as a clean end of stream, which must not heal the turn.
       abortController.signal.throwIfAborted();
@@ -164,7 +158,6 @@ export async function consumeStream(
         actions.setInputMessage('');
       }
 
-      lastDataTime = Date.now();
       buffer += decoder.decode(value, { stream: true });
 
       let startIndex = 0;
@@ -181,9 +174,8 @@ export async function consumeStream(
         if (line.startsWith(dataPrefix)) {
           const jsonStr = line.substring(dataPrefix.length).trim();
           if (currentSseEvent === 'heartbeat') {
-            // ResilientStreamBuffer emits protocol keepalives with a null body.
-            // They must not enter the business-event schema or warning path, but they prove the transport alive.
-            watchdog.keepAlive();
+            // The server emits protocol keepalives with a null body. The read that carried one has already renewed the
+            // liveness budget; the frame itself must not enter the business-event schema or warning path.
             currentSseEvent = '';
             startIndex = newlineIndex + 1;
             continue;
@@ -217,7 +209,6 @@ export async function consumeStream(
               if (isAgentBusySseEvent(event as { type: string } & Record<string, unknown>)) {
                 throw new AgentBusyError('Agent is busy processing another request for this session.');
               }
-              watchdog.feed(event.type);
               if (
                 event.type === 'message_end' ||
                 event.type === 'agent_cancelled' ||

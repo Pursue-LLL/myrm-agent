@@ -26,7 +26,7 @@
 | `skillManageBatchLink.ts`              | 辅助 | skill_manage 批次提交（服务端 `tool_end` 事件携带 `skill_mutation_batch_id`）关联到仍在等待批次的最新 skill_manage 步骤，使撤销入口在回合进行中即出现；与服务端 `mutation_batch_stream.link_batch_to_step` 同一配对规则                                                                                                                               | ✅    |
 | `disclosure.ts`                        | 辅助 | `applyDisclosureMetadata`：把 MESSAGE_END 的披露字段（`deliverable_tier` → 证据档徽章、`staged_artifacts` → 暂存草案横幅）映射到消息对象，实时事件与持久化元数据共用同一组键                                                                                                                                                                          | ✅    |
 | `lastMessage.ts`                       | 辅助 | `readLastMessage`：经 stream 自己的 `setMessages` 读取聊天当前最后一条 message（返回 immer `current` 拷贝，draft 结束后仍可读）。stream 快照读不到本轮 message，MESSAGE_END 触发后续建议时用它                                                                                                                                                        | ✅    |
-| `streamWatchdog.ts`                    | 核心 | 客户端流式完成状态机看门狗，静默（业务事件与服务端心跳帧都算存活信号，窗口 `STREAM_SILENCE_TIMEOUT_MS` 为 3 个心跳间隔）与 EOF 兜底自愈，杜绝回复完成后 UI 假死卡在生成中；只恢复 UI 状态，不触发后续建议（静默 / usage 自愈可能发生在回答仍在流式输出时，只有 MESSAGE_END 能确认回答已完成）                                                         | ✅    |
+| `streamWatchdog.ts`                    | 核心 | 客户端流式完成状态机看门狗：终止事件缺失时自愈（reader EOF 而无终止事件；usage 块之后 `USAGE_GRACE_MS` 内没有终止事件），杜绝回复完成后 UI 假死卡在生成中；只恢复 UI 状态，不触发后续建议（usage 自愈可能发生在回答仍在流式输出时，只有 MESSAGE_END 能确认回答已完成）；连接静默不归它管，传输存活由 `consumeStream` 的读取预算判定                                                         | ✅    |
 
 ## 依赖
 

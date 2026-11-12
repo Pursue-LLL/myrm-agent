@@ -1,22 +1,24 @@
-"""A chat page's agent stream that the product holds silent, watched from inside the page.
+"""A chat page's agent streams that the product holds silent or the network stops delivering, watched from inside the page.
 
-The probe wraps the page's own ``fetch`` of ``/agents/agent-stream`` and records what the browser receives (application data,
-keep-alive frames, the end of the stream), every change of the chat store's ``loading`` flag, and what the stream watchdog
-logs. It can swallow the keep-alive frames before the page's stream consumer sees them: the same wire, but a page that is
-never told the server is alive.
+The probe wraps the page's own ``fetch`` of ``/agents/agent-stream`` (the run) and of ``/agents/chat/<id>/attach`` (the stream a
+page attaches to a live turn) and records every request, what the browser receives on each stream (application data, keep-alive
+frames, the end of the stream, the page cancelling it), every change of the chat store's ``loading`` flag, and what the stream
+watchdog logs. It can also stop delivering the first run stream some time after its data began to flow, and never close it: a
+connection that died without telling anyone.
 
 [INPUT]
 - tests.support.chrome_mcp_e2e (POS: page script evaluation and polling)
+- myrm_agent_harness.agent.streaming.stream_buffer (POS: the keep-alive frame the server sends)
 
 [OUTPUT]
-- HEARTBEAT_FRAME: the exact bytes the server sends when a turn has been idle for a keep-alive interval
 - install_stream_probe(): start watching before the message is sent
-- wait_for_stream_log(): the log once the stream has ended
-- StreamLog, Silence, longest_silence(), loading_falls(): what the log says
+- wait_for_stream_log() / STREAM_END_TIMEOUT_SEC: the log once a stream has ended, and how long a turn with a minute's silence is waited for
+- StreamLog, Chunk, Request, Silence, longest_silence(), last_heard(), ended_at(), loading_falls(): what the log says
 
 [POS]
 Used by tests/e2e/test_stream_silence_chrome_e2e.py to prove a page stays busy through a turn that sends nothing for a minute
-because the server's keep-alive frames reach its stream consumer, and recovers after the watchdog's window when they do not.
+because the server's keep-alive frames keep arriving, and that a connection which stops delivering altogether is replaced by
+the attach stream within the stream consumer's liveness budget.
 """
 
 from __future__ import annotations
@@ -24,19 +26,19 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
+from myrm_agent_harness.agent.streaming.stream_buffer import HEARTBEAT_FRAME
+
 from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, wait_for_state
 
-HEARTBEAT_FRAME = "event: heartbeat\ndata: null\n\n"
+STREAM_END_TIMEOUT_SEC = 240.0
 
-_STREAM_END_TIMEOUT_SEC = 240.0
-
-_PROBE_JS = """((swallowHeartbeats, heartbeatFrame) => {
+_PROBE_JS = """((stallAfterMs, heartbeatFrame) => {
   if (window.__streamProbe) return true;
   const store = window.__myrmChatStore;
   if (!store) return false;
   const origin = performance.now();
   const at = () => Math.round(performance.now() - origin);
-  const probe = { chunks: [], loading: [], watchdog: [] };
+  const probe = { chunks: [], requests: [], loading: [], watchdog: [] };
   window.__streamProbe = probe;
 
   let loading = store.getState().loading;
@@ -56,40 +58,69 @@ _PROBE_JS = """((swallowHeartbeats, heartbeatFrame) => {
     };
   }
 
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
+  const STALLED = Symbol('stalled');
+  const forever = new Promise(() => {});
   const fetchOriginal = window.fetch.bind(window);
   let streams = 0;
+  let stallPending = stallAfterMs !== null;
+  const kindOf = (url) => {
+    if (url.includes('/agents/agent-stream')) return 'run';
+    return /\\/attach(\\?|$)/.test(url) && !url.includes('multiplexed=true') ? 'attach' : null;
+  };
   window.fetch = async (input, init) => {
-    const response = await fetchOriginal(input, init);
     const url = String(input && input.url ? input.url : input);
-    if (!url.includes('/agents/agent-stream') || !response.body) return response;
+    const kind = kindOf(url);
+    if (kind === null) return fetchOriginal(input, init);
     const stream = ++streams;
+    probe.requests.push([at(), kind, stream]);
+    const response = await fetchOriginal(input, init);
+    if (!response.body) return response;
+
+    // Only the first run stream loses its connection: stallAfterMs after its data began to flow, nothing more is delivered.
+    let dies = null;
+    let startCountdown = () => {};
+    if (kind === 'run' && stallPending) {
+      stallPending = false;
+      dies = new Promise((resolve) => {
+        let started = false;
+        startCountdown = () => {
+          if (started) return;
+          started = true;
+          setTimeout(() => resolve(STALLED), stallAfterMs);
+        };
+      });
+    }
+    const decoder = new TextDecoder();
     const reader = response.body.getReader();
+    let cancelled = false;
     const body = new ReadableStream({
       async pull(controller) {
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) {
-            probe.chunks.push([at(), 'eof', stream]);
-            controller.close();
-            return;
-          }
-          const parts = decoder.decode(value, { stream: true }).split(heartbeatFrame);
-          const data = parts.join('');
-          for (let beat = 1; beat < parts.length; beat++) probe.chunks.push([at(), 'heartbeat', stream]);
-          if (data) probe.chunks.push([at(), 'data', stream]);
-          if (parts.length === 1 || !swallowHeartbeats) {
-            controller.enqueue(value);
-            return;
-          }
-          if (data) {
-            controller.enqueue(encoder.encode(data));
-            return;
-          }
+        const next = await (dies ? Promise.race([reader.read(), dies]) : reader.read());
+        if (next === STALLED) {
+          probe.chunks.push([at(), 'stalled', stream]);
+          await forever;
         }
+        const { value, done } = next;
+        if (done) {
+          // The page's own cancel ends the pending read the same way; only the server closing the stream is an end.
+          if (cancelled) return;
+          probe.chunks.push([at(), 'eof', stream]);
+          controller.close();
+          return;
+        }
+        const parts = decoder.decode(value, { stream: true }).split(heartbeatFrame);
+        for (let beat = 1; beat < parts.length; beat++) probe.chunks.push([at(), 'heartbeat', stream]);
+        if (parts.join('')) {
+          probe.chunks.push([at(), 'data', stream]);
+          startCountdown();
+        }
+        controller.enqueue(value);
       },
-      cancel: (reason) => reader.cancel(reason),
+      cancel: (reason) => {
+        cancelled = true;
+        probe.chunks.push([at(), 'cancelled', stream]);
+        return reader.cancel(reason);
+      },
     });
     return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
   };
@@ -102,6 +133,7 @@ _READ_LOG_JS = """(() => {
   return {
     ready: probe.chunks.some(([, kind]) => kind === 'eof'),
     chunks: probe.chunks,
+    requests: probe.requests,
     loading: probe.loading,
     watchdog: probe.watchdog,
   };
@@ -111,13 +143,23 @@ _READ_LOG_JS = """(() => {
 @dataclass(frozen=True)
 class Chunk:
     at_ms: int
-    kind: str  # "data", "heartbeat" or "eof"
+    # "data", "heartbeat", "eof" (the server closed the stream), "cancelled" (the page gave up on it) or "stalled" (the moment
+    # the probe stopped delivering the stream)
+    kind: str
+    stream: int
+
+
+@dataclass(frozen=True)
+class Request:
+    at_ms: int
+    kind: str  # "run" (the agent-stream request) or "attach"
     stream: int
 
 
 @dataclass(frozen=True)
 class StreamLog:
     chunks: tuple[Chunk, ...]
+    requests: tuple[Request, ...]
     loading: tuple[tuple[int, bool], ...]  # (when, the flag's new value); the first entry is its value when the probe started
     watchdog: tuple[str, ...]
 
@@ -153,21 +195,27 @@ def parse_stream_log(state: dict[str, object]) -> StreamLog:
     assert isinstance(watchdog, list) and all(isinstance(line, str) for line in watchdog), f"watchdog log malformed: {state}"
     return StreamLog(
         chunks=tuple(Chunk(_whole_number(at), str(kind), _whole_number(stream)) for at, kind, stream in _rows(state, "chunks")),
+        requests=tuple(
+            Request(_whole_number(at), str(kind), _whole_number(stream)) for at, kind, stream in _rows(state, "requests")
+        ),
         loading=tuple((_whole_number(at), bool(busy)) for at, busy in _rows(state, "loading")),
         watchdog=tuple(str(line) for line in watchdog),
     )
 
 
-def install_stream_probe(client: ChromeMcpClient, page: McpPage, *, swallow_heartbeats: bool) -> None:
-    """Start watching; call before the message is sent so the stream the page opens for it is wrapped."""
-    script = f"({_PROBE_JS})({json.dumps(swallow_heartbeats)}, {json.dumps(HEARTBEAT_FRAME)})"
+def install_stream_probe(client: ChromeMcpClient, page: McpPage, *, stall_after_ms: int | None = None) -> None:
+    """Start watching; call before the message is sent so the stream the page opens for it is wrapped.
+
+    With ``stall_after_ms`` the run stream stops delivering anything that long after its first application data.
+    """
+    script = f"({_PROBE_JS})({json.dumps(stall_after_ms)}, {json.dumps(HEARTBEAT_FRAME)})"
     installed = client.evaluate(page, script, timeout_sec=15.0)
     assert installed is True, f"the chat page holds no chat store to watch: {installed!r}"
 
 
-def wait_for_stream_log(client: ChromeMcpClient, page: McpPage) -> StreamLog:
-    """The log of the page's stream once it has ended."""
-    return parse_stream_log(wait_for_state(client, page, _READ_LOG_JS, timeout_sec=_STREAM_END_TIMEOUT_SEC))
+def wait_for_stream_log(client: ChromeMcpClient, page: McpPage, *, timeout_sec: float = STREAM_END_TIMEOUT_SEC) -> StreamLog:
+    """The log of the page's streams once one of them has ended; a timeout reports the log so far."""
+    return parse_stream_log(wait_for_state(client, page, _READ_LOG_JS, timeout_sec=timeout_sec))
 
 
 def longest_silence(log: StreamLog) -> Silence | None:
@@ -175,13 +223,26 @@ def longest_silence(log: StreamLog) -> Silence | None:
     longest: Silence | None = None
     for stream in sorted({chunk.stream for chunk in log.chunks}):
         own = [chunk for chunk in log.chunks if chunk.stream == stream]
-        flowing = [chunk for chunk in own if chunk.kind != "heartbeat"]
+        flowing = [chunk for chunk in own if chunk.kind in ("data", "eof")]
         for before, after in zip(flowing, flowing[1:], strict=False):
             beats = tuple(c.at_ms for c in own if c.kind == "heartbeat" and before.at_ms < c.at_ms < after.at_ms)
             gap = Silence(before.at_ms, after.at_ms, beats)
             if longest is None or gap.length_ms > longest.length_ms:
                 longest = gap
     return longest
+
+
+def last_heard(log: StreamLog, stream: int) -> int:
+    """When the page last received anything on ``stream``, a keep-alive frame included."""
+    heard = [chunk.at_ms for chunk in log.chunks if chunk.stream == stream and chunk.kind in ("data", "heartbeat")]
+    assert heard, f"the page received nothing on stream {stream}: {log}"
+    return max(heard)
+
+
+def ended_at(log: StreamLog, stream: int) -> int | None:
+    """When the server closed ``stream``; None while it did not (a stream that stalled or that the page cancelled never ends)."""
+    ends = [chunk.at_ms for chunk in log.chunks if chunk.stream == stream and chunk.kind == "eof"]
+    return min(ends) if ends else None
 
 
 def loading_falls(log: StreamLog) -> tuple[int, ...]:
