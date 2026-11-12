@@ -13,8 +13,8 @@
 [INPUT]
 - agent.context_management.infra.evicted::build_delivery_footer (POS: evicted 文件 footer 读取指令)
 - agent.context_management.strategies.filter::should_filter (POS: token 阈值判定)
-- agent.context_management.strategies.filters.base::STRUCTURAL_CONTENT_TYPES, FilterContext, detect_content_type (POS: 内容类型检测)
-- agent.context_management.strategies.filters.structural_filter::StructuralFilter (POS: JSON XML CSV)
+- agent.context_management.strategies.filters.base::ContentType, FilterContext, detect_content_type (POS: 内容类型检测)
+- agent.context_management.strategies.filters.structural_filter::StructuralFilter (POS: JSON XML YAML 日志结构概要)
 - .constants::BASH_OUTPUT_MAX_CHARS (POS: 字符阈值，与格式层硬截断对齐)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 
@@ -41,7 +41,7 @@ from myrm_agent_harness.agent.context_management.infra.evicted import (
 )
 from myrm_agent_harness.agent.context_management.strategies.filter import should_filter
 from myrm_agent_harness.agent.context_management.strategies.filters.base import (
-    STRUCTURAL_CONTENT_TYPES,
+    ContentType,
     FilterContext,
     detect_content_type,
 )
@@ -63,6 +63,14 @@ logger = logging.getLogger(__name__)
 
 _PREVIEW_MAX_CHARS = 3000
 _structural_filter = StructuralFilter()
+
+# Content types that get a structural outline instead of a head/tail preview.
+# code and csv are recognised by words and comma counts anywhere in the first
+# lines, so every rg/grep `path:line:content` listing can trip them, and their
+# outline rules (written for whole files) would then replace each result row
+# with names they invent. The other types are recognised from the start of the
+# text or of each line, so a result listing rarely trips them.
+_OUTLINE_CONTENT_TYPES: frozenset[ContentType] = frozenset({"json", "xml", "yaml", "log"})
 
 # Banner prefix for every eviction preview. output_compressor uses the same
 # constant to detect eviction previews and skip re-compression, so the preview
@@ -116,7 +124,7 @@ async def maybe_evict_large_output(content: str, executor: CodeExecutor | None =
     try:
         content_type = detect_content_type(content)
 
-        if content_type in STRUCTURAL_CONTENT_TYPES:
+        if content_type in _OUTLINE_CONTENT_TYPES:
             result = await _structural_filter.filter(
                 FilterContext(content=content, file_path="", content_type=content_type)
             )
@@ -184,13 +192,13 @@ async def _save_to_file(executor: CodeExecutor, content: str) -> tuple[str | Non
     Uses the same workspace_root_var + chat_id_var path as web_fetch UECD spill
     (evicted_content.persist_evicted_content), not hardcoded /persistent paths.
 
-    Returns None when no session context exists (preview-only, no GUI ref).
+    Returns (None, None) when no session context exists (preview-only, no GUI ref).
     """
     _ = executor  # Kept for call-site compatibility; persist uses workspace_root_var.
     session_id = _get_session_id()
     if not session_id:
         logger.warning("[Eviction] No session_id; skip file persist (preview only)")
-        return None
+        return None, None
 
     from myrm_agent_harness.agent.context_management.infra.evicted import (
         persist_evicted_content,
