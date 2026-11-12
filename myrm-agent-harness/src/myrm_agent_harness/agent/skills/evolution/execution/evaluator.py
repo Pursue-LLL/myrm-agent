@@ -9,7 +9,7 @@ ensuring the fix works and preventing skill bloat.
 - agent.skills.evolution.core.proposal_builder::unloadable_reason (POS: Why the skill loader would skip a SKILL.md content.)
 
 [OUTPUT]
-- BatchEvaluator: Evaluates multiple skill variants and picks the highest s...
+- BatchEvaluator: Evaluates multiple skill variants and picks the highest scoring one.
 
 [POS]
 Batch Evaluator for Skill Evolution.

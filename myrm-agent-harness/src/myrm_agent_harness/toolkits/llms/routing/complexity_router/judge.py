@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.core.config.llm::LLMConfig (POS: Framework-agnostic LLM configuration SSOT. Defines CustomModelDef and LLMConfig for agent/ and toolkits/ without runtime)
+- myrm_agent_harness.core.config.llm::LLMConfig (POS: Framework-agnostic LLM configuration SSOT. Defines CustomModelDef and LLMConfig for agent/ and toolkits/ without runtime coupling.)
 - myrm_agent_harness.toolkits.llms.routing.complexity_router.types::RoutingTier (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
 - myrm_agent_harness.utils.chat_utils::extract_answer_text (POS: Chat utility functions. Provides business-config-independent chat history conversion (generic part).)
 

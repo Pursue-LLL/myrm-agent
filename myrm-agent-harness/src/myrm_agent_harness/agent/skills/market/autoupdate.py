@@ -9,14 +9,14 @@ Strategy:
 - update_skill() re-installs via quarantine (download → scan → replace)
 
 [INPUT]
-- backends.skills.market_protocols::SkillInstallResult (POS: SkillBackend SkillBackend SkillMarketBackend)
+- backends.skills.market_protocols::SkillInstallResult (POS: skill market backend protocol: the unified interface for searching and installing external skills)
 - backends.skills.versioning::VersionDelta (POS: Skill version comparison utilities.)
 
 [OUTPUT]
 - SkillUpdateInfo: Update availability info for one installed skill.
 - UpdateCheckResult: Result of a batch update check.
 - SkillAutoUpdateChecker: Lazy update checker with cooldown.
-- get_update_checker: Singleton accessor. Pass skill_store on first call to con...
+- get_update_checker: Singleton accessor. Pass skill_store and market_service on first call to configure.
 
 [POS]
 Skill auto-update checker.

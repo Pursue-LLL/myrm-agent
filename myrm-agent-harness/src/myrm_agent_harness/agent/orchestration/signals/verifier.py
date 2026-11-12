@@ -4,7 +4,7 @@
 - .catalog::SUBMIT_VERDICT_SIGNAL (POS: SSOT for control-plane signal names)
 
 [OUTPUT]
-- SUBMIT_VERDICT_SIGNAL: signal name constant
+- SUBMIT_VERDICT_SIGNAL_NAME: name of the submit_verdict signal tool
 - create_submit_verdict_tool(): factory returning session-scoped LangChain tool
 
 [POS]

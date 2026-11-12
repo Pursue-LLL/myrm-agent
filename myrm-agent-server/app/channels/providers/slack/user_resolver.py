@@ -1,7 +1,7 @@
 """Slack user resolver implementation using users.info API.
 
 [INPUT]
-- channels.core.user_resolver::UserResolver, (POS: Generic user resolver protocol and cache implementation. Protocol-first framework design supporting Slack/Feishu/Discord platform extensions with unified username resolution and caching.)
+- channels.core.user_resolver::UserResolver (POS: Generic user resolver protocol and cache implementation. Protocol-first framework design supporting Slack/Feishu/Discord platform extensions with unified username resolution and caching.)
 - channels.providers.slack.api::SlackClient (POS: Slack Web API client. Wraps HTTP calls and error handling, providing low-level API capabilities for SlackChannel.)
 
 [OUTPUT]

@@ -1,9 +1,9 @@
 """[INPUT]
-- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.archiver_dependency::get_scoped_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault files use ``app.services.wiki.vault.get_wiki_structure`` instead, so no compile worker is ever built without a model.)
 - app.api.wiki.routes.response_mappers::_citation_sources_to_snippets / _compile_run_response / _retrieval_trace_to_response (POS: 把服务层结果转换成 API 响应模型；只做转换，不读写磁盘、不发请求。)
 - app.api.wiki.routes.schemas::WikiCompileResponse / WikiQueryRequest / WikiQueryResponse (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
 - app.services.risk.refusal::reject_if_risky (POS: REST 入口与聊天 SSE 事件共用的拒绝载荷：只含规则的 id、名称、严重度，不含任何句子，也不含被拦的原文；提示文案由前端按用户语言生成。)
-- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian / source_sync / clip / knowledge_pack) live under this package and expose their own facades.)
 - app.services.wiki.health_report_service::WikiHealthReportResponse (POS: Server-only health report orchestration. Zero LLM on structural GET; snapshots written after maintain.)
 
 [OUTPUT]

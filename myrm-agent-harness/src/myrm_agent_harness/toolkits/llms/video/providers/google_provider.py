@@ -8,7 +8,7 @@ Uses the Google GenAI SDK's operation-based polling pattern.
 - core.security.http.secure_fetch::secure_get (POS: SSRF-protected result video download with size cap)
 
 [OUTPUT]
-- GoogleVeoProvider: class — Google Veo Provider
+- GoogleVeoProvider: Google Veo video generation provider using REST API.
 
 [POS]
 Google Veo video generation provider.

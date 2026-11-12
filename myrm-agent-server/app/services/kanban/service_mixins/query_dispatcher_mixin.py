@@ -8,7 +8,8 @@
 - service_mixins.core (POS: KanbanService core state.)
 
 [OUTPUT]
-- KanbanServiceQueryDispatcherMixin: Mixin providing query and dispatcher lifecycle methods.
+- KanbanReadMixin: Mixin providing board, task, run and event query methods.
+- KanbanDispatcherMixin: Mixin providing dispatcher lifecycle methods.
 
 [POS]
 Query and dispatcher mixin: board/task reads, event/run history, dispatcher start/stop/shutdown. The boot start runs

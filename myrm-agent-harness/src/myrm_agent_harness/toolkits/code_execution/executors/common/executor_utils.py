@@ -6,8 +6,8 @@ Provides artifact filtering, output truncation, and error extraction.
 - (none)
 
 [OUTPUT]
-- should_ignore_artifact: Check if a file should be ignored during artifact collect...
-- should_filter_skill_resource: Check if a file is a skill resource that should be filter...
+- should_ignore_artifact: Check if a file should be ignored during artifact collection.
+- should_filter_skill_resource: Check if a file is a skill resource that should be filtered from artifacts.
 - truncate_output: Truncate oversized output, preserving head and tail.
 - extract_short_error: Extract key error information from a traceback.
 

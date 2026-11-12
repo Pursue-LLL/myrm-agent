@@ -9,7 +9,9 @@ importance, and relation count.
 - ForgettingStrategy: Five-dimension retention scoring (time, frequency, importance, relations, rating)
 - ForgettingConfig: Forgetting configuration
 - ForgettingMode: Forgetting mode enum (DELETE/ARCHIVE/MARK)
-- RetentionReport: Retention score report
+- RetentionScore: Per-memory retention score (dimension scores, forget decision and reason)
+- ForgettingResult: Counts and ids of forgotten and archived memories, plus per-memory errors
+- ttl_expired: Memories whose created_at + expected_valid_days has passed
 
 [POS]
 Forgetting strategy. Calculates retention scores based on time decay, access frequency,

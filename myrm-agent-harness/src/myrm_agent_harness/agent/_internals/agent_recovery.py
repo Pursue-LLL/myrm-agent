@@ -5,14 +5,14 @@ Shared recovery functions used by ``base_agent.py`` and ``streaming/recovery/str
 [INPUT]
 - agent.base_agent::BaseAgent (POS: Base Agent — lightweight agent with streaming, token tracking, and artifacts.)
 - agent.context_management.infra.schemas::ContextConfig (POS: Planner Schema Definitions)
-- agent.errors.diagnostics::ErrorContext, (POS: Agent)
+- agent.errors.diagnostics::ErrorContext (POS: error diagnosis context: model name, custom-endpoint flag and base URL)
 - core.message_origin::is_user_authored_human_message, runtime_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]
-- emergency_compact: Aggressively compact *messages* in-place after a context ...
+- emergency_compact: Aggressively compact *messages* in-place after a context overflow.
 - truncate_oldest_rounds: Drop the oldest API-round groups from *messages* in-place.
 - rebuild_agent_with_llm: Rebuild agent graph with a different LLM for failover.
-- diagnose_llm_error: Diagnose an LLM error and return (enhanced_message, diagn...
+- diagnose_llm_error: Diagnose an LLM error and return (enhanced_message, diagnostic_dict).
 
 [POS]
 Agent recovery strategies — context overflow and LLM failover.

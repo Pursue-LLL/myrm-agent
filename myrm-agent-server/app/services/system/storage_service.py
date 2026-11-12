@@ -7,7 +7,10 @@
 [OUTPUT]
 - DatabaseStorageBreakdown: Physical SQLite file sizes data model
 - StorageOptimizePreflightData: Preflight inspection response data model
-- StorageService: Core database storage inspection, safe hot backup, and optimization service
+- get_sqlite_breakdown: physical file sizes of the SQLite data.db triplet (data.db, -wal, -shm)
+- perform_sqlite_backup: clean online backup (page-consistent, safe while the app is writing)
+- execute_storage_optimization: FTS optimize + VACUUM (deep) + WAL TRUNCATE in a worker thread
+- check_storage_preflight: pre-check of disk headroom, database sizes and active background jobs before optimization
 
 [POS]
 Core storage inspection, online hot backup, and SQLite database compaction/vacuum optimization service.

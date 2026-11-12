@@ -7,7 +7,8 @@
 
 [OUTPUT]
 - clean_search_snippet(): 清理搜索结果摘要（去除空行、多余空格等）
-- clean_full_content(): 深度清理完整内容（去除统计信息、导航、广告等噪音）
+- clean_text(): 智能清理文本内容，去除无用信息和噪音
+- clean_document_content(): 清理文档的原始内容
 - COMPILED_PATTERNS: 预编译的正则模式（提升性能）
 
 [POS]

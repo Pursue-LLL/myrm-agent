@@ -8,8 +8,8 @@ This module provides rules to filter out:
 - (none)
 
 [OUTPUT]
-- should_ignore_artifact: Check if a file should be ignored during artifact collect...
-- should_filter_skill_resource: Check if a file is a skill resource that should be filter...
+- should_ignore_artifact: Check if file should be ignored (not collected as artifact).
+- should_filter_skill_resource: Check if file is a skill resource (should be filtered).
 
 [POS]
 File filtering rules for artifact collection.

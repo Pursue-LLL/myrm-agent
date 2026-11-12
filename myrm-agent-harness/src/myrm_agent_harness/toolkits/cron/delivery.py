@@ -10,7 +10,7 @@ Zero application-layer dependencies — uses only framework types and httpx.
 - core.security.http.secure_fetch::secure_request / ContentTooLargeError (POS: SSRF-protected webhook delivery with size cap)
 
 [OUTPUT]
-- WebhookDelivery: class — Webhook Delivery
+- WebhookDelivery: ResultDelivery that POSTs results to a webhook URL with HMAC signing.
 
 [POS]
 Built-in webhook ResultDelivery for cron job results.

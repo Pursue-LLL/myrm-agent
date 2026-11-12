@@ -4,7 +4,7 @@
 - session.extractor::_PDF_HEADER_TEMPLATE, _PDF_FOOTER_TEMPLATE, _PDF_MARGIN (POS: PDF metadata templates)
 
 [OUTPUT]
-- BrowserSessionPageMixin: evaluate, navigation helpers, PDF to temp path, viewport,...
+- BrowserSessionPageMixin: evaluate, navigation helpers, PDF to temp path, viewport, load state, dialogs.
 
 [POS]
 Viewport, dialog, and misc page-level helpers for BrowserSession.

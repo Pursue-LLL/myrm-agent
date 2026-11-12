@@ -6,8 +6,8 @@ channel instances. The business layer only needs to supply a
 ``CredentialSource`` callback.
 
 [INPUT]
-- channels.core.credentials::resolve_credentials, (POS: Framework-level credential type definitions and generic parser. Providers declare required credentials; business layer provides values via CredentialSource callback.)
-- channels.providers.registry::get_channel_class_safe, (POS: Provides GeneratedFile, ArtifactRegistry, RealtimeContentEvent.)
+- channels.core.credentials::resolve_credentials (POS: Framework-level credential type definitions and generic parser. Providers declare required credentials; business layer provides values via CredentialSource callback.)
+- channels.providers.registry::get_channel_class_safe (POS: central registry for all channel providers: built-in channels load through relative imports, custom channels through absolute module paths)
 
 [OUTPUT]
 - create_channels: async factory that returns {name: BaseChannel} instances

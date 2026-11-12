@@ -6,11 +6,11 @@ Inbound: Long-polling getupdates → parse ILinkMessage → _emit_inbound
 Outbound: sendmessage with text/media items, CDN upload with AES encryption
 
 [INPUT]
-- channels.core.base::BaseChannel (POS: Provides FileOperationObserver.)
+- channels.core.base::BaseChannel (POS: channel abstraction layer: every provider inherits it and the Gateway manages them uniformly through send and the on_inbound callback)
 - providers.wechat.ilink_login::WeChatILinkLoginMixin (POS: QR code login flow)
 - providers.wechat.ilink_inbound::WeChatILinkInboundMixin (POS: long-polling inbound)
 - providers._ilink.client::ILinkClient (POS: iLink Bot protocol HTTP client. Single-instance httpx connection reuse with unified exception mapping.)
-- providers._ilink.media::process_inbound_item, (POS: iLink media processing utility functions. Inbound parsing and outbound upload, zero state dependencies.)
+- providers._ilink.media::process_inbound_item (POS: iLink media processing utility functions. Inbound parsing and outbound upload, zero state dependencies.)
 - providers._ilink.types::data (POS: Pure data type definitions and serialization utilities for the iLink Bot protocol.)
 
 [OUTPUT]

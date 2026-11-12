@@ -1,7 +1,7 @@
 """[INPUT]
-- myrm_agent_harness.backends.skills._content_memo::ContentMemo (POS: Listing skills re-derives the same facts (frontmatter, security scan, token count) from unchanged SKILL.md text on)
+- myrm_agent_harness.backends.skills._content_memo::ContentMemo (POS: Listing skills re-derives the same facts (frontmatter, security scan, token count) from unchanged SKILL.md text on every agent turn.)
 - myrm_agent_harness.backends.skills._utils.frontmatter::SkillFrontmatter / SkillMetadataError (POS: skills _utils 子包的一部分；由 __init__.py 聚合导出。)
-- myrm_agent_harness.backends.skills.types::SkillContract / SkillContractJudgment / SkillContractTrap / SkillContractVerification / SkillRequires (POS: Framework generic skill system. The stable public entry point stays at)
+- myrm_agent_harness.backends.skills.types::SkillContract / SkillContractJudgment / SkillContractTrap / SkillContractVerification / SkillRequires (POS: Framework generic skill system. The stable public entry point stays at ``backends.skills.types``; the nine ``types_*`` implementation modules are co-located here under this facade.)
 
 [OUTPUT]
 - _parse_requires: Parse dependency requirements from frontmatter.

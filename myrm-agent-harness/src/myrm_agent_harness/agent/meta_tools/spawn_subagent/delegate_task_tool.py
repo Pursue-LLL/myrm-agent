@@ -4,7 +4,7 @@
 - _delegate_input (POS: LLM-facing args schema of delegate_task)
 - _delegate_single (POS: Single-mode execution: admission, spawn, verification, approval resume)
 - _delegate_budget (POS: Budget admission, policy enforcement, delegation call fingerprint, dynamic description)
-- _delegate_batch (POS: Batch and parallel delegation execution engine)
+- _delegate_batch (POS: Batch and parallel delegation execution engines invoked by delegate_task_tool modes.)
 - _delegate_cognitive (POS: Council and alternatives mode execution)
 - agent.sub_agents.types::SubagentCatalog, DelegateRole
 - agent.sub_agents.spawn_prep::coerce_spawn_readonly (POS: readonly floor shared with Dynamic Workflow)

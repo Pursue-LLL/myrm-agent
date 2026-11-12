@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.web_search::SearchServiceConfig / SearchServiceConfig / SearchServiceConfig (POS: Web search toolkit entry point. Aggregates and re-exports search tools, result types,)
+- myrm_agent_harness.toolkits.web_search::SearchServiceConfig / SearchServiceConfig / SearchServiceConfig (POS: Web search toolkit entry point. Aggregates and re-exports search tools, result types, and error hierarchy for unified import.)
 - app.services.integrations.search_verify::verify_search_config_cached (POS: Settings/API search provider verify endpoint and readiness gate backing service.)
 - app.core.integrations.search_catalog.migration::migrate_search_service_configs (POS: One-time search catalog config migration for Omni searchServices schema.)
 - app.core.integrations.search_catalog.registry::SearchProviderCatalogRegistry (POS: Server-side search provider catalog SSOT for Settings UI and verify probes.)

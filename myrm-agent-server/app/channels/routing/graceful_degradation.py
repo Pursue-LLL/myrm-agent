@@ -19,7 +19,7 @@ Performance:
 
 [OUTPUT]
 - DegradationLevel: Degradation levels for update frequency control.
-- GracefulDegradationController: Graceful degradation controller with smooth frequency ada...
+- GracefulDegradationController: Graceful degradation controller with smooth frequency adaptation.
 
 [POS]
 Graceful degradation controller for smooth quality adaptation.

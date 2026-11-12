@@ -3,7 +3,7 @@
 [INPUT]
 - core.common (POS: Search result and citation data models)
 - core.exceptions (POS: Web search exception hierarchy)
-- core.error_handling (POS: Search failure classification)
+- core.error_handling (POS: Search failure classification and ErrorContext construction.)
 
 [OUTPUT]
 - Re-exports: SearchResult, Citation, exception types, error helpers

@@ -4,7 +4,7 @@
 - typing / re / logging (standard library)
 
 [OUTPUT]
-- extract_heuristic_tables_from_pdf: spatial coordinate clustering table extraction
+- extract_heuristic_tables_from_words: form-style and borderless table extraction from word spatial positions
 
 [POS]
 Heuristic spatial parser for borderless and irregular grid tables in PDF documents.

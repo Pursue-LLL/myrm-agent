@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- suggest_web_search: Generate dynamic suggestion for web_search_tool with erro...
+- suggest_web_search: Generate dynamic suggestion for web_search_tool with error analysis.
 
 [POS]
 Web tool suggestions for loop detection.

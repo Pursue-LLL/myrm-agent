@@ -28,8 +28,8 @@ Usage:
 
 [INPUT]
 - agent.context_management.archive_checkpoint::ArchiveSummaryService, ArchiveCheckpointStore (POS: Lite-LLM archive summary checkpoints for pruned tool outputs.)
-- agent.context_management.pipeline::ContextPipeline, (POS: Message filter pipeline for composing multiple filters.)
-- agent.context_management.strategies.session_notes.updater::NotesLoadCallback, (POS: Session Notes callback)
+- agent.context_management.pipeline::ContextPipeline (POS: pipeline engine: runs the processor chain in order, one chain-of-responsibility step per processor)
+- agent.context_management.strategies.session_notes.updater::NotesLoadCallback (POS: Session Notes callback)
 - middlewares.context_pipeline.context_pipeline_helpers::* (POS: Helper layer for context pipeline middleware. Keeps request metadata parsing and tool schema stable canonicalization separate from middleware orchestration.)
 - core.message_origin::count_user_authored_messages (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 

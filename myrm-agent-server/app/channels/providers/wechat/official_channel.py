@@ -6,7 +6,7 @@ Outbound: Customer message API (text, image, news)
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
-- channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::OutboundMessage (POS: message flowing from the system to an external channel)
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]

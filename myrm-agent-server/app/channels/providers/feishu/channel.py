@@ -1,10 +1,10 @@
 """Feishu/Lark channel — dual transport (webhook / websocket) bidirectional messaging.
 
 [INPUT]
-- app.channels.types::ChannelCapabilities, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- app.channels.types::ChannelCapabilities (POS: declares what a channel supports; the router reads it for format decisions)
 - app.channels.core.rate_limit::RateLimitConfig (POS: Rate limiting for inbound messages.)
 - app.channels.protocols.route_registrar::HttpMethod, RouteMetadata, GenericRequest, GenericResponse (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
-- app.channels.security::SecurityLimits, (POS: Delegates SSRF logic to agent.security.guards.ssrf_guard (single source of truth). Adds media-specific concerns: max-length filenames, path traversal prevention, extension allowlisting.)
+- app.channels.security::SecurityLimits (POS: Delegates SSRF logic to agent.security.guards.ssrf_guard (single source of truth). Adds media-specific concerns: max-length filenames, path traversal prevention, extension allowlisting.)
 - app.channels.providers.feishu.inbound::FeishuInboundMixin (POS: webhook / websocket event handling)
 - app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
 - app.channels.providers.feishu.reactions::FEISHU_REACTION_GLYPHS (POS: glyphs Feishu has an emoji_type for)
@@ -14,7 +14,7 @@
 - app.channels.security.errors::WebhookResponseError (POS: Webhook error response layer. Provides RFC 7807 standardized error format, supporting machine-parsable and human-readable output without leaking sensitive data.)
 
 [OUTPUT]
-- FeishuChannel: Feishu/Lark Bot channel with dual transport (webhook / we...
+- FeishuChannel: Feishu/Lark Bot channel with dual transport (webhook / websocket).
 
 [POS]
 Feishu/Lark channel — dual transport (webhook / websocket) bidirectional messaging.

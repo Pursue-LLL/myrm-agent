@@ -7,7 +7,7 @@
 - 普通路径 → StorageBackendStrategy（通过 Executor 适配器访问文件）
 
 [INPUT]
-- backends.skills.types::SkillMetadata (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- backends.skills.types::SkillMetadata (POS: skill metadata: frontmatter fields plus load-time computed state)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - toolkits.storage.base::StorageProvider (POS: Storage provider abstract base class. Defines the unified storage interface contract for all storage backends. Supports file read/write, delete, list, and info query. Method names use read/write (not get/put).)
 - agent.meta_tools.file_ops.executor_storage_adapter::ExecutorStorageAdapter (POS: CodeExecutor to StorageProvider adapter.)

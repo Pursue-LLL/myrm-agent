@@ -16,7 +16,7 @@ variable-length fields (output, metadata).
 
 [OUTPUT]
 - ChainBreak: Describes a single integrity violation in the Merkle chain.
-- compute_integrity_hash: function — compute_integrity_hash
+- compute_integrity_hash: Compute the Merkle hash for a single run record.
 - verify_chain: Verify Merkle chain integrity for a sequence of runs.
 
 [POS]

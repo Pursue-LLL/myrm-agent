@@ -5,7 +5,7 @@
 - ._comments::FeishuCommentsMixin (POS: comment threads)
 - ._docx::DocumentContent, FeishuDocxMixin (POS: Docx content and blocks)
 - ._bitable::FeishuBitableMixin (POS: Bitable records and Bases)
-- ._cardkit::FeishuCardKitMixin (POS: CardKit streaming)
+- ._cardkit::FeishuCardKitMixin (POS: CardKit streaming API methods of FeishuClient, used to stream a reply into an interactive card.)
 
 [OUTPUT]
 - FeishuDocumentsMixin: every document-level API method, as one mixin for FeishuClient.

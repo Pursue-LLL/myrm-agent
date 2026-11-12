@@ -3,7 +3,7 @@
 [INPUT]
 - sqlite3 (POS: standard library database)
 - ..core.structure::WikiStructure (POS: database path resolution)
-- ..core.config::WikiConfig (POS: Wiki configuration)
+- ..core.config::WikiConfig (POS: Wiki configuration center.)
 - ..core.link_extraction::extract_markdown_link_targets, extract_wikilink_targets (POS: link syntax SSOT; code regions are never links)
 - ..core.link_resolver::WikiLinkResolver, concept_index_key, concept_page_exists (POS: link target resolution and page-key identity SSOT)
 - myrm_agent_harness.utils.db.fts5::fts5_integrity_check, fts5_rebuild, fts5_swap_tokenizer (POS: FTS5 health, rebuild and tokenizer swap helpers)

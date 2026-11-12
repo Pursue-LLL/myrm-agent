@@ -10,7 +10,7 @@ and inbound media attachment parsing.
 [INPUT]
 - app.channels.core.base::BaseChannel (POS: Channel base class with unified send/receive contract.)
 - app.channels.types::ChannelCapabilities (POS: Channel capability and artifact type definitions.)
-- app.channels.media::MediaDownloadConfig (POS: Media download cache with LRU eviction.)
+- app.channels.media::MediaDownloadConfig (POS: Media download configuration.)
 - app.channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy.)
 - app.channels.core.attachment_delivery::attempt_attachments (POS: per-attachment delivery with aggregated failure)
 - app.channels.core.mixins::CachedGroupMixin (POS: Reusable channel capability mixin components.)

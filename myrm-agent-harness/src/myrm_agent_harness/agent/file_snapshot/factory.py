@@ -8,7 +8,7 @@ Both implementations conform to FileSnapshotProtocol.
 
 [INPUT]
 - .local_store::LocalFileSnapshotStore (POS: Local filesystem-based file snapshot store. Copies the workspace excluding configured directories, oversized files and credential paths)
-- .shadow_git_store::ShadowGitSnapshotStore (POS: Shadow Git file snapshot store using an isolated bare repo with env-variable isolation)
+- .shadow_git_store::ShadowGitSnapshotStore (POS: Shadow Git file snapshot store using an isolated bare repo with env-variable isolation (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_GLOBAL).)
 - .protocols::FileSnapshotProtocol (POS: Protocol for file snapshot operations. Implementations provide workspace file versioning and rollback capabilities)
 - infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 

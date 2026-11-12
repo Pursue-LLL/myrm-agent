@@ -19,8 +19,6 @@
 - TERMINAL_CONFIG_OR_AUTH: Terminal error category prefix for config/auth failures
 - _CONFIG_OR_AUTH_FAMILY_SEARCH / _CONFIG_OR_AUTH_FAMILY_BROWSER: Family-scoped terminal categories
 - classify_terminal_error(): Classify non-recoverable terminal errors (config/auth, family-scoped)
-- smart_truncate_output(): Keep first/last N lines, truncate middle
-- get_tool_timeout(): Zero-config timeout by tool name pattern
 - is_non_retryable(): Check if exception should not be retried
 - is_semantic_business_error(): Check if tool payload represents a business error under HTTP 200
 - check_semantic_failure_retryable(): Check if tool payload is a transient, retryable business failure
@@ -28,9 +26,9 @@
 - format_tool_error(): Format exception for LLM consumption
 - apply_validation_result(): Append validation warning to ToolMessage
 - check_trust_attenuation(): Check if tool is blocked by trust policy
-- extract_text_content(): Extract plain text from ToolMessage content
 - check_tool_params_pii(): Check tool parameters for PII
 - check_tool_result_pii(): Check and optionally redact PII in tool results
+- run_content_validation(): Run context poisoning detection on tool output
 
 [POS]
 Stateless helper functions for tool_interceptor_middleware. Extracted to keep the

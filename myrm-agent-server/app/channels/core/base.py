@@ -5,7 +5,7 @@ interface so the Gateway can manage them uniformly.
 
 
 [INPUT]
-- channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::OutboundMessage (POS: message flowing from the system to an external channel)
 - channels.reliability.retry::RetryConfig, send_with_retry (POS: async retry utility with exponential backoff)
 - channels.core.credentials::ChannelCredentialSpec (POS: framework-level credential type definition)
 - channels.core.inbound_pipeline::InboundPipelineMixin (POS: inbound filter, dedup, rate limit, access check, debounce, dispatch)

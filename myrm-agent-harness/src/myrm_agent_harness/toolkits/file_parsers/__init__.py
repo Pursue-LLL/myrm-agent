@@ -29,11 +29,12 @@ Provides parsers for various file formats:
 - PDFParseResult, PDFTable, PDFHeading: PDF-specific result models
 - PDFExtractConfig, PDFExtractResult, PDFImageContent, extract_pdf_content: PDF extraction utilities
 - SmartPDFParser: PDF parser with text/table extraction + OCR fallback (default for get_parser(".pdf"))
-- parse_file(): auto-detect file type and parse
+- get_parser, get_pdf_parser: parser lookup by file extension (content sniff as fallback) and the configurable PDF parser
+- get_file_type, is_supported: file type of a path and whether a parser exists for it
 
 [POS]
-File parsers toolkit entry point. Aggregates all file format parsers and provides
-a unified parse_file() function for auto-detection.
+File parsers toolkit entry point. Aggregates all file format parsers and resolves the parser
+of a file with get_parser() (by extension, content sniff as fallback).
 """
 
 from __future__ import annotations

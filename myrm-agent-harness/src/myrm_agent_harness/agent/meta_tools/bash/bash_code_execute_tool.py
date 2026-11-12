@@ -3,7 +3,7 @@
 [INPUT]
 - ._tool.tool_description::TOOL_DESCRIPTION (POS: Static LLM-facing description prompt)
 - ._security.preflight_checks (POS: Security preflight checks)
-- ._executor.executor::BashExecutor (POS: Bash executor aggregate root. MRO: Execute → Background → Prepare → Context)
+- ._executor.executor::BashExecutor (POS: Bash executor aggregate root. MRO: Execute → Background → Prepare → Context (locked by architecture tests).)
 - ._executor.error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
 - ._tool.helpers (POS: BashInput, OS hint, context tracking, skill storage path resolution)
 - ._tool.formatting (POS: Output formatting and truncation)

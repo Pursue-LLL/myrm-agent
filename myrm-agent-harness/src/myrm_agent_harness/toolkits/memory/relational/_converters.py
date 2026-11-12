@@ -4,11 +4,11 @@
 - toolkits.memory.types::MemoryScope, MemoryType, MemoryStatus, PendingRecord (POS: Memory type system foundation. Provides type-safe schema definitions for all memory types. ConversationMemory implements verbatim storage with dual-field (raw_exchange + content summary) and dual-embedding (raw + summary vectors) for lossless information preservation and adaptive retrieval optimization.)
 
 [OUTPUT]
-- now_iso: Column order: id, user_id, key, value, primary_namespace,...
-- parse_dt: function — parse_dt
-- row_to_profile: function — row_to_profile
-- row_to_procedural: Column order: id, user_id, content, trigger_text, action_...
-- row_to_pending: Column order: id, user_id, memory_type, content, memory_d...
+- now_iso: Current UTC time as an ISO 8601 string.
+- parse_dt: Parse an ISO 8601 timestamp into a datetime, treating a naive value as UTC.
+- row_to_profile: Convert a profile row into a ProfileEntry.
+- row_to_procedural: Convert a procedural-memory row (``PROCEDURAL_COLUMNS`` order) into a ProceduralMemory.
+- row_to_pending: Convert a pending-memory row into a PendingRecord.
 
 [POS]
 Row-to-model converters for SQLiteRelationalStore.

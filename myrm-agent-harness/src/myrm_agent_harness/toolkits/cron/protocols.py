@@ -23,10 +23,10 @@ and one callback it may provide:
 - PreFlightCondition: Optional probe deciding whether a run is worth making.
 - PreFlightConditionError: Raised by a probe that cannot reach a verdict; the run fails.
 - JobRunner: Executes a single cron job and returns the result.
-- ResultDelivery: Delivers job results to the user via their configured cha...
-- ConcurrencyLock: Optional lock for leader election or cross-process coordi...
+- ResultDelivery: Delivers job results to the user via their configured channel.
+- ConcurrencyLock: Optional lock for leader election or cross-process coordination.
 - TriggerProvider: Optional trigger provider for event-driven job execution.
-- StreamListener: Manages outbound WS/SSE stream connections for real-time ...
+- StreamListener: Manages outbound WS/SSE stream connections for real-time event triggers.
 - CronNoticeCallback: Async callback receiving each notice the engine raises about a job.
 
 [POS]

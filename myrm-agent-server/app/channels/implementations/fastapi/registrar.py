@@ -10,11 +10,11 @@ Implements route registration for FastAPI, including:
 - OpenAPI documentation generation
 
 [INPUT]
-- fastapi::FastAPI, (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
-- app.channels.protocols.route_registrar::RouteRegistrar, (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
-- app.channels.protocols.rate_limiter::RateLimiterProtocol, (POS: Per-User Rate Limiter for Skill Optimization)
+- fastapi::FastAPI (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
+- app.channels.protocols.route_registrar::RouteRegistrar (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
+- app.channels.protocols.rate_limiter::RateLimiterProtocol (POS: Per-User Rate Limiter for Skill Optimization)
 - app.channels.testing.route_testing::RouteDefinitionValidator (POS: Testing layer for route registration. Channels can use MockRouteRegistrar to verify their route registration logic without a real ASGI/WSGI stack.)
-- app.channels.implementations.fastapi.adapters::FastAPIRequestAdapter, (POS: Adapter layer for FastAPI. Converts FastAPI-specific request/response objects to framework-agnostic interfaces defined in the protocols layer.)
+- app.channels.implementations.fastapi.adapters::FastAPIRequestAdapter (POS: Adapter layer for FastAPI. Converts FastAPI-specific request/response objects to framework-agnostic interfaces defined in the protocols layer.)
 
 [OUTPUT]
 - FastAPIRouteRegistrar: FastAPI implementation of RouteRegistrar Protocol

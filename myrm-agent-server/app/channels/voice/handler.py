@@ -5,7 +5,7 @@ replies to audio (TTS). Supports Agent-driven TTS directives for
 dynamic voice control.
 
 [INPUT]
-- channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 - channels.core.bus::MessageBus (POS: async message bus)
 - channels.voice.stt::transcribe, download_audio (POS: speech-to-text)
 - channels.voice.tts::synthesize (POS: text-to-speech)

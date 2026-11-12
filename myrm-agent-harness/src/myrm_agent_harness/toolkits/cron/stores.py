@@ -9,7 +9,7 @@ Thread-safe for asyncio (single event loop) via ``asyncio.Lock``.
 - infra.incremental.types::MonitorState (POS: Domain types for incremental monitoring.)
 
 [OUTPUT]
-- InMemoryCronStore: CronStore backed by plain dicts — zero external dependenc...
+- InMemoryCronStore: CronStore backed by plain dicts — zero external dependencies.
 
 [POS]
 Built-in in-memory CronStore for development and testing.

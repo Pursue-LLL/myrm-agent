@@ -5,7 +5,7 @@ reply/push messaging, bot info, user/group/room profile, health check,
 typing indicator.
 
 [INPUT]
-- .helpers::_API_BASE, (POS: Stateless helper functions extracted from orchestrator.py to keep the main orchestrator class focused on state machine logic.)
+- .helpers::_API_BASE (POS: Stateless helper functions extracted from orchestrator.py to keep the main orchestrator class focused on state machine logic.)
 
 [OUTPUT]
 - LineClient: stateless HTTP wrapper for LINE Messaging API

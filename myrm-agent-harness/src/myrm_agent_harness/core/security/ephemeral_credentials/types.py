@@ -6,7 +6,7 @@
 [OUTPUT]
 - EphemeralCredential: Encapsulated credential with physical memory wipe capability.
 - EphemeralCredentialSummary: Safe metadata summary without secret exposure.
-- SanitizedCredentialKey: Validated environment key safe from shell injection.
+- validate_credential_key: Validate and sanitize a credential key name (rejects malformed names and reserved or code-injection env names).
 - command_digest: The digest a credential is bound to, computed from the command text a person approved.
 
 [POS]

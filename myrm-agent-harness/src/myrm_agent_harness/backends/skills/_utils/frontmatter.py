@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.backends.skills.types::SkillContract / SkillPermission / SkillRequires (POS: Framework generic skill system. The stable public entry point stays at)
+- myrm_agent_harness.backends.skills.types::SkillContract / SkillPermission / SkillRequires (POS: Framework generic skill system. The stable public entry point stays at ``backends.skills.types``; the nine ``types_*`` implementation modules are co-located here under this facade.)
 
 [OUTPUT]
 - SkillMetadataError: Skill metadata parsing or validation error.

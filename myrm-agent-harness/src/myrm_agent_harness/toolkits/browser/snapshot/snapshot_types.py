@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- SnapshotSource: - FULL: Force full snapshot (first capture or after navig...
+- SnapshotSource: Snapshot source type: FULL, FULL_WITH_CHANGES (MutationObserver detected changes) or CACHED (no changes detected)
 - SnapshotMetrics: SnapshotStatisticsMetrics
 - AriaSnapshot: immutable ARIA Snapshot
 

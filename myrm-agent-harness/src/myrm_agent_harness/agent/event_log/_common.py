@@ -5,7 +5,6 @@
 
 [OUTPUT]
 - _EVENT_META_KEYS: frozenset of metadata keys to strip
-- _strip_meta_keys: helper to sanitize payload dictionaries
 - _output_data: normalize a tool output payload to the shape ToolCallRecord stores
 
 [POS]

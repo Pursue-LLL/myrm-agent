@@ -6,7 +6,7 @@ Agent 本质是 system-prompt 模板，搜索到后按 SKILL.md 格式返回。
 数据源: chat-agents.lobehub.com (GitHub: lobehub/lobe-chat-agents)
 
 [INPUT]
-- backends.skills.market_protocols::SkillSearchResult (POS: SkillBackend SkillBackend SkillMarketBackend)
+- backends.skills.market_protocols::SkillSearchResult (POS: skill market backend protocol: the unified interface for searching and installing external skills)
 
 [OUTPUT]
 - LobeHubSource: class — Lobe Hub Source

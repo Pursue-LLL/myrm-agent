@@ -4,7 +4,7 @@
 - generator::ImageGenerator (POS: Core generation/editing engine)
 - models::{ImageGenerationConfig, ImageGenerationError, ImageResult} (POS: Data types)
 - types::get_profile, list_profiles (POS: Model capability lookup)
-- validator::ImageValidator, ValidationError (POS: Pre-call validation)
+- validator::ImageValidator, ValidationError (POS: Pre-call validation that rejects invalid image generation requests before they reach the remote API.)
 
 [OUTPUT]
 - ImageGenerationTools: LangChain-compatible tool provider for Agent integration

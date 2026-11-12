@@ -3,8 +3,7 @@
 [INPUT]
 - app.ai_agents.agents::GeneralAgentParams (POS: General agent runtime parameter bundle)
 - app.ai_agents.general_agent.agent::GeneralAgent (POS: Business-layer general agent wrapper)
-- app.channels.types::METADATA_APPROVAL_WINDOW_SECONDS_KEY, OutboundMessage, ProgressUpdate (POS: Channel outbound message envelope; per-turn approval wait key)
-- app.core.channel_bridge.config_parsers::SessionPolicy (POS: Session policy parsing)
+- app.channels.types::METADATA_APPROVAL_WINDOW_SECONDS_KEY, OutboundMessage, ProgressUpdate, SessionPolicy (POS: Channel outbound message envelope; per-turn approval wait key; declarative session reset policy)
 - app.core.types.business::ModelConfig (POS: Model configuration types)
 - myrm_agent_harness.core.security.types::EphemeralUserCredential (POS: Ephemeral per-session credential carried by user_credentials_ctx)
 

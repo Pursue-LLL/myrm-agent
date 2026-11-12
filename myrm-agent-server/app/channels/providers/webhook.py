@@ -6,7 +6,7 @@ systems (n8n, Zapier, custom webhooks) and third-party integrations.
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
-- channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::OutboundMessage (POS: message flowing from the system to an external channel)
   ToolSummaryDisplay, extract_cron_context
 
 [OUTPUT]

@@ -11,7 +11,7 @@ API 端点:
 认证: 可选，通过 CLAWHUB_TOKEN 环境变量配置。
 
 [INPUT]
-- backends.skills.market_protocols::SkillSearchResult (POS: SkillBackend SkillBackend SkillMarketBackend)
+- backends.skills.market_protocols::SkillSearchResult (POS: skill market backend protocol: the unified interface for searching and installing external skills)
 
 [OUTPUT]
 - ClawHubSource: class — Claw Hub Source

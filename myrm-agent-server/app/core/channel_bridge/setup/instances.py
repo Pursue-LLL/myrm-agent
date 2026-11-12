@@ -1,7 +1,7 @@
 """[INPUT]
 - app.core.channel_bridge::channel_gateway (POS: Application-level channel gateway singleton.)
-- app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Business-layer adapter connecting /background (/btw /bg) slash commands to the)
-- app.core.channel_bridge.kanban_command_handler::ChannelKanbanCommandHandler (POS: Business-layer adapter connecting /kanban (/kb) slash commands to the)
+- app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Business-layer adapter connecting /background (/btw /bg) slash commands to the persistent Kanban task system.)
+- app.core.channel_bridge.kanban_command_handler::ChannelKanbanCommandHandler (POS: Business-layer adapter connecting /kanban (/kb) slash commands to the KanbanService.)
 - app.core.channel_bridge.setup.commands::_build_agent_route_commands / _load_skill_command_bindings (POS: channel_bridge setup 子包的一部分；由 __init__.py 聚合导出。)
 - app.core.channel_bridge.setup.policies::_load_reaction_policy / _load_sticker_vision_service / _load_voice_config (POS: channel_bridge setup 子包的一部分；由 __init__.py 聚合导出。)
 - app.core.channel_bridge.setup::state (POS: `app.core.channel_bridge.setup` 的唯一入口；实现按 gateway/instances/policies/callbacks/commands 分层。)

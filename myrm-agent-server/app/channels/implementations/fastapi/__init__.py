@@ -18,8 +18,8 @@ Usage:
     registry.register_all(app)
 
 [INPUT]
-- fastapi::FastAPI, (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
-- channels.protocols::RouteRegistrar, (POS: Protocols for Skill Optimization Subsystem)
+- fastapi::FastAPI (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
+- channels.protocols::RouteRegistrar (POS: Protocols for Skill Optimization Subsystem)
 
 [OUTPUT]
 - FastAPIRouteRegistrar: FastAPI-specific route registrar

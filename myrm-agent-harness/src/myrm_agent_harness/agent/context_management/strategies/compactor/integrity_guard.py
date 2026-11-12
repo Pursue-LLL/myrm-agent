@@ -8,7 +8,7 @@ without discarding unrelated conversational content.
 - (none)
 
 [OUTPUT]
-- ensure_tool_pair_integrity: Return a structurally valid message list for provider/too...
+- ensure_tool_pair_integrity: Return a structurally valid message list for provider/tool replay.
 
 [POS]
 Tool pair integrity guard for compacted message histories.

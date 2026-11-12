@@ -4,7 +4,7 @@
 - app.core.channel_bridge.setup::start_channel_gateway (POS: 渠道网关启动器)
 - app.database.allowlist_store::DBAllowlistStore (POS: HITL 白名单持久化存储)
 - myrm_agent_harness.agent.goals.storage::GoalStorage (POS: 目标存储)
-- app.services.event.app_event_bus::AppEventBus (POS: 业务层 SSE 应用级事件总线)
+- app.services.event.app_event_bus::AppEvent, AppEventType, get_event_bus (POS: 业务层 SSE 应用级事件总线)
 
 [OUTPUT]
 - start_channel_gateway: 启动渠道网关（多聊天平台集成）

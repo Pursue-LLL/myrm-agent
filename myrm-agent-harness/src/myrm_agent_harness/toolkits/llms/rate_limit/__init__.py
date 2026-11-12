@@ -1,7 +1,7 @@
 """Rate Limit Tracking.
 
 [INPUT]
-- .types::RateLimitBucket, RateLimitState (POS: Data structures)
+- .types::RateLimitBucket, RateLimitState (POS: Data structures for proactive rate limit tracking.)
 - .parser::parse_rate_limit_headers (POS: Header parser)
 - .tracker::RateLimitTracker (POS: State tracker)
 

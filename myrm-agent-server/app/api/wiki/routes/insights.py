@@ -2,9 +2,9 @@
 - myrm_agent_harness.toolkits.memory::MemoryManager (POS: Pluggable memory system for AI agents.)
 - app.api.dependencies::get_optional_llm_for_user (POS: API 层统一依赖注入入口。所有 FastAPI 端点的依赖应从此模块导入。)
 - app.api.memory.utils::get_optional_memory_manager (POS: Memory API utilities — re-exports shared service-layer helpers for route modules.)
-- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.archiver_dependency::get_scoped_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault files use ``app.services.wiki.vault.get_wiki_structure`` instead, so no compile worker is ever built without a model.)
 - app.api.wiki.routes.schemas::GraphEdgeItem / GraphNodeItem / OperationResult / WikiGraphResponse (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
-- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian / source_sync / clip / knowledge_pack) live under this package and expose their own facades.)
 
 [OUTPUT]
 - PurposeResponse: PurposeResponse

@@ -1,7 +1,7 @@
 """Provider rate-limit window extraction metrics.
 
 [INPUT]
-- observability.metrics::create_counter (POS: Harness-layer generic metrics utilities)
+- observability.metrics::create_counter (POS: Harness-layer generic metrics utilities for any project using the Myrm framework.)
 
 [OUTPUT]
 - record_window_outcome: count one rate-limit-class error by the signal its hint was read from

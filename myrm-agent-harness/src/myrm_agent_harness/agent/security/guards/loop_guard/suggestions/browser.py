@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- suggest_browser_snapshot: Generate dynamic suggestion for browser_snapshot with err...
+- suggest_browser_snapshot: Generate dynamic suggestion for browser_snapshot with error analysis.
 
 [POS]
 Browser tool suggestions for loop detection.

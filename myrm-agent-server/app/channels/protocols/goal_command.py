@@ -1,7 +1,7 @@
 """Goal command handler protocol — business-layer injection for /goal commands.
 
 [INPUT]
-- channels.types::InboundMessage (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 
 [OUTPUT]
 - GoalCommandHandler: Protocol for handling /goal slash commands

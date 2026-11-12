@@ -19,9 +19,9 @@ Hierarchy:
 - ChannelSendError: Message delivery failed; ``accepted`` marks a partial delivery, ``retriable`` also reads the wrapped ``httpx`` error, ``for_attachments`` / ``from_http_status`` build typed failures.
 - may_have_reached_platform: whether an ``httpx`` failure may come after the platform took the request.
 - DeliveryUnconfirmedError: send() returned no message id on a channel that reports ids.
-- RateLimitError: Platform rate limit hit. Always retriable with specific d...
-- ChannelAuthError: Credentials invalid or expired. Never retry — requires re...
-- ChannelConnectionError: Transport layer failure (DNS, timeout, connection reset)....
+- RateLimitError: Platform rate limit hit. Always retriable with specific delay.
+- ChannelAuthError: Credentials invalid or expired. Never retry — requires reconfiguration.
+- ChannelConnectionError: Transport layer failure (DNS, timeout, connection reset).
 
 [POS]
 Channel exception hierarchy for precise retry and error handling.

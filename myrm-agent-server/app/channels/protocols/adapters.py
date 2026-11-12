@@ -4,7 +4,7 @@ Provides protocols for adapting framework-specific request/response objects
 to framework-agnostic GenericRequest/GenericResponse.
 
 [INPUT]
-- channels.protocols.route_registrar::GenericRequest, (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
+- channels.protocols.route_registrar::GenericRequest (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
 
 [OUTPUT]
 - RequestAdapter Protocol: Adapts framework-specific request to GenericRequest

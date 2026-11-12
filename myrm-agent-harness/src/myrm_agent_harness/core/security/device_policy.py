@@ -1,4 +1,4 @@
-"""Device Security Policy and Batch High-Risk Risk Assessment.
+"""Device Security Policy and Batch High-Risk Assessment.
 
 Provides device-level security configuration SSOT and dual-insurance risk assessment
 for batch operations across remote devices, cloud sandboxes, and multi-agent coordination.

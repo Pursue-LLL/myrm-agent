@@ -12,7 +12,7 @@ Fallback strategy (mirrors TTS Edge-TTS fallback design):
   - Local fails → try cloud API if configured
 
 [INPUT]
-- channels.types::VoiceConfig, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::VoiceConfig (POS: combined STT and TTS configuration injected by the business layer)
 
 [OUTPUT]
 - transcribe(): Audio file -> STTResult (text + language + duration)

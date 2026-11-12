@@ -6,7 +6,7 @@
 - app.core.storage.files_service (POS: 文件存储 SSOT；附件字节读取 via get_content)
 
 [OUTPUT]
-- StreamAccumulator: Accumulates streaming chunks and handles multimodal attachments.
+- _StreamAccumulator: Accumulates agent stream events (answer text, usage, cost, error) into a final result.
 - build_multimodal_query: Assembles text or multimodal query from task attachments.
 
 [POS]

@@ -5,13 +5,13 @@ Recovery strategies (overflow, failover, diagnostics) live in ``_internals.agent
 Lifecycle helpers (workspace setup, cleanup, post-processing) live in ``_internals.run_lifecycle``.
 
 [INPUT]
-- utils.chat_utils::ChatHistoryReq (POS: Agent)
+- utils.chat_utils::ChatHistoryReq (POS: chat history types; ChatHistoryReq is the list of [role, content] entries passed in as history)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
-- utils.runtime.cancellation::CancellationToken (POS: Agent  ContextVar  BaseAgent)
-- utils.runtime.steering::SteeringToken (POS: Steering  Agent  Agent)
+- utils.runtime.cancellation::CancellationToken (POS: request-level cancellation token for cooperative async cancellation)
+- utils.runtime.steering::SteeringToken (POS: steering token: injects a message while the agent runs to interrupt the current tool chain)
 
 [OUTPUT]
-- BaseAgent: Lightweight agent base class with streaming events, token...
+- BaseAgent: Lightweight agent base class with streaming events, token tracking, and artifacts.
 
 [POS]
 Base Agent — lightweight agent with streaming, token tracking, and artifacts.

@@ -34,9 +34,9 @@ Persistent root:
 [OUTPUT]
 - Re-exports PERSISTENT_ROOT_ENV, DEFAULT_PERSISTENT_ROOT, get_persistent_root,
   get_workspace_root, get_context_root, get_memories_root from core.paths.
-- get_evicted_output_path: Get path for evicted large bash output (auto-generates UU...
+- get_evicted_output_path: Get path for evicted large output (auto-generates UUID basename).
 - get_scratchpad_path: Get path for agent scratchpad file.
-- get_snapshot_path: Get path for pre-compression conversation snapshot (auto-...
+- get_snapshot_path: Get path for pre-compression conversation snapshot (auto-generates timestamped UUID).
 - get_system_config_path: Get path for system configuration file.
 - get_context_session_dir / get_context_subdir / get_context_file_path: Session-scoped context layout.
 - get_workspace_relative_path: Convert an absolute path to a workspace-relative one.

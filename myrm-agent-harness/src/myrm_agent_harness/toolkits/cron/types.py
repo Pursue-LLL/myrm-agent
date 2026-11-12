@@ -11,7 +11,7 @@ Consumed by scheduler, manager, tools, and application adapters.
 - JobType: class — Job Type
 - JobStatus: class — Job Status
 - RunStatus: class — Run Status
-- TransientErrorKind: class — Transient Error Kind
+- TransientErrorKind: Classifies transient errors for smart retry decisions.
 - CronNoticeKind: what a notice reports — a run's outcome or an automatic pause
 - CronNotice: one user-facing fact about a job, handed to the application layer's notice callback
 

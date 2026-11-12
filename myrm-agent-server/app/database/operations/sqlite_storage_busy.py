@@ -4,8 +4,7 @@
 - app.database.factory::get_sqlite_busy_timeout_ms (POS: SQLite 引擎与会话工厂)
 
 [OUTPUT]
-- is_sqlite_busy_error: Predicate for SQLite busy/lock exceptions
-- is_sqlite_storage_busy: Alias for is_sqlite_busy_error
+- is_sqlite_storage_busy: Predicate for SQLite busy/lock exceptions (exception chain, message heuristic)
 - sqlite_busy_retry_after_seconds: Compute Retry-After from PRAGMA busy_timeout
 
 [POS]

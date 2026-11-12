@@ -9,15 +9,15 @@
 - Aggregate facade re-exporting every public name of the ``commands`` subpackage:
   - commands: argument parsers (yolo/personality/memory/approval/topic) + slash-command
     handlers (new_session/compact/retry/undo/topic_command) + DenyWithReason/TopicCommand DTOs
-  - router_commands: RouterCommandsMixin composed from the feature mixins below
-  - router_commands_approval: RouterCommandsApprovalMixin (emoji/button/reaction approval)
-  - router_commands_draft: RouterCommandsDraftMixin + parse_draft_args (/draft: decide a held reply from chat)
-  - router_commands_goals: RouterCommandsGoalsMixin (/goal lifecycle)
-  - router_commands_memory: RouterCommandsMemoryMixin (/memory review)
-  - router_commands_modes: RouterCommandsModesMixin (/yolo, /personality, /topic)
-  - router_commands_quota: RouterCommandsQuotaMixin (/quota)
-  - router_commands_session: RouterCommandsSessionMixin (/new, /compact, /retry, /undo)
-  - router_commands_stop: RouterCommandsStopMixin (/stop and the session abort shared with /new)
+  - router_commands.mixin: RouterCommandsMixin composed from the feature mixins below
+  - router_commands.approval: RouterCommandsApprovalMixin (emoji/button/reaction approval)
+  - router_commands.draft: RouterCommandsDraftMixin + parse_draft_args (/draft: decide a held reply from chat)
+  - router_commands.goals: RouterCommandsGoalsMixin (/goal lifecycle)
+  - router_commands.memory: RouterCommandsMemoryMixin (/memory review)
+  - router_commands.modes: RouterCommandsModesMixin (/yolo, /personality, /topic)
+  - router_commands.quota: RouterCommandsQuotaMixin (/quota)
+  - router_commands.session: RouterCommandsSessionMixin (/new, /compact, /retry, /undo)
+  - router_commands.stop: RouterCommandsStopMixin (/stop and the session abort shared with /new)
 
 [POS]
 Server business layer. Single command domain for AgentRouter: parsing and handling

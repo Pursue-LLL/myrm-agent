@@ -18,7 +18,7 @@ Usage::
 
 [OUTPUT]
 - atomic_write: Atomically write content to a file.
-- async_atomic_write: Async wrapper around :func:`atomic_write` via ``asyncio.t...
+- async_atomic_write: Async wrapper around :func:`atomic_write` via ``asyncio.to_thread``.
 
 [POS]
 Atomic file write with crash-consistency guarantee.

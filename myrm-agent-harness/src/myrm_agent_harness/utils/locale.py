@@ -4,7 +4,9 @@
 - (none — leaf module)
 
 [OUTPUT]
-- LocaleResolver: BCP-47 normalization (Chinese resolves to zh-CN or zh-TW) and Chinese-family detection
+- normalize_locale: BCP-47 normalization (Chinese resolves to zh-TW for Traditional tags and to zh-CN otherwise)
+- resolve_locale: locale resolution by priority explicit > metadata > platform > user > platform default > en
+- is_chinese: Chinese-family detection (Simplified or Traditional)
 
 [POS]
 Shared locale utilities consumed by channel i18n, error diagnostics, and

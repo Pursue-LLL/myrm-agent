@@ -4,7 +4,7 @@ Inbound: webhook → _route_event → _handle_message / _handle_postback.
 Outbound: Reply (free) → Push (paid) fallback.
 
 [INPUT]
-- channels.core.base::BaseChannel, (POS: Provides FileOperationObserver.)
+- channels.core.base::BaseChannel (POS: channel abstraction layer: every provider inherits it and the Gateway manages them uniformly through send and the on_inbound callback)
 - channels.providers.line.inbound::LINEInboundMixin (POS: webhook signature check, event routing and message / postback parsing)
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 

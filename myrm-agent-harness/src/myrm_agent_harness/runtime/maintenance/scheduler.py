@@ -14,9 +14,9 @@ Design principles:
 - runtime.survival.memory_pressure::PressureEvent, PressureLevel, PressureSubscriber (POS: Global memory pressure coordination. Framework provides the monitor and hooks; business layer registers subscribers to decide degradation strategies. Follows the framework's three responsibilities: resource management, performance optimization, self-protection.)
 
 [OUTPUT]
-- GlobalAdaptiveScheduler: Adaptive scheduler that throttles maintenance based on sy...
+- GlobalAdaptiveScheduler: Adaptive scheduler that throttles maintenance based on system load.
 - init_maintenance_scheduler: Initialize the module-level singleton scheduler.
-- get_maintenance_scheduler: Get the module-level singleton scheduler, or None if not ...
+- get_maintenance_scheduler: Get the module-level singleton scheduler, or None if not initialized.
 
 [POS]
 Global adaptive maintenance scheduler.

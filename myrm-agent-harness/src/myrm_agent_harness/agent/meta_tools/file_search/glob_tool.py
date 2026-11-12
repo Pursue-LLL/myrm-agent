@@ -13,7 +13,7 @@
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
 - grep_tool::_has_ripgrep (POS: Content search tool)
 - path_hint::mcp_namespace_error (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
-- search_target::require_examinable_target (POS: Preflight that names a missing or unreadable search path instead of searching it)
+- search_target::require_examinable_target (POS: Preflight that names a missing or unreadable search path instead of searching it.)
 - skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: ACL filter preventing file tools from reading disabled skill directories)
 
 [OUTPUT]

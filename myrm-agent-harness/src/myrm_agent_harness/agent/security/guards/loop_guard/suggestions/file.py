@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- suggest_file_read: Generate dynamic suggestion for file_read_tool with error...
+- suggest_file_read: Generate dynamic suggestion for file_read_tool with error analysis.
 
 [POS]
 File tool suggestions for loop detection.

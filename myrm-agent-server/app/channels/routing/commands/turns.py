@@ -1,5 +1,5 @@
 """[INPUT]
-- app.channels.i18n::get_text (POS: Provides multi-language support for gateway slash command replies and)
+- app.channels.i18n::get_text (POS: Provides multi-language support for gateway slash command replies and system-generated channel messages (not Agent LLM output).)
 - app.channels.types::InboundMessage / OutboundMessage (POS: Channel system domain types — pure data definitions, no I/O.)
 
 [OUTPUT]

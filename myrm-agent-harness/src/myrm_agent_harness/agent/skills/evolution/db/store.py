@@ -11,7 +11,7 @@ Core properties:
 - Async-safe write path
 
 [INPUT]
-- agent.skills.evolution.core.types::SkillLineage, (POS: Data types for skill evolution system.)
+- agent.skills.evolution.core.types::SkillLineage (POS: Data types for skill evolution system.)
 - agent.skills.evolution.db._store_schema::SCHEMA_DDL, migrate_existing_db (POS: Schema and data migrations run by SkillStore on every open; each step is idempotent.)
 - agent.skills.evolution.db._store_retry::db_retry (POS: Transient-error retry for SkillStore operations.)
 

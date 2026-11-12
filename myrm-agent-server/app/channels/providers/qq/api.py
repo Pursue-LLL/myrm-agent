@@ -4,7 +4,7 @@ Encapsulates OAuth token management and all REST API interactions:
 text/media messaging, typing indicator, health check.
 
 [INPUT]
-- .helpers::build_message_url, (POS: Stateless helper functions extracted from orchestrator.py to keep the main orchestrator class focused on state machine logic.)
+- .helpers::build_message_url (POS: Stateless helper functions extracted from orchestrator.py to keep the main orchestrator class focused on state machine logic.)
 
 [OUTPUT]
 - QQClient: HTTP wrapper for QQ Bot Official API

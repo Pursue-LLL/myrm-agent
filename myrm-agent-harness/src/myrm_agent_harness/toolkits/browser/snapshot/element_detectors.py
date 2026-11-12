@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - detect_cursor_interactive: Detect cursor:pointer etc. interactive elements
-- collect_bboxes: Collect bounding boxes for all elements in ARIA tree (Lay...
+- collect_bboxes: Collect bounding boxes for all elements in ARIA tree (Layer 1).
 
 [POS]
 Element detection utilities for snapshot enhancement.

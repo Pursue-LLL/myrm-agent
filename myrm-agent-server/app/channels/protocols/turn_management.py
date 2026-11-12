@@ -1,7 +1,7 @@
 """Turn management protocols — business-layer injection for /retry and /undo.
 
 [INPUT]
-- channels.types::InboundMessage (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 
 [OUTPUT]
 - RetryHandler: Protocol for /retry command implementation

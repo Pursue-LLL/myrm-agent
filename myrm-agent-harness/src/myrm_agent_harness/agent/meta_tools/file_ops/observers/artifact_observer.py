@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- ArtifactObserver: Registers generated files to ArtifactRegistry and pushes ...
+- ArtifactObserver: Registers generated files to ArtifactRegistry and pushes realtime content updates.
 
 [POS]
 Artifact observer for registering generated files and pushing realtime content.

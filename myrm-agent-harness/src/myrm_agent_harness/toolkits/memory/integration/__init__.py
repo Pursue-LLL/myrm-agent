@@ -2,9 +2,8 @@
 
 [OUTPUT]
 - IntegrationProvider: Protocol for data fetching from external services.
-- IntegrationFetcher: Concurrent fetch scheduler with idempotent dedup.
-- IntegrationTreeManager: Adaptive hierarchical summary tree backed by GraphStore.
-- IntegrationSummariser: LLM-powered multi-level summarisation.
+- IntegrationLeaf, IntegrationNodeKind, IntegrationTree, IntegrationSyncOutcome, IntegrationSyncResult: data models of fetched records, the summary tree and sync runs
+- fetcher::IntegrationFetcher, tree_manager::IntegrationTreeManager, summarizer::IntegrationSummariser: fetch scheduler, summary tree manager and LLM summariser (imported from their modules, not re-exported here)
 
 [POS]
 Integration Memory sub-module.  Pulls data from third-party services (Gmail,

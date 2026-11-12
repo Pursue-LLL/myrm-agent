@@ -13,7 +13,7 @@ business-layer config, preserving the "no deployment-mode awareness" principle.
 - toolkits.code_execution.platform::PlatformInfo (POS: Cross-platform runtime detection and shell configuration.)
 
 [OUTPUT]
-- detect_sandbox_provider: Select the best sandbox provider for the current environm...
+- detect_sandbox_provider: Select the best sandbox provider for the current environment.
 
 [POS]
 Auto-detect the best available sandbox provider.

@@ -13,7 +13,10 @@
 - save_channel_budget_policy: Persist a single channel policy
 - should_block_channel: Check if a specific channel should be blocked
 - record_channel_cost: Record cost against a channel's budget guard
-- get_channel_budget_status: Get current budget status for a channel
+- ChannelBudgetPoliciesConfig: Aggregate config for all channel budget policies
+- get_channel_budget_registry: Process-wide ChannelBudgetRegistry accessor
+- delete_channel_budget_policy: Remove a single channel policy
+- initialize_channel_budgets: Initialize the budget registry from the DB on startup
 
 [POS]
 Per-channel budget isolation for IM channels. Prevents a single busy channel

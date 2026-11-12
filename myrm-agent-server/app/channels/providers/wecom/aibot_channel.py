@@ -4,7 +4,7 @@ Inbound: WebSocket frames (aibot_msg_callback / aibot_event_callback).
 Outbound: aibot_respond_msg frames with stream support, aibot_send_msg for proactive push.
 
 [INPUT]
-- channels.core.base::BaseChannel (POS: Provides FileOperationObserver.)
+- channels.core.base::BaseChannel (POS: channel abstraction layer: every provider inherits it and the Gateway manages them uniformly through send and the on_inbound callback)
 - channels.providers.wecom.aibot_inbound::WeComAiBotInboundMixin (POS: WebSocket session and inbound parsing)
 - channels.reliability.reconnect::reconnect_loop (POS: Reconnect loop with exponential backoff + jitter for long-lived connections.)
 - channels.rendering.splitter::cap_stream_preview (POS: Smart long-message splitter, preview cap in characters or UTF-8 bytes)

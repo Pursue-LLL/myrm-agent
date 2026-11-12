@@ -4,7 +4,7 @@ Designed for high-performance vector retrieval over temporary document collectio
 (e.g., web search results, crawled content) without requiring persistence.
 
 [INPUT]
-- toolkits.retriever.embedding::EmbeddingService (POS: Embedding protocol — text to vector abstraction)
+- toolkits.retriever.embedding::EmbeddingService (POS: embedding contract: the abstract interface every embedding backend (cloud, local, cached) implements)
 
 [OUTPUT]
 - RetrievalResult: Dataclass holding retrieved Document and similarity score

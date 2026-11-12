@@ -9,7 +9,7 @@ automatically handling decompression when needed.
 [OUTPUT]
 - TransparentFileReader: File reader with transparent decompression support.
 - read_context_file_async: Read context file with transparent decompression support.
-- read_context_file_sync: Read context file with transparent decompression support ...
+- read_context_file_sync: Read context file with transparent decompression support (sync version).
 
 [POS]
 Transparent decompression for context files.

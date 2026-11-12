@@ -1,8 +1,8 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.kanban::KanbanStore / create_kanban_tools (POS: Kanban toolkit entry point. Aggregates dispatcher, protocols, built-in)
+- myrm_agent_harness.toolkits.kanban::KanbanStore / create_kanban_tools (POS: Kanban toolkit entry point. Aggregates dispatcher, protocols, built-in implementations, and data models for the protocol-first kanban framework.)
 - myrm_agent_harness.toolkits.mcp.config::MCPConfig (POS: MCP Configuration)
 - myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: Stable public import path for the memory toolkit façade.)
-- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放）， 工具创建委托给 ToolSetupMixin。)
 - app.core.types::MCPServerConfig (POS: Core types package)
 - app.config.computer_use_deploy::is_computer_use_deploy_supported (POS: Deploy-mode gates for computer_use (Semantic Desktop Control).)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities / get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)
@@ -11,13 +11,13 @@
 - app.services.kanban.service::KanbanService (POS: Kanban business service facade; domain logic lives in sibling orchestrator modules.)
 - app.ai_agents.general_agent.callbacks::make_skill_review_callback / make_commitment_extraction_callback (POS: Callbacks for General Agent)
 - myrm_agent_harness.api.hooks::create_extraction_llm_func (POS: Public re-export facade. Product code imports hooks here instead of private ``agent._*`` modules.)
-- myrm_agent_harness.toolkits.memory.session_post_process::run_session_post_process (POS: Single entry point for memory-domain background work after a conversation)
-- app.ai_agents.general_agent.correction_propagation::make_correction_propagation_callback (POS: 会话结束时的隐式纠错传播。两阶段检测用户纠正信号，产出结构化纠错提案，分别路由到)
+- myrm_agent_harness.toolkits.memory.session_post_process::run_session_post_process (POS: Single entry point for memory-domain background work after a conversation session ends (proactive extraction, implicit feedback detection, etc.).)
+- app.ai_agents.general_agent.correction_propagation::make_correction_propagation_callback (POS: 会话结束时的隐式纠错传播。两阶段检测用户纠正信号，产出结构化纠错提案，分别路由到 Harness 审批队列（个人记忆，HITL）与绑定的 SharedContext 写入提案。)
 - app.ai_agents.general_agent.frustration_routing::make_frustration_skill_routing_callback (POS: Frustration signal → Skill evolution routing callback.)
-- app.services.agent.backends.mcp_oauth_store::get_mcp_oauth_token_store (POS: MCP OAuth token encrypted persistence. Implements framework MCPOAuthTokenStore)
-- myrm_agent_harness.toolkits.mcp.oauth::MCPOAuthProvider (POS: MCP OAuth 2.0 + PKCE authentication. Framework-level provider implementing)
+- app.services.agent.backends.mcp_oauth_store::get_mcp_oauth_token_store (POS: MCP OAuth token encrypted persistence. Implements framework MCPOAuthTokenStore protocol with AES-256-GCM encryption, stampede-safe token refresh, and cross-server atomic writes.)
+- myrm_agent_harness.toolkits.mcp.oauth::MCPOAuthProvider (POS: MCP OAuth 2.0 + PKCE authentication. Framework-level provider implementing MCPAuthProvider, delegating token storage to the business layer.)
 - app.platform_utils.sandbox.entitlements.entitlement_guard::fetch_sandbox_entitlements / fetch_sandbox_entitlements (POS: Sandbox entitlement guard — resolves CP internal entitlements for SaaS sandbox mode.)
-- app.services.budget.enforcer::is_eco_mode_active (POS: Budget enforcement service. Bridges harness MultidimensionalBudgetGuard with server-side)
+- app.services.budget.enforcer::is_eco_mode_active (POS: Budget enforcement service. Bridges harness MultidimensionalBudgetGuard with server-side persistence and SSE alerts.)
 
 [OUTPUT]
 - _try_inject_mcp_oauth: Inject MCPOAuthProvider if the server has stored OAuth tokens.

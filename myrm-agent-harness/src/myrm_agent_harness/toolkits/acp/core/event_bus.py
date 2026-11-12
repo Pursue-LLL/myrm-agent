@@ -6,7 +6,7 @@ filtering and async callbacks.
 
 
 [INPUT]
-- myrm_agent_harness.toolkits.acp.types::RuntimeEvent, RuntimeEventType (POS: ACP runtime type definitions)
+- myrm_agent_harness.toolkits.acp.types::RuntimeEvent, RuntimeEventType (POS: ACP runtime type definitions layer.)
 
 [OUTPUT]
 - EventBus: publish-subscribe event bus with session-level filtering and async callbacks

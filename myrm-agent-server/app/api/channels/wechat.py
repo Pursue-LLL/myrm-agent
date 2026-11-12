@@ -3,9 +3,6 @@
 [INPUT]
 - api.channels.schemas::WhatsAppStatusResponse, WeChatStatusResponse (POS: Channel API 请求响应模型)
 - api.channels.instances::_delete_instance_credentials (POS: 频道实例管理路由)
-- api.channels.router::_channel_config_key (POS: 频道凭证配置键映射)
-- database.connection::get_session (POS: 异步数据库会话管理)
-- database.models::UserConfig (POS: 用户配置数据模型)
 
 [OUTPUT]
 - router: WhatsApp/WeChat 状态查询、登录触发、登出端点

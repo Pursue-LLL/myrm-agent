@@ -5,7 +5,7 @@ A cancelled token is only a flag; a consumer blocked on a slow stream never look
 a watcher fires the callback within one poll interval while the guarded block keeps awaiting its stream.
 
 [INPUT]
-- .cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management)
+- .cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management with graceful async cancellation support.)
 
 [OUTPUT]
 - on_token_cancelled: async context manager that calls ``callback`` once if the token is cancelled inside the block

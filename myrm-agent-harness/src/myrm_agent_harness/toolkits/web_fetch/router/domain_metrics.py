@@ -10,7 +10,7 @@ Architecture:
 - Default state file: <state root>/domain_metrics.json, with the state root from ``resolve_workspace_state_dir()``
 
 [INPUT]
-- infra.delivery.storage_metrics::MonitoredStorageCallback (POS: StorageProvider)
+- infra.delivery.storage_metrics::MonitoredStorageCallback (POS: StorageProvider observability layer.)
 - toolkits.storage.base::StorageProvider (POS: Storage provider abstract base class. Defines the unified storage interface contract for all storage backends. Supports file read/write, delete, list, and info query. Method names use read/write (not get/put).)
 - infra.data_dir::resolve_workspace_state_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 

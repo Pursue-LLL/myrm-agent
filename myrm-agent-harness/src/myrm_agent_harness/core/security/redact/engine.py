@@ -169,7 +169,7 @@ def _redact_name_assignments(text: str) -> str:
     text = _replace_pattern_bounded(text, _JSON_ESCAPED_FIELD_RE, _redact_json_escaped_field)
     text = _replace_pattern_bounded(text, _REPR_DIAGNOSTIC_LINE_RE, _redact_repr_diagnostic_line)
 
-    # Unquoted / quoted YAML-colon config（`password: secret`、`password: "hunter2!"`）。
+    # Unquoted / quoted YAML-colon config (`password: secret`, `password: "hunter2!"`).
     # 正则锚定行首且 key 字符类不含 `:`/`/`/`?`，天然不匹配 URL 行，无需全局 URL 开关。
     return _replace_pattern_bounded(text, _YAML_ASSIGN_RE, _redact_yaml_assignment)
 

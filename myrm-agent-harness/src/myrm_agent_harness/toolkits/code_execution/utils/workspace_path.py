@@ -15,7 +15,7 @@ Design Philosophy:
 
 [OUTPUT]
 - WorkspaceResolutionError: Raised when workspace root cannot be resolved.
-- WorkspacePathResolver: Bidirectional path resolver with intelligent workspace au...
+- WorkspacePathResolver: Bidirectional path resolver with intelligent workspace auto-detection.
 
 [POS]
 Workspace path resolver with intelligent auto-detection.

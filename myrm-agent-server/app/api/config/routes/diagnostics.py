@@ -1,6 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.toolkits.llms::create_chat_model (POS: myrm_agent_harness.toolkits.llms)
-- myrm_agent_harness.toolkits.llms.utils.proxy::probe_proxy_health / validate_proxy_url (POS: Network utility module for proxy URL normalization, validation, security masking,)
+- myrm_agent_harness.toolkits.llms.utils.proxy::probe_proxy_health / validate_proxy_url (POS: Network utility module for proxy URL normalization, validation, security masking, and preflight connectivity verification.)
 
 [OUTPUT]
 - TestLocalModelRequest: TestLocalModelRequest

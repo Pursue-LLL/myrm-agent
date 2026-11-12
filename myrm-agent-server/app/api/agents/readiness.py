@@ -4,7 +4,8 @@
 - Agent ID (path param)
 
 [OUTPUT]
-- AgentReadinessReport: overall_level, items[], agent_id, checked_at
+- get_agent_readiness: GET /{agent_id}/readiness, the readiness report (overall_level, items[], agent_id, checked_at)
+- invalidate_agent_readiness: POST /{agent_id}/readiness/invalidate, drops the cached readiness of one agent
 
 [POS]
 Server-side endpoint that resolves per-agent readiness by checking 6 dimensions

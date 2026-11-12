@@ -5,7 +5,7 @@ Supports directory-level batch loading and graceful error handling.
 
 [INPUT]
 - agent.tool_management.tool_layers::is_registered_action_tool (POS: Tool layer priority registry. Defines CORE/HIGH_PRIORITY/EXTENDED/EXTERNAL four-tier tool priorities used by ToolRegistry for ordering.)
-- agent.types::SubagentConfig (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
+- agent.sub_agents.types::SubagentConfig (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 - .strategic_advisor_schema::StrategicAdvisorySchema, compile_strategic_advisor_prompt, validate_strategic_readonly_safety (POS: 4-section schema and compiler for strategic advisor subagents)
 
 [OUTPUT]

@@ -24,8 +24,8 @@ Usage (framework-only, no business coupling)::
 
 [OUTPUT]
 - HeartbeatStatus: Whether the heartbeat is enabled, and its job (None when absent).
-- enable_heartbeat: Enable the heartbeat.  Idempotent: creates or resumes the...
-- disable_heartbeat: Disable (pause) the heartbeat.  Returns False if no heart...
+- enable_heartbeat: Enable the heartbeat. Idempotent: creates or resumes the job.
+- disable_heartbeat: Disable (pause) the heartbeat. Returns False if no heartbeat exists.
 - get_heartbeat_status: Return the current heartbeat state.
 
 [POS]

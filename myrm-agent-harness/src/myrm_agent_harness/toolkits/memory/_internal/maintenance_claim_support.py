@@ -2,7 +2,7 @@
 
 [INPUT]
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store protocol)
-- memory.types::{Claim and scope types} (POS: memory data models)
+- memory.types::{ClaimMemory, MemoryScope, MemorySearchResult, MemoryType} (POS: memory data models)
 
 [OUTPUT]
 - Claim parsing, scope normalization, relation classification helpers

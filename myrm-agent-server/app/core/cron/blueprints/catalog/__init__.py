@@ -1,8 +1,8 @@
 """[INPUT]
-- app.core.cron.blueprints.catalog.daily::DAILY (POS: Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。)
-- app.core.cron.blueprints.catalog.finance::FINANCE (POS: Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。)
-- app.core.cron.blueprints.catalog.knowledge::KNOWLEDGE (POS: Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。)
-- app.core.cron.blueprints.catalog.marketing::MARKETING (POS: Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。)
+- app.core.cron.blueprints.catalog.daily::BLUEPRINTS (POS: Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。)
+- app.core.cron.blueprints.catalog.finance::BLUEPRINTS (POS: Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。)
+- app.core.cron.blueprints.catalog.knowledge::BLUEPRINTS (POS: Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。)
+- app.core.cron.blueprints.catalog.marketing::BLUEPRINTS (POS: Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。)
 
 [OUTPUT]
 - DAILY

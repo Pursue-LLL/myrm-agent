@@ -7,7 +7,7 @@ Follows the RFC 7807 Problem Details specification and provides a machine-parsab
 
 [OUTPUT]
 - WebhookResponseError: Standardized RFC 7807 error response
-- SecurityViolation: Security violation exception
+- SecurityViolationError: Security violation exception
 
 [POS]
 Webhook error response layer. Provides RFC 7807 standardized error format,

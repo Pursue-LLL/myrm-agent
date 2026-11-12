@@ -1,6 +1,6 @@
 """[INPUT]
 - app.channels.types::ActionButton / QuickReply / SelectMenu / ActionButton (POS: Channel system domain types — pure data definitions, no I/O.)
-- app.channels.types.components::ButtonStyle / SelectMenu (POS: UI component type definitions. Cross-channel interactive component abstractions for buttons, quick replies, and select m)
+- app.channels.types.components::ButtonStyle / SelectMenu (POS: UI component type definitions. Cross-channel interactive component abstractions for buttons, quick replies, and select menus.)
 
 [OUTPUT]
 - build_card_actions: Build Feishu card action elements from QuickReplies and Components.

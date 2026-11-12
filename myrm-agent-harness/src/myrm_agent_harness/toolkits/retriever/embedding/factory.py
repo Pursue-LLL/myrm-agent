@@ -9,7 +9,6 @@ Creates embedding service instances from configuration with process-level cachin
 
 [OUTPUT]
 - EmbeddingConfig: Frozen dataclass describing an embedding service configuration
-- create_embedding_service: Factory function returning a (possibly cached) EmbeddingService
 - get_embedding_service: Process-wide singleton getter for EmbeddingService
 - get_embedding_config: Builds embedding config from environment/defaults
 

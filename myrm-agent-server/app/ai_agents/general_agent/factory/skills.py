@@ -1,10 +1,10 @@
 """[INPUT]
 - myrm_agent_harness.backends.skills.protocols::SkillBackend (POS: Skill backend protocol definition. Specifies the unified interface for loading skills from multiple sources.)
-- myrm_agent_harness.toolkits.storage.base::StorageProvider (POS: Storage provider abstract base class. Defines the unified storage interface contract for all)
-- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），)
+- myrm_agent_harness.toolkits.storage.base::StorageProvider (POS: Storage provider abstract base class. Defines the unified storage interface contract for all storage backends.)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放）， 工具创建委托给 ToolSetupMixin。)
 - app.core.skills.models::UserSkillConfig (POS: Skill system data models.)
-- app.core.skills.effective_skill_ids::resolve_runtime_skill_ids (POS: Runtime skill ID resolver. Strictly respects explicit Agent profile allowlist:)
-- app.core.skills.loader::create_skill_backend (POS: Business-layer skill backend factory. The framework layer only accepts the SkillBackend interface; permission)
+- app.core.skills.effective_skill_ids::resolve_runtime_skill_ids (POS: Runtime skill ID resolver. Strictly respects explicit Agent profile allowlist: WYSIWYG standard — if profile_skill_ids is empty or None, returns empty list [].)
+- app.core.skills.loader::create_skill_backend (POS: Business-layer skill backend factory. The framework layer only accepts the SkillBackend interface; permission filtering, path mapping and the prebuilt / user / workspace composition are decided here, then wrapped with version routing (snapshot / A/B) and the integration-OAuth availability gate.)
 - app.core.skills.store.user_config::UserSkillConfigManager (POS: 用户技能配置管理)
 - app.platform_utils::get_storage_provider (POS: 平台适配层)
 

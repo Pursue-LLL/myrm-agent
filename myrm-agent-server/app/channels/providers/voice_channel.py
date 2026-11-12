@@ -5,7 +5,7 @@ Outbound: text → ConversationRelay WebSocket → TTS → caller
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
-- channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::OutboundMessage (POS: message flowing from the system to an external channel)
 
 [OUTPUT]
 - VoiceCallChannel: Twilio ConversationRelay bidirectional voice Channel

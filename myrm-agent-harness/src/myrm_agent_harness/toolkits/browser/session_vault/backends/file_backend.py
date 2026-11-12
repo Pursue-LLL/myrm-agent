@@ -11,7 +11,7 @@
 [POS]
 Local file system backend for SessionVault. Uses URL encoding for bijective
 domain-to-filename mapping. Defense in depth: validates domains at backend layer.
-Atomic writes via temp file + rename, preventing data corruption。
+Atomic writes via temp file + rename, preventing data corruption.
 """
 
 from __future__ import annotations

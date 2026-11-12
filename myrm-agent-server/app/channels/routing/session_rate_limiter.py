@@ -29,7 +29,7 @@ Usage:
 - (none)
 
 [OUTPUT]
-- SessionRateLimiter: Per-session rate limiter for single-instance self-protect...
+- SessionRateLimiter: Per-session rate limiter for single-instance self-protection.
 
 [POS]
 Session-level rate limiting for single-instance self-protection.

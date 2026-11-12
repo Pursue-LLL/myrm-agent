@@ -4,7 +4,7 @@ Makes it easy for business layer to enable evolution capabilities.
 Framework provides the hooks, business layer decides when to use them.
 
 [INPUT]
-- agent.skills.evolution.core.types::EvolutionProposal, (POS: Data types for skill evolution system.)
+- agent.skills.evolution.core.types::EvolutionProposal (POS: Data types for skill evolution system.)
 - agent.skills.evolution.core.engine::SkillEvolutionEngine (POS: Skill evolution engine - Core of self-evolution system.)
 - agent.skills.evolution.db.store::SkillStore (POS: SQLite persistence for skill evolution system.)
 - toolkits.code_execution.executors.test_executor::SubprocessCodeExecutor (POS: Subprocess-based test execution for skill evolution TDE.)

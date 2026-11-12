@@ -12,7 +12,7 @@ resident ACP processes of an idle pool while CLI backends keep their resume stat
 
 [INPUT]
 - myrm_agent_harness.toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer)
-- myrm_agent_harness.toolkits.acp.types::RuntimeBackend, RuntimeConfig, RuntimeEvent, CliSessionStore, images_not_sent_event (POS: ACP runtime type definitions)
+- myrm_agent_harness.toolkits.acp.types::RuntimeBackend, RuntimeConfig, RuntimeEvent, CliSessionStore, images_not_sent_event (POS: ACP runtime type definitions layer.)
 - myrm_agent_harness.toolkits.acp.runtime.*::AcpRuntime, CliRuntime (POS: runtime backend implementations)
 
 [OUTPUT]

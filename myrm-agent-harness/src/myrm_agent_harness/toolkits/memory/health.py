@@ -13,10 +13,10 @@ frozen dataclass with .to_dict() export.
 
 [OUTPUT]
 - HealthScore: Immutable health assessment of a memory system instance.
-- NeglectedMemory: class — Neglected Memory
-- MemorySnapshot: Point-in-time count of active (non-archived) memories by ...
+- NeglectedMemory: An important memory that hasn't been accessed recently.
+- MemorySnapshot: Point-in-time count of active (non-archived) memories by type.
 - MaintenanceReport: Aggregated result of a full maintenance cycle.
-- compute_health: Compute health score from pre-collected data. Pure functi...
+- compute_health: Compute health score from pre-collected data. Pure function, no IO.
 
 [POS]
 Memory system diagnostics — instance-level health and maintenance reports.

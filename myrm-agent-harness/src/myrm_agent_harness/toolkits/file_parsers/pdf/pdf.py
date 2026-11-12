@@ -11,8 +11,8 @@
 - pdf_heading_pipeline::build_numbering_cues (POS: Heading fusion and in-place placement for PDF page text)
 - pdf_heading_pipeline::fuse_headings (POS: Heading fusion and in-place placement for PDF page text)
 - pdf_heading_pipeline::insert_headings_into_page_text (POS: Heading fusion and in-place placement for PDF page text)
-- pdf_numbering::detect_numbering_headings (POS: Clause-numbering heading detection for bookmark-less PDFs with precision-first guards)
-- pdf_numbering::filter_repeated_titles (POS: Clause-numbering heading detection for bookmark-less PDFs with precision-first guards)
+- pdf_numbering::detect_numbering_headings (POS: Clause-numbering heading detection for bookmark-less PDFs with precision-first guards (第X章/节/条, 一、, （一）, 1.1.1, 1., ①).)
+- pdf_numbering::filter_repeated_titles (POS: Clause-numbering heading detection for bookmark-less PDFs with precision-first guards (第X章/节/条, 一、, （一）, 1.1.1, 1., ①).)
 - pdf_tables::extract_page_tables (POS: Table extraction, stitching finalization and Markdown/L0 rendering for PDF pages)
 - pdf_tables::finalize_tables (POS: Table extraction, stitching finalization and Markdown/L0 rendering for PDF pages)
 - pdfplumber.PDF / pdfplumber.page.Page: document and page objects

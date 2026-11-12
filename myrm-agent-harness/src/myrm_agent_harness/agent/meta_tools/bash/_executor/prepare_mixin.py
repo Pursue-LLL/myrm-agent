@@ -5,7 +5,7 @@
 - toolkits.code_execution.code_detector::code_detector, CodeType (POS: Code type detector)
 - toolkits.code_execution.saved_script::resolve_saved_script (POS: ``python file.py`` -> the workspace script it runs)
 - agent.skills.mcp.executor::skill_executor (POS: Skill MCP execution bridge)
-- agent.skills.runtime.command_paths::rewrite_skill_paths, detect_skill_script_command (POS: Skill command path utilities)
+- agent.skills.runtime.command_paths::rewrite_skill_paths, detect_skill_script_command (POS: Skill command path utilities for bash execution.)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
 - .constants::MCP_MIN_TIMEOUT, MCP_HOST_MARGIN_SECONDS (POS: MCP timeout floor and the margin the host keeps over the servers' call limits)
 

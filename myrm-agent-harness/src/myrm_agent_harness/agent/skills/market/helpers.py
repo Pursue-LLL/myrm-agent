@@ -9,9 +9,9 @@ Shared utilities for scanning, deduplication, ranking, origin tracking, and Lobe
 
 [OUTPUT]
 - scan_all_text_files: Scan all text files in a skill package for security threats.
-- deduplicate: Deduplicate by name, keeping first occurrence (higher pri...
+- deduplicate: Deduplicate by name, keeping first occurrence (higher priority sources first).
 - rank_results: Rank by source priority + stars + keyword match.
-- fetch_lobehub_as_skill: Download a LobeHub agent JSON and convert it to a SKILL.m...
+- fetch_lobehub_as_skill: Download a LobeHub agent JSON and convert it to a SKILL.md file set.
 - write_origin: Write origin.json to skill directory for update tracking.
 
 [POS]

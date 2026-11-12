@@ -12,7 +12,9 @@
 - get_session_lock: returns a session lock.
 - acquire_context_lock: async context manager for context mutation locks.
 - is_context_lock_held: returns whether the current task holds a session lock.
-- cleanup_unused_locks: clears unused locks.
+- get_active_session_count: returns the number of active session locks (monitoring).
+- get_locked_session_count: returns the number of session locks currently held (monitoring).
+- clear_all_locks: clears every session lock (tests only).
 - set_current_chat_id: sets the current chat id (delegates to chat_id_var).
 - get_current_chat_id: returns the current chat id (delegates to chat_id_var).
 - reset_current_chat_id: restores the previous chat id (delegates to chat_id_var).

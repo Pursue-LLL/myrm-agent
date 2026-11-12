@@ -1,7 +1,7 @@
 """Goal lifecycle Prometheus metrics.
 
 [INPUT]
-- observability.metrics::create_counter, create_histogram (POS: Harness-layer generic metrics utilities)
+- observability.metrics::create_counter, create_histogram (POS: Harness-layer generic metrics utilities for any project using the Myrm framework.)
 
 [OUTPUT]
 - Counters for goal state transitions (created, completed, budget_limited, paused, cancelled, resumed)

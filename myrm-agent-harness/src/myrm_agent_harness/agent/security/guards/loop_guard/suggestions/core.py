@@ -6,8 +6,8 @@
 [OUTPUT]
 - get_severity_level: Determine severity level based on loop streak count.
 - get_tool_suggestion: Get tool-specific suggestion or fallback to default.
-- analyze_error_pattern: Analyze tool result content to identify common error patt...
-- is_result_successful: Determine if a tool result indicates success (no error pa...
+- analyze_error_pattern: Analyze tool result content to identify common error patterns.
+- is_result_successful: Determine if a tool result indicates success (no error patterns).
 - analyze_warning_level: Analyze warning context to determine severity level.
 - evaluate_success_level: Grade a tool result, with the executor's verdict taking precedence over error wording.
 

@@ -3,7 +3,7 @@
 定义文件操作的上下文信息，包含操作类型、参数、元数据等。
 
 [INPUT]
-- backends.skills.types::SkillMetadata (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- backends.skills.types::SkillMetadata (POS: skill metadata: frontmatter fields plus load-time computed state)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 
 [OUTPUT]

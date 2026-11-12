@@ -4,13 +4,13 @@ Reads snapshots from SnapshotStore and restores files to their pre-modification
 state. Integrates with FileIntegrityGuard (hash update) and ArtifactTracker (cleanup).
 
 [INPUT]
-- agent.context_management.tracking.artifact_tracker::ArtifactAction, (POS: Artifact Trail  Agent  Factory Research)
+- agent.context_management.tracking.artifact_tracker::ArtifactAction (POS: artifact trail tracker; ArtifactAction names the file operation: created, modified, deleted or read)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 
 [OUTPUT]
 - RevertResult: Restores files to pre-AI-edit state.
 - FileChange: class — File change descriptor (revertible + skip_reason).
-- RevertService: class — Revert Service
+- RevertService: Restores files to pre-AI-edit state.
 
 [POS]
 File revert service — undo AI file changes at message or file granularity.

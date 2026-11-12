@@ -4,7 +4,7 @@
 API: GET https://www.modelscope.cn/openapi/v1/skills?search=&page_number=&page_size=
 
 [INPUT]
-- backends.skills.market_protocols::SkillSearchResult (POS: SkillBackend SkillBackend SkillMarketBackend)
+- backends.skills.market_protocols::SkillSearchResult (POS: skill market backend protocol: the unified interface for searching and installing external skills)
 
 [OUTPUT]
 - ModelScopeSource: class — ModelScope Skill Source

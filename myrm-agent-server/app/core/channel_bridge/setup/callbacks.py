@@ -1,6 +1,6 @@
 """[INPUT]
 - app.channels.types::ChannelStatus (POS: Channel system domain types — pure data definitions, no I/O.)
-- app.services.event.app_event_bus::AppEvent / AppEventType / get_event_bus / AppEvent / AppEventType / get_event_bus / AppEvent / AppEventType / get_event_bus (POS: Business-layer SSE bus (`ServerEventBus = PubSubBus[AppEvent]`). Kanban, memory, skills, channels publish AppEvent;)
+- app.services.event.app_event_bus::AppEvent / AppEventType / get_event_bus / AppEvent / AppEventType / get_event_bus / AppEvent / AppEventType / get_event_bus (POS: Business-layer SSE bus (`ServerEventBus = PubSubBus[AppEvent]`). Kanban, memory, skills, channels publish AppEvent; api/events/router streams to WebUI clients.)
 
 [OUTPUT]
 - _on_channel_status_change: Publish channel status change events to SSE.

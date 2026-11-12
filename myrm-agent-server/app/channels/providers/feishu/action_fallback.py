@@ -11,9 +11,8 @@ interactive card button clicks cannot be delivered by Feishu. This module:
 - ActionButton components, inbound text messages, and channel execution context.
 
 [OUTPUT]
-- FallbackActionSessionRegistry: Thread-safe in-memory session registry with TTL.
-- build_fallback_action_elements: Card elements rendering numbered text choices.
-- match_fallback_action: Match user digit input to pending action_id.
+- FallbackActionSessionRegistry: Thread-safe in-memory session registry with TTL; resolve_action() matches a digit reply to the pending action_id.
+- build_fallback_action_card_elements: Card elements rendering numbered text choices.
 """
 
 from __future__ import annotations

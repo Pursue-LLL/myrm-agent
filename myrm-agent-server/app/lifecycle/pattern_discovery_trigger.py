@@ -1,7 +1,7 @@
 """Pattern discovery trigger — on-demand and scheduled execution helpers.
 
 [INPUT]
-- myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
+- myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery strategy.)
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models::PatternReport (POS: Domain models and result DTO for pattern discovery)
 - app.lifecycle.memory_guardian_ops::create_guardian_memory_manager (POS: guardian 上下文 MemoryManager 工厂)
 - app.services.agent.platform_config::load_platform_evolution_llm (POS: WebUI 后台自进化专属模型，wire-aware，带 3 级自适应降级）

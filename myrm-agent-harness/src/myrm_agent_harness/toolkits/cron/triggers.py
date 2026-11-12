@@ -14,10 +14,10 @@ layer via the ``TriggerProvider`` protocol in ``protocols.py``.
 [OUTPUT]
 - TriggerKind: Enum of all supported trigger kinds.
 - EventTrigger: Fires when an incoming message matches a regex pattern.
-- SystemEventTrigger: Fires on structured system events (e.g. GitHub webhook pa...
+- SystemEventTrigger: Fires on structured system events (e.g. GitHub webhook payloads).
 - WebhookTrigger: Fires when an HTTP request hits the job's webhook endpoint.
-- PollTrigger: Periodically fetches a URL and fires when the content cha...
-- StreamTrigger: Listens on an outbound WS/SSE long connection and fires ...
+- PollTrigger: Periodically fetches a URL and fires when the content changes.
+- StreamTrigger: Listens on an outbound WS/SSE long connection and fires on matching events.
 
 [POS]
 Trigger type definitions and security helpers.

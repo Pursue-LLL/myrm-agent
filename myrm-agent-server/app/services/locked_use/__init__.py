@@ -7,8 +7,8 @@
 - curtain_state.json file bridge (MYRM_CURTAIN_STATE_FILE; Tauri privacy curtain)
 
 [OUTPUT]
-- MacScreenUnlocker: lock probe / serialized unlock / verified re-lock primitives
-- release_unlock_lease: hands the lease back only once the screen is confirmed locked
+- service::MacScreenUnlocker: lock probe / serialized unlock / verified re-lock primitives
+- service::release_unlock_lease: hands the lease back only once the screen is confirmed locked
 - curtain_bridge: bridge state read + lease-bit write + capture-exclusion titles
 - unattended: on-demand unlock for Computer Use sessions (attach_desktop_session) and the lease-keeping watcher
 

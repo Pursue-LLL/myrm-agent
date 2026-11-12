@@ -4,7 +4,7 @@ Manages skill file copying, caching, and validation within workspaces.
 
 [INPUT]
 - toolkits.code_execution::Workspace (POS: Code execution toolkit entry point. Aggregates execution configuration, executor implementations, workspace management, and factory functions for the Agent-in-Sandbox architecture.)
-- toolkits.code_execution.workspace::WorkspaceService (POS: Workspace data models for code execution sessions.)
+- toolkits.code_execution.workspace::WorkspaceService (POS: Workspace service for code execution sessions.)
 
 [OUTPUT]
 - SkillWorkspaceManager: Skill workspace manager.

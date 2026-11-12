@@ -9,7 +9,7 @@
   (POS: 调试日志中间件，记录完整消息列表)
 - tool_interceptor_middleware::tool_interceptor_middleware (POS: Single interception point for all tool calls. Each guard is an independent module; this middleware only orchestrates their execution order.)
   (POS: 工具拦截中间件，异常捕获和验证)
-- approval::ApprovalRateLimiter, (POS: Approval queue helpers. Handles AnyMemory ↔ PendingRecord conversion for the approval pipeline. Internal only — not part of the public API.)
+- approval::ApprovalRateLimiter (POS: Approval queue helpers. Handles AnyMemory ↔ PendingRecord conversion for the approval pipeline. Internal only — not part of the public API.)
   (POS: 审批子系统，含速率限制器)
 - plan_confirm_middleware::PlanConfirmMiddleware (POS: Plan-phase HITL gate)
   (POS: Plan-phase HITL: intercept first todo_write plan for user review via interrupt())
@@ -19,7 +19,7 @@
   (POS: 工具冲突闸门，并发安全的调用共享、其余调用独占)
 - subagent_limit_middleware::subagent_limit_middleware (POS: Subagent limit middleware. Ensures the LLM cannot spawn more than MAX_CONCURRENT_SUBAGENTS in a single turn.)
   (POS: LLM Fan-out 保护，限制单轮 delegate_task 调用数)
-- security.detection.tool_result_validator::ValidationResult, (POS: Provides ValidationResult, validate_tool_result, should_apply_validation.)
+- security.detection.tool_result_validator::ValidationResult (POS: Provides ValidationResult, validate_tool_result, should_apply_validation.)
   (POS: 工具结果验证器，实现位于 security/)
 
 [OUTPUT]

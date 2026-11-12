@@ -1,7 +1,7 @@
 """Rate Limit Tracker.
 
 [INPUT]
-- .types::RateLimitState (POS: Data structures)
+- .types::RateLimitState (POS: Data structures for proactive rate limit tracking.)
 
 [OUTPUT]
 - RateLimitTracker: Thread-safe singleton for tracking rate limits.

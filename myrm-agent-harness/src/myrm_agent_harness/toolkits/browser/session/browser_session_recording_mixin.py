@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- BrowserSessionRecordingMixin: start_trace / stop_trace / start_har / stop_har / get_rec...
+- BrowserSessionRecordingMixin: start_trace / stop_trace / start_har / stop_har / get_recording_status.
 
 [POS]
 Playwright trace and HAR recording controls for BrowserSession.

@@ -7,9 +7,9 @@ The ``JobExecutor`` holds references to store, delivery, and the notice callback
 but owns no scheduling state — that remains in ``CronScheduler``.
 
 [INPUT]
-- toolkits.cron.types::CronConfig, (POS: Cron job domain types.)
+- toolkits.cron.types::CronConfig (POS: Cron job domain types.)
 - toolkits.cron.protocols::CronStore, PreFlightConditionError (POS: Protocols for the cron toolkit.)
-- toolkits.cron.delivery_guard::is_silent_output, (POS: Cron delivery guard.)
+- toolkits.cron.delivery_guard::is_silent_output (POS: Cron delivery guard.)
 - infra.incremental.manager::IncrementalMonitorManager (POS: Incremental monitor lifecycle manager.)
 - observability.tracing::TracingContext (POS: Request-scoped trace_id/session_id for log correlation.)
 - toolkits.cron.engine.failure_alerts::FailureAlertMixin (POS: failure alert decision and delivery, mixed into the executor)

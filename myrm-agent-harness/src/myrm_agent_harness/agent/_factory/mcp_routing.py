@@ -1,7 +1,7 @@
 """MCP hybrid routing — direct tool vs PTC skill path selection.
 
 [INPUT]
-- toolkits.mcp.connection_manager::get_mcp_connection_manager (POS: MCP connection pool)
+- toolkits.mcp.connection_manager::get_mcp_connection_manager (POS: MCP connection pool layer.)
 - agent.skills.mcp.core_generator::mcp_skill_generator (POS: PTC skill metadata generator)
 
 [OUTPUT]

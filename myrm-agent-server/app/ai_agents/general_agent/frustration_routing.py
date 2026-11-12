@@ -5,9 +5,9 @@ identifies the most relevant editable skill, and triggers DERIVED
 evolution to embed the preference permanently.
 
 [INPUT]
-- myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector (POS: Frustration signal detector)
+- myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector (POS: Frustration signal detector for skill evolution pipeline.)
 - app.core.skills.store.service::skills_service (POS: Skill store service)
-- app.services.skills.growth.lifecycle::process_skill_review_result (POS: Skill growth lifecycle)
+- app.services.skills.growth.lifecycle::process_skill_review_result (POS: Skill growth lifecycle orchestration.)
 
 [OUTPUT]
 - make_frustration_skill_routing_callback: Session cleanup callback factory

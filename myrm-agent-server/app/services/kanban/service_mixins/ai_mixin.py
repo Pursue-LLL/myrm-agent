@@ -8,7 +8,7 @@
 - service_mixins.core (POS: KanbanService core state.)
 
 [OUTPUT]
-- KanbanServiceAIMixin: Mixin providing specify/decompose workflow methods.
+- KanbanAiWorkflowMixin: Mixin providing specify/decompose workflow methods.
 
 [POS]
 AI-powered mixin: task specification, decomposition, and batch triage processing.

@@ -1,7 +1,7 @@
 """Chat-row backed store of external CLI session ids.
 
 [INPUT]
-- myrm_agent_harness.toolkits.acp.types::CliSessionRecord (POS: ACP runtime type definitions)
+- myrm_agent_harness.toolkits.acp.types::CliSessionRecord (POS: ACP runtime type definitions layer.)
 - app.database.repositories.chat_cli_session_repo::ChatCliSessionRepository (POS: 外部 CLI Agent 会话记录仓储)
 - app.database.factory::acquire_write_lock (POS: SQLite write lock for a transaction that reads before it writes)
 - app.platform_utils::get_session_factory (POS: database sessions)

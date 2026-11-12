@@ -6,15 +6,15 @@
 特性：只读（不支持写入、编辑操作）
 
 [INPUT]
-- backends.skills.types::SkillMetadata (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- backends.skills.types::SkillMetadata (POS: skill metadata: frontmatter fields plus load-time computed state)
 - agent.skills.mcp.core_generator::MCPSkillGenerator (POS: MCP Skill Generator - MCP-to-Skill conversion with progressive disclosure.)
 
 [OUTPUT]
-- MCPFileSystemStrategy: class — M C P File System Strategy
-- main: Parse execution output from the wrapper script.
+- MCPFileSystemStrategy: read-only virtual path strategy serving MCP skill function docs from /mcp/{skill_name}/{function_name}.md
 
 [POS]
-Provides MCPFileSystemStrategy, main.
+Read-only file system strategy for the virtual /mcp/ paths: serves the function documents of MCP skills
+from their metadata and rejects write, delete and replace.
 """
 
 from __future__ import annotations

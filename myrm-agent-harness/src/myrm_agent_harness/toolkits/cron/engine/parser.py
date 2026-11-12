@@ -4,12 +4,12 @@ Wraps ``croniter`` for cron expressions, provides simple arithmetic for
 interval and one-shot schedules.  Pure functions — no I/O.
 
 [INPUT]
-- toolkits.cron.types::Schedule, (POS: Cron job domain types.)
+- toolkits.cron.types::Schedule (POS: Cron job domain types.)
 
 [OUTPUT]
-- compute_prev_run: Return the most recent fire time **before** *reference* (...
-- compute_next_run: Return the next fire time **after** *reference* (defaults...
-- validate_cron_expr: Return ``True`` when *expr* is a syntactically valid cron...
+- compute_prev_run: Return the most recent fire time **before** *reference* (defaults to now UTC).
+- compute_next_run: Return the next fire time **after** *reference* (defaults to now UTC).
+- validate_cron_expr: Return ``True`` when *expr* is a syntactically valid cron expression.
 - validate_timezone: Return ``True`` when *tz_name* is a valid IANA timezone.
 - describe_schedule: Human-readable summary of a schedule (for UI tooltips).
 - parse_natural_interval: Parse natural language interval (e.g. '10m', '1h', 'every 30s') into milliseconds.

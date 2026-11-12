@@ -12,7 +12,7 @@
 - utils.chat_utils::extract_answer_text (POS: LLM 响应答案提取 — str / block list / think 剥离 / reasoning 回退)
 - toolkits.code_execution.ptc::inject_ptc_for_python_execution (POS: Sandbox execution)
 - utils.runtime.cancellation::CancellationToken
-- dynamic_workflow.preflight::WorkflowPlanReview, WorkflowApprovalGate (POS: Trust-layer preflight)
+- dynamic_workflow.preflight::WorkflowPlanReview, WorkflowApprovalGate (POS: Trust-layer preflight for Dynamic Workflow.)
 - agent.sub_agents.types::SubagentCatalog (POS: Catalog protocol for type discovery)
 
 [OUTPUT]

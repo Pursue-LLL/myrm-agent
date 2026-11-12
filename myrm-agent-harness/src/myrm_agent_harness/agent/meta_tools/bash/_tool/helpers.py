@@ -3,7 +3,7 @@
 [INPUT]
 - runtime.context.file_access_tracker::get_file_access_tracker (POS: Context file access audit)
 - runtime.paths.execution_paths::get_persistent_root (POS: persistent root in effect)
-- toolkits.code_execution.platform::detect_platform (POS: Cross-platform runtime detection)
+- toolkits.code_execution.platform::detect_platform (POS: Cross-platform runtime detection and shell configuration.)
 - toolkits.code_execution.env_probe::get_environment_probe_line (POS: Python toolchain probe)
 - toolkits.vnc.server::get_environment_hint (POS: Detect VNC/Xvfb availability for the bash tool description.)
 - toolkits.storage::storage_config (POS: Absolute storage root that skill storage keys resolve against)

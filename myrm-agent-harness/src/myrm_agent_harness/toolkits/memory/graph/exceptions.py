@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - GraphStoreError: Base exception for all graph store operations.
-- GraphConnectionError: Raised when a database connection cannot be established o...
+- GraphConnectionError: Raised when a database connection cannot be established or maintained.
 - GraphQueryError: Raised when a query execution fails.
 - GraphNodeNotFoundError: Raised when a referenced node does not exist.
 - GraphRelationshipError: Raised when a relationship operation fails.

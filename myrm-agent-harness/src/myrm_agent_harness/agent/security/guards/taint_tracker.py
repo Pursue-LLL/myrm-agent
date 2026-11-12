@@ -14,7 +14,6 @@ sinks are escalated to ASK (require user approval) rather than blocked.
 [OUTPUT]
 - TaintLabel: source categories (EXTERNAL_NETWORK, SECRET)
 - TaintTracker: session-level taint accumulator
-- TAINT_SOURCES: tool name → TaintLabel mapping
 - TAINT_SINK_POLICIES: sink tool name → set of blocked TaintLabels
 - get_taint_tracker() / reset_taint_tracker(): ContextVar accessors
 

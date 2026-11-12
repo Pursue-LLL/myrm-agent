@@ -11,13 +11,13 @@
 - myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager (POS: shared Python environment lifecycle)
 
 [OUTPUT]
-- Session, skill-agent context, task intent, memory telemetry（budget/injection）
+- Session, skill-agent context, task intent, memory telemetry (budget/injection)
   and injection contract, memory-extraction, bash-registry, background-job-finish,
-  privacy-context（policy/pseudonym-store/pseudonymizer）hook callables, the LLM API key
-  renewal registration（``set_api_key_refresher``）, the shared Python environment reset
-  （``discard_shared_venv``）, and the goal
-  provider-window wait vocabulary（``GOAL_WAIT_*`` / ``pause_goal_after_missed_wake`` /
-  ``ProviderWindowHint`` / ``PROVIDER_WINDOW_HOLD_MAX_S`` / ``deferral_wait_s``）for server integration.
+  privacy-context (policy/pseudonym-store/pseudonymizer) hook callables, the LLM API key
+  renewal registration (``set_api_key_refresher``), the shared Python environment reset
+  (``discard_shared_venv``), and the goal
+  provider-window wait vocabulary (``GOAL_WAIT_*`` / ``pause_goal_after_missed_wake`` /
+  ``ProviderWindowHint`` / ``PROVIDER_WINDOW_HOLD_MAX_S`` / ``deferral_wait_s``) for server integration.
 
 [POS]
 Public re-export facade. Product code imports hooks here instead of private ``agent._*`` modules.

@@ -10,7 +10,7 @@ Also handles permission requests and file read/write with path safety checks.
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 
 [OUTPUT]
-- AcpCallbackHandler: class — Acp Callback Handler
+- AcpCallbackHandler: Implements acp.Client callbacks for the ACP runtime.
 
 [POS]
 ACP callback handler for the AcpRuntime backend.

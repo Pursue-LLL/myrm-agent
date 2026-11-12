@@ -17,7 +17,7 @@ Shared infrastructure (core/):
 [INPUT]
 - server.server::MyrmAcpServer, run_server (POS: ACP protocol layer)
 - runtime.pool::RuntimePool (POS: runtime pool management layer)
-- types::RuntimeBackend, RuntimeConfig (POS: ACP runtime type definitions)
+- types::RuntimeBackend, RuntimeConfig (POS: ACP runtime type definitions layer.)
 
 [OUTPUT]
 - MyrmAcpServer: ACP server implementation (lazy import)

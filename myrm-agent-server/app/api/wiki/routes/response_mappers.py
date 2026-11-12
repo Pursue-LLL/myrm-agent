@@ -1,7 +1,7 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.wiki.core.types::WikiRetrievalTrace (POS: Wiki toolkit type definition center. Defines all core data models (concepts, articles,)
+- myrm_agent_harness.toolkits.wiki.core.types::WikiRetrievalTrace (POS: Wiki toolkit type definition center. Defines all core data models (concepts, articles, compile results, query results, lint results, metadata), supporting type-safe data passing and serialization.)
 - app.api.wiki.routes.schemas::CompileRunResponse / WikiClaimEvidenceItem / WikiClaimItem / WikiEditorSectionsResponse / WikiRetrievalSeedTraceItem / WikiRetrievalTraceIndexHit / WikiRetrievalTraceResponse / WikiSourceSnippet (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
-- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian / source_sync / clip / knowledge_pack) live under this package and expose their own facades.)
 
 [OUTPUT]
 - _compile_run_response: _compile_run_response

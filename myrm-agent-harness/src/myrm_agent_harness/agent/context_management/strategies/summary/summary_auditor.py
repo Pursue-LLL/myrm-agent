@@ -5,7 +5,7 @@ quality gates (structure, entity retention, information density) and
 provides retry guidance when the summary falls short.
 
 [INPUT]
-- schemas::StructuredSummary, (POS: Planner Schema Definitions)
+- schemas::StructuredSummary (POS: Planner Schema Definitions)
 - langchain_core.messages::BaseMessage (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
 - utils.text_utils::get_token_count (POS: Universal text utilities. Provides code-block-aware text processing for all channel implementations (mention extraction, link parsing, etc.).)
 - .execution_state_validator::audit_execution_consistency, reconcile_summary_execution_state (POS: Physical execution truth validator)

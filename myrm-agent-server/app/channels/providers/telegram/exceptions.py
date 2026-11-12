@@ -4,7 +4,7 @@
 - app.channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 
 [OUTPUT]
-- MediaFileTooLargeError: Base exception for media files exceeding Telegram's size ...
+- MediaFileTooLargeError: Base exception for media files exceeding Telegram's size limits.
 - VoiceMessageTooLargeError: Voice message exceeds Telegram's 50MB sendVoice limit.
 - AudioFileTooLargeError: Audio file exceeds Telegram's 50MB sendAudio limit.
 

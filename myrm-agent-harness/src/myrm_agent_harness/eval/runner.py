@@ -1,8 +1,8 @@
 """Eval Runner — executes eval cases against an AgentExecutor.
 
 [INPUT]
-- protocol::AgentExecutor, (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
-- assertions::ToolAssertion, (POS: Provides pass/fail verification of agent tool calls, output text, sandbox states, task-native test suites, and subjective semantic evaluations via lightweight LLMs.)
+- protocols::AgentExecutor (POS: eval framework type system; all agent interaction goes through the AgentExecutor protocol the caller injects)
+- assertions::ToolAssertion (POS: Provides pass/fail verification of agent tool calls, output text, sandbox states, task-native test suites, and subjective semantic evaluations via lightweight LLMs.)
 
 [OUTPUT]
 - EvalRunner: main eval runner with single-turn, multi-turn, and concurrent support

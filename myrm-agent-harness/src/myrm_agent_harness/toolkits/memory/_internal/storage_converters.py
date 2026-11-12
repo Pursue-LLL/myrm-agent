@@ -10,8 +10,8 @@
 - Scope helpers: _scope_payload, _scope_from_metadata, _user_filter
 - Lifecycle helpers: _lifecycle_payload, _lifecycle_from_metadata
 - Usage-stamp helper: _stamp_access (records one use on a stored document)
-- to_doc: semantic_to_doc, episodic_to_doc
-- from_doc: doc_to_semantic, doc_to_episodic
+- semantic_to_doc, episodic_to_doc: SemanticMemory / EpisodicMemory to VectorDocument
+- doc_to_semantic, doc_to_episodic: VectorDocument to SemanticMemory / EpisodicMemory
 
 [POS]
 Stateless conversion layer between vector-store documents and typed memory models. A document's store stamp

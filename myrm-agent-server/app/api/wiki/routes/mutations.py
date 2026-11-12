@@ -1,8 +1,8 @@
 """[INPUT]
-- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.archiver_dependency::get_scoped_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault files use ``app.services.wiki.vault.get_wiki_structure`` instead, so no compile worker is ever built without a model.)
 - app.api.wiki.routes::vault_effects (POS: Wiki API route submodules.)
 - app.api.wiki.routes.schemas::OperationResult / WikiApplyRequestBody / WikiApplyResponse / WikiCompoundRequestBody / WikiCompoundResponse / WikiDailyReviewRequestBody / WikiDailyReviewResponse / WikiTemplateSeedRequest / WikiTemplateSeedResponse (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
-- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian / source_sync / clip / knowledge_pack) live under this package and expose their own facades.)
 
 [OUTPUT]
 - _wiki_apply_http_status: _wiki_apply_http_status
