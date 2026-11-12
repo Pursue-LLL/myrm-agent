@@ -24,13 +24,15 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import UndoResult
 from myrm_agent_harness.toolkits.memory.types import MemoryScope, SemanticMemory
-from tests.support.consolidation_cycles import CONFIG, TEA, TEA_TOO, merge, run_cycle, stored, undo
+from tests.support.consolidation_cycles import CONFIG, TEA, TEA_TOO, merge, run_cycle, stored, stored_insights, undo
 from tests.support.consolidation_manager import make_manager
 from tests.support.consolidation_seeds import NewManager, llm_answering_in_turn, llm_returning, seed, semantic
 
 COFFEE = "User takes coffee black without sugar"
 COFFEE_TOO = "User prefers black coffee, no sugar"
 PRIVATE = "User keeps a private journal"
+TEA_INSIGHT = "User keeps calm morning routines around green tea"
+COFFEE_INSIGHT = "User starts the day with black coffee"
 STRATEGIES_LOGGER = "myrm_agent_harness.toolkits.memory.strategies"
 
 
@@ -195,6 +197,34 @@ async def test_a_window_across_namespaces_is_analyzed_one_namespace_at_a_time(ne
     assert COFFEE_TOO in in_agent and TEA not in in_agent and TEA_TOO not in in_agent
     products = [await manager.get_memory(memory_id) for memory_id in stats.undo.created]
     assert sorted(product.scope.primary_namespace for product in products if product) == ["agent:x", "global"]
+
+
+async def test_the_insights_of_each_group_take_that_groups_namespace_and_chats(new_manager: NewManager) -> None:
+    manager = new_manager(["global", "agent:x"])
+    await seed(
+        manager,
+        [
+            semantic(TEA, 1, source_chat_id="chat-g1"),
+            placed_in(semantic(COFFEE, 2, source_chat_id="chat-x1"), "agent:x"),
+            semantic(TEA_TOO, 3, source_chat_id="chat-g2"),
+            placed_in(semantic(COFFEE_TOO, 4, source_chat_id="chat-x2"), "agent:x"),
+        ],
+    )
+    llm = llm_answering_in_turn(
+        ConsolidationResponse(insights=[TEA_INSIGHT]), ConsolidationResponse(insights=[COFFEE_INSIGHT])
+    )
+    on_complete = AsyncMock()
+
+    stats = await run_consolidation(manager, llm, CONFIG, on_complete=on_complete)
+
+    found = sorted(await stored_insights(manager), key=lambda insight: insight.scope.primary_namespace)
+    lineage = [(insight.scope.primary_namespace, insight.content, sorted(insight.source_chat_ids)) for insight in found]
+    assert lineage == [
+        ("agent:x", COFFEE_INSIGHT, ["chat-x1", "chat-x2"]),
+        ("global", TEA_INSIGHT, ["chat-g1", "chat-g2"]),
+    ]
+    assert stats.insights == (TEA_INSIGHT, COFFEE_INSIGHT)
+    on_complete.assert_awaited_once_with(stats)
 
 
 async def test_a_merge_cannot_reach_a_memory_of_another_namespace(new_manager: NewManager) -> None:

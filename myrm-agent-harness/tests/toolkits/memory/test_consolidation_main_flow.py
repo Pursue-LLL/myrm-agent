@@ -139,6 +139,24 @@ class TestRunConsolidation:
         on_complete.assert_awaited_once_with(stats)
 
     @pytest.mark.asyncio
+    async def test_complete_hook_error_is_non_fatal_when_nothing_needed_applying(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        manager = make_manager_holding(semantic_doc("s-1", "a"), semantic_doc("s-2", "b"))
+        on_complete = AsyncMock(side_effect=RuntimeError("hook failed"))
+
+        with caplog.at_level(logging.WARNING, logger="myrm_agent_harness.toolkits.memory.strategies"):
+            stats = await run_consolidation(
+                manager, _make_llm(ConsolidationResponse()), ConsolidationConfig(), on_complete=on_complete
+            )
+
+        assert (stats.input_count, stats.errors) == (2, 0)
+        on_complete.assert_awaited_once_with(stats)
+        assert "Consolidation complete hook failed (non-fatal): hook failed" in caplog.text
+        written_keys = [call.args[0] for call in manager._rel_store.set_profile.await_args_list]
+        assert _PROFILE_KEY_LAST_CONSOLIDATED in written_keys  # a failing hook does not hold the stamp
+
+    @pytest.mark.asyncio
     async def test_complete_hook_is_not_called_under_the_soft_lock(self) -> None:
         manager = make_manager()
         manager._rel_store.get_profile = AsyncMock(return_value=(datetime.now(UTC) - timedelta(minutes=5)).isoformat())

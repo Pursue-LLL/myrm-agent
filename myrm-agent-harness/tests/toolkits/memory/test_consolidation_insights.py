@@ -1,11 +1,8 @@
-"""Tests for consolidation insight generation.
+"""Tests for how the insights a consolidation cycle reports reach the maintenance report.
 
 Covers:
-- _parse_response with new {operations, insights} format
-- _parse_response backward compatibility with legacy [] format
 - ConsolidationStats.insights field
 - MaintenanceReport.insights field and to_dict()
-- run_consolidation insight passthrough
 - run_maintenance_cycle insight propagation
 """
 
