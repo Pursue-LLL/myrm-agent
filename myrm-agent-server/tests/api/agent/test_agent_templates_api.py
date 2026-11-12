@@ -20,12 +20,6 @@ def test_list_templates(client: TestClient):
         assert "id" in first
         assert "name" in first
         assert "agent_type" in first
-        assert "settings_preview" in first
-        preview = first["settings_preview"]
-        assert isinstance(preview.get("enabled_builtin_tools"), list)
-        assert isinstance(preview.get("skill_ids"), list)
-        assert "memory_preset" in preview
-        assert "deploy_mode" in preview
 
 
 def test_instantiate_template_not_found(client: TestClient):
@@ -35,7 +29,7 @@ def test_instantiate_template_not_found(client: TestClient):
 
 
 def test_list_templates_includes_team_type(client: TestClient):
-    """Team templates expose members metadata for Template Market UI."""
+    """Team templates expose members metadata for the expert summon UI."""
     response = client.get("/api/v1/agents/templates")
     assert response.status_code == 200
     templates = response.json()["data"]
@@ -231,7 +225,3 @@ async def test_ensure_skills_enabled_truly_missing_skill_raises():
     with pytest.raises(SkillEnablementError) as exc_info:
         await ensure_skills_enabled(["completely-unknown-non-existent-skill-999"], "test_template")
     assert "does not exist in the system" in str(exc_info.value)
-
-
-
-

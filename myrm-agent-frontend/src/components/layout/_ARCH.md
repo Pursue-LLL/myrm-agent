@@ -9,7 +9,7 @@
 | 模式     | 路径                            | 用途         |
 | -------- | ------------------------------- | ------------ |
 | Chat     | `/`, `/c-*`                     | 轻量对话     |
-| Work     | `/work`, `/agents`, `/agent`    | 多窗格工作区 |
+| Work     | `/work`                         | 多窗格工作区 |
 | Projects | `/projects`, `/kanban`, `/cron` | 项目聚合     |
 
 ## Navigation Shell Contract（Next.js 16.3）

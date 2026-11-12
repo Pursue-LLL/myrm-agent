@@ -1,5 +1,7 @@
 """Integration tests for agent file security (Path Traversal defense)."""
 
+from pathlib import Path
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -11,16 +13,24 @@ async def async_client(app):
 
 
 @pytest.mark.asyncio
-async def test_agent_file_path_traversal_defense(async_client: AsyncClient) -> None:
+async def test_agent_file_path_traversal_defense(async_client: AsyncClient, tmp_path: Path) -> None:
     """Test that the agent file endpoint prevents path traversal attacks."""
 
     print("\n🚀 Starting agent file path traversal security test...")
 
-    # 1. Create a dummy agent
+    # 1. Put a tiny png into a home directory the agent points at
+    filename = "avatar.png"
+    dummy_png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0aIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\x0d\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+    agent_home = tmp_path / "agent-home"
+    agent_home.mkdir()
+    (agent_home / filename).write_bytes(dummy_png)
+
+    # 2. Create a dummy agent whose home directory holds that file
     print("👤 Creating a test agent...")
     create_req = {
         "name": "Security Test Agent",
         "description": "Agent for testing path traversal",
+        "home_directory": str(agent_home),
     }
     create_resp = await async_client.post("/api/agents", json=create_req)
     assert create_resp.status_code == 200, f"Failed to create agent: {create_resp.text}"
@@ -28,19 +38,6 @@ async def test_agent_file_path_traversal_defense(async_client: AsyncClient) -> N
     agent_id = agent_data["id"]
 
     print(f"✅ Agent created: {agent_id}")
-
-    # 2. Upload a dummy avatar to create the agent_home
-    print("🖼️ Uploading dummy avatar...")
-    # Create a tiny dummy png in memory
-    dummy_png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0aIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\x0d\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
-
-    files = {"file": ("avatar.png", dummy_png, "image/png")}
-    upload_resp = await async_client.post(f"/api/agents/{agent_id}/avatar", files=files)
-    assert upload_resp.status_code == 200, f"Failed to upload avatar: {upload_resp.text}"
-    avatar_url = upload_resp.json()["data"]["avatar_url"]
-
-    # Extract filename from home://avatar.png
-    filename = avatar_url.split("://")[-1]
 
     # 3. Test retrieving the legitimate file
     print(f"📥 Testing legitimate file access: {filename}")

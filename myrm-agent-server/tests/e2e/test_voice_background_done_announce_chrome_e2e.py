@@ -6,7 +6,7 @@ reaches the browser over the real SSE notification stream, and the frontend
 `VoiceSessionButton` consumes to announce completion over TTS.
 
 Flow (no mocks on the delivery path):
-  1. Open the WebUI /agents route so the global SSE listener is mounted.
+  1. Open the WebUI home route so the global SSE listener is mounted.
   2. Seed a completed voice background task via the local-only fixture
      endpoint (`POST /background-tasks/test/seed-voice-done`), which builds a
      voice Kanban task and publishes BACKGROUND_TASK_DONE through the real
@@ -203,7 +203,7 @@ def test_voice_background_done_dispatches_announce_event() -> None:
     ui_url = get_e2e_ui_url()
 
     prepare_e2e_ui_session(api_base)
-    warm_ui_route("/agents")
+    warm_ui_route("/")
 
     # Warm-shell claim may land on a stale tab whose E2E bridge never attaches
     # (settings skeleton + fallback bridge). Retry the open so the orchestrator
@@ -211,7 +211,7 @@ def test_voice_background_done_dispatches_announce_event() -> None:
     last_open_error: BaseException | None = None
     for attempt in range(1, 4):
         try:
-            with open_mcp_page(f"{ui_url}/agents", timeout_ms=120_000) as (client, page):
+            with open_mcp_page(f"{ui_url}/", timeout_ms=120_000) as (client, page):
                 dismiss_blocking_modals(client, page)
                 diag = client.evaluate(page, _PAGE_DIAGNOSTIC_JS, timeout_sec=10.0)
                 assert isinstance(diag, dict), diag

@@ -28,7 +28,7 @@ export type ParsedAvatar =
  * Handles all supported formats:
  * - icon:{id}     → custom SVG icon from registry
  * - emoji:{char}  → emoji character
- * - home://{path} → user-uploaded file (requires agentId)
+ * - home://{path} → file in the agent's home directory (requires agentId)
  * - http(s)://    → remote image URL
  * - gradient:{n}  → gradient index
  * - lucide:{name} → Lucide react icon

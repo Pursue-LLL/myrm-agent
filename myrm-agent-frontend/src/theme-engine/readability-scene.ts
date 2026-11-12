@@ -25,7 +25,6 @@ export const FUNCTIONAL_ROUTE_PREFIXES = [
   '/workspace',
   '/audit',
   '/security',
-  '/agents',
   '/canvas',
   '/journey',
   '/subscription',
@@ -39,7 +38,6 @@ export const FUNCTIONAL_ROUTE_PREFIXES = [
 
 /** First URL segment names for static App Router pages (excludes dynamic `[chatId]`). */
 export const STATIC_APP_SEGMENTS = new Set<string>([
-  'agents',
   'audit',
   'artifacts',
   'auth',

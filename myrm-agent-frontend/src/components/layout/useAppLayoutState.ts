@@ -22,8 +22,12 @@ function readSavedRoutes(): Record<string, string> {
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       return {};
     }
+    // A page is only restored while it still belongs to the tab it was saved under; otherwise that tab would open a
+    // page it no longer owns.
     return Object.fromEntries(
-      Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string' && getTabFromPathname(entry[1]) === entry[0],
+      ),
     );
   } catch {
     return {};
@@ -44,12 +48,7 @@ function persistRoute(tab: string, url: string) {
 }
 
 function getTabFromPathname(pathname: string): NavTab {
-  if (
-    pathname === '/work' ||
-    pathname.startsWith('/work/') ||
-    pathname.startsWith('/agents') ||
-    pathname.startsWith('/agent')
-  ) {
+  if (pathname === '/work' || pathname.startsWith('/work/')) {
     return 'work';
   }
   if (
@@ -99,12 +98,7 @@ export function useAppLayoutState() {
     if (pathname === '/' || pathname.match(/^\/c-/)) {
       setLastChatUrl(pathname);
       persistRoute('chat', pathname);
-    } else if (
-      pathname === '/work' ||
-      pathname.startsWith('/work/') ||
-      pathname.startsWith('/agents') ||
-      pathname.startsWith('/agent')
-    ) {
+    } else if (pathname === '/work' || pathname.startsWith('/work/')) {
       setLastWorkUrl(pathname);
       persistRoute('work', pathname);
     } else if (
