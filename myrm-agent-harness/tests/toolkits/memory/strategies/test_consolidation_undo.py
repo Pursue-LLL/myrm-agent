@@ -275,19 +275,20 @@ async def test_a_merged_memory_the_user_pinned_after_the_cycle_survives_the_undo
     assert restored is not None and restored.importance == 0.9
 
 
-async def test_a_protected_source_is_never_changed_and_so_never_restored(new_manager: NewManager) -> None:
+async def test_a_merge_naming_a_protected_source_is_refused_and_leaves_nothing_to_undo(
+    new_manager: NewManager,
+) -> None:
     manager = new_manager()
     pinned, second = semantic(TEA, 1, importance=0.8, pinned=True), semantic(TEA_TOO, 2, importance=0.4)
     await seed(manager, [pinned, second])
 
     stats = await run_cycle(manager, merge(pinned, second, TEA))
 
-    assert set(stats.undo.touched) == {second.id}
-    assert await undo(manager) == UndoResult(rolled_back=2)
-    kept = await manager.get_memory(pinned.id)
-    assert kept is not None and kept.importance == 0.8
-    restored = await manager.get_memory(second.id)
-    assert restored is not None and restored.importance == 0.4
+    assert (stats.merged, stats.rejected, stats.undo.change_count) == (0, 1, 0)
+    assert await get_undo_summary(manager) is None
+    for source, importance in ((pinned, 0.8), (second, 0.4)):
+        kept = await manager.get_memory(source.id)
+        assert kept is not None and kept.importance == importance
 
 
 async def test_a_cycle_that_changed_nothing_leaves_the_earlier_undo_in_place(new_manager: NewManager) -> None:

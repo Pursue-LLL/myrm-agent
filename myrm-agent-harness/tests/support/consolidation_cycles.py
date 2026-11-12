@@ -16,6 +16,7 @@
 - merge, correct, rewrite: the operations a model proposes, named by the short ids of the memories they act on
 - merged_pair: TEA and TEA_TOO seeded and folded by one cycle: both sources and the id of the memory the merge created
 - store_fresh: memories written through the manager after a finished cycle, so the next cycle has something to analyze
+- stored: the store's copy of a semantic memory, which must still exist
 - stored_insights: the insights the cycles have persisted, whether or not an undo journal knows them
 - undo: what the settings card does: read the undoable cycle's summary and undo the cycle it names
 
@@ -83,6 +84,13 @@ async def merged_pair(manager: MemoryManager) -> tuple[SemanticMemory, SemanticM
 async def store_fresh(manager: MemoryManager, *texts: str) -> list[AnyMemory]:
     """Memories that reach the store after a finished cycle, so the next cycle has something to analyze."""
     return [await manager.store(SemanticMemory(content=text), _bypass_approval=True) for text in texts]
+
+
+async def stored(manager: MemoryManager, memory: AnyMemory) -> SemanticMemory:
+    """The store's copy of a semantic memory, which must still exist."""
+    found = await manager.get_memory(memory.id)
+    assert isinstance(found, SemanticMemory)
+    return found
 
 
 async def stored_insights(manager: MemoryManager) -> list[SemanticMemory]:
