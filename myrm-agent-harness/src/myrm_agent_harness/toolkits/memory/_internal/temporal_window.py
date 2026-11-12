@@ -12,26 +12,30 @@ Design contract (explicit-scope invariance, mirroring ChannelPruner):
 - Windows are deliberately wide: each marker's semantic period is padded
   with a spill margin so adjacent-period memories and timezone skew
   (markers resolve against the caller-injected ``now``) survive the hard
-  filter. Result-side temporal proximity reweighting (query_analyzer)
-  still narrows ranking inside the window: the hard filter prunes, the
-  soft reweight ranks.
+  filter. The window also carries an ``anchor`` that result-side temporal
+  proximity reweighting (query_analyzer) centers on, so ranking inside
+  the window still narrows: the hard filter prunes, the soft reweight
+  ranks.
 - Only past-facing markers derive windows; future markers (“明天”,
   “next week”) describe plans rather than recall scope and are ignored,
   as are windows fully in the future (e.g. “今年冬天” asked in autumn
   falls through to the broader “今年” rule instead).
+- Stacked “上” steps back one period per character: “上周” is the
+  previous week, “上上周” the one before it.
 
 [INPUT]
 - (stdlib only - datetime + re)
 
 [OUTPUT]
-- TemporalWindow: derived boundaries plus marker metadata for traces
+- TemporalWindow: derived boundaries, proximity anchor and marker metadata
 - derive_temporal_window: marker extraction + wide-window derivation
 
 [POS]
-Bridges query_analyzer's point-in-time reference scoring (soft, result
-side) with the vector stores' since/until hard filters (collect side).
-The two systems intentionally overlap: the window only prunes what is
-clearly outside the marker's semantic period, never ranks inside it.
+Single rule table for time phrases in memory retrieval: one resolved
+marker feeds the vector stores' since/until hard filters (collect side)
+and query_analyzer's proximity anchor (soft, result side). The window
+only prunes what is clearly outside the marker's semantic period, never
+ranks inside it.
 """
 
 from __future__ import annotations
@@ -42,9 +46,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Literal
 
-TemporalWindowKind = Literal[
-    "day", "week", "month", "quarter", "year", "season", "recent", "relative"
-]
+TemporalWindowKind = Literal["day", "week", "month", "quarter", "year", "season", "recent", "relative"]
 """Marker family of a derived window; drives margin selection and trace labels."""
 
 _WindowResolver = Callable[[datetime, re.Match[str]], tuple[datetime, datetime]]
@@ -58,15 +60,21 @@ class TemporalWindow:
     Attributes:
         since: Wide-window lower bound (inclusive), in ``now``'s timezone.
         until: Wide-window upper bound: the period end padded by the kind's
-            spill margin, in ``now``'s timezone.
+        spill margin, in ``now``'s timezone.
         marker: Matched marker text (trace metadata).
         window_kind: Marker family (trace metadata).
+        anchor: Point that result-side proximity scoring centers on: the
+            period center for finished periods and relative points, ``now``
+            for recency markers, ``None`` for the current week / month /
+            year, which still contain ``now`` and have no past point to
+            center on.
     """
 
     since: datetime
     until: datetime
     marker: str
     window_kind: TemporalWindowKind
+    anchor: datetime | None
 
 
 # Spill margins per window family. Wide on purpose: they absorb calendar
@@ -125,8 +133,17 @@ def _parse_number(text: str) -> float:
     if text.isdigit():
         return float(text)
     digits = {
-        "零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4,
-        "五": 5, "六": 6, "七": 7, "八": 8, "九": 9,
+        "零": 0,
+        "一": 1,
+        "二": 2,
+        "两": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
     }
     total, section = 0, 0
     for ch in text:
@@ -189,6 +206,19 @@ def _calendar_resolver(kind: str, offset: int) -> _WindowResolver:
     return resolve
 
 
+def _stepped_calendar_resolver(kind: str) -> _WindowResolver:
+    """Previous-period marker whose leading “上” count is the step back: 上周 → -1, 上上周 → -2.
+
+    The English “last / previous” alternative has no ``back`` group and steps back once.
+    """
+
+    def resolve(now: datetime, match: re.Match[str]) -> tuple[datetime, datetime]:
+        steps = len(match.group("back") or "上")
+        return _calendar_resolver(kind, -steps)(now, match)
+
+    return resolve
+
+
 def _season_resolver() -> _WindowResolver:
     """Compound season window (“去年春天” / “last spring”): anchor-year months ± 15d."""
 
@@ -245,11 +275,16 @@ def _relative_resolver() -> _WindowResolver:
 
 @dataclass(frozen=True, slots=True)
 class _MarkerRule:
-    """One temporal marker pattern bound to its window resolver."""
+    """One temporal marker pattern bound to its window resolver.
+
+    ``anchored`` is False for periods that still contain ``now`` (this week /
+    month / year): they yield a hard-filter window but no proximity anchor.
+    """
 
     kind: TemporalWindowKind
     pattern: re.Pattern[str]
     resolve: _WindowResolver
+    anchored: bool = True
 
 
 _RULES: tuple[_MarkerRule, ...] = (
@@ -268,35 +303,42 @@ _RULES: tuple[_MarkerRule, ...] = (
     _MarkerRule("day", re.compile(r"today|今天|当天", re.IGNORECASE), _calendar_resolver("day", 0)),
     _MarkerRule(
         "week",
-        re.compile(r"last\s+week|previous\s+week|上周|上星期", re.IGNORECASE),
-        _calendar_resolver("week", -1),
+        re.compile(r"(?:last|previous)\s+week|(?P<back>上+)(?:周|星期)", re.IGNORECASE),
+        _stepped_calendar_resolver("week"),
     ),
     _MarkerRule(
         "week",
         re.compile(r"this\s+week|本周|这周|这一周", re.IGNORECASE),
         _calendar_resolver("week", 0),
+        anchored=False,
     ),
     _MarkerRule(
         "month",
-        re.compile(r"last\s+month|previous\s+month|上个月|上月", re.IGNORECASE),
-        _calendar_resolver("month", -1),
+        re.compile(r"(?:last|previous)\s+month|(?P<back>上+)(?:个月|月)", re.IGNORECASE),
+        _stepped_calendar_resolver("month"),
     ),
     _MarkerRule(
         "month",
         re.compile(r"this\s+month|本月|这个月|当月", re.IGNORECASE),
         _calendar_resolver("month", 0),
+        anchored=False,
     ),
     _MarkerRule(
         "quarter",
-        re.compile(r"last\s+quarter|previous\s+quarter|上季度|上个季度", re.IGNORECASE),
-        _calendar_resolver("quarter", -1),
+        re.compile(r"(?:last|previous)\s+quarter|(?P<back>上+)个?季度", re.IGNORECASE),
+        _stepped_calendar_resolver("quarter"),
     ),
     _MarkerRule(
         "year",
         re.compile(r"last\s+year|previous\s+year|去年", re.IGNORECASE),
         _calendar_resolver("year", -1),
     ),
-    _MarkerRule("year", re.compile(r"this\s+year|今年", re.IGNORECASE), _calendar_resolver("year", 0)),
+    _MarkerRule(
+        "year",
+        re.compile(r"this\s+year|今年", re.IGNORECASE),
+        _calendar_resolver("year", 0),
+        anchored=False,
+    ),
     # Bounded recent spans before the bare fallback: “最近三天” is a 3-day
     # window, not the 30-day one “最近” alone would buy.
     _MarkerRule(
@@ -338,14 +380,27 @@ _RULES: tuple[_MarkerRule, ...] = (
 )
 
 
+def _proximity_anchor(rule: _MarkerRule, now: datetime, since: datetime, until: datetime) -> datetime | None:
+    """Point result-side proximity scoring centers on (see ``TemporalWindow.anchor``).
+
+    Spill margins are symmetric for every non-recency kind, so the window
+    midpoint is the semantic period's center.
+    """
+    if not rule.anchored:
+        return None
+    if rule.kind == "recent":
+        return now
+    return since + (until - since) / 2
+
+
 def derive_temporal_window(query: str, *, now: datetime | None = None) -> TemporalWindow | None:
     """Derive a wide ``(since, until)`` window from the query's first past-facing marker.
 
     Returns ``None`` when the query carries no temporal marker or the
     matched window starts fully in the future (plans, not recall scope).
-    The first match in rule order wins, mirroring query_analyzer's single
-    point-of-reference assumption; a skipped future window falls through to
-    broader markers (e.g. “今年冬天” in autumn → the “今年” rule).
+    The first match in rule order wins (a query has one reference period);
+    a skipped future window falls through to broader markers (e.g. “今年冬天”
+    in autumn → the “今年” rule).
 
     Args:
         query: Sanitized retrieval query.
@@ -364,6 +419,10 @@ def derive_temporal_window(query: str, *, now: datetime | None = None) -> Tempor
         if since >= reference:
             continue
         return TemporalWindow(
-            since=since, until=until, marker=match.group(0), window_kind=rule.kind
+            since=since,
+            until=until,
+            marker=match.group(0),
+            window_kind=rule.kind,
+            anchor=_proximity_anchor(rule, reference, since, until),
         )
     return None

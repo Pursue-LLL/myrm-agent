@@ -3,7 +3,8 @@
 Detects special patterns in queries to apply targeted scoring boosts:
 - Quoted phrases: "exact match" → boost memories containing this phrase
 - Person names: proper nouns → boost memories mentioning these entities
-- Temporal markers: "yesterday", "last week" → adjust temporal scoring
+- Temporal markers: "yesterday", "last week" → proximity scoring around the
+  anchor of the window resolved by ``_internal.temporal_window``
 
 [POS]
 Query pattern recognition utilities for hybrid memory scoring enhancement.
@@ -13,12 +14,20 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
+
+from myrm_agent_harness.toolkits.memory._internal.temporal_window import derive_temporal_window
 
 
 @dataclass
 class QueryContext:
-    """Parsed query context for targeted retrieval."""
+    """Parsed query context for targeted retrieval.
+
+    ``temporal_markers`` holds the marker the shared temporal rules matched
+    (empty when none) and ``reference_time`` the proximity anchor of its
+    window, so the soft boost and the collect-stage hard filter agree on
+    which period the query means.
+    """
 
     quoted_phrases: list[str]
     person_names: list[str]
@@ -27,23 +36,26 @@ class QueryContext:
     is_preference_query: bool = False
 
 
-def analyze_query(query: str) -> QueryContext:
+def analyze_query(query: str, *, now: datetime | None = None) -> QueryContext:
     """Analyze query for special patterns.
+
+    Args:
+        query: Retrieval query text.
+        now: Reference instant for relative time phrases; defaults to UTC now.
 
     Returns:
         QueryContext with extracted patterns
     """
     quoted_phrases = extract_quoted_phrases(query)
     person_names = extract_person_names(query)
-    temporal_markers = extract_temporal_markers(query)
-    reference_time = infer_reference_time(temporal_markers)
+    window = derive_temporal_window(query, now=now)
     is_pref_query = is_preference_query(query)
 
     return QueryContext(
         quoted_phrases=quoted_phrases,
         person_names=person_names,
-        temporal_markers=temporal_markers,
-        reference_time=reference_time,
+        temporal_markers=[window.marker] if window else [],
+        reference_time=window.anchor if window else None,
         is_preference_query=is_pref_query,
     )
 
@@ -121,99 +133,6 @@ def extract_person_names(query: str) -> list[str]:
                 names.append(word_clean)
 
     return names
-
-
-def extract_temporal_markers(query: str) -> list[str]:
-    """Extract temporal reference markers (English and Chinese).
-
-    Examples:
-        "yesterday" → ["yesterday"]
-        "last week" → ["last week"]
-        "2 days ago" → ["2 days ago"]
-        "昨天讨论的" → ["昨天"]
-        "上周的会议" → ["上周"]
-        "3天前" → ["3天前"]
-    """
-    markers: list[str] = []
-
-    patterns = [
-        r"\byesterday\b",
-        r"\btoday\b",
-        r"\btomorrow\b",
-        r"\blast\s+(?:week|month|year)\b",
-        r"\bthis\s+(?:week|month|year)\b",
-        r"\bnext\s+(?:week|month|year)\b",
-        r"\b\d+\s+(?:days?|weeks?|months?|years?)\s+ago\b",
-        r"\b(?:on|in)\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b",
-        r"昨天",
-        r"前天",
-        r"今天",
-        r"上周",
-        r"上个月",
-        r"去年",
-        r"最近",
-        r"\d+天前",
-        r"\d+周前",
-        r"\d+个月前",
-    ]
-
-    for pattern in patterns:
-        matches = re.findall(pattern, query, re.IGNORECASE)
-        markers.extend([m.strip() for m in matches])
-
-    return markers
-
-
-def infer_reference_time(temporal_markers: list[str]) -> datetime | None:
-    """Infer reference time from temporal markers (English and Chinese).
-
-    Returns:
-        Approximate datetime if marker is recognized, else None
-    """
-    if not temporal_markers:
-        return None
-
-    now = datetime.now(UTC)
-    marker = temporal_markers[0].lower()
-
-    if "yesterday" in marker or "昨天" in marker:
-        return now - timedelta(days=1)
-    elif "today" in marker or "今天" in marker:
-        return now
-    elif "前天" in marker:
-        return now - timedelta(days=2)
-    elif "last week" in marker or "上周" in marker:
-        return now - timedelta(weeks=1)
-    elif "last month" in marker or "上个月" in marker:
-        return now - timedelta(days=30)
-    elif "last year" in marker or "去年" in marker:
-        return now - timedelta(days=365)
-    elif "最近" in marker:
-        return now - timedelta(days=3)
-
-    days_ago_match = re.search(r"(\d+)\s+days?\s+ago", marker)
-    if days_ago_match:
-        days = int(days_ago_match.group(1))
-        return now - timedelta(days=days)
-
-    weeks_ago_match = re.search(r"(\d+)\s+weeks?\s+ago", marker)
-    if weeks_ago_match:
-        weeks = int(weeks_ago_match.group(1))
-        return now - timedelta(weeks=weeks)
-
-    cn_days_ago = re.search(r"(\d+)天前", marker)
-    if cn_days_ago:
-        return now - timedelta(days=int(cn_days_ago.group(1)))
-
-    cn_weeks_ago = re.search(r"(\d+)周前", marker)
-    if cn_weeks_ago:
-        return now - timedelta(weeks=int(cn_weeks_ago.group(1)))
-
-    cn_months_ago = re.search(r"(\d+)个月前", marker)
-    if cn_months_ago:
-        return now - timedelta(days=int(cn_months_ago.group(1)) * 30)
-
-    return None
 
 
 def contains_quoted_phrase(content: str, phrase: str) -> bool:

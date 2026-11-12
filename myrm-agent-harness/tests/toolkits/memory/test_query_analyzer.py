@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from myrm_agent_harness.toolkits.memory._internal.temporal_window import derive_temporal_window
 from myrm_agent_harness.toolkits.memory.query_analyzer import (
     QueryContext,
     analyze_query,
@@ -13,8 +14,6 @@ from myrm_agent_harness.toolkits.memory.query_analyzer import (
     contains_quoted_phrase,
     extract_person_names,
     extract_quoted_phrases,
-    extract_temporal_markers,
-    infer_reference_time,
     is_assistant_reference_query,
     is_preference_query,
 )
@@ -83,183 +82,79 @@ class TestExtractPersonNames:
         assert "Alice" in extract_person_names("Ask Alice, please")
 
 
-class TestExtractTemporalMarkers:
-    """Test temporal marker extraction (bilingual)."""
+# Thursday afternoon: calendar edges below are deterministic.
+NOW = datetime(2026, 11, 12, 15, 0, tzinfo=UTC)
 
-    def test_yesterday(self) -> None:
-        assert "yesterday" in extract_temporal_markers("Tell me about yesterday")
-
-    def test_today(self) -> None:
-        assert "today" in extract_temporal_markers("What happened today")
-
-    def test_last_week(self) -> None:
-        markers = extract_temporal_markers("Show me last week stuff")
-        assert any("last week" in m for m in markers)
-
-    def test_days_ago(self) -> None:
-        markers = extract_temporal_markers("Something from 3 days ago")
-        assert any("3 days ago" in m for m in markers)
-
-    def test_weeks_ago(self) -> None:
-        markers = extract_temporal_markers("From 2 weeks ago")
-        assert any("2 weeks ago" in m for m in markers)
-
-    def test_chinese_yesterday(self) -> None:
-        assert "昨天" in extract_temporal_markers("昨天讨论的方案")
-
-    def test_chinese_day_before(self) -> None:
-        assert "前天" in extract_temporal_markers("前天你说的那个事情")
-
-    def test_chinese_today(self) -> None:
-        assert "今天" in extract_temporal_markers("今天有什么安排")
-
-    def test_chinese_last_week(self) -> None:
-        assert "上周" in extract_temporal_markers("上周的会议内容")
-
-    def test_chinese_last_month(self) -> None:
-        assert "上个月" in extract_temporal_markers("上个月的报告")
-
-    def test_chinese_last_year(self) -> None:
-        assert "去年" in extract_temporal_markers("去年的项目")
-
-    def test_chinese_recently(self) -> None:
-        assert "最近" in extract_temporal_markers("最近学到的东西")
-
-    def test_chinese_n_days_ago(self) -> None:
-        markers = extract_temporal_markers("5天前你提到的")
-        assert any("5天前" in m for m in markers)
-
-    def test_chinese_n_weeks_ago(self) -> None:
-        markers = extract_temporal_markers("2周前的代码")
-        assert any("2周前" in m for m in markers)
-
-    def test_chinese_n_months_ago(self) -> None:
-        markers = extract_temporal_markers("3个月前的设计")
-        assert any("3个月前" in m for m in markers)
-
-    def test_no_temporal(self) -> None:
-        assert extract_temporal_markers("What is machine learning") == []
-
-    def test_empty_string(self) -> None:
-        assert extract_temporal_markers("") == []
+# Phrase → (matched marker, proximity anchor); the anchor is the shared temporal
+# rules' output, so these also pin the hard-filter window the same phrase gets.
+ANCHORED_PHRASES = [
+    ("Tell me about yesterday", "yesterday", datetime(2026, 11, 11, 12, 0, tzinfo=UTC)),
+    ("What happened today", "today", datetime(2026, 11, 12, 12, 0, tzinfo=UTC)),
+    ("昨天讨论的方案", "昨天", datetime(2026, 11, 11, 12, 0, tzinfo=UTC)),
+    ("前天你说的那个事情", "前天", datetime(2026, 11, 10, 12, 0, tzinfo=UTC)),
+    ("今天有什么安排", "今天", datetime(2026, 11, 12, 12, 0, tzinfo=UTC)),
+    # Last week is Mon 11-02 .. Sun 11-08: its center is Thursday noon.
+    ("Show me last week stuff", "last week", datetime(2026, 11, 5, 12, 0, tzinfo=UTC)),
+    ("上周的会议内容", "上周", datetime(2026, 11, 5, 12, 0, tzinfo=UTC)),
+    ("上上周的周报", "上上周", datetime(2026, 10, 29, 12, 0, tzinfo=UTC)),
+    ("上个月的报告", "上个月", datetime(2026, 10, 16, 12, 0, tzinfo=UTC)),
+    ("上上个月的账单", "上上个月", datetime(2026, 9, 16, 0, 0, tzinfo=UTC)),
+    ("去年的项目", "去年", datetime(2025, 7, 2, 12, 0, tzinfo=UTC)),
+    # Relative points anchor on the point itself; Chinese numerals resolve too.
+    ("Something from 3 days ago", "3 days ago", NOW - timedelta(days=3)),
+    ("From 2 weeks ago", "2 weeks ago", NOW - timedelta(weeks=2)),
+    ("5天前你提到的", "5天前", NOW - timedelta(days=5)),
+    ("2周前的代码", "2周前", NOW - timedelta(weeks=2)),
+    ("3个月前的设计", "3个月前", NOW - timedelta(days=90)),
+    ("三天前的会议", "三天前", NOW - timedelta(days=3)),
+    ("两周前的决定", "两周前", NOW - timedelta(weeks=2)),
+    # Recency markers center on now: nearer is better.
+    ("最近学到的东西", "最近", NOW),
+    ("最近三天的改动", "最近三天", NOW),
+]
 
 
-class TestInferReferenceTime:
-    """Test reference time inference from temporal markers."""
+class TestTemporalReference:
+    """Marker and proximity anchor resolved by the shared temporal rules."""
 
-    def test_yesterday_english(self) -> None:
-        ref = infer_reference_time(["yesterday"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=1) - ref).total_seconds()) < 5
+    @pytest.mark.parametrize(("query", "marker", "anchor"), ANCHORED_PHRASES)
+    def test_marker_and_anchor(self, query: str, marker: str, anchor: datetime) -> None:
+        ctx = analyze_query(query, now=NOW)
+        assert ctx.temporal_markers == [marker]
+        assert ctx.reference_time == anchor
 
-    def test_today_english(self) -> None:
-        ref = infer_reference_time(["today"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - ref).total_seconds()) < 5
+    @pytest.mark.parametrize("query", ["本周的计划", "这个月的账单", "今年的目标", "this week's plan"])
+    def test_current_period_has_marker_but_no_anchor(self, query: str) -> None:
+        # The period still contains now: no past point to center on.
+        ctx = analyze_query(query, now=NOW)
+        assert len(ctx.temporal_markers) == 1
+        assert ctx.reference_time is None
 
-    def test_last_week_english(self) -> None:
-        ref = infer_reference_time(["last week"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(weeks=1) - ref).total_seconds()) < 5
+    @pytest.mark.parametrize("query", [phrase for phrase, _, _ in ANCHORED_PHRASES])
+    def test_anchor_lies_inside_hard_filter_window(self, query: str) -> None:
+        # Soft proximity and the collect-stage hard filter must agree on the period.
+        window = derive_temporal_window(query, now=NOW)
+        ctx = analyze_query(query, now=NOW)
+        assert window is not None
+        assert ctx.reference_time is not None
+        assert window.since <= ctx.reference_time <= window.until
 
-    def test_last_month_english(self) -> None:
-        ref = infer_reference_time(["last month"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=30) - ref).total_seconds()) < 5
+    def test_stacked_prefix_is_not_read_as_single_step(self) -> None:
+        single = analyze_query("上周的周报", now=NOW).reference_time
+        stacked = analyze_query("上上周的周报", now=NOW).reference_time
+        assert single is not None
+        assert stacked == single - timedelta(weeks=1)
 
-    def test_last_year_english(self) -> None:
-        ref = infer_reference_time(["last year"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=365) - ref).total_seconds()) < 5
+    def test_first_rule_wins_when_several_markers_present(self) -> None:
+        ctx = analyze_query("yesterday and last week", now=NOW)
+        assert ctx.temporal_markers == ["yesterday"]
+        assert ctx.reference_time == datetime(2026, 11, 11, 12, 0, tzinfo=UTC)
 
-    def test_n_days_ago_english(self) -> None:
-        ref = infer_reference_time(["5 days ago"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=5) - ref).total_seconds()) < 5
-
-    def test_n_weeks_ago_english(self) -> None:
-        ref = infer_reference_time(["3 weeks ago"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(weeks=3) - ref).total_seconds()) < 5
-
-    def test_chinese_yesterday(self) -> None:
-        ref = infer_reference_time(["昨天"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=1) - ref).total_seconds()) < 5
-
-    def test_chinese_today(self) -> None:
-        ref = infer_reference_time(["今天"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - ref).total_seconds()) < 5
-
-    def test_chinese_day_before(self) -> None:
-        ref = infer_reference_time(["前天"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=2) - ref).total_seconds()) < 5
-
-    def test_chinese_last_week(self) -> None:
-        ref = infer_reference_time(["上周"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(weeks=1) - ref).total_seconds()) < 5
-
-    def test_chinese_last_month(self) -> None:
-        ref = infer_reference_time(["上个月"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=30) - ref).total_seconds()) < 5
-
-    def test_chinese_last_year(self) -> None:
-        ref = infer_reference_time(["去年"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=365) - ref).total_seconds()) < 5
-
-    def test_chinese_recently(self) -> None:
-        ref = infer_reference_time(["最近"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=3) - ref).total_seconds()) < 5
-
-    def test_chinese_n_days_ago(self) -> None:
-        ref = infer_reference_time(["5天前"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=5) - ref).total_seconds()) < 5
-
-    def test_chinese_n_weeks_ago(self) -> None:
-        ref = infer_reference_time(["2周前"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(weeks=2) - ref).total_seconds()) < 5
-
-    def test_chinese_n_months_ago(self) -> None:
-        ref = infer_reference_time(["3个月前"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=90) - ref).total_seconds()) < 5
-
-    def test_empty_list(self) -> None:
-        assert infer_reference_time([]) is None
-
-    def test_unrecognized_marker(self) -> None:
-        assert infer_reference_time(["some random text"]) is None
-
-    def test_first_marker_used(self) -> None:
-        ref = infer_reference_time(["yesterday", "last week"])
-        assert ref is not None
-        now = datetime.now(UTC)
-        assert abs((now - timedelta(days=1) - ref).total_seconds()) < 5
+    @pytest.mark.parametrize("query", ["What is machine learning", "", "明天的安排", "next week we deploy"])
+    def test_no_past_marker(self, query: str) -> None:
+        ctx = analyze_query(query, now=NOW)
+        assert ctx.temporal_markers == []
+        assert ctx.reference_time is None
 
 
 class TestContainsQuotedPhrase:
