@@ -2,7 +2,6 @@
 
 [INPUT]
 - memory.manager::MemoryManager (POS: unified memory manager facade)
-- memory.protocols.graph::GraphStoreProtocol (POS: graph store for claim collection)
 - memory.types::{AnyMemory, EpisodicMemory, MemoryType, ProceduralMemory, RuleSource, SemanticMemory} (POS: memory data models)
 - utils.coercion::parse_int (POS: defensive numeric coercion utilities)
 - strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Direct persistence of maintenance counters, hashes and timestamps)

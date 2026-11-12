@@ -1,7 +1,7 @@
 """Streaming schemas for SSE protocol standardization.
 
 [INPUT]
-- myrm_agent_harness.agent.streaming.types::AgentStreamEvent (POS: 底层框架的流式事件模型)
+- none (imports no other project module)
 
 [OUTPUT]
 - SSE_RESPONSE_HEADERS: Standard HTTP headers for all SSE endpoints.

@@ -7,7 +7,6 @@ approval/draft pending counts) are queried by callers; this module only
 decides, never touches DB, LLM, or network — zero prompt-cache impact.
 
 [INPUT]
-- channels.types::TopicContext (POS: follow-up policy fields)
 - myrm_agent_harness cooldown patterns (POS: BoundedCooldownMap precedent)
 
 [OUTPUT]

@@ -6,8 +6,8 @@ the Tool Pair Invariant and whitelist immunity for pinned rules.
 
 [INPUT]
 - base::BaseProcessor, ProcessorContext (POS: processor contracts)
-- ...strategies.compactor.selective_eviction::evict_messages_by_marks, SelectiveEvictionStats
-- ...eviction_marks.marks::EvictionMark, has_message_marks
+- ...strategies.compactor.selective_eviction::evict_messages_by_marks
+- ...eviction_marks.marks::has_message_marks
 
 [OUTPUT]
 - SelectiveEvictionProcessor: pipeline processor for mark-based selective pruning
@@ -20,6 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from myrm_agent_harness.agent.context_management.eviction_marks.marks import (
+    has_message_marks,
+)
 from myrm_agent_harness.agent.context_management.pipeline.base import (
     BaseProcessor,
     ProcessorContext,
@@ -27,9 +30,6 @@ from myrm_agent_harness.agent.context_management.pipeline.base import (
 from myrm_agent_harness.agent.context_management.strategies.compactor.selective_eviction import (
     DEFAULT_TRANSIENT_MARKS,
     evict_messages_by_marks,
-)
-from myrm_agent_harness.agent.context_management.eviction_marks.marks import (
-    has_message_marks,
 )
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 

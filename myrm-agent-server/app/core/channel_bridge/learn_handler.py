@@ -6,7 +6,6 @@ existing `skill_manage_tool` tool.
 
 [INPUT]
 - channels.types::InboundMessage (POS: inbound message)
-- channels.protocols.learn_command::LearnCommandHandler (POS: handler protocol)
 
 [OUTPUT]
 - ChannelLearnCommandHandler: LearnCommandHandler protocol implementation

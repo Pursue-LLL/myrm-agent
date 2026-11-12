@@ -10,7 +10,7 @@ append-only event stream.  Used by downstream systems:
 - Analytics dimension slicing (user_id, agent_id, task_type)
 
 [INPUT]
-- event_log.types::StructuredEvent (POS: Single source of truth for event log data structures)
+- none (imports no other project module)
 
 [OUTPUT]
 - ToolCallRecord: single tool invocation with timing and outcome

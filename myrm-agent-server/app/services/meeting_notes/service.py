@@ -3,8 +3,6 @@
 [INPUT]
 - app.channels.voice.stt::transcribe (POS: 5-provider STT with fallback)
 - app.services.wiki.source_sync.publish_helpers::publish_source_markdown, build_frontmatter (POS: wiki raw publish)
-- app.services.wiki.vault.service::get_wiki_archiver (POS: agent wiki vault access)
-- app.database.connection::get_session (POS: LLM binding via chat agent)
 
 [OUTPUT]
 - process_meeting_audio(): audio file -> chunked parallel transcription -> LLM distillation -> wiki raw publish

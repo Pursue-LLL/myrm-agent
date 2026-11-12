@@ -2,7 +2,6 @@
 
 [INPUT]
 - channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
-- mautrix.client::Client (POS: mautrix Matrix client for upload/send)
 - mautrix.crypto.attachments (POS: Attachment encryption for E2EE rooms)
 
 [OUTPUT]

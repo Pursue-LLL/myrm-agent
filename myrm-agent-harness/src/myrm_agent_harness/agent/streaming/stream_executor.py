@@ -1,7 +1,7 @@
 """流式执行引擎 — 封装 astream 的完整生命周期
 
 [INPUT]
-- langchain_core.messages::BaseMessage, HumanMessage (POS: LangChain 消息类型)
+- langchain_core.messages::BaseMessage (POS: LangChain 消息类型)
 - agent.streaming.event_handlers (POS: 事件处理器)
 - agent.streaming.artifact_events (POS: Artifact 事件处理器)
 - agent.streaming.source_tracker::SourceTracker (POS: 源追踪器)

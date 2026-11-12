@@ -2,7 +2,6 @@
 
 [INPUT]
 - common::mark_untrusted (POS: unified browser output security boundary; credential redaction + untrusted-content wrapping)
-- patchright.async_api::Page (POS: Patchright page instance)
 - session.browser_session::BrowserSession (POS: browser session)
 - core.security.hitl_decision::is_approved, rejection_feedback (POS: 人工审批答复唯一解读)
 - utils.runtime.user_control::planned_against (POS: pins the script's steps to the hand-over the model last observed)

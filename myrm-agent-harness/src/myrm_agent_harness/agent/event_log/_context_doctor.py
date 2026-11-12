@@ -10,7 +10,7 @@ Identifies the top token-consuming tool calls (hotspots) to empower developers
 and end-users with crystal-clear context visibility without manual cache destruction.
 
 [INPUT]
-- event_log.trace_types::ExecutionTrace, ToolCallRecord (POS: trace types)
+- event_log.trace_types::ExecutionTrace (POS: trace types)
 - utils.token_estimation::estimate_content_tokens (POS: token estimation)
 
 [OUTPUT]

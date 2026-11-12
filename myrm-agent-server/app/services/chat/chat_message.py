@@ -1,7 +1,7 @@
 """Message persistence mixin.
 
 [INPUT]
-- _base::_ChatServiceBase, _ChatRepositoryPort (POS: repository 协议和访问器)
+- _base::_ChatServiceBase (POS: repository 协议和访问器)
 - database.dto::MessageDTO (POS: 消息数据传输对象)
 - chat_helpers::ALLOWED_MESSAGE_ROLES (POS: 合法消息角色集合)
 - chat_helpers::is_wakeup_notice (POS: 「用户行是系统写的后台完成通知」的唯一判定)

@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.eval::EvalRunner, JsonlReporter
 - app.core.eval.manifest::_build_eval_manifest (POS: 构建评测环境快照，含模型/tool policy/指纹/抽样披露)
-- app.core.eval.model_config::_resolve_agent_model_label / _resolve_judge_config (POS: 统一模型解析与 judge 注入)
+- app.core.eval.model_config::_resolve_judge_config (POS: 统一模型解析与 judge 注入)
 - app.core.eval.executor::LocalEvalExecutor
 - app.core.eval.adaptive::AdaptiveEvalManager
 - app.core.eval.datasets::get_dataset_path

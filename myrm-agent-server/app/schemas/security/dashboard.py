@@ -1,7 +1,7 @@
 """Security dashboard shared Pydantic DTOs (API + services).
 
 [INPUT]
-- pydantic::BaseModel (POS: schema 校验)
+- app.schemas.security.base::CamelModel (POS: Shared DTO base for the security schemas package; keeps the camelCase alias contract in one place so every security response model serializes consistently.)
 
 [OUTPUT]
 - SecurityDashboard, PlatformAuditLogsResponse, SecurityRateLimitsResponse, etc.

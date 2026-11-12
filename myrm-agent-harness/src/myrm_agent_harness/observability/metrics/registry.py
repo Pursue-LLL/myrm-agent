@@ -2,7 +2,6 @@
 
 [INPUT]
 - prometheus_client::Counter, Histogram, generate_latest
-- myrm_agent_harness.agent.config::AgentConfig (POS: Agent configuration and type definitions. Pure data structures with no business logic dependencies.)
 
 [OUTPUT]
 - MetricsRegistry: Singleton registry for agent metrics.

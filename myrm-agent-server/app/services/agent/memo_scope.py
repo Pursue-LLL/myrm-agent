@@ -5,7 +5,7 @@
 - collections.abc::AsyncIterable, AsyncIterator
 - logging
 - typing::Any
-- myrm_agent_harness.infra.memo.call_scope::LlmCallScope, llm_call_scope
+- myrm_agent_harness.infra.memo.call_scope::LlmCallScope
 - myrm_agent_harness.infra.memo.memo_ledger::MemoLedger
 
 [OUTPUT]

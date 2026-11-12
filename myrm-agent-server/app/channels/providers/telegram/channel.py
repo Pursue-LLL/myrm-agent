@@ -10,7 +10,7 @@ Forum Topics: create/rename/close/reopen + auto-topic creation with per-user ded
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Abstract base for channel providers.)
-- channels.types::OutboundMessage, InboundMessage
+- channels.types::OutboundMessage
 - telegram.inbound::TelegramInboundMixin (POS: Telegram inbound update dispatch and media-group aggregation mixin.)
 - telegram.inbound_message::TelegramMessageParserMixin (POS: Telegram message conversion mixin.)
 - telegram.inbound_poll::TelegramPollingMixin (POS: Telegram long-polling loop mixin.)

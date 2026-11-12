@@ -22,19 +22,10 @@ Pure result/post-processing logic lives in sibling modules:
 [INPUT]
 - client::MCPClientManager, MCPServerConfigProtocol (POS: MCP client management layer)
 - tool_converter::convert_mcp_tools (POS: MCP tool → LangChain BaseTool converter)
-- config::parse_mcp_tool_name, sanitize_mcp_name_component, should_register_mcp_tool (POS: MCP configuration, name sanitization, tool name parsing, and per-server tool filter function)
-- schema::FlattenMeta, canonicalize_schema_for_cache, flatten_deep_schema, flatten_json_schema, has_dot_keys, nest_flat_arguments, coerce_arguments_by_schema, prepare_mcp_call_arguments (POS: MCP inbound tool schema normalization)
-- result_processing::normalize_mcp_result, coerce_content_block, wrap_multimodal_text_blocks, truncate_multimodal_text_blocks, handle_oversized_output, emit_mcp_app_event (POS: MCP tool result normalization)
 - tool_processing::apply_tool_filter, enforce_description_limits, sanitize_tools, register_tool_annotations, prefix_tool_names (POS: MCP tool post-processing)
-- core.security.tool_registry::MCPAnnotations, SafetyMetadata, register_ptc_safety_metadata (POS: Tool metadata and permission mapping)
-- agent.streaming.types::AgentEventType (POS: Framework-agnostic streaming event types)
-- utils.runtime.progress_sink::get_tool_progress_sink (POS: Runtime tool progress event sink)
 - utils.runtime.cancellation::reraise_if_cancelled (POS: keep a stop aimed at this task from being absorbed as an SDK cancel-scope leak)
-- core.security.detection.content_boundary::wrap_untrusted (POS: 5-layer content boundary defense for MCP tool outputs)
-- core.security.redact::redact_sensitive_text (POS: Regex-based secret redaction for API keys, tokens, passwords in exception messages)
 - runtime.events::get_event_bus (wired via auth_notify at runtime import)
 - runtime.events.system_events::MCPAuthExpiredEvent (published by runtime handler)
-- httpx2::HTTPStatusError (POS: HTTP status error for 401 auth detection)
 
 [OUTPUT]
 - MCPAgent: MCP tool fetching, server mapping, post-processing chain orchestration, content boundary defense, upstream fault tolerance, auth error detection, ext-apps metadata emission, and oversized output vault spill (via injectable OversizedResultHandler callback)

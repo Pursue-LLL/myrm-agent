@@ -2,7 +2,6 @@
 
 [INPUT]
 - agent.security (POS: security types, approval flow, audit, engine)
-- agent.security.script_operand_verifier::compute_file_content_digest, extract_script_file_operand (POS: TOCTOU Defense verification)
 - ._allow_always::try_add_to_allowlist (POS: remember an approved call as always-allowed unless a guard blocks it)
 - .refusal::DenialCause, refusal_answer, rejection_cause (POS: the answer to a refused call, marked with who refused)
 

@@ -11,7 +11,6 @@ returning to callers.
 [INPUT]
 - app.database.models::UserConfig (POS: DB credential storage)
 - app.database.connection::get_session (POS: async DB session factory)
-- app.middleware.auth::get_local_admin_user_id (POS: local admin user resolution)
 - app.services.config.encryption::get_encryption_service (POS: credential decryption)
 
 [OUTPUT]

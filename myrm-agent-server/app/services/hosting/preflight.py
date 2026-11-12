@@ -1,7 +1,7 @@
 """Deploy preflight evaluation for artifact publishing.
 
 [INPUT]
-- app.services.hosting.packager::collect_publish_files, validate_publish_payload
+- app.services.hosting.packager::validate_publish_payload
 - app.services.hosting.viewer_scaffold::can_scaffold_viewer (POS: standalone viewer capability check)
 - app.services.hosting.artifact_files::resolve_artifact_deploy_files (POS: vault file collection)
 

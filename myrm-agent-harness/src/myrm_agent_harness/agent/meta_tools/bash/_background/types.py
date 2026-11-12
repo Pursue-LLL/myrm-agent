@@ -11,7 +11,7 @@ so that:
    never spawn jobs.
 
 [INPUT]
-- toolkits.code_execution.executors.models::AsyncProcessProtocol (POS: AsyncProcessProtocol — wait/terminate/kill handle.)
+- none (imports no other project module)
 
 [OUTPUT]
 - BackgroundProcessInfo: Snapshot dataclass exposed to UI/LLM.

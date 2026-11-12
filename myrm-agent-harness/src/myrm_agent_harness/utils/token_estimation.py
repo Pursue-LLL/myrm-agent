@@ -5,7 +5,7 @@
 - langchain_core.tools::BaseTool (POS: LangChain tool definitions)
 - pydantic::BaseModel (POS: v2 schema models, the only ones that can render a JSON Schema)
 - core.thinking_blocks::thinking_blocks_text (POS: 签名 thinking 块回放给模型的推理文本)
-- utils.text_utils::get_token_count, PLANNING_ENCODING (POS: Token 计数工具)
+- utils.text_utils::get_token_count (POS: Token 计数工具)
 - utils.image_utils::IMAGE_TOKEN_ESTIMATE, is_image_content_item (POS: 图片 Token 估算)
 
 [OUTPUT]

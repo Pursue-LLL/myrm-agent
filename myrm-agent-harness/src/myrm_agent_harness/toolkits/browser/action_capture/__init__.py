@@ -5,9 +5,6 @@ select, navigate, etc.) into structured ActionStep sequences. Used by the server
 layer to power the Browser Skill Recording Wizard.
 
 
-[INPUT]
-- patchright.async_api::Page (POS: Playwright page for event attachment)
-
 [OUTPUT]
 - ActionCaptureEngine: start/stop/pause/resume capture on a Playwright Page
 - CaptureCallback: Protocol for real-time step notification

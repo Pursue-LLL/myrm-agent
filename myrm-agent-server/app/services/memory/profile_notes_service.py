@@ -4,9 +4,9 @@
 - myrm_agent_harness.toolkits.memory.profile_notes::MemoryIntakeGarbageFilter
 - myrm_agent_harness.toolkits.memory.profile_notes::CapacityWatermarkGovernor
 - myrm_agent_harness.toolkits.memory.profile_notes::MemoryLayerType, WatermarkStatus
-- app.schemas.profile_notes::ProfileNotesIntakeRequest, ProfileNotesIntakeResponse
+- app.schemas.profile_notes::ProfileNotesIntakeResponse
 - app.schemas.profile_notes::LayerWatermarkResponse
-- app.schemas.profile_notes::ProfileNotesUpdateRequest, ProfileNotesContentResponse
+- app.schemas.profile_notes::ProfileNotesContentResponse
 
 [OUTPUT]
 - ProfileNotesService: singleton/scoped service managing USER and MEMORY content,

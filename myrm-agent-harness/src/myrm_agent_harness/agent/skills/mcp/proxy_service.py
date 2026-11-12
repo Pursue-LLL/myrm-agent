@@ -8,7 +8,7 @@ IPC Server 内部使用此服务处理子进程的 MCP 工具调用请求。
 - 提供 handle_mcp_invoke() 函数供 IPC Proxy 和自定义集成使用
 
 [INPUT]
-- agent.skills.mcp.cache_policy::CacheBuckets, resolve_cache_ttl (POS: PTC result-cache TTL policy)
+- agent.skills.mcp.cache_policy::resolve_cache_ttl (POS: PTC result-cache TTL policy)
 - agent.skills.mcp.call_backstop::call_within_backstop (POS: outer time bound for one script tool call)
 - backends.skills.types::SkillMetadata (POS: skill metadata: frontmatter fields plus load-time computed state)
 - toolkits.mcp::MCPConfig (POS: MCP toolkit entry point. Aggregates client management, agent tool fetching, connection pooling, configuration, and security validation for unified MCP protocol support.)

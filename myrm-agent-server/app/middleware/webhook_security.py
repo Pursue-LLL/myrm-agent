@@ -3,7 +3,6 @@
 Provides protection against OOM attacks via payload size limits.
 
 [INPUT]
-- fastapi::Request, Response
 - starlette.types::Message, Receive, Scope, Send
 
 [OUTPUT]

@@ -6,7 +6,6 @@ shell jobs merge in-process harness registry with durable BackgroundJobStore.
 
 [INPUT]
 - app.core.channel_bridge.setup::get_background_task_handler (POS: Channel gateway lifecycle)
-- app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Background task handler)
 - app.core.channel_bridge.persistent_background::is_persistent_background (POS: metadata SSOT)
 - app.services.kanban::KanbanService (POS: Kanban business service)
 - app.services.agent.shell_background_tasks (POS: registry + Store facade)

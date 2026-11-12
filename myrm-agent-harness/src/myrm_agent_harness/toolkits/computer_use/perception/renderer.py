@@ -2,7 +2,7 @@
 
 [INPUT]
 - dref.types::ElementRef, SnapshotMeta (POS: @dref snapshot metadata)
-- perception.ax_diff::RefDiff, UpdatedRef (POS: incremental diff result)
+- perception.ax_diff::RefDiff (POS: incremental diff result)
 
 [OUTPUT]
 - render_snapshot_tree(): full-tree text (+ optional `[N]` SOM prefixes) + enriched SnapshotMeta

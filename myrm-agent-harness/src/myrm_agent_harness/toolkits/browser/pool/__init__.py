@@ -1,10 +1,5 @@
 """Global browser resource pool — zero-copy page reuse, intelligent scheduling, proxy rotation.
 
-[INPUT]
-- patchright.async_api::Browser (POS: Patchright browser instance)
-- patchright.async_api::BrowserContext (POS: Patchright browser context)
-- patchright.async_api::Page (POS: Patchright page instance)
-
 [OUTPUT]
 - GlobalBrowserPool: global browser pool with zero-copy page reuse
 - PagePool: per-context page object pool

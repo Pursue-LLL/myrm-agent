@@ -3,8 +3,6 @@
 [INPUT]
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: GoalProvider protocol)
 - myrm_agent_harness.agent.goals.manager::GoalManager (POS: Implementation of GoalProvider)
-- app.services.kanban.service::KanbanService (POS: Kanban business service facade; domain logic lives in sibling orchestrator modules.)
-- app.services.event.app_event_bus::get_event_bus (POS: 应用级事件总线)
 - app.services.agent.platform_config::load_platform_llm (POS: WebUI 默认 wire-aware 对话模型)
 - app.database.models.artifact::Artifact (POS: Provides enterprise artifact models with tamper-evident tracking.)
 - app.core.utils.chat_utils::extract_answer_text (POS: LangChain 响应文本提取，含 reasoning 回退)

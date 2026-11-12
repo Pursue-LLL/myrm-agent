@@ -1,7 +1,7 @@
 """In-memory memory-brief cache keyed by chat scope + execution fingerprint.
 
 [INPUT]
-- stream_session.memory_brief::build_memory_brief_snapshot (POS: 流式会话的记忆预检构建器)
+- none (imports no other project module)
 
 [OUTPUT]
 - BriefCache get/put/invalidate for turn prewarm join

@@ -8,7 +8,7 @@
 - dynamic_workflow.prompts::SUMMARIZATION_PROMPT (POS: 执行结果汇总提示词 — 原始 stdout → 用户 Markdown)
 - dynamic_workflow.prompts::_MAX_STDOUT_FOR_SUMMARY (POS: 汇总前 stdout 截断预算)
 - dynamic_workflow.llm_query_tool::LlmQueryTool, LlmQueryBatchedTool (POS: PTC lightweight LLM sub-call primitives)
-- dynamic_workflow.linter::WorkflowLintReport, lint_workflow_script (POS: Dynamic Workflow AST static analysis and dataflow false-edge linter)
+- dynamic_workflow.linter::lint_workflow_script (POS: Dynamic Workflow AST static analysis and dataflow false-edge linter)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应答案提取 — str / block list / think 剥离 / reasoning 回退)
 - toolkits.code_execution.ptc::inject_ptc_for_python_execution (POS: Sandbox execution)
 - utils.runtime.cancellation::CancellationToken

@@ -4,7 +4,7 @@ Provides ready-to-use implementations of RouteRegistrar Protocol for
 popular web frameworks (FastAPI).
 
 [INPUT]
-- channels.protocols::RouteRegistrar (POS: Protocols for Skill Optimization Subsystem)
+- none (imports no other project module)
 
 [OUTPUT]
 - FastAPI implementation (bundled via uv sync / myrm-agent-harness[fastapi] in server deps)

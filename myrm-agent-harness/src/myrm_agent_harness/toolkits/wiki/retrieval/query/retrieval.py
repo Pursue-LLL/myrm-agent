@@ -1,6 +1,5 @@
 """[INPUT]
-- .base::SemanticSearchFn / WikiQueryBase (POS: 类型与共享状态)
-- wiki.core.structure::WikiStructure (POS: Wiki 文件系统抽象)
+- .base::WikiQueryBase (POS: 类型与共享状态)
 - wiki.pipeline.cognitive_map.index_routing (POS: index-first 路由)
 - wiki.retrieval.best_first (POS: best-first 图收敛)
 - wiki.retrieval.keyword_fallback::keyword_search (POS: 关键词兜底)

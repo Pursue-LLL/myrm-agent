@@ -3,7 +3,7 @@
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.reliability / websockets (POS: long-lived WebSocket transport to openws.work.weixin.qq.com)
-- channels.types::InboundMessage, MediaAttachment, ReplyContext (POS: channel message value types)
+- channels.types::MediaAttachment, ReplyContext (POS: channel message value types)
 
 [OUTPUT]
 - WeComAiBotInboundMixin: _ws_session (subscribe + heartbeat + frame loop) and the callback parsers used by WeComAiBotChannel

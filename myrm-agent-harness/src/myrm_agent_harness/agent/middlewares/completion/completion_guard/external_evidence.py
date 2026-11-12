@@ -14,7 +14,6 @@ Whether a request needs external data at all is decided by
 - langchain_core.messages::HumanMessage (POS: human turn content extraction)
 - core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 - completion.completion_guard.freshness::demands_external_evidence (POS: does the request need fresh external data)
-- agent.security.guards.loop_guard::CallRecord (POS: loop guard types)
 - toolkits.mcp.config::is_mcp_tool_name (POS: Direct FC MCP tool-name recognition)
 
 [OUTPUT]

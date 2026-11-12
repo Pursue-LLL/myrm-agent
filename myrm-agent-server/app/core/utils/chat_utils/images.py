@@ -1,6 +1,5 @@
 """[INPUT]
 - myrm_agent_harness.utils.chat_utils / image_utils / json_parsing (POS: framework primitives)
-- app.core.utils.files_utils::read_image_as_base64 (POS: image read helper)
 
 [OUTPUT]
 - _degrade_old_images / _needs_compression_base64 / _compress_base64_image.

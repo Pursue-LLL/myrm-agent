@@ -1,7 +1,7 @@
 """LLM-driven staleness review for memories that have exceeded their TTL.
 
 [INPUT]
-- memory.types::{BaseMemory, SemanticMemory, EpisodicMemory, MemoryStatus} (POS: memory data models)
+- memory.types::{BaseMemory, MemoryStatus} (POS: memory data models)
 - memory.strategies.forgetting::{ForgettableMemory} (POS: type alias)
 - utils.json_parsing::parse_llm_json_list (POS: robust JSON array extraction from LLM output — fences, prose, bare control chars, trailing commas)
 

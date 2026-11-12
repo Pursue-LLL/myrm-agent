@@ -7,7 +7,6 @@ Invokes ContextPreCompactCallback to inject protected recall block or short-circ
 - pipeline.processors.compress_processor::CompressProcessor (POS: 消息压缩处理器)
 - pipeline.processors.session_notes_processor::SessionNotesProcessor (POS: 会话备忘录处理器)
 - pipeline.processors.summarize_processor::SummarizeProcessor (POS: 会话摘要处理器)
-- infra.schemas_pre_compact::PreCompactDecision (POS: 预压缩三态决策契约)
 - infra.retention_helpers::extract_user_goal_hint (POS: cross-processor retention contract)
 
 [OUTPUT]

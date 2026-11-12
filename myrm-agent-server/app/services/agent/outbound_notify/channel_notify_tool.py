@@ -4,7 +4,7 @@
 - .protocols::NotificationSender (POS: outbound notification sender protocol)
 - .target_resolver::resolve_notify_target (POS: whitelist target resolution)
 - .types::NotifySessionState, NotifyToolConfig (POS: outbound notification data types)
-- app.channels.types.messages::MediaAttachment, MediaType, guess_media_type (POS: media types)
+- app.channels.types.messages::MediaAttachment, guess_media_type (POS: media types)
 
 [OUTPUT]
 - create_channel_notify_tool: Factory for channel_notify_tool BaseTool.

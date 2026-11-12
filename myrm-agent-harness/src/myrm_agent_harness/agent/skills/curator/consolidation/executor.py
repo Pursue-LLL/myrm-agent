@@ -6,7 +6,7 @@ content, demoting to support files, and inheriting usage statistics.
 [INPUT]
 - backends.skills.creation_protocols::SkillWriteBackend (POS: Skill write-backend protocol.)
 - backends.skills.stats_collector::SkillStatsCollector (POS: Skill usage statistics collector.)
-- backends.skills.types::SkillMetadata, SkillUsageStats, SkillLifecycleStatus (POS: Skill types.)
+- backends.skills.types::SkillMetadata (POS: Skill types.)
 - .types::ConsolidationAction, ConsolidationResult, ConsolidationReport, occupied_names, is_consolidation_eligible (POS: consolidation types.)
 
 [OUTPUT]

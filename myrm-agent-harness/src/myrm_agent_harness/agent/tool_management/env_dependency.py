@@ -4,8 +4,7 @@ Declares required host/sandbox runtime dependencies (system binaries, Python pac
 OS capabilities) for Action Tools, providing forward inspection and reverse impact analysis.
 
 [INPUT]
-- .tool_layers::ToolLayer, _TOOL_LAYERS (POS: Tool action space SSOT)
-- .types::ToolSnapshot (POS: Tool metadata for API inspection)
+- .tool_layers::_TOOL_LAYERS (POS: Tool action space SSOT)
 
 [OUTPUT]
 - DependencyKind: Enum (SYSTEM_BINARY, PYTHON_PACKAGE, RUNTIME_FEATURE, OS_CAPABILITY)

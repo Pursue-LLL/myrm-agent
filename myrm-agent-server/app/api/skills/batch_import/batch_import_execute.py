@@ -3,11 +3,9 @@
 [INPUT]
 - app.api.skills._staging::SkillStagingManager (POS: 会话暂存管理，`_cleanup_expired_sessions_sync` 供后台任务)
 - app.api.skills.batch_import_schemas::ConfirmImportRequest (POS: 确认导入请求体)
-- app.api.skills.evolution.helpers::_get_skill_store (POS: 技能存储单例)
 - myrm_agent_harness.agent.skills.evolution.core.types::EvolutionType / SkillLineage / SkillRecord
 - myrm_agent_harness.agent.skills.packaging::is_evals_file / parse_evals_json
 - myrm_agent_harness.agent.skills.optimization.security::SkillSecurityValidator
-- myrm_agent_harness.agent.skills.optimization.config::SecurityConfig
 
 [OUTPUT]
 - execute_batch_import_confirm: 执行安全预检 + 蓝绿目录准备 + DB 批量事务 + 目录原子替换，返回 (imported_count, skipped_count, restored_eval_cases)

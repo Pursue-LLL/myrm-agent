@@ -1,7 +1,7 @@
 """Streaming response processing mixin
 
 [INPUT]
-- langchain_core.messages::AIMessageChunk, BaseMessageChunk, ToolCallChunk (POS: LangChain message chunk types)
+- langchain_core.messages::AIMessageChunk, ToolCallChunk (POS: LangChain message chunk types)
 - langchain_core.outputs::ChatGenerationChunk (POS: LangChain generation chunk type)
 - core.thinking_blocks (POS: the signed reasoning blocks of an Anthropic-family answer)
 

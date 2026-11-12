@@ -1,7 +1,7 @@
 """Chat CRUD, session flush and pinned-thread operations mixin.
 
 [INPUT]
-- _base::_ChatServiceBase, _ChatRepositoryPort (POS: repository 协议和访问器)
+- _base::_ChatServiceBase (POS: repository 协议和访问器)
 - database.dto::ChatCreate, ChatDTO, MessageCreate, MessageDTO (POS: 数据传输对象)
 - chat_disposal (POS: 会话结束后的统一拆除步骤)
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)

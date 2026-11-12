@@ -1,9 +1,5 @@
 """Shared-link security primitives (HMAC tokens, privacy headers, unlock cookies).
 
-[INPUT]
-- app.config.settings::settings (POS: signing key material)
-- starlette.requests::Request / fastapi Response (POS: password-gate & unlock-cookie I/O)
-
 [OUTPUT]
 - Aggregate facade re-exporting every public name from the ``share`` subpackage:
   - share_hmac: create/sign/parse/verify stateless share tokens, token_fingerprint, decode_unverified_payload

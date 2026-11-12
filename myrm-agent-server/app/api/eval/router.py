@@ -1,9 +1,9 @@
 """Eval API Router.
 
 [INPUT]
-- fastapi::APIRouter, Depends, HTTPException
+- fastapi::APIRouter, HTTPException
 - app.api.eval.streaming::stream_status_events (POS: eval SSE 状态流公共 helper)
-- app.core.eval.service::run_eval_suite, get_eval_status, ...
+- app.core.eval.service::get_eval_status, ...
 - app.core.eval.datasets::get_eval_cases, save_eval_cases, get_all_datasets
 - app.core.eval.reports::DEFAULT_REPORTS_DIR, get_latest_report_summary, ...
 - app.api.eval.matrix_router / app.api.eval.memory_ab_router: sub-routers

@@ -2,7 +2,6 @@
 
 [INPUT]
 - app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现)
-- execution_cache.registry::ChatAgentExecutionCache (POS: 缓存注册表)
 - stream_session.memory_brief::build_memory_brief_snapshot (POS: 流式会话的记忆预检构建器)
 
 [OUTPUT]

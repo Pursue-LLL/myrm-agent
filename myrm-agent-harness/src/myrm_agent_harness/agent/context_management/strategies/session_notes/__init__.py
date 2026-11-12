@@ -1,9 +1,5 @@
 """Session Notes — real-time structured notes.
 
-[INPUT]
-- langchain_core.messages::BaseMessage (POS: LangChain 消息基类)
-- langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
-
 [OUTPUT]
 - SessionNotes: 会话笔记数据结构
 - SessionNotesManager: 后台异步更新管理器

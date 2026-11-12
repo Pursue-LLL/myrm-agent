@@ -1,7 +1,6 @@
 """Artifacts management API.
 
 [INPUT]
-- app.database.connection::get_session (POS: Database session)
 - app.database.models.artifact::Artifact (POS: Artifact models)
 - myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Vault object reader for candidate probing, verify and bundles)
 - app.services.project.assessment_import_service::parse_assessment_markdown (POS: Assessment import parser SSOT)

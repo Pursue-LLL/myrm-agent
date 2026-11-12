@@ -7,7 +7,7 @@
 - storage_conversation::{doc_to_conversation, embed_conversations, store_conversations_batch} (POS: dual-embedding conversation storage and read)
 - storage_context::{load_context, WORKING_STATE_*} (POS: context loading for agent prompt)
 - bm25_sparse::is_sparse_authoritative (POS: embeddings-less content rewrites)
-- memory.types::{SemanticMemory, EpisodicMemory, ConversationMemory, ...} (POS: memory data models)
+- memory.types::{SemanticMemory, EpisodicMemory, ...} (POS: memory data models)
 
 [OUTPUT]
 - store_semantic, store_episodic, store_conversations_batch: Vector storage write functions

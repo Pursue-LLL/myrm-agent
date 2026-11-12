@@ -1,7 +1,9 @@
 """Chat-scoped execution cache for built SkillAgent units.
 
 [INPUT]
-- myrm_agent_harness.api::SkillAgent (POS: harness agent 实例)
+- app.config.settings::settings (POS: Aggregate exit of the settings package (`app.config.settings`).)
+- app.services.agent.execution_cache.types::BuiltExecutionUnit (POS: execution_cache 类型层。定义 pooled/ephemeral 模式与可复用构建单元。)
+- app.services.agent.execution_cache.fingerprint::build_execution_scope_key (POS: execution_cache 指纹层。)
 
 [OUTPUT]
 - ChatAgentExecutionCache: reuse BuiltExecutionUnit per chat+agent scope

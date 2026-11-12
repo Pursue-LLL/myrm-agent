@@ -1,7 +1,7 @@
 """Dispatch loop and single-task execution for KanbanDispatcher.
 
 [INPUT]
-- .types::BlockKind, TaskRunOutcome, TaskStatus, TaskTimeoutError, TaskExecutionResult (POS: Kanban domain types.)
+- .types::BlockKind, TaskStatus, TaskTimeoutError, TaskExecutionResult (POS: Kanban domain types.)
 - .protocols::KanbanStore, TaskRunner (POS: Protocols for the kanban toolkit.)
 
 [OUTPUT]

@@ -10,7 +10,6 @@ Tracks streaming performance indicators:
 - Anomaly detection and alerting
 
 [INPUT]
-- infra.tracing.metrics::MetricsCollector (POS: Aggregates evolution metrics across all skills for system-level insights.)
 - infra.tracing::get_tracer (POS: tracer of the reply span)
 
 [OUTPUT]

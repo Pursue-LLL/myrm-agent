@@ -4,7 +4,7 @@ Stateless utilities for event parsing, URL sanitization, and media type detectio
 All functions are side-effect-free and easily testable.
 
 [INPUT]
-- app.channels.types::InboundMessage, MediaAttachment (POS: Channel domain types.)
+- app.channels.types::MediaAttachment (POS: Channel domain types.)
 
 [OUTPUT]
 - sanitize_urls: Replace dots in URL domains with fullwidth period for group messages

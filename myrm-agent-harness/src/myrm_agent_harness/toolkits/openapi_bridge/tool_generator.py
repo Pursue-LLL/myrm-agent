@@ -4,7 +4,6 @@ Converts parsed OpenAPI endpoints into LangChain StructuredTool instances
 with namespace isolation, parameter constraint propagation, and proper descriptions.
 
 [INPUT]
-- langchain_core.tools::StructuredTool (POS: LangChain tool factory base)
 - mcp.structured_tool::SafeStructuredTool (POS: reserved-name-safe StructuredTool subclass)
 - .spec_parser::ParsedSpec (POS: parsed spec intermediate representation)
 - .http_executor::OpenAPIExecutor (POS: HTTP request executor)

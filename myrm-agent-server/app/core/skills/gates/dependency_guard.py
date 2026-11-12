@@ -5,7 +5,6 @@ review, disable, and uninstall flows can surface impacted dependents.
 
 [INPUT]
 - app.core.skills.store.evolution_store::get_evolution_skill_store (POS: 进化 SQLite 入口)
-- myrm_agent_harness.agent.skills.evolution::SkillStore (POS: harness 进化存储)
 
 [OUTPUT]
 - get_dependents_for_skill: 返回依赖某技能的库内技能 ID 列表

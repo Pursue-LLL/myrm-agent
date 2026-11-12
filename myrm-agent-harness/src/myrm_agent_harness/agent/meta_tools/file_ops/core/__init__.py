@@ -3,11 +3,6 @@
 [INPUT]
 - file_ops/observers, validators, strategies: file operation sub-domains
 - toolkits (storage, shared exceptions) / utils (crypto, db, coercion)
-- file_parsers.pdf.pdf::PDFPlumberParser (POS: PDF parser based on pdfplumber.
-  Implements text layout preservation, Markdown table extraction, and PDF bookmark
-  injection)
-- file_parsers.pdf.pdf_content_extractor::extract_pdf_content (POS: Smart PDF
-  extraction orchestrator — Text / Hybrid / Image strategy + OCR fallback)
 
 [OUTPUT]
 - FileOperationService: file operation service (vault markdown FM preserve +

@@ -5,7 +5,6 @@
 - contextlib (POS: standard library context utilities)
 - uuid (POS: standard library UUID generation)
 - ..core.config::WikiConfig (POS: Wiki configuration center)
-- myrm_agent_harness.toolkits.vector.base::VectorDocument (POS: vector document)
 - myrm_agent_harness.toolkits.retriever.fusion_strategies::rrf_fusion (POS: result fusion strategy)
 - myrm_agent_harness.utils.db.fts5::relevance_from_rank (POS: FTS5 rank relevance)
 - .fts_federation::attached_tables (POS: shared index discovery)

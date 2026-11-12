@@ -1,7 +1,6 @@
 """Scheduled whole-instance backup for local and desktop instances.
 
 [INPUT]
-- app.services.instance_archive.export_jobs::ExportJobManager (POS: background export jobs, one at a time, shared with the manual flow)
 - app.services.instance_archive.auto_backup.service (POS: scheduled backup as the API and the scheduler use it)
 
 [OUTPUT]

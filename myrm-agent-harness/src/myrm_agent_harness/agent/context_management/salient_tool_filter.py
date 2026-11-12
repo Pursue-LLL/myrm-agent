@@ -1,7 +1,7 @@
 """Salient Tool Output Filter & Verbatim Evidence Extractor.
 
 [INPUT]
-- langchain_core.messages::ToolMessage, BaseMessage (POS: LangChain tool message abstraction)
+- langchain_core.messages::ToolMessage (POS: LangChain tool message abstraction)
 
 [OUTPUT]
 - SalientToolEvidence: Structured salient tool output evidence dataclass

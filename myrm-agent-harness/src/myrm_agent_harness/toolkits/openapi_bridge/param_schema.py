@@ -6,7 +6,6 @@ Swagger 2.0 operations: path/query/header ``parameters`` plus the request body
 so the merged schema is self-contained for LLM consumption.
 
 [INPUT]
-- .config::ParsedEndpoint (POS: endpoint metadata model)
 - mcp.schema.normalize::flatten_json_schema (POS: $ref inlining utility)
 
 [OUTPUT]

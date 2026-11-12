@@ -1,7 +1,7 @@
 """Local Eval Executor for the Server Layer.
 
 [INPUT]
-- myrm_agent_harness.eval.protocol::AgentExecutor, AgentResponse
+- myrm_agent_harness.eval.protocol::AgentResponse
 - app.ai_agents.agents::AgentFactory, GeneralAgentParams
 - app.core.channel_bridge.config_loader::load_user_configs
 - app.core.channel_bridge.config_parsers::extract_*

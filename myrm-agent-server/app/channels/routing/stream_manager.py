@@ -8,7 +8,6 @@ Provides:
 5. StreamCoordinator: Unified coordinator for all streaming components
 
 [INPUT]
-- app.channels.types::StreamingText (POS: accumulated streaming text snapshot emitted while an answer is generated)
 - app.channels.routing.graceful_degradation::GracefulDegradationController (POS: smooth quality adaptation, never blocks updates)
 
 [OUTPUT]

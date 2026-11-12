@@ -4,7 +4,6 @@
 [INPUT]
 - patchright.async_api::Page (POS: Patchright page instance)
 - snapshot::FrameRegistry (POS: multi-frame registry manager)
-- snapshot::RefInfo (POS: element ref metadata)
 - session.snapshot_diff::SnapshotDiffEngine (POS: semantic diff)
 - session.snapshot_suggestion::generate_snapshot_suggestion (POS: large page suggestion)
 

@@ -3,7 +3,6 @@
 
 [INPUT]
 - logging::getLogger (POS: Python logging)
-- time::perf_counter (POS: high-precision timer)
 - urllib.parse::urlparse (POS: URL parsing)
 - patchright.async_api::Page (POS: Patchright page instance)
 - .pool.throttle::ThrottleStrategy (POS: throttle strategy protocol)

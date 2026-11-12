@@ -5,7 +5,6 @@ Defines host configurations, probe results, execution results, and SFTP transfer
 [INPUT]
 - pydantic::BaseModel, Field
 - typing::List, Optional
-- re::Pattern
 
 [OUTPUT]
 - SSHHostConfig, SSHProbeResult, SSHCommandPayload, SSHCommandResult, SFTPTransferResult, SSHAssetSummary

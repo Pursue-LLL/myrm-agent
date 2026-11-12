@@ -1,5 +1,5 @@
 """[INPUT]
-- app.services.agent.params.models::MentionReferenceRequest (POS: structured @ reference DTO)
+- none (imports no other project module)
 
 [OUTPUT]
 - MentionContext: per-turn accumulation state shared by the pipeline and every reference handler

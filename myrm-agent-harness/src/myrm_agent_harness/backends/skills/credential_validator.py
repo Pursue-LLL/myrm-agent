@@ -7,7 +7,6 @@ Validates credential file paths declared in skill frontmatter, ensuring they:
 - Exist on the file system
 
 [INPUT]
-- types::SkillMetadata (POS: skill metadata with required_credential_files)
 - pathlib::Path (stdlib: path operations)
 
 [OUTPUT]

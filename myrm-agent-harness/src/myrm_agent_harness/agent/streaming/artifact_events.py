@@ -1,7 +1,6 @@
 """Artifact 事件处理
 
 [INPUT]
-- agent.artifacts::ArtifactRegistry, InlineArtifactQueue, RealtimeContentQueue (POS: 文件/内联/实时内容注册表)
 - toolkits.code_execution.executors.base::get_executor (POS: 沙箱文件读取句柄)
 
 [OUTPUT]

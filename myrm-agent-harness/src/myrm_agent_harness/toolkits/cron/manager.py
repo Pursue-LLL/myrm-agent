@@ -5,8 +5,8 @@ The ``CronManager`` is the single entry point for all job mutations
 (used by both agent tools and API routes).
 
 [INPUT]
-- cron.engine.parser::compute_next_run, validate_cron_expr, validate_timezone (POS: cron expression parser and validator)
-- cron.triggers::TriggerConfig, WebhookTrigger, generate_webhook_path, generate_webhook_secret (POS: event trigger definitions)
+- cron.engine.parser::compute_next_run (POS: cron expression parser and validator)
+- cron.triggers::TriggerConfig, WebhookTrigger (POS: event trigger definitions)
 - cron.types::CronJob, CronJobPatch, JobStatus, JobType, ScheduleKind, etc. (POS: cron data models)
 - cron.protocols::CronStore (POS: cron job persistence protocol)
 - cron.engine.scheduler::CronScheduler (POS: timer-based scheduling engine)

@@ -5,7 +5,6 @@
 - myrm_agent_harness.toolkits.kanban.types::TaskStatus
 - core.kanban.adapters::SqlAlchemyKanbanStore
 - event_publisher::publish_kanban_event
-- move_orchestrator::cancel_task_execution
 
 [OUTPUT]
 - revise_plan: Orchestrates atomic plan revision with running worker cancellation and downstream promotion.

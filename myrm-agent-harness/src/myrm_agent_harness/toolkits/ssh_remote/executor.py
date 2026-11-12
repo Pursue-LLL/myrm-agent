@@ -1,7 +1,7 @@
 """Asynchronous SSH and SFTP remote executor with safety guards and log distillation.
 
 [INPUT]
-- .models::SSHHostSpec, SSHCommandResult, SFTPTransferResult, SSHAuthType
+- .models::SSHHostSpec, SSHCommandResult, SSHAuthType
 - myrm_agent_harness.toolkits.code_execution.utils.log_distiller::TerminalLogDistiller
 
 [OUTPUT]

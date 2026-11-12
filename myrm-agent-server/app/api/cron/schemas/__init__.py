@@ -1,8 +1,5 @@
 """Cron API schemas.
 
-[INPUT]
-- pydantic::BaseModel (POS: schema base)
-
 [OUTPUT]
 - Every cron request/response model, re-exported for the routers.
 

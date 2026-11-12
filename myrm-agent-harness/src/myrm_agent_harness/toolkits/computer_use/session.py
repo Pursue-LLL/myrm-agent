@@ -9,7 +9,7 @@ single cohesive API surface. Agent tools interact exclusively with this class.
 - coordinate_scaler::CoordinateScaler (POS: coordinate transformation)
 - screen_guard::ScreenGuard (POS: lock / sleep gate with host-provided on-demand unlock)
 - utils.runtime.user_control::UserControl, get_user_control (POS: process-wide human-control hold consulted before every mutating call)
-- types::ComputerAction, ComputerUseConfig, ActionResult, PermissionStatus, ExecutionMode, ForegroundPermissionCallback, ForegroundPermissionScope, ScreenUnlockCallback (POS: shared types)
+- types::ComputerUseConfig, ActionResult, PermissionStatus, ExecutionMode, ForegroundPermissionCallback, ForegroundPermissionScope, ScreenUnlockCallback (POS: shared types)
 
 [OUTPUT]
 - ComputerSession: high-level session manager

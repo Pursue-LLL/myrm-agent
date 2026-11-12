@@ -1,8 +1,5 @@
 """Personal memory command center API schemas.
 
-[INPUT]
-- pydantic::BaseModel (POS: request/response model base)
-
 [OUTPUT]
 - Every command-center response model, re-exported for the routers.
 

@@ -6,7 +6,6 @@ provides crash recovery hydration for long-running autonomous runs.
 
 [INPUT]
 - myrm_agent_harness.api.security::arm_task_airbag (POS: 长任务挂机安全气囊武装与快照捕捉)
-- myrm_agent_harness.api.security::rollback_task_airbag (POS: 长任务挂机时光倒流原子重置还原)
 - myrm_agent_harness.api.security::get_task_airbag_diff (POS: 长任务变更反向 Diff 账本汇总)
 - myrm_agent_harness.api.security::TaskAirbagManifest (POS: 挂机安全气囊元数据快照契约)
 - myrm_agent_harness.api.security::TaskAirbagStatus (POS: 挂机安全气囊生命周期状态枚举)

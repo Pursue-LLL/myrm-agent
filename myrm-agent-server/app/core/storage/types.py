@@ -2,7 +2,7 @@
 
 
 [INPUT]
-- enum::Enum (POS: Python enum type)
+- none (imports no other project module)
 
 [OUTPUT]
 - FilePurpose: file purpose enum (UPLOAD, GENERATED, SKILL)

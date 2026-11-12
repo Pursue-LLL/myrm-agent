@@ -1,7 +1,6 @@
 """
 [INPUT]
 - app.api.skills.evolution.helpers::_require_evolvable_record (POS: Helper functions for evolution API)
-- myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before a model reads it)
 
 [OUTPUT]

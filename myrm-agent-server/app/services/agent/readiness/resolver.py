@@ -8,7 +8,6 @@ references) against the agent vault so missing credentials surface before runtim
 
 [INPUT]
 - .models::AgentReadinessItem, AgentReadinessReport, ReadinessCode, ReadinessLevel (POS: wire contract)
-- app.services.agent.profile.profile_resolver::AgentProfileResolver (POS: per-agent profile SSOT)
 - app.core.channel_bridge.config_readiness::ProviderConfigChecker (POS: provider readiness)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: global user config)
 - app.services.agent.backends.secret_backend::DatabaseSecretBackend (POS: agent secret vault)

@@ -7,8 +7,7 @@ a mutating activation on a dangerous desktop control is gated identically to
 its browser DOM counterpart regardless of which channel performs it.
 
 [INPUT]
-- core.security.detection.semantic_risk::SemanticRiskLevel, RiskVerdict,
-  classify_element_risk (POS: 跨通道破坏性控件语义词典 SSOT)
+- core.security.detection.semantic_risk::SemanticRiskLevel, classify_element_risk (POS: 跨通道破坏性控件语义词典 SSOT)
 - dref.types::ElementRef, INTERACTIVE_AX_ROLES (POS: AX 元素引用与可交互角色集)
 - coordinate_scaler::CoordinateScaler (POS: 截图图像空间↔屏幕空间双向转换)
 - langgraph.types::interrupt (POS: HITL interrupt 机制)

@@ -5,12 +5,6 @@ LangGraph Checkpointer. The checkpointer handles state snapshots for fast
 recovery; the event log captures the full decision trail for audit,
 debugging, cross-session analysis, and task-level replay.
 
-[INPUT]
-- agent.streaming.types::AgentEventType (POS: event type enum for streaming agent responses)
-- security.audit::SecurityDecision (POS: Cross-cutting concern. Called from tool_interceptor_middleware and all security guard modules at every decision point.)
-- core.security.detection.leak_detector::redact_leaks (POS: Output-side credential leak detector: credential patterns, Shannon entropy and PEM blocks)
-- infra.tracing.propagation::get_current_trace_id (POS: current trace id as a hex string, None without an active span)
-
 [OUTPUT]
 - EventLogBackend: 5th framework protocol (append / query / get_all_session_ids / close)
 - StructuredEvent: typed event record

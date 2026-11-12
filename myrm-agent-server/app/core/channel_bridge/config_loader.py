@@ -17,7 +17,7 @@ config updates so load_user_configs returns fresh data.
 
 [INPUT]
 - app.database.models::UserConfig
-- app.core.types::ModelConfig, MCPServerConfig
+- app.core.types::ModelConfig
 - app.services.config_encryption_service (敏感配置解密)
 - app.core.channel_bridge.config_parsers::extract_active_search_config, is_search_user_configured
 - app.services.agent.provider_oauth_tokens::PROVIDER_OAUTH_ISSUERS, refresh_provider_oauth_credentials (subscription token registry and renewal)

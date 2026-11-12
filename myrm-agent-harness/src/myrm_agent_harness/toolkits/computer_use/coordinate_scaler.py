@@ -8,7 +8,7 @@ Scaling chain:
   API coords → ×(screen/sent) → screen coords → ×dpi_scale → physical coords
 
 [INPUT]
-- types::ScreenInfo (POS: screen dimensions and DPI)
+- none (imports no other project module)
 
 [OUTPUT]
 - CoordinateScaler: stateless bidirectional scaler

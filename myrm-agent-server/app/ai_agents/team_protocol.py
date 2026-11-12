@@ -1,7 +1,6 @@
 """Team Leader Operating Protocol — prompt injection for team-type agents.
 
 [INPUT]
-- myrm_agent_harness.backends.profiles.types::AgentProfile (POS: Agent Profile data)
 - app.services.agent.agent_service::AgentService (POS: Agent CRUD)
 
 [OUTPUT]

@@ -4,7 +4,7 @@ Decouples harness finish listeners from the server layer so chat history
 can record job completion without a headless LLM run.
 
 [INPUT]
-- agent.meta_tools.bash._background.types::BackgroundProcessInfo (POS: job snapshot)
+- none (imports no other project module)
 
 [OUTPUT]
 - BackgroundJobFinishResult: Immutable finish payload for server handlers

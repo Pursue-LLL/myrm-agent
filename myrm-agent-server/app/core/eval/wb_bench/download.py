@@ -2,7 +2,6 @@
 
 [INPUT]
 - httpx: HTTP client for HuggingFace dataset downloads
-- myrm_agent_harness.eval::MultiTurnEvalCase, EvalCase, SandboxAssertion
 
 [OUTPUT]
 - list_wb_bench_sources(): catalog of the four WorkBuddy Bench subsets

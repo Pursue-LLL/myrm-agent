@@ -2,7 +2,7 @@
 
 [INPUT]
 - langchain.tools::tool (POS: LangChain 工具装饰器)
-- core::FileOperationService, OperationContext, OperationType (POS: 文件操作服务)
+- core::FileOperationService (POS: 文件操作服务)
 - agent.security.redact::redact_sensitive_text, redact_file_text (POS: 工具输出脱敏；逐文件脱敏：源码文件只对含字符串字面量的行做按变量名脱敏)
 - backends.skills.types::SkillMetadata (POS: MCP 技能元数据)
 - core.file_read::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器)

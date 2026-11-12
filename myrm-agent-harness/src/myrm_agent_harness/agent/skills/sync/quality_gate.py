@@ -4,7 +4,6 @@ Threshold-based skill quality gate — framework-provided, zero-LLM-cost.
 Business layer can override with LLM-based multi-dimension verification.
 
 [INPUT]
-- .protocols::SkillQualityGateProtocol
 - .types::GateVerdict
 
 [OUTPUT]

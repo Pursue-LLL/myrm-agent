@@ -1,7 +1,7 @@
 """Failure Signature (ci, qi, mi) Clustering & Dual-Axis Addressability Engine.
 
 [INPUT]
-- protocols::EvalTurnResult, EvalResult (POS: evaluation trajectory models)
+- protocols::EvalResult (POS: evaluation trajectory models)
 - trajectory_analysis::FailureMode, analyze_turn_failure_mode (POS: root-cause failure classifier)
 
 [OUTPUT]

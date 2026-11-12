@@ -1,10 +1,5 @@
 """Web Push (VAPID) notification module.
 
-[INPUT]
-- app.services.event.app_event_bus::ServerEventBus, AppEvent, AppEventType
-- app.database.connection::get_session
-- app.database.models::WebPushSubscription
-
 [OUTPUT]
 - WebPushService: VAPID key management, subscription CRUD, push sending
 - get_web_push_service: process-wide singleton accessor of WebPushService (the REST endpoints live in app.api.web_push)

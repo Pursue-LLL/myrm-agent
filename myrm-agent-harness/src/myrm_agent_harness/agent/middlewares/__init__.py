@@ -1,27 +1,5 @@
 """Agent middleware system.
 
-1. 本文件的 INPUT/OUTPUT/POS 注释
-
-[INPUT]
-- context_pipeline_middleware::create_context_pipeline_middleware (POS: 1.)
-  (POS: 上下文管道中间件工厂，集成 ContextPipeline)
-- debug_logger_middleware::debug_logger_middleware (POS: Provides debug_logger_middleware.)
-  (POS: 调试日志中间件，记录完整消息列表)
-- tool_interceptor_middleware::tool_interceptor_middleware (POS: Single interception point for all tool calls. Each guard is an independent module; this middleware only orchestrates their execution order.)
-  (POS: 工具拦截中间件，异常捕获和验证)
-- approval::ApprovalRateLimiter (POS: Approval queue helpers. Handles AnyMemory ↔ PendingRecord conversion for the approval pipeline. Internal only — not part of the public API.)
-  (POS: 审批子系统，含速率限制器)
-- plan_confirm_middleware::PlanConfirmMiddleware (POS: Plan-phase HITL gate)
-  (POS: Plan-phase HITL: intercept first todo_write plan for user review via interrupt())
-- goal_focus_middleware::goal_focus_middleware (POS: Active goal objective injection)
-  (POS: 用户发起轮在末位 HumanMessage 注入 ACTIVE goal objective；continuation/wrap-up 轮跳过)
-- concurrency.tool_conflict_gate::ToolConflictGateMiddleware (POS: Which tool calls of one agent may run at the same moment.)
-  (POS: 工具冲突闸门，并发安全的调用共享、其余调用独占)
-- subagent_limit_middleware::subagent_limit_middleware (POS: Subagent limit middleware. Ensures the LLM cannot spawn more than MAX_CONCURRENT_SUBAGENTS in a single turn.)
-  (POS: LLM Fan-out 保护，限制单轮 delegate_task 调用数)
-- security.detection.tool_result_validator::ValidationResult (POS: Provides ValidationResult, validate_tool_result, should_apply_validation.)
-  (POS: 工具结果验证器，实现位于 security/)
-
 [OUTPUT]
 - create_context_pipeline_middleware(): 上下文管道中间件工厂函数
 - debug_logger_middleware: 调试日志中间件
@@ -29,7 +7,6 @@
 - ToolConflictGateMiddleware: 工具冲突闸门中间件类
 - PlanConfirmMiddleware: Plan-phase HITL 中间件类
 - reset_plan_confirm_state(): 重置 plan confirm 状态
-- goal_focus_middleware(): Active goal objective 注入中间件工厂
 - ValidationResult: 验证结果数据类（security 模块的再导出）
 - validate_tool_result(): 工具结果验证函数（security 模块的再导出）
 

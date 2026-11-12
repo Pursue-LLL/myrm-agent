@@ -2,7 +2,6 @@
 
 [INPUT]
 - SQLite FTS5 (POS: embedded full-text search index)
-- app.database.models.chat::Chat, Message, ConversationFork (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
 
 [OUTPUT]
 - CONVERSATION_RECALL_SCHEMA_SQL: Schema and trigger statements for the recall index.

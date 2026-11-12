@@ -7,7 +7,7 @@
 - json (POS: Python标准库，JSON序列化)
 - pathlib::Path (POS: Python标准库，路径操作)
 - time (POS: Python标准库，时间戳)
-- typing::Dict, List (POS: Python类型提示)
+- typing::List (POS: Python类型提示)
 - infra.atomic_write::atomic_write (POS: 崩溃一致性文件写入工具，temp file + fsync + atomic rename)
 - agent.sub_agents.checkpoint.metrics::CheckpointMetrics (POS: 检查点保存/恢复指标数据结构)
 - utils.logger_utils::get_agent_logger (POS: Agent 日志工具)

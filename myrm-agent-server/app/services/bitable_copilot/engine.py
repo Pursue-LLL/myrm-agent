@@ -5,7 +5,7 @@ with full schema awareness, diff generation, and bidirectional write-back suppor
 
 [INPUT]
 - .models::TableContextPayload, BatchWranglingResult, CellMutation, TableFieldSchema
-- typing::Dict, List, Optional, Any, Callable
+- typing::Dict, List, Optional, Any
 - re, time, uuid
 
 [OUTPUT]

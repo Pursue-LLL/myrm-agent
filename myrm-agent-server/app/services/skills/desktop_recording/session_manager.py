@@ -1,7 +1,6 @@
 """Desktop recording session registry: retention, lifecycle and capture-loop ownership.
 
 [INPUT]
-- app.schemas.desktop_recorder::schemas (POS: recording DTOs + session state container)
 - app.services.skills.desktop_recording::capture_task (POS: AX capture loop lifecycle)
 
 [OUTPUT]

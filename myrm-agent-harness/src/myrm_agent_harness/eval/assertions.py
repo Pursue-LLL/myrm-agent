@@ -1,7 +1,6 @@
 """Tool, State, and Semantic Assertion Engine.
 
 [INPUT]
-- protocol::EvalCase (POS: eval case with expected tools and assertions)
 - eval.judge_call::judge_completion (POS: LLM judge call with bounded retry)
 
 [OUTPUT]

@@ -1,7 +1,7 @@
 """Humanized wheel-burst scrolling behaviors for the Interactor.
 
 [INPUT]
-- pool.config::HumanizeConfig, HumanizeMode (POS: interaction humanization config)
+- pool.config::HumanizeMode (POS: interaction humanization config)
 - session.humanize::bezier_move, wheel_burst, scroll_notch_delta, scroll_burst_break_ms, scroll_phase_steps (POS: humanized delay, Bézier mouse, and wheel-burst scroll helpers)
 
 [OUTPUT]

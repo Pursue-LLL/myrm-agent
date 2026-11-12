@@ -2,11 +2,6 @@
 
 Aggregated public API for the ``specify`` subpackage.
 
-[INPUT]
-- myrm_agent_harness.toolkits.kanban.protocols::SpecifyOutcome, TaskSpecifier
-    (POS: Harness protocol for TRIAGE→spec rewrite.)
-- myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Domain task type.)
-
 [OUTPUT]
 - PlatformTaskSpecifier: Concrete TaskSpecifier using the platform LLM + WebUI config.
 - SPECIFY_ALL_MAX_CONCURRENT / run_specify_task / run_apply_spec /

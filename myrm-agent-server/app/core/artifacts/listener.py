@@ -1,7 +1,6 @@
 """Artifact event listener.
 
 [INPUT]
-- app.database.connection::get_session (POS: Database session)
 - app.database.models.artifact::Artifact (POS: Artifact models)
 
 [OUTPUT]

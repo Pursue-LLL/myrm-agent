@@ -1,6 +1,6 @@
 """[INPUT]
 - .base::MemorySearchBase (POS: 共享状态)
-- .helpers::_log_background_task_failure / _stream_warning_code (POS: 纯函数助手)
+- .helpers::_stream_warning_code (POS: 纯函数助手)
 
 [OUTPUT]
 - MemoryCollectionMixin: 按类型扇出检索、并发收集、失败降级与结果过滤

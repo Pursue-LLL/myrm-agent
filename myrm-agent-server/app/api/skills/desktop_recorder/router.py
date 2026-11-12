@@ -5,7 +5,6 @@
 - myrm_agent_harness.api::DesktopRecordedEvent, WorkflowIntentPlan, WorkflowSkillCompiler,
   synthesize_desktop_skill_draft (POS: recording/synthesis + skill compilation primitives)
 - app.api.skills.desktop_recorder::schemas (POS: recording DTOs + session state container)
-- app.services.skills.desktop_recording::DesktopCaptureTask (POS: capture loop lifecycle)
 - app.core.skills.store.service::skills_service (POS: local skill store)
 
 [OUTPUT]

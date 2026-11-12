@@ -1,7 +1,6 @@
 """Chat business facade.
 
 [INPUT]
-- _base::_ChatServiceBase, _ChatRepositoryPort (POS: repository 协议和访问器)
 - chat_crud::_ChatCrudMixin (POS: Chat CRUD、session flush、置顶)
 - chat_deletion::_ChatDeletionMixin (POS: 回收站、永久删除、孤儿会话清理)
 - chat_channel::_ChatChannelMixin (POS: 渠道聊天解析与创建)

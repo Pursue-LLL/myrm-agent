@@ -4,7 +4,6 @@
 - pathlib::Path (POS: Python path library)
 - collections.abc::Callable, Awaitable (POS: async probe callback)
 - .spec::ContextScene (POS: context bundle specification types)
-- .index::ContextIndexBackend (POS: index backend protocol)
 
 [OUTPUT]
 - MemorySceneHealthBackend: memory path writability probe

@@ -3,7 +3,6 @@
 [INPUT]
 - navigation::Navigator, snapshot_manager, interactor, extractor (POS: per-tab components)
 - session_persistence::SessionPersistence (POS: auto-save on close)
-- network::NetworkLogger / NetworkIntelligence (POS: attach on init)
 - ..pool.camoufox_availability::require_camoufox_ready (POS: non-downloading Camoufox readiness gate)
 - ..exceptions::EngineUnavailableError (POS: engine switch refused before any state change)
 

@@ -1,6 +1,5 @@
 """[INPUT]
 - myrm_agent_harness.utils.chat_utils / image_utils / json_parsing (POS: framework primitives)
-- app.core.utils.files_utils::read_image_as_base64 (POS: image read helper)
 
 [OUTPUT]
 - convert_chat_history / parse_judge_json plus the agent-history expansion helpers.

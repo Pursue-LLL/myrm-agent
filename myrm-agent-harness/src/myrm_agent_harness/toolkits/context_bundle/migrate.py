@@ -1,7 +1,7 @@
 """Context bundle migration and dry-run utilities.
 
 [INPUT]
-- .spec::CONTEXT_BUNDLE_SCHEMA_VERSION, ContextBundleSpec (POS: context bundle specification)
+- .spec::ContextBundleSpec (POS: context bundle specification)
 - .volume::VolumeLayout, BUNDLE_MANIFEST_FILENAME (POS: context bundle volume layout)
 
 [OUTPUT]

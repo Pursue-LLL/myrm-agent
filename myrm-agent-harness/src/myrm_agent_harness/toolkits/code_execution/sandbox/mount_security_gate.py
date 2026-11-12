@@ -4,7 +4,7 @@ Single source of truth for sandbox filesystem mount validation across local OS p
 sandboxes (bwrap, seatbelt, appcontainer) and multi-session workspace directory grants.
 
 [INPUT]
-- core.security.path::DANGEROUS_PATHS, is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_within_boundary
+- core.security.path::is_dangerous_path, covers_dangerous_path, is_blocked_device_path
 
 [OUTPUT]
 - MountMode (Enum: RO, RW)

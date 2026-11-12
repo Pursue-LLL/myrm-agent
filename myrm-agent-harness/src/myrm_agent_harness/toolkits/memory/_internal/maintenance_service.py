@@ -2,8 +2,7 @@
 
 
 [INPUT]
-- memory._internal.maintenance::{run_forgetting, dedup_semantics, compile_claim_graph, ...} (POS: stateless maintenance operations)
-- memory.strategies.consolidation::run_consolidation (POS: cross-session memory consolidation)
+- memory._internal.maintenance::{run_forgetting, compile_claim_graph, ...} (POS: stateless maintenance operations)
 
 [OUTPUT]
 - MaintenanceService: Maintenance orchestrator (health scoring, snapshot collection, maintenance cycles)

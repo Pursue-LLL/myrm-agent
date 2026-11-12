@@ -1,7 +1,6 @@
 """macOS background operation helpers — window targeting, focus guard, event-posting permission.
 
 [INPUT]
-- backends.macos.input::set_input_target (POS: PID-targeted delivery switch)
 - dref.errors::FocusChangedError (POS: focus-leak abort error)
 
 [OUTPUT]

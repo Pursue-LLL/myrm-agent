@@ -3,7 +3,7 @@
 - agent.middlewares.tooling._circuit_breaker::check_circuit_breaker (POS: 硬熔断器)
 - agent.middlewares.tooling._tool_helpers (POS: 无状态助手)
 - agent.security.guards.estop::check_estop (POS: 全局急停)
-- agent.security.guards.loop_guard::CallRecord / LoopAction / LoopGuard (POS: 会话级循环检测)
+- agent.security.guards.loop_guard::LoopAction (POS: 会话级循环检测)
 - agent.security.guards.tool_turn_budget_guard (POS: 每回合高成本工具预算)
 - utils.runtime.steering (POS: steering token)
 - utils.token_economics.tracker::get_token_tracker (POS: token 追踪器)

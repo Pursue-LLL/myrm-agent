@@ -14,7 +14,7 @@ business-layer processing (chat_utils._process_video_item) or agent tools
 (file_read_tool with video support).
 
 [INPUT]
-- channels.types::InboundMessage, MediaType, MediaAttachment
+- channels.types::InboundMessage, MediaType
 
 [OUTPUT]
 - has_video_attachment(): check for video media

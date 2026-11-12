@@ -1,9 +1,7 @@
 """Unified Runs Hub REST endpoint.
 
 [INPUT]
-- app.core.cron.manager::CronManager (POS: Cron 领域管理器)
 - app.services.kanban::KanbanService (POS: Kanban task store)
-- app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Background tasks)
 - app.services.agent.shell_background_tasks (POS: Shell background tasks)
 
 [OUTPUT]

@@ -3,7 +3,6 @@
 [INPUT]
 - dataclasses::dataclass, field (POS: standard library dataclass definition)
 - datetime::datetime, UTC (POS: standard library datetime handling)
-- pathlib::Path (POS: standard library file path operations)
 
 [OUTPUT]
 - ConceptInfo: concept information dataclass

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.providers.balance_service::provider_balance_service
-- fastapi::Query, Depends
+- fastapi::Query
 
 [OUTPUT]
 - GET /api/v1/providers/balance-gauges

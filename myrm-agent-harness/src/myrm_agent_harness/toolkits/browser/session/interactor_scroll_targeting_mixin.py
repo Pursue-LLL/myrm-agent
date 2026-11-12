@@ -1,9 +1,7 @@
 """CAREFUL pre-interaction target centering for the Interactor.
 
 [INPUT]
-- pool.config::HumanizeConfig (POS: interaction humanization config)
 - patchright.async_api::Locator (POS: element locator)
-- session.interactor_scroll_mixin::ScrollHumanizeMixin (POS: wheel-burst delivery, cursor placement, progress loop)
 
 [OUTPUT]
 - ScrollTargetingMixin: bring an interaction target into view with humanized

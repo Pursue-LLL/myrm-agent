@@ -17,10 +17,6 @@ Usage:
     registry = ChannelRouteRegistry(channel_gateway)
     registry.register_all(app)
 
-[INPUT]
-- fastapi::FastAPI (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
-- channels.protocols::RouteRegistrar (POS: Protocols for Skill Optimization Subsystem)
-
 [OUTPUT]
 - FastAPIRouteRegistrar: FastAPI-specific route registrar
 - FastAPIRequestAdapter: Adapts FastAPI Request to GenericRequest

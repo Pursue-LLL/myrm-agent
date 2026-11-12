@@ -4,7 +4,7 @@ Integrates TerminalLogDistiller for high-entropy output distillation and enforce
 destructive command screening and human-in-the-loop (HITL) safety fences.
 
 [INPUT]
-- .models::SSHCommandResult, SSHHostAsset, SFTPFileMetadata, SFTPTransferResult
+- .models::SSHCommandResult, SSHHostAsset, SFTPFileMetadata
 - .manager::SSHAssetManager
 - .executor::SSHBridgeExecutor, SFTPBridgeEngine
 - myrm_agent_harness.toolkits.code_execution.utils.log_distiller::TerminalLogDistiller

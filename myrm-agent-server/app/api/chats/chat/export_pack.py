@@ -5,7 +5,7 @@
 - myrm_agent_harness.agent.artifacts.vault::ArtifactVault
 - myrm_agent_harness.api::redact_sensitive_text
 - app.database.models.chat::Chat
-- app.database.models.artifact::Artifact, ArtifactVersion
+- app.database.models.artifact::Artifact
 - app.services.chat.effective_workspace::resolve_chat_workspace_root
 
 [OUTPUT]

@@ -1,7 +1,7 @@
 """Five-Contract Delivery Lifecycle Protocol & Verification State Machine.
 
 [INPUT]
-- protocols::EvalCase, AgentResponse, EvalTurnResult (POS: evaluation trajectory & turn contracts)
+- none (imports no other project module)
 
 [OUTPUT]
 - DeliveryContractPhase: canonical 5-phase delivery contract enum

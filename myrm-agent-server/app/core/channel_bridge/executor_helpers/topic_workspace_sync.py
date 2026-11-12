@@ -3,7 +3,6 @@
 [INPUT]
 - app.channels.types::TopicContext
 - app.database.dto::ChatDTO
-- app.services.chat.effective_workspace::resolve_effective_chat_workspace
 - app.services.workspace.workspace_path_policy::resolve_workspace_path
 
 [OUTPUT]

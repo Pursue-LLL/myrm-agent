@@ -3,7 +3,6 @@
 [INPUT]
 - _base::_ChatServiceBase (POS: repository 协议和访问器)
 - chat_helpers::filter_messages, _sanitize_snippet, ChannelHistoryEntry (POS: 消息过滤与格式化)
-- chat_message_search_repo::MessageFtsSearchRow (POS: FTS5 搜索结果 DTO)
 
 [OUTPUT]
 - _ChatHistoryMixin: Web/Channel 历史加载、FTS5 消息搜索

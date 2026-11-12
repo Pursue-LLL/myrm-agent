@@ -1,10 +1,8 @@
 """Bézier-mouse click behaviors for the Interactor.
 
 [INPUT]
-- pool.config::HumanizeConfig (POS: interaction humanization config)
 - exceptions::ClickTargetUnreachableError (POS: interaction target cannot be brought into view)
 - session.humanize::bezier_move, click_delay (POS: humanized delay and Bézier mouse helpers)
-- session.interactor_scroll_targeting_mixin::ScrollTargetingMixin (POS: CAREFUL pre-interaction target centering)
 
 [OUTPUT]
 - ClickInteractMixin: click with Bézier mouse trajectory + reachability guard

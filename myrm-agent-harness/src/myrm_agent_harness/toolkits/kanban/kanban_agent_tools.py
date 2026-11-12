@@ -4,7 +4,6 @@ Tools are grouped by role (Worker / Orchestrator) for security and token efficie
 Board CRUD and task field edits use REST/GUI only — not LLM tools.
 
 [INPUT]
-- .types::TaskStatus, TaskPriority, TaskEventKind (POS: Kanban domain types.)
 - .protocols::KanbanStore (POS: Protocols for the kanban toolkit.)
 - .dispatcher::KanbanDispatcher (POS: Event-driven multi-task scheduler.)
 - ._worker_tools::build_worker_tools (POS: Worker-scoped kanban LLM tools.)

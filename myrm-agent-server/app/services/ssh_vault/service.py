@@ -4,7 +4,7 @@ Parses standard ~/.ssh/config, caches host assets, provides network reachability
 and handles parameterized, safe subprocess remote execution with timeout and safety guards.
 
 [INPUT]
-- .models::SSHAssetSummary, SSHHostConfig, SSHProbeResult, SSHCommandResult, SFTPTransferResult
+- .models::SSHAssetSummary, SSHHostConfig, SSHProbeResult, SSHCommandResult
 - myrm_agent_harness.api::ReadOnlySSHValidator, command_preview (a log line shows the command masked and cut)
 - myrm_agent_harness.api::communicate_bounded (POS: Reads a child process's stdout and stderr with a cap on each and
   stops it through the caller on a deadline or a cancel.)

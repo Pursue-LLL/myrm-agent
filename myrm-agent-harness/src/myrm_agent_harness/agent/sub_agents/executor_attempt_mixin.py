@@ -7,7 +7,7 @@
 - .executor_delegation_mixin::SubagentExecutorDelegationMixin (POS: Orchestrator-role child agents receive scoped delegation meta-tools.)
 - agent._internals._agent_helpers::child_run_scope (POS: Run a child agent inline with guards of its own, handing the parent's back untouched.)
 - agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract.)
-- .types::SubagentBudgetExceededError, SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions.)
+- .types::SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions.)
 - toolkits.llms.errors.exceptions::MyrmLLMError (POS: Standardized LLM Error thrown by the Harness framework.)
 - toolkits.llms.errors.error_types::FailoverReason (POS: LLM failover reason enum.)
 

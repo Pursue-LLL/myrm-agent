@@ -1,6 +1,5 @@
 """[INPUT]
 - myrm_agent_harness.utils.chat_utils / image_utils / json_parsing (POS: framework primitives)
-- app.core.utils.files_utils::read_image_as_base64 (POS: image read helper)
 
 [OUTPUT]
 - preprocess_inbound_multimodal_query and the per-item dispatcher _process_human_content.

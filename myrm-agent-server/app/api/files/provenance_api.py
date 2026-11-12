@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.database.connection::get_db (POS: Database session dependency)
-- app.database.models.artifact::Artifact, ArtifactVersion, ArtifactAuditLog (POS: Artifact models)
+- app.database.models.artifact::Artifact (POS: Artifact models)
 - app.database.models.chat::Chat (POS: Chat session model for provenance association)
 - myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Vault object store)
 - app.services.chat.effective_workspace::resolve_chat_workspace_root (POS: Workspace root a chat's runs wrote to)

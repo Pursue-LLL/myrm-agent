@@ -22,7 +22,6 @@ Screenshot Diff Features:
 - langchain.tools::tool (POS: LangChain tool decorator)
 - cancel_boundary::apply_cancel_boundary (POS: cancel-aware execution boundary for the browser tools)
 - user_control_gate::apply_browser_user_control_gate (POS: makes the browser tools wait while a person drives the browser)
-- pydantic::BaseModel (POS: tool parameter schema base class)
 
 [OUTPUT]
 - create_browser_tools: factory function, binds BrowserSession and returns 8 cancel-aware, user-control-gated LangChain tools

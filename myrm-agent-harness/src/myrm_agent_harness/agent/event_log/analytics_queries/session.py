@@ -1,5 +1,5 @@
 """[INPUT]
-- .common::_collect_events / _durations / _failure_reasons (POS: 查询共用助手)
+- .common::_collect_events (POS: 查询共用助手)
 - .types (POS: 分析结果类型)
 - event_log.protocols::EventLogBackend (POS: 事件日志后端协议)
 

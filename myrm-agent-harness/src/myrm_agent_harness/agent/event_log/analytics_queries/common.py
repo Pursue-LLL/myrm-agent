@@ -1,6 +1,5 @@
 """[INPUT]
 - .types::StructuredEvent (POS: 事件类型)
-- event_log.protocols::EventLogBackend (POS: 事件日志后端协议)
 
 [OUTPUT]
 - _collect_events / _durations / _failure_reasons: 查询共用的事件收集与字段提取

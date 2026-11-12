@@ -3,8 +3,6 @@
 
 [INPUT]
 - patchright.async_api::Page (POS: Patchright page instance)
-- diff::FastComparator (POS: fast screenshot comparison)
-- diff::AccurateComparator (POS: accurate screenshot comparison)
 - diff::FastComparisonResult (POS: fast comparison result)
 - diff::AccurateComparisonResult (POS: accurate comparison result)
 

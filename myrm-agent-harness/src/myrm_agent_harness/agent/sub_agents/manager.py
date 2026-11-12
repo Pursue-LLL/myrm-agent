@@ -11,8 +11,7 @@ verified orchestration) in ``orchestrator``.
 - utils.token_economics.tracker (POS: Token 用量追踪)
 - .builder (POS: 子 agent 构建辅助)
 - .budget::DelegationBudgetState (POS: Delegation budget guard. Tracks descendant spawn count for a root agent run without business-layer coupling.)
-- .notifications::SubagentNotification, format_notification (POS: 完成通知格式化)
-- .checkpoint.saver::SubagentCheckpoint, SubagentCheckpointStorage (POS: 子Agent检查点保存/恢复)
+- .checkpoint.saver::SubagentCheckpointStorage (POS: 子Agent检查点保存/恢复)
 - agent.hooks.graceful_shutdown::get_shutdown_manager (POS: Graceful shutdown管理器)
 - runtime.events.system_events::SubagentLifecycleData (POS: Framework-level system event DTOs. They keep lifecycle and resource payloads typed without business-layer, GUI, approval, or tenant dependencies.)
 

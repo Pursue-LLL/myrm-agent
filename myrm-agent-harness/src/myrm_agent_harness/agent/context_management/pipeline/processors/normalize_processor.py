@@ -4,7 +4,8 @@
 这对于提高多轮对话的 Prompt Cache 命中率至关重要，防止微小的格式抖动导致 Cache Miss。
 
 [INPUT]
-- langchain_core.messages::BaseMessage (POS: LangChain 消息基类)
+- utils.logger_utils::get_agent_logger (POS: Unified logging utilities.)
+- agent.context_management.pipeline.base::BaseProcessor, ProcessorContext (POS: Pipeline processor base class.)
 
 [OUTPUT]
 - NormalizeProcessor: class — Content Normalizer Processor

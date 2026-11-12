@@ -8,9 +8,6 @@ Supports two resolution modes:
 - Local: filePath → direct local filesystem path
 
 [INPUT]
-- myrm_agent_harness.toolkits.file_parsers::DocxParser (POS: Word document parser)
-- myrm_agent_harness.toolkits.file_parsers::ExcelParser (POS: Excel file parser)
-- myrm_agent_harness.toolkits.file_parsers::IpynbParser (POS: Jupyter Notebook parser)
 - app.core.storage::files_service (POS: File storage service)
 
 [OUTPUT]

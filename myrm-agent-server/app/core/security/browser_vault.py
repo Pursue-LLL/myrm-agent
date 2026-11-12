@@ -3,7 +3,6 @@
 [INPUT]
 - myrm_agent_harness.toolkits.browser::SessionVault (POS: 加密 session 存储)
 - myrm_agent_harness.toolkits.browser::FileVaultBackend / load_or_create_key (POS: 文件后端与密钥管理)
-- app.config.settings::DatabaseSettings (POS: 数据库配置，提供 state_dir)
 
 [OUTPUT]
 - get_global_session_vault: 获取全局 SessionVault 单例（用于非 agent 场景）

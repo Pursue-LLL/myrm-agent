@@ -2,7 +2,6 @@
 
 [INPUT]
 - protocols::RetrievalAssertion (POS: assertion configuration for retrieval quality)
-- protocols::RetrievalHit (POS: raw or collapsed retrieval hit data)
 
 [OUTPUT]
 - CollapsedHit: deduplicated hit identity with effective rank and aggregated bodies

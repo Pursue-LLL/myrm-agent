@@ -1,7 +1,7 @@
 """Delegation budget state for scoped subagent runtime.
 
 [INPUT]
-- agent.sub_agents.types::SubagentConfig (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
+- none (imports no other project module)
 
 [OUTPUT]
 - DelegationBudgetExceededError: Raised when a delegation tree exceeds runtime budget.

@@ -6,7 +6,7 @@ logic in ``dispatcher_zombie.py``; the failure pipeline in ``dispatcher_failure.
 outcome handling and dependency promotion in ``dispatcher_outcome.py``.
 
 [INPUT]
-- .types::KanbanBoard, KanbanTask, TaskStatus, BoardSettings, TaskTimeoutError (POS: Kanban domain types.)
+- .types::KanbanBoard, KanbanTask, TaskStatus (POS: Kanban domain types.)
 - .protocols::KanbanStore, TaskRunner (POS: Protocols for the kanban toolkit.)
 - .dispatcher_dispatch::KanbanDispatcherDispatchMixin, DispatchGate (POS: Dispatch loop and per-task execution.)
 - .dispatcher_failure::KanbanDispatcherFailureMixin (POS: Failure/timeout/retry pipeline for KanbanDispatcher.)

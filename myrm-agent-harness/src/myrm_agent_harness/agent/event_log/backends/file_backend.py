@@ -5,7 +5,6 @@ deployment modes (local / sandbox) with identical semantics.
 Hardened with torn tail self-repair and short-write protection.
 
 [INPUT]
-- event_log.protocols::EventLogBackend, FlushableEventLogBackend
 - event_log.durable_atomic_writer::DurableLogWriter
 
 [OUTPUT]

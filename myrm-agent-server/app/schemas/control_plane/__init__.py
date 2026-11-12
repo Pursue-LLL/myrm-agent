@@ -1,8 +1,5 @@
 """Control-plane schemas.
 
-[INPUT]
-- pydantic::BaseModel (POS: schema base)
-
 [OUTPUT]
 - Context snapshots and telemetry envelopes, re-exported for services.
 

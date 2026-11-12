@@ -3,7 +3,6 @@
 Converts host-provided ACP MCP servers into Myrm native MCPConfig instances.
 
 [INPUT]
-- acp.schema::HttpMcpServer, McpServerStdio, SseMcpServer (POS: ACP official schema) [optional]
 - toolkits.mcp.config::MCPConfig (POS: Myrm native MCP server configuration)
 
 [OUTPUT]

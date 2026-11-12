@@ -1,9 +1,6 @@
 """Health checking business layer.
 
 [INPUT]
-- myrm_agent_harness.infra.health::HealthChecker (POS: 健康检查抽象基类)
-- myrm_agent_harness.infra.health::HealthCheckResult (POS: 健康检查结果)
-- myrm_agent_harness.infra.health::RecoveryResult (POS: 恢复操作结果)
 - server_diagnostics (POS: Server 业务级探针与聚合管理器)
 
 [OUTPUT]

@@ -1,7 +1,7 @@
 """Session-tree bound branch state and tool result details replayer.
 
 [INPUT]
-- progress.schemas::TodoItem, TodoStatus, TodoStore (POS: models)
+- progress.schemas::TodoStore (POS: models)
 - Sequence of message-like objects or dicts with extra_data/details
 
 [OUTPUT]

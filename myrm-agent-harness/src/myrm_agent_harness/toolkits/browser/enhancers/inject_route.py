@@ -21,8 +21,6 @@ timeout, and a write that fails here is aborted rather than handed back for a se
 
 [INPUT]
 - patchright.async_api::BrowserContext, Route, APIResponse (POS: browser context primitives)
-- enhancers.dom_enhancer_loader::get_dom_enhancer_script (POS: DOM enhancer JS)
-- pool.stealth::get_stealth_script (POS: stealth anti-detection JS)
 
 [OUTPUT]
 - install_document_script_injection: register per-context document rewrite handler

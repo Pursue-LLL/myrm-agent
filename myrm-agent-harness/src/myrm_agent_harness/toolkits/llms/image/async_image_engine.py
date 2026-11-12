@@ -1,7 +1,6 @@
 """Async image generation tools that return task_id instead of blocking.
 
 [INPUT]
-- generator::ImageGenerator (POS: Core generation/editing engine)
 - models::{ImageGenerationConfig, ImageGenerationError} (POS: Data types)
 - validator::ImageValidator (POS: Pre-call validation that rejects invalid image generation requests before they reach the remote API.)
 - tasks::SQLiteTaskStore, Task, TaskStatus (POS: generic async job queue)

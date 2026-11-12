@@ -27,7 +27,6 @@
 - session.browser_session_navigation_mixin::BrowserSessionNavigationMixin (POS: navigation, tab switching, CAPTCHA)
 - session.browser_session_lifecycle_mixin::BrowserSessionLifecycleMixin (POS: restart/close and component init)
 - session.browser_session_view_mixin::BrowserSessionViewMixin (POS: Browser Live Co-View SSE mixin)
-- session.view_update_payload::capture_browser_view_update_data (POS: shared browser inspector payload builder)
 - session.browser_session_network_mixin::BrowserSessionNetworkMixin (POS: console and network log APIs)
 - session.download::DownloadManager (POS: file download management; judges every download before keeping it)
 - session.download::DownloadConfig (POS: where a download manager keeps files, how much, for how long, and which kinds)

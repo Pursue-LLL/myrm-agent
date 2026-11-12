@@ -1,6 +1,5 @@
 """[INPUT]
 - .base (POS: 共享类型、常量与状态)
-- .queries::ImportQueriesMixin (POS: 批次/会话查询)
 
 [OUTPUT]
 - RollbackMixin: 回滚预览、执行与不完整回滚恢复

@@ -3,7 +3,6 @@
 [INPUT]
 - common::mark_untrusted (POS: unified browser output security boundary; credential redaction + untrusted-content wrapping)
 - tools.download_actions::run_download_url, list_downloads_report (POS: agent-facing text of the download actions)
-- domain_skills::DomainSkillStore (POS: executable-layer domain skill registry)
 
 [OUTPUT]
 - create_manage_tool: Create browser_manage tool bound to session.

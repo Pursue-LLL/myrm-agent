@@ -2,7 +2,6 @@
 
 [INPUT]
 - backends.skills.market_protocols::SkillInstallReceipt, SkillFileDigest (POS: Typed receipt model)
-- backends.skills.scanning.package_audit::check_lifecycle_scripts (POS: In-memory lifecycle script gate)
 
 [OUTPUT]
 - SkillInstallTransaction: Context manager coordinating atomic directory replacement, backup snapshots, and automatic rollback on failure.

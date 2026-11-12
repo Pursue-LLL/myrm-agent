@@ -1,9 +1,7 @@
 """SkillAgent domain package — SkillAgent implementation and assembly.
 
 [INPUT]
-- agent.base_agent::BaseAgent (POS: Lightweight Agent base class)
 - agent.skills (POS: Skill metadata type)
-- agent.types::AgentRuntimeConfig (POS: Agent runtime config)
 - skill_agent.factory::create_skill_agent (POS: Agent factory facade re-export)
 
 [OUTPUT]

@@ -2,7 +2,7 @@
 
 [INPUT]
 - memory.strategies.extractor::{FeedbackSignal, detect_feedback_signals} (POS: regex-based fast pre-filter)
-- memory.types::{AnyMemory, SemanticMemory, MemoryType} (POS: memory data models)
+- memory.types::{AnyMemory, MemoryType} (POS: memory data models)
 - utils.json_parsing::parse_llm_json_object, parse_llm_json_list (POS: robust JSON object/list extraction from LLM output — fences, prose, bare control chars, trailing commas)
 
 [OUTPUT]

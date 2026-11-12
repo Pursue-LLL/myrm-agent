@@ -11,7 +11,7 @@ reaction handling, mention parsing, edit-message detection.
 - channels.core.attachment_delivery::attempt_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji takes it back)
 - .addressing::wire_recipient, MessageAuthors (POS: recipient form on the wire; who wrote each group message)
-- .helpers::TypedDict structures, constants, _render_mentions (POS: types and pure functions)
+- .helpers::TypedDict structures, constants (POS: types and pure functions)
 - .inbound::SignalInboundMixin (POS: WebSocket / polling receive loops and envelope parsing)
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 

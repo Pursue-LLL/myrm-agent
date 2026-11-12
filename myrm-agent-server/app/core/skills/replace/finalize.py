@@ -1,7 +1,7 @@
 """Post-success hooks for market replace (honesty + undo pointer).
 
 [INPUT]
-- snapshot_honesty::merge / persist (POS: truncated signal)
+- snapshot_honesty::merge_snapshot_honesty_after_install, persist_replace_snapshot_truncated_flag (POS: Skill Change Contract honesty signal after market replace (non-text or uncaptured files).)
 - state::record_successful_replace via service (POS: last_replace_batch_id)
 
 [OUTPUT]

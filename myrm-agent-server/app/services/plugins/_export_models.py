@@ -2,7 +2,6 @@
 
 [INPUT]
 - myrm_agent_harness.agent.plugins.models::PluginAgent, PluginMcpServer (POS: portable records.)
-- myrm_agent_harness.backends.profiles.types::AgentProfile (POS: stored expert.)
 
 [OUTPUT]
 - Omit: reason codes of everything an export leaves out (the UI localizes them).

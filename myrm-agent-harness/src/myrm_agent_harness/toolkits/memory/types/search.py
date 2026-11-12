@@ -1,5 +1,4 @@
 """[INPUT]
-- base::BaseMemory (POS: 记忆基础模型)
 - enums::MemoryType / PendingResolutionAction (POS: 记忆枚举)
 - records::ClaimMemory / ConversationMemory / EpisodicMemory / IntegrationMemory / ProceduralMemory / SemanticMemory / TaskDigestMemory (POS: 具体记忆模型)
 - pydantic::BaseModel / Field (POS: 校验与序列化)

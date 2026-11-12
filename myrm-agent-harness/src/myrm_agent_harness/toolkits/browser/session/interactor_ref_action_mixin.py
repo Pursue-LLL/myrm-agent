@@ -3,8 +3,7 @@
 [INPUT]
 - pool.config::HumanizeConfig (POS: interaction humanization config)
 - session.humanize::INTERACTION_TIMEOUT_MS, click_delay, type_delay (POS: humanized delay helpers and the shared interaction timeout)
-- session.interactor_click_mixin::ClickInteractMixin (POS: Bézier-mouse click trajectory + reachability guard)
-- session.interactor_scroll_mixin::ScrollHumanizeMixin, _parse_scroll_params (POS: humanized wheel-input scrolling behaviors)
+- session.interactor_scroll_mixin::_parse_scroll_params (POS: humanized wheel-input scrolling behaviors)
 
 [OUTPUT]
 - RefActionMixin: performs one of the 15 ref verbs on a resolved locator and describes the outcome

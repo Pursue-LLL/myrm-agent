@@ -1,9 +1,7 @@
 """Wiki health report orchestration for REST surfaces.
 
 [INPUT]
-- myrm_agent_harness.toolkits.wiki.maintenance.linter::WikiLinter (POS: scan engine)
 - myrm_agent_harness.toolkits.wiki.maintenance.issue_kind::count_open_actions (POS: open action metric)
-- app.services.wiki.vault::get_wiki_archiver (POS: archiver accessor)
 
 [OUTPUT]
 - WikiHealthIssueResponse, WikiHealthReportResponse: health report response models, the single definition the REST router also returns

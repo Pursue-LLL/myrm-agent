@@ -1,5 +1,5 @@
 """[INPUT]
-- pydantic::BaseModel / Field (POS: 校验与序列化)
+- none (imports no other project module)
 
 [OUTPUT]
 - WikiEvidence / WikiClaim / EvidenceSnapshotStatus

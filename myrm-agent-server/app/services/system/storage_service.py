@@ -1,7 +1,6 @@
 """Storage Inspection and Database Optimization Service.
 
 [INPUT]
-- app.config.settings::get_settings (POS: System paths & database settings)
 - myrm_agent_harness.api.hooks::count_running_background_shell_jobs (POS: Background tasks safety probe)
 
 [OUTPUT]

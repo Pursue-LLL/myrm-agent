@@ -1,7 +1,6 @@
 """Zero-leakage credential and sensitive value redaction for compliance audit trails.
 
 [INPUT]
-- types::AuditTrailEntry
 - re, hashlib, typing
 
 [OUTPUT]

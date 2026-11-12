@@ -5,7 +5,7 @@ Provides line-level overlap detection so the conflict validator can distinguish
 between dangerous overlapping edits and safe non-overlapping parallel edits.
 
 [INPUT]
-- agent.middlewares._session_context::get_subagent_task_id (POS: ContextVar for subagent task ID)
+- none (imports no other project module)
 
 [OUTPUT]
 - FileActivityTracker: Singleton tracker for file write activities

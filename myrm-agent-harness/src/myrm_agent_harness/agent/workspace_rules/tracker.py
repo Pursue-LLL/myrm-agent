@@ -11,7 +11,6 @@ The tracker appends discovered rules to tool results as supplementary
 context, without modifying the system prompt (preserving KV Cache).
 
 [INPUT]
-- agent.workspace_rules.scanner::_CLAUDE_SUBDIR_FILE, _COPILOT_INSTRUCTIONS_FILE, _RULE_FILENAMES, _load_rule_file (POS: Rule file discovery and loading)
 - agent.workspace_rules.rule_read_guard::RuleReadGuard (POS: Boundary-checked, bounded reads of the rule files of one scan)
 - agent.security.workspace_trust.context::workspace_side_channels_blocked (POS: run-scoped state holder of the workspace_trust gate; unknown trust is restricted)
 - core.security.tool_registry.file_args::host_file_paths (POS: the files a file tool call may open, whichever argument spelling carries them)

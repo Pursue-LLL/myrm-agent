@@ -1,7 +1,7 @@
 """Desktop intent envelope manager and lease tracker.
 
 [INPUT]
-- myrm_agent_harness.toolkits.computer_use.envelope::IntentEnvelopeSpec, WindowHierarchyContext, EnvelopeCheckResult, check_envelope_action
+- myrm_agent_harness.toolkits.computer_use.envelope::IntentEnvelopeSpec, WindowHierarchyContext, check_envelope_action
 - myrm_agent_harness.core.events.types::AgentEventType
 - myrm_agent_harness.utils.runtime.progress_sink::get_tool_progress_sink
 

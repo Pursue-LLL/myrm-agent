@@ -5,7 +5,6 @@
 - json::json
 - logging::logging
 - os::os
-- re::re
 - subprocess::subprocess
 - threading::threading
 - time::time

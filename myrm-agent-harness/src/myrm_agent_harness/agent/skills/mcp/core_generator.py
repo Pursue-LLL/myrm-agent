@@ -7,7 +7,6 @@ Implements:
 
 [INPUT]
 - backends.skills.types::MCPSkillData (POS: MCP-specific data of skills generated from MCP server configurations)
-- toolkits.mcp::MCPAgent (POS: MCP toolkit entry point. Aggregates client management, agent tool fetching, connection pooling, configuration, and security validation for unified MCP protocol support.)
 
 [OUTPUT]
 - MCPSkillGenerator: MCP service to skill generator with progressive disclosure.

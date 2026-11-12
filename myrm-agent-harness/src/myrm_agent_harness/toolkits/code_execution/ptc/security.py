@@ -1,7 +1,7 @@
 """PTC security constraints.
 
 [INPUT]
-- ptc.models::PtcConfig (POS: PTC configuration)
+- none (imports no other project module)
 
 [OUTPUT]
 - scrub_child_env: Remove dangerous environment variables

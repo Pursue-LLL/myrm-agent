@@ -18,8 +18,6 @@ across subsequent requests, protecting Anthropic / DeepSeek prefix prompt cache 
 [INPUT]
 - base::BaseProcessor, ProcessorContext
 - utils.image_utils::is_base64_data_url, is_image_content_item, get_image_url, estimate_base64_byte_size
-- utils.media.image_compressor::image_compressor
-- processors.vision_fallback_processor::VisionFallbackProcessor, apply_vision_fallback_to_messages
 
 [OUTPUT]
 - MediaBudgetGovernorProcessor: ContextPipeline processor
@@ -30,6 +28,7 @@ Positioned in ContextPipeline after MediaResolverProcessor (or integrated alongs
 resolution) to govern cumulative base64 image bytes before LLM invocation.
 """
 
+import asyncio
 from dataclasses import dataclass
 from typing import Final
 
@@ -85,9 +84,6 @@ class ImageItemRef:
     data_url: str
     byte_size: int
     is_focus: bool
-
-
-import asyncio
 
 
 class CumulativeImageBudgetGovernor:

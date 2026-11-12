@@ -5,10 +5,6 @@ JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 - stream_collector_helpers (POS: stateless SSE event parsing helpers)
 - app.core.agent.stop_reason (POS: stored shape of a stop reason, and which reason is kept)
 - evicted_output (POS: evicted tool output references matched to progress steps)
-- myrm_agent_harness.toolkits.code_execution.executors.models::scrub_sensitive_info
-  (POS: Harness-level sensitive token/path scrubbing)
-- myrm_agent_harness.utils.text_sanitizer::sanitize_llm_output
-  (POS: LLM raw text sanitizer for control/sentinel cleanup)
 
 [OUTPUT]
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,

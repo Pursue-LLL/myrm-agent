@@ -2,7 +2,6 @@
 
 [INPUT]
 - session.extractor::Extractor (POS: content extraction manager)
-- session.structured_extractor::StructuredExtractor (POS: LLM-based structured data extraction)
 - utils.chat_utils::extract_answer_text (POS: LLM response text extraction)
 
 [OUTPUT]

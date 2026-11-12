@@ -6,7 +6,6 @@
 - app.channels.i18n::get_text, resolve_message_locale (POS: the language of the notes, and the one-line reply of a message that is only attachments)
 - app.core.channel_bridge.agent_executor.deliverable::append_deliverable_notes, collect_deliverable_paths_from_text, resolve_chat_workspace_root (POS: attaches the workspace files a reply text names)
 - app.core.channel_bridge.wake_return.origins::WakeOrigins (POS: the message the chat was last talked in)
-- app.services.agent.adaptive_wakeup.reply_return::WakeReplyReturner (POS: the port this implements)
 
 [OUTPUT]
 - ChannelWakeReplyReturner: carries a wake turn's reply to IM

@@ -9,7 +9,7 @@
 - diagnostics.recovery_actions::build_recovery_actions (POS: Recovery action catalogue of the diagnostics engine)
 - diagnostics.transport_diagnosis::diagnose_transport, infer_service_name (POS: TLS and connection diagnostics)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
-- toolkits.llms.errors.classifier::ErrorKind, classify_error, classify_failover_reason (POS: LLM error classifier for failover decisions)
+- toolkits.llms.errors.classifier::ErrorKind, classify_failover_reason (POS: LLM error classifier for failover decisions)
 - toolkits.llms.errors.error_types::FailoverReason (POS: Three-layer error classification system)
 - toolkits.llms.transport::LLMCallError (POS: the failures of a model call, carrying the HTTP status they stand for)
 

@@ -5,25 +5,16 @@ and helper functions that ``BaseAgent`` delegates to.
 
 [INPUT]
 - agent.meta_tools.file_ops.observers.snapshot_observer::set_current_message_id (POS: Binds per-turn assistant message id so file snapshots and cumulative diffs are isolated per user round.)
-- agent.middlewares.approval::ToolApprovalMiddleware (POS: bridges the Permission Engine with the LangGraph tool pipeline and asks the person about the tool calls whose verdict is ASK)
 - agent.artifacts::ArtifactContextManager (POS: context manager that owns the lifecycle of every artifact registry, so they are initialised and cleaned up together)
 - agent.event_log.logger::EventLogger (POS: Integration façade. Injected into BaseAgent via ``event_log_backend`` param. Async-buffered writes ensure zero impact on the event production hot path.)
-- agent.middlewares.completion::CompletionGuard (POS: Finish gate + Mixed Message Guard + independent sandbox re-run for code tasks.)
-- agent.middlewares.security.security_boundary_middleware::SecurityBoundaryMiddleware (POS: Security boundary middleware.)
-- agent.middlewares.security.security_guardrail_middleware::SecurityGuardrailMiddleware (POS: Security guardrail middleware.)
 - agent.streaming.source_tracker::SourceTracker (POS: per-run citation source tracker: stable numbering, resumed numbering across runs, deduplication)
 - agent.streaming.stream_executor::STREAM_DONE (POS: stream execution engine; STREAM_DONE is the end-of-stream sentinel object)
 - agent.streaming.types::AgentEventType (POS: event type enum for streaming agent responses)
-- agent.tool_management::ToolRegistry (POS: tool registry: accumulates tools from every source, de-duplicates them by source priority and orders them by layer)
 - agent.types::AgentRunStatistics (POS: statistics of one agent run: duration, tool and node counts, token usage, cost, completion status)
 - agent.base_agent::BaseAgent (POS: Base Agent — lightweight agent with streaming, token tracking, and artifacts.)
 - utils.chat_utils::ChatHistoryReq (POS: chat history types; ChatHistoryReq is the list of [role, content] entries passed in as history)
 - utils.runtime.cancellation::CancellationToken (POS: request-level cancellation token for cooperative async cancellation)
 - utils.runtime.steering::SteeringToken (POS: steering token: injects a message while the agent runs to interrupt the current tool chain)
-- agent.middlewares.replan_middleware::ReplanMiddleware (POS: Dynamic Replan Loop Middleware.)
-- agent.meta_tools.discover_capability.discover_capability_tool::create_discover_capability_tool (POS: Unified Capability Discovery meta-tool. Searches agent-bound searchable skills via SkillSearchEngine; hits wrap results in `<BoundSkills>` XML. LLM-facing name: skill_search_tool.)
-- agent.tool_management.types::ToolSnapshot (POS: Core types for the tool management subsystem. ToolSource tracks provenance; ToolEntry bundles a tool with its source and layer. ToolSnapshot provides a serializable view of resolved tools for API exposure.)
-- utils.token_economics.usage_ledger::UsageLedger (POS: append-only JSONL ledger of per-call LLM usage: tokens, cost, latency, model)
 
 [OUTPUT]
 - build_middlewares: Build the full middleware chain for a BaseAgent.

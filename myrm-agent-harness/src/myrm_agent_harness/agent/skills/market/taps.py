@@ -6,7 +6,6 @@ from personal or enterprise private/public GitHub repositories.
 [INPUT]
 - backends.skills.market_protocols::SkillSearchResult
 - infra.tls_compat::create_httpx_client
-- agent.skills.market.sources.github::parse_github_url, GitHubRef
 
 [OUTPUT]
 - TapSubscription: Dataclass for a GitHub Tap repository subscription.

@@ -1,7 +1,7 @@
 """Three-layer image generation request validator.
 
 [INPUT]
-- types::ModelProfile, get_profile (POS: Model capability lookup)
+- types::ModelProfile (POS: Model capability lookup)
 
 [OUTPUT]
 - ImageValidator: Stateless request validator

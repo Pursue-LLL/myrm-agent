@@ -6,7 +6,7 @@ personalSettings, formats a human-readable message, and publishes it via
 ChannelGateway.
 
 [INPUT]
-- app.services.event.app_event_bus::ServerEventBus, AppEvent, AppEventType
+- app.services.event.app_event_bus::ServerEventBus, AppEvent
 - core.channel_bridge::channel_gateway (ChannelGateway singleton)
 - database.connection::get_session / database.models::UserConfigModel
 - app.core.notifications.adaptive_cards::format_notification, format_legacy_text, FormattedNotification,

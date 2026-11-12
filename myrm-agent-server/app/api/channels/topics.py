@@ -2,7 +2,6 @@
 
 [INPUT]
 - api.channels.schemas::BindTopicRequest, TopicBindingResponse, ChannelTopicsResponse (POS: Channel API 请求响应模型)
-- api.dependencies::get_deploy_identity (POS: 用户身份认证依赖)
 - core.channel_bridge.topic_config::SqlTopicManager (POS: Topic 配置管理器)
 
 [OUTPUT]

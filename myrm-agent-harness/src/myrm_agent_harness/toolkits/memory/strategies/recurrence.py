@@ -1,7 +1,6 @@
 """Recurrence-triggered memory consolidation strategy.
 
 [INPUT]
-- memory.config::RecurrenceConfig (POS: recurrence detection configuration)
 - memory.protocols.embedding::EmbeddingProtocol (POS: text to vector)
 - memory.protocols.vector::VectorStoreProtocol (POS: vector storage)
 - strategies.chat_fence::is_closed (POS: whether writes derived from a chat are refused)

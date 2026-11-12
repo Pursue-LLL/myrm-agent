@@ -1,6 +1,5 @@
 """[INPUT]
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
-- myrm_agent_harness.agent.types::Command (POS: LangGraph Resume 原语)
 - myrm_agent_harness.agent.security.jit_gate::JITDualVerificationGate (POS: 执行期防掉包与现势策略双重动态断言网关)
 - myrm_agent_harness.api.security::rollback_workspace_snapshot (POS: 快照回滚底层核心)
 

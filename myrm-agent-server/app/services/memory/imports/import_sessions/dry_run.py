@@ -1,6 +1,5 @@
 """[INPUT]
 - .base (POS: 共享类型、常量与状态)
-- .queries::ImportQueriesMixin (POS: 批次/会话查询)
 
 [OUTPUT]
 - DryRunMixin: 创建 dry-run 会话与确认导入

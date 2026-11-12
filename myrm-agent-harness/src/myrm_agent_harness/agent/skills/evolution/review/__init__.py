@@ -1,9 +1,5 @@
 """Skill review and consolidation system.
 
-[INPUT]
-- langchain_core.messages::BaseMessage (POS: LangChain 消息基类)
-- agent.types::AgentRunStatistics (POS: Agent 运行统计信息)
-
 [OUTPUT]
 - prune_trajectory(): 轨迹剪枝函数（压缩 chat_history）
 - review_trajectory_with_llm(): 技能复盘引擎（调用 LLM 总结经验）

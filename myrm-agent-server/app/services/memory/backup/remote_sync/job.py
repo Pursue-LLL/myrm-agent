@@ -1,7 +1,7 @@
 """One tick of the scheduled remote memory backup, and the wiring a backup cycle needs.
 
 [INPUT]
-- app.services.memory.backup.remote_sync.runner::run_remote_backup, RemoteBackupResult (POS: one backup cycle, outcome as a value)
+- app.services.memory.backup.remote_sync.runner::run_remote_backup (POS: one backup cycle, outcome as a value)
 - app.services.memory.backup.remote_sync.storage::WebDAVBackupStrategy, S3BackupStrategy and their configs (POS: remote storage)
 - app.services.memory.backup.remote_sync.schedule::interval_minutes, is_due, should_alert (POS: pure schedule rules)
 - app.services.memory.backup.remote_sync.state::RemoteSyncStore (POS: persisted outcome of the scheduled runs)

@@ -6,7 +6,7 @@ status badges; import is the universal fallback when scripted login is unavailab
 or inconvenient (the user pastes an ``auth.json`` captured on another machine).
 
 [INPUT]
-- toolkits.acp.auth._profiles::AuthProfile, profile_for (POS: Authentication profile registry.)
+- toolkits.acp.auth._profiles::profile_for (POS: Authentication profile registry.)
 
 [OUTPUT]
 - AuthStatus: Authentication state of a backend.

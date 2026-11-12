@@ -2,11 +2,6 @@
 
 Aggregated public API for the ``decompose`` subpackage.
 
-[INPUT]
-- myrm_agent_harness.toolkits.kanban.protocols::DecomposeOutcome, TaskDecomposer
-    (POS: Harness protocol for TRIAGE→child-graph.)
-- myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Domain task type.)
-
 [OUTPUT]
 - PlatformTaskDecomposer: Concrete TaskDecomposer using the platform LLM + WebUI config.
 - run_decompose_task / run_apply_decompose / run_apply_no_fanout:

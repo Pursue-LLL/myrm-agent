@@ -1,10 +1,6 @@
 """Snapshot module - ARIA tree parsing with MutationObserver-based change detection.
 
 
-[INPUT]
-- patchright.async_api::Page (POS: Patchright page instance)
-- patchright.async_api::Frame (POS: Patchright frame instance)
-
 [OUTPUT]
 - BBox: element bounding box coordinates (viewport-relative)
 - RefInfo: element ref metadata (includes bbox and position)

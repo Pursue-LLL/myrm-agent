@@ -1,7 +1,10 @@
 """Connect Wizard API: manage external agent connections.
 
 [INPUT]
-- app.services.connect::ConnectService (POS: Connection management service)
+- app.services.connect::ConnectorStatus, get_connect_service (POS: External agent connection management — profiles, MCP snippet builder, connection state, verification and doctor checks for external agent plugins.)
+- app.config.computer_use_deploy::is_computer_use_deploy_supported (POS: Deploy-mode gates for computer_use.)
+- app.services.agent.profile.profile_resolver::get_agent_profile_resolver, resolve_builtin_tool_flags (POS: 统一智能体配置解析服务。)
+- app.services.memory.imports.integration_memory::get_integration_memory_service (POS: Business-layer service that wires framework-layer IntegrationFetcher, TreeManager, and Summariser to server-specific infrastructure (embedding config, vector store, graph store, LLM calls).)
 
 [OUTPUT]
 - router: FastAPI router for /connect endpoints

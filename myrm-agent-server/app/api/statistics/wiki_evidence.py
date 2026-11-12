@@ -2,7 +2,6 @@
 
 [INPUT]
 - app.database.models::WikiEvidenceMetricEvent (POS: observability event ORM model)
-- app.database.models::SystemNotification (POS: persisted async notification model)
 - app.database.connection::get_db (POS: async DB session dependency)
 - app.core.utils.response_utils::success_response (POS: standard API envelope)
 

@@ -1,7 +1,7 @@
 """HMAC-SHA256 signature generation and validation for CapabilityHandle.
 
 [INPUT]
-- .types::CapabilityHandle, ResourceScope, CapabilityAction
+- .types::CapabilityHandle
 
 [OUTPUT]
 - sign_capability_handle: Produce cryptographically authenticated signature

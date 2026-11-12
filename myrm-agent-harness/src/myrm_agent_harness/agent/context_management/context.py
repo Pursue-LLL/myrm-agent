@@ -3,8 +3,7 @@
 1. 本文件的 INPUT/OUTPUT/POS 注释
 
 [INPUT]
-- dataclasses::dataclass, field (POS: Python 标准库数据类装饰器)
-- typing::TYPE_CHECKING (POS: Python 类型检查标志)
+- dataclasses::dataclass (POS: Python 标准库数据类装饰器)
 
 [OUTPUT]
 - AgentContext: Agent 运行时上下文数据类

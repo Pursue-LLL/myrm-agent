@@ -2,7 +2,6 @@
 
 [INPUT]
 - pydantic::BaseModel, Field
-- myrm_agent_harness.core.artifacts.constants::ArtifactType
 
 [OUTPUT]
 - DeliverableItem: class — 单个交付工件的元数据和相对路径描述

@@ -2,7 +2,6 @@
 
 [INPUT]
 - schemas::SessionNotesConfig (POS: 笔记配置)
-- utils.token_estimation::estimate_messages_tokens (POS: Token 估算)
 - core.message_origin::is_user_authored_human_message (POS: Message-provenance primitives shared by the approval, security, memory-context and context-management layers.)
 
 [OUTPUT]

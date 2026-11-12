@@ -13,7 +13,7 @@
 - regex_validator::RegexValidator (POS: 正则表达式验证器，防止 ReDoS)
 - _formatter::format_grep_results (POS: Grep output formatter: path-grouped output from 5 matches on, line truncation, non-code file capping)
 - fallback_discovery::collect_candidate_files (POS: 候选文件发现策略：Python 档发现)
-- fallback_search::search_files, SearchOutcome (POS: Python 档内容搜索：按 ripgrep 的行语义匹配并带上下文行，mmap 扫描、分批并发、结果与时间上限)
+- fallback_search::search_files (POS: Python 档内容搜索：按 ripgrep 的行语义匹配并带上下文行，mmap 扫描、分批并发、结果与时间上限)
 - rg_matches::RgMatches (POS: ripgrep --json 事件流收集为匹配行；目录级搜索不返回敏感文件内容)
 - rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档遵循同一套选文件策略)
 - glob_match::compile_glob, is_match_all, normalize_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)

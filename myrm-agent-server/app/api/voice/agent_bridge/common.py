@@ -1,5 +1,5 @@
 """[INPUT]
-- fastapi::WebSocket (POS: voice websocket)
+- none (imports no other project module)
 
 [OUTPUT]
 - _TranscriptEntry, logger and the voice-bridge constants

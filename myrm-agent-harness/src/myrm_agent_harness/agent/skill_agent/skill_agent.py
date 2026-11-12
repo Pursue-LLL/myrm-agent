@@ -8,8 +8,6 @@
 - skills::SkillMetadata (POS: Skill metadata type)
 - types::AgentRuntimeConfig (POS: Agent runtime config)
 - event_log.protocols::EventLogBackend (POS: Event log backend protocol)
-- meta_tools.skills.select::get_skill_document (POS: Load skill SOP document for explicit injection)
-- skills.evolution.infra.integration::get_global_evolution_integration (POS: Integration helpers for skill evolution system.)
 
 [OUTPUT]
 - SkillAgent: Skill Agent — extends BaseAgent with skill system, hooks, and session lifecycle.

@@ -5,7 +5,6 @@ this module detects the content type via a three-layer strategy and routes
 the raw bytes to the appropriate file parser for extraction.
 
 [INPUT]
-- web_fetch.fetchers.protocols::FetchResult (POS: Fetcher protocol types)
 - toolkits.file_parsers (POS: File parsers toolkit entry point.)
 - utils.content_sniff::magic_extension (POS: Format signature to file extension)
 

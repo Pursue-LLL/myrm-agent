@@ -4,7 +4,7 @@ Stateless utilities for signature verification, event parsing, media type
 detection, and filename extraction. All functions are side-effect-free.
 
 [INPUT]
-- app.channels.types::InboundMessage, MediaAttachment (POS: Channel domain types.)
+- app.channels.types::MediaAttachment (POS: Channel domain types.)
 
 [OUTPUT]
 - MAX_TEXT_LENGTH: DingTalk single-message text limit shared by the channel and its card mixin.

@@ -1,9 +1,6 @@
 """BrowserSession console and network log APIs.
 
 [INPUT]
-- session.console_logger::ConsoleLogger (POS: browser console capture)
-- session.network::NetworkLogger (POS: network request log capture)
-- session.network::NetworkIntelligence (POS: CDP-based API request outcomes and lazy response bodies)
 - session.network::safe_preview (POS: credential-masked text cut to a limit)
 - core.security.redact::redact_sensitive_text (POS: credential masking of replayed response bodies)
 - session.session_host::SessionHost (POS: typed host contract the mixin builds on)

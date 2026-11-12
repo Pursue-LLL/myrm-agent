@@ -2,7 +2,6 @@
 
 [INPUT]
 - pydantic::BaseModel, Field
-- enum::Enum
 - time
 
 [OUTPUT]

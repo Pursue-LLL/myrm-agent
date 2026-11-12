@@ -1,5 +1,5 @@
 """[INPUT]
-- pydantic::BaseModel (POS: schema base)
+- none (imports no other project module)
 
 [OUTPUT]
 - _to_int, _to_signed_int, _to_float, _to_str, _first_str, _to_str_list, _to_count_map, _to_mapping_list, _to_dict_list, _has_text_or_flag, _count_from_items_or_raw, _content_blind_restore_range_hint, _content_blind_content_feature

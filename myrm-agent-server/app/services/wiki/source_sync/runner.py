@@ -4,7 +4,6 @@
 - app.services.wiki.source_sync.config_store (POS: per-agent wikiSourceSync UserConfig persistence)
 - app.services.wiki.source_sync.state_store (POS: per-agent wikiSourceSyncState last-run observability)
 - app.services.wiki.vault (POS: agent wiki vault path SSOT)
-- myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::publish_raw (POS: raw publication gate)
 - app.services.wiki.source_sync.deferred_enqueue (POS: holds auto-compile enqueue until the duplicate scan has run)
 
 [OUTPUT]

@@ -1,8 +1,5 @@
 """Commerce server module.
 
-[INPUT]
-- .session_state::ShoppingSessionState, MerchantSessionState, CommerceRole, CommerceSessionManager
-
 [OUTPUT]
 - Public export of session isolation components for commerce agent flows.
 

@@ -1,8 +1,7 @@
 """Trajectory Failure Mode Taxonomy & Analysis Engine.
 
 [INPUT]
-- protocols::EvalTurnResult, AgentResponse, EvalResult (POS: evaluation execution models)
-- suite_judge::TestSuiteResult (POS: test suite execution outcomes)
+- protocols::EvalTurnResult, EvalResult (POS: evaluation execution models)
 
 [OUTPUT]
 - FailureMode: canonical 9-class failure taxonomy enum

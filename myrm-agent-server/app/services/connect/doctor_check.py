@@ -1,7 +1,6 @@
 """Doctor checks for external agent connections: on-disk config verification.
 
 [INPUT]
-- services.connect.profiles::ConnectionProfile (POS: External agent profile registry)
 - services.connect.snippet_builder (POS: MCP 配置片段构建，定义 ``myrm-memory`` 条目布局)
 
 [OUTPUT]

@@ -5,7 +5,7 @@ that evaluates session CallRecords, file mutations, and verification results to
 assign a verifiable confidence tier to the agent's delivery.
 
 [INPUT]
-- agent.security.guards.loop_guard::CallRecord, ToolGroup, SuccessLevel, VerificationCategory, get_tool_group
+- agent.security.guards.loop_guard::CallRecord, ToolGroup, SuccessLevel, get_tool_group
 
 [OUTPUT]
 - DeliverableConfidenceTier: SSOT enum (VERIFIED, ARTIFACT, RESEARCH, PLAN)

@@ -2,7 +2,6 @@
 
 [INPUT]
 - transport.images::{agenerate_images, aedit_images, GeneratedImage} (POS: provider image requests)
-- transport.errors::LLMHTTPError (POS: failed provider status)
 - core.security.http.secure_fetch::secure_get (POS: SSRF-protected outbound HTTP for URL-based image downloads)
 - models::{ImageGenerationConfig, ImageResult, ...} (POS: configuration and result types)
 

@@ -1,7 +1,6 @@
 """Shared retention helpers for context pipeline processors.
 
 [INPUT]
-- infra.schemas::CompressionIntent, DEFAULT_CACHE_TTL_PRUNE_CONFIG
 - infra.message_priority::_is_tool_error
 - strategies.priority_signals::group_matches_focus_signals, group_matches_goal_hint (POS: compression priority signal matchers)
 - strategies.tool_call_groups::build_tool_call_groups

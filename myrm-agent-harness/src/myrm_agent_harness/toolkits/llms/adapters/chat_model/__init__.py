@@ -3,9 +3,6 @@
 Aggregates the aggregate root (``model``) with its generation mixins and
 exception types.
 
-[INPUT]
-- langchain_core.language_models.chat_models::BaseChatModel (POS: LangChain chat model base class)
-
 [OUTPUT]
 - model: TransportChatModel (LangChain-compatible chat model aggregate root), clean_model_kwargs
 - async_mixin / async_stream_mixin / sync_mixin / message_mixin: generation and message assembly mixins

@@ -3,7 +3,6 @@
 [INPUT]
 - app.core.skills.models::LOCAL_SKILLS_DIR (POS: single definition of the primary local skills root)
 - creation_protocols::SkillWriteBackend, SkillSaveResult, SkillDeleteResult, SkillResourceWriteResult
-- myrm_agent_harness.agent.skills.packaging.validator::parse_skill_md
 - myrm_agent_harness.agent.skills.market.sanitizer::SKILL_MD_FILE, SKILL_NAME_PATTERN
 
 [OUTPUT]

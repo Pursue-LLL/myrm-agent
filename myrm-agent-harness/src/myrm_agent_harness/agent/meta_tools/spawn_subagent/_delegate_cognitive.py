@@ -10,7 +10,7 @@
 - agent.sub_agents.spawn_prep::build_spawn_child_context (POS: child runtime context taken only from the parent)
 - agent.parallel.summary::inject_capacity_signal (POS: Capacity signal injection for context management)
 - delegation_pause_gate::is_delegation_paused (POS: Session delegation pause check)
-- _delegate_budget::_estimate_batch_cost, _BatchBudgetAdmission (POS: Pre-flight cost estimation)
+- _delegate_budget::_estimate_batch_cost (POS: Pre-flight cost estimation)
 - _delegate_batch::TaskRequest, _DEFAULT_COST_APPROVAL_THRESHOLD_USD (POS: Cost approval threshold)
 - core.security.hitl_decision::is_approved, rejection_feedback (POS: 人工审批答复唯一解读)
 

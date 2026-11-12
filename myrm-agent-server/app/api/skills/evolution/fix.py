@@ -1,7 +1,6 @@
 """
 [INPUT]
 - app.api.skills.evolution.helpers::_require_evolvable_record (POS: Helper functions for evolution API)
-- myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system)
 
 [OUTPUT]
 - fix_skill: Trigger a FIX evolution for an existing skill, optionally bypassing cooldown.
