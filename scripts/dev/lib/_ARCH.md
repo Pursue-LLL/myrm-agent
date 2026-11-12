@@ -8,6 +8,8 @@
 
 **Dev Gate 域**已收编至 [dev_gate/_ARCH.md](dev_gate/_ARCH.md)，canonical 实现在 `dev_gate/`。
 
+**浏览器数据面边界**：`browser_orchestrator/` 是 formal Chrome E2E 的唯一 CDP 调度入口；`mux/` 与 `chrome_mcp/` 仅作为适配、诊断和兼容域，不能重新成为并发数据面。并发预算、lease、ownership 和 observed cleanup 的 SSOT 见 `browser_orchestrator/` 与 [chrome_e2e/_ARCH.md](chrome_e2e/_ARCH.md)。
+
 **Dev Gate 基建 pytest** 唯一根在 monorepo [`open-perplexity/scripts/dev/tests/`](../../../../scripts/dev/tests/)（`conftest.py` 注入本目录至 `sys.path`）。
 
 ## 文件清单

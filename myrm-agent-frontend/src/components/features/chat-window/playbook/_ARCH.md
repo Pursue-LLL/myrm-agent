@@ -18,5 +18,5 @@
 ## 模块依赖
 
 - 消费 `@/store/useProviderStore` 进行模型服务商与默认模型配置的原子化读取与增量更新；
-- 遵循 `tailwind.config.ts` 双主题调色板与 Lucide 矢量科技图标标准；
+- 遵循 `src/app/globals.css` 的 `@theme` 双主题调色板与 Lucide 矢量科技图标标准；
 - 通过 `locales/*.json` 中的 `chat.modelPlaybook` 实现 6 语系国际化支持。

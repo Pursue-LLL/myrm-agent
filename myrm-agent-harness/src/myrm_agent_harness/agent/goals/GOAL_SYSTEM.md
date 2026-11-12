@@ -19,7 +19,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 - **Goal Lifecycle Metrics**：在 `create_goal`、`update_status`（终态）、`resume_goal` 三个状态转换点自动记录 Prometheus 指标（6 counters + 3 histograms），通过 `observability/metrics/goal_metrics.py` 定义，为 SaaS 运营监控提供 goal 完成率、预算耗尽率、耗时分布、Token/Cost 分布等关键数据。
 - **多分支上下文隔离与迁移 (Branch-Aware Stash & Migrate)**：
   - `stash_goal` 和 `restore_goal` 实现基于 `session_id` + `branch_name` 的联合主键隔离，彻底解决多工作区/多会话并发数据覆盖 Bug。
-  - Server 层配合 `watchdog` 零延迟监听 `.git/HEAD`，实现**意图感知的目标迁移**：当检测到新建分支（如 `checkout -b`）时，自动将当前 Active Goal 继承（MIGRATE）到新分支；当切回老分支时，自动挂起并恢复（STASH/RESTORE）对应上下文，完美契合真实 Git 工作流。
+  - Server 层每 0.5 秒 `stat` 一次 `.git/HEAD` 的 mtime（不起子进程），mtime 一变就复查所有存活目标会话，实现**意图感知的目标迁移**：当检测到新建分支（如 `checkout -b`）时，自动将当前 Active Goal 继承（MIGRATE）到新分支；当切回老分支时，自动挂起并恢复（STASH/RESTORE）对应上下文，完美契合真实 Git 工作流。
 - **运行时动态子目标 (Dynamic Runtime Subgoals)**：
   - 支持在任务执行过程中，随时通过 `/subgoal` 指令追加新的验收标准或子任务。
   - 最新的 Subgoal 具备**绝对优先级**，被无损注入到 `Semantic Judge` 和 `Continuation Prompt` 中，确保 Agent 能够灵活响应临时变更的需求，极大增强了长任务场景下的动态干预能力。

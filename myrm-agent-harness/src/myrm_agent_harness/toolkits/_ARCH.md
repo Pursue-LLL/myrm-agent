@@ -12,7 +12,7 @@ by any consumer, without requiring the Agent runtime.
 | Export shape | Typical location | Role |
 |--------------|------------------|------|
 | **Primary — generic API** | `__init__.py`, `protocols.py`, engines, managers | Protocols, types, engines, `create_*()` factories — callable from server, cron, CLI, tests, or any agent framework |
-| **Optional — LangChain adapter** | `*_agent_tools.py` (or legacy `tool.py`) | Thin `create_*_tools()` → `list[BaseTool]` wrapper so an LLM agent can call the toolkit without re-wiring |
+| **Optional — LangChain adapter** | `*_agent_tools.py` | Thin `create_*_tools()` → `list[BaseTool]` wrapper so an LLM agent can call the toolkit without re-wiring |
 
 **Agent-callable LangChain tools are one consumption form, not the identity of `toolkits/`.**
 In external docs, **tool** means an LLM tool (`BaseTool` in `ToolRegistry`); toolkit engines are not tools.
