@@ -98,9 +98,9 @@ flowchart TD
   F --> G[app/main.py FastAPI]
   G --> H[app/server/lifespan Phase 1 Critical]
   H --> I[Phase 2 Essential: channel_gateway + cron + 远程备份 + kanban 派发准备]
-  I --> J[Phase 3 后台，端口绑定后启动: app/server/warmup + kanban dispatcher 等 异步]
+  I --> J[Phase 3 后台，端口绑定后启动: app/server/warmup + kanban dispatcher + 路由组预加载 等 异步]
   J --> K[app/lifecycle/schedulers 定时任务]
-  G --> L[HTTP 请求 → app/api → app/services]
+  G --> L[HTTP 请求 → 所属路由组按需导入 → app/api → app/services]
 ```
 
 | 阶段 | 模块 | POS |
@@ -108,7 +108,7 @@ flowchart TD
 | 进程入口 | `run.py` → `app/startup/*` | OS 进程、锁、uvicorn |
 | 运行时生命周期 | `app/server/lifespan/` | FastAPI lifespan 三阶段 |
 | 后台编排 | `app/lifecycle/*` | Gateway/Cron/看板/记忆守护者等 |
-| 请求路径 | `app/api` → `app/services` → harness | 单机业务编排 |
+| 请求路径 | `app/api` → `app/services` → harness | 单机业务编排；`app/api` 的路由组按 `/api/v1` 后的第一段在首个请求或启动后的预加载时才导入（`app/server/lazy_routes.py`） |
 
 ### Channels 三层（新人导航）
 

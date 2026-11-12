@@ -15,21 +15,24 @@ from __future__ import annotations
 
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from app.middleware.trailing_slash_alias import (
+    SlashedPathIndex,
     TrailingSlashAliasMiddleware,
     collect_slashed_paths,
+    collect_slashed_router_paths,
 )
 
 
-def _build_app(slashed_paths: set[str]) -> Starlette:
-    async def collection(_request):  # type: ignore[no-untyped-def]
+def _build_app(index: SlashedPathIndex) -> Starlette:
+    async def collection(_request: Request) -> JSONResponse:
         return JSONResponse({"ok": "collection"})
 
-    async def other(_request):  # type: ignore[no-untyped-def]
+    async def other(_request: Request) -> JSONResponse:
         return JSONResponse({"ok": "other"})
 
     app = Starlette(
@@ -38,13 +41,13 @@ def _build_app(slashed_paths: set[str]) -> Starlette:
             Route("/chats/{chat_id}", other, methods=["GET"]),
         ]
     )
-    app.add_middleware(TrailingSlashAliasMiddleware, slashed_paths=slashed_paths)
+    app.add_middleware(TrailingSlashAliasMiddleware, index=index)
     return app
 
 
 @pytest.mark.parametrize("method", ["GET", "POST", "DELETE"])
 def test_slash_free_request_reaches_the_slashed_route_without_redirect(method: str) -> None:
-    client = TestClient(_build_app({"/chats/"}))
+    client = TestClient(_build_app(SlashedPathIndex({"/chats/"})))
 
     # follow_redirects=False：断言这里根本不产生 3xx（桌面跨源跟随会因缺少 ACAO 失败）
     response = client.request(method, "/chats", follow_redirects=False)
@@ -53,9 +56,21 @@ def test_slash_free_request_reaches_the_slashed_route_without_redirect(method: s
 
 
 def test_unrelated_paths_keep_their_original_routing() -> None:
-    client = TestClient(_build_app({"/chats/"}), follow_redirects=False)
+    client = TestClient(_build_app(SlashedPathIndex({"/chats/"})), follow_redirects=False)
 
     assert client.get("/chats/abc").json() == {"ok": "other"}
+
+
+def test_paths_added_after_the_middleware_was_mounted_gain_their_alias() -> None:
+    """Route groups mounted after startup extend the index the running middleware consults."""
+    index = SlashedPathIndex()
+    client = TestClient(_build_app(index), follow_redirects=False)
+
+    assert client.get("/chats").status_code == 307
+
+    index.add({"/chats/"})
+
+    assert client.get("/chats").status_code == 200
 
 
 def test_real_route_tree_alias_set_matches_openapi_contract() -> None:
@@ -81,22 +96,22 @@ def test_real_route_tree_alias_set_matches_openapi_contract() -> None:
 def test_parameterized_collection_root_is_aliased() -> None:
     """带路径参数的集合根（如 /share/{token}/）必须按一段通配匹配真实请求，否则依旧 307。"""
 
-    async def share(_request):  # type: ignore[no-untyped-def]
+    async def share(_request: Request) -> JSONResponse:
         return JSONResponse({"ok": "share"})
 
     app = Starlette(routes=[Route("/share/{token}/", share, methods=["GET"])])
-    app.add_middleware(TrailingSlashAliasMiddleware, slashed_paths={"/share/{token}/"})
+    app.add_middleware(TrailingSlashAliasMiddleware, index=SlashedPathIndex({"/share/{token}/"}))
     client = TestClient(app, follow_redirects=False)
 
     assert client.get("/share/abc123").status_code == 200
 
 
 def test_parameterized_alias_does_not_swallow_extra_segments() -> None:
-    async def share(_request):  # type: ignore[no-untyped-def]
+    async def share(_request: Request) -> JSONResponse:
         return JSONResponse({"ok": "share"})
 
     app = Starlette(routes=[Route("/share/{token}/", share, methods=["GET"])])
-    app.add_middleware(TrailingSlashAliasMiddleware, slashed_paths={"/share/{token}/"})
+    app.add_middleware(TrailingSlashAliasMiddleware, index=SlashedPathIndex({"/share/{token}/"}))
     client = TestClient(app, follow_redirects=False)
 
     assert client.get("/share/abc123/extra").status_code == 404
@@ -104,9 +119,31 @@ def test_parameterized_alias_does_not_swallow_extra_segments() -> None:
 
 def test_route_without_path_or_router_is_skipped() -> None:
     """Mounts/objects that expose neither ``path`` nor ``original_router`` must be ignored."""
-    from app.middleware.trailing_slash_alias import _iter_route_paths
+    from app.middleware.trailing_slash_alias import iter_route_paths
 
     class _Bare:
         pass
 
-    assert list(_iter_route_paths([_Bare()], "")) == []
+    assert list(iter_route_paths([_Bare()], "")) == []
+
+
+def test_router_scoped_collection_matches_the_whole_app_collection() -> None:
+    """Collecting one router under its mount prefix finds the paths the whole-app walk finds for it."""
+    from fastapi import APIRouter, FastAPI
+
+    router = APIRouter()
+
+    @router.get("/")
+    async def list_items() -> list[str]:
+        return []
+
+    @router.get("/{item_id}")
+    async def get_item(item_id: str) -> str:
+        return item_id
+
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/items")
+
+    expected = frozenset({"/api/v1/items/"})
+    assert collect_slashed_router_paths(router, "/api/v1/items") == expected
+    assert collect_slashed_paths(app) == expected

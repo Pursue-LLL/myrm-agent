@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - enrich_openapi_schema(): inject bearerAuth into an OpenAPI dict
-- install_custom_openapi(): attach cached generator to a FastAPI app
+- install_custom_openapi(): attach cached generator to a FastAPI app (optionally preparing the route table first)
 - OPENAPI_API_DESCRIPTION: shared API docs body for main + tests
 
 [POS]
@@ -14,6 +14,8 @@ without pulling the full dependency stack.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
@@ -60,12 +62,17 @@ def enrich_openapi_schema(schema: dict[str, object]) -> dict[str, object]:
     return schema
 
 
-def install_custom_openapi(app: FastAPI) -> None:
-    """Attach cached custom OpenAPI generator (bearerAuth) to a FastAPI app."""
+def install_custom_openapi(app: FastAPI, prepare: Callable[[], None] | None = None) -> None:
+    """Attach cached custom OpenAPI generator (bearerAuth) to a FastAPI app.
+
+    ``prepare`` runs before the schema is generated, so routes mounted on demand are part of it.
+    """
 
     def _custom_openapi() -> dict[str, object]:
         if app.openapi_schema:
             return app.openapi_schema
+        if prepare is not None:
+            prepare()
         schema = get_openapi(
             title=app.title,
             version=app.version,
@@ -75,4 +82,5 @@ def install_custom_openapi(app: FastAPI) -> None:
         app.openapi_schema = enrich_openapi_schema(schema)
         return app.openapi_schema
 
-    app.openapi = _custom_openapi  # type: ignore[method-assign]
+    # FastAPI resolves ``openapi`` on the instance first; the instance dict is the typed way to shadow the method.
+    vars(app)["openapi"] = _custom_openapi

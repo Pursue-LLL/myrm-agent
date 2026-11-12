@@ -7,7 +7,8 @@ tests/architecture/test_api_routers_are_imported.py
 - app/**/*.py: parsed with ast, never imported
 
 [OUTPUT]
-- Fails when a router module has no importer: nothing can mount it, so every route in it answers 404.
+- Fails when a router module has no importer (an import, an ``import_module("literal")`` or the module a ``RouterMount``
+  names): nothing can mount it, so every route in it answers 404.
   The frontend path gate only notices when a client spells the path out; this one does not depend on a caller.
 - Fails when the scan finds no router module at all, so a moved scan root cannot pass silently
 
@@ -55,7 +56,19 @@ def _imported_modules(tree: ast.Module, package: str) -> set[str]:
         elif isinstance(node, ast.Call) and getattr(node.func, "attr", None) == "import_module":
             if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
                 imported.add(node.args[0].value)
+        elif isinstance(node, ast.Call) and getattr(node.func, "id", None) == "RouterMount":
+            if mounted := _mounted_module(node):
+                imported.add(mounted)
     return imported
+
+
+def _mounted_module(call: ast.Call) -> str | None:
+    """The module a ``RouterMount(segment, module, ...)`` declaration names: its router is imported when its group loads."""
+    candidates = [call.args[1]] if len(call.args) > 1 else [kw.value for kw in call.keywords if kw.arg == "module"]
+    for node in candidates:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+    return None
 
 
 def _routers_without_importer(app_root: Path = _APP_ROOT) -> list[str]:
@@ -111,6 +124,14 @@ def test_router_module_with_importer_is_not_reported(tmp_path: Path) -> None:
     app_root = tmp_path / "app"
     _write_api_module(app_root, "lonely.py", "from fastapi import APIRouter\n\nrouter = APIRouter()\n")
     _write_api_module(app_root, "mount.py", "from app.api.lonely import router\n")
+
+    assert _routers_without_importer(app_root) == []
+
+
+def test_router_module_named_by_a_route_table_mount_is_not_reported(tmp_path: Path) -> None:
+    app_root = tmp_path / "app"
+    _write_api_module(app_root, "lonely.py", "from fastapi import APIRouter\n\nrouter = APIRouter()\n")
+    _write_api_module(app_root, "table.py", 'MOUNTS = (RouterMount("lonely", "app.api.lonely", prefix="/lonely"),)\n')
 
     assert _routers_without_importer(app_root) == []
 

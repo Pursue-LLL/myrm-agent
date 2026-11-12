@@ -1,17 +1,19 @@
-"""Startup import gate: no outbound network and a bounded module count.
+"""Startup import gate: no outbound network, a bounded module count and no eagerly imported route group.
 
 [INPUT]
 - app.main (POS: HTTP application import surface)
+- app.api.router::ROUTER_MOUNTS / EAGER_SEGMENTS (POS: the routers that load on demand and the ones mounted at import)
 
 [OUTPUT]
-- Regression coverage that importing the server neither touches the network nor grows
-  past its module budget.
+- Regression coverage that importing the server neither touches the network, nor grows
+  past its module budget, nor imports a router that is meant to load on demand.
 
 [POS]
 Startup tests. Importing the HTTP application must not wait on the network (a dependency
 that fetches a remote table at import time would stall every launch) and must not silently
 grow: every extra module is CPU time spent on every launch of the server and of the desktop
-sidecar.
+sidecar. The routers are most of the import graph; they load when a request or the post-start
+preload needs them, so one eager import of a router module from startup code undoes that.
 """
 
 from __future__ import annotations
@@ -27,10 +29,10 @@ import pytest
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 
-# 6,418 modules were imported when the budget was last re-measured; the rest is ~10% headroom.
+# 4,280 modules were imported when the budget was last re-measured; the rest is ~10% headroom.
 # Raise it deliberately, with a reason, when a feature genuinely needs more modules, never to
 # silence an accidental eager import.
-_MAX_IMPORTED_MODULES = 7_100
+_MAX_IMPORTED_MODULES = 4_700
 
 _RESULT_FILE_ENV = "MYRM_STARTUP_GATE_RESULT_FILE"
 
@@ -75,8 +77,12 @@ socket.getaddrinfo = guarded_getaddrinfo
 socket.socket.connect = guarded_connect
 
 import app.main  # noqa: E402,F401
+from app.api.router import EAGER_SEGMENTS, ROUTER_MOUNTS  # noqa: E402
 
-result = dict(attempts=attempts, modules=len(sys.modules))
+eager_routers = sorted(
+    {{mount.module for mount in ROUTER_MOUNTS if mount.segment not in EAGER_SEGMENTS and mount.module in sys.modules}}
+)
+result = dict(attempts=attempts, modules=len(sys.modules), eager_routers=eager_routers)
 Path(os.environ[{_RESULT_FILE_ENV!r}]).write_text(json.dumps(result))
 """
 
@@ -85,6 +91,7 @@ Path(os.environ[{_RESULT_FILE_ENV!r}]).write_text(json.dumps(result))
 class _ImportProbe:
     outbound_attempts: tuple[str, ...]
     module_count: int
+    eager_routers: tuple[str, ...]
 
 
 @pytest.fixture(scope="module")
@@ -106,6 +113,7 @@ def import_probe(tmp_path_factory: pytest.TempPathFactory) -> _ImportProbe:
     return _ImportProbe(
         outbound_attempts=tuple(payload["attempts"]),
         module_count=int(payload["modules"]),
+        eager_routers=tuple(payload["eager_routers"]),
     )
 
 
@@ -119,4 +127,11 @@ def test_importing_app_main_stays_within_the_module_budget(import_probe: _Import
     assert import_probe.module_count <= _MAX_IMPORTED_MODULES, (
         f"Importing app.main loads {import_probe.module_count} modules "
         f"(budget {_MAX_IMPORTED_MODULES}); look for a new eager import before raising the budget."
+    )
+
+
+def test_importing_app_main_leaves_the_on_demand_routers_unimported(import_probe: _ImportProbe) -> None:
+    assert import_probe.eager_routers == (), (
+        "Importing app.main imported routers that load on demand, which puts their whole import closure back on every "
+        f"launch. Find the eager import of: {import_probe.eager_routers}"
     )

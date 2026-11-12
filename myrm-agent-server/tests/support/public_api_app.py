@@ -1,7 +1,7 @@
 """The public API as OpenAPI, generated once per process: every router except the ones `app.main` mounts itself.
 
 [INPUT]
-- app.api.router.api_router (POS: 全部 REST 路由聚合)
+- app.api.router.api_router / route_loader (POS: 全部 REST 路由聚合；路由组按需导入，快照前先全部加载)
 - app.api.webui.router (POS: /webui 路由)
 - app.api.internal.org_policy_sync / app.api.memory 的 Labs 路由（command_center*、归档恢复、工具指引、画像笔记、首次见面、临时增量、认知时钟控制台、导入回滚预演、各引擎控制台）(POS: 条件挂载的路由)
 
@@ -63,10 +63,11 @@ def build_public_api_app() -> FastAPI:
     from app.api.memory.profile_notes_router import router as profile_notes_router
     from app.api.memory.score_honesty_router import router as score_honesty_router
     from app.api.memory.two_layer_dialectic_router import router as two_layer_dialectic_router
-    from app.api.router import api_router
+    from app.api.router import api_router, route_loader
     from app.api.webui.router import router as webui_router
     from app.config.settings import settings
 
+    route_loader.load_all()
     app = FastAPI()
     app.include_router(api_router, prefix=API_PREFIX)
     app.include_router(org_policy_router, prefix=API_PREFIX)

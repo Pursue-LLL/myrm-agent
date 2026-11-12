@@ -10,16 +10,16 @@
 
 [POS]
 Starts the boot's background tasks once uvicorn is accepting connections. They are CPU-heavy on the single event loop
-(scheduler wiring, tokenizer and vector store warmup, the agent tool chain import, the kanban dispatchers' first
-queries); started before the lifespan yields, their first synchronous slices would delay the socket bind, which
-uvicorn performs only after startup completes. When they have all ended, the boot GC pause ends with them. A shutdown
+(scheduler wiring, tokenizer and vector store warmup, the agent tool chain import, the route groups' imports, the kanban
+dispatchers' first queries); started before the lifespan yields, their first synchronous slices would delay the socket
+bind, which uvicorn performs only after startup completes. When they have all ended, the boot GC pause ends with them. A shutdown
 that arrives before the delay has passed cancels the start, so no scheduler is started once components are stopping.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 
 from app.lifecycle import pause_orphaned_active_goals, start_kanban_dispatchers
 from app.server.warmup import run_async_warmup
@@ -38,10 +38,15 @@ _running: set[asyncio.Task[None]] = set()
 _scheduled_start: asyncio.TimerHandle | None = None
 
 
-def schedule_background_work() -> None:
-    """Start the background tasks shortly after the lifespan yields, i.e. once the socket is bound."""
+def schedule_background_work(preload_routes: Callable[[], Coroutine[object, object, None]] | None = None) -> None:
+    """Start the background tasks shortly after the lifespan yields, i.e. once the socket is bound.
+
+    ``preload_routes`` (the route loader's ``preload``) imports the route groups no request has asked for yet.
+    """
     global _scheduled_start
-    _scheduled_start = asyncio.get_running_loop().call_later(BACKGROUND_START_DELAY_SECONDS, _start_background_work)
+    _scheduled_start = asyncio.get_running_loop().call_later(
+        BACKGROUND_START_DELAY_SECONDS, _start_background_work, preload_routes
+    )
 
 
 def cancel_scheduled_background_work() -> None:
@@ -50,7 +55,7 @@ def cancel_scheduled_background_work() -> None:
         _scheduled_start.cancel()
 
 
-def _start_background_work() -> None:
+def _start_background_work(preload_routes: Callable[[], Coroutine[object, object, None]] | None) -> None:
     logger.info("[Startup] Starting background warmup...")
     tasks = [
         _spawn(run_async_warmup()),
@@ -63,6 +68,9 @@ def _start_background_work() -> None:
         # idempotent bootstrap.
         _spawn(startup._preload_agent_tool_layers()),
     ]
+    if preload_routes is not None:
+        # Routers import on the event loop between requests; a request for a group that is not loaded yet loads it first.
+        tasks.append(_spawn(preload_routes()))
     settle_collection_after(asyncio.gather(*tasks, return_exceptions=True))
 
 

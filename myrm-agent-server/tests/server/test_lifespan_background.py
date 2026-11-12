@@ -4,8 +4,8 @@
 - app.server.lifespan.background (POS: schedules the boot's background tasks)
 
 [OUTPUT]
-- Coverage that nothing starts before the delay, that every task runs, that a failure is logged, that the
-  settle step waits for all of them, and that a shutdown within the delay cancels the start
+- Coverage that nothing starts before the delay, that every task runs (the route preload included), that a failure
+  is logged, that the settle step waits for all of them, and that a shutdown within the delay cancels the start
 
 [POS]
 Server tests. Uvicorn binds its socket only after the lifespan yields; background work that starts earlier delays
@@ -79,6 +79,29 @@ async def test_the_settle_step_waits_for_every_task_and_the_loop_holds_them_unti
     release.set()
     await boot_work
 
+    assert background._running == set()
+
+
+async def test_the_route_preload_is_one_more_task_the_settle_step_waits_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    started: list[str] = []
+    release = _install_fakes(monkeypatch, started)
+    settled: list[asyncio.Future[object]] = []
+    monkeypatch.setattr(background, "settle_collection_after", settled.append)
+
+    async def preload_routes() -> None:
+        started.append("route-groups")
+        await release.wait()
+
+    background.schedule_background_work(preload_routes)
+    await asyncio.sleep(0.2)
+
+    assert sorted(started) == sorted((*_TASK_NAMES, "route-groups"))
+    [boot_work] = settled
+    assert not boot_work.done()
+    assert len(background._running) == len(_TASK_NAMES) + 1
+
+    release.set()
+    await boot_work
     assert background._running == set()
 
 

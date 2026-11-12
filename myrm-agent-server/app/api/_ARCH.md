@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1`；各子目录按业务域拆分，**禁止**在 API 层写持久化或 Agent 执行逻辑（委托 `services/`）。上级：[../_ARCH.md](../_ARCH.md)。
+FastAPI HTTP/WebSocket 入口层。`router.py` 以挂载表 `ROUTER_MOUNTS` 声明每个子路由，由 [`app/server/lazy_routes.py`](../server/lazy_routes.py) 聚合成挂到 `/api/v1` 的一个 `APIRouter`：`/api/v1` 之后的第一段是路由段，同一路由段的路由组在第一个请求（或启动后的后台预加载）需要它时才导入，启动不为整棵路由树的导入付费；`health` 随进程导入；各子目录按业务域拆分，**禁止**在 API 层写持久化或 Agent 执行逻辑（委托 `services/`）。上级：[../_ARCH.md](../_ARCH.md)。
 
 ## 根级文件
 
@@ -10,7 +10,7 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
 | `dependencies.py` | 核心 | FastAPI 依赖注入统一入口 | ✅ |
-| `router.py` | 核心 | 全量子路由注册表 | — |
+| `router.py` | 核心 | 路由挂载表：`ROUTER_MOUNTS` 每行声明一个子路由的路由段、模块、前缀与标签；导出 `route_loader`（`LazyRouteLoader`）与它的聚合路由 `api_router`。每个挂载的路径必须落在自己声明的路由段之下（`tests/architecture/test_route_table.py`），新增路由模块就是在表里加一行 | ✅ |
 
 ## 子模块导航（按域）
 
@@ -43,4 +43,5 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 - 单租户：路由与依赖**无** `user_id` 多租户语义（`tests/architecture/test_no_user_id.py`）。
 - SaaS sandbox：认证经 `middleware/auth.py` HMAC；部分端点拉 Control Plane internal API（见 `services/security/`）。
 - 渠道 Webhook 动态注册见 `main.py` `init_channel_routes()`，非全部列于 `router.py`。
+- 路由模块只能经 `ROUTER_MOUNTS` 挂载：直接在 `api_router` 上调用 `include_router` 会让该路由组随进程导入，也不在 `ROUTER_MOUNTS` 声明的路由段之内。
 - **`api/` 与 `services/` 非 1:1 目录镜像**：贡献者域名词对照见根目录 [CONTRIBUTING.md § API ↔ Services domain vocabulary](../../../CONTRIBUTING.md#api--services-domain-vocabulary)；CI 锁见 [tests/architecture/test_api_services_vocabulary.py](../../tests/architecture/test_api_services_vocabulary.py)。

@@ -69,7 +69,8 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         Phase 3  (Background - Async):     Warmup (schedulers, browser pool, batch recovery, tokenizer, risk rules,
                                             vector cache and more; see ``warmup``) ‖ Orphaned Goals ‖
                                             Kanban Dispatchers ‖ @startup Events ‖ Trunk Templates ‖
-                                            Agent Tool Layers (started once the socket is bound; see ``background``)
+                                            Agent Tool Layers ‖ Route Groups (the routers no request has needed yet;
+                                            started once the socket is bound; see ``background``)
 
     Shutdown (see ``shutdown``):
         1. Cancel the delayed background start; stop the curtain watcher and the wake daemons
@@ -266,8 +267,9 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.debug("[Startup] Channel budget init skipped: %s", e)
 
-    # === Phase 3: background work (warmup, housekeeping), started once the socket is bound ===
-    schedule_background_work()
+    # === Phase 3: background work (warmup, housekeeping, route group imports), started once the socket is bound ===
+    route_loader = getattr(app_instance.state, "route_loader", None)
+    schedule_background_work(route_loader.preload if route_loader is not None else None)
 
     yield
 
