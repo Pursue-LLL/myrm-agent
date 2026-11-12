@@ -18,124 +18,38 @@ if __package__ in (None, ""):
         sys.path.insert(0, _lib_root)
 
 from dev_gate.contract import attach_ui_heal_ensure_subprocess_sec
+
 from e2e_core.dev_ports import shared_ui_base
 from e2e_core.frontend_dev_pause import is_frontend_dev_paused
 from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
-from e2e_core.real_user_home import real_user_home
+from e2e_core.ui_heal_probes import (
+    route_probe_ok,
+    shared_client_hot_ok,
+    shared_ui_probe_ok,
+)
+from e2e_core.ui_heal_state import (
+    DEFAULT_DEBOUNCE_SEC,
+    attach_heal_flock_path,
+    attach_heal_leader_stale,
+    clear_attach_leader_meta,
+    flock_path,
+    leader_process_alive,
+    read_attach_leader_meta,
+    ui_heal_global_flock_path,
+    warm_ui_heal_recently_applied,
+    write_attach_leader_meta,
+    write_heal_stamp,
+)
 
-_DEFAULT_DEBOUNCE_SEC = 60.0
 _DEFAULT_FLOCK_WAIT_SEC = 5.0
 _ATTACH_FLOCK_WAIT_SEC = 120.0
-_ATTACH_LEADER_STALE_SEC = 120.0
 _ATTACH_FRONTEND_ENSURE_WAIT_SEC = 120.0
-
-
-def _state_dir() -> Path:
-    raw = os.environ.get(
-        "MYRM_E2E_STATE_DIR",
-        str(real_user_home() / ".local" / "state" / "myrm-e2e"),
-    )
-    path = Path(raw)
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def _stamp_path() -> Path:
-    return _state_dir() / "warm-ui-heal.stamp"
-
-
-def _flock_path() -> Path:
-    return _state_dir() / "warm-ui-heal.flock"
-
-
-def _attach_heal_flock_path() -> Path:
-    return _state_dir() / "attach-frontend-heal.flock"
-
-
-def _attach_heal_leader_meta_path() -> Path:
-    return _state_dir() / "attach-frontend-heal.leader.json"
-
-
-def _write_attach_leader_meta(owner_pid: int) -> None:
-    import json
-
-    payload = {"pid": owner_pid, "started_at": time.time()}
-    _attach_heal_leader_meta_path().write_text(
-        json.dumps(payload, separators=(",", ":")),
-        encoding="utf-8",
-    )
-
-
-def _clear_attach_leader_meta() -> None:
-    meta = _attach_heal_leader_meta_path()
-    if meta.is_file():
-        meta.unlink()
-
-
-def _read_attach_leader_meta() -> tuple[int | None, float | None]:
-    import json
-
-    meta = _attach_heal_leader_meta_path()
-    if not meta.is_file():
-        return None, None
-    try:
-        payload = json.loads(meta.read_text(encoding="utf-8"))
-    except (OSError, ValueError, json.JSONDecodeError):
-        return None, None
-    pid_raw = payload.get("pid")
-    started_raw = payload.get("started_at")
-    pid = int(pid_raw) if isinstance(pid_raw, int) or str(pid_raw).isdigit() else None
-    started = float(started_raw) if started_raw is not None else None
-    return pid, started
-
-
-def _leader_process_alive(pid: int | None) -> bool:
-    if pid is None or pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
-
-
-def attach_heal_leader_stale(*, stale_sec: float = _ATTACH_LEADER_STALE_SEC) -> bool:
-    """True when meta points to a dead pid or a leader running longer than stale_sec."""
-    pid, started = _read_attach_leader_meta()
-    if pid is None:
-        return False
-    if not _leader_process_alive(pid):
-        return True
-    if started is None:
-        return False
-    return (time.time() - started) > stale_sec
-
-
-def _ui_heal_global_flock_path() -> Path:
-    return _state_dir() / "ui-heal-global.flock"
-
-
-def warm_ui_heal_recently_applied(
-    *, debounce_sec: float = _DEFAULT_DEBOUNCE_SEC
-) -> bool:
-    stamp = _stamp_path()
-    if not stamp.is_file():
-        return False
-    try:
-        last = float(stamp.read_text(encoding="utf-8").strip())
-    except ValueError:
-        return False
-    return (time.time() - last) < debounce_sec
-
-
-def _write_heal_stamp() -> None:
-    _stamp_path().write_text(f"{time.time():.3f}\n", encoding="utf-8")
 
 
 def heal_shared_frontend_debounced(
     monorepo_root: Path,
     *,
-    debounce_sec: float = _DEFAULT_DEBOUNCE_SEC,
+    debounce_sec: float = DEFAULT_DEBOUNCE_SEC,
     flock_wait_sec: float = _DEFAULT_FLOCK_WAIT_SEC,
     subprocess_timeout_sec: float = 60.0,
 ) -> bool:
@@ -149,7 +63,7 @@ def heal_shared_frontend_debounced(
     if not dev_stack.is_file():
         return False
 
-    flock_file = _flock_path()
+    flock_file = flock_path()
     flock_file.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(flock_file), os.O_RDWR | os.O_CREAT, 0o644)
     acquired = False
@@ -202,22 +116,12 @@ def heal_shared_frontend_debounced(
                 f"CHROME_E2E_HEAL: warm frontend ensure failed rc={proc.returncode} {detail}",
                 file=sys.stderr,
             )
-        _write_heal_stamp()
+        write_heal_stamp()
         return True
     finally:
         if acquired:
             fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
-
-
-def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
-    ui_base = os.environ.get("MYRM_E2E_UI_BASE", shared_ui_base()).rstrip("/")
-    try:
-        from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
-
-        return frontend_tcp_html_probe_ok(ui_base, timeout_sec=timeout_sec)
-    except (ImportError, OSError, ValueError):
-        return False
 
 
 def probe_indicates_ui_connection_refused(probe: dict[str, object]) -> bool:
@@ -239,7 +143,7 @@ def launch_force_blocks_frontend_heal(
         return False
     if probe is not None and probe_indicates_ui_connection_refused(probe):
         return False
-    return _shared_ui_probe_ok(timeout_sec=5.0)
+    return shared_ui_probe_ok(timeout_sec=5.0)
 
 
 def ensure_shared_ui_before_cdp_navigate(
@@ -251,12 +155,12 @@ def ensure_shared_ui_before_cdp_navigate(
     """Ensure the shared UI serves HTML before CDP Page.navigate (SHPOIB/manifest safe)."""
     if launch_force_blocks_frontend_heal(probe=probe):
         return
-    if probe is None and _shared_ui_probe_ok(timeout_sec=8.0):
+    if probe is None and shared_ui_probe_ok(timeout_sec=8.0):
         return
     if (
         probe is not None
         and not probe_indicates_ui_connection_refused(probe)
-        and _shared_ui_probe_ok(timeout_sec=8.0)
+        and shared_ui_probe_ok(timeout_sec=8.0)
     ):
         return
     heal_shared_frontend_debounced(
@@ -267,27 +171,12 @@ def ensure_shared_ui_before_cdp_navigate(
     )
     deadline = time.monotonic() + poll_deadline_sec
     while time.monotonic() < deadline:
-        if _shared_ui_probe_ok(timeout_sec=5.0):
+        if shared_ui_probe_ok(timeout_sec=5.0):
             return
         time.sleep(2.0)
     raise RuntimeError(
         "E2E_SHARED_UI_ENSURE_FAILED: shared frontend unreachable before CDP navigate"
     )
-
-
-def _shared_client_hot_ok() -> bool:
-    """HTTP 200 alone is insufficient — Turbopack can stall with app-shell-skeleton."""
-    try:
-        from e2e_core.runtime_identity import (
-            read_frontend_epoch,
-            read_frontend_hot_state,
-        )
-
-        frontend = read_frontend_epoch()
-        _, client_hot = read_frontend_hot_state(frontend)
-        return client_hot
-    except (ImportError, OSError, TypeError, ValueError):
-        return False
 
 
 def heal_shared_frontend_attach(
@@ -303,14 +192,14 @@ def heal_shared_frontend_attach(
         return "paused_skip"
     if (
         os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1"
-        and _shared_ui_probe_ok()
+        and shared_ui_probe_ok()
     ):
         return "follower_ok"
     dev_stack = monorepo_root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
     if not dev_stack.is_file():
         return "missing_stack"
 
-    flock_file = _attach_heal_flock_path()
+    flock_file = attach_heal_flock_path()
     flock_file.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(flock_file), os.O_RDWR | os.O_CREAT, 0o644)
     acquired = False
@@ -321,16 +210,16 @@ def heal_shared_frontend_attach(
             try:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 acquired = True
-                _write_attach_leader_meta(os.getpid())
+                write_attach_leader_meta(os.getpid())
                 break
             except BlockingIOError:
-                if _shared_ui_probe_ok() and _shared_client_hot_ok():
+                if shared_ui_probe_ok() and shared_client_hot_ok():
                     return "follower_ok"
-                leader_pid, _leader_started = _read_attach_leader_meta()
-                leader_alive = _leader_process_alive(leader_pid)
+                leader_pid, _leader_started = read_attach_leader_meta()
+                leader_alive = leader_process_alive(leader_pid)
                 elapsed = time.monotonic() - wait_started
                 if not leader_alive and leader_pid is not None:
-                    _clear_attach_leader_meta()
+                    clear_attach_leader_meta()
                     print(
                         "CHROME_E2E_HEAL_STALE_LEADER: attach frontend heal leader "
                         f"pid={leader_pid} is dead — retry flock",
@@ -344,7 +233,7 @@ def heal_shared_frontend_attach(
                         file=sys.stderr,
                     )
                 if time.monotonic() >= deadline:
-                    if _shared_ui_probe_ok():
+                    if shared_ui_probe_ok():
                         return "follower_ok"
                     print(
                         "CHROME_E2E_HEAL_DEFER_TIMEOUT: attach frontend heal flock busy "
@@ -399,30 +288,14 @@ def heal_shared_frontend_attach(
             return "leader_failed"
         if warmup_routes:
             for route_to_warm in warmup_routes:
-                _route_probe_ok(route_to_warm, timeout_sec=15.0)
-        _write_heal_stamp()
+                route_probe_ok(route_to_warm, timeout_sec=15.0)
+        write_heal_stamp()
         return "leader_ok"
     finally:
         if acquired:
-            _clear_attach_leader_meta()
+            clear_attach_leader_meta()
             fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
-
-
-def _route_probe_ok(route: str, *, timeout_sec: float = 12.0) -> bool:
-    import urllib.error
-    import urllib.request
-
-    ui_base = os.environ.get("MYRM_E2E_UI_BASE", shared_ui_base()).rstrip("/")
-    path = route if route.startswith("/") else f"/{route}"
-    request = urllib.request.Request(f"{ui_base}{path}", method="GET")  # noqa: S310
-    try:
-        with urllib.request.urlopen(
-            request, timeout=timeout_sec
-        ) as response:  # noqa: S310
-            return response.status == 200
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
-        return False
 
 
 def run_ui_heal_cli(
@@ -433,12 +306,12 @@ def run_ui_heal_cli(
     slow_sec: float = 5.0,
 ) -> int:
     """Global single-flight ./myrm-dev ui-heal — wave-safe, parallel pytest may continue."""
-    if _shared_ui_probe_ok(timeout_sec=slow_sec):
+    if shared_ui_probe_ok(timeout_sec=slow_sec):
         before = "ok"
     else:
         before = "fail"
 
-    flock_file = _ui_heal_global_flock_path()
+    flock_file = ui_heal_global_flock_path()
     flock_file.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(flock_file), os.O_RDWR | os.O_CREAT, 0o644)
     acquired = False
@@ -450,10 +323,10 @@ def run_ui_heal_cli(
                 acquired = True
                 break
             except BlockingIOError:
-                if _shared_ui_probe_ok(timeout_sec=slow_sec):
+                if shared_ui_probe_ok(timeout_sec=slow_sec):
                     print(f"MYRM_UI_HEAL: probe before={before}s")
                     print("MYRM_UI_HEAL_DEFER: global flock busy — UI already healthy")
-                    if route and _route_probe_ok(route, timeout_sec=slow_sec):
+                    if route and route_probe_ok(route, timeout_sec=slow_sec):
                         ui_base = os.environ.get(
                             "MYRM_E2E_UI_BASE", shared_ui_base()
                         ).rstrip("/")
@@ -471,7 +344,7 @@ def run_ui_heal_cli(
                 time.sleep(2.0)
 
         print(f"MYRM_UI_HEAL: probe before={before}s")
-        if not _shared_ui_probe_ok(timeout_sec=slow_sec):
+        if not shared_ui_probe_ok(timeout_sec=slow_sec):
             outcome = heal_shared_frontend_attach(monorepo_root)
             if outcome not in {"leader_ok", "follower_ok"}:
                 print(
@@ -484,7 +357,7 @@ def run_ui_heal_cli(
             os.environ.get("MYRM_UI_HEAL_POST_ENSURE_MAX_SEC", "120")
         )
         while time.monotonic() < post_deadline:
-            if _shared_ui_probe_ok(timeout_sec=slow_sec):
+            if shared_ui_probe_ok(timeout_sec=slow_sec):
                 break
             time.sleep(2.0)
         else:
@@ -496,7 +369,7 @@ def run_ui_heal_cli(
 
         if route:
             route_timeout = float(os.environ.get("MYRM_UI_HEAL_ROUTE_PROBE_SEC", "15"))
-            if not _route_probe_ok(route, timeout_sec=route_timeout):
+            if not route_probe_ok(route, timeout_sec=route_timeout):
                 ui_base = os.environ.get(
                     "MYRM_E2E_UI_BASE", shared_ui_base()
                 ).rstrip("/")

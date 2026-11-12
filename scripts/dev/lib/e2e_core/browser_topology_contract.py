@@ -75,13 +75,17 @@ def monorepo_root(start: Path | None = None) -> Path:
     return here.parents[5]
 
 
+def _preflight_targets(base: Path) -> tuple[ScanTarget, ...]:
+    """The preflight entry and the files it sources are one script, so they share one label."""
+    entry = base / "myrm-agent/scripts/dev/chrome-e2e-preflight.sh"
+    sourced = sorted((entry.parent / "lib/chrome_e2e_preflight").glob("*.sh"))
+    return tuple(ScanTarget("chrome-e2e-preflight", path) for path in (entry, *sourced))
+
+
 def scan_targets(root: Path | None = None) -> tuple[ScanTarget, ...]:
     base = root or monorepo_root()
     return (
-        ScanTarget(
-            "chrome-e2e-preflight",
-            base / "myrm-agent/scripts/dev/chrome-e2e-preflight.sh",
-        ),
+        *_preflight_targets(base),
         ScanTarget("CHROME_MCP_E2E", base / "scripts/dev/CHROME_MCP_E2E.md"),
         ScanTarget(
             "cursor-mcp-isolation-doctor",

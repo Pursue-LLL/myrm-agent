@@ -123,7 +123,7 @@ endpoint_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_core.dev_ports import shared_api_base, shared_ui_base
-from e2e_core.runtime_identity import attach_endpoint_errors
+from e2e_core.endpoint_health import attach_endpoint_errors
 print(','.join(attach_endpoint_errors(shared_ui_base(), shared_api_base())))
 " 2>/dev/null || true)"
 if [[ "${endpoint_errors}" == *"ui=half_dead"* ]]; then

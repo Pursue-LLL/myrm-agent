@@ -8,7 +8,8 @@ from collections.abc import Callable
 import pytest
 
 from tests.support import chrome_bridge_load as load
-from tests.support import chrome_mcp_e2e as support
+from tests.support.chrome_mcp_e2e import bridge_diagnostics, wait_for_react_e2e_bridge
+from tests.support.chrome_mcp_e2e.patching import patch_everywhere
 
 _PAGE_URL = "http://127.0.0.1:3000/e2echat"
 
@@ -122,9 +123,9 @@ def test_a_page_that_cannot_be_probed_is_left_to_the_heal_loop() -> None:
 
 def test_probe_reports_every_signal_the_wait_reads() -> None:
     for signal in ("readyState", "scriptsDone", "domScripts"):
-        assert signal in support._REACT_E2E_BRIDGE_PROBE_JS
+        assert signal in bridge_diagnostics._REACT_E2E_BRIDGE_PROBE_JS
     # API polling must not look like loading: only finished script files count.
-    assert r"\.js" in support._REACT_E2E_BRIDGE_PROBE_JS
+    assert r"\.js" in bridge_diagnostics._REACT_E2E_BRIDGE_PROBE_JS
 
 
 class _BridgeWait:
@@ -144,28 +145,28 @@ class _BridgeWait:
         self.require_attach = require_attach
 
         def evaluate(_page: object, js: str, **_: object) -> object:
-            if js is support._REACT_E2E_BRIDGE_PROBE_JS:
+            if js is bridge_diagnostics._REACT_E2E_BRIDGE_PROBE_JS:
                 return self._probe_at(self.clock.now, len(self.reload_times))
             return True
 
         client = type("Client", (), {"evaluate": staticmethod(evaluate)})()
         self.client = client
-        monkeypatch.setattr(support, "time", self.clock)
-        monkeypatch.setattr(support, "touch_wall_progress", lambda **_: None)
-        monkeypatch.setattr(support, "_react_bridge_wait_timeout_sec", lambda _t: 180.0)
-        monkeypatch.setattr(support, "get_e2e_ui_url", lambda: "http://127.0.0.1:3000")
-        monkeypatch.setattr(support, "_log_bridge_wait_state", lambda *_, **__: None)
-        monkeypatch.setattr(support, "_bridge_failure_diagnostics", lambda *_: {})
-        monkeypatch.setattr(support, "_trigger_attach_frontend_heal_once", lambda: None)
-        monkeypatch.setattr(support, "_trigger_attach_client_warmup_once", lambda **_: None)
-        monkeypatch.setattr(support, "dismiss_blocking_modals", lambda *_, **__: None)
-        monkeypatch.setattr(support, "warm_ui_route", lambda *_, **__: None)
-        monkeypatch.setattr(support, "reload_mcp_page", lambda *_, **__: self.reload_times.append(self.clock.now))
+        patch_everywhere(monkeypatch, "time", self.clock)
+        patch_everywhere(monkeypatch, "touch_wall_progress", lambda **_: None)
+        patch_everywhere(monkeypatch, "_react_bridge_wait_timeout_sec", lambda _t: 180.0)
+        patch_everywhere(monkeypatch, "get_e2e_ui_url", lambda: "http://127.0.0.1:3000")
+        patch_everywhere(monkeypatch, "_log_bridge_wait_state", lambda *_, **__: None)
+        patch_everywhere(monkeypatch, "_bridge_failure_diagnostics", lambda *_: {})
+        patch_everywhere(monkeypatch, "_trigger_attach_frontend_heal_once", lambda: None)
+        patch_everywhere(monkeypatch, "_trigger_attach_client_warmup_once", lambda **_: None)
+        patch_everywhere(monkeypatch, "dismiss_blocking_modals", lambda *_, **__: None)
+        patch_everywhere(monkeypatch, "warm_ui_route", lambda *_, **__: None)
+        patch_everywhere(monkeypatch, "reload_mcp_page", lambda *_, **__: self.reload_times.append(self.clock.now))
         if settle_outcome is not None:
-            monkeypatch.setattr(support, "_wait_for_page_load_to_settle", lambda *_, **__: settle_outcome)
+            patch_everywhere(monkeypatch, "_wait_for_page_load_to_settle", lambda *_, **__: settle_outcome)
 
     def run(self) -> dict[str, object]:
-        return support.wait_for_react_e2e_bridge(
+        return wait_for_react_e2e_bridge(
             self.client,
             object(),
             timeout_sec=90.0,

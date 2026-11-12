@@ -1,7 +1,7 @@
 """Live stack probe and RUNTIME_DRIFT checks for Chrome MCP E2E.
 
 [INPUT]
-- runtime_identity.py epoch readers (POS: Runtime Identity SSOT)
+- runtime_identity.py identity composer, browser_epoch.py Chrome/mux epoch readers (POS: Runtime Identity SSOT)
 - e2e_core.dev_ports::shared_api_base / shared_backend_port / shared_frontend_port / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
@@ -22,6 +22,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from e2e_core.browser_epoch import (
+    default_chrome_data_dir,
+    mux_state_dir,
+    read_chrome_epoch,
+    resolve_e2e_port,
+)
 from e2e_core.dev_ports import (
     shared_api_base,
     shared_backend_port,
@@ -30,15 +36,11 @@ from e2e_core.dev_ports import (
 )
 from e2e_core.real_user_home import real_user_home
 from e2e_core.runtime_identity import (
-    RuntimeProbeContext,
-    _default_chrome_data_dir,
-    _mux_state_dir,
-    _resolve_e2e_port,
     collect_runtime_parts,
     compute_hot_pool_runtime_id,
-    read_chrome_epoch,
     runtime_ids_equal,
 )
+from e2e_core.runtime_types import RuntimeProbeContext
 
 
 def _default_frontend_dir() -> Path | None:
@@ -141,7 +143,7 @@ def _mux_socket_path() -> Path:
         return Path(override)
     # Anchored on the fixed state dir (real user home), matching the mux daemon's
     # SOCKET_PATH default — TMPDIR-derived paths silently split daemon/probe pairs.
-    return _mux_state_dir() / "cdmcp-mux.sock"
+    return mux_state_dir() / "cdmcp-mux.sock"
 
 
 def _owned_mux_socket_pids(socket_path: Path) -> set[int]:
@@ -173,7 +175,7 @@ def _owned_mux_socket_pids(socket_path: Path) -> set[int]:
 
 
 def _mux_owned_daemon_count() -> int:
-    pid_path = _mux_state_dir() / "daemon.pid"
+    pid_path = mux_state_dir() / "daemon.pid"
     if pid_path.is_file():
         try:
             pid = int(pid_path.read_text(encoding="utf-8").strip())
@@ -238,7 +240,7 @@ def _mux_upstream_ready() -> bool:
 
 
 def _mux_ws_stamp_matches(cdp_port: int) -> bool:
-    stamp_path = _mux_state_dir() / "upstream-ws-url"
+    stamp_path = mux_state_dir() / "upstream-ws-url"
     if not stamp_path.is_file():
         return False
     stored = stamp_path.read_text(encoding="utf-8").strip()
@@ -256,9 +258,9 @@ def mux_owned_daemon_count() -> int:
 
 
 def probe_runtime_context() -> RuntimeProbeContext:
-    port = _resolve_e2e_port()
+    port = resolve_e2e_port()
     frontend = _default_frontend_dir()
-    profile = _default_chrome_data_dir()
+    profile = default_chrome_data_dir()
     upstream_ready, upstream_generation = _mux_status_snapshot()
     return {
         "mux_daemon_count": _mux_owned_daemon_count(),

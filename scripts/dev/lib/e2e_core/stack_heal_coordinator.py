@@ -25,6 +25,7 @@ StackHealAction = Literal[
     "RUNNING",
     "DEFERRED",
     "FAILED",
+    "FOREIGN_BACKEND_OWNER",
 ]
 
 _LEADER_PID_ENV = "MYRM_STACK_HEAL_LEADER_PID"
@@ -140,7 +141,7 @@ def run_attach_health_preflight(
         # answers health checks with 200 while serving a different database. Running the lane
         # against it fails for reasons that have nothing to do with the test, so the lane must
         # stop with the owner named instead of proceeding.
-        from e2e_core.runtime_identity import (  # noqa: PLC0415
+        from e2e_core.endpoint_health import (  # noqa: PLC0415
             foreign_backend_port_owner_description,
         )
 
