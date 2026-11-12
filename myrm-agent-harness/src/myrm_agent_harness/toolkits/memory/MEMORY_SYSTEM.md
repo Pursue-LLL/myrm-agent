@@ -794,6 +794,8 @@ result = await extractor.extract(messages=messages)
 |------|------|---------|
 | CRITICAL | 用户显式确立 | 免 TTL 归档；预算存活仍取决于 `is_user_locked` |
 | HIGH | 抽取器判定重要；Agent 自写规则的上限 | 与 NORMAL 同等，仅参与 retention 评分 |
+> 规则没有整数优先级：存储字段、写入入口（`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的 `rule_priority`）和 Markdown 导出行都已删除，先后只由锁定与创建时间决定。已有数据库在首次打开时删掉 `procedural_rules.priority` 列（`relational/_schema.py`，只进不退：仍读写该列的旧版本打不开这个库）；旧导出文件里的 `priority` 字段在导入时被忽略。
+
 | NORMAL | 自动推断 | 可被遗忘策略回收 |
 
 ### 7.5 Pre-Compaction Recall (`agent/context_management/pre_compact_service.py`)

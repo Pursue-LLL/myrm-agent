@@ -91,7 +91,6 @@ class TestSessionMethods:
         rule = session.add_rule(
             trigger="user asks weather",
             action="call weather API",
-            priority=1,
             source=RuleSource.USER_EXPLICIT,
             trigger_keywords=["weather", "forecast"],
         )
@@ -99,7 +98,6 @@ class TestSessionMethods:
         assert isinstance(rule, ProceduralMemory)
         assert rule.trigger == "user asks weather"
         assert rule.action == "call weather API"
-        assert rule.priority == 1
         assert rule.trigger_keywords == ["weather", "forecast"]
         assert session.buffer_size == 1
 

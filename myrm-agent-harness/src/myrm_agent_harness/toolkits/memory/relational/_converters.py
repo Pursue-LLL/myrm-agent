@@ -33,7 +33,7 @@ from myrm_agent_harness.toolkits.memory.types import (
 
 PROCEDURAL_COLUMNS = (
     "id, user_id, content, trigger_text, action_text, "
-    "priority, is_active, trigger_keywords, source, metadata, "
+    "is_active, trigger_keywords, source, metadata, "
     "primary_namespace, namespaces, agent_id, channel_id, conversation_id, task_id, "
     "tool_name, tool_rule_priority, access_count, last_accessed_at, created_at, updated_at, "
     "is_user_locked, expected_valid_days"
@@ -89,23 +89,23 @@ def row_to_profile(row: tuple[object, ...]) -> ProfileEntry:
 
 def row_to_procedural(row: tuple[object, ...]) -> ProceduralMemory:
     """Column order: id, user_id, content, trigger_text, action_text,
-    priority, is_active, trigger_keywords, source, metadata, primary_namespace,
+    is_active, trigger_keywords, source, metadata, primary_namespace,
     namespaces, agent_id, channel_id, conversation_id, task_id,
     tool_name, tool_rule_priority, access_count, last_accessed_at,
     created_at, updated_at, is_user_locked, expected_valid_days.
     """
-    keywords = json.loads(row[7]) if row[7] else []  # type: ignore[arg-type]
-    metadata = json.loads(row[9]) if row[9] else {}  # type: ignore[arg-type]
-    active = bool(row[6])
+    keywords = json.loads(str(row[6])) if row[6] else []
+    metadata = json.loads(str(row[8])) if row[8] else {}
+    active = bool(row[5])
 
-    tool_name_val = str(row[16]) if row[16] else None
+    tool_name_val = str(row[15]) if row[15] else None
     try:
-        tool_priority = ToolRulePriority(row[17]) if row[17] else ToolRulePriority.NORMAL
+        tool_priority = ToolRulePriority(row[16]) if row[16] else ToolRulePriority.NORMAL
     except ValueError:
         tool_priority = ToolRulePriority.NORMAL
 
-    is_locked = bool(row[22]) if len(row) > 22 and row[22] else False
-    expected_valid_days = int(row[23]) if len(row) > 23 and row[23] is not None else None
+    is_locked = bool(row[21]) if len(row) > 21 and row[21] else False
+    expected_valid_days = int(row[22]) if len(row) > 22 and row[22] is not None else None
 
     cleaned_metadata = dict(metadata)
     raw_error_fp = cleaned_metadata.pop("error_fingerprint", None)
@@ -121,26 +121,25 @@ def row_to_procedural(row: tuple[object, ...]) -> ProceduralMemory:
         content=str(row[2]),
         trigger=str(row[3]),
         action=str(row[4]),
-        priority=int(row[5]),  # type: ignore[arg-type]
         is_active=active,
         status=MemoryStatus.ACTIVE if active else MemoryStatus.DISABLED,
         trigger_keywords=keywords,
-        source=RuleSource(row[8]) if row[8] else RuleSource.USER_EXTRACTED,
+        source=RuleSource(row[7]) if row[7] else RuleSource.USER_EXTRACTED,
         metadata=cleaned_metadata,
         scope=MemoryScope(
-            primary_namespace=str(row[10] or ""),
-            namespaces=json.loads(row[11]) if row[11] else [],
-            agent_id=str(row[12]) if row[12] else None,
-            channel_id=str(row[13]) if row[13] else None,
-            conversation_id=str(row[14]) if row[14] else None,
-            task_id=str(row[15]) if row[15] else None,
+            primary_namespace=str(row[9] or ""),
+            namespaces=json.loads(row[10]) if row[10] else [],
+            agent_id=str(row[11]) if row[11] else None,
+            channel_id=str(row[12]) if row[12] else None,
+            conversation_id=str(row[13]) if row[13] else None,
+            task_id=str(row[14]) if row[14] else None,
         ),
         tool_name=tool_name_val,
         tool_rule_priority=tool_priority,
-        access_count=int(row[18]) if row[18] else 0,
-        last_accessed_at=parse_dt(str(row[19])) if row[19] else None,
-        created_at=parse_dt(str(row[20])),
-        updated_at=parse_dt(str(row[21])),
+        access_count=int(row[17]) if row[17] else 0,
+        last_accessed_at=parse_dt(str(row[18])) if row[18] else None,
+        created_at=parse_dt(str(row[19])),
+        updated_at=parse_dt(str(row[20])),
         is_user_locked=is_locked,
         expected_valid_days=expected_valid_days,
         error_fingerprint=error_fp,
@@ -155,7 +154,7 @@ def row_to_pending(row: tuple[object, ...]) -> PendingRecord:
     source_chat_id, source_message_id, status, created_at, resolved_at,
     resolution_action, target_memory_id, target_content.
     """
-    memory_data = json.loads(row[4]) if row[4] else {}  # type: ignore[arg-type]
+    memory_data = json.loads(str(row[4])) if row[4] else {}
     try:
         resolution_action = (
             PendingResolutionAction(str(row[10])) if len(row) > 10 and row[10] else PendingResolutionAction.STORE

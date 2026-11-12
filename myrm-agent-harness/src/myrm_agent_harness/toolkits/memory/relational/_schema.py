@@ -10,6 +10,8 @@
 
 [POS]
 Schema bootstrap for SQLiteRelationalStore. Stateless: every function operates on the given connection.
+Migrations only move forward: the retired ``priority`` column of procedural_rules is dropped when found, so
+a build that still reads that column cannot open a database this code has opened.
 """
 
 import aiosqlite
@@ -80,7 +82,6 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
                     content TEXT NOT NULL DEFAULT '',
                     trigger_text TEXT NOT NULL,
                     action_text TEXT NOT NULL,
-                    priority INTEGER NOT NULL DEFAULT 0,
                     is_active INTEGER NOT NULL DEFAULT 1,
                     trigger_keywords TEXT,
                     source TEXT NOT NULL DEFAULT 'user_extracted',
@@ -99,11 +100,11 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             await conn.execute(
                 """
                 INSERT INTO procedural_rules (
-                    id, user_id, content, trigger_text, action_text, priority, is_active,
+                    id, user_id, content, trigger_text, action_text, is_active,
                     trigger_keywords, source, metadata, primary_namespace, namespaces,
                     created_at, updated_at
                 )
-                SELECT id, user_id, content, trigger_text, action_text, priority, is_active,
+                SELECT id, user_id, content, trigger_text, action_text, is_active,
                        trigger_keywords, source, metadata, '', '[]', created_at, updated_at
                 FROM procedural_rules_legacy
             """
@@ -126,6 +127,9 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             await conn.execute("ALTER TABLE procedural_rules ADD COLUMN is_user_locked INTEGER NOT NULL DEFAULT 0")
         if "expected_valid_days" not in rule_columns:
             await conn.execute("ALTER TABLE procedural_rules ADD COLUMN expected_valid_days INTEGER")
+        # Rules are ordered by when they were made; the integer priority they used to carry is gone.
+        if "priority" in rule_columns:
+            await conn.execute("ALTER TABLE procedural_rules DROP COLUMN priority")
 
     if await _table_exists(conn, "pending_records"):
         pending_columns = await _table_columns(conn, "pending_records")
@@ -168,7 +172,6 @@ async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
             content TEXT NOT NULL DEFAULT '',
             trigger_text TEXT NOT NULL,
             action_text TEXT NOT NULL,
-            priority INTEGER NOT NULL DEFAULT 0,
             is_active INTEGER NOT NULL DEFAULT 1,
             trigger_keywords TEXT,
             source TEXT NOT NULL DEFAULT 'user_extracted',

@@ -107,6 +107,20 @@ def test_pending_to_memory_reconstructs_procedural() -> None:
     assert restored.action == "run tests"
 
 
+def test_a_rule_queued_with_the_retired_priority_still_becomes_a_rule() -> None:
+    record = PendingRecord(
+        id="pr-1",
+        memory_type=MemoryType.PROCEDURAL,
+        content="Always run tests before commit",
+        memory_data={"trigger": "before commit", "action": "run tests", "priority": 10},
+    )
+
+    restored = pending_to_memory(record)
+
+    assert isinstance(restored, ProceduralMemory)
+    assert (restored.trigger, restored.action) == ("before commit", "run tests")
+
+
 def test_pending_to_memory_reconstructs_conversation() -> None:
     record = PendingRecord(
         id="c-1",

@@ -192,7 +192,6 @@ class TestSignalCalculatorWithRealMemoryTypes:
             action="do Y",
             created_at=datetime.now(UTC) - timedelta(days=100),
             access_count=25,
-            priority=1,
         )
 
         recency = SignalCalculator.recency_factor(mem, half_life_days=0.0)

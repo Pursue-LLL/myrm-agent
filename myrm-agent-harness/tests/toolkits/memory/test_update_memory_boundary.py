@@ -92,7 +92,7 @@ async def test_an_importance_a_rule_cannot_hold_is_reported_and_the_rest_of_the_
     new_manager: NewManager, manage: Manage
 ) -> None:
     manager = new_manager()
-    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT, priority=3)
+    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT, trigger_keywords=["deploy"])
 
     answer = await manage(
         manager,
@@ -104,14 +104,14 @@ async def test_an_importance_a_rule_cannot_hold_is_reported_and_the_rest_of_the_
     )
     kept = await manager.get_memory(rule.id)
     assert isinstance(kept, ProceduralMemory)
-    assert (kept.action, kept.priority) == (RULE_REWORDED, 3)
+    assert (kept.action, kept.trigger_keywords) == (RULE_REWORDED, ["deploy"])
     assert kept.content == f"When: {RULE_TRIGGER} → Do: {RULE_REWORDED}"
 
 
 @pytest.mark.parametrize("manage", MANAGES)
 async def test_a_rule_update_that_sets_no_importance_replies_plainly(new_manager: NewManager, manage: Manage) -> None:
     manager = new_manager()
-    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT, priority=3)
+    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT)
 
     answer = await manage(manager, {"action": "update", "memory_id": rule.id, "new_content": RULE_REWORDED})
 

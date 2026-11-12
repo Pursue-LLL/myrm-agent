@@ -127,7 +127,6 @@ def _make_tool_rule(
         content=f"When: {trigger} → Do: {action}",
         trigger=trigger,
         action=action,
-        priority=1,
         tool_name=tool_name,
         tool_rule_priority=ToolRulePriority(priority),
     )

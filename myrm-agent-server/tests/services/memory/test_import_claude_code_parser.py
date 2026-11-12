@@ -277,7 +277,6 @@ class TestErrorsToProcedural:
         result = errors_to_procedural(errors)
         assert len(result) == 1
         assert "Rate limit" in result[0]["content"]
-        assert result[0]["priority"] == 5
         assert result[0]["metadata"]["external_source"] == "claude_code_jsonl"
 
     def test_empty_error_skipped(self) -> None:

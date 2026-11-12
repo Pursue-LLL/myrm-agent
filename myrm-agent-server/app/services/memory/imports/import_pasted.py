@@ -362,7 +362,6 @@ def _entry_item(entry: _ParsedEntry) -> dict[str, object]:
     if entry.bucket == BUCKET_PROCEDURAL:
         return {
             "content": entry.content,
-            "priority": 5,
             "trigger_keywords": ["pasted_memory"],
             "tags": ["pasted_memory", "rule"],
             "created_at": created_at,

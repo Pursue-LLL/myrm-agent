@@ -129,9 +129,7 @@ class TestConvenienceMethods:
             memory_config, user_id="test_user", relational=mock_relational_store
         )
 
-        result = await manager.add_rule(
-            trigger="user asks weather", action="call weather_api", priority=1
-        )
+        result = await manager.add_rule(trigger="user asks weather", action="call weather_api")
 
         assert isinstance(result, ProceduralMemory)
         assert result.id == "rule-1"

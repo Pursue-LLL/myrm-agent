@@ -157,7 +157,7 @@ async def test_hybrid_real_assembly_injects_rules(
 ) -> None:
     """Real procedural rules written via the manager surface land in the stable block."""
     manager = manager_factory(RecallMode.HYBRID)
-    await manager.add_rule("deploy", "run tests first", priority=10)
+    await manager.add_rule("deploy", "run tests first")
 
     set_memory_manager(manager)
     request = _make_request(

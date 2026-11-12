@@ -296,9 +296,7 @@ class TestEdgeCases:
             content="episodic", created_at=datetime.now(UTC) - timedelta(days=3), access_count=10, importance=0.6
         )
 
-        procedural_mem = ProceduralMemory(
-            content="procedural", trigger="when X", action="do Y", access_count=20, priority=1
-        )
+        procedural_mem = ProceduralMemory(content="procedural", trigger="when X", action="do Y", access_count=20)
 
         results = [
             MemorySearchResult(memory=profile_mem, score=0.8, memory_type=MemoryType.PROFILE),

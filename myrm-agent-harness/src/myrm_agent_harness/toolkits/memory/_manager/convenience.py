@@ -171,7 +171,6 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
         trigger: str,
         action: str,
         *,
-        priority: int = 0,
         trigger_keywords: list[str] | None = None,
         source: RuleSource = RuleSource.USER_EXTRACTED,
         source_chat_id: str | None = None,
@@ -180,7 +179,6 @@ class MemoryManagerConvenienceMixin(MemoryManagerHost):
         memory = self._writer.build_rule(
             trigger=trigger,
             action=action,
-            priority=priority,
             trigger_keywords=trigger_keywords,
             source=source,
             source_chat_id=source_chat_id,

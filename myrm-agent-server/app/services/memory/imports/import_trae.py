@@ -112,7 +112,6 @@ def _parse_rules(rules: list[object]) -> list[dict[str, object]]:
                 "content": (f"{name}\n{content}".strip() if name != "TRAE rule" else content),
                 "trigger": (f"When working on project: {name}" if scope != "user" else "When working on any project"),
                 "action": content[:500],
-                "priority": 7,
                 "trigger_keywords": [tag for tag in [scope or None, "trae_rule"] if tag],
                 "created_at": iso_or_now(rule.get("created_at")),
                 "metadata": build_metadata("trae", rule, ("name", "scope", "source")),

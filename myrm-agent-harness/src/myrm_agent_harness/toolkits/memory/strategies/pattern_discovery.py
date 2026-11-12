@@ -306,7 +306,6 @@ async def _promote_patterns_to_rules(
                 action=pattern.actionable_suggestion,
                 reasoning=pattern.evidence_summary,
                 source=RuleSource.AGENT_SELF,
-                priority=10,
                 source_chat_id=chat_ids[0] if chat_ids else None,
                 source_chat_ids=chat_ids,
             )

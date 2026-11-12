@@ -122,7 +122,6 @@ def _model_item(raw: dict[str, object], *, content: str, bucket: str) -> dict[st
         return item
     if bucket == BUCKET_PROCEDURAL:
         trigger = str(raw.get("trigger", "")).strip()
-        item["priority"] = 5
         item["trigger_keywords"] = [trigger] if trigger else ["pasted_memory"]
         item["tags"] = ["pasted_memory", "rule"]
         return item

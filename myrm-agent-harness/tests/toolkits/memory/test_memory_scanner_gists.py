@@ -99,7 +99,6 @@ def test_procedural_memory_gist_is_cleaned() -> None:
         content=_CREDENTIAL,
         trigger="When deploying",
         action="Run the deploy script",
-        priority=0,
         trigger_keywords=[],
         source=RuleSource.USER_EXTRACTED,
         scope=MemoryScope(namespaces=[]),

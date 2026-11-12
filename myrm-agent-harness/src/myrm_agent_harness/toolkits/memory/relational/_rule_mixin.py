@@ -61,18 +61,17 @@ class SQLiteRuleMixin(SQLiteStoreHost):
         try:
             await conn.execute(
                 """INSERT INTO procedural_rules
-                   (id, user_id, content, trigger_text, action_text, priority, is_active, trigger_keywords,
+                   (id, user_id, content, trigger_text, action_text, is_active, trigger_keywords,
                     source, metadata, primary_namespace, namespaces, agent_id, channel_id, conversation_id,
                     task_id, tool_name, tool_rule_priority, access_count, last_accessed_at,
                     created_at, updated_at, is_user_locked, expected_valid_days)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     rule_id,
                     "default",
                     rule.content,
                     rule.trigger,
                     rule.action,
-                    rule.priority,
                     int(rule.is_active),
                     json.dumps(rule.trigger_keywords),
                     rule.source.value,
@@ -188,7 +187,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
         try:
             cursor = await conn.execute(
                 """UPDATE procedural_rules
-                   SET content = ?, trigger_text = ?, action_text = ?, priority = ?,
+                   SET content = ?, trigger_text = ?, action_text = ?,
                        is_active = ?, trigger_keywords = ?, source = ?, metadata = ?,
                        primary_namespace = ?, namespaces = ?, agent_id = ?, channel_id = ?,
                        conversation_id = ?, task_id = ?, tool_name = ?,
@@ -199,7 +198,6 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                     rule.content,
                     rule.trigger,
                     rule.action,
-                    rule.priority,
                     int(rule.is_active),
                     json.dumps(rule.trigger_keywords),
                     rule.source.value,

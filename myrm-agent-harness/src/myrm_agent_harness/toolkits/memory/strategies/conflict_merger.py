@@ -184,7 +184,7 @@ def classify_relation(existing_val: Any, candidate_val: Any) -> MergeRelation:
 def check_procedural_relation(existing_mem: Any, candidate_mem: Any) -> MergeRelation:
     """Specialized tri-state relation check for procedural / behavioral rules.
 
-    Compares triggers, tool names, actions, and priority.
+    Compares triggers, tool names, and actions.
     """
     ex_trigger = str(getattr(existing_mem, "trigger", "") or "").strip().lower()
     can_trigger = str(getattr(candidate_mem, "trigger", "") or "").strip().lower()

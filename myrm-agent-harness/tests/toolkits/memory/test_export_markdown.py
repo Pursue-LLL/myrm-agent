@@ -98,7 +98,6 @@ class TestMemoryToMarkdown:
             "action": "Verify target directory exists",
             "reasoning": "Prevents write errors",
             "application": "Multi-level paths only",
-            "priority": 5,
             "tool_name": "file_write",
             "tool_rule_priority": "critical",
             "source": "user_extracted",
@@ -112,7 +111,7 @@ class TestMemoryToMarkdown:
         assert "type: procedural" in result
         assert "trigger: User requests file creation" in result
         assert "action: Verify target directory exists" in result
-        assert "priority: 5" in result
+        assert "\npriority:" not in result
         assert "tool_name: file_write" in result
         assert "tool_rule_priority: critical" in result
         assert "source: user_extracted" in result
@@ -136,7 +135,6 @@ class TestMemoryToMarkdown:
             "metadata": {},
             "trigger": "Any request",
             "action": "Be polite",
-            "priority": 0,
             "source": "user_extracted",
             "status": "active",
         }
@@ -174,7 +172,6 @@ class TestProceduralExportIntegration:
             action="Check each parent directory; create missing ones with mkdir -p semantics",
             reasoning="Prevents FileNotFoundError on deeply nested writes",
             application="Only for paths with depth > 1; skip for root-level writes",
-            priority=5,
             tool_name="file_write",
             tool_rule_priority="critical",
             source="user_extracted",
@@ -187,7 +184,7 @@ class TestProceduralExportIntegration:
         assert f"id: {rule.id}" in md
         assert "trigger: User asks to create a file in a nested path" in md
         assert "action: Check each parent directory" in md
-        assert "priority: 5" in md
+        assert "\npriority:" not in md
         assert "tool_name: file_write" in md
         assert "tool_rule_priority: critical" in md
         assert "source: user_extracted" in md
@@ -208,7 +205,6 @@ class TestProceduralExportIntegration:
             content="Use Chinese when user writes in Chinese",
             trigger="User message language is Chinese",
             action="Respond in Chinese",
-            priority=0,
             source="user_extracted",
         )
         dumped = rule.model_dump(mode="json", exclude={"embedding"})
