@@ -63,7 +63,7 @@ async def persist_insights(
     ``sources`` are the group's memories: an insight derives from the chats of all of them and takes the scope of
     the first. It is written through the cycle's write gateway, so ``journal`` records it for undo. An insight that
     is too short, that the write fence refuses or that fails to store is left out of the result, as is every insight
-    of a manager without a vector store.
+    of a manager without dense vector capability (``has_vector``).
     """
     if not manager.has_vector:
         return []
