@@ -32,7 +32,7 @@
 - **认证**：WS 端点校验 `settings.extension_auth_token`（SecretStr）。
 - **连接策略**：Extension 负责标签页选择与 debugger attach。Playwright 经 **CDP relay**（loopback `/json` façade + extension WS 隧道）连接；**extension 模式 fail-closed**，relay 未就绪时不 fallback 本地 direct CDP（避免绕过 domain policy）。`setup-hints.cdp_endpoint_discovered` 仍提示直连风险供 AUTO/CONNECT 模式参考。
 - **SSE 状态广播**：连接/断开时通过 `ServerEventBus` 发布 `EXTENSION_STATUS_CHANGED` 事件，前端 NavBar 实时显示连接状态。
-- **前台 tab 优先**：`_request_debugger_attach(background=False)` 为登录态场景默认；后台隔离窗仅显式请求时使用。Playwright 新开的页面同样默认在用户窗口前台打开并归入「Myrm Agent」标签组。
+- **前台 tab 优先**：`_request_debugger_attach(background=False)` 为登录态场景默认；后台隔离窗仅显式请求时使用。Playwright 新开的页面同样默认在用户窗口前台打开并归入「Myrm Agent」标签组。用户的焦点窗口与当前标签页只在这一刻变化：relay 对 `Page.bringToFront`（Agent 的 switch_tab 会发）只应答不转发，转发会让 Chrome 激活该标签页并把整个窗口拉到最前，把用户从别的窗口或应用里拽出来；Agent 当前在哪个标签页是客户端自己的记录，不需要浏览器配合。
 - **Agent 只关自己开的标签页**：`Target.createTarget` → 扩展 `createTab`（登记归属）；`Target.closeTarget` → 扩展 `closeTab`，Agent 的标签页真正关闭，用户的标签页只被放开（扩展回报 `closed:false`，relay 照样 detach 并遗忘，避免 Playwright 等 detach 而挂起）。扩展在标签页列表里以 `agentOwned` 标注 Agent 的标签页；server 把 Agent 自己开的空白标签页放进 relay 的标签页镜像（`bridge/access.py::_is_blank_agent_tab`，Agent 才能把它导航到所需站点），但 `list_tabs` 仍只按授权策略过滤，这些标签页不会被当作用户的标签页列出。
 - **一个会话一条连接**：`connect()` / `connect_to_domain()` 返回 `ExtensionBrowserInstance`（harness 契约类型）；池据此把同一浏览器的后续请求交给同一实例，给其上下文不加任何覆盖，也不让页面空闲留存，所以会话里关掉的标签页就是在用户浏览器里关掉。
 - **扩展丢失即清场**：扩展断开时 relay 向 CDP 客户端通告全部目标消失、清空标签页镜像并让待决命令失败；重连后从零开始。

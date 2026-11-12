@@ -12,7 +12,7 @@
 | `targets.py` | 标签页镜像与会话：附加/释放/关闭、`Target.attachedToTarget` / `detachedFromTarget` 通告、CDP 事件分发；目标 id 只认扩展返回的真实 id（桥的中间层） |
 | `contexts.py` | 虚拟浏览器上下文：`Target.createBrowserContext` 的归属分组——同一上下文里 Agent 打开的标签页随 dispose 或所属连接断开一并关闭；与用户浏览器共享 cookie 与存储，不是隔离 profile |
 | `browser_methods.py` | Browser.* / Target.* 浏览器级方法的分派表（方法名 → 处理函数，含 `createTarget` / `closeTarget` / 虚拟上下文）；未支持的方法如实返回 `-32601` |
-| `bridge.py` | 桥的顶层 `ExtensionCdpRelayBridge`：CDP 客户端帧解析、会话级请求转发、`probe_automation_ready()` |
+| `bridge.py` | 桥的顶层 `ExtensionCdpRelayBridge`：CDP 客户端帧解析、会话级请求转发（唯一例外：`Page.bringToFront` 只应答不转发，不让自动化把用户的窗口拉到最前）、`probe_automation_ready()` |
 | `server.py` | 127.0.0.1 HTTP `/json/*`（带与不带尾斜杠）+ `/cdp` WebSocket；仅放行本机自动化客户端：Host 必须是回环，带 `Origin` 的请求（网页发起）一律 403 |
 | `manager.py` | 单例生命周期，绑定 ExtensionBridgeService WS；`relay_cdp_ready` 带短 TTL 探针缓存 |
 

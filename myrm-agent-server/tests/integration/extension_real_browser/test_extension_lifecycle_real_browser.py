@@ -5,9 +5,9 @@
 - tests.support.extension_real_browser (POS: service-worker termination, extension-page scripts, the Agent's browser)
 
 [OUTPUT]
-- the guarantees that hold while nobody is looking: private-URL navigation opens in a window apart from the user's own,
-  the extension finds its way back after the browser reclaims its service worker, and a disconnect the user asked for
-  is not undone by the reconnect timers
+- the guarantees that hold while nobody is looking: private-URL navigation opens in a window apart from the user's own
+  and the Agent's work there never moves the user's focused window or active tab, the extension finds its way back after
+  the browser reclaims its service worker, and a disconnect the user asked for is not undone by the reconnect timers
 
 [POS]
 A service worker keeps nothing in memory between wake-ups, so each of these behaviours is only observable in a real
@@ -20,7 +20,7 @@ import asyncio
 
 import pytest
 
-from tests.support.extension_real_browser import INTRANET_HOST, RealExtensionStack, new_agent_page, wait_until
+from tests.support.extension_real_browser import INTRANET_HOST, RealExtensionStack, find_page, new_agent_page, wait_until
 
 pytestmark = pytest.mark.e2e
 
@@ -56,6 +56,23 @@ async def test_background_navigation_opens_the_page_in_a_window_apart_from_the_u
     assert isinstance(windows, list) and len(windows) == 2
     (holding_window,) = [tab_ids for tab_ids in windows if tab.tab_id in tab_ids]
     assert holding_window == [tab.tab_id]
+
+
+async def test_the_agents_work_in_the_background_window_never_moves_the_users_view(stack: RealExtensionStack) -> None:
+    await stack.log_in(INTRANET_HOST)
+    await stack.authorize([INTRANET_HOST])
+    await stack.bridge.navigate_to_url(stack.site.url(INTRANET_HOST, "/secret"), background=True)
+    users_view = await stack.browser.users_view()
+    assert "/login" in users_view.active_url and users_view.window_count == 2
+
+    async with stack.agent_browser() as browser:
+        page = find_page(browser, "/secret")
+        await page.click("#orders-link")
+        await page.wait_for_selector("#orders")
+        await page.screenshot()
+        await page.bring_to_front()  # what the Agent's switch-tab sends
+
+        assert await stack.browser.users_view() == users_view
 
 
 async def test_the_extension_reconnects_after_its_service_worker_restarts(stack: RealExtensionStack) -> None:

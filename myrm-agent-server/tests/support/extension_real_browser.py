@@ -13,7 +13,7 @@
 - FixtureSite: loopback site that answers under several host names and gates its pages on a login cookie
 - BridgeServer: the production extension routes on an ephemeral loopback port
 - ExtensionBrowser: the user's daily browser with the extension loaded; popup-style messaging, extension-page scripts,
-  service-worker termination
+  service-worker termination, what the user is looking at (`users_view`)
 - RealExtensionStack / real_extension_stack: all three wired together and connected; user sign-in, the Agent's
   Playwright browser (the bridge's own connect(), through the CDP relay) and the Agent's BrowserSession on top of the
   production browser pool (`agent_pool`, `agent_session`)
@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -52,10 +53,28 @@ from app.services.extension.bridge import factory as bridge_factory
 from app.services.extension.cdp_relay import manager as relay_manager
 
 EXTENSION_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-extension"
+_HEADED_ENV = "MYRM_EXTENSION_E2E_HEADED"
 INTRANET_HOST = "intranet.example"
 OTHER_HOST = "other.example"
 _FIXTURE_HOSTS = (INTRANET_HOST, OTHER_HOST)
 _PAGE = "<!doctype html><html><head><meta charset='utf-8'><title>{title}</title></head><body>{body}</body></html>"
+_USERS_VIEW_SCRIPT = """async () => {
+  const focused = await chrome.windows.getLastFocused({ populate: true });
+  return {
+    windowId: focused.id,
+    activeUrl: focused.tabs.find((tab) => tab.active)?.url ?? '',
+    windowCount: (await chrome.windows.getAll()).length,
+  };
+}"""
+
+
+@dataclass(frozen=True)
+class UsersView:
+    """What the person at the keyboard sees: the window the browser last focused, the tab it shows, how many windows exist."""
+
+    window_id: int
+    active_url: str
+    window_count: int
 
 
 async def wait_until(condition: Callable[[], Awaitable[bool]], what: str, *, timeout: float = 60.0) -> None:
@@ -242,6 +261,14 @@ class ExtensionBrowser:
         """URLs of every tab that is not an extension page."""
         return [page.url for page in self.context.pages if not page.url.startswith("chrome-extension://")]
 
+    async def users_view(self) -> UsersView:
+        """The focused window and the tab it shows, as the browser itself reports them."""
+        view = await self.evaluate(_USERS_VIEW_SCRIPT)
+        assert isinstance(view, dict), f"Extension answered {view!r} to the window query"
+        return UsersView(
+            window_id=int(view["windowId"]), active_url=str(view["activeUrl"]), window_count=int(view["windowCount"])
+        )
+
 
 @dataclass
 class RealExtensionStack:
@@ -329,7 +356,11 @@ def _reset_bridge_singletons() -> None:
 
 @asynccontextmanager
 async def real_extension_stack(profile_dir: Path) -> AsyncIterator[RealExtensionStack]:
-    """Start the fixture site, the bridge routes and a Chromium profile whose extension is connected to them."""
+    """Start the fixture site, the bridge routes and a Chromium profile whose extension is connected to them.
+
+    The browser is headless; set ``MYRM_EXTENSION_E2E_HEADED=1`` to run the same tests in a visible window, the only
+    place window focus, foreground tabs and how tab groups look can be watched.
+    """
     async with async_playwright() as playwright, AsyncExitStack() as cleanup:
         if not Path(playwright.chromium.executable_path).exists():
             pytest.skip("Chromium is not installed for patchright")
@@ -348,7 +379,7 @@ async def real_extension_stack(profile_dir: Path) -> AsyncIterator[RealExtension
         context = await playwright.chromium.launch_persistent_context(
             str(profile_dir),
             channel="chromium",
-            headless=True,
+            headless=not os.environ.get(_HEADED_ENV),
             ignore_default_args=["--disable-extensions"],
             args=[
                 f"--disable-extensions-except={extension}",

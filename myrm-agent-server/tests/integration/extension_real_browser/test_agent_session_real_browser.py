@@ -7,7 +7,9 @@
 [OUTPUT]
 - what an Agent session does with the user's signed-in browser: read a logged-in page, click, take a screenshot; where
   it is stopped (a domain the user did not authorize, a page that is not a web page); how its tabs are marked, kept
-  apart from the user's list and closed; and that the user's own tabs are never closed on its behalf
+  apart from the user's list and closed; where its pages open (in front, in the user's window, without taking its
+  focus) and that asking for the front changes nothing; that a second connection works beside the first; and that
+  the user's own tabs are never closed on its behalf
 
 [POS]
 The end-to-end proof of the extension's one job. The relay and extension unit tests mock the other side, so only these
@@ -157,6 +159,29 @@ async def test_agent_tabs_wear_one_group_the_user_can_recognise(stack: RealExten
         assert user_tab.url not in group["urls"]
 
 
+async def test_agent_pages_open_in_front_in_the_users_window_and_bring_to_front_changes_nothing(
+    stack: RealExtensionStack,
+) -> None:
+    await stack.log_in(INTRANET_HOST)
+    await stack.authorize([INTRANET_HOST])
+    before = await stack.browser.users_view()
+
+    async with stack.agent_browser() as browser:
+        context = await browser.new_context()
+        older = await context.new_page()
+        await older.goto(stack.site.url(INTRANET_HOST, "/secret"))
+        newer = await context.new_page()
+        await newer.goto(stack.site.url(INTRANET_HOST, "/orders"))
+
+        in_front = await stack.browser.users_view()
+        assert (in_front.window_id, in_front.window_count) == (before.window_id, before.window_count)
+        assert in_front.active_url == newer.url
+
+        await older.bring_to_front()  # what the Agent's switch-tab sends
+
+        assert await stack.browser.users_view() == in_front
+
+
 async def test_a_blank_agent_tab_is_not_listed_as_one_of_the_users(stack: RealExtensionStack) -> None:
     await stack.log_in(INTRANET_HOST)
     await stack.authorize([INTRANET_HOST])
@@ -167,3 +192,32 @@ async def test_a_blank_agent_tab_is_not_listed_as_one_of_the_users(stack: RealEx
         listed = await stack.bridge.list_tabs()
 
         assert [tab.domain for tab in listed] == [INTRANET_HOST]
+
+
+async def test_a_second_connection_works_beside_the_first_and_closing_it_leaves_the_first_alone(
+    stack: RealExtensionStack,
+) -> None:
+    """The browser pool opens another connection when its first one is busy; both must see the user's session."""
+    await stack.log_in(INTRANET_HOST)
+    await stack.authorize([INTRANET_HOST])
+
+    async with stack.agent_browser() as first:
+        first_page = await new_agent_page(first)
+        await first_page.goto(stack.site.url(INTRANET_HOST, "/secret"))
+        tabs_with_one_connection = len(stack.browser.user_tab_urls())
+
+        async with stack.agent_browser() as second:
+            second_page = await new_agent_page(second)
+            await second_page.goto(stack.site.url(INTRANET_HOST, "/orders"))
+
+            assert await second_page.inner_text("#orders") == "Order 1001"
+            assert await first_page.inner_text("#data") == "private-data-42"
+            assert len(stack.browser.user_tab_urls()) == tabs_with_one_connection + 1
+
+        async def second_connection_tab_closed() -> bool:
+            return len(stack.browser.user_tab_urls()) == tabs_with_one_connection
+
+        await wait_until(second_connection_tab_closed, "the second connection's tab to close with it")
+        assert await first_page.inner_text("#data") == "private-data-42"  # the first connection outlives the second
+        await first_page.click("#orders-link")
+        await first_page.wait_for_selector("#orders")

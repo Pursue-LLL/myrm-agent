@@ -11,7 +11,8 @@
 
 [POS]
 Top layer of the server-side CDP relay bridge. Parses client frames, answers browser-scoped requests
-itself and forwards session-scoped ones to the owning tab; the MV3 extension stays a chrome.debugger forwarder.
+itself and forwards session-scoped ones to the owning tab, except the ones that would take the user's
+focus; the MV3 extension stays a chrome.debugger forwarder.
 """
 
 from __future__ import annotations
@@ -25,6 +26,11 @@ from .models import CdpClient, CdpRequest
 from .protocol import RelayCdpCommand
 
 _AUTOMATION_PROBE_ID = 9001
+
+# Forwarded, this makes Chrome activate the tab and bring its window to the front, which pulls the user out of
+# whatever they are doing in another window or application. Which tab the Agent works in is the client's
+# bookkeeping and needs no help from the browser, so the request is acknowledged and nothing else happens.
+_FOCUS_TAKING_METHODS = frozenset({"Page.bringToFront"})
 
 
 class ExtensionCdpRelayBridge(BrowserMethods):
@@ -139,6 +145,9 @@ class ExtensionCdpRelayBridge(BrowserMethods):
         route = self._tab_by_session(session_id)
         if route is None:
             request.error(f"Session not found: {session_id}", -32001)
+            return
+        if method in _FOCUS_TAKING_METHODS:
+            request.ok()
             return
         tab_id, is_child = route
         cmd: RelayCdpCommand = {
