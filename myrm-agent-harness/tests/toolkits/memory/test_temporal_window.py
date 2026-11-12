@@ -10,9 +10,9 @@ from datetime import UTC, datetime, timedelta, timezone
 
 from myrm_agent_harness.toolkits.memory._internal.temporal_window import (
     TemporalWindow,
-    _unit_key,
     derive_temporal_window,
 )
+from myrm_agent_harness.toolkits.memory._internal.temporal_window_resolvers import _unit_key
 
 # Fixed Friday evening: every calendar edge below is deterministic.
 NOW = datetime(2026, 10, 2, 21, 0, tzinfo=UTC)
