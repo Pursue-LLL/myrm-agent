@@ -7,6 +7,7 @@ import base64
 import contextlib
 import os
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -17,8 +18,10 @@ from myrm_agent_harness.toolkits.code_execution.session import (
 from myrm_agent_harness.toolkits.code_execution.session.models import SessionState
 
 
-def _make_config(timeout: int = 10) -> SessionConfig:
-    return SessionConfig(session_id="test", work_dir="/tmp", timeout=timeout, sandbox_mode="disable")
+# Every session writes its tee logs under ``<work_dir>/.myrm/tee``. A test that reads that directory must pass a
+# private ``work_dir``: under xdist another worker's sessions share ``/tmp`` and add newer logs to it.
+def _make_config(timeout: int = 10, work_dir: str = "/tmp") -> SessionConfig:
+    return SessionConfig(session_id="test", work_dir=work_dir, timeout=timeout, sandbox_mode="disable")
 
 
 def _state_of(session: LocalPersistentSession) -> SessionState:
@@ -1534,11 +1537,11 @@ class TestLifecycleSafety:
 
 class TestAutoTeeAndDiskQuota:
     @pytest.mark.asyncio
-    async def test_auto_tee_generation_and_lru(self) -> None:
+    async def test_auto_tee_generation_and_lru(self, tmp_path: Path) -> None:
         """Test that tee files are generated and LRU cleanup works."""
         import glob
 
-        config = _make_config()
+        config = _make_config(work_dir=str(tmp_path))
         session = LocalPersistentSession(config)
         await session.start()
         try:
@@ -1561,12 +1564,12 @@ class TestAutoTeeAndDiskQuota:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_disk_quota_truncation(self) -> None:
+    async def test_disk_quota_truncation(self, tmp_path: Path) -> None:
         """Test that the disk quota truncates the tee file and injects warnings."""
         import glob
         from unittest.mock import patch
 
-        config = _make_config(timeout=30)
+        config = _make_config(timeout=30, work_dir=str(tmp_path))
         session = LocalPersistentSession(config)
 
         test_limit = 1 * 1024 * 1024  # 1MB limit for fast testing
