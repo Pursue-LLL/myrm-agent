@@ -226,6 +226,9 @@ class ExtensionBrowser:
     async def connect_through_popup(self, ws_url: str) -> None:
         """Type the server address into the popup and press Connect, as a user would."""
         page = await self.popup()
+        # The popup fills its fields with the saved settings a moment after it opens, and that overwrites anything typed
+        # before it lands. A person cannot type that early; the clip target row is the last thing the restore reveals.
+        await page.wait_for_selector("#clip-target-row", state="visible")
         await page.fill("#server-url", ws_url)
         await page.click("#btn-connect")
 
