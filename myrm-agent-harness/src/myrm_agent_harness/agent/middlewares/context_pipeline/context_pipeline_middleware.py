@@ -158,7 +158,8 @@ def create_context_pipeline_middleware(
         pipeline: Custom pipeline (optional)
         tool_result_evict_threshold: Tool result eviction threshold (default 5000 tokens)
         compress_min_save: Minimum compression savings threshold (default 3000 tokens)
-        keep_recent_calls: Recent tool calls to keep in full format (default 5)
+        keep_recent_calls: Tool-call groups kept in full format (default 5): results the model has not read yet first,
+                           then the highest-priority read ones
         on_summary_persist: Summary persistence callback (optional). Without it the pipeline
                            works in-memory only; with it summaries are async-written to DB.
         on_compress_offload: Tool result offload callback for cache pruning and compression (recommended).

@@ -25,7 +25,7 @@ async def test_compress_messages_async_batch_eviction(monkeypatch):
     ai_msg2 = AIMessage(content="ai2", tool_calls=[{"id": "2", "name": "tool2", "args": {}}])
     tool_msg2 = ToolMessage(content="long tool output 2", tool_call_id="2", name="tool2")
 
-    messages = [ai_msg1, tool_msg1, ai_msg2, tool_msg2]
+    messages = [ai_msg1, tool_msg1, ai_msg2, tool_msg2, AIMessage(content="read")]
 
     mock_eviction_cb = AsyncMock()
 
@@ -88,7 +88,7 @@ async def test_compress_eviction_preserves_original_content(monkeypatch):
         captured_evictions.extend(evicted_pairs)
 
     await compress_messages_async(
-        messages=[ai_msg, tool_msg],
+        messages=[ai_msg, tool_msg, AIMessage(content="read")],
         dynamic_min_save=0,
         config=ContextConfig(max_context_tokens=128000, keep_recent_calls=0),
         on_compress_offload=None,
@@ -119,7 +119,7 @@ async def test_compress_messages_async_no_eviction_if_small(monkeypatch):
     ai_msg1 = AIMessage(content="ai1", tool_calls=[{"id": "1", "name": "tool1", "args": {}}])
     tool_msg1 = ToolMessage(content="short tool output 1", tool_call_id="1", name="tool1")
 
-    messages = [ai_msg1, tool_msg1]
+    messages = [ai_msg1, tool_msg1, AIMessage(content="read")]
 
     mock_eviction_cb = AsyncMock()
 
@@ -170,7 +170,7 @@ async def test_eviction_original_content_never_carries_image_bytes(monkeypatch):
         captured.extend(evicted_pairs)
 
     await compress_messages_async(
-        messages=[ai_msg, tool_msg],
+        messages=[ai_msg, tool_msg, AIMessage(content="read")],
         dynamic_min_save=0,
         config=ContextConfig(max_context_tokens=128000, keep_recent_calls=0),
         on_compress_offload=None,
@@ -204,7 +204,7 @@ async def test_failing_eviction_callback_never_breaks_compression(monkeypatch):
         raise RuntimeError("extractor down")
 
     await compress_messages_async(
-        messages=[ai_msg, tool_msg],
+        messages=[ai_msg, tool_msg, AIMessage(content="read")],
         dynamic_min_save=0,
         config=_CONFIG,
         on_compress_offload=None,
@@ -225,7 +225,7 @@ async def test_already_compressed_tool_output_is_not_evicted_again(monkeypatch):
     eviction_cb = AsyncMock()
 
     await compress_messages_async(
-        messages=[ai_msg, tool_msg],
+        messages=[ai_msg, tool_msg, AIMessage(content="read")],
         dynamic_min_save=0,
         config=_CONFIG,
         on_compress_offload=None,

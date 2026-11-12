@@ -6,7 +6,8 @@ Strategy:
 1. Offload original content via on_compress_offload before compacting (lossy but traceable)
 2. Collapse duplicate tool outputs into a back-reference, then compact old tool-call groups into
    identifier + metadata stubs built from tool-specific templates
-3. Keep N most recent complete calls as few-shot examples
+3. keep_recent_calls survivor slots go first to results the model has not read yet (never compacted), then to the
+   highest-priority read results, newest first among equals
 4. Compact the lowest priority first, oldest first within a priority (compression_intent focus raises priority)
 5. Smart fallback when the context still fills 95% of the window after compaction
 6. Cold Cache Drain Architecture: bypass while the cache is hot (protects the Prompt Cache) or the turn's signed
@@ -26,10 +27,10 @@ IMPORTANT: Self-update reminder: once this file is updated, also update:
 - core.thinking_blocks::carries_signed_blocks (POS: whether signed reasoning blocks are in flight)
 
 [OUTPUT]
-- CompressProcessor: priority-aware compression with keep_recent ToolCallGroup protection and compression_intent consumption
+- CompressProcessor: priority-aware compression with keep_recent_calls survivor slots (unread results first) and compression_intent consumption
 
 [POS]
-Pipeline compress stage. Offloads and compacts old tool-call groups; honors compression_intent and keep_recent_calls alignment with ActivePrune.
+Pipeline compress stage. Offloads and compacts old tool-call groups; honors compression_intent and shares keep_recent_calls and the unread-result rule with ActivePrune.
 """
 
 import time
@@ -77,8 +78,8 @@ class CompressProcessor(BaseProcessor):
 
     When total context exceeds threshold:
     1. Locate all tool call pairs (AIMessage + ToolMessage)
-    2. Keep N most recent complete calls (few-shot examples)
-    3. Replace old tool results with compact format (identifier + metadata)
+    2. Keep keep_recent_calls groups intact: results the model has not read yet first, then the highest-priority read ones
+    3. Replace the other read tool results with compact format (identifier + metadata)
 
     Cold Cache Drain Architecture (Hot Cache Bypass):
     - If cache is "hot" (last activity < 5 min) and below 90% physical limit,

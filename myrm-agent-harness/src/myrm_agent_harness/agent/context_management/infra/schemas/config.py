@@ -83,8 +83,9 @@ class ContextConfig:
     # Defines the percentage of max_context_tokens to preserve verbatim before compressing.
     tail_budget_ratio: float = 0.20
 
-    # Keep N most recent tool-call groups during Compress (see compactor.py).
-    # Filter/ActivePrune use separate thresholds; failed IDs come from compression_intent.
+    # Tool-call groups Compress leaves intact (see compactor.py): results the model has not read yet first, then the
+    # highest-priority read ones. ActivePrune reads the same value as its window of newest groups; Filter uses separate
+    # thresholds; failed IDs come from compression_intent.
     keep_recent_calls: int = 5
 
     # Memory forgetting half-life in days. Frontend can tune the agent's forgetting curve.

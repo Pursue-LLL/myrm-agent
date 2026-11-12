@@ -19,7 +19,7 @@ Context management infrastructure: shared types, budget management, session lock
 | schemas/ | Config | 上下文管理类型子包：`config.py`（窗口与压缩阈值）、`tool_protection.py`（不可压缩工具）、`cache.py`（TTL 裁剪与缓存反馈）、`offload.py`（offload/eviction）、`summary.py`（结构化摘要）、`callbacks.py`（依赖反转协议）；门面保持原导入面并继续重导出 pre-compact 名称。详见 [schemas/_ARCH.md](schemas/_ARCH.md) | ✅ |
 | schemas_pre_compact.py | Config | PreCompactDecision (Cancel/Replace/Passthrough) + PreCompactInjection + ContextPreCompactCallback types | ✅ |
 | session_lock.py | Core | Session-level lock manager. Provides reentrant per-session async locks for serialized context mutations while preserving cross-session parallelism. | ✅ |
-| retention_helpers.py | Core | Shared retention helpers: compression_intent extraction (failed/focus/goal), group-aware focus matching via tool_call_id index, keep_recent prune cutoff, deterministic retain trim formatting (the "full output saved to" pointer is emitted only when a saved copy exists) | ✅ |
+| retention_helpers.py | Core | Shared retention helpers: compression_intent extraction (failed/focus/goal), group-aware focus matching via tool_call_id index, keep_recent prune cutoff, the unread-result check (`is_tool_result_consumed`, shared by ActivePrune and Compress), deterministic retain trim formatting (the "full output saved to" pointer is emitted only when a saved copy exists) | ✅ |
 | tool_result_trimming.py | Core | Deterministic trimming for oversized tool outputs. Uses structure-aware JSON compaction under the fast-guard threshold and bounded head/tail text trim above it. | ✅ |
 | evicted/ | Submodule | UECD subpackage — see [evicted/_ARCH.md](evicted/_ARCH.md) (`content` · `reader` · `persister` · `markers`) | ✅ |
 

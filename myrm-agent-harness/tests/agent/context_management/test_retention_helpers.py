@@ -13,6 +13,7 @@ from myrm_agent_harness.agent.context_management.infra.retention_helpers import 
     extract_pinned_files,
     extract_user_goal_hint,
     find_keep_recent_prune_cutoff,
+    is_tool_result_consumed,
     should_retain_tool_message,
     tool_message_matches_focus_signals,
 )
@@ -263,6 +264,11 @@ def test_find_keep_recent_prune_cutoff_zero_disables_prune() -> None:
         ToolMessage(content="result1", name="grep_tool", tool_call_id="tc1"),
     ]
     assert find_keep_recent_prune_cutoff(messages, keep_recent_calls=0) == 3
+
+
+def test_a_result_followed_only_by_user_messages_is_unread() -> None:
+    messages = [ToolMessage(content="result", tool_call_id="tc1"), HumanMessage(content="and this one too?")]
+    assert is_tool_result_consumed(messages, 0) is False
 
 
 def test_effective_keep_recent_calls_eco_mode() -> None:
