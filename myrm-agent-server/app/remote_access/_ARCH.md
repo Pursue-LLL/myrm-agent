@@ -8,6 +8,11 @@
 外网 Tool 策略与 Host allowlist。提供 CF quick tunnel 生命周期（含 watchdog）、PairingToken
 与 Mobile Hub API。
 
+同机反向代理或隧道（连接来自 127.0.0.1）在请求带公网 Host、Cloudflare 头，或代理在 `X-Forwarded-For`
+里转发了真实客户端地址时判为外网（uvicorn 对 `FORWARDED_ALLOW_IPS`（默认 127.0.0.1）内的对端据此改写客户端地址，
+不再是回环）；什么转发头都不带、Host 为本地值的同机代理与本机客户端无法区分，会被判为本机，这类代理必须保留公网 Host
+或转发客户端地址。
+
 ---
 
 ## 文件清单

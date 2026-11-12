@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Protocol
 
 logger = logging.getLogger(__name__)
@@ -42,15 +42,14 @@ class InFlightLimiter(Protocol):
         >>> # The count is released automatically by the finally block
     """
 
-    @asynccontextmanager
-    async def acquire(self, identifier: str) -> AsyncIterator[bool]:
+    def acquire(self, identifier: str) -> AbstractAsyncContextManager[bool]:
         """Acquire a concurrency slot (Context Manager)
 
         Args:
             identifier: Client identifier (usually an IP address)
 
-        Yields:
-            bool: True if acquired, False if the concurrency limit is exceeded
+        Returns:
+            Async context manager yielding True if acquired, False if the concurrency limit is exceeded
 
         Example:
             >>> async with limiter.acquire("203.0.113.45") as acquired:

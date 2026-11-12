@@ -82,7 +82,8 @@ class _AdaptedRequest:
 
     async def json(self) -> dict[str, object]:
         """Parse request body as JSON."""
-        return await self._request.json()
+        parsed: dict[str, object] = await self._request.json()
+        return parsed
 
 
 class FastAPIRequestAdapter(RequestAdapter[Request]):
