@@ -51,13 +51,15 @@ export const DEFAULT_VOICE_FORM: VoiceFormState = {
   geminiLiveModel: 'gemini-2.5-flash-preview-native-audio-dialog',
 };
 
+/**
+ * Rejects when the saved settings cannot be read. Answering with the defaults instead would show them as the user's
+ * settings, and the next edit would save them over whatever is really stored. Nothing saved yet is not a failure: the
+ * server answers that with an empty value, which fills up with the defaults. The read is silent because the section
+ * shows the failure itself, with a retry that reaches the section; the global notice's retry would not.
+ */
 export async function loadVoiceConfig(): Promise<VoiceFormState> {
-  try {
-    const record = await apiRequest<{ value: VoiceFormState }>('/config/voice');
-    return { ...DEFAULT_VOICE_FORM, ...record.value };
-  } catch {
-    return DEFAULT_VOICE_FORM;
-  }
+  const record = await apiRequest<{ value: VoiceFormState }>('/config/voice', { silent: true });
+  return { ...DEFAULT_VOICE_FORM, ...record.value };
 }
 
 export async function saveVoiceConfig(state: VoiceFormState): Promise<void> {

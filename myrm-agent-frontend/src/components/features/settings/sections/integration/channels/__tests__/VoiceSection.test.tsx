@@ -18,6 +18,15 @@ vi.mock('sonner', () => ({
   },
 }));
 
+// The shared failure view probes the backend on its own; only its retry hand-off matters here.
+vi.mock('@/components/features/app-shell/config-load-error', () => ({
+  ConfigLoadError: ({ onRetry }: { onRetry: () => void }) => (
+    <button type="button" data-testid="config-load-error" onClick={onRetry}>
+      retry
+    </button>
+  ),
+}));
+
 const stableT = (key: string) => key;
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -178,5 +187,134 @@ describe('VoiceSection voice session mode', () => {
     expect(modePicker()).toHaveTextContent('voiceModeGeminiLive');
     // What the chat's voice button reads, so the choice takes effect there too.
     expect(voiceDeviceSettings.read(VOICE_SETTING_KEYS.mode)).toBe('gemini_live');
+  });
+});
+
+interface VoiceRequestInit {
+  method?: string;
+  body?: string;
+  silent?: boolean;
+}
+type RecordedCall = [url: string, init?: VoiceRequestInit];
+type ConfigReadAnswer = Error | { value: Record<string, unknown>; unreadable?: boolean };
+
+const SAVED_VOICE = {
+  sttEnabled: true,
+  sttProvider: 'openai',
+  ttsMode: 'always',
+  ttsProvider: 'piper',
+  ttsVoice: 'en_US-lessac-medium',
+};
+
+/** Answers each read of the saved settings in turn (the last answer repeats); an Error is a failed read. */
+function mockConfigReads(...answers: ConfigReadAnswer[]): void {
+  let reads = 0;
+  apiRequestMock.mockImplementation((url: string, init?: VoiceRequestInit) => {
+    if (url === '/config/voice' && init?.method === 'PUT') {
+      return Promise.resolve({});
+    }
+    if (url === '/config/voice') {
+      const answer = answers[Math.min(reads, answers.length - 1)];
+      reads += 1;
+      return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
+    }
+    if (url === '/health/info') {
+      return Promise.resolve({ edge_tts_available: true, local_stt_available: true, local_tts_available: true });
+    }
+    return Promise.resolve({});
+  });
+}
+
+const voiceCalls = (): RecordedCall[] =>
+  (apiRequestMock.mock.calls as RecordedCall[]).filter(([url]) => url === '/config/voice');
+const configReads = (): number => voiceCalls().filter(([, init]) => init?.method !== 'PUT').length;
+const savedBodies = (): Array<{ value: Record<string, unknown> }> =>
+  voiceCalls()
+    .filter(([, init]) => init?.method === 'PUT')
+    .map(([, init]) => JSON.parse(init?.body ?? '{}'));
+
+describe('VoiceSection when the saved settings cannot be read', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  async function renderSection(): Promise<void> {
+    await act(async () => {
+      render(<VoiceSection />);
+    });
+  }
+
+  async function retry(): Promise<void> {
+    const button = await screen.findByTestId('config-load-error');
+    await act(async () => {
+      fireEvent.click(button);
+    });
+  }
+
+  it('offers a retry instead of the form, and saves nothing', async () => {
+    mockConfigReads(new Error('backend unreachable'));
+
+    await renderSection();
+
+    expect(await screen.findByTestId('config-load-error')).toBeInTheDocument();
+    expect(screen.queryByTestId('voice-settings-panel')).not.toBeInTheDocument();
+    expect(savedBodies()).toEqual([]);
+  });
+
+  it('asks for the saved settings silently, so a failed read is shown once, by the section', async () => {
+    mockConfigReads(new Error('backend unreachable'), { value: SAVED_VOICE });
+    await renderSection();
+    await retry();
+    await screen.findByTestId('voice-settings-panel');
+
+    // The global failure notice would add a second "retry" that cannot reach the section.
+    expect(voiceCalls().map(([, init]) => init)).toEqual([{ silent: true }, { silent: true }]);
+  });
+
+  it('keeps offering the retry while the read keeps failing', async () => {
+    mockConfigReads(new Error('backend unreachable'), new Error('backend unreachable'), { value: SAVED_VOICE });
+    await renderSection();
+
+    await retry();
+    expect(await screen.findByTestId('config-load-error')).toBeInTheDocument();
+    expect(screen.queryByTestId('voice-settings-panel')).not.toBeInTheDocument();
+
+    await retry();
+    expect(await screen.findByTestId('voice-settings-panel')).toBeInTheDocument();
+    expect(configReads()).toBe(3);
+  });
+
+  it('keeps the saved settings in what the next edit saves', async () => {
+    mockConfigReads(new Error('backend unreachable'), { value: SAVED_VOICE });
+    await renderSection();
+    await retry();
+    await screen.findByTestId('voice-settings-panel');
+
+    fireEvent.click(within(screen.getByText('sttEnabled').parentElement as HTMLElement).getByRole('switch'));
+
+    await waitFor(() => expect(savedBodies()).toHaveLength(1), { timeout: 3000 });
+    // The defaults would say edge / off / no voice; every saved field the user did not touch has to survive.
+    expect(savedBodies()[0].value).toMatchObject({
+      sttEnabled: false,
+      ttsMode: 'always',
+      ttsProvider: 'piper',
+      ttsVoice: 'en_US-lessac-medium',
+    });
+  });
+
+  it.each([
+    ['nothing was saved yet', { value: {} }],
+    ['the saved settings cannot be decrypted', { value: {}, unreadable: true }],
+  ])('opens the form on the defaults when %s', async (_case, record) => {
+    mockConfigReads(record);
+
+    await renderSection();
+
+    expect(await screen.findByTestId('voice-settings-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('config-load-error')).not.toBeInTheDocument();
   });
 });
