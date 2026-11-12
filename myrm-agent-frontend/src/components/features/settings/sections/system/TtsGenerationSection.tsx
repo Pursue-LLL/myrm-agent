@@ -2,9 +2,11 @@
 
 /**
  * [INPUT]
- * - services/config/types::VoiceConfigValue (POS: voice config REST value shape)
+ * - ./ttsCatalog (POS: provider/model/voice options and the mapping of stored voice settings onto them)
  * - lib/api::apiRequest (POS: unified REST entry with auth + locale headers)
  * - lib/utils/media::providerHasActiveApiKey (POS: providers-row credential fallback check)
+ * - app-shell/config-load-error::ConfigLoadError (POS: failed-read view with retry)
+ * - primitives/skeleton::Skeleton (POS: loading placeholder)
  * - PremiumIcons (POS: premium glyph set, no native emoji)
  *
  * [OUTPUT]
@@ -14,7 +16,11 @@
  * TTS tool configuration UI. Provider/model/voice selection plus credential
  * entry. Reads/writes the shared `voice` config (ttsProvider/ttsModel/
  * ttsVoice/ttsApiKey) with optimistic-lock read-modify-write, mirroring the
- * server-side media param extraction chain.
+ * server-side media param extraction chain. The card is offered only once the
+ * stored settings have been read, and a save re-reads them first: a read that
+ * fails never turns into a write, so the other voice settings are never
+ * replaced by defaults. The channel voice settings share these fields, so a
+ * stored provider this card does not offer shows the card's own defaults.
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
@@ -28,92 +34,49 @@ import {
   IconEyeOff,
   IconSave,
 } from '@/components/features/icons/PremiumIcons';
+import { ConfigLoadError } from '@/components/features/app-shell/config-load-error';
+import { Skeleton } from '@/components/primitives/skeleton';
 import useProviderStore from '@/store/useProviderStore';
 import { toast } from '@/hooks/shared/useToast';
 import { apiRequest } from '@/lib/api';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import { providerHasActiveApiKey } from '@/lib/utils/media';
-import type { VoiceConfigValue } from '@/services/config/types';
 import OptionSelect from '../../OptionSelect';
 import SettingsSection from '../SettingsSection';
-
-type TtsProviderId = 'openai' | 'elevenlabs' | 'volcengine';
+import {
+  DEFAULT_MODEL,
+  DEFAULT_PROVIDER,
+  DEFAULT_VOICE,
+  readStoredChoices,
+  TTS_MODEL_OPTIONS,
+  TTS_PROVIDER_OPTIONS,
+  TTS_VOICE_OPTIONS,
+  type StoredVoice,
+  type TtsProviderId,
+} from './ttsCatalog';
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 
-interface TtsModelOption {
-  value: string;
-  label: string;
-  description: string;
-}
+type LoadStatus = 'loading' | 'ready' | 'failed';
 
-const TTS_PROVIDER_OPTIONS: TtsModelOption[] = [
-  { value: 'openai', label: 'OpenAI TTS', description: 'tts-1 / gpt-4o-mini-tts' },
-  { value: 'elevenlabs', label: 'ElevenLabs', description: 'Turbo v2.5 / Multilingual v2' },
-  { value: 'volcengine', label: 'Volcengine Speech', description: 'Seed-Audio / Doubao-TTS' },
-];
-
-const TTS_MODEL_OPTIONS: Record<TtsProviderId, TtsModelOption[]> = {
-  openai: [
-    { value: 'tts-1', label: 'TTS 1', description: 'Fast' },
-    { value: 'tts-1-hd', label: 'TTS 1 HD', description: 'Higher fidelity' },
-    { value: 'gpt-4o-mini-tts', label: 'GPT-4o mini TTS', description: 'Steerable' },
-  ],
-  elevenlabs: [
-    { value: 'eleven_turbo_v2_5', label: 'Turbo v2.5', description: 'Low latency' },
-    { value: 'eleven_multilingual_v2', label: 'Multilingual v2', description: '30+ languages' },
-    { value: 'eleven_flash_v2_5', label: 'Flash v2.5', description: 'Fastest' },
-  ],
-  volcengine: [
-    { value: 'seed-audio-1.0', label: 'Seed-Audio 1.0', description: 'Generative · style-aware' },
-    { value: 'doubao-tts', label: 'Doubao-TTS', description: 'Low latency codec' },
-  ],
-};
-
-const TTS_VOICE_OPTIONS: Record<TtsProviderId, TtsModelOption[]> = {
-  openai: [
-    { value: 'alloy', label: 'Alloy', description: '' },
-    { value: 'echo', label: 'Echo', description: '' },
-    { value: 'fable', label: 'Fable', description: '' },
-    { value: 'onyx', label: 'Onyx', description: '' },
-    { value: 'nova', label: 'Nova', description: '' },
-    { value: 'shimmer', label: 'Shimmer', description: '' },
-  ],
-  elevenlabs: [
-    { value: '21m00Tcm4TlvDq8ikWAM', label: 'Rachel', description: '' },
-    { value: 'AZnzlk1XvdvUeBnXmlld', label: 'Domi', description: '' },
-    { value: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah', description: '' },
-    { value: 'TxGEqnHWrfWFTfGW9XjX', label: 'Josh', description: '' },
-  ],
-  volcengine: [
-    { value: 'zh_female_vv_uranus_bigtts', label: 'Uranus · 中文女声', description: 'Default' },
-    { value: 'zh_male_rough_mars_bigtts', label: 'Mars · 中文男声', description: '' },
-    { value: 'en_female_emily_mars_bigtts', label: 'Emily · English', description: '' },
-  ],
-};
-
-const DEFAULT_PROVIDER: TtsProviderId = 'openai';
-const DEFAULT_MODEL = 'tts-1';
-const DEFAULT_VOICE = 'alloy';
-
-async function fetchVoiceRecord(): Promise<{ value: VoiceConfigValue; version: string } | null> {
-  try {
-    const record = await apiRequest<{
-      value: VoiceConfigValue;
-      meta?: { version?: string };
-    }>('/config/voice', { silent: true });
-    if (record && typeof record.value === 'object') {
-      return { value: record.value, version: record.meta?.version ?? '' };
-    }
-  } catch {
-    /* voice config not created yet — defaults apply */
+/**
+ * Rejects when the stored settings cannot be read, so a failed read is never taken for "nothing saved yet": that case
+ * is not a failure, the server answers it with an empty value. The read is silent because the card shows the failure
+ * itself, with a retry that reaches the card.
+ */
+async function fetchVoiceRecord(): Promise<{ value: StoredVoice; version: string }> {
+  const record = await apiRequest<{ value?: StoredVoice | null; meta?: { version?: string } }>('/config/voice', {
+    silent: true,
+  });
+  if (typeof record?.value !== 'object' || record.value === null) {
+    throw new Error('The voice settings answer carries no value');
   }
-  return null;
+  return { value: record.value, version: record.meta?.version ?? '' };
 }
 
 /** Every config write names its device; the channel voice settings, which write this same key, send 'web' too. */
-async function putVoiceConfig(next: VoiceConfigValue, expectedVersion: string): Promise<void> {
+async function putVoiceConfig(next: StoredVoice, expectedVersion: string): Promise<void> {
   await apiRequest('/config/voice', {
     method: 'PUT',
     body: JSON.stringify({ value: next, expectedVersion: expectedVersion || undefined, deviceId: 'web' }),
@@ -145,36 +108,42 @@ const TtsGenerationSection = memo(() => {
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
-  const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null);
+  const [keyConfigured, setKeyConfigured] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   const [testMessage, setTestMessage] = useState('');
-  const [voiceVersion, setVoiceVersion] = useState('');
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
+  const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchVoiceRecord().then((record) => {
-      if (cancelled || !record) {
-        return;
-      }
-      const value = record.value;
-      const provider = (value.ttsProvider as TtsProviderId) || DEFAULT_PROVIDER;
-      const model = value.ttsModel || DEFAULT_MODEL;
-      setVoiceVersion(record.version);
-      if (provider === 'volcengine' && model === 'tts-1') {
-        setTtsModel('seed-audio-1.0');
-      } else if (provider === 'elevenlabs' && model === 'tts-1') {
-        setTtsModel('eleven_turbo_v2_5');
-      } else {
-        setTtsModel(model);
-      }
-      setTtsProvider(provider);
-      setTtsVoice(value.ttsVoice || DEFAULT_VOICE);
-      setKeyConfigured(Boolean(value.ttsApiKey?.trim()) || providerHasActiveApiKey(providers, provider));
-    });
+    fetchVoiceRecord().then(
+      ({ value }) => {
+        if (cancelled) {
+          return;
+        }
+        const choices = readStoredChoices(value);
+        setTtsProvider(choices.provider);
+        setTtsModel(choices.model);
+        setTtsVoice(choices.voice);
+        setKeyConfigured(choices.keySaved || providerHasActiveApiKey(providers, choices.provider));
+        setLoadStatus('ready');
+      },
+      () => {
+        // Only a first read has nothing to fall back on; a later one that fails leaves what is shown.
+        if (!cancelled) {
+          setLoadStatus((current) => (current === 'ready' ? current : 'failed'));
+        }
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [providers]);
+  }, [providers, reloads]);
+
+  const retryLoad = useCallback(() => {
+    setLoadStatus('loading');
+    setReloads((count) => count + 1);
+  }, []);
 
   const handleProviderChange = useCallback((next: string) => {
     const p = next as TtsProviderId;
@@ -198,37 +167,11 @@ const TtsGenerationSection = memo(() => {
     }
     setSavingKey(true);
     try {
+      // The write merges into what is stored now. A read that fails ends the save here: writing without it would
+      // replace the other voice settings with whatever this card knows. Settings not saved yet read as an empty
+      // value, and the server fills in the rest.
       const record = await fetchVoiceRecord();
-      const base: VoiceConfigValue =
-        record?.value ??
-        ({
-          sttEnabled: false,
-          sttProvider: 'openai',
-          sttApiKey: '',
-          sttModel: 'whisper-1',
-          sttLanguage: '',
-          sttLocalModel: 'base',
-          sttLocalDevice: 'auto',
-          sttLocalComputeType: 'auto',
-          sttBaseUrl: '',
-          ttsMode: 'off',
-          ttsProvider: DEFAULT_PROVIDER,
-          ttsApiKey: '',
-          ttsBaseUrl: '',
-          ttsVoice: DEFAULT_VOICE,
-          ttsMaxLength: 4000,
-          ttsSummaryEnabled: true,
-          ttsSummaryThreshold: 1500,
-          ttsSummaryModel: '',
-        } satisfies VoiceConfigValue);
-      const next: VoiceConfigValue = {
-        ...base,
-        ttsProvider,
-        ttsModel,
-        ttsVoice,
-        ttsApiKey: trimmed,
-      };
-      await putVoiceConfig(next, record?.version ?? voiceVersion);
+      await putVoiceConfig({ ...record.value, ttsProvider, ttsModel, ttsVoice, ttsApiKey: trimmed }, record.version);
       setKeyConfigured(true);
       setApiKey('');
       toast.success(t('apiKeySaved'));
@@ -238,7 +181,7 @@ const TtsGenerationSection = memo(() => {
     } finally {
       setSavingKey(false);
     }
-  }, [ttsProvider, ttsModel, ttsVoice, apiKey, voiceVersion, t]);
+  }, [ttsProvider, ttsModel, ttsVoice, apiKey, t]);
 
   const handleTest = useCallback(async () => {
     setTestStatus('testing');
@@ -256,6 +199,22 @@ const TtsGenerationSection = memo(() => {
     setTimeout(() => setTestStatus('idle'), 3000);
   }, [ttsProvider, ttsModel]);
 
+  if (loadStatus !== 'ready') {
+    return (
+      <SettingsSection title={t('ttsTitle')} description={t('ttsDescription')}>
+        {loadStatus === 'loading' ? (
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+          </div>
+        ) : (
+          <ConfigLoadError onRetry={retryLoad} className="py-6" />
+        )}
+      </SettingsSection>
+    );
+  }
+
   const isDoubao = ttsProvider === 'volcengine' && ttsModel === 'doubao-tts';
   const isSeedAudio = ttsProvider === 'volcengine' && ttsModel === 'seed-audio-1.0';
   const keyPlaceholder = isDoubao ? 'appid:access_token' : t('enterApiKey');
@@ -266,13 +225,12 @@ const TtsGenerationSection = memo(() => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-foreground">{t('ttsProvider')}</label>
-            {keyConfigured === true && (
+            {keyConfigured ? (
               <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                 <IconCheckCircle className="h-3 w-3" />
                 {t('configured')}
               </span>
-            )}
-            {keyConfigured === false && (
+            ) : (
               <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
                 <IconAlertCircle className="h-3 w-3" />
                 {t('needsApiKey')}
@@ -307,7 +265,7 @@ const TtsGenerationSection = memo(() => {
           />
         </div>
 
-        {keyConfigured !== true && (
+        {!keyConfigured && (
           <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
             <p className="text-xs text-amber-700 dark:text-amber-400">
               {isDoubao ? t('ttsDoubaoKeyHint') : t('apiKeyHint')}

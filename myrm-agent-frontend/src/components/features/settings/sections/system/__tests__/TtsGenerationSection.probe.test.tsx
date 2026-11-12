@@ -74,7 +74,8 @@ describe('TtsGenerationSection connection test', () => {
       await renderSection();
 
       await user.click(testButton());
-      expect(screen.getByText('bad key')).toBeInTheDocument();
+      // The message arrives after the probe's promise chain settles, which a click alone does not wait for.
+      expect(await screen.findByText('bad key')).toBeInTheDocument();
 
       await act(async () => vi.advanceTimersByTimeAsync(3000));
       expect(screen.queryByText('bad key')).toBeNull();

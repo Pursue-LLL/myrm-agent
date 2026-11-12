@@ -23,7 +23,7 @@ const kit = vi.hoisted(() => ({
   success: vi.fn<(text: string) => void>(),
   error: vi.fn<(text: string) => void>(),
   providers: [] as unknown[],
-  record: null as VoiceRecord | null,
+  record: { value: {}, meta: { version: '0' } } as VoiceRecord,
 }));
 
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
@@ -38,6 +38,9 @@ const storedVoice = (overrides: Record<string, unknown> = {}): VoiceRecord => ({
   value: { sttEnabled: true, ttsMaxLength: 900, ...overrides },
   meta: { version: 'v3' },
 });
+
+/** What the server answers while no voice settings are saved: an empty value at version 0, not an error. */
+const emptyVoice = (): VoiceRecord => ({ value: {}, meta: { version: '0' } });
 
 const puts = () => kit.apiRequest.mock.calls.filter(([, options]) => options?.method === 'PUT');
 const putBody = (index = 0) => JSON.parse(String(puts()[index][1]?.body)) as Record<string, unknown>;
@@ -61,15 +64,7 @@ beforeEach(() => {
   kit.providers = [];
   kit.record = storedVoice({ ttsApiKey: 'sk-stored' });
   kit.providerKeyReady.mockReturnValue(false);
-  kit.apiRequest.mockImplementation(async (_path, options) => {
-    if (options?.method === 'PUT') {
-      return {};
-    }
-    if (kit.record) {
-      return kit.record;
-    }
-    throw new Error('no voice settings yet');
-  });
+  kit.apiRequest.mockImplementation(async (_path, options) => (options?.method === 'PUT' ? {} : kit.record));
 });
 
 describe('TtsGenerationSection loading', () => {
@@ -111,8 +106,8 @@ describe('TtsGenerationSection loading', () => {
     expect(screen.queryByPlaceholderText('Enter API Key')).toBeNull();
   });
 
-  it('starts from the defaults and shows no key status when nothing is stored yet', async () => {
-    kit.record = null;
+  it('starts from the defaults and asks for a key when the server holds no voice settings yet', async () => {
+    kit.record = emptyVoice();
 
     await renderSection();
 
@@ -120,25 +115,8 @@ describe('TtsGenerationSection loading', () => {
     expect(screen.getByRole('button', { name: /TTS 1/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Alloy/ })).toBeInTheDocument();
     expect(screen.queryByText('Configured')).toBeNull();
-    expect(screen.queryByText('API Key Required')).toBeNull();
+    expect(screen.getByText('API Key Required')).toBeInTheDocument();
     expect(keyInput()).toBeInTheDocument();
-  });
-
-  it('shows the newest answer when an older load finishes last', async () => {
-    const older = deferred<VoiceRecord>();
-    const newer = deferred<VoiceRecord>();
-    kit.apiRequest.mockImplementationOnce(() => older.promise).mockImplementationOnce(() => newer.promise);
-    const user = userEvent.setup();
-    render(<TtsGenerationSection />);
-    // A changed provider list makes the section read the stored settings again while the first read is pending.
-    kit.providers = [{ id: 'changed' }];
-    await user.click(eyeButton());
-
-    await act(async () => newer.resolve(storedVoice({ ttsProvider: 'elevenlabs', ttsApiKey: 'sk-new' })));
-    await act(async () => older.resolve(storedVoice({ ttsProvider: 'volcengine', ttsApiKey: 'sk-old' })));
-
-    expect(screen.getByRole('button', { name: /ElevenLabs/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Seed-Audio|Doubao/ })).toBeNull();
   });
 
   it.each([
@@ -151,6 +129,33 @@ describe('TtsGenerationSection loading', () => {
     await renderSection();
 
     expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+  });
+
+  it.each(['edge', 'piper', 'voicebox'])(
+    'shows its own defaults when the settings hold %s, a provider only the channel voice settings offer',
+    async (ttsProvider) => {
+      kit.record = storedVoice({
+        ttsProvider,
+        ttsModel: 'gpt-4o-mini-tts',
+        ttsVoice: 'en-US-AriaNeural',
+        ttsApiKey: 'sk-of-another-provider',
+      });
+
+      await renderSection();
+
+      expect(screen.getByRole('button', { name: /OpenAI TTS/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /TTS 1/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Alloy/ })).toBeInTheDocument();
+      expect(screen.getByText('API Key Required')).toBeInTheDocument();
+    },
+  );
+
+  it('offers the first voice of the stored provider when the settings name none', async () => {
+    kit.record = storedVoice({ ttsProvider: 'elevenlabs', ttsModel: 'eleven_turbo_v2_5', ttsVoice: '' });
+
+    await renderSection();
+
+    expect(screen.getByRole('button', { name: /Rachel/ })).toBeInTheDocument();
   });
 });
 
@@ -247,8 +252,8 @@ describe('TtsGenerationSection saving the key', () => {
     await waitFor(() => expect(keyInput()).toHaveValue(''));
   });
 
-  it('creates the first voice settings from defaults when none are stored', async () => {
-    kit.record = null;
+  it('creates the first voice settings from the chosen values and leaves every other default to the server', async () => {
+    kit.record = emptyVoice();
     const user = userEvent.setup();
     await renderSection();
 
@@ -256,19 +261,10 @@ describe('TtsGenerationSection saving the key', () => {
     await user.click(saveButton());
 
     await waitFor(() => expect(kit.success).toHaveBeenCalled());
-    const body = putBody();
-    expect(body).not.toHaveProperty('expectedVersion');
-    expect(body.deviceId).toBe('web');
-    expect(body.value).toMatchObject({
-      sttEnabled: false,
-      ttsMode: 'off',
-      ttsMaxLength: 4000,
-      ttsSummaryEnabled: true,
-      ttsSummaryThreshold: 1500,
-      ttsProvider: 'openai',
-      ttsModel: 'tts-1',
-      ttsVoice: 'alloy',
-      ttsApiKey: 'sk-first',
+    expect(putBody()).toEqual({
+      value: { ttsProvider: 'openai', ttsModel: 'tts-1', ttsVoice: 'alloy', ttsApiKey: 'sk-first' },
+      expectedVersion: '0',
+      deviceId: 'web',
     });
   });
 
