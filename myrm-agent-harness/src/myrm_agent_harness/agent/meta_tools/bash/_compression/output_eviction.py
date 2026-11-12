@@ -192,13 +192,13 @@ async def _save_to_file(executor: CodeExecutor, content: str) -> tuple[str | Non
     Uses the same workspace_root_var + chat_id_var path as web_fetch UECD spill
     (evicted_content.persist_evicted_content), not hardcoded /persistent paths.
 
-    Returns None when no session context exists (preview-only, no GUI ref).
+    Returns (None, None) when no session context exists (preview-only, no GUI ref).
     """
     _ = executor  # Kept for call-site compatibility; persist uses workspace_root_var.
     session_id = _get_session_id()
     if not session_id:
         logger.warning("[Eviction] No session_id; skip file persist (preview only)")
-        return None
+        return None, None
 
     from myrm_agent_harness.agent.context_management.infra.evicted import (
         persist_evicted_content,

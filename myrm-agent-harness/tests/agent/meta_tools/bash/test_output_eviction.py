@@ -367,3 +367,14 @@ async def test_save_to_file_persists_with_session(mock_executor):
     assert persist_stats.evicted_ref == "output_abcd1234.txt"
     persist_mock.assert_awaited_once()
     mock_executor.write_file.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_save_to_file_without_session_returns_empty_pair(mock_executor):
+    """No chat id means no evicted file; the caller still unpacks a (path, stats) pair."""
+    from myrm_agent_harness.agent.meta_tools.bash._compression import (
+        output_eviction as mod,
+    )
+
+    with patch.object(mod, "_get_session_id", return_value=None):
+        assert await mod._save_to_file(mock_executor, "payload") == (None, None)
