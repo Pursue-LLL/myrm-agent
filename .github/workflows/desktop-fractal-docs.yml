@@ -7,11 +7,15 @@ on:
     paths:
       - 'myrm-agent-desktop/**'
       - 'scripts/ci/desktop-release/**'
+      # verify-launch-contract.sh compares the readiness budget declared in this file with the shell's.
+      - 'myrm-agent-frontend/src/lib/backend-health-probe.ts'
       - '.github/workflows/desktop-fractal-docs.yml'
   pull_request:
     paths:
       - 'myrm-agent-desktop/**'
       - 'scripts/ci/desktop-release/**'
+      # verify-launch-contract.sh compares the readiness budget declared in this file with the shell's.
+      - 'myrm-agent-frontend/src/lib/backend-health-probe.ts'
       - '.github/workflows/desktop-fractal-docs.yml'
 
 concurrency:

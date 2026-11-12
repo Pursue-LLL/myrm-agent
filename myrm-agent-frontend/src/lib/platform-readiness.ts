@@ -92,10 +92,8 @@ async function warmUntilDatabaseReady(): Promise<PlatformReadinessSnapshot> {
 
   emit({ state: 'warming', database: false });
 
-  const healthy = await waitForBackendReady({
-    pollIntervalMs: BACKEND_HEALTH_POLL_INTERVAL_MS,
-    maxAttempts: BACKEND_HEALTH_MAX_ATTEMPTS,
-  });
+  // The default budget depends on who owns the backend process (see `getBackendHealthMaxAttempts`).
+  const healthy = await waitForBackendReady();
 
   if (!healthy) {
     emit({ state: 'unreachable', database: false });

@@ -5,7 +5,8 @@
  * - `@/lib/utils/networkResilience` abortable poll wait
  *
  * [OUTPUT]
- * Stateless backend health probes and bounded polling primitives.
+ * Stateless backend health probes and bounded polling primitives; the readiness budget
+ * (60 s for dev servers and WebUI, 135 s inside the desktop shell, which waits up to 120 s itself).
  *
  * [POS]
  * Leaf transport module. It must not depend on platform readiness or API gates.
@@ -41,6 +42,17 @@ export const BACKEND_HEALTH_POLL_INTERVAL_MS = 500;
 // gives the readiness gate a 60 s budget so early-navigated UI skeletons resolve
 // while the backend is still importing.
 export const BACKEND_HEALTH_MAX_ATTEMPTS = 120;
+// Inside the desktop shell the sidecar belongs to the shell: it gives a cold backend
+// `BACKEND_STARTUP_TIMEOUT` (120 s, `runtime/python_backend.rs`) before it kills the process and
+// emits `backend-start-failed`. A gate that gave up earlier would report "unreachable" for a
+// backend the shell is still starting, which skips the pending-approvals recovery and puts config
+// sync offline. 270 × 500 ms = 135 s outlasts the shell; `verify-launch-contract.sh` pins that.
+export const DESKTOP_BACKEND_HEALTH_MAX_ATTEMPTS = 270;
+
+/** Attempts the readiness gate polls `/health` for in the current deploy mode. */
+export function getBackendHealthMaxAttempts(): number {
+  return getDeployMode() === 'tauri' ? DESKTOP_BACKEND_HEALTH_MAX_ATTEMPTS : BACKEND_HEALTH_MAX_ATTEMPTS;
+}
 
 export interface WaitForBackendReadyOptions {
   signal?: AbortSignal;
@@ -138,7 +150,7 @@ export async function waitForBackendReady(options: WaitForBackendReadyOptions = 
   }
 
   const pollIntervalMs = options.pollIntervalMs ?? BACKEND_HEALTH_POLL_INTERVAL_MS;
-  const maxAttempts = options.maxAttempts ?? BACKEND_HEALTH_MAX_ATTEMPTS;
+  const maxAttempts = options.maxAttempts ?? getBackendHealthMaxAttempts();
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     if (options.signal?.aborted) {

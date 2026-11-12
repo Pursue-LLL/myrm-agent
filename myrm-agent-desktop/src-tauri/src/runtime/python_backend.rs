@@ -36,6 +36,8 @@ use crate::utils::process_tree::kill_process_tree;
 
 /// Budget for a cold sidecar to answer `/health` after spawn. A cold start measures 20 s on a
 /// warm machine and over 45 s on a heavily loaded one, so the budget leaves wide headroom.
+/// The frontend readiness gate (`DESKTOP_BACKEND_HEALTH_MAX_ATTEMPTS`) must outlast it;
+/// `scripts/ci/verify-launch-contract.sh` enforces that.
 const BACKEND_STARTUP_TIMEOUT: Duration = Duration::from_secs(120);
 
 pub struct PythonBackend {

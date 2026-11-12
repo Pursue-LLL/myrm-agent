@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { waitForBackendReady, waitForTauriRuntime } from '@/lib/backend-health';
+import {
+  BACKEND_HEALTH_MAX_ATTEMPTS,
+  DESKTOP_BACKEND_HEALTH_MAX_ATTEMPTS,
+  getBackendHealthMaxAttempts,
+} from '@/lib/backend-health-probe';
 import { tauriBackend } from '@/lib/tauri';
 
 vi.mock('@/lib/deploy-mode', () => ({
@@ -121,6 +126,31 @@ describe('waitForBackendReady', () => {
 
     await expect(pending).resolves.toBe(false);
     expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('readiness budget', () => {
+  afterEach(() => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
+    vi.clearAllMocks();
+  });
+
+  it('gives the gate the desktop budget inside the shell and the shorter one elsewhere', () => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
+    expect(getBackendHealthMaxAttempts()).toBe(DESKTOP_BACKEND_HEALTH_MAX_ATTEMPTS);
+
+    vi.mocked(getDeployMode).mockReturnValue('local');
+    expect(getBackendHealthMaxAttempts()).toBe(BACKEND_HEALTH_MAX_ATTEMPTS);
+    expect(DESKTOP_BACKEND_HEALTH_MAX_ATTEMPTS).toBeGreaterThan(BACKEND_HEALTH_MAX_ATTEMPTS);
+  });
+
+  it('polls the desktop budget by default inside the shell', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(false);
+
+    await expect(waitForBackendReady({ pollIntervalMs: 0 })).resolves.toBe(false);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(DESKTOP_BACKEND_HEALTH_MAX_ATTEMPTS);
   });
 });
 
