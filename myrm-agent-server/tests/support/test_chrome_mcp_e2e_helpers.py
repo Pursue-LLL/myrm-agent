@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
+import threading
 import time
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -178,3 +180,39 @@ class TestNavigateMcpPage:
         rebind.assert_called_once()
         assert rebind.call_args.kwargs["target_url"] == self._TARGET
         client.navigate.assert_not_called()
+
+
+class TestRunInIsolatedThreadLoop:
+    """The shared-UI contract starts its own event loop although the calling thread may already run one."""
+
+    def test_the_callable_runs_on_a_dedicated_thread(self) -> None:
+        seen_threads: list[int] = []
+
+        open_page._run_in_isolated_thread_loop(lambda: seen_threads.append(threading.get_ident()))
+
+        assert seen_threads
+        assert seen_threads[0] != threading.get_ident()
+
+    def test_the_exception_of_the_callable_reaches_the_caller(self) -> None:
+        failure = RuntimeError("shared UI contract failed")
+
+        def _fail() -> None:
+            raise failure
+
+        with pytest.raises(RuntimeError) as raised:
+            open_page._run_in_isolated_thread_loop(_fail)
+
+        assert raised.value is failure
+
+    def test_an_event_loop_starts_although_the_calling_thread_runs_one(self) -> None:
+        started: list[str] = []
+
+        async def _inner() -> None:
+            started.append("inner loop")
+
+        async def _caller() -> None:
+            open_page._run_in_isolated_thread_loop(lambda: asyncio.run(_inner()))
+
+        asyncio.run(_caller())
+
+        assert started == ["inner loop"]

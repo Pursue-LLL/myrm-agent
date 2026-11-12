@@ -9,7 +9,6 @@ import time
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
-from typing import Any
 
 from cdp_chat.support import e2e_api_base_inject_js, get_e2e_ui_url
 from chrome_mcp.client import ChromeMcpClient, McpPage
@@ -126,14 +125,13 @@ class _OrchestratorSharedUiChat:
         )
 
 
-def _run_in_isolated_thread_loop(func: Callable[[], Any]) -> Any:
+def _run_in_isolated_thread_loop(func: Callable[[], None]) -> None:
     """Execute target func in a clean dedicated thread without inheriting parent thread async state."""
-    outcome: list[Any] = []
     errors: list[BaseException] = []
 
     def _target() -> None:
         try:
-            outcome.append(func())
+            func()
         except BaseException as exc:
             errors.append(exc)
 
@@ -142,7 +140,6 @@ def _run_in_isolated_thread_loop(func: Callable[[], Any]) -> Any:
     thread.join()
     if errors:
         raise errors[0]
-    return outcome[0] if outcome else None
 
 
 def _ensure_orchestrator_shared_ui_session(
