@@ -9,6 +9,7 @@ to support physical dual-track governance and prevent lossy memory compression.
 - dict[str, str | int | float | bool] | None: optional memory metadata
 
 [OUTPUT]
+- identifier_key: comparison form of an identifier (case-insensitive, without the ``v`` of a version tag)
 - ExactFactClassifier.extract_identifiers: extract unique high-entropy tokens and identifiers
 - ExactFactClassifier.is_exact_fact: determine if text constitutes an exact fact
 - ExactFactClassifier.classify: tuple of (is_exact_fact, extracted_identifiers)
@@ -119,7 +120,7 @@ _QUERY_CHUNK_PATTERN = re.compile(r"[A-Za-z0-9_.:-]+")
 _VERSION_TAG_PREFIX = re.compile(r"^v(?=[0-9]+\.[0-9]+\.[0-9]+)")
 
 
-def _identifier_key(identifier: str) -> str:
+def identifier_key(identifier: str) -> str:
     """Case-insensitive comparison form of an identifier, without the ``v`` of a version tag."""
     return _VERSION_TAG_PREFIX.sub("", identifier.lower())
 
@@ -231,9 +232,9 @@ class ExactFactClassifier:
         extracted = cls.extract_identifiers(query)
         endpoint_ports = (identifier.rsplit(":", 1)[1] for identifier in extracted if ":" in identifier)
         chunks = (chunk.strip(".:-") for chunk in _QUERY_CHUNK_PATTERN.findall(query))
-        return frozenset(_identifier_key(token) for token in (*chunks, *extracted, *endpoint_ports) if token)
+        return frozenset(identifier_key(token) for token in (*chunks, *extracted, *endpoint_ports) if token)
 
     @staticmethod
     def mentions_any(identifiers: Iterable[str], query_keys: frozenset[str]) -> bool:
         """Whether any of ``identifiers`` is named by the query that produced ``query_keys``."""
-        return any(_identifier_key(identifier) in query_keys for identifier in identifiers)
+        return any(identifier_key(identifier) in query_keys for identifier in identifiers)

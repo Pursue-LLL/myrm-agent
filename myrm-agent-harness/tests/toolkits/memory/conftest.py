@@ -9,7 +9,7 @@ import pytest
 import pytest_asyncio
 from langchain_core.language_models import BaseChatModel
 
-from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.protocols.embedding import EmbeddingProtocol
 from myrm_agent_harness.toolkits.memory.protocols.graph import GraphStoreProtocol
@@ -181,6 +181,8 @@ async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterato
         all_scopes: bool = False,
         graph: GraphStoreProtocol | None = None,
         consolidation_llm: BaseChatModel | None = None,
+        agent_id: str | None = None,
+        memory_policy: AgentMemoryPolicy | None = None,
     ) -> MemoryManager:
         return MemoryManager(
             config,
@@ -194,6 +196,8 @@ async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterato
             auto_warmup=False,
             approval_required=approval_required,
             all_scopes=all_scopes,
+            agent_id=agent_id,
+            memory_policy=memory_policy,
         )
 
     yield build

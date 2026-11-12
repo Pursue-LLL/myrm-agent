@@ -17,10 +17,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.strategies import consolidation_undo
-from myrm_agent_harness.toolkits.memory.strategies.consolidation import run_consolidation
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     ConsolidationOp,
-    ConsolidationResponse,
     ConsolidationStats,
     PreImage,
     UndoJournal,
@@ -39,7 +37,6 @@ from myrm_agent_harness.toolkits.memory.strategies.merger import (
 )
 from myrm_agent_harness.toolkits.memory.types import AnyMemory, MemoryStatus, SemanticMemory
 from tests.support.consolidation_cycles import (
-    CONFIG,
     TEA,
     TEA_TOO,
     correct,
@@ -51,7 +48,7 @@ from tests.support.consolidation_cycles import (
     undo,
 )
 from tests.support.consolidation_manager import make_manager
-from tests.support.consolidation_seeds import NewManager, episodic, llm_returning, seed, semantic
+from tests.support.consolidation_seeds import NewManager, episodic, seed, semantic
 
 HABITS = (
     "drinks green tea",
@@ -247,26 +244,20 @@ async def test_memories_the_user_deleted_after_the_cycle_are_skipped_and_the_res
     assert restored is not None and restored.importance == 0.9
 
 
-async def test_a_memory_switched_off_while_the_model_was_thinking_stays_off_after_the_undo(
+async def test_the_undo_gives_back_the_status_a_memory_had_when_the_cycle_first_wrote_to_it(
     new_manager: NewManager,
 ) -> None:
     manager = new_manager()
-    first, second = semantic(TEA, 1, importance=0.4), semantic(TEA_TOO, 2, importance=0.9)
-    await seed(manager, [first, second])
-    response = ConsolidationResponse(operations=[merge(first, second, TEA)])
-    llm = llm_returning(response)
+    memory = semantic(TEA, 1, importance=0.4)
+    await seed(manager, [memory])
+    await manager.update_memory(memory.id, status=MemoryStatus.DISABLED)
+    stats = ConsolidationStats()
 
-    async def switch_off_then_answer(*_args: object, **_kwargs: object) -> ConsolidationResponse:
-        await manager.update_memory(first.id, status=MemoryStatus.DISABLED)
-        return response
+    await CycleWrites(manager, stats.undo).update_memory(memory.id, importance=0.05)
+    await save_undo(manager, stats)
 
-    llm.with_structured_output.return_value.ainvoke = AsyncMock(side_effect=switch_off_then_answer)
-
-    stats = await run_consolidation(manager, llm, CONFIG)
-
-    assert stats.merged == 1
-    assert await undo(manager) == UndoResult(rolled_back=3)
-    restored = await manager.get_memory(first.id)
+    assert await undo(manager) == UndoResult(rolled_back=1)
+    restored = await manager.get_memory(memory.id)
     assert restored is not None and (restored.status, restored.importance) == (MemoryStatus.DISABLED, 0.4)
 
 

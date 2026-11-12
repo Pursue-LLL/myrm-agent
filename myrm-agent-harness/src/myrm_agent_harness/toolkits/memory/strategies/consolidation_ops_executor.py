@@ -3,330 +3,237 @@
 [INPUT]
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.config::ConsolidationConfig (POS: consolidation configuration)
+- strategies.consolidation_gate::{GateRefusal, admit} (POS: apply-time check that a memory is still what the model read)
 - strategies.consolidation_models::* (POS: consolidation operations and data contracts)
+- strategies.consolidation_product::build_merge_product (POS: the memory a merge creates, with the scope and age it inherits)
 - strategies.consolidation_undo::CycleWrites (POS: the write gateway that journals what a cycle changes)
-- strategies.lineage::origin_chat_ids (POS: the chats a set of memories derives from)
+- strategies.merger::{DeterministicThreeStateMerger, MergeState} (POS: deterministic three-state arbitration of a correction)
 
 [OUTPUT]
-- execute_operations: Executes atomic merge/correct/update operations against memory storage
-- filter_and_guard_operations: Rubric and named-entity gate over the model's proposed operations
+- execute_operations: Executes the atomic merge/correct/update operations of each namespace group against memory storage
 
 [POS]
 Executes operations against memory primitives with transactional care, conflict routing,
 and deterministic three-state merge arbitration. Every write goes through the cycle's write gateway,
-so what the cycle changed is journaled for undo. A memory the cycle creates derives from the chats of the
-memories it was built from, so a merge whose source no longer exists is skipped rather than folding in text
-whose chat may just have been deleted.
+so what the cycle changed is journaled for undo, and an operation acts on a memory only while the store's copy
+still passes the gate: a source that was deleted (its chat included), archived, edited, pinned or already folded
+into an earlier merge is skipped, never folded or overwritten.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryProtectedError
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_gate import GateRefusal, admit
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
-    CONSOLIDATION_SOURCE_KEY,
+    CONSOLIDATED_FLAG_KEY,
     ConflictCallback,
     ConflictContext,
+    ConsolidationBatch,
     ConsolidationOp,
     ConsolidationStats,
     CorrectOp,
     MergeOp,
     UpdateContentOp,
 )
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_product import build_merge_product
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import CycleWrites
-from myrm_agent_harness.toolkits.memory.strategies.lineage import origin_chat_ids
 from myrm_agent_harness.toolkits.memory.strategies.merger import (
     DeterministicThreeStateMerger,
     MergeState,
 )
-from myrm_agent_harness.toolkits.memory.strategies.named_entity_guard import (
-    NamedEntityGuard,
-)
+from myrm_agent_harness.toolkits.memory.types import ConflictResolution, MemoryType, SemanticMemory
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-    from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
 logger = logging.getLogger(__name__)
 
+_MAX_CONSECUTIVE_ERRORS = 3
+# A merged source stays stored (the cycle can be undone) but ranks far below its product.
+_FOLDED_SOURCE_IMPORTANCE = 0.05
 
-def filter_and_guard_operations(
-    raw_ops: Sequence[ConsolidationOp],
-    memories: Sequence[AnyMemory],
-    id_map: dict[str, str],
-) -> tuple[list[ConsolidationOp], int]:
-    """Filter operations by Rubric score and deterministic NamedEntityGuard verification & self-healing.
 
-    At most one operation is kept per memory, the first the model proposed.
-    """
-    valid_ops: list[ConsolidationOp] = []
-    guard_patched_count = 0
-    entity_guard = NamedEntityGuard()
-    content_by_id: dict[str, str] = {m.id: m.content for m in memories}
-    for short_id, full_id in id_map.items():
-        if full_id in content_by_id:
-            content_by_id[short_id] = content_by_id[full_id]
+@dataclass(slots=True)
+class _Cycle:
+    """What every operation of one cycle shares."""
 
-    window_ids = {m.id for m in memories}
-    handled: set[str] = set()
+    manager: MemoryManager
+    writes: CycleWrites
+    stats: ConsolidationStats
+    on_conflict: ConflictCallback | None
+    importance_threshold: float
+    confidence_threshold: float
 
-    def accept(op: ConsolidationOp) -> bool:
-        """Keep ``op`` unless an earlier kept operation already handled a memory it names.
 
-        The model plans every operation against the memories as they were read, so a later one on a memory that an
-        earlier operation merged, corrected or rewrote would act on content that no longer exists.
-        """
-        named = op.source_ids if isinstance(op, MergeOp) else [op.memory_id]
-        targets = {full for name in named if (full := id_map.get(name, name)) in window_ids}
-        if targets & handled:
-            logger.info("Consolidation op %s dropped: a memory it names was already handled this cycle", op.action)
-            return False
-        handled.update(targets)
-        valid_ops.append(op)
-        return True
+def _skipped(stats: ConsolidationStats, refusals: Mapping[str, GateRefusal]) -> None:
+    """Count one operation the gate turned away, naming the memories it refused and why (never their content)."""
+    stats.rejected += 1
+    logger.info(
+        "Consolidation op skipped by the gate: %s",
+        ", ".join(f"{memory_id} ({reason})" for memory_id, reason in refusals.items()),
+    )
 
-    for op in raw_ops:
-        total_score = (op.accuracy_score * 0.4) + (op.anti_fragmentation_score * 0.3) + (op.redundancy_score * 0.3)
-        if total_score < 0.7:
-            logger.info(
-                "Consolidation op %s rejected by Rubric (Score: %.2f). Reason: %s",
-                op.action,
-                total_score,
-                op.reasoning,
+
+async def _merge(cycle: _Cycle, op: MergeOp, seen: Mapping[str, str]) -> None:
+    fetched = await asyncio.gather(*(cycle.manager.get_memory(source_id) for source_id in op.source_ids))
+    admitted = [admit(memory, seen[source_id]) for source_id, memory in zip(op.source_ids, fetched, strict=True)]
+    if refusals := {
+        source_id: result
+        for source_id, result in zip(op.source_ids, admitted, strict=True)
+        if isinstance(result, GateRefusal)
+    }:
+        _skipped(cycle.stats, refusals)
+        return
+    sources = [result for result in admitted if not isinstance(result, GateRefusal)]
+    await cycle.writes.store(build_merge_product(op, sources))
+    for source_id in op.source_ids:
+        try:
+            await cycle.writes.update_memory(
+                source_id, importance=_FOLDED_SOURCE_IMPORTANCE, metadata_patch={CONSOLIDATED_FLAG_KEY: True}
             )
-            continue
+        except MemoryProtectedError:
+            logger.info("Consolidation demote skipped protected memory %s", source_id)
+        except Exception as e:
+            logger.warning("Consolidation demote failed for %s: %s", source_id, e)
+    cycle.stats.merged += 1
 
-        source_texts: list[str] = []
-        consolidated_text = ""
-        if isinstance(op, MergeOp):
-            source_texts = [content_by_id[sid] for sid in op.source_ids if sid in content_by_id]
-            consolidated_text = op.merged_content
-            if not source_texts or len(source_texts) < 2:
-                logger.warning(
-                    "MergeOp rejected: insufficient valid source_ids in active memories (found %d, requested %s)",
-                    len(source_texts),
-                    op.source_ids,
-                )
-                continue
-        elif isinstance(op, CorrectOp):
-            source_texts = [content_by_id[op.memory_id]] if op.memory_id in content_by_id else []
-            consolidated_text = op.corrected_content
-            if not source_texts:
-                logger.warning(
-                    "CorrectOp rejected: target memory_id not found in active memories: %s",
-                    op.memory_id,
-                )
-                continue
-        elif isinstance(op, UpdateContentOp):
-            source_texts = [content_by_id[op.memory_id]] if op.memory_id in content_by_id else []
-            consolidated_text = op.new_content
-            if not source_texts:
-                logger.warning(
-                    "UpdateContentOp rejected: target memory_id not found in active memories: %s",
-                    op.memory_id,
-                )
-                continue
 
-        guard_verdict = entity_guard.verify_consolidation(
-            source_texts=source_texts,
-            consolidated_text=consolidated_text,
-            op_action=op.action,
-            reasoning=op.reasoning,
+async def _correct(cycle: _Cycle, op: CorrectOp, seen: Mapping[str, str]) -> None:
+    memory_id = op.memory_id
+    existing = admit(await cycle.manager.get_memory(memory_id), seen[memory_id])
+    if isinstance(existing, GateRefusal):
+        _skipped(cycle.stats, {memory_id: existing})
+        return
+    stats, writes, on_conflict = cycle.stats, cycle.writes, cycle.on_conflict
+
+    if (
+        on_conflict is not None
+        and op.importance >= cycle.importance_threshold
+        and op.accuracy_score < cycle.confidence_threshold
+    ):
+        ctx = ConflictContext(
+            old_memory_id=memory_id,
+            old_content=getattr(existing, "content", ""),
+            new_content=op.corrected_content,
+            accuracy_score=op.accuracy_score,
+            importance=op.importance,
+            merge_suggestion=op.corrected_content,
+            memory_type=getattr(existing, "memory_type", MemoryType.SEMANTIC),
         )
+        resolution = await on_conflict(ctx)
+        if resolution == ConflictResolution.PENDING:
+            stats.routed_to_user += 1
+            return
+        if resolution == ConflictResolution.KEEP_OLD:
+            return
+        if resolution == ConflictResolution.DISCARD_BOTH:
+            await writes.update_memory(memory_id, importance=0.01)
+            stats.corrected += 1
+            return
+        # KEEP_NEW or MERGE: proceed to execute the correction below
 
-        if not guard_verdict.is_valid:
-            # Deterministic self-healing for MergeOp: append missing critical entities
-            if isinstance(op, MergeOp) and guard_verdict.missing_entities:
-                patched_content = entity_guard.patch_with_missing_entities(
-                    op.merged_content, guard_verdict.missing_entities
-                )
-                re_verdict = entity_guard.verify_consolidation(
-                    source_texts=source_texts,
-                    consolidated_text=patched_content,
-                    op_action=op.action,
-                    reasoning=op.reasoning,
-                )
-                if re_verdict.is_valid:
-                    logger.info(
-                        "Consolidation MergeOp auto-patched with %d missing technical entities: %s",
-                        len(guard_verdict.missing_entities),
-                        guard_verdict.rejection_code,
-                    )
-                    if accept(op.model_copy(update={"merged_content": patched_content})):
-                        guard_patched_count += 1
-                    continue
+    decision = DeterministicThreeStateMerger().evaluate(
+        existing=existing,
+        candidate_content=op.corrected_content,
+        candidate_evidence=getattr(existing, "evidence", []),
+    )
 
-            logger.warning(
-                "Consolidation op %s rejected by NamedEntityGuard (%s). Reason: %s",
-                op.action,
-                guard_verdict.rejection_code,
-                guard_verdict.reason,
+    if decision.state == MergeState.CONFLICT:
+        logger.info("Consolidation: conflict detected for %s; retaining both with decayed confidence", memory_id)
+        if isinstance(existing, SemanticMemory):
+            await writes.update_memory(memory_id, confidence=decision.updated_confidence or 0.35)
+            counterpart = SemanticMemory(
+                content=op.corrected_content,
+                importance=op.importance,
+                confidence=decision.candidate_confidence or 0.35,
+                scope=existing.scope,
+                source_chat_id=existing.source_chat_id,
+                source_chat_ids=list(existing.source_chat_ids),
             )
-            continue
+            await writes.store(counterpart)
+            stats.updated += 1
+            return
 
-        accept(op)
+    if decision.state == MergeState.CONFIRM:
+        if isinstance(existing, SemanticMemory) and decision.updated_confidence is not None:
+            await writes.update_memory(memory_id, confidence=decision.updated_confidence)
+        stats.updated += 1
+        return
 
-    return valid_ops, guard_patched_count
+    if decision.state == MergeState.SUPPLEMENT and decision.merged_content:
+        await writes.update_memory(memory_id, content=decision.merged_content)
+        stats.updated += 1
+        return
+
+    if isinstance(existing, SemanticMemory):
+        await writes.correct_memory(memory_id, op.corrected_content)
+        stats.corrected += 1
+    else:
+        await writes.update_memory(memory_id, content=op.corrected_content)
+        stats.updated += 1
+
+
+async def _update(cycle: _Cycle, op: UpdateContentOp, seen: Mapping[str, str]) -> None:
+    admitted = admit(await cycle.manager.get_memory(op.memory_id), seen[op.memory_id])
+    if isinstance(admitted, GateRefusal):
+        _skipped(cycle.stats, {op.memory_id: admitted})
+        return
+    await cycle.writes.update_memory(op.memory_id, content=op.new_content, importance=op.importance)
+    cycle.stats.updated += 1
 
 
 async def execute_operations(
-    ops: list[ConsolidationOp],
+    batches: Sequence[ConsolidationBatch],
     manager: MemoryManager,
-    id_map: dict[str, str] | None = None,
     *,
     on_conflict: ConflictCallback | None = None,
     config: ConsolidationConfig | None = None,
 ) -> ConsolidationStats:
-    """Execute atomic consolidation operations against memory store."""
-    from myrm_agent_harness.toolkits.memory.types import (
-        ConflictResolution,
-        MemoryType,
-        SemanticMemory,
+    """Execute the batches' atomic consolidation operations against the memory store, journaling them as one cycle."""
+    planned: list[tuple[ConsolidationOp, Mapping[str, str]]] = []
+    for batch in batches:
+        read_by_model = {memory.id: memory.content for memory in batch.memories}
+        planned.extend((op, read_by_model) for op in batch.operations)
+
+    stats = ConsolidationStats(total_processed=len(planned))
+    cycle = _Cycle(
+        manager=manager,
+        writes=CycleWrites(manager, stats.undo),
+        stats=stats,
+        on_conflict=on_conflict,
+        importance_threshold=config.conflict_importance_threshold if config else 0.6,
+        confidence_threshold=config.conflict_confidence_threshold if config else 0.85,
     )
-
-    stats = ConsolidationStats(total_processed=len(ops))
-    writes = CycleWrites(manager, stats.undo)
-
-    def resolve(sid: str) -> str:
-        if id_map is not None:
-            return id_map.get(sid, sid)
-        return sid
-
-    importance_thr = config.conflict_importance_threshold if config else 0.6
-    confidence_thr = config.conflict_confidence_threshold if config else 0.85
-    max_consecutive_errors = 3
     consecutive_errors = 0
 
-    for op in ops:
+    for op, seen in planned:
         failed_with_exception = False
         try:
             if isinstance(op, MergeOp):
-                fetched = await asyncio.gather(*(manager.get_memory(resolve(sid)) for sid in op.source_ids))
-                sources = [memory for memory in fetched if memory is not None]
-                if len(sources) < len(op.source_ids):
-                    logger.warning("Consolidation: merge skipped, a source memory no longer exists: %s", op.source_ids)
-                    continue
-                chat_ids = origin_chat_ids(sources)
-                new_mem = SemanticMemory(
-                    content=op.merged_content,
-                    importance=op.importance,
-                    confidence=0.9,
-                    source_chat_id=chat_ids[0] if chat_ids else None,
-                    source_chat_ids=chat_ids,
-                    metadata={CONSOLIDATION_SOURCE_KEY: ",".join(op.source_ids)},
-                )
-                await writes.store(new_mem)
-                for short_id in op.source_ids:
-                    full_id = resolve(short_id)
-                    try:
-                        await writes.update_memory(full_id, importance=0.05, metadata_patch={"consolidated": True})
-                    except MemoryProtectedError:
-                        logger.info("Consolidation demote skipped protected memory %s", full_id)
-                    except Exception as e:
-                        logger.warning("Consolidation demote failed for %s: %s", full_id, e)
-                stats.merged += 1
-
+                await _merge(cycle, op, seen)
             elif isinstance(op, CorrectOp):
-                full_id = resolve(op.memory_id)
-                existing = await manager.get_memory(full_id)
-                if existing is None:
-                    logger.warning("Consolidation: memory %s not found", full_id)
-                    continue
-                if getattr(existing, "is_user_protected", False):
-                    logger.info("Consolidation: skipped user-protected memory %s", full_id)
-                    continue
-
-                should_route = (
-                    on_conflict is not None and op.importance >= importance_thr and op.accuracy_score < confidence_thr
-                )
-
-                if should_route:
-                    assert on_conflict is not None
-                    ctx = ConflictContext(
-                        old_memory_id=full_id,
-                        old_content=getattr(existing, "content", ""),
-                        new_content=op.corrected_content,
-                        accuracy_score=op.accuracy_score,
-                        importance=op.importance,
-                        merge_suggestion=op.corrected_content,
-                        memory_type=getattr(existing, "memory_type", MemoryType.SEMANTIC),
-                    )
-                    resolution = await on_conflict(ctx)
-                    if resolution == ConflictResolution.PENDING:
-                        stats.routed_to_user += 1
-                        continue
-                    if resolution == ConflictResolution.KEEP_OLD:
-                        continue
-                    if resolution == ConflictResolution.DISCARD_BOTH:
-                        await writes.update_memory(full_id, importance=0.01)
-                        stats.corrected += 1
-                        continue
-                    # KEEP_NEW or MERGE: proceed to execute the correction below
-
-                merger = DeterministicThreeStateMerger()
-                merge_dec = merger.evaluate(
-                    existing=existing,
-                    candidate_content=op.corrected_content,
-                    candidate_evidence=getattr(existing, "evidence", []),
-                )
-
-                if merge_dec.state == MergeState.CONFLICT:
-                    logger.info(
-                        "Consolidation: conflict detected for %s; retaining both with decayed confidence",
-                        full_id,
-                    )
-                    if isinstance(existing, SemanticMemory):
-                        await writes.update_memory(full_id, confidence=merge_dec.updated_confidence or 0.35)
-                        counterpart = SemanticMemory(
-                            content=op.corrected_content,
-                            importance=op.importance,
-                            confidence=merge_dec.candidate_confidence or 0.35,
-                            scope=existing.scope,
-                            source_chat_id=existing.source_chat_id,
-                            source_chat_ids=list(existing.source_chat_ids),
-                        )
-                        await writes.store(counterpart)
-                        stats.updated += 1
-                        continue
-
-                if merge_dec.state == MergeState.CONFIRM:
-                    if isinstance(existing, SemanticMemory) and merge_dec.updated_confidence is not None:
-                        await writes.update_memory(full_id, confidence=merge_dec.updated_confidence)
-                    stats.updated += 1
-                    continue
-
-                if merge_dec.state == MergeState.SUPPLEMENT and merge_dec.merged_content:
-                    await writes.update_memory(full_id, content=merge_dec.merged_content)
-                    stats.updated += 1
-                    continue
-
-                if isinstance(existing, SemanticMemory):
-                    await writes.correct_memory(full_id, op.corrected_content)
-                    stats.corrected += 1
-                else:
-                    await writes.update_memory(full_id, content=op.corrected_content)
-                    stats.updated += 1
-
-            elif isinstance(op, UpdateContentOp):
-                await writes.update_memory(resolve(op.memory_id), content=op.new_content, importance=op.importance)
-                stats.updated += 1
-
+                await _correct(cycle, op, seen)
+            else:
+                await _update(cycle, op, seen)
         except MemoryProtectedError:
+            stats.rejected += 1
             logger.info("Consolidation op skipped: the memory is user-protected")
         except Exception as e:
             failed_with_exception = True
             logger.warning("Consolidation op failed: %s: %s", type(e).__name__, e)
             stats.errors += 1
             consecutive_errors += 1
-            if consecutive_errors >= max_consecutive_errors:
+            if consecutive_errors >= _MAX_CONSECUTIVE_ERRORS:
                 logger.error(
                     "Consolidation aborted: consecutive errors reached threshold (%d)",
-                    max_consecutive_errors,
+                    _MAX_CONSECUTIVE_ERRORS,
                 )
                 stats.aborted = True
                 break
@@ -337,7 +244,4 @@ async def execute_operations(
     return stats
 
 
-__all__ = [
-    "execute_operations",
-    "filter_and_guard_operations",
-]
+__all__ = ["execute_operations"]
