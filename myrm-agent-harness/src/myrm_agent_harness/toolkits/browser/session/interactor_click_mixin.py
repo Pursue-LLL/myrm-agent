@@ -3,6 +3,7 @@
 [INPUT]
 - exceptions::ClickTargetUnreachableError (POS: interaction target cannot be brought into view)
 - session.humanize::bezier_move, click_delay (POS: humanized delay and Bézier mouse helpers)
+- session.viewport::page_viewport_size (POS: the area a click may point at)
 
 [OUTPUT]
 - ClickInteractMixin: click with Bézier mouse trajectory + reachability guard
@@ -30,6 +31,7 @@ from myrm_agent_harness.toolkits.browser.session.humanize import (
     bezier_move,
     click_delay,
 )
+from myrm_agent_harness.toolkits.browser.session.viewport import page_viewport_size
 
 if TYPE_CHECKING:
     from patchright.async_api import Locator
@@ -51,8 +53,7 @@ class ClickInteractMixin:
         target_x = box["x"] + box["width"] * random.uniform(0.35, 0.65)
         target_y = box["y"] + box["height"] * random.uniform(0.35, 0.65)
 
-        viewport = self._page.viewport_size or {"width": 1280, "height": 720}
-        vw, vh = float(viewport["width"]), float(viewport["height"])
+        vw, vh = await page_viewport_size(self._page)
         # CDP clamps off-viewport mouse coordinates to the viewport edge, so moving
         # to a target whose center is still outside the viewport would make the
         # mouse.down/up land on the edge and miss silently. Hand the interaction back

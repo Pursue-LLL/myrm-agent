@@ -2,6 +2,7 @@
 
 [INPUT]
 - patchright.async_api::Locator (POS: element locator)
+- session.viewport::page_viewport_size (POS: the band a target is scrolled into)
 
 [OUTPUT]
 - ScrollTargetingMixin: bring an interaction target into view with humanized
@@ -19,6 +20,8 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.toolkits.browser.session.viewport import page_viewport_size
 
 if TYPE_CHECKING:
     from patchright.async_api import Locator
@@ -153,8 +156,7 @@ class ScrollTargetingMixin:
             return False
         try:
             zone = self._humanize.scroll_target_zone
-            viewport = self._page.viewport_size or {"width": 1280, "height": 720}
-            vw, vh = float(viewport["width"]), float(viewport["height"])
+            vw, vh = await page_viewport_size(self._page)
             zone_lo, zone_hi = vh * zone[0], vh * zone[1]
 
             moved = False

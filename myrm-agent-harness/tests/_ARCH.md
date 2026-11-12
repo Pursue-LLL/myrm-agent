@@ -88,6 +88,10 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
    （`observer_scripts.py` 的 `ensureActive()` 比较 `bodyRef`）在每次 capture 时自愈。
    测试里若发现 observer 失效，先检查 body 引用是否已变（探针：
    `window.__savedBody.isConnected === false` 即被替换）。
+   observer 是页面内的对象，新文档（链接点击、表单提交、脚本跳转，不经过 `navigate()`）里它不存在：
+   `ensure_active()` 在新文档里重装并报告「缓存过期」，否则点击跳转后的快照会答「No DOM changes」。
+   `test_observer_manager.py`（脚本化 frame：五种页面回答）与 `test_snapshot_after_navigation_integration.py`
+   （真 Chromium：点击跳转、history back）是证据。
 
 3. **本地地址测试注意 SSRF guard 与 domain_filter 叠加**：云模式下 SSRF guard（`navigation/ssrf_guard.py`）
    在 `goto` 之前按 URL 拦截私有网段（抛 `BrowserNavigationBlockedError`，当前标签页保持不变）；已装过滤器的 context

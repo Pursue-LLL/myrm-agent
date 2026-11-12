@@ -124,10 +124,13 @@ class FrameState:
         if not self._observer.is_installed:
             await self._observer.install()
 
-        # A page can replace document.body without firing navigation (document.write,
-        # SPA full re-render, innerHTML swap). The observer must be re-anchored onto
+        # A page can load a new document (link click, form submit, script redirect) or replace
+        # document.body without any call here. The observer must be installed or re-anchored on
         # the live body and the cached tree (from the old document) must be rebuilt.
-        if await self._observer.ensure_active():
+        observer_renewed = await self._observer.ensure_active()
+        if self._observer.is_cross_origin:
+            return AriaSnapshot.create_cross_origin()
+        if observer_renewed:
             self._cached_aria_tree = None
             self._cached_refs = None
             self._cached_cursor_elements = None
