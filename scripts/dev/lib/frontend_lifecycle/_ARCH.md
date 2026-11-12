@@ -30,10 +30,11 @@
 | `episode.py` | `EpisodeStore`：跨调用持久化的「连续不健康时长」（flock + 原子替换，间隔超过 `gap_sec` 视为已恢复） |
 | `journal.py` | 带调用链的 JSONL 决策/kill 日志（2MiB 轮转，写失败不影响决策） |
 | `report.py` | 只读体检：基线窗口内的 journal 准入/kill 统计 vs `frontend.log` 的 `Received SIGTERM`，差值 = 门外的 kill 路径；入口 `dev-stack.sh frontend-only restart-report` |
-| `footprint.py` | 进程树物理内存：macOS 读 `proc_pid_rusage` 的 `ri_phys_footprint`（与 Activity Monitor / `footprint(1)` 一致；RSS 会漏掉压缩与换出页——实测同一 Bun 托管的 Next 进程树 RSS 2.7–8.5 GB 而 footprint 约 22 GB），Linux 汇总 `VmRSS`，其它平台无读数（守卫关闭）。`measure()` 对根 pid + 全部后代求和；限额取 `dev_gate.contract.FRONTEND_FOOTPRINT_LIMIT_MB`（`MYRM_FRONTEND_FOOTPRINT_LIMIT_MB` 覆盖）。**这不是准入决策**：内存超限是硬证据，由监管者（`dev.ts`）自己替换子进程，不经 `policy.decide`，也不写 journal 的 `kill`（SIGTERM 不会落到 dev.ts，混进去会抵消真正的未解释 SIGTERM）；重启记录在 frontend.log 的 `FOOTPRINT_RESTART:`，`report` 单独计数 |
+| `footprint.py` | 进程树物理内存：逐进程读数来自 `e2e_core/proc_footprint.py`（macOS 读 `proc_pid_rusage` 的 `ri_phys_footprint`，与 Activity Monitor / `footprint(1)` 一致；RSS 会漏掉压缩与换出页——实测同一 Bun 托管的 Next 进程树 RSS 2.7–8.5 GB 而 footprint 约 22 GB；Linux 读 `VmRSS`；其它平台无读数，守卫关闭；整机负载记录器共用同一读取器）。`measure()` 对根 pid + 全部后代求和；限额取 `dev_gate.contract.FRONTEND_FOOTPRINT_LIMIT_MB`（`MYRM_FRONTEND_FOOTPRINT_LIMIT_MB` 覆盖）。**这不是准入决策**：内存超限是硬证据，由监管者（`dev.ts`）自己替换子进程，不经 `policy.decide`，也不写 journal 的 `kill`（SIGTERM 不会落到 dev.ts，混进去会抵消真正的未解释 SIGTERM）；重启记录在 frontend.log 的 `FOOTPRINT_RESTART:`，`report` 单独计数 |
 | `cli.py` / `__main__.py` | `admit` / `journal` / `report` / `footprint` 子命令，bash 与 `dev.ts` 的进程边界；`footprint` 退出码：`0` 未超限 · `12` 超限 · `13` 读不到（进程已退出 / 平台无读数） |
 
 ## 依赖
 
 - `dev_gate.contract`（阈值 SSOT）
+- `e2e_core.proc_footprint`（逐进程物理占用读取器；本包内仅 `footprint.py` 使用，整机负载记录器共用）
 - 被 [dev-stack.sh](../../dev-stack.sh) 调用；测试见 monorepo `scripts/dev/tests/frontend_lifecycle/`（风暴复现器 `test_restart_storm.py` 用真实 `dev-stack.sh` + 受控假 Next）

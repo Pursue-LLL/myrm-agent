@@ -2,49 +2,36 @@
 
 [INPUT]
   frontend_lifecycle.process_tree::snapshot / descendants (POS: read-only observation primitives
-  over ps(1) parent links); libproc `proc_pid_rusage` on macOS, /proc/<pid>/status on Linux;
+  over ps(1) parent links);
+  e2e_core.proc_footprint::platform_reader / FootprintReader (POS: per-process physical
+  footprint, libproc on macOS and /proc on Linux);
   dev_gate.contract::FRONTEND_FOOTPRINT_LIMIT_MB (POS: SSOT for the dev server's memory ceiling,
   overridden by MYRM_FRONTEND_FOOTPRINT_LIMIT_MB);
   frontend_lifecycle.policy::env_float (POS: positive-float env parsing with a default)
 
 [OUTPUT]
-  Measurement / measure() / limit_bytes() / platform_reader() / parse_vm_rss()
+  Measurement / measure() / limit_bytes()
 
 [POS]
-  Evidence for the dev supervisor's memory guard (scripts/next-supervisor.ts). RSS is the wrong
-  figure on macOS: one Bun-hosted Next server measured 2.7-8.5 GB RSS against ~22 GB
-  phys_footprint, because compressed and swapped pages leave RSS yet still weigh on the machine.
-  Linux has no such counter without root, so it sums RSS (shared pages counted once per process).
+  Evidence for the dev supervisor's memory guard (scripts/next-supervisor.ts). The tree is
+  summed in physical footprint, not RSS, because compressed and swapped pages leave RSS yet
+  still weigh on the machine (one Bun-hosted Next server measured 2.7-8.5 GB RSS against
+  ~22 GB footprint). On Linux the per-process figure is RSS, so shared pages count once per
+  process in the tree sum.
 """
 
 from __future__ import annotations
 
-import ctypes
-import ctypes.util
-import re
-import sys
-from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 
 from dev_gate.contract import FRONTEND_FOOTPRINT_LIMIT_MB
+from e2e_core.proc_footprint import FootprintReader, platform_reader
 
 from frontend_lifecycle import process_tree
 from frontend_lifecycle.policy import env_float
 
 LIMIT_ENV = "MYRM_FRONTEND_FOOTPRINT_LIMIT_MB"
 _BYTES_PER_MB = 1024 * 1024
-# `struct rusage_info_v0` (sys/resource.h): uuid[16], then ri_user_time, ri_system_time,
-# ri_pkg_idle_wkups, ri_interrupt_wkups, ri_pageins, ri_wired_size, ri_resident_size, and
-# ri_phys_footprint as the eighth u64 field.
-_RUSAGE_INFO_V0 = 0
-_PHYS_FOOTPRINT_OFFSET = 16 + 7 * 8
-_RUSAGE_BUFFER_BYTES = 512
-_LIBPROC_FALLBACK = "/usr/lib/libproc.dylib"
-_VM_RSS = re.compile(r"^VmRSS:\s+(\d+) kB$", re.MULTILINE)
-
-# One process -> its footprint in bytes, or None when it is gone or unreadable.
-FootprintReader = Callable[[int], int | None]
 
 
 @dataclass(frozen=True)
@@ -69,49 +56,6 @@ class Measurement:
 def limit_bytes() -> int:
     mb = env_float(LIMIT_ENV, float(FRONTEND_FOOTPRINT_LIMIT_MB))
     return int(mb * _BYTES_PER_MB)
-
-
-def _darwin_reader() -> FootprintReader | None:
-    try:
-        libproc = ctypes.CDLL(
-            ctypes.util.find_library("proc") or _LIBPROC_FALLBACK, use_errno=True
-        )
-        proc_pid_rusage = libproc.proc_pid_rusage
-    except (OSError, AttributeError):
-        return None
-    proc_pid_rusage.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_void_p]
-    proc_pid_rusage.restype = ctypes.c_int
-
-    def read(pid: int) -> int | None:
-        buffer = ctypes.create_string_buffer(_RUSAGE_BUFFER_BYTES)
-        if proc_pid_rusage(pid, _RUSAGE_INFO_V0, buffer) != 0:
-            return None
-        field = buffer.raw[_PHYS_FOOTPRINT_OFFSET : _PHYS_FOOTPRINT_OFFSET + 8]
-        return int.from_bytes(field, sys.byteorder)
-
-    return read
-
-
-def parse_vm_rss(status: str) -> int | None:
-    """Bytes from the ``VmRSS`` line of /proc/<pid>/status (absent for kernel threads and zombies)."""
-    match = _VM_RSS.search(status)
-    return int(match.group(1)) * 1024 if match else None
-
-
-def _linux_read(pid: int) -> int | None:
-    try:
-        return parse_vm_rss(Path(f"/proc/{pid}/status").read_text(encoding="utf-8"))
-    except OSError:
-        return None
-
-
-def platform_reader() -> FootprintReader | None:
-    """The reader for this OS, or None where no footprint source exists (the guard stays off)."""
-    if sys.platform == "darwin":
-        return _darwin_reader()
-    if sys.platform.startswith("linux"):
-        return _linux_read
-    return None
 
 
 def measure(

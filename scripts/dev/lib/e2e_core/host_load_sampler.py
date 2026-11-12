@@ -4,14 +4,19 @@
 - host_resource_governor.collect_host_pressure_snapshot (load average, CPU count, free memory)
 - ``host_statistics`` cumulative CPU ticks (ctypes, no subprocess)
 - ``ps -axo pid,rss,time,etime,command`` (one subprocess per sample)
+- proc_footprint.platform_reader (per-process physical footprint)
+- host_vm_stats.read_vm_snapshot (kernel pressure level, compressor, swap, paging traffic)
 
 [OUTPUT]
 - LoadSampler.sample() -> LoadSample | None (None while priming)
 - classify_role(command) -> role label
 
 [POS]
-Read-only observer behind host_load_recorder. A sample holds counts, CPU cores and RSS per
-role label and never a command line, so persisted rows are safe to share.
+Read-only observer behind host_load_recorder. A sample holds counts, CPU cores, RSS and
+footprint per role label and never a command line, so persisted rows are safe to share.
+Footprint (resident + compressed + swapped) is what a process weighs on the machine under
+memory pressure; RSS alone understates it, so a process whose footprint cannot be read
+counts at its RSS and the field is omitted when no footprint source exists.
 Processes that start and exit between two samples are invisible per role; their CPU shows up
 as ``unattributed_cores`` (machine-busy cores minus the sum over visible processes).
 """
@@ -30,6 +35,13 @@ from dataclasses import dataclass
 from typing import Final, TypedDict
 
 from e2e_core.host_resource_governor import collect_host_pressure_snapshot
+from e2e_core.host_vm_stats import (
+    VmSample,
+    VmSnapshot,
+    read_vm_snapshot,
+    vm_sample,
+)
+from e2e_core.proc_footprint import FootprintReader, platform_reader
 
 YOUNG_PROCESS_SEC: Final = 120
 MAX_SAMPLE_GAP_SEC: Final = 120.0
@@ -55,25 +67,40 @@ _SYSTEM_PREFIXES: Final = (
     "/bin/",
     "kernel_task",
 )
+# pytest-xdist workers are execnet gateways: their argv is only the bootstrap line, so
+# neither "pytest" nor a pytest entry point ever appears in it.
+_EXECNET_BOOTSTRAP: Final = r"import sys;exec\(eval\(sys\.stdin\.readline\(\)\)\)"
 _PYTEST: Final = re.compile(
     r"(?:^|\s)-m\s+pytest(?:\s|$)|run_pytest_safe\.py|/bin/pytest(?:\s|$)"
+    rf"|(?:^|\s)-c\s+{_EXECNET_BOOTSTRAP}(?:\s|$)"
 )
 _NEXT: Final = re.compile(
     r"next-server|/next/dist/bin/next|(?:^|\s)next\s+(?:dev|start|build)(?:\s|$)"
 )
-_CURSOR: Final = re.compile(r"/Cursor[^/]*\.app/|/\.cursor[^/]*/|cursor-agent")
+# Electron rewrites its helpers' process titles to bare names without an app path
+# ("Cursor Helper (Plugin): extension-host ..."), so the title itself must match too.
+_CURSOR: Final = re.compile(
+    r"/Cursor[^/]*\.app/|/\.cursor[^/]*/|cursor-agent|^Cursor[^/\s]* Helper\b"
+)
 
 
-class RoleStat(TypedDict):
-    """Per-role aggregate: process count, busy cores, RSS and young-process count."""
-
+class _RoleCore(TypedDict):
     n: int
     cpu: float
     rss_mb: int
     young: int
 
 
-class LoadSample(TypedDict):
+class RoleStat(_RoleCore, total=False):
+    """Per-role aggregate: process count, busy cores, RSS, young-process count, footprint.
+
+    ``foot_mb`` is optional: stored rows may come from a host with no footprint source.
+    """
+
+    foot_mb: int
+
+
+class _LoadCore(TypedDict):
     ts: float
     dt: float
     load1: float
@@ -87,6 +114,12 @@ class LoadSample(TypedDict):
     young: int
     unattributed_cores: float
     roles: dict[str, RoleStat]
+
+
+class LoadSample(_LoadCore, total=False):
+    """One recorded interval; ``vm`` is optional: stored rows may lack kernel readings."""
+
+    vm: VmSample
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,6 +144,7 @@ class _RoleAccumulator:
     n: int = 0
     cpu_sec: float = 0.0
     rss_kb: int = 0
+    foot_bytes: int = 0
     young: int = 0
 
 
@@ -229,6 +263,20 @@ def capture_processes() -> list[ProcRow]:
     ]
 
 
+def capture_footprints(
+    rows: Sequence[ProcRow], read: FootprintReader | None
+) -> dict[int, int]:
+    """Footprint bytes per pid; processes ``read`` cannot see (exited, other users) are absent."""
+    if read is None:
+        return {}
+    footprints: dict[int, int] = {}
+    for row in rows:
+        size = read(row.pid)
+        if size is not None:
+            footprints[row.pid] = size
+    return footprints
+
+
 def _cpu_delta(
     row: ProcRow, previous: Mapping[int, tuple[float, int]], dt: float
 ) -> float:
@@ -242,7 +290,10 @@ def _cpu_delta(
 
 
 def aggregate_roles(
-    rows: Sequence[ProcRow], previous: Mapping[int, tuple[float, int]], dt: float
+    rows: Sequence[ProcRow],
+    previous: Mapping[int, tuple[float, int]],
+    dt: float,
+    footprints: Mapping[int, int],
 ) -> dict[str, RoleStat]:
     accumulators: dict[str, _RoleAccumulator] = {}
     for row in rows:
@@ -252,25 +303,38 @@ def aggregate_roles(
         accumulator.n += 1
         accumulator.cpu_sec += _cpu_delta(row, previous, dt)
         accumulator.rss_kb += row.rss_kb
+        accumulator.foot_bytes += footprints.get(row.pid, row.rss_kb << 10)
         accumulator.young += int(row.age_sec <= YOUNG_PROCESS_SEC)
-    return {
-        role: RoleStat(
+    stats: dict[str, RoleStat] = {}
+    for role, acc in sorted(accumulators.items()):
+        stat = RoleStat(
             n=acc.n,
             cpu=round(acc.cpu_sec / dt, 3),
             rss_mb=acc.rss_kb // 1024,
             young=acc.young,
         )
-        for role, acc in sorted(accumulators.items())
-    }
+        if footprints:
+            stat["foot_mb"] = acc.foot_bytes >> 20
+        stats[role] = stat
+    return stats
 
 
 class LoadSampler:
-    """Stateful sampler: CPU shares need the previous tick and per-pid CPU seconds."""
+    """Stateful sampler: CPU shares and paging rates need the previous reading."""
 
-    def __init__(self, clock: Callable[[], float] = time.time) -> None:
+    def __init__(
+        self,
+        clock: Callable[[], float] = time.time,
+        *,
+        vm_reader: Callable[[], VmSnapshot | None] = read_vm_snapshot,
+        footprint_reader: FootprintReader | None = None,
+    ) -> None:
         self._clock = clock
+        self._read_vm = vm_reader
+        self._read_footprint = footprint_reader or platform_reader()
         self._ticks: CpuTicks | None = None
         self._cpu_by_pid: dict[int, tuple[float, int]] = {}
+        self._vm: VmSnapshot | None = None
         self._at: float | None = None
 
     def sample(self) -> LoadSample | None:
@@ -278,12 +342,14 @@ class LoadSampler:
         now = self._clock()
         rows = capture_processes()
         ticks = read_cpu_ticks()
-        previous_ticks, previous_cpu, previous_at = (
+        vm_now = self._read_vm()
+        previous_ticks, previous_cpu, previous_vm, previous_at = (
             self._ticks,
             self._cpu_by_pid,
+            self._vm,
             self._at,
         )
-        self._ticks, self._at = ticks, now
+        self._ticks, self._vm, self._at = ticks, vm_now, now
         self._cpu_by_pid = {row.pid: (row.cpu_sec, row.age_sec) for row in rows}
         if (
             previous_ticks is None
@@ -299,10 +365,11 @@ class LoadSampler:
             return None
         user, system, idle = cpu_split(previous_ticks, ticks)
         pressure = collect_host_pressure_snapshot(now=now)
-        roles = aggregate_roles(rows, previous_cpu, dt)
+        footprints = capture_footprints(rows, self._read_footprint)
+        roles = aggregate_roles(rows, previous_cpu, dt, footprints)
         busy_cores = (user + system) / 100 * pressure.cpu_count
         attributed_cores = sum(stat["cpu"] for stat in roles.values())
-        return LoadSample(
+        sample = LoadSample(
             ts=round(now, 1),
             dt=round(dt, 1),
             load1=round(pressure.load_avg_1m, 2),
@@ -317,3 +384,6 @@ class LoadSampler:
             unattributed_cores=round(max(0.0, busy_cores - attributed_cores), 2),
             roles=roles,
         )
+        if previous_vm is not None and vm_now is not None:
+            sample["vm"] = vm_sample(previous_vm, vm_now, dt)
+        return sample

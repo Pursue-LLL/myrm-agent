@@ -21,6 +21,9 @@
  *   - Sessions a client creates itself (Target.attachToTarget) are private to it:
  *     other clients never see their attach/detach, cannot detach them, and the proxy
  *     detaches them when the owner disconnects.
+ *   - Browser contexts a client creates (Target.createBrowserContext) belong to its connection:
+ *     the proxy disposes them when the owner disconnects. Clients such as chrome-devtools-mcp
+ *     never dispose the contexts they create, and this Chrome outlives every client.
  *
  * Observability: every connection has an id (`c1`, `c2`, …); connects, disconnects, private session
  * attach/detach, blocked detaches, navigations/tab closes and requests Chrome leaves unanswered for 10 s
@@ -32,13 +35,13 @@
 import { spawn } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import { buildChromeLaunchArgs, resetProfileCrashFlags } from './chrome-launch.mjs';
+import { E2E_URL_REJECT_MESSAGE, createE2eUrlGuard } from './e2e-url-guard.mjs';
 import { startHangGuard } from './hang-guard.mjs';
 import { createHttpServer } from './http-endpoints.mjs';
 import { startIdlePool } from './idle-pool.mjs';
 import { describeScript, startRequestWatch } from './request-watch.mjs';
-import { SessionRouter, isAttachMethod, short } from './session-router.mjs';
+import { SessionRouter, outlivesClient, short } from './session-router.mjs';
 import { createProxyStallForensics } from './stall-probe.mjs';
-import { SHARED_FRONTEND_PORT } from '../lib/dev-ports.mjs';
 
 const args = process.argv.slice(2);
 const getArg = (name, def) => {
@@ -57,51 +60,7 @@ const USER_DATA_DIR = getArg(
 );
 const INITIAL_URL = getArg('--initial-url', 'about:blank');
 const FOREGROUND = process.env.MYRM_CHROME_AGENT_FOREGROUND === '1';
-const ALLOW_E2E_URLS = process.env.MYRM_CHROME_AGENT_ALLOW_E2E_URLS === '1';
-
-const E2E_URL_REJECT_MESSAGE =
-    'CHROME_AGENT_E2E_URL_REJECTED: ChromeAgent :9410 is for Agent tasks (e.g. URL extraction) only; '
-    + 'chrome_e2e must use ./myrm-dev test harness → ChromeE2E :9333';
-
-/** Product UI (3000), the website (3002) and the shared dev UI: all belong on ChromeE2E. */
-const E2E_UI_PORTS = new Set(['3000', '3002', String(SHARED_FRONTEND_PORT)]);
-
-/** Block localhost UI URLs that belong on ChromeE2E :9333, not ChromeAgent :9410. */
-function isForbiddenE2eUrl(rawUrl) {
-    if (ALLOW_E2E_URLS || typeof rawUrl !== 'string' || !rawUrl.trim()) {
-        return false;
-    }
-    let parsed;
-    try {
-        parsed = new URL(rawUrl);
-    } catch (_) {
-        return false;
-    }
-    const host = parsed.hostname.toLowerCase();
-    if (host !== '127.0.0.1' && host !== 'localhost') {
-        return false;
-    }
-    const port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
-    return E2E_UI_PORTS.has(port);
-}
-
-function navigateUrlFromCdpMethod(msg) {
-    if (msg.method === 'Page.navigate' || msg.method === 'Target.createTarget') {
-        return msg.params?.url;
-    }
-    return undefined;
-}
-
-function rejectE2eUrlToClient(clientWs, msg, rawUrl) {
-    if (msg.id === undefined) {
-        return;
-    }
-    log(`Rejected E2E URL on ChromeAgent (${msg.method}): ${rawUrl}`);
-    safeSend(clientWs, {
-        id: msg.id,
-        error: { code: -32001, message: E2E_URL_REJECT_MESSAGE },
-    });
-}
+const e2eUrlGuard = createE2eUrlGuard({ allow: process.env.MYRM_CHROME_AGENT_ALLOW_E2E_URLS === '1' });
 
 const log = (line) => console.log(`${new Date().toISOString()} [Proxy] ${line}`);
 const logError = (line, ...rest) => console.error(`${new Date().toISOString()} [Proxy] ${line}`, ...rest);
@@ -230,6 +189,15 @@ const router = new SessionRouter({
             logError(`detach of orphaned session ${short(sessionId)} failed:`, e.message)
         );
     },
+    // cdpRequest resolves a CDP error reply instead of rejecting; log it too, otherwise a context
+    // Chrome refuses to dispose would stay alive without a trace.
+    disposeBrowserContext(browserContextId) {
+        cdpRequest('Target.disposeBrowserContext', { browserContextId })
+            .then((reply) => {
+                if (reply.error) throw new Error(reply.error.message);
+            })
+            .catch((e) => logError(`dispose of orphaned browser context ${browserContextId} failed:`, e.message));
+    },
     log,
 });
 
@@ -328,6 +296,7 @@ function proxyStatus() {
         knownSessions: router.knownSessions.size,
         pendingRequests: pendingRequests.size,
         ownedSessions: router.owned.size,
+        ownedBrowserContexts: router.browserContexts.size,
         leasedTabs: router.tabLease.leases.size,
         connections: [...clients.values()].map((c) => ({
             id: c.label,
@@ -347,7 +316,7 @@ const server = createHttpServer({
     chromeUp: () => Boolean(chromeWritable),
     cdpRequest,
     status: () => ({ ...proxyStatus(), ...requestWatch.stats(), ...idlePool.stats(), ...hangGuard.stats() }),
-    isForbiddenUrl: isForbiddenE2eUrl,
+    isForbiddenUrl: e2eUrlGuard.isForbidden,
     forbiddenUrlMessage: E2E_URL_REJECT_MESSAGE,
 });
 
@@ -414,9 +383,12 @@ wss.on('connection', (clientWs) => {
             return;
         }
 
-        const navigateUrl = navigateUrlFromCdpMethod(msg);
-        if (isForbiddenE2eUrl(navigateUrl)) {
-            rejectE2eUrlToClient(clientWs, msg, navigateUrl);
+        const forbiddenUrl = e2eUrlGuard.forbiddenNavigation(msg);
+        if (forbiddenUrl !== undefined) {
+            if (msg.id !== undefined) {
+                log(`Rejected E2E URL on ChromeAgent (${msg.method}): ${forbiddenUrl}`);
+                safeSend(clientWs, e2eUrlGuard.rejection(msg.id));
+            }
             return;
         }
 
@@ -454,10 +426,10 @@ wss.on('connection', (clientWs) => {
     const cleanup = () => {
         if (client.closed) return;
         client.closed = true;
-        // Attach requests stay pending: if Chrome still answers, the new session
-        // has an owner who is gone and must be detached, not leaked.
+        // Attach and context-creation requests stay pending: if Chrome still answers, the new
+        // session or context has an owner who is gone and must be detached or disposed, not leaked.
         for (const pid of client.proxyIds) {
-            if (!isAttachMethod(pendingRequests.get(pid)?.method)) pendingRequests.delete(pid);
+            if (!outlivesClient(pendingRequests.get(pid)?.method)) pendingRequests.delete(pid);
         }
         clients.delete(clientWs);
         log(`${client.label} disconnected (remaining: ${clients.size})`);

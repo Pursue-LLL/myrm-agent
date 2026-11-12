@@ -17,19 +17,22 @@
  * the moment that client attached, detached, or exited.
  *
  * The router also owns the idle-tab lease (tab-lease.mjs), because it already knows which
- * target every session belongs to, and the execution-context replay for late joiners of a
- * shared session (context-replay.mjs), because it already sees every base-session event.
+ * target every session belongs to, the execution-context replay for late joiners of a
+ * shared session (context-replay.mjs), because it already sees every base-session event,
+ * and the ownership of isolated browser contexts (browser-context-owners.mjs), because it
+ * already sees every client's requests, Chrome's answers and each client's disconnect.
  *
  * `describeSession` resolves a session to "<owned|base> <type> <current url>" for the
  * slow-request log (request-watch.mjs); `pageOfSession` and `baseSessionOfPage` resolve the page
  * behind a stuck request and the shared session to probe it with (hang-guard.mjs).
  *
- * The router does no I/O: the proxy injects delivery and detach callbacks, which keeps
+ * The router does no I/O: the proxy injects delivery, detach and dispose callbacks, which keeps
  * every routing rule unit-testable without Chrome.
  */
 
 import { TabLease, LEASE_REJECT_CODE } from './tab-lease.mjs';
 import { ContextReplay } from './context-replay.mjs';
+import { BrowserContextOwners, createsBrowserContext } from './browser-context-owners.mjs';
 
 const ATTACHED = 'Target.attachedToTarget';
 const DETACHED = 'Target.detachedFromTarget';
@@ -42,7 +45,11 @@ const ATTRIBUTED_METHODS = new Set([
     'Target.createTarget', 'Target.closeTarget',
 ]);
 
-export const isAttachMethod = (method) => ATTACH_METHODS.has(method);
+/**
+ * Requests whose answer must still be processed after their client disconnected: it carries the id
+ * of a session or browser context nobody else knows, which has to be detached or disposed, not leaked.
+ */
+export const outlivesClient = (method) => ATTACH_METHODS.has(method) || createsBrowserContext(method);
 
 /**
  * Give a client-created tab its own window unless the client chose explicitly.
@@ -65,9 +72,10 @@ export class SessionRouter {
      * @param {object} hooks
      * @param {(msg: object, to: 'all' | object) => void} hooks.deliver  send to every client or one client
      * @param {(sessionId: string) => void} hooks.detachSession  ask Chrome to detach an orphaned session
+     * @param {(browserContextId: string) => void} hooks.disposeBrowserContext  ask Chrome to dispose an orphaned context
      * @param {(line: string) => void} hooks.log  attribution log sink
      */
-    constructor({ deliver, detachSession, log }) {
+    constructor({ deliver, detachSession, disposeBrowserContext, log }) {
         this.deliver = deliver;
         this.detachSession = detachSession;
         this.log = log;
@@ -83,6 +91,7 @@ export class SessionRouter {
         /** proxyId → { targetId, client } for forwarded navigations that acquired a tab lease */
         this.pendingLease = new Map();
         this.contextReplay = new ContextReplay();
+        this.browserContexts = new BrowserContextOwners({ dispose: disposeBrowserContext, log });
     }
 
     // ── client → Chrome ─────────────────────────────────────────────
@@ -122,6 +131,7 @@ export class SessionRouter {
         if (decision?.acquiredLease) {
             this.pendingLease.set(proxyId, { targetId: decision.acquiredLease, client });
         }
+        this.browserContexts.track(proxyId, client, msg);
         if (!ATTACH_METHODS.has(msg.method)) return;
         this.pendingAttach.set(proxyId, {
             client,
@@ -143,6 +153,7 @@ export class SessionRouter {
             this.pendingLease.delete(proxyId);
             if (msg.error) this.tabLease.revoke(lease.targetId, lease.client);
         }
+        this.browserContexts.settle(proxyId, msg);
         const pending = this.pendingAttach.get(proxyId);
         if (!pending) return;
         this.pendingAttach.delete(proxyId);
@@ -157,6 +168,7 @@ export class SessionRouter {
     onRequestAbandoned(proxyId) {
         this.contextReplay.abandon(proxyId);
         this.pendingLease.delete(proxyId);
+        this.browserContexts.abandon(proxyId);
         if (this.pendingAttach.delete(proxyId)) {
             this.#releaseUnclaimedHeld();
         }
@@ -226,6 +238,7 @@ export class SessionRouter {
         if (detached.length) {
             this.log(`${client.label} disconnected: detaching ${detached.length} owned session(s)`);
         }
+        this.browserContexts.onClientClosed(client);
     }
 
     /** Chrome restarted: every session and cached target is gone. */
@@ -235,6 +248,7 @@ export class SessionRouter {
         this.pendingLease.clear();
         this.tabLease.reset();
         this.contextReplay.reset();
+        this.browserContexts.reset();
         this.held = [];
         this.knownTargets.clear();
         this.knownSessions.clear();
