@@ -611,7 +611,7 @@ LLM provider 将请求体序列化为 prompt 时，各部分的**确定性顺序
 - **Skill attenuation**：信任衰减通过 `tool_choice.allowed_tools`（OpenAI 模式）收窄当轮可调用工具，**不** mutate `request.tools`；`tool_choice` 变化不破坏 Tools/System 前缀（Anthropic 表：`tool_choice` 变化 → Tools ✅ System ✅）。非 OpenAI 或 provider 不支持 `allowed_tools` 时，执行层 `check_trust_attenuation` 仍拦截越权调用；`TransportChatModel.bind_tools` 透传 dict 型 `tool_choice`
 - **动态内容（如时间戳）应放在 messages 中**，而非 system prompt 或 tools 中
 
-> **Claude Code 官方策略**：当信息过时（日期变化、文件修改）时，**不修改 system prompt**，而是将更新信息作为 `<system-reminder>` 标签放在下一条 user message 中。这确保 system prompt 前缀永远冻结，cache 始终命中。
+> **推荐做法**：当信息过时（日期变化、文件修改）时，**不修改 system prompt**，而是将更新信息作为 `<system-reminder>` 标签放在下一条 user message 中。这确保 system prompt 前缀永远冻结，cache 始终命中。
 
 #### 前缀匹配示例
 
@@ -1099,7 +1099,7 @@ tools = [
 
 由于序列化顺序为 `tools → system_prompt → messages`（见 §4.1），**任何每次请求都会变化的内容必须放在 messages 中**，才不会破坏 tools 和 system_prompt 的缓存前缀。
 
-> **Claude Code 官方做法**：日期、git status、打开的文件内容等动态信息，一律通过 `<system-reminder>` 标签放在 user message 中，**绝不修改 system prompt**。这是他们缓存策略的核心。
+> **推荐做法**：日期、git status、打开的文件内容等动态信息，一律通过 `<system-reminder>` 标签放在 user message 中，**绝不修改 system prompt**。这是缓存策略的核心。
 
 **注意**：即使把动态内容放在 system_prompt 的**末尾**，前缀匹配是 token 级别的，system_prompt 中变化点**之前**的内容仍能缓存命中（见 §4.1 精确语义）。但这与放在 messages 中的缓存效果差异极小（仅差动态内容本身的 tokens 数），且违反了 system_prompt 冻结的架构原则。
 
@@ -1107,7 +1107,7 @@ tools = [
 # ❌ 不推荐：System Prompt 中放动态内容
 system = f"当前时间：{now}\n你是 AI 助手..."
 
-# ✅ 推荐：动态内容放在 messages 中（Claude Code 官方策略）
+# ✅ 推荐：动态内容放在 messages 中
 system = "你是 AI 助手。动态上下文会在对话中提供。"
 
 messages = [
@@ -1191,7 +1191,7 @@ messages = [
 - 消除工具选择歧义
 - 降低工具选择复杂度
 
-#### 混合检索策略（Claude Code 模式）
+#### 混合检索策略
 
 > 来源：Anthropic 官方文章
 
