@@ -5,7 +5,7 @@
 - aiohttp::web (POS: loopback HTTP/WebSocket server)
 
 [OUTPUT]
-- LoopbackCdpRelayServer: serves /json/* and /cdp on 127.0.0.1
+- LoopbackCdpRelayServer: serves /json/* and /cdp on 127.0.0.1 to local automation clients only
 
 [POS]
 Loopback DevTools façade so Playwright connect_over_cdp needs no code changes.
@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     from .bridge import ExtensionCdpRelayBridge
 
 logger = logging.getLogger(__name__)
+
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
 
 
 class LoopbackCdpRelayServer:
@@ -49,9 +51,13 @@ class LoopbackCdpRelayServer:
             return self.http_endpoint
 
         app = web.Application()
-        app.router.add_get("/json/version", self._handle_json_version)
-        app.router.add_get("/json/list", self._handle_json_list)
-        app.router.add_get("/json", self._handle_json_list)
+        for path, handler in (
+            ("/json/version", self._handle_json_version),
+            ("/json/list", self._handle_json_list),
+            ("/json", self._handle_json_list),
+        ):
+            app.router.add_get(path, handler)
+            app.router.add_get(f"{path}/", handler)
         app.router.add_get("/cdp", self._handle_cdp_ws)
 
         self._runner = web.AppRunner(app)
@@ -59,10 +65,11 @@ class LoopbackCdpRelayServer:
         self._site = web.TCPSite(self._runner, host="127.0.0.1", port=0)
         await self._site.start()
 
-        server = self._site._server  # noqa: SLF001 — aiohttp internal for dynamic port
-        if server is None or not server.sockets:
+        addresses = self._runner.addresses
+        if not addresses:
+            await self.stop()
             raise RuntimeError("Failed to bind loopback CDP relay server")
-        self._port = int(server.sockets[0].getsockname()[1])
+        self._port = int(addresses[0][1])
         endpoint = self.http_endpoint
         if endpoint is None:
             raise RuntimeError("Loopback CDP relay server started without endpoint")
@@ -76,13 +83,20 @@ class LoopbackCdpRelayServer:
         self._site = None
         self._port = 0
 
-    def _loopback_guard(self, request: web.Request) -> bool:
+    @staticmethod
+    def _require_local_automation_client(request: web.Request) -> None:
+        """Admit only a local automation client.
+
+        The Host check stops DNS rebinding. The Origin check stops any web page from driving the user's
+        browser through this socket: browsers attach their Origin to cross-site requests and WebSocket
+        handshakes, automation clients never do.
+        """
         host = (request.host or "").split(":")[0].lower()
-        return host in {"127.0.0.1", "localhost", "::1", "[::1]"}
+        if host not in _LOOPBACK_HOSTS or request.headers.get("Origin") is not None:
+            raise web.HTTPForbidden(text="Forbidden")
 
     async def _handle_json_version(self, request: web.Request) -> web.Response:
-        if not self._loopback_guard(request):
-            raise web.HTTPForbidden(text="Forbidden")
+        self._require_local_automation_client(request)
         identity = self._bridge.identity
         ws_url = f"ws://127.0.0.1:{self._port}/cdp"
         payload = {
@@ -94,8 +108,7 @@ class LoopbackCdpRelayServer:
         return web.json_response(payload)
 
     async def _handle_json_list(self, request: web.Request) -> web.Response:
-        if not self._loopback_guard(request):
-            raise web.HTTPForbidden(text="Forbidden")
+        self._require_local_automation_client(request)
         ws_url = f"ws://127.0.0.1:{self._port}/cdp"
         payload = [
             {
@@ -111,8 +124,7 @@ class LoopbackCdpRelayServer:
         return web.json_response(payload)
 
     async def _handle_cdp_ws(self, request: web.Request) -> web.WebSocketResponse:
-        if not self._loopback_guard(request):
-            raise web.HTTPForbidden(text="Forbidden")
+        self._require_local_automation_client(request)
 
         ws = web.WebSocketResponse(autoping=True, heartbeat=30.0)
         await ws.prepare(request)

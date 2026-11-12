@@ -14,7 +14,22 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | `src/i18n.js` | 辅助 | `msg()` / `applyDocumentI18n()` — Chrome `_locales` SSOT | ✅ |
 | `_locales/en/messages.json` | 辅助 | 英文 UI 文案 | — |
 | `_locales/zh_CN/messages.json` | 辅助 | 简体中文 UI 文案 | — |
-| `src/background.js` | 核心 | Service Worker：WebSocket/CDP/上下文菜单（`chrome.i18n`）；Wiki clip 委托 `src/wiki/*`；`lastClipErrorKind` 供 popup 深链；clip 结果 `chrome.notifications` | ✅ |
+| `src/background.js` | 核心 | Service Worker 入口（ES module）：仅生命周期——安装/浏览器启动时恢复设置并连接，保活闹钟触发重连；其余逻辑在 `src/background/` | ✅ |
+| `src/background/state.js` | 核心 | 唯一的可变运行时状态 `state`（连接、授权策略、已附加标签页、剪藏结果）与 `chrome.storage.local` 的读写；连接常量与 `EXTENSION_CAPABILITIES` | ✅ |
+| `src/background/policy.js` | 核心 | 访问策略判定（纯函数，无 chrome API）：域名匹配、标签页/导航目标是否被授权、暂停标签页；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__/backgroundPolicy.test.ts` 覆盖 | ✅ |
+| `src/background/transport.js` | 辅助 | 向服务端发消息（未连接则丢弃）与工具栏徽标 | ✅ |
+| `src/background/connection.js` | 核心 | WebSocket 生命周期：连接、`hello` 握手、指数退避重连、断开（断开即释放全部 debugger） | ✅ |
+| `src/background/server_messages.js` | 核心 | 服务端消息分发：`ping`、`set_domains`、`set_access_policy`、`clip_agent_update`、`relay`、`request`；relay/request 的失败回报给服务端而不抛出 | ✅ |
+| `src/background/access_policy.js` | 核心 | 应用并回报授权策略；策略收窄后立即释放不再被授权的标签页 | ✅ |
+| `src/background/relay.js` | 核心 | 服务端 CDP relay 的指令：`attach`/`detach`/`cdp`/`createTab`；每条指令都重新校验标签页与导航目标 | ✅ |
+| `src/background/actions.js` | 核心 | 服务端请求：`list_tabs`/`attach_debugger`/`navigate_url`/`detach_debugger` | ✅ |
+| `src/background/tabs.js` | 核心 | 标签页读取（可操作、可列出、按域名查找、等待加载）与 `tabs_update` 推送 | ✅ |
+| `src/background/tab_events.js` | 辅助 | 标签页事件监听：导航/加载后推送列表；标签页关闭时清理已附加与暂停状态 | ✅ |
+| `src/background/debugger.js` | 核心 | `chrome.debugger` 的附加/释放与 CDP 事件回传；后台窗口里的标签页随 debugger 一起关闭 | ✅ |
+| `src/background/background_window.js` | 辅助 | 不打扰用户的独立后台窗口：创建、复用空白标签页、清理；用户关闭窗口即遗忘 | ✅ |
+| `src/background/ui_messages.js` | 核心 | popup/Side Panel 的 `chrome.runtime.onMessage` 接口：`get_status`、`connect`、`disconnect`、`update_domains`、`update_access_policy`、`toggle_pause_tab`、`get_access_policy`、`glow_control` | ✅ |
+| `src/background/clip.js` | 辅助 | Wiki clip 与 Service Worker 的衔接：同步剪藏目标 agent、提交剪藏、结果回写 `lastClipErrorKind` 并发 `chrome.notifications`；上传本身在 `src/wiki/*` | ✅ |
+| `src/background/context_menu.js` | 辅助 | 右键菜单（`chrome.i18n`）与键盘快捷键：打开 Side Panel、剪藏页面/选区 | ✅ |
 | `src/wiki/deep_links.js` | 辅助 | Settings Wiki 深链 builder | ✅ |
 | `src/wiki/clip_client.js` | 核心 | Wiki clip REST 客户端；错误文案 `chrome.i18n` | ✅ |
 | `src/wiki/` | 子模块 | Extension wiki clip 客户端与深链 — 见 [src/wiki/_ARCH.md](src/wiki/_ARCH.md) | ✅ |

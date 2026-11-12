@@ -93,3 +93,41 @@ async def test_cdp_websocket_rejects_non_loopback() -> None:
             assert exc_info.value.status == 403
     finally:
         await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_devtools_endpoints_accept_a_trailing_slash() -> None:
+    # Playwright's connect_over_cdp asks for /json/version/ with the slash.
+    server = LoopbackCdpRelayServer(ExtensionCdpRelayBridge())
+    await server.start()
+    try:
+        app = server._runner.app  # noqa: SLF001 — test inspects bound app
+        async with TestClient(TestServer(app)) as client:
+            for path in ("/json/version/", "/json/list/", "/json/"):
+                response = await client.get(path)
+                assert response.status == 200, path
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_requests_carrying_an_origin_are_refused() -> None:
+    # A web page can open a WebSocket to 127.0.0.1; browsers always attach the page's Origin, automation clients never do.
+    from aiohttp.client_exceptions import WSServerHandshakeError
+
+    server = LoopbackCdpRelayServer(ExtensionCdpRelayBridge())
+    await server.start()
+    try:
+        app = server._runner.app  # noqa: SLF001 — test inspects bound app
+        async with TestClient(TestServer(app)) as client:
+            for path in ("/json/version", "/json/list"):
+                refused = await client.get(path, headers={"Origin": "https://evil.example"})
+                assert refused.status == 403, path
+            with pytest.raises(WSServerHandshakeError) as exc_info:
+                await client.ws_connect("/cdp", headers={"Origin": "https://evil.example"})
+            assert exc_info.value.status == 403
+            async with client.ws_connect("/cdp") as ws:
+                await ws.send_str(json.dumps({"id": 1, "method": "Browser.getVersion"}))
+                assert (await ws.receive_json(timeout=5))["id"] == 1
+    finally:
+        await server.stop()

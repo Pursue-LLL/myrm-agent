@@ -9,6 +9,7 @@ the raw bytes to the appropriate file parser for extraction.
 - utils.content_sniff::magic_extension (POS: Format signature to file extension)
 
 [OUTPUT]
+- MAX_BINARY_SIZE: the largest file body the router parses; a larger one is dropped
 - route_binary_content: Detect and parse binary content from a FetchResult
 
 [POS]
@@ -29,7 +30,7 @@ from myrm_agent_harness.utils.content_sniff import magic_extension
 
 logger = logging.getLogger(__name__)
 
-_MAX_BINARY_SIZE = 20 * 1024 * 1024  # 20 MB safety limit
+MAX_BINARY_SIZE = 20 * 1024 * 1024  # 20 MB safety limit
 
 _CONTENT_TYPE_MAP: dict[str, str] = {
     "application/pdf": ".pdf",
@@ -89,7 +90,7 @@ async def route_binary_content(
 
     Returns None if the content type is unrecognized, no parser supports it, or parsing fails.
     """
-    if len(raw_body) > _MAX_BINARY_SIZE:
+    if len(raw_body) > MAX_BINARY_SIZE:
         logger.warning("Binary content too large (%d bytes), skipping: %s", len(raw_body), url[:100])
         return None
 

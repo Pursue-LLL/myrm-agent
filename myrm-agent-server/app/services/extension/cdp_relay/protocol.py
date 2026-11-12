@@ -4,7 +4,7 @@
 - typing::TypedDict, dataclasses (POS: Python stdlib wire types)
 
 [OUTPUT]
-- RelayTabInfo, RelayCommand variants, relay timing constants
+- RelayTabInfo, RelayCommand variants (attach / detach / cdp / createTab / closeTab), relay timing constants
 
 [POS]
 Shared wire types and constants for the extension CDP relay subpackage.
@@ -52,4 +52,9 @@ class RelayCreateTabCommand(TypedDict, total=False):
     background: bool
 
 
-RelayCommand = RelayAttachCommand | RelayDetachCommand | RelayCdpCommand | RelayCreateTabCommand
+class RelayCloseTabCommand(TypedDict):
+    type: Literal["closeTab"]
+    tabId: int
+
+
+RelayCommand = RelayAttachCommand | RelayDetachCommand | RelayCdpCommand | RelayCreateTabCommand | RelayCloseTabCommand

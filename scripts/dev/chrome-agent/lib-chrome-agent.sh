@@ -3,9 +3,12 @@
 #
 # Why a machine-level install: the Agent browser backend must not depend on any
 # specific checkout surviving (delete/move the repo → LaunchAgent keeps serving).
-# Source of truth stays in the repo (scripts/dev/chrome-agent/), and install
-# copies a self-contained bundle to ~/.local/lib/myrm-chrome-agent. The
-# LaunchAgent plist points only at the stable `current` symlink, so upgrades are
+# Install copies a self-contained bundle of this tree to ~/.local/lib/myrm-chrome-agent.
+# The standalone project ~/projects/AI/chrome-agent installs to the same directory under the
+# same LaunchAgent label, so whichever installer runs last decides the running version. Its
+# proxy has diverged from this tree (it parks page windows offscreen, this tree does not), and
+# the running service is upgraded with `chrome-agent upgrade`.
+# The LaunchAgent plist points only at the stable `current` symlink, so upgrades are
 # atomic symlink flips with automatic rollback on health failure.
 set -euo pipefail
 
