@@ -1,8 +1,8 @@
 """Tool call broadcaster — Hook listener that publishes tool call events.
 
 [INPUT]
-- agent.hooks.types::HookEvent (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
-- agent.hooks.types::HookResult (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- agent.hooks.types::HookEvent (POS: built-in lifecycle events that trigger hooks)
+- agent.hooks.types::HookResult (POS: result of a single hook execution)
 - agent.streaming.broadcast.event_bus::ToolBroadcastBus (POS: In-process side-channel pub-sub for tool events.)
 
 [OUTPUT]

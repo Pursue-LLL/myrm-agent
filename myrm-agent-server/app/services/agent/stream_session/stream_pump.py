@@ -10,7 +10,7 @@
 - app.services.agent.stream_session.session_reservation::release_unstreamed_reservation (POS: clears a reservation the stream never took over and reopens a resume's interrupt)
 - app.services.infra.system_notification::SystemNotificationService (POS: System notification persistence service for API/business layers)
 - myrm_agent_harness.agent.streaming.stream_buffer::ResilientStreamBuffer (POS: Harness engine-layer SSE reconnect replay buffer)
-- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management with graceful async cancellation support.)
 
 [OUTPUT]
 - pump_to_buffer: run a turn's SSE stream into its replay buffer, serialize turns per project, and notify the user when a long-running turn ends after the client left

@@ -10,8 +10,8 @@ Provides text splitting for different content types (Markdown, plain text) and s
 - myrm_agent_harness.utils.text_utils::detect_language, get_token_count (POS: Language detection and token counting)
 
 [OUTPUT]
-- TextChunker: High-level text chunking manager
-- split_text: Splits a document into token-bounded chunks using Markdown-aware or recursive strategy
+- TextChunker: High-level text chunking manager; chunk_text() splits Markdown text into semantically complete, token-bounded chunks
+- get_adaptive_chunk_params: adaptive chunk size and overlap from text characteristics
 
 [POS]
 High-level text splitter. Selects the appropriate splitting strategy based on content type

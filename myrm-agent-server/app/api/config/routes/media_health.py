@@ -1,7 +1,7 @@
 """[INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs / load_user_configs (POS: User config loader for channel agent execution.)
 - app.core.channel_bridge.config_parsers::build_vision_fallback_engine_from_providers / extract_vision_fallback_model_config / build_video_fallback_probe_engine_from_providers / extract_video_fallback_model_config (POS: channel_bridge 配置解析的唯一公开入口；调用方不需要知道实现位于哪个子模块。)
-- myrm_agent_harness.toolkits.llms.vision.fallback_engine::VisionDescriptionError / VisionDescriptionError (POS: 视觉能力降级服务。在主模型缺乏视觉能力时，提供底层、无状态的图像转文本能力；封装并发解析与 image_compressor Reactive Resize 兜底。属于 Harness 框架层，供业务层与框架工具链调用，不依赖业务逻辑和数据)
+- myrm_agent_harness.toolkits.llms.vision.fallback_engine::VisionDescriptionError / VisionDescriptionError (POS: 视觉能力降级服务。在主模型缺乏视觉能力时，提供底层、无状态的图像转文本能力；封装并发解析与 image_compressor Reactive Resize 兜底。属于 Harness 框架层，供业务层与框架工具链调用，不依赖业务逻辑和数据库。)
 
 [OUTPUT]
 - VisionHealthResult: Result of a vision fallback chain health probe.

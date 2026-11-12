@@ -8,11 +8,11 @@ compaction, storage cleanup) must acquire a CapacityTicket before execution.
 - (none)
 
 [OUTPUT]
-- SystemLoadLevel: System load classification, ordered by resource availabil...
+- SystemLoadLevel: System load classification, ordered by resource availability.
 - MaintenanceTaskType: Types of maintenance tasks, ordered by resource intensity.
 - SystemLoadSnapshot: Point-in-time system resource snapshot from a LoadSensor.
 - AgentHealthScore: Composite health score for an Agent's data quality.
-- CapacityTicket: Permission token granted by the scheduler to run a mainte...
+- CapacityTicket: Permission token granted by the scheduler to run a maintenance task.
 
 [POS]
 Maintenance scheduling protocols and data types.

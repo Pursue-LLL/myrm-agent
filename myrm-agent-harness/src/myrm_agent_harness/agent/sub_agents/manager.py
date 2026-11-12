@@ -4,7 +4,7 @@ Construction helpers live in ``builder``, composition patterns (chain, batch wai
 verified orchestration) in ``orchestrator``.
 
 [INPUT]
-- agent.types::SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
+- agent.sub_agents.types::SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 - agent.base_agent::BaseAgent (POS: Agent base class that owns a SubagentManager instance)
 - agent.security.guards.taint_tracker (POS: Taint 跨 Agent 传播追踪)
 - agent._internals._agent_helpers::release_child_run_state (POS: Drop what a finished child's session kept.)

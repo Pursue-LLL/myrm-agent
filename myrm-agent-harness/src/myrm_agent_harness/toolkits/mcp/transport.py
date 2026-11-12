@@ -9,7 +9,7 @@ Provides critical security and stability features for SaaS environments:
 4. Zombie Process Prevention: Robust termination sequence (SIGTERM -> SIGKILL).
 
 [INPUT]
-- toolkits.code_execution.executors.base::CodeExecutor, (POS: Code executor base classes.)
+- toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - toolkits.code_execution.executors.models::AsyncProcessProtocol (POS: Data models for code execution.)
 
 [OUTPUT]

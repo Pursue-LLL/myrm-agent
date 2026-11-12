@@ -14,7 +14,7 @@ Shared wrapper for all executors. Handles:
 - BoundedStringIO: Bounded buffer to prevent log bomb.
 - generate_wrapper_script: Generate the execution wrapper script.
 - main: Parse execution output from the wrapper script.
-- parse_execution_output: function — parse_execution_output
+- parse_execution_output: Parse execution output from the wrapper script.
 
 [POS]
 Unified execution wrapper script. User-code stderr is not captured inside the

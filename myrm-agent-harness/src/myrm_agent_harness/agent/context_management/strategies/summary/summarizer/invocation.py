@@ -1,11 +1,11 @@
 """[INPUT]
 - myrm_agent_harness.agent.config.llm_safety::normalize_messages (POS: Provider safety normalization. Pure function for direct LLM paths; agent middleware covers the primary runtime.)
 - myrm_agent_harness.agent.security.detection.leak_detector::redact_leaks (POS: Leak detector — re-exported from core.security.detection.leak_detector.)
-- myrm_agent_harness.agent.security.detection.pii_redactor::redact_pii (POS: PII redactor. Type-aware smart masking (phone numbers retain first 3 and last 4 digits, emails retain domain, cards)
+- myrm_agent_harness.agent.security.detection.pii_redactor::redact_pii (POS: PII redactor. Type-aware smart masking (phone numbers retain first 3 and last 4 digits, emails retain domain, cards and IBANs their last 4 characters, etc.) for user-friendly redaction, applied for the levels the caller names, so one level's redaction never masks another level's content.)
 - myrm_agent_harness.core.thinking_blocks::without_thinking_blocks (POS: drops the signed reasoning a call under another prompt cannot replay)
-- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods)
+- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods (step/success/error_detail) for project-wide log output.)
 - myrm_agent_harness.agent.context_management.infra.schemas::StructuredSummary (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
-- myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout::ProgressClock / SummaryProgressTracker (POS: Progress-aware timeout primitives for summarization. Decouples timeout detection)
+- myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout::ProgressClock / SummaryProgressTracker (POS: Progress-aware timeout primitives for summarization. Decouples timeout detection from LLM invocation, allowing watchdog coroutines to observe liveness without coupling to specific streaming implementations.)
 - myrm_agent_harness.agent.context_management.strategies.summary.summary_parser::_build_summary_from_dict / parse_summary_response (POS: Summary parsing and message formatting utilities.)
 
 [OUTPUT]

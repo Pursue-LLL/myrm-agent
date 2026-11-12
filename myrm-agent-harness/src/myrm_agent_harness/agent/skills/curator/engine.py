@@ -14,7 +14,7 @@ Design principles:
 [INPUT]
 - backends.skills.types::SkillMetadata, SkillLifecycleStatus (POS: 技能元数据类型定义)
 - backends.skills.curator_config::CuratorConfig (POS: Skill curator configuration.)
-- backends.skills.forgetting_strategy::DefaultForgettingStrategy (POS: Skill forgetting / curator strategies)
+- backends.skills.forgetting_strategy::DefaultForgettingStrategy (POS: Skill forgetting / curator strategies to prevent skill accumulation.)
 - backends.skills.stats_collector::SkillStatsCollector (POS: Skill usage statistics and lifecycle state collector)
 - .consolidation::SkillConsolidator (POS: Skill consolidation orchestrator)
 

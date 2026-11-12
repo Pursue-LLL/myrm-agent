@@ -7,7 +7,7 @@ Implements StorageQuotaChecker protocol with:
 - Optional MaintenanceScheduler integration to defer cleanup under high load
 
 [INPUT]
-- runtime.maintenance.protocols::CapacityDenial, (POS: Maintenance scheduling protocols and data types.)
+- runtime.maintenance.protocols::CapacityDenial (POS: Maintenance scheduling protocols and data types.)
 - runtime.paths.execution_paths::get_context_root (POS: context root in effect)
 
 [OUTPUT]

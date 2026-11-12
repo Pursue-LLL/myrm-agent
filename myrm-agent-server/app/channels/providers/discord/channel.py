@@ -12,7 +12,7 @@ and play back TTS audio.
 - app.channels.providers.discord.inbound::DiscordInboundMixin (POS: gateway event parsing and history reads)
 - app.channels.providers.discord.outbound::DiscordOutboundMixin (POS: REST sending, forum threads and message maintenance)
 - app.channels.providers.discord.voice_control::DiscordVoiceMixin (POS: opus loading, VoiceManager wiring and the /voice slash command)
-- app.channels.types::ChannelCapabilities (POS: Provides ArtifactInfo, infer_language, infer_artifact_type. ReplyContext for structured reply/quote context.)
+- app.channels.types::ChannelCapabilities (POS: declares what a channel supports; the router reads it for format decisions)
 - app.channels.types.messages::ReasoningDisplay, RenderStyle, ToolSummaryDisplay (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
 - app.channels.core.base::BaseChannel (POS: Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly. Supports outbound (send) and inbound (on_inbound callback) bidirectional communication. Providers may declare credential_spec and from_credentials for self-contained credential management.)
 

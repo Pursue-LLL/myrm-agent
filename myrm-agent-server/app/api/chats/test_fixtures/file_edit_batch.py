@@ -8,7 +8,7 @@ app.services.agent.params.workspace_resolve::resolve_default_chat_workspace_dir 
 myrm_agent_harness.api.hooks::build_step_data (POS: progressSteps diff items)
 
 [OUTPUT]
-seed_file_edit_batch_fixture: batch file_edit E2E（variant=live|read_ui）
+seed_file_edit_batch_fixture: batch file_edit E2E (variant=live|read_ui)
 seed_file_edit_batch_workspace: 向已有 chat workspace 写入 batch_edit_e2e.txt
 
 [POS]

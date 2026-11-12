@@ -4,7 +4,8 @@
 - MYRM_DATA_DIR / filesystem path for key persistence
 
 [OUTPUT]
-- get_or_create_keypair(): X25519 keypair (public + secret)
+- DaemonKeypair: X25519 keypair (public + secret) of the daemon
+- load_or_create_daemon_keypair(): loads the persisted keypair, or generates and persists a new one
 
 [POS]
 Key management. Generates and persists the daemon's E2EE identity keypair.

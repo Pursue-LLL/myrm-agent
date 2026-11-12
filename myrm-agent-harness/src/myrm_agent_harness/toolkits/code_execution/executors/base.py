@@ -11,7 +11,7 @@ Lifecycle: bind_workspace(path) -> execute()/execute_bash()/read_file()/... -> c
 
 [OUTPUT]
 - CodeExecutor: Abstract base class for code executors with async close lifecycle.
-- get_executor: Return the current executor for this async context, or ``...
+- get_executor: Return the current executor for this async context, or ``None``.
 - set_executor: Bind (or clear) the executor for the current async context.
 - reset_executor: Restore a previous executor binding from a ContextVar token.
 - require_executor: Return the current executor, raising if unavailable.

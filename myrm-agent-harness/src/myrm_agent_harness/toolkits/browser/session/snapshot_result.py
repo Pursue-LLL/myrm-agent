@@ -1,7 +1,7 @@
 """Immutable snapshot result type for browser ARIA snapshots.
 
 [INPUT]
-- toolkits.browser.snapshot::RefInfo, (POS: browser_snapshot tool for ARIA tree capture.)
+- toolkits.browser.snapshot::RefInfo (POS: browser_snapshot tool for ARIA tree capture.)
 
 [OUTPUT]
 - SnapshotResult: immutable snapshot result type (aria_tree, refs, meta).

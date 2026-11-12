@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- install: function — install
+- install: Install the audit hook.
 - get_audit_hook_source_code: function — returns self-contained source string for inlining
 - SecurityError: Exception class
 

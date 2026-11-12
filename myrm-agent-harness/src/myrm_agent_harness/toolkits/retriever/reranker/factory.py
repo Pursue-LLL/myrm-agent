@@ -8,7 +8,6 @@ Creates reranker service instances from configuration with process-level caching
 
 [OUTPUT]
 - RerankerConfig: Frozen dataclass describing a reranker service configuration
-- create_reranker_service: Factory function returning a (possibly cached) RerankerService
 - get_reranker_service: Process-wide singleton getter for RerankerService
 
 [POS]

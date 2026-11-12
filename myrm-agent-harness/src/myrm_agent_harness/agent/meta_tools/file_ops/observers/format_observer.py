@@ -8,7 +8,7 @@ Uses a timeout-guarded subprocess call with graceful failure handling.
 
 [OUTPUT]
 - FormatterRule: Maps file extensions to a formatter command.
-- FormatObserver: Runs the matching code formatter after every file create/...
+- FormatObserver: Runs the matching code formatter after every file create/modify.
 
 [POS]
 Auto-format observer — runs code formatters after AI file edits.

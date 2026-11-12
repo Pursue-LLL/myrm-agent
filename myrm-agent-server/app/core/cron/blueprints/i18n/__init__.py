@@ -1,15 +1,12 @@
 """[INPUT]
-- app.core.cron.blueprints.i18n.daily::_DAILY (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
-- app.core.cron.blueprints.i18n.finance::_FINANCE (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
-- app.core.cron.blueprints.i18n.growth::_GROWTH (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
-- app.core.cron.blueprints.i18n.knowledge::_KNOWLEDGE (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
+- app.core.cron.blueprints.i18n.daily::SUPPLEMENTAL_BY_ID (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
+- app.core.cron.blueprints.i18n.finance::SUPPLEMENTAL_BY_ID (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
+- app.core.cron.blueprints.i18n.growth::SUPPLEMENTAL_BY_ID (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
+- app.core.cron.blueprints.i18n.knowledge::SUPPLEMENTAL_BY_ID (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
 - app.core.cron.blueprints.i18n.types::BLUEPRINT_UI_LOCALES / BlueprintLocaleSupplement (POS: 蓝图 i18n 子包共用类型；不包含任何具体文案。)
 
 [OUTPUT]
-- _DAILY
-- _FINANCE
-- _GROWTH
-- _KNOWLEDGE
+- SUPPLEMENTAL_BY_ID: ja/de/ko title, description and prompt template of each blueprint, keyed by blueprint id and merged from the topic modules
 - BLUEPRINT_UI_LOCALES
 - BlueprintLocaleSupplement
 

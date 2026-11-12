@@ -7,7 +7,7 @@ Contains:
 - toolkits.retriever.embedding.factory::EmbeddingConfig
 - toolkits.retriever.reranker.factory::RerankerConfig
 - toolkits.retriever.engine::RetrieverManager (POS: Hybrid retrieval manager for fetched pages) [lazy]
-- toolkits.retriever.sufficiency (POS: Retrieval Sufficiency Guard)
+- toolkits.retriever.sufficiency (POS: Retrieval Sufficiency Guard 模块入口。)
 - toolkits.web_fetch.processing.full_content_delivery::FetchedPage, plan_full_content, all_failed_content (POS: One shared budget for every fetched page) [lazy]
 - toolkits.web_fetch.processing.spill::store_full_text, emit_web_fetch_evicted_ref (POS: Sandbox persistence of the full text) [lazy]
 - toolkits.web_fetch.processing.content_sanitize::strip_base64_images_from_markdown (POS: Inline image payload removal) [lazy]

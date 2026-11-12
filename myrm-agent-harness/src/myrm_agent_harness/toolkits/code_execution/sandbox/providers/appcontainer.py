@@ -22,7 +22,7 @@ Requirements:
 - AppContainerProvider: Windows AppContainer native process sandbox.
 
 [POS]
-Windows AppContainer (AppContainer) sandbox provider.
+Windows AppContainer sandbox provider.
 """
 
 from __future__ import annotations

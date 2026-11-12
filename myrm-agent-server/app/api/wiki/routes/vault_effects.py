@@ -1,6 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map::WikiCognitiveMapService / WikiMapEvent / WikiMapEventType (POS: OKF 认知地图模块入口。提供 wiki/index.md, wiki/log.md, wiki/hot.md 与 wiki/SCHEMA.md 的确定性免 LLM 构建与刷新。)
-- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian / source_sync / clip / knowledge_pack) live under this package and expose their own facades.)
 
 [OUTPUT]
 - _refresh_wiki_cognitive_map: Rebuild OKF index/log/hot after a wiki lifecycle event.

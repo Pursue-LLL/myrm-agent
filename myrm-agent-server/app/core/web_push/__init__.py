@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - WebPushService: VAPID key management, subscription CRUD, push sending
-- web_push_router: REST API endpoints
+- get_web_push_service: process-wide singleton accessor of WebPushService (the REST endpoints live in app.api.web_push)
 
 [POS]
 Standalone Web Push module. Subscribes to ServerEventBus as an independent

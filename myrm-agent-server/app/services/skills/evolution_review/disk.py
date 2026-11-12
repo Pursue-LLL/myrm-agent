@@ -1,8 +1,8 @@
 """
 [INPUT]
-- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
-- .disk_content::apply_content_update, rollback_content_update (POS: Evolution 全量内容更新落盘与回滚)
-- .persistence::persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
+- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）。)
+- .disk_content::apply_content_update, rollback_content_update (POS: Evolution 全量内容更新落盘与回滚（含 Copy-on-Write fork）。)
+- .persistence::persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写（list/count 在 SQL 层应用 action_type、pending growth_status 与 LIMIT）。)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
 - Content apply orchestration, approval apply pipeline

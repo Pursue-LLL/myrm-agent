@@ -1,10 +1,10 @@
 """
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
-- .persistence::load_approval_record, list_approval_review_records (POS: Evolution 审核 ApprovalRecord 持久化读写)
+- .persistence::load_approval_record, list_approval_review_records (POS: Evolution 审核 ApprovalRecord 持久化读写（list/count 在 SQL 层应用 action_type、pending growth_status 与 LIMIT）。)
 - .decision_lock::serialized_per_evolution (POS: Evolution 审核记录写入串行化)
-- .types::EvolutionReviewRecord (POS: Evolution 审核域类型)
-- .disk_content::skill_file_hash (POS: Evolution 全量内容更新落盘与回滚)
+- .types::EvolutionReviewRecord (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）。)
+- .disk_content::skill_file_hash (POS: Evolution 全量内容更新落盘与回滚（含 Copy-on-Write fork）。)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
 - create/list/count/find/get evolution review records；创建时记录提案所基于的 SKILL.md 内容哈希

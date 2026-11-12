@@ -4,18 +4,18 @@ Each Mixin uses ``self: XxxHost`` to declare the attributes it reads/writes
 on the AgentRouter instance, enabling static type checking without circular imports.
 
 [INPUT]
-- app.channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- app.channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 - app.channels.core.bus::MessageBus (POS: Message routing hub. Producers call publish_outbound; the bus dispatches by priority to the target channel (SYSTEM > NORMAL > BULK). Inbound messages enter the _inbound queue via channel _emit_inbound callbacks, consumed by AgentRouter. Outbound messages are auto-downgraded before dispatch for channels lacking interactive component support: components are rendered as text appended to content; quick_replies only downgrade ``required=True`` items, silently dropping non-required ones.)
-- app.channels.protocols.agent::AgentExecutor (POS: Agent execution protocol for Channel inbound messages. Framework AgentRouter delegates inbound messages to business-layer Agents via this protocol. execute_stream returns AsyncGenerator yielding ProgressUpdate (progress) and OutboundMessage (final result). External cancellation (e.g. user /stop command)。)
+- app.channels.protocols.agent::AgentExecutor (POS: Agent execution protocol for Channel inbound messages. Framework AgentRouter delegates inbound messages to business-layer Agents via this protocol. execute_stream returns an AsyncGenerator yielding ProgressUpdate (progress), StreamingText (reply text so far), FissionTopologyUpdate (subagent topology) and OutboundMessage (final result). Supports cooperative cancellation (e.g. the user's /stop command) through cancel_token and mid-run steering (e.g. /steer) through steering_token.)
 - app.channels.protocols.compact::CompactHandler (POS: Business-layer handler protocol for the /compact slash command. Framework parses user_id and invokes handler; business layer implements DB, Chat service, and compact logic.)
 - app.channels.protocols.topic::TopicManager (POS: Topic Supports two binding granularities Telegram forum topics)
 - app.channels.protocols.turn_management::RetryHandler, UndoHandler (POS: Business-layer handler protocol for /retry and /undo slash commands. Symmetric design with CompactHandler: framework parses user_id, business layer handles DB operations.)
 
 [OUTPUT]
-- RouterStreamHost: Structural contract for `RouterStreamMixin` (execute_stre...
-- PersonalityInfo: Minimal personality template info required by the command...
+- RouterStreamHost: Structural contract for `RouterStreamMixin` (execute_stream consumption, throttled edits).
+- PersonalityInfo: Minimal personality template info required by the command handler (read-only, so a template whose ``name`` is a narrower literal type fits).
 - PersonalityProvider: Business-layer injectable personality template provider.
-- RouterCommandsHost: Structural contract for `RouterCommandsMixin` (/stop, app...
+- RouterCommandsHost: Structural contract for `RouterCommandsMixin` (/stop, approvals, session/topic/retry/undo commands).
 
 [POS]
 Typing protocols: host instance attributes required by Router Mixins (stream, commands; the pipeline mixins' protocols live in ``pipeline/hosts.py``).

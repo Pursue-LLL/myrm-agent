@@ -7,7 +7,7 @@
 - app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata)
 - app.services.chat.compact_service::CompactResult (POS: Chat context compaction facade)
 - myrm_agent_harness.agent.streaming.stream_buffer::GlobalStreamRegistry (POS: Harness engine-layer SSE reconnect replay buffer)
-- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management with graceful async cancellation support.)
 - myrm_agent_harness.utils.runtime.steering::SteeringToken (POS: Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain)
 
 [OUTPUT]

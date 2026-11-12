@@ -4,7 +4,7 @@ Prevents cost explosion by limiting message processing frequency per sender/chat
 Uses sliding window algorithm for smooth rate distribution.
 
 [INPUT]
-- app.channels.types::InboundMessage (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- app.channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 
 [OUTPUT]
 - RateLimitConfig: Rate limit configuration.

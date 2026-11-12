@@ -1,9 +1,9 @@
 """[INPUT]
-- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.archiver_dependency::get_scoped_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault files use ``app.services.wiki.vault.get_wiki_structure`` instead, so no compile worker is ever built without a model.)
 - app.channels.types::VoiceConfig (POS: Channel system domain types — pure data definitions, no I/O.)
-- app.services.meeting_notes.service::process_meeting_audio / publish_meeting_notes (POS: Business orchestration facade for the Meeting Scribe pipeline. Delegates ASR to)
-- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
-- app.services.meeting_notes.live_notes::LiveNotesSession / get_live_notes_registry (POS: Business orchestration layer for live meeting notes. Consumes *finalized* transcript)
+- app.services.meeting_notes.service::process_meeting_audio / publish_meeting_notes (POS: Business orchestration facade for the Meeting Scribe pipeline. Delegates ASR to channels/voice/stt.py, distillation to the chat agent LLM, and publication to the wiki raw pipeline.)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian / source_sync / clip / knowledge_pack) live under this package and expose their own facades.)
+- app.services.meeting_notes.live_notes::LiveNotesSession / get_live_notes_registry (POS: Business orchestration layer for live meeting notes. Consumes *finalized* transcript lines from the existing streaming STT path, keeps the running transcript, and periodically produces rolling structured notes (summary / decisions / action items) by reusing the batch distillation prompt.)
 
 [OUTPUT]
 - MeetingNotesResponse: Response payload for meeting audio transcription pipeline.

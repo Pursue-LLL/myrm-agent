@@ -6,7 +6,7 @@ All clocks are `time.monotonic()`-compatible floats (seconds).
 - (none)
 
 [OUTPUT]
-- should_skip_throttled_placeholder_edit: Return True if a placeholder edit must wait (elapsed sinc...
+- should_skip_throttled_placeholder_edit: Return True if a placeholder edit must wait (elapsed since last edit < min_interval).
 
 [POS]
 Pure time-interval checks for placeholder progress edits during execute_stream.

@@ -1,7 +1,7 @@
 """
 [INPUT]
 - app.database.models.approval::ApprovalRecord (POS: 统一审批记录模型)
-- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
+- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）。)
 [OUTPUT]
 - load/list/count/persist helpers for evolution ApprovalRecord rows
 [POS]

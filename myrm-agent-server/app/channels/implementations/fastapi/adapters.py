@@ -4,9 +4,9 @@ Implements RequestAdapter and ResponseAdapter protocols for FastAPI,
 allowing channels to handle requests/responses without FastAPI dependencies.
 
 [INPUT]
-- fastapi::Request, (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
-- app.channels.protocols.adapters::RequestAdapter, (POS: Adapter layer for FastAPI. Converts FastAPI-specific request/response objects to framework-agnostic interfaces defined in the protocols layer.)
-- app.channels.protocols.route_registrar::GenericRequest, (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
+- fastapi::Request (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
+- app.channels.protocols.adapters::RequestAdapter (POS: adapter protocols for framework independence: the business layer implements them for a web framework such as FastAPI, so channels only see GenericRequest and GenericResponse)
+- app.channels.protocols.route_registrar::GenericRequest (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
 
 [OUTPUT]
 - FastAPIRequestAdapter: Adapts FastAPI Request to GenericRequest

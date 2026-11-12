@@ -7,7 +7,7 @@ Defines execution context, results and execution metrics.
 - utils.runtime.cancellation::CancellationToken (POS: request-level cancellation flag; type only)
 
 [OUTPUT]
-- AsyncProcessProtocol: Subprocess handle exposed by CodeExecutor (stdio MCP and ...
+- AsyncProcessProtocol: Subprocess handle exposed by CodeExecutor (stdio MCP and similar).
 - ExecutionContext: Execution context (framework layer).
 - ExecutionResult: Execution result.
 

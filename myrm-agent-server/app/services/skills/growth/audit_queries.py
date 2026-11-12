@@ -1,11 +1,13 @@
 """[INPUT]
-- app.database.models::ApprovalRecord, SkillGrowthCase (POS: ORM models for growth audit)
+- app.database.connection::get_session (POS: async DB session factory)
+- app.database.models::ExperienceLedgerEvent (POS: 学习资产事件 ORM 模型)
 - ..experience_ledger (POS: 学习资产事件账本)
 - .case_types::SkillGrowthCaseSource, SkillGrowthCaseStatus (POS: growth case DTO)
 
 [OUTPUT]
-- get_growth_audit_timeline(): paginated audit trail of skill growth events
-- get_growth_case_stats(): aggregated statistics for growth case dashboard
+- list_skill_growth_timeline(): ledger-backed timeline of skill growth events
+- list_skill_growth_audit_entries(): audit entries of negative skill growth events, optionally for one skill
+- summarize_skill_growth_audit(): aggregated audit statistics (status buckets, top skills, average confidence)
 
 [POS]
 Ledger-backed skill growth audit and timeline queries.

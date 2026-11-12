@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- get_registry: Return the global provider registry, creating it lazily o...
+- get_registry: Return the global provider registry, creating it lazily on first access.
 
 [POS]
 Global provider registry with lazy initialization of built-in providers.

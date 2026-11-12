@@ -18,7 +18,7 @@ Design choices:
 - SnapshotSkipReason: Enum — why a file change is not revertible.
 - FileSnapshot: class — File Snapshot (includes revertible metadata).
 - SnapshotStore: class — Snapshot Store (record + record_skipped).
-- SnapshotObserver: class — Snapshot Observer
+- SnapshotObserver: Captures pre-modification file content for undo support.
 - set_current_message_id: Captures pre-modification file content for undo support.
 - scoped_message_id: Binds the turn's message id for a ``with`` block and restores the previous binding.
 

@@ -18,7 +18,7 @@ Outbound:
 - channels.providers.slack.api::SlackClient (POS: HTTP/API layer)
 - channels.providers.slack.format_converter::neutralize_broadcast_mentions (POS: escapes the tokens that notify a whole audience)
 - channels.providers.slack.inbound::SlackInboundMixin (POS: Events API / interactive payload parsing)
-- channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::OutboundMessage (POS: message flowing from the system to an external channel)
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]

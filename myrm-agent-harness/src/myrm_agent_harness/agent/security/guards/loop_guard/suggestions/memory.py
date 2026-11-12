@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- suggest_memory_recall: Generate dynamic suggestion for memory_recall based on tr...
+- suggest_memory_recall: Generate dynamic suggestion for memory_recall based on tried parameters and errors.
 
 [POS]
 Memory tool suggestions for loop detection.

@@ -2,13 +2,13 @@
 - myrm_agent_harness.agent.context_management.strategies.summary.summarizer.budget::_build_budget_hint (POS: 摘要策略子包的一部分；由 __init__.py 聚合导出。)
 - myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard::_guard_aux_context (POS: 摘要策略子包的一部分；由 __init__.py 聚合导出。)
 - myrm_agent_harness.agent.context_management.strategies.summary.summarizer.invocation::_get_structured_llm_or_parser / _invoke_summary / _redact_summary_fields (POS: 摘要策略子包的一部分；由 __init__.py 聚合导出。)
-- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods)
-- myrm_agent_harness.utils.token_estimation::estimate_messages_tokens (POS: Token estimation infrastructure. Covers message-level tokens and bind-tools overhead for)
+- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods (step/success/error_detail) for project-wide log output.)
+- myrm_agent_harness.utils.token_estimation::estimate_messages_tokens (POS: Token estimation infrastructure. Covers message-level tokens and bind-tools overhead for context budget / compress / summarize decisions.)
 - myrm_agent_harness.agent.context_management.infra.schemas::StructuredSummary (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
-- myrm_agent_harness.agent.context_management.strategies.summary.exact_anchor::ExactAnchorTable (POS: Harness framework layer context management. Extracts verbatim machine symbols)
-- myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout::SummaryProgressTracker (POS: Progress-aware timeout primitives for summarization. Decouples timeout detection)
+- myrm_agent_harness.agent.context_management.strategies.summary.exact_anchor::ExactAnchorTable (POS: Harness framework layer context management. Extracts verbatim machine symbols (Git commit SHAs, file paths, fatal stack trace spans, code symbols, API routes) before context compaction.)
+- myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout::SummaryProgressTracker (POS: Progress-aware timeout primitives for summarization. Decouples timeout detection from LLM invocation, allowing watchdog coroutines to observe liveness without coupling to specific streaming implementations.)
 - myrm_agent_harness.agent.context_management.strategies.summary.summary_parser::format_messages_for_summary (POS: Summary parsing and message formatting utilities.)
-- myrm_agent_harness.agent.context_management.strategies.summary.summary_prompts::FOCUS_TOPIC_SUFFIX / SPLIT_TURN_PROMPT_SUFFIX / SUMMARY_MERGE_PROMPT_TEMPLATE / SUMMARY_PROMPT_TEMPLATE (POS: Summarization prompt templates. Defines structured JSON output format (with Handoff fields) and merge rules for `summari)
+- myrm_agent_harness.agent.context_management.strategies.summary.summary_prompts::FOCUS_TOPIC_SUFFIX / SPLIT_TURN_PROMPT_SUFFIX / SUMMARY_MERGE_PROMPT_TEMPLATE / SUMMARY_PROMPT_TEMPLATE (POS: Summarization prompt templates. Defines structured JSON output format (with Handoff fields) and merge rules for `summarizer/`.)
 
 [OUTPUT]
 - _summarize_full_with_audit: Generate a full summary with quality audit and retry.

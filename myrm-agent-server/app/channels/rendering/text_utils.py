@@ -1,13 +1,15 @@
 """Universal text processing utilities for channel formatting.
 
 [INPUT]
-- agent.streaming.reasoning_scrubber::THINKING_TAG_NAMES (POS: canonical thinking tag name set)
+- myrm_agent_harness.core.events::THINKING_TAG_NAMES (POS: canonical thinking tag name set)
 
 [OUTPUT]
 - extract_safe_regions(): Extract pattern matches outside code blocks
 - strip_thinking_tags(): Remove LLM thinking/reasoning tags from text
 - strip_orphan_citations(): Remove orphan citation markers when sources absent
-- downgrade_format(): Apply LaTeX/table/HTML downgrades based on RenderStyle
+- downgrade_content(): Apply LaTeX stripping and table downgrade on non-code-block text based on RenderStyle
+- downgrade_html_fences(): Replace HTML/SVG code fences with a short placeholder for IM channels
+- with_protected_code_blocks(): Run a text transform while code blocks stay untouched
 - md_to_plaintext(): Convert markdown to plain text based on RenderStyle
 
 [POS]

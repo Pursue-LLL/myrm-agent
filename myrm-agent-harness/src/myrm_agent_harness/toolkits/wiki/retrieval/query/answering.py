@@ -1,6 +1,6 @@
 """[INPUT]
 - .base::WikiQueryBase (POS: 共享状态)
-- wiki.core.types::WikiRetrievalSeedTrace / WikiRetrievalTrace / WikiRetrievalTraceIndexHit (POS: 检索追踪类型)
+- wiki.core.types::SourceSnippet / WikiIndexTraceHit / WikiRetrievalSeedTrace / WikiRetrievalTrace (POS: 检索追踪与来源片段类型)
 - wiki.pipeline.cognitive_map.index_routing::IndexRouteEntry (POS: index-first 路由)
 
 [OUTPUT]

@@ -1,10 +1,10 @@
-"""WeCom (WeCom) channel — bidirectional messaging via self-built application.
+"""WeCom (Enterprise WeChat) channel — bidirectional messaging via self-built application.
 
 Inbound: AES-CBC encrypted XML callback → decrypt → parse → emit.
 Outbound: message/send API (text/markdown/media).
 
 [INPUT]
-- channels.core.base::BaseChannel, (POS: Provides FileOperationObserver.)
+- channels.core.base::BaseChannel (POS: channel abstraction layer: every provider inherits it and the Gateway manages them uniformly through send and the on_inbound callback)
 - channels.providers.wecom.inbound::WeComInboundMixin (POS: webhook verification and encrypted callback handling)
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
@@ -58,7 +58,7 @@ _MAX_TEXT_LENGTH = 2048
 
 
 class WeComChannel(WeComInboundMixin, BaseChannel):
-    """WeCom (WeCom) self-built application channel.
+    """WeCom (Enterprise WeChat) self-built application channel.
 
     Supports AES-CBC encrypted webhook callbacks, multi-format outbound
     messages (text/markdown/image/voice/video/file), group chat with

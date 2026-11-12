@@ -4,8 +4,8 @@ Aggregates search results from multiple sources, orchestrates install flow.
 Implements SkillMarketBackend protocol.
 
 [INPUT]
-- backends.skills.market_protocols::SkillInstallResult, (POS: SkillBackend SkillBackend SkillMarketBackend)
-- backends.skills.scanning::ScanFinding, (POS: a single finding of a skill content security scan)
+- backends.skills.market_protocols::SkillInstallResult (POS: skill market backend protocol: the unified interface for searching and installing external skills)
+- backends.skills.scanning::ScanFinding (POS: a single finding of a skill content security scan)
 - .file_install::install_skill_files, resolve_install_error (POS: The one install path for an in-memory file tree, and the mapping of install errors to codes)
 - .file_uninstall::uninstall_skill (POS: The one uninstall path, with cascade removal of a plugin's child skills)
 - infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
@@ -13,7 +13,7 @@ Implements SkillMarketBackend protocol.
 [OUTPUT]
 - EnrichedSearchResult: Search result enriched with local installation info.
 - SkillPreviewResult: Preview result before installation (includes security scan).
-- BaseSkillMarketService: Aggregates skill sources for search deduplication and qua...
+- BaseSkillMarketService: Aggregates skill sources for search deduplication and quarantine-based install.
 
 [POS]
 Skill market service.

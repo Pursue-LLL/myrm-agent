@@ -3,7 +3,7 @@
 [INPUT]
 
 [OUTPUT]
-- LoginSessionStore: Temporary session storage (Protocol + InMemory)
+- LoginSessionStoreProtocol, InMemorySessionStore, LoginSessionData: Temporary login session storage (protocol, in-memory implementation and session record)
 - CredentialsStore: Encrypted persistent storage (file-based)
 - session_store / get_login_session_store: Process-wide login session singleton
 

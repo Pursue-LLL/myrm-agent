@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class ChunkFilter:
     """Document chunk filter
 
-    Uses BM25 + RRF for relevance pre-filtering of long document chunks, reducing irrelevant content。
+    Uses BM25 + RRF for relevance pre-filtering of long document chunks, reducing irrelevant content.
 
     Features:
     - Auto-identifies long documents (> 20000 chars)
@@ -188,15 +188,15 @@ async def create_document_chunks_from_crawl_results(
 ) -> list[Document]:
     """Create document chunks from crawl results, BM25 pre-filter long documents
 
-    Actually delegates to ChunkFilter。
+    Actually delegates to ChunkFilter.
 
     Args:
         success_results: Successfully crawled URL and document results
         queries: Query list, for BM25 pre-filtering
         long_doc_threshold: Long doc threshold (chars), triggers BM25 pre-filtering
         bm25_topk_ratio: BM25 filtering ratio, retains len(chunks) // bm25_topk_ratio chunks
-        max_retained_chunks: Maximum retained chunk count，Avoid excessive irrelevant chunks from long documents
-        min_retained_chunks: Minimum retained chunk count，Ensure each document has minimum info
+        max_retained_chunks: Maximum retained chunk count; avoids excessive irrelevant chunks from long documents
+        min_retained_chunks: Minimum retained chunk count; ensures each document keeps a minimum of information
 
     Returns:
         Document chunk list

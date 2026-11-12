@@ -1,7 +1,7 @@
 """Subagent event forwarding and progress tracking.
 
 [INPUT]
-- agent.types::AgentEventType (POS: Agent事件类型枚举)
+- agent.streaming.types::AgentEventType (POS: Agent事件类型枚举)
 - agent.sub_agents.types::SubagentBudgetExceededError, SubagentConfig (POS: 子Agent配置与异常类型)
 - utils.runtime.progress_sink (POS: 工具进度事件sink)
 - utils.logger_utils (POS: 日志工具)

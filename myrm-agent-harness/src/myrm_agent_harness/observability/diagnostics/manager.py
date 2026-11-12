@@ -4,8 +4,8 @@
 [OUTPUT]
 - DIAGNOSTIC_HOOK_TIMEOUT_S: Per-hook time limit; probes that fan out must finish inside it.
 - register_diagnostic: Register an async health-check hook function.
-- register_protocol: Register a class instance that implements ``DiagnosticPro...
-- run_all_diagnostics: Run all registered diagnostic hooks concurrently and retu...
+- register_protocol: Register a class instance that implements ``DiagnosticProtocol``.
+- run_all_diagnostics: Run all registered diagnostic hooks concurrently and return health reports.
 
 [POS]
 Provides register_diagnostic, register_protocol, run_all_diagnostics.

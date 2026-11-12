@@ -6,7 +6,7 @@
 - memory._internal.scope::{derive_namespaces, bind_scope, build_scope, apply_channel_affinity} (POS: namespace derivation and scope helpers)
 - memory._internal.search_service::MemorySearchService (POS: search-side orchestration for retrieval)
 - memory._internal.storage::{store_*, doc_to_*, count_by_type, ...} (POS: vector/schema storage operations)
-- memory._internal.write_service::MemoryWriteService (POS: write-side orchestration for persistence)
+- memory._internal.write_service::MemoryWriter (POS: write-side orchestration for persistence)
 - memory.config::MemoryConfig (POS: memory configuration and policy definitions)
 
 [OUTPUT]

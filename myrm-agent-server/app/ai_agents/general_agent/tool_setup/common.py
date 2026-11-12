@@ -1,7 +1,7 @@
 """[INPUT]
 - myrm_agent_harness.core.artifacts.constants::ArtifactType (POS: Artifact type mappings — framework-agnostic constants.)
 - myrm_agent_harness.core.artifacts.paths::resolve_workspace_downloads_dir (POS: Single source of truth for the on-disk layout of the artifact vault and of browser downloads under a task workspace root.)
-- myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation —)
+- myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
 - myrm_agent_harness.core.security.tool_registry::resolve_permission_type (POS: tool safety registry: the permission type a tool call is judged under)
 - myrm_agent_harness.toolkits.browser.session::DownloadConfig (POS: download settings of a browser session: where files go, how much, and the policy for downloads a page starts)
 

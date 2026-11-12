@@ -1,10 +1,10 @@
 """[INPUT]
-- app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Business-layer adapter connecting /background (/btw /bg) slash commands to the)
-- app.core.channel_bridge.btw_notifier::BtwTaskNotifier (POS: Business-layer ServerEventBus subscriber. Does NOT modify the Kanban pipeline,)
-- app.core.channel_bridge.goal_terminal_notifier::GoalTerminalNotifier (POS: Business-layer ServerEventBus subscriber. Mirrors BtwTaskNotifier pattern for)
-- app.core.channel_bridge.kanban_command_handler::ChannelKanbanCommandHandler (POS: Business-layer adapter connecting /kanban (/kb) slash commands to the)
+- app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Business-layer adapter connecting /background (/btw /bg) slash commands to the persistent Kanban task system.)
+- app.core.channel_bridge.btw_notifier::BtwTaskNotifier (POS: Business-layer ServerEventBus subscriber. Does NOT modify the Kanban pipeline, dispatcher callbacks, or NotificationDispatcher.)
+- app.core.channel_bridge.goal_terminal_notifier::GoalTerminalNotifier (POS: Business-layer ServerEventBus subscriber. Mirrors BtwTaskNotifier pattern for Goal lifecycle — does NOT modify the Goal pipeline, dispatcher, or harness layer.)
+- app.core.channel_bridge.kanban_command_handler::ChannelKanbanCommandHandler (POS: Business-layer adapter connecting /kanban (/kb) slash commands to the KanbanService.)
 - app.core.channel_bridge.webui_voice_work_notifier::WebuiVoiceWorkNotifier (POS: Server business layer. Closes the WebUI loop when BtwTaskNotifier skips web chats.)
-- app.core.notifications.dispatcher::NotificationDispatcher (POS: Decoupled notification layer. Does NOT modify pairing_store, SSE endpoint,)
+- app.core.notifications.dispatcher::NotificationDispatcher (POS: Decoupled notification layer. Does NOT modify pairing_store, SSE endpoint, or ServerEventBus — only adds a new subscriber alongside the existing SSE consumer.)
 - app.core.web_push.dispatcher::WebPushDispatcher (POS: Independent ServerEventBus subscriber. Does NOT modify dispatcher.py or btw_notifier.py.)
 
 [OUTPUT]

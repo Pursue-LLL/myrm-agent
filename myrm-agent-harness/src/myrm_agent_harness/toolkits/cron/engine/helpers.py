@@ -2,11 +2,11 @@
 - toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig (POS: Cron job domain types.)
 
 [OUTPUT]
-- resolve_stagger_ms: function — resolve_stagger_ms
+- resolve_stagger_ms: Compute the effective stagger delay for a job.
 - is_top_of_hour_cron: Return True if *expression* fires at minute-0 every hour.
-- compute_stagger_offset_s: Return the stagger upper-bound in seconds for a given sch...
-- is_within_active_hours: Return True if *now* falls within the active window, or i...
-- is_stale_run: Detect a zombie task whose execution was interrupted by a...
+- compute_stagger_offset_s: Return the stagger upper-bound in seconds for a given schedule.
+- is_within_active_hours: Return True if *now* falls within the active window, or if no window is set.
+- is_stale_run: Detect a zombie task whose execution was interrupted by an unclean shutdown.
 - auto_pause_notice: The notice for a pre-execution verdict that paused the job.
 
 [POS]

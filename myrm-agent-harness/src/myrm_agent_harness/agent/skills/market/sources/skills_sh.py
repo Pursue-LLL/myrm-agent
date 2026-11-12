@@ -4,7 +4,7 @@
 skills.sh 是 Vercel Labs 维护的开源技能注册表。
 
 [INPUT]
-- backends.skills.market_protocols::SkillSearchResult (POS: SkillBackend SkillBackend SkillMarketBackend)
+- backends.skills.market_protocols::SkillSearchResult (POS: skill market backend protocol: the unified interface for searching and installing external skills)
 
 [OUTPUT]
 - SkillsShSource: class — Skills Sh Source

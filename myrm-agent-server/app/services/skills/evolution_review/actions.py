@@ -2,9 +2,9 @@
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
 - .decision_lock::serialized_per_evolution (POS: Evolution 审核记录写入串行化)
-- .disk (POS: Evolution 落盘编排)
-- .persistence::load_approval_record, persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
-- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
+- .disk (POS: Evolution 落盘编排（content / approval 成功路径）。)
+- .persistence::load_approval_record, persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写（list/count 在 SQL 层应用 action_type、pending growth_status 与 LIMIT）。)
+- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）。)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 - myrm_agent_harness.backends.skills.scanning.scanner::scan_skill_content, compute_scan_summary (POS: 技能内容安全扫描)
 [OUTPUT]

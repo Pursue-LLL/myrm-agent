@@ -4,9 +4,9 @@
 - (none)
 
 [OUTPUT]
-- suggest_spawn_subagent: Generate dynamic suggestion for delegate_task with error ...
-- suggest_skill_select: Generate dynamic suggestion for skill_select_tool with er...
-- suggest_skill_search: Generate dynamic suggestion for discover_capability with er...
+- suggest_spawn_subagent: Generate dynamic suggestion for delegate_task with error analysis.
+- suggest_skill_select: Generate dynamic suggestion for skill_select_tool with error analysis.
+- suggest_skill_search: Generate dynamic suggestion for discover_capability with error analysis.
 
 [POS]
 Meta tool suggestions (subagent, skill) for loop detection.

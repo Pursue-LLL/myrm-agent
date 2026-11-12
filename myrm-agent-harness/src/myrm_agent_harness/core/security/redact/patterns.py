@@ -224,7 +224,7 @@ def _key_has_secret_keyword(key: str) -> bool:
     return any(_is_word_start(key, m.start()) and _is_word_end(key, m.end()) for m in _KEY_KEYWORD_RE.finditer(key))
 
 
-# ── Form-urlencoded body（`token=abc&limit=50&page=2`）──────────
+# ── Form-urlencoded body (`token=abc&limit=50&page=2`) ──────────
 # 保守判定：整段文本呈纯 k=v&k=v 且无换行才触发。逐对脱敏，只打码敏感 key 的 value，
 # 其余参数原样保留（杜绝 ENV 正则 `\S+` 贪婪吞参导致 `token=abc&li...ge=2` 泄漏）。
 _SENSITIVE_BODY_KEYS = frozenset(

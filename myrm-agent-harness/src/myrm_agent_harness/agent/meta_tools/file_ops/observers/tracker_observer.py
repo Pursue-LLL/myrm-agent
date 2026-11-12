@@ -3,7 +3,7 @@
 负责记录文件操作到 ArtifactTracker。
 
 [INPUT]
-- agent.context_management.tracking.artifact_tracker::ArtifactAction (POS: Artifact Trail  Agent  Factory Research)
+- agent.context_management.tracking.artifact_tracker::ArtifactAction (POS: artifact trail tracker; ArtifactAction names the file operation: created, modified, deleted or read)
 
 [OUTPUT]
 - TrackerObserver: class — Tracker Observer

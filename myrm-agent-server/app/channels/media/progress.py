@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - ProgressCallback: Protocol for progress callbacks during media download.
-- SimpleProgressCallback: Simple progress callback that only tracks progress percen...
+- SimpleProgressCallback: Simple progress callback that only tracks progress percentage.
 - LoggingProgressCallback: Production-ready logging progress callback.
 
 [POS]

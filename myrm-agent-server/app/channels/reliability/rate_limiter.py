@@ -7,7 +7,8 @@ Each channel gets its own bucket with platform-specific limits.
 (no external dependencies, pure asyncio implementation)
 
 [OUTPUT]
-- ChannelRateLimiter: Token bucket ratelimit
+- TokenBucket: Async token bucket, acquire() blocks until a token is available
+- create_limiter: TokenBucket tuned to the platform rate of a channel
 
 [POS]
 Per-channel outbound rate limiting. Prevents platform bans due to excessive send frequency.

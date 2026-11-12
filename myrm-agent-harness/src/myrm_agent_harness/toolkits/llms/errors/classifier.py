@@ -12,9 +12,9 @@ identify specific local/remote edge cases.
 
 [OUTPUT]
 - ErrorKind: Classified LLM error category.
-- classify_error: Classify an LLM exception into an ``ErrorKind`` using mul...
-- classify_failover_reason: Classify an LLM exception into a ``FailoverReason`` using...
-- is_quota_exhausted: Detect irreversible quota/credit exhaustion errors for instant failover...
+- classify_error: Classify an LLM exception into an ``ErrorKind`` using multi-probe pipeline.
+- classify_failover_reason: Classify an LLM exception into a ``FailoverReason`` using deep inspection.
+- is_quota_exhausted: Detect non-transient quota exhaustion or zero balance, which short transient retries cannot resolve.
 
 [POS]
 LLM error classifier for failover decisions.

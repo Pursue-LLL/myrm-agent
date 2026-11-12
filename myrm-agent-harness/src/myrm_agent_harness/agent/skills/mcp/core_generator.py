@@ -6,8 +6,8 @@ Implements:
 - Level 3: generate_tool_doc() — single tool documentation (on-demand)
 
 [INPUT]
-- backends.skills.types::MCPSkillData, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
-- toolkits.mcp::MCPAgent, (POS: MCP toolkit entry point. Aggregates client management, agent tool fetching, connection pooling, configuration, and security validation for unified MCP protocol support.)
+- backends.skills.types::MCPSkillData (POS: MCP-specific data of skills generated from MCP server configurations)
+- toolkits.mcp::MCPAgent (POS: MCP toolkit entry point. Aggregates client management, agent tool fetching, connection pooling, configuration, and security validation for unified MCP protocol support.)
 
 [OUTPUT]
 - MCPSkillGenerator: MCP service to skill generator with progressive disclosure.

@@ -6,7 +6,11 @@
 - myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
-- PetStore: list/install/remove installed pets for WebUI Companion
+- InstalledPet, PetStoreError: installed pet record and the error raised on install, IO or validation failures
+- pets_dir, list_installed_pets, load_pet: locate, list and load installed pets
+- install_pet, uninstall_pet: install a pet from the Petdex manifest, remove an installed pet
+- persist_atlas_report: write an atlas report into pet.json of an installed pet
+- spritesheet_media_type: media type of a pet spritesheet file
 
 [POS]
 Server persistence for GUI Petdex installs, without CLI coupling.

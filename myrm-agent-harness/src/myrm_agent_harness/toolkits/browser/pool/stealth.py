@@ -10,7 +10,7 @@ Delivered via enhancers.inject_route document-response injection for STEALTH con
 - (none)
 
 [OUTPUT]
-- get_stealth_script: Return the stealth JS script content (cached after first ...
+- get_stealth_script: Return the stealth JS script content (cached after first read).
 
 [POS]
 Stealth anti-detection script loader.

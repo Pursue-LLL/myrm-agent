@@ -1,5 +1,5 @@
 """[INPUT]
-- app.ai_agents.general_agent.external_agents::ExternalAgentsMixin (POS: 外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP 后端注册、)
+- app.ai_agents.general_agent.external_agents::ExternalAgentsMixin (POS: 外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP 后端注册、 本地模式自动检测（请求热路径使用 path-only 探测，版本探测留给设置态）， 以及绕过 LangChain 直接向前端流式转发外部 Agent 事件。)
 
 [OUTPUT]
 - ToolSetupBaseMixin: Mixin providing all tool initialization methods for GeneralAgent.

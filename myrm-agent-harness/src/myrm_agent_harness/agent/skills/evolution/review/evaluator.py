@@ -1,7 +1,7 @@
 """Heartbeat Evaluator for Skill Review Trigger.
 
 [INPUT]
-- myrm_agent_harness.agent.types::AgentRunStats (POS: Agent 运行统计)
+- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Agent logger factory)
 
 [OUTPUT]
 - HeartbeatEvaluator: 评估是否触发技能复盘的纯逻辑类

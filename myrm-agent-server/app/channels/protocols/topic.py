@@ -4,7 +4,7 @@ Business layer provides a concrete implementation that reads/writes per-topic
 configuration from the user's settings (e.g. UserConfig table).
 
 [INPUT]
-- channels.types::TopicContext (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::TopicContext (POS: per-topic configuration for forum-style thread routing)
 
 [OUTPUT]
 - TopicManager: Protocol for resolving, binding, unbinding, and syncing metadata for topic overrides

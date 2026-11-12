@@ -4,10 +4,10 @@ Provides a decoupling mechanism for the Harness framework to notify
 the Server layer when an asynchronous background subagent completes.
 
 [INPUT]
-- agent.sub_agents.types::SubAgentResult (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- agent.sub_agents.types::SubAgentResult (POS: structured result of a subagent run)
 
 [OUTPUT]
-- AsyncWakeupHandler: Protocol for handling asynchronous wakeup events from bac...
+- AsyncWakeupHandler: Protocol for handling asynchronous wakeup events from background subagents.
 - set_global_wakeup_handler: Register a global handler for async wakeup events.
 - get_global_wakeup_handler: Retrieve the registered global wakeup handler.
 - report_results_read: Tell the handler the parent agent read settled subagent results itself.

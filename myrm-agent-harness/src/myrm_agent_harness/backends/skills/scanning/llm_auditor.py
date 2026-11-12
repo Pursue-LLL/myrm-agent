@@ -1,14 +1,14 @@
 """LLM-based skill security auditor.
 
 [INPUT]
-- scanning.scanner::ScanResult, (POS: Skill content security scanner. Part of the framework's defense-in-depth. Trust attenuation is the hard limit (restricts tools), scanner is the soft detection layer (warns users and recommends trust levels). Detects the threat categories registered in ``scanning.patterns.ALL_PATTERN_GROUPS`` (injection, exfiltration, privilege escalation, destructive operations, ...) plus invisible unicode. Scan results influence SkillTrust level via SkillTrustRecommendation: Critical findings → REJECT High findings → UNTRUSTED Medium/Low findings → INSTALLED (normal install with attenuation) No findings → TRUSTED)
+- scanning.scanner::ScanResult (POS: Skill content security scanner. Part of the framework's defense-in-depth. Trust attenuation is the hard limit (restricts tools), scanner is the soft detection layer (warns users and recommends trust levels). Detects the threat categories registered in ``scanning.patterns.ALL_PATTERN_GROUPS`` (injection, exfiltration, privilege escalation, destructive operations, ...) plus invisible unicode. Scan results influence SkillTrust level via SkillTrustRecommendation: Critical findings → REJECT High findings → UNTRUSTED Medium/Low findings → INSTALLED (normal install with attenuation) No findings → TRUSTED)
 - langchain_core.language_models::BaseChatModel (LLM interface)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 - utils.json_parsing::parse_llm_json_object (POS: robust JSON object extraction from LLM output — fences, prose, bare control chars, trailing commas)
 
 [OUTPUT]
 - SkillLLMAuditor: LLM auditor that enhances static scan results
-- audit_skill_content(): run LLM audit and merge findings (only-escalate)
+- SkillLLMAuditor.audit(): run LLM audit and merge findings (only-escalate)
 
 [POS]
 Semantic-level threat detection layer. Catches threats that regex patterns

@@ -9,7 +9,7 @@ instead of raw internal errors.
 - channels.core.bus::MessageBus (POS: async message bus)
 - channels.core.outbound_media::discard_ephemeral_media (POS: temp attachment cleanup)
 - channels.core.outbound_prepare::prepare_outbound (POS: shared outbound preparation)
-- channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 - channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
 - channels.rendering.renderer::render, mark_rendered (POS: outbound message formatting pipeline; the stamp that a chunk is rendered)
 - channels.rendering.splitter::cap_stream_preview (POS: smart preview length cap for IM placeholders)

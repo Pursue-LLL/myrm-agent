@@ -9,7 +9,7 @@ Preset Policies:
 - STRICT_POLICY: All messages require mention (DMs and groups)
 
 [INPUT]
-- app.channels.types::InboundMessage (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- app.channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 
 [OUTPUT]
 - ChatPolicy: Policy for accepting messages from a specific chat type.

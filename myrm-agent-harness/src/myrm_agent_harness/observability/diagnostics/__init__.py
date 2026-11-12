@@ -1,8 +1,8 @@
 """Diagnostics module — framework-level self-inspection and health-check protocol.
 
 [INPUT]
-- protocol::HealthReport, (POS: Protocol contract.)
-- manager::run_all_diagnostics, (POS: Provides register_diagnostic, register_protocol, run_all_diagnostics.)
+- protocol::HealthReport (POS: Protocol contract.)
+- manager::run_all_diagnostics (POS: Provides register_diagnostic, register_protocol, run_all_diagnostics.)
 
 [OUTPUT]
 - HealthReport, HealthStatus, DiagnosticProtocol

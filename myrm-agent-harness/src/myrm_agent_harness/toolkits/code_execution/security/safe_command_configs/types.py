@@ -7,7 +7,7 @@ Pure type definitions — no logic, no dependencies.
 
 [OUTPUT]
 - FlagArgType: Expected argument type for a safe flag.
-- SubcommandConfig: Whitelist config for a specific command+subcommand combin...
+- SubcommandConfig: Whitelist config for a specific command+subcommand combination.
 
 [POS]
 Safe subcommand configuration types.

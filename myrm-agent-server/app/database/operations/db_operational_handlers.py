@@ -1,7 +1,7 @@
 """FastAPI handlers for database operational errors (SQLite busy/lock).
 
 [INPUT]
-- app.database.operations.sqlite_storage_busy::is_sqlite_storage_busy (POS: SQLite 忙/锁异常识别)
+- app.database.operations.sqlite_storage_busy::is_sqlite_storage_busy (POS: SQLite 忙/锁异常识别与 Retry-After 计算。)
 - app.schemas.responses::BusinessCode, create_error_response (POS: 统一 API 响应格式定义)
 
 [OUTPUT]

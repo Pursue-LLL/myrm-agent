@@ -5,9 +5,9 @@ Supports protocol injection for platform-specific logic (signature verification,
 
 [INPUT]
 - fastapi::Request (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
-- security.protocols::SignatureVerifier, (POS: Protocols for Skill Optimization Subsystem)
-- security.context::WebhookContext (POS: Provides ArtifactContext, ArtifactContextManager, get_artifact_context.)
-- security.errors::WebhookResponseError (POS: Storage quota related errors.)
+- security.protocols::SignatureVerifier (POS: Protocols for Skill Optimization Subsystem)
+- security.context::WebhookContext (POS: request context layer: typed dataclasses holding the validated request data and the verification results, with trace_id and degradation event tracking)
+- security.errors::WebhookResponseError (POS: webhook error response layer: RFC 7807 standardized error format that never leaks sensitive data)
 
 [OUTPUT]
 - WebhookSecurityMiddleware: Unified security middleware

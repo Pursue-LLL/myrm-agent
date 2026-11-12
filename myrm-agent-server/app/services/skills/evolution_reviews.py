@@ -1,9 +1,9 @@
 """
 [INPUT]
-- app.services.skills.evolution_review.types (POS: Evolution 审核域类型)
-- app.services.skills.evolution_review.queries (POS: Evolution 审核记录创建、只读查询与运行时失败计数更新)
+- app.services.skills.evolution_review.types (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）。)
+- app.services.skills.evolution_review.queries (POS: Evolution 审核记录创建、只读查询与运行时失败计数更新（ApprovalRecord 为事实源）。)
 - app.services.skills.evolution_review.actions (POS: Evolution 审核写操作)
-- app.services.skills.evolution_review.disk_content (POS: Evolution 全量内容更新落盘与回滚)
+- app.services.skills.evolution_review.disk_content (POS: Evolution 全量内容更新落盘与回滚（含 Copy-on-Write fork）。)
 [OUTPUT]
 - Public evolution review lifecycle API (类型 + 查询 + 写操作 + 提案基线与磁盘比对，统一 re-export)
 [POS]

@@ -1,7 +1,7 @@
 """Compact command handler protocol — business-layer injection for /compact.
 
 [INPUT]
-- channels.types::InboundMessage (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 
 [OUTPUT]
 - CompactHandler: Protocol for /compact command implementation

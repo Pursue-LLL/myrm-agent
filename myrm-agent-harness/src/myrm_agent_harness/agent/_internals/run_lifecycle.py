@@ -5,18 +5,17 @@ run-end cleanup (ContextVar resets, token stats collection), and
 post-processing event emission.
 
 [INPUT]
-- agent.streaming.types::ContextBudgetSnapshot (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
-- agent.types::AgentRunStatistics, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- agent.types::AgentRunStatistics (POS: statistics of one agent run: duration, tool and node counts, token usage, cost, completion status)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - toolkits.code_execution.workspace.storage_root_bind (POS: ContextVar binding for aggregate workspace filesystem roots during a single agent Task.)
-- utils.runtime.steering::SteeringToken (POS: Steering  Agent  Agent)
+- utils.runtime.steering::SteeringToken (POS: steering token: injects a message while the agent runs to interrupt the current tool chain)
 - _internals.message_end_event::build_message_end_event (POS: MESSAGE_END 事件负载)
 
 [OUTPUT]
 - setup_workspace: Create workspace under host ``workspaces_storage_root``, bind executor, set context vars. The storage-root ContextVar undo token is stashed in a ContextVar (not in ``merged_context``) so checkpoints/msgpack never serialize it.
-- cleanup_run: Run-end cleanup: cancel children, reset context vars, col...
+- cleanup_run: Run-end cleanup: cancel children, reset context vars, collect stats.
 - _init_pseudonym_store: Initialize the context-local PseudonymStore and regex PII closure when the active PrivacyPolicy requires one (``needs_pseudonym_store``); consumed by skill-agent session-end privacy re-establishment.
-- compute_context_budget_snapshot: Compute a lightweight context budget snapshot from token ...
+- collect_tracker_stats: Extract token usage and cost from the current TokenTracker into the run statistics.
 - post_run_events: Yield post-processing events: artifacts, FILE_MUTATION_FAILED, and MESSAGE_END (payload assembly lives in ``message_end_event``).
 
 [POS]

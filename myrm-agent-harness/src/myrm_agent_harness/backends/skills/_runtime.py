@@ -5,6 +5,7 @@
 - types::SkillMetadata, SkillTrust (POS: 技能元数据类型和信任枚举)
 - _utils::SkillFrontmatter (POS: 解析后的 frontmatter 数据)
 - _content_memo::ContentMemo (POS: 按内容摘要寻址的有界缓存)
+- scanning::compute_scan_summary, scan_skill_content (POS: Skill content security scanning subsystem.)
 
 [OUTPUT]
 - build_skill_metadata(): 构建完整 SkillMetadata 的工厂函数（含 token 预算超制钳位）
@@ -12,7 +13,6 @@
 - check_requirements(): 基于 frontmatter 对进程环境检查技能依赖
 - compute_content_hash(): 计算内容 SHA-256 哈希
 - read_skill_md(): 读取磁盘上的 SKILL.md 文本（无法解码的字节被替换，读不到返回 None）
-- scan_skill_content(): 技能内容安全扫描（软检测）
 
 [POS]
 Skill runtime builder. Constructs runtime metadata from static frontmatter data and runtime-computed results.

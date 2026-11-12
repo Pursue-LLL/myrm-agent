@@ -51,8 +51,8 @@ Consumers:
 - CommandThreat: A single security threat detected in a shell command.
 - analyze_hidden_characters: Layer 1 alone (control and invisible characters), valid for shell and Python text.
 - analyze_command: Analyze a shell command for security threats.
-- has_block_threat: Quick check: return the first BLOCK-level threat, or None...
-- has_escalate_threat: Quick check: return the first ESCALATE-level threat, or N...
+- has_block_threat: Quick check: return the first BLOCK-level threat, or None if clean.
+- has_escalate_threat: Quick check: return the first ESCALATE-level threat, or None if clean.
 
 [POS]
 Shell Command Analyzer — unified security analysis for shell commands.

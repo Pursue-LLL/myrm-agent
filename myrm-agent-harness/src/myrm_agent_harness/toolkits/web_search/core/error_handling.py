@@ -6,7 +6,7 @@
 [OUTPUT]
 - is_quota_or_rate_limit_error: Quota / rate-limit detection (chain hop + non-retryable)
 - is_persistent_quota_depleted_error: Detect persistent account quota exhaustion vs transient rate limits
-- is_retryable_search_error: function — is_retryable_search_error
+- is_retryable_search_error: Return True when a failed search attempt may succeed after backoff.
 - build_search_error_context: Build structured context for a single failed search attempt.
 
 [POS]

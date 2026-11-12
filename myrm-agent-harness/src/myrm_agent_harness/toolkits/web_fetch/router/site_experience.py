@@ -1,9 +1,9 @@
-"""Site experience store——prompt-layer domain-level learning
+"""Site experience store — prompt-layer domain-level learning
 
 Responsibilities:
-- Stores site experiences accumulated by the Agent during browser operations（platform characteristics, URL rules, pitfalls, success flows）
-- Cross-validates experience validity with DomainMetrics（code-layer learning validates prompt-layer experience）
-- Auto-injection mechanism：BrowserSession.navigate() provides key experience at navigation time
+- Stores site experiences accumulated by the Agent during browser operations (platform characteristics, URL rules, pitfalls, success flows)
+- Cross-validates experience validity with DomainMetrics (code-layer learning validates prompt-layer experience)
+- Auto-injection mechanism: BrowserSession.navigate() provides key experience at navigation time
 
 Architecture:
 - Independent from DomainMetrics storage (very different update frequencies: DomainMetrics per-request vs SiteExperience occasional)
@@ -20,7 +20,7 @@ Architecture:
 - get_global_site_experience_store: Get global site experience store (singleton)
 
 [POS]
-Site experience store——prompt-layer domain-level learning
+Site experience store — prompt-layer domain-level learning
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ class SiteExperience:
     def format_for_injection(self, possibly_stale: bool = False) -> str:
         """Format as injection text (concise, for tool return value)
 
-        Only includes the most useful known_traps and successful_flows at execution time。
+        Only includes the most useful known_traps and successful_flows at execution time.
         """
         parts: list[str] = [f"[Site experience for {self.domain}]"]
 
@@ -232,7 +232,7 @@ class SiteExperienceStore:
 
         Args:
             domain: Domain
-            domain_metrics_manager: DomainMetricsManager（For cross-validation, optional）
+            domain_metrics_manager: DomainMetricsManager (for cross-validation, optional)
 
         Returns:
             (experience, possibly_stale)
@@ -257,8 +257,8 @@ class SiteExperienceStore:
     ) -> bool:
         """Cross-validation: check DomainMetrics recent failure count within 24h to determine if experience may be stale
 
-        Uses recent failure count (24h window) instead of global success rate，
-        Because global success rate is diluted by historical successes, masking recent consecutive failures。
+        Uses recent failure count (24h window) instead of global success rate,
+        because global success rate is diluted by historical successes, masking recent consecutive failures.
         """
         if domain_metrics_manager is None:
             return False

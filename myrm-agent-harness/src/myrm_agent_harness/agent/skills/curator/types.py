@@ -2,7 +2,7 @@
 
 [INPUT]
 - backends.skills.types::SkillLifecycleStatus (POS: 技能生命周期状态枚举)
-- backends.skills.forgetting_strategy::ForgettingReason (POS: Skill forgetting / curator strategies)
+- backends.skills.forgetting_strategy::ForgettingReason (POS: Skill forgetting / curator strategies to prevent skill accumulation.)
 
 [OUTPUT]
 - CuratorTransition: Single skill lifecycle transition record.

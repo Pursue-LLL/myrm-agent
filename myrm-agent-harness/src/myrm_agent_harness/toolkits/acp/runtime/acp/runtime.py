@@ -13,7 +13,7 @@ and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 
 [OUTPUT]
-- AcpRuntime: RuntimeBackend implementation using the ACP protocol (std...
+- AcpRuntime: RuntimeBackend implementation using the ACP protocol (stdin/stdout JSON-RPC).
 
 [POS]
 ACP protocol runtime backend. Sends `session/close` only when the agent advertises it (ACP capability

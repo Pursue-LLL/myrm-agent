@@ -6,11 +6,11 @@ Reusable flag dictionaries shared across git subcommand configs.
 - (none)
 
 [OUTPUT]
-- reflog_positional_dangerous: Block `git reflog expire/delete/exists` — only `show` and...
+- reflog_positional_dangerous: Block `git reflog expire/delete/exists` — only `show` and ref names are safe.
 - tag_positional_dangerous: Block `git tag <name>` (creation) unless -l/--list was seen.
-- branch_positional_dangerous: Block `git branch <name>` (creation) unless --list/-l was...
-- remote_positional_dangerous: Block bare positionals after `git remote` — only -v/--ver...
-- remote_show_positional_dangerous: Allow exactly one alphanumeric remote name after `git rem...
+- branch_positional_dangerous: Block `git branch <name>` (creation) unless --list/-l was seen.
+- remote_positional_dangerous: Block bare positionals after `git remote` — only -v/--verbose is safe.
+- remote_show_positional_dangerous: Allow exactly one alphanumeric remote name after `git remote show`.
 
 [POS]
 Git shared flag groups and positional-arg danger callbacks.

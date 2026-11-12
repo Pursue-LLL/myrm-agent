@@ -2716,7 +2716,7 @@
       "navigate": "Navigate",
       "select": "Select",
       "dismiss": "Dismiss",
-      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / @chat:title (prior chat) / file:10-20 (line range)",
+      "specialReferencesHint": "Try: @staged (staged changes) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / @chat:title (prior chat) / file:10-20 (line range)",
       "removeReference": "Remove {label}",
       "agentsCategory": "Agents",
       "contextCategory": "Context",

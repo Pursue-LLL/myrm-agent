@@ -1,6 +1,6 @@
 """[INPUT]
-- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods)
-- myrm_agent_harness.utils.token_estimation::estimate_messages_tokens (POS: Token estimation infrastructure. Covers message-level tokens and bind-tools overhead for)
+- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods (step/success/error_detail) for project-wide log output.)
+- myrm_agent_harness.utils.token_estimation::estimate_messages_tokens (POS: Token estimation infrastructure. Covers message-level tokens and bind-tools overhead for context budget / compress / summarize decisions.)
 - myrm_agent_harness.agent.context_management.infra.schemas::StructuredSummary (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
 - myrm_agent_harness.agent.context_management.strategies.summary.summary_builder::create_summary_message (POS: Message reconstruction after summarisation.)
 

@@ -3,7 +3,7 @@
 Provides unified exception handling for executors, reducing boilerplate.
 
 [INPUT]
-- toolkits.code_execution.executors.base::ExecutionContext, (POS: Code executor base classes.)
+- toolkits.code_execution.executors.base::ExecutionContext (POS: Code executor base classes.)
 
 [OUTPUT]
 - handle_execution_error: Decorator for unified execution error handling.

@@ -3,7 +3,7 @@
 [INPUT]
 - common::mark_untrusted (POS: unified browser output security boundary; credential redaction + untrusted-content wrapping)
 - tools.download_actions::describe_downloads_since (POS: agent-facing text of the download actions)
-- utils.errors::ToolError (POS: Storage quota related errors.)
+- utils.errors::ToolError (POS: framework-level error handling: ToolError implements the format_for_llm protocol, ModelOutputValidator reports structured model-output errors)
 
 [OUTPUT]
 - create_navigate_tool: Create browser_navigate tool bound to session; successful navigate returns `{content, metadata:{sources:[{url,title,source_key}]}}` for SourceTracker.

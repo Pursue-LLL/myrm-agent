@@ -3,7 +3,7 @@
 [INPUT]
 - agent.artifacts.vault::ArtifactVault, VAULT_PREFIX (POS: Shared Artifact Vault, vault:// pointer protocol)
 - ..core.operation_context::ViewRange (POS: View line range for partial reads)
-- ..core.file_read.truncation::truncate_file_output (POS: Truncation utilities shared by file_read handlers)
+- ..core.file_read.truncation::truncate_file_output (POS: Truncation utilities shared by file_read handlers and vault batch reads.)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace root resolution)
 

@@ -9,7 +9,6 @@ All functions are stateless and have no side effects, making them easy to test.
 - build_blocks: OutboundMessage → Slack Block Kit actions blocks.
 - build_message_blocks: message body + its actions blocks (the body must be a block: with blocks present Slack shows only blocks).
 - verify_slack_signature: Verify Slack request signature (HMAC-SHA256).
-- parse_message_event: raw event dict → InboundMessage | None.
 - parse_block_action: Parse a Slack block_actions payload into structured fields.
 - strip_mention: Remove <@BOT_ID> mention from message text.
 - parse_media_attachments: Extract MediaAttachment list from a Slack message event.

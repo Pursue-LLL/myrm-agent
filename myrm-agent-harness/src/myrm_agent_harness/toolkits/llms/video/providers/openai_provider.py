@@ -8,7 +8,7 @@ Uses the submit → poll → download pattern.
 - core.security.http.secure_fetch::secure_request / ContentTooLargeError (POS: SSRF-protected content download with size cap)
 
 [OUTPUT]
-- OpenAISoraProvider: class — Open A I Sora Provider
+- OpenAISoraProvider: OpenAI Sora video generation provider.
 
 [POS]
 OpenAI Sora video generation provider.

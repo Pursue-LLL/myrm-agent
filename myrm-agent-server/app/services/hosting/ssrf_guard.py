@@ -6,7 +6,8 @@
 - socket (POS: DNS resolution for pinned IP validation)
 
 [OUTPUT]
-- assert_safe_webhook_url: raise on disallowed host/IP targets
+- validate_webhook_url: validates that a webhook URL is safe for server-side egress, raising SSRFValidationError on disallowed host/IP targets
+- SSRFValidationError: raised when a webhook URL fails SSRF validation
 """
 
 from __future__ import annotations

@@ -7,8 +7,8 @@ Falls back to lexicographic comparison for non-semver strings.
 - (none)
 
 [OUTPUT]
-- VersionDelta: Result of comparing a local version against a remote vers...
-- compare_versions: Compare two version strings and determine if an update is...
+- VersionDelta: Result of comparing a local version against a remote version.
+- compare_versions: Compare two version strings and determine if an update is available.
 
 [POS]
 Skill version comparison utilities.

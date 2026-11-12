@@ -11,8 +11,7 @@ and enforce Hard Stop Line protection.
 - workspace_path: Optional workspace base path.
 
 [OUTPUT]
-- is_destructive_action: True if command constitutes an irreversible destructive operation.
-- evaluate_blast_radius: Structured estimate of impacted files, scopes, and risk factors.
+- analyze_destructive_action: Multi-vector check for irreversible destructive operations, returns a DestructiveAnalysisResult.
 - DestructiveAnalysisResult: Detailed analysis output including reason and blast radius.
 
 [POS]

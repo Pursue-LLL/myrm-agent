@@ -11,7 +11,7 @@ Heals the scheduler state after an unclean shutdown:
 All recovery logic is encapsulated here; the scheduler only calls ``run()``.
 
 [INPUT]
-- toolkits.cron.types::CronJob, (POS: Cron job domain types.)
+- toolkits.cron.types::CronJob (POS: Cron job domain types.)
 - toolkits.cron.protocols::CronStore (POS: Protocols for the cron toolkit.)
 
 [OUTPUT]

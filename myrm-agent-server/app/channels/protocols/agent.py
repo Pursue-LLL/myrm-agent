@@ -4,18 +4,19 @@ Business layer provides a concrete implementation that creates and runs
 an Agent with the user's configuration.
 
 [INPUT]
-- channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
-- utils.cancellation::CancellationToken (POS: Agent  ContextVar  BaseAgent)
+- channels.types::InboundMessage (POS: message flowing from an external channel into the system)
+- utils.runtime.cancellation::CancellationToken (POS: request-level cancellation token for cooperative async cancellation)
 
 [OUTPUT]
 - AgentExecutor: Agent execution protocol (streaming AsyncGenerator, supports cancel token)
 
 [POS]
 Agent execution protocol for Channel inbound messages. Framework AgentRouter delegates
-inbound messages to business-layer Agents via this protocol. execute_stream returns
-AsyncGenerator yielding ProgressUpdate (progress), StreamingText (reply text so far) and
-OutboundMessage (final result).
-External cancellation (e.g. user /stop command)。
+inbound messages to business-layer Agents via this protocol. execute_stream returns an
+AsyncGenerator yielding ProgressUpdate (progress), StreamingText (reply text so far),
+FissionTopologyUpdate (subagent topology) and OutboundMessage (final result).
+Supports cooperative cancellation (e.g. the user's /stop command) through ``cancel_token``
+and mid-run steering (e.g. /steer) through ``steering_token``.
 """
 
 from __future__ import annotations

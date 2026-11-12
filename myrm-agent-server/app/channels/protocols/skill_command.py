@@ -1,7 +1,7 @@
 """Skill command handler protocol — business-layer injection for /skill commands.
 
 [INPUT]
-- channels.types::InboundMessage (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::InboundMessage (POS: message flowing from an external channel into the system)
 
 [OUTPUT]
 - SkillCommandHandler: Protocol for resolving and invoking skill-bound slash commands

@@ -3,7 +3,7 @@
 Validates regex patterns to prevent ReDoS (Regular Expression Denial of Service) attacks.
 
 [INPUT]
-- utils.errors::ToolError (POS: Storage quota related errors.)
+- utils.errors::ToolError (POS: framework-level error handling: ToolError implements the format_for_llm protocol, ModelOutputValidator reports structured model-output errors)
 - agent.config::FileIOConfig (POS: Agent configuration and type definitions. Pure data structures with no business logic dependencies.)
 
 [OUTPUT]

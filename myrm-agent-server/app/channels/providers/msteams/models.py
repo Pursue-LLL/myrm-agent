@@ -10,7 +10,7 @@ All fields are optional with defaults to handle partial payloads gracefully.
 [OUTPUT]
 - ActivityFrom: The ``from`` field in a Bot Framework activity.
 - ActivityConversation: The ``conversation`` field in a Bot Framework activity.
-- ActivityMentioned: The ``mentioned`` object inside an entity of type ``menti...
+- ActivityMentioned: The ``mentioned`` object inside an entity of type ``mention``.
 - ActivityEntity: An entity within a Bot Framework activity.
 - ActivityAttachment: An attachment within a Bot Framework activity.
 

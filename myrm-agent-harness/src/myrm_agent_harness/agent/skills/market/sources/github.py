@@ -4,7 +4,7 @@
 同时提供 parse_github_url() 用于智能解析各种 GitHub URL 格式。
 
 [INPUT]
-- backends.skills.market_protocols::SkillSearchResult (POS: SkillBackend SkillBackend SkillMarketBackend)
+- backends.skills.market_protocols::SkillSearchResult (POS: skill market backend protocol: the unified interface for searching and installing external skills)
 
 [OUTPUT]
 - GitHubSkillSource: class — Git Hub Skill Source

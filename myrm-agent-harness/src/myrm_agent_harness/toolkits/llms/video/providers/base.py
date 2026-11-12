@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- ModelInfo: Metadata for a model supported by a video generation prov...
+- ModelInfo: Metadata for a model supported by a video generation provider.
 - ProviderOutput: Return type for VideoGenerationProvider.generate().
 - VideoGenerationProvider: Abstract base class for a video generation provider.
 - ProviderRegistry: Thread-safe registry for video generation providers.

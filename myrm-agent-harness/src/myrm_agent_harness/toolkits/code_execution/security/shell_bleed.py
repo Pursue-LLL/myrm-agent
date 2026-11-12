@@ -11,9 +11,9 @@ LLM-generated script files and log the warnings.
 - (none)
 
 [OUTPUT]
-- ShellBleedWarning: A detected environment variable reference that may leak s...
-- scan_content_for_env_leaks: Scan text content for references to suspicious environmen...
-- scan_file_for_env_leaks: Scan a script file for suspicious environment variable re...
+- ShellBleedWarning: A detected environment variable reference that may leak secrets.
+- scan_content_for_env_leaks: Scan text content for references to suspicious environment variables.
+- scan_file_for_env_leaks: Scan a script file for suspicious environment variable references.
 
 [POS]
 Shell bleed detection — scan scripts for sensitive environment variable references.

@@ -7,13 +7,14 @@ All functions are side-effect-free and easily testable.
 - app.channels.types::InboundMessage, MediaAttachment (POS: Channel domain types.)
 
 [OUTPUT]
-- parse_event: QQ event → InboundMessage
 - sanitize_urls: Replace dots in URL domains with fullwidth period for group messages
 - qq_file_type: Determine QQ rich media file_type from MediaAttachment
 - is_supported_event: Check if event type is supported
 - is_group_event: Check if event is from a group
 - parse_sender_id: Extract sender ID from event
 - parse_attachments: Parse media attachments from event
+- build_message_url: Build the API URL for sending a message
+- build_media_upload_url: Build the API URL for uploading media
 
 [POS]
 app.channels.providers.qq.helpers — Pure helper functions for QQ channel.

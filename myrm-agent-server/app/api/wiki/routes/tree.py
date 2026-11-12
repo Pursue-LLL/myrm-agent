@@ -1,9 +1,9 @@
 """[INPUT]
-- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.archiver_dependency::get_scoped_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault files use ``app.services.wiki.vault.get_wiki_structure`` instead, so no compile worker is ever built without a model.)
 - app.api.wiki.routes::vault_effects (POS: Wiki API route submodules.)
 - app.api.wiki.routes.response_mappers::_claims_to_response_items / _editor_sections_to_response / _str_or_none (POS: 把服务层结果转换成 API 响应模型；只做转换，不读写磁盘、不发请求。)
 - app.api.wiki.routes.schemas::ConceptBacklinkItem / ConceptLinkItem / ConceptLinksResponse / ConceptListResponse / ConceptResponse / CreateFolderRequest / MoveNodeRequest / OperationResult / TreeNode (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
-- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian / source_sync / clip / knowledge_pack) live under this package and expose their own facades.)
 
 [OUTPUT]
 - list_concepts: List or search concept names with pagination.

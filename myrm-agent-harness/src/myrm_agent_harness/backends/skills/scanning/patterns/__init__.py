@@ -7,7 +7,7 @@
 - myrm_agent_harness.backends.skills.scanning.patterns.types::PatternList (POS: patterns 子包共用类型；避免每个模式模块重复导入 scanner。)
 
 [OUTPUT]
-- annotations
+- ALL_PATTERN_GROUPS: (category name, pattern list) pairs in registry order, consumed by the scanner
 - CREDENTIAL_PATTERNS
 - EXFILTRATION_PATTERNS
 - PROMPT_SECRET_EXFILTRATION_PATTERNS
@@ -35,7 +35,6 @@
 - SCHEDULED_TASK_PATTERNS
 - SCREEN_INPUT_PATTERNS
 - SUPPLY_CHAIN_PATTERNS
-- PatternList
 
 [POS]
 `...scanning.patterns` 的唯一入口；模式按威胁类别放在子模块，registry 顺序保持不变。

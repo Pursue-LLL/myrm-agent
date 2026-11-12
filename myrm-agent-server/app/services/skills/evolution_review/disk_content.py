@@ -1,6 +1,6 @@
 """
 [INPUT]
-- .types::EvolutionApprovalPayload, EvolutionApplyError (POS: Evolution 审核域类型)
+- .types::EvolutionApprovalPayload, EvolutionApplyError (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）。)
 - myrm_agent_harness.api.skills::parse_skill_frontmatter, compute_content_hash, read_skill_md (POS: SKILL.md frontmatter parser the skill loader uses; line-ending-insensitive content hash; the SKILL.md text at a path, the one the evolution engine reads)
 - myrm_agent_harness.infra.atomic_write::atomic_write (POS: crash-safe file replace)
 [OUTPUT]

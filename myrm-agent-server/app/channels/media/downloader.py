@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - MediaDownloadResult: Result of a media download operation.
-- MediaDownloader: Async media downloader with streaming, validation, retry,...
+- MediaDownloader: Async media downloader with streaming, validation, retry, cache, and metrics.
 
 [POS]
 Core media downloader with streaming, retry, cache, and metrics.

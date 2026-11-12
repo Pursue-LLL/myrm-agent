@@ -5,10 +5,10 @@ auto-reconnect on failure. Eliminates duplicated backoff logic across
 7+ channel providers.
 
 [INPUT]
-- app.channels.types::ChannelStatus (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- app.channels.types::ChannelStatus (POS: runtime status of a channel instance)
 
 [OUTPUT]
-- reconnect_loop: Run *connect_fn* in a loop, reconnecting with exponential...
+- reconnect_loop: Run *connect_fn* in a loop, reconnecting with exponential backoff on failure.
 
 [POS]
 Reconnect loop with exponential backoff + jitter for long-lived connections.

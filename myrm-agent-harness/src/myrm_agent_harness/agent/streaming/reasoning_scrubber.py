@@ -1,10 +1,10 @@
 """推理文本清洗器 — 拦截并重定向模型泄漏的思考标签
 [INPUT]
-- agent.streaming.types::AgentEventType (POS: 提供 AgentEventType.REASONING 和 MESSAGE)
+- core.events.types::AgentEventType (POS: 提供 AgentEventType.REASONING 和 MESSAGE)
+- core.events::THINKING_TAG_NAMES (POS: 所有已知 thinking 标签名集合)
 
 [OUTPUT]
 - ReasoningScrubber: 状态机，用于在流式管道中剥离 thinking 标签并重定向为 REASONING 事件。
-- THINKING_TAG_NAMES: 所有已知 thinking 标签名集合，供渲染层 strip_thinking_tags 复用。
 
 [POS]
 流式清洗器。处理非标准模型泄漏在普通 content 流中的思考过程标签，将其跨 Chunk 无损转化为独立事件。

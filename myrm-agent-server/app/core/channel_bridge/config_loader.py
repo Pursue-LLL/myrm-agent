@@ -26,7 +26,7 @@ config updates so load_user_configs returns fresh data.
 - UserConfigs: typed config bundle (model/search/retrieval/MCP/voice/security/external_agents + search_is_user_configured flag)
 - load_user_configs: async loader with TTL cache (auto-registers custom pricing, renews due subscription tokens and injects them as provider keys before model resolution)
 - load_voice_config_only: lightweight voice-only loader (no model/provider dependency)
-- invalidate_user_configs_cache: 配置变更后调用以清除缓存
+- load_user_config_entry: loads a single decrypted UserConfig entry by key
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure (POS: Wiki file system abstraction layer. Manages Karpathy architecture standard directory layout)
+- myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure (POS: Wiki file system abstraction layer. Manages Karpathy architecture standard directory layout (raw/, wiki/, concepts/, index/), providing path generation, file listing, filename sanitization, and other file system operations.)
 - myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::RawPublishResult / RawConflictPolicy / RawGateError / RawPublishRequest / publish_raw (POS: Raw Gate 原始材料发布门禁入口。提供原子写入、冲突策略、安全前检以及关联证据遗忘。)
-- app.services.wiki.dedup_runner::schedule_wiki_dedup_scan (POS: Server SSOT bridging POST /wiki/dedup/* and router cron __wiki_dedup__ commands. Scans, listings and hygiene work on the)
+- app.services.wiki.dedup_runner::schedule_wiki_dedup_scan (POS: Server SSOT bridging POST /wiki/dedup/* and router cron __wiki_dedup__ commands. Scans, listings and hygiene work on the vault files alone, and scans of one vault run one at a time.)
 
 [OUTPUT]
 - _schedule_post_import_dedup_scan: _schedule_post_import_dedup_scan

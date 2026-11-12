@@ -4,7 +4,7 @@
 - app.services.agent.profile.profile_resolver (POS: Agent profile resolution service.)
 
 [OUTPUT]
-- resolve_runner_profile: Resolves agent profile for task execution.
+- resolve_agent_profile: Resolves agent profile for task execution.
 
 [POS]
 Agent profile resolution: maps task agent_id to model, system prompt, tools, and skills.

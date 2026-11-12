@@ -6,7 +6,6 @@
 [OUTPUT]
 - build_incremental_prompt: 构建增量合并提示词
 - build_full_refresh_prompt: 构建全量刷新提示词
-- build_section_reminders: 构建超限 section 提醒
 
 [POS]
 Session Notes LLM prompt templates. Supports incremental merge (new messages + current notes) and full refresh (complete context + current notes) modes.

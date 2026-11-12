@@ -8,7 +8,6 @@ Reuses the existing ``ManagedBrowser`` (Patchright) infrastructure.
 
 [INPUT]
 - session::BrowserSession (POS: multi-tab browser session manager)
-- session::ElementRef (POS: element reference with frame context)
 - domain_filter::DomainAllowlist (POS: immutable domain allowlist matcher)
 - session_vault::SessionVault (POS: AES-256-GCM encrypted session storage)
 - session_vault::SessionEntry (POS: immutable session record)
@@ -19,7 +18,6 @@ Reuses the existing ``ManagedBrowser`` (Patchright) infrastructure.
 
 [OUTPUT]
 - BrowserSession: multi-tab browser session manager (re-export)
-- ElementRef: element reference with frame context (re-export)
 - DomainAllowlist: immutable domain allowlist matcher (re-export)
 - SessionVault: AES-256-GCM encrypted session storage (re-export)
 - SessionEntry: immutable session record (re-export)

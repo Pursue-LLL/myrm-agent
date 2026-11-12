@@ -1,7 +1,7 @@
 """Eval Case Loader — load test cases from JSON files.
 
 [INPUT]
-- protocol::EvalCase, (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
+- protocols::EvalCase (POS: eval framework type system; all agent interaction goes through the AgentExecutor protocol the caller injects)
 
 [OUTPUT]
 - load_cases(): single-turn case loader

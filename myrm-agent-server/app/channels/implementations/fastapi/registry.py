@@ -7,7 +7,7 @@ managing lifecycle, observability, and health reporting.
 - fastapi::FastAPI (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
 - app.channels.core.gateway::ChannelGateway (POS: Channel system entry point. Manages all channel lifecycles, health checks, and error isolation. Supports outbound-only mode (push only) and bidirectional mode (push + receive + agent processing).)
 - app.channels.protocols.route_registrar::RouteSecurityPolicy (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
-- app.channels.protocols.rate_limiter::RateLimiterProtocol, (POS: Per-User Rate Limiter for Skill Optimization)
+- app.channels.protocols.rate_limiter::RateLimiterProtocol (POS: Per-User Rate Limiter for Skill Optimization)
 - app.channels.implementations.fastapi.registrar::FastAPIRouteRegistrar (POS: Framework-layer implementation of route registration for FastAPI. Enforces security policies, applies middleware, and manages route lifecycle. Business layer injects authentication dependency via auth_dependency parameter.)
 
 [OUTPUT]

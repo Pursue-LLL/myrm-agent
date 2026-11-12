@@ -1,7 +1,7 @@
 """Local and self-hosted search service discovery.
 
 [INPUT]
-- probe.constants (POS: Canonical SearXNG URLs and region presets)
+- probe.constants (POS: Canonical SearXNG URLs and region presets for local/self-hosted search discovery.)
 - probe.local_probe (POS: HTTP probes for SearXNG endpoints)
 
 [OUTPUT]

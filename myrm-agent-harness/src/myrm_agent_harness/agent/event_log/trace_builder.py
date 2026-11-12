@@ -14,7 +14,7 @@ and single-purpose:
 [INPUT]
 - event_log.protocols::EventLogBackend (POS: Protocol contract)
 - event_log.types::StructuredEvent, EventFilter (POS: Single source of truth for event log data structures)
-- event_log.trace_types::ExecutionTrace, (POS: Read-side aggregation types.  Constructed by trace_builder from raw events.)
+- event_log.trace_types::ExecutionTrace (POS: Read-side aggregation types.  Constructed by trace_builder from raw events.)
 
 [OUTPUT]
 - build_trace: construct ExecutionTrace from a single session

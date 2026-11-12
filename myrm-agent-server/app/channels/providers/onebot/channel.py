@@ -2,7 +2,7 @@
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
-- channels.types.messages::InboundMessage, (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
+- channels.types.messages::InboundMessage (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
 - channels.types.status::ChannelCapabilities (POS: Channel status and diagnostic type definitions. Used for Gateway health checks, issue collection, and capability negotiation.)
 - channels.providers.onebot.helpers::parse_onebot_message, build_onebot_message (POS: OneBot message converters)
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)

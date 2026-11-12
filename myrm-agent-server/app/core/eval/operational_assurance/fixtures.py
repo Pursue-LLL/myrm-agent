@@ -5,7 +5,6 @@
 
 [OUTPUT]
 - build_operational_assurance_cases(): builds the 6 standard multi-turn resilience cases
-- get_operational_assurance_seed_workspaces(): provisions mock workspace seeds for sandbox tests
 
 [POS]
 Defines deterministic, self-contained test scenarios across 6 enterprise operational domains:

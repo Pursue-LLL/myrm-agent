@@ -4,7 +4,7 @@
 - app.core.storage paths and uploaded file metadata (POS: media upload storage)
 
 [OUTPUT]
-- read_media_file_bytes: load bytes for vision/media pipelines
+- read_uploaded_media_file_content: loads the bytes of an uploaded media file by file id (None when missing or unreadable)
 
 [POS]
 Server-side media byte loader shared by vision fallback and attachment flows.

@@ -4,7 +4,7 @@ Provides tools for testing channels' register_routes() implementations
 without requiring a real web framework.
 
 [INPUT]
-- channels.protocols.route_registrar::RouteDefinition, (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
+- channels.protocols.route_registrar::RouteDefinition (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
 
 [OUTPUT]
 - MockRouteRegistrar: Mock registrar for testing

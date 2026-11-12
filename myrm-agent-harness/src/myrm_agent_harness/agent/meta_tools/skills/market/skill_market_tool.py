@@ -11,7 +11,7 @@ user_id is extracted at runtime from RunnableConfig context (framework pattern),
 keeping the tool layer free from business concepts.
 
 [INPUT]
-- backends.skills.market_protocols::SkillMarketBackend, (POS: SkillBackend SkillBackend SkillMarketBackend)
+- backends.skills.market_protocols::SkillMarketBackend (POS: skill market backend protocol: the unified interface for searching and installing external skills)
 
 [OUTPUT]
 - create_skill_market_tool: Create the skill market tool (LLM name: skill_market_tool).

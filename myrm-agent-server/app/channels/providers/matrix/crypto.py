@@ -7,7 +7,8 @@
 [OUTPUT]
 - check_e2ee_deps: Check if mautrix E2EE dependencies are available
 - setup_e2ee: Initialize OlmMachine and attach to mautrix Client
-- create_crypto_state_store: StateStore adapter for OlmMachine
+- cleanup_e2ee: Close crypto database on shutdown
+- CryptoStateStore: StateStore adapter for OlmMachine
 
 [POS]
 E2EE initialization for Matrix channel. Sets up OlmMachine with SQLite-backed

@@ -5,7 +5,7 @@
 - Database session for Agent profile lookup
 
 [OUTPUT]
-- ProfileAuditResult: score, risk_level, findings
+- audit_agent_profile: endpoint handler running the deterministic audit of an Agent profile (score, risk_level, findings)
 
 [POS]
 Server-side endpoint that collects Agent Profile data from DB, assembles

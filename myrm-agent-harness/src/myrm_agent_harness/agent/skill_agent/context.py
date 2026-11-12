@@ -3,7 +3,7 @@
 [INPUT]
 - skills::SkillMetadata (POS: Skill metadata type)
 - toolkits.memory.manager::MemoryManager (POS: Memory manager)
-- toolkits.storage.base::StorageProvider (POS: Storage provider)
+- toolkits.storage.base::StorageProvider (POS: Storage provider abstract base class.)
 
 [OUTPUT]
 - ContextVar getters/setters for storage_backend, memory_manager, task_intent

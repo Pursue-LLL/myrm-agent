@@ -1,7 +1,7 @@
 """Event log type definitions — zero-dependency pure types.
 
 [INPUT]
-- agent.types::AgentEventType (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- agent.streaming.types::AgentEventType (POS: event type enum for streaming agent responses)
 
 [OUTPUT]
 - StructuredEvent: immutable event record

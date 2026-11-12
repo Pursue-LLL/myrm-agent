@@ -7,7 +7,7 @@ are properly closed and reopened across chunk boundaries.
 - channels.types::LengthUnit (POS: the unit a channel's text limit is counted in)
 
 [OUTPUT]
-- split_message(): str → list[str]（Message chunk list; join-preserving line iteration; limit counted in characters or UTF-8 bytes）
+- split_message(): str → list[str] (message chunk list; join-preserving line iteration; limit counted in characters or UTF-8 bytes)
 - cap_stream_preview(): cap streaming placeholder preview to channel max length, in the same unit
 - BOUNDARY_CHARS / CJK_BOUNDARY_CHARS: shared smart-split punctuation sets
 

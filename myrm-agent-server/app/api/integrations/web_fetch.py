@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.web_fetch.providers.firecrawl::FirecrawlEscalationProvider (POS: Firecrawl remote fetch)
-- app.services.web_fetch.providers.jina::JinaEscalationProvider (POS: Jina Reader remote fetch)
+- app.services.web_fetch.providers.jina::JinaEscalationProvider (POS: Jina Reader remote fetch provider implementing FetchEscalationProvider protocol.)
 
 [OUTPUT]
 - verify_web_fetch_escalation: POST /verify endpoint for credential verification.

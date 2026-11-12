@@ -1,9 +1,9 @@
 """[INPUT]
 - myrm_agent_harness.agent.streaming.citation_audit::audit_citation_markers / resolve_source_count_for_audit (POS: Shared streaming helper; used by server persistence.)
 - myrm_agent_harness.toolkits.code_execution.executors.models::scrub_sensitive_info (POS: Data models for code execution.)
-- myrm_agent_harness.utils.text_sanitizer::sanitize_llm_output (POS: LLM streaming output sanitizer. Four-layer filtering ensures clean, garble-free text for user display;)
-- app.core.agent.stop_reason::merge_stop_reason (POS: The chat stream collector (services), the cron runner (core) and the Runs Hub (api) all store and read the)
-- app.services.agent.streaming_support.evicted_output::BASH_EXECUTE_TOOL / attach_evicted_to_step / find_step_for_evicted (POS: Stateless helpers for stream_collector. Evicted output arrives as its own event, before or after the tool step it)
+- myrm_agent_harness.utils.text_sanitizer::sanitize_llm_output (POS: LLM streaming output sanitizer. Four-layer filtering ensures clean, garble-free text for user display; layer 4 alone is exposed for user-authored text, where tags are content rather than protocol leakage.)
+- app.core.agent.stop_reason::merge_stop_reason (POS: The chat stream collector (services), the cron runner (core) and the Runs Hub (api) all store and read the same ``stopReason`` shape; this is the one definition they share.)
+- app.services.agent.streaming_support.evicted_output::BASH_EXECUTE_TOOL / attach_evicted_to_step / find_step_for_evicted (POS: Stateless helpers for stream_collector. Evicted output arrives as its own event, before or after the tool step it belongs to, so the collector holds it until a step accepts it.)
 - app.services.agent.streaming_support.stream_collector.base::StreamCollectorBase (POS: handlers 与 state 两个 mixin 共用的实例属性类型，集中一处避免重复注解。)
 - app.services.agent.streaming_support.stream_collector.constants::_MAX_REASONING_CHARS (POS: handlers / state / core 共用的限制与事件映射。)
 

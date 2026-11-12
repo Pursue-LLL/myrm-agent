@@ -9,7 +9,7 @@ Layering:  KeyPoolLLM (key rotation) → ManagedLLM (model failover)
 
 [INPUT]
 - core.credential_pool::CredentialPool (POS: Framework-level credential scheduling and rotation)
-- errors.classifier::ErrorKind, classify_error (POS: LLM error classifier)
+- errors.classifier::ErrorKind, classify_error (POS: LLM error classifier for failover decisions.)
 - errors.exceptions::EgressChallengeBlockedError (POS: Standardized LLM exceptions for the Harness framework)
 - errors.provider_window::extract_provider_window (POS: provider-stated retry boundary for key cooldown)
 

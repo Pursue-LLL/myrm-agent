@@ -4,7 +4,7 @@ Pure functions for HTML entity decoding, mention tag stripping,
 quote context extraction, message key encoding, and Adaptive Card building.
 
 [INPUT]
-- channels.types.components::ActionButton, (POS: UI component type definitions Cross-channel interactive component abstractions  Support in)
+- channels.types.components::ActionButton (POS: cross-channel interactive component types: buttons, quick replies, select menus)
 
 [OUTPUT]
 - decode_html_entities, strip_mention_tags, html_to_plain

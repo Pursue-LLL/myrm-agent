@@ -11,7 +11,7 @@
 - ToolRegistry: register → resolve / snapshot pipeline
 
 [POS]
-Replaces scattered ``_deduplicate_tools()`` + ``sort_tools()`` in BaseAgent/SkillAgent.
+Single registry for the tools one build cycle binds: accumulates them from every source, de-duplicates them by source priority and orders them by layer.
 Orchestration signals (Verifier) are **not** registered here — see ``agent/orchestration/``.
 """
 

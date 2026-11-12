@@ -1,11 +1,9 @@
 """[INPUT]
-- app.api.wiki.routes.imports.folder_zip::folder_zip_router (POS: Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。)
-- app.api.wiki.routes.imports.obsidian::obsidian_router (POS: Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。)
+- app.api.wiki.routes.imports.folder_zip::router (POS: Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。)
+- app.api.wiki.routes.imports.obsidian::router (POS: Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。)
 
 [OUTPUT]
-- APIRouter
-- folder_zip_router
-- obsidian_router
+- router: APIRouter that mounts the folder/zip and Obsidian import routes
 
 [POS]
 Wiki 批量导入路由聚合出口。

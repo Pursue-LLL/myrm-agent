@@ -8,7 +8,6 @@
 - memory._internal.write_builders::MemoryBuildersMixin (POS: constructors of the convenience writes)
 - memory.agent_surface.transient_fact_boundary::filter_transient_business_memories (POS: L3 write gate for transient business facts)
 - memory.strategies.chat_fence::{DELETED_CHAT_REJECTION, derives_from_deleted_chat, keep_live} (POS: refusal of writes derived from a deleted chat)
-- memory.strategies.deduplicator::Deduplicator (POS: three-layer dedup: hash→vector→LLM)
 
 [OUTPUT]
 - MemoryWriter: Write-side orchestrator (scan, transient business fact L3 write gate, deleted-chat fence, approval routing, explicit/inferred write gates, batch dedup, persistence)

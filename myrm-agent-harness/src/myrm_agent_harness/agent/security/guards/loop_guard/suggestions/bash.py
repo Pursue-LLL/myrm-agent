@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- suggest_bash: Generate dynamic suggestion for bash_code_execute_tool wi...
+- suggest_bash: Generate dynamic suggestion for bash_code_execute_tool with error analysis.
 
 [POS]
 Bash tool suggestions for loop detection.

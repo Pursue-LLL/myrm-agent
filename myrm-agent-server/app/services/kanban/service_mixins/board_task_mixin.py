@@ -11,7 +11,7 @@
 - service_mixins.core (POS: KanbanService core state.)
 
 [OUTPUT]
-- KanbanServiceBoardTaskMixin: Mixin providing board/task mutation methods.
+- KanbanBoardTaskMixin: Mixin providing board/task mutation methods.
 
 [POS]
 Board and task mutation mixin: create, update, delete, move, reclaim, approve/reject, retry, and dependency ops.

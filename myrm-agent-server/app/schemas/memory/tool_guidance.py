@@ -6,8 +6,9 @@
 [OUTPUT]
 - ToolGuidanceItemDTO: Data transfer object for individual tool guidance rule
 - ToolGuidanceGroupDTO: Data transfer object grouping synthesized guidelines and items by tool
-- ToolGuidanceResponseDTO: Top-level API response DTO for tool guidance listing
-- ToolGuidancePinRequestDTO: Request DTO for pinning/unpinning a tool rule
+- ToolGuidanceListResponse: Top-level API response for tool guidance listing
+- PinGuidanceRequest: Request for pinning/unpinning a tool rule
+- PinGuidanceResponse: Response with the rule id and its pinned state
 
 [POS]
 Tool memory governance schema layer. Defines HTTP request and response DTOs

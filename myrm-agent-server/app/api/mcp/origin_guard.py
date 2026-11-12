@@ -6,8 +6,10 @@
 - starlette.responses::JSONResponse
 
 [OUTPUT]
-- McpOriginValidationMiddleware: ASGI middleware validating Origin & Host headers
-- validate_mcp_request_origin: standalone helper function
+- OriginGuard: security configuration for HTTP MCP Origin and Host validation
+- resolve_origin_guard: builds the OriginGuard for an HTTP server bound to a host
+- GuardVerdict: result of the origin and host evaluation
+- check_request_origin: validates the Origin and Host headers of a request against the OriginGuard
 
 [POS]
 Protects local Streamable HTTP / SSE MCP endpoints from DNS-rebinding attacks

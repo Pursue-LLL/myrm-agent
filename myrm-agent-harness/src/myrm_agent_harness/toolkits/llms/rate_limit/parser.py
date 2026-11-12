@@ -1,7 +1,7 @@
 """Rate Limit Header Parser.
 
 [INPUT]
-- .types::RateLimitBucket, RateLimitState (POS: Data structures)
+- .types::RateLimitBucket, RateLimitState (POS: Data structures for proactive rate limit tracking.)
 
 [OUTPUT]
 - parse_rate_limit_headers: Parses HTTP headers into RateLimitState.

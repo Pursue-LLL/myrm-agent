@@ -35,7 +35,7 @@ Compression strategy:
 - Fallback: auto degrade to uncompressed on failure
 
 [INPUT]
-- agent.context_management.infra.schemas::ContextCompressOffloadCallback, (POS: Planner Schema Definitions)
+- agent.context_management.infra.schemas::ContextCompressOffloadCallback (POS: Planner Schema Definitions)
 - runtime.quota.errors::QuotaExceededError (POS: Storage quota related errors.)
 - runtime.quota.protocols::StorageQuotaChecker (POS: Storage quota checking protocol.)
 - runtime.context.cleanup_ops::* (POS: Runtime context cleanup operations. Owns session directory cleanup and orphan cleanup entrypoints.)
@@ -43,8 +43,8 @@ Compression strategy:
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 
 [OUTPUT]
-- create_context_snapshot_callback: Build async callback: serialize full messages to gzip-com...
-- create_compress_offload_callback: Build async callback: write full tool content before comp...
+- create_context_snapshot_callback: Build async callback: serialize full messages to gzip-compressed JSONL before compaction.
+- create_compress_offload_callback: Build async callback: write full tool content before compaction, return workspace-relative path.
 - cleanup_session_context_files: re-export session context cleanup.
 - cleanup_orphan_context_files_async: re-export orphan cleanup that honours recorded reads.
 - cleanup_orphan_context_files: re-export local orphan cleanup.

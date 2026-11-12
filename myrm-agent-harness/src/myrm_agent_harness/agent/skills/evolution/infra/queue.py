@@ -3,7 +3,7 @@
 Defers non-critical evolutions to a background asyncio.Queue to avoid blocking the main flow.
 
 [INPUT]
-- agent.skills.evolution.core.types::EvolutionRequest, (POS: Data types for skill evolution system.)
+- agent.skills.evolution.core.types::EvolutionRequest (POS: Data types for skill evolution system.)
 
 [OUTPUT]
 - QueuePriority: Evolution queue priority levels.
