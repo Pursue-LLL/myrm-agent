@@ -8,14 +8,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHROME_AGENT_CLI="${SCRIPT_DIR}/chrome-agent/myrm-chrome-agent.sh"
+# shellcheck source=lib/chrome_agent_cli.sh
+source "${SCRIPT_DIR}/lib/chrome_agent_cli.sh"
 CHROME_E2E_CLI="${SCRIPT_DIR}/chrome-e2e/myrm-chrome-e2e.sh"
 
 BOLD='\033[1m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
 NC='\033[0m'
 
 cmd_status() {
@@ -53,11 +52,12 @@ cmd_status() {
 }
 
 cmd_stop() {
+  local agent_cli
   echo "Stopping all Myrm browser instances and background daemons..."
 
-  # Stop Agent LaunchAgent
-  if [[ -f "${CHROME_AGENT_CLI}" ]]; then
-    bash "${CHROME_AGENT_CLI}" stop >/dev/null 2>&1 || true
+  # Stop Agent LaunchAgent (the rest still stops when the CLI is missing; the lookup says so on stderr)
+  if agent_cli="$(chrome_agent_cli)"; then
+    "${agent_cli}" stop >/dev/null 2>&1 || true
   fi
 
   # Stop E2E stack (orchestrator + cdmcp + ChromeE2E)
@@ -79,9 +79,9 @@ cmd_stop() {
 cmd_open() {
   echo "Launching visible foreground browser window..."
   export MYRM_CHROME_AGENT_FOREGROUND=1
-  if [[ -f "${CHROME_AGENT_CLI}" ]]; then
-    bash "${CHROME_AGENT_CLI}" install >/dev/null 2>&1 || true
-  fi
+  local agent_cli
+  agent_cli="$(chrome_agent_cli)" || exit 1
+  "${agent_cli}" install >/dev/null 2>&1 || true
   if [[ "$(uname -s)" == "Darwin" ]]; then
     osascript -e 'tell application "Google Chrome" to activate' 2>/dev/null || true
   fi
