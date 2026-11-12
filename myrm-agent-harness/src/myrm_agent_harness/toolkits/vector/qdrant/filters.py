@@ -12,6 +12,7 @@ Qdrant filter builder. Converts generic dict filter syntax to Qdrant SDK Filter 
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Mapping
 from datetime import datetime
@@ -56,13 +57,20 @@ def _is_datetime_range(range_dict: Mapping[str, object]) -> bool:
     return any(_is_datetime_value(range_dict.get(k, 0)) for k in ("gt", "gte", "lt", "lte"))
 
 
+def _require_finite(key: str, value: object) -> None:
+    """Reject NaN/inf before they reach Qdrant, which cannot represent them in a filter."""
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError(f"Filter '{key}' has a non-finite value: {value}")
+
+
 def build_qdrant_filter(filters: FilterDict | None) -> Filter | None:
     """Build Qdrant filter from dict.
 
     Supported syntax:
     - Simple match: ``{"key": "value"}``
+    - Float match: ``{"key": 0.5}`` (an inclusive point range; NaN/inf raise ``ValueError``)
     - IN query: ``{"key": ["val1", "val2"]}``
-    - Numeric range: ``{"key": {"gte": 0, "lte": 100}}``
+    - Numeric range: ``{"key": {"gte": 0, "lte": 100}}`` (NaN/inf bounds raise ``ValueError``)
     - Datetime range: ``{"key": {"gte": "2026-01-01T00:00:00", "lte": "2026-12-31T..."}}``
     - NOT query: ``{"key": {"not": "value"}}``
     - Point ID queries (``id`` targets the Qdrant point id, not a payload field):
@@ -130,6 +138,8 @@ def build_qdrant_filter(filters: FilterDict | None) -> Filter | None:
                         )
                     )
                 else:
+                    for bound in ("gt", "gte", "lt", "lte"):
+                        _require_finite(key, value.get(bound))
                     conditions.append(
                         FieldCondition(
                             key=key,
@@ -143,6 +153,11 @@ def build_qdrant_filter(filters: FilterDict | None) -> Filter | None:
                     )
         elif isinstance(value, list):
             conditions.append(FieldCondition(key=key, match=MatchAny(any=value)))
+        elif isinstance(value, float) and key != "id":
+            # MatchValue only accepts str/int/bool, so float equality is an inclusive point range.
+            # A float point id has no valid meaning and keeps failing fast in MatchValue below.
+            _require_finite(key, value)
+            conditions.append(FieldCondition(key=key, range=Range(gte=value, lte=value)))
         else:
             conditions.append(
                 FieldCondition(key=key, match=MatchValue(value=value))  # type: ignore[arg-type]

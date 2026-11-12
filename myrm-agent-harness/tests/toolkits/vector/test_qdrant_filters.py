@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from myrm_agent_harness.toolkits.vector.qdrant.filters import build_qdrant_filter, point_id_for
 
 
@@ -60,6 +62,40 @@ def test_build_qdrant_filter_range():
     assert isinstance(f.must[0].range, Range)
     assert f.must[0].range.gte == 0
     assert f.must[0].range.lte == 100
+
+
+def test_build_qdrant_filter_float_equality_is_point_range():
+    from qdrant_client.models import Range
+
+    f = build_qdrant_filter({"importance": 0.5})
+    assert len(f.must) == 1
+    assert f.must[0].key == "importance"
+    assert f.must[0].match is None
+    assert isinstance(f.must[0].range, Range)
+    assert f.must[0].range.gte == 0.5
+    assert f.must[0].range.lte == 0.5
+
+
+def test_build_qdrant_filter_int_and_bool_still_use_match_value():
+    from qdrant_client.models import MatchValue
+
+    f = build_qdrant_filter({"count": 3, "archived": False})
+    assert [c.key for c in f.must] == ["count", "archived"]
+    assert all(isinstance(c.match, MatchValue) for c in f.must)
+    assert f.must[0].match.value == 3
+    assert f.must[1].match.value is False
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_build_qdrant_filter_rejects_non_finite_float_equality(bad):
+    with pytest.raises(ValueError, match="non-finite"):
+        build_qdrant_filter({"importance": bad})
+
+
+@pytest.mark.parametrize("bound", ["gt", "gte", "lt", "lte"])
+def test_build_qdrant_filter_rejects_non_finite_range_bound(bound):
+    with pytest.raises(ValueError, match="non-finite"):
+        build_qdrant_filter({"importance": {bound: float("nan")}})
 
 
 def test_build_qdrant_filter_datetime_range():
@@ -170,8 +206,8 @@ def test_build_qdrant_filter_id_empty_in_narrows_to_zero():
 
 def test_build_qdrant_filter_id_float_none_fail_fast():
     # float/None are outside the FilterDict value contract for point ids; they
-    # fall through to MatchValue and raise at construction time (same behavior
-    # as for any other payload field — a pre-existing generic fail-fast path).
+    # fall through to MatchValue and raise at construction time. The float-as-range
+    # rewrite applies to payload fields only.
     import pytest
     from pydantic import ValidationError
 
