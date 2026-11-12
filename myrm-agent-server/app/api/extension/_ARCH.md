@@ -15,11 +15,12 @@
 ## 依赖
 
 - `app.services.extension.bridge::get_extension_bridge`
+- `app.core.security.client_address::client_ip` — 配对消费限流的客户端地址
 - `app.services.extension.clip` — clip agent UserConfig get/set
 - `app.config.settings` — `extension_auth_token`
 - `app.config.deploy_mode` — `is_webui_remote_mode`（remote 模式 token 强制）
 - `setup-hints` / `status` 返回：`auth_token_configured`、`auth_token_required`、`cdp_endpoint_discovered`、**`relay_cdp_ready`**、**`access_policy_valid`**
 - `GET/PUT /extension/access-policy` — allow-all、authorized domains、paused tab ids；PUT 推送至已连接扩展
 - `POST /extension/pairing` — 返回 `code`、`http_base`、`consume_url`、`ws_url`
-- `POST /extension/pairing/consume` — 一次性配对消费（首选）；`GET /extension/pairing/{code}` — 兼容路径
+- `POST /extension/pairing/consume` — 一次性配对消费（首选）；`GET /extension/pairing/{code}` — 兼容路径；两者按 `app.core.security.client_address::client_ip` 取客户端地址做限流，不读 `X-Forwarded-For`
 - `/extension/domains` 返回结构化策略告警（如 wildcard 隐式包含根域）

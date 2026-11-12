@@ -456,17 +456,12 @@ class TestReplayAttacks:
 
 @pytest.mark.asyncio
 class TestIPSpoofing:
-    """Test IP spoofing prevention."""
+    """The client address is the peer the server resolved; forwarded headers a visitor writes change nothing."""
 
-    async def test_untrusted_proxy_xff_ignored(self):
-        """X-Forwarded-For from untrusted proxy should be ignored."""
-        ip_policy = IpPolicy(
-            blocked_ips=["1.2.3.4"],
-            trusted_proxies=["10.0.0.0/8"],
-        )
-        middleware = WebhookSecurityMiddleware(ip_policy=ip_policy)
+    async def test_forwarded_header_cannot_hide_a_blocked_peer(self):
+        """A blocked peer stays blocked however it fills X-Forwarded-For."""
+        middleware = WebhookSecurityMiddleware(ip_policy=IpPolicy(blocked_ips=["1.2.3.4"]))
 
-        # Attacker tries to spoof IP via X-Forwarded-For
         request = MockRequest(
             body=b"test",
             headers={
@@ -483,55 +478,52 @@ class TestIPSpoofing:
         assert err.status_code == 403
         assert err.error_type == "ip-blocked"
 
-    async def test_trusted_proxy_xff_honored(self):
-        """X-Forwarded-For from trusted proxy should be honored."""
-        ip_policy = IpPolicy(
-            blocked_ips=["1.2.3.4"],
-            trusted_proxies=["10.0.0.0/8"],
-        )
-        middleware = WebhookSecurityMiddleware(ip_policy=ip_policy)
+    async def test_forwarded_header_cannot_frame_a_clean_peer(self):
+        """A blocked address written into the forwarded headers does not block a peer that is not listed."""
+        middleware = WebhookSecurityMiddleware(ip_policy=IpPolicy(blocked_ips=["1.2.3.4"]))
 
-        # Request from trusted proxy with XFF
         request = MockRequest(
-            body=b"test",
+            body=b'{"test": "data"}',
             headers={
-                "X-Forwarded-For": "1.2.3.4",  # Blocked IP in XFF
+                "X-Forwarded-For": "1.2.3.4",
+                "X-Real-IP": "1.2.3.4",
                 "Content-Type": "application/json",
             },
-            client_host="10.0.0.1",  # Trusted proxy
+            client_host="198.51.100.7",
         )
 
-        with pytest.raises(WebhookResponseError) as exc_info:
-            await middleware.process_request(request, "test")
+        ctx = await middleware.process_request(request, "test")
+        assert ctx.client_ip == "198.51.100.7"
 
-        err = exc_info.value
-        assert err.status_code == 403
-        assert err.error_type == "ip-blocked"
-
-    async def test_xff_chain_leftmost_extracted(self):
-        """Leftmost IP in X-Forwarded-For chain should be extracted."""
-        ip_policy = IpPolicy(
-            blocked_ips=["203.0.113.45"],
-            trusted_proxies=["10.0.0.0/8"],
-        )
-        middleware = WebhookSecurityMiddleware(ip_policy=ip_policy)
-
-        # XFF chain: client -> proxy1 -> proxy2
-        request = MockRequest(
-            body=b"test",
-            headers={
-                "X-Forwarded-For": "203.0.113.45, 192.168.1.1, 10.0.0.2",
-                "Content-Type": "application/json",
-            },
-            client_host="10.0.0.1",  # Trusted proxy
+    async def test_forwarded_header_cannot_borrow_an_allowlisted_address(self):
+        """An allowlisted address written into X-Forwarded-For does not exempt the peer from rate limiting."""
+        from app.channels.reliability.inbound_limiter import (
+            MemoryInboundLimiter,
         )
 
-        with pytest.raises(WebhookResponseError) as exc_info:
-            await middleware.process_request(request, "test")
+        middleware = WebhookSecurityMiddleware(
+            limits=SecurityLimits(rate_limit_per_minute=2),
+            ip_policy=IpPolicy(allowed_ips=["203.0.113.0/24"]),
+            rate_limiter=MemoryInboundLimiter(),
+        )
 
-        err = exc_info.value
-        assert err.status_code == 403
-        assert err.error_type == "ip-blocked"
+        rejected = 0
+        for _i in range(5):
+            request = MockRequest(
+                body=b"test",
+                headers={
+                    "X-Forwarded-For": "203.0.113.45",  # Allowlisted IP
+                    "Content-Type": "application/json",
+                },
+                client_host="1.2.3.4",  # Real peer is not allowlisted
+            )
+            try:
+                await middleware.process_request(request, "test")
+            except WebhookResponseError as e:
+                if e.status_code == 429:
+                    rejected += 1
+
+        assert rejected >= 2
 
 
 @pytest.mark.asyncio

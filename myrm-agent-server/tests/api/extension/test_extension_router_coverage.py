@@ -10,7 +10,6 @@ import pytest
 from app.api.extension.router import (
     _build_extension_ws_url,
     _consume_pairing_or_404,
-    _pairing_client_key,
     consume_extension_pairing_get,
     consume_extension_pairing_post,
     create_extension_pairing,
@@ -86,19 +85,6 @@ def test_build_extension_ws_url_http() -> None:
     assert _build_extension_ws_url(request) == "ws://127.0.0.1:8080/api/v1/ws/extension"
 
 
-def test_pairing_client_key_prefers_forwarded() -> None:
-    request = _request(forwarded="203.0.113.9, 10.0.0.1")
-    assert _pairing_client_key(request) == "203.0.113.9"
-
-
-def test_pairing_client_key_falls_back_to_client_host() -> None:
-    assert _pairing_client_key(_request()) == "1.2.3.4"
-
-
-def test_pairing_client_key_unknown() -> None:
-    assert _pairing_client_key(_request(client_host=None)) == "unknown"
-
-
 def test_consume_pairing_or_404_valid_and_invalid() -> None:
     code, _ = create_pairing_ticket(ws_url="ws://127.0.0.1:8080/api/v1/ws/extension", auth_token="secret")
     consumed = _consume_pairing_or_404(code)
@@ -142,6 +128,30 @@ async def test_consume_pairing_post_rate_limited() -> None:
     ):
         await consume_extension_pairing_post(_request(), body)
     assert exc_info.value.status_code == 429
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("forwarded", [None, "203.0.113.9", "198.51.100.1, 10.0.0.1"])
+async def test_pairing_rate_limit_keys_on_the_peer_not_on_forwarded_headers(forwarded: str | None) -> None:
+    from app.api.extension.router import PairingConsumeRequest
+
+    body = PairingConsumeRequest(code="whatever")
+    with patch("app.services.extension.pairing.check_pairing_rate_limit", return_value=False) as limiter:
+        with pytest.raises(Exception) as post_error:
+            await consume_extension_pairing_post(_request(forwarded=forwarded), body)
+        with pytest.raises(Exception) as get_error:
+            await consume_extension_pairing_get(_request(forwarded=forwarded), "some-code")
+    assert post_error.value.status_code == get_error.value.status_code == 429
+    assert [call.args for call in limiter.call_args_list] == [("1.2.3.4",), ("1.2.3.4",)]
+
+
+@pytest.mark.asyncio
+async def test_pairing_rate_limit_key_is_unknown_without_a_peer() -> None:
+    with patch("app.services.extension.pairing.check_pairing_rate_limit", return_value=False) as limiter:
+        with pytest.raises(Exception) as exc_info:
+            await consume_extension_pairing_get(_request(client_host=None), "some-code")
+    assert exc_info.value.status_code == 429
+    assert [call.args for call in limiter.call_args_list] == [("unknown",)]
 
 
 @pytest.mark.asyncio

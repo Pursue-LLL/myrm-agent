@@ -13,7 +13,7 @@ Data classes (Metrics):
 
 Data classes (Config):
 - SecurityLimits: Security rate-limit configuration (7 limit params grouped)
-- IpPolicy: IP policy configuration (allow/deny lists + trusted proxies)
+- IpPolicy: IP policy configuration (allow/deny lists)
 - SecurityProtocols: Security protocol configuration (4 Protocol instances grouped)
 
 Protocols:
@@ -365,15 +365,16 @@ class SecurityLimits:
 
 @dataclass(frozen=True)
 class IpPolicy:
-    """IP policy configuration (single-object encapsulation, 3 IP param groups).
+    """IP policy configuration (single-object encapsulation, 2 IP param groups).
 
-    Supports CIDR-format deny/allow lists and trusted proxy lists.
+    Supports CIDR-format deny/allow lists, matched against the client address from
+    ``app.core.security.client_address::client_ip``. Which forwarding proxies are trusted is the
+    ASGI server's setting (uvicorn ``FORWARDED_ALLOW_IPS``), not part of this policy.
 
     Example:
         >>> policy = IpPolicy(
         ...     blocked_ips=["1.2.3.4", "10.0.0.0/8"],
         ...     allowed_ips=["203.0.113.0/24"],
-        ...     trusted_proxies=["192.168.1.1", "10.0.0.1"],
         ... )
     """
 
@@ -382,9 +383,6 @@ class IpPolicy:
 
     allowed_ips: Sequence[str] = field(default_factory=list)
     """IP allow list (supports CIDR), matched IPs bypass Rate/InFlight limits"""
-
-    trusted_proxies: Sequence[str] = field(default_factory=list)
-    """Trusted proxy IP list (for X-Forwarded-For parsing)"""
 
     def __post_init__(self) -> None:
         """Validate all IP/CIDR formats (fail-fast)."""
@@ -402,13 +400,6 @@ class IpPolicy:
                 ipaddress.ip_network(ip_str, strict=False)
             except ValueError as e:
                 msg = f"Invalid allowed_ip '{ip_str}': {e}"
-                raise ValueError(msg) from e
-
-        for ip_str in self.trusted_proxies:
-            try:
-                ipaddress.ip_network(ip_str, strict=False)
-            except ValueError as e:
-                msg = f"Invalid trusted_proxy '{ip_str}': {e}"
                 raise ValueError(msg) from e
 
 

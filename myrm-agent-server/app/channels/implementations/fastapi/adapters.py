@@ -7,6 +7,7 @@ allowing channels to handle requests/responses without FastAPI dependencies.
 - fastapi::Request (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
 - app.channels.protocols.adapters::RequestAdapter (POS: adapter protocols for framework independence: the business layer implements them for a web framework such as FastAPI, so channels only see GenericRequest and GenericResponse)
 - app.channels.protocols.route_registrar::GenericRequest (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
+- app.core.security.client_address::client_ip (POS: single source of the client address for per-client limits and IP lists)
 
 [OUTPUT]
 - FastAPIRequestAdapter: Adapts FastAPI Request to GenericRequest
@@ -29,6 +30,7 @@ from app.channels.protocols.route_registrar import (
     GenericRequest,
     GenericResponse,
 )
+from app.core.security import client_address
 
 
 class _AdaptedRequest:
@@ -71,26 +73,8 @@ class _AdaptedRequest:
 
     @property
     def client_ip(self) -> str:
-        """Client IP address.
-
-        Returns real client IP, considering X-Forwarded-For and
-        X-Real-IP headers for proxied requests.
-
-        Priority:
-        1. X-Forwarded-For (first IP in chain)
-        2. X-Real-IP (Nginx)
-        3. request.client.host (direct connection)
-        """
-        if forwarded_for := self._request.headers.get("x-forwarded-for"):
-            return forwarded_for.split(",")[0].strip()
-
-        if real_ip := self._request.headers.get("x-real-ip"):
-            return real_ip.strip()
-
-        if self._request.client:
-            return self._request.client.host
-
-        return "unknown"
+        """Client address as the ASGI server resolved it; forwarded headers are never read here."""
+        return client_address.client_ip(self._request)
 
     async def body(self) -> bytes:
         """Get raw request body."""

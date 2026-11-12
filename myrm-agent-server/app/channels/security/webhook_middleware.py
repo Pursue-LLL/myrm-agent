@@ -7,6 +7,7 @@ Supports protocol injection for platform-specific logic (signature verification,
 - fastapi::Request (POS: Out-of-the-box FastAPI implementation. Users can directly use these classes without implementing RouteRegistrar Protocol themselves.)
 - security.context::WebhookContext (POS: request context layer: typed dataclasses holding the validated request data and the verification results, with trace_id and degradation event tracking)
 - security.errors::WebhookResponseError (POS: webhook error response layer: RFC 7807 standardized error format that never leaks sensitive data)
+- app.core.security.client_address::client_ip (POS: single source of the client address for per-client limits and IP lists)
 
 [OUTPUT]
 - WebhookSecurityMiddleware: Unified security middleware
@@ -31,9 +32,11 @@ from typing import TYPE_CHECKING
 
 from fastapi import Request
 
+from app.core.security.client_address import UNKNOWN_CLIENT_IP, client_ip
+
 from .context import FallbackEvent, IdempotencyResult, VerificationResult, WebhookContext
 from .errors import WebhookResponseError
-from .ip_utils import extract_real_ip, is_ip_allowed, is_ip_blocked
+from .ip_utils import is_ip_allowed, is_ip_blocked
 from .protocols import (
     FallbackMode,
     IpPolicy,
@@ -55,7 +58,7 @@ class WebhookSecurityMiddleware:
 
     Features:
     - IP blacklist/whitelist (fast block/skip)
-    - Real IP extraction (trusted_proxies validation)
+    - Client address from the server's view of the peer (forwarded headers are never read)
     - Rate limiting + in-flight limiter (anti-DoS/concurrency attacks)
     - Content-Type validation + two-stage body limits
     - Signature verification + timestamp validation + idempotency check
@@ -76,7 +79,7 @@ class WebhookSecurityMiddleware:
 
         Args:
             limits: Security rate-limit configuration (7-parameter group)
-            ip_policy: IP policy configuration (blacklist/whitelist + trusted proxies)
+            ip_policy: IP policy configuration (blacklist/whitelist)
             protocols: Security protocol configuration (4 Protocol instances)
             rate_limiter: Inbound rate limiter (anti-frequency attacks)
             inflight_limiter: Concurrency limiter (anti-concurrent attacks)
@@ -99,7 +102,7 @@ class WebhookSecurityMiddleware:
         """Process an inbound webhook request and return a full context.
 
         Pipeline (ordered by cost):
-        1. Extract real IP (validate trusted_proxies)
+        1. Resolve the client address (the server's view of the peer; forwarded headers are never read)
         2. IP blacklist check (block known attack IPs immediately)
         3. IP whitelist check (trusted IPs skip rate limiting)
         4. Rate limiting (anti-sustained attacks, configurable)
@@ -119,13 +122,13 @@ class WebhookSecurityMiddleware:
         trace_id = str(uuid.uuid4())
         request.state._webhook_trace_id = trace_id
         request_path = str(request.url.path)
-        real_ip = "unknown"
+        real_ip = UNKNOWN_CLIENT_IP
 
         try:
-            # 1. Extract real IP
-            real_ip = extract_real_ip(request, self._ip_policy.trusted_proxies)
+            # 1. Resolve the client address (never taken from forwarded headers)
+            real_ip = client_ip(request)
             logger.debug(
-                f"[{trace_id}] Extracted real IP: {real_ip}",
+                f"[{trace_id}] Client address: {real_ip}",
                 extra={"trace_id": trace_id, "real_ip": real_ip},
             )
 

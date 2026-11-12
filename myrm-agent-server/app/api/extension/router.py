@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.services.extension.bridge::get_extension_bridge (POS: singleton bridge instance)
+- app.core.security.client_address::client_ip (POS: single source of the client address for per-client limits and IP lists)
 
 [OUTPUT]
 - ws_router: WebSocket endpoint for extension connection (ws://.../api/ws/extension)
@@ -21,6 +22,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket
 from pydantic import BaseModel, Field
 
+from app.core.security.client_address import client_ip
 from app.services.extension.bridge import DomainPolicyWarning, get_extension_bridge
 
 logger = logging.getLogger(__name__)
@@ -328,15 +330,6 @@ class PairingConsumeResponse(BaseModel):
     http_base: str = ""
 
 
-def _pairing_client_key(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    if request.client and request.client.host:
-        return request.client.host
-    return "unknown"
-
-
 def _consume_pairing_or_404(code: str) -> PairingConsumeResponse:
     from app.services.extension.pairing import consume_pairing_ticket
 
@@ -381,7 +374,7 @@ async def consume_extension_pairing_post(
     """Exchange a one-time pairing code for extension connection settings."""
     from app.services.extension.pairing import check_pairing_rate_limit
 
-    if not check_pairing_rate_limit(_pairing_client_key(request)):
+    if not check_pairing_rate_limit(client_ip(request)):
         raise HTTPException(status_code=429, detail="Too many pairing attempts")
     return _consume_pairing_or_404(body.code.strip())
 
@@ -391,7 +384,7 @@ async def consume_extension_pairing_get(request: Request, code: str) -> PairingC
     """Legacy GET consume path (prefer POST /extension/pairing/consume)."""
     from app.services.extension.pairing import check_pairing_rate_limit
 
-    if not check_pairing_rate_limit(_pairing_client_key(request)):
+    if not check_pairing_rate_limit(client_ip(request)):
         raise HTTPException(status_code=429, detail="Too many pairing attempts")
     return _consume_pairing_or_404(code)
 

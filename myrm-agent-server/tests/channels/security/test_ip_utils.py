@@ -1,7 +1,6 @@
 """Tests for IP utility functions.
 
 Tests cover:
-- extract_real_ip() with trusted proxies
 - is_ip_blocked() CIDR matching
 - is_ip_allowed() CIDR matching
 - validate_host() Host header validation
@@ -14,85 +13,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.channels.security.ip_utils import (
-    extract_real_ip,
     is_ip_allowed,
     is_ip_blocked,
     validate_host,
 )
-
-
-class TestExtractRealIP:
-    """Test real IP extraction from X-Forwarded-For."""
-
-    def test_direct_connection_no_proxy(self) -> None:
-        """Direct connection should use request.client.host."""
-        request = MagicMock()
-        request.client.host = "203.0.113.45"
-        request.headers = {}
-
-        real_ip = extract_real_ip(request, trusted_proxies=None)
-        assert real_ip == "203.0.113.45"
-
-    def test_untrusted_proxy_ignores_xff(self) -> None:
-        """Untrusted proxy should ignore X-Forwarded-For."""
-        request = MagicMock()
-        request.client.host = "192.168.1.100"  # Untrusted proxy
-        request.headers = {"x-forwarded-for": "1.2.3.4"}
-
-        real_ip = extract_real_ip(
-            request,
-            trusted_proxies=["10.0.0.0/8"],  # Different network
-        )
-        # Should return proxy IP, not XFF value
-        assert real_ip == "192.168.1.100"
-
-    def test_trusted_proxy_extracts_leftmost_ip(self) -> None:
-        """Trusted proxy should extract leftmost IP from X-Forwarded-For."""
-        request = MagicMock()
-        request.client.host = "10.0.0.1"  # Trusted proxy
-        request.headers = {"X-Forwarded-For": "203.0.113.45, 192.168.1.1"}
-
-        real_ip = extract_real_ip(
-            request,
-            trusted_proxies=["10.0.0.0/8"],
-        )
-        assert real_ip == "203.0.113.45"
-
-    def test_multiple_proxies_in_xff(self) -> None:
-        """Multiple proxies should extract first client IP."""
-        request = MagicMock()
-        request.client.host = "10.0.0.5"
-        request.headers = {"X-Forwarded-For": "203.0.113.45, 192.168.1.1, 10.0.0.2"}
-
-        real_ip = extract_real_ip(
-            request,
-            trusted_proxies=["10.0.0.0/8"],
-        )
-        assert real_ip == "203.0.113.45"
-
-    def test_single_ip_in_xff(self) -> None:
-        """Single IP in X-Forwarded-For should be returned."""
-        request = MagicMock()
-        request.client.host = "10.0.0.1"
-        request.headers = {"X-Forwarded-For": "203.0.113.45"}
-
-        real_ip = extract_real_ip(
-            request,
-            trusted_proxies=["10.0.0.0/8"],
-        )
-        assert real_ip == "203.0.113.45"
-
-    def test_empty_xff_returns_client_host(self) -> None:
-        """Empty X-Forwarded-For should return client host."""
-        request = MagicMock()
-        request.client.host = "10.0.0.1"
-        request.headers = {"x-forwarded-for": ""}
-
-        real_ip = extract_real_ip(
-            request,
-            trusted_proxies=["10.0.0.0/8"],
-        )
-        assert real_ip == "10.0.0.1"
 
 
 class TestIsIPBlocked:

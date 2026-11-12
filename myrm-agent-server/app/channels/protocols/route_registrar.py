@@ -141,13 +141,14 @@ class GenericRequest(Protocol):
 
     @property
     def client_ip(self) -> str:
-        """Client IP address.
+        """Client IP address as the server resolved it.
 
-        Returns real client IP, considering X-Forwarded-For and
-        X-Real-IP headers for proxied requests.
+        Never derived from request headers a visitor can write
+        (X-Forwarded-For, X-Real-IP): a proxy's forwarded address is
+        applied by the server only for proxies it is configured to trust.
 
         Security: Used for IP whitelist validation, rate limiting,
-        and audit logging. More reliable than manual header parsing.
+        and audit logging.
         """
         ...
 

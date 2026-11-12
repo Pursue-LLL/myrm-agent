@@ -38,18 +38,15 @@ class TestIpPolicyCIDRValidation:
         policy = IpPolicy(
             blocked_ips=["1.2.3.4", "10.0.0.0/8", "192.168.0.0/16"],
             allowed_ips=["203.0.113.0/24"],
-            trusted_proxies=["172.16.0.0/12", "10.0.0.1"],
         )
         assert len(policy.blocked_ips) == 3
         assert len(policy.allowed_ips) == 1
-        assert len(policy.trusted_proxies) == 2
 
     def test_empty_config_passes(self) -> None:
         """Empty IP policy should pass validation."""
         policy = IpPolicy()
         assert len(policy.blocked_ips) == 0
         assert len(policy.allowed_ips) == 0
-        assert len(policy.trusted_proxies) == 0
 
     def test_invalid_blocked_ip_raises(self) -> None:
         """Invalid IP in blocked_ips should raise ValueError."""
@@ -60,11 +57,6 @@ class TestIpPolicyCIDRValidation:
         """Invalid IP in allowed_ips should raise ValueError."""
         with pytest.raises(ValueError, match="Invalid allowed_ip"):
             IpPolicy(allowed_ips=["999.999.999.999"])
-
-    def test_invalid_trusted_proxy_raises(self) -> None:
-        """Invalid IP in trusted_proxies should raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid trusted_proxy"):
-            IpPolicy(trusted_proxies=["invalid-proxy"])
 
     def test_invalid_cidr_raises(self) -> None:
         """Invalid CIDR notation should raise ValueError."""

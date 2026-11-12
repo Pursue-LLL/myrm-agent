@@ -21,7 +21,7 @@ Metrics data classes:
 
 Config data classes:
 - SecurityLimits: security and rate-limit settings (7-parameter group)
-- IpPolicy: IP policy (blacklist, whitelist and trusted proxies)
+- IpPolicy: IP policy (blacklist and whitelist)
 - SecurityProtocols: protocol settings (group of 4 protocol instances)
 
 Context data classes:
@@ -36,7 +36,6 @@ Middleware:
 - WebhookSecurityMiddleware: unified security middleware (takes 3 config objects)
 
 Utility functions:
-- extract_real_ip: extracts the real client IP
 - is_ip_blocked: IP blacklist check
 - is_ip_allowed: IP whitelist check
 - validate_host: Host header validation
@@ -49,7 +48,7 @@ Business layer injects platform-specific logic via protocols.
 
 from .context import FallbackEvent, IdempotencyResult, VerificationResult, WebhookContext
 from .errors import SecurityViolationError, WebhookResponseError
-from .ip_utils import extract_real_ip, is_ip_allowed, is_ip_blocked, validate_host
+from .ip_utils import is_ip_allowed, is_ip_blocked, validate_host
 from .protocols import (
     FallbackMode,
     FallbackStrategy,
@@ -90,7 +89,6 @@ __all__ = [
     # Middleware
     "WebhookSecurityMiddleware",
     # Utility functions
-    "extract_real_ip",
     "is_ip_blocked",
     "is_ip_allowed",
     "validate_host",

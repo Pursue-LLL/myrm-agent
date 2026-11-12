@@ -10,6 +10,6 @@ Webhook security layer. Defines inbound security protocols (signature verificati
 | __init__.py | Package | Webhook security layer. Defines inbound security protocols (signature verification, | ✅ |
 | context.py | Core | Request context layer. Encapsulates validated request data and verification result objects. | ✅ |
 | errors.py | Core | Webhook error response layer. Provides RFC 7807 standardized error format, | ✅ |
-| ip_utils.py | Core | IP extraction utility layer. Provides trusted proxy validation and real IP extraction, | ✅ |
+| ip_utils.py | Core | IP utility layer. Matches a client address against allow/deny lists and validates Host headers. | ✅ |
 | protocols.py | Core | Security protocol layer. Defines standard webhook security verification interfaces, | ✅ |
 | webhook_middleware.py | Core | Webhook security middleware layer. Unified inbound security verification (body limits, | ✅ |

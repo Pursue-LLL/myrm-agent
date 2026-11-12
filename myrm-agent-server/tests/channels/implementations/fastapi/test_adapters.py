@@ -83,21 +83,14 @@ class TestFastAPIRequestAdapter:
         assert params["key"] == "value"
         assert params["foo"] == "bar"
 
-    def test_adapt_client_ip_with_x_forwarded_for(self, mock_fastapi_request):
-        """Test client IP extraction from X-Forwarded-For header."""
+    def test_adapt_client_ip_ignores_forwarded_headers(self, mock_fastapi_request):
+        """Forged X-Forwarded-For / X-Real-IP never replace the address the server resolved."""
         adapter = FastAPIRequestAdapter()
         adapted = adapter.adapt(mock_fastapi_request)
-        assert adapted.client_ip == "203.0.113.1"
-
-    def test_adapt_client_ip_with_x_real_ip(self, mock_fastapi_request):
-        """Test client IP extraction from X-Real-IP header (fallback)."""
-        mock_fastapi_request._headers.pop("x-forwarded-for")
-        adapter = FastAPIRequestAdapter()
-        adapted = adapter.adapt(mock_fastapi_request)
-        assert adapted.client_ip == "203.0.113.1"
+        assert adapted.client_ip == "192.168.1.1"
 
     def test_adapt_client_ip_with_direct_connection(self, mock_fastapi_request):
-        """Test client IP extraction from direct connection (fallback)."""
+        """Test client IP extraction from direct connection."""
         mock_fastapi_request._headers.pop("x-forwarded-for")
         mock_fastapi_request._headers.pop("x-real-ip")
         adapter = FastAPIRequestAdapter()
@@ -106,8 +99,6 @@ class TestFastAPIRequestAdapter:
 
     def test_adapt_client_ip_with_no_client(self, mock_fastapi_request):
         """Test client IP extraction when client is None."""
-        mock_fastapi_request._headers.pop("x-forwarded-for")
-        mock_fastapi_request._headers.pop("x-real-ip")
         mock_fastapi_request.client = None
         adapter = FastAPIRequestAdapter()
         adapted = adapter.adapt(mock_fastapi_request)
