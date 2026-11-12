@@ -6,10 +6,10 @@
 
 [OUTPUT]
 - what an Agent session does with the user's signed-in browser: read a logged-in page, click, take a screenshot; where
-  it is stopped (a domain the user did not authorize, a page that is not a web page); how its tabs are marked, kept
-  apart from the user's list and closed; where its pages open (in front, in the user's window, without taking its
-  focus) and that asking for the front changes nothing; that a second connection works beside the first; and that
-  the user's own tabs are never closed on its behalf
+  it is stopped (a domain the user did not authorize, a page that is not a web page, a page that takes itself there);
+  how its tabs are marked, kept apart from the user's list and closed; where its pages open (in front, in the user's
+  window, without taking its focus) and that asking for the front changes nothing; that a second connection works
+  beside the first; and that the user's own tabs are never closed on its behalf
 
 [POS]
 The end-to-end proof of the extension's one job. The relay and extension unit tests mock the other side, so only these
@@ -80,6 +80,32 @@ async def test_agent_page_cannot_leave_the_authorized_domains(stack: RealExtensi
             await page.goto(stack.site.url(OTHER_HOST, "/secret"))
 
         assert page.url == "about:blank"
+
+
+async def test_a_page_that_takes_itself_off_the_authorized_domains_is_cut_loose_and_unreadable(
+    stack: RealExtensionStack,
+) -> None:
+    await stack.log_in(INTRANET_HOST)
+    await stack.log_in(OTHER_HOST)  # the user is signed in there too, so the page it reaches has private data to leak
+    await stack.authorize([INTRANET_HOST])
+    other_secret = stack.site.url(OTHER_HOST, "/secret")
+
+    async with stack.agent_browser() as browser:
+        page = await new_agent_page(browser)
+        await page.goto(stack.site.url(INTRANET_HOST, "/secret"))
+
+        await page.evaluate("(url) => { setTimeout(() => { location.href = url; }, 0); }", other_secret)  # a redirect
+
+        async def the_tab_reached_the_other_domain() -> bool:
+            return other_secret in stack.browser.user_tab_urls()
+
+        await wait_until(the_tab_reached_the_other_domain, "the page to take itself to the other domain")
+        for read in (lambda: page.inner_text("#data"), page.screenshot):
+            with pytest.raises(PlaywrightError, match="not authorized|has been closed"):
+                await read()
+
+    # Nothing is closed on a guess: the tab stays for a person to finish whatever brought the page there.
+    assert other_secret in stack.browser.user_tab_urls()
 
 
 async def test_agent_can_take_its_own_page_back_to_blank_but_never_a_users(stack: RealExtensionStack) -> None:

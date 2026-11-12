@@ -37,6 +37,7 @@
 - **一个会话一条连接**：`connect()` / `connect_to_domain()` 返回 `ExtensionBrowserInstance`（harness 契约类型）；池据此把同一浏览器的后续请求交给同一实例，给其上下文不加任何覆盖，也不让页面空闲留存，所以会话里关掉的标签页就是在用户浏览器里关掉。
 - **扩展丢失即清场**：扩展断开时 relay 向 CDP 客户端通告全部目标消失、清空标签页镜像并让待决命令失败；重连后从零开始。
 - **Relay 域名门禁**：扩展层对 `createTab`、`navigate_url`、relay `cdp`（tab URL recheck + `Page.navigate`）共用 access policy；server relay sync 与 list_tabs 同一规则（Agent 自己开的空白标签页除外，见上）。
+- **自行跳出授权域名即摘离**：Agent 的页面被页面脚本或重定向带到未授权域名时，扩展对每条命令复核标签页当前地址，其后所有命令都失败，标签页也随之从列表消失，relay 通告目标已走（Playwright 侧页面即「已关闭」），内容读不到；跳转首包的 URL 与状态码仍会作为事件到达客户端。该标签页留在用户浏览器里，不替用户猜着关闭（可能正有人在里面完成登录），也不随会话结束而关闭。
 - **已登录 / 内网访问**：用户配置 Agent `browser_source=extension` 后，Agent 通过本桥接使用用户真实 Chrome 会话（登录态、Cookie），无需 OS 级 History/Bookmarks 读取。详见 harness `toolkits/browser/BROWSER_SYSTEM.md` §已登录站点与内网访问。
 
 ## 依赖
