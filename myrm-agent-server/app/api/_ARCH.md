@@ -36,7 +36,6 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | 运维 | [health/](health/_ARCH.md) · [system/](system/_ARCH.md) · [statistics/](statistics/_ARCH.md) · [runs/](runs/_ARCH.md) | 健康检查、关机、统计、聚合运行历史 |
 | 浏览器录制 | [browser_recording/](browser_recording/_ARCH.md) | Browser Skill 录制向导 — WebSocket 控制 + Skill 生成 |
 | 浏览器会话 | [browser_sessions/](browser_sessions/_ARCH.md) | 已保存浏览器登录会话管理 — 列表/删除/清理过期 |
-| 机群与接管会话 | [machines/](machines/_ARCH.md) | 进程内机群注册表（启动时两台示例节点）的查询、接入命令生成与接管会话状态切换 API |
 | 其他 | [wiki/](wiki/_ARCH.md) · [faq/](faq/_ARCH.md) · [eval/](eval/_ARCH.md) · [migration/](migration/_ARCH.md) · [goals/](goals/_ARCH.md) · [memory/follow_ups/](memory/follow_ups/_ARCH.md) · [companion/](companion/_ARCH.md) · [compounding_playbook/](compounding_playbook/_ARCH.md) · [budget/](budget/_ARCH.md) · [risk/](risk/_ARCH.md) · [audit/](audit/_ARCH.md) · [internal/](internal/_ARCH.md) · [instance_archive/](instance_archive/_ARCH.md) · [webui/](webui/_ARCH.md) · [openai_compat/](openai_compat/_ARCH.md) · [mem0_compat/](mem0_compat/_ARCH.md) · [widget_storage/](widget_storage/_ARCH.md) | 各产品子功能 HTTP 薄层 |
 
 ## 约束

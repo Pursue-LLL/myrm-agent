@@ -14437,36 +14437,6 @@
       "resizeSuccess": "终端尺寸已更新"
     }
   },
-  "machines": {
-    "title": "自托管机群 (My Machines)",
-    "subtitle": "接入并监控自托管物理机与私有算力节点，支持远程人机同屏实时接管",
-    "connectBtn": "接入新机器",
-    "refreshBtn": "刷新状态",
-    "statusOnline": "在线待命",
-    "statusBusy": "执行中",
-    "statusOffline": "已离线",
-    "statusTakeover": "人工接管中",
-    "cpuUsage": "CPU 负载",
-    "memUsage": "内存占用",
-    "diskUsage": "磁盘占用",
-    "activeTasks": "活跃子任务",
-    "lastHeartbeat": "最后心跳",
-    "liveScreen": "实时屏幕",
-    "takeoverBtn": "人工接管控制",
-    "resumeBtn": "交还智能体",
-    "takingOverTitle": "当前正处于人工实时接管状态",
-    "takingOverDesc": "您的鼠标点击与按键操作将直接透传至远端机器桌面，智能体已暂停自动调度",
-    "connectModalTitle": "一键接入自托管机器",
-    "connectModalSubtitle": "在目标机器终端运行下方生成的注册单行命令，约 3 秒即可安全连通",
-    "platformLabel": "目标系统平台",
-    "commandLabel": "一键注册安装命令",
-    "copyCommand": "复制命令",
-    "copied": "已复制",
-    "testingHeartbeat": "正在等待机器上线...",
-    "handshakeSuccess": "连接成功！机器已在线",
-    "close": "完成",
-    "emptyCluster": "暂未接入任何自托管节点，点击右上角按钮快速接入您的第一台机器"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "语音暂存审查",
@@ -14507,30 +14477,7 @@
     "customPlaceholder": "输入您的自定义设计要求或补充偏好...",
     "confirm": "确认偏好并开始执行",
     "cancel": "跳过对齐直接生成",
-    "previewPrompt": "生成的对齐约束提示词",
-    "openInBrowser": "用外部浏览器打开",
-    "openInBrowserDesc": "在系统原生真实浏览器中无阻断渲染，彻底解决内嵌 iframe 外部图片防盗链裂图与 CSP 受限痛点",
-    "opening": "正在唤起外部浏览器...",
-    "opened": "已在外部浏览器中打开"
-  },
-  "skillSolidify": {
-    "title": "固化为专属 Skill 向导",
-    "subtitle": "将打磨好的成果一键提取参数并生成 4 合 1 标准全包技能（SKILL.md + assets/ + references/）",
-    "stepParams": "1. 参数最小化提取",
-    "stepBundle": "2. 模板与资产预览",
-    "stepConfirm": "3. 固化完成",
-    "paramHelp": "参数最小化原则：仅将每次必然变动的槽位暴露为入参，页面骨架、Tailwind 样式与交互动画已被安全锁定",
-    "nameLabel": "技能唯一标识 (Identifier)",
-    "displayTitleLabel": "显示名称",
-    "descriptionLabel": "技能能力描述",
-    "categoryLabel": "分类",
-    "planHint": "在生成的技能指令中默认注入「先规划再执行」门禁",
-    "solidifyBtn": "一键固化并落盘",
-    "solidifying": "正在打包生成 4 合 1 技能包...",
-    "successTitle": "专属技能固化成功！",
-    "successDesc": "已成功写入本地技能库，您可以在任意新会话中通过快捷方式复用它，并可直接在系统浏览器中检验效果",
-    "openPreview": "在外部浏览器中检验效果",
-    "close": "完成"
+    "previewPrompt": "生成的对齐约束提示词"
   },
   "settings": {
     "providerBalance": {

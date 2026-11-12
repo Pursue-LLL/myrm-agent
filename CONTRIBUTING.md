@@ -127,7 +127,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `faq` · `features` · `files` · `instance_archive` · `integrations` · `kanban` · `machines` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `security` · `skill_optimization` · `skills` · `ssh_vault` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
+`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `faq` · `features` · `files` · `instance_archive` · `integrations` · `kanban` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `security` · `skill_optimization` · `skills` · `ssh_vault` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
 
 ### Intentional name pairs (most common confusion)
 

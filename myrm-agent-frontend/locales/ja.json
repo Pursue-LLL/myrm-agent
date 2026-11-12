@@ -14437,36 +14437,6 @@
       "resizeSuccess": "ターミナルのサイズを更新しました"
     }
   },
-  "machines": {
-    "title": "マイマシン（フリートダッシュボード）",
-    "subtitle": "セルフホストのマシンやプライベート計算ノードを接続・監視し、画面をリアルタイムで引き継げます",
-    "connectBtn": "マシンを接続",
-    "refreshBtn": "フリートを更新",
-    "statusOnline": "オンライン・準備完了",
-    "statusBusy": "ビジー",
-    "statusOffline": "オフライン",
-    "statusTakeover": "手動で引き継ぎ中",
-    "cpuUsage": "CPU 負荷",
-    "memUsage": "メモリ使用量",
-    "diskUsage": "ディスク使用量",
-    "activeTasks": "実行中のタスク",
-    "lastHeartbeat": "ハートビート",
-    "liveScreen": "ライブ画面",
-    "takeoverBtn": "操作を引き継ぐ",
-    "resumeBtn": "エージェントに戻す",
-    "takingOverTitle": "手動引き継ぎ中",
-    "takingOverDesc": "マウスのクリックとキー入力はリモート画面にそのまま送られます。自律エージェントは一時停止中です",
-    "connectModalTitle": "セルフホストのマシンを接続",
-    "connectModalSubtitle": "ホストのターミナルで下のコマンドを 1 行実行すると、約 3 秒で安全に接続されます",
-    "platformLabel": "対象ホストの OS",
-    "commandLabel": "ワンクリック登録コマンド",
-    "copyCommand": "コマンドをコピー",
-    "copied": "コピーしました",
-    "testingHeartbeat": "マシンの接続を待機中...",
-    "handshakeSuccess": "接続しました。マシンがオンラインになりました",
-    "close": "完了",
-    "emptyCluster": "セルフホストのマシンはまだ接続されていません。上のボタンをクリックして最初のマシンを追加しましょう"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "音声入力の確認",
@@ -14507,30 +14477,7 @@
     "customPlaceholder": "独自のデザイン要件や追加の好みを入力...",
     "confirm": "擦り合わせを確定して開始",
     "cancel": "スキップして直接生成",
-    "previewPrompt": "構造化されたプロンプト制約",
-    "openInBrowser": "外部ブラウザーで開く",
-    "openInBrowserDesc": "ネイティブの実ブラウザーで表示し、iframe の CSP 制限や画像のホットリンク防止による表示崩れを回避します",
-    "opening": "外部ブラウザーを起動中...",
-    "opened": "外部ブラウザーで開きました"
-  },
-  "skillSolidify": {
-    "title": "スキル化ウィザード",
-    "subtitle": "動的パラメータを抽出し、成果物を標準の 4 in 1 スキル（SKILL.md + assets/ + references/）にまとめます",
-    "stepParams": "1. パラメータの最小化",
-    "stepBundle": "2. テンプレートとアセットのプレビュー",
-    "stepConfirm": "3. 完了",
-    "paramHelp": "パラメータの最小化: 入力として公開されるのは動的な変数スロットだけで、骨組み・CSS・アニメーションは固定されます",
-    "nameLabel": "スキルの識別子",
-    "displayTitleLabel": "表示タイトル",
-    "descriptionLabel": "スキルの説明",
-    "categoryLabel": "カテゴリ",
-    "planHint": "生成されるスキルの指示に「実行前に計画」を必須として含める",
-    "solidifyBtn": "スキル化してバンドルをエクスポート",
-    "solidifying": "4 in 1 スキルのアセットをまとめています...",
-    "successTitle": "スキル化が完了しました！",
-    "successDesc": "ローカルのスキルライブラリに保存しました。新しいセッションでいつでも再利用でき、外部ブラウザーで直接テストできます",
-    "openPreview": "外部ブラウザーでテスト",
-    "close": "完了"
+    "previewPrompt": "構造化されたプロンプト制約"
   },
   "settings": {
     "providerBalance": {

@@ -14437,36 +14437,6 @@
       "resizeSuccess": "Terminal size updated"
     }
   },
-  "machines": {
-    "title": "My Machines (Fleet Dashboard)",
-    "subtitle": "Connect and monitor your self-hosted machines and private compute nodes with real-time screen takeover",
-    "connectBtn": "Connect Machine",
-    "refreshBtn": "Refresh Fleet",
-    "statusOnline": "Online Ready",
-    "statusBusy": "Busy",
-    "statusOffline": "Offline",
-    "statusTakeover": "Human Takeover",
-    "cpuUsage": "CPU Load",
-    "memUsage": "Memory Usage",
-    "diskUsage": "Disk Usage",
-    "activeTasks": "Active Tasks",
-    "lastHeartbeat": "Heartbeat",
-    "liveScreen": "Live Screen",
-    "takeoverBtn": "Take Over Control",
-    "resumeBtn": "Hand Back to Agent",
-    "takingOverTitle": "Human Takeover Active",
-    "takingOverDesc": "Your mouse clicks and key inputs are relayed directly to the remote screen. Autonomous agent is paused",
-    "connectModalTitle": "Connect Self-Hosted Machine",
-    "connectModalSubtitle": "Run the one-line command below on your host terminal to connect securely in about 3 seconds",
-    "platformLabel": "Target Host OS",
-    "commandLabel": "1-Click Registration Command",
-    "copyCommand": "Copy Command",
-    "copied": "Copied",
-    "testingHeartbeat": "Waiting for the machine to connect...",
-    "handshakeSuccess": "Connected! The machine is now online",
-    "close": "Done",
-    "emptyCluster": "No self-hosted machines connected yet. Click the button above to onboard your first machine"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "Voice Staged Review",
@@ -14507,30 +14477,7 @@
     "customPlaceholder": "Enter custom design requirements or additional preferences...",
     "confirm": "Confirm Alignment & Start",
     "cancel": "Skip & Generate Directly",
-    "previewPrompt": "Structured Prompt Constraints",
-    "openInBrowser": "Open in External Browser",
-    "openInBrowserDesc": "Render in native real browser, eliminating iframe CSP restrictions and anti-hotlinking broken images",
-    "opening": "Launching external browser...",
-    "opened": "Opened in external browser"
-  },
-  "skillSolidify": {
-    "title": "Solidify into Skill Wizard",
-    "subtitle": "Extract dynamic parameters and bundle your deliverable into standard 4-in-1 skill (SKILL.md + assets/ + references/)",
-    "stepParams": "1. Parameter Minimization",
-    "stepBundle": "2. Template & Assets Preview",
-    "stepConfirm": "3. Completion",
-    "paramHelp": "Parameter Minimization: Only dynamic variable slots are exposed as inputs, while skeleton, CSS, and animations remain locked",
-    "nameLabel": "Skill Machine Identifier",
-    "displayTitleLabel": "Display Title",
-    "descriptionLabel": "Skill Description",
-    "categoryLabel": "Category",
-    "planHint": "Mandate 'Plan Before Execute' in generated skill instructions",
-    "solidifyBtn": "Solidify & Export Bundle",
-    "solidifying": "Bundling 4-in-1 skill assets...",
-    "successTitle": "Skill Solidified Successfully!",
-    "successDesc": "Saved to your local skills library. You can reuse it in any new session and test it directly in an external browser",
-    "openPreview": "Test in External Browser",
-    "close": "Done"
+    "previewPrompt": "Structured Prompt Constraints"
   },
   "settings": {
     "providerBalance": {

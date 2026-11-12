@@ -14437,36 +14437,6 @@
       "resizeSuccess": "Terminalgröße wurde aktualisiert"
     }
   },
-  "machines": {
-    "title": "Meine Maschinen (Flottenübersicht)",
-    "subtitle": "Verbinden und überwachen Sie Ihre selbst gehosteten Maschinen und privaten Rechenknoten mit Echtzeit-Bildschirmübernahme",
-    "connectBtn": "Maschine verbinden",
-    "refreshBtn": "Flotte aktualisieren",
-    "statusOnline": "Online & bereit",
-    "statusBusy": "Ausgelastet",
-    "statusOffline": "Getrennt",
-    "statusTakeover": "Manuelle Übernahme",
-    "cpuUsage": "CPU-Auslastung",
-    "memUsage": "Speichernutzung",
-    "diskUsage": "Festplattennutzung",
-    "activeTasks": "Aktive Aufgaben",
-    "lastHeartbeat": "Lebenszeichen",
-    "liveScreen": "Live-Bildschirm",
-    "takeoverBtn": "Steuerung übernehmen",
-    "resumeBtn": "An den Agent zurückgeben",
-    "takingOverTitle": "Manuelle Übernahme aktiv",
-    "takingOverDesc": "Ihre Mausklicks und Tastatureingaben werden direkt an den Remote-Bildschirm weitergeleitet. Der autonome Agent ist pausiert",
-    "connectModalTitle": "Selbst gehostete Maschine verbinden",
-    "connectModalSubtitle": "Führen Sie den folgenden Einzeiler in Ihrem Host-Terminal aus, um in etwa 3 Sekunden sicher zu verbinden",
-    "platformLabel": "Betriebssystem des Zielhosts",
-    "commandLabel": "Registrierungsbefehl mit einem Klick",
-    "copyCommand": "Befehl kopieren",
-    "copied": "Kopiert",
-    "testingHeartbeat": "Warte auf die Verbindung der Maschine...",
-    "handshakeSuccess": "Verbunden! Die Maschine ist jetzt online",
-    "close": "Fertig",
-    "emptyCluster": "Noch keine selbst gehosteten Maschinen verbunden. Klicken Sie oben auf die Schaltfläche, um Ihre erste Maschine einzubinden"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "Sprachaufnahme prüfen",
@@ -14507,30 +14477,7 @@
     "customPlaceholder": "Eigene Designanforderungen oder zusätzliche Präferenzen eingeben...",
     "confirm": "Abstimmung bestätigen & starten",
     "cancel": "Überspringen & direkt generieren",
-    "previewPrompt": "Strukturierte Prompt-Vorgaben",
-    "openInBrowser": "Im externen Browser öffnen",
-    "openInBrowserDesc": "Wird im nativen echten Browser dargestellt – ohne iframe-CSP-Einschränkungen und ohne durch Hotlink-Schutz defekte Bilder",
-    "opening": "Externer Browser wird gestartet...",
-    "opened": "Im externen Browser geöffnet"
-  },
-  "skillSolidify": {
-    "title": "Assistent: In Fähigkeit überführen",
-    "subtitle": "Extrahiert dynamische Parameter und bündelt Ihr Ergebnis zu einer Standard-4-in-1-Fähigkeit (SKILL.md + assets/ + references/)",
-    "stepParams": "1. Parameter minimieren",
-    "stepBundle": "2. Vorschau von Vorlage & Assets",
-    "stepConfirm": "3. Abschluss",
-    "paramHelp": "Parameter minimieren: Nur dynamische Variablen-Slots werden als Eingaben bereitgestellt, Gerüst, CSS und Animationen bleiben gesperrt",
-    "nameLabel": "Technische Kennung der Fähigkeit",
-    "displayTitleLabel": "Anzeigetitel",
-    "descriptionLabel": "Beschreibung der Fähigkeit",
-    "categoryLabel": "Kategorie",
-    "planHint": "„Erst planen, dann ausführen“ in den erzeugten Fähigkeitsanweisungen verpflichtend machen",
-    "solidifyBtn": "Überführen & Paket exportieren",
-    "solidifying": "4-in-1-Fähigkeits-Assets werden gebündelt...",
-    "successTitle": "Fähigkeit erfolgreich überführt!",
-    "successDesc": "In Ihrer lokalen Fähigkeiten-Bibliothek gespeichert. Sie können sie in jeder neuen Sitzung wiederverwenden und direkt im externen Browser testen",
-    "openPreview": "Im externen Browser testen",
-    "close": "Fertig"
+    "previewPrompt": "Strukturierte Prompt-Vorgaben"
   },
   "settings": {
     "providerBalance": {

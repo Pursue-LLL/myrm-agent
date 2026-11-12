@@ -14437,36 +14437,6 @@
       "resizeSuccess": "終端尺寸已更新"
     }
   },
-  "machines": {
-    "title": "自託管機群 (My Machines)",
-    "subtitle": "接入並監控自託管物理機與私有算力節點，支援遠端人機同屏即時接管",
-    "connectBtn": "接入新機器",
-    "refreshBtn": "重新整理狀態",
-    "statusOnline": "線上待命",
-    "statusBusy": "執行中",
-    "statusOffline": "已離線",
-    "statusTakeover": "人工接管中",
-    "cpuUsage": "CPU 負載",
-    "memUsage": "記憶體佔用",
-    "diskUsage": "磁碟佔用",
-    "activeTasks": "活躍子任務",
-    "lastHeartbeat": "最後心跳",
-    "liveScreen": "即時螢幕",
-    "takeoverBtn": "人工接管控制",
-    "resumeBtn": "交還智慧體",
-    "takingOverTitle": "當前正處於人工即時接管狀態",
-    "takingOverDesc": "您的滑鼠點選與按鍵操作將直接透傳至遠端機器桌面，智慧體已暫停自動排程",
-    "connectModalTitle": "一鍵接入自託管機器",
-    "connectModalSubtitle": "在目標機器終端執行下方生成的註冊單行命令，約 3 秒即可安全連通",
-    "platformLabel": "目標系統平臺",
-    "commandLabel": "一鍵註冊安裝命令",
-    "copyCommand": "複製命令",
-    "copied": "已複製",
-    "testingHeartbeat": "正在等待機器上線...",
-    "handshakeSuccess": "連線成功！機器已上線",
-    "close": "完成",
-    "emptyCluster": "暫未接入任何自託管節點，點選右上角按鈕快速接入您的第一臺機器"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "語音暫存審查",
@@ -14507,30 +14477,7 @@
     "customPlaceholder": "輸入您的自定義設計要求或補充偏好...",
     "confirm": "確認偏好並開始執行",
     "cancel": "跳過對齊直接生成",
-    "previewPrompt": "生成的對齊約束提示詞",
-    "openInBrowser": "用外部瀏覽器開啟",
-    "openInBrowserDesc": "在系統原生真實瀏覽器中無阻斷渲染，徹底解決內嵌 iframe 外部圖片防盜鏈裂圖與 CSP 受限痛點",
-    "opening": "正在喚起外部瀏覽器...",
-    "opened": "已在外部瀏覽器中開啟"
-  },
-  "skillSolidify": {
-    "title": "固化為專屬 Skill 嚮導",
-    "subtitle": "將打磨好的成果一鍵提取引數並生成 4 合 1 標準全包技能（SKILL.md + assets/ + references/）",
-    "stepParams": "1. 引數最小化提取",
-    "stepBundle": "2. 模板與資產預覽",
-    "stepConfirm": "3. 固化完成",
-    "paramHelp": "引數最小化原則：僅將每次必然變動的槽位暴露為入參，頁面骨架、Tailwind 樣式與互動動畫已被安全鎖定",
-    "nameLabel": "技能唯一標識 (Identifier)",
-    "displayTitleLabel": "顯示名稱",
-    "descriptionLabel": "技能能力描述",
-    "categoryLabel": "分類",
-    "planHint": "在生成的技能指令中預設注入「先規劃再執行」門禁",
-    "solidifyBtn": "一鍵固化並落盤",
-    "solidifying": "正在打包生成 4 合 1 技能包...",
-    "successTitle": "專屬技能固化成功！",
-    "successDesc": "已成功寫入本地技能庫，您可以在任意新會話中通過快捷方式複用它，並可直接在系統瀏覽器中檢驗效果",
-    "openPreview": "在外部瀏覽器中檢驗效果",
-    "close": "完成"
+    "previewPrompt": "生成的對齊約束提示詞"
   },
   "settings": {
     "providerBalance": {

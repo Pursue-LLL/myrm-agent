@@ -14437,36 +14437,6 @@
       "resizeSuccess": "터미널 크기가 업데이트되었습니다"
     }
   },
-  "machines": {
-    "title": "내 머신(플릿 대시보드)",
-    "subtitle": "셀프 호스팅 머신과 프라이빗 컴퓨팅 노드를 연결하고 모니터링하며 화면을 실시간으로 인계받을 수 있습니다",
-    "connectBtn": "머신 연결",
-    "refreshBtn": "플릿 새로고침",
-    "statusOnline": "온라인 · 준비 완료",
-    "statusBusy": "사용 중",
-    "statusOffline": "오프라인",
-    "statusTakeover": "사람이 인계 중",
-    "cpuUsage": "CPU 부하",
-    "memUsage": "메모리 사용량",
-    "diskUsage": "디스크 사용량",
-    "activeTasks": "진행 중인 작업",
-    "lastHeartbeat": "하트비트",
-    "liveScreen": "라이브 화면",
-    "takeoverBtn": "제어권 가져오기",
-    "resumeBtn": "에이전트에게 되돌리기",
-    "takingOverTitle": "사람이 인계 중",
-    "takingOverDesc": "마우스 클릭과 키 입력이 원격 화면으로 그대로 전달됩니다. 자율 에이전트는 일시 중지되었습니다",
-    "connectModalTitle": "셀프 호스팅 머신 연결",
-    "connectModalSubtitle": "호스트 터미널에서 아래 한 줄 명령을 실행하면 약 3초 만에 안전하게 연결됩니다",
-    "platformLabel": "대상 호스트 OS",
-    "commandLabel": "원클릭 등록 명령",
-    "copyCommand": "명령 복사",
-    "copied": "복사됨",
-    "testingHeartbeat": "머신 연결 대기 중...",
-    "handshakeSuccess": "연결되었습니다! 머신이 온라인 상태가 되었습니다",
-    "close": "완료",
-    "emptyCluster": "연결된 셀프 호스팅 머신이 아직 없습니다. 위 버튼을 클릭하여 첫 번째 머신을 등록하세요"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "음성 입력 검토",
@@ -14507,30 +14477,7 @@
     "customPlaceholder": "사용자 지정 디자인 요구 사항이나 추가 선호 사항을 입력하세요...",
     "confirm": "조율 확정 후 시작",
     "cancel": "건너뛰고 바로 생성",
-    "previewPrompt": "구조화된 프롬프트 제약 조건",
-    "openInBrowser": "외부 브라우저에서 열기",
-    "openInBrowserDesc": "네이티브 실제 브라우저에서 렌더링하여 iframe CSP 제한과 핫링크 방지로 인한 이미지 깨짐을 해결합니다",
-    "opening": "외부 브라우저 실행 중...",
-    "opened": "외부 브라우저에서 열렸습니다"
-  },
-  "skillSolidify": {
-    "title": "스킬로 굳히기 마법사",
-    "subtitle": "동적 매개변수를 추출하고 결과물을 표준 4-in-1 스킬(SKILL.md + assets/ + references/)로 묶습니다",
-    "stepParams": "1. 매개변수 최소화",
-    "stepBundle": "2. 템플릿 및 에셋 미리보기",
-    "stepConfirm": "3. 완료",
-    "paramHelp": "매개변수 최소화: 동적 변수 슬롯만 입력으로 노출되며, 골격, CSS, 애니메이션은 잠긴 상태로 유지됩니다",
-    "nameLabel": "스킬 식별자",
-    "displayTitleLabel": "표시 제목",
-    "descriptionLabel": "스킬 설명",
-    "categoryLabel": "카테고리",
-    "planHint": "생성되는 스킬 지침에 '실행 전에 계획'을 필수로 포함",
-    "solidifyBtn": "스킬로 굳히고 번들 내보내기",
-    "solidifying": "4-in-1 스킬 에셋을 묶는 중...",
-    "successTitle": "스킬로 성공적으로 굳혔습니다!",
-    "successDesc": "로컬 스킬 라이브러리에 저장되었습니다. 새 세션에서 언제든 재사용할 수 있고 외부 브라우저에서 바로 테스트할 수 있습니다",
-    "openPreview": "외부 브라우저에서 테스트",
-    "close": "완료"
+    "previewPrompt": "구조화된 프롬프트 제약 조건"
   },
   "settings": {
     "providerBalance": {

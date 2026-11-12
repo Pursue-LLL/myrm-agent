@@ -15,7 +15,6 @@ from app.api.skills import (
     packaging,
     permissions,
     prebuilt,
-    solidify_router,
     sync,
     test_fixtures,
 )
@@ -41,6 +40,5 @@ router.include_router(permissions.router, tags=["skills-permissions"])
 router.include_router(instances.router, tags=["skills-instances"])
 router.include_router(config.router, tags=["skills-config"])
 router.include_router(test_fixtures.router, tags=["skills-test-fixtures"])
-router.include_router(solidify_router.router, tags=["skills-solidify"])
 # core.router MUST be last — it has a catch-all GET /{skill_id} route
 router.include_router(core.router, tags=["skills-core"])

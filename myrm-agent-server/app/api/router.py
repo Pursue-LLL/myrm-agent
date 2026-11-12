@@ -62,7 +62,6 @@ from app.api.instance_archive.router import router as instance_archive_router
 from app.api.integrations import router as integrations_router
 from app.api.kanban.pipeline_router import pipeline_router as kanban_pipeline_router
 from app.api.kanban.router import router as kanban_router
-from app.api.machines import router as machines_router
 from app.api.media import media_router
 from app.api.memory.router import router as memory_router
 from app.api.migration.discovery import router as migration_discovery_router
@@ -155,7 +154,6 @@ api_router.include_router(approvals_router)
 api_router.include_router(chat_router, prefix="/chats", tags=["chats"])
 api_router.include_router(project_router, prefix="/projects", tags=["projects"])
 api_router.include_router(files_router, prefix="/files", tags=["files"])
-api_router.include_router(machines_router, prefix="", tags=["machines"])
 api_router.include_router(theme_router)
 api_router.include_router(
     artifact_share_public_router,

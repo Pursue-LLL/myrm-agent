@@ -44,7 +44,6 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "instance_archive",
         "integrations",
         "kanban",
-        "machines",
         "memory",
         "migration",
         "ops",
