@@ -6,7 +6,7 @@ this module provides a fallback strategy to gracefully degrade compression.
 Fallback策略（当HIGH-priority内容超预算）：
 1. 保留所有Priority 0-1 (human messages / 最后一轮内容) 完整
 2. 工具调用组 (AIMessage 调用 + ToolMessage 结果,不论成败) 均分剩余预算,调用与结果各按份额截断;
-   从最新的组往最旧的组装入,预算耗尽就丢弃更旧的组
+   从最新的组往最旧的组装入,预算耗尽就丢弃更旧的组;并行调用共用的同一条 AIMessage 只装入一次、只计一次
 3. 一行摘要Priority 3 (reasoning),同样先新后旧
 4. 按原始对话顺序输出,再由 ensure_tool_pair_integrity 清掉孤儿 ToolMessage、去掉没有结果的 tool_call,
    防止不完整的工具调用对传递给 LLM
@@ -75,6 +75,8 @@ async def apply_smart_fallback(
 
     if groups:
         per_group_budget = max(320, remaining_budget // (len(groups) + 1))
+        # Parallel calls share one AIMessage: it is kept and charged once, with the newest group that uses it.
+        kept_ai_indices: set[int] = set()
         # Newest first: when the budget runs out it is the oldest groups that go.
         for group in reversed(groups):
             ai_budget = max(120, per_group_budget // 3)
@@ -88,12 +90,16 @@ async def apply_smart_fallback(
             if estimate_messages_tokens([group.tool_message]) > tool_budget:
                 tool_message = _truncate_tool_message(group.tool_message, tool_budget)
 
-            pair_tokens = estimate_messages_tokens([ai_message, tool_message])
-            if used_tokens + pair_tokens > max_tokens:
+            shares_kept_ai = group.ai_index in kept_ai_indices
+            group_tokens = estimate_messages_tokens([tool_message] if shares_kept_ai else [ai_message, tool_message])
+            if used_tokens + group_tokens > max_tokens:
                 break
 
-            kept.extend([(group.ai_index, ai_message), (group.tool_index, tool_message)])
-            used_tokens += pair_tokens
+            if not shares_kept_ai:
+                kept.append((group.ai_index, ai_message))
+                kept_ai_indices.add(group.ai_index)
+            kept.append((group.tool_index, tool_message))
+            used_tokens += group_tokens
 
     # Phase 3: One-line summaries for MEDIUM priority (reasoning)
     if used_tokens < max_tokens:
