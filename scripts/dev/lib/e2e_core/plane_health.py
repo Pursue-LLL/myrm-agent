@@ -28,12 +28,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Final
 
-from e2e_core.real_user_home import real_user_home
-from e2e_core.runtime_identity import (
-    _default_chrome_data_dir,
-    _mux_state_dir,
-    _resolve_e2e_port,
+from e2e_core.browser_epoch import (
+    default_chrome_data_dir,
+    mux_state_dir,
+    resolve_e2e_port,
 )
+from e2e_core.real_user_home import real_user_home
 
 _PLANE_REAP_LOG: Final[str] = "plane-health-reap.jsonl"
 _CONVERGE_LOCK: Final[str] = "plane-converge.lockdir"
@@ -261,7 +261,7 @@ def reap_stale_plane_artifacts() -> ReapReceipt:
     except ImportError:
         pass
 
-    mux_dir = _mux_state_dir()
+    mux_dir = mux_state_dir()
     pid_path = mux_dir / "daemon.pid"
     socket_path = mux_dir / "cdmcp-mux.sock"
 
@@ -405,10 +405,10 @@ def _start_mux_daemon_if_needed() -> bool:
     node = _resolve_node_executable()
     if node is None or not mux_bin.is_file():
         return False
-    mux_dir = _mux_state_dir()
+    mux_dir = mux_state_dir()
     mux_dir.mkdir(parents=True, exist_ok=True)
     mux_socket = mux_dir / "cdmcp-mux.sock"
-    chrome_data = _default_chrome_data_dir()
+    chrome_data = default_chrome_data_dir()
     request_timeout = (
         os.getenv("CDMCP_MUX_REQUEST_TIMEOUT_MS", "180000").strip() or "180000"
     )
@@ -424,7 +424,7 @@ def _start_mux_daemon_if_needed() -> bool:
         "PATH": fixed_path,
         "CHROME_DATA_DIR": str(chrome_data),
         "MYRM_CHROME_E2E_DATA_DIR": str(chrome_data),
-        "MYRM_CHROME_E2E_PORT": str(_resolve_e2e_port()),
+        "MYRM_CHROME_E2E_PORT": str(resolve_e2e_port()),
         "CDMCP_MUX_STATE_DIR": str(mux_dir),
         "CDMCP_MUX_SOCKET": str(mux_socket),
         "CDMCP_MUX_REQUEST_TIMEOUT_MS": request_timeout,
@@ -466,7 +466,7 @@ def _start_mux_daemon_if_needed() -> bool:
             # Reporting that as failure denied attach for every losing lane even though
             # the shared mux was up — and each race appended megabytes to mux.log.
             return _mux_daemon_count_live() >= 1 or _socket_has_listener(
-                _mux_state_dir() / "cdmcp-mux.sock"
+                mux_state_dir() / "cdmcp-mux.sock"
             )
         time.sleep(0.5)
     return _mux_daemon_count_live() >= 1

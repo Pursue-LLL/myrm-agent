@@ -136,7 +136,7 @@ def dismiss_blocking_modals(
         if "chrome-error://" in href:
             _trigger_attach_frontend_heal_once()
             try:
-                from e2e_core.runtime_identity import classify_ui_endpoint_error
+                from e2e_core.endpoint_health import classify_ui_endpoint_error
 
                 ui_probe_error = classify_ui_endpoint_error(
                     get_e2e_ui_url(),
@@ -165,7 +165,7 @@ def _recover_chrome_error_page(
         return
     _trigger_attach_frontend_heal_once()
     try:
-        from e2e_core.runtime_identity import classify_ui_endpoint_error
+        from e2e_core.endpoint_health import classify_ui_endpoint_error
 
         if classify_ui_endpoint_error(get_e2e_ui_url(), timeout_sec=8.0) is not None:
             warm_ui_route("/settings", timeout_sec=_warm_ui_parallel_wait_sec(25.0))

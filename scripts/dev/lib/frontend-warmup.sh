@@ -139,7 +139,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, sys.argv[1])
-from e2e_core.runtime_identity import frontend_source_fingerprint
+from e2e_core.frontend_fingerprint import frontend_source_fingerprint
 
 print(frontend_source_fingerprint(Path(sys.argv[2])))
 PY
@@ -416,7 +416,7 @@ _frontend_html_probe_ok() {
   "${py}" - "${_MYRM_WARMUP_LIB_DIR}" "${APP_URL}" "${probe_timeout}" <<'PY' 2>/dev/null
 import sys
 sys.path.insert(0, sys.argv[1])
-from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
+from e2e_core.endpoint_health import frontend_tcp_html_probe_ok
 sys.exit(0 if frontend_tcp_html_probe_ok(sys.argv[2], timeout_sec=float(sys.argv[3])) else 1)
 PY
 }

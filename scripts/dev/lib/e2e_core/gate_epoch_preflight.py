@@ -388,7 +388,7 @@ def _build_signoff_stack_core_health_payload():
 
 def _try_signoff_stack_core_fast_path(monorepo_root: Path) -> bool:
     """Skip myrm ready when stack core + API liveness OK and solo clear (P0-SAO-8)."""
-    from e2e_core.runtime_identity import stack_core_health_errors
+    from e2e_core.endpoint_health import stack_core_health_errors
 
     snap = read_solo_snapshot()
     if not solo_cluster_clear(snap):

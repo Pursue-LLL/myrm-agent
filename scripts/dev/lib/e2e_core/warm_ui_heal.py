@@ -213,7 +213,7 @@ def heal_shared_frontend_debounced(
 def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
     ui_base = os.environ.get("MYRM_E2E_UI_BASE", shared_ui_base()).rstrip("/")
     try:
-        from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
+        from e2e_core.endpoint_health import frontend_tcp_html_probe_ok
 
         return frontend_tcp_html_probe_ok(ui_base, timeout_sec=timeout_sec)
     except (ImportError, OSError, ValueError):
@@ -278,7 +278,7 @@ def ensure_shared_ui_before_cdp_navigate(
 def _shared_client_hot_ok() -> bool:
     """HTTP 200 alone is insufficient — Turbopack can stall with app-shell-skeleton."""
     try:
-        from e2e_core.runtime_identity import (
+        from e2e_core.frontend_epoch import (
             read_frontend_epoch,
             read_frontend_hot_state,
         )

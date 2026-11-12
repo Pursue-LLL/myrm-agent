@@ -60,7 +60,7 @@ def solo_launch_denial_reason(*, workload: str) -> str | None:
     if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
         return None
 
-    from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
+    from e2e_core.endpoint_health import frontend_tcp_html_probe_ok
 
     ui_base = _lane_ui_base()
     if ui_base is not None:

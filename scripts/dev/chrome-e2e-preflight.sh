@@ -442,7 +442,7 @@ print(attach_ui_heal_post_ensure_max_sec(${active_leases}))
     errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_core.runtime_identity import attach_wait_errors
+from e2e_core.endpoint_health import attach_wait_errors
 print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
 ")"
     [[ -z "${errors}" ]] && return 0
@@ -783,7 +783,7 @@ print(int(elapsed_wall_sec()))
     errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_core.runtime_identity import attach_endpoint_errors
+from e2e_core.endpoint_health import attach_endpoint_errors
 print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
 ")"
     if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
@@ -1023,7 +1023,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-
   attach_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_core.runtime_identity import attach_wait_errors
+from e2e_core.endpoint_health import attach_wait_errors
 print(', '.join(attach_wait_errors('${UI_BASE}', '${_attach_api}')))
 ")"
   if [[ -n "${attach_errors}" && "${MYRM_E2E_EPOCH_PIN:-0}" == "1" && "${attach_errors}" == *"api=unreachable"* ]]; then
@@ -1048,7 +1048,7 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${_attach_api}')))
       attach_msg="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_core.runtime_identity import format_attach_endpoint_failure
+from e2e_core.endpoint_health import format_attach_endpoint_failure
 print(format_attach_endpoint_failure([p.strip() for p in '''${attach_errors}'''.split(',') if p.strip()]))
 ")"
       if [[ "${attach_errors}" == *"api=foreign_listener"* ]]; then
