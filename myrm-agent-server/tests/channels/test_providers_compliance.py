@@ -60,3 +60,17 @@ class TestProviderCompliance:
         if not hasattr(channel_class, "render_style"):
             pytest.skip(f"{channel_class.name}: render_style not implemented yet")
         assert hasattr(channel_class, "render_style")
+
+    def test_native_markdown_renderer_declares_markdown_capability(self, channel_class: type[BaseChannel]) -> None:
+        # The executor tells the model "do not use Markdown" whenever `capabilities.markdown` is False,
+        # so a channel that renders Markdown natively must declare the flag or its replies lose formatting.
+        caps = channel_class.capabilities
+        if isinstance(caps, property):
+            pytest.skip(f"{channel_class.name}: capabilities is an instance property")
+        if not hasattr(channel_class, "render_style"):
+            pytest.skip(f"{channel_class.name}: render_style not implemented yet")
+        if channel_class.render_style.format == "markdown":
+            assert caps.markdown, (
+                f"{channel_class.name}: render_style.format is 'markdown' but capabilities.markdown is False; "
+                "declare markdown=True so the model is not told to avoid Markdown"
+            )
