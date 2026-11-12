@@ -92,6 +92,19 @@ class TestSources:
         result = render(msg, style)
         assert "[1] Wiki: https://wiki.org" in result[0]
 
+    def test_footnotes_carry_the_card_index_not_the_list_position(self) -> None:
+        # A later turn of the same thread continues the numbering: this reply's cards are 4 and 5 and its body
+        # cites 【4】/【5】, so the footnotes must read the same numbers.
+        style = RenderStyle(format="plaintext", supports_links=False, max_text_length=4096)
+        sources = [
+            {"title": "Fourth", "url": "https://four.example", "index": 4},
+            {"title": "Fifth", "url": "https://five.example", "index": 5},
+        ]
+        result = render(_msg(content="Claim 【4】 and claim 【5】", metadata={"sources": sources}), style)
+        assert "[4] Fourth: https://four.example" in result[0]
+        assert "[5] Fifth: https://five.example" in result[0]
+        assert "[1]" not in result[0]
+
 
 class TestAllChannelStyles:
     """Integration test: verify render() works with every real channel's RenderStyle."""
