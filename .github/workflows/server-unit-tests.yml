@@ -1,6 +1,16 @@
 name: Server unit tests
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-server/**'
+      - 'myrm-agent-harness/src/**'
+      - 'myrm-agent-harness/pyproject.toml'
+      - 'myrm-agent-harness/uv.lock'
+      - 'shared/**'
+      - '.github/workflows/server-unit-tests.yml'
   pull_request:
     paths:
       - 'myrm-agent-server/**'
@@ -11,8 +21,11 @@ on:
       - '.github/workflows/server-unit-tests.yml'
 
 concurrency:
+  # The default suite takes over half an hour and pushes to main often arrive closer together than that, so a push
+  # never cancels the run in progress: at most one run executes and one waits, and a newer push replaces the waiting
+  # one. Only a pull request is superseded by a newer run.
   group: server-unit-tests-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # CI has no LLM credentials: tests resolve model identifiers from the environment first, so
 # offline placeholders stand in for the developer-only .env.test (e2e tests are excluded).
