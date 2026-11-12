@@ -2,10 +2,12 @@
 
 import asyncio
 import logging
+import time
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from myrm_agent_harness.agent.streaming.stream_buffer import HEARTBEAT_FRAME, HEARTBEAT_INTERVAL_SEC
 
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.agent.gateway import get_agent_gateway
@@ -13,6 +15,9 @@ from app.services.agent.gateway import get_agent_gateway
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# How often an attach stream looks up whether its client left or its turn ended while no event arrives.
+_DISCONNECT_POLL_SEC = 2.0
 
 
 @router.get("/chat/{chat_id}/attach", response_model=None)
@@ -22,6 +27,10 @@ async def attach_to_chat(
     multiplexed: bool = False,
 ) -> StreamingResponse | JSONResponse:
     """Attach to an ongoing agent chat session via SSE or fetch its snapshot.
+
+    The stream sends ``HEARTBEAT_FRAME`` whenever the turn has been quiet for ``HEARTBEAT_INTERVAL_SEC``, like the
+    run's own stream does: the page's stream consumer reads a stream that carries no frame for three intervals as a
+    dead connection, however long the turn itself is silent.
 
     If multiplexed=True, returns a JSONResponse containing the catchup_snapshot instead of
     opening an SSE stream, so a client can refresh many chats without holding a connection per chat.
@@ -51,7 +60,8 @@ async def attach_to_chat(
 
             yield SSEEnvelope(type="catchup_snapshot", data=snapshot, messageId=collector.message_id).to_sse_chunk()
 
-            # 2. Yield real-time events
+            # 2. Yield real-time events; a quiet turn gets the keep-alive frame
+            quiet_since = time.monotonic()
             while True:
                 if await request.is_disconnected():
                     break
@@ -67,13 +77,18 @@ async def attach_to_chat(
                     )
                     break
 
+                # Wake in time for the keep-alive frame, and at least every poll to notice a departed client or a finished turn.
+                until_keep_alive = max(HEARTBEAT_INTERVAL_SEC - (time.monotonic() - quiet_since), 0.0)
                 try:
-                    # Wait for next event with a small timeout to check for disconnects
-                    event = await asyncio.wait_for(q.get(), timeout=2.0)
-                    envelope = SSEEnvelope.from_any(event)
-                    yield envelope.to_sse_chunk()
+                    event = await asyncio.wait_for(q.get(), timeout=min(_DISCONNECT_POLL_SEC, until_keep_alive))
                 except asyncio.TimeoutError:
-                    continue
+                    if time.monotonic() - quiet_since < HEARTBEAT_INTERVAL_SEC:
+                        continue
+                    chunk = HEARTBEAT_FRAME
+                else:
+                    chunk = SSEEnvelope.from_any(event).to_sse_chunk()
+                yield chunk
+                quiet_since = time.monotonic()
         finally:
             collector.unsubscribe(q)
             logger.info(f"Client detached from chat {chat_id} real-time stream")

@@ -1,7 +1,8 @@
-"""SHPOIB HITL attach replay integration tests (no Chrome/LLM).
+"""SHPOIB HITL attach replay and attach stream lifecycle integration tests (no Chrome/LLM).
 
 Guards the server-side path LIVE Chrome E2E depends on when UI multiplex/SSE
-is flaky: pending tool_approval_request → collector replay → hitl-probe / attach.
+is flaky: pending tool_approval_request → collector replay → hitl-probe / attach,
+and the attach stream's own lifecycle: it ends with the turn and it says it is alive while the turn is silent.
 """
 
 from __future__ import annotations
@@ -10,14 +11,16 @@ import asyncio
 import json
 import time
 from collections.abc import AsyncIterator, Iterator
-from typing import Any
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.streaming.stream_buffer import HEARTBEAT_FRAME
 
+from app.api.agents.general_agent import active_sessions
 from app.api.agents.general_agent.active_sessions import attach_to_chat, get_chat_turn_state
 from app.remote_access.e2ee.session import E2EE_CONTENT_TYPE, E2EESession
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
@@ -200,9 +203,7 @@ class _FakeRequest:
     """Minimal Request stand-in: never disconnected, no E2EE session bound."""
 
     def __init__(self) -> None:
-        self.state: Any = type("State", (), {})()
-        self.state.e2ee_session = None
-        self.state.auth_source = None
+        self.state = SimpleNamespace(e2ee_session=None, auth_source=None)
 
     async def is_disconnected(self) -> bool:
         return False
@@ -267,5 +268,65 @@ async def test_attach_stream_terminates_after_collector_cleanup() -> None:
         collector.cleanup()
         with pytest.raises(StopAsyncIteration):
             await asyncio.wait_for(_next_chunk(body), timeout=5)
+    finally:
+        collector.cleanup()
+
+
+async def _end_attach_stream(collector: StreamContentCollector, body: AsyncIterator[str | bytes | memoryview]) -> None:
+    """Finish the turn and drain the stream, so the route's own cleanup (unsubscribe) runs inside the test."""
+    collector.cleanup()
+    with pytest.raises(StopAsyncIteration):
+        await asyncio.wait_for(_next_chunk(body), timeout=5)
+
+
+@pytest.mark.asyncio
+async def test_attach_stream_sends_the_keep_alive_frame_while_the_turn_is_silent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A page attached to a turn that sends nothing tells it from a dead connection by the frames that keep coming.
+
+    The page's stream consumer treats a stream that carries no frame for three keep-alive intervals as dead, so an attach
+    stream that stays quiet through a long silent stretch (a model thinking, a hook holding the run) would be torn down.
+    The frame is due on its own interval, not whenever the stream next looks for a departed client.
+    """
+    monkeypatch.setattr(active_sessions, "HEARTBEAT_INTERVAL_SEC", 0.1)
+    monkeypatch.setattr(active_sessions, "_DISCONNECT_POLL_SEC", 60.0)
+    chat_id = "chat-attach-keep-alive-when-silent"
+    collector = StreamContentCollector(chat_id=chat_id)
+    try:
+        response = await attach_to_chat(chat_id, _FakeRequest())  # type: ignore[arg-type]
+        assert isinstance(response, StreamingResponse)
+        body = aiter(response.body_iterator)
+        assert "catchup_snapshot" in await _next_chunk(body)
+
+        # The turn does nothing: the stream keeps saying so, again and again.
+        for _ in range(3):
+            assert await asyncio.wait_for(_next_chunk(body), timeout=5) == HEARTBEAT_FRAME
+
+        await _end_attach_stream(collector, body)
+    finally:
+        collector.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_attach_stream_sends_the_keep_alive_frame_only_after_a_quiet_interval(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every event restarts the quiet interval: a turn that is producing needs no keep-alive frame between its events."""
+    monkeypatch.setattr(active_sessions, "HEARTBEAT_INTERVAL_SEC", 1.0)
+    chat_id = "chat-attach-keep-alive-after-quiet"
+    collector = StreamContentCollector(chat_id=chat_id)
+    try:
+        response = await attach_to_chat(chat_id, _FakeRequest())  # type: ignore[arg-type]
+        assert isinstance(response, StreamingResponse)
+        body = aiter(response.body_iterator)
+        assert "catchup_snapshot" in await _next_chunk(body)
+
+        # Together the pauses outlast one interval, each of them is half of it: a frame sent on a fixed tick would show up
+        # between two events, a frame sent after a quiet interval does not.
+        for index in range(3):
+            await asyncio.sleep(0.5)
+            collector.feed_event({"type": "message", "data": f"live-chunk-{index}"})
+            assert f"live-chunk-{index}" in await asyncio.wait_for(_next_chunk(body), timeout=5)
+
+        assert await asyncio.wait_for(_next_chunk(body), timeout=5) == HEARTBEAT_FRAME
+
+        await _end_attach_stream(collector, body)
     finally:
         collector.cleanup()

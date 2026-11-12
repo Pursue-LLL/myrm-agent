@@ -6,6 +6,8 @@
 [OUTPUT]
 - ResilientStreamBuffer: in-memory sliding window replay buffer of ONE run (never reopened once ended)
 - GlobalStreamRegistry: one buffer per run id; get_or_create serves reconnects, start_run gives a new run its own buffer
+- HEARTBEAT_FRAME / HEARTBEAT_INTERVAL_SEC: the SSE keep-alive frame and the idle time after which every stream that holds
+  a connection open without events (the run's own stream and the attach stream of a live turn) sends it
 
 [POS]
 Harness engine-layer SSE reconnect replay buffer. In-memory only: process
@@ -23,11 +25,17 @@ import time
 from collections import deque
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
+from typing import Final
 
 logger = logging.getLogger(__name__)
 
 # 默认 5MB 的内存缓冲上限，足以容纳几十万字的深度长文（纯文本 JSON），极难 OOM
 _DEFAULT_MAX_BYTES = 5 * 1024 * 1024
+
+# A protocol frame with a null body: the page's stream consumer skips it, while its arrival proves the connection alive.
+HEARTBEAT_FRAME: Final = "event: heartbeat\ndata: null\n\n"
+# Idle seconds before the keep-alive frame. The WebUI stream consumer reads three missed intervals as a dead connection.
+HEARTBEAT_INTERVAL_SEC: Final = 15.0
 
 
 @dataclass
@@ -89,15 +97,15 @@ class ResilientStreamBuffer:
             self._condition.notify_all()
 
     async def subscribe(
-        self, last_event_id: str | None = None, heartbeat_interval: float = 15.0
+        self, last_event_id: str | None = None, heartbeat_interval: float = HEARTBEAT_INTERVAL_SEC
     ) -> AsyncGenerator[str]:
         """Subscribe to the stream, optionally resuming from a specific event ID.
 
         If last_event_id is provided, replays all buffered events that occurred AFTER it.
         Then blocks and yields new events as they arrive, until end_stream() is called.
 
-        While no event arrives, a heartbeat frame is yielded every ``heartbeat_interval`` seconds. The WebUI stream
-        watchdog (``STREAM_SILENCE_TIMEOUT_MS``) treats three silent intervals as a dead connection, so a longer
+        While no event arrives, ``HEARTBEAT_FRAME`` is yielded every ``heartbeat_interval`` seconds. The WebUI stream
+        consumer (``STREAM_LIVENESS_BUDGET_MS``) treats three silent intervals as a dead connection, so a longer
         default interval must move that constant too.
         """
         async with self._condition:
@@ -143,7 +151,7 @@ class ResilientStreamBuffer:
                         continue
 
             if is_heartbeat:
-                yield "event: heartbeat\ndata: null\n\n"
+                yield HEARTBEAT_FRAME
             elif payload is not None:
                 yield payload
 
