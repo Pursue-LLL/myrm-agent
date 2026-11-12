@@ -6,8 +6,9 @@
 
 [OUTPUT]
 - what the Agent's browsing tools do in the user's signed-in browser: navigate, read, click, take a screenshot; where
-  they are stopped; one connection for all tabs of a session; a closed tab is closed in the user's browser; which tabs
-  they leave behind (none, once the session ends)
+  they are stopped; one connection for all tabs of a session; switching between its tabs reads the one behind without
+  moving what the user sees; a closed tab is closed in the user's browser; which tabs they leave behind (none, once the
+  session ends)
 
 [POS]
 The top of the end-to-end proof: the harness's own context options, page pool and session logic run against the real
@@ -81,6 +82,25 @@ async def test_session_leaves_no_tab_of_its_own_behind_and_keeps_the_users(stack
 
     await wait_until(only_the_users_tabs_remain, "the Agent's tabs to close with its session")
     assert not user_tab.is_closed()
+
+
+async def test_session_switches_between_its_tabs_without_moving_the_users_view(stack: RealExtensionStack) -> None:
+    await stack.log_in(INTRANET_HOST)
+    await stack.authorize([INTRANET_HOST])
+
+    async with stack.agent_session() as session:
+        await session.navigate(stack.site.url(INTRANET_HOST, "/secret"))
+        first_tab = session.get_active_tab_id()
+        await session.new_tab()
+        await session.navigate(stack.site.url(INTRANET_HOST, "/orders"))
+        users_view = await stack.browser.users_view()
+        assert users_view.active_url.endswith("/orders")  # the tab the Agent opened last is the one in front
+
+        await session.switch_tab(first_tab)
+
+        assert "private-data-42" in (await session.snapshot()).aria_tree  # the earlier tab is readable while behind
+        assert (await session.get_final_screenshot()).startswith(PNG_SIGNATURE)
+        assert await stack.browser.users_view() == users_view
 
 
 async def test_session_tabs_share_one_connection_and_a_closed_tab_is_closed_in_the_users_browser(
