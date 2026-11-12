@@ -1313,7 +1313,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 
 | 文件 | 职责 |
 |------|------|
-| `tool_management/tool_layers.py` | CORE/COMMON/EXTENDED/EXTERNAL 四层定义 + 工具注册表 |
+| `tool_management/tool_layers.py` | CORE/HIGH_PRIORITY/EXTENDED/EXTERNAL 四层定义 + 工具注册表 |
 | `tool_management/registry.py` | `resolve()` 按 layer + name 排序，确保工具定义顺序确定性 |
 | `streaming/utils.py` | `get_datetime_prompt()` 生成时间标签 + `DATETIME_SYSTEM_RULES` 系统规则常量 |
 | `streaming/agent_core_rules.py` | 核心行为规则：`AGENT_CORE_RULES` 是所有模型共用的固定文本 |
