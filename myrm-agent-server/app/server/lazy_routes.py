@@ -13,10 +13,13 @@
 [POS]
 The routers are most of the server's import graph, yet a launch only needs the few endpoints its first requests hit.
 A ``RouterMount`` declares an ``include_router`` call as data; the module behind it is imported when a request targets
-its group (the first path segment below the API prefix) or when ``LazyRouteLoader.preload`` reaches it, and the router
-is then included into the aggregate with the mount's prefix and tags, at the mount's declaration position. Once every
-group is loaded the aggregate is the one an eager ``include_router`` sequence builds: same structure, same route order,
-same OpenAPI output.
+its group (the first path segment below the API prefix) or when ``LazyRouteLoader.preload`` reaches it. A request
+attaches its own group at once; the groups ``preload`` imported are attached together when it is done. Every attach
+invalidates FastAPI's cached route table and the next request rebuilds the table of everything attached so far, so
+attaching the groups one request apart costs seconds of loop time where one batch costs a single rebuild. A router is
+included into the aggregate with the mount's prefix and tags, at the mount's declaration position. Once every group is
+attached the aggregate is the one an eager ``include_router`` sequence builds: same structure, same route order, same
+OpenAPI output.
 Groups are imported synchronously on the calling thread (the event loop in the server): all modules of a group first,
 its routers attached afterwards, so a failed import leaves the group unmounted for the next request to retry.
 A group's mounts must serve only paths below its segment: a request is routed to the group its first path segment names.
@@ -77,7 +80,8 @@ class AttachedRouter:
 @dataclass(slots=True)
 class _Group:
     mounts: list[tuple[int, RouterMount]] = field(default_factory=list)
-    loaded: bool = False
+    routers: list[APIRouter] | None = None  # imported, in ``mounts`` order
+    loaded: bool = False  # attached to the aggregate
 
 
 AttachListener = Callable[[Sequence[AttachedRouter]], None]
@@ -116,27 +120,16 @@ class LazyRouteLoader:
 
     def pending_segments(self) -> tuple[str, ...]:
         """Segments whose routers have not been imported yet, in declaration order."""
-        return tuple(segment for segment, group in self._groups.items() if not group.loaded)
+        return tuple(segment for segment, group in self._groups.items() if group.routers is None)
 
     def ensure_loaded(self, segment: str) -> None:
-        """Import and attach the routers of ``segment``; a no-op for loaded and unknown segments."""
+        """Import (if needed) and attach the routers of ``segment``; a no-op for loaded and unknown segments."""
         group = self._groups.get(segment)
         if group is None or group.loaded:
             return
         with self._lock:
-            if group.loaded:
-                return
-            try:
-                routers = [mount.resolve() for _, mount in group.mounts]
-            except Exception:
-                logger.exception("[Routes] Importing route group %r failed", segment)
-                raise
-            attached = [
-                self._attach(position, mount, router) for (position, mount), router in zip(group.mounts, routers, strict=True)
-            ]
-            for listener in self._listeners:
-                listener(attached)
-            group.loaded = True
+            self._import(segment, group)
+            self._attach_group(group)
 
     def load_all(self) -> None:
         """Import and attach every group (schema generation and tools that need the complete route table)."""
@@ -144,13 +137,40 @@ class LazyRouteLoader:
             self.ensure_loaded(segment)
 
     async def preload(self) -> None:
-        """Load the groups no request has asked for yet, idling between groups so requests interleave with the imports."""
+        """Import the groups no request has asked for yet, idling between groups so requests interleave with the imports.
+
+        The imported groups are attached together at the end, in one synchronous step no request can interleave with.
+        """
         for segment in self.pending_segments():
             started = time.perf_counter()
-            # ``ensure_loaded`` logs the failure with the group name; the remaining groups still load.
-            with contextlib.suppress(Exception):
-                self.ensure_loaded(segment)
+            # ``_import`` logs the failure with the group name; the remaining groups still load.
+            with contextlib.suppress(Exception), self._lock:
+                self._import(segment, self._groups[segment])
             await asyncio.sleep((time.perf_counter() - started) * PRELOAD_IDLE_RATIO)
+        with self._lock:
+            for group in self._groups.values():
+                self._attach_group(group)
+
+    def _import(self, segment: str, group: _Group) -> None:
+        """Import every router of ``group``; a failure leaves it unimported for the next attempt."""
+        if group.routers is not None:
+            return
+        try:
+            group.routers = [mount.resolve() for _, mount in group.mounts]
+        except Exception:
+            logger.exception("[Routes] Importing route group %r failed", segment)
+            raise
+
+    def _attach_group(self, group: _Group) -> None:
+        """Attach an imported group (no-op for attached or unimported ones) and tell the listeners."""
+        if group.loaded or group.routers is None:
+            return
+        attached = [
+            self._attach(position, mount, router) for (position, mount), router in zip(group.mounts, group.routers, strict=True)
+        ]
+        for listener in self._listeners:
+            listener(attached)
+        group.loaded = True
 
     def _attach(self, position: int, mount: RouterMount, router: APIRouter) -> AttachedRouter:
         """Include ``router`` at its declaration position (a no-op re-include after a failed attempt is skipped)."""

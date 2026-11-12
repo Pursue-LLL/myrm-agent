@@ -6,7 +6,8 @@
 
 [OUTPUT]
 - Coverage that nothing is imported before a group is needed, that a loaded aggregate equals an eagerly built one
-  (route order and OpenAPI), that requests and WebSockets load their group first, and that failures are retried
+  (route order and OpenAPI), that requests and WebSockets load their group first, that preload attaches what it
+  imported in one batch while a request still attaches its own group at once, and that failures are retried
 
 [POS]
 Server tests. The loader replaces a sequence of ``include_router`` calls whose imports dominate server startup; the
@@ -332,6 +333,51 @@ async def test_preload_loads_the_pending_groups_idling_between_them(probes: _Pro
 
     assert loader.pending_segments() == ()
     assert ticks >= 2
+
+
+async def test_preload_attaches_the_imported_groups_together_once_all_are_imported(
+    probes: _Probes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each attach invalidates FastAPI's cached route table; one batch costs one rebuild, one attach per request many."""
+    monkeypatch.setattr(lazy_routes, "PRELOAD_IDLE_RATIO", 0.0)
+    loader = LazyRouteLoader(_mounts(probes), local_mode=True)
+    loader.ensure_loaded("beta")
+    attached_while_preloading: set[int] = set()
+    stop = asyncio.Event()
+
+    async def watcher() -> None:
+        while not stop.is_set():
+            attached_while_preloading.add(len(loader.router.routes))
+            await asyncio.sleep(0)
+
+    watching = asyncio.create_task(watcher())
+    await loader.preload()
+    stop.set()
+    await watching
+
+    assert sorted(probes.imported) == ["lazy_probe_a1", "lazy_probe_a2", "lazy_probe_b1", "lazy_probe_c1"]
+    assert attached_while_preloading == {1}
+    assert len(loader.router.routes) == 4
+
+
+async def test_a_group_a_request_needs_during_preload_is_attached_at_once(
+    probes: _Probes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(lazy_routes, "PRELOAD_IDLE_RATIO", 0.0)
+    loader = LazyRouteLoader(_mounts(probes), local_mode=True)
+    attached_by_the_request: list[int] = []
+
+    async def request() -> None:
+        while not probes.imported:
+            await asyncio.sleep(0)
+        loader.ensure_loaded("gamma")
+        attached_by_the_request.append(len(loader.router.routes))
+
+    await asyncio.gather(loader.preload(), request())
+
+    assert attached_by_the_request == [1]
+    assert loader.pending_segments() == ()
+    assert len(loader.router.routes) == 4
 
 
 async def test_preload_continues_past_a_group_that_fails_to_import(probes: _Probes, caplog: pytest.LogCaptureFixture) -> None:

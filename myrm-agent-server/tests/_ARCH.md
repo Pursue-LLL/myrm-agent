@@ -76,7 +76,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
 | `server/test_lifespan_config_migration.py` | 单元 | 启动阶段在每种部署模式下都调用 `seal_stored_configs`：调用不在任何 `if` 之下、失败只记警告不外抛（读启动函数源码，删掉调用或加上模式判断即红） |
 | `server/test_lifespan_channel_image_sweep.py` | 单元 | 服务启动把渠道图片缓存的过期清扫交给维护守护进程：恰好提交一次、且在守护进程工作线程启动之后；提交被拒（队列满）只记警告、不拖垮启动（读启动函数源码，删掉提交、挪到启动之前或去掉保护即红） |
-| `server/test_lazy_routes.py` | 单元 | 路由组按需加载（用 `tmp_path` 里会记录自己被导入时刻的探针路由模块）：加载前什么都没导入；任意加载顺序下加载完的聚合路由与急切构建的聚合路由逐项相同（路由顺序与 OpenAPI）；仅本地模式的挂载随部署模式取舍；急切路由段在构造时加载、未知路由段被拒；工厂挂载与非路由属性；导入失败后路由组保持待加载并由下一个请求重试；附加监听器拿到路由组的路由与前缀；请求与 WebSocket 在路由匹配前加载自己的路由组、其他路径什么都不加载；已服务过请求后才并入的路由组同样被路由；OpenAPI 生成前加载全部路由组；后台 `preload` 逐组加载并在组间让出事件循环、越过导入失败的路由组 |
+| `server/test_lazy_routes.py` | 单元 | 路由组按需加载（用 `tmp_path` 里会记录自己被导入时刻的探针路由模块）：加载前什么都没导入；任意加载顺序下加载完的聚合路由与急切构建的聚合路由逐项相同（路由顺序与 OpenAPI）；仅本地模式的挂载随部署模式取舍；急切路由段在构造时加载、未知路由段被拒；工厂挂载与非路由属性；导入失败后路由组保持待加载并由下一个请求重试；附加监听器拿到路由组的路由与前缀；请求与 WebSocket 在路由匹配前加载自己的路由组、其他路径什么都不加载；已服务过请求后才并入的路由组同样被路由；OpenAPI 生成前加载全部路由组；后台 `preload` 逐组导入并在组间让出事件循环、全部导入后一次性并入聚合路由（期间只有请求命中的路由组已并入）、越过导入失败的路由组 |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
