@@ -85,9 +85,13 @@ cmd_stop() {
 cmd_open() {
   echo "Launching visible foreground browser window..."
   export MYRM_CHROME_AGENT_FOREGROUND=1
-  local agent_cli
+  local agent_cli install_output
   agent_cli="$(chrome_agent_cli)" || exit 1
-  "${agent_cli}" install >/dev/null 2>&1 || true
+  if ! install_output="$("${agent_cli}" install 2>&1)"; then
+    echo "MYRM_CHROME_AGENT_FAIL: chrome-agent install failed; its output:" >&2
+    echo "${install_output}" >&2
+    exit 1
+  fi
   if [[ "$(uname -s)" == "Darwin" ]]; then
     osascript -e 'tell application "Google Chrome" to activate' 2>/dev/null || true
   fi
