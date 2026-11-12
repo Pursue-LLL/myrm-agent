@@ -13,6 +13,7 @@ Answers "which role burned the CPU or held the memory when the machine saturated
 the kernel short of memory" from recorded rows alone. Footprint columns, the kernel memory
 section and the per-peak memory lines appear only when rows carry that data, so windows of
 older rows render as before.
+Sizes print in binary units (MiB, GiB), the unit the stored ``*_mb`` fields count in.
 Peaks closer than ``PEAK_SEPARATION_SEC`` belong to one storm and are reported once.
 """
 
@@ -29,8 +30,8 @@ from e2e_core.host_vm_stats import PRESSURE_WARN, VmSample
 PEAK_SEPARATION_SEC: Final = 600.0
 _PEAK_TOP_ROLES: Final = 4
 _MIN_REPORTED_CORES: Final = 0.05
-_MIN_REPORTED_FOOTPRINT_MB: Final = 256
-_MB_PER_GB: Final = 1024
+_MIN_REPORTED_FOOTPRINT_MIB: Final = 256
+_MIB_PER_GIB: Final = 1024
 
 
 def _ratio(sample: LoadSample) -> float:
@@ -100,7 +101,7 @@ def _role_table(samples: Sequence[LoadSample], hot: Sequence[LoadSample]) -> lis
     tracked, tracked_hot = _with_footprint(samples), _with_footprint(hot)
     header = f"  {'role (mean busy cores)':<24}{'all':>10}{'elevated':>17}"
     if tracked:
-        header += f"{'foot MB all':>14}{'foot MB elev':>14}"
+        header += f"{'foot MiB all':>15}{'foot MiB elev':>15}"
     roles = sorted({role for sample in samples for role in sample["roles"]})
     rows = [
         (
@@ -118,14 +119,14 @@ def _role_table(samples: Sequence[LoadSample], hot: Sequence[LoadSample]) -> lis
     ):
         line = f"  {role:<24}{overall:10.2f}{elevated:17.2f}"
         if tracked:
-            line += f"{foot:14.0f}{foot_elevated:14.0f}"
+            line += f"{foot:15.0f}{foot_elevated:15.0f}"
         lines.append(line)
     unattributed = (
         f"  {'unattributed':<24}"
         f"{_mean([sample['unattributed_cores'] for sample in samples]):10.2f}"
         f"{_mean([sample['unattributed_cores'] for sample in hot]):17.2f}"
     )
-    lines.append(unattributed + (f"{'-':>14}{'-':>14}" if tracked else ""))
+    lines.append(unattributed + (f"{'-':>15}{'-':>15}" if tracked else ""))
     return lines
 
 
@@ -140,7 +141,7 @@ def _kernel_section(
         return sum(1 for item in items if item["pressure"] >= PRESSURE_WARN)
 
     compressor = sorted(item["compressor_mb"] for item in readings)
-    swap_peak_gb = max(item["swap_mb"] for item in readings) / _MB_PER_GB
+    swap_peak_gib = max(item["swap_mb"] for item in readings) / _MIB_PER_GIB
     compress_peak = max(item["compress_mb_s"] for item in readings)
     decompress_peak = max(item["decompress_mb_s"] for item in readings)
     swapout_peak = max(item["swapout_mb_s"] for item in readings)
@@ -157,11 +158,11 @@ def _kernel_section(
             f"{_share(warned(readings), len(readings)):.1f}% of samples, {share_hot}"
         ),
         (
-            f"  compressor GB: p50 {compressor[len(compressor) // 2] / _MB_PER_GB:.1f}  "
-            f"max {compressor[-1] / _MB_PER_GB:.1f}   swap GB: max {swap_peak_gb:.1f}"
+            f"  compressor GiB: p50 {compressor[len(compressor) // 2] / _MIB_PER_GIB:.1f}  "
+            f"max {compressor[-1] / _MIB_PER_GIB:.1f}   swap GiB: max {swap_peak_gib:.1f}"
         ),
         (
-            f"  paging MB/s (max): compress {compress_peak:.0f}  "
+            f"  paging MiB/s (max): compress {compress_peak:.0f}  "
             f"decompress {decompress_peak:.0f}  swap-out {swapout_peak:.0f}"
         ),
     ]
@@ -173,9 +174,9 @@ def _peak_memory_lines(sample: LoadSample) -> list[str]:
         sample["roles"], key=lambda role: _role_foot_mb(sample, role), reverse=True
     )
     holders = [
-        f"{role} {_role_foot_mb(sample, role) / _MB_PER_GB:.1f} GB"
+        f"{role} {_role_foot_mb(sample, role) / _MIB_PER_GIB:.1f} GiB"
         for role in ranked[:_PEAK_TOP_ROLES]
-        if _role_foot_mb(sample, role) >= _MIN_REPORTED_FOOTPRINT_MB
+        if _role_foot_mb(sample, role) >= _MIN_REPORTED_FOOTPRINT_MIB
     ]
     if holders:
         lines.append("footprint: " + ", ".join(holders))
@@ -183,9 +184,9 @@ def _peak_memory_lines(sample: LoadSample) -> list[str]:
         vm = sample["vm"]
         lines.append(
             f"kernel: level {vm['pressure']}, compressor "
-            f"{vm['compressor_mb'] / _MB_PER_GB:.1f} GB, swap "
-            f"{vm['swap_mb'] / _MB_PER_GB:.1f} GB, decompress "
-            f"{vm['decompress_mb_s']:.0f} MB/s"
+            f"{vm['compressor_mb'] / _MIB_PER_GIB:.1f} GiB, swap "
+            f"{vm['swap_mb'] / _MIB_PER_GIB:.1f} GiB, decompress "
+            f"{vm['decompress_mb_s']:.0f} MiB/s"
         )
     return lines
 
@@ -218,7 +219,7 @@ def render_summary(samples: Sequence[LoadSample], *, hours: float, peaks: int) -
     for sample in _distinct_peaks(samples, peaks):
         lines.append(
             f"  {_stamp(sample['ts'])}  load1 {sample['load1']:.1f} (ratio {_ratio(sample):.2f})  "
-            f"idle {sample['cpu_idle']:.0f}%  free {sample['mem_avail_mb']} MB  "
+            f"idle {sample['cpu_idle']:.0f}%  free {sample['mem_avail_mb']} MiB  "
             f"procs {sample['procs']} (young {sample['young']})"
         )
         lines.append(f"      {_top_roles(sample)}")

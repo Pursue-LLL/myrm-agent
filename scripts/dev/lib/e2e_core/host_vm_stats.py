@@ -74,6 +74,8 @@ class VmSnapshot:
 
 
 class VmSample(TypedDict):
+    """Kernel memory readings of one interval: sizes in MiB, paging rates in MiB/s."""
+
     pressure: int
     compressor_mb: int
     swap_mb: int

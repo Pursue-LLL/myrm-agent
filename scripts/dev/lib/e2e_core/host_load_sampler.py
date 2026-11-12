@@ -117,7 +117,10 @@ class _LoadCore(TypedDict):
 
 
 class LoadSample(_LoadCore, total=False):
-    """One recorded interval; ``vm`` is optional: stored rows may lack kernel readings."""
+    """One recorded interval; ``vm`` is optional: stored rows may lack kernel readings.
+
+    Every ``*_mb`` field of a row, role stats and ``vm`` included, counts mebibytes (2**20 bytes).
+    """
 
     vm: VmSample
 
