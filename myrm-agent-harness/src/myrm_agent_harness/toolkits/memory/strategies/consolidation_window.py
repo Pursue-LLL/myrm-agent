@@ -4,12 +4,13 @@
 - memory._internal.storage::doc_to_episodic, doc_to_semantic (POS: Vector document to memory converters)
 - memory._internal.store_stamp::{STORED_TS_KEY, stored_at_from_metadata} (POS: arrival stamp of a stored memory and its payload form)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
-- memory.types::AnyMemory, MemoryStatus, SemanticMemory (POS: memory data models and lifecycle status)
-- strategies.consolidation_models::{CONSOLIDATION_INSIGHT_TAG, CONSOLIDATION_SOURCE_KEY} (POS: markers of consolidation's own output)
+- memory.types::AnyMemory, ClaimMemory, MemoryStatus, ProceduralMemory, SemanticMemory (POS: memory data models and lifecycle status)
+- strategies.consolidation_models::{CONSOLIDATION_INSIGHT_TAG, CONSOLIDATION_SOURCE_KEY, is_folded_fragment} (POS: markers of consolidation's own output and of the fragments a merge folded away)
 
 [OUTPUT]
 - CandidateWindow: The memories of one run and the time the covered-through stamp may advance to
 - fetch_candidate_window: Read the next oldest-first window of uncovered memories
+- enrich_with_similar: Join a lone new memory with the existing memories most similar to it
 
 [POS]
 Selects what a consolidation run analyzes. The stamp is a covered-through mark over arrival order: every memory
@@ -18,10 +19,11 @@ memory approved late, imported with its source's timestamp or corrected is still
 memories are read: a procedural rule takes effect through its trigger and action, which consolidation may not
 rewrite, so a rule is never a candidate. The window walks forward in arrival order, never past the run's horizon and
 never past a point some source was not read to, so a backlog larger than one run is drained batch by batch. The only
-memories it skips are consolidation's own output, memories the user archived or switched off, documents that cannot
-be decoded (one never hides its neighbours) and, when a source is cut inside a group of documents stored before stamps
-existed that share one creation instant, the rest of that group. An unreadable source, or a batch in which nothing
-decodes, holds the stamp instead of letting it jump over memories the run could not see.
+memories it skips are consolidation's own output, the fragments a merge already folded into that output, memories the
+user archived or switched off, documents that cannot be decoded (one never hides its neighbours) and, when a source
+is cut inside a group of documents stored before stamps existed that share one creation instant, the rest of that
+group. An unreadable source, or a batch in which nothing decodes, holds the stamp instead of letting it jump over
+memories the run could not see.
 """
 
 from __future__ import annotations
@@ -37,8 +39,9 @@ from myrm_agent_harness.toolkits.memory._internal.store_stamp import STORED_TS_K
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     CONSOLIDATION_INSIGHT_TAG,
     CONSOLIDATION_SOURCE_KEY,
+    is_folded_fragment,
 )
-from myrm_agent_harness.toolkits.memory.types import MemoryStatus, SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import ClaimMemory, MemoryStatus, ProceduralMemory, SemanticMemory
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -72,9 +75,14 @@ def _is_analyzable(memory: AnyMemory) -> bool:
     """Whether a run may analyze the memory.
 
     One the user archived or switched off is out of play: it would be sent to the model, and a merge would write its
-    content back into a live memory.
+    content back into a live memory. A fragment a merge folded away is covered by its product, so analyzing it again
+    would fold the same facts a second time.
     """
-    return memory.status == MemoryStatus.ACTIVE and not _is_consolidation_product(memory)
+    return (
+        memory.status == MemoryStatus.ACTIVE
+        and not _is_consolidation_product(memory)
+        and not is_folded_fragment(memory)
+    )
 
 
 def _arrived_at(memory: AnyMemory) -> datetime:
@@ -191,4 +199,25 @@ async def fetch_candidate_window(
     return CandidateWindow(memories=window, advance_to=covered_through if readable else None)
 
 
-__all__ = ["CandidateWindow", "fetch_candidate_window"]
+async def enrich_with_similar(memory: AnyMemory, manager: MemoryManager, max_similar: int = 3) -> list[AnyMemory]:
+    """Find similar existing memories so a single new memory can be consolidated.
+
+    Claims, rules and fragments a merge already folded away never join: the first two are not consolidation's to
+    rewrite, and the last are covered by their product.
+    """
+    try:
+        results = await manager.search(memory.content, limit=max_similar + 1, track_access=False)
+        similar = [
+            r.memory
+            for r in results
+            if r.memory.id != memory.id
+            and not isinstance(r.memory, ClaimMemory | ProceduralMemory)
+            and not is_folded_fragment(r.memory)
+        ][:max_similar]
+        return [memory, *similar]
+    except Exception as e:
+        logger.warning("Enrich-with-similar search failed: %s", e)
+        return [memory]
+
+
+__all__ = ["CandidateWindow", "enrich_with_similar", "fetch_candidate_window"]

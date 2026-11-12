@@ -6,6 +6,7 @@
 - memory._internal.dedup_funcs::{SemanticDedupFunc, EpisodicDedupFunc} (POS: batch deduplication callable types)
 - memory._internal.memory_scanner::scan_and_clean_memory (POS: content safety scanner)
 - memory._internal.write_builders::MemoryBuildersMixin (POS: constructors of the convenience writes)
+- memory._internal.write_fence::{write_grant, within_write_grant} (POS: write-scope fence predicate shared with consolidation)
 - memory.agent_surface.transient_fact_boundary::filter_transient_business_memories (POS: L3 write gate for transient business facts)
 - memory.strategies.chat_fence::{DELETED_CHAT_REJECTION, derives_from_deleted_chat, keep_live} (POS: refusal of writes derived from a deleted chat)
 
@@ -34,6 +35,7 @@ from myrm_agent_harness.toolkits.memory._internal.memory_scanner import (
 )
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError, MemoryRejectedError
 from myrm_agent_harness.toolkits.memory._internal.write_builders import MemoryBuildersMixin
+from myrm_agent_harness.toolkits.memory._internal.write_fence import within_write_grant, write_grant
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.strategies.chat_fence import (
     DELETED_CHAT_REJECTION,
@@ -355,14 +357,11 @@ class MemoryWriter(MemoryBuildersMixin):
         read-only namespace (e.g. another agent's private space) must not be
         written into; fail loud instead of silently persisting.
         """
-        allowed = set(self._scope.namespaces) | {
-            ns for ns in self._namespaces if ns == "global" or ns.startswith("shared:")
-        }
-        if not allowed:
-            return
-        memory_namespaces = set(memory.scope.namespaces)
-        if not memory_namespaces.issubset(allowed):
-            raise MemoryError(f"Memory write scope {sorted(memory_namespaces)} exceeds allowed scope {sorted(allowed)}")
+        grant = write_grant(self._scope, self._namespaces)
+        if not within_write_grant(memory.scope.namespaces, grant):
+            raise MemoryError(
+                f"Memory write scope {sorted(set(memory.scope.namespaces))} exceeds allowed scope {sorted(grant)}"
+            )
 
     @staticmethod
     def _attach_current_trace_id(memory: AnyMemory) -> None:

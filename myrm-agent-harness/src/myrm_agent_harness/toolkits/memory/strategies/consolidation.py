@@ -4,14 +4,13 @@
 - memory.config::ConsolidationConfig (POS: consolidation configuration)
 - memory._internal.store_stamp::settled_through (POS: arrival stamp of a stored memory and the writes still in flight)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
-- memory.types::{AnyMemory, ClaimMemory, ProceduralMemory, SemanticMemory} (POS: memory data models)
 - strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Persistence of maintenance counters, hashes and timestamps)
 - strategies.consolidation_models::* (POS: Domain models, DTOs, and protocol callback types for cross-session memory consolidation)
-- strategies.consolidation_prompts::* (POS: Prompts and payload compression helpers for memory consolidation)
-- strategies.consolidation_ops_executor::* (POS: Executes operations against memory primitives with transactional care, conflict routing, and deterministic three-state merge arbitration)
-- strategies.consolidation_undo::{CycleWrites, save_undo} (POS: Exact undo of the latest consolidation cycle)
-- strategies.consolidation_window::fetch_candidate_window (POS: Oldest-first window of memories a consolidation run has not covered yet)
-- strategies.lineage::origin_chat_ids (POS: the chats a set of memories derives from)
+- strategies.consolidation_groups::{analyze_group, writable_groups} (POS: Namespace groups of a consolidation window, and the model's analysis of one group)
+- strategies.consolidation_insights::persist_insights (POS: Insights a consolidation cycle draws: the closure check on what the model states, and their persistence)
+- strategies.consolidation_ops_executor::execute_operations (POS: Executes operations against memory primitives with transactional care, conflict routing, and deterministic three-state merge arbitration)
+- strategies.consolidation_undo::save_undo (POS: Exact undo of the latest consolidation cycle)
+- strategies.consolidation_window::{enrich_with_similar, fetch_candidate_window} (POS: Oldest-first window of memories a consolidation run has not covered yet)
 
 [OUTPUT]
 - run_consolidation: Cross-session consolidation (contradiction detection, redundancy merge, insight generation)
@@ -19,11 +18,11 @@
 - ConsolidationStats: Consolidation result statistics
 
 [POS]
-Cross-session memory consolidation: one cycle has the LLM analyze the oldest memories not yet covered, applies the
-merge/correct/update operations it proposes, persists the insights it draws, journals the writes for undo and advances
-the covered-through stamp, and finishes those writes even when its caller is cancelled. Triggered by end_session() and
-by a count of stored memories, both behind the interval gate, and by the maintenance cycle, which the idle worker
-forces past it.
+Cross-session memory consolidation: one cycle has the LLM analyze the oldest memories not yet covered, one namespace
+group at a time, applies the merge/correct/update operations it proposes, persists the insights it draws, journals the
+writes for undo and advances the covered-through stamp, and finishes those writes even when its caller is cancelled.
+Triggered by end_session() and by a count of stored memories, both behind the interval gate, and by the maintenance
+cycle, which the idle worker forces past it.
 """
 
 from __future__ import annotations
@@ -39,12 +38,14 @@ from langchain_core.language_models import BaseChatModel
 
 from myrm_agent_harness.toolkits.memory._internal.store_stamp import settled_through
 from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_groups import analyze_group, writable_groups
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_insights import persist_insights
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     _PROFILE_KEY_LAST_CONSOLIDATED,
-    CONSOLIDATION_INSIGHT_TAG,
     ConflictCallback,
     ConflictContext,
     ConsolidationAction,
+    ConsolidationBatch,
     ConsolidationCompleteCallback,
     ConsolidationOp,
     ConsolidationResponse,
@@ -54,24 +55,16 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     UndoJournal,
     UpdateContentOp,
 )
-from myrm_agent_harness.toolkits.memory.strategies.consolidation_ops_executor import (
-    execute_operations,
-    filter_and_guard_operations,
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_ops_executor import execute_operations
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import save_undo
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import (
+    enrich_with_similar,
+    fetch_candidate_window,
 )
-from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import (
-    _SYSTEM_PROMPT,
-    _build_id_map,
-    _build_user_prompt,
-)
-from myrm_agent_harness.toolkits.memory.strategies.consolidation_undo import CycleWrites, save_undo
-from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
-from myrm_agent_harness.toolkits.memory.strategies.lineage import origin_chat_ids
-from myrm_agent_harness.toolkits.memory.types import ClaimMemory, ProceduralMemory
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-    from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
 logger = logging.getLogger(__name__)
 
@@ -111,23 +104,6 @@ async def should_consolidate(manager: MemoryManager, config: ConsolidationConfig
     return elapsed_hours >= config.interval_hours
 
 
-async def _enrich_with_similar(memory: AnyMemory, manager: MemoryManager, max_similar: int = 3) -> list[AnyMemory]:
-    """Find similar existing memories so a single new memory can be consolidated; claims and rules never join."""
-    try:
-        results = await manager.search(memory.content, limit=max_similar + 1, track_access=False)
-        similar = [
-            r.memory
-            for r in results
-            if r.memory.id != memory.id and not isinstance(r.memory, ClaimMemory | ProceduralMemory)
-        ][:max_similar]
-        if not similar:
-            return [memory]
-        return [memory, *similar]
-    except Exception as e:
-        logger.warning("Enrich-with-similar search failed: %s", e)
-        return [memory]
-
-
 async def run_consolidation(
     manager: MemoryManager,
     llm: BaseChatModel,
@@ -156,49 +132,35 @@ async def run_consolidation(
     enriched_count = 0
     if len(window.memories) == 1:
         new_ids = frozenset(m.id for m in window.memories)
-        memories = await _enrich_with_similar(window.memories[0], manager, max_similar=config.enrich_max_similar)
+        memories = await enrich_with_similar(window.memories[0], manager, max_similar=config.enrich_max_similar)
         enriched_count = len(memories) - 1
     else:
         memories = window.memories
 
-    if len(memories) < 2:
-        logger.info("Consolidation skipped: insufficient memories (%d)", len(memories))
+    groups = writable_groups(memories, manager, new_ids)
+    if not groups:
+        logger.info("Consolidation skipped: no namespace group is worth a model call (%d memories)", len(memories))
         await _advance_stamp(manager, window.advance_to)
         return ConsolidationStats()
 
-    input_count = len(memories)
-    id_map = _build_id_map(memories)
+    input_count = sum(len(group) for group in groups)
     today = start.strftime("%Y-%m-%d")
-    user_prompt = _build_user_prompt(memories, today, id_map, new_ids=new_ids)
-
     try:
-        from langchain_core.messages import HumanMessage, SystemMessage
-
-        structured_llm = llm.with_structured_output(ConsolidationResponse)
-        raw_response = await structured_llm.ainvoke(
-            [SystemMessage(content=_SYSTEM_PROMPT), HumanMessage(content=user_prompt)]
-        )
-        if isinstance(raw_response, dict):
-            response = ConsolidationResponse.model_validate(raw_response)
-        elif isinstance(raw_response, ConsolidationResponse):
-            response = raw_response
-        else:
-            raise TypeError(f"Unexpected response type from structured LLM: {type(raw_response)}")
-
-        valid_ops, guard_patched_count = filter_and_guard_operations(response.operations, memories, id_map)
-        parsed = ConsolidationResponse(operations=valid_ops, insights=response.insights)
+        batches = [await analyze_group(group, llm, today, new_ids) for group in groups]
     except Exception as e:
         logger.warning("Consolidation LLM call failed: %s", e)
         return ConsolidationStats(errors=1, input_count=input_count, enriched_count=enriched_count)
 
-    if not parsed.operations and not parsed.insights:
+    if not any(batch.operations or batch.insights for batch in batches):
+        rejected = sum(batch.rejected for batch in batches)
         logger.info(
-            "Consolidation: no operations needed (input=%d, enriched=%d)",
+            "Consolidation: no operations needed (input=%d, enriched=%d, rejected=%d)",
             input_count,
             enriched_count,
+            rejected,
         )
         await _advance_stamp(manager, window.advance_to)
-        empty_stats = ConsolidationStats(input_count=input_count, enriched_count=enriched_count)
+        empty_stats = ConsolidationStats(input_count=input_count, enriched_count=enriched_count, rejected=rejected)
         if on_complete is not None:
             try:
                 await on_complete(empty_stats)
@@ -206,31 +168,18 @@ async def run_consolidation(
                 logger.warning("Consolidation complete hook failed (non-fatal): %s", exc)
         return empty_stats
 
-    answer = _Answer(
-        operations=parsed.operations,
-        insights=parsed.insights,
-        memories=memories,
-        id_map=id_map,
-        advance_to=window.advance_to,
-        started=start,
-        enriched_count=enriched_count,
-        guard_patched=guard_patched_count,
-    )
+    answer = _Answer(batches=batches, advance_to=window.advance_to, started=start, enriched_count=enriched_count)
     return await _run_to_completion(_apply(manager, answer, config, on_conflict, on_complete))
 
 
 @dataclass(frozen=True, slots=True)
 class _Answer:
-    """What the model answered for one window, with everything that writing it needs."""
+    """What the model answered for every group of one window, with everything that writing it needs."""
 
-    operations: list[ConsolidationOp]
-    insights: list[str]
-    memories: Sequence[AnyMemory]
-    id_map: dict[str, str]
+    batches: Sequence[ConsolidationBatch]
     advance_to: datetime | None
     started: datetime
     enriched_count: int
-    guard_patched: int
 
 
 async def _apply(
@@ -241,24 +190,27 @@ async def _apply(
     on_complete: ConsolidationCompleteCallback | None,
 ) -> ConsolidationStats:
     """Write the answer: its operations and insights, the undo journal and the covered-through stamp."""
-    input_count = len(answer.memories)
+    batches = answer.batches
+    input_count = sum(len(batch.memories) for batch in batches)
     stats = (
-        await execute_operations(answer.operations, manager, answer.id_map, on_conflict=on_conflict, config=config)
-        if answer.operations
+        await execute_operations(batches, manager, on_conflict=on_conflict, config=config)
+        if any(batch.operations for batch in batches)
         else ConsolidationStats()
     )
     elapsed_ms = (datetime.now(UTC) - answer.started).total_seconds() * 1000
     stats.duration_ms = elapsed_ms
     stats.input_count = input_count
     stats.enriched_count = answer.enriched_count
-    stats.insights = tuple(answer.insights)
-    stats.guard_patched = answer.guard_patched
+    stats.insights = tuple(insight for batch in batches for insight in batch.insights)
+    stats.guard_patched = sum(batch.guard_patched for batch in batches)
+    stats.rejected += sum(batch.rejected for batch in batches)
 
     # A cycle that only adds insights changes no existing memory, so it must not take the undo slot from an earlier
     # cycle that did.
     insight_journal = stats.undo if stats.undo.change_count else UndoJournal()
-    if answer.insights:
-        await _persist_insights(manager, answer.insights, answer.memories, insight_journal)
+    for batch in batches:
+        if batch.insights:
+            await persist_insights(manager, batch.insights, batch.memories, insight_journal)
     await save_undo(manager, stats)
 
     should_advance_timestamp = not stats.aborted and not (
@@ -274,7 +226,8 @@ async def _apply(
         )
 
     logger.info(
-        "Consolidation complete: input=%d, enriched=%d, merged=%d, corrected=%d, updated=%d, errors=%d, guard_patched=%d, insights=%d (%.0fms)",
+        "Consolidation complete: input=%d, enriched=%d, merged=%d, corrected=%d, updated=%d, errors=%d, "
+        "guard_patched=%d, rejected=%d, insights=%d (%.0fms)",
         input_count,
         answer.enriched_count,
         stats.merged,
@@ -282,7 +235,8 @@ async def _apply(
         stats.updated,
         stats.errors,
         stats.guard_patched,
-        len(answer.insights),
+        stats.rejected,
+        len(stats.insights),
         elapsed_ms,
     )
     if on_complete is not None:
@@ -325,51 +279,6 @@ async def _advance_stamp(manager: MemoryManager, advance_to: datetime | None) ->
         logger.warning("Failed to update consolidation timestamp: %s", e)
 
 
-_MIN_INSIGHT_LENGTH = 10
-_INSIGHT_IMPORTANCE_THRESHOLD = 0.6
-
-
-async def _persist_insights(
-    manager: MemoryManager, insights: list[str], sources: Sequence[AnyMemory], journal: UndoJournal
-) -> None:
-    """Persist quality insights as SemanticMemory with implicit preference type.
-
-    An insight is drawn from the whole window the model read, so it derives from the chats of every memory in
-    ``sources``. It is written through the cycle's write gateway, so ``journal`` records it for undo.
-    """
-    if not manager.has_vector:
-        return
-
-    from myrm_agent_harness.toolkits.memory.types import SemanticMemory
-
-    writes = CycleWrites(manager, journal)
-    chat_ids = origin_chat_ids(sources)
-    stored = 0
-    for text in insights:
-        text = text.strip()
-        if len(text) < _MIN_INSIGHT_LENGTH:
-            continue
-        mem = SemanticMemory(
-            user_id=manager.user_id if manager.user_id is not None else "default",
-            content=text,
-            importance=_INSIGHT_IMPORTANCE_THRESHOLD,
-            confidence=0.8,
-            preference_type="implicit",
-            preference_strength=0.6,
-            tags=[CONSOLIDATION_INSIGHT_TAG],
-            source_chat_id=chat_ids[0] if chat_ids else None,
-            source_chat_ids=chat_ids,
-        )
-        try:
-            await writes.store(mem)
-            stored += 1
-        except Exception as e:
-            logger.warning("Failed to persist consolidation insight: %s", e)
-
-    if stored:
-        logger.info("Persisted %d consolidation insights as implicit preferences", stored)
-
-
 __all__ = [
     "ConflictCallback",
     "ConflictContext",
@@ -382,7 +291,6 @@ __all__ = [
     "MergeOp",
     "UpdateContentOp",
     "execute_operations",
-    "filter_and_guard_operations",
     "get_last_consolidated_at",
     "run_consolidation",
     "should_consolidate",

@@ -111,7 +111,9 @@ async def test_a_memory_stored_after_the_horizon_waits_for_the_next_run(new_mana
     assert window.advance_to == HORIZON
 
 
-async def test_consolidations_own_output_never_re_enters_the_window(new_manager: NewManager) -> None:
+async def test_consolidations_own_output_and_the_fragments_it_folded_never_re_enter_the_window(
+    new_manager: NewManager,
+) -> None:
     manager = new_manager()
     first, second = semantic("User likes oolong tea", 1), semantic("User enjoys oolong tea a lot", 2)
     correction = semantic("User now prefers green tea", 3, correction_of=first.id)
@@ -126,11 +128,11 @@ async def test_consolidations_own_output_never_re_enters_the_window(new_manager:
 
     stats = await run_consolidation(manager, llm_returning(response), ConsolidationConfig())
 
-    # The run wrote a merged memory and an insight; the user's memories, including the
-    # correction a user made, are all that is left to analyze.
+    # The run wrote a merged memory and an insight and folded the two sources into the merge; the correction a user
+    # made is all that is left to analyze.
     assert stats.merged == 1
     window = await fetch_candidate_window(manager, None, 100, datetime.now(UTC))
-    assert sorted(m.content for m in window.memories) == sorted(m.content for m in (first, second, correction))
+    assert [m.content for m in window.memories] == [correction.content]
 
 
 async def test_memories_the_user_archived_or_switched_off_are_not_analyzed(new_manager: NewManager) -> None:

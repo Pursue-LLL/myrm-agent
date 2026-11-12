@@ -12,6 +12,8 @@
 - semantic, episodic: a memory created ``offset_s`` seconds after ``BASE`` that reached the store at ``stored_s`` (default: when it was created) and states the chats it derives from; a semantic one can state its importance, confidence, metadata and pin
 - seed, seed_undecodable: write them below a manager with an explicit stamp, the way the store lays them out
 - llm_returning: a chat model that answers every consolidation call with one response
+- llm_answering_in_turn: the same chat model giving each call the next response, one per namespace group
+- llm_answering_after: the same chat model, after something happened in the store while it was thinking
 
 [POS]
 Harness pytest-only seeds shared by the consolidation cursor tests. ``seed`` writes through the plain persistence
@@ -21,7 +23,7 @@ which stamps, is what the tests of the stamp itself drive.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
@@ -129,4 +131,23 @@ def llm_returning(response: ConsolidationResponse) -> MagicMock:
     structured.ainvoke = AsyncMock(return_value=response)
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
+    return llm
+
+
+def llm_answering_in_turn(*responses: ConsolidationResponse) -> MagicMock:
+    """A chat model that gives the n-th call the n-th response: the groups of a window in the order they appear."""
+    llm = llm_returning(responses[0])
+    llm.with_structured_output.return_value.ainvoke = AsyncMock(side_effect=list(responses))
+    return llm
+
+
+def llm_answering_after(response: ConsolidationResponse, meanwhile: Callable[[], Awaitable[object]]) -> MagicMock:
+    """A chat model that lets ``meanwhile`` (the user acting on the store) run before each answer it gives."""
+
+    async def think_then_answer(*_args: object, **_kwargs: object) -> ConsolidationResponse:
+        await meanwhile()
+        return response
+
+    llm = llm_returning(response)
+    llm.with_structured_output.return_value.ainvoke = AsyncMock(side_effect=think_then_answer)
     return llm

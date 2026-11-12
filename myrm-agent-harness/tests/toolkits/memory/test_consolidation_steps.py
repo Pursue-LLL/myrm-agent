@@ -3,9 +3,9 @@
 Covers:
 - _build_user_prompt: source_error, plain content
 - _build_id_map: short-id collision extension
-- _persist_insights: skips and store-error tolerance
+- persist_insights: skips, store-error tolerance, the scope and chats an insight takes from its group
 - execute_operations: MergeOp demote failure, UpdateContentOp protected memory
-- _enrich_with_similar candidate search + error fallback
+- enrich_with_similar candidate search + error fallback
 """
 
 from __future__ import annotations
@@ -16,21 +16,26 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
-    MergeOp,
-    UpdateContentOp,
-    _enrich_with_similar,
-    _persist_insights,
-    execute_operations,
+from myrm_agent_harness.toolkits.memory.strategies.consolidation import MergeOp, UpdateContentOp, execute_operations
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_insights import persist_insights
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
+    CONSOLIDATED_FLAG_KEY,
+    UndoJournal,
 )
-from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import UndoJournal
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import (
     _SYSTEM_PROMPT,
     _build_id_map,
     _build_user_prompt,
 )
-from myrm_agent_harness.toolkits.memory.types import ClaimMemory, MemoryType, ProceduralMemory, SemanticMemory
-from tests.support.consolidation_manager import make_manager
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import enrich_with_similar
+from myrm_agent_harness.toolkits.memory.types import (
+    ClaimMemory,
+    MemoryScope,
+    MemoryType,
+    ProceduralMemory,
+    SemanticMemory,
+)
+from tests.support.consolidation_manager import batches_of, make_manager, make_manager_serving
 
 
 class TestBuildUserPrompt:
@@ -77,26 +82,44 @@ class TestBuildUserPrompt:
 
 
 class TestPersistInsights:
+    _SOURCES = (SemanticMemory(content="a fact"), SemanticMemory(content="another fact"))
+
     @pytest.mark.asyncio
     async def test_no_vector_skips(self) -> None:
         manager = make_manager()
         manager.has_vector = False
-        await _persist_insights(manager, ["an insight"], [], UndoJournal())
+        await persist_insights(manager, ["an insight"], self._SOURCES, UndoJournal())
         manager.store.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_short_insight_skipped(self) -> None:
         manager = make_manager()
         manager.store = AsyncMock()
-        await _persist_insights(manager, ["too short"], [], UndoJournal())
+        await persist_insights(manager, ["too short"], self._SOURCES, UndoJournal())
         manager.store.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_store_error_is_tolerated(self) -> None:
         manager = make_manager()
         manager.store = AsyncMock(side_effect=RuntimeError("store down"))
-        await _persist_insights(manager, ["this is a sufficiently long insight"], [], UndoJournal())
+        await persist_insights(manager, ["this is a sufficiently long insight"], self._SOURCES, UndoJournal())
         manager.store.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_an_insight_takes_the_scope_and_the_chats_of_its_group(self) -> None:
+        scope = MemoryScope(primary_namespace="agent:x", namespaces=["agent:x", "global"])
+        sources = (
+            SemanticMemory(content="a fact", scope=scope, source_chat_ids=["chat-1"]),
+            SemanticMemory(content="another fact", scope=scope, source_chat_ids=["chat-2"]),
+        )
+        manager = make_manager()
+        manager.store = AsyncMock()
+
+        await persist_insights(manager, ["this is a sufficiently long insight"], sources, UndoJournal())
+
+        stored = manager.store.await_args.args[0]
+        assert stored.scope == scope and stored.scope is not scope
+        assert sorted(stored.source_chat_ids) == ["chat-1", "chat-2"]
 
 
 class TestBuildIdMap:
@@ -124,36 +147,53 @@ class TestExecuteOperationsExtraBranches:
     @pytest.mark.asyncio
     async def test_merge_demote_failure_is_tolerated(self) -> None:
         """A failing demote must not abort the merge or bump errors."""
-        manager = make_manager()
+        first, second = SemanticMemory(content="a"), SemanticMemory(content="b")
+        manager = make_manager_serving(first, second)
         manager.update_memory = AsyncMock(side_effect=RuntimeError("demote failed"))
-        id_map = {"m1": "m1", "m2": "m2"}
-        ops = [MergeOp(source_ids=["m1", "m2"], merged_content="merged", importance=0.8)]
-        stats = await execute_operations(ops, manager, id_map)
+        op = MergeOp(source_ids=[first.id, second.id], merged_content="merged", importance=0.8)
+        stats = await execute_operations(batches_of([first, second], op), manager)
         assert stats.merged == 1
         assert stats.errors == 0
 
     @pytest.mark.asyncio
+    async def test_a_merge_folds_each_source_and_records_the_full_ids(self) -> None:
+        first, second = SemanticMemory(content="a"), SemanticMemory(content="b")
+        manager = make_manager_serving(first, second)
+        op = MergeOp(source_ids=[first.id, second.id], merged_content="merged", importance=0.8)
+
+        stats = await execute_operations(batches_of([first, second], op), manager)
+
+        assert stats.merged == 1
+        product = manager.store.await_args.args[0]
+        assert product.metadata["consolidation_source"] == f"{first.id},{second.id}"
+        folded = {call.args[0]: call.kwargs for call in manager.update_memory.await_args_list}
+        assert set(folded) == {first.id, second.id}
+        assert all(
+            kwargs["importance"] == 0.05 and kwargs["metadata"][CONSOLIDATED_FLAG_KEY] for kwargs in folded.values()
+        )
+
+    @pytest.mark.asyncio
     async def test_update_content_protected_memory_skipped(self) -> None:
-        """A protected memory is refused by the manager guard and counted as a skip, not an error."""
+        """A memory that turns protected after the gate is refused by the manager guard: a skip, not an error."""
         from myrm_agent_harness.toolkits.memory._internal.storage import MemoryProtectedError
 
-        manager = make_manager()
+        memory = SemanticMemory(content="old")
+        manager = make_manager_serving(memory)
         manager.update_memory = AsyncMock(side_effect=MemoryProtectedError("protected"))
-        ops = [UpdateContentOp(memory_id="mem-1", new_content="new", importance=0.3)]
-        stats = await execute_operations(ops, manager)
-        assert stats.updated == 0
-        assert stats.errors == 0
+        op = UpdateContentOp(memory_id=memory.id, new_content="new", importance=0.3)
+        stats = await execute_operations(batches_of([memory], op), manager)
+        assert (stats.updated, stats.errors, stats.rejected) == (0, 0, 1)
         manager.update_memory.assert_awaited_once_with(
-            "mem-1", importance=0.3, confidence=None, content="new", metadata=None, allow_protected=False
+            memory.id, importance=0.3, confidence=None, content="new", metadata=None, allow_protected=False
         )
         assert stats.undo.change_count == 0  # a refused write leaves nothing to undo
 
     @pytest.mark.asyncio
     async def test_update_content_applies(self) -> None:
-        manager = make_manager()
-        manager.get_memory = AsyncMock(return_value=SemanticMemory(content="old"))
-        ops = [UpdateContentOp(memory_id="mem-1", new_content="new", importance=0.3)]
-        stats = await execute_operations(ops, manager)
+        memory = SemanticMemory(content="old")
+        manager = make_manager_serving(memory)
+        op = UpdateContentOp(memory_id=memory.id, new_content="new", importance=0.3)
+        stats = await execute_operations(batches_of([memory], op), manager)
         manager.update_memory.assert_awaited_once()
         assert stats.updated == 1
 
@@ -167,7 +207,7 @@ class TestEnrichWithSimilar:
         manager = make_manager()
         manager.search = AsyncMock(return_value=[])
         base = SemanticMemory(content="base")
-        result = await _enrich_with_similar(base, manager)
+        result = await enrich_with_similar(base, manager)
         assert result == [base]
 
     @pytest.mark.asyncio
@@ -177,7 +217,7 @@ class TestEnrichWithSimilar:
         same = SemanticMemory(content="base", id=base.id)
         other = SemanticMemory(content="other")
         manager.search = AsyncMock(return_value=[self._search_result(same), self._search_result(other)])
-        result = await _enrich_with_similar(base, manager, max_similar=1)
+        result = await enrich_with_similar(base, manager, max_similar=1)
         assert result == [base, other]
 
     @pytest.mark.asyncio
@@ -190,11 +230,20 @@ class TestEnrichWithSimilar:
         manager.search = AsyncMock(
             return_value=[self._search_result(claim), self._search_result(rule), self._search_result(other)]
         )
-        assert await _enrich_with_similar(base, manager) == [base, other]
+        assert await enrich_with_similar(base, manager) == [base, other]
+
+    @pytest.mark.asyncio
+    async def test_a_fragment_a_merge_already_folded_never_joins(self) -> None:
+        manager = make_manager()
+        base = SemanticMemory(content="base")
+        folded = SemanticMemory(content="folded", metadata={CONSOLIDATED_FLAG_KEY: True})
+        other = SemanticMemory(content="other")
+        manager.search = AsyncMock(return_value=[self._search_result(folded), self._search_result(other)])
+        assert await enrich_with_similar(base, manager) == [base, other]
 
     @pytest.mark.asyncio
     async def test_search_error_returns_alone(self) -> None:
         manager = make_manager()
         manager.search = AsyncMock(side_effect=RuntimeError("search down"))
         base = SemanticMemory(content="base")
-        assert await _enrich_with_similar(base, manager) == [base]
+        assert await enrich_with_similar(base, manager) == [base]
