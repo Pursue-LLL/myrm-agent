@@ -111,6 +111,7 @@ computer-use = [
 # toolkits/web_fetch/ - L1 HTTP / L3 stealth 爬取 + YouTube 字幕快路径
 web = [
   "scrapling[fetchers]>=0.5.1",      # L1: curl_cffi TLS 指纹 HTTP / L3: Patchright+BrowserForge 反检测
+  "curl_cffi>=0.17.0",               # L1 有界下载 (fetchers/bounded_get.py): libcurl 写回调中止传输, 0.17.0 起验证
   "youtube-transcript-api>=1.2.5",   # YouTube 字幕提取 (youtube_extractor; HTML fallback when missing)
 ]
 

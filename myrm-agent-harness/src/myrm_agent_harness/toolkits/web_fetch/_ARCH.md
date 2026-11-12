@@ -41,4 +41,4 @@ When both tools are mounted: read-only pages → `web_fetch_tool` (CORE); intera
 
 - `toolkits.retriever` (for fetch_and_extract mode)
 - `httpx`
-- `[web]` optional: `scrapling`, `youtube-transcript-api`
+- `[web]` optional: `scrapling`, `curl_cffi` (L1 bounded download), `youtube-transcript-api`

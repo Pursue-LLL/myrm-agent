@@ -6,10 +6,9 @@ file parsers get its exact bytes. The HTTP/3 retry lane only helps web pages tha
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
+from myrm_agent_harness.toolkits.web_fetch.fetchers.bounded_get import FetchedResponse
 from myrm_agent_harness.toolkits.web_fetch.fetchers.http_fetcher import (
     MAX_HTML_BODY_BYTES,
     MAX_PLAIN_TEXT_BODY_BYTES,
@@ -25,7 +24,7 @@ PDF = b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n" + b"\x00" * 64
 
 def _convert(body: bytes, content_type: str | None, *, status: int = 200, encoding: str | None = None) -> FetchResult:
     headers = {"content-type": content_type} if content_type else {}
-    response = SimpleNamespace(status=status, headers=headers, body=body, url=URL, encoding=encoding)
+    response = FetchedResponse(status=status, headers=headers, url=URL, encoding=encoding, body=body)
     return HttpFetcher._response_to_fetch_result(response, URL)
 
 

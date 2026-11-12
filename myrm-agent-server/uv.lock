@@ -2109,6 +2109,7 @@ retrieval = [
     { name = "tenacity" },
 ]
 web = [
+    { name = "curl-cffi" },
     { name = "scrapling", extra = ["fetchers"] },
     { name = "youtube-transcript-api" },
 ]
@@ -2123,6 +2124,7 @@ requires-dist = [
     { name = "camoufox", marker = "extra == 'browser'", specifier = ">=0.5.9" },
     { name = "charset-normalizer", specifier = ">=3.5.2,<3.6" },
     { name = "croniter", specifier = ">=7.0.0" },
+    { name = "curl-cffi", marker = "extra == 'web'", specifier = ">=0.17.0" },
     { name = "dill", specifier = ">=0.4.1" },
     { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.162.2" },
     { name = "httpx", specifier = ">=0.28.1" },

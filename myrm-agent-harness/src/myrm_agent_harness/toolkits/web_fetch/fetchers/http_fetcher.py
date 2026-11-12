@@ -1,6 +1,7 @@
 """L1 HTTP fetcher via Scrapling curl_cffi with optional HTTP/3 retry lane.
 
 [INPUT]
+- .bounded_get::bounded_get (POS: a GET through Scrapling whose body is held to a size bound while it is received)
 - .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy for the web_fetch tiers that follow redirects)
 - toolkits.web_fetch.processing.antibot_detector::is_blocked (POS: Anti-bot detection for crawl results)
 - toolkits.web_fetch.probe.http3_probe::is_quic_egress_available (POS: QUIC egress probe and L1 retry metrics)
@@ -13,6 +14,7 @@
 
 [POS]
 L1 lightweight HTTP fetcher. Delegates TLS impersonation to Scrapling defaults; retries once with QUIC when enabled.
+Every body is received through ``bounded_get``, so one response never holds more than the transfer bound.
 """
 
 from __future__ import annotations
@@ -39,6 +41,7 @@ from myrm_agent_harness.toolkits.web_fetch.router.site_experience import (
 )
 from myrm_agent_harness.utils.content_sniff import PayloadKind, classify_payload
 
+from .bounded_get import FetchedResponse, bounded_get
 from .protocols import FetcherType, FetchResult
 from .target_guard import FetchTargetGuard
 
@@ -59,7 +62,8 @@ _HTTP3_RETRY_STATUS = frozenset({403})
 # A readable body is cut where reading further stops paying off. A web page is converted to Markdown on one CPU-bound
 # thread (about a second per 750 KB), so its ceiling is low. Text is kept as it is and costs milliseconds, so its
 # ceiling follows what a stored copy of a page can hold (2,000,000 characters). A truncated PDF or Office file cannot
-# be parsed, so file bodies stay whole; the binary router enforces its own size limit on them.
+# be parsed, so file bodies stay whole up to the transfer bound, which is the binary router's size limit: the router
+# drops a file that arrives one byte over it.
 MAX_HTML_BODY_BYTES = 750_000
 MAX_PLAIN_TEXT_BODY_BYTES = 2_000_000
 
@@ -245,8 +249,6 @@ class HttpFetcher:
         allowed_hosts: list[str],
         use_http3: bool,
     ) -> FetchResult | None:
-        from scrapling.fetchers import AsyncFetcher  # type: ignore[import-untyped, unused-ignore]
-
         current_url = url
         redirect_count = 0
         request_headers = headers.copy()
@@ -279,7 +281,7 @@ class HttpFetcher:
                     use_http3=use_http3,
                 )
                 try:
-                    response = await AsyncFetcher.get(request_url, **kwargs)
+                    response = await bounded_get(request_url, kwargs)
                 except Exception as exc:
                     if request_url != current_url:
                         logger.info(
@@ -295,7 +297,7 @@ class HttpFetcher:
                             cookie_jar,
                             use_http3=use_http3,
                         )
-                        response = await AsyncFetcher.get(current_url, **fallback_kwargs)
+                        response = await bounded_get(current_url, fallback_kwargs)
                     else:
                         raise
 
@@ -325,7 +327,6 @@ class HttpFetcher:
         kwargs: GetRequestParams = {
             "timeout": self._timeout,
             "follow_redirects": False,
-            "retries": 1,
         }
 
         if headers:
@@ -344,10 +345,10 @@ class HttpFetcher:
         return kwargs
 
     @staticmethod
-    def _response_to_fetch_result(response: object, current_url: str) -> FetchResult:
-        status = getattr(response, "status", 200)
-        resp_headers = dict(getattr(response, "headers", {}) or {})
-        response_url = getattr(response, "url", None) or current_url
+    def _response_to_fetch_result(response: FetchedResponse, current_url: str) -> FetchResult:
+        status = response.status
+        resp_headers = response.headers
+        response_url = response.url or current_url
 
         if status == 304:
             return FetchResult(
@@ -358,8 +359,8 @@ class HttpFetcher:
                 fetcher_type=FetcherType.HTTP,
             )
 
-        body = getattr(response, "body", b"")
-        encoding = getattr(response, "encoding", None)
+        body = response.body
+        encoding = response.encoding
         kind = classify_payload(resp_headers.get("content-type"), body)
 
         if kind is not PayloadKind.BINARY:
