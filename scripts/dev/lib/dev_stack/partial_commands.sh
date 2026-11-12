@@ -2,6 +2,7 @@
 # Partial-stack commands of dev-stack.sh: backend-only ensure/stop and frontend-only ensure.
 # Sourced by dev-stack.sh, which owns every global read here; this file only defines functions.
 # shellcheck shell=bash
+# shellcheck disable=SC2154 # _lock_dir is assigned by the sourcing dev-stack.sh
 
 cmd_backend_only_ensure() {
   # 与 cmd_ensure 共用 ensure.lock.d，但 backend-only 恢复不能等待前端

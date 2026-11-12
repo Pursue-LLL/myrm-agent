@@ -8,7 +8,6 @@ _acquire_dir_lock() {
   local lockdir="$1"
   local wait_sec="$2"
   local reclaim_hung="${3:-1}"
-  local i
 
   if [[ -d "${lockdir}" ]]; then
     local owner=""
@@ -36,7 +35,8 @@ _acquire_dir_lock() {
     fi
   fi
 
-  for i in $(seq 1 "${wait_sec}"); do
+  local _
+  for _ in $(seq 1 "${wait_sec}"); do
     if mkdir "${lockdir}" 2>/dev/null; then
       echo "$$" >"${lockdir}/pid"
       _pid_start_time "$$" >"${lockdir}/start"
@@ -104,8 +104,8 @@ _backend_only_lock_wait_sec() {
 
 _wait_backend_health() {
   local max="${1:-60}"
-  local i
-  for i in $(seq 1 "${max}"); do
+  local _
+  for _ in $(seq 1 "${max}"); do
     if _api_healthy 1; then
       return 0
     fi

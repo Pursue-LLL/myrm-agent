@@ -140,12 +140,17 @@ _supervisor_internal_call() {
   dev_pid_alive "${supervisor_pid}"
 }
 
+# A stack command ends the process with its own status, so `main` never falls through to a second dispatch.
+_run_and_exit() {
+  "$@"
+  exit $?
+}
+
 main() {
   local cmd="${1:-}"
   case "${cmd}" in
     ensure)
-      if _supervisor_internal_call; then cmd_ensure; exit $?; fi
-      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_ensure; exit $?; fi
+      if _supervisor_internal_call || [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then _run_and_exit cmd_ensure; fi
       _supervisor_delegate_or_fail ensure
       ;;
     attach)
@@ -154,8 +159,7 @@ main() {
       cmd_attach
       ;;
     reset)
-      if _supervisor_internal_call; then cmd_reset; exit $?; fi
-      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_reset; exit $?; fi
+      if _supervisor_internal_call || [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then _run_and_exit cmd_reset; fi
       _supervisor_delegate_or_fail reset
       ;;
     status)
@@ -167,19 +171,15 @@ main() {
       local subcmd="${2:-}"
       case "${subcmd}" in
         ensure)
-          if _supervisor_internal_call; then cmd_backend_only_ensure; exit $?; fi
-          if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
-            cmd_backend_only_ensure
-            exit $?
+          if _supervisor_internal_call || [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+            _run_and_exit cmd_backend_only_ensure
           fi
           echo "STACK_FAIL: backend-only ensure requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_WAVE_GATE_BYPASS=1" >&2
           exit 1
           ;;
         stop)
-          if _supervisor_internal_call; then cmd_backend_only_stop; exit $?; fi
-          if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
-            cmd_backend_only_stop
-            exit $?
+          if _supervisor_internal_call || [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+            _run_and_exit cmd_backend_only_stop
           fi
           echo "STACK_FAIL: backend-only stop requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_WAVE_GATE_BYPASS=1" >&2
           exit 1
@@ -205,10 +205,8 @@ main() {
           exit $?
           ;;
         ensure)
-          if _supervisor_internal_call; then cmd_frontend_only_ensure; exit $?; fi
-          if [[ "${MYRM_FRONTEND_ENSURE_INNER:-}" == "1" ]]; then
-            cmd_frontend_only_ensure
-            exit $?
+          if _supervisor_internal_call || [[ "${MYRM_FRONTEND_ENSURE_INNER:-}" == "1" ]]; then
+            _run_and_exit cmd_frontend_only_ensure
           fi
           if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_E2E_SHPOIB:-}" == "1" ]]; then
             local monorepo_root heal_py heal_rc
@@ -219,8 +217,7 @@ main() {
               "${PREFLIGHT_PY:-python3}" "${heal_py}" attach "${monorepo_root}" || heal_rc=$?
               exit "${heal_rc}"
             fi
-            cmd_frontend_only_ensure
-            exit $?
+            _run_and_exit cmd_frontend_only_ensure
           fi
           echo "STACK_FAIL: frontend-only ensure requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_E2E_SHPOIB=1" >&2
           exit 1

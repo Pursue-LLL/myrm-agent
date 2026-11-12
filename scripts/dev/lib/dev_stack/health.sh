@@ -122,8 +122,8 @@ _stack_warm() {
 
 _wait_stack_health() {
   local max="${1:-${ATTACH_WAIT_SEC}}"
-  local i
-  for i in $(seq 1 "${max}"); do
+  local _
+  for _ in $(seq 1 "${max}"); do
     if _stack_healthy; then
       return 0
     fi
@@ -134,8 +134,8 @@ _wait_stack_health() {
 
 _wait_stack_warm() {
   local max="${1:-${ATTACH_WAIT_SEC}}"
-  local i
-  for i in $(seq 1 "${max}"); do
+  local _
+  for _ in $(seq 1 "${max}"); do
     if _stack_warm; then
       return 0
     fi

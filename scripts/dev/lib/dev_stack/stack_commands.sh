@@ -2,6 +2,7 @@
 # Shared-stack commands of dev-stack.sh: backend ensure, attach, ensure, reset and status.
 # Sourced by dev-stack.sh, which owns every global read here; this file only defines functions.
 # shellcheck shell=bash
+# shellcheck disable=SC2154 # _lock_dir is assigned by the sourcing dev-stack.sh
 
 _ensure_backend() {
   if ! _start_backend_bg "${SERVER_DIR}"; then

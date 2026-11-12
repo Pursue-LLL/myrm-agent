@@ -69,11 +69,15 @@ _launch_frontend_supervisor() {
   fi
   local use_clean="${1:-0}"
   local dev_script="${MYRM_FRONTEND_DEV_SCRIPT:-${FRONTEND_DIR}/scripts/dev.ts}"
-  local webpack_args=()
-  if [[ "${MYRM_FRONTEND_DEV_WEBPACK:-0}" == "1" ]]; then
-    webpack_args=(--webpack)
+  # Never empty (the script comes first), so expanding it is safe under `set -u` on bash 3.2.
+  local dev_args=("${dev_script}")
+  if [[ "${use_clean}" == "1" ]]; then
+    dev_args+=(--clean)
   fi
-  cd "${FRONTEND_DIR}"
+  if [[ "${MYRM_FRONTEND_DEV_WEBPACK:-0}" == "1" ]]; then
+    dev_args+=(--webpack)
+  fi
+  cd "${FRONTEND_DIR}" || return 1
   # Frontend child must run under real user home so next cache/harness paths
   # don't leak into sandboxed ~/.cursor-3.
   export_spawn_home || return 1
@@ -89,18 +93,8 @@ _launch_frontend_supervisor() {
   _frontend_clear_warmth
   if [[ "${use_clean}" == "1" ]]; then
     echo "STACK_START: frontend with --clean (.next purge)" >&2
-    if ((${#webpack_args[@]} > 0)); then
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
-    else
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_script}" --clean
-    fi
-  else
-    if ((${#webpack_args[@]} > 0)); then
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
-    else
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_script}"
-    fi
   fi
+  _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_args[@]}"
   echo $! >"${FRONTEND_PID}"
   echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}") (setsid detached)"
 }
