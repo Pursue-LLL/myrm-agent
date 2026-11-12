@@ -33,7 +33,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
-| `support/extension_real_browser.py` | 辅助 | 真实 Chromium 扩展夹具：加载未打包的扩展、挂载生产的扩展路由（真实 WebSocket，与 bridge 同一事件循环）、需登录 cookie 的夹具站点（主机名只在浏览器内解析到回环，不动系统解析）；`real_extension_stack` 交出已握手的扩展 / bridge / 站点，`wait_until` 有界轮询；缺 Chromium 则跳过 |
+| `support/extension_real_browser.py` | 辅助 | 真实 Chromium 扩展夹具：加载未打包的扩展、挂载生产的扩展路由（真实 WebSocket，与 bridge 同一事件循环）、需登录 cookie 的夹具站点（主机名只在浏览器内解析到回环，不动系统解析）；`real_extension_stack` 交出已握手的扩展 / bridge / 站点，`agent_pool` / `agent_session` 交出 Agent 工具设置所用的生产浏览器池与其上的 `BrowserSession`，`wait_until` 有界轮询；缺 Chromium 则跳过 |
+| `support/extension_bridge_ws_stub.py` | 辅助 | Extension Bridge Chrome E2E 用的真实 WebSocket 桩（不侧载 MV3）：以与扩展相同的 `hello` 握手声明能力集合 |
 | `support/wiki_clip_client.py` | 辅助 | 剪藏 API 测试共用：`build_wiki_client`（临时 vault 上的 wiki 路由客户端）、`cleanup_wiki_client`、`bypass_loopback_auth`（回环身份）、`poll_clip_job`（轮询剪藏任务到终态） |
 | `support/workspace_text_api.py` | 辅助 | 文本编辑 API 测试共用：挂载 files 路由 + 净化中间件的客户端、含各类文件的示例工作区、读/存/另存请求封装 |
 | `support/otlp_receiver.py` | 辅助 | 进程内 OTLP/HTTP 接收端（`OtlpReceiver`）：解码收到的追踪、指标与日志（`spans()`、`metric_export_count`、`metric_attribute_values`、`log_attribute_values`），断言「运维后端真正收到了什么」；遥测装配与 FastAPI 原生遥测策略的子进程测试共用 |
@@ -312,6 +313,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/plugins/test_third_party_plugin.py` | 模块 | 第三方真实插件（`fixtures/agent_plugins/third_party/hindsight/`）在平铺与单层包裹两种归档下都能解析并预览：技能与远程连接器不丢，外来 `extensions` 命名空间保持外来 |
 | `fixtures/agent_plugins/` | 辅助 | 官方冻结 JSON Schema（`plugin.schema.json` / `mcp.schema.json`）与第三方真实插件夹具（`third_party/hindsight/`，`NOTICE` 记录来源与许可） |
 | `integration/test_expert_exchange_integration.py` | 模块 | 专家交换真实栈集成（真实数据库 + 连接器配置库 + 技能安装流水线 + 导出/导入路由 + ZIP，无 mock）：团队（含泄漏密钥、越权策略、远程连接器）导出 → 空的第二套安装导入（子专家重新连线 · 密钥与越权策略不外带 · 连接器默认停用且头部为占位符）；自定义技能（安装 → 导出 → 卸载 → 导入：路径泄漏被脱敏、专家重新指向新装技能）；同机导入默认生成「(imported)」副本且不动原件，选择「替换」时保存可回滚版本并保持用户自己的安全策略 |
+| `integration/extension_real_browser/conftest.py` | 辅助 | 真实 Chromium 扩展 e2e 的共用夹具 `stack`：每个测试一份全新浏览器 profile，扩展已处于用户在 popup 点击连接后的状态并接着生产 bridge，测试后拆除 |
 | `integration/extension_real_browser/test_extension_bridge_real_browser.py` | 集成 | 扩展与 bridge 在真实 Chromium 中的对外契约（`-m e2e` 才运行）：popup 连接后的握手身份、Agent 只看见已授权域名的标签页、撤销授权后标签页隐去、前台导航走用户标签页（带用户登录态）且他域被拒、扩展自身拒绝服务端发来的未授权导航、暂停的标签页退出 Agent 视野 |
 | `integration/test_background_tasks_seed_fixture_integration.py` | 集成 | local-only seed 路由在真实链路上的行为：失败 / 运行中 / 成功 / 带 vault 日志各模式的任务行；`leftover` 模式任务结束后 `leftover_processes=1`、取消响应为 0、按命令行标记查进程表已无该进程，并发起 8 个种子时 8 个子程序都存活 |
 | `core/utils/test_error_redaction.py` | 单元 | 全局异常处理与标准 HTTP 异常响应消息自动凭据与路径脱敏测试 |
@@ -604,6 +606,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/health/test_liveness_gateway_runtime.py` | 模块 | GET `/health/liveness` 返回 `gatewayRuntime` 零载荷块；gateway 异常时 `state=degraded`；Prometheus `myrm_gateway_*` gauge 刷新 |
 | `api/health/test_browser_doctor.py` | 模块 | 健康 browser 端点：`/health/browser`（pool health 正常/异常降级且根因进日志）+ `/health/browser/doctor`（relay 检查作为 `extra_checks` 传入 + launch_test 透传 + 真实 `run_doctor` 下 relay 行进入 `checks` 与 `summary`）+ `/health/browser/orphans` GET/DELETE（automation 扫描、confirm 安全门、预览只报会被清理的沙箱数、预览与清理共用 harness 默认沙箱年龄阈值、failed 透传、空孤儿、失败时根因进日志） |
 | `api/health/test_browser_connectivity.py` | 模块 | `/health/browser/test-cloud-connection`（not_configured/disabled/invalid/connected/failed/无 WS 库）+ `/health/browser/test-proxy-connection`（not_configured/disabled/invalid/connected/http error/异常；mock config_service + websockets/httpx） |
+| `integration/extension_real_browser/test_extension_lifecycle_real_browser.py` | 集成 | 无人看着时仍成立的保证（`-m e2e`）：私网地址的后台导航开在用户窗口之外的独立窗口；浏览器回收 service worker 后扩展自行重连、Agent 继续可用；用户主动断开后重连计时器不会把它重新接上 |
+| `integration/extension_real_browser/test_agent_session_real_browser.py` | 集成 | Playwright 经生产 bridge 与 CDP relay 使用用户已登录的浏览器（`-m e2e`）：读取已登录页面、点击、截图；不能离开已授权域名；Agent 自己的标签页可回到空白页而用户的不行；不能在未授权或非网页地址开标签页；关闭页面时 Agent 的标签页真正关闭、用户的标签页只被放开；Agent 标签页进同一个「Myrm Agent」标签组；空白的 Agent 标签页不被当作用户的标签页列出 |
+| `integration/extension_real_browser/test_agent_browser_session_real_browser.py` | 集成 | Agent 的 `BrowserSession` 跑在生产浏览器池上（`-m e2e`）：导航并读取已登录页面、点击、截图；被拦在用户未授权的域名；同一会话的多个标签页共用一条连接，关掉一个标签页它就在用户浏览器里真正关闭；会话结束后不留下 Agent 自己的标签页、保留用户的标签页 |
+| `services/extension/test_cdp_relay_transport.py` | 模块 | 扩展链路丢失时 relay 对 CDP 客户端的交代：撤销所有已通告的目标并清空标签页镜像；同一传输重新绑定时保留已通告的目标 |
 | `services/extension/test_cdp_relay_contexts.py` | 模块 | CDP relay 的虚拟浏览器上下文与 `Target.closeTarget`（Playwright 的 `new_context()` / `new_page()` / `page.close()` / `context.close()` 所依赖）：每次创建得到新的上下文 id；上下文内新开的标签页在通告与 `getTargets` 中带该上下文 id；未知上下文不开标签页；dispose 只关本上下文的标签页、扩展拒绝关闭时仍忘记该上下文；创建它的客户端断开时一并 dispose；`closeTarget` 关闭后通告 detach、扩展拒绝时保留标签页并回错 |
 | `services/extension/test_relay_check.py` | 模块 | Browser Doctor 的 `extension_relay` 检查：真实 `ExtensionBridgeService` 下的各状态：relay 就绪（ok）· 已连接但无授权站点（真实警告）· 远程部署缺 auth token（真实警告，已配置则不报）· 未连接 / relay 未就绪（可选能力）· 探测异常降级为可见警告（参数化） |
 | `e2e/test_browser_doctor_chrome_e2e.py` | 模块 | Browser Doctor 卡片 Chrome MCP E2E（PRIVATE+READ×1：Settings/System 渲染卡片 + 运行诊断 → 真实后端报告（引擎行 + 残留进程与缓存行 + healthy/unhealthy 徽标）） |

@@ -6,10 +6,10 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 子域出口 | 聚合 `ExtensionBridgeService`、`get_extension_bridge`、`DomainPolicyWarning` 与 harness 缺失时的 fallback 类型 | — |
-| `common.py` | 辅助 | logger、心跳常量、能力映射、`DomainPolicyWarning`、`_broadcast_extension_status`、`get_cdp_relay_manager`（**测试唯一打桩点**）、harness 类型导入失败时的 fallback 定义 | ✅ |
+| `__init__.py` | 子域出口 | 聚合 `ExtensionBridgeService`、`get_extension_bridge`、`DomainPolicyWarning` 与 harness 契约类型（`ExtensionTab` / `ExtensionStatus` / `ExtensionBridgeNotAvailable`） | — |
+| `common.py` | 辅助 | logger、心跳常量、能力映射、`DomainPolicyWarning`、`_broadcast_extension_status`、`get_cdp_relay_manager`（**测试唯一打桩点**）、harness 契约类型 `ExtensionTab` / `ExtensionStatus` / `ExtensionBridgeNotAvailable` 的统一出口 | ✅ |
 | `service.py` | 核心 | `ExtensionBridgeService`：`__init__` 中全部会话状态（ws、capabilities、tabs、pending futures、心跳/接收任务、锁、playwright） | ✅ |
-| `connection.py` | 核心 | connect / connect_to_domain / navigate / get_status / disconnect、CDP endpoint 解析（含 Playwright 与 direct 两种来源）、relay_cdp_ready | ✅ |
+| `connection.py` | 核心 | connect / connect_to_domain（返回 harness 的 `ExtensionBrowserInstance`：用户自己的浏览器，池不为其上下文加覆盖、不让页面空闲留存）/ navigate / get_status / disconnect、CDP endpoint 解析（含 Playwright 与 direct 两种来源）、relay_cdp_ready | ✅ |
 | `access.py` | 核心 | 域名策略匹配与校验、授权域名读写、策略 payload 应用与变更通知、domain policy 警告 | ✅ |
 | `relay.py` | 核心 | WebSocket 握手/读循环/心跳循环、请求-响应 future、tab 同步与焦点、debugger attach、tab 刷新 | ✅ |
 | `tabs.py` | 核心 | `list_tabs` 与 tab 移动请求 | ✅ |

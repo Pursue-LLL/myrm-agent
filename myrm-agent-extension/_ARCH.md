@@ -10,23 +10,25 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `manifest.json` | 核心 | MV3 清单：权限、Service Worker、popup、side_panel；`default_locale` + `_locales/` 中英双语 | — |
+| `manifest.json` | 核心 | MV3 清单：权限（含 `tabGroups`，用于「Myrm Agent」标签组标记）、Service Worker、popup、side_panel；`default_locale` + `_locales/` 中英双语 | — |
 | `src/i18n.js` | 辅助 | `msg()` / `applyDocumentI18n()` — Chrome `_locales` SSOT | ✅ |
 | `_locales/en/messages.json` | 辅助 | 英文 UI 文案 | — |
 | `_locales/zh_CN/messages.json` | 辅助 | 简体中文 UI 文案 | — |
-| `src/background.js` | 核心 | Service Worker 入口（ES module）：仅生命周期——安装/浏览器启动时恢复设置并连接，保活闹钟触发重连；其余逻辑在 `src/background/` | ✅ |
-| `src/background/state.js` | 核心 | 唯一的可变运行时状态 `state`（连接、授权策略、已附加标签页、剪藏结果）与 `chrome.storage.local` 的读写；连接常量与 `EXTENSION_CAPABILITIES` | ✅ |
+| `src/background.js` | 核心 | Service Worker 入口（ES module）：仅生命周期。浏览器随时可能终止 worker 并以空内存重启，所以每次启动（安装、浏览器启动、闹钟、消息）都做同一套恢复：载入已存状态、释放上一个 worker 遗留的 debugger、清理已不存在的 Agent 标签页记录、确保保活闹钟存在、除非用户主动断开否则重连；其余逻辑在 `src/background/` | ✅ |
+| `src/background/state.js` | 核心 | 唯一的可变运行时状态 `state`（连接、授权策略、已附加标签页、剪藏结果、Agent 标签页）与持久化：设置写 `chrome.storage.local`，Agent 标签页归属写 `chrome.storage.session`（跨 worker 重启、不跨浏览器会话）；`whenRestored` 由每个入口等待；连接常量与 `EXTENSION_CAPABILITIES`（含 `agent_tab_control`） | ✅ |
 | `src/background/policy.js` | 核心 | 访问策略判定（纯函数，无 chrome API）：域名匹配、标签页/导航目标是否被授权、暂停标签页；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__/backgroundPolicy.test.ts` 覆盖 | ✅ |
 | `src/background/transport.js` | 辅助 | 向服务端发消息（未连接则丢弃）与工具栏徽标 | ✅ |
 | `src/background/connection.js` | 核心 | WebSocket 生命周期：连接、`hello` 握手、指数退避重连、断开（断开即释放全部 debugger） | ✅ |
 | `src/background/server_messages.js` | 核心 | 服务端消息分发：`ping`、`set_domains`、`set_access_policy`、`clip_agent_update`、`relay`、`request`；relay/request 的失败回报给服务端而不抛出 | ✅ |
 | `src/background/access_policy.js` | 核心 | 应用并回报授权策略；策略收窄后立即释放不再被授权的标签页 | ✅ |
-| `src/background/relay.js` | 核心 | 服务端 CDP relay 的指令：`attach`/`detach`/`cdp`/`createTab`；每条指令都重新校验标签页与导航目标 | ✅ |
+| `src/background/relay.js` | 核心 | 服务端 CDP relay 的指令：`attach`/`detach`/`cdp`/`createTab`/`closeTab`；每条指令都重新校验标签页与导航目标；`closeTab` 只关 Agent 自己打开的标签页（其余回报 `closed:false`）；Agent 自己的标签页可导航回空白页（浏览器工具箱丢弃被拒文档时这样做），用户的标签页不可 | ✅ |
 | `src/background/actions.js` | 核心 | 服务端请求：`list_tabs`/`attach_debugger`/`navigate_url`/`detach_debugger` | ✅ |
 | `src/background/tabs.js` | 核心 | 标签页读取（可操作、可列出、按域名查找、等待加载）与 `tabs_update` 推送 | ✅ |
-| `src/background/tab_events.js` | 辅助 | 标签页事件监听：导航/加载后推送列表；标签页关闭时清理已附加与暂停状态 | ✅ |
-| `src/background/debugger.js` | 核心 | `chrome.debugger` 的附加/释放与 CDP 事件回传；后台窗口里的标签页随 debugger 一起关闭 | ✅ |
-| `src/background/background_window.js` | 辅助 | 不打扰用户的独立后台窗口：创建、复用空白标签页、清理；用户关闭窗口即遗忘 | ✅ |
+| `src/background/tab_events.js` | 辅助 | 标签页事件监听：导航/加载后推送列表；标签页关闭时清理已附加、暂停与 Agent 标签页记录 | ✅ |
+| `src/background/debugger.js` | 核心 | `chrome.debugger` 的附加/释放与 CDP 事件回传；附加时回报浏览器自己的页面 target id（CDP 客户端按它匹配主框架）；`releaseStaleDebuggers` 释放上一个 worker 遗留的附加；后台窗口里的标签页随 debugger 一起关闭 | ✅ |
+| `src/background/agent_tabs.js` | 核心 | Agent 自己打开的标签页：打开（用户窗口前台，或显式要求后台时用独立后台窗口）、记录归属并持久化、关闭。只有这里登记的标签页能应服务端请求被关闭，用户的标签页永远不会被 Agent 关掉；策略在空白期放行 Agent 标签页，Agent 因此能把自己开的页面导航到所需站点；`pruneAgentTabs` 清理已不存在的记录 | ✅ |
+| `src/background/tab_group.js` | 辅助 | 「Myrm Agent」标签组：让用户一眼看出 Agent 在哪些标签页里工作；同一窗口共用一个组、编辑串行。只是标记，不是访问边界（策略不读分组；用户取消分组或浏览器没有标签组 API 时行为不变） | ✅ |
+| `src/background/background_window.js` | 辅助 | 不打扰用户的独立后台窗口：未聚焦创建、清理带内容的标签页；用户关闭窗口即遗忘；其中哪些标签页属于 Agent 由 `agent_tabs.js` 决定 | ✅ |
 | `src/background/ui_messages.js` | 核心 | popup/Side Panel 的 `chrome.runtime.onMessage` 接口：`get_status`、`connect`、`disconnect`、`update_domains`、`update_access_policy`、`toggle_pause_tab`、`get_access_policy`、`glow_control` | ✅ |
 | `src/background/clip.js` | 辅助 | Wiki clip 与 Service Worker 的衔接：同步剪藏目标 agent、提交剪藏、结果回写 `lastClipErrorKind` 并发 `chrome.notifications`；上传本身在 `src/wiki/*` | ✅ |
 | `src/background/context_menu.js` | 辅助 | 右键菜单（`chrome.i18n`）与键盘快捷键：打开 Side Panel、剪藏页面/选区 | ✅ |
@@ -57,9 +59,11 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | 项 | 说明 |
 |----|------|
 | WebSocket | `ws://<server>/api/v1/ws/extension?token=<extension_auth_token>` |
-| 握手 | 扩展发送 `hello`（version、browser、capabilities=`navigate_url|list_tabs|attach_debugger|detach_debugger`）；Server 校验 `settings.extension_auth_token` 并按 capability 执行动作门禁 |
+| 握手 | 扩展发送 `hello`（version、browser、capabilities=`navigate_url|list_tabs|attach_debugger|detach_debugger|agent_tab_control`）；Server 校验 `settings.extension_auth_token` 并按 capability 执行动作门禁 |
 | 域名授权 | `authorizedDomains` / `allowAllEligibleTabs` / `pausedTabIds` 存于 `chrome.storage.local`；Server REST `/api/v1/extension/domains` 与 `/extension/access-policy` 与 WebUI 同步 |
-| Relay 域名门禁 | `createTab`、`navigate_url`、relay `attach`/`cdp`（每次 tab URL recheck + `Page.navigate` 目标校验）共用 access policy |
+| Relay 域名门禁 | `createTab`、`navigate_url`、relay `attach`/`cdp`（每次 tab URL recheck + `Page.navigate` 目标校验）共用 access policy；`closeTab` 只作用于 Agent 自己打开的标签页 |
+| Agent 标签页 | Agent 开的标签页默认在用户窗口前台打开（后台标签页会被浏览器节流，登录态页面读不准）并归入「Myrm Agent」标签组；归属记录在 `chrome.storage.session`，关闭标签页即遗忘 |
+| Worker 重启 | 浏览器可随时终止 service worker；每次启动先恢复已存状态、释放遗留 debugger，再按需重连（用户主动断开的除外，重连计时器不会撤销它） |
 | Per-tab pause | WebUI「可用标签页」暂停/恢复；tab 关闭时 extension+server 自动 prune `paused_tab_ids`；`applyAccessPolicyPayload` 在 policy 变更（WebUI / popup / server push）后统一 detach 不再授权的 debugger |
 | 配对 One-Shot | popup 粘贴 WebUI JSON bundle → `POST /extension/pairing/consume` → 自动 connect |
 | 保活 | `chrome.alarms` 周期唤醒；断线指数退避重连 |

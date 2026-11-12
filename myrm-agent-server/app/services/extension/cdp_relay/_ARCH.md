@@ -25,4 +25,4 @@
 ## 边界
 
 - 仅 server 层；harness 通过 ExtensionBridge Protocol 调用，不 import 本包。
-- 域名授权在 MV3 扩展边缘执行（createTab、navigate_url、Page.navigate）；server relay 信任扩展 gate。
+- 域名授权在 MV3 扩展边缘执行（createTab、navigate_url、Page.navigate）；`closeTab` 只作用于扩展登记的 Agent 标签页（其余回报 `closed:false`，relay 照样 detach 并遗忘）；server relay 信任扩展 gate。
