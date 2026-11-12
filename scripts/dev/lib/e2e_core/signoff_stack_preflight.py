@@ -1,7 +1,7 @@
 """Stack preflight SSOT — hot attach vs bounded heal for epoch preflight (Phase C / maintainer gates).
 
 [INPUT]
-- gate_epoch_preflight.SoloSnapshot, api_verify, runtime_identity.collect_runtime_parts, frontend_epoch hot state, endpoint_health probes
+- gate_epoch_core.SoloSnapshot, api_verify, runtime_identity.collect_runtime_parts, frontend_epoch hot state, endpoint_health probes
 - e2e_core.dev_ports::shared_api_base / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from e2e_core.dev_ports import shared_api_base, shared_ui_base
-from e2e_core.gate_epoch_preflight import SoloSnapshot, read_solo_snapshot
+from e2e_core.gate_epoch_core import SoloSnapshot, read_solo_snapshot
 
 
 class SignoffReadyMode(StrEnum):
