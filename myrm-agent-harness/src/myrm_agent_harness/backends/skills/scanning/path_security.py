@@ -196,19 +196,11 @@ def assert_safe_install_target(
         raise CategoryBucketCollisionError(p, bucket_res.sub_skills)
 
 
-# Aliases for unified backwards-compatibility across scanning modules
-PathRedirectionError = PathRedirectSecurityError
-validate_safe_install_target = assert_safe_install_target
-check_install_target_safety = assert_safe_install_target
-
 __all__ = [
     "CategoryBucketCollisionError",
     "CategoryBucketResult",
     "PathRedirectSecurityError",
-    "PathRedirectionError",
     "assert_safe_install_target",
-    "check_install_target_safety",
     "is_category_bucket",
     "is_path_redirect",
-    "validate_safe_install_target",
 ]
