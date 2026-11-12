@@ -17,6 +17,14 @@ GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# Tabs of the CDP endpoint on port $1: its `page` targets only (service workers, iframes, workers and
+# browser UI are listed beside them but are not tabs). `unknown` when the endpoint cannot list targets.
+_page_count() {
+  local list_json
+  list_json="$(curl -sf --max-time 1 "http://127.0.0.1:$1/json/list" 2>/dev/null)" || { echo "unknown"; return 0; }
+  python3 -c "import json, sys; print(sum(t.get('type') == 'page' for t in json.loads(sys.argv[1])))" "${list_json}" 2>/dev/null || echo "unknown"
+}
+
 cmd_status() {
   echo -e "${BOLD}Myrm Browser Fleet Status${NC}"
   echo "--------------------------------------------------------"
@@ -31,7 +39,7 @@ cmd_status() {
     local proxy_json
     proxy_json="$(curl -sf --max-time 1 "http://127.0.0.1:9410/proxy/status" 2>/dev/null || echo '{}')"
     agent_pid="$(python3 -c "import json, sys; d=json.loads(sys.argv[1]); print(d.get('chromePid', 'unknown'))" "${proxy_json}" 2>/dev/null || echo 'unknown')"
-    agent_tabs="$(python3 -c "import json, sys; d=json.loads(sys.argv[1]); print(d.get('knownTargets', 0))" "${proxy_json}" 2>/dev/null || echo '0')"
+    agent_tabs="$(_page_count 9410)"
   fi
   echo -e "  Status: ${agent_status} | PID: ${agent_pid} | Active Tabs: ${agent_tabs}"
 
@@ -43,9 +51,7 @@ cmd_status() {
   if curl -sf --max-time 1 "http://127.0.0.1:9333/json/version" >/dev/null 2>&1; then
     e2e_status="${GREEN}HEALTHY${NC}"
     e2e_pid="$(lsof -tiTCP:9333 -sTCP:LISTEN 2>/dev/null | head -1 || echo 'unknown')"
-    local list_json
-    list_json="$(curl -sf --max-time 1 "http://127.0.0.1:9333/json/list" 2>/dev/null || echo '[]')"
-    e2e_tabs="$(python3 -c "import json, sys; d=json.loads(sys.argv[1]); print(len(d))" "${list_json}" 2>/dev/null || echo '0')"
+    e2e_tabs="$(_page_count 9333)"
   fi
   echo -e "  Status: ${e2e_status} | PID: ${e2e_pid} | Active Tabs: ${e2e_tabs}"
   echo "--------------------------------------------------------"
