@@ -617,7 +617,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 | Protocol                  | 核心方法                                                                                                 | 框架内置实现                                           | 可选企业级实现    |
 | ------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------- |
 | `VectorStoreProtocol`     | `upsert`, `search`, `scroll`, `delete`                                                                   | `QdrantVectorStore`                                    | -                 |
-| `RelationalStoreProtocol` | `get_profile`, `set_profile`, `create_rule`, `submit_pending`, `search_fts5`, `check_integrity` 等 28 个方法                               | `SQLiteRelationalStore` (aiosqlite)                    | SQLAlchemy 适配器 |
+| `RelationalStoreProtocol` | `get_profile`, `set_profile`, `create_rule`, `submit_pending`, `search_fts5`, `check_integrity` 等方法                                     | `SQLiteRelationalStore` (aiosqlite)                    | SQLAlchemy 适配器 |
 | `GraphStoreProtocol`      | `create_node`, `create_relationship`(幂等), `get_causal_chain`, `delete_subgraph`, `delete_all_by_owner` | `SQLiteGraphStore` (aiosqlite + CTE + UNIQUE 关系去重) | SQLite CTE        |
 | `EmbeddingProtocol`       | `embed`, `embed_batch`, `dimension`                                                                      | `EmbeddingService`                                     | -                 |
 | `EmbeddingCacheProtocol`  | `get`, `put`, `get_batch`, `put_batch`, `evict`, `evict_batch`                                           | `EmbeddingCache` (L1+L2)                               | -                 |
@@ -907,7 +907,7 @@ tools = create_memory_tools(manager=manager)
 
 | 方法                                                                              | 功能                                                                              |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：同一 manager 内相同提案并行提交也只入队一次，画像提案同理；同库的其他 manager 各持自己的锁），并声明批准后应执行的落库语义与待审目标展示内容 |
+| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：审批队列自身拒绝与待审提案同类型同内容的第二条提案，并行提交与同库的多个 manager 均如此，画像提案同理；重复时返回空串），并声明批准后应执行的落库语义与待审目标展示内容 |
 | `approve(pending_id, *, edited_content=None)`                                     | 按 `resolution_action` 分派：`STORE` 持久化新记忆 / `CORRECT` 纠正目标记忆 / `DELETE` 归档目标记忆；`edited_content` 为审批者改写后的文本 |
 | `reject(pending_id)`                                                              | 拒绝；记录不存在抛 `MemoryNotFoundError`，已处理（非 `pending`）的记录重复拒绝/批准是空操作，不会重复落库或改写已批准状态 |
 | `get_pending(pending_id)`                                                         | 按 id 读取单条待审批记录（含已处理状态），不存在返回 `None`；供业务层在批准/拒绝前取得审计所需元数据 |
@@ -1137,7 +1137,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - `BaseMemory` 包含强类型标识 `is_exact_fact: bool` 与 `exact_identifiers: list[str]`，并自动计入 `is_user_protected` 豁免保护，完全免疫遗忘衰减与蒸馏淘汰（agent 的删除、改写、纠正只被显式 pin / lock 拦截，精确事实标记不拦截）；标识符在安全扫描与瞬时事实闸门之后、按最终入库正文盖章，两个字段只随语义记忆落盘并登记索引，情景与程序性记忆的盖章只存在于写入过程中；
   - 检索重排中当查询完整写出记忆所含的某个精确标识符（查询里的整词、从查询提取出的标识符、或其中端点的端口）时，赋予确定性硬置顶加权（`+5.0` 增益），确保精确事实绝对置顶于模糊语义召回；包含不等于点名：存下的端口 `22` 不会被查询里的 `2022` 触发，`10.0.0.5` 不会被 `10.0.0.55` 触发，`v1.2.3` 与 `1.2.3` 视为同一版本。
 - **全链路展示与交互认知一致性**：
-  - Server 端接口契约：`MemoryItem` 返回 `is_exact_fact` 与 `exact_identifiers`；创建时由分类器按正文盖章，更新请求的 `is_exact_fact` 可由用户显式开关（语义记忆）；
+  - Server 端接口契约：`MemoryItem` 返回 `is_exact_fact` 与 `exact_identifiers`；创建与改写正文时由分类器按最终正文盖章（改写后的新正文带标识符即成为精确事实），更新请求的 `is_exact_fact` 可由用户显式开关（语义记忆）；
   - 前端 `MemoryCard.tsx` 与 `EvidenceDrawer.tsx` 支持视觉识别蓝底硬锁徽章，呈现提取到的确切事实符号。
 - **决策反转治理（撤回的决策不再被重复回答）**：
   - 核心位置：`strategies/merger.py`（`DeterministicThreeStateMerger`）与 `strategies/deduplicator.py`；
