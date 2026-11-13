@@ -23,7 +23,7 @@
 | `reactions.py` | 模块 | Feishu reaction emoji vocabulary shared by the inbound and outbound mixins: glyph → official `emoji_type` (case-sensitive; Feishu rejects other names), `FEISHU_REACTION_GLYPHS` for the channel capability, and the approval alphabet read inbound (no ♾️/⭐ type exists, so `allow_always` uses the text aliases). | ✅ |
 | `registration.py` | 模块 | Channel provider utility. Encapsulates the Feishu device-code registration flow for automated bot app provisioning. Used by server-layer endpoints. | ✅ |
 | `sdk/` | 子包 | 飞书 OpenAPI 客户端与按领域拆分的 API Mixin，详见 [sdk/_ARCH.md](sdk/_ARCH.md)。 | ✅ |
-| `table_slicer.py` | 模块 | Feishu 24KB card boundary slicer; every chunk closes its code block and repeats the header of a table it continues. | ✅ |
+| `table_slicer.py` | 模块 | Feishu card slicer: a chunk takes at most 24,000 bytes of the request body (JSON escapes counted, as Feishu refuses a card body over 30 KB); every chunk closes its code block and repeats the header of a table it continues. | ✅ |
 | `user_resolver.py` | 模块 | Feishu user resolver using contact API with LRU+TTL caching. Resolves sender display names for group chat context. | ✅ |
 | `webhook_utils.py` | 模块 | Feishu Webhook utility functions for signature verification and metadata extraction. No full FeishuChannel instantiation needed. Suitable for control planes and | ✅ |
 | `ws_transport.py` | 模块 | Feishu WebSocket transport — long-lived connection via lark-oapi SDK. | ✅ |
