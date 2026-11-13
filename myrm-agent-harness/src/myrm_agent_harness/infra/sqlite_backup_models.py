@@ -1,8 +1,8 @@
 """Data models and low-level SQLite PRAGMA utilities for sqlite_backup.
 
 Defines immutable records for backup snapshots, verification outcomes,
-restore results, low-level hash and SQLite PRAGMA integrity inspectors, and the
-lifecycle of the temporary image a backup is written to before it is published.
+restore results, low-level hash and SQLite PRAGMA integrity inspectors, the online copy of a live
+database, and the lifecycle of the temporary image a backup is written to before it is published.
 
 [INPUT]
 - pathlib.Path, sqlite3.Connection
@@ -11,10 +11,12 @@ lifecycle of the temporary image a backup is written to before it is published.
 - BackupRecord: Metadata for a single backup snapshot.
 - RestoreResult: Outcome of a restore operation.
 - SnapshotVerificationResult: Cryptographic and structural verification result.
+- hot_copy_database: Online copy of a live database to a standalone file.
 - Low-level helpers: _compute_sha256, _pragma_quick_check, _pragma_integrity_check,
   _pragma_schema_version, _timestamp_dirname.
 - Temporary-image lifecycle: _discard_on_failure, _require_backup_image,
   _sweep_stale_tmp_backups.
+- Backup serialization: _CREATE_BACKUP_LOCK (one create_backup at a time per process).
 
 [POS]
 Harness infra internal models module for SQLite physical backup operations.
@@ -25,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import os
 import sqlite3
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
@@ -36,11 +39,13 @@ _QUARANTINE_DIR = "quarantine"
 _MANIFEST_FILE = "manifest.json"
 _MANIFEST_VERSION = 1
 _DEFAULT_RETENTION = 3
-_BACKUP_PAGE_BATCH = 100
 _TMP_PREFIX = ".tmp-"
 # A live copy keeps rewriting its image; one idle this long belongs to a process that died mid-copy.
 _STALE_TMP_SECONDS = 5 * 60
 _SQLITE_SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
+# Publishing a snapshot is a read-modify-write of the shared manifest; the scheduled job (worker thread),
+# shutdown and the repair action may all call create_backup, so one backup runs at a time per process.
+_CREATE_BACKUP_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,6 +140,26 @@ def _pragma_schema_version(db_path: str | Path) -> int | None:
         return int(row[0]) if row and isinstance(row[0], int) else None
     finally:
         conn.close()
+
+
+def hot_copy_database(src_path: str | Path, dst_path: str | Path) -> None:
+    """Copy a live SQLite database through the online backup API into a standalone file.
+
+    The copy is a single backup step, i.e. one snapshot of the source. In WAL mode commits of other
+    connections land in the WAL and neither wait for the copy nor restart it; in rollback-journal mode a
+    writer waits until the copy is done. Page batches would restart from the first page after every commit
+    of another connection and never finish under a steady writer. The destination is a consistent
+    single-file image (no WAL/SHM siblings).
+    """
+    src = sqlite3.connect(str(src_path), timeout=10.0)
+    try:
+        dst = sqlite3.connect(str(dst_path))
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+    finally:
+        src.close()
 
 
 def _timestamp_dirname(ts: float) -> str:

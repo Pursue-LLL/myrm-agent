@@ -7,7 +7,8 @@ SQLAlchemy AsyncEngine is optional at import time; install `sqlalchemy` when usi
 - sqlalchemy (optional)::text, AsyncEngine — lazy import at runtime
 
 [OUTPUT]
-- StatefulMigrationEngine: Zero-ops SQLite migration engine with state tracking
+- StatefulMigrationEngine: Zero-ops SQLite migration engine with state tracking; ``has_pending`` reports
+  whether a run would still change the database (callers gate pre-migration snapshots on it)
 - MigrationStatement: Versioned SQL migration statement
 - MigrationReport: Migration execution detailed report
 
@@ -25,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from sqlalchemy import TextClause
     from sqlalchemy.ext.asyncio import AsyncEngine
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,7 @@ _SQLALCHEMY_INSTALL_HINT = (
 )
 
 
-def _sql_text(sql: str) -> object:
+def _sql_text(sql: str) -> TextClause:
     try:
         from sqlalchemy import text
     except ImportError as exc:
@@ -134,26 +136,44 @@ class StatefulMigrationEngine:
         """Compute SHA-256 checksum of the SQL statement."""
         return hashlib.sha256(sql.encode("utf-8")).hexdigest()
 
-    async def _init_state_table(self) -> bool:
-        """Create the state table if it doesn't exist. Returns True if newly created."""
+    async def _state_table_exists(self) -> bool:
         check_sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=:name"
         async with self.engine.connect() as conn:
             result = await conn.execute(_sql_text(check_sql), {"name": self.table_name})
-            exists = result.scalar() is not None
+            return result.scalar() is not None
 
-        if not exists:
-            create_sql = f"""
-            CREATE TABLE {self.table_name} (
-                version INTEGER PRIMARY KEY,
-                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                duration_ms REAL NOT NULL,
-                checksum VARCHAR(64) NOT NULL
-            )
-            """
-            async with self.engine.begin() as conn:
-                await conn.execute(_sql_text(create_sql))
+    async def _init_state_table(self) -> bool:
+        """Create the state table if it doesn't exist. Returns True if newly created."""
+        if await self._state_table_exists():
+            return False
+        create_sql = f"""
+        CREATE TABLE {self.table_name} (
+            version INTEGER PRIMARY KEY,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            duration_ms REAL NOT NULL,
+            checksum VARCHAR(64) NOT NULL
+        )
+        """
+        async with self.engine.begin() as conn:
+            await conn.execute(_sql_text(create_sql))
+        return True
+
+    async def _read_applied(self) -> dict[int, str]:
+        """Applied migration versions mapped to the checksum recorded when they ran."""
+        async with self.engine.connect() as conn:
+            result = await conn.execute(_sql_text(f"SELECT version, checksum FROM {self.table_name}"))
+            return {row[0]: row[1] for row in result}
+
+    async def has_pending(self, migrations: list[MigrationStatement]) -> bool:
+        """Whether ``run_migrations`` would still do any work for these statements.
+
+        Read-only. A missing state table counts as pending: the first run applies every statement
+        or baselines an existing schema, and neither is a no-op.
+        """
+        if not await self._state_table_exists():
             return True
-        return False
+        applied = await self._read_applied()
+        return any(m.version not in applied for m in migrations)
 
     async def _needs_baseline(self) -> bool:
         """Check if the database is already populated and needs baselining."""
@@ -196,12 +216,7 @@ class StatefulMigrationEngine:
             report.total_duration_ms = (time.time() - total_start) * 1000
             return report
 
-        # Fetch already applied migrations
-        applied_versions: dict[int, str] = {}
-        async with self.engine.connect() as conn:
-            result = await conn.execute(_sql_text(f"SELECT version, checksum FROM {self.table_name}"))
-            for row in result:
-                applied_versions[row[0]] = row[1]
+        applied_versions = await self._read_applied()
 
         # Execute pending migrations
         for m in migrations:

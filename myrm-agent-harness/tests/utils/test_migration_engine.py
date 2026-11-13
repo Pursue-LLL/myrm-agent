@@ -206,6 +206,7 @@ async def test_migration_engine_idempotent_skip_drop_nonexistent_column(engine):
         idempotent_marks = [r[1] for r in rows if r[1].startswith("idempotent:")]
         assert len(idempotent_marks) == 1, "Only V1 should be flagged idempotent"
 
+
 def test_drift_shaped_skip_distinguishes_a_real_gap_from_a_drop() -> None:
     """A missing column on UPDATE/ALTER is drift; on DROP COLUMN it is expected."""
     from myrm_agent_harness.utils.db.migration_engine import _is_drift_shaped_skip
@@ -216,3 +217,53 @@ def test_drift_shaped_skip_distinguishes_a_real_gap_from_a_drop() -> None:
         "no such column: deployment_url", "ALTER TABLE artifacts DROP COLUMN deployment_url"
     )
     assert not _is_drift_shaped_skip("duplicate column name: foo", "ALTER TABLE t ADD COLUMN foo TEXT")
+
+
+async def _table_names(engine) -> set[str]:
+    async with engine.connect() as conn:
+        res = await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+        return {row[0] for row in res}
+
+
+@pytest.mark.asyncio
+async def test_has_pending_is_true_without_a_state_table_and_does_not_create_one(engine):
+    migrations = [MigrationStatement(version=0, sql="CREATE TABLE test1 (id INTEGER PRIMARY KEY)")]
+
+    assert await StatefulMigrationEngine(engine).has_pending(migrations) is True
+
+    assert "_schema_migrations" not in await _table_names(engine)
+
+
+@pytest.mark.asyncio
+async def test_has_pending_is_false_once_every_statement_is_recorded(engine):
+    engine_runner = StatefulMigrationEngine(engine)
+    migrations = [
+        MigrationStatement(version=0, sql="CREATE TABLE test1 (id INTEGER PRIMARY KEY)"),
+        MigrationStatement(version=1, sql="CREATE TABLE test2 (id INTEGER PRIMARY KEY)"),
+    ]
+    await engine_runner.run_migrations(migrations)
+
+    assert await engine_runner.has_pending(migrations) is False
+
+
+@pytest.mark.asyncio
+async def test_has_pending_sees_a_statement_appended_after_the_last_run(engine):
+    engine_runner = StatefulMigrationEngine(engine)
+    first = MigrationStatement(version=0, sql="CREATE TABLE test1 (id INTEGER PRIMARY KEY)")
+    await engine_runner.run_migrations([first])
+    appended = MigrationStatement(version=1, sql="ALTER TABLE test1 ADD COLUMN note TEXT")
+
+    assert await engine_runner.has_pending([first, appended]) is True
+
+
+@pytest.mark.asyncio
+async def test_has_pending_treats_a_baselined_database_as_up_to_date(engine):
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+    engine_runner = StatefulMigrationEngine(
+        engine, baseline_check_sql="SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'"
+    )
+    migrations = [MigrationStatement(version=0, sql="CREATE TABLE users (id INTEGER PRIMARY KEY)")]
+    await engine_runner.run_migrations(migrations)
+
+    assert await engine_runner.has_pending(migrations) is False

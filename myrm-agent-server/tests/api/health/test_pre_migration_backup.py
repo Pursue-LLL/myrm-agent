@@ -1,10 +1,13 @@
-"""Tests for pre-migration safety snapshot in init_database().
+"""Tests for the pre-migration safety snapshot in init_database().
 
-Verifies that get_sqlite_backup_manager() → create_backup() is called before
-run_migrations() to protect multi-step DDL migrations from partial failure.
+The snapshot (get_sqlite_backup_manager() → create_backup()) is taken before run_migrations() only while a
+migration is pending, and off the event loop: a start with nothing to migrate must not copy the whole database.
 """
 
 import sqlite3
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,9 +15,32 @@ import pytest
 from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
 
 
+@contextmanager
+def _patched_init_database(
+    manager: MagicMock | None,
+    *,
+    pending: bool,
+    run_migrations: AsyncMock,
+) -> Iterator[None]:
+    """Swap everything init_database() touches for fakes; the schema gate runs against a MagicMock engine."""
+    fake_engine = MagicMock()
+    fake_conn = AsyncMock()
+    fake_engine.begin.return_value.__aenter__ = AsyncMock(return_value=fake_conn)
+    fake_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    with (
+        patch("app.database.connection.get_database_engine", return_value=fake_engine),
+        patch("app.database.migrations.run_migrations", run_migrations),
+        patch("app.database.migrations.create_indexes", new_callable=AsyncMock),
+        patch("app.database.migrations.has_pending_migrations", new_callable=AsyncMock, return_value=pending),
+        patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=manager),
+    ):
+        yield
+
+
 @pytest.mark.asyncio
 async def test_init_database_calls_backup_before_migrations():
-    """get_sqlite_backup_manager().create_backup() must execute before run_migrations()."""
+    """With a migration pending, create_backup() must execute before run_migrations()."""
     call_order: list[str] = []
 
     mock_manager = MagicMock(spec=SQLiteBackupManager)
@@ -23,29 +49,45 @@ async def test_init_database_calls_backup_before_migrations():
     async def fake_run_migrations(engine: object) -> None:
         call_order.append("migrations")
 
-    async def fake_create_indexes(engine: object) -> None:
-        call_order.append("indexes")
-
-    fake_engine = MagicMock()
-    fake_conn = AsyncMock()
-    fake_engine.begin.return_value.__aenter__ = AsyncMock(return_value=fake_conn)
-    fake_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
-
-    with (
-        patch("app.database.connection.get_database_engine", return_value=fake_engine),
-        patch("app.database.migrations.run_migrations", side_effect=fake_run_migrations),
-        patch("app.database.migrations.create_indexes", side_effect=fake_create_indexes),
-        patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=mock_manager),
-    ):
+    with _patched_init_database(mock_manager, pending=True, run_migrations=AsyncMock(side_effect=fake_run_migrations)):
         from app.database.connection import init_database
 
         await init_database()
 
-    assert "backup" in call_order, "create_backup was not called"
-    assert "migrations" in call_order, "run_migrations was not called"
-    backup_idx = call_order.index("backup")
-    migrations_idx = call_order.index("migrations")
-    assert backup_idx < migrations_idx, f"backup must run before migrations, got order: {call_order}"
+    assert call_order == ["backup", "migrations"]
+
+
+@pytest.mark.asyncio
+async def test_init_database_takes_no_snapshot_when_nothing_is_pending():
+    """A start with every migration recorded must not copy the database, yet still runs the (no-op) migration pass."""
+    mock_manager = MagicMock(spec=SQLiteBackupManager)
+    mock_run_migrations = AsyncMock()
+
+    with _patched_init_database(mock_manager, pending=False, run_migrations=mock_run_migrations):
+        from app.database.connection import init_database
+
+        await init_database()
+
+    mock_manager.create_backup.assert_not_called()
+    mock_run_migrations.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_init_database_copies_the_database_off_the_event_loop():
+    """The snapshot of a grown database takes seconds; it must not hold the loop that other startup work shares."""
+    loop_thread = threading.get_ident()
+    backup_threads: list[int] = []
+
+    mock_manager = MagicMock(spec=SQLiteBackupManager)
+    mock_manager.create_backup.side_effect = lambda: backup_threads.append(threading.get_ident()) or MagicMock()
+
+    with _patched_init_database(mock_manager, pending=True, run_migrations=AsyncMock()):
+        from app.database.connection import init_database
+
+        await init_database()
+
+    assert len(backup_threads) == 1
+    assert backup_threads[0] != loop_thread
 
 
 @pytest.mark.asyncio
@@ -57,20 +99,9 @@ async def test_init_database_aborts_when_backup_fails_with_manager():
     """
     mock_manager = MagicMock(spec=SQLiteBackupManager)
     mock_manager.create_backup.side_effect = OSError("disk full")
-
-    fake_engine = MagicMock()
-    fake_conn = AsyncMock()
-    fake_engine.begin.return_value.__aenter__ = AsyncMock(return_value=fake_conn)
-    fake_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
-
     mock_run_migrations = AsyncMock()
 
-    with (
-        patch("app.database.connection.get_database_engine", return_value=fake_engine),
-        patch("app.database.migrations.run_migrations", mock_run_migrations),
-        patch("app.database.migrations.create_indexes", new_callable=AsyncMock),
-        patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=mock_manager),
-    ):
+    with _patched_init_database(mock_manager, pending=True, run_migrations=mock_run_migrations):
         from app.database.connection import init_database
 
         with pytest.raises(OSError, match="disk full"):
@@ -82,31 +113,14 @@ async def test_init_database_aborts_when_backup_fails_with_manager():
 @pytest.mark.asyncio
 async def test_init_database_skips_backup_when_manager_is_none():
     """If get_sqlite_backup_manager() returns None (in-memory), backup is skipped gracefully."""
-    migrations_ran = False
+    mock_run_migrations = AsyncMock()
 
-    async def fake_run_migrations(engine: object) -> None:
-        nonlocal migrations_ran
-        migrations_ran = True
-
-    async def fake_create_indexes(engine: object) -> None:
-        pass
-
-    fake_engine = MagicMock()
-    fake_conn = AsyncMock()
-    fake_engine.begin.return_value.__aenter__ = AsyncMock(return_value=fake_conn)
-    fake_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
-
-    with (
-        patch("app.database.connection.get_database_engine", return_value=fake_engine),
-        patch("app.database.migrations.run_migrations", side_effect=fake_run_migrations),
-        patch("app.database.migrations.create_indexes", side_effect=fake_create_indexes),
-        patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=None),
-    ):
+    with _patched_init_database(None, pending=True, run_migrations=mock_run_migrations):
         from app.database.connection import init_database
 
         await init_database()
 
-    assert migrations_ran, "run_migrations must execute when backup manager is None"
+    mock_run_migrations.assert_awaited_once()
 
 
 # --- Integration tests: SQLiteBackupManager (real sqlite3) ---

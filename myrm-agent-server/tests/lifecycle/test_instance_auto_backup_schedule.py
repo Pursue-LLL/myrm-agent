@@ -1,4 +1,4 @@
-"""The scheduled instance backup is actually registered on the maintenance scheduler."""
+"""The maintenance scheduler registers the instance backup check and delays its heavy jobs past the boot burst."""
 
 from __future__ import annotations
 
@@ -63,6 +63,19 @@ async def test_the_hourly_backup_check_is_registered_a_few_minutes_after_boot(re
     assert {"db_maintenance", "incognito_cleanup"} <= by_id.keys()  # the neighbours are untouched
     # APScheduler only runs schedules after an explicit start; registering alone leaves them dead.
     assert recording.started
+
+
+async def test_the_first_database_maintenance_pass_waits_past_the_first_screen(recording: type[_RecordingScheduler]) -> None:
+    before = datetime.now(UTC)
+
+    await schedulers.start_db_maintenance_scheduler()
+    await asyncio.wait_for(recording.ready.wait(), timeout=10)  # instance_auto_backup registers after db_maintenance
+
+    by_id = {job_id: (func, trigger) for job_id, func, trigger in recording.registered}
+    func, trigger = by_id["db_maintenance"]
+    assert func is schedulers._db_maintenance_job
+    assert trigger.hours == 6
+    assert before + timedelta(minutes=2) < trigger.start_time < before + timedelta(minutes=4)
 
 
 async def test_the_job_delegates_to_the_service_tick(monkeypatch: pytest.MonkeyPatch) -> None:
