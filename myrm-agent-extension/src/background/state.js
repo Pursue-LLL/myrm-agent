@@ -49,6 +49,7 @@ export const state = {
   reconnectDelay: RECONNECT_DELAY_MS,
   isConnecting: false,
   lastError: "",
+  /** @type {string[]} */
   authorizedDomains: [],
   allowAllEligibleTabs: false,
   pausedTabIds: new Set(),
