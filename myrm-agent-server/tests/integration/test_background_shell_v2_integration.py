@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import shlex
 import sys
+import time
 import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from langchain_core.tools import BaseTool
 from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
     reset_spawn_lifecycle_for_tests,
 )
@@ -63,6 +66,41 @@ def _session_config(chat_id: str, tmp_path: Path) -> dict[str, object]:
     }
 
 
+# Upper limit for waiting on an event that is expected to happen: the wait ends as soon as it does, so the limit only
+# turns a stuck child into a clear failure.
+_EVENT_WAIT_S = 30.0
+
+# The child prints one line and then stays silent until the test creates the gate file, so the test decides when it
+# exits instead of racing a sleep; the deadline only keeps a child from outliving an aborted test run.
+_TICKER_SCRIPT = """\
+import pathlib
+import sys
+import time
+
+print("tick", flush=True)
+gate = pathlib.Path(sys.argv[1])
+deadline = time.monotonic() + 60
+while not gate.exists() and time.monotonic() < deadline:
+    time.sleep(0.02)
+"""
+
+
+async def _cursor_after_first_line(process_tool: BaseTool, pid: int, config: dict[str, object]) -> int:
+    """Wait for the child's first line and return the cursor behind it.
+
+    The child prints at the pace of its interpreter start-up, so a poll right after the spawn can see nothing, and a
+    cursor taken before the line would make the line count as new output of the next poll.
+    """
+    deadline = time.monotonic() + _EVENT_WAIT_S
+    while time.monotonic() < deadline:
+        out = await process_tool.ainvoke({"action": "output", "pid": pid}, config=config)
+        content = out["content"]  # type: ignore[index]
+        if any("tick" in line for line in content["stdout"]):
+            return int(content["next_cursor"])
+        await asyncio.sleep(0.05)
+    raise AssertionError("the child never printed its first line")
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_bash_process_wait_and_poll_hint_integration(tmp_path: Path) -> None:
@@ -74,7 +112,10 @@ async def test_bash_process_wait_and_poll_hint_integration(tmp_path: Path) -> No
 
     bash_tool = create_bash_code_execute_tool()
     process_tool = create_bash_process_tool()
-    cmd = f"{sys.executable} -c \"import time; print('tick', flush=True); time.sleep(0.4)\""
+    ticker = tmp_path / "ticker.py"
+    ticker.write_text(_TICKER_SCRIPT, encoding="utf-8")
+    gate = tmp_path / "gate"
+    cmd = f"{shlex.quote(sys.executable)} {shlex.quote(str(ticker))} {shlex.quote(str(gate))}"
 
     with (
         patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", AsyncMock()),
@@ -92,15 +133,17 @@ async def test_bash_process_wait_and_poll_hint_integration(tmp_path: Path) -> No
         )
 
     pid = int(spawn["metadata"]["pid"])
-    out1 = await process_tool.ainvoke({"action": "output", "pid": pid}, config=config)
-    cursor = int(out1["content"]["next_cursor"])  # type: ignore[index]
-    out2 = await process_tool.ainvoke(
-        {"action": "output", "pid": pid, "since_cursor": cursor},
-        config=config,
-    )
-    hint = out2["content"]["poll_hint"]  # type: ignore[index]
-    assert hint["has_new_output"] is False
-    assert hint["suggested_wait_ms"] >= 5000
+    try:
+        cursor = await _cursor_after_first_line(process_tool, pid, config)
+        out2 = await process_tool.ainvoke(
+            {"action": "output", "pid": pid, "since_cursor": cursor},
+            config=config,
+        )
+        hint = out2["content"]["poll_hint"]  # type: ignore[index]
+        assert hint["has_new_output"] is False
+        assert hint["suggested_wait_ms"] >= 5000
+    finally:
+        gate.touch()
 
     wait_result = await process_tool.ainvoke(
         {"action": "wait", "pid": pid, "timeout_seconds": 5},

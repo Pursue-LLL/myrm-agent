@@ -16,9 +16,9 @@ class TestUpdateMemory:
     def test_update_memory_signature_has_no_namespaces(self) -> None:
         """update_memory must not accept a namespaces parameter.
 
-        A memory's scope is immutable; the namespaces parameter previously
-        allowed callers to bypass the write scope fence by rebuilding the
-        MemoryScope without _validate_write_scope.
+        A memory's scope is immutable: a namespaces parameter would let callers
+        bypass the write scope fence by rebuilding the MemoryScope without
+        _validate_write_scope.
         """
         import inspect
 
