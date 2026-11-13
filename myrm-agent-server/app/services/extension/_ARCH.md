@@ -18,7 +18,7 @@
 
 ## 设计要点
 
-- **Playwright 单例**：`_ensure_playwright()` 跨连接复用实例，`disconnect()` 时释放。CDP 连接统一经 `_connect_over_cdp()`：失败原因是 driver 子进程已退出（`is_driver_closed_error`，与 harness 浏览器池同一识别）时，丢掉并停掉这份缓存，下一次 `connect()` 起新 driver——否则缓存的句柄会让此后每次连接都以同一条错误失败。只丢失败的那一份（别的调用者已换上新 driver 时不动它）；超时、relay 拒绝等其他失败保留 driver。
+- **Playwright 单例**：`_ensure_playwright()` 跨连接复用实例，`disconnect()` 时释放。CDP 连接统一经 `_connect_over_cdp()`：失败原因是 driver 子进程已退出（`is_driver_closed_error`，与 harness 浏览器池同一识别）时，丢掉并停掉这份缓存，并在同一次调用里换新 driver 再连一次——否则缓存的句柄会让此后每次连接都以同一条错误失败；留给调用方（浏览器池）自己的那一次重试，会先撞上同一个死 driver，会话也就愈合不了标签页。只丢失败的那一份（别的调用者已换上新 driver 时不动它，重试就用它）；新 driver 也立刻退出则报错并同样丢弃；超时、relay 拒绝等其他失败保留 driver、不重试。
 - **域名授权**：`_match_domain()` / `access_policy.py` 支持 `*.example.com`；`list_tabs()`、`_sync_relay_tabs()`、relay attach **共用同一 filter**（fail-closed；空 domain 不再隐式全开）。
 - **Allow-all 模式**：`allow_all_eligible_tabs` 显式开关；可与 per-tab `paused_tab_ids` 组合；关闭 tab 时 prune pause（Chrome tabId 复用）。
 - **真实 automation 探针**：`relay_cdp_ready` 经 loopback `Browser.getVersion` 往返验证，且要求 access policy valid。

@@ -6,9 +6,9 @@
 - ConnectionMixin
 
 [POS]
-Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status. A connect that fails
-because the Playwright driver process exited drops that driver, so the next connect starts a new one instead of
-failing on the dead one until the extension reconnects.
+Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status. A connect that finds the
+Playwright driver process exited drops that driver and attaches again on a new one, so a dead driver never fails a
+connect (it would otherwise fail every one until the extension reconnects).
 """
 
 from __future__ import annotations
@@ -26,7 +26,12 @@ from app.services.extension.access_policy import (
 )
 
 if TYPE_CHECKING:
+    import asyncio
+
     from patchright.async_api import Browser, Playwright
+    from starlette.websockets import WebSocket
+
+    from app.services.extension.access_policy import ExtensionAccessPolicy
 
 from . import common
 from .common import (
@@ -39,8 +44,44 @@ from .common import (
 
 
 class ConnectionMixin:
-    # Owned by the host (``ExtensionBridgeService.__init__``): ``None`` until the first connect starts a driver.
-    _playwright: Playwright | None
+    """Connect, disconnect, endpoint resolution, navigation and status of the extension bridge.
+
+    Requires host class to have: the session state ``ExtensionBridgeService.__init__`` assigns (declared below, without
+    values, so nothing shadows the host's) and the methods of the access-policy, relay, tabs and capability mixins this
+    class calls (stubbed below for the type checker only, so the real ones stay reachable in the MRO).
+    """
+
+    _ws: WebSocket | None
+    _connected: bool
+    _hello_received: bool
+    _extension_version: str
+    _browser_name: str
+    _capabilities: set[str]
+    _authorized_domains: list[str]
+    _tabs: list[ExtensionTab]
+    _last_heartbeat: float
+    _heartbeat_task: asyncio.Task[None] | None
+    _receive_task: asyncio.Task[None] | None
+    _cdp_endpoint: str | None
+    _last_cdp_probe_monotonic: float
+    _playwright: Playwright | None  # None until the first connect starts a driver
+
+    if TYPE_CHECKING:
+
+        def _require_capability(self, capability: str) -> None: ...
+        async def _send_ws_message(self, msg: dict[str, object]) -> None: ...
+        async def _send_request(
+            self, action: str, payload: dict[str, object] | None = None, *, timeout: float = 10.0
+        ) -> object: ...
+        async def _sync_relay_tabs(self) -> None: ...
+        async def _refresh_tabs(self) -> None: ...
+        async def _focus_browser_on_domain(self, browser: Browser, domain: str) -> None: ...
+        def _current_access_policy(self) -> ExtensionAccessPolicy: ...
+        @staticmethod
+        def _match_domain(domain: str, patterns: list[str]) -> bool: ...
+        def _tab_is_visible_in_ui(self, tab: ExtensionTab) -> bool: ...
+        async def _send_move_tab(self, tab_id: int, window_id: int, index: int) -> bool: ...
+        def is_access_policy_valid(self) -> bool: ...
 
     async def _ensure_playwright(self) -> Playwright:
         """Return the cached Playwright instance, starting one if needed."""
@@ -60,21 +101,33 @@ class ConnectionMixin:
             with contextlib.suppress(Exception):
                 await playwright.stop()
 
-    async def _connect_over_cdp(self, cdp_endpoint: str, timeout: float) -> Browser:
-        """Attach Playwright to the relay's DevTools endpoint.
+    async def _attach_once(self, cdp_endpoint: str, timeout: float) -> Browser:
+        """One Playwright attach to the relay's DevTools endpoint, on the cached driver.
 
-        A driver whose process has exited can attach to nothing, ever: it is dropped, so the next attempt (the pool
-        retries a failed acquisition once) runs on a new driver. Only the driver that failed is dropped: a newer one
-        another caller already started keeps serving.
+        A driver whose process has exited can attach to nothing, ever, so it is dropped before the error propagates.
+        Only the driver that failed is dropped: a newer one another caller already started keeps serving.
         """
         pw = await self._ensure_playwright()
         try:
             return await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
         except Exception as exc:
             if self._playwright is pw and is_driver_closed_error(exc):
-                logger.warning("Extension bridge: Playwright driver process is gone; the next connect starts a new driver")
                 await self._discard_playwright()
             raise
+
+    async def _connect_over_cdp(self, cdp_endpoint: str, timeout: float) -> Browser:
+        """Attach Playwright to the relay's DevTools endpoint, once more on a new driver if the cached one had exited.
+
+        The retry belongs here: the bridge owns the driver, and the browser pool's own single retry of a failed page
+        acquisition would otherwise be spent reaching this same dead driver, leaving the session without a tab.
+        """
+        try:
+            return await self._attach_once(cdp_endpoint, timeout)
+        except Exception as exc:
+            if not is_driver_closed_error(exc):
+                raise
+            logger.warning("Extension bridge: Playwright driver process is gone (%s); attaching again on a new driver", exc)
+            return await self._attach_once(cdp_endpoint, timeout)
 
     def _resolve_cdp_endpoint(self) -> str | None:
         """Discover main Chrome CDP endpoint when extension bridge has no cached value."""
