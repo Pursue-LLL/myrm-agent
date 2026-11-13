@@ -69,11 +69,35 @@ def check_non_overlapping_edits(content: str, edits: Sequence[StrReplaceEdit]) -
         ranges.append((start, end))
 
 
+def _as_lf(content: str, edits: Sequence[StrReplaceEdit]) -> tuple[str, Sequence[StrReplaceEdit]]:
+    """``content`` and the text of ``edits`` with LF line endings, the form every match runs on.
+
+    A model writes its edits with ``\\n`` whatever the file uses, and the fuzzy strategies join the lines they match
+    with ``\\n``: on CRLF text a multi-line ``old_str`` has no exact match, and a fuzzy one is a text the content
+    does not hold.
+    """
+    from ..utils.line_endings import normalize_line_endings
+
+    lf_content = normalize_line_endings(content, "\n") if "\r" in content else content
+    lf_edits = tuple(
+        StrReplaceEdit(
+            old_str=normalize_line_endings(edit.old_str, "\n"),
+            new_str=normalize_line_endings(edit.new_str, "\n"),
+        )
+        for edit in edits
+    )
+    return lf_content, lf_edits
+
+
 def compute_batch_edit_line_range(content: str, edits: Sequence[StrReplaceEdit]) -> tuple[int, int]:
     """Union of 1-indexed line ranges affected by all edits on original content."""
+    from ..utils.line_endings import detect_line_ending
+
     if not edits:
         total = content.count("\n") + 1
         return 1, total
+    if detect_line_ending(content):
+        content, edits = _as_lf(content, edits)
     starts: list[int] = []
     ends: list[int] = []
     for edit in edits:
@@ -84,13 +108,18 @@ def compute_batch_edit_line_range(content: str, edits: Sequence[StrReplaceEdit])
 
 
 def apply_batch_str_replace(content: str, edits: Sequence[StrReplaceEdit]) -> tuple[str, list[str]]:
-    """Apply edits sequentially in memory. Returns (new_content, strategies_used)."""
+    """Apply edits sequentially in memory. Returns (new_content, strategies_used).
+
+    Matching runs on LF text and the file's own line endings are written back, so a CRLF file stays CRLF.
+    """
     from ..utils.line_endings import detect_line_ending, normalize_line_endings
 
     validate_edits_batch(edits)
+    original_eol = detect_line_ending(content)
+    if original_eol:
+        content, edits = _as_lf(content, edits)
     check_non_overlapping_edits(content, edits)
 
-    original_eol = detect_line_ending(content)
     current = content
     strategies: list[str] = []
 

@@ -384,6 +384,11 @@ def fuzzy_replace(
     matched = result.matched_text
     count = content.count(matched)
 
+    if count == 0:
+        # The line strategies rejoin the lines they match with ``\n``, so content that separates its lines otherwise
+        # (CR, FF, U+2028) does not hold the text they matched; replacing nothing must not read as a success.
+        return FuzzyReplaceResult(content=content, strategy=result.strategy, success=False, confidence=0.0)
+
     if not replace_all and count > 1:
         logger.warning(
             "fuzzy_replace: multi-match rejected strategy=%s count=%d",

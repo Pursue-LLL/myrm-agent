@@ -413,6 +413,15 @@ class TestFuzzyReplace:
         assert result.success
         assert "\u201cb\u201d" in result.content
 
+    def test_a_match_the_content_does_not_hold_verbatim_is_not_a_success(self) -> None:
+        """The line strategies rejoin the lines they match with ``\\n``; content that separates its lines with
+        anything else does not hold that text, and replacing nothing must not read as a success."""
+        for separator in ("\r", "\r\n", "\x0c", "\u2028"):
+            content = f"def a():{separator}    return 1{separator}def b():"
+            result = fuzzy_replace(content, "def a():\n    return 1", "def a():\n    return 10")
+            assert not result.success, repr(separator)
+            assert result.content == content
+
 
 # ===================================================================
 # 9. Edge cases
