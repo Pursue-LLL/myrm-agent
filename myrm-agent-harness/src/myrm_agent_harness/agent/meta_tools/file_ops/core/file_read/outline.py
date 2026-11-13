@@ -23,6 +23,7 @@ from __future__ import annotations
 import ast
 import os
 import re
+import warnings
 from dataclasses import dataclass
 
 # Matches line gutter emitted by ResultFormatter (e.g. "     12|def foo():")
@@ -150,10 +151,13 @@ def _extract_python_ast_symbols(numbered: list[tuple[int, str]], start_line_thre
     source = "\n".join(text for _, text in numbered).replace("\r", " ")
     if len(source) > _AST_MAX_SOURCE_CHARS:
         return []
-    try:
-        tree = ast.parse(source)
     # Source the parser cannot take is not a failed read: a lone surrogate (ValueError) or a source too complex for its
-    # stack (MemoryError, RecursionError) leaves the regex scan.
+    # stack (MemoryError, RecursionError) leaves the regex scan. What the file's author wrote, such as an escape
+    # Python warns about, is not for the server's log, and the parser repeats the warning on every read.
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", SyntaxWarning)
+            tree = ast.parse(source)
     except (SyntaxError, ValueError, MemoryError, RecursionError):
         return []
 

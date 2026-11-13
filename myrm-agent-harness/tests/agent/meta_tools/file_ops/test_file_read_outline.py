@@ -340,6 +340,12 @@ class TestOutlineOfTheViewARead:
 
         assert _entries(out) == ["  - Line 2-3: def f"]
 
+    def test_an_escape_python_warns_about_does_not_cost_the_outline_its_ranges(self) -> None:
+        """The suite turns warnings into errors: a warning the parse lets through would abort it."""
+        out = extract_file_outline(_view('import re\nP = re.compile("\\d+")\n\n\ndef f():\n    pass'), "mod.py")
+
+        assert _entries(out) == ["  - Line 5-6: def f"]
+
     @pytest.mark.parametrize("separator", ["\x0b", "\x0c", "\x1c", "\x85", "\u2028", "\u2029"])
     def test_separators_that_are_no_newline_to_python_do_not_shift_the_numbers(self, separator: str) -> None:
         out = extract_file_outline(_view(f'x = "a{separator}b"\ndef f():\n    pass'), "mod.py")
