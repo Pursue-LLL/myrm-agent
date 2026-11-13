@@ -3,85 +3,54 @@
 Each xdist worker is its own Python process, so memory grows with ``-n`` (measured: one ``-n 10`` run held about
 12 GiB). The cap is ``--maxprocesses`` in ``pyproject.toml`` ``addopts``. xdist documents that option only for
 ``-n auto|logical``; capping an explicit ``-n N`` is its current implementation behavior, so a config grep proves
-nothing. These tests run the repo's real pytest configuration in a nested ``--collect-only`` session (which spawns
-no workers) and read the worker list xdist would start, to prove the cap still bites and can still be raised on
-purpose.
+nothing. These tests parse the repo's real pytest configuration in-process and call xdist's own
+``pytest_cmdline_main`` to read the worker list it would start (``config.option.tx``: one entry per worker).
 """
 
 from __future__ import annotations
 
-import os
-import re
-import subprocess
-import sys
-import tomllib
 from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-_PYPROJECT = _REPO_ROOT / "pyproject.toml"
-_PLUGIN_NAME = "xdist_worker_probe"
-# ``config.option.tx`` is xdist's worker spec list: one entry per worker it will spawn.
-_PLUGIN_SOURCE = (
-    "from pathlib import Path\n\n\n"
-    "def pytest_sessionstart(session):\n"
-    "    Path({report!r}).write_text(str(len(session.config.option.tx)))\n"
-)
+pytest_plugins = ["pytester"]
+pytestmark = pytest.mark.architecture
+
+_PYPROJECT = Path(__file__).resolve().parent.parent.parent / "pyproject.toml"
 
 
-def _configured_cap() -> int:
-    ini_options = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))["tool"]["pytest"]["ini_options"]
-    match = re.search(r"--maxprocesses=(\d+)", ini_options["addopts"])
-    assert match, "pyproject.toml addopts must cap xdist workers with --maxprocesses"
-    return int(match[1])
+def _parse(pytester: pytest.Pytester, *args: str) -> pytest.Config:
+    # An explicit path keeps ``testpaths`` (absent under the pytester root) from raising a warning that the repo's
+    # ``filterwarnings = error`` would turn into a failure.
+    return pytester.parseconfig("-c", str(_PYPROJECT), "--rootdir", str(pytester.path), *args, str(pytester.path))
 
 
-def _workers_requested(tmp_path: Path, requested: int, extra_addopts: str = "") -> int:
-    """Run ``pytest -n <requested>`` under the repo's own ini and return how many workers xdist would start."""
-    report = tmp_path / "workers.txt"
-    (tmp_path / f"{_PLUGIN_NAME}.py").write_text(_PLUGIN_SOURCE.format(report=str(report)), encoding="utf-8")
-    # An outer xdist worker or addopts would change what the nested run is asked for.
-    env = {key: value for key, value in os.environ.items() if not key.startswith(("PYTEST_XDIST", "PYTEST_ADDOPTS"))}
-    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(tmp_path), env.get("PYTHONPATH", "")]))
-    if extra_addopts:
-        env["PYTEST_ADDOPTS"] = extra_addopts
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-c",
-            str(_PYPROJECT),
-            "--rootdir",
-            str(tmp_path),
-            "-p",
-            "no:cacheprovider",
-            "-p",
-            _PLUGIN_NAME,
-            "--collect-only",
-            "-n",
-            str(requested),
-            str(tmp_path),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=env,
-        cwd=tmp_path,
-        timeout=120,
-    )
-    assert report.exists(), f"probe did not report a worker count:\n{result.stdout}\n{result.stderr}"
-    return int(report.read_text(encoding="utf-8"))
+def _workers(pytester: pytest.Pytester, *args: str) -> int:
+    config = _parse(pytester, *args)
+    # Only xdist's own implementation: the full hook chain would also run the session.
+    impls = config.hook.pytest_cmdline_main.get_hookimpls()
+    (xdist_impl,) = (impl for impl in impls if impl.plugin_name == "xdist")
+    xdist_impl.function(config)
+    return len(config.option.tx)
 
 
-@pytest.mark.architecture
-def test_explicit_worker_request_is_capped(tmp_path: Path) -> None:
-    cap = _configured_cap()
-    assert _workers_requested(tmp_path, requested=cap + 6) == cap
+def _cap(pytester: pytest.Pytester) -> int:
+    cap = _parse(pytester).option.maxprocesses
+    assert cap, "pyproject.toml addopts must cap xdist workers with --maxprocesses"
+    return int(cap)
 
 
-@pytest.mark.architecture
-def test_cap_can_be_raised_on_purpose(tmp_path: Path) -> None:
-    cap = _configured_cap()
-    assert _workers_requested(tmp_path, requested=cap + 6, extra_addopts=f"--maxprocesses={cap + 2}") == cap + 2
+def test_explicit_worker_request_is_capped(pytester: pytest.Pytester) -> None:
+    cap = _cap(pytester)
+    assert _workers(pytester, "-n", str(cap + 6)) == cap
+
+
+def test_cap_can_be_raised_on_purpose(pytester: pytest.Pytester) -> None:
+    cap = _cap(pytester)
+    assert _workers(pytester, "-n", str(cap + 6), f"--maxprocesses={cap + 2}") == cap + 2
+
+
+def test_probe_sees_the_cap_disappear_with_addopts_cleared(pytester: pytest.Pytester) -> None:
+    # ``-o addopts=`` is the known way around the cap; it also proves the probe reacts to the cap being absent.
+    cap = _cap(pytester)
+    assert _workers(pytester, "-o", "addopts=", "-n", str(cap + 6)) == cap + 6
