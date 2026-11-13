@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,6 +17,8 @@ from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.ai_agents.custom_agent_factory import CustomAgentFactory
+from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
 from app.core.skills import prebuilt_sync
 from app.core.skills.gates.oauth_availability import (
     GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE,
@@ -23,6 +27,7 @@ from app.core.skills.gates.oauth_availability import (
     X_LIVE_SEARCH_UNAVAILABLE,
 )
 from app.core.skills.loader import create_skill_backend
+from app.core.skills.store.user_config import UserSkillConfigManager
 from app.database.models import Base
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
 from app.services.integrations.oauth_store import upsert_oauth_credential
@@ -230,5 +235,50 @@ async def test_loader_runtime_lists_x_live_search_for_the_track_it_is_built_for(
     )
     skill = next(s for s in await backend.list_skills() if s.name == X_LIVE_SEARCH_SKILL_ID)
 
+    assert skill.available is listed
+    assert skill.unavailable_reason == (None if listed else X_LIVE_SEARCH_UNAVAILABLE)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("track", "listed"),
+    [(CredentialTrack.PERSONAL, True), (CredentialTrack.SHARED, False)],
+    ids=lambda value: getattr(value, "value", str(value)),
+)
+async def test_a_delegated_custom_agent_lists_x_live_search_for_the_track_of_the_turn_that_delegates(
+    skills_storage: LocalStorageBackend,
+    integration_db: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+    track: CredentialTrack,
+    listed: bool,
+) -> None:
+    """The sub-agent runs inside the delegating turn, so it sees the turn's credentials and no others."""
+    prebuilt_sync._synced = False  # noqa: SLF001
+    await prebuilt_sync.sync_prebuilt_seeds(skills_storage)
+    credentials = _patch_integration_db(monkeypatch, integration_db, skills_storage)
+    await credentials.seed(CredentialState(xai_provider="key"))
+    await UserSkillConfigManager(skills_storage).enable_prebuilt_skill(X_LIVE_SEARCH_SKILL_ID)
+
+    profile = SimpleNamespace(
+        id="researcher",
+        display_name="Researcher",
+        description="",
+        system_prompt="Research.",
+        model=None,
+        max_iterations=8,
+        skills=[X_LIVE_SEARCH_SKILL_ID],
+        metadata={},
+    )
+    monkeypatch.setattr("app.ai_agents.subagent_catalog.get_session_factory", lambda: integration_db)
+    monkeypatch.setattr("app.ai_agents.subagent_catalog.AgentService.get_agent_by_id", AsyncMock(return_value=profile))
+
+    config = await DatabaseSubagentCatalog(bound_agent_ids=["researcher"], credential_track=track).resolve("researcher")
+    assert config is not None
+    factory = config.agent_factory
+    assert isinstance(factory, CustomAgentFactory)
+    await factory._ensure_initialized()  # noqa: SLF001
+    assert factory._cached_skill_backend is not None  # noqa: SLF001
+
+    skill = next(s for s in await factory._cached_skill_backend.list_skills() if s.name == X_LIVE_SEARCH_SKILL_ID)  # noqa: SLF001
     assert skill.available is listed
     assert skill.unavailable_reason == (None if listed else X_LIVE_SEARCH_UNAVAILABLE)

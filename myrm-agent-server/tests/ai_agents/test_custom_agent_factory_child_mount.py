@@ -21,7 +21,8 @@ from myrm_agent_harness.agent.sub_agents.spawn_capability import (
 from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
 from myrm_agent_harness.core.security.ocap import CapabilityHandle, capability_scope
 
-from app.ai_agents.custom_agent_factory import CustomAgentFactory, EphemeralAgentFactory
+from app.ai_agents.custom_agent_factory import CustomAgentFactory
+from app.ai_agents.ephemeral_agent_factory import EphemeralAgentFactory
 
 _Mount = tuple[FileAccessMode, bool]
 _FULL: _Mount = (FileAccessMode.FULL, True)

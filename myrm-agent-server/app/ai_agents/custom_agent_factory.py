@@ -1,12 +1,13 @@
 """CustomAgentFactory — builds SkillAgent instances for custom subagents.
 
 [INPUT]
-myrm_agent_harness.agent.sub_agents.types::SubagentConfig (POS: subagent runtime contract)
-app.core.memory.adapters.setup::create_memory_manager (POS: Server memory manager adapter factory)
+- myrm_agent_harness.agent.sub_agents.types::SubagentConfig (POS: subagent runtime contract)
+- app.core.memory.adapters.setup::create_memory_manager (POS: Server memory manager adapter factory)
+- app.core.skills.loader::create_skill_backend (POS: the profile's skill backend, gated for one credential track)
+- app.ai_agents.subagent_assembly (POS: tool boundary, security inheritance, memory rebind and write backend shared with EphemeralAgentFactory)
 
 [OUTPUT]
-CustomAgentFactory: DB-backed custom subagent factory.
-EphemeralAgentFactory: in-memory JIT subagent factory (rebinds memory_search_tool like CustomAgentFactory).
+- CustomAgentFactory: DB-backed custom subagent factory
 
 [POS]
 Custom subagent assembly layer. Builds isolated SkillAgent instances and rebinds the inherited memory_search_tool to the
@@ -22,6 +23,9 @@ memory, and MCP integrations.
 
 Resources (skill_backend, MCP configs) are initialized
 once on first build() and cached for reuse within the same session.
+
+The delegated agent runs inside the delegating turn, so it is handed that turn's credentials: its skill backend is
+gated for the same credential track, and a skill that needs a credential the track cannot obtain is not offered.
 """
 
 from __future__ import annotations
@@ -30,17 +34,26 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, cast
 
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.api import AgentRuntimeSpec, get_subagent_checkpointer
+
+from app.ai_agents.subagent_assembly import (
+    apply_subagent_memory_search_rebind,
+    filter_tools_by_profile,
+    inherit_parent_security_config,
+    subagent_write_backend,
+)
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from langchain_core.tools import BaseTool
     from myrm_agent_harness.agent.base_agent import BaseAgent
-    from myrm_agent_harness.agent.security.types import SecurityConfig
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
-    from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
+    from myrm_agent_harness.toolkits.mcp.config import MCPConfig
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+
+    from app.core.types import MCPServerConfig
 
 logger = logging.getLogger(__name__)
 _EPHEMERAL_MEMORY_ISOLATION = "ephemeral_session"
@@ -62,122 +75,6 @@ def _coerce_str_frozenset(value: object) -> frozenset[str]:
     return frozenset(item for item in value if isinstance(item, str))
 
 
-def _filter_tools_by_profile(tools: list[object], enabled_builtin_tools: tuple[str, ...]) -> list[object]:
-    """Filter inherited tools based on the active agent's tool boundaries."""
-    from myrm_agent_harness.core.security.tool_registry import TOOL_TO_GROUP
-
-    active_groups = set()
-    if "web_search" in enabled_builtin_tools:
-        active_groups.add("web")
-    if "browser" in enabled_builtin_tools:
-        active_groups.add("browser")
-    if "file_ops" in enabled_builtin_tools:
-        active_groups.add("file_ops")
-    if "code_execute" in enabled_builtin_tools:
-        active_groups.add("shell")
-    if "computer_use" in enabled_builtin_tools:
-        active_groups.add("computer_use")
-    if "memory" in enabled_builtin_tools:
-        active_groups.add("memory")
-    if "kanban" in enabled_builtin_tools:
-        active_groups.add("kanban")
-    if "wiki" in enabled_builtin_tools:
-        active_groups.add("wiki")
-
-    filtered = []
-    for t in tools:
-        t_name = getattr(t, "name", "")
-        t_group = TOOL_TO_GROUP.get(t_name)
-        # If the tool is part of a canonical group but the group is not enabled, filter it out
-        if t_group is not None and t_group not in active_groups:
-            continue
-        filtered.append(t)
-    return filtered
-
-
-def _inherit_parent_security_config(parent_agent: object) -> SecurityConfig | None:
-    """Inherit the parent agent's SecurityConfig for the child SkillAgent.
-
-    Mirrors the framework's bare-BaseAgent child path (builder.build_child_agent)
-    so delegated SkillAgents share the same security posture (approval policies,
-    capabilities, path policy) as the parent. Returns None when the parent has no
-    runtime config (e.g. SimpleNamespace in unit tests) so callers fall back to
-    framework fail-closed defaults.
-    """
-    config = getattr(parent_agent, "config", None)
-    if config is None:
-        return None
-    security_config = getattr(config, "security_config", None)
-    if security_config is None:
-        logger.warning("[subagent] parent_agent.config.security_config is None — child will fall back to fail-closed defaults")
-    return security_config
-
-
-def _rebind_subagent_memory_search_tool(
-    tools: list[object],
-    *,
-    memory_manager: object,
-    description_locale: str | None = None,
-) -> None:
-    """Replace the inherited memory_search_tool with one that searches only the subagent's own memory.
-
-    The parent's tool may carry its wiki and past-conversation corpora; a delegated subagent never inherits them.
-    """
-    from myrm_agent_harness.toolkits import create_memory_tools
-    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-
-    if not isinstance(memory_manager, MemoryManager):
-        return
-
-    rebuilt = create_memory_tools(memory_manager, description_locale=description_locale)
-    rebuilt_search = next(
-        (tool for tool in rebuilt if getattr(tool, "name", "") == "memory_search_tool"),
-        None,
-    )
-    if rebuilt_search is None:
-        return
-
-    for index, tool in enumerate(tools):
-        if getattr(tool, "name", "") == "memory_search_tool":
-            tools[index] = rebuilt_search
-            return
-
-
-def _apply_subagent_memory_search_rebind(
-    tools: list[object],
-    *,
-    parent_agent: object,
-    memory_manager: object | None,
-    enabled_builtin: tuple[str, ...],
-) -> None:
-    """Rebind inherited memory_search_tool when the subagent profile enables memory."""
-    if memory_manager is None or "memory" not in enabled_builtin:
-        return
-    from app.core.agent.tool_description_locale import resolve_tool_description_locale
-
-    tool_description_locale = resolve_tool_description_locale(
-        agent_locale=getattr(parent_agent, "locale", None),
-        channel=getattr(parent_agent, "channel_name", None),
-    )
-    _rebind_subagent_memory_search_tool(
-        tools,
-        memory_manager=memory_manager,
-        description_locale=tool_description_locale,
-    )
-
-
-def _subagent_write_backend(config: SubagentConfig) -> SkillWriteBackend | None:
-    """Mount skill_manage_tool when the subagent allowlist includes it."""
-    if "skill_manage_tool" not in config.tools:
-        return None
-    from app.core.skills.creation.service import skill_creation_service
-    from app.core.skills.creation.version_persisting_backend import (
-        VersionPersistingSkillWriteBackend,
-    )
-
-    return VersionPersistingSkillWriteBackend(skill_creation_service)
-
-
 class CustomAgentFactory:
     """AgentFactory implementation that creates SkillAgent from DB profile.
 
@@ -191,6 +88,7 @@ class CustomAgentFactory:
     __slots__ = (
         "_agent_id",
         "_agent_profile",
+        "_credential_track",
         "_init_lock",
         "_cached_skill_backend",
         "_cached_mcp_configs",
@@ -201,12 +99,15 @@ class CustomAgentFactory:
         self,
         agent_id: str,
         agent_profile: object,
+        *,
+        credential_track: CredentialTrack = CredentialTrack.PERSONAL,
     ) -> None:
         self._agent_id = agent_id
         self._agent_profile = agent_profile
+        self._credential_track = credential_track
         self._init_lock = asyncio.Lock()
         self._cached_skill_backend: SkillBackend | None = None
-        self._cached_mcp_configs: list[object] = []
+        self._cached_mcp_configs: list[MCPServerConfig] = []
         self._initialized = False
 
     @staticmethod
@@ -249,6 +150,7 @@ class CustomAgentFactory:
                 skill_ids=skill_ids or None,
                 user_id="default",
                 allowed_prebuilt_ids=allowed_prebuilt,
+                credential_track=self._credential_track,
             )
 
             mcp_ids = _coerce_str_list(metadata.get("mcp_ids", []))
@@ -337,7 +239,7 @@ class CustomAgentFactory:
                     e,
                 )
         if llm is None:
-            llm = cast("BaseChatModel", cast("BaseAgent", parent_agent).llm)
+            llm = cast("BaseAgent", parent_agent).llm
 
         # --- 2. Memory Manager (respects memory_isolation policy) ---
         memory_manager = None
@@ -416,17 +318,17 @@ class CustomAgentFactory:
             name=getattr(profile, "display_name", None) or self._agent_id,
             system_prompt=system_prompt,
             skill_ids=skill_ids,
-            mcp_servers=mcp_servers,
+            mcp_servers=cast("list[MCPConfig]", mcp_servers),
             openapi_services=openapi_services,
             engine_params=engine_params,
             mcp_surface_mode=mcp_surface_mode,
             max_iterations=max_iterations,
-            security_config=_inherit_parent_security_config(parent_agent),
+            security_config=inherit_parent_security_config(parent_agent),
         )
 
         enabled_builtin = getattr(profile, "enabled_builtin_tools", ())
-        all_tools = _filter_tools_by_profile(list(cast("list[BaseTool]", tools)), enabled_builtin)
-        _apply_subagent_memory_search_rebind(
+        all_tools = filter_tools_by_profile(list(cast("list[BaseTool]", tools)), enabled_builtin)
+        apply_subagent_memory_search_rebind(
             all_tools,
             parent_agent=parent_agent,
             memory_manager=memory_manager,
@@ -440,7 +342,7 @@ class CustomAgentFactory:
             executor=cast("BaseAgent", parent_agent).executor,
             storage_backend=storage_backend,
             skill_backend=self._cached_skill_backend,
-            write_backend=_subagent_write_backend(config),
+            write_backend=subagent_write_backend(config),
             memory_manager=memory_manager,
             tools=all_tools,
             collect_artifacts=False,
@@ -455,117 +357,6 @@ class CustomAgentFactory:
             len(all_tools),
             config.memory_isolation.value,
             len(mcp_servers),
-            extra={"complexity_tier": complexity_tier, "current_depth": current_depth},
-        )
-        return agent
-
-
-class EphemeralAgentFactory:
-    """AgentFactory implementation for in-memory JIT subagents.
-
-    Constructs a SkillAgent purely from memory configurations without hitting
-    the database. Used for 'Scenario Blueprint' ephemeral teams.
-    """
-
-    __slots__ = ("_agent_id", "_metadata")
-
-    def __init__(self, agent_id: str, metadata: dict[str, object] | None = None) -> None:
-        self._agent_id = agent_id
-        self._metadata = metadata or {}
-
-    async def build(
-        self,
-        config: SubagentConfig,
-        tools: list[object],
-        task_description: str,
-        parent_agent: object,
-        current_depth: int,
-        complexity_tier: str | None = None,
-    ) -> BaseAgent:
-
-        from myrm_agent_harness.api import AgentRuntimeSpec, create_skill_agent
-        from myrm_agent_harness.toolkits.llms import llm_manager
-
-        from app.platform_utils import get_storage_provider
-        from app.services.agent.tool_mount import resolve_child_meta_mount
-
-        # 10/10 Scheme: If context is forked, we MUST drop the system_prompt entirely.
-        # Otherwise, LangGraph prepends a new SystemMessage, shifting the array and breaking Prefix Cache!
-        if getattr(config, "context_mode", "isolated") == "fork":
-            system_prompt = ""
-        else:
-            system_prompt = config.system_prompt or ""
-
-        # NOT appending task_description to system_prompt to preserve prefix cache (cache_control).
-
-        llm = None
-        if config.llm is not None:
-            llm = config.llm
-        elif config.model:
-            try:
-                from app.core.channel_bridge.config_loader import load_user_configs
-                from app.core.channel_bridge.model_resolver import resolve_model_config
-
-                configs = await load_user_configs()
-                providers_dict = configs.providers_dict if configs else None
-                model_cfg = resolve_model_config(
-                    providers_dict,
-                    model_override=config.model,
-                )
-                llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=getattr(model_cfg, "api_keys", None))
-            except Exception as e:
-                logger.warning(
-                    "[EphemeralAgentFactory] Failed to resolve model '%s': %s",
-                    config.model,
-                    e,
-                )
-
-        if llm is None:
-            llm = getattr(parent_agent, "llm", None)
-
-        spec = AgentRuntimeSpec(
-            agent_id=self._agent_id,
-            name=config.display_name or self._agent_id,
-            system_prompt=system_prompt,
-            skill_ids=[],
-            mcp_servers=[],
-            max_iterations=config.max_turns,
-            security_config=_inherit_parent_security_config(parent_agent),
-        )
-
-        raw_builtin = self._metadata.get("enabled_builtin_tools")
-        if not isinstance(raw_builtin, (list, tuple)):
-            from app.services.agent.profile.profile_resolver import (
-                DEFAULT_ENABLED_BUILTIN_TOOLS,
-            )
-
-            raw_builtin = DEFAULT_ENABLED_BUILTIN_TOOLS
-        enabled_builtin = tuple(str(x) for x in raw_builtin)
-        all_tools = _filter_tools_by_profile(list(tools), enabled_builtin)
-        _apply_subagent_memory_search_rebind(
-            all_tools,
-            parent_agent=parent_agent,
-            memory_manager=getattr(parent_agent, "memory_manager", None),
-            enabled_builtin=enabled_builtin,
-        )
-
-        agent = await create_skill_agent(
-            spec=spec,
-            llm=llm,
-            executor=getattr(parent_agent, "executor", None),
-            storage_backend=get_storage_provider(),
-            skill_backend=None,
-            write_backend=_subagent_write_backend(config),
-            memory_manager=None,
-            tools=all_tools,
-            collect_artifacts=False,
-            checkpointer=get_subagent_checkpointer(),
-            **resolve_child_meta_mount(),
-        )
-
-        logger.info(
-            "[EphemeralAgentFactory] Built in-memory SkillAgent for '%s'",
-            self._agent_id,
             extra={"complexity_tier": complexity_tier, "current_depth": current_depth},
         )
         return agent

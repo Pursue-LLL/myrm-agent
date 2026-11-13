@@ -1,11 +1,21 @@
 """Database Subagent Catalog Implementation.
 
+[INPUT]
+- app.ai_agents.subagent_presets::load_subagent_presets (POS: the YAML subagent presets)
+- app.ai_agents.custom_agent_factory::CustomAgentFactory (POS: builds the SkillAgent of a database custom agent)
+- app.services.agent.agent_service::AgentService (POS: the stored custom agent profiles)
+
+[OUTPUT]
+- DatabaseSubagentCatalog: SubagentCatalog over YAML presets, in-memory JIT configs and database custom agents
+
+[POS]
 Resolves subagent configurations from YAML presets or database.
 When loading custom agents from DB as subagents:
   - Injects CustomAgentFactory to build a full SkillAgent (with skills, memory, MCP)
   - Enforces LEAF control scope (no recursive delegation)
   - Enforces READ_ONLY_GLOBAL memory isolation (prevent concurrent state pollution),
     or EPHEMERAL_SESSION when the owning chat is incognito so no memory is read or written
+  - Gates the agent's skills for the delegating turn's credential track
 
 For YAML presets, injects a ModelResolver so config.model can be resolved
 to an actual LLM instance instead of silently falling back to parent LLM.
@@ -14,6 +24,7 @@ to an actual LLM instance instead of silently falling back to parent LLM.
 import logging
 from dataclasses import replace
 
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.agent.sub_agents.types import (
     ControlScope,
     MemoryIsolationPolicy,
@@ -64,6 +75,11 @@ class DatabaseSubagentCatalog:
 
     Incognito: a delegated sub-agent cannot see the chat's incognito flag (its parent is the runtime
     SkillAgent), so the owner of the chat tells the catalog and DB agents are configured without memory.
+
+    Credential track: a delegated sub-agent runs inside the delegating turn and is handed that turn's
+    credentials, so the owner of the turn tells the catalog which track it is on and DB agents gate their
+    skills for it. Only a channel turn in a team-shared topic is on another track than the owner's own; the
+    callers outside a channel turn (cron verifier, web stream lane) keep the default.
     """
 
     def __init__(
@@ -72,9 +88,11 @@ class DatabaseSubagentCatalog:
         jit_configs: dict[str, SubagentConfig] | None = None,
         *,
         incognito_mode: bool = False,
+        credential_track: CredentialTrack = CredentialTrack.PERSONAL,
     ):
         self._bound_agent_ids = set(bound_agent_ids) if bound_agent_ids is not None else None
         self._jit_configs = jit_configs or {}
+        self._credential_track = credential_track
         self._db_agent_memory_isolation = (
             MemoryIsolationPolicy.EPHEMERAL_SESSION if incognito_mode else MemoryIsolationPolicy.READ_ONLY_GLOBAL
         )
@@ -119,6 +137,7 @@ class DatabaseSubagentCatalog:
                 factory = CustomAgentFactory(
                     agent_id=type_id,
                     agent_profile=agent_profile,
+                    credential_track=self._credential_track,
                 )
 
                 max_turns = agent_profile.max_iterations or 25

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.tools import BaseTool
 from myrm_agent_harness.agent.base_agent import BaseAgent
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.agent.tool_management import ToolLifecycleManager, ToolRegistry
 
 from app.ai_agents.extensions.subagent_extension import SubagentManagementExtension
@@ -121,6 +122,43 @@ async def test_subagent_extension_tells_the_catalog_whether_the_chat_is_incognit
         await ext.on_agent_init(agent)
 
     assert catalog_class.call_args.kwargs["incognito_mode"] is incognito_mode
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("credential_track", list(CredentialTrack), ids=lambda track: track.value)
+async def test_subagent_extension_tells_the_catalog_which_credential_track_the_turn_is_on(
+    credential_track: CredentialTrack,
+) -> None:
+    agent = _make_bare_agent()
+    ext = SubagentManagementExtension(
+        jit_subagents={},
+        subagent_ids=["research-agent"],
+        credential_track=credential_track,
+    )
+    _, patch_specs = _spawn_patches()
+    catalog_class = dict(patch_specs)[_CATALOG]
+
+    with ExitStack() as stack:
+        for target, replacement in patch_specs:
+            stack.enter_context(patch(target, new=replacement))
+        await ext.on_agent_init(agent)
+
+    assert catalog_class.call_args.kwargs["credential_track"] is credential_track
+
+
+@pytest.mark.asyncio
+async def test_subagent_extension_without_a_track_serves_the_owners_own_credentials() -> None:
+    agent = _make_bare_agent()
+    ext = SubagentManagementExtension(jit_subagents={}, subagent_ids=["research-agent"])
+    _, patch_specs = _spawn_patches()
+    catalog_class = dict(patch_specs)[_CATALOG]
+
+    with ExitStack() as stack:
+        for target, replacement in patch_specs:
+            stack.enter_context(patch(target, new=replacement))
+        await ext.on_agent_init(agent)
+
+    assert catalog_class.call_args.kwargs["credential_track"] is CredentialTrack.PERSONAL
 
 
 @pytest.mark.asyncio

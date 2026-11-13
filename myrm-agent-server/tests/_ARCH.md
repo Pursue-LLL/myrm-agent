@@ -493,7 +493,11 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_last_turn_regenerate_chrome_e2e.py` | 模块 | 重新生成只在最新回合的回答上出现（READ，无 LLM）：种子会话含两轮回答与回答之后的后台任务通知 → 页面上只有第二轮回答有该按钮（首轮回答与通知没有） |
 | `api/agent/test_memory_conversation_search_e2e.py` | 模块 | Memory + sessions opt-in API 集成（真实 LLM agent-stream；8 场景：opt-in/incognito/memory-off/多轮/passphrase） |
 | `e2e/test_parallel_tool_order_live_chrome_e2e.py` | 模块 | 同一条模型消息里的冲突工具调用按模型给出的顺序开始执行（PRIVATE+LIVE，`live_shpoib`，两个节点：`after_user_approval`、`auto_approved`）：真实输入框让模型在一条回复里发 4 个互相冲突的 `bash_code_execute_tool` 调用，每个步骤脚本把开始/结束时刻追加进会话工作区的共用日志。断言日志里 4 步恰为 ALPHA→BRAVO→CHARLIE→DELTA、前一步结束不晚于后一步开始、会话落库的 bash 步骤标签同序；`after_user_approval` 先在探针自己的后端上关 YOLO，再由真实界面按 Approve，断言确实点过批准。「同一条模型消息」以用量账本判定（相邻两步开始之间没有任何以请求工具结束的模型调用；按时间间隔判定会被主机负载骗过）；模型把调用拆成多条消息时开新会话重试（至多 3 次、受 540 s 预算约束），始终没有合批则失败。判定函数见 `support/tool_order_probe.py` |
-| `ai_agents/test_custom_agent_factory.py` | 模块 | Custom/Ephemeral 子 Agent `memory_search_tool` rebind + factory build 路径（38 项；`--cov-fail-under=90` on factory） |
+| `ai_agents/test_custom_agent_factory.py` | 模块 | CustomAgentFactory 的初始化：技能后端、MCP 配置、一次性资源装配（并发内层跳过、MCP 失败不致命） |
+| `ai_agents/test_custom_agent_factory_build.py` | 模块 | CustomAgentFactory 的 build 路径：记忆搜索重绑、fork 上下文、MCP 运行时配置、模型解析与回退、记忆管理器失败降级 |
+| `ai_agents/test_ephemeral_agent_factory.py` | 模块 | EphemeralAgentFactory 的 build 路径：记忆搜索重绑、技能写后端、fork 上下文、模型解析与回退 |
+| `ai_agents/test_subagent_assembly.py` | 模块 | 两个子 Agent 工厂共用的装配步骤：工具白名单过滤、`memory_search_tool` 重绑、技能写后端 |
+| `ai_agents/test_subagent_credential_track.py` | 模块 | 源码扫描：`app/` 里每处构造 `SubagentManagementExtension` 都传入该轮的凭证轨道（字面量与缺省都被拒绝），委派的子 Agent 才与该轮同口径门禁技能；目录→工厂→技能后端的真实路径由 `integration/skills/test_google_workspace_oauth_integration.py` 覆盖 |
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |
 | `e2e/test_theme_marketplace_gallery_chrome_e2e.py` | 模块 | Theme Studio Gallery 免费安装 Chrome MCP smoke（READ×1：CP seed→acquire→download→install-from-marketplace） |
 | `e2e/test_subagent_dashboard_chrome_e2e.py` | 模块 | Subagent Dashboard Chrome MCP E2E（LIVE×6：cancel running、delegation pause toggle、SSE token/model 展示、budget used/limit、canvas 拓扑渲染 + 点击定位回树、fission 拓扑合并渲染） |
