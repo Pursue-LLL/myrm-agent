@@ -198,6 +198,34 @@ class TestConnectExisting:
         assert inst.browser is mock_browser
         assert mock_pw.chromium.connect_over_cdp.await_count == 2
 
+    @pytest.mark.asyncio
+    async def test_an_empty_header_mapping_reaches_the_driver_as_no_headers(self) -> None:
+        """REMOTE mode builds an empty mapping when none are configured, and the driver rejects it as an object."""
+        launcher = _make_launcher(launch_mode=LaunchMode.REMOTE)
+        mock_pw = MagicMock()
+        mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=_mock_browser(contexts=1))
+        launcher._playwright = mock_pw
+
+        await launcher._connect_existing("ws://127.0.0.1:9222/devtools/browser/x", headers={})
+
+        mock_pw.chromium.connect_over_cdp.assert_awaited_once_with(
+            "ws://127.0.0.1:9222/devtools/browser/x", headers=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_configured_headers_reach_the_driver_untouched(self) -> None:
+        launcher = _make_launcher(launch_mode=LaunchMode.REMOTE)
+        mock_pw = MagicMock()
+        mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=_mock_browser(contexts=1))
+        launcher._playwright = mock_pw
+        headers = {"Authorization": "Bearer token"}
+
+        await launcher._connect_existing("ws://127.0.0.1:9222/devtools/browser/x", headers=headers)
+
+        mock_pw.chromium.connect_over_cdp.assert_awaited_once_with(
+            "ws://127.0.0.1:9222/devtools/browser/x", headers=headers
+        )
+
 
 # ---------------------------------------------------------------------------
 # create_browser routing
@@ -455,8 +483,9 @@ class TestPoolStatsExternalFields:
         inst = BrowserInstance(browser=_mock_browser(), is_managed=False)
         pool._browsers.append(inst)
 
-        stats = pool.stats
-        assert stats["browsers"][0]["is_managed"] is False
+        browsers = pool.stats["browsers"]
+        assert isinstance(browsers, list)
+        assert browsers[0]["is_managed"] is False
 
         pool._browsers.clear()
         await pool.shutdown()
@@ -480,6 +509,7 @@ class TestPoolHealthExternalFields:
         assert health["status"] == "healthy"
         assert "pool" in health
         pool_stats = health["pool"]
+        assert isinstance(pool_stats, dict)
         assert pool_stats["launch_mode"] == "auto"
 
         await pool.shutdown()
@@ -488,15 +518,18 @@ class TestPoolHealthExternalFields:
     async def test_health_includes_external_browsers_count(self) -> None:
         pool = GlobalBrowserPool(max_browsers=3)
 
-        managed = BrowserInstance(browser=_mock_browser(), is_managed=True)
-        managed.browser.version = AsyncMock(return_value="v1")
-        external = BrowserInstance(browser=_mock_browser(), is_managed=False)
-        external.browser.version = AsyncMock(return_value="v2")
+        managed_browser = _mock_browser()
+        managed_browser.version = AsyncMock(return_value="v1")
+        external_browser = _mock_browser()
+        external_browser.version = AsyncMock(return_value="v2")
+        managed = BrowserInstance(browser=managed_browser, is_managed=True)
+        external = BrowserInstance(browser=external_browser, is_managed=False)
 
         pool._browsers.extend([managed, external])
 
         health = await pool.health()
         pool_stats = health["pool"]
+        assert isinstance(pool_stats, dict)
         assert pool_stats["external_browsers"] == 1
         assert pool_stats["total_browsers"] == 2
 

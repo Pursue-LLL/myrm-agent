@@ -7,7 +7,7 @@
 [OUTPUT]
 - PageUnresponsiveError: a page stopped answering protocol commands and cannot be reused
 - DriverClosedError: the Playwright driver behind a browser has exited, so nothing can reach the browser anymore
-- is_driver_closed_error: whether a failed protocol call was caused by an exited Playwright driver
+- is_driver_closed_error: whether a failed protocol call was caused by an exited Playwright driver (the error or any link of its cause chain)
 - abort_pending_navigation: stop an in-flight navigation without blocking on a stalled page
 - probe_alive: bounded liveness check of a page
 - probe_browser_alive: bounded liveness check of the browser process, independent of any page
@@ -39,6 +39,7 @@ _ABORT_TIMEOUT_S = 1.0
 _DETACH_TIMEOUT_S = 1.0
 _CLOSE_TIMEOUT_S = 2.0
 _PROBE_TIMEOUT_S = 2.0
+_DRIVER_CLOSED_MESSAGE = "connection closed while reading from the driver"
 
 
 class PageUnresponsiveError(BrowserSessionError):
@@ -53,9 +54,17 @@ def is_driver_closed_error(error: BaseException) -> bool:
     """Whether a protocol call failed because the Playwright driver process is no longer running.
 
     The driver's exit takes every browser it launched down without a 'disconnected' event, and patchright reports
-    it as a bare ``Exception``, so the message is the only thing to go by.
+    it as a bare ``Exception``, so the message is the only thing to go by. A caller that wrapped the failure in an
+    error of its own (the ARIA snapshot does) keeps it on the cause chain, so the whole chain is read.
     """
-    return "connection closed while reading from the driver" in str(error).lower()
+    seen: set[int] = set()
+    link: BaseException | None = error
+    while link is not None and id(link) not in seen:
+        if _DRIVER_CLOSED_MESSAGE in str(link).lower():
+            return True
+        seen.add(id(link))
+        link = link.__cause__ or link.__context__
+    return False
 
 
 async def abort_pending_navigation(page: Page) -> None:

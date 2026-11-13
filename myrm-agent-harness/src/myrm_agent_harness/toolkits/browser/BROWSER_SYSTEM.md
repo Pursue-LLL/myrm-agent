@@ -1160,20 +1160,20 @@ browser/
 │   ├── execute_script.py — browser_execute_script_tool（含 AST 特权API Scanner + HITL 门禁）
 │   ├── takeover.py — browser_ask_human_tool（人类接管，LangGraph interrupt + extension 横幅 / managed VNC）
 │   ├── user_control_gate.py — 用户接管围栏（人占用期间工具等待，交还后动作须先重新观察）
-│   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消同样自愈；一次性重置提示；动作应答之后才落定的页面发起下载在之后的应答里告知一次）
+│   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消与 Playwright driver 退出同样自愈；一次性重置提示；动作应答之后才落定的页面发起下载在之后的应答里告知一次）
 │   ├── inspect.py — browser_inspect_tool
 │   ├── _semantic_risk.py — 语义 DOM 风险分类（浏览器动作前置 + JS eval 模式；元素词典 SSOT 上移至 core/security/detection/semantic_risk.py，与桌面语义门共享）
 │   └── common.py — 工具共享工具函数
 ├── pool/
-│   ├── browser_pool.py (761 行) — GlobalBrowserPool（全局调度中枢）
+│   ├── browser_pool.py (475 行) — GlobalBrowserPool（全局调度中枢）
 │   ├── page_acquisition.py (89 行) — PageAcquisition（取页途中被取消或失败时归还许可与已取出的页面）
-│   ├── browser_launcher.py — BrowserLauncher（Chromium + Camoufox 启动前 sanitize_env + Camoufox 指纹持久化 + 损坏自愈 + Camoufox 启动前就绪闸门 + Playwright driver 进程消失后换新 driver 再重试）
+│   ├── browser_launcher.py — BrowserLauncher（Chromium + Camoufox 启动前 sanitize_env + Camoufox 指纹持久化 + 损坏自愈 + Camoufox 启动前就绪闸门 + 启动与 CDP 连接遇到 Playwright driver 进程消失都换新 driver 再重试）
 │   ├── chromium_install.py — Zero-config Chromium 自动安装 with CDN mirror fallback（同一时刻只装一次，失败后冷却）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
 │   ├── context_factory.py (277 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载）
 │   ├── emulation.py — 浏览器环境仿真配置（含移动设备五维字段）
 │   ├── device_profiles.py — 精选移动设备 profile 注册表（含 landscape 横屏视口）
-│   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；Playwright driver 已退出的浏览器不问页面直接判死；页面崩溃只为在用页面归还许可）
+│   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；Playwright driver 已退出的浏览器不问页面直接判死，页面获取撞上它时按需巡检一次再重试；页面崩溃只为在用页面归还许可）
 │   └── page_pool.py (223 行) — PagePool（只发放健康页面）
 ├── diff/
 │   ├── types.py — ComparisonResult Protocol + FastComparisonResult + AccurateComparisonResult
@@ -1225,7 +1225,7 @@ browser/
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/
-│   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / is_driver_closed_error / close_page_bounded / detach_cdp_bounded / PageUnresponsiveError / DriverClosedError）
+│   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / is_driver_closed_error（含原因链）/ close_page_bounded / detach_cdp_bounded / PageUnresponsiveError / DriverClosedError）
 ├── domain_filter/ — 四层域名过滤（CSP + HTTP + 主线程硬化 + CDP）；支持 allowlist + 用户 blocklist
 ├── session_vault/ — 加密 Session 存储（O(1) LRU + 内存限制 + 并发锁 + Metrics + 批量 API）
 ├── exceptions.py (约 150 行) — 异常类型

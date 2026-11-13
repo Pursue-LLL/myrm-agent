@@ -14,6 +14,7 @@
 - .pool_scheduling::PoolSchedulingMixin (POS: launcher cache and least-loaded browser selection)
 - .pool_lifecycle::PoolLifecycleMixin (POS: background loop, close, shutdown, hot reload)
 - .pool_diagnostics::PoolDiagnosticsMixin (POS: statistics, health, page ownership)
+- ..utils.page_health::is_driver_closed_error (POS: tells an acquisition that failed on an exited Playwright driver from other failures)
 
 [OUTPUT]
 - ContextType: context purpose classification enum (CRAWL/AGENT/STEALTH)
@@ -27,7 +28,8 @@ Global browser resource pool. Manages Browser/Context/Page three-layer resources
 4. Elastic scaling (dynamically creates/destroys Browser instances)
 5. Global concurrency limit (Semaphore controls total concurrency)
 6. Lifecycle management (background loop: idle reclamation + crash detection)
-7. Three-layer automatic crash recovery (L1: browser disconnect event, L2: page crash event, L3: lifecycle fallback)
+7. Three-layer automatic crash recovery (L1: browser disconnect event, L2: page crash event, L3: lifecycle fallback);
+   an acquisition that fails on an exited Playwright driver evicts the browsers it took down and retries once
 8. Semaphore safety net (prevents semaphore leaks or double releases on crash and on a cancelled or failed acquisition)
 
 This module owns the acquire/release/destroy path; scheduling, lifecycle and monitoring are the three mixins above.
@@ -36,6 +38,7 @@ This module owns the acquire/release/destroy path; scheduling, lifecycle and mon
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 import sys
@@ -43,6 +46,7 @@ import time
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from ..utils.page_health import is_driver_closed_error
 from .browser_launcher import BrowserInstance, BrowserLauncher
 from .circuit_breaker import CircuitBreaker
 from .config import BrowserEngine, BrowserPoolConfig, LaunchMode
@@ -265,6 +269,9 @@ class GlobalBrowserPool(PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnostics
         Load-based smart scheduling, auto-creates or reuses Context/Page.
         Uses double-checked locking (DCL), holding lock only when modifying shared state.
 
+        An acquisition that fails because the Playwright driver exited is retried once, after the browsers the
+        driver took down are evicted: the retry runs on a new browser instead of the dead one.
+
         Args:
             context_type: Context type (CRAWL/AGENT/STEALTH)
             context_key: Context identifier (same key reuses Context, for session isolation)
@@ -276,6 +283,32 @@ class GlobalBrowserPool(PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnostics
             (page, context_key) — Page instance and actual context_key used
 
         """
+        acquire = functools.partial(
+            self._acquire_page_once,
+            context_type,
+            context_key,
+            context_kwargs,
+            engine_preference,
+            launch_mode_preference,
+        )
+        try:
+            return await acquire()
+        except Exception as error:
+            if not is_driver_closed_error(error):
+                raise
+            logger.warning(f"Page acquisition failed on an exited Playwright driver, retrying once: {error}")
+        await self._evict_after_driver_exit()
+        return await acquire()
+
+    async def _acquire_page_once(
+        self,
+        context_type: ContextType,
+        context_key: str | None,
+        context_kwargs: dict[str, object] | None,
+        engine_preference: BrowserEngine | None,
+        launch_mode_preference: LaunchMode | None,
+    ) -> tuple[Page, str]:
+        """One acquisition attempt: ``acquire_page`` without the retry after a driver exit."""
         engine = engine_preference or self._config.engine
         async with PageAcquisition(self._global_semaphore, self._crash_handled_pages) as claim:
             await self._memory_guard.check_memory()

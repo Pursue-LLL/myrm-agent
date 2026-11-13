@@ -25,7 +25,7 @@ Dedicated to browser instance launching, including:
 6. Smart retry strategy (3 retries + exponential backoff)
 7. Zero-config auto-install: a launch that reports a missing Chromium runs ``chromium_install`` and retries
 8. Camoufox: fingerprint persistence (launch_options(), from_options reload, corrupted-JSON self-heal) and a readiness gate that refuses to start without the browser build, so no implicit ~1.2 GB download runs inside a request
-9. Driver recovery: a launch that fails because the Playwright driver process is gone drops the cached driver, so the next attempt starts a new one instead of failing on the dead one forever
+9. Driver recovery: a launch or CDP connect that fails because the Playwright driver process is gone drops the cached driver, so the next attempt starts a new one instead of failing on the dead one forever
 """
 
 from __future__ import annotations
@@ -125,6 +125,16 @@ class BrowserLauncher:
             with contextlib.suppress(Exception):
                 await playwright.stop()
 
+    async def _discard_playwright_if_gone(self, error: Exception) -> None:
+        """Drop the cached driver when ``error`` says its process is gone.
+
+        The driver took every browser it launched down with it, and a dead driver can neither launch nor
+        connect anything: the next attempt has to run on a new one.
+        """
+        if self._playwright is not None and is_driver_closed_error(error):
+            logger.warning("Playwright driver process is gone; the next attempt starts a new driver")
+            await self._discard_playwright()
+
     async def create_browser(self, headers: dict[str, str] | None = None) -> BrowserInstance:
         """Create Browser via configured launch_mode (launch/connect/auto/remote/extension).
 
@@ -210,21 +220,23 @@ class BrowserLauncher:
         """Connect to an existing Chrome instance via CDP with retry.
 
         Retries up to 3 times with exponential backoff (1s, 2s) to handle
-        transient CDP unavailability (e.g. Chrome still initializing).
+        transient CDP unavailability (e.g. Chrome still initializing). A retry
+        whose failure was an exited Playwright driver runs on a new driver.
 
         The returned BrowserInstance has is_managed=False.
         Calling browser.close() on a CDP-connected browser only
         disconnects the CDP session — it does NOT kill the Chrome process.
         """
-        pw = await self._ensure_playwright()
         last_exc: Exception | None = None
 
         from .chrome_prompt_guard import watch_chrome_remote_debugging_prompt
 
         for attempt in range(3):
+            pw = await self._ensure_playwright()
             try:
                 async with watch_chrome_remote_debugging_prompt(timeout=4.0):
-                    browser = await pw.chromium.connect_over_cdp(endpoint, headers=headers)
+                    # The driver rejects an empty mapping ("headers: expected array, got object"): none means None.
+                    browser = await pw.chromium.connect_over_cdp(endpoint, headers=headers or None)
                 self._total_browsers += 1
                 logger.info(
                     f"Connected to existing Chrome via CDP at {endpoint} "
@@ -235,6 +247,7 @@ class BrowserLauncher:
             except Exception as exc:
                 last_exc = exc
                 logger.warning(f"CDP connect failed (attempt {attempt + 1}/3): {exc}")
+                await self._discard_playwright_if_gone(exc)
                 if attempt < 2:
                     await asyncio.sleep(2**attempt)
 
@@ -332,11 +345,7 @@ class BrowserLauncher:
                 return BrowserInstance(browser=browser, engine=self._engine.value, is_managed=True)
 
             except Exception as exc:
-                if self._playwright is not None and is_driver_closed_error(exc):
-                    # The driver took every browser it launched down with it, and a dead driver can launch
-                    # nothing: the retry below has to run on a new one.
-                    logger.warning("Playwright driver process is gone; the next attempt starts a new driver")
-                    await self._discard_playwright()
+                await self._discard_playwright_if_gone(exc)
 
                 if is_timeout_error(exc):
                     last_exc = exc

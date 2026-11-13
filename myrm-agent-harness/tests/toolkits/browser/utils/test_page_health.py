@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -32,7 +33,7 @@ def _short_bounds(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(page_health, "_PROBE_TIMEOUT_S", _FAST_S)
 
 
-async def _elapsed(coro) -> float:
+async def _elapsed(coro: Awaitable[object]) -> float:
     started = time.monotonic()
     await coro
     return time.monotonic() - started
@@ -60,6 +61,39 @@ def test_driver_closed_error_is_a_session_error() -> None:
 )
 def test_only_an_exited_driver_reads_as_one(message: str, expected: bool) -> None:
     assert is_driver_closed_error(Exception(message)) is expected
+
+
+class TestDriverClosedErrorChain:
+    """A caller's own error wrapped around the driver's exit still reads as one."""
+
+    def test_found_through_the_cause_of_a_wrapping_error(self) -> None:
+        wrapped = RuntimeError("ARIA snapshot failed")
+        wrapped.__cause__ = Exception(_DRIVER_GONE)
+        assert is_driver_closed_error(wrapped) is True
+
+    def test_found_through_the_context_of_an_error_raised_while_handling_it(self) -> None:
+        cleanup_failure = RuntimeError("cleanup failed")
+        cleanup_failure.__context__ = Exception(_DRIVER_GONE)
+        assert is_driver_closed_error(cleanup_failure) is True
+
+    def test_found_however_deep_it_is_wrapped(self) -> None:
+        error: BaseException = Exception(_DRIVER_GONE)
+        for layer in range(5):
+            outer = RuntimeError(f"layer {layer}")
+            outer.__cause__ = error
+            error = outer
+        assert is_driver_closed_error(error) is True
+
+    def test_a_chain_without_a_driver_exit_is_not_one(self) -> None:
+        wrapped = RuntimeError("ARIA snapshot failed")
+        wrapped.__cause__ = TimeoutError("Page.evaluate: Timeout 30000ms exceeded")
+        assert is_driver_closed_error(wrapped) is False
+
+    def test_a_cyclic_chain_terminates(self) -> None:
+        first, second = RuntimeError("first"), RuntimeError("second")
+        first.__cause__ = second
+        second.__context__ = first
+        assert is_driver_closed_error(first) is False
 
 
 class TestAbortPendingNavigation:
