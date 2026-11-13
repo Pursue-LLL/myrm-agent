@@ -51,6 +51,7 @@ class BridgeState:
         self._last_cdp_probe_monotonic = 0.0
         self._lock = asyncio.Lock()
         self._playwright: Playwright | None = None
+        self._playwright_lock = asyncio.Lock()
 
     if TYPE_CHECKING:
         # What the mixins implement for each other. Only the type checker sees these: at runtime the mixins come first in
