@@ -19,11 +19,12 @@ tests/services/kanban/test_task_runner_approval_stop.py
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.messages import ToolCall
 from langgraph.types import Interrupt
 from myrm_agent_harness.agent.errors import ToolStuckException
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import build_interrupt_payload
@@ -58,12 +59,12 @@ TASK_ID = "task0001"
 WAIT_SECONDS = 20
 
 
-def _paused_on(interrupt_value: dict[str, object]) -> dict[str, object]:
+def _paused_on(interrupt_value: Mapping[str, object]) -> dict[str, object]:
     """The stream event the harness emits when the graph pauses on this interrupt value."""
     return interrupt_events([Interrupt(value=interrupt_value, id="interrupt-1")], "message-1")[0]
 
 
-_SHELL_CALL = {"name": "shell_exec", "args": {"command": "rm -rf build"}, "id": "call-1", "type": "tool_call"}
+_SHELL_CALL: ToolCall = {"name": "shell_exec", "args": {"command": "rm -rf build"}, "id": "call-1", "type": "tool_call"}
 _TOOL_APPROVAL_VALUE, _ = build_interrupt_payload(
     [(0, _SHELL_CALL, "shell_exec", "requires approval", None)], f"kanban:{TASK_ID}"
 )
