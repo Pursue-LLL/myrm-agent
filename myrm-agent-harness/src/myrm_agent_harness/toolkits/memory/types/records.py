@@ -7,7 +7,7 @@
 - ProceduralMemory / ClaimMemory / IntegrationMemory / TaskDigestMemory
 
 [POS]
-`memory/types_pkg/` 的具体记忆模型；字段即持久化契约。
+`memory/types/` 的具体记忆模型；字段即持久化契约。
 """
 
 from __future__ import annotations

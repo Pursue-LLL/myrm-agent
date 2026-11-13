@@ -7,7 +7,7 @@
 - HitSource / RecallDebugTrace / MemorySearchResult / PendingRecord / PendingStatus
 
 [POS]
-`memory/types_pkg/` 的检索结果与待审候选模型。
+`memory/types/` 的检索结果与待审候选模型。
 """
 
 from __future__ import annotations

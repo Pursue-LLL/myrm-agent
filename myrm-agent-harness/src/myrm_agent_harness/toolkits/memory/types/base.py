@@ -9,7 +9,7 @@
 - MemoryMutationRef / MemoryMutationResult / ProfileAttributeSnapshot: 变更与快照 DTO
 
 [POS]
-`memory/types_pkg/` 的基础模型层；所有具体记忆类型都继承 `BaseMemory`。
+`memory/types/` 的基础模型层；所有具体记忆类型都继承 `BaseMemory`。
 """
 
 from __future__ import annotations
