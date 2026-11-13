@@ -35,9 +35,9 @@ export function VoiceSessionModeSettings({ form, update }: VoiceSessionModeSetti
   return (
     <SettingsSection title={t('voiceSessionModeTitle')} description={t('voiceSessionModeDesc')}>
       <div className="space-y-4">
-        <VoiceFieldRow label={t('voiceMode')}>
+        <VoiceFieldRow label={t('voiceMode')} htmlFor="voice-session-mode">
           <Select value={voiceMode} onValueChange={(v) => voiceDeviceSettings.write(VOICE_SETTING_KEYS.mode, v)}>
-            <SelectTrigger>
+            <SelectTrigger id="voice-session-mode">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -50,9 +50,9 @@ export function VoiceSessionModeSettings({ form, update }: VoiceSessionModeSetti
         </VoiceFieldRow>
 
         {voiceMode === 'openai_realtime' && (
-          <VoiceFieldRow label={t('realtimeVoice')}>
+          <VoiceFieldRow label={t('realtimeVoice')} htmlFor="voice-realtime-voice">
             <Select value={form.ttsVoice || 'alloy'} onValueChange={(v) => update({ ttsVoice: v })}>
-              <SelectTrigger>
+              <SelectTrigger id="voice-realtime-voice">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -67,12 +67,12 @@ export function VoiceSessionModeSettings({ form, update }: VoiceSessionModeSetti
         )}
 
         {voiceMode === 'gemini_live' && (
-          <VoiceFieldRow label={t('geminiLiveModel')}>
+          <VoiceFieldRow label={t('geminiLiveModel')} htmlFor="voice-gemini-live-model">
             <Select
               value={form.geminiLiveModel || DEFAULT_VOICE_FORM.geminiLiveModel}
               onValueChange={(v) => update({ geminiLiveModel: v })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="voice-gemini-live-model">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

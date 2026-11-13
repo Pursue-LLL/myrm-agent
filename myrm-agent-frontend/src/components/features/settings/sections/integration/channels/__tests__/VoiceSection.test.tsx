@@ -318,3 +318,77 @@ describe('VoiceSection when the saved settings cannot be read', () => {
     expect(screen.queryByTestId('config-load-error')).not.toBeInTheDocument();
   });
 });
+
+interface LabelCase {
+  name: string;
+  saved: Record<string, unknown>;
+  mode: string | null;
+  labels: string[];
+}
+
+const CLOUD_VOICE = { sttEnabled: true, sttProvider: 'openai', ttsMode: 'always', ttsProvider: 'openai' };
+
+// Each state shows different rows; together they show every labelled control of the form.
+const LABEL_CASES: LabelCase[] = [
+  {
+    name: 'cloud speech-to-text and text-to-speech',
+    saved: CLOUD_VOICE,
+    mode: null,
+    labels: [
+      'voiceMode',
+      'sttEnabled',
+      'sttProvider',
+      'sttApiKey',
+      'sttBaseUrl',
+      'sttModel',
+      'sttLanguage',
+      'ttsMode',
+      'ttsProvider',
+      'ttsApiKey',
+      'ttsBaseUrl',
+      'ttsVoice',
+      'ttsSpeed',
+      'ttsPitch',
+      'ttsMaxLength',
+      'ttsSummaryEnabled',
+      'ttsSummaryThreshold',
+      'ttsSummaryModel',
+    ],
+  },
+  {
+    name: 'local speech-to-text',
+    saved: { ...CLOUD_VOICE, sttProvider: 'local' },
+    mode: null,
+    labels: ['sttLocalModel', 'sttLocalDevice'],
+  },
+  { name: 'the realtime voice mode', saved: CLOUD_VOICE, mode: 'openai_realtime', labels: ['realtimeVoice'] },
+  { name: 'the Gemini Live mode', saved: CLOUD_VOICE, mode: 'gemini_live', labels: ['geminiLiveModel'] },
+];
+
+describe('VoiceSection form labels', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+    voiceDeviceSettings.remove(VOICE_SETTING_KEYS.mode);
+    localStorage.clear();
+  });
+
+  it.each(LABEL_CASES)('binds every label to its control with $name', async ({ saved, mode, labels }) => {
+    mockConfigReads({ value: saved });
+    if (mode) {
+      localStorage.setItem(VOICE_SETTING_KEYS.mode, mode);
+    }
+
+    await act(async () => {
+      render(<VoiceSection />);
+    });
+    await screen.findByTestId('voice-settings-panel');
+
+    for (const label of labels) {
+      expect(screen.getByLabelText(label), label).toBeInTheDocument();
+    }
+  });
+});

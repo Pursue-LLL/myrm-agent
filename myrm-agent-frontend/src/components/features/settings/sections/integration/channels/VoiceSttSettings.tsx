@@ -54,15 +54,17 @@ export function VoiceSttSettings({
     <SettingsSection title={t('sttTitle')} description={t('sttDesc')}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{t('sttEnabled')}</Label>
-          <Switch checked={form.sttEnabled} onCheckedChange={(v) => update({ sttEnabled: v })} />
+          <Label htmlFor="voice-stt-enabled" className="text-sm font-medium">
+            {t('sttEnabled')}
+          </Label>
+          <Switch id="voice-stt-enabled" checked={form.sttEnabled} onCheckedChange={(v) => update({ sttEnabled: v })} />
         </div>
 
         {form.sttEnabled && (
           <>
-            <VoiceFieldRow label={t('sttProvider')}>
+            <VoiceFieldRow label={t('sttProvider')} htmlFor="voice-stt-provider">
               <Select value={form.sttProvider} onValueChange={(v) => update({ sttProvider: v })}>
-                <SelectTrigger>
+                <SelectTrigger id="voice-stt-provider">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -81,9 +83,9 @@ export function VoiceSttSettings({
 
             {isLocalStt && (
               <>
-                <VoiceFieldRow label={t('sttLocalModel')}>
+                <VoiceFieldRow label={t('sttLocalModel')} htmlFor="voice-stt-local-model">
                   <Select value={form.sttLocalModel} onValueChange={(v) => update({ sttLocalModel: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="voice-stt-local-model">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -96,9 +98,9 @@ export function VoiceSttSettings({
                   </Select>
                 </VoiceFieldRow>
 
-                <VoiceFieldRow label={t('sttLocalDevice')}>
+                <VoiceFieldRow label={t('sttLocalDevice')} htmlFor="voice-stt-local-device">
                   <Select value={form.sttLocalDevice} onValueChange={(v) => update({ sttLocalDevice: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="voice-stt-local-device">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -114,8 +116,9 @@ export function VoiceSttSettings({
             )}
 
             {needsSttApiKey && (
-              <VoiceFieldRow label={t('sttApiKey')}>
+              <VoiceFieldRow label={t('sttApiKey')} htmlFor="voice-stt-api-key">
                 <Input
+                  id="voice-stt-api-key"
                   type="password"
                   placeholder={t('sttApiKeyPlaceholder')}
                   value={form.sttApiKey}
@@ -125,8 +128,9 @@ export function VoiceSttSettings({
             )}
 
             {(form.sttProvider === 'openai' || form.sttProvider === 'xai') && (
-              <VoiceFieldRow label={t('sttBaseUrl')}>
+              <VoiceFieldRow label={t('sttBaseUrl')} htmlFor="voice-stt-base-url">
                 <Input
+                  id="voice-stt-base-url"
                   placeholder={t('sttBaseUrlPlaceholder')}
                   value={form.sttBaseUrl}
                   onChange={(e) => update({ sttBaseUrl: e.target.value })}
@@ -135,8 +139,9 @@ export function VoiceSttSettings({
             )}
 
             {!isLocalStt && (
-              <VoiceFieldRow label={t('sttModel')}>
+              <VoiceFieldRow label={t('sttModel')} htmlFor="voice-stt-model">
                 <Input
+                  id="voice-stt-model"
                   placeholder="whisper-1"
                   value={form.sttModel}
                   onChange={(e) => update({ sttModel: e.target.value })}
@@ -144,8 +149,9 @@ export function VoiceSttSettings({
               </VoiceFieldRow>
             )}
 
-            <VoiceFieldRow label={t('sttLanguage')}>
+            <VoiceFieldRow label={t('sttLanguage')} htmlFor="voice-stt-language">
               <Input
+                id="voice-stt-language"
                 placeholder={t('sttLanguagePlaceholder')}
                 value={form.sttLanguage}
                 onChange={(e) => update({ sttLanguage: e.target.value })}
