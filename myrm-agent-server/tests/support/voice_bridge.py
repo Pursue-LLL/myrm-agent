@@ -20,7 +20,6 @@ class FakeVoiceConfig:
     tts_api_key: str = ""
     tts_base_url: str = ""
     tts_voice: str = "en-US-GuyNeural"
-    full_duplex: bool = True
 
 
 def make_bridge(ws: AsyncMock | None = None) -> VoiceAgentBridge:
