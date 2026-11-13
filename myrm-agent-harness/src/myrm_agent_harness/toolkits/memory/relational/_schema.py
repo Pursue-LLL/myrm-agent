@@ -13,7 +13,7 @@
 [POS]
 Schema bootstrap for SQLiteRelationalStore. Stateless: every function operates on the given connection.
 Migrations only move forward: a ``priority`` column found on procedural_rules is dropped, so a build that still
-reads that column cannot open a database this code has opened.
+reads or writes that column can no longer read, create or update rules in a database this code has opened.
 """
 
 import aiosqlite

@@ -794,7 +794,7 @@ result = await extractor.extract(messages=messages)
 
 > 规则的先后就是它们的优先级：段内先排用户锁定的规则（`is_user_locked`），其后新的在前。存储层按 `created_at DESC, id DESC` 读出规则，`_internal/storage_context.py` 用稳定排序把锁定的提到前面；块的 Scope Boundary 在块里有规则时补一句「规则冲突时遵循排在前面的一条」，所以用户改过的偏好排在它替换的旧规则之上。审批队列保留提案的创建时间：`create_rule` 沿用规则携带的 `created_at` 并统一转成 UTC 存储（SQLite 按文本排序，混用时区会错序），`/memory approve all` 之后规则的先后仍是提案的先后；同文的重复提案不另排一条，而是把待审的那条提到队列最前、带上重复提案的日期，所以偏好先改成 B、再改回 A、批准都留到最后时，A 仍排在 B 之上。动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为这类普通规则被当成禁令会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算）在预算裁剪时被**钉住**（`BudgetedSection.pinned`）：渲染器先给钉住的条目预留预算，其余规则按顺序放入，放不下时丢的是排在最后的未钉住规则，所以规则很多时禁止类规则最后才被丢；段落整体仍受优先级约束，可被更高优先级的段落挤掉。禁止类规则与其它规则同样以 `When: … → Do: …` 渲染，没有单独的段落或前缀。该约束只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
 
-> 规则没有整数优先级：规则表、`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的参数、Markdown 导出行都不含这个字段，先后只由锁定与创建时间决定。库里还留有 `procedural_rules.priority` 列时，打开库会把它删掉（`relational/_schema.py`，只进不退：仍读写该列的旧版本打不开这个库）；导入时忽略导出文件里的 `priority` 字段。
+> 规则没有整数优先级：规则表、`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的参数、Markdown 导出行都不含这个字段，先后只由锁定与创建时间决定。库里还留有 `procedural_rules.priority` 列时，打开库会把它删掉（`relational/_schema.py`，只进不退：仍读写该列的旧版本能打开这个库，但读取、新建、修改规则都报缺少 `priority` 列）；导入时忽略导出文件里的 `priority` 字段。
 
 | 级别 | 来源 | 生命周期 |
 |------|------|---------|
