@@ -54,17 +54,13 @@ def _mock_llm() -> MagicMock:
     return llm
 
 
-def _request(
-    llm: MagicMock, *, context: dict[str, object] | None = None
-) -> ModelRequest:
+def _request(llm: MagicMock, *, context: dict[str, object] | None = None) -> ModelRequest:
     from langgraph.runtime import Runtime
 
     return ModelRequest(
         model=llm,
         messages=[HumanMessage(content="hi")],
-        runtime=Runtime(
-            context=context or {"chat_id": "chat-1", "max_context_tokens": 128000}
-        ),
+        runtime=Runtime(context=context or {"chat_id": "chat-1", "max_context_tokens": 128000}),
     )
 
 
@@ -105,9 +101,7 @@ class TestFactory:
 
     def test_custom_pipeline_used_as_is(self) -> None:
         pipeline = ContextPipeline([_NoOpProcessor()])
-        middleware = create_context_pipeline_middleware(
-            llm=_mock_llm(), pipeline=pipeline
-        )
+        middleware = create_context_pipeline_middleware(llm=_mock_llm(), pipeline=pipeline)
         assert middleware is not None
 
 
@@ -115,9 +109,7 @@ class TestAwrapModelCall:
     @pytest.mark.asyncio
     async def test_basic_passthrough(self) -> None:
         pipeline = ContextPipeline([_NoOpProcessor()])
-        middleware = create_context_pipeline_middleware(
-            llm=_mock_llm(), pipeline=pipeline
-        )
+        middleware = create_context_pipeline_middleware(llm=_mock_llm(), pipeline=pipeline)
         llm = _mock_llm()
         request = _request(llm)
         handler = AsyncMock(return_value=ModelResponse(result=[]))
@@ -157,9 +149,7 @@ class TestAwrapModelCall:
         llm = _mock_llm()
         pipeline = ContextPipeline([_NoOpProcessor()])
         notes_llm = _mock_llm()
-        on_notes_load = AsyncMock(
-            return_value='{"_meta": {"last_updated_message_idx": 0}, "progress": "notes"}'
-        )
+        on_notes_load = AsyncMock(return_value='{"_meta": {"last_updated_message_idx": 0}, "progress": "notes"}')
         middleware = create_context_pipeline_middleware(
             llm=llm,
             pipeline=pipeline,
@@ -334,9 +324,7 @@ class TestAwrapModelCall:
             HumanMessage(content="run"),
             AIMessage(
                 content="",
-                tool_calls=[
-                    {"id": "call_1", "name": "bash_code_execute_tool", "args": {}}
-                ],
+                tool_calls=[{"id": "call_1", "name": "bash_code_execute_tool", "args": {}}],
             ),
         ]
         pipeline.process = AsyncMock(return_value=_result(messages))
