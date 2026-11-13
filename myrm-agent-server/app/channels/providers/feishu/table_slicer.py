@@ -1,18 +1,19 @@
-"""Feishu interactive-card 28KB boundary slicing, Lark Markdown sanitization, and table header duplication.
+"""Feishu interactive-card 28KB boundary slicing with code-fence and table-header continuity.
 
 Pure functions for safely chunking large Markdown text containing tables and
 code blocks to comply with Feishu's 28,000-byte interactive card payload limit,
-ensuring table structures remain valid across sliced card boundaries.
+ensuring code blocks and table structures remain valid across sliced card boundaries.
 
 [INPUT]
 - Arbitrary Markdown text from LLM agent responses.
 
 [OUTPUT]
-- sanitize_lark_markdown: Clean unescaped pipes and repair unclosed inline formatting.
-- slice_card_markdown: Split long Markdown text into chunks <= max_bytes with table header preservation.
+- is_table_row: Check if a line is a Markdown table row.
+- is_table_separator: Check if a line is a Markdown table separator/delimiter row.
+- slice_card_markdown: Split long Markdown text into chunks <= max_bytes; every chunk is a self-contained document.
 
 [POS]
-Feishu Markdown payload boundary slicer with table header replication.
+Feishu Markdown payload boundary slicer with code-fence and table header replication.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ DEFAULT_MAX_CARD_BYTES = 24_000
 _TABLE_ROW_RE = re.compile(r"^\s*\|(.+)\|\s*$")
 _TABLE_SEP_RE = re.compile(r"^\s*\|(\s*[-:]{2,}\s*\|)+\s*$")
 _CODE_FENCE_START_RE = re.compile(r"^```(\w*)")
+_FENCE = "```"
 
 
 def is_table_row(line: str) -> bool:
@@ -37,43 +39,9 @@ def is_table_separator(line: str) -> bool:
     return bool(_TABLE_SEP_RE.match(line.strip()))
 
 
-def sanitize_lark_markdown(text: str) -> str:
-    """Sanitize Lark-specific Markdown formatting quirks.
-
-    - Escapes unescaped pipe characters inside table cells (outside code spans).
-    - Ensures code fences are properly balanced.
-    """
-    if not text:
-        return ""
-
-    lines = text.split("\n")
-    sanitized_lines: list[str] = []
-    in_code_block = False
-
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("```"):
-            in_code_block = not in_code_block
-            sanitized_lines.append(line)
-            continue
-
-        if in_code_block:
-            sanitized_lines.append(line)
-            continue
-
-        # In a table row, ensure cell contents don't have stray unescaped delimiters
-        if is_table_row(line) and not is_table_separator(line):
-            # Normal table row, preserve formatting
-            sanitized_lines.append(line)
-        else:
-            sanitized_lines.append(line)
-
-    return "\n".join(sanitized_lines)
-
-
-def _get_utf8_byte_length(s: str) -> int:
-    """Calculate UTF-8 encoded byte length."""
-    return len(s.encode("utf-8"))
+def _line_bytes(line: str) -> int:
+    """UTF-8 size of ``line`` plus its newline."""
+    return len(line.encode("utf-8")) + 1
 
 
 def slice_card_markdown(
@@ -81,92 +49,77 @@ def slice_card_markdown(
     *,
     max_bytes: int = DEFAULT_MAX_CARD_BYTES,
 ) -> list[str]:
-    """Slice long Markdown into multiple card-safe chunks with table header preservation.
+    """Slice long Markdown into multiple card-safe chunks, each rendering on its own.
 
-    When a Markdown table exceeds max_bytes, it is split at a row boundary, and the
-    original table header (Header Row + Separator Row) is automatically prepended to the
-    subsequent continuation chunk so that Feishu clients render valid tables on each page.
+    - A code block cut by a boundary is closed in its chunk and reopened, with its language, in the next one.
+    - A table cut by a boundary repeats its header and delimiter rows in the next chunk.
+    - A boundary never falls between a table's header row and its delimiter row, between an opening fence and the
+      first line of its block, or before a closing fence. A chunk never consists of repeated rows alone.
 
     Args:
         text: Full Markdown content.
         max_bytes: Maximum UTF-8 byte length allowed per chunk (default: 24,000 bytes).
 
     Returns:
-        List of chunks, each guaranteed to be <= max_bytes (unless a single line exceeds max_bytes).
+        List of chunks, each <= max_bytes unless one line of ``text`` (with the rows repeated before it) is bigger.
     """
-    cleaned = sanitize_lark_markdown(text)
-    if _get_utf8_byte_length(cleaned) <= max_bytes:
-        return [cleaned]
+    if len(text.encode("utf-8")) <= max_bytes:
+        return [text]
 
-    lines = cleaned.split("\n")
+    lines = text.split("\n")
     chunks: list[str] = []
+    chunk: list[str] = []
+    chunk_bytes = 0
+    has_content = False  # the chunk holds a line of ``text``, not only rows repeated from the previous chunk
 
-    current_lines: list[str] = []
-    current_bytes = 0
+    fence = ""  # opening line of the code block the next line sits in; empty outside one
+    fence_body = 0  # lines of that block before the next line
+    table_header = ""  # header and delimiter rows of the table the next line continues
+    table_separator = ""
+    table_rows = 0  # table rows directly before the next line
 
-    in_table = False
-    table_header_row = ""
-    table_sep_row = ""
+    for index, line in enumerate(lines):
+        opening = _CODE_FENCE_START_RE.match(line.strip())
+        in_fence = bool(fence)
+        is_row = opening is None and not in_fence and is_table_row(line)
+        is_separator = is_row and table_rows == 1 and is_table_separator(line)
 
-    in_code_fence = False
-    code_fence_lang = ""
+        # What the chunk must take along with ``line``: the delimiter row under a header row, the first line of
+        # a block under its opening fence, and room to close the block the chunk then ends in.
+        needed = _line_bytes(line)
+        starts_table = is_row and table_rows == 0 and index + 1 < len(lines) and is_table_separator(lines[index + 1])
+        if starts_table or (opening is not None and not in_fence and index + 1 < len(lines)):
+            needed += _line_bytes(lines[index + 1])
+        if (opening is not None) != in_fence:
+            needed += _line_bytes(_FENCE)
 
-    for line in lines:
-        line_bytes = _get_utf8_byte_length(line) + 1  # +1 for newline
+        inseparable = is_separator or (in_fence and (opening is not None or fence_body == 0))
+        if has_content and not inseparable and chunk_bytes + needed > max_bytes:
+            if in_fence:
+                chunk.append(_FENCE)
+            chunks.append("\n".join(chunk))
+            chunk = [fence] if in_fence else ([table_header, table_separator] if is_row and table_separator else [])
+            chunk_bytes = sum(_line_bytes(repeated) for repeated in chunk)
+            has_content = False
 
-        # Track code block fences
-        stripped = line.strip()
-        if stripped.startswith("```"):
-            if not in_code_fence:
-                in_code_fence = True
-                m = _CODE_FENCE_START_RE.match(stripped)
-                code_fence_lang = m.group(1) if m else ""
-            else:
-                in_code_fence = False
-                code_fence_lang = ""
+        chunk.append(line)
+        chunk_bytes += _line_bytes(line)
+        has_content = True
 
-        # Track table boundaries
-        if is_table_row(line):
-            if not in_table:
-                # Potential start of a table
-                table_header_row = line
-                in_table = True
-            elif in_table and is_table_separator(line):
-                table_sep_row = line
+        if opening is not None:
+            fence, fence_body = ("", 0) if in_fence else (opening.group(0), 0)
+        elif in_fence:
+            fence_body += 1
+        if is_row:
+            table_rows += 1
+            if table_rows == 1:
+                table_header, table_separator = line, ""
+            elif is_separator:
+                table_separator = line
         else:
-            if in_table and not is_table_row(line):
-                in_table = False
-                table_header_row = ""
-                table_sep_row = ""
+            table_rows, table_header, table_separator = 0, "", ""
 
-        # Check if adding this line would exceed max_bytes
-        if current_lines and (current_bytes + line_bytes > max_bytes):
-            # Close code fence in current chunk if we are inside one
-            if in_code_fence:
-                current_lines.append("```")
-
-            chunks.append("\n".join(current_lines))
-            current_lines = []
-            current_bytes = 0
-
-            # Reopen code fence in next chunk
-            if in_code_fence:
-                reopen_line = f"```{code_fence_lang}"
-                current_lines.append(reopen_line)
-                current_bytes += _get_utf8_byte_length(reopen_line) + 1
-
-            # Re-inject table header in next chunk if we sliced across a table
-            if in_table and table_header_row and table_sep_row:
-                current_lines.append(table_header_row)
-                current_lines.append(table_sep_row)
-                current_bytes += _get_utf8_byte_length(table_header_row) + _get_utf8_byte_length(table_sep_row) + 2
-
-        current_lines.append(line)
-        current_bytes += line_bytes
-
-    if current_lines:
-        if in_code_fence and not current_lines[-1].strip().startswith("```"):
-            current_lines.append("```")
-        chunks.append("\n".join(current_lines))
-
-    return chunks or [cleaned]
+    if fence:
+        chunk.append(_FENCE)
+    chunks.append("\n".join(chunk))
+    return chunks
