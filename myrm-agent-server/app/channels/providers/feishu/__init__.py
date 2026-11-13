@@ -5,7 +5,7 @@ Exports:
 - FeishuClient: Standalone async API client (httpx-based)
 - FeishuWSTransport: WebSocket transport via lark-oapi SDK
 - FeishuAppRegistration: QR scan-to-create app registration (device-code flow)
-- Card builders, parser, and streaming utilities
+- Card builders and the inbound parser
 """
 
 from .api import FeishuClient
@@ -14,9 +14,7 @@ from .cards import (
     build_component_card,
     build_post_content,
     build_result_card,
-    build_thinking_card,
     has_rich_text,
-    merge_streaming_text,
     parse_card_action,
     resolve_send_mode,
     wrap_text_as_card,
@@ -50,13 +48,11 @@ __all__ = [
     "build_component_card",
     "build_post_content",
     "build_result_card",
-    "build_thinking_card",
     "extract_channel_user_id",
     "extract_chat_id",
     "extract_message_text",
     "has_rich_text",
     "is_url_verification_challenge",
-    "merge_streaming_text",
     "parse_card_action",
     "parse_inbound_event",
     "parse_post_content",

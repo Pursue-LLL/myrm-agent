@@ -1,4 +1,4 @@
-"""Feishu CardKit 28KB boundary slicing, Lark Markdown sanitization, and table header duplication.
+"""Feishu interactive-card 28KB boundary slicing, Lark Markdown sanitization, and table header duplication.
 
 Pure functions for safely chunking large Markdown text containing tables and
 code blocks to comply with Feishu's 28,000-byte interactive card payload limit,

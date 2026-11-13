@@ -1,4 +1,4 @@
-"""Feishu outbound: message send (text / post / card), media upload, CardKit streaming and reactions.
+"""Feishu outbound: message send (text / post / card), media upload, placeholder cards and reactions.
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
@@ -12,7 +12,7 @@
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
-- FeishuOutboundMixin: send, placeholder / edit / delete, media upload and CardKit streaming used by FeishuChannel
+- FeishuOutboundMixin: send, placeholder / edit / delete and media upload used by FeishuChannel
 
 [POS]
 Outbound half of FeishuChannel. The host owns the API client and the render configuration; the mixin only builds and sends messages.
@@ -24,7 +24,6 @@ import dataclasses
 import json
 import logging
 import re
-import uuid
 from datetime import UTC, datetime
 from functools import partial
 
@@ -46,7 +45,6 @@ from .cards import (
     build_card_actions,
     build_post_content,
     build_result_card,
-    build_thinking_card,
     has_rich_text,
     wrap_text_as_card,
 )
@@ -79,8 +77,6 @@ class FeishuOutboundMixin(BaseChannel):
     _client: FeishuClient
     _render_mode: str
     _reactions: ReactionLedger
-    _streaming_card_ids: dict[str, str]
-    _streaming_seq: dict[str, int]
 
     async def send(self, msg: OutboundMessage) -> str | None:
         chat_id = msg.recipient_id
@@ -172,28 +168,15 @@ class FeishuOutboundMixin(BaseChannel):
         *,
         thread_id: str | None = None,
     ) -> str | None:
-        receive_type = self._resolve_receive_type(chat_id)
-        card_id = str(uuid.uuid4())
-        card = build_thinking_card(text, card_id=card_id)
-        content = json.dumps(card, ensure_ascii=False)
-        msg_id = await self._client.send_message(
+        """Send the card that progress edits and the final reply later replace in place."""
+        return await self._client.send_message(
             chat_id,
             "interactive",
-            content,
-            receive_id_type=receive_type,
+            json.dumps(wrap_text_as_card(text), ensure_ascii=False),
+            receive_id_type=self._resolve_receive_type(chat_id),
         )
-        if msg_id:
-            ok = await self._client.streaming_card_create(card_id)
-            if ok:
-                self._streaming_card_ids[msg_id] = card_id
-                self._streaming_seq[msg_id] = 1
-            else:
-                logger.debug("CardKit streaming init failed, will use edit fallback")
-        return msg_id
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
-        if await self._streaming_update(message_id, text):
-            return
         await self._edit_card(message_id, wrap_text_as_card(text))
 
     async def edit_placeholder_message(
@@ -202,8 +185,7 @@ class FeishuOutboundMixin(BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        """Replace placeholder with a rich result card; finalize streaming if active."""
-        await self._streaming_finalize(message_id, msg.content or "")
+        """Replace the placeholder with the result card."""
         await self._edit_card(message_id, self._build_outbound_card(msg))
 
     async def _edit_card(self, message_id: str, card: dict[str, object]) -> None:
@@ -351,27 +333,3 @@ class FeishuOutboundMixin(BaseChannel):
         reaction_id = self._reactions.take(chat_id, message_id)
         if reaction_id:
             await self._client.delete_reaction(message_id, reaction_id)
-
-    async def _streaming_update(self, message_id: str, text: str) -> bool:
-        """Push incremental streaming; returns False to fall back to edit."""
-        card_id = self._streaming_card_ids.get(message_id)
-        if not card_id:
-            return False
-        seq = self._streaming_seq.get(message_id, 1) + 1
-        ok = await self._client.streaming_card_update(card_id, text, seq=seq)
-        if ok:
-            self._streaming_seq[message_id] = seq
-        return ok
-
-    async def _streaming_finalize(self, message_id: str, text: str) -> None:
-        """Send the final streaming update and clean up the session."""
-        card_id = self._streaming_card_ids.pop(message_id, "")
-        seq = self._streaming_seq.pop(message_id, 1)
-        if not card_id:
-            return
-        await self._client.streaming_card_update(
-            card_id,
-            text,
-            seq=seq + 1,
-            is_final=True,
-        )

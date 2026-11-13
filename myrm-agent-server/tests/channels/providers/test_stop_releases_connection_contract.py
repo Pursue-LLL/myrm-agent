@@ -107,14 +107,12 @@ async def _dingtalk(monkeypatch: pytest.MonkeyPatch) -> _Provider:
 
 
 async def _feishu(monkeypatch: pytest.MonkeyPatch) -> _Provider:
-    """A websocket bot with a streaming card open whose finalizing never completes."""
+    """A websocket bot whose API client never finishes closing."""
     connections = _Connections()
     channel = FeishuChannel(app_id="cli_test", app_secret="secret")
     monkeypatch.setattr(channel, "_ws_transport", _FakeTransport(connections))
-    monkeypatch.setattr(channel._client, "streaming_card_update", _hang)
-    monkeypatch.setattr(channel._client, "close", AsyncMock())
+    monkeypatch.setattr(channel._client, "close", _hang)
     channel._status = ChannelStatus.RUNNING
-    channel._streaming_card_ids["message"] = "card"
 
     async def release() -> None:
         return None

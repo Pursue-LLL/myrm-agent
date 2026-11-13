@@ -1,4 +1,4 @@
-"""Tests for feishu cards, callback parser, streaming merge, and API client."""
+"""Tests for feishu cards, callback parser, and API client."""
 
 from __future__ import annotations
 
@@ -13,8 +13,6 @@ from app.channels.providers.feishu.cards import (
 )
 from app.channels.providers.feishu.cards import (
     build_result_card,
-    build_thinking_card,
-    merge_streaming_text,
     parse_card_action,
     wrap_text_as_card,
 )
@@ -113,8 +111,12 @@ class TestBuildFeishuCard:
 
 @pytest.mark.parametrize(
     "card",
-    [build_thinking_card("thinking"), wrap_text_as_card("progress"), build_result_card("answer", timestamp="now")],
-    ids=["placeholder", "progress", "result"],
+    [
+        wrap_text_as_card("placeholder or progress"),
+        build_result_card("answer", timestamp="now"),
+        build_feishu_card(_make_msg(quick_replies=(QuickReply(label="X", text="x"),)), "answer"),
+    ],
+    ids=["placeholder-and-progress", "result", "components"],
 )
 def test_a_card_updated_in_place_opts_in_to_update_multi(card: dict[str, object]) -> None:
     """Feishu updates a card in place only while its config sets ``update_multi``, before and after the update."""
@@ -175,29 +177,6 @@ class TestParseCardAction:
     def test_returns_none_without_value(self) -> None:
         event = {"operator": {"open_id": "ou_x"}, "action": {"tag": "button"}}
         assert parse_card_action(event) is None
-
-
-class TestStreamingMerge:
-    def test_empty_previous(self) -> None:
-        assert merge_streaming_text("", "hello") == "hello"
-
-    def test_empty_next(self) -> None:
-        assert merge_streaming_text("hello", "") == "hello"
-
-    def test_next_starts_with_previous(self) -> None:
-        assert merge_streaming_text("这", "这是一段") == "这是一段"
-
-    def test_previous_starts_with_next(self) -> None:
-        assert merge_streaming_text("这是一段", "这是") == "这是一段"
-
-    def test_partial_overlap(self) -> None:
-        assert merge_streaming_text("revision_id: 552", "2，一点变化都没有") == ("revision_id: 552，一点变化都没有")
-
-    def test_no_overlap_fallback(self) -> None:
-        assert merge_streaming_text("abc", "xyz") == "abcxyz"
-
-    def test_identical(self) -> None:
-        assert merge_streaming_text("hello", "hello") == "hello"
 
 
 class TestFeishuClient:

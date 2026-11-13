@@ -2,7 +2,6 @@
 - （无跨模块依赖）
 
 [OUTPUT]
-- merge_streaming_text: Merge streaming text fragments with correct precedence.
 - resolve_send_mode: Determine Feishu message send mode based on context.
 - has_rich_text: Detect if content has rich formatting that benefits from post type.
 - _parse_post_line: Parse a single line of Markdown into Feishu post elements.
@@ -15,57 +14,9 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal
-
-if TYPE_CHECKING:
-    pass
+from typing import Literal
 
 SendMode = Literal["reply", "root_create", "create"]
-
-_CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True}
-_ACTION_VALUE_MAX = 200
-
-_HEADER_TEMPLATES: dict[bool | None, tuple[str, str]] = {
-    True: ("green", ""),
-    False: ("red", ""),
-    None: ("blue", ""),
-}
-
-_FEISHU_BUTTON_TYPE: dict[str, str] = {
-    "primary": "primary",
-    "danger": "danger",
-    "default": "default",
-}
-
-
-# ── Component card (from OutboundMessage) ────────────────────────
-
-
-def merge_streaming_text(previous: str, next_chunk: str) -> str:
-    """Merge streaming text fragments with correct precedence.
-
-    Priority: full containment > partial overlap > fallback append.
-    """
-    if not previous:
-        return next_chunk
-    if not next_chunk:
-        return previous
-
-    if next_chunk.startswith(previous):
-        return next_chunk
-    if previous.startswith(next_chunk):
-        return previous
-    if next_chunk in previous:
-        return previous
-    if previous in next_chunk:
-        return next_chunk
-
-    max_overlap = min(len(previous), len(next_chunk))
-    for overlap in range(max_overlap, 0, -1):
-        if previous.endswith(next_chunk[:overlap]):
-            return f"{previous}{next_chunk[overlap:]}"
-
-    return f"{previous}{next_chunk}"
 
 
 # ── Send mode resolution ─────────────────────────────────────────

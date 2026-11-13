@@ -776,63 +776,29 @@ class TestVerify:
 
 class TestSendPlaceholder:
     @pytest.mark.asyncio
-    async def test_sends_thinking_card_and_inits_streaming(self) -> None:
+    async def test_sends_a_plain_card_that_can_be_updated_in_place(self) -> None:
         ch = _make_channel()
         mock = _mock_client(ch)
         mock.send_message.return_value = "om_placeholder"
-        mock.streaming_card_create.return_value = True
+
         msg_id = await ch.send_placeholder("oc_chat1", "Thinking...")
+
         assert msg_id == "om_placeholder"
-        assert "om_placeholder" in ch._streaming_card_ids
+        chat_id, msg_type, content = mock.send_message.call_args[0]
+        assert (chat_id, msg_type) == ("oc_chat1", "interactive")
+        card = json.loads(content)
+        # Feishu updates a card in place only if it declared update_multi when it was sent.
+        assert card["config"]["update_multi"] is True
+        assert card["elements"] == [{"tag": "div", "text": {"tag": "lark_md", "content": "Thinking..."}}]
+        assert "card_id" not in card
 
     @pytest.mark.asyncio
-    async def test_streaming_init_failure_still_returns_msg_id(self) -> None:
+    async def test_returns_no_message_id_when_feishu_does_not_send_the_card(self) -> None:
         ch = _make_channel()
         mock = _mock_client(ch)
-        mock.send_message.return_value = "om_placeholder2"
-        mock.streaming_card_create.return_value = False
-        msg_id = await ch.send_placeholder("oc_chat1", "Thinking...")
-        assert msg_id == "om_placeholder2"
-        assert "om_placeholder2" not in ch._streaming_card_ids
+        mock.send_message.return_value = None
 
-
-class TestStreaming:
-    @pytest.mark.asyncio
-    async def test_streaming_update_success(self) -> None:
-        ch = _make_channel()
-        mock = _mock_client(ch)
-        ch._streaming_card_ids["om_1"] = "card_1"
-        ch._streaming_seq["om_1"] = 1
-        mock.streaming_card_update.return_value = True
-        ok = await ch._streaming_update("om_1", "new text")
-        assert ok is True
-        assert ch._streaming_seq["om_1"] == 2
-
-    @pytest.mark.asyncio
-    async def test_streaming_update_no_card_id(self) -> None:
-        ch = _make_channel()
-        _mock_client(ch)
-        ok = await ch._streaming_update("om_missing", "text")
-        assert ok is False
-
-    @pytest.mark.asyncio
-    async def test_streaming_finalize_cleans_up(self) -> None:
-        ch = _make_channel()
-        mock = _mock_client(ch)
-        ch._streaming_card_ids["om_1"] = "card_1"
-        ch._streaming_seq["om_1"] = 3
-        mock.streaming_card_update.return_value = True
-        await ch._streaming_finalize("om_1", "final text")
-        assert "om_1" not in ch._streaming_card_ids
-        assert "om_1" not in ch._streaming_seq
-        mock.streaming_card_update.assert_called_once_with("card_1", "final text", seq=4, is_final=True)
-
-    @pytest.mark.asyncio
-    async def test_streaming_finalize_noop_without_card_id(self) -> None:
-        ch = _make_channel()
-        mock = _mock_client(ch)
-        await ch._streaming_finalize("om_missing", "text")
-        mock.streaming_card_update.assert_not_called()
+        assert await ch.send_placeholder("oc_chat1", "Thinking...") is None
 
 
 class TestReactionInbound:

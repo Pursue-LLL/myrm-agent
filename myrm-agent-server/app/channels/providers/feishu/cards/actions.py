@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.channels.types import (
@@ -21,16 +21,7 @@ if TYPE_CHECKING:
         SelectMenu,
     )
 
-SendMode = Literal["reply", "root_create", "create"]
-
-_CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True}
 _ACTION_VALUE_MAX = 200
-
-_HEADER_TEMPLATES: dict[bool | None, tuple[str, str]] = {
-    True: ("green", ""),
-    False: ("red", ""),
-    None: ("blue", ""),
-}
 
 _FEISHU_BUTTON_TYPE: dict[str, str] = {
     "primary": "primary",
@@ -171,6 +162,3 @@ def parse_card_action(
     }
 
     return sender_open_id, chat_id, content, metadata
-
-
-# ── Streaming text merge ─────────────────────────────────────────

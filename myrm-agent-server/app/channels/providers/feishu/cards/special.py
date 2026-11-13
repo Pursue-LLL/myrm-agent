@@ -1,5 +1,5 @@
 """[INPUT]
-- （无跨模块依赖）
+- app.channels.providers.feishu.cards.builders::CARD_CONFIG (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
 
 [OUTPUT]
 - build_contact_disambiguation_card: Build an interactive disambiguation card when multiple contact candidates match.
@@ -11,30 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
-
-if TYPE_CHECKING:
-    pass
-
-SendMode = Literal["reply", "root_create", "create"]
-
-_CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True}
-_ACTION_VALUE_MAX = 200
-
-_HEADER_TEMPLATES: dict[bool | None, tuple[str, str]] = {
-    True: ("green", ""),
-    False: ("red", ""),
-    None: ("blue", ""),
-}
-
-_FEISHU_BUTTON_TYPE: dict[str, str] = {
-    "primary": "primary",
-    "danger": "danger",
-    "default": "default",
-}
-
-
-# ── Component card (from OutboundMessage) ────────────────────────
+from app.channels.providers.feishu.cards.builders import CARD_CONFIG
 
 
 def build_contact_disambiguation_card(
@@ -74,7 +51,7 @@ def build_contact_disambiguation_card(
         elements.append({"tag": "action", "actions": actions})
 
     return {
-        "config": _CARD_CONFIG,
+        "config": CARD_CONFIG,
         "header": {
             "template": "blue",
             "title": {"tag": "plain_text", "content": "联系人确认 (Contact Disambiguation)"},
@@ -122,7 +99,7 @@ def build_deliverable_card(
         elements.append({"tag": "action", "actions": actions})
 
     return {
-        "config": _CARD_CONFIG,
+        "config": CARD_CONFIG,
         "header": {
             "template": "turquoise",
             "title": {"tag": "plain_text", "content": "💼 工作交付成果 (Deliverable Handoff)"},

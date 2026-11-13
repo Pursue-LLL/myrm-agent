@@ -8,7 +8,7 @@
 - app.channels.providers.feishu.inbound::FeishuInboundMixin (POS: webhook / websocket event handling)
 - app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
 - app.channels.providers.feishu.reactions::FEISHU_REACTION_GLYPHS (POS: glyphs Feishu has an emoji_type for)
-- app.channels.providers.feishu.outbound::FeishuOutboundMixin (POS: message send, media upload, streaming cards)
+- app.channels.providers.feishu.outbound::FeishuOutboundMixin (POS: message send, media upload, placeholder cards)
 - app.channels.core.base::BaseChannel (POS: Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly. Supports outbound (send) and inbound (on_inbound callback) bidirectional communication. Providers may declare credential_spec and from_credentials for self-contained credential management.)
 - app.channels.core.inbound_pipeline::DedupMode (POS: message deduplication mode of the inbound pipeline)
 - app.channels.security.errors::WebhookResponseError (POS: Webhook error response layer. Provides RFC 7807 standardized error format, supporting machine-parsable and human-readable output without leaking sensitive data.)
@@ -156,8 +156,6 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         self._client = FeishuClient(self._app_id, self._app_secret, use_lark=use_lark)
         self._user_resolver = FeishuUserResolver(self._client)
         self._ws_transport: FeishuWSTransport | None = None  # lazy import
-        self._streaming_seq: dict[str, int] = {}
-        self._streaming_card_ids: dict[str, str] = {}
         self._reactions = ReactionLedger()  # reaction ids, so an empty emoji can remove what was added
 
         self._dedup_mode = DedupMode.LRU
@@ -194,7 +192,7 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         )
 
     async def stop(self) -> None:
-        """Release the websocket transport, then finalize open streaming cards.
+        """Release the websocket transport, then close the API client.
 
         The transport is released before any network step: a stop that hangs is abandoned by the gateway, and a
         connection left open would receive events next to the one the restart opens.
@@ -204,11 +202,6 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         if self._ws_transport:
             await self._ws_transport.stop()
             self._ws_transport = None
-        for msg_id in list(self._streaming_card_ids):
-            try:
-                await self._streaming_finalize(msg_id, "")
-            except Exception:
-                logger.debug("Failed to finalize streaming for %s on stop", msg_id)
         await self._client.close()
 
     async def health_check(self) -> bool:
@@ -375,8 +368,6 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
                 bot_policy=policy,
                 chat_overrides=self.allow_policy.chat_overrides,
             )
-
-    # ── CardKit streaming ─────────────────────────────────────────
 
     def register_routes(self, registrar: object) -> None:
         """Register custom HTTP routes for Feishu webhook.

@@ -6,13 +6,13 @@ via a shared httpx.AsyncClient.
 
 API methods are split across Mixins by domain:
 - ``_messaging.py``: IM messages, reactions, media upload/download, calendar
-- ``documents/``: Drive meta and media, comments, wiki, CardKit streaming, Docx content
+- ``documents/``: Drive meta and media, comments, wiki, Docx content, Bitable
 - ``_contact.py``: user info lookup by open_id
 
 [INPUT]
 - .exceptions::FeishuAuthError (POS: Feishu-specific API error hierarchy.)
 - ._messaging::FeishuMessagingMixin (POS: IM messaging, media, and group operations.)
-- .documents::FeishuDocumentsMixin (POS: Drive, comment, wiki, CardKit, Docx operations.)
+- .documents::FeishuDocumentsMixin (POS: Drive, comment, wiki, Docx, Bitable operations.)
 - ._contact::FeishuContactMixin (POS: Contact-domain API methods: user info lookup by open_id.)
 - myrm_agent_harness.utils.coercion::parse_float (POS: Safe numeric parsing with bounds clamping.)
 - myrm_agent_harness.core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-safe HTTP with manual redirect loop and size cap)
@@ -68,7 +68,7 @@ class FeishuClient(FeishuMessagingMixin, FeishuDocumentsMixin, FeishuContactMixi
 
     API methods are organized by domain via Mixins:
     - Messaging / Media: see ``_messaging.py``
-    - Documents / Comments / Wiki / CardKit / Docx: see ``documents/``
+    - Documents / Comments / Wiki / Docx / Bitable: see ``documents/``
     """
 
     _MEDIA_TIMEOUT: float = _MEDIA_TIMEOUT
