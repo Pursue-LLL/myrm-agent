@@ -6,14 +6,20 @@
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
 """
 
+from __future__ import annotations
+
 import os
 import signal
 import sys
 import webbrowser
+from typing import TYPE_CHECKING
 
 from app.config.env import is_debug_mode
 from app.startup.gc_policy import defer_collection
 from app.startup.health_check import run_startup_health_check
+
+if TYPE_CHECKING:
+    from app.core.infra.frontend_launcher import FrontendLauncher
 
 
 def _uvloop_available() -> bool:
@@ -76,7 +82,7 @@ def start_with_uvicorn(
         auto_recovery=not no_auto_recovery,
     )
 
-    frontend_launcher_instance = None
+    frontend_launcher_instance: FrontendLauncher | None = None
 
     if webui_mode:
         frontend_launcher_instance = _setup_webui_mode(
@@ -162,10 +168,10 @@ def _hard_exit(code: int) -> None:
         os._exit(code)
 
 
-def _exit_after_server_stop(frontend_launcher_instance: object | None) -> None:
+def _exit_after_server_stop(frontend_launcher_instance: FrontendLauncher | None) -> None:
     if frontend_launcher_instance is not None:
         try:
-            frontend_launcher_instance.stop()  # type: ignore[attr-defined]
+            frontend_launcher_instance.stop()
         except Exception as exc:  # pragma: no cover - best-effort teardown
             print(f"⚠️  Frontend stop during shutdown failed: {exc}")
     print("📍 Server stopped")
@@ -178,24 +184,9 @@ def _setup_webui_mode(
     remote_mode: bool,
     no_qrcode: bool,
     no_browser: bool,
-) -> object:
+) -> FrontendLauncher | None:
     """配置 WebUI 模式：启动前端、显示连接信息、QR 码、打开浏览器。返回 frontend_launcher 或 None。"""
-    try:
-        from myrm_agent_harness.utils import get_local_ip
-    except ImportError:
-        print("⚠️  Warning: Failed to import network utils, using fallback")
-
-        def get_local_ip() -> str:  # type: ignore[misc]
-            import socket
-
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                s.connect(("8.8.8.8", 80))
-                ip = s.getsockname()[0]
-                s.close()
-                return ip
-            except Exception:
-                return "127.0.0.1"
+    from myrm_agent_harness.utils import get_local_ip
 
     local_ip = get_local_ip()
     bind_host = "0.0.0.0" if remote_mode else "127.0.0.1"
