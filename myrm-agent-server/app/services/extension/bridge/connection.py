@@ -8,7 +8,8 @@
 [POS]
 Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status. A connect that finds the
 Playwright driver process exited drops that driver and attaches again on a new one, so a dead driver never fails a
-connect (it would otherwise fail every one until the extension reconnects).
+connect (it would otherwise fail every one until the extension reconnects). Callers that need a driver while one is
+starting share it.
 """
 
 from __future__ import annotations
@@ -65,6 +66,7 @@ class ConnectionMixin:
     _cdp_endpoint: str | None
     _last_cdp_probe_monotonic: float
     _playwright: Playwright | None  # None until the first connect starts a driver
+    _playwright_lock: asyncio.Lock  # held while a driver starts
 
     if TYPE_CHECKING:
 
@@ -84,12 +86,17 @@ class ConnectionMixin:
         def is_access_policy_valid(self) -> bool: ...
 
     async def _ensure_playwright(self) -> Playwright:
-        """Return the cached Playwright instance, starting one if needed."""
-        if self._playwright is None:
-            from patchright.async_api import async_playwright
+        """Return the cached Playwright instance, starting one if needed.
 
-            self._playwright = await async_playwright().start()
-        return self._playwright
+        Callers that arrive while a driver is starting wait and share it: each starting its own would overwrite the
+        cache and leave every driver but the last running with nothing to stop it.
+        """
+        async with self._playwright_lock:
+            if self._playwright is None:
+                from patchright.async_api import async_playwright
+
+                self._playwright = await async_playwright().start()
+            return self._playwright
 
     async def _discard_playwright(self) -> None:
         """Stop and forget the cached driver, so the next ``_ensure_playwright`` starts a new one.

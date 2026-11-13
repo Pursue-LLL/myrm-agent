@@ -8,6 +8,7 @@ a new one within the same call. These tests use the one thing patchright reports
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,26 +21,25 @@ from app.services.extension.bridge.common import RELAY_CAPABILITY
 _DRIVER_EXIT_MESSAGE = "BrowserType.connect_over_cdp: Connection closed while reading from the driver"
 
 
-class _FakeDriver:
+def _driver(connect: AsyncMock) -> MagicMock:
     """A Playwright driver handle: the bridge only calls ``chromium.connect_over_cdp`` and ``stop``."""
-
-    def __init__(self, connect: AsyncMock) -> None:
-        self.chromium = MagicMock()
-        self.chromium.connect_over_cdp = connect
-        self.stop = AsyncMock()
-
-
-def _exited_driver() -> _FakeDriver:
-    return _FakeDriver(AsyncMock(side_effect=Exception(_DRIVER_EXIT_MESSAGE)))
+    driver = MagicMock()
+    driver.chromium.connect_over_cdp = connect
+    driver.stop = AsyncMock()
+    return driver
 
 
-def _live_driver() -> _FakeDriver:
+def _exited_driver() -> MagicMock:
+    return _driver(AsyncMock(side_effect=Exception(_DRIVER_EXIT_MESSAGE)))
+
+
+def _live_driver() -> MagicMock:
     browser = MagicMock()
     browser.contexts = []
-    return _FakeDriver(AsyncMock(return_value=browser))
+    return _driver(AsyncMock(return_value=browser))
 
 
-def _drivers_started_in_order(*drivers: _FakeDriver) -> MagicMock:
+def _drivers_started_in_order(*drivers: MagicMock) -> MagicMock:
     """Stand-in for ``async_playwright``: each ``async_playwright().start()`` yields the next driver."""
     queue = list(drivers)
     factory = MagicMock()
@@ -136,15 +136,62 @@ async def test_a_connect_that_fails_for_another_reason_keeps_the_driver_and_is_n
     driver.stop.assert_not_awaited()
 
 
+async def test_callers_that_arrive_while_a_driver_starts_share_it(bridge: ExtensionBridgeService) -> None:
+    live, release = _live_driver(), asyncio.Event()
+
+    async def start_when_released() -> MagicMock:
+        await release.wait()
+        return live
+
+    factory = MagicMock(side_effect=lambda: MagicMock(start=start_when_released))
+
+    with patch("patchright.async_api.async_playwright", factory):
+        callers = asyncio.gather(bridge._ensure_playwright(), bridge._ensure_playwright())
+        await asyncio.sleep(0)  # both callers have reached the driver start
+        release.set()
+        drivers = await callers
+
+    assert list(drivers) == [live, live]
+    assert factory.call_count == 1
+
+
+async def test_connects_that_fail_together_on_an_exited_driver_share_one_new_driver(
+    bridge: ExtensionBridgeService,
+) -> None:
+    both_attached = asyncio.Barrier(2)
+
+    async def exit_once_both_attached(*args: object, **kwargs: object) -> MagicMock:
+        await both_attached.wait()
+        raise Exception(_DRIVER_EXIT_MESSAGE)
+
+    dead, live = _driver(AsyncMock(side_effect=exit_once_both_attached)), _live_driver()
+    bridge._playwright = dead
+
+    async def start_live() -> MagicMock:
+        await asyncio.sleep(0)  # a driver takes time to start: the other caller is already waiting for it
+        return live
+
+    factory = MagicMock(side_effect=lambda: MagicMock(start=start_live))
+
+    with patch("patchright.async_api.async_playwright", factory):
+        instances = await asyncio.gather(bridge.connect(), bridge.connect())
+
+    assert all(isinstance(instance, ExtensionBrowserInstance) for instance in instances)
+    assert factory.call_count == 1
+    assert bridge._playwright is live
+    dead.stop.assert_awaited_once()
+    live.stop.assert_not_awaited()
+
+
 async def test_only_the_driver_that_failed_is_dropped(bridge: ExtensionBridgeService) -> None:
     """Another caller already replaced the failed driver: its newer one keeps serving, and the retry runs on it."""
     newer = _live_driver()
 
     async def fail_after_a_newer_driver_took_over(*args: object, **kwargs: object) -> MagicMock:
-        bridge._playwright = newer  # type: ignore[assignment]
+        bridge._playwright = newer
         raise Exception(_DRIVER_EXIT_MESSAGE)
 
-    dead = _FakeDriver(AsyncMock(side_effect=fail_after_a_newer_driver_took_over))
+    dead = _driver(AsyncMock(side_effect=fail_after_a_newer_driver_took_over))
     factory = _drivers_started_in_order(dead)
 
     with patch("patchright.async_api.async_playwright", factory):

@@ -59,3 +59,4 @@ class ExtensionBridgeService(ConnectionMixin, AccessPolicyMixin, RelayMixin, Tab
         self._last_cdp_probe_monotonic = 0.0
         self._lock = asyncio.Lock()
         self._playwright: Playwright | None = None
+        self._playwright_lock = asyncio.Lock()
