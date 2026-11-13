@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 from unittest.mock import MagicMock
 
 from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard import (
@@ -201,6 +202,10 @@ class TestFileIntegrityGuardAgentAware:
         assert guard.require_version_match("/f.py", "anything", agent_id="b") is None
 
 
+class _ExecutorStub:
+    """Freed the moment its last reference goes, so the next one can land on the same address."""
+
+
 class TestGetFileIntegrityGuard:
     """Module-level factory function tests."""
 
@@ -243,6 +248,26 @@ class TestGetFileIntegrityGuard:
         g1 = get_file_integrity_guard(e1)
         g2 = get_file_integrity_guard(e2)
         assert g1 is not g2
+
+    def test_a_guard_is_released_with_its_executor(self) -> None:
+        known = len(_integrity_guards)
+        executor = MagicMock()
+        get_file_integrity_guard(executor)
+        assert len(_integrity_guards) == known + 1
+
+        del executor
+        gc.collect()
+
+        assert len(_integrity_guards) == known
+
+    def test_a_new_executor_starts_with_an_empty_guard_whatever_address_it_lands_on(self) -> None:
+        for _ in range(50):
+            executor = _ExecutorStub()
+            guard = get_file_integrity_guard(executor)  # type: ignore[arg-type]
+            assert guard is not None
+            assert guard.require_read_before_write("/a.py") is not None
+            guard.record_read("/a.py", "content")
+            del executor, guard
 
     def teardown_method(self) -> None:
         _integrity_guards.clear()

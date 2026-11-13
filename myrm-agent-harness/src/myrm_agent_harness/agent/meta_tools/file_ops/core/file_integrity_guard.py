@@ -19,13 +19,13 @@ edits by the same agent on content it just wrote remain allowed.
 
 [OUTPUT]
 - FileIntegrityGuard: Per-executor file integrity guard (agent-aware)
-- get_file_integrity_guard: Module-level factory function
+- get_file_integrity_guard: Module-level factory: one guard per executor, held weakly so it dies with the executor
 - raise_if_integrity_rejection: raises the read, full-read and version rejections of a mutation as a ToolError
 - raise_if_masked_writeback: raises when new content carries a mask the file does not
 
 [POS]
 File integrity guard for sandbox file mutations. Agent-aware per-agent buckets.
-Per-executor isolation via module-level factory.
+Per-executor isolation via a weak registry keyed by the executor itself.
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ import hashlib
 import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
+from weakref import WeakKeyDictionary
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.utils.errors import ToolError
@@ -198,7 +199,9 @@ class FileIntegrityGuard:
         self._agent_read_hashes.pop(agent_id, None)
 
 
-_integrity_guards: dict[int, FileIntegrityGuard] = {}
+# Keyed by the executor, weakly: a guard is gone with its executor, and a new executor can never inherit the records
+# of a dead one that happened to sit at the same address.
+_integrity_guards: WeakKeyDictionary[CodeExecutor, FileIntegrityGuard] = WeakKeyDictionary()
 
 
 def get_file_integrity_guard(executor: CodeExecutor | None) -> FileIntegrityGuard | None:
@@ -212,10 +215,10 @@ def get_file_integrity_guard(executor: CodeExecutor | None) -> FileIntegrityGuar
 
     if effective_executor is None:
         return None
-    eid = id(effective_executor)
-    if eid not in _integrity_guards:
-        _integrity_guards[eid] = FileIntegrityGuard()
-    return _integrity_guards[eid]
+    guard = _integrity_guards.get(effective_executor)
+    if guard is None:
+        guard = _integrity_guards[effective_executor] = FileIntegrityGuard()
+    return guard
 
 
 def raise_if_integrity_rejection(
