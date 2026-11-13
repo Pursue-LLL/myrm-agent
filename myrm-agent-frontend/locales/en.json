@@ -3141,7 +3141,7 @@
       "frugalDesc": "Uses lightweight models for both planning and tool calls. Ideal for routine file operations, search, and shell tasks.",
       "frugalBrainRole": "Lightweight Planner (e.g. DeepSeek-V3, GPT-4o-mini)",
       "frugalHandsRole": "Fast Worker (e.g. DeepSeek-V3, Flash)",
-      "frugalCostBenefit": "Cuts token spend by ~85% with lightning-fast latency.",
+      "frugalCostBenefit": "Keeps token spend and latency low for routine work.",
       "balancedTitle": "Flagship Brain & Hands",
       "balancedBadge": "Recommended",
       "balancedDesc": "Combines frontier reasoning for complex architectural decisions with lightweight execution for high-frequency tool use.",

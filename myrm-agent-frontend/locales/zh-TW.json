@@ -3132,7 +3132,7 @@
       "frugalDesc": "全程採用高吞吐輕量模型進行規劃與工具調用。適合高頻檔案查找、腳本執行與日常快速任務。",
       "frugalBrainRole": "輕量規劃模型 (如 DeepSeek-V3, GPT-4o-mini)",
       "frugalHandsRole": "極速搬磚手 (如 DeepSeek-V3, Flash)",
-      "frugalCostBenefit": "Token 帳單立降 ~85%，執行毫秒級響應。",
+      "frugalCostBenefit": "日常任務的 Token 開銷與回應延遲更低。",
       "balancedTitle": "旗艦動能流",
       "balancedBadge": "黃金標配",
       "balancedDesc": "頂級推理模型負責整體架構與決策拆解，輕量模型負責高頻工具調用，兼顧極致智力與低成本。",

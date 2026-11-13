@@ -3132,7 +3132,7 @@
       "frugalDesc": "Nutzt leichte Modelle sowohl für Planung als auch für Werkzeugaufrufe. Ideal für Routine-Dateiverwaltung, Suche und Shell-Aufgaben.",
       "frugalBrainRole": "Leichtgewichtiger Planer (z. B. DeepSeek-V3, GPT-4o-mini)",
       "frugalHandsRole": "Schneller Worker (z. B. DeepSeek-V3, Flash)",
-      "frugalCostBenefit": "Senkt Token-Kosten um ~85 % bei blitzschneller Latenz.",
+      "frugalCostBenefit": "Hält Token-Verbrauch und Latenz bei Routineaufgaben niedrig.",
       "balancedTitle": "Flaggschiff Brain & Hands",
       "balancedBadge": "Empfohlen",
       "balancedDesc": "Kombiniert Spitzenleistung für komplexe Architekturentscheidungen mit leichtgewichtiger Ausführung für häufige Werkzeugaufrufe.",

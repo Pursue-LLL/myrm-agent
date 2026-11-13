@@ -3132,7 +3132,7 @@
       "frugalDesc": "計画とツールコールの両方に軽量モデルを使用。日常的なファイル操作、検索、シェルタスクに最適。",
       "frugalBrainRole": "軽量プランナー（例：DeepSeek-V3、GPT-4o-mini）",
       "frugalHandsRole": "高速ワーカー（例：DeepSeek-V3、Flash）",
-      "frugalCostBenefit": "超高速の応答速度でトークン消費を約85%削減。",
+      "frugalCostBenefit": "日常作業のトークン消費と応答遅延を抑えます。",
       "balancedTitle": "フラッグシップ Brain & Hands",
       "balancedBadge": "推奨",
       "balancedDesc": "複雑なアーキテクチャの意思決定のためのフロンティア推論と、高頻度のツール使用のための軽量実行を組み合わせます。",
