@@ -12,7 +12,6 @@
 - context_management.tracking.archive_restore_runtime::evaluate_archive_refetch_for_path (POS: archived-context read budget)
 - core.archive_restore_guard::evaluate_archive_full_read_before_content, format_archive_restore_block (POS: archive restore read guard)
 - core.read_semaphore::get_read_semaphore (POS: read concurrency control)
-- core.read_dedup::get_read_dedup_guard, DedupResult (POS: read-time dedup guard)
 
 [OUTPUT]
 - FileViewService: reads one or several paths (files with an optional line range, directories) under a concurrency
@@ -26,7 +25,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 
 from myrm_agent_harness.agent.config import FileIOConfig
 from myrm_agent_harness.agent.context_management.infra.session_lock import (
@@ -45,38 +43,11 @@ from .archive_restore_guard import (
     format_archive_restore_block,
 )
 from .file_integrity_guard import get_file_integrity_guard
-from .operation_context import OperationContext, ViewRange
-from .read_dedup import DedupResult, get_read_dedup_guard
+from .operation_context import OperationContext
 from .read_semaphore import get_read_semaphore
 from .result_formatter import DirectoryListing, FileContent, ResultFormatter
 
 logger = logging.getLogger(__name__)
-
-
-def _view_range_to_str(view_range: ViewRange | None) -> str:
-    """Serialize a view range to a stable dedup key fragment."""
-    if view_range is None:
-        return ""
-    return f"{view_range.start}:{view_range.end}"
-
-
-def _format_dedup_stub(display_path: str, view_range_str: str) -> str:
-    """Lightweight stub returned when a file is unchanged since the last read."""
-    scope = f" (lines {view_range_str})" if view_range_str else ""
-    return (
-        f"[File unchanged since last read{scope}: {display_path}]\n"
-        f"Content is identical to the previous read. Refer to the earlier result; "
-        f"do not re-read unless the file has been modified."
-    )
-
-
-def _format_dedup_blocked(display_path: str, view_range_str: str, hits: int) -> str:
-    """Hard block returned after repeated unchanged reads to stop tool loops."""
-    scope = f" (lines {view_range_str})" if view_range_str else ""
-    return (
-        f"[BLOCKED: file unchanged after {hits} consecutive reads{scope}: {display_path}]\n"
-        f"Content has not changed. Stop re-reading this file; use the earlier result."
-    )
 
 
 class FileViewService:
@@ -176,29 +147,6 @@ class FileViewService:
 
         # 读取文件（返回完整行；行号范围切片统一由 ResultFormatter 处理，
         # 以正确报告总行数与续读 offset——strategy 层不二次切片）
-        # 读取前先做 dedup 检查：本地文件未变时返回 stub，避免重复内容进上下文
-        # 破坏 Prompt Cache。仅对可 stat mtime 的本地文件生效；MCP/云路径跳过。
-        dedup_guard = get_read_dedup_guard(self.context.executor)
-        dedup_hit: str | None = None
-        if dedup_guard is not None:
-            # 用 executor 绝对路径做 mtime 判定，避免相对路径与进程 cwd 不一致；
-            # 云存储 get_actual_path 返回原路径，getmtime 抛 OSError 时安全跳过。
-            actual_path = strategy.get_actual_path(resolved_path)
-            try:
-                mtime = os.path.getmtime(actual_path)
-            except OSError:
-                mtime = None
-            if mtime is not None:
-                view_range_str = _view_range_to_str(view_range)
-                result = dedup_guard.check(actual_path, view_range_str, mtime)
-                if result.kind == DedupResult.STUB:
-                    dedup_hit = _format_dedup_stub(display_path, view_range_str)
-                elif result.kind == DedupResult.BLOCKED:
-                    dedup_hit = _format_dedup_blocked(display_path, view_range_str, result.hits)
-
-        if dedup_hit is not None:
-            return dedup_hit
-
         lines = await strategy.read_file(resolved_path)
         content_text = "\n".join(lines)
         estimated_content_tokens = estimate_content_tokens(content_text)

@@ -19,7 +19,6 @@
 - core.file_conflict_guard::check_conflict_pre_write (POS: 文件并发编辑冲突守卫)
 - core.batch_str_replace::apply_batch_str_replace, compute_batch_edit_line_range (POS: Batch str-replace engine)
 - core.file_view_service::FileViewService (POS: VIEW operation)
-- core.read_dedup::get_read_dedup_guard (POS: 读取时 dedup 守卫,保护 Prompt Cache)
 - validators.markdown_vault_write_guard::MarkdownVaultWriteGuard (POS: vault markdown FM preserve guard)
 - validators.office_write_guard::OfficeWriteGuard (POS: secondary Office path text-write warnings)
 
@@ -59,7 +58,6 @@ from .file_integrity_guard import (
 from .file_path_lock_manager import acquire_file_path_lock
 from .file_view_service import FileViewService
 from .operation_context import OperationContext, OperationType
-from .read_dedup import get_read_dedup_guard
 from .result_formatter import ResultFormatter
 
 logger = logging.getLogger(__name__)
@@ -257,11 +255,6 @@ class FileOperationService:
             final_content = "\n".join(await strategy.read_file(resolved_path))
             guard.record_write(resolved_path, final_content)
 
-        # 写后失效 dedup，确保刚编辑的文件被重新读取
-        dedup_guard = get_read_dedup_guard(self.context.executor)
-        if dedup_guard is not None:
-            dedup_guard.invalidate(resolved_path)
-
         logger.info("Created file: %s", resolved_path)
 
         response = ResultFormatter.format_success("created", resolved_path)
@@ -385,11 +378,6 @@ class FileOperationService:
         if guard is not None:
             final_content = "\n".join(await strategy.read_file(resolved_path))
             guard.record_write(resolved_path, final_content)
-
-        # 写后失效 dedup，确保刚编辑的文件被重新读取
-        dedup_guard = get_read_dedup_guard(self.context.executor)
-        if dedup_guard is not None:
-            dedup_guard.invalidate(resolved_path)
 
         logger.info("Replaced text in file: %s", resolved_path)
 

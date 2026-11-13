@@ -13,7 +13,7 @@
 - attach_partial_output, read_partial_output: carry the text a failed attempt streamed from the attempt to the retry loop on the exception; the reader cuts an oversized text to a character budget
 - _compact_error_message, _auto_vault_or_truncate: oversized result vault, inline artifact, file_read_tool recovery hint
 - _parse_handover_state: handover block parsing
-- clear_file_tracking: drop a finished child's file activity, integrity and read-dedup records
+- clear_file_tracking: drop a finished child's file activity and integrity records
 
 [POS]
 Pure helper functions for SubagentExecutor mixins and external callers.
@@ -300,18 +300,15 @@ def _parse_handover_state(raw_result: str, task_id: str) -> AgentHandoverState |
 
 
 def clear_file_tracking(agent_id: str) -> None:
-    """Drop the file activity, integrity and read-dedup records a finished child left under its id."""
+    """Drop the file activity and integrity records a finished child left under its id."""
     try:
         from myrm_agent_harness.agent.meta_tools.file_ops.core.file_activity_tracker import (
             get_file_activity_tracker,
         )
         from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard import _integrity_guards
-        from myrm_agent_harness.agent.meta_tools.file_ops.core.read_dedup import _dedup_guards
 
         get_file_activity_tracker().clear_agent(agent_id)
         for integrity_guard in _integrity_guards.values():
             integrity_guard.clear_agent(agent_id)
-        for dedup_guard in _dedup_guards.values():
-            dedup_guard.clear_agent(agent_id)
     except Exception:
         logger.debug("Failed to clear file tracking for %s", agent_id, exc_info=True)
