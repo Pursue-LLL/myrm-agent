@@ -33,6 +33,7 @@ from .table_renderer import convert_tables
 
 _MAX_MSG_LENGTH = 4096
 _WIDEST_CHAR_UNITS = 2  # a surrogate pair: the most UTF-16 units one character takes
+_MIN_TEXT_SHARE = 8  # after the tags it reopens, a chunk keeps at least this fraction (1/8) of the limit free for text
 
 # A span and a link target never hold a placeholder (NUL): backticks on both sides of a protected block stay text, and
 # a "link" to `code` is no href with markup in it.
@@ -108,12 +109,16 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
     1. No chunk exceeds the `limit` in UTF-16 code units.
     2. No UTF-16 surrogate pairs (e.g., Emojis) are truncated.
     3. HTML tags are properly closed at the end of a chunk and reopened at the start of the next chunk.
-    4. A tag that, reopened in every chunk, would leave no room for a character is dropped with its closer.
+    4. A tag that, reopened in every chunk, would leave less than an eighth of the limit for text is dropped with its
+       closer, so a pile of unclosed tags can neither stall the splitter nor multiply the number of chunks.
     """
     if _utf16_len(text) <= limit:
         return [text]
 
     chunks: list[str] = []
+    # What the tags reopened in every chunk must leave free for text: one character at the very least, or no chunk
+    # could move on
+    text_room = max(_WIDEST_CHAR_UNITS, limit // _MIN_TEXT_SHARE)
 
     # State machine variables
     # Stack stores tuples of (tag_name, full_open_tag, full_close_tag)
@@ -150,9 +155,9 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
                 else:
                     close_tag = f"</{tag_name}>"
                     new_active_tags.append((tag_name, part, close_tag))
-                    if _reopening_length(new_active_tags) + _WIDEST_CHAR_UNITS > limit:
-                        # Reopened at the top of every chunk, this tag would leave no room for a character and the
-                        # text could never move on: it stays on the stack, empty, so its closer finds it and is dropped too.
+                    if _reopening_length(new_active_tags) + text_room > limit:
+                        # Reopened at the top of every chunk, this tag would leave too little room for text: it stays
+                        # on the stack, empty, so its closer finds it and is dropped too.
                         new_active_tags[-1] = (tag_name, "", "")
                         shown = False
 
