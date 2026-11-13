@@ -6,7 +6,7 @@ Verifies uploaded file workspace sync and query injection logic.
 from __future__ import annotations
 
 import os
-import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,7 +24,7 @@ class TestSyncUploadedFilesToWorkspace:
     """Tests for sync_uploaded_files_to_workspace."""
 
     @pytest.mark.asyncio
-    async def test_skips_small_files(self):
+    async def test_skips_small_files(self, tmp_path: Path):
         """Files under threshold should not be copied."""
         from app.core.storage.models import File
         from app.core.storage.types import FilePurpose
@@ -41,14 +41,14 @@ class TestSyncUploadedFilesToWorkspace:
         mock_svc = AsyncMock()
         mock_svc.get_file = AsyncMock(return_value=small_file)
         with patch("app.core.storage.files_service", mock_svc):
-            workspace = tempfile.mkdtemp()
+            workspace = str(tmp_path)
             result = await sync_uploaded_files_to_workspace(["file_small"], workspace)
 
         assert result == []
         assert not os.path.exists(os.path.join(workspace, "_uploaded"))
 
     @pytest.mark.asyncio
-    async def test_copies_large_file(self):
+    async def test_copies_large_file(self, tmp_path: Path):
         """Files exceeding threshold should be copied to _uploaded/."""
         from app.core.storage.models import File
         from app.core.storage.types import FilePurpose
@@ -67,7 +67,7 @@ class TestSyncUploadedFilesToWorkspace:
         mock_svc.get_file = AsyncMock(return_value=large_file)
         mock_svc.get_file_content_by_path = AsyncMock(return_value=content)
         with patch("app.core.storage.files_service", mock_svc):
-            workspace = tempfile.mkdtemp()
+            workspace = str(tmp_path)
             result = await sync_uploaded_files_to_workspace(["file_big"], workspace)
 
         assert len(result) == 1
@@ -80,18 +80,18 @@ class TestSyncUploadedFilesToWorkspace:
             assert f.read() == content
 
     @pytest.mark.asyncio
-    async def test_skips_missing_file(self):
+    async def test_skips_missing_file(self, tmp_path: Path):
         """Missing file IDs should be silently skipped."""
         mock_svc = AsyncMock()
         mock_svc.get_file = AsyncMock(return_value=None)
         with patch("app.core.storage.files_service", mock_svc):
-            workspace = tempfile.mkdtemp()
+            workspace = str(tmp_path)
             result = await sync_uploaded_files_to_workspace(["file_ghost"], workspace)
 
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_deduplicates_filenames(self):
+    async def test_deduplicates_filenames(self, tmp_path: Path):
         """Duplicate filenames across turns should not overwrite each other."""
         from app.core.storage.models import File
         from app.core.storage.types import FilePurpose
@@ -106,7 +106,7 @@ class TestSyncUploadedFilesToWorkspace:
             storage_path="uploads/file_dup/report.csv",
         )
 
-        workspace = tempfile.mkdtemp()
+        workspace = str(tmp_path)
         uploaded_dir = os.path.join(workspace, "_uploaded")
         os.makedirs(uploaded_dir)
         with open(os.path.join(uploaded_dir, "report.csv"), "w") as f:
@@ -125,7 +125,7 @@ class TestSyncUploadedFilesToWorkspace:
         assert os.path.isfile(os.path.join(workspace, rel_path))
 
     @pytest.mark.asyncio
-    async def test_respects_budget_limit(self):
+    async def test_respects_budget_limit(self, tmp_path: Path):
         """Files that would exceed 50 MB budget should be skipped."""
         from app.core.storage.models import File
         from app.core.storage.types import FilePurpose
@@ -164,7 +164,7 @@ class TestSyncUploadedFilesToWorkspace:
         mock_svc = AsyncMock()
         mock_svc.get_file = mock_get_file
         mock_svc.get_file_content_by_path = mock_get_content
-        workspace = tempfile.mkdtemp()
+        workspace = str(tmp_path)
         with patch("app.core.storage.files_service", mock_svc):
             result = await sync_uploaded_files_to_workspace(["file_fit", "file_over"], workspace)
 
