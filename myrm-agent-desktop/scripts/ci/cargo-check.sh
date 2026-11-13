@@ -35,10 +35,12 @@ cargo check --locked
 #   app::autostart                     which builds write the OS login item (a development build never does)
 #   utils::data_dir                    which data directory the backend, the migration and the recovery
 #                                      commands share (a development build never defaults to ~/.myrm)
+#   commands::recovery                 the crash-recovery export copies the server's data.db with its WAL/SHM
 cargo test --locked -- config::tests commands::privacy_curtain commands::visual_approval_overlay \
   commands::pet_surface commands::session_window utils::protocol_page runtime::product_origin \
   runtime::sidecar_path runtime::node_runtime utils::process_tree app::chain ipc_security::acl_tests \
   ipc_security::tests::build_manifest_commands_are_covered_by_policy \
-  ipc_security::tests::command_registry app::setup app::autostart utils::data_dir --nocapture
+  ipc_security::tests::command_registry app::setup app::autostart utils::data_dir \
+  commands::recovery --nocapture
 
 echo "[desktop-cargo-check] OK"
