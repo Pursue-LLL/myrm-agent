@@ -11,7 +11,7 @@
 
 工具列表：
 - file_read_tool: 读取文件（支持批量、MCP、File ID）
-- file_write_tool: 创建/覆盖文件（自动注册 Artifact）
+- file_write_tool: 创建新文件（自动注册 Artifact）
 - file_edit_tool: 精确编辑文件（防止多重匹配）
 """
 

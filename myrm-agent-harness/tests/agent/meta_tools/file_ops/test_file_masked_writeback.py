@@ -1,7 +1,8 @@
 """A write must not carry a mask of the redactor where the file holds a secret.
 
 A read shows a secret as a mask (``***``, ``sk-pro...7890``). Text copied from that read and written back replaces the
-real value on disk with the mask; an edit whose new text carries the mask and a whole-file create both write it.
+real value on disk with the mask; an edit whose new text carries the mask writes it. A whole-file create cannot: it
+never replaces an existing path.
 """
 
 from __future__ import annotations
@@ -142,13 +143,6 @@ class TestServiceRefusesMaskedWriteback:
         strategy = _strategy(_YAML)
         with pytest.raises(ToolError) as exc_info:
             await _execute(_edit("/w/c.yaml", "host: db.internal", f"host: db.internal\n{masked_line}"), strategy)
-        assert exc_info.value.error_code == "MASKED_VALUE_WRITEBACK"
-        strategy.write_file.assert_not_awaited()
-
-    async def test_create_over_an_existing_file_with_its_view_does_not_reach_disk(self) -> None:
-        strategy = _strategy(_ENV)
-        with pytest.raises(ToolError) as exc_info:
-            await _execute(_create("/w/.env", redact_sensitive_text(_ENV)), strategy)
         assert exc_info.value.error_code == "MASKED_VALUE_WRITEBACK"
         strategy.write_file.assert_not_awaited()
 

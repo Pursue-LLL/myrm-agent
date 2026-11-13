@@ -146,77 +146,34 @@ async def test_execute_create_appends_conflict_notice() -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_create_overwrite_triggers_modified_observers() -> None:
-    """CREATE on an existing path must notify modify so diff/snapshot are not 'new file only'."""
-    context = OperationContext(
-        operation=OperationType.CREATE,
-        executor=None,
-        path="/w/existing.txt",
-        file_text="line1\nmodified_line2\nline3\n",
-    )
+async def test_execute_create_notifies_a_created_file_with_what_was_written() -> None:
+    service_module = "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service"
+    context = OperationContext(operation=OperationType.CREATE, executor=None, path="/w/new.txt", file_text="hello\n")
     service = FileOperationService(context)
-    with ExitStack() as stack:
-        stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/w/existing.txt",
-            )
-        )
-        mock_factory = stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",
-            )
-        )
-        mock_vc = stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.ValidatorChain",
-            )
-        )
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.check_conflict_pre_write",
-                return_value=None,
-            )
-        )
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.validators.delta_syntax_validator.DeltaSyntaxValidator.validate",
-            )
-        )
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.get_file_integrity_guard",
-                return_value=None,
-            )
-        )
-        mock_mod = stack.enter_context(
-            patch.object(
-                service.observer_manager,
-                "notify_file_modified",
-                new_callable=AsyncMock,
-            )
-        )
-        mock_create = stack.enter_context(
-            patch.object(
-                service.observer_manager,
-                "notify_file_created",
-                new_callable=AsyncMock,
-            )
-        )
-        strategy = AsyncMock()
-        strategy.exists = AsyncMock(return_value=True)
-        strategy.read_file = AsyncMock(
-            side_effect=[
-                ["line1", "line2", "line3"],
-                ["line1", "modified_line2", "line3"],
-            ]
-        )
-        mock_factory.return_value = strategy
-        mock_vc.return_value.validate = AsyncMock()
+    strategy = AsyncMock()
+    strategy.read_file = AsyncMock(return_value=["hello", ""])
+    with (
+        patch.object(context, "validate"),
+        patch(
+            "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
+            return_value="/w/new.txt",
+        ),
+        patch(f"{service_module}.FileSystemStrategyFactory.create_strategy", return_value=strategy),
+        patch(f"{service_module}.ValidatorChain") as validator_chain,
+        patch(f"{service_module}.check_conflict_pre_write", return_value=None),
+        patch(f"{service_module}.get_file_integrity_guard", return_value=None),
+        patch(
+            "myrm_agent_harness.agent.meta_tools.file_ops.validators.delta_syntax_validator.DeltaSyntaxValidator.validate"
+        ),
+        patch.object(service.observer_manager, "notify_file_created", new_callable=AsyncMock) as created,
+        patch.object(service.observer_manager, "notify_file_modified", new_callable=AsyncMock) as modified,
+    ):
+        validator_chain.return_value.validate = AsyncMock()
         await service.execute()
-    mock_mod.assert_awaited_once()
-    mock_create.assert_not_awaited()
+
+    strategy.write_file.assert_awaited_once_with("/w/new.txt", "hello\n")
+    created.assert_awaited_once_with("/w/new.txt", "hello\n")
+    modified.assert_not_awaited()
 
 
 @pytest.mark.asyncio

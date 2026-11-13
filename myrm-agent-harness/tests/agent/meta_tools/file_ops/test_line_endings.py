@@ -4,7 +4,7 @@ Covers:
 - detect_line_ending: CRLF, LF, empty, single-line, mixed
 - normalize_line_endings: LF→LF, LF→CRLF, CRLF→LF, CRLF→CRLF, mixed, lone CR, idempotence
 - StorageBackendStrategy.replace_text: CRLF preservation for exact + fuzzy match
-- FileOperationService._execute_create: CRLF preservation when overwriting existing files
+- FileOperationService._execute_create: a new file keeps the line endings it was given
 """
 
 from __future__ import annotations
@@ -212,66 +212,7 @@ async def test_replace_text_single_line_no_normalization() -> None:
     assert "\r\n" not in written
 
 
-# ── FileOperationService._execute_create CRLF preservation ─────────
-
-
-@pytest.mark.asyncio
-async def test_create_overwrite_preserves_crlf() -> None:
-    """Overwriting an existing CRLF file should preserve CRLF endings."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service import (
-        FileOperationService,
-    )
-    from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import (
-        OperationContext,
-        OperationType,
-    )
-
-    context = OperationContext(
-        operation=OperationType.CREATE,
-        executor=None,
-        path="test.bat",
-        file_text="echo hello\necho world\n",
-    )
-    service = FileOperationService(context)
-
-    mock_strategy = AsyncMock()
-    mock_strategy.exists = AsyncMock(return_value=True)
-    mock_strategy.read_file = AsyncMock(
-        side_effect=[
-            ["line1\r", "line2\r", ""],
-            ["echo hello\r", "echo world\r", ""],
-        ]
-    )
-    mock_strategy.write_file = AsyncMock()
-
-    with (
-        patch.object(context, "validate"),
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory"
-        ) as mock_factory,
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.ValidatorChain"
-        ) as mock_validator,
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.check_conflict_pre_write",
-            return_value=None,
-        ),
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.get_file_integrity_guard",
-            return_value=None,
-        ),
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.validators.delta_syntax_validator.DeltaSyntaxValidator.validate"
-        ),
-    ):
-        mock_factory.create_strategy.return_value = mock_strategy
-        mock_validator.return_value.validate = AsyncMock()
-
-        await service.execute()
-
-    written = mock_strategy.write_file.call_args[0][1]
-    assert "\r\n" in written
-    assert "echo hello\r\n" in written
+# ── FileOperationService._execute_create line endings ──────────────
 
 
 @pytest.mark.asyncio

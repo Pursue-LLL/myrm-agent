@@ -23,9 +23,9 @@
 - validators.office_write_guard::OfficeWriteGuard (POS: secondary Office path text-write warnings)
 
 [OUTPUT]
-- FileOperationService: 文件操作服务类(统一的文件操作接口).VIEW 交给 FileViewService.CREATE 若覆盖已存在路径则
-  notify_file_modified(pre_disk, post_write);否则 notify_file_created(post_write).
-  Appends Vault/Office fidelity warnings on CREATE and STR_REPLACE responses.
+- FileOperationService: 文件操作服务类(统一的文件操作接口).VIEW 交给 FileViewService.CREATE 只创建新文件并
+  notify_file_created(post_write);已存在的路径在验证阶段被拒绝.
+  Appends Office fidelity warnings on CREATE and Vault/Office fidelity warnings on STR_REPLACE responses.
 
 [POS]
 File operation service. Provides a unified file operation interface integrating strategies, validator chains, observer pipelines, concurrency control, resource limits, security validation, and concurrent subagent conflict detection. The read side lives in FileViewService.
@@ -131,7 +131,7 @@ class FileOperationService:
         raise ValueError(f"Unknown operation: {self.context.operation}")
 
     async def _execute_create(self) -> str:
-        """执行 CREATE 操作"""
+        """执行 CREATE 操作：只创建新文件，已存在的路径在验证阶段即被拒绝"""
         logger.info("_execute_create called for path: %s", self.context.path)
 
         if not self.context.path or self.context.file_text is None:
@@ -154,64 +154,21 @@ class FileOperationService:
         # Concurrent subagent conflict detection (pre-write)
         conflict_warning = check_conflict_pre_write(resolved_path, 1, self.context.file_text.count("\n") + 1)
 
-        pre_existing = await strategy.exists(resolved_path)
-        pre_content_str: str | None = None
-        original_eol: str | None = None
-        guard = get_file_integrity_guard(self.context.executor)
-        if pre_existing:
-            raise_if_integrity_rejection(
-                guard,
-                resolved_path,
-                require_version=False,
-            )
-            pre_content_str = "\n".join(await strategy.read_file(resolved_path))
-            raise_if_integrity_rejection(
-                guard,
-                resolved_path,
-                disk_content=pre_content_str,
-                require_version=True,
-            )
-            from ..utils.line_endings import detect_line_ending, normalize_line_endings
-
-            original_eol = detect_line_ending(pre_content_str)
-
-        file_text = self.context.file_text
-        if pre_existing and original_eol:
-            file_text = normalize_line_endings(file_text, original_eol)
-        if pre_content_str is not None:
-            raise_if_masked_writeback(resolved_path, pre_content_str, file_text)
-
         # 增量容错语法校验 (Delta Syntax Validator)
         from ..validators.delta_syntax_validator import DeltaSyntaxValidator
 
-        DeltaSyntaxValidator.validate(resolved_path, file_text, pre_content=pre_content_str)
-
-        from ..validators.markdown_vault_write_guard import MarkdownVaultWriteGuard
-
-        file_text, vault_warnings = MarkdownVaultWriteGuard.apply(
-            resolved_path,
-            pre_content_str,
-            file_text,
-        )
+        DeltaSyntaxValidator.validate(resolved_path, self.context.file_text)
 
         from ..validators.office_write_guard import OfficeWriteGuard
 
-        file_text, office_warnings = OfficeWriteGuard.apply(resolved_path, file_text)
+        file_text, office_warnings = OfficeWriteGuard.apply(resolved_path, self.context.file_text)
 
         # 写入文件
         await strategy.write_file(resolved_path, file_text)
 
         new_content = "\n".join(await strategy.read_file(resolved_path))
-
-        if pre_existing and pre_content_str is not None:
-            logger.info(
-                "Calling observer_manager.notify_file_modified (CREATE overwrote existing) for %s",
-                resolved_path,
-            )
-            await self.observer_manager.notify_file_modified(resolved_path, pre_content_str, new_content)
-        else:
-            logger.info("Calling observer_manager.notify_file_created for %s", resolved_path)
-            await self.observer_manager.notify_file_created(resolved_path, new_content)
+        logger.info("Calling observer_manager.notify_file_created for %s", resolved_path)
+        await self.observer_manager.notify_file_created(resolved_path, new_content)
 
         # 执行自动校验(如果有)
         if self.context.verify_command and self.context.executor:
@@ -251,6 +208,7 @@ class FileOperationService:
         # Record hash AFTER observers and verification so FormatObserver's changes are captured.
         # Re-read to get the post-formatted content; skip re-read when no
         # executor is available (guard would be None anyway).
+        guard = get_file_integrity_guard(self.context.executor)
         if guard is not None:
             final_content = "\n".join(await strategy.read_file(resolved_path))
             guard.record_write(resolved_path, final_content)
@@ -262,10 +220,7 @@ class FileOperationService:
             response = f"{response}\n\n{conflict_warning}"
         if auto_verify_report:
             response = f"{response}\n{auto_verify_report}"
-        return self._append_office_warnings(
-            self._append_vault_warnings(response, vault_warnings),
-            office_warnings,
-        )
+        return self._append_office_warnings(response, office_warnings)
 
     async def _execute_str_replace(self) -> str:
         """执行 STR_REPLACE 操作（单事务批量 edits）"""
