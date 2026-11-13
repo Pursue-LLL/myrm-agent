@@ -238,6 +238,8 @@ def _setup_webui_mode(
         print("⚠️  Security Notice:")
         print("   This server uses HTTP. For remote access over untrusted networks,")
         print("   use a reverse proxy (nginx/Caddy) with HTTPS to encrypt traffic.")
+        print("   The proxy must pass through the public Host header or the client address")
+        print("   (X-Forwarded-For); otherwise its requests count as local and skip login.")
     else:
         print("📍 Local Mode - No authentication required")
 
