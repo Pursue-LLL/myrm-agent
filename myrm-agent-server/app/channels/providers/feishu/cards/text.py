@@ -5,6 +5,7 @@
 - resolve_send_mode: Determine Feishu message send mode based on context.
 - has_rich_text: Detect if content has rich formatting that benefits from post type.
 - _parse_post_line: Parse a single line of Markdown into Feishu post elements.
+- _bolded: Add the bold style to a post element.
 - build_post_content: Convert Markdown-like text to Feishu post (rich text) format.
 
 [POS]
@@ -66,7 +67,8 @@ def _parse_post_line(line: str) -> list[dict[str, object]]:
         elif m.group(4) is not None:
             elements.append({"tag": "text", "text": m.group(4), "style": ["lineThrough"]})
         elif m.group(6) is not None:
-            elements.append({"tag": "text", "text": m.group(6), "style": ["code"]})
+            # A post text element has no code style (Feishu ignores unknown styles), so the backticks stay as the cue.
+            elements.append({"tag": "text", "text": m.group(0)})
         elif m.group(8) is not None:
             elements.append({"tag": "a", "text": m.group(8), "href": m.group(9)})
         pos = m.end()
@@ -75,23 +77,24 @@ def _parse_post_line(line: str) -> list[dict[str, object]]:
     return elements or [{"tag": "text", "text": line}]
 
 
+def _bolded(element: dict[str, object]) -> dict[str, object]:
+    """``element`` with the bold style added to the styles it has."""
+    styles = element.get("style")
+    existing = [str(style) for style in styles] if isinstance(styles, list) else []
+    return {**element, "style": list(dict.fromkeys(["bold", *existing]))}
+
+
 def build_post_content(content: str) -> dict[str, object]:
     """Convert Markdown-like text to Feishu post (rich text) format.
 
-    Produces a post payload with zh_cn locale. Handles bold, italic,
-    inline code, links, and headings by mapping to Feishu post tags.
+    Produces a post payload with zh_cn locale. Handles bold, strikethrough, inline code,
+    links and headings (bold, with their own inline spans) by mapping to Feishu post tags.
     """
     paragraphs: list[list[dict[str, object]]] = []
     for line in content.split("\n"):
-        elements: list[dict[str, object]] = []
         heading_match = _HEADING_RE.match(line)
         if heading_match:
-            line = line[heading_match.end() :]
-            elements.append({"tag": "text", "text": line, "style": ["bold"]})
+            paragraphs.append([_bolded(element) for element in _parse_post_line(line[heading_match.end() :])])
         else:
-            elements.extend(_parse_post_line(line))
-        paragraphs.append(elements)
+            paragraphs.append(_parse_post_line(line))
     return {"zh_cn": {"title": "", "content": paragraphs}}
-
-
-# ── Contact Disambiguation and Deliverable Cards ─────────────────
