@@ -32,6 +32,7 @@ from app.channels.rendering.text_utils import FENCED_BLOCK_RE, fenced_block_html
 from .table_renderer import convert_tables
 
 _MAX_MSG_LENGTH = 4096
+_WIDEST_CHAR_UNITS = 2  # a surrogate pair: the most UTF-16 units one character takes
 
 # A span and a link target never hold a placeholder (NUL): backticks on both sides of a protected block stay text, and
 # a "link" to `code` is no href with markup in it.
@@ -91,7 +92,13 @@ def md_to_telegram_html(text: str) -> str:
 
 def _utf16_len(s: str) -> int:
     """Calculate the length of a string in UTF-16 code units."""
-    return len(s.encode("utf-16-le")) // 2
+    # ASCII is one unit per character, which spares the encode for tags and plain text
+    return len(s) if s.isascii() else len(s.encode("utf-16-le")) // 2
+
+
+def _reopening_length(tags: list[tuple[str, str, str]]) -> int:
+    """UTF-16 units every chunk spends on the open tags it reopens and the closers it ends with."""
+    return sum(_utf16_len(t[1]) + _utf16_len(t[2]) for t in tags)
 
 
 def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
@@ -101,6 +108,7 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
     1. No chunk exceeds the `limit` in UTF-16 code units.
     2. No UTF-16 surrogate pairs (e.g., Emojis) are truncated.
     3. HTML tags are properly closed at the end of a chunk and reopened at the start of the next chunk.
+    4. A tag that, reopened in every chunk, would leave no room for a character is dropped with its closer.
     """
     if _utf16_len(text) <= limit:
         return [text]
@@ -133,14 +141,24 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
 
                 # Calculate what the stack WOULD look like
                 new_active_tags = list(active_tags)
+                shown = True
                 if is_close:
                     for i in range(len(new_active_tags) - 1, -1, -1):
                         if new_active_tags[i][0] == tag_name:
-                            new_active_tags.pop(i)
+                            shown = bool(new_active_tags.pop(i)[2])
                             break
                 else:
                     close_tag = f"</{tag_name}>"
                     new_active_tags.append((tag_name, part, close_tag))
+                    if _reopening_length(new_active_tags) + _WIDEST_CHAR_UNITS > limit:
+                        # Reopened at the top of every chunk, this tag would leave no room for a character and the
+                        # text could never move on: it stays on the stack, empty, so its closer finds it and is dropped too.
+                        new_active_tags[-1] = (tag_name, "", "")
+                        shown = False
+
+                if not shown:
+                    active_tags = new_active_tags
+                    continue
 
                 new_closing_length = sum(_utf16_len(t[2]) for t in new_active_tags)
 
@@ -173,34 +191,24 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
                 closing_length = sum(_utf16_len(t[2]) for t in active_tags)
                 available_space = limit - current_chunk_utf16_len - closing_length
 
-                if available_space <= 0:
-                    if not current_chunk:
-                        # Edge case: limit is too small even for tags
-                        # Force add one character to avoid infinite loop
-                        char = text_part[0]
-                        current_chunk += char
-                        current_chunk_utf16_len += _utf16_len(char)
-                        text_part = text_part[1:]
-                        continue
-
-                    close_tags_str = "".join(t[2] for t in reversed(active_tags))
-                    chunks.append(current_chunk + close_tags_str)
-
-                    open_tags_str = "".join(t[1] for t in active_tags)
-                    current_chunk = open_tags_str
-                    current_chunk_utf16_len = _utf16_len(current_chunk)
-                    continue
-
                 # Find how many characters fit in available_space
-                guess_len = min(len(text_part), available_space)
+                guess_len = min(len(text_part), max(available_space, 0))
                 sub_text = text_part[:guess_len]
                 while _utf16_len(sub_text) > available_space and guess_len > 0:
                     guess_len -= 1
                     sub_text = text_part[:guess_len]
 
                 if guess_len == 0:
-                    # A single character (like an Emoji) might take 2 UTF-16 units
-                    # If available_space is 1, it won't fit. Force split.
+                    if not current_chunk:
+                        # Edge case: the limit is below one character, and a chunk of that character alone is the best
+                        # there is. Force add it to avoid an infinite loop
+                        char = text_part[0]
+                        current_chunk += char
+                        current_chunk_utf16_len += _utf16_len(char)
+                        text_part = text_part[1:]
+                        continue
+
+                    # The chunk is full, or the next character (an Emoji takes 2 UTF-16 units) does not fit in what is left
                     close_tags_str = "".join(t[2] for t in reversed(active_tags))
                     chunks.append(current_chunk + close_tags_str)
 
