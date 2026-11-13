@@ -209,3 +209,82 @@ class TestVerifyCommandLog:
 
         assert "Running verify_command" in caplog.text
         assert "Zx81qpLm" not in caplog.text
+
+
+_BLOCKED = ExecutionResult(
+    success=False, error="Command blocked for security reasons: Python inline execution (python -c )"
+)
+_FACTORY = (
+    "myrm_agent_harness.agent.meta_tools.file_ops.strategies.strategy_factory.FileSystemStrategyFactory.create_strategy"
+)
+_GUARD = "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.get_file_integrity_guard"
+
+
+class TestVerifyCommandNeverRan:
+    """A verify command that never reached a shell says nothing about the file: the write stays and the response says so."""
+
+    @staticmethod
+    def _create_ctx(executor):
+        return OperationContext(
+            operation=OperationType.CREATE,
+            path="test.py",
+            file_text="print('hello')",
+            verify_command="python -c 'print(1)'",
+            executor=executor,
+        )
+
+    @staticmethod
+    def _new_file_strategy():
+        strategy = AsyncMock()
+        strategy.exists.return_value = False
+        strategy.read_file.return_value = ["print('hello')"]
+        return strategy
+
+    @pytest.mark.asyncio
+    async def test_a_blocked_command_keeps_the_new_file_and_says_so(self, mock_executor):
+        mock_executor.execute_bash.return_value = _BLOCKED
+
+        with patch(_FACTORY) as mock_factory:
+            mock_strategy = self._new_file_strategy()
+            mock_factory.return_value = mock_strategy
+            result = await FileOperationService(self._create_ctx(mock_executor))._execute_create()
+
+        mock_strategy.delete_file.assert_not_awaited()
+        assert "Successfully created" in result
+        assert "Verify command did not run: Command blocked for security reasons" in result
+
+    @pytest.mark.asyncio
+    async def test_an_executor_that_raises_keeps_the_new_file_and_says_so(self, mock_executor):
+        mock_executor.execute_bash.side_effect = PermissionError("Bash execution is blocked in shadow context.")
+
+        with patch(_FACTORY) as mock_factory:
+            mock_strategy = self._new_file_strategy()
+            mock_factory.return_value = mock_strategy
+            result = await FileOperationService(self._create_ctx(mock_executor))._execute_create()
+
+        mock_strategy.delete_file.assert_not_awaited()
+        assert "PermissionError: Bash execution is blocked in shadow context." in result
+
+    @pytest.mark.asyncio
+    async def test_a_blocked_command_keeps_the_edit_and_says_so(self, mock_executor):
+        mock_executor.execute_bash.return_value = _BLOCKED
+        ctx = OperationContext(
+            operation=OperationType.STR_REPLACE,
+            path="test.py",
+            edits=(StrReplaceEdit(old_str="old", new_str="new"),),
+            verify_command="python -c 'print(1)'",
+            executor=mock_executor,
+        )
+
+        with patch(_FACTORY) as mock_factory, patch(_GUARD, return_value=None):
+            mock_strategy = AsyncMock()
+            mock_strategy.exists.return_value = True
+            mock_strategy.is_directory.return_value = False
+            mock_strategy.get_file_size.return_value = 100
+            mock_strategy.read_file.return_value = ["old"]
+            mock_factory.return_value = mock_strategy
+            result = await FileOperationService(ctx)._execute_str_replace()
+
+        mock_strategy.write_file.assert_awaited_once_with("test.py", "new")
+        assert "Successfully replaced text" in result
+        assert "Verify command did not run: Command blocked for security reasons" in result

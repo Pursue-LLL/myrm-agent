@@ -575,7 +575,7 @@ async def test_create_triggers_auto_verify_when_no_verify_command() -> None:
 
     assert "[Auto-Verify]" in result
     assert "Type mismatch" in result
-    mock_auto_verify.assert_called_once_with(executor, "/workspace/main.py")
+    mock_auto_verify.assert_called_once_with(executor, "/workspace/main.py", edit_line_start=None, edit_line_end=None)
 
 
 @pytest.mark.asyncio

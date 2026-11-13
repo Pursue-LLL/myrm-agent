@@ -12,6 +12,7 @@
 
 [INPUT]
 - toolkits.code_execution.executors.base::CodeExecutor (POS: CLI command executor)
+- core.verify_runner::workspace_command_context (POS: runs a check command from the workspace root)
 
 [OUTPUT]
 - run_auto_verify: 主入口函数，执行自动诊断并返回格式化结果
@@ -29,6 +30,8 @@ import os
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from ..core.verify_runner import workspace_command_context
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
@@ -83,14 +86,10 @@ async def _check_linter_available(executor: CodeExecutor, detect_cmd: str) -> bo
     if detect_cmd in _linter_availability_cache:
         return _linter_availability_cache[detect_cmd]
 
-    from myrm_agent_harness.toolkits.code_execution.executors.models import (
-        ExecutionContext,
-    )
-
-    ctx = ExecutionContext(code=f"which {detect_cmd}", work_dir=".", timeout=5)
+    ctx = workspace_command_context(executor, f"which {detect_cmd}", timeout=5)
     try:
         result = await executor.execute_bash(ctx)
-        available = result.success
+        available = bool(result.success)
     except Exception:
         available = False
 
@@ -239,12 +238,8 @@ async def run_auto_verify(
     if not await _check_linter_available(executor, config.detect_cmd):
         return None
 
-    from myrm_agent_harness.toolkits.code_execution.executors.models import (
-        ExecutionContext,
-    )
-
     cmd = config.command_template.format(path=file_path)
-    ctx = ExecutionContext(code=cmd, work_dir=".", timeout=AUTO_VERIFY_TIMEOUT_SECONDS)
+    ctx = workspace_command_context(executor, cmd, timeout=AUTO_VERIFY_TIMEOUT_SECONDS)
 
     try:
         result = await asyncio.wait_for(
