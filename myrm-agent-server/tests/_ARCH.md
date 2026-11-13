@@ -697,7 +697,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/mcp_e2e_stream.py` | 辅助 | MCP E2E SSE runner：`run_mcp_agent_stream`、approval resume、iteration_limit 旗标 |
 | `benchmarks/bench_mcp_ptc_vs_direct.py` | 基准 | MCP PTC vs 直连 token/延迟对比；凭据仅来自 `.env.test` |
 | `fixtures/cp_proxy_signature_contract.json` | 辅助 | 控制服务反向代理 HMAC 契约向量（server 侧自包含） |
-| `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`） |
+| `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`；worker 数被 `pyproject.toml` 的 `--maxprocesses` 封顶，要更多须加 `--maxprocesses=M`） |
 | `../scripts/dev/profile_test_memory.py` | 辅助 | 按 test 文件采样 peak RSS，定位高内存用例 |
 | `services/migration/_ARCH.md` | 模块 | 迁移业务层测试清单（五源 discover/load/e2e） |
 | `services/memory/test_import_sessions.py` | 模块 | import session lifecycle；readiness/first-turn 持久化；`recheck_facts` SSOT + readiness recheck facts fallback |
@@ -885,7 +885,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
 - **Prior chat recall SSOT 集成单测**：`tests/api/chats/test_prior_chat_recall_integration.py`（seed-prior-chat-fixture → GET `/recall/search` → mention inject；默认 CI，不依赖 Chrome）
 - **MCP reload confirm Chrome E2E**：`tests/e2e/test_mcp_reload_confirm_chrome_e2e.py`（READ×1 SHPOIB 单会话：toggle · delete · import · add/save → `MCPReloadConfirmDialog`；见 `CHROME_MCP_E2E.md` §MCP reload confirm）
-- 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
+- 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；每个 worker 是独立 Python 进程，内存随 worker 数叠加，所以 `pyproject.toml` 的 `--maxprocesses=4` 把 `-n auto` 与显式 `-n N` 都封顶在 4 个，要更多须显式加 `--maxprocesses=M`（`tests/architecture/test_xdist_worker_cap.py` 守着这一条）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
 - WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane、`test_channel_routing_general_only_chrome_e2e` General-only 签收、`test_push_approval_deeplink_chrome_e2e` 等）；READ 只读测例不占 LIVE_AGENT cap（`scripts/dev/e2e_session/lane.py`）
 - CI 默认套件：`scripts/ci/run_default_tests.sh`（串行 `-n0`，标记过滤取自 `pyproject.toml` 的 `addopts`，workflow `server-unit-tests.yml`）
