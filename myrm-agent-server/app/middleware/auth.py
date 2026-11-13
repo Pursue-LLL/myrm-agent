@@ -72,7 +72,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         client_ip = request.client.host if request.client else ""
         host_header = request.headers.get("host", "")
-        from app.config.deploy_mode import is_local_mode, is_sandbox, is_webui_remote_mode
+        from app.config.deploy_mode import is_local_mode, is_sandbox
 
         if is_local_mode() and is_loopback_client(request):
             public_ingress_base_url = ""
@@ -86,7 +86,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             headers=request.headers,
             public_ingress_base_url=public_ingress_base_url,
             is_sandbox=is_sandbox(),
-            is_webui_remote_mode=is_webui_remote_mode(),
         )
         identity = resolve_identity(
             path=path,

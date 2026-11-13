@@ -174,7 +174,7 @@ def resolve_identity(
     private_net = is_private_network_ip(client_ip)
 
     if admission_path is None:
-        from app.config.deploy_mode import is_sandbox, is_webui_remote_mode
+        from app.config.deploy_mode import is_sandbox
 
         resolved_path = resolve_admission_path(
             path=path,
@@ -182,7 +182,6 @@ def resolve_identity(
             host_header=_header_value(headers, "Host"),
             headers=headers,
             is_sandbox=is_sandbox(),
-            is_webui_remote_mode=is_webui_remote_mode(),
         )
         admission_path = resolved_path.value
         trust_zone = admission_path_to_trust_zone(resolved_path).value

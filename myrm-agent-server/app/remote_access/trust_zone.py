@@ -73,12 +73,7 @@ def is_public_host(host_header: str) -> bool:
         address = ipaddress.ip_address(host)
     except ValueError:
         return True
-    return not (
-        address.is_loopback
-        or address.is_private
-        or address.is_link_local
-        or is_tailscale_ip(host)
-    )
+    return not (address.is_loopback or address.is_private or address.is_link_local or is_tailscale_ip(host))
 
 
 def _host_matches_ingress(host_header: str, public_ingress_base_url: str) -> bool:
@@ -180,7 +175,6 @@ def resolve_admission_path(
     headers: Mapping[str, str],
     public_ingress_base_url: str = "",
     is_sandbox: bool = False,
-    is_webui_remote_mode: bool = False,
 ) -> AdmissionPath:
     """Classify request admission path from connection metadata."""
     if is_sandbox:
@@ -215,9 +209,6 @@ def resolve_admission_path(
 
     if private_net:
         return AdmissionPath.LAN_DIRECT
-
-    if is_webui_remote_mode:
-        return AdmissionPath.REMOTE_BIND
 
     return AdmissionPath.REMOTE_BIND
 
