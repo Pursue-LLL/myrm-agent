@@ -15,7 +15,7 @@ from myrm_agent_harness.agent.security.channel_presets import build_channel_secu
 
 from app.channels.delegation import DelegationCoordinator, build_delegation_task
 from app.channels.types import METADATA_APPROVAL_WINDOW_SECONDS_KEY, InboundMessage, OutboundMessage
-from app.core.channel_bridge.agent_executor.execute_preamble.types import build_security_config
+from app.core.channel_bridge.agent_executor.execute_preamble.types import build_security_overlay
 from tests.channels.delegation.test_delegation_router_control import _APPROVE, _delegate, _inbound, _router, _until
 
 
@@ -45,7 +45,7 @@ async def _hand_over(_request: object) -> None:
 
 def _approval_wait(metadata: dict[str, object], *, configured: int = 120, agent_profile: dict[str, object] | None = None) -> int:
     """The approval wait the harness ends up with for a turn: the production path from message metadata to SecurityConfig."""
-    raw = build_security_config({"approvalTimeoutSeconds": configured}, metadata)
+    raw = build_security_overlay(metadata, "").apply({"approvalTimeoutSeconds": configured})
     effective = build_channel_security_config(
         "telegram",
         raw,

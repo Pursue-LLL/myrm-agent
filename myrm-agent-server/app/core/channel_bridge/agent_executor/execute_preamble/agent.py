@@ -46,7 +46,7 @@ from .replay_notice import attach_replay_notice
 from .types import (
     ChannelAgentBuildOutcome,
     ChannelAgentBuildResult,
-    build_security_config,
+    build_security_overlay,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,10 +197,6 @@ async def build_channel_execution_agent(
     set_current_agent_id(resolved_agent_id or "default")
 
     from app.core.channel_bridge.executor_helpers import extract_external_agents
-    from app.core.channel_bridge.learn_handler import (
-        apply_learn_skill_manage_permission_overlay,
-        learn_authoring_prompt_text,
-    )
     from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
     agent_security_raw = (
@@ -208,6 +204,7 @@ async def build_channel_execution_agent(
         if resolved_profile and resolved_profile.security_overrides
         else None
     )
+    security_overlay = build_security_overlay(msg.metadata, query)
 
     params = GeneralAgentParams(
         query=query,
@@ -243,10 +240,8 @@ async def build_channel_execution_agent(
         memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation", True)),
         enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
         enable_conversation_search=resolve_conversation_search_enabled(memory_settings) and not memory_scope.is_compartment,
-        security_config_raw=apply_learn_skill_manage_permission_overlay(
-            build_security_config(configs.security_config_dict, msg.metadata),
-            query=query,
-        ),
+        security_config_raw=security_overlay.apply(configs.security_config_dict),
+        security_overlay=security_overlay,
         agent_security_raw=agent_security_raw,
         memory_policy=memory_scope.policy,
         memory_decay_profile=memory_decay_profile,
@@ -264,7 +259,7 @@ async def build_channel_execution_agent(
         code_execution_allow_network=_extract_code_exec_network(memory_settings),
         **privacy_agent_params(memory_settings),
         notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
-        force_skill_manage=learn_authoring_prompt_text(query) is not None,
+        force_skill_manage=security_overlay.learn_authoring,
         locale=resolve_message_locale(msg),
     )
 

@@ -6,7 +6,7 @@
 - execute_preamble.instructions (POS: user instruction enrichment)
 - execute_preamble.preamble (POS: prepare channel execution)
 - execute_preamble.session (POS: channel session context)
-- execute_preamble.types (POS: preamble DTOs and security config)
+- execute_preamble.types (POS: preamble DTOs and the turn's security overlay)
 
 [OUTPUT]
 - Re-exports for channel turn preamble assembly
@@ -25,7 +25,7 @@ from .types import (
     ChannelAgentBuildResult,
     ChannelExecutionPrep,
     PrepareChannelExecutionResult,
-    build_security_config,
+    build_security_overlay,
 )
 
 __all__ = [
@@ -35,7 +35,7 @@ __all__ = [
     "ChannelSessionContext",
     "PrepareChannelExecutionResult",
     "build_channel_execution_agent",
-    "build_security_config",
+    "build_security_overlay",
     "enrich_channel_user_instructions",
     "maybe_backfill_channel_history",
     "prepare_channel_execution",

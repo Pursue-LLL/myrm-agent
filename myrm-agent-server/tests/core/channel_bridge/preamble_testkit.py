@@ -89,7 +89,13 @@ async def build_agent(
     )
 
 
-async def build_live_turn(msg: InboundMessage, *, is_resume: bool = False) -> tuple[ChannelAgentBuildResult, GeneralAgentParams]:
+async def build_live_turn(
+    msg: InboundMessage,
+    *,
+    is_resume: bool = False,
+    configs: UserConfigs | None = None,
+    query: str | list[dict[str, object]] = "test query",
+) -> tuple[ChannelAgentBuildResult, GeneralAgentParams]:
     """The turn ``build_channel_execution_agent`` assembles for ``msg``, and the params its agent was created from."""
     captured: dict[str, GeneralAgentParams] = {}
 
@@ -113,7 +119,7 @@ async def build_live_turn(msg: InboundMessage, *, is_resume: bool = False) -> tu
             return_value=[],
         ),
     ):
-        outcome = await build_agent(msg, is_resume=is_resume)
+        outcome = await build_agent(msg, is_resume=is_resume, configs=configs, query=query)
 
     assert outcome.result is not None
     return outcome.result, captured["params"]
