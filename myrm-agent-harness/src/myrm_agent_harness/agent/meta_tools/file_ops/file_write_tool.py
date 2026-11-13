@@ -31,7 +31,7 @@ from myrm_agent_harness.agent.meta_tools._context_recovery import ensure_executo
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
-from .constants import MAX_FILE_WRITE_SIZE_BYTES
+from .constants import MAX_FILE_WRITE_SIZE_BYTES, REASON_FIELD_DESCRIPTION
 from .core import FileOperationService, OperationContext, OperationType
 
 if TYPE_CHECKING:
@@ -59,32 +59,28 @@ def _is_blank_file_content(content: str) -> bool:
 class FileWriteInput(BaseModel):
     """文件写入工具输入参数"""
 
-    path: str = Field(description="文件路径（支持 File ID，如 @file_001）")
-    content: str = Field(description="文件内容（不能为空或纯空白）")
+    # The parameter descriptions are the English schema every locale sends; only the tool description is localized.
+    path: str = Field(description="File path.")
+    content: str = Field(description="Full file content; must not be empty.")
     verify_command: str | None = Field(
         default=None,
-        description="写入后自动执行的校验命令（如 'python -m py_compile file.py' 或 'node --check file.js'）。如果校验失败，将拒绝写入并返回错误。",
+        description=(
+            "Strongly recommended for code files: a check run after writing, e.g. 'python -m py_compile f.py' "
+            "or 'node --check f.js'. If it fails the file is deleted and the error returned."
+        ),
     )
-    reason: str | None = Field(default=None, description="执行命令的原因（可选，用于日志）")
+    reason: str | None = Field(default=None, description=REASON_FIELD_DESCRIPTION)
 
 
-_FILE_WRITE_TOOL_DESCRIPTION_ZH = """创建新文件；目标路径已存在时会被拒绝。修改已有文件必须使用 file_edit_tool（严禁使用 bash echo/heredoc/tee 写入文件）。
+_FILE_WRITE_TOOL_DESCRIPTION_ZH = (
+    "创建新文件（缺失的父目录会自动创建）；目标路径已存在时会被拒绝，修改已有文件请用 file_edit_tool。"
+    "禁止用 bash echo/heredoc/tee 写文件。"
+)
 
-参数：
-- path: 文件路径 (支持普通路径或 "@file_id")
-- content: 新文件的完整内容（不能为空或纯空白）
-- verify_command: 写入后自动执行的语法/类型校验命令（强烈建议提供，如 'python -m py_compile file.py'）。校验失败会拒绝写入，避免死循环。
-- reason: 操作原因（可选）
-"""
-
-_FILE_WRITE_TOOL_DESCRIPTION_EN = """Create a new file; a path that already exists is rejected. To change an existing file you MUST use file_edit_tool (never use bash echo/heredoc/tee to write files).
-
-Parameters:
-- path: File path (supports normal path or "@file_id")
-- content: Full content of the new file (must not be empty or whitespace only)
-- verify_command: Syntax/type check command executed automatically after write (strongly recommended, e.g. 'python -m py_compile file.py'). Write is rejected on failure to prevent loops.
-- reason: Optional operational purpose
-"""
+_FILE_WRITE_TOOL_DESCRIPTION_EN = (
+    "Create a new file (missing parent directories are created). A path that already exists is rejected; "
+    "change existing files with file_edit_tool. Never write files with bash echo/heredoc/tee."
+)
 
 
 def resolve_file_write_tool_description(locale: str | None = None) -> str:

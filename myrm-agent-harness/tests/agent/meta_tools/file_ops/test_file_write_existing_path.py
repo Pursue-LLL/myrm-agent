@@ -45,6 +45,14 @@ async def test_a_new_path_is_created(workspace: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_missing_parent_directories_are_created(workspace: Path) -> None:
+    """The tool description promises this, so the model never has to run mkdir first."""
+    await _write("docs/guide/notes.txt", "alpha\n")
+
+    assert (workspace / "docs" / "guide" / "notes.txt").read_text(encoding="utf-8") == "alpha\n"
+
+
+@pytest.mark.asyncio
 async def test_an_existing_path_is_refused_untouched_and_the_hint_names_the_edit_tool(workspace: Path) -> None:
     (workspace / "notes.txt").write_text("alpha\n", encoding="utf-8")
 
