@@ -11,15 +11,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
-
-if TYPE_CHECKING:
-    pass
-
-# Minimum compression savings threshold (Prompt Cache protection).
-# See CONTEXT_ENGINEERING.md §5.2.
-# Assumes T_prefix=30k, T_cleared > T_prefix * (1-P), at 90% discount: 30k * 0.1 = 3k.
-# 3000 tokens balances cache protection without being overly conservative.
+from typing import Literal
 
 BUILTIN_FILTER_PROTECTED_TOOLS: frozenset[str] = frozenset(
     {
@@ -39,12 +31,13 @@ BUILTIN_ACTIVE_PRUNE_NEVER_TOOLS: frozenset[str] = frozenset(
 BUILTIN_PROTECTED_TOOLS: frozenset[str] = BUILTIN_FILTER_PROTECTED_TOOLS
 
 DEFAULT_BUSINESS_PROTECTED_TOOLS: set[str] = {
-    "memory_search",
+    "memory_search_tool",
 }
 
 DEFAULT_SOFT_ONLY_TOOLS: set[str] = set()
 
 ToolPruneMode = Literal["allow", "soft_only", "protect"]
+
 
 @dataclass
 class ToolProtectionConfig:
@@ -53,7 +46,7 @@ class ToolProtectionConfig:
     Architecture: built-in + business tool protection.
     - Filter-protected: skill_select, todo_write, file_read (no UECD re-spill / read loop)
     - Active-prune-never: skill_select, todo_write (never archive placeholders)
-    - Business: application-level tools (memory_search, etc.) are user-configurable
+    - Business: application-level tools are user-configurable; the memory search tool (memory_search_tool) is protected by default
     - Soft-only: tools that can be trimmed but should not be fully archived
 
     Cache-TTL pruning uses prune_mode(): protected tools are never touched,
@@ -104,5 +97,6 @@ class ToolProtectionConfig:
     @classmethod
     def disabled(cls) -> ToolProtectionConfig:
         return cls(business_protected=set(), soft_only_tools=set(), enable_protection=False)
+
 
 TOOL_PROTECTION_CONFIG = ToolProtectionConfig.default()

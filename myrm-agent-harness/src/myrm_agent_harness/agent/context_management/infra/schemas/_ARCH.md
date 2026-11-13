@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 门面 | 导出全部配置/模型/协议，并重导出 pre-compact 名称 | ✅ |
 | `config.py` | 核心 | `ContextConfig`、默认配置与压缩阈值 | ✅ |
-| `tool_protection.py` | 核心 | 工具保护配置与内置白名单 | ✅ |
+| `tool_protection.py` | 核心 | 工具保护配置、内置白名单与默认业务保护集合（`memory_search_tool`；集合里的每个名字都必须是已登记的工具名，`test_tool_protection.py` 守着这一点） | ✅ |
 | `cache.py` | 核心 | 缓存 TTL 裁剪配置与 provider 缓存反馈 | ✅ |
 | `offload.py` | 核心 | offload 结果、失败分类与 eviction 类型 | ✅ |
 | `summary.py` | 核心 | 紧凑工具调用、压缩意图与结构化摘要 | ✅ |

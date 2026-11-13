@@ -637,6 +637,8 @@ LIFECYCLE: Retained while session active (30d) or file accessed (14d)
 BUILTIN_PROTECTED_TOOLS = frozenset({"skill_select_tool", "todo_write", "file_read_tool"})
 ```
 
+业务保护集合 `DEFAULT_BUSINESS_PROTECTED_TOOLS`（默认 `{"memory_search_tool"}`，应用可增减）里的工具，其结果同样不被过滤，也不被主动裁剪、不被缓存 TTL 裁剪。保护按工具名精确匹配，所以集合里的每个名字都必须是已登记的工具名（`tests/agent/context_management/test_tool_protection.py` 逐个核对）。
+
 注意：保护只针对 Filter（不可逆），不针对 Compress（可逆）。压缩后 Agent 可以通过 `cat` 恢复原始内容。
 
 ---
