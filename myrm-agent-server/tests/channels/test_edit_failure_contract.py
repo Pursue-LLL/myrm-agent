@@ -71,7 +71,7 @@ def _discord_channel_unreachable() -> BaseChannel:
 def _feishu_refuses() -> BaseChannel:
     channel = FeishuChannel(app_id="a", app_secret="s")
     client = AsyncMock(spec=FeishuClient)
-    client.edit_message.return_value = False
+    client.update_card.return_value = False
     channel._client = client
     return channel
 

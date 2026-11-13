@@ -374,18 +374,19 @@ class TestEditMessage:
     async def test_edit_text(self) -> None:
         ch = _make_channel()
         mock = _mock_client(ch)
-        mock.edit_message.return_value = True
+        mock.update_card.return_value = True
 
         await ch.edit_message("oc_chat1", "om_msg1", "updated text")
-        mock.edit_message.assert_called_once()
-        call_args = mock.edit_message.call_args
-        assert call_args[0][1] == "interactive"
+        mock.update_card.assert_called_once()
+        message_id, content = mock.update_card.call_args[0]
+        assert message_id == "om_msg1"
+        assert json.loads(content)["elements"][0]["text"]["content"] == "updated text"
 
     @pytest.mark.asyncio
     async def test_edit_placeholder_with_card(self) -> None:
         ch = _make_channel()
         mock = _mock_client(ch)
-        mock.edit_message.return_value = True
+        mock.update_card.return_value = True
 
         msg = OutboundMessage(
             channel="feishu",
@@ -395,9 +396,11 @@ class TestEditMessage:
             components=((ActionButton(label="OK", action_id="ok"),),),
         )
         await ch.edit_placeholder_message("oc_chat1", "om_msg1", msg)
-        mock.edit_message.assert_called_once()
-        call_args = mock.edit_message.call_args
-        assert call_args[0][1] == "interactive"
+        mock.update_card.assert_called_once()
+        message_id, content = mock.update_card.call_args[0]
+        assert message_id == "om_msg1"
+        assert "Final answer" in content
+        assert '"OK"' in content
 
 
 class TestLifecycle:

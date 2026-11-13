@@ -25,7 +25,8 @@ if TYPE_CHECKING:
 
 SendMode = Literal["reply", "root_create", "create"]
 
-_CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True}
+# Feishu updates a card in place only if its config sets ``update_multi`` both before and after the update.
+_CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True, "update_multi": True}
 _ACTION_VALUE_MAX = 200
 
 _HEADER_TEMPLATES: dict[bool | None, tuple[str, str]] = {

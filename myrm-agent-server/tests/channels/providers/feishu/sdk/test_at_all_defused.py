@@ -78,7 +78,7 @@ def _sent_strings(requests: list[tuple[str, dict[str, object]]]) -> list[str]:
 
 @pytest.mark.parametrize("form", _AT_ALL_FORMS)
 @pytest.mark.parametrize("kind", ["text", "post", "card", "result card"])
-@pytest.mark.parametrize("operation", ["send", "reply", "edit", "patch"])
+@pytest.mark.parametrize("operation", ["send", "reply", "update"])
 @pytest.mark.asyncio
 async def test_every_message_operation_defuses_mention_everyone(operation: str, kind: str, form: str) -> None:
     requests: list[tuple[str, dict[str, object]]] = []
@@ -89,10 +89,8 @@ async def test_every_message_operation_defuses_mention_everyone(operation: str, 
         await client.send_message("oc_1", "text", content)
     elif operation == "reply":
         await client.reply_message("om_1", "text", content)
-    elif operation == "edit":
-        await client.edit_message("om_1", "interactive", content)
     else:
-        await client.patch_message("om_1", "interactive", content)
+        await client.update_card("om_1", content)
 
     sent = _sent_strings(requests)
     assert not any(_AT_ALL.search(s) for s in sent)

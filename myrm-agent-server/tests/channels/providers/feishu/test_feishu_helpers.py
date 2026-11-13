@@ -12,8 +12,11 @@ from app.channels.providers.feishu.cards import (
     build_component_card as build_feishu_card,
 )
 from app.channels.providers.feishu.cards import (
+    build_result_card,
+    build_thinking_card,
     merge_streaming_text,
     parse_card_action,
+    wrap_text_as_card,
 )
 from app.channels.providers.feishu.sdk.client import _MAX_DOWNLOAD_BYTES
 from app.channels.types import OutboundMessage
@@ -106,6 +109,16 @@ class TestBuildFeishuCard:
         msg = _make_msg(quick_replies=(QuickReply(label="X", text="x"),))
         card = build_feishu_card(msg, "")
         assert card["elements"][0]["tag"] == "action"
+
+
+@pytest.mark.parametrize(
+    "card",
+    [build_thinking_card("thinking"), wrap_text_as_card("progress"), build_result_card("answer", timestamp="now")],
+    ids=["placeholder", "progress", "result"],
+)
+def test_a_card_updated_in_place_opts_in_to_update_multi(card: dict[str, object]) -> None:
+    """Feishu updates a card in place only while its config sets ``update_multi``, before and after the update."""
+    assert card["config"]["update_multi"] is True
 
 
 class TestParseCardAction:
@@ -388,7 +401,7 @@ class TestFeishuClient:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_edit_message_success(self) -> None:
+    async def test_update_card_success(self) -> None:
         client = FeishuClient("app_id", "app_secret")
         client._token = "tok"
         client._token_expires_at = float("inf")
@@ -399,14 +412,14 @@ class TestFeishuClient:
         resp.json.return_value = {"code": 0}
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.is_closed = False
-        mock_http.put.return_value = resp
+        mock_http.patch.return_value = resp
         client._http = mock_http
 
-        result = await client.edit_message("om_123", "text", '{"text":"edited"}')
+        result = await client.update_card("om_123", '{"card":"data"}')
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_edit_message_failure(self) -> None:
+    async def test_update_card_failure(self) -> None:
         client = FeishuClient("app_id", "app_secret")
         client._token = "tok"
         client._token_expires_at = float("inf")
@@ -417,42 +430,10 @@ class TestFeishuClient:
         resp.json.return_value = {"code": 99999, "msg": "not found"}
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.is_closed = False
-        mock_http.put.return_value = resp
-        client._http = mock_http
-
-        result = await client.edit_message("om_123", "text", '{"text":"edited"}')
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_patch_message_success(self) -> None:
-        client = FeishuClient("app_id", "app_secret")
-        client._token = "tok"
-        client._token_expires_at = float("inf")
-
-        resp = MagicMock()
-        resp.status_code = 200
-        mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mock_http.is_closed = False
         mock_http.patch.return_value = resp
         client._http = mock_http
 
-        result = await client.patch_message("om_123", "interactive", '{"card":"data"}')
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_patch_message_failure(self) -> None:
-        client = FeishuClient("app_id", "app_secret")
-        client._token = "tok"
-        client._token_expires_at = float("inf")
-
-        resp = MagicMock()
-        resp.status_code = 400
-        mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mock_http.is_closed = False
-        mock_http.patch.return_value = resp
-        client._http = mock_http
-
-        result = await client.patch_message("om_123", "interactive", '{"card":"data"}')
+        result = await client.update_card("om_123", '{"card":"data"}')
         assert result is False
 
     @pytest.mark.asyncio

@@ -44,7 +44,7 @@ def _reply(content: str = "Claim A 【4】 and claim B 【5】.", **metadata: ob
 def _channel() -> tuple[FeishuChannel, AsyncMock]:
     channel = FeishuChannel(app_id="test_app_id", app_secret="test_app_secret")
     client = AsyncMock(spec=FeishuClient)
-    client.edit_message.return_value = True
+    client.update_card.return_value = True
     client.send_message.return_value = "om_1"
     channel._client = client
     return channel, client
@@ -90,7 +90,7 @@ class TestRenderedReply:
 
         await MessageEffects(_bus(channel, [])).edit_placeholder("feishu", "oc_chat1", "ph-1", _reply())
 
-        shown = _card_text(client.edit_message.await_args.args[2])
+        shown = _card_text(client.update_card.await_args.args[1])
         assert shown.count(_FOURTH) == 1
         assert shown.count(_FIFTH) == 1
         assert shown.count(_COST_TEXT) == 1
@@ -101,7 +101,7 @@ class TestRenderedReply:
         published: list[OutboundMessage] = []
 
         await MessageEffects(_bus(channel, published)).edit_placeholder("feishu", "oc_chat1", "ph-1", _reply(_LONG_BODY))
-        shown = [_card_text(client.edit_message.await_args.args[2])]
+        shown = [_card_text(client.update_card.await_args.args[1])]
         shown += await _sent_card_texts(channel, client, published)
 
         assert len(shown) > 1, "the reply must be long enough to be split, or this test proves nothing"
@@ -127,7 +127,7 @@ class TestRenderedReply:
 
         await channel.edit_placeholder_message("oc_chat1", "ph-1", rendered)
 
-        card = json.loads(client.edit_message.await_args.args[2])
+        card = json.loads(client.update_card.await_args.args[1])
         buttons = [button for element in card["elements"] if element.get("tag") == "action" for button in element["actions"]]
         assert [button["text"]["content"] for button in buttons] == ["Go on"]
 
