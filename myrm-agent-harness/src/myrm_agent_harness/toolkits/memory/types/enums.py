@@ -70,12 +70,13 @@ class ConflictResolution(StrEnum):
 
 
 class ToolRulePriority(StrEnum):
-    """Compression resistance level for procedural rules.
+    """Durability level of a procedural rule against forgetting.
 
-    CRITICAL rules are excluded from TTL archiving (see
-    ``maintenance_rule_forgetting``), and AGENT_SELF rules are downgraded to
-    HIGH if they try to claim it (see ``write_service``). HIGH marks rules the
-    extractor judged important and is the ceiling for agent-written rules.
+    CRITICAL rules are excluded from TTL archiving and carry an importance
+    floor of 0.95 in retention scoring (see ``maintenance_rule_forgetting``),
+    and AGENT_SELF rules are downgraded to HIGH if they try to claim it (see
+    ``write_service``). HIGH marks rules the extractor judged important and
+    is the ceiling for agent-written rules.
     The level does not decide what the prompt budget keeps: every rule shares
     the stable-layer budget, and trimming drops rules from the end of the list.
     A user-endorsed rule (``is_user_locked``) is listed first, and a rule

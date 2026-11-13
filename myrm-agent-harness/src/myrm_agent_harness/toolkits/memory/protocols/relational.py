@@ -92,7 +92,8 @@ class RelationalStoreProtocol(Protocol):
     async def submit_pending(self, record: PendingRecord) -> str:
         """Persist a pending record. Returns the record ID, or ``""`` when an identical one is already pending.
 
-        An identical record has the same memory type and content; the store itself keeps one open proposal per text.
+        An identical record has the same memory type and content; the store itself keeps one open proposal per text,
+        and the repeat raises the waiting one again: it moves to the front and takes the repeat's creation time.
         """
         ...
 

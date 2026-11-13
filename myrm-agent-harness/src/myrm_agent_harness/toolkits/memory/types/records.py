@@ -203,13 +203,15 @@ class ProceduralMemory(BaseMemory):
 
     Tool-scoped rules use ``tool_name`` to associate with a specific tool
     and ``tool_rule_priority`` to record how durable the rule is:
-    - CRITICAL: user-mandated, excluded from TTL archiving
+    - CRITICAL: user-mandated, excluded from TTL archiving and held at an
+      importance floor of 0.95 in retention scoring
     - HIGH: judged important by the extractor; ceiling for agent-written rules
     - NORMAL: ordinary rule
 
-    Prompt-budget survival is governed by ``is_user_locked``, not by this
-    level: the prompt lists locked rules first and then newest first, and the
-    budget cut falls on the rules at the end of that list.
+    The level does not decide what the prompt keeps. The prompt lists locked
+    rules (``is_user_locked``) first and then newest first, the budget cut
+    falls on the rules at the end of that list, and a rule worded as a
+    prohibition is pinned against the cut.
 
     Attributes:
         language: Primary language of the rule content ("zh" or "en")

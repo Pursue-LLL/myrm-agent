@@ -792,13 +792,13 @@ result = await extractor.extract(messages=messages)
 
 > 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：所有规则（含 Agent 自存的指令）统一进入 stable 层的同一个 `Behavioral Rules` 段（`priority=3`）；段内不按来源或措辞分组，措辞只在预算裁剪时决定哪些规则被钉住（见下）。
 
-> 规则的先后就是它们的优先级：段内先排用户锁定的规则（`is_user_locked`），其后新的在前。存储层按 `created_at DESC, id DESC` 读出规则，`_internal/storage_context.py` 用稳定排序把锁定的提到前面；块的 Scope Boundary 在块里有规则时补一句「规则冲突时遵循排在前面的一条」，所以用户改过的偏好排在它替换的旧规则之上。审批队列保留提案的创建时间：`create_rule` 沿用规则携带的 `created_at` 并统一转成 UTC 存储（SQLite 按文本排序，混用时区会错序），`/memory approve all` 之后规则的先后仍是提案的先后。动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为这类普通规则被当成禁令会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算）在预算裁剪时被**钉住**（`BudgetedSection.pinned`）：渲染器先给钉住的条目预留预算，其余规则按顺序放入，放不下时丢的是排在最后的未钉住规则，所以规则很多时禁止类规则最后才被丢；段落整体仍受优先级约束，可被更高优先级的段落挤掉。禁止类规则与其它规则同样以 `When: … → Do: …` 渲染，没有单独的段落或前缀。该约束只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
+> 规则的先后就是它们的优先级：段内先排用户锁定的规则（`is_user_locked`），其后新的在前。存储层按 `created_at DESC, id DESC` 读出规则，`_internal/storage_context.py` 用稳定排序把锁定的提到前面；块的 Scope Boundary 在块里有规则时补一句「规则冲突时遵循排在前面的一条」，所以用户改过的偏好排在它替换的旧规则之上。审批队列保留提案的创建时间：`create_rule` 沿用规则携带的 `created_at` 并统一转成 UTC 存储（SQLite 按文本排序，混用时区会错序），`/memory approve all` 之后规则的先后仍是提案的先后；同文的重复提案不另排一条，而是把待审的那条提到队列最前、带上重复提案的日期，所以偏好先改成 B、再改回 A、批准都留到最后时，A 仍排在 B 之上。动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为这类普通规则被当成禁令会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算）在预算裁剪时被**钉住**（`BudgetedSection.pinned`）：渲染器先给钉住的条目预留预算，其余规则按顺序放入，放不下时丢的是排在最后的未钉住规则，所以规则很多时禁止类规则最后才被丢；段落整体仍受优先级约束，可被更高优先级的段落挤掉。禁止类规则与其它规则同样以 `When: … → Do: …` 渲染，没有单独的段落或前缀。该约束只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
 
 > 规则没有整数优先级：规则表、`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的参数、Markdown 导出行都不含这个字段，先后只由锁定与创建时间决定。库里还留有 `procedural_rules.priority` 列时，打开库会把它删掉（`relational/_schema.py`，只进不退：仍读写该列的旧版本打不开这个库）；导入时忽略导出文件里的 `priority` 字段。
 
 | 级别 | 来源 | 生命周期 |
 |------|------|---------|
-| CRITICAL | 用户显式确立 | 免 TTL 归档；预算存活仍取决于 `is_user_locked` |
+| CRITICAL | 用户显式确立 | 免 TTL 归档；参与 retention 评分时重要度不低于 0.95；不决定提示词里的去留（见上） |
 | HIGH | 抽取器判定重要；Agent 自写规则的上限 | 与 NORMAL 同等，仅参与 retention 评分 |
 | NORMAL | 自动推断 | 可被遗忘策略回收 |
 
@@ -907,7 +907,7 @@ tools = create_memory_tools(manager=manager)
 
 | 方法                                                                              | 功能                                                                              |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：审批队列自身拒绝与待审提案同类型同内容的第二条提案，并行提交与同库的多个 manager 均如此，画像提案同理；重复时返回空串），并声明批准后应执行的落库语义与待审目标展示内容 |
+| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：审批队列自身拒绝与待审提案同类型同内容的第二条提案，并行提交与同库的多个 manager 均如此，画像提案同理；重复时返回空串，并把待审的那条提到队列最前，载荷带创建时间的提案还改用重复提案的创建时间），并声明批准后应执行的落库语义与待审目标展示内容 |
 | `approve(pending_id, *, edited_content=None)`                                     | 按 `resolution_action` 分派：`STORE` 持久化新记忆 / `CORRECT` 纠正目标记忆 / `DELETE` 归档目标记忆；`edited_content` 为审批者改写后的文本 |
 | `reject(pending_id)`                                                              | 拒绝；记录不存在抛 `MemoryNotFoundError`，已处理（非 `pending`）的记录重复拒绝/批准是空操作，不会重复落库或改写已批准状态 |
 | `get_pending(pending_id)`                                                         | 按 id 读取单条待审批记录（含已处理状态），不存在返回 `None`；供业务层在批准/拒绝前取得审计所需元数据 |
