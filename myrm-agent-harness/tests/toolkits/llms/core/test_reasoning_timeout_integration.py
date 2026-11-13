@@ -136,7 +136,7 @@ class TestReasoningTimeoutRealAPI:
                 continue
             key, _, value = line.partition("=")
             if key and value:
-                os.environ[key] = value
+                os.environ.setdefault(key, value)
 
     @pytest.fixture()
     def env_config(self) -> dict[str, str]:
