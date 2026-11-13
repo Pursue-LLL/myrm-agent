@@ -383,7 +383,7 @@ class BrowserLauncher:
 
         The extension_bridge (injected from business layer) handles:
         - WebSocket connection management
-        - Tab selection and domain authorization
+        - Domain authorization: which of the user's tabs the Agent may touch
         - chrome.debugger attachment and CDP message routing
 
         Returns:

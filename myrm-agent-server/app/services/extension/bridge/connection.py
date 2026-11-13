@@ -31,9 +31,10 @@ from .common import (
     ExtensionTab,
     logger,
 )
+from .state import BridgeState
 
 
-class ConnectionMixin:
+class ConnectionMixin(BridgeState):
     async def _ensure_playwright(self) -> Playwright:
         """Return the cached Playwright instance, starting one if needed."""
         if self._playwright is None:
@@ -100,53 +101,6 @@ class ConnectionMixin:
         browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
         return ExtensionBrowserInstance(browser=browser)
 
-    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> ExtensionBrowserInstance:
-        policy = self._current_access_policy()
-        domain_lower = domain.strip().lower().rstrip(".")
-        if not domain_lower:
-            raise ExtensionBridgeNotAvailable("Domain must not be empty.")
-        if policy.allow_all_eligible_tabs:
-            probe_url = f"https://{domain_lower}"
-            if not is_navigation_target_allowed(probe_url, policy):
-                raise ExtensionBridgeNotAvailable(f"Domain '{domain}' is not an eligible automation target.")
-        elif not self._match_domain(domain_lower, policy.authorized_domains):
-            raise ExtensionBridgeNotAvailable(
-                f"Domain '{domain}' is not authorized. Authorized domains: {policy.authorized_domains}"
-            )
-
-        if not self._connected or self._ws is None:
-            raise ExtensionBridgeNotAvailable("Browser extension is not connected.")
-
-        if not self._hello_received:
-            raise ExtensionBridgeNotAvailable("Extension handshake is not completed yet. Reconnect extension and retry.")
-
-        await self._refresh_tabs()
-        domain_lower = domain.strip().lower().rstrip(".")
-        matching = [tab for tab in self._tabs if self._match_domain(tab.domain, [domain_lower])]
-        if not matching:
-            await self.navigate_to_url(
-                f"https://{domain_lower}",
-                domain=domain_lower,
-                background=False,
-                timeout=timeout,
-            )
-            await self._refresh_tabs()
-            matching = [tab for tab in self._tabs if self._match_domain(tab.domain, [domain_lower])]
-
-        if not matching:
-            raise ExtensionBridgeNotAvailable(f"No extension tab available for domain '{domain_lower}'.")
-
-        active_matches = [tab for tab in matching if tab.active]
-        target_tab = active_matches[0] if active_matches else matching[0]
-
-        await self._sync_relay_tabs()
-        cdp_endpoint = await self._resolve_playwright_cdp_endpoint()
-        pw = await self._ensure_playwright()
-
-        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
-        await self._focus_browser_on_domain(browser, target_tab.domain)
-        return ExtensionBrowserInstance(browser=browser)
-
     async def navigate_to_url(
         self,
         url: str,
@@ -211,13 +165,6 @@ class ConnectionMixin:
         return self._connected
 
     async def disconnect(self) -> None:
-        from app.services.extension.tab_borrow_ledger import get_tab_borrow_ledger
-
-        try:
-            await get_tab_borrow_ledger().restore_all(self._send_move_tab)
-        except Exception as exc:
-            logger.debug("Suppressed error restoring borrowed tabs during disconnect: %s", exc)
-
         if self._heartbeat_task and not self._heartbeat_task.done():
             self._heartbeat_task.cancel()
         if self._receive_task and not self._receive_task.done():

@@ -16659,8 +16659,6 @@
       "relayCapabilityUnavailable": "利用不可",
       "relayCapabilityNavigateLabel": "URL ナビゲーション",
       "relayCapabilityListTabsLabel": "タブ検出",
-      "relayCapabilityAttachLabel": "デバッガー接続",
-      "relayCapabilityDetachLabel": "デバッガー切断",
       "relayCapabilityAgentTabsLabel": "エージェントのタブ制御",
       "relayCapabilityMissingListHelp": "ローカルの myrm-agent-extension を更新して再接続してください。不足: {missing}。",
       "relayCapabilityHelp": "ローカルの myrm-agent-extension を更新して再接続してください。",

@@ -40,6 +40,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/cdp_relay_fakes.py` | 辅助 | 驱动扩展 CDP relay 的单元测试共用：`FakeExtension`（按真实扩展的方式应答 relay 命令并记录：`createTab` / `attach` / `closeTab`，可设为附加或关闭失败）、`RelayClient`（以 Playwright 的接口连 relay，保留收到的每一帧；`announced()` 给出通告过的目标信息，`ask()` 在页面会话上发请求且不等回答）、`WireExtension`（经 WebSocket 的扩展：命令带序号发出，回答由测试给出）、`Reply`，以及共用的 `auto_attaching_client()` / `settle()` |
 | `support/extension_fake_socket.py` | 辅助 | 驱动扩展桥接收循环的单元测试用的 WebSocket 替身 `FakeWs`：排队扩展「发来」的帧、记录服务端回发的帧，队列空了就像扩展断开 |
 | `support/extension_bridge_ws_stub.py` | 辅助 | Extension Bridge Chrome E2E 用的真实 WebSocket 桩（不侧载 MV3）：以与扩展相同的 `hello` 握手声明能力集合 |
+| `support/extension_bridge_ui_probes.py` | 辅助 | Extension Bridge Chrome E2E 在「设置 → 浏览器扩展」页内执行的探针脚本（读状态、点按钮）及准备页面的 API 辅助函数（重置访问策略、等待桩标签页可见） |
 | `support/wiki_clip_client.py` | 辅助 | 剪藏 API 测试共用：`build_wiki_client`（临时 vault 上的 wiki 路由客户端）、`cleanup_wiki_client`、`bypass_loopback_auth`（回环身份）、`poll_clip_job`（轮询剪藏任务到终态） |
 | `support/workspace_text_api.py` | 辅助 | 文本编辑 API 测试共用：挂载 files 路由 + 净化中间件的客户端、含各类文件的示例工作区、读/存/另存请求封装 |
 | `support/otlp_receiver.py` | 辅助 | 进程内 OTLP/HTTP 接收端（`OtlpReceiver`）：解码收到的追踪、指标与日志（`spans()`、`metric_export_count`、`metric_attribute_values`、`log_attribute_values`），断言「运维后端真正收到了什么」；遥测装配与 FastAPI 原生遥测策略的子进程测试共用 |

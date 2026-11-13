@@ -10,19 +10,14 @@ Extension bridge mixin: capability normalisation and guards.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
-
-
 from .common import (
     _ACTION_CAPABILITY_MAP,
     ExtensionBridgeNotAvailable,
 )
+from .state import BridgeState
 
 
-class CapabilityMixin:
+class CapabilityMixin(BridgeState):
     @staticmethod
     def _normalize_capabilities(raw: object) -> set[str]:
         """Normalize extension capability payload to a lowercase token set."""
