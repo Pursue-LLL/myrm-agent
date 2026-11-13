@@ -63,6 +63,7 @@ def _seed_concepts(structure: WikiStructure) -> list[ConceptInfo]:
     return infos
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.timeout(120)
 async def test_sidecar_build_index_query_pipeline(tmp_path):
@@ -119,6 +120,7 @@ async def test_sidecar_build_index_query_pipeline(tmp_path):
     assert query_result.confidence_score > 0, "Confidence should be positive"
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.timeout(60)
 async def test_sidecar_incremental_rebuild_skips_unchanged(tmp_path):

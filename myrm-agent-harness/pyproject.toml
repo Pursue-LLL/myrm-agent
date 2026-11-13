@@ -354,7 +354,7 @@ markers = [
   "api: Public API surface smoke tests (myrm_agent_harness.api)",
   "architecture: Architecture consistency tests (boundary checks, dependency rules)",
   "e2e: End-to-end tests (complete user workflows)",
-  "integration: Integration tests (run with real browser)",
+  "integration: Integration tests that need a real browser or a real model credential (kept out of the default run)",
   "performance: Performance regression tests",
   "slow: Slow tests that are still part of the regular suite",
   "benchmark: Benchmark-style tests that compare implementations",

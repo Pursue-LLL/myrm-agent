@@ -27,7 +27,7 @@ _RAW_MODEL = os.environ.get("BASIC_MODEL", "openai-like/mimo-v2.5-pro")
 _TEST_BASE_URL = os.environ.get("BASIC_BASE_URL", "https://token-plan-sgp.xiaomimimo.com/v1")
 _TEST_API_KEY = os.environ.get("BASIC_API_KEY", "")
 
-pytestmark = pytest.mark.timeout(120)
+pytestmark = [pytest.mark.timeout(120), pytest.mark.integration]
 
 
 def _normalize_model(raw: str) -> tuple[str, str | None]:

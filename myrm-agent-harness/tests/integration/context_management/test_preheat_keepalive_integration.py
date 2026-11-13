@@ -61,6 +61,7 @@ def _make_llm():
     )
 
 
+@pytest.mark.integration
 class TestPreheatPrefixCacheIntegration:
     """Real LLM integration tests for preheat_prefix_cache."""
 
@@ -123,6 +124,7 @@ class TestCacheKeepAliveManagerIntegration:
         assert needs_explicit_preheat("gpt-4o") is False
         assert needs_explicit_preheat("deepseek-v3") is False
 
+    @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_keepalive_loop_sends_real_probe(self) -> None:
         """End-to-end: keepalive loop sends a real probe when idle.
@@ -180,6 +182,7 @@ class TestCacheKeepAliveManagerIntegration:
 
         assert probe_count >= 1, f"Expected at least 1 real probe, got {probe_count}"
 
+    @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_keepalive_lifecycle_start_touch_stop(self) -> None:
         """Full lifecycle: start → touch → stop with real LLM instance."""

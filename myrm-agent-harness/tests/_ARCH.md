@@ -58,6 +58,8 @@ Duplicate basenames such as `test_engine.py` under different `tests/agent/**` su
 
 Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or `e2e` (or `performance`). `pytest_collection_finish` fails collection if a test function calls `.warmup(` or `.acquire_page(` without those markers.
 
+A test that needs a real model credential (`BASIC_API_KEY`, `LITE_API_KEY`, ...) carries `integration` or `e2e` as well. `conftest.py` loads the server's `.env.test` into every run, so an unmarked one would send those keys to the provider from the default suite; marked, it runs only under `-m integration` or `-m e2e`, and skips itself where no credential is set.
+
 ## Test execution (memory-safe)
 
 | Profile | Command | Notes |

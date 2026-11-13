@@ -59,6 +59,7 @@ async def test_evaluate_semantic_assertions_unknown_type():
     assert "Unknown assertion type" in details
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_evaluate_semantic_assertions_real_llm():
     import os

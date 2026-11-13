@@ -172,6 +172,7 @@ _llm = _get_llm()
 _skip_reason = "LLM credentials not available in .env.test"
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.timeout(120)
 @pytest.mark.skipif(_llm is None, reason=_skip_reason)
@@ -235,6 +236,7 @@ async def test_fix_skill_with_eval_cases_regression_gate(tmp_path: Path):
     store.close()
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.timeout(120)
 @pytest.mark.skipif(_llm is None, reason=_skip_reason)
