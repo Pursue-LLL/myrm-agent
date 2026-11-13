@@ -1,14 +1,13 @@
-"""Tests for streaming optimization components in stream_manager.py."""
+"""Tests for the streaming optimization components in stream_manager.py and the block chunker they use."""
 
 from __future__ import annotations
 
 import time
 from unittest.mock import MagicMock
 
+from app.channels.routing.block_chunker import BlockChunker, ChunkConfig
 from app.channels.routing.stream_manager import (
     AdaptiveThrottler,
-    BlockChunker,
-    ChunkConfig,
     IncrementalEditor,
     ProgressEstimator,
     ProgressInfo,

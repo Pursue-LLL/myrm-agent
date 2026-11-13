@@ -104,6 +104,7 @@ from app.channels.protocols.turn_management import (
 from app.channels.reliability.inbound_journal import (
     InboundJournal,
 )
+from app.channels.routing.block_chunker import BlockChunker, ChunkConfig
 from app.channels.routing.command_defs import (
     CommandDef,
 )
@@ -154,8 +155,6 @@ from app.channels.routing.session_rate_limiter import (
 from app.channels.routing.stream_config import StreamConfig
 from app.channels.routing.stream_manager import (
     AdaptiveThrottler,
-    BlockChunker,
-    ChunkConfig,
     IncrementalEditor,
     ProgressEstimator,
     StreamCoordinator,
