@@ -2,7 +2,8 @@
 
 [INPUT]
 - tests.support.chrome_mcp_e2e (POS: private SHPOIB backend + CDP page helpers)
-- cdp_chat.support (POS: live provider readiness, private backend log offset, private-API HITL pin)
+- cdp_chat.support (POS: live provider readiness, private backend log offset)
+- tests.support.hitl_live_e2e (POS: private-API HITL pin)
 
 [OUTPUT]
 - setup_skill_chat(): providers + agent owning the adopted hook skill (its declared shell permission granted) + empty chat
@@ -33,7 +34,6 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat.support import (  # noqa: E402
-    _pin_hitl_on_api_with_retry,
     snapshot_backend_log_offset,
     wait_e2e_provider_ready,
 )
@@ -45,7 +45,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 )
 from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger  # noqa: E402
-from tests.support.hitl_live_e2e import hitl_probe  # noqa: E402
+from tests.support.hitl_live_e2e import pin_private_hitl_mode  # noqa: E402
 
 BASH_TOOL = "bash_code_execute_tool"
 DONE_TOKEN = "HOOKS-E2E-DONE"
@@ -193,13 +193,6 @@ def _grant_declared_permissions(api_url: str, skill_id: str) -> None:
     assert _SHELL_PERMISSION in (granted.get("granted_permissions") or []), granted
 
 
-def _pin_hitl_on_private_api(api_url: str) -> None:
-    """Turn YOLO off on this probe's own backend only; the shared dev backend's config stays untouched."""
-    _pin_hitl_on_api_with_retry(api_url)
-    probe = hitl_probe(api_url)
-    assert not probe.get("yolo") and probe.get("expects_ask") is True, f"HITL not pinned on {api_url}: {probe!r}"
-
-
 @dataclass(frozen=True)
 class SkillChat:
     """One probe: an agent that owns the hook skill, an empty chat for it, and the folder hooks write into."""
@@ -230,7 +223,7 @@ def setup_skill_chat(
     if not wait_e2e_provider_ready(timeout_sec=90.0):
         pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
     if not yolo:
-        _pin_hitl_on_private_api(api_url)
+        pin_private_hitl_mode(api_url)
 
     suffix = uuid.uuid4().hex[:8]
     skill_name = f"{prefix}-{suffix}"
