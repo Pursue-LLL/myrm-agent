@@ -9351,16 +9351,6 @@
     "error": "語音識別失敗",
     "notConfigured": "請先在設定 > 語音中配置 STT"
   },
-  "camera": {
-    "startCamera": "開啟攝像頭",
-    "stopCamera": "關閉攝像頭",
-    "starting": "正在啟動攝像頭...",
-    "switchToFront": "切換到前置攝像頭",
-    "switchToBack": "切換到後置攝像頭",
-    "frames": "幀",
-    "noVisionModel": "當前模型不支援圖片理解，請切換到支援多模態的模型",
-    "noVisionModelWithName": "模型 {model} 不支援圖片理解，請切換到支援多模態的模型"
-  },
   "voiceSession": {
     "startSession": "開始語音會話",
     "stopSession": "結束語音會話",
@@ -9372,8 +9362,6 @@
     "fullDuplexDesc": "朗讀時保持聆聽，自動檢測打斷",
     "enableVoiceSession": "語音會話模式",
     "enableVoiceSessionDesc": "開啟後，語音轉文字自動傳送，Agent 回覆自動朗讀",
-    "enableCamera": "攝像頭輸入",
-    "enableCameraDesc": "在語音會話中允許攝像頭提供視覺上下文",
     "agentBridge": "Agent Bridge 模式",
     "agentBridgeDesc": "Agent 在服務端直接處理語音，降低響應延遲",
     "bubbleExpand": "展開語音面板",

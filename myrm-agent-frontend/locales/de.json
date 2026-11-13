@@ -9351,16 +9351,6 @@
     "error": "Die Spracherkennung ist fehlgeschlagen",
     "notConfigured": "Bitte konfigurieren Sie zunächst STT unter Einstellungen > Sprache"
   },
-  "camera": {
-    "startCamera": "Kamera öffnen",
-    "stopCamera": "Kamera schließen",
-    "starting": "Kamera wird gestartet...",
-    "switchToFront": "Wechseln Sie zur Frontkamera",
-    "switchToBack": "Wechseln Sie zur Rückkamera",
-    "frames": "Rahmen",
-    "noVisionModel": "Das aktuelle Modell unterstützt kein Bildverständnis. Bitte wechseln Sie auf ein visionfähiges Modell.",
-    "noVisionModelWithName": "Modell {model} unterstützt kein Bildverständnis. Bitte wechseln Sie auf ein visionfähiges Modell."
-  },
   "voiceSession": {
     "startSession": "Sprachsitzung starten",
     "stopSession": "Beenden Sie die Sprachsitzung",
@@ -9372,8 +9362,6 @@
     "fullDuplexDesc": "Hören Sie beim Sprechen weiter zu und erkennen Sie Unterbrechungen automatisch",
     "enableVoiceSession": "Sprachsitzungsmodus",
     "enableVoiceSessionDesc": "Wenn diese Option aktiviert ist, werden STT-Ergebnisse automatisch gesendet und Agentenantworten automatisch vorgelesen",
-    "enableCamera": "Kameraeingang",
-    "enableCameraDesc": "Ermöglichen Sie den visuellen Kamerakontext in der Sprachsitzung",
     "agentBridge": "Agent Bridge-Modus",
     "agentBridgeDesc": "Agent verarbeitet Sprache direkt auf dem Server, reduziert Latenz",
     "bubbleExpand": "Sprachpanel erweitern",

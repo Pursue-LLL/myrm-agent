@@ -16,7 +16,6 @@ import { createPersistedStringStore } from '@/hooks/ui/persistedStringStore';
 
 export const VOICE_SETTING_KEYS = {
   sessionEnabled: 'voiceSessionEnabled',
-  cameraEnabled: 'voiceCameraEnabled',
   fullDuplex: 'voiceFullDuplexEnabled',
   agentBridge: 'voiceAgentBridgeEnabled',
   mode: 'voiceSessionMode',

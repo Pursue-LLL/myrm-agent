@@ -9351,16 +9351,6 @@
     "error": "语音识别失败",
     "notConfigured": "请先在设置 > 语音中配置 STT"
   },
-  "camera": {
-    "startCamera": "打开摄像头",
-    "stopCamera": "关闭摄像头",
-    "starting": "正在启动摄像头...",
-    "switchToFront": "切换到前置摄像头",
-    "switchToBack": "切换到后置摄像头",
-    "frames": "帧",
-    "noVisionModel": "当前模型不支持图片理解，请切换到支持多模态的模型",
-    "noVisionModelWithName": "模型 {model} 不支持图片理解，请切换到支持多模态的模型"
-  },
   "voiceSession": {
     "startSession": "开始语音会话",
     "stopSession": "结束语音会话",
@@ -9372,8 +9362,6 @@
     "fullDuplexDesc": "朗读时保持聆听，自动检测打断",
     "enableVoiceSession": "语音会话模式",
     "enableVoiceSessionDesc": "开启后，语音转文字自动发送，Agent 回复自动朗读",
-    "enableCamera": "摄像头输入",
-    "enableCameraDesc": "在语音会话中允许摄像头提供视觉上下文",
     "agentBridge": "Agent Bridge 模式",
     "agentBridgeDesc": "Agent 在服务端直接处理语音，降低响应延迟",
     "bubbleExpand": "展开语音面板",

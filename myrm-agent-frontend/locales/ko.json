@@ -9351,16 +9351,6 @@
     "error": "음성 인식 실패",
     "notConfigured": "먼저 설정 > 음성에서 STT를 구성하세요"
   },
-  "camera": {
-    "startCamera": "카메라 열기",
-    "stopCamera": "카메라 닫기",
-    "starting": "카메라 시작 중...",
-    "switchToFront": "전면 카메라로 전환",
-    "switchToBack": "후면 카메라로 전환",
-    "frames": "프레임",
-    "noVisionModel": "현재 모델은 이미지 이해를 지원하지 않습니다. 비전 지원 모델로 전환하세요.",
-    "noVisionModelWithName": "모델 {model}은(는) 이미지 이해를 지원하지 않습니다. 비전 지원 모델로 전환하세요."
-  },
   "voiceSession": {
     "startSession": "음성 세션 시작",
     "stopSession": "음성 세션 중지",
@@ -9372,8 +9362,6 @@
     "fullDuplexDesc": "말하는 동안 계속 듣고, 중단을 자동 감지",
     "enableVoiceSession": "음성 세션 모드",
     "enableVoiceSessionDesc": "활성화하면 STT 결과가 자동 전송되고 에이전트 답변이 자동으로 읽혀집니다",
-    "enableCamera": "카메라 입력",
-    "enableCameraDesc": "음성 세션에서 카메라 시각 컨텍스트 허용",
     "agentBridge": "Agent Bridge 모드",
     "agentBridgeDesc": "Agent가 서버에서 직접 음성을 처리하여 지연 시간 감소",
     "bubbleExpand": "음성 패널 펼치기",

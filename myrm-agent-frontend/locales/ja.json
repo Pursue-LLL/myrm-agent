@@ -9351,16 +9351,6 @@
     "error": "音声認識に失敗しました",
     "notConfigured": "先に 設定 > 音声 で STT を設定してください"
   },
-  "camera": {
-    "startCamera": "カメラを開く",
-    "stopCamera": "カメラを閉じる",
-    "starting": "カメラ起動中...",
-    "switchToFront": "前面カメラに切り替え",
-    "switchToBack": "背面カメラに切り替え",
-    "frames": "フレーム",
-    "noVisionModel": "現在のモデルは画像理解をサポートしていません。マルチモーダル対応のモデルに切り替えてください。",
-    "noVisionModelWithName": "モデル {model} は画像理解をサポートしていません。マルチモーダル対応のモデルに切り替えてください。"
-  },
   "voiceSession": {
     "startSession": "音声セッションを開始",
     "stopSession": "音声セッションを終了",
@@ -9372,8 +9362,6 @@
     "fullDuplexDesc": "読み上げ中も聞き続け、割り込みを自動検出",
     "enableVoiceSession": "音声セッションモード",
     "enableVoiceSessionDesc": "有効にすると音声が自動でテキスト化され送信され、エージェントの返信が自動で読み上げられます",
-    "enableCamera": "カメラ入力",
-    "enableCameraDesc": "音声セッション中にカメラのビジュアルコンテキストを許可",
     "agentBridge": "Agent Bridge モード",
     "agentBridgeDesc": "Agent がサーバー上で直接音声を処理し、遅延を低減",
     "bubbleExpand": "音声パネルを展開",

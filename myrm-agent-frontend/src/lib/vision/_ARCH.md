@@ -1,10 +1,9 @@
 # lib/vision/
 
-语音+视觉多模态会话纯函数（帧选择、会话状态机）。
+语音消息随带的屏幕截图类型。
 
-| 文件                     | 职责                 |
-| ------------------------ | -------------------- |
-| `frameSelector.ts`       | 视频帧采样策略       |
-| `speechVisualSession.ts` | 语音视觉会话生命周期 |
+| 文件               | 职责                           |
+| ------------------ | ------------------------------ |
+| `frameSelector.ts` | `VisualFrame`：按住说话的截图帧 |
 
-消费者：`store/chat/multimodalBuilder.ts`、`hooks/voice/useVoiceSession.ts`、`hooks/multimodal/useCameraInput.ts`。
+消费者：`hooks/voice/useVoiceSession.ts`、`components/features/message-input-actions/VoiceSessionButton.tsx`。

@@ -9351,16 +9351,6 @@
     "error": "Speech recognition failed",
     "notConfigured": "Please configure STT in Settings > Voice first"
   },
-  "camera": {
-    "startCamera": "Open camera",
-    "stopCamera": "Close camera",
-    "starting": "Starting camera...",
-    "switchToFront": "Switch to front camera",
-    "switchToBack": "Switch to rear camera",
-    "frames": "frames",
-    "noVisionModel": "Current model does not support image understanding. Please switch to a vision-capable model.",
-    "noVisionModelWithName": "Model {model} does not support image understanding. Please switch to a vision-capable model."
-  },
   "voiceSession": {
     "startSession": "Start voice session",
     "stopSession": "Stop voice session",
@@ -9372,8 +9362,6 @@
     "fullDuplexDesc": "Keep listening while speaking, auto-detect interruptions",
     "enableVoiceSession": "Voice session mode",
     "enableVoiceSessionDesc": "When enabled, STT results auto-send and agent replies auto-read aloud",
-    "enableCamera": "Camera input",
-    "enableCameraDesc": "Allow camera visual context in voice session",
     "agentBridge": "Agent Bridge mode",
     "agentBridgeDesc": "Agent processes voice directly on server, reducing latency",
     "bubbleExpand": "Expand voice panel",
