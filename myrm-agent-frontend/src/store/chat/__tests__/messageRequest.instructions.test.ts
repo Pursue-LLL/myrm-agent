@@ -27,7 +27,7 @@ const makeState = (overrides: Record<string, unknown> = {}) =>
     compactedBeforeId: null,
     workspaceDir: null,
     files: [],
-    cameraFrames: [],
+    visionFrames: [],
     hideAttachList: false,
     hasUsedImagesInCurrentChat: false,
     mentionReferences: [],

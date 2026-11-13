@@ -103,7 +103,9 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
     if (scannedPages.length > 0) {
       // Only pages that actually travelled as images may be called "sent". Past the
       // delivery ceiling the rest were dropped, so the copy must not promise them.
-      const sentPages = result.images.map((img) => img.pageNumber).filter((page): page is number => typeof page === 'number');
+      const sentPages = result.images
+        .map((img) => img.pageNumber)
+        .filter((page): page is number => typeof page === 'number');
       const sentSet = new Set(sentPages);
       const delivered = scannedPages.filter((page) => sentSet.has(page));
       const withheld = scannedPages.filter((page) => !sentSet.has(page));
@@ -259,13 +261,13 @@ const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]>
 };
 
 /**
- * Build multimodal query from attached files and optional camera frames.
+ * Build multimodal query from attached files and optional vision frames (push-to-talk screenshots).
  *
- * All visual content (images, camera frames, PDF charts) is always included
+ * All visual content (images, vision frames, PDF charts) is always included
  * regardless of primary model vision capability — the server-side
  * VisionFallbackEngine handles routing to a vision model when needed.
  *
- * - Camera frames: injected as image_url parts.
+ * - Vision frames: data URLs injected as image_url parts.
  * - Images: passed as URL references (file:// or HTTP) for lazy resolution.
  * - Videos: passed as video_url parts for server-side analysis.
  * - PDFs: text-first extraction; sparse-text PDFs rendered as page images.
@@ -277,10 +279,10 @@ const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]>
 export const buildMultimodalQuery = async (
   textInput: string,
   files: File[],
-  cameraFrames?: string[],
+  visionFrames?: string[],
 ): Promise<string | VisionContentPart[]> => {
   const { imageFiles, videoFiles, pdfFiles, documentFiles, textFiles, otherFiles } = partitionFilesByType(files);
-  const hasCameraFrames = cameraFrames && cameraFrames.length > 0;
+  const hasVisionFrames = visionFrames && visionFrames.length > 0;
   const hasAttachments =
     imageFiles.length > 0 ||
     videoFiles.length > 0 ||
@@ -289,14 +291,14 @@ export const buildMultimodalQuery = async (
     textFiles.length > 0 ||
     otherFiles.length > 0;
 
-  if (!hasAttachments && !hasCameraFrames) {
+  if (!hasAttachments && !hasVisionFrames) {
     return textInput;
   }
 
   const contentParts: VisionContentPart[] = [{ type: 'text', text: textInput }];
 
-  if (hasCameraFrames) {
-    for (const frameDataUrl of cameraFrames) {
+  if (hasVisionFrames) {
+    for (const frameDataUrl of visionFrames) {
       contentParts.push({ type: 'image_url', image_url: { url: frameDataUrl, detail: 'auto' } });
     }
   }

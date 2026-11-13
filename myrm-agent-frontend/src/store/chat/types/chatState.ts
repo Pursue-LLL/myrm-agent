@@ -75,7 +75,7 @@ export interface ChatState {
 
   // 聊天文件
   files: File[];
-  cameraFrames: string[];
+  visionFrames: string[];
   hideAttachList: boolean;
   hasUsedImagesInCurrentChat: boolean;
 
@@ -196,7 +196,7 @@ export interface ChatState {
   setChatHistorySourceFilter: (source: string | null) => void;
   setChatHistorySearchKeyword: (keyword: string) => void;
   setFiles: (files: File[] | ((prev: File[]) => File[])) => void;
-  setCameraFrames: (frames: string[]) => void;
+  setVisionFrames: (frames: string[]) => void;
   setHideAttachList: (hide: boolean) => void;
   setHasUsedImagesInCurrentChat: (hasUsed: boolean) => void;
   addMentionReference: (reference: MentionReference) => void;

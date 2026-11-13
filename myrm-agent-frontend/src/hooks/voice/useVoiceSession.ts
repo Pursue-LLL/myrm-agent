@@ -22,7 +22,6 @@ import { useLiveMeetingNotes, type UseLiveMeetingNotesReturn } from './useLiveMe
 import { useVoiceAgentBridge } from './useVoiceAgentBridge';
 import { useRealtimeVoice } from './useRealtimeVoice';
 import { useGeminiLiveVoice } from './useGeminiLiveVoice';
-import type { VisualFrame } from '@/lib/vision/frameSelector';
 import type { PttScreenContext } from './useVoicePttListener';
 
 export type VoiceSessionState = 'inactive' | 'listening' | 'processing' | 'speaking' | 'paused';
@@ -34,7 +33,8 @@ interface UseVoiceSessionOptions {
   ttsMode?: TTSMode;
   ttsProvider?: string;
   autoSend?: boolean;
-  onSendMessage?: (text: string, visionFrames?: VisualFrame[]) => void;
+  /** Receives the transcript and the base64 screenshots (bare or as data URLs) that ride with it. */
+  onSendMessage?: (text: string, visionFrames?: string[]) => void;
   onError?: (error: string) => void;
   keyterms?: string[];
   /** Enable full-duplex: keep mic open during TTS, auto-detect barge-in */
@@ -255,7 +255,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
       setSessionState('processing');
 
-      let visionFrames: VisualFrame[] | undefined;
+      let visionFrames: string[] | undefined;
       let finalText = text;
 
       // PTT 屏幕上下文汇聚屏障锁（Barrier Sync）：
@@ -279,14 +279,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
       if (pttCtx && Date.now() - pttCtx.timestamp < 30_000) {
         if (pttCtx.screenshot) {
-          const screenFrame: VisualFrame = {
-            id: `ptt-screen-${pttCtx.timestamp}`,
-            base64: pttCtx.screenshot,
-            width: 0,
-            height: 0,
-            timestamp: pttCtx.timestamp,
-          };
-          visionFrames = [screenFrame];
+          visionFrames = [pttCtx.screenshot];
         }
 
         const contextParts: string[] = [];

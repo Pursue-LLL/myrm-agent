@@ -122,7 +122,7 @@ export const createMessageRequest = async (
   const longDocModelSelection = getLongDocModelSelection();
   const fallbackLongDocModelSelection = getFallbackLongDocModelSelection();
 
-  const query = await buildMultimodalQuery(input, state.files, state.cameraFrames);
+  const query = await buildMultimodalQuery(input, state.files, state.visionFrames);
 
   // Prioritize locale from personalSettings, fallback to cookie
   const configStore = useConfigStore.getState();

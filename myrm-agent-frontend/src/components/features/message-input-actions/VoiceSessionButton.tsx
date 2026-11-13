@@ -2,7 +2,6 @@
  * [INPUT]
  * - @/hooks/voice/useVoiceSession::useVoiceSession (POS: Full-duplex voice session orchestrator with PTT screen context)
  * - @/hooks/voice/voiceDeviceSettings::voiceDeviceSettings (POS: Voice settings shared with the settings pages)
- * - @/lib/vision/frameSelector::VisualFrame (POS: Intelligent frame selector for vision)
  * - @/components/features/voice/VoiceSessionOverlay (POS: Full-screen voice session UI)
  * - @/store/useChatStore::useChatStore (POS: Chat state bus)
  *
@@ -23,7 +22,6 @@ import { HeadsetIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { useVoiceSession, type VoiceSessionMode } from '@/hooks/voice/useVoiceSession';
-import type { VisualFrame } from '@/lib/vision/frameSelector';
 import VoiceSessionOverlay from '@/components/features/voice/VoiceSessionOverlay';
 import VoiceBubble from '@/components/features/voice/VoiceBubble';
 import { isStopCommand } from '@/hooks/voice/voiceCommands';
@@ -59,7 +57,7 @@ interface VoiceSessionButtonProps {
 const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionButtonProps) => {
   const t = useTranslations('voiceSession');
   const sendMessage = useChatStore((s) => s.sendMessage);
-  const setCameraFrames = useChatStore((s) => s.setCameraFrames);
+  const setVisionFrames = useChatStore((s) => s.setVisionFrames);
   const chatId = useChatStore((s) => s.chatId);
   const agentId = useChatStore((s) => s.agentConfig?.agentId);
 
@@ -78,21 +76,21 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   }, []);
 
   const handleSendMessage = useCallback(
-    (text: string, visionFrames?: VisualFrame[]) => {
+    (text: string, visionFrames?: string[]) => {
       if (!text.trim()) {
         return;
       }
 
       if (visionFrames?.length) {
-        const dataUrls = visionFrames.map((f) =>
-          f.base64.startsWith('data:') ? f.base64 : `data:image/jpeg;base64,${f.base64}`,
+        const dataUrls = visionFrames.map((base64) =>
+          base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`,
         );
-        setCameraFrames(dataUrls);
+        setVisionFrames(dataUrls);
       }
 
       void sendMessage(text);
     },
-    [sendMessage, setCameraFrames],
+    [sendMessage, setVisionFrames],
   );
 
   const voice = useVoiceSession({

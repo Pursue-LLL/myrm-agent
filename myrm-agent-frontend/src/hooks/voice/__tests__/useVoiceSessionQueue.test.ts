@@ -322,7 +322,13 @@ describe('useVoiceSession speakResponse queue insertion', () => {
     act(() => {
       window.dispatchEvent(
         new CustomEvent('voice-ptt-context', {
-          detail: { windowTitle: 'Safari', extractedText: '', selectedText: '', screenshot: 'SCREENSHOT_BASE64', timestamp },
+          detail: {
+            windowTitle: 'Safari',
+            extractedText: '',
+            selectedText: '',
+            screenshot: 'SCREENSHOT_BASE64',
+            timestamp,
+          },
         }),
       );
     });
@@ -332,7 +338,7 @@ describe('useVoiceSession speakResponse queue insertion', () => {
     });
 
     expect(mockOnSendMessage).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('what is on my screen'), [
-      expect.objectContaining({ id: `ptt-screen-${timestamp}`, base64: 'SCREENSHOT_BASE64', timestamp }),
+      'SCREENSHOT_BASE64',
     ]);
   });
 });
