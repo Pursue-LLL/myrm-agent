@@ -62,6 +62,22 @@ def _typescript(functions: int) -> str:
     )
 
 
+_SERVICE = """import os
+
+
+class Service:
+    def start(self):
+        return 1
+
+    async def stop(self):
+        return 2
+
+
+def helper():
+    return 3
+"""
+
+
 def _lines(count: int, headings: dict[int, str]) -> str:
     """``count`` lines of filler, except the headings at the given line numbers."""
     return "\n".join(headings.get(i, f"filler {i}") for i in range(1, count + 1))
@@ -100,6 +116,44 @@ class TestOutlineOfAFilePastThePageCap:
             await _outline("doc.md")
 
         dispatched.assert_not_awaited()
+
+
+class TestOutlineOfWhatAReadShows:
+    """The outline is built from the view the service renders: a notice and tags around the numbered lines."""
+
+    async def test_python_symbols_have_ranges_and_methods_are_named_after_their_class(self, workspace: Path) -> None:
+        (workspace / "mod.py").write_text(_SERVICE)
+
+        out = await _outline("mod.py")
+
+        assert out.splitlines()[1:] == [
+            "  - Line 4-9: class Service",
+            "  - Line 5-6: def Service.start",
+            "  - Line 8-9: async def Service.stop",
+            "  - Line 12-13: def helper",
+        ]
+
+    async def test_a_yaml_comment_in_the_frontmatter_is_not_a_heading(self, workspace: Path) -> None:
+        (workspace / "doc.md").write_text("---\ntitle: T\n# a yaml comment\n---\n\n# Real heading\n\n## Second\n")
+
+        out = await _outline("doc.md")
+
+        assert out.splitlines()[1:] == ["  - Line 6: # Real heading", "  - Line 8: ## Second"]
+
+    async def test_the_rest_of_a_truncated_python_read_is_outlined_with_ranges(self, workspace: Path) -> None:
+        padding = 120
+        tail = "class Tail:\n    def last(self):\n        return 9\n\n\ndef tail_fn():\n    return 1\n"
+        text = "".join(f"# {'padding ' * 25}\n" for _ in range(padding)) + tail
+        (workspace / "mod.py").write_text(text)
+        assert len(text) > 2 * DEFAULT_FILE_IO_CONFIG.max_read_chars
+
+        out = await _read({"paths": ["mod.py"]})
+
+        assert out.splitlines()[-3:] == [
+            f"  - Line {padding + 1}-{padding + 3}: class Tail",
+            f"  - Line {padding + 2}-{padding + 3}: def Tail.last",
+            f"  - Line {padding + 6}-{padding + 7}: def tail_fn",
+        ]
 
 
 class TestOutlineOfAFilePastTheScanCap:
