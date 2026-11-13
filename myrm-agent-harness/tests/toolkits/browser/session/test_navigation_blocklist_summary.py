@@ -97,13 +97,12 @@ async def test_navigate_via_extension_prefers_navigate_url_path() -> None:
             active=False,
         )
     )
-    bridge.connect_to_domain = AsyncMock()
 
     probe = _ExtensionNavigationProbe(bridge)
     result = await probe._navigate_via_extension("http://portal.corp.local/dashboard")
 
     assert "via extension bridge — private network" in result
-    bridge.connect_to_domain.assert_not_awaited()
+    bridge.navigate_to_url.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -111,14 +110,12 @@ async def test_navigate_via_extension_unknown_action_requires_extension_upgrade(
     bridge = MagicMock()
     bridge.is_connected.return_value = True
     bridge.navigate_to_url = AsyncMock(side_effect=ExtensionBridgeNotAvailableError("Unknown action: navigate_url"))
-    bridge.connect_to_domain = AsyncMock()
 
     probe = _ExtensionNavigationProbe(bridge)
     with pytest.raises(ToolError) as exc_info:
         await probe._navigate_via_extension("http://portal.corp.local/health")
 
     assert exc_info.value.error_code == "PRIVATE_URL_EXTENSION_UPGRADE_REQUIRED"
-    bridge.connect_to_domain.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -128,11 +125,9 @@ async def test_navigate_via_extension_maps_disconnected_to_extension_lost() -> N
     bridge.navigate_to_url = AsyncMock(
         side_effect=ExtensionBridgeNotAvailableError("Browser extension is not connected")
     )
-    bridge.connect_to_domain = AsyncMock()
 
     probe = _ExtensionNavigationProbe(bridge)
     with pytest.raises(ToolError) as exc_info:
         await probe._navigate_via_extension("http://portal.corp.local/health")
 
     assert exc_info.value.error_code == "PRIVATE_URL_EXTENSION_LOST"
-    bridge.connect_to_domain.assert_not_awaited()

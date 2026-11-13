@@ -12,7 +12,7 @@
 | 文件 | 职责 |
 |------|------|
 | `__init__.py` | 子域聚合出口：导出各 gate 公共 API。 |
-| `oauth_availability.py` | Integration 凭证 gate：`IntegrationOAuthSkillBackend` 包装，`apply_integration_oauth_availability`/`enrich_skill_metadata_integration_oauth` 使 Google Workspace / xAI 等在 OAuth / provider 未连接时 Catalog 与 Agent preload 一致降级；先调用 `requirements_availability` 重算 `requires`。 |
+| `oauth_availability.py` | Integration 凭证 gate：判定由生产凭证装配器 `assemble_session_credentials` 对存储凭证的结果推导（skill 需要的每个 issuer 都有 token 才可用），与回合实际发放同源；`credential_track` 选择个人 / 共享口径；`IntegrationOAuthSkillBackend` 包装，`apply_integration_oauth_availability`/`enrich_skill_metadata_integration_oauth` 使 Catalog 与 Agent preload 一致降级；先调用 `requirements_availability` 重算 `requires`。 |
 | `requirements_availability.py` | `requires`（bins / env / config）可用性重算：以 `os.environ ∪ UserSkillConfig.skill_env_vars` 调用 harness `evaluate_requires`，覆盖 Catalog（`apply_requirements_availability_to_catalog`，Skills 页与 Agent 技能目录预览共用）与 Agent runtime（`apply_requirements_availability_to_metadata`）；配置读取失败降级为仅进程 env。 |
 | `x_live_search_skill_enable.py` | xAI provider 保存后 auto-enable prebuilt skill：`maybe_enable_x_live_search_skill`。 |
 | `disabled_skill_roots.py` | 未启用技能 storage 根注入 runtime：`collect_disabled_skill_roots`。 |

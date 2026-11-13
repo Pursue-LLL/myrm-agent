@@ -41,8 +41,6 @@ RELAY_CAPABILITY = "agent_tab_control"
 _ACTION_CAPABILITY_MAP: dict[str, str] = {
     "navigate_url": "navigate_url",
     "list_tabs": "list_tabs",
-    "attach_debugger": "attach_debugger",
-    "detach_debugger": "detach_debugger",
 }
 
 

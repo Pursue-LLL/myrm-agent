@@ -30,7 +30,7 @@ async def test_popup_connect_completes_the_handshake(stack: RealExtensionStack) 
     assert status.handshake_ready
     assert status.extension_version == stack.browser.version
     assert status.browser_name == "Chrome"
-    assert {"navigate_url", "list_tabs", "attach_debugger", "detach_debugger", "agent_tab_control"} <= set(status.capabilities)
+    assert {"navigate_url", "list_tabs", "agent_tab_control"} <= set(status.capabilities)
 
 
 async def test_agent_sees_only_tabs_on_authorized_domains(stack: RealExtensionStack) -> None:

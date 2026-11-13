@@ -4,7 +4,7 @@ Parses frontend-provided dict[str, object] into SubagentConfig objects
 ready to be injected into the DatabaseSubagentCatalog.
 
 [INPUT]
-- ai_agents.custom_agent_factory::EphemeralAgentFactory (POS: Business-layer factory that constructs ephemeral user agents)
+- ai_agents.ephemeral_agent_factory::EphemeralAgentFactory (POS: Business-layer factory that constructs ephemeral user agents)
 - myrm_agent_harness.agent.sub_agents.types::SubagentConfig (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 
 [OUTPUT]
@@ -19,7 +19,7 @@ from collections.abc import Mapping, Sequence
 
 from myrm_agent_harness.agent.sub_agents.types import ControlScope, MemoryIsolationPolicy, SubagentConfig
 
-from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
+from app.ai_agents.ephemeral_agent_factory import EphemeralAgentFactory
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +36,11 @@ def _optional_string_field(data: Mapping[str, object], key: str) -> str | None:
 
 def _optional_int_field(data: Mapping[str, object], key: str) -> int | None:
     value = data.get(key)
-    if value is None or isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         return None
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except ValueError:
         return None
 
 
@@ -57,11 +57,11 @@ def _resolve_auto_vault_threshold(data: Mapping[str, object]) -> int | None:
 
 def _int_field(data: Mapping[str, object], key: str, default: int) -> int:
     value = data.get(key)
-    if value is None or isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         return default
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except ValueError:
         return default
 
 

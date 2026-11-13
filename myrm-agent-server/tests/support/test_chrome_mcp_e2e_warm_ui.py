@@ -18,8 +18,14 @@ from tests.support.chrome_mcp_e2e.patching import patch_everywhere
 def test_warm_ui_route_retries_until_shared_ui_recovers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "5")
+    # The third GET succeeds, so the window only bounds a broken retry loop and must stay far above any host stall.
+    monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "60")
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "0.01")
+    # The registry-reuse shortcut, the peer count and the hydrate-queue decision probe the host with git and ps; the
+    # retry loop needs none of them.
+    monkeypatch.setattr("e2e_core.warm_shell_registry.platform_shell_fresh", lambda **_: False)
+    monkeypatch.setattr("mux.transport_supervisor.parallel_active_test_count", lambda: 0)
+    patch_everywhere(monkeypatch, "parallel_shared_ui_hydrate_queue_enabled", lambda: False)
     patch_everywhere(monkeypatch, "_warm_ui_parallel_wait_sec", lambda base: base)
     patch_everywhere(monkeypatch, "heal_shared_frontend_debounced", lambda *args, **kwargs: None)
     attempts = {"count": 0}

@@ -19,13 +19,7 @@ export const ALARM_NAME = "myrm-keepalive";
 export const KEEP_ALIVE_PERIOD_MINUTES = 0.5;
 export const RECONNECT_DELAY_MS = 3000;
 export const MAX_RECONNECT_DELAY_MS = 30000;
-export const EXTENSION_CAPABILITIES = Object.freeze([
-  "navigate_url",
-  "list_tabs",
-  "attach_debugger",
-  "detach_debugger",
-  "agent_tab_control",
-]);
+export const EXTENSION_CAPABILITIES = Object.freeze(["navigate_url", "list_tabs", "agent_tab_control"]);
 
 const PERSISTED_KEYS = [
   "serverUrl",
@@ -49,6 +43,7 @@ export const state = {
   reconnectDelay: RECONNECT_DELAY_MS,
   isConnecting: false,
   lastError: "",
+  /** @type {string[]} */
   authorizedDomains: [],
   allowAllEligibleTabs: false,
   pausedTabIds: new Set(),

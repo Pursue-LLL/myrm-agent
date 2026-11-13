@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Preflight finish: the attach-mode ready line, the stale-MCP warning, the orchestrator and mux checks and
-# the final runtime health snapshot (with the snapshot function only these steps use).
+# Preflight finish: the CDP WebSocket check, the client warm-up, the stale-MCP warning, the orchestrator and mux
+# checks and the final runtime health snapshot (with the snapshot function only these steps use).
 # Sourced by chrome-e2e-preflight.sh at the point where this step starts. It runs in the entry's shell, so
 # its globals, `fail` and `exit` are the entry's.
 # shellcheck shell=bash
@@ -30,20 +30,6 @@ _print_e2e_health_json() {
   fi
   "${PREFLIGHT_PY}" "${runtime_py}" "${health_args[@]}"
 }
-
-if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-  _heal_shared_ui_if_stale || true
-  if [[ "$(_frontend_client_hot_status)" != "yes" ]]; then
-    fail "client_hot missing during attach — first Agent must finish ./myrm-dev ready --chrome"
-  fi
-  echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
-  CHROME_E2E_CLI="${SCRIPT_DIR}/chrome-e2e/cli.sh"
-  if [[ -f "${CHROME_E2E_CLI}" ]]; then
-    bash "${CHROME_E2E_CLI}" transition preflight-done "${SAVED_FRONTMOST_PID}" >/dev/null 2>&1 || true
-  fi
-  _print_e2e_health_json
-  exit 0
-fi
 
 # 5. CDP WebSocket (Chrome 150+ may omit DevToolsActivePort — use /json/version fallback)
 raw_port="${MYRM_CHROME_E2E_PORT}"

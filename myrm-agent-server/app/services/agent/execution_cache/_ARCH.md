@@ -15,7 +15,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | `__init__.py` | 入口 | 公共导出 | ✅ |
 | `registry.py` | 核心 | acquire（`holds_turn_guard` 标明调用方即持锁回合，见“指纹变化的生效路径”）/release/refresh_unit/guard_turn/idle_evict（支持动态空闲回收超时配置、原子移出与 gc.collect）；`snapshot_warm_units` / `is_scope_turn_active` 供 catalog 热更新；进程级 singleton | ✅ |
 | `types.py` | 核心 | `ExecutionMode`、`BuiltExecutionUnit.teardown()` | ✅ |
-| `fingerprint.py` | 核心 | `compute_execution_fingerprint`（模型类字段统一经 `_model_sig` 提取 build 固化签名，含主/兜底/推理/轻量/视觉/视频模型，且将 temperature/model_kwargs（LLM 实例 build 期固化）与 credential_pool_strategy（CredentialPool build 期固化）纳入签名；结构化配置经 `_credential_free_json` 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey/bearer_token 等凭据后进哈希（媒体生成/搜索服务/嵌入/重排/provider 池/OpenAPI 服务/隐私路由）；技能/MCP/harness epoch/`engine_params` 含 MoA preset 激活态/安全配置/记忆配置（含确认开关/隔离策略/会话搜索/高级检索）/执行网络/通知/看板（含默认看板）/子代理/委托/网页抓取/域名恢复——覆盖所有 build 期固化的用户可配置输入；活跃 Goal 经关键字参数 `has_active_goal`（存储真值）进指纹；排除凭据、传输头、每 run 状态与全局静态配置；YOLO 启用时间戳 `yolo_mode_enabled_at` 不进指纹） | ✅ |
+| `fingerprint.py` | 核心 | `compute_execution_fingerprint`（模型类字段统一经 `_model_sig` 提取 build 固化签名，含主/兜底/推理/轻量/视觉/视频模型，且将 temperature/model_kwargs（LLM 实例 build 期固化）与 credential_pool_strategy（CredentialPool build 期固化）纳入签名；结构化配置经 `_credential_free_json` 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey/bearer_token 等凭据后进哈希（媒体生成/搜索服务/嵌入/重排/provider 池/OpenAPI 服务/隐私路由）；技能/凭证轨道/MCP/harness epoch/`engine_params` 含 MoA preset 激活态/安全配置/记忆配置（含确认开关/隔离策略/会话搜索/高级检索）/执行网络/通知/看板（含默认看板）/子代理/委托/网页抓取/域名恢复——覆盖所有 build 期固化的用户可配置输入；活跃 Goal 经关键字参数 `has_active_goal`（存储真值）进指纹；排除凭据、传输头、每 run 状态与全局静态配置；YOLO 启用时间戳 `yolo_mode_enabled_at` 不进指纹） | ✅ |
 | `unit_ops.py` | 核心 | capture/apply/detach wrapper ↔ unit | ✅ |
 | `session_lifecycle.py` | 核心 | `resolve_execution_mode`、`finalize_agent_session`（release 前 refresh_unit） | ✅ |
 | `prewarm/` | 核心 | Turn1 冷启动预热（见 [prewarm/_ARCH.md](prewarm/_ARCH.md)） | ✅ |
@@ -58,7 +58,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | LLM 实例（主/兜底/推理/轻量/视觉/视频） | model/base_url/max_context_tokens/supports_vision/supports_video/custom_model_def + temperature + model_kwargs（凭据/传输头剔除后，见排除项）+ credential_pool_strategy（固化进 CredentialPool） |
 | system_prompt | prompt_mode / engine_params / search_depth（经 max_iterations/engine_params 间接覆盖）/ unattended_mode / enable_answer_tool |
 | tool_groups | 全部 `enable_*` flag + file_access_mode + image/video/tts params 存在性 |
-| skill_ids / skill_configs | skill_ids / skill_configs / skill_config_version |
+| skill_ids / skill_configs | skill_ids / skill_configs / skill_config_version / credential_track（技能后端按该轨道的凭证池判定凭证门禁技能是否列出，同 chat 的 POOLED 单元不得跨轨道复用） |
 | mcp_servers / openapi_services | mcp_config / openapi_services |
 | memory_namespaces | enable_memory / incognito / memory_policy / channel_name |
 | workspace_binding | declared_allowed_roots |

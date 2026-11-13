@@ -24,6 +24,7 @@ from langgraph.types import Command
 from myrm_agent_harness.agent.middlewares.approval.scheduler import (
     ApprovalTimeoutScheduler,
 )
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 
@@ -80,7 +81,7 @@ async def build_channel_execution_agent(
     memory_decay_profile: str | None,
     memory_extraction_preset: str | None = None,
     memory_scope: TurnMemoryScope,
-    credential_track: str = "personal",
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL,
 ) -> ChannelAgentBuildOutcome:
     from app.core.memory.proactive.settings import (
         resolve_conversation_search_enabled,
@@ -249,6 +250,7 @@ async def build_channel_execution_agent(
         engine_params=agent_engine_params,
         max_iterations=agent_max_iterations,
         channel_name=msg.channel,
+        credential_track=credential_track,
         memory_channel_id=memory_identity.channel_id,
         memory_conversation_id=memory_identity.conversation_id,
         memory_task_id=memory_identity.task_id,

@@ -65,7 +65,6 @@ interface UseVoiceSessionReturn {
   interruptTTS: () => void;
   speakResponse: (text: string, options?: { queue?: boolean }) => void;
   replayLastTTS: () => void;
-  lastSpokenText: string | null;
   interimText: string;
   audioLevel: number;
   ttsState: ReturnType<typeof useTTS>['state'];
@@ -645,7 +644,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     interruptTTS,
     speakResponse,
     replayLastTTS,
-    lastSpokenText: lastSpokenTextRef.current,
     interimText: isRealtime
       ? realtimeVoice.interimText
       : isGeminiLive

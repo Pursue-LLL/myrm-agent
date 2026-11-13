@@ -220,7 +220,7 @@ async def prepare_channel_execution(
         memory_decay_profile=memory_decay_profile,
         memory_extraction_preset=memory_extraction_preset,
         memory_scope=memory_scope,
-        credential_track=team_identity.spec.credential_track.value,
+        credential_track=team_identity.spec.credential_track,
     )
 
     if agent_outcome.early_reply is not None:

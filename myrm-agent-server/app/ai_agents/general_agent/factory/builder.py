@@ -456,6 +456,7 @@ async def build_general_agent(
             jit_subagents=agent_wrapper.jit_subagents,
             subagent_ids=agent_wrapper.subagent_ids or [],
             incognito_mode=agent_wrapper.incognito_mode,
+            credential_track=agent_wrapper.credential_track,
         )
         extensions.insert(-1, subagent_ext)
     else:

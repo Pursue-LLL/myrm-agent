@@ -11,7 +11,6 @@ Extension bridge mixin: domain access policy, authorized domains and warnings.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 
 from app.services.extension.access_policy import (
     ExtensionAccessPolicy,
@@ -22,18 +21,15 @@ from app.services.extension.access_policy import (
     normalize_domain_patterns,
 )
 
-if TYPE_CHECKING:
-    pass
-
-
 from .common import (
     DomainPolicyWarning,
     ExtensionTab,
     logger,
 )
+from .state import BridgeState
 
 
-class AccessPolicyMixin:
+class AccessPolicyMixin(BridgeState):
     @staticmethod
     def _match_domain(domain: str, patterns: list[str]) -> bool:
         """Check if *domain* matches any pattern in *patterns*."""

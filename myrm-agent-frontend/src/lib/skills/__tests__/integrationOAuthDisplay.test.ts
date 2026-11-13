@@ -13,6 +13,7 @@ import {
   SETTINGS_CREDENTIALS_PATH,
   SETTINGS_PROVIDERS_PATH,
   SETTINGS_AGENTS_LOADOUT_PATH,
+  X_LIVE_SEARCH_SKILL_ID,
 } from '../integrationOAuthDisplay';
 import type { Skill, SkillRequires } from '@/store/skill/types';
 
@@ -211,6 +212,34 @@ describe('getIntegrationSkillSettingsPath account routing', () => {
     const skill = buildSkill({ id: 'x-live-search', available: false, unavailable_reason: 'raw reason' });
 
     expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_PROVIDERS_PATH);
+  });
+});
+
+describe('integrationOAuthDisplay X live search as the catalog lists it', () => {
+  const mockTranslator = (key: string) => key;
+
+  // The catalog entry declares its xAI account through the SKILL.md frontmatter, like any account-bound skill.
+  const xLiveSearch = buildSkill({
+    id: X_LIVE_SEARCH_SKILL_ID,
+    available: false,
+    unavailable_reason:
+      'Add an xAI provider in Settings → Models & Providers, or connect your SuperGrok token in Settings → Integrations → Credentials',
+    required_oauth_issuers: ['xai'],
+  });
+
+  it('guides to the provider settings rather than the generic account prompt', () => {
+    expect(hasIntegrationSettingsLink(xLiveSearch)).toBe(true);
+    expect(getIntegrationSkillSettingsPath(xLiveSearch)).toBe(SETTINGS_PROVIDERS_PATH);
+    expect(getIntegrationSkillSettingsLinkLabel(xLiveSearch, mockTranslator)).toBe(
+      'card.integrationOAuth.xLiveSearch.connectInSettings',
+    );
+    expect(getSkillUnavailableDisplayMessage(xLiveSearch, mockTranslator)).toBe(
+      'card.integrationOAuth.xLiveSearch.unavailable',
+    );
+  });
+
+  it('offers no settings link once the skill is available', () => {
+    expect(hasIntegrationSettingsLink({ ...xLiveSearch, available: true, unavailable_reason: null })).toBe(false);
   });
 });
 

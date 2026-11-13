@@ -11,18 +11,12 @@ Extension bridge mixin: clip-agent config push to the extension.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    pass
-
-
-from .common import (
-    logger,
-)
+from .common import logger
+from .state import BridgeState
 
 
-class ClipConfigMixin:
+class ClipConfigMixin(BridgeState):
     async def notify_clip_agent_config(
         self,
         agent_id: str | None,

@@ -25,6 +25,7 @@
 | `SettingsMenu.tsx`                                                                 | 核心 | 分组侧栏（personal / ai-core / ai-tools / knowledge / integration / system） | ✅    |
 | `FormFields.tsx`                                                                   | 辅助 | 通用表单字段                                                                 | ✅    |
 | `SchemaForm.tsx`                                                                   | 辅助 | JSON Schema 驱动表单                                                         | ✅    |
+| `ConfigToggleItem.tsx`                                                             | 辅助 | 带图标的开关行；开关由标题命名、由说明文字描述                               | ✅    |
 | `ConfigImportExport.tsx`                                                           | 辅助 | 配置导入导出                                                                 | ✅    |
 | `MCPConfigForm.tsx`                                                                | 辅助 | MCP 顶层表单（详情见 `mcp/`）                                                | ✅    |
 | `Switcher.tsx`                                                                     | 辅助 | 亮/暗/系统主题切换                                                           | ✅    |

@@ -100,10 +100,10 @@ class ExtensionBridge(Protocol):
         """Obtain the user's browser by connecting through the extension.
 
         The implementation should:
-        1. Verify the extension WebSocket is connected
-        2. Select an appropriate tab (based on authorized domains)
-        3. Attach chrome.debugger to the selected tab
-        4. Expose the CDP session as a Playwright-compatible endpoint
+        1. Verify the extension WebSocket is connected and its handshake is complete
+        2. Verify the user has authorized at least one site (or all eligible tabs)
+        3. Connect to a Playwright-compatible CDP endpoint that carries the extension's chrome.debugger traffic,
+           showing the client only the tabs the user authorized and the ones the Agent opens itself
 
         Args:
             timeout: Maximum seconds to wait for connection.
@@ -112,22 +112,8 @@ class ExtensionBridge(Protocol):
             ExtensionBrowserInstance (the pool does not own the browser lifecycle).
 
         Raises:
-            BrowserLaunchError: If extension is not connected or connection fails.
-        """
-        ...
-
-    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> ExtensionBrowserInstance:
-        """Connect to a specific authorized domain's tab.
-
-        Args:
-            domain: Target domain (e.g., "github.com").
-            timeout: Maximum seconds to wait.
-
-        Returns:
-            ExtensionBrowserInstance connected to a tab matching the domain.
-
-        Raises:
-            BrowserLaunchError: If no tab for the domain exists or domain is not authorized.
+            ExtensionBridgeNotAvailableError: If the extension is not connected or not ready; the launcher reports it
+                as BrowserLaunchError.
         """
         ...
 

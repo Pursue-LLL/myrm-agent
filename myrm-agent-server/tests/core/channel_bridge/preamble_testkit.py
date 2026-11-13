@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 from app.ai_agents.agents import GeneralAgentParams
@@ -58,6 +59,7 @@ async def build_agent(
     query: str | list[dict[str, object]] = "test query",
     memory_settings: dict[str, object] | None = None,
     memory_scope: TurnMemoryScope = OWNER_MEMORY_SCOPE,
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL,
 ) -> ChannelAgentBuildOutcome:
     """``build_channel_execution_agent`` for ``msg``, every other argument at its plain default."""
     return await build_channel_execution_agent(
@@ -86,6 +88,7 @@ async def build_agent(
         auto_restore_domains=[],
         memory_decay_profile=None,
         memory_scope=memory_scope,
+        credential_track=credential_track,
     )
 
 

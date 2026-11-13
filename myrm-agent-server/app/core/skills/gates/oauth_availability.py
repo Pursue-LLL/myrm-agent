@@ -1,31 +1,37 @@
 """Integration skill availability gates for prebuilt skills (Catalog + Agent runtime).
 
 [INPUT]
-- app.services.integrations.oauth_store::is_oauth_issuer_connected (POS: OAuth credential persistence)
+- app.services.agent.session_credential_assembler::assemble_session_credentials, XAI_ISSUER (POS: the rule a turn's credentials are assembled by)
+- app.services.integrations.oauth_store::load_oauth_credentials_row, decrypt_oauth_credentials (POS: stored OAuth credentials)
 - app.core.channel_bridge.config_readiness::load_readiness_inputs (POS: stored provider bundle, also before a default model exists)
-- app.services.agent.platform_config::resolve_xai_search_config (POS: xAI provider key resolver)
 - app.core.skills.gates.requirements_availability (POS: bins/env/config verdict honouring saved skill env)
 - app.database.connection::get_session (POS: async DB session factory)
-- app.services.agent.session_credential_assembler::XAI_ISSUER (POS: canonical issuer key for xAI)
 
 [OUTPUT]
-- INTEGRATION_SKILL_ISSUERS: OAuth-gated prebuilt skills
+- INTEGRATION_SKILL_ISSUERS / INTEGRATION_SKILL_UNAVAILABLE_REASONS: prebuilt skills with a dedicated credential rule
+- ALL_INTEGRATION_GATED_SKILL_IDS: the ids that are hidden when the verdict cannot be computed
 - apply_integration_oauth_availability: updates Catalog Skill entries
 - apply_integration_oauth_to_metadata: mutates Agent SkillMetadata entries
-- IntegrationOAuthSkillBackend / wrap_integration_oauth_backend: SkillBackend wrapper applying all gates
+- enrich_skill_metadata_integration_oauth: opens a session and applies the verdict, failing closed for dedicated ids
+- IntegrationOAuthSkillBackend / wrap_integration_oauth_backend: SkillBackend wrapper applying all gates for one track
 
 [POS]
-Server business-layer guard — keeps skill availability consistent between Catalog and Agent runtime: `requires`
-verdict (bins, env, config; env includes keys saved in skill settings), then OAuth-issuer / xAI-provider gates
-that mark integration-backed skills unavailable when credentials are missing. Shared by Skills HTTP API
-and loader.create_skill_backend().
+Server business-layer guard — keeps skill availability consistent between Catalog and Agent runtime: the `requires`
+verdict (bins, env, config; env includes keys saved in skill settings), then the credential verdict. A skill that
+needs OAuth issuers (the ones its frontmatter declares plus its dedicated issuer) is available exactly when a turn
+on the same credential track is handed a token for every one of them. The verdict runs the production assembler
+over the stored credentials instead of restating its rules, so what a skill is listed for and what a turn receives
+cannot drift apart. The assembler is called without a channel: a listing has no channel token to account for.
+Shared by Skills HTTP API and loader.create_skill_backend().
 """
 
 from __future__ import annotations
 
 import logging
-from typing import cast
+from collections.abc import Sequence
+from typing import Protocol, cast
 
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +42,8 @@ from app.core.skills.gates.requirements_availability import (
 )
 from app.core.skills.models import Skill
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
-from app.services.integrations.oauth_store import is_oauth_issuer_connected
+from app.services.agent.session_credential_assembler import XAI_ISSUER, assemble_session_credentials
+from app.services.integrations.oauth_store import decrypt_oauth_credentials, load_oauth_credentials_row
 
 logger = logging.getLogger(__name__)
 
@@ -49,175 +56,143 @@ X_LIVE_SEARCH_UNAVAILABLE = (
     "or connect your SuperGrok token in Settings → Integrations → Credentials"
 )
 
-# Prebuilt skill id → oauthCredentials issuer key
+# Prebuilt skill id → the issuer it needs whatever its frontmatter declares
 INTEGRATION_SKILL_ISSUERS: dict[str, str] = {
     GOOGLE_WORKSPACE_SKILL_ID: GOOGLE_WORKSPACE_ISSUER,
+    X_LIVE_SEARCH_SKILL_ID: XAI_ISSUER,
 }
 
-# Prebuilt skill id → unavailable reason when the provider gate fails
+# Prebuilt skill id → guidance shown when its dedicated issuer has no token
 INTEGRATION_SKILL_UNAVAILABLE_REASONS: dict[str, str] = {
     GOOGLE_WORKSPACE_SKILL_ID: GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE,
     X_LIVE_SEARCH_SKILL_ID: X_LIVE_SEARCH_UNAVAILABLE,
 }
 
-ALL_INTEGRATION_GATED_SKILL_IDS = set(INTEGRATION_SKILL_ISSUERS) | {X_LIVE_SEARCH_SKILL_ID}
+ALL_INTEGRATION_GATED_SKILL_IDS = frozenset(INTEGRATION_SKILL_ISSUERS)
 
 
-def _metadata_skill_id(meta: SkillMetadata) -> str:
-    return meta.storage_skill_id or meta.name
+class _GatedSkill(Protocol):
+    """What the verdict reads and writes; the catalog ``Skill`` and the runtime ``SkillMetadata`` both have it."""
+
+    @property
+    def id(self) -> str: ...
+
+    available: bool
+    unavailable_reason: str | None
+    required_oauth_issuers: list[str]
 
 
-async def _issuer_connected_map(db: AsyncSession, skill_ids: set[str]) -> dict[str, bool]:
-    issuers = {skill_id: issuer for skill_id, issuer in INTEGRATION_SKILL_ISSUERS.items() if skill_id in skill_ids}
-    if not issuers:
-        return {}
-
-    unique_issuers = set(issuers.values())
-    issuer_connected = {issuer: await is_oauth_issuer_connected(db, issuer) for issuer in unique_issuers}
-    return {skill_id: issuer_connected[issuer] for skill_id, issuer in issuers.items()}
+def _required_issuers(skill: _GatedSkill) -> tuple[str, ...]:
+    """The dedicated issuer first, then the declared ones in frontmatter order, without repeats."""
+    dedicated = INTEGRATION_SKILL_ISSUERS.get(skill.id)
+    return tuple(dict.fromkeys([*([dedicated] if dedicated else []), *skill.required_oauth_issuers]))
 
 
-async def _is_xai_provider_configured() -> bool:
-    from app.core.channel_bridge.config_readiness import load_readiness_inputs
-    from app.services.agent.platform_config import resolve_xai_search_config
-
-    # A fresh install has no default model, which makes load_user_configs() refuse; the catalog must still list.
-    providers_dict, _ = await load_readiness_inputs()
-    if resolve_xai_search_config(providers_dict) is not None:
-        return True
-
-    from app.database.connection import get_session
-    from app.services.agent.session_credential_assembler import XAI_ISSUER
-
-    try:
-        async with get_session() as db:
-            return await is_oauth_issuer_connected(db, XAI_ISSUER)
-    except Exception:
-        return False
+def _unavailable_reason(skill_id: str, missing_issuer: str) -> str:
+    if missing_issuer == INTEGRATION_SKILL_ISSUERS.get(skill_id):
+        return INTEGRATION_SKILL_UNAVAILABLE_REASONS[skill_id]
+    return f"Connect {missing_issuer} in Settings → Integrations → Credentials (required by skill)"
 
 
-async def _integration_skill_connected_map(skill_ids: set[str]) -> dict[str, bool]:
-    if X_LIVE_SEARCH_SKILL_ID not in skill_ids:
-        return {}
-    return {X_LIVE_SEARCH_SKILL_ID: await _is_xai_provider_configured()}
+async def _issuers_with_token(db: AsyncSession, track: CredentialTrack, *, reads_providers: bool) -> frozenset[str]:
+    """Issuers a turn on ``track`` would be handed a token for, from the stored credentials.
 
+    The provider bundle is read only when asked: loading it goes through the user config, which refreshes an
+    expiring subscription token over the network, and a verdict that needs no provider must not trigger that.
+    """
+    row = await load_oauth_credentials_row(db)
+    oauth_credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted) if row else None
 
-def _unavailable_reason(skill_id: str) -> str:
-    return INTEGRATION_SKILL_UNAVAILABLE_REASONS.get(
-        skill_id,
-        GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE,
+    providers: dict[str, object] | None = None
+    if reads_providers:
+        from app.core.channel_bridge.config_readiness import load_readiness_inputs
+
+        # A fresh install has no default model, which makes load_user_configs() refuse; the catalog must still list.
+        providers, _ = await load_readiness_inputs()
+
+    credentials = await assemble_session_credentials(
+        oauth_credentials_dict=oauth_credentials,
+        providers_dict=providers,
+        channel=None,
+        credential_track=track,
     )
+    return frozenset(credential.issuer for credential in credentials if credential.token)
+
+
+async def _apply_credential_verdict(skills: Sequence[_GatedSkill], db: AsyncSession, track: CredentialTrack) -> None:
+    """Mark every skill unavailable whose required issuers the track is not handed a token for."""
+    required = [(skill, _required_issuers(skill)) for skill in skills]
+    wanted = {issuer for _, issuers in required for issuer in issuers}
+    if not wanted:
+        return
+
+    held = await _issuers_with_token(db, track, reads_providers=XAI_ISSUER in wanted)
+    for skill, issuers in required:
+        missing = next((issuer for issuer in issuers if issuer not in held), None)
+        if missing is not None:
+            skill.available = False
+            skill.unavailable_reason = _unavailable_reason(skill.id, missing)
 
 
 async def apply_integration_oauth_availability(
     skills: list[Skill],
     db: AsyncSession,
+    *,
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL,
 ) -> None:
     """Set available=False when a skill requires dependencies or credentials that are missing."""
     await apply_requirements_availability_to_catalog(skills)
-
-    has_custom_issuers = any(bool(getattr(s, "required_oauth_issuers", None)) for s in skills)
-    relevant_ids = {skill.id for skill in skills if skill.id in ALL_INTEGRATION_GATED_SKILL_IDS}
-    if not relevant_ids and not has_custom_issuers:
-        return
-
-    oauth_connected = await _issuer_connected_map(db, relevant_ids)
-    other_connected = await _integration_skill_connected_map(relevant_ids)
-    issuer_status_cache: dict[str, bool] = {}
-
-    for skill in skills:
-        if skill.id in ALL_INTEGRATION_GATED_SKILL_IDS:
-            is_connected = oauth_connected.get(skill.id, other_connected.get(skill.id, True))
-            if not is_connected:
-                skill.available = False
-                skill.unavailable_reason = _unavailable_reason(skill.id)
-                continue
-
-        # Frontmatter declarative required_oauth_issuers dynamic preflight check
-        req_issuers = getattr(skill, "required_oauth_issuers", None) or []
-        if req_issuers:
-            for req_issuer in req_issuers:
-                if req_issuer not in issuer_status_cache:
-                    issuer_status_cache[req_issuer] = await is_oauth_issuer_connected(db, req_issuer)
-                if not issuer_status_cache[req_issuer]:
-                    skill.available = False
-                    skill.unavailable_reason = (
-                        f"Connect {req_issuer} in Settings → Integrations → Credentials (required by skill)"
-                    )
-                    break
+    await _apply_credential_verdict(skills, db, credential_track)
 
 
 async def apply_integration_oauth_to_metadata(
     skills: list[SkillMetadata],
     db: AsyncSession,
+    *,
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL,
 ) -> None:
-    """Apply the OAuth-issuer and provider gates to Agent runtime SkillMetadata."""
-    has_custom_issuers = any(bool(getattr(m, "required_oauth_issuers", None)) for m in skills)
-    relevant_ids = {_metadata_skill_id(meta) for meta in skills if _metadata_skill_id(meta) in ALL_INTEGRATION_GATED_SKILL_IDS}
-    if not relevant_ids and not has_custom_issuers:
-        return
-
-    oauth_connected = await _issuer_connected_map(db, relevant_ids)
-    other_connected = await _integration_skill_connected_map(relevant_ids)
-    issuer_status_cache: dict[str, bool] = {}
-
-    for meta in skills:
-        skill_id = _metadata_skill_id(meta)
-        if skill_id in ALL_INTEGRATION_GATED_SKILL_IDS:
-            is_connected = oauth_connected.get(skill_id, other_connected.get(skill_id, True))
-            if not is_connected:
-                meta.available = False
-                meta.unavailable_reason = _unavailable_reason(skill_id)
-                continue
-
-        # Frontmatter declarative required_oauth_issuers dynamic preflight check
-        req_issuers = getattr(meta, "required_oauth_issuers", None) or []
-        if req_issuers:
-            for req_issuer in req_issuers:
-                if req_issuer not in issuer_status_cache:
-                    issuer_status_cache[req_issuer] = await is_oauth_issuer_connected(db, req_issuer)
-                if not issuer_status_cache[req_issuer]:
-                    meta.available = False
-                    meta.unavailable_reason = f"Connect {req_issuer} in Settings → Integrations → Credentials (required by skill)"
-                    break
+    """Apply the credential verdict to Agent runtime SkillMetadata."""
+    await _apply_credential_verdict(skills, db, credential_track)
 
 
-async def enrich_skill_metadata_integration_oauth(skills: list[SkillMetadata]) -> None:
+async def enrich_skill_metadata_integration_oauth(
+    skills: list[SkillMetadata],
+    *,
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL,
+) -> None:
     """Apply the requirements verdict, then the credential gates (loader / backend wrapper)."""
     await apply_requirements_availability_to_metadata(skills)
 
-    has_gated_id = any(_metadata_skill_id(meta) in ALL_INTEGRATION_GATED_SKILL_IDS for meta in skills)
-    has_custom_issuers = any(bool(getattr(meta, "required_oauth_issuers", None)) for meta in skills)
-    if not has_gated_id and not has_custom_issuers:
+    if not any(_required_issuers(meta) for meta in skills):
         return
     try:
         from app.database.connection import get_session
 
         async with get_session() as db:
-            await apply_integration_oauth_to_metadata(skills, db)
+            await apply_integration_oauth_to_metadata(skills, db, credential_track=credential_track)
     except Exception as exc:
         logger.warning("Failed to enrich skill OAuth availability: %s", exc)
         for meta in skills:
-            skill_id = _metadata_skill_id(meta)
-            if skill_id in ALL_INTEGRATION_GATED_SKILL_IDS:
+            if meta.id in ALL_INTEGRATION_GATED_SKILL_IDS:
                 meta.available = False
-                meta.unavailable_reason = _unavailable_reason(skill_id)
+                meta.unavailable_reason = INTEGRATION_SKILL_UNAVAILABLE_REASONS[meta.id]
 
 
 class IntegrationOAuthSkillBackend:
-    """SkillBackend wrapper that applies the availability gates on list/load."""
+    """SkillBackend wrapper that applies the availability gates on list/load for one credential track."""
 
-    def __init__(self, base: SkillBackend) -> None:
+    def __init__(self, base: SkillBackend, *, credential_track: CredentialTrack = CredentialTrack.PERSONAL) -> None:
         self._base = base
+        self._credential_track = credential_track
 
     async def list_skills(self) -> list[SkillMetadata]:
         skills = await self._base.list_skills()
-        await enrich_skill_metadata_integration_oauth(skills)
+        await enrich_skill_metadata_integration_oauth(skills, credential_track=self._credential_track)
         return skills
 
     async def load_skills(self, skill_ids: list[str]) -> list[SkillMetadata]:
         skills = await self._base.load_skills(skill_ids)
-        await enrich_skill_metadata_integration_oauth(skills)
+        await enrich_skill_metadata_integration_oauth(skills, credential_track=self._credential_track)
         return skills
 
     async def get_skill_content(self, skill_name: str) -> str:
@@ -230,5 +205,9 @@ class IntegrationOAuthSkillBackend:
         return await self._base.list_skill_resources(skill_name)
 
 
-def wrap_integration_oauth_backend(base: SkillBackend) -> SkillBackend:
-    return cast(SkillBackend, IntegrationOAuthSkillBackend(base))
+def wrap_integration_oauth_backend(
+    base: SkillBackend,
+    *,
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL,
+) -> SkillBackend:
+    return cast(SkillBackend, IntegrationOAuthSkillBackend(base, credential_track=credential_track))

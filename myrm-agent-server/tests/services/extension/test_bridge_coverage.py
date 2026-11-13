@@ -2,7 +2,7 @@
 
 These tests drive the defensive/fallback branches of app.services.extension.bridge
 that the main API tests do not reach (heartbeat timeout, relay message dispatch,
-import fallback, policy payload application, focus helpers, etc.).
+import fallback, policy payload application, etc.).
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ async def test_relay_is_not_ready_for_an_extension_without_the_relay_capability(
     bridge = ExtensionBridgeService()
     bridge._connected = True
     bridge._ws = MagicMock()
-    bridge._capabilities = {"navigate_url", "list_tabs", "attach_debugger", "detach_debugger"}
+    bridge._capabilities = {"navigate_url", "list_tabs"}
     await bridge.set_authorized_domains(["example.com"])
     with patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager:
         mock_manager.return_value = AsyncMock()
@@ -88,7 +88,7 @@ async def test_connect_asks_an_extension_without_the_relay_capability_to_upgrade
     bridge._connected = True
     bridge._ws = MagicMock()
     bridge._hello_received = True
-    bridge._capabilities = {"navigate_url", "list_tabs", "attach_debugger", "detach_debugger"}
+    bridge._capabilities = {"navigate_url", "list_tabs"}
     await bridge.set_authorized_domains(["example.com"])
 
     with pytest.raises(ExtensionBridgeNotAvailable, match="upgrade the browser extension"):
@@ -151,105 +151,6 @@ async def test_connect_success_leaves_the_users_tabs_alone() -> None:
 
 
 @pytest.mark.asyncio
-async def test_connect_to_domain_empty_domain_raises() -> None:
-    bridge = ExtensionBridgeService()
-    with pytest.raises(ExtensionBridgeNotAvailable, match="must not be empty"):
-        await bridge.connect_to_domain("  ")
-
-
-@pytest.mark.asyncio
-async def test_connect_to_domain_allow_all_disallows_target() -> None:
-    bridge = ExtensionBridgeService()
-    await bridge.set_access_policy(allow_all_eligible_tabs=True, authorized_domains=["example.com"])
-    # ":" yields an https URL with no hostname, which is never an eligible target.
-    with pytest.raises(ExtensionBridgeNotAvailable, match="not an eligible"):
-        await bridge.connect_to_domain(":")
-
-
-@pytest.mark.asyncio
-async def test_connect_to_domain_handshake_not_complete_raises() -> None:
-    bridge = ExtensionBridgeService()
-    bridge._connected = True
-    bridge._ws = MagicMock()
-    await bridge.set_authorized_domains(["example.com"])
-    with pytest.raises(ExtensionBridgeNotAvailable, match="handshake"):
-        await bridge.connect_to_domain("example.com")
-
-
-@pytest.mark.asyncio
-async def test_connect_to_domain_navigates_then_finds_tab() -> None:
-    bridge = ExtensionBridgeService()
-    bridge._connected = True
-    bridge._ws = MagicMock()
-    bridge._hello_received = True
-    bridge._capabilities = {RELAY_CAPABILITY}
-    await bridge.set_access_policy(allow_all_eligible_tabs=True)
-
-    async def fake_send(action: str, payload: dict | None = None, **kwargs: object) -> object:
-        if action == "list_tabs":
-            return [
-                {
-                    "id": 7,
-                    "url": "https://example.com/path",
-                    "title": "Example",
-                    "domain": "example.com",
-                    "active": True,
-                }
-            ]
-        if action == "navigate_url":
-            return {
-                "tabId": 7,
-                "url": "https://example.com/",
-                "title": "Example",
-                "domain": "example.com",
-                "active": True,
-            }
-        if action == "attach_debugger":
-            return {"tabId": 7}
-        return {}
-
-    mock_browser = MagicMock()
-    mock_browser.contexts = []
-    mock_pw = MagicMock()
-    mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
-    with (
-        patch.object(bridge, "_send_request", side_effect=fake_send),
-        patch.object(bridge, "_ensure_playwright", AsyncMock(return_value=mock_pw)),
-        patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
-    ):
-        mock_manager.return_value = AsyncMock()
-        instance = await bridge.connect_to_domain("example.com")
-
-    assert instance.is_managed is False
-
-
-@pytest.mark.asyncio
-async def test_connect_to_domain_no_tab_available_raises() -> None:
-    bridge = ExtensionBridgeService()
-    bridge._connected = True
-    bridge._ws = MagicMock()
-    bridge._hello_received = True
-    await bridge.set_authorized_domains(["example.com"])
-    bridge._tabs = []
-
-    async def fake_send(action: str, payload: dict | None = None, **kwargs: object) -> object:
-        if action == "list_tabs":
-            return {"not": "a list"}
-        if action == "navigate_url":
-            return {"tabId": 1, "url": "https://example.com/"}
-        return {}
-
-    with (
-        patch.object(bridge, "_send_request", side_effect=fake_send),
-        patch.object(bridge, "_ensure_playwright", AsyncMock(return_value=MagicMock())),
-        patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
-    ):
-        mock_manager.return_value = AsyncMock()
-        with pytest.raises(ExtensionBridgeNotAvailable, match="No extension tab"):
-            await bridge.connect_to_domain("example.com")
-
-
-@pytest.mark.asyncio
 async def test_receive_loop_dispatch_messages() -> None:
     bridge = ExtensionBridgeService()
     bridge._connected = True
@@ -272,11 +173,11 @@ async def test_receive_loop_dispatch_messages() -> None:
                     ],
                 }
             ),
-            json.dumps({"type": "domains_update", "domains": ["github.com"]}),
             json.dumps(
                 {
                     "type": "access_policy_update",
                     "allow_all_eligible_tabs": True,
+                    "domains": ["github.com"],
                     "paused_tab_ids": [1, "2", "abc"],
                 }
             ),
@@ -384,38 +285,6 @@ async def test_send_ws_message_disconnected_raises() -> None:
     bridge = ExtensionBridgeService()
     with pytest.raises(ExtensionBridgeNotAvailable, match="not connected"):
         await bridge._send_ws_message({"type": "x"})
-
-
-@pytest.mark.asyncio
-async def test_focus_browser_on_domain_matches_page() -> None:
-    mock_page = MagicMock()
-    mock_page.url = "https://example.com/path"
-    mock_page.bring_to_front = AsyncMock()
-    mock_context = MagicMock()
-    mock_context.pages = [mock_page]
-    mock_browser = MagicMock()
-    mock_browser.contexts = [mock_context]
-
-    bridge = ExtensionBridgeService()
-    await bridge._focus_browser_on_domain(mock_browser, "example.com")
-    mock_page.bring_to_front.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_focus_browser_on_domain_handles_page_errors() -> None:
-    bad_page = MagicMock()
-    type(bad_page).url = property(lambda self: (_ for _ in ()).throw(RuntimeError("crashed")))
-    good_page = MagicMock()
-    good_page.url = "https://example.com/"
-    good_page.bring_to_front = AsyncMock(side_effect=RuntimeError("focus denied"))
-    mock_context = MagicMock()
-    mock_context.pages = [bad_page, good_page]
-    mock_browser = MagicMock()
-    mock_browser.contexts = [mock_context]
-
-    bridge = ExtensionBridgeService()
-    await bridge._focus_browser_on_domain(mock_browser, "example.com")
-    good_page.bring_to_front.assert_awaited_once()
 
 
 @pytest.mark.asyncio

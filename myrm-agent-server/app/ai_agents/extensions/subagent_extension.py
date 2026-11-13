@@ -1,9 +1,25 @@
+"""SubagentManagementExtension — registers the delegation tools on the agent.
+
+[INPUT]
+- app.ai_agents.subagent_catalog::DatabaseSubagentCatalog (POS: resolves the subagents the agent may delegate to)
+- app.ai_agents.general_agent.blueprint_materializer::materialize_jit_configs (POS: in-memory blueprint subagents)
+- myrm_agent_harness.agent.meta_tools.spawn_subagent (POS: the delegate_task and subagent_control tools)
+
+[OUTPUT]
+- SubagentManagementExtension: registers delegate_task and subagent_control in on_agent_init
+
+[POS]
+Delegation wiring of a GeneralAgent. A delegated sub-agent cannot see the turn it runs in, so this extension carries
+what the owner of the turn knows (the chat's incognito flag, the turn's credential track) to the subagent catalog.
+"""
+
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.extensions.protocols import AgentExtension
+from myrm_agent_harness.agent.security import CredentialTrack
 
 if TYPE_CHECKING:
     from langchain.agents.middleware import AgentMiddleware
@@ -27,10 +43,12 @@ class SubagentManagementExtension(AgentExtension):
         subagent_ids: list[str],
         *,
         incognito_mode: bool = False,
+        credential_track: CredentialTrack = CredentialTrack.PERSONAL,
     ) -> None:
         self.jit_subagents = jit_subagents
         self.subagent_ids = subagent_ids
         self.incognito_mode = incognito_mode
+        self.credential_track = credential_track
 
     @property
     def name(self) -> str:
@@ -63,6 +81,7 @@ class SubagentManagementExtension(AgentExtension):
             bound_agent_ids=combined_ids,
             jit_configs=jit_configs,
             incognito_mode=self.incognito_mode,
+            credential_track=self.credential_track,
         )
 
         available_ids = await catalog.list_available()

@@ -6,6 +6,7 @@ Real assembler, realistically-shaped inputs, no mocks, no LLM.
 from __future__ import annotations
 
 import pytest
+from myrm_agent_harness.agent.security import CredentialTrack
 
 from app.services.agent.session_credential_assembler import assemble_session_credentials
 
@@ -21,7 +22,7 @@ async def test_shared_track_excludes_personal_oauth() -> None:
         oauth_credentials_dict=_OAUTH_DICT,
         providers_dict=None,
         channel="feishu",
-        credential_track="shared",
+        credential_track=CredentialTrack.SHARED,
     )
     issuers = {c.issuer for c in creds}
     assert "google" not in issuers
