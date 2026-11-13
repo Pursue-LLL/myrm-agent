@@ -140,7 +140,7 @@ class KanbanTaskRunner:
                         timeout=effective_timeout,
                     )
                 outcome = await self._map_goal_outcome(task, goal_provider, result) if goal_provider else result
-                return await self._resolve_run_outcome(task.task_id, outcome, approval_needed=acc.stopped_for_approval)
+                return await self._resolve_run_outcome(task.task_id, outcome, request_reason=acc.unanswered_request_reason)
             except asyncio.TimeoutError:
                 elapsed = time.monotonic() - t0
                 logger.warning(
@@ -373,9 +373,9 @@ class KanbanTaskRunner:
         task_id: str,
         agent_result: tuple[bool, str] | TaskExecutionResult,
         *,
-        approval_needed: bool = False,
+        request_reason: str | None = None,
     ) -> tuple[bool, str] | TaskExecutionResult:
-        return await resolve_run_outcome(self._store, task_id, agent_result, approval_needed=approval_needed)
+        return await resolve_run_outcome(self._store, task_id, agent_result, request_reason=request_reason)
 
     async def _execute_agent(
         self,

@@ -8235,7 +8235,8 @@
       "usageLimit": "Wartet auf das Zurücksetzen des Nutzungslimits des Modells. Wird automatisch fortgesetzt.",
       "batchPause": "Mit dem Batch pausiert. Wird fortgesetzt, sobald der Batch fortgesetzt wird.",
       "workdirTooBroad": "Der Arbeitsordner ist zu weit gefasst. Wählen Sie einen konkreteren Ordner und fahren Sie dann fort.",
-      "approvalNeeded": "Eine Aktion braucht eine Genehmigung, aber Aufgaben laufen ohne Aufsicht. Erlauben Sie die Aktion in der Sicherheitsrichtlinie und fahren Sie dann fort."
+      "approvalNeeded": "Eine Aktion braucht eine Genehmigung, aber Aufgaben laufen ohne Aufsicht. Erlauben Sie die Aktion in der Sicherheitsrichtlinie und fahren Sie dann fort.",
+      "takeoverNeeded": "Im Browser ist ein Schritt von einer Person nötig (zum Beispiel eine Anmeldung oder ein Captcha), aber Aufgaben laufen ohne Aufsicht. Erledigen Sie den Schritt selbst im Browser und fahren Sie dann fort."
     },
     "blockKind": {
       "human": "Wartet auf Sie",

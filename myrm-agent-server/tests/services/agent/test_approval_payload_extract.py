@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from app.services.agent.approval_payload import extract_approval_registry_payload, is_tool_stuck_pause
+from app.services.agent.approval_payload import (
+    extract_approval_registry_payload,
+    is_browser_takeover_request,
+    is_tool_stuck_pause,
+)
 
 
 class TestExtractApprovalRegistryPayload:
@@ -75,3 +79,19 @@ class TestIsToolStuckPause:
         assert not is_tool_stuck_pause({})
         assert not is_tool_stuck_pause(None)
         assert not is_tool_stuck_pause("tool_stuck")
+
+
+class TestIsBrowserTakeoverRequest:
+    def test_the_interrupt_browser_ask_human_raises_is_a_takeover_request(self) -> None:
+        assert is_browser_takeover_request(
+            {"action_type": "browser_takeover", "tool_name": "browser_ask_human_tool", "reason": "Log in to continue"}
+        )
+
+    def test_an_approval_or_the_loop_guard_pause_is_not(self) -> None:
+        assert not is_browser_takeover_request({"action_type": "high_risk_dom_action", "tool_name": "browser_click"})
+        assert not is_browser_takeover_request({"action_type": "tool_stuck", "tool_name": "bash_code_execute_tool"})
+
+    def test_a_payload_without_an_action_type_or_a_dict_is_not(self) -> None:
+        assert not is_browser_takeover_request({})
+        assert not is_browser_takeover_request(None)
+        assert not is_browser_takeover_request("browser_takeover")

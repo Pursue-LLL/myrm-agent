@@ -57,7 +57,7 @@ async def execute_agent(
 ) -> tuple[bool, str]:
     """Build the worker agent for ``task``, stream it into ``acc`` and return ``(success, text)``.
 
-    ``acc`` belongs to the caller, who reads from it what the stream ended on (see ``stopped_for_approval``).
+    ``acc`` belongs to the caller, who reads from it what the stream ended on (see ``unanswered_request_reason``).
     """
     from app.ai_agents.agents import AgentFactory, GeneralAgentParams
     from app.config.settings import get_settings
