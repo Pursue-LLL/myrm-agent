@@ -2,8 +2,9 @@
 
 [OUTPUT]
 - compact_match_line: Truncates long match lines preserving match context
-- format_grep_results: Formats search results into LLM-friendly output, stating how many files were searched
-  (when known) and when a file cap or the time limit cut the scan short
+- format_grep_results: Formats search results into LLM-friendly output: files in path order, the result cap applied
+  (a match beyond it only shows that the cap cut the search short), how many files were searched (when known), and
+  whether a file cap or the time limit cut the scan short
 
 [POS]
 Grep output formatter. Transforms raw search matches into LLM-friendly output
@@ -78,6 +79,24 @@ def _is_non_code_file(file_path: str) -> bool:
     return suffix in _NON_CODE_EXTENSIONS
 
 
+def _within_cap(results: list[dict[str, str | int]], max_results: int) -> tuple[list[dict[str, str | int]], bool]:
+    """The rows up to the ``max_results``-th match, and whether a match beyond it was found.
+
+    The rows between the last match kept and the one beyond are context of either, so they go with it: the
+    output ends at the last match kept.
+    """
+    kept = 0
+    end = 0
+    for index, row in enumerate(results):
+        if row.get("type", "match") != "match":
+            continue
+        if kept == max_results:
+            return results[:end], True
+        kept += 1
+        end = index + 1
+    return results, False
+
+
 def format_grep_results(
     results: list[dict[str, str | int]],
     pattern: str,
@@ -93,7 +112,11 @@ def format_grep_results(
     When total matches >= _DENSIFY_MIN_MATCHES, groups consecutive matches under
     a single path header to eliminate repeated path strings.
     Falls back to flat ``path:line: content`` format for small result sets where
-    densification adds no benefit.
+    densification adds no benefit. Files are listed in path order, whatever order the search delivered them in.
+
+    ``results`` may hold one match beyond ``max_results``: it only shows that the cap cut the search short, so it is
+    not shown, and the output says the results were limited. A result with exactly ``max_results`` matches is
+    complete and says nothing.
 
     ``files_searched`` is None when the caller cannot state the count (the ripgrep tier cannot), and the
     count is then left out. ``scan_limit`` is the file cap that cut the scan short, when one did, and ``timed_out``
@@ -114,21 +137,19 @@ def format_grep_results(
             footer.append(f"(Searched {files_searched} file(s))")
         return "\n".join([*footer, *notes])
 
-    files_order: list[str] = []
+    results, limited = _within_cap(results, max_results)
+
     matches_by_file: dict[str, list[dict[str, str | int]]] = {}
     for r in results:
-        fp = str(r["file"])
-        if fp not in matches_by_file:
-            files_order.append(fp)
-            matches_by_file[fp] = []
-        matches_by_file[fp].append(r)
+        matches_by_file.setdefault(str(r["file"]), []).append(r)
 
     total_matches = sum(1 for r in results if r.get("type", "match") == "match")
     densify = total_matches >= _DENSIFY_MIN_MATCHES
 
     lines: list[str] = [f"Found {total_matches} match(es) for '{pattern}'{searched}:\n"]
 
-    for fp in files_order:
+    # Component-wise, the order glob_tool lists in: a directory's files stay together.
+    for fp in sorted(matches_by_file, key=PurePosixPath):
         file_matches = matches_by_file[fp]
 
         is_non_code = _is_non_code_file(fp)
@@ -167,7 +188,7 @@ def format_grep_results(
         if omitted_count > 0:
             lines.append(f"  ... {omitted_count} more non-code matches omitted in {fp}")
 
-    if total_matches >= max_results:
+    if limited:
         lines.append(f"\n... (limited to first {max_results} results)")
     if notes:
         lines.append("\n" + "\n".join(notes))

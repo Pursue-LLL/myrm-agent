@@ -291,6 +291,8 @@ def create_grep_tool(
             search_root = search_path_obj if search_path_obj.is_dir() else search_path_obj.parent
 
             # --- Search phase: collect raw results from ripgrep or Python fallback ---
+            # One match beyond the cap shows whether the cap cut the search short; format_grep_results drops it.
+            match_probe = io_cfg.max_search_results + 1
             found: RgMatches | None = None
             if _has_ripgrep():
                 try:
@@ -300,7 +302,7 @@ def create_grep_tool(
                         file_pattern,
                         ignore_case,
                         context_lines,
-                        io_cfg.max_search_results,
+                        match_probe,
                         io_cfg.search_timeout_seconds,
                         literal=literal,
                     )
@@ -332,7 +334,7 @@ def create_grep_tool(
                     regex,
                     search_root,
                     regex_validator=regex_validator,
-                    max_results=io_cfg.max_search_results,
+                    max_results=match_probe,
                     timeout_seconds=io_cfg.search_timeout_seconds,
                     context_lines=context_lines,
                 )

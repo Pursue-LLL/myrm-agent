@@ -274,6 +274,8 @@ def create_glob_tool(
 
             files: list[Path] = []
             used_ripgrep = False
+            # One file beyond the cap shows whether the cap cut the listing short.
+            file_probe = io_cfg.max_search_results + 1
 
             if _has_ripgrep():
                 try:
@@ -281,7 +283,7 @@ def create_glob_tool(
                         search_path_obj,
                         compiled_pattern,
                         include_ignored=include_ignored,
-                        limit=io_cfg.max_search_results,
+                        limit=file_probe,
                         timeout_seconds=io_cfg.search_timeout_seconds,
                     )
                     used_ripgrep = True
@@ -293,12 +295,13 @@ def create_glob_tool(
                     collect_candidate_files,
                     search_root=search_path_obj,
                     file_pattern=pattern,
-                    max_files=io_cfg.max_search_results,
+                    max_files=file_probe,
                     include_ignored=include_ignored,
                 )
 
-            result_limited = len(files) >= io_cfg.max_search_results
+            result_limited = len(files) > io_cfg.max_search_results
             if result_limited:
+                files = files[: io_cfg.max_search_results]
                 logger.warning(f"Glob search hit limit ({io_cfg.max_search_results}), results may be incomplete")
 
             if disabled_roots:
@@ -319,7 +322,7 @@ def create_glob_tool(
                     result += f" {f}\n"
 
             if result_limited:
-                result += f"\n... (限制显示前 {io_cfg.max_search_results} 个结果)"
+                result += f"\n... (limited to first {io_cfg.max_search_results} results)"
 
             return result
 
