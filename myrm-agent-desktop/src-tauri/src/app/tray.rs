@@ -11,8 +11,8 @@
 //!
 //! [POS]
 //! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。托盘图标是模板图标，macOS 按菜单栏
-//! 深浅自动着色；换图一律经 `apply_tray_icon`，换图与恢复模板属性在同一个主线程任务里完成，
-//! 否则模板属性会丢失，或换图瞬间闪一帧纯黑。
+//! 深浅自动着色；换图一律经 `apply_tray_icon`，由它在同一次调用里换图并保持模板属性，
+//! 否则模板属性会丢失，图标按纯黑像素显示。
 
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -71,24 +71,22 @@ pub fn load_tray_icon_for_status(
     }
 }
 
-/// 换图并保持模板属性。底层 `set_icon` 会把 macOS 的模板标志重置为否，图标随即按原始像素
-/// （纯黑）显示，在深色菜单栏上看不清。两步放进同一个主线程任务，界面来不及渲染中间状态，
-/// 菜单栏不会闪一帧黑；`set_icon_as_template` 在其他平台上无操作。
+/// 换图并保持模板属性。托盘库的 `set_icon` 会把 macOS 的模板标志重置为否，图标随即按原始
+/// 像素（纯黑）显示，在深色菜单栏上看不清；`set_icon_with_as_template` 在同一次调用里先换图
+/// 再设模板标志，界面不会渲染出中间状态。它在其他平台上是空操作（连图都不换），所以其他
+/// 平台直接用 `set_icon`；用 `cfg!` 而不是 `#[cfg]`，两个分支在每个平台上都参与编译检查。
 ///
-/// `TrayIcon` 内部是非原子引用计数，Tauri 以「只在主线程使用」为前提才把它标成可跨线程。
-/// 这里沿用 Tauri 自己的做法：副本交给主线程任务，任务在唤醒调用方之前释放它，调用方等任务
-/// 结束才继续，两个线程不会同时增减引用计数。
-fn apply_tray_icon(app: &AppHandle, tray: TrayIcon, icon: Image<'static>) -> tauri::Result<()> {
-    let (done, applied) = std::sync::mpsc::channel();
-    app.run_on_main_thread(move || {
-        let _ = tray.set_icon(Some(icon));
-        let _ = tray.set_icon_as_template(true);
-        drop(tray);
-        let _ = done.send(());
-    })?;
-    applied
-        .recv()
-        .map_err(|_| tauri::Error::FailedToReceiveMessage)
+/// 闭包由 Tauri 放到主线程执行并等待完成，托盘句柄的非原子引用计数只在主线程上增减。
+fn apply_tray_icon(tray: &TrayIcon, icon: Image<'static>) -> tauri::Result<()> {
+    tray.with_inner_tray_icon(move |inner| -> tauri::Result<()> {
+        let icon = icon.try_into()?;
+        if cfg!(target_os = "macos") {
+            inner.set_icon_with_as_template(Some(icon), true)?;
+        } else {
+            inner.set_icon(Some(icon))?;
+        }
+        Ok(())
+    })?
 }
 
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -222,7 +220,7 @@ pub fn set_tray_status(
             .map_err(|e| format!("Failed to set tray tooltip: {e}"))?;
 
         if let Ok(icon) = load_tray_icon_for_status(&status) {
-            let _ = apply_tray_icon(&app, tray, icon);
+            let _ = apply_tray_icon(&tray, icon);
         }
     }
     Ok(())
@@ -245,6 +243,6 @@ pub fn update_native_tray_status(app: &AppHandle, status: &str, tooltip: &str) {
     let _ = tray.set_tooltip(Some(tooltip));
 
     if let Ok(icon) = load_tray_icon_for_status(status) {
-        let _ = apply_tray_icon(app, tray, icon);
+        let _ = apply_tray_icon(&tray, icon);
     }
 }
