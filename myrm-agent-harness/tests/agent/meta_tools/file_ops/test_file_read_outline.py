@@ -1,9 +1,15 @@
+import pytest
+
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read import outline as outline_module
 from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.outline import (
+    extract_file_outline,
     extract_truncated_outline,
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.truncation import (
     truncate_file_output,
 )
+from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import ViewRange
+from myrm_agent_harness.agent.meta_tools.file_ops.core.result_formatter import FileContent, ResultFormatter
 
 
 def test_python_ast_outline_extraction():
@@ -265,3 +271,102 @@ def test_truncate_file_output_appends_outline():
     assert "[OUTLINE OF REMAINING SYMBOLS" in truncated
     assert "class TargetController" in truncated
     assert "def TargetController.handle_target" in truncated
+
+
+_PYTHON = """import os
+
+
+class A:
+    def f(self):
+        return 1
+
+
+def g():
+    return 2
+"""
+
+
+def _view(source: str, view_range: ViewRange | None = None) -> str:
+    """What a read shows the model for ``source``: the formatter's notice, tool-output tags and numbered lines."""
+    content = FileContent(
+        path="/w/mod.py", display_path="mod.py", lines=source.removesuffix("\n").split("\n"), view_range=view_range
+    )
+    return ResultFormatter.format_file_content(content)
+
+
+def _entries(outline: str) -> list[str]:
+    """The symbol lines of an outline, without its header."""
+    return outline.splitlines()[1:]
+
+
+class TestOutlineOfTheViewARead:
+    """A read shows the model a notice, tool-output tags and numbered lines. Only the numbered lines are the file."""
+
+    def test_python_symbols_have_ranges_and_methods_are_named_after_their_class(self) -> None:
+        out = extract_file_outline(_view(_PYTHON), "mod.py")
+
+        assert _entries(out) == ["  - Line 4-6: class A", "  - Line 5-6: def A.f", "  - Line 9-10: def g"]
+
+    def test_the_rest_of_a_truncated_view_is_outlined_with_ranges(self) -> None:
+        out = extract_truncated_outline(_view(_PYTHON), "mod.py", next_offset=8)
+
+        assert out.splitlines() == ["[OUTLINE OF REMAINING SYMBOLS (from line 8)]:", "  - Line 9-10: def g"]
+
+    def test_a_ranged_view_is_numbered_by_its_gutter(self) -> None:
+        source = "\n".join(
+            [*(f"# {i}" for i in range(1, 50)), "def late():", "    return 1", "", "def later():", "    return 2"]
+        )
+
+        out = extract_file_outline(_view(source, ViewRange(start=50, end=54)), "mod.py")
+
+        assert _entries(out) == ["  - Line 50-51: def late", "  - Line 53-54: def later"]
+
+    def test_a_view_cut_inside_a_class_is_listed_by_the_regex_scan_with_its_gutter_numbers(self) -> None:
+        source = "class K:\n    x = 1\n    def b(self):\n        return 1\n"
+
+        out = extract_file_outline(_view(source, ViewRange(start=3, end=4)), "mod.py")
+
+        assert _entries(out) == ["  - Line 3: def b"]
+
+    def test_a_yaml_comment_in_the_markdown_frontmatter_is_not_a_heading(self) -> None:
+        source = "---\ntitle: T\n# a yaml comment\n---\n\n# Real\n\n## Second"
+
+        out = extract_file_outline(_view(source), "doc.md")
+
+        assert _entries(out) == ["  - Line 6: # Real", "  - Line 8: ## Second"]
+
+    def test_a_lone_carriage_return_inside_a_line_does_not_shift_the_numbers(self) -> None:
+        out = extract_file_outline(_view("x = 1  # a\rb\ndef f():\n    pass"), "mod.py")
+
+        assert _entries(out) == ["  - Line 2-3: def f"]
+
+    @pytest.mark.parametrize("separator", ["\x0b", "\x0c", "\x1c", "\x85", "\u2028", "\u2029"])
+    def test_separators_that_are_no_newline_to_python_do_not_shift_the_numbers(self, separator: str) -> None:
+        out = extract_file_outline(_view(f'x = "a{separator}b"\ndef f():\n    pass'), "mod.py")
+
+        assert _entries(out) == ["  - Line 2-3: def f"]
+
+    @pytest.mark.parametrize(
+        "head",
+        ["x = '\ud800'", "x = " + "-" * 20000 + "1", "x = " + " + ".join(["1"] * 30000)],
+        ids=["lone-surrogate", "parser-stack-overflow", "recursion-limit"],
+    )
+    def test_source_the_parser_cannot_take_is_listed_by_the_regex_scan(self, head: str) -> None:
+        out = extract_file_outline(_view(f"{head}\ndef f():\n    pass"), "mod.py")
+
+        assert _entries(out) == ["  - Line 2: def f"]
+
+    @pytest.mark.parametrize(
+        ("cap_offset", "expected"),
+        [
+            (0, ["  - Line 4-6: class A", "  - Line 5-6: def A.f", "  - Line 9-10: def g"]),
+            (-1, ["  - Line 4: class A", "  - Line 5: def f", "  - Line 9: def g"]),
+        ],
+        ids=["at-the-cap-uses-the-ast", "past-the-cap-uses-the-regex-scan"],
+    )
+    def test_a_source_past_the_size_cap_is_listed_without_being_parsed(
+        self, monkeypatch: pytest.MonkeyPatch, cap_offset: int, expected: list[str]
+    ) -> None:
+        monkeypatch.setattr(outline_module, "_AST_MAX_SOURCE_CHARS", len(_PYTHON.removesuffix("\n")) + cap_offset)
+
+        assert _entries(extract_file_outline(_view(_PYTHON), "mod.py")) == expected
