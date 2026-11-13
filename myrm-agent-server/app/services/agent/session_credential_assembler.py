@@ -20,8 +20,9 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from functools import partial
 
-from myrm_agent_harness.agent.security import EphemeralUserCredential
+from myrm_agent_harness.agent.security import CredentialTrack, EphemeralUserCredential
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +54,8 @@ async def _oauth_credentials_from_dict(
                 token=str(cred_val["token"]),
                 scope=scope,
                 user_id=str(cred_val.get("user_id", "")),
-                expires_at=cred_val.get("expires_at"),  # type: ignore[arg-type]
-                refresh_callback=lambda i=issuer_str: refresh_oauth_token(i),
+                expires_at=cred_val.get("expires_at"),
+                refresh_callback=partial(refresh_oauth_token, issuer_str),
             )
         )
     return credentials
@@ -121,7 +122,7 @@ async def assemble_session_credentials(
     oauth_credentials_dict: dict[str, object] | None = None,
     providers_dict: dict[str, object] | None = None,
     channel: str | None = None,
-    credential_track: str = "personal",
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL,
 ) -> tuple[EphemeralUserCredential, ...]:
     """Build merged session credentials for user_credentials_ctx injection.
 
@@ -129,14 +130,14 @@ async def assemble_session_credentials(
     over API Key (from WebUI providers). If both exist, only the OAuth credential
     is included for the xAI issuer to avoid duplicate entries.
 
-    ``credential_track`` selects the credential pool: ``"personal"`` (default,
-    existing behavior) assembles owner credentials; ``"shared"`` assembles only
-    channel-level credentials so a team-shared turn can never touch the owner's
-    personal OAuth tokens.
+    ``credential_track`` selects the credential pool: ``PERSONAL`` (default)
+    assembles the owner's credentials; any other track assembles only
+    channel-level credentials, so a team-shared turn can never touch the
+    owner's personal OAuth tokens.
     """
     credentials: list[EphemeralUserCredential] = []
     try:
-        if credential_track != "shared":
+        if credential_track is CredentialTrack.PERSONAL:
             oauth_creds = await _oauth_credentials_from_dict(oauth_credentials_dict)
             credentials.extend(oauth_creds)
 

@@ -166,6 +166,7 @@ class AgentFactory:
             security_overlay=params.security_overlay,
             agent_security_raw=params.agent_security_raw,
             channel_name=params.channel_name,
+            credential_track=params.credential_track,
             memory_channel_id=params.memory_channel_id,
             memory_conversation_id=params.memory_conversation_id,
             memory_task_id=params.memory_task_id,

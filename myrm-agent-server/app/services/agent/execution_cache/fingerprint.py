@@ -7,8 +7,9 @@
 - compute_execution_fingerprint, build_execution_scope_key
 
 [POS]
-execution_cache 指纹层。将影响 build_general_agent 输出的模型/技能/MCP/安全/记忆/工具/
-检索/媒体/隐私路由配置稳定哈希为 scope key；模型类字段统一经 _model_sig 提取 build
+execution_cache 指纹层。将影响 build_general_agent 输出的模型/技能/凭证轨道/MCP/安全/
+记忆/工具/检索/媒体/隐私路由配置稳定哈希为 scope key（凭证轨道决定技能后端按哪个凭证池
+判定技能可用性，构建期固化）；模型类字段统一经 _model_sig 提取 build
 固化签名（排除 api_key/api_keys 等凭据；纳入 temperature、model_kwargs 与
 credential_pool_strategy——前者固化进 LLM 实例、后者固化进 CredentialPool，均 build
 期不可逆），结构化配置（媒体生成/搜索服务/嵌入重排/provider 池/OpenAPI 服务/隐私路由）
@@ -219,6 +220,8 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "max_iterations": agent_wrapper.max_iterations,
         "locale": agent_wrapper.locale,
         "channel_name": agent_wrapper.channel_name,
+        # The skill backend is built for one credential track; a pooled unit must not serve the other.
+        "credential_track": agent_wrapper.credential_track.value,
         "enable_web_search": agent_wrapper.enable_web_search,
         "enable_browser": agent_wrapper.enable_browser,
         "browser_source": getattr(agent_wrapper, "browser_source", None),

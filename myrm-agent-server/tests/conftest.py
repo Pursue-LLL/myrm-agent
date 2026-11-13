@@ -48,14 +48,16 @@ _isolate_test_data_dir()
 # tests mutate (event bus history, agent gateway drain, task metrics registry, settings
 # singleton, the harness's registry of tracked background tasks), and the aiosqlite worker
 # and stop that keep a connection usable after the loop that queried it closed and let two
-# closers of one connection both return.
-# The first four are plain support modules: a conftest that is also listed here is
+# closers of one connection both return, and the in-memory credential store that skill
+# availability tests store provider and OAuth credentials in.
+# The first five are plain support modules: a conftest that is also listed here is
 # registered twice, and a run targeting its directory aborts.
 pytest_plugins = (
     "tests.support.chat_db_fixtures",
     "tests.support.artifact_upsert_fixture",
     "tests.support.process_state_isolation",
     "tests.support.aiosqlite_surviving_worker",
+    "tests.support.skill_credential_store",
     "tests.api.agent.conftest",
 )
 

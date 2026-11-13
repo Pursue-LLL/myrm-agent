@@ -42,6 +42,10 @@ export function isGoogleWorkspaceOAuthUnavailable(skill: Skill): boolean {
   return skill.id === GOOGLE_WORKSPACE_SKILL_ID && !skill.available;
 }
 
+/**
+ * x-live-search declares its xAI account like any account-bound skill, but an xAI provider key unblocks it as well,
+ * so it is checked ahead of the generic account handling and keeps its own guidance.
+ */
 export function isXLiveSearchUnavailable(skill: Skill): boolean {
   return skill.id === X_LIVE_SEARCH_SKILL_ID && !skill.available;
 }
@@ -77,6 +81,9 @@ export function hasIntegrationSettingsLink(skill: Skill): boolean {
 }
 
 export function getIntegrationSkillSettingsPath(skill: Skill): string {
+  if (isXLiveSearchUnavailable(skill)) {
+    return SETTINGS_PROVIDERS_PATH;
+  }
   if (skill.required_mcp_server_ids && skill.required_mcp_server_ids.length > 0 && !skill.available) {
     return SETTINGS_AGENTS_LOADOUT_PATH;
   }
@@ -86,13 +93,13 @@ export function getIntegrationSkillSettingsPath(skill: Skill): string {
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
     return SETTINGS_CREDENTIALS_PATH;
   }
-  if (isXLiveSearchUnavailable(skill)) {
-    return SETTINGS_PROVIDERS_PATH;
-  }
   return SETTINGS_SKILLS_PATH;
 }
 
 export function getIntegrationSkillSettingsLinkLabel(skill: Skill, t: SkillsCardTranslator): string {
+  if (isXLiveSearchUnavailable(skill)) {
+    return t('card.integrationOAuth.xLiveSearch.connectInSettings');
+  }
   if (skill.required_mcp_server_ids && skill.required_mcp_server_ids.length > 0 && !skill.available) {
     return t('card.integrationOAuth.envSkill.configureInSettings');
   }
@@ -102,13 +109,13 @@ export function getIntegrationSkillSettingsLinkLabel(skill: Skill, t: SkillsCard
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
     return t('card.integrationOAuth.googleWorkspace.connectInSettings');
   }
-  if (isXLiveSearchUnavailable(skill)) {
-    return t('card.integrationOAuth.xLiveSearch.connectInSettings');
-  }
   return t('card.integrationOAuth.envSkill.configureInSettings');
 }
 
 export function getSkillUnavailableDisplayMessage(skill: Skill, t: SkillsCardTranslator): string {
+  if (isXLiveSearchUnavailable(skill)) {
+    return t('card.integrationOAuth.xLiveSearch.unavailable');
+  }
   if (isWaitingOnConnection(skill)) {
     // The fixed instruction is only true when a connection is the sole possible blocker; otherwise the
     // server reason names the actual cause.
@@ -118,9 +125,6 @@ export function getSkillUnavailableDisplayMessage(skill: Skill, t: SkillsCardTra
   }
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
     return t('card.integrationOAuth.googleWorkspace.unavailable');
-  }
-  if (isXLiveSearchUnavailable(skill)) {
-    return t('card.integrationOAuth.xLiveSearch.unavailable');
   }
   if (isEnvGatedSkillUnavailable(skill)) {
     return t('card.integrationOAuth.envSkill.unavailable');

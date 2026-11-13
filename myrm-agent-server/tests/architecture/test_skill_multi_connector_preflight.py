@@ -3,14 +3,13 @@
 [INPUT]
 - app.core.skills.gates.oauth_availability::apply_integration_oauth_to_metadata
 - myrm_agent_harness.backends.skills.types::SkillMetadata
+- tests.support.skill_credential_store::credentials (the OAuth tokens stored for the issuers)
 
 [OUTPUT]
-- Unit tests verifying multi-connector required_oauth_issuers preflight and availability marking.
+- Tests verifying multi-connector required_oauth_issuers preflight and availability marking against stored tokens.
 """
 
 from __future__ import annotations
-
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from myrm_agent_harness.backends.skills.types import SkillMetadata
@@ -18,12 +17,11 @@ from myrm_agent_harness.backends.skills.types import SkillMetadata
 from app.core.skills.gates.oauth_availability import (
     apply_integration_oauth_to_metadata,
 )
+from tests.support.skill_credential_store import CredentialStore
 
 
 @pytest.mark.asyncio
-async def test_multi_connector_preflight_marks_unavailable_when_issuer_missing() -> None:
-    mock_db = AsyncMock()
-
+async def test_multi_connector_preflight_marks_unavailable_when_issuer_missing(credentials: CredentialStore) -> None:
     # Skill requiring two issuers: google_workspace and spotify
     meta = SkillMetadata(
         name="multi-meeting-sync",
@@ -31,39 +29,29 @@ async def test_multi_connector_preflight_marks_unavailable_when_issuer_missing()
         storage_path="/tmp/fake-skill",
         required_oauth_issuers=["google_workspace", "spotify"],
     )
+    # google is connected, but spotify is not
+    await credentials.store_oauth({"google_workspace": {"token": "google-token"}})
 
-    with patch(
-        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
-        new_callable=AsyncMock,
-    ) as mock_conn:
-        # google is connected, but spotify is not
-        mock_conn.side_effect = lambda db, issuer: issuer == "google_workspace"
+    async with credentials.sessions() as db:
+        await apply_integration_oauth_to_metadata([meta], db)
 
-        await apply_integration_oauth_to_metadata([meta], mock_db)
-
-        assert meta.available is False
-        assert "spotify" in (meta.unavailable_reason or "")
-        assert "Settings → Integrations → Credentials" in (meta.unavailable_reason or "")
+    assert meta.available is False
+    assert "spotify" in (meta.unavailable_reason or "")
+    assert "Settings → Integrations → Credentials" in (meta.unavailable_reason or "")
 
 
 @pytest.mark.asyncio
-async def test_multi_connector_preflight_keeps_available_when_all_issuers_connected() -> None:
-    mock_db = AsyncMock()
-
+async def test_multi_connector_preflight_keeps_available_when_all_issuers_connected(credentials: CredentialStore) -> None:
     meta = SkillMetadata(
         name="multi-meeting-sync-full",
         description="Multi meeting sync full test skill",
         storage_path="/tmp/fake-skill",
         required_oauth_issuers=["google_workspace", "slack"],
     )
+    await credentials.store_oauth({"google_workspace": {"token": "google-token"}, "slack": {"token": "slack-token"}})
 
-    with patch(
-        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
-        new_callable=AsyncMock,
-    ) as mock_conn:
-        mock_conn.return_value = True
+    async with credentials.sessions() as db:
+        await apply_integration_oauth_to_metadata([meta], db)
 
-        await apply_integration_oauth_to_metadata([meta], mock_db)
-
-        assert meta.available is True
-        assert meta.unavailable_reason is None
+    assert meta.available is True
+    assert meta.unavailable_reason is None

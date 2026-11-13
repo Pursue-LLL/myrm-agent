@@ -5,6 +5,7 @@
 - myrm_agent_harness.backends.skills.types.SkillMetadata
 - app.core.skills.models.Skill
 - app.core.skills.gates.oauth_availability
+- tests.support.skill_credential_store::credentials (the OAuth tokens stored for the issuers)
 
 [OUTPUT]
 - Tests verifying:
@@ -16,8 +17,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from myrm_agent_harness.backends.skills._utils import parse_skill_frontmatter
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
@@ -28,6 +27,7 @@ from app.core.skills.gates.oauth_availability import (
 )
 from app.core.skills.models import Skill
 from app.core.storage.types import SkillType
+from tests.support.skill_credential_store import CredentialStore
 
 
 def test_frontmatter_parses_multi_connector_dependencies() -> None:
@@ -76,7 +76,7 @@ def test_skill_model_serializes_and_deserializes_required_connectors() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dynamic_preflight_gate_marks_skill_unavailable_when_issuer_missing() -> None:
+async def test_dynamic_preflight_gate_marks_skill_unavailable_when_issuer_missing(credentials: CredentialStore) -> None:
     skill = Skill(
         id="custom-oauth-gated-skill",
         type=SkillType.PREBUILT,
@@ -85,12 +85,8 @@ async def test_dynamic_preflight_gate_marks_skill_unavailable_when_issuer_missin
         storage_path="skills/custom-oauth-gated-skill",
         required_oauth_issuers=["notion_oauth"],
     )
-    db = AsyncMock()
 
-    with patch(
-        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
-        AsyncMock(return_value=False),
-    ):
+    async with credentials.sessions() as db:
         await apply_integration_oauth_availability([skill], db)
 
     assert skill.available is False
@@ -98,7 +94,7 @@ async def test_dynamic_preflight_gate_marks_skill_unavailable_when_issuer_missin
 
 
 @pytest.mark.asyncio
-async def test_dynamic_preflight_gate_marks_skill_available_when_issuers_connected() -> None:
+async def test_dynamic_preflight_gate_marks_skill_available_when_issuers_connected(credentials: CredentialStore) -> None:
     skill = Skill(
         id="custom-oauth-gated-skill",
         type=SkillType.PREBUILT,
@@ -107,12 +103,9 @@ async def test_dynamic_preflight_gate_marks_skill_available_when_issuers_connect
         storage_path="skills/custom-oauth-gated-skill",
         required_oauth_issuers=["zoom_oauth"],
     )
-    db = AsyncMock()
+    await credentials.store_oauth({"zoom_oauth": {"token": "zoom-token"}})
 
-    with patch(
-        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
-        AsyncMock(return_value=True),
-    ):
+    async with credentials.sessions() as db:
         await apply_integration_oauth_availability([skill], db)
 
     assert skill.available is True
@@ -120,7 +113,7 @@ async def test_dynamic_preflight_gate_marks_skill_available_when_issuers_connect
 
 
 @pytest.mark.asyncio
-async def test_metadata_dynamic_preflight_gate_enforcement() -> None:
+async def test_metadata_dynamic_preflight_gate_enforcement(credentials: CredentialStore) -> None:
     meta = SkillMetadata(
         name="metadata-gated-skill",
         description="Runtime metadata needing Figma",
@@ -128,12 +121,8 @@ async def test_metadata_dynamic_preflight_gate_enforcement() -> None:
         required_oauth_issuers=["figma_oauth"],
         trust=SkillTrust.TRUSTED,
     )
-    db = AsyncMock()
 
-    with patch(
-        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
-        AsyncMock(return_value=False),
-    ):
+    async with credentials.sessions() as db:
         await apply_integration_oauth_to_metadata([meta], db)
 
     assert meta.available is False
