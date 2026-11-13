@@ -256,6 +256,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/feishu/test_placeholder_lifecycle.py` | 单元 | 飞书占位卡片的一生只走飞书文档记载的两条路由：占位卡片经发送接口发出，进度与终稿都经卡片更新接口替换；三张卡片的 config 都声明 `update_multi`，占位卡片只含飞书定义的组件、不带自造的 `card_id`；飞书拒绝的卡片更新使编辑失败（由路由改发新消息）。经真实渠道与真实客户端，网络用假传输代替 |
 | `channels/providers/googlechat/test_googlechat_all_mention.py` | 单元 | 智能体文本里的 `<users/all>` 与 `<chat-user data-user="users/all">`（含大小写、单引号、无引号、等号两侧空白）不会通知整个 Google Chat 空间：创建与更新消息时都在出口处被拆开；`<users/allen>`、`<users/all_hands>`、指向具体用户的标记与普通文本原样发出 |
 | `channels/routing/test_reply_target.py` | 单元 | 系统回复（静音、忙碌、配额）引用的消息号：到达消息号优先，其次是元数据里的消息号（数字转成文本），都没有则不引用 |
+| `channels/routing/test_system_notice.py` | 单元 | 系统通知（静音、忙碌、配额）的收件人与信封：群消息回到群聊；私聊即使带有聊天号也回给发送者；群消息没有聊天号时回给发送者；通知记在该成员名下、保留话题、走系统优先级 |
 | `core/channel_bridge/test_execute_preamble_context_document.py` | 单元 | 参考文档并入本轮查询：短文档在数据边界内跟在查询之后、文档里的文字冒充不了边界标记、长文档存进智能体工作区且只显示路径（真实文件往返）、截断时说明显示了多少、缺失与空文档如实告知、无可用文档与多模态查询原样不变、工作区写不了降级为缺失、不能当目录名的会话不会落到别处、能放下的文档不留文件 |
 | `core/channel_bridge/test_execute_preamble_replay_notice.py` | 单元 | 重启后重放的消息带重放提示：字符串与多模态查询（图片保留、入参不被改动、无文本部分时补一段）、非重放与标志为假的消息原样不变；经 `build_channel_execution_agent` 只出现在本轮（`params.query` 仍是用户原文），审批答复的重放不加 |
 | `core/channel_bridge/preamble_testkit.py` | 辅助 | preamble 测试的共享构建器：`inbound_message()`、`minimal_user_configs()`、`build_agent()`（除变化项外其余参数取朴素默认值）、`build_live_turn()`（装配出的回合与创建智能体所用的 params；可指定用户配置与 query）；`test_execute_preamble_early_exit.py`、`test_execute_preamble_replay_notice.py` 与 `test_channel_turn_security_survives_sync.py` 共用 |
@@ -656,6 +657,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/extension/test_cdp_relay_refusals.py` | 模块 | 扩展以 `tab_not_authorized` 拒绝一个标签页时（点开的新标签页跳去未授权站点），CDP relay 不逐条回错误（Playwright 驱动会因此崩溃）：在途的每条指令都不应答，页面作为被关掉的 target 通告 detach 一次，扩展的调试器只释放一次；其他原因的失败仍照常回错且页面保留 |
 | `services/extension/test_bridge_opened_tabs.py` | 模块 | 扩展桥对「Agent 页面开出的标签页」的镜像：Agent 标签页记下开出它的 Agent 标签页并随标签页列表交给 relay；不属于 Agent 的标签页即使带 `openerTabId` 也不记；新页面还空白时不交给 relay、有了文档才交；不是标签页 id 的 opener 一律忽略 |
 | `services/extension/test_bridge_policy_sync.py` | 模块 | 扩展握手后回报的那份策略归谁：用户从没在服务端设过策略时采用扩展保存的（含暂停的标签页）、不推送自己的；用户设过（含清空）则推送自己的并忽略这份旧回报；连上之后回报的改动始终采用，没带 `initial` 标记的回报也算改动；下次连接推送的是扩展最后改成的样子 |
+| `services/extension/test_bridge_driver_recovery.py` | 模块 | 扩展桥自己的 Playwright driver（独立于浏览器池的那个 Node 进程）退出后不留死句柄：连接因「Connection closed while reading from the driver」失败时，错误照常抛出、死 driver 被停掉并丢弃，下一次 `connect()` 起新 driver（`connect_to_domain` 同样）；超时等其他失败保留 driver；只丢失败的那一份，别的调用者已换上新 driver 时不动它 |
 | `services/extension/test_relay_check.py` | 模块 | Browser Doctor 的 `extension_relay` 检查：真实 `ExtensionBridgeService` 下的各状态：relay 就绪（ok）· 已连接但无授权站点（真实警告）· 远程部署缺 auth token（真实警告，已配置则不报）· 未连接 / relay 未就绪（可选能力）· 探测异常降级为可见警告（参数化） |
 | `e2e/test_browser_doctor_chrome_e2e.py` | 模块 | Browser Doctor 卡片 Chrome MCP E2E（PRIVATE+READ×1：Settings/System 渲染卡片 + 运行诊断 → 真实后端报告（引擎行 + 残留进程与缓存行 + healthy/unhealthy 徽标）） |
 | `e2e/test_org_model_policy_chrome_e2e.py` | 模块 | Org model policy Chrome MCP E2E（PRIVATE×1 SHPOIB：`exclusive_backend` · SHPOIB 后 `POST /api/admin/org-model-policy-sync` seed `minimax/*` → 打开 model picker → minimax 可选 / openai-like 灰显） |

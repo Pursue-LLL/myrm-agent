@@ -50,7 +50,6 @@ app/channels/routing/commands/commands.py
 app/channels/routing/commands/router_commands_approval.py
 app/channels/routing/policy_resolver.py
 app/channels/routing/router_stream.py
-app/channels/routing/stream_manager.py
 app/channels/security/protocols.py
 app/channels/security/webhook_middleware.py
 app/channels/types/messages.py

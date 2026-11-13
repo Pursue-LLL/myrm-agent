@@ -12,11 +12,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.channels.routing.block_chunker import BlockChunker, ChunkConfig
+from app.channels.routing.progress_estimator import ProgressEstimator
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.stream_manager import (
     AdaptiveThrottler,
     IncrementalEditor,
-    ProgressEstimator,
     StreamCoordinator,
 )
 

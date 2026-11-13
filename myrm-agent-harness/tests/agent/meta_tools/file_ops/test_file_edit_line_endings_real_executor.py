@@ -65,3 +65,19 @@ async def test_an_edit_keeps_an_lf_file_lf(workspace: Path) -> None:
     await _edit_after_reading("mod.py", "return 1", "return 10")
 
     assert (workspace / "mod.py").read_bytes() == _LF.replace(b"return 1", b"return 10")
+
+
+async def test_the_view_of_a_crlf_file_shows_plain_lines(workspace: Path) -> None:
+    """The read hands the engine the CRLF, but the model is shown the lines, not the carriage returns."""
+    (workspace / "mod.py").write_bytes(_CRLF)
+    read = create_file_read_tool()
+
+    whole = await read.ainvoke({"paths": ["mod.py"]}, config=RunnableConfig())
+    ranged = await read.ainvoke({"paths": ["mod.py:4-5"]}, config=RunnableConfig())
+
+    assert isinstance(whole, str)
+    assert isinstance(ranged, str)
+    assert "\r" not in whole + ranged
+    assert "2|    return 1\n" in whole
+    assert "4|def b():\n" in ranged
+    assert "5|    return 2\n" in ranged
