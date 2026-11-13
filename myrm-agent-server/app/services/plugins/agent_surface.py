@@ -116,9 +116,6 @@ _FIELD_RULES: Final[dict[str, tuple[Disposition, str]]] = {
     "cron_post_run_verify": (_X, "unattended-run policy is the installing user's decision"),
     "busy_input_mode": (_X, "personal preference"),
     "trusted_desktop_apps": (_X, "pre-trusted desktop apps are the installing user's decision"),
-    "responsibility_scope": (_X, "owner-specific governance data"),
-    "owner_label": (_X, "owner-specific governance data"),
-    "acceptance_criteria": (_X, "owner-specific governance data"),
 }
 
 AGENT_FIELD_DISPOSITION: Final[Mapping[str, Disposition]] = {name: rule[0] for name, rule in _FIELD_RULES.items()}
