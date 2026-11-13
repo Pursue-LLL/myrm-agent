@@ -1167,12 +1167,13 @@ browser/
 ├── pool/
 │   ├── browser_pool.py (761 行) — GlobalBrowserPool（全局调度中枢）
 │   ├── page_acquisition.py (89 行) — PageAcquisition（取页途中被取消或失败时归还许可与已取出的页面）
-│   ├── browser_launcher.py (~580 行) — BrowserLauncher（Chromium + Camoufox 启动前 sanitize_env + Zero-config Chromium 自动安装 with CDN mirror fallback + Camoufox 指纹持久化 + 损坏自愈 + Camoufox 启动前就绪闸门）
+│   ├── browser_launcher.py — BrowserLauncher（Chromium + Camoufox 启动前 sanitize_env + Camoufox 指纹持久化 + 损坏自愈 + Camoufox 启动前就绪闸门 + Playwright driver 进程消失后换新 driver 再重试）
+│   ├── chromium_install.py — Zero-config Chromium 自动安装 with CDN mirror fallback（同一时刻只装一次，失败后冷却）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
 │   ├── context_factory.py (277 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载）
 │   ├── emulation.py — 浏览器环境仿真配置（含移动设备五维字段）
 │   ├── device_profiles.py — 精选移动设备 profile 注册表（含 landscape 横屏视口）
-│   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；页面崩溃只为在用页面归还许可）
+│   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；Playwright driver 已退出的浏览器不问页面直接判死；页面崩溃只为在用页面归还许可）
 │   └── page_pool.py (223 行) — PagePool（只发放健康页面）
 ├── diff/
 │   ├── types.py — ComparisonResult Protocol + FastComparisonResult + AccurateComparisonResult
@@ -1224,7 +1225,7 @@ browser/
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/
-│   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / close_page_bounded / detach_cdp_bounded / PageUnresponsiveError）
+│   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / is_driver_closed_error / close_page_bounded / detach_cdp_bounded / PageUnresponsiveError / DriverClosedError）
 ├── domain_filter/ — 四层域名过滤（CSP + HTTP + 主线程硬化 + CDP）；支持 allowlist + 用户 blocklist
 ├── session_vault/ — 加密 Session 存储（O(1) LRU + 内存限制 + 并发锁 + Metrics + 批量 API）
 ├── exceptions.py (约 150 行) — 异常类型

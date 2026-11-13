@@ -4,20 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import time
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from myrm_agent_harness.toolkits.browser.exceptions import BrowserSessionError
 from myrm_agent_harness.toolkits.browser.utils import page_health
 from myrm_agent_harness.toolkits.browser.utils.page_health import (
+    DriverClosedError,
     PageUnresponsiveError,
     abort_pending_navigation,
+    is_driver_closed_error,
     probe_alive,
+    probe_browser_alive,
 )
 from tests.toolkits.browser._fake_pages import FakeCdp, FakePage
 
 _FAST_S = 0.05
 _HANG_BOUND_S = 1.0  # generous wall-clock ceiling for "returned within the (patched) bound"
+_DRIVER_GONE = "Browser.new_browser_cdp_session: Connection closed while reading from the driver"
 
 
 @pytest.fixture(autouse=True)
@@ -35,6 +40,26 @@ async def _elapsed(coro) -> float:
 
 def test_page_unresponsive_error_is_a_session_error() -> None:
     assert issubclass(PageUnresponsiveError, BrowserSessionError)
+
+
+def test_driver_closed_error_is_a_session_error() -> None:
+    assert issubclass(DriverClosedError, BrowserSessionError)
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("BrowserType.launch: Connection closed while reading from the driver", True),
+        ("Page.goto: Connection closed while reading from the driver", True),
+        ("browsertype.launch: CONNECTION CLOSED WHILE READING FROM THE DRIVER", True),
+        ("Browser closed unexpectedly", False),
+        ("Target page, context or browser has been closed", False),
+        ("net::ERR_CONNECTION_CLOSED at https://example.com/", False),
+        ("", False),
+    ],
+)
+def test_only_an_exited_driver_reads_as_one(message: str, expected: bool) -> None:
+    assert is_driver_closed_error(Exception(message)) is expected
 
 
 class TestAbortPendingNavigation:
@@ -116,3 +141,48 @@ class TestProbeAlive:
 
         assert not alive
         assert time.monotonic() - started < _HANG_BOUND_S
+
+
+def _browser(session: AsyncMock) -> MagicMock:
+    browser = MagicMock()
+    browser.new_browser_cdp_session = session
+    return browser
+
+
+async def _hang() -> None:
+    await asyncio.Event().wait()
+
+
+class TestProbeBrowserAlive:
+    async def test_answering_browser_is_alive_and_its_session_is_released(self) -> None:
+        cdp = FakeCdp()
+
+        assert await probe_browser_alive(_browser(AsyncMock(return_value=cdp)))
+        assert cdp.sent == ["Browser.getVersion"]
+        assert cdp.detach_called
+
+    async def test_failing_session_reads_as_not_alive(self) -> None:
+        assert not await probe_browser_alive(_browser(AsyncMock(side_effect=RuntimeError("no browser session"))))
+
+    async def test_hanging_session_reads_as_not_alive_within_the_bound(self) -> None:
+        browser = _browser(AsyncMock(side_effect=_hang))
+
+        started = time.monotonic()
+        alive = await probe_browser_alive(browser)
+
+        assert not alive
+        assert time.monotonic() - started < _HANG_BOUND_S
+
+    async def test_an_exited_driver_is_conclusive(self) -> None:
+        with pytest.raises(DriverClosedError, match="Connection closed while reading from the driver"):
+            await probe_browser_alive(_browser(AsyncMock(side_effect=Exception(_DRIVER_GONE))))
+
+    async def test_a_driver_that_exits_after_the_session_opened_still_releases_the_session(self) -> None:
+        cdp = MagicMock()
+        cdp.send = AsyncMock(side_effect=Exception(_DRIVER_GONE))
+        cdp.detach = AsyncMock()
+
+        with pytest.raises(DriverClosedError):
+            await probe_browser_alive(_browser(AsyncMock(return_value=cdp)))
+
+        cdp.detach.assert_awaited_once()

@@ -49,7 +49,7 @@ _BOUNDED_BY_THE_COMMAND: dict[str, tuple[int, str]] = {
         "deadline-and-terminate wrapper; its one caller runs `python -m venv`, 120 s deadline",
     ),
     "toolkits/vnc/server.py": (1, "`x11vnc -storepasswd` writes a password file, 5 s deadline"),
-    "toolkits/browser/pool/browser_launcher.py": (
+    "toolkits/browser/pool/chromium_install.py": (
         1,
         "`patchright install chromium` log, deadline `_INSTALL_TIMEOUT_S`",
     ),
