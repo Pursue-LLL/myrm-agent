@@ -240,7 +240,6 @@ async def test_process_text_paths_preview_mode(tmp_path: Path) -> None:
             None,
             None,
             "preview",
-            10,
             config=_DUMMY_CONFIG,
         )
     assert "preview mode" in parts[0]
@@ -265,7 +264,6 @@ async def test_process_text_paths_stream_mode(tmp_path: Path) -> None:
             None,
             None,
             "stream",
-            5,
             config=_DUMMY_CONFIG,
         )
     assert "chunked" in parts[0]
@@ -709,7 +707,6 @@ async def test_process_text_paths_mcp_and_directory(tmp_path: Path) -> None:
             None,
             None,
             "all",
-            10,
             config=_DUMMY_CONFIG,
         )
     assert parts == ["mcp content", "dir listing"]
@@ -741,7 +738,6 @@ async def test_process_text_paths_exception_fallback(tmp_path: Path) -> None:
             None,
             None,
             "preview",
-            10,
             config=_DUMMY_CONFIG,
         )
     mock_service.assert_awaited()
@@ -933,7 +929,6 @@ async def test_process_text_paths_structure_mode(tmp_path: Path) -> None:
             None,
             None,
             "all",
-            10,
             config=_DUMMY_CONFIG,
             parse_mode="structure",
         )
