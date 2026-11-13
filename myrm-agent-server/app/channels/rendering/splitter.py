@@ -24,8 +24,9 @@ from collections.abc import Callable
 
 from ..types import LengthUnit
 
-# Matches code fences: ``` or ~~~, 3-10 symbols, optional language tag
-_CODE_FENCE = re.compile(r"^(?P<fence>[`~]{3,10})(?P<lang>\w*)\s*$")
+# A fence line (CommonMark): a run of 3-10 backticks or tildes and an info string, which holds no backtick.
+# The info string is free text (``c++``, ``python title=demo``, ``json {1,3}``), not only a word.
+_CODE_FENCE = re.compile(r"^(?P<fence>`{3,10}|~{3,10})(?P<info>[^`]*)$")
 
 # Smart-split boundaries: ASCII whitespace/punctuation + CJK full-width punctuation.
 ASCII_BOUNDARY_CHARS = " \t,.;:!?|&)]}"
@@ -54,6 +55,15 @@ def _fence_symbol(fence_marker: str) -> str:
     """The run of fence characters of a marker: "```python" -> "```"."""
     match = re.match(r"^[`~]+", fence_marker)
     return match.group(0) if match else "```"
+
+
+def _closes_fence(marker: str, fence_symbol: str) -> bool:
+    """Whether the fence line ``marker`` closes the fence opened with ``fence_symbol``.
+
+    A closing fence is bare (an info string makes the line code), made of the same character, and at least as long.
+    """
+    symbol = _fence_symbol(marker)
+    return marker == symbol and symbol[0] == fence_symbol[0] and len(symbol) >= len(fence_symbol)
 
 
 def _close_fence(body: str, fence_marker: str) -> str:
@@ -199,13 +209,15 @@ def split_message(content: str, max_len: int = 4096, *, unit: LengthUnit = "char
     current_len = 0
     fence_open = ""  # Marker of the fence the scan is inside, e.g. "```python"
     fence_symbol = ""  # Its run of fence characters, e.g. "```"
+    opener_slot = -1  # Where the line that opened the fence sits in ``current``; -1 when that line is not in it
 
     def _flush(fence_state: str) -> None:
-        """Emit the buffer closed with the fence still open in it; a trailing opener with no code under it is dropped."""
-        nonlocal current_len
-        if fence_state and current and current[-1].strip() == fence_state:
+        """Emit the buffer closed with the fence still open in it; an opener with no code under it moves to the next chunk."""
+        nonlocal current_len, opener_slot
+        if fence_state and current and opener_slot == len(current) - 1:
             current.pop()
             fence_state = ""
+        opener_slot = -1
         body = "".join(current)
         current.clear()
         current_len = 0
@@ -220,10 +232,11 @@ def split_message(content: str, max_len: int = 4096, *, unit: LengthUnit = "char
         fence_before, symbol_before = fence_open, fence_symbol
 
         is_fence, marker = _detect_fence(line)
+        opens_fence = is_fence and not fence_before
         if is_fence:
             if not fence_open:
                 fence_open, fence_symbol = marker, _fence_symbol(marker)
-            elif _fence_symbol(marker) == fence_symbol:
+            elif _closes_fence(marker, fence_symbol):
                 fence_open = fence_symbol = ""
 
         if fence_before and not fence_open:
@@ -244,6 +257,8 @@ def split_message(content: str, max_len: int = 4096, *, unit: LengthUnit = "char
         if current:
             current.append(line_with_nl)
             current_len += line_cost
+            if opens_fence:
+                opener_slot = len(current) - 1
             continue
 
         # First line of a chunk: a code line continues the fence, so it is preceded by the fence marker.
@@ -253,6 +268,8 @@ def split_message(content: str, max_len: int = 4096, *, unit: LengthUnit = "char
                 current.append(fence_before + "\n")
             current.append(line_with_nl)
             current_len = reopen_len + line_cost
+            if opens_fence:
+                opener_slot = len(current) - 1
         elif fence_before:
             segment_len = max(max_len - measure(fence_before) - len(symbol_before) - 2, 1)
             chunks.extend(
