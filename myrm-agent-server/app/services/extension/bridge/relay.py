@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.services.extension.access_policy import (
+    is_blank_url,
     normalize_domain_patterns,
     prune_paused_tab_ids,
 )
@@ -71,7 +72,7 @@ class RelayMixin:
         self._hello_received = False
         self._capabilities.clear()
         self._tabs = []
-        self._agent_tab_ids = frozenset()
+        self._agent_tabs = {}
         for fut in self._pending_requests.values():
             if not fut.done():
                 fut.set_exception(ExtensionBridgeNotAvailable("Connection lost"))
@@ -187,6 +188,9 @@ class RelayMixin:
                     url=tab.url,
                     title=tab.title,
                     active=tab.active,
+                    # Handed to the Agent once it holds a document: a page still blank when the client starts setting it up
+                    # can leave the authorized sites before the client is done.
+                    opener_tab_id=None if is_blank_url(tab.url) else self._agent_tabs.get(tab.tab_id),
                 )
                 for tab in self._tabs
                 if self._tab_is_accessible(tab) or self._is_blank_agent_tab(tab)

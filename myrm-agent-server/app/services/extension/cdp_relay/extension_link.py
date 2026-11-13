@@ -8,6 +8,7 @@
 [OUTPUT]
 - ExtensionLink: transport binding, pending-command bookkeeping, browser identity
 - SendToExtension, CallExtension: transport callables
+- TabNotAuthorized: the error of a command the extension refused because the tab left the authorized sites
 
 [POS]
 Lowest layer of the relay bridge: owns the command round trip to the MV3 extension.
@@ -19,10 +20,26 @@ import asyncio
 from collections.abc import Awaitable, Callable
 
 from .models import ExtensionIdentity
-from .protocol import RELAY_COMMAND_TIMEOUT_S, RelayCommand
+from .protocol import RELAY_COMMAND_TIMEOUT_S, RELAY_ERROR_TAB_NOT_AUTHORIZED, RelayCommand
 
 SendToExtension = Callable[[dict[str, object]], Awaitable[None]]
 CallExtension = Callable[[RelayCommand], Awaitable[object]]
+
+
+class TabNotAuthorized(RuntimeError):
+    """The extension refused a command because the tab is no longer on a site the user authorized."""
+
+
+async def _let_the_caller_forward_it() -> None:
+    """Give the coroutine awaiting a result its turn before the extension's next message is handled.
+
+    A caller resumes on the next loop turn and answers its CDP client then, whereas the extension's CDP events are
+    forwarded the moment they arrive. The extension's WebSocket delivers a result and the events behind it in one
+    burst, so without this turn the events would overtake the result. Playwright registers its lifecycle listener in
+    the reply to ``Page.getFrameTree`` and misses the events that reach it earlier: a page that had loaded by then
+    never gets its ``load`` event.
+    """
+    await asyncio.sleep(0)
 
 
 class ExtensionLink:
@@ -83,11 +100,13 @@ class ExtensionLink:
         pending = self._pending_extension.pop(seq, None)
         if pending and not pending.done():
             pending.set_result(result)
+            await _let_the_caller_forward_it()
 
-    async def handle_extension_error(self, seq: int, message: str) -> None:
+    async def handle_extension_error(self, seq: int, message: str, code: str | None = None) -> None:
         pending = self._pending_extension.pop(seq, None)
         if pending and not pending.done():
-            pending.set_exception(RuntimeError(message))
+            pending.set_exception(TabNotAuthorized(message) if code == RELAY_ERROR_TAB_NOT_AUTHORIZED else RuntimeError(message))
+            await _let_the_caller_forward_it()
 
     async def _call_extension_cmd(self, command: RelayCommand) -> object:
         if self._call_extension is None:

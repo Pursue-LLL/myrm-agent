@@ -15,7 +15,7 @@ import { executeAction } from "./actions.js";
 import { applyAccessPolicyPayload, sendAccessPolicyUpdate } from "./access_policy.js";
 import { applyClipAgentConfig } from "./clip.js";
 import { detachUnauthorizedAttachedTabs } from "./debugger.js";
-import { executeRelayCommand } from "./relay.js";
+import { executeRelayCommand, TabNotAuthorizedError } from "./relay.js";
 import { persistAccessPolicyLocal, state } from "./state.js";
 import { sendTabsUpdate } from "./tabs.js";
 import { send } from "./transport.js";
@@ -52,7 +52,12 @@ export async function handleServerMessage(message) {
     try {
       await executeRelayCommand(message.seq, message.command || {});
     } catch (e) {
-      send({ type: "relay_error", seq: message.seq, message: e.message || String(e) });
+      send({
+        type: "relay_error",
+        seq: message.seq,
+        message: e.message || String(e),
+        code: e instanceof TabNotAuthorizedError ? e.code : undefined,
+      });
     }
     return;
   }

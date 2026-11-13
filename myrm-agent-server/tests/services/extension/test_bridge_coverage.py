@@ -510,7 +510,7 @@ def test_apply_tab_list_keeps_well_formed_tabs_and_remembers_which_the_agent_ope
         (1, "https://example.com/", "example.com", True),
         (2, "about:blank", "", False),
     ]
-    assert bridge._agent_tab_ids == frozenset({2})
+    assert bridge._agent_tabs == {2: None}
 
 
 def test_apply_tab_list_ignores_a_report_that_is_not_a_list() -> None:
@@ -520,7 +520,7 @@ def test_apply_tab_list_ignores_a_report_that_is_not_a_list() -> None:
     bridge._apply_tab_list({"tabs": []})
 
     assert [tab.tab_id for tab in bridge._tabs] == [1]
-    assert bridge._agent_tab_ids == frozenset({1})
+    assert bridge._agent_tabs == {1: None}
 
 
 @pytest.mark.asyncio

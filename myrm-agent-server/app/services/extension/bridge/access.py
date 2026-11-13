@@ -56,7 +56,7 @@ class AccessPolicyMixin:
 
     def _is_blank_agent_tab(self, tab: ExtensionTab) -> bool:
         """A blank page the Agent opened itself: it holds no site data and the Agent must be able to navigate it."""
-        return tab.tab_id in self._agent_tab_ids and is_blank_url(tab.url)
+        return tab.tab_id in self._agent_tabs and is_blank_url(tab.url)
 
     def _tab_is_visible_in_ui(self, tab: ExtensionTab) -> bool:
         return is_tab_accessible(

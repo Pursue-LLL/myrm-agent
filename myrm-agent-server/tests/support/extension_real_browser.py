@@ -2,7 +2,7 @@
 
 [INPUT]
 - patchright.async_api::async_playwright (POS: starts a real Chromium profile that loads the unpacked extension)
-- aiohttp.web (POS: serves the cookie-gated fixture sites)
+- extension_fixture_site::FixtureSite (POS: the cookie-gated site the Agent reads)
 - uvicorn (POS: serves the production extension routes inside the test's event loop, so the extension reaches the bridge
   through a real WebSocket and the bridge's Playwright calls share the loop that owns the relay)
 - app.api.extension.router::router, ws_router (POS: the production REST and WebSocket routes of the bridge)
@@ -10,7 +10,7 @@
 - app.services.extension.cdp_relay.manager (POS: process-wide relay singleton, reset around every stack)
 
 [OUTPUT]
-- FixtureSite: loopback site that answers under several host names and gates its pages on a login cookie
+- INTRANET_HOST / OTHER_HOST: the two fixture host names
 - BridgeServer: the production extension routes on an ephemeral loopback port
 - ExtensionBrowser: the user's daily browser with the extension loaded; popup-style messaging, extension-page scripts,
   service-worker termination, what the user is looking at (`users_view`)
@@ -41,7 +41,6 @@ from pathlib import Path
 
 import pytest
 import uvicorn
-from aiohttp import web
 from fastapi import FastAPI
 from myrm_agent_harness.toolkits.browser.pool import BrowserPoolConfig, ContextType, GlobalBrowserPool
 from myrm_agent_harness.toolkits.browser.session import BrowserSession
@@ -53,6 +52,7 @@ from app.config.settings import settings
 from app.services.extension.bridge import ExtensionBridgeService, get_extension_bridge
 from app.services.extension.bridge import factory as bridge_factory
 from app.services.extension.cdp_relay import manager as relay_manager
+from tests.support.extension_fixture_site import FixtureSite
 
 EXTENSION_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-extension"
 _HEADED_ENV = "MYRM_EXTENSION_E2E_HEADED"
@@ -60,7 +60,6 @@ _HEADED_ENV = "MYRM_EXTENSION_E2E_HEADED"
 # the driver makes outside the browser, to the machine's DNS, and a proxy tool's fake-address answer stalls it for seconds.
 INTRANET_HOST = "intranet.localhost"
 OTHER_HOST = "other.localhost"
-_PAGE = "<!doctype html><html><head><meta charset='utf-8'><title>{title}</title></head><body>{body}</body></html>"
 _USERS_VIEW_SCRIPT = """async () => {
   const focused = await chrome.windows.getLastFocused({ populate: true });
   return {
@@ -68,6 +67,10 @@ _USERS_VIEW_SCRIPT = """async () => {
     activeUrl: focused.tabs.find((tab) => tab.active)?.url ?? '',
     windowCount: (await chrome.windows.getAll()).length,
   };
+}"""
+_AGENT_TABS_SCRIPT = """async () => {
+  const { agentTabIds = [] } = await chrome.storage.session.get('agentTabIds');
+  return (await chrome.tabs.query({})).filter((tab) => agentTabIds.includes(tab.id)).map((tab) => tab.url);
 }"""
 
 
@@ -91,58 +94,6 @@ async def wait_until(condition: Callable[[], Awaitable[bool]], what: str, *, tim
         if time.monotonic() >= deadline:
             raise AssertionError(f"Timed out after {timeout:.0f}s waiting for: {what}")
         await asyncio.sleep(0.1)
-
-
-class FixtureSite:
-    """Loopback site reachable under every fixture host name; its pages need the cookie ``/login`` hands out."""
-
-    def __init__(self) -> None:
-        self.port = 0
-        self._runner: web.AppRunner | None = None
-
-    def url(self, host: str, path: str = "/") -> str:
-        return f"http://{host}:{self.port}{path}"
-
-    async def start(self) -> None:
-        app = web.Application()
-        app.router.add_get("/login", self._login)
-        app.router.add_get("/secret", self._secret)
-        app.router.add_get("/orders", self._orders)
-        self._runner = web.AppRunner(app)
-        await self._runner.setup()
-        await web.TCPSite(self._runner, "127.0.0.1", 0).start()
-        self.port = self._runner.addresses[0][1]
-
-    async def stop(self) -> None:
-        if self._runner is not None:
-            await self._runner.cleanup()
-            self._runner = None
-
-    @staticmethod
-    def _host(request: web.Request) -> str:
-        return request.host.split(":")[0]
-
-    @staticmethod
-    def _html(title: str, body: str, *, status: int = 200) -> web.Response:
-        return web.Response(text=_PAGE.format(title=title, body=body), content_type="text/html", status=status)
-
-    async def _login(self, request: web.Request) -> web.Response:
-        response = self._html("Signed in", f"<p id='who'>{request.query.get('user', 'alice')} on {self._host(request)}</p>")
-        response.set_cookie("sid", request.query.get("user", "alice"), httponly=True, path="/")
-        return response
-
-    async def _secret(self, request: web.Request) -> web.Response:
-        user = request.cookies.get("sid")
-        if not user:
-            return self._html("Login required", "<p id='denied'>login required</p>", status=401)
-        body = f"<h1 id='who'>{user}</h1><p id='data'>private-data-42</p><a id='orders-link' href='/orders'>Orders</a>"
-        return self._html("Secret", body)
-
-    async def _orders(self, request: web.Request) -> web.Response:
-        if not request.cookies.get("sid"):
-            return self._html("Login required", "<p id='denied'>login required</p>", status=401)
-        body = "<p id='orders'>Order 1001</p><button id='confirm' onclick=\"document.title='confirmed'\">Confirm</button>"
-        return self._html("Orders", body)
 
 
 class BridgeServer:
@@ -218,6 +169,12 @@ class ExtensionBrowser:
         page = await self.popup()
         return await page.evaluate(function, argument, isolated_context=False)
 
+    async def agent_tab_urls(self) -> list[str]:
+        """URLs of the tabs the extension holds as the Agent's, as it persists them for the browser session."""
+        urls = await self.evaluate(_AGENT_TABS_SCRIPT)
+        assert isinstance(urls, list), f"Extension answered {urls!r} to the Agent tab query"
+        return [str(url) for url in urls]
+
     async def stop_service_worker(self) -> None:
         """Terminate the extension's service worker the way the browser does when it reclaims an idle one.
 
@@ -281,12 +238,20 @@ class RealExtensionStack:
     async def authorize(self, domains: list[str]) -> None:
         """Set the authorized domains from the server side, as the settings page does."""
         await self.bridge.set_authorized_domains(domains)
+        heard: dict[str, object] = {}
 
         async def pushed() -> bool:
-            reply = await self.browser.send({"type": "get_access_policy"})
-            return reply.get("authorizedDomains") == domains
+            heard.update(await self.browser.send({"type": "get_access_policy"}))
+            return heard.get("authorizedDomains") == domains
 
-        await wait_until(pushed, f"the extension to receive authorized domains {domains}")
+        try:
+            await wait_until(pushed, f"the extension to receive authorized domains {domains}")
+        except AssertionError as stalled:
+            # Which side lost the list tells a push that never arrived from one that was overwritten.
+            held = self.bridge.get_authorized_domains()
+            raise AssertionError(
+                f"{stalled}; the extension reports {heard.get('authorizedDomains')!r}, the server holds {held!r}"
+            ) from None
 
     async def log_in(self, host: str) -> Page:
         """The user signs in to a site in a tab of their own, as they would before asking the Agent for help."""

@@ -1449,7 +1449,7 @@ class TestHandleWsConnectionLifecycle:
 
         mock_manager.return_value.bind_extension_transport.assert_awaited_once_with(None)
         assert bridge._tabs == []
-        assert bridge._agent_tab_ids == frozenset()
+        assert bridge._agent_tabs == {}
 
     @pytest.mark.asyncio
     async def test_a_replaced_connection_does_not_reset_its_successor(self) -> None:
@@ -1466,7 +1466,7 @@ class TestHandleWsConnectionLifecycle:
         mock_manager.return_value.bind_extension_transport.assert_not_awaited()
         assert bridge._ws is successor
         assert bridge._connected is True
-        assert bridge._agent_tab_ids == frozenset({4})
+        assert bridge._agent_tabs == {4: None}
 
 
 class TestDisconnectPlaywrightCleanup:
