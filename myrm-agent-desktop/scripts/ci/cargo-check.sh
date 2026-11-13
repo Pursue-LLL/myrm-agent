@@ -32,10 +32,11 @@ cargo check --locked
 #   ipc_security::tests::build_manifest_commands_are_covered_by_policy / command_registry
 #                                      every registered command has a sender policy, no duplicates
 #   app::setup                         which windows the app-level window policy governs
+#   app::autostart                     which builds write the OS login item (a development build never does)
 cargo test --locked -- config::tests commands::privacy_curtain commands::visual_approval_overlay \
   commands::pet_surface commands::session_window utils::protocol_page runtime::product_origin \
   runtime::sidecar_path runtime::node_runtime utils::process_tree app::chain ipc_security::acl_tests \
   ipc_security::tests::build_manifest_commands_are_covered_by_policy \
-  ipc_security::tests::command_registry app::setup --nocapture
+  ipc_security::tests::command_registry app::setup app::autostart --nocapture
 
 echo "[desktop-cargo-check] OK"
