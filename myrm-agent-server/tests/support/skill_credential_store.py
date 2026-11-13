@@ -29,7 +29,7 @@ from myrm_agent_harness.api.skills import build_skill_metadata, parse_skill_fron
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+from app.core.channel_bridge import config_cache
 from app.core.skills.models import Skill
 from app.core.storage.types import SkillType
 from app.database.models import ConfigAuditLog, UserConfig
@@ -128,6 +128,7 @@ def bind_credential_readers(monkeypatch: pytest.MonkeyPatch, sessions: async_ses
     """Point every reader and writer of stored credentials at ``sessions`` (one with the ``UserConfig`` table).
 
     Binds before anything is stored through the returned store: the rows are encrypted with a key made for this call.
+    The loader's config cache is private to the test, so the stored rows are not served to a test that runs after it.
     """
 
     @asynccontextmanager
@@ -141,7 +142,8 @@ def bind_credential_readers(monkeypatch: pytest.MonkeyPatch, sessions: async_ses
     monkeypatch.setattr(service, "get_encryption_service", lambda: encryption)
     monkeypatch.setattr("app.services.config.encryption.get_encryption_service", lambda: encryption)
     monkeypatch.setattr("app.services.integrations.oauth_store.get_encryption_service", lambda: encryption)
-    invalidate_user_configs_cache()
+    config_cache.invalidate_user_configs_cache()
+    monkeypatch.setattr(config_cache, "_config_cache", {})
     return CredentialStore(sessions)
 
 
@@ -155,7 +157,7 @@ async def credential_store(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Cre
     try:
         yield bind_credential_readers(monkeypatch, async_sessionmaker(engine, expire_on_commit=False))
     finally:
-        invalidate_user_configs_cache()
+        config_cache.invalidate_user_configs_cache()
         await engine.dispose()
 
 
