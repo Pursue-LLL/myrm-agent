@@ -6,6 +6,7 @@ import asyncio
 import base64
 import contextlib
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -429,23 +430,50 @@ class TestStreamThrottlingAndOOM:
 
     @pytest.mark.asyncio
     async def test_oom_truncation(self) -> None:
-        """Test the backend OOM truncation logic for 1MB+ output strings."""
+        """Output beyond MAX_OUTPUT_CHARS is cut once, in the session: the result fits the cap with both notes in it.
+
+        ExecutionResult cuts stdout again at the cap, and that cut would take the middle out of the result,
+        the notice and its count of the dropped characters with it.
+        """
         session = LocalPersistentSession(_make_config(timeout=15))
         await session.start()
         try:
             from myrm_agent_harness.toolkits.code_execution.executors.common.executor_utils import (
                 MAX_OUTPUT_CHARS,
             )
+            from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
 
-            # Print 200,000 chars which is more than the default 100,000 MAX_OUTPUT_CHARS
-            # The result.stdout should be truncated to MAX_OUTPUT_CHARS and contain the warning
-            cmd = "python3 -c \"for i in range(10000): print('A' * 20)\""
-            result = await session.execute(cmd)
+            # 10,000 lines of 21 characters: 210,000 characters, beyond MAX_OUTPUT_CHARS.
+            written = 10_000 * 21
+            result = await session.execute("python3 -c \"for i in range(10000): print('A' * 20)\"")
 
             assert result.success
-            assert len(result.stdout) <= MAX_OUTPUT_CHARS + 500  # Leave room for the warning text
-            assert "[System Warning: The middle" in result.stdout
-            assert "characters of output were truncated to prevent memory overflow]" in result.stdout
+            assert len(result.stdout) <= MAX_OUTPUT_CHARS
+            notice = re.search(
+                r"\[System Warning: The middle (\d+) characters of output were truncated to prevent memory overflow\]",
+                result.stdout,
+            )
+            assert notice is not None
+            assert "[System Note: Output was truncated. The FULL original output was stream-saved to" in result.stdout
+            # The count is what the result lost: the overflow, and the room the two notes take.
+            assert written - MAX_OUTPUT_CHARS <= int(notice[1]) <= written - MAX_OUTPUT_CHARS + 1_000
+
+            handed_on = ExecutionResult(success=True, stdout=result.stdout).stdout
+            assert "[Truncated:" not in handed_on
+            assert notice[0] in handed_on
+        finally:
+            await session.close()
+
+    @pytest.mark.asyncio
+    async def test_output_between_the_head_and_the_cap_is_returned_whole(self) -> None:
+        """Nothing is dropped below the cap: no notice splits the output where the head ends, no note follows it."""
+        session = LocalPersistentSession(_make_config(timeout=15))
+        await session.start()
+        try:
+            result = await session.execute("python3 -c \"print('A' * 100000)\"")
+
+            assert result.success
+            assert result.stdout == "A" * 100_000
         finally:
             await session.close()
 
