@@ -1,8 +1,9 @@
 """The extension bridge keeps no dead Playwright driver around.
 
 The bridge owns a Playwright driver of its own (a Node process), separate from the browser pool's. When that process
-exits, every later CDP connect fails with the same message, so a cached handle would fail forever unless the bridge
-drops it. These tests use the one thing patchright reports for that failure (`patchright/_impl/_transport.py`).
+exits, every CDP connect on it fails with the same message, so the bridge drops the dead driver and attaches again on
+a new one within the same call. These tests use the one thing patchright reports for that failure
+(`patchright/_impl/_transport.py`).
 """
 
 from __future__ import annotations
@@ -28,10 +29,14 @@ class _FakeDriver:
         self.stop = AsyncMock()
 
 
-def _browser() -> MagicMock:
+def _exited_driver() -> _FakeDriver:
+    return _FakeDriver(AsyncMock(side_effect=Exception(_DRIVER_EXIT_MESSAGE)))
+
+
+def _live_driver() -> _FakeDriver:
     browser = MagicMock()
     browser.contexts = []
-    return browser
+    return _FakeDriver(AsyncMock(return_value=browser))
 
 
 def _drivers_started_in_order(*drivers: _FakeDriver) -> MagicMock:
@@ -66,34 +71,51 @@ async def bridge() -> AsyncIterator[ExtensionBridgeService]:
         yield service
 
 
-async def test_a_connect_that_fails_on_an_exited_driver_leaves_the_next_one_a_new_driver(
+async def test_a_connect_on_an_exited_driver_is_served_by_a_new_one_in_the_same_call(
     bridge: ExtensionBridgeService,
 ) -> None:
-    dead = _FakeDriver(AsyncMock(side_effect=Exception(_DRIVER_EXIT_MESSAGE)))
-    live = _FakeDriver(AsyncMock(return_value=_browser()))
+    dead, live = _exited_driver(), _live_driver()
     factory = _drivers_started_in_order(dead, live)
 
     with patch("patchright.async_api.async_playwright", factory):
-        with pytest.raises(Exception, match="Connection closed while reading from the driver"):
-            await bridge.connect()
-        assert bridge._playwright is None
-        dead.stop.assert_awaited_once()
-
         instance = await bridge.connect()
 
     assert isinstance(instance, ExtensionBrowserInstance)
     assert factory.call_count == 2
+    dead.stop.assert_awaited_once()
     assert bridge._playwright is live
     live.stop.assert_not_awaited()
 
 
-async def test_a_connect_that_fails_for_another_reason_keeps_the_driver(bridge: ExtensionBridgeService) -> None:
-    driver = _FakeDriver(AsyncMock(side_effect=[TimeoutError("CDP connect timed out"), _browser()]))
+async def test_a_new_driver_that_exits_too_ends_the_call_and_is_dropped_as_well(bridge: ExtensionBridgeService) -> None:
+    first_dead, second_dead, live = _exited_driver(), _exited_driver(), _live_driver()
+    factory = _drivers_started_in_order(first_dead, second_dead, live)
+
+    with patch("patchright.async_api.async_playwright", factory):
+        with pytest.raises(Exception, match="Connection closed while reading from the driver"):
+            await bridge.connect()
+
+        assert factory.call_count == 2  # one retry, not a loop
+        assert bridge._playwright is None
+        first_dead.stop.assert_awaited_once()
+        second_dead.stop.assert_awaited_once()
+
+        await bridge.connect()
+
+    assert bridge._playwright is live
+
+
+async def test_a_connect_that_fails_for_another_reason_keeps_the_driver_and_is_not_retried(
+    bridge: ExtensionBridgeService,
+) -> None:
+    driver = _live_driver()
+    driver.chromium.connect_over_cdp.side_effect = [TimeoutError("CDP connect timed out"), MagicMock(contexts=[])]
     factory = _drivers_started_in_order(driver)
 
     with patch("patchright.async_api.async_playwright", factory):
         with pytest.raises(TimeoutError):
             await bridge.connect()
+        assert driver.chromium.connect_over_cdp.await_count == 1
         assert bridge._playwright is driver
         await bridge.connect()
 
@@ -102,7 +124,8 @@ async def test_a_connect_that_fails_for_another_reason_keeps_the_driver(bridge: 
 
 
 async def test_only_the_driver_that_failed_is_dropped(bridge: ExtensionBridgeService) -> None:
-    newer = _FakeDriver(AsyncMock(return_value=_browser()))
+    """Another caller already replaced the failed driver: its newer one keeps serving, and the retry runs on it."""
+    newer = _live_driver()
 
     async def fail_after_a_newer_driver_took_over(*args: object, **kwargs: object) -> MagicMock:
         bridge._playwright = newer  # type: ignore[assignment]
@@ -112,8 +135,10 @@ async def test_only_the_driver_that_failed_is_dropped(bridge: ExtensionBridgeSer
     factory = _drivers_started_in_order(dead)
 
     with patch("patchright.async_api.async_playwright", factory):
-        with pytest.raises(Exception, match="Connection closed while reading from the driver"):
-            await bridge.connect()
+        instance = await bridge.connect()
 
+    assert isinstance(instance, ExtensionBrowserInstance)
     assert bridge._playwright is newer
+    newer.chromium.connect_over_cdp.assert_awaited_once()
     newer.stop.assert_not_awaited()
+    dead.stop.assert_not_awaited()  # whoever replaced it stops it; this caller no longer owns it

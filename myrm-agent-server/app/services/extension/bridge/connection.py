@@ -6,9 +6,9 @@
 - ConnectionMixin
 
 [POS]
-Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status. A connect that fails
-because the Playwright driver process exited drops that driver, so the next connect starts a new one instead of
-failing on the dead one until the extension reconnects.
+Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status. A connect that finds the
+Playwright driver process exited drops that driver and attaches again on a new one, so a dead driver never fails a
+connect (it would otherwise fail every one until the extension reconnects).
 """
 
 from __future__ import annotations
@@ -58,21 +58,33 @@ class ConnectionMixin(BridgeState):
             with contextlib.suppress(Exception):
                 await playwright.stop()
 
-    async def _connect_over_cdp(self, cdp_endpoint: str, timeout: float) -> Browser:
-        """Attach Playwright to the relay's DevTools endpoint.
+    async def _attach_once(self, cdp_endpoint: str, timeout: float) -> Browser:
+        """One Playwright attach to the relay's DevTools endpoint, on the cached driver.
 
-        A driver whose process has exited can attach to nothing, ever: it is dropped, so the next attempt (the pool
-        retries a failed acquisition once) runs on a new driver. Only the driver that failed is dropped: a newer one
-        another caller already started keeps serving.
+        A driver whose process has exited can attach to nothing, ever, so it is dropped before the error propagates.
+        Only the driver that failed is dropped: a newer one another caller already started keeps serving.
         """
         pw = await self._ensure_playwright()
         try:
             return await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
         except Exception as exc:
             if self._playwright is pw and is_driver_closed_error(exc):
-                logger.warning("Extension bridge: Playwright driver process is gone; the next connect starts a new driver")
                 await self._discard_playwright()
             raise
+
+    async def _connect_over_cdp(self, cdp_endpoint: str, timeout: float) -> Browser:
+        """Attach Playwright to the relay's DevTools endpoint, once more on a new driver if the cached one had exited.
+
+        The retry belongs here: the bridge owns the driver, and the browser pool's own single retry of a failed page
+        acquisition would otherwise be spent reaching this same dead driver, leaving the session without a tab.
+        """
+        try:
+            return await self._attach_once(cdp_endpoint, timeout)
+        except Exception as exc:
+            if not is_driver_closed_error(exc):
+                raise
+            logger.warning("Extension bridge: Playwright driver process is gone (%s); attaching again on a new driver", exc)
+            return await self._attach_once(cdp_endpoint, timeout)
 
     def _resolve_cdp_endpoint(self) -> str | None:
         """Discover main Chrome CDP endpoint when extension bridge has no cached value."""
