@@ -44,12 +44,20 @@ class _LLMModelResolver:
 
     Resolves model_name (routed ``provider/model`` form like "openai/gpt-4o-mini") to a
     BaseChatModel by looking up the user's provider config for API keys.
+
+    The harness always passes its routing hints; they are accepted and ignored because this resolver is only
+    injected for a preset that names its model, and a named model is resolved by name.
     """
 
     def __init__(self) -> None:
         pass
 
-    async def resolve(self, model_name: str) -> object:
+    async def resolve(
+        self,
+        model_name: str,
+        complexity_tier: str | None = None,
+        task_description: str | None = None,
+    ) -> object:
         from myrm_agent_harness.toolkits.llms import llm_manager
 
         from app.core.channel_bridge.config_loader import load_user_configs

@@ -498,6 +498,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `ai_agents/test_ephemeral_agent_factory.py` | 模块 | EphemeralAgentFactory 的 build 路径：记忆搜索重绑、技能写后端、fork 上下文、模型解析与回退 |
 | `ai_agents/test_subagent_assembly.py` | 模块 | 两个子 Agent 工厂共用的装配步骤：工具白名单过滤、`memory_search_tool` 重绑、技能写后端 |
 | `ai_agents/test_subagent_credential_track.py` | 模块 | 源码扫描：`app/` 里每处构造 `SubagentManagementExtension` 都传入该轮的凭证轨道（字面量与缺省都被拒绝），委派的子 Agent 才与该轮同口径门禁技能；目录→工厂→技能后端的真实路径由 `integration/skills/test_google_workspace_oauth_integration.py` 覆盖 |
+| `ai_agents/test_subagent_catalog_model_resolver.py` | 模块 | 写明了 `model` 的 YAML 预设经目录注入的解析器、按 harness 的调用方式（带路由提示关键字）解析出该模型，而不是静默沿用委派者的模型；没写 `model` 的预设保持委派者的模型 |
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |
 | `e2e/test_theme_marketplace_gallery_chrome_e2e.py` | 模块 | Theme Studio Gallery 免费安装 Chrome MCP smoke（READ×1：CP seed→acquire→download→install-from-marketplace） |
 | `e2e/test_subagent_dashboard_chrome_e2e.py` | 模块 | Subagent Dashboard Chrome MCP E2E（LIVE×6：cancel running、delegation pause toggle、SSE token/model 展示、budget used/limit、canvas 拓扑渲染 + 点击定位回树、fission 拓扑合并渲染） |
