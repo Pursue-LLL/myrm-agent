@@ -26,11 +26,13 @@ from collections.abc import Sequence
 
 from app.channels.rendering.text_utils import FENCED_BLOCK_RE, extract_safe_regions, fenced_block_html
 
-_INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+# A span and a link target never hold a placeholder (NUL): backticks on both sides of a protected block stay text, and
+# a "link" to `code` is no href with markup in it.
+_INLINE_CODE_RE = re.compile(r"`([^`\x00]+)`")
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
-_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\x00]+)\)")
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
 _UL_LINE_RE = re.compile(r"^[-*]\s+(.+)$")
 _OL_LINE_RE = re.compile(r"^\d+\.\s+(.+)$")

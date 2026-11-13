@@ -261,6 +261,13 @@ class TestTableDowngrade:
         combined = result[0]
         assert "|---|" in combined
 
+    def test_table_inside_a_block_a_longer_fence_documents_preserved(self):
+        documented = "```md\n| A | B |\n|---|---|\n| 1 | 2 |\n```\n"
+        content = f"Syntax:\n\n````markdown\n{documented}````\n\nEnd."
+        style = RenderStyle(format="markdown", max_text_length=4096)
+        combined = render(_msg(content=content), style)[0]
+        assert f"````markdown\n{documented}````" in combined
+
     def test_combined_latex_and_table_downgrade(self):
         content = "$$E=mc^2$$ 的推导：\n\n| Variable | Meaning |\n|----------|--------|\n| E | Energy |\n| m | Mass |\n"
         style = RenderStyle(format="markdown", max_text_length=4096)

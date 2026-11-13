@@ -30,11 +30,13 @@ from app.channels.rendering.text_utils import FENCED_BLOCK_RE, fenced_block_html
 
 _MAX_MSG_LENGTH = 4096
 
-_INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+# A span and a link target never hold a placeholder (NUL): backticks on both sides of a protected block stay text, and
+# a "link" to `code` is no href with markup in it.
+_INLINE_CODE_RE = re.compile(r"`([^`\x00]+)`")
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
-_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\x00]+)\)")
 _TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$")
 
 # Exact whitelist of Telegram supported HTML tags
@@ -137,13 +139,15 @@ def md_to_telegram_html(text: str) -> str:
         return f"\x00PRESERVE{len(preserved) - 1}\x00"
 
     result = FENCED_BLOCK_RE.sub(_preserve_code_block, text)
-    result = _INLINE_CODE_RE.sub(_preserve_inline_code, result)
 
+    # Tables before inline code: a cell keeps its backticks as text, so the table is as wide as it reads
     result, table_blocks = _convert_tables(result)
     tbl_offset = len(preserved)
     preserved.extend(table_blocks)
     for idx in range(len(table_blocks)):
         result = result.replace(f"\x00TBLPRESERVE{idx}\x00", f"\x00PRESERVE{tbl_offset + idx}\x00")
+
+    result = _INLINE_CODE_RE.sub(_preserve_inline_code, result)
 
     # Split by PRESERVE placeholders AND Telegram-supported HTML tags to protect both
     _SPLIT_RE = re.compile(r"(\x00PRESERVE\d+\x00)|" + _TELEGRAM_TAGS_RE.pattern)
