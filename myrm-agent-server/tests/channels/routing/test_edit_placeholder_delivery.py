@@ -14,13 +14,14 @@ from app.channels.types import ActionButton, ChannelCapabilities, OutboundMessag
 from tests.channels.core.outbound_testkit import make_ephemeral_doc
 
 
-def _channel(*, media: bool = True, max_text_length: int = 4096) -> MagicMock:
+def _channel(*, media: bool = True, max_text_length: int = 4096, can_delete: bool = False) -> MagicMock:
     channel = MagicMock()
     channel.edit_placeholder_message = AsyncMock()
+    channel.delete_message = AsyncMock()
     channel.retry_config = RetryConfig(max_retries=1, base_delay=0.0, jitter=0.0)
     channel.should_retry = MagicMock(return_value=False)
     channel.extract_retry_after = MagicMock(return_value=None)
-    channel.capabilities = ChannelCapabilities(media=media, file_upload=media, buttons=True)
+    channel.capabilities = ChannelCapabilities(media=media, file_upload=media, buttons=True, delete=can_delete)
     channel.render_style = RenderStyle(format="markdown", max_text_length=max_text_length)
     return channel
 
@@ -120,6 +121,52 @@ class TestWhenTheEditCannotCarryTheReply:
         assert (full_reply.content, full_reply.media) == ("Report ready", (doc,))
         assert Path(doc.path).exists()  # the bus delivers it and removes it afterwards
         Path(doc.path).unlink(missing_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_the_placeholder_the_edit_could_not_replace_is_removed_after_the_reply_is_queued(self) -> None:
+        channel = _channel(can_delete=True)
+        channel.edit_placeholder_message.side_effect = ChannelSendError("not accepted", retriable=False)
+        bus = _bus(channel)
+        order: list[str] = []
+        bus.publish_outbound.side_effect = lambda msg: order.append("reply")
+        channel.delete_message.side_effect = lambda chat_id, message_id: order.append(f"delete {chat_id} {message_id}")
+
+        await MessageEffects(bus).edit_placeholder("test", "chat-1", "ph-1", _reply("The answer"))
+
+        assert order == ["reply", "delete chat-1 ph-1"]
+
+    @pytest.mark.asyncio
+    async def test_the_reply_is_queued_even_when_the_placeholder_cannot_be_removed(self) -> None:
+        channel = _channel(can_delete=True)
+        channel.edit_placeholder_message.side_effect = ChannelSendError("not accepted", retriable=False)
+        channel.delete_message.side_effect = RuntimeError("message is too old to delete")
+        bus = _bus(channel)
+
+        await MessageEffects(bus).edit_placeholder("test", "chat-1", "ph-1", _reply("The answer"))
+
+        (reply,) = _published(bus)
+        assert reply.content == "The answer"
+
+    @pytest.mark.asyncio
+    async def test_a_channel_that_cannot_delete_keeps_its_placeholder_without_trying(self) -> None:
+        channel = _channel(can_delete=False)
+        channel.edit_placeholder_message.side_effect = ChannelSendError("not accepted", retriable=False)
+        bus = _bus(channel)
+
+        await MessageEffects(bus).edit_placeholder("test", "chat-1", "ph-1", _reply("The answer"))
+
+        channel.delete_message.assert_not_awaited()
+        assert len(_published(bus)) == 1
+
+    @pytest.mark.asyncio
+    async def test_an_edit_that_worked_leaves_the_placeholder_as_the_reply(self) -> None:
+        channel = _channel(can_delete=True)
+        bus = _bus(channel)
+
+        await MessageEffects(bus).edit_placeholder("test", "chat-1", "ph-1", _reply("The answer"))
+
+        channel.delete_message.assert_not_awaited()
+        bus.publish_outbound.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_attachments_the_channel_cannot_carry_become_a_note_and_release_their_files(self) -> None:

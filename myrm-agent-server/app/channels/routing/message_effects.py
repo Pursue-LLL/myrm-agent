@@ -173,7 +173,8 @@ class MessageEffects:
         when the channel supports it, falling back to edit_message with text content.
         An edit carries text only, so attachments follow as a message of their own through
         the bus (retry, durable record and partial-delivery handling included).
-        Falls back to a normal outbound publish if editing fails entirely.
+        Falls back to a normal outbound publish if editing fails entirely, and then removes the placeholder, which
+        would otherwise stay behind announcing a reply that is not there.
         """
         ch = self._bus.get_channel(channel)
         if not ch:
@@ -205,6 +206,7 @@ class MessageEffects:
             logger.warning("placeholder edit failed, sending normally: %s", exc)
             await self._bus.durable_outbound.ack(first_result)
             await self._bus.publish_outbound(prepared)
+            await self._remove_placeholder(channel, chat_id, placeholder_id)
             return
 
         await self._bus.durable_outbound.ack(first_result)
@@ -222,6 +224,16 @@ class MessageEffects:
                 tool_steps=(),
             )
             await self._bus.publish_outbound(files_only)
+
+    async def _remove_placeholder(self, channel: str, chat_id: str, placeholder_id: str) -> None:
+        """Best-effort deletion of a placeholder whose reply went out as a message of its own."""
+        ch = self._bus.get_channel(channel)
+        if not ch or not ch.capabilities.delete:
+            return
+        try:
+            await ch.delete_message(chat_id, placeholder_id)
+        except Exception as exc:
+            logger.debug("placeholder removal failed for %s/%s: %s", channel, chat_id, exc)
 
     async def cleanup_placeholder(
         self,
