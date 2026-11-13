@@ -7,7 +7,8 @@
 - .config::LaunchMode, _DEFAULT_CDP_ENDPOINT (POS: launch method enum and default CDP endpoint)
 - .chrome_discovery::discover_chrome_cdp_endpoint (POS: DevToolsActivePort-based browser discovery)
 - .camoufox_availability::require_camoufox_ready (POS: non-downloading Camoufox readiness gate)
-- .browser_launch_env::chromium_launch_env, camoufox_launch_env (POS: environment of launched browser processes)
+- .camoufox_launch::launch_camoufox (POS: Camoufox start with a persisted fingerprint)
+- .browser_launch_env::chromium_launch_env (POS: environment of launched Chromium processes)
 - .chromium_install::auto_install_chromium, build_install_failure_message (POS: zero-config Chromium installation)
 - ..utils.page_health::is_driver_closed_error (POS: tells a call that failed on an exited Playwright driver from other failures)
 
@@ -24,7 +25,7 @@ Dedicated to browser instance launching, including:
 5. Auto mode: DevToolsActivePort discovery → probe → connect → fallback to launch
 6. Smart retry strategy (3 retries + exponential backoff)
 7. Zero-config auto-install: a launch that reports a missing Chromium runs ``chromium_install`` and retries
-8. Camoufox: fingerprint persistence (launch_options(), from_options reload, corrupted-JSON self-heal) and a readiness gate that refuses to start without the browser build, so no implicit ~1.2 GB download runs inside a request
+8. Camoufox: started through `camoufox_launch` (fingerprint persistence, corrupted-JSON self-heal) behind a readiness gate that refuses to start without the browser build, so no implicit ~1.2 GB download runs inside a request
 9. Driver recovery: a launch or CDP connect that fails because the Playwright driver process is gone drops the cached driver, so the next attempt starts a new one instead of failing on the dead one forever
 """
 
@@ -32,19 +33,18 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import functools
-import json
 import logging
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from ..exceptions import BrowserLaunchError
 from ..utils.page_health import is_driver_closed_error
-from .browser_launch_env import camoufox_launch_env, chromium_launch_env
+from .browser_launch_env import chromium_launch_env
 from .camoufox_availability import require_camoufox_ready
+from .camoufox_launch import launch_camoufox
 from .chromium_install import auto_install_chromium, build_install_failure_message
 from .config import _DEFAULT_CDP_ENDPOINT, BrowserEngine, LaunchMode
 
@@ -276,55 +276,7 @@ class BrowserLauncher:
         for attempt in range(3):
             try:
                 if self._engine == BrowserEngine.FIREFOX_CAMOUFOX:
-                    from camoufox.async_api import AsyncCamoufox
-                    from camoufox.utils import launch_options as build_camoufox_options
-
-                    fp_file = self._fingerprint_dir / "camoufox_fingerprint.json" if self._fingerprint_dir else None
-                    camoufox_config: dict[str, object] | None = None
-                    if fp_file and fp_file.is_file():
-                        try:
-                            camoufox_config = json.loads(fp_file.read_text(encoding="utf-8"))
-                            if not isinstance(camoufox_config, dict):
-                                raise ValueError("expected dict, got " + type(camoufox_config).__name__)
-                            logger.debug("Loaded Camoufox fingerprint from %s", fp_file)
-                        except (json.JSONDecodeError, ValueError):
-                            logger.warning(
-                                "Corrupted Camoufox fingerprint at %s — deleting and regenerating",
-                                fp_file,
-                            )
-                            fp_file.unlink(missing_ok=True)
-                            camoufox_config = None
-
-                    if camoufox_config is None:
-                        build_kwargs: dict[str, object] = {
-                            "headless": self._launch_options.get("headless", True),
-                            "fingerprint_preset": True,
-                            "env": camoufox_launch_env(None),
-                        }
-                        proxy = self._launch_options.get("proxy")
-                        if proxy is not None:
-                            build_kwargs["proxy"] = proxy
-
-                        loop = asyncio.get_running_loop()
-                        camoufox_config = await loop.run_in_executor(
-                            None,
-                            functools.partial(build_camoufox_options, **build_kwargs),  # type: ignore[arg-type]
-                        )
-
-                        if fp_file:
-                            fp_file.parent.mkdir(parents=True, exist_ok=True)
-                            fp_file.write_text(
-                                json.dumps(camoufox_config, default=str, ensure_ascii=False),
-                                encoding="utf-8",
-                            )
-                            logger.info("Camoufox fingerprint saved to %s", fp_file)
-
-                    if isinstance(camoufox_config, dict):
-                        camoufox_config = dict(camoufox_config)
-                        camoufox_config["env"] = camoufox_launch_env(camoufox_config.get("env"))
-
-                    # start() hands back the launched browser although the inherited signature says Playwright.
-                    browser = cast("Browser", await AsyncCamoufox(from_options=camoufox_config).start())  # type: ignore[no-untyped-call]
+                    browser = await launch_camoufox(self._launch_options, self._fingerprint_dir)
 
                     logger.info(f"Launched new Camoufox Browser instance (attempt {attempt + 1}/3)")
                 else:

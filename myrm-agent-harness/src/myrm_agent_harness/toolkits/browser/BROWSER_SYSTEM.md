@@ -1165,11 +1165,16 @@ browser/
 │   ├── _semantic_risk.py — 语义 DOM 风险分类（浏览器动作前置 + JS eval 模式；元素词典 SSOT 上移至 core/security/detection/semantic_risk.py，与桌面语义门共享）
 │   └── common.py — 工具共享工具函数
 ├── pool/
-│   ├── browser_pool.py (475 行) — GlobalBrowserPool（全局调度中枢）
+│   ├── browser_pool.py (273 行) — GlobalBrowserPool（全局调度中枢：池状态、构造与预热，行为由下面几个 mixin 组成）
+│   ├── pool_acquisition.py (293 行) — PoolAcquisitionMixin（取页 / 还页 / 销毁上下文；取页撞上 Playwright driver 退出时踢掉死浏览器后重试一次）
+│   ├── pool_scheduling.py (147 行) — PoolSchedulingMixin（每个引擎与启动模式一个启动器、最空闲浏览器选择）
+│   ├── pool_lifecycle.py (177 行) — PoolLifecycleMixin（30 秒后台循环、关闭、热更新）
+│   ├── pool_diagnostics.py (187 行) — PoolDiagnosticsMixin（stats / health / 页面归属）
 │   ├── page_acquisition.py (89 行) — PageAcquisition（取页途中被取消或失败时归还许可与已取出的页面）
-│   ├── browser_launcher.py — BrowserLauncher（Chromium + Camoufox 启动前 sanitize_env + Camoufox 指纹持久化 + 损坏自愈 + Camoufox 启动前就绪闸门 + 启动与 CDP 连接遇到 Playwright driver 进程消失都换新 driver 再重试）
+│   ├── browser_launcher.py (381 行) — BrowserLauncher（Chromium 启动前 sanitize_env + Camoufox 启动前就绪闸门 + 启动与 CDP 连接遇到 Playwright driver 进程消失都换新 driver 再重试）
 │   ├── chromium_install.py — Zero-config Chromium 自动安装 with CDN mirror fallback（同一时刻只装一次，失败后冷却）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
+│   ├── camoufox_launch.py (93 行) — Camoufox 启动（指纹持久化 + 损坏自愈）
 │   ├── context_factory.py (277 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载）
 │   ├── emulation.py — 浏览器环境仿真配置（含移动设备五维字段）
 │   ├── device_profiles.py — 精选移动设备 profile 注册表（含 landscape 横屏视口）
