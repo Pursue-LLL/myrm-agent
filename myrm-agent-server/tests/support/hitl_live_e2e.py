@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from cdp_chat.support import (
+    _pin_hitl_on_api_with_retry,
     ensure_e2e_hitl_mode,
     ensure_e2e_onboarding_complete,
     fetch_config_value,
@@ -38,6 +39,16 @@ def pin_and_verify_hitl_mode(api_url: str) -> None:
         probe = hitl_probe(target)
         if probe.get("yolo") or probe.get("expects_ask") is not True:
             raise AssertionError(f"LIVE E2E HITL probe failed on {target}: {probe!r}; cfg={cfg!r}")
+
+
+def pin_private_hitl_mode(api_url: str) -> None:
+    """Turn YOLO off on one probe's own backend only and verify it with the test-only hitl-probe.
+
+    The shared dev backend's config stays untouched (``pin_and_verify_hitl_mode`` pins both).
+    """
+    _pin_hitl_on_api_with_retry(api_url)
+    probe = hitl_probe(api_url)
+    assert not probe.get("yolo") and probe.get("expects_ask") is True, f"HITL not pinned on {api_url}: {probe!r}"
 
 
 def set_private_approval_timeout(api_url: str, seconds: int, behavior: str = "deny") -> None:
