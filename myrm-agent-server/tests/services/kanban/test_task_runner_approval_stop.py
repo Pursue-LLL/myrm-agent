@@ -5,6 +5,7 @@
 - app.services.kanban.task_runner.stream::_StreamAccumulator (POS: reads the approval stop off the stream events)
 - app.services.kanban.task_runner.outcomes::resolve_run_outcome, APPROVAL_NEEDED_BLOCK_REASON (POS: the verdict on a finished run)
 - myrm_agent_harness KanbanDispatcher + InMemoryKanbanStore (POS: the scheduler that retried such a run before it was blocked)
+- myrm_agent_harness interrupt_events + build_interrupt_payload + ToolStuckException (POS: build the pause events exactly as a paused run emits them)
 
 [OUTPUT]
 Pins the path of one task: its stream ends on an approval nobody can give while a task runs, the run blocks the task for the
@@ -23,8 +24,11 @@ from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.agent.errors import TOOL_STUCK_ACTION_TYPE
+from langgraph.types import Interrupt
+from myrm_agent_harness.agent.errors import ToolStuckException
+from myrm_agent_harness.agent.middlewares.approval.batch_processor import build_interrupt_payload
 from myrm_agent_harness.agent.skill_agent import wait_all_background_tasks
+from myrm_agent_harness.agent.streaming.interrupt_events import interrupt_events
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import (
@@ -53,15 +57,21 @@ BOARD_ID = "b1"
 TASK_ID = "task0001"
 WAIT_SECONDS = 20
 
-TOOL_APPROVAL: dict[str, object] = {
-    "type": "tool_approval_request",
-    "data": {"actionRequests": [{"action": "bash_code_execute_tool"}]},
-}
-OTHER_APPROVAL: dict[str, object] = {"type": "approval_required", "data": {"action_type": "workspace_boundary"}}
-LOOP_GUARD_PAUSE: dict[str, object] = {
-    "type": "approval_required",
-    "data": {"action_type": TOOL_STUCK_ACTION_TYPE, "tool_name": "bash_code_execute_tool"},
-}
+
+def _paused_on(interrupt_value: dict[str, object]) -> dict[str, object]:
+    """The stream event the harness emits when the graph pauses on this interrupt value."""
+    return interrupt_events([Interrupt(value=interrupt_value, id="interrupt-1")], "message-1")[0]
+
+
+_SHELL_CALL = {"name": "shell_exec", "args": {"command": "rm -rf build"}, "id": "call-1", "type": "tool_call"}
+_TOOL_APPROVAL_VALUE, _ = build_interrupt_payload(
+    [(0, _SHELL_CALL, "shell_exec", "requires approval", None)], f"kanban:{TASK_ID}"
+)
+TOOL_APPROVAL = _paused_on(_TOOL_APPROVAL_VALUE)
+OTHER_APPROVAL = _paused_on(
+    {"action_type": "high_risk_dom_action", "tool_name": "browser_click", "reason": "Submits a payment form"}
+)
+LOOP_GUARD_PAUSE = _paused_on(ToolStuckException("The same call failed 5 times").interrupt_payload("shell_exec", "call-1"))
 RUN_ERROR: dict[str, object] = {"type": "error", "error": "provider down", "error_type": "LLMError"}
 EMPTY_ANSWER = (False, "agent returned empty response")
 
@@ -104,6 +114,8 @@ class TestAccumulator:
         assert not _fed({"type": "message", "data": "hi"}, {"type": "message_end"}).stopped_for_approval
 
     def test_the_loop_guard_pause_is_no_approval(self) -> None:
+        # It reaches the stream typed like an approval; only its action type keeps it a failure.
+        assert LOOP_GUARD_PAUSE["type"] == "approval_required"
         assert not _fed(LOOP_GUARD_PAUSE).stopped_for_approval
 
     @pytest.mark.parametrize("events", [(TOOL_APPROVAL, RUN_ERROR), (RUN_ERROR, TOOL_APPROVAL)])
