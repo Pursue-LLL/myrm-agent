@@ -23,7 +23,9 @@
 [POS]
 Shared by the real-browser extension e2e tests. Nothing here is mocked: the same extension files a user installs run in a
 real Chromium, talk to the same routes and bridge the server mounts, and read pages from a site that needs a login cookie.
-The browser resolves the fixture host names to loopback itself, so no system resolver or hosts file is touched.
+The fixture host names are ``.localhost`` names: every client on the machine (the browser, the Playwright driver, the
+harness) resolves them to loopback on its own, so nothing depends on what the machine's DNS answers and no hosts file
+is touched.
 """
 
 from __future__ import annotations
@@ -54,9 +56,10 @@ from app.services.extension.cdp_relay import manager as relay_manager
 
 EXTENSION_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-extension"
 _HEADED_ENV = "MYRM_EXTENSION_E2E_HEADED"
-INTRANET_HOST = "intranet.example"
-OTHER_HOST = "other.example"
-_FIXTURE_HOSTS = (INTRANET_HOST, OTHER_HOST)
+# Names that only the browser resolves (a Chromium host-resolver rule) would send the harness's own document request, which
+# the driver makes outside the browser, to the machine's DNS, and a proxy tool's fake-address answer stalls it for seconds.
+INTRANET_HOST = "intranet.localhost"
+OTHER_HOST = "other.localhost"
 _PAGE = "<!doctype html><html><head><meta charset='utf-8'><title>{title}</title></head><body>{body}</body></html>"
 _USERS_VIEW_SCRIPT = """async () => {
   const focused = await chrome.windows.getLastFocused({ populate: true });
@@ -96,11 +99,6 @@ class FixtureSite:
     def __init__(self) -> None:
         self.port = 0
         self._runner: web.AppRunner | None = None
-
-    @property
-    def host_resolver_rules(self) -> str:
-        """Chromium flag value that maps every fixture host to loopback inside the browser only."""
-        return ",".join(f"MAP {host} 127.0.0.1" for host in _FIXTURE_HOSTS)
 
     def url(self, host: str, path: str = "/") -> str:
         return f"http://{host}:{self.port}{path}"
@@ -384,7 +382,6 @@ async def real_extension_stack(profile_dir: Path) -> AsyncIterator[RealExtension
             args=[
                 f"--disable-extensions-except={extension}",
                 f"--load-extension={extension}",
-                f"--host-resolver-rules={site.host_resolver_rules}",
             ],
         )
         cleanup.push_async_callback(context.close)

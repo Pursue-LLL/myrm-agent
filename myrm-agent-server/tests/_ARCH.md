@@ -33,7 +33,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
-| `support/extension_real_browser.py` | 辅助 | 真实 Chromium 扩展夹具：加载未打包的扩展、挂载生产的扩展路由（真实 WebSocket，与 bridge 同一事件循环）、需登录 cookie 的夹具站点（主机名只在浏览器内解析到回环，不动系统解析）；`real_extension_stack` 交出已握手的扩展 / bridge / 站点，`agent_pool` / `agent_session` 交出 Agent 工具设置所用的生产浏览器池与其上的 `BrowserSession`，`users_view` 读出用户此刻看着的窗口与标签页，`wait_until` 有界轮询；缺 Chromium 则跳过；`MYRM_EXTENSION_E2E_HEADED=1` 改用有界面窗口跑同一批测试 |
+| `support/extension_real_browser.py` | 辅助 | 真实 Chromium 扩展夹具：加载未打包的扩展、挂载生产的扩展路由（真实 WebSocket，与 bridge 同一事件循环）、需登录 cookie 的夹具站点（主机名取 `.localhost`：浏览器、Playwright 驱动与 harness 各自把它解析到回环，结果不取决于本机 DNS 的应答，也不动系统解析）；`real_extension_stack` 交出已握手的扩展 / bridge / 站点，`agent_pool` / `agent_session` 交出 Agent 工具设置所用的生产浏览器池与其上的 `BrowserSession`，`users_view` 读出用户此刻看着的窗口与标签页，`wait_until` 有界轮询；缺 Chromium 则跳过；`MYRM_EXTENSION_E2E_HEADED=1` 改用有界面窗口跑同一批测试 |
 | `support/extension_bridge_ws_stub.py` | 辅助 | Extension Bridge Chrome E2E 用的真实 WebSocket 桩（不侧载 MV3）：以与扩展相同的 `hello` 握手声明能力集合 |
 | `support/wiki_clip_client.py` | 辅助 | 剪藏 API 测试共用：`build_wiki_client`（临时 vault 上的 wiki 路由客户端）、`cleanup_wiki_client`、`bypass_loopback_auth`（回环身份）、`poll_clip_job`（轮询剪藏任务到终态） |
 | `support/workspace_text_api.py` | 辅助 | 文本编辑 API 测试共用：挂载 files 路由 + 净化中间件的客户端、含各类文件的示例工作区、读/存/另存请求封装 |
