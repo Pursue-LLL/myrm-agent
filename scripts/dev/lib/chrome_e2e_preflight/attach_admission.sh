@@ -3,7 +3,6 @@
 # the readiness predicate and label a health snapshot is judged by before a parallel agent may attach.
 # Sourced by chrome-e2e-preflight.sh, which owns every global read here; this file only defines functions.
 # shellcheck shell=bash
-# shellcheck disable=SC2034  # `active_leases` is assigned in `_attach_health_require_args` and not read there
 
 _admit_poll_touch() {
   local node="$1"
@@ -79,9 +78,6 @@ _attach_health_require_args() {
     echo "--require-signoff-stream-ready"
     return 0
   fi
-  local active_leases
-  active_leases="$(_parallel_attach_active_leases)"
-  # UBDP-H: use real wave leases only — never fake active_leases=1 when idle.
   # parallel attach with live UI/API — signoff-stream gate (no frontendEpoch SMP defer).
   if _shared_stack_endpoints_ok; then
     echo "--require-signoff-stream-ready"
