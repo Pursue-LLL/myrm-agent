@@ -104,7 +104,7 @@ class FeishuOutboundMixin(BaseChannel):
             if self._render_mode == "raw" or (self._render_mode != "card" and not self._should_use_card(msg.content, msg)):
                 content_chunks = render(msg, self.render_style)
             else:
-                # A card takes at most 24KB; the slices keep their code blocks closed and their tables headed
+                # A card message over 30KB is refused, so slice: each slice closes its code blocks and keeps its table headers
                 content_chunks = slice_card_markdown(msg.content)
 
             async def send_chunk(chunk: str, index: int) -> str | None:

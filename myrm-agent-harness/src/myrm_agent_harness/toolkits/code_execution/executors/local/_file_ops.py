@@ -145,7 +145,9 @@ class LocalFileOpsMixin:
         if safe.endswith(".gz"):
             return gunzip_bounded(p.read_bytes()).decode("utf-8")
 
-        return p.read_text(encoding="utf-8")
+        # Bytes, not ``read_text``: text mode turns CRLF and lone CR into LF, and an edit would then write the file back
+        # with every line ending changed.
+        return p.read_bytes().decode("utf-8")
 
     async def file_size(self, path: str) -> int:
         safe = await self.resolve_path(path)  # type: ignore[attr-defined]
@@ -180,7 +182,9 @@ class LocalFileOpsMixin:
 
         p = Path(safe)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content, encoding="utf-8")
+        # Bytes, not ``write_text``: text mode writes ``\n`` as ``\r\n`` on Windows, which would turn a CRLF text into
+        # CR CR LF.
+        p.write_bytes(content.encode("utf-8"))
 
     async def write_file_bytes(self, path: str, content: bytes) -> None:
         safe = await self.resolve_path(path)  # type: ignore[attr-defined]
