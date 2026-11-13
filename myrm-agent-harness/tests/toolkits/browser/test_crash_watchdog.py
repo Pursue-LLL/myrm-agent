@@ -311,7 +311,7 @@ async def test_check_browser_alive_falls_back_false_on_outer_error() -> None:
 async def test_pool_close_browser_instance_graceful() -> None:
     """Closing a pool browser instance shuts down pools, contexts, and the browser.
 
-    Exercises ``GlobalBrowserPool._close_browser_instance`` (browser_pool.py),
+    Exercises ``GlobalBrowserPool._close_browser_instance`` (pool_lifecycle.py),
     the pool-owned close path used by all crash-handling flows.
     """
     pool = GlobalBrowserPool(max_browsers=2)
