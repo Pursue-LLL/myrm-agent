@@ -919,7 +919,7 @@ async def test_process_text_paths_structure_mode(tmp_path: Path) -> None:
     mock_executor.workspace_path = str(tmp_path)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._read_via_service",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._view_text",
         new_callable=AsyncMock,
         return_value=code,
     ):
