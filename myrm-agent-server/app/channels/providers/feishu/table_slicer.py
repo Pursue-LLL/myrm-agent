@@ -26,7 +26,8 @@ import re
 DEFAULT_MAX_CARD_BYTES = 24_000
 
 _TABLE_ROW_RE = re.compile(r"^\s*\|(.+)\|\s*$")
-_TABLE_SEP_RE = re.compile(r"^\s*\|(\s*[-:]{2,}\s*\|)+\s*$")
+# A delimiter cell is hyphens with an optional colon on each side (GFM): ``-``, ``:--``, ``:-:``.
+_TABLE_SEP_RE = re.compile(r"^\s*\|(\s*:?-+:?\s*\|)+\s*$")
 # A fence line is a run of three or more backticks and an info string without backticks (CommonMark).
 _FENCE_RE = re.compile(r"^(`{3,})([^`]*)$")
 
@@ -79,7 +80,8 @@ def slice_card_markdown(
             is counted (default: 24,000 bytes).
 
     Returns:
-        List of chunks, each <= max_bytes unless one line of ``text`` (with the rows repeated before it) is bigger.
+        List of chunks, each <= max_bytes unless a single line, or lines that must stay together (a table's header and
+        delimiter rows, an opening fence and the first line of its block), with the rows repeated before them outgrow it.
     """
     if _request_bytes(text) <= max_bytes:
         return [text]

@@ -18,8 +18,12 @@ from app.channels.providers.feishu.table_slicer import (
 _HEADER = "| Col A | Col B |"
 _SEPARATOR = "|---|---|"
 _PROSE_DOC = "para one line\npara two line\n```python\nprint(1)\nprint(2)\n```\ntail"
-_TABLE_DOC = "\n".join([_HEADER, _SEPARATOR, *(f"| r{i} | v{i} |" for i in range(6)), "after"])
+_SEPARATORS = [_SEPARATOR, "|-|-|", "| :--- | -: |"]
 _FENCE = re.compile(r"^(`{3,})([^`]*)$")
+
+
+def _table_doc(separator: str) -> str:
+    return "\n".join([_HEADER, separator, *(f"| r{i} | v{i} |" for i in range(6)), "after"])
 
 
 def _lines(chunks: list[str]) -> list[str]:
@@ -74,14 +78,21 @@ def _table_runs(chunk: str) -> list[list[str]]:
     return runs
 
 
-def test_table_row_and_separator_detection() -> None:
+def test_table_row_detection() -> None:
     assert is_table_row("| Name | Value |") is True
     assert is_table_row("  | a | b | c |  ") is True
     assert is_table_row("Normal text without pipe") is False
+    assert is_table_row("| no closing pipe") is False
 
-    assert is_table_separator("|---|---|") is True
-    assert is_table_separator("| :--- | :---: | ---: |") is True
-    assert is_table_separator("| Name | Value |") is False
+
+@pytest.mark.parametrize("line", ["|---|---|", "| :--- | :---: | ---: |", "|-|-|", "| - | - |", "|:-|-:|", "  |---|  "])
+def test_a_delimiter_row_is_recognised(line: str) -> None:
+    assert is_table_separator(line) is True
+
+
+@pytest.mark.parametrize("line", ["| Name | Value |", "|::|", "| : | : |", "| -a- |", "|||", "---", "plain", ""])
+def test_any_other_line_is_not_a_delimiter_row(line: str) -> None:
+    assert is_table_separator(line) is False
 
 
 @pytest.mark.parametrize("text", ["", "short", "# Title\n\n| a | b |\n|---|---|\n| 1 | 2 |"])
@@ -175,16 +186,17 @@ def test_no_boundary_leaves_a_fence_unbalanced_or_an_empty_block(max_bytes: int)
         assert not (len(lines) == 2 and all(_FENCE.match(line) for line in lines)), f"empty block in {chunks}"
 
 
+@pytest.mark.parametrize("separator", _SEPARATORS)
 @pytest.mark.parametrize("max_bytes", range(10, 140))
-def test_no_boundary_separates_a_table_header_from_its_separator_or_duplicates_it(max_bytes: int) -> None:
-    chunks = slice_card_markdown(_TABLE_DOC, max_bytes=max_bytes)
+def test_no_boundary_separates_a_table_header_from_its_separator_or_duplicates_it(separator: str, max_bytes: int) -> None:
+    chunks = slice_card_markdown(_table_doc(separator), max_bytes=max_bytes)
 
     assert [line for line in _lines(chunks) if line.startswith("| r")] == [f"| r{i} | v{i} |" for i in range(6)]
     for chunk in chunks:
         assert sum(1 for line in chunk.split("\n") if is_table_separator(line)) <= 1, chunks
         for run in _table_runs(chunk):
             if len(run) > 1 or run[0] != _HEADER:
-                assert run[:2] == [_HEADER, _SEPARATOR], f"a table run starts without its header in {chunks}"
+                assert run[:2] == [_HEADER, separator], f"a table run starts without its header in {chunks}"
             else:
                 pytest.fail(f"a header row is left without its separator in {chunks}")
 
