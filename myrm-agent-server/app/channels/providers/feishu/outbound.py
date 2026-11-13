@@ -7,7 +7,7 @@
 - channels.providers.feishu.cards (POS: card / post content builders)
 - channels.providers.feishu.reactions::feishu_emoji_type (POS: reaction emoji vocabulary)
 - channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
-- channels.rendering.renderer::render (POS: channel message rendering pipeline)
+- channels.rendering.renderer::render, is_rendered (POS: channel message rendering pipeline; is_rendered tells a reply the router already rendered)
 - channels.types::OutboundMessage, MediaAttachment (POS: channel message value types)
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
@@ -33,7 +33,7 @@ from app.channels.core.base import BaseChannel
 from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.exceptions import ChannelSendError, RateLimitError
 from app.channels.core.reaction_ledger import ReactionLedger
-from app.channels.rendering.renderer import render
+from app.channels.rendering.renderer import is_rendered, render
 from app.channels.types import (
     MediaAttachment,
     MediaType,
@@ -256,13 +256,15 @@ class FeishuOutboundMixin(BaseChannel):
         cron = extract_cron_context(msg)
         content = msg.content or ""
         cost_meta = msg.metadata.get("cost_metadata") if msg.metadata else None
+        # A rendered message holds its sources and cost line in ``content``; the card must not add them again.
+        rendered = is_rendered(msg)
         card = build_result_card(
             content,
             title=cron.job_name if cron else "",
-            sources=self._extract_sources(msg),
+            sources=[] if rendered else self._extract_sources(msg),
             success=cron.success if cron else None,
             timestamp=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
-            cost_metadata=cost_meta if isinstance(cost_meta, dict) else None,
+            cost_metadata=cost_meta if isinstance(cost_meta, dict) and not rendered else None,
         )
         actions = build_card_actions(msg.quick_replies, msg.components)
         if actions:

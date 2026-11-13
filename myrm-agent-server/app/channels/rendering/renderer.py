@@ -22,6 +22,7 @@ add the tool summary, sources or header a second time.
 [OUTPUT]
 - render(): OutboundMessage → list[str] (rendered text chunk list; a marked message yields its content alone)
 - mark_rendered(): the message that carries one rendered chunk
+- is_rendered(): whether a message is such a chunk (for channels that decorate from metadata instead of calling render)
 
 [POS]
 Outbound message formatting pipeline. Converts structured OutboundMessage to platform-sendable
@@ -76,11 +77,16 @@ def render(msg: OutboundMessage, style: RenderStyle) -> list[str]:
     Pure function, no I/O. A channel provider only calls it to get the chunks and sends them one by one.
     A message ``mark_rendered`` produced is already one rendered chunk and is returned unchanged.
     """
-    if msg.metadata and msg.metadata.get(_RENDERED_METADATA_KEY):
+    if is_rendered(msg):
         return [msg.content]
     prepared = _prepare(msg, style)
     text = _format(prepared, style)
     return split_message(text, style.max_text_length, unit=style.length_unit)
+
+
+def is_rendered(msg: OutboundMessage) -> bool:
+    """Whether ``msg`` already carries one rendered chunk: its text holds the tool summary, sources and cost line."""
+    return bool(msg.metadata and msg.metadata.get(_RENDERED_METADATA_KEY))
 
 
 def mark_rendered(msg: OutboundMessage, chunk: str) -> OutboundMessage:
