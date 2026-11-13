@@ -48,6 +48,12 @@ class TestExtractSafeRegions:
         assert len(matches) == 2
         assert [m.group() for m in matches] == ["@alice", "@charlie"]
 
+    def test_match_that_wraps_code_is_excluded(self) -> None:
+        """A match that only touches code by containing it is no safe region either."""
+        text = "see [a `@bob` b] and [plain]"
+        matches = extract_safe_regions(text, r"\[[^\]]*\]")
+        assert [m.group() for m in matches] == ["[plain]"]
+
     def test_multiline_fenced_code_block(self) -> None:
         """Multiline fenced code block."""
         text = """Hi @alice:

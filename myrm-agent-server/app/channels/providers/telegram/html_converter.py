@@ -6,6 +6,7 @@ Only &, <, > need escaping in non-tag text — much simpler than MarkdownV2.
 [INPUT]
 - channels.rendering.splitter::CJK_BOUNDARY_CHARS (POS: shared CJK punctuation SSOT for smart splitting)
 - channels.rendering.text_utils::FENCED_BLOCK_RE, fenced_block_html (POS: fenced block and its <pre> markup, shared with Matrix)
+- telegram.table_renderer::convert_tables (POS: GFM tables as monospace <pre> boxes)
 
 [OUTPUT]
 - md_to_telegram_html(): Telegram-safe HTML string with GFM table degradation
@@ -28,7 +29,10 @@ import re
 from app.channels.rendering.splitter import CJK_BOUNDARY_CHARS
 from app.channels.rendering.text_utils import FENCED_BLOCK_RE, fenced_block_html
 
+from .table_renderer import convert_tables
+
 _MAX_MSG_LENGTH = 4096
+_WIDEST_CHAR_UNITS = 2  # a surrogate pair: the most UTF-16 units one character takes
 
 # A span and a link target never hold a placeholder (NUL): backticks on both sides of a protected block stay text, and
 # a "link" to `code` is no href with markup in it.
@@ -37,89 +41,12 @@ _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\x00]+)\)")
-_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$")
 
 # Exact whitelist of Telegram supported HTML tags
 _TELEGRAM_TAGS_RE = re.compile(
     r"(</?(?:b|strong|i|em|u|ins|s|strike|del|span|tg-spoiler|a|code|pre|blockquote|expandable)(?:\s+[^>]*)?>)",
     re.IGNORECASE,
 )
-
-
-def _parse_table_row(line: str) -> list[str]:
-    """Split a GFM table row into stripped cell values."""
-    stripped = line.strip()
-    if stripped.startswith("|"):
-        stripped = stripped[1:]
-    if stripped.endswith("|"):
-        stripped = stripped[:-1]
-    return [cell.strip() for cell in stripped.split("|")]
-
-
-def _render_monospace_table(header_row: str, data_rows: list[str]) -> str:
-    """Convert a GFM table into a ``<pre>``-wrapped monospace ASCII table."""
-    headers = _parse_table_row(header_row)
-    parsed_rows = [_parse_table_row(row) for row in data_rows]
-
-    col_count = len(headers)
-    for row in parsed_rows:
-        while len(row) < col_count:
-            row.append("")
-
-    col_widths = [len(h) for h in headers]
-    for row in parsed_rows:
-        for i, cell in enumerate(row[:col_count]):
-            col_widths[i] = max(col_widths[i], len(cell))
-
-    def _fmt_row(cells: list[str]) -> str:
-        padded = [cells[i].ljust(col_widths[i]) if i < len(cells) else " " * col_widths[i] for i in range(col_count)]
-        return "│ " + " │ ".join(padded) + " │"
-
-    sep_parts = ["─" * (w + 2) for w in col_widths]
-
-    lines: list[str] = []
-    lines.append("┌" + "┬".join(sep_parts) + "┐")
-    lines.append(_fmt_row(headers))
-    lines.append("├" + "┼".join(sep_parts) + "┤")
-    for row in parsed_rows:
-        lines.append(_fmt_row(row))
-    lines.append("└" + "┴".join(sep_parts) + "┘")
-
-    return "<pre>" + html.escape("\n".join(lines)) + "</pre>"
-
-
-def _convert_tables(text: str) -> tuple[str, list[str]]:
-    """Detect GFM tables in *text* and replace them with preserved monospace blocks.
-
-    Returns the modified text and a list of preserved HTML blocks (to be
-    appended to the caller's ``preserved`` list).
-    """
-    if "|" not in text or "-" not in text:
-        return text, []
-
-    lines = text.split("\n")
-    out: list[str] = []
-    blocks: list[str] = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        if "|" in line and i + 1 < len(lines) and "|" in lines[i + 1] and _TABLE_SEPARATOR_RE.match(lines[i + 1]):
-            header = line
-            j = i + 2
-            data_rows: list[str] = []
-            while j < len(lines) and "|" in lines[j] and lines[j].strip():
-                data_rows.append(lines[j])
-                j += 1
-            if data_rows:
-                rendered = _render_monospace_table(header, data_rows)
-                idx = len(blocks)
-                blocks.append(rendered)
-                out.append(f"\x00TBLPRESERVE{idx}\x00")
-                i = j
-                continue
-        out.append(line)
-        i += 1
-    return "\n".join(out), blocks
 
 
 def md_to_telegram_html(text: str) -> str:
@@ -130,24 +57,14 @@ def md_to_telegram_html(text: str) -> str:
     """
     preserved: list[str] = []
 
-    def _preserve_code_block(m: re.Match[str]) -> str:
-        preserved.append(fenced_block_html(m))
+    def _preserve(markup: str) -> str:
+        preserved.append(markup)
         return f"\x00PRESERVE{len(preserved) - 1}\x00"
 
-    def _preserve_inline_code(m: re.Match[str]) -> str:
-        preserved.append(f"<code>{html.escape(m.group(1))}</code>")
-        return f"\x00PRESERVE{len(preserved) - 1}\x00"
-
-    result = FENCED_BLOCK_RE.sub(_preserve_code_block, text)
-
+    result = FENCED_BLOCK_RE.sub(lambda block: _preserve(fenced_block_html(block)), text)
     # Tables before inline code: a cell keeps its backticks as text, so the table is as wide as it reads
-    result, table_blocks = _convert_tables(result)
-    tbl_offset = len(preserved)
-    preserved.extend(table_blocks)
-    for idx in range(len(table_blocks)):
-        result = result.replace(f"\x00TBLPRESERVE{idx}\x00", f"\x00PRESERVE{tbl_offset + idx}\x00")
-
-    result = _INLINE_CODE_RE.sub(_preserve_inline_code, result)
+    result = convert_tables(result, _preserve)
+    result = _INLINE_CODE_RE.sub(lambda span: _preserve(f"<code>{html.escape(span[1])}</code>"), result)
 
     # Split by PRESERVE placeholders AND Telegram-supported HTML tags to protect both
     _SPLIT_RE = re.compile(r"(\x00PRESERVE\d+\x00)|" + _TELEGRAM_TAGS_RE.pattern)
@@ -175,7 +92,13 @@ def md_to_telegram_html(text: str) -> str:
 
 def _utf16_len(s: str) -> int:
     """Calculate the length of a string in UTF-16 code units."""
-    return len(s.encode("utf-16-le")) // 2
+    # ASCII is one unit per character, which spares the encode for tags and plain text
+    return len(s) if s.isascii() else len(s.encode("utf-16-le")) // 2
+
+
+def _reopening_length(tags: list[tuple[str, str, str]]) -> int:
+    """UTF-16 units every chunk spends on the open tags it reopens and the closers it ends with."""
+    return sum(_utf16_len(t[1]) + _utf16_len(t[2]) for t in tags)
 
 
 def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
@@ -185,6 +108,7 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
     1. No chunk exceeds the `limit` in UTF-16 code units.
     2. No UTF-16 surrogate pairs (e.g., Emojis) are truncated.
     3. HTML tags are properly closed at the end of a chunk and reopened at the start of the next chunk.
+    4. A tag that, reopened in every chunk, would leave no room for a character is dropped with its closer.
     """
     if _utf16_len(text) <= limit:
         return [text]
@@ -217,14 +141,24 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
 
                 # Calculate what the stack WOULD look like
                 new_active_tags = list(active_tags)
+                shown = True
                 if is_close:
                     for i in range(len(new_active_tags) - 1, -1, -1):
                         if new_active_tags[i][0] == tag_name:
-                            new_active_tags.pop(i)
+                            shown = bool(new_active_tags.pop(i)[2])
                             break
                 else:
                     close_tag = f"</{tag_name}>"
                     new_active_tags.append((tag_name, part, close_tag))
+                    if _reopening_length(new_active_tags) + _WIDEST_CHAR_UNITS > limit:
+                        # Reopened at the top of every chunk, this tag would leave no room for a character and the
+                        # text could never move on: it stays on the stack, empty, so its closer finds it and is dropped too.
+                        new_active_tags[-1] = (tag_name, "", "")
+                        shown = False
+
+                if not shown:
+                    active_tags = new_active_tags
+                    continue
 
                 new_closing_length = sum(_utf16_len(t[2]) for t in new_active_tags)
 
@@ -257,34 +191,24 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
                 closing_length = sum(_utf16_len(t[2]) for t in active_tags)
                 available_space = limit - current_chunk_utf16_len - closing_length
 
-                if available_space <= 0:
-                    if not current_chunk:
-                        # Edge case: limit is too small even for tags
-                        # Force add one character to avoid infinite loop
-                        char = text_part[0]
-                        current_chunk += char
-                        current_chunk_utf16_len += _utf16_len(char)
-                        text_part = text_part[1:]
-                        continue
-
-                    close_tags_str = "".join(t[2] for t in reversed(active_tags))
-                    chunks.append(current_chunk + close_tags_str)
-
-                    open_tags_str = "".join(t[1] for t in active_tags)
-                    current_chunk = open_tags_str
-                    current_chunk_utf16_len = _utf16_len(current_chunk)
-                    continue
-
                 # Find how many characters fit in available_space
-                guess_len = min(len(text_part), available_space)
+                guess_len = min(len(text_part), max(available_space, 0))
                 sub_text = text_part[:guess_len]
                 while _utf16_len(sub_text) > available_space and guess_len > 0:
                     guess_len -= 1
                     sub_text = text_part[:guess_len]
 
                 if guess_len == 0:
-                    # A single character (like an Emoji) might take 2 UTF-16 units
-                    # If available_space is 1, it won't fit. Force split.
+                    if not current_chunk:
+                        # Edge case: the limit is below one character, and a chunk of that character alone is the best
+                        # there is. Force add it to avoid an infinite loop
+                        char = text_part[0]
+                        current_chunk += char
+                        current_chunk_utf16_len += _utf16_len(char)
+                        text_part = text_part[1:]
+                        continue
+
+                    # The chunk is full, or the next character (an Emoji takes 2 UTF-16 units) does not fit in what is left
                     close_tags_str = "".join(t[2] for t in reversed(active_tags))
                     chunks.append(current_chunk + close_tags_str)
 
