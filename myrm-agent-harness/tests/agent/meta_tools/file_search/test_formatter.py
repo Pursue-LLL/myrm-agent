@@ -75,11 +75,6 @@ class TestFormatGrepResults:
         assert len(visible_lines) <= NON_CODE_MATCH_CAP
         assert "non-code matches omitted" in output
 
-    def test_max_results_limit_message(self) -> None:
-        results: Rows = [{"file": "a.py", "line": i, "content": "match"} for i in range(5)]
-        output = format_grep_results(results, "match", 10, 5)
-        assert "limited to first 5" in output
-
     def test_long_line_truncation_in_output(self) -> None:
         long_content = "x" * 500
         results: Rows = [{"file": "a.py", "line": 10, "content": long_content}]

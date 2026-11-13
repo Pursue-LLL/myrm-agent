@@ -8,7 +8,7 @@ Three-tier context reduction strategies: Filter, Compress, Summarize.
 | File | Role | Description |
 |------|------|-------------|
 | `__init__.py` | Package | Namespace package. |
-| `filter.py` | Facade | Tool result filter facade. Truncates large tool outputs and generates smart previews via structural extraction. The truncation message only points `file_read_tool` at a saved path when a copy was actually persisted (a chat scope exists); otherwise it says no copy was saved and asks for a narrower re-run. |
+| `filter.py` | Facade | Tool result filter facade. Truncates large tool outputs and generates smart previews: the real first and last rows for grep/glob row listings (`ROW_LISTING_TOOLS`), structural extraction for structured data, LLM summarization otherwise. The truncation message only points `file_read_tool` at a saved path when a copy was actually persisted (a chat scope exists); otherwise it says no copy was saved and asks for a narrower re-run. |
 | `tool_call_groups.py` | Shared | Cross-domain utility: `ToolCallGroup`, `build_tool_call_groups`. Used by compactor, filters, and infra. |
 | `priority_signals.py` | Shared | Cross-domain utility: group-level focus/goal signal matchers. Used by compactor and retention_helpers. |
 
@@ -16,7 +16,7 @@ Three-tier context reduction strategies: Filter, Compress, Summarize.
 |-----------|-------------|
 | `compactor/` | Priority-aware message compression: deduplication, compaction of old tool results into stubs, smart fallback, integrity guard, and pre-compact helpers. |
 | `compression/` | Compression guards: anti-thrash protection, effectiveness tracking, and formatting utilities. |
-| `filters/` | Content-type detection, structural and semantic filtering implementations. |
+| `filters/` | Content-type detection; row sample, structural and semantic filtering implementations. |
 | `session_notes/` | Real-time structured session notes. Zero-API-cost compression source. |
 | `reasoning/` | Reasoning preservation strategy: multi-provider raw thinking extraction, heuristic decision anchor mining, and session-scoped immutable ledger. |
 | `summary/` | Summarization strategy: LLM-based structured summarize, quality audit, message reconstruction, prompt templates, circuit breaker, and progress timeout. |

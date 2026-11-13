@@ -206,11 +206,13 @@ class CommandStreamMixin:
                 is_armored=is_armored,
             )
 
-        stdout = stream_buf.get_final_output().rstrip("\n")
+        # The note follows a cut output only; the buffer keeps room for it so stdout still fits the output cap.
+        truncation_note = sop.build_truncation_system_note()
+        stdout = stream_buf.get_final_output(reserve=len(truncation_note)).rstrip("\n")
         exit_code = stream_buf.exit_code
 
-        if getattr(stream_buf, "_is_truncated", False) or sop.tee_truncated:
-            stdout += sop.build_truncation_system_note()
+        if stream_buf.truncated or sop.tee_truncated:
+            stdout += truncation_note
 
         if exit_code == 0:
             success = True

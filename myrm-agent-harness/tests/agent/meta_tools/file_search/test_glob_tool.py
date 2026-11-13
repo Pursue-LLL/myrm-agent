@@ -204,7 +204,7 @@ class TestCreateGlobTool:
             return_value=mock_executor,
         ):
             result = await tool_fn.ainvoke({"pattern": "**/*.py"}, config=runnable_config)
-            assert "限制显示前 2 个结果" in result
+            assert result.endswith("\n... (limited to first 2 results)")
 
     async def test_output_sorted(
         self, workspace: Path, mock_executor: MagicMock, runnable_config: RunnableConfig
