@@ -81,7 +81,8 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 | `gateway_testkit.py` | 构造不联网的 `DiscordChannel` 与网关客户端替身（生命周期、语音命令、身份三组测试共用） |
 | `test_discord_allowed_mentions.py` | 网关客户端的提及策略：discord.py 实际发出的 `allowed_mentions` 载荷只放行用户与回复引用，不含 everyone、角色 |
 | `test_discord_reply_context.py` | `_parse_reply_context` / `_resolve_mentioned` 单元测试（reference.resolved API 验证） |
-| `test_discord_embed_and_contract.py` | Embed/View 纯函数、`ChannelTestBase` 契约合规 |
+| `test_discord_embed_and_contract.py` | Embed/View 纯函数、`ChannelTestBase` 契约合规、入站消息与按钮交互分发（机器人自己的消息与非组件交互被忽略）、编辑方法由 Discord 渠道自己实现、媒体与投递错误分类 |
+| `test_discord_outbound_edges.py` | 占位消息、删除、反应与输入提示在 Discord 够不着或拒绝时的去向；只有文件的消息；不是可发消息频道的 id |
 | `test_discord_reasoning.py` | 推理在 Discord 里只出现一次、是 Markdown 引用而非 HTML 标签；占位消息的编辑结果不带页脚；回复隐藏推理时占位消息里一点也不剩 |
 | `test_discord_deduplication.py` | Discord 消息去重单元测试 |
 | `test_discord_splitter_integration.py` | Splitter 对 Discord 消息拆分约束的集成测试 |

@@ -174,12 +174,12 @@ class TestBuildView:
         assert len(view.children) == 2
 
 
-class TestDiscordEmbedRenderStyle:
-    """Verify embed render style configuration."""
+class TestDiscordEdits:
+    """An edit reaches Discord through the channel's own methods, not the base channel's."""
 
-    @pytest.mark.skip(reason="DiscordChannel.edit_message override not implemented")
-    def test_edit_placeholder_message_override(self) -> None:
+    def test_edit_message_and_edit_placeholder_message_are_overridden(self) -> None:
         assert DiscordChannel.edit_message is not BaseChannel.edit_message
+        assert DiscordChannel.edit_placeholder_message is not BaseChannel.edit_placeholder_message
 
 
 def _make_mock_channel() -> tuple[DiscordChannel, MagicMock]:
@@ -215,113 +215,6 @@ def _make_mock_messageable() -> MagicMock:
     return mock_ch
 
 
-@pytest.mark.skip(reason="Outbound send/edit covered in test_discord_channel.py")
-class TestDiscordOutbound:
-    """Tests for outbound message methods with mocked discord.Client."""
-
-    @pytest.mark.asyncio
-    async def test_send_basic_message(self) -> None:
-        ch, client = _make_mock_channel()
-        mock_ch = _make_mock_messageable()
-        client.get_channel = MagicMock(return_value=mock_ch)
-
-        msg = _make_msg(content="Hello")
-        result = await ch.send(msg)
-        assert result == "42"
-        mock_ch.send.assert_called()
-
-    @pytest.mark.asyncio
-    async def test_send_returns_none_for_invalid_channel(self) -> None:
-        ch, client = _make_mock_channel()
-        client.get_channel = MagicMock(return_value=None)
-        client.fetch_channel = AsyncMock(side_effect=Exception("not found"))
-
-        msg = _make_msg(content="Hello")
-        result = await ch.send(msg)
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_send_placeholder(self) -> None:
-        ch, client = _make_mock_channel()
-        mock_ch = _make_mock_messageable()
-        client.get_channel = MagicMock(return_value=mock_ch)
-
-        result = await ch.send_placeholder("123", "Thinking...")
-        assert result == "42"
-        mock_ch.send.assert_called_once_with(content="Thinking...")
-
-    @pytest.mark.asyncio
-    async def test_edit_message(self) -> None:
-        ch, client = _make_mock_channel()
-        mock_ch = _make_mock_messageable()
-        client.get_channel = MagicMock(return_value=mock_ch)
-
-        await ch.edit_message("123", "42", "Updated text")
-        mock_msg = mock_ch.fetch_message.return_value
-        mock_msg.edit.assert_called_once_with(content="Updated text")
-
-    @pytest.mark.asyncio
-    async def test_edit_placeholder_message_uses_embed(self) -> None:
-        ch, client = _make_mock_channel()
-        mock_ch = _make_mock_messageable()
-        client.get_channel = MagicMock(return_value=mock_ch)
-
-        msg = _make_msg(content="Final answer with rich content", reasoning="thinking")
-        await ch.edit_placeholder_message("123", "42", msg)
-
-        mock_msg = mock_ch.fetch_message.return_value
-        mock_msg.edit.assert_called_once()
-        call_kwargs = mock_msg.edit.call_args
-        assert call_kwargs.kwargs.get("content") is None or call_kwargs[1].get("content") is None
-        embed_arg = call_kwargs.kwargs.get("embed") or call_kwargs[1].get("embed")
-        assert isinstance(embed_arg, discord.Embed)
-
-    @pytest.mark.asyncio
-    async def test_edit_placeholder_message_graceful_failure(self) -> None:
-        ch, client = _make_mock_channel()
-        mock_ch = _make_mock_messageable()
-        mock_ch.fetch_message = AsyncMock(side_effect=Exception("network error"))
-        client.get_channel = MagicMock(return_value=mock_ch)
-
-        msg = _make_msg(content="Final answer")
-        await ch.edit_placeholder_message("123", "42", msg)
-
-    @pytest.mark.asyncio
-    async def test_delete_message(self) -> None:
-        ch, client = _make_mock_channel()
-        mock_ch = _make_mock_messageable()
-        client.get_channel = MagicMock(return_value=mock_ch)
-
-        await ch.delete_message("123", "42")
-        mock_msg = mock_ch.fetch_message.return_value
-        mock_msg.delete.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_react_to_message(self) -> None:
-        ch, client = _make_mock_channel()
-        mock_ch = _make_mock_messageable()
-        client.get_channel = MagicMock(return_value=mock_ch)
-
-        await ch.react_to_message("123", "42", "")
-        mock_msg = mock_ch.fetch_message.return_value
-        mock_msg.add_reaction.assert_called_once_with("")
-
-    @pytest.mark.asyncio
-    async def test_react_empty_emoji_noop(self) -> None:
-        ch, client = _make_mock_channel()
-        await ch.react_to_message("123", "42", "")
-
-    @pytest.mark.asyncio
-    async def test_start_typing(self) -> None:
-        ch, client = _make_mock_channel()
-        mock_ch = _make_mock_messageable()
-        client.get_channel = MagicMock(return_value=mock_ch)
-
-        await ch.start_typing("123")
-        mock_ch.typing.assert_called_once()
-
-
-@pytest.mark.skip(reason="Inbound dispatch covered in test_discord_channel.py")
 class TestDiscordInbound:
     """Tests for inbound message handling with mocked discord events."""
 
@@ -417,64 +310,6 @@ class TestDiscordInbound:
 
         await ch._on_interaction(mock_interaction)
         assert len(received) == 0
-
-
-@pytest.mark.skip(reason="Placeholder: not implemented")
-class TestDiscordHelpers:
-    """Tests for helper methods."""
-
-    @pytest.mark.asyncio
-    async def test_resolve_channel_cache_hit(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_resolve_channel_api_fallback(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_resolve_channel_not_found(self) -> None:
-        pass
-
-    def test_is_mentioned_direct(self) -> None:
-        pass
-
-    def test_is_mentioned_text_pattern(self) -> None:
-        pass
-
-    def test_strip_mention(self) -> None:
-        pass
-
-    def test_extract_attachments(self) -> None:
-        pass
-
-
-@pytest.mark.skip(reason="Placeholder: not implemented")
-class TestDiscordLifecycle:
-    """Tests for lifecycle methods."""
-
-    @pytest.mark.asyncio
-    async def test_start_creates_task(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_start_empty_token_noop(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_stop_cancels_task(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_health_check_ready(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_health_check_not_ready(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_list_groups(self) -> None:
-        pass
 
 
 class TestDiscordSendMedia:
@@ -709,64 +544,7 @@ class TestDiscordSendDelivery:
         assert await ch.send_placeholder("123", "thinking") is None
 
 
-@pytest.mark.skip(reason="Placeholder: not implemented")
-class TestDiscordInboundBranches:
-    """Additional inbound tests for branch coverage."""
-
-    @pytest.mark.asyncio
-    async def test_on_message_guild_requires_mention(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_on_message_empty_content_ignored(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_on_message_thread_detection(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_on_interaction_select_values(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_on_ready_sets_bot_id(self) -> None:
-        pass
-
-    """Unit tests for derive_thread_name."""
-
-    def test_first_line(self) -> None:
-        pass
-
-    def test_empty_lines_skipped(self) -> None:
-        pass
-
-    def test_truncation(self) -> None:
-        pass
-
-    def test_empty_string_fallback(self) -> None:
-        pass
-
-    def test_whitespace_only_fallback(self) -> None:
-        pass
-
-
-@pytest.mark.skip(reason="Forum send covered in test_discord_channel.py")
-class TestDiscordForumSend:
-    """Tests for Forum channel auto-thread-post in send()."""
-
-    @pytest.mark.asyncio
-    async def test_send_to_forum_creates_thread(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_send_to_forum_multi_chunk(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_send_to_forum_failure_returns_none(self) -> None:
-        pass
-
+class TestDiscordNonForumSend:
     @pytest.mark.asyncio
     async def test_send_to_non_forum_guild_channel(self) -> None:
         """Non-forum GuildChannel should use normal send path."""
@@ -779,36 +557,3 @@ class TestDiscordForumSend:
         result = await ch.send(msg)
         assert result == "42"
         mock_ch.send.assert_called()
-
-
-@pytest.mark.skip(reason="Placeholder: not implemented")
-class TestDiscordCreateThread:
-    """Tests for create_thread() method."""
-
-    @pytest.mark.asyncio
-    async def test_create_thread_on_message(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_create_thread_standalone(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_create_thread_in_forum(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_create_thread_unresolvable_channel(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_create_thread_unsupported_channel_type(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_create_thread_name_truncation(self) -> None:
-        pass
-
-    @pytest.mark.asyncio
-    async def test_create_thread_failure_returns_none(self) -> None:
-        pass
