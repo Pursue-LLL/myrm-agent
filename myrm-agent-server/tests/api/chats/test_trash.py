@@ -245,7 +245,11 @@ async def test_empty_trash_triggers_cascade_for_all(async_client: httpx.AsyncCli
 
 
 async def _insert_pending_records(chat_id: str, count: int = 3) -> None:
-    """Insert pending_records with source_chat_id into the cascade manager's relational store."""
+    """Insert pending_records with source_chat_id into the cascade manager's relational store.
+
+    The approval queue holds one open proposal per memory type and content, so every record's content carries
+    the chat id: the same wording queued for two chats is one proposal, not two.
+    """
     from app.core.memory import get_cascade_memory_manager
 
     manager = await get_cascade_memory_manager()
@@ -256,7 +260,7 @@ async def _insert_pending_records(chat_id: str, count: int = 3) -> None:
         await conn.execute(
             """INSERT INTO pending_records (id, user_id, memory_type, content, source_chat_id, status, created_at)
                VALUES (?, 'sandbox_user', 'semantic', ?, ?, 'pending', datetime('now'))""",
-            (str(uuid.uuid4()), f"test memory content {i}", chat_id),
+            (str(uuid.uuid4()), f"test memory content {chat_id} {i}", chat_id),
         )
     await conn.commit()
 
