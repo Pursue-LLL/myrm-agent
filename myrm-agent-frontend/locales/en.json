@@ -8235,7 +8235,8 @@
       "usageLimit": "Waiting for the model usage limit to reset. Resumes automatically.",
       "batchPause": "Paused with its batch. Resumes when the batch resumes.",
       "workdirTooBroad": "The working folder is too broad. Choose a more specific folder, then continue.",
-      "approvalNeeded": "An action needs approval, but tasks run unattended. Allow it in the security policy, then continue."
+      "approvalNeeded": "An action needs approval, but tasks run unattended. Allow it in the security policy, then continue.",
+      "takeoverNeeded": "The browser needs a person (for example a login or a captcha), but tasks run unattended. Do that step in the browser yourself, then continue."
     },
     "blockKind": {
       "human": "Needs you",

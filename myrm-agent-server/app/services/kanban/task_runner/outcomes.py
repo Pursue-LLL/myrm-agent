@@ -7,8 +7,9 @@
 [OUTPUT]
 - PROTOCOL_VIOLATION_MSG: Failure text of a run that ended without calling ``kanban_complete``.
 - APPROVAL_NEEDED_BLOCK_REASON: Written to a task whose run stopped on an approval nobody can give while it runs.
+- TAKEOVER_NEEDED_BLOCK_REASON: Written to a task whose run stopped on a browser step (a login, a captcha) that needs a person.
 - map_goal_outcome: Maps a goal-mode run's terminal goal status to the kanban result and persists it.
-- resolve_run_outcome: Re-reads the task after a run and applies the completion gate and the approval stop.
+- resolve_run_outcome: Re-reads the task after a run and applies the completion gate and the stop on a request only a person can answer.
 
 [POS]
 Interprets the end of one agent run: the goal-mode mapping and the completion gate that decides whether
@@ -35,6 +36,9 @@ if TYPE_CHECKING:
 PROTOCOL_VIOLATION_MSG = "Protocol violation: agent finished without calling kanban_complete(summary=...)"
 APPROVAL_NEEDED_BLOCK_REASON = (
     "An action needs approval, but tasks run unattended; allow it in the security policy, then continue"
+)
+TAKEOVER_NEEDED_BLOCK_REASON = (
+    "The browser needs a person (a login or a captcha), but tasks run unattended; do that step yourself, then continue"
 )
 
 
@@ -120,12 +124,13 @@ async def resolve_run_outcome(
     task_id: str,
     agent_result: tuple[bool, str] | TaskExecutionResult,
     *,
-    approval_needed: bool = False,
+    request_reason: str | None = None,
 ) -> tuple[bool, str] | TaskExecutionResult:
     """Re-read task state after agent execution to enforce completion gate.
 
-    ``approval_needed``: the stream ended on an approval request. A task that blocked itself or completed keeps that
-    verdict; otherwise the run is blocked for the user, since a retry would stop at the same request.
+    ``request_reason``: the block reason of the request the stream ended on (an approval, or a browser step that needs
+    a person), which nobody can answer while a task runs. A task that blocked itself or completed keeps that verdict;
+    otherwise the run is blocked for the user with this reason, since a retry would stop at the same request.
     """
     if isinstance(agent_result, TaskExecutionResult):
         return agent_result
@@ -147,8 +152,8 @@ async def resolve_run_outcome(
             return False, "Protocol violation: kanban_complete summary is empty"
         return True, summary
 
-    if approval_needed:
-        return TaskExecutionResult.blocked(APPROVAL_NEEDED_BLOCK_REASON, block_kind=BlockKind.HUMAN)
+    if request_reason:
+        return TaskExecutionResult.blocked(request_reason, block_kind=BlockKind.HUMAN)
 
     if agent_result[0]:
         return False, PROTOCOL_VIOLATION_MSG

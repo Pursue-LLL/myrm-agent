@@ -159,18 +159,17 @@ def _extract_python_ast_symbols(raw_content: str, start_line_threshold: int) -> 
                             end_line=end_lineno,
                         )
                     )
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if node.lineno >= start_line_threshold:
-                kind = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
-                end_lineno = getattr(node, "end_lineno", None)
-                symbols.append(
-                    OutlineSymbol(
-                        name=node.name,
-                        kind=kind,
-                        start_line=node.lineno,
-                        end_line=end_lineno,
-                    )
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.lineno >= start_line_threshold:
+            kind = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
+            end_lineno = getattr(node, "end_lineno", None)
+            symbols.append(
+                OutlineSymbol(
+                    name=node.name,
+                    kind=kind,
+                    start_line=node.lineno,
+                    end_line=end_lineno,
                 )
+            )
 
     return symbols
 

@@ -1,16 +1,17 @@
-"""A kanban run that stops on an approval request blocks its task for the user instead of failing and retrying.
+"""A kanban run that stops on a request only a person can answer blocks its task for the user instead of failing and retrying.
 
 [INPUT]
 - app.services.kanban.task_runner::KanbanTaskRunner (POS: the production run entry; the agent stream is the only stand-in)
-- app.services.kanban.task_runner.stream::_StreamAccumulator (POS: reads the approval stop off the stream events)
-- app.services.kanban.task_runner.outcomes::resolve_run_outcome, APPROVAL_NEEDED_BLOCK_REASON (POS: the verdict on a finished run)
+- app.services.kanban.task_runner.stream::_StreamAccumulator (POS: reads the stop and its reason off the stream events)
+- app.services.kanban.task_runner.outcomes::resolve_run_outcome, APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON (POS: the verdict on a finished run)
 - myrm_agent_harness KanbanDispatcher + InMemoryKanbanStore (POS: the scheduler that retried such a run before it was blocked)
 - myrm_agent_harness interrupt_events + build_interrupt_payload + ToolStuckException (POS: build the pause events exactly as a paused run emits them)
 
 [OUTPUT]
-Pins the path of one task: its stream ends on an approval nobody can give while a task runs, the run blocks the task for the
-user with the fixed reason, and the dispatcher neither retries it nor counts a failure. A loop guard pause and a stream error
-stay failures, and a task that blocked itself or completed keeps that verdict.
+Pins the path of one task: its stream ends on an approval or on a browser step that needs a person (a login, a captcha),
+which nobody can give while a task runs; the run blocks the task for the user with that request's fixed reason, and the
+dispatcher neither retries it nor counts a failure. A loop guard pause and a stream error stay failures; a task that blocked
+itself or completed keeps that verdict.
 
 [POS]
 tests/services/kanban/test_task_runner_approval_stop.py
@@ -49,6 +50,7 @@ from app.services.kanban.task_runner import KanbanTaskRunner
 from app.services.kanban.task_runner.outcomes import (
     APPROVAL_NEEDED_BLOCK_REASON,
     PROTOCOL_VIOLATION_MSG,
+    TAKEOVER_NEEDED_BLOCK_REASON,
     resolve_run_outcome,
 )
 from app.services.kanban.task_runner.stream import _StreamAccumulator
@@ -65,14 +67,18 @@ def _paused_on(interrupt_value: Mapping[str, object]) -> dict[str, object]:
 
 
 _SHELL_CALL: ToolCall = {"name": "shell_exec", "args": {"command": "rm -rf build"}, "id": "call-1", "type": "tool_call"}
-_TOOL_APPROVAL_VALUE, _ = build_interrupt_payload(
-    [(0, _SHELL_CALL, "shell_exec", "requires approval", None)], f"kanban:{TASK_ID}"
+TOOL_APPROVAL = _paused_on(
+    build_interrupt_payload([(0, _SHELL_CALL, "shell_exec", "requires approval", None)], f"kanban:{TASK_ID}")[0]
 )
-TOOL_APPROVAL = _paused_on(_TOOL_APPROVAL_VALUE)
 OTHER_APPROVAL = _paused_on(
     {"action_type": "high_risk_dom_action", "tool_name": "browser_click", "reason": "Submits a payment form"}
 )
+# What `browser_ask_human` raises when the agent meets a login or a captcha.
+BROWSER_TAKEOVER = _paused_on(
+    {"action_type": "browser_takeover", "tool_name": "browser_ask_human_tool", "reason": "Log in to continue"}
+)
 LOOP_GUARD_PAUSE = _paused_on(ToolStuckException("The same call failed 5 times").interrupt_payload("shell_exec", "call-1"))
+STOPS = [(TOOL_APPROVAL, APPROVAL_NEEDED_BLOCK_REASON), (BROWSER_TAKEOVER, TAKEOVER_NEEDED_BLOCK_REASON)]  # pause, reason
 RUN_ERROR: dict[str, object] = {"type": "error", "error": "provider down", "error_type": "LLMError"}
 EMPTY_ANSWER = (False, "agent returned empty response")
 
@@ -107,43 +113,68 @@ def _fed(*events: dict[str, object]) -> _StreamAccumulator:
 
 
 class TestAccumulator:
-    @pytest.mark.parametrize("event", [TOOL_APPROVAL, OTHER_APPROVAL, {"type": "approval_required"}])
-    def test_an_approval_request_ends_the_stream_for_approval(self, event: dict[str, object]) -> None:
-        assert _fed({"type": "message", "data": "starting"}, event).stopped_for_approval
+    @pytest.mark.parametrize(
+        ("event", "reason"),
+        [
+            (TOOL_APPROVAL, APPROVAL_NEEDED_BLOCK_REASON),
+            (OTHER_APPROVAL, APPROVAL_NEEDED_BLOCK_REASON),
+            ({"type": "approval_required"}, APPROVAL_NEEDED_BLOCK_REASON),
+            (BROWSER_TAKEOVER, TAKEOVER_NEEDED_BLOCK_REASON),
+        ],
+    )
+    def test_a_request_only_a_person_can_answer_ends_the_stream_with_its_reason(
+        self, event: dict[str, object], reason: str
+    ) -> None:
+        assert _fed({"type": "message", "data": "starting"}, event).unanswered_request_reason == reason
 
-    def test_a_stream_without_one_did_not_stop_for_approval(self) -> None:
-        assert not _fed({"type": "message", "data": "hi"}, {"type": "message_end"}).stopped_for_approval
+    @pytest.mark.parametrize(
+        ("events", "reason"),
+        [
+            ((TOOL_APPROVAL, BROWSER_TAKEOVER), APPROVAL_NEEDED_BLOCK_REASON),
+            ((BROWSER_TAKEOVER, TOOL_APPROVAL), TAKEOVER_NEEDED_BLOCK_REASON),
+        ],
+    )
+    def test_the_first_request_names_the_reason(self, events: tuple[dict[str, object], ...], reason: str) -> None:
+        assert _fed(*events).unanswered_request_reason == reason
 
-    def test_the_loop_guard_pause_is_no_approval(self) -> None:
-        # It reaches the stream typed like an approval; only its action type keeps it a failure.
-        assert LOOP_GUARD_PAUSE["type"] == "approval_required"
-        assert not _fed(LOOP_GUARD_PAUSE).stopped_for_approval
+    def test_a_stream_without_one_did_not_stop_on_a_request(self) -> None:
+        assert _fed({"type": "message", "data": "hi"}, {"type": "message_end"}).unanswered_request_reason is None
 
-    @pytest.mark.parametrize("events", [(TOOL_APPROVAL, RUN_ERROR), (RUN_ERROR, TOOL_APPROVAL)])
-    def test_a_run_error_outranks_the_approval_request(self, events: tuple[dict[str, object], ...]) -> None:
-        assert not _fed(*events).stopped_for_approval
+    def test_the_loop_guard_pause_is_no_request(self) -> None:
+        assert LOOP_GUARD_PAUSE["type"] == "approval_required"  # typed like an approval; only its action type tells
+        assert _fed(LOOP_GUARD_PAUSE).unanswered_request_reason is None
+
+    @pytest.mark.parametrize("events", [(TOOL_APPROVAL, RUN_ERROR), (RUN_ERROR, TOOL_APPROVAL), (BROWSER_TAKEOVER, RUN_ERROR)])
+    def test_a_run_error_outranks_the_request(self, events: tuple[dict[str, object], ...]) -> None:
+        assert _fed(*events).unanswered_request_reason is None
 
 
-def _store_holding(task: KanbanTask) -> AsyncMock:
+async def _verdict(
+    task: KanbanTask, agent_result: tuple[bool, str], request_reason: str | None
+) -> tuple[bool, str] | TaskExecutionResult:
+    """What the end of a run means for ``task`` when its stream ended on the request with this reason (None: on none)."""
     store = AsyncMock()
     store.get_task.return_value = task
-    return store
+    return await resolve_run_outcome(store, TASK_ID, agent_result, request_reason=request_reason)
 
 
 class TestVerdict:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("agent_result", [(True, "I will run the build next"), EMPTY_ANSWER])
-    async def test_an_approval_stop_blocks_the_task_for_the_user(self, agent_result: tuple[bool, str]) -> None:
-        outcome = await resolve_run_outcome(_store_holding(_task()), TASK_ID, agent_result, approval_needed=True)
+    @pytest.mark.parametrize("reason", [APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON])
+    async def test_a_stop_on_a_request_blocks_the_task_for_the_user_with_its_reason(
+        self, agent_result: tuple[bool, str], reason: str
+    ) -> None:
+        outcome = await _verdict(_task(), agent_result, reason)
 
         assert isinstance(outcome, TaskExecutionResult)
         assert outcome.is_blocked
-        assert outcome.blocked_reason == APPROVAL_NEEDED_BLOCK_REASON
+        assert outcome.blocked_reason == reason
         assert outcome.block_kind == BlockKind.HUMAN
 
     @pytest.mark.asyncio
     async def test_without_the_stop_a_run_that_did_not_complete_is_still_a_protocol_violation(self) -> None:
-        outcome = await resolve_run_outcome(_store_holding(_task()), TASK_ID, (True, "forgot kanban_complete"))
+        outcome = await _verdict(_task(), (True, "forgot kanban_complete"), None)
 
         assert outcome == (False, PROTOCOL_VIOLATION_MSG)
 
@@ -151,7 +182,7 @@ class TestVerdict:
     async def test_a_task_that_blocked_itself_keeps_its_own_reason(self) -> None:
         task = _task(status=TaskStatus.BLOCKED, blocked_reason="Need the API key", block_kind=BlockKind.EXTERNAL)
 
-        outcome = await resolve_run_outcome(_store_holding(task), TASK_ID, (True, "x"), approval_needed=True)
+        outcome = await _verdict(task, (True, "x"), APPROVAL_NEEDED_BLOCK_REASON)
 
         assert isinstance(outcome, TaskExecutionResult)
         assert (outcome.blocked_reason, outcome.block_kind) == ("Need the API key", BlockKind.EXTERNAL)
@@ -160,7 +191,7 @@ class TestVerdict:
     async def test_a_task_that_completed_stays_completed(self) -> None:
         task = _task(metadata={KANBAN_COMPLETION_INTENT_KEY: True}, result="Finished the digest")
 
-        outcome = await resolve_run_outcome(_store_holding(task), TASK_ID, (True, "stream text"), approval_needed=True)
+        outcome = await _verdict(task, (True, "stream text"), APPROVAL_NEEDED_BLOCK_REASON)
 
         assert outcome == (True, "Finished the digest")
 
@@ -168,7 +199,9 @@ class TestVerdict:
     async def test_a_verdict_already_reached_is_passed_on(self) -> None:
         reached = TaskExecutionResult.failure("goal budget spent")
 
-        assert await resolve_run_outcome(AsyncMock(), TASK_ID, reached, approval_needed=True) is reached
+        outcome = await resolve_run_outcome(AsyncMock(), TASK_ID, reached, request_reason=TAKEOVER_NEEDED_BLOCK_REASON)
+
+        assert outcome is reached
 
 
 def _agent_streaming(events: list[dict[str, object]], result: tuple[bool, str]) -> AsyncMock:
@@ -236,18 +269,17 @@ async def _seeded_store(task: KanbanTask) -> InMemoryKanbanStore:
 class TestRun:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("agent_result", [(True, "I will run the build next"), EMPTY_ANSWER])
-    async def test_a_run_that_stops_on_an_approval_blocks_its_task(self, agent_result: tuple[bool, str]) -> None:
+    @pytest.mark.parametrize(("pause", "reason"), STOPS)
+    async def test_a_run_that_stops_on_a_request_blocks_its_task_with_its_reason(
+        self, agent_result: tuple[bool, str], pause: dict[str, object], reason: str
+    ) -> None:
         runner = KanbanTaskRunner(await _seeded_store(_task()))
 
-        with _run_surfaces(runner, _agent_streaming([TOOL_APPROVAL], agent_result)):
+        with _run_surfaces(runner, _agent_streaming([pause], agent_result)):
             outcome = await runner.run(_task())
 
         assert isinstance(outcome, TaskExecutionResult)
-        assert (outcome.is_blocked, outcome.blocked_reason, outcome.block_kind) == (
-            True,
-            APPROVAL_NEEDED_BLOCK_REASON,
-            BlockKind.HUMAN,
-        )
+        assert (outcome.is_blocked, outcome.blocked_reason, outcome.block_kind) == (True, reason, BlockKind.HUMAN)
 
     @pytest.mark.asyncio
     async def test_a_goal_mode_run_blocks_the_same_way(self) -> None:
@@ -297,10 +329,13 @@ class TestRealAgentRun:
     """Through the real agent run, so the accumulator the runner reads is the one the run's events were fed to."""
 
     @pytest.mark.asyncio
-    async def test_an_approval_request_in_the_agent_stream_blocks_the_task(self) -> None:
+    @pytest.mark.parametrize(("pause", "reason"), STOPS)
+    async def test_a_request_in_the_agent_stream_blocks_the_task_with_its_reason(
+        self, pause: dict[str, object], reason: str
+    ) -> None:
         async def stream(*_args: object, **_kwargs: object) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "I will run the build next"}
-            yield TOOL_APPROVAL
+            yield pause
 
         runner = KanbanTaskRunner(await _seeded_store(_task()))
 
@@ -308,7 +343,7 @@ class TestRealAgentRun:
             outcome = await runner.run(_task())
 
         assert isinstance(outcome, TaskExecutionResult)
-        assert outcome.blocked_reason == APPROVAL_NEEDED_BLOCK_REASON
+        assert outcome.blocked_reason == reason
 
     @pytest.mark.asyncio
     async def test_a_stream_that_ends_without_completing_still_fails(self) -> None:
