@@ -1,7 +1,8 @@
 """Batch string-replace application for file edits.
 
 [INPUT]
-- utils.fuzzy_match::fuzzy_replace, find_closest_lines (POS: Progressive fuzzy match chain)
+- utils.fuzzy_match::fuzzy_replace (POS: Progressive fuzzy match chain)
+- utils.closest_lines::find_closest_lines (POS: "Did you mean?" hint for a text that was not found)
 - core.file_conflict_guard::compute_edit_line_range (POS: Edit line range calculator)
 - core.operation_context::StrReplaceEdit (POS: Single edit payload)
 - utils.line_endings::detect_line_ending, normalize_line_endings (POS: CRLF/LF preservation)
@@ -19,7 +20,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 
-from myrm_agent_harness.utils.fuzzy_match import find_closest_lines, fuzzy_replace
+from myrm_agent_harness.utils.closest_lines import find_closest_lines
+from myrm_agent_harness.utils.fuzzy_match import fuzzy_replace
 
 from .file_conflict_guard import compute_edit_line_range
 from .operation_context import StrReplaceEdit
