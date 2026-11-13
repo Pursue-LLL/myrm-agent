@@ -61,6 +61,19 @@ def _reply_target(msg: InboundMessage) -> str | None:
     return str(carried) if carried else None
 
 
+def _system_notice(msg: InboundMessage, content: str) -> OutboundMessage:
+    """A system notice that quotes ``msg`` and goes to the chat of a group message, else to its sender."""
+    return OutboundMessage(
+        channel=msg.channel,
+        recipient_id=msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id,
+        content=content,
+        user_id=msg.user_id or "",
+        reply_to_id=_reply_target(msg),
+        thread_id=msg.thread_id,
+        priority=MessagePriority.SYSTEM,
+    )
+
+
 class MessageEffects:
     """Helper for message side-effects (typing, placeholders, replies); ``reactions`` is the reaction funnel.
 
@@ -342,32 +355,11 @@ class MessageEffects:
 
     async def send_quota_exceeded_reply(self, msg: InboundMessage, quota: int) -> None:
         """Notify the sender that their daily conversation quota has been exhausted."""
-        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
-        content = get_text(msg, "daily_quota_exceeded", quota=quota)
-        reply = OutboundMessage(
-            channel=msg.channel,
-            recipient_id=recipient,
-            content=content,
-            user_id=msg.user_id or "",
-            reply_to_id=_reply_target(msg),
-            thread_id=msg.thread_id,
-            priority=MessagePriority.SYSTEM,
-        )
-        await self._bus.publish_outbound(reply)
+        await self._bus.publish_outbound(_system_notice(msg, get_text(msg, "daily_quota_exceeded", quota=quota)))
 
     async def send_mute_reply(self, msg: InboundMessage) -> None:
         """Send a thread mute confirmation message."""
-        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
-        reply = OutboundMessage(
-            channel=msg.channel,
-            recipient_id=recipient,
-            content=get_text(msg, "mute_confirm"),
-            user_id=msg.user_id or "",
-            reply_to_id=_reply_target(msg),
-            thread_id=msg.thread_id,
-            priority=MessagePriority.SYSTEM,
-        )
-        await self._bus.publish_outbound(reply)
+        await self._bus.publish_outbound(_system_notice(msg, get_text(msg, "mute_confirm")))
 
     async def send_busy_ack(self, msg: InboundMessage, position: int, max_pending: int) -> None:
         """Acknowledge a message received while the agent is busy.
@@ -377,24 +369,15 @@ class MessageEffects:
             position: Queue position (1-based) or -1 when dropped.
             max_pending: Maximum pending queue capacity.
         """
-        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
         if position < 0:
             content = get_text(msg, "busy_ack_queue_full")
         else:
             content = get_text(msg, "busy_ack_queued", position=position, max_pending=max_pending)
-        reply = OutboundMessage(
-            channel=msg.channel,
-            recipient_id=recipient,
-            content=content,
-            user_id=msg.user_id or "",
-            reply_to_id=_reply_target(msg),
-            thread_id=msg.thread_id,
-            priority=MessagePriority.SYSTEM,
-        )
+        reply = _system_notice(msg, content)
         try:
             await self._bus.publish_outbound(reply)
         except Exception:
-            logger.debug("busy_ack send failed for %s/%s", msg.channel, recipient, exc_info=True)
+            logger.debug("busy_ack send failed for %s/%s", msg.channel, reply.recipient_id, exc_info=True)
 
     @staticmethod
     async def wait_for_edit_gap(last_progress_at: float, min_interval: float = 2.0) -> None:

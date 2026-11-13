@@ -254,6 +254,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/feishu/test_placeholder_lifecycle.py` | 单元 | 飞书占位卡片的一生只走飞书文档记载的两条路由：占位卡片经发送接口发出，进度与终稿都经卡片更新接口替换；三张卡片的 config 都声明 `update_multi`，占位卡片只含飞书定义的组件、不带自造的 `card_id`；飞书拒绝的卡片更新使编辑失败（由路由改发新消息）。经真实渠道与真实客户端，网络用假传输代替 |
 | `channels/providers/googlechat/test_googlechat_all_mention.py` | 单元 | 智能体文本里的 `<users/all>` 与 `<chat-user data-user="users/all">`（含大小写、单引号、无引号、等号两侧空白）不会通知整个 Google Chat 空间：创建与更新消息时都在出口处被拆开；`<users/allen>`、`<users/all_hands>`、指向具体用户的标记与普通文本原样发出 |
 | `channels/routing/test_reply_target.py` | 单元 | 系统回复（静音、忙碌、配额）引用的消息号：到达消息号优先，其次是元数据里的消息号（数字转成文本），都没有则不引用 |
+| `channels/routing/test_system_notice.py` | 单元 | 系统通知（静音、忙碌、配额）的收件人与信封：群消息回到群聊；私聊即使带有聊天号也回给发送者；群消息没有聊天号时回给发送者；通知记在该成员名下、保留话题、走系统优先级 |
 | `core/channel_bridge/test_execute_preamble_context_document.py` | 单元 | 参考文档并入本轮查询：短文档在数据边界内跟在查询之后、文档里的文字冒充不了边界标记、长文档存进智能体工作区且只显示路径（真实文件往返）、截断时说明显示了多少、缺失与空文档如实告知、无可用文档与多模态查询原样不变、工作区写不了降级为缺失、不能当目录名的会话不会落到别处、能放下的文档不留文件 |
 | `core/channel_bridge/test_execute_preamble_replay_notice.py` | 单元 | 重启后重放的消息带重放提示：字符串与多模态查询（图片保留、入参不被改动、无文本部分时补一段）、非重放与标志为假的消息原样不变；经 `build_channel_execution_agent` 只出现在本轮（`params.query` 仍是用户原文），审批答复的重放不加 |
 | `core/channel_bridge/preamble_testkit.py` | 辅助 | preamble 测试的共享构建器：`inbound_message()`、`minimal_user_configs()`、`build_agent()`（除变化项外其余参数取朴素默认值）、`build_live_turn()`（装配出的回合与创建智能体所用的 params；可指定用户配置与 query）；`test_execute_preamble_early_exit.py`、`test_execute_preamble_replay_notice.py` 与 `test_channel_turn_security_survives_sync.py` 共用 |

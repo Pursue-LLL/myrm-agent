@@ -130,6 +130,7 @@ from app.channels.routing.pipeline import (
     RouterTurnMixin,
 )
 from app.channels.routing.policy_resolver import PolicyResolver
+from app.channels.routing.progress_estimator import ProgressEstimator
 from app.channels.routing.retry_policy import (
     RetryConfig as RouterRetryConfig,
 )
@@ -156,7 +157,6 @@ from app.channels.routing.stream_config import StreamConfig
 from app.channels.routing.stream_manager import (
     AdaptiveThrottler,
     IncrementalEditor,
-    ProgressEstimator,
     StreamCoordinator,
 )
 from app.channels.routing.stream_metrics import StreamMetrics

@@ -1,16 +1,17 @@
-"""Tests for the streaming optimization components in stream_manager.py and the block chunker they use."""
+"""Tests for the streaming optimization components in stream_manager.py and the block chunker and progress estimator they use."""
 
 from __future__ import annotations
 
 import time
 from unittest.mock import MagicMock
 
+import pytest
+
 from app.channels.routing.block_chunker import BlockChunker, ChunkConfig
+from app.channels.routing.progress_estimator import ProgressEstimator, ProgressInfo
 from app.channels.routing.stream_manager import (
     AdaptiveThrottler,
     IncrementalEditor,
-    ProgressEstimator,
-    ProgressInfo,
     StreamCoordinator,
     UpdateDecision,
 )
@@ -321,12 +322,30 @@ class TestStreamCoordinator:
         assert decision.should_send is True
         assert "block_ready" in decision.reason
 
-    def test_below_block_size_no_send(self) -> None:
+    def test_text_that_reaches_block_size_sends(self) -> None:
         coord = _make_coordinator(block_size=1000)
         coord.should_send_update("s1", "a" * 1000)
         decision = coord.should_send_update("s1", "a" * 1000 + "b")
         assert decision.should_send is True
         assert "block_ready" in decision.reason
+
+    def test_text_below_block_size_waits(self) -> None:
+        coord = _make_coordinator(block_size=1000)
+        coord.should_send_update("s1", "a" * 60)
+        decision = coord.should_send_update("s1", "a" * 80)
+        assert (decision.should_send, decision.reason) == (False, "block_size:80<1000")
+
+    @pytest.mark.parametrize("info", ["", "python", "c++", "c#", "python title=demo", "json {1,3}"])
+    def test_a_preview_waits_while_a_code_block_is_open_whatever_its_info_string_says(self, info: str) -> None:
+        coord = _make_coordinator(block_size=50)
+        opening = "Here is the code you asked for:\n" + "x" * 20
+        coord.should_send_update("s1", opening)
+        inside = f"{opening}\n```{info}\n" + "int a = 1;\n" * 10
+        waiting = coord.should_send_update("s1", inside)
+        assert (waiting.should_send, waiting.reason) == (False, "inside_code_fence")
+        resumed = coord.should_send_update("s1", f"{inside}```\nIt prints one.")
+        assert resumed.should_send is True
+        assert "block_ready" in resumed.reason
 
     def test_degradation_multiplier_applied(self) -> None:
         coord = _make_coordinator(block_size=10, degradation_multiplier=3.0)

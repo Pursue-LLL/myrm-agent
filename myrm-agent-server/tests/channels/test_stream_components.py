@@ -1,10 +1,10 @@
 """Unit tests for streaming components: BlockChunker, IncrementalEditor, AdaptiveThrottler, etc."""
 
 from app.channels.routing.block_chunker import BlockChunker, ChunkConfig
+from app.channels.routing.progress_estimator import ProgressEstimator
 from app.channels.routing.stream_manager import (
     AdaptiveThrottler,
     IncrementalEditor,
-    ProgressEstimator,
     StreamCoordinator,
 )
 from app.channels.routing.stream_metrics import StreamMetrics
