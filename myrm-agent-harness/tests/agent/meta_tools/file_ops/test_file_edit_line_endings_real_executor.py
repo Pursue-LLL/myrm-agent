@@ -20,7 +20,9 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import reset_exec
 from myrm_agent_harness.toolkits.code_execution.executors.local import LocalExecutor
 from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 
-_CRLF = b"def a():\r\n    return 1\r\n\r\ndef b():\r\n    return 2\r\n"
+# Two blank lines between the functions: the edit runs ``ruff format`` on a Python file when ruff is on PATH, and this is
+# the form it leaves as it is, so the bytes asserted below are the same with or without a formatter installed.
+_CRLF = b"def a():\r\n    return 1\r\n\r\n\r\ndef b():\r\n    return 2\r\n"
 _LF = _CRLF.replace(b"\r\n", b"\n")
 
 
@@ -73,11 +75,11 @@ async def test_the_view_of_a_crlf_file_shows_plain_lines(workspace: Path) -> Non
     read = create_file_read_tool()
 
     whole = await read.ainvoke({"paths": ["mod.py"]}, config=RunnableConfig())
-    ranged = await read.ainvoke({"paths": ["mod.py:4-5"]}, config=RunnableConfig())
+    ranged = await read.ainvoke({"paths": ["mod.py:5-6"]}, config=RunnableConfig())
 
     assert isinstance(whole, str)
     assert isinstance(ranged, str)
     assert "\r" not in whole + ranged
     assert "2|    return 1\n" in whole
-    assert "4|def b():\n" in ranged
-    assert "5|    return 2\n" in ranged
+    assert "5|def b():\n" in ranged
+    assert "6|    return 2\n" in ranged
