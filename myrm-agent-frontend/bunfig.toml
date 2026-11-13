@@ -2,5 +2,6 @@
 # registry = "https://registry.npmmirror.com"
 
 # Bun preload for in-package `bun`/`bunx` when runtime is Bun (see scripts/next-dev-gate.cjs).
-# `bunx next dev` via Node uses next.config + reclaimPausedDevListeners instead.
+# `bunx next dev` runs on Node and never gets it: next.config.ts takes over (pause gate with
+# reclaimPausedDevListeners, then dev-supervision-gate.ts refuses a launch that dev.ts did not start).
 preload = ["./scripts/next-dev-gate.cjs"]
