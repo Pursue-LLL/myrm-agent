@@ -81,7 +81,7 @@
 |---|---|---|
 | 有意的例外 | ACP 工具链安装 `~/.myrm-agent/toolchains`：按版本号分目录、所有 Myrm 进程共用的第三方安装，如同包管理器缓存 | `toolkits/acp/toolchains/manager.py` |
 | 有意的例外 | 记忆导入读取其他工具（`~/.claude`、`~/.codex` 等）自己的历史目录，不属于 Myrm 目录 | `toolkits/memory/onboarding/adapters.py` |
-| 已知偏离（§8） | 未设置 `MYRM_DATA_DIR` 时落 cwd 相对的 `.myrm/…`：子 agent JSON checkpoint（已设置 `{root}/checkpoints`）、Camoufox 指纹（已设置 `{root}/browser_fingerprints`）、动态工作流事件库的回退（优先落工作区 `.myrm/`，取不到工作区才看 `MYRM_DATA_DIR`，再回退 cwd） | `agent/sub_agents/checkpoint/saver.py`、`toolkits/browser/pool/browser_pool.py::_resolve_fingerprint_dir`、`agent/dynamic_workflow/paths.py` |
+| 已知偏离（§8） | 未设置 `MYRM_DATA_DIR` 时落 cwd 相对的 `.myrm/…`：子 agent JSON checkpoint（已设置 `{root}/checkpoints`）、Camoufox 指纹（已设置 `{root}/browser_fingerprints`）、动态工作流事件库的回退（优先落工作区 `.myrm/`，取不到工作区才看 `MYRM_DATA_DIR`，再回退 cwd） | `agent/sub_agents/checkpoint/saver.py`、`toolkits/browser/pool/pool_scheduling.py::_resolve_fingerprint_dir`、`agent/dynamic_workflow/paths.py` |
 | `MYRM_PERSISTENT_ROOT` | `.context` / `.memories` / `workspace` 由它派生 | `/persistent` |
 | `MYRM_LOCALES_DIR` | 覆盖诊断 i18n 目录 | 内置 `agent/errors/diagnostics/i18n/locales/`（de / en / ja / ko / zh-CN） |
 | `MYRM_GATEWAY_URL` / `_TOKEN` | 第三方工具中继地址与凭证 | 不需要该能力时不必设置 |
@@ -116,7 +116,7 @@ MCP / OpenAPI 工具溢出目前走两条路（`agent/_factory/mcp_routing.py`�
 |---|---|---|
 | §3 第1条 不留兼容包袱 | 7 个文件保留 `Backward-compatible alias` / `Legacy alias` | `core/security/missing_semantics.py`、`toolkits/browser/pool/extension_bridge.py` 等 |
 | §3 第2条 走持久化抽象 | 子 agent checkpoint 直接落文件系统，不经 `StorageProvider` | `agent/sub_agents/checkpoint/saver.py` 只用 `MYRM_DATA_DIR/checkpoints` + `atomic_write` |
-| §6 路径规则（单一状态根入口） | 一批状态目录仍用 cwd 相对的 `.myrm/…` 默认路径：不碰主目录，但依赖工作目录。harness：子 agent checkpoint、Camoufox 指纹、动态工作流事件库回退、技能进化库（`.myrm/skills_evolution.db`）、嵌入缓存（`.myrm/embeddings.db`）、技能状态（`.myrm/skills`）；server：功能配置、任务气囊、评测数据集与报告、认证审计日志。改成状态根之前要先迁移已有 cwd 相对目录里的数据 | `agent/sub_agents/checkpoint/saver.py::_default_checkpoint_storage_path`、`toolkits/browser/pool/browser_pool.py::_resolve_fingerprint_dir`、`agent/dynamic_workflow/paths.py`、`agent/skills/evolution/infra/integration.py`、`backends/skills/state_manager.py`；server `app/services/features/feature_config_service.py`、`app/services/checkpoint/task_airbag_service.py`、`app/core/eval/`、`app/middleware/auth_audit.py` |
+| §6 路径规则（单一状态根入口） | 一批状态目录仍用 cwd 相对的 `.myrm/…` 默认路径：不碰主目录，但依赖工作目录。harness：子 agent checkpoint、Camoufox 指纹、动态工作流事件库回退、技能进化库（`.myrm/skills_evolution.db`）、嵌入缓存（`.myrm/embeddings.db`）、技能状态（`.myrm/skills`）；server：功能配置、任务气囊、评测数据集与报告、认证审计日志。改成状态根之前要先迁移已有 cwd 相对目录里的数据 | `agent/sub_agents/checkpoint/saver.py::_default_checkpoint_storage_path`、`toolkits/browser/pool/pool_scheduling.py::_resolve_fingerprint_dir`、`agent/dynamic_workflow/paths.py`、`agent/skills/evolution/infra/integration.py`、`backends/skills/state_manager.py`；server `app/services/features/feature_config_service.py`、`app/services/checkpoint/task_airbag_service.py`、`app/core/eval/`、`app/middleware/auth_audit.py` |
 | §5 发行状态 | `[compiled-core]` / `[compiled-core-musl]` 指向的 rc6 平台包未发布，两个 musl 项目在 PyPI 不存在，装 `[compiled-core]` 会解析失败 | PyPI 最新 0.1.0rc5；`pyproject.toml` 已 0.1.0rc6 |
 | §2 类型目标 | 无 lint / 类型门禁；mypy 2252、ruff 1331 未清 | 见 §2 实测表 |
 | §7 门禁覆盖 | MCP 双结局门禁未进入 `-m architecture` job | 见 §7 门禁现状 |

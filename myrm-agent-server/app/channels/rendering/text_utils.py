@@ -11,16 +11,18 @@
 - downgrade_html_fences(): Replace HTML/SVG code fences with a short placeholder for IM channels
 - with_protected_code_blocks(): Run a text transform while code blocks stay untouched
 - md_to_plaintext(): Convert markdown to plain text based on RenderStyle
+- FENCED_BLOCK_RE / fenced_block_html(): Fenced code block and its ``<pre>`` markup for the HTML channels (Telegram, Matrix)
 
 [POS]
 Universal text utilities. Provides code-block-aware text processing,
 format downgrade functions (LaTeX stripping, table conversion, HTML fence
-replacement, plaintext conversion), and thinking tag removal for all
-channel implementations.
+replacement, plaintext conversion), thinking tag removal, and the fenced block
+-> ``<pre>`` rendering that the HTML channels share.
 """
 
 from __future__ import annotations
 
+import html
 import re
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -122,6 +124,28 @@ def extract_safe_regions(
     safe_matches = [m for m in all_matches if not _is_inside_code(m.start(), m.end())]
 
     return safe_matches
+
+
+# A fenced block as the HTML channels convert it. A fence line (backticks opening the line, indentation allowed) carries
+# a free-text info string without backticks (``c++``, ``python title=demo``, ``json {1,3}``); a fence that follows text
+# on its line carries only a word, so prose such as "wrap code in ``` fences" never opens a block.
+FENCED_BLOCK_RE = re.compile(
+    r"""
+    (?P<indent>^[ \t]*)?
+    ```(?P<info>(?(indent)[^`\n]*|\w*))\n
+    (?P<code>.*?)```
+    """,
+    re.DOTALL | re.MULTILINE | re.VERBOSE,
+)
+
+
+def fenced_block_html(block: Match[str]) -> str:
+    """The ``<pre>`` markup of one ``FENCED_BLOCK_RE`` match; the first word of the info string names the language."""
+    code = html.escape(block["code"])
+    language = block["info"].split(maxsplit=1)
+    if not language:
+        return f"<pre>{code}</pre>"
+    return f'<pre><code class="language-{html.escape(language[0])}">{code}</code></pre>'
 
 
 # ---------------------------------------------------------------------------

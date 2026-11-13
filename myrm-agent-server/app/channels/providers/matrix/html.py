@@ -1,7 +1,7 @@
 """Markdown → Matrix HTML conversion utilities.
 
 [INPUT]
-- channels.rendering.text_utils::extract_safe_regions (POS: Universal text utilities)
+- channels.rendering.text_utils::extract_safe_regions, FENCED_BLOCK_RE, fenced_block_html (POS: Universal text utilities; fenced block and its <pre> markup, shared with Telegram)
 
 [OUTPUT]
 - md_to_matrix_html: Markdown → HTML subset (or None for plain text)
@@ -24,9 +24,8 @@ import html
 import re
 from collections.abc import Sequence
 
-from app.channels.rendering.text_utils import extract_safe_regions
+from app.channels.rendering.text_utils import FENCED_BLOCK_RE, extract_safe_regions, fenced_block_html
 
-_CODE_BLOCK_RE = re.compile(r"```(\w*)\n(.*?)```", re.DOTALL)
 _INLINE_CODE_RE = re.compile(r"`([^`]+)`")
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
@@ -85,11 +84,7 @@ def md_to_matrix_html(text: str) -> str | None:
     preserved: list[str] = []
 
     def _preserve_block(m: re.Match[str]) -> str:
-        lang, code = m.group(1), m.group(2)
-        tag = (
-            f'<pre><code class="language-{lang}">{html.escape(code)}</code></pre>' if lang else f"<pre>{html.escape(code)}</pre>"
-        )
-        preserved.append(tag)
+        preserved.append(fenced_block_html(m))
         return f"\x00P{len(preserved) - 1}\x00"
 
     def _preserve_inline(m: re.Match[str]) -> str:
@@ -97,7 +92,7 @@ def md_to_matrix_html(text: str) -> str | None:
         preserved.append(tag)
         return f"\x00P{len(preserved) - 1}\x00"
 
-    result = _CODE_BLOCK_RE.sub(_preserve_block, text)
+    result = FENCED_BLOCK_RE.sub(_preserve_block, text)
     result = _INLINE_CODE_RE.sub(_preserve_inline, result)
     result = html.escape(result)
     result = _BOLD_RE.sub(r"<strong>\1</strong>", result)

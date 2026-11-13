@@ -446,6 +446,9 @@ from myrm_agent_harness.toolkits.browser.session import (
 from myrm_agent_harness.toolkits.browser.session import (
     create_restricted_ax_browser_tools as create_restricted_ax_browser_tools,
 )
+from myrm_agent_harness.toolkits.browser.utils.page_health import (
+    is_driver_closed_error as is_driver_closed_error,
+)
 from myrm_agent_harness.toolkits.code_execution.git_digest import (
     RepoCommitItem as RepoCommitItem,
 )
