@@ -68,12 +68,12 @@ CREATE INDEX idx_fork_parent_children ON conversation_forks(parent_chat_id);
 
 | Approach | Query Complexity | Storage | Performance |
 |----------|------------------|---------|-------------|
-| **COW** (Copy-On-Write) | O(fork_depth) recursive queries | 90% savings | Variable, deep forks slow |
-| **Direct Copy** | O(1) single table query | ~1% overhead | Constant, predictable |
+| **COW** (Copy-On-Write) | O(fork_depth) recursive queries | Shares ancestor messages | Variable, deep forks slow |
+| **Direct Copy** | O(1) single table query | Duplicates the forked messages | Constant, predictable |
 
 **Choice:** Direct Copy for **predictable O(1) query performance**.
 
-**Why?** Fork frequency is low (<5% conversations), storage overhead is negligible, but query performance directly impacts UX.
+**Why?** Forks are rare relative to conversations, so the duplicated storage is acceptable, while query performance directly impacts UX.
 
 ---
 

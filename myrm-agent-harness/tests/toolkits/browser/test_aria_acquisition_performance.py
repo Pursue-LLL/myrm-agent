@@ -1,7 +1,6 @@
 """Performance benchmark tests for aria_acquisition.
 
-Validates the performance claims:
-- "Large pages: 800ms → 120ms (85% reduction)"
+Validates that the depth-limited acquisition path is faster than the full-tree path on large pages.
 
 These tests require a real browser and are marked as integration tests.
 Run with: pytest tests/toolkits/browser/test_aria_acquisition_performance.py -v
@@ -159,8 +158,7 @@ async def test_performance_custom_path_with_depth_limit() -> None:
 async def test_performance_comparison() -> None:
     """Compare Fast Path vs Custom Path performance on large page.
 
-    This test validates the performance claim:
-    "Large pages: 800ms → 120ms (85% reduction)"
+    The depth-limited Custom Path must beat the full-tree Fast Path by more than 30%.
     """
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -214,9 +212,6 @@ async def test_performance_comparison() -> None:
             assert reduction_percent > 30, (
                 f"Performance improvement ({reduction_percent:.1f}%) should be significant (>30%)"
             )
-
-            # Note: The documented "85%" is for extreme cases (depth=10+, children=5+)
-            # Typical scenarios may show 40-70% improvement
 
         finally:
             await browser.close()

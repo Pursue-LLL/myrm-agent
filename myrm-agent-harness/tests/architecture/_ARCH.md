@@ -28,7 +28,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `distribution_wheel_helpers.py` | 辅助 | architecture 测试用最小合法 wheel zip 构造（core wheel 按平台键写入对应 CPU 的 Mach-O / ELF / PE 头） | — |
 | `test_distribution_manifest_gate.py` | Gate | 算法区新增模块须 manifest 或 `@distribution-public` | — |
 | `test_distribution_codegen.py` | Gate | manifest codegen 新鲜度 + core IP import 可加载 | — |
-| `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元覆盖（≥90%） | — |
+| `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元测试 | — |
 | `test_no_legacy_distribution_imports.py` | Gate | 禁止 Python 源码 reintroduce `myrm_agent_harness.distribution` import | — |
 | `test_unbounded_communicate_sites.py` | Gate | AST：`src/` 内每个 `.communicate(` 调用必须登记（文件 → 调用数 + 理由）：要么写明输出与时长已由命令本身限定，要么列入「待决」一栏（已知缺口，等待改用 `communicate_bounded` 或证明其边界）；未登记、调用数对不上（含文件已不再调用）都失败；只数 `.communicate(` 这一种写法；自带检测器正反例 | — |
 | `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 `get_transport()` 或一次性补全 helper `acomplete_text` 的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 TransportChatModel）除外；自带检测器正反例与过期登记检查 | — |

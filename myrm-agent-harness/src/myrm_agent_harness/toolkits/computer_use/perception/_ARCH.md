@@ -28,7 +28,7 @@ Platform AX/UIA/AT-SPI snapshot capture, tree rendering, incremental diff, eleme
 
 ## Key Design: Incremental AX Tree Diff
 
-`ax_diff.py` reduces follow-up snapshot token cost by 80%+ in continuous-interact scenarios.
+`ax_diff.py` re-sends only the added, updated and removed refs in continuous-interact scenarios instead of the whole tree.
 When `desktop_interact` completes, the follow-up snapshot compares current refs against previous
 refs via `compute_ref_diff`. If the diff is reliable (same app, sufficient identity confidence,
 low change ratio), only changed entries (+added, ~updated, -removed) are rendered to the agent

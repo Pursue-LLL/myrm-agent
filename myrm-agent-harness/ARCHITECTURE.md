@@ -47,8 +47,8 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 - **子智能体跨层异步审批 (Asynchronous Escalation)**：基于 LangGraph 原生 `NodeInterrupt` 的穿透式中断架构，实现自主体级高危操作前端 GUI 拦截。父子双图协同挂起，完全释放服务器并发资源，避免网关强制超时，并保持主对话前缀布局稳定以利于 Prompt Cache 命中。
 - **防宕机全双工终端流 (Safe Full-Duplex Terminal)**：从底层 PTY 拦截并流式下发数据，内置 10FPS 节流与 500KB 流量熔断阀门，物理阻绝 SSE 瀑布流 DDOS 攻击导致的浏览器白屏
 - **协议驱动**：3 个核心协议（`SandboxExecutor`, `StorageProvider`, `SkillBackend`）
-- **性能优先**：智能缓存（7x 加速）、异步 I/O、高效算法
-- **类型安全**：100% 类型覆盖，禁止 `Any` 类型
+- **性能优先**：智能缓存、异步 I/O、高效算法
+- **类型安全**：mypy strict 与 pyright 配置，禁止 `Any` 类型
 
 ---
 
@@ -471,15 +471,6 @@ class UserService:
   - probe_count：恢复前的探测次数
   - was_in_cooldown：是否处于冷却期
 - 使用场景：用户实时通知、运营监控、故障追踪、恢复分析
-
-**智能Fallback推荐**：
-
-- recommend_fallback()：根据主模型智能推荐最佳fallback
-- 覆盖15个主流模型（GPT-4系列、Claude 3系列、Gemini系列、Mistral系列）
-- generate_quantified_reason()：生成量化推荐理由
-  - 示例："Lower cost (90% cost reduction, 30% quality trade-off)"
-- 推荐依据：模型能力相似性、替代提供商、成本特性
-- 降低配置门槛，减少配置错误
 
 **丰富化运营指标（OpenTelemetry）**：
 

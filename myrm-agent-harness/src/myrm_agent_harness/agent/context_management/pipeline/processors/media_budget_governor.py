@@ -6,7 +6,7 @@ HTTP 400 Payload Too Large errors and excessive vision token billing.
 Implements a 3-Tier Progressive Visual Ladder:
 - Tier 1 (Active Focus Window): Recent 1-2 turns keep full 2048px high-fidelity images.
 - Tier 2 (Historical Context Window): Older turns are asynchronously downsampled to 512px
-  WebP (reducing individual payload by 85-95%) when total cumulative base64 payload exceeds budget.
+  WebP (16x fewer pixels per image) when total cumulative base64 payload exceeds budget.
 - Tier 3 (Semantic Text Window): Extreme payload overflows trigger Vision-to-Text summary
   fallbacks (via VisionFallbackEngine) and strip base64 data completely.
 

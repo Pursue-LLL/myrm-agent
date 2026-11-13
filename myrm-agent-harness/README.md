@@ -211,7 +211,7 @@ from myrm_agent_harness.toolkits.wiki import (
 llm = ChatOpenAI(model="gpt-4")
 structure = WikiStructure(base_dir="./my-wiki")
 config = WikiConfig(
-    parallel_compilation=True,  # 10x faster compilation
+    parallel_compilation=True,  # compile pages concurrently
     auto_archive_enabled=True,
 )
 

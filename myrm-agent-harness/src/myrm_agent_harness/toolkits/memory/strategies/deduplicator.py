@@ -20,8 +20,8 @@ Architecture:
 - Layer 1 (Hash): O(1) normalized hash detection with persistent cache and FIFO eviction
   - Configurable normalization: NONE (exact match) / BASIC (case+whitespace) / FULL (all variants)
   - Batch-level deduplication: Detects duplicates within the same batch
-  - Adaptive capacity: Auto-adjusts cache size based on memory count (memory saving: 91%)
-  - Data structure: OrderedDict for FIFO eviction with O(1) operations (memory saving: 31%)
+  - Adaptive capacity: Auto-adjusts cache size based on memory count
+  - Data structure: OrderedDict for FIFO eviction with O(1) operations
   - Performance: FULL ~5μs / BASIC ~3.5μs / NONE ~0.6μs (200x+ faster than vector search)
   - Hash persistence: Atomic write (temp + rename) for crash safety
 - Layer 2 (Vector): Semantic similarity retrieval with dynamic thresholds
@@ -39,11 +39,11 @@ Key features:
   memories in one agent/channel/task scope never suppress or mutate another's
 
 Performance optimizations:
-- Lazy embedding: Hash hits save 98% embedding cost (0.18ms vs 10ms, empirical)
-- Time-based capacity adjustment: Network I/O reduced by 50% (every 5 minutes, empirical)
-- Batch embedding API: Per-item overhead reduced by 62% (0.58ms vs 1.54ms, 20-item batch, empirical)
+- Lazy embedding: Hash hits skip the embedding call (0.18ms vs 10ms, empirical)
+- Time-based capacity adjustment: capacity is re-evaluated at most every 5 minutes, so the memory count is not queried on every call
+- Batch embedding API: One batched call replaces per-item calls (0.58ms vs 1.54ms per item, 20-item batch, empirical)
 - Hash persistence: Atomic write (temp + rename) prevents corruption
-- Early lock protection: 95% LLM cost reduction in concurrency (10 calls → 1 call, empirical)
+- Early lock protection: concurrent memories that target the same existing memory share one LLM call (10 calls → 1 call)
 """
 
 from __future__ import annotations
@@ -97,16 +97,16 @@ _TYPE_THRESHOLDS = {
 class SmartDeduplicator:
     """Three-layer deduplication with configurable normalization and adaptive capacity.
 
-    OrderedDict-based hash cache with FIFO eviction for memory efficiency (31% saving).
-    Adaptive capacity management reduces memory footprint by 91% in typical scenarios.
+    OrderedDict-based hash cache with FIFO eviction for memory efficiency.
+    Adaptive capacity management sizes the cache by the actual memory count instead of a fixed maximum.
     Real-time metrics track cache effectiveness.
 
     Optimizations:
-    - Lazy embedding: Only compute for hash misses, saving 98% cost on hits (0.18ms vs 10ms, empirical)
-    - Time-based capacity adjustment: Network I/O reduced by 50% (every 5 minutes, empirical)
-    - Batch embedding API: Per-item overhead reduced by 62% (0.58ms vs 1.54ms, 20-item batch, empirical)
+    - Lazy embedding: Only compute for hash misses; hits skip the embedding call (0.18ms vs 10ms, empirical)
+    - Time-based capacity adjustment: capacity is re-evaluated at most every 5 minutes, so the memory count is not queried on every call
+    - Batch embedding API: One batched call replaces per-item calls (0.58ms vs 1.54ms per item, 20-item batch, empirical)
     - Hash persistence: Atomic write (temp + rename) for crash safety
-    - Early lock protection: Reserves target before LLM, saving 95% redundant calls (10 → 1 call, empirical)
+    - Early lock protection: Reserves target before LLM, so concurrent memories share one call (10 → 1 call)
     """
 
     __slots__ = (
@@ -174,11 +174,11 @@ class SmartDeduplicator:
         Adaptive capacity management adjusts cache size based on actual memory count.
 
         Optimizations:
-        - Lazy embedding: Hash hits save 98% embedding cost (0.18ms vs 10ms, empirical)
-        - Time-based capacity adjustment: Network I/O reduced by 50% (every 5 minutes, empirical)
-        - Batch embedding API: Per-item overhead reduced by 62% (0.58ms vs 1.54ms, empirical)
+        - Lazy embedding: Hash hits skip the embedding call (0.18ms vs 10ms, empirical)
+        - Time-based capacity adjustment: capacity is re-evaluated at most every 5 minutes
+        - Batch embedding API: One batched call replaces per-item calls (0.58ms vs 1.54ms per item, empirical)
         - Hash persistence: Atomic write (temp + rename) for crash safety
-        - Early lock protection: Reserves target before LLM, saving 95% redundant calls (empirical)
+        - Early lock protection: Reserves target before LLM, so concurrent memories share one call
 
         Returns:
             List of memories to persist (after deduplication and merging)
@@ -311,7 +311,7 @@ class SmartDeduplicator:
         Layer 3: LLM semantic judgment (only if target not reserved)
 
         Early lock optimization: Prevents redundant LLM calls when multiple memories
-        target the same existing memory. Saves 95% LLM cost in high-concurrency scenarios.
+        target the same existing memory: the concurrent callers share one LLM call.
 
         Args:
             memory: Memory to process

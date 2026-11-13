@@ -35,23 +35,20 @@ def generate_snapshot_suggestion(
         `browser_inspect` and `selector`.
     """
     if estimated_tokens > 2000 and not current_selector:
-        saved_tokens = int(estimated_tokens * 0.7)
         return (
             f" Large page detected ({ref_count} refs, ~{estimated_tokens} tokens)\n"
-            f"→ Recommended: Use browser_inspect() to get precise selector (saves ~70%, ~{saved_tokens} tokens)\n"
-            f"→ Quick fix: scope='interactive' (saves ~60%) or compact=True (saves ~30%)"
+            "→ Recommended: Use browser_inspect() to get a precise selector and snapshot only that region\n"
+            "→ Quick fix: scope='interactive' or compact=True"
         )
 
     if ref_count > 200 and current_scope != "interactive":
-        saved_tokens = int(estimated_tokens * 0.6)
         return (
             f" Many elements detected ({ref_count} refs, ~{estimated_tokens} tokens)\n"
-            f"→ Recommended: scope='interactive' (saves ~60%, ~{saved_tokens} tokens)\n"
-            f"→ Alternative: compact=True (saves ~30%) or use selector for specific region"
+            "→ Recommended: scope='interactive' (interactive elements only)\n"
+            "→ Alternative: compact=True or use selector for specific region"
         )
 
     if ref_count > 200 and not current_compact:
-        saved_tokens = int(estimated_tokens * 0.3)
-        return f" Optimization tip: compact=True can save ~30% tokens (~{saved_tokens} tokens, single-line format)"
+        return " Optimization tip: compact=True renders a single-line format with fewer tokens"
 
     return ""

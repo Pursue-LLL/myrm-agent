@@ -72,7 +72,7 @@ def mock_config():
 
 
 def test_p0_ordereddict_memory_saving():
-    """P0: OrderedDict saves 31% memory (实测 10000 条)."""
+    """P0: OrderedDict uses less memory than set + deque (asserts more than 5% saving at 10,000 keys)."""
     n = 10000
     sample_keys = [f"hash_{i:016x}" for i in range(n)]
 
@@ -104,7 +104,7 @@ def test_p0_ordereddict_memory_saving():
 
 
 def test_normalization_performance_speedup():
-    """BASIC is 1.5x faster than FULL, NONE is 8.3x faster (实测 10000 次平均)."""
+    """NONE normalization is faster than FULL (asserts more than 1.2x over 50,000 iterations)."""
     content = "Redis timeout is 5 seconds! This is a longer piece of content with punctuation and Unicode: café."
     iterations = 50000
 
@@ -131,7 +131,7 @@ def test_normalization_performance_speedup():
 
 @pytest.mark.asyncio
 async def test_adaptive_capacity_memory_reduction():
-    """Adaptive capacity reduces memory footprint by 91% in typical scenarios (实测)."""
+    """Adaptive capacity follows the typical memory count (asserts > 70% less memory: 500 memories vs 10,000)."""
     from collections import OrderedDict
 
     typical_memory_count = 500

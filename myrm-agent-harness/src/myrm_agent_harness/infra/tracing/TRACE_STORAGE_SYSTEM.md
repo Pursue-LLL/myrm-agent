@@ -161,7 +161,7 @@ You can also pass a `Sampler` object: `setup_tracing(sampler=...)`.
 |-------------|-------|-----------|
 | Development | 1.0 | Debug all requests |
 | Staging | 0.5 | Balance coverage and cost |
-| Production (low traffic) | 0.1 | Reduce storage 90% |
+| Production (low traffic) | 0.1 | Keep 10% of traces |
 | Production (high traffic) | 0.01 | Keep 1% of traces |
 
 The GenAI client metrics are recorded from the model call itself, so lowering the trace ratio does not distort token, latency or error figures.

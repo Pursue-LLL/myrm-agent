@@ -77,7 +77,7 @@ def test_compute_prompt_cache_stats_default_ratio() -> None:
 
 
 def test_compute_prompt_cache_stats_custom_ratio() -> None:
-    """Custom cache_read_ratio=0.5 (OpenAI 50% off)."""
+    """Custom cache_read_ratio=0.5 (cache reads billed at half the base input price)."""
     out = compute_prompt_cache_stats(10000, 5000, cache_read_ratio=0.5)
     # actual_cost = 5000*0.5 + 5000*1.0 = 7500, savings = 2500/10000 = 0.25
     assert out["cache_hit_rate"] == pytest.approx(0.5)

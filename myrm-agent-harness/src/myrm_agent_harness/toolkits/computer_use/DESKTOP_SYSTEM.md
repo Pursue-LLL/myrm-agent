@@ -6,7 +6,7 @@
 
 ## Design Goals
 
-1. **Agent-friendly**: @dref element references from AX/UIA/AT-SPI trees reduce token cost vs full-screen screenshots every step; incremental diff further reduces follow-up snapshot tokens by 80%+ in continuous-interact scenarios
+1. **Agent-friendly**: @dref element references from AX/UIA/AT-SPI trees reduce token cost vs full-screen screenshots every step; incremental diff re-sends only the changed refs in continuous-interact scenarios
 2. **Semantic-first**: Prefer `desktop_interact_tool(ref=@dref)` over coordinate guessing
 3. **Explicit fallback**: `desktop_vision_tool` for canvas-only UIs, empty AX trees, or failed semantic invoke
 4. **WebUI parity**: Mirror browser inspector via `DESKTOP_VIEW_UPDATE` SSE + `/webui/desktop/snapshot` REST refresh

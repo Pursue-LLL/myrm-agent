@@ -235,7 +235,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 - **跨进程互斥**：使用 `fcntl.flock` 实现内核级文件锁，确保多个 Server 实例或 Cron 进程在访问同一技能文件、SQLite WAL 日志时，具备微秒级的互斥性能且零基础设施开销。
 ### 0.3 LLM 前缀缓存优化 (LLM Prefix Caching Optimization)
 
-为了极致降低持续进化的 LLM 调用成本（减少 90%+ 成本及延迟）：
+为了降低持续进化的 LLM 调用成本：
 
 - **稳定前缀架构**：遵循「指令首发、数据居中、采样垫后」的 Prompt 构建原则，确保 Agent 优化指令等高频、大体积文本在 LLM 侧被高效识别为 **Prompt Cache Prefix**。
 - **Context Health 聚合**：`app/api/statistics/context_health/` 将 Chat 压缩元数据、Message usage 与 Harness task metrics 聚合为 Session Analytics 的 context health，包含 cache-TTL 剪枝、归档写入/复用、恢复 requested/allowed/blocked outcome、blocked ratio、恢复范围提示、自适应剪枝退让和 provider-aware cache retention。

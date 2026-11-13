@@ -54,9 +54,9 @@ class ExplicitCacheProcessor(BaseProcessor):
     4. 最后一条消息（必须）           - 增量对话缓存（官方推荐）
 
     成本优化：
-    - 命中缓存：只需支付 5% 的 input tokens
-    - 新增内容：支付 125% 的 input tokens（创建缓存）
-    - Anthropic 官方数据：68% 成本节省（9 轮对话，增量缓存 vs 无缓存）
+    - 命中缓存：按缓存读取价计费（Anthropic 为基础输入价的 10%）
+    - 新增内容：按缓存写入价计费（Anthropic 为基础输入价的 125%）
+    - 增量缓存让每一轮只为新增内容支付写入价
 
     关键特性：
     -  零配置：完全自动化，无需手动调整

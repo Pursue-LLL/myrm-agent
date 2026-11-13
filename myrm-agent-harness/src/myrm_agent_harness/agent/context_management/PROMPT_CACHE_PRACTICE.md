@@ -165,7 +165,7 @@ messages[idx] = HumanMessage(content=f"{msg.content}\n\n{prompt}")
 
 **关键设计**：
 
-- **历史消息使用确定性时间戳**：同一 `ts + UTC offset` 永远产生相同输出，保证历史部分前缀 100% 命中
+- **历史消息使用确定性时间戳**：同一 `ts + UTC offset` 永远产生相同输出，保证历史部分的前缀字节稳定，这是服务商命中缓存的前提
 - **仅最后一条消息（新内容）无法缓存**——这是不可避免的
 - **System Prompt 永远不包含动态内容**——完全冻结
 - **说明文案与数据分离**：`datetime_rules` 在 System Prompt 中声明一次（被缓存），每条消息只携带 ~12 tokens 的时间戳数据，相比每条重复完整说明节省 ~28 tokens/条
@@ -919,7 +919,7 @@ class TokenUsage:
         }
 ```
 
-在会话结束时（`base_agent.py`），自动输出累积统计：
+在会话结束时（`base_agent.py`），自动输出累积统计（示例）：
 
 ```
 💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 76.8% (92124 tokens)
@@ -938,7 +938,7 @@ class TokenUsage:
 
 每次 LLM 调用在详细日志路径下显示缓存命中率与相对「全部按普通 input 计价」的节省比例。数值由 ``utils/token_economics/cache_economics.compute_prompt_cache_stats(prompt_tokens, cached_tokens, cache_read_ratio=0.1)`` 计算；NDJSON 指标与 ``TokenUsage.get_cache_effectiveness()`` 使用同一函数。
 
-语义要点：普通 input 计价系数 1.0，cache read 计价系数通过 ``cache_read_ratio`` 参数化（默认 0.1 匹配 Anthropic，OpenAI 为 0.5）；不纳入首次 cache write 的加价项（与 §6.3 下文说明一致）。
+语义要点：普通 input 计价系数 1.0，cache read 计价系数通过 ``cache_read_ratio`` 参数化（默认 0.1 对应 Anthropic 的缓存读取价；其他提供商按各自价目表和计费模型传入）；不纳入首次 cache write 的加价项（与 §6.3 下文说明一致）。
 
 ```python
 stats = compute_prompt_cache_stats(prompt_tokens, cached_tokens)
@@ -956,19 +956,19 @@ cost_savings_pct = stats["cost_savings_pct"]
     💾 Cache Hit Rate: 85.3% | Cost Savings: 76.8%
 ```
 
-**成本节省公式说明**（相对于无缓存场景；`cache_read_ratio` 默认 0.1，OpenAI 为 0.5）：
+**成本节省公式说明**（相对于无缓存场景；`cache_read_ratio` 默认 0.1）：
 - 无缓存成本 = 10000 × 100% = 10000 单位
 - 有缓存成本 = 8530 × 10% + 1470 × 100% = 853 + 1470 = 2323 单位
 - 节省 = (10000 - 2323) / 10000 = 76.8%
 
-**注意**：此计算不包含首次创建缓存的 125% 成本（一次性支付）。实际长期使用中，创建成本会被后续多次命中摊平。
+**注意**：此计算不包含首次创建缓存的加价（Anthropic 为基础输入价的 125%，一次性支付）。实际长期使用中，创建成本会被后续多次命中摊平。
 
 通过三层可观测性，开发者可以：
 1. **设置时预期**：断点是否合理，预期命中率
 2. **会话级累积**：整体缓存效果，总成本节省
 3. **单次调用实际**：即时验证命中率和成本节省
 
-**完整的监控流程**：
+**完整的监控流程（示例）**：
 ```
 Turn 1: 
   📊 [ExplicitCache] Expected Cache: 0%    ← 首次无缓存
@@ -1007,7 +1007,7 @@ Turn 12 (会话结束):
 **部署与配置**：
 
 - **单实例语义**：默认 ``threading.Lock`` 假定单框架实例。多实例部署（如水平扩展）时，**控制平面必须**为每个实例注入不同的 ``MYRM_CACHE_METRICS_DIR``（例如 ``/logs/metrics/instance-1``），或将数据路由到统一的日志聚合器，以避免多进程交错写入导致 NDJSON 格式损坏。并发写入经过严格测试：20线程高竞争场景下吞吐量>500写入/秒，``threading.Lock`` 确保原子追加，无数据损坏或记录丢失。
-- **定价参数**：cache read 倍数通过 ``cache_read_ratio`` 参数化（默认 0.1 匹配 Anthropic 90% off，OpenAI 为 0.5 即 50% off），调用方按需传入。
+- **定价参数**：cache read 倍数通过 ``cache_read_ratio`` 参数化（默认 0.1 对应 Anthropic 的缓存读取价，即基础输入价的 10%；其他提供商按各自价目表和计费模型传入），调用方按需传入。
 - **异常检测**：``compute_prompt_cache_stats`` 自动钳制 ``hit_rate`` 到 [0, 1]。当 ``cached_tokens > prompt_tokens`` 时（``hit_rate > 1``），记录 WARNING 日志并钳制为 1.0，提示提供商 ``usage`` 异常。
 
 **NDJSON记录示例**：
@@ -1251,7 +1251,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 
 ### 7.4 缓存命中率突然下降
 
-**现象**：原本 >80% 的命中率突然降到 <20%
+**现象**：原本稳定的命中率突然大幅下降
 
 **可能原因**：
 

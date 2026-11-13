@@ -71,7 +71,7 @@ class GracefulDegradationController:
     Performance (estimated based on simpler state machine):
     - get_slowdown_multiplier(): ~100ns (enum value access)
     - record_success/failure(): ~150ns (counter increment + comparison)
-    - Total overhead: < 300ns per operation (50% less than circuit breaker)
+    - Total overhead: < 300ns per operation
     """
 
     def __init__(

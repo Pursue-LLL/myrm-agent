@@ -2,8 +2,7 @@
 name: systematic-debugging
 description: >-
   4-phase root cause debugging workflow. Prevents random fix attempts by enforcing
-  systematic investigation: reproduce → trace → hypothesize → fix. Dramatically
-  improves first-time fix rate from ~40% to ~95%.
+  systematic investigation: reproduce → trace → hypothesize → fix.
 version: 1.0.0
 category: development
 tags:
