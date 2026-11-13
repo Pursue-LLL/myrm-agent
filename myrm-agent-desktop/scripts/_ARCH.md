@@ -28,9 +28,10 @@
 | `build-frontend.sh` | Unix | 从 desktop 根解析 monorepo 路径，在 `myrm-agent-frontend/` 执行 `build:tauri`（或 `dev` 模式 `bun run dev`）；standalone 已存在则跳过构建 | ✅ |
 | `verify-signing.sh` | Unix (macOS) | `.app` / `.dmg` 产物的签名验证，必须给 `--level`：`sealed`（ad-hoc 签名即可）查 `codesign --verify --deep --strict` 与 `codesign -dv`，`.dmg` 只读挂载后验里面的 `.app`，没有封印的包（Gatekeeper 报“已损坏”的那种）在这里失败；`notarized` 在 `.app` 上再加 `spctl --assess` 与 `xcrun stapler validate`，`.dmg` 只做后两项；失败计数作为 exit code。`desktop-release.yml` 的 `build-macos-arm` 在 `tauri-action` 之后、烟测之前调用：配置了 `APPLE_ID` 用 `notarized`，否则用 `sealed`；门禁 `test_desktop_macos_signing.py` | ✅ |
 | `verify-signing.ps1` | Windows | 已签名安装包的 Authenticode 验证（与 `verify-signing.sh` 对称）；尚无工作流调用，配置签名证书后再接入 | ✅ |
-| `inset-app-icon.py` | 双平台 | 从 `myrm-agent-frontend/public/brand` 源图生成 PWA/Tauri/tray 图标；维护者手动运行 | ✅ |
+| `inset-app-icon.py` | 双平台 | 从 `myrm-agent-frontend/public/brand` 源图生成 PWA/Tauri/tray 图标；托盘部分把前景层交给 `tray_status_icons.py`；维护者手动运行 | ✅ |
+| `tray_status_icons.py` | 双平台 | 托盘图标整套资源的唯一生成点：黑色模板字形 `tray_icon@2x.png`，以及在字形右下角加徽标的 `tray_icon_busy@2x.png`（绿色圆点）与 `tray_icon_degraded@2x.png`（橙色三角）。macOS 模板图标只按透明度绘制，徽标靠轮廓区分，周围镂空一圈透明光环避免并进字形；颜色留给不走模板的平台；只产出托盘实际加载的 `@2x` 尺寸；契约见 `tests/architecture/test_desktop_tray_icon.py` | ✅ |
 
 ## 约束
 
-- Python 仅 `inset-app-icon.py`（品牌图标生成）与 `fetch_node_runtime.py`（Node.js 运行时取包，仅标准库）；后端或 sidecar 打包见 `sidecar/build.py`
+- Python 仅 `inset-app-icon.py` 与 `tray_status_icons.py`（品牌图标生成，依赖 Pillow）和 `fetch_node_runtime.py`（Node.js 运行时取包，仅标准库）；后端或 sidecar 打包见 `sidecar/build.py`
 - 发版编排脚本在仓库根 `scripts/ci/desktop-release/`，不在本目录

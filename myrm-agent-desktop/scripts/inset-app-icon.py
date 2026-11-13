@@ -3,7 +3,8 @@
 
 1. App/PWA  — public/icons/* + tauri/icons/icon.*  (squircle gradient + illustration)
 2. Brand UI — public/brand/brand-mark-128.webp     (transparent mark from brand-mark-source-512.png)
-3. Tray     — tauri/icons/tray_icon*.png           (black template from brand-mark-source-512.png)
+3. Tray     — tauri/icons/tray_icon*@2x.png        (black template glyph from brand-mark-source-512.png,
+                                                     plus its busy and degraded variants)
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from colorsys import hls_to_rgb, rgb_to_hls
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
+from tray_status_icons import write_tray_icons
 
 # Apple Icon Composer grid: 824×824 enclosure centered on 1024 (gutter 100px).
 MASTER_CANVAS = 1024
@@ -335,27 +337,11 @@ def export_brand_mark(source: Path, brand: Path) -> None:
 
 
 def export_tray_icons(source: Path, icons_dir: Path) -> None:
-    """Pure black template glyph on fully transparent background for macOS menu bar."""
+    """Template glyph for the macOS menu bar plus its status variants, from the brand mark."""
     src = Image.open(source).convert("RGBA")
     if src.size != (BRAND_CANVAS, BRAND_CANVAS):
         src = src.resize((BRAND_CANVAS, BRAND_CANVAS), Image.Resampling.LANCZOS)
-
-    layer = fit_foreground_layer(src, BRAND_CANVAS)
-    bbox = layer.getbbox()
-    if bbox is None:
-        return
-
-    art = layer.crop(bbox)
-    for size, name in ((22, "tray_icon.png"), (44, "tray_icon@2x.png")):
-        pad = 1
-        inner = size - 2 * pad
-        fitted = art.resize((inner, inner), Image.Resampling.LANCZOS)
-        alpha = fitted.split()[3].point(lambda value: 255 if value > 48 else 0)
-        icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        glyph = Image.new("RGBA", (inner, inner), (0, 0, 0, 255))
-        glyph.putalpha(alpha)
-        icon.paste(glyph, (pad, pad), glyph)
-        icon.save(icons_dir / name, optimize=True)
+    write_tray_icons(fit_foreground_layer(src, BRAND_CANVAS), icons_dir)
 
 
 def resolve_mark_source(repo: Path) -> Path:
