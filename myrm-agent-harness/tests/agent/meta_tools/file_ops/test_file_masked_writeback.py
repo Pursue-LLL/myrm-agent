@@ -1,7 +1,7 @@
 """A write must not carry a mask of the redactor where the file holds a secret.
 
 A read shows a secret as a mask (``***``, ``sk-pro...7890``). Text copied from that read and written back replaces the
-real value on disk with the mask; the fuzzy edit strategies (``block_anchored``) and a whole-file create both accept it.
+real value on disk with the mask; an edit whose new text carries the mask and a whole-file create both write it.
 """
 
 from __future__ import annotations
@@ -129,11 +129,19 @@ def _create(path: str, file_text: str) -> OperationContext:
 
 @pytest.mark.asyncio
 class TestServiceRefusesMaskedWriteback:
-    async def test_block_anchored_edit_copied_from_the_view_does_not_reach_disk(self) -> None:
+    async def test_edit_whose_old_str_is_the_masked_view_finds_no_match_and_writes_nothing(self) -> None:
         view = redact_sensitive_text(_YAML).rstrip("\n")
         strategy = _strategy(_YAML)
-        with pytest.raises(ToolError) as exc_info:
+        with pytest.raises(ValueError, match="text not found"):
             await _execute(_edit("/w/c.yaml", view, view.replace("5432", "5433")), strategy)
+        strategy.write_file.assert_not_awaited()
+
+    async def test_exact_edit_that_writes_a_mask_beside_the_real_value_does_not_reach_disk(self) -> None:
+        masked_line = redact_sensitive_text(_YAML).splitlines()[1]
+        assert "..." in masked_line
+        strategy = _strategy(_YAML)
+        with pytest.raises(ToolError) as exc_info:
+            await _execute(_edit("/w/c.yaml", "host: db.internal", f"host: db.internal\n{masked_line}"), strategy)
         assert exc_info.value.error_code == "MASKED_VALUE_WRITEBACK"
         strategy.write_file.assert_not_awaited()
 

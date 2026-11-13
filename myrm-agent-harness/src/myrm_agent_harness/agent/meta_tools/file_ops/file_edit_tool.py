@@ -13,7 +13,7 @@
 - create_file_edit_tool: 创建 file_edit_tool 工厂函数
 
 [POS]
-File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, fuzzy fallback, integrity gates, and verify rollback.
+File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, whitespace-tolerant matching, integrity gates, and verify rollback.
 
 """
 
@@ -55,7 +55,7 @@ class FileEditInput(BaseModel):
     edits: list[StrReplaceEditInput] = Field(
         description=(
             "有序的字符串替换列表，在单次调用中以事务方式原子应用。"
-            "每条替换使用精确匹配（支持模糊回退）。最多 20 条替换，建议替换区域不重叠。"
+            "每条 old_str 须逐字匹配（仅容忍缩进与空白差异）。最多 20 条替换，建议替换区域不重叠。"
         )
     )
     verify_command: str | None = Field(

@@ -10,7 +10,7 @@ File operations tool module.
 | __init__.py | Package | File operations tool module. | — |
 | constants.py | Core | Constants, including the read size limits: `MAX_FILE_READ_SIZE_BYTES` for a whole-file read, the higher `MAX_RANGED_READ_SIZE_BYTES` for a read with a line range (the way into a big file). | ✅ |
 | executor_storage_adapter.py | Core | CodeExecutor to StorageProvider adapter. | ✅ |
-| file_edit_tool.py | Core | Batch atomic file edit via edits[]; LLM payload normalizer; fuzzy fallback | ✅ |
+| file_edit_tool.py | Core | Batch atomic file edit via edits[]; LLM payload normalizer; whitespace-tolerant matching (a block whose lines differ is refused) | ✅ |
 | file_read_tool.py | Core | File read tool factory: local/MCP/File ID/**vault://** paths, Pydantic alias mapping, pre-IO device protection, Unicode auto-healing, batch reads, line ranges, multimodal; the Fast-track scope allows UECD spill, uploads and the spilled long-paste directories (`context_guard` constants) and rejects `..` escapes (guards in `core/file_read/scope.py`) | ✅ |
 | file_write_tool.py | Core | File write tool. Creates new files; rejects empty/whitespace-only content; auto File ID resolution (@file_001) | ✅ |
 | revert_service.py | Core | File revert service — undo AI file changes; surfaces revertible/skip_reason; skips non-revertible snapshots and non-UTF-8 files on revert. | ✅ |

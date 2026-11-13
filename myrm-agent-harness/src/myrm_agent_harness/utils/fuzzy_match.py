@@ -308,6 +308,12 @@ _STRATEGIES: tuple[tuple[str, Callable[[str, str], str | None], float], ...] = (
     ("context_aware", _find_context_aware, 0.50),
 )
 
+# Strategies at or above this confidence match the fragment's own text apart from whitespace, indentation, escapes and
+# blank edge lines. Below it, block_anchored and context_aware anchor on the first and last line and let the lines in
+# between differ, so an edit built on them replaces real lines with the caller's guess. Edits that overwrite file
+# content pass this as `min_confidence`.
+CONTENT_PRESERVING_MIN_CONFIDENCE = 0.75
+
 _ESCAPE_DRIFT_RE = re.compile(r"""\\['"]""")
 
 
@@ -316,11 +322,12 @@ _ESCAPE_DRIFT_RE = re.compile(r"""\\['"]""")
 # ---------------------------------------------------------------------------
 
 
-def fuzzy_find(content: str, fragment: str) -> FuzzyMatchResult | None:
+def fuzzy_find(content: str, fragment: str, *, min_confidence: float = 0.0) -> FuzzyMatchResult | None:
     """Find a text fragment in content using progressive strategies.
 
     Tries each strategy in order (cheapest first). Returns the first
-    successful match, or None if no strategy succeeds.
+    successful match, or None if no strategy succeeds. Strategies whose
+    confidence is below ``min_confidence`` are not tried.
     """
     if not content or not fragment:
         return None
@@ -332,6 +339,8 @@ def fuzzy_find(content: str, fragment: str) -> FuzzyMatchResult | None:
         search_fragment = _normalize_unicode(fragment)
 
     for name, finder, confidence in _STRATEGIES:
+        if confidence < min_confidence:
+            continue
         matched = finder(search_content, search_fragment)
         if matched is None:
             continue
@@ -358,15 +367,17 @@ def fuzzy_replace(
     new_fragment: str,
     *,
     replace_all: bool = False,
+    min_confidence: float = 0.0,
 ) -> FuzzyReplaceResult:
     """Find and replace a text fragment using progressive fuzzy matching.
 
     Returns FuzzyReplaceResult with success=False if no match found.
+    ``min_confidence`` is passed to ``fuzzy_find``.
     """
     if not content or not old_fragment:
         return FuzzyReplaceResult(content=content, strategy="none", success=False, confidence=0.0)
 
-    result = fuzzy_find(content, old_fragment)
+    result = fuzzy_find(content, old_fragment, min_confidence=min_confidence)
     if result is None:
         return FuzzyReplaceResult(content=content, strategy="none", success=False, confidence=0.0)
 

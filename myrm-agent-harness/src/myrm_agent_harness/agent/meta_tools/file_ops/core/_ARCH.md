@@ -9,7 +9,7 @@ Text Editor core business logic module.
 |------|------|-------------|-------|
 | __init__.py | Package | Text Editor core business logic module. | — |
 | archive_restore_guard.py | Core | Archive restore read guard. Blocks oversized full archive restores before loading contents, formats structured blocked payloads, and parses that payload for runtime status events. | ✅ |
-| batch_str_replace.py | Core | Batch str-replace engine. In-memory sequential apply with overlap precheck before single disk write. | ✅ |
+| batch_str_replace.py | Core | Batch str-replace engine. In-memory sequential apply with overlap precheck before single disk write. An `old_str` matches the file's own text, exactly or apart from whitespace, indentation and escapes (`CONTENT_PRESERVING_MIN_CONFIDENCE`); a block that only shares its first and last line is refused with the closest real lines shown, so an edit never replaces lines the caller did not write. | ✅ |
 | file_conflict_guard.py | Core | File edit conflict guard. Calculates affected line ranges and blocks overlapping concurrent subagent edits. | ✅ |
 | file_path_lock_manager.py | Core | Per-path asyncio lock manager for write serialization (canonical realpath+normcase identity; same file aliases serialize, disjoint paths parallel). | ✅ |
 | file_operation_service.py | Core | File operation service: dispatches VIEW to `FileViewService` and runs CREATE / STR_REPLACE under the per-path lock; vault markdown FM preserve + Office text-write warnings on CREATE/STR_REPLACE; CREATE over existing path notifies modified (pre/post disk) not created; anchors CAS version checks with edit target candidates for centered conflict rebasing; the log line of the verify command shows it masked and cut (`command_preview`). | ✅ |
