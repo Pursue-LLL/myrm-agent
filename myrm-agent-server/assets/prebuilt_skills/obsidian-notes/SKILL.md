@@ -200,7 +200,7 @@ Brief description of this knowledge area.
 For bulk note management:
 - Use `bash_code_execute_tool` with `find` to locate files by pattern
 - Use `file_read_tool` to scan content for broken links
-- Use `file_write_tool` to update frontmatter across multiple notes
+- Use `file_edit_tool` to update frontmatter across multiple notes
 
 ## Best Practices
 
