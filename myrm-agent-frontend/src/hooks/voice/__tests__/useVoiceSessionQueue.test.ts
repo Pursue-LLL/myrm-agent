@@ -333,4 +333,38 @@ describe('useVoiceSession speakResponse queue insertion', () => {
     );
     expect(mockOnSendMessage).toHaveBeenCalledWith(expect.stringContaining('[Active Window: VS Code]'), undefined);
   });
+
+  it('sends the push-to-talk screenshot with the message as its only vision frame', async () => {
+    const mockOnSendMessage = vi.fn();
+    const { result } = renderHook(() =>
+      useVoiceSession({
+        enabled: true,
+        mode: 'audio_only',
+        fullDuplex: true,
+        autoSend: true,
+        onSendMessage: mockOnSendMessage,
+      }),
+    );
+
+    act(() => {
+      result.current.startSession();
+    });
+
+    const timestamp = Date.now();
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('voice-ptt-context', {
+          detail: { windowTitle: 'Safari', extractedText: '', selectedText: '', screenshot: 'SCREENSHOT_BASE64', timestamp },
+        }),
+      );
+    });
+
+    await act(async () => {
+      await mockSpeechInputOptions.onTranscript?.('what is on my screen');
+    });
+
+    expect(mockOnSendMessage).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('what is on my screen'), [
+      expect.objectContaining({ id: `ptt-screen-${timestamp}`, base64: 'SCREENSHOT_BASE64', timestamp }),
+    ]);
+  });
 });
