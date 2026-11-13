@@ -7,6 +7,7 @@ import base64
 import contextlib
 import os
 import re
+import shlex
 import shutil
 from pathlib import Path
 
@@ -688,7 +689,6 @@ class TestResilienceGitCredentialInjection:
     sandbox has none.
     """
 
-    _FAKE_DIR = "/tmp/myrm_resilience_fake"
     _RESILIENCE = os.path.join(
         os.path.dirname(__file__),
         "../../../src/myrm_agent_harness/agent/meta_tools/bash/scripts/resilience_init.sh",
@@ -726,8 +726,14 @@ fi
 exit 0
 """
 
-    @staticmethod
+    @pytest.fixture(autouse=True)
+    def _fake_dir(self, tmp_path: Path) -> None:
+        # One directory per test: the tests of this class run side by side under xdist, and a path they
+        # share is wiped by whichever starts next.
+        self._dir = shlex.quote(str(tmp_path / "resilience_fake"))
+
     def _env(
+        self,
         *,
         remote: str,
         token: str,
@@ -737,7 +743,7 @@ exit 0
         is_repo: str = "1",
     ) -> str:
         return (
-            f"FAKE_GIT_LOG={TestResilienceGitCredentialInjection._FAKE_DIR}/git.log "
+            f"FAKE_GIT_LOG={self._dir}/git.log "
             f"FAKE_GIT_IS_REPO={is_repo} FAKE_GIT_NAME={name} FAKE_GIT_EMAIL={email} "
             f"FAKE_GIT_CRED_HELPER={cred_helper} FAKE_GIT_REMOTE={remote} GITHUB_TOKEN={token}"
         )
@@ -746,21 +752,18 @@ exit 0
         session = LocalPersistentSession(_make_config())
         await session.start()
         try:
-            await session.execute(f"rm -rf {self._FAKE_DIR} && mkdir -p {self._FAKE_DIR}/home")
-            await session.execute('rm -f "${TMPDIR:-/tmp}"/myrm_gh_identity')
+            await session.execute(f"mkdir -p {self._dir}/home {self._dir}/tmp")
             if pre_cache:
-                await session.execute(f"printf '%s' '{pre_cache}' > \"${{TMPDIR:-/tmp}}\"/myrm_gh_identity")
+                await session.execute(f"printf '%s' '{pre_cache}' > {self._dir}/tmp/myrm_gh_identity")
             for name, body in (("git", self._FAKE_GIT), ("curl", self._FAKE_CURL)):
                 b64 = base64.b64encode(body.encode()).decode()
-                await session.execute(
-                    f"echo {b64} | base64 -d > {self._FAKE_DIR}/{name} && chmod +x {self._FAKE_DIR}/{name}"
-                )
-            # Isolate HOME so a host-level ~/.git-credentials (e.g. gh auth) cannot
-            # flip _git_has_existing_credentials and skip helper injection.
-            await session.execute(f"export PATH={self._FAKE_DIR}:$PATH HOME={self._FAKE_DIR}/home {env}")
+                await session.execute(f"echo {b64} | base64 -d > {self._dir}/{name} && chmod +x {self._dir}/{name}")
+            # Isolate HOME so a host-level ~/.git-credentials (e.g. gh auth) cannot flip
+            # _git_has_existing_credentials and skip helper injection. The identity cache lives under TMPDIR.
+            await session.execute(f"export PATH={self._dir}:$PATH HOME={self._dir}/home TMPDIR={self._dir}/tmp {env}")
             await session.execute(f"source {self._RESILIENCE}")
             await session.execute(cmd)
-            result = await session.execute(f"cat {self._FAKE_DIR}/git.log 2>/dev/null || true")
+            result = await session.execute(f"cat {self._dir}/git.log 2>/dev/null || true")
             return result.stdout
         finally:
             await session.close()
