@@ -6,12 +6,12 @@ import { Skeleton } from '@/components/primitives/skeleton';
 import { TextFontIcon, BulbIcon, File01Icon, Coins01Icon, CircleIcon, Wifi01Icon, VoiceIcon } from 'hugeicons-react';
 import { IconAlertCircle, IconFlask } from '@/components/features/icons/PremiumIcons';
 import useConfigStore from '@/store/useConfigStore';
-import useEmbedConsentStore, { type EmbedMode } from '@/store/useEmbedConsentStore';
 import ThemeSwitcher from '../../Switcher';
 import AppearancePanel from '@/components/features/theme/AppearancePanel';
 import LanguageSwitcher from '../../LanguageSwitcher';
 import SettingsSection from '../SettingsSection';
 import NotificationChannelEditor from '../integration/channels/NotificationChannelEditor';
+import LinkEmbedSettings from './LinkEmbedSettings';
 import WebPushCard from './WebPushCard';
 import VoiceSessionToggles from './VoiceSessionToggles';
 import { SchemaForm } from '../../SchemaForm';
@@ -39,11 +39,6 @@ const PreferencesSection = memo(() => {
     isLocal,
     value: personalSettings as unknown as Record<string, unknown>,
   };
-
-  const embedMode = useEmbedConsentStore((s) => s.embedMode);
-  const setEmbedMode = useEmbedConsentStore((s) => s.setEmbedMode);
-  const allowedProviders = useEmbedConsentStore((s) => s.allowedProviders);
-  const clearAllowed = useEmbedConsentStore((s) => s.clearAllowed);
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -93,40 +88,7 @@ const PreferencesSection = memo(() => {
         </div>
       </SettingsSection>
 
-      <SettingsSection title={t('linkEmbeds')}>
-        <div className="flex flex-col space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
-              <BulbIcon size={18} />
-            </div>
-            <div className="min-w-0 flex-1 space-y-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">{t('linkEmbedsMode')}</p>
-                <p className="text-xs text-muted-foreground">{t('linkEmbedsDesc')}</p>
-              </div>
-              <select
-                value={embedMode}
-                onChange={(e) => setEmbedMode(e.target.value as EmbedMode)}
-                className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm"
-              >
-                <option value="ask">{t('linkEmbedsAsk')}</option>
-                <option value="always">{t('linkEmbedsAlways')}</option>
-                <option value="off">{t('linkEmbedsOff')}</option>
-              </select>
-              {allowedProviders.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    {t('linkEmbedsAllowed')}: {allowedProviders.join(', ')}
-                  </p>
-                  <button onClick={clearAllowed} className="text-xs text-destructive-text hover:underline">
-                    {t('linkEmbedsClear')}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </SettingsSection>
+      <LinkEmbedSettings />
 
       <SettingsSection title={t('language')}>
         <div className="flex flex-col space-y-3">
