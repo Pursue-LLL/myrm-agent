@@ -653,7 +653,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 - **数据模型与契约解耦**（`strategies/sparse_types.py`）：强类型定义 `SemanticSlot`、`SparseMaskItem`、`SparseMutationResult` 与动作枚举，杜绝臃肿混杂，守护单文件 <400 行架构红线。
 - **槽位解析状态机**（`strategies/sparse_parser.py`）：单趟正则扫描 YAML/配置风格键值对、Markdown Bullet 列表与分号规约子句，自动抽取语义槽位与结构缩进。
 - **两阶段全局最佳匹配掩码**（`strategies/sparse_mutation.py`）：通过精确 Key 比对、显式否定墓碑与主题标识符锚定（杜绝不同前缀技术名词碰撞假阳性），并利用全局相似度矩阵建立无截胡最优配对，对每个槽位生成四维动作：`RETAIN`（知情保留）、`OVERWRITE`（最小局部覆盖）、`APPEND`（增量补充）、`REMOVE`（墓碑剔除）。
-- **原地拓扑装配**（`MinimalOverwritePipeline`）：按源行索引进行结构聚合装配，区分键值对与自然语言列表/子句的原地文本重构，原生支持单行内多子句局部覆写与否定墓碑消除，原地覆盖变动槽位并知情保留所有未受波及槽位。严格维持文本行首缩进、列表前缀及分号拓扑稳定性，使 LLM KV Cache（Prompt Cache）命中率达 100%，杜绝粗暴拼贴导致的条目内自相矛盾。零 LLM 开销，纯原生 Python + Pydantic，单次耗时 <0.06ms（58µs）。
+- **原地拓扑装配**（`MinimalOverwritePipeline`）：按源行索引进行结构聚合装配，区分键值对与自然语言列表/子句的原地文本重构，原生支持单行内多子句局部覆写与否定墓碑消除，原地覆盖变动槽位并知情保留所有未受波及槽位。严格维持文本行首缩进、列表前缀及分号拓扑稳定性，使 LLM KV Cache（Prompt Cache）前缀保持稳定，杜绝粗暴拼贴导致的条目内自相矛盾。零 LLM 开销，纯原生 Python + Pydantic，单次耗时 <0.06ms（58µs）。
 
 **四种决策**：
 
@@ -1164,7 +1164,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **环境指纹物理隔离（`filter_guidance_items`）**：当前运行时与规则所属环境指纹一致时才加载，防止跨操作系统/环境误导；
   - **单工具黄金 3 条初筛与全局 9 条总量熔断（`MAX_TOTAL_TOOL_GUIDELINES = 9`）**：严格限制单个工具至多提供 3 条候选指南，且当挂载多工具时全局总条目数硬熔断至 9 条，先按人工置顶优先 + 置信度降序收敛，防止长程多工具场景下 Prompt 膨胀与注意力稀释；
   - **单条规约 160 字符严格防御截断（`MAX_CHARS_PER_GUIDELINE = 160`）**：规约文本超出阈值自动执行边界截断，防止未清洗的异常长日志侵占 Token 预算；
-  - **Cache-Stable 确定性字母序排列**：最终输出集合按工具名称与规约文本严格按字母序升序输出，保证字面量 100% 确定，完全保护 LLM 服务端 KV Cache 命中率。
+  - **Cache-Stable 确定性字母序排列**：最终输出集合按工具名称与规约文本严格按字母序升序输出，保证字面量确定，保持 LLM 服务端 KV Cache 前缀稳定。
 - **中间件运行时 JIT 注入**：
   - 核心位置：`myrm_agent_harness.agent.middlewares.memory_context`；
   - `_internal/storage_context.py` 加载规则并筛选出工具规约条目；
@@ -1182,7 +1182,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 - **目录拓扑与文件即记忆规范（`FileMemoryTopology`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.models`；
-  - `MEMORY.md`：存放全局核心偏好、编码规范与身份画像；在会话中作为高稳定性系统级上下文注入，实现近 100% 的服务端 KV Cache 命中率；
+  - `MEMORY.md`：存放全局核心偏好、编码规范与身份画像；在会话中作为高稳定性系统级上下文注入，保持服务端 KV Cache 前缀稳定；
   - `memory/daily/YYYY-MM-DD.md`：存放日常任务情景事件与执行笔记，按日期分片存储，便于人类使用任意纯文本编辑器直接查看与修改；
   - `memory/archive/`：长期归档与历史记忆冷备。
 - **宽容 Markdown 容错流式解析器（`LenientMarkdownParser`）**：

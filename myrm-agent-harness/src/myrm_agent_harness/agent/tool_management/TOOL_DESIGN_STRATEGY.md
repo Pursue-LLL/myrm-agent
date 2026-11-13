@@ -437,7 +437,7 @@ def get_tool_layer(tool_name: str) -> ToolLayer:
     [核心架构约束]:保护大模型 Prompt Prefix Cache
     所有动态挂载的外部工具(特别是 MCP 提供的工具,如 github_search 等)
     必须强制路由到 EXTENDED 层级(Prompt尾部).
-    这能确保前部巨大的 System Prompt 和核心通用工具不被打乱,缓存命中率锁定在100%.
+    这能确保前部巨大的 System Prompt 和核心通用工具不被打乱,前缀缓存保持稳定.
     
     Returns:
         工具层级,未注册的工具(含所有 MCP 工具)默认为 EXTENDED(放在最后)

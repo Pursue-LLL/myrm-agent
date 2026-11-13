@@ -625,7 +625,7 @@ LIFECYCLE: Retained while session active (30d) or file accessed (14d)
 
 **关键设计**：
 - **显式系统隔离 (Fencing)**：摘要块采用 `<memory-context>` 包裹，并硬编码前缀 `[System note: The following is recalled memory context...]`。这彻底阻断了模型将“过去的摘要”误认为“当前用户指令”的幻觉。
-- **100% 缓存继承**：由于生成的 `<memory-context>` 被严格插入在受保护的头部（System Prompt + 首轮对话）**之后**，即使发生摘要重置，占据最多 Token 的头部信息依然完全静止，**完美命中 Prompt Cache**。
+- **头部缓存继承**：由于生成的 `<memory-context>` 被严格插入在受保护的头部（System Prompt + 首轮对话）**之后**，即使发生摘要重置，占据最多 Token 的头部信息依然完全静止，头部前缀可继续命中 Prompt Cache（是否命中取决于服务商缓存的 TTL 与精确匹配规则）。
 - **结构化输出保证 (with_structured_output)**：由于摘要作为上下文的关键基石，不可出现 JSON 损坏或格式错误。框架不做正则表达式提取，而是用 LLM 的 `with_structured_output(StructuredSummary)` 机制强制输出符合 12 字段结构，避免上下文内容干扰导致摘要结构错乱。
 - **服务端防并发控制 (Concurrent Compaction Lock)**：在多用户 / 多任务 Server 侧（`compact_chat`），同一 `chat_id` 的压缩操作由进程级 `asyncio.Lock` 保护。这防止了用户短时间内多次发起任务导致两个并行任务同时触发 `Summarize` 并写入相同的锚点，进而导致持久化内容被覆盖或历史上下文意外损坏。
 
@@ -768,7 +768,7 @@ Pipeline 按 `max_context_tokens` 缓存实例，避免重复创建。
 
 ### 5.5 Resume-Aware Cache Preservation（HITL专用）
 
-**设计目标**：当Agent从`interrupt()`恢复时，保持历史messages完全不变，确保Prompt Cache命中率95%+。
+**设计目标**：当Agent从`interrupt()`恢复时，保持历史messages完全不变，使Prompt Cache前缀保持稳定。
 
 **核心原则**：
 1. **只追加，不删除**：Resume时绝对不修改历史messages
@@ -836,14 +836,7 @@ if request.resume_value is not None:
     params.context["hitl_session_active"] = True  # 标记HITL会话活跃
 ```
 
-**缓存效果**：
-
-| 场景 | Before | After | 提升 |
-|------|--------|-------|------|
-| 单次HITL Resume | 0% | 95%+ | ♾️ |
-| 多次HITL交互 | 0% | 90%+ | ♾️ |
-| Resume成本 | $3.00/M | $0.30/M | 90% ↓ |
-| Resume TTFT | 2000ms | 800ms | 60% ↓ |
+**缓存效果**：Resume 时历史 messages 与中断前逐字节一致，服务商可对整段历史前缀命中缓存，命中部分按缓存读取价计费（Claude 为基础输入价的 10%）。实际命中率以服务商返回的 usage（`cache_read_input_tokens`）和会话 trace 的 `prompt_cache_hit_ratio` 为准。
 
 **配套工具**：
 - 错误恢复清理：Resume失败时自动清理checkpoint（业务层实现）
@@ -927,7 +920,7 @@ class TokenUsage:
 在会话结束时（`base_agent.py`），自动输出累积统计：
 
 ```
-💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 81.0% (7738 tokens)
+💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 76.8% (92124 tokens)
 ```
 
 `utils/token_economics/usage_fields.py::extract_cached_tokens()` 从传输层统一后的 `usage` 中提取缓存命中数，支持所有提供商。统一发生在传输层边界（`toolkits/llms/transport`）：Anthropic 与 Gemini 的解码器写入 `prompt_tokens_details.cached_tokens`，OpenAI 兼容线路在 `openai_chat.py` 把顶层的缓存读取数（DeepSeek 的 `prompt_cache_hit_tokens`、网关转发的 `cache_read_input_tokens`）同步写入同一字段，提供商已给出的非零值不会被覆盖：
@@ -958,13 +951,13 @@ cost_savings_pct = stats["cost_savings_pct"]
   Token Usage:
     - Prompt Tokens: 10000
     - Cached Tokens: 8530
-    💾 Cache Hit Rate: 85.3% | Cost Savings: 81.0%
+    💾 Cache Hit Rate: 85.3% | Cost Savings: 76.8%
 ```
 
-**成本节省公式说明**（相对于无缓存场景）：
+**成本节省公式说明**（相对于无缓存场景；`cache_read_ratio` 默认 0.1，OpenAI 为 0.5）：
 - 无缓存成本 = 10000 × 100% = 10000 单位
-- 有缓存成本 = 8530 × 5% + 1470 × 100% = 426.5 + 1470 = 1896.5 单位
-- 节省 = (10000 - 1896.5) / 10000 = 81.0%
+- 有缓存成本 = 8530 × 10% + 1470 × 100% = 853 + 1470 = 2323 单位
+- 节省 = (10000 - 2323) / 10000 = 76.8%
 
 **注意**：此计算不包含首次创建缓存的 125% 成本（一次性支付）。实际长期使用中，创建成本会被后续多次命中摊平。
 
@@ -982,10 +975,10 @@ Turn 1:
 Turn 2:
   📊 [ExplicitCache] Expected Cache: 85%   ← 预期 85% 命中
   📥 LLM Response: Cached: 8530 tokens      ← 实际 85.3% 命中
-  💾 Cache Hit Rate: 85.3% | Cost Savings: 81.0%
+  💾 Cache Hit Rate: 85.3% | Cost Savings: 76.8%
 
 Turn 12 (会话结束):
-  💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 81.0% (7738 tokens)
+  💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 76.8% (92124 tokens)
                                                                           ← 会话总成本节省
 ```
 
@@ -1396,7 +1389,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 **为什么？**
 - 动态内容（如子 Agent 通知、后台任务结果、实时时间戳）每次不同
 - `SystemMessage` 变化会破坏 Prompt Cache 前缀，导致所有后续缓存失效
-- 这会导致 **10x 成本增加**（95% 缓存命中率 → 0%）
+- 这会让原本按缓存读取价计费的前缀（Claude 为基础输入价的 10%）回到全价，输入成本成倍上升
 
 **正确做法**：
 - 动态内容 **必须** 使用 `HumanMessage`
