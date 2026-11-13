@@ -1,18 +1,23 @@
 """[INPUT]
 - .common (POS: shared primitives)
+- myrm_agent_harness.api::is_driver_closed_error (POS: tells a connect that failed on an exited Playwright driver from other failures)
 
 [OUTPUT]
 - ConnectionMixin
 
 [POS]
-Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status.
+Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status. A connect that fails
+because the Playwright driver process exited drops that driver, so the next connect starts a new one instead of
+failing on the dead one until the extension reconnects.
 """
 
 from __future__ import annotations
 
+import contextlib
 import time
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.api import is_driver_closed_error
 from myrm_agent_harness.toolkits.browser.pool.extension_bridge import ExtensionBrowserInstance
 from starlette.websockets import WebSocketState
 
@@ -21,7 +26,7 @@ from app.services.extension.access_policy import (
 )
 
 if TYPE_CHECKING:
-    from patchright.async_api import Playwright
+    from patchright.async_api import Browser, Playwright
 
 from . import common
 from .common import (
@@ -34,6 +39,9 @@ from .common import (
 
 
 class ConnectionMixin:
+    # Owned by the host (``ExtensionBridgeService.__init__``): ``None`` until the first connect starts a driver.
+    _playwright: Playwright | None
+
     async def _ensure_playwright(self) -> Playwright:
         """Return the cached Playwright instance, starting one if needed."""
         if self._playwright is None:
@@ -41,6 +49,32 @@ class ConnectionMixin:
 
             self._playwright = await async_playwright().start()
         return self._playwright
+
+    async def _discard_playwright(self) -> None:
+        """Stop and forget the cached driver, so the next ``_ensure_playwright`` starts a new one.
+
+        The cache is cleared first: a caller that arrives while the old driver is still stopping must not pick it up.
+        """
+        playwright, self._playwright = self._playwright, None
+        if playwright is not None:
+            with contextlib.suppress(Exception):
+                await playwright.stop()
+
+    async def _connect_over_cdp(self, cdp_endpoint: str, timeout: float) -> Browser:
+        """Attach Playwright to the relay's DevTools endpoint.
+
+        A driver whose process has exited can attach to nothing, ever: it is dropped, so the next attempt (the pool
+        retries a failed acquisition once) runs on a new driver. Only the driver that failed is dropped: a newer one
+        another caller already started keeps serving.
+        """
+        pw = await self._ensure_playwright()
+        try:
+            return await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
+        except Exception as exc:
+            if self._playwright is pw and is_driver_closed_error(exc):
+                logger.warning("Extension bridge: Playwright driver process is gone; the next connect starts a new driver")
+                await self._discard_playwright()
+            raise
 
     def _resolve_cdp_endpoint(self) -> str | None:
         """Discover main Chrome CDP endpoint when extension bridge has no cached value."""
@@ -95,9 +129,8 @@ class ConnectionMixin:
 
         await self._sync_relay_tabs()
         cdp_endpoint = await self._resolve_playwright_cdp_endpoint()
-        pw = await self._ensure_playwright()
 
-        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
+        browser = await self._connect_over_cdp(cdp_endpoint, timeout)
         return ExtensionBrowserInstance(browser=browser)
 
     async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> ExtensionBrowserInstance:
@@ -141,9 +174,8 @@ class ConnectionMixin:
 
         await self._sync_relay_tabs()
         cdp_endpoint = await self._resolve_playwright_cdp_endpoint()
-        pw = await self._ensure_playwright()
 
-        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
+        browser = await self._connect_over_cdp(cdp_endpoint, timeout)
         await self._focus_browser_on_domain(browser, target_tab.domain)
         return ExtensionBrowserInstance(browser=browser)
 
@@ -228,12 +260,7 @@ class ConnectionMixin:
             except Exception:
                 pass
         await common.get_cdp_relay_manager().bind_extension_transport(None)
-        if self._playwright is not None:
-            try:
-                await self._playwright.stop()
-            except Exception:
-                pass
-            self._playwright = None
+        await self._discard_playwright()
         self._connected = False
         self._ws = None
         self._hello_received = False
