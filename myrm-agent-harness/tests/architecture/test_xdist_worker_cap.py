@@ -1,9 +1,11 @@
 """Architecture gate: ``pytest -n N`` never starts more xdist workers than the configured cap.
 
 Each xdist worker is its own Python process, so memory grows with ``-n`` (measured: one ``-n 10`` run held about
-12 GiB). The cap is ``--maxprocesses`` in ``pyproject.toml`` ``addopts``; these tests run the repo's real pytest
-configuration in a nested ``--collect-only`` session (which spawns no workers) and read the worker list xdist
-would start, to prove the cap still bites and can still be raised on purpose.
+12 GiB). The cap is ``--maxprocesses`` in ``pyproject.toml`` ``addopts``. xdist documents that option only for
+``-n auto|logical``; capping an explicit ``-n N`` is its current implementation behavior, so a config grep proves
+nothing. These tests run the repo's real pytest configuration in a nested ``--collect-only`` session (which spawns
+no workers) and read the worker list xdist would start, to prove the cap still bites and can still be raised on
+purpose.
 """
 
 from __future__ import annotations

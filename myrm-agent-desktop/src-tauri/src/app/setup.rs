@@ -16,7 +16,7 @@ use crate::{commands, ipc_security, runtime, utils};
 
 pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // 先回收上一次运行遗留的孤儿子进程（Next / Sidecar），否则端口被占导致启动失败。
-    crate::runtime::child_reaper::reap_orphaned_children(&app.handle());
+    crate::runtime::child_reaper::reap_orphaned_children(app.handle());
     println!("🚀 Initializing MyrmAgent...");
 
     match utils::updater_safety::check_updater_pubkey_safety() {

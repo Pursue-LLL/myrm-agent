@@ -16,7 +16,7 @@ macro_rules! tauri_command_registry {
             ("restart_app", crate::commands::config::restart_app),
             ("get_local_ip", crate::commands::config::get_local_ip),
             ("get_setup_token", crate::runtime::setup_token::get_setup_token),
-            ("update_global_shortcut", crate::commands::config::update_global_shortcut),
+            ("update_global_shortcut", crate::commands::global_shortcut::update_global_shortcut),
             ("start_backend", crate::runtime::python_backend::start_backend),
             ("stop_backend", crate::runtime::python_backend::stop_backend),
             ("check_backend_health", crate::runtime::python_backend::check_backend_health),

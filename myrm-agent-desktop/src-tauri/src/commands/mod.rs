@@ -12,6 +12,7 @@
 pub mod config;
 pub mod data_migration;
 pub mod desktop_runtime_state;
+pub mod global_shortcut;
 pub mod pet_surface;
 pub mod privacy_curtain;
 pub mod privacy_curtain_page;
