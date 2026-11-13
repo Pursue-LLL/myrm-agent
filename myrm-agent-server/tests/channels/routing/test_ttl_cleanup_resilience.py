@@ -11,11 +11,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.channels.routing.block_chunker import BlockChunker, ChunkConfig
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.stream_manager import (
     AdaptiveThrottler,
-    BlockChunker,
-    ChunkConfig,
     IncrementalEditor,
     ProgressEstimator,
     StreamCoordinator,
