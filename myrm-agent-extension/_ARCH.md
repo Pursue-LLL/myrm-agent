@@ -20,7 +20,7 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | `src/background/transport.js` | 辅助 | 向服务端发消息（未连接则丢弃）与工具栏徽标 | ✅ |
 | `src/background/connection.js` | 核心 | WebSocket 生命周期：连接、`hello` 握手、指数退避重连、断开（断开即释放全部 debugger） | ✅ |
 | `src/background/server_messages.js` | 核心 | 服务端消息分发：`ping`、`set_domains`、`set_access_policy`、`clip_agent_update`、`relay`、`request`；relay/request 的失败回报给服务端而不抛出；标签页已不在授权站点上的拒绝（`TabNotAuthorizedError`）带 `code: tab_not_authorized` 回报，服务端据此放手整个页面 | ✅ |
-| `src/background/access_policy.js` | 核心 | 应用并回报授权策略；策略收窄后立即释放不再被授权的标签页 | ✅ |
+| `src/background/access_policy.js` | 核心 | 应用并回报授权策略（握手后的首份回报带 `initial` 标记，服务端有用户设定的策略时不采用它）；策略收窄后立即释放不再被授权的标签页 | ✅ |
 | `src/background/relay.js` | 核心 | 服务端 CDP relay 的指令：`attach`/`detach`/`cdp`/`createTab`/`closeTab`；每条指令都重新校验标签页与导航目标；`closeTab` 只关 Agent 自己打开的标签页（其余回报 `closed:false`）；Agent 自己的标签页可导航回空白页（浏览器工具箱丢弃被拒文档时这样做），用户的标签页不可；标签页已不在授权站点上时拒绝其后的每条 `cdp` 指令，并以 `TabNotAuthorizedError` 与普通失败区分 | ✅ |
 | `src/background/actions.js` | 核心 | 服务端请求：`list_tabs`/`attach_debugger`/`navigate_url`/`detach_debugger` | ✅ |
 | `src/background/tabs.js` | 核心 | 标签页读取（可操作、可列出、按域名查找、等待加载）与 `tabs_update` 推送；Agent 的标签页带 `agentOwned`，由 Agent 页面开出的另带 `openerTabId` | ✅ |
@@ -59,7 +59,7 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | 项 | 说明 |
 |----|------|
 | WebSocket | `ws://<server>/api/v1/ws/extension?token=<extension_auth_token>` |
-| 握手 | 扩展发送 `hello`（version、browser、capabilities=`navigate_url|list_tabs|attach_debugger|detach_debugger|agent_tab_control`）；Server 校验 `settings.extension_auth_token` 并按 capability 执行动作门禁 |
+| 握手 | 扩展发送 `hello`（version、browser、capabilities=`navigate_url|list_tabs|attach_debugger|detach_debugger|agent_tab_control`）；Server 校验 `settings.extension_auth_token` 并按 capability 执行动作门禁；随后扩展立即回报它保存的策略（`access_policy_update`，带 `initial: true`）：服务端没有用户设定的策略就采用它，有则推送自己的并忽略这份旧回报 |
 | 域名授权 | `authorizedDomains` / `allowAllEligibleTabs` / `pausedTabIds` 存于 `chrome.storage.local`；Server REST `/api/v1/extension/domains` 与 `/extension/access-policy` 与 WebUI 同步 |
 | Relay 域名门禁 | `createTab`、`navigate_url`、relay `attach`/`cdp`（每次 tab URL recheck + `Page.navigate` 目标校验）共用 access policy；`closeTab` 只作用于 Agent 自己打开的标签页 |
 | Agent 标签页 | Agent 开的标签页默认在用户窗口前台打开（后台标签页会被浏览器节流，登录态页面读不准）并归入「Myrm Agent」标签组；归属记录在 `chrome.storage.session`，关闭标签页即遗忘 |

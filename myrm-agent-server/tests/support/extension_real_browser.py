@@ -14,9 +14,9 @@
 - BridgeServer: the production extension routes on an ephemeral loopback port
 - ExtensionBrowser: the user's daily browser with the extension loaded; popup-style messaging, extension-page scripts,
   service-worker termination, what the user is looking at (`users_view`)
-- RealExtensionStack / real_extension_stack: all three wired together and connected; user sign-in, the Agent's
-  Playwright browser (the bridge's own connect(), through the CDP relay) and the Agent's BrowserSession on top of the
-  production browser pool (`agent_pool`, `agent_session`)
+- RealExtensionStack / real_extension_stack: all three wired together and connected; user sign-in, a server restart,
+  the Agent's Playwright browser (the bridge's own connect(), through the CDP relay) and the Agent's BrowserSession on
+  top of the production browser pool (`agent_pool`, `agent_session`)
 - new_agent_page: a context and a blank page the way the Agent's browser pool opens them
 - wait_until: bounded polling for asynchronous conditions
 
@@ -169,6 +169,10 @@ class ExtensionBrowser:
         page = await self.popup()
         return await page.evaluate(function, argument, isolated_context=False)
 
+    async def access_policy(self) -> dict[str, object]:
+        """The policy the extension holds right now: `authorizedDomains`, `allowAllEligibleTabs`, `pausedTabIds`."""
+        return await self.send({"type": "get_access_policy"})
+
     async def agent_tab_urls(self) -> list[str]:
         """URLs of the tabs the extension holds as the Agent's, as it persists them for the browser session."""
         urls = await self.evaluate(_AGENT_TABS_SCRIPT)
@@ -241,7 +245,7 @@ class RealExtensionStack:
         heard: dict[str, object] = {}
 
         async def pushed() -> bool:
-            heard.update(await self.browser.send({"type": "get_access_policy"}))
+            heard.update(await self.browser.access_policy())
             return heard.get("authorizedDomains") == domains
 
         try:
@@ -252,6 +256,13 @@ class RealExtensionStack:
             raise AssertionError(
                 f"{stalled}; the extension reports {heard.get('authorizedDomains')!r}, the server holds {held!r}"
             ) from None
+
+    async def restart_server(self) -> None:
+        """Replace the bridge with a fresh one, as restarting the server does: it remembers nothing, the extension does."""
+        await self.bridge.disconnect()
+        _reset_bridge_singletons()
+        self.bridge = get_extension_bridge()
+        await wait_until(self.handshaken, "the extension to reconnect to the restarted server")
 
     async def log_in(self, host: str) -> Page:
         """The user signs in to a site in a tab of their own, as they would before asking the Agent for help."""
@@ -299,6 +310,10 @@ class RealExtensionStack:
         """True while the extension is connected and its hello has been processed."""
         status = await self.bridge.get_status()
         return status.connected and status.handshake_ready
+
+    async def disconnected(self) -> bool:
+        """True while the server sees no extension connection."""
+        return not (await self.bridge.get_status()).connected
 
 
 async def new_agent_page(browser: Browser) -> Page:

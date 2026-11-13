@@ -71,17 +71,19 @@ export function connect() {
     state.reconnectDelay = RECONNECT_DELAY_MS;
     updateBadge("connected");
 
-    socket.send(JSON.stringify({
-      type: "hello",
-      version: chrome.runtime.getManifest().version,
-      browser: navigator.userAgent.includes("Edg/") ? "Edge" : "Chrome",
-      userAgent: navigator.userAgent,
-      browserVersion: navigator.userAgent.match(/Chrome\/[\d.]+|Edg\/[\d.]+/)?.[0] || "Chrome/unknown",
-      capabilities: EXTENSION_CAPABILITIES,
-    }));
+    socket.send(
+      JSON.stringify({
+        type: "hello",
+        version: chrome.runtime.getManifest().version,
+        browser: navigator.userAgent.includes("Edg/") ? "Edge" : "Chrome",
+        userAgent: navigator.userAgent,
+        browserVersion: navigator.userAgent.match(/Chrome\/[\d.]+|Edg\/[\d.]+/)?.[0] || "Chrome/unknown",
+        capabilities: EXTENSION_CAPABILITIES,
+      }),
+    );
 
     sendTabsUpdate();
-    sendAccessPolicyUpdate();
+    sendAccessPolicyUpdate({ initial: true });
     syncClipAgentConfig();
   };
 

@@ -25,6 +25,7 @@
 - **导航一致性**：`navigate_to_url()` 以 URL 主机为准做授权校验，并拒绝 `domain` 参数与 URL 主机不一致的请求，避免授权绕过。
 - **能力握手门禁**：`hello` 带 `capabilities`（`navigate_url` / `list_tabs` / `attach_debugger` / `detach_debugger` / `agent_tab_control`，后者是 relay 开关标签页所需的能力）；`_send_request()` 对映射动作执行 capability 校验，并要求已完成 hello 握手。
 - **握手可见性**：`ExtensionStatus.handshake_ready` 区分「WS 已连接」与「hello 已完成」，避免前端把同步窗口误判为能力缺失。
+- **策略归属**：用户经 API 设过访问策略后，服务端的策略就是扩展必须持有的那份：握手时推送，扩展握手后立即回报的那份（`access_policy_update` 带 `initial: true`，是它在听到服务端之前保存的）被忽略。用户没设过（服务重启后内存是空的）则采用扩展保存的那份，所以重启不会清空扩展里的授权站点与暂停的标签页，两端也不会在重连时互换列表。连上之后扩展回报的改动（不带 `initial` 的回报）始终采用。已知边界：扩展离线期间在弹窗里改的策略，会被服务端已设的策略取代（要保留需要给策略带修订号，目前不做）。
 - **Extension 模式 fail-closed**：`connect()` / `connect_to_domain()` 仅经 CDP relay；relay 未就绪时拒绝连接，不 fallback 本地 direct CDP（避免绕过 domain policy）。
 - **策略告警**：`analyze_domain_policy_warnings()` 对 `*.example.com` 且未显式列出根域时返回结构化提示，避免无感放宽授权边界。
 - **CDP 探测缓存**：`has_direct_cdp_endpoint()` 对“未发现”结果做短 TTL 负缓存，避免前端轮询 setup-hints 时重复高频探测。

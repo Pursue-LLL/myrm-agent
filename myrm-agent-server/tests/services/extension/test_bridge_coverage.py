@@ -18,31 +18,10 @@ from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
     ExtensionBrowserInstance,
     ExtensionTab,
 )
-from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from app.services.extension.bridge import ExtensionBridgeService
 from app.services.extension.bridge.common import RELAY_CAPABILITY
-
-
-class FakeWs:
-    """Minimal WebSocket stand-in: queues inbound frames, records outbound."""
-
-    client_state = WebSocketState.CONNECTED
-
-    def __init__(self, messages: list[str]) -> None:
-        self.messages = list(messages)
-        self.sent: list[str] = []
-
-    async def receive_text(self) -> str:
-        if not self.messages:
-            raise WebSocketDisconnect()
-        return self.messages.pop(0)
-
-    async def send_text(self, text: str) -> None:
-        self.sent.append(text)
-
-    async def close(self) -> None:
-        self.client_state = WebSocketState.DISCONNECTED
+from tests.support.extension_fake_socket import FakeWs
 
 
 class SendFailWs(FakeWs):
@@ -330,7 +309,7 @@ async def test_receive_loop_dispatch_messages() -> None:
     mock_relay.set_identity.assert_called_once()
     mock_relay.dispatch_extension_message.assert_called()
     mock_relay.sync_tabs_from_extension.assert_called()
-    assert any("set_access_policy" in s for s in bridge._ws.sent)
+    assert not any("set_access_policy" in s for s in bridge._ws.sent)  # no policy was set here, so none is pushed
 
 
 @pytest.mark.asyncio

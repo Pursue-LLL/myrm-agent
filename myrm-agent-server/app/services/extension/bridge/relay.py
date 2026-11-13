@@ -105,7 +105,7 @@ class RelayMixin:
                         browser_version=str(msg.get("browserVersion") or self._browser_name),
                     )
                     await relay.bind_extension_transport(self._send_ws_message)
-                    await self._notify_extension_access_policy()
+                    await self._push_access_policy_if_owned()
                     await self._sync_relay_tabs()
                     logger.info(
                         "Extension hello: %s on %s (capabilities=%s)",
@@ -145,7 +145,7 @@ class RelayMixin:
                     await self._sync_relay_tabs()
 
                 elif msg_type == "access_policy_update":
-                    self._apply_access_policy_payload(msg)
+                    self._apply_access_policy_report(msg)
                     await self._sync_relay_tabs()
 
         except WebSocketDisconnect:
