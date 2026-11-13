@@ -141,6 +141,7 @@ async def build_general_agent(
     from app.services.agent.goals.goal_registry import GoalRegistry
 
     enable_planning = agent_wrapper.enable_planning
+    # Mounted at build time: callers key the execution cache by GoalRegistry.has_active_goal.
     goal_provider = GoalRegistry.get_provider(effective_chat_id)
     if goal_provider:
         active_goal = await goal_provider.get_active_goal(effective_chat_id)

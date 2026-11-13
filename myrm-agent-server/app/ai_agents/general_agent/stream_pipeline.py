@@ -121,6 +121,7 @@ async def execute_stream_pipeline(
         get_execution_cache,
         resolve_execution_mode,
     )
+    from app.services.agent.goals.goal_registry import GoalRegistry
 
     execution_mode = resolve_execution_mode(extra_context)
     scope_key = build_execution_scope_key(effective_chat_id, agent_wrapper.agent_id)
@@ -135,7 +136,10 @@ async def execute_stream_pipeline(
             user_id = raw_user_id if isinstance(raw_user_id, str) else None
             if use_execution_pool:
                 assert scope_key is not None
-                fingerprint = compute_execution_fingerprint(agent_wrapper)
+                fingerprint = compute_execution_fingerprint(
+                    agent_wrapper,
+                    has_active_goal=await GoalRegistry.has_active_goal(effective_chat_id),
+                )
 
                 async def build_unit() -> BuiltExecutionUnit:
                     skill_agent = await build_general_agent(
@@ -149,10 +153,12 @@ async def execute_stream_pipeline(
                     get_turn_prewarm_coordinator,
                 )
 
+                # _core_stream runs inside guard_turn(scope_key): this turn is the scope's only active one.
                 unit = await get_turn_prewarm_coordinator().coalesced_acquire(
                     scope_key,
                     fingerprint,
                     build_unit,
+                    holds_turn_guard=True,
                 )
                 apply_built_unit(agent_wrapper, unit)
                 if isinstance(extra_context, dict):

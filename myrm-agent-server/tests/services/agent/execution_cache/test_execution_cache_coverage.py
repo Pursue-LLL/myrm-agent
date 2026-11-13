@@ -72,6 +72,19 @@ def test_compute_execution_fingerprint_includes_mcp() -> None:
     assert first != second
 
 
+def test_compute_execution_fingerprint_keys_by_active_goal() -> None:
+    """An active goal mounts complete_goal_tool and planning at build time, so a unit built
+    without one must not be reused for a turn that runs under a goal."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(model="m", api_key="k", base_url="http://x"),
+        mcp_config=None,
+    )
+    idle = compute_execution_fingerprint(wrapper)
+
+    assert compute_execution_fingerprint(wrapper, has_active_goal=False) == idle
+    assert compute_execution_fingerprint(wrapper, has_active_goal=True) != idle
+
+
 @pytest.mark.asyncio
 async def test_built_execution_unit_teardown_closes_all_resources() -> None:
     browser = MagicMock()
@@ -217,6 +230,41 @@ async def test_registry_defer_replace_during_active_turn() -> None:
     assert third is unit
     skill.close.assert_awaited_once()
     assert build_count == 2
+
+
+@pytest.mark.asyncio
+async def test_registry_guard_holder_replaces_the_unit_it_is_about_to_use() -> None:
+    """Inside its own guard a caller cannot tell it is the active turn; ``holds_turn_guard`` says so."""
+    registry = ChatAgentExecutionCache(idle_seconds=3600.0)
+    old_unit = BuiltExecutionUnit(skill_agent=MagicMock(close=AsyncMock()))
+    new_unit = BuiltExecutionUnit(skill_agent=MagicMock(close=AsyncMock()))
+    build_new = AsyncMock(return_value=new_unit)
+    await registry.acquire("chat-4:default", "fp-a", AsyncMock(return_value=old_unit))
+
+    async with registry.guard_turn("chat-4:default"):
+        deferred = await registry.acquire("chat-4:default", "fp-b", build_new)
+        replaced = await registry.acquire("chat-4:default", "fp-b", build_new, holds_turn_guard=True)
+
+    assert deferred is old_unit
+    assert replaced is new_unit
+    old_unit.skill_agent.close.assert_awaited_once()
+    build_new.assert_awaited_once()
+    assert await registry.is_warm("chat-4:default", "fp-b")
+
+
+@pytest.mark.asyncio
+async def test_registry_guard_holder_reuses_the_unit_when_the_config_is_unchanged() -> None:
+    registry = ChatAgentExecutionCache(idle_seconds=3600.0)
+    unit = BuiltExecutionUnit(skill_agent=MagicMock(close=AsyncMock()))
+    build = AsyncMock(return_value=unit)
+    await registry.acquire("chat-5:default", "fp-a", build)
+
+    async with registry.guard_turn("chat-5:default"):
+        reused = await registry.acquire("chat-5:default", "fp-a", build, holds_turn_guard=True)
+
+    assert reused is unit
+    build.assert_awaited_once()
+    unit.skill_agent.close.assert_not_called()
 
 
 @pytest.mark.asyncio

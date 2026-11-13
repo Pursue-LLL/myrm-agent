@@ -113,7 +113,15 @@ class ChatAgentExecutionCache:
         scope_key: str,
         config_fingerprint: str,
         build_unit: BuildUnitFn,
+        *,
+        holds_turn_guard: bool = False,
     ) -> BuiltExecutionUnit:
+        """Return the scope's unit, replacing it when the config fingerprint changed.
+
+        While another turn holds the scope's turn guard the replacement is deferred and that turn's unit is
+        returned. ``holds_turn_guard`` marks the caller as the guard holder itself: the guard serializes the
+        turns of a scope, so no other turn is using the unit and it can be replaced right away.
+        """
         self._ensure_idle_reaper()
         async with self._lock:
             await self._evict_idle_unlocked()
@@ -125,7 +133,8 @@ class ChatAgentExecutionCache:
 
             if entry is not None:
                 turn_lock = self._turn_locks.get(scope_key)
-                if entry.config_fingerprint != config_fingerprint and turn_lock is not None and turn_lock.locked():
+                other_turn_active = not holds_turn_guard and turn_lock is not None and turn_lock.locked()
+                if entry.config_fingerprint != config_fingerprint and other_turn_active:
                     logger.warning(
                         "execution_cache_replace_deferred scope=%s reason=config_changed_active_turn",
                         scope_key,

@@ -16,6 +16,7 @@ from app.services.agent.execution_cache import (
     finalize_agent_session,
     get_execution_cache,
 )
+from tests.support.pooled_pipeline import collect_pipeline_events, skill_agent_mock
 
 
 @pytest.fixture(autouse=True)
@@ -34,33 +35,6 @@ def _mock_security_store_sync() -> None:
         yield
 
 
-def _skill_agent_mock() -> MagicMock:
-    from myrm_agent_harness.agent.security.types import SecurityConfig
-    from myrm_agent_harness.agent.types import AgentRuntimeConfig
-
-    skill_agent = MagicMock()
-    skill_agent.config = AgentRuntimeConfig(security_config=SecurityConfig(ruleset=()))
-    skill_agent.memory_manager = None
-    return skill_agent
-
-
-async def _collect_pipeline_events(
-    wrapper: GeneralAgent,
-    *,
-    chat_id: str,
-    query: str = "hello",
-) -> list[dict[str, object]]:
-    events: list[dict[str, object]] = []
-    async for event in execute_stream_pipeline(
-        wrapper,
-        query=query,
-        chat_id=chat_id,
-        extra_context={"execution_mode": ExecutionMode.POOLED},
-    ):
-        events.append(event)
-    return events
-
-
 @pytest.mark.asyncio
 async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
     wrapper = GeneralAgent(
@@ -70,7 +44,7 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
         agent_id="agent-a",
     )
     build_count = 0
-    skill_agent = _skill_agent_mock()
+    skill_agent = skill_agent_mock()
 
     async def fake_run(
         *_args: object,
@@ -116,7 +90,7 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
     ):
         artifact_mock.return_value.process_artifacts_ready = MagicMock()
 
-        await _collect_pipeline_events(wrapper, chat_id="chat-pool-1", query="first")
+        await collect_pipeline_events(wrapper, chat_id="chat-pool-1", query="first")
         await finalize_agent_session(
             wrapper,
             chat_id="chat-pool-1",
@@ -124,7 +98,7 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
             extra_context={"execution_mode": ExecutionMode.POOLED},
         )
 
-        await _collect_pipeline_events(wrapper, chat_id="chat-pool-1", query="second")
+        await collect_pipeline_events(wrapper, chat_id="chat-pool-1", query="second")
         await finalize_agent_session(
             wrapper,
             chat_id="chat-pool-1",
@@ -143,7 +117,7 @@ async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
         chat_id="chat-ephemeral-1",
     )
     build_count = 0
-    skill_agent = _skill_agent_mock()
+    skill_agent = skill_agent_mock()
     skill_agent.close = AsyncMock()
 
     async def fake_run(
@@ -232,7 +206,7 @@ async def test_pooled_stream_seeds_yolo_security_context_before_run() -> None:
         },
         security_config_raw={"yoloModeEnabled": False},
     )
-    skill_agent = _skill_agent_mock()
+    skill_agent = skill_agent_mock()
 
     async def fake_run(
         *_args: object,
@@ -308,7 +282,7 @@ async def test_goal_provider_injection_decoupled_from_memory_manager() -> None:
         mcp_config=None,
         chat_id="chat-goal-provider",
     )
-    skill_agent = _skill_agent_mock()  # memory_manager = None
+    skill_agent = skill_agent_mock()  # memory_manager = None
     provider = AsyncMock()
     provider.get_active_goal = AsyncMock(return_value=None)
     captured_contexts: list[dict[str, object]] = []
