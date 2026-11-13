@@ -219,6 +219,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/telegram/test_telegram_auto_topic.py` | 单元 | 论坛群消息没有 `chat_id` 时，自动话题原样放行：不建话题、不同步话题名、不起后台任务 |
 | `channels/providers/telegram/test_telegram_{channel,parse_update,parse_mentions_replies,parse_special_updates,client_calls,outbound,setup,draft_streaming,helpers,forum_topics,polling}.py` | 单元 | Telegram 渠道按主题拆开的单元测试：渠道契约与生命周期、入站解析（更新模型与媒体组、群提及与回复上下文、回调、位置、反应）、客户端调用、出站发送与编辑、命令与 webhook 设置、草稿流式、内联键盘与附件发送、论坛话题与自动话题、长轮询的冲突与网络恢复；共用工厂在 `telegram_channel_factories.py` |
 | `channels/providers/telegram/test_telegram_webhook_route.py` | 单元 | Telegram webhook 路由经真实请求适配与安全中间件：有效更新返回 200 并分发；错误密钥返回 403、坏 JSON 返回 4xx 且都不分发；处理异常返回 500；路由为未鉴权的 POST webhook；不是路由注册器的对象被忽略 |
+| `channels/providers/telegram/test_telegram_reasoning_style.py` | 单元 | Telegram 两种渲染样式各自保持折叠推理的形式：纯文本样式是可折叠的 HTML 引用（`expandable`），富文本样式是 Markdown 引用 |
 | `channels/providers/telegram/test_telegram_reactions.py` | 单元 | Telegram 官方 73 个反应表情：词表内的接受、词表外的拒绝（ZWJ 序列整体保留），按词表拼写发送，空串清除反应 |
 | `channels/providers/telegram/test_telegram_diagnostics.py` | 单元 | Telegram 诊断：无令牌、非 HTTPS webhook、降级与健康错误各得其问题；启动失败记下原因——令牌被拒给出指向令牌的修复提示、Bot API 不可达（连接、超时、限流）给出指向网络与代理的修复提示，原因只是分类、不含原始错误文本，之后成功启动清掉原因，没有记录原因的 ERROR 状态仍给通用消息 |
 | `channels/providers/msteams/test_msteams_reactions.py` | 单元 | Teams 反应走 Bot Framework 连接器：状态表情按官方反应 ID 以 `PUT …/reactions/{ID}` 发送，没有官方 ID 的表情不发送；空串按记账 `DELETE` 同一个 ID 且只撤一次、没发过或服务地址未知不发请求；被拒与传输错误抛出且不记账；假连接器按 Teams SDK 的方法、路径、令牌规则校验 |
@@ -237,6 +238,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/slack/test_slack_channel.py` | 单元 | Slack 渠道的契约、占位消息、助手线程状态；同目录按主题分文件：`test_slack_outbound.py`（发送、文件上传、附件失败、删除与反应）、`test_slack_lifecycle.py`（辅助函数、机器人信息、诊断、启停）、`test_slack_inbound.py`（入站事件、提及标注、块动作时间戳、线程追踪）、`test_slack_thread_replies.py`（线程内自动回复）；`support.py` 提供 `make_channel`、`ok_json`、`err_json` |
 | `channels/providers/mattermost/test_mattermost_reaction_lifecycle.py` | 单元 | Mattermost 按用户、帖子、名称删除自己加的反应：空串撤销已加的，没加过不发请求，添加失败抛出且不记账 |
 | `channels/providers/discord/test_discord_reaction_lifecycle.py` | 单元 | Discord `Message.remove_reaction`：空串撤销已加的反应且只撤一次，没加过不碰消息，添加失败抛出且不记账，没有机器人用户时无从撤销 |
+| `channels/providers/discord/test_discord_reasoning.py` | 单元 | Discord 回复里的推理只出现一次、是 Markdown 引用而非 HTML 标签；占位消息的编辑结果经真实渠道，不带页脚，回复隐藏推理时一点不剩 |
 | `channels/providers/feishu/test_feishu_webhook_routes.py` | 单元 | 飞书 webhook 路由注册在路由注册器上，不是注册器的对象被忽略 |
 | `channels/providers/feishu/test_feishu_webhook_handler.py` | 单元 | 飞书 webhook 路由经真实 Starlette 请求、真实安全中间件与注册的处理函数：没有回复的事件应答 200 `{"ok": true}`，事件处理的结果作为应答正文，别的应用的事件 403（`app-id-mismatch`）且不处理，不是 JSON 的正文 400 且不处理，处理中抛出的错误应答 500 且正文不带原因 |
 | `channels/providers/feishu/sdk/test_at_all_defused.py` | 单元 | 智能体文本里的「@所有人」标记（`<at user_id="all">`、`<at id=all>`，含单引号、等号两侧空白、大小写、换行写法）不会通知整个飞书群：文本、富文本、卡片三种消息体经发送、回复、更新三条路径一律在出口处被拆开；指向具体用户、`all_hands` 之类的标记与普通文本原样发出 |

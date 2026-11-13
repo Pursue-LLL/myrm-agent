@@ -6,6 +6,8 @@ Three-stage pipeline: _prepare → _format → split_message, all pure functions
 Format layer performs format downgrade based on RenderStyle capability declarations:
 - supports_latex=False  → LaTeX formulas ``$$…$$`` stripped to plain text
 - supports_tables=False → Markdown tables downgraded to lists or code blocks
+- supports_expandable_blockquote=False → a collapsed reasoning is a Markdown quote, not Telegram's
+  ``<blockquote expandable>`` HTML (which every other channel would show as literal tags)
 
 Sources block with numbered footnotes ([N]), corresponding to citation numbers in LLM body text.
 When no sources are present, orphan citation markers in body text (【N】/[N]) are auto-cleaned.
@@ -173,10 +175,10 @@ def _build_reasoning_block(
 
     if reasoning_display == ReasoningDisplay.COLLAPSED:
         emoji = "\U0001f9e0 " if style.use_emoji else ""
-        if style.supports_latex:
-            quoted = "\n".join(f"> {line}" for line in trimmed.split("\n"))
-            return f"> {emoji}**Thinking**\n>\n{quoted}\n\n"
-        return f"<blockquote expandable>{emoji}Thinking\n\n{trimmed}\n</blockquote>\n\n"
+        if style.supports_expandable_blockquote:
+            return f"<blockquote expandable>{emoji}Thinking\n\n{trimmed}\n</blockquote>\n\n"
+        quoted = "\n".join(f"> {line}" for line in trimmed.split("\n"))
+        return f"> {emoji}**Thinking**\n>\n{quoted}\n\n"
 
     emoji = "\U0001f4ad " if style.use_emoji else ""
     return f"{emoji}*Thinking:*\n{trimmed}\n\n---\n\n"

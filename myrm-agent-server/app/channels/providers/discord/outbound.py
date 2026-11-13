@@ -182,10 +182,7 @@ class DiscordOutboundMixin(BaseChannel):
         channel = await self._require_channel(chat_id)
         try:
             target = await channel.fetch_message(int(message_id))
-            embed = discord.Embed(description=msg.content)
-            if msg.reasoning:
-                embed.set_footer(text=msg.reasoning[:2048])
-            await target.edit(embed=embed)
+            await target.edit(embed=discord.Embed(description=msg.content))
         except discord.DiscordException as exc:
             raise _discord_error(exc, self.name, "edit") from exc
 
