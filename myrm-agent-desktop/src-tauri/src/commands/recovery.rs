@@ -60,8 +60,40 @@ fn reveal_in_file_manager(path: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
+/// 两个路径是否指向同一个目录（解析符号链接后比较；解析失败时按原样比较）。
+fn same_directory(a: &Path, b: &Path) -> bool {
+    match (a.canonicalize(), b.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
+}
+
+/// 导出目标必须是已存在的目录，且不能是数据目录本身：文件复制到自身时目标先被清空再读取，
+/// 主库会因此变成 0 字节。
+fn validate_export_target(data_dir: &Path, target: &Path) -> Result<(), String> {
+    if !target.is_dir() {
+        return Err("Target directory does not exist".to_string());
+    }
+    if same_directory(data_dir, target) {
+        return Err("Target directory must differ from the data directory".to_string());
+    }
+    Ok(())
+}
+
+/// 导出前的校验：主库存在且目标合法；返回解析后的目标目录。
+fn prepare_export(data_dir: &Path, target_dir: &str) -> Result<PathBuf, String> {
+    if !data_dir.join(DATABASE_FILE).exists() {
+        return Err("Database file not found".to_string());
+    }
+    let target = PathBuf::from(target_dir);
+    validate_export_target(data_dir, &target)?;
+    Ok(target)
+}
+
 /// 把主库及其 WAL/SHM 复制到 `target`，返回实际复制的文件数。
+/// 复制前再校验一次：用户确认弹窗期间目标可能已被换掉。
 fn copy_database_files(data_dir: &Path, target: &Path) -> Result<u32, String> {
+    validate_export_target(data_dir, target)?;
     let mut copied_count = 0u32;
     for suffix in DATABASE_FILE_SUFFIXES {
         let file_name = format!("{DATABASE_FILE}{suffix}");
@@ -85,16 +117,7 @@ pub async fn export_local_sqlite(
     config_manager: State<'_, ConfigManager>,
 ) -> Result<String, String> {
     let data_dir = resolve_data_dir(&config_manager);
-    let db_path = data_dir.join(DATABASE_FILE);
-
-    if !db_path.exists() {
-        return Err("Database file not found".to_string());
-    }
-
-    let target = PathBuf::from(&target_dir);
-    if !target.is_dir() {
-        return Err("Target directory does not exist".to_string());
-    }
+    let target = prepare_export(&data_dir, &target_dir)?;
 
     ipc_security::consume_sensitive_ticket(SensitiveAction::ExportLocalSqlite, &action_ticket)?;
     ipc_security::require_sensitive_action_confirmation(
@@ -184,10 +207,160 @@ mod tests {
     #[test]
     fn a_failed_copy_names_the_file_that_failed() {
         let data = tempfile::tempdir().unwrap();
-        write(data.path(), "data.db", "main");
-        let missing_target = data.path().join("no-such-directory");
+        let target = tempfile::tempdir().unwrap();
+        std::fs::create_dir(data.path().join("data.db")).unwrap();
 
-        let error = copy_database_files(data.path(), &missing_target).unwrap_err();
+        let error = copy_database_files(data.path(), target.path()).unwrap_err();
         assert!(error.starts_with("Failed to copy data.db:"), "{error}");
+    }
+
+    #[test]
+    fn an_empty_database_file_is_still_exported() {
+        let data = tempfile::tempdir().unwrap();
+        let target = tempfile::tempdir().unwrap();
+        write(data.path(), "data.db", "");
+
+        assert_eq!(copy_database_files(data.path(), target.path()), Ok(1));
+        assert_eq!(
+            std::fs::metadata(target.path().join("data.db"))
+                .unwrap()
+                .len(),
+            0
+        );
+    }
+
+    #[test]
+    fn an_older_export_in_the_target_is_replaced() {
+        let data = tempfile::tempdir().unwrap();
+        let target = tempfile::tempdir().unwrap();
+        write(data.path(), "data.db", "new");
+        write(target.path(), "data.db", "an older export");
+
+        assert_eq!(copy_database_files(data.path(), target.path()), Ok(1));
+        assert_eq!(
+            std::fs::read_to_string(target.path().join("data.db")).unwrap(),
+            "new"
+        );
+    }
+
+    /// Copying a file onto itself empties it before reading it, so exporting into the data directory
+    /// would turn the user's database into a 0-byte file and still report success.
+    #[test]
+    fn an_export_into_the_data_directory_is_refused_and_the_database_survives() {
+        let data = tempfile::tempdir().unwrap();
+        let contents = "x".repeat(4096);
+        write(data.path(), "data.db", &contents);
+        write(data.path(), "data.db-wal", "recent writes");
+
+        let error = copy_database_files(data.path(), data.path()).unwrap_err();
+        assert_eq!(
+            error,
+            "Target directory must differ from the data directory"
+        );
+        assert_eq!(validate_export_target(data.path(), data.path()), Err(error));
+        assert_eq!(
+            std::fs::read_to_string(data.path().join("data.db")).unwrap(),
+            contents
+        );
+        assert_eq!(
+            std::fs::read_to_string(data.path().join("data.db-wal")).unwrap(),
+            "recent writes"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_export_into_a_link_to_the_data_directory_is_refused_and_the_database_survives() {
+        let data = tempfile::tempdir().unwrap();
+        let holder = tempfile::tempdir().unwrap();
+        write(data.path(), "data.db", "main");
+        let link = holder.path().join("shortcut");
+        std::os::unix::fs::symlink(data.path(), &link).unwrap();
+
+        assert!(copy_database_files(data.path(), &link).is_err());
+        assert_eq!(
+            std::fs::read_to_string(data.path().join("data.db")).unwrap(),
+            "main"
+        );
+    }
+
+    #[test]
+    fn a_folder_inside_the_data_directory_is_a_valid_target() {
+        let data = tempfile::tempdir().unwrap();
+        write(data.path(), "data.db", "main");
+        let inside = data.path().join("exports");
+        std::fs::create_dir(&inside).unwrap();
+
+        assert_eq!(copy_database_files(data.path(), &inside), Ok(1));
+        assert_eq!(
+            std::fs::read_to_string(inside.join("data.db")).unwrap(),
+            "main"
+        );
+    }
+
+    #[test]
+    fn directories_that_cannot_be_resolved_are_compared_as_written() {
+        let present = tempfile::tempdir().unwrap();
+        let missing = present.path().join("missing");
+        let other_missing = present.path().join("other-missing");
+
+        assert!(same_directory(&missing, &missing));
+        assert!(!same_directory(&missing, &other_missing));
+        assert!(!same_directory(present.path(), &missing));
+    }
+
+    #[test]
+    fn an_export_needs_the_servers_database_before_anything_else() {
+        let data = tempfile::tempdir().unwrap();
+        let target = tempfile::tempdir().unwrap();
+        // A file under the old, wrong name is not the database, and the missing database is reported
+        // even when the target is just as unusable.
+        write(data.path(), "myrm.db", "not the server database");
+
+        for target_dir in [target.path().to_str().unwrap(), "/no/such/folder"] {
+            assert_eq!(
+                prepare_export(data.path(), target_dir),
+                Err("Database file not found".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn a_prepared_export_names_the_target_and_refuses_the_data_directory() {
+        let data = tempfile::tempdir().unwrap();
+        let target = tempfile::tempdir().unwrap();
+        write(data.path(), "data.db", "main");
+
+        assert_eq!(
+            prepare_export(data.path(), target.path().to_str().unwrap()),
+            Ok(target.path().to_path_buf())
+        );
+        assert_eq!(
+            prepare_export(data.path(), data.path().to_str().unwrap()),
+            Err("Target directory must differ from the data directory".to_string())
+        );
+        assert_eq!(
+            prepare_export(data.path(), "/no/such/folder"),
+            Err("Target directory does not exist".to_string())
+        );
+    }
+
+    #[test]
+    fn a_missing_target_or_one_that_is_a_file_is_refused() {
+        let data = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        write(data.path(), "data.db", "main");
+        write(other.path(), "not-a-folder", "file");
+        let expected = Err("Target directory does not exist".to_string());
+
+        assert_eq!(
+            validate_export_target(data.path(), &other.path().join("missing")),
+            expected
+        );
+        assert_eq!(
+            validate_export_target(data.path(), &other.path().join("not-a-folder")),
+            expected
+        );
+        assert_eq!(validate_export_target(data.path(), other.path()), Ok(()));
     }
 }

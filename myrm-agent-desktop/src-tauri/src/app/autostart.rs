@@ -70,7 +70,11 @@ fn apply(item: &impl LoginItem, development_build: bool, want: bool) {
 mod tests {
     use std::cell::RefCell;
 
-    use super::{apply, Error, LoginItem};
+    use tauri::test::mock_builder;
+    use tauri_plugin_autostart::ManagerExt;
+
+    use super::{apply, sync_login_item, Error, LoginItem};
+    use crate::app::chain::with_product_plugins;
 
     /// 记录收到的每个调用；`registered` 为 `None` 表示读取登录项失败。
     #[derive(Default)]
@@ -145,6 +149,21 @@ mod tests {
         for want in [true, false] {
             assert_eq!(calls(false, want, None), ["is_enabled"]);
         }
+    }
+
+    /// `sync_login_item` 依赖产品链注册的 autostart 插件状态：插件一旦从链中移除，它会在启动时
+    /// panic。请求值取自当前状态，使任何构建下都不会写入测试机器的真实登录项。
+    #[test]
+    fn the_sync_runs_against_the_plugin_the_product_registers() {
+        let app = with_product_plugins(mock_builder())
+            .build(tauri::generate_context!())
+            .expect("the product plugin chain must build");
+        let manager = app.autolaunch();
+
+        let before = LoginItem::is_enabled(&*manager).ok();
+        sync_login_item(app.handle(), before.unwrap_or(false));
+
+        assert_eq!(LoginItem::is_enabled(&*manager).ok(), before);
     }
 
     #[test]

@@ -133,15 +133,7 @@ pub async fn migrate_data_dir(
     config_manager: State<'_, ConfigManager>,
     backend: State<'_, crate::runtime::PythonBackend>,
 ) -> Result<String, String> {
-    // The saved directory only applies when nothing pins it: migrating under a pinned directory would
-    // move data the backend never reads again, or write a path into the settings an installed release
-    // app shares.
-    if data_dir::is_pinned() {
-        return Err(
-            "The data directory is fixed by MYRM_DESKTOP_DATA_DIR or a development build; migration is unavailable"
-                .to_string(),
-        );
-    }
+    data_dir::ensure_relocatable()?;
 
     // 0. 全局互斥锁，防止并发重复触发导致数据污染与竞态
     let _migration_guard = super::data_migration::acquire_migration_lock()?;

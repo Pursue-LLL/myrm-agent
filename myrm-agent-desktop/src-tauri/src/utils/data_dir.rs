@@ -8,7 +8,7 @@
 //! [OUTPUT]
 //! - `override_dir`: 传给后端 `MYRM_DATA_DIR` 的目录，`None` 表示后端默认的 `~/.myrm`
 //! - `effective_dir`: 数据迁移、故障恢复等壳内操作所用的同一个目录
-//! - `is_pinned`: 目录由环境变量或开发构建固定，设置里的目录迁移不适用
+//! - `ensure_relocatable`: 目录由环境变量或开发构建固定时拒绝设置里的目录迁移
 //!
 //! [POS]
 //! 壳内数据目录的唯一解析点：后端启动、数据迁移、故障恢复必须作用于同一个目录。
@@ -21,12 +21,18 @@ const DEFAULT_DIR_NAME: &str = ".myrm";
 /// 两个服务不会去写同一个 SQLite 文件。
 const DEVELOPMENT_DIR_NAME: &str = ".myrm-desktop-dev";
 
-/// 用户主目录；取不到时退回当前目录。
-pub fn home_dir() -> PathBuf {
-    std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
+/// 用户主目录：`HOME`，其次 `USERPROFILE`，都没有时退回当前目录。
+fn home_from(home: Option<String>, user_profile: Option<String>) -> PathBuf {
+    home.or(user_profile)
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("."))
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+fn home_dir() -> PathBuf {
+    home_from(
+        std::env::var("HOME").ok(),
+        std::env::var("USERPROFILE").ok(),
+    )
 }
 
 fn explicit(env_value: Option<&str>) -> Option<String> {
@@ -67,8 +73,15 @@ fn effective_for(
         .unwrap_or_else(|| home.join(DEFAULT_DIR_NAME))
 }
 
-fn is_pinned_for(env_value: Option<&str>, development_build: bool) -> bool {
-    development_build || explicit(env_value).is_some()
+/// 目录被固定时迁移到别处没有意义：后端不会再读新目录，设置里写下的路径还会影响与之共用
+/// 设置文件的已安装正式版。
+fn ensure_relocatable_for(env_value: Option<&str>, development_build: bool) -> Result<(), String> {
+    if development_build || explicit(env_value).is_some() {
+        return Err(format!(
+            "The data directory is fixed by {ENV_VAR} or a development build; migration is unavailable"
+        ));
+    }
+    Ok(())
 }
 
 fn env_value() -> Option<String> {
@@ -93,8 +106,8 @@ pub fn effective_dir(persisted: Option<&str>) -> PathBuf {
     )
 }
 
-pub fn is_pinned() -> bool {
-    is_pinned_for(env_value().as_deref(), cfg!(debug_assertions))
+pub fn ensure_relocatable() -> Result<(), String> {
+    ensure_relocatable_for(env_value().as_deref(), cfg!(debug_assertions))
 }
 
 #[cfg(test)]
@@ -156,11 +169,50 @@ mod tests {
     }
 
     #[test]
-    fn the_directory_is_pinned_by_a_development_build_or_the_environment_only() {
-        assert!(!is_pinned_for(None, false));
-        assert!(!is_pinned_for(Some("  "), false));
-        assert!(is_pinned_for(Some("/tmp/e2e"), false));
-        assert!(is_pinned_for(None, true));
-        assert!(is_pinned_for(Some("/tmp/e2e"), true));
+    fn migration_is_refused_only_when_a_development_build_or_the_environment_fixes_the_directory() {
+        assert_eq!(ensure_relocatable_for(None, false), Ok(()));
+        assert_eq!(ensure_relocatable_for(Some("  "), false), Ok(()));
+        for (env, development_build) in [
+            (Some("/tmp/e2e"), false),
+            (None, true),
+            (Some("/tmp/e2e"), true),
+        ] {
+            let error = ensure_relocatable_for(env, development_build).unwrap_err();
+            assert_eq!(
+                error,
+                "The data directory is fixed by MYRM_DESKTOP_DATA_DIR or a development build; migration is unavailable"
+            );
+        }
+    }
+
+    #[test]
+    fn the_home_directory_is_home_then_userprofile_then_the_current_directory() {
+        let some = |value: &str| Some(value.to_string());
+        assert_eq!(home_from(some("/h"), some("/u")), PathBuf::from("/h"));
+        assert_eq!(home_from(None, some("/u")), PathBuf::from("/u"));
+        assert_eq!(home_from(None, None), PathBuf::from("."));
+    }
+
+    /// Tests always run as a development build, so the public entry points must agree with each
+    /// other and with the backend configuration: the backend, the migration and the recovery
+    /// commands all act on one directory, and it is never the saved real-user directory.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn the_backend_and_the_shell_resolve_to_one_directory_that_is_never_the_saved_one() {
+        use crate::config::{BackendConfig, SystemConfig};
+
+        let saved = SystemConfig {
+            custom_data_dir: Some(REAL_CUSTOM.to_string()),
+            ..Default::default()
+        };
+        let for_backend = BackendConfig::from_system_config(&saved).custom_data_dir;
+
+        assert_eq!(for_backend, override_dir(Some(REAL_CUSTOM)));
+        assert_ne!(for_backend.as_deref(), Some(REAL_CUSTOM));
+        assert_eq!(
+            effective_dir(Some(REAL_CUSTOM)),
+            PathBuf::from(for_backend.expect("a development build always names a directory"))
+        );
+        assert!(ensure_relocatable().is_err());
     }
 }
