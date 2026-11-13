@@ -45,7 +45,7 @@
 
 ## 依赖
 
-- `myrm-agent-harness`（本仓库 `../myrm-agent-harness`，可编辑路径源）— `ExtensionBridge` Protocol、`ExtensionBrowserInstance`
+- `myrm-agent-harness`（本仓库 `myrm-agent-harness/`，可编辑路径源）— `ExtensionBridge` Protocol、`ExtensionBrowserInstance`
 - `patchright.async_api`、`starlette.websockets`
 - `app.services.event` — `AppEvent`、`AppEventType`、`get_event_bus`
 - `app.services.extension.clip` — Wiki clip agent UserConfig SSOT
