@@ -206,8 +206,7 @@ def calendar_create(
         event["location"] = location
     if description:
         event["description"] = description
-    url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
-    result = _http_post(url, token, event)
+    result = _http_post(_CALENDAR_EVENTS_URL, token, event)
     return {
         "status": "created",
         "id": result.get("id"),
@@ -218,8 +217,7 @@ def calendar_create(
 
 def calendar_delete(token: str, *, event_id: str) -> dict[str, object]:
     encoded_id = urllib.parse.quote(event_id, safe="")
-    url = f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{encoded_id}"
-    _http_delete(url, token)
+    _http_delete(f"{_CALENDAR_EVENTS_URL}/{encoded_id}", token)
     return {"status": "deleted", "eventId": event_id}
 
 

@@ -20,6 +20,7 @@ SCRIPT_PATH = (
     Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills" / "google-workspace" / "scripts" / "google_api.py"
 )
 _RANGE_BOUNDS = {"time_min": "2026-06-25T00:00:00+08:00", "time_max": "2026-06-25T23:59:59+08:00"}
+_CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 
 
 def _json_response(payload: dict[str, object]) -> MagicMock:
@@ -181,6 +182,48 @@ class TestGoogleApiWriteCommands:
         request = mock_open.call_args[0][0]
         assert request.full_url.endswith("/messages/send")
         assert request.method == "POST"
+
+    def test_calendar_create_posts_the_event_to_the_primary_calendar(self, google_api_module) -> None:
+        created = _json_response({"id": "evt-1", "summary": "Standup", "htmlLink": "https://calendar.example/evt-1"})
+
+        with patch.object(google_api_module.urllib.request, "urlopen", return_value=created) as mock_open:
+            result = google_api_module.calendar_create(
+                "token",
+                summary="Standup",
+                start="2026-06-25T09:00:00+08:00",
+                end="2026-06-25T09:30:00+08:00",
+                location="Room 4",
+                description="Daily sync",
+            )
+
+        assert result == {
+            "status": "created",
+            "id": "evt-1",
+            "summary": "Standup",
+            "htmlLink": "https://calendar.example/evt-1",
+        }
+        request = mock_open.call_args[0][0]
+        assert request.full_url == _CALENDAR_EVENTS_URL
+        assert request.method == "POST"
+        assert json.loads(request.data) == {
+            "summary": "Standup",
+            "start": {"dateTime": "2026-06-25T09:00:00+08:00"},
+            "end": {"dateTime": "2026-06-25T09:30:00+08:00"},
+            "location": "Room 4",
+            "description": "Daily sync",
+        }
+
+    def test_calendar_delete_targets_the_event_id_as_one_path_segment(self, google_api_module) -> None:
+        deleted = _json_response({})
+        deleted.status = 204
+
+        with patch.object(google_api_module.urllib.request, "urlopen", return_value=deleted) as mock_open:
+            result = google_api_module.calendar_delete("token", event_id="a/b c")
+
+        assert result == {"status": "deleted", "eventId": "a/b c"}
+        request = mock_open.call_args[0][0]
+        assert request.full_url == f"{_CALENDAR_EVENTS_URL}/a%2Fb%20c"
+        assert request.method == "DELETE"
 
     def test_gmail_inbox_empty_inbox_returns_empty_messages(self, google_api_module) -> None:
         list_response = MagicMock()
