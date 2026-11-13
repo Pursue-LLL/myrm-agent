@@ -122,9 +122,6 @@ class RelationalStore(ABC):
     async def get_pending(self, pending_id: str) -> PendingRecord | None: ...
 
     @abstractmethod
-    async def pending_exists(self, memory_type: str, content: str) -> bool: ...
-
-    @abstractmethod
     async def mark_pending(self, pending_id: str, status: str) -> None: ...
 
     @abstractmethod

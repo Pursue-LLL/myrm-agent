@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.services.extension.access_policy import (
+    is_blank_url,
     normalize_domain_patterns,
     prune_paused_tab_ids,
 )
@@ -71,7 +72,7 @@ class RelayMixin:
         self._hello_received = False
         self._capabilities.clear()
         self._tabs = []
-        self._agent_tab_ids = frozenset()
+        self._agent_tabs = {}
         for fut in self._pending_requests.values():
             if not fut.done():
                 fut.set_exception(ExtensionBridgeNotAvailable("Connection lost"))
@@ -104,7 +105,7 @@ class RelayMixin:
                         browser_version=str(msg.get("browserVersion") or self._browser_name),
                     )
                     await relay.bind_extension_transport(self._send_ws_message)
-                    await self._notify_extension_access_policy()
+                    await self._push_access_policy_if_owned()
                     await self._sync_relay_tabs()
                     logger.info(
                         "Extension hello: %s on %s (capabilities=%s)",
@@ -144,7 +145,7 @@ class RelayMixin:
                     await self._sync_relay_tabs()
 
                 elif msg_type == "access_policy_update":
-                    self._apply_access_policy_payload(msg)
+                    self._apply_access_policy_report(msg)
                     await self._sync_relay_tabs()
 
         except WebSocketDisconnect:
@@ -187,6 +188,9 @@ class RelayMixin:
                     url=tab.url,
                     title=tab.title,
                     active=tab.active,
+                    # Handed to the Agent once it holds a document: a page still blank when the client starts setting it up
+                    # can leave the authorized sites before the client is done.
+                    opener_tab_id=None if is_blank_url(tab.url) else self._agent_tabs.get(tab.tab_id),
                 )
                 for tab in self._tabs
                 if self._tab_is_accessible(tab) or self._is_blank_agent_tab(tab)

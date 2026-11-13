@@ -87,8 +87,8 @@ def synthesize_tool_guidance(
     2. At most `max_total` guidelines across all active tools (prevents context bloat).
     3. Pinned rules always take priority over dynamic self-healed rules.
     4. String length strictly bounded to `MAX_CHARS_PER_GUIDELINE`.
-    5. Final guideline strings for each tool are alphabetically sorted to ensure
-       100% deterministic Prompt Cache stability across calls.
+    5. Final guideline strings for each tool are alphabetically sorted so the
+       output is deterministic and the Prompt Cache prefix stays stable across calls.
     """
     filtered = filter_guidance_items(
         items,

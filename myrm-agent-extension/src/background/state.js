@@ -53,7 +53,8 @@ export const state = {
   allowAllEligibleTabs: false,
   pausedTabIds: new Set(),
   attachedTabs: new Map(), // tabId -> debugger target id
-  agentTabIds: new Set(), // tabs the Agent opened itself
+  agentTabIds: new Set(), // tabs the Agent opened itself, or whose page it opened
+  agentTabOpeners: new Map(), // tab -> the Agent tab whose page opened it; only needed while the page is new, so not persisted
   tabGroupQueue: Promise.resolve(), // serializes tab-group edits so concurrent tabs share one group
   backgroundWindowId: null, // Isolated background window for non-disruptive automation
   backgroundWindowOpening: null, // in-flight creation of that window, shared by concurrent callers

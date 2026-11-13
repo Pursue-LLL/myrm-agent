@@ -41,22 +41,22 @@ vi.mock('@/services/i18nToastService', () => ({
 import { showI18nToast } from '@/services/i18nToastService';
 import { buildMultimodalQuery, type VisionContentPart } from '@/store/chat/multimodalBuilder';
 
-describe('buildMultimodalQuery with cameraFrames', () => {
+describe('buildMultimodalQuery with visionFrames', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns plain text when no files and no camera frames', async () => {
+  it('returns plain text when no files and no vision frames', async () => {
     const result = await buildMultimodalQuery('hello', []);
     expect(result).toBe('hello');
   });
 
-  it('returns plain text when camera frames empty', async () => {
+  it('returns plain text when vision frames empty', async () => {
     const result = await buildMultimodalQuery('hello', [], []);
     expect(result).toBe('hello');
   });
 
-  it('injects camera frames as image_url parts regardless of model vision support', async () => {
+  it('injects vision frames as image_url parts regardless of model vision support', async () => {
     const frames = ['data:image/jpeg;base64,abc123'];
     const result = await buildMultimodalQuery('describe this', [], frames);
 
@@ -70,7 +70,7 @@ describe('buildMultimodalQuery with cameraFrames', () => {
     });
   });
 
-  it('injects multiple camera frames', async () => {
+  it('injects multiple vision frames', async () => {
     const frames = ['data:image/jpeg;base64,frame1', 'data:image/jpeg;base64,frame2', 'data:image/jpeg;base64,frame3'];
     const result = await buildMultimodalQuery('what is this', [], frames);
 
@@ -83,15 +83,15 @@ describe('buildMultimodalQuery with cameraFrames', () => {
   });
 });
 
-describe('buildMultimodalQuery - undefined cameraFrames', () => {
-  it('returns plain text when cameraFrames is explicitly undefined', async () => {
+describe('buildMultimodalQuery - undefined visionFrames', () => {
+  it('returns plain text when visionFrames is explicitly undefined', async () => {
     const result = await buildMultimodalQuery('hello world', [], undefined);
     expect(result).toBe('hello world');
   });
 });
 
 describe('buildMultimodalQuery - vision-agnostic behavior', () => {
-  it('always sends camera frames to backend for VisionFallbackEngine routing', async () => {
+  it('always sends vision frames to backend for VisionFallbackEngine routing', async () => {
     const frames = ['data:image/jpeg;base64,abc123'];
     const result = await buildMultimodalQuery('hello', [], frames);
 

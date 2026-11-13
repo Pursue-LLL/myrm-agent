@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useId } from 'react';
 import { useTranslations } from 'next-intl';
 
 interface TemperatureSliderProps {
@@ -18,13 +18,16 @@ interface TemperatureSliderProps {
 const TemperatureSlider = memo<TemperatureSliderProps>(
   ({ value, onChange, min = 0, max = 2, step = 0.1, label, minLabel, maxLabel, hint }) => {
     const t = useTranslations('settings.defaultModel');
+    const inputId = useId();
 
     const percentage = ((value - min) / (max - min)) * 100;
 
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-foreground">{label ?? t('temperature')}</label>
+          <label htmlFor={inputId} className="text-sm font-medium text-foreground">
+            {label ?? t('temperature')}
+          </label>
           <span className="text-base font-mono font-semibold text-primary bg-primary/10 px-3 py-1 rounded-lg">
             {value.toFixed(1)}
           </span>
@@ -39,6 +42,7 @@ const TemperatureSlider = memo<TemperatureSliderProps>(
           </div>
 
           <input
+            id={inputId}
             type="range"
             min={min}
             max={max}

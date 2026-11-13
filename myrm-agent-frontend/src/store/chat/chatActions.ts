@@ -33,7 +33,7 @@ export interface ChatActionsState {
   compactedBeforeId: string | null;
   files: File[];
   mentionReferences: MentionReference[];
-  cameraFrames: string[];
+  visionFrames: string[];
   hideAttachList: boolean;
   hasUsedImagesInCurrentChat: boolean;
   isGoalMode: boolean;

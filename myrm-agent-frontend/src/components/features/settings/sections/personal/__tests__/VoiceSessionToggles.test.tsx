@@ -17,7 +17,6 @@ vi.mock('next-intl', () => {
 const SWITCH_KEYS = [
   VOICE_SETTING_KEYS.sessionEnabled,
   VOICE_SETTING_KEYS.fullDuplex,
-  VOICE_SETTING_KEYS.cameraEnabled,
   VOICE_SETTING_KEYS.agentBridge,
 ] as const;
 
@@ -42,18 +41,17 @@ describe('VoiceSessionToggles', () => {
   it('shows voice off and full duplex on when nothing is saved', () => {
     render(<VoiceSessionToggles />);
 
-    expect(switchStates()).toEqual([false, true, false, false]);
+    expect(switchStates()).toEqual([false, true, false]);
   });
 
   it('shows what is saved', () => {
     localStorage.setItem(VOICE_SETTING_KEYS.sessionEnabled, 'true');
     localStorage.setItem(VOICE_SETTING_KEYS.fullDuplex, 'false');
-    localStorage.setItem(VOICE_SETTING_KEYS.cameraEnabled, 'true');
     localStorage.setItem(VOICE_SETTING_KEYS.agentBridge, 'true');
 
     render(<VoiceSessionToggles />);
 
-    expect(switchStates()).toEqual([true, false, true, true]);
+    expect(switchStates()).toEqual([true, false, true]);
   });
 
   it('renders the defaults on the server, whatever is stored on this device', () => {
@@ -67,19 +65,19 @@ describe('VoiceSessionToggles', () => {
     const states = [...host.querySelectorAll('[role="switch"]')].map(
       (toggle) => toggle.getAttribute('aria-checked') === 'true',
     );
-    expect(states).toEqual([false, true, false, false]);
+    expect(states).toEqual([false, true, false]);
   });
 
   it('saves the switch that is clicked, in both directions', () => {
     render(<VoiceSessionToggles />);
 
-    fireEvent.click(switchFor(VOICE_SETTING_KEYS.cameraEnabled));
-    expect(localStorage.getItem(VOICE_SETTING_KEYS.cameraEnabled)).toBe('true');
-    expect(switchStates()).toEqual([false, true, true, false]);
+    fireEvent.click(switchFor(VOICE_SETTING_KEYS.agentBridge));
+    expect(localStorage.getItem(VOICE_SETTING_KEYS.agentBridge)).toBe('true');
+    expect(switchStates()).toEqual([false, true, true]);
 
-    fireEvent.click(switchFor(VOICE_SETTING_KEYS.cameraEnabled));
-    expect(localStorage.getItem(VOICE_SETTING_KEYS.cameraEnabled)).toBe('false');
-    expect(switchStates()).toEqual([false, true, false, false]);
+    fireEvent.click(switchFor(VOICE_SETTING_KEYS.agentBridge));
+    expect(localStorage.getItem(VOICE_SETTING_KEYS.agentBridge)).toBe('false');
+    expect(switchStates()).toEqual([false, true, false]);
   });
 
   it('turns full duplex off and back on', () => {
@@ -99,11 +97,11 @@ describe('VoiceSessionToggles', () => {
     vi.stubGlobal('localStorage', { getItem: refuse, setItem: refuse, removeItem: refuse });
 
     render(<VoiceSessionToggles />);
-    expect(switchStates()).toEqual([false, true, false, false]);
+    expect(switchStates()).toEqual([false, true, false]);
 
     fireEvent.click(switchFor(VOICE_SETTING_KEYS.sessionEnabled));
 
-    expect(switchStates()).toEqual([true, true, false, false]);
+    expect(switchStates()).toEqual([true, true, false]);
     // What the chat's voice button reads, so the choice takes effect there too.
     expect(voiceDeviceSettings.read(VOICE_SETTING_KEYS.sessionEnabled)).toBe('true');
   });
@@ -115,7 +113,7 @@ describe('VoiceSessionToggles', () => {
       voiceDeviceSettings.write(VOICE_SETTING_KEYS.agentBridge, 'true');
     });
 
-    expect(switchStates()).toEqual([false, true, false, true]);
+    expect(switchStates()).toEqual([false, true, true]);
   });
 
   it('stops listening once it is gone', () => {

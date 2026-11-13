@@ -30,18 +30,11 @@ RECONNECT_GRACE_S = 4.5
 _WINDOWS_SCRIPT = "async () => (await chrome.windows.getAll({ populate: true })).map((win) => win.tabs.map((tab) => tab.id))"
 
 
-async def _disconnected(stack: RealExtensionStack) -> bool:
-    return not (await stack.bridge.get_status()).connected
-
-
 async def _restart_service_worker(stack: RealExtensionStack) -> None:
     """Stop the worker, then wake it with a message, as opening the popup after the browser reclaimed it does."""
     await stack.browser.stop_service_worker()
 
-    async def server_noticed() -> bool:
-        return await _disconnected(stack)
-
-    await wait_until(server_noticed, "the server to notice that the extension went away")
+    await wait_until(stack.disconnected, "the server to notice that the extension went away")
     await stack.browser.send({"type": "get_status"})
 
 
@@ -85,10 +78,10 @@ async def test_the_extension_reconnects_after_its_service_worker_restarts(stack:
 
 async def test_a_manual_disconnect_stays_disconnected_until_the_user_connects_again(stack: RealExtensionStack) -> None:
     assert await stack.browser.send({"type": "disconnect"}) == {"ok": True}
-    await wait_until(lambda: _disconnected(stack), "the server to see the manual disconnect")
+    await wait_until(stack.disconnected, "the server to see the manual disconnect")
 
     await asyncio.sleep(RECONNECT_GRACE_S)
-    assert await _disconnected(stack)
+    assert await stack.disconnected()
 
     await stack.browser.send({"type": "connect"})
     await wait_until(stack.handshaken, "the extension to reconnect when asked to")

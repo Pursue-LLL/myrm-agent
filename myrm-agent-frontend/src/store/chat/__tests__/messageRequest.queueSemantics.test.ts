@@ -91,16 +91,16 @@ describe('sendLifecycle helpers', () => {
   });
 
   it('resolveRequestState keeps the original state when nothing overrides it', () => {
-    const state = { agentConfig: null, files: [makeFile('live')], cameraFrames: ['frame'] };
+    const state = { agentConfig: null, files: [makeFile('live')], visionFrames: ['frame'] };
     expect(resolveRequestState(state, undefined, undefined)).toBe(state);
   });
 
-  it('resolveRequestState swaps in the queued attachments and drops live camera frames', () => {
-    const state = { agentConfig: null, files: [makeFile('live')], cameraFrames: ['frame'] };
+  it('resolveRequestState swaps in the queued attachments and drops the live vision frames', () => {
+    const state = { agentConfig: null, files: [makeFile('live')], visionFrames: ['frame'] };
     const queued = { files: [makeFile('queued')] };
     const resolved = resolveRequestState(state, undefined, queued);
     expect(resolved.files).toEqual(queued.files);
-    expect(resolved.cameraFrames).toEqual([]);
+    expect(resolved.visionFrames).toEqual([]);
     expect(state.files.map((f) => f.id)).toEqual(['live']);
   });
 
@@ -204,7 +204,7 @@ describe('sendMessage queue semantics', () => {
       messages: [],
       files: [makeFile('live')],
       mentionReferences: [],
-      cameraFrames: [],
+      visionFrames: [],
       hideAttachList: false,
       currentSessionMessageId: null,
       currentBuiltinTools: ['web_search', 'memory'],

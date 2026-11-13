@@ -16,7 +16,7 @@
 
 import { useSyncExternalStore, type ComponentProps } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowDataTransferHorizontalIcon, Mic01Icon, Video01Icon, Wifi01Icon } from 'hugeicons-react';
+import { ArrowDataTransferHorizontalIcon, Mic01Icon, Wifi01Icon } from 'hugeicons-react';
 import { VOICE_SETTING_KEYS, voiceDeviceSettings } from '@/hooks/voice/voiceDeviceSettings';
 import ConfigToggleItem from '../../ConfigToggleItem';
 import SettingsSection from '../SettingsSection';
@@ -44,13 +44,6 @@ const VOICE_FLAGS: readonly VoiceFlag[] = [
     icon: ArrowDataTransferHorizontalIcon,
     titleKey: 'fullDuplex',
     descriptionKey: 'fullDuplexDesc',
-  },
-  {
-    storageKey: VOICE_SETTING_KEYS.cameraEnabled,
-    defaultOn: false,
-    icon: Video01Icon,
-    titleKey: 'enableCamera',
-    descriptionKey: 'enableCameraDesc',
   },
   {
     storageKey: VOICE_SETTING_KEYS.agentBridge,

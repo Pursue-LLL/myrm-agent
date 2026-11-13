@@ -18,6 +18,8 @@ from typing import Literal, TypedDict
 BROWSER_TARGET_ID = "myrm-extension-relay"
 BROWSER_CONTEXT_ID = "myrm-extension-context"
 RELAY_COMMAND_TIMEOUT_S = 15.0
+# Code of a relay error the extension sends when a tab is no longer on a site the user authorized.
+RELAY_ERROR_TAB_NOT_AUTHORIZED = "tab_not_authorized"
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +28,8 @@ class RelayTabInfo:
     url: str
     title: str
     active: bool = False
+    # The Agent tab that opened this one (window.open, a target=_blank link), named once the new page holds a document.
+    opener_tab_id: int | None = None
 
 
 class RelayAttachCommand(TypedDict):

@@ -210,7 +210,7 @@ describe('sendMessage failure handling', () => {
       messages: [],
       files: [makeFile('live')],
       mentionReferences: [],
-      cameraFrames: [],
+      visionFrames: [],
       hideAttachList: false,
       currentSessionMessageId: null,
       currentBuiltinTools: ['web_search', 'memory'],

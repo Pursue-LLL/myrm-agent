@@ -134,7 +134,7 @@ class TestSetProfileAttribute:
     @pytest.mark.asyncio
     async def test_set_profile_attribute_duplicate_pending(self, mock_relational_store, memory_config):
         """Test set_profile_attribute with duplicate pending returns empty."""
-        mock_relational_store.pending_exists.return_value = True
+        mock_relational_store.submit_pending.return_value = ""
 
         manager = MemoryManager(
             memory_config, user_id="test_user", relational=mock_relational_store, approval_required=True

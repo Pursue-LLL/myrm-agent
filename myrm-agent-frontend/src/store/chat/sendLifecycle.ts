@@ -19,7 +19,7 @@ import type { AgentConfig, ChatState, File, QueuedAttachments } from '@/store/ch
 interface RequestStateSlice {
   agentConfig: AgentConfig | null;
   files: File[];
-  cameraFrames: string[];
+  visionFrames: string[];
 }
 
 /**
@@ -37,7 +37,7 @@ export function resolveRequestState<S extends RequestStateSlice>(
   return {
     ...state,
     ...(agentConfigOverride !== undefined && { agentConfig: agentConfigOverride }),
-    ...(queuedAttachments && { files: queuedAttachments.files, cameraFrames: [] }),
+    ...(queuedAttachments && { files: queuedAttachments.files, visionFrames: [] }),
   };
 }
 

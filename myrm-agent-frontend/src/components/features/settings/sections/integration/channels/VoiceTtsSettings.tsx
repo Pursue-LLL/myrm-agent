@@ -37,9 +37,9 @@ export function VoiceTtsSettings({ form, update, needsTtsApiKey }: VoiceTtsSetti
     <>
       <SettingsSection title={t('ttsTitle')} description={t('ttsDesc')}>
         <div className="space-y-4">
-          <VoiceFieldRow label={t('ttsMode')}>
+          <VoiceFieldRow label={t('ttsMode')} htmlFor="voice-tts-mode">
             <Select value={form.ttsMode} onValueChange={(v) => update({ ttsMode: v })}>
-              <SelectTrigger>
+              <SelectTrigger id="voice-tts-mode">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -52,9 +52,9 @@ export function VoiceTtsSettings({ form, update, needsTtsApiKey }: VoiceTtsSetti
 
           {form.ttsMode !== 'off' && (
             <>
-              <VoiceFieldRow label={t('ttsProvider')}>
+              <VoiceFieldRow label={t('ttsProvider')} htmlFor="voice-tts-provider">
                 <Select value={form.ttsProvider} onValueChange={(v) => update({ ttsProvider: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="voice-tts-provider">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -68,8 +68,9 @@ export function VoiceTtsSettings({ form, update, needsTtsApiKey }: VoiceTtsSetti
               </VoiceFieldRow>
 
               {needsTtsApiKey && (
-                <VoiceFieldRow label={t('ttsApiKey')}>
+                <VoiceFieldRow label={t('ttsApiKey')} htmlFor="voice-tts-api-key">
                   <Input
+                    id="voice-tts-api-key"
                     type="password"
                     placeholder={t('ttsApiKeyPlaceholder')}
                     value={form.ttsApiKey}
@@ -79,8 +80,9 @@ export function VoiceTtsSettings({ form, update, needsTtsApiKey }: VoiceTtsSetti
               )}
 
               {(form.ttsProvider === 'openai' || form.ttsProvider === 'voicebox') && (
-                <VoiceFieldRow label={t('ttsBaseUrl')}>
+                <VoiceFieldRow label={t('ttsBaseUrl')} htmlFor="voice-tts-base-url">
                   <Input
+                    id="voice-tts-base-url"
                     placeholder={form.ttsProvider === 'voicebox' ? 'http://127.0.0.1:8000' : t('ttsBaseUrlPlaceholder')}
                     value={form.ttsBaseUrl}
                     onChange={(e) => update({ ttsBaseUrl: e.target.value })}
@@ -88,8 +90,9 @@ export function VoiceTtsSettings({ form, update, needsTtsApiKey }: VoiceTtsSetti
                 </VoiceFieldRow>
               )}
 
-              <VoiceFieldRow label={t('ttsVoice')}>
+              <VoiceFieldRow label={t('ttsVoice')} htmlFor="voice-tts-voice">
                 <Input
+                  id="voice-tts-voice"
                   placeholder={t('ttsVoicePlaceholder')}
                   value={form.ttsVoice}
                   onChange={(e) => update({ ttsVoice: e.target.value })}
@@ -120,8 +123,9 @@ export function VoiceTtsSettings({ form, update, needsTtsApiKey }: VoiceTtsSetti
                 hint={t('ttsPitchHint')}
               />
 
-              <VoiceFieldRow label={t('ttsMaxLength')}>
+              <VoiceFieldRow label={t('ttsMaxLength')} htmlFor="voice-tts-max-length">
                 <Input
+                  id="voice-tts-max-length"
                   type="number"
                   min={100}
                   max={10000}
@@ -138,14 +142,21 @@ export function VoiceTtsSettings({ form, update, needsTtsApiKey }: VoiceTtsSetti
         <SettingsSection title={t('ttsSummaryTitle')} description={t('ttsSummaryDesc')}>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">{t('ttsSummaryEnabled')}</Label>
-              <Switch checked={form.ttsSummaryEnabled} onCheckedChange={(v) => update({ ttsSummaryEnabled: v })} />
+              <Label htmlFor="voice-tts-summary-enabled" className="text-sm font-medium">
+                {t('ttsSummaryEnabled')}
+              </Label>
+              <Switch
+                id="voice-tts-summary-enabled"
+                checked={form.ttsSummaryEnabled}
+                onCheckedChange={(v) => update({ ttsSummaryEnabled: v })}
+              />
             </div>
 
             {form.ttsSummaryEnabled && (
               <>
-                <VoiceFieldRow label={t('ttsSummaryThreshold')}>
+                <VoiceFieldRow label={t('ttsSummaryThreshold')} htmlFor="voice-tts-summary-threshold">
                   <Input
+                    id="voice-tts-summary-threshold"
                     type="number"
                     min={100}
                     max={10000}
@@ -154,8 +165,9 @@ export function VoiceTtsSettings({ form, update, needsTtsApiKey }: VoiceTtsSetti
                   />
                 </VoiceFieldRow>
 
-                <VoiceFieldRow label={t('ttsSummaryModel')}>
+                <VoiceFieldRow label={t('ttsSummaryModel')} htmlFor="voice-tts-summary-model">
                   <Input
+                    id="voice-tts-summary-model"
                     placeholder={t('ttsSummaryModelPlaceholder')}
                     value={form.ttsSummaryModel}
                     onChange={(e) => update({ ttsSummaryModel: e.target.value })}

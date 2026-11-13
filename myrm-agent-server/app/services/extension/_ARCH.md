@@ -25,6 +25,7 @@
 - **导航一致性**：`navigate_to_url()` 以 URL 主机为准做授权校验，并拒绝 `domain` 参数与 URL 主机不一致的请求，避免授权绕过。
 - **能力握手门禁**：`hello` 带 `capabilities`（`navigate_url` / `list_tabs` / `attach_debugger` / `detach_debugger` / `agent_tab_control`，后者是 relay 开关标签页所需的能力）；`_send_request()` 对映射动作执行 capability 校验，并要求已完成 hello 握手。
 - **握手可见性**：`ExtensionStatus.handshake_ready` 区分「WS 已连接」与「hello 已完成」，避免前端把同步窗口误判为能力缺失。
+- **策略归属**：用户经 API 设过访问策略后，服务端的策略就是扩展必须持有的那份：握手时推送，扩展握手后立即回报的那份（`access_policy_update` 带 `initial: true`，是它在听到服务端之前保存的）被忽略。用户没设过（服务重启后内存是空的）则采用扩展保存的那份，所以重启不会清空扩展里的授权站点与暂停的标签页，两端也不会在重连时互换列表。连上之后扩展回报的改动（不带 `initial` 的回报）始终采用。已知边界：扩展离线期间在弹窗里改的策略，会被服务端已设的策略取代（要保留需要给策略带修订号，目前不做）。
 - **Extension 模式 fail-closed**：`connect()` / `connect_to_domain()` 仅经 CDP relay；relay 未就绪时拒绝连接，不 fallback 本地 direct CDP（避免绕过 domain policy）。
 - **策略告警**：`analyze_domain_policy_warnings()` 对 `*.example.com` 且未显式列出根域时返回结构化提示，避免无感放宽授权边界。
 - **CDP 探测缓存**：`has_direct_cdp_endpoint()` 对“未发现”结果做短 TTL 负缓存，避免前端轮询 setup-hints 时重复高频探测。
@@ -34,6 +35,7 @@
 - **SSE 状态广播**：连接/断开时通过 `ServerEventBus` 发布 `EXTENSION_STATUS_CHANGED` 事件，前端 NavBar 实时显示连接状态。
 - **前台 tab 优先**：`_request_debugger_attach(background=False)` 为登录态场景默认；后台隔离窗仅显式请求时使用。Playwright 新开的页面同样默认在用户窗口前台打开并归入「Myrm Agent」标签组。用户的焦点窗口与当前标签页只在这一刻变化：relay 对 `Page.bringToFront`（Agent 的 switch_tab 会发）只应答不转发，转发会让 Chrome 激活该标签页并把整个窗口拉到最前，把用户从别的窗口或应用里拽出来；Agent 当前在哪个标签页是客户端自己的记录，不需要浏览器配合。
 - **Agent 只关自己开的标签页**：`Target.createTarget` → 扩展 `createTab`（登记归属）；`Target.closeTarget` → 扩展 `closeTab`，Agent 的标签页真正关闭，用户的标签页只被放开（扩展回报 `closed:false`，relay 照样 detach 并遗忘，避免 Playwright 等 detach 而挂起）。扩展在标签页列表里以 `agentOwned` 标注 Agent 的标签页；server 把 Agent 自己开的空白标签页放进 relay 的标签页镜像（`bridge/access.py::_is_blank_agent_tab`，Agent 才能把它导航到所需站点），但 `list_tabs` 仍只按授权策略过滤，这些标签页不会被当作用户的标签页列出。
+- **Agent 页面点开的新标签页也是 Agent 的**：Agent 的页面里点链接（`target=_blank`）或脚本 `window.open` 开出的标签页，由扩展依据 `webNavigation.onCreatedNavigationTarget` 带来的来源标签页认领（`agent_tabs.js::adoptOpenedTab`）：登记归属，并在标签页列表里以 `openerTabId` 标出由哪个 Agent 标签页开出（server 的 `_agent_tabs` 记「标签页 → 开出它的 Agent 标签页」，Agent 自己开的为 `None`）。不用标签页自带的 `openerTabId`：浏览器把窗口里当前激活的标签页填在那里，Agent 在后台标签页里点击时它指向用户的标签页（Agent 看不到自己点出来的页面），用户在后台标签页里点击时它指向 Agent 的标签页（把用户开的页面当成 Agent 的）。relay 见到「来源标签页已附加」的新标签页，就像 Chrome 的自动附加：附加它，并向已拿到来源页面的客户端通告 `Target.attachedToTarget`（带 `openerId`，沿用来源页面的虚拟上下文），Playwright 据此触发 `popup` 事件，harness 的 `TabController` 把新页面接成会话的当前标签页；关闭它真正关闭标签页，关闭虚拟上下文时一并关闭。桥只在新页面有了文档（URL 不再空白）后才把 opener 交给 relay：还空白的页面可能在客户端初始化到一半时就去了未授权站点，扩展随后会拒绝客户端的指令。用户自己的标签页开出的页面不是 Agent 的（谁点的无从判断），不认领也不通告；开往未授权站点的页面扩展不认领（`adoptOpenedTab` 看目的地）；经重定向才到那里的页面落地前一直空白、桥不交出，落地后按上一条「自行跳出授权域名」处理。
 - **一个会话一条连接**：`connect()` / `connect_to_domain()` 返回 `ExtensionBrowserInstance`（harness 契约类型）；池据此把同一浏览器的后续请求交给同一实例，给其上下文不加任何覆盖，也不让页面空闲留存，所以会话里关掉的标签页就是在用户浏览器里关掉。
 - **扩展丢失即清场**：扩展断开时 relay 向 CDP 客户端通告全部目标消失、清空标签页镜像并让待决命令失败；重连后从零开始。
 - **Relay 域名门禁**：扩展层对 `createTab`、`navigate_url`、relay `cdp`（tab URL recheck + `Page.navigate`）共用 access policy；server relay sync 与 list_tabs 同一规则（Agent 自己开的空白标签页除外，见上）。

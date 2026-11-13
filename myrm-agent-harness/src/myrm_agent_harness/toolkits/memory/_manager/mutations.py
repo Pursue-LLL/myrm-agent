@@ -42,14 +42,22 @@ def _restamp_exact_fact(
     """Re-derive a knowledge memory's exact-fact flag and identifiers from its final content.
 
     Runs after the security scan so the identifiers and the index follow the stored (redacted) text;
-    returns the index change the memory needs, if any. Only knowledge memories carry the stamp: it
-    is persisted with them and the exact-identifier stream serves only them.
+    returns the index change the memory needs, if any. An explicit ``is_exact_fact`` wins. Without
+    one only a content change re-stamps, and it stamps the way a new write does: text that carries an
+    identifier makes the memory an exact fact, and a memory that already was one keeps the stamp. Only
+    knowledge memories carry the stamp: it is persisted with them and the exact-identifier stream
+    serves only them.
     """
-    if is_exact_fact is None and not (content_changed and memory.is_exact_fact):
+    if is_exact_fact is None and not content_changed:
         return None
+    identifiers = ExactFactClassifier.extract_identifiers(memory.content)
     if is_exact_fact is not None:
         memory.is_exact_fact = is_exact_fact
-    memory.exact_identifiers = ExactFactClassifier.extract_identifiers(memory.content) if memory.is_exact_fact else []
+    elif memory.is_exact_fact or identifiers:
+        memory.is_exact_fact = True
+    else:
+        return None
+    memory.exact_identifiers = identifiers if memory.is_exact_fact else []
     return "record" if memory.is_exact_fact else "delete"
 
 
@@ -199,6 +207,9 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
         Replacing the ``content`` of a rule stored as its display line rewrites its ``trigger`` and
         ``action`` as well, because the prompt is built from those (see ``rule_text``); any other rule
         keeps them. An empty rule text is refused the same way.
+
+        Replacing the ``content`` of a knowledge memory stamps it as an exact fact when the new text
+        carries an identifier, as a new write does, so the memory is then protected from automated edits.
         """
         require_unit_interval("importance", importance, action="updated")
         require_unit_interval("confidence", confidence, action="updated")

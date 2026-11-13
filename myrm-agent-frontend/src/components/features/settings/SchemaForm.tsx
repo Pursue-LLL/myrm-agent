@@ -7,7 +7,7 @@
  * [OUTPUT] SchemaForm: 动态 Schema 表单引擎，根据后端 JSON Schema 自动渲染强类型配置表单。
  * [POS] 设置页通用组件。实现 Schema-Driven UI 架构，解耦前后端配置定义。
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Switch } from '@/components/primitives/switch';
 import { Input } from '@/components/primitives/input';
@@ -60,40 +60,43 @@ export function SchemaForm<T extends object>({
 }: SchemaFormProps<T>) {
   const locale = useLocale();
   const t = useTranslations(translationNamespace);
+  // One page can show several copies of this form (one per section), so a field id needs a per-copy prefix.
+  const idPrefix = useId();
   const loadFailedMessage = t('schemaForm.loadFailed');
   const [schema, setSchema] = useState<JSONSchema | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
+    // A request left behind by an unmount or a key change is cancelled and neither shows nor reports anything.
+    const controller = new AbortController();
+    const { signal } = controller;
 
     const fetchSchema = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/v1/config/schema/${configKey}`);
+        const res = await fetch(`/api/v1/config/schema/${configKey}`, { signal });
         if (!res.ok) {
           throw new Error('Failed to fetch schema');
         }
         const data = await res.json();
-        if (!cancelled) {
+        if (!signal.aborted) {
           setSchema(data);
         }
       } catch (error) {
-        console.error('Schema fetch error:', error);
-        if (!cancelled) {
-          toast.error(loadFailedMessage);
+        if (signal.aborted) {
+          return;
         }
+        console.error('Schema fetch error:', error);
+        toast.error(loadFailedMessage);
       } finally {
-        if (!cancelled) {
+        if (!signal.aborted) {
           setLoading(false);
         }
       }
     };
 
     void fetchSchema();
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [configKey, loadFailedMessage]);
 
   if (loading) {
@@ -146,6 +149,7 @@ export function SchemaForm<T extends object>({
           );
 
           const Icon = iconMap[key];
+          const controlId = `${idPrefix}-${key}`;
 
           return (
             <div
@@ -159,7 +163,9 @@ export function SchemaForm<T extends object>({
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
-                  <Label className="text-sm font-medium">{displayTitle}</Label>
+                  <Label htmlFor={controlId} className="text-sm font-medium">
+                    {displayTitle}
+                  </Label>
                   {displayDesc && <p className="text-[13px] leading-relaxed text-muted-foreground/80">{displayDesc}</p>}
                 </div>
               </div>
@@ -167,6 +173,7 @@ export function SchemaForm<T extends object>({
               <div className="flex w-full items-center justify-end sm:mt-1 sm:min-w-[120px] sm:shrink-0 sm:w-auto">
                 {type === 'boolean' && (
                   <Switch
+                    id={controlId}
                     checked={!!currentValue}
                     onCheckedChange={(checked) => handleChange(key, checked)}
                     data-testid={`config-${key}`}
@@ -175,6 +182,7 @@ export function SchemaForm<T extends object>({
 
                 {type === 'string' && !isEnum && (
                   <Input
+                    id={controlId}
                     type={prop['ui:widget'] === 'password' ? 'password' : 'text'}
                     value={(currentValue as string) || ''}
                     onChange={(e) => handleChange(key, e.target.value)}
@@ -185,7 +193,7 @@ export function SchemaForm<T extends object>({
 
                 {isEnum && enumValues && (
                   <Select value={(currentValue as string) || ''} onValueChange={(val) => handleChange(key, val)}>
-                    <SelectTrigger className="h-8 w-[180px] text-sm" data-testid={`config-${key}`}>
+                    <SelectTrigger id={controlId} className="h-8 w-[180px] text-sm" data-testid={`config-${key}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

@@ -41,11 +41,15 @@ class ExtensionBridgeService(ConnectionMixin, AccessPolicyMixin, RelayMixin, Tab
         self._browser_name = ""
         self._hello_received = False
         self._capabilities: set[str] = set()
+        # True once the user set the policy through this server's API. Until then the server holds nothing of its own and
+        # takes the policy the extension saved; afterwards the server's policy is the one the extension must hold.
+        self._owns_access_policy = False
         self._authorized_domains: list[str] = []
         self._allow_all_eligible_tabs = False
         self._paused_tab_ids: frozenset[int] = frozenset()
         self._tabs: list[ExtensionTab] = []
-        self._agent_tab_ids: frozenset[int] = frozenset()
+        # Tabs the Agent owns, each with the Agent tab that opened it (None when the Agent opened it itself).
+        self._agent_tabs: dict[int, int | None] = {}
         self._last_heartbeat: float = 0.0
         self._pending_requests: dict[str, asyncio.Future[object]] = {}
         self._request_counter = 0

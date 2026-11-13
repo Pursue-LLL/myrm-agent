@@ -85,7 +85,6 @@ async def test_query_error_branches_raise(store: SQLiteRelationalStore, monkeypa
         lambda: store.delete_all(),
         lambda: store.submit_pending(make_pending()),
         lambda: store.get_pending("p"),
-        lambda: store.pending_exists("semantic", "c"),
         lambda: store.mark_pending("p", "approved"),
         lambda: store.list_pending(),
         lambda: store.count_pending(),

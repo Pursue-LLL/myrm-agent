@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - pending_task_report: text with the await chain of every unfinished task of every running loop, from the task's own coroutine down to the
-  future it waits on
+  future it waits on; a loop object that cannot say whether it runs (its ``__init__`` has not finished) is left out
 - report_pending_tasks_after: context manager that writes that report to the real stderr when its block outlives a deadline
 
 [POS]
@@ -69,11 +69,19 @@ def _await_chain(root: object) -> list[str]:
     return lines
 
 
+def _is_running(loop: asyncio.AbstractEventLoop) -> bool:
+    """Whether ``loop`` runs. A loop object whose ``__init__`` has not finished has no state to read, so it does not run."""
+    try:
+        return loop.is_running()
+    except AttributeError:
+        return False
+
+
 def pending_task_report() -> str:
     """The unfinished tasks of every running loop, each with the chain of awaits it is parked on."""
     lines: list[str] = []
     for candidate in gc.get_objects():
-        if not isinstance(candidate, asyncio.AbstractEventLoop) or not candidate.is_running():
+        if not isinstance(candidate, asyncio.AbstractEventLoop) or not _is_running(candidate):
             continue
         tasks = [task for task in asyncio.all_tasks(candidate) if not task.done()]
         lines.append(f"== running loop {id(candidate):#x}: {len(tasks)} unfinished task(s)")

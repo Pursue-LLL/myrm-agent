@@ -9,6 +9,8 @@
  *
  * [OUTPUT]
  * - executeRelayCommand: run one relay command and send its result; throws when it is refused or fails
+ * - TabNotAuthorizedError: thrown for a tab that is no longer on an authorized site; its code tells the server to let
+ *   go of the tab, where any other error is only a command that failed
  *
  * [POS] The enforcement point for the loopback CDP relay: no tab is attached, driven or created without passing the
  * policy, and only a tab the Agent opened is ever closed.
@@ -21,6 +23,13 @@ import { state } from "./state.js";
 import { send } from "./transport.js";
 
 const RELAY_CDP_NAVIGATE_METHODS = new Set(["Page.navigate"]);
+
+export class TabNotAuthorizedError extends Error {
+  constructor(tabId) {
+    super(`Tab ${tabId} is not authorized`);
+    this.code = "tab_not_authorized";
+  }
+}
 
 function assertRelayCdpNavigateAuthorized(tabId, method, params) {
   if (!RELAY_CDP_NAVIGATE_METHODS.has(method)) {
@@ -45,7 +54,7 @@ function assertRelayCdpNavigateAuthorized(tabId, method, params) {
 async function assertRelayTabAuthorized(tabId) {
   const tab = await chrome.tabs.get(tabId);
   if (!isTabAuthorized(tab, state)) {
-    throw new Error(`Tab ${tabId} is not authorized`);
+    throw new TabNotAuthorizedError(tabId);
   }
 }
 
@@ -83,14 +92,8 @@ export async function executeRelayCommand(seq, command) {
       if (!state.attachedTabs.has(tabId)) {
         await attachDebugger(tabId);
       }
-      const target = command.sessionId
-        ? { tabId, sessionId: command.sessionId }
-        : { tabId };
-      const result = await chrome.debugger.sendCommand(
-        target,
-        method,
-        command.params || {},
-      );
+      const target = command.sessionId ? { tabId, sessionId: command.sessionId } : { tabId };
+      const result = await chrome.debugger.sendCommand(target, method, command.params || {});
       send({ type: "relay_result", seq, result: result ?? {} });
       return;
     }

@@ -8,7 +8,6 @@
  * [POS]
  * Gemini Multimodal Live API WebSocket integration. Connects browser directly
  * to Google for sub-300ms voice latency via WebSocket + AudioWorklet.
- * Supports video multimodal input (camera frames as JPEG).
  */
 
 'use client';
@@ -40,7 +39,6 @@ interface UseGeminiLiveVoiceOptions {
   onToolCall?: (name: string, args: Record<string, unknown>) => void;
   onError?: (error: string) => void;
   onFallback?: () => void;
-  getVideoFrame?: () => string | null;
 }
 
 interface UseGeminiLiveVoiceReturn {
@@ -54,10 +52,9 @@ interface UseGeminiLiveVoiceReturn {
 const CONNECT_TIMEOUT_MS = 5000;
 const AUDIO_SAMPLE_RATE_INPUT = 16000;
 const AUDIO_SAMPLE_RATE_OUTPUT = 24000;
-const VIDEO_FRAME_INTERVAL_MS = 1000;
 
 export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGeminiLiveVoiceReturn {
-  const { enabled, agentId, chatId, model, onTranscript, onError, onFallback, onToolCall, getVideoFrame } = options;
+  const { enabled, agentId, chatId, model, onTranscript, onError, onFallback, onToolCall } = options;
 
   const [state, setState] = useState<GeminiLiveState>('idle');
   const [interimText, setInterimText] = useState('');
@@ -71,14 +68,9 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
   const transcriptBufferRef = useRef<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
   const audioQueueRef = useRef<ArrayBuffer[]>([]);
   const nextPlayTimeRef = useRef(0);
-  const videoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const cleanup = useCallback(() => {
     closedRef.current = true;
-    if (videoIntervalRef.current) {
-      clearInterval(videoIntervalRef.current);
-      videoIntervalRef.current = null;
-    }
     wsRef.current?.close();
     wsRef.current = null;
     processorNodeRef.current?.disconnect();
@@ -125,27 +117,6 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
       scheduleAudioChunk(chunk);
     }
   }, [scheduleAudioChunk]);
-
-  const sendVideoFrame = useCallback(() => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN || !getVideoFrame) {
-      return;
-    }
-
-    const frame = getVideoFrame();
-    if (!frame) {
-      return;
-    }
-
-    const base64Data = frame.replace(/^data:image\/jpeg;base64,/, '');
-    ws.send(
-      JSON.stringify({
-        realtimeInput: {
-          mediaChunks: [{ mimeType: 'image/jpeg', data: base64Data }],
-        },
-      }),
-    );
-  }, [getVideoFrame]);
 
   const persistTranscript = useCallback(async () => {
     if (!chatId || transcriptBufferRef.current.length === 0) {
@@ -236,9 +207,6 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
       if (msg.setupComplete) {
         setState('listening');
         startAudioCapture();
-        if (getVideoFrame) {
-          videoIntervalRef.current = setInterval(sendVideoFrame, VIDEO_FRAME_INTERVAL_MS);
-        }
         return;
       }
 
@@ -295,7 +263,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
         transcriptBufferRef.current.push({ role: 'user', text });
       }
     },
-    [onTranscript, executeToolCall, processAudioQueue, getVideoFrame, sendVideoFrame, startAudioCapture],
+    [onTranscript, executeToolCall, processAudioQueue, startAudioCapture],
   );
 
   const connect = useCallback(async () => {

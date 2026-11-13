@@ -288,7 +288,7 @@ export const sendMessage = async (
       // A queued message sends its own attachments; the live ones belong to the message being composed.
       if (!queuedAttachments) {
         innerState.files = [];
-        innerState.cameraFrames = [];
+        innerState.visionFrames = [];
       }
     });
 

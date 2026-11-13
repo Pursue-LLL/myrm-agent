@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError
+from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError, MemoryProtectedError
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import (
     ConversationMemory,
@@ -183,6 +183,71 @@ class TestExactFactBookkeeping:
         result = await manager.update_memory("mem-f", content="Server IP is 10.0.0.2")
 
         assert result.content == "Server IP is 10.0.0.2"
+
+    @pytest.mark.asyncio
+    async def test_an_edit_that_adds_an_identifier_makes_the_memory_an_exact_fact(
+        self, manager, mock_relational_store, persisted
+    ):
+        _serve(manager, SemanticMemory(id="mem-f", content="Server is in Berlin"))
+        mock_relational_store.record_exact_fact = AsyncMock()
+
+        result = await manager.update_memory("mem-f", content="Server IP is 10.0.0.1:8443")
+
+        assert result.is_exact_fact is True
+        assert result.exact_identifiers == ["10.0.0.1:8443"]
+        mock_relational_store.record_exact_fact.assert_awaited_once()
+        assert mock_relational_store.record_exact_fact.await_args.kwargs["identifiers"] == ["10.0.0.1:8443"]
+
+    @pytest.mark.asyncio
+    async def test_a_memory_that_gained_an_identifier_is_shielded_from_automated_edits(
+        self, manager, mock_relational_store, persisted
+    ):
+        _serve(manager, SemanticMemory(id="mem-f", content="Server is in Berlin"))
+        mock_relational_store.record_exact_fact = AsyncMock()
+        promoted = await manager.update_memory("mem-f", content="Server IP is 10.0.0.1")
+        _serve(manager, promoted)
+
+        with pytest.raises(MemoryProtectedError):
+            await manager.update_memory("mem-f", content="Server IP is 10.0.0.9", allow_protected=False)
+
+    @pytest.mark.asyncio
+    async def test_an_edit_without_an_identifier_leaves_a_plain_memory_unstamped(
+        self, manager, mock_relational_store, persisted
+    ):
+        _serve(manager, SemanticMemory(id="mem-f", content="Likes tea"))
+        mock_relational_store.record_exact_fact = AsyncMock()
+        mock_relational_store.delete_exact_fact = AsyncMock()
+
+        result = await manager.update_memory("mem-f", content="Likes green tea")
+
+        assert result.is_exact_fact is False
+        assert result.exact_identifiers == []
+        mock_relational_store.record_exact_fact.assert_not_awaited()
+        mock_relational_store.delete_exact_fact.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_an_edit_that_leaves_the_content_alone_does_not_stamp_it(
+        self, manager, mock_relational_store, persisted
+    ):
+        _serve(manager, SemanticMemory(id="mem-f", content="Server IP is 10.0.0.1"))
+        mock_relational_store.record_exact_fact = AsyncMock()
+
+        result = await manager.update_memory("mem-f", importance=0.9)
+
+        assert result.is_exact_fact is False
+        mock_relational_store.record_exact_fact.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_an_explicit_flag_wins_over_the_identifiers_of_an_edit(
+        self, manager, mock_relational_store, persisted
+    ):
+        _serve(manager, SemanticMemory(id="mem-f", content="Likes tea"))
+        mock_relational_store.delete_exact_fact = AsyncMock()
+
+        result = await manager.update_memory("mem-f", content="Server IP is 10.0.0.1", is_exact_fact=False)
+
+        assert result.is_exact_fact is False
+        mock_relational_store.delete_exact_fact.assert_awaited_once_with("mem-f")
 
     @pytest.mark.asyncio
     async def test_an_event_is_never_registered_in_the_index(self, manager, mock_relational_store, persisted):

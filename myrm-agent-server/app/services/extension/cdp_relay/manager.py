@@ -103,8 +103,9 @@ class CdpRelayManager:
         if msg_type == "relay_error":
             seq_raw = msg.get("seq")
             message = str(msg.get("message") or "extension relay error")
+            code = msg.get("code")
             if isinstance(seq_raw, int):
-                await self._bridge.handle_extension_error(seq_raw, message)
+                await self._bridge.handle_extension_error(seq_raw, message, code if isinstance(code, str) else None)
             return
         if msg_type == "cdp_event":
             tab_raw = msg.get("tabId")

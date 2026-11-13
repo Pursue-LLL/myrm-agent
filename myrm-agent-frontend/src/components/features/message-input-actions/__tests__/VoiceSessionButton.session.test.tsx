@@ -5,7 +5,6 @@
 import { act, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VOICE_SETTING_KEYS, voiceDeviceSettings } from '@/hooks/voice/voiceDeviceSettings';
-import type { VisualFrame } from '@/lib/vision/frameSelector';
 import { expectDefined } from '@/test-utils/expectDefined';
 import {
   LISTENING,
@@ -162,9 +161,7 @@ describe('VoiceSessionButton', () => {
   });
 
   describe('messages from the session', () => {
-    const frame = (base64: string): VisualFrame => ({ id: base64, base64, width: 1, height: 1, timestamp: 0 });
-
-    function say(text: string, frames?: VisualFrame[]) {
+    function say(text: string, frames?: string[]) {
       enableVoice();
       renderVoiceButton();
       const onSendMessage = voiceOptions().onSendMessage;
@@ -176,7 +173,7 @@ describe('VoiceSessionButton', () => {
       say('hello there');
 
       expect(kit.chat.sendMessage).toHaveBeenCalledExactlyOnceWith('hello there');
-      expect(kit.chat.setCameraFrames).not.toHaveBeenCalled();
+      expect(kit.chat.setVisionFrames).not.toHaveBeenCalled();
     });
 
     it('ignores blank speech', () => {
@@ -185,22 +182,22 @@ describe('VoiceSessionButton', () => {
       expect(kit.chat.sendMessage).not.toHaveBeenCalled();
     });
 
-    it('hands over camera frames as data URLs before the message, completing bare base64', () => {
-      say('what is this', [frame('AAA'), frame('data:image/png;base64,BBB')]);
+    it('hands over the screenshots as data URLs before the message, completing bare base64', () => {
+      say('what is this', ['AAA', 'data:image/png;base64,BBB']);
 
-      expect(kit.chat.setCameraFrames).toHaveBeenCalledExactlyOnceWith([
+      expect(kit.chat.setVisionFrames).toHaveBeenCalledExactlyOnceWith([
         'data:image/jpeg;base64,AAA',
         'data:image/png;base64,BBB',
       ]);
-      expect(kit.chat.setCameraFrames.mock.invocationCallOrder[0]).toBeLessThan(
+      expect(kit.chat.setVisionFrames.mock.invocationCallOrder[0]).toBeLessThan(
         kit.chat.sendMessage.mock.invocationCallOrder[0],
       );
     });
 
-    it('sends no camera frames when the list is empty', () => {
+    it('sends no screenshots when the list is empty', () => {
       say('just words', []);
 
-      expect(kit.chat.setCameraFrames).not.toHaveBeenCalled();
+      expect(kit.chat.setVisionFrames).not.toHaveBeenCalled();
       expect(kit.chat.sendMessage).toHaveBeenCalledWith('just words');
     });
   });

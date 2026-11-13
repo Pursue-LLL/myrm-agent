@@ -617,7 +617,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 | Protocol                  | 核心方法                                                                                                 | 框架内置实现                                           | 可选企业级实现    |
 | ------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------- |
 | `VectorStoreProtocol`     | `upsert`, `search`, `scroll`, `delete`                                                                   | `QdrantVectorStore`                                    | -                 |
-| `RelationalStoreProtocol` | `get_profile`, `set_profile`, `create_rule`, `submit_pending`, `search_fts5`, `check_integrity` 等 28 个方法                               | `SQLiteRelationalStore` (aiosqlite)                    | SQLAlchemy 适配器 |
+| `RelationalStoreProtocol` | `get_profile`, `set_profile`, `create_rule`, `submit_pending`, `search_fts5`, `check_integrity` 等方法                                     | `SQLiteRelationalStore` (aiosqlite)                    | SQLAlchemy 适配器 |
 | `GraphStoreProtocol`      | `create_node`, `create_relationship`(幂等), `get_causal_chain`, `delete_subgraph`, `delete_all_by_owner` | `SQLiteGraphStore` (aiosqlite + CTE + UNIQUE 关系去重) | SQLite CTE        |
 | `EmbeddingProtocol`       | `embed`, `embed_batch`, `dimension`                                                                      | `EmbeddingService`                                     | -                 |
 | `EmbeddingCacheProtocol`  | `get`, `put`, `get_batch`, `put_batch`, `evict`, `evict_batch`                                           | `EmbeddingCache` (L1+L2)                               | -                 |
@@ -653,7 +653,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 - **数据模型与契约解耦**（`strategies/sparse_types.py`）：强类型定义 `SemanticSlot`、`SparseMaskItem`、`SparseMutationResult` 与动作枚举，杜绝臃肿混杂，守护单文件 <400 行架构红线。
 - **槽位解析状态机**（`strategies/sparse_parser.py`）：单趟正则扫描 YAML/配置风格键值对、Markdown Bullet 列表与分号规约子句，自动抽取语义槽位与结构缩进。
 - **两阶段全局最佳匹配掩码**（`strategies/sparse_mutation.py`）：通过精确 Key 比对、显式否定墓碑与主题标识符锚定（杜绝不同前缀技术名词碰撞假阳性），并利用全局相似度矩阵建立无截胡最优配对，对每个槽位生成四维动作：`RETAIN`（知情保留）、`OVERWRITE`（最小局部覆盖）、`APPEND`（增量补充）、`REMOVE`（墓碑剔除）。
-- **原地拓扑装配**（`MinimalOverwritePipeline`）：按源行索引进行结构聚合装配，区分键值对与自然语言列表/子句的原地文本重构，原生支持单行内多子句局部覆写与否定墓碑消除，原地覆盖变动槽位并知情保留所有未受波及槽位。严格维持文本行首缩进、列表前缀及分号拓扑稳定性，使 LLM KV Cache（Prompt Cache）命中率达 100%，杜绝粗暴拼贴导致的条目内自相矛盾。零 LLM 开销，纯原生 Python + Pydantic，单次耗时 <0.06ms（58µs）。
+- **原地拓扑装配**（`MinimalOverwritePipeline`）：按源行索引进行结构聚合装配，区分键值对与自然语言列表/子句的原地文本重构，原生支持单行内多子句局部覆写与否定墓碑消除，原地覆盖变动槽位并知情保留所有未受波及槽位。严格维持文本行首缩进、列表前缀及分号拓扑稳定性，使 LLM KV Cache（Prompt Cache）前缀保持稳定，杜绝粗暴拼贴导致的条目内自相矛盾。零 LLM 开销，纯原生 Python + Pydantic，单次耗时 <0.06ms（58µs）。
 
 **四种决策**：
 
@@ -907,7 +907,7 @@ tools = create_memory_tools(manager=manager)
 
 | 方法                                                                              | 功能                                                                              |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：同一 manager 内相同提案并行提交也只入队一次，画像提案同理；同库的其他 manager 各持自己的锁），并声明批准后应执行的落库语义与待审目标展示内容 |
+| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：审批队列自身拒绝与待审提案同类型同内容的第二条提案，并行提交与同库的多个 manager 均如此，画像提案同理；重复时返回空串），并声明批准后应执行的落库语义与待审目标展示内容 |
 | `approve(pending_id, *, edited_content=None)`                                     | 按 `resolution_action` 分派：`STORE` 持久化新记忆 / `CORRECT` 纠正目标记忆 / `DELETE` 归档目标记忆；`edited_content` 为审批者改写后的文本 |
 | `reject(pending_id)`                                                              | 拒绝；记录不存在抛 `MemoryNotFoundError`，已处理（非 `pending`）的记录重复拒绝/批准是空操作，不会重复落库或改写已批准状态 |
 | `get_pending(pending_id)`                                                         | 按 id 读取单条待审批记录（含已处理状态），不存在返回 `None`；供业务层在批准/拒绝前取得审计所需元数据 |
@@ -1137,7 +1137,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - `BaseMemory` 包含强类型标识 `is_exact_fact: bool` 与 `exact_identifiers: list[str]`，并自动计入 `is_user_protected` 豁免保护，完全免疫遗忘衰减与蒸馏淘汰（agent 的删除、改写、纠正只被显式 pin / lock 拦截，精确事实标记不拦截）；标识符在安全扫描与瞬时事实闸门之后、按最终入库正文盖章，两个字段只随语义记忆落盘并登记索引，情景与程序性记忆的盖章只存在于写入过程中；
   - 检索重排中当查询完整写出记忆所含的某个精确标识符（查询里的整词、从查询提取出的标识符、或其中端点的端口）时，赋予确定性硬置顶加权（`+5.0` 增益），确保精确事实绝对置顶于模糊语义召回；包含不等于点名：存下的端口 `22` 不会被查询里的 `2022` 触发，`10.0.0.5` 不会被 `10.0.0.55` 触发，`v1.2.3` 与 `1.2.3` 视为同一版本。
 - **全链路展示与交互认知一致性**：
-  - Server 端接口契约：`MemoryItem` 返回 `is_exact_fact` 与 `exact_identifiers`；创建时由分类器按正文盖章，更新请求的 `is_exact_fact` 可由用户显式开关（语义记忆）；
+  - Server 端接口契约：`MemoryItem` 返回 `is_exact_fact` 与 `exact_identifiers`；创建与改写正文时由分类器按最终正文盖章（改写后的新正文带标识符即成为精确事实），更新请求的 `is_exact_fact` 可由用户显式开关（语义记忆）；
   - 前端 `MemoryCard.tsx` 与 `EvidenceDrawer.tsx` 支持视觉识别蓝底硬锁徽章，呈现提取到的确切事实符号。
 - **决策反转治理（撤回的决策不再被重复回答）**：
   - 核心位置：`strategies/merger.py`（`DeterministicThreeStateMerger`）与 `strategies/deduplicator.py`；
@@ -1164,7 +1164,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **环境指纹物理隔离（`filter_guidance_items`）**：当前运行时与规则所属环境指纹一致时才加载，防止跨操作系统/环境误导；
   - **单工具黄金 3 条初筛与全局 9 条总量熔断（`MAX_TOTAL_TOOL_GUIDELINES = 9`）**：严格限制单个工具至多提供 3 条候选指南，且当挂载多工具时全局总条目数硬熔断至 9 条，先按人工置顶优先 + 置信度降序收敛，防止长程多工具场景下 Prompt 膨胀与注意力稀释；
   - **单条规约 160 字符严格防御截断（`MAX_CHARS_PER_GUIDELINE = 160`）**：规约文本超出阈值自动执行边界截断，防止未清洗的异常长日志侵占 Token 预算；
-  - **Cache-Stable 确定性字母序排列**：最终输出集合按工具名称与规约文本严格按字母序升序输出，保证字面量 100% 确定，完全保护 LLM 服务端 KV Cache 命中率。
+  - **Cache-Stable 确定性字母序排列**：最终输出集合按工具名称与规约文本严格按字母序升序输出，保证字面量确定，保持 LLM 服务端 KV Cache 前缀稳定。
 - **中间件运行时 JIT 注入**：
   - 核心位置：`myrm_agent_harness.agent.middlewares.memory_context`；
   - `_internal/storage_context.py` 加载规则并筛选出工具规约条目；
@@ -1182,7 +1182,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 - **目录拓扑与文件即记忆规范（`FileMemoryTopology`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.models`；
-  - `MEMORY.md`：存放全局核心偏好、编码规范与身份画像；在会话中作为高稳定性系统级上下文注入，实现近 100% 的服务端 KV Cache 命中率；
+  - `MEMORY.md`：存放全局核心偏好、编码规范与身份画像；在会话中作为高稳定性系统级上下文注入，保持服务端 KV Cache 前缀稳定；
   - `memory/daily/YYYY-MM-DD.md`：存放日常任务情景事件与执行笔记，按日期分片存储，便于人类使用任意纯文本编辑器直接查看与修改；
   - `memory/archive/`：长期归档与历史记忆冷备。
 - **宽容 Markdown 容错流式解析器（`LenientMarkdownParser`）**：

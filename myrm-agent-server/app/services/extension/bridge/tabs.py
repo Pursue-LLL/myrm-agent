@@ -5,8 +5,8 @@
 - TabsMixin
 
 [POS]
-Extension bridge mixin: the mirror of the extension's tabs (including which ones the Agent opened), tab listing and
-tab-move requests.
+Extension bridge mixin: the mirror of the extension's tabs (including which ones the Agent owns and, for the ones its
+pages opened, which Agent tab opened them), tab listing and tab-move requests.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class TabsMixin:
         if not isinstance(raw_tabs, list):
             return
         tabs: list[ExtensionTab] = []
-        agent_tab_ids: set[int] = set()
+        agent_tabs: dict[int, int | None] = {}
         for item in raw_tabs:
             tab_id = item.get("id") if isinstance(item, dict) else None
             if not isinstance(tab_id, int):
@@ -44,9 +44,10 @@ class TabsMixin:
                 )
             )
             if item.get("agentOwned") is True:
-                agent_tab_ids.add(tab_id)
+                opener = item.get("openerTabId")
+                agent_tabs[tab_id] = opener if isinstance(opener, int) else None
         self._tabs = tabs
-        self._agent_tab_ids = frozenset(agent_tab_ids)
+        self._agent_tabs = agent_tabs
 
     async def list_tabs(self) -> list[ExtensionTab]:
         if not self._connected:

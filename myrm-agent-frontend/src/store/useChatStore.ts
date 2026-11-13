@@ -145,7 +145,7 @@ const useChatStore = create<ChatState>()(
       chatHistorySearchKeyword: '' as string,
       chatHistoryAvailableSources: [] as string[],
       files: [],
-      cameraFrames: [],
+      visionFrames: [],
       hideAttachList: false,
       hasUsedImagesInCurrentChat: false,
       mentionReferences: [],
@@ -402,7 +402,7 @@ const useChatStore = create<ChatState>()(
       setChatHistoryPagination: (pagination) => set({ chatHistoryPagination: pagination }),
       setChatHistoryLoading: (loading) => set({ chatHistoryLoading: loading }),
       setFiles: (files) => set((state) => ({ files: typeof files === 'function' ? files(state.files) : files })),
-      setCameraFrames: (frames) => set({ cameraFrames: frames }),
+      setVisionFrames: (frames) => set({ visionFrames: frames }),
       setHideAttachList: (hide) => set({ hideAttachList: hide }),
       setHasUsedImagesInCurrentChat: (hasUsed) => set({ hasUsedImagesInCurrentChat: hasUsed }),
       addMentionReference: (reference) =>

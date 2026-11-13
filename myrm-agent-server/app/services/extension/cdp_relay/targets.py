@@ -10,7 +10,8 @@
 
 [POS]
 Middle layer of the relay bridge: turns the extension's tab list and debugger events into the
-Target.attachedToTarget / detachedFromTarget / session-routed events Playwright expects.
+Target.attachedToTarget / detachedFromTarget / session-routed events Playwright expects. A tab the extension
+reports as opened by an attached Agent page is attached and announced on its own, with the opener's id and context.
 """
 
 from __future__ import annotations
@@ -54,10 +55,15 @@ class TargetRegistry(ExtensionLink):
                 self._forget_tab(tab_id)
         for info in tabs:
             existing = self._tabs.get(info.tab_id)
+            # A tab can be reported before the extension has worked out which Agent page opened it.
+            opener_just_named = info.opener_tab_id is not None and (existing is None or existing.info.opener_tab_id is None)
             if existing:
                 existing.info = info
             else:
                 self._tabs[info.tab_id] = TabState(info=info)
+            opener = self._opener_of(info)
+            if opener_just_named and opener and opener.attached:
+                self._spawn(self._attach_opened_tab(info.tab_id))
 
     def handle_cdp_event(
         self,
@@ -123,12 +129,48 @@ class TargetRegistry(ExtensionLink):
         except Exception as exc:
             if not attaching.done():
                 attaching.set_exception(exc)
+                # Callers waiting on this attach re-raise it from the future; with none, asyncio would log it as never retrieved.
+                attaching.exception()
             raise
         finally:
             tab.attaching = None
 
+    def _let_go_of_refused_tab(self, tab_id: int) -> None:
+        """The extension refused a command because the tab left the authorized sites: let the page go like a closed target.
+
+        Playwright then fails everything it has in flight for the page at once. Answering the refused command alone
+        would crash its driver when that command is one of those that initialise a new page: the driver rejects one of
+        them before it awaits the rest.
+        """
+        if tab_id in self._tabs:
+            self._forget_tab(tab_id)
+            self._spawn(self._release_in_extension(tab_id))
+
+    def _opener_of(self, info: RelayTabInfo) -> TabState | None:
+        return self._tabs.get(info.opener_tab_id) if info.opener_tab_id is not None else None
+
+    async def _attach_opened_tab(self, tab_id: int) -> None:
+        """Hand a page the Agent's page opened to every client that has that page, as Chrome's auto-attach would.
+
+        The new page joins its opener's virtual context, so closing the context closes it too.
+        """
+        tab = self._tabs.get(tab_id)
+        opener = self._opener_of(tab.info) if tab else None
+        if tab is None or opener is None or opener.attached is None:
+            return
+        opener_session = opener.attached.session_id
+        tab.context_id = opener.context_id
+        try:
+            attached = await self._ensure_tab_attached(tab_id)
+        except Exception as exc:
+            logger.warning("Could not attach tab %s opened by tab %s: %s", tab_id, tab.info.opener_tab_id, exc)
+            return
+        for client in self._clients:
+            if client.auto_attach and opener_session in client.announced_sessions:
+                self._announce_attached(client, tab_id, attached)
+
     def _target_info(self, tab: TabState, target_id: str) -> dict[str, object]:
-        return {
+        info: dict[str, object] = {
             "targetId": target_id,
             "type": "page",
             "title": tab.info.title,
@@ -137,6 +179,10 @@ class TargetRegistry(ExtensionLink):
             "attached": True,
             "canAccessOpener": False,
         }
+        opener = self._opener_of(tab.info)
+        if opener and opener.attached:
+            info["openerId"] = opener.attached.target_id
+        return info
 
     def _announce_attached(self, client: CdpClient, tab_id: int, attached: AttachedTab) -> None:
         tab = self._tabs.get(tab_id)

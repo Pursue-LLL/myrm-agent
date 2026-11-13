@@ -67,7 +67,6 @@ def mock_relational_store():
     store.search_rules = AsyncMock(return_value=[])
     store.submit_pending = AsyncMock(return_value="pending-1")
     store.get_pending = AsyncMock(return_value=None)
-    store.pending_exists = AsyncMock(return_value=False)
     store.mark_pending = AsyncMock()
     store.list_pending = AsyncMock(return_value=[])
     store.count_pending = AsyncMock(return_value=0)

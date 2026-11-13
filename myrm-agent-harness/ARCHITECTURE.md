@@ -426,20 +426,20 @@ class UserService:
 - **测试**：默认 `pytest`（串行 + 安全 marker 过滤，见 `tests/_ARCH.md`）；覆盖率策略见 `pyproject.toml` 的 `[tool.coverage.*]`；CI 见 `myrm-agent/.github/workflows/harness-test.yml`。
 - **性能**：对外宣称延迟、吞吐或加速比时，须附带可复现命令、环境与数据。
 
-### 性能数据（实测）
+### 关键运行时机制
 
 #### 场景化并发编队与 JIT 架构 (agent/meta_tools/spawn_subagent)
 
 **Prompt Cache 静态免疫保护**：
 
-- 缓存命中率：频繁切换不同 JIT 虚拟阵容时，首轮对话的前缀缓存命中率从 0% 提升至 100%
-- 成本节约：单次首轮对话 Token 成本下降约 90%（基于大模型静态 Prefix Cache 计费规则）
+- 前缀稳定：切换 JIT 虚拟阵容不改变 Tool Schema 与 System Prompt，阵容差异只出现在 User Message 尾部，阵容切换本身不会破坏前缀缓存
 - 实现机制：Tool Schema 彻底静态化，动态名册改为 User Message 尾缀 XML 隐式注入
+- 命中率度量：以服务商返回的 usage（`cache_read_input_tokens`）为准，见 `docs/PROMPT_CACHE_PLACEMENT.md`
 
 **大并发委派限流防崩**：
 
-- 错误率控制：在单次委派 5-10 个并发子任务时，大模型 API 429 限流崩溃率降至 0%
-- 实现机制：底层基于 `asyncio.Semaphore(3)` 进行并发收束与平滑排队
+- 单轮上限：单次模型响应中超出 `MAX_CONCURRENT_SUBAGENTS`（3）的 `delegate_task_tool` 调用被截断（`agent/middlewares/subagent_limit_middleware.py`），防止模型一次扇出过多子任务触达 API 限流
+- 并发收束：`SubAgentManager` 以 `asyncio.Semaphore`（默认 5，`agent/sub_agents/manager.py`）限制同时运行的子 Agent 数
 
 #### LLM降级管理（toolkits/llms/fallback）
 
