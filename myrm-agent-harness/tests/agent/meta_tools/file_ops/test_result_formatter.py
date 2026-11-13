@@ -78,3 +78,34 @@ def test_format_strips_bom_in_view_range_first_line():
     )
     assert "1|a" in result
     assert "\ufeff" not in result
+
+
+def test_format_shows_plain_lines_for_a_crlf_file():
+    lines = ["a\r", "b\r", "c"]
+
+    result = _format(lines)
+
+    assert "\r" not in result
+    assert "1|a\n" in result
+    assert "2|b\n" in result
+    assert result.count("3|c") == 1
+    assert lines == ["a\r", "b\r", "c"]
+
+
+def test_format_shows_plain_lines_for_a_crlf_file_in_view_range():
+    result = _format(["a\r", "b\r", "c\r", "d"], view_range=ViewRange(start=2, end=3))
+
+    assert "\r" not in result
+    assert "2|b\n" in result
+    assert "3|c\n" in result
+
+
+def test_format_removes_only_the_carriage_return_that_ends_a_line():
+    assert "1|a\rb\n" in _format(["a\rb\r", "c"])
+
+
+def test_format_clamps_a_crlf_line_by_its_text_without_the_carriage_return():
+    result = _format(["x" * 10 + "\r", "y"], max_line_length=10)
+
+    assert "truncated" not in result
+    assert f"1|{'x' * 10}\n" in result
