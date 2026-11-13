@@ -1,5 +1,7 @@
 """Unit tests for HyperConsolidator: session distillation, rule persistence, working-memory purity guard."""
 
+from typing import cast
+
 import pytest
 
 from myrm_agent_harness.toolkits.memory.consolidation import (
@@ -8,11 +10,14 @@ from myrm_agent_harness.toolkits.memory.consolidation import (
     HyperConsolidator,
     TaskSessionSnapshot,
 )
+from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.relational.sqlite_store import (
     SQLiteRelationalStore,
 )
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
+    EpisodicMemory,
+    MemoryStatus,
     MemoryType,
     ProceduralMemory,
     RuleSource,
@@ -25,7 +30,7 @@ def test_task_digest_memory_schema() -> None:
     digest = TaskDigestMemory(
         id="digest-test-1",
         task_goal="Build benchmark system",
-        status="completed",
+        outcome="completed",
         completed_steps=["Design", "Implement", "Benchmark"],
         artifact_paths=["/tmp/benchmark.py"],
         artifact_hashes={"/tmp/benchmark.py": "abc123hash"},
@@ -36,7 +41,8 @@ def test_task_digest_memory_schema() -> None:
     )
 
     assert digest.memory_type == MemoryType.TASK_DIGEST
-    assert digest.status == "completed"
+    assert digest.outcome == "completed"
+    assert digest.status == MemoryStatus.ACTIVE
     assert len(digest.completed_steps) == 3
     assert isinstance(digest, AnyMemory)
 
@@ -73,7 +79,37 @@ async def test_hyper_consolidator_status_normalization() -> None:
         snapshot=snapshot,
     )
     assert digest is not None
-    assert digest.status == "completed"
+    assert digest.outcome == "completed"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("terminal_status", ["completed", "interrupted", "failed"])
+async def test_hyper_consolidator_keeps_the_outcome_apart_from_the_lifecycle_status(terminal_status: str) -> None:
+    """The snapshot's terminal status is the digest's outcome; the episodic mirror stores it as metadata ``status``."""
+    stored: list[EpisodicMemory] = []
+
+    class MirrorManager:
+        async def store(self, memory: EpisodicMemory) -> None:
+            stored.append(memory)
+
+    snapshot = TaskSessionSnapshot(
+        goal="Wrap up",
+        active_turn=2,
+        status=terminal_status,
+        subtasks=[ConsolidationSubtask(title="Step", completed=True)],
+    )
+    consolidator = HyperConsolidator(memory_manager=cast("MemoryManager", MirrorManager()))
+    digest, _ = await consolidator.consolidate_session(
+        messages=[{"role": "user", "content": "go"}],
+        chat_id="chat-outcome",
+        snapshot=snapshot,
+    )
+
+    assert digest is not None
+    assert digest.outcome == terminal_status
+    assert digest.status == MemoryStatus.ACTIVE
+    assert [memory.metadata["status"] for memory in stored] == [terminal_status]
+    assert f"Status: {terminal_status}" in digest.content
 
 
 @pytest.mark.asyncio
@@ -104,7 +140,7 @@ async def test_hyper_consolidator_store_batch_path() -> None:
         async def store(self, memory: object) -> None:
             stored.append(memory)
 
-    consolidator = HyperConsolidator(memory_manager=BatchManager())  # type: ignore[arg-type]
+    consolidator = HyperConsolidator(memory_manager=cast("MemoryManager", BatchManager()))
     digest, rules = await consolidator.consolidate_session(
         messages=[{"role": "user", "content": "go"}],
         chat_id="chat-batch",
@@ -179,7 +215,7 @@ async def test_hyper_consolidator_persists_to_real_sqlite(tmp_path: object) -> N
         ],
     )
     manager = RealDbManager()
-    consolidator = HyperConsolidator(memory_manager=manager)  # type: ignore[arg-type]
+    consolidator = HyperConsolidator(memory_manager=cast("MemoryManager", manager))
     digest, rules = await consolidator.consolidate_session(
         messages=[{"role": "user", "content": "backup"}],
         chat_id="chat-e2e",
@@ -227,7 +263,7 @@ async def test_hyper_consolidator_distillation_and_procedural_rules() -> None:
     )
 
     assert digest is not None
-    assert digest.status == "completed"
+    assert digest.outcome == "completed"
     assert digest.task_goal == "Audit security headers and configure Content-Security-Policy"
     assert len(digest.completed_steps) == 3
     assert "csp_sha: sha256-abcdef123456" in digest.key_findings
@@ -261,22 +297,22 @@ async def test_hyper_consolidator_persistence_with_memory_manager() -> None:
         ],
     )
 
-    stored_rules = []
-    stored_episodics = []
+    stored_rules: list[ProceduralMemory] = []
+    stored_episodics: list[EpisodicMemory] = []
 
     class FakeRelational:
-        async def create_rule(self, rule: object) -> None:
+        async def create_rule(self, rule: ProceduralMemory) -> None:
             stored_rules.append(rule)
 
     class FakeMemoryManager:
         def __init__(self) -> None:
             self._relational = FakeRelational()
 
-        async def store(self, memory: object) -> None:
+        async def store(self, memory: EpisodicMemory) -> None:
             stored_episodics.append(memory)
 
     manager = FakeMemoryManager()
-    consolidator = HyperConsolidator(memory_manager=manager)  # type: ignore[arg-type]
+    consolidator = HyperConsolidator(memory_manager=cast("MemoryManager", manager))
 
     digest, rules = await consolidator.consolidate_session(
         messages=[{"role": "user", "content": "Setup Redis Sentinel"}],
@@ -293,7 +329,6 @@ async def test_hyper_consolidator_persistence_with_memory_manager() -> None:
     assert len(stored_episodics) == 1
     assert stored_episodics[0].metadata["event_type"] == "task_digest"
     assert stored_episodics[0].metadata["task_goal"] == "Configure production Redis Sentinel"
-
 
 
 @pytest.mark.asyncio

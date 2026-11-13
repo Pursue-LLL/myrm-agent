@@ -349,7 +349,7 @@ class TaskDigestMemory(BaseMemory):
     content: str = Field(default="", description="Serialized summary or digest content")
     memory_type: Literal[MemoryType.TASK_DIGEST] = MemoryType.TASK_DIGEST
     task_goal: str = Field(..., description="Original high-level objective of the task session")
-    status: Literal["completed", "interrupted", "failed"] = Field(
+    outcome: Literal["completed", "interrupted", "failed"] = Field(
         default="completed", description="Final execution state of the task"
     )
     completed_steps: list[str] = Field(default_factory=list, description="Ordered summary of completed subtasks")
@@ -366,4 +366,4 @@ class TaskDigestMemory(BaseMemory):
         """Ensure content field has informative human-readable text."""
         if not self.content:
             steps_preview = "; ".join(self.completed_steps[:3]) if self.completed_steps else "none"
-            self.content = f"Task Goal: {self.task_goal} | Status: {self.status} | Steps: {steps_preview}"
+            self.content = f"Task Goal: {self.task_goal} | Status: {self.outcome} | Steps: {steps_preview}"
