@@ -2,7 +2,7 @@
 
 当单个工具结果超过阈值时：
 1. 将完整输出持久化到工作区文件（crash-safe，保留完整内容）
-2. 截断并生成智能预览（结构化内容提取 / LLM 摘要）
+2. 截断并生成智能预览（grep/glob 行列表保留首尾真实行 / 结构化内容提取 / LLM 摘要）
 3. 在预览后附加文件路径引用，Agent 可通过 file_read_tool 按需读取
 
 与 bash _output_eviction 的关系：
@@ -20,7 +20,7 @@
 - FilterProcessor: oversized ToolMessage filter; retention path uses structure trim instead of LLM summary
 
 [POS]
-Pipeline filter stage. Persists large tool output to disk, then applies LLM summary or deterministic retain trim based on compression_intent signals.
+Pipeline filter stage. Persists large tool output to disk, then applies a row sample (grep/glob listings), a structural outline, an LLM summary, or a deterministic retain trim based on compression_intent signals.
 """
 
 from langchain_core.language_models import BaseChatModel
@@ -73,7 +73,7 @@ class FilterProcessor(BaseProcessor):
 
     当单个工具结果超过阈值时：
     1. 持久化完整输出到磁盘（atomic_write, crash-safe）
-    2. 生成内容描述（结构化数据用代码提取，非结构化用 LLM）
+    2. 生成内容描述（grep/glob 行列表保留首尾真实行，结构化数据用代码提取，非结构化用 LLM）
     3. 替换消息内容为截断预览 + 文件路径引用
 
     支持工具保护：某些关键工具的输出不会被过滤。
@@ -205,6 +205,7 @@ class FilterProcessor(BaseProcessor):
             file_path=saved_path or "",
             user_query=user_query,
             llm=filter_llm,
+            tool_name=msg.name,
         )
         msg.content = format_filtered_message(result, saved_path=saved_path)
         return result.estimated_tokens, False

@@ -1,6 +1,7 @@
 """Filters module.
 
 提供任务感知的混合过滤策略：
+- RowSampleFilter: 行列表过滤器（grep/glob 结果，原样保留首尾行）
 - StructuralFilter: 结构化数据过滤器（JSON/XML/代码/CSV/YAML/日志）
 - SemanticFilter: 语义过滤器（HTML/Markdown/纯文本）
 
@@ -21,6 +22,7 @@ from .base import (
     detect_content_type,
     generate_smart_read_suggestions,
 )
+from .row_sample_filter import RowSampleFilter
 from .semantic_filter import SemanticFilter
 from .structural_filter import StructuralFilter
 
@@ -33,6 +35,7 @@ __all__ = [
     "ContentType",
     "FilterContext",
     "FilterResult",
+    "RowSampleFilter",
     "SemanticFilter",
     # 过滤器实现
     "StructuralFilter",
