@@ -1,10 +1,10 @@
 """Read dev stack epoch written by scripts/dev (parallel Agent drift detection).
 
 [INPUT]
-- `~/.local/state/myrm-dev/stack-epoch.json` (override: `MYRM_STACK_EPOCH_FILE`)
+- `MYRM_STACK_EPOCH_FILE`: path of the epoch file; exported by the dev launchers, unset elsewhere
 
 [OUTPUT]
-- `StackEpochPayload` / `read_stack_epoch()` for `/api/v1/health`（含 `source_fingerprint`）
+- `StackEpochPayload` / `read_stack_epoch()` for `/api/v1/health`（含 `source_fingerprint`）；变量未设置时为 None
 
 [POS]
 Dev-only backend generation SSOT; shell bumps on restart, API exposes for Agent drift checks.
@@ -26,31 +26,16 @@ class StackEpochPayload(TypedDict):
     source_fingerprint: str
 
 
-def _real_home() -> Path:
-    override = os.environ.get("MYRM_REAL_HOME", "").strip()
-    if override:
-        return Path(override).resolve()
-    try:
-        import pwd
-
-        return Path(pwd.getpwuid(os.getuid()).pw_dir)
-    except (ImportError, KeyError, OSError):
-        return Path.home()
-
-
-def _stack_epoch_file() -> Path:
-    override = os.getenv("MYRM_STACK_EPOCH_FILE", "").strip()
-    if override:
-        return Path(override)
-    real_path = _real_home() / ".local/state/myrm-dev/stack-epoch.json"
-    if real_path.is_file():
-        return real_path
-    return Path.home() / ".local/state/myrm-dev/stack-epoch.json"
-
-
 def read_stack_epoch() -> StackEpochPayload | None:
-    """Load stack epoch snapshot if the dev supervisor wrote one."""
-    path = _stack_epoch_file()
+    """Load the stack epoch snapshot the dev supervisor points this backend at.
+
+    Only the explicit ``MYRM_STACK_EPOCH_FILE`` counts: a backend the supervisor did not launch (the packaged
+    client, a stray ``run.py``) must not adopt the epoch of whichever dev stack shares the user's home.
+    """
+    override = os.getenv("MYRM_STACK_EPOCH_FILE", "").strip()
+    if not override:
+        return None
+    path = Path(override)
     if not path.is_file():
         return None
     try:

@@ -9,7 +9,7 @@
 
 [POS]
 FAQ 拦截器装配入口。Embedding 配置一律来自 WebUI 设置（DB），与 Memory / Curator / Cron
-等服务走同一条 `load_platform_retrieval_configs` 通道（该通道自带短 TTL 缓存，保存配置时立即失效）；
+等服务走同一条 `load_platform_retrieval_configs` 通道（该通道每次直接读取检索设置，保存后立即生效）；
 未配置时返回 None，调用方按“无 FAQ 拦截”继续正常 Agent 执行。拦截器按 embedding 配置（模型 / 密钥 / 地址，
 与 harness 的 embedding 服务缓存同一个键）缓存：每次调用都比对当前配置，配置一变就用新配置重建，
 所以无论经由哪条保存路径（单项 PUT 或 UI 使用的批量同步）改了配置，都不需要任何重置钩子。

@@ -23,14 +23,13 @@ import secrets
 import string
 from collections.abc import AsyncIterator
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.core.memory.adapters import setup as memory_setup
-from tests.support.memory_http_stack import MemoryHttpStack, memory_http_stack, retrieval_settings
+from tests.support.memory_http_stack import MemoryHttpStack, memory_http_stack, settings_entries
 
 pytestmark = pytest.mark.integration
 
@@ -127,8 +126,8 @@ async def test_a_configured_embedding_still_reaches_the_manager(
 ) -> None:
     """Making embedding optional must not drop it when the user did configure one."""
     monkeypatch.setattr(
-        "app.core.channel_bridge.config_loader.load_user_configs",
-        AsyncMock(return_value=retrieval_settings(embedding=True)),
+        "app.core.channel_bridge.config_loader.load_user_config_entry",
+        settings_entries(embedding=True),
     )
     created: list[EmbeddingConfig | None] = []
 

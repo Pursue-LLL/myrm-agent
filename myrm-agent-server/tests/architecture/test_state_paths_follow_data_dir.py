@@ -39,10 +39,6 @@ _ALLOWED: dict[str, str] = {
         "the settings field that reads MYRM_DATA_DIR through its alias: the literal is its documented default, "
         "pinned by test_data_dir_contract"
     ),
-    "app/server/stack_epoch.py": (
-        "developer supervisor state under the login home (~/.local/state/myrm-dev), not product data; "
-        "it is deliberately read from the real user home"
-    ),
 }
 
 
