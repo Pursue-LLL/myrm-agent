@@ -15,7 +15,7 @@ File operations tool module.
 | file_write_tool.py | Core | File write tool. Creates new files; rejects empty/whitespace-only content; auto File ID resolution (@file_001) | ✅ |
 | revert_service.py | Core | File revert service — undo AI file changes; surfaces revertible/skip_reason; skips non-revertible snapshots and non-UTF-8 files on revert. | ✅ |
 | validators/ | Submodule | Pre/post write validators including vault markdown FM guard and Office text-write warnings. | ✅ |
-| streaming.py | Core | File streaming reader. Adaptive large-file handling to prevent OOM with configurable StreamingConfig; `read_file_chunked(max_chars=)` stops one character past the cap so a caller can tell the file goes on. | ✅ |
+| streaming.py | Core | File streaming reader. Two readers behind `stream` / `preview` mode: `read_file_chunked(max_chars=)` reads in chunks and stops exactly one character past the cap so a caller can tell the file goes on; `read_file_preview` returns the first lines plus a hint to read on. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|
