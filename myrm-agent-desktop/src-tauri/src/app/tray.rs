@@ -10,11 +10,12 @@
 //! - update_native_tray_status: Rust 侧托盘 error/idle 状态（watchdog、启动失败）
 //!
 //! [POS]
-//! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。
+//! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。托盘图标是模板图标，macOS 按菜单栏
+//! 深浅自动着色；换图一律经 `apply_tray_icon`，否则模板属性会丢失。
 
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
 
 static ENGINE_VER_ITEM: std::sync::Mutex<Option<MenuItem<tauri::Wry>>> =
@@ -67,6 +68,13 @@ pub fn load_tray_icon_for_status(
         ))?),
         _ => load_tray_icon(),
     }
+}
+
+/// 换图并保持模板属性。底层 `set_icon` 会把 macOS 的模板标志重置为否，图标随即按原始像素
+/// （纯黑）显示，在深色菜单栏上看不清；`set_icon_as_template` 在其他平台上无操作。
+fn apply_tray_icon(tray: &TrayIcon, icon: Image<'_>) -> tauri::Result<()> {
+    tray.set_icon(Some(icon))?;
+    tray.set_icon_as_template(true)
 }
 
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -200,7 +208,7 @@ pub fn set_tray_status(
             .map_err(|e| format!("Failed to set tray tooltip: {e}"))?;
 
         if let Ok(icon) = load_tray_icon_for_status(&status) {
-            let _ = tray.set_icon(Some(icon));
+            let _ = apply_tray_icon(&tray, icon);
         }
     }
     Ok(())
@@ -223,6 +231,6 @@ pub fn update_native_tray_status(app: &AppHandle, status: &str, tooltip: &str) {
     let _ = tray.set_tooltip(Some(tooltip));
 
     if let Ok(icon) = load_tray_icon_for_status(status) {
-        let _ = tray.set_icon(Some(icon));
+        let _ = apply_tray_icon(&tray, icon);
     }
 }
