@@ -64,7 +64,6 @@ from myrm_agent_harness.agent.middlewares.subagent_limit_middleware import (
     subagent_limit_middleware,
 )
 from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
-    notify_loop_guard_compaction,
     reset_loop_guard,
     tool_interceptor_middleware,
 )
@@ -94,7 +93,6 @@ __all__ = [
     "get_max_consecutive_replan_errors",
     "get_replan_error_summary",
     "is_unrecoverable_fatal_error",
-    "notify_loop_guard_compaction",
     "progress_middleware",
     "reset_completion_guard",
     "reset_loop_guard",

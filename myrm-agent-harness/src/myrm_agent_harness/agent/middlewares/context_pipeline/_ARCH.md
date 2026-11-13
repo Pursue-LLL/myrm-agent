@@ -18,4 +18,3 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](../MIDDLEWARE_SYSTEM.md)
 ## Key Dependencies
 
 - `agent.context_management` — context pipeline processors
-- `agent.middlewares.tooling.tool_interceptor_middleware` — LoopGuard accessor

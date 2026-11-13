@@ -1,8 +1,8 @@
 """Post-compaction active file reread processor.
 
 After compaction (Compress/SessionNotes/Summarize), the model loses byte-level
-visibility of file contents it was previously working on.  The integrity guard
-forces re-reads before edits, but this costs 1-5 tool-call round-trips.
+visibility of file contents it was previously working on, so its next edit
+would need a re-read first, which costs 1-5 tool-call round-trips.
 
 This processor reads the top-N recently modified/created files from
 ArtifactTracker and injects their content as a HumanMessage *after* the
@@ -51,7 +51,6 @@ _MAX_BUDGET_TOKENS = 50_000
 _BUDGET_RATIO = 0.25
 _MIN_BUDGET_TOKENS = 5_000
 _SINGLE_FILE_BUDGET_RATIO = 0.40
-_METADATA_KEY = "post_compaction_reread_files"
 
 
 class PostCompactionRereadProcessor(BaseProcessor):
@@ -128,8 +127,6 @@ class PostCompactionRereadProcessor(BaseProcessor):
         reread_msg = HumanMessage(content=injection)
         context.messages.append(reread_msg)
 
-        context.metadata[_METADATA_KEY] = reread_paths
-
         logger.info(
             "[PostCompactionReread] Injected %d files (~%d tokens): %s",
             len(reread_paths),
@@ -169,8 +166,8 @@ def _select_recent_files(
 
 def _compute_budget(context: ProcessorContext) -> int:
     """Compute the token budget for reread injection."""
-    max_tokens = int(context.metadata.get("max_context_tokens", 0) or 0)
-    if max_tokens <= 0:
+    max_tokens = context.metadata.get("max_context_tokens")
+    if not isinstance(max_tokens, int) or max_tokens <= 0:
         return _MAX_BUDGET_TOKENS
 
     current_tokens = 0

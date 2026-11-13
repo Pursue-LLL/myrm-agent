@@ -1,4 +1,4 @@
-"""Edge-path tests for tool interceptor middleware (compaction, clarification, cancellation)."""
+"""Edge-path tests for tool interceptor middleware (clarification, cancellation, failure metadata)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware im
     _get_tool_args,
     _loop_kind_from_exception,
     _tool_interceptor_middleware_inner,
-    notify_loop_guard_compaction,
 )
 from myrm_agent_harness.core.security.types import ToolClarificationError
 
@@ -26,60 +25,6 @@ def _request() -> MagicMock:
 
 async def _noop_handler(_req: object) -> ToolMessage:
     raise AssertionError("handler must not run; execute_with_retry is mocked")
-
-
-class TestNotifyLoopGuardCompaction:
-    def test_contextvar_has_guard(self) -> None:
-        guard = MagicMock()
-        guard._metrics.total_calls = 5
-        with (
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware._loop_guard_var"
-            ) as mock_var,
-            patch("myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.logger"),
-        ):
-            mock_var.get.return_value = guard
-            notify_loop_guard_compaction()
-        guard.notify_compaction.assert_called_once()
-
-    def test_contextvar_none_falls_back_to_session(self) -> None:
-        guard = MagicMock()
-        guard._metrics.total_calls = 0
-        with (
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware._loop_guard_var"
-            ) as mock_var,
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware._get_session_loop_guard",
-                return_value=guard,
-            ) as mock_session,
-        ):
-            mock_var.get.return_value = None
-            notify_loop_guard_compaction()
-        mock_session.assert_called_once()
-        guard.notify_compaction.assert_called_once()
-
-    def test_no_guard_returns(self) -> None:
-        with (
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware._loop_guard_var"
-            ) as mock_var,
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware._get_session_loop_guard",
-                return_value=None,
-            ),
-        ):
-            mock_var.get.return_value = None
-            notify_loop_guard_compaction()
-
-    def test_lookup_error_returns(self) -> None:
-        with (
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware._loop_guard_var"
-            ) as mock_var,
-        ):
-            mock_var.get.side_effect = LookupError
-            notify_loop_guard_compaction()
 
 
 class TestExtractFailureMetadata:
@@ -391,16 +336,3 @@ async def test_inner_cancelled_error_handled() -> None:
         res = await _tool_interceptor_middleware_inner(_request(), _handler)
         assert "user_cancelled" in res.content
         mock_handle.assert_called_once()
-
-
-@patch("myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.logger")
-def test_notify_compaction_logs_when_previous_calls(mock_logger: MagicMock) -> None:
-    guard = MagicMock()
-    guard._metrics.total_calls = 7
-    with (
-        patch("myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware._loop_guard_var") as mock_var,
-    ):
-        mock_var.get.return_value = guard
-        notify_loop_guard_compaction()
-    guard.notify_compaction.assert_called_once()
-    mock_logger.debug.assert_called_once()

@@ -406,38 +406,6 @@ def create_context_pipeline_middleware(
             if result.tokens_saved > 0 or result.messages is not messages:
                 request = request.override(messages=cast(list[AnyMessage], result.messages))
 
-                # Reset read-before-edit gate when context is compressed/summarized,
-                # because the model no longer has byte-level visibility of previously
-                # read file contents — it must re-read before editing.
-                if result.tokens_saved > 0:
-                    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard import (
-                        _integrity_guards,
-                    )
-
-                    for guard in _integrity_guards.values():
-                        guard.clear()
-
-                    # Re-register files that PostCompactionRereadProcessor injected
-                    # so the integrity guard knows these files were freshly read.
-                    reread = result.metadata.get("post_compaction_reread_files")
-                    reread_paths = (
-                        [path for path in reread if isinstance(path, str)] if isinstance(reread, list) else []
-                    )
-                    if reread_paths:
-                        for guard in _integrity_guards.values():
-                            for path in reread_paths:
-                                try:
-                                    with open(path, encoding="utf-8", errors="replace") as f:
-                                        guard.record_read(path, f.read())
-                                except Exception:
-                                    pass
-
-                    from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
-                        notify_loop_guard_compaction,
-                    )
-
-                    notify_loop_guard_compaction()
-
             detector = get_cache_break_detector()
             if detector is not None:
                 detector.record_prompt_state(

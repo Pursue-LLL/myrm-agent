@@ -30,7 +30,6 @@ from myrm_agent_harness.agent.middlewares.context_pipeline.context_pipeline_midd
     create_context_pipeline_middleware,
 )
 
-
 # The helpers moved into ``context_pipeline_helpers``; keep the historical private
 # names in this module's test scope so the cases below keep documenting the contract.
 _count_tool_calls = count_tool_calls
@@ -277,19 +276,10 @@ class TestAwrapModelCall:
         middleware = create_context_pipeline_middleware(llm=llm, pipeline=pipeline)
         request = _request(llm)
         handler = AsyncMock(return_value=ModelResponse(result=[]))
-        with (
-            patch(
-                "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
-                new_callable=AsyncMock,
-            ) as mock_dispatch,
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard._integrity_guards",
-                {},
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.notify_loop_guard_compaction",
-            ),
-        ):
+        with patch(
+            "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+            new_callable=AsyncMock,
+        ) as mock_dispatch:
             await middleware.awrap_model_call(request, handler)
         assert mock_dispatch.await_count >= 1
         handler.assert_awaited_once()

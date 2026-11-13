@@ -197,9 +197,6 @@ class FileIntegrityGuard:
     def clear_agent(self, agent_id: str) -> None:
         self._agent_read_hashes.pop(agent_id, None)
 
-    def clear(self) -> None:
-        self._agent_read_hashes.clear()
-
 
 _integrity_guards: dict[int, FileIntegrityGuard] = {}
 

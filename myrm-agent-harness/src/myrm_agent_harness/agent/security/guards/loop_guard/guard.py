@@ -470,23 +470,3 @@ class LoopGuard(LoopDetectorMixin):
         self._sandbox_boundary_flag = False
         if not preserve_error_signatures:
             self._error_signatures.clear()
-
-    def notify_compaction(self) -> None:
-        """Restart per-context state after context compaction.
-
-        Context compaction discards older messages, effectively giving the
-        agent a fresh working context: the call window, output history and
-        call count start over.  The rounds used keep counting, because
-        compaction does not refill the graph's step limit that the budget
-        nudges count down to.  Error signatures are preserved so that
-        recurring failures are still tracked across compaction boundaries.
-        """
-        self._window.clear()
-        self._metrics.total_calls = 0
-        self._output_history.clear()
-        self._last_recorded_call_index = -1
-        self._last_warning_tool = None
-        self._last_warning_args_hash = None
-        self._pending_follow_check = False
-        self._last_suggestion_key = None
-        self._last_detection_kind = None
