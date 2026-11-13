@@ -1,5 +1,5 @@
 """
-@input: 依赖 gc_policy 的「启动期暂停循环 GC」、health_check 的「启动健康检查」，依赖 uvicorn 外部库
+@input: 依赖 gc_policy 的「启动期暂停循环 GC」、health_check 的「启动健康检查」、config.env 的调试开关、config.deploy_mode 的运行方式判断、core.infra.frontend_launcher 的 WebUI 前端启动（FrontendLauncher）、services.webui 的二维码与一次性设置令牌、app.main 的 ASGI 应用、harness 的本机局域网地址（get_local_ip），依赖 uvicorn 外部库
 @output: 对外提供 uvicorn 单进程启动（含 WebUI 模式、QR 码、浏览器自动打开）
 @pos: uvicorn 服务器启动器 —— 默认启动模式
 

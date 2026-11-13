@@ -30,7 +30,7 @@ gc_policy.py ──→ gc, asyncio (标准库)；被 uvicorn_runner（defer）�
 config_check.py ──→ app.config.* (配置层)
 health_check.py ──→ app.core.infra.health (基础设施)
 server_lock.py ──→ filelock, psutil (主依赖；缺包提示 uv sync)
-uvicorn_runner.py ──→ gc_policy, health_check, uvicorn (外部)
+uvicorn_runner.py ──→ gc_policy, health_check, app.config (env / deploy_mode), app.core.infra.frontend_launcher, app.services.webui (qrcode / temp_token), app.main (ASGI 应用), harness get_local_ip, uvicorn (外部)
 granian_runner.py ──→ health_check, granian (sandbox 组：uv sync --group sandbox)
 listen_address.py ──→ app.config.settings / deploy_mode, app.server.runtime_dev_info；被 app/main.py 的脚本入口消费
 local_search_bootstrap.py ──→ docker compose search profile (best-effort, 非阻塞)
