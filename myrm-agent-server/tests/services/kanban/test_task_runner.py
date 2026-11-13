@@ -42,7 +42,10 @@ async def test_kanban_task_runner_uses_unattended_mode():
             "app.services.kanban.task_runner.runner.build_task_context",
             new_callable=AsyncMock,
         ) as mock_build_context,
-        patch.object(runner, "_resolve_profile", new_callable=AsyncMock) as mock_resolve_profile,
+        patch(
+            "app.services.kanban.task_runner.runner.resolve_agent_profile",
+            new_callable=AsyncMock,
+        ) as mock_resolve_profile,
         patch(
             "app.core.channel_bridge.config_loader.load_user_configs",
             new_callable=AsyncMock,
@@ -793,7 +796,10 @@ class TestKanbanEnableMemory:
                 "app.services.kanban.task_runner.runner.build_task_context",
                 new_callable=AsyncMock,
             ) as mock_build_context,
-            patch.object(runner, "_resolve_profile", new_callable=AsyncMock) as mock_resolve_profile,
+            patch(
+                "app.services.kanban.task_runner.runner.resolve_agent_profile",
+                new_callable=AsyncMock,
+            ) as mock_resolve_profile,
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,

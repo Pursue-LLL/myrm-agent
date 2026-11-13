@@ -17,3 +17,8 @@ KanbanTaskRunner 执行域。`runner.py` 为编排入口（agent 执行期间经
 - **非法分支防御**：`worktree/merge._is_valid_git_branch` 拒绝 `-` 开头/含 git 非法字符的 target 分支名（防 `git checkout` 选项注入），merge 跳过且保留 worktree 供人工处理。
 - **cleanup 保数据**：`worktree/cleanup.cleanup_worktree` 默认 safe 模式——ARCHIVED/FAILED 清理前检测未提交改动，dirty 则保留 worktree 供人工恢复（merge 成功后的清理显式传 `force=True`）。唯一分支删除仅在 merge 成功之后。
 - **merge 失败可观测**：merge 失败（冲突/不可提交/不可用分支/抛错），或在排队时被关机取消而根本没有开始时，经 `worktree_ops.record_merge_failure` 追加 `MERGE_CONFLICT` 事件（payload 含 `conflicts` 文件列表），前端看板活动流可见。
+
+## 运行结果裁决
+
+- **停在审批请求上的运行直接阻塞，不重试**：看板运行无人值守（会话键 `kanban:{task_id}`，不是 `cron:`），工具走到需要审批时流以 `tool_approval_request`（或其它审批中断的 `approval_required`）结束，没有人能回答。这类运行此前被当作失败——协议违规或空回复进入派发器的失败流水线，立即重新排队，最多重试 `max_retries` 次，最后发一条不带原因的失败通知。现在 `agent_run.execute_agent` 把流事件喂进 `runner.run` 持有的 `_StreamAccumulator`，`run` 读它的 `stopped_for_approval`（有审批请求且无运行错误；循环守卫的暂停带 `TOOL_STUCK_ACTION_TYPE`，仍是失败）交给 `outcomes.resolve_run_outcome`：agent 自设的阻塞与完成意图优先，其后返回 HUMAN 阻塞（`APPROVAL_NEEDED_BLOCK_REASON`，由 `dispatcher._handle_blocked` 落库，不计失败次数）；goal 模式与普通模式同一判断。原因句是固定英文（`shared/config/kanban_blocked_reasons.json` 的 `approvalNeeded`，前端译成六种语言），不写工具名等技术细节。用户在安全策略里放行后继续任务。
+- **看板 worker 的强制 YOLO 只是兜底，不盖过用户已保存的安全配置**：`agent_run.execute_agent` 只在用户配置没开 YOLO 时，给 `security_config_raw` 的副本补上 `yolo_mode_enabled`；`stream_pipeline` 每轮经 `sync_wrapper_security_from_store` 重载已保存的 `securityConfig` 并整体替换 `security_config_raw`（只叠加请求自带的 `security_overlay`，看板运行不带），所以已保存过安全配置的用户以保存值为准，运行仍可能走到审批——由上一条的审批停机兜底，不再空转重试。

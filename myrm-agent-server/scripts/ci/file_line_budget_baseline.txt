@@ -103,7 +103,6 @@ app/services/chat/conversation_search_service.py
 app/services/extension/bridge.py
 app/services/extension/cdp_relay/bridge.py
 app/services/hosting/crypto_packager.py
-app/services/kanban/task_runner/runner.py
 app/services/memory/archive/restore/archive_restore.py
 app/services/memory/archive/restore/archive_restore_executor.py
 app/services/memory/diagnostics/diagnostic/diagnostic_recall_benchmark.py

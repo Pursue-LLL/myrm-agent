@@ -12,7 +12,7 @@ tools, memory, security).
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal lifecycle protocol.)
 - myrm_agent_harness.api.hooks::deferral_wait_s (POS: Waitable provider usage-limit window of an LLM error.)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Session-level goal management.)
-- task_runner.stream::build_multimodal_query (POS: Multimodal query assembly.)
+- task_runner.stream::build_multimodal_query, _StreamAccumulator (POS: Multimodal query assembly; the accumulator of a run's stream, which tells whether it stopped for an approval.)
 - task_runner.worktree::resolve_workspace, cleanup_worktree, merge_task_worktree, hold_for_unlanded_parents, hold_for_unusable_workdir (POS: Git worktree isolation and the run-entry gates on parents' failed merges and on a too-broad working folder.)
 - task_runner.profile::resolve_agent_profile (POS: Agent profile resolution.)
 - task_runner.agent_run::execute_agent, KANBAN_CHANNEL (POS: Worker agent build and stream draining for one task.)
@@ -67,6 +67,7 @@ from app.services.kanban.task_runner.profile import (
 )
 from app.services.kanban.task_runner.stream import (
     _classify_content_type,
+    _StreamAccumulator,
     build_multimodal_query,
 )
 from app.services.kanban.task_runner.worktree import (
@@ -123,6 +124,7 @@ class KanbanTaskRunner:
 
         self._register_background_tokens(task)
         t0 = time.monotonic()
+        acc = _StreamAccumulator()
         async with self._workspace_lock(task, workspace_root):
             try:
                 with track_background_agent_run():
@@ -133,13 +135,12 @@ class KanbanTaskRunner:
                             profile,
                             workspace_root,
                             goal_provider=goal_provider,
+                            acc=acc,
                         ),
                         timeout=effective_timeout,
                     )
-                if goal_provider:
-                    mapped = await self._map_goal_outcome(task, goal_provider, result)
-                    return await self._resolve_run_outcome(task.task_id, mapped)
-                return await self._resolve_run_outcome(task.task_id, result)
+                outcome = await self._map_goal_outcome(task, goal_provider, result) if goal_provider else result
+                return await self._resolve_run_outcome(task.task_id, outcome, approval_needed=acc.stopped_for_approval)
             except asyncio.TimeoutError:
                 elapsed = time.monotonic() - t0
                 logger.warning(
@@ -320,9 +321,6 @@ class KanbanTaskRunner:
             extract_document=self._extract_document_text,
         )
 
-    async def _resolve_profile(self, agent_id: str | None) -> _ResolvedProfile | None:
-        return await resolve_agent_profile(agent_id)
-
     async def _setup_goal_provider(self, task: KanbanTask) -> GoalProvider:
         """Create or resume a GoalProvider for a goal-mode kanban task."""
         from myrm_agent_harness.agent.goals.types import GoalBudget, GoalStatus
@@ -374,8 +372,10 @@ class KanbanTaskRunner:
         self,
         task_id: str,
         agent_result: tuple[bool, str] | TaskExecutionResult,
+        *,
+        approval_needed: bool = False,
     ) -> tuple[bool, str] | TaskExecutionResult:
-        return await resolve_run_outcome(self._store, task_id, agent_result)
+        return await resolve_run_outcome(self._store, task_id, agent_result, approval_needed=approval_needed)
 
     async def _execute_agent(
         self,
@@ -384,6 +384,8 @@ class KanbanTaskRunner:
         profile: _ResolvedProfile | None,
         workspace_root: str | None = None,
         goal_provider: GoalProvider | None = None,
+        *,
+        acc: _StreamAccumulator,
     ) -> tuple[bool, str]:
         return await execute_agent(
             self._store,
@@ -392,4 +394,5 @@ class KanbanTaskRunner:
             profile,
             workspace_root=workspace_root,
             goal_provider=goal_provider,
+            acc=acc,
         )

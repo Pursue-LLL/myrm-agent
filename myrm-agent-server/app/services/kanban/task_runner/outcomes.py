@@ -6,8 +6,9 @@
 
 [OUTPUT]
 - PROTOCOL_VIOLATION_MSG: Failure text of a run that ended without calling ``kanban_complete``.
+- APPROVAL_NEEDED_BLOCK_REASON: Written to a task whose run stopped on an approval nobody can give while it runs.
 - map_goal_outcome: Maps a goal-mode run's terminal goal status to the kanban result and persists it.
-- resolve_run_outcome: Re-reads the task after a run and applies the completion gate.
+- resolve_run_outcome: Re-reads the task after a run and applies the completion gate and the approval stop.
 
 [POS]
 Interprets the end of one agent run: the goal-mode mapping and the completion gate that decides whether
@@ -32,6 +33,9 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
 PROTOCOL_VIOLATION_MSG = "Protocol violation: agent finished without calling kanban_complete(summary=...)"
+APPROVAL_NEEDED_BLOCK_REASON = (
+    "An action needs approval, but tasks run unattended; allow it in the security policy, then continue"
+)
 
 
 async def map_goal_outcome(
@@ -115,8 +119,14 @@ async def resolve_run_outcome(
     store: KanbanStore,
     task_id: str,
     agent_result: tuple[bool, str] | TaskExecutionResult,
+    *,
+    approval_needed: bool = False,
 ) -> tuple[bool, str] | TaskExecutionResult:
-    """Re-read task state after agent execution to enforce completion gate."""
+    """Re-read task state after agent execution to enforce completion gate.
+
+    ``approval_needed``: the stream ended on an approval request. A task that blocked itself or completed keeps that
+    verdict; otherwise the run is blocked for the user, since a retry would stop at the same request.
+    """
     if isinstance(agent_result, TaskExecutionResult):
         return agent_result
 
@@ -136,6 +146,9 @@ async def resolve_run_outcome(
         if not summary.strip():
             return False, "Protocol violation: kanban_complete summary is empty"
         return True, summary
+
+    if approval_needed:
+        return TaskExecutionResult.blocked(APPROVAL_NEEDED_BLOCK_REASON, block_kind=BlockKind.HUMAN)
 
     if agent_result[0]:
         return False, PROTOCOL_VIOLATION_MSG

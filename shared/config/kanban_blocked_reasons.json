@@ -2,5 +2,6 @@
   "parentMergeFailed": "Merging a dependency's changes failed; resolve it, then continue",
   "usageLimit": "Waiting for the model usage limit to reset; resumes automatically",
   "batchPause": "batch_pause",
-  "workdirTooBroad": "The task's working folder is too broad to work in; choose a more specific folder, then continue"
+  "workdirTooBroad": "The task's working folder is too broad to work in; choose a more specific folder, then continue",
+  "approvalNeeded": "An action needs approval, but tasks run unattended; allow it in the security policy, then continue"
 }

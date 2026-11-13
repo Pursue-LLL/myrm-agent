@@ -3,10 +3,12 @@
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
 - myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
+- myrm_agent_harness.api::AgentEventType (POS: Stream event types)
+- app.services.agent.approval_payload::is_tool_stuck_pause (POS: Tells a loop guard pause from an approval)
 - app.core.storage.files_service (POS: 文件存储 SSOT；附件字节读取 via get_content)
 
 [OUTPUT]
-- _StreamAccumulator: Accumulates agent stream events (answer text, usage, cost, error) into a final result.
+- _StreamAccumulator: Accumulates agent stream events (answer text, usage, cost, error, approval stop) into a final result.
 - build_multimodal_query: Assembles text or multimodal query from task attachments.
 
 [POS]
@@ -21,9 +23,15 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
+from myrm_agent_harness.api import AgentEventType
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
+from app.services.agent.approval_payload import is_tool_stuck_pause
+
 logger = logging.getLogger(__name__)
+
+# Both end the stream on an interrupt that waits for an answer; a kanban run has nobody to give it.
+_APPROVAL_STOP_EVENTS = frozenset({AgentEventType.TOOL_APPROVAL_REQUEST.value, AgentEventType.APPROVAL_REQUIRED.value})
 
 _IMAGE_EXTENSIONS = frozenset(
     {
@@ -64,6 +72,12 @@ class _StreamAccumulator:
     usage: dict[str, int] | None = None
     cost_usd: float | None = None
     error: str | None = None
+    approval_requested: bool = False
+
+    @property
+    def stopped_for_approval(self) -> bool:
+        """The run ended on an approval request instead of failing: a run error outranks it."""
+        return self.approval_requested and self.error is None
 
     def add(self, event: dict[str, object]) -> None:
         event_type = event.get("type", "")
@@ -87,6 +101,9 @@ class _StreamAccumulator:
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")
             self.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
+        elif event_type in _APPROVAL_STOP_EVENTS and not is_tool_stuck_pause(data):
+            # The loop guard's pause arrives as ``approval_required`` too, but it reports a failure and asks for no approval.
+            self.approval_requested = True
 
     def to_result(self) -> tuple[bool, str]:
         if self.error:

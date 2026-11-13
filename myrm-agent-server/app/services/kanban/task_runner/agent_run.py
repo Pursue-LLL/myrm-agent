@@ -5,7 +5,7 @@
 - app.core.channel_bridge.config_loader::load_user_configs (POS: User provider, retrieval and security configuration.)
 - app.services.agent.tool_mount::ExecutionSurface, resolve_agent_mount (POS: Tool mount of the kanban surface.)
 - app.services.agent.profile.profile_resolver::DEFAULT_ENABLED_BUILTIN_TOOLS, resolve_builtin_tool_flags (POS: Builtin tool defaults and flags.)
-- task_runner.stream::_StreamAccumulator (POS: Stream-event accumulation into a final result.)
+- task_runner.stream::_StreamAccumulator (POS: Stream-event accumulation; owned by the caller, who reads what the stream ended on.)
 
 [OUTPUT]
 - KANBAN_CHANNEL: Channel name every kanban run is attributed to.
@@ -29,7 +29,6 @@ from app.services.agent.profile.profile_resolver import (
     resolve_builtin_tool_flags,
 )
 from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
-from app.services.kanban.task_runner.stream import _StreamAccumulator
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -39,6 +38,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
     from app.services.kanban.task_runner.profile import _ResolvedProfile
+    from app.services.kanban.task_runner.stream import _StreamAccumulator
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +51,14 @@ async def execute_agent(
     context: str | list[dict[str, object]],
     profile: _ResolvedProfile | None,
     *,
+    acc: _StreamAccumulator,
     workspace_root: str | None = None,
     goal_provider: GoalProvider | None = None,
 ) -> tuple[bool, str]:
-    """Build the worker agent for ``task``, stream it to completion and return ``(success, text)``."""
+    """Build the worker agent for ``task``, stream it into ``acc`` and return ``(success, text)``.
+
+    ``acc`` belongs to the caller, who reads from it what the stream ended on (see ``stopped_for_approval``).
+    """
     from app.ai_agents.agents import AgentFactory, GeneralAgentParams
     from app.config.settings import get_settings
     from app.core.channel_bridge.config_loader import load_user_configs
@@ -264,7 +268,6 @@ async def execute_agent(
         providers_dict=user_cfgs.providers_dict,
     ):
         try:
-            acc = _StreamAccumulator()
 
             async def _open_stream(query_input: object) -> AsyncGenerator[dict[str, object], None]:
                 async for event in agent.process_stream(
