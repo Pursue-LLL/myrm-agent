@@ -78,7 +78,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_no_web_corpus_regression.py` | Gate | 已移除的 `web_corpus` / `corpus=web` 不得回归（静态守卫） | — |
 | `test_tool_env_dependency_correlation.py` | Gate | Tool 宿主环境依赖双向映射与探针健康门禁 | — |
 | `test_pytest_warning_gate.py` | Gate | Pytest 零告警容忍（Zero-Warning / filterwarnings = error）CI 门禁 | — |
-| `test_xdist_worker_cap.py` | Gate | `pyproject.toml` addopts 里的 `--maxprocesses` 封顶：进程内用 `pytester.parseconfig` 解析仓库真实 ini，再调用 xdist 自己的 `pytest_cmdline_main` 读出实际要启动的 worker 数（不起子进程，约 0.2 s/项）：显式 `-n N`（N 大于封顶）仍只启动封顶数；显式 `--maxprocesses` 放宽后随之放宽；`-o addopts=` 清空后封顶消失（说明探针对封顶敏感，也记下已知的绕过方式）。xdist 只对 `-n auto|logical` 承诺该选项，封顶显式 `-n N` 是其当前实现行为，所以用运行时探针而不是 grep 配置。每个 worker 是独立 Python 进程，内存随 `-n` 增长（实测一次 `-n 10` 常驻约 12 GiB） | — |
+| `test_xdist_worker_cap.py` | Gate | `pyproject.toml` addopts 里的 `--maxprocesses` 封顶：进程内用 `pytester.parseconfig` 解析仓库真实 ini，再调用 xdist 自己的 `pytest_cmdline_main` 读出实际要启动的 worker 数（不起子进程，约 0.2 s/项）：显式 `-n N`（N 大于封顶）仍只启动封顶数；显式 `--maxprocesses` 放宽后随之放宽；`-o addopts=` 清空后封顶消失（说明探针对封顶敏感，也记下已知的绕过方式）。xdist 只对 `-n auto` 与 `-n logical` 承诺该选项，封顶显式 `-n N` 是其当前实现行为，所以用运行时探针而不是 grep 配置。每个 worker 是独立 Python 进程，内存随 `-n` 增长（实测一次 `-n 10` 常驻约 12 GiB） | — |
 | `test_toolkits_llms_media_layout.py` | Gate | LLM 媒体理解归属 `toolkits/llms/`，禁止顶层平铺 | — |
 | `test_prompt_token_budget_gate.py` | Gate | Turn-1 默认工具集与系统提示词 Token 预算上限与压缩比 CI 门禁 | — |
 | `test_tool_wire_budget_gate.py` | Gate | Turn-1 默认工具集的线上真实 Token 上限：以 `tool_bind_kwargs` 的真实产物（转换并按模型规整后的 function 载荷，含参数 schema）计量，补上描述门禁看不到的参数 schema 一块；除总量外每个工具另有单工具上限（未登记的工具不得超过默认 500，重工具各登记约高出实测 4% 的上限，防止一个工具膨胀被另一个缩小抵消）；另守「默认工具全部绑定成功」（失败会被静默跳过而藏起成本）与「估算器不低估线上」 | — |
