@@ -67,7 +67,7 @@ _TOOL_LAYERS: dict[str, ToolLayer] = {
     # ============================================================
     # CORE - 通用 Agent 基线工具（无条件 Turn1 eager，前端无开关）
     # General 轨道：Web 非 fast、Channel/IM、Cron/Kanban — server tool_mount.resolve_agent_mount
-    # Search/Fast 无 file/bash：仅 Web action_mode=fast — 见 server params/converter.py
+    # Search/Fast（仅 Web action_mode=fast）无 bash 与文件写入类工具，只留只读 file_read_tool — 见 server params/conversion/tool_surface.py
     # ============================================================
     "web_fetch_tool": ToolLayer.CORE,
     "bash_code_execute_tool": ToolLayer.CORE,

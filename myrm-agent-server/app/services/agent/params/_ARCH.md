@@ -69,7 +69,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 ## Search/Fast（Web `action_mode=fast`）
 
-- **唯一无 file/bash 的入口**：`conversion/tool_surface.py` 在 `action_mode=fast` 时 `resolve_agent_mount(WEB_FAST, …)`，设 `prompt_mode=search`，并把 profile 覆盖为 answer_tool-only：skills / MCP / subagents 置空，`max_iterations` 30（deep 50）、`engine_params.max_tool_calls` 8（deep 20），记忆策略重置为默认（已保存的智能体档案里的策略不带入这一轮）。仍挂载 **UECD 只读** `file_read_tool`（`.context/{chat_id}/evicted/` + `_uploaded/`），不挂载 write/edit/glob/grep/bash。媒体生成、外部 Agent、embedding/reranker 由 `converter.py` 在装配阶段按 fast 置空。
+- **唯一不挂 bash 与文件写入类工具的入口**：`conversion/tool_surface.py` 在 `action_mode=fast` 时 `resolve_agent_mount(WEB_FAST, …)`，设 `prompt_mode=search`，并把 profile 覆盖为 answer_tool-only：skills / MCP / subagents 置空，`max_iterations` 30（deep 50）、`engine_params.max_tool_calls` 8（deep 20），记忆策略重置为默认（已保存的智能体档案里的策略不带入这一轮）。仍挂载 **UECD 只读** `file_read_tool`（`.context/{chat_id}/evicted/` + `_uploaded/`），不挂载 write/edit/glob/grep/bash。媒体生成、外部 Agent、embedding/reranker 由 `converter.py` 在装配阶段按 fast 置空。
 - **搜索开关**：`enable_web_search` 取解析结果 `search_cfg is not None`；没有搜索配置时记 warning 并按未启用处理，不会凭空打开搜索。
 - **Normal vs Deep**：共用同一 builtin 开关集，`search_depth=deep` 只追加 `SEARCH_DEEP_SUFFIX` prompt、`tool_setup` 内 SufficiencyConfig 与更高的 `max_tool_calls` / `max_iterations`。
 - **Turn1 工具**：`web_search_tool`、`web_fetch_tool`；`file_read_tool`（UECD 只读，读 evicted spill + `_uploaded/`）；`request_answer_user_tool`（`answer_tool` opt-in，EXTENDED 层）。**不挂载记忆工具**：`ToolSurface.memory_recall_mode=RecallMode.CONTEXT`，用户记忆只通过注入的 `<user_memory_context>` 块到达模型（没有记忆保存/管理/搜索工具，历史会话搜索随之不可用），后台自动抽取不受影响。**不默认 bind browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。

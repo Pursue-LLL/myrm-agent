@@ -72,8 +72,8 @@ class ToolLayer(IntEnum):
 
 #### 2.2.1 CORE 层 (Layer 1) - 核心层
 
-- **特征**: 通用 Agent 基线，Turn1 eager；无产品级工具开关（Fast 模式由 converter 关闭 file/bash；`web_fetch_tool` 另受 Agent Security 能力白名单约束，见下）
-- **工具数量**: **8**（`tool_layers.py:64-71`）
+- **特征**: 通用 Agent 基线，Turn1 eager；无产品级工具开关（Fast 模式由 `resolve_agent_mount(WEB_FAST)` 关闭 bash 与文件写入类工具，只留只读 `file_read_tool`；`web_fetch_tool` 另受 Agent Security 能力白名单约束，见下）
+- **工具数量**: **8**（`tool_layers.py:72-79`）
 - **Token 消耗**: 描述合计 2,582 tokens（8 工具，macOS arm64 实测；见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
 
 | 工具名 | 常驻理由 |
@@ -89,8 +89,8 @@ class ToolLayer(IntEnum):
 
 | 三问 | 判据 | Myrm 现状 | 判定 |
 |------|------|-----------|------|
-| 目录够大吗 | Anthropic：工具 ≥10 个、定义 >10K token、选择准确率下降、聚合 200+ MCP 工具、工具库持续增长，任一成立即可考虑；Claude Code 的 auto 模式在可延迟定义达到上下文窗口 10% 时才启用 | 默认 profile 13 个工具；含 schema 的 Turn-1 工具块：规划口径 10,214（`scripts/measure_tool_schema_tokens.py`，含每工具 65 的 wrapper 估算常数），实际序列化载荷口径约 8.7K（8,693），落在 10K 线两侧；约占 200K 窗口的 4.3%–5.1%（128K 窗口 6.8%–8.0%），未到 10%；web_fetch 自身：规划口径 274，实际序列化载荷 190–474（英文 / 中文 × 有无检索服务：英文无检索 190、中文无检索 195、英文带检索 439、中文带检索 474；默认英文无检索 190；路由提示只在浏览器工具一侧，不计入 web_fetch），约占 200K 窗口的 0.10%–0.24% | 满足可考虑条件 |
-| 是头部还是长尾 | Anthropic：最常用的 3–5 个工具保持非延迟；Hermes 默认延迟清单（`hermes_cli/config_defaults.py`）刻意收录冷门、事件触发型内置工具，web 工具不在其中 | 头部：Fast 搜索的深度流程是 web_search → web_fetch → 答案自审，且 Fast 面不挂 shell 与浏览器（`services/agent/params/converter.py`）；完成守卫把它计为外部证据（`external_evidence.py` 的 `_EXTERNAL_EVIDENCE_TOOLS`）；131 个预置技能中 13 个在 allowed-tools 声明它；`file_read_tool`、`answer_user_tool` 的描述把读网页路由给它 | 头部，不应延迟 |
+| 目录够大吗 | Anthropic：工具 ≥10 个、定义 >10K token、选择准确率下降、聚合 200+ MCP 工具、工具库持续增长，任一成立即可考虑；Claude Code 的 auto 模式在可延迟定义达到上下文窗口 10% 时才启用 | 默认 profile 13 个工具；含 schema 的 Turn-1 工具块：规划口径 9,951（`scripts/measure_tool_schema_tokens.py`，含每工具 65 的 wrapper 估算常数），实际序列化载荷口径约 8.5K（8,457），均低于 10K 线；约占 200K 窗口的 4.2%–5.0%（128K 窗口 6.6%–7.8%），未到 10%；web_fetch 自身：规划口径 274，实际序列化载荷 190–474（英文 / 中文 × 有无检索服务：英文无检索 190、中文无检索 195、英文带检索 439、中文带检索 474；默认英文无检索 190；路由提示只在浏览器工具一侧，不计入 web_fetch），约占 200K 窗口的 0.10%–0.24% | 满足可考虑条件 |
+| 是头部还是长尾 | Anthropic：最常用的 3–5 个工具保持非延迟；Hermes 默认延迟清单（`hermes_cli/config_defaults.py`）刻意收录冷门、事件触发型内置工具，web 工具不在其中 | 头部：Fast 搜索的深度流程是 web_search → web_fetch → 答案自审，且 Fast 面不挂 shell 与浏览器（`services/agent/params/conversion/tool_surface.py`）；完成守卫把它计为外部证据（`external_evidence.py` 的 `_EXTERNAL_EVIDENCE_TOOLS`）；131 个预置技能中 13 个在 allowed-tools 声明它；`file_read_tool`、`answer_user_tool` 的描述把读网页路由给它 | 头部，不应延迟 |
 | 发现机制保缓存、成本摊得薄吗 | Anthropic 原生延迟以 tool_reference 内联追加、前缀不动；tools 位于缓存层级最前，改动会使其后全部缓存失效。Claude Code：不支持的模型与部署回退为首轮全量加载；每次发现多一轮往返，压缩后需重新发现 | 多供应商、无原生机制；框架 11.1 禁止追加非 Turn1 schema（§11.2、`PROMPT_CACHE_PRACTICE.md` §2.1.1）；自建三桥的抓包体量 OpenClaw 525、Hermes 606 token，均大于 web_fetch 本身，只有摊给大量冷门工具才赚 | 不成立，延迟净亏 |
 
 补充依据：
@@ -365,19 +365,19 @@ const staleCoreSkills = useMemo(() => {
 
 ### 6.1 典型场景 Token 预算
 
-证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE 层按 2026-11-13 重测，HIGH_PRIORITY 层按 2026-11-12 重测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-09 重测）
+证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；测量日期见其文首）
 
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
-| 最小场景 | 8 个 | ~5,295 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
-| 典型场景 | 13 个 | ~9,465 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 56 个 | ~18,830（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
+| 最小场景 | 8 个 | ~5,380 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
+| 典型场景 | 13 个 | ~9,550 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
+| 满载场景 | 56 个 | ~18,910（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
 | 组件 | Token | 缓存特性 |
 |------|------:|---------|
-| System Prompt 层 | ~1,861 | `messages[0]` 1,161（跨用户共享缓存）+ widget 能力声明 348 + 跟随用户输入的 canary ≈53 与安全边界 299 |
+| System Prompt 层 | ~1,946 | `messages[0]` 1,173（跨用户共享缓存）+ widget 能力声明 348 + 跟随用户输入的 canary ≈53、安全边界 299 与可访问目录 ≈73 |
 | CORE 工具层 | ~2,582 | 始终缓存 |
 | HIGH_PRIORITY 工具层 | ~2,445 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |

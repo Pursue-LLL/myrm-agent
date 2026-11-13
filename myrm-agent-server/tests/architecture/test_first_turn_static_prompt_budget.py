@@ -5,11 +5,11 @@
 (surface, locale, channel), so their size is pinned here without any model call. The surfaces are the
 general agent and the two search depths (quick and deep).
 
-Every cap is the size measured after the last deliberate prompt change plus 5%. A change that adds text
-must raise the cap in the same PR and say why, so the first turn cannot grow unnoticed.
+Every cap is a fixed ceiling a few percent above the current size. A change that adds text past the ceiling
+must raise it in the same PR and say why, so the first turn cannot grow unnoticed.
 
-Left out on purpose: the session canary and the security boundary rules, which are separate system messages
-behind the user's input, not part of ``messages[0]``.
+Left out on purpose: the session canary, the security boundary rules and the directory-access block, which are
+separate system messages behind the user's input, not part of ``messages[0]``.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from app.ai_agents.agent_middlewares.widget_capability_middleware import WIDGET_
 from app.ai_agents.prompts.general_agent_prompt import SEARCH_DEEP_SUFFIX, SEARCH_DEEP_SUFFIX_ZH, get_core_system_prompt
 
 # o200k_base is the harness planning encoding (the same for every model).
-# Measured per (surface, locale); cap = measured * 1.05 rounded up.
+# One ceiling per (surface, locale), a few percent above the current size.
 _ENCODING_NAME = "o200k_base"
 _STATIC_FIRST_MESSAGE_CAPS: dict[tuple[str, str], int] = {
     ("full", "zh-CN"): 1217,

@@ -12,7 +12,7 @@ def test_fast_mode_builtin_list_excludes_cron_eager() -> None:
 
 
 def test_fast_mode_ignores_agent_cron_in_enabled_list() -> None:
-    """converter.py:841 forces fast_builtin=['answer_tool'] — cron from profile is not used."""
+    """conversion/tool_surface.py forces fast_builtin=['answer_tool'] — cron from profile is not used."""
     agent_tools_with_cron = ["web_search", "memory", "cron"]
     fast_flags = resolve_builtin_tool_flags(["answer_tool"])
     full_flags = resolve_builtin_tool_flags(agent_tools_with_cron)

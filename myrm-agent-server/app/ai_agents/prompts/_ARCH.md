@@ -25,8 +25,8 @@
 
 | Mode | Token 量（`o200k_base`，英 / 中，不含 answer 工具引导；开启后约各 +76 / +82） | 注入内容 | 适用场景 |
 |------|----------|----------|----------|
-| `full` | 600 / 786 | 身份+回复规则（Agent 版）+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | 通用场景（默认） |
-| `search` | 1,122 / 1,832 | 搜索专用提示词（来自 fast_search_agent_prompt.py，含搜索版回复规则，安全边界由 SecurityBoundaryMiddleware 统一注入）| 快速搜索模式 |
+| `full` | 613 / 798 | 身份+回复规则（Agent 版）+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | 通用场景（默认） |
+| `search` | 1,135 / 1,844 | 搜索专用提示词（来自 fast_search_agent_prompt.py，含搜索版回复规则，安全边界由 SecurityBoundaryMiddleware 统一注入）| 快速搜索模式 |
 
 体积门禁：full 档与 harness 拼在它后面的静态块（时间规则、核心行为规则、渠道输出提示）合计，由 `tests/architecture/test_first_turn_static_prompt_budget.py` 按语言封顶；往里加字的改动须在同一 PR 抬高上限并说明理由。
 
