@@ -1,12 +1,15 @@
-// Dev-only: absorb stdout/stderr write errors (nobody reads the log any more), then enforce the shared pause stamp,
-// before other config side effects.
+// Dev-only: absorb stdout/stderr write errors (nobody reads the log any more), then enforce the shared pause stamp and
+// that dev.ts (the memory supervisor) started this server, before other config side effects.
 import { installDevStdioGuard } from './scripts/dev-stdio-guard';
+import { enforceSupervisedDev } from './scripts/dev-supervision-gate';
 import { enforceFrontendDevNotPaused } from './scripts/frontend-dev-pause-gate';
 import { computeLocaleContentVersion } from './scripts/locale-content-version';
 
 if (process.env.NODE_ENV === 'development') {
+  const context = 'next dev (next.config load)';
   installDevStdioGuard();
-  enforceFrontendDevNotPaused({ context: 'next dev (next.config load)' });
+  enforceFrontendDevNotPaused({ context });
+  enforceSupervisedDev({ context });
 }
 
 import path from 'node:path';
@@ -57,7 +60,8 @@ let withSentryConfig: typeof sentryConfigWrapper | null = null;
 
 if (SENTRY_ENABLED) {
   try {
-    const { withSentryConfig: _withSentryConfig } = require('@sentry/nextjs/config') as typeof import('@sentry/nextjs/config');
+    const { withSentryConfig: _withSentryConfig } =
+      require('@sentry/nextjs/config') as typeof import('@sentry/nextjs/config');
     withSentryConfig = _withSentryConfig;
     console.log('[Build] Sentry integration enabled');
   } catch {

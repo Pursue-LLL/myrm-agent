@@ -15,7 +15,8 @@
  * (one pegged core, memory growing without bound). A log line nobody can read is not worth the server,
  * so the errors are absorbed; whether the server should keep running without a reader is left to whoever
  * launched it.
- * Installed from next.config.ts, so it covers a raw `next dev` that no supervisor wraps. Self-contained:
+ * Installed from next.config.ts, which runs inside the Next server process: the supervisor is a separate
+ * process, so a guard on its own streams would never reach the streams that fail. Self-contained:
  * next.config.ts imports it statically and the Docker builder copies only this package.
  */
 import type { EventEmitter } from 'events';

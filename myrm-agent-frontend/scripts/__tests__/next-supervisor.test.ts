@@ -24,6 +24,14 @@ function idleChild(): ChildProcess {
   return child;
 }
 
+/** Ignores SIGTERM and says so on stdout once it does, so a restart of it stays in flight until the test ends it. */
+function stubbornChild(): ChildProcess {
+  const program = "process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000)";
+  const child = spawn(process.execPath, ['-e', program], { stdio: ['ignore', 'pipe', 'ignore'] });
+  alive.add(child);
+  return child;
+}
+
 function scripted(readings: FootprintReading[]): FootprintProbe {
   let index = 0;
   return async () => readings[Math.min(index++, readings.length - 1)];
@@ -46,11 +54,15 @@ interface Harness {
   exits: Array<number | null>;
 }
 
-function supervise(probe: FootprintProbe, breaker = { max: 2, windowMs: 60_000 }) {
+function supervise(
+  probe: FootprintProbe,
+  breaker = { max: 2, windowMs: 60_000 },
+  childKind = { spawn: idleChild, killGraceMs: 2000 },
+) {
   const harness: Harness = { spawned: [], logs: [], respawns: 0, exits: [] };
   const supervisor = superviseNext({
     spawnChild: () => {
-      const child = idleChild();
+      const child = childKind.spawn();
       harness.spawned.push(child);
       return child;
     },
@@ -63,7 +75,7 @@ function supervise(probe: FootprintProbe, breaker = { max: 2, windowMs: 60_000 }
       throw error;
     },
     intervalMs: 10,
-    killGraceMs: 2000,
+    killGraceMs: childKind.killGraceMs,
     breaker,
     log: (message) => harness.logs.push(message),
   });
@@ -137,9 +149,19 @@ describe('superviseNext', () => {
   });
 
   it('does not respawn or report twice when stopped while a restart is in flight', async () => {
-    const { harness, supervisor } = supervise(scripted([EXCEEDED]));
+    // The old child outlives SIGTERM until the test kills it, so the restart is in flight exactly as long as the
+    // test needs; a child that died at once would race the test's own polling, and a starved test process loses.
+    let exceeded = false;
+    const probe: FootprintProbe = async () => (exceeded ? EXCEEDED : OK);
+    const { harness, supervisor } = supervise(probe, undefined, { spawn: stubbornChild, killGraceMs: 60_000 });
+    const [old] = harness.spawned;
+    await new Promise<void>((resolve) => old.stdout?.once('data', () => resolve()));
+    exceeded = true;
     await until(() => harness.logs.some((line) => line.startsWith('FOOTPRINT_RESTART:')), 'restart requested');
+    expect(old.exitCode).toBeNull();
+
     supervisor.stop();
+    old.kill('SIGKILL');
     await until(() => harness.exits.length === 1, 'onExit after stop');
     await new Promise((resolve) => setTimeout(resolve, 100));
 

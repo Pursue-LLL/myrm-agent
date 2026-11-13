@@ -95,10 +95,14 @@ describe('installDevStdioGuard (real processes)', () => {
       });
       ${guarded ? `require(${JSON.stringify(compileGuard())}).installDevStdioGuard();` : ''}
       setInterval(() => fs.writeFileSync(counterFile, JSON.stringify({ handled, writes })), 25);
-      process.stdin.on('data', () => {
-        process.stdout.write('GET / 200\\n');
-        process.stderr.write('slow request\\n');
-        writes += 1;
+      process.stdin.setEncoding('utf8');
+      process.stdin.on('data', (chunk) => {
+        // A starved child finds several requests in one read; each still counts.
+        for (const request of chunk.split('\\n').filter(Boolean)) {
+          process.stdout.write('GET / 200\\n');
+          process.stderr.write('slow request\\n');
+          writes += 1;
+        }
       });
       console.log('ready');
     `;
