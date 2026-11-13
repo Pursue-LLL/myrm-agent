@@ -162,8 +162,6 @@ def resolve_evaluate_budget(
 # S2: single cap root — private credits, mux workers, and bootstrap slots derive here.
 LIVE_SHPOIB_MAX_CONCURRENT: Final[int] = 4
 
-DEFAULT_XDIST_WORKERS: Final[int] = 2
-STRESS_XDIST_WORKERS: Final[int] = 4
 DEFAULT_BOOTSTRAP_SLOTS: Final[int] = LIVE_SHPOIB_MAX_CONCURRENT
 SHARED_BROWSER_WORKERS: Final[int] = LIVE_SHPOIB_MAX_CONCURRENT
 MUX_COLD_ATTACH_SLOTS: Final[int] = SHARED_BROWSER_WORKERS
