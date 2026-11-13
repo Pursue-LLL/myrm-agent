@@ -51,7 +51,6 @@ async def test_delete_pending_by_source_chat_id(store: SQLiteRelationalStore) ->
     for i in range(3):
         record = PendingRecord(
             id=f"pending-{i}",
-            user_id="default",
             memory_type=MemoryType.SEMANTIC,
             content=f"Test content {i}",
             source_chat_id=chat_id,
@@ -60,7 +59,6 @@ async def test_delete_pending_by_source_chat_id(store: SQLiteRelationalStore) ->
 
     other_record = PendingRecord(
         id="pending-other",
-        user_id="default",
         memory_type=MemoryType.SEMANTIC,
         content="Other content",
         source_chat_id="other-chat",
@@ -80,7 +78,6 @@ async def test_count_pending_by_source_chat_id(store: SQLiteRelationalStore) -> 
     for i in range(5):
         record = PendingRecord(
             id=f"count-pending-{i}",
-            user_id="default",
             memory_type=MemoryType.EPISODIC,
             content=f"Count content {i}",
             source_chat_id=chat_id,
@@ -99,7 +96,6 @@ async def test_delete_pending_with_null_source_chat_id(store: SQLiteRelationalSt
     """Records with NULL source_chat_id should NOT be deleted."""
     record = PendingRecord(
         id="pending-null",
-        user_id="default",
         memory_type=MemoryType.SEMANTIC,
         content="No source chat",
         source_chat_id=None,
