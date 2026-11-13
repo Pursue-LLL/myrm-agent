@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.utils import fuzzy_match
+from myrm_agent_harness.utils._fuzzy_strategies import STRATEGIES
 from myrm_agent_harness.utils.fuzzy_match import (
     CONTENT_PRESERVING_MIN_CONFIDENCE,
     fuzzy_find,
@@ -107,9 +107,7 @@ def test_the_floor_keeps_variants_that_differ_only_in_whitespace_or_escapes(cont
 
 def test_the_floor_admits_exactly_the_strategies_that_keep_the_fragments_own_text() -> None:
     """A strategy added to the chain has to be classified on purpose: this set is the decision."""
-    admitted = {
-        name for name, _finder, confidence in fuzzy_match._STRATEGIES if confidence >= CONTENT_PRESERVING_MIN_CONFIDENCE
-    }
+    admitted = {name for name, _finder, confidence in STRATEGIES if confidence >= CONTENT_PRESERVING_MIN_CONFIDENCE}
     assert admitted == {
         "exact",
         "line_trimmed",
