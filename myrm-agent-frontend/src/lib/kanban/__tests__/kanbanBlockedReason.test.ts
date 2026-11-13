@@ -22,6 +22,10 @@ describe('blockedReasonText', () => {
     expect(blockedReasonText(blockedReasons.batchPause, translate)).toBe('translated:blockedReason.batchPause');
   });
 
+  it('shows the interface-language text for a task held because an action needs approval while no one is watching', () => {
+    expect(blockedReasonText(blockedReasons.approvalNeeded, translate)).toBe('translated:blockedReason.approvalNeeded');
+  });
+
   it('returns a reason it does not know exactly as written', () => {
     expect(blockedReasonText('Budget exhausted after 12 turns', translate)).toBe('Budget exhausted after 12 turns');
   });
