@@ -84,6 +84,48 @@ Done."""
         assert md_to_whatsapp(text) == expected
 
 
+class TestHeadings:
+    """A heading becomes one bold line; the bold marks it already holds would nest, which WhatsApp cannot show."""
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("# Plain heading", "*Plain heading*"),
+            ("###### Sixth level", "*Sixth level*"),
+            ("#   Spaced out   ", "*Spaced out*"),
+            ("#\tTabbed", "*Tabbed*"),
+            ("# **Title**", "*Title*"),
+            ("## **Quick Start** guide", "*Quick Start guide*"),
+            ("### __Step 1:__ Install", "*Step 1: Install*"),
+            ("# **a** and **b**", "*a and b*"),
+            ("# See [docs](http://x.y) ~~old~~", "*See docs (http://x.y) ~old~*"),
+            ("# Use `**x**` here", "*Use `**x**` here*"),
+            ("# 5 * 3", "*5 * 3*"),
+            ("# a ** b", "*a ** b*"),
+        ],
+    )
+    def test_heading_becomes_one_bold_line(self, text: str, expected: str) -> None:
+        assert md_to_whatsapp(text) == expected
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "#hashtag",
+            "####### seven levels",
+            "not # a heading",
+            "```md\n## **Title** x\n```",
+            "Issue\n#\ntext",
+            "intro\n#\n\nafter",
+            "# \nbody",
+        ],
+    )
+    def test_text_that_is_no_heading_is_left_alone(self, text: str) -> None:
+        assert md_to_whatsapp(text) == text
+
+    def test_headings_among_other_lines(self) -> None:
+        assert md_to_whatsapp("# T\n\n**bold** text\n## **U** v") == "*T*\n\n*bold* text\n*U v*"
+
+
 class TestCodeComesBackWhole:
     """Code is set aside while the text around it is converted, and put back exactly as it was written."""
 

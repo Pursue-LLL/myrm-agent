@@ -3,6 +3,7 @@
 Converts standard Markdown to WhatsApp-supported formatting:
 - **bold** / __bold__ → *bold*
 - ~~strikethrough~~ → ~strikethrough~
+- # heading → *heading* (a bold line; the bold marks inside it are dropped, WhatsApp cannot nest bold)
 - Preserves code fences (```...```) and inline code (`...`)
 
 [INPUT]
@@ -33,7 +34,8 @@ _INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 _BOLD_DOUBLE_STAR_RE = re.compile(r"\*\*(.+?)\*\*")
 _BOLD_DOUBLE_UNDERSCORE_RE = re.compile(r"__(.+?)__")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
-_HEADER_RE = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
+# Spaces or tabs only: a lone "#" on a line must not take the next line (or the blank lines before it) as its text.
+_HEADER_RE = re.compile(r"^#{1,6}[ \t]+(.+)$", re.MULTILINE)
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
@@ -44,6 +46,7 @@ def md_to_whatsapp(text: str) -> str:
     - **bold** → *bold*
     - __bold__ → *bold*
     - ~~strikethrough~~ → ~strikethrough~
+    - # heading → *heading*, without the bold marks inside it
     - Code fences and inline code are preserved unchanged
 
     Args:
@@ -79,19 +82,19 @@ def md_to_whatsapp(text: str) -> str:
 
     result = _INLINE_CODE_RE.sub(save_inline_code, result)
 
-    # Step 3: Convert formatting markers
+    # Step 3: Convert headers to one bold line. WhatsApp cannot nest bold in bold, so the bold markers inside a header
+    # go before the line is wrapped ("## **Quick Start** guide" is "*Quick Start guide*", not "**Quick Start* guide*")
+    def _header_to_bold(m: re.Match[str]) -> str:
+        inner = _BOLD_DOUBLE_STAR_RE.sub(r"\1", m.group(1))
+        inner = _BOLD_DOUBLE_UNDERSCORE_RE.sub(r"\1", inner)
+        return f"*{inner.strip()}*"
+
+    result = _HEADER_RE.sub(_header_to_bold, result)
+
+    # Step 3b: Convert formatting markers and links to readable format
     result = _BOLD_DOUBLE_STAR_RE.sub(r"*\1*", result)
     result = _BOLD_DOUBLE_UNDERSCORE_RE.sub(r"*\1*", result)
     result = _STRIKE_RE.sub(r"~\1~", result)
-
-    # Step 3b: Convert headers to bold and links to readable format
-    def _header_to_bold(m: re.Match[str]) -> str:
-        inner = m.group(1).strip()
-        while len(inner) > 1 and inner.startswith("*") and inner.endswith("*"):
-            inner = inner[1:-1].strip()
-        return f"*{inner}*"
-
-    result = _HEADER_RE.sub(_header_to_bold, result)
     result = _LINK_RE.sub(r"\1 (\2)", result)
 
     # Step 4: Restore inline code
