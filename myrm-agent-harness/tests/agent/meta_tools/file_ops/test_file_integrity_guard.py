@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gc
+from typing import cast
 from unittest.mock import MagicMock
 
 from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard import (
@@ -10,6 +11,7 @@ from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard impo
     _integrity_guards,
     get_file_integrity_guard,
 )
+from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 
 
 class TestFileIntegrityGuard:
@@ -262,8 +264,8 @@ class TestGetFileIntegrityGuard:
 
     def test_a_new_executor_starts_with_an_empty_guard_whatever_address_it_lands_on(self) -> None:
         for _ in range(50):
-            executor = _ExecutorStub()
-            guard = get_file_integrity_guard(executor)  # type: ignore[arg-type]
+            executor = cast(CodeExecutor, _ExecutorStub())
+            guard = get_file_integrity_guard(executor)
             assert guard is not None
             assert guard.require_read_before_write("/a.py") is not None
             guard.record_read("/a.py", "content")
