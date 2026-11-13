@@ -107,11 +107,14 @@ async def test_unsupported_gateway_skips_allowed_tools_but_execution_blocks(
     request = _FakeRequest()
     middleware = SkillAttenuationMiddleware(ToolRegistry())
 
-    async def _handler(req: _FakeRequest) -> SimpleNamespace:
-        return SimpleNamespace(result=req)
+    handled: list[_FakeRequest] = []
 
-    response = await middleware.awrap_model_call(request, _handler)
-    final_request = response.result
+    async def _handler(req: _FakeRequest) -> SimpleNamespace:
+        handled.append(req)
+        return SimpleNamespace(result=[])
+
+    await middleware.awrap_model_call(request, _handler)
+    final_request = handled[0]
     assert final_request.tool_choice is None
     assert get_turn_allowed_tool_names() == frozenset({"web_search_tool"})
     assert check_trust_attenuation("web_search_tool") is None

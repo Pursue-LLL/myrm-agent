@@ -37,13 +37,15 @@ def build_llm_for(key_prefix: str):
     api_key, base_url, route_model_id, provider = route_config_for(key_prefix)
     from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
+    # A reasoning model's thinking counts toward max_tokens; a budget sized for the answer alone cuts a long think off
+    # with the answer still unwritten (a JSON array ends mid-way and parses to nothing).
     return TransportChatModel(
         model=route_model_id,
         api_key=api_key,
         api_base=base_url,
         custom_llm_provider=provider,
         temperature=0.0,
-        max_tokens=4096,
+        max_tokens=16384,
     )
 
 

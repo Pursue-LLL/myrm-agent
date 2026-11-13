@@ -77,6 +77,7 @@ async def test_generate_article_real_llm(tmp_path, basic_llm) -> None:
     assert len(reproduced) >= 2, f"article should be written from the source text, reproduced only {reproduced}"
 
 
+@pytest.mark.timeout(600)  # one article per concept the model extracts, a few at a time: minutes on a reasoning model
 @pytest.mark.asyncio
 async def test_compile_all_full_pipeline_real_llm(tmp_path, basic_llm) -> None:
     """compile_all drives the full queue -> extract -> generate pipeline with a real LLM."""
@@ -92,7 +93,6 @@ async def test_compile_all_full_pipeline_real_llm(tmp_path, basic_llm) -> None:
         enable_directory_sidecars=False,
         enable_semantic_search=False,
         enable_hybrid_search=False,
-        parallel_compilation=False,
     )
     compiler = WikiCompiler(
         basic_llm,
@@ -102,7 +102,9 @@ async def test_compile_all_full_pipeline_real_llm(tmp_path, basic_llm) -> None:
     )
 
     result = await compiler.compile_all(batch_size=10)
-    assert result.concepts_count > 0, "compile_all should extract concepts from the doc"
+    # A source whose extraction fails is marked failed in the queue instead of raising, so its reason is read there.
+    failed = [(item["error_kind"], item["error_message"]) for item in compiler._queue.get_failed_items()]
+    assert result.concepts_count > 0, f"compile_all should extract concepts from the doc; failed sources: {failed}"
     assert result.articles_generated > 0, "compile_all should generate articles"
     assert result.articles_published + result.articles_pending > 0
 

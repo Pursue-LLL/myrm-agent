@@ -140,6 +140,7 @@ class TestCacheKeepAliveManagerIntegration:
         mgr._last_activity = time.monotonic() - 600
 
         probe_count = 0
+        probed = asyncio.Event()
         original_preheat = preheat_prefix_cache
 
         async def counting_preheat(
@@ -150,6 +151,7 @@ class TestCacheKeepAliveManagerIntegration:
             nonlocal probe_count
             result = await original_preheat(llm_arg, msgs, model)
             probe_count += 1
+            probed.set()
             return result
 
         with (
@@ -167,7 +169,10 @@ class TestCacheKeepAliveManagerIntegration:
             ),
         ):
             task = asyncio.create_task(mgr._loop())
-            await asyncio.sleep(3.0)
+            # A probe is a real round trip (two when the gateway rejects max_tokens=0), so wait for the first
+            # completed probe instead of a fixed window that a slower gateway would overrun.
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(probed.wait(), timeout=30.0)
             mgr.stop()
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
