@@ -8,8 +8,10 @@ permanently delete, empty trash, and count operations through the HTTP layer.
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 
+import aiosqlite
 import httpx
 import pytest
 from httpx import ASGITransport
@@ -244,28 +246,47 @@ async def test_empty_trash_triggers_cascade_for_all(async_client: httpx.AsyncCli
         assert restore_resp.status_code == 404
 
 
-async def _insert_pending_records(chat_id: str, count: int = 3) -> None:
-    """Insert pending_records with source_chat_id into the cascade manager's relational store.
+_QUEUED_CONTENT_PREFIX = "test memory content"
 
-    The approval queue holds one open proposal per memory type and content, so every record's content carries
-    the chat id: the same wording queued for two chats is one proposal, not two.
-    """
+
+async def _approval_queue_connection() -> aiosqlite.Connection:
+    """The cascade manager's relational store, the home of the approval queue (``pending_records``)."""
     from app.core.memory import get_cascade_memory_manager
 
     manager = await get_cascade_memory_manager()
     relational = manager._relational
     assert relational is not None, "Relational store must be available for this test"
-    conn = await relational._get_connection()
+    return await relational._get_connection()
+
+
+@pytest.fixture
+async def queued_proposals() -> AsyncIterator[None]:
+    """Removes the proposals a test queued: the queue outlives the test and later tests read it."""
+    yield
+    conn = await _approval_queue_connection()
+    await conn.execute("DELETE FROM pending_records WHERE content LIKE ?", (f"{_QUEUED_CONTENT_PREFIX} %",))
+    await conn.commit()
+
+
+async def _insert_pending_records(chat_id: str, count: int = 3) -> None:
+    """Insert pending_records with source_chat_id into the cascade manager's relational store.
+
+    The approval queue holds one open proposal per memory type and content, so every record's content carries
+    the chat id: the same wording queued for two chats is one proposal, not two. Tests that call this request
+    ``queued_proposals``, which removes what they queued.
+    """
+    conn = await _approval_queue_connection()
     for i in range(count):
         await conn.execute(
             """INSERT INTO pending_records (id, user_id, memory_type, content, source_chat_id, status, created_at)
                VALUES (?, 'sandbox_user', 'semantic', ?, ?, 'pending', datetime('now'))""",
-            (str(uuid.uuid4()), f"test memory content {chat_id} {i}", chat_id),
+            (str(uuid.uuid4()), f"{_QUEUED_CONTENT_PREFIX} {chat_id} {i}", chat_id),
         )
     await conn.commit()
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("queued_proposals")
 async def test_cascade_info_with_real_pending_records(async_client: httpx.AsyncClient) -> None:
     """cascade-info should count real pending_records linked to the chat."""
     chat_id = str(uuid.uuid4())
@@ -282,6 +303,7 @@ async def test_cascade_info_with_real_pending_records(async_client: httpx.AsyncC
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("queued_proposals")
 async def test_permanently_delete_cascades_real_pending_records(async_client: httpx.AsyncClient) -> None:
     """Permanent deletion should actually remove linked pending_records from relational store."""
     chat_id = str(uuid.uuid4())
@@ -303,6 +325,7 @@ async def test_permanently_delete_cascades_real_pending_records(async_client: ht
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("queued_proposals")
 async def test_cascade_does_not_affect_other_chats(async_client: httpx.AsyncClient) -> None:
     """Cascade deletion for one chat must not delete memories of another chat."""
     chat_a = str(uuid.uuid4())
@@ -324,6 +347,7 @@ async def test_cascade_does_not_affect_other_chats(async_client: httpx.AsyncClie
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("queued_proposals")
 async def test_empty_trash_cascades_real_pending_records(async_client: httpx.AsyncClient) -> None:
     """Empty trash should cascade-delete pending_records for all trashed chats."""
     chat_ids = [str(uuid.uuid4()) for _ in range(3)]
@@ -344,6 +368,7 @@ async def test_empty_trash_cascades_real_pending_records(async_client: httpx.Asy
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("queued_proposals")
 async def test_concurrent_cascade_deletes(async_client: httpx.AsyncClient) -> None:
     """Concurrent permanent deletions should not crash or corrupt each other."""
     import asyncio
