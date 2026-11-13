@@ -34,7 +34,10 @@ def _isolate_test_data_dir() -> None:
     real_dir = (Path.home() / ".myrm").resolve()
     configured = os.environ.get("MYRM_DATA_DIR")
     if not configured or Path(configured).expanduser().resolve() == real_dir:
-        os.environ["MYRM_DATA_DIR"] = tempfile.mkdtemp(prefix="myrm-test-data-")
+        created = tempfile.mkdtemp(prefix="myrm-test-data-")
+        os.environ["MYRM_DATA_DIR"] = created
+        # The process that made the directory removes it, so repeated runs do not pile up in the temp root.
+        atexit.register(shutil.rmtree, created, ignore_errors=True)
     if not os.environ.get("MYRM_DEV_STATE_DIR"):
         os.environ["MYRM_DEV_STATE_DIR"] = str(Path(os.environ["MYRM_DATA_DIR"]) / "state")
 
