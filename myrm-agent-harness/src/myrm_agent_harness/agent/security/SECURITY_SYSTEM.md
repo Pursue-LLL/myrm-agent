@@ -608,7 +608,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 ### 5.0 YOLO Mode — 全自动审批快速路径
 
-当 `SecurityConfig.yolo_mode_enabled=True` 时，`batch_processor.evaluate_tool_batch()` 自动审批所有非 DENY 的工具调用。对每个 tool_call 仍执行 `evaluate_tool_call()` 检查：若结果为 `DENY` 则强制拒绝（记录 `YOLO_DENY_OVERRIDE` 决策），否则自动批准（记录 `YOLO_AUTO_APPROVE`）。支持可选超时（`yolo_mode_timeout` 秒），过期后自动恢复正常审批流。
+当 `SecurityConfig.yolo_mode_enabled=True` 时，`batch_processor.evaluate_tool_batch()` 自动审批所有非 DENY 的工具调用。对每个 tool_call 仍执行 `evaluate_tool_call()` 检查：若结果为 `DENY` 则强制拒绝（记录 `YOLO_DENY_OVERRIDE` 决策），否则自动批准（记录 `YOLO_AUTO_APPROVE`）。支持可选超时（`yolo_mode_timeout` 秒），过期后自动恢复正常审批流。计时键有两种写法，解析时蛇形键优先：服务端的授权（渠道 `/yolo`、目标与看板的无人值守授权）写 `yolo_mode_enabled_at` / `yolo_mode_timeout`，键存在即胜出，值为 `None` 表示无时限，不会继承用户在网页里设过的计时；Web 设置界面写驼峰键 `yoloModeEnabledAt` / `yoloModeTimeout`（秒），只在蛇形键缺席时读取，所以网页关闭后超时同样在服务端生效。无法解析的开启时刻按很久以前处理，带超时时视为已过期。
 
 核心安全原则：**deny always wins** — DENY 规则在任何模式下都不可被绕过。
 
