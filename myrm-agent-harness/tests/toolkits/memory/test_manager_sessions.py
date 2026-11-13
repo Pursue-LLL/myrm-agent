@@ -160,7 +160,6 @@ class TestStoreOperations:
     @pytest.mark.asyncio
     async def test_store_duplicate_pending_raises_error(self, mock_relational_store, memory_config):
         """Test storing duplicate pending memory raises error."""
-        mock_relational_store.pending_exists.return_value = True
         mock_relational_store.submit_pending.return_value = ""
 
         manager = MemoryManager(

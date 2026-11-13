@@ -21,7 +21,6 @@ the public API.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -123,7 +122,6 @@ class GovernanceService:
         "_namespaces",
         "_relational",
         "_scope",
-        "_submit_lock",
         "_user_id",
     )
 
@@ -141,10 +139,6 @@ class GovernanceService:
         self._relational = relational
         self._namespaces = list(namespaces)
         self._scope = scope.model_copy(deep=True)
-        # The duplicate check and the insert are separate statements; parallel identical submits would all
-        # pass the check before the first one is queued. The lock serializes the submits of this manager only:
-        # another manager on the same database holds its own lock.
-        self._submit_lock = asyncio.Lock()
 
     async def submit_pending(
         self,
@@ -158,18 +152,14 @@ class GovernanceService:
         if derives_from_deleted_chat(self._user_id, memory):
             logger.info("Refused a pending proposal derived from a deleted chat")
             return ""
-        rel = self._rel()
-        async with self._submit_lock:
-            if await rel.pending_exists(memory.memory_type.value, memory.content):
-                return ""
-            return await rel.submit_pending(
-                memory_to_pending(
-                    memory,
-                    resolution_action=resolution_action,
-                    target_memory_id=target_memory_id,
-                    target_content=target_content,
-                )
+        return await self._rel().submit_pending(
+            memory_to_pending(
+                memory,
+                resolution_action=resolution_action,
+                target_memory_id=target_memory_id,
+                target_content=target_content,
             )
+        )
 
     async def approve(
         self,
@@ -332,10 +322,7 @@ class GovernanceService:
                 memory_data={"key": key, "value": value, "scope": profile_scope.model_dump()},
                 source_chat_id=source_chat_id,
             )
-            async with self._submit_lock:
-                if await rel.pending_exists(MemoryType.PROFILE.value, record.content):
-                    return ""
-                return await rel.submit_pending(record)
+            return await rel.submit_pending(record)
 
         await self._write_profile(key, value, scope=profile_scope, source_chat_id=source_chat_id)
         return None

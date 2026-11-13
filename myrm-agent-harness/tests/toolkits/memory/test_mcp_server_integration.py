@@ -338,7 +338,6 @@ class TestMemoryStoreIntegration:
         secret = "sk-proj-abcdefghij1234567890"
         _, relational, _ = _stores
         relational.set_profile = AsyncMock(return_value=None)
-        relational.pending_exists = AsyncMock(return_value=False)
 
         result = await _call_tool(
             mcp_server,

@@ -1,5 +1,6 @@
 """Tests for MemoryManager approval workflow."""
 
+import asyncio
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
@@ -9,6 +10,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
     MemoryNotFoundError,
 )
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.memory.types import (
     MemoryType,
     PendingRecord,
@@ -36,13 +38,12 @@ class TestApprovalWorkflow:
         pending_id = await manager.submit_pending(memory)
 
         assert pending_id == "pending-1"
-        mock_relational_store.pending_exists.assert_called_once()
         mock_relational_store.submit_pending.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_submit_pending_duplicate_returns_empty(self, mock_relational_store, memory_config):
-        """Test submitting duplicate pending memory returns empty string."""
-        mock_relational_store.pending_exists.return_value = True
+        """A proposal the queue already holds comes back from the store as an empty id."""
+        mock_relational_store.submit_pending.return_value = ""
 
         manager = MemoryManager(
             memory_config, user_id="test_user", relational=mock_relational_store, approval_required=True
@@ -52,7 +53,7 @@ class TestApprovalWorkflow:
         pending_id = await manager.submit_pending(memory)
 
         assert pending_id == ""
-        mock_relational_store.submit_pending.assert_not_called()
+        mock_relational_store.submit_pending.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_approve_semantic_memory(
@@ -332,3 +333,40 @@ class TestApprovalWorkflow:
         assert isinstance(result, SemanticMemory)
         mock_relational_store.submit_pending.assert_not_called()
         mock_vector_store.upsert.assert_called()
+
+
+class TestParallelProposalsAcrossManagers:
+    """Managers on one database share its queue, so only the queue itself can keep a proposal from being queued twice."""
+
+    @pytest.fixture
+    async def managers(self, tmp_path, memory_config):
+        path = str(tmp_path / "queue.db")
+        stores = [SQLiteRelationalStore(path), SQLiteRelationalStore(path)]
+        for store in stores:
+            await store.count_pending()
+        yield [
+            MemoryManager(memory_config, user_id="test_user", relational=store, approval_required=True)
+            for store in stores
+        ]
+        for store in stores:
+            await store.close()
+
+    @pytest.mark.asyncio
+    async def test_an_identical_memory_is_queued_once(self, managers):
+        ids = await asyncio.gather(
+            *(
+                manager.submit_pending(SemanticMemory(content="Races to the queue"))
+                for manager in managers
+                for _ in range(4)
+            )
+        )
+
+        assert len([pending_id for pending_id in ids if pending_id]) == 1
+
+    @pytest.mark.asyncio
+    async def test_an_identical_profile_proposal_is_queued_once(self, managers):
+        ids = await asyncio.gather(
+            *(manager.set_profile_attribute("timezone", "UTC+8") for manager in managers for _ in range(4))
+        )
+
+        assert len([pending_id for pending_id in ids if pending_id]) == 1
