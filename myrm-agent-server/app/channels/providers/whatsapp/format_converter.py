@@ -20,10 +20,15 @@ from __future__ import annotations
 
 import re
 
-_FENCE_PLACEHOLDER = "\x00FENCE"
-_INLINE_CODE_PLACEHOLDER = "\x00CODE"
+# Closed by NUL like the other converters: an index never swallows the digit that follows the code.
+_FENCE_PLACEHOLDER = "\x00FENCE{}\x00"
+_INLINE_CODE_PLACEHOLDER = "\x00CODE{}\x00"
+_FENCE_PLACEHOLDER_RE = re.compile(r"\x00FENCE(\d+)\x00")
+_INLINE_CODE_PLACEHOLDER_RE = re.compile(r"\x00CODE(\d+)\x00")
 
-_CODE_FENCE_RE = re.compile(r"```[\s\S]*?```")
+# From a run of three to ten backticks to the next run of the same length: a block fenced by four keeps whole the
+# blocks it documents.
+_CODE_FENCE_RE = re.compile(r"(?P<fence>`{3,10})[\s\S]*?(?P=fence)")
 _INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 _BOLD_DOUBLE_STAR_RE = re.compile(r"\*\*(.+?)\*\*")
 _BOLD_DOUBLE_UNDERSCORE_RE = re.compile(r"__(.+?)__")
@@ -61,7 +66,7 @@ def md_to_whatsapp(text: str) -> str:
 
     def save_fence(match: re.Match[str]) -> str:
         fences.append(match.group(0))
-        return f"{_FENCE_PLACEHOLDER}{len(fences) - 1}"
+        return _FENCE_PLACEHOLDER.format(len(fences) - 1)
 
     result = _CODE_FENCE_RE.sub(save_fence, text)
 
@@ -70,7 +75,7 @@ def md_to_whatsapp(text: str) -> str:
 
     def save_inline_code(match: re.Match[str]) -> str:
         inline_codes.append(match.group(0))
-        return f"{_INLINE_CODE_PLACEHOLDER}{len(inline_codes) - 1}"
+        return _INLINE_CODE_PLACEHOLDER.format(len(inline_codes) - 1)
 
     result = _INLINE_CODE_RE.sub(save_inline_code, result)
 
@@ -94,22 +99,14 @@ def md_to_whatsapp(text: str) -> str:
         idx = int(match.group(1))
         return inline_codes[idx] if idx < len(inline_codes) else ""
 
-    result = re.sub(
-        rf"{re.escape(_INLINE_CODE_PLACEHOLDER)}(\d+)",
-        restore_inline_code,
-        result,
-    )
+    result = _INLINE_CODE_PLACEHOLDER_RE.sub(restore_inline_code, result)
 
     # Step 5: Restore code fences
     def restore_fence(match: re.Match[str]) -> str:
         idx = int(match.group(1))
         return fences[idx] if idx < len(fences) else ""
 
-    result = re.sub(
-        rf"{re.escape(_FENCE_PLACEHOLDER)}(\d+)",
-        restore_fence,
-        result,
-    )
+    result = _FENCE_PLACEHOLDER_RE.sub(restore_fence, result)
 
     return result
 

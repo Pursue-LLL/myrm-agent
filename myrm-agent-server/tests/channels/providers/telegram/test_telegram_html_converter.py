@@ -210,8 +210,25 @@ class TestTableDegradation:
 
     def test_table_with_inline_code(self) -> None:
         md = "| Key | Value |\n|-----|-------|\n| `id` | 42 |"
+        # The cell keeps its backticks as text, and the column is as wide as the cell reads.
+        assert md_to_telegram_html(md) == (
+            "<pre>┌──────┬───────┐\n│ Key  │ Value │\n├──────┼───────┤\n│ `id` │ 42    │\n└──────┴───────┘</pre>"
+        )
+
+    def test_stray_backticks_around_a_table_do_not_wrap_it_in_a_span(self) -> None:
+        md = "Use ` here:\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\nand ` there."
+        assert md_to_telegram_html(md) == (
+            "Use ` here:\n\n<pre>┌───┬───┐\n│ a │ b │\n├───┼───┤\n│ 1 │ 2 │\n└───┴───┘</pre>\n\nand ` there."
+        )
+
+    def test_table_with_inline_code_beside_code_outside_it(self) -> None:
+        md = "Run `ls`:\n\n| a | b |\n|---|---|\n| `c` | d |\n\n```py\ny\n```"
         result = md_to_telegram_html(md)
-        assert "┌" in result
+        assert result == (
+            "Run <code>ls</code>:\n\n"
+            "<pre>┌─────┬───┐\n│ a   │ b │\n├─────┼───┤\n│ `c` │ d │\n└─────┴───┘</pre>\n\n"
+            '<pre><code class="language-py">y\n</code></pre>'
+        )
 
     def test_empty_cells(self) -> None:
         md = "| A | B |\n|---|---|\n|   | x |\n| y |   |"

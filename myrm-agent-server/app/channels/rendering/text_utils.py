@@ -34,12 +34,13 @@ if TYPE_CHECKING:
 
     from ..types import RenderStyle
 
-_FENCED_CODE_RE = re.compile(r"```[\s\S]*?```", re.MULTILINE)
+# Fenced code as the code-aware helpers see it (a ```span``` inside a line counts too): from a run of three to ten
+# backticks to the next run of the same length, so a block fenced by four keeps the blocks it documents whole.
+_CODE_FENCE_RE = re.compile(r"(?P<fence>`{3,10})[\s\S]*?(?P=fence)")
 _INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
-_CODE_FENCE_RE = re.compile(r"```[\s\S]*?```")
 _LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 _BLOCKQUOTE_RE = re.compile(r"^>\s?", re.MULTILINE)
 
@@ -103,7 +104,7 @@ def extract_safe_regions(
     code_ranges: list[tuple[int, int]] = []
 
     if exclude_fenced_code:
-        code_ranges.extend((m.start(), m.end()) for m in _FENCED_CODE_RE.finditer(text))
+        code_ranges.extend((m.start(), m.end()) for m in _CODE_FENCE_RE.finditer(text))
 
     if exclude_inline_code:
         code_ranges.extend((m.start(), m.end()) for m in _INLINE_CODE_RE.finditer(text))
@@ -128,12 +129,14 @@ def extract_safe_regions(
 
 # A fenced block as the HTML channels convert it. A fence line (backticks opening the line, indentation allowed) carries
 # a free-text info string without backticks (``c++``, ``python title=demo``, ``json {1,3}``); a fence that follows text
-# on its line carries only a word, so prose such as "wrap code in ``` fences" never opens a block.
+# on its line carries only a word, so prose such as "wrap code in ``` fences" never opens a block. A block ends at the
+# run of backticks that opened it: one fenced by four can show the three-backtick blocks it documents. A run is at most
+# ten long, as in the router's splitter, which keeps a degenerate line of backticks from being tried at every offset.
 FENCED_BLOCK_RE = re.compile(
     r"""
     (?P<indent>^[ \t]*)?
-    ```(?P<info>(?(indent)[^`\n]*|\w*))\n
-    (?P<code>.*?)```
+    (?P<fence>`{3,10})(?P<info>(?(indent)[^`\n]*|\w*))\n
+    (?P<code>.*?)(?P=fence)
     """,
     re.DOTALL | re.MULTILINE | re.VERBOSE,
 )

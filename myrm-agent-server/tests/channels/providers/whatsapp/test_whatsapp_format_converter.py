@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import random
+import time
+
+import pytest
+
 from app.channels.providers.whatsapp.format_converter import (
     md_to_whatsapp,
     validate_whatsapp_format,
@@ -77,6 +82,69 @@ Done."""
         text = "```a```\n**bold**\n```b```"
         expected = "```a```\n*bold*\n```b```"
         assert md_to_whatsapp(text) == expected
+
+
+class TestCodeComesBackWhole:
+    """Code is set aside while the text around it is converted, and put back exactly as it was written."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Use `x`5 times",
+            "Run `ls`10 times and `cd`",
+            "Size is `n`2",
+            "a `b`1 and `c` and `d`",
+            "```\nx\n```5",
+            "```a```12 and ```b```3",
+        ],
+    )
+    def test_a_digit_right_after_code_is_not_part_of_its_place(self, text: str) -> None:
+        assert md_to_whatsapp(text) == text
+
+    def test_more_than_ten_code_spans_each_come_back_in_its_own_place(self) -> None:
+        text = " ".join(f"`c{i}`{i}" for i in range(13))
+        assert md_to_whatsapp(text) == text
+
+    def test_a_span_that_surrounds_a_fence_on_one_line_comes_back_whole(self) -> None:
+        text = "a ` b ```py\nx\n``` c ` d"
+        assert md_to_whatsapp(text) == text
+
+    def test_the_text_around_code_that_is_followed_by_a_digit_is_still_converted(self) -> None:
+        assert md_to_whatsapp("**bold** `x`5 ~~gone~~") == "*bold* `x`5 ~gone~"
+
+    def test_the_blocks_a_longer_fence_documents_are_not_formatted(self) -> None:
+        text = "Example:\n\n````markdown\n**one** and [a](http://x.y)\n```bash\n**two**\n```\n**three**\n````\n\nEnd **bold**."
+        expected = "Example:\n\n````markdown\n**one** and [a](http://x.y)\n```bash\n**two**\n```\n**three**\n````\n\nEnd *bold*."
+        assert md_to_whatsapp(text) == expected
+
+    def test_a_degenerate_line_of_backticks_is_converted_in_linear_time(self) -> None:
+        # Tried at every offset against every length, a run of thousands of backticks takes seconds.
+        degenerate = "`" * 8_000 + "a\n" + "x" * 8_000
+        started = time.perf_counter()
+        assert md_to_whatsapp(degenerate)
+        assert time.perf_counter() - started < 2.0
+
+    def test_random_documents_keep_every_code_piece_and_convert_the_rest(self) -> None:
+        words = ("alpha", "beta", "gamma", "7", "42")
+        for seed in range(1000):
+            rng = random.Random(seed)
+            pieces: list[tuple[str, str]] = []
+            for _ in range(rng.randint(1, 8)):
+                kind = rng.choice(("prose", "inline", "inline_digit", "fence", "fence_digit", "long_fence"))
+                word = rng.choice(words)
+                if kind == "prose":
+                    pieces.append((f"**{word}** and ~~{word}~~", f"*{word}* and ~{word}~"))
+                elif kind.startswith("inline"):
+                    code = f"`**{word}**`" + (rng.choice(words) if kind == "inline_digit" else "")
+                    pieces.append((f"see {code} now", f"see {code} now"))
+                else:
+                    fence = "````" if kind == "long_fence" else "```"
+                    inner = "```\n**in**\n```\n" if kind == "long_fence" else ""
+                    code = f"{fence}py\n**{word}**\n{inner}{fence}" + (rng.choice(words) if kind == "fence_digit" else "")
+                    pieces.append((code, code))
+            text = "\n\n".join(markdown for markdown, _ in pieces)
+            expected = "\n\n".join(converted for _, converted in pieces)
+            assert md_to_whatsapp(text) == expected, f"seed {seed}: {text!r}"
 
 
 class TestValidateWhatsAppFormat:
