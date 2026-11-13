@@ -172,9 +172,9 @@ _BASH_STATIC_DESCRIPTION_TOKENS = 1355
 
 _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "bash_process_tool": 107,
-    "file_edit_tool": 132,
-    "file_read_tool": 317,
-    "file_write_tool": 116,
+    "file_edit_tool": 66,
+    "file_read_tool": 47,
+    "file_write_tool": 39,
     "glob_tool": 201,
     "grep_tool": 205,
     "memory_manage_tool": 289,

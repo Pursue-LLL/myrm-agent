@@ -62,12 +62,12 @@ from myrm_agent_harness.agent.types import AgentRuntimeConfig, AgentRuntimeSpec
 
 def test_file_ops_descriptions_locale_resolution() -> None:
     # File Read
-    assert "Read file contents" in resolve_file_read_tool_description(None)
-    assert "Read file contents" in resolve_file_read_tool_description("en")
+    assert "Read files (batch)" in resolve_file_read_tool_description(None)
+    assert "Read files (batch)" in resolve_file_read_tool_description("en")
     assert "读取文件内容" in resolve_file_read_tool_description("zh-CN")
 
     tool_en = create_file_read_tool(locale="en")
-    assert "Read file contents" in tool_en.description
+    assert "Read files (batch)" in tool_en.description
     tool_zh = create_file_read_tool(locale="zh-CN")
     assert "读取文件内容" in tool_zh.description
 
@@ -80,12 +80,12 @@ def test_file_ops_descriptions_locale_resolution() -> None:
     assert "创建新文件" in write_tool_zh.description
 
     # File Edit
-    assert "Accurately edit file" in resolve_file_edit_tool_description(None)
-    assert "精确编辑文件内容" in resolve_file_edit_tool_description("zh-CN")
+    assert "Edit a file with exact-text replacements" in resolve_file_edit_tool_description(None)
+    assert "用精确文本替换编辑文件" in resolve_file_edit_tool_description("zh-CN")
     edit_tool_en = create_file_edit_tool()
-    assert "Accurately edit file" in edit_tool_en.description
+    assert "Edit a file with exact-text replacements" in edit_tool_en.description
     edit_tool_zh = create_file_edit_tool(locale="zh-CN")
-    assert "精确编辑文件内容" in edit_tool_zh.description
+    assert "用精确文本替换编辑文件" in edit_tool_zh.description
 
 
 def test_file_search_descriptions_locale_resolution() -> None:
@@ -182,9 +182,9 @@ def test_get_meta_tools_passes_locale() -> None:
         locale="en",
     )
     descriptions_en = {t.name: t.description for t in tools_en}
-    assert "Read file contents" in descriptions_en["file_read_tool"]
+    assert "Read files (batch)" in descriptions_en["file_read_tool"]
     assert "Create a new file" in descriptions_en["file_write_tool"]
-    assert "Accurately edit file" in descriptions_en["file_edit_tool"]
+    assert "Edit a file with exact-text replacements" in descriptions_en["file_edit_tool"]
     assert "Search for matching files" in descriptions_en["glob_tool"]
     assert "Search file contents" in descriptions_en["grep_tool"]
     assert "Execute Shell commands" in descriptions_en["bash_code_execute_tool"]
@@ -203,7 +203,7 @@ def test_get_meta_tools_passes_locale() -> None:
     descriptions_zh = {t.name: t.description for t in tools_zh}
     assert "读取文件内容" in descriptions_zh["file_read_tool"]
     assert "创建新文件" in descriptions_zh["file_write_tool"]
-    assert "精确编辑文件内容" in descriptions_zh["file_edit_tool"]
+    assert "用精确文本替换编辑文件" in descriptions_zh["file_edit_tool"]
     assert "搜索匹配的文件" in descriptions_zh["glob_tool"]
     assert "搜索文件内容" in descriptions_zh["grep_tool"]
     assert "使用该工具执行准确的 Shell 命令" in descriptions_zh["bash_code_execute_tool"]
