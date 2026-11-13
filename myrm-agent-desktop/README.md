@@ -41,6 +41,8 @@ cd src-tauri && cargo tauri dev
 
 缺第 3 步时 `tauri-build` 会因找不到 `binaries/myrm-node-<目标三元组>` 而编译失败。
 
+开发构建（`cargo tauri dev`）的数据目录默认是 `~/.myrm-desktop-dev`，不会打开真实的 `~/.myrm`，也不会注册系统登录项；`MYRM_DESKTOP_DATA_DIR` 显式指定时以它为准，此时设置里的目录迁移不可用。
+
 Sidecar 对照见 [_ARCH.md](_ARCH.md) § Sidecar 对照表。
 
 ## 许可证

@@ -6,11 +6,12 @@
 //! - crate::runtime::{start_backend_with_config, stop_backend} (POS: Sidecar 生命周期编排)
 //! - crate::ipc_security (POS: 敏感操作鉴权与确认弹窗)
 //! - crate::app::autostart (POS: 系统登录项同步)
+//! - crate::utils::data_dir (POS: 迁移前的数据根目录解析；目录被固定时拒绝迁移)
 //!
 //! [OUTPUT]
 //! - `load_system_config`: 加载系统运行时配置
 //! - `save_system_config`: 保存系统配置；先写 `desktop_runtime.json` 离席桥，配置落盘失败则回滚 runtime；成功后同步系统登录项
-//! - `migrate_data_dir`: 迁移数据存储根目录并重启后端服务
+//! - `migrate_data_dir`: 迁移数据存储根目录并重启后端服务；目录由环境变量或开发构建固定时直接拒绝
 //!
 //! [POS]
 //! 桌面端系统配置 IPC 命令接口。处理前端设置页面的读取、保存与数据存储路径迁移编排。
@@ -19,6 +20,7 @@ use std::path::Path;
 
 use crate::config::{ConfigManager, SystemConfig};
 use crate::ipc_security::{self, SensitiveAction};
+use crate::utils::data_dir;
 use tauri::State;
 
 /// 加载系统配置
@@ -131,18 +133,23 @@ pub async fn migrate_data_dir(
     config_manager: State<'_, ConfigManager>,
     backend: State<'_, crate::runtime::PythonBackend>,
 ) -> Result<String, String> {
+    // The saved directory only applies when nothing pins it: migrating under a pinned directory would
+    // move data the backend never reads again, or write a path into the settings an installed release
+    // app shares.
+    if data_dir::is_pinned() {
+        return Err(
+            "The data directory is fixed by MYRM_DESKTOP_DATA_DIR or a development build; migration is unavailable"
+                .to_string(),
+        );
+    }
+
     // 0. 全局互斥锁，防止并发重复触发导致数据污染与竞态
     let _migration_guard = super::data_migration::acquire_migration_lock()?;
 
     let config = config_manager.load();
     let old_custom_data_dir = config.custom_data_dir.clone();
-    let old_dir = old_custom_data_dir.clone().unwrap_or_else(|| {
-        let home = std::env::var("HOME")
-            .or_else(|_| std::env::var("USERPROFILE"))
-            .unwrap_or_else(|_| ".".to_string());
-        format!("{}/.myrm", home)
-    });
-    let old_path = Path::new(&old_dir);
+    let old_dir = data_dir::effective_dir(old_custom_data_dir.as_deref());
+    let old_path = old_dir.as_path();
     let new_path = Path::new(&new_dir);
 
     // 1. 目标路径合法性、防嵌套递归与同名冲突预检

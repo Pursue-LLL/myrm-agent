@@ -2,6 +2,7 @@
 //!
 //! [INPUT]
 //! - ConfigManager (POS: 读取 custom_data_dir 配置)
+//! - crate::utils::data_dir (POS: 与后端同一个数据根目录的解析)
 //!
 //! [OUTPUT]
 //! - `export_local_sqlite`: 无需 Python 后端即可导出本地 SQLite 数据库
@@ -18,25 +19,14 @@ use tauri::State;
 
 use crate::config::ConfigManager;
 use crate::ipc_security::{self, SensitiveAction};
+use crate::utils::data_dir;
 
 fn resolve_data_dir(config_manager: &ConfigManager) -> PathBuf {
-    let config = config_manager.load();
-    if let Some(ref custom) = config.custom_data_dir {
-        PathBuf::from(custom)
-    } else {
-        home_dir().join(".myrm")
-    }
+    data_dir::effective_dir(config_manager.load().custom_data_dir.as_deref())
 }
 
 fn resolve_logs_dir(config_manager: &ConfigManager) -> PathBuf {
     resolve_data_dir(config_manager).join("logs")
-}
-
-fn home_dir() -> PathBuf {
-    std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn reveal_in_file_manager(path: &std::path::Path) -> Result<(), String> {

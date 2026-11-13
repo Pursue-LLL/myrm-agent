@@ -46,7 +46,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `runtime/setup_token.rs` | ✅ 核心 | WebUI Remote Setup Token 状态与 IPC | ✅ |
 | `runtime/port.rs` | ✅ 工具 | 端口占用检测 | ✅ |
 | `runtime/product_origin.rs` | ✅ 核心 | 产品页来源（发布版 `http://127.0.0.1:<webui_port>`，开发版取 `build.devUrl`；启动期固定）：给 ACL 的 Remote 能力提供精确来源串，并构造子窗口页面地址（路径段与查询值一律编码） | ✅ |
-| `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut`、`voice_ptt_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段 | ✅ |
+| `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut`、`voice_ptt_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段；后端的数据目录经 `utils::data_dir` 解析 | ✅ |
 | `commands/` | ✅ 核心 | Tauri IPC 命令（config、overlay、recovery）→ 叶子清单见 [commands/_ARCH.md](commands/_ARCH.md) | — |
 | `utils/` | ✅ 工具 | 系统工具封装 → 见 [utils/_ARCH.md](utils/_ARCH.md) | — |
 ---
