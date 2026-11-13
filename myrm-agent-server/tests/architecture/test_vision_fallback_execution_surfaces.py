@@ -23,11 +23,11 @@ _REQUIRED_SURFACE_FILES: tuple[tuple[str, str], ...] = (
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (
-        "app/services/kanban/task_runner/runner.py",
+        "app/services/kanban/task_runner/agent_run.py",
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (
-        "app/services/kanban/task_runner/runner.py",
+        "app/services/kanban/task_runner/agent_run.py",
         "vision_fallback_model_cfgs=",
     ),
 )

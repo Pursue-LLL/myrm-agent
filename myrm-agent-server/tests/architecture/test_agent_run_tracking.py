@@ -25,12 +25,12 @@ _GATEWAY_COUNTED = {
 # Call the pipeline inside another tracked file's scope (the parent wraps the whole run).
 _TRACKED_DELEGATES = {
     "core/cron/adapters/agent_runner/stream.py": "core/cron/adapters/agent_runner/runner.py",
+    "services/kanban/task_runner/agent_run.py": "services/kanban/task_runner/runner.py",
 }
 # Call the pipeline directly; the file must wrap the run in ``track_background_agent_run``.
 _TRACKED = {
     "core/channel_bridge/agent_executor/executor.py": 1,
     "core/eval/executor.py": 1,
-    "services/kanban/task_runner/runner.py": 1,
 }
 
 
