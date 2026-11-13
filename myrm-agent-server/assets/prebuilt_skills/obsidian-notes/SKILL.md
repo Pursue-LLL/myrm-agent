@@ -12,7 +12,7 @@ tags:
   - knowledge-management
   - zettelkasten
   - markdown
-allowed-tools: file_write_tool file_read_tool bash_code_execute_tool
+allowed-tools: file_write_tool file_read_tool file_edit_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 0: Read — file_read the full target note before any edit (required)"
