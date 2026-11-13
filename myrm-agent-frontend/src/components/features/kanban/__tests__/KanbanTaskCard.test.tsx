@@ -159,6 +159,14 @@ describe('KanbanTaskCard blocked reason', () => {
     expect(screen.getByText('Waiting for the reviewer')).toBeTruthy();
   });
 
+  it('cuts the reason to one line on the card and keeps the whole sentence as its hover text', () => {
+    renderBlocked(blockedReasons.approvalNeeded);
+
+    const text = screen.getByText('blockedReason.approvalNeeded');
+    expect(text.className).toContain('truncate');
+    expect(text.parentElement?.getAttribute('title')).toBe('blockedReason.approvalNeeded');
+  });
+
   it('says in the interface language that a scheduled task is about to resume once its time has passed', () => {
     render(
       <KanbanTaskCard

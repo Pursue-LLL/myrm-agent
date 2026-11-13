@@ -111,8 +111,9 @@ export default function KanbanTaskCard({
     return null;
   }, [loadedChildren, task.children_total, task.children_done]);
 
+  const [renderedAt] = useState(() => Date.now());
   const relativeTime = useMemo(() => {
-    const diff = Date.now() - new Date(task.created_at).getTime();
+    const diff = renderedAt - new Date(task.created_at).getTime();
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) {
       return t('justNow');
@@ -126,9 +127,11 @@ export default function KanbanTaskCard({
     }
     const days = Math.floor(hours / 24);
     return t('daysAgo', { count: days });
-  }, [task.created_at, t]);
+  }, [renderedAt, task.created_at, t]);
 
   const diagSummary = task.diagnostics_summary;
+  const blockedReason =
+    task.status === 'blocked' && task.blocked_reason ? blockedReasonText(task.blocked_reason, t) : null;
 
   return (
     <div
@@ -286,12 +289,15 @@ export default function KanbanTaskCard({
                 {t('retries')}: {task.retry_count}/{task.max_retries}
               </span>
             )}
-            {task.status === 'blocked' && task.blocked_reason && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-destructive-text line-clamp-1">
+            {blockedReason && (
+              <span
+                className="inline-flex max-w-full min-w-0 items-center gap-0.5 text-[10px] text-destructive-text"
+                title={blockedReason}
+              >
                 {task.block_kind === 'scheduled' && <Clock className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'external' && <ExternalLink className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'human' && <User className="w-3 h-3 shrink-0" />}
-                {blockedReasonText(task.blocked_reason, t)}
+                <span className="truncate">{blockedReason}</span>
               </span>
             )}
             {task.status === 'blocked' && task.block_kind === 'scheduled' && task.scheduled_until && (
