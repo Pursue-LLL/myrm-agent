@@ -97,6 +97,13 @@ Run via `bash_code_execute_tool`. The harness injects `GOOGLE_WORKSPACE_TOKEN` a
 python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today
 ```
 
+`calendar-today` and `calendar-range` return the events in `items` plus two fields the script computes:
+
+- `conflicts`: pairs of timed events whose times overlap (up to 10, earliest first). Report these pairs; do not compare event times yourself. Cancelled, declined, all-day and free (transparent) events are not counted, and an event that starts exactly when another ends is not a conflict.
+- `truncated`: `true` when the range holds more events than the script read. Tell the user the list is partial and query a narrower range with `calendar-range`; do not present it as complete.
+
+Say there are no conflicts only when `conflicts` is present and empty.
+
 ## Gmail
 
 Returns recent INBOX messages with `subject`, `from`, `snippet`, and `internalDate` (one Gmail API call per message for metadata).

@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -14,10 +19,25 @@ import pytest
 SCRIPT_PATH = (
     Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills" / "google-workspace" / "scripts" / "google_api.py"
 )
+_RANGE_BOUNDS = {"time_min": "2026-06-25T00:00:00+08:00", "time_max": "2026-06-25T23:59:59+08:00"}
+
+
+def _json_response(payload: dict[str, object]) -> MagicMock:
+    response = MagicMock()
+    response.read.return_value = json.dumps(payload).encode()
+    response.__enter__ = MagicMock(return_value=response)
+    response.__exit__ = MagicMock(return_value=None)
+    return response
+
+
+def _event(event_id: str, start: str, end: str) -> dict[str, object]:
+    return {"id": event_id, "summary": event_id.title(), "start": {"dateTime": start}, "end": {"dateTime": end}}
 
 
 @pytest.fixture
-def google_api_module():
+def google_api_module(monkeypatch: pytest.MonkeyPatch):
+    # A staged script finds its sibling modules because its own directory leads sys.path.
+    monkeypatch.syspath_prepend(str(SCRIPT_PATH.parent))
     spec = importlib.util.spec_from_file_location("google_api", SCRIPT_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -174,3 +194,169 @@ class TestGoogleApiWriteCommands:
         messages = result["messages"]
         assert isinstance(messages, list)
         assert messages == []
+
+
+class TestGoogleApiCalendarPagination:
+    """A calendar query reads every page it is allowed to and says when it stopped short."""
+
+    def test_reads_every_page_until_the_token_runs_out(self, google_api_module) -> None:
+        events = [
+            _event("a", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00"),
+            _event("b", "2026-06-25T10:00:00+08:00", "2026-06-25T10:30:00+08:00"),
+            _event("c", "2026-06-25T11:00:00+08:00", "2026-06-25T11:30:00+08:00"),
+            _event("d", "2026-06-25T12:00:00+08:00", "2026-06-25T12:30:00+08:00"),
+        ]
+        pages = [
+            _json_response({"items": events[:2], "nextPageToken": "t1"}),
+            _json_response({"items": events[2:3], "nextPageToken": "t2"}),
+            _json_response({"items": events[3:]}),
+        ]
+
+        with patch.object(google_api_module.urllib.request, "urlopen", side_effect=pages) as mock_open:
+            result = google_api_module.calendar_range("token", **_RANGE_BOUNDS)
+
+        assert result["items"] == events
+        assert result["truncated"] is False
+        assert result["conflicts"] == []
+        queries = [urllib.parse.parse_qs(urllib.parse.urlsplit(call.args[0].full_url).query) for call in mock_open.call_args_list]
+        assert [query.get("pageToken") for query in queries] == [None, ["t1"], ["t2"]]
+        assert all(query["maxResults"] == ["50"] for query in queries)
+
+    @pytest.mark.parametrize("empty_page", [{"items": []}, {}], ids=["empty-items", "no-items-key"])
+    def test_follows_a_token_past_an_empty_page(self, google_api_module, empty_page: dict[str, object]) -> None:
+        early = _event("early", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00")
+        late = _event("late", "2026-06-25T15:00:00+08:00", "2026-06-25T15:30:00+08:00")
+        pages = [
+            _json_response({"items": [early], "nextPageToken": "t1"}),
+            _json_response({**empty_page, "nextPageToken": "t2"}),
+            _json_response({"items": [late]}),
+        ]
+
+        with patch.object(google_api_module.urllib.request, "urlopen", side_effect=pages) as mock_open:
+            result = google_api_module.calendar_range("token", **_RANGE_BOUNDS)
+
+        assert result["items"] == [early, late]
+        assert result["truncated"] is False
+        assert mock_open.call_count == 3
+
+    def test_stops_at_the_page_cap_and_reports_truncation(self, google_api_module) -> None:
+        cap = google_api_module._MAX_EVENT_PAGES
+        event = _event("busy", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00")
+
+        with patch.object(
+            google_api_module.urllib.request,
+            "urlopen",
+            side_effect=lambda *_args, **_kwargs: _json_response({"items": [event], "nextPageToken": "more"}),
+        ) as mock_open:
+            result = google_api_module.calendar_range("token", **_RANGE_BOUNDS)
+
+        assert mock_open.call_count == cap
+        assert result["truncated"] is True
+        assert result["items"] == [event] * cap
+        assert "nextPageToken" not in result
+
+    def test_a_range_ending_on_the_last_allowed_page_is_complete(self, google_api_module) -> None:
+        cap = google_api_module._MAX_EVENT_PAGES
+        event = _event("busy", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00")
+        pages = [_json_response({"items": [event], "nextPageToken": f"t{n}"}) for n in range(cap - 1)]
+        pages.append(_json_response({"items": [event]}))
+
+        with patch.object(google_api_module.urllib.request, "urlopen", side_effect=pages) as mock_open:
+            result = google_api_module.calendar_range("token", **_RANGE_BOUNDS)
+
+        assert mock_open.call_count == cap
+        assert result["truncated"] is False
+
+    def test_finds_conflicts_across_a_page_boundary(self, google_api_module) -> None:
+        early = _event("early", "2026-06-25T09:00:00+08:00", "2026-06-25T10:00:00+08:00")
+        overlapping = _event("overlapping", "2026-06-25T09:30:00+08:00", "2026-06-25T10:30:00+08:00")
+        pages = [
+            _json_response({"items": [early], "nextPageToken": "t1"}),
+            _json_response({"items": [overlapping]}),
+        ]
+
+        with patch.object(google_api_module.urllib.request, "urlopen", side_effect=pages):
+            result = google_api_module.calendar_range("token", **_RANGE_BOUNDS)
+
+        assert [(pair["first"]["id"], pair["second"]["id"]) for pair in result["conflicts"]] == [("early", "overlapping")]
+
+    def test_keeps_raw_events_and_metadata_with_the_verdict_fields_first(self, google_api_module) -> None:
+        event = {
+            **_event("raw", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00"),
+            "attendees": [{"email": "me@example.com", "self": True, "responseStatus": "accepted"}],
+        }
+        response = {"kind": "calendar#events", "summary": "Primary", "timeZone": "Asia/Shanghai", "items": [event]}
+
+        with patch.object(google_api_module.urllib.request, "urlopen", return_value=_json_response(response)):
+            result = google_api_module.calendar_range("token", **_RANGE_BOUNDS)
+
+        assert result["items"] == [event]
+        assert (result["kind"], result["summary"], result["timeZone"]) == ("calendar#events", "Primary", "Asia/Shanghai")
+        # An oversized output loses its middle, so the verdict leads and the event list closes the object.
+        assert list(result)[:2] == ["truncated", "conflicts"]
+        assert list(result)[-1] == "items"
+
+    def test_a_failing_later_page_fails_the_whole_call(self, google_api_module, capsys) -> None:
+        error = urllib.error.HTTPError(
+            url="https://example.com",
+            code=500,
+            msg="Server Error",
+            hdrs=None,
+            fp=MagicMock(read=MagicMock(return_value=b"upstream failure")),
+        )
+        first_page = _json_response(
+            {
+                "items": [_event("a", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00")],
+                "nextPageToken": "t1",
+            }
+        )
+
+        with (
+            patch.object(google_api_module.urllib.request, "urlopen", side_effect=[first_page, error]),
+            pytest.raises(SystemExit) as exc,
+        ):
+            google_api_module.calendar_range("token", **_RANGE_BOUNDS)
+
+        assert exc.value.code == 1
+        assert json.loads(capsys.readouterr().out)["error"].startswith("HTTP 500")
+
+    @pytest.mark.parametrize(
+        "command",
+        [["calendar-today"], ["calendar-range", "--time-min", "2026-06-25T00:00:00Z", "--time-max", "2026-06-26T00:00:00Z"]],
+        ids=["calendar-today", "calendar-range"],
+    )
+    def test_the_calendar_commands_print_the_verdict_fields(
+        self, google_api_module, monkeypatch, capsys, command: list[str]
+    ) -> None:
+        events = [
+            _event("standup", "2026-06-25T09:00:00+08:00", "2026-06-25T10:00:00+08:00"),
+            _event("review", "2026-06-25T09:30:00+08:00", "2026-06-25T10:30:00+08:00"),
+        ]
+        monkeypatch.setenv("GOOGLE_WORKSPACE_TOKEN", "token")
+        monkeypatch.setattr(sys, "argv", ["google_api.py", *command])
+
+        with patch.object(google_api_module.urllib.request, "urlopen", return_value=_json_response({"items": events})):
+            google_api_module.main()
+
+        printed = json.loads(capsys.readouterr().out)
+        assert printed["truncated"] is False
+        assert [(pair["first"]["id"], pair["second"]["id"]) for pair in printed["conflicts"]] == [("standup", "review")]
+        assert printed["items"] == events
+
+
+def test_the_script_runs_from_a_copy_of_its_skill_directory(tmp_path: Path) -> None:
+    """The staged skill is run as `python3 scripts/google_api.py`; its sibling module must resolve from there."""
+    staged = tmp_path / "google-workspace"
+    shutil.copytree(SCRIPT_PATH.parents[1], staged, ignore=shutil.ignore_patterns("__pycache__"))
+
+    completed = subprocess.run(
+        [sys.executable, "scripts/google_api.py", "--help"],
+        cwd=staged,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "calendar-range" in completed.stdout

@@ -87,7 +87,8 @@ If `$GOOGLE_WORKSPACE_TOKEN` is available (user connected Google Workspace OAuth
 1. Use `bash_code_execute_tool` to run `python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today` (token and timezone are injected automatically when OAuth is connected).
 2. Merge calendar events with kanban time-bound items in the Schedule section.
 3. Sort combined schedule by start time; deduplicate overlapping titles.
-4. If OAuth is not connected or the API fails, skip silently — kanban-only schedule is acceptable.
+4. Take calendar conflicts from the script's `conflicts` field instead of comparing times yourself: add one line per pair, for example `• Conflict: 10:00 Product review overlaps 10:30 Design sync`. If `truncated` is true, add `• Calendar list may be incomplete`. Write `• No calendar conflicts detected` only when `conflicts` is present and empty.
+5. If OAuth is not connected or the API fails, skip silently — kanban-only schedule is acceptable, with no conflict line.
 
 ### Today's Schedule (from Kanban + optional Calendar)
 
@@ -150,7 +151,6 @@ Today's Schedule
 • 09:00 — Team standup
 • 10:00 — Product review (context: you planned to share the feedback report)
 • 14:00 — 1:1 with Alice
-• No conflicts detected
 
 Tasks Requiring Attention
 • [URGENT] API refactor proposal — overdue by 2 days

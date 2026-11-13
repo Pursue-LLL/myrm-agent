@@ -4,9 +4,11 @@
 [INPUT]
 - Process env GOOGLE_WORKSPACE_TOKEN (injected by LocalExecutor/safe_exec after sanitize)
 - Process env MYRM_USER_TIMEZONE or TZ (user-local calendar day boundary)
+- calendar_overlaps::find_conflicts (POS: overlapping pairs of timed events, sibling module in this scripts directory)
 
 [OUTPUT]
-- JSON on stdout for readonly and write CLI subcommands
+- JSON on stdout for readonly and write CLI subcommands; calendar-today and calendar-range add `truncated` (the range
+  holds more events than were read) and `conflicts` (overlapping pairs) to the raw events in `items`
 
 [POS]
 Vendor skill script staged into workspace by bash_executor; stdlib-only Google REST client.
@@ -24,9 +26,16 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
 from email.mime.text import MIMEText
+from typing import NoReturn
 from zoneinfo import ZoneInfo
 
+from calendar_overlaps import find_conflicts
+
 _ALLOWED_GOOGLE_API_HOSTS = frozenset({"www.googleapis.com", "gmail.googleapis.com"})
+_CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+_EVENTS_PAGE_SIZE = 50
+# Pages read per calendar query. A range holding more events is reported as truncated instead of read without bound.
+_MAX_EVENT_PAGES = 5
 
 
 def _validate_google_api_url(url: str) -> str:
@@ -44,7 +53,7 @@ def _require_token() -> str:
     return token
 
 
-def _fail(message: str, *, code: int = 1) -> None:
+def _fail(message: str, *, code: int = 1) -> NoReturn:
     print(json.dumps({"error": message}))
     sys.exit(code)
 
@@ -148,17 +157,35 @@ def calendar_today(token: str, *, tz: ZoneInfo | None = None) -> dict[str, objec
 
 
 def calendar_range(token: str, *, time_min: str, time_max: str) -> dict[str, object]:
-    params = urllib.parse.urlencode(
-        {
+    events: list[object] = []
+    page: dict[str, object] = {}
+    page_token = ""
+    for _ in range(_MAX_EVENT_PAGES):
+        query = {
             "singleEvents": "true",
             "orderBy": "startTime",
             "timeMin": time_min,
             "timeMax": time_max,
-            "maxResults": "50",
+            "maxResults": str(_EVENTS_PAGE_SIZE),
         }
-    )
-    url = f"https://www.googleapis.com/calendar/v3/calendars/primary/events?{params}"
-    return _http_get(url, token)
+        if page_token:
+            query["pageToken"] = page_token
+        page = _http_get(f"{_CALENDAR_EVENTS_URL}?{urllib.parse.urlencode(query)}", token)
+        items = page.get("items")
+        if isinstance(items, list):
+            events.extend(items)
+        # A page can come back short or empty while more remain: only a missing token marks the last one.
+        next_token = page.get("nextPageToken")
+        page_token = next_token if isinstance(next_token, str) else ""
+        if not page_token:
+            break
+    # The verdict keys come first so they survive when the executor cuts the middle out of an oversized output.
+    return {
+        "truncated": bool(page_token),
+        "conflicts": find_conflicts(events),
+        **{key: value for key, value in page.items() if key not in ("items", "nextPageToken")},
+        "items": events,
+    }
 
 
 def calendar_create(
