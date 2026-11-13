@@ -5,6 +5,7 @@ Only &, <, > need escaping in non-tag text — much simpler than MarkdownV2.
 
 [INPUT]
 - channels.rendering.splitter::CJK_BOUNDARY_CHARS (POS: shared CJK punctuation SSOT for smart splitting)
+- channels.rendering.text_utils::FENCED_BLOCK_RE, fenced_block_html (POS: fenced block and its <pre> markup, shared with Matrix)
 
 [OUTPUT]
 - md_to_telegram_html(): Telegram-safe HTML string with GFM table degradation
@@ -25,10 +26,10 @@ import html
 import re
 
 from app.channels.rendering.splitter import CJK_BOUNDARY_CHARS
+from app.channels.rendering.text_utils import FENCED_BLOCK_RE, fenced_block_html
 
 _MAX_MSG_LENGTH = 4096
 
-_CODE_BLOCK_RE = re.compile(r"```(\w*)\n(.*?)```", re.DOTALL)
 _INLINE_CODE_RE = re.compile(r"`([^`]+)`")
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
@@ -128,18 +129,14 @@ def md_to_telegram_html(text: str) -> str:
     preserved: list[str] = []
 
     def _preserve_code_block(m: re.Match[str]) -> str:
-        lang, code = m.group(1), m.group(2)
-        tag = (
-            f'<pre><code class="language-{lang}">{html.escape(code)}</code></pre>' if lang else f"<pre>{html.escape(code)}</pre>"
-        )
-        preserved.append(tag)
+        preserved.append(fenced_block_html(m))
         return f"\x00PRESERVE{len(preserved) - 1}\x00"
 
     def _preserve_inline_code(m: re.Match[str]) -> str:
         preserved.append(f"<code>{html.escape(m.group(1))}</code>")
         return f"\x00PRESERVE{len(preserved) - 1}\x00"
 
-    result = _CODE_BLOCK_RE.sub(_preserve_code_block, text)
+    result = FENCED_BLOCK_RE.sub(_preserve_code_block, text)
     result = _INLINE_CODE_RE.sub(_preserve_inline_code, result)
 
     result, table_blocks = _convert_tables(result)
