@@ -207,13 +207,11 @@ class HyperConsolidator:
                     importance=0.8,
                     metadata={
                         "task_goal": str(digest.task_goal),
-                        "status": str(digest.outcome),
                         "completed_steps": json.dumps(list(digest.completed_steps)),
                         "artifact_paths": json.dumps(list(digest.artifact_paths)),
                         "key_findings": json.dumps(list(digest.key_findings)),
                         "error_lessons": json.dumps(list(digest.error_lessons)),
                         "tool_call_count": int(digest.tool_call_count),
-                        "event_type": "task_digest",
                     },
                 )
                 await self._memory_manager.store(episodic)

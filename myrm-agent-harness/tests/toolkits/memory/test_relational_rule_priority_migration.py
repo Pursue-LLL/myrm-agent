@@ -1,4 +1,4 @@
-"""A rule database that still carries the retired integer priority opens, loses the column and orders by age."""
+"""A rule database that still has a ``priority`` column opens, loses the column and orders rules by age."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.memory.types import ToolRulePriority
 from tests.support.relational_records import make_rule
 
-# The table as it was written while rules still carried a priority.
+# A rule table that still has the integer priority column.
 WITH_PRIORITY_DDL = """
 CREATE TABLE procedural_rules (
     id TEXT PRIMARY KEY,

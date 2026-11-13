@@ -85,7 +85,7 @@ async def test_hyper_consolidator_status_normalization() -> None:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("terminal_status", ["completed", "interrupted", "failed"])
 async def test_hyper_consolidator_keeps_the_outcome_apart_from_the_lifecycle_status(terminal_status: str) -> None:
-    """The snapshot's terminal status is the digest's outcome; the episodic mirror stores it as metadata ``status``."""
+    """The snapshot's terminal status is the digest's outcome; the episodic mirror carries it in its content line."""
     stored: list[EpisodicMemory] = []
 
     class MirrorManager:
@@ -108,7 +108,7 @@ async def test_hyper_consolidator_keeps_the_outcome_apart_from_the_lifecycle_sta
     assert digest is not None
     assert digest.outcome == terminal_status
     assert digest.status == MemoryStatus.ACTIVE
-    assert [memory.metadata["status"] for memory in stored] == [terminal_status]
+    assert [memory.content for memory in stored] == [digest.content]
     assert f"Status: {terminal_status}" in digest.content
 
 
@@ -327,7 +327,8 @@ async def test_hyper_consolidator_persistence_with_memory_manager() -> None:
     assert "Set down-after-milliseconds" in stored_rules[0].action
 
     assert len(stored_episodics) == 1
-    assert stored_episodics[0].metadata["event_type"] == "task_digest"
+    assert stored_episodics[0].content == digest.content
+    assert stored_episodics[0].source_chat_id == "chat-redis-99"
     assert stored_episodics[0].metadata["task_goal"] == "Configure production Redis Sentinel"
 
 

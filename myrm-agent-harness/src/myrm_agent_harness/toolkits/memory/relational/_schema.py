@@ -10,8 +10,8 @@
 
 [POS]
 Schema bootstrap for SQLiteRelationalStore. Stateless: every function operates on the given connection.
-Migrations only move forward: the retired ``priority`` column of procedural_rules is dropped when found, so
-a build that still reads that column cannot open a database this code has opened.
+Migrations only move forward: a ``priority`` column found on procedural_rules is dropped, so a build that still
+reads that column cannot open a database this code has opened.
 """
 
 import aiosqlite
@@ -127,7 +127,7 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             await conn.execute("ALTER TABLE procedural_rules ADD COLUMN is_user_locked INTEGER NOT NULL DEFAULT 0")
         if "expected_valid_days" not in rule_columns:
             await conn.execute("ALTER TABLE procedural_rules ADD COLUMN expected_valid_days INTEGER")
-        # Rules are ordered by when they were made; the integer priority they used to carry is gone.
+        # procedural_rules has no priority column: rules are ordered by creation time, so a leftover column goes.
         if "priority" in rule_columns:
             await conn.execute("ALTER TABLE procedural_rules DROP COLUMN priority")
 
