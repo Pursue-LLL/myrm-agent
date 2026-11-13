@@ -124,6 +124,32 @@ async def test_waiting_exclusive_holders_are_admitted_in_arrival_order() -> None
     assert log == ["x+", "x-", "w1+", "w1-", "w2+", "w2-", "w3+", "w3-"]
 
 
+async def test_a_holder_takes_its_place_in_the_line_before_anything_else_can_run() -> None:
+    """A task that wakes another one and then enters the gate is admitted ahead of the one it woke."""
+    gate = ConflictGate()
+    log: list[str] = []
+    blocker = await _start(gate, log, "x", exclusive=True)
+    woken = asyncio.Event()
+
+    async def follower() -> None:
+        await woken.wait()
+        async with gate.hold(exclusive=True):
+            log.append("follower")
+
+    async def leader() -> None:
+        woken.set()
+        async with gate.hold(exclusive=True):
+            log.append("leader")
+
+    tasks = [asyncio.create_task(follower()), asyncio.create_task(leader())]
+    await _settle()
+
+    await blocker.let_go()
+    await asyncio.gather(*tasks)
+
+    assert log == ["x+", "x-", "leader", "follower"]
+
+
 async def test_shared_holders_that_wait_together_are_admitted_together() -> None:
     gate = ConflictGate()
     log: list[str] = []

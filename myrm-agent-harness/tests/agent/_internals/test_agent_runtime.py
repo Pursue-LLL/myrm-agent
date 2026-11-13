@@ -120,6 +120,25 @@ class TestBuildMiddlewares:
         assert class_names[gate - 1] == "SubagentLimitMiddleware"
         assert class_names[gate + 1] == "tool_interceptor_middleware"
 
+    def test_conflict_gate_is_the_first_middleware_to_wrap_a_tool_call(self):
+        """A wrapper outside the gate could answer a call before the gate sees it; the calls behind it would wait."""
+        from langchain.agents.middleware import AgentMiddleware
+
+        from myrm_agent_harness.agent._internals.agent_runtime import (
+            build_middlewares,
+            create_registry,
+        )
+
+        def wraps_tool_calls(middleware: object) -> bool:
+            kind = type(middleware)
+            return kind.awrap_tool_call is not AgentMiddleware.awrap_tool_call or (
+                kind.wrap_tool_call is not AgentMiddleware.wrap_tool_call
+            )
+
+        wrappers = [m for m in build_middlewares(create_registry(), []) if wraps_tool_calls(m)]
+
+        assert type(wrappers[0]).__name__ == "ToolConflictGateMiddleware"
+
     def test_contains_core_middlewares(self):
         from myrm_agent_harness.agent._internals.agent_runtime import (
             build_middlewares,

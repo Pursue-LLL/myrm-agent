@@ -9,7 +9,8 @@
 [POS]
 The mutual-exclusion primitive under ``ToolConflictGateMiddleware``. Admission follows arrival order, so an
 exclusive holder that is waiting is never starved by shared holders that arrive after it, and a holder that
-stops waiting (cancelled) never keeps the ones behind it out.
+stops waiting (cancelled) never keeps the ones behind it out. A holder takes its place in the line the moment
+``hold()`` is entered, before anything suspends: callers that must run in a given order enter ``hold()`` in it.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ class ConflictGate:
 
     @asynccontextmanager
     async def hold(self, *, exclusive: bool) -> AsyncIterator[None]:
-        """Run the body once admitted; the hold ends however the body ends."""
+        """Run the body once admitted, in the line position taken on entering; the hold ends however the body ends."""
         await self._enter(exclusive)
         try:
             yield

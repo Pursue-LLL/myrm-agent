@@ -7,7 +7,8 @@
 
 [OUTPUT]
 - ScriptedModel: answers from a script and records what each call was sent and the keyword arguments of each tool binding
-- shipped_agent: the shipped middleware stack compiled with ``create_agent`` around given tools, over a registry that holds the tools a test names
+- shipped_agent: the shipped middleware stack compiled with ``create_agent`` around given tools, over a registry that
+  holds the tools a test names, optionally behind middlewares of the test's own
 - shipped_session: the session context of a run that may use tools without asking
 - yolo_config: the security config of such a run
 
@@ -25,6 +26,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from langchain.agents import create_agent
+from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
@@ -80,16 +82,18 @@ def shipped_agent(
     without: Sequence[str] = (),
     engine: EngineParams | None = None,
     registered: Sequence[BaseTool] = (),
+    ahead: Sequence[AgentMiddleware[AgentState[object], None, object]] = (),
 ) -> tuple[ScriptedModel, CompiledStateGraph]:
     """The agent's own middleware stack in a graph, minus the middlewares named in *without*.
 
     The stack's probes read what its registry holds (which tools the run has). A run registers the tools it hands
-    the graph; here the registry holds only *registered*, so a case is about the tools it names.
+    the graph; here the registry holds only *registered*, so a case is about the tools it names. The middlewares in
+    *ahead* sit in front of the stack, outside every wrapper of a tool call.
     """
     registry = create_registry()
     registry.register_many(list(registered), source=ToolSource.USER)
     model = ScriptedModel(script=script)
-    middlewares = [m for m in build_middlewares(registry, [], engine) if m.name not in without]
+    middlewares = [*ahead, *(m for m in build_middlewares(registry, [], engine) if m.name not in without)]
     return model, create_agent(model, tools=list(tools), middleware=middlewares, checkpointer=checkpointer)
 
 

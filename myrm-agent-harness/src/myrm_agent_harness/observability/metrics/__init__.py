@@ -16,6 +16,7 @@ Submodules:
 - goal_metrics — Goal lifecycle monitoring (created, completed, budget_limited, duration, tokens, cost)
 - circuit_breaker_metrics — Circuit breaker state and failure monitoring
 - provider_window_metrics — Provider rate-limit window extraction outcome (drift alarm)
+- tool_order_metrics — How the tool conflict gate ordered each call against the calls of its model message
 - db_pool_collector — Database connection pool metrics collector
 - security_metrics — Security policy denial and action monitoring
 

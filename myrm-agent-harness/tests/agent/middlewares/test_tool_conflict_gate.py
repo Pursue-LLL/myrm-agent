@@ -1,19 +1,22 @@
-"""ToolConflictGateMiddleware: concurrency-safe calls share, every other call runs alone, a failed call changes nothing for the rest."""
+"""ToolConflictGateMiddleware: safe calls share, every other call runs alone and in the model's order among the calls of
+its message, a failed call changes nothing for the rest."""
 
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from langchain.agents.middleware import ToolCallRequest
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate import ToolConflictGateMiddleware
 
 SAFE = ("file_read_tool", "grep_tool")
 UNSAFE = ("file_write_tool", "bash_code_execute_tool")
+RECORD = "myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate.record_tool_order"
+GRACE = 5.0
 
 
 async def _settle() -> None:
@@ -21,7 +24,20 @@ async def _settle() -> None:
         await asyncio.sleep(0)
 
 
-def _turn(call_ids: dict[str, str], message_id: str | None = "turn-1") -> dict[str, list[AIMessage]]:
+class FrozenClock:
+    """Holds the running loop's clock still, so a grace period ends when the test says so, not when the machine does."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        loop = asyncio.get_running_loop()
+        self._now = loop.time()
+        monkeypatch.setattr(loop, "time", lambda: self._now)
+
+    async def pass_time(self, seconds: float) -> None:
+        self._now += seconds
+        await _settle()
+
+
+def _turn(call_ids: dict[str, str], message_id: str | None = "turn-1") -> dict[str, list[BaseMessage]]:
     """The state a tool task is handed: the model message that made *call_ids* (id to tool name)."""
     calls = [{"id": call_id, "name": name, "args": {}} for call_id, name in call_ids.items()]
     return {"messages": [AIMessage(content="", id=message_id, tool_calls=calls)]}
@@ -195,3 +211,150 @@ async def test_a_failed_unsafe_call_does_not_stop_the_later_calls_of_its_turn(la
     assert isinstance(answer, ToolMessage)
     assert (answer.status, answer.content) == ("success", "ok")
     assert calls.log == ["a+", "a-", "b+", "b-"]
+
+
+async def test_the_first_call_of_a_message_does_not_wait_for_the_calls_behind_it() -> None:
+    calls = Calls()
+
+    await calls.start(UNSAFE[0], "a", _turn({"a": UNSAFE[0], "b": UNSAFE[1]}))
+
+    assert calls.log == ["a+"]
+
+
+async def test_a_call_waits_for_the_conflicting_calls_ahead_of_it_to_reach_the_gate() -> None:
+    calls = Calls()
+    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1]})
+
+    await calls.start(UNSAFE[1], "b", state)
+    assert calls.log == []
+
+    await calls.start(UNSAFE[0], "a", state)
+    assert calls.log == ["a+"]
+
+    await calls.finish("a")
+    assert calls.log == ["a+", "a-", "b+"]
+
+
+async def test_concurrency_safe_calls_of_one_message_do_not_wait_for_each_other_to_reach_the_gate() -> None:
+    calls = Calls()
+    state = _turn({"a": SAFE[0], "b": SAFE[1]})
+
+    await calls.start(SAFE[1], "b", state)
+    await calls.start(SAFE[0], "a", state)
+
+    assert calls.log == ["b+", "a+"]
+
+
+async def test_a_concurrency_safe_call_waits_only_for_the_calls_ahead_of_it_that_are_not() -> None:
+    calls = Calls()
+    state = _turn({"r1": SAFE[0], "w": UNSAFE[0], "r2": SAFE[1]})
+
+    await calls.start(SAFE[1], "r2", state)
+    assert calls.log == []
+
+    await calls.start(SAFE[0], "r1", state)
+    assert calls.log == ["r1+"]
+
+    await calls.start(UNSAFE[0], "w", state)
+    assert calls.log == ["r1+"]
+
+    await calls.finish("r1")
+    assert calls.log == ["r1+", "r1-", "w+"]
+
+    await calls.finish("w")
+    assert calls.log == ["r1+", "r1-", "w+", "w-", "r2+"]
+
+
+async def test_a_call_cancelled_while_waiting_to_reach_the_gate_does_not_keep_the_calls_behind_it_waiting() -> None:
+    calls = Calls()
+    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1], "c": UNSAFE[0]})
+    await calls.start(UNSAFE[0], "c", state)
+    cancelled = await calls.start(UNSAFE[1], "b", state)
+    cancelled.cancel()
+    await _settle()
+
+    await calls.start(UNSAFE[0], "a", state)
+    await calls.finish("a")
+
+    assert calls.log == ["a+", "a-", "c+"]
+
+
+async def test_a_call_does_not_wait_for_a_call_ahead_of_it_that_already_has_an_answer() -> None:
+    calls = Calls()
+    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1]})
+    state["messages"].append(ToolMessage(content="done", tool_call_id="a"))
+
+    with patch(RECORD) as record:
+        await calls.start(UNSAFE[1], "b", state)
+
+    assert calls.log == ["b+"]
+    record.assert_not_called()
+
+
+async def test_a_call_stops_waiting_for_a_call_that_never_reaches_the_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = FrozenClock(monkeypatch)
+    calls = Calls(ToolConflictGateMiddleware(arrival_grace_seconds=GRACE))
+    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1]})
+
+    with patch(RECORD) as record:
+        await calls.start(UNSAFE[1], "b", state)
+        await clock.pass_time(GRACE / 2)
+        assert calls.log == []
+        await clock.pass_time(GRACE)
+
+    assert calls.log == ["b+"]
+    assert record.call_args_list == [call("held_for_order"), call("predecessor_absent")]
+
+
+async def test_a_call_that_was_written_off_is_not_waited_for_again_and_still_runs_when_it_arrives_late(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FrozenClock(monkeypatch)
+    calls = Calls(ToolConflictGateMiddleware(arrival_grace_seconds=GRACE))
+    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1], "c": UNSAFE[0]})
+
+    with patch(RECORD) as record:
+        await calls.start(UNSAFE[1], "b", state)
+        await clock.pass_time(GRACE * 2)
+        await calls.start(UNSAFE[0], "c", state)
+        await calls.start(UNSAFE[0], "a", state)
+
+    assert record.call_args_list == [call("held_for_order"), call("predecessor_absent")]
+    assert calls.log == ["b+"]
+
+    for call_id in ("b", "c", "a"):
+        await calls.finish(call_id)
+
+    assert calls.log == ["b+", "b-", "c+", "c-", "a+", "a-"]
+
+
+async def test_a_message_that_cannot_be_told_apart_is_admitted_in_arrival_order_and_counted() -> None:
+    calls = Calls()
+    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1]}, message_id=None)
+
+    with patch(RECORD) as record:
+        await calls.start(UNSAFE[1], "b", state)
+
+    assert calls.log == ["b+"]
+    record.assert_called_once_with("turn_unidentified")
+
+
+async def test_a_message_with_a_single_call_is_neither_ordered_nor_counted() -> None:
+    calls = Calls()
+
+    with patch(RECORD) as record:
+        await calls.start(UNSAFE[0], "a", _turn({"a": UNSAFE[0]}))
+
+    assert calls.log == ["a+"]
+    record.assert_not_called()
+
+
+async def test_a_call_held_for_its_predecessors_is_counted_once() -> None:
+    calls = Calls()
+    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1]})
+
+    with patch(RECORD) as record:
+        await calls.start(UNSAFE[1], "b", state)
+        await calls.start(UNSAFE[0], "a", state)
+
+    record.assert_called_once_with("held_for_order")

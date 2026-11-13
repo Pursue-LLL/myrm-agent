@@ -1,8 +1,9 @@
 """How the shipped agent runs the tool calls of one model turn, observed on the graph a run builds.
 
-The tool calls of a turn reach the tool node as separate tasks that start in no fixed order, so what a test can pin is
-what holds in every order: which calls may run at the same moment, which never do, and that a paused call neither
-stalls nor re-runs its siblings. Each test here compiles the stack ``build_middlewares`` assembles with
+The tool calls of a turn reach the tool node as separate tasks that start in no fixed order, so what a test can pin
+without forcing that order is what holds in every order: which calls may run at the same moment, which never do, and
+that a paused call neither stalls nor re-runs its siblings. ``test_tool_turn_order`` forces the order and pins that
+conflicting calls start in the model's. Each test here compiles the stack ``build_middlewares`` assembles with
 ``create_agent``, as ``test_shipped_stack_hooks`` does, and reads what the tools saw.
 """
 
@@ -11,15 +12,18 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Iterator
 from pathlib import Path
+from unittest.mock import call, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import ToolException, tool
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command, interrupt
 
 from myrm_agent_harness.agent.meta_tools.clarification.ask_question import AskQuestionInput
 from myrm_agent_harness.agent.meta_tools.clarification.clarification_agent_tools import create_ask_question_tool
+from myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate import ToolConflictGateMiddleware
 from myrm_agent_harness.agent.middlewares.tooling import tool_executor
 from myrm_agent_harness.agent.security.tool_registry import TOOL_SAFETY_METADATA, SafetyMetadata
 from tests.support.shipped_graph import shipped_agent, shipped_session
@@ -246,12 +250,14 @@ async def test_a_json_string_that_cannot_be_repaired_is_answered_as_an_error_and
     assert [m.status for m in answers] == ["error"]
 
 
-@pytest.mark.parametrize("attempt", range(6))
-async def test_a_call_that_pauses_for_the_user_neither_stalls_its_sibling_nor_re_runs_it(attempt: int) -> None:
-    """The calls start in a different order from one run to the next, so the pause lands before or after the sibling."""
-    tag = f"pause{attempt}"
+@pytest.mark.parametrize("calls", [("write_after_asking", "write_two"), ("write_two", "write_after_asking")])
+async def test_a_call_that_pauses_for_the_user_neither_stalls_its_sibling_nor_re_runs_it(
+    calls: tuple[str, str],
+) -> None:
+    """Whichever of the two calls the model made first, the pause lands before or after the sibling ran."""
+    tag = f"pause-{calls[0]}"
     _, agent = shipped_agent(
-        [_turn(tag, write_after_asking={}, write_two={}), AIMessage(content="done")],
+        [_turn(tag, **{name: {} for name in calls}), AIMessage(content="done")],
         TOOLS,
         checkpointer=InMemorySaver(),
     )
@@ -266,6 +272,35 @@ async def test_a_call_that_pauses_for_the_user_neither_stalls_its_sibling_nor_re
     answers = [m.content for m in resumed["messages"] if isinstance(m, ToolMessage)]
     assert sorted(answers) == ["wrote after yes", "wrote two"]
     assert sorted(PROBE.finished) == ["write_after_asking", "write_two"]
+
+
+async def test_a_call_resumed_by_another_agent_instance_stops_waiting_for_the_calls_that_already_ran() -> None:
+    """The new instance is never handed the calls that finished before the pause, so the resumed call stops waiting."""
+    tag = "instance"
+    script = [_turn(tag, write_two={}, write_after_asking={}), AIMessage(content="done")]
+    saver = InMemorySaver()
+    thread = {"configurable": {"thread_id": tag}}
+
+    def agent_instance() -> CompiledStateGraph:
+        gate = ToolConflictGateMiddleware(arrival_grace_seconds=0.05)
+        _, agent = shipped_agent(
+            script, TOOLS, checkpointer=saver, without=("ToolConflictGateMiddleware",), ahead=[gate]
+        )
+        return agent
+
+    paused = await asyncio.wait_for(
+        agent_instance().ainvoke({"messages": [HumanMessage(content="go")]}, thread), timeout=10
+    )
+    assert paused["__interrupt__"]
+    assert PROBE.finished == ["write_two"]
+
+    with patch("myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate.record_tool_order") as record:
+        resumed = await asyncio.wait_for(agent_instance().ainvoke(Command(resume="yes"), thread), timeout=10)
+
+    answers = [m.content for m in resumed["messages"] if isinstance(m, ToolMessage)]
+    assert sorted(answers) == ["wrote after yes", "wrote two"]
+    assert PROBE.finished == ["write_two", "write_after_asking"]
+    assert record.call_args_list == [call("held_for_order"), call("predecessor_absent")]
 
 
 async def test_the_ask_question_tool_pauses_the_run_for_the_user_and_resumes_with_the_answer() -> None:
