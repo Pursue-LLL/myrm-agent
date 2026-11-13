@@ -12,7 +12,7 @@ Leaf IPC command modules invoked from the main webview, session webviews, and pe
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `config.rs` | 核心 | 系统配置读写与数据目录迁移协调入口；`save_system_config`/`reset_system_config` 先写 `desktop_runtime.json` 离席桥，配置落盘或 reset 失败则回滚 runtime（迁移/回滚路径重启后端后统一 `spawn_backend_monitors` 重挂健康监控） | ✅ |
+| `config.rs` | 核心 | 系统配置读写与数据目录迁移协调入口；`save_system_config`/`reset_system_config` 先写 `desktop_runtime.json` 离席桥，配置落盘或 reset 失败则回滚 runtime（迁移/回滚路径重启后端后统一 `spawn_backend_monitors` 重挂健康监控）；保存与重置成功后经 `app::autostart::sync_login_item` 同步系统登录项（开发构建不碰） | ✅ |
 | `desktop_runtime_state.rs` | 核心 | 离席授权 runtime 桥：`desktop_runtime.json` 原子读写（`MYRM_DESKTOP_RUNTIME_FILE`）；server `locked_use_enabled()` 运行时读此文件，保存设置无需重启 Sidecar | ✅ |
 | `data_migration.rs` | 核心 | 数据目录迁移预检、流式同步（含逐条目进度回调与拷贝后体积对账）与自愈容灾引擎 | ✅ |
 | `pet_surface.rs` | 核心 | 透明置顶 `/pet-overlay` webview；bounds/show/hide/ignore/focus/toggle。页面地址由 `ProductOrigin` 构造的完整产品页地址（`WebviewUrl::External`）：发布版的 `WebviewUrl::App` 会回落到壳页并丢弃路径 | ✅ |

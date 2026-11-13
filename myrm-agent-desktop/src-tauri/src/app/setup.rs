@@ -92,13 +92,7 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     }
 
     if system_config.auto_launch_at_login {
-        use tauri_plugin_autostart::ManagerExt;
-        if let Ok(autostart) = app.autolaunch().is_enabled() {
-            if !autostart {
-                let _ = app.autolaunch().enable();
-                println!("✅ Auto-launch enabled at login");
-            }
-        }
+        super::autostart::sync_login_item(app.handle(), true);
     }
 
     app.manage(config_manager);

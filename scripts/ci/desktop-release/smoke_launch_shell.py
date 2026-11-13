@@ -118,6 +118,11 @@ def launch_env(platform: str, profile: Path, inherited: Mapping[str, str]) -> di
         "LANG": "en_US.UTF-8",
         "TMPDIR": str(profile / "tmp"),
     }
+    if platform == "darwin":
+        # System frameworks resolve the home through NSHomeDirectory(), which ignores HOME but honours this variable.
+        # WebKit keeps the WebView's LocalStorage, caches and cookies under it, keyed by bundle id: without it the
+        # smoke would read and write the storage of the user's installed app.
+        env["CFFIXED_USER_HOME"] = str(profile)
     env.update({name: inherited[name] for name in LINUX_SESSION_VARS if name in inherited})
     return env
 
