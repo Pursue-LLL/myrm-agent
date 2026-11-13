@@ -9,8 +9,10 @@ Integration tests use real LLM calls via LITE_MODEL environment variable.
 
 import inspect
 import os
+from collections.abc import AsyncIterator
 from typing import Any
 
+import httpx
 import pytest
 from dotenv import load_dotenv
 
@@ -23,8 +25,12 @@ load_dotenv(override=False)
 
 
 @pytest.fixture()
-def lite_llm_func():
-    """Build a real LLM function using LITE_MODEL for integration tests."""
+async def lite_llm_func() -> AsyncIterator[Any]:
+    """Build a real LLM function using LITE_MODEL for integration tests.
+
+    The HTTP client belongs to the test's own event loop: langchain-openai caches a default async client per process,
+    and that client stays bound to the first test's loop, so every later test would fail with ``Event loop is closed``.
+    """
     from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
     )
@@ -39,14 +45,16 @@ def lite_llm_func():
 
     from langchain_openai import ChatOpenAI
 
-    llm = ChatOpenAI(
-        model=model,
-        api_key=api_key,
-        base_url=base_url,
-        temperature=0,
-        max_tokens=512,
-    )
-    return create_extraction_llm_func(llm)
+    async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as http_async_client:
+        llm = ChatOpenAI(
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+            temperature=0,
+            max_tokens=512,
+            http_async_client=http_async_client,
+        )
+        yield create_extraction_llm_func(llm)
 
 
 @pytest.fixture()
