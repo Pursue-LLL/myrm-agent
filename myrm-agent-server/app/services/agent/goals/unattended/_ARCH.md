@@ -16,6 +16,7 @@
 
 - 调用方（`goal_controls.continue_resumed_goal`、`usage_limit_resume.daemon` / `notify`、`goal_wait_background_resume`、`goal_wait_orphan_recovery`、`goal_learnings`）只从包门面导入；`trigger.py` 与 `failure.py` 之间直接互引，不经门面。
 - 服务端自启的回合没有 HTTP 流，取消只能经会话占用与 `CancellationRegistry` 令牌到达；三处自启入口（本包、`streaming_support/hitl_timeout.py`、`lifecycle/auto_continue.py`）共用 `turn_lease`，调用点由 `tests/services/agent/turn_lease/test_server_started_turns_guard.py` 钉死。
+- 无人值守回合的 YOLO 只是构建期兜底：`trigger.py` 对 `load_user_configs` 返回的配置取副本（该对象由所有读者共用，不能原地改）并在没开 YOLO 时补上 `yolo_mode_enabled`；`stream_pipeline` 每轮经 `sync_wrapper_security_from_store` 重载已保存的 `securityConfig` 并整体替换 `security_config_raw`，只叠加请求自带的 `security_overlay`（本入口不带），所以已保存过安全配置的用户以保存值为准，补上的 YOLO 只对没保存过安全配置的用户生效。
 
 ## 依赖
 

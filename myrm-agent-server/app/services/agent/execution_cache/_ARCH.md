@@ -84,7 +84,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 - 传输头：model_kwargs 内 `extra_headers` 整棵子树（`_TRANSPORT_HEADER_KEYS`）：resolve 期注入的 X-Sandbox-Id/X-Telemetry-Token/Authorization 仅运行时鉴权，轮换不 bust
 - OpenAPI 服务 `auth` 整棵子树（`_openapi_services_sig`）：auth 仅运行时鉴权、不塑形 build 输出（工具名/描述来自 spec + selected_endpoints），含 auth.type 变化均不 bust
 - 每 run 状态：kanban_current_task_id、quote、timezone、reasoning_display_mode（`force_skill_manage` 不在此列：它决定工具是否被 build，已折叠进 `skill_manage_mounted`）
-- YOLO 启用时间戳：`security_config_raw` / `agent_security_raw` 内的 `yolo_mode_enabled_at`，无条件排除（`_YOLO_STAMP_KEYS`）。时间戳只在运行时为 YOLO 超时计时（`batch_processor/core.py`），读取的是 stream_pipeline 每 turn 重应用的安全配置，build 期没有读取方；目标触发器、看板 runner、IM `/yolo on <超时>` 都会重写它，进指纹会让每次重写都拆掉单元。复用的单元每 turn 按最新时间戳判定 YOLO 是否过期；`yolo_mode_timeout` 本身仍进指纹（超时改了就重建）
+- YOLO 启用时间戳：`security_config_raw` / `agent_security_raw` 内的 `yolo_mode_enabled_at`，无条件排除（`_YOLO_STAMP_KEYS`）。时间戳只在运行时为 YOLO 超时计时（`batch_processor/core.py`），读取的是 stream_pipeline 每 turn 重应用的安全配置，build 期没有读取方；目标触发器、看板 runner 在构建时给配置副本补写它，IM `/yolo on <超时>` 经请求的 `SecurityOverlaySpec.yolo` 在每次重载后写入它，进指纹会让每次重写都拆掉单元。复用的单元每 turn 按最新时间戳判定 YOLO 是否过期；`yolo_mode_timeout` 本身仍进指纹（超时改了就重建）
 - 每 turn 刷新：privacy_enabled 等 10 个隐私字段 + enable_plan_confirm（stream_pipeline 每 turn 重应用）
 - 全局静态：event_log_backend、tail_budget_ratio
 - 前端已发送但 converter 未接入（死字段）：pre_compact_enabled / pre_compact_budget_tokens
