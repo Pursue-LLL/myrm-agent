@@ -7,5 +7,14 @@
  */
 export { buildAgentConfig } from './agentConfigMapper';
 export { buildMissingDependenciesParts, validateAgentDependencies } from './agentConfigValidator';
+export {
+  areBindingsEqual,
+  findBindingIssues,
+  normalizeBinding,
+  parseAliasList,
+  sanitizeCommandToken,
+  toBindingsPayload,
+} from './commandBindings';
 export { areSkillConfigsEqual } from './skillConfigs';
+export type { BindingIssue } from './commandBindings';
 export type { ValidationResult } from './agentConfigValidator';

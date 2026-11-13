@@ -1,9 +1,7 @@
 """端到端集成测试：Agent Management 边缘场景与关联资源
 
-测试 /api/agents 接口的异常处理、Avatar 上传、统计信息等。
+测试 /api/agents 接口的异常处理、统计信息等。
 """
-
-import os
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -84,33 +82,6 @@ async def test_agent_partial_update(async_client: AsyncClient, test_user_id: str
     assert data["description"] == "Original Description"
     assert data["system_prompt"] == "New Prompt"
     assert data["skill_ids"] == ["bash"]
-
-    # 清理
-    await async_client.delete(f"/api/agents/{agent_id}")
-
-
-@pytest.mark.asyncio
-async def test_agent_avatar_upload(async_client: AsyncClient, test_user_id: str):
-    """测试头像上传"""
-    # 创建
-    res = await async_client.post("/api/agents", json={"name": "Avatar Agent"})
-    agent_id = res.json()["data"]["id"]
-
-    # 构造一个 1x1 像素的假 PNG 文件
-    fake_png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\xff\xff\xff\x7f\x00\x08\xfc\x02\xfe\xa7\x18\x9f\x00\x00\x00\x00IEND\xaeB`\x82"
-
-    files = {"file": ("test.png", fake_png, "image/png")}
-    res = await async_client.post(f"/api/agents/{agent_id}/avatar", files=files)
-
-    assert res.status_code == 200
-    data = res.json()["data"]
-    assert data["avatar_url"].startswith("home://")
-    assert data["avatar_url"].endswith(".png")
-    assert os.path.exists(data["local_path"])
-
-    # 验证 Agent Profile 已更新
-    res = await async_client.get(f"/api/agents/{agent_id}")
-    assert res.json()["data"]["avatar_url"] == data["avatar_url"]
 
     # 清理
     await async_client.delete(f"/api/agents/{agent_id}")

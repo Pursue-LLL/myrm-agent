@@ -22,16 +22,14 @@ const LEVEL_PRESENTATION: Record<ReadinessLevel, { icon: ComponentType<IconProps
 
 interface AgentReadinessListProps {
   items: AgentReadinessItem[];
-  /** Offer a settings deep link on items that are not ready. */
-  withLinks?: boolean;
   className?: string;
 }
 
 /**
- * One row per readiness finding; shared by the setup wizard and the plugin import result.
+ * One row per readiness finding, with a settings deep link on every item that is not ready.
  * Rows are worded by `useReadinessText`, never from the backend's English diagnostics.
  */
-const AgentReadinessList = memo(({ items, withLinks = false, className }: AgentReadinessListProps) => {
+const AgentReadinessList = memo(({ items, className }: AgentReadinessListProps) => {
   const { label, reason, fix } = useReadinessText();
 
   return (
@@ -45,7 +43,7 @@ const AgentReadinessList = memo(({ items, withLinks = false, className }: AgentR
               <div className="font-medium">{label(item)}</div>
               <div className="mt-0.5 break-words text-xs text-muted-foreground">{reason(item)}</div>
             </div>
-            {withLinks && item.level !== 'ready' && item.settings_path && (
+            {item.level !== 'ready' && item.settings_path && (
               <Link href={item.settings_path} className="shrink-0 text-xs font-medium text-primary hover:underline">
                 {fix}
               </Link>

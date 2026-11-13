@@ -1,4 +1,4 @@
-"""Agent core CRUD, snapshots, avatar, file-serve endpoints.
+"""Agent core CRUD, snapshots and home-directory file-serve endpoints.
 
 [INPUT]
 services.agent.agent_service::AgentService (POS: 业务层 Agent CRUD 服务)
@@ -11,17 +11,16 @@ myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm s
 
 [OUTPUT]
 Agent CRUD（list/get/create/update/delete）、配置快照（GET /snapshots）、
-撤销（POST /rollback）、Avatar 上传、文件服务。
+撤销（POST /rollback）、家目录文件服务（头像图片）。
 
 [POS]
 用户自定义智能体核心 HTTP 端点。GUI-first 配置 SSOT 的 API 层。
 """
 
 import logging
-import os
 from math import ceil
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
 from myrm_agent_harness.api import resolve_data_dir
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -303,62 +302,6 @@ async def rollback_agent_to_snapshot(
         raise
     except Exception as e:
         raise internal_error(operation="Rollback agent profile to snapshot", exception=e) from e
-
-
-@router.post("/{agent_id}/avatar", response_model=StandardSuccessResponse)
-async def upload_agent_avatar(
-    agent_id: str,
-    file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """上传智能体头像（支持 png/jpeg/svg/gif/webp，最大 5MB）"""
-    try:
-        agent = await AgentService.get_agent_by_id(agent_id)
-        if not agent:
-            raise not_found_error("Agent")
-
-        allowed_types = [
-            "image/png",
-            "image/jpeg",
-            "image/svg+xml",
-            "image/gif",
-            "image/webp",
-        ]
-        if file.content_type not in allowed_types:
-            raise validation_error(f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}")
-
-        content = await file.read()
-        if len(content) > 5 * 1024 * 1024:
-            raise validation_error("File size exceeds 5MB limit")
-
-        agent_home = _meta_str(_metadata_as_mapping(agent), "home_directory")
-        if not agent_home:
-            agent_home = str(resolve_data_dir() / "agents" / agent_id)
-        os.makedirs(agent_home, exist_ok=True)
-
-        ext_map = {
-            "image/png": "png",
-            "image/jpeg": "jpg",
-            "image/svg+xml": "svg",
-            "image/gif": "gif",
-            "image/webp": "webp",
-        }
-        ext = ext_map.get(file.content_type, "png")
-        avatar_filename = f"avatar.{ext}"
-        avatar_path = os.path.join(agent_home, avatar_filename)
-
-        with open(avatar_path, "wb") as f:
-            f.write(content)
-
-        avatar_url = f"home://{avatar_filename}"
-
-        await AgentService.update_agent(agent_id, AgentUpdate.model_validate({"avatar_url": avatar_url}))
-
-        return success_response(data={"avatar_url": avatar_url, "local_path": avatar_path})
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_error(operation="Upload agent avatar", exception=e) from e
 
 
 @router.get("/{agent_id}/files/{filename:path}")

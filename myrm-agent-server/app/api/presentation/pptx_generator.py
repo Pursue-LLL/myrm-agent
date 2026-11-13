@@ -35,31 +35,31 @@ SLIDE_HEIGHT_INCHES = 7.5
 PALETTES: Dict[str, Tuple[RGBColor, RGBColor, RGBColor, RGBColor, RGBColor]] = {
     "enterprise_blue": (
         RGBColor(245, 247, 250),
-        RGBColor(14, 116, 144),   # Cyan 700
+        RGBColor(14, 116, 144),  # Cyan 700
         RGBColor(255, 255, 255),
-        RGBColor(15, 23, 42),     # Slate 900
+        RGBColor(15, 23, 42),  # Slate 900
         RGBColor(100, 116, 139),  # Slate 500
     ),
     "minimal_dark": (
-        RGBColor(15, 23, 42),     # Slate 900
-        RGBColor(56, 189, 248),   # Sky 400
-        RGBColor(30, 41, 59),     # Slate 800
+        RGBColor(15, 23, 42),  # Slate 900
+        RGBColor(56, 189, 248),  # Sky 400
+        RGBColor(30, 41, 59),  # Slate 800
         RGBColor(248, 250, 252),  # Slate 50
         RGBColor(148, 163, 184),  # Slate 400
     ),
     "creative_gradient": (
         RGBColor(250, 245, 255),  # Purple 50
-        RGBColor(147, 51, 234),   # Purple 600
+        RGBColor(147, 51, 234),  # Purple 600
         RGBColor(255, 255, 255),
-        RGBColor(24, 24, 27),     # Zinc 900
+        RGBColor(24, 24, 27),  # Zinc 900
         RGBColor(113, 113, 122),  # Zinc 500
     ),
     "tech_emerald": (
         RGBColor(240, 253, 244),  # Emerald 50
-        RGBColor(5, 150, 105),    # Emerald 600
+        RGBColor(5, 150, 105),  # Emerald 600
         RGBColor(255, 255, 255),
-        RGBColor(6, 78, 59),      # Emerald 900
-        RGBColor(16, 185, 129),   # Emerald 500
+        RGBColor(6, 78, 59),  # Emerald 900
+        RGBColor(16, 185, 129),  # Emerald 500
     ),
 }
 
@@ -100,7 +100,7 @@ def generate_presentation_structure(request: PresentationGenerateRequest) -> Lis
                     title="传统常规方案 (Legacy)",
                     bullet_points=[
                         "流程冗长繁复，各环节存在信息孤岛与割裂",
-                        "手工介入比例高达 70%，容易产生人为失误",
+                        "手工介入环节多，容易产生人为失误",
                         "响应周期以天为单位，缺乏端到端可观测性",
                     ],
                 ),
@@ -185,9 +185,9 @@ def generate_presentation_structure(request: PresentationGenerateRequest) -> Lis
                     element_type="vector_metrics",
                     title="关键产出预期",
                     bullet_points=[
-                        "研发协同周期缩短 60%，沟通对齐摩擦大幅消除",
-                        "核心产物具备 100% 格式无损双向追溯与导出能力",
-                        "标准资产开箱即用，团队复用率提升 4 倍以上",
+                        "研发协同周期缩短，沟通对齐摩擦大幅消除",
+                        "核心产物具备格式无损的双向追溯与导出能力",
+                        "标准资产开箱即用，团队复用率显著提升",
                     ],
                 )
             ],

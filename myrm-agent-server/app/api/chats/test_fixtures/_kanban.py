@@ -1,8 +1,8 @@
 """Local-only HTTP fixtures — Kanban seed endpoints.
 
 Kanban closure (chat `kanban_tasks_created` card + board task) and Kanban
-IN_REVIEW (Fleet pendingApprovals KPI) seeds. Both are local/tauri-only via
-the ``is_local_mode`` guard.
+IN_REVIEW (pending approvals) seeds. Both are local/tauri-only via the
+``is_local_mode`` guard.
 
 [INPUT]
 app.config.deploy_mode::is_local_mode (POS: 部署模式判定，限制 seed 端点仅 local/tauri)
@@ -13,7 +13,7 @@ myrm_agent_harness.toolkits.kanban.types (POS: TaskPriority/TaskStatus/source_ch
 
 [OUTPUT]
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
-seed_kanban_in_review_fixture: 创建 IN_REVIEW 看板任务（Fleet pendingApprovals KPI Chrome E2E；task 绑定内置 agent 供抽屉本地化断言）
+seed_kanban_in_review_fixture: 创建 IN_REVIEW 看板任务（待审批计数 Chrome E2E；task 绑定内置 agent 供抽屉本地化断言）
 
 [POS]
 Chats API 本地测试 fixture 子包的 Kanban seed 端点集合。
@@ -144,7 +144,7 @@ async def seed_kanban_in_review_fixture() -> dict[str, str]:
     agent_id = agent.id
 
     kanban = KanbanService.get_instance()
-    board = await kanban.create_board(board_name, description="Kanban IN_REVIEW Fleet KPI Chrome E2E")
+    board = await kanban.create_board(board_name, description="Kanban IN_REVIEW pending approvals Chrome E2E")
     task = await kanban.add_task(
         board.board_id,
         task_title,

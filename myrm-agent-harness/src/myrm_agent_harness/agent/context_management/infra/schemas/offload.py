@@ -16,17 +16,13 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
 
-# Minimum compression savings threshold (Prompt Cache protection).
-# See CONTEXT_ENGINEERING.md §5.2.
-# Assumes T_prefix=30k, T_cleared > T_prefix * (1-P), at 90% discount: 30k * 0.1 = 3k.
-# 3000 tokens balances cache protection without being overly conservative.
-
 ContextOffloadFailureKind = Literal[
     "temporary_failure",
     "permission_denied",
     "quota_exceeded",
     "unsupported",
 ]
+
 
 @dataclass(frozen=True, slots=True)
 class ContextOffloadResult:
@@ -67,10 +63,12 @@ class ContextOffloadResult:
     ) -> ContextOffloadResult:
         return cls(failure_kind=failure_kind, message=message)
 
+
 def normalize_context_offload_result(value: str | ContextOffloadResult) -> ContextOffloadResult:
     if isinstance(value, ContextOffloadResult):
         return value
     return ContextOffloadResult.success(value) if value.strip() else ContextOffloadResult.failure("temporary_failure")
+
 
 @dataclass
 class EvictedToolCall:

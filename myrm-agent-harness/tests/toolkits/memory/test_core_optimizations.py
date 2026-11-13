@@ -110,7 +110,7 @@ async def test_batch_embedding_api(mock_llm, mock_vector, mock_embedding, mock_c
     improvement = (per_item_1 - per_item_20) / per_item_1 * 100
 
     print(f"  Per-item overhead reduction: {improvement:.1f}%")
-    assert improvement > 20, f"Expected >50% per-item improvement, got {improvement:.1f}%"
+    assert improvement > 20, f"Expected >20% per-item improvement, got {improvement:.1f}%"
 
 
 @pytest.mark.asyncio

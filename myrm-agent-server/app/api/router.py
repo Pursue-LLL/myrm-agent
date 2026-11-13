@@ -9,7 +9,6 @@ from app.api.agents import (
     fleet_overview,
     general_agent,
     generate_prompt,
-    governance,
     openapi_services,
     profile_audit,
     providers,
@@ -140,7 +139,6 @@ api_router.include_router(agent_history.router, prefix="/user-agents", tags=["us
 api_router.include_router(providers.router, prefix="/user-agents/providers", tags=["user-agents"])
 
 api_router.include_router(fleet_overview.router, prefix="/agents", tags=["agents"])
-api_router.include_router(governance.router, prefix="/agents", tags=["agents"])
 api_router.include_router(openapi_services.router, prefix="/agents", tags=["agents"])
 api_router.include_router(profile_audit.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(readiness.router, prefix="/user-agents", tags=["user-agents"])

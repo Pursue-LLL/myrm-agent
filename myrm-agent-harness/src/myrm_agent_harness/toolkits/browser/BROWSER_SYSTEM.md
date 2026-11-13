@@ -83,7 +83,6 @@ Extension Bridge 与 SessionVault 覆盖竞品（orca/holaboss）cookie 导入�
 
 | 指标 | 状态 |
 |------|------|
-| SOLID 原则 | ✅ 100% 遵循 |
 | 最大文件行数 | 716 行（GlobalBrowserPool） |
 | 精细化错误处理 | ✅ 11 种异常类型 |
 | 智能重试 | ✅ 会话内置导航/代理/CAPTCHA 重试 |
@@ -616,8 +615,6 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 | `browser_execute_script_tool` | **Code-as-Action 批量执行** + AST 特权API门禁 | _(执行 Python 脚本，AST 扫描 page.request/evaluate/context 等特权API → HITL 审批)_ |
 | `browser_ask_human_tool` | **人类接管请求** | _(单一职责，Agent 触发 HITL interrupt + extension 横幅 / managed VNC)_ |
 
-**Token 成本**：~65 tokens（相比独立工具方案节省 86%）
-
 #### browser_interact_tool — steps[] 批量模式
 
 可选 `steps[]` 在同一页面、同一 snapshot ref 集上顺序执行多步交互，减少 LLM 往返。单步模式仍用 `action` + `ref`；批量模式省略顶层 `action`/`ref`，每步独立指定。语义 DOM HITL 对每一步独立生效。
@@ -676,7 +673,7 @@ Loop Guard 与 Completion Guard 为兜底；正常路径由 Turn1 工具描述�
 - 性能：~100ms
 - 用途：基于 inspect 的建议，捕获目标区域
 
-**收益**：首次调用成本从 8000 tokens → 100 tokens（-99%），总成本从 9200 → 1300（-86%）
+**收益**：首次调用只返回约 100 tokens 的页面结构 metadata，而不是整页快照（以约 8000 tokens 的页面为例）；两阶段合计约 1300 tokens，先整页快照再精准捕获则约 9200 tokens
 
 #### API-First 网络智能（NetworkIntelligence）
 
@@ -950,13 +947,13 @@ ToolError(
 在 `browser_navigate_tool`、`browser_interact_tool` 和 `browser_execute_script_tool` 中提供 `verify_goal` 参数。当 Agent 传入该参数时，系统自动触发**三层极速视觉漏斗**：
 
 1. **Layer 1: DOM 突变拦截 (0ms)**：利用 `MutationObserver`（或等效机制），如果 DOM 毫无变化，直接判定失败。
-2. **Layer 2: 像素哈希校验 (dHash, 2ms)**：利用现有的 `FastComparator`，如果动作前后截图的哈希相似度 > 99%，直接判定失败，拦截 80% 无效的视觉大模型调用。
+2. **Layer 2: 像素哈希校验 (dHash, 2ms)**：利用现有的 `FastComparator`，如果动作前后截图的哈希相似度 > 99%，直接判定失败，在调用视觉模型之前就拦下无变化的动作。
 3. **Layer 3: 轻量级视觉打分 (~1s)**：只有通过前两层，才将新截图和 `verify_goal` 发给后端的轻量级视觉模型（如 GPT-4o-mini）。如果打分 < 4，将视觉模型的“失败理由”（如：“被弹窗遮挡”）作为纯文本返回给主控 Agent。
 
 **核心优势**：
 - **保护缓存**：主控 Agent 只接收纯文本失败理由，绝对保护了主模型的提示词缓存（Prompt Cache）。
 - **极速低本**：后端毫秒级自动完成验证，省去了一整轮大模型对话的时间，前两层漏斗省下了大量 Vision Token 费用。
-- **高鲁棒性**：将复杂长链路 Web 任务的成功率从 ~40% 飙升至 90%+。
+- **高鲁棒性**：动作是否生效由页面证据裁定（DOM 变化、像素差异、视觉打分），被遮挡或被拦截的动作在当次调用内就带着失败原因返回，主控 Agent 可以立刻改路，而不是带着“幻觉执行”继续走下去。
 
 ### 16. Self-Healing Locators (定位自愈机制)
 

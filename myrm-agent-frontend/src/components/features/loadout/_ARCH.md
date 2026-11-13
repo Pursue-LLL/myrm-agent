@@ -29,6 +29,5 @@ Agent Loadout 与 Team Assets 导航编排层：组合现有 memory/wiki/skills/
 ## 产品入口
 
 - `AgentCapabilitiesTab` 嵌入 `AgentLoadoutSummary`（`AgentEditPanel` 识别 `#loadout` 切换 capabilities Tab）
-- `/agents` 卡片 → `/settings/agents?agentId=#loadout`
 - Migration Wizard Result → `/settings/memory?sub=team-hub` · agent loadout 深链
 - Memory Center tab `team-hub` · SettingsMenu memory 子项 `team-hub`

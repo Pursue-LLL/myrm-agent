@@ -17,11 +17,6 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
 
-# Minimum compression savings threshold (Prompt Cache protection).
-# See CONTEXT_ENGINEERING.md §5.2.
-# Assumes T_prefix=30k, T_cleared > T_prefix * (1-P), at 90% discount: 30k * 0.1 = 3k.
-# 3000 tokens balances cache protection without being overly conservative.
-
 from .offload import ContextOffloadResult, EvictedToolCall
 from .summary import StructuredSummary
 
@@ -45,6 +40,7 @@ class SummaryPersistCallback(Protocol):
         tokens_saved: int,
     ) -> Coroutine[object, object, None]: ...
 
+
 class ContextCompressOffloadCallback(Protocol):
     """Full tool result offload callback (dependency inversion).
 
@@ -58,6 +54,7 @@ class ContextCompressOffloadCallback(Protocol):
         self, *, content: str, tool_name: str, scope_id: str | None
     ) -> Coroutine[object, object, str | ContextOffloadResult]: ...
 
+
 class ContextCompressEvictionCallback(Protocol):
     """Compression eviction callback protocol (dependency inversion).
 
@@ -68,6 +65,7 @@ class ContextCompressEvictionCallback(Protocol):
     def __call__(
         self, evicted_pairs: list[EvictedToolCall], user_goal_hint: str
     ) -> Coroutine[object, object, None]: ...
+
 
 class ContextSnapshotCallback(Protocol):
     """Pre-compression full message snapshot callback (dependency inversion).

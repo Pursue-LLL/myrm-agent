@@ -11,15 +11,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
-
-# Minimum compression savings threshold (Prompt Cache protection).
-# See CONTEXT_ENGINEERING.md §5.2.
-# Assumes T_prefix=30k, T_cleared > T_prefix * (1-P), at 90% discount: 30k * 0.1 = 3k.
-# 3000 tokens balances cache protection without being overly conservative.
 
 
 @dataclass(frozen=True, slots=True)

@@ -354,7 +354,7 @@ payload["raw_exchange"] = externalize_payload(raw_exchange, threshold=4096)  # -
 
 **Compression（内联压缩）：**
 
-对于低于 4KB 的中等文本，直接在 Qdrant payload 中进行内联 Gzip 压缩并 Base64 编码，减少 30-70% 存储空间。
+对于低于 4KB 的中等文本，直接在 Qdrant payload 中进行内联 Gzip 压缩并 Base64 编码，缩小 payload 体积。
 
 **Multi-language tokenization：**
 
@@ -1077,9 +1077,9 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 为了解决长周期会话的“失忆”和“上下文爆炸”问题，系统实现了基于 SQLite FTS5 的混合检索架构：
 
-- **零冗余存储**：使用 `External Content` 模式，只建倒排索引不复制原始对话文本，节省 50% 磁盘。
+- **零冗余存储**：使用 `External Content` 模式，只建倒排索引不复制原始对话文本，不产生第二份对话正文。
 - **自动同步**：在 SQLite 层面建立 `INSERT/UPDATE/DELETE` 触发器，彻底杜绝应用层代码漏写导致的索引不一致。
-- **多语言支持**：强制启用 `trigram` 分词器，确保中英文混合搜索的 100% 召回率。
+- **多语言支持**：强制启用 `trigram` 分词器，中英文混合文本按三字符片段建索引，无需分词词典。
 - **混合检索**：底层并行触发 FTS5（精准关键词匹配）和 Vector（语义匹配），并使用 RRF（倒数排序融合）算法进行数学重排。
 - **语法清洗**：提供严格的 FTS5 查询语法清洗（Sanitization），支持带点号和连字符的代码文件名防切词，拦截崩溃注入。
 
@@ -1146,7 +1146,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **争议冻结**：`conflict_status=conflicted` 写回已存记录，使遗忘通道在人工裁决前保留双方；
   - **撤回退役**：确认由替换产生时标记 `superseded`，排序召回路径不再返回该记录；存储、衰减与治理列表不受影响，记录仍可审计、仍会衰减。
 - **自愈式装配与单机开箱即用**：
-  - `MemoryManager` 核心构造层在未显式传递 `fts5_searcher` 时自动挂载 `relational_store.search_fts5` 通道，`create_local_memory_manager` 启动工厂同样显式接入该通道，保障单机本地、Tauri 桌面端与云端沙箱三种部署形态下精确事实双轨召回通道 100% 畅通。
+  - `MemoryManager` 核心构造层在未显式传递 `fts5_searcher` 时自动挂载 `relational_store.search_fts5` 通道，`create_local_memory_manager` 启动工厂同样显式接入该通道，保障单机本地、Tauri 桌面端与云端沙箱三种部署形态下精确事实双轨召回通道都已接入。
 
 ---
 

@@ -1,19 +1,18 @@
-"""Real Chrome E2E: Fleet pendingApprovals KPI reflects kanban IN_REVIEW.
+"""Real Chrome E2E: kanban IN_REVIEW tasks count as pending approvals until reviewed.
 
 The IN_REVIEW state is only reachable after a real agent completes a
 require_approval run, which an E2E probe cannot dispatch. The server exposes a
 local-only fixture endpoint (`POST /chats/test/seed-kanban-in-review-fixture`)
 that drives the real KanbanService/store — the backend stays the single writer,
 so no second sqlite3 writer can corrupt its WAL. The test then verifies the
-/agents Fleet "Pending" KPI ticks up in the real UI and falls back after the
-approve (IN_REVIEW -> COMPLETED) and reject (IN_REVIEW -> READY) transitions,
-both performed like a real user inside the kanban task drawer.
+badges `pendingApprovals` count ticks up, that the in-review deep link (the one
+push notifications and task toasts open) lands on the pending task, and that
+the count falls back after the approve (IN_REVIEW -> COMPLETED) and reject
+(IN_REVIEW -> READY) transitions, both performed like a real user inside the
+kanban task drawer.
 
-Every UI assertion is anchored by an independent API-level reading of the same
-metric (badges `pendingApprovals`), so a wrong aggregation is diagnosed
-immediately instead of surfacing as a confusing UI-only diff. Incremental
-assertions (N -> N+1 -> N) immunize against concurrent activity from other
-developers sharing the server.
+Incremental assertions (N -> N+1 -> N) immunize against concurrent activity
+from other developers sharing the server.
 """
 
 from __future__ import annotations
@@ -28,42 +27,9 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     navigate_mcp_page,
     open_mcp_page,
-    reload_mcp_page,
     wait_for_state,
     warm_ui_route,
 )
-
-# Reads the /agents Fleet "Pending" KPI. Stays not-ready until the label match
-# AND a rendered value are both present, so the baseline read cannot race the
-# fleet-overview fetch (the KPI card only mounts once the API has answered).
-_PENDING_KPI_JS = """(() => {
-  const appLayout = !!document.querySelector('[data-testid="app-layout"]');
-  const cards = [...document.querySelectorAll('div.rounded-lg.border.p-3, a.rounded-lg.border.p-3')]
-    .map(c => ({
-      label: c.querySelector('p.text-xs')?.textContent?.trim() ?? null,
-      value: c.querySelector('p.text-lg')?.textContent?.trim() ?? null,
-    }));
-  const pending = cards.find(c => c.label && /pend|待审批/i.test(c.label));
-  if (!pending) {
-    return {
-      ready: false,
-      text: '',
-      href: location.href,
-      appLayout,
-      cards,
-      visibility: document.visibilityState,
-    };
-  }
-  const text = (pending.value ?? '').trim();
-  return {
-    ready: text !== '',
-    text,
-    href: location.href,
-    appLayout,
-    cards,
-    visibility: document.visibilityState,
-  };
-})()"""
 
 # Raw English display names of built-in agents (from builtin-agent-i18n-data).
 # A zh kanban drawer must never render these verbatim; localization replaces
@@ -116,36 +82,7 @@ def _seed_in_review(api_url: str) -> dict[str, str]:
     }
 
 
-def _read_pending_kpi(
-    client: object,
-    page: object,
-    *,
-    timeout_sec: float = 90.0,
-    page_url: str | None = None,
-) -> str:
-    """Read the /agents Fleet 'Pending' KPI value (blocks until it renders)."""
-    state = wait_for_state(
-        client,
-        page,
-        _PENDING_KPI_JS,
-        timeout_sec=timeout_sec,
-        page_url=page_url,
-    )
-    return str(state.get("text") or "")
-
-
-def _reload_agents(client: object, page: object, agents_url: str) -> None:
-    """Reload /agents like a real user so SWR refetches fleet-overview."""
-    reload_mcp_page(
-        client,
-        page,
-        target_url=agents_url,
-        timeout_ms=90_000,
-        ignore_cache=True,
-    )
-
-
-def _click_pending_kpi_and_verify_kanban_deep_link(
+def _verify_in_review_deep_link(
     client: object,
     page: object,
     *,
@@ -154,37 +91,14 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
     board_name: str,
     task_id: str,
 ) -> None:
-    """Click the Fleet 'Pending' KPI card and verify the kanban deep link.
+    """Open the in-review deep link and verify it lands on the pending task.
 
-    The KPI card is a real anchor to `/settings/kanban?status=in_review`.
-    Clicking it must land on a board whose in-review column actually holds the
-    pending task (KanbanSection picks the first board with that status), with
-    the status filter chip rendered — closing the number-to-action loop.
+    `/settings/kanban?board_id=…&status=in_review` is the link push
+    notifications and task toasts open. It must land on the board with the
+    status filter chip rendered and the pending task card present.
     """
-    clicked = client.evaluate(
-        page,
-        """(() => {
-          const link = document.querySelector(
-            '[data-testid="fleet-pending-approvals-link"]',
-          );
-          if (!link) return { clicked: false, reason: 'link-not-found' };
-          const href = link.getAttribute('href') || '';
-          link.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-          link.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-          link.click();
-          return { clicked: true, href };
-        })()""",
-        timeout_sec=5.0,
-    )
-    assert clicked.get("clicked") is True, f"pending KPI link not clickable: {clicked}"
-    href = str(clicked.get("href") or "")
-    assert href.endswith("/settings/kanban?status=in_review"), f"pending KPI must deep link to kanban in_review filter: {href}"
-
-    target_kanban_url = f"{ui_url}{href}"
-    navigate_mcp_page(client, page, target_kanban_url, timeout_ms=90_000)
-
-    # Client-side nav: the board view mounts and KanbanSection auto-selects a
-    # board holding the status. The in-review column must show our seeded card.
+    target_url = f"{ui_url}/settings/kanban?board_id={board_id}&status=in_review"
+    navigate_mcp_page(client, page, target_url, timeout_ms=90_000)
     landed = wait_for_state(
         client,
         page,
@@ -207,19 +121,9 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
           }};
         }})()""",
         timeout_sec=90.0,
-        page_url=target_kanban_url,
+        page_url=target_url,
     )
-    assert landed.get("ready") is True, f"kanban deep link did not land on the in-review task: {landed}"
-
-    # Return to /agents for the rest of the lifecycle like a real user.
-    agents_url = f"{ui_url}/agents"
-    reload_mcp_page(
-        client,
-        page,
-        target_url=agents_url,
-        timeout_ms=90_000,
-        ignore_cache=True,
-    )
+    assert landed.get("ready") is True, f"in-review deep link did not land on the pending task: {landed}"
 
 
 def _open_task_drawer_and_click(
@@ -431,7 +335,7 @@ def _open_task_drawer_and_click(
         raise AssertionError(f"unknown drawer action {action!r}")
 
 
-# exclusive_backend reason: asserts exact global /api/v1/statistics/overview pending_approvals delta (kpi_review == kpi_before + 1).
+# exclusive_backend reason: asserts exact global /api/v1/statistics/badges pendingApprovals delta (after == before + 1).
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -439,37 +343,26 @@ def _open_task_drawer_and_click(
     private_reason="exclusive_backend",
 )
 @pytest.mark.integration
-def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
+def test_kanban_in_review_counts_as_pending_approval_until_reviewed() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
-    warm_ui_route("/agents")
     warm_ui_route("/settings/kanban")
-    agents_url = f"{ui_url}/agents"
+    kanban_url = f"{ui_url}/settings/kanban"
 
-    with open_mcp_page(agents_url) as (client, page):
-        navigate_mcp_page(client, page, agents_url, timeout_ms=90_000)
-        # Baseline: the KPI card must be rendered, so 'before' is a digit.
-        before = _read_pending_kpi(client, page, page_url=agents_url)
-        assert before.isdigit(), f"Pending KPI not rendered; before={before!r}"
+    with open_mcp_page(kanban_url) as (client, page):
+        navigate_mcp_page(client, page, kanban_url, timeout_ms=90_000)
         api_before = _api_pending_approvals(api_url)
 
-        # Lifecycle 1: IN_REVIEW -> approve -> COMPLETED releases the KPI.
+        # Lifecycle 1: IN_REVIEW -> approve -> COMPLETED releases the pending count.
         seeded_apr = _seed_in_review(api_url)
         api_after = _wait_pending_approvals(api_url, api_before + 1)
         assert api_after == api_before + 1, (
             f"badges API must count the seeded IN_REVIEW task: api_before={api_before} actual={api_after}"
         )
-        _reload_agents(client, page, agents_url)
-        seeded = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
-        seeded_text = str(seeded.get("text") or "")
-        assert seeded_text == str(int(before) + 1), (
-            f"KPI should tick +1 after IN_REVIEW seed: before={before} seeded={seeded_text}"
-        )
 
-        # Number-to-action: the KPI card deep links to the kanban board with
-        # the in-review column filtered, landing on the seeded pending task.
-        _click_pending_kpi_and_verify_kanban_deep_link(
+        # Number-to-action: the in-review deep link lands on the pending task.
+        _verify_in_review_deep_link(
             client,
             page,
             ui_url=ui_url,
@@ -492,22 +385,12 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
         assert api_released == api_before, (
             f"badges API must fall back after approve: api_before={api_before} actual={api_released}"
         )
-        _reload_agents(client, page, agents_url)
-        settled = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
-        settled_text = str(settled.get("text") or "")
-        assert settled_text == before, f"KPI should fall back after approve: before={before!r} settled={settled_text!r}"
 
-        # Lifecycle 2: IN_REVIEW -> reject -> READY also releases the KPI.
+        # Lifecycle 2: IN_REVIEW -> reject -> READY also releases the pending count.
         seeded_rej = _seed_in_review(api_url)
         api_after_rej = _wait_pending_approvals(api_url, api_before + 1)
         assert api_after_rej == api_before + 1, (
             f"badges API must count the second seeded IN_REVIEW task: api_before={api_before} actual={api_after_rej}"
-        )
-        _reload_agents(client, page, agents_url)
-        seeded_rej_state = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
-        seeded_rej_text = str(seeded_rej_state.get("text") or "")
-        assert seeded_rej_text == str(int(before) + 1), (
-            f"KPI should tick +1 after second IN_REVIEW seed: before={before} seeded={seeded_rej_text}"
         )
 
         _open_task_drawer_and_click(
@@ -525,7 +408,3 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
         assert api_released_rej == api_before, (
             f"badges API must fall back after reject: api_before={api_before} actual={api_released_rej}"
         )
-        _reload_agents(client, page, agents_url)
-        settled_rej = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
-        settled_rej_text = str(settled_rej.get("text") or "")
-        assert settled_rej_text == before, f"KPI should fall back after reject: before={before!r} settled={settled_rej_text!r}"

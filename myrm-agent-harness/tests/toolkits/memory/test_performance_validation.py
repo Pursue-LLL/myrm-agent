@@ -106,7 +106,7 @@ async def test_batch_embedding_efficiency(mock_llm, mock_vector, mock_embedding,
 
 @pytest.mark.asyncio
 async def test_lazy_embedding_savings(mock_llm, mock_vector, mock_embedding, mock_config):
-    """Lazy embedding saves 66.7% embedding cost in hash hit scenarios."""
+    """Lazy embedding skips the embedding call when the content hash already hits."""
     dedup = SmartDeduplicator(mock_llm, adaptive_capacity=False)
 
     first_batch = [SemanticMemory(content=f"Content {i}") for i in range(10)]

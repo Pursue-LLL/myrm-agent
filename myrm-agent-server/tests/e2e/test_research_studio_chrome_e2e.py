@@ -4,11 +4,13 @@ Prerequisites:
   ./myrm-dev ready --chrome
 
 Covers:
-  T1 - /research page loads with correct three-column layout (PC mode)
+  T1 - /research page loads with substantial content
   T2 - Resource pool displays empty state with correct UI elements
   T3 - Resource pool actions (Wiki, Upload) buttons present
-  T4 - Desktop three-column layout has drag handles
+  T4 - Layout follows the research area's own width: three panes with drag handles when wide, one pane under tabs
+       when narrow
   T5 - Metadata title correct
+  T6 - The chat composer sits inside the chat pane instead of spanning the side panes
 """
 
 from __future__ import annotations
@@ -35,20 +37,39 @@ _LAYOUT_PROBE_JS = """(() => {
   const uploadBtn = bodyText.includes('上传') || bodyText.includes('Upload');
   const selectedCount = bodyText.includes('已选') || bodyText.includes('selected');
 
-  const isMobile = window.matchMedia('(max-width: 768px)').matches;
-  const dragHandles = document.querySelectorAll('[class*="cursor-col-resize"]');
-  const tabs = document.querySelectorAll('[role="tab"]');
-  const tabTexts = Array.from(tabs).map(t => t.textContent || '');
+  const paneIds = ['resources', 'chat', 'output'];
+  const isShown = (el) => el.getClientRects().length > 0;
+  const visiblePanes = paneIds.filter((id) => {
+    const pane = document.getElementById('research-pane-' + id);
+    return pane !== null && isShown(pane);
+  });
+  const chatPane = document.getElementById('research-pane-chat');
+  const rowWidth = chatPane ? chatPane.parentElement.clientWidth : 0;
+  // Mirrors the layout's `@6xl` container query: three panes from 72rem of research-area width.
+  const wide = rowWidth >= 72 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+  const dragHandles = Array.from(document.querySelectorAll('[class*="cursor-col-resize"]')).filter(isShown);
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]')).filter(isShown);
+  const tabTexts = tabs.map((t) => t.textContent || '');
+  const composer = chatPane ? chatPane.querySelector('textarea') : null;
+  let composerInChatPane = false;
+  if (composer !== null && chatPane !== null && isShown(chatPane)) {
+    const paneRect = chatPane.getBoundingClientRect();
+    const composerRect = composer.getBoundingClientRect();
+    composerInChatPane = composerRect.left >= paneRect.left && composerRect.right <= paneRect.right;
+  }
 
   return {
-    ready: (resourcePool || emptyState) && title.includes('Research'),
+    ready: (resourcePool || emptyState) && title.includes('Research') && composer !== null,
     title,
     resourcePool,
     emptyState,
     wikiBtn,
     uploadBtn,
     selectedCount,
-    isMobile,
+    wide,
+    rowWidth,
+    visiblePanes,
+    composerInChatPane,
     dragHandleCount: dragHandles.length,
     tabCount: tabs.length,
     tabTexts,
@@ -88,14 +109,23 @@ def test_research_studio_full_chrome_e2e() -> None:
         assert state.get("uploadBtn") is True, "Upload button should be present"
         assert state.get("selectedCount") is True, "Selected count should be visible"
 
-        # T4: Responsive layout verification
-        is_mobile = state.get("isMobile") is True
+        # T4: Layout follows the research area's own width, not the viewport
         viewport_w = state.get("viewportWidth", 0)
-        if is_mobile:
-            assert isinstance(state.get("tabCount"), int) and state["tabCount"] >= 3, (
-                f"Mobile ({viewport_w}px) should show >=3 tabs, got {state.get('tabCount')}"
+        if state.get("wide") is True:
+            assert state.get("visiblePanes") == ["resources", "chat", "output"], (
+                f"Wide area ({state.get('rowWidth')}px of {viewport_w}px viewport) should show all three panes: "
+                f"{state.get('visiblePanes')}"
             )
+            assert state.get("dragHandleCount") == 2, f"Wide area should show 2 drag handles: {state.get('dragHandleCount')}"
+            assert state.get("tabCount") == 0, f"Wide area should hide the pane tabs: {state.get('tabTexts')}"
         else:
-            assert isinstance(state.get("dragHandleCount"), int) and state["dragHandleCount"] >= 2, (
-                f"Desktop ({viewport_w}px) should have >=2 drag handles, got {state.get('dragHandleCount')}"
+            assert len(state.get("visiblePanes", [])) == 1, (
+                f"Narrow area ({state.get('rowWidth')}px of {viewport_w}px viewport) should show one pane: "
+                f"{state.get('visiblePanes')}"
             )
+            assert state.get("tabCount") == 3, f"Narrow area should show three pane tabs: {state.get('tabTexts')}"
+            assert state.get("dragHandleCount") == 0, f"Narrow area should hide the drag handles: {state.get('dragHandleCount')}"
+
+        # T6: The composer belongs to the chat pane (only measurable while that pane is on screen)
+        if "chat" in state.get("visiblePanes", []):
+            assert state.get("composerInChatPane") is True, "Chat composer should sit inside the chat pane"

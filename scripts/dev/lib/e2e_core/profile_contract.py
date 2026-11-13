@@ -46,8 +46,8 @@ EXCLUSIVE_BACKEND_EVIDENCE_MANIFEST: Final[dict[tuple[str, str], str]] = {
     ): "configured_retrieval_embedding mutates global /api/v1/config/retrieval and exercises 409 conflict on instance-wide /api/v1/memory/pending",
     (
         "myrm-agent/myrm-agent-server/tests/e2e/test_pending_approvals_chrome_e2e.py",
-        "test_fleet_pending_approvals_kpi_tracks_kanban_in_review",
-    ): "asserts exact global /api/v1/statistics/overview pending_approvals delta (kpi_review == kpi_before + 1)",
+        "test_kanban_in_review_counts_as_pending_approval_until_reviewed",
+    ): "asserts exact global /api/v1/statistics/badges pendingApprovals delta (after == before + 1)",
     (
         "myrm-agent/myrm-agent-server/tests/e2e/test_skill_manage_undo_hint_chrome_e2e.py",
         "test_skill_manage_undo_hint_expands_task_steps",

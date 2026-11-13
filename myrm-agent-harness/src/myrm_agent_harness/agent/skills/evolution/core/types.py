@@ -138,7 +138,7 @@ class SkillLineage:
     Replaces complex DAG with simple versioning:
     - version: Simple integer version (v1, v2, v3...)
     - parent_id: Single parent skill_id (for FIX/DERIVED)
-    - Reduces 5 tables to 1 simple field (95% complexity reduction)
+    - One parent field instead of a multi-table lineage graph
     """
 
     evolution_type: EvolutionType

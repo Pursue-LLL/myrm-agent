@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { HelpCircle, Sparkles, Loader2, Wand2 } from 'lucide-react';
+import { HelpCircle, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { IconArrowRight, IconFileText, IconZap, IconBot, IconShield } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { useAgentAiBuild } from '@/hooks/agent/useAgentAiBuild';
+import { useAgentCommandBindings } from '@/hooks/agent/useAgentCommandBindings';
 import { useAgentEditor } from '@/hooks/agent/useAgentEditor';
+import { useAgentEditorSave } from '@/hooks/agent/useAgentEditorSave';
+import { AgentAiBuilderCard } from './agent/AgentAiBuilderCard';
 import { AgentBasicInfoTab } from './agent/AgentBasicInfoTab';
 import { AgentPreviewCard } from './agent/AgentPreviewCard';
 import AgentConfigEditDialog from '@/components/features/chat-window/agent-config-panel/AgentConfigEditDialog';
@@ -20,10 +23,8 @@ import { AgentCapabilitiesTab } from './agent/AgentCapabilitiesTab';
 import { IconKey } from '@/components/features/icons/PremiumIcons';
 import ExpertExportDialog from '@/components/features/plugins/ExpertExportDialog';
 import { toast } from '@/hooks/shared/useToast';
-import { Textarea } from '@/components/primitives/textarea';
 import { useSkillStore } from '@/store/skill';
 import { isFormalKoreanRepliesEnabled, setFormalKoreanRepliesEnabled } from '@/lib/utils/responseLocalePolicy';
-import { isImeComposing } from '@/lib/utils/imeUtils';
 
 type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'faq' | 'inbox';
 
@@ -47,6 +48,8 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   const [timeMachineExpanded, setTimeMachineExpanded] = useState(false);
 
   const editor = useAgentEditor(agentId, isNew, t);
+  const commandBindings = useAgentCommandBindings(agentId, isNew, editor.loading);
+  const save = useAgentEditorSave(editor, commandBindings, t);
 
   const { engineParams, setEngineParams } = editor;
   const formalKoreanReplies = useMemo(() => isFormalKoreanRepliesEnabled(engineParams), [engineParams]);
@@ -199,16 +202,16 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
           <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted/50 text-muted-foreground border border-border/50">
             {t('agent.builtInReadonly')}
           </span>
-        ) : !isNew || editor.hasChanges ? (
+        ) : !isNew || save.hasChanges ? (
           <span
             className={cn(
               'px-3 py-1.5 rounded-lg text-xs font-medium',
-              editor.hasChanges
+              save.hasChanges
                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                 : 'bg-muted/50 text-muted-foreground',
             )}
           >
-            {editor.hasChanges ? t('agent.unsaved') : t('agent.saved')}
+            {save.hasChanges ? t('agent.unsaved') : t('agent.saved')}
           </span>
         ) : null}
       </div>
@@ -223,46 +226,12 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
       </div>
 
       {isNew && !editor.hasChanges && (
-        <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-violet-500/5 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Wand2 className="w-5 h-5 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">{t('agent.aiBuilder.title')}</h3>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">{t('agent.aiBuilder.subtitle')}</p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Textarea
-              value={aiIntent}
-              onChange={(e) => setAiIntent(e.target.value)}
-              placeholder={t('agent.aiBuilder.placeholder')}
-              className="min-h-[60px] max-h-[100px] resize-none text-sm flex-1"
-              disabled={aiGenerating}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !isImeComposing(e)) {
-                  e.preventDefault();
-                  void handleAiBuild(aiIntent);
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              className="shrink-0 self-end gap-1.5 sm:self-end"
-              onClick={() => void handleAiBuild(aiIntent)}
-              disabled={!aiIntent.trim() || aiGenerating}
-            >
-              {aiGenerating ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  {t('agent.aiBuilder.generating')}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {t('agent.aiBuilder.apply')}
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
+        <AgentAiBuilderCard
+          intent={aiIntent}
+          generating={aiGenerating}
+          onIntentChange={setAiIntent}
+          onBuild={handleAiBuild}
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -271,15 +240,15 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
             name={editor.name}
             description={editor.description}
             selectedGradient={editor.selectedGradient}
-            hasChanges={editor.hasChanges}
-            saving={editor.saving}
+            hasChanges={save.hasChanges}
+            saving={save.saving}
             rollingBack={rollingBack}
             snapshotCount={editor.snapshotCount}
             skillCount={skillCount}
             mcpCount={mcpCount}
             readonly={editor.isReadonly}
-            onSave={editor.handleSave}
-            onStartChat={editor.handleStartChat}
+            onSave={save.handleSave}
+            onStartChat={save.handleStartChat}
             onExport={!isNew && !editor.isReadonly ? () => setExportOpen(true) : undefined}
             onRollback={!isNew && !editor.isReadonly ? handleRollback : undefined}
             onGradientChange={editor.setSelectedGradient}
@@ -328,7 +297,9 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
             />
           )}
 
-          {activeTab === 'capabilities' && <AgentCapabilitiesTab editor={editor} agentId={agentId} isNew={isNew} />}
+          {activeTab === 'capabilities' && (
+            <AgentCapabilitiesTab editor={editor} commandBindings={commandBindings} agentId={agentId} isNew={isNew} />
+          )}
 
           {activeTab === 'security' && (
             <div className={cn(editor.isReadonly && 'pointer-events-none opacity-70')}>

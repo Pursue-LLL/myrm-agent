@@ -35,7 +35,7 @@ async def get_memory_history() -> dict[str, object]:
 async def start_memory_profiling(frames: int = 10) -> dict[str, object]:
     """Start heap profiling using tracemalloc.
 
-    Warning: This will incur a ~10-20% performance overhead while active.
+    Warning: This slows the process down while profiling is active.
     """
     monitor = get_resource_monitor()
     started = monitor.start_profiling(frames=frames)

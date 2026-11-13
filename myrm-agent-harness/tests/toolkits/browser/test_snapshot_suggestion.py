@@ -19,8 +19,7 @@ class TestSimplifiedSuggestion:
 
         assert "browser_inspect()" in suggestion
         assert "3000 tokens" in suggestion
-        assert "~70%" in suggestion
-        assert "~2100 tokens" in suggestion  # 验证量化节省
+        assert "%" not in suggestion  # 建议只陈述机制，不承诺未经测量的节省比例
         assert "Quick fix" in suggestion  # 验证多选项
 
     def test_suggest_scope_for_large_refs(self):
@@ -38,8 +37,7 @@ class TestSimplifiedSuggestion:
 
         assert "scope='interactive'" in suggestion
         assert "250 refs" in suggestion
-        assert "~60%" in suggestion
-        assert "~900 tokens" in suggestion  # 验证量化节省
+        assert "%" not in suggestion  # 建议只陈述机制，不承诺未经测量的节省比例
         assert "Alternative" in suggestion  # 验证多选项
 
     def test_suggest_compact_for_large_refs(self):
@@ -56,8 +54,7 @@ class TestSimplifiedSuggestion:
         )
 
         assert "compact=True" in suggestion
-        assert "~30%" in suggestion
-        assert "~450 tokens" in suggestion  # 验证量化节省
+        assert "%" not in suggestion  # 建议只陈述机制，不承诺未经测量的节省比例
 
     def test_no_suggestion_for_fully_optimized_page(self):
         """测试完全优化的页面无建议"""

@@ -1,7 +1,7 @@
 
 # 上下文工程：AI Agent 的核心竞争力
 
-当 AI Agent 执行复杂任务时，上下文窗口会被大量工具调用结果填满——成本飙升、延迟累积、性能下降。Manus 的实测数据显示，通过**缓存层优化**（保持工具列表不变、前缀稳定、只追加不删除）和**五维度上下文管理**（卸载、缩减、检索、隔离、缓存），推理次数从 4.3 降至 1.2 次，总成本直接砍掉 72%。
+当 AI Agent 执行复杂任务时，上下文窗口会被大量工具调用结果填满——成本飙升、延迟累积、性能下降。**缓存层优化**（保持工具列表不变、前缀稳定、只追加不删除）和**五维度上下文管理**（卸载、缩减、检索、隔离、缓存）是压住这三项代价的主要手段。
 
 本文系统梳理了来自 Manus、Anthropic、Factory Research 等一线团队的上下文工程实战经验，涵盖从架构设计到成本优化的完整方法论。无论你是在构建自己的 Agent 系统，还是想深入理解 AI Agent 的核心瓶颈，这篇文章都值得参考。
 
@@ -56,7 +56,7 @@ Prompt Caching 是模型提供商（如 Anthropic、OpenAI）提供的优化机�
 > 如果连续两次 API 调用的 Prompt **前缀相同**，第二次调用可以复用第一次的计算结果。
 
 **优势**：
-- **成本降低**：Anthropic 缓存命中时 90% 折扣
+- **成本降低**：命中缓存的部分按缓存读取价计费（Anthropic 为基础输入价的 10%）
 - **延迟减少**：跳过重复的前向计算
 - **吞吐提升**：相同成本下可处理更多请求
 
@@ -833,27 +833,13 @@ API 序列化顺序为 `Tools → System → Messages`（Tools 段内按 CORE �
 3. ✅ **中间 N 个（保护断点）**：保留前 `max_breakpoints - 2` 个 → 防止超出 20-block lookback
 
 **设计理由**：
-- 🎯 **最后消息最重要**：丢失会失去增量缓存能力，成本节省从 68% → 0%
-- 🎯 **System 也重要**：缓存系统提示词，通常占 tokens 的 30-50%
+- 🎯 **最后消息最重要**：丢失会失去增量缓存能力，缓存带来的成本节省随之归零
+- 🎯 **System 也重要**：缓存系统提示词，它是每一轮都重复发送的固定前缀
 - 🎯 **中间断点可取舍**：优先保护前半部分对话，确保不超出 lookback window
 
-#### 性能数据
+#### 效果度量
 
-**成本节省**（9 轮对话）：
-
-| 轮次 | 增量缓存方案 | 无缓存方案 | 节省 |
-|------|---------|--------|------|
-| 1 | 1,562.5 | 1,500 | - |
-| 2 | 687.5 | 800 | 14% |
-| 3 | 712.5 | 1,300 | 45% |
-| 9 | 862.5 | 4,300 | 80% |
-| **总计** | **7,062** | **22,000** | **68%** ✅ |
-
-**延迟降低**（官方 Benchmark，187K tokens）：
-
-| 场景 | 非缓存 | 第1次缓存 | 第2次缓存 | 加速 |
-|------|--------|-----------|-----------|------|
-| 单轮 | 6.86s | 5.96s | 3.66s | **1.9x** ✅ |
+增量缓存的收益取决于对话轮数、每轮新增的 token 量与服务商的缓存读取价，没有一个通用的百分比。实际命中量以服务商返回的 usage 为准（Anthropic 为 `cache_read_input_tokens`）；成本口径见「5. 成本分析与决策模型」。
 
 ---
 
@@ -867,7 +853,7 @@ API 序列化顺序为 `Tools → System → Messages`（Tools 段内按 CORE �
 
 **定义两个核心变量**：
 - `R_comp`（压缩率）：上下文工程把 Token 数量减少了多少。例如压缩 50%，`R_comp = 0.5`
-- `D_cache`（缓存折扣率）：命中缓存后的价格是原价的多少。例如 DeepSeek/Claude 命中缓存后价格是原价的 10%，则 `D_cache = 0.1`
+- `D_cache`（缓存折扣率）：命中缓存后的价格是原价的多少。例如 Claude 命中缓存后价格是原价的 10%，则 `D_cache = 0.1`
 
 ```text
 上下文工程的成本 = Input_orig × (1 - R_comp) × Price_base
@@ -878,7 +864,7 @@ API 序列化顺序为 `Tools → System → Messages`（Tools 段内按 CORE �
 
 **结论**：如果不考虑质量损失，**前缀缓存通常完胜**。
 
-目前主流厂商（DeepSeek, Anthropic）的缓存命中价格仅为 **1/10 (10%)**。这意味着：
+Anthropic 的缓存命中价格为基础输入价的 **1/10 (10%)**，其他厂商的折扣随模型而异（§6.1）。以 10% 计，这意味着：
 - 除非上下文工程能把 1000 个字压缩成 100 个字（**90% 压缩率**），否则单纯从省钱角度看，不如直接用缓存
 - 而 90% 的压缩率通常会**严重丢失信息**，导致模型变笨
 
@@ -887,14 +873,14 @@ API 序列化顺序为 `Tools → System → Messages`（Tools 段内按 CORE �
 **变量定义**：
 - `T_cleared` = 压缩清理的 token 数
 - `T_prefix` = 被破坏的缓存前缀长度
-- `P` = Prompt Cache 命中时的折扣率（Anthropic: 90%，OpenAI: 50%）
+- `P` = Prompt Cache 命中时的折扣率（由提供商价目表决定，Anthropic 为 90%）
 
 ```text
 执行压缩当且仅当：
     T_cleared > T_prefix × (1 - P)
 
 对于 Anthropic (P = 90%):  T_cleared > T_prefix / 10
-对于 OpenAI (P = 50%):     T_cleared > T_prefix / 2
+对于 P = 50% 的提供商:     T_cleared > T_prefix / 2
 ```
 
 **简化实现建议**：
@@ -903,7 +889,7 @@ API 序列化顺序为 `Tools → System → Messages`（Tools 段内按 CORE �
 
 **示例**：
 
-| 场景 | 前缀长度 | 清理量 | Anthropic 决策 | OpenAI 决策 |
+| 场景 | 前缀长度 | 清理量 | P = 90% 决策 | P = 50% 决策 |
 |------|----------|--------|----------------|-------------|
 | 小清理 | 30k | 2k | ❌ 不执行 (2k < 3k) | ❌ 不执行 (2k < 15k) |
 | 中等清理 | 30k | 5k | ✅ 执行 (5k > 3k) | ❌ 不执行 (5k < 15k) |
@@ -944,7 +930,7 @@ API 序列化顺序为 `Tools → System → Messages`（Tools 段内按 CORE �
 **"前缀厚度"策略** - 让 System Prompt 变"厚"：
 - 加入 10-20 个高质量 Few-Shot 示例 → 前缀从 500 → 3000 tokens
 - 把复杂的输出格式/合规规则写在前面
-- 缓存收益从 5% 提升到 30-50%
+- 前缀越厚，每次调用里可命中缓存的部分越大
 
 ### 5.4 场景化配置建议
 
@@ -963,10 +949,12 @@ API 序列化顺序为 `Tools → System → Messages`（Tools 段内按 CORE �
 | 提供商 | 机制类型 | 触发方式 | 折扣率 | 缓存写入成本 | TTL | 最小缓存长度 |
 |--------|----------|----------|--------|--------------|-----|--------------|
 | **Anthropic** | 显式 + 自动 | 自动 + `cache_control` | 90% | 原价 25% | 5分钟/1小时 | 1024-4096 tokens |
-| **OpenAI** | 纯自动 | 完全自动 | 50% | 无 | 5-10 分钟 | 1024 tokens |
-| **Google** | 显式 + 隐式 | 显式接口 + 自动匹配 | 75% | $1/M tokens/小时 | 1小时-1天 | 32k(显式) / 1k(隐式) |
-| **阿里云** | 隐式 + 显式 | 自动 + `cache_control` | 80%/90% | 隐式无/显式125% | 不确定/5分钟 | 256(隐式) / 1024(显式) |
-| **DeepSeek** | 纯自动 | 完全自动 | ~90% | 无 | 动态 | 64 tokens |
+| **OpenAI** | 纯自动 | 完全自动 | 随模型而异 | 无 | 5-10 分钟 | 1024 tokens |
+| **Google** | 显式 + 隐式 | 显式接口 + 自动匹配 | 随模型而异 | $1/M tokens/小时 | 1小时-1天 | 32k(显式) / 1k(隐式) |
+| **阿里云** | 隐式 + 显式 | 自动 + `cache_control` | 通常 80%(隐式) / 90%(显式)，部分模型不同 | 隐式无/显式125% | 不确定/5分钟 | 256(隐式) / 1024(显式) |
+| **DeepSeek** | 纯自动 | 完全自动 | 随模型而异 | 无 | 动态 | 64 tokens |
+
+折扣率指缓存读取价相对基础输入价的折扣，随模型而异，以各提供商当前价目表为准（参考资料见文末）。
 
 ### 6.2 各提供商详解
 
@@ -1232,9 +1220,7 @@ messages = [
 
 #### Forward Message 模式
 
-> 来源：LangGraph benchmark / Agent-Skills 项目
-
-> "Supervisor 架构因'电话游戏'问题导致性能下降 50%。"
+**问题**：子代理的结果经主 Agent 转述会逐跳失真（“电话游戏”）。
 
 **解决方案**：让子代理直接传递响应给用户，而非经过主 Agent 转述。通过标记（如 `_forward_directly: true`）让子代理的响应直接透传。
 
@@ -1266,13 +1252,9 @@ messages = [
 
 #### Lost-in-Middle 感知放置
 
-> 来源：Agent-Skills 项目 / 论文 "Lost in the Middle"
+> 来源：论文 [Lost in the Middle: How Language Models Use Long Contexts](https://arxiv.org/abs/2307.03172)（Liu et al., 2023）
 
-> "将关键信息放在上下文的开头或结尾，因为模型对这些位置的注意力更高（U 型注意力曲线）。"
-
-**问题**：Transformer 对上下文中部信息的注意力较低
-- 开头/结尾：回忆准确率 ~80%
-- 中间：回忆准确率 ~50%
+**问题**：模型对上下文中部信息的利用明显弱于开头和结尾（论文在多文档问答与键值检索上都观察到 U 型曲线）
 
 **建议的信息排列**：
 ```text
@@ -1300,7 +1282,7 @@ messages = [
 
 ### Claude Code 实战经验
 - [How Prompt Caching Actually Works in Claude Code](https://www.claudecodecamp.com/p/how-prompt-caching-actually-works-in-claude-code) - 2026-02-25，基于 API 实验验证的深度分析，引用 Claude Code 工程师 Thariq 的 7 条架构原则
-- [opencode PR #14743: improve Anthropic prompt cache hit rate](https://github.com/anomalyco/opencode/pull/14743) - 通过稳定 tools 排序 + system prompt 拆分，缓存命中率从 0% → 97.6%
+- [opencode PR #14743: improve Anthropic prompt cache hit rate](https://github.com/anomalyco/opencode/pull/14743) - 通过稳定 tools 排序 + system prompt 拆分，新仓库首条提示词的缓存命中率从 0% 升至 97.6%（PR 作者在自己环境中的测量）
 - [I Tested LLM Prompt Caching With Anthropic and OpenAI](https://mcginniscommawill.com/posts/2025-11-17-llm-prompt-caching-comparison/) - 实测对比 Anthropic 和 OpenAI 的缓存行为
 
 ### 开源项目与研究

@@ -254,7 +254,7 @@ export interface GetModelsResult {
  * 根据应用的 provider ID 获取对应的模型列表
  *
  * 双模式获取策略（并行调用）：
- * 1. 并行调用 models.dev API 和 Provider /models API（性能提升 46.7%）
+ * 1. 并行调用 models.dev API 和 Provider /models API（总耗时取两者中较慢的一个，而不是相加）
  * 2. 使用 /models API 返回的模型列表过滤 models.dev 的全量数据（保留详细信息）
  * 3. 如果 /models API 失败，fallback 到 models.dev 全量数据
  * 4. 如果未提供 apiKey，仅使用 models.dev 全量

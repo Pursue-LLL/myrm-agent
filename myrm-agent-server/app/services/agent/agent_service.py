@@ -268,9 +268,6 @@ class AgentService:
             "is_pareto_preset": agent_data.is_pareto_preset,
             "cost_reduction_ratio": agent_data.cost_reduction_ratio,
             "trusted_desktop_apps": agent_data.trusted_desktop_apps,
-            "responsibility_scope": agent_data.responsibility_scope,
-            "owner_label": agent_data.owner_label,
-            "acceptance_criteria": list(agent_data.acceptance_criteria or []),
         }
 
         if agent_data.model_selection:
@@ -418,15 +415,6 @@ class AgentService:
                 new_metadata["cost_reduction_ratio"] = agent_data.cost_reduction_ratio
             if "busy_input_mode" in agent_data.model_fields_set:
                 new_metadata["busy_input_mode"] = agent_data.busy_input_mode
-            if "responsibility_scope" in agent_data.model_fields_set:
-                raw_rs = agent_data.responsibility_scope
-                new_metadata["responsibility_scope"] = raw_rs.strip() or None if raw_rs else None
-            if "owner_label" in agent_data.model_fields_set:
-                raw_ol = agent_data.owner_label
-                new_metadata["owner_label"] = raw_ol.strip() or None if raw_ol else None
-            if "acceptance_criteria" in agent_data.model_fields_set:
-                raw_ac = [str(x).strip() for x in (agent_data.acceptance_criteria or [])]
-                new_metadata["acceptance_criteria"] = [x for x in raw_ac if x] or None
             if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
                 updates["cron_post_run_verify"] = agent_data.cron_post_run_verify
             if "trusted_desktop_apps" in agent_data.model_fields_set and agent_data.trusted_desktop_apps is not None:

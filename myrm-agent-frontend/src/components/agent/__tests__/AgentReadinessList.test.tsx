@@ -122,23 +122,16 @@ describe('AgentReadinessList', () => {
     expect(screen.queryByText('future-dimension')).not.toBeInTheDocument();
   });
 
-  it('links to the fix only when asked to and only for items that need attention', () => {
-    const { rerender } = render(<AgentReadinessList items={[item()]} />);
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  it('links to the fix only for items that need attention', () => {
+    render(<AgentReadinessList items={[item(), item({ dimension: 'skills', level: 'ready', settings_path: '/s' })]} />);
 
-    rerender(
-      <AgentReadinessList
-        items={[item(), item({ dimension: 'skills', level: 'ready', settings_path: '/s' })]}
-        withLinks
-      />,
-    );
     const links = screen.getAllByRole('link');
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute('href', '/settings/models');
   });
 
   it('does not link an item without a settings path', () => {
-    render(<AgentReadinessList items={[item({ settings_path: '' })]} withLinks />);
+    render(<AgentReadinessList items={[item({ settings_path: '' })]} />);
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });

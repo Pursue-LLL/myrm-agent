@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import AgentConfigCards from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
+import { AgentCommandBindings } from './AgentCommandBindings';
 import { AgentOpenAPIServicesTab } from './AgentOpenAPIServicesTab';
 import { AgentSubagentBinding } from './AgentSubagentBinding';
 import { AgentSharedContextBinding } from './AgentSharedContextBinding';
@@ -27,6 +28,7 @@ import { MoaOverlaySection } from './AgentCapabilitiesMoaOverlaySection';
 import { SessionPolicySection } from './AgentCapabilitiesSessionSection';
 import { DeliveryAssuranceSection } from './AgentCapabilitiesDeliverySection';
 import type { ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
+import type { AgentCommandBindingsState } from '@/hooks/agent/useAgentCommandBindings';
 import type {
   AgentModelSelection,
   AgentSessionPolicy,
@@ -80,6 +82,7 @@ export interface AgentCapabilitiesTabProps {
     trustedDesktopApps: { name: string; app_id?: string }[];
     setTrustedDesktopApps: (val: { name: string; app_id?: string }[]) => void;
   };
+  commandBindings: AgentCommandBindingsState;
   agentId: string | null;
   isNew: boolean;
 }
@@ -89,7 +92,7 @@ export type CapabilitiesSectionProps = {
   t: ReturnType<typeof useTranslations>;
 };
 
-export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabilitiesTabProps) {
+export function AgentCapabilitiesTab({ editor, commandBindings, agentId, isNew }: AgentCapabilitiesTabProps) {
   const t = useTranslations();
   const [loadoutRefreshKey, setLoadoutRefreshKey] = useState(0);
 
@@ -156,6 +159,8 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
           editor.setEditDialogOpen(true);
         }}
       />
+
+      <AgentCommandBindings state={commandBindings} />
 
       <AgentOpenAPIServicesTab
         services={editor.openapiServices}
