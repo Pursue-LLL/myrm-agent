@@ -26,11 +26,7 @@ if TYPE_CHECKING:
 # Feishu updates a card in place only if its config sets ``update_multi`` both before and after the update.
 CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True, "update_multi": True}
 
-_HEADER_TEMPLATES: dict[bool | None, tuple[str, str]] = {
-    True: ("green", ""),
-    False: ("red", ""),
-    None: ("blue", ""),
-}
+_HEADER_TEMPLATES: dict[bool | None, str] = {True: "green", False: "red", None: "blue"}
 
 
 # ── Component card (from OutboundMessage) ────────────────────────
@@ -124,23 +120,14 @@ def build_result_card(
     if content:
         elements.append({"tag": "div", "text": {"tag": "lark_md", "content": content}})
 
-    if sources:
+    source_lines = [
+        f"[{s.get('index', i)}] [{s.get('title', s.get('url', 'source'))}]({s['url']})"
+        for i, s in enumerate(sources or [], start=1)
+        if s.get("url")
+    ]
+    if source_lines:
         elements.append({"tag": "hr"})
-        source_lines = [
-            f"[{s.get('index', i)}] [{s.get('title', s.get('url', 'source'))}]({s['url']})"
-            for i, s in enumerate(sources, start=1)
-            if s.get("url")
-        ]
-        if source_lines:
-            elements.append(
-                {
-                    "tag": "div",
-                    "text": {
-                        "tag": "lark_md",
-                        "content": "**Sources**\n" + "\n".join(source_lines[:10]),
-                    },
-                }
-            )
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": "**Sources**\n" + "\n".join(source_lines[:10])}})
 
     note_parts: list[str] = []
     if timestamp:
@@ -161,11 +148,9 @@ def build_result_card(
 
     header: dict[str, object] | None = None
     if title or success is not None:
-        template, icon = _HEADER_TEMPLATES.get(success, _HEADER_TEMPLATES[None])
-        header_title = f"{icon} {title}" if title else f"{icon} Notification"
         header = {
-            "title": {"tag": "plain_text", "content": header_title},
-            "template": template,
+            "title": {"tag": "plain_text", "content": title or "Notification"},
+            "template": _HEADER_TEMPLATES[success],
         }
 
     card: dict[str, object] = {"config": CARD_CONFIG, "elements": elements}
