@@ -349,14 +349,14 @@ def _validate_frontmatter(content: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Patch logic — delegates to utils.fuzzy_match (7-level progressive strategy)
+# Patch logic — delegates to utils.fuzzy_match (8-strategy progressive chain)
 # ---------------------------------------------------------------------------
 
 
 def _apply_patch(full_content: str, old_fragment: str, new_fragment: str) -> str | None:
     """Apply a patch to content with progressive fuzzy matching fallback.
 
-    Uses the shared fuzzy_replace utility (7-level strategy chain).
+    Uses the shared fuzzy_replace utility (8-strategy chain, no confidence floor).
     Returns patched content, or None if no match found.
     """
     from myrm_agent_harness.utils.fuzzy_match import fuzzy_replace
