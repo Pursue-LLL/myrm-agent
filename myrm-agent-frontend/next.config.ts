@@ -1,8 +1,11 @@
-// Dev-only: enforce shared pause stamp before other config side effects.
+// Dev-only: absorb stdout/stderr write errors (nobody reads the log any more), then enforce the shared pause stamp,
+// before other config side effects.
+import { installDevStdioGuard } from './scripts/dev-stdio-guard';
 import { enforceFrontendDevNotPaused } from './scripts/frontend-dev-pause-gate';
 import { computeLocaleContentVersion } from './scripts/locale-content-version';
 
 if (process.env.NODE_ENV === 'development') {
+  installDevStdioGuard();
   enforceFrontendDevNotPaused({ context: 'next dev (next.config load)' });
 }
 

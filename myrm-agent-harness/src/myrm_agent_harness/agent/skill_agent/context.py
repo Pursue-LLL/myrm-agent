@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Literal, TypedDict
+from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, cast
 
 from myrm_agent_harness.agent.skills import SkillMetadata
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -56,7 +56,7 @@ class MemoryRuntimeBudget(TypedDict):
     """How full the memory block's budget was on a model call.
 
     ``used`` and ``total`` are characters: what the block's sections use, out of the block's budget. The rule counts
-    cover veto and behavioral rules; ``rulesTruncated`` says the budget kept fewer of them than are configured.
+    cover the block's behavioral rules; ``rulesTruncated`` says the budget kept fewer of them than are configured.
     """
 
     used: int
@@ -357,17 +357,33 @@ def invalidate_permissions(user_id: str, skill_id: str) -> None:
         )
 
 
+class _AgentBase(Protocol):
+    """The agent base class that the context mixin extends."""
+
+    async def _prepare_context(self, context: dict[str, object]) -> dict[str, object]: ...
+
+
+class _ContextHost(Protocol):
+    """What the context mixin reads from the agent it is mixed into."""
+
+    storage_backend: StorageProvider | None
+    memory_manager: MemoryManager | None
+
+    async def _get_skill_storage_paths(self) -> list[str]: ...
+
+
 class SkillAgentContextMixin:
     """Context preparation mixin for SkillAgent."""
 
     async def _prepare_context(self, context: dict[str, object]) -> dict[str, object]:
         """Prepare context — ContextVar for non-serializable session objects."""
-        context = await super()._prepare_context(context)  # type: ignore[misc]
+        context = await cast("_AgentBase", super())._prepare_context(context)
+        host = cast("_ContextHost", self)
 
-        set_storage_backend(self.storage_backend)  # type: ignore[attr-defined]
-        set_memory_manager(self.memory_manager)  # type: ignore[attr-defined]
+        set_storage_backend(host.storage_backend)
+        set_memory_manager(host.memory_manager)
 
-        skill_paths = await self._get_skill_storage_paths()  # type: ignore[attr-defined]
+        skill_paths = await host._get_skill_storage_paths()
         if skill_paths:
             context["skill_paths"] = skill_paths
 

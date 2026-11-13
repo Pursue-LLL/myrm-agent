@@ -43,3 +43,17 @@ def test_read_stack_epoch_invalid_epoch_returns_none(tmp_path: Path, monkeypatch
     epoch_file.write_text(json.dumps({"epoch": 0}), encoding="utf-8")
     monkeypatch.setenv("MYRM_STACK_EPOCH_FILE", str(epoch_file))
     assert read_stack_epoch() is None
+
+
+def test_read_stack_epoch_without_override_ignores_the_dev_stack_file_in_home(tmp_path: Path, monkeypatch) -> None:
+    """A backend not launched by the dev supervisor (e.g. the packaged client) reports no epoch,
+    even when the developer's own dev stack wrote one in the same user's home."""
+    home = tmp_path / "home"
+    dev_stack_epoch = home / ".local/state/myrm-dev/stack-epoch.json"
+    dev_stack_epoch.parent.mkdir(parents=True)
+    dev_stack_epoch.write_text(json.dumps({"epoch": 7, "source_fingerprint": "deadbeef"}), encoding="utf-8")
+    monkeypatch.delenv("MYRM_STACK_EPOCH_FILE", raising=False)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("MYRM_REAL_HOME", str(home))
+
+    assert read_stack_epoch() is None

@@ -1,10 +1,12 @@
 """Tests for memory_pressure: global memory pressure monitor."""
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from myrm_agent_harness.runtime.survival import memory_pressure
 from myrm_agent_harness.runtime.survival.memory_pressure import (
     MemoryPressureMonitor,
     PressureConfig,
@@ -15,6 +17,8 @@ from myrm_agent_harness.runtime.survival.memory_pressure import (
     get_memory_pressure_monitor,
     init_memory_pressure_monitor,
 )
+
+_MIB = 1024 * 1024
 
 
 class TestPressureLevel:
@@ -117,6 +121,39 @@ class TestCgroupMemoryReading:
             mock_current.read_text.return_value = "1000000"
             mock_max.read_text.return_value = "max"
             assert _read_cgroup_memory_percent() is None
+
+    @staticmethod
+    def _write_cgroup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, current: int, stat: str | None) -> None:
+        """Point the reader at real files holding a 2 GiB limit, the given usage and an optional memory.stat."""
+        (tmp_path / "memory.current").write_text(str(current))
+        (tmp_path / "memory.max").write_text(str(2048 * _MIB))
+        if stat is not None:
+            (tmp_path / "memory.stat").write_text(stat)
+        monkeypatch.setattr(memory_pressure, "_CGROUP_MEMORY_CURRENT", tmp_path / "memory.current")
+        monkeypatch.setattr(memory_pressure, "_CGROUP_MEMORY_MAX", tmp_path / "memory.max")
+        monkeypatch.setattr(memory_pressure, "_CGROUP_MEMORY_STAT", tmp_path / "memory.stat")
+
+    def test_working_set_excludes_inactive_file_cache(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+        # What 1.7 GiB of plain file writes leave behind: usage near the limit, almost all of it reclaimable cache.
+        stat = f"anon {80 * _MIB}\nfile {1720 * _MIB}\nactive_file {20 * _MIB}\ninactive_file {1700 * _MIB}\n"
+        self._write_cgroup(monkeypatch, tmp_path, current=1800 * _MIB, stat=stat)
+        assert _read_cgroup_memory_percent() == pytest.approx(100 * 100 / 2048)
+
+    def test_anonymous_memory_counts_in_full(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+        stat = f"anon {1500 * _MIB}\nfile {70 * _MIB}\ninactive_file {70 * _MIB}\n"
+        self._write_cgroup(monkeypatch, tmp_path, current=1570 * _MIB, stat=stat)
+        assert _read_cgroup_memory_percent() == pytest.approx(1500 * 100 / 2048)
+
+    @pytest.mark.parametrize("stat", [None, "anon 1\nfile 2\n", "inactive_file not-a-number\n"])
+    def test_unusable_memory_stat_reads_raw_usage(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stat: str | None
+    ):
+        self._write_cgroup(monkeypatch, tmp_path, current=1024 * _MIB, stat=stat)
+        assert _read_cgroup_memory_percent() == pytest.approx(50.0)
+
+    def test_cache_above_usage_clamps_to_zero(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+        self._write_cgroup(monkeypatch, tmp_path, current=100 * _MIB, stat=f"inactive_file {500 * _MIB}\n")
+        assert _read_cgroup_memory_percent() == 0.0
 
 
 class TestClassifyLevel:
@@ -398,7 +435,9 @@ class TestReadMemoryPercent:
     def test_psutil_fallback(self):
         monitor = MemoryPressureMonitor()
         monitor._use_cgroup = False
-        with patch("myrm_agent_harness.runtime.survival.memory_pressure._read_psutil_memory_percent", return_value=65.0):
+        with patch(
+            "myrm_agent_harness.runtime.survival.memory_pressure._read_psutil_memory_percent", return_value=65.0
+        ):
             assert monitor._read_memory_percent() == 65.0
 
     def test_cgroup_preferred(self):

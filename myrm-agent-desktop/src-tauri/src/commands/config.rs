@@ -5,10 +5,11 @@
 //! - crate::commands::data_migration (POS: 数据目录迁移核心引擎)
 //! - crate::runtime::{start_backend_with_config, stop_backend} (POS: Sidecar 生命周期编排)
 //! - crate::ipc_security (POS: 敏感操作鉴权与确认弹窗)
+//! - crate::app::autostart (POS: 系统登录项同步)
 //!
 //! [OUTPUT]
 //! - `load_system_config`: 加载系统运行时配置
-//! - `save_system_config`: 保存系统配置；先写 `desktop_runtime.json` 离席桥，配置落盘失败则回滚 runtime
+//! - `save_system_config`: 保存系统配置；先写 `desktop_runtime.json` 离席桥，配置落盘失败则回滚 runtime；成功后同步系统登录项
 //! - `migrate_data_dir`: 迁移数据存储根目录并重启后端服务
 //!
 //! [POS]
@@ -35,9 +36,6 @@ pub async fn save_system_config(
     config: SystemConfig,
     config_manager: State<'_, ConfigManager>,
 ) -> Result<(), String> {
-    use tauri_plugin_autostart::ManagerExt;
-
-    let should_enable = config.auto_launch_at_login;
     let previous = config_manager.load();
     crate::commands::desktop_runtime_state::sync_locked_use_enabled(
         &app,
@@ -52,15 +50,7 @@ pub async fn save_system_config(
         return Err(save_err);
     }
 
-    if let Ok(currently_enabled) = app.autolaunch().is_enabled() {
-        if should_enable && !currently_enabled {
-            let _ = app.autolaunch().enable();
-            println!("✅ Auto-launch enabled");
-        } else if !should_enable && currently_enabled {
-            let _ = app.autolaunch().disable();
-            println!("✅ Auto-launch disabled");
-        }
-    }
+    crate::app::autostart::sync_login_item(&app, config.auto_launch_at_login);
 
     Ok(())
 }
@@ -88,14 +78,7 @@ pub async fn reset_system_config(
         ));
     }
 
-    use tauri_plugin_autostart::ManagerExt;
-    if let Ok(currently_enabled) = app.autolaunch().is_enabled() {
-        if config.auto_launch_at_login && !currently_enabled {
-            let _ = app.autolaunch().enable();
-        } else if !config.auto_launch_at_login && currently_enabled {
-            let _ = app.autolaunch().disable();
-        }
-    }
+    crate::app::autostart::sync_login_item(&app, config.auto_launch_at_login);
 
     Ok(config)
 }

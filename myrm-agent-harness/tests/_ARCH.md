@@ -2,7 +2,7 @@
 
 ## Overview
 
-Harness test suite: unit, integration, architecture gates, and performance benchmarks. Default execution is serial (`-n0`) with a memory-safe marker filter in `pyproject.toml` `addopts`.
+Harness test suite: unit, integration, architecture gates, and performance benchmarks. Default execution is serial (`-n0`) with a memory-safe marker filter and an xdist worker cap (`--maxprocesses=4`, which also bounds an explicit `-n N`; raise it on purpose with `--maxprocesses=N`) in `pyproject.toml` `addopts`.
 
 ## File & Submodule Index
 

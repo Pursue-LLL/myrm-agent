@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.pool.browser_launcher import (
+from myrm_agent_harness.toolkits.browser.pool.chromium_install import (
     _CDN_PROBE_URL,
     _CN_MIRROR_HOST,
     _get_install_env,

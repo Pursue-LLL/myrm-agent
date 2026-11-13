@@ -6,7 +6,7 @@
 - build_thinking_card: Placeholder card shown while agent is processing.
 - wrap_text_as_card: Wrap arbitrary text in a minimal card for consistent edit formatting.
 - _format_cost_note: Format cost_metadata into a compact note string for Feishu cards.
-- build_result_card: Final result card with optional header, sources, and timestamp.
+- build_result_card: Final result card with optional header, numbered sources, and timestamp.
 
 [POS]
 飞书卡片子包的一部分；由 __init__.py 聚合导出。
@@ -147,7 +147,7 @@ def build_result_card(
     timestamp: str = "",
     cost_metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Final result card with optional header, sources, and timestamp."""
+    """Final result card with optional header, sources numbered like the citations in ``content``, and timestamp."""
     elements: list[dict[str, object]] = []
 
     if content:
@@ -155,14 +155,18 @@ def build_result_card(
 
     if sources:
         elements.append({"tag": "hr"})
-        source_lines = [f"[{s.get('title', s.get('url', 'source'))}]({s['url']})" for s in sources if s.get("url")]
+        source_lines = [
+            f"[{s.get('index', i)}] [{s.get('title', s.get('url', 'source'))}]({s['url']})"
+            for i, s in enumerate(sources, start=1)
+            if s.get("url")
+        ]
         if source_lines:
             elements.append(
                 {
                     "tag": "div",
                     "text": {
                         "tag": "lark_md",
-                        "content": "**refusesource: **\n" + "\n".join(source_lines[:10]),
+                        "content": "**Sources**\n" + "\n".join(source_lines[:10]),
                     },
                 }
             )

@@ -2,7 +2,8 @@
 
 The browser process is probed over a browser-level CDP session first; pooled pages are only
 a second opinion. A slow or wedged page therefore never evicts a live browser, while a browser
-that answers on neither path is still declared dead.
+that answers on neither path is still declared dead. A browser whose Playwright driver exited is
+dead without asking any page.
 """
 
 from __future__ import annotations
@@ -30,6 +31,14 @@ def _browser(*, process_answers: bool) -> MagicMock:
     else:
         browser.new_browser_cdp_session = AsyncMock(side_effect=RuntimeError("no browser session"))
     browser.cdp = cdp
+    return browser
+
+
+def _browser_whose_driver_exited() -> MagicMock:
+    browser = MagicMock()
+    browser.new_browser_cdp_session = AsyncMock(
+        side_effect=Exception("Browser.new_browser_cdp_session: Connection closed while reading from the driver")
+    )
     return browser
 
 
@@ -84,6 +93,18 @@ async def test_dead_when_neither_process_nor_pages_answer() -> None:
 async def test_trusted_alive_without_pages_when_process_probe_fails() -> None:
     """With nothing to ask, only the synchronous L1 'disconnected' event may declare death."""
     assert await _check(_instance(_browser(process_answers=False))) is True
+
+
+async def test_dead_without_pages_when_the_driver_exited() -> None:
+    """The exit fires no 'disconnected' event, and failed acquisitions discard the idle pages: only the probe can tell."""
+    assert await _check(_instance(_browser_whose_driver_exited())) is False
+
+
+async def test_exited_driver_is_conclusive_without_asking_any_page() -> None:
+    page = _page(answers=True)
+
+    assert await _check(_instance(_browser_whose_driver_exited(), page)) is False
+    page.evaluate.assert_not_awaited()
 
 
 async def test_process_probe_timeout_falls_back_to_pages(monkeypatch: pytest.MonkeyPatch) -> None:

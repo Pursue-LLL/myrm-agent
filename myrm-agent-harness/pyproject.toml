@@ -335,7 +335,10 @@ asyncio_default_test_loop_scope = "module"
 asyncio_default_fixture_loop_scope = "module"
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "--import-mode=importlib -n0 --timeout=300 -m 'not integration and not e2e and not performance'"
+# Each xdist worker is its own Python process, so memory grows with `-n` (measured: one `-n 10` run held about 12 GiB),
+# a lot of RAM on a dev machine shared with other sessions. `--maxprocesses` also caps an explicit `-n N`; raise it
+# on purpose with `--maxprocesses=N` (or PYTEST_ADDOPTS).
+addopts = "--import-mode=importlib -n0 --maxprocesses=4 --timeout=300 -m 'not integration and not e2e and not performance'"
 filterwarnings = [
     "error",
     "ignore:The default value of `allowed_objects` will change:langchain_core._api.deprecation.LangChainPendingDeprecationWarning",
@@ -361,7 +364,7 @@ markers = [
 # harness-test.yml 的 unit 作业不带 `--cov`，没有任何 CI 作业评估这条门禁，也没有作业调用
 # scripts/check_module_coverage.py；需要时手动运行 `pytest -n 2 --dist=loadscope tests/ --cov`。
 # 依赖真实文件系统/数据库的基础设施模块由独立集成任务覆盖。
-# Default addopts already apply the memory-safe marker filter and -n0.
+# Default addopts already apply the memory-safe marker filter, -n0 and the xdist worker cap.
 # exclude_lines 只排除整行就是 `...` 的桩体：匹配到 `def` 头的任意一行（如 `tuple[str, ...]`），
 # coverage 会把整个函数从统计里排除。
 [tool.coverage.run]

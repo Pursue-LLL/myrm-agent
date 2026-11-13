@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: UserConfig 加载与缓存)
+- app.core.channel_bridge.config_loader::load_user_config_entry (POS: 单条已解密 UserConfig；不依赖 LLM 提供商配置)
 - app.core.channel_bridge.model_resolver::_extract_stored_api_key (POS: 只取用户存下的密钥)
 
 [OUTPUT]
@@ -155,12 +156,22 @@ def webui_model_preflight_warning() -> str | None:
 
 
 async def load_platform_retrieval_configs() -> tuple[EmbeddingConfig | None, RerankerConfig | None]:
-    """Embedding and reranker configs from WebUI retrieval settings."""
-    from app.core.channel_bridge.config_loader import load_user_configs
+    """Embedding and reranker configs from WebUI retrieval settings.
+
+    Reads only the ``retrieval`` entry: the full config bundle resolves the default LLM and raises while no
+    provider is configured, which would make keyword-mode memory unusable on a fresh install. A retrieval entry
+    that cannot be decrypted (key lost) reads as "not configured" so memory still starts in keyword mode.
+    """
+    from myrm_agent_harness.utils.crypto import DecryptionError
+
+    from app.core.channel_bridge.config_loader import load_user_config_entry
     from app.core.channel_bridge.config_parsers import extract_retrieval_models
 
-    configs = await load_user_configs()
-    retrieval = configs.retrieval_dict if isinstance(configs.retrieval_dict, dict) else None
+    try:
+        retrieval = await load_user_config_entry("retrieval")
+    except DecryptionError:
+        logger.warning("Retrieval settings could not be decrypted; embedding and reranker stay unconfigured")
+        return None, None
     return extract_retrieval_models(retrieval)
 
 

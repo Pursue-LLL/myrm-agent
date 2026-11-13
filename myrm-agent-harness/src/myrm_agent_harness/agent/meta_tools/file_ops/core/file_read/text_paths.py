@@ -136,7 +136,7 @@ async def _read_via_service(
     return truncated_text
 
 
-async def _read_stream_page(path: Path, display_path: str, chunk_size_mb: int, *, config: RunnableConfig) -> str:
+async def _read_stream_page(path: Path, display_path: str, *, config: RunnableConfig) -> str:
     """The first page of a file read in ``stream`` mode, and how to read on from it.
 
     A file past the plain read limit cannot go to the model whole: it overflows any window and freezes the agent
@@ -145,7 +145,7 @@ async def _read_stream_page(path: Path, display_path: str, chunk_size_mb: int, *
     """
     page_tokens = page_token_budget(_context_window_tokens(config))
     read_cap = page_tokens * _STREAM_READ_CHARS_PER_PAGE_TOKEN
-    sample = await read_file_chunked(path, chunk_size_mb=chunk_size_mb, max_chars=read_cap)
+    sample = await read_file_chunked(path, max_chars=read_cap)
     page_chars = parked_page_chars(sample, page_tokens)
     continues = len(sample) > read_cap or page_chars < len(sample)
     page = sample[:page_chars]
@@ -222,7 +222,6 @@ async def process_text_paths(
     skills: list[SkillMetadata] | None,
     reason: str | None,
     mode: str,
-    chunk_size_mb: int,
     *,
     config: RunnableConfig,
     parse_mode: str | None = None,
@@ -296,7 +295,7 @@ async def process_text_paths(
                 guard = get_file_integrity_guard(executor)
                 if guard is not None:
                     guard.record_read_marker(str(workspace_path))
-                content = await _read_stream_page(workspace_path, base_path_str, chunk_size_mb, config=config)
+                content = await _read_stream_page(workspace_path, base_path_str, config=config)
                 text_content_parts.append(f"=== {base_path_str} ===\n{content}")
             else:
                 text_content_parts.append(

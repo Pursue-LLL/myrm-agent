@@ -3,11 +3,11 @@
 8-strategy chain (+ Unicode preprocessing) for LLM-generated code variations:
 exact → line_trimmed → whitespace_normalized → indent_flexible →
 escape_normalized → trimmed_boundary → block_anchored → context_aware.
-Includes escape-drift detection and closest-line hint on full failure.
+Includes escape-drift detection.
 
 [POS]
 Generic fuzzy matching module. 8-strategy progressive chain (+Unicode
-preprocessing + escape-drift detection + closest-line hint).
+preprocessing + escape-drift detection).
 """
 
 from __future__ import annotations
@@ -308,6 +308,12 @@ _STRATEGIES: tuple[tuple[str, Callable[[str, str], str | None], float], ...] = (
     ("context_aware", _find_context_aware, 0.50),
 )
 
+# Strategies at or above this confidence match the fragment's own text apart from whitespace, indentation, escapes and
+# blank edge lines. Below it, block_anchored and context_aware anchor on the first and last line and let the lines in
+# between differ, so an edit built on them replaces real lines with the caller's guess. Edits that overwrite file
+# content pass this as `min_confidence`.
+CONTENT_PRESERVING_MIN_CONFIDENCE = 0.75
+
 _ESCAPE_DRIFT_RE = re.compile(r"""\\['"]""")
 
 
@@ -316,11 +322,12 @@ _ESCAPE_DRIFT_RE = re.compile(r"""\\['"]""")
 # ---------------------------------------------------------------------------
 
 
-def fuzzy_find(content: str, fragment: str) -> FuzzyMatchResult | None:
+def fuzzy_find(content: str, fragment: str, *, min_confidence: float = 0.0) -> FuzzyMatchResult | None:
     """Find a text fragment in content using progressive strategies.
 
     Tries each strategy in order (cheapest first). Returns the first
-    successful match, or None if no strategy succeeds.
+    successful match, or None if no strategy succeeds. Strategies whose
+    confidence is below ``min_confidence`` are not tried.
     """
     if not content or not fragment:
         return None
@@ -332,6 +339,8 @@ def fuzzy_find(content: str, fragment: str) -> FuzzyMatchResult | None:
         search_fragment = _normalize_unicode(fragment)
 
     for name, finder, confidence in _STRATEGIES:
+        if confidence < min_confidence:
+            continue
         matched = finder(search_content, search_fragment)
         if matched is None:
             continue
@@ -358,15 +367,17 @@ def fuzzy_replace(
     new_fragment: str,
     *,
     replace_all: bool = False,
+    min_confidence: float = 0.0,
 ) -> FuzzyReplaceResult:
     """Find and replace a text fragment using progressive fuzzy matching.
 
     Returns FuzzyReplaceResult with success=False if no match found.
+    ``min_confidence`` is passed to ``fuzzy_find``.
     """
     if not content or not old_fragment:
         return FuzzyReplaceResult(content=content, strategy="none", success=False, confidence=0.0)
 
-    result = fuzzy_find(content, old_fragment)
+    result = fuzzy_find(content, old_fragment, min_confidence=min_confidence)
     if result is None:
         return FuzzyReplaceResult(content=content, strategy="none", success=False, confidence=0.0)
 
@@ -404,50 +415,6 @@ def fuzzy_replace(
         success=True,
         confidence=result.confidence,
     )
-
-
-_CLOSEST_MIN_SIMILARITY = 0.3
-
-
-def find_closest_lines(
-    old_str: str,
-    content: str,
-    *,
-    context_lines: int = 2,
-    max_results: int = 3,
-) -> str:
-    """Return "did you mean?" hint with closest matching lines, or empty string."""
-    if not old_str or not content:
-        return ""
-    old_lines = old_str.splitlines()
-    content_lines = content.splitlines()
-    if not old_lines or not content_lines:
-        return ""
-    anchor = next((ln.strip() for ln in old_lines if ln.strip()), None)
-    if anchor is None:
-        return ""
-
-    scored: list[tuple[float, int]] = []
-    for i, line in enumerate(content_lines):
-        stripped = line.strip()
-        if stripped:
-            ratio = SequenceMatcher(None, anchor, stripped).ratio()
-            if ratio >= _CLOSEST_MIN_SIMILARITY:
-                scored.append((ratio, i))
-    if not scored:
-        return ""
-    scored.sort(key=lambda x: -x[0])
-
-    parts: list[str] = []
-    seen: set[tuple[int, int]] = set()
-    for _, idx in scored[:max_results]:
-        start = max(0, idx - context_lines)
-        end = min(len(content_lines), idx + len(old_lines) + context_lines)
-        if (start, end) in seen:
-            continue
-        seen.add((start, end))
-        parts.append("\n".join(f"{start + j + 1:4d}| {content_lines[start + j]}" for j in range(end - start)))
-    return ("\n\nDid you mean one of these sections?\n" + "\n---\n".join(parts)) if parts else ""
 
 
 # ---------------------------------------------------------------------------

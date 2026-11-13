@@ -1438,7 +1438,8 @@ if is_cron:
 - `reset_audit_log()` — 清除审计日志
 - `reset_denial_counter()` — 清除拒绝计数
 - `reset_loop_guard()` — 新 run 清除 CallRecord 窗口；`is_resume=True` 时保留 CallRecord 窗口与 error_signatures（HITL resume / Goal continuation）；session-key 注册表在 ContextVar 丢失后仍可找回同一 LoopGuard
-- `notify_loop_guard_compaction()` — 压缩后重置迭代预算（保留 error_signatures）
+
+上下文压缩与裁剪不重置上述任何状态：LoopGuard 的窗口、迭代预算与 error_signatures 记录的是工具调用序列，与模型所见上下文的长短无关。
 
 ---
 

@@ -8,7 +8,6 @@ from myrm_agent_harness.toolkits.memory.types import MemoryType, PendingRecord
 def test_pending_record_structured_metadata_properties() -> None:
     rec = PendingRecord(
         id="pending-test-1",
-        user_id="u1",
         memory_type=MemoryType.SEMANTIC,
         content="Prefers dark theme in all IDEs",
         memory_data={
@@ -32,7 +31,6 @@ def test_pending_record_structured_metadata_properties() -> None:
 def test_pending_record_defaults_and_fallbacks() -> None:
     rec = PendingRecord(
         id="pending-test-2",
-        user_id="u1",
         memory_type=MemoryType.SEMANTIC,
         content="Basic content",
         memory_data={},
@@ -49,7 +47,6 @@ def test_pending_record_defaults_and_fallbacks() -> None:
 def test_pending_record_conflict_importance_precedence() -> None:
     rec = PendingRecord(
         id="pending-test-3",
-        user_id="u1",
         memory_type=MemoryType.SEMANTIC,
         content="Conflicting content",
         conflict_importance=0.95,
@@ -62,7 +59,6 @@ def test_pending_record_conflict_importance_precedence() -> None:
 def test_pending_record_edge_cases_and_type_coercion() -> None:
     rec = PendingRecord(
         id="pending-test-4",
-        user_id="u1",
         memory_type=MemoryType.SEMANTIC,
         content="Edge case content",
         memory_data={
@@ -86,7 +82,6 @@ def test_pending_record_edge_cases_and_type_coercion() -> None:
 def test_pending_record_invalid_inputs_resilience() -> None:
     rec = PendingRecord(
         id="pending-test-5",
-        user_id="u1",
         memory_type=MemoryType.SEMANTIC,
         content="Invalid data resilience",
         memory_data={

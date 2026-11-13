@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import gc
+from typing import cast
 from unittest.mock import MagicMock
 
 from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard import (
@@ -9,6 +11,7 @@ from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard impo
     _integrity_guards,
     get_file_integrity_guard,
 )
+from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 
 
 class TestFileIntegrityGuard:
@@ -142,12 +145,6 @@ class TestFileIntegrityGuard:
         guard.record_read("/a//b.py", "hello")
         assert guard.require_version_match("/a/b.py", "hello") is None
 
-    def test_clear(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read("/a.py", "x")
-        guard.clear()
-        assert guard.require_version_match("/a.py", "y") is None
-
     def test_multiple_files(self) -> None:
         guard = FileIntegrityGuard()
         guard.record_read("/a.py", "aa")
@@ -184,14 +181,6 @@ class TestFileIntegrityGuardAgentAware:
         assert guard.require_version_match("/f.py", "changed", agent_id="agent-a") is None
         assert guard.require_version_match("/f.py", "changed", agent_id="agent-b") is not None
 
-    def test_clear_removes_all_agents(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read("/f.py", "v1", agent_id="agent-a")
-        guard.record_read("/f.py", "v1", agent_id="agent-b")
-        guard.clear()
-        assert guard.require_version_match("/f.py", "changed", agent_id="agent-a") is None
-        assert guard.require_version_match("/f.py", "changed", agent_id="agent-b") is None
-
     def test_default_agent_id_when_no_context(self) -> None:
         guard = FileIntegrityGuard()
         guard.record_read("/f.py", "v1")
@@ -215,11 +204,16 @@ class TestFileIntegrityGuardAgentAware:
         assert guard.require_version_match("/f.py", "anything", agent_id="b") is None
 
 
+class _ExecutorStub:
+    """Freed the moment its last reference goes, so the next one can land on the same address."""
+
+
 class TestGetFileIntegrityGuard:
     """Module-level factory function tests."""
 
     def test_returns_none_for_no_executor(self) -> None:
         from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
+
         token = set_executor(None)
         try:
             assert get_file_integrity_guard(None) is None
@@ -228,6 +222,7 @@ class TestGetFileIntegrityGuard:
 
     def test_returns_guard_from_contextvar_when_none(self) -> None:
         from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
+
         executor = MagicMock()
         token = set_executor(executor)
         try:
@@ -256,6 +251,26 @@ class TestGetFileIntegrityGuard:
         g2 = get_file_integrity_guard(e2)
         assert g1 is not g2
 
+    def test_a_guard_is_released_with_its_executor(self) -> None:
+        known = len(_integrity_guards)
+        executor = MagicMock()
+        get_file_integrity_guard(executor)
+        assert len(_integrity_guards) == known + 1
+
+        del executor
+        gc.collect()
+
+        assert len(_integrity_guards) == known
+
+    def test_a_new_executor_starts_with_an_empty_guard_whatever_address_it_lands_on(self) -> None:
+        for _ in range(50):
+            executor = cast(CodeExecutor, _ExecutorStub())
+            guard = get_file_integrity_guard(executor)
+            assert guard is not None
+            assert guard.require_read_before_write("/a.py") is not None
+            guard.record_read("/a.py", "content")
+            del executor, guard
+
     def teardown_method(self) -> None:
         _integrity_guards.clear()
 
@@ -283,13 +298,6 @@ class TestReadBeforeEditGate:
         guard = FileIntegrityGuard()
         guard.record_write("/a.py", "content")
         assert guard.require_read_before_write("/a.py") is None
-
-    def test_gate_blocks_after_clear(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read("/a.py", "content")
-        guard.clear()
-        rejection = guard.require_read_before_write("/a.py")
-        assert rejection is not None
 
     def test_gate_agent_isolation(self) -> None:
         guard = FileIntegrityGuard()

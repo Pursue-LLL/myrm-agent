@@ -8,7 +8,7 @@ Validators module.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Validators module. | — |
-| auto_verify.py | Core | Smart Auto-Verify. Infers and runs CLI linters after file edits when Agent does not provide explicit verify_command. Provides soft diagnostic feedback. | ✅ |
+| auto_verify.py | Core | Smart Auto-Verify. Infers and runs CLI linters from the workspace root after file edits when Agent does not provide explicit verify_command. Provides soft diagnostic feedback. | ✅ |
 | base.py | Core | Provides Validator. | ✅ |
 | binary_validator.py | Core | Binary file validator | ✅ |
 | client_secret_validator.py | Core | Client-side code secret leak validator blocking hardcoded keys/credentials in frontend files (.tsx, .jsx, .vue, .html, .js). | ✅ |

@@ -68,20 +68,20 @@ class FileWriteInput(BaseModel):
     reason: str | None = Field(default=None, description="执行命令的原因（可选，用于日志）")
 
 
-_FILE_WRITE_TOOL_DESCRIPTION_ZH = """创建新文件或全量覆写文件。当仅需局部修改已有代码时，必须使用 file_edit_tool（严禁使用 bash echo/heredoc/tee 写入文件）。
+_FILE_WRITE_TOOL_DESCRIPTION_ZH = """创建新文件；目标路径已存在时会被拒绝。修改已有文件必须使用 file_edit_tool（严禁使用 bash echo/heredoc/tee 写入文件）。
 
 参数：
 - path: 文件路径 (支持普通路径或 "@file_id")
-- content: 写入的完整内容（不能为空或纯空白）
+- content: 新文件的完整内容（不能为空或纯空白）
 - verify_command: 写入后自动执行的语法/类型校验命令（强烈建议提供，如 'python -m py_compile file.py'）。校验失败会拒绝写入，避免死循环。
 - reason: 操作原因（可选）
 """
 
-_FILE_WRITE_TOOL_DESCRIPTION_EN = """Create a new file or completely overwrite an existing file. When modifying only a portion of an existing file, you MUST use file_edit_tool instead (never use bash echo/heredoc/tee to write files).
+_FILE_WRITE_TOOL_DESCRIPTION_EN = """Create a new file; a path that already exists is rejected. To change an existing file you MUST use file_edit_tool (never use bash echo/heredoc/tee to write files).
 
 Parameters:
 - path: File path (supports normal path or "@file_id")
-- content: Full content to write (must not be empty or whitespace only)
+- content: Full content of the new file (must not be empty or whitespace only)
 - verify_command: Syntax/type check command executed automatically after write (strongly recommended, e.g. 'python -m py_compile file.py'). Write is rejected on failure to prevent loops.
 - reason: Optional operational purpose
 """
@@ -132,7 +132,7 @@ def create_file_write_tool(
         *,  # 强制后续参数为关键字参数
         config: RunnableConfig,  # LangChain 注入的配置
     ) -> str:
-        """创建或覆盖文件
+        """创建新文件
 
         Args:
             path: 文件路径（支持 File ID）
@@ -192,6 +192,15 @@ def create_file_write_tool(
         except ToolError:
             # ToolError 已经包含友好提示，直接传播
             raise
+        except FileExistsError as e:
+            # 路径已存在：本工具只创建，修改已有文件走 file_edit_tool
+            raise ToolError(
+                message=str(e),
+                user_hint=(
+                    "This path already exists and file_write_tool only creates new files. "
+                    "Use file_edit_tool to change it, or choose a different path."
+                ),
+            ) from e
         except PermissionError as e:
             # 权限不足（如 MCP 虚拟路径、只读文件）
             raise ToolError(

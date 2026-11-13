@@ -78,6 +78,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_no_web_corpus_regression.py` | Gate | 已移除的 `web_corpus` / `corpus=web` 不得回归（静态守卫） | — |
 | `test_tool_env_dependency_correlation.py` | Gate | Tool 宿主环境依赖双向映射与探针健康门禁 | — |
 | `test_pytest_warning_gate.py` | Gate | Pytest 零告警容忍（Zero-Warning / filterwarnings = error）CI 门禁 | — |
+| `test_xdist_worker_cap.py` | Gate | `pyproject.toml` addopts 里的 `--maxprocesses` 封顶：嵌套 `--collect-only` 会话读出 xdist 实际要启动的 worker 数，显式 `-n N`（N 大于封顶）仍只启动封顶数；经 `PYTEST_ADDOPTS` 显式放宽后随之放宽（说明探针对封顶敏感）。每个 worker 是独立 Python 进程，内存随 `-n` 增长（实测一次 `-n 10` 常驻约 12 GiB） | — |
 | `test_toolkits_llms_media_layout.py` | Gate | LLM 媒体理解归属 `toolkits/llms/`，禁止顶层平铺 | — |
 | `test_prompt_token_budget_gate.py` | Gate | Turn-1 默认工具集与系统提示词 Token 预算上限与压缩比 CI 门禁 | — |
 | `test_tool_wire_budget_gate.py` | Gate | Turn-1 默认工具集的线上真实 Token 上限：以 `tool_bind_kwargs` 的真实产物（转换并按模型规整后的 function 载荷，含参数 schema）计量，补上描述门禁看不到的参数 schema 一块；除总量外每个工具另有单工具上限（未登记的工具不得超过默认 500，重工具各登记约高出实测 4% 的上限，防止一个工具膨胀被另一个缩小抵消）；另守「默认工具全部绑定成功」（失败会被静默跳过而藏起成本）与「估算器不低估线上」 | — |

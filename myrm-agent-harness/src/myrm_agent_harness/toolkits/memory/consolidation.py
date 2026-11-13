@@ -40,8 +40,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# A snapshot status the digest cannot hold is recorded as completed.
-_DIGEST_STATUS: dict[str, Literal["completed", "interrupted", "failed"]] = {
+# A snapshot status the digest outcome cannot hold is recorded as completed.
+_DIGEST_OUTCOME: dict[str, Literal["completed", "interrupted", "failed"]] = {
     "completed": "completed",
     "interrupted": "interrupted",
     "failed": "failed",
@@ -119,12 +119,12 @@ class HyperConsolidator:
         key_findings = [f"{k}: {v}" for k, v in state.scratchpad.items()]
         error_lessons = [f"{trap.tool_name or 'general'}: {trap.avoidance_rule}" for trap in state.traps]
 
-        digest_status = _DIGEST_STATUS.get(state.status, "completed")
+        digest_outcome = _DIGEST_OUTCOME.get(state.status, "completed")
 
         task_digest = TaskDigestMemory(
             id=f"digest-{session_id}-{state.active_turn}",
             task_goal=state.goal,
-            status=digest_status,
+            outcome=digest_outcome,
             completed_steps=completed_steps,
             artifact_paths=[],
             artifact_hashes={},
@@ -202,18 +202,16 @@ class HyperConsolidator:
         if hasattr(self._memory_manager, "store"):
             try:
                 episodic = EpisodicMemory(
-                    content=digest.content or f"Task Goal: {digest.task_goal} | Status: {digest.status}",
+                    content=digest.content or f"Task Goal: {digest.task_goal} | Status: {digest.outcome}",
                     source_chat_id=digest.source_session_id or None,
                     importance=0.8,
                     metadata={
                         "task_goal": str(digest.task_goal),
-                        "status": str(digest.status),
                         "completed_steps": json.dumps(list(digest.completed_steps)),
                         "artifact_paths": json.dumps(list(digest.artifact_paths)),
                         "key_findings": json.dumps(list(digest.key_findings)),
                         "error_lessons": json.dumps(list(digest.error_lessons)),
                         "tool_call_count": int(digest.tool_call_count),
-                        "event_type": "task_digest",
                     },
                 )
                 await self._memory_manager.store(episodic)

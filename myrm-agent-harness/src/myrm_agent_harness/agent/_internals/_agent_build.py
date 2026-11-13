@@ -93,9 +93,11 @@ def build_middlewares(
     because an approval pause re-runs the node that asked, so whatever it did before asking would
     be done twice.
     The conflict gate sits outside the interceptor so a call's timeout does not run down while it waits for
-    the calls it must not overlap. SkillAttenuationMiddleware resolves dynamic tools in its awrap_tool_call,
-    and the json-args middleware sits behind it so the tool it reads the schema of is the tool that will
-    run; the completion directive sits innermost of the middlewares that rewrite the request, so the others
+    the calls it must not overlap, and in front of every other wrapper of tool calls so that every call of a
+    model message reaches it: a call another wrapper answered first would never arrive, and the calls ordered
+    behind it would wait out the arrival grace. SkillAttenuationMiddleware resolves dynamic tools in its
+    awrap_tool_call, and the json-args middleware sits behind it so the tool it reads the schema of is the tool that
+    will run; the completion directive sits innermost of the middlewares that rewrite the request, so the others
     append to the user's own message. The parallel-tool-calls setting goes on last of the model-call
     wrappers, so it is judged on the tool list the model is bound to. The view guard sits behind every wrapper that
     rewrites the request and only reads it, so the message list it records is the one the model receives; the debug

@@ -22,9 +22,12 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.api.config import ConfigIncompleteError
+
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
+    from app.core.channel_bridge.config_loader import UserConfigs
     from app.core.types import ModelConfig
 
 logger = logging.getLogger(__name__)
@@ -33,12 +36,12 @@ logger = logging.getLogger(__name__)
 async def _resolve_main_model_cfg(
     agent_id: str | None,
     providers_dict: dict[str, object] | None,
-    configs: object | None,
+    configs: "UserConfigs | None",
 ) -> "ModelConfig":
     from app.core.channel_bridge.model_resolver import resolve_model_config
 
     model_cfg = resolve_model_config(providers_dict)
-    if configs and hasattr(configs, "model_cfg") and configs.model_cfg and configs.model_cfg.max_context_tokens is not None:
+    if configs and configs.model_cfg and configs.model_cfg.max_context_tokens is not None:
         model_cfg = model_cfg.model_copy(update={"max_context_tokens": configs.model_cfg.max_context_tokens})
 
     if not agent_id:
@@ -123,13 +126,26 @@ async def _resolve_lite_model_cfg(
         return None
 
 
+async def _load_configs_if_provider_configured() -> "UserConfigs | None":
+    """User configs, or None while no LLM provider is configured.
+
+    ``load_user_configs`` resolves the default model eagerly and raises when providers are missing. Callers here
+    treat that as "no model to resolve" so memory keeps working in its model-free mode on a fresh install.
+    """
+    from app.core.channel_bridge.config_loader import load_user_configs
+
+    try:
+        return await load_user_configs()
+    except ConfigIncompleteError:
+        return None
+
+
 async def resolve_platform_dedup_llm() -> "BaseChatModel | None":
     """Platform lite model for memory SmartDeduplicator when caller passes no dedup_llm."""
     from app.ai_agents.general_agent.llm_factory import create_agent_llms
-    from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.model_resolver import enrich_model_context_window, resolve_model_config
 
-    configs = await load_user_configs()
+    configs = await _load_configs_if_provider_configured()
     providers_dict = configs.providers_dict if configs else None
     if not providers_dict:
         return None
@@ -190,10 +206,9 @@ async def resolve_import_extraction_llm(agent_id: str | None) -> "BaseChatModel 
     can offer model extraction before any conversation exists.
     """
     from app.ai_agents.general_agent.llm_factory import create_agent_llms
-    from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.model_resolver import enrich_model_context_window
 
-    configs = await load_user_configs()
+    configs = await _load_configs_if_provider_configured()
     providers_dict = configs.providers_dict if configs else None
     if not providers_dict:
         return None

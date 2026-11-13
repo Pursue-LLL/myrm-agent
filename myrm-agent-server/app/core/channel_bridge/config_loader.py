@@ -311,7 +311,7 @@ async def _load_single_config(config_key: str) -> dict[str, object] | None:
             if isinstance(inner, str):
                 value = service.decrypt(inner)
 
-    return value if isinstance(value, dict) else None
+    return _coerce_config_dict(value)
 
 
 __all__ = [
