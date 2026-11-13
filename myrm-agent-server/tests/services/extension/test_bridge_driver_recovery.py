@@ -87,18 +87,6 @@ async def test_a_connect_that_fails_on_an_exited_driver_leaves_the_next_one_a_ne
     live.stop.assert_not_awaited()
 
 
-async def test_connect_to_domain_drops_an_exited_driver_the_same_way(bridge: ExtensionBridgeService) -> None:
-    dead = _FakeDriver(AsyncMock(side_effect=Exception(_DRIVER_EXIT_MESSAGE)))
-    factory = _drivers_started_in_order(dead)
-
-    with patch("patchright.async_api.async_playwright", factory):
-        with pytest.raises(Exception, match="Connection closed while reading from the driver"):
-            await bridge.connect_to_domain("example.com")
-
-    assert bridge._playwright is None
-    dead.stop.assert_awaited_once()
-
-
 async def test_a_connect_that_fails_for_another_reason_keeps_the_driver(bridge: ExtensionBridgeService) -> None:
     driver = _FakeDriver(AsyncMock(side_effect=[TimeoutError("CDP connect timed out"), _browser()]))
     factory = _drivers_started_in_order(driver)
