@@ -42,7 +42,6 @@ app/channels/providers/onebot/channel.py
 app/channels/providers/qq/channel.py
 app/channels/providers/slack/channel.py
 app/channels/providers/telegram/api.py
-app/channels/providers/telegram/html_converter.py
 app/channels/providers/telegram/inbound.py
 app/channels/providers/telegram/outbound.py
 app/channels/providers/wecom/aibot_channel.py

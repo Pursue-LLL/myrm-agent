@@ -6,6 +6,7 @@ Only &, <, > need escaping in non-tag text — much simpler than MarkdownV2.
 [INPUT]
 - channels.rendering.splitter::CJK_BOUNDARY_CHARS (POS: shared CJK punctuation SSOT for smart splitting)
 - channels.rendering.text_utils::FENCED_BLOCK_RE, fenced_block_html (POS: fenced block and its <pre> markup, shared with Matrix)
+- telegram.table_renderer::convert_tables (POS: GFM tables as monospace <pre> boxes)
 
 [OUTPUT]
 - md_to_telegram_html(): Telegram-safe HTML string with GFM table degradation
@@ -28,6 +29,8 @@ import re
 from app.channels.rendering.splitter import CJK_BOUNDARY_CHARS
 from app.channels.rendering.text_utils import FENCED_BLOCK_RE, fenced_block_html
 
+from .table_renderer import convert_tables
+
 _MAX_MSG_LENGTH = 4096
 
 # A span and a link target never hold a placeholder (NUL): backticks on both sides of a protected block stay text, and
@@ -37,89 +40,12 @@ _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\x00]+)\)")
-_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$")
 
 # Exact whitelist of Telegram supported HTML tags
 _TELEGRAM_TAGS_RE = re.compile(
     r"(</?(?:b|strong|i|em|u|ins|s|strike|del|span|tg-spoiler|a|code|pre|blockquote|expandable)(?:\s+[^>]*)?>)",
     re.IGNORECASE,
 )
-
-
-def _parse_table_row(line: str) -> list[str]:
-    """Split a GFM table row into stripped cell values."""
-    stripped = line.strip()
-    if stripped.startswith("|"):
-        stripped = stripped[1:]
-    if stripped.endswith("|"):
-        stripped = stripped[:-1]
-    return [cell.strip() for cell in stripped.split("|")]
-
-
-def _render_monospace_table(header_row: str, data_rows: list[str]) -> str:
-    """Convert a GFM table into a ``<pre>``-wrapped monospace ASCII table."""
-    headers = _parse_table_row(header_row)
-    parsed_rows = [_parse_table_row(row) for row in data_rows]
-
-    col_count = len(headers)
-    for row in parsed_rows:
-        while len(row) < col_count:
-            row.append("")
-
-    col_widths = [len(h) for h in headers]
-    for row in parsed_rows:
-        for i, cell in enumerate(row[:col_count]):
-            col_widths[i] = max(col_widths[i], len(cell))
-
-    def _fmt_row(cells: list[str]) -> str:
-        padded = [cells[i].ljust(col_widths[i]) if i < len(cells) else " " * col_widths[i] for i in range(col_count)]
-        return "│ " + " │ ".join(padded) + " │"
-
-    sep_parts = ["─" * (w + 2) for w in col_widths]
-
-    lines: list[str] = []
-    lines.append("┌" + "┬".join(sep_parts) + "┐")
-    lines.append(_fmt_row(headers))
-    lines.append("├" + "┼".join(sep_parts) + "┤")
-    for row in parsed_rows:
-        lines.append(_fmt_row(row))
-    lines.append("└" + "┴".join(sep_parts) + "┘")
-
-    return "<pre>" + html.escape("\n".join(lines)) + "</pre>"
-
-
-def _convert_tables(text: str) -> tuple[str, list[str]]:
-    """Detect GFM tables in *text* and replace them with preserved monospace blocks.
-
-    Returns the modified text and a list of preserved HTML blocks (to be
-    appended to the caller's ``preserved`` list).
-    """
-    if "|" not in text or "-" not in text:
-        return text, []
-
-    lines = text.split("\n")
-    out: list[str] = []
-    blocks: list[str] = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        if "|" in line and i + 1 < len(lines) and "|" in lines[i + 1] and _TABLE_SEPARATOR_RE.match(lines[i + 1]):
-            header = line
-            j = i + 2
-            data_rows: list[str] = []
-            while j < len(lines) and "|" in lines[j] and lines[j].strip():
-                data_rows.append(lines[j])
-                j += 1
-            if data_rows:
-                rendered = _render_monospace_table(header, data_rows)
-                idx = len(blocks)
-                blocks.append(rendered)
-                out.append(f"\x00TBLPRESERVE{idx}\x00")
-                i = j
-                continue
-        out.append(line)
-        i += 1
-    return "\n".join(out), blocks
 
 
 def md_to_telegram_html(text: str) -> str:
@@ -130,24 +56,14 @@ def md_to_telegram_html(text: str) -> str:
     """
     preserved: list[str] = []
 
-    def _preserve_code_block(m: re.Match[str]) -> str:
-        preserved.append(fenced_block_html(m))
+    def _preserve(markup: str) -> str:
+        preserved.append(markup)
         return f"\x00PRESERVE{len(preserved) - 1}\x00"
 
-    def _preserve_inline_code(m: re.Match[str]) -> str:
-        preserved.append(f"<code>{html.escape(m.group(1))}</code>")
-        return f"\x00PRESERVE{len(preserved) - 1}\x00"
-
-    result = FENCED_BLOCK_RE.sub(_preserve_code_block, text)
-
+    result = FENCED_BLOCK_RE.sub(lambda block: _preserve(fenced_block_html(block)), text)
     # Tables before inline code: a cell keeps its backticks as text, so the table is as wide as it reads
-    result, table_blocks = _convert_tables(result)
-    tbl_offset = len(preserved)
-    preserved.extend(table_blocks)
-    for idx in range(len(table_blocks)):
-        result = result.replace(f"\x00TBLPRESERVE{idx}\x00", f"\x00PRESERVE{tbl_offset + idx}\x00")
-
-    result = _INLINE_CODE_RE.sub(_preserve_inline_code, result)
+    result = convert_tables(result, _preserve)
+    result = _INLINE_CODE_RE.sub(lambda span: _preserve(f"<code>{html.escape(span[1])}</code>"), result)
 
     # Split by PRESERVE placeholders AND Telegram-supported HTML tags to protect both
     _SPLIT_RE = re.compile(r"(\x00PRESERVE\d+\x00)|" + _TELEGRAM_TAGS_RE.pattern)
