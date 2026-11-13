@@ -1,4 +1,5 @@
-"""Unit tests for the pending-task report: it names the await a stuck task is parked on and stays quiet for a block that ends in time."""
+"""Unit tests for the pending-task report: it names the await a stuck task is parked on, goes on past a loop object that never finished its
+initialiser, and stays quiet for a block that ends in time."""
 
 from __future__ import annotations
 
@@ -97,6 +98,29 @@ def test_the_report_follows_the_chain_through_a_generator_step_and_a_nested_task
     assert "_never_set_event_wait" in parked
     assert "waits on" in parked
     assert "cancelling=0" in parked
+
+
+class _LoopThatNeverFinishedInit(asyncio.SelectorEventLoop):
+    """A loop object as the garbage collector sees one that another thread is still building: none of its state attributes exist yet."""
+
+    def __init__(self) -> None:
+        """Skips the loop's own initialiser."""
+
+    def __del__(self) -> None:
+        """Nothing to close; the loop's own destructor would read state that does not exist."""
+
+
+@pytest.fixture
+def loop_that_never_finished_init() -> asyncio.AbstractEventLoop:
+    return _LoopThatNeverFinishedInit()
+
+
+@pytest.mark.usefixtures("loop_that_never_finished_init")
+def test_a_loop_object_that_never_finished_init_does_not_stop_the_report() -> None:
+    with _loop_with_a_task_parked_on_an_event():
+        report = pending_task_report()
+
+    assert "stuck-turn" in report
 
 
 class _RecordedStderr(io.StringIO):
