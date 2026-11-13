@@ -335,10 +335,10 @@ asyncio_default_test_loop_scope = "module"
 asyncio_default_fixture_loop_scope = "module"
 testpaths = ["tests"]
 pythonpath = ["src"]
-# Each xdist worker is its own Python process, so memory grows with `-n` (measured: one `-n 10` run held about 12 GiB),
-# a lot of RAM on a dev machine shared with other sessions. xdist documents `--maxprocesses` only for `-n auto|logical`;
-# 3.8.0 also applies it to an explicit `-n N` (xdist/plugin.py), which tests/architecture/test_xdist_worker_cap.py
-# guards. Raise the cap on purpose with `--maxprocesses=N` (or PYTEST_ADDOPTS).
+# Each xdist worker is its own Python process, so memory grows with `-n` (one live `-n 10` run held about 12 GiB, a lot
+# on a dev machine shared with other sessions). xdist documents `--maxprocesses` only for `-n auto|logical`; 3.8.0 also
+# applies it to an explicit `-n N` (xdist/plugin.py), which tests/architecture/test_xdist_worker_cap.py guards.
+# Raise the cap on purpose with `--maxprocesses=N` (or PYTEST_ADDOPTS).
 addopts = "--import-mode=importlib -n0 --maxprocesses=4 --timeout=300 -m 'not integration and not e2e and not performance'"
 filterwarnings = [
     "error",
