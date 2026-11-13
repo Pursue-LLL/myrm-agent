@@ -353,7 +353,6 @@
     "usageAnalytics": "統計分析",
     "totalCalls": "呼び出し回数",
     "totalTokens": "トークン",
-    "research": "研究ワークスペース",
     "wikiKnowledgeBase": "ナレッジベース"
   },
   "research": {
@@ -366,6 +365,9 @@
     "uploading": "アップロード中...",
     "selectAll": "すべて選択",
     "deselectAll": "キャンセルすべて選択",
+    "selectResource": "{name} を選択",
+    "deselectResource": "{name} の選択を解除",
+    "removeResource": "{name} を削除",
     "searchConcepts": "概念を検索...",
     "searching": "検索中...",
     "noResults": "関連する概念が見つかりません",
@@ -410,6 +412,7 @@
     "securityCenter": "セキュリティセンター",
     "runs": "アクティビティ",
     "batchDirectories": "バッチディレクトリ",
+    "research": "研究ワークスペース",
     "extensionConnected": "ブラウザ拡張機能が接続されました",
     "extensionDisconnected": "ブラウザ拡張機能が切断されました",
     "remoteGateway": "リモートサーバーに接続中"

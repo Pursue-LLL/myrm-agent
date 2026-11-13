@@ -40,6 +40,32 @@ interface AppLayoutProps {
   onRetryConfigReadiness?: () => void;
 }
 
+interface PageKind {
+  isSettingsPage: boolean;
+  isResearchPage: boolean;
+  isRemoteSurface: boolean;
+}
+
+// How the shell frames a page: the height policy of `<main>` and the box the page (and the banners above it) sits in.
+// - Settings and the research workbench own their scrolling, so `<main>` is pinned to the viewport. The workbench uses
+//   the dynamic viewport so its composer stays above a mobile browser's toolbar.
+// - The paired-phone surface fills the viewport itself (own status bar, safe-area handling and full-height boards), so
+//   the frame must not add padding on top of that or the screen gains a phantom scroll. On a wide desktop browser it is
+//   still capped to the page width instead of stretching across the monitor.
+// - Every other page is a centred column.
+function pageFrame({ isSettingsPage, isResearchPage, isRemoteSurface }: PageKind): { main: string; content: string } {
+  if (isSettingsPage) {
+    return { main: 'h-screen overflow-hidden', content: 'h-full overflow-y-auto' };
+  }
+  if (isResearchPage) {
+    return { main: 'h-dvh overflow-hidden', content: 'flex h-full flex-col overflow-hidden' };
+  }
+  if (isRemoteSurface) {
+    return { main: 'min-h-screen', content: 'lg:max-w-screen-lg lg:mx-auto' };
+  }
+  return { main: 'min-h-screen', content: 'max-w-screen-lg mx-auto px-4 pt-4 overflow-visible' };
+}
+
 function AppLayout({ children, configReadinessDegraded = false, onRetryConfigReadiness }: AppLayoutProps) {
   const { initAuth } = useAuthStore();
   const t = useTranslations('layout');
@@ -79,14 +105,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
   useWuBalanceWatcher();
   const { crashLoopActive, errorMessage: crashError, dismiss: dismissCrashLoop } = useCrashLoopGuard();
 
-  // The paired-phone surface fills the viewport itself (own status bar, safe-area handling and full-height
-  // boards), so the page frame must not add padding on top of that or the screen gains a phantom scroll.
-  // On a wide desktop browser it is still capped to the page width instead of stretching across the monitor.
-  const contentFrameClass = layout.isSettingsPage
-    ? 'h-full overflow-y-auto'
-    : layout.isRemoteSurface
-      ? 'lg:max-w-screen-lg lg:mx-auto'
-      : 'max-w-screen-lg mx-auto px-4 pt-4 overflow-visible';
+  const frame = pageFrame(layout);
 
   return (
     <>
@@ -156,11 +175,11 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
         className={cn(
           'main-content-area bg-background',
           !layout.isSidebarDragging && 'transition-all duration-300 ease-in-out',
-          layout.isSettingsPage ? 'h-screen overflow-hidden' : 'min-h-screen',
+          frame.main,
         )}
         style={{ paddingLeft: layout.paddingLeft }}
       >
-        <div className={contentFrameClass}>
+        <div className={frame.content}>
           <LocalBackendUnavailableBanner />
           <CronSchedulerHealthBanner />
           <ConfigUnreadableBanner />

@@ -353,7 +353,6 @@
     "usageAnalytics": "NUTZUNGSANALYSE",
     "totalCalls": "Anrufe",
     "totalTokens": "Token",
-    "research": "Forschung",
     "wikiKnowledgeBase": "Wissensdatenbank"
   },
   "research": {
@@ -366,6 +365,9 @@
     "uploading": "Hochladen...",
     "selectAll": "Wählen Sie „Alle“ aus",
     "deselectAll": "Alle abwählen",
+    "selectResource": "{name} auswählen",
+    "deselectResource": "Auswahl von {name} aufheben",
+    "removeResource": "{name} entfernen",
     "searchConcepts": "Suchkonzepte...",
     "searching": "Suche...",
     "noResults": "Keine Konzepte gefunden",
@@ -410,6 +412,7 @@
     "securityCenter": "Sicherheitscenter",
     "runs": "Aktivität",
     "batchDirectories": "Batch-Verzeichnisse",
+    "research": "Forschung",
     "extensionConnected": "Browsererweiterung verbunden",
     "extensionDisconnected": "Browsererweiterung nicht verbunden",
     "remoteGateway": "Mit Remote-Server verbunden"

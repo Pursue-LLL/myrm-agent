@@ -1,5 +1,15 @@
+import { existsSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { FUNCTIONAL_ROUTE_PREFIXES, IMMERSIVE_EXACT_PATHS, resolveReadabilityScene } from '../readability-scene';
+import {
+  FUNCTIONAL_ROUTE_PREFIXES,
+  IMMERSIVE_EXACT_PATHS,
+  STATIC_APP_SEGMENTS,
+  resolveReadabilityScene,
+} from '../readability-scene';
+
+// The desktop pet overlay is a transparent window: it never shows the app's wallpaper or chrome, so it has no scene.
+const SCENELESS_APP_SEGMENTS = new Set(['pet-overlay']);
 
 describe('readability-scene', () => {
   it('treats chat roots as immersive', () => {
@@ -15,6 +25,23 @@ describe('readability-scene', () => {
   it('treats kanban and settings as functional', () => {
     expect(resolveReadabilityScene('/kanban')).toBe('functional');
     expect(resolveReadabilityScene('/settings/memory')).toBe('functional');
+  });
+
+  it.each(['/batch-directories', '/research', '/runs'])(
+    'treats the single-segment page %s as functional, not as a chat session',
+    (path) => {
+      expect(resolveReadabilityScene(path)).toBe('functional');
+    },
+  );
+
+  it('classifies every top-level page of the app router, so none is mistaken for a chat session', () => {
+    const appDir = resolve(process.cwd(), 'src/app');
+    const pageSegments = readdirSync(appDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !/^[[(_]/.test(entry.name))
+      .map((entry) => entry.name)
+      .filter((segment) => existsSync(resolve(appDir, segment, 'page.tsx')) && !SCENELESS_APP_SEGMENTS.has(segment));
+
+    expect(pageSegments.filter((segment) => !STATIC_APP_SEGMENTS.has(segment))).toEqual([]);
   });
 
   it('normalizes trailing slashes', () => {

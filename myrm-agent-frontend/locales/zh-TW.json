@@ -353,7 +353,6 @@
     "usageAnalytics": "統計分析",
     "totalCalls": "呼叫次數",
     "totalTokens": "Token",
-    "research": "研究工作臺",
     "wikiKnowledgeBase": "知識庫"
   },
   "research": {
@@ -366,6 +365,9 @@
     "uploading": "上傳中...",
     "selectAll": "全選",
     "deselectAll": "取消全選",
+    "selectResource": "選擇 {name}",
+    "deselectResource": "取消選擇 {name}",
+    "removeResource": "移除 {name}",
     "searchConcepts": "搜尋概念...",
     "searching": "搜尋中...",
     "noResults": "未找到相關概念",
@@ -410,6 +412,7 @@
     "securityCenter": "安全中心",
     "runs": "活動",
     "batchDirectories": "批次目錄",
+    "research": "研究工作臺",
     "extensionConnected": "瀏覽器擴充套件已連線",
     "extensionDisconnected": "瀏覽器擴充套件未連線",
     "remoteGateway": "已連接遠程伺服器"

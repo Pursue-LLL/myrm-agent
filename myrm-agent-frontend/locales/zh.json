@@ -353,7 +353,6 @@
     "usageAnalytics": "统计分析",
     "totalCalls": "调用次数",
     "totalTokens": "Token",
-    "research": "研究工作台",
     "wikiKnowledgeBase": "知识库"
   },
   "research": {
@@ -366,6 +365,9 @@
     "uploading": "上传中...",
     "selectAll": "全选",
     "deselectAll": "取消全选",
+    "selectResource": "选择 {name}",
+    "deselectResource": "取消选择 {name}",
+    "removeResource": "移除 {name}",
     "searchConcepts": "搜索概念...",
     "searching": "搜索中...",
     "noResults": "未找到相关概念",
@@ -410,6 +412,7 @@
     "securityCenter": "安全中心",
     "runs": "活动",
     "batchDirectories": "批量目录",
+    "research": "研究工作台",
     "extensionConnected": "浏览器扩展已连接",
     "extensionDisconnected": "浏览器扩展未连接",
     "remoteGateway": "已连接远程服务器"

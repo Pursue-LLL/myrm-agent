@@ -90,6 +90,7 @@ describe('NavMoreMenu', () => {
       '安全中心',
       '成长仪表盘',
       '批量目录',
+      '研究工作台',
       '技能管理',
       'MCP',
       '浏览器扩展未连接',
@@ -137,6 +138,7 @@ describe('NavMoreMenu', () => {
   it.each([
     ['/runs', true],
     ['/runs/abc', true],
+    ['/research', true],
     ['/settings/extensionBridge', true],
     ['/health', true],
     ['/healthcheck', false],
@@ -151,6 +153,15 @@ describe('NavMoreMenu', () => {
     } else {
       expect(trigger).not.toHaveAttribute('aria-current');
     }
+  });
+
+  it('opens the research workbench from the extension section', async () => {
+    const { user } = renderMenu({ currentPathname: '/research' });
+
+    const research = within(await openMenu(user)).getByRole('menuitem', { name: '研究工作台' });
+
+    expect(research).toHaveAttribute('href', '/research');
+    expect(research).toHaveAttribute('aria-current', 'page');
   });
 
   it('shows the browser extension state on its own row', async () => {

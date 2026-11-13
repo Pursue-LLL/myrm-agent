@@ -353,7 +353,6 @@
     "usageAnalytics": "USAGE ANALYTICS",
     "totalCalls": "Calls",
     "totalTokens": "Tokens",
-    "research": "Research",
     "wikiKnowledgeBase": "Knowledge Base"
   },
   "research": {
@@ -366,6 +365,9 @@
     "uploading": "Uploading...",
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
+    "selectResource": "Select {name}",
+    "deselectResource": "Deselect {name}",
+    "removeResource": "Remove {name}",
     "searchConcepts": "Search concepts...",
     "searching": "Searching...",
     "noResults": "No concepts found",
@@ -410,6 +412,7 @@
     "securityCenter": "Security Center",
     "runs": "Activity",
     "batchDirectories": "Batch Directories",
+    "research": "Research",
     "extensionConnected": "Browser Extension Connected",
     "extensionDisconnected": "Browser Extension Disconnected",
     "remoteGateway": "Connected to Remote Server"

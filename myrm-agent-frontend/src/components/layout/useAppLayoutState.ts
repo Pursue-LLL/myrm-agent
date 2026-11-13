@@ -193,8 +193,10 @@ export function useAppLayoutState() {
   }, []);
 
   const isSettingsPage = pathname.startsWith('/settings');
+  const isResearchPage = pathname === '/research';
   const isRemoteSurface = isMobileRemotePath(pathname);
-  const shouldShowContentSidebar = !isSettingsPage && activeTab === 'chat';
+  // The research workbench lays out its own three panes, so it gets the full width instead of sharing it with the chat list.
+  const shouldShowContentSidebar = !isSettingsPage && !isResearchPage && activeTab === 'chat';
   const showMobileLayout = isMobile;
   const paddingLeft = showMobileLayout
     ? '0px'
@@ -221,6 +223,7 @@ export function useAppLayoutState() {
     handleToggleSidebar,
     handleTabChange,
     isSettingsPage,
+    isResearchPage,
     isRemoteSurface,
     shouldShowContentSidebar,
     showMobileLayout,

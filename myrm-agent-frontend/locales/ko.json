@@ -353,7 +353,6 @@
     "usageAnalytics": "사용 분석",
     "totalCalls": "호출",
     "totalTokens": "토큰",
-    "research": "리서치",
     "wikiKnowledgeBase": "지식 베이스"
   },
   "research": {
@@ -366,6 +365,9 @@
     "uploading": "업로드 중...",
     "selectAll": "전체 선택",
     "deselectAll": "전체 해제",
+    "selectResource": "{name} 선택",
+    "deselectResource": "{name} 선택 해제",
+    "removeResource": "{name} 제거",
     "searchConcepts": "개념 검색...",
     "searching": "검색 중...",
     "noResults": "개념을 찾을 수 없습니다",
@@ -410,6 +412,7 @@
     "securityCenter": "보안 센터",
     "runs": "활동",
     "batchDirectories": "배치 디렉터리",
+    "research": "리서치",
     "extensionConnected": "브라우저 확장 연결됨",
     "extensionDisconnected": "브라우저 확장 연결 끊김",
     "remoteGateway": "원격 서버에 연결됨"

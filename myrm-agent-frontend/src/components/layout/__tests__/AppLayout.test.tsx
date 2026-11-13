@@ -144,6 +144,7 @@ function layoutState(overrides: Partial<LayoutState> = {}): LayoutState {
     handleToggleSidebar: vi.fn(),
     handleTabChange: vi.fn(),
     isSettingsPage: false,
+    isResearchPage: false,
     isRemoteSurface: false,
     shouldShowContentSidebar: true,
     showMobileLayout: false,
@@ -321,6 +322,7 @@ describe('AppLayout: desktop window', () => {
   it.each<[string, Partial<LayoutState>, string, string]>([
     ['an ordinary page', {}, 'max-w-screen-lg mx-auto px-4 pt-4 overflow-visible', 'min-h-screen'],
     ['the settings page', { isSettingsPage: true }, 'h-full overflow-y-auto', 'h-screen overflow-hidden'],
+    ['the research page', { isResearchPage: true }, 'flex h-full flex-col overflow-hidden', 'h-dvh overflow-hidden'],
     ['the paired-phone surface', { isRemoteSurface: true }, 'lg:max-w-screen-lg lg:mx-auto', 'min-h-screen'],
   ])('frames %s', (_name, overrides, frameClass, mainClass) => {
     useLayout(overrides);
@@ -330,7 +332,7 @@ describe('AppLayout: desktop window', () => {
     expect(frame()).toHaveClass(frameClass);
     expect(main()).toHaveClass(mainClass);
     expect(kit.navBar?.isSettingsPage).toBe(overrides.isSettingsPage === true);
-    if (overrides.isSettingsPage || overrides.isRemoteSurface) {
+    if (overrides.isSettingsPage || overrides.isResearchPage || overrides.isRemoteSurface) {
       expect(frame()).not.toHaveClass('px-4');
     }
   });
