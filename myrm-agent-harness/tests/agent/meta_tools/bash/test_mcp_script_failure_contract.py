@@ -14,6 +14,7 @@ limits are shrunk to seconds. Each test pins a behavior that used to go the othe
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import re
 import sys
@@ -24,6 +25,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
@@ -37,6 +39,7 @@ from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import San
 from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import bind_workspace_storage_root
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
 from myrm_agent_harness.utils.errors import ToolError
+from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason, set_cancel_token
 from tests.support.marked_processes import wait_until
 from tests.support.mcp_testkit import cancel_probe_server
 
@@ -46,11 +49,13 @@ pytestmark = [
 ]
 
 _HOST_FLOOR = "myrm_agent_harness.agent.meta_tools.bash._executor.prepare_mixin.MCP_MIN_TIMEOUT"
-_MCP_FLOOR_RULE = "myrm_agent_harness.agent.meta_tools.bash._executor.prepare_mixin.BashExecutorPrepareMixin._maybe_extend_timeout_for_mcp"
 _BACKSTOP_MARGIN = "myrm_agent_harness.agent.skills.mcp.call_backstop.BACKSTOP_MARGIN_SECONDS"
 _REASON = "verify how a failed MCP call reaches a script"
 _TOOLS = ["slow", "fast"]
 _SLOW_FOREVER_S = 60
+# Bound on waiting for an event that is bound to happen: the wait returns the moment it does, and the bound stays under
+# the host's own 120 s floor so a stuck stack fails here, with a clear message, before the host's deadline does.
+_EVENT_WAIT_S = 60
 
 _DELAYED_START = (
     "import runpy, sys, time; time.sleep(float(sys.argv[1])); "
@@ -133,7 +138,7 @@ async def _script_channel(
         skill_registry.clear()
 
 
-def _config(tmp_path: Path) -> dict[str, object]:
+def _config(tmp_path: Path) -> RunnableConfig:
     return {
         "configurable": {
             "context": {
@@ -234,15 +239,33 @@ async def test_a_cold_start_is_not_charged_to_the_limit_of_a_call_that_is_within
 
 @pytest.mark.asyncio
 async def test_a_script_ended_by_the_host_frees_the_server_for_the_next_script(tmp_path: Path) -> None:
+    marks = tmp_path / "marks"
+    stop = CancellationToken("script-ended-contract")
     async with _script_channel(tmp_path, execute_timeout=25.0) as tool:
-        # The host ends the first script while its call is still running, as a stop or the script's own deadline would.
-        with patch(_MCP_FLOOR_RULE, lambda self, items, timeout: timeout), pytest.raises(ToolError):
-            command = _python_script(_call_slow(_SLOW_FOREVER_S, "hang"))
-            await tool.ainvoke({"command": command, "reason": _REASON, "timeout": 3}, config=_config(tmp_path))
+        # The host ends the first script while its call is still running. The stop comes once the server runs the call:
+        # a deadline fixed up front counts from the script's start, so on a loaded machine it can fall before the server
+        # is up and the call has reached it, and then there is no call to cancel. A stop and a deadline end the script
+        # the same way (one process-group kill), so the abandoned call is released the same way.
+        set_cancel_token(stop)
+        first = asyncio.create_task(
+            tool.ainvoke(
+                {"command": _python_script(_call_slow(_SLOW_FOREVER_S, "hang")), "reason": _REASON},
+                config=_config(tmp_path),
+            )
+        )
+        try:
+            await wait_until(lambda: (marks / cancel_probe_server.STARTED).exists(), timeout=_EVENT_WAIT_S)
+            stop.cancel(CancelReason.USER_CANCELLED)
+            with pytest.raises(ToolError):
+                await asyncio.wait_for(first, timeout=_EVENT_WAIT_S)
+        finally:
+            set_cancel_token(None)
+            first.cancel()
+            await asyncio.gather(first, return_exceptions=True)
         ended = time.monotonic()
 
         lines = await _run(tool, tmp_path, "    print('next', await fast())")
 
     assert any("fast-done" in line for line in lines)
     assert time.monotonic() - ended < 12, "the next script waited for the abandoned call to reach its own limit"
-    await wait_until(lambda: (tmp_path / "marks" / "cancelled").exists(), timeout=5)
+    await wait_until(lambda: (marks / cancel_probe_server.CANCELLED).exists(), timeout=_EVENT_WAIT_S)
