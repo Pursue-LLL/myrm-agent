@@ -587,7 +587,7 @@ class TestResolveRunOutcome:
 
     @pytest.mark.asyncio
     async def test_success_without_intent_is_protocol_violation(self) -> None:
-        from app.services.kanban.task_runner.runner import _PROTOCOL_VIOLATION_MSG
+        from app.services.kanban.task_runner.outcomes import PROTOCOL_VIOLATION_MSG
 
         task = KanbanTask(
             task_id="t-violation",
@@ -601,7 +601,7 @@ class TestResolveRunOutcome:
         ok, msg = await runner._resolve_run_outcome("t-violation", (True, "forgot kanban_complete"))
 
         assert ok is False
-        assert msg == _PROTOCOL_VIOLATION_MSG
+        assert msg == PROTOCOL_VIOLATION_MSG
 
     @pytest.mark.asyncio
     async def test_agent_failure_passthrough(self) -> None:

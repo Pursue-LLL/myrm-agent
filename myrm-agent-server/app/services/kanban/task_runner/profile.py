@@ -15,6 +15,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
+
 from app.services.agent.profile.profile_resolver import DEFAULT_ENABLED_BUILTIN_TOOLS
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,7 @@ class _ResolvedProfile:
     subagent_ids: tuple[str, ...] | None
     security_overrides: dict[str, object] | None
     max_iterations: int | None
-    memory_policy: object | None
+    memory_policy: AgentMemoryPolicy | None
     memory_decay_profile: str | None
     memory_extraction_preset: str | None
     engine_params: dict[str, object] | None
