@@ -630,6 +630,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_security_preset_chrome_e2e.py` | 模块 | Security preset Chrome READ（SHARED+NAMESPACE_WRITE×1：preset 初始化 / UI 切换 / fail-closed） |
 | `e2e/test_security_preset_live_chrome_e2e.py` | 模块 | Security preset Chrome LIVE×1（PRIVATE+exclusive_backend×6：真实 LLM + agent 切换 + YOLO mutex；post-stream `finalizeAgentStreamTurn`） |
 | `e2e/test_file_write_empty_chrome_e2e.py` | 模块 | Empty file_write Chrome E2E（READ×2 SHPOIB：`seed-file-mutation-fixture?variant=empty_write` → FileMutationWarning 横幅 + `reload_mcp_page()` metadata 持久；LIVE×1：`test_file_write_empty_live_agent_webui` — 真实 LLM `file_write_tool(content='')` + mutation failure 横幅 + **磁盘无文件**；`@e2e_search_policy("empty")` + `seed-file-edit-batch-workspace` sandbox；**solo 签收** ~618s） |
+| `e2e/test_steer_live_delivery_chrome_e2e.py` | 模块 | Steer LIVE Chrome E2E（PRIVATE+LIVE×1，纯 REST 无页面）：agent-stream 真实 LLM 长回合进行中 `POST /steer` 被接受 → 助手回复含随机暗号（模型读到了被接受的转向）；回合结束后再 steer 被拒绝（信封 `code:404`，不留在队列里）；转向文本须不触发风险闸门（命中即 `403 Message held by a risk rule`，不会送达） |
 | `api/chats/test_file_mutation_seed_fixture.py` | 模块 | HTTP：file-mutation seed `empty_write` → persisted `metadata.fileMutationFailures` |
 | `api/chats/test_rich_media_preview_seed_fixture.py` | 模块 | 集成：rich-media seed（chat + workspace png/pdf/zip/txt）→ chat.workspace_dir 持久化 + user 消息 + browse 二进制流式全字节/MIME |
 | `e2e/test_workspace_rich_media_preview_chrome_e2e.py` | 模块 | Chrome READ×1 SHPOIB：seed rich-media fixture → workspace Files tab → png 图片加载 / pdf react-pdf canvas / zip unsupported 兜底下载 / txt 文本渲染 |
