@@ -38,21 +38,10 @@ def split_bootstrap_deadlines(
     return shell_deadline, total_deadline
 
 
-def _bootstrap_hot_path_reused() -> bool:
-    return os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip() == "reused"
-
-
-def _bootstrap_hot_path_fast() -> bool:
-    if os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip() == "reused":
-        return True
-    return (
-        os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1"
-        and os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip() == "fast_create"
-    )
-
-
 async def _warm_shell_bootstrap_probe(chat: CdpChatTransport) -> dict[str, object] | None:
     """Return PAGE_PROBE when warm/presealed shell is already chat-ready."""
+    from e2e_core.shared_ui_session.caps import _bootstrap_hot_path_fast
+
     if not _bootstrap_hot_path_fast():
         return None
     probe_raw = await chat.evaluate(
