@@ -30,7 +30,7 @@ Global browser resource pool. Manages Browser/Context/Page three-layer resources
 5. Global concurrency limit (Semaphore controls total concurrency)
 6. Lifecycle management (background loop: idle reclamation + crash detection)
 7. Three-layer automatic crash recovery (L1: browser disconnect event, L2: page crash event, L3: lifecycle fallback);
-   an acquisition that fails on an exited Playwright driver evicts the browsers it took down and retries once
+   an acquisition that fails on an exited Playwright driver evicts the browsers it cut off and retries once
 8. Semaphore safety net (prevents semaphore leaks or double releases on crash and on a cancelled or failed acquisition)
 
 This module owns the pool state, construction and warmup; the acquire/release/destroy path, scheduling, lifecycle and

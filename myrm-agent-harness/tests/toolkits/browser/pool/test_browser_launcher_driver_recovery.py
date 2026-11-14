@@ -2,7 +2,7 @@
 
 The driver is the Node process every launched browser hangs off. Once it is gone, each call on the cached
 `Playwright` fails with "Connection closed while reading from the driver", and nothing but a new driver can launch
-a browser again or connect to one.
+a browser again or connect to one. The browsers the dead driver left running are ended under the driver's token.
 """
 
 from __future__ import annotations
@@ -16,11 +16,20 @@ import pytest
 
 from myrm_agent_harness.toolkits.browser.exceptions import BrowserLaunchError
 from myrm_agent_harness.toolkits.browser.pool.browser_launcher import BrowserLauncher
+from myrm_agent_harness.toolkits.browser.pool.driver_leftovers import DRIVER_ENV_VAR
 
 _DRIVER_GONE = "BrowserType.launch: Connection closed while reading from the driver"
 _CONNECT_DRIVER_GONE = "BrowserType.connect_over_cdp: Connection closed while reading from the driver"
 _CDP_ENDPOINT = "http://127.0.0.1:9222"
 _PROMPT_GUARD = "myrm_agent_harness.toolkits.browser.pool.chrome_prompt_guard.watch_chrome_remote_debugging_prompt"
+_REAPER = "myrm_agent_harness.toolkits.browser.pool.browser_launcher.terminate_driver_browsers"
+
+
+@pytest.fixture(autouse=True)
+def reaper() -> Iterator[AsyncMock]:
+    """The process-table scan has its own tests; here only whether it runs, and for which token."""
+    with patch(_REAPER, new_callable=AsyncMock, return_value=0) as ended:
+        yield ended
 
 
 def _driver(launch: AsyncMock) -> MagicMock:
@@ -89,7 +98,48 @@ async def test_a_dead_driver_is_replaced_and_the_launch_succeeds() -> None:
     assert launcher._playwright is live
 
 
-async def test_a_launch_failure_that_is_not_a_dead_driver_keeps_the_driver() -> None:
+async def test_the_browsers_a_dead_driver_left_running_are_ended_under_its_token(reaper: AsyncMock) -> None:
+    dead, live = _dead_driver(), _live_driver(MagicMock())
+    launcher = _launcher()
+    dead_token = launcher._driver_token
+
+    with _start_drivers(dead, live), patch("asyncio.sleep", new_callable=AsyncMock):
+        instance = await launcher._launch_new_browser()
+
+    reaper.assert_awaited_once_with(dead_token)
+    assert launcher._driver_token != dead_token
+    assert instance.driver_token == launcher._driver_token
+
+
+async def test_a_launched_browser_carries_the_token_of_the_driver_that_started_it() -> None:
+    driver = _live_driver(MagicMock())
+    launcher = _launcher()
+
+    with _start_drivers(driver):
+        instance = await launcher._launch_new_browser()
+
+    environment = driver.chromium.launch.await_args.kwargs["env"]
+    assert environment[DRIVER_ENV_VAR] == instance.driver_token == launcher._driver_token
+
+
+async def test_a_browser_keeps_the_token_of_its_driver_when_the_driver_is_dropped_during_the_launch() -> None:
+    """Whatever the launcher's token is by the time the launch returns, the browser must name the driver that started it."""
+    launcher = _launcher()
+    token_in_the_environment: list[str] = []
+
+    async def launch(**options: dict[str, str]) -> MagicMock:
+        token_in_the_environment.append(options["env"][DRIVER_ENV_VAR])
+        await launcher._discard_playwright()
+        return MagicMock()
+
+    with _start_drivers(_driver(AsyncMock(side_effect=launch))):
+        instance = await launcher._launch_new_browser()
+
+    assert instance.driver_token == token_in_the_environment[0]
+    assert launcher._driver_token != token_in_the_environment[0]
+
+
+async def test_a_launch_failure_that_is_not_a_dead_driver_keeps_the_driver(reaper: AsyncMock) -> None:
     """Dropping a driver that still runs would take every browser launched through it down."""
     driver = _driver(AsyncMock(side_effect=Exception("Browser closed unexpectedly")))
     launcher = _launcher()
@@ -104,6 +154,7 @@ async def test_a_launch_failure_that_is_not_a_dead_driver_keeps_the_driver() -> 
     assert driver.chromium.launch.await_count == 3
     driver.stop.assert_not_awaited()
     assert launcher._playwright is driver
+    reaper.assert_not_awaited()
 
 
 async def test_a_driver_that_dies_on_every_attempt_leaves_no_cached_driver() -> None:
@@ -157,33 +208,41 @@ async def test_the_cache_is_cleared_before_the_old_driver_finishes_stopping() ->
     assert cached_while_stopping == [None]
 
 
-async def test_shutdown_stops_and_forgets_the_driver() -> None:
+async def test_shutdown_stops_and_forgets_the_driver(reaper: AsyncMock) -> None:
+    """A driver stopped on purpose closes its browsers itself: nothing is ended, and the next driver has a new token."""
     driver = _live_driver(MagicMock())
     launcher = _launcher()
     with _start_drivers(driver):
         await launcher._ensure_playwright()
+    token = launcher._driver_token
 
     await launcher.shutdown()
 
     driver.stop.assert_awaited_once()
     assert launcher._playwright is None
+    reaper.assert_not_awaited()
+    assert launcher._driver_token != token
 
 
-async def test_a_cdp_connect_on_a_dead_driver_is_replayed_on_a_new_driver() -> None:
+async def test_a_cdp_connect_on_a_dead_driver_is_replayed_on_a_new_driver(reaper: AsyncMock) -> None:
+    """The driver may also have launched browsers (AUTO mode shares one), so its token is ended here too."""
     browser = MagicMock(contexts=[])
     dead = _connecting_driver(AsyncMock(side_effect=Exception(_CONNECT_DRIVER_GONE)))
     live = _connecting_driver(AsyncMock(return_value=browser))
     launcher = _launcher()
+    dead_token = launcher._driver_token
 
     with _cdp_connect_env(dead, live):
         instance = await launcher._connect_existing(_CDP_ENDPOINT)
 
     assert instance.browser is browser
     assert instance.is_managed is False
+    assert instance.driver_token is None
     dead.stop.assert_awaited_once()
     live.chromium.connect_over_cdp.assert_awaited_once_with(_CDP_ENDPOINT, headers=None)
     live.stop.assert_not_awaited()
     assert launcher._playwright is live
+    reaper.assert_awaited_once_with(dead_token)
 
 
 async def test_a_cdp_connect_failure_that_is_not_a_dead_driver_keeps_the_driver() -> None:

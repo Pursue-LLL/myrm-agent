@@ -17,7 +17,7 @@
 [POS]
 Hands a page out and takes it back. An acquisition takes one global permit, schedules a browser, creates the context
 and page pool on first use (outside the lock, inserted under it) and counts the page as in use. An acquisition that
-fails because the Playwright driver exited is retried once, after the browsers the driver took down are evicted.
+fails because the Playwright driver exited is retried once, after the browsers the driver cut off are evicted.
 A release returns the permit unless a crash callback already did (semaphore safety net).
 """
 
@@ -103,7 +103,7 @@ class PoolAcquisitionMixin:
         Uses double-checked locking (DCL), holding lock only when modifying shared state.
 
         An acquisition that fails because the Playwright driver exited is retried once, after the browsers the
-        driver took down are evicted: the retry runs on a new browser instead of the dead one.
+        driver cut off are evicted: the retry runs on a new browser instead of the dead one.
 
         Args:
             context_type: Context type (CRAWL/AGENT/STEALTH)

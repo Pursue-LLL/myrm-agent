@@ -20,8 +20,8 @@ request (executor timeout, stuck-task watchdog, shutdown) cancels the tool witho
 nothing may call the session again soon, so the tab is healed there too before the cancellation
 continues. A tab whose renderer the browser reported as crashed is healed before the call runs, so
 no tool fails on (or answers from the cache of) a dead page. A call that fails because the Playwright
-driver exited heals the tab it died on too, and the failure still reaches the model: the driver took
-the browser down without any crash report, so the failed call is the first sign. A healed tab is
+driver exited heals the tab it died on too, and the failure still reaches the model: the exit cuts
+the browser off without any crash report, so the failed call is the first sign. A healed tab is
 blank, so the next text result carries the session's reset notice. A download a page started can
 settle after the action that started it was answered, so the next text result also carries what it
 came to, once.
@@ -82,7 +82,7 @@ def _cancel_aware(
             raise
         except Exception as error:
             if is_driver_closed_error(error):
-                # The exited driver took the tab's browser with it. Swap the dead tab out now, so the next call finds a
+                # The exited driver cut the tab's browser off. Swap the dead tab out now, so the next call finds a
                 # live one instead of failing the same way once more.
                 await session.recover_active_tab()
             raise

@@ -53,9 +53,9 @@ class DriverClosedError(BrowserSessionError):
 def is_driver_closed_error(error: BaseException) -> bool:
     """Whether a protocol call failed because the Playwright driver process is no longer running.
 
-    The driver's exit takes every browser it launched down without a 'disconnected' event, and patchright reports
-    it as a bare ``Exception``, so the message is the only thing to go by. A caller that wrapped the failure in an
-    error of its own (the ARIA snapshot does) keeps it on the cause chain, so the whole chain is read.
+    The driver's exit leaves every browser it launched unreachable without a 'disconnected' event, and patchright
+    reports it as a bare ``Exception``, so the message is the only thing to go by. A caller that wrapped the failure
+    in an error of its own (the ARIA snapshot does) keeps it on the cause chain, so the whole chain is read.
     """
     seen: set[int] = set()
     link: BaseException | None = error

@@ -1,9 +1,10 @@
 """Real-Chromium proof that everything above a killed Playwright driver serves again without waiting for anything.
 
-The driver is the Node process every launched browser hangs off. Killing it ends the browser too, yet the browser
-object still reports itself connected and fires no 'disconnected' event. The call that hits the dead driver is the
-first to know, so it evicts the dead browser and goes on to a new one itself: the pool, a tool call on a session and a
-pool attached to a remote browser all recover without a periodic tick or a second request.
+The driver is the Node process every launched browser hangs off. Killing it leaves the browser unreachable (a headless
+one exits, a headed one can keep running), yet the browser object still reports itself connected and fires no
+'disconnected' event. The call that hits the dead driver is the first to know, so it evicts the dead browser, ends
+whatever of it is still running and goes on to a new one itself: the pool, a tool call on a session and a pool
+attached to a remote browser all recover without a periodic tick or a second request.
 Run with: `pytest -m integration tests/toolkits/browser/pool/test_driver_death_recovery.py`.
 """
 
@@ -13,6 +14,7 @@ import asyncio
 import contextlib
 import dataclasses
 import subprocess
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -22,6 +24,7 @@ import pytest
 from myrm_agent_harness.toolkits.browser import BrowserSession
 from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
 from myrm_agent_harness.toolkits.browser.pool.config import BrowserPoolConfig, LaunchMode
+from myrm_agent_harness.toolkits.browser.process_owner import OWNER_ENV_VAR, owner_stamp_env
 from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
 from myrm_agent_harness.toolkits.browser.utils.page_health import is_driver_closed_error
 from tests.toolkits.browser._browser_available import chromium_available
@@ -38,6 +41,8 @@ _CONTEXT_KEY = "driver-death"
 _RECOVERY_TIMEOUT_S = 60.0
 _TEARDOWN_TIMEOUT_S = 20.0
 _REMOTE_START_TIMEOUT_S = 30.0
+_ENDED_TIMEOUT_S = 10.0
+_BROWSER_MAIN_PROCESS_FLAG = "--remote-debugging-pipe"
 
 
 async def _shutdown(pool: GlobalBrowserPool) -> None:
@@ -105,6 +110,38 @@ def _assert_one_replacement_driver(before: set[int], killed: set[int]) -> None:
     assert len(replacements) == 1, f"expected exactly one new driver process, found {sorted(replacements)}"
 
 
+def _browser_main_processes() -> dict[int, psutil.Process]:
+    """The browser main processes this process launched: Playwright gives them the pipe flag, the launcher the stamp.
+
+    A helper (`--type=...`) carries the flag too and is not a browser. Found through the stamp, not through the
+    driver: a Linux container may start the browser beside the driver.
+    """
+    stamp = owner_stamp_env()[OWNER_ENV_VAR]
+    browsers: dict[int, psutil.Process] = {}
+    for proc in psutil.process_iter():
+        # A process of another user, or one that just exited, cannot be read and is none of ours.
+        with contextlib.suppress(psutil.Error, OSError, SystemError):
+            argv = proc.cmdline()
+            is_main = _BROWSER_MAIN_PROCESS_FLAG in argv and not any(arg.startswith("--type=") for arg in argv)
+            if is_main and proc.environ().get(OWNER_ENV_VAR) == stamp:
+                browsers[proc.pid] = proc
+    return browsers
+
+
+async def _ends_within(process: psutil.Process, timeout_s: float) -> bool:
+    """Whether `process` is gone, or only a zombie waiting to be reaped, within `timeout_s`."""
+    deadline = time.monotonic() + timeout_s
+    while True:
+        try:
+            if process.status() == psutil.STATUS_ZOMBIE:
+                return True
+        except psutil.NoSuchProcess:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        await asyncio.sleep(0.1)
+
+
 async def _page_answers(pool: GlobalBrowserPool) -> bool:
     page, key = await pool.acquire_page(ContextType.AGENT, context_key=_CONTEXT_KEY)
     try:
@@ -153,6 +190,32 @@ async def test_the_lifecycle_tick_alone_evicts_the_browser_a_killed_driver_left_
     assert pool._global_semaphore._value == pool._config.max_concurrent_pages
     async with asyncio.timeout(_RECOVERY_TIMEOUT_S):
         assert await _page_answers(pool)
+
+
+async def test_a_browser_that_outlives_its_killed_driver_is_ended(pool: GlobalBrowserPool) -> None:
+    """A headed Chromium can keep running after its driver is killed, and no process is left to close it.
+
+    Suspending the browser first makes any browser behave like that on every platform: it cannot notice that its
+    driver is gone, so only the pool can end it.
+    """
+    browsers_before = set(_browser_main_processes())
+    before = set(_driver_processes())
+    assert await _page_answers(pool)
+    launched = [proc for pid, proc in _browser_main_processes().items() if pid not in browsers_before]
+    assert len(launched) == 1, f"expected exactly one new browser main process, found {launched}"
+    (orphan,) = launched
+    try:
+        orphan.suspend()
+        killed = _kill_the_driver_started_since(before)
+
+        async with asyncio.timeout(_RECOVERY_TIMEOUT_S):
+            assert await _page_answers(pool)
+
+        assert await _ends_within(orphan, _ENDED_TIMEOUT_S), "the browser the dead driver left behind still runs"
+        _assert_one_replacement_driver(before, killed)
+    finally:
+        with contextlib.suppress(psutil.Error):
+            orphan.kill()
 
 
 async def test_a_tool_call_on_a_killed_driver_fails_once_and_the_session_is_healed(pool: GlobalBrowserPool) -> None:

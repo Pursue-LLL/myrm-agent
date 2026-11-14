@@ -9,12 +9,13 @@
 - .camoufox_availability::require_camoufox_ready (POS: non-downloading Camoufox readiness gate)
 - .camoufox_launch::launch_camoufox (POS: Camoufox start with a persisted fingerprint)
 - .browser_launch_env::chromium_launch_env (POS: environment of launched Chromium processes)
+- .driver_leftovers::new_driver_token, terminate_driver_browsers (POS: token naming the browsers one driver starts, and the end of those a dead driver left running)
 - .chromium_install::auto_install_chromium, build_install_failure_message (POS: zero-config Chromium installation)
 - ..utils.page_health::is_driver_closed_error (POS: tells a call that failed on an exited Playwright driver from other failures)
 
 [OUTPUT]
 - BrowserLauncher: browser instance launcher (supports launch/connect/auto modes)
-- BrowserInstance: browser instance metadata container (includes is_managed, last_active_at, _disconnected, expected_close)
+- BrowserInstance: browser instance metadata container (includes is_managed, last_active_at, _disconnected, expected_close, driver_token)
 
 [POS]
 Dedicated to browser instance launching, including:
@@ -26,7 +27,7 @@ Dedicated to browser instance launching, including:
 6. Smart retry strategy (3 retries + exponential backoff)
 7. Zero-config auto-install: a launch that reports a missing Chromium runs ``chromium_install`` and retries
 8. Camoufox: started through `camoufox_launch` (fingerprint persistence, corrupted-JSON self-heal) behind a readiness gate that refuses to start without the browser build, so no implicit ~1.2 GB download runs inside a request
-9. Driver recovery: a launch or CDP connect that fails because the Playwright driver process is gone drops the cached driver, so the next attempt starts a new one instead of failing on the dead one forever
+9. Driver recovery: a launch or CDP connect that fails because the Playwright driver process is gone drops the cached driver, so the next attempt starts a new one instead of failing on the dead one forever, and ends the browsers that driver left running (every Chromium carries its driver's token, which is replaced whenever the driver is dropped)
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ from .camoufox_availability import require_camoufox_ready
 from .camoufox_launch import launch_camoufox
 from .chromium_install import auto_install_chromium, build_install_failure_message
 from .config import _DEFAULT_CDP_ENDPOINT, BrowserEngine, LaunchMode
+from .driver_leftovers import new_driver_token, terminate_driver_browsers
 
 if TYPE_CHECKING:
     from patchright.async_api import Browser, BrowserContext, Playwright
@@ -70,6 +72,9 @@ class BrowserInstance:
     _disconnected: Set on browser disconnect to avoid duplicate semaphore release.
     expected_close: Set before the pool or a session closes the browser on purpose (idle eviction,
         shutdown, engine switch), so the disconnect that follows is not read as a crash.
+    driver_token: Token of the Playwright driver that launched the browser, carried in the browser's
+        environment (``driver_leftovers``); None for a browser the launcher did not start through a driver
+        it owns (attached over CDP or the extension, or Camoufox).
     """
 
     browser: Browser
@@ -81,6 +86,7 @@ class BrowserInstance:
     _disconnected: bool = False
     is_managed: bool = True
     expected_close: bool = False
+    driver_token: str | None = None
 
 
 class BrowserLauncher:
@@ -106,6 +112,7 @@ class BrowserLauncher:
         self._extension_bridge = extension_bridge
         self._fingerprint_dir = fingerprint_dir
         self._playwright: Playwright | None = None
+        self._driver_token = new_driver_token()
         self._total_browsers = 0
 
     async def _ensure_playwright(self) -> Playwright:
@@ -118,22 +125,28 @@ class BrowserLauncher:
     async def _discard_playwright(self) -> None:
         """Stop and forget the cached driver, so the next ``_ensure_playwright`` starts a new one.
 
-        The cache is cleared first: a caller that arrives while the old driver is still stopping must not pick it up.
+        The cache is cleared first, and the driver token replaced with it: a caller that arrives while the old
+        driver is still stopping must not pick it up, and the browsers a new driver starts must not carry the
+        token of the one that is going away.
         """
         playwright, self._playwright = self._playwright, None
-        if playwright is not None:
-            with contextlib.suppress(Exception):
-                await playwright.stop()
+        if playwright is None:
+            return
+        self._driver_token = new_driver_token()
+        with contextlib.suppress(Exception):
+            await playwright.stop()
 
     async def _discard_playwright_if_gone(self, error: Exception) -> None:
-        """Drop the cached driver when ``error`` says its process is gone.
+        """Drop the cached driver when ``error`` says its process is gone, and end the browsers it left running.
 
-        The driver took every browser it launched down with it, and a dead driver can neither launch nor
-        connect anything: the next attempt has to run on a new one.
+        A dead driver can neither launch nor connect anything: the next attempt has to run on a new one. The
+        browsers it started lost their connection, and a headed Chromium can outlive it with nothing left to close it.
         """
         if self._playwright is not None and is_driver_closed_error(error):
             logger.warning("Playwright driver process is gone; the next attempt starts a new driver")
+            exited_driver_token = self._driver_token
             await self._discard_playwright()
+            await terminate_driver_browsers(exited_driver_token)
 
     async def create_browser(self, headers: dict[str, str] | None = None) -> BrowserInstance:
         """Create Browser via configured launch_mode (launch/connect/auto/remote/extension).
@@ -274,6 +287,7 @@ class BrowserLauncher:
             require_camoufox_ready()
 
         for attempt in range(3):
+            driver_token: str | None = None
             try:
                 if self._engine == BrowserEngine.FIREFOX_CAMOUFOX:
                     browser = await launch_camoufox(self._launch_options, self._fingerprint_dir)
@@ -281,8 +295,11 @@ class BrowserLauncher:
                     logger.info(f"Launched new Camoufox Browser instance (attempt {attempt + 1}/3)")
                 else:
                     pw = await self._ensure_playwright()
+                    # Taken together with the driver: the browser keeps the token of the driver that starts it even
+                    # when that driver is dropped, and the launcher's token replaced, while the launch runs.
+                    driver_token = self._driver_token
                     launch_kwargs = dict(self._launch_options)
-                    launch_kwargs["env"] = chromium_launch_env()
+                    launch_kwargs["env"] = chromium_launch_env(driver_token)
                     if sys.platform == "darwin":
                         raw_args = launch_kwargs.get("args")
                         existing_args = list(raw_args) if isinstance(raw_args, list | tuple) else []
@@ -294,7 +311,9 @@ class BrowserLauncher:
                     logger.info(f"Launched new Patchright Chromium instance (attempt {attempt + 1}/3)")
 
                 self._total_browsers += 1
-                return BrowserInstance(browser=browser, engine=self._engine.value, is_managed=True)
+                return BrowserInstance(
+                    browser=browser, engine=self._engine.value, is_managed=True, driver_token=driver_token
+                )
 
             except Exception as exc:
                 await self._discard_playwright_if_gone(exc)

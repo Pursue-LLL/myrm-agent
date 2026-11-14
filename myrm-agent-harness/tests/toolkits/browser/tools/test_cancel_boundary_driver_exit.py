@@ -1,6 +1,6 @@
 """A tool call that dies because the Playwright driver exited heals the tab it died on, and still fails loudly.
 
-The exit takes the browser down without a crash report, so no check before the call can see it: the failed call is
+The exit cuts the browser off without a crash report, so no check before the call can see it: the failed call is
 the first sign. The tab is swapped out then, so the model's next call finds a live one, and the failure itself still
 reaches the model instead of being swallowed into a plain result.
 """

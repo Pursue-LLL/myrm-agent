@@ -220,7 +220,7 @@ class CrashWatchdogMixin:
             await self._close_browser_instance(inst)
 
     async def _evict_after_driver_exit(self) -> None:
-        """Run the lifecycle tick now, so the browsers an exited driver took down leave the pool at once.
+        """Run the lifecycle tick now, so the browsers an exited driver cut off leave the pool at once.
 
         Left to the periodic tick they would stay until it runs (up to 30 s, and only once an acquisition has
         started the loop) and the next acquisition would be handed one of them. A tick that fails is only logged:

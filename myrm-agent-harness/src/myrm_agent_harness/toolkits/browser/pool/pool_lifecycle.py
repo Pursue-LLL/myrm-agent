@@ -4,7 +4,9 @@
 - .browser_launcher::BrowserInstance, BrowserLauncher (POS: browser instance metadata and its launcher)
 - .config::BrowserEngine, BrowserPoolConfig, LaunchMode (POS: pool configuration)
 - .context_factory::ContextFactory (POS: rebuilt when the proxy pool is replaced)
+- .driver_leftovers::terminate_driver_browsers (POS: ends the browsers a dead driver left running)
 - .proxy::ProxyPool (POS: proxy pool that can be replaced while the pool runs)
+- ..utils.page_health::is_driver_closed_error (POS: tells a close that failed on an exited Playwright driver from other failures)
 
 [OUTPUT]
 - PoolLifecycleMixin: lifecycle loop, `_close_browser_instance`, `shutdown`, `update_proxy_pool`, `update_remote_endpoint` for GlobalBrowserPool
@@ -12,7 +14,8 @@
 [POS]
 Everything that starts, ends or reconfigures the pool as a whole. The loop runs the crash watchdog's tick every 30 s
 and stops on its own when the pool is empty; closing an instance closes its page pools and contexts first and the
-browser itself only when the pool launched it (a user's browser is never closed on the user's behalf).
+browser itself only when the pool launched it (a user's browser is never closed on the user's behalf). A launched
+browser whose driver has exited cannot be closed that way, so its processes are ended instead.
 """
 
 from __future__ import annotations
@@ -23,9 +26,11 @@ import dataclasses
 import logging
 from typing import TYPE_CHECKING
 
+from ..utils.page_health import is_driver_closed_error
 from .browser_launcher import BrowserInstance, BrowserLauncher
 from .config import BrowserEngine, BrowserPoolConfig, LaunchMode
 from .context_factory import ContextFactory
+from .driver_leftovers import terminate_driver_browsers
 
 if TYPE_CHECKING:
     from .proxy import ProxyPool
@@ -96,7 +101,9 @@ class PoolLifecycleMixin:
         """Close a specific browser instance and its contexts.
 
         A close that fails or times out is only logged: the toolkit holds no browser PID to signal, and a
-        process that outlives its launcher is a leftover for Browser Doctor.
+        process that outlives its launcher is a leftover for Browser Doctor. The exception is a close that fails
+        because the driver that launched the browser has exited: nothing can close that browser any more, so the
+        browsers of that driver are ended through its token (``driver_leftovers``).
         """
         for _ctx_key, pool in browser_inst.page_pools.items():
             with contextlib.suppress(Exception):
@@ -113,6 +120,8 @@ class PoolLifecycleMixin:
                 await asyncio.wait_for(browser_inst.browser.close(), timeout=5.0)
             except Exception as e:
                 logger.warning(f"Graceful browser close failed or timed out: {e}")
+                if browser_inst.driver_token is not None and is_driver_closed_error(e):
+                    await terminate_driver_browsers(browser_inst.driver_token)
 
     async def shutdown(self) -> None:
         """Close all resources (called at app shutdown)."""

@@ -42,8 +42,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _POLL_INTERVAL_S = 0.05
-# A healthy browser exits within tens of milliseconds of SIGTERM; a headed Chrome whose
-# DevTools driver died ignores it and needs the SIGKILL that follows this grace period.
+# A leftover browser exits within tens of milliseconds of SIGTERM (measured on macOS with a headed Chromium whose
+# Playwright driver was killed); one still running when this grace period ends gets the SIGKILL that follows it.
 _GRACE_PERIOD_S = 3.0
 # SIGKILL cannot be caught, but delivery and teardown are asynchronous.
 _SIGKILL_SETTLE_S = 1.0

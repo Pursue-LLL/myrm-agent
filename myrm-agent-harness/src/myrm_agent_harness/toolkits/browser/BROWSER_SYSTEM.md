@@ -110,10 +110,15 @@ Extension Bridge 与 SessionVault 覆盖竞品（orca/holaboss）cookie 导入�
 - **会话关闭不拆共享上下文**：自定义智能体的多个对话共用一个上下文（`agent_<id>`）。`BrowserSession.close()` 只在该上下文已无页面在用时才销毁它，否则保留，其他对话的页面不受影响；`restart()` 经 `close()` 关闭并保留上下文键，新浏览器仍落在同一上下文。
 - **只发放健康页面**：`PagePool.acquire` 跳过已关闭的页面；复用前的重置受 5 s 预算约束，重置后再用 `probe_alive` 确认页面能回答，失败的页面被有界关闭而不是发放（避免卡死页面把 `create_tab` 堵在池锁里）。`release` 丢弃已关闭的页面，不放回池。
 - **取消安全的取页**：`acquire_page` 经 `pool/page_acquisition.py::PageAcquisition` 持有全局并发许可（及已从 `PagePool` 取出的页面），直到页面被计入「在用」（`commit`）才交给 `release_page`；取页途中被取消或失败（冷启动浏览器、创建上下文、重置空闲页、等池锁），许可与已取出的页面原路归还，崩溃处理器已为该页归还许可时不重复归还。全局许可信号量是进程级单例、从不对账，漏一个就永久少一个槽位。唯一的有界残留：创建页面的调用本身被取消时没有页面句柄可归还，该页留在其上下文里，直到上下文销毁。
-- **崩溃判定以浏览器为准**：`CrashWatchdog` 的存活探针先问浏览器进程本身（浏览器级 CDP `Browser.getVersion`），应答即视为存活；不应答时再用池内页面求第二意见，两者都不应答才判定崩溃。单页面长时间导航不会被判为浏览器崩溃。
+- **崩溃判定以浏览器为准**：`CrashWatchdog` 的存活探针先问浏览器进程本身（浏览器级 CDP `Browser.getVersion`），应答即视为存活；不应答时再用池内页面求第二意见，两者都不应答才判定崩溃。单页面长时间导航不会被判为浏览器崩溃。Playwright driver 已退出的浏览器是例外：探针抛 `DriverClosedError`，不问页面直接判死（见下一条）。
+- **Playwright driver 退出**：driver（Playwright 的 Node 进程）被杀或崩溃后，`browser.is_connected()` 仍为 True、不触发 `disconnected` 事件，此后每个协议调用（含 `page.close()`、`context.close()`、`browser.close()`）都抛出消息为 `<方法>: Connection closed while reading from the driver` 的普通 `Exception`，所以 `is_driver_closed_error` 只能按消息（连同 `__cause__` / `__context__` 链）识别它。没有事件通知池，由几处调用点各自处理：取页撞上它时，`acquire_page` 先让 `CrashWatchdog` 立即巡检一次、踢掉已死的浏览器，再重试一次（第二次失败原样上报，其他失败从不重试）；启动器的启动与 CDP 连接撞上它时丢弃缓存的 driver，下一次尝试换新 driver；工具调用中途撞上它时，那次调用本身仍然失败（错误原样交给模型），`cancel_boundary` 同时把当前标签页换成空白页，下一次调用带重置提示；每 30 s 一次的巡检同样把这样的浏览器判死。浏览器进程本身的处置见「残留进程回收」。
 - **池主动关闭不算崩溃**：池或会话自己关闭托管浏览器时，先给该实例打上 `expected_close`，随后触发的 `disconnected` 事件按「预期断开」记 INFO、不计崩溃；未经任何一方请求的断开（macOS 真实 Chromium 以 CDP `Browser.crash` 实测）记 WARNING 并计入 `crash_count_browser`。两种断开都会归还该实例持有的许可，并关闭其页面池与上下文（`_close_browser_instance`）。浏览器与页面崩溃不计入域名熔断（熔断器只由导航结果驱动）。
 - **页面崩溃只归还在用页面的许可**：页面 `crash` 事件只为调用方持有的页面（属于某个 `PagePool` 的在用集合）归还全局并发许可；空闲在池里的页面、或调用方已 `release_page` 的页面崩溃时不持有许可，处理器直接忽略，既不多还许可，也不留下无人清理的标记。全局许可信号量从不对账，多还一个就永久多放一个并发槽位，所以只有在用页面才归还（macOS 真实 Chromium 实测：并发上限 3 时，空闲页崩溃 3 次后许可数仍为 3）。
-- **残留进程回收**：池关闭浏览器时只做优雅 `close()`（5 s 超时，失败仅记日志），不持有浏览器 PID、不发信号。托管启动的 Chromium 带归属戳（启动方 PID + 启动时间）；启动方退出后残留的浏览器由 Browser Doctor 识别（归属戳可能传到浏览器拉起的应用上，所以还要求进程的名称、可执行文件名或 `argv[0]` 文件名含 `chrom`，否则不算残留），`cleanup_orphan_processes` 先 SIGTERM，3 s 宽限后补 SIGKILL（有头 Chrome 在 DevTools 驱动被杀后会忽略 SIGTERM）。读取正被回收的进程时，macOS 上的 psutil 7.2.2 会抛 `SystemError`（giampaolo/psutil#3024，修复尚未发布），该进程按「无法确认」跳过，不会中断扫描或清理。已知局限：Local 模式（有头）下若仅 Playwright 驱动先死、服务进程仍在，浏览器进程会残留，直到服务重启、归属戳指向已退出的进程后才会被识别并清理（macOS 实测，Linux/Windows 未实测）。
+- **残留进程回收**：池关闭浏览器时先做优雅 `close()`（5 s 超时，失败记日志）。托管启动的 Chromium 带两个环境变量，各管一种残留：
+  - 归属戳（启动方 PID + 启动时间）管「服务进程先死」：启动方退出后残留的浏览器由 Browser Doctor 识别（归属戳可能传到浏览器拉起的应用上，所以还要求进程的名称、可执行文件名或 `argv[0]` 文件名含 `chrom`，否则不算残留），`cleanup_orphan_processes` 先 SIGTERM，3 s 宽限后仍在运行的补 SIGKILL（macOS 实测：驱动被杀后残留的有头 Chromium 收到 SIGTERM 后 20–50 ms 内退出）。
+  - driver 令牌（`MYRM_BROWSER_DRIVER`，每个 Playwright driver 一个随机值，driver 被丢弃时换新）管「Playwright driver 先死、服务进程仍在」：driver 被杀后，无头 Chromium 实测自行退出；有头 Chromium 在 macOS 上实测多数次继续运行（约 9/10，偶尔自行退出），此时它的父进程已是 PID 1，没有进程能再关闭它（Linux/Windows 未实测）。启动器丢弃已死的 driver 时、池关闭浏览器遇到 driver 已退出时，都会 SIGKILL 带该令牌的浏览器主进程（`pool/driver_leftovers.py::terminate_driver_browsers`）：命令行含 `--remote-debugging-pipe` 且不含 `--type=`（渲染进程同样带管道标志；所有子进程随主进程退出，不单独发信号）。只有已确认退出的 driver 的令牌会传入，所以正在工作的浏览器不会被碰；读不到命令行或环境的进程跳过，没有 `psutil` 时什么也不做。
+  - 读取正被回收的进程时，macOS 上的 psutil 7.2.2 会抛 `SystemError`（giampaolo/psutil#3024，修复尚未发布），该进程按「无法确认」跳过，不会中断扫描或清理（Doctor 与令牌扫描相同）。
+  - 已知边界：Camoufox（独立 driver）与 CDP / 扩展接入的浏览器不带令牌；driver 被杀后 Playwright 的临时 profile 目录（系统临时目录下的 `playwright_chromiumdev_profile-*`）不会被删除，目前没有清理者。
 - **双引擎热切换**：Camoufox 是可选的隐身引擎（需单独安装浏览器构建，约 1.2 GB）。已安装且当前为托管浏览器时，可在 Chromium (Patchright) 与 Firefox (Camoufox) 之间热切换，可能缓解指纹类拦截（不承诺绕过）。`BrowserSession.restart(engine=Camoufox)` 先做零副作用预检：构建未就绪、或当前是接入的真实浏览器（CDP/扩展）时抛 `EngineUnavailableError`，会话原样保留；预检通过后若启动失败，会话自动回滚到原引擎（Cookie/localStorage 随新上下文迁移，页面不重载）并重抛原始错误，不会留下无法使用的空会话。
 - **Camoufox 就绪探针**：`pool/camoufox_availability.py` 复用启动期的解析规则（先 `CAMOUFOX_EXECUTABLE_PATH`，再库内已安装构建），以 `download_if_missing=False` 判断“是否已安装可用构建”，绝不触发库默认的静默下载；启动器、`restart()` 预检与 Doctor 共用同一结论。已安装但无法启动（如缺系统库）不在探针范围内，由启动失败后的回滚兜底；包自身无法导入（导入期会读取内置数据文件）同样以“不可用”原因返回而非抛出。手动安装：包缺失时先安装 `camoufox` 包（`uv add camoufox`），再执行 `camoufox fetch`（约 1.2 GB），离线/沙箱环境用 `CAMOUFOX_EXECUTABLE_PATH` 指向现成构建；Doctor 的 `fix` 与告警日志给出同一份处置说明（`camoufox` 命令随 Python 包提供，包缺失时不存在）。
 - **Camoufox 指纹持久化**：通过 `camoufox.utils.launch_options()` 生成完整指纹配置（含 `executable_path`、环境变量中的指纹种子、WebGL 参数等），首次启动时保存到 `_fingerprint_dir/camoufox_fingerprint.json`，后续启动通过 `from_options` 加载，确保同一 Agent 在多次会话中保持一致的设备身份。内置自愈机制：损坏的 JSON 配置文件（如断电导致写入中断）会被自动检测、删除并重新生成，避免永久启动失败。
@@ -1165,10 +1170,11 @@ browser/
 │   ├── browser_pool.py (273 行) — GlobalBrowserPool（全局调度中枢：池状态、构造与预热，行为由下面几个 mixin 组成）
 │   ├── pool_acquisition.py (293 行) — PoolAcquisitionMixin（取页 / 还页 / 销毁上下文；取页撞上 Playwright driver 退出时踢掉死浏览器后重试一次）
 │   ├── pool_scheduling.py (147 行) — PoolSchedulingMixin（每个引擎与启动模式一个启动器、最空闲浏览器选择）
-│   ├── pool_lifecycle.py (177 行) — PoolLifecycleMixin（30 秒后台循环、关闭、热更新）
+│   ├── pool_lifecycle.py (186 行) — PoolLifecycleMixin（30 秒后台循环、关闭、热更新；关闭撞上 Playwright driver 已退出时结束该浏览器的进程）
 │   ├── pool_diagnostics.py (187 行) — PoolDiagnosticsMixin（stats / health / 页面归属）
 │   ├── page_acquisition.py (89 行) — PageAcquisition（取页途中被取消或失败时归还许可与已取出的页面）
-│   ├── browser_launcher.py (381 行) — BrowserLauncher（Chromium 启动前 sanitize_env + Camoufox 启动前就绪闸门 + 启动与 CDP 连接遇到 Playwright driver 进程消失都换新 driver 再重试）
+│   ├── browser_launcher.py (400 行) — BrowserLauncher（Chromium 启动前 sanitize_env + Camoufox 启动前就绪闸门 + 启动与 CDP 连接遇到 Playwright driver 进程消失都换新 driver 再重试；每个 driver 一个令牌，启动的 Chromium 都带着它，driver 已死时据此结束它留下的浏览器）
+│   ├── driver_leftovers.py (85 行) — 已死 Playwright driver 留下的浏览器：driver 令牌（`DRIVER_ENV_VAR`）与按令牌结束浏览器主进程（`terminate_driver_browsers`，SIGKILL，不抛异常）
 │   ├── chromium_install.py — Zero-config Chromium 自动安装 with CDN mirror fallback（同一时刻只装一次，失败后冷却）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
 │   ├── camoufox_launch.py (93 行) — Camoufox 启动（指纹持久化 + 损坏自愈）

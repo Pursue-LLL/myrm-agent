@@ -118,7 +118,7 @@ def test_auto_detect_terminates_leftovers_and_spares_everything_else(stamped_pro
 
 
 def test_stubborn_leftover_is_escalated_to_sigkill_by_default(stamped_processes: StampedProcesses) -> None:
-    """A process that ignores SIGTERM, as a headed Chrome without its driver does, is removed by the default call."""
+    """A process that ignores SIGTERM is removed by the default call."""
     stubborn = stamped_processes.spawn(dead_owner_stamp(), ignore_sigterm=True)
 
     result = cleanup_orphan_processes([stubborn.pid], force=True)
