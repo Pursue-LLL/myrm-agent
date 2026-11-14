@@ -75,3 +75,15 @@ async def test_a_failure_that_is_not_a_driver_exit_leaves_the_tab_alone() -> Non
         await guarded.ainvoke({"value": "x"})
 
     session.recover_active_tab.assert_not_awaited()
+
+
+async def test_a_driver_exit_heals_the_tab_outside_an_agent_run_too() -> None:
+    """No cancellation token means nothing races the call, not that the tool runs unguarded."""
+    set_cancel_token(None)
+    session = _session()
+    (guarded,) = apply_cancel_boundary([_failing_tool(Exception(_DRIVER_GONE))], session)
+
+    with pytest.raises(Exception, match=_DRIVER_GONE):
+        await guarded.ainvoke({"value": "x"})
+
+    session.recover_active_tab.assert_awaited_once()
