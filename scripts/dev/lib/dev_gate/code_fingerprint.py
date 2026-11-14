@@ -7,6 +7,7 @@ caller restarts it when no live session pins the generation.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -29,16 +30,33 @@ COORDINATOR_CODE_SOURCES: tuple[str, ...] = (
 )
 
 
+def _modules_below(root: Path) -> list[tuple[str, int]]:
+    """Every `*.py` below `root` as (path relative to `root`, mtime_ns), sorted by path.
+
+    A hand-written `os.scandir` walk: `Path.rglob` costs several times as much for the same listing, and a client runs
+    this each time it checks a live coordinator for drift. Bytecode caches hold no sources and are not entered.
+    """
+    found: list[tuple[str, int]] = []
+    pending: list[tuple[Path, str]] = [(root, "")]
+    while pending:
+        directory, prefix = pending.pop()
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                if entry.is_dir(follow_symlinks=False):
+                    if entry.name != "__pycache__":
+                        pending.append((Path(entry.path), f"{prefix}{entry.name}/"))
+                elif entry.name.endswith(".py"):
+                    found.append((f"{prefix}{entry.name}", entry.stat().st_mtime_ns))
+    return sorted(found)
+
+
 def source_fingerprint(lib_root: Path, sources: Iterable[str]) -> str:
     """`name:mtime_ns` of every existing source, joined by `|`; a package entry lists each module below it."""
     parts: list[str] = []
     for name in sources:
         path = lib_root / name
         if path.is_dir():
-            parts.extend(
-                f"{name}/{module.relative_to(path).as_posix()}:{module.stat().st_mtime_ns}"
-                for module in sorted(path.rglob("*.py"))
-            )
+            parts.extend(f"{name}/{relative}:{mtime_ns}" for relative, mtime_ns in _modules_below(path))
         elif path.is_file():
             parts.append(f"{name}:{path.stat().st_mtime_ns}")
     return "|".join(parts)
