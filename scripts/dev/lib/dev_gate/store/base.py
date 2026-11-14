@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Mapping
 from pathlib import Path
 
 from dev_gate.session import (
@@ -53,7 +54,7 @@ class StoreBase:
         version: int,
         event_type: str,
         state: SessionState,
-        detail: dict[str, object],
+        detail: Mapping[str, object],
         now: float,
     ) -> None:
         connection.execute(

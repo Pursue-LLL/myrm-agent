@@ -135,7 +135,7 @@ class OwnershipMixin(StoreBase):
         version: int,
         updated_at: float,
     ) -> None:
-        rows: list[tuple[str, str, str, str]] = []
+        rows: list[tuple[str, str, str]] = []
         if ownership.browser_context_id:
             rows.append(
                 (
