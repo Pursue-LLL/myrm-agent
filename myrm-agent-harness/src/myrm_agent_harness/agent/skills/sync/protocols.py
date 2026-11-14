@@ -30,8 +30,7 @@ from .types import (
 class SkillSyncProtocol(Protocol):
     """Backend-agnostic skill synchronization interface.
 
-    Implementations:
-    - HTTPSyncBackend: planned for SaaS via control-plane (not yet implemented)
+    The framework ships no implementation: the host application supplies the transport.
 
     The protocol intentionally works with skill *bundles* (ZIP bytes)
     so that the sync layer is decoupled from SkillStore internals.

@@ -433,8 +433,9 @@ class ReplyContext:
     Provides complete context of the message being replied to or quoted,
     enabling LLMs to understand reply relationships without text flattening.
 
-    Supported channels: WeCom (quote), Telegram (reply_to_message),
-    Feishu (parent_id), Discord (reference), Slack (thread_ts).
+    Filled by WeCom (quote), Telegram (reply_to_message), Feishu (parent_id),
+    Discord (reference), Slack (thread_ts), WhatsApp (quotedMessage) and OneBot
+    (reply segment, id only).
     """
 
     message_id: str

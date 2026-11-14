@@ -6,7 +6,7 @@ Covers the user journey on WebUI /settings/memory:
    same-origin API (episodic memories are the type that carries entities).
 2. Open the memory settings page and click the seeded memory card.
 3. Verify the episodic list API returns the entity and the memory card renders —
-   the read converter used to drop ``related_entities`` from the payload metadata.
+   the read converter must carry ``related_entities`` from the payload metadata.
 4. Delete the seeded memory again (hygiene).
 """
 

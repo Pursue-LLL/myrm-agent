@@ -67,11 +67,7 @@ def _make_skill(
     trust: SkillTrust = SkillTrust.TRUSTED,
     available: bool = True,
     always: bool = False,
-    tags: list[str] | None = None,
-    patterns: list[str] | None = None,
-    exclude_keywords: list[str] | None = None,
     allowed_tools: list[str] | None = None,
-    max_context_tokens: int = 2000,
     contract: SkillContract | None = None,
 ) -> SkillMetadata:
     return SkillMetadata(
@@ -410,7 +406,7 @@ class TestSkillRegistry:
         assert "No skills available" in summary
 
     def test_summary_with_always_skill(self) -> None:
-        skill = _make_skill(name="memory", always=True, tags=["memory"])
+        skill = _make_skill(name="memory", always=True)
         summary = get_metadata_summary([skill])
         assert 'always="true"' in summary
         assert "routing_rules" not in summary
@@ -1058,7 +1054,9 @@ class TestSkillManageToolActions:
         from myrm_agent_harness.agent.meta_tools.skills.manage.skill_manage_tool import create_skill_manage_tool
 
         tool = create_skill_manage_tool(MagicMock(), None)
-        result = await tool.ainvoke({"operations": [{"action": "save", "name": "", "content": "x"}]}, config=_MANAGE_CFG)
+        result = await tool.ainvoke(
+            {"operations": [{"action": "save", "name": "", "content": "x"}]}, config=_MANAGE_CFG
+        )
         assert "error" in result.lower()
         assert "empty" in result.lower()
 
@@ -1069,7 +1067,9 @@ class TestSkillManageToolActions:
         from myrm_agent_harness.agent.meta_tools.skills.manage.skill_manage_tool import create_skill_manage_tool
 
         tool = create_skill_manage_tool(MagicMock(), None)
-        result = await tool.ainvoke({"operations": [{"action": "save", "name": "a" * 65, "content": "x"}]}, config=_MANAGE_CFG)
+        result = await tool.ainvoke(
+            {"operations": [{"action": "save", "name": "a" * 65, "content": "x"}]}, config=_MANAGE_CFG
+        )
         assert "error" in result.lower()
         assert "too long" in result.lower()
 
@@ -1080,7 +1080,9 @@ class TestSkillManageToolActions:
         from myrm_agent_harness.agent.meta_tools.skills.manage.skill_manage_tool import create_skill_manage_tool
 
         tool = create_skill_manage_tool(MagicMock(), None)
-        result = await tool.ainvoke({"operations": [{"action": "save", "name": "123bad", "content": "x"}]}, config=_MANAGE_CFG)
+        result = await tool.ainvoke(
+            {"operations": [{"action": "save", "name": "123bad", "content": "x"}]}, config=_MANAGE_CFG
+        )
         assert "error" in result.lower()
         assert "invalid" in result.lower()
 
@@ -1095,7 +1097,9 @@ class TestSkillManageToolActions:
         from myrm_agent_harness.agent.meta_tools.skills.manage.skill_manage_tool import create_skill_manage_tool
 
         tool = create_skill_manage_tool(MagicMock(), None)
-        result = await tool.ainvoke({"operations": [{"action": "save", "name": "test_skill", "content": ""}]}, config=_MANAGE_CFG)
+        result = await tool.ainvoke(
+            {"operations": [{"action": "save", "name": "test_skill", "content": ""}]}, config=_MANAGE_CFG
+        )
         assert "error" in result.lower()
         assert "content" in result.lower()
 
@@ -1110,9 +1114,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "save",
-                "name": "test_skill",
-                "content": "# No frontmatter",
+                        "action": "save",
+                        "name": "test_skill",
+                        "content": "# No frontmatter",
                     }
                 ]
             },
@@ -1132,9 +1136,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "save",
-                "name": "test_skill",
-                "content": "---\nname: test\ndescription: test\n# no closing",
+                        "action": "save",
+                        "name": "test_skill",
+                        "content": "---\nname: test\ndescription: test\n# no closing",
                     }
                 ]
             },
@@ -1154,9 +1158,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "save",
-                "name": "test_skill",
-                "content": "---\n---\n# Content",
+                        "action": "save",
+                        "name": "test_skill",
+                        "content": "---\n---\n# Content",
                     }
                 ]
             },
@@ -1176,9 +1180,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "save",
-                "name": "test_skill",
-                "content": "---\nversion: 1.0\n---\n# Content",
+                        "action": "save",
+                        "name": "test_skill",
+                        "content": "---\nversion: 1.0\n---\n# Content",
                     }
                 ]
             },
@@ -1210,9 +1214,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "save",
-                "name": "test_skill",
-                "content": '---\nname: test_skill\ndescription: "A test"\n---\n# Content',
+                        "action": "save",
+                        "name": "test_skill",
+                        "content": '---\nname: test_skill\ndescription: "A test"\n---\n# Content',
                     }
                 ]
             },
@@ -1244,9 +1248,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "save",
-                "name": "test_skill",
-                "content": '---\nname: test_skill\ndescription: "A test"\n---\n# Content',
+                        "action": "save",
+                        "name": "test_skill",
+                        "content": '---\nname: test_skill\ndescription: "A test"\n---\n# Content',
                     }
                 ]
             },
@@ -1278,9 +1282,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "save",
-                "name": "test_skill",
-                "content": '---\nname: test_skill\ndescription: "A test"\n---\n# Content',
+                        "action": "save",
+                        "name": "test_skill",
+                        "content": '---\nname: test_skill\ndescription: "A test"\n---\n# Content',
                     }
                 ]
             },
@@ -1311,9 +1315,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "save",
-                "name": "test_skill",
-                "content": '---\nname: test_skill\ndescription: "A test"\n---\n# Content',
+                        "action": "save",
+                        "name": "test_skill",
+                        "content": '---\nname: test_skill\ndescription: "A test"\n---\n# Content',
                     }
                 ]
             },
@@ -1337,9 +1341,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "new_content": "new",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "new_content": "new",
                     }
                 ]
             },
@@ -1359,9 +1363,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "old_content": "old",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "old_content": "old",
                     }
                 ]
             },
@@ -1381,10 +1385,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "old_content": "old",
-                "new_content": "new",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "old_content": "old",
+                        "new_content": "new",
                     }
                 ]
             },
@@ -1407,10 +1411,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "old_content": "old",
-                "new_content": "new",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "old_content": "old",
+                        "new_content": "new",
                     }
                 ]
             },
@@ -1433,10 +1437,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "old_content": "old",
-                "new_content": "new",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "old_content": "old",
+                        "new_content": "new",
                     }
                 ]
             },
@@ -1459,10 +1463,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "old_content": "nonexistent fragment",
-                "new_content": "new",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "old_content": "nonexistent fragment",
+                        "new_content": "new",
                     }
                 ]
             },
@@ -1494,10 +1498,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "old_content": "Old line",
-                "new_content": "New line",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "old_content": "Old line",
+                        "new_content": "New line",
                     }
                 ]
             },
@@ -1529,10 +1533,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "old_content": "Old line",
-                "new_content": "New line",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "old_content": "Old line",
+                        "new_content": "New line",
                     }
                 ]
             },
@@ -1566,10 +1570,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "patch",
-                "name": "test_skill",
-                "old_content": "Old line",
-                "new_content": "New line",
+                        "action": "patch",
+                        "name": "test_skill",
+                        "old_content": "Old line",
+                        "new_content": "New line",
                     }
                 ]
             },
@@ -1637,9 +1641,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "write_file",
-                "name": "test_skill",
-                "content": "hello",
+                        "action": "write_file",
+                        "name": "test_skill",
+                        "content": "hello",
                     }
                 ]
             },
@@ -1659,9 +1663,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "write_file",
-                "name": "test_skill",
-                "file_path": "scripts/run.py",
+                        "action": "write_file",
+                        "name": "test_skill",
+                        "file_path": "scripts/run.py",
                     }
                 ]
             },
@@ -1691,10 +1695,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "write_file",
-                "name": "test_skill",
-                "file_path": "scripts/run.py",
-                "content": "print('hello')",
+                        "action": "write_file",
+                        "name": "test_skill",
+                        "file_path": "scripts/run.py",
+                        "content": "print('hello')",
                     }
                 ]
             },
@@ -1725,10 +1729,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "write_file",
-                "name": "test_skill",
-                "file_path": "scripts/run.py",
-                "content": "print('hello')",
+                        "action": "write_file",
+                        "name": "test_skill",
+                        "file_path": "scripts/run.py",
+                        "content": "print('hello')",
                     }
                 ]
             },
@@ -1758,10 +1762,10 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "write_file",
-                "name": "test_skill",
-                "file_path": "scripts/run.py",
-                "content": "print('hello')",
+                        "action": "write_file",
+                        "name": "test_skill",
+                        "file_path": "scripts/run.py",
+                        "content": "print('hello')",
                     }
                 ]
             },
@@ -1785,8 +1789,8 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "remove_file",
-                "name": "test_skill",
+                        "action": "remove_file",
+                        "name": "test_skill",
                     }
                 ]
             },
@@ -1816,9 +1820,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "remove_file",
-                "name": "test_skill",
-                "file_path": "scripts/old.py",
+                        "action": "remove_file",
+                        "name": "test_skill",
+                        "file_path": "scripts/old.py",
                     }
                 ]
             },
@@ -1849,9 +1853,9 @@ class TestSkillManageToolActions:
             {
                 "operations": [
                     {
-                "action": "remove_file",
-                "name": "test_skill",
-                "file_path": "scripts/old.py",
+                        "action": "remove_file",
+                        "name": "test_skill",
+                        "file_path": "scripts/old.py",
                     }
                 ]
             },

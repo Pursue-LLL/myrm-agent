@@ -97,8 +97,8 @@ class TestS2Detection:
         assert result.level == SensitivityLevel.S2
 
     def test_bare_ascii_china_phone_detected(self) -> None:
-        # Regression: the ASCII short-text fast path used to skip china_phone, so a bare
-        # phone number in an <20-char ASCII text was misclassified as S1 (public).
+        # The ASCII short-text fast path must still run china_phone, or a bare phone number in an
+        # <20-char ASCII text would be misclassified as S1 (public).
         result = classify_content("13800138000", _ENABLED)
         assert result.level == SensitivityLevel.S2
         assert "china_phone" in result.patterns

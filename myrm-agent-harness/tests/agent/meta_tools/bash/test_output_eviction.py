@@ -170,10 +170,10 @@ async def test_eviction_skips_small_output():
 async def test_eviction_triggers_on_char_threshold_when_token_below(mock_executor):
     """Output over the char threshold must be evicted even when token count is low.
 
-    Regression guard: outputs in the 8k char ~ 20k token band were previously
-    hard-truncated by format_result without being persisted, making the middle
-    section unreachable. Char-level gate aligns eviction with the truncation
-    threshold so every hard-truncated output is first saved to disk.
+    Outputs in the 8k char ~ 20k token band would otherwise be hard-truncated by
+    format_result without being persisted, making the middle section unreachable.
+    The char-level gate aligns eviction with the truncation threshold so every
+    hard-truncated output is first saved to disk.
     """
     from myrm_agent_harness.agent.context_management.infra.evicted import (
         EvictedPersistResult,

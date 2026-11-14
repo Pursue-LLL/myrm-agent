@@ -327,13 +327,11 @@ from myrm_agent_harness.toolkits.code_execution import (
 | Harness 位置 | 云电脑内（与执行同机，无桥接层） |
 | 状态 | 持久：文件系统 + 已装软件 + 浏览器 profile |
 | 常驻 | 7×24 可常驻；空闲按套餐休眠，唤醒即续 |
-| 外部凭据 | 无外部数据库凭据；数据在云电脑内的 SQLite + 嵌入式 Qdrant，LLM 走 CP 中继/虚拟密钥 |
-
-竞品同构参考见 [竞品 Harness 运行位置](#竞品-harness-运行位置2026-10-核验)。
+| 外部凭据 | 无外部数据库凭据；数据在云电脑内的 SQLite + 嵌入式 Qdrant |
 
 ### 部署模式
 
-所有沙箱模式（LOCAL / SANDBOX）统一使用 SQLite + 嵌入式 Qdrant + 本地文件存储（`deploy_mode.py`）；控制平面自身的平台数据使用 PostgreSQL。
+所有沙箱模式（LOCAL / SANDBOX）统一使用 SQLite + 嵌入式 Qdrant + 本地文件存储（`deploy_mode.py`）。
 
 | 模式 | 数据库 | 向量库 | 场景 |
 |------|--------|--------|------|
@@ -342,26 +340,14 @@ from myrm_agent_harness.toolkits.code_execution import (
 
 ### 架构决策：沙箱内 SQLite + 持久化卷
 
-**核心问题**：在 per-user 沙箱模式下，业务服务层（认证、对话管理、知识库、记忆、订阅、配额）应该放在控制平面还是沙箱内？
+**核心问题**：在 per-user 沙箱模式下，业务服务层（认证、对话管理、知识库、记忆、订阅、配额）应该放在沙箱外的平台服务里，还是沙箱内？
 
 **决策**：myrm-agent-server 完整应用在云电脑内，所有沙箱模式统一使用 SQLite + 嵌入式 Qdrant；Sandbox 模式下数据存储在云电脑持久化卷上，无外部数据库凭据。
 
 ```
-控制平面（独立部署）
-  ├── 网关级 JWT 认证
-  ├── HTTP 反向代理 → 路由到用户的沙箱
-  ├── 沙箱生命周期（创建/Sleep/唤醒/回收）
-  ├── 持久化卷管理（创建/挂载/备份）
-  ├── 计费 webhook 接收
-  └── 监控 + 告警
-  │
-  PostgreSQL（平台数据 + 企业治理）：
-  用户 / 订阅 / 配额用量 / 沙箱登记 / 唤醒触发器 / 组织与策略 / ...
-
 沙箱（per-user）
   └── myrm-agent-server 完整应用
       ├── 认证、对话管理、知识库、记忆
-      ├── 订阅、配额（本地副本）
       ├── Agent 执行（Plan → Execute → Reflect）
       ├── SQLite（持久化卷上）← 业务表
       ├── 嵌入式 Qdrant（持久化卷上）← 向量检索
@@ -377,38 +363,20 @@ from myrm_agent_harness.toolkits.code_execution import (
         └── harness/          ← harness 状态
 ```
 
-**为什么不拆分到控制平面**：
+**为什么不拆到沙箱外的服务**：
 
-Agent 执行循环需要实时访问业务数据（检查配额、读取记忆、检索知识库、管理对话、保存结果），每次循环 10+ 次数据访问。
+Agent 执行循环需要实时访问业务数据（检查配额、读取记忆、检索知识库、管理对话、保存结果），每次循环都要多次访问。拆到沙箱外，每次访问多一次网络往返；留在沙箱内，就是本地 SQLite 读写。
 
-| Agent 操作 | 拆分到控制平面（RPC） | 沙箱内本地访问 |
-|-----------|---------------------|--------------|
-| 检查配额 / 读取记忆 / 检索知识库 | 50-300ms/次 | <5ms/次 |
-| 单次循环总额外延迟 | **500ms-3s** | **无** |
-
-此外，本地模式没有控制平面，拆分方案需要启动本地控制平面或维护两套代码路径。行业实践中，2026 年的 Personal Agent（Grok Bot / Muse / dots 等）都把用户状态放在各自的云电脑内，而非拆分到平台侧数据库。
+此外，本地模式没有平台服务，拆开意味着维护两套代码路径。
 
 **选择当前方案的理由**：
 
-1. **Agent 自循环零延迟**：所有业务数据通过本地 SQLite 访问（<5ms），不受网络延迟影响
+1. **Agent 自循环零网络往返**：所有业务数据通过本地 SQLite 访问，不受网络延迟影响
 2. **无外部数据库凭据**：沙箱不连接外部数据库，即使沙箱被突破也无外部数据库凭据可泄露
 3. **代码路径统一**：所有沙箱模式使用相同的 SQLite + 嵌入式 Qdrant，无条件分支
-4. **行业最佳实践**：与 2026 主流 Personal Agent 一致（云电脑内运行完整应用，状态留在本机）
-5. **结构化数据管理**：SQLite 提供 SQL 查询、事务、索引，配合嵌入式 Qdrant 实现向量检索，per-user 数据量下功能充足
+4. **结构化数据管理**：SQLite 提供 SQL 查询、事务、索引，配合嵌入式 Qdrant 实现向量检索，per-user 数据量下功能充足
 
-### 数据分层
-
-判断标准：控制平面在沙箱不存在/Sleep 时是否需要访问？
-
-**控制平面 PostgreSQL（平台数据 + 企业治理，非穷举）**：
-
-| 分类 | 主要数据 | 为什么在控制平面 |
-|---|---|---|
-| 用户/订阅 | 账号、订阅 | 创建沙箱前验证身份；处理支付 webhook |
-| 配额/计费 | 配额用量、工作单元、计费 webhook 事件 | 跨设备/会话统计 |
-| 沙箱/唤醒 | 沙箱登记、唤醒触发器、渠道绑定 | 生命周期与定时唤醒 |
-| 企业治理 | 组织、成员、SSO 配置、MCP/模型/审批策略 | 组织、SSO、MCP/模型/审批策略 |
-| 其他 | 密钥、卷交接记录、隧道注册、安全告警 | 密钥、卷交接、隧道与安全告警 |
+### 沙箱数据
 
 **沙箱 SQLite（用户个人数据，主要表，非穷举）**：
 
@@ -422,15 +390,9 @@ Agent 执行循环需要实时访问业务数据（检查配额、读取记忆�
 | 渠道 | `channel_pairings`、`channel_messages` |
 | 安全/审计 | `approvals`、`risk_hits`、`security_profiles`、`config_audit_logs` |
 
-### 同步机制
+### 与托管服务的通信
 
-| 方向 | 触发时机 | 内容 |
-|------|---------|------|
-| 控制平面 → 沙箱 | 创建沙箱时 | User + Subscription + Quota 初始数据 |
-| 控制平面 → 沙箱 | 运行期间（WebSocket） | 订阅升级/降级通知 |
-| 沙箱 → 控制平面 | 「下一次必须运行时间」变化时（目标额度窗口到点续跑 / cron 下次运行 / 看板改期任务到点） | HTTP `PUT /api/internal/sandboxes/{id}/wake-schedule`；控制平面到点唤醒已被回收器暂停的沙箱，之后由沙箱自身定时器接管 |
-| 沙箱 → 控制平面 | Agent 执行消耗 token 时 | QuotaUsage 增量更新 |
-| 沙箱 → 控制平面 | Sleep 前强制同步 | 配额最终一致性保证 |
+云托管沙箱把「下一次必须运行时间」（目标额度窗口到点续跑 / cron 下次运行 / 看板改期任务到点）上报给托管服务，由托管服务在到点时唤醒被回收器暂停的沙箱，之后由沙箱自身定时器接管；实现见 [sandbox_wake/_ARCH.md](../../../../../myrm-agent-server/app/services/sandbox_wake/_ARCH.md)。本地模式不上报。
 
 ### 本地模式兼容
 
@@ -443,31 +405,6 @@ Agent 执行循环需要实时访问业务数据（检查配额、读取记忆�
 | SQLite 路径 | `~/.myrm/data.db` | `/persistent/data/data.db`（`MYRM_DATA_DIR=/persistent/data`） |
 
 所有沙箱模式代码路径完全一致，仅通过环境变量切换存储路径。
-
-### 竞品 Harness 运行位置（2026-10 核验）
-
-| 产品 | Harness / Agent 运行时位置 |
-|------|---------------------------|
-| Grok Bot | 用户专属 persistent cloud VM（官方 "per user, not per Bot"，含浏览器 / 文件系统 / 终端） |
-| Meta Muse | Muse Secure VM（per person 的专属云电脑） |
-| OpenAI Dots | 每个 Dot 自己的云电脑（官方 "Each dot works on its own cloud computer"） |
-| Google Gemini Spark | 远程执行环境（官方确认远程浏览器 + 远程代码执行，未公开 VM 细节） |
-| Instinct | 持久 cloud computer（第三方复刻项目文档，非官方） |
-| Manus Cue | 每个 Agent 自有身份 + 云电脑（官方 "Each agent gets its own ... computer"） |
-| Today AI | 24 小时在线 Cloud Computer（媒体报道，无官方文档） |
-| 腾讯 LightVela | 腾讯轻量云专属实例（官方 "We host Hermes Agent in the cloud"） |
-| 蚂蚁灵光 | 架构未公开（无云电脑披露） |
-| **Myrm** | **每用户 Agent 专用云电脑（agent-in-sandbox）** |
-
-**结论**：2026 年 Personal Agent 的标准架构是 **harness 跑在云电脑内**，本地设备只是客户端（聊天入口、审批、看屏幕）；平台侧只有控制面（创建 / 回收 / 计费 / 网关 / 恢复），不跑 agent loop。
-
-**差异化优势**：本地模式（SQLite）与开源产品层自托管（主流云端 Personal Agent 均不支持）、结构化数据管理（SQL + 向量库）、无外部凭据。
-
-**2026 行业趋势验证**：
-- [RisingWave](https://risingwave.com/blog/stateful-sandboxes-for-ai-agents)：Stateful sandbox 需要嵌入式数据库
-- [PingCAP](https://www.pingcap.com/blog/local-first-rag-using-sqlite-ai-agent-memory-openclaw/)：local-first + zero-ops 嵌入式数据库是 2026 趋势
-- [Fly.io: Code And Let Live](https://fly.io/blog/code-and-let-live)（Annie Ruygt）："we're calling it: ephemeral sandboxes are obsolete"、"They don't want containers. They don't want 'sandboxes'. They want computers." — 推出 Sprites（持久化 Firecracker microVM + 100GB ext4 + Checkpoint/Restore），专为 per-user 持久化 Agent 场景设计
-- 沙箱内 SQLite + 嵌入式 Qdrant 的方案与 Sprites 的 stateful sandbox 理念高度一致
 
 ## Bash Execution Resilience & Command Rewriting
 

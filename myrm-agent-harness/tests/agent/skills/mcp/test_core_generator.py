@@ -69,7 +69,7 @@ class TestGenerateSkillContent:
         assert mcp_skill_generator.generate_skill_content(meta) == "# cached"
 
     def test_few_tools_still_get_calling_contract(self) -> None:
-        """A small server used to get no import path at all."""
+        """A small server gets the calling contract and an import path too."""
         meta = _skill_meta("weather", ["get_temp"])
         out = mcp_skill_generator.generate_skill_content(meta)
         assert "## Calling" in out

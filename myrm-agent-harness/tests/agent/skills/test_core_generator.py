@@ -374,7 +374,7 @@ class TestGenerateSkillContent:
     def test_few_tools_also_includes_calling_guide(
         self, generator: MCPSkillGenerator, sample_skill_meta: SkillMetadata
     ) -> None:
-        """Small servers used to get no import path at all; the contract is unconditional now."""
+        """The calling contract does not depend on the number of tools: small servers get it too."""
         content = generator.generate_skill_content(sample_skill_meta)
         assert "## Calling" in content
         assert "from skills." in content

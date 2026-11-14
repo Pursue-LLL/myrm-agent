@@ -10,11 +10,11 @@
 
 ---
 
-## 设计决策：为什么选择嵌入式 Qdrant 而非控制平面共享集群
+## 设计决策：为什么选择嵌入式 Qdrant 而非平台侧共享集群
 
-Agent-in-Sandbox 架构下，每个用户拥有独立云电脑实例。向量数据库嵌入云电脑内，而非部署在控制平面共享：
+Agent-in-Sandbox 架构下，每个用户拥有独立云电脑实例。向量数据库嵌入云电脑内，而非部署成平台侧共享集群：
 
-| 维度 | 云电脑内嵌入式（当前方案） | 控制平面共享集群 |
+| 维度 | 云电脑内嵌入式（当前方案） | 平台侧共享集群 |
 |------|------------------------|----------------|
 | 隔离性 | 物理隔离，数据不可能跨用户泄露 | 逻辑隔离（tenant_id），存在 bug 打穿风险 |
 | 代码统一性 | 本地与 Sandbox 完全同一套代码 | 需要两套路径（嵌入式 + 远程 SDK） |
@@ -31,14 +31,6 @@ Agent-in-Sandbox 架构下，每个用户拥有独立云电脑实例。向量数
 | 10,000（重度） | ~88 MB |
 
 嵌入式 Qdrant 是进程内库（pip 依赖），无独立进程、无端口占用。云电脑休眠时内存随进程释放。
-
-**竞品参考**：2026 主流 Personal Agent 云电脑普遍不使用共享向量数据库，记忆以 file-based 形式存储在各自云电脑内。我们的嵌入式 Qdrant 在保持相同的物理隔离特性的同时，多了语义向量检索能力。
-
-**2026 行业趋势验证**：
-- [RisingWave](https://risingwave.com/blog/stateful-sandboxes-for-ai-agents)："Stateful sandboxes require persistent embedded databases within the sandbox itself"
-- [PingCAP](https://www.pingcap.com/blog/local-first-rag-using-sqlite-ai-agent-memory-openclaw/)：2026 趋势是 local-first + zero-ops 嵌入式数据库配合 OS 级沙箱
-- [Zylos Research](https://zylos.ai/research/2026-03-09-multi-agent-memory-architectures-shared-isolated-hierarchical)：隔离式嵌入式数据库可防止噪音污染和跨用户数据泄露
-- [Fly.io: Code And Let Live](https://fly.io/blog/code-and-let-live)（Annie Ruygt）：Sprites 提供持久化 Firecracker microVM（100GB ext4 + Checkpoint/Restore），验证「云电脑 + 嵌入式数据库」是 Agent 基础设施主流方向
 
 ---
 

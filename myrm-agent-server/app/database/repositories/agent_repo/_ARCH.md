@@ -16,7 +16,7 @@ Agent 领域仓储。类不持有实例状态：8 个方法全部是 `@staticmet
 ## 说明
 
 - mutation 后 `flush` + `refresh` 再映射的行为原样保留在 `create.py` / `update.py`，避免 async lazy-load `updated_at`。
-- 内部映射调用由 `AgentRepository._agent_to_profile(...)` 改为 `MappingMixin._agent_to_profile(...)`（同一 staticmethod，语义不变）。
+- 内部映射调用走 `MappingMixin._agent_to_profile(...)`（staticmethod）。
 
 ## 依赖关系
 

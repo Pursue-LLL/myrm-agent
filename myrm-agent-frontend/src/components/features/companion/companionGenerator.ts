@@ -7,7 +7,7 @@
  */
 
 // ---------------------------------------------------------------------------
-// PRNG: Mulberry32 (same algorithm as Claude Code buddy/companion.ts)
+// PRNG: Mulberry32, a small seedable 32-bit generator
 // ---------------------------------------------------------------------------
 
 function mulberry32(seed: number): () => number {

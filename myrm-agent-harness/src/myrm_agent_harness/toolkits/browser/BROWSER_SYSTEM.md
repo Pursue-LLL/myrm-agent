@@ -22,7 +22,7 @@
 | Agent 跨引擎共享登录态 | SessionVault 注入 FetchEngine / HttpFetcher | harness `navigation/` |
 | 找回「跟 Agent 聊过的 URL」 | `memory_search_tool`（corpus=sessions opt-in） | harness memory + server adapter |
 
-Extension Bridge 与 SessionVault 覆盖竞品（orca/holaboss）cookie 导入的核心收益，且无需读取 OS 浏览器数据库。
+Extension Bridge 与 SessionVault 让 Agent 复用已登录会话，且无需读取 OS 浏览器数据库。
 
 `browser_source=extension` 时，池把用户的浏览器当作 `ExtensionBrowserInstance`：它的上下文不加视口、代理、请求头、UA、仿真、权限与 stealth 覆盖（扩展的 debugger 会拒绝其中一部分，其余会改动用户自己的标签页），页面不空闲留存，会话里关掉的标签页就是在用户浏览器里关掉。Agent 用的上下文只是对标签页的分组，与用户浏览器共享 cookie 与存储，不是独立账号或沙箱。`switch_tab` 只改变 Agent 自己的当前标签页：relay 对 `Page.bringToFront` 只应答不转发，用户的焦点窗口与当前标签页不被拉走，被切到后面的标签页照常可读、可点、可截图。
 
@@ -548,7 +548,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 **实现机制**：
 - **打字延迟**：在 `type` 动作中引入随机的按键延迟（30-100ms/char），模拟人类输入节奏。
 - **点击延迟**：在 `click` 和 `dblclick` 动作中引入随机的按下/抬起延迟（50-150ms），模拟真实鼠标点击。
-- **滚轮惯性滚动**：`scroll`/`scroll_to_bottom`/坐标 `scroll` 统一改为 `mouse.wheel` 小步滚轮突发（20-40px/步、8-20ms 间隔，模拟物理滚轮惯性）；CAREFUL 档叠加 加速-巡航-减速 notch 节奏、滚动前停顿、突发组间隙停顿（2-4 格连发 + 相位切换/偶发阅读停顿）、偶发过冲+回正微调。光标先定位到目标滚动容器（元素中心，钳制在视口内），嵌套滚动容器通过 `elementFromPoint` 逐层解析（仅认真实可滚动的盒子：`overflow: auto/scroll` 或文档级滚动，跳过 `overflow: visible` 的非滚动盒），保证滚轮落在正确容器上；所有间隔用 `asyncio.sleep`（不产生 CDP wait 痕迹）。`scroll` 动作会诚实上报结果（已到底/已到顶/无滚动溢出/无可见位移），`scroll_to_bottom` 对无可滚动内容提前退出。
+- **滚轮惯性滚动**：`scroll`/`scroll_to_bottom`/坐标 `scroll` 统一使用 `mouse.wheel` 小步滚轮突发（20-40px/步、8-20ms 间隔，模拟物理滚轮惯性）；CAREFUL 档叠加 加速-巡航-减速 notch 节奏、滚动前停顿、突发组间隙停顿（2-4 格连发 + 相位切换/偶发阅读停顿）、偶发过冲+回正微调。光标先定位到目标滚动容器（元素中心，钳制在视口内），嵌套滚动容器通过 `elementFromPoint` 逐层解析（仅认真实可滚动的盒子：`overflow: auto/scroll` 或文档级滚动，跳过 `overflow: visible` 的非滚动盒），保证滚轮落在正确容器上；所有间隔用 `asyncio.sleep`（不产生 CDP wait 痕迹）。`scroll` 动作会诚实上报结果（已到底/已到顶/无滚动溢出/无可见位移），`scroll_to_bottom` 对无可滚动内容提前退出。
 - **交互前置滚动拟人化（CAREFUL）**：`click`/`hover`/`focus`/`type`/`fill` 等 ref 交互执行前，若目标不在视口中部 zone（默认 0.3-0.7 视口高），先复用上面的 humanized 滚轮把目标滚进 zone，再执行交互——替换 Playwright 内置 `scrollIntoViewIfNeeded` 的一次性 JS 跳转（无 wheel 事件、CDP 痕迹明显），同时修复 CAREFUL 模式下点击视口外元素因坐标越界而落空的缺陷。目标位置用 `locator.bounding_box()` 纯几何读取（不触发滚动），逐格滚动后重读 box 直到进入 zone 或达到步数上限，嵌套/跨域容器优雅降级。若前置滚动失败（页面滚动被锁、嵌套/跨域容器滚不到），`_bezier_move_to` 会拒绝移动到中心仍在视口外的目标（CDP 会把视口外坐标钳制到视口边缘导致静默落空点击），交互退回原生 locator 动作——其 `scrollIntoViewIfNeeded` 要么把目标滚入视口（嵌套容器场景仍可成功），要么显式超时报错，绝不静默误点。`scroll`/`scroll_to_bottom` 自带定位，不参与前置。
 - **动态超时自适应**：根据文本长度和随机延迟动态计算 `timeout`，防止因拟人化延迟导致 Playwright 内部超时崩溃。
 
@@ -940,7 +940,7 @@ ToolError(
 
 **核心优势**：
 - **零延迟**：脚本在主进程的协程中运行，直接访问内存中的 `session` 对象，无需 CDP 连接或子进程通信。
-- **极致安全**：AST 注入和全局变量限制提供了双重安全保障，即轻量又坚如磐石。
+- **双重防护**：AST 注入和全局变量限制提供两层保障，开销很小。
 - **全栈兼容**：完美兼容 `LAUNCH`, `CONNECT`, `AUTO` 等所有浏览器启动模式（因为不依赖外部 CDP 端口）。
 
 ---
@@ -1072,40 +1072,6 @@ Manual refresh: GET /webui/desktop/snapshot (tags sourceChatId with foreground c
 **实现位置**：
 - Browser：`session/browser_session_view_mixin.py`、`session/view_update_payload.py`；server `app/services/agent/browser_snapshot.py`；frontend `useBrowserInspectorStore.ts`
 - Desktop：frontend `fileDiffEvents.ts` / `useDesktopInspectorStore.ts` / `toolLifecycleEvents.ts`；harness desktop session DESKTOP_VIEW_UPDATE emit
-
----
-
----
-
-## 竞品对比
-
-### 功能覆盖
-
-| 能力 | 我们 | Playwright MCP | browser-use | agent-browser |
-|------|:---:|:---:|:---:|:---:|
-| **iframe 穿透** | ✅ | ❌ | ❌ | ❌ |
-| **三层角色分类** | ✅ | ❌ | ❌ | ❌ |
-| **Cursor-interactive** | ✅ | ❌ | ❌ | ❌ |
-| **反检测（Patchright/Camoufox）** | ✅ | ❌ | ❌ | ❌ |
-| **语义感知 Diff** | ✅ | ❌ | ❌ | ❌ |
-| **加密 Session Vault** | ✅ | ❌ | ❌ | ❌ |
-| **三层域名过滤** | ✅ | ❌ | ❌ | ⚠️ 可绕过 |
-| **零拷贝页面复用** | ✅ | ❌ | ❌ | ❌ |
-| **MutationObserver变化检测** | ✅ | ❌ | ❌ | ❌ |
-| **CAPTCHA 协调（可插拔）** | ✅ | ❌ | ⚠️ CDP 耦合 | ❌ |
-| **Agent 触发人类接管** | ✅ | ❌ | ❌ | ❌ |
-| **web_fetch ↔ browser 工具选型引导** | ✅ 浏览器侧 Dynamic Hint（browser→web）+ Loop Guard 失败时双向互指 | ⚠️ browser→web 单向 | ⚠️ web_fetch 单工具描述 | ❌ |
-| **运行时移动设备仿真** | ✅ CDP 三连注入 + 8 款精选设备 | ⚠️ 仅静态 context 配置 | ⚠️ 仅静态 context 配置（`is_mobile`/`has_touch`） | ❌ |
-
-### 架构对比
-
-| 维度 | 我们 | Playwright MCP | browser-use | agent-browser |
-|------|------|---------------|-------------|--------------|
-| **工具数量** | 8 | 24 | 8 | CLI |
-| **Token 成本** | ~60 | ~480 | ~200 | N/A |
-| **反检测** | ✅ Patchright / Camoufox | ❌ | ❌ | ❌（仅云端） |
-| **LangChain 原生** | ✅ | ❌ 需适配器 | ❌ | ❌ |
-| **独立使用** | ✅ 纯 Python | ❌ 需 MCP 运行时 | ❌ | ❌ 需 Go 二进制 |
 
 ---
 

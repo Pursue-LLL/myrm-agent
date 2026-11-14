@@ -225,8 +225,8 @@ class TestWithCTEBypass:
 class TestIntegrationWithAnalyzeCommand:
     """Verify integration with shell_command_analyzer.analyze_command()."""
 
-    def test_previously_bypassed_now_detected(self) -> None:
-        """The original vulnerability: SQL in single quotes was undetected."""
+    def test_sql_inside_single_quotes_is_detected(self) -> None:
+        """SQL inside single quotes must not slip past the analyzer."""
         threats = analyze_command("psql -c 'DROP TABLE users'")
         escalate = [t for t in threats if t.level == ThreatLevel.ESCALATE]
         assert len(escalate) >= 1

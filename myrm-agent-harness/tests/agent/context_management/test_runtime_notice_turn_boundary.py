@@ -2,7 +2,7 @@
 
 Request-local notices (circuit-breaker constraints, citation rules) stay in the history of a run once they are written, so
 every reader that treats "the latest HumanMessage" as the start of the turn has to skip them. Each test builds a history
-where the old rule picks the notice and asserts the reader picks the user's own message.
+where that naive rule would pick the notice and asserts the reader picks the user's own message.
 """
 
 from __future__ import annotations

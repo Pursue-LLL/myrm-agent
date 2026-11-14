@@ -1,9 +1,9 @@
 /**
- * Regression cover for the offline-queue replay that used to overwrite newer server config.
+ * The offline-queue replay never overwrites newer server config.
  *
  * A queued change records the server version it was based on (`expectedVersion`). If the server moved on
- * since then, replaying the queued snapshot silently replaced the server's newer configuration (providers
- * and the default model disappeared). The replay must detect that staleness and keep the server value.
+ * since then, replaying the queued snapshot would silently replace the server's newer configuration (providers
+ * and the default model would disappear). The replay must detect that staleness and keep the server value.
  */
 
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';

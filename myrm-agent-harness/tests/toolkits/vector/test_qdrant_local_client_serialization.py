@@ -2,8 +2,8 @@
 
 ``asyncio.to_thread`` hands the synchronous embedded client to worker threads,
 and a search fan-out issues several client calls at once. The client is not
-thread-safe: interleaved calls used to lose writes (a delete could silently
-keep its point, and later searches returned the deleted memory). One lock per
+thread-safe: interleaved calls would lose writes (a delete could silently
+keep its point, and later searches would return the deleted memory). One lock per
 store serializes those calls — this test pins that invariant.
 """
 

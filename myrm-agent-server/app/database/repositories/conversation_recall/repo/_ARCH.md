@@ -14,7 +14,7 @@ Conversation Recall 索引仓储。类不持有实例状态：12 个方法全部
 
 ## 说明
 
-- `set_excluded` 内部调用 `rebuild_chat`：拆包后改为 `WritesMixin.rebuild_chat(...)`（同一 staticmethod，语义等同类名调用；原实现也不依赖多态）。
+- `set_excluded` 内部调用 `WritesMixin.rebuild_chat(...)`（staticmethod，不依赖多态）。
 - logger 名称保持 `app.database.repositories.conversation_recall.repo`，避免影响日志过滤。
 
 ## 依赖关系

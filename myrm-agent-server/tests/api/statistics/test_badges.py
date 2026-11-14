@@ -53,7 +53,7 @@ class TestKanbanCountRealStore:
 
     Verifies SqlAlchemyKanbanStore.count_tasks_by_agent grouping (agent_id x
     status, ARCHIVED excluded) and the KanbanService aggregation methods against
-    actual rows — the layer previously only reachable via monkeypatch.
+    actual rows, without monkeypatching the layer.
     """
 
     @pytest.fixture(autouse=True)

@@ -811,9 +811,8 @@ class CdpChatTurn(CdpChatSubmit):
     ) -> dict[str, object]:
         """Best-effort failure snapshot (R-ax22/F2).
 
-        The consume-timeout previously discarded the wait observation;
-        preserve UI + API state so the next failure carries forensics.
-        Never raises.
+        A consume-timeout must keep the wait observation: preserve UI + API state so
+        the failure carries forensics. Never raises.
         """
         snapshot: dict[str, object] = {
             "userMsgs": None,

@@ -433,7 +433,7 @@ class UserService:
 **Prompt Cache 静态免疫保护**：
 
 - 前缀稳定：切换 JIT 虚拟阵容不改变 Tool Schema 与 System Prompt，阵容差异只出现在 User Message 尾部，阵容切换本身不会破坏前缀缓存
-- 实现机制：Tool Schema 彻底静态化，动态名册改为 User Message 尾缀 XML 隐式注入
+- 实现机制：Tool Schema 彻底静态化，动态名册以 User Message 尾缀 XML 隐式注入
 - 命中率度量：以服务商返回的 usage（`cache_read_input_tokens`）为准，见 `docs/PROMPT_CACHE_PLACEMENT.md`
 
 **大并发委派限流防崩**：

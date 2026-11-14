@@ -52,4 +52,4 @@ Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' se
 | E2E run | `./myrm test -m chrome_e2e_desktop …`（按文件跑；日常 `./myrm test` 路径） |
 | E2E env | `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC=120`（`test.sh` 对 `chrome_e2e_desktop` 自动 export） |
 | Reset | `POST /webui/desktop/approval/reset-runtime` clears in-memory gate + reloads disk approvals |
-| Retry | Product-only retries: `once` ≤3 / `always` ≤2; infra markers (Chrome/mux/wave) fail-fast — see Roadmap §12.1 |
+| Retry | Product-only retries: `once` ≤3 / `always` ≤2; infra markers (Chrome/mux/wave) fail-fast |

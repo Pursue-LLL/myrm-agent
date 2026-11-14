@@ -242,7 +242,7 @@ Level 4: parent LLM (继承父 agent 的 LLM，兜底)
 
 **REST API**：3个端点（list/delete/cleanup）暴露checkpoint管理能力。
 
-**完整实现（10/10）**：
+**实现要点**：
 - ✅ BaseAgent.get_checkpoint_state()统一API（异步提取messages+context+stats）
 - ✅ **异步checkpoint save**（asyncio.run()在signal handler中，完整提取messages）
 - ✅ **CheckpointMetrics**监控数据结构（save/load成功率、平均耗时、.to_dict()导出）
@@ -496,7 +496,6 @@ config = SubagentConfig(
 - ✅ ~20行代码，复用现有 list_children() 数据
 - ✅ HumanMessage 注入，不破坏 Prompt Cache
 - ✅ 条件触发，无活跃子Agent时零 token 开销
-- ✅ 比 OpenClaw 更优（更简洁、更精确、缓存友好）
 
 ### 17. 空闲唤醒与异步事件注入（Idle Wakeup & Event-Driven Continuation）
 

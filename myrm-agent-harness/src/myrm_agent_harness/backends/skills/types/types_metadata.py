@@ -129,9 +129,10 @@ class SkillMetadata:
     """
 
     always: bool = False
-    """Guaranteed a slot in the ``<bound_skills>`` catalog when the bound set exceeds the inline
-    threshold. Never injects the SKILL.md body, never enters SystemMessage, and is inert while the
-    bound set fits inline. See ``agent/skills/SKILL_SYSTEM.md`` §4.3."""
+    """Sorted first when the ``<bound_skills>`` catalog spends its token budget, so the entry survives
+    the cut ahead of other skills (the budget still applies: this is not a guarantee). Never injects
+    the SKILL.md body, never enters SystemMessage, and is inert while the bound set fits inline.
+    See ``agent/skills/SKILL_SYSTEM.md`` §4.3."""
 
     model_invocable: bool = True
     """Whether the model can auto-select this skill via skill_select_tool.

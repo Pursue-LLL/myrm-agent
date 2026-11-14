@@ -178,7 +178,7 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
     try:
         # R2: the corrupt-primary seed must stay authoritative for the whole
         # flow. A parallel peer's preflight seed would otherwise overwrite it
-        # mid-flow. The per-key mutex replaces the old 3-attempt re-seed race.
+        # mid-flow. A per-key mutex keeps the seed authoritative, with no re-seed race.
         with config_write_mutex("providers", wait_sec=900.0):
             merged = _configure_failover_providers(api_url)
             merged_providers = merged.get("providers") if isinstance(merged.get("providers"), list) else []

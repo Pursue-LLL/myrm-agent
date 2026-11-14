@@ -659,7 +659,7 @@ class TestReplayIsolation:
         ]
         patched = _build_patched_messages(messages)
         # Clearing the invalid bucket mutates the message → a patch is produced
-        # (previously the pipeline returned None and replayed the poison verbatim).
+        # (returning None would replay the poison verbatim).
         assert patched is not None
         ai_msg = patched[1]
         assert ai_msg.invalid_tool_calls == []

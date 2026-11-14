@@ -122,16 +122,16 @@ def test_install_guard_public_export() -> None:
 
 
 @pytest.mark.architecture
-def test_client_facade_is_gone_from_package_root() -> None:
-    """The SDK facade was removed: ``api/`` is the one public entry point.
+def test_package_root_has_no_client_facade() -> None:
+    """There is no SDK facade: ``api/`` is the one public entry point.
 
-    A new ``client.py`` at the package root would reintroduce a second public
-    surface that no code imports, so its reappearance is treated as a regression.
+    A ``client.py`` at the package root would add a second public surface that no
+    code imports, so its presence is treated as a regression.
     """
     client_path = _PACKAGE_ROOT / "client.py"
     assert not client_path.exists(), (
-        "client.py was removed on purpose (api/ is the public entry); "
-        "a new root-level SDK facade needs an explicit architecture decision."
+        "client.py is absent on purpose (api/ is the public entry); "
+        "a root-level SDK facade needs an explicit architecture decision."
     )
 
 

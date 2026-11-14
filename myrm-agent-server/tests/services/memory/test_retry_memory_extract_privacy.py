@@ -242,9 +242,9 @@ class TestPrivacyDeepScanContext:
     def test_restores_pseudonymizer_even_when_none_was_installed_before(self):
         """Exit must clear the closure even when install returned None.
 
-        Regression: the finally block used to skip restore when the previously
-        installed pseudonymizer was None, leaking the closure into the next
-        background task and mixing stores across chats.
+        The finally block must restore even when the previously installed pseudonymizer
+        was None: skipping it would leak the closure into the next background task and
+        mix stores across chats.
         """
         settings = {
             "privacyDeepScan": False,

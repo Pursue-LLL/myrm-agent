@@ -65,7 +65,7 @@ class TestApiKeyPatterns:
 
     def test_aws_session_token(self) -> None:
         # STS temporary session credentials — same shape as AKIA but ASIA-prefixed;
-        # previously missed (entropy fallback does not catch the 20-char mixed case).
+        # the entropy fallback does not catch the 20-char mixed case, so a dedicated pattern must.
         assert "aws_session_token" in scan_for_leaks("ASIAIOSFODNN7EXAMPLE")
 
     def test_asia_plain_word_not_flagged(self) -> None:

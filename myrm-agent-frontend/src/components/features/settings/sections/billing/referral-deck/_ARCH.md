@@ -1,7 +1,7 @@
 # Referral Fission Deck & Zero-Dox Privacy Architecture
 
 ## 1. 业务目标与背景
-针对 Nous Portal 等竞品直接在推荐链接中暴露用户真实全名或邮箱前缀（如 `portal.nousresearch.com/r/john-smith`）导致推特与社交媒体分享时产生严重人肉开盒（Doxxing）与隐私泄露的痛点：
+推荐链接若直接暴露用户真实全名或邮箱前缀，分享到社交媒体时会造成人肉开盒（Doxxing）与隐私泄露，因此：
 - **Zero-Dox 隐私红线**：
   - 默认基于 CSPRNG 加密安全伪随机数生成 6~8 位无语义短码（如 `myrmagent.ai/r/k7m9xp`）；
   - 提供个性化伪名（Pseudonymous Slug）修改器，内置实时 PII 敏感词与邮箱/手机号特征阻断算法，杜绝开盒风险。

@@ -1,9 +1,9 @@
 /**
- * Regression cover for the startup normalization that used to overwrite a sealed config row whose key is gone.
+ * The startup normalization never overwrites a sealed config row whose key is gone.
  *
- * The server reports such a row as empty and flagged `unreadable`. The startup normalization treated the empty
- * value as "nothing configured", filled in the built-in providers and wrote them back, which replaced the user's
- * stored credentials with defaults. An unreadable row must be left alone until the user writes it on purpose.
+ * The server reports such a row as empty and flagged `unreadable`. Treating the empty value as "nothing
+ * configured" would fill in the built-in providers and write them back, replacing the user's stored
+ * credentials with defaults. An unreadable row must be left alone until the user writes it on purpose.
  */
 
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';

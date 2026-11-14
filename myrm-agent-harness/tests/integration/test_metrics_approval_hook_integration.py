@@ -1,6 +1,6 @@
 """Integration test: approval-denied and hook-failure metrics reach Prometheus output.
 
-Covers the real end-to-end link that was previously silently broken:
+Covers the real end-to-end link between the recorders and the scrape output:
 1. ``record_approval_denied`` (subagent auto-deny path in approval middleware)
 2. ``record_hook_failure`` (post-tool hook failure path in tooling helpers)
 
@@ -116,9 +116,7 @@ async def test_subagent_auto_deny_records_approval_denied_metric(monkeypatch) ->
     assert result is not None
 
     after = _sample_value("agent_approval_denied_total", labels)
-    assert after == before + 1.0, (
-        f"agent_approval_denied_total did not increment for {labels}"
-    )
+    assert after == before + 1.0, f"agent_approval_denied_total did not increment for {labels}"
 
     text = generate_latest().decode()
     assert "agent_approval_denied_total" in text
@@ -152,14 +150,10 @@ async def test_hook_failure_records_hook_failure_metric() -> None:
         )
     )
 
-    await emit_hook_failure_event(
-        "bash_code_execute_tool", hook_result, AgentEventType
-    )
+    await emit_hook_failure_event("bash_code_execute_tool", hook_result, AgentEventType)
 
     after = _sample_value("agent_hook_failures_total", labels)
-    assert after == before + 1.0, (
-        f"agent_hook_failures_total did not increment for {labels}"
-    )
+    assert after == before + 1.0, f"agent_hook_failures_total did not increment for {labels}"
 
     text = generate_latest().decode()
     assert "agent_hook_failures_total" in text

@@ -101,7 +101,8 @@ class TestStreamPage:
     async def test_the_tool_has_no_chunk_size_and_one_the_model_still_sends_changes_nothing(
         self, workspace: Path
     ) -> None:
-        """A chunk size of 0 used to read an empty page and a negative one read the whole file into memory."""
+        """A chunk size the model still sends (0 or negative) is ignored: it neither empties the page nor reads the whole
+        file into memory."""
         tool = create_file_read_tool()
         assert "chunk_size_mb" not in tool.args
         assert "chunk_size_mb" not in tool.description

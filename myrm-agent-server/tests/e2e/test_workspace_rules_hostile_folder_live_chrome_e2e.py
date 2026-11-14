@@ -121,7 +121,7 @@ def _plant_workspace(workspace: Path) -> None:
 
 
 def _release_blocked_readers(workspace: Path) -> None:
-    """Unblock a backend thread still waiting to open the FIFO, so a server without the fix recovers once the test is over."""
+    """Unblock a backend thread still waiting to open the FIFO, so a server that blocks on it recovers once the test is over."""
     try:
         os.close(os.open(workspace / "skills" / "hostile" / "SKILL.md", os.O_WRONLY | os.O_NONBLOCK))
     except OSError:  # ENXIO or the file is gone: nobody is waiting on it

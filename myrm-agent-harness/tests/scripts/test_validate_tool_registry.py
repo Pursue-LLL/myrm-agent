@@ -845,7 +845,7 @@ def test_main_json_emits_governance_coverage(
 
 
 def test_canonical_params_completed_for_management_tools() -> None:
-    """The 12 previously-missing tools must have precise canonical params so
+    """Management, delegation and control tools carry precise canonical params, so
     allow-always hashing matches semantically, not by full-argument literal."""
     from myrm_agent_harness.core.security.tool_registry import TOOL_CANONICAL_PARAMS
 

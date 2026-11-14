@@ -124,10 +124,7 @@ def test_config_and_run_manager_survive_sync_invoke():
 
     def _sync(**kwargs: Any) -> str:
         captured.update(kwargs)
-        return (
-            f"keys={sorted(kwargs.keys())} "
-            f"config={kwargs.get('config')!r} run_manager={kwargs.get('run_manager')!r}"
-        )
+        return f"keys={sorted(kwargs.keys())} config={kwargs.get('config')!r} run_manager={kwargs.get('run_manager')!r}"
 
     tool = SafeStructuredTool.from_function(
         func=_sync,
@@ -286,7 +283,7 @@ async def test_runnable_config_does_not_clobber_tool_config():
 
 def test_pydantic_schema_config_preserved():
     """When ``args_schema`` is a Pydantic model, a ``config`` field must survive
-    sync invoke identically — the fix is signature-level, schema-shape agnostic."""
+    sync invoke identically — the handling is signature-level, schema-shape agnostic."""
     from pydantic import BaseModel
 
     class _In(BaseModel):

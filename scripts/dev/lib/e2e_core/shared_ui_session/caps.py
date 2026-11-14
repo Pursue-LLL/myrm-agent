@@ -56,8 +56,8 @@ def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
 
     if not parallel_shared_ui_hydrate_queue_enabled():
         return min(_serial_bridge_ready_cap_sec(), timeout_sec)
-    # The bridge-level wait must never undercut the per-page cap it wraps: the 180s constant here
-    # used to clamp a loaded host straight back down. The admission wall stays the outer bound.
+    # The bridge-level wait must never undercut the per-page cap it wraps: a fixed 180s constant here
+    # would clamp a loaded host straight back down. The admission wall stays the outer bound.
     parallel_cap = min(
         _parallel_bridge_ready_cap_sec(), float(shared_ui_hydrate_wait_sec())
     )

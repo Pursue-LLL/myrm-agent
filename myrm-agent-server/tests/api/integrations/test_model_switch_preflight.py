@@ -201,7 +201,7 @@ class TestModelSwitchPreflight:
         assert item["will_compress"] is False
 
     def test_turn_count_long_tight_session_lowers_threshold(self, client: TestClient) -> None:
-        """Long tight sessions lower the dynamic threshold -> previously-missed compression now warned."""
+        """Long tight sessions lower the dynamic threshold, so a compression a fixed threshold would miss is warned about."""
         response = client.post(
             "/api/v1/integrations/llm/model-switch-preflight",
             json={

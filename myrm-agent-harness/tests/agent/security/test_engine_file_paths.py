@@ -1,8 +1,8 @@
 """The permission engine judges every file a file tool names, whatever the argument is called.
 
 ``file_read_tool`` receives its files in ``paths`` (a list) or under one of a dozen aliases. The path-zone
-verdict and the rule targets used to read ``path`` alone, so a read through any other spelling was never
-refused, never asked about and never matched against the ``*.env`` and ``*.pem`` rules.
+verdict and the rule targets read every spelling, not ``path`` alone, so a read through any of them is refused,
+asked about and matched against the ``*.env`` and ``*.pem`` rules.
 """
 
 from __future__ import annotations

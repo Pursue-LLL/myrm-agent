@@ -65,9 +65,9 @@ describe('RunStatusChip', () => {
   });
 
   it('does not crash when digest transitions from null to running (hooks parity)', () => {
-    // Regression: useMemo used to sit after an early `return null`, so the
-    // first render registered 3 hooks and the second registered 4, making
-    // React throw "Rendered more hooks than during the previous render".
+    // Every hook runs before the early `return null`: a hook placed after it would make the first render
+    // register 3 hooks and the second 4, and React would throw "Rendered more hooks than during the
+    // previous render".
     const { rerender } = render(<RunStatusChip chatId="chat-1" />);
     expect(screen.queryByTestId('copilot-run-status-chip')).not.toBeInTheDocument();
 

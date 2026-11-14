@@ -406,10 +406,9 @@ class TestConsoleLoggerRedaction:
         assert "mysecretvalue12345678" not in result
 
     def test_get_summary_redacts_fragment_crossing_truncation_boundary(self) -> None:
-        """The exact leak: a credential whose tail crosses the display boundary
-        would previously be cut at capture time and bypass redaction as a
-        too-short fragment. Now the full entry is stored raw and redacted
-        before the display cut."""
+        """A credential whose tail crosses the display boundary must not be cut at
+        capture time, or it bypasses redaction as a too-short fragment. The full
+        entry is stored raw and redacted before the display cut."""
         logger = ConsoleLogger()
         head = " " * (_MAX_TEXT_LENGTH - 10)
         tail = "sk-proj-abcdefghijklmnop1234567890"

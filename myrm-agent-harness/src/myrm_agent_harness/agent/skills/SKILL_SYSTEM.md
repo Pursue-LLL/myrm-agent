@@ -1,8 +1,6 @@
-# 技能系统设计方案（集大成版 v2）
+# 技能系统设计
 
-> 基于 myrm-agent-harness 现有架构设计的完整技能系统方案。
->
-> 落地状态以本仓实现为准；见 [skills/_ARCH.md](_ARCH.md)。
+> 技能系统的设计与实现说明；模块清单见 [skills/_ARCH.md](_ARCH.md)。
 
 ---
 
@@ -10,12 +8,12 @@
 
 | 编号 | 模块 | 分类 | 能力要点 |
 |------|------|------|----------|
-| 1 | 概述与设计目标 | — | 全部 14 项目共识 |
-| 2 | 技能定义规范 | **CORE** | 名称/描述/触发条件与 frontmatter 校验 |
+| 1 | 概述与设计目标 | — | 设计原则与模块职责 |
+| 2 | 技能定义规范 | **CORE** | 名称/描述/条件激活与 frontmatter 校验 |
 | 3 | 存储与发现 | **CORE** | 三层目录发现 + 信任分离 |
 | 4 | 渐进式加载与 Prompt 生成 | **CORE** | 渐进式加载 + XML prompt + 摘要 |
 | 5 | 信任模型与权限衰减 | **CORE** | 信任衰减 + 权限过滤 |
-| 6 | 确定性技能选择器 | **CORE** | 评分 + 排除关键词 + Token 预算 |
+| 6 | 技能选择 | **CORE** | 受控的候选范围 + 模型选择 + 显式调用预加载 |
 | 7 | 依赖检查与可用性 | **CORE** | 依赖探测 + 可用性门控 |
 | 8 | 安全扫描框架 | **CORE** | 可扩展扫描规则 + 内容转义 |
 | 9 | 安装与卸载 | **CORE** | 安全提取 + 隔离区安装（评分门禁、事务式回滚） |
@@ -26,7 +24,7 @@
 | 14 | 技能创建与评估 | ENHANCE | AI 驱动的创建与评估 |
 | 15 | 预置技能同步 | ENHANCE | 随版本发布的预置技能启动时同步到存储，三方哈希保护用户修改 |
 
-> **CORE** = 必须实现（竞争力底线），**ENHANCE** = 可选增强。
+> **CORE** = 技能系统的基础能力，**ENHANCE** = 可选增强能力。
 
 ---
 
@@ -47,43 +45,33 @@
 |------|------|
 | **安全纵深** | 三层防御：信任衰减（硬限制）+ 安全扫描（软检测）+ 内容转义（注入防护） |
 | **渐进式披露** | 只在需要时加载信息，最小化 Token 消耗 |
-| **确定性优先** | 技能选择不依赖 LLM，避免循环操纵 |
+| **候选范围受控** | 模型只能在已绑定、可用、允许模型调用的技能里选择；选中后加载什么由框架决定 |
 | **文件即技能** | 一个 `SKILL.md` 就是一个完整的技能定义 |
 | **零代码扩展** | 纯 Markdown 即可创建技能，无需编程 |
 | **协议驱动** | 通过 Protocol 抽象接口，支持多种后端实现 |
 
-### 1.3 与现有代码的关系
+### 1.3 模块职责
 
-本方案基于 myrm-agent-harness 现有架构，**保留已有优秀设计**，补充和增强：
-
-| 现有模块 | 路径 | 方案中的角色 |
-|----------|------|-------------|
-| `SkillBackend` Protocol | `backends/skills/protocols.py` | **保留**，作为存储抽象层 |
-| `SkillMarketBackend` Protocol | `backends/skills/market_protocols.py` | **保留**，作为 Marketplace 抽象层 |
-| `SkillWriteBackend` Protocol | `backends/skills/creation_protocols.py` | **保留**，作为技能写入抽象层（save/delete） |
-| `SkillMetadata` 数据类 | `backends/skills/types/`（定义见 `types_metadata.py` 等） | **已实现** trust、requires、tool 条件激活等字段 |
-| `SkillRegistry` | `agent/skills/runtime/registry.py` | **增强**，集成信任模型和状态管理 |
-| `get_metadata_summary()` | `agent/skills/runtime/registry.py` | **升级**，改为安全 XML 摘要格式 |
-| `LocalSkillBackend` | `backends/skills/local.py` | **保留**，映射为 builtin 层（Trusted） |
-| `StorageSkillBackend` | `backends/skills/storage.py` | **保留**，映射为 workspace 层（Trusted） |
-| `CompositeSkillBackend` | `backends/skills/composite.py` | **保留**，作为路由层 |
-
-**新增模块**：
-
-| 新模块 | 包路径 | 能力基础 |
-|--------|--------|----------|
-| 信任衰减器 | `agent/skills/runtime/attenuator.py` | 使用频次/成功率驱动的能力衰减 |
+| 模块 | 路径 | 职责 |
+|------|------|------|
+| `SkillBackend` Protocol | `backends/skills/protocols.py` | 存储抽象层 |
+| `SkillMarketBackend` Protocol | `backends/skills/market_protocols.py` | Marketplace 抽象层 |
+| `SkillWriteBackend` Protocol | `backends/skills/creation_protocols.py` | 技能写入抽象层（save/delete） |
+| `SkillMetadata` 数据类 | `backends/skills/types/`（定义见 `types_metadata.py` 等） | 承载 trust、requires、tool 条件激活等字段 |
+| `SkillRegistry` | `agent/skills/runtime/registry.py` | 集成信任模型和状态管理；XML 摘要（`get_metadata_summary`）经 `xml.sax.saxutils.escape` / `quoteattr` 转义 |
+| `LocalSkillBackend` | `backends/skills/local.py` | builtin 层（Trusted） |
+| `StorageSkillBackend` | `backends/skills/storage.py` | workspace 层（Trusted） |
+| `CompositeSkillBackend` | `backends/skills/composite.py` | 路由层 |
+| 信任衰减器 | `agent/skills/runtime/attenuator.py` | 按信任级别与 `allowed-tools` 过滤技能期间可用的工具 |
 | 安全扫描器 | `backends/skills/scanning/scanner.py` | 多类别规则 + 严重级分类 |
-| 内容转义器 | `agent/skills/runtime/registry.py`（`xml.sax.saxutils.escape` / `quoteattr`） | XML 转义 |
-| 确定性选择器 | 未落地：由 `agent/meta_tools/skills/select/skill_select_tool.py`（模型选择技能并加载 SOP）承担 | 关键词/结构评分 |
+| 技能选择 | `agent/meta_tools/skills/select/skill_select_tool.py` | 模型选择技能并加载 SOP；显式调用走预加载（见 §6） |
 | 依赖检查器 | `backends/skills/prerequisites/` | 二进制/环境探测 |
 | Frontmatter 验证器 | `backends/skills/_utils/`（`parse_skill_frontmatter`） | YAML 解析 + 字段校验 |
 | 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | 隔离区安装 + 事务回滚 |
 | 安全提取器 | `backends/skills/scanning/zip_extract.py`、`agent/skills/market/installers/zip_installer.py` | zip 路径/大小/符号链接校验 |
-| 使用与生命周期账本 | `backends/skills/stats_collector.py` | 本仓 |
-| 内容缓存 | `backends/skills/_content_memo.py` | 本仓 |
-| 搜索缓存 | `agent/skills/market/service.py`（`BaseSkillMarketService.search`） | 本仓 |
-| XML 摘要生成器 | `agent/skills/runtime/registry.py`（`get_metadata_summary`） | — |
+| 使用与生命周期账本 | `backends/skills/stats_collector.py` | 技能目录内 `.stats.json` 的使用与生命周期统计 |
+| 内容缓存 | `backends/skills/_content_memo.py` | 按内容复用扫描、解析与 token 计数结果（见 §10.3） |
+| 搜索缓存 | `agent/skills/market/service.py`（`BaseSkillMarketService.search`） | Marketplace 搜索结果缓存（精确键 + TTL，见 §12） |
 
 ---
 
@@ -100,7 +88,7 @@ skill-name/
 ```
 
 **设计决策**：
-- 只支持 `SKILL.md` 作为入口文件（14 个项目共识）
+- 只支持 `SKILL.md` 作为入口文件
 - 技能的唯一标识符是**目录名**（kebab-case），不是 frontmatter 中的 `name`
 
 ### 2.2 SKILL.md 格式
@@ -108,7 +96,7 @@ skill-name/
 ```markdown
 ---
 name: my-skill
-description: 简短描述，用于触发匹配和上下文摘要
+description: 简短描述，用于目录摘要和模型选择
 version: 1.0.0
 category: custom
 requires:
@@ -116,50 +104,59 @@ requires:
   env: [API_KEY]
   config: [~/.my-tool/config.json]
 tags: [web, automation]
-patterns: ["https?://.*\\.example\\.com"]
 always: false
-exclude-keywords: [unrelated-topic]
-max-context-tokens: 8000
 ---
 
 # 技能标题
 
 ## 指令正文
-（Agent 触发此技能后读取的完整指令，建议 <500 行）
+（Agent 加载此技能后读取的完整指令，建议 <500 行）
 ```
 
 ### 2.3 Frontmatter 字段完整列表
 
-| 字段 | 类型 | 必需 | 说明 | 来源 |
-|------|------|------|------|------|
-| `name` | string | 推荐 | 技能名称（显示用，实际标识用目录名） | — |
-| `description` | string | **必需** | 简短描述（≤1024 字符），用于摘要和触发匹配 | 全部 |
-| `version` | string | 可选 | 语义化版本号 | — |
-| `category` | enum | 可选 | `builtin` / `custom`，默认 `custom` | — |
-| `requires` | object | 可选 | 依赖声明（见 §7） | — |
-| `requires.bins` | string[] | 可选 | 需要的 CLI 工具 | — |
-| `requires.env` | string[] | 可选 | 需要的环境变量 | — |
-| `requires.config` | string[] | 可选 | 需要的配置文件路径 | — |
-| `tags` | string[] | 可选 | 分类标签（用于搜索、过滤、选择器匹配） | — |
-| `always` | boolean | 可选 | L1 token 预算内的优先排序；默认 `false`。**不保证一定出现，也不注入 SKILL.md 正文或 SystemMessage**（见 §4.3） | — |
-| `hooks` | object[] | 可选 | Hook 定义（事件触发） | 现有架构 |
-| `allowed-tools` | string[] | 可选 | 允许使用的工具白名单（仅登记或已绑定的工具名生效，见下） | 现有架构 |
-| `patterns` | string[] | 可选 | 正则模式（精确匹配 URL/路径等格式） | — |
-| `exclude-keywords` | string[] | 可选 | 排除关键词（防止误触发） | — |
-| `max-context-tokens` | int | 可选 | 最大上下文 Token 数（默认 8000） | — |
-| `license` | string | 可选 | 许可证 | agentskills.io |
-| `compatibility` | string | 可选 | 环境要求（≤500 字符） | agentskills.io |
-| `metadata` | object | 可选 | 扩展元数据（author、homepage 等） | agentskills.io |
+| 字段 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `name` | string | 推荐 | 技能名称（显示用，实际标识用目录名） |
+| `description` | string | **必需** | 简短描述（≤1024 字符，超出截断；`<` `>` 被去掉），用于目录摘要和模型选择 |
+| `version` | string | 可选 | 语义化版本号 |
+| `category` | string | 可选 | 界面分组用的分类名 |
+| `requires` | object | 可选 | 依赖声明（见 §7） |
+| `requires.bins` | string[] | 可选 | 需要的 CLI 工具 |
+| `requires.env` | string[] | 可选 | 需要的环境变量 |
+| `requires.config` | string[] | 可选 | 需要的配置文件路径 |
+| `tags` | string[] | 可选 | 分类标签；解析器识别该字段，Marketplace 搜索结果携带并按它匹配，不参与运行时技能选择 |
+| `always` | boolean | 可选 | L1 token 预算内的优先排序；默认 `false`。**不保证一定出现，也不注入 SKILL.md 正文或 SystemMessage**（见 §4.3） |
+| `model-invocable` | boolean | 可选 | 默认 `true`。为 `false` 时技能对模型隐藏，只能由用户触发；`disable-model-invocation`（取反）是等价写法 |
+| `user-invocable` | boolean | 可选 | 默认 `true`。为 `false` 时技能不在前端展示，只能由模型自动选择 |
+| `hooks` | object[] | 可选 | Hook 定义（事件触发）；只在用户显式调用该技能（`[use skill]` 或 `run(active_skill=...)`）的那一次运行里注册，模型自行加载的技能不会激活它们 |
+| `allowed-tools` | string[] | 可选 | 允许使用的工具白名单（仅登记或已绑定的工具名生效，见下） |
+| `allowed-domains` | string[] | 可选 | 出站网络请求允许的域名（DLP 防护）；未设置时不限制域名（SSRF 防护照常生效） |
+| `required_permissions` | string[] | 可选 | 技能需要的权限（如 `file_write`、`shell_exec`）；安装时由用户批准，运行时强制执行，无效名称被跳过并告警 |
+| `requires-tools` / `fallback-for-tools` | string[] | 可选 | 按智能体工具集条件激活：`requires-tools` 中任一工具缺席、或 `fallback-for-tools` 中任一工具在场时，技能对模型隐藏 |
+| `requires-tool-groups` / `fallback-for-tool-groups` | string[] | 可选 | 同上，按工具组（`TOOL_GROUP_MAP`）判断 |
+| `required-credential-files` | string[] | 可选 | 需要的凭据文件（相对工作区根目录）；加载时校验，缺失的记入 `missing_credentials` |
+| `primaryEnv` | string | 可选 | apiKey 自动映射到的主环境变量名（如 `BRAVE_API_KEY`） |
+| `oauth-issuer` / `required-oauth-issuers` | string / string[] | 可选 | OAuth issuer 键，限定运行时凭据注入的范围 |
+| `required-mcp-server-ids` | string[] | 可选 | 预检所需的 MCP 服务器标识 |
+| `evolution-locked` | boolean | 可选 | 为 `true` 时锁定自动进化 |
+| `config-schema` | object | 可选 | 描述实例配置 `config_overrides` 的 JSON Schema 子集；存在时启用 schema 驱动的界面与校验 |
+| `contract` | object | 可选 | 结构化契约，汇总进技能目录 |
+| `scope_agent_id` | string | 可选 | 拥有该技能的智能体 id（多智能体作用域） |
+| `specialized-model` | string | 可选 | 为该技能声明的专用小模型 / 领域模型 |
+| `model-tier` | string | 可选 | 推荐的模型复杂度档位（`simple` / `standard` / `reasoning`） |
+| `license` | string | 可选 | 许可证 |
+| `compatibility` | string | 可选 | 环境要求（≤500 字符，超出截断） |
+| `metadata` | object | 可选 | 扩展元数据；顶层的 `author`、`homepage` 并入其中 |
 
 **命名规范**：
 - 技能目录名：kebab-case，`^[a-z][a-z0-9-]*$`，最长 64 字符
-- description：禁止包含 `<` `>` 角括号，最长 1024 字符
+- description：含 `<` `>` 角括号时去掉并告警，超过 1024 字符时截断并告警
 - Frontmatter 字段：白名单验证，未知字段产生警告
 
 **关键设计决策**：
 - `requires` 采用结构化格式，包含 `config` 扩展，支持自动化检查
-- `exclude-keywords` 和 `max-context-tokens` 用于确定性选择器
-- `always` 的**语义已收窄**：它只在技能数超过内联阈值时保住目录可见性，不注入正文、不进 SystemMessage（见 §4.3）
+- `always` 只在技能数超过内联阈值时影响目录排序（token 预算内排在前面），不注入正文、不进 SystemMessage（见 §4.3）
 - `allowed-tools` 是独占白名单：技能加载期间只保留所列工具。名称只有已登记（`is_registered_action_tool`）或本轮已绑定（如 MCP 工具）时才参与收窄；其他生态写法（`Bash`、`Read`、`Bash(ls *)` 等）无法对应任何 Myrm 工具，被忽略并在日志中按技能提示一次，声明里没有任何可识别名称的技能等同未声明。信任级别上限不受影响
 
 ---
@@ -359,59 +356,26 @@ SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读�
 
 ---
 
-## 6. 确定性技能选择器 [CORE]
+## 6. 技能选择 [CORE]
 
-> 落地状态：本章的评分选择器未实现。当前由模型经 `skill_select` 元工具选择技能并加载 SOP（`agent/meta_tools/skills/select/skill_select_tool.py`），可选技能目录的披露方式见 §4 与「L1/L2 缓存架构」。
+模型选择技能；框架决定它能在哪些技能里选、选中后加载什么。
 
-### 6.1 设计理念
+### 6.1 候选范围
 
-技能选择的第一阶段是**纯确定性的**，不依赖 LLM：
-- 防止 LLM 被 Prompt 注入操纵选择恶意技能
-- 评分有上限，防止技能通过堆砌关键词刷分
-- 排除关键词提供否决机制
+- 进入目录（首条用户消息的 `<bound_skills>` 块）的技能必须已绑定、`available`（依赖与凭据满足）、`model-invocable`，并通过 `requires-tools` / `fallback-for-tools` 等工具条件。
+- 完整条目在 token 预算内按「`always` 优先、名字次之」的顺序放入；智能体为技能配置了核心标记（`is_core`）时，以该标记决定谁拿完整条目（见 §4.3 与「L1/L2 缓存架构与降噪」）。
+- 目录受 `L1_CATALOG_MAX_TOKENS` 约束，超出部分只列名字（`<hidden_skill_names>`）；能力已知、名字未知时用 `skill_search_tool`。
 
-### 6.2 评分机制
+### 6.2 选择
 
-```
-总分 = keyword_score + tag_score + pattern_score
+- **隐式选择**：模型调用 `skill_select_tool(skill_names)`。首次加载返回完整 SOP；同一技能再次被选中只返回约 200 token 的摘要，同一次调用里重复写的名字也只加载一次。
+- **显式选择**：用户用斜杠命令或命令面板触发时，消息形如 `[use skill_name] args`，`SkillAgent._preload_explicit_skill()` 把 SOP 直接注入查询，省掉一次模型往返；预加载出错时回退到隐式选择。
 
-keyword_score（上限 0.6）：
-  - 精确匹配：+0.3/次
-  - 子串匹配：+0.1/次
+### 6.3 选中之后
 
-tag_score（上限 0.3）：
-  - 标签匹配：+0.15/次
-
-pattern_score（上限 0.3）：
-  - 正则模式匹配（frontmatter `patterns` 字段）：+0.15/次
-  - 用于精确匹配 URL、文件路径、代码片段等结构化输入
-```
-
-### 6.3 排除关键词（Veto 机制）
-
-如果用户消息包含技能的 `exclude-keywords` 中的任何词，该技能直接排除（得分归零）。
-
-### 6.4 Token 预算控制
-
-- 每个技能声明 `max-context-tokens`（默认 8000）
-- 加载时验证：如果技能正文估算 Token 数超过 `max-context-tokens * 2`，拒绝加载
-- 选择多个技能时，总 Token 不超过上下文窗口的 50%
-
-### 6.5 选择流程
-
-```
-1. 收到用户消息
-2. 对所有 enabled 且 available 的技能计算评分
-3. 排除关键词否决
-4. 按分数排序，取 Top-N（默认 N=3）
-5. Token 预算裁剪
-6. 返回选中技能列表
-```
-
-**设计决策**：
-- 确定性选择器是第一道防线，LLM 只在第二阶段参与（从候选中精选）
-- 评分上限防止技能通过堆砌关键词/标签刷分
-- 排除关键词防止跨领域技能干扰（如 "python" 技能不应被 "python snake" 触发）
+- 信任级别与 `allowed-tools` 在技能加载期间限定可用工具（§5）。
+- 选中记一次使用（技能目录内的 `.stats.json`，由 Curator 消费）；加载失败与缺失文件不记录。
+- 完整流程见 [select/_ARCH.md](../meta_tools/skills/select/_ARCH.md)。
 
 ---
 
@@ -419,11 +383,11 @@ pattern_score（上限 0.3）：
 
 ### 7.1 依赖类型
 
-| 类型 | 声明方式 | 检查方法 | 来源 |
-|------|----------|----------|------|
-| CLI 工具 | `requires.bins: [node, npm]` | `shutil.which()` | — |
-| 环境变量 | `requires.env: [API_KEY]` | `os.environ.get()` | — |
-| 配置文件 | `requires.config: [~/.tool/config.json]` | `Path.exists()` | — |
+| 类型 | 声明方式 | 检查方法 |
+|------|----------|----------|
+| CLI 工具 | `requires.bins: [node, npm]` | `shutil.which()` |
+| 环境变量 | `requires.env: [API_KEY]` | `os.environ.get()` |
+| 配置文件 | `requires.config: [~/.tool/config.json]` | `Path.exists()` |
 
 ### 7.2 检查时机
 
@@ -490,7 +454,7 @@ Scanner（编排器）
 扫描器还包含 LLM 二次审计能力（可选），通过 `SkillLLMAuditor` 提供语义级威胁检测，遵循"只升不降"原则。
 
 **设计决策**：
-- 模式定义独立于扫描逻辑（`patterns.py` vs `scanner.py`），便于扩展
+- 模式定义独立于扫描逻辑（`patterns/` vs `scanner.py`），便于扩展
 - 扫描结果在进程内按「技能名 + 扩展名 + 内容 SHA-256」缓存（`ContentMemo`，见 §10.3）：内容一变就重新扫描，不跨进程持久化，重启进程后不会沿用旧扫描器的结论
 - LLM 审计为可选增强，无 LLM 时 graceful fallback 到纯正则
 
@@ -523,7 +487,6 @@ Scanner（编排器）
 
 **设计决策**：
 - 安全扫描是 CORE 而非 ENHANCE，因为这是生产级系统的底线
-- 不采用全部 17 种威胁类别，避免过度设计
 - 内容转义是独立于扫描的必要措施（即使扫描通过，也要转义）
 - 白名单 + SHA-256 哈希确保效率和安全的平衡
 - 行尾规范化确保跨平台一致性哈希
@@ -534,12 +497,12 @@ Scanner（编排器）
 
 ### 9.1 安装方式
 
-| 方式 | 场景 | 信任级别 | 来源 |
-|------|------|----------|------|
-| **目录复制** | 开发环境、本地技能 | Trusted（workspace） | — |
-| **.skill 归档** | Marketplace 分发 | Installed | — |
-| **Git URL** | GitHub/GitLab 仓库 | Installed | — |
-| **Marketplace API** | 在线商店 | Installed | — |
+| 方式 | 场景 | 信任级别 |
+|------|------|----------|
+| **目录复制** | 开发环境、本地技能 | Trusted（workspace） |
+| **.skill 归档** | Marketplace 分发 | Installed |
+| **Git URL** | GitHub/GitLab 仓库 | Installed |
+| **Marketplace API** | 在线商店 | Installed |
 
 ### 9.2 隔离区安装流水线
 
@@ -843,8 +806,8 @@ Scanner（编排器）
 | 决策 | 选择 | 备选 | 理由 |
 |------|------|------|------|
 | 信任模型 | 2 级（Trusted/Installed）+ 工具衰减 | 多级信任 / block-warn-off | 简洁且安全，硬限制优于软警告 |
-| 技能选择 | 确定性评分 + 正则模式 + 排除关键词 + Token 预算 | LLM 选择 | 防止循环操纵，可预测，正则精确匹配 |
-| 安全扫描 | 可扩展框架 + 核心 6 种威胁 | 17 种威胁类别 | 覆盖核心威胁，不过度设计 |
+| 技能选择 | 受控候选范围 + 模型选择 + 显式调用预加载 | 框架侧评分选择 | 候选范围由 `available` / `model-invocable` / 工具条件限定，选择交给模型，目录披露受 token 预算约束 |
+| 安全扫描 | 可扩展的正则模式框架（27 个威胁类别）+ 可选 LLM 二次审计 | 仅 LLM 审计 | 正则快速、确定、无外部依赖；LLM 审计只升不降地补充语义级检测 |
 | 内容完整性 | SHA-256 哈希 + 行尾规范化 | 无 | 白名单精确匹配、篡改检测、跨平台一致性 |
 | 安装方式 | 隔离区流水线：评分门禁 + 事务式提升 | 直接解压覆盖 | 被拒绝的包不留痕迹，升级失败保留旧版本 |
 | 搜索缓存 | 精确键 + 300 秒 TTL + 100 条上限 | 相似度匹配缓存 | 实现简单，命中行为可预测 |
@@ -858,111 +821,41 @@ Scanner（编排器）
 
 ---
 
-## 附录 B: 与现有代码映射
+## 附录 B: 模块与代码位置
 
-| 方案模块 | 现有代码 | 状态 |
-|----------|----------|------|
-| 技能定义规范 | `backends/skills/types/` 包 | **已实现**（`types_enums`/`types_metadata`/`types_instance`/`types_visibility` 等） |
-| 存储抽象层 | `backends/skills/protocols.py` | **无需修改** |
-| 发现抽象层 | `backends/skills/market_protocols.py` | **无需修改** |
-| 创建抽象层 | `backends/skills/creation_protocols.py` | **无需修改** |
-| 本地后端 | `backends/skills/local.py` | **无需修改** |
-| 存储后端 | `backends/skills/storage.py` | **无需修改** |
-| 组合后端 | `backends/skills/composite.py` | **无需修改** |
-| 技能注册表 | `agent/skills/runtime/registry.py` | 需增强（集成信任模型和状态管理） |
-| 文档加载 | `agent/meta_tools/skills/select/skill_document_loader.py` | **无需修改** |
-| 元数据摘要 | `agent/skills/runtime/registry.py::get_metadata_summary` | 需升级为安全 XML 格式 |
-| 信任衰减器 | `agent/skills/runtime/attenuator.py` | **已实现** |
-| 安全扫描器 | `backends/skills/scanning/scanner.py` | **已实现** |
-| 内容转义器 | `agent/skills/runtime/registry.py`（XML 转义） | **已实现** |
-| 确定性选择器 | `agent/meta_tools/skills/select/skill_select_tool.py` | **未落地**：由模型经元工具选择技能，见 §6 |
-| 依赖检查器 | `backends/skills/prerequisites/` | **已实现** |
-| Frontmatter 验证器 | `backends/skills/_utils/`（`parse_skill_frontmatter`） | **已实现** |
-| 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | **已实现** |
-| 安全提取器 | `backends/skills/scanning/zip_extract.py` | **已实现** |
-| 使用与生命周期账本 | `backends/skills/stats_collector.py` | **已实现** |
-| 内容缓存 | `backends/skills/_content_memo.py` | **已实现** |
-| 搜索缓存 | `agent/skills/market/service.py` | **已实现** |
-
----
-
-## 附录 C: 与竞品能力对比
-
-| 能力维度 | 本方案 | 最强竞品 | 对比 |
-|----------|--------|----------|------|
-| 信任模型 | 2 级 + 工具衰减 | ironclaw (2 级) | **≥** 等价，且有安全扫描加持 |
-| 技能选择 | 确定性评分 + 正则模式 + veto + 预算 | ironclaw | **≥** 等价，正则模式精确匹配 |
-| 安全扫描 | 可扩展框架 + 核心规则 | CoPaw (17 种) | **≥** 更灵活，不过度设计 |
-| 内容完整性 | SHA-256 + 行尾规范化 | ironclaw | **≥** 等价 |
-| 安装 | 隔离区 + 评分门禁 + 事务式回滚 | nexu（异步队列 + 限流重试） | 取舍不同：不排队，换取门禁与回滚 |
-| 搜索缓存 | 精确键 + TTL | picoclaw（Trigram Jaccard） | 取舍不同：不做相似度匹配 |
-| 多源安装 | ClawHub + GitHub + ZIP | CoPaw (6 源) | **≥** 覆盖核心场景，可扩展 |
-| 状态管理 | 技能目录内的分散文件 | nexu（集中 JSON 账本） | 取舍不同：状态随目录走，没有集中账本 |
-| 目录监听 | watchdog + SQLite 快照 | nexu | **≥** 等价 |
-| 内容安全 | XML 转义 + 标签逃逸 | ironclaw | **≥** 等价 |
-| 权限过滤 | Agent 级别权限 | opencode | **≥** 等价 |
-| 多语言 | 中英双语 + 标签翻译 | nexu (110+ 标签) | **≥** 等价 |
-| 版本管理 | 语义化版本比较 + 升级提示 | CoPaw | **≥** 等价 |
-
-**综合评估**：除「安装」「状态管理」「搜索缓存」三个维度取舍不同外，其余维度为设计期的对比结论。三层安全防御（信任衰减 + 安全扫描 + 内容转义）+ SHA-256 完整性校验是所有竞品中独一无二的组合。
+| 模块 | 代码位置 |
+|------|----------|
+| 技能定义规范 | `backends/skills/types/` 包（`types_enums`/`types_metadata`/`types_instance`/`types_visibility` 等） |
+| 存储抽象层 | `backends/skills/protocols.py` |
+| 发现抽象层 | `backends/skills/market_protocols.py` |
+| 创建抽象层 | `backends/skills/creation_protocols.py` |
+| 本地后端 | `backends/skills/local.py` |
+| 存储后端 | `backends/skills/storage.py` |
+| 组合后端 | `backends/skills/composite.py` |
+| 技能注册表 | `agent/skills/runtime/registry.py` |
+| 文档加载 | `agent/meta_tools/skills/select/skill_document_loader.py` |
+| 元数据摘要（安全 XML） | `agent/skills/runtime/registry.py::get_metadata_summary` |
+| 信任衰减器 | `agent/skills/runtime/attenuator.py` |
+| 安全扫描器 | `backends/skills/scanning/scanner.py` |
+| 内容转义器 | `agent/skills/runtime/registry.py`（XML 转义） |
+| 技能选择 | `agent/meta_tools/skills/select/skill_select_tool.py` |
+| 依赖检查器 | `backends/skills/prerequisites/` |
+| Frontmatter 验证器 | `backends/skills/_utils/`（`parse_skill_frontmatter`） |
+| 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` |
+| 安全提取器 | `backends/skills/scanning/zip_extract.py` |
+| 使用与生命周期账本 | `backends/skills/stats_collector.py` |
+| 内容缓存 | `backends/skills/_content_memo.py` |
+| 搜索缓存 | `agent/skills/market/service.py` |
 
 ---
 
-## 附录 D: 为什么这个方案是完美的
+## 附录 C: 不提供的能力
 
-### 1. 安全性最强
-
-四层纵深防御，没有任何竞品同时拥有：
-- **信任衰减**：硬限制，LLM 看不到被移除的工具
-- **安全扫描**：软检测，可扩展规则引擎
-- **内容转义**：注入防护，XML 标签逃逸检测
-- **SHA-256 完整性校验**：篡改检测，白名单精确匹配
-
-### 2. 性能最优
-
-- 查询结果缓存（§12）减少 API 调用
-- 确定性选择器避免 LLM 调用
-- 安装是异步调用，不阻塞主流程
-- 重复列表按内容复用扫描、解析与 token 计数结果，只有变动的技能重新计算（§10.3）
-
-### 3. 简洁不冗余
-
-- 每个模块职责单一
-- 不采用数据库（不需要）、不采用 Git 分支（过度设计）、不采用 Container Skills（不需要）
-- 2 个信任级别而非更多（够用且简单）
-- 6 种威胁类别而非 17 种（够用且简单）
-
-### 4. 可扩展
-
-- 安全扫描的 Analyzer 接口可扩展自定义规则
-- 安装源的 Source 接口可扩展新来源
-- 搜索的 Registry 接口可扩展新注册表
-- SkillForge 自动发现可作为未来扩展模块
-
-### 5. 无技术债
-
-- 从零设计，无向后兼容包袱
-- 保留现有优秀设计（Protocol 抽象层）
-- 新增模块遵循现有架构风格
-- 所有设计决策有明确理由和来源
-
-### 6. 用户体验完善
-
-- 预置技能随版本同步，用户的修改不会被升级覆盖
-- 版本比较与升级提示确保长期维护
-- 多语言支持（中英双语 + 110+ 标签翻译）
-
-### 7. 所有「缺点」要么不需要，要么可扩展
-
-| 未采用的能力 | 原因 |
-|-------------|------|
-| 数据库存储 | 我们不是 Sandbox，文件系统足够 |
+| 能力 | 不提供的原因 |
+|------|--------------|
+| 数据库存储 | 文件系统足够，状态随技能目录走 |
 | 多租户 | 同上 |
-| SkillForge 自动发现 | 实际使用场景有限，可作为未来扩展 |
-| Container Skills | 过度设计，普通技能已满足需求 |
-| Git 分支即技能 | 过度设计，目录结构更直观 |
 | 完整安装历史 | `origin.json` 已有 installed_at/source，`receipt.json` 有文件清单，足够 |
-| Skill Service Manager | 后台服务管理复杂度高，收益低 |
 
 ## L1/L2 缓存架构与降噪 (L1/L2 Cache & Noise Reduction)
 
@@ -990,7 +883,6 @@ Scanner（编排器）
 - **Protocol-first**: `SkillSyncProtocol` 定义传输接口，`SkillQualityGateProtocol` 定义推送质量门
 - **增量同步**: `SkillSyncManifest` (SQLite) 追踪每个技能的 SHA256 和时间戳，避免全量比对
 - **质量门控**: 只有满足最低执行次数和成功率的技能才会被推送到共享仓库
-- **部署模式**:
-  - SaaS: `HTTPSyncBackend`（规划中，尚未实现）通过控制平面 API 同步
+- **传输**：由宿主实现，框架只定义 `SkillSyncProtocol` 与质量门，不自带网络后端
 - **后台执行**: 通过 `IdleTaskRegistry` 注册 `skill_sync` 任务类型，闲时自动触发
 - **详细架构**: 参见 `agent/skills/sync/_ARCH.md`

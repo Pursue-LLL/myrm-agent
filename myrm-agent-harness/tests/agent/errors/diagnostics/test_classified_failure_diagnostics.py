@@ -2,7 +2,7 @@
 
 The classifier decides what a failure is from the status code the transport parsed as well as from the provider's
 wording, while the diagnosis' keyword families read the exception text alone. Gemini words a rejected key as "API key
-not valid" in a 400 and DeepSeek words it as a 400 too, so those keys used to reach the user as the provider's raw JSON.
+not valid" in a 400 and DeepSeek words it as a 400 too, so a rejected key reaches the user as a key card, not as the provider's raw JSON.
 """
 
 from __future__ import annotations

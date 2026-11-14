@@ -890,8 +890,8 @@ class TestPublicSharePage:
     def test_revoked_then_reshared_old_token_stays_404(self, share_client: TestClient) -> None:
         """A revoked link stays dead after a fresh share for the same chat.
 
-        Regression: recreating a share used to clear ``share_revoked_at``,
-        which resurrected every previously revoked token for that chat.
+        Recreating a share keeps ``share_revoked_at``: clearing it would resurrect
+        every revoked token for that chat.
         """
         import time
 

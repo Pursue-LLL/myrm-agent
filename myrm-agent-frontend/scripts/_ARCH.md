@@ -10,7 +10,7 @@
 |------|------|
 | `check_fractal_docs.py` | 分形 `_ARCH.md` 门禁（strict roots + recursive baseline）；只管文档覆盖，不读取 `tsconfig.json`（dev lane 瞬态状态由 strip + hygiene 本地自愈） |
 | `check_typescript_strict.py` | `tsc --noEmit` strict 错误数门禁（`ci/typescript_strict_baseline.txt`；`tsconfig.json` `strict: true`） |
-| `check_file_line_budget.py` | 单文件 400 行**本地自查工具**（非 CI 阻断；超限台账 `ci/file_line_budget_baseline.txt`，`--write-baseline` 维护）。强制阻断已移除：行数只影响可读性，不影响运行正确性，接入 CI 会把「文档/风格」与「真 bug」混在同一道红灯里 |
+| `check_file_line_budget.py` | 单文件 400 行**本地自查工具**（非 CI 阻断；超限台账 `ci/file_line_budget_baseline.txt`，`--write-baseline` 维护）。不做强制阻断：行数只影响可读性，不影响运行正确性，接入 CI 会把「文档/风格」与「真 bug」混在同一道红灯里 |
 | `check_barrel_exports.py` | 跨域 `index.ts` 桶导出白名单门禁 |
 | `check_module_resolution.py` | 导入说明符解析门禁：按 bundler 同款「扩展名替换 + index 规则」解析 `from` / `import()` / `require()` / 相对与别名路径，命中磁盘不存在即失败。填补 `tsc` 盲区——Node `require` 签名是 `(id: string) => any`，删除被 `require('./x')` 引用的模块不会报错，只在运行时 500（如 `file-service/sandbox.ts` 被误删导致全站 500）；bare 包名与测试替身 `vi.mock`/`jest.mock` 跳过；`#locales/namespaces/*` 别名目标是 gitignored 生成物，须在 `i18n:split` 之后运行（CI 步骤顺序保证） |
 | CI lockfile policy | `frontend-build.yml` 断言无 `package-lock.json`（bun.lock 为 SSOT） |

@@ -226,9 +226,9 @@ class TestCleanupSessionPrivacy:
     async def test_auto_extract_task_inherits_rebuilt_context(self) -> None:
         """auto_extract_memories must see the rebuilt policy + closure.
 
-        Regression: the fire-and-forget task used to run after run-end cleanup
-        cleared the ContextVars, so extracted memories were persisted without
-        PII protection even when the user enabled it.
+        The fire-and-forget task must not run on ContextVars that run-end cleanup has
+        cleared: extracted memories would be persisted without PII protection even
+        when the user enabled it.
         """
         import asyncio
 

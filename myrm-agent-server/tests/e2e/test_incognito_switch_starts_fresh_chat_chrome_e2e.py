@@ -1,7 +1,7 @@
 """Chrome E2E: the incognito switch always starts a fresh chat.
 
 The switch is client state, so this lane is SHARED+NAMESPACE_WRITE. Each case opens a real chat by URL and drives
-the real toggle, covering the three transitions the fix is about:
+the real toggle, covering the three transitions:
 
 * an ordinary conversation  -> incognito on  starts a new chat and keeps the mode
 * an existing empty row      -> incognito on  starts a new chat (the row could never become incognito)

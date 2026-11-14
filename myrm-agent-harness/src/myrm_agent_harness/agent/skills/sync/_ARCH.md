@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Bidirectional skill synchronization enabling collective skill evolution across devices and sandboxes, adapted for our three deployment modes (Local/Tauri, SaaS, Community).
+Bidirectional skill synchronization enabling collective skill evolution across devices and sandboxes. The framework defines the protocols, the manager, the manifest and a default quality gate; the host application supplies the transport.
 
 ## Design Principles
 
@@ -61,22 +61,18 @@ IdleWorker ─── skill_sync task ──▶ SkillSyncManager.full_sync()
                                             Manifest.mark_pushed()
 ```
 
-## Deployment Mode Mapping
+## Transport and Quality Gate
 
-| Mode | SyncBackend | Shared Medium | Quality Gate |
-|------|-------------|---------------|--------------|
-| Local/Tauri | *none implemented* | — | `ThresholdQualityGate` |
-| SaaS | `HTTPSyncBackend` (planned, not yet implemented) | Control-plane shared repo | Business-defined LLM gate |
-| Community | `HTTPSyncBackend` (planned) | Community marketplace API | LLM + admin review |
+`SkillSyncManager` takes a `SkillSyncProtocol` backend from the host: the framework ships no network or
+file-system backend. `ThresholdQualityGate` is the default push gate; a host passes its own
+`SkillQualityGateProtocol` to replace it.
 
 ## Conflict Resolution
 
 The current implementation uses a **pull-first** strategy (`full_sync()` pulls before pushing),
 which effectively avoids conflicts by ensuring remote changes are applied before local pushes.
 
-The `SkillSyncProtocol.resolve_conflict()` interface is defined and implemented but not yet
-called by `SkillSyncManager` — it is a reserved extension point for future use if explicit
-conflict detection is needed (e.g., in multi-user SaaS scenarios).
+`SkillSyncProtocol.resolve_conflict()` is part of the protocol; `SkillSyncManager` never calls it.
 
 Defined strategies:
 - `REMOTE_WINS`: Accept remote (safe for pull-from-marketplace)

@@ -558,8 +558,8 @@ async def test_llm_query_batched_honors_cancellation_cascade() -> None:
 async def test_llm_query_replays_from_durable_store(tmp_path) -> None:
     """A retried workflow must not re-bill prompts that already completed.
 
-    Durable replay previously covered spawn_subagent only, so a timeout mid-script
-    re-issued every llm_query / llm_query_batched call on the next run.
+    Durable replay covers llm_query / llm_query_batched as well as spawn_subagent:
+    a timeout mid-script must not re-issue them on the next run.
     """
     from myrm_agent_harness.agent.dynamic_workflow.store import WorkflowEventStore
 

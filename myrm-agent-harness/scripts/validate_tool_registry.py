@@ -55,9 +55,7 @@ _REQUIRED_COUNT_DOCS = (
     _COUNT_DOC_DIR / "TOOL_MANAGEMENT_SYSTEM.md",
 )
 _COUNT_DOC_TARGETS = _REQUIRED_COUNT_DOCS
-_CATALOG_DOC_TARGET = (
-    HARNESS_SRC / "agent" / "tool_management" / "TOOL_MANAGEMENT_SYSTEM.md"
-)
+_CATALOG_DOC_TARGET = HARNESS_SRC / "agent" / "tool_management" / "TOOL_MANAGEMENT_SYSTEM.md"
 
 _BLOCK_BEGIN = "<!-- TOOL_COUNT_BEGIN -->"
 _BLOCK_END = "<!-- TOOL_COUNT_END -->"
@@ -134,9 +132,7 @@ def _scan_forbidden_legacy_delegate_permission_terms() -> list[tuple[Path, int, 
     for path in _FORBIDDEN_LEGACY_DELEGATE_PERMISSION_SCAN_PATHS:
         if not path.is_file():
             continue
-        for line_no, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), 1
-        ):
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if any(pat.search(line) for pat in _FORBIDDEN_LEGACY_DELEGATE_PERMISSION_PATTERNS):
                 violations.append((path, line_no, line.strip()))
     return violations
@@ -159,9 +155,7 @@ def _scan_forbidden_patterns(
                 continue
             if any(part in _FORBIDDEN_TERM_PATH_EXCLUDES for part in path.parts):
                 continue
-            for line_no, line in enumerate(
-                path.read_text(encoding="utf-8").splitlines(), 1
-            ):
+            for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
                 if any(pat.search(line) for pat in patterns):
                     violations.append((path, line_no, line.strip()))
     return violations
@@ -244,14 +238,8 @@ def _check_governance_coverage() -> tuple[list[str], dict[str, object]]:
     errors: list[str] = []
 
     registered = load_registered_layers()
-    builtin_registered = {
-        name
-        for name, layer in registered.items()
-        if layer in ("CORE", "HIGH_PRIORITY", "EXTENDED")
-    }
-    external_registered = {
-        name for name, layer in registered.items() if layer == "EXTERNAL"
-    }
+    builtin_registered = {name for name, layer in registered.items() if layer in ("CORE", "HIGH_PRIORITY", "EXTENDED")}
+    external_registered = {name for name, layer in registered.items() if layer == "EXTERNAL"}
 
     uncovered_tools: list[str] = []
     for tool in sorted(builtin_registered):
@@ -281,19 +269,16 @@ def _check_governance_coverage() -> tuple[list[str], dict[str, object]]:
         errors.append(
             "Registered built-in tool(s) without permission mapping, dynamic "
             "resolution, AUTO_APPROVED_BUILTIN_TOOLS, or EXPLICIT_MCP_FALLBACK_TOOLS "
-            "declaration (governance fail-closed): "
-            + ", ".join(uncovered_tools)
+            "declaration (governance fail-closed): " + ", ".join(uncovered_tools)
         )
     if ghost_declarations:
         errors.append(
             "AUTO_APPROVED_BUILTIN_TOOLS / EXPLICIT_MCP_FALLBACK_TOOLS declaration(s) "
-            "for unregistered or non-built-in tool(s): "
-            + ", ".join(ghost_declarations)
+            "for unregistered or non-built-in tool(s): " + ", ".join(ghost_declarations)
         )
     if invalid_reasons:
         errors.append(
-            "AUTO_APPROVED_BUILTIN_TOOLS reason(s) not in AUTO_APPROVE_REASONS: "
-            + ", ".join(invalid_reasons)
+            "AUTO_APPROVED_BUILTIN_TOOLS reason(s) not in AUTO_APPROVE_REASONS: " + ", ".join(invalid_reasons)
         )
 
     unregistered_builtins = sorted(BUILTIN_TOOL_NAMES - builtin_registered)
@@ -301,16 +286,14 @@ def _check_governance_coverage() -> tuple[list[str], dict[str, object]]:
         errors.append(
             "BUILTIN_TOOL_NAMES tool(s) not registered in _TOOL_LAYERS "
             "(CORE/HIGH_PRIORITY/EXTENDED) — governance declarations lose their anchor "
-            "(upward-blindness drift): "
-            + ", ".join(unregistered_builtins)
+            "(upward-blindness drift): " + ", ".join(unregistered_builtins)
         )
     overlap_fallbacks = sorted(BUILTIN_TOOL_NAMES & EXPLICIT_MCP_FALLBACK_TOOLS)
     if overlap_fallbacks:
         errors.append(
             "Tool(s) in both BUILTIN_TOOL_NAMES and EXPLICIT_MCP_FALLBACK_TOOLS — "
             "BUILTIN membership flips runtime baseline to ALLOW, contradicting the "
-            "intentional mcp_invoke fallback: "
-            + ", ".join(overlap_fallbacks)
+            "intentional mcp_invoke fallback: " + ", ".join(overlap_fallbacks)
         )
 
     ruleset_permissions = {rule.permission for rule in DEFAULT_RULESET}
@@ -323,10 +306,7 @@ def _check_governance_coverage() -> tuple[list[str], dict[str, object]]:
                 "RULESET_COVERAGE_WHITELIST declaration (governance fail-closed)."
             )
         elif reason not in AUTO_APPROVE_REASONS:
-            errors.append(
-                f"RULESET_COVERAGE_WHITELIST reason for {perm!r} not in "
-                "AUTO_APPROVE_REASONS."
-            )
+            errors.append(f"RULESET_COVERAGE_WHITELIST reason for {perm!r} not in AUTO_APPROVE_REASONS.")
     # Bidirectional symmetry: a whitelist declaration claims "this permission
     # type intentionally has no DEFAULT_RULESET rule". If a rule now exists or
     # no tool maps to the permission, the declaration is stale and the audit
@@ -335,35 +315,27 @@ def _check_governance_coverage() -> tuple[list[str], dict[str, object]]:
     if stale_whitelist:
         errors.append(
             "RULESET_COVERAGE_WHITELIST declaration(s) now covered by "
-            "DEFAULT_RULESET (stale whitelist entry, remove it): "
-            + ", ".join(stale_whitelist)
+            "DEFAULT_RULESET (stale whitelist entry, remove it): " + ", ".join(stale_whitelist)
         )
     orphan_whitelist = sorted(set(RULESET_COVERAGE_WHITELIST) - mapped_permissions)
     if orphan_whitelist:
         errors.append(
             "RULESET_COVERAGE_WHITELIST declaration(s) not produced by any "
-            "TOOL_PERMISSION_MAP value (orphan declaration, remove it): "
-            + ", ".join(orphan_whitelist)
+            "TOOL_PERMISSION_MAP value (orphan declaration, remove it): " + ", ".join(orphan_whitelist)
         )
 
     safety_required = BUILTIN_TOOL_NAMES | EXPLICIT_MCP_FALLBACK_TOOLS
     missing_safety = sorted(safety_required - TOOL_SAFETY_METADATA.keys())
     if missing_safety:
         errors.append(
-            "Built-in tool(s) missing TOOL_SAFETY_METADATA (fail-closed defaults): "
-            + ", ".join(missing_safety)
+            "Built-in tool(s) missing TOOL_SAFETY_METADATA (fail-closed defaults): " + ", ".join(missing_safety)
         )
 
-    missing_canonical = sorted(
-        tool
-        for tool in _CANONICAL_REQUIRED_TOOLS
-        if tool not in TOOL_CANONICAL_PARAMS
-    )
+    missing_canonical = sorted(tool for tool in _CANONICAL_REQUIRED_TOOLS if tool not in TOOL_CANONICAL_PARAMS)
     if missing_canonical:
         errors.append(
             "Management/delegation/scheduling tool(s) missing TOOL_CANONICAL_PARAMS "
-            "(allow-always matching falls back to full-arg hashing): "
-            + ", ".join(missing_canonical)
+            "(allow-always matching falls back to full-arg hashing): " + ", ".join(missing_canonical)
         )
 
     coverage_matrix: dict[str, object] = {
@@ -440,16 +412,10 @@ def _check_count_doc_coverage() -> list[str]:
             display = doc
         text = doc.read_text(encoding="utf-8")
         if _BLOCK_BEGIN in text:
-            errors.append(
-                f"{display} declares {_BLOCK_BEGIN} but is not "
-                "listed in _REQUIRED_COUNT_DOCS"
-            )
+            errors.append(f"{display} declares {_BLOCK_BEGIN} but is not listed in _REQUIRED_COUNT_DOCS")
             continue
         if _TOOL_TOTAL_PATTERN.search(text):
-            errors.append(
-                f"{display} states an LLM-tool total without a "
-                f"{_BLOCK_BEGIN} block"
-            )
+            errors.append(f"{display} states an LLM-tool total without a {_BLOCK_BEGIN} block")
     return errors
 
 
@@ -516,73 +482,45 @@ def _format_report(
     orphans: set[str] = set() if incremental else report.orphan_factories()
     meta_ghosts: set[str] = set() if incremental else (metadata_ghosts or set())
 
-    if (
-        not missing
-        and not ghosts
-        and not orphans
-        and not duplicates
-        and not meta_ghosts
-        and not auxiliary_failed
-    ):
+    if not missing and not ghosts and not orphans and not duplicates and not meta_ghosts and not auxiliary_failed:
         lines.append("PASS - tool registry consistent")
         return "\n".join(lines)
 
-
     if missing:
-        lines.append(
-            f"FAIL - {len(missing)} tool(s) defined but NOT registered in _TOOL_LAYERS:"
-        )
+        lines.append(f"FAIL - {len(missing)} tool(s) defined but NOT registered in _TOOL_LAYERS:")
         for name in sorted(missing):
             owners = [d for d in report.declarations if d.name == name]
             owner = owners[0]
-            lines.append(
-                f"  - {name}  ({owner.kind} @ {owner.file.relative_to(_repo_root)}:{owner.line})"
-            )
-        lines.append(
-            "  Fix: register via `register_tool_layer()` in either tool_layers.py (harness)"
-        )
+            lines.append(f"  - {name}  ({owner.kind} @ {owner.file.relative_to(_repo_root)}:{owner.line})")
+        lines.append("  Fix: register via `register_tool_layer()` in either tool_layers.py (harness)")
         lines.append("       or _tool_layer_bootstrap.py (server).")
         lines.append("")
 
     if ghosts:
-        lines.append(
-            f"FAIL - {len(ghosts)} tool(s) registered but NO source defines them:"
-        )
+        lines.append(f"FAIL - {len(ghosts)} tool(s) registered but NO source defines them:")
         for name in sorted(ghosts):
             lines.append(f"  - {name}")
         lines.append("  Fix: remove the dead registration entry.")
         lines.append("")
 
     if orphans:
-        lines.append(
-            f"FAIL - {len(orphans)} tool factory function(s) without any call site:"
-        )
+        lines.append(f"FAIL - {len(orphans)} tool factory function(s) without any call site:")
         for factory in sorted(orphans):
             origin = report.factories[factory]
             lines.append(f"  - {factory}  (defined @ {origin.relative_to(_repo_root)})")
-        lines.append(
-            "  Fix: either wire the factory into a startup path, or delete the dead code."
-        )
-        lines.append(
-            "       To intentionally allow an unused factory, add it to ORPHAN_FACTORY_WHITELIST."
-        )
+        lines.append("  Fix: either wire the factory into a startup path, or delete the dead code.")
+        lines.append("       To intentionally allow an unused factory, add it to ORPHAN_FACTORY_WHITELIST.")
         lines.append("")
 
     if meta_ghosts:
-        lines.append(
-            f"FAIL - {len(meta_ghosts)} registry metadata key(s) with NO @tool source:"
-        )
+        lines.append(f"FAIL - {len(meta_ghosts)} registry metadata key(s) with NO @tool source:")
         for name in sorted(meta_ghosts):
             lines.append(f"  - {name}")
-        lines.append(
-            "  Fix: remove dead keys from tool_registry.py maps or register the tool."
-        )
+        lines.append("  Fix: remove dead keys from tool_registry.py maps or register the tool.")
         lines.append("")
 
     if duplicates:
-        lines.append(
-            f"FAIL - {len(duplicates)} tool name(s) declared in multiple source files:"
-        )
+        lines.append(f"FAIL - {len(duplicates)} tool name(s) declared in multiple source files:")
         for name in sorted(duplicates):
             lines.append(f"  - {name}")
             for decl in duplicates[name]:
@@ -656,9 +594,7 @@ def _build_catalog_block() -> str:
     )
 
 
-def _update_doc_blocks(
-    doc_path: Path, blocks: dict[str, str]
-) -> tuple[bool, str | None]:
+def _update_doc_blocks(doc_path: Path, blocks: dict[str, str]) -> tuple[bool, str | None]:
     """Update marker blocks. Returns (changed, error_message_if_any)."""
     if not doc_path.exists():
         return False, f"doc target missing: {doc_path}"
@@ -709,15 +645,9 @@ def _filter_report_to_files(report: ScanReport, files: set[Path]) -> ScanReport:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Tool registry consistency checker")
-    parser.add_argument(
-        "--incremental", action="store_true", help="Only consider files changed in git"
-    )
-    parser.add_argument(
-        "--generate-docs", action="store_true", help="Refresh TOOL_COUNT blocks in docs"
-    )
-    parser.add_argument(
-        "--json", action="store_true", help="Emit machine-readable JSON"
-    )
+    parser.add_argument("--incremental", action="store_true", help="Only consider files changed in git")
+    parser.add_argument("--generate-docs", action="store_true", help="Refresh TOOL_COUNT blocks in docs")
+    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     args = parser.parse_args()
 
     try:
@@ -746,9 +676,7 @@ def main() -> int:
                 modified.append(target)
             if err:
                 doc_errors.append(err)
-        changed, err = _update_doc_blocks(
-            _CATALOG_DOC_TARGET, {"catalog": catalog_block}
-        )
+        changed, err = _update_doc_blocks(_CATALOG_DOC_TARGET, {"catalog": catalog_block})
         if changed:
             modified.append(_CATALOG_DOC_TARGET)
         if err:
@@ -779,15 +707,9 @@ def main() -> int:
     # incremental mode to avoid false positives from filtered declarations.
     ghosts = set() if args.incremental else report.ghost_registrations()
     orphans = set() if args.incremental else report.orphan_factories()
-    metadata_ghosts = (
-        set()
-        if args.incremental
-        else report.ghost_registry_metadata_keys(_load_registry_metadata_keys())
-    )
+    metadata_ghosts = set() if args.incremental else report.ghost_registry_metadata_keys(_load_registry_metadata_keys())
     bindmode_violations = [] if args.incremental else _scan_forbidden_bindmode_terms()
-    catalog_invoke_violations = (
-        [] if args.incremental else _scan_forbidden_catalog_invoke_terms()
-    )
+    catalog_invoke_violations = [] if args.incremental else _scan_forbidden_catalog_invoke_terms()
     legacy_acp_violations = [] if args.incremental else _scan_forbidden_legacy_acp_tool_terms()
     legacy_delegate_permission_violations = (
         [] if args.incremental else _scan_forbidden_legacy_delegate_permission_terms()
@@ -842,9 +764,7 @@ def main() -> int:
             "metadata_ghosts": sorted(metadata_ghosts),
             "orphans": sorted(orphans),
             "duplicates": {
-                name: [
-                    f"{decl.file.relative_to(_repo_root)}:{decl.line}" for decl in decls
-                ]
+                name: [f"{decl.file.relative_to(_repo_root)}:{decl.line}" for decl in decls]
                 for name, decls in duplicates.items()
             },
             "governance_errors": governance_errors,
@@ -865,36 +785,25 @@ def main() -> int:
             )
         )
         if bindmode_violations:
-            print(
-                f"FAIL - {len(bindmode_violations)} forbidden ToolBindMode legacy term(s):"
-            )
+            print(f"FAIL - {len(bindmode_violations)} forbidden ToolBindMode legacy term(s):")
             for path, line_no, line in bindmode_violations:
                 try:
                     display = path.relative_to(_repo_root)
                 except ValueError:
                     display = path
                 print(f"  - {display}:{line_no}: {line}")
-            print(
-                "  Fix: use Turn1 registration + get_runtime_tools() for RUNTIME_ONLY tools."
-            )
+            print("  Fix: use Turn1 registration + get_runtime_tools() for RUNTIME_ONLY tools.")
         if catalog_invoke_violations:
-            print(
-                f"FAIL - {len(catalog_invoke_violations)} forbidden catalog_invoke legacy term(s):"
-            )
+            print(f"FAIL - {len(catalog_invoke_violations)} forbidden catalog_invoke legacy term(s):")
             for path, line_no, line in catalog_invoke_violations:
                 try:
                     display = path.relative_to(_repo_root)
                 except ValueError:
                     display = path
                 print(f"  - {display}:{line_no}: {line}")
-            print(
-                "  Fix: MCP overflow must use Direct FC or MCP PTC only; "
-                "see FRAMEWORK_DESIGN_PRINCIPLES.md §7."
-            )
+            print("  Fix: MCP overflow must use Direct FC or MCP PTC only; see FRAMEWORK_DESIGN_PRINCIPLES.md §7.")
         if legacy_acp_violations:
-            print(
-                f"FAIL - {len(legacy_acp_violations)} forbidden legacy ACP tool name(s):"
-            )
+            print(f"FAIL - {len(legacy_acp_violations)} forbidden legacy ACP tool name(s):")
             for path, line_no, line in legacy_acp_violations:
                 try:
                     display = path.relative_to(_repo_root)
@@ -903,7 +812,7 @@ def main() -> int:
                 print(f"  - {display}:{line_no}: {line}")
             print(
                 "  Fix: use invoke_acp_agent_tool / create_invoke_acp_agent_tool only; "
-                "delegate_to_agent_tool was removed."
+                "delegate_to_agent_tool does not exist."
             )
         if legacy_delegate_permission_violations:
             print(
@@ -916,25 +825,18 @@ def main() -> int:
                 except ValueError:
                     display = path
                 print(f"  - {display}:{line_no}: {line}")
-            print(
-                "  Fix: use spawn_subagent and invoke_external_agent permission keys; "
-                "delegate_agent was removed."
-            )
+            print("  Fix: use spawn_subagent and invoke_external_agent permission keys; delegate_agent does not exist.")
         if catalog_errors:
             print(f"FAIL - {len(catalog_errors)} tool catalog metadata issue(s):")
             for err in catalog_errors:
                 print(f"  - {err}")
             print("  Fix: update tool_catalog.py role/load overrides.")
         if parity_errors:
-            print(
-                f"FAIL - {len(parity_errors)} default-enabled product ID parity issue(s):"
-            )
+            print(f"FAIL - {len(parity_errors)} default-enabled product ID parity issue(s):")
             for err in parity_errors:
                 print(f"  - {err}")
         if governance_errors:
-            print(
-                f"FAIL - {len(governance_errors)} governance coverage issue(s):"
-            )
+            print(f"FAIL - {len(governance_errors)} governance coverage issue(s):")
             for err in governance_errors:
                 print(f"  - {err}")
             print(
@@ -945,9 +847,7 @@ def main() -> int:
                 "the mcp_invoke=ASK runtime baseline."
             )
         if count_doc_errors:
-            print(
-                f"FAIL - {len(count_doc_errors)} tool_management doc count coverage issue(s):"
-            )
+            print(f"FAIL - {len(count_doc_errors)} tool_management doc count coverage issue(s):")
             for err in count_doc_errors:
                 print(f"  - {err}")
             print(
@@ -955,9 +855,7 @@ def main() -> int:
                 "doc and list it in _REQUIRED_COUNT_DOCS, or drop the hand-written total."
             )
         if capability_gap_errors:
-            print(
-                f"FAIL - {len(capability_gap_errors)} capability-gap liveness issue(s):"
-            )
+            print(f"FAIL - {len(capability_gap_errors)} capability-gap liveness issue(s):")
             for err in capability_gap_errors:
                 print(f"  - {err}")
             print(

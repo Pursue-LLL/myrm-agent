@@ -145,7 +145,7 @@ def _plant_hostile_folder(root: Path) -> None:
 
 
 def _release_blocked_readers(fifo: Path) -> None:
-    """Unblock a backend thread still waiting to open the FIFO, so a server without the fix recovers once the test is over."""
+    """Unblock a backend thread still waiting to open the FIFO, so a server that blocks on it recovers once the test is over."""
     try:
         os.close(os.open(fifo, os.O_WRONLY | os.O_NONBLOCK))
     except OSError:  # ENXIO: nobody is waiting on the FIFO

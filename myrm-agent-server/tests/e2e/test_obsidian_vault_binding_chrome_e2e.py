@@ -1,8 +1,8 @@
 """Real Chrome MCP E2E: Obsidian vault binding in Wiki settings.
 
 The local vault path is the only way this product ingests notes, so the settings
-card has to render it in local mode and must not resurrect the inbox write switch
-that was removed because nothing consumed it.
+card has to render it in local mode and must not offer an inbox write switch,
+which nothing consumes.
 """
 
 from __future__ import annotations

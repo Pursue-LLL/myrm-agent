@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 
 /**
- * Deprecated: this endpoint previously proxied arbitrary external model URLs.
- * Model discovery now runs through server-side SSRF-guarded
- * `/integrations/llm/discover-models`.
+ * Deprecated: this endpoint proxies nothing. Model discovery runs through the server-side
+ * SSRF-guarded `/integrations/llm/discover-models`.
  */
 export async function POST() {
   return NextResponse.json(

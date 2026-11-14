@@ -1,7 +1,7 @@
 """Regression tests for the import lane helpers and the confirm handler wiring.
 
-The confirm handler used to inline every lane, so a single unbound local or a
-reordered lane was invisible to the suite. These tests pin the pieces that are
+The confirm handler wires the lane helpers together, so a single unbound local or a
+reordered lane must be caught by the suite. These tests pin the pieces that are
 easy to break when a lane moves: instruction-plan parsing, the episodic suffix in
 the response rows, the token-economics estimate, and the confirm path where
 instructions are skipped while reviewed sessions are still imported.

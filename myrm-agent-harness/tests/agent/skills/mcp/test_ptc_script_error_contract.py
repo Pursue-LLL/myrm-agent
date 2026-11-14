@@ -1,8 +1,8 @@
 """What an MCP PTC script observes when its call is malformed, end to end over the wire.
 
-A call that omits a required argument used to come back as an error-shaped dict that
-spoke Function-Calling ("tool_call", "arguments"), i.e. as a *successful* result. The
-script then failed later on a ``KeyError`` far from the cause. The call must instead
+A call that omits a required argument must not come back as an error-shaped dict that
+speaks Function-Calling ("tool_call", "arguments"), i.e. as a *successful* result: the
+script would then fail later on a ``KeyError`` far from the cause. The call must instead
 raise, say what is missing, and show the signature to copy. An unknown tool must name
 its nearest neighbours rather than the first five catalog entries.
 """

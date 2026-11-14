@@ -1,9 +1,8 @@
 """Skill Sync — cross-device / cross-sandbox skill synchronization.
 
-Provides Protocol-driven bidirectional skill sync for three deployment modes:
-- Local/Tauri: file-system-based multi-device sync (iCloud/Dropbox/NAS)
-- SaaS: HTTP-based sync via control-plane shared repository
-- Community: opt-in skill sharing marketplace
+Provides Protocol-driven bidirectional skill sync. The framework defines the protocols,
+the manager, the manifest and a default quality gate; the host application supplies the
+transport as a ``SkillSyncProtocol`` implementation.
 
 [OUTPUT]
 - SkillSyncProtocol: Protocol for skill sync backends

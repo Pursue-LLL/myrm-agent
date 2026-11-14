@@ -53,7 +53,7 @@ class _DeterministicEmbeddingService:
 
     Determinism matters here — the repair sweep asserts on memory identity and lifecycle,
     never on semantic ranking, so a stable hash-derived unit vector is sufficient and
-    removes the paid-provider dependency that previously made this suite non-hermetic.
+    keeps the suite hermetic (no paid-provider dependency).
     """
 
     dimension = _EMBEDDING_DIMENSION
@@ -162,9 +162,7 @@ def test_capacity_theater_probe_bloated() -> None:
 
 
 @pytest.mark.asyncio
-async def test_restore_disciplined_defaults_execution(
-    db_session: AsyncSession, memory_manager: MemoryManager
-) -> None:
+async def test_restore_disciplined_defaults_execution(db_session: AsyncSession, memory_manager: MemoryManager) -> None:
     """Verify the real repair plan archives unpinned memories while preserving pinned ones."""
     pinned = await memory_manager.store(_semantic("Keep the release checklist pinned."))
     unpinned = await memory_manager.store(_semantic("Temporary working note to archive."))
@@ -189,9 +187,7 @@ async def test_restore_disciplined_defaults_execution(
                 assert item.status == MemoryStatus.ACTIVE, item
 
     active_ids = {
-        item.id
-        for memory_type in _ARCHIVED_TYPES
-        for item in await memory_manager.list_memories(memory_type, limit=50)
+        item.id for memory_type in _ARCHIVED_TYPES for item in await memory_manager.list_memories(memory_type, limit=50)
     }
     assert pinned.id in active_ids
     assert unpinned.id not in active_ids

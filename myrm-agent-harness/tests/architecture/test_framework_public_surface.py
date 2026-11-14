@@ -296,7 +296,7 @@ def test_each_known_private_key_is_still_read() -> None:
 @pytest.mark.parametrize(
     "source",
     [
-        # The shape the agent once used to pass ``parallel_tool_calls`` to ``bind_tools``.
+        # A wrapper that patches ``bind_tools`` on a copy of the model, e.g. to pass ``parallel_tool_calls``.
         "wrapped = copy.copy(llm)\nobject.__setattr__(wrapped, 'bind_tools', patched)\n",
         "setattr(model, 'invoke', patched)\n",
         "model.bind_tools = patched\n",

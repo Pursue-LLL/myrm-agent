@@ -210,7 +210,7 @@ class TestRenderedL2Names:
 
 
 class TestSuggestMcpToolNames:
-    """The nearest-name hint must surface a tool the old "first five" listing would bury."""
+    """The nearest-name hint must surface a tool a plain "first five" listing would bury."""
 
     TOOLS = [f"decoy_tool_{i:02d}" for i in range(30)] + ["get_pod_logs", "list_pods", "restart_pod"]
 

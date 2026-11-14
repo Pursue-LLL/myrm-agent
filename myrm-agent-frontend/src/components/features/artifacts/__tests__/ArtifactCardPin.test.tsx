@@ -9,8 +9,8 @@
  * - Tests: the pin button adds and removes the artifact in the persisted workspace store.
  *
  * [POS]
- * The card used to write a store nothing rendered. This pins the button to the store the mounted
- * `DashboardWorkspaceDrawer` reads, so "pinned" means a widget actually shows up in the workspace.
+ * The button must write the store the mounted `DashboardWorkspaceDrawer` reads, not one nothing renders,
+ * so "pinned" means a widget actually shows up in the workspace.
  */
 
 import { render, screen, fireEvent, act } from '@testing-library/react';
@@ -32,10 +32,7 @@ vi.mock('@/lib/api', () => ({
 // Effects in the card hydrate publications/preflight over fetch; answer them locally so the run
 // never reaches the network.
 beforeEach(() => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }),
-  );
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
 });
 
 vi.mock('@/store/useChatStore', () => {

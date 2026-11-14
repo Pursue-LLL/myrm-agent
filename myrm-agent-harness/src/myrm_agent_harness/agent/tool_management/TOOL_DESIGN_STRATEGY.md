@@ -85,13 +85,13 @@ class ToolLayer(IntEnum):
 
 ##### web_fetch 常驻依据（为何首轮 eager、不延迟）
 
-「是否引入工具目录机制」与「引入后谁该进目录」是两个问题：前者仍在评估（§10.2），后者按三问判断（归纳自 Anthropic Tool Search 与 Claude Code SDK tool-search 官方文档，非官方原话；数据口径 2026-11-04）：
+「是否引入工具目录机制」与「引入后谁该进目录」是两个问题：前者未引入（§10.2），后者按三问判断（表中 Anthropic Tool Search 与 Claude Code 的行为取自其官方文档，非官方原话；数据口径 2026-11-04）：
 
 | 三问 | 判据 | Myrm 现状 | 判定 |
 |------|------|-----------|------|
 | 目录够大吗 | Anthropic：工具 ≥10 个、定义 >10K token、选择准确率下降、聚合 200+ MCP 工具、工具库持续增长，任一成立即可考虑；Claude Code 的 auto 模式在可延迟定义达到上下文窗口 10% 时才启用 | 默认 profile 13 个工具；含 schema 的 Turn-1 工具块：规划口径 9,311（`scripts/measure_tool_schema_tokens.py`，含每工具 65 的 wrapper 估算常数），实际序列化载荷口径约 7.8K（7,797），均低于 10K 线；约占 200K 窗口的 3.9%–4.7%（128K 窗口 6.1%–7.3%），未到 10%；web_fetch 自身：规划口径 274，实际序列化载荷 190–474（英文 / 中文 × 有无检索服务：英文无检索 190、中文无检索 195、英文带检索 439、中文带检索 474；默认英文无检索 190；路由提示只在浏览器工具一侧，不计入 web_fetch），约占 200K 窗口的 0.10%–0.24% | 满足可考虑条件 |
-| 是头部还是长尾 | Anthropic：最常用的 3–5 个工具保持非延迟；Hermes 默认延迟清单（`hermes_cli/config_defaults.py`）刻意收录冷门、事件触发型内置工具，web 工具不在其中 | 头部：Fast 搜索的深度流程是 web_search → web_fetch → 答案自审，且 Fast 面不挂 shell 与浏览器（`services/agent/params/conversion/tool_surface.py`）；完成守卫把它计为外部证据（`external_evidence.py` 的 `_EXTERNAL_EVIDENCE_TOOLS`）；131 个预置技能中 13 个在 allowed-tools 声明它；`file_read_tool`、`answer_user_tool` 的描述把读网页路由给它 | 头部，不应延迟 |
-| 发现机制保缓存、成本摊得薄吗 | Anthropic 原生延迟以 tool_reference 内联追加、前缀不动；tools 位于缓存层级最前，改动会使其后全部缓存失效。Claude Code：不支持的模型与部署回退为首轮全量加载；每次发现多一轮往返，压缩后需重新发现 | 多供应商、无原生机制；框架 11.1 禁止追加非 Turn1 schema（§11.2、`PROMPT_CACHE_PRACTICE.md` §2.1.1）；自建三桥的抓包体量 OpenClaw 525、Hermes 606 token，均大于 web_fetch 本身，只有摊给大量冷门工具才赚 | 不成立，延迟净亏 |
+| 是头部还是长尾 | Anthropic：最常用的 3–5 个工具保持非延迟 | 头部：Fast 搜索的深度流程是 web_search → web_fetch → 答案自审，且 Fast 面不挂 shell 与浏览器（`services/agent/params/conversion/tool_surface.py`）；完成守卫把它计为外部证据（`external_evidence.py` 的 `_EXTERNAL_EVIDENCE_TOOLS`）；131 个预置技能中 13 个在 allowed-tools 声明它；`file_read_tool`、`answer_user_tool` 的描述把读网页路由给它 | 头部，不应延迟 |
+| 发现机制保缓存、成本摊得薄吗 | Anthropic 原生延迟以 tool_reference 内联追加、前缀不动；tools 位于缓存层级最前，改动会使其后全部缓存失效。Claude Code：不支持的模型与部署回退为首轮全量加载；每次发现多一轮往返，压缩后需重新发现 | 多供应商、无原生机制；框架 11.1 禁止追加非 Turn1 schema（§11.2、`PROMPT_CACHE_PRACTICE.md` §2.1.1）；自建发现桥的定义体量（实测数百 token）大于 web_fetch 本身，只有摊给大量冷门工具才赚 | 不成立，延迟净亏 |
 
 补充依据：
 
@@ -262,7 +262,7 @@ class ToolLayer(IntEnum):
 
 **实测依据**：真实模型会话对照（两个小模型，全部外围技能）显示，加上名字清单后每个会话的检索次数显著减少，通过率没有显著差别；代价是首次提示多出名字行的 token（130 个技能约 780）。
 
-### 3.4 成本计算公式
+### 3.5 成本计算公式
 
 ```python
 cost = ActionSpaceProfiler.BASE_TOOL_COST + (len(skill.description or "") // 50)
@@ -476,62 +476,43 @@ def get_tool_layer(tool_name: str) -> ToolLayer:
 
 ---
 
-## 十、竞品对比
+## 十、设计取舍
 
-### 10.1 我们的优势
+### 10.1 能力清单
 
-| 维度 | MyrmAgent | Hermes/其他竞品 |
-|------|----------|---------------|
-| 工具选择准确性评估 | ✅ 动态科学计算 (ASCS) | ❌ 仅静态文档说明 |
-| 实时准确度预测 | ✅ 实时雷达图 + 三色警告 | ❌ 无可视化 |
-| 智能管家提醒 | ✅ 自动检测闲置技能 + 一键净化 | ❌ 手动管理 |
-| 核心/外围技能分层 | ✅ 按需加载，认知负载减半 | ❌ 全部常驻或全部按需 |
-| 工具层级体系 | ✅ CORE/HIGH_PRIORITY/EXTENDED/EXTERNAL 四层 | ❌ 扁平结构 |
-| Prompt Cache 优化 | ✅ 工具分层排序保证 harness 前缀稳定 | ❌ 无优化 |
-| MCP 工具路由 | ✅ Direct FC + MCP PTC + 三级 `/mcp/*.md` 渐进披露 | ❌ Turn1 全量 bind 或单一 router/proxy tool |
-| Prompt Cache 优化 | ✅ 工具分层排序保证 harness 前缀稳定 | ❌ 无优化 |
+| 维度 | MyrmAgent 的做法 |
+|------|------------------|
+| 工具选择准确性评估 | 动态科学计算（ASCS） |
+| 实时准确度预测 | 实时雷达图 + 三色警告 |
+| 智能管家提醒 | 自动检测闲置技能 + 一键净化 |
+| 核心/外围技能分层 | 核心常驻，外围按需加载 |
+| 工具层级体系 | CORE / HIGH_PRIORITY / EXTENDED / EXTERNAL 四层 |
+| Prompt Cache 优化 | 工具分层排序保证 harness 前缀稳定 |
+| MCP 工具路由 | Direct FC + MCP PTC + 三级 `/mcp/*.md` 渐进披露 |
 
-### 10.2 竞品 MCP 懒加载：对照与待评估项（AI / Roadmap 必读）
+### 10.2 工具级延迟加载
 
-**当前事实**：Myrm 没有原生的工具级延迟机制，现存只有技能级 `skill_search_tool`（且仅在 `hidden_skill_count > 0` 时挂载）。对照：
+Myrm 没有原生的工具级延迟机制，现存只有技能级 `skill_search_tool`（且仅在 `hidden_skill_count > 0` 时挂载）；MCP 工具走 Direct FC 或 MCP PTC（§2.5）。准确表述是：只有「技能级检索 + PTC」，没有「工具级延迟加载」。
 
-- **Hermes-Agent** 有完整三桥 `tool_search` / `tool_describe` / `tool_call`，MCP 与插件工具默认延迟；
-- **OpenClaw** 有 `tool-search` 与 `tool-catalog`，默认开启；
-- **deepseek-harness** 有 `deferLoading` 字段进入 system prompt 组装；
-- **Anthropic API** 官方提供 `defer_loading: true` + regex/BM25 搜索工具。
+不提供盲调形态的网关：`catalog_invoke` / `capability_invoke` / RUNTIME proxy gateway 只给工具名与 `arguments: dict`，不把真实 schema 交给模型，准确性劣于 PTC；`invoke_deferred_tool`（入参就是 `arguments: dict`）同属此类。
 
-因此准确表述是：**我们目前只有「技能级检索 + PTC」，没有「工具级延迟加载」**。
+`PTC_OVERHEAD_MULTIPLIER=25` 的 11.25K 是理论 crossover × 0.4（`agent/_factory/mcp_routing.py`），不是实测；Anthropic 公开门槛是 >10K。
 
-**评估应基于下列事实与理由，而不是预设结论**：
-
-| 不采用或已评估的形态 | 评估结论与理由 |
-| --- | --- |
-| `catalog_invoke` / `capability_invoke` / RUNTIME proxy gateway | 这些是**盲调**（只给工具名 + `arguments: dict`，不把真实 schema 交给模型），准确性劣于 PTC。`invoke_deferred_tool`（入参就是 `arguments: dict`）正属此类，所以不提供它**技术方向是对的** |
-| 双 aggregate 阈值 | 制造灰色地带，与本节无关 |
-| 新增调用范式 | 与 PTC 重叠的部分没有增量；是否有增量需要实测 |
-
-| 应当做（新） | 说明 |
-| --- | --- |
-| **「搜索 → 载入真实 schema → 直调」** | 与盲调的区别是 **schema 真的进了上下文**。它与现有 Direct FC 的差别只是「schema 何时进入」，不是「有没有 schema」 |
-| **先补 >11.25K 真实服务器基准** | `PTC_OVERHEAD_MULTIPLIER=25` 的 11.25K 是**理论 crossover × 0.4**（`agent/_factory/mcp_routing.py:48-57`），不是实测；Anthropic 公开门槛是 >10K。没有实测就不该动架构 |
-
-**内置记忆工具延迟的实测（2026-11-06，英文，MiniMax-M3.1-Flash-Preview，温度 0.5）**：把 `memory_save_tool`、`memory_manage_tool` 换成一个 86 token 的 `load_tool`（枚举这两个名字，载入后才把真实定义加进请求），Turn 1 工具块从 1,508 降到 337，净省 1,171 token/轮。19 个场景各 5 次，对照同一文本的常驻版（各 10 次）：需要写入的场景成功率 67/75（89%）对 146/150（97%），单侧 Fisher p=0.016；全部场景 87/95 对 186/190，低 6.3 个点（p=0.017）。差距几乎全在「用户夸召回准 → `rate`」一个场景（1/5 对 10/10），去掉它后 86/90 对 176/180（p=0.26）。每个真要用工具的场景多一轮往返（平均 2.32 步对 1.52 步）。按各步请求的原始 prompt token 累计（未折算缓存），这类场景每条对话为 3,188 对 3,403，只少 215（6.3%），不是 1,171 乘以步数：载入后的定义和多出的一轮往返都要付。缓存没有测：载入使 tools 变化，其后的 System 与消息前缀缓存失效（`PROMPT_CACHE_PRACTICE.md` §2.1），所以 1,171 只在缓存未命中的轮次才是真节省；把载入提示写详细会缩小 `rate` 的差距，但要吃掉这笔节省（未测）。样本小、单模型、合成最小提示：只能说没有证据支持延迟这两个工具，不构成本节的结论。
-
-**该不该做**：评估中，尚无结论。需要一次架构评审，对照实测基准明确「恢复工具级延迟」或其他新增结局相对 §2.5 现状的收益。不得再用「已领先」作为不做的理由。
+**内置记忆工具延迟的实测（2026-11-06，英文，MiniMax-M3.1-Flash-Preview，温度 0.5）**：把 `memory_save_tool`、`memory_manage_tool` 换成一个 86 token 的 `load_tool`（枚举这两个名字，载入后才把真实定义加进请求），Turn 1 工具块从 1,508 降到 337，净省 1,171 token/轮。19 个场景各 5 次，对照同一文本的常驻版（各 10 次）：需要写入的场景成功率 67/75（89%）对 146/150（97%），单侧 Fisher p=0.016；全部场景 87/95 对 186/190，低 6.3 个点（p=0.017）。差距几乎全在「用户夸召回准 → `rate`」一个场景（1/5 对 10/10），去掉它后 86/90 对 176/180（p=0.26）。每个真要用工具的场景多一轮往返（平均 2.32 步对 1.52 步）。按各步请求的原始 prompt token 累计（未折算缓存），这类场景每条对话为 3,188 对 3,403，只少 215（6.3%），不是 1,171 乘以步数：载入后的定义和多出的一轮往返都要付。缓存没有测：载入使 tools 变化，其后的 System 与消息前缀缓存失效（`PROMPT_CACHE_PRACTICE.md` §2.1），所以 1,171 只在缓存未命中的轮次才是真节省；把载入提示写详细会缩小 `rate` 的差距，但要吃掉这笔节省（未测）。样本小、单模型、合成最小提示：只能说没有证据支持延迟这两个工具。
 
 SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 · CI `test_mcp_routing_two_outcomes.py`
 
-### 10.3 技术领先性
+### 10.3 工程化的准确性管理
 
-- **从营销话术升级为工程科学**: 将"减少工具提高准确性"从主观建议变为可量化、可验证的科学系统
-- **实时反馈闭环**: 用户调整工具配置 → 实时看到准确度变化 → 引导用户优化
-- **智能化推荐**: 自动发现问题并提供解决方案，零学习成本
+- **可量化、可验证**：把「减少工具提高准确性」做成可量化的系统，而不是主观建议
+- **实时反馈闭环**：用户调整工具配置 → 实时看到准确度变化 → 引导用户优化
+- **智能化推荐**：自动发现问题并提供解决方案，零学习成本
 
 ---
 
-## 十一、已实现的优化
+## 十一、优化机制
 
-### 11.1 使用数据分析 ✅ 已实现
+### 11.1 使用数据分析
 
 **实现**: `lifecycle_status = 'stale'` (30天未调用自动标记) + `curator engine` (生命周期治理)
 
@@ -540,7 +521,7 @@ SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 �
 - 一键净化：核心（常驻）→ 外围（按需加载）
 - 完整的使用统计 (`usage_stats`)
 
-### 11.2 自适应工具加载 ✅ 已实现
+### 11.2 自适应工具加载
 
 **实现**: `skill_search_tool` (BM25 词法搜索) — indexes agent-bound searchable skills for unified search
 
@@ -549,7 +530,7 @@ SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 �
 - Agent 通过 discover 命中已绑定技能 → `skill_select_tool` 加载 SOP 后执行
 - 严禁 append 非 Turn1 schema 到 bind_tools（框架 11.1 prefix cache 底线）
 
-### 11.3 工具推荐系统 ✅ 已实现
+### 11.3 工具推荐系统
 
 **实现**: `skill_search_tool` 统一搜索已绑定 Agent 的可搜索技能（命中结果以 `<BoundSkills>` XML 包裹）
 
@@ -558,7 +539,7 @@ SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 �
 - 跨语言写法 "概念/翻译/同义词"（如 "火车票/railway ticket/train booking"）；只写其他语言的词经常搜不到
 - 搜索命中后必须用 `skill_select_tool` 加载 SOP
 
-### 11.4 动态 Schema 修正 (Dynamic Schema Modification) ✅ 已实现
+### 11.4 动态 Schema 修正 (Dynamic Schema Modification)
 
 **实现**: `dynamic_schema_modifier` 钩子 (在 `ToolRegistry.resolve()` 中调用) + `with_dynamic_hints` 装饰器
 
@@ -591,7 +572,7 @@ SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 �
 4. **可验证**: 从理论假设到实测数据
 5. **用户友好**: 从技术术语到直观可视化
 
-**最终目标**: 让每个用户都能轻松配置出最优的工具集，达到"零幻觉调用"的极致准确度。
+**最终目标**: 让每个用户都能轻松配置出最优的工具集，降低工具误选与误调用。
 
 ---
 

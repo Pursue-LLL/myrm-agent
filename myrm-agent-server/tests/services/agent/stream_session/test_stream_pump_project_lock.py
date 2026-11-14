@@ -212,9 +212,9 @@ async def test_cancel_while_waiting_aborts_acquire_without_releasing_holder(
 ):
     """Cancel while queued on a held lock aborts promptly and must not release the holder.
 
-    Regression guard: pump's finally used to call release(project_id) unconditionally,
-    which would steal the project lock from the agent that actually owns it and let
-    a third agent run concurrently on the same workspace.
+    The pump's cleanup releases the project lock only when this run acquired it:
+    releasing unconditionally would steal the lock from the agent that actually owns it
+    and let a third agent run concurrently on the same workspace.
     """
     orch = ProjectOrchestrator()
     await orch.acquire("proj-1")  # 另一 agent 持有锁

@@ -1,4 +1,4 @@
-"""Built-in agents that used to carry a communication style now carry its text in their system prompt."""
+"""Built-in agents that carry a communication style carry its text in their system prompt."""
 
 from __future__ import annotations
 

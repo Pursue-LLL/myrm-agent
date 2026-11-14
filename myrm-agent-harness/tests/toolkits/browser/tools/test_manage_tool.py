@@ -352,8 +352,8 @@ async def test_browser_manage_delete_session_no_domain(mock_session: MagicMock) 
 
 
 @pytest.mark.asyncio
-async def test_browser_manage_wait_for_user_removed(mock_session: MagicMock) -> None:
-    """wait_for_user was removed; use browser_ask_human_tool instead."""
+async def test_browser_manage_has_no_wait_for_user(mock_session: MagicMock) -> None:
+    """There is no wait_for_user tool; use browser_ask_human_tool instead."""
     tools = create_browser_tools(mock_session)
     manage_tool = next(t for t in tools if t.name == "browser_manage_tool")
 

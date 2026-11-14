@@ -121,8 +121,8 @@ async def test_unresolved_frontmatter_deps_are_dropped(temp_db_path):
 async def test_edges_use_skill_ids_when_name_differs_from_id(temp_db_path):
     """Impact queries must key by skill_id even when a skill's name differs.
 
-    Regression: edges used to store the resolved *name* while impact queries
-    matched on skill_id, so dependents silently disappeared for skills whose
+    Edges store the skill_id, not the resolved *name*: impact queries match on
+    skill_id, so storing the name would silently drop dependents of skills whose
     name differs from their ID (e.g. prefixed ``local::`` IDs).
     """
     store = SkillStore(db_path=temp_db_path)

@@ -2,7 +2,7 @@
 
 A link click, a form submit or a script redirect loads a new document without any call to `navigate()`, so nothing
 resets the snapshot cache. The observer that tells "nothing changed" lives inside the page and is gone with the old
-document: the next snapshot used to answer "No DOM changes detected" for a page that was no longer there. Run with:
+document: the next snapshot must not answer "No DOM changes detected" for a page that is no longer there. Run with:
 `pytest -m integration tests/toolkits/browser/test_snapshot_after_navigation_integration.py`.
 """
 

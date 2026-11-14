@@ -1,7 +1,7 @@
 """A knowledge save refuses an importance outside the 0-1 scale, says why, and holds nothing back.
 
-An update already answers a bad score with the reason (``test_update_memory_boundary``). A save of the same score
-used to fall through to the generic failure, which gave the model nothing to retry with. The score is checked before
+An update answers a bad score with the reason (``test_update_memory_boundary``), and so does a save of the same
+score: a generic failure would give the model nothing to retry with. The score is checked before
 the session buffer, the approval queue and the store, so a refused save leaves nothing to flush or approve; a category
 that ignores the score never fails on it.
 """

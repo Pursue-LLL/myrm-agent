@@ -33,5 +33,5 @@ LLM tools: **55** (Harness 50: CORE 8 + HIGH_PRIORITY 5 + EXTENDED 37; External 
 | env_dependency.py | Core | Action Tool 宿主/沙箱环境依赖规格清单（`TOOL_ENV_DEPENDENCY_REGISTRY`）与双向相关性探针/自检矩阵引擎。 | ✅ |
 | types.py | Config | Core types for the tool management subsystem. ``ToolSnapshot.builtin_tool_id`` maps GUI togglable products. | ✅ |
 | DEFAULT_AGENT_TOKEN_INVENTORY.md | Doc | 默认 Agent Turn1 token 清单；§4.18 控制面；P3 重测见 `scripts/measure_turn1_token_inventory.py` | — |
-| TOOL_DESIGN_STRATEGY.md | Doc | 工具设计策略完整指南 — 工具层级/核心外围/ASCS/框架vs业务边界/Token预算/竞品对比 | — |
+| TOOL_DESIGN_STRATEGY.md | Doc | 工具设计策略完整指南 — 工具层级/核心外围/ASCS/框架vs业务边界/Token预算/设计取舍 | — |
 

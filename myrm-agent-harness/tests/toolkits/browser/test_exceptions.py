@@ -1,8 +1,8 @@
 """Redaction guarantees for the browser exception hierarchy.
 
 Covers credential masking at construction (str(e) is the propagation path to the
-LLM) and in format_for_llm(), plus the RefNotFoundError URL-change suggestion
-that previously surfaced full query strings.
+LLM) and in format_for_llm(), plus the RefNotFoundError URL-change suggestion,
+which must not surface full query strings.
 """
 
 from __future__ import annotations

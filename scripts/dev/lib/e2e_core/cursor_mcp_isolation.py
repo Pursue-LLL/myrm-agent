@@ -608,8 +608,8 @@ def probe_chrome_agent_launchagent() -> LiveProbe:
 def probe_chrome_agent_install() -> LiveProbe:
     """Machine-level bundle contract: `current` symlink, sha stamp, plist path.
 
-    Guards against the old failure mode where the LaunchAgent pointed into a
-    checkout (deleting the repo killed the Agent browser) and against version
+    Guards against a LaunchAgent that points into a
+    checkout (deleting the repo would kill the Agent browser) and against version
     drift between the active bundle and the recorded install.
     """
     install_base = _real_home() / ".local/lib/myrm-chrome-agent"

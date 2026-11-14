@@ -6,8 +6,8 @@ Covers the full request chain for ``POST /trigger-pattern-discovery`` and
 - POST follows the real router -> memory_guardian delegate ->
   ``pattern_discovery_trigger.run_pattern_discovery_once`` chain.
 - WebUI default model is not configured in the test DB, so the real
-  ``load_platform_llm`` fast-path ends in a graceful skip —
-  this is the exact behavior that revived the previously dead feature path.
+  ``load_platform_llm`` fast-path ends in a graceful skip: the run ends
+  cleanly instead of failing when no model is configured.
 - With an injected harness result, the real ledger write is persisted and
   read back through ``GET /pattern-discoveries`` with a user-readable,
   non-technical summary (no ``duration_ms`` leakage).

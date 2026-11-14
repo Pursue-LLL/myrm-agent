@@ -640,11 +640,10 @@ def _reusable_verify_backend(*, monorepo: Path) -> VerifyBackendSeedResult | Non
         if _provider_ready(api_base) and _retrieval_ready(api_base):
             return result
         # A reused runtime may predate the provider seed (for example an orphan
-        # adopted after the provider config was cleared), and unlike the spawn
-        # path this branch used to skip seeding entirely. LIVE tests then ran on
-        # a backend with no LLM provider, so the agent never mounted
-        # bash_code_execute_tool and allowlist never recorded a pattern row.
-        # Mirror the spawn path: seed before lending the backend out.
+        # adopted after the provider config was cleared). Without seeding, LIVE
+        # tests would run on a backend with no LLM provider, so the agent would never
+        # mount bash_code_execute_tool and allowlist would never record a pattern row.
+        # Seed before lending the backend out, exactly as the spawn path does.
         ensure_verify_backend_providers(api_base=api_base, monorepo=monorepo)
         best = best or result
     return best

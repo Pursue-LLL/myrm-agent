@@ -662,38 +662,23 @@ registry.register_all(app)
 
 **已实现的框架**：FastAPI（可选依赖 `[fastapi]`）。其他 Web 框架可自行实现 `RouteRegistrar` / 适配器并注入。
 
-### 9.5 控制平面层建议
-
-**重要**：控制平面的webhook endpoints建议**不使用** Custom Routes Registration。
-
-**理由**：
-1. **职责不同**：控制平面webhook是Pipeline消息路由入口（转发器），不是channel自治endpoint
-2. **低频变化**：Pipeline routes变化频率极低（一年可能1次），硬编码更简洁
-3. **避免过度设计**：不为低频场景引入复杂性
-
-**推荐实现**：
-- 控制平面：硬编码Pipeline routes
-- 业务层（sandbox内）：使用Custom Routes Registration（高价值）
-
-### 9.6 Rate Limiting架构说明
+### 9.5 Rate Limiting架构说明
 
 **Agent-in-Sandbox架构下的Rate Limiting策略**：
 
-#### 三层策略
+#### 默认策略
 
 | 层级 | Rate Limiting实现 | 架构原理 |
 |------|------------------|---------|
-| **渠道框架层** | `RateLimiterProtocol` + `NoOpRateLimiter` / `InMemoryRateLimiter` | 提供Protocol抽象和多种开箱即用实现 |
+| **渠道框架层** | `RateLimiterProtocol` + `NoOpRateLimiter` / `InMemoryRateLimiter` | 提供Protocol抽象和开箱即用实现 |
 | **业务层（server）** | `NoOpRateLimiter`（默认注入） | Agent-in-Sandbox单用户环境，无需限流 |
-| **控制平面（plane）** | IP-based rate limiting（实际保护） | Webhook入口处保护，足够 |
 
 #### 为什么Server层默认使用NoOpRateLimiter？
 
 **Agent-in-Sandbox架构特点**：
 - 每个用户独立sandbox
 - 每个sandbox运行独立Server实例（单用户环境）
-- Server层rate limiting无意义（只有一个用户）
-- 真正的资源限制由控制平面的ResourceQuota + cgroup处理
+- Server层rate limiting对单个用户没有意义
 
 #### RouteMetadata.rate_limit_policy的用途
 
@@ -701,13 +686,6 @@ registry.register_all(app)
 2. **业务层依赖注入**：业务层根据部署模式选择合适的RateLimiterProtocol实现：
    - Agent-in-Sandbox（默认）：`NoOpRateLimiter`
    - 多用户Server：`InMemoryRateLimiter`或自定义Redis实现
-3. **控制平面参考**：控制平面可读取此配置调整webhook限流策略
-
-#### 控制平面Rate Limiting实现
-
-- **IP-based限流**：Webhook入口处按IP地址限流（默认120 requests/60s）
-- **全局RateLimiter类**：支持user/sandbox/api三种scope，使用Redis存储计数器
-- **足够保护**：在系统入口处保护，避免abuse
 
 #### RateLimiterProtocol实现
 
@@ -719,9 +697,7 @@ registry.register_all(app)
 **业务层可选**：
 - 自定义Redis实现（分布式多实例场景）
 
-**重要**：这是合理的架构设计，Protocol-based依赖注入，而不是功能缺失。
-
-### 9.7 收益
+### 9.6 收益
 
 - ✅ 框架可移植性：Protocol 抽象 + FastAPI 开箱即用实现
 - ✅ Channel自包含：逻辑+HTTP端点在一起
@@ -753,7 +729,6 @@ registry.register_all(app)
 | **业务层（Frontend）** | Settings 渠道 Section | `settings/sections/integration/channels/*ConfigCard.tsx` — 各 Provider QR/OAuth/配对 UI |
 | | API服务层 | `channels.ts` API调用封装 |
 | | TypeScript类型 | 完整类型定义（100%匹配后端） |
-| **控制平面（SaaS）** | Redis Store | 实现`LoginSessionStoreProtocol`（多租户） |
 
 ### 10.3 Login Methods
 
@@ -883,16 +858,11 @@ Frontend ← SSE stream ← AsyncIterator[LoginEvent]
 - `LoginSessionStoreProtocol` + `InMemorySessionStore`（临时会话）
 - `CredentialsStore`（AES-256加密文件存储，单用户sandbox）
 
-**控制平面（SaaS扩展）**：
-- Redis实现`LoginSessionStoreProtocol`（多租户会话）
-- Redis加密凭证管理（租户隔离）
+宿主可以注入自己的 `LoginSessionStoreProtocol` 实现（例如多实例部署用的共享存储）；框架不自带这类实现。
 
-#### 部署模式
+#### 默认部署
 
-| 模式 | SessionStore | CredentialsStore | 位置 |
-|------|--------------|------------------|------|
-| **Agent-in-Sandbox（Local/Tauri）** | `InMemorySessionStore` | AES-256加密本地文件（状态目录下的 `credentials.json`） | 框架层 |
-| **SaaS多租户** | Redis | Redis（加密存储，租户隔离） | 控制平面 |
+Agent-in-Sandbox（Local/Tauri）：`InMemorySessionStore` 保存临时会话，`CredentialsStore` 把凭证以 AES-256 加密写入状态目录下的 `credentials.json`。
 
 ### 10.7 安全性
 
@@ -901,22 +871,7 @@ Frontend ← SSE stream ← AsyncIterator[LoginEvent]
 3. **Session TTL**：Login session默认5分钟过期
 4. **HTTPS Only**：生产环境强制HTTPS（OAuth2 callback必须）
 
-### 10.8 竞品对比
-
-| 特性 | 我们 | FastClaw | HappyCappy | Onyx | AutoResearchClaw |
-|------|------|----------|------------|------|------------------|
-| **Protocol抽象** | ✅ 完整Protocol定义 | ❌ 无抽象 | ❌ 无抽象 | ❌ 无抽象 | ❌ 无抽象 |
-| **Type Safety** | ✅ Enum + Dataclass | ⚠️ 字符串状态 | ⚠️ 字符串状态 | ⚠️ 字符串状态 | ⚠️ 字符串状态 |
-| **Helper Classes** | ✅ QR + OAuth2 | ❌ 无 | ❌ 无 | ❌ 无 | ❌ 无 |
-| **SSE Stream** | ✅ 实时状态推送 | ⚠️ 轮询 | ⚠️ 轮询 | ⚠️ 轮询 | ❌ 无UI |
-| **多Method支持** | ✅ 5种（QR/OAuth2/Token/Password/SSO） | ⚠️ 仅QR | ⚠️ 仅QR | ⚠️ QR+Token | ❌ 无 |
-| **加密存储** | ✅ AES-256 + PBKDF2 | ❌ 明文 | ❌ 明文 | ⚠️ Base64 | ❌ 无持久化 |
-| **统一UI** | ✅ Settings Provider 配置卡 | ❌ Channel特定 | ❌ Channel特定 | ❌ Channel特定 | ❌ 无UI |
-| **SaaS支持** | ✅ Redis多租户 | ❌ 单用户 | ❌ 单用户 | ⚠️ 部分 | ❌ 单用户 |
-
-**评分**：我们 10/10，竞品平均 5.5/10（+4.5分）🚀
-
-### 10.9 前端实现
+### 10.8 前端实现
 
 #### 技术栈
 
@@ -974,13 +929,13 @@ Frontend ← SSE stream ← AsyncIterator[LoginEvent]
 
 用户在 WebUI **Settings → 通信** 打开对应 Provider 配置卡完成登录；后端 REST/SSE 由 `app/api/channels/login.py` 等与各 ConfigCard 对接。无需额外页面级 Dialog 包装。
 
-### 10.10 最佳实践
+### 10.9 最佳实践
 
 1. **Channel实现**：继承BaseChannel，设置`supported_login_methods`，实现`start_login()`
 2. **使用Helper**：优先使用`QRCodeLoginHelper`和`OAuth2LoginHelper`
 3. **错误处理**：区分`ChannelAuthError`（平台错误）和`TimeoutError`（超时）
 4. **前端集成**：使用SSE订阅状态，自动更新UI
-5. **生产部署**：SaaS模式使用Redis，启用HTTPS
+5. **生产部署**：多实例部署时注入共享存储实现（如 Redis），并启用HTTPS
 
 ---
 
@@ -1078,12 +1033,11 @@ logger.info("Thread tracker: size=%d hit_rate=%.2f%%", metrics.current_size, met
 | `RouteRegistrar` | HTTP路由注册 | `FastAPIRouteRegistrar` |
 | `RequestAdapter` / `ResponseAdapter` | 请求/响应适配 | `FastAPIRequestAdapter` / `FastAPIResponseAdapter` |
 | `AsyncLoginProtocol` | 异步登录流程 | `QRCodeLoginHelper` / `OAuth2LoginHelper` |
-| `LoginSessionStoreProtocol` | 登录会话管理 | `InMemorySessionStore` / Redis实现 |
+| `LoginSessionStoreProtocol` | 登录会话管理 | `InMemorySessionStore`（宿主可注入自己的实现） |
 
 ---
 
 ## 13. 参考资料
 
-- 竞品渠道能力全景分析：[§ 10.8 竞品对比](#108-竞品对比)
 - Rich Message 自动降级机制：[§ 3.3 MessageBus](#33-messagebus)
 - 业务层架构：[channel_bridge](core/channel_bridge/_ARCH.md)

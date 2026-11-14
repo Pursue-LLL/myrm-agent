@@ -334,7 +334,6 @@ class GeneralAgentRequest(BaseModel):
 
 - 让用户自行配置开启（隐私/性能考虑）
 - 前端UI toggle可随时开启/关闭
-- 未来可考虑默认开启（需产品决策）
 
 ### 4.5 技术细节
 
@@ -381,20 +380,7 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 - **Integration tests**：`test_conversation_integration.py`（双通道存储 + 检索）
 - **Coverage**：核心模块行覆盖率 ≥80%（`pyproject.toml` 的 `fail_under`，带 `--cov` 运行时生效）
 
-### 4.7 与竞品对比
-
-以下对比为 **定性**。若需在文档中对「自适应召回、检索成本或延迟」声称具体百分比，须在仓库内附上可重复的基准脚本或原始数据集与版本号——**本节不预设未核验的百分比**。
-
-| 维度               | MemPalace | MyrmAgent                         | 说明 |
-| ------------------ | --------------------- | --------------------------------- | ---- |
-| Verbatim 存储       | ✅                    | ✅（显式开启，默认关闭）            | —    |
-| Adaptive 查询      | ❌（文档视角）          | ✅（三路信号 + 阈值工程）           | Myrm Agent 可调节 |
-| Hybrid BM25+Vector | ❌                    | ✅（RRF）                         | 混合召回 |
-| 多语言 tokenization | ✅                   | ✅（统一 Unicode-aware 正则等）      | —    |
-| 框架扩展性         | ❌                    | ✅（Protocol 注入）               | 与 LangChain 类库类比 |
-| 生产可观测性       | ⚠️ 视上游版本而定      | ✅（框架内 OTEL 埋点取向）           | —    |
-
-### 4.8 安全扫描
+### 4.7 安全扫描
 
 **Verbatim Storage 的安全挑战：**
 
@@ -767,7 +753,7 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 **核心特性**：
 
 - **10 条核心规则**：防注入、穷尽提取、细节保留、时间精度、**No-Op Default (严格精度门控)**、第三人称、记录结果而非请求、简洁、主体归属隔离 (Attribution)、自我排除与出处（Self-Exclusion & Provenance）。
-- **No-Op Default (严格精度门控)**：彻底颠覆传统的高召回倾向，向大模型施加极其严厉的 `Strict Precision` 惩罚指令。默认返回空数组 `[]`，仅在存在高杠杆价值知识、明确用户约束时才允许提取。从源头阻断日常闲聊产生的碎片垃圾入库，保护长期上下文纯净度。
+- **No-Op Default (严格精度门控)**：不追求高召回，向大模型施加严格的 `Strict Precision` 约束指令。默认返回空数组 `[]`，仅在存在高杠杆价值知识、明确用户约束时才允许提取。从源头阻断日常闲聊产生的碎片垃圾入库，保护长期上下文纯净度。
 - **主体归属隔离 (Attribution)**：严格区分用户本人与第三方（家人、朋友、同事等），禁止将第三方的特征、疾病或偏好归因于用户本人。
 - **瞬态情绪过滤 (Transient State Filter)**：过滤掉短暂的情绪和心理状态（如“今天很焦虑”、“感觉很抑郁”），除非明确说明是慢性疾病，防止 AI 永久存储瞬态情绪。
 - **业务瞬态事实 L3 写入总闸 (Business Transient Fact Write Gate)**：`transient_fact_boundary.py` 提供双语 regex 启发式；`MemoryWriter.store/store_batch` 与 `MemoryManager.update_memory` 在持久化前统一过滤 Semantic/Episodic 中的实时业务态（物流进度、账户余额、OTP、临时链接等），`memory_save_tool` 与 auto-extract 路径同样拦截；Profile/Procedural/ConversationMemory 豁免。拒绝以 `MemoryRejectedError`（`MemoryError` 子类，消息面向调用方，可原样呈现）抛出，工具层经 `write_failure_feedback` 原样转述给模型，Server 层映射为 HTTP 400。`update_memory` 对写入前即可判定的越界输入同样以 `MemoryRejectedError` 拒绝且不落任何数据：`importance` / `confidence` 必须在 0.0–1.0（模型层的读取区间，越界值一旦落库该记忆将无法再读出），不做钳制。knowledge 类的 `memory_save_tool` / MCP `memory_store` 对 `importance` 做同一检查（共用 `_internal/unit_interval.py` 的 `require_unit_interval`），在写会话缓冲、入审批队列、落库之前拒绝，回执形如 `Not saved: importance must be between 0.0 and 1.0 (got 8.0). Retry with a value in that range.`；其它类别忽略该参数，不会因它失败。
@@ -981,7 +967,7 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 废弃了传统的正则匹配，全面采用基于 LLM 的对话后抽取（`MemoryExtractor`）进行偏好提取与画像生成：
 1. **隐性偏好提取**：`MemoryExtractor` 在对话结束时，通过 Dialectic Reasoning（辩证推理）从对话中提取用户的显性喜好。
 2. **安全偏好写入 (Secure Persona Projection)**：抽取出的隐性偏好只走标准写入管道（审批队列 + 安全扫描），从不直写 Profile；`PreferenceStabilityStrategy` 对多轮观测做稳定性验证（Candidate → Provisional → Active），Profile 仅由用户确认的写入变更，确保外部内容无法通过单次对话污染 Profile。
-3. **Agent 认知注入**：`memory_context_middleware.py` 自动拦截并读取该画像与长期目标、隐性偏好，将其常驻注入到大模型的 System Prompt (`<Our Relationship & Your Persona>`) 中，彻底解决 Agent 认知致盲问题，且完美契合 Prompt Caching。
+3. **Agent 认知注入**：`memory_context_middleware.py` 自动拦截并读取该画像与长期目标、隐性偏好，将其常驻注入到大模型的 System Prompt (`<Our Relationship & Your Persona>`) 中，避免 Agent 对用户画像一无所知，且不破坏 Prompt Caching。
 4. **AGENT_SELF 信任隔离**：`MemoryWriter`（`_internal/write_service.py`）强制 AGENT_SELF 来源的 ProceduralMemory 不得拥有 CRITICAL 优先级（硬降级为 HIGH），防止 Agent 自生成规则占据免压缩位。
 
 ### 偏好记忆

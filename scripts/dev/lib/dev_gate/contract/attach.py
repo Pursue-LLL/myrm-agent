@@ -174,7 +174,7 @@ def attach_ui_liveness_probe_timeout_sec() -> float:
 # busy must not be read as "half dead". Wave leases are not the only load source: a solo
 # session on a host whose cores are already saturated sees the same seconds-long answers.
 # Measured 2026-10-17 (12 cores): `/` answered HTTP 200 in 0.67s idle, 8.11s and 23.29s at
-# load 55-65, while the old 8s cap aborted the probe and declared the UI stale.
+# load 55-65, so an 8s cap would abort the probe and declare the UI stale.
 ATTACH_UI_STALE_PROBE_BASE_SEC: Final[float] = 8.0
 ATTACH_UI_STALE_PROBE_MAX_SEC: Final[float] = 30.0
 # The "slow" band is a separate threshold on the same probe; it must stay under its budget.

@@ -2,8 +2,8 @@
 
 This lane is LIVE because it drives the real model: a conversation is opened, the user asks a question, the agent
 streams a reply, and only then does the switch get used. That ordering is what a user actually does — they finish a
-conversation, then decide to ask something privately — and it is also the state where the switch used to silently
-keep the old chat, because its row already existed as a normal one.
+conversation, then decide to ask something privately — and it is also the state where the switch must not silently
+keep the old chat, even though its row already exists as a normal one.
 
 Formal run::
 

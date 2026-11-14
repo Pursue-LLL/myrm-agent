@@ -2,7 +2,7 @@
 
 ## 1. 模块定位与职责边界
 本模块属于 `myrm-agent-harness` Agent 执行引擎的记忆系统能力子模块（`toolkits.memory.onboarding`）。
-针对新用户从其他 AI Agent 工具（如 Cursor、Claude Code、Codex、Hermes、OpenClaw）迁移接入 Myrm 时的“冷启动失忆与全量扫描慢”痛点，提供世界级的轻量滑动窗口关键帧采样、本地双轨零泄漏脱敏（正则 + 香农信息熵）与“初见报告（First Encounter Report）”结构化事实蒸馏引擎。
+针对新用户从其他 AI Agent 工具（如 Cursor、Claude Code、Codex、Hermes、OpenClaw）迁移接入 Myrm 时的“冷启动失忆与全量扫描慢”痛点，提供轻量滑动窗口关键帧采样、本地双轨零泄漏脱敏（正则 + 香农信息熵）与“初见报告（First Encounter Report）”结构化事实蒸馏引擎。
 
 ### 框架边界与定位
 - **执行引擎层（Harness）**：纯算法与模型层，提供多源适配器契约、首 2 尾 12 轮滑窗抽取、媒体剔除、字符截断、香农熵识别、事实分类提炼与 SHA-256 规范化指纹计算。

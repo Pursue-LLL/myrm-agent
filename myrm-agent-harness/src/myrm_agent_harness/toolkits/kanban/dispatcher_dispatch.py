@@ -183,8 +183,8 @@ class KanbanDispatcherDispatchMixin:
         """Execute a single task, absorbing bookkeeping failures.
 
         A failed write while recording a failure (SQLite lock contention under a burst of tasks)
-        used to escape here and surface as asyncio's "Task exception was never retrieved", which
-        buried the real cause under hundreds of stack traces. One line names the task instead.
+        must not escape here: it would surface as asyncio's "Task exception was never retrieved" and
+        bury the real cause under hundreds of stack traces. One line names the task instead.
         """
         try:
             await self._execute_task_inner(task_id)

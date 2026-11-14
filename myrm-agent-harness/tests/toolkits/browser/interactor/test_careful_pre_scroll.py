@@ -20,8 +20,8 @@ async def test_ensure_target_in_view_scrolls_nested_container(
 ) -> None:
     """A target clipped by an inner scroller wheels that scroller, not the page.
 
-    The geometry lies inside the page viewport (y=601) so the old zone check
-    wrongly treated it as in-view; the rendered probe reads it invisible and
+    The geometry lies inside the page viewport (y=601), so a zone check alone
+    would wrongly treat it as in-view; the rendered probe reads it invisible and
     scrolls the nested overflow:auto ancestor instead.
     """
     interactor = careful_interactor(mock_page, refs_map)

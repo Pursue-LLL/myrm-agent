@@ -1,8 +1,8 @@
 """Provider failures the shared classifier recognizes read from their own catalogue entries.
 
-An overloaded service, a safety filter, a rejected request and a WAF challenge used to reach the end user as the
-client library's raw exception text (``LLM error: <provider> API error 503: ...``, an HTML page for the challenge).
-The diagnosis words each of them in every shipped locale, and the families the engine already knew keep their
+An overloaded service, a safety filter, a rejected request and a WAF challenge reach the end user as a card, not as
+the client library's raw exception text (``LLM error: <provider> API error 503: ...``, an HTML page for the
+challenge). The diagnosis words each of them in every shipped locale, and the engine's keyword families keep their
 precedence. A rejected request also tells what the provider objected to, so a mistyped model name or an invalid
 parameter can be fixed from the card.
 """

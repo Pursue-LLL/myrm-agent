@@ -11,9 +11,7 @@ from myrm_agent_harness.agent.tool_management.tool_layers import (
 
 class TestToolLayer:
     def test_layer_ordering(self):
-        assert (
-            ToolLayer.CORE < ToolLayer.HIGH_PRIORITY < ToolLayer.EXTENDED < ToolLayer.EXTERNAL
-        )
+        assert ToolLayer.CORE < ToolLayer.HIGH_PRIORITY < ToolLayer.EXTENDED < ToolLayer.EXTERNAL
 
     def test_layer_values(self):
         assert ToolLayer.CORE == 1
@@ -56,9 +54,7 @@ class TestGetToolLayer:
             "browser_navigate_tool",
         ]
         for tool in extended_tools:
-            assert (
-                get_tool_layer(tool) == ToolLayer.EXTENDED
-            ), f"{tool} should be EXTENDED"
+            assert get_tool_layer(tool) == ToolLayer.EXTENDED, f"{tool} should be EXTENDED"
 
     def test_unknown_tool_defaults_to_external(self):
         assert get_tool_layer("totally_unknown_tool") == ToolLayer.EXTERNAL
@@ -72,7 +68,7 @@ class TestGetToolLayer:
         assert "knowledge_tool" not in _TOOL_LAYERS
 
     def test_code_search_tool_not_registered(self):
-        """Semantic code_search was removed; workspace exploration uses grep/glob."""
+        """There is no semantic code_search tool; workspace exploration uses grep/glob."""
         assert "code_search_tool" not in _TOOL_LAYERS
 
     def test_llm_map_tool_not_registered(self):
@@ -96,10 +92,12 @@ class TestRegisterToolLayer:
     def test_register_tool_layers_batch(self):
         from myrm_agent_harness.agent.tool_management.tool_layers import register_tool_layers
 
-        register_tool_layers({
-            "test_batch_tool_1": ToolLayer.HIGH_PRIORITY,
-            "test_batch_tool_2": ToolLayer.EXTERNAL,
-        })
+        register_tool_layers(
+            {
+                "test_batch_tool_1": ToolLayer.HIGH_PRIORITY,
+                "test_batch_tool_2": ToolLayer.EXTERNAL,
+            }
+        )
         assert get_tool_layer("test_batch_tool_1") == ToolLayer.HIGH_PRIORITY
         assert get_tool_layer("test_batch_tool_2") == ToolLayer.EXTERNAL
         del _TOOL_LAYERS["test_batch_tool_1"]
@@ -108,12 +106,13 @@ class TestRegisterToolLayer:
     def test_tool_registry_register_external_layer_specs(self):
         from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 
-        ToolRegistry.register_external_layer_specs({
-            "test_registry_ext_tool": ToolLayer.HIGH_PRIORITY,
-        })
+        ToolRegistry.register_external_layer_specs(
+            {
+                "test_registry_ext_tool": ToolLayer.HIGH_PRIORITY,
+            }
+        )
         assert get_tool_layer("test_registry_ext_tool") == ToolLayer.HIGH_PRIORITY
         del _TOOL_LAYERS["test_registry_ext_tool"]
-
 
 
 class TestHighPriorityLayerSortKey:
@@ -124,9 +123,7 @@ class TestHighPriorityLayerSortKey:
         from myrm_agent_harness.agent.tool_management.types import ToolSource
 
         def _tool(name: str) -> StructuredTool:
-            return StructuredTool.from_function(
-                lambda: None, name=name, description="d"
-            )
+            return StructuredTool.from_function(lambda: None, name=name, description="d")
 
         reg = ToolRegistry()
         for name in (
@@ -142,4 +139,3 @@ class TestHighPriorityLayerSortKey:
         assert names.index("web_search_tool") < names.index("memory_search_tool")
         assert names.index("web_search_tool") < names.index("memory_save_tool")
         assert names.index("memory_save_tool") < names.index("skill_select_tool")
-

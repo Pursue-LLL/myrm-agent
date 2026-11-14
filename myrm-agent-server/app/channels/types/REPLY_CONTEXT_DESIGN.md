@@ -1,400 +1,82 @@
-# Reply/Quote Context Design (Universal Structured Protocol)
+# Reply/Quote Context (Universal Structured Protocol)
 
 ## Overview
 
-Framework-level structured reply/quote mechanism enabling LLMs to understand reply relationships without text flattening.
+A reply or quote travels as structured data on `InboundMessage.reply_to`, so the model knows which earlier message a user is answering without the quote being flattened into the text.
 
-**Supported channels**: WeCom, Telegram, Feishu, Discord, Slack, WhatsApp, OneBot, iMessage  
-**Core type**: `ReplyContext` dataclass (immutable, frozen, slotted)  
-**Advantage**: Structured data > flat string concat (competitor approach)
+- **Type**: `ReplyContext` in `messages.py` — frozen, slotted dataclass: `message_id`, `content`, `media: tuple[MediaAttachment, ...]`, `sender_id`, `sender_name`, `timestamp`.
+- **Carried by**: `InboundMessage.reply_to: ReplyContext | None`, next to `reply_to_id`, the plain id a channel uses to address a native reply on the way out.
+- **Persisted as**: `ReplyContextWire` (`inbound_wire.py`); the inbound log stores it and a replayed message keeps its quote.
+- **Why structured**: attachments stay attached, the parser does not cut the quote, sender and time survive, and the model gets an unambiguous split between the quote and the user's own words.
 
----
+Providers that fill `reply_to`: WeCom, Telegram, Feishu, Discord, Slack, WhatsApp and OneBot. iMessage (BlueBubbles) sets `reply_to_id` only.
 
-## Design Philosophy
+## Providers
 
-### Problem: Competitor's Flat String Approach
+| Channel | Source | Fetch | Content | Media | Sender / time | Code |
+|---------|--------|-------|---------|-------|---------------|------|
+| WeCom | `body["quote"]`: text, image, file, voice, video, location, link, mixed | none (embedded) | text parts joined by newlines; the same `_parse_msg_item` reads the message itself | one per item | none | `wecom/aibot_inbound.py::_parse_quoted_message` |
+| Telegram | `reply_to_message` | none | text, else caption, else the sticker emoji | photo, document, video, audio/voice, sticker | id, name (first and last name, else username), `date` | `telegram/inbound_message.py::_parse_reply_to_message` |
+| Feishu | `parent_id` | `get_message` API | extracted message text | image, file, audio, media (video) | `open_id`, name through the contact API (fail-open), `create_time` | `feishu/inbound.py::_fetch_reply_context` |
+| Discord | `message.reference.resolved` | none | message text plus embed description or title | attachments (`_extract_media`) | author id and name, `created_at` | `discord/inbound.py::_parse_reply_context` |
+| Slack | `thread_ts` | `conversations.history`, cached per `channel:thread_ts` with a TTL and LRU eviction | original text, mention tokens kept for the auto-reply check | files by mimetype: image, video, audio, else document | user id, name through `users.info`, `ts` | `slack/context.py::_fetch_thread_parent` |
+| WhatsApp | `quotedMessage` of the bridge event | none | quoted text | none | id (phone-number JID preferred over LID), name; no time | `whatsapp/inbound.py` |
+| OneBot | `reply` segment | none | empty: only the id is read, the content would need an extra API call | none | none | `onebot/channel.py` |
 
-```python
-# Competitor (CoPaw, etc.): Flat string concatenation
-content = f"> {quoted_text[:200]}\n{user_reply}"
-# Result: LLM must parse ambiguous text to understand quote vs reply
-```
+Pattern: **embedded** quotes (WeCom, Telegram, Discord, WhatsApp, OneBot) are parsed from the event; **reference-only** quotes (Feishu, Slack) are fetched through the platform API.
 
-**Issues**:
-- Media attachments lost in flattening
-- Quote content truncated (200 chars limit)
-- Ambiguity: LLM cannot reliably distinguish quote from reply
-- No sender/timestamp metadata preserved
-
-### Solution: Structured ReplyContext
-
-```python
-@dataclass(frozen=True, slots=True)
-class ReplyContext:
-    message_id: str
-    content: str
-    media: tuple[MediaAttachment, ...] = ()
-    sender_id: str | None = None
-    sender_name: str | None = None
-    timestamp: float | None = None
-```
-
-**Benefits**:
-- Native `MediaAttachment` tuple (no data loss)
-- Full content preserved (no truncation)
-- Unambiguous structure (LLM direct access)
-- Rich metadata (sender, timestamp) for context
-
----
-
-## InboundMessage Integration
-
-```python
-@dataclass(frozen=True, slots=True)
-class InboundMessage:
-    # ... existing fields ...
-    reply_to: ReplyContext | None = None  # ← New field
-```
-
-**LLM receives**:
-```python
-InboundMessage(
-    content="用户回复内容",
-    reply_to=ReplyContext(
-        message_id="quoted_msg_123",
-        content="被引用的原始消息",
-        media=(MediaAttachment(...), ...),
-        sender_id="sender_456",
-        sender_name="Alice",
-        timestamp=1712345678.9,
-    ),
-)
-```
-
----
-
-## Channel Implementations
-
-### 1. WeCom (`wecom/aibot_inbound.py`)
-
-**Mapping**: `body["quote"]` → `ReplyContext`
-
-```python
-def _parse_quoted_message(body: dict) -> ReplyContext | None:
-    """Parse WeCom quote field into ReplyContext.
-    
-    Supports: text, image, file, voice, video, location, link, mixed.
-    """
-    quote = body.get("quote")
-    if not quote:
-        return None
-    
-    # Handle mixed vs single quote
-    if quote_type == "mixed":
-        quoted_items = quote["mixed"]["msg_item"]
-    else:
-        quoted_items = [quote]
-    
-    # Parse each item using unified _parse_msg_item
-    for item in quoted_items:
-        content, media = self._parse_msg_item(item)
-        # Accumulate text_parts and media_list
-    
-    return ReplyContext(message_id=quoted_msg_id, content=..., media=...)
-```
-
-**Highlights**:
-- Unified `_parse_msg_item` (eliminates code duplication with primary message parsing)
-- 7 msgtype support + mixed (competitor: 4 types)
-- 32 lines (down from 76 via refactor)
-
----
-
-### 2. Telegram (`telegram/inbound_message.py`)
-
-**Mapping**: `msg.reply_to_message` → `ReplyContext`
-
-```python
-def _parse_reply_to_message(reply_msg: TgMessage) -> ReplyContext | None:
-    """Parse Telegram replied-to message into ReplyContext.
-    
-    Supports: text, caption, photo, document, video, audio/voice, sticker.
-    """
-    content = reply_msg.text or reply_msg.caption or reply_msg.sticker.emoji
-    
-    media_list = []
-    if reply_msg.photo:
-        media_list.append(MediaAttachment(media_type=MediaType.IMAGE))
-    # ... (document/video/audio/sticker)
-    
-    return ReplyContext(
-        message_id=str(reply_msg.message_id),
-        content=content.strip(),
-        media=tuple(media_list),
-        sender_id=str(reply_msg.from_user.id),
-        sender_name=reply_msg.from_user.display_name,
-        timestamp=float(reply_msg.date),
-    )
-```
-
-**Highlights**:
-- Complete Message object available (recursive `TgMessage` field)
-- Rich metadata: sender_id/name + timestamp preserved
-- 64 lines
-
----
-
-### 3. Feishu (`feishu/channel.py`)
-
-**Mapping**: `parent_id` → API fetch → `ReplyContext`
-
-```python
-async def _fetch_reply_context(parent_id: str) -> ReplyContext | None:
-    """Fetch parent message via Feishu API and parse into ReplyContext.
-    
-    Retrieves: text content + media (image/file/audio/media) + sender/timestamp.
-    """
-    msg_obj = await self._client.get_message(parent_id)
-    
-    text = extract_message_text(msg_obj)
-    
-    # Parse media by msg_type
-    media_list = []
-    if msg_obj["msg_type"] == "image":
-        media_list.append(MediaAttachment(media_type=MediaType.IMAGE))
-    # ... (file/audio/media)
-    
-    return ReplyContext(
-        message_id=parent_id,
-        content=text,
-        media=tuple(media_list),
-        sender_id=msg_obj["sender"]["sender_id"]["open_id"],
-        timestamp=float(msg_obj["create_time"]) / 1000.0,
-    )
-```
-
-**Highlights**:
-- API fetch required (parent_id is just a reference, not full message)
-- Replaces previous flat string `"> {text[:200]}"` with structured data
-- 47 lines (refactor from previous implementation)
-
----
-
-### 4. Discord (`discord/inbound.py`)
-
-**Mapping**: `message.reference.resolved` → `ReplyContext`
-
-```python
-def _parse_reply_context(self, message: discord.Message) -> tuple[ReplyContext | None, str | None]:
-    """Parse Discord message reference into ReplyContext.
-
-    Uses message.reference.resolved (discord.py's actual API).
-    resolved can be Message, DeletedReferencedMessage, or None.
-    Only a full Message yields rich context; otherwise falls back to ID-only.
-    """
-    ref = getattr(message, "reference", None)
-    if not ref or not getattr(ref, "message_id", None):
-        return None, None
-
-    reply_to_id = str(ref.message_id)
-    resolved = getattr(ref, "resolved", None)
-    if not isinstance(resolved, discord.Message):
-        return ReplyContext(message_id=reply_to_id, content=""), reply_to_id
-
-    content = resolved.content or ""
-    if resolved.embeds:
-        embed_texts = [e.description or e.title or "" for e in resolved.embeds]
-        ...
-    media_list = self._extract_media(resolved)
-    return ReplyContext(
-        message_id=str(resolved.id),
-        content=content.strip(),
-        media=media_list,
-        sender_id=str(resolved.author.id),
-        sender_name=resolved.author.display_name,
-        timestamp=resolved.created_at.timestamp(),
-    ), reply_to_id
-```
-
-**Highlights**:
-- Uses `reference.resolved` (discord.py's real API, not `referenced_message`)
-- `isinstance(resolved, discord.Message)` type guard (rejects `DeletedReferencedMessage`)
-- Embed content included in text (Discord-specific rich formatting)
-- Reuses `_extract_media()` for consistent attachment parsing
-- Returns `reply_to_id` alongside context for outbound reply reference
-- `_resolve_mentioned()` treats reply-to-bot as implicit mention (Telegram parity, human senders only — bots must use explicit @mention, see routing/_ARCH.md "Bot-Authored Ingress Guard")
-- Outbound: `reply_reference()` builds `MessageReference(message_id, channel_id, fail_if_not_exists=False)` for resilient reply chains (Discord rejects a reference without `channel_id`)
-
----
-
-### 5. Slack (`slack/context.py`)
-
-**Mapping**: `thread_ts` → API fetch → `ReplyContext`
-
-```python
-async def _fetch_thread_parent(channel_id: str, thread_ts: str) -> ReplyContext | None:
-    """Fetch Slack thread parent message and parse into ReplyContext.
-    
-    Uses conversations.history API with latest=thread_ts&limit=1.
-    Supports: text, file attachments (image/document/video/audio).
-    """
-    resp = await self._api.request(
-        "POST",
-        "conversations.history",
-        {
-            "channel": channel_id,
-            "latest": thread_ts,
-            "inclusive": True,
-            "limit": 1,
-        },
-    )
-    
-    parent_msg = resp["messages"][0]
-    content = strip_mention(parent_msg["text"], self._bot_user_id)
-    
-    # Parse files by mimetype
-    media_list = []
-    for f in parent_msg.get("files", []):
-        mimetype = f["mimetype"]
-        if mimetype.startswith("image/"):
-            media_list.append(MediaAttachment(media_type=MediaType.IMAGE, url=f["url_private"]))
-        # ... (video/audio/document)
-    
-    # Resolve sender name via users.info API
-    sender_id = parent_msg.get("user")
-    sender_name = await self._user_resolver.resolve_user(sender_id) if sender_id else None
-    
-    return ReplyContext(
-        message_id=thread_ts,
-        content=content,
-        media=tuple(media_list),
-        sender_id=sender_id,
-        sender_name=sender_name,  # ✅ Resolved via UserResolver
-        timestamp=float(parent_msg["ts"]),
-    )
-```
-
-**Highlights**:
-- API fetch required (thread_ts is timestamp, not full message)
-- Async refactor: `_parse_message_event` → `async def` (enables await)
-- 73 lines
-
----
-
-## Cross-Channel Comparison
-
-| Channel | Reply Field | API Fetch? | Media Support | Sender/Timestamp |
-|---------|-------------|-----------|---------------|------------------|
-| WeCom | `quote` dict | ❌ | 7 types + mixed | ⚠️ quote: sender 缺失 (AI Bot 无 corp 凭据) / 主消息: ✅ via contact API (自建应用) |
-| Telegram | `reply_to_message` | ❌ | 6 types | ✅ Full user object + date |
-| Feishu | `parent_id` | ✅ | 4 types | ✅ name (via contact API) |
-| Discord | `reference.resolved` | ❌ | Attachments + embeds | ✅ author + created_at |
-| Slack | `thread_ts` | ✅ | Files (all types) | ✅ user + ts + **name (via users.info)** |
-| WhatsApp | `quotedMessage` | ❌ | Text + media | ⚠️ via Baileys bridge |
-| OneBot | `reply_to` | ❌ | Text | ⚠️ Limited metadata |
-| iMessage | `reply_to` | ❌ | Text | ⚠️ Limited metadata |
-
-**Pattern**:
-- **Embedded reply data** (WeCom/Telegram/Discord/WhatsApp): Parse directly from event payload
-- **Reference-only** (Feishu/Slack): Fetch parent message via API
-
----
-
-## LLM Context Injection (Implemented)
-
-Reply context is injected into the LLM query via `build_channel_inbound_query()` in
-`app/core/channel_bridge/agent_executor/helpers.py`:
-
-```python
-# _format_reply_context() produces:
-# [Replying to Alice]: "Tomorrow is sunny, 28°C" [1 attachment(s)]
-# ---
-# What about the day after?
-
-# Full flow: InboundMessage.reply_to → _format_reply_context() → prepend to body → LLM sees it
-```
-
-**Key properties**:
-- `sender_name` included → LLM knows who sent the original
-- `media` hint included → LLM knows attachments existed
-- Content truncated to 500 chars → prevents context window bloat
-- `sanitize()` applied → prevents prompt injection from quoted content
-
-**vs 常见的最小实现**：只截取前 500 字符并拼成 `[Replying to: "…"]`，没有发送者名、附件提示与注入清洗；本实现三者俱全。
-
----
-
-## Edge Cases
+## Edge cases
 
 | Case | Handling |
 |------|----------|
-| No reply/quote field | `ReplyContext` = `None` (normal message) |
-| Empty content + no media | Return `None` (invalid reply) |
-| API fetch failure | Return `None` + debug log |
-| Referenced message deleted | Discord: ID-only fallback; Others: `None` |
-| Mixed quote with empty items | WeCom: Skip empty items, accumulate non-empty |
+| No reply or quote field | `reply_to` is `None` |
+| Quote with neither text nor media (WeCom, Telegram) | `None` |
+| WhatsApp quote without text | `None` |
+| Fetch fails or returns no message (Feishu, Slack) | `None`; a failure is logged at debug level |
+| Discord `resolved` is not a `Message` (deleted or not cached) | id-only `ReplyContext` (empty content) and `reply_to_id` |
+| OneBot `reply` segment | id-only `ReplyContext`; the content would need an extra API call that is not made |
+| WeCom `mixed` quote with empty items | empty items are skipped, the rest accumulates |
 
+## Discord details
+
+- `reference.resolved` is a `Message`, a `DeletedReferencedMessage` or `None`; only a `Message` yields rich context.
+- `_resolve_mentioned` treats a reply to the bot's own message as an implicit mention in groups, for human senders only. Another bot replying must @mention explicitly (see routing/_ARCH.md, "Bot-Authored Ingress Guard").
+- Outbound, `reply_reference()` (`discord/helpers.py`) builds `MessageReference(message_id, channel_id, fail_if_not_exists=False)`; Discord rejects a reference without `channel_id`. An id that cannot be addressed sends a plain post.
+
+## What the model sees
+
+`build_channel_inbound_query` (`app/core/channel_bridge/agent_executor/helpers.py`) puts the quote in front of the user's words through `_decorate_user_text`:
+
+```
+[Replying to Alice]: "Tomorrow is sunny, 28°C" [1 attachment(s)]
 ---
+What about the day after?
+```
 
-## Design Principles
+- The sender is `sender_name`, else `sender_id`, else "someone".
+- The quote is cut at 500 characters (`_REPLY_CONTENT_MAX_LEN`) and ends in `...`.
+- Sender and quote both pass `sanitize` (content boundary), so quoted text cannot inject instructions.
+- The attachment hint states how many attachments the quoted message had.
+- Group context and the delivery banner wrap the result.
 
-- Single responsibility: Each method parses one aspect
-- Type safety: `isinstance` checks + optional chaining
-- Defensive programming: Multiple layers of None guards
-- Maintainability: Future msgtype additions require single-point edit
+## Adding reply support to a channel
 
----
+1. Build a `ReplyContext` in the provider's inbound path, from the event or through a fetch; return `None` when there is nothing to quote.
+2. Pass it as `reply_to=` to `_build_inbound` (`channels/core/inbound_pipeline.py` forwards keyword arguments to `InboundMessage`), and set `reply_to_id` when the platform can address a native reply.
+3. Cover every media type the provider maps and the empty and failure cases in the provider's tests.
 
-## Testing Strategy
+## Tests
 
-**Unit tests**:
-- `tests/channels/providers/discord/test_discord_reply_context.py` — `_parse_reply_context` + `_resolve_mentioned`
+- `tests/channels/providers/wecom/test_wecom_aibot_extra.py` — `_parse_quoted_message`
 - `tests/channels/providers/telegram/test_telegram_parse_mentions_replies.py` — reply parsing
 - `tests/channels/providers/feishu/test_feishu_channel.py::TestFetchReplyContext` — parent-message fetch
-- `tests/channels/providers/slack/test_slack_thread_replies.py` — thread fetch
-- `tests/channels/providers/wecom/test_wecom_aibot_extra.py` — `_parse_quoted_message`
+- `tests/channels/providers/discord/test_discord_reply_context.py` — `_parse_reply_context`, `_resolve_mentioned`
+- `tests/channels/providers/slack/test_slack_thread_replies.py` — thread-parent fetch
+- `tests/channels/providers/whatsapp/test_whatsapp_channel.py` — quoted messages
+- `tests/channels/types/test_inbound_wire.py` — wire round trip
+- `tests/core/channel_bridge/test_channel_inbound_user_text.py` — the prefix the model sees
 
----
+## Related
 
-## Migration Guide (for developers extending channels)
-
-When adding reply/quote support to a new channel:
-
-1. **Import `ReplyContext`**:
-   ```python
-   from app.channels.types import ReplyContext
-   ```
-
-2. **Create parsing method**:
-   ```python
-   async def _parse_reply(self, ...) -> ReplyContext | None:
-       # Extract replied-to message (from event or API)
-       # Parse content, media, sender, timestamp
-       return ReplyContext(...) if valid else None
-   ```
-
-3. **Integrate with `_build_inbound`**:
-   ```python
-   reply_to = await self._parse_reply(...)
-   msg = self._build_inbound(
-       ...,
-       reply_to=reply_to,  # ← Pass structured context
-   )
-   ```
-
-4. **Handle edge cases**:
-   - No reply field → `None`
-   - Empty content + no media → `None`
-   - API failure → `None` + log
-
-5. **Add tests**: Unit test covering all supported media types and edge cases.
-
----
-
-## Related Documentation
-
-- WeCom Quote Parsing — 解析实现见 [wecom/_ARCH.md](../providers/wecom/_ARCH.md) 与 `wecom/channel.py`
-- Telegram Reply Parsing (planned)
-- Feishu Reply Fetch (planned) — 解析实现见 [feishu/parser.py](../providers/feishu/parser.py)
-- Discord Reference Parsing (planned)
-- Slack Thread Fetch (planned) — 线程追踪见 [slack/thread_tracker.py](../providers/slack/thread_tracker.py)
+- [wecom/_ARCH.md](../providers/wecom/_ARCH.md), [telegram/_ARCH.md](../providers/telegram/_ARCH.md), [feishu/_ARCH.md](../providers/feishu/_ARCH.md), [discord/_ARCH.md](../providers/discord/_ARCH.md), [slack/_ARCH.md](../providers/slack/_ARCH.md), [whatsapp/_ARCH.md](../providers/whatsapp/_ARCH.md), [onebot/_ARCH.md](../providers/onebot/_ARCH.md)
+- Feishu parsing helpers: [feishu/parser.py](../providers/feishu/parser.py); Slack thread tracking: [slack/thread_tracker.py](../providers/slack/thread_tracker.py)

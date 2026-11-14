@@ -1,10 +1,10 @@
-"""Real-component E2E: wiki archive gate thresholds (turns 10->5, content 500->300).
+"""Real-component E2E: wiki archive gate thresholds (5 turns, 300 characters of content).
 
 Runs the real MemoryToWikiArchiver pipeline (real LLM from .env.test, real
-publish_raw ingestion, tmp-isolated vault) and asserts the relaxed gate
-behavior at the old/new boundary: turns=6 passes the new gate (5) but would
-have been skipped by the old gate (10); content in [300, 500) passes the new
-content gate but would have been skipped by the old one.
+publish_raw ingestion, tmp-isolated vault) and asserts the gate behavior just
+above its thresholds: turns=6 passes the 5-turn gate and content in [300, 500)
+passes the 300-character gate, although a stricter 10-turn / 500-character gate
+would have skipped them.
 """
 
 from __future__ import annotations
@@ -70,8 +70,8 @@ class TestRealArchivePipeline:
     async def test_archive_at_relaxed_turn_and_content_gate(self, real_archiver: MemoryToWikiArchiver, tmp_path: Path) -> None:
         """turns=6 + content in [300, 500) archives via the real pipeline.
 
-        Both values sit in the band that the old gates (10 turns / 500 chars)
-        would have rejected, so a True result proves the relaxed gates are live.
+        Both values sit in the band that a stricter 10-turn / 500-character gate
+        would reject, so a True result proves the 5-turn / 300-character gates are live.
         """
         notes = _harness_notes(6, 320)
         content = real_archiver._format_memory_as_document(json.loads(notes))

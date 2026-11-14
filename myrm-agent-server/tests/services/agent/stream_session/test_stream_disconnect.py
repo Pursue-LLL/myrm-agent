@@ -203,8 +203,8 @@ async def test_sustained_disconnect_cancels_the_turn_once_the_grace_period_ends(
 @pytest.mark.asyncio
 async def test_turn_that_ends_while_the_client_is_polled_does_not_wait_for_the_client(monkeypatch: pytest.MonkeyPatch) -> None:
     """Starlette polls ``is_disconnected`` inside an already-cancelled anyio scope. A turn that ends in the loop step where that
-    scope delivers its cancellation used to leave the monitor polling, and the turn's exit waited for it while the client stayed
-    connected: the SSE stream stayed open after the answer was complete."""
+    scope delivers its cancellation must not leave the monitor polling: the turn's exit would wait for it while the client stays
+    connected, and the SSE stream would stay open after the answer is complete."""
     monkeypatch.setattr(stream_disconnect, "_CHECK_INTERVAL_SECONDS", _FAST_INTERVAL_SECONDS)
     polled = asyncio.Event()
 

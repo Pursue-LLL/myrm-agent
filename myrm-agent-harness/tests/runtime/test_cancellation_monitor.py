@@ -96,7 +96,7 @@ class TestStopWhenTheCheckerPollsInsideACancelledScope:
         loop = asyncio.get_running_loop()
         started = loop.time()
         try:
-            # A hang is cut off by this timeout, but the old stop() swallowed that cancel as well and returned normally, so the
+            # A hang is cut off by this timeout, and a stop() that swallowed that cancel too would return normally, so the
             # elapsed time is what tells a monitor that ended from one that was given up on.
             await asyncio.wait_for(monitor.stop(), timeout=2.0)
             elapsed = loop.time() - started

@@ -1,9 +1,9 @@
 """Shared Chrome E2E probes and helpers for the WorkBuddy Bench Eval Lab UI.
 
-Both WBBench E2E files used to duplicate the Radix-Tabs activation trick, the
-sources probe and the route-restore logic. Centralizing them here keeps the
-original scenarios and any new ones (extra subset downloads, refresh-after-
-download, disabled buttons) in lockstep.
+Both WBBench E2E files share the Radix-Tabs activation trick, the sources probe
+and the route-restore logic from here, which keeps the existing scenarios and any
+new ones (extra subset downloads, refresh-after-download, disabled buttons) in
+lockstep.
 
 Radix Tabs selects on pointerdown/mousedown, not the ``click`` event — every
 interaction dispatches the full pointer→mouse sequence. Probes are wrapped in

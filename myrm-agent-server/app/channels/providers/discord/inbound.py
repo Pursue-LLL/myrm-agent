@@ -116,9 +116,9 @@ class DiscordInboundMixin(BaseChannel):
 
         Returns (mentioned, explicit_mention).
         In group chats, also treats replying to the bot's own message as
-        an implicit mention — same pattern as Telegram [inbound.py:356-358],
-        human senders only: another bot replying to our message must not
-        wake the agent (bot-to-bot loop; see routing/_ARCH.md).
+        an implicit mention, the rule Telegram applies too, for human senders
+        only: another bot replying to our message must not wake the agent
+        (bot-to-bot loop; see routing/_ARCH.md).
         """
         if not is_group:
             return False, False

@@ -1,14 +1,13 @@
 # ACP 系统设计方案
 
-> 基于多项目调研汇总的可执行框架方案：Server 与 Runtime 分层，横切能力开箱即用。
+> Server 与 Runtime 分层，横切能力开箱即用。
 
 ---
 
 ## 1. 设计原则
 
 - **Runtime 独立层**：对外部 Agent 统一抽象为 `RuntimeBackend`（ACP / CLI）
-- **能力 ≥ 竞品**：覆盖主流竞品核心能力，在关键维度可对标或超出
-- **禁止过度设计**：每个组件有明确职责与参照价值
+- **禁止过度设计**：每个组件有明确职责
 - **Python 原生**：asyncio、Protocol、dataclass、StrEnum，无额外编排框架依赖
 - **Server 层稳定**：server/ 子目录（server.py / bridge.py / event_translator.py）专注 IDE ↔ 宿主 Agent 桥接
 
@@ -254,16 +253,8 @@ auth/
 
 **设计铁律**：
 - 鉴权态**绝不进入** Turn1 工具描述；`create_invoke_acp_agent_tool` 使用**固定 schema**（backend 列表仅在运行时 KeyError 返回值中暴露），不破坏提示词前缀缓存
-- 凭据路径环境感知 → 控制平面通过重定向 home（如 `CODEX_HOME` → 持久卷）即可实现 SaaS 持久化，harness 零耦合
+- 凭据路径环境感知：宿主通过重定向 home（如 `CODEX_HOME` → 持久卷）即可持久化凭据，harness 不依赖部署形态
 - 登录态检测基于文件，刻意**不做运行时硬预检**：跨平台凭据存储差异（如 macOS Keychain）会导致误判，CLI 自身的未登录错误以 `AUTH_FAILED`（Claude 的 `authentication_failed`、Codex 的 401）带着 CLI 原话准确透传，状态可见性由徽章承担
-
-**与竞品对比**：
-
-| 能力 | 竞品最佳 | 新方案 | 超越/平齐 |
-|------|---------|--------|----------|
-| 订阅登录 | pi-mono (`/login` 多 Provider) | login_session + 导入兜底 + 状态检测 | **平齐**（覆盖更鲁棒） |
-| 凭据持久化 | openhuman (加密 profile store) | 环境感知路径 + 控制平面重定向 | **超越**（部署解耦） |
-| 模式切换 | zeroclaw (Key/订阅二选一) | auth_mode + 双层 env 安全 | **超越**（注入密钥双重保险） |
 
 ---
 
@@ -320,21 +311,19 @@ acp/
 
 ---
 
-## 5. 与竞品对比
+## 5. 能力清单
 
-| 能力 | 竞品最佳 | 新方案 | 超越/平齐 |
-|------|---------|--------|----------|
-| 可插拔后端 | openclaw (AcpRuntime) | ACP + CLI + cancel() + get_info() | **超越** |
-| 权限管理 | craft-agents-oss (4模式) | 4模式 + 参数级通配符 + 缓存 | **超越** |
-| 事件流 | opencode (订阅系统) | EventBus + session 过滤 | **超越** |
-| Session 管理 | opencode (Fork/Resume) | Fork/Resume + TTL + 自动清理 | **超越** |
-| 后端检测 | AionUi (自动检测) | 自动检测 + 版本检测 | **超越** |
-| 事件类型 | nextclaw (34类型) | 9类型（精简完整，含 status_update） | **超越** |
-| 错误处理 | craft-agents-oss (错误标记) | 结构化错误码 + retryable | **超越** |
-| 安全模型 | ironclaw (纵深防御) | 环境清理 + 工具白名单 + 路径安全 | 平齐 |
-| MCP 集成 | craft-agents-oss (Session MCP) | Session MCP 注入 | 平齐 |
-
-**结果：7 项超越，2 项平齐，0 项落后**
+| 能力 | 实现 |
+|------|------|
+| 可插拔后端 | `RuntimeBackend` Protocol：ACP 与 CLI 两种实现，带 `cancel()` / `resume()` / `get_info()`（§3.1） |
+| 权限管理 | 4 种模式：`safe` / `ask` / `allow_all` / `bypass`（§3.5） |
+| 事件流 | EventBus + session 过滤（§3.4） |
+| 会话 | `persistent` / `oneshot` 两种会话模式；CLI 的 `--resume` id 可经 `CliSessionStore` 跨宿主进程重启保留（§3.7） |
+| 后端检测 | 路径检测 + 可选版本检测，进程级缓存（§3.6） |
+| 事件类型 | 9 种（含 `status_update`）（§3.2） |
+| 错误处理 | 结构化错误码 + `retryable`（§3.3） |
+| 安全模型 | 环境清理、白名单、工作目录内 FS 回调 |
+| MCP 集成 | Session MCP 注入，受 `supports_mcp` 能力守卫约束（§3.7） |
 
 ---
 
@@ -413,55 +402,39 @@ acp/
 
 ## 7. 不做的事情（避免过度设计）
 
-| 不做 | 原因 | 竞品参考 |
-|------|------|---------|
-| 容器化执行 | 不是 Sandbox，不需要 Docker 沙箱 | ironclaw, nanoclaw |
-| 15+ 后端 | ACP 与 CLI 两种后端已覆盖主流场景 | AionUi |
-| Transcript Hash Resume | ACP 协议已有 session resume | nullclaw |
-| 流式消息缓冲 | 场景不需要 120ms 批量写入 | AionUi |
-| Config Watcher | 配置变更通过重启处理 | craft-agents-oss |
-| Cron 集成 | 不在 ACP 模块职责范围 | AionUi |
-| NCP 自研协议 | ACP 已是行业标准 | nextclaw |
-| 三阶段执行 | plan/execute 在 Agent 层处理 | workany |
+| 不做 | 原因 |
+|------|------|
+| 容器化执行 | 不是 Sandbox，不需要 Docker 沙箱 |
+| 15+ 后端 | ACP 与 CLI 两种后端已覆盖主流场景 |
+| Transcript Hash Resume | ACP 协议已有 session resume |
+| 流式消息缓冲 | 场景不需要 120ms 批量写入 |
+| Config Watcher | 配置变更通过重启处理 |
+| Cron 集成 | 不在 ACP 模块职责范围 |
+| NCP 自研协议 | ACP 已是行业标准 |
+| 三阶段执行 | plan/execute 在 Agent 层处理 |
 
 ---
 
-## 8. 实施优先级
+## 8. 设计特性与已知局限
 
-| 优先级 | 模块 | 预估复杂度 | 依赖 |
-|--------|------|-----------|------|
-| P0 | types.py（核心类型） | 低 | 无 |
-| P0 | runtime/_base.py（基类） | 低 | types.py |
-| P0 | runtime/acp/runtime.py（ACP 后端） | 中 | types.py, _base.py |
-| P0 | runtime/pool.py（RuntimePool） | 低 | types.py |
-| P1 | core/event_bus.py（事件总线） | 低 | types.py |
-| P1 | runtime/cli/runtime.py（CLI 后端） | 中 | types.py, _base.py, core/event_bus.py |
-| P2 | core/backend_detector.py（自动检测） | 低 | 无 |
----
-
-## 9. 方案完美性评估
-
-### 评分：10/10
-
-**完美的原因**：
+**设计特性**：
 
 1. **Runtime 与 Server 解耦**：外部 Agent 集成不污染 IDE 桥接路径
-2. **能力全面对标竞品**：对比项中多数为超越或平齐
-3. **抽象层次稳定**：`RuntimeBackend` 统一 ACP 与 CLI 两种接入方式，扩展成本低
-4. **生命周期完整**：run_turn + cancel + resume + close + get_info
-5. **结构化错误**：错误码 + retryable + 详情字段
-6. **事件模型克制**：9 种事件类型覆盖委托与观测需求
-7. **安全默认**：环境清理、白名单、工作目录内 FS 回调
-8. **边界清晰**：明确非目标列表，避免范围蔓延
-9. **Server 层职责单一**：桥接与翻译与 Runtime 正交
-10. **依赖面小**：标准库 + 可选依赖 `agent-client-protocol` + 可选 Node 工具链
-11. **并发受控**：RuntimePool Semaphore
-12. **框架/业务可替换**：RuntimeBackend、CliSessionStore 等 Protocol 注入点明确
-13. **全链路取消**：CancellationToken 通过 ContextVar 传播，用户取消 → `cancel_hook` 在一个轮询周期内触发 → pool.cancel() → backend.cancel() → 进程组终止（SIGTERM → 宽限 → SIGKILL），不依赖外部 Agent 是否还在输出（含提示词尚未被 CLI 读走的时候，见「委派取消传播」）
-14. **超时/异常/放弃不留孤儿**：回合生成器由 aclosing 收尾，超时、异常与消费方提前放弃都会停掉存活进程
-15. **双层 Max Turns 安全护栏**：Layer 1（CLI 原生上限）让支持的 CLI 自行停止并如实报告，Layer 2（delegate_tool 工具调用计数）只兜底没有原生上限的后端
-16. **Agent 能力描述**：description 注入 tool description，帮助 LLM 在多 Agent 场景下做出正确的委派决策
-17. **MCP 注入能力守卫**：`supports_mcp` 在 `RuntimePool` 层统一校验，杜绝竞品（qwen-audio）「向不支持的 ACP 后端注入 MCP 导致 session 崩溃」同类缺陷；直接调用 `CliRuntime` 与 ACP Server 侧 host MCP 均显式告警，防御路径零静默降级
+2. **抽象层次稳定**：`RuntimeBackend` 统一 ACP 与 CLI 两种接入方式，扩展成本低
+3. **生命周期完整**：run_turn + cancel + resume + close + get_info
+4. **结构化错误**：错误码 + retryable + 详情字段
+5. **事件模型克制**：9 种事件类型覆盖委托与观测需求
+6. **安全默认**：环境清理、白名单、工作目录内 FS 回调
+7. **边界清晰**：明确非目标列表，避免范围蔓延
+8. **Server 层职责单一**：桥接与翻译与 Runtime 正交
+9. **依赖面小**：标准库 + 可选依赖 `agent-client-protocol` + 可选 Node 工具链
+10. **并发受控**：RuntimePool Semaphore
+11. **框架/业务可替换**：RuntimeBackend、CliSessionStore 等 Protocol 注入点明确
+12. **全链路取消**：CancellationToken 通过 ContextVar 传播，用户取消 → `cancel_hook` 在一个轮询周期内触发 → pool.cancel() → backend.cancel() → 进程组终止（SIGTERM → 宽限 → SIGKILL），不依赖外部 Agent 是否还在输出（含提示词尚未被 CLI 读走的时候，见「委派取消传播」）
+13. **超时/异常/放弃不留孤儿**：回合生成器由 aclosing 收尾，超时、异常与消费方提前放弃都会停掉存活进程
+14. **双层 Max Turns 安全护栏**：Layer 1（CLI 原生上限）让支持的 CLI 自行停止并如实报告，Layer 2（delegate_tool 工具调用计数）只兜底没有原生上限的后端
+15. **Agent 能力描述**：description 注入 tool description，帮助 LLM 在多 Agent 场景下做出正确的委派决策
+16. **MCP 注入能力守卫**：`supports_mcp` 在 `RuntimePool` 层统一校验，避免向不支持的 ACP 后端注入 MCP 导致 session 崩溃；直接调用 `CliRuntime` 与 ACP Server 侧 host MCP 均显式告警，防御路径零静默降级
 
 **已知局限**：
 - 外部 CLI 的权限语义受其自身命令行契约限制，无法表达交互式逐次询问

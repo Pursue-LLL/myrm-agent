@@ -137,7 +137,7 @@ Injected via server `DESKTOP_CONTROL_RULES` (`myrm-agent-server/app/ai_agents/pr
 
 ---
 
-## Known Limits (Roadmap Scope)
+## Known Limits
 
 | Item | Status |
 |------|--------|

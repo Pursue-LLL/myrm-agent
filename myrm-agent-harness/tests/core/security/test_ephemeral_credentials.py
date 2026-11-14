@@ -40,8 +40,8 @@ def test_a_credential_cannot_be_named_after_a_variable_that_makes_a_program_run_
         validate_credential_key(name)
 
 
-# Names the credential check used to let through although the rest of the code base already refused them.
-_FORMERLY_ACCEPTED = (
+# Code-injection names the credential check must keep refusing.
+_PINNED_BLOCKED_NAMES = (
     "DYLD_FRAMEWORK_PATH",
     "GIT_ASKPASS",
     "GIT_EDITOR",
@@ -59,8 +59,8 @@ _FORMERLY_ACCEPTED = (
 )
 
 
-@pytest.mark.parametrize("name", _FORMERLY_ACCEPTED)
-def test_the_names_the_credential_check_used_to_miss_are_refused(name: str) -> None:
+@pytest.mark.parametrize("name", _PINNED_BLOCKED_NAMES)
+def test_the_pinned_code_injection_names_are_refused(name: str) -> None:
     """Pinned by hand: deleting a name from the shared set must fail here, not shrink the derived test above."""
     with pytest.raises(ValueError, match="Blocked credential key"):
         validate_credential_key(name)

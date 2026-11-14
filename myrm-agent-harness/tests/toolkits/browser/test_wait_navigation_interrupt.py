@@ -2,7 +2,7 @@
 
 The probe evaluates inside the document it is waiting for. When that document navigates away (a script
 redirect, a late ``location`` assignment), patchright reports it as a bare ``Error`` - neither a timeout
-nor a ``RuntimeError`` - and it used to surface from ``navigate()``. The wait now re-arms on the new
+nor a ``RuntimeError`` - and it must not surface from ``navigate()``. The wait re-arms on the new
 document with the budget that is left, and every strategy shares that behaviour.
 """
 

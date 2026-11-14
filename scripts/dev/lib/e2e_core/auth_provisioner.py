@@ -385,8 +385,8 @@ def prepare_auth_template_for_attach(
 
     A runtime fingerprint changes when the workspace or Chrome E2E profile
     changes.  Waiting for an isolated context to attach before repairing that
-    metadata creates a circular gate: context creation requires READY, while
-    the old flow only resealed after attach.  Only an existing mismatch is
+    metadata would create a circular gate: context creation requires READY, so
+    the reseal runs before attach.  Only an existing mismatch is
     repaired; MISSING/EXPIRED templates remain fail-closed and require setup.
     """
     workspace = workspace_fingerprint.strip() or _resolve_workspace_fingerprint()

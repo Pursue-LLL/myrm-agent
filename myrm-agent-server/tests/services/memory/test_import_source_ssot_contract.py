@@ -1,9 +1,9 @@
 """Contract test: the canonical import source vocabulary drives every layer.
 
-Guards the class of drift that previously broke Pi previews (HTTP 422) and
-mislabeled Pi imports as Hermes: the migration manifest, the API request schema
-and the adapter dispatcher must all agree with
-``app.schemas.memory.import_sources``.
+Guards against drift between layers: a source that one of them does not know breaks
+previews with HTTP 422 or is mislabeled as Hermes (Pi is the case in point). The
+migration manifest, the API request schema and the adapter dispatcher must all agree
+with ``app.schemas.memory.import_sources``.
 """
 
 from __future__ import annotations

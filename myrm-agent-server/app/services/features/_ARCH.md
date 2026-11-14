@@ -7,12 +7,12 @@ Feature Flags 服务层。提供功能开关注册、状态查询和用户覆盖
 
 ## Consensus（独立 action mode）产品面状态
 
-> **当前：已移除。** MoA 能力通过 Agent 模式 + 模型 picker overlay 提供。
+> 没有独立的 Consensus 模式；MoA 能力通过 Agent 模式 + 模型 picker overlay 提供。
 
 | 项 | 当前状态 | SSOT |
 |---|---|---|
 | Feature Flag `consensus` | `FeatureStage.REMOVED` | `registration.py` |
-| SearchModeSelector「Consensus」 | 已移除 | `SearchModeSelector.tsx` |
+| SearchModeSelector「Consensus」 | 不提供 | `SearchModeSelector.tsx` |
 | 历史 overrides 中 `consensus: true` | `sanitize_user_overrides()` 清除 | `product_surface.py` |
 | legacy `action_mode=consensus` API | 400 + DB migrate → `agent` | `orchestrator.py` |
 | Harness `consensus/` engine | 保留（MoA overlay middleware 依赖） | harness |

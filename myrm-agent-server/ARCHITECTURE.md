@@ -202,7 +202,7 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 
 ### 0. 零开销本地模式 (Zero-Overhead Local Mode)
 
-在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境的极致轻量化：
+在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境轻量：
 
 - **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、 `tenacity>=9.1.4`（`vercel_client`）、`regex>=2026.4.4`（风险规则引擎对每条规则的单次匹配设时间预算，标准库 `re` 做不到）、`myrm-agent-harness[...,computer-use]`（`langchain`/`langchain-core` 与桌面键鼠 `pyautogui` 均经 harness 传递，server 不重复 pin）。可选 extra：`channels-sdk`、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3）/ `wechat-formatter`（`markdown`+`pygments`，WeChat 文章 skill）/ `voice-tts`（GPL-3.0）/ `local-stt`（faster-whisper，`voice/stt.py`）/ `data-viz`。Desktop PyInstaller、OSS `myrm setup`、dev `setup.sh` 均通过 `scripts/lib/server_sync_flags.sh` 排除 GPL/heavy optional extras（`MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时保留 matrix-e2ee）；Docker 官方镜像仍 `--all-extras` 全装。本地 STT：`uv sync --extra local-stt`；Edge TTS：`uv sync --extra voice-tts`；WeChat 排版 skill：`uv sync --extra wechat-formatter`（`--all-extras` 已含）。Web 聊天语音输入 local STT 未安装时 `/stt/transcribe` 503 + 前端 toast（`useSpeechInput`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。
 - **执行运行时绘图栈隔离**：`matplotlib`/`pandas`（`data-viz` extra 锁定 pandas 2.3.x，避开 yanked 的 3.0.4）收敛到 `[project.optional-dependencies] data-viz`，仅随镜像 `--all-extras` 安装，本地精简安装不引入；CJK/Emoji 字体与默认字体配置（`matplotlibrc`，经 `MATPLOTLIBRC` 加载）则烤入 `Dockerfile`（只读 rootfs + 非 root 无法运行时安装）；字体缓存经 `MPLCONFIGDIR=/tmp/matplotlib` 重定向到可写 tmpfs，避免只读 rootfs 下每个无状态执行子进程重建字体缓存。共同保障浏览器截图 / PDF / 数据图表的中日韩渲染保真。
@@ -289,7 +289,7 @@ Agent 级 `tool_gateway_config` 与 Harness `ToolGatewayConfig` 支持 Search / 
 
 ### 1. Core 模块独立性
 
-`app/core/` 是一个独立的包，未来会拆分为独立项目：
+`app/core/` 作为独立的包维护，边界规则：
 
 - ✅ Core 内部模块可以相互引用
 - ✅ Core 对外暴露公共 API
@@ -344,7 +344,7 @@ raise ToolError(
 
 ## 可视化桌面流 (Visual Desktop Streaming)
 
-为了提供“直播 AI 操作”的极致用户体验，Server 镜像内集成了完整的图形化和推流基础设施：
+为了提供“直播 AI 操作”的体验，Server 镜像内集成了完整的图形化和推流基础设施：
 
 - **基础设施**：`Dockerfile` 中安装了 `xvfb` (虚拟显示器)、`fluxbox` (窗口管理器)、`x11vnc` (VNC 服务)、`websockify` (WebSocket 代理)、`scrot`/`xdotool`/`xclip` (Computer Use 截图、键鼠交互与非 ASCII 文本剪贴板粘贴)、`x11-utils` (`xprop`/`xdpyinfo`：前台窗口类名、屏幕分辨率，缺失时分辨率会回退成错误的 1920x1080)、`at-spi2-core`/`dbus-x11` (无障碍服务)。
 - **启动编排**：`docker/entrypoint.sh` 监听 `VISUAL_DESKTOP=1` 环境变量。当开启时，按顺序拉起 Xvfb、D-Bus 会话总线、fluxbox、x11vnc、websockify，并 `export DISPLAY=:99` 使主服务进程继承图形显示。

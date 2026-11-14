@@ -79,9 +79,9 @@ def test_compiled_plan_declares_only_registered_tools(client: TestClient) -> Non
 def test_window_focus_produces_a_switch_step(client: TestClient) -> None:
     """A recorded window focus maps to an app-switch step, not a generic action step.
 
-    The recorder previously compared against ``app_switch``, a literal that does not exist in
-    ``RecordedActionType`` (which defines ``window_focus``), so a same-app window change fell
-    through to the generic ``Execute window_focus in ...`` branch.
+    The step type is chosen from ``window_focus``, the literal ``RecordedActionType`` defines;
+    comparing against a name it does not define (``app_switch``) would let a same-app window
+    change fall through to the generic ``Execute window_focus in ...`` branch.
     """
     session_id = f"focus_{int(time.time())}"
     _start(client, session_id)

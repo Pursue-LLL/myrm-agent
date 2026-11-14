@@ -25,7 +25,7 @@ create_skill_agent() OpenAPI path
   └─ schema > 15K tok (non direct_fc) → ConfigIncompleteError (openapi_direct_budget_exceeded)
 ```
 
-Routing policy and the evaluation of alternatives: `TOOL_DESIGN_STRATEGY.md` §2.5 and §10.2.
+Routing policy and why blind-call gateways and tool-level deferral are not offered: `TOOL_DESIGN_STRATEGY.md` §2.5 and §10.2.
 
 ## Verification
 

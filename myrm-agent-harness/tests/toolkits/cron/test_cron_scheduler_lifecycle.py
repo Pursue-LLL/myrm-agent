@@ -93,8 +93,8 @@ class TestStartStop:
     async def test_idle_scheduler_keeps_a_live_timer(self) -> None:
         """No due jobs must not look like a stopped scheduler to the health banner.
 
-        ``earliest_next_run`` returning None used to leave both handles unset, so
-        ``has_timer`` stayed False and the AppLayout banner announced "scheduler stopped"
+        ``earliest_next_run`` returning None must still leave a timer handle set: otherwise
+        ``has_timer`` is False and the AppLayout banner announces "scheduler stopped"
         on a perfectly healthy idle instance.
         """
         store = _make_store()

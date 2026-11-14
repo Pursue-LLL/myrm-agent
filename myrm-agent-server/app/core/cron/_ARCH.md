@@ -226,7 +226,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
   - 非空且非 `[SILENT]` 输出 → `confirm_follow_up_delivery(delivered=True)` → 标记 SENT
   - `[SILENT]` 或空输出 → `confirm_follow_up_delivery(delivered=False)` → snooze 6h
   - skip/fail → `reset_follow_up_delivery()`，保持 pending 下轮重试
-- **与 OpenClaw 差异**：OpenClaw silent heartbeat 将 commitment 标记为 dismissed；Myrm snooze 而非丢弃
+- **snooze 而非丢弃**：静默心跳不会把 commitment 标记为 dismissed，而是 snooze
 
 ### Output Hash 去重
 

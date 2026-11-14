@@ -2,7 +2,7 @@
 
 Verifies the API reads the same store as SnapshotInterceptor (factory-based,
 ShadowGit preferred) instead of hardcoding the local fallback store, which
-previously made interceptor-created snapshots invisible in Git environments.
+would make interceptor-created snapshots invisible in Git environments.
 """
 
 from __future__ import annotations

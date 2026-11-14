@@ -1,8 +1,7 @@
 """Tests for search_results_processor description field completeness.
 
 Verifies that search result snippets are NOT truncated when converted to
-Document metadata — the [:100] truncation was removed as part of the
-RAG traceability improvement.
+Document metadata, so RAG can trace an answer back to the full snippet.
 """
 
 from __future__ import annotations

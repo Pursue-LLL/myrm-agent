@@ -193,9 +193,9 @@ class TestDiscoverChromeEndpoint:
     ) -> None:
         """An E2E-bound run owns exactly one Chrome; the data-dir scan must stay off.
 
-        Regression: the scan used to run afterwards and could return a developer's own
-        Chrome (its stale ``DevToolsActivePort`` even passes the TCP probe), leaving the
-        pool connected to a foreign browser with no usable page.
+        The scan must not run at all: it could return a developer's own Chrome (its stale
+        ``DevToolsActivePort`` even passes the TCP probe), leaving the pool connected to a
+        foreign browser with no usable page.
         """
         monkeypatch.setenv("MYRM_CHROME_E2E", "1")
         mock_probe.return_value = "ws://127.0.0.1:9333/devtools/browser/abc"

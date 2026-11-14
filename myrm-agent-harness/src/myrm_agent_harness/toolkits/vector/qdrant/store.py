@@ -65,7 +65,7 @@ class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
         self._is_async = is_async
         # The embedded (local) client is a synchronous, thread-unsafe object; later
         # operations run it through ``asyncio.to_thread``, so concurrent searches
-        # and deletes used to interleave inside it and lose writes (a delete could
+        # and deletes would interleave inside it and lose writes (a delete could
         # silently keep the point). One lock per store serializes those calls.
         self._local_exec_lock = asyncio.Lock()
 

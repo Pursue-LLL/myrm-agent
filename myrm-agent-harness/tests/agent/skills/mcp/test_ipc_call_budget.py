@@ -135,8 +135,8 @@ def _loop_script(calls: int) -> str:
 async def test_real_client_scripts_in_one_chat_do_not_starve_each_other(monkeypatch: pytest.MonkeyPatch) -> None:
     """End to end over the wire: real generated client, separate OS processes, one chat.
 
-    Under the old per-chat counter the second script died at its 21st call and the third
-    could not make a single call.
+    A per-chat counter that never resets would kill the second script at its 21st call and
+    leave the third unable to make a single call.
     """
     monkeypatch.setattr(proxy_service_module, "get_mcp_skill_proxy_service", lambda: _FakeProxyService())
     scope = CallerScope(session_id=f"chat_{uuid.uuid4().hex}")

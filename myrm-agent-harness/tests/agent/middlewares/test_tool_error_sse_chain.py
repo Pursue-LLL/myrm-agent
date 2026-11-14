@@ -61,7 +61,7 @@ async def test_enum_category_object_reaches_sse_as_value_and_attributes_owner() 
 
     ``ToolErrorCategory`` is a bare ``str``-mixin enum and does not override
     ``__str__``, so the SSE layer must read ``.value`` itself. Passing the member
-    through verbatim used to leak ``'ToolErrorCategory.ESTOP'`` to the frontend and,
+    through verbatim would leak ``'ToolErrorCategory.ESTOP'`` to the frontend and,
     because ``classify_tool_fault_side``'s tables hold value-form strings, silently
     degrade every attribution to ``UNKNOWN``. This pins the object path that the
     ``.value``-only variants above structurally cannot cover.
@@ -149,4 +149,3 @@ async def test_tool_error_with_traceback_and_secrets_is_redacted_in_sse() -> Non
     assert "sk-ant-api03" not in hint_payload
     assert "/Users/alice" not in hint_payload
     assert "<HOME>" in hint_payload
-

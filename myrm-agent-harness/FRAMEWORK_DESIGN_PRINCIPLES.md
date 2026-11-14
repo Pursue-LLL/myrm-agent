@@ -92,7 +92,7 @@
 
 ## 7. MCP 工具暴露：当前的两个结局
 
-MCP / OpenAPI 工具溢出目前走两条路（`agent/_factory/mcp_routing.py`）；是否增加新的结局仍在评估，见 `TOOL_DESIGN_STRATEGY.md` §10.2：
+MCP / OpenAPI 工具溢出目前走两条路（`agent/_factory/mcp_routing.py`）；不提供工具级延迟与盲调网关，理由见 `TOOL_DESIGN_STRATEGY.md` §10.2：
 
 | 结局 | 条件 | 模型侧表现 |
 |---|---|---|

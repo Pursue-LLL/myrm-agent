@@ -57,7 +57,7 @@ action_space.py — ASCS _profiler
 | `lifecycle_manager.py` | 工具 init/cleanup 编排 |
 | `action_space.py` | ActionSpaceProfiler / ASCS |
 | `types.py` | `ToolBindMode` + 子系统类型 |
-| `TOOL_DESIGN_STRATEGY.md` | 设计策略与竞品对比 |
+| `TOOL_DESIGN_STRATEGY.md` | 设计策略与取舍 |
 | `DEFAULT_AGENT_TOKEN_INVENTORY.md` | tiktoken 逐项计量 |
 
 ---

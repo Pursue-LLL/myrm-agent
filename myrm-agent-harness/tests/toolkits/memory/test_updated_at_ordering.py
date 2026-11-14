@@ -1,7 +1,8 @@
 """Listing by ``updated_at`` follows the latest write of a memory, not its first.
 
-The store orders on a payload copy of the timestamp. A memory read back and written again used to carry the copy it
-was read with, so the copy stayed at the first write and a memory edited last sorted as if it had never been edited.
+The store orders on a payload copy of the timestamp. A memory read back and written again must not carry the copy it
+was read with: the copy would stay at the first write and a memory edited last would sort as if it had never been
+edited.
 """
 
 from __future__ import annotations

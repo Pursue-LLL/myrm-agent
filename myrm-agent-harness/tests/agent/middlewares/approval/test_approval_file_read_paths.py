@@ -1,9 +1,9 @@
 """The shipped approval stack judges the files ``file_read_tool`` receives in ``paths``.
 
-The model reads files through a ``paths`` list, never through the ``path`` the engine used to look at, so a
-read of a credential file or of anything outside the workspace ran without a verdict and without a card. These
-tests send real ``file_read_tool`` calls through the middleware stack and check what the user is asked, what is
-refused outright and what runs.
+The model reads files through a ``paths`` list, never through a single ``path``, so the engine must judge the
+list: a read of a credential file or of anything outside the workspace must not run without a verdict and a card.
+These tests send real ``file_read_tool`` calls through the middleware stack and check what the user is asked, what
+is refused outright and what runs.
 """
 
 from __future__ import annotations

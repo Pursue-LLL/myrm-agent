@@ -263,9 +263,9 @@ class WorkflowEventStore:
     def get_cached_llm_query(self, query_hash: str) -> str | None:
         """Return a durably persisted ``llm_query`` answer, if any.
 
-        Durable replay previously covered ``spawn_subagent`` only, so a script that
-        timed out after paying for hundreds of ``llm_query`` calls re-issued and
-        re-billed every one of them on retry.
+        Durable replay covers ``llm_query`` as well as ``spawn_subagent``: a script that
+        times out after paying for hundreds of ``llm_query`` calls must not re-issue and
+        re-bill every one of them on retry.
         """
         with self._connect() as conn:
             row = conn.execute(

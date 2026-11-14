@@ -1,9 +1,9 @@
 """Tests for the deferred-read / immediate-write SQLite transaction policy.
 
-Guards the fix for the "database is locked" storm on read-only endpoints:
-every transaction used to run ``BEGIN IMMEDIATE``, which made concurrent
-snapshot reads contend for the SQLite write lock. Under WAL, reads must stay
-lock-free (deferred BEGIN), and only genuine writers escalate to IMMEDIATE.
+Guards against a "database is locked" storm on read-only endpoints: a transaction
+that always runs ``BEGIN IMMEDIATE`` makes concurrent snapshot reads contend for
+the SQLite write lock. Under WAL, reads must stay lock-free (deferred BEGIN), and
+only genuine writers escalate to IMMEDIATE.
 """
 
 from __future__ import annotations
@@ -51,8 +51,8 @@ async def engine(tmp_path: Path) -> AsyncEngine:
 async def test_read_not_blocked_by_concurrent_write_lock(engine: AsyncEngine, tmp_path: Path) -> None:
     """A WAL snapshot read must succeed while another connection holds the write lock.
 
-    Regression guard: with the old blanket ``BEGIN IMMEDIATE`` this read would
-    contend for the write lock and fail with ``database is locked``.
+    A blanket ``BEGIN IMMEDIATE`` would make this read contend for the write lock
+    and fail with ``database is locked``.
     """
     lock = sqlite3.connect(str(tmp_path / "txn.db"))
     try:

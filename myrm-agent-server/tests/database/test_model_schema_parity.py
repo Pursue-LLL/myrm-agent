@@ -42,10 +42,7 @@ def _statement_text() -> str:
 
 
 def _schema_sources(statements: str) -> tuple[dict[str, str], dict[str, set[str]]]:
-    created = {
-        match.group(1).lower(): match.group(2).lower()
-        for match in _CREATE_TABLE.finditer(statements)
-    }
+    created = {match.group(1).lower(): match.group(2).lower() for match in _CREATE_TABLE.finditer(statements)}
     added: dict[str, set[str]] = {}
     for match in _ADD_COLUMN.finditer(statements):
         added.setdefault(match.group(1).lower(), set()).add(match.group(2).lower())
@@ -129,8 +126,8 @@ def test_detector_accepts_a_column_added_by_alter() -> None:
 
 
 @pytest.mark.parametrize("table_name", ["channel_pairings", "agents", "kanban_boards"])
-def test_previously_broken_tables_are_still_covered(table_name: str) -> None:
-    """The three tables involved in the scheduler-banner incident stay explicitly covered."""
+def test_pinned_tables_are_covered(table_name: str) -> None:
+    """channel_pairings, agents and kanban_boards are checked explicitly, not only through the aggregate parity test."""
     missing = _missing_columns(_statement_text(), Base.metadata)
 
     assert table_name not in missing

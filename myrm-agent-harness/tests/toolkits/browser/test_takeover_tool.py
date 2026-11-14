@@ -326,9 +326,9 @@ class TestTakeoverToolRedaction:
 
     def test_logger_redacts_post_url_credential(self, caplog):
         """Logger arguments must be redacted before they reach the log sink:
-        the takeover logger previously wrote the post_url verbatim, leaking an
-        OAuth code into server logs (no global formatter is guaranteed when the
-        harness runs outside the server)."""
+        a post_url written verbatim would leak an OAuth code into server logs
+        (no global formatter is guaranteed when the harness runs outside the
+        server)."""
         import logging
 
         from myrm_agent_harness.toolkits.browser.tools.takeover import (

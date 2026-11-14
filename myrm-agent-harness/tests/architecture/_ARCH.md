@@ -75,7 +75,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_tool_layer_boundary.py` | Gate | harness 与 external tool 层 SSOT 边界 | — |
 | `test_tool_prompt_placement.py` | Gate | harness tool invoke 规则须留在 tool schema | — |
 | `test_component_snapshot_bounded_diff.py` | Gate | 4 大核心组件快照与有界差分门禁（Prompt Cache 前缀稳定性） | — |
-| `test_no_web_corpus_regression.py` | Gate | 已移除的 `web_corpus` / `corpus=web` 不得回归（静态守卫） | — |
+| `test_no_web_corpus_regression.py` | Gate | `web_corpus` / `corpus=web` 不得出现（静态守卫） | — |
 | `test_tool_env_dependency_correlation.py` | Gate | Tool 宿主环境依赖双向映射与探针健康门禁 | — |
 | `test_pytest_warning_gate.py` | Gate | Pytest 零告警容忍（Zero-Warning / filterwarnings = error）CI 门禁 | — |
 | `test_xdist_worker_cap.py` | Gate | `pyproject.toml` addopts 里的 `--maxprocesses` 封顶：进程内用 `pytester.parseconfig` 解析仓库真实 ini，再调用 xdist 自己的 `pytest_cmdline_main` 读出实际要启动的 worker 数（不起子进程，约 0.2 s/项）：显式 `-n N`（N 大于封顶）仍只启动封顶数；显式 `--maxprocesses` 放宽后随之放宽；`-o addopts=` 清空后封顶消失（说明探针对封顶敏感，也记下已知的绕过方式）。xdist 只对 `-n auto` 与 `-n logical` 承诺该选项，封顶显式 `-n N` 是其当前实现行为，所以用运行时探针而不是 grep 配置。每个 worker 是独立 Python 进程，内存随 `-n` 增长（实测一次 `-n 10` 常驻约 12 GiB） | — |

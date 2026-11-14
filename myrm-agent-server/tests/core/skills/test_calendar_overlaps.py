@@ -1,7 +1,7 @@
 """Tests for the overlap detection of the google-workspace prebuilt skill.
 
-The daily briefing used to print a fixed "no conflicts" line whatever the calendar held, and a model that compares
-event times itself misses overlaps. The script reports them from the events, so these tests pin what counts as a
+The daily briefing reports conflicts from the events themselves, because a fixed "no conflicts" line would ignore
+the calendar and a model that compares event times itself misses overlaps. These tests pin what counts as a
 conflict.
 """
 

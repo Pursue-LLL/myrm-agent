@@ -133,8 +133,8 @@ def test_the_credential_digest_names_the_credential_without_the_provider_slug() 
 def test_the_cache_and_the_cooldown_address_one_credential_the_same_way() -> None:
     """A cached payload and a cooldown are keyed by the credential the factory names, so the two layers agree.
 
-    They diverged once, when a rotated key missed the cache but stayed benched under the old account's cooldown.
-    Both comparisons must flip together for that to happen again, so a re-derived identity on either side is caught.
+    If they diverged, a rotated key would miss the cache but stay benched under the rotated-out account's cooldown.
+    Both comparisons must flip together, so a re-derived identity on either side is caught.
     """
     account_a = _config("tavily", api_key="key-a")
     account_a_again = _config("tavily", api_key="key-a")

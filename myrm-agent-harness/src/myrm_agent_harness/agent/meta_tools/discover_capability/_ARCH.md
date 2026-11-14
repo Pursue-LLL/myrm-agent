@@ -23,7 +23,7 @@ Whether a further routing outcome is worth adding is under evaluation: `TOOL_DES
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | discover_capability_tool.py | Core | Unified discovery meta-tool (LLM name: `skill_search_tool`), index sync, `<BoundSkills>` XML output with a one-line retry hint; description varies by `market_tool_mounted` and locale. | ✅ |
-| capability_gap.py | Core | Substring trigger registry (`CAPABILITY_GAP_REGISTRY`, 14 IDs) for server preflight intent matching. Discover miss no longer emits gap blocks/SSE. | ✅ |
+| capability_gap.py | Core | Substring trigger registry (`CAPABILITY_GAP_REGISTRY`, 14 IDs) for server preflight intent matching. A discover miss emits no gap blocks or SSE. | ✅ |
 
 ## Key Dependencies
 

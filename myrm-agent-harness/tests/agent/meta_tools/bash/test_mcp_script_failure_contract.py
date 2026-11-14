@@ -2,14 +2,15 @@
 
 Everything between the script and the server is the production path: ``bash_code_execute_tool`` -> host -> generated client
 -> IPC -> proxy service -> connection manager -> session actor -> a real stdio MCP server (the cancel-probe server). Only the
-limits are shrunk to seconds. Each test pins a behavior that used to go the other way:
+limits are shrunk to seconds. Each test pins one rule of that path:
 
-- a hung tool: the script was handed the actor's timeout *text as the call's return value*, and a read cache then kept
-  that text as if it were a result;
-- the host kill: the script's own deadline was equal to the actor's, so the host could end the script before the named
-  error reached it;
+- a hung tool: the script gets an exception, not the actor's timeout *text as the call's return value*, which a read
+  cache would keep as if it were a result;
+- the host kill: the script's own deadline is later than the actor's, because with equal deadlines the host could end
+  the script before the named error reached it;
 - a cold start: a bound on the whole request would charge the server's start-up to a call that is within its limit;
-- an ended script: its call kept occupying the MCP server until the tool's own limit, so the next script waited for it.
+- an ended script: its call stops occupying the MCP server at once instead of until the tool's own limit, so the next
+  script does not wait for it.
 """
 
 from __future__ import annotations

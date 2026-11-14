@@ -30,7 +30,7 @@ class TestBashFlavorEnvQuoting:
 
     Env values travel through a long-lived interactive bash, so ``$``/backticks
     must not be re-expanded and a single literal ``"`` must not close the
-    quoting early (which previously wedged the shell in PS2 continuation).
+    quoting early (which would wedge the shell in PS2 continuation).
     """
 
     @pytest.mark.parametrize(
@@ -40,7 +40,7 @@ class TestBashFlavorEnvQuoting:
             "",
             "with spaces",
             'with "double" quotes',
-            'a"b',  # odd quote count: previously hung the shell
+            'a"b',  # odd quote count: would hang the shell
             "it's single quotes",
             r"back\\slash",
             r"path\/to\/file",
@@ -228,4 +228,3 @@ class TestPowerShellFlavor:
             safe_env_vars=frozenset(),
         )
         assert isinstance(get_flavor(cmd_platform), WindowsFlavor)
-

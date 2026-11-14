@@ -132,7 +132,7 @@ async def test_a_client_that_really_left_cancels_the_turn_after_the_grace_period
 @pytest.mark.usefixtures("fast_polling")
 async def test_turns_that_end_while_the_monitor_polls_never_wait_for_their_client(monkeypatch: pytest.MonkeyPatch) -> None:
     """With no pause between polls the end of a turn often lands in the loop step where the poll's cancel scope delivers its cancellation;
-    the old monitor then kept polling and the turn's exit waited for a client that stayed connected."""
+    a monitor that kept polling would make the turn's exit wait for a client that stayed connected."""
     monkeypatch.setattr(stream_disconnect, "_CHECK_INTERVAL_SECONDS", 0.0)
     requests = 60
 
