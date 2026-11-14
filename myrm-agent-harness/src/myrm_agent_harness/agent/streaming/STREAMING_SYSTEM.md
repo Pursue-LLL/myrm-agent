@@ -120,7 +120,7 @@ streaming 产出的事件可被 observability 层订阅，但不反向依赖。
 ## 扩展指南
 
 1. 新 SSE 事件类型 → `types.py` 枚举 + `event_handlers.py` 转换 + 前端契约
-2. 新恢复策略 → 独立 mixin 模块，由 `recovery/stream_recovery.py` 组合；需要「追加提示再跑一遍」的策略一律走 `_redrive_with_hint`，不要自己改写 `agent_input`
+2. 新恢复策略 → 独立 mixin 模块，由 `recovery/stream_recovery.py` 组合；需要「追加消息再跑一遍」的策略一律走 `_redrive_with_messages`（追加运行时提示用 `_redrive_with_hint`），不要自己改写 `agent_input`：resume 轮的输入是已被消费的 `Command`，只有这个入口知道怎么从 thread 续跑
 3. 禁止在 streaming 层写业务 channel 逻辑 → `myrm-agent-server/app/core/channel_bridge/` 或 Server
 
 ---
