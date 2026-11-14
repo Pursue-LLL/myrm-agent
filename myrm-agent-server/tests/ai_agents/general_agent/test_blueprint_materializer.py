@@ -313,12 +313,12 @@ class TestRoutedModelOverride:
     """The model the roster member runs on, as the chat panel sends it."""
 
     def test_routed_name_survives_materialization(self):
-        """A `providerId/model` value reaches SubagentConfig.model; the bare key the panel used to send does not."""
+        """A `providerId/model` value reaches SubagentConfig.model; a bare `model_override` key is not read."""
         routed = materialize_jit_configs({"researcher": {"display_name": "Researcher", "model": "openai_like/deepseek-chat"}})
         assert routed["researcher"].model == "openai_like/deepseek-chat"
 
-        legacy_key = materialize_jit_configs({"researcher": {"display_name": "Researcher", "model_override": "deepseek-chat"}})
-        assert legacy_key["researcher"].model is None
+        bare_override = materialize_jit_configs({"researcher": {"display_name": "Researcher", "model_override": "deepseek-chat"}})
+        assert bare_override["researcher"].model is None
 
     def test_no_model_field_inherits_the_parent_llm(self):
         """Omitting the field keeps the sub-agent on the parent model."""

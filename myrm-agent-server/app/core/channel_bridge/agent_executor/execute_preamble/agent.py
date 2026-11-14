@@ -10,7 +10,7 @@ context_document::attach_context_document (POS: 渠道随 turn 附带的参考�
 replay_notice::attach_replay_notice (POS: 重启后重放的消息并入本轮 query 的重放提示)
 
 [OUTPUT]
-build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）；resume 认领审批键后装配失败会重开该键；非 resume turn 的 query_input 在用户文本后附带渠道的参考文档，以及重启后重放消息的重放提示（`params.query` 都不含）。
+build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）；resume 认领审批键后装配失败会重开该键；智能体的技能门禁与本回合凭证都按同一条凭证轨道（调用方传入，默认个人轨道）装配；非 resume turn 的 query_input 在用户文本后附带渠道的参考文档，以及重启后重放消息的重放提示（`params.query` 都不含）。
 
 [POS]
 preamble 子模块：从已解析配置到可运行 Agent 实例的最后一步。

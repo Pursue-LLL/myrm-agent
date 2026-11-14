@@ -90,7 +90,7 @@ Design notes:
 | `browser_snapshot.py` | ✅ 辅助 | Browser snapshot payload SSOT（WebUI 与 mobile remote 路由共用）；`chat_id` 必填，委托 harness `capture_browser_view_update_data` | ✅ |
 | `resolve_enable_web_fetch.py` | ✅ 辅助 | 从 `agent_security_raw.capabilities` 推导 `enable_web_fetch`（bool 门控 web_fetch_tool Turn1 bind）；Web/Channel/Cron/Kanban/Eval/Voice 全入口共享 | ✅ |
 | `template_utils.py` | ✅ 辅助 | Agent 模板实例化共享工具（`PREBUILT_AGENTS_DIR` / `resolve_i18n` / `ensure_skills_enabled`），API templates router 与 onboarding presets 复用 | ✅ |
-| `session_credential_assembler.py` | ✅ 核心 | 统一会话凭据组装——`assemble_session_credentials` / `session_credentials_scope` / `user_config_session_credentials_scope` 注入 `EphemeralUserCredential`；`XAI_ISSUER` 规范 xAI issuer key | ✅ |
+| `session_credential_assembler.py` | ✅ 核心 | 统一会话凭据组装——`assemble_session_credentials` / `session_credentials_scope` / `user_config_session_credentials_scope` 注入 `EphemeralUserCredential`；`credential_track`（`CredentialTrack`）选择凭证池：个人轨道发放所有者的 OAuth 令牌与 xAI provider 密钥（xAI OAuth 与 provider 密钥并存时只发放 OAuth），其余轨道只发放渠道令牌；技能可用性 gate 也经它判定，「列出」与回合实际拿到的凭证同源；`XAI_ISSUER` 规范 xAI issuer key | ✅ |
 | `agent_assembler_service.py` | ✅ 核心 | 模块化能力拼装服务 — 针对 6 大类积木（大脑/人设/工具/技能/记忆/沙箱）提供依赖合法性体检、预制积木卡片库以及即时微沙箱演练试跑 | ✅ |
 
 

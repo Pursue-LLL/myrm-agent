@@ -200,8 +200,8 @@ class CustomAgentFactory:
         from app.platform_utils import get_storage_provider
         from app.services.agent.tool_mount import resolve_child_meta_mount
 
-        # A subagent can be the first agent built in this process; HTTP startup no longer
-        # registers tool layers eagerly, so await the same idempotent bootstrap here.
+        # A subagent can be the first agent built in this process, and tool layers are registered on
+        # first use rather than at HTTP import time, so await the same idempotent bootstrap here.
         await asyncio.to_thread(ensure_tool_layer_bootstrap)
 
         await self._ensure_initialized()

@@ -19,9 +19,9 @@
 Server business-layer guard — keeps skill availability consistent between Catalog and Agent runtime: the `requires`
 verdict (bins, env, config; env includes keys saved in skill settings), then the credential verdict. A skill that
 needs OAuth issuers (the ones its frontmatter declares plus its dedicated issuer) is available exactly when a turn
-on the same credential track is handed a token for every one of them. The verdict runs the production assembler
-over the stored credentials instead of restating its rules, so what a skill is listed for and what a turn receives
-cannot drift apart. The assembler is called without a channel: a listing has no channel token to account for.
+on the same credential track is handed a token for every one of them. The verdict is computed by the production
+assembler over the stored credentials, so what a skill is listed for and what a turn receives cannot drift apart.
+The assembler is called without a channel: a listing has no channel token to account for.
 Shared by Skills HTTP API and loader.create_skill_backend().
 """
 

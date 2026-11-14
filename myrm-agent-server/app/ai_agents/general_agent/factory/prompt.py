@@ -1,5 +1,5 @@
 """[INPUT]
-- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放）， 工具创建委托给 ToolSetupMixin。)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 初始化与流式执行， 工具创建委托给 ToolSetupMixin，资源释放委托给 AgentLifecycleMixin。)
 - app.ai_agents.general_agent.mount_resolver::ResolvedMountPlan (POS: Pure resolver layer between channel ingress and GeneralAgent factory wiring.)
 - app.ai_agents.prompts.general_agent_prompt::coerce_prompt_mode / get_core_system_prompt / SEARCH_DEEP_SUFFIX / SEARCH_DEEP_SUFFIX_ZH (POS: GeneralAgent 核心系统提示词。支持两档 Prompt Mode（full/search）与中英双语（默认英文）， 同一 mode + locale 的 prompt 字符串跨用户稳定以最大化 KV Cache 命中率。)
 - app.ai_agents.general_agent.kanban_tool_mode::resolve_kanban_tool_mode (POS: GeneralAgent factory 的 Kanban 工具 bind 解析辅助模块；TaskRunner 强制 worker，chat 默认 orchestrator。)

@@ -1,8 +1,7 @@
 """Both subagent factories mount the file/shell meta tools the child's capability can use.
 
-A custom agent whose workspace policy is read-only runs under a READ-only handle. The factories used to ask
-for the full tool surface regardless, so the model was offered write and shell tools the executor would only
-refuse at call time.
+A custom agent whose workspace policy is read-only runs under a READ-only handle, so the factories offer it only
+the meta tools that handle can use: no write or shell tools the executor would refuse at call time.
 """
 
 from __future__ import annotations
