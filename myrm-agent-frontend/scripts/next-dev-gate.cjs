@@ -9,6 +9,9 @@
  *    tsconfig) using MYRM_NEXT_DIST_DIR. Without this, lane B reads lane A's stale
  *    `.next-isolated-<A>/dev/types` imports until B's own Next overwrites them, so a
  *    lane can inherit another lane's dead route-type paths.
+ *
+ * Its file name is also how dev-supervision-gate.ts (SUPERVISOR_PRELOAD) recognises a Next process that
+ * dev.ts started, so renaming it means changing that constant and dev.ts's spawn arguments together.
  */
 const { spawnSync } = require('child_process');
 const fs = require('fs');
