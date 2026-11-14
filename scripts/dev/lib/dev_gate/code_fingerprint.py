@@ -15,7 +15,7 @@ from pathlib import Path
 COORDINATOR_CODE_SOURCES: tuple[str, ...] = (
     "dev_gate/coordinator.py",
     "dev_gate/cli.py",
-    "dev_gate/contract.py",
+    "dev_gate/contract",
     "dev_gate/cleanup_observed_seal.py",
     "dev_gate/owner_identity.py",
     "dev_gate/session.py",

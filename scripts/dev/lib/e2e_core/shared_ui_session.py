@@ -261,9 +261,9 @@ def _shared_ui_deadline_extend_cap_sec() -> float:
     """Scale shared UI contract extension under parallel mux pressure (v2.2)."""
     base = 90.0
     try:
-        from dev_gate.contract import _parallel_chrome_e2e_pressure
+        from dev_gate.contract.parallel_pressure import parallel_chrome_e2e_pressure
 
-        peers = _parallel_chrome_e2e_pressure()
+        peers = parallel_chrome_e2e_pressure()
         if peers >= 2:
             return min(180.0, base + peers * 15.0)
     except ImportError:
@@ -369,9 +369,9 @@ async def _ensure_bridge_probe_ready(
         rehydrate_base = 45.0
         if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
             try:
-                from dev_gate.contract import _parallel_signoff_pressure_peers
+                from dev_gate.contract.parallel_pressure import parallel_signoff_pressure_peers
 
-                peers = _parallel_signoff_pressure_peers()
+                peers = parallel_signoff_pressure_peers()
                 if peers >= 2:
                     rehydrate_base = min(120.0, 45.0 + peers * 8.0)
             except ImportError:
