@@ -423,7 +423,7 @@ class TestParseLlmJsonRepairTier:
 
     def test_single_quoted_brace_inside_string_not_truncated(self) -> None:
         # 单引号字符串内的 } 会被平衡扫描误判为结构闭合，导致候选被截断；
-        # 修复后 repair 层必须拿到完整输入，避免静默丢数据。
+        # repair 层必须拿到完整输入，避免静默丢数据。
         raw = "{'a': 'x}y'}"
         assert parse_llm_json_object(raw) == {"a": "x}y"}
 
@@ -449,7 +449,7 @@ class TestParseLlmJsonRepairTier:
         assert parse_llm_json_object(raw2) == {"b": 2}
 
     def test_fenced_single_quoted_brace_not_truncated(self) -> None:
-        # fence 内单引号字符串含 } 同样不能被截断（先前会丢数据）
+        # fence 内单引号字符串含 } 同样不能被截断（截断会丢数据）
         raw = "```json\n{'a': 'x}y'}\n```"
         assert parse_llm_json_object(raw) == {"a": "x}y"}
 

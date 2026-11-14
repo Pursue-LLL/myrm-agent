@@ -319,8 +319,9 @@ class TestMaybeArchiveToWiki:
     async def test_cleanup_session_forwards_chat_id_to_archive(self, tmp_path: Path) -> None:
         """Session-end cleanup must forward the resolved chat_id into the wiki archive.
 
-        Regression: the archive path read ``config.chat_id``, which does not exist on the
-        frozen ``AgentRuntimeConfig`` in production, so source_chat was never written.
+        The archive path must not read ``config.chat_id``: the frozen
+        ``AgentRuntimeConfig`` has no such attribute in production, so source_chat
+        would never be written.
         """
         from myrm_agent_harness.toolkits.wiki import (
             WikiCompiler,

@@ -83,8 +83,8 @@ def test_run_agent_stream_facade_lazy_import():
 def test_run_agent_stream_facade_signature_matches_orchestrator():
     """The facade must expose the exact signature of the orchestrator impl.
 
-    This is the regression guard for the precise-typing fix: a drift between
-    facade and implementation would let a wrong-typed call slip through.
+    This guards the facade's precise typing: a drift between facade and
+    implementation would let a wrong-typed call slip through.
     """
     import inspect
 

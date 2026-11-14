@@ -60,10 +60,10 @@ async def test_status_drive_authorized_when_scope_present() -> None:
 
 @pytest.mark.asyncio
 async def test_update_config_roundtrips_zotero_fields() -> None:
-    """PUT /config 的 zotero_* 字段必须透传进持久化 config（防 update 模型漏字段回归）。
+    """PUT /config 的 zotero_* 字段必须透传进持久化 config。
 
     API update 模型一旦漏字段，exclude_unset 合并会静默丢弃前端提交值，
-    连接器将永远拿到空配置——此用例是该断链的防回归锚点。
+    连接器将永远拿到空配置。
     """
     saved = WikiSourceSyncConfig(
         zotero_enabled=True,
@@ -117,9 +117,7 @@ async def test_update_config_partial_update_keeps_other_fields() -> None:
     current = WikiSourceSyncConfig(zotero_enabled=True, zotero_api_key="k1")
     merged_capture: dict[str, object] = {}
 
-    async def _capture_save(
-        _db: AsyncMock, merged: WikiSourceSyncConfig, agent_id: str | None = None
-    ) -> WikiSourceSyncConfig:
+    async def _capture_save(_db: AsyncMock, merged: WikiSourceSyncConfig, agent_id: str | None = None) -> WikiSourceSyncConfig:
         merged_capture.update(merged.model_dump())
         return merged
 
@@ -146,9 +144,7 @@ async def test_update_config_partial_update_keeps_other_fields() -> None:
             new=AsyncMock(return_value=False),
         ),
     ):
-        response = await update_wiki_source_sync_config(
-            WikiSourceSyncConfigUpdate(gmail_label="Sent"), db=db
-        )
+        response = await update_wiki_source_sync_config(WikiSourceSyncConfigUpdate(gmail_label="Sent"), db=db)
 
     assert response.config.gmail_label == "Sent"
     assert merged_capture["zotero_enabled"] is True

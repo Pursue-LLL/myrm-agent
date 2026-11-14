@@ -175,8 +175,8 @@ async def test_ssot_grep_maps_to_file_read_gate() -> None:
 async def test_ssot_bash_code_execute_uses_code_interpreter_grant() -> None:
     """bash_code_execute_tool must resolve via SSOT to code_interpreter.
 
-    Previously the heuristic attributed it to shell_exec, wrongly rejecting a
-    skill granted CODE_INTERPRETER (sandboxed code execution).
+    A heuristic that attributed it to shell_exec would wrongly reject a skill
+    granted CODE_INTERPRETER (sandboxed code execution).
     """
     _load_skill()
     provider = SkillBoundaryProvider(permission_checker=_granted_checker(frozenset({"code_interpreter"})))

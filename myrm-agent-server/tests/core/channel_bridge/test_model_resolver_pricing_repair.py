@@ -105,7 +105,7 @@ def _proxy_pricing(model: str, **info: object) -> dict[str, object]:
 
 
 def test_custom_price_for_a_catalog_model_keeps_its_window_and_vision() -> None:
-    """给代理里的 gpt-4o 填自定义单价：只换价格，窗口与视觉能力仍来自目录（曾被整条替换抹掉）。"""
+    """给代理里的 gpt-4o 填自定义单价：只换价格，窗口与视觉能力仍来自目录，不会被整条替换抹掉。"""
     official_window = (model_info("gpt-4o") or {})["max_input_tokens"]
 
     assert register_custom_model_pricing(_proxy_pricing("gpt-4o")) == 1

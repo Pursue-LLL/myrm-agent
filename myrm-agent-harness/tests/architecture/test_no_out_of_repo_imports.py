@@ -123,8 +123,9 @@ def _violation(path: Path, source: str) -> str | None:
 
 
 # Samples that pin the detector. Without them the rule can be refactored into a no-op
-# that still reports thousands of green tests. The first two are the exact shapes that
-# shipped here and turned CI red; the third is the compliant shape they were replaced by.
+# that still reports thousands of green tests. The first two are the shapes the rule must
+# flag (a path-climbing ``sys.path`` insert, and a direct import with no path manipulation);
+# the third is the compliant shape.
 _CLIMBING_SAMPLE = """
 import sys
 from pathlib import Path

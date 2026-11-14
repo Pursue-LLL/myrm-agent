@@ -1143,9 +1143,9 @@ async def test_inject_ptc_failure_yields_error_completion(tmp_path, monkeypatch,
 async def test_invalid_script_fails_before_plan_confirm(tmp_path, monkeypatch, mock_parent_agent):
     """A script that cannot pass the linter must not reach the human approval gate.
 
-    Previously the engine emitted plan_confirm and awaited the user, then reported
-    the static verification error only after approval — the user decided on a
-    script that could never run.
+    The engine reports the static verification error before it emits plan_confirm:
+    asking for approval first would have the user decide on a script that can
+    never run.
     """
     db_path = tmp_path / "events.db"
     monkeypatch.chdir(tmp_path)

@@ -5,7 +5,7 @@
 所有部署模式默认使用 uvicorn 单进程（沙箱内嵌入式 SQLite + Qdrant 需要单进程避免文件锁冲突）。
 如需手动切换为 granian 多进程，设置 SERVER_MODE=granian（仅适用于无嵌入式数据库的场景）。
 
-启动逻辑已拆分到 app/startup/ 子模块，本文件仅作为 CLI 入口。
+启动逻辑在 app/startup/ 子模块，本文件仅作为 CLI 入口。
 """
 
 import argparse

@@ -39,9 +39,7 @@ class _FakeLLM:
                     "decisions": ["Ship plan A"],
                     "debate_points": ["Timeline"],
                     "risks": ["Vendor lock-in"],
-                    "action_items": [
-                        {"description": "Draft spec", "owner": "Alice", "due_hint": "Fri"}
-                    ],
+                    "action_items": [{"description": "Draft spec", "owner": "Alice", "due_hint": "Fri"}],
                 }
             )
         )
@@ -86,7 +84,7 @@ def test_ingest_without_line_id_always_appends() -> None:
 def test_negative_and_nonfinite_timestamps_never_render_as_garbage() -> None:
     """Clock skew or a bad client must not produce ``[nan:..]`` or crash finalization.
 
-    An infinite stamp is the dangerous one: ``inf // 60`` evaluates to NaN, which used to
+    An infinite stamp is the dangerous one: ``inf // 60`` evaluates to NaN, which would
     raise inside ``render_transcript`` and lose the whole meeting's minutes.
     """
     session = LiveNotesSession("s1", clock=_Clock())

@@ -40,10 +40,3 @@ export const toggleMCPConfig = (currentConfigs: MCPServiceConfig[], index: numbe
   newConfigs[index] = normalizeMCPServiceConfig({ ...newConfigs[index], enabled: !newConfigs[index].enabled });
   return newConfigs;
 };
-
-// 加载MCP配置（已废弃，persist 自动处理）
-// 保留此函数仅为了兼容性，实际上 persist 会自动加载
-export const loadMCPConfigs = (): MCPServiceConfig[] => {
-  // persist 中间件会自动加载，这里返回空数组作为初始值
-  return [];
-};

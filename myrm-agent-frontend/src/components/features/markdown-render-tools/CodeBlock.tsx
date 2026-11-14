@@ -4,26 +4,20 @@
  * [POS]
  * 负责渲染 Markdown 中的代码块，支持语法高亮、代码复制、预览功能。
  *
- * [性能优化] (2026-05-06)
+ * [性能策略]
  * 1. React.memo: 避免父组件重新渲染导致的无效重绘
- * 2. 流式 Debounce: 在 isStreaming=true 时，使用 100ms 防抖减少高亮频率
+ * 2. 流式 Debounce: 在 isStreaming=true 时，使用 100ms 防抖限制高亮频率
  * 3. 全局高亮缓存: 缓存已高亮的代码结果，避免重复计算 (限制 100 条，FIFO)
- * 4. Debounce Timer 清理: isStreaming 变为 false 时主动清理 timer，消除延迟执行
- * 5. useMemo 依赖优化: 简化依赖数组，减少冗余依赖项
+ * 4. Debounce Timer 清理: effect cleanup 在 value 变化或 isStreaming 变为 false 时清除 timer，不留延迟执行
+ * 5. useMemo 依赖: 只列真正参与计算的依赖项
  *
  * [依赖]
  * - prism-react-renderer: 语法高亮引擎
  * - lib/syntax/prism: 已注册全部语法的 Prism 与语言校验（`diff` 语法使 diff 行底色分支生效）
  * - lib/syntax/theme: 各明暗主题下满足 4.5:1 对比度的代码着色
  * - MarkdownContent: 父组件，传递 isStreaming prop
- *
- * [优化收益]
- * - React.memo: 避免父组件 MessageBox 重新渲染时的无效 CodeBlock 重绘
- * - 流式 Debounce: 将高亮频率从 10-20ms 降低到 100ms，减少计算约 80-90%
- * - 全局缓存: 对于重复代码块，渲染时间从数十毫秒降至 <1ms
- * - 综合效果: 长代码流式输出场景下，显著减少 UI 卡顿，用户可流畅滚动和交互
  */
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Check, Copy, Play } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Highlight } from 'prism-react-renderer';
@@ -86,32 +80,21 @@ const CodeBlock: React.FC<{
 
   // 流式输出时的 debounced value
   const [debouncedValue, setDebouncedValue] = useState(value);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 流式输出时，debounce 更新显示的代码值（每 100ms 更新一次）
+  // 流式输出时，debounce 更新显示的代码值（最后一次更新后 100ms 落地）；
+  // cleanup 在 value 变化或流式结束时清掉待执行的 timer
   useEffect(() => {
-    if (isStreaming) {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      debounceTimerRef.current = setTimeout(() => {
-        setDebouncedValue(value);
-      }, 100);
-
-      return () => {
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
-      };
-    } else {
-      // 非流式输出时，清理 timer 并立即更新
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
-      setDebouncedValue(value);
+    if (!isStreaming) {
+      return;
     }
+    const timer = setTimeout(() => setDebouncedValue(value), 100);
+    return () => clearTimeout(timer);
   }, [value, isStreaming]);
+
+  // 非流式时直接渲染 value；同步 debouncedValue，使再次进入流式时从最新内容起步
+  if (!isStreaming && debouncedValue !== value) {
+    setDebouncedValue(value);
+  }
 
   // 使用 debounced value 进行渲染
   const displayValue = isStreaming ? debouncedValue : value;

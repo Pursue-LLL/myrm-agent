@@ -36,9 +36,9 @@ class TestGetBrowserPoolConfig:
     def test_e2e_bound_run_uses_e2e_endpoint_over_cdp_port(self) -> None:
         """The E2E binding wins over CDP_PORT.
 
-        Regression: resolution read ``CDP_PORT`` first and never consulted the E2E
-        binding, so a stale user-Chrome port could win and the pool attached to the wrong
-        browser (no usable page → takeover tool failed while the test still passed).
+        Resolution must consult the E2E binding before ``CDP_PORT``: otherwise a stale
+        user-Chrome port could win and the pool would attach to the wrong browser
+        (no usable page → takeover tool fails while the test still passes).
         """
         with (
             patch("app.config.browser.is_local_mode", return_value=True),
