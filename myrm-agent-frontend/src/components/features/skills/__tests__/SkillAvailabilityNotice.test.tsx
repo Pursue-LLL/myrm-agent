@@ -15,7 +15,26 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
+  default: ({
+    href,
+    children,
+    onClick,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
+  }) => (
+    <a
+      href={href}
+      onClick={(event) => {
+        onClick?.(event);
+        // Next's client-side navigation takes over the click, so the browser never follows the href itself.
+        event.preventDefault();
+      }}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 const CONFIGURE = 'card.integrationOAuth.envSkill.configureInSettings';
@@ -32,6 +51,9 @@ function buildSkill(overrides: Partial<Skill>): Skill {
     icon_url: null,
     tags: [],
     requires: { bins: [], env: ['EMAIL_IMAP_HOST'], config: [] },
+    // The skills API always sends both lists, empty when the skill declares nothing.
+    required_oauth_issuers: [],
+    required_mcp_server_ids: [],
     available: false,
     unavailable_reason: 'Missing: ENV: EMAIL_IMAP_HOST',
     trust: 'installed',
@@ -116,8 +138,47 @@ describe('SkillAvailabilityNotice', () => {
     expect(screen.queryByRole('button', { name: CONFIGURE })).toBeNull();
   });
 
+  it.each([
+    ['x-live-search', '/settings/models', 'card.integrationOAuth.xLiveSearch.connectInSettings'],
+    ['google-workspace', '/settings/credentials', 'card.integrationOAuth.googleWorkspace.connectInSettings'],
+  ])('keeps guiding %s to its settings page when the catalog declares no account for it', (id, href, label) => {
+    const skill = buildSkill({
+      id,
+      name: id,
+      requires: { bins: [], env: [], config: [] },
+      unavailable_reason: 'raw reason',
+    });
+    render(<SkillAvailabilityNotice skill={skill} onConfigureKeys={vi.fn()} />);
+
+    const link = screen.getByRole('link');
+    expect(link.getAttribute('href')).toBe(href);
+    expect(link.textContent).toBe(label);
+    expect(screen.queryByRole('button', { name: CONFIGURE })).toBeNull();
+  });
+
+  it('still guides a connection-gated skill when the server sent no reason', () => {
+    const skill = buildSkill({
+      required_mcp_server_ids: ['github'],
+      requires: { bins: [], env: [], config: [] },
+      unavailable_reason: null,
+    });
+    render(<SkillAvailabilityNotice skill={skill} />);
+
+    expect(screen.getByText('card.integrationOAuth.connectionRequired.unavailable')).toBeTruthy();
+    const link = screen.getByRole('link');
+    expect(link.getAttribute('href')).toBe('/settings/agents#loadout');
+    expect(link.textContent).toBe(CONFIGURE);
+  });
+
   it('renders nothing for an available skill', () => {
     const { container } = render(<SkillAvailabilityNotice skill={buildSkill({ available: true })} />);
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders nothing for an unavailable skill with no reason and nothing to connect', () => {
+    const skill = buildSkill({ requires: { bins: [], env: [], config: [] }, unavailable_reason: null });
+    const { container } = render(<SkillAvailabilityNotice skill={skill} />);
 
     expect(container.firstChild).toBeNull();
   });
@@ -133,5 +194,19 @@ describe('SkillCard availability action', () => {
 
     expect(onViewDetails).toHaveBeenCalledTimes(1);
     expect(onViewDetails).toHaveBeenCalledWith(skill);
+  });
+
+  it('leaves the skill details closed when the settings link is clicked', () => {
+    const onViewDetails = vi.fn();
+    const skill = buildSkill({
+      required_oauth_issuers: ['google_workspace'],
+      requires: { bins: [], env: [], config: [] },
+      unavailable_reason: 'Connect google_workspace',
+    });
+    render(<SkillCard skill={skill} isEnabled={false} onViewDetails={onViewDetails} />);
+
+    fireEvent.click(screen.getByRole('link'));
+
+    expect(onViewDetails).not.toHaveBeenCalled();
   });
 });
