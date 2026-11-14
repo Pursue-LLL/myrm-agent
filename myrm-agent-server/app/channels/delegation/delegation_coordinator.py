@@ -117,7 +117,8 @@ class DelegationCoordinator:
             sender_id: Inbound message sender ID.
 
         Returns:
-            True if successfully injected, False if task is not running.
+            True if the running task took the instruction, False if the task is not running or its run has
+            already ended.
         """
         task = self._tasks.get(task_id)
         if not task or task.status != DelegationStatus.RUNNING:
@@ -127,8 +128,9 @@ class DelegationCoordinator:
             return False
 
         steering_token = self._steering_tokens.get(task_id)
-        if steering_token:
-            steering_token.steer(content)
+        if steering_token is None or not steering_token.steer(content):
+            logger.warning("DelegationCoordinator: Task %s is no longer taking steering", task_id)
+            return False
         logger.info("DelegationCoordinator: Injected in-flight steering to task %s by %s", task_id, sender_id)
         return True
 

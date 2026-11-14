@@ -3,11 +3,12 @@
 [INPUT]
 - agent.goals.continuation::check_continuation (POS: goal continuation verdict builder)
 - agent.streaming.recovery.goal_session::goal_session_id (POS: goal lookup key of a run)
+- agent.streaming.recovery.stream_recovery_redrive::StreamRedriveMixin (POS: the re-run input shared by fresh and resumed turns)
 - agent.streaming.types::AgentEventType (POS: streaming event type constants)
 - core.message_origin::runtime_human_message (POS: marks a teammate injection as runtime-authored, not user words)
 
 [OUTPUT]
-- StreamContinuationRecoveryMixin: handles steering/redirect (with partial AIMessage preservation), teammate P2P drain, subagent completion events, and goal continuation.
+- StreamContinuationRecoveryMixin: handles steering/redirect on fresh and resumed turns (with partial AIMessage preservation), teammate P2P drain, subagent completion events, and goal continuation.
 
 [POS]
 Streaming continuation layer. Handles external steering/redirect, subagent notifications, and goal lifecycle continuation without changing prompt-cache behavior.
@@ -22,12 +23,13 @@ from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.streaming.recovery.goal_session import goal_session_id
+from myrm_agent_harness.agent.streaming.recovery.stream_recovery_redrive import StreamRedriveMixin
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.core.message_origin import runtime_human_message
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
-    from langchain_core.messages import AnyMessage, BaseMessage
+    from langchain_core.messages import AIMessage, AnyMessage, BaseMessage
 
     from myrm_agent_harness.agent.goals.types import Goal, GoalExecutionSummary
     from myrm_agent_harness.agent.streaming.stream_compactor import StreamCompactor
@@ -54,20 +56,22 @@ def _handle_background_recovery_task_done(task: asyncio.Future[None]) -> None:
         logger.exception("Stream recovery background task failed")
 
 
-class StreamContinuationRecoveryMixin:
+class StreamContinuationRecoveryMixin(StreamRedriveMixin):
     """Continuation-related stream recovery handlers."""
 
     _ctx: StreamContext
     _compactor: StreamCompactor
     streaming_final_answer: bool
     _partial_text_buffer: str
+    _redirect_partial: AIMessage | None
 
     async def _handle_steering(self, collected_messages: list[BaseMessage]) -> bool:
         """Handle steering injection and trigger a new turn when needed.
 
         For redirect scenarios (mid-stream interruption), preserves the partial
         AI response text as an AIMessage so that the LLM context remains consistent
-        with what the user has already seen.
+        with what the user has already seen. A resumed turn continues from its thread, which already holds what
+        the turn produced; the cut partial reply is the one message it does not, so that alone is carried.
         """
         ctx = self._ctx
         if ctx.stats.was_cancelled or ctx.steering_token is None:
@@ -80,45 +84,45 @@ class StreamContinuationRecoveryMixin:
         if not all_steering:
             return False
 
-        if isinstance(ctx.agent_input, Command):
-            logger.warning(" Resume mode cannot inject steering — skipping")
-            return False
-
-        assert not isinstance(ctx.agent_input, Command)
-        messages_dict = ctx.agent_input
-        messages = cast(list["BaseMessage"], messages_dict.get("messages", []))
-
         is_redirect = ctx.steering_token.redirect_requested
-        partial_preserved = getattr(self, "_redirect_partial_preserved", False)
+        partial = self._redirect_partial
+        self._redirect_partial = None
 
         logger.warning(
             " %s: injecting %d message(s) for new turn",
             "Redirect" if is_redirect else "Steering",
             len(all_steering),
         )
-        messages.clear()
-        messages.extend(collected_messages)
+        if isinstance(ctx.agent_input, Command):
+            carried: list[BaseMessage] = [partial] if partial is not None else []
+        else:
+            carried = collected_messages
+        self._redrive_with_messages(carried, [HumanMessage(content=text) for text in all_steering])
 
-        for msg_text in all_steering:
-            messages.append(HumanMessage(content=msg_text))
-
-        messages_dict["messages"] = cast("list[AnyMessage]", messages)
-        self.streaming_final_answer = False
-        self._redirect_partial_preserved = False
-        truncated = [m[:200] for m in all_steering]
         event_type = AgentEventType.REDIRECTED if is_redirect else AgentEventType.STEERING
         await self._compactor.put(
             {
                 "type": event_type.value,
                 "data": {
                     "count": len(all_steering),
-                    "messages": truncated,
-                    "partial_preserved": is_redirect and partial_preserved,
+                    "messages": [text[:200] for text in all_steering],
+                    "partial_preserved": is_redirect and partial is not None,
                 },
                 "messageId": ctx.message_id,
             }
         )
         return True
+
+    async def _close_steering(self, collected_messages: list[BaseMessage]) -> bool:
+        """The turn's last steering check: close the token to new messages unless one is already waiting.
+
+        A message accepted after the handlers looked would otherwise be reported as taken and never read. Returns
+        True when one got in first: it is injected and the turn runs once more.
+        """
+        token = self._ctx.steering_token
+        if token is None or token.close_if_idle():
+            return False
+        return await self._handle_steering(collected_messages)
 
     async def _handle_teammate_messages(self, collected_messages: list[BaseMessage]) -> bool:
         """Drain P2P teammate inbox into the next subagent turn and emit SSE."""

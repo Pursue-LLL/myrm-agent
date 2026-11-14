@@ -305,6 +305,20 @@ class TestSteerBackground:
         result = await handler.steer_background(msg, "nonexist", "instruction")
         assert result is False
 
+    @pytest.mark.asyncio
+    async def test_steer_task_whose_run_has_ended(self, handler) -> None:
+        from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
+        from myrm_agent_harness.utils.runtime.steering import SteeringToken
+
+        steering_token = SteeringToken()
+        handler.register_runtime_tokens("steer02", CancellationToken(), steering_token)
+        assert steering_token.close_if_idle()
+
+        result = await handler.steer_background(_make_msg(), "steer02", "too late")
+
+        assert result is False
+        assert not steering_token.has_pending
+
 
 class TestRuntimeTokens:
     """Tests for register/unregister runtime tokens."""

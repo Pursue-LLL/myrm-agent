@@ -59,9 +59,10 @@ def _queue_for(chat_id: str) -> SteeringQueue:
 def policy_steer(chat_id: str, message: str, quoted_ref: str | None = None) -> PolicySteerOutcome:
     """Enqueue with policy (dedup, size cap, envelope, metrics) and inject.
 
-    Returns ``no_active`` when no running session exists, ``too_large`` when
-    the body exceeds the cap, ``deduped`` for repeat submits, else
-    ``injected`` with the drained count and current counters.
+    Returns ``no_active`` when no running session exists or its run has just
+    ended (the caller keeps the message), ``too_large`` when the body exceeds
+    the cap, ``deduped`` for repeat submits, else ``injected`` with the
+    drained count and current counters.
     """
     body = message.strip()
     if len(body) > MAX_NOTE_CHARS:
@@ -74,6 +75,8 @@ def policy_steer(chat_id: str, message: str, quoted_ref: str | None = None) -> P
     note = queue.enqueue(chat_id, body, quoted_ref=quoted_ref)
     injected = drain_into_token(queue, token, chat_id)
     after = queue.metrics_snapshot()
+    if injected == 0:
+        return {"status": "no_active", "injected": 0, "deduped": False, "metrics": after.to_dict()}
     deduped = already_queued
     logger.info(
         "Policy steer: chat_id=%s note_id=%s injected=%d deduped=%s",

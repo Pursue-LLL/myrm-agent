@@ -129,6 +129,20 @@ async def test_a_finished_turn_has_nothing_to_steer_so_the_instruction_is_a_turn
     assert chat.submit.call_args.args[0].content == _INSTRUCTION
 
 
+@pytest.mark.parametrize("is_group", [True, False])
+async def test_a_run_that_stopped_taking_steering_makes_the_instruction_a_turn_of_its_own(is_group: bool) -> None:
+    """The run is still registered while it delivers its reply, but acknowledging the steer would drop the text."""
+    chat = await _chat_with_run(requester_id="alice")
+    assert chat.token.close_if_idle()
+
+    replies = await chat.say(_steer("alice", is_group=is_group))
+
+    assert not chat.token.has_pending
+    assert replies == []
+    chat.submit.assert_called_once()
+    assert chat.submit.call_args.args[0].content == _INSTRUCTION
+
+
 @pytest.mark.parametrize("locale", ["en", "zh-CN", "ja"])
 def test_the_queued_acknowledgement_tells_who_started_the_run_how_to_redirect_it(locale: str) -> None:
     msg = InboundMessage(channel="telegram", sender_id="bob", content="x", metadata={"locale": locale})

@@ -641,22 +641,6 @@ async def test_steering_no_pending(ctx):
     assert result is False
 
 
-@pytest.mark.asyncio
-async def test_steering_resume_mode(ctx):
-    """Resume mode (Command) rejects steering."""
-    ctx.agent_input = Command(resume="val")
-    steering = MagicMock()
-    steering.steering_applied = True
-    steering.has_pending = True
-    steering.collect_all_steering_messages.return_value = ["msg"]
-    ctx.steering_token = steering
-
-    executor = _make_executor(ctx)
-    result = await executor._handle_steering([])
-
-    assert result is False
-
-
 # ─── _handle_subagent_notifications ──────────────────────────────────────────
 
 

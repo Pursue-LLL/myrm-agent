@@ -44,7 +44,7 @@ dispatcher  handlers      events         recovery*
 | `recovery/stream_recovery_redrive.py` | 「追加一条提示再跑一遍」的统一入口（新一轮重建输入，续跑轮从检查点续） |
 | `recovery/stream_recovery_truncation.py` | max-token 续写、被截断或被扣留（参数不完整/无法解析）的 tool-call 重试 |
 | `recovery/stream_recovery_oneshot.py` | THINKING_SIGNATURE / REASONING_MANDATORY / DUPLICATE_TOOL_USE_ID / IMAGE_TOO_LARGE / MEDIA_REJECTED / ALLOWED_TOOLS_TOOL_CHOICE_REJECTED / LONG_CONTEXT_TIER 等一次性恢复（支持单图超限收缩与多图累积超限历史轮次聚合降级保底，WebUI progress step: `thinking_signature_recovery`, `reasoning_mandatory_recovery`, `tool_history_recovery`, `image_shrink_recovery`, `long_context_tier_recovery`, `vision_fallback_recovery`, `media_rejected_recovery`, `allowed_tools_rejected_recovery`） |
-| `recovery/stream_recovery_continuation.py` | steering、teammate 收件箱注入、subagent 完成、goal continuation |
+| `recovery/stream_recovery_continuation.py` | steering（含收尾关闸 `_close_steering`：回合结束前原子地「交付或关闭」，已接收的消息一定被模型读到，关闭后的一律拒收）、teammate 收件箱注入、subagent 完成、goal continuation |
 | `recovery/stream_recovery_window.py` | `ProviderWindowRecoveryMixin`：限流 / 账单 / 过载错误在模型切换之后、盲目瞬时退避之前，按供应商声明的重试边界处理——≤300 秒的等待在本轮内睡满（每次运行最多 3 次），更久的把运行中的目标挂起到重置时刻；挂不起来或等也无济于事的（无目标、目标已被暂停、重置超出 24 小时）带真实重置时间立即结束本轮；没有声明边界时交给后续处理器 |
 | `recovery/stream_recovery_budget.py` | `StreamOutputBudgetMixin`：截断恢复一次性放大的输出预算（基准的 2/3/4 倍，受上限与模型文档输出上限约束），由 `StreamTruncationRecoveryMixin` 继承 |
 | `recovery/context_pressure_gate.py` | `PreflightGateMixin`：发送前的上下文压力闸门、token 预算压缩，以及「推定溢出」恢复（400 里自述了模型自身输出上限的，不当作溢出） |
@@ -120,7 +120,7 @@ streaming 产出的事件可被 observability 层订阅，但不反向依赖。
 ## 扩展指南
 
 1. 新 SSE 事件类型 → `types.py` 枚举 + `event_handlers.py` 转换 + 前端契约
-2. 新恢复策略 → 独立 mixin 模块，由 `recovery/stream_recovery.py` 组合；需要「追加提示再跑一遍」的策略一律走 `_redrive_with_hint`，不要自己改写 `agent_input`
+2. 新恢复策略 → 独立 mixin 模块，由 `recovery/stream_recovery.py` 组合；需要「追加消息再跑一遍」的策略一律走 `_redrive_with_messages`（追加运行时提示用 `_redrive_with_hint`），不要自己改写 `agent_input`：resume 轮的输入是已被消费的 `Command`，只有这个入口知道怎么从 thread 续跑
 3. 禁止在 streaming 层写业务 channel 逻辑 → `myrm-agent-server/app/core/channel_bridge/` 或 Server
 
 ---

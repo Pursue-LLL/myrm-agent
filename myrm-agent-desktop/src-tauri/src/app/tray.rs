@@ -7,6 +7,7 @@
 //! [OUTPUT]
 //! - setup_tray: 初始化 Tray 菜单（Show / New Chat / Settings / Workspace / Quit）
 //! - set_tray_status: IPC 命令，前端同步 Agent 运行状态与 i18n tooltip 到托盘
+//! - update_tray_info: IPC 命令，刷新托盘菜单里的引擎版本与升级进度行
 //! - update_native_tray_status: Rust 侧托盘 error/idle 状态（watchdog、启动失败）
 //!
 //! [POS]

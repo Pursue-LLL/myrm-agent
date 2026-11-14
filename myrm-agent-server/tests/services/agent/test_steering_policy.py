@@ -77,3 +77,20 @@ class TestPolicySteer:
             "evicted": 0,
             "injected": 0,
         }
+
+    def test_policy_run_that_just_ended_returns_no_active_and_leaves_nothing_to_replay(self) -> None:
+        """The note goes back to its sender: not pending, not counted as injected, not carried into the next run."""
+        token = _register("chat-pol-6")
+        assert token.close_if_idle()
+
+        outcome = policy_steer("chat-pol-6", "too late")
+
+        assert outcome["status"] == "no_active"
+        assert outcome["injected"] == 0
+        assert not token.has_pending
+        assert policy_metrics("chat-pol-6")["injected"] == 0
+
+        fresh = _register("chat-pol-6")
+        assert policy_steer("chat-pol-6", "for the next run")["injected"] == 1
+        (envelope,) = fresh.collect_all_steering_messages()
+        assert "too late" not in envelope

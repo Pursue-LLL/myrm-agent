@@ -221,6 +221,14 @@ class SteeringQueue:
             self._metrics.injected += len(drained)
             return drained
 
+    def take_back(self, notes: list[SteeringNote]) -> None:
+        """Remove drained notes the live run refused: they were never injected, and their sender keeps them."""
+        with self._lock:
+            for note in notes:
+                if self._notes.pop(note.note_id, None) is not None:
+                    self._order.remove(note.note_id)
+                    self._metrics.injected -= 1
+
     def authorize_publish(self, note_id: str) -> bool:
         """Grant explicit publish authorization for one note. Default is closed."""
         with self._lock:
@@ -327,12 +335,16 @@ def drain_into_token(
 
     Builds one tagged envelope from the session's queued notes and feeds it
     through ``token.steer()``, reusing the runtime two-layer defense
-    (middleware skip + turn-end injection). Returns the injected note count.
+    (middleware skip + turn-end injection). Returns the injected note count:
+    0 when nothing was queued or the run has already ended (the notes are
+    taken back, so they are neither pending nor counted as injected).
     """
     notes = queue.drain_for_boundary(session_id, max_notes=max_notes)
     if not notes:
         return 0
-    token.steer(build_steering_context_block(notes))
+    if not token.steer(build_steering_context_block(notes)):
+        queue.take_back(notes)
+        return 0
     return len(notes)
 
 
