@@ -14,7 +14,9 @@ and CJK formatting boundary insertion.
 Markdown → Slack mrkdwn converter. Escapes special chars (&, <, >),
 protects Slack angle-bracket tokens (<@mention>, <#channel>, <http://...>),
 converts Markdown links to Slack format, handles bold/strike formatting,
-and inserts zero-width spaces at CJK formatting boundaries. Text the agent writes never notifies a
+and inserts zero-width spaces at CJK formatting boundaries. Code blocks follow CommonMark fences (a run of three
+to ten backticks closes at a bare run at least as long), so a block fenced by four stays one Slack block and the
+blocks it documents show as text. Text the agent writes never notifies a
 whole channel, workspace or user group: ``<!here>``, ``<!channel>``, ``<!everyone>`` and ``<!subteam^ID>``
 are escaped wherever they appear, and a Markdown link cannot aim at a mention, a channel or a special token.
 """
@@ -24,7 +26,11 @@ from __future__ import annotations
 import re
 
 _SLACK_ANGLE_TOKEN_RE = re.compile(r"<[^>\n]+>")
-_CODE_FENCE_RE = re.compile(r"^```")  # Match code fence start/end
+# A fence line (CommonMark): a run of three to ten backticks and an info string that holds none. Tildes stay text, for
+# Slack has no block fenced by them.
+_FENCE_LINE_RE = re.compile(r"^(?P<fence>`{3,10})(?P<info>[^`]*)$")
+_BACKTICK_RUN_RE = re.compile(r"`{3,}")
+_SLACK_FENCE = "```"
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"\*(?!\*)([^*]+?)\*(?!\*)")  # *italic* (not **bold**)
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
@@ -162,6 +168,20 @@ def _fix_cjk_formatting_boundaries(text: str) -> str:
     return "".join(result)
 
 
+def _slack_fence_line(line: str, info: str) -> str:
+    """The fence ``line`` as Slack reads it: three backticks and the info string, under the line's own indentation."""
+    return f"{line[: len(line) - len(line.lstrip())]}{_SLACK_FENCE}{info}"
+
+
+def _defang_backtick_runs(line: str) -> str:
+    """``line`` with a zero-width space after every second backtick of each run of three or more.
+
+    Slack ends a code block at any run of three backticks. A block fenced by four documents blocks of its own, and the
+    runs it holds would end it at the first of them.
+    """
+    return _BACKTICK_RUN_RE.sub(lambda run: _ZWS.join(run[0][i : i + 2] for i in range(0, len(run[0]), 2)), line)
+
+
 def _convert_markdown_link(match: re.Match[str]) -> str:
     """Convert Markdown link to Slack link format.
 
@@ -197,6 +217,8 @@ def md_to_slack_mrkdwn(text: str) -> str:
     4. [text](url) → <url|text> (outside code fences only, only if text != url)
     5. Escape special chars (&, <, >) while preserving Slack tokens and code fences
     6. Insert zero-width spaces at CJK formatting boundaries
+    7. A block fenced by more than three backticks becomes a three-backtick block; the runs of backticks inside it
+       are broken so that none ends the block early
 
     Args:
         text: Markdown-formatted text
@@ -214,20 +236,23 @@ def md_to_slack_mrkdwn(text: str) -> str:
     # Strategy: Process line-by-line to respect code fence boundaries
     lines = text.split("\n")
     result_lines: list[str] = []
-    in_fence = False
+    fence_length = 0  # Length of the backtick run that opened the block the scan is in; 0 outside any block
 
     for line in lines:
-        stripped = line.strip()
+        fence = _FENCE_LINE_RE.match(line.strip())
 
-        # Check if this line is a fence delimiter
-        if _CODE_FENCE_RE.match(stripped):
-            in_fence = not in_fence
-            result_lines.append(line)  # Fence line, no transformation
+        if fence and not fence_length:
+            fence_length = len(fence["fence"])
+            result_lines.append(_slack_fence_line(line, fence["info"]))
             continue
 
-        if in_fence:
-            # Inside fence: no transformations; only broadcast tokens are escaped
-            result_lines.append(neutralize_broadcast_mentions(line))
+        if fence_length:
+            if fence and not fence["info"] and len(fence["fence"]) >= fence_length:
+                fence_length = 0
+                result_lines.append(_slack_fence_line(line, ""))
+            else:
+                # Inside fence: no transformations; broadcast tokens are escaped and no run of backticks ends the block
+                result_lines.append(neutralize_broadcast_mentions(_defang_backtick_runs(line)))
         else:
             # Outside fence: apply all transformations
             # 1. Bold (with temporary marker)
