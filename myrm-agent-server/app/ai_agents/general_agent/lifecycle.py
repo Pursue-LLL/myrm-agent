@@ -10,7 +10,8 @@
 
 [POS]
 GeneralAgent teardown. A pooled agent is reused across turns of a chat, so release_pooled_session frees only what a
-turn owns while close frees everything, including the browser, the executor and the harness SkillAgent.
+turn owns while close frees everything, including the browser, the executor and the harness SkillAgent. Every release is
+guarded on its own: one that fails is logged and never keeps the next from running.
 """
 
 from __future__ import annotations
@@ -63,19 +64,21 @@ class AgentLifecycleMixin:
             self._runtime_pool = None
             self._owned_runtime_pool = None
 
+    async def _cleanup_context_files(self) -> None:
+        """Remove the context files this chat offloaded through its executor; a failure is logged, never raised."""
+        if self._executor is None or self._current_chat_id is None:
+            return
+        try:
+            from myrm_agent_harness.runtime.context.offload import cleanup_session_context_files
+
+            await cleanup_session_context_files(self._current_chat_id, self._executor)
+        except Exception as e:
+            logger.warning("Context cleanup failed for chat_id=%s: %s", self._current_chat_id, e)
+
     async def release_pooled_session(self) -> None:
         """Release per-turn server resources without closing pooled SkillAgent/Browser."""
         await self._release_runtime_pool()
-
-        if self._executor is not None and self._current_chat_id is not None:
-            try:
-                from myrm_agent_harness.runtime.context.offload import (
-                    cleanup_session_context_files,
-                )
-
-                await cleanup_session_context_files(self._current_chat_id, self._executor)
-            except Exception as e:
-                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
+        await self._cleanup_context_files()
 
     async def close(self) -> None:
         """Close Agent and release resources."""
@@ -86,30 +89,25 @@ class AgentLifecycleMixin:
                 await self._browser_session.close()
                 self._capture_session_recording_info()
             except Exception as e:
-                logger.warning(f"⚠️ BrowserSession close failed: {e}")
+                logger.warning("BrowserSession close failed: %s", e)
             finally:
                 self._browser_session = None
 
         if self._executor is not None:
+            await self._cleanup_context_files()
             try:
-                if self._current_chat_id is not None:
-                    from myrm_agent_harness.runtime.context.offload import (
-                        cleanup_session_context_files,
-                    )
-
-                    await cleanup_session_context_files(self._current_chat_id, self._executor)
                 await self._executor.close()
             except Exception as e:
-                logger.warning(f"⚠️ Executor cleanup failed for chat_id={self._current_chat_id}: {e}")
+                logger.warning("Executor close failed for chat_id=%s: %s", self._current_chat_id, e)
             finally:
                 self._executor = None
 
         if self.agent is not None:
             try:
                 await self.agent.close()
-                logger.info("Agent 资源已完全释放")
+                logger.info("Agent resources fully released")
             except Exception as e:
-                logger.warning(f"⚠️ 关闭 Agent 时发生错误: {e}")
+                logger.warning("Agent close failed: %s", e)
             finally:
                 self.agent = None
 

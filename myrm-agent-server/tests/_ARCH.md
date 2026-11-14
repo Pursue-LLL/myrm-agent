@@ -831,6 +831,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `ai_agents/general_agent/test_human_tail_mount_order.py` | 模块 | factory 里 Human 尾部中间件晚于上下文压缩挂载，顺序固定为知识包、会话覆盖 deltas、两层上下文 |
 | `ai_agents/general_agent/test_instructions_and_memory_block_order.py` | 模块 | factory 里用户指令中间件先于记忆上下文中间件挂载（读 factory 的挂载列表）；真实 `create_agent` 图上两轮对话，每次模型调用里用户指令与记忆块各恰好一次、顺序为身份提示词、用户指令、记忆块 |
 | `ai_agents/general_agent/test_instructions_resume_continuity.py` | 模块 | 真实 `create_agent` + 检查点 + `interrupt` 工具：审批续跑的调用不带指令时沿用被打断那一段的指令（一次），下一条不带指令的消息没有该块，再下一条消息只含自己的指令 |
+| `ai_agents/general_agent/test_lifecycle.py` | 模块 | GeneralAgent 资源释放：回合结束释放外部 Agent 运行时池（失败只记日志并忘掉该池）并清理该聊天卸载的上下文文件，浏览器、执行器与 harness Agent 原样保留；`close()` 按浏览器 → 录屏信息 → 上下文文件 → 执行器 → harness Agent 的顺序释放，任何一步失败只记日志、不阻断下一步（上下文文件清理失败仍会关闭执行器）；录屏信息只在开启且文件存在时采集，相对路径换成预览地址 |
 | `ai_agents/general_agent/test_skill_tool_mount.py` | 模块 | `skill_manage` / `skill_market` 经 ToolSetupMixin 真实挂载：启用或 `/learn` 强制挂载的判定、挂载后的工具经真实创建服务落盘并在写入前拦截危险内容、撤销快照取自写入根而非轮次技能后端（轮次后端看不到该技能时，改写前的内容仍被记下）、factory 只经 tool_setup 挂载 |
 | `core/skills/test_draft_skill_name.py` | 模块 | `slugify_draft_skill_name`：技能名成为目录名的各种写法（空格、连续空白、结尾句号、首尾空白、首尾连字符、非 ASCII 字母、路径、NUL、Kelvin 符号、超长、清洗后什么都不剩、空名字）各一例；对敌意输入逐一确认结果恒为一个由 `a-zA-Z0-9_-` 组成、不超过 64 字符的目录项名 |
 | `core/skills/test_managed_skill_reader.py` | 模块 | `ManagedSkillSnapshotReader`：读服务根下的 SKILL.md 与资源字节、缺失技能/资源抛 `FileNotFoundError`、根在每次调用时读取（服务根被改后跟随）、技能名与资源路径越界（`..`、绝对路径）被拒 |
