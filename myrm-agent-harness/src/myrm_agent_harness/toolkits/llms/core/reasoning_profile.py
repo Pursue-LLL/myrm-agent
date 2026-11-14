@@ -11,6 +11,7 @@
 - is_thinking_model(): Whether a model qualifies as reasoning/thinking
 - apply_thinking_headroom(): In-place proactive adjustment of max_tokens
 - extract_reasoning_effort(): Extracted caller reasoning intensity level
+- strip_untranslated_off_effort(): Drops an 'off' effort no provider rule translated
 
 [POS]
 LLM Core Single Source of Truth for reasoning model capabilities, timeouts,
@@ -46,6 +47,8 @@ _HEAVY_REASONING_TIMEOUT_FLOOR: float = 600.0
 # Normalized effort values
 _DISABLED_EFFORT_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
 _HEAVY_EFFORT_VALUES: frozenset[str] = frozenset({"high", "max", "xhigh", "ultra"})
+# Spellings of 'off' that are not values of the OpenAI-compatible reasoning_effort enum ('none' is one)
+_NON_WIRE_OFF_VALUES: frozenset[str] = frozenset({"off", "disabled", "false", "0"})
 
 # Authoritative catalog of known reasoning models and their baseline timeout floors (seconds)
 # Ordered by specificity when matching prefixes.
@@ -197,6 +200,23 @@ def is_reasoning_explicitly_enabled(llm_kwargs: Mapping[str, object] | None) -> 
             return True
 
     return False
+
+
+def strip_untranslated_off_effort(llm_kwargs: dict[str, object]) -> None:
+    """Drop an 'off' reasoning_effort that no provider rule translated, from the top level and ``extra_body``.
+
+    OpenAI-compatible endpoints accept only enabled levels (and ``none``), so an untranslated 'off' would reach them
+    as an invalid enum value. Omitting it leaves the endpoint's own default in effect.
+    """
+
+    def _is_off(value: object) -> bool:
+        return value is not None and str(value).strip().lower() in _NON_WIRE_OFF_VALUES
+
+    if _is_off(llm_kwargs.get("reasoning_effort")):
+        llm_kwargs.pop("reasoning_effort")
+    extra_body = llm_kwargs.get("extra_body")
+    if isinstance(extra_body, dict) and _is_off(extra_body.get("reasoning_effort")):
+        extra_body.pop("reasoning_effort")
 
 
 def get_model_timeout_floor(

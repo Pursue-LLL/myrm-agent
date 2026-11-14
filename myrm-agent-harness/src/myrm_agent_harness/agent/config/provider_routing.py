@@ -86,6 +86,7 @@ _HTTP_SELECTION_FIRST_SEGMENT: dict[str, str] = {
     "openai-like": "openai",
     "openai-compatible": "openai",
     "siliconflow": "openai",
+    "opencode-go": "openai",
     "gemini-like": "gemini",
     "anthropic-like": "anthropic",
     "xiaomi": "xiaomi_mimo",

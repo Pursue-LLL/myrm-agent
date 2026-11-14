@@ -38,6 +38,27 @@ class TestOpenAIModelDetection:
         assert is_openai_model("deepseek/deepseek-chat") is False
         assert is_openai_model("anthropic/claude-3-5-sonnet") is False
 
+    def test_route_segment_alone_does_not_make_a_gateway_model_openai(self) -> None:
+        """The ``openai/`` segment names the wire protocol: models of other families behind it are not OpenAI's."""
+        gateway = "https://opencode.ai/zen/go/v1"
+        assert is_openai_model("openai/deepseek-v4.1-flash", base_url=gateway) is False
+        assert is_openai_model("openai/Qwen/Qwen3-235B-A22B", base_url="https://api.siliconflow.cn/v1") is False
+        assert (
+            is_openai_model("openai/opencode-go-magpie/deepseek-v4.1-flash", base_url="http://127.0.0.1:3425/v1")
+            is False
+        )
+
+    def test_openai_model_names_stay_openai_behind_a_gateway(self) -> None:
+        assert is_openai_model("openai/gpt-5.6", base_url="http://127.0.0.1:3425/v1") is True
+        assert is_openai_model("openai/o3-mini", base_url="https://gateway.example/v1") is True
+
+    def test_azure_is_openai(self) -> None:
+        assert is_openai_model("azure/gpt-4o", base_url="https://res.openai.azure.com") is True
+
+    def test_empty_and_unresolvable_models_are_not_openai(self) -> None:
+        assert is_openai_model("") is False
+        assert is_openai_model("nonexistent/foo") is False
+
     def test_reasoning_model_identification(self) -> None:
         assert is_openai_reasoning_model("openai/o1") is True
         assert is_openai_reasoning_model("openai/o3-mini") is True
@@ -110,6 +131,18 @@ class TestOpenAIReasoningEffortRemap:
         kwargs: dict = {"reasoning_effort": "minimal"}
         apply_openai_reasoning_effort("anthropic/claude-3-5-sonnet", kwargs)
         assert kwargs["reasoning_effort"] == "minimal"
+
+    def test_gateway_model_keeps_the_callers_effort(self) -> None:
+        """A model of another family behind the ``openai/`` segment is not an OpenAI model: its effort is the caller's."""
+        kwargs: dict = {"reasoning_effort": "max", "api_base": "https://opencode.ai/zen/go/v1"}
+        apply_openai_reasoning_effort("openai/deepseek-v4.1-flash", kwargs)
+        assert kwargs["reasoning_effort"] == "max"
+        assert "extra_body" not in kwargs
+
+    def test_openai_reasoning_model_behind_a_gateway_is_still_remapped(self) -> None:
+        kwargs: dict = {"reasoning_effort": "max", "api_base": "http://127.0.0.1:3425/v1"}
+        apply_openai_reasoning_effort("openai/gpt-5.6", kwargs)
+        assert kwargs["reasoning_effort"] == "high"
 
 
 class TestCreateChatModelOpenAIIntegration:

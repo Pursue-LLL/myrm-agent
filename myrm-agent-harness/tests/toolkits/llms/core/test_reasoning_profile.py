@@ -13,6 +13,7 @@ from myrm_agent_harness.toolkits.llms.core.reasoning_profile import (
     is_reasoning_explicitly_disabled,
     is_reasoning_explicitly_enabled,
     is_thinking_model,
+    strip_untranslated_off_effort,
 )
 
 
@@ -122,6 +123,28 @@ class TestApplyThinkingHeadroom:
         kwargs: dict[str, object] = {"max_tokens": 2048}
         apply_thinking_headroom("gpt-4o", kwargs)
         assert kwargs["max_tokens"] == 2048
+
+
+class TestStripUntranslatedOffEffort:
+    """``off`` is not a wire value: a gateway never accepts ``reasoning_effort: off``."""
+
+    @pytest.mark.parametrize("value", ["off", "OFF", " disabled ", "false", "0"])
+    def test_off_values_leave_both_levels(self, value: str) -> None:
+        kwargs: dict[str, object] = {"reasoning_effort": value, "extra_body": {"reasoning_effort": value, "keep": 1}}
+        strip_untranslated_off_effort(kwargs)
+        assert "reasoning_effort" not in kwargs
+        assert kwargs["extra_body"] == {"keep": 1}
+
+    @pytest.mark.parametrize("value", ["low", "medium", "high", "xhigh", "max"])
+    def test_wire_levels_are_kept(self, value: str) -> None:
+        kwargs: dict[str, object] = {"reasoning_effort": value, "extra_body": {"reasoning_effort": value}}
+        strip_untranslated_off_effort(kwargs)
+        assert kwargs == {"reasoning_effort": value, "extra_body": {"reasoning_effort": value}}
+
+    def test_without_an_effort_nothing_changes(self) -> None:
+        kwargs: dict[str, object] = {"temperature": 0.2}
+        strip_untranslated_off_effort(kwargs)
+        assert kwargs == {"temperature": 0.2}
 
 
 class TestLocalEndpointConvergence:

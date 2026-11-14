@@ -2,8 +2,12 @@
 
 [INPUT]
 - model identifier, base_url, llm_kwargs dictionary
+- reasoning_route::resolve_reasoning_route (POS: provider, bare model id and endpoint kind of the call)
 
 [OUTPUT]
+- is_deepseek_model(): whether the call targets DeepSeek's own API
+- is_hosted_deepseek_reasoning_model(): whether another provider's OpenAI-shaped endpoint serves a DeepSeek
+  reasoning model (recognised by its bare model id)
 - apply_deepseek_reasoning_effort(): normalizes reasoning_effort and thinking
   configuration for DeepSeek models (native deepseek, deepseek-v4-pro, deepseek-r1).
 
@@ -18,12 +22,17 @@ Configurable models need ``thinking: {"type": "enabled"}`` to activate thinking
 mode and protect multi-turn tool-calling with ``reasoning_content``.
 This module maps standard/extended reasoning effort values to DeepSeek native
 parameters and guarantees thinking mode activation or deactivation without HTTP 400 errors.
+DeepSeek models behind other providers (OpenCode Go, SiliconFlow, NVIDIA, custom endpoints) follow the same
+effort mapping and the same explicit off switch, but a request that selects nothing is left untouched and an
+explicit level adds no ``thinking`` field: those gateways already default to thinking and decide what else they take.
 """
 
 from __future__ import annotations
 
 import logging
 from typing import Any
+
+from myrm_agent_harness.toolkits.llms.core.reasoning_route import resolve_reasoning_route
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +74,28 @@ def is_deepseek_model(model: str, base_url: str | None = None) -> bool:
     return False
 
 
+# Providers with their own reasoning protocol: DeepSeek's API follows the rules above and OpenRouter nests reasoning
+# under ``reasoning.effort``.
+_OWN_PROTOCOL_PROVIDERS: frozenset[str] = frozenset({"deepseek", "openrouter"})
+
+
+def is_hosted_deepseek_reasoning_model(
+    model: str,
+    base_url: str | None = None,
+    custom_llm_provider: str | None = None,
+) -> bool:
+    """Return True when an OpenAI-shaped endpoint of another provider serves a DeepSeek reasoning model.
+
+    Gateways carry DeepSeek models under their own route segment (``openai/deepseek-v4.1-flash``), so the model is
+    recognised by its bare id. Providers with their own thinking protocol are excluded.
+    """
+    route = resolve_reasoning_route(model, base_url, custom_llm_provider)
+    if route is None or not route.openai_body or route.provider in _OWN_PROTOCOL_PROVIDERS:
+        return False
+    bare_id = route.model.rsplit("/", 1)[-1]
+    return bare_id.startswith("deepseek") and is_deepseek_reasoning_model(bare_id)
+
+
 def is_deepseek_always_on_reasoning_model(model: str) -> bool:
     """Check if model is an always-on reasoning model (R1/Reasoner) that rejects reasoning_effort params."""
     lower = model.lower()
@@ -92,13 +123,16 @@ def apply_deepseek_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) -> N
        - When effort is None:
          Injects extra_body.thinking = {"type": "enabled"} so thinking
          mode is active and the model protects multi-turn tool-calling with reasoning_content.
+    3. DeepSeek models served by another provider's OpenAI-shaped endpoint follow 1 and 2 except that nothing is
+       injected for an unspecified effort and an enabled level carries no ``thinking`` field.
 
     Args:
         model: Model identifier (e.g. 'deepseek/deepseek-v4-pro').
         llm_kwargs: Mutable LLM parameter dict (modified in place).
     """
     base_url = llm_kwargs.get("api_base") or llm_kwargs.get("base_url")
-    if not is_deepseek_model(model, base_url):
+    native = is_deepseek_model(model, base_url)
+    if not native and not is_hosted_deepseek_reasoning_model(model, base_url, llm_kwargs.get("custom_llm_provider")):
         return
 
     extra_body = llm_kwargs.setdefault("extra_body", {})
@@ -121,7 +155,7 @@ def apply_deepseek_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) -> N
 
     # Case 2: Configurable models with effort unspecified
     if raw_effort is None:
-        if is_deepseek_reasoning_model(model) and "thinking" not in extra_body:
+        if native and is_deepseek_reasoning_model(model) and "thinking" not in extra_body:
             extra_body["thinking"] = {"type": "enabled"}
             logger.debug("Auto-enabled thinking mode for DeepSeek configurable model: %s", model)
         return
@@ -147,7 +181,8 @@ def apply_deepseek_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) -> N
     else:
         mapped_effort = "high"
 
-    extra_body["thinking"] = {"type": "enabled"}
+    if native:
+        extra_body["thinking"] = {"type": "enabled"}
     extra_body["reasoning_effort"] = mapped_effort
     llm_kwargs["reasoning_effort"] = mapped_effort
     logger.info("DeepSeek reasoning mapped: model=%s raw=%s -> effort=%s", model, raw_effort, mapped_effort)

@@ -6,7 +6,8 @@ Validates:
 3. Effort mapping: low/high/max passthrough, medium -> high, xhigh -> max for V4-pro/flash.
 4. Disabled/off mode: extra_body.thinking={'type': 'disabled'} and parameter stripping.
 5. Auto-enabling thinking mode for DeepSeek configurable reasoning models when effort is unspecified.
-6. End-to-end integration via create_chat_model and LLMManager.
+6. DeepSeek models served by gateways behind the ``openai/`` segment: recognised by bare model id, explicit controls only.
+7. End-to-end integration via create_chat_model and LLMManager.
 """
 
 from unittest.mock import MagicMock, patch
@@ -17,6 +18,7 @@ from myrm_agent_harness.toolkits.llms.core.deepseek_reasoning import (
     is_deepseek_always_on_reasoning_model,
     is_deepseek_model,
     is_deepseek_reasoning_model,
+    is_hosted_deepseek_reasoning_model,
 )
 from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.core.manager import LLMManager
@@ -119,6 +121,72 @@ class TestApplyDeepSeekReasoningEffort:
         kwargs: dict = {}
         apply_deepseek_reasoning_effort("deepseek/deepseek-chat", kwargs)
         assert "extra_body" not in kwargs or "thinking" not in kwargs.get("extra_body", {})
+
+
+_GATEWAY = "https://opencode.ai/zen/go/v1"
+
+
+class TestHostedDeepSeekDetection:
+    """DeepSeek models behind another provider's OpenAI-shaped endpoint are recognised by their bare model id."""
+
+    def test_gateway_models_are_recognised(self) -> None:
+        assert is_hosted_deepseek_reasoning_model("openai/deepseek-v4.1-flash", _GATEWAY) is True
+        assert is_hosted_deepseek_reasoning_model("openai/deepseek-v4-pro", "https://api.siliconflow.cn/v1") is True
+        assert is_hosted_deepseek_reasoning_model("openai/deepseek-r1", _GATEWAY) is True
+        assert is_hosted_deepseek_reasoning_model("openai/opencode-go-magpie/deepseek-v4.1-flash", _GATEWAY) is True
+
+    def test_other_model_families_are_not_recognised(self) -> None:
+        assert is_hosted_deepseek_reasoning_model("openai/gpt-5.6", _GATEWAY) is False
+        assert is_hosted_deepseek_reasoning_model("openai/Qwen/Qwen3-32B", _GATEWAY) is False
+        assert is_hosted_deepseek_reasoning_model("openai/deepseek-chat", _GATEWAY) is False
+
+    def test_providers_with_their_own_protocol_are_excluded(self) -> None:
+        assert is_hosted_deepseek_reasoning_model("deepseek/deepseek-v4-pro") is False
+        assert is_hosted_deepseek_reasoning_model("openrouter/deepseek/deepseek-v4-pro") is False
+
+    def test_wires_without_an_openai_body_are_excluded(self) -> None:
+        assert is_hosted_deepseek_reasoning_model("anthropic/deepseek-v4-flash") is False
+
+    def test_unresolvable_model_is_not_recognised(self) -> None:
+        assert is_hosted_deepseek_reasoning_model("deepseek-v4-flash") is False
+
+
+class TestApplyHostedDeepSeekReasoningEffort:
+    """A gateway-hosted DeepSeek model gets the explicit controls only; nothing is chosen for the caller."""
+
+    @staticmethod
+    def _apply(effort: str | None, model: str = "openai/deepseek-v4.1-flash") -> dict:
+        kwargs: dict = {"api_base": _GATEWAY}
+        if effort is not None:
+            kwargs["reasoning_effort"] = effort
+        apply_deepseek_reasoning_effort(model, kwargs)
+        return kwargs
+
+    def test_unspecified_effort_changes_nothing(self) -> None:
+        kwargs = self._apply(None)
+        assert "reasoning_effort" not in kwargs
+        assert kwargs["extra_body"] == {}
+
+    def test_levels_carry_the_mapped_effort_and_no_thinking_field(self) -> None:
+        for raw, mapped in (("low", "low"), ("medium", "high"), ("high", "high"), ("xhigh", "max"), ("max", "max")):
+            kwargs = self._apply(raw)
+            assert kwargs["reasoning_effort"] == mapped
+            assert kwargs["extra_body"] == {"reasoning_effort": mapped}
+
+    def test_off_sends_the_disable_switch_and_no_effort(self) -> None:
+        for raw in ("off", "disabled", "none", "0"):
+            kwargs = self._apply(raw)
+            assert kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
+            assert "reasoning_effort" not in kwargs
+
+    def test_always_on_model_strips_every_control(self) -> None:
+        kwargs = self._apply("high", model="openai/deepseek-r1")
+        assert "reasoning_effort" not in kwargs
+        assert kwargs["extra_body"] == {}
+
+    def test_non_deepseek_gateway_model_is_untouched(self) -> None:
+        kwargs = self._apply("max", model="openai/Qwen/Qwen3-32B")
+        assert kwargs == {"api_base": _GATEWAY, "reasoning_effort": "max"}
 
 
 class TestCreateChatModelIntegration:

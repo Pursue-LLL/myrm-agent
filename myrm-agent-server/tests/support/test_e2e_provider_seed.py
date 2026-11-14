@@ -127,6 +127,15 @@ def test_chat_probe_model_preserves_combo_pattern_for_local_gateway() -> None:
     assert _chat_probe_max_tokens("https://api.minimaxi.com/v1") == 1
 
 
+def test_opencode_go_preset_prefix_seeds_preset_provider_and_probes_bare_model() -> None:
+    from tests.support.e2e_provider_seed import infer_provider_id, strip_provider_prefix
+
+    raw = "opencode_go/muse-spark-1.3-contributor"
+    assert infer_provider_id(raw) == "opencode_go"
+    assert strip_provider_prefix(raw) == "muse-spark-1.3-contributor"
+    assert _chat_probe_model("https://opencode.ai/zen/go/v1", raw) == "muse-spark-1.3-contributor"
+
+
 def test_probe_llm_api_key_once_injects_opencode_session(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

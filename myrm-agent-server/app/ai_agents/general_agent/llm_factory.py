@@ -31,9 +31,9 @@ _LOW_REASONING_EFFORT = "low"
 def _inject_low_reasoning_effort(cfg: ModelConfig) -> ModelConfig:
     """Return a ModelConfig copy with reasoning_effort='low' merged into model_kwargs.
 
-    OpenAI-family models without reasoning support have it stripped by
-    ``apply_openai_reasoning_effort``; a gateway that rejects it is retried without it by
-    the gateway normalizer.
+    Models that cannot take it (OpenAI models without reasoning support) have it stripped by
+    ``apply_openai_reasoning_effort``; a gateway that rejects it is retried without it by the
+    gateway normalizer, which remembers the rejection for that model.
     """
     existing = cfg.model_kwargs or {}
     if existing.get("reasoning_effort") == _LOW_REASONING_EFFORT:

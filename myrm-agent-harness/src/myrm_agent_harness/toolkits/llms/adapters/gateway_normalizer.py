@@ -8,8 +8,10 @@ or optional parameters with HTTP 400.
 - Exception/error objects, params dict
 
 [OUTPUT]
-- sanitize_gateway_params_on_400(): Adaptive parameter stripping on HTTP 400 format errors
+- sanitize_gateway_params_on_400(): Adaptive parameter stripping on HTTP 400 format errors; a rejected parameter
+  leaves both the top level and ``extra_body``, and a rejected reasoning control is remembered per endpoint and value
 - is_gateway_param_rejection(): Check whether 400 error is due to an unsupported parameter
+- drop_rejected_reasoning_params(): Removes the reasoning controls an endpoint already rejected from a request
 
 [POS]
 Adapters gateway normalizer.
@@ -19,7 +21,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+import time
+from typing import Any, Final
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +48,15 @@ _PARAM_REJECTION_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] =
             re.IGNORECASE,
         ),
         ("reasoning_effort",),
+    ),
+    (
+        re.compile(
+            r"unrecognized request argument[^.]{0,40}thinking"
+            r"|(?:unknown|unsupported|unexpected|extra)[^.]{0,40}\bthinking\b"
+            r"|\bthinking\b[^.]{0,40}(?:not supported|unsupported|not allowed|not permitted|unknown)",
+            re.IGNORECASE,
+        ),
+        ("thinking",),
     ),
     (
         re.compile(r"presence_penalty|frequency_penalty", re.IGNORECASE),
@@ -113,11 +125,20 @@ _TOOL_CALLS_TRANSPORT_SCHEMA_NAME = "tool_calls_transport"
 # (model, base_url). Bounded process-local memory so a mis-detected endpoint pays
 # exactly one failed request; endpoint or model changes alter the key.
 _TRANSPORT_STRIP_MEMO: dict[tuple[str, str], None] = {}
-_TRANSPORT_STRIP_MEMO_CAP = 256
+
+# Bound shared by the process-local endpoint memories of this module.
+_MEMO_CAP: Final = 256
+
+# Reasoning controls an endpoint rejected: (model, base_url, param, value) -> expiry. Dropping one costs the caller's
+# intent, so the memory expires (a provider may add support) and carries the value: a level the endpoint rejected
+# does not block a level it accepts.
+_REASONING_PARAMS: Final = ("reasoning_effort", "thinking")
+_REJECTED_REASONING: dict[tuple[str, str, str, str], float] = {}
+_REJECTED_REASONING_TTL_S: Final = 3600.0
 
 
 def _normalize_memo_key(model: str, base_url: str) -> tuple[str, str]:
-    """Normalize endpoint identity for the transport-strip memory."""
+    """Normalize endpoint identity for the endpoint memories."""
     return (model or "").strip().lower(), (base_url or "").strip().lower()
 
 
@@ -131,9 +152,65 @@ def remember_stripped_transport(model: str = "", base_url: str = "") -> None:
     key = _normalize_memo_key(model, base_url)
     if key == ("", "") or key in _TRANSPORT_STRIP_MEMO:
         return
-    if len(_TRANSPORT_STRIP_MEMO) >= _TRANSPORT_STRIP_MEMO_CAP:
+    if len(_TRANSPORT_STRIP_MEMO) >= _MEMO_CAP:
         _TRANSPORT_STRIP_MEMO.pop(next(iter(_TRANSPORT_STRIP_MEMO)))
     _TRANSPORT_STRIP_MEMO[key] = None
+
+
+def _param_value(params: dict[str, object], key: str) -> object:
+    """The value of ``key`` in the request params, from the top level or ``extra_body``."""
+    if key in params:
+        return params[key]
+    extra_body = params.get("extra_body")
+    return extra_body.get(key) if isinstance(extra_body, dict) else None
+
+
+def _strip_param(params: dict[str, object], key: str) -> bool:
+    """Remove ``key`` from the top level and from ``extra_body``; True when either held it.
+
+    The model factory mirrors body fields into ``extra_body``, so a field left there would ride into the retry.
+    The mirror is replaced rather than edited: that dict is shared with the model configuration.
+    """
+    present = key in params
+    params.pop(key, None)
+    extra_body = params.get("extra_body")
+    if isinstance(extra_body, dict) and key in extra_body:
+        params["extra_body"] = {name: value for name, value in extra_body.items() if name != key}
+        present = True
+    return present
+
+
+def _reasoning_key(model: str, base_url: str, param: str, value: object) -> tuple[str, str, str, str]:
+    return (*_normalize_memo_key(model, base_url), param, repr(value))
+
+
+def _remember_rejected_reasoning(model: str, base_url: str, param: str, value: object) -> None:
+    """Record that an endpoint rejected one reasoning control value."""
+    if value is None:
+        return
+    key = _reasoning_key(model, base_url, param, value)
+    if key not in _REJECTED_REASONING and len(_REJECTED_REASONING) >= _MEMO_CAP:
+        _REJECTED_REASONING.pop(next(iter(_REJECTED_REASONING)))
+    _REJECTED_REASONING[key] = time.monotonic() + _REJECTED_REASONING_TTL_S
+
+
+def drop_rejected_reasoning_params(params: dict[str, object], *, model: str, base_url: str) -> None:
+    """Remove the reasoning controls this endpoint already rejected, so a request does not fail the same way again."""
+    if not _REJECTED_REASONING:
+        return
+    now = time.monotonic()
+    for param in _REASONING_PARAMS:
+        value = _param_value(params, param)
+        if value is None:
+            continue
+        key = _reasoning_key(model, base_url, param, value)
+        expiry = _REJECTED_REASONING.get(key)
+        if expiry is None:
+            continue
+        if expiry <= now:
+            del _REJECTED_REASONING[key]
+        else:
+            _strip_param(params, param)
 
 
 def _response_format_is_internal_transport(value: object) -> bool:
@@ -199,9 +276,13 @@ def sanitize_gateway_params_on_400(
     for pattern, param_keys in _PARAM_REJECTION_PATTERNS:
         if pattern.search(err_str):
             for key in param_keys:
-                if key in params and key not in stripped:
-                    params.pop(key, None)
+                if key in stripped:
+                    continue
+                rejected_value = _param_value(params, key)
+                if _strip_param(params, key):
                     stripped.append(key)
+                    if key in _REASONING_PARAMS:
+                        _remember_rejected_reasoning(model, base_url, key, rejected_value)
 
     for pattern in _STRUCTURED_OUTPUT_SCHEMA_PATTERNS:
         if pattern.search(err_str):

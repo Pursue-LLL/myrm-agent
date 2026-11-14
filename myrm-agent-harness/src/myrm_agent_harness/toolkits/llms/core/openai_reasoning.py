@@ -2,8 +2,11 @@
 
 [INPUT]
 - model identifier, base_url, llm_kwargs dictionary
+- reasoning_route::resolve_reasoning_route (POS: provider, bare model id and endpoint kind of the call)
 
 [OUTPUT]
+- is_openai_model(): whether the call reaches an OpenAI model (first-party endpoint, Azure, or an OpenAI model id
+  behind a gateway); models other providers serve through the ``openai/`` route segment are not OpenAI models
 - apply_openai_reasoning_effort(): remaps unsupported reasoning intensity values
   (e.g., 'minimal' -> 'low', 'xhigh'/'max' -> 'high') for OpenAI reasoning models
   (GPT-5.6, o1, o3, o4), and cleanly strips reasoning_effort from non-reasoning models
@@ -19,6 +22,8 @@ Furthermore, non-reasoning models (such as gpt-4o and gpt-4o-mini) reject the
 strict gateways reject the request with HTTP 400.
 This module remaps non-standard reasoning levels to OpenAI's valid enum and strips
 the parameter for non-reasoning models, guaranteeing semantic intent preservation and zero 400s.
+Models of other providers that merely ride the OpenAI wire (SiliconFlow, OpenCode Go, NVIDIA, custom
+endpoints) keep the caller's reasoning_effort untouched: their gateway decides what it accepts.
 """
 
 from __future__ import annotations
@@ -26,10 +31,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from myrm_agent_harness.toolkits.llms.core.reasoning_route import resolve_reasoning_route
+
 logger = logging.getLogger(__name__)
 
-_OPENAI_PREFIXES: tuple[str, ...] = ("openai/", "azure/")
 _OPENAI_HOSTS: tuple[str, ...] = ("api.openai.com",)
+_OPENAI_MODEL_ID_PREFIXES: tuple[str, ...] = ("gpt-", "o1", "o3", "o4", "chatgpt-")
 
 _OPENAI_REASONING_SUBSTRINGS: tuple[str, ...] = (
     "o1",
@@ -46,20 +53,30 @@ _HIGH_VALUES: frozenset[str] = frozenset({"high", "max", "xhigh", "ultra"})
 _OFF_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
 
 
-def is_openai_model(model: str, base_url: str | None = None) -> bool:
-    """Return True when the model belongs to the OpenAI family and is not routed via OpenRouter or DeepSeek."""
-    if not model or model.startswith("openrouter/") or model.startswith("deepseek/"):
+def is_openai_model(
+    model: str,
+    base_url: str | None = None,
+    custom_llm_provider: str | None = None,
+) -> bool:
+    """Return True when the call reaches an OpenAI model.
+
+    The ``openai/`` segment only names the wire a call speaks. A model counts as OpenAI's when the endpoint is
+    OpenAI's own, when the provider is Azure (which serves OpenAI models under deployment names), or when the model
+    id itself is an OpenAI one behind a gateway. OpenRouter, DeepSeek and every model another provider serves through
+    the ``openai/`` segment are not.
+    """
+    if not model:
         return False
-    lower = model.lower()
-    if lower.startswith(_OPENAI_PREFIXES) or "openai/" in lower:
+    route = resolve_reasoning_route(model, base_url, custom_llm_provider)
+    if route is None:
+        return False
+    if route.provider == "azure":
         return True
-    if lower.startswith(("gpt-", "o1", "o3", "o4", "chatgpt-")):
-        return True
-    if base_url:
-        b_lower = base_url.lower()
-        if any(h in b_lower for h in _OPENAI_HOSTS):
-            return True
-    return False
+    at_openai_host = any(host in (base_url or "").lower() for host in _OPENAI_HOSTS)
+    if route.provider == "openai":
+        bare_id = route.model.rsplit("/", 1)[-1]
+        return route.first_party or at_openai_host or bare_id.startswith(_OPENAI_MODEL_ID_PREFIXES)
+    return route.provider == "openai_compatible" and at_openai_host
 
 
 def is_openai_reasoning_model(model: str) -> bool:
@@ -84,7 +101,7 @@ def apply_openai_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) -> Non
        - Strips reasoning_effort from both top-level kwargs and extra_body to avoid HTTP 400.
     """
     base_url = llm_kwargs.get("api_base") or llm_kwargs.get("base_url")
-    if not is_openai_model(model, base_url):
+    if not is_openai_model(model, base_url, llm_kwargs.get("custom_llm_provider")):
         return
 
     extra_body = llm_kwargs.setdefault("extra_body", {})

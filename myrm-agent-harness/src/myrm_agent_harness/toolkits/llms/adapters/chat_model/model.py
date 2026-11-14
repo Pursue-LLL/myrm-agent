@@ -7,6 +7,7 @@
 - adapters.chat_model.binding (POS: bind_tools and with_structured_output assembly)
 - adapters.chat_model.exceptions (POS: adapter exceptions and constants)
 - adapters.metrics::EmptyRetryMetrics (POS: empty-response retry counters)
+- adapters.gateway_normalizer::drop_rejected_reasoning_params (POS: reasoning controls an endpoint already rejected are not sent again)
 - core.config.wire::WireProtocol (POS: wire protocol selection)
 - core.context_vars::prompt_routing_key_var, chat_id_var (POS: Session-scoped routing key for OpenCode gateway session affinity)
 - toolkits.llms.utils.proxy::normalize_proxy_url (POS: Egress proxy URL normalization)
@@ -80,6 +81,7 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import T
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import TransportChatModelOutputCapMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.session_affinity import TransportChatModelSessionAffinityMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import TransportChatModelSyncMixin
+from myrm_agent_harness.toolkits.llms.adapters.gateway_normalizer import drop_rejected_reasoning_params
 from myrm_agent_harness.toolkits.llms.adapters.metrics import EmptyRetryMetrics
 from myrm_agent_harness.toolkits.llms.transport import LLMTransport, get_transport
 from myrm_agent_harness.toolkits.llms.utils.json_document import is_json_document
@@ -235,6 +237,8 @@ class TransportChatModel(
             params["reasoning_effort"] = self.reasoning_effort
         if self.web_search_options is not None:
             params["web_search_options"] = self.web_search_options
+        # An endpoint that rejected a reasoning control once does not get it again, so the retry is paid once.
+        drop_rejected_reasoning_params(params, model=set_model_value, base_url=str(self.api_base or ""))
         return params
 
     @property

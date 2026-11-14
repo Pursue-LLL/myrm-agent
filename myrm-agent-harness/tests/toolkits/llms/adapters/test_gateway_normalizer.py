@@ -345,12 +345,12 @@ class TestStructuredOutputSchemaDowngrade:
         saved = dict(gn._TRANSPORT_STRIP_MEMO)
         gn._TRANSPORT_STRIP_MEMO.clear()
         try:
-            for i in range(gn._TRANSPORT_STRIP_MEMO_CAP):
+            for i in range(gn._MEMO_CAP):
                 remember_stripped_transport(model=f"m/cap-evict-{i}", base_url="http://127.0.0.1:9/v1")
-            assert len(gn._TRANSPORT_STRIP_MEMO) == gn._TRANSPORT_STRIP_MEMO_CAP
+            assert len(gn._TRANSPORT_STRIP_MEMO) == gn._MEMO_CAP
             assert is_transport_stripped(model="m/cap-evict-0", base_url="http://127.0.0.1:9/v1") is True
             remember_stripped_transport(model="m/cap-evict-new", base_url="http://127.0.0.1:9/v1")
-            assert len(gn._TRANSPORT_STRIP_MEMO) == gn._TRANSPORT_STRIP_MEMO_CAP
+            assert len(gn._TRANSPORT_STRIP_MEMO) == gn._MEMO_CAP
             assert is_transport_stripped(model="m/cap-evict-0", base_url="http://127.0.0.1:9/v1") is False
             assert is_transport_stripped(model="m/cap-evict-new", base_url="http://127.0.0.1:9/v1") is True
         finally:

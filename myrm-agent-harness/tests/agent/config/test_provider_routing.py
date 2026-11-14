@@ -43,6 +43,8 @@ class TestNormalizeEnvModelSelectionString:
             ("openai-compatible/deepseek", "openai/deepseek"),
             ("openai_compatible/deepseek", "openai/deepseek"),
             ("siliconflow/Qwen/Qwen3-235B-A22B", "openai/Qwen/Qwen3-235B-A22B"),
+            ("opencode_go/muse-spark-1.3-contributor", "openai/muse-spark-1.3-contributor"),
+            ("opencode-go/deepseek-v4.1-flash", "openai/deepseek-v4.1-flash"),
             ("gemini-like/foo", "gemini/foo"),
             ("anthropic-like/bar", "anthropic/bar"),
             ("xiaomi_mimo/mimo-1", "xiaomi_mimo/mimo-1"),

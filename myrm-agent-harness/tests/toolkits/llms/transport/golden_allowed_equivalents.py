@@ -207,6 +207,28 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
         providers=("groq",),
     ),
     AllowedDiff(
+        "gateway-reasoning-effort-sent",
+        "A reasoning effort set for a model behind an OpenAI-compatible gateway reaches the gateway. The previous "
+        "library dropped it for every model named under the `openai/` route prefix, which only names the wire "
+        "protocol, not the model family; a gateway that rejects the field is retried without it and the rejection is "
+        "remembered. Checked against a real OpenCode Go DeepSeek V4.1 Flash and a local gateway, not against every "
+        "gateway.",
+        "+",
+        r"/body/reasoning_effort",
+        providers=("openai_like",),
+        scenarios=("reasoning_high", "reasoning_tools"),
+    ),
+    AllowedDiff(
+        "gateway-reasoning-output-headroom",
+        "The thinking headroom (`max_tokens` floor for `high`) that goes with the reasoning effort now sent by "
+        "`gateway-reasoning-effort-sent`.",
+        "~",
+        r"/body/max_tokens",
+        providers=("openai_like",),
+        scenarios=("reasoning_high", "reasoning_tools"),
+        when=lambda diff: (diff.old, diff.new) == (4096, 32768),
+    ),
+    AllowedDiff(
         "developer-role-first-party",
         "The adapter marks the instruction message of GPT-5 / o-series models with the `developer` role; the previous "
         "library rewrote it back to `system`. It now reaches api.openai.com as `developer`; gateways still get `system`.",
