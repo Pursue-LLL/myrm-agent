@@ -2,11 +2,13 @@
 
 [INPUT]
 - host_load_sampler.LoadSampler (one aggregate sample per tick)
+- host_hotspot_trigger.HotspotRecorder (stores a per-process hotspot when a tick looks bad)
 - host_load_store (daily JSONL files under dev_state_dir)
 
 [OUTPUT]
 - ``run``: sample every SAMPLE_INTERVAL_SEC until stopped (the LaunchAgent entry point)
 - ``summary`` / ``status``: read-only views over recorded data
+- ``hotspots``: the stored per-process captures, readable; ``snapshot``: take one now
 - ``install`` / ``uninstall``: manage ~/Library/LaunchAgents/com.myrm.host-load-recorder.plist
 
 [POS]
@@ -16,7 +18,7 @@ which would drop the samples that matter most.
 
 Usage (PYTHONPATH must contain the ``lib`` directory)::
 
-    python -m e2e_core.host_load_recorder install|uninstall|status|summary|run
+    python -m e2e_core.host_load_recorder install|uninstall|status|summary|hotspots|snapshot|run
 """
 
 from __future__ import annotations
@@ -31,15 +33,21 @@ import time
 from collections.abc import Callable, Sequence
 from datetime import date
 from pathlib import Path
-from typing import Final, Protocol
+from typing import Final
 
 from e2e_core.bootstrap_deadline import dev_state_dir
+from e2e_core.host_hotspot_capture import capture_hotspot, host_context_now
+from e2e_core.host_hotspot_report import render_hotspots
+from e2e_core.host_hotspot_trigger import HotspotRecorder, SampleSource
 from e2e_core.host_load_report import render_summary
-from e2e_core.host_load_sampler import LoadSample, LoadSampler
+from e2e_core.host_load_sampler import LoadSampler
 from e2e_core.host_load_store import (
     FILE_PREFIX,
+    HOTSPOT_PREFIX,
+    append_hotspot,
     append_sample,
     prune_expired,
+    read_hotspots,
     read_window,
 )
 from e2e_core.real_user_home import real_user_home
@@ -52,10 +60,6 @@ _RESTART_THROTTLE_SEC: Final = 60
 _MODULE: Final = "e2e_core.host_load_recorder"
 
 logger = logging.getLogger(__name__)
-
-
-class SampleSource(Protocol):
-    def sample(self) -> LoadSample | None: ...
 
 
 def record_once(sampler: SampleSource, directory: Path) -> bool:
@@ -75,23 +79,33 @@ def record_once(sampler: SampleSource, directory: Path) -> bool:
     return True
 
 
+def _prune_all(directory: Path, hotspots: HotspotRecorder, today: date) -> None:
+    """Apply retention to both file kinds; a failure on one never skips the other."""
+    prunes: tuple[tuple[str, Callable[[], int]], ...] = (
+        ("samples", lambda: prune_expired(directory, today=today)),
+        ("hotspots", lambda: hotspots.prune_expired(today)),
+    )
+    for kind, prune in prunes:
+        try:
+            prune()
+        except OSError as exc:
+            logger.warning("Retention prune failed for %s: %s", kind, exc)
+
+
 def run_forever(
     interval_sec: float,
     directory: Path,
     *,
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
-    sampler = LoadSampler()
+    source = HotspotRecorder(LoadSampler(), directory)
     pruned_on: date | None = None
     while True:
         started = time.monotonic()
-        record_once(sampler, directory)
+        record_once(source, directory)
         today = date.today()
         if pruned_on != today:
-            try:
-                prune_expired(directory, today=today)
-            except OSError as exc:
-                logger.warning("Retention prune failed: %s", exc)
+            _prune_all(directory, source, today)
             pruned_on = today
         sleep(max(1.0, interval_sec - (time.monotonic() - started)))
 
@@ -180,6 +194,15 @@ def status() -> int:
         lines.append(f"Newest data: {files[-1].name}, updated {age:.0f}s ago")
     else:
         lines.append("No data files yet")
+    captures = sorted(dev_state_dir().glob(f"{HOTSPOT_PREFIX}*.jsonl"))
+    if captures:
+        age = time.time() - captures[-1].stat().st_mtime
+        lines.append(
+            f"Hotspot captures: {len(captures)} day file(s), newest {captures[-1].name},"
+            f" updated {age:.0f}s ago"
+        )
+    else:
+        lines.append("No hotspot captures yet (written only when a trigger fires)")
     log_path = dev_state_dir() / _LOG_NAME
     if log_path.is_file() and log_path.stat().st_size > 0:
         lines.append(
@@ -192,6 +215,25 @@ def status() -> int:
 def summary(hours: float, peaks: int) -> int:
     samples = read_window(dev_state_dir(), since=time.time() - hours * 3600)
     print(render_summary(samples, hours=hours, peaks=peaks))
+    return 0
+
+
+def hotspots(hours: float, limit: int) -> int:
+    captures = read_hotspots(dev_state_dir(), since=time.time() - hours * 3600)
+    print(render_hotspots(captures, hours=hours, limit=limit))
+    return 0
+
+
+def snapshot() -> int:
+    """Capture the hottest processes right now, whatever the trigger says."""
+    try:
+        capture = capture_hotspot(time.time(), ["manual"], host_context_now())
+        path = append_hotspot(dev_state_dir(), capture)
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        print(f"Hotspot capture failed: {exc}", file=sys.stderr)
+        return 1
+    print(render_hotspots([capture], hours=None, limit=1))
+    print(f"Stored in {path}")
     return 0
 
 
@@ -209,6 +251,14 @@ def _build_parser() -> argparse.ArgumentParser:
     report = commands.add_parser("summary", help="summarize recorded load")
     report.add_argument("--hours", type=float, default=24.0)
     report.add_argument("--peaks", type=int, default=5)
+    captures = commands.add_parser(
+        "hotspots", help="show the stored per-process captures, newest first"
+    )
+    captures.add_argument("--hours", type=float, default=24.0)
+    captures.add_argument("--limit", type=int, default=5)
+    commands.add_parser(
+        "snapshot", help="capture the hottest processes right now and store the row"
+    )
     commands.add_parser("install", help="install and start the LaunchAgent")
     commands.add_parser(
         "uninstall", help="stop and remove the LaunchAgent (data is kept)"
@@ -227,10 +277,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "summary":
         return summary(args.hours, args.peaks)
+    if args.command == "hotspots":
+        return hotspots(args.hours, args.limit)
     handlers: dict[str, Callable[[], int]] = {
         "install": install,
         "uninstall": uninstall,
         "status": status,
+        "snapshot": snapshot,
     }
     return handlers[args.command]()
 
