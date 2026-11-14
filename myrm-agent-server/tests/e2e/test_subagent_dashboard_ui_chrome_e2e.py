@@ -1127,7 +1127,7 @@ def test_subagent_dashboard_handover_state_drawer_render(
             client,
             page,
             """(() => {
-              const drawer = document.querySelector('[role="dialog"]');
+              const drawer = document.querySelector('[data-testid="subagent-detail-drawer"]');
               const text = drawer?.textContent || '';
               return {
                 ready: /Full analysis completed with evidence and citations/.test(text)
