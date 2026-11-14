@@ -19262,7 +19262,7 @@
       "providerLabel": "朗讀服務",
       "providerDesc": "選擇訊息朗讀使用的語音合成服務",
       "browser": "瀏覽器內建",
-      "browserDesc": "使用瀏覽器原生語音合成，零成本零延遲",
+      "browserDesc": "使用瀏覽器原生語音合成，零成本",
       "openai": "OpenAI TTS",
       "openaiDesc": "高質量語音，需在語音設定中配置 API Key",
       "elevenlabs": "ElevenLabs",

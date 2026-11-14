@@ -19262,7 +19262,7 @@
       "providerLabel": "TTS Provider",
       "providerDesc": "Choose the text-to-speech service for reading messages aloud",
       "browser": "Browser Built-in",
-      "browserDesc": "Uses native browser speech synthesis, zero cost and zero latency",
+      "browserDesc": "Uses native browser speech synthesis at no cost",
       "openai": "OpenAI TTS",
       "openaiDesc": "High-quality voices, requires API Key configured in Voice settings",
       "elevenlabs": "ElevenLabs",

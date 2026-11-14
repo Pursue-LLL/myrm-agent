@@ -19262,7 +19262,7 @@
       "providerLabel": "TTS-Anbieter",
       "providerDesc": "Wählen Sie den Text-to-Speech-Dienst zum Vorlesen von Nachrichten",
       "browser": "Integrierter Browser",
-      "browserDesc": "Verwendet native Browser-Sprachsynthese, keine Kosten und keine Latenz",
+      "browserDesc": "Verwendet native Browser-Sprachsynthese ohne Kosten",
       "openai": "OpenAI TTS",
       "openaiDesc": "Hochwertige Stimmen, erfordert den in den Spracheinstellungen konfigurierten API-Schlüssel",
       "elevenlabs": "ElevenLabs",

@@ -19262,7 +19262,7 @@
       "providerLabel": "読み上げサービス",
       "providerDesc": "メッセージ読み上げ用の音声合成サービスを選択",
       "browser": "ブラウザ組み込み",
-      "browserDesc": "ブラウザ標準の音声合成を使用します。コストゼロ・レイテンシゼロです",
+      "browserDesc": "ブラウザ標準の音声合成を使用します。コストはかかりません",
       "openai": "OpenAI TTS",
       "openaiDesc": "高品質音声。音声設定で API キーが必要です",
       "elevenlabs": "ElevenLabs",
