@@ -7,16 +7,21 @@
 - compute_execution_fingerprint, build_execution_scope_key
 
 [POS]
-execution_cache 指纹层。将影响 build_general_agent 输出的模型/技能/MCP/安全/记忆/工具/
-检索/媒体/隐私路由配置稳定哈希为 scope key；模型类字段统一经 _model_sig 提取 build
+execution_cache 指纹层。将影响 build_general_agent 输出的模型/技能/凭证轨道/MCP/安全/
+记忆/工具/检索/媒体/隐私路由配置稳定哈希为 scope key（凭证轨道决定技能后端按哪个凭证池
+判定技能可用性，构建期固化）；模型类字段统一经 _model_sig 提取 build
 固化签名（排除 api_key/api_keys 等凭据；纳入 temperature、model_kwargs 与
 credential_pool_strategy——前者固化进 LLM 实例、后者固化进 CredentialPool，均 build
 期不可逆），结构化配置（媒体生成/搜索服务/嵌入重排/provider 池/OpenAPI 服务/隐私路由）
 经 _credential_free_json 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey 等凭据后
 进哈希。skill_manage_tool 是否挂载（enable_skill_manage 或 /learn 的 force_skill_manage）
-以 skill_manage_mounted 折叠后进哈希：挂载是 build 期决策，缓存单元必须与之一致。排除
+以 skill_manage_mounted 折叠后进哈希：挂载是 build 期决策，缓存单元必须与之一致。活跃
+Goal 同理（build 期挂载 complete_goal_tool 并强制 planning），但它是 wrapper 之外的会话状态，
+由调用方以 has_active_goal 传入（读存储真值，不读 provider 注册表）。排除
 每 run 状态（kanban_current_task_id、quote）与全局静态配置（event_log_backend、
-tail_budget_ratio）——前者会使缓存永不命中，后者不构成差异源。
+tail_budget_ratio）——前者会使缓存永不命中，后者不构成差异源。YOLO 启用时间戳
+（yolo_mode_enabled_at）同样不进哈希：它只在运行时为 YOLO 超时计时，随每 turn 重应用的
+安全配置生效，而无人值守目标触发器每次触发都会重写它，进哈希会让目标的每个回合都重建单元。
 """
 
 from __future__ import annotations
@@ -58,6 +63,10 @@ _CREDENTIAL_KEYS = frozenset(
 # (platform-managed X-Sandbox-Id / X-Telemetry-Token, empty Authorization).
 # Runtime authentication only — must not bust the POOLED cache.
 _TRANSPORT_HEADER_KEYS = frozenset({"extra_headers"})
+
+# YOLO enable-time stamp: read only at run time, from the security config re-applied every turn, to time a YOLO
+# timeout. Entry points rewrite it (the unattended goal trigger on every run), so hashing it would rebuild the unit.
+_YOLO_STAMP_KEYS = frozenset({"yolo_mode_enabled_at"})
 
 
 def _stable_json(value: object, *, skip_keys: frozenset[str] | None = None, _seen: set[int] | None = None) -> object:
@@ -184,8 +193,12 @@ def _skill_content_hashes(skill_ids: list[str]) -> dict[str, str]:
     return skill_content_hashes_for_ids(skill_ids)
 
 
-def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
-    """Hash wrapper-level inputs that affect ``build_general_agent`` output."""
+def compute_execution_fingerprint(agent_wrapper: GeneralAgent, *, has_active_goal: bool = False) -> str:
+    """Hash wrapper-level inputs that affect ``build_general_agent`` output.
+
+    ``has_active_goal`` is chat state the wrapper does not carry; callers read it from storage
+    (``GoalRegistry.has_active_goal``) so every call site agrees on the key.
+    """
     from app.core.skills.config_version import get_skill_config_version
     from app.server.stack_epoch import read_stack_epoch
     from app.services.org_model_policy.revision import get_org_model_policy_revision
@@ -219,6 +232,8 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "max_iterations": agent_wrapper.max_iterations,
         "locale": agent_wrapper.locale,
         "channel_name": agent_wrapper.channel_name,
+        # The skill backend is built for one credential track; a pooled unit must not serve the other.
+        "credential_track": agent_wrapper.credential_track.value,
         "enable_web_search": agent_wrapper.enable_web_search,
         "enable_browser": agent_wrapper.enable_browser,
         "browser_source": getattr(agent_wrapper, "browser_source", None),
@@ -259,9 +274,9 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "image_generation_params": _credential_free_json(agent_wrapper.image_generation_params),
         "video_generation_params": _credential_free_json(agent_wrapper.video_generation_params),
         "tts_params": _credential_free_json(agent_wrapper.tts_params),
-        # Security policy must bust POOLED cache when YOLO/HITL or permissions change.
-        "security_config_raw": _stable_json(agent_wrapper.security_config_raw),
-        "agent_security_raw": _stable_json(agent_wrapper.agent_security_raw),
+        # Security policy must bust POOLED cache when YOLO/HITL or permissions change; the YOLO stamp is run-time only.
+        "security_config_raw": _stable_json(agent_wrapper.security_config_raw, skip_keys=_YOLO_STAMP_KEYS),
+        "agent_security_raw": _stable_json(agent_wrapper.agent_security_raw, skip_keys=_YOLO_STAMP_KEYS),
         "code_execution_allow_network": agent_wrapper.code_execution_allow_network,
         "notify_targets": _stable_json(agent_wrapper.notify_targets),
         "providers_dict": _credential_free_json(agent_wrapper.providers_dict),
@@ -270,6 +285,8 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "force_external_agent": agent_wrapper.force_external_agent,
         # Org model policy revision busts POOLED cache after CP sandbox sync.
         "org_model_policy_revision": get_org_model_policy_revision(),
+        # An active goal mounts complete_goal_tool and planning at build time.
+        "has_active_goal": has_active_goal,
     }
 
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)

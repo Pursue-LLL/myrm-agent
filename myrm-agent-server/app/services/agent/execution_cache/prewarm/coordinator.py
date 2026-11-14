@@ -28,6 +28,7 @@ from app.services.agent.execution_cache.prewarm.types import TurnPrewarmJoinResu
 from app.services.agent.execution_cache.registry import get_execution_cache
 from app.services.agent.execution_cache.types import ExecutionMode
 from app.services.agent.execution_cache.unit_ops import capture_built_unit
+from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.agent.runtime_context import resolve_stream_execution_mode
 
 if TYPE_CHECKING:
@@ -91,10 +92,13 @@ class TurnPrewarmCoordinator:
             return
 
         wrapper = AgentFactory.create_general_agent(params)
-        fingerprint = compute_execution_fingerprint(wrapper)
+        has_active_goal = await GoalRegistry.has_active_goal(params.chat_id)
+        fingerprint = compute_execution_fingerprint(wrapper, has_active_goal=has_active_goal)
         task_key = self._task_key(scope_key, fingerprint)
 
-        if self._should_warm_agent(action_mode):
+        # No goal provider is registered between turns, so an agent built now would lack complete_goal_tool
+        # while carrying the active-goal key. The turn that follows builds it with its provider instead.
+        if not has_active_goal and self._should_warm_agent(action_mode):
             await self._schedule_agent_warm(scope_key, fingerprint, wrapper, params, task_key)
 
         if params.enable_memory:
@@ -106,12 +110,12 @@ class TurnPrewarmCoordinator:
             return
         prefix = f"{scope_key}:"
         async with self._lock:
-            for key, task in list(self._inflight_acquire.items()):
-                if key.startswith(prefix) and not task.done():
-                    task.cancel()
-            for key, task in list(self._inflight_brief.items()):
-                if key.startswith(prefix) and not task.done():
-                    task.cancel()
+            for key, acquire_task in list(self._inflight_acquire.items()):
+                if key.startswith(prefix) and not acquire_task.done():
+                    acquire_task.cancel()
+            for key, brief_task in list(self._inflight_brief.items()):
+                if key.startswith(prefix) and not brief_task.done():
+                    brief_task.cancel()
             self._inflight_acquire = {k: v for k, v in self._inflight_acquire.items() if not k.startswith(prefix)}
             self._inflight_brief = {k: v for k, v in self._inflight_brief.items() if not k.startswith(prefix)}
         self._brief_cache.invalidate_scope(scope_key)
@@ -147,7 +151,10 @@ class TurnPrewarmCoordinator:
             )
 
         wrapper = AgentFactory.create_general_agent(params)
-        fingerprint = compute_execution_fingerprint(wrapper)
+        fingerprint = compute_execution_fingerprint(
+            wrapper,
+            has_active_goal=await GoalRegistry.has_active_goal(params.chat_id),
+        )
         task_key = self._task_key(scope_key, fingerprint)
 
         warm_agent = self._should_warm_agent(action_mode)
@@ -228,13 +235,22 @@ class TurnPrewarmCoordinator:
         scope_key: str,
         fingerprint: str,
         build_unit: BuildUnitFn,
+        *,
+        holds_turn_guard: bool = False,
     ) -> BuiltExecutionUnit:
+        """Return the unit for ``fingerprint``; concurrent callers share one in-flight acquire.
+
+        ``holds_turn_guard`` marks the caller as the turn holding the scope's turn guard (see
+        ``ChatAgentExecutionCache.acquire``). Such a caller can join an acquire a prewarm started without
+        the guard; that one defers its replacement to the unit the turn is about to replace, so the
+        caller checks the outcome and finishes the replacement itself.
+        """
         self._prune_agent_ready_at()
         task_key = self._task_key(scope_key, fingerprint)
         cache = get_execution_cache()
         if await cache.is_warm(scope_key, fingerprint):
             self._agent_ready_at[task_key] = time.monotonic()
-            return await cache.acquire(scope_key, fingerprint, build_unit)
+            return await cache.acquire(scope_key, fingerprint, build_unit, holds_turn_guard=holds_turn_guard)
 
         async with self._lock:
             existing = self._inflight_acquire.get(task_key)
@@ -243,7 +259,7 @@ class TurnPrewarmCoordinator:
             else:
 
                 async def _run() -> BuiltExecutionUnit:
-                    unit = await cache.acquire(scope_key, fingerprint, build_unit)
+                    unit = await cache.acquire(scope_key, fingerprint, build_unit, holds_turn_guard=holds_turn_guard)
                     self._agent_ready_at[task_key] = time.monotonic()
                     return unit
 
@@ -251,12 +267,16 @@ class TurnPrewarmCoordinator:
                 self._inflight_acquire[task_key] = task
 
         try:
-            return await task
+            unit = await task
         finally:
             async with self._lock:
                 current = self._inflight_acquire.get(task_key)
                 if current is task and task.done():
                     del self._inflight_acquire[task_key]
+
+        if holds_turn_guard and not await cache.is_warm(scope_key, fingerprint):
+            return await cache.acquire(scope_key, fingerprint, build_unit, holds_turn_guard=True)
+        return unit
 
     async def _schedule_agent_warm(
         self,

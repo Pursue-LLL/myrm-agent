@@ -10,7 +10,7 @@ Pure TypeScript Theme Engine v2: Recipe schema, layout surfaces, compiler, built
 | `layouts.ts`                      | Myrm-native layout surface opacity map                                                    |
 | `layout-catalog.ts`               | Studio layout cards + guidance i18n keys                                                  |
 | `scene-surfaces.ts`               | layout × scene merge + exported `FUNCTIONAL_SURFACE_FLOORS` / `FUNCTIONAL_ART_WASH_FLOOR` |
-| `readability-scene.ts`            | Route → immersive/functional scene SSOT                                                   |
+| `readability-scene.ts`            | Route → immersive/functional scene SSOT; a test fails on any unclassified top-level page  |
 | `compiler.ts`                     | Recipe → CSS vars + data attributes                                                       |
 | `presets.ts`                      | 17 built-in ThemeProfile recipes                                                          |
 | `oklch.ts`                        | WCAG contrast utilities + `derivePalette(hex)`                                            |

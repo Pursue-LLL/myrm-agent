@@ -4,6 +4,7 @@
 - utils.runtime.cancellation::run_until_cancelled, OperationCancelledError (POS: request-level cancellation token; run_until_cancelled is the boundary for operations that cannot observe it)
 - session::BrowserSession (POS: browser session aggregate root; active_tab_crashed reads the browser's crash report for the active tab, recover_active_tab heals a page that stopped answering, take_tab_reset_notice tells the model about it, take_unannounced_downloads hands over the downloads no answer has carried yet)
 - tools.download_actions::late_downloads_notice (POS: agent-facing text of the download actions)
+- utils.page_health::is_driver_closed_error (POS: tells a tool that failed on an exited Playwright driver from other failures)
 
 [OUTPUT]
 - apply_cancel_boundary: wrap every tool's coroutine in place so a stopped run releases the browser
@@ -18,9 +19,12 @@ tab and hands the model a plain result instead of an error. A run torn down from
 request (executor timeout, stuck-task watchdog, shutdown) cancels the tool without the token, and
 nothing may call the session again soon, so the tab is healed there too before the cancellation
 continues. A tab whose renderer the browser reported as crashed is healed before the call runs, so
-no tool fails on (or answers from the cache of) a dead page. A healed tab is blank, so the next text
-result carries the session's reset notice. A download a page started can settle after the action that
-started it was answered, so the next text result also carries what it came to, once.
+no tool fails on (or answers from the cache of) a dead page. A call that fails because the Playwright
+driver exited heals the tab it died on too, and the failure still reaches the model: the driver took
+the browser down without any crash report, so the failed call is the first sign. A healed tab is
+blank, so the next text result carries the session's reset notice. A download a page started can
+settle after the action that started it was answered, so the next text result also carries what it
+came to, once.
 Mutates the tools it receives, because `with_dynamic_hints` already produced the final copies.
 """
 
@@ -34,6 +38,7 @@ from langchain_core.tools import BaseTool, StructuredTool
 
 from myrm_agent_harness.utils.runtime.cancellation import OperationCancelledError, run_until_cancelled
 
+from ..utils.page_health import is_driver_closed_error
 from .download_actions import late_downloads_notice
 
 if TYPE_CHECKING:
@@ -74,6 +79,12 @@ def _cancel_aware(
             return CANCELLED_RESULT
         except asyncio.CancelledError:
             await session.recover_active_tab()
+            raise
+        except Exception as error:
+            if is_driver_closed_error(error):
+                # The exited driver took the tab's browser with it. Swap the dead tab out now, so the next call finds a
+                # live one instead of failing the same way once more.
+                await session.recover_active_tab()
             raise
         return _with_pending_notices(result, session)
 

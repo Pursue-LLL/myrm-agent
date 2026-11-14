@@ -138,9 +138,6 @@ export interface Agent {
   cron_post_run_verify?: boolean;
   trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
-  responsibility_scope?: string | null;
-  owner_label?: string | null;
-  acceptance_criteria?: string[] | null;
   snapshot_count?: number;
   snapshot_saved?: boolean;
   created_at: string;
@@ -201,9 +198,6 @@ export interface AgentCreate {
   cron_post_run_verify?: boolean;
   trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
-  responsibility_scope?: string | null;
-  owner_label?: string | null;
-  acceptance_criteria?: string[] | null;
 }
 
 export interface AgentUpdate {
@@ -243,9 +237,6 @@ export interface AgentUpdate {
   cron_post_run_verify?: boolean;
   trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
-  responsibility_scope?: string | null;
-  owner_label?: string | null;
-  acceptance_criteria?: string[] | null;
 }
 
 export interface AgentListResponse {

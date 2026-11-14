@@ -16,9 +16,9 @@ class TestUpdateMemory:
     def test_update_memory_signature_has_no_namespaces(self) -> None:
         """update_memory must not accept a namespaces parameter.
 
-        A memory's scope is immutable; the namespaces parameter previously
-        allowed callers to bypass the write scope fence by rebuilding the
-        MemoryScope without _validate_write_scope.
+        A memory's scope is immutable: a namespaces parameter would let callers
+        bypass the write scope fence by rebuilding the MemoryScope without
+        _validate_write_scope.
         """
         import inspect
 
@@ -134,7 +134,7 @@ class TestSetProfileAttribute:
     @pytest.mark.asyncio
     async def test_set_profile_attribute_duplicate_pending(self, mock_relational_store, memory_config):
         """Test set_profile_attribute with duplicate pending returns empty."""
-        mock_relational_store.pending_exists.return_value = True
+        mock_relational_store.submit_pending.return_value = ""
 
         manager = MemoryManager(
             memory_config, user_id="test_user", relational=mock_relational_store, approval_required=True

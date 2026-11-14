@@ -4,6 +4,7 @@
  * - frontend-dev-pause-gate::probeFrontendDevPause / enforceFrontendDevNotPaused (POS: TS pause gate SSOT)
  * - port-cleanup::APP_DEV_PORT / killListenersOnPort / foreignListenersOnPort (POS: LISTEN-only port cleanup; never another runtime's listener)
  * - node-runtime::ensureNodeRuntime / nodeEnv (POS: the real Node.js Next runs on; Bun is only the launcher)
+ * - python-runtime::ensureDevPython (POS: the Python >= 3.11 interpreter the memory guard's probe runs on)
  * - next-supervisor::superviseNext / footprintProbe (POS: keeps one Next child alive and replaces it when its process tree outgrows the memory limit)
  *
  * [OUTPUT]
@@ -28,6 +29,7 @@ import { isFrontendDevPaused, probeFrontendDevPause } from './frontend-dev-pause
 import { ensureNodeRuntime, nodeEnv } from './node-runtime';
 import { footprintProbe, type NextSupervisor, superviseNext } from './next-supervisor';
 import { APP_DEV_PORT, foreignListenersOnPort, killListenersOnPort } from './port-cleanup';
+import { ensureDevPython } from './python-runtime';
 
 const ENV_LOCAL = path.join(process.cwd(), '.env.local');
 const ENV_LOCAL_HEADER = '# Auto-managed by bun run dev — local split-dev defaults\n';
@@ -355,11 +357,6 @@ if (bindLan) {
 console.log(`🚀 Starting Next.js on port ${APP_DEV_PORT}...`);
 const nextBin = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
 const preloadGate = path.join(__dirname, 'next-dev-gate.cjs');
-/** The backend venv's interpreter (uv-managed, new enough for the dev tooling); the system one may be 3.9. */
-function backendPython(): string {
-  const venv = path.join(process.cwd(), '..', 'myrm-agent-server', '.venv', 'bin', 'python');
-  return fs.existsSync(venv) ? venv : 'python3';
-}
 
 const requestedSampleSec = Number(process.env.MYRM_FRONTEND_FOOTPRINT_SAMPLE_SEC);
 const footprintSampleSec = requestedSampleSec > 0 ? requestedSampleSec : 30;
@@ -377,7 +374,10 @@ const supervisor = superviseNext({
     killListenersOnPort(APP_DEV_PORT, true);
     normalizeSharedTsConfig();
   },
-  probe: footprintProbe({ libDir: path.join(process.cwd(), '..', 'scripts', 'dev', 'lib'), python: backendPython() }),
+  probe: footprintProbe({
+    libDir: path.join(process.cwd(), '..', 'scripts', 'dev', 'lib'),
+    python: ensureDevPython({ frontendRoot: process.cwd(), envPath: process.env.PATH }),
+  }),
   onExit: (code) => {
     console.log('🏁 Next.js exited with code:', code);
     killListenersOnPort(APP_DEV_PORT, true);

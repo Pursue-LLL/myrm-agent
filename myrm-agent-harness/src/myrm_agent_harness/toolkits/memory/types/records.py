@@ -7,7 +7,7 @@
 - ProceduralMemory / ClaimMemory / IntegrationMemory / TaskDigestMemory
 
 [POS]
-`memory/types_pkg/` 的具体记忆模型；字段即持久化契约。
+`memory/types/` 的具体记忆模型；字段即持久化契约。
 """
 
 from __future__ import annotations
@@ -203,13 +203,15 @@ class ProceduralMemory(BaseMemory):
 
     Tool-scoped rules use ``tool_name`` to associate with a specific tool
     and ``tool_rule_priority`` to record how durable the rule is:
-    - CRITICAL: user-mandated, excluded from TTL archiving
+    - CRITICAL: user-mandated, excluded from TTL archiving and held at an
+      importance floor of 0.95 in retention scoring
     - HIGH: judged important by the extractor; ceiling for agent-written rules
     - NORMAL: ordinary rule
 
-    Prompt-budget survival is governed by ``is_user_locked``, not by this
-    level: the prompt lists locked rules first and then newest first, and the
-    budget cut falls on the rules at the end of that list.
+    The level does not decide what the prompt keeps. The prompt lists locked
+    rules (``is_user_locked``) first and then newest first, the budget cut
+    falls on the rules at the end of that list, and a rule worded as a
+    prohibition is pinned against the cut.
 
     Attributes:
         language: Primary language of the rule content ("zh" or "en")
@@ -349,7 +351,7 @@ class TaskDigestMemory(BaseMemory):
     content: str = Field(default="", description="Serialized summary or digest content")
     memory_type: Literal[MemoryType.TASK_DIGEST] = MemoryType.TASK_DIGEST
     task_goal: str = Field(..., description="Original high-level objective of the task session")
-    status: Literal["completed", "interrupted", "failed"] = Field(
+    outcome: Literal["completed", "interrupted", "failed"] = Field(
         default="completed", description="Final execution state of the task"
     )
     completed_steps: list[str] = Field(default_factory=list, description="Ordered summary of completed subtasks")
@@ -366,4 +368,4 @@ class TaskDigestMemory(BaseMemory):
         """Ensure content field has informative human-readable text."""
         if not self.content:
             steps_preview = "; ".join(self.completed_steps[:3]) if self.completed_steps else "none"
-            self.content = f"Task Goal: {self.task_goal} | Status: {self.status} | Steps: {steps_preview}"
+            self.content = f"Task Goal: {self.task_goal} | Status: {self.outcome} | Steps: {steps_preview}"

@@ -6,42 +6,17 @@ import os
 import sqlite3
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from dev_gate.contract import LIVE_SHPOIB_MAX_CONCURRENT
+from dev_gate.private_admission import QUEUE_SCHEMA, PrivateAdmission
 from dev_gate.session import SessionState
-from dev_gate.store import DevGateStore, _begin_immediate
+from dev_gate.store import DevGateStore
+from dev_gate.store.connection import begin_immediate
 
 PRIVATE_ADMIT_TIMEOUT_SEC = 900.0
 PRIVATE_QUEUE_PROGRESS_SEC = 30.0
 PRIVATE_AGING_INTERVAL_SEC = 60.0
 PRIVATE_CAPACITY_MAX = LIVE_SHPOIB_MAX_CONCURRENT  # S2: single cap source
-
-_QUEUE_SCHEMA = """
-CREATE TABLE IF NOT EXISTS private_admission (
-    session_id TEXT PRIMARY KEY,
-    owner_token TEXT NOT NULL,
-    credits INTEGER NOT NULL,
-    priority INTEGER NOT NULL,
-    enqueued_at REAL NOT NULL,
-    granted_at REAL,
-    released_at REAL
-);
-CREATE INDEX IF NOT EXISTS private_admission_wait_idx
-ON private_admission(granted_at, released_at, enqueued_at);
-"""
-
-
-@dataclass(frozen=True, slots=True)
-class PrivateAdmission:
-    granted: bool
-    queue_position: int
-    active_credits: int
-    capacity_credits: int
-    waited_sec: float
-    next_progress_sec: float
-    idle_reason: str = ""
-    available_credits: int = 0
 
 
 def private_capacity_credits() -> int:
@@ -85,7 +60,7 @@ class PrivateResourceController:
         self.capacity_credits = capacity_credits
         self._capacity_provider = capacity_provider
         with self._connect() as connection:
-            connection.executescript(_QUEUE_SCHEMA)
+            connection.executescript(QUEUE_SCHEMA)
 
     def _effective_capacity_credits(self) -> int:
         """Read the current host capacity without revoking active work."""
@@ -117,7 +92,7 @@ class PrivateResourceController:
         admitted_at = time.time() if now is None else now
         capacity = self._effective_capacity_credits()
         with self._connect() as connection:
-            _begin_immediate(connection)
+            begin_immediate(connection)
             self._release_terminal_sessions(connection, admitted_at)
             session = self._owned_private_session(connection, session_id, owner_token)
             connection.execute(
@@ -195,7 +170,7 @@ class PrivateResourceController:
         released_at = time.time() if now is None else now
         capacity = self._effective_capacity_credits()
         with self._connect() as connection:
-            _begin_immediate(connection)
+            begin_immediate(connection)
             row = self._queue_row(connection, session_id)
             if str(row["owner_token"]) != owner_token:
                 raise PermissionError(f"private admission owner mismatch: {session_id}")
@@ -221,7 +196,7 @@ class PrivateResourceController:
         for attempt in range(8):
             try:
                 with self._connect() as connection:
-                    _begin_immediate(connection)
+                    begin_immediate(connection)
                     self._release_terminal_sessions(connection, captured_at)
                     active = self._active_credits(connection)
                     waiting = connection.execute(
@@ -269,7 +244,7 @@ class PrivateResourceController:
         captured_at = time.time() if now is None else now
         capacity = self._effective_capacity_credits()
         with self._connect() as connection:
-            _begin_immediate(connection)
+            begin_immediate(connection)
             self._release_terminal_sessions(connection, captured_at)
             granted = self._grant_waiters(
                 connection,

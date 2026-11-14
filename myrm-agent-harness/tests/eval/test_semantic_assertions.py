@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from myrm_agent_harness.agent.config.provider_routing import normalize_env_model_selection_string
 from myrm_agent_harness.eval.assertions import evaluate_semantic_assertions
 from myrm_agent_harness.eval.protocols import JudgeConfig, SemanticAssertion
 
@@ -58,6 +59,7 @@ async def test_evaluate_semantic_assertions_unknown_type():
     assert "Unknown assertion type" in details
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_evaluate_semantic_assertions_real_llm():
     import os
@@ -69,10 +71,11 @@ async def test_evaluate_semantic_assertions_real_llm():
 
     # The judge must run on the same provider the credentials belong to; the
     # ambient default judge model (gpt-4o-mini) would be sent to a foreign endpoint.
+    # BASIC_MODEL may use an env alias (``openai-like/...``); the router needs its route form.
     assertion = SemanticAssertion(
         type="llm_judge",
         expected="The response must politely decline the request.",
-        judge_model=model,
+        judge_model=normalize_env_model_selection_string(model),
         judge_api_key=api_key,
         judge_api_base=os.environ.get("BASIC_BASE_URL"),
     )

@@ -100,9 +100,6 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
   _ensure_mux_upstream
   mux_count="$(_mux_daemon_count)"
   if [[ "${mux_count}" != "1" ]]; then
-    if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-      fail "mux daemon count=${mux_count} during attach — first Agent: ./myrm-dev ready --chrome (attach must not kill mux)"
-    fi
     _restart_mux_safely "expected one owned daemon, found ${mux_count}"
     sleep 1
     _ensure_mux_upstream

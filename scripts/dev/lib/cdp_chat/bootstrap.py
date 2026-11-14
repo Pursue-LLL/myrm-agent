@@ -7,6 +7,8 @@ import os
 import time
 from pathlib import Path
 
+from dev_gate.contract import EvaluateIntent
+
 from cdp_chat.support import (
     DISMISS_MODALS_JS,
     MODEL_PROBE_JS,
@@ -21,7 +23,6 @@ from cdp_chat.support import (
     shpoib_shell_wait_slice_cap,
 )
 from cdp_chat.transport import CdpChatTransport
-from dev_gate.contract import EvaluateIntent
 
 _SHELL_PROBE_RECV_TIMEOUT_SEC = 15.0
 
@@ -39,14 +40,16 @@ def _signoff_bridge_hydrate_cap_sec() -> float:
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return cap
     try:
-        from dev_gate.contract import _parallel_signoff_pressure_peers
+        from dev_gate.contract.parallel_pressure import parallel_signoff_pressure_peers
 
-        peers = _parallel_signoff_pressure_peers()
+        peers = parallel_signoff_pressure_peers()
         if peers >= 2:
             return min(180.0, 90.0 + peers * 10.0)
     except ImportError:
         pass
     return cap
+
+
 _SHELL_PROBE_PROGRESS_INTERVAL_SEC = 30.0
 _SHELL_PROBE_POLL_HARD_TIMEOUT_SEC = 75.0
 

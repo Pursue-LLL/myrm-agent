@@ -126,20 +126,37 @@ class TestReplyMessage:
         assert result is None
 
 
-class TestEditDeleteMessage:
+class TestUpdateDeleteMessage:
     @pytest.mark.asyncio
-    async def test_edit_success(self, client: FeishuClient) -> None:
+    async def test_update_card_patches_the_card_only(self, client: FeishuClient) -> None:
+        """A card is updated with PATCH and a bare ``content``; PUT would only take a text or post message."""
         resp = _mock_response(200, {"code": 0})
-        client._http.put = AsyncMock(return_value=resp)
-        result = await client.edit_message("msg_001", "text", '{"text":"edited"}')
+        client._http.patch = AsyncMock(return_value=resp)
+        client._http.put = AsyncMock()
+        result = await client.update_card("msg_001", '{"elements":[]}')
         assert result is True
+        client._http.put.assert_not_called()
+        assert client._http.patch.call_args.args[0].endswith("/im/v1/messages/msg_001")
+        assert client._http.patch.call_args.kwargs["json"] == {"content": '{"elements":[]}'}
 
     @pytest.mark.asyncio
-    async def test_edit_failure(self, client: FeishuClient) -> None:
+    async def test_update_card_refused_by_feishu(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 99, "msg": "not allowed"})
-        client._http.put = AsyncMock(return_value=resp)
-        result = await client.edit_message("msg_001", "text", '{"text":"edited"}')
+        client._http.patch = AsyncMock(return_value=resp)
+        result = await client.update_card("msg_001", "{}")
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_update_card_failure_logs_the_reason_feishu_gave(
+        self, client: FeishuClient, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        resp = httpx.Response(400, json={"code": 230099, "msg": "Failed to create card content"})
+        client._http.patch = AsyncMock(return_value=resp)
+        with caplog.at_level("WARNING"):
+            result = await client.update_card("msg_001", "{}")
+        assert result is False
+        assert "230099" in caplog.text
+        assert "Failed to create card content" in caplog.text
 
     @pytest.mark.asyncio
     async def test_delete_success(self, client: FeishuClient) -> None:
@@ -154,27 +171,6 @@ class TestEditDeleteMessage:
         client._http.delete = AsyncMock(return_value=resp)
         result = await client.delete_message("msg_001")
         assert result is False
-
-    @pytest.mark.asyncio
-    async def test_patch_success(self, client: FeishuClient) -> None:
-        resp = _mock_response(200, {"code": 0})
-        client._http.patch = AsyncMock(return_value=resp)
-        result = await client.patch_message("msg_001", "interactive", "{}")
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_patch_failure(self, client: FeishuClient) -> None:
-        resp = _mock_response(400)
-        client._http.patch = AsyncMock(return_value=resp)
-        result = await client.patch_message("msg_001", "interactive", "{}")
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_update_delegates_to_patch(self, client: FeishuClient) -> None:
-        resp = _mock_response(200, {"code": 0})
-        client._http.patch = AsyncMock(return_value=resp)
-        result = await client.update_message("msg_001", "text", '{"text":"up"}')
-        assert result is True
 
 
 class TestReactions:

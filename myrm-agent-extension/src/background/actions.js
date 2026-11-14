@@ -1,5 +1,5 @@
 /**
- * Requests the server makes of the extension itself: list tabs, attach a debugger, navigate a tab, detach.
+ * Requests the server makes of the extension itself: list the tabs it may act on, navigate a tab.
  *
  * [INPUT]
  * - state / policy.js (POS: each action re-checks the tab or domain against the access policy)
@@ -12,7 +12,7 @@
  */
 
 import { claimBackgroundTab } from "./agent_tabs.js";
-import { attachDebugger, detachDebugger } from "./debugger.js";
+import { attachDebugger } from "./debugger.js";
 import { extractDomain, isNavigationTargetAuthorized, isTabAuthorized, matchDomain } from "./policy.js";
 import { state } from "./state.js";
 import { findTabForDomain, getAuthorizedTabs, waitForTabLoad } from "./tabs.js";
@@ -21,38 +21,6 @@ export async function executeAction(action, payload) {
   switch (action) {
     case "list_tabs":
       return await getAuthorizedTabs();
-
-    case "attach_debugger": {
-      const { domain, tabId, background = false } = payload;
-
-      // Explicit tab targeting bypasses background isolation
-      if (tabId) {
-        const tabs = await chrome.tabs.query({});
-        const target = tabs.find((t) => t.id === tabId && isTabAuthorized(t, state));
-        if (!target) {
-          throw new Error(`Tab ${tabId} not found or not authorized`);
-        }
-        return await attachDebugger(tabId);
-      }
-
-      // Background mode: create/reuse isolated window to avoid disrupting user
-      if (background && domain) {
-        const url = `https://${domain}`;
-        if (!isNavigationTargetAuthorized(url, state)) {
-          throw new Error(`Domain ${domain} is not authorized`);
-        }
-        const bgTabId = await claimBackgroundTab();
-        await chrome.tabs.update(bgTabId, { url });
-        return await attachDebugger(bgTabId);
-      }
-
-      // Foreground fallback: operate on existing user tab
-      const tab = await findTabForDomain(domain);
-      if (!tab) {
-        throw new Error(`No tab found for domain: ${domain || "(any authorized)"}`);
-      }
-      return await attachDebugger(tab.id);
-    }
 
     case "navigate_url": {
       const { url, domain, tabId, background = true } = payload;
@@ -106,12 +74,6 @@ export async function executeAction(action, payload) {
         domain: extractDomain(finalTab?.url || url),
         active: Boolean(finalTab?.active),
       };
-    }
-
-    case "detach_debugger": {
-      const { tabId } = payload;
-      await detachDebugger(tabId);
-      return { success: true };
     }
 
     default:

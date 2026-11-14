@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import subprocess
 import time
 
@@ -81,7 +82,7 @@ def _active_session_owner_pids() -> frozenset[int] | None:
             record.owner_pid for record in store.list_active() if record.owner_pid > 0
         }
         return frozenset(owners)
-    except OSError:
+    except (OSError, sqlite3.Error):
         return None
 
 

@@ -16,7 +16,8 @@ utils.text_cleaner::clean_text (POS: Generic text cleaning utility)
 ContentPipeline: Transforms raw FetchResult HTML into cleaned, Markdown-formatted Documents; text responses
 (plain, markdown, csv, feeds) become Documents verbatim
 (``process`` synchronously, ``aprocess`` on a dedicated conversion thread)
-SOURCE_TRUNCATED_KEY: Document metadata flag set when the fetcher cut the source at its size ceiling
+SOURCE_TRUNCATED_KEY: Document metadata flag: the source was cut short (``process`` sets it when the fetcher cut the
+source at its size ceiling; the binary router sets it when it cuts a parsed text)
 
 [POS]
 Content processing pipeline. Sits between the fetcher layer and the consumer layer,
@@ -49,8 +50,8 @@ logger = logging.getLogger(__name__)
 _MIN_CONTENT_LENGTH = 50
 _FIT_MARKDOWN_THRESHOLD = 100
 
-# Document metadata flag: the fetcher cut the source at its size ceiling, so the Document holds only the beginning of
-# the page.
+# Document metadata flag: the source was cut short (by the fetcher at its size ceiling, or by the binary router at its
+# parsed-text cap), so the Document holds only the beginning of it.
 SOURCE_TRUNCATED_KEY: Final = "source_truncated"
 
 # One worker on purpose: conversions stay serial (as they were on the event loop) and a conversion that keeps running

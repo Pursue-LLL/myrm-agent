@@ -540,45 +540,6 @@ async def test_emit_subagent_tree_deduplicates_checkpoint_vs_active():
 
 
 @pytest.mark.asyncio
-async def test_emit_subagent_tree_hydrates_teammate_messages():
-    """Persisted teammate mailbox rows are attached onto tree nodes."""
-    session_id = "chat_hydrate-session"
-    teammate_msg = {"task_id": "t-hyd", "role": "user", "content": "hi"}
-
-    with (
-        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
-        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
-        patch(
-            "app.services.chat.chat_service.ChatService.ensure_default_workspace_dir",
-            new_callable=AsyncMock,
-        ) as mock_ws,
-        patch("myrm_agent_harness.agent.coordination.mailbox.list_teammate_history") as mock_history,
-        patch("myrm_agent_harness.agent.coordination.mailbox.group_history_by_task") as mock_group,
-        patch(
-            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
-            new_callable=AsyncMock,
-            return_value=[],
-        ),
-        patch(
-            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
-            return_value=[{"task_id": "t-hyd", "status": "running"}],
-        ),
-    ):
-        mock_bus = MagicMock()
-        mock_get_bus.return_value = mock_bus
-        mock_get_gateway.return_value._session_info.get.return_value = None
-        mock_ws.return_value = "/tmp/ws"
-        mock_history.return_value = [teammate_msg]
-        mock_group.return_value = {"t-hyd": [teammate_msg]}
-
-        await _emit_subagent_tree(session_id)
-
-        node = mock_bus.publish.call_args.args[0].data["tree"][0]
-        assert node["teammate_messages"] == [teammate_msg]
-        mock_history.assert_called_once_with("hydrate-session", "/tmp/ws", limit=200)
-
-
-@pytest.mark.asyncio
 async def test_emit_subagent_tree_falls_back_to_raw_session_id():
     """When rest_chat_id lookup misses, the raw harness session_id must be consulted."""
     session_id = "chat_fallback-session"
@@ -636,17 +597,13 @@ async def test_emit_subagent_tree_checkpoint_list_exception_tolerated():
 
 
 @pytest.mark.asyncio
-async def test_emit_subagent_tree_teammate_hydrate_exception_and_non_dict_child():
-    """Hydrate failures are tolerated and non-dict children are skipped."""
-    session_id = "chat_hydrate-error-session"
+async def test_emit_subagent_tree_tolerates_non_dict_children():
+    """Entries of the merged tree that are not dicts pass through without breaking the emission."""
+    session_id = "chat_non-dict-session"
 
     with (
         patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
         patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
-        patch(
-            "app.services.chat.chat_service.ChatService.ensure_default_workspace_dir",
-            side_effect=RuntimeError("ws down"),
-        ),
         patch(
             "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
             new_callable=AsyncMock,

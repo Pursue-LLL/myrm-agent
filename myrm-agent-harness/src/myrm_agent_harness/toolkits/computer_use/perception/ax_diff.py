@@ -9,7 +9,7 @@
 
 [POS]
 Source-level token reduction for consecutive desktop snapshots.
-Reduces follow-up AX tree output by 80%+ in continuous-interact scenarios.
+Sends only the added, updated and removed refs in continuous-interact scenarios instead of the whole tree.
 """
 
 from __future__ import annotations

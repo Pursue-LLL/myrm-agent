@@ -11,10 +11,8 @@ import time
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.pool.browser_launcher import (
-    _auto_install_chromium,
-    _is_executable_missing,
-)
+from myrm_agent_harness.toolkits.browser.pool.browser_launcher import _is_executable_missing
+from myrm_agent_harness.toolkits.browser.pool.chromium_install import auto_install_chromium
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -22,14 +20,14 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 @pytest.fixture(autouse=True)
 def _reset_install_state() -> None:
     """Reset module-level install state before each test."""
-    import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+    import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
     mod._last_install_failure_at = 0.0
     mod._install_lock = None
 
 
 class TestAutoInstallIntegration:
-    """Real subprocess integration tests for _auto_install_chromium."""
+    """Real subprocess integration tests for auto_install_chromium."""
 
     async def test_patchright_install_chromium_real_subprocess(self) -> None:
         """Verify patchright install chromium succeeds via real subprocess.
@@ -37,23 +35,23 @@ class TestAutoInstallIntegration:
         Since Chromium is already installed, this should complete quickly
         with a success return code (patchright detects existing install).
         """
-        result = await _auto_install_chromium()
+        result = await auto_install_chromium()
         assert result is True
 
     async def test_cooldown_blocks_second_install_after_forced_failure(self) -> None:
         """Verify cooldown mechanism prevents rapid retries."""
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         mod._last_install_failure_at = time.monotonic()
 
-        result = await _auto_install_chromium()
+        result = await auto_install_chromium()
         assert result is False
 
     async def test_concurrent_install_serialized(self) -> None:
         """Verify concurrent install calls are serialized by the lock."""
         results = await asyncio.gather(
-            _auto_install_chromium(),
-            _auto_install_chromium(),
+            auto_install_chromium(),
+            auto_install_chromium(),
         )
         assert all(r is True for r in results)
 

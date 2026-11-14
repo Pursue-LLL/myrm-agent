@@ -13,7 +13,7 @@
 - create_file_edit_tool: 创建 file_edit_tool 工厂函数
 
 [POS]
-File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, fuzzy fallback, integrity gates, and verify rollback.
+File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, whitespace-tolerant matching, integrity gates, and verify rollback.
 
 """
 
@@ -30,6 +30,7 @@ from myrm_agent_harness.agent.meta_tools._context_recovery import ensure_executo
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
+from .constants import REASON_FIELD_DESCRIPTION
 from .core import FileOperationService, OperationContext, OperationType, StrReplaceEdit
 from .core.file_edit_normalizer import normalize_edits_payload
 
@@ -42,29 +43,34 @@ logger = logging.getLogger(__name__)
 
 
 class StrReplaceEditInput(BaseModel):
-    """单条精确字符串替换规则"""
+    # One exact-text replacement. A comment, not a docstring: pydantic copies a class docstring into the wire schema
+    # as the description of every edit item, and the two fields below already say what it is.
 
-    old_str: str = Field(description="待替换的原始文本（必须在文件中全局唯一；须包含完整缩进）")
-    new_str: str = Field(default="", description="替换后的新文本（留空字符串表示删除 old_str）")
+    old_str: str = Field(
+        description=(
+            "Exact text to replace; must occur exactly once in the file. "
+            "Include indentation and enough context to be unique."
+        )
+    )
+    new_str: str = Field(default="", description="Replacement text; empty string deletes.")
 
 
 class FileEditInput(BaseModel):
     """文件编辑工具输入参数"""
 
-    path: str = Field(description="文件路径（支持普通路径或 File ID，如 @file_001）")
+    # The parameter descriptions are the English schema every locale sends; only the tool description is localized.
+    path: str = Field(description="File path or @file_id.")
     edits: list[StrReplaceEditInput] = Field(
-        description=(
-            "有序的字符串替换列表，在单次调用中以事务方式原子应用。"
-            "每条替换使用精确匹配（支持模糊回退）。最多 20 条替换，建议替换区域不重叠。"
-        )
+        description="Ordered replacements applied atomically (max 20, must not overlap)."
     )
     verify_command: str | None = Field(
         default=None,
         description=(
-            "编辑后自动执行的语法/类型校验命令（如 'python -m py_compile file.py'）。校验失败将自动回滚全部替换。"
+            "Strongly recommended for code files: a check run after editing, e.g. 'python -m py_compile f.py' "
+            "or 'node --check f.js'. If it fails all edits are rolled back."
         ),
     )
-    reason: str | None = Field(default=None, description="操作原因（可选，用于日志记录）")
+    reason: str | None = Field(default=None, description=REASON_FIELD_DESCRIPTION)
 
     @model_validator(mode="before")
     @classmethod
@@ -77,23 +83,17 @@ class FileEditInput(BaseModel):
         return payload
 
 
-_FILE_EDIT_TOOL_DESCRIPTION_ZH = """精确编辑文件内容（有序字符串替换）。当需要修改文件时，必须使用本工具而非 bash sed/awk/perl。
+_FILE_EDIT_TOOL_DESCRIPTION_ZH = (
+    "用精确文本替换编辑文件。请始终使用本工具，而不是 bash sed/awk/perl。"
+    "编辑已有文件前，先用 file_read_tool 读取一次（普通读取：不带行号范围、不用 preview/stream，这两类读取不算）。"
+    "本会话中自己创建或编辑过的文件无需重新读取。"
+)
 
-参数：
-- path: 文件路径 (支持普通路径或 "@file_id")
-- edits: JSON 数组 [{old_str, new_str}]，单次调用原子写入（最多 20 条）。每条 old_str 必须唯一且精确匹配（含缩进）；建议区域不重叠。
-- verify_command: 编辑后自动执行的语法/类型校验命令（强烈建议，如 'python -m py_compile file.py'）。校验失败会回滚全部 edits。
-- reason: 操作原因（可选）
-"""
-
-_FILE_EDIT_TOOL_DESCRIPTION_EN = """Accurately edit file contents via ordered string replacements. When modifying files, you MUST use this tool instead of bash sed/awk/perl.
-
-Parameters:
-- path: File path (supports normal path or "@file_id")
-- edits: JSON array [{old_str, new_str}] applied atomically in a single call (up to 20 edits). Each old_str must be unique and exact (including indentation); non-overlapping regions recommended.
-- verify_command: Syntax/type check command executed automatically after edit (strongly recommended, e.g. 'python -m py_compile file.py'). All edits are rolled back on failure.
-- reason: Optional operational purpose
-"""
+_FILE_EDIT_TOOL_DESCRIPTION_EN = (
+    "Edit a file with exact-text replacements. Always use this instead of bash sed/awk/perl. "
+    "Before editing an existing file, read it once with file_read_tool (plain read: no line range, not preview/stream; "
+    "those do not count). A file you created or edited earlier in this session needs no re-read."
+)
 
 
 def resolve_file_edit_tool_description(locale: str | None = None) -> str:

@@ -19,10 +19,7 @@ Submodules, primitives first: each imports only modules listed before it, except
 - ``private_api``: Bind the active page to the isolated private API and wait until that API is healthy.
 - ``settings_wait``: Wait for the settings shell, the agent settings editor and the wiki settings shell; settings URL
   helpers.
-- ``open_page_budget``: Wall-clock budgets, attempt counts and retry policy for opening a page.
-- ``transport_progress``: Heartbeat and stall tripwire around a blocking MCP call.
-- ``open_page_mux``: Mux-facing steps of opening a page: transport turns, cold-attach drain, threaded new_page and
-  tool-wall deadlines.
+- ``open_page_mux``: Mux-facing guards of opening a page: the scoped attach restart and the CDP readiness probe.
 - ``open_page``: Open a page through the browser orchestrator: open_mcp_page, its async form and the shared-UI
   session.
 - ``settings_open``: Open a settings sub-route, or the wiki settings page, on a page that is ready for it.

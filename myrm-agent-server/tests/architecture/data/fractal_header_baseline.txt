@@ -7,7 +7,6 @@ app/ai_agents/agents.py
 app/ai_agents/extensions/archive_checkpoint_memory.py
 app/ai_agents/extensions/pre_compact_memory.py
 app/ai_agents/extensions/security_policy_extension.py
-app/ai_agents/extensions/subagent_extension.py
 app/ai_agents/general_agent/__init__.py
 app/ai_agents/general_agent/agent_middlewares/citation_rules_middleware.py
 app/ai_agents/general_agent/agent_middlewares/tool_selection_middleware.py
@@ -15,7 +14,6 @@ app/ai_agents/general_agent/compression_intent.py
 app/ai_agents/general_agent/config_builders.py
 app/ai_agents/general_agent/context.py
 app/ai_agents/prompts/__init__.py
-app/ai_agents/subagent_catalog.py
 app/ai_agents/subagent_presets.py
 app/api/agents/general_agent/__init__.py
 app/api/agents/general_agent/active_sessions.py

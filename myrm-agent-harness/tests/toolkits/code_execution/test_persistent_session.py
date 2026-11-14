@@ -6,6 +6,8 @@ import asyncio
 import base64
 import contextlib
 import os
+import re
+import shlex
 import shutil
 from pathlib import Path
 
@@ -429,23 +431,50 @@ class TestStreamThrottlingAndOOM:
 
     @pytest.mark.asyncio
     async def test_oom_truncation(self) -> None:
-        """Test the backend OOM truncation logic for 1MB+ output strings."""
+        """Output beyond MAX_OUTPUT_CHARS is cut once, in the session: the result fits the cap with both notes in it.
+
+        ExecutionResult cuts stdout again at the cap, and that cut would take the middle out of the result,
+        the notice and its count of the dropped characters with it.
+        """
         session = LocalPersistentSession(_make_config(timeout=15))
         await session.start()
         try:
             from myrm_agent_harness.toolkits.code_execution.executors.common.executor_utils import (
                 MAX_OUTPUT_CHARS,
             )
+            from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
 
-            # Print 200,000 chars which is more than the default 100,000 MAX_OUTPUT_CHARS
-            # The result.stdout should be truncated to MAX_OUTPUT_CHARS and contain the warning
-            cmd = "python3 -c \"for i in range(10000): print('A' * 20)\""
-            result = await session.execute(cmd)
+            # 10,000 lines of 21 characters: 210,000 characters, beyond MAX_OUTPUT_CHARS.
+            written = 10_000 * 21
+            result = await session.execute("python3 -c \"for i in range(10000): print('A' * 20)\"")
 
             assert result.success
-            assert len(result.stdout) <= MAX_OUTPUT_CHARS + 500  # Leave room for the warning text
-            assert "[System Warning: The middle" in result.stdout
-            assert "characters of output were truncated to prevent memory overflow]" in result.stdout
+            assert len(result.stdout) <= MAX_OUTPUT_CHARS
+            notice = re.search(
+                r"\[System Warning: The middle (\d+) characters of output were truncated to prevent memory overflow\]",
+                result.stdout,
+            )
+            assert notice is not None
+            assert "[System Note: Output was truncated. The FULL original output was stream-saved to" in result.stdout
+            # The count is what the result lost: the overflow, and the room the two notes take.
+            assert written - MAX_OUTPUT_CHARS <= int(notice[1]) <= written - MAX_OUTPUT_CHARS + 1_000
+
+            handed_on = ExecutionResult(success=True, stdout=result.stdout).stdout
+            assert "[Truncated:" not in handed_on
+            assert notice[0] in handed_on
+        finally:
+            await session.close()
+
+    @pytest.mark.asyncio
+    async def test_output_between_the_head_and_the_cap_is_returned_whole(self) -> None:
+        """Nothing is dropped below the cap: no notice splits the output where the head ends, no note follows it."""
+        session = LocalPersistentSession(_make_config(timeout=15))
+        await session.start()
+        try:
+            result = await session.execute("python3 -c \"print('A' * 100000)\"")
+
+            assert result.success
+            assert result.stdout == "A" * 100_000
         finally:
             await session.close()
 
@@ -660,7 +689,6 @@ class TestResilienceGitCredentialInjection:
     sandbox has none.
     """
 
-    _FAKE_DIR = "/tmp/myrm_resilience_fake"
     _RESILIENCE = os.path.join(
         os.path.dirname(__file__),
         "../../../src/myrm_agent_harness/agent/meta_tools/bash/scripts/resilience_init.sh",
@@ -698,8 +726,14 @@ fi
 exit 0
 """
 
-    @staticmethod
+    @pytest.fixture(autouse=True)
+    def _fake_dir(self, tmp_path: Path) -> None:
+        # One directory per test: the tests of this class run side by side under xdist, and a path they
+        # share is wiped by whichever starts next.
+        self._dir = shlex.quote(str(tmp_path / "resilience_fake"))
+
     def _env(
+        self,
         *,
         remote: str,
         token: str,
@@ -709,7 +743,7 @@ exit 0
         is_repo: str = "1",
     ) -> str:
         return (
-            f"FAKE_GIT_LOG={TestResilienceGitCredentialInjection._FAKE_DIR}/git.log "
+            f"FAKE_GIT_LOG={self._dir}/git.log "
             f"FAKE_GIT_IS_REPO={is_repo} FAKE_GIT_NAME={name} FAKE_GIT_EMAIL={email} "
             f"FAKE_GIT_CRED_HELPER={cred_helper} FAKE_GIT_REMOTE={remote} GITHUB_TOKEN={token}"
         )
@@ -718,21 +752,18 @@ exit 0
         session = LocalPersistentSession(_make_config())
         await session.start()
         try:
-            await session.execute(f"rm -rf {self._FAKE_DIR} && mkdir -p {self._FAKE_DIR}/home")
-            await session.execute('rm -f "${TMPDIR:-/tmp}"/myrm_gh_identity')
+            await session.execute(f"mkdir -p {self._dir}/home {self._dir}/tmp")
             if pre_cache:
-                await session.execute(f"printf '%s' '{pre_cache}' > \"${{TMPDIR:-/tmp}}\"/myrm_gh_identity")
+                await session.execute(f"printf '%s' '{pre_cache}' > {self._dir}/tmp/myrm_gh_identity")
             for name, body in (("git", self._FAKE_GIT), ("curl", self._FAKE_CURL)):
                 b64 = base64.b64encode(body.encode()).decode()
-                await session.execute(
-                    f"echo {b64} | base64 -d > {self._FAKE_DIR}/{name} && chmod +x {self._FAKE_DIR}/{name}"
-                )
-            # Isolate HOME so a host-level ~/.git-credentials (e.g. gh auth) cannot
-            # flip _git_has_existing_credentials and skip helper injection.
-            await session.execute(f"export PATH={self._FAKE_DIR}:$PATH HOME={self._FAKE_DIR}/home {env}")
+                await session.execute(f"echo {b64} | base64 -d > {self._dir}/{name} && chmod +x {self._dir}/{name}")
+            # Isolate HOME so a host-level ~/.git-credentials (e.g. gh auth) cannot flip
+            # _git_has_existing_credentials and skip helper injection. The identity cache lives under TMPDIR.
+            await session.execute(f"export PATH={self._dir}:$PATH HOME={self._dir}/home TMPDIR={self._dir}/tmp {env}")
             await session.execute(f"source {self._RESILIENCE}")
             await session.execute(cmd)
-            result = await session.execute(f"cat {self._FAKE_DIR}/git.log 2>/dev/null || true")
+            result = await session.execute(f"cat {self._dir}/git.log 2>/dev/null || true")
             return result.stdout
         finally:
             await session.close()

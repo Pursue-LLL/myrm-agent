@@ -1,18 +1,24 @@
 """[INPUT]
 - .common (POS: shared primitives)
+- myrm_agent_harness.api::is_driver_closed_error (POS: tells a connect that failed on an exited Playwright driver from other failures)
 
 [OUTPUT]
 - ConnectionMixin
 
 [POS]
-Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status.
+Extension bridge mixin: connect/disconnect, CDP endpoint resolution, navigation and status. A connect that finds the
+Playwright driver process exited drops that driver and attaches again on a new one, so a dead driver never fails a
+connect (it would otherwise fail every one until the extension reconnects). Callers that need a driver while one is
+starting share it.
 """
 
 from __future__ import annotations
 
+import contextlib
 import time
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.api import is_driver_closed_error
 from myrm_agent_harness.toolkits.browser.pool.extension_bridge import ExtensionBrowserInstance
 from starlette.websockets import WebSocketState
 
@@ -21,7 +27,7 @@ from app.services.extension.access_policy import (
 )
 
 if TYPE_CHECKING:
-    from patchright.async_api import Playwright
+    from patchright.async_api import Browser, Playwright
 
 from . import common
 from .common import (
@@ -31,16 +37,60 @@ from .common import (
     ExtensionTab,
     logger,
 )
+from .state import BridgeState
 
 
-class ConnectionMixin:
+class ConnectionMixin(BridgeState):
     async def _ensure_playwright(self) -> Playwright:
-        """Return the cached Playwright instance, starting one if needed."""
-        if self._playwright is None:
-            from patchright.async_api import async_playwright
+        """Return the cached Playwright instance, starting one if needed.
 
-            self._playwright = await async_playwright().start()
-        return self._playwright
+        Callers that arrive while a driver is starting wait and share it: each starting its own would overwrite the
+        cache and leave every driver but the last running with nothing to stop it.
+        """
+        async with self._playwright_lock:
+            if self._playwright is None:
+                from patchright.async_api import async_playwright
+
+                self._playwright = await async_playwright().start()
+            return self._playwright
+
+    async def _discard_playwright(self) -> None:
+        """Stop and forget the cached driver, so the next ``_ensure_playwright`` starts a new one.
+
+        The cache is cleared first: a caller that arrives while the old driver is still stopping must not pick it up.
+        """
+        playwright, self._playwright = self._playwright, None
+        if playwright is not None:
+            with contextlib.suppress(Exception):
+                await playwright.stop()
+
+    async def _attach_once(self, cdp_endpoint: str, timeout: float) -> Browser:
+        """One Playwright attach to the relay's DevTools endpoint, on the cached driver.
+
+        A driver whose process has exited can attach to nothing, ever, so it is dropped before the error propagates.
+        Only the driver that failed is dropped: a newer one another caller already started keeps serving.
+        """
+        pw = await self._ensure_playwright()
+        try:
+            return await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
+        except Exception as exc:
+            if self._playwright is pw and is_driver_closed_error(exc):
+                await self._discard_playwright()
+            raise
+
+    async def _connect_over_cdp(self, cdp_endpoint: str, timeout: float) -> Browser:
+        """Attach Playwright to the relay's DevTools endpoint, once more on a new driver if the cached one had exited.
+
+        The retry belongs here: the bridge owns the driver, and the browser pool's own single retry of a failed page
+        acquisition would otherwise be spent reaching this same dead driver, leaving the session without a tab.
+        """
+        try:
+            return await self._attach_once(cdp_endpoint, timeout)
+        except Exception as exc:
+            if not is_driver_closed_error(exc):
+                raise
+            logger.warning("Extension bridge: Playwright driver process is gone (%s); attaching again on a new driver", exc)
+            return await self._attach_once(cdp_endpoint, timeout)
 
     def _resolve_cdp_endpoint(self) -> str | None:
         """Discover main Chrome CDP endpoint when extension bridge has no cached value."""
@@ -95,56 +145,8 @@ class ConnectionMixin:
 
         await self._sync_relay_tabs()
         cdp_endpoint = await self._resolve_playwright_cdp_endpoint()
-        pw = await self._ensure_playwright()
 
-        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
-        return ExtensionBrowserInstance(browser=browser)
-
-    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> ExtensionBrowserInstance:
-        policy = self._current_access_policy()
-        domain_lower = domain.strip().lower().rstrip(".")
-        if not domain_lower:
-            raise ExtensionBridgeNotAvailable("Domain must not be empty.")
-        if policy.allow_all_eligible_tabs:
-            probe_url = f"https://{domain_lower}"
-            if not is_navigation_target_allowed(probe_url, policy):
-                raise ExtensionBridgeNotAvailable(f"Domain '{domain}' is not an eligible automation target.")
-        elif not self._match_domain(domain_lower, policy.authorized_domains):
-            raise ExtensionBridgeNotAvailable(
-                f"Domain '{domain}' is not authorized. Authorized domains: {policy.authorized_domains}"
-            )
-
-        if not self._connected or self._ws is None:
-            raise ExtensionBridgeNotAvailable("Browser extension is not connected.")
-
-        if not self._hello_received:
-            raise ExtensionBridgeNotAvailable("Extension handshake is not completed yet. Reconnect extension and retry.")
-
-        await self._refresh_tabs()
-        domain_lower = domain.strip().lower().rstrip(".")
-        matching = [tab for tab in self._tabs if self._match_domain(tab.domain, [domain_lower])]
-        if not matching:
-            await self.navigate_to_url(
-                f"https://{domain_lower}",
-                domain=domain_lower,
-                background=False,
-                timeout=timeout,
-            )
-            await self._refresh_tabs()
-            matching = [tab for tab in self._tabs if self._match_domain(tab.domain, [domain_lower])]
-
-        if not matching:
-            raise ExtensionBridgeNotAvailable(f"No extension tab available for domain '{domain_lower}'.")
-
-        active_matches = [tab for tab in matching if tab.active]
-        target_tab = active_matches[0] if active_matches else matching[0]
-
-        await self._sync_relay_tabs()
-        cdp_endpoint = await self._resolve_playwright_cdp_endpoint()
-        pw = await self._ensure_playwright()
-
-        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
-        await self._focus_browser_on_domain(browser, target_tab.domain)
+        browser = await self._connect_over_cdp(cdp_endpoint, timeout)
         return ExtensionBrowserInstance(browser=browser)
 
     async def navigate_to_url(
@@ -211,13 +213,6 @@ class ConnectionMixin:
         return self._connected
 
     async def disconnect(self) -> None:
-        from app.services.extension.tab_borrow_ledger import get_tab_borrow_ledger
-
-        try:
-            await get_tab_borrow_ledger().restore_all(self._send_move_tab)
-        except Exception as exc:
-            logger.debug("Suppressed error restoring borrowed tabs during disconnect: %s", exc)
-
         if self._heartbeat_task and not self._heartbeat_task.done():
             self._heartbeat_task.cancel()
         if self._receive_task and not self._receive_task.done():
@@ -228,12 +223,7 @@ class ConnectionMixin:
             except Exception:
                 pass
         await common.get_cdp_relay_manager().bind_extension_transport(None)
-        if self._playwright is not None:
-            try:
-                await self._playwright.stop()
-            except Exception:
-                pass
-            self._playwright = None
+        await self._discard_playwright()
         self._connected = False
         self._ws = None
         self._hello_received = False

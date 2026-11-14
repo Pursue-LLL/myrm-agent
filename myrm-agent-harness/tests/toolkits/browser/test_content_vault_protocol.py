@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from myrm_agent_harness.toolkits.browser.session import ContentVault
 
 
@@ -21,12 +23,10 @@ class TestContentVaultProtocol:
 
         assert not isinstance(NotAVault(), ContentVault)
 
-    def test_artifact_vault_satisfies_protocol(self) -> None:
-        import tempfile
-
+    def test_artifact_vault_satisfies_protocol(self, tmp_path: Path) -> None:
         from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-        vault = ArtifactVault(tempfile.mkdtemp())
+        vault = ArtifactVault(str(tmp_path))
         assert isinstance(vault, ContentVault)
 
     def test_put_returns_uri(self) -> None:

@@ -22,6 +22,7 @@
 | `mod.rs` | 聚合 | 子模块声明 | — |
 | `screen_lock.rs` | 核心 | 锁屏进程内检测（macOS CoreGraphics 会话字典 FFI）与系统确认式锁屏请求 | ✅ |
 | `screen_credential.rs` | 核心 | Locked Use 登录密码的平台钥匙串存取：密码经 `security -i` 的 stdin 写入（不进 argv），含控制字符拒收、缺失条目删除幂等与真实钥匙串往返 / 进程列表泄漏回归测试（`--ignored`） | ✅ |
+| `data_dir.rs` | 核心 | 数据根目录的唯一解析点：后端启动（传给 `MYRM_DATA_DIR`）、数据迁移、故障恢复作用于同一个目录。`MYRM_DESKTOP_DATA_DIR` 显式指定优先（任何构建）；否则开发构建用独立的 `~/.myrm-desktop-dev` 且不跟随持久化设置（设置文件与已安装的正式版共用），正式版沿用设置值或后端默认 `~/.myrm`；目录被环境变量或开发构建固定时 `ensure_relocatable` 返回错误，设置里的目录迁移不可用 | ✅ |
 | `auth.rs` | 核心 | macOS 提权修复隔离属性 | — |
 | `quarantine.rs` | 核心 | com.apple.quarantine 扫描与静默修复 | — |
 | `updater_safety.rs` | 核心 | 启动期 OTA pubkey 占位符强校验 | ✅ |

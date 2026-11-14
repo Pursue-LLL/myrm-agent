@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Live integration gate: cleanup pause blocks Agent paths and direct next dev.
+# Live integration gate: cleanup pause blocks Agent paths and direct next dev; a direct next dev is
+# refused even without a pause, because only dev.ts bounds the server's memory.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,6 +18,7 @@ export MYRM_RUNTIME_NAMESPACE="verify-pause-gate"
 export MYRM_DEV_STATE_DIR="${PAUSE_DIR}/state"
 export MYRM_FRONTEND_PORT="${PROBE_PORT}"
 
+# shellcheck disable=SC2329 # runs through the EXIT trap below
 cleanup_probe() {
   set +e
   export MYRM_FRONTEND_DEV_PAUSE_DIR="${PAUSE_DIR}"
@@ -27,6 +29,35 @@ cleanup_probe() {
 }
 
 trap cleanup_probe EXIT
+
+probe_port_listening() {
+  lsof -iTCP:"${PROBE_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1
+}
+
+# `next dev` typed by hand, with no dev.ts around it. Prints what it said before it stopped by itself
+# (it is cut off after 10 s). Its own dist dir keeps a launch that is wrongly let through off the shared
+# dev stack's `.next-dev`.
+run_direct_next_dev() {
+  local log pid
+  log="$(mktemp)"
+  (
+    cd "${FRONTEND_DIR}"
+    MYRM_FRONTEND_DEV_PAUSE_DIR="${PAUSE_DIR}" MYRM_NEXT_DIST_DIR=".next-isolated-${MYRM_RUNTIME_NAMESPACE}" \
+      bunx next dev -p "${PROBE_PORT}"
+  ) >"${log}" 2>&1 &
+  pid=$!
+  for _ in $(seq 1 40); do
+    if ! kill -0 "${pid}" 2>/dev/null; then
+      break
+    fi
+    sleep 0.25
+  done
+  kill "${pid}" 2>/dev/null || true
+  wait "${pid}" 2>/dev/null || true
+  cat "${log}"
+  rm -f "${log}"
+  sleep 0.5
+}
 
 export MYRM_FRONTEND_DEV_PAUSE_DIR="${PAUSE_DIR}"
 PREFLIGHT_PY="${PREFLIGHT_PY:-python3}"
@@ -75,36 +106,21 @@ if [[ "${dev_rc}" -ne 0 ]] || ! grep -qi 'paused\|refusing start' <<<"${dev_out}
   echo "${dev_out}" >&2
   exit 1
 fi
-if lsof -iTCP:"${PROBE_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1; then
+if probe_port_listening; then
   echo "FRONTEND_PAUSE_GATE_FAIL: dev.ts left listener on :${PROBE_PORT}" >&2
   exit 1
 fi
 echo "FRONTEND_PAUSE_GATE_OK: dev.ts refuse + no listener"
 
-next_log="$(mktemp)"
-(
-  cd "${FRONTEND_DIR}"
-  MYRM_FRONTEND_DEV_PAUSE_DIR="${PAUSE_DIR}" \
-    bunx next dev -p "${PROBE_PORT}"
-) >"${next_log}" 2>&1 &
-next_pid=$!
-for _ in $(seq 1 40); do
-  if ! kill -0 "${next_pid}" 2>/dev/null; then
-    break
-  fi
-  sleep 0.25
-done
-kill "${next_pid}" 2>/dev/null || true
-wait "${next_pid}" 2>/dev/null || true
-next_out="$(cat "${next_log}")"
-rm -f "${next_log}"
-sleep 0.5
-if ! grep -qi 'paused\|refusing' <<<"${next_out}"; then
+next_out="$(run_direct_next_dev)"
+# 'paused' alone: a direct launch is refused for not being started by dev.ts as well, and that refusal must
+# not pass for the pause gate working.
+if ! grep -qi 'paused' <<<"${next_out}"; then
   echo "FRONTEND_PAUSE_GATE_FAIL: direct next dev was not blocked by pause gate" >&2
   echo "${next_out}" >&2
   exit 1
 fi
-if lsof -iTCP:"${PROBE_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1; then
+if probe_port_listening; then
   echo "FRONTEND_PAUSE_GATE_FAIL: direct next dev left listener on :${PROBE_PORT}" >&2
   exit 1
 fi
@@ -116,6 +132,18 @@ if "${PREFLIGHT_PY}" "${PAUSE_PY}" check >/dev/null 2>&1; then
   exit 1
 fi
 echo "FRONTEND_PAUSE_GATE_OK: clear-pause lifts gate"
+
+unsupervised_out="$(run_direct_next_dev)"
+if ! grep -q 'not started by' <<<"${unsupervised_out}"; then
+  echo "FRONTEND_PAUSE_GATE_FAIL: direct next dev was not refused outside dev.ts" >&2
+  echo "${unsupervised_out}" >&2
+  exit 1
+fi
+if probe_port_listening; then
+  echo "FRONTEND_PAUSE_GATE_FAIL: unsupervised next dev left listener on :${PROBE_PORT}" >&2
+  exit 1
+fi
+echo "FRONTEND_PAUSE_GATE_OK: direct bunx next dev refused without a pause"
 
 echo "FRONTEND_PAUSE_GATE_OK: all integration checks passed"
 exit 0

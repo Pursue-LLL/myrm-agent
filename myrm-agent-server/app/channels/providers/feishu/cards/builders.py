@@ -3,10 +3,10 @@
 
 [OUTPUT]
 - build_component_card: Build a Feishu Interactive Card from OutboundMessage components.
-- build_thinking_card: Placeholder card shown while agent is processing.
-- wrap_text_as_card: Wrap arbitrary text in a minimal card for consistent edit formatting.
+- wrap_text_as_card: Wrap arbitrary text in a minimal card; the placeholder, the progress edits and any plain-text edit use it.
+- CARD_CONFIG: Config shared by every card the channel sends.
 - _format_cost_note: Format cost_metadata into a compact note string for Feishu cards.
-- build_result_card: Final result card with optional header, sources, and timestamp.
+- build_result_card: Final result card with optional header, numbered sources, and timestamp.
 
 [POS]
 飞书卡片子包的一部分；由 __init__.py 聚合导出。
@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from app.channels.providers.feishu.cards.actions import build_card_actions
 
@@ -23,22 +23,10 @@ if TYPE_CHECKING:
         OutboundMessage,
     )
 
-SendMode = Literal["reply", "root_create", "create"]
+# Feishu updates a card in place only if its config sets ``update_multi`` both before and after the update.
+CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True, "update_multi": True}
 
-_CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True}
-_ACTION_VALUE_MAX = 200
-
-_HEADER_TEMPLATES: dict[bool | None, tuple[str, str]] = {
-    True: ("green", ""),
-    False: ("red", ""),
-    None: ("blue", ""),
-}
-
-_FEISHU_BUTTON_TYPE: dict[str, str] = {
-    "primary": "primary",
-    "danger": "danger",
-    "default": "default",
-}
+_HEADER_TEMPLATES: dict[bool | None, str] = {True: "green", False: "red", None: "blue"}
 
 
 # ── Component card (from OutboundMessage) ────────────────────────
@@ -72,41 +60,20 @@ def build_component_card(
     if fallback_options:
         elements.extend(fallback_options)
 
-    return {"config": _CARD_CONFIG, "elements": elements}
+    return {"config": CARD_CONFIG, "elements": elements}
 
 
-# ── Thinking / placeholder card ──────────────────────────────────
-
-
-def build_thinking_card(
-    label: str = " Thinking...",
-    *,
-    card_id: str = "",
-) -> dict[str, object]:
-    """Placeholder card shown while agent is processing.
-
-    When *card_id* is provided, the card is configured for CardKit streaming
-    so the server can push incremental content updates.
-    """
-    elements: list[dict[str, object]] = [
-        {"tag": "div", "text": {"tag": "lark_md", "content": label}},
-    ]
-    if card_id:
-        elements.append({"tag": "streaming_content"})
-    card: dict[str, object] = {"config": _CARD_CONFIG, "elements": elements}
-    if card_id:
-        card["card_id"] = card_id
-    return card
+# ── Placeholder / progress card ──────────────────────────────────
 
 
 def wrap_text_as_card(text: str) -> dict[str, object]:
-    """Wrap arbitrary text in a minimal card for consistent edit formatting.
+    """Wrap arbitrary text in a minimal card.
 
-    Used by edit_message to keep the entire placeholder lifecycle
-    as interactive cards (thinking → progress → result).
+    The placeholder, every progress edit and any plain-text edit use it, so the whole placeholder lifecycle
+    (placeholder → progress → result) stays one interactive card.
     """
     return {
-        "config": _CARD_CONFIG,
+        "config": CARD_CONFIG,
         "elements": [
             {"tag": "div", "text": {"tag": "lark_md", "content": text}},
         ],
@@ -147,25 +114,20 @@ def build_result_card(
     timestamp: str = "",
     cost_metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Final result card with optional header, sources, and timestamp."""
+    """Final result card with optional header, sources numbered like the citations in ``content``, and timestamp."""
     elements: list[dict[str, object]] = []
 
     if content:
         elements.append({"tag": "div", "text": {"tag": "lark_md", "content": content}})
 
-    if sources:
+    source_lines = [
+        f"[{s.get('index', i)}] [{s.get('title', s.get('url', 'source'))}]({s['url']})"
+        for i, s in enumerate(sources or [], start=1)
+        if s.get("url")
+    ]
+    if source_lines:
         elements.append({"tag": "hr"})
-        source_lines = [f"[{s.get('title', s.get('url', 'source'))}]({s['url']})" for s in sources if s.get("url")]
-        if source_lines:
-            elements.append(
-                {
-                    "tag": "div",
-                    "text": {
-                        "tag": "lark_md",
-                        "content": "**refusesource: **\n" + "\n".join(source_lines[:10]),
-                    },
-                }
-            )
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": "**Sources**\n" + "\n".join(source_lines[:10])}})
 
     note_parts: list[str] = []
     if timestamp:
@@ -186,14 +148,12 @@ def build_result_card(
 
     header: dict[str, object] | None = None
     if title or success is not None:
-        template, icon = _HEADER_TEMPLATES.get(success, _HEADER_TEMPLATES[None])
-        header_title = f"{icon} {title}" if title else f"{icon} Notification"
         header = {
-            "title": {"tag": "plain_text", "content": header_title},
-            "template": template,
+            "title": {"tag": "plain_text", "content": title or "Notification"},
+            "template": _HEADER_TEMPLATES[success],
         }
 
-    card: dict[str, object] = {"config": _CARD_CONFIG, "elements": elements}
+    card: dict[str, object] = {"config": CARD_CONFIG, "elements": elements}
     if header:
         card["header"] = header
     return card

@@ -194,6 +194,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.toolkits.browser.doctor.orphans",
         "find_orphan_automation_processes",
     ),
+    "is_driver_closed_error": ("myrm_agent_harness.toolkits.browser.utils.page_health", "is_driver_closed_error"),
     "calculate_trajectory_determinism": ("myrm_agent_harness.eval.assertions", "calculate_trajectory_determinism"),
     "classify_connector_error": (
         "myrm_agent_harness.toolkits.cron.engine.connector_health",

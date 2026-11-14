@@ -67,7 +67,7 @@ _TOOL_LAYERS: dict[str, ToolLayer] = {
     # ============================================================
     # CORE - 通用 Agent 基线工具（无条件 Turn1 eager，前端无开关）
     # General 轨道：Web 非 fast、Channel/IM、Cron/Kanban — server tool_mount.resolve_agent_mount
-    # Search/Fast 无 file/bash：仅 Web action_mode=fast — 见 server params/converter.py
+    # Search/Fast（仅 Web action_mode=fast）无 bash 与文件写入类工具，只留只读 file_read_tool — 见 server params/conversion/tool_surface.py
     # ============================================================
     "web_fetch_tool": ToolLayer.CORE,
     "bash_code_execute_tool": ToolLayer.CORE,
@@ -134,7 +134,6 @@ _TOOL_LAYERS: dict[str, ToolLayer] = {
     # --- Sub-Agent 管理 ---
     "delegate_task_tool": ToolLayer.EXTENDED,
     "subagent_control_tool": ToolLayer.EXTENDED,
-    "send_teammate_message_tool": ToolLayer.EXTENDED,
     # --- Wiki 知识库 (Agent 面向仅 ingest / query / apply) ---
     "wiki_ingest_tool": ToolLayer.EXTENDED,
     "wiki_query_tool": ToolLayer.EXTENDED,

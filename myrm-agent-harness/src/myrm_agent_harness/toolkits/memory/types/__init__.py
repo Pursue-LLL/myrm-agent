@@ -48,7 +48,7 @@ from .records import (
     SemanticMemory,
     TaskDigestMemory,
 )
-from .search import HitSource, MemorySearchResult, PendingRecord, RecallDebugTrace
+from .search import HitSource, MemorySearchResult, PendingRecord, PendingStatus, RecallDebugTrace
 
 AnyMemory = (
     SemanticMemory | EpisodicMemory | ConversationMemory | ProceduralMemory | IntegrationMemory | TaskDigestMemory
@@ -88,6 +88,7 @@ __all__ = [
     "MemoryType",
     "PendingRecord",
     "PendingResolutionAction",
+    "PendingStatus",
     "PreferenceType",
     "ProceduralMemory",
     "ProfileAttributeSnapshot",

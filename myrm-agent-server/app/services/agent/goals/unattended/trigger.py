@@ -184,7 +184,8 @@ async def trigger_goal_stream(
         }
     )
 
-    security_config_raw = user_cfgs.security_config_dict or {}
+    # A copy: the loader hands every reader the same cached dict, which the grant below must not leak into.
+    security_config_raw = dict(user_cfgs.security_config_dict or {})
     if not security_config_raw.get("yolo_mode_enabled", False):
         security_config_raw["yolo_mode_enabled"] = True
         security_config_raw["yolo_mode_enabled_at"] = time.time()

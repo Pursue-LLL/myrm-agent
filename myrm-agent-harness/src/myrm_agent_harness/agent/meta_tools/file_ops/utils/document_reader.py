@@ -14,7 +14,8 @@ Legacy OLE2 formats (.doc/.xls/.ppt) are auto-converted via LegacyFormatParser (
 
 [OUTPUT]
 - is_document_path: Detect if path is a structured document file
-- read_document_as_text: Read document and return parsed Markdown text
+- read_document_as_text: Read document and return parsed Markdown text (a workbook's structure view ends with the call
+  that reads its cells)
 - read_document_multimodal: Read document and return text + extracted image content blocks
 
 [POS]
@@ -45,6 +46,11 @@ DOCUMENT_EXTENSIONS: frozenset[str] = frozenset({".docx", ".doc", ".xlsx", ".xls
 
 _FALLBACK_MAX_CHARS = 200_000
 _EXCEL_STRUCTURE_THRESHOLD_BYTES = 50 * 1024
+# A workbook read as its structure shows sheets, sizes and headers but no cell values, and a large one is read that way
+# unless the caller asks for more. Without a pointer the model has no cue what to call to get the cells.
+_EXCEL_STRUCTURE_NEXT_STEP = (
+    "\n\nStructure only (no cell values). To read the cells, call file_read_tool again with parse_mode='content'."
+)
 
 
 def is_document_path(path: str) -> bool:
@@ -98,6 +104,7 @@ async def read_document_multimodal(
         return [create_text_block(res)]
 
     tmp_path: str | None = None
+    excel_structure = False
     try:
         tmp_path = await _write_to_temp(raw_bytes, suffix)
 
@@ -143,6 +150,7 @@ async def read_document_multimodal(
             effective_mode = parse_mode
             if effective_mode is None and len(raw_bytes) > _EXCEL_STRUCTURE_THRESHOLD_BYTES:
                 effective_mode = "structure"
+            excel_structure = effective_mode == "structure"
 
             if effective_mode in ("structure", "audit"):
                 excel_delegate = ExcelParser(output_format=effective_mode)
@@ -186,6 +194,8 @@ async def read_document_multimodal(
 
     if len(text) > _FALLBACK_MAX_CHARS:
         text = text[:_FALLBACK_MAX_CHARS] + f"\n\n... [truncated at {_FALLBACK_MAX_CHARS} chars]"
+    if excel_structure:
+        text += _EXCEL_STRUCTURE_NEXT_STEP
 
     return [create_text_block(f"[Document: {path}]\n{text}")]
 

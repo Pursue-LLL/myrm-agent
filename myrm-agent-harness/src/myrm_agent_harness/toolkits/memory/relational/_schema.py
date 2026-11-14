@@ -1,22 +1,27 @@
 """SQLite relational schema bootstrap: table DDL, legacy scope-column migration and indexes.
 
 [INPUT]
+- memory.relational._converters::now_iso (POS: timestamp converter)
 - memory.relational._exact_fact_store::init_exact_fact_tables (POS: exact-fact FTS5 table bootstrap)
 - Third-party: aiosqlite
 
 [OUTPUT]
 - init_relational_schema: Create or migrate the profile, procedural-rule and pending tables with their
-  indexes and the exact-fact tables; returns whether FTS5 is supported.
+  indexes (the pending table's unique index over open proposals included) and the exact-fact tables;
+  returns whether FTS5 is supported.
 
 [POS]
 Schema bootstrap for SQLiteRelationalStore. Stateless: every function operates on the given connection.
-Migrations only move forward: the retired ``priority`` column of procedural_rules is dropped when found, so
-a build that still reads that column cannot open a database this code has opened.
+Migrations only move forward: a ``priority`` column found on procedural_rules is dropped, so a build that still
+reads or writes that column can no longer read, create or update rules in a database this code has opened.
 """
 
 import aiosqlite
 
+from myrm_agent_harness.toolkits.memory.relational._converters import now_iso
 from myrm_agent_harness.toolkits.memory.relational._exact_fact_store import init_exact_fact_tables
+
+_OPEN_PROPOSAL_INDEX = "idx_pending_open_proposal"
 
 
 async def _table_exists(conn: aiosqlite.Connection, table_name: str) -> bool:
@@ -127,7 +132,7 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             await conn.execute("ALTER TABLE procedural_rules ADD COLUMN is_user_locked INTEGER NOT NULL DEFAULT 0")
         if "expected_valid_days" not in rule_columns:
             await conn.execute("ALTER TABLE procedural_rules ADD COLUMN expected_valid_days INTEGER")
-        # Rules are ordered by when they were made; the integer priority they used to carry is gone.
+        # procedural_rules has no priority column: rules are ordered by creation time, so a leftover column goes.
         if "priority" in rule_columns:
             await conn.execute("ALTER TABLE procedural_rules DROP COLUMN priority")
 
@@ -141,6 +146,35 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             await conn.execute("ALTER TABLE pending_records ADD COLUMN target_content TEXT")
         if "built_from_chats" not in pending_columns:
             await conn.execute("ALTER TABLE pending_records ADD COLUMN built_from_chats INTEGER NOT NULL DEFAULT 0")
+
+
+async def _ensure_open_proposal_uniqueness(conn: aiosqlite.Connection) -> None:
+    """Keep one open proposal per memory type and content, so the queue itself turns an identical second one away.
+
+    A database that predates the index may already hold identical open proposals, which the unique index cannot be
+    built over: the oldest of each group stays open and the rest are closed as rejected, rows (and chat links) kept
+    for the chat purge. Closing and indexing share the transaction of the init's final commit, so no writer can add a
+    duplicate in between. An existing index means there is nothing to close; creating it still tolerates one that
+    another connection opening the same database built meanwhile.
+    """
+    async with conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?", (_OPEN_PROPOSAL_INDEX,)
+    ) as cursor:
+        if await cursor.fetchone() is not None:
+            return
+    await conn.execute(
+        """
+        UPDATE pending_records SET status = 'rejected', resolved_at = ?
+        WHERE status = 'pending' AND rowid NOT IN (
+            SELECT MIN(rowid) FROM pending_records WHERE status = 'pending' GROUP BY memory_type, content
+        )
+        """,
+        (now_iso(),),
+    )
+    await conn.execute(
+        f"CREATE UNIQUE INDEX IF NOT EXISTS {_OPEN_PROPOSAL_INDEX} "
+        "ON pending_records(memory_type, content) WHERE status = 'pending'"
+    )
 
 
 async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
@@ -229,6 +263,7 @@ async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
         "CREATE INDEX IF NOT EXISTS idx_pending_built_from_chats ON pending_records(built_from_chats) WHERE built_from_chats = 1",
     ):
         await conn.execute(idx_sql)
+    await _ensure_open_proposal_uniqueness(conn)
     fts5_supported = await init_exact_fact_tables(conn)
     await conn.commit()
     return fts5_supported

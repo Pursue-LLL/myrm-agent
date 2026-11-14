@@ -16,7 +16,7 @@ Framework-neutral utilities under ``utils/``; safe for any layer to import.
 ## Pricing
 
 ``cache_read_ratio`` defaults to 0.1 (Anthropic: cache reads at 10% of base input).
-Callers can override per-provider: OpenAI 0.5, DeepSeek 0.1, etc.
+Other providers publish their own ratio per model; callers pass the one that matches the billed model.
 """
 
 import logging
@@ -60,7 +60,7 @@ def compute_prompt_cache_stats(
         prompt_tokens: Provider ``prompt_tokens`` (non-negative).
         cached_tokens: Tokens billed as cache reads (non-negative).
         cache_read_ratio: Cache-read cost as fraction of base input cost.
-            Anthropic: 0.1 (90% off), OpenAI: 0.5 (50% off), DeepSeek: 0.1.
+            Anthropic bills 0.1; other providers publish their own ratio per model.
 
     Returns:
         ``cache_hit_rate``, ``cost_savings_pct``, ``cost_savings_absolute``.

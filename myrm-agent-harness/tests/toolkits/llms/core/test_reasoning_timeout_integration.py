@@ -119,6 +119,7 @@ class TestReasoningTimeoutLLMManagerPath:
         assert llm.request_timeout == 300.0  # type: ignore[attr-defined]
 
 
+@pytest.mark.integration
 class TestReasoningTimeoutRealAPI:
     """Real API call verifying timeout parameter reaches the network layer.
 
@@ -136,7 +137,7 @@ class TestReasoningTimeoutRealAPI:
                 continue
             key, _, value = line.partition("=")
             if key and value:
-                os.environ[key] = value
+                os.environ.setdefault(key, value)
 
     @pytest.fixture()
     def env_config(self) -> dict[str, str]:

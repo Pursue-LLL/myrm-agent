@@ -2,13 +2,11 @@
  * [INPUT]
  * hooks/voice/useSpeechInput (POS: Speech-to-text input with multi-backend STT)
  * hooks/voice/useTTS (POS: Text-to-speech output with browser and API backends)
- * hooks/multimodal/useCameraInput (POS: Camera input manager with frame buffering)
- * hooks/multimodal/useVisionIntent (POS: Vision intent classifier with bilingual rules)
  * hooks/voice/useVoicePttListener (POS: Bridges Tauri PTT events to DOM, provides PttScreenContext type)
  *
  * [OUTPUT]
  * useVoiceSession: Full-duplex voice session with barge-in, concurrent STT/TTS,
- * queue-safe TTS insertion, vision fusion, and PTT screen context
+ * queue-safe TTS insertion, and PTT screen context
  *
  * [POS]
  * Full-duplex voice session orchestrator. Manages concurrent listening + speaking with
@@ -20,13 +18,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSpeechInput, type SpeechMode } from './useSpeechInput';
 import { useTTS, type TTSMode } from './useTTS';
-import { useCameraInput } from '../multimodal/useCameraInput';
-import { useVisionIntent } from '../multimodal/useVisionIntent';
 import { useLiveMeetingNotes, type UseLiveMeetingNotesReturn } from './useLiveMeetingNotes';
 import { useVoiceAgentBridge } from './useVoiceAgentBridge';
 import { useRealtimeVoice } from './useRealtimeVoice';
 import { useGeminiLiveVoice } from './useGeminiLiveVoice';
-import type { VisualFrame } from '@/lib/vision/frameSelector';
 import type { PttScreenContext } from './useVoicePttListener';
 
 export type VoiceSessionState = 'inactive' | 'listening' | 'processing' | 'speaking' | 'paused';
@@ -34,12 +29,12 @@ export type VoiceSessionMode = 'audio_only' | 'agent_bridge' | 'openai_realtime'
 
 interface UseVoiceSessionOptions {
   enabled: boolean;
-  cameraEnabled?: boolean;
   speechMode?: SpeechMode;
   ttsMode?: TTSMode;
   ttsProvider?: string;
   autoSend?: boolean;
-  onSendMessage?: (text: string, visionFrames?: VisualFrame[]) => void;
+  /** Receives the transcript and the base64 screenshots (bare or as data URLs) that ride with it. */
+  onSendMessage?: (text: string, visionFrames?: string[]) => void;
   onError?: (error: string) => void;
   keyterms?: string[];
   /** Enable full-duplex: keep mic open during TTS, auto-detect barge-in */
@@ -70,13 +65,8 @@ interface UseVoiceSessionReturn {
   interruptTTS: () => void;
   speakResponse: (text: string, options?: { queue?: boolean }) => void;
   replayLastTTS: () => void;
-  lastSpokenText: string | null;
   interimText: string;
   audioLevel: number;
-  cameraState: ReturnType<typeof useCameraInput>['cameraState'];
-  facingMode: ReturnType<typeof useCameraInput>['facingMode'];
-  videoRef: ReturnType<typeof useCameraInput>['videoRef'];
-  toggleFacing: () => void;
   ttsState: ReturnType<typeof useTTS>['state'];
   /** Current agent response text (agent_bridge mode) */
   agentResponseText: string;
@@ -117,7 +107,6 @@ export function extractSpeakableSegments(text: string): string[] {
 export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessionReturn {
   const {
     enabled,
-    cameraEnabled = false,
     speechMode = 'toggle',
     ttsMode = 'browser',
     ttsProvider,
@@ -148,8 +137,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   // F13 DoD: Last spoken TTS text cache for quick replay
   const lastSpokenTextRef = useRef<string | null>(null);
-
-  const { classify } = useVisionIntent();
 
   // PTT 屏幕上下文：Rust 端在 PTT 按下时异步截图后发射 voice-ptt-context DOM 事件
   const pttScreenContextRef = useRef<PttScreenContext | null>(null);
@@ -247,16 +234,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     onFallback: useCallback(() => {
       onError?.('Gemini Live connection failed, please switch to Agent Bridge mode');
     }, [onError]),
-    getVideoFrame: cameraEnabled
-      ? () => {
-          const frame = camera.captureSnapshot();
-          return frame?.base64 ? `data:image/jpeg;base64,${frame.base64}` : null;
-        }
-      : undefined,
-  });
-
-  const camera = useCameraInput({
-    onError: (err) => onError?.(`Camera: ${err}`),
   });
 
   const handleTranscript = useCallback(
@@ -277,15 +254,8 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
       setSessionState('processing');
 
-      let visionFrames: VisualFrame[] | undefined;
+      let visionFrames: string[] | undefined;
       let finalText = text;
-
-      if (cameraEnabled && camera.cameraState === 'active') {
-        const intent = classify(text);
-        if (intent.needsVision) {
-          visionFrames = camera.getFramesForSpeech();
-        }
-      }
 
       // PTT 屏幕上下文汇聚屏障锁（Barrier Sync）：
       // 若当前处于 PTT 模式且截图仍在传输，等待最多 250ms 汇聚窗口
@@ -308,14 +278,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
       if (pttCtx && Date.now() - pttCtx.timestamp < 30_000) {
         if (pttCtx.screenshot) {
-          const screenFrame: VisualFrame = {
-            id: `ptt-screen-${pttCtx.timestamp}`,
-            base64: pttCtx.screenshot,
-            width: 0,
-            height: 0,
-            timestamp: pttCtx.timestamp,
-          };
-          visionFrames = visionFrames ? [...visionFrames, screenFrame] : [screenFrame];
+          visionFrames = [pttCtx.screenshot];
         }
 
         const contextParts: string[] = [];
@@ -334,7 +297,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
       onSendMessage?.(finalText, visionFrames);
     },
-    [autoSend, fullDuplex, tts, cameraEnabled, camera, classify, onSendMessage, mode, speechMode],
+    [autoSend, fullDuplex, tts, onSendMessage, mode, speechMode],
   );
 
   const handleInterimTranscript = useCallback(() => {
@@ -462,9 +425,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     }
 
     if (mode === 'gemini_live') {
-      if (cameraEnabled) {
-        void camera.startCamera();
-      }
       geminiLive.connect();
       return;
     }
@@ -474,12 +434,8 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
       return;
     }
 
-    if (cameraEnabled) {
-      void camera.startCamera();
-    }
-
     speech.startRecording();
-  }, [enabled, cameraEnabled, camera, speech, mode, agentBridge, realtimeVoice, geminiLive]);
+  }, [enabled, speech, mode, agentBridge, realtimeVoice, geminiLive]);
 
   const stopSession = useCallback(() => {
     // Publish/archive the in-meeting rolling notes when the session ends and reset
@@ -502,10 +458,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
       }
       tts.stop();
     }
-    camera.stopCamera();
 
     setSessionState('inactive');
-  }, [speech, tts, camera, mode, agentBridge, realtimeVoice, geminiLive, liveNotes]);
+  }, [speech, tts, mode, agentBridge, realtimeVoice, geminiLive, liveNotes]);
 
   const interruptTTS = useCallback(() => {
     if (mode === 'openai_realtime' || mode === 'gemini_live') {
@@ -689,7 +644,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     interruptTTS,
     speakResponse,
     replayLastTTS,
-    lastSpokenText: lastSpokenTextRef.current,
     interimText: isRealtime
       ? realtimeVoice.interimText
       : isGeminiLive
@@ -698,10 +652,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
           ? agentBridge.interimText
           : speech.interimText,
     audioLevel: isAgentBridge ? agentBridge.audioLevel : speech.audioLevel,
-    cameraState: camera.cameraState,
-    facingMode: camera.facingMode,
-    videoRef: camera.videoRef,
-    toggleFacing: camera.toggleFacing,
     ttsState: tts.state,
     agentResponseText: isRealtime
       ? realtimeVoice.responseText

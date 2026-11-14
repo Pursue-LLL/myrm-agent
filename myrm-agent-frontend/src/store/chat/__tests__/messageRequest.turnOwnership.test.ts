@@ -174,7 +174,7 @@ function resetWorld(withPane: boolean) {
     loading: false,
     messages: [],
     files: [],
-    cameraFrames: [],
+    visionFrames: [],
     mentionReferences: [],
     currentSessionMessageId: null,
     currentBuiltinTools: ['web_search', 'memory'],

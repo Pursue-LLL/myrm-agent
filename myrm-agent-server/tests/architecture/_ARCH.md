@@ -87,7 +87,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_prebuilt_skill_bash_contract.py` | 引用 `bash_code_execute_tool` 的 prebuilt `SKILL.md` 必须含 `## Bash execution contract` |
 | `test_prebuilt_skill_evidence_discipline.py` | `evidence-discipline` skill 契约防漂移：六态机/证明义务/边界否定/归因/冲突/反剧场/安全契约 marker + 注入预算上限 |
 | `test_prebuilt_skill_browser_automation.py` | `browser-automation` skill 契约防漂移：三轨决策树/Write Probe/Clear & Replace/声明式 steps[]/verify_goal/HITL 护栏（单测覆盖） |
-| `test_prebuilt_skill_web_scraping.py` | `web-scraping` skill 契约防漂移：三维加载模式/双哨兵防死循环/流式落盘缓存/双引擎输出工件规程（单测 100% 覆盖） |
+| `test_prebuilt_skill_web_scraping.py` | `web-scraping` skill 契约防漂移：三维加载模式/双哨兵防死循环/流式落盘缓存/双引擎输出工件规程 |
 | `test_prebuilt_skill_voice_memo_synthesizer.py` | `voice-memo-synthesizer` skill 契约防漂移：四维解构/Actionability 门禁/唯一幂等键/UTF-8-SIG 规程 |
 | `test_prebuilt_skill_voice_corpus_review.py` | `voice-corpus-review` skill 契约防漂移：跨会话多素材聚合/看板真实验收/阻碍归因/周度复盘工件规程 |
 | `test_prebuilt_skills_frontmatter_keys.py` | 出厂 prebuilt `SKILL.md` 的 frontmatter 只能声明运行时认识的键（loader 对未知键只告警，写错的键会静默失效）；`pipeline_spec` 为看板流水线专用豁免；自带反向对照防空转 |
@@ -103,6 +103,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_gate_workflow_triggers.py` | 门禁工作流（`server-architecture.yml`、`desktop-contracts.yml`、`public-tree-guards.yml`）的 push 与 pull_request 触发器都不带 `paths` 与 `paths-ignore`：门禁、契约与公开树守卫读仓库各处的文件，路径清单会在某个测试开始读新文件的那天悄悄失效，所以每次 push main 与 PR 都跑 |
 | `conftest.py` | 门禁选测：登记 `architecture` 标记，并给本目录的每个测试自动加上它，新增测试不会因为漏写标记而掉出门禁；只有直接位于本目录、且被别的工作流点名运行的文件除外（`test_desktop_*` 按前缀，`test_no_credential_literals` 与 `test_no_private_references` 按完整文件名），子目录里的同名文件照样进门禁；门禁带 `--strict-markers`，标记拼错或登记丢失都会让门禁报错，不会静默少跑 |
 | `test_gate_membership.py` | 门禁选测本身的守卫：按路径加载 `conftest.py`，用假 item 驱动真钩子——普通文件名（含 `test_no_credential_literals_extra.py` 这类近似名，以及子目录里的同名文件）会被加上 `architecture`，`RUN_BY_OTHER_WORKFLOWS` 点名且直接位于本目录的文件不加；并断言每个被豁免的文件都以 `tests/architecture/` 加名字的路径出现在某个工作流步骤的 `run:` 命令里（钉的是路径文本：别处的同名文件顶替不了，另一个项目的 `tests/architecture/` 却区分不出来，也不证明该步骤真会执行它——`if:` 或 pytest 选项仍能关掉它）；判定被写反、或豁免名单与工作流命令对不上时，门禁不会在选测悄悄变少的同时保持全绿；两个测试自带 `architecture` 标记，判定出错时守卫自己不会被一起 deselect |
+| `test_xdist_worker_cap.py` | `pyproject.toml` addopts 里的 `--maxprocesses` 封顶：进程内用 `pytester.parseconfig` 解析 server 真实 ini，再调用 xdist 自己的 `pytest_cmdline_main` 读出实际要启动的 worker 数（不起子进程，约 0.2 s/项）：显式 `-n N`（N 大于封顶）仍只启动封顶数；显式 `--maxprocesses` 放宽后随之放宽；`-o addopts=` 清空后封顶消失（说明探针对封顶敏感，也记下已知的绕过方式）。xdist 只对 `-n auto` 与 `-n logical` 承诺该选项，封顶显式 `-n N` 是其当前实现行为，所以用运行时探针而不是 grep 配置。每个 worker 是独立 Python 进程，内存随 `-n` 增长（实测 `tests/api/memory` 上 `-n 10` 峰值常驻约 3.6 GB，封顶后约 1.9 GB） |
 | `data/server_api_import_baseline.txt` | 上述门禁 baseline（须保持为空） |
 | `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` 的超标模块台账（本地自查用，非 CI 阻断） |
 

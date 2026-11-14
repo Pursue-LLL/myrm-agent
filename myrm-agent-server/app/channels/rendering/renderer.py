@@ -6,6 +6,8 @@ Three-stage pipeline: _prepare → _format → split_message, all pure functions
 Format layer performs format downgrade based on RenderStyle capability declarations:
 - supports_latex=False  → LaTeX formulas ``$$…$$`` stripped to plain text
 - supports_tables=False → Markdown tables downgraded to lists or code blocks
+- supports_expandable_blockquote=False → a collapsed reasoning is a Markdown quote, not Telegram's
+  ``<blockquote expandable>`` HTML (which every other channel would show as literal tags)
 
 Sources block with numbered footnotes ([N]), corresponding to citation numbers in LLM body text.
 When no sources are present, orphan citation markers in body text (【N】/[N]) are auto-cleaned.
@@ -22,6 +24,7 @@ add the tool summary, sources or header a second time.
 [OUTPUT]
 - render(): OutboundMessage → list[str] (rendered text chunk list; a marked message yields its content alone)
 - mark_rendered(): the message that carries one rendered chunk
+- is_rendered(): whether a message is such a chunk (for channels that decorate from metadata instead of calling render)
 
 [POS]
 Outbound message formatting pipeline. Converts structured OutboundMessage to platform-sendable
@@ -76,11 +79,16 @@ def render(msg: OutboundMessage, style: RenderStyle) -> list[str]:
     Pure function, no I/O. A channel provider only calls it to get the chunks and sends them one by one.
     A message ``mark_rendered`` produced is already one rendered chunk and is returned unchanged.
     """
-    if msg.metadata and msg.metadata.get(_RENDERED_METADATA_KEY):
+    if is_rendered(msg):
         return [msg.content]
     prepared = _prepare(msg, style)
     text = _format(prepared, style)
     return split_message(text, style.max_text_length, unit=style.length_unit)
+
+
+def is_rendered(msg: OutboundMessage) -> bool:
+    """Whether ``msg`` already carries one rendered chunk: its text holds the tool summary, sources and cost line."""
+    return bool(msg.metadata and msg.metadata.get(_RENDERED_METADATA_KEY))
 
 
 def mark_rendered(msg: OutboundMessage, chunk: str) -> OutboundMessage:
@@ -167,10 +175,10 @@ def _build_reasoning_block(
 
     if reasoning_display == ReasoningDisplay.COLLAPSED:
         emoji = "\U0001f9e0 " if style.use_emoji else ""
-        if style.supports_latex:
-            quoted = "\n".join(f"> {line}" for line in trimmed.split("\n"))
-            return f"> {emoji}**Thinking**\n>\n{quoted}\n\n"
-        return f"<blockquote expandable>{emoji}Thinking\n\n{trimmed}\n</blockquote>\n\n"
+        if style.supports_expandable_blockquote:
+            return f"<blockquote expandable>{emoji}Thinking\n\n{trimmed}\n</blockquote>\n\n"
+        quoted = "\n".join(f"> {line}" for line in trimmed.split("\n"))
+        return f"> {emoji}**Thinking**\n>\n{quoted}\n\n"
 
     emoji = "\U0001f4ad " if style.use_emoji else ""
     return f"{emoji}*Thinking:*\n{trimmed}\n\n---\n\n"

@@ -83,7 +83,6 @@ Extension Bridge 与 SessionVault 覆盖竞品（orca/holaboss）cookie 导入�
 
 | 指标 | 状态 |
 |------|------|
-| SOLID 原则 | ✅ 100% 遵循 |
 | 最大文件行数 | 716 行（GlobalBrowserPool） |
 | 精细化错误处理 | ✅ 11 种异常类型 |
 | 智能重试 | ✅ 会话内置导航/代理/CAPTCHA 重试 |
@@ -567,7 +566,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 3. 可解 CAPTCHA（Cloudflare/reCAPTCHA/hCaptcha）→ CaptchaSolver 尝试解决
 4. 行为式 WAF（DataDome/Kasada/Akamai/Imperva/PerimeterX）→ 即时 fast-fail（<1ms），跳过 solver 和 takeover UI，升级 Camoufox（需已安装）
 5. 其他 CAPTCHA/反爬检测失败 → 升级 Camoufox（需已安装）+ Progress SSE（`notify_category=browser`）
-6. 仍失败 → Terminal Challenge（10min TTL，0ms 快速失败，防 LLM 反复重试）
+6. 仍失败 → Terminal Challenge（10min TTL，命中缓存立即快速失败，防 LLM 反复重试）
 7. Camoufox 未安装 / 接入真实浏览器 / 启动失败 → `BROWSER_CAMOUFOX_UNAVAILABLE`（会话保持可用，不进入 Terminal Challenge 缓存）；升级后的重试页若仍是 403/429，不记录域名引擎亲和
 
 **生产验证域名**：
@@ -615,8 +614,6 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 | `browser_manage_tool` | Tab + JS + 历史 + 对话框 + Session + Network + Web Vitals + 移动设备仿真 | 22 种 action（含 network_detail/network_replay/web_vitals/emulate + save/restore/list/delete_session；HITL 用 browser_ask_human_tool，无 wait_for_user） |
 | `browser_execute_script_tool` | **Code-as-Action 批量执行** + AST 特权API门禁 | _(执行 Python 脚本，AST 扫描 page.request/evaluate/context 等特权API → HITL 审批)_ |
 | `browser_ask_human_tool` | **人类接管请求** | _(单一职责，Agent 触发 HITL interrupt + extension 横幅 / managed VNC)_ |
-
-**Token 成本**：~65 tokens（相比独立工具方案节省 86%）
 
 #### browser_interact_tool — steps[] 批量模式
 
@@ -676,7 +673,7 @@ Loop Guard 与 Completion Guard 为兜底；正常路径由 Turn1 工具描述�
 - 性能：~100ms
 - 用途：基于 inspect 的建议，捕获目标区域
 
-**收益**：首次调用成本从 8000 tokens → 100 tokens（-99%），总成本从 9200 → 1300（-86%）
+**收益**：首次调用只返回约 100 tokens 的页面结构 metadata，而不是整页快照（以约 8000 tokens 的页面为例）；两阶段合计约 1300 tokens，先整页快照再精准捕获则约 9200 tokens
 
 #### API-First 网络智能（NetworkIntelligence）
 
@@ -913,12 +910,12 @@ ToolError(
 
 **终端挑战记忆 (Terminal Challenge Memory)**：
 - 首次失败后，域名被记录到 `BrowserSession._terminal_challenges` 内存字典。
-- 后续导航同一域名时，0ms 快速失败（跳过 240s 的检测+求解+升级超时），返回 `BROWSER_TERMINAL_CHALLENGE_CACHED` ToolError。
+- 后续导航同一域名时，命中缓存立即快速失败（跳过 240s 的检测+求解+升级超时），返回 `BROWSER_TERMINAL_CHALLENGE_CACHED` ToolError。
 - TTL 10 分钟，过期后自动清除，允许 re-attempt（网站可能已移除验证）。
 - 轻量实现：无 LRU 库依赖，纯 `dict[str, float]`，单 session 生命周期内域名数有限，无内存泄漏风险。
 
 **设计优势**：
-- 与 `LoopGuard`（agent/security/guards/loop_guard.py）协同：LoopGuard 限制总重试次数，Terminal Challenge Memory 将每次重试的时间成本从 240s 降至 0ms。
+- 与 `LoopGuard`（agent/security/guards/loop_guard.py）协同：LoopGuard 限制总重试次数，Terminal Challenge Memory 将每次重试的时间成本从 240s 降为一次缓存命中后的立即失败。
 - `CaptchaHandleResult` 结构化返回（protocols.py）提供类型安全的 CAPTCHA 处理结果判断。
 
 **前端集成**：通过 `CAPTCHA_DETECTED / CAPTCHA_RESOLVED / CAPTCHA_TIMEOUT` 三种 SSE 事件，前端渲染为 ProgressItem 状态卡片。
@@ -949,14 +946,14 @@ ToolError(
 **架构设计**：
 在 `browser_navigate_tool`、`browser_interact_tool` 和 `browser_execute_script_tool` 中提供 `verify_goal` 参数。当 Agent 传入该参数时，系统自动触发**三层极速视觉漏斗**：
 
-1. **Layer 1: DOM 突变拦截 (0ms)**：利用 `MutationObserver`（或等效机制），如果 DOM 毫无变化，直接判定失败。
-2. **Layer 2: 像素哈希校验 (dHash, 2ms)**：利用现有的 `FastComparator`，如果动作前后截图的哈希相似度 > 99%，直接判定失败，拦截 80% 无效的视觉大模型调用。
-3. **Layer 3: 轻量级视觉打分 (~1s)**：只有通过前两层，才将新截图和 `verify_goal` 发给后端的轻量级视觉模型（如 GPT-4o-mini）。如果打分 < 4，将视觉模型的“失败理由”（如：“被弹窗遮挡”）作为纯文本返回给主控 Agent。
+1. **Layer 1: DOM 突变拦截（无需截图，也不调用模型）**：利用 `MutationObserver`（或等效机制），如果 DOM 毫无变化，直接判定失败。
+2. **Layer 2: 像素哈希校验（dHash）**：利用现有的 `FastComparator`，如果动作前后截图的哈希相似度 > 99%，直接判定失败，在调用视觉模型之前就拦下无变化的动作。
+3. **Layer 3: 轻量级视觉打分**：只有通过前两层，才将新截图和 `verify_goal` 发给后端的轻量级视觉模型（如 GPT-4o-mini）。如果打分 < 4，将视觉模型的“失败理由”（如：“被弹窗遮挡”）作为纯文本返回给主控 Agent。
 
 **核心优势**：
 - **保护缓存**：主控 Agent 只接收纯文本失败理由，绝对保护了主模型的提示词缓存（Prompt Cache）。
 - **极速低本**：后端毫秒级自动完成验证，省去了一整轮大模型对话的时间，前两层漏斗省下了大量 Vision Token 费用。
-- **高鲁棒性**：将复杂长链路 Web 任务的成功率从 ~40% 飙升至 90%+。
+- **高鲁棒性**：动作是否生效由页面证据裁定（DOM 变化、像素差异、视觉打分），被遮挡或被拦截的动作在当次调用内就带着失败原因返回，主控 Agent 可以立刻改路，而不是带着“幻觉执行”继续走下去。
 
 ### 16. Self-Healing Locators (定位自愈机制)
 
@@ -1160,19 +1157,25 @@ browser/
 │   ├── execute_script.py — browser_execute_script_tool（含 AST 特权API Scanner + HITL 门禁）
 │   ├── takeover.py — browser_ask_human_tool（人类接管，LangGraph interrupt + extension 横幅 / managed VNC）
 │   ├── user_control_gate.py — 用户接管围栏（人占用期间工具等待，交还后动作须先重新观察）
-│   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消同样自愈；一次性重置提示；动作应答之后才落定的页面发起下载在之后的应答里告知一次）
+│   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消与 Playwright driver 退出同样自愈；一次性重置提示；动作应答之后才落定的页面发起下载在之后的应答里告知一次）
 │   ├── inspect.py — browser_inspect_tool
 │   ├── _semantic_risk.py — 语义 DOM 风险分类（浏览器动作前置 + JS eval 模式；元素词典 SSOT 上移至 core/security/detection/semantic_risk.py，与桌面语义门共享）
 │   └── common.py — 工具共享工具函数
 ├── pool/
-│   ├── browser_pool.py (761 行) — GlobalBrowserPool（全局调度中枢）
+│   ├── browser_pool.py (273 行) — GlobalBrowserPool（全局调度中枢：池状态、构造与预热，行为由下面几个 mixin 组成）
+│   ├── pool_acquisition.py (293 行) — PoolAcquisitionMixin（取页 / 还页 / 销毁上下文；取页撞上 Playwright driver 退出时踢掉死浏览器后重试一次）
+│   ├── pool_scheduling.py (147 行) — PoolSchedulingMixin（每个引擎与启动模式一个启动器、最空闲浏览器选择）
+│   ├── pool_lifecycle.py (177 行) — PoolLifecycleMixin（30 秒后台循环、关闭、热更新）
+│   ├── pool_diagnostics.py (187 行) — PoolDiagnosticsMixin（stats / health / 页面归属）
 │   ├── page_acquisition.py (89 行) — PageAcquisition（取页途中被取消或失败时归还许可与已取出的页面）
-│   ├── browser_launcher.py (~580 行) — BrowserLauncher（Chromium + Camoufox 启动前 sanitize_env + Zero-config Chromium 自动安装 with CDN mirror fallback + Camoufox 指纹持久化 + 损坏自愈 + Camoufox 启动前就绪闸门）
+│   ├── browser_launcher.py (381 行) — BrowserLauncher（Chromium 启动前 sanitize_env + Camoufox 启动前就绪闸门 + 启动与 CDP 连接遇到 Playwright driver 进程消失都换新 driver 再重试）
+│   ├── chromium_install.py — Zero-config Chromium 自动安装 with CDN mirror fallback（同一时刻只装一次，失败后冷却）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
+│   ├── camoufox_launch.py (93 行) — Camoufox 启动（指纹持久化 + 损坏自愈）
 │   ├── context_factory.py (277 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载）
 │   ├── emulation.py — 浏览器环境仿真配置（含移动设备五维字段）
 │   ├── device_profiles.py — 精选移动设备 profile 注册表（含 landscape 横屏视口）
-│   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；页面崩溃只为在用页面归还许可）
+│   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；Playwright driver 已退出的浏览器不问页面直接判死，页面获取撞上它时按需巡检一次再重试；页面崩溃只为在用页面归还许可）
 │   └── page_pool.py (223 行) — PagePool（只发放健康页面）
 ├── diff/
 │   ├── types.py — ComparisonResult Protocol + FastComparisonResult + AccurateComparisonResult
@@ -1224,7 +1227,7 @@ browser/
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/
-│   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / close_page_bounded / detach_cdp_bounded / PageUnresponsiveError）
+│   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / is_driver_closed_error（含原因链）/ close_page_bounded / detach_cdp_bounded / PageUnresponsiveError / DriverClosedError）
 ├── domain_filter/ — 四层域名过滤（CSP + HTTP + 主线程硬化 + CDP）；支持 allowlist + 用户 blocklist
 ├── session_vault/ — 加密 Session 存储（O(1) LRU + 内存限制 + 并发锁 + Metrics + 批量 API）
 ├── exceptions.py (约 150 行) — 异常类型

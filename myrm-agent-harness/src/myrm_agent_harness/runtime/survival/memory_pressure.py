@@ -7,7 +7,7 @@ Supports cgroup v2 memory limits (container-aware) with psutil fallback.
 - asyncio (POS: Python async runtime)
 - gc (POS: Python garbage collector)
 - psutil (POS: System monitoring, optional)
-- /sys/fs/cgroup/memory.current + memory.max (POS: cgroup v2 memory files)
+- /sys/fs/cgroup/memory.current + memory.max + memory.stat (POS: cgroup v2 memory files: usage, limit, file cache)
 
 [OUTPUT]
 - PressureLevel: 4-level pressure enum (NORMAL/WARNING/CRITICAL/EMERGENCY)
@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 _CGROUP_MEMORY_CURRENT = Path("/sys/fs/cgroup/memory.current")
 _CGROUP_MEMORY_MAX = Path("/sys/fs/cgroup/memory.max")
+_CGROUP_MEMORY_STAT = Path("/sys/fs/cgroup/memory.stat")
 
 
 class PressureLevel(IntEnum):
@@ -61,8 +62,8 @@ class PressureLevel(IntEnum):
 class PressureConfig:
     """Memory pressure thresholds and monitor behavior.
 
-    All thresholds are system memory usage percentages.
-    Escalation/de-escalation counts implement hysteresis to avoid flapping.
+    All thresholds are memory usage percentages: the container working set against its cgroup v2 limit, or host
+    usage when there is no limit. Escalation/de-escalation counts implement hysteresis to avoid flapping.
     """
 
     warning_threshold: float = 80.0
@@ -125,8 +126,24 @@ class PressureSubscriber(Protocol):
 MemoryShedder = PressureSubscriber
 
 
+def _read_cgroup_inactive_file_bytes() -> int:
+    """Reclaimable file cache charged to the cgroup, or 0 when memory.stat cannot be read."""
+    try:
+        for line in _CGROUP_MEMORY_STAT.read_text().splitlines():
+            key, _, value = line.partition(" ")
+            if key == "inactive_file":
+                return int(value)
+    except (ValueError, OSError):
+        pass
+    return 0
+
+
 def _read_cgroup_memory_percent() -> float | None:
-    """Read memory usage from cgroup v2. Returns None if unavailable."""
+    """Read the container's working set against its cgroup v2 limit. Returns None if unavailable.
+
+    The working set is ``memory.current`` minus inactive file cache. The kernel drops that cache before it kills
+    anything, so counting it would report CRITICAL for a container that merely did file I/O.
+    """
     try:
         current_text = _CGROUP_MEMORY_CURRENT.read_text().strip()
         max_text = _CGROUP_MEMORY_MAX.read_text().strip()
@@ -136,7 +153,8 @@ def _read_cgroup_memory_percent() -> float | None:
         maximum = int(max_text)
         if maximum <= 0:
             return None
-        return (current / maximum) * 100.0
+        working_set = max(current - _read_cgroup_inactive_file_bytes(), 0)
+        return (working_set / maximum) * 100.0
     except (FileNotFoundError, ValueError, OSError):
         return None
 
@@ -228,7 +246,7 @@ class MemoryPressureMonitor:
         return self._level > PressureLevel.NORMAL
 
     def _read_memory_percent(self) -> float:
-        """Read current memory usage, preferring cgroup v2 in containers."""
+        """Read current memory usage, preferring the cgroup v2 working set in containers."""
         if self._use_cgroup:
             cgroup_pct = _read_cgroup_memory_percent()
             if cgroup_pct is not None:

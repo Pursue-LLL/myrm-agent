@@ -1,8 +1,9 @@
-"""Unit tests for Camoufox fingerprint persistence and self-healing.
+"""Unit tests for the Camoufox launch: fingerprint persistence and self-healing, launch environment, options.
 
 Covers: normal load, corrupted JSON recovery, non-dict JSON recovery,
 file-not-exist generation, string JSON recovery, null JSON recovery,
-empty-file recovery, and no-fingerprint-dir mode.
+empty-file recovery, no-fingerprint-dir mode, the secret-free launch environment (saved and freshly built
+fingerprint), and the headless and proxy options reaching the fingerprint build.
 """
 
 from __future__ import annotations
@@ -10,12 +11,17 @@ from __future__ import annotations
 import json
 import sys
 import types
+from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.browser.pool.config import BrowserEngine, LaunchMode
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.browser.pool.browser_launcher import BrowserLauncher
 
 FAKE_CONFIG = {
     "executable_path": "/usr/bin/camoufox",
@@ -34,10 +40,10 @@ _mock_async_camoufox_cls = MagicMock(return_value=_mock_ctx_mgr)
 _mock_launch_options = MagicMock(return_value=FAKE_CONFIG.copy())
 
 _async_api_mod = types.ModuleType("camoufox.async_api")
-_async_api_mod.AsyncCamoufox = _mock_async_camoufox_cls
+_async_api_mod.__dict__["AsyncCamoufox"] = _mock_async_camoufox_cls
 
 _utils_mod = types.ModuleType("camoufox.utils")
-_utils_mod.launch_options = _mock_launch_options
+_utils_mod.__dict__["launch_options"] = _mock_launch_options
 
 _camoufox_mod = types.ModuleType("camoufox")
 
@@ -61,7 +67,7 @@ def teardown_module() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _reset_mocks():
+def _reset_mocks() -> None:
     """Reset call counts between tests."""
     _mock_async_camoufox_cls.reset_mock()
     _mock_launch_options.reset_mock()
@@ -69,7 +75,7 @@ def _reset_mocks():
 
 
 @pytest.fixture(autouse=True)
-def _engine_ready():
+def _engine_ready() -> Iterator[None]:
     """The faked camoufox modules carry no browser build; the readiness gate is covered separately."""
     with patch(
         "myrm_agent_harness.toolkits.browser.pool.camoufox_availability.camoufox_unavailable_reason",
@@ -85,11 +91,11 @@ def fp_dir(tmp_path: Path) -> Path:
     return d
 
 
-def _make_launcher(fp_dir: Path | None):
+def _make_launcher(fp_dir: Path | None, launch_options: dict[str, object] | None = None) -> BrowserLauncher:
     from myrm_agent_harness.toolkits.browser.pool.browser_launcher import BrowserLauncher
 
     return BrowserLauncher(
-        launch_options={"headless": True},
+        launch_options=launch_options or {"headless": True},
         launch_mode=LaunchMode.LAUNCH,
         engine=BrowserEngine.FIREFOX_CAMOUFOX,
         fingerprint_dir=fp_dir,
@@ -203,3 +209,56 @@ async def test_no_fingerprint_dir_generates_without_saving() -> None:
 
     _mock_launch_options.assert_called_once()
     _mock_async_camoufox_cls.assert_called_once()
+
+
+_HOST_MARKER = "CAMOUFOX_TEST_HOST_MARKER"
+
+
+@pytest.mark.asyncio
+async def test_a_saved_fingerprint_is_launched_with_the_current_host_env_minus_secrets(
+    fp_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The env stored in the fingerprint file is a snapshot: what the host has now is added, secrets never are."""
+    monkeypatch.setenv(_HOST_MARKER, "present")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "do-not-leak")
+    (fp_dir / "camoufox_fingerprint.json").write_text(json.dumps(FAKE_CONFIG), encoding="utf-8")
+
+    await _make_launcher(fp_dir).create_browser()
+
+    env = _mock_async_camoufox_cls.call_args[1]["from_options"]["env"]
+    assert env[_HOST_MARKER] == "present"
+    assert env["MOZ_HEADLESS"] == "1"
+    assert "AWS_SECRET_ACCESS_KEY" not in env
+
+
+@pytest.mark.asyncio
+async def test_a_new_fingerprint_is_built_from_the_host_env_minus_secrets(
+    fp_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The environment the fingerprint is built with, and so saved with, carries no host secret."""
+    monkeypatch.setenv(_HOST_MARKER, "present")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "do-not-leak")
+
+    await _make_launcher(fp_dir).create_browser()
+
+    built_with = _mock_launch_options.call_args.kwargs["env"]
+    assert built_with[_HOST_MARKER] == "present"
+    assert "AWS_SECRET_ACCESS_KEY" not in built_with
+
+
+@pytest.mark.asyncio
+async def test_headless_and_proxy_options_reach_the_fingerprint_build(fp_dir: Path) -> None:
+    proxy = {"server": "http://proxy.example:8080"}
+
+    await _make_launcher(fp_dir, {"headless": False, "proxy": proxy}).create_browser()
+
+    build_kwargs = _mock_launch_options.call_args.kwargs
+    assert build_kwargs["headless"] is False
+    assert build_kwargs["proxy"] == proxy
+
+
+@pytest.mark.asyncio
+async def test_no_proxy_option_means_no_proxy_argument_for_the_fingerprint_build(fp_dir: Path) -> None:
+    await _make_launcher(fp_dir).create_browser()
+
+    assert "proxy" not in _mock_launch_options.call_args.kwargs

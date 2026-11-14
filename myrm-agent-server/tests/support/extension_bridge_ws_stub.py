@@ -15,13 +15,7 @@ import websockets
 
 from tests.support.chrome_mcp_e2e import http_json
 
-_EXTENSION_CAPABILITIES = [
-    "navigate_url",
-    "list_tabs",
-    "attach_debugger",
-    "detach_debugger",
-    "agent_tab_control",
-]
+_EXTENSION_CAPABILITIES = ["navigate_url", "list_tabs", "agent_tab_control"]
 
 _E2E_STUB_TABS: list[dict[str, object]] = [
     {
@@ -97,7 +91,7 @@ async def _extension_stub_loop(ws_url: str, stop: threading.Event) -> None:
                         }
                     )
                 )
-            elif action in {"attach_debugger", "detach_debugger", "navigate_url"}:
+            elif action == "navigate_url":
                 await ws.send(
                     json.dumps(
                         {
@@ -129,7 +123,7 @@ def wait_extension_handshake_ready(
         ):
             return status
         time.sleep(0.2)
-    raise TimeoutError("Extension bridge did not reach connected+handshake_ready with four capabilities")
+    raise TimeoutError("Extension bridge did not reach connected+handshake_ready with every capability")
 
 
 @contextmanager

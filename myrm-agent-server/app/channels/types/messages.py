@@ -146,7 +146,9 @@ class RenderStyle:
     """Declares how a channel renders outbound text.
 
     Used by renderer.render() to format Agent output for a specific channel.
-    Capability flags (supports_*) control format downgrade in the render pipeline.
+    Capability flags (supports_*) control format downgrade in the render pipeline. ``supports_expandable_blockquote``
+    is the one channel-specific form: the HTML ``<blockquote expandable>`` that Telegram turns into a collapsed quote.
+    Every other channel gets a collapsed reasoning as a Markdown quote.
 
     Content display flags control optional sections in the rendered output:
     - reasoning_display: how to render LLM thinking/reasoning content
@@ -161,6 +163,7 @@ class RenderStyle:
     supports_links: bool = True
     supports_latex: bool = False
     supports_tables: bool = False
+    supports_expandable_blockquote: bool = False
     app_name_prefix: str | None = None
     reasoning_display: ReasoningDisplay = ReasoningDisplay.OFF
     tool_summary_display: ToolSummaryDisplay = ToolSummaryDisplay.OFF

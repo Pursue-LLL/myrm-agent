@@ -9,11 +9,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.browser.exceptions import BrowserLaunchError, EngineUnavailableError
-from myrm_agent_harness.toolkits.browser.pool.browser_launcher import (
-    BrowserLauncher,
-    _auto_install_chromium,
-    _build_install_failure_message,
-    _is_executable_missing,
+from myrm_agent_harness.toolkits.browser.pool.browser_launcher import BrowserLauncher, _is_executable_missing
+from myrm_agent_harness.toolkits.browser.pool.chromium_install import (
+    auto_install_chromium,
+    build_install_failure_message,
 )
 from myrm_agent_harness.toolkits.browser.pool.config import BrowserEngine, LaunchMode
 
@@ -74,38 +73,38 @@ class TestIsExecutableMissing:
 
 
 # ---------------------------------------------------------------------------
-# _build_install_failure_message
+# build_install_failure_message
 # ---------------------------------------------------------------------------
 
 
 class TestBuildInstallFailureMessage:
     def test_contains_manual_fix_command(self) -> None:
-        msg = _build_install_failure_message(Exception("test"))
+        msg = build_install_failure_message(Exception("test"))
         assert "patchright install chromium" in msg
 
     def test_contains_common_causes(self) -> None:
-        msg = _build_install_failure_message(Exception("test"))
+        msg = build_install_failure_message(Exception("test"))
         assert "disk space" in msg.lower()
         assert "internet" in msg.lower() or "network" in msg.lower()
         assert "permission" in msg.lower()
 
     def test_contains_original_error(self) -> None:
-        msg = _build_install_failure_message(Exception("specific error detail"))
+        msg = build_install_failure_message(Exception("specific error detail"))
         assert "specific error detail" in msg
 
     def test_empty_error_message(self) -> None:
-        msg = _build_install_failure_message(Exception(""))
+        msg = build_install_failure_message(Exception(""))
         assert "patchright install chromium" in msg
         assert "automatic installation failed" in msg.lower()
 
     def test_multiline_error_preserved(self) -> None:
         exc = Exception("line1\nline2\nline3")
-        msg = _build_install_failure_message(exc)
+        msg = build_install_failure_message(exc)
         assert "line1" in msg
 
 
 # ---------------------------------------------------------------------------
-# _auto_install_chromium
+# auto_install_chromium
 # ---------------------------------------------------------------------------
 
 
@@ -113,7 +112,7 @@ class TestAutoInstallChromium:
     @pytest.fixture(autouse=True)
     def _reset_module_state(self) -> None:
         """Reset module-level state before each test."""
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         mod._last_install_failure_at = 0.0
         mod._install_lock = None
@@ -125,51 +124,51 @@ class TestAutoInstallChromium:
         mock_proc.communicate = AsyncMock(return_value=(b"Installed", b""))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            result = await _auto_install_chromium()
+            result = await auto_install_chromium()
         assert result is True
 
     @pytest.mark.asyncio
     async def test_failed_install_sets_cooldown(self) -> None:
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         mock_proc = AsyncMock()
         mock_proc.returncode = 1
         mock_proc.communicate = AsyncMock(return_value=(b"", b"Error"))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            result = await _auto_install_chromium()
+            result = await auto_install_chromium()
 
         assert result is False
         assert mod._last_install_failure_at > 0
 
     @pytest.mark.asyncio
     async def test_cooldown_prevents_retry(self) -> None:
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         mod._last_install_failure_at = time.monotonic()
 
-        result = await _auto_install_chromium()
+        result = await auto_install_chromium()
         assert result is False
 
     @pytest.mark.asyncio
     async def test_patchright_cli_not_found(self) -> None:
         with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError):
-            result = await _auto_install_chromium()
+            result = await auto_install_chromium()
         assert result is False
 
     @pytest.mark.asyncio
     async def test_timeout_sets_cooldown(self) -> None:
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         with patch("asyncio.create_subprocess_exec", side_effect=TimeoutError):
-            result = await _auto_install_chromium()
+            result = await auto_install_chromium()
 
         assert result is False
         assert mod._last_install_failure_at > 0
 
     @pytest.mark.asyncio
     async def test_successful_install_resets_cooldown(self) -> None:
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         mod._last_install_failure_at = time.monotonic() - 2000
 
@@ -178,18 +177,18 @@ class TestAutoInstallChromium:
         mock_proc.communicate = AsyncMock(return_value=(b"Installed", b""))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            result = await _auto_install_chromium()
+            result = await auto_install_chromium()
 
         assert result is True
         assert mod._last_install_failure_at == 0.0
 
     @pytest.mark.asyncio
     async def test_generic_exception_sets_cooldown(self) -> None:
-        """Covers the catch-all Exception handler in _auto_install_chromium."""
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        """Covers the catch-all Exception handler in auto_install_chromium."""
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         with patch("asyncio.create_subprocess_exec", side_effect=PermissionError("denied")):
-            result = await _auto_install_chromium()
+            result = await auto_install_chromium()
 
         assert result is False
         assert mod._last_install_failure_at > 0
@@ -197,7 +196,7 @@ class TestAutoInstallChromium:
     @pytest.mark.asyncio
     async def test_double_check_after_lock_with_concurrent_cooldown(self) -> None:
         """Verify the double-check pattern: if cooldown is set while waiting for lock."""
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         mod._install_lock = asyncio.Lock()
 
@@ -205,7 +204,7 @@ class TestAutoInstallChromium:
             mod._last_install_failure_at = time.monotonic()
 
             async def attempt_install() -> bool:
-                return await _auto_install_chromium()
+                return await auto_install_chromium()
 
             task = asyncio.create_task(attempt_install())
             await asyncio.sleep(0.01)
@@ -216,7 +215,7 @@ class TestAutoInstallChromium:
     @pytest.mark.asyncio
     async def test_lazy_lock_initialization(self) -> None:
         """Verify lock is created on first call, not at import time."""
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         assert mod._install_lock is None
 
@@ -225,7 +224,7 @@ class TestAutoInstallChromium:
         mock_proc.communicate = AsyncMock(return_value=(b"OK", b""))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            await _auto_install_chromium()
+            await auto_install_chromium()
 
         assert mod._install_lock is not None
         assert isinstance(mod._install_lock, asyncio.Lock)
@@ -238,7 +237,7 @@ class TestAutoInstallChromium:
         mock_proc.communicate = AsyncMock(return_value=(b"", b"X" * 2000))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            result = await _auto_install_chromium()
+            result = await auto_install_chromium()
         assert result is False
 
 
@@ -250,7 +249,7 @@ class TestAutoInstallChromium:
 class TestLaunchNewBrowserAutoInstall:
     @pytest.fixture(autouse=True)
     def _reset_module_state(self) -> None:
-        import myrm_agent_harness.toolkits.browser.pool.browser_launcher as mod
+        import myrm_agent_harness.toolkits.browser.pool.chromium_install as mod
 
         mod._last_install_failure_at = 0.0
         mod._install_lock = None

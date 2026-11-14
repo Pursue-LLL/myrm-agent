@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from app.core.channel_bridge.learn_handler import (
-    apply_learn_skill_manage_permission_overlay,
-    learn_authoring_prompt_text,
-)
-from app.core.security.session_overlay import apply_session_preset
+from app.core.channel_bridge.learn_handler import learn_authoring_prompt_text
+from app.core.security.session_overlay import SecurityOverlaySpec, apply_session_preset
 
 _LEARN_PROMPT = '[/learn] The user wants you to learn a reusable skill\n3. Save it with the `skill_manage_tool` (action="save").'
 
@@ -19,7 +16,7 @@ def test_learn_overlay_elevates_skill_manage_over_explore_preset() -> None:
     assert isinstance(permissions, dict)
     assert permissions["skill_manage"] == "deny"
 
-    overlaid = apply_learn_skill_manage_permission_overlay(explore, query=_LEARN_PROMPT)
+    overlaid = SecurityOverlaySpec(learn_authoring=True).apply(explore)
     assert isinstance(overlaid, dict)
     overlaid_permissions = overlaid.get("permissions")
     assert isinstance(overlaid_permissions, dict)
@@ -28,11 +25,7 @@ def test_learn_overlay_elevates_skill_manage_over_explore_preset() -> None:
 
 def test_learn_overlay_noop_for_regular_chat() -> None:
     config: dict[str, object] = {"permissions": {"skill_manage": "deny"}}
-    result = apply_learn_skill_manage_permission_overlay(
-        config,
-        query="Summarize this document",
-    )
-    assert result is config
+    assert SecurityOverlaySpec().apply(config) is config
 
 
 def test_learn_authoring_prompt_text_accepts_multimodal_blocks() -> None:

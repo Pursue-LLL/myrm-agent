@@ -80,7 +80,7 @@ class FrameRegistry:
             selector: CSS selector (scopes the snapshot range).
             max_depth: Optional depth limit (None = Fast Path, int = Custom Path).
             scope: Snapshot scope (interactive/content/full).
-            compact: Compact format (saves ~30% tokens).
+            compact: Compact format (fewer tokens).
             include_bbox: Collect bbox data (auto-enabled in debug mode).
             max_tokens: Maximum token limit, 0 means unlimited.
 
@@ -159,7 +159,7 @@ class FrameRegistry:
             cursor_interactive: Detect cursor:pointer elements.
             selector: CSS selector (scopes the snapshot range).
             scope: Snapshot scope (interactive/content/full).
-            compact: Compact format (saves ~30% tokens).
+            compact: Compact format (fewer tokens).
             max_depth: Optional depth limit (None = Fast Path, int = Custom Path).
             include_bbox: Collect bbox data (auto-enabled in debug mode).
             max_tokens: Maximum token limit, 0 means unlimited.

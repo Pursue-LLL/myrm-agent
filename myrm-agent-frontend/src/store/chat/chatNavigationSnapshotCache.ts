@@ -46,7 +46,7 @@ export function extractNavigationSnapshot(state: ChatState): Partial<ChatState> 
     hideAttachList: state.hideAttachList,
     hasUsedImagesInCurrentChat: state.hasUsedImagesInCurrentChat,
     files: state.files,
-    cameraFrames: state.cameraFrames,
+    visionFrames: state.visionFrames,
     mentionReferences: state.mentionReferences,
     ...extractChatSessionConfig(state),
   };
@@ -59,7 +59,7 @@ export function extractNavigationSnapshot(state: ChatState): Partial<ChatState> 
 function sanitizeSnapshotForL2Storage(snapshot: Partial<ChatState>): Partial<ChatState> {
   const cloned = structuredClone(snapshot);
   cloned.loading = false;
-  cloned.cameraFrames = undefined;
+  cloned.visionFrames = undefined;
 
   // 如果包含消息列表，裁剪可能挂载的大尺寸 data:image base64 url
   if (Array.isArray(cloned.messages)) {

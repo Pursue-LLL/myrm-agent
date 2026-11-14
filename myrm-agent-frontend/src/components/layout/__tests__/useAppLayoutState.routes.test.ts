@@ -66,8 +66,6 @@ describe('useAppLayoutState: tabs and remembered pages', () => {
       ['/library', 'chat'],
       ['/work', 'work'],
       ['/work/task-1', 'work'],
-      ['/agents', 'work'],
-      ['/agent/abc', 'work'],
       ['/projects', 'projects'],
       ['/projects/7', 'projects'],
       ['/kanban', 'projects'],
@@ -164,6 +162,14 @@ describe('useAppLayoutState: tabs and remembered pages', () => {
 
       expect(view.result.current).toMatchObject({ lastChatUrl: '/c-1', lastWorkUrl: null, lastProjectsUrl: null });
       expect(rememberedRoutes()).toEqual({ chat: '/c-1' });
+    });
+
+    it('ignores a remembered page that does not belong to its tab', () => {
+      localStorage.setItem(ROUTES_KEY, JSON.stringify({ chat: '/work/a', work: '/c-1', projects: '/kanban' }));
+
+      const view = mountAt('/settings');
+
+      expect(view.result.current).toMatchObject({ lastChatUrl: null, lastWorkUrl: null, lastProjectsUrl: '/kanban' });
     });
 
     it('ignores remembered entries that are not pages', () => {

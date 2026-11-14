@@ -197,8 +197,6 @@ class FetchEngine(
         allow_escalation: bool = True,
     ) -> Document | None:
         """Crawl a single URL, return Document or None."""
-        self._ensure_workers_started()
-
         from ..processing.url_normalizer import normalize_url
 
         if not self._allow_private_networks:

@@ -35,6 +35,7 @@ interface ResourceItemProps {
 }
 
 function ResourceItem({ resource, onToggle, onRemove }: ResourceItemProps) {
+  const t = useTranslations('research');
   const Icon = resource.type === 'concept' ? BookOpen : FileText;
 
   return (
@@ -49,7 +50,7 @@ function ResourceItem({ resource, onToggle, onRemove }: ResourceItemProps) {
     >
       <button
         className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
-        aria-label={resource.selected ? 'Deselect' : 'Select'}
+        aria-label={t(resource.selected ? 'deselectResource' : 'selectResource', { name: resource.name })}
       >
         {resource.selected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
       </button>
@@ -67,7 +68,7 @@ function ResourceItem({ resource, onToggle, onRemove }: ResourceItemProps) {
           e.stopPropagation();
           onRemove(resource.id);
         }}
-        aria-label="Remove"
+        aria-label={t('removeResource', { name: resource.name })}
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>

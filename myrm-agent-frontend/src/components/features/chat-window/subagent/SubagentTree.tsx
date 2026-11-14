@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Clock,
   ExternalLink,
-  GitCompareArrows,
   MessageSquare,
   RotateCcw,
   ShieldAlert,
@@ -37,29 +36,9 @@ import {
   useSubagentStore,
   type SubagentNode,
   type SubagentVerification,
-  type TeammateMessageEntry,
 } from '@/store/chat/useSubagentStore';
 import useChatStore from '@/store/useChatStore';
 import { NodeStream, STATUS_ICON_MAP, StatusIcon } from './SubagentStream';
-
-type TeammateRowProps = {
-  entry: TeammateMessageEntry;
-  nodeTaskId: string;
-  t: DashboardTranslator;
-};
-
-const TeammateMessageRow = ({ entry, nodeTaskId, t }: TeammateRowProps) => {
-  const isOutbound = entry.from_task_id === nodeTaskId;
-  const label = isOutbound
-    ? t('teammateOutbound', { to: entry.to_task_id })
-    : t('teammateInbound', { from: entry.from_task_id });
-  return (
-    <li className="truncate text-foreground/90" title={entry.body}>
-      <span className="text-muted-foreground">{label}</span>
-      <span className="ml-1">{entry.body}</span>
-    </li>
-  );
-};
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -442,25 +421,6 @@ export const SubagentTreeNode = ({ node, chatId, setOpen, onOpenDetail }: TreeNo
           >
             <X className="w-3.5 h-3.5" />
           </button>
-        </div>
-      )}
-
-      {node.teammateMessages && node.teammateMessages.length > 0 && (
-        <div className="mx-2 rounded-full border border-border/60 bg-muted/30 px-2 py-1.5 text-xs">
-          <div className="mb-1 flex items-center gap-1.5 font-medium text-muted-foreground">
-            <GitCompareArrows className="h-3.5 w-3.5 shrink-0" />
-            {t('teammateMessagesTitle')}
-          </div>
-          <ul className="flex max-h-28 flex-col gap-1 overflow-y-auto">
-            {node.teammateMessages.map((entry, idx) => (
-              <TeammateMessageRow
-                key={entry.message_id ?? `${entry.created_at}-${idx}`}
-                entry={entry}
-                nodeTaskId={node.task_id}
-                t={t}
-              />
-            ))}
-          </ul>
         </div>
       )}
 

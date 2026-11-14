@@ -10,7 +10,8 @@ WORKERS="${PYTEST_XDIST_WORKERS:-0}"
 if [[ "${WORKERS}" == "0" ]]; then
   XDIST_ARGS=(-n0)
 else
-  # Cap parallel workers; avoid -n auto on many-core machines (each worker ~350MB RSS).
+  # Cap parallel workers; avoid -n auto on many-core machines (each worker ~350MB RSS). pyproject addopts also caps
+  # the count with --maxprocesses; pass --maxprocesses=M after the script name to go higher on purpose.
   XDIST_ARGS=(-n "${WORKERS}")
 fi
 

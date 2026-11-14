@@ -173,9 +173,7 @@ async def build_multimodal_result(
     if text_paths:
         if parse_mode == "structure":
             for tp in text_paths:
-                blocks.append(
-                    create_text_block(await read_structure_outline(tp, executor, skills, reason, config=config))
-                )
+                blocks.append(create_text_block(await read_structure_outline(tp, executor, skills, reason)))
         else:
             op_context = OperationContext(
                 operation=OperationType.VIEW,

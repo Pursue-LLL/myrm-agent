@@ -180,7 +180,6 @@ async def test_process_text_paths_via_service(tmp_path: Path) -> None:
             None,
             None,
             "all",
-            10,
             config=_DUMMY_CONFIG,
         )
     assert parts == ["=== hello.txt ===\nhello\n"]

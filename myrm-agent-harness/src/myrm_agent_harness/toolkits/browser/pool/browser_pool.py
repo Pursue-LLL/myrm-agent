@@ -1,15 +1,17 @@
 """Global browser pool with intelligent scheduling and multi-tenant isolation.
 
 [INPUT]
-- patchright.async_api::Page (POS: Patchright page instance)
+- patchright.async_api::BrowserContext (POS: Patchright context instance)
 - .browser_launcher::BrowserLauncher, BrowserInstance (POS: browser launcher and instance metadata)
 - .context_factory::ContextFactory (POS: context creation factory)
 - .page_pool::PagePool (POS: page object pool)
-- .page_acquisition::PageAcquisition (POS: cancel-safe claim on one permit and the page taken for it)
 - .config::BrowserPoolConfig (POS: browser pool config)
+- .memory_guard::MemoryGuard (POS: memory pressure check)
+- .proxy::ProxyPool (POS: proxy rotation and sticky sessions)
 - .throttle::ThrottleStrategy, create_throttle_strategy (POS: throttle strategy)
 - .circuit_breaker::CircuitBreaker (POS: circuit breaker)
 - .extension_bridge::ExtensionBrowserInstance (POS: the user's own browser reached through the extension)
+- .pool_acquisition::PoolAcquisitionMixin (POS: acquire a page, release it, destroy a context)
 - .crash_watchdog::CrashWatchdogMixin (POS: three-layer crash recovery)
 - .pool_scheduling::PoolSchedulingMixin (POS: launcher cache and least-loaded browser selection)
 - .pool_lifecycle::PoolLifecycleMixin (POS: background loop, close, shutdown, hot reload)
@@ -27,10 +29,12 @@ Global browser resource pool. Manages Browser/Context/Page three-layer resources
 4. Elastic scaling (dynamically creates/destroys Browser instances)
 5. Global concurrency limit (Semaphore controls total concurrency)
 6. Lifecycle management (background loop: idle reclamation + crash detection)
-7. Three-layer automatic crash recovery (L1: browser disconnect event, L2: page crash event, L3: lifecycle fallback)
+7. Three-layer automatic crash recovery (L1: browser disconnect event, L2: page crash event, L3: lifecycle fallback);
+   an acquisition that fails on an exited Playwright driver evicts the browsers it took down and retries once
 8. Semaphore safety net (prevents semaphore leaks or double releases on crash and on a cancelled or failed acquisition)
 
-This module owns the acquire/release/destroy path; scheduling, lifecycle and monitoring are the three mixins above.
+This module owns the pool state, construction and warmup; the acquire/release/destroy path, scheduling, lifecycle and
+monitoring are the mixins above.
 """
 
 from __future__ import annotations
@@ -39,7 +43,6 @@ import asyncio
 import logging
 import os
 import sys
-import time
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -50,8 +53,8 @@ from .context_factory import ContextFactory
 from .crash_watchdog import CrashWatchdogMixin
 from .extension_bridge import ExtensionBrowserInstance
 from .memory_guard import MemoryGuard
-from .page_acquisition import PageAcquisition
 from .page_pool import PagePool
+from .pool_acquisition import PoolAcquisitionMixin
 from .pool_diagnostics import PoolDiagnosticsMixin
 from .pool_lifecycle import PoolLifecycleMixin
 from .pool_scheduling import PoolSchedulingMixin
@@ -59,7 +62,7 @@ from .proxy import ProxyPool
 from .throttle import ThrottleStrategy, create_throttle_strategy
 
 if TYPE_CHECKING:
-    from patchright.async_api import BrowserContext, Page
+    from patchright.async_api import BrowserContext
 
     from .extension_bridge import ExtensionBridge
 
@@ -103,7 +106,9 @@ class ContextType(Enum):
     STEALTH = "stealth"
 
 
-class GlobalBrowserPool(PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnosticsMixin, CrashWatchdogMixin):
+class GlobalBrowserPool(
+    PoolAcquisitionMixin, PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnosticsMixin, CrashWatchdogMixin
+):
     """Global browser pool — zero-copy, smart scheduling, type isolation, concurrency limits, lifecycle management.
 
     Singleton architecture, initialized at app startup, warmup and shutdown during FastAPI lifespan.
@@ -251,180 +256,6 @@ class GlobalBrowserPool(PoolLifecycleMixin, PoolSchedulingMixin, PoolDiagnostics
                     await pool.release(page)
 
         logger.info("GlobalBrowserPool warmup completed")
-
-    async def acquire_page(
-        self,
-        context_type: ContextType,
-        context_key: str | None = None,
-        context_kwargs: dict[str, object] | None = None,
-        engine_preference: BrowserEngine | None = None,
-        launch_mode_preference: LaunchMode | None = None,
-    ) -> tuple[Page, str]:
-        """Smart page allocation (with global concurrency limit).
-
-        Load-based smart scheduling, auto-creates or reuses Context/Page.
-        Uses double-checked locking (DCL), holding lock only when modifying shared state.
-
-        Args:
-            context_type: Context type (CRAWL/AGENT/STEALTH)
-            context_key: Context identifier (same key reuses Context, for session isolation)
-            context_kwargs: Additional BrowserContext params (e.g. record_video_dir)
-            engine_preference: Preferred browser engine. Falls back to config default if None.
-            launch_mode_preference: Per-request launch mode override (e.g. EXTENSION for agents that need real browser sessions).
-
-        Returns:
-            (page, context_key) — Page instance and actual context_key used
-
-        """
-        engine = engine_preference or self._config.engine
-        async with PageAcquisition(self._global_semaphore, self._crash_handled_pages) as claim:
-            await self._memory_guard.check_memory()
-
-            # 1. Under lock: read state, update counters
-            async with self._lock:
-                self._total_acquires += 1
-                browser_inst = await self._get_least_loaded_browser(engine, launch_mode_preference)
-                ctx_key = context_key or f"{context_type.value}_{id(self)}"
-                needs_creation = ctx_key not in browser_inst.contexts
-
-            # 2. Outside lock: create resources (DCL)
-            if needs_creation:
-                # Create Context (async I/O, no lock held)
-                merged_kwargs = dict(context_kwargs) if context_kwargs else {}
-                if "resource_block" not in merged_kwargs:
-                    merged_kwargs["resource_block"] = self._config.resource_block
-
-                new_context = await self._context_factory.create_context(
-                    browser_inst.browser,
-                    context_type.value,
-                    extra_kwargs=merged_kwargs,
-                    context_key=ctx_key,
-                    extension_attached=isinstance(browser_inst, ExtensionBrowserInstance),
-                )
-                new_pool = self._make_page_pool(browser_inst, new_context)
-
-                # Under lock: check and insert (prevent duplicate creation)
-                async with self._lock:
-                    if ctx_key not in browser_inst.contexts:
-                        browser_inst.contexts[ctx_key] = new_context
-                        browser_inst.page_pools[ctx_key] = new_pool
-                    else:
-                        # Clean up unused resources (prevent leaks)
-                        needs_creation = False
-                        try:
-                            await new_context.close()
-                            await new_pool.shutdown()
-                        except Exception as e:
-                            logger.warning(f"Failed to cleanup unused context: {e}")
-
-            # 3. Outside lock: acquire Page (async I/O) + register crash handler (L2)
-            pool = browser_inst.page_pools[ctx_key]
-            page = await pool.acquire()
-            claim.hold(pool, page)
-            self._register_page_crash_handler(page, browser_inst)
-
-            # 4. Under lock: update load count, concurrency count, active time
-            async with self._lock:
-                browser_inst.load += 1
-                browser_inst.last_active_at = time.monotonic()
-                self._current_pages_in_use += 1
-                claim.commit()
-
-            self._ensure_lifecycle_loop()
-            return page, ctx_key
-
-    async def destroy_context(self, context_key: str, *, only_if_idle: bool = False) -> bool:
-        """Explicitly destroy a context and its associated page pool.
-
-        Args:
-            context_key: The identifier of the context to destroy
-            only_if_idle: Return False and keep the context while another session still holds pages in it
-
-        Returns:
-            True when the context was destroyed.
-
-        Raises:
-            RuntimeError: Pages are still in use and ``only_if_idle`` is not set.
-        """
-        logger.info(f"Attempting to destroy context: {context_key}")
-        async with self._lock:
-            for browser_inst in self._browsers:
-                if context_key in browser_inst.contexts:
-                    pool = browser_inst.page_pools.get(context_key)
-
-                    # Safety Guard: Ensure no pages are currently in use
-                    if pool and pool.active_pages_count > 0:
-                        if only_if_idle:
-                            logger.info(f"Context {context_key} kept: {pool.active_pages_count} pages in use")
-                            return False
-                        logger.error(
-                            f"Concurrency Guard Triggered: {pool.active_pages_count} pages still active in {context_key}"
-                        )
-                        raise RuntimeError(
-                            f"Cannot destroy context {context_key}: "
-                            f"{pool.active_pages_count} pages are still in use. "
-                            f"Ensure all pages are released before destroying."
-                        )
-
-                    context = browser_inst.contexts.pop(context_key)
-                    if pool:
-                        browser_inst.page_pools.pop(context_key)
-
-                    try:
-                        if pool:
-                            await pool.shutdown()
-                        await context.close()
-                        logger.info(f"Successfully destroyed context: {context_key}")
-                    except Exception as e:
-                        logger.warning(f"Error while destroying context {context_key}: {e}")
-                    return True
-
-            logger.warning(f"Context {context_key} not found for destruction")
-            return False
-
-    async def release_page(self, page: Page, context_key: str) -> None:
-        """Release Page back to pool (free global concurrency slot).
-
-        Semaphore safety net: if the page/browser was already handled by a crash callback,
-        skip semaphore release to prevent over-release.
-
-        Args:
-            page: Page instance to release
-            context_key: context_key returned by acquire
-
-        """
-        page_id = id(page)
-        skip_semaphore = False
-
-        try:
-            async with self._lock:
-                self._total_releases += 1
-
-                if page_id in self._crash_handled_pages:
-                    self._crash_handled_pages.discard(page_id)
-                    skip_semaphore = True
-                    return
-
-                self._current_pages_in_use = max(0, self._current_pages_in_use - 1)
-
-                found = False
-                for browser_inst in self._browsers:
-                    if context_key in browser_inst.page_pools:
-                        if browser_inst._disconnected:
-                            skip_semaphore = True
-                        else:
-                            await browser_inst.page_pools[context_key].release(page)
-                            browser_inst.load = max(0, browser_inst.load - 1)
-                            browser_inst.last_active_at = time.monotonic()
-                        found = True
-                        break
-
-                if not found:
-                    skip_semaphore = True
-
-        finally:
-            if not skip_semaphore:
-                self._global_semaphore.release()
 
     @property
     def config(self) -> BrowserPoolConfig:

@@ -1,5 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.agent.meta_tools.mount_policy::FileAccessMode
+- myrm_agent_harness.agent.security::CredentialTrack
 - myrm_agent_harness.toolkits.memory.config::AgentMemoryPolicy, RecallMode
 - myrm_agent_harness.toolkits.retriever.embedding.factory::EmbeddingConfig
 - myrm_agent_harness.toolkits.retriever.reranker.factory::RerankerConfig
@@ -24,6 +25,7 @@ from __future__ import annotations
 from typing import Literal
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, RecallMode
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
@@ -169,11 +171,13 @@ class GeneralAgentParams(BaseAgentParams):
     benchmark_blocked_hostnames: tuple[str, ...] = ()
     benchmark_blocked_terms: tuple[str, ...] = ()
     agent_skill_ids: list[str] = []
-    agent_skill_configs: dict[str, dict] | None = None
+    agent_skill_configs: dict[str, dict[str, object]] | None = None
     security_config_raw: dict[str, object] | None = None
     security_overlay: SecurityOverlaySpec | None = None
     agent_security_raw: dict[str, object] | None = None
     channel_name: str = "web_chat"
+    # Which credential pool the turn draws from; decides which credential-gated skills it is offered.
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL
     memory_channel_id: str | None = None
     memory_conversation_id: str | None = None
     memory_task_id: str | None = None

@@ -63,6 +63,11 @@ class TestLaunchEnvironment:
             "DISPLAY": ":99",
         }
 
+    def test_macos_also_relocates_the_home_that_system_frameworks_resolve(self, smoke: ModuleType, tmp_path: Path) -> None:
+        env = smoke.launch_env("darwin", tmp_path, {"PATH": "/opt/homebrew/bin", "USER": "ci"})
+
+        assert env["HOME"] == env["CFFIXED_USER_HOME"] == str(tmp_path)
+
     def test_windows_keeps_the_user_environment_and_narrows_only_the_path(self, smoke: ModuleType, tmp_path: Path) -> None:
         inherited = {"PATH": r"C:\Program Files\nodejs", "SYSTEMROOT": r"C:\Windows", "APPDATA": r"C:\Users\u\AppData"}
 

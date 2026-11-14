@@ -11,7 +11,6 @@ Extension bridge mixin: domain access policy, authorized domains and warnings.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 
 from app.services.extension.access_policy import (
     ExtensionAccessPolicy,
@@ -22,18 +21,15 @@ from app.services.extension.access_policy import (
     normalize_domain_patterns,
 )
 
-if TYPE_CHECKING:
-    pass
-
-
 from .common import (
     DomainPolicyWarning,
     ExtensionTab,
     logger,
 )
+from .state import BridgeState
 
 
-class AccessPolicyMixin:
+class AccessPolicyMixin(BridgeState):
     @staticmethod
     def _match_domain(domain: str, patterns: list[str]) -> bool:
         """Check if *domain* matches any pattern in *patterns*."""
@@ -56,7 +52,7 @@ class AccessPolicyMixin:
 
     def _is_blank_agent_tab(self, tab: ExtensionTab) -> bool:
         """A blank page the Agent opened itself: it holds no site data and the Agent must be able to navigate it."""
-        return tab.tab_id in self._agent_tab_ids and is_blank_url(tab.url)
+        return tab.tab_id in self._agent_tabs and is_blank_url(tab.url)
 
     def _tab_is_visible_in_ui(self, tab: ExtensionTab) -> bool:
         return is_tab_accessible(
@@ -120,6 +116,18 @@ class AccessPolicyMixin:
                         paused.add(int(item))
                 self._paused_tab_ids = frozenset(paused)
 
+    def _apply_access_policy_report(self, msg: dict[str, object]) -> None:
+        """Adopt the policy the extension reports, unless it is the stale copy sent while connecting.
+
+        The first report after a connection is whatever the extension saved before it heard from this server. When the
+        user has set a policy here, the server has just pushed it and that saved copy is out of date: adopting it would
+        swap the two sides' policies. When the user has not, the saved copy is the only policy there is. Later reports
+        are edits made in the extension and always count.
+        """
+        if msg.get("initial") is True and self._owns_access_policy:
+            return
+        self._apply_access_policy_payload(msg)
+
     async def set_access_policy(
         self,
         *,
@@ -127,6 +135,7 @@ class AccessPolicyMixin:
         authorized_domains: list[str] | None = None,
         paused_tab_ids: list[int] | None = None,
     ) -> ExtensionAccessPolicy:
+        self._owns_access_policy = True
         if allow_all_eligible_tabs is not None:
             self._allow_all_eligible_tabs = allow_all_eligible_tabs
         if authorized_domains is not None:
@@ -137,6 +146,11 @@ class AccessPolicyMixin:
         if self._connected:
             await self._sync_relay_tabs()
         return self._current_access_policy()
+
+    async def _push_access_policy_if_owned(self) -> None:
+        """Hand the extension the policy the user set here; without one the server has nothing of its own to hand over."""
+        if self._owns_access_policy:
+            await self._notify_extension_access_policy()
 
     async def _notify_extension_access_policy(self) -> None:
         if not self._connected or self._ws is None:

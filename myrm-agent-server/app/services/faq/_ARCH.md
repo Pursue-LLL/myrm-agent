@@ -38,6 +38,6 @@ InboundMessage → ChannelAgentExecutor.execute_stream
 - **双校验**：top1 score ≥ threshold **且** top1-top2 gap ≥ min_score_gap，避免模糊匹配误触发
 - **不修改 harness**：复用 harness 的 EmbeddingService 和 VectorStore 接口，不引入反向依赖
 - **Embedding 来源**：只从 WebUI 检索设置（`load_platform_retrieval_configs`）取配置，与 Memory/Curator/Cron 同一通道；不读 `EMBEDDING_*` 进程环境变量，未配置时返回 `None` 让调用方走正常 Agent 执行
-- **配置热更新**：拦截器缓存键就是 embedding 配置（模型、密钥、地址；与 harness 的 embedding 服务缓存同一个键），每次取用都比对当前配置，变了就重建，没有重置钩子可漏接。UI 保存设置走的是 `POST /config/sync` 而不是 `PUT /config/{key}`，挂在单个路由上的重置会让拦截器一直停在旧模型上，而用户随后手动重建的索引已是新模型的向量，两边对不上，FAQ 随之静默失效直到重启。取配置走 `load_platform_retrieval_configs` 的短 TTL 缓存（保存配置即失效），所以这一次比对不额外读库；缓存不能取消：远程 Qdrant 每创建一次就是一个新客户端，逐条消息重建会逐条开连接
+- **配置热更新**：拦截器缓存键就是 embedding 配置（模型、密钥、地址；与 harness 的 embedding 服务缓存同一个键），每次取用都比对当前配置，变了就重建，没有重置钩子可漏接。UI 保存设置走的是 `POST /config/sync` 而不是 `PUT /config/{key}`，挂在单个路由上的重置会让拦截器一直停在旧模型上，而用户随后手动重建的索引已是新模型的向量，两边对不上，FAQ 随之静默失效直到重启。取配置走 `load_platform_retrieval_configs`，它每次只读一条 `retrieval` 设置（实测约 0.75 ms，保存后立即生效），所以这一次比对成本很低；拦截器本身的缓存不能取消：远程 Qdrant 每创建一次就是一个新客户端，逐条消息重建会逐条开连接
 - **索引只在手动重建时更新**：条目的增删改与批量导入只写数据库；索引由 `POST /faq/{agent_id}/rebuild-index`（FAQ 标签页的「重建索引」）按当前 embedding 配置整体重算，未配置 embedding 时接口返回 409、不重建。索引文档只带条目 id、问题原文和向量，不记录建索引用的模型，拦截器也不核对，所以更换 embedding 模型后要手动重建一次，在此之前查询向量与索引向量不是同一个模型产出的
 - **embedding 未配置**：返回 `None` 并丢弃已缓存的拦截器；读配置临时失败只让这一次返回 `None`，已缓存的拦截器保留

@@ -22,6 +22,7 @@ import json
 from collections.abc import Callable
 
 from .browser_methods import BrowserMethods
+from .extension_link import TabNotAuthorized
 from .models import CdpClient, CdpRequest
 from .protocol import RelayCdpCommand
 
@@ -158,4 +159,9 @@ class ExtensionCdpRelayBridge(BrowserMethods):
         }
         if is_child:
             cmd["sessionId"] = session_id
-        request.ok(await self._call_extension_cmd(cmd))
+        try:
+            result = await self._call_extension_cmd(cmd)
+        except TabNotAuthorized:
+            self._let_go_of_refused_tab(tab_id)
+            return
+        request.ok(result)

@@ -1,6 +1,7 @@
 """Skill backend factory (business layer).
 
 [INPUT]
+myrm_agent_harness.agent.security::CredentialTrack (POS: credential pool a turn draws from)
 myrm_agent_harness.backends.skills::SkillBackendProtocol (POS: skill backend contract, imported as SkillBackend)
 myrm_agent_harness.backends.skills::CompositeSkillBackend (POS: route-prefixed composition of skill backends)
 myrm_agent_harness.backends.skills::InMemorySkillBackend (POS: in-memory skill metadata without persistence)
@@ -36,6 +37,7 @@ import asyncio
 import logging
 from pathlib import Path
 
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.backends.skills import (
     CompositeSkillBackend,
     InMemorySkillBackend,
@@ -146,6 +148,7 @@ async def create_skill_backend(
     user_id: str | None = None,
     workspace_path: str | None = None,
     allowed_prebuilt_ids: frozenset[str] | None = None,
+    credential_track: CredentialTrack = CredentialTrack.PERSONAL,
 ) -> SkillBackend:
     """创建技能后端（业务层工厂）
 
@@ -160,6 +163,7 @@ async def create_skill_backend(
         allowed_prebuilt_ids: 用户启用的 prebuilt 技能 ID 白名单。
             None 或空集合 = 不挂载 prebuilt 后端；
             非空 = 仅挂载白名单内的 prebuilt 技能
+        credential_track: 本轮可使用的凭证池；凭证门禁据此判定需要凭证的技能是否可用
 
     Returns:
         组装好的 SkillBackend
@@ -235,7 +239,7 @@ async def create_skill_backend(
     except Exception as e:
         logger.error("Failed to initialize VersionAwareSkillBackend: %s", e)
 
-    return wrap_integration_oauth_backend(runtime_backend)
+    return wrap_integration_oauth_backend(runtime_backend, credential_track=credential_track)
 
 
 def _load_workspace_skill_backend(

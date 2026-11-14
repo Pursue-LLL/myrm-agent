@@ -4,25 +4,93 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import sys
 import threading
-import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import navigate_mcp_page, open_page, reload, transport_progress, wait_for_state, warm_ui
-from tests.support.chrome_mcp_e2e.open_page import _APP_LAYOUT_READY_JS, _page_shell_ready_js_for_url
+from tests.support.chrome_mcp_e2e import navigate_mcp_page, open_page, reload, wait_for_state, warm_ui
+from tests.support.chrome_mcp_e2e.open_page_mux import _open_page_cdp_probe_budget_sec
 from tests.support.chrome_mcp_e2e.patching import patch_everywhere
 from tests.support.chrome_mcp_e2e.settings_wait import _SETTINGS_LAYOUT_READY_JS
 
 
-def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> None:
-    assert _page_shell_ready_js_for_url("http://127.0.0.1:3000/") == _APP_LAYOUT_READY_JS
-    assert _page_shell_ready_js_for_url("http://127.0.0.1:3000/settings/extensionBridge") == _SETTINGS_LAYOUT_READY_JS
+def test_settings_layout_probe_waits_for_settings_layout_not_app_layout() -> None:
     assert "settings-layout" in _SETTINGS_LAYOUT_READY_JS
     assert "settings-deferred-loading" in _SETTINGS_LAYOUT_READY_JS
     assert "app-layout" not in _SETTINGS_LAYOUT_READY_JS
+
+
+class TestOpenMcpPageSettingsLayoutWait:
+    """Settings routes use SettingsLayout, not AppLayout: only they wait for the settings layout after the page opens."""
+
+    _UI = "http://127.0.0.1:3000"
+
+    @staticmethod
+    def _open(monkeypatch: pytest.MonkeyPatch, url: str, *, skip_settings_layout_wait: bool = False) -> MagicMock:
+        """Open ``url`` through ``open_mcp_page`` with the orchestrator faked; return the settings-layout wait spy."""
+        monkeypatch.setenv("MYRM_BROWSER_ORCHESTRATOR", "1")
+        client, page, settings_layout_wait = MagicMock(), MagicMock(), MagicMock()
+
+        @contextmanager
+        def _fake_open_app_route_page(*_args: object, **_kwargs: object) -> Iterator[tuple[MagicMock, MagicMock]]:
+            yield client, page
+
+        monkeypatch.setattr("browser_orchestrator.e2e.open_app_route_page", _fake_open_app_route_page)
+        monkeypatch.setattr("e2e_session_runtime.lifecycle.complete_bootstrap_phase", MagicMock())
+        patch_everywhere(monkeypatch, "_require_orchestrator_for_formal_e2e", lambda: None)
+        patch_everywhere(monkeypatch, "_bounded_settings_ui_wait_sec", lambda base_sec: base_sec)
+        patch_everywhere(monkeypatch, "_ensure_orchestrator_shared_ui_session", MagicMock())
+        patch_everywhere(monkeypatch, "wait_for_settings_layout", settings_layout_wait)
+
+        with open_page.open_mcp_page(url, skip_settings_layout_wait=skip_settings_layout_wait) as opened:
+            assert opened == (client, page)
+        return settings_layout_wait
+
+    def test_a_settings_route_waits_for_the_settings_layout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        url = f"{self._UI}/settings/extensionBridge"
+
+        settings_layout_wait = self._open(monkeypatch, url)
+
+        settings_layout_wait.assert_called_once()
+        assert settings_layout_wait.call_args.kwargs["page_url"] == url
+
+    def test_the_settings_layout_wait_can_be_skipped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        settings_layout_wait = self._open(monkeypatch, f"{self._UI}/settings/agents", skip_settings_layout_wait=True)
+
+        settings_layout_wait.assert_not_called()
+
+    def test_an_app_route_does_not_wait_for_the_settings_layout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        settings_layout_wait = self._open(monkeypatch, f"{self._UI}/")
+
+        settings_layout_wait.assert_not_called()
+
+
+def test_open_page_cdp_probe_budget_scales_with_mux_load(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class _Load:
+        wave_leases: int
+        mux_contexts: int
+
+    monkeypatch.setitem(
+        sys.modules,
+        "mux.load",
+        type(
+            "MuxLoadStub",
+            (),
+            {"snapshot_mux_load": staticmethod(lambda: _Load(wave_leases=5, mux_contexts=2))},
+        )(),
+    )
+
+    assert _open_page_cdp_probe_budget_sec() == 105.0
 
 
 def test_reapply_shpoib_bootstrap_runs_after_navigate() -> None:
@@ -77,68 +145,6 @@ def test_browser_operation_credit_slot_acquires_upstream_registry() -> None:
     source = (Path(__file__).resolve().parents[3] / "scripts/dev/lib/browser_orchestrator/core.py").read_text(encoding="utf-8")
     block = source.split("def browser_operation_credit_slot", 1)[1].split("\ndef ", 1)[0]
     assert "upstream_cold_attach_slot" in block
-
-
-def test_blocking_progress_loop_emits_transport_progress_token(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    patch_everywhere(monkeypatch, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
-    patch_everywhere(monkeypatch, "_TRANSPORT_PROGRESS_INTERVAL_SEC", 0.01)
-    patch_everywhere(monkeypatch, "heartbeat_once", lambda: None)
-    patch_everywhere(monkeypatch, "touch_wall_progress", lambda **_: None)
-    import e2e_core.stall_guard as e2e_stall_guard
-
-    monkeypatch.setattr(e2e_stall_guard, "assert_transport_node_not_stuck", lambda **_: None)
-
-    with transport_progress._blocking_progress_loop(current_node="open_mcp_page_blocking"):
-        time.sleep(0.05)
-
-    captured = capsys.readouterr()
-    assert "E2E_TRANSPORT_PROGRESS" in captured.err
-    assert "open_mcp_page_blocking" in captured.err
-
-
-def test_blocking_progress_loop_stall_sends_sigint(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    patch_everywhere(monkeypatch, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
-    patch_everywhere(
-        monkeypatch,
-        "_open_page_parallel_budgets",
-        lambda *args, **kwargs: (60.0, 120_000, 30.0, 5.0, 2),
-    )
-    patch_everywhere(monkeypatch, "heartbeat_once", lambda: None)
-    patch_everywhere(monkeypatch, "touch_wall_progress", lambda **_: None)
-
-    import e2e_core.stall_guard as e2e_stall_guard
-
-    def _stall(**_: object) -> None:
-        raise RuntimeError("MUX_RECLAIM_STALL: open_mcp_page_blocking blocked")
-
-    monkeypatch.setattr(e2e_stall_guard, "assert_transport_node_not_stuck", _stall)
-
-    import os
-    import signal
-
-    real_kill = os.kill
-    sigint_calls: list[int] = []
-
-    def _record_sigint(pid: int, sig: int) -> None:
-        if sig == signal.SIGINT:
-            sigint_calls.append(sig)
-            return
-        if sig == 0:
-            return
-        real_kill(pid, sig)
-
-    monkeypatch.setattr("os.kill", _record_sigint)
-
-    with transport_progress._blocking_progress_loop(current_node="open_mcp_page_blocking"):
-        time.sleep(0.05)
-
-    assert len(sigint_calls) >= 1
-    assert all(sig == signal.SIGINT for sig in sigint_calls)
 
 
 def test_warm_heal_guard_launch_force_before_debounced_call() -> None:

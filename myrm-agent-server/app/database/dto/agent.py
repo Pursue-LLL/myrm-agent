@@ -143,21 +143,6 @@ class AgentBase(BaseModel):
     trusted_desktop_apps: list[dict[str, str]] = Field(
         default_factory=list, description="无人值守运行预信任的桌面应用 [{name, app_id?}]"
     )
-    responsibility_scope: str | None = Field(
-        default=None,
-        description="责任单元职责定义：该 Agent 长期负责什么（治理展示用，不进入系统提示词）",
-        max_length=2000,
-    )
-    owner_label: str | None = Field(
-        default=None,
-        description="责任单元负责人标注（单机默认本人免填；云托管/分享时必填）",
-        max_length=100,
-    )
-    acceptance_criteria: list[str] | None = Field(
-        default=None,
-        description="责任单元交付验收条目（结构化可勾选，非自由文本）",
-        max_length=20,
-    )
 
 
 class AgentCreate(AgentBase):
@@ -272,21 +257,6 @@ class AgentUpdate(BaseModel):
     )
     trusted_desktop_apps: list[dict[str, str]] | None = Field(
         default=None, description="无人值守运行预信任的桌面应用 [{name, app_id?}]。None=不修改。"
-    )
-    responsibility_scope: str | None = Field(
-        default=None,
-        description="责任单元职责定义。None=不修改；传空字符串=清空。",
-        max_length=2000,
-    )
-    owner_label: str | None = Field(
-        default=None,
-        description="责任单元负责人标注。None=不修改；传空字符串=清空。",
-        max_length=100,
-    )
-    acceptance_criteria: list[str] | None = Field(
-        default=None,
-        description="责任单元交付验收条目。None=不修改；传空列表=清空。",
-        max_length=20,
     )
 
 

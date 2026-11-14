@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -97,13 +96,13 @@ async def test_standard_templates_seed_is_idempotent_and_force_reseeds(client: T
     assert set(forced.json()["seeded"]) == set(payload["templates"])
 
 
-async def test_daily_review_compound_job_silent_without_window_review(client: TestClient) -> None:
+async def test_daily_review_compound_job_silent_without_window_review(client: TestClient, tmp_path: Path) -> None:
     from app.services.wiki.daily_review import run_wiki_daily_review_compound_job
 
     # Isolate an empty vault so the [SILENT] path is deterministic.
     with patch(
         "app.services.wiki.vault.resolve_wiki_vault_path",
-        return_value=Path(tempfile.mkdtemp(prefix="daily_review_silent_")) / "wiki",
+        return_value=tmp_path / "wiki",
     ):
         result = await run_wiki_daily_review_compound_job(llm=None)
     assert result.recent_review_files == 0
@@ -125,14 +124,14 @@ async def test_daily_review_compound_job_summarizes_recent_ingest(client: TestCl
     assert "Daily review compounding" in result.summary_text
 
 
-async def test_daily_review_compound_job_llm_summary_links_pending_panel() -> None:
+async def test_daily_review_compound_job_llm_summary_links_pending_panel(tmp_path: Path) -> None:
     """The compiled-summary branch reports real window output and points at the panel."""
     from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
     from app.services.wiki.daily_review import DAILY_REVIEW_RAW_DIR, run_wiki_daily_review_compound_job
     from app.services.wiki.vault import reset_wiki_archiver_cache_for_tests
 
-    vault_root = Path(tempfile.mkdtemp(prefix="daily_review_llm_")) / "wiki"
+    vault_root = tmp_path / "wiki"
     reset_wiki_archiver_cache_for_tests()
     try:
         with patch("app.services.wiki.vault.service.resolve_wiki_vault_path", return_value=vault_root):
@@ -152,14 +151,14 @@ async def test_daily_review_compound_job_llm_summary_links_pending_panel() -> No
     assert "](" not in result.summary_text
 
 
-async def test_daily_review_compound_job_covers_overnight_writer(client: TestClient) -> None:
+async def test_daily_review_compound_job_covers_overnight_writer(client: TestClient, tmp_path: Path) -> None:
     """A review written after the previous cron run must not be silently dropped."""
     import os
     import time
 
     from app.services.wiki.daily_review import DAILY_REVIEW_RAW_DIR, run_wiki_daily_review_compound_job
 
-    vault_root = Path(tempfile.mkdtemp(prefix="daily_review_overnight_")) / "wiki"
+    vault_root = tmp_path / "wiki"
     with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=vault_root):
         review_dir = vault_root / "raw" / DAILY_REVIEW_RAW_DIR
         review_dir.mkdir(parents=True, exist_ok=True)
@@ -180,13 +179,13 @@ async def test_daily_review_compound_job_covers_overnight_writer(client: TestCli
     assert "1 journal(s)" in result.summary_text
 
 
-async def test_window_draft_stats_are_status_agnostic_and_deduped() -> None:
+async def test_window_draft_stats_are_status_agnostic_and_deduped(tmp_path: Path) -> None:
     """Window numbers reflect real output: reviewed drafts stay counted, recompiles deduped."""
     from myrm_agent_harness.toolkits.wiki.pipeline.pending import WikiPendingEditsManager
 
     from app.services.wiki.daily_review.runner import _window_draft_stats
 
-    structure = WikiStructure(tempfile.mkdtemp(prefix="daily_review_stats_"))
+    structure = WikiStructure(tmp_path)
     structure.ensure_structure()
     mgr = WikiPendingEditsManager(structure)
     reviewed_id = mgr.add_pending_edit("Knowledge/ReviewedByUser", "draft v1")
@@ -203,13 +202,13 @@ async def test_window_draft_stats_are_status_agnostic_and_deduped() -> None:
     assert total_drafts == 3  # exact pending box size, uncapped by LIMIT 50
 
 
-async def test_window_draft_stats_exhaust_pages_beyond_one_page() -> None:
+async def test_window_draft_stats_exhaust_pages_beyond_one_page(tmp_path: Path) -> None:
     """Bulk-compile storms keep the window breakdown equal to the exact box total."""
     from myrm_agent_harness.toolkits.wiki.pipeline.pending import WikiPendingEditsManager
 
     from app.services.wiki.daily_review.runner import _STATS_PAGE_SIZE, _window_draft_stats
 
-    structure = WikiStructure(tempfile.mkdtemp(prefix="daily_review_storm_"))
+    structure = WikiStructure(tmp_path)
     structure.ensure_structure()
     mgr = WikiPendingEditsManager(structure)
     storm_size = _STATS_PAGE_SIZE + 5

@@ -63,7 +63,6 @@ import type {
   SubagentProgressStreamEvent,
   SubagentStaleStreamEvent,
   SubagentStartStreamEvent,
-  TeammateMessageStreamEvent,
   ToolsSnapshotStreamEvent,
   VerificationVerdictStreamEvent,
 } from './part2';
@@ -131,7 +130,6 @@ export type AgentStreamEvent =
   | SubagentLogStreamEvent
   | SubagentCompletionStreamEvent
   | SubagentStaleStreamEvent
-  | TeammateMessageStreamEvent
   | FileDiffStreamEvent
   | FileMutationFailedStreamEvent
   | ToolImageOutputStreamEvent

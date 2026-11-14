@@ -90,15 +90,15 @@ class RelationalStoreProtocol(Protocol):
     # ── Pending (approval queue) ─────────────────────────────────────
 
     async def submit_pending(self, record: PendingRecord) -> str:
-        """Persist a pending record. Returns the record ID."""
+        """Persist a pending record. Returns the record ID, or ``""`` when an identical one is already pending.
+
+        An identical record has the same memory type and content; the store itself keeps one open proposal per text,
+        and the repeat raises the waiting one again: it moves to the front and takes the repeat's creation time.
+        """
         ...
 
     async def get_pending(self, pending_id: str) -> PendingRecord | None:
         """Retrieve a single pending record by ID."""
-        ...
-
-    async def pending_exists(self, memory_type: str, content: str) -> bool:
-        """Check if an identical pending record already exists (deduplication)."""
         ...
 
     async def mark_pending(self, pending_id: str, status: str) -> None:

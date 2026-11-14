@@ -13,18 +13,14 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from typing import TYPE_CHECKING
 
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.services.extension.access_policy import (
-    normalize_domain_patterns,
+    is_blank_url,
     prune_paused_tab_ids,
 )
 from app.services.extension.cdp_relay.protocol import RelayTabInfo
-
-if TYPE_CHECKING:
-    from patchright.async_api import Browser
 
 from . import common
 from .common import (
@@ -33,9 +29,10 @@ from .common import (
     ExtensionBridgeNotAvailable,
     logger,
 )
+from .state import BridgeState
 
 
-class RelayMixin:
+class RelayMixin(BridgeState):
     async def handle_ws_connection(self, ws: WebSocket) -> None:
         """Handle incoming WebSocket connection from the browser extension."""
         await ws.accept()
@@ -71,7 +68,7 @@ class RelayMixin:
         self._hello_received = False
         self._capabilities.clear()
         self._tabs = []
-        self._agent_tab_ids = frozenset()
+        self._agent_tabs = {}
         for fut in self._pending_requests.values():
             if not fut.done():
                 fut.set_exception(ExtensionBridgeNotAvailable("Connection lost"))
@@ -104,7 +101,7 @@ class RelayMixin:
                         browser_version=str(msg.get("browserVersion") or self._browser_name),
                     )
                     await relay.bind_extension_transport(self._send_ws_message)
-                    await self._notify_extension_access_policy()
+                    await self._push_access_policy_if_owned()
                     await self._sync_relay_tabs()
                     logger.info(
                         "Extension hello: %s on %s (capabilities=%s)",
@@ -137,14 +134,8 @@ class RelayMixin:
                         else:
                             fut.set_result(msg.get("data"))
 
-                elif msg_type == "domains_update":
-                    raw_domains = msg.get("domains", [])
-                    if isinstance(raw_domains, list):
-                        self._authorized_domains = normalize_domain_patterns([str(item) for item in raw_domains])
-                    await self._sync_relay_tabs()
-
                 elif msg_type == "access_policy_update":
-                    self._apply_access_policy_payload(msg)
+                    self._apply_access_policy_report(msg)
                     await self._sync_relay_tabs()
 
         except WebSocketDisconnect:
@@ -187,29 +178,14 @@ class RelayMixin:
                     url=tab.url,
                     title=tab.title,
                     active=tab.active,
+                    # Handed to the Agent once it holds a document: a page still blank when the client starts setting it up
+                    # can leave the authorized sites before the client is done.
+                    opener_tab_id=None if is_blank_url(tab.url) else self._agent_tabs.get(tab.tab_id),
                 )
                 for tab in self._tabs
                 if self._tab_is_accessible(tab) or self._is_blank_agent_tab(tab)
             ]
         )
-
-    async def _focus_browser_on_domain(self, browser: Browser, domain: str) -> None:
-        from urllib.parse import urlparse
-
-        domain_lower = domain.strip().lower().rstrip(".")
-        for context in browser.contexts:
-            for page in context.pages:
-                try:
-                    page_url = page.url or ""
-                except Exception:
-                    continue
-                host = (urlparse(page_url).hostname or "").strip().lower().rstrip(".")
-                if host and self._match_domain(host, [domain_lower]):
-                    try:
-                        await page.bring_to_front()
-                    except Exception as exc:
-                        logger.debug("Failed to focus page for domain %s: %s", domain, exc)
-                    return
 
     async def _send_request(
         self,
@@ -240,40 +216,6 @@ class RelayMixin:
         except asyncio.TimeoutError as exc:
             self._pending_requests.pop(req_id, None)
             raise ExtensionBridgeNotAvailable(f"Extension request '{action}' timed out") from exc
-
-    async def _request_debugger_attach(
-        self,
-        domain: str | None = None,
-        tab_id: int | None = None,
-        *,
-        background: bool = False,
-        timeout: float = 10.0,
-    ) -> int:
-        """Request the extension to attach chrome.debugger to a tab.
-
-        Returns the tab ID that was attached. The extension uses its privileged
-        chrome.debugger API to control the tab — no external CDP endpoint needed.
-
-        When *tab_id* is provided the extension attaches directly to that tab.
-        When *background* is False (default for login-state tabs), the extension
-        prefers the user's existing foreground tab for the domain.
-        """
-        payload: dict[str, object] = {}
-        if tab_id is not None:
-            payload["tabId"] = tab_id
-        elif domain:
-            payload["domain"] = domain
-
-        payload["background"] = background
-
-        result = await self._send_request("attach_debugger", payload, timeout=timeout)
-        if not isinstance(result, dict):
-            raise ExtensionBridgeNotAvailable("Extension returned invalid attach_debugger response")
-
-        attached_tab_id = result.get("tabId") or result.get("tab_id")
-        if not attached_tab_id:
-            raise ExtensionBridgeNotAvailable("Extension did not return attached tab ID")
-        return int(attached_tab_id)
 
     async def _refresh_tabs(self) -> None:
         """Request fresh tab list from extension."""

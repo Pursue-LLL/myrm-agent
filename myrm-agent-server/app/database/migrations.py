@@ -656,9 +656,8 @@ MIGRATION_STATEMENTS: list[str] = [
         ON user_tool_allowlist(permission, tool_name, tool_args_hash, command_pattern, agent_id)""",
     "ALTER TABLE user_tool_allowlist ADD COLUMN expires_at TIMESTAMP",
     "ALTER TABLE cron_jobs ADD COLUMN skill_ids JSON",
-    # Responsibility-unit governance: long-term ownership metadata per agent.
-    # New DBs get the columns from create_all; append-only ALTER covers existing
-    # databases (the migration engine skips duplicate-column errors idempotently).
+    # No model maps the next three agent columns and nothing reads or writes them. The statements stay because a
+    # migration's version is its position in this list; the columns stay because dropping them discards data for good.
     "ALTER TABLE agents ADD COLUMN responsibility_scope TEXT",
     "ALTER TABLE agents ADD COLUMN owner_label VARCHAR(100)",
     "ALTER TABLE agents ADD COLUMN acceptance_criteria JSON",

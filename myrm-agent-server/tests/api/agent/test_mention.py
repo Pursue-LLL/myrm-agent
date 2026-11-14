@@ -13,6 +13,12 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _temp_dirs_under_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Workspaces these tests make with mkdtemp() (several hold git repos) live where pytest removes them."""
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+
 class TestBuildMentionedFileContext:
     """Tests for _build_mentioned_file_context."""
 

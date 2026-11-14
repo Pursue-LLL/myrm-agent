@@ -246,12 +246,11 @@ class ChannelBackgroundTaskHandler:
         task_id: str,
         instruction: str,
     ) -> bool:
-        """Inject a steering instruction into a running background task."""
+        """Inject a steering instruction into a running background task; False when the task cannot take it."""
         tokens = self._runtime_tokens.get(task_id)
         if not tokens:
             return False
-        tokens.steering_token.steer(instruction)
-        return True
+        return tokens.steering_token.steer(instruction)
 
     def register_runtime_tokens(
         self,
@@ -289,7 +288,7 @@ def _kanban_status_to_bg_status(status: str, error: str = "") -> str:
     """
     from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
-    status_map = {
+    status_map: dict[str, str] = {
         TaskStatus.READY: "running",
         TaskStatus.RUNNING: "running",
         TaskStatus.COMPLETED: "completed",
@@ -299,7 +298,7 @@ def _kanban_status_to_bg_status(status: str, error: str = "") -> str:
         TaskStatus.TRIAGE: "running",
         TaskStatus.ARCHIVED: "completed",
     }
-    resolved = status_map.get(status, "running")  # type: ignore[arg-type]
+    resolved = status_map.get(status, "running")
     if resolved == "failed":
         error_lower = error.lower()
         if "timed out" in error_lower:

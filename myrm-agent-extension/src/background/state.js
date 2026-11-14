@@ -19,13 +19,7 @@ export const ALARM_NAME = "myrm-keepalive";
 export const KEEP_ALIVE_PERIOD_MINUTES = 0.5;
 export const RECONNECT_DELAY_MS = 3000;
 export const MAX_RECONNECT_DELAY_MS = 30000;
-export const EXTENSION_CAPABILITIES = Object.freeze([
-  "navigate_url",
-  "list_tabs",
-  "attach_debugger",
-  "detach_debugger",
-  "agent_tab_control",
-]);
+export const EXTENSION_CAPABILITIES = Object.freeze(["navigate_url", "list_tabs", "agent_tab_control"]);
 
 const PERSISTED_KEYS = [
   "serverUrl",
@@ -49,11 +43,13 @@ export const state = {
   reconnectDelay: RECONNECT_DELAY_MS,
   isConnecting: false,
   lastError: "",
+  /** @type {string[]} */
   authorizedDomains: [],
   allowAllEligibleTabs: false,
   pausedTabIds: new Set(),
   attachedTabs: new Map(), // tabId -> debugger target id
-  agentTabIds: new Set(), // tabs the Agent opened itself
+  agentTabIds: new Set(), // tabs the Agent opened itself, or whose page it opened
+  agentTabOpeners: new Map(), // tab -> the Agent tab whose page opened it; only needed while the page is new, so not persisted
   tabGroupQueue: Promise.resolve(), // serializes tab-group edits so concurrent tabs share one group
   backgroundWindowId: null, // Isolated background window for non-disruptive automation
   backgroundWindowOpening: null, // in-flight creation of that window, shared by concurrent callers

@@ -50,7 +50,7 @@ class HumanTailDeltaInjector:
         lines: list[str] = [
             "<ephemeral_session_deltas>",
             "  <precedence>When a delta conflicts with stable user memory or earlier chat turns, follow the delta. "
-            "Agent instructions and mandatory veto rules still take precedence.</precedence>",
+            "Agent instructions and stored rules that forbid an action still take precedence.</precedence>",
         ]
 
         total_chars = 0

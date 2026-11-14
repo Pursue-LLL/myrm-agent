@@ -2,10 +2,10 @@
 - （无跨模块依赖）
 
 [OUTPUT]
-- merge_streaming_text: Merge streaming text fragments with correct precedence.
 - resolve_send_mode: Determine Feishu message send mode based on context.
 - has_rich_text: Detect if content has rich formatting that benefits from post type.
 - _parse_post_line: Parse a single line of Markdown into Feishu post elements.
+- _bolded: Add the bold style to a post element.
 - build_post_content: Convert Markdown-like text to Feishu post (rich text) format.
 
 [POS]
@@ -15,57 +15,9 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal
-
-if TYPE_CHECKING:
-    pass
+from typing import Literal
 
 SendMode = Literal["reply", "root_create", "create"]
-
-_CARD_CONFIG: dict[str, object] = {"wide_screen_mode": True, "enable_forward": True}
-_ACTION_VALUE_MAX = 200
-
-_HEADER_TEMPLATES: dict[bool | None, tuple[str, str]] = {
-    True: ("green", ""),
-    False: ("red", ""),
-    None: ("blue", ""),
-}
-
-_FEISHU_BUTTON_TYPE: dict[str, str] = {
-    "primary": "primary",
-    "danger": "danger",
-    "default": "default",
-}
-
-
-# ── Component card (from OutboundMessage) ────────────────────────
-
-
-def merge_streaming_text(previous: str, next_chunk: str) -> str:
-    """Merge streaming text fragments with correct precedence.
-
-    Priority: full containment > partial overlap > fallback append.
-    """
-    if not previous:
-        return next_chunk
-    if not next_chunk:
-        return previous
-
-    if next_chunk.startswith(previous):
-        return next_chunk
-    if previous.startswith(next_chunk):
-        return previous
-    if next_chunk in previous:
-        return previous
-    if previous in next_chunk:
-        return next_chunk
-
-    max_overlap = min(len(previous), len(next_chunk))
-    for overlap in range(max_overlap, 0, -1):
-        if previous.endswith(next_chunk[:overlap]):
-            return f"{previous}{next_chunk[overlap:]}"
-
-    return f"{previous}{next_chunk}"
 
 
 # ── Send mode resolution ─────────────────────────────────────────
@@ -115,7 +67,8 @@ def _parse_post_line(line: str) -> list[dict[str, object]]:
         elif m.group(4) is not None:
             elements.append({"tag": "text", "text": m.group(4), "style": ["lineThrough"]})
         elif m.group(6) is not None:
-            elements.append({"tag": "text", "text": m.group(6), "style": ["code"]})
+            # A post text element has no code style (Feishu ignores unknown styles), so the backticks stay as the cue.
+            elements.append({"tag": "text", "text": m.group(0)})
         elif m.group(8) is not None:
             elements.append({"tag": "a", "text": m.group(8), "href": m.group(9)})
         pos = m.end()
@@ -124,23 +77,24 @@ def _parse_post_line(line: str) -> list[dict[str, object]]:
     return elements or [{"tag": "text", "text": line}]
 
 
+def _bolded(element: dict[str, object]) -> dict[str, object]:
+    """``element`` with the bold style added to the styles it has."""
+    styles = element.get("style")
+    existing = [str(style) for style in styles] if isinstance(styles, list) else []
+    return {**element, "style": list(dict.fromkeys(["bold", *existing]))}
+
+
 def build_post_content(content: str) -> dict[str, object]:
     """Convert Markdown-like text to Feishu post (rich text) format.
 
-    Produces a post payload with zh_cn locale. Handles bold, italic,
-    inline code, links, and headings by mapping to Feishu post tags.
+    Produces a post payload with zh_cn locale. Handles bold, strikethrough, inline code,
+    links and headings (bold, with their own inline spans) by mapping to Feishu post tags.
     """
     paragraphs: list[list[dict[str, object]]] = []
     for line in content.split("\n"):
-        elements: list[dict[str, object]] = []
         heading_match = _HEADING_RE.match(line)
         if heading_match:
-            line = line[heading_match.end() :]
-            elements.append({"tag": "text", "text": line, "style": ["bold"]})
+            paragraphs.append([_bolded(element) for element in _parse_post_line(line[heading_match.end() :])])
         else:
-            elements.extend(_parse_post_line(line))
-        paragraphs.append(elements)
+            paragraphs.append(_parse_post_line(line))
     return {"zh_cn": {"title": "", "content": paragraphs}}
-
-
-# ── Contact Disambiguation and Deliverable Cards ─────────────────

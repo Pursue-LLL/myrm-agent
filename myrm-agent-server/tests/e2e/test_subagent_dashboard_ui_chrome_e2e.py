@@ -1,7 +1,7 @@
 """Real Chrome MCP E2E for subagent dashboard UI-injection + full front-end flow coverage.
 
 Covers the scenarios the baseline dashboard E2E did not: sort reordering, stop-all
-with confirmation dialog, teammate messages, live stream entries, overtime/stale
+with confirmation dialog, live stream entries, overtime/stale
 badges with dismiss, multi-level tree expand/collapse, completed/failed states,
 header summary model mix, and a real user flow (WebUI send → LLM delegation →
 running subagent → dashboard → front-end cancel).
@@ -725,74 +725,6 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
 )
 @pytest.mark.integration
 @pytest.mark.timeout(300)
-def test_subagent_dashboard_teammate_messages_render(
-    light_chat: dict[str, object],
-) -> None:
-    """Teammate messages appear under the subagent tree row."""
-    chat_id = str(light_chat.get("chatId") or "")
-    assert chat_id
-    ui_url = str(light_chat.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
-    now = int(time.time() * 1000)
-    rows: list[dict[str, object]] = [
-        {
-            "task_id": "mate-a",
-            "parent_task_id": "",
-            "status": "running",
-            "agent_type": "research",
-            "description": "Mate Alpha",
-            "startedAt": now - 10_000,
-            "teammate_messages": [
-                {
-                    "message_id": "m1",
-                    "from_task_id": "mate-b",
-                    "to_task_id": "mate-a",
-                    "body": "E2E teammate ping from B",
-                    "created_at": now - 5_000,
-                },
-                {
-                    "message_id": "m2",
-                    "from_task_id": "mate-a",
-                    "to_task_id": "mate-b",
-                    "body": "E2E teammate ack from A",
-                    "created_at": now - 3_000,
-                },
-            ],
-        },
-        {
-            "task_id": "mate-b",
-            "parent_task_id": "",
-            "status": "running",
-            "agent_type": "bash_worker",
-            "description": "Mate Beta",
-            "startedAt": now - 10_000,
-        },
-    ]
-    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
-        _open_dashboard_seeded(client, page, chat_id, rows)
-        rendered = wait_for_state(
-            client,
-            page,
-            """(() => {
-              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
-              const text = panel?.textContent || '';
-              return {
-                ready: /E2E teammate ping from B/.test(text) && /E2E teammate ack from A/.test(text),
-                text: text.slice(0, 600),
-              };
-            })()""",
-            timeout_sec=30.0,
-        )
-        assert rendered.get("ready") is True, f"Teammate messages not rendered: {rendered}"
-
-
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
-    workload="LIVE",
-    private_reason="live_shpoib",
-)
-@pytest.mark.integration
-@pytest.mark.timeout(300)
 def test_subagent_dashboard_stream_entries_render(
     light_chat: dict[str, object],
 ) -> None:
@@ -1195,7 +1127,7 @@ def test_subagent_dashboard_handover_state_drawer_render(
             client,
             page,
             """(() => {
-              const drawer = document.querySelector('[role="dialog"]');
+              const drawer = document.querySelector('[data-testid="subagent-detail-drawer"]');
               const text = drawer?.textContent || '';
               return {
                 ready: /Full analysis completed with evidence and citations/.test(text)

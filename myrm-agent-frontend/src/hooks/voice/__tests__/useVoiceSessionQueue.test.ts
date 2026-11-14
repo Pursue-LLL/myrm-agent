@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { VisionIntentResult } from '@/hooks/multimodal/useVisionIntent';
 
 const ttsMock = vi.hoisted(() => ({
   speak: vi.fn(),
@@ -28,15 +27,6 @@ const realtimeMock = vi.hoisted(() => ({
 const geminiMock = vi.hoisted(() => ({
   connect: vi.fn(),
   disconnect: vi.fn(),
-}));
-
-const cameraMock = vi.hoisted(() => ({
-  startCamera: vi.fn(),
-  stopCamera: vi.fn(),
-  captureSnapshot: vi.fn(),
-  getFramesForSpeech: vi.fn(),
-  beginSpeechCapture: vi.fn(),
-  endSpeechCapture: vi.fn(),
 }));
 
 vi.mock('../useTTS', () => ({
@@ -80,28 +70,6 @@ vi.mock('../useSpeechInput', () => ({
       mode: 'toggle',
     };
   },
-}));
-
-vi.mock('../../multimodal/useCameraInput', () => ({
-  useCameraInput: () => ({
-    cameraState: 'inactive',
-    facingMode: 'user',
-    videoRef: { current: null },
-    startCamera: cameraMock.startCamera,
-    stopCamera: cameraMock.stopCamera,
-    toggleFacing: vi.fn(),
-    captureSnapshot: cameraMock.captureSnapshot,
-    getFramesForSpeech: cameraMock.getFramesForSpeech,
-    beginSpeechCapture: cameraMock.beginSpeechCapture,
-    endSpeechCapture: cameraMock.endSpeechCapture,
-    bufferSize: 0,
-  }),
-}));
-
-vi.mock('../../multimodal/useVisionIntent', () => ({
-  useVisionIntent: () => ({
-    classify: vi.fn((): VisionIntentResult => ({ needsVision: false, type: 'none', confidence: 0.6, reason: 'test' })),
-  }),
 }));
 
 vi.mock('../useVoiceAgentBridge', () => ({
@@ -332,5 +300,45 @@ describe('useVoiceSession speakResponse queue insertion', () => {
       undefined,
     );
     expect(mockOnSendMessage).toHaveBeenCalledWith(expect.stringContaining('[Active Window: VS Code]'), undefined);
+  });
+
+  it('sends the push-to-talk screenshot with the message as its only vision frame', async () => {
+    const mockOnSendMessage = vi.fn();
+    const { result } = renderHook(() =>
+      useVoiceSession({
+        enabled: true,
+        mode: 'audio_only',
+        fullDuplex: true,
+        autoSend: true,
+        onSendMessage: mockOnSendMessage,
+      }),
+    );
+
+    act(() => {
+      result.current.startSession();
+    });
+
+    const timestamp = Date.now();
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('voice-ptt-context', {
+          detail: {
+            windowTitle: 'Safari',
+            extractedText: '',
+            selectedText: '',
+            screenshot: 'SCREENSHOT_BASE64',
+            timestamp,
+          },
+        }),
+      );
+    });
+
+    await act(async () => {
+      await mockSpeechInputOptions.onTranscript?.('what is on my screen');
+    });
+
+    expect(mockOnSendMessage).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('what is on my screen'), [
+      'SCREENSHOT_BASE64',
+    ]);
   });
 });

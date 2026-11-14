@@ -608,7 +608,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 ### 5.0 YOLO Mode — 全自动审批快速路径
 
-当 `SecurityConfig.yolo_mode_enabled=True` 时，`batch_processor.evaluate_tool_batch()` 自动审批所有非 DENY 的工具调用。对每个 tool_call 仍执行 `evaluate_tool_call()` 检查：若结果为 `DENY` 则强制拒绝（记录 `YOLO_DENY_OVERRIDE` 决策），否则自动批准（记录 `YOLO_AUTO_APPROVE`）。支持可选超时（`yolo_mode_timeout` 秒），过期后自动恢复正常审批流。
+当 `SecurityConfig.yolo_mode_enabled=True` 时，`batch_processor.evaluate_tool_batch()` 自动审批所有非 DENY 的工具调用。对每个 tool_call 仍执行 `evaluate_tool_call()` 检查：若结果为 `DENY` 则强制拒绝（记录 `YOLO_DENY_OVERRIDE` 决策），否则自动批准（记录 `YOLO_AUTO_APPROVE`）。支持可选超时（`yolo_mode_timeout` 秒），过期后自动恢复正常审批流。计时键有两种写法，解析时蛇形键优先：服务端的授权（渠道 `/yolo`、目标与看板的无人值守授权）写 `yolo_mode_enabled_at` / `yolo_mode_timeout`，键存在即胜出，值为 `None` 表示无时限，不会继承用户在网页里设过的计时；Web 设置界面写驼峰键 `yoloModeEnabledAt` / `yoloModeTimeout`（秒），只在蛇形键缺席时读取，所以网页关闭后超时同样在服务端生效。无法解析的开启时刻按很久以前处理，带超时时视为已过期。
 
 核心安全原则：**deny always wins** — DENY 规则在任何模式下都不可被绕过。
 
@@ -993,7 +993,7 @@ do anything now | bypass safety | 忽略...之前...指令 | 你现在是...一�
 
 **位置**：`detection/intent_router.py`（规范实现 `core/security/detection/intent_router.py`）
 
-在 Agent ReAct Loop 启动及大模型调用前，以零延迟（<0.2ms）完成句级高危破坏与外发意图识别。
+在 Agent ReAct Loop 启动及大模型调用前，用基于规则的检查完成句级高危破坏与外发意图识别（开发机实测：短提示词远低于 1 ms，约 8 KB 的粘贴文本约 3 ms）。
 
 - **三维危险意图分类**：
   1. `MASS_DESTRUCTION`：递归文件删除（`rm -rf /`）、数据库全量删除/清空（`DROP DATABASE` / `TRUNCATE TABLE` / `DELETE WHERE 1=1`）、磁盘格式化与毁灭性俚语（`全扬了/格盘/删库跑路`）；
@@ -1268,7 +1268,6 @@ LangChain 工具有具体名称（如 `bash_code_execute_tool`），而安全策
 | 工具名 | 保留 ASK 的理由 |
 |--------|-----------------|
 | `browser_execute_script_tool` | 任意 JS 执行——保持 ASK（特权 API 另有工具内 HITL） |
-| `send_teammate_message_tool` | 跨 Agent 消息派发——外部副作用，保持 ASK |
 
 门禁将本集合视为合法的第三治理状态，不会把它们标记为未覆盖。
 
@@ -1438,7 +1437,8 @@ if is_cron:
 - `reset_audit_log()` — 清除审计日志
 - `reset_denial_counter()` — 清除拒绝计数
 - `reset_loop_guard()` — 新 run 清除 CallRecord 窗口；`is_resume=True` 时保留 CallRecord 窗口与 error_signatures（HITL resume / Goal continuation）；session-key 注册表在 ContextVar 丢失后仍可找回同一 LoopGuard
-- `notify_loop_guard_compaction()` — 压缩后重置迭代预算（保留 error_signatures）
+
+上下文压缩与裁剪不重置上述任何状态：LoopGuard 的窗口、迭代预算与 error_signatures 记录的是工具调用序列，与模型所见上下文的长短无关。
 
 ---
 

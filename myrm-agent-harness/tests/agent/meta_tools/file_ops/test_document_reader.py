@@ -342,6 +342,5 @@ class TestReadDocumentStructureMode:
         result = await read_document_as_text("data.xlsx", executor, parse_mode="structure")
         assert "[Document: data.xlsx]" in result
 
-        json_part = result.split("\n", 1)[1]
-        data = json.loads(json_part)
+        data = json.loads(result.splitlines()[1])
         assert "sheets" in data

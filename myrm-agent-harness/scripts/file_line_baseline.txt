@@ -3,7 +3,7 @@
 # Files listed here may exceed 500 lines; line count must not grow.
 # Remove entries after splitting below 500 lines.
 # Tighten caps with: check_file_line_limit.py --ratchet
-myrm_agent_harness/agent/_internals/agent_runtime.py	758
+myrm_agent_harness/agent/_internals/agent_runtime.py	732
 myrm_agent_harness/agent/_internals/run_lifecycle.py	508
 myrm_agent_harness/agent/base_agent.py	578
 myrm_agent_harness/agent/context_management/tracking/task_metrics_model.py	570
@@ -11,19 +11,17 @@ myrm_agent_harness/agent/dynamic_workflow/__init__.py	659
 myrm_agent_harness/agent/file_snapshot/shadow_git_store.py	647
 myrm_agent_harness/agent/goals/continuation.py	656
 myrm_agent_harness/agent/meta_tools/bash/_compression/compressors.py	579
-myrm_agent_harness/agent/meta_tools/file_ops/core/file_operation_service.py	610
 myrm_agent_harness/agent/middlewares/approval/batch_processor/decide.py	954
 myrm_agent_harness/agent/security/guards/loop_guard/detectors.py	571
 myrm_agent_harness/agent/sub_agents/event_forwarder.py	622
-myrm_agent_harness/agent/sub_agents/manager.py	590
-myrm_agent_harness/agent/sub_agents/types.py	528
+myrm_agent_harness/agent/sub_agents/manager.py	584
+myrm_agent_harness/agent/sub_agents/types.py	527
 myrm_agent_harness/core/security/types.py	646
 myrm_agent_harness/eval/assertions.py	676
 myrm_agent_harness/eval/protocols.py	609
 myrm_agent_harness/infra/delivery/storage.py	536
 myrm_agent_harness/infra/sqlite_salvage.py	621
 myrm_agent_harness/runtime/context/instance_metrics.py	694
-myrm_agent_harness/toolkits/browser/pool/browser_launcher.py	535
 myrm_agent_harness/toolkits/browser/pool/config.py	603
 myrm_agent_harness/toolkits/browser/session/extractor.py	580
 myrm_agent_harness/toolkits/code_execution/executors/common/wrapper_script.py	596

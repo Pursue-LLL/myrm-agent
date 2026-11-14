@@ -4,16 +4,16 @@
 - pydantic::BaseModel / Field (POS: 校验与序列化)
 
 [OUTPUT]
-- HitSource / RecallDebugTrace / MemorySearchResult / PendingRecord
+- HitSource / RecallDebugTrace / MemorySearchResult / PendingRecord / PendingStatus
 
 [POS]
-`memory/types_pkg/` 的检索结果与待审候选模型。
+`memory/types/` 的检索结果与待审候选模型。
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, SupportsFloat, cast
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -31,6 +31,8 @@ from .records import (
     TaskDigestMemory,
 )
 
+PendingStatus = Literal["pending", "approved", "rejected", "resolved"]
+
 
 class HitSource(BaseModel):
     """Source stream attribution and original rank for multi-source recall."""
@@ -38,6 +40,7 @@ class HitSource(BaseModel):
     source: str = Field(..., description="Name of the retrieval stream/source (e.g. 'vector', 'fts', 'graph')")
     rank: int = Field(..., ge=0, description="0-indexed rank within that source stream")
     score: float = Field(default=0.0, description="Original source-specific raw score if available")
+
 
 class RecallDebugTrace(BaseModel):
     """White-box audit trail for multi-source RRF ranking decisions."""
@@ -49,6 +52,7 @@ class RecallDebugTrace(BaseModel):
     tie_break_rank: int = Field(
         default=0, ge=0, description="Rank resolved after deterministic three-tier tie-breaking"
     )
+
 
 class MemorySearchResult(BaseModel):
     """Search result with dual-track score honesty (raw similarity vs ranking score).
@@ -88,7 +92,7 @@ class MemorySearchResult(BaseModel):
     @classmethod
     def _clamp_score(cls, v: object) -> float:
         try:
-            value = float(v)  # type: ignore[arg-type]
+            value = float(cast("SupportsFloat | str", v))
         except (TypeError, ValueError):
             return 0.0
         if value != value:  # NaN
@@ -101,7 +105,7 @@ class MemorySearchResult(BaseModel):
         if v is None:
             return None
         try:
-            value = float(v)  # type: ignore[arg-type]
+            value = float(cast("SupportsFloat | str", v))
         except (TypeError, ValueError):
             return None
         if value != value:  # NaN
@@ -142,6 +146,7 @@ class MemorySearchResult(BaseModel):
         """Execution trace ID associated with this memory."""
         return getattr(self.memory, "trace_id", None)
 
+
 class PendingRecord(BaseModel):
     """A memory awaiting user approval or conflict resolution.
 
@@ -159,7 +164,7 @@ class PendingRecord(BaseModel):
     )
     source_chat_id: str | None = None
     source_message_id: str | None = None
-    status: Literal["pending", "approved", "rejected", "resolved"] = "pending"
+    status: PendingStatus = "pending"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     resolved_at: datetime | None = None
 

@@ -34,7 +34,10 @@ def _isolate_test_data_dir() -> None:
     real_dir = (Path.home() / ".myrm").resolve()
     configured = os.environ.get("MYRM_DATA_DIR")
     if not configured or Path(configured).expanduser().resolve() == real_dir:
-        os.environ["MYRM_DATA_DIR"] = tempfile.mkdtemp(prefix="myrm-test-data-")
+        created = tempfile.mkdtemp(prefix="myrm-test-data-")
+        os.environ["MYRM_DATA_DIR"] = created
+        # The process that made the directory removes it, so repeated runs do not pile up in the temp root.
+        atexit.register(shutil.rmtree, created, ignore_errors=True)
     if not os.environ.get("MYRM_DEV_STATE_DIR"):
         os.environ["MYRM_DEV_STATE_DIR"] = str(Path(os.environ["MYRM_DATA_DIR"]) / "state")
 
@@ -48,14 +51,16 @@ _isolate_test_data_dir()
 # tests mutate (event bus history, agent gateway drain, task metrics registry, settings
 # singleton, the harness's registry of tracked background tasks), and the aiosqlite worker
 # and stop that keep a connection usable after the loop that queried it closed and let two
-# closers of one connection both return.
-# The first four are plain support modules: a conftest that is also listed here is
+# closers of one connection both return, and the in-memory credential store that skill
+# availability tests store provider and OAuth credentials in.
+# The first five are plain support modules: a conftest that is also listed here is
 # registered twice, and a run targeting its directory aborts.
 pytest_plugins = (
     "tests.support.chat_db_fixtures",
     "tests.support.artifact_upsert_fixture",
     "tests.support.process_state_isolation",
     "tests.support.aiosqlite_surviving_worker",
+    "tests.support.skill_credential_store",
     "tests.api.agent.conftest",
 )
 

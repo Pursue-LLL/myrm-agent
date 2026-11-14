@@ -138,6 +138,7 @@ class TelegramChannel(
     render_style = RenderStyle(
         format="markdown",
         max_text_length=MAX_TEXT_LENGTH,
+        supports_expandable_blockquote=True,
         reasoning_display=ReasoningDisplay.COLLAPSED,
         tool_summary_display=ToolSummaryDisplay.COMPACT,
     )

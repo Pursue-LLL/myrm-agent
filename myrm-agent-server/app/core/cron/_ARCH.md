@@ -370,16 +370,7 @@ AgentJobRunner 将 context 追加到 prompt 末尾，让 Agent 知道触发来�
 - **实现层**：`SqlAlchemyCronStore` 使用 `WHERE job_id IN (...)` 单次批量查询
 - **API 层**：`list_jobs` 通过 `CronManager.batch_get_monitor_states()` 批量获取所有状态，同步生成 response
 
-**性能提升（实测数据，模拟 1ms DB 延迟）**：
-
-| 任务数 | N+1 查询次数 | 批量查询次数 | N+1 耗时 | 批量耗时 | 提升 |
-|--------|--------------|--------------|----------|----------|------|
-| 10     | 10           | 1            | 178.8ms  | 291.6ms  | -63.1% |
-| 50     | 50           | 1            | 1906.5ms | 113.3ms  | **94.1%** (16.8x) |
-| 100    | 100          | 1            | 3280.8ms | 4.9ms    | **99.9%** (670x) |
-| 200    | 200          | 1            | 3985.6ms | 5.8ms    | **99.9%** (693x) |
-
-**结论**：批量查询在任务数 ≥50 时显著提升性能，消除 N+1 查询问题，将数据库查询降至 O(1)。
+**效果**：`list_jobs` 的状态查询从每个任务一次降为整页一次（`sqlalchemy_store.py` 的 `MonitorStateModel.job_id.in_(job_ids)`），数据库往返次数与任务数无关（O(1)）；批量接口的契约由 `tests/core/cron/adapters/test_cron_store_contract.py` 覆盖。
 
 ### 代码组织优化
 

@@ -118,10 +118,10 @@ class TestSearchDepthValidation:
         assert result == "deep"
 
 
-class TestFastModeConverterParams:
-    """converter.py fast 模式参数覆盖逻辑验证（无需 LLM/DB）
+class TestFastSearchBuiltinAgentSpecs:
+    """快速 / 深度搜索预置智能体的规格验证（无需 LLM/DB）
 
-    验证 fast 搜索预置体的规格（工具、引擎参数、提示词模式）。
+    验证 `builtin-fast-search` / `builtin-deep-search` 的规格（引擎参数、提示词模式、system_prompt 留空）。
     """
 
     def test_builtin_initializer_search_agents_exist(self):

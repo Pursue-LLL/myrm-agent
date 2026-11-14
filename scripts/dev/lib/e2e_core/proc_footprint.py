@@ -14,7 +14,8 @@ macOS ``ri_phys_footprint`` is the figure Activity Monitor and footprint(1) show
 plus compressed plus swapped pages. RSS leaves compressed and swapped pages out, so under
 memory pressure it understates what a process weighs on the machine (one Next dev server
 read 107 MB RSS against 6971 MB footprint). Linux has no such counter without root, so it
-reads VmRSS. Shared by the Next dev supervisor's memory guard and the host load recorder.
+reads VmRSS. Shared by the Next dev supervisor's memory guard (frontend_lifecycle.footprint),
+the host load sampler and the hotspot capture.
 """
 
 from __future__ import annotations

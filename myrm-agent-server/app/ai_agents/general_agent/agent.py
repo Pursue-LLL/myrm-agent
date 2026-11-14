@@ -2,6 +2,7 @@
 
 [INPUT]
 - tool_setup::ToolSetupMixin (POS: 工具初始化混入)
+- lifecycle::AgentLifecycleMixin (POS: 资源释放混入)
 - compression_intent (POS: 压缩意图构建)
 - llm_factory (POS: LLM 实例创建工厂)
 - core.memory.adapters.setup (POS: 记忆系统适配器)
@@ -11,19 +12,19 @@
 - GeneralAgent: 通用 Agent 主类
 
 [POS]
-通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），
-工具创建委托给 ToolSetupMixin。
+通用 Agent 核心实现。管理 Agent 初始化与流式执行，
+工具创建委托给 ToolSetupMixin，资源释放委托给 AgentLifecycleMixin。
 """
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncGenerator, Collection, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from langchain_core.messages import BaseMessage
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.agent.security import CredentialTrack
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, RecallMode
 from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
@@ -33,6 +34,7 @@ from app.core.security.session_overlay import SecurityOverlaySpec
 from app.core.types import MCPServerConfig, ModelConfig
 
 from .compression_intent import build_compression_intent
+from .lifecycle import AgentLifecycleMixin
 from .tool_setup import ToolSetupMixin
 
 if TYPE_CHECKING:
@@ -50,13 +52,11 @@ if TYPE_CHECKING:
 
     from app.ai_agents.agents import ImageGenerationParams, TTSParams, VideoGenerationParams
 
-logger = logging.getLogger(__name__)
-
 TOOL_CALL_PLACEHOLDER = "(tool calls only)"
 SYSTEM_PROMPT_MARKER = "(system prompt detected"
 
 
-class GeneralAgent(ToolSetupMixin):
+class GeneralAgent(ToolSetupMixin, AgentLifecycleMixin):
     """General Agent - LangGraph-based autonomous agent.
 
     Uses LangGraph StateGraph for fully autonomous decision-making.
@@ -126,6 +126,7 @@ class GeneralAgent(ToolSetupMixin):
         security_overlay: SecurityOverlaySpec | None = None,
         agent_security_raw: dict[str, object] | None = None,
         channel_name: str = "web_chat",
+        credential_track: CredentialTrack = CredentialTrack.PERSONAL,
         providers_dict: dict[str, object] | None = None,
         light_model_cfg: ModelConfig | None = None,
         memory_channel_id: str | None = None,
@@ -241,6 +242,7 @@ class GeneralAgent(ToolSetupMixin):
         self.security_overlay = security_overlay
         self.agent_security_raw = agent_security_raw
         self.channel_name = channel_name
+        self.credential_track = credential_track
         self.memory_channel_id = memory_channel_id
         self.memory_conversation_id = memory_conversation_id
         self.memory_task_id = memory_task_id
@@ -459,105 +461,3 @@ class GeneralAgent(ToolSetupMixin):
             extra_context=context,
         ):
             yield chunk
-
-    async def _release_runtime_pool(self) -> None:
-        """Release the external-agent pool: registry-owned pools stay cached, a pool this agent built itself is closed."""
-        if self._runtime_pool is None:
-            return
-        try:
-            from app.services.external_agents.runtime_pool_registry import (
-                close_runtime_pool_bounded,
-                get_chat_runtime_pool_registry,
-            )
-
-            scope_id = (self._runtime_pool_scope_id or "").strip()
-            if self._runtime_pool_from_registry and scope_id:
-                await get_chat_runtime_pool_registry().release(scope_id)
-            elif self._owned_runtime_pool is not None:
-                await close_runtime_pool_bounded(self._owned_runtime_pool, scope="ephemeral")
-        except Exception as e:
-            logger.warning("RuntimePool release failed: %s", e)
-        finally:
-            self._runtime_pool = None
-            self._owned_runtime_pool = None
-
-    async def release_pooled_session(self) -> None:
-        """Release per-turn server resources without closing pooled SkillAgent/Browser."""
-        await self._release_runtime_pool()
-
-        if self._executor is not None and self._current_chat_id is not None:
-            try:
-                from myrm_agent_harness.runtime.context.offload import (
-                    cleanup_session_context_files,
-                )
-
-                await cleanup_session_context_files(self._current_chat_id, self._executor)
-            except Exception as e:
-                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
-
-    async def close(self) -> None:
-        """Close Agent and release resources."""
-        await self._release_runtime_pool()
-
-        if self._browser_session is not None:
-            try:
-                await self._browser_session.close()
-                self._capture_session_recording_info()
-            except Exception as e:
-                logger.warning(f"⚠️ BrowserSession close failed: {e}")
-            finally:
-                self._browser_session = None
-
-        if self._executor is not None:
-            try:
-                if self._current_chat_id is not None:
-                    from myrm_agent_harness.runtime.context.offload import (
-                        cleanup_session_context_files,
-                    )
-
-                    await cleanup_session_context_files(self._current_chat_id, self._executor)
-                await self._executor.close()
-            except Exception as e:
-                logger.warning(f"⚠️ Executor cleanup failed for chat_id={self._current_chat_id}: {e}")
-            finally:
-                self._executor = None
-
-        if self.agent is not None:
-            try:
-                await self.agent.close()
-                logger.info("Agent 资源已完全释放")
-            except Exception as e:
-                logger.warning(f"⚠️ 关闭 Agent 时发生错误: {e}")
-            finally:
-                self.agent = None
-
-    def _capture_session_recording_info(self) -> None:
-        """Store session recording metadata for SSE delivery after close."""
-        try:
-            session = self._browser_session
-            if session is None:
-                return
-            obs = getattr(session, "_observability", None)
-            if obs is None or not obs.recording_enabled:
-                return
-            video_path = obs.video_path
-            if video_path is None or not Path(video_path).exists():
-                return
-
-            from app.config.settings import get_settings
-
-            harness_dir = get_settings().database.harness_dir
-            relative_path = str(video_path)
-            if relative_path.startswith(harness_dir):
-                relative_path = relative_path[len(harness_dir) :]
-                if relative_path.startswith("/"):
-                    relative_path = relative_path[1:]
-
-            self._session_recording_info: dict[str, str] = {
-                "filename": Path(video_path).name,
-                "preview_url": f"/api/v1/files/vault/render?filepath={relative_path}&workspace={harness_dir}",
-                "content_type": "video/webm",
-            }
-            logger.info("Session recording captured: %s", video_path)
-        except Exception as e:
-            logger.debug("Session recording capture skipped: %s", e)

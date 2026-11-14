@@ -354,7 +354,7 @@ payload["raw_exchange"] = externalize_payload(raw_exchange, threshold=4096)  # -
 
 **Compression（内联压缩）：**
 
-对于低于 4KB 的中等文本，直接在 Qdrant payload 中进行内联 Gzip 压缩并 Base64 编码，减少 30-70% 存储空间。
+对于低于 4KB 的中等文本，直接在 Qdrant payload 中进行内联 Gzip 压缩并 Base64 编码，缩小 payload 体积。
 
 **Multi-language tokenization：**
 
@@ -617,7 +617,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 | Protocol                  | 核心方法                                                                                                 | 框架内置实现                                           | 可选企业级实现    |
 | ------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------- |
 | `VectorStoreProtocol`     | `upsert`, `search`, `scroll`, `delete`                                                                   | `QdrantVectorStore`                                    | -                 |
-| `RelationalStoreProtocol` | `get_profile`, `set_profile`, `create_rule`, `submit_pending`, `search_fts5`, `check_integrity` 等 28 个方法                               | `SQLiteRelationalStore` (aiosqlite)                    | SQLAlchemy 适配器 |
+| `RelationalStoreProtocol` | `get_profile`, `set_profile`, `create_rule`, `submit_pending`, `search_fts5`, `check_integrity` 等方法                                     | `SQLiteRelationalStore` (aiosqlite)                    | SQLAlchemy 适配器 |
 | `GraphStoreProtocol`      | `create_node`, `create_relationship`(幂等), `get_causal_chain`, `delete_subgraph`, `delete_all_by_owner` | `SQLiteGraphStore` (aiosqlite + CTE + UNIQUE 关系去重) | SQLite CTE        |
 | `EmbeddingProtocol`       | `embed`, `embed_batch`, `dimension`                                                                      | `EmbeddingService`                                     | -                 |
 | `EmbeddingCacheProtocol`  | `get`, `put`, `get_batch`, `put_batch`, `evict`, `evict_batch`                                           | `EmbeddingCache` (L1+L2)                               | -                 |
@@ -653,7 +653,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 - **数据模型与契约解耦**（`strategies/sparse_types.py`）：强类型定义 `SemanticSlot`、`SparseMaskItem`、`SparseMutationResult` 与动作枚举，杜绝臃肿混杂，守护单文件 <400 行架构红线。
 - **槽位解析状态机**（`strategies/sparse_parser.py`）：单趟正则扫描 YAML/配置风格键值对、Markdown Bullet 列表与分号规约子句，自动抽取语义槽位与结构缩进。
 - **两阶段全局最佳匹配掩码**（`strategies/sparse_mutation.py`）：通过精确 Key 比对、显式否定墓碑与主题标识符锚定（杜绝不同前缀技术名词碰撞假阳性），并利用全局相似度矩阵建立无截胡最优配对，对每个槽位生成四维动作：`RETAIN`（知情保留）、`OVERWRITE`（最小局部覆盖）、`APPEND`（增量补充）、`REMOVE`（墓碑剔除）。
-- **原地拓扑装配**（`MinimalOverwritePipeline`）：按源行索引进行结构聚合装配，区分键值对与自然语言列表/子句的原地文本重构，原生支持单行内多子句局部覆写与否定墓碑消除，原地覆盖变动槽位并知情保留所有未受波及槽位。严格维持文本行首缩进、列表前缀及分号拓扑稳定性，使 LLM KV Cache（Prompt Cache）命中率达 100%，杜绝粗暴拼贴导致的条目内自相矛盾。零 LLM 开销，纯原生 Python + Pydantic，单次耗时 <0.06ms（58µs）。
+- **原地拓扑装配**（`MinimalOverwritePipeline`）：按源行索引进行结构聚合装配，区分键值对与自然语言列表/子句的原地文本重构，原生支持单行内多子句局部覆写与否定墓碑消除，原地覆盖变动槽位并知情保留所有未受波及槽位。严格维持文本行首缩进、列表前缀及分号拓扑稳定性，使 LLM KV Cache（Prompt Cache）前缀保持稳定，杜绝粗暴拼贴导致的条目内自相矛盾。零 LLM 开销，纯原生 Python + Pydantic，单次耗时 <0.06ms（58µs）。
 
 **四种决策**：
 
@@ -790,15 +790,15 @@ result = await extractor.extract(messages=messages)
 1. **模型判断**：会话结束的 LLM 抽取（`strategies/extractor/`，受 No-Op Default 门控）与 Agent 调用 `memory_save_tool`；
 2. **人的明确选择**：用户手动创建并锁定的规则。审批决定不会自动写成规则或记忆：`reject` 不携带修正值，客户端与系统填入的反馈只是固定模板，由它生成的规则是无上下文的永久模板；`edit` 的改写通过 `APPROVAL_CORRECTION` 钩子事件交给用户自定义钩子，框架不内置学习器。需要长期放行或拒绝，走审批的 `allowAlways` / `allowDomain` / `grantDirectory` 选项与安全策略的 `command_denylist`。
 
-> 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：所有规则（含 Agent 自存的指令）统一进入 stable 层的同一个 `Behavioral Rules` 段（`priority=3`），不再按来源或否定词分段。
+> 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：所有规则（含 Agent 自存的指令）统一进入 stable 层的同一个 `Behavioral Rules` 段（`priority=3`）；段内不按来源或措辞分组，措辞只在预算裁剪时决定哪些规则被钉住（见下）。
 
-> 规则的先后就是它们的优先级：段内先排用户锁定的规则（`is_user_locked`），其后新的在前。存储层按 `created_at DESC, id DESC` 读出规则，`_internal/storage_context.py` 用稳定排序把锁定的提到前面；块的 Scope Boundary 在块里有规则时补一句「规则冲突时遵循排在前面的一条」，所以用户改过的偏好排在它替换的旧规则之上。审批队列保留提案的创建时间：`create_rule` 沿用规则携带的 `created_at` 并统一转成 UTC 存储（SQLite 按文本排序，混用时区会错序），`/memory approve all` 之后规则的先后仍是提案的先后。动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为这类普通规则被当成禁令会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算）在预算裁剪时被**钉住**（`BudgetedSection.pinned`）：渲染器先给钉住的条目预留预算，其余规则按顺序放入，放不下时丢的是排在最后的未钉住规则，所以规则很多时禁止类规则最后才被丢；段落整体仍受优先级约束，可被更高优先级的段落挤掉。禁止类规则与其它规则同样以 `When: … → Do: …` 渲染，没有单独的段落或前缀。该约束只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
+> 规则的先后就是它们的优先级：段内先排用户锁定的规则（`is_user_locked`），其后新的在前。存储层按 `created_at DESC, id DESC` 读出规则，`_internal/storage_context.py` 用稳定排序把锁定的提到前面；块的 Scope Boundary 在块里有规则时补一句「规则冲突时遵循排在前面的一条」，所以用户改过的偏好排在它替换的旧规则之上。审批队列保留提案的创建时间：`create_rule` 沿用规则携带的 `created_at` 并统一转成 UTC 存储（SQLite 按文本排序，混用时区会错序），`/memory approve all` 之后规则的先后仍是提案的先后；同文的重复提案不另排一条，而是把待审的那条提到队列最前、带上重复提案的日期，所以偏好先改成 B、再改回 A、批准都留到最后时，A 仍排在 B 之上。动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为这类普通规则被当成禁令会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算）在预算裁剪时被**钉住**（`BudgetedSection.pinned`）：渲染器先给钉住的条目预留预算，其余规则按顺序放入，放不下时丢的是排在最后的未钉住规则，所以规则很多时禁止类规则最后才被丢；段落整体仍受优先级约束，可被更高优先级的段落挤掉。禁止类规则与其它规则同样以 `When: … → Do: …` 渲染，没有单独的段落或前缀。该约束只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
 
-> 规则没有整数优先级：存储字段、写入入口（`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的 `rule_priority`）和 Markdown 导出行都已删除，先后只由锁定与创建时间决定。已有数据库在首次打开时删掉 `procedural_rules.priority` 列（`relational/_schema.py`，只进不退：仍读写该列的旧版本打不开这个库）；旧导出文件里的 `priority` 字段在导入时被忽略。
+> 规则没有整数优先级：规则表、`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的参数、Markdown 导出行都不含这个字段，先后只由锁定与创建时间决定。库里还留有 `procedural_rules.priority` 列时，打开库会把它删掉（`relational/_schema.py`，只进不退：仍读写该列的旧版本能打开这个库，但读取、新建、修改规则都报缺少 `priority` 列）；导入时忽略导出文件里的 `priority` 字段。
 
 | 级别 | 来源 | 生命周期 |
 |------|------|---------|
-| CRITICAL | 用户显式确立 | 免 TTL 归档；预算存活仍取决于 `is_user_locked` |
+| CRITICAL | 用户显式确立 | 免 TTL 归档；参与 retention 评分时重要度不低于 0.95；不决定提示词里的去留（见上） |
 | HIGH | 抽取器判定重要；Agent 自写规则的上限 | 与 NORMAL 同等，仅参与 retention 评分 |
 | NORMAL | 自动推断 | 可被遗忘策略回收 |
 
@@ -907,7 +907,7 @@ tools = create_memory_tools(manager=manager)
 
 | 方法                                                                              | 功能                                                                              |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：同一 manager 内相同提案并行提交也只入队一次，画像提案同理；同库的其他 manager 各持自己的锁），并声明批准后应执行的落库语义与待审目标展示内容 |
+| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重：审批队列自身拒绝与待审提案同类型同内容的第二条提案，并行提交与同库的多个 manager 均如此，画像提案同理；重复时返回空串，并把待审的那条提到队列最前，载荷带创建时间的提案还改用重复提案的创建时间），并声明批准后应执行的落库语义与待审目标展示内容 |
 | `approve(pending_id, *, edited_content=None)`                                     | 按 `resolution_action` 分派：`STORE` 持久化新记忆 / `CORRECT` 纠正目标记忆 / `DELETE` 归档目标记忆；`edited_content` 为审批者改写后的文本 |
 | `reject(pending_id)`                                                              | 拒绝；记录不存在抛 `MemoryNotFoundError`，已处理（非 `pending`）的记录重复拒绝/批准是空操作，不会重复落库或改写已批准状态 |
 | `get_pending(pending_id)`                                                         | 按 id 读取单条待审批记录（含已处理状态），不存在返回 `None`；供业务层在批准/拒绝前取得审计所需元数据 |
@@ -1077,9 +1077,9 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 为了解决长周期会话的“失忆”和“上下文爆炸”问题，系统实现了基于 SQLite FTS5 的混合检索架构：
 
-- **零冗余存储**：使用 `External Content` 模式，只建倒排索引不复制原始对话文本，节省 50% 磁盘。
+- **零冗余存储**：使用 `External Content` 模式，只建倒排索引不复制原始对话文本，不产生第二份对话正文。
 - **自动同步**：在 SQLite 层面建立 `INSERT/UPDATE/DELETE` 触发器，彻底杜绝应用层代码漏写导致的索引不一致。
-- **多语言支持**：强制启用 `trigram` 分词器，确保中英文混合搜索的 100% 召回率。
+- **多语言支持**：强制启用 `trigram` 分词器，中英文混合文本按三字符片段建索引，无需分词词典。
 - **混合检索**：底层并行触发 FTS5（精准关键词匹配）和 Vector（语义匹配），并使用 RRF（倒数排序融合）算法进行数学重排。
 - **语法清洗**：提供严格的 FTS5 查询语法清洗（Sanitization），支持带点号和连字符的代码文件名防切词，拦截崩溃注入。
 
@@ -1111,7 +1111,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 - **核心位置**：`myrm_agent_harness.toolkits.memory.consolidation`；
 - **宿主供给快照**：`TaskSessionSnapshot` 是框架中立的输入契约，由宿主按自己的任务模型构造；框架不内置运行时工作台，也不强制任何计划工具；
-- **异步蒸馏**：具备轻量门禁（快照没有目标，或交互 <= 1 轮且既无子任务也无陷阱记录时跳过），从宿主快照（目标、子任务、陷阱、草稿）中产出 `TaskDigestMemory`，并以 `event_type=task_digest` 的情节记忆（`EpisodicMemory`，重要度 0.8，带来源对话）经 `MemoryManager.store` 落盘；
+- **异步蒸馏**：具备轻量门禁（快照没有目标，或交互 <= 1 轮且既无子任务也无陷阱记录时跳过），从宿主快照（目标、子任务、陷阱、草稿）中产出 `TaskDigestMemory`，任务终态记在 `outcome`（`completed` / `interrupted` / `failed`，快照里的其它状态按 `completed` 记），并作为一条普通情节记忆（`EpisodicMemory`：`event_type` 取默认的 `conversation`，重要度 0.8，带来源对话，目标与步骤等写在元数据里，终态写在内容行的 `Status:` 里）经 `MemoryManager.store` 落盘；它不带 `MemoryLifecycle`，不进入 Digest 蒸发与 Claim 编译（这两条流水线只读提取器写出的 `event_type='task_digest'` 摘要）；
 - **程序性规程**：仅在会话状态为 `completed` 时，提炼当前会话验证自愈成功的规程（`trap.resolved is True` 且 `occurred_turn != 0`）；开局注入的历史先验规则（`occurred_turn == 0`）与未解决推测都跳过，避免规程库克隆膨胀。
 
 ---
@@ -1137,7 +1137,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - `BaseMemory` 包含强类型标识 `is_exact_fact: bool` 与 `exact_identifiers: list[str]`，并自动计入 `is_user_protected` 豁免保护，完全免疫遗忘衰减与蒸馏淘汰（agent 的删除、改写、纠正只被显式 pin / lock 拦截，精确事实标记不拦截）；标识符在安全扫描与瞬时事实闸门之后、按最终入库正文盖章，两个字段只随语义记忆落盘并登记索引，情景与程序性记忆的盖章只存在于写入过程中；
   - 检索重排中当查询完整写出记忆所含的某个精确标识符（查询里的整词、从查询提取出的标识符、或其中端点的端口）时，赋予确定性硬置顶加权（`+5.0` 增益），确保精确事实绝对置顶于模糊语义召回；包含不等于点名：存下的端口 `22` 不会被查询里的 `2022` 触发，`10.0.0.5` 不会被 `10.0.0.55` 触发，`v1.2.3` 与 `1.2.3` 视为同一版本。
 - **全链路展示与交互认知一致性**：
-  - Server 端接口契约：`MemoryItem` 返回 `is_exact_fact` 与 `exact_identifiers`；创建时由分类器按正文盖章，更新请求的 `is_exact_fact` 可由用户显式开关（语义记忆）；
+  - Server 端接口契约：`MemoryItem` 返回 `is_exact_fact` 与 `exact_identifiers`；创建与改写正文时由分类器按最终正文盖章（改写后的新正文带标识符即成为精确事实），更新请求的 `is_exact_fact` 可由用户显式开关（语义记忆）；
   - 前端 `MemoryCard.tsx` 与 `EvidenceDrawer.tsx` 支持视觉识别蓝底硬锁徽章，呈现提取到的确切事实符号。
 - **决策反转治理（撤回的决策不再被重复回答）**：
   - 核心位置：`strategies/merger.py`（`DeterministicThreeStateMerger`）与 `strategies/deduplicator.py`；
@@ -1146,7 +1146,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **争议冻结**：`conflict_status=conflicted` 写回已存记录，使遗忘通道在人工裁决前保留双方；
   - **撤回退役**：确认由替换产生时标记 `superseded`，排序召回路径不再返回该记录；存储、衰减与治理列表不受影响，记录仍可审计、仍会衰减。
 - **自愈式装配与单机开箱即用**：
-  - `MemoryManager` 核心构造层在未显式传递 `fts5_searcher` 时自动挂载 `relational_store.search_fts5` 通道，`create_local_memory_manager` 启动工厂同样显式接入该通道，保障单机本地、Tauri 桌面端与云端沙箱三种部署形态下精确事实双轨召回通道 100% 畅通。
+  - `MemoryManager` 核心构造层在未显式传递 `fts5_searcher` 时自动挂载 `relational_store.search_fts5` 通道，`create_local_memory_manager` 启动工厂同样显式接入该通道，保障单机本地、Tauri 桌面端与云端沙箱三种部署形态下精确事实双轨召回通道都已接入。
 
 ---
 
@@ -1164,7 +1164,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **环境指纹物理隔离（`filter_guidance_items`）**：当前运行时与规则所属环境指纹一致时才加载，防止跨操作系统/环境误导；
   - **单工具黄金 3 条初筛与全局 9 条总量熔断（`MAX_TOTAL_TOOL_GUIDELINES = 9`）**：严格限制单个工具至多提供 3 条候选指南，且当挂载多工具时全局总条目数硬熔断至 9 条，先按人工置顶优先 + 置信度降序收敛，防止长程多工具场景下 Prompt 膨胀与注意力稀释；
   - **单条规约 160 字符严格防御截断（`MAX_CHARS_PER_GUIDELINE = 160`）**：规约文本超出阈值自动执行边界截断，防止未清洗的异常长日志侵占 Token 预算；
-  - **Cache-Stable 确定性字母序排列**：最终输出集合按工具名称与规约文本严格按字母序升序输出，保证字面量 100% 确定，完全保护 LLM 服务端 KV Cache 命中率。
+  - **Cache-Stable 确定性字母序排列**：最终输出集合按工具名称与规约文本严格按字母序升序输出，保证字面量确定，保持 LLM 服务端 KV Cache 前缀稳定。
 - **中间件运行时 JIT 注入**：
   - 核心位置：`myrm_agent_harness.agent.middlewares.memory_context`；
   - `_internal/storage_context.py` 加载规则并筛选出工具规约条目；
@@ -1182,7 +1182,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 - **目录拓扑与文件即记忆规范（`FileMemoryTopology`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.models`；
-  - `MEMORY.md`：存放全局核心偏好、编码规范与身份画像；在会话中作为高稳定性系统级上下文注入，实现近 100% 的服务端 KV Cache 命中率；
+  - `MEMORY.md`：存放全局核心偏好、编码规范与身份画像；在会话中作为高稳定性系统级上下文注入，保持服务端 KV Cache 前缀稳定；
   - `memory/daily/YYYY-MM-DD.md`：存放日常任务情景事件与执行笔记，按日期分片存储，便于人类使用任意纯文本编辑器直接查看与修改；
   - `memory/archive/`：长期归档与历史记忆冷备。
 - **宽容 Markdown 容错流式解析器（`LenientMarkdownParser`）**：

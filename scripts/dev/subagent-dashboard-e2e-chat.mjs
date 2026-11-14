@@ -2,7 +2,7 @@
 /**
  * [POS] P2c Subagent Dashboard E2E — light chat scope (no subagent spawn).
  * [OUTPUT] stdout JSON: { chatId, uiUrl, apiBase }
- * Used by pure UI-injection dashboard tests (sort/stop-all/teammate/stream/
+ * Used by pure UI-injection dashboard tests (sort/stop-all/stream/
  * overtime/stale/expand/header) that seed the store bridge directly and do
  * not need a real LLM delegation.
  */

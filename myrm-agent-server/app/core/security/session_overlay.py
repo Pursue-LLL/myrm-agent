@@ -6,17 +6,19 @@
 
 [OUTPUT]
 - PRESET_OVERLAYS / apply_session_preset: chat-session security preset overlays (accept_edits, explore)
+- YoloGrant: a session YOLO grant (the moment it was turned on, how long it lasts)
 - SecurityOverlaySpec: the overlay inputs of one request; ``apply`` layers them over a persisted securityConfig
 
 [POS]
 The persisted securityConfig is reloaded before every stream turn so a Settings change takes effect mid-session.
-The overlays that belong to the request (session preset, remote-exposed admission, /learn authoring) are kept as
-data on the agent and re-applied on top of every reload, so a saved config can never loosen them.
+The overlays that belong to the request (session preset, session YOLO grant and approval window, remote-exposed
+admission, /learn authoring) are kept as data on the agent and re-applied on top of every reload, so a saved config
+can never loosen or drop them. A value written into the config dict itself would not survive the reload.
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 PRESET_OVERLAYS: dict[str, dict[str, object]] = {
     "accept_edits": {
@@ -90,6 +92,15 @@ def apply_session_preset(
     return merged
 
 
+class YoloGrant(BaseModel):
+    """A session YOLO grant: the moment it was turned on and how long it lasts (``None``: until turned off)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled_at: float
+    timeout_seconds: int | None = Field(default=None, gt=0)
+
+
 class SecurityOverlaySpec(BaseModel):
     """The security overlays of one request, as plain data that survives serialization."""
 
@@ -99,13 +110,18 @@ class SecurityOverlaySpec(BaseModel):
     trust_zone: str | None = None
     admission_path: str | None = None
     learn_authoring: bool = False
+    yolo: YoloGrant | None = None
+    approval_window_seconds: int | None = Field(default=None, gt=0)
 
     def apply(self, base: dict[str, object] | None) -> dict[str, object] | None:
-        """Layer the request overlays over *base*: preset, remote admission, /learn authoring."""
+        """Layer the request overlays over *base*: preset, session grants, remote admission, /learn authoring.
+
+        Remote admission comes after the grants so a remote-exposed request never keeps a session YOLO.
+        """
         from app.core.channel_bridge.learn_handler import elevate_skill_manage_permission
         from app.remote_access.tool_policy import merge_remote_security_overlay
 
-        config = apply_session_preset(base, self.preset)
+        config = self._with_grants(apply_session_preset(base, self.preset))
         config = merge_remote_security_overlay(
             config,
             trust_zone=self.trust_zone,
@@ -115,5 +131,18 @@ class SecurityOverlaySpec(BaseModel):
             config = elevate_skill_manage_permission(config)
         return config
 
+    def _with_grants(self, config: dict[str, object] | None) -> dict[str, object] | None:
+        """*config* plus this request's approval window and YOLO grant; the grant replaces any stored YOLO timer."""
+        if self.yolo is None and self.approval_window_seconds is None:
+            return config
+        granted = dict(config) if config else {}
+        if self.approval_window_seconds is not None:
+            granted["approvalTimeoutSeconds"] = self.approval_window_seconds
+        if self.yolo is not None:
+            granted["yolo_mode_enabled"] = True
+            granted["yolo_mode_enabled_at"] = self.yolo.enabled_at
+            granted["yolo_mode_timeout"] = self.yolo.timeout_seconds
+        return granted
 
-__all__ = ["PRESET_OVERLAYS", "SecurityOverlaySpec", "apply_session_preset"]
+
+__all__ = ["PRESET_OVERLAYS", "SecurityOverlaySpec", "YoloGrant", "apply_session_preset"]

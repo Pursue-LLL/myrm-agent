@@ -27,6 +27,7 @@ scope first; a refused path is read through the service, which words the refusal
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -55,9 +56,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# The outline is read from the whole file, so it reads past the display line cap.
+# The outline is bounded by ``_OUTLINE_MAX_SYMBOLS``, not by the page cap that bounds what a read shows the model, so
+# it is built from the file as the service renders it. Only the scan itself is capped, and the outline says where.
 _STRUCTURE_READ_MAX_LINES = 5000
 _OUTLINE_MAX_SYMBOLS = 100
+# The first line past the scan that has text. Blank lines hold no symbol: a file that only trails off in them was
+# scanned whole.
+_UNSCANNED_TEXT_LINE = re.compile(r"^[ \t]*(\d+)\|[ \t]*\S", re.MULTILINE)
 
 # Characters ``stream`` reads per page token before it measures the page: enough that even sparse text (blanks,
 # one-character tokens) fills a page, and far below the size of the files ``stream`` exists for.
@@ -97,6 +102,23 @@ def _context_window_tokens(config: RunnableConfig) -> int | None:
     return AgentContext.from_dict(extract_context_from_runnable_config(config)).max_context_tokens
 
 
+async def _view_text(
+    path_str: str,
+    executor: CodeExecutor | None,
+    skills: list[SkillMetadata] | None,
+    reason: str | None,
+) -> str:
+    """What the file service renders for one path: the line-numbered text, before any page cap."""
+    op_context = OperationContext(
+        operation=OperationType.VIEW,
+        executor=executor,
+        skills=skills or [],
+        paths=[path_str],
+        reason=reason,
+    )
+    return await FileOperationService(op_context).execute()
+
+
 async def _read_via_service(
     path_str: str,
     executor: CodeExecutor | None,
@@ -107,15 +129,7 @@ async def _read_via_service(
     config: RunnableConfig,
     max_lines: int | None = None,
 ) -> str:
-    op_context = OperationContext(
-        operation=OperationType.VIEW,
-        executor=executor,
-        skills=skills or [],
-        paths=[path_str],
-        reason=reason,
-    )
-    service = FileOperationService(op_context)
-    raw_out = await service.execute()
+    raw_out = await _view_text(path_str, executor, skills, reason)
     if max_lines is None:
         max_lines = DEFAULT_FILE_IO_CONFIG.max_read_lines
     # The hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
@@ -136,7 +150,7 @@ async def _read_via_service(
     return truncated_text
 
 
-async def _read_stream_page(path: Path, display_path: str, chunk_size_mb: int, *, config: RunnableConfig) -> str:
+async def _read_stream_page(path: Path, display_path: str, *, config: RunnableConfig) -> str:
     """The first page of a file read in ``stream`` mode, and how to read on from it.
 
     A file past the plain read limit cannot go to the model whole: it overflows any window and freezes the agent
@@ -145,7 +159,7 @@ async def _read_stream_page(path: Path, display_path: str, chunk_size_mb: int, *
     """
     page_tokens = page_token_budget(_context_window_tokens(config))
     read_cap = page_tokens * _STREAM_READ_CHARS_PER_PAGE_TOKEN
-    sample = await read_file_chunked(path, chunk_size_mb=chunk_size_mb, max_chars=read_cap)
+    sample = await read_file_chunked(path, max_chars=read_cap)
     page_chars = parked_page_chars(sample, page_tokens)
     continues = len(sample) > read_cap or page_chars < len(sample)
     page = sample[:page_chars]
@@ -204,16 +218,30 @@ async def read_structure_outline(
     executor: CodeExecutor | None,
     skills: list[SkillMetadata] | None,
     reason: str | None,
-    *,
-    config: RunnableConfig,
 ) -> str:
-    """The symbol or heading outline of one text path, with line ranges."""
+    """The symbol or heading outline of one text path, with line ranges.
+
+    Built from the file as the service renders it, not from the page a read would show: the page cap would end the
+    outline a few hundred lines in without a word. Past ``_STRUCTURE_READ_MAX_LINES`` the scan stops, and the outline
+    names the line it stopped at and how to read on.
+    """
     base_path_str = path_base(path_str)
-    raw_out = await _read_via_service(
-        path_str, executor, skills, reason, config=config, max_lines=_STRUCTURE_READ_MAX_LINES
+    # ``maxsplit`` leaves everything past the scanned lines in one last piece: no per-line work on a long tail.
+    lines = (await _view_text(path_str, executor, skills, reason)).split("\n", _STRUCTURE_READ_MAX_LINES)
+    outline = extract_file_outline(
+        "\n".join(lines[:_STRUCTURE_READ_MAX_LINES]), base_path_str, max_symbols=_OUTLINE_MAX_SYMBOLS
     )
-    outline = extract_file_outline(raw_out, base_path_str, max_symbols=_OUTLINE_MAX_SYMBOLS)
-    return outline or f"[DOCUMENT STRUCTURE OUTLINE: {base_path_str}]:\n  (No structural symbols detected)"
+    if not outline:
+        outline = f"[DOCUMENT STRUCTURE OUTLINE: {base_path_str}]:\n  (No structural symbols detected)"
+    tail = lines[_STRUCTURE_READ_MAX_LINES:]
+    unscanned = _UNSCANNED_TEXT_LINE.search(tail[0]) if tail else None
+    if unscanned is None:
+        return outline
+    next_line = int(unscanned.group(1))
+    return (
+        f"{outline}\n  (The outline stops at line {next_line - 1}; the file continues. "
+        f"Read on with '{base_path_str}:{next_line}-'.)"
+    )
 
 
 async def process_text_paths(
@@ -222,7 +250,6 @@ async def process_text_paths(
     skills: list[SkillMetadata] | None,
     reason: str | None,
     mode: str,
-    chunk_size_mb: int,
     *,
     config: RunnableConfig,
     parse_mode: str | None = None,
@@ -235,7 +262,7 @@ async def process_text_paths(
         base_path_str = path_base(path_str)
 
         if parse_mode == "structure":
-            text_content_parts.append(await read_structure_outline(path_str, executor, skills, reason, config=config))
+            text_content_parts.append(await read_structure_outline(path_str, executor, skills, reason))
             continue
 
         if ":" in path_str or not executor:
@@ -296,7 +323,7 @@ async def process_text_paths(
                 guard = get_file_integrity_guard(executor)
                 if guard is not None:
                     guard.record_read_marker(str(workspace_path))
-                content = await _read_stream_page(workspace_path, base_path_str, chunk_size_mb, config=config)
+                content = await _read_stream_page(workspace_path, base_path_str, config=config)
                 text_content_parts.append(f"=== {base_path_str} ===\n{content}")
             else:
                 text_content_parts.append(

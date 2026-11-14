@@ -172,7 +172,7 @@
 
 - **扩展包**：`myrm-agent-extension/`（Chrome/Edge MV3）— WebSocket 客户端 + `chrome.debugger` CDP 代理，使用用户真实浏览器会话。
 - **Server API**：`app/api/extension/` — `ws://…/api/v1/ws/extension` 持久连接（`chrome-extension://` origin 守卫；remote 模式强制 token）；REST `/api/v1/extension/status|domains|tabs|disconnect|setup-hints`。
-- **服务层**：`app/services/extension/bridge/` — 连接生命周期、`hello.capabilities` 合同门禁（`navigate_url|list_tabs|attach_debugger|detach_debugger|agent_tab_control`）、`ExtensionStatus.handshake_ready` 握手可见性、extension 模式 CDP relay fail-closed（无 local direct CDP fallback）、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
+- **服务层**：`app/services/extension/bridge/` — 连接生命周期、`hello.capabilities` 合同门禁（`navigate_url|list_tabs|agent_tab_control`）、`ExtensionStatus.handshake_ready` 握手可见性、extension 模式 CDP relay fail-closed（无 local direct CDP fallback）、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
 - **认证**：`settings.extension_auth_token`（SecretStr）；WS 查询参数 `token` 校验，remote 模式未配置 token 时拒绝连接。
 - **前端**：Settings → `extensionBridge`（`ExtensionBridgeSection.tsx` 含 WS URL 复制、Token/CDP 状态、握手三态与 relay 能力矩阵）；API 客户端 `src/services/extension.ts`（**`apiRequest('/extension/...')` 相对路径**，禁止 `getApiUrl()` 二次前缀）。Tab 路由 SSOT：前端 `settingsRoutes.ts`（`SETTINGS_TABS` / `SETTINGS_TAB_REDIRECTS`），`page.tsx`、`SettingsLayout.tsx`、`SettingsMenu` 均由它派生；`locales/*` 的 `metadata.settingsTabs` / `settings.menu` 由 `verify-i18n` 对账，服务端写死的 `/settings/<tab>` 深链由 `tests/architecture/test_settings_deep_links.py` 守门。
 
@@ -235,7 +235,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 - **跨进程互斥**：使用 `fcntl.flock` 实现内核级文件锁，确保多个 Server 实例或 Cron 进程在访问同一技能文件、SQLite WAL 日志时，具备微秒级的互斥性能且零基础设施开销。
 ### 0.3 LLM 前缀缓存优化 (LLM Prefix Caching Optimization)
 
-为了极致降低持续进化的 LLM 调用成本（减少 90%+ 成本及延迟）：
+为了降低持续进化的 LLM 调用成本：
 
 - **稳定前缀架构**：遵循「指令首发、数据居中、采样垫后」的 Prompt 构建原则，确保 Agent 优化指令等高频、大体积文本在 LLM 侧被高效识别为 **Prompt Cache Prefix**。
 - **Context Health 聚合**：`app/api/statistics/context_health/` 将 Chat 压缩元数据、Message usage 与 Harness task metrics 聚合为 Session Analytics 的 context health，包含 cache-TTL 剪枝、归档写入/复用、恢复 requested/allowed/blocked outcome、blocked ratio、恢复范围提示、自适应剪枝退让和 provider-aware cache retention。
@@ -269,7 +269,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 
 - **Harness 层的协议与算力下沉**：不使用粗糙的“Token计数”来评估认知负载。原生内嵌了 `ActionSpaceProfiler`（`agent/tool_management/action_space.py`），`calculate_score` 动态解析所有传入 Agent 的工具 JSON Schema（参数数、嵌套层级），计算出动作空间复杂度分数（Action Space Complexity Score，ASCS），作为评估该 Agent 是否容易出现幻觉的标准基准。
 - **Harness 层的前缀缓存硬核保护**：动态外部工具（特别是不可控的 MCP 工具库）绝不能污染高频前缀。通过 `tool_layers.py` 严格的层级分发，所有 MCP 和 server vendor 集成被分配到 `ToolLayer.EXTERNAL`（Tools 数组尾部）。CORE 层 file/bash 工具与 frozen System Prompt 构成稳定前缀（API 序列化顺序：`Tools → System → Messages`），使 Prefix Cache 在 EXTERNAL 工具增减时仍命中 harness 段。
-- **Tool loading dual-track**：General（Web 非 fast、Channel/IM）CORE file/bash 始终加载；Search/Fast 仅 Web `action_mode=fast` 无 file/bash。详见 `app/services/agent/_ARCH.md` 与 harness `tool_management/_ARCH.md`。
+- **Tool loading dual-track**：General（Web 非 fast、Channel/IM）CORE file/bash 始终加载；Search/Fast 仅 Web `action_mode=fast`，无 bash 与文件写入类工具，只留只读 `file_read_tool`。详见 `app/services/agent/_ARCH.md` 与 harness `tool_management/_ARCH.md`。
 - **Server 工具可见性**：运行时由 harness `attenuator`（执行层）与 `SkillAttenuationMiddleware`（`tool_choice.allowed_tools` 模型层）约束；Server `app/tasks/` 不含闲置工具驱逐后台任务。
 
 ### 0.7 Public Ingress Orchestration (公网入站流量编排)

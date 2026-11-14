@@ -5,18 +5,15 @@ Provides gzip compression support to reduce disk usage and I/O time.
 Compression Strategy:
     - Only compress files > 10KB (small files have low compression benefit)
     - Adaptive compression levels based on file size:
-      * <100KB: level 1 (fast, 0.3-12x faster than level 6)
+      * <100KB: level 1 (fast; small payloads gain little from a higher level)
       * ≥100KB: level 6 (balanced speed/ratio)
     - Async compression for files >100KB (background thread pool)
     - Thread pool automatic cleanup via atexit (no resource leaks)
-    - Typical compression ratios: HTML 18-51x, JSON 14-22x, code 35-67x
+    - HTML, JSON and source code are repetitive text, so gzip shrinks them substantially;
+      the ratio depends on the content
 
-Performance Characteristics (实测数据，Python 3.13 / macOS):
-    - Level 1 speed: 0.022-0.630ms for 30-200KB files
-    - Level 6 speed: 0.111-1.081ms for 30-200KB files
-    - Speedup: Level 1 is 0.3-12x faster than level 6 (varies by content type)
-    - Compression ratio: Level 6 is 3-63% better than level 1
-    - Storage savings: 70-99% depending on content repetition
+Performance Characteristics:
+    - Level 1 trades some compression ratio for speed; the gap varies with content type
     - Async compression: non-blocking for files >100KB
 
 Usage:
@@ -198,12 +195,12 @@ def get_compressed_size(content: str | bytes, level: int = DEFAULT_COMPRESSION_L
 def get_adaptive_compression_level(content_size: int) -> int:
     """Get adaptive compression level based on content size.
 
-    Strategy (based on benchmarks with realistic HTML/JSON/code):
-        - <100KB: level 1 (0.3-12x faster, 3-63% worse compression)
+    Strategy:
+        - <100KB: level 1 (fast; small payloads gain little from a higher level)
         - ≥100KB: level 6 (balanced speed/ratio)
 
-    Level 9 is not used because benchmarks show it provides minimal
-    compression improvement (0-6.7%) at significant time cost (11-264% slower).
+    Level 9 is not used because it adds little compression over level 6 at a
+    large time cost.
 
     Args:
         content_size: Content size in bytes

@@ -106,7 +106,6 @@ class StreamContext:
     round_budget: int = DEFAULT_ROUND_BUDGET
     event_logger: EventLogger | None = None
     drain_subagent_notifications: Callable[[], str | None] | None = None
-    drain_teammate_messages: Callable[[], str | None] | None = None
     llm_info: dict[str, str | None] | None = None
     goal_provider: GoalProvider | None = None
     on_goal_terminal: Callable[[Goal, list[BaseMessage], GoalExecutionSummary], Awaitable[None]] | None = None
@@ -153,7 +152,7 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
         self.streaming_final_answer = False
         self._partial_text_buffer = ""
         self._latest_reply: AIMessage | None = None
-        self._redirect_partial_preserved = False
+        self._redirect_partial: AIMessage | None = None
         self._tool_truncation_retries = 0
         self._compactor = StreamCompactor(ctx.output_queue)
         self._reasoning_scrubber = ReasoningScrubber()
@@ -240,6 +239,7 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                     ctx.steering_token.reset_turn()
                 self._partial_text_buffer = ""
                 self._latest_reply = None
+                self._redirect_partial = None
 
                 await self._run_preflight_pressure_gate()
 
@@ -255,7 +255,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                             break
 
                         if ctx.steering_token and ctx.steering_token.redirect_requested:
-                            partial_preserved = bool(self._partial_text_buffer)
                             logger.warning(
                                 " Redirect-in-place: breaking astream, partial preserved (%d chars buffered)",
                                 len(self._partial_text_buffer),
@@ -267,10 +266,11 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                                     (m for m in reversed(collected_messages) if isinstance(m, AIMessage) and m.content),
                                     None,
                                 )
+                                # A reply the model already finished is in the thread; only a cut one needs keeping.
                                 if not last_ai or self._partial_text_buffer not in str(last_ai.content):
-                                    collected_messages.append(AIMessage(content=self._partial_text_buffer))
+                                    self._redirect_partial = AIMessage(content=self._partial_text_buffer)
+                                    collected_messages.append(self._redirect_partial)
                                 self._partial_text_buffer = ""
-                            self._redirect_partial_preserved = partial_preserved
                             break
 
                         # astream with a list of stream modes yields (mode, data)
@@ -350,9 +350,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                 if await self._handle_subagent_notifications(collected_messages):
                     continue
 
-                if await self._handle_teammate_messages(collected_messages):
-                    continue
-
                 if await self._handle_steering(collected_messages):
                     continue
 
@@ -402,6 +399,9 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                     time_this_turn_seconds=time_this_turn_seconds,
                 ):
                     reset_loop_guard(is_resume=True, round_budget=ctx.round_budget)
+                    continue
+
+                if await self._close_steering(collected_messages):
                     continue
 
                 await self._flush_turn_memory()

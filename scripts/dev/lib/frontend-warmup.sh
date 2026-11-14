@@ -323,8 +323,8 @@ print(attach_ui_heal_post_ensure_max_sec())
   pressure="$("${PREFLIGHT_PY:-python3}" -c "
 import sys
 sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
-from dev_gate.contract import _parallel_chrome_e2e_pressure
-print(_parallel_chrome_e2e_pressure())
+from dev_gate.contract.parallel_pressure import parallel_chrome_e2e_pressure
+print(parallel_chrome_e2e_pressure())
 " 2>/dev/null || echo 0)"
   if [[ "${pressure}" =~ ^[0-9]+$ && "${pressure}" -ge 1 ]]; then
     streak_required=1

@@ -27,18 +27,11 @@ class MockExtensionBridge:
         self._should_fail = should_fail
         self._connected = True
         self.connect_called = False
-        self.connect_domain_called = False
 
     async def connect(self, *, timeout: float = 10.0) -> BrowserInstance:
         self.connect_called = True
         if self._should_fail:
             raise ExtensionBridgeNotAvailableError("Extension not connected")
-        browser = MagicMock()
-        browser.contexts = []
-        return BrowserInstance(browser=browser, engine="chromium-patchright", is_managed=False)
-
-    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> BrowserInstance:
-        self.connect_domain_called = True
         browser = MagicMock()
         browser.contexts = []
         return BrowserInstance(browser=browser, engine="chromium-patchright", is_managed=False)

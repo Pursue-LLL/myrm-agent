@@ -1,4 +1,4 @@
-"""Tests for feishu cards, callback parser, streaming merge, and API client."""
+"""Tests for feishu cards, callback parser, and API client."""
 
 from __future__ import annotations
 
@@ -12,8 +12,9 @@ from app.channels.providers.feishu.cards import (
     build_component_card as build_feishu_card,
 )
 from app.channels.providers.feishu.cards import (
-    merge_streaming_text,
+    build_result_card,
     parse_card_action,
+    wrap_text_as_card,
 )
 from app.channels.providers.feishu.sdk.client import _MAX_DOWNLOAD_BYTES
 from app.channels.types import OutboundMessage
@@ -108,6 +109,20 @@ class TestBuildFeishuCard:
         assert card["elements"][0]["tag"] == "action"
 
 
+@pytest.mark.parametrize(
+    "card",
+    [
+        wrap_text_as_card("placeholder or progress"),
+        build_result_card("answer", timestamp="now"),
+        build_feishu_card(_make_msg(quick_replies=(QuickReply(label="X", text="x"),)), "answer"),
+    ],
+    ids=["placeholder-and-progress", "result", "components"],
+)
+def test_a_card_updated_in_place_opts_in_to_update_multi(card: dict[str, object]) -> None:
+    """Feishu updates a card in place only while its config sets ``update_multi``, before and after the update."""
+    assert card["config"]["update_multi"] is True
+
+
 class TestParseCardAction:
     def test_parse_quick_reply(self) -> None:
         event = {
@@ -162,29 +177,6 @@ class TestParseCardAction:
     def test_returns_none_without_value(self) -> None:
         event = {"operator": {"open_id": "ou_x"}, "action": {"tag": "button"}}
         assert parse_card_action(event) is None
-
-
-class TestStreamingMerge:
-    def test_empty_previous(self) -> None:
-        assert merge_streaming_text("", "hello") == "hello"
-
-    def test_empty_next(self) -> None:
-        assert merge_streaming_text("hello", "") == "hello"
-
-    def test_next_starts_with_previous(self) -> None:
-        assert merge_streaming_text("这", "这是一段") == "这是一段"
-
-    def test_previous_starts_with_next(self) -> None:
-        assert merge_streaming_text("这是一段", "这是") == "这是一段"
-
-    def test_partial_overlap(self) -> None:
-        assert merge_streaming_text("revision_id: 552", "2，一点变化都没有") == ("revision_id: 552，一点变化都没有")
-
-    def test_no_overlap_fallback(self) -> None:
-        assert merge_streaming_text("abc", "xyz") == "abcxyz"
-
-    def test_identical(self) -> None:
-        assert merge_streaming_text("hello", "hello") == "hello"
 
 
 class TestFeishuClient:
@@ -388,7 +380,7 @@ class TestFeishuClient:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_edit_message_success(self) -> None:
+    async def test_update_card_success(self) -> None:
         client = FeishuClient("app_id", "app_secret")
         client._token = "tok"
         client._token_expires_at = float("inf")
@@ -399,14 +391,14 @@ class TestFeishuClient:
         resp.json.return_value = {"code": 0}
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.is_closed = False
-        mock_http.put.return_value = resp
+        mock_http.patch.return_value = resp
         client._http = mock_http
 
-        result = await client.edit_message("om_123", "text", '{"text":"edited"}')
+        result = await client.update_card("om_123", '{"card":"data"}')
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_edit_message_failure(self) -> None:
+    async def test_update_card_failure(self) -> None:
         client = FeishuClient("app_id", "app_secret")
         client._token = "tok"
         client._token_expires_at = float("inf")
@@ -417,42 +409,10 @@ class TestFeishuClient:
         resp.json.return_value = {"code": 99999, "msg": "not found"}
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.is_closed = False
-        mock_http.put.return_value = resp
-        client._http = mock_http
-
-        result = await client.edit_message("om_123", "text", '{"text":"edited"}')
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_patch_message_success(self) -> None:
-        client = FeishuClient("app_id", "app_secret")
-        client._token = "tok"
-        client._token_expires_at = float("inf")
-
-        resp = MagicMock()
-        resp.status_code = 200
-        mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mock_http.is_closed = False
         mock_http.patch.return_value = resp
         client._http = mock_http
 
-        result = await client.patch_message("om_123", "interactive", '{"card":"data"}')
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_patch_message_failure(self) -> None:
-        client = FeishuClient("app_id", "app_secret")
-        client._token = "tok"
-        client._token_expires_at = float("inf")
-
-        resp = MagicMock()
-        resp.status_code = 400
-        mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mock_http.is_closed = False
-        mock_http.patch.return_value = resp
-        client._http = mock_http
-
-        result = await client.patch_message("om_123", "interactive", '{"card":"data"}')
+        result = await client.update_card("om_123", '{"card":"data"}')
         assert result is False
 
     @pytest.mark.asyncio

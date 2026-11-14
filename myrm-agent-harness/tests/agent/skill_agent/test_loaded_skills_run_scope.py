@@ -127,6 +127,12 @@ class _Run:
 
 
 @pytest.fixture(autouse=True)
+def _skill_dirs_under_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The directories ``_skill`` makes with mkdtemp() live where pytest removes them."""
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+
+@pytest.fixture(autouse=True)
 def _clean_run_scope():
     reset_loaded_skills()
     begin_skill_run_usage()

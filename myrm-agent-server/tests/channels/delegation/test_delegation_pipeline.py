@@ -292,3 +292,22 @@ async def test_router_delegation_failure_lifecycle_and_error_notification() -> N
 
     # Quota must be released despite failure
     assert router._delegation_guard.can_accept("telegram", "tg_user_err") is True
+
+
+@pytest.mark.asyncio
+async def test_coordinator_refuses_steering_once_the_task_run_stopped_taking_it() -> None:
+    """The task is still RUNNING while its final reply is delivered, but its run has closed the steering token."""
+    coordinator = DelegationCoordinator()
+    task = build_delegation_task(
+        origin_channel="telegram",
+        origin_user_id="user_456",
+        origin_chat_id="chat_789",
+        prompt="生成竞品报告",
+    )
+    coordinator.register_task(task)
+    coordinator.update_task_status(task.task_id, DelegationStatus.RUNNING)
+    steering_token = coordinator.get_steering_token(task.task_id)
+    assert steering_token is not None and steering_token.close_if_idle()
+
+    assert coordinator.inject_steering(task.task_id, "重点分析内存开销", "user_456") is False
+    assert not steering_token.has_pending

@@ -36,7 +36,7 @@ _DELEGATES = {
     "core/channel_bridge/agent_executor/executor.py": "core/channel_bridge/executor_helpers/stream.py",
     "core/eval/executor.py": "core/eval/stream_trace.py",
     "services/agent/stream_session/stream_loop.py": "services/agent/stream_session/stream_session_types.py",
-    "services/kanban/task_runner/runner.py": "services/kanban/task_runner/stream.py",
+    "services/kanban/task_runner/agent_run.py": "services/kanban/task_runner/stream.py",
 }
 # The call site never assembles answer text.
 _NO_ANSWER_TEXT = {

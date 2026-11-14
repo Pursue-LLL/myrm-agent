@@ -5,6 +5,12 @@
 - app.platform_utils.deployment_capabilities (POS: deploy-mode capability flags)
 - app.core.security.auth.public_paths (POS: unauthenticated path whitelist)
 - app.core.security.auth.cp_proxy (POS: CP HMAC proxy signature verification)
+- app.config.deploy_mode (POS: sandbox deploy-mode detection)
+- app.remote_access.trust_zone (POS: admission path and trust zone resolution)
+- app.remote_access.mobile_gate (POS: path-scoped pair token authorization)
+- app.remote_access.pairing (POS: HMAC-signed pairing token parsing)
+- app.services.webui.access_policy (POS: WebUI session requirement and cookie user resolution)
+- app.services.webui.session (POS: remote idle TTL for WebUI sessions)
 
 [OUTPUT]
 - resolve_identity, resolve_identity_from_http_scope, resolve_identity_from_ws_scope
@@ -174,7 +180,7 @@ def resolve_identity(
     private_net = is_private_network_ip(client_ip)
 
     if admission_path is None:
-        from app.config.deploy_mode import is_sandbox, is_webui_remote_mode
+        from app.config.deploy_mode import is_sandbox
 
         resolved_path = resolve_admission_path(
             path=path,
@@ -182,7 +188,6 @@ def resolve_identity(
             host_header=_header_value(headers, "Host"),
             headers=headers,
             is_sandbox=is_sandbox(),
-            is_webui_remote_mode=is_webui_remote_mode(),
         )
         admission_path = resolved_path.value
         trust_zone = admission_path_to_trust_zone(resolved_path).value

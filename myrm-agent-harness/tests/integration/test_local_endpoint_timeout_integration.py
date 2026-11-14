@@ -21,8 +21,10 @@ from myrm_agent_harness.toolkits.llms.core.llm import (
     _LOCAL_FIRST_EVENT_TIMEOUT,
     _LOCAL_INTER_CHUNK_TIMEOUT,
     _LOCAL_REQUEST_TIMEOUT,
+    _is_local_endpoint,
     create_chat_model,
 )
+from myrm_agent_harness.toolkits.llms.core.reasoning_timeout import get_reasoning_timeout_floor
 
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(60)]
 
@@ -43,13 +45,21 @@ def _load_env_test() -> None:
             os.environ.setdefault(key, value)
 
 
-def _get_basic_llm_config() -> tuple[str, str, str]:
+def _cloud_llm_config() -> tuple[str, str, str]:
+    """The BASIC endpoint for a test of the cloud timeout defaults.
+
+    A local endpoint has relaxed timeouts and a reasoning model has a timeout floor; neither keeps the defaults.
+    """
     api_key = os.environ.get("BASIC_API_KEY", "")
     base_url = os.environ.get("BASIC_BASE_URL", "")
     model = os.environ.get("BASIC_MODEL", "")
     if not all([api_key, base_url, model]):
         pytest.skip("BASIC_API_KEY/BASIC_BASE_URL/BASIC_MODEL not configured")
     model = normalize_env_model_selection_string(model)
+    if _is_local_endpoint(base_url):
+        pytest.skip("BASIC_BASE_URL is a local endpoint; its timeouts are relaxed, not the cloud defaults")
+    if get_reasoning_timeout_floor(model) is not None:
+        pytest.skip("BASIC_MODEL is a reasoning model; its timeout floor replaces the cloud defaults")
     return api_key, base_url, model
 
 
@@ -58,9 +68,9 @@ class TestLocalEndpointDetectionRealChain:
 
     def test_remote_endpoint_preserves_defaults(self) -> None:
         """Remote endpoint: TransportChatModel instance keeps tight defaults (60s first_event)."""
-        api_key, base_url, model = _get_basic_llm_config()
-
-        llm = create_chat_model(model, base_url=base_url, api_key=api_key, streaming=True)
+        llm = create_chat_model(
+            "openai/gpt-4o", base_url="https://api.openai.com/v1", api_key="sk-test", streaming=True
+        )
 
         assert llm.first_event_timeout == 60.0
         assert llm.inter_chunk_timeout == 180.0
@@ -94,15 +104,13 @@ class TestLocalEndpointDetectionRealChain:
 
     def test_reasoning_model_on_remote_applies_floor(self) -> None:
         """Reasoning model (o3) on remote: reasoning floor applied."""
-        api_key, base_url, _ = _get_basic_llm_config()
-
-        llm = create_chat_model("o3", base_url=base_url, api_key=api_key, streaming=True)
+        llm = create_chat_model("o3", base_url="https://api.openai.com/v1", api_key="sk-test", streaming=True)
 
         assert llm.request_timeout == 600.0
         assert llm.first_event_timeout == 300.0
 
     def test_reasoning_model_on_local_combines_floors(self) -> None:
-        """Reasoning model on local: reasoning floor overrides local defaults (higher priority)."""
+        """Reasoning model on local: each timeout is the larger of the reasoning floor and the local relaxation."""
         llm = create_chat_model(
             "deepseek-r1",
             base_url="http://localhost:11434",
@@ -110,8 +118,8 @@ class TestLocalEndpointDetectionRealChain:
             streaming=True,
         )
 
-        assert llm.request_timeout == 600.0
-        assert llm.first_event_timeout == 300.0
+        assert llm.request_timeout == max(600.0, _LOCAL_REQUEST_TIMEOUT)
+        assert llm.first_event_timeout == max(300.0, _LOCAL_FIRST_EVENT_TIMEOUT)
         assert llm.inter_chunk_timeout == _LOCAL_INTER_CHUNK_TIMEOUT
 
     def test_user_explicit_timeout_overrides_all(self) -> None:
@@ -259,7 +267,7 @@ class TestRemoteApiRealCall:
     @pytest.mark.asyncio
     async def test_remote_api_streaming_within_default_timeout(self) -> None:
         """Real API call with default timeouts succeeds (proves tight defaults work for cloud)."""
-        api_key, base_url, model = _get_basic_llm_config()
+        api_key, base_url, model = _cloud_llm_config()
 
         llm = create_chat_model(model, base_url=base_url, api_key=api_key, streaming=True)
 
@@ -273,7 +281,7 @@ class TestRemoteApiRealCall:
     @pytest.mark.asyncio
     async def test_remote_api_non_streaming_within_default_timeout(self) -> None:
         """Non-streaming real call with default request_timeout=300s succeeds."""
-        api_key, base_url, model = _get_basic_llm_config()
+        api_key, base_url, model = _cloud_llm_config()
 
         llm = create_chat_model(model, base_url=base_url, api_key=api_key, streaming=False)
 

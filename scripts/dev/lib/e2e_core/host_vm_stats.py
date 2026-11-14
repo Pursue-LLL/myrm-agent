@@ -19,7 +19,7 @@ Free-plus-reclaimable memory cannot see the compressor: a host can report many G
 "available" pages while the compressor holds tens of GB and the kernel sits at level 2, and
 the cost shows up as system CPU and load rather than as any one busy process. The level,
 the compressor size and the compression traffic say directly whether a load spike was
-memory thrash. Three short commands cost about 9 ms per sample; every failure yields None
+memory thrash. Three short commands cost about 10 ms per sample; every failure yields None
 and the recorder simply omits the ``vm`` block for that sample.
 """
 

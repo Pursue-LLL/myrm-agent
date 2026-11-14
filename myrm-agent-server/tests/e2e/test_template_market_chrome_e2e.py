@@ -1,4 +1,4 @@
-"""Chrome E2E: Template Market API serves official_document_assistant correctly.
+"""Chrome E2E: agent templates API serves official_document_assistant correctly.
 
 Validates the full end-to-end path:
   YAML file on disk → server startup → templates API → correct response

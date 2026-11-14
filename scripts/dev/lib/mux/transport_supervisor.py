@@ -144,9 +144,9 @@ def session_key() -> str:
 def _mux_peer_count(*, pessimistic: bool = False) -> int:
     """Session-plane peer load for pure budget math; never live-probe mux here."""
     try:
-        from dev_gate.contract import _parallel_signoff_pressure_peers
+        from dev_gate.contract.parallel_pressure import parallel_signoff_pressure_peers
 
-        peers = _parallel_signoff_pressure_peers()
+        peers = parallel_signoff_pressure_peers()
     except ImportError:
         peers = parallel_mux_peer_count()
     if not pessimistic:
@@ -320,13 +320,11 @@ def recovery_lock_wait_sec() -> float:
     scaled = MUX_RECOVERY_LOCK_BASE_SEC + active * MUX_RECOVERY_LOCK_PER_ACTIVE_SEC
     cap = MUX_RECOVERY_LOCK_WAIT_SEC
     try:
-        from dev_gate.contract import (  # noqa: PLC0415
-            _parallel_signoff_pressure_peers,
-            is_e2e_signoff_runtime,
-        )
+        from dev_gate.contract import is_e2e_signoff_runtime  # noqa: PLC0415
+        from dev_gate.contract.parallel_pressure import parallel_signoff_pressure_peers  # noqa: PLC0415
 
         if is_e2e_signoff_runtime():
-            pressure = max(active, _parallel_signoff_pressure_peers())
+            pressure = max(active, parallel_signoff_pressure_peers())
             scaled = MUX_RECOVERY_LOCK_BASE_SEC + pressure * 35.0
             cap = 300.0 # v155-v156 post-SEND_TURN attach under mux_peers≥7
     except ImportError:

@@ -1,7 +1,8 @@
 """Batch string-replace application for file edits.
 
 [INPUT]
-- utils.fuzzy_match::fuzzy_replace, find_closest_lines (POS: Progressive fuzzy match chain)
+- utils.fuzzy_match::fuzzy_replace, CONTENT_PRESERVING_MIN_CONFIDENCE (POS: Progressive fuzzy match chain and the floor that keeps edits from rewriting lines the caller did not name)
+- utils.closest_lines::find_closest_lines (POS: "Did you mean?" hint for a text that was not found)
 - core.file_conflict_guard::compute_edit_line_range (POS: Edit line range calculator)
 - core.operation_context::StrReplaceEdit (POS: Single edit payload)
 - utils.line_endings::detect_line_ending, normalize_line_endings (POS: CRLF/LF preservation)
@@ -19,7 +20,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 
-from myrm_agent_harness.utils.fuzzy_match import find_closest_lines, fuzzy_replace
+from myrm_agent_harness.utils.closest_lines import find_closest_lines
+from myrm_agent_harness.utils.fuzzy_match import CONTENT_PRESERVING_MIN_CONFIDENCE, fuzzy_replace
 
 from .file_conflict_guard import compute_edit_line_range
 from .operation_context import StrReplaceEdit
@@ -67,11 +69,35 @@ def check_non_overlapping_edits(content: str, edits: Sequence[StrReplaceEdit]) -
         ranges.append((start, end))
 
 
+def _as_lf(content: str, edits: Sequence[StrReplaceEdit]) -> tuple[str, Sequence[StrReplaceEdit]]:
+    """``content`` and the text of ``edits`` with LF line endings, the form every match runs on.
+
+    A model writes its edits with ``\\n`` whatever the file uses, and the fuzzy strategies join the lines they match
+    with ``\\n``: on CRLF text a multi-line ``old_str`` has no exact match, and a fuzzy one is a text the content
+    does not hold.
+    """
+    from ..utils.line_endings import normalize_line_endings
+
+    lf_content = normalize_line_endings(content, "\n") if "\r" in content else content
+    lf_edits = tuple(
+        StrReplaceEdit(
+            old_str=normalize_line_endings(edit.old_str, "\n"),
+            new_str=normalize_line_endings(edit.new_str, "\n"),
+        )
+        for edit in edits
+    )
+    return lf_content, lf_edits
+
+
 def compute_batch_edit_line_range(content: str, edits: Sequence[StrReplaceEdit]) -> tuple[int, int]:
     """Union of 1-indexed line ranges affected by all edits on original content."""
+    from ..utils.line_endings import detect_line_ending
+
     if not edits:
         total = content.count("\n") + 1
         return 1, total
+    if detect_line_ending(content):
+        content, edits = _as_lf(content, edits)
     starts: list[int] = []
     ends: list[int] = []
     for edit in edits:
@@ -82,13 +108,18 @@ def compute_batch_edit_line_range(content: str, edits: Sequence[StrReplaceEdit])
 
 
 def apply_batch_str_replace(content: str, edits: Sequence[StrReplaceEdit]) -> tuple[str, list[str]]:
-    """Apply edits sequentially in memory. Returns (new_content, strategies_used)."""
+    """Apply edits sequentially in memory. Returns (new_content, strategies_used).
+
+    Matching runs on LF text and the file's own line endings are written back, so a CRLF file stays CRLF.
+    """
     from ..utils.line_endings import detect_line_ending, normalize_line_endings
 
     validate_edits_batch(edits)
+    original_eol = detect_line_ending(content)
+    if original_eol:
+        content, edits = _as_lf(content, edits)
     check_non_overlapping_edits(content, edits)
 
-    original_eol = detect_line_ending(content)
     current = content
     strategies: list[str] = []
 
@@ -103,7 +134,12 @@ def apply_batch_str_replace(content: str, edits: Sequence[StrReplaceEdit]) -> tu
             strategies.append("exact")
             continue
 
-        result = fuzzy_replace(current, edit.old_str, edit.new_str)
+        result = fuzzy_replace(
+            current,
+            edit.old_str,
+            edit.new_str,
+            min_confidence=CONTENT_PRESERVING_MIN_CONFIDENCE,
+        )
         if result.success:
             logger.info(
                 "Fuzzy match succeeded: strategy=%s confidence=%.2f edit_index=%d",

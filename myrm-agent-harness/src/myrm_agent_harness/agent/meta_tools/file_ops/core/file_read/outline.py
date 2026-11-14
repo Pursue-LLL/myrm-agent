@@ -4,7 +4,8 @@ Extracts top-level class, function, interface, struct signatures, and Markdown h
 from source code or document files. Supports truncated file reads and structure-only reading mode.
 
 [INPUT]
-- output: Raw or gutter-formatted file content string
+- output: Raw file text, or the text a read shows the model: the numbered (gutter) lines, usually inside a notice
+  and tool-output tags that are not part of the file
 - path_str: Target file path
 - next_offset: 1-indexed line number where extraction starts (1 for full document)
 
@@ -22,10 +23,16 @@ from __future__ import annotations
 import ast
 import os
 import re
+import warnings
 from dataclasses import dataclass
 
 # Matches line gutter emitted by ResultFormatter (e.g. "     12|def foo():")
 _GUTTER_LINE_RE = re.compile(r"^\s*(\d+)\|")
+
+# The AST of a source costs ~150 bytes of memory per character: 0.5 MB takes ~0.1 s and ~75 MB, 7 MB takes seconds and
+# over 1 GB. A read of a large generated module must not spike the server like that, so past this size the regex scan
+# lists the symbols (in milliseconds) without their ranges.
+_AST_MAX_SOURCE_CHARS = 300_000
 
 # Pre-compiled symbol matching regexes for non-Python or fallback extraction
 # Each pattern captures (kind, name) or (name)
@@ -123,60 +130,64 @@ def _clean_path_extension(path_str: str) -> str:
     return os.path.splitext(clean_path)[1].lower()
 
 
-def _extract_python_ast_symbols(raw_content: str, start_line_threshold: int) -> list[OutlineSymbol]:
-    """Extract top-level and class-level Python symbols using AST."""
+def _numbered_lines(lines: list[str]) -> list[tuple[int, str]]:
+    """The lines of the file with their file line numbers.
+
+    A read shows the model the numbered lines inside a notice and tool-output tags. Those lines are not the file:
+    parsed they break the Python AST, listed they pass for headings, and they shift every position counted from the
+    top of the text. So once any line carries a gutter, only the numbered lines count. Text without a gutter is raw
+    and numbered by position.
+    """
+    stripped = [_strip_gutter_line(line) for line in lines]
+    if any(number is not None for number, _ in stripped):
+        return [(number, text) for number, text in stripped if number is not None]
+    return [(position, text) for position, (_, text) in enumerate(stripped, start=1)]
+
+
+def _extract_python_ast_symbols(numbered: list[tuple[int, str]], start_line_threshold: int) -> list[OutlineSymbol]:
+    """Extract top-level and class-level Python symbols, with their line ranges, using AST."""
+    numbers = [number for number, _ in numbered]
+    # A lone CR is a line break to the parser and would shift every number after it.
+    source = "\n".join(text for _, text in numbered).replace("\r", " ")
+    if len(source) > _AST_MAX_SOURCE_CHARS:
+        return []
+    # Source the parser cannot take is not a failed read: a lone surrogate (ValueError) or a source too complex for its
+    # stack (MemoryError, RecursionError) leaves the regex scan. What the file's author wrote, such as an escape
+    # Python warns about, is not for the server's log, and the parser repeats the warning on every read.
     try:
-        tree = ast.parse(raw_content)
-    except SyntaxError:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", SyntaxWarning)
+            tree = ast.parse(source)
+    except (SyntaxError, ValueError, MemoryError, RecursionError):
         return []
 
     symbols: list[OutlineSymbol] = []
 
+    def add(node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> None:
+        start_line = numbers[node.lineno - 1]
+        if start_line < start_line_threshold:
+            return
+        if isinstance(node, ast.ClassDef):
+            kind = "class"
+        else:
+            kind = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
+        end_line = numbers[node.end_lineno - 1] if node.end_lineno else None
+        symbols.append(OutlineSymbol(name=name, kind=kind, start_line=start_line, end_line=end_line))
+
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
-            if node.lineno >= start_line_threshold:
-                end_lineno = getattr(node, "end_lineno", None)
-                symbols.append(
-                    OutlineSymbol(
-                        name=node.name,
-                        kind="class",
-                        start_line=node.lineno,
-                        end_line=end_lineno,
-                    )
-                )
+            add(node, node.name)
             for subnode in node.body:
-                if (
-                    isinstance(subnode, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and subnode.lineno >= start_line_threshold
-                ):
-                    kind = "async def" if isinstance(subnode, ast.AsyncFunctionDef) else "def"
-                    end_lineno = getattr(subnode, "end_lineno", None)
-                    symbols.append(
-                        OutlineSymbol(
-                            name=f"{node.name}.{subnode.name}",
-                            kind=kind,
-                            start_line=subnode.lineno,
-                            end_line=end_lineno,
-                        )
-                    )
+                if isinstance(subnode, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    add(subnode, f"{node.name}.{subnode.name}")
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if node.lineno >= start_line_threshold:
-                kind = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
-                end_lineno = getattr(node, "end_lineno", None)
-                symbols.append(
-                    OutlineSymbol(
-                        name=node.name,
-                        kind=kind,
-                        start_line=node.lineno,
-                        end_line=end_lineno,
-                    )
-                )
+            add(node, node.name)
 
     return symbols
 
 
 def _extract_regex_symbols(
-    lines: list[str],
+    numbered: list[tuple[int, str]],
     language_key: str,
     start_line_threshold: int,
 ) -> list[OutlineSymbol]:
@@ -189,10 +200,7 @@ def _extract_regex_symbols(
     in_code_block = False
     in_frontmatter = False
 
-    for idx, line in enumerate(lines, start=1):
-        gutter_line, raw_text = _strip_gutter_line(line)
-        line_num = gutter_line if gutter_line is not None else idx
-
+    for line_num, raw_text in numbered:
         if line_num < start_line_threshold:
             continue
 
@@ -201,7 +209,7 @@ def _extract_regex_symbols(
             continue
         if language_key == "markdown":
             # Handle YAML frontmatter at document start
-            if idx == 1 and stripped_code == "---":
+            if line_num == 1 and stripped_code == "---":
                 in_frontmatter = True
                 continue
             if in_frontmatter:
@@ -239,6 +247,16 @@ def _extract_regex_symbols(
     return symbols
 
 
+def _extract_symbols(output: str, language: str, start_line_threshold: int) -> list[OutlineSymbol]:
+    """The symbols of ``output`` from line ``start_line_threshold`` on: Python by AST, else (or when it fails) by regex."""
+    numbered = _numbered_lines(output.split("\n"))
+    if language == "python":
+        return _extract_python_ast_symbols(numbered, start_line_threshold) or _extract_regex_symbols(
+            numbered, "python_fallback", start_line_threshold
+        )
+    return _extract_regex_symbols(numbered, language, start_line_threshold)
+
+
 def extract_truncated_outline(
     output: str,
     path_str: str,
@@ -261,18 +279,7 @@ def extract_truncated_outline(
     if not language:
         return ""
 
-    symbols: list[OutlineSymbol] = []
-    lines = output.split("\n")
-
-    if language == "python":
-        raw_lines = [_strip_gutter_line(line)[1] for line in lines]
-        raw_content = "\n".join(raw_lines)
-        symbols = _extract_python_ast_symbols(raw_content, start_line_threshold=next_offset)
-        if not symbols:
-            symbols = _extract_regex_symbols(lines, "python_fallback", start_line_threshold=next_offset)
-    else:
-        symbols = _extract_regex_symbols(lines, language, start_line_threshold=next_offset)
-
+    symbols = _extract_symbols(output, language, next_offset)
     if not symbols:
         return ""
 
@@ -310,16 +317,7 @@ def extract_file_outline(
     if not language:
         return ""
 
-    lines = output.split("\n")
-    if language == "python":
-        raw_lines = [_strip_gutter_line(line)[1] for line in lines]
-        raw_content = "\n".join(raw_lines)
-        symbols = _extract_python_ast_symbols(raw_content, start_line_threshold=1)
-        if not symbols:
-            symbols = _extract_regex_symbols(lines, "python_fallback", start_line_threshold=1)
-    else:
-        symbols = _extract_regex_symbols(lines, language, start_line_threshold=1)
-
+    symbols = _extract_symbols(output, language, 1)
     if not symbols:
         return ""
 

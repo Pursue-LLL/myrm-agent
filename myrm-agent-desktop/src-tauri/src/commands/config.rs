@@ -5,11 +5,13 @@
 //! - crate::commands::data_migration (POS: 数据目录迁移核心引擎)
 //! - crate::runtime::{start_backend_with_config, stop_backend} (POS: Sidecar 生命周期编排)
 //! - crate::ipc_security (POS: 敏感操作鉴权与确认弹窗)
+//! - crate::app::autostart (POS: 系统登录项同步)
+//! - crate::utils::data_dir (POS: 迁移前的数据根目录解析；目录被固定时拒绝迁移)
 //!
 //! [OUTPUT]
 //! - `load_system_config`: 加载系统运行时配置
-//! - `save_system_config`: 保存系统配置；先写 `desktop_runtime.json` 离席桥，配置落盘失败则回滚 runtime
-//! - `migrate_data_dir`: 迁移数据存储根目录并重启后端服务
+//! - `save_system_config`: 保存系统配置；先写 `desktop_runtime.json` 离席桥，配置落盘失败则回滚 runtime；成功后同步系统登录项
+//! - `migrate_data_dir`: 迁移数据存储根目录并重启后端服务；目录由环境变量或开发构建固定时直接拒绝
 //!
 //! [POS]
 //! 桌面端系统配置 IPC 命令接口。处理前端设置页面的读取、保存与数据存储路径迁移编排。
@@ -18,6 +20,7 @@ use std::path::Path;
 
 use crate::config::{ConfigManager, SystemConfig};
 use crate::ipc_security::{self, SensitiveAction};
+use crate::utils::data_dir;
 use tauri::State;
 
 /// 加载系统配置
@@ -35,9 +38,6 @@ pub async fn save_system_config(
     config: SystemConfig,
     config_manager: State<'_, ConfigManager>,
 ) -> Result<(), String> {
-    use tauri_plugin_autostart::ManagerExt;
-
-    let should_enable = config.auto_launch_at_login;
     let previous = config_manager.load();
     crate::commands::desktop_runtime_state::sync_locked_use_enabled(
         &app,
@@ -52,15 +52,7 @@ pub async fn save_system_config(
         return Err(save_err);
     }
 
-    if let Ok(currently_enabled) = app.autolaunch().is_enabled() {
-        if should_enable && !currently_enabled {
-            let _ = app.autolaunch().enable();
-            println!("✅ Auto-launch enabled");
-        } else if !should_enable && currently_enabled {
-            let _ = app.autolaunch().disable();
-            println!("✅ Auto-launch disabled");
-        }
-    }
+    crate::app::autostart::sync_login_item(&app, config.auto_launch_at_login);
 
     Ok(())
 }
@@ -88,14 +80,7 @@ pub async fn reset_system_config(
         ));
     }
 
-    use tauri_plugin_autostart::ManagerExt;
-    if let Ok(currently_enabled) = app.autolaunch().is_enabled() {
-        if config.auto_launch_at_login && !currently_enabled {
-            let _ = app.autolaunch().enable();
-        } else if !config.auto_launch_at_login && currently_enabled {
-            let _ = app.autolaunch().disable();
-        }
-    }
+    crate::app::autostart::sync_login_item(&app, config.auto_launch_at_login);
 
     Ok(config)
 }
@@ -139,48 +124,6 @@ pub async fn force_appshot_capture(app: tauri::AppHandle) -> Result<(), String> 
     Ok(())
 }
 
-/// 动态更新全局快捷键（注销所有旧快捷键后重新注册 toggle + appshot + voice PTT + inline input）。
-/// 注册失败时自动回滚到旧配置，保证原子性。
-#[tauri::command]
-pub fn update_global_shortcut(
-    app: tauri::AppHandle,
-    shortcut: String,
-    appshot_shortcut: Option<String>,
-    voice_ptt_shortcut: Option<String>,
-    inline_input_shortcut: Option<String>,
-) -> Result<(), String> {
-    use tauri::Manager;
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-
-    let old_config = app.state::<ConfigManager>().load();
-
-    if let Err(e) = app.global_shortcut().unregister_all() {
-        eprintln!("Failed to unregister old shortcuts: {}", e);
-    }
-
-    let result = register_shortcuts(
-        &app,
-        &shortcut,
-        &appshot_shortcut,
-        &voice_ptt_shortcut,
-        &inline_input_shortcut,
-    );
-
-    if let Err(ref err_msg) = result {
-        eprintln!("Shortcut registration failed: {err_msg}, rolling back to old config");
-        let _ = app.global_shortcut().unregister_all();
-        let _ = register_shortcuts(
-            &app,
-            &old_config.global_shortcut,
-            &Some(old_config.appshot_shortcut),
-            &Some(old_config.voice_ptt_shortcut),
-            &Some(old_config.inline_input_shortcut),
-        );
-    }
-
-    result
-}
-
 /// 迁移数据目录到新路径：前置路径与容量预检、意图确认、动态全量数据同步与自愈容灾
 #[tauri::command]
 pub async fn migrate_data_dir(
@@ -190,18 +133,15 @@ pub async fn migrate_data_dir(
     config_manager: State<'_, ConfigManager>,
     backend: State<'_, crate::runtime::PythonBackend>,
 ) -> Result<String, String> {
+    data_dir::ensure_relocatable()?;
+
     // 0. 全局互斥锁，防止并发重复触发导致数据污染与竞态
     let _migration_guard = super::data_migration::acquire_migration_lock()?;
 
     let config = config_manager.load();
     let old_custom_data_dir = config.custom_data_dir.clone();
-    let old_dir = old_custom_data_dir.clone().unwrap_or_else(|| {
-        let home = std::env::var("HOME")
-            .or_else(|_| std::env::var("USERPROFILE"))
-            .unwrap_or_else(|_| ".".to_string());
-        format!("{}/.myrm", home)
-    });
-    let old_path = Path::new(&old_dir);
+    let old_dir = data_dir::effective_dir(old_custom_data_dir.as_deref());
+    let old_path = old_dir.as_path();
     let new_path = Path::new(&new_dir);
 
     // 1. 目标路径合法性、防嵌套递归与同名冲突预检
@@ -349,75 +289,4 @@ pub async fn migrate_data_dir(
             ))
         }
     }
-}
-
-fn register_shortcuts(
-    app: &tauri::AppHandle,
-    shortcut: &str,
-    appshot_shortcut: &Option<String>,
-    voice_ptt_shortcut: &Option<String>,
-    inline_input_shortcut: &Option<String>,
-) -> Result<(), String> {
-    use std::str::FromStr;
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-
-    if !shortcut.is_empty() {
-        if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(shortcut) {
-            if let Err(e) = app.global_shortcut().register(s) {
-                return Err(format!("Failed to register global shortcut: {}", e));
-            }
-        } else {
-            return Err(format!("Invalid shortcut format: {}", shortcut));
-        }
-    }
-
-    if let Some(ref appshot) = appshot_shortcut {
-        if !appshot.is_empty() {
-            if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(appshot) {
-                if let Err(e) = app.global_shortcut().register(s) {
-                    return Err(format!("Failed to register appshot shortcut: {}", e));
-                }
-                if let Ok(mut guard) = crate::runtime::APPSHOT_SHORTCUT_STR.lock() {
-                    *guard = format!("{s}");
-                }
-            } else {
-                return Err(format!("Invalid appshot shortcut format: {}", appshot));
-            }
-        }
-    }
-
-    if let Some(ref voice_ptt) = voice_ptt_shortcut {
-        if !voice_ptt.is_empty() {
-            if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(voice_ptt) {
-                if let Err(e) = app.global_shortcut().register(s) {
-                    return Err(format!("Failed to register voice PTT shortcut: {}", e));
-                }
-                if let Ok(mut guard) = crate::runtime::VOICE_PTT_SHORTCUT_STR.lock() {
-                    *guard = format!("{s}");
-                }
-            } else {
-                return Err(format!("Invalid voice PTT shortcut format: {}", voice_ptt));
-            }
-        }
-    }
-
-    if let Some(ref inline_input) = inline_input_shortcut {
-        if !inline_input.is_empty() {
-            if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(inline_input) {
-                if let Err(e) = app.global_shortcut().register(s) {
-                    return Err(format!("Failed to register inline input shortcut: {}", e));
-                }
-                if let Ok(mut guard) = crate::runtime::INLINE_INPUT_SHORTCUT_STR.lock() {
-                    *guard = format!("{s}");
-                }
-            } else {
-                return Err(format!(
-                    "Invalid inline input shortcut format: {}",
-                    inline_input
-                ));
-            }
-        }
-    }
-
-    Ok(())
 }

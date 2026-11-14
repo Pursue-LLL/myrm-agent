@@ -2,7 +2,7 @@
 
 ## Overview
 
-Harness test suite: unit, integration, architecture gates, and performance benchmarks. Default execution is serial (`-n0`) with a memory-safe marker filter in `pyproject.toml` `addopts`.
+Harness test suite: unit, integration, architecture gates, and performance benchmarks. Default execution is serial (`-n0`) with a memory-safe marker filter and an xdist worker cap (`--maxprocesses=4`, which also bounds an explicit `-n N`; raise it on purpose with `--maxprocesses=N`) in `pyproject.toml` `addopts`.
 
 ## File & Submodule Index
 
@@ -57,6 +57,8 @@ The `tests/` root holds only `__init__.py`, `conftest.py` and `_ARCH.md`. Every 
 Duplicate basenames such as `test_engine.py` under different `tests/agent/**` subtrees can trigger pytest `import file mismatch` during collection. Use domain-specific names (e.g. `test_curator_engine.py`).
 
 Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or `e2e` (or `performance`). `pytest_collection_finish` fails collection if a test function calls `.warmup(` or `.acquire_page(` without those markers.
+
+A test that needs a real model credential (`BASIC_API_KEY`, `LITE_API_KEY`, ...) carries `integration` or `e2e` as well. `conftest.py` loads the server's `.env.test` into every run, so an unmarked one would send those keys to the provider from the default suite; marked, it runs only under `-m integration` or `-m e2e`, and skips itself where no credential is set.
 
 ## Test execution (memory-safe)
 

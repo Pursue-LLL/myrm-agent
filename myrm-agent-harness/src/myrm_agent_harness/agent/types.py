@@ -119,7 +119,7 @@ class QuoteAttachment:
     Harness 的 inject_ephemeral_quote() 将引用原文以 <quoted_context>
     XML 标签内联到当前 HumanMessage.content 中（阅后即焚）。
     DB 保存的是用户原始文本，下一轮从 DB 重建历史时引用自然消失，
-    历史消息零修改，Prompt Cache 前缀 100% 命中。
+    历史消息零修改，Prompt Cache 前缀保持稳定。
 
     Attributes:
         source_message_id: 被引用的原始消息的数据库 ID。

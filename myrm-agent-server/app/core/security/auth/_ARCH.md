@@ -22,4 +22,6 @@
 ## 依赖
 
 - 被 `app/middleware/auth.py`、`app/middleware/ws_auth.py`、`app/middleware/host_allowlist.py` 引用
+- `identity.py` 依赖 `app/config/`（`settings`、`deploy_mode`）、`app/platform_utils/deployment_capabilities`、`app/remote_access/`（`trust_zone`、`mobile_gate`、`pairing`）与 `app/services/webui/`（`access_policy`、`session`）
+- `trust_zone.py` 在模块级导入 `identity.py` 的 IP 判定函数，`mobile_gate.py` 又依赖 `trust_zone.py`：`identity.py` 因此在 `resolve_identity` 内惰性导入 `trust_zone` 与 `mobile_gate`，避免导入环
 - 公开前缀会连同其下所有变更类路由一起放行：每条对外开放的变更类路由必须在 handler 内自行认证，并登记在 `tests/architecture/test_public_mutating_routes.py`

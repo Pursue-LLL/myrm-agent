@@ -44,7 +44,7 @@ class PermissionValidator(Validator):
         # CREATE 操作：检查文件是否已存在
         if context.operation == OperationType.CREATE:
             if await self.strategy.exists(path):
-                raise FileExistsError(f"File already exists: {path}. Use str_replace to modify existing files.")
+                raise FileExistsError(f"File already exists: {path}")
 
         # STR_REPLACE 操作：检查文件是否存在
         elif context.operation == OperationType.STR_REPLACE:

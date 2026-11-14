@@ -4,7 +4,7 @@
 - md_to_telegram_html: Markdown→HTML 转换 (格式化、代码块、表格降级、HTML转义)
 - split_markdown_rich: Rich Message UTF-8 分割 (语义断点、代码围栏保护)
 - _find_utf8_cut: UTF-8 字节安全切割
-- _render_monospace_table / _convert_tables: GFM 表格→ASCII monospace 降级
+- render_monospace_table / convert_tables: GFM 表格→ASCII monospace 降级
 - CJK 内容: 中日韩字符 UTF-16/UTF-8 处理正确性
 - LaTeX / 数学公式: 保留不被格式化破坏
 - split_message: HTML tag 状态机边界覆盖 (expandable/blockquote 标签)
@@ -12,15 +12,27 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from app.channels.providers.telegram.html_converter import (
-    _convert_tables,
     _find_utf8_cut,
-    _render_monospace_table,
     _utf16_len,
     md_to_telegram_html,
     split_markdown_rich,
     split_message,
 )
+from app.channels.providers.telegram.table_renderer import convert_tables, render_monospace_table
+
+
+def _collect_into(blocks: list[str]) -> Callable[[str], str]:
+    """A ``keep`` for convert_tables: record the markup, hand back a numbered place."""
+
+    def keep(markup: str) -> str:
+        blocks.append(markup)
+        return f"<table {len(blocks) - 1}>"
+
+    return keep
+
 
 # ──────────────────────────────────────────────
 # 1. md_to_telegram_html 转换测试
@@ -138,7 +150,7 @@ class TestTableRendering:
     def test_render_monospace_table_basic(self):
         header = "| Name | Age |"
         rows = ["| Alice | 30 |", "| Bob | 25 |"]
-        result = _render_monospace_table(header, rows)
+        result = render_monospace_table(header, rows)
         assert "<pre>" in result
         assert "</pre>" in result
         assert "Alice" in result
@@ -149,34 +161,67 @@ class TestTableRendering:
         """Columns should be padded to the longest cell width."""
         header = "| X | Description |"
         rows = ["| A | Short |", "| B | A much longer description |"]
-        result = _render_monospace_table(header, rows)
+        result = render_monospace_table(header, rows)
         assert "A much longer description" in result
 
     def test_convert_tables_detects_gfm(self):
-        text = "| A | B |\n|---|---|\n| 1 | 2 |"
-        result_text, blocks = _convert_tables(text)
+        blocks: list[str] = []
+        result_text = convert_tables("| A | B |\n|---|---|\n| 1 | 2 |", _collect_into(blocks))
         assert len(blocks) == 1
         assert "<pre>" in blocks[0]
+        assert result_text == "<table 0>"
 
     def test_convert_tables_no_table(self):
         text = "Just regular text without pipes"
-        result_text, blocks = _convert_tables(text)
+        blocks: list[str] = []
+        assert convert_tables(text, _collect_into(blocks)) == text
         assert blocks == []
-        assert result_text == text
 
     def test_convert_tables_mixed_content(self):
         """Tables should be extracted; surrounding text preserved."""
-        text = "Before\n| A | B |\n|---|---|\n| 1 | 2 |\nAfter"
-        result_text, blocks = _convert_tables(text)
+        blocks: list[str] = []
+        result_text = convert_tables("Before\n| A | B |\n|---|---|\n| 1 | 2 |\nAfter", _collect_into(blocks))
         assert len(blocks) == 1
-        assert "Before" in result_text
-        assert "After" in result_text
+        assert result_text == "Before\n<table 0>\nAfter"
+
+    def test_convert_tables_numbers_each_table_in_document_order(self):
+        blocks: list[str] = []
+        text = "| A | B |\n|---|---|\n| 1 | 2 |\n\nbetween\n\n| C | D |\n|---|---|\n| 3 | 4 |"
+        assert convert_tables(text, _collect_into(blocks)) == "<table 0>\n\nbetween\n\n<table 1>"
+        assert "A" in blocks[0] and "C" in blocks[1]
+
+    def test_convert_tables_leaves_a_header_without_rows_as_text(self):
+        blocks: list[str] = []
+        text = "| A | B |\n|---|---|\nafter"
+        assert convert_tables(text, _collect_into(blocks)) == text
+        assert blocks == []
+
+    def test_convert_tables_needs_a_dashed_separator_row(self):
+        """A row of empty cells is no separator, so the rows stay text (a dash elsewhere keeps the quick check from deciding)."""
+        blocks: list[str] = []
+        text = "| A | B |\n|   |   |\n| 1 | 2 |\n- item"
+        assert convert_tables(text, _collect_into(blocks)) == text
+        assert blocks == []
+
+    def test_render_monospace_table_fills_short_rows_and_drops_extra_cells(self):
+        """GFM: a row with fewer cells than the header gets empty ones; the excess is ignored."""
+        result = render_monospace_table("| A | B |", ["| 1 |", "| 2 | 3 | 4 |"])
+        assert result == "<pre>┌───┬───┐\n│ A │ B │\n├───┼───┤\n│ 1 │   │\n│ 2 │ 3 │\n└───┴───┘</pre>"
+
+    def test_table_without_outer_pipes_is_drawn_like_one_with_them(self):
+        """GFM lets a table leave out the pipes at either end of its rows."""
+        with_pipes = render_monospace_table("| A | B |", ["| 1 | 2 |"])
+        assert render_monospace_table("A | B", ["1 | 2"]) == with_pipes
+        assert render_monospace_table("A | B |", ["| 1 | 2"]) == with_pipes
+        blocks: list[str] = []
+        assert convert_tables("A | B\n--- | ---\n1 | 2", _collect_into(blocks)) == "<table 0>"
+        assert blocks == [with_pipes]
 
     def test_table_html_entities_escaped(self):
         """Special chars in table cells should be HTML-escaped inside <pre>."""
         header = "| Key | Value |"
         rows = ["| x<y | a&b |"]
-        result = _render_monospace_table(header, rows)
+        result = render_monospace_table(header, rows)
         assert "&lt;" in result
         assert "&amp;" in result
 
@@ -184,7 +229,7 @@ class TestTableRendering:
         """CJK characters in table should render correctly."""
         header = "| 名称 | 年龄 |"
         rows = ["| 小明 | 25 |", "| 小红 | 30 |"]
-        result = _render_monospace_table(header, rows)
+        result = render_monospace_table(header, rows)
         assert "小明" in result
         assert "小红" in result
 

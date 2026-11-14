@@ -108,7 +108,7 @@ class FrameState:
             cursor_interactive: Detect cursor:pointer and other interactive elements.
             selector: CSS selector (scopes the snapshot range).
             scope: Snapshot scope (interactive/content/full).
-            compact: Compact format (saves ~30% tokens).
+            compact: Compact format (fewer tokens).
             max_depth: Optional depth limit (None = Fast Path, int = Custom Path with depth control).
             include_bbox: Whether to collect bbox data for semantic position (default False).
             max_tokens: Maximum token limit, 0 means unlimited.
@@ -208,7 +208,7 @@ class FrameState:
             cursor_interactive: Whether to detect cursor:pointer elements.
             selector: CSS selector (scopes the snapshot range; empty string uses :root).
             scope: Snapshot scope (interactive/content/full).
-            compact: Compact format (saves ~30% tokens).
+            compact: Compact format (fewer tokens).
             max_depth: Optional depth limit (None = Fast Path, int = Custom Path).
             include_bbox: Whether to collect bbox data (default False; adds ~20-30ms when enabled).
             max_tokens: Maximum token limit, 0 means unlimited.

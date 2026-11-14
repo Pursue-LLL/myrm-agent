@@ -5,13 +5,13 @@
 - threading::Lock (POS: Python 标准库，线程安全)
 
 [OUTPUT]
-- SteeringToken: Steering 令牌类，允许外部在 Agent 运行时注入消息
+- SteeringToken: Steering 令牌类，允许外部在 Agent 运行时注入消息；`steer`/`redirect` 返回是否被接收，运行在结束处 `close_if_idle` 之后一律拒收
 - SteeringStorageProtocol: 转向消息外部持久化监听协议
 - get_steering_token(): 获取当前请求的 SteeringToken
 - set_steering_token(): 设置当前请求的 SteeringToken
 
 [POS]
-Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain.
+Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain. A message the token accepts is delivered to the model or never accepted: the run closes the token at the point it would end, and a refused message stays with its sender.
 
 """
 
@@ -48,6 +48,9 @@ class SteeringToken:
     2. Agent 层（兜底路径）：turn 结束后检测 steering，注入 HumanMessage
 
     线程安全：steer() 可从任意线程调用（如 HTTP POST 端点）。
+
+    接收即交付：运行在要结束的那一刻调用 close_if_idle()，此后 steer()/redirect() 一律拒收（返回 False），
+    被拒的消息仍在发送方手里；close_if_idle() 前已接收的消息一定会被运行取走。
     """
 
     def __init__(
@@ -60,6 +63,7 @@ class SteeringToken:
         self._active: bool = False
         self._steering_applied: bool = False
         self._redirect_requested: bool = False
+        self._closed: bool = False
         self._storage_listener = storage_listener
         self._lock = threading.Lock()
 
@@ -68,14 +72,20 @@ class SteeringToken:
         with self._lock:
             self._storage_listener = listener
 
-    def steer(self, message: str) -> None:
+    def steer(self, message: str) -> bool:
         """注入 steering 消息（外部 API，线程安全）
 
         Args:
             message: 用户的新消息
+
+        Returns:
+            True 表示运行已接收（一定会交付给模型）；False 表示运行已结束，调用方保留该消息。
         """
         listener: SteeringStorageProtocol | None = None
         with self._lock:
+            if self._closed:
+                logger.info("Steering message refused: the run has ended")
+                return False
             self._queue.append(message)
             listener = self._storage_listener
         if listener is not None:
@@ -84,8 +94,9 @@ class SteeringToken:
             except Exception as e:
                 logger.warning(f"Failed to notify steering storage listener: {e}")
         logger.warning(f"Steering message queued: {message[:80]}...")
+        return True
 
-    def redirect(self, message: str) -> None:
+    def redirect(self, message: str) -> bool:
         """中断当前生成并立即注入消息（外部 API，线程安全）
 
         与 steer 不同：redirect 会立即中断正在进行的模型生成，
@@ -94,9 +105,15 @@ class SteeringToken:
 
         Args:
             message: 用户的新消息
+
+        Returns:
+            True 表示运行已接收；False 表示运行已结束，调用方保留该消息。
         """
         listener: SteeringStorageProtocol | None = None
         with self._lock:
+            if self._closed:
+                logger.info("Redirect refused: the run has ended")
+                return False
             self._queue.append(message)
             self._redirect_requested = True
             listener = self._storage_listener
@@ -106,6 +123,22 @@ class SteeringToken:
             except Exception as e:
                 logger.warning(f"Failed to notify steering storage listener: {e}")
         logger.warning(f"Redirect requested: {message[:80]}...")
+        return True
+
+    def close_if_idle(self) -> bool:
+        """在没有待交付消息时关闭令牌，此后 steer()/redirect() 拒收（原子操作，线程安全）
+
+        运行在即将结束的那一刻调用。True：当时没有待交付的消息，令牌已关闭；
+        False：有消息抢在前面入队，运行必须先交付它们再重试。
+
+        Returns:
+            令牌是否已关闭。
+        """
+        with self._lock:
+            if self._queue or self._activated_messages:
+                return False
+            self._closed = True
+            return True
 
     @property
     def has_pending(self) -> bool:
@@ -175,13 +208,15 @@ class SteeringToken:
     def reset_turn(self) -> None:
         """重置 turn 级状态（新 turn 开始时调用）
 
-        重置 _active、_steering_applied、_redirect_requested 和 _activated_messages，
-        但保留队列中的消息。
+        重置 _active、_steering_applied 和 _redirect_requested，保留所有未交付的消息：
+        已激活但未被 collect_all_steering_messages() 取走的消息回到队列最前
+        （错误恢复重启的 turn 不会经过 steering 处理器，这些消息仍欠模型一次交付）。
         """
         with self._lock:
             self._active = False
             self._steering_applied = False
             self._redirect_requested = False
+            self._queue[:0] = self._activated_messages
             self._activated_messages.clear()
 
 

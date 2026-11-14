@@ -13,7 +13,7 @@ Vitest 全局测试基础设施与**跨模块集成测试**入口。`setup.ts` �
 | `config-sync/`                    | `ConfigSyncManager` 跨端同步                                               |
 | `cron/`                           | Cron 创建与投递 UI 契约                                                    |
 | `hooks/`                          | 无对应 hook 文件的纯函数测试                                               |
-| `intent-dispatcher/`              | `lib/intent-dispatcher` schema                                             |
+| `intent-dispatcher/`              | `lib/intent-dispatcher` schema、深链路由与桌面 OAuth 回调                  |
 | `store/`                          | 根级 store（`useFlowPadStore`、`useMemoryStore` 等）                       |
 | `tauri-mode/`                     | Tauri 运行时分支（`AttachButton`、`ImagePreview`）                         |
 | `vision/`                         | 多模态 / 语音视觉管线                                                      |

@@ -1,4 +1,4 @@
-"""Agent Fleet Overview — aggregated per-agent statistics for the /agents page.
+"""Agent Fleet Overview — aggregated per-agent statistics.
 
 [INPUT]
 @database.models.chat::Chat (agent_id, total_tokens, total_usd, total_calls)
@@ -12,8 +12,8 @@ GET /api/v1/agents/fleet-overview — per-agent stats + global KPI summary
 
 [POS]
 Fleet 聚合视图 API。从现有 Chat/CronJob/Approval 表、Kanban 看板审批与 Gateway
-内存数据中按 agent_id 聚合统计信息，供前端 /agents 页面 KPI 卡片和增强 Agent
-卡片使用。零新表，纯读聚合。
+内存数据中按 agent_id 聚合统计信息，团队资产中心用它取各智能体的定时任务数。
+零新表，纯读聚合。
 """
 
 from __future__ import annotations

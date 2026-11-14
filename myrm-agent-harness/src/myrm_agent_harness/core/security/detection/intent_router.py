@@ -12,8 +12,9 @@ Categories:
 3. PRIVILEGE_MUTATION: disabling security guardrails, sandbox escape,
    unauthorized root escalation.
 
-Dual-Tier Zero-Latency Architecture:
-- Tier 1: Pre-compiled regex pattern matching against normalized text (<0.2ms).
+Dual-Tier Architecture:
+- Tier 1: Pre-compiled regex pattern matching against normalized text (well under 1 ms for a short
+  prompt; about 3 ms for an 8 KB paste on the development machine).
 - Tier 2: Actionability vs. Informational/Code-Gen filter that lets developer code reviews,
   technical Q&A, and script generation through. It does not parse negation: a sentence that
   states the command in order to refuse it is still flagged.

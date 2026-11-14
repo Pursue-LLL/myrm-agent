@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from app.channels.routing.pending_approvals import PendingApprovals
     from app.channels.routing.placeholder_strategy import DeferredPlaceholder
     from app.channels.routing.policy_resolver import PolicyResolver
+    from app.channels.routing.progress_estimator import ProgressEstimator
     from app.channels.routing.reactions import StatusReaction
     from app.channels.routing.router_models import (
         ReactionPolicy,
@@ -59,7 +60,7 @@ if TYPE_CHECKING:
         _RouterExecutionContext,
     )
     from app.channels.routing.session_gate import SessionGate
-    from app.channels.routing.stream_manager import ProgressEstimator, StreamCoordinator
+    from app.channels.routing.stream_manager import StreamCoordinator
     from app.channels.types import InboundMessage, OutboundMessage, TopicContext, VoiceConfig
 
 

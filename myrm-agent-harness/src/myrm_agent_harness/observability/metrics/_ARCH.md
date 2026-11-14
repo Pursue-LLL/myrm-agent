@@ -16,3 +16,4 @@ Harness-layer generic metrics utilities for any project using the Myrm framework
 | provider_window_metrics.py | Core | `record_window_outcome()`: counter of rate-limit-class LLM errors by the signal their retry boundary was read from (`none` = no boundary found); drift alarm for the provider-window extractor. | ✅ |
 | registry.py | Core | Provides standard, built-in metrics collection for the Agent framework. | ✅ |
 | security_metrics.py | Core | Security and policy enforcement metrics, including policy denial tracking. | ✅ |
+| tool_order_metrics.py | Core | `record_tool_order()`: counter of tool calls by how the conflict gate ordered them against the calls of their model message (`held_for_order` / `predecessor_absent` / `turn_unidentified`); makes the ordering observable. | ✅ |

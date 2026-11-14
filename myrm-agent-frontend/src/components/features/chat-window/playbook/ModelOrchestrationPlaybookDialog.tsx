@@ -14,7 +14,7 @@
  *
  * [POS]
  * 空聊天与设置中心复用的模型编排指南。向用户清晰解释 Brain/Hands 分工、Routing 与 MoA
- * 正交概念、Agent 4x Token 经济学，并支持根据已启用模型一键应用黄金预设。
+ * 正交概念、Agent Token 经济学，并支持根据已启用模型一键应用黄金预设。
  */
 
 import React, { memo, useCallback, useMemo, useState } from 'react';

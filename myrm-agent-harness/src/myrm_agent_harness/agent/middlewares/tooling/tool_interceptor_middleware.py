@@ -47,7 +47,6 @@ POST-CALL (in this order):
 - reset_loop_guard(): Reset loop guard state; `is_resume=True` preserves CallRecord window and error signatures
 - child_loop_guard(): A LoopGuard of its own for a nested child run, filed under its own key, restored to the parent's afterwards
 - discard_session_loop_guard(): Forget the guard kept for a session that is over
-- notify_loop_guard_compaction(): Restart the guard's call window and counts after context compaction
 
 [POS]
 Single interception point for all tool calls. This module is a thin
@@ -222,28 +221,6 @@ def child_loop_guard(session_key: str) -> Iterator[LoopGuard]:
 def discard_session_loop_guard(session_key: str) -> None:
     """Forget the guard kept for a session that is over, such as a child that finished."""
     _session_loop_guards.pop(session_key, None)
-
-
-def notify_loop_guard_compaction() -> None:
-    """Notify the loop guard that context compaction occurred.
-
-    The call window and call count start over with the compacted context; the
-    rounds used keep counting, because compaction does not refill the graph's
-    step limit the budget nudges count down to.  Error signatures are preserved
-    so that recurring failures are still tracked across compaction boundaries.
-    """
-    try:
-        guard = _loop_guard_var.get()
-    except LookupError:
-        return
-    if guard is None:
-        guard = _get_session_loop_guard()
-    if guard is None:
-        return
-    prev_calls = guard._metrics.total_calls
-    guard.notify_compaction()
-    if prev_calls > 0:
-        logger.debug("LoopGuard compaction reset: total_calls %d → 0", prev_calls)
 
 
 # ---------------------------------------------------------------------------

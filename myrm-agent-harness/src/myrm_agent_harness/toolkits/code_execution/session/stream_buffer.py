@@ -5,6 +5,9 @@ and provides live chunks for SSE UI updates.
 
 [POS]
 Efficient byte stream buffer. Supports zero-copy boundary detection and memory-bounded head/tail retention.
+An output that fits ``max_chars`` comes back whole; a longer one comes back as its head and tail around one notice
+that counts the dropped middle, and the whole still fits ``max_chars``, so the cut ``ExecutionResult`` makes of
+stdout leaves it alone and the count survives.
 With a ``ValueMasker`` the credentials of the command are hidden before the text is retained or returned, so the
 final output, the tee file and the live stream, which all derive from it, never hold them.
 """
@@ -16,6 +19,12 @@ from collections import deque
 
 from myrm_agent_harness.toolkits.code_execution.executors.common.executor_utils import MAX_OUTPUT_CHARS
 from myrm_agent_harness.toolkits.code_execution.session.value_masker import ValueMasker
+
+
+def _drop_notice(dropped: int) -> str:
+    return (
+        f"\n\n[System Warning: The middle {dropped} characters of output were truncated to prevent memory overflow]\n\n"
+    )
 
 
 class ExecutionStreamBuffer:
@@ -33,7 +42,6 @@ class ExecutionStreamBuffer:
         self._tail_len = 0
 
         self._total_chars_seen = 0
-        self._is_truncated = False
 
         self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
         self._byte_buf = bytearray()
@@ -126,7 +134,6 @@ class ExecutionStreamBuffer:
                 return
 
         # Fill tail (Ring Buffer)
-        self._is_truncated = True
         self._tail_buf.append(text)
         self._tail_len += len(text)
 
@@ -139,18 +146,35 @@ class ExecutionStreamBuffer:
                     self._tail_buf.appendleft(oldest[-extra:])
                     self._tail_len += extra
 
-    def get_final_output(self) -> str:
-        """Construct the final result with logical truncation awareness."""
+    @property
+    def truncated(self) -> bool:
+        """True once more output arrived than the head and the tail keep, so a middle part was dropped.
+
+        Final after ``get_final_output``, which takes in the bytes still waiting to be decoded.
+        """
+        return self._total_chars_seen > self._head_len + self._tail_len
+
+    def get_final_output(self, reserve: int = 0) -> str:
+        """The output kept: whole while it fits, else its head and tail around a notice that counts the dropped middle.
+
+        ``reserve`` is the length of text the caller appends to a cut output. It stays free, so the output and that
+        text together fit ``max_chars`` and nothing downstream cuts the notice out again. An output that is not cut
+        comes back whole whatever ``reserve`` is.
+        """
         # Last attempt decode remaining bytes; a stream that ended early also releases what the masker holds
         suffix = self._decoder.decode(self._byte_buf, final=True) if self._byte_buf else ""
         self._byte_buf.clear()
         self._append_to_buffers(self._mask(suffix, final=True))
 
         head = "".join(self._head_buf)
-        if not self._is_truncated:
-            return head
-
         tail = "".join(self._tail_buf)
-        dropped = self._total_chars_seen - (len(head) + len(tail))
-        warning = f"\n\n[System Warning: The middle {dropped} characters of output were truncated to prevent memory overflow]\n\n"
-        return head + warning + tail
+        if not self.truncated:
+            return head + tail
+
+        # The notice is longest for the largest count it can state (every character seen), so room for that one
+        # always suffices. The notice takes its room from the oldest part of the tail, which the count then includes.
+        room = self._max_chars - reserve - len(head) - len(_drop_notice(self._total_chars_seen))
+        if len(tail) > room:
+            tail = tail[len(tail) - max(room, 0) :]
+        dropped = self._total_chars_seen - len(head) - len(tail)
+        return head + _drop_notice(dropped) + tail

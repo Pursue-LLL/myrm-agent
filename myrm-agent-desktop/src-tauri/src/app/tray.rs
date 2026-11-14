@@ -7,14 +7,17 @@
 //! [OUTPUT]
 //! - setup_tray: 初始化 Tray 菜单（Show / New Chat / Settings / Workspace / Quit）
 //! - set_tray_status: IPC 命令，前端同步 Agent 运行状态与 i18n tooltip 到托盘
+//! - update_tray_info: IPC 命令，刷新托盘菜单里的引擎版本与升级进度行
 //! - update_native_tray_status: Rust 侧托盘 error/idle 状态（watchdog、启动失败）
 //!
 //! [POS]
-//! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。
+//! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。托盘图标是模板图标，macOS 按菜单栏
+//! 深浅自动着色；换图一律经 `apply_tray_icon`，由它在同一次调用里换图并保持模板属性，
+//! 否则模板属性会丢失，图标按纯黑像素显示。
 
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
 
 static ENGINE_VER_ITEM: std::sync::Mutex<Option<MenuItem<tauri::Wry>>> =
@@ -67,6 +70,24 @@ pub fn load_tray_icon_for_status(
         ))?),
         _ => load_tray_icon(),
     }
+}
+
+/// 换图并保持模板属性。托盘库的 `set_icon` 会把 macOS 的模板标志重置为否，图标随即按原始
+/// 像素（纯黑）显示，在深色菜单栏上看不清；`set_icon_with_as_template` 在同一次调用里先换图
+/// 再设模板标志，界面不会渲染出中间状态。它在其他平台上是空操作（连图都不换），所以其他
+/// 平台直接用 `set_icon`；用 `cfg!` 而不是 `#[cfg]`，两个分支在每个平台上都参与编译检查。
+///
+/// 闭包由 Tauri 放到主线程执行并等待完成，托盘句柄的非原子引用计数只在主线程上增减。
+fn apply_tray_icon(tray: &TrayIcon, icon: Image<'static>) -> tauri::Result<()> {
+    tray.with_inner_tray_icon(move |inner| -> tauri::Result<()> {
+        let icon = icon.try_into()?;
+        if cfg!(target_os = "macos") {
+            inner.set_icon_with_as_template(Some(icon), true)?;
+        } else {
+            inner.set_icon(Some(icon))?;
+        }
+        Ok(())
+    })?
 }
 
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -200,7 +221,7 @@ pub fn set_tray_status(
             .map_err(|e| format!("Failed to set tray tooltip: {e}"))?;
 
         if let Ok(icon) = load_tray_icon_for_status(&status) {
-            let _ = tray.set_icon(Some(icon));
+            let _ = apply_tray_icon(&tray, icon);
         }
     }
     Ok(())
@@ -223,6 +244,6 @@ pub fn update_native_tray_status(app: &AppHandle, status: &str, tooltip: &str) {
     let _ = tray.set_tooltip(Some(tooltip));
 
     if let Ok(icon) = load_tray_icon_for_status(status) {
-        let _ = tray.set_icon(Some(icon));
+        let _ = apply_tray_icon(&tray, icon);
     }
 }

@@ -41,7 +41,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/primitives/sheet';
-import { normalizeTeammateEntry } from '@/lib/utils/teammateMessage';
 import {
   buildTree,
   filterNodes,
@@ -324,22 +323,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
       }
       void useSubagentStore.getState().fetchSubagents(chatId);
     };
-    const handleTeammateEvent = (event: Event) => {
-      const customEvent = event as CustomEvent<{
-        chat_id?: string;
-        message?: Record<string, string | number>;
-      }>;
-      if (customEvent.detail?.chat_id !== chatId) {
-        return;
-      }
-      const msg = customEvent.detail?.message;
-      if (!msg?.from_task_id || !msg?.to_task_id) {
-        return;
-      }
-      useSubagentStore.getState().appendTeammateMessage(normalizeTeammateEntry(msg as Record<string, string | number>));
-    };
     window.addEventListener('subagents_updated', handleSseEvent);
-    window.addEventListener('teammate_message', handleTeammateEvent);
     const handleOpenDashboard = (event: Event) => {
       const customEvent = event as CustomEvent<{ taskId?: string }>;
       const targetTaskId = customEvent.detail?.taskId;
@@ -359,7 +343,6 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     window.addEventListener('open_subagent_dashboard', handleOpenDashboard);
     return () => {
       window.removeEventListener('subagents_updated', handleSseEvent);
-      window.removeEventListener('teammate_message', handleTeammateEvent);
       window.removeEventListener('open_subagent_dashboard', handleOpenDashboard);
     };
   }, [chatId]);

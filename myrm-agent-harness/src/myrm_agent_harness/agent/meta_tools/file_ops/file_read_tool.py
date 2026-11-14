@@ -52,6 +52,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecut
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
+from .constants import REASON_FIELD_DESCRIPTION
 from .core.file_read import (
     append_media_text_parts,
     assert_evicted_uploaded_read_scope,
@@ -80,44 +81,37 @@ FileReadPathPolicy = Literal["full", "evicted_uploaded"]
 class FileReadInput(BaseModel):
     """文件读取工具输入参数"""
 
+    # The parameter descriptions are the English schema every locale sends; only the tool description is localized.
     paths: list[str] = Field(
         description=(
-            "文件路径列表（支持批量读取）。"
-            "支持：本地文件路径、MCP 路径（/mcp/.../*.md）、"
-            "File ID（@file_001）、vault 指针（vault://uuid）、行号范围（file.py:1-50）、目录。"
-            "不支持网络 URL（http/https，访问网页请用 web_fetch_tool）。"
+            "Files or directories. Line range suffix (text/code files only): 'f.py:1-50' or 'f.py:100-' (to the end). "
+            "Also accepts @file_id, vault://uuid[:range] and /mcp/... paths."
         )
     )
 
     mode: str = Field(
         default="all",
         description=(
-            "读取模式：\n"
-            "- 'all'（默认）：完整读取文件（<10MB推荐）\n"
-            "- 'preview'：仅读取前1000行 + 显示总行数（大文件快速预览）\n"
-            "- 'stream'：分块流式读取（>100MB文件推荐，防止内存溢出）"
+            "'all' (default); 'preview': first 1000 lines; 'stream': first page of a very large file. "
+            "Read further parts with a line range."
         ),
     )
-
-    chunk_size_mb: int = Field(default=10, description="streaming模式下的块大小（MB），默认10MB")
 
     parse_mode: str | None = Field(
         default=None,
         description=(
-            "文档解析模式（对 .docx/.pdf/.md/代码/Excel/PPTX 生效）：\n"
-            "- None（默认）：输出完整文本/Markdown（Excel 大文件 >50KB 自动切换 structure）\n"
-            "- 'content'：强制输出完整内容\n"
-            "- 'structure'：结构化渐进阅读模式。输出章节大纲与行号/页号（PDF书签/页码、Markdown/代码符号行范围、Word/Excel结构元数据），便于精准阅读\n"
-            "- 'audit'：输出 JSON 审计报告（仅 Excel 生效）"
+            "'structure': outline / table of contents (目录/大纲): headings or symbols with line numbers (Markdown, code), "
+            "PDF headings with page numbers, structure metadata (Word, Excel, PPTX); 'content': full text; "
+            "'audit': Excel audit JSON. Default: full text (large Excel files default to 'structure')."
         ),
     )
 
-    reason: str | None = Field(default=None, description="执行命令的原因（可选，用于日志）")
-
     preserve_in_context: bool = Field(
         default=False,
-        description="如果为 true，读取的内容将被打上保护标签，在长对话压缩时不会被遗忘。仅对核心规范、技能文件等极其重要的内容使用。",
+        description="Keep this content through context compaction. Only for critical specs or skill files.",
     )
+
+    reason: str | None = Field(default=None, description=REASON_FIELD_DESCRIPTION)
 
     @model_validator(mode="before")
     @classmethod
@@ -135,41 +129,15 @@ class FileReadInput(BaseModel):
         return coerce_path_list(v)
 
 
-_FILE_READ_TOOL_DESCRIPTION_ZH = """读取文件内容或目录列表。支持图片（png/jpg/gif/webp）、PDF、Office 文档（docx/xlsx/xls）和 Jupyter Notebook（ipynb）。
-参数：
-- paths: 文件路径列表（JSON 数组）。支持行号范围语法：
-  - `["file.py"]` - 读取整个文件
-  - `["file.py:1-50"]` - 读取第 1-50 行
-  - `["file.py:100-"]` - 从第 100 行读取到文件末尾
-  - `["src/"]` - 读取目录下的所有文件
-  - `["chart.png"]` / `["report.pdf"]` / `["contract.docx"]` / `["data.xlsx"]` / `["analysis.ipynb"]` - 多模态读取
-  - `["vault://<uuid>"]` - 读取 auto-vault 落盘的大结果
-  - `["vault://<uuid>:1-50"]` - 读取 vault 指定行范围
-- mode: 读取模式（'all'默认 | 'preview'快速预览 | 'stream'大文件防OOM）
-  - 大文件建议：>100MB 使用 mode='preview' 或行号范围
-- chunk_size_mb: streaming 块大小（默认 10MB）
-- parse_mode: 结构解析模式（'structure' 提取 PDF/Markdown/代码/Word/Excel 章节与符号大纲及行号，便于精准阅读；'content' 完整读取；'audit' 仅用于 Excel 审计）
+_FILE_READ_TOOL_DESCRIPTION_ZH = (
+    "读取文件内容（支持批量）或列出目录；也支持图片、视频、PDF、Office 文档（docx/xlsx/pptx）和 ipynb。"
+    "仅限本地/沙箱路径，网页请用 web_fetch_tool。"
+)
 
-**注意**: 仅支持本地文件/沙箱路径，不支持网络 URL（网页请用 web_fetch_tool）。
-"""
-
-_FILE_READ_TOOL_DESCRIPTION_EN = """Read file contents or directory listing. Supports images (png/jpg/gif/webp), PDF, Office documents (docx/xlsx/xls), and Jupyter Notebooks (ipynb).
-Parameters:
-- paths: List of file paths (JSON array). Supports line range syntax:
-  - `["file.py"]` - Read entire file
-  - `["file.py:1-50"]` - Read lines 1-50
-  - `["file.py:100-"]` - Read from line 100 to EOF
-  - `["src/"]` - List all files under directory
-  - `["chart.png"]` / `["report.pdf"]` / `["contract.docx"]` / `["data.xlsx"]` / `["analysis.ipynb"]` - Multimodal read
-  - `["vault://<uuid>"]` - Read spilled auto-vault content
-  - `["vault://<uuid>:1-50"]` - Read specific line range from vault
-- mode: Read mode ('all' default | 'preview' fast preview | 'stream' large file chunking)
-  - Large files (>100MB): use mode='preview' or line ranges
-- chunk_size_mb: Streaming chunk size in MB (default 10)
-- parse_mode: Structure parsing mode ('structure' extracts outline and line numbers for PDF/Markdown/code/Word/Excel; 'content' reads full text; 'audit' for Excel audit)
-
-**Note**: Only supports local files / sandbox paths; does NOT support web URLs (use web_fetch_tool for webpages).
-"""
+_FILE_READ_TOOL_DESCRIPTION_EN = (
+    "Read files (batch) or list a directory. Also reads images, video, PDF, Office documents (docx/xlsx/pptx) and ipynb. "
+    "Local/sandbox paths only; use web_fetch_tool for URLs."
+)
 
 
 def resolve_file_read_tool_description(locale: str | None = None) -> str:
@@ -195,7 +163,6 @@ def create_file_read_tool(
     async def file_read_func(
         paths: list[str],
         mode: str = "all",
-        chunk_size_mb: int = 10,
         parse_mode: str | None = None,
         reason: str | None = None,
         preserve_in_context: bool = False,
@@ -330,7 +297,6 @@ def create_file_read_tool(
                     skills,
                     reason,
                     mode,
-                    chunk_size_mb,
                     config=config,
                     parse_mode=parse_mode,
                 )

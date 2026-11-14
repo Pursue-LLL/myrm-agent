@@ -135,27 +135,6 @@ async def _emit_subagent_tree(session_id: str) -> None:
         except Exception:
             logger.debug("Failed to list checkpoints in bridge")
 
-        try:
-            from myrm_agent_harness.agent.coordination.mailbox import (
-                group_history_by_task,
-                list_teammate_history,
-            )
-
-            from app.services.chat.chat_service import ChatService
-
-            workspace_dir = await ChatService.ensure_default_workspace_dir(rest_chat_id)
-            history = list_teammate_history(rest_chat_id, workspace_dir, limit=200)
-            if history:
-                grouped = group_history_by_task(history)
-                for child in children_data:
-                    if not isinstance(child, dict):
-                        continue
-                    task_id = child.get("task_id")
-                    if isinstance(task_id, str) and task_id in grouped:
-                        child["teammate_messages"] = grouped[task_id]
-        except Exception:
-            logger.debug("Failed to hydrate teammate messages in bridge", exc_info=True)
-
         get_server_bus().publish(
             AppEvent(
                 event_type=AppEventType.SUBAGENTS_UPDATED,

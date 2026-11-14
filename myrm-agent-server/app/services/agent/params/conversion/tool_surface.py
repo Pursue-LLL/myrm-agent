@@ -12,8 +12,9 @@
 - resolve_tool_surface(): pick the fast-search surface or the general web-chat surface
 
 [POS]
-Entry-surface stage of Agent request conversion. Fast mode is the only surface without file/bash:
-it forces an answer_tool-only profile, wipes skills / MCP / subagents / media generation and mounts no memory tools.
+Entry-surface stage of Agent request conversion. Fast mode is the only surface without bash and file-write tools
+(it keeps a read-only file_read_tool over spill files and uploads): it forces an answer_tool-only profile, wipes
+skills / MCP / subagents / media generation and mounts no memory tools.
 """
 
 from __future__ import annotations

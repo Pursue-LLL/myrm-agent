@@ -27,7 +27,7 @@
 
 ## Sandbox 模式
 
-- 所有部署模式统一使用 SQLite（存储在沙箱持久化卷 `/persistent/data/myrm.db`）。
+- 所有部署模式统一使用 SQLite（存储在沙箱持久化卷 `/persistent/data/data.db`）。
 
 ---
 

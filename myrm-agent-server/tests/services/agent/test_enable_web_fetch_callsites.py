@@ -12,7 +12,7 @@ REQUIRED_WIRES: frozenset[str] = frozenset(
         "app/core/channel_bridge/agent_executor/execute_preamble/agent.py",
         "app/core/cron/adapters/agent_runner/runner.py",
         "app/core/eval/executor.py",
-        "app/services/kanban/task_runner/runner.py",
+        "app/services/kanban/task_runner/agent_run.py",
         "app/services/agent/goals/unattended/trigger.py",
         "app/api/voice/agent_bridge/params.py",
         "app/api/voice/realtime.py",

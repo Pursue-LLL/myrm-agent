@@ -153,6 +153,37 @@ def test_drain_into_token_feeds_live_mechanism() -> None:
     assert drain_into_token(queue, token, "sess-1") == 0
 
 
+def test_drain_into_token_of_an_ended_run_takes_the_notes_back() -> None:
+    """The sender keeps a refused note: it is not pending, not counted as injected, and never replayed later."""
+    from myrm_agent_harness.agent.orchestration.steering import drain_into_token
+    from myrm_agent_harness.utils.runtime.steering import SteeringToken
+
+    queue = SteeringQueue()
+    token = SteeringToken()
+    assert token.close_if_idle()
+    queue.enqueue("sess-1", "pivot to file X")
+
+    assert drain_into_token(queue, token, "sess-1") == 0
+
+    assert token.has_pending is False
+    assert queue.pending("sess-1") == []
+    assert queue.metrics_snapshot().injected == 0
+    assert queue.to_snapshot()["notes"] == []
+
+
+def test_take_back_removes_each_note_once() -> None:
+    queue = SteeringQueue()
+    queue.enqueue("sess-1", "first")
+    drained = queue.drain_for_boundary("sess-1")
+    assert queue.metrics_snapshot().injected == 1
+
+    queue.take_back(drained)
+    queue.take_back(drained)
+
+    assert queue.metrics_snapshot().injected == 0
+    assert queue.pending("sess-1") == []
+
+
 def test_drain_into_token_respects_max_notes() -> None:
     from myrm_agent_harness.agent.orchestration.steering import drain_into_token
     from myrm_agent_harness.utils.runtime.steering import SteeringToken

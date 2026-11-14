@@ -25,6 +25,7 @@ import {
   Plug,
   Presentation,
   Shield,
+  Telescope,
   TrendingUp,
   Wand2,
   Wrench,
@@ -103,6 +104,7 @@ export function useNavMoreSections(extensionConnected: boolean): NavMoreSection[
       label: t('nav.batchDirectories'),
       href: '/batch-directories',
     },
+    { kind: 'link', id: 'research', icon: Telescope, label: t('nav.research'), href: '/research' },
     {
       kind: 'link',
       id: 'skills',

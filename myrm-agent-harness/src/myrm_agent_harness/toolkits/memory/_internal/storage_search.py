@@ -319,7 +319,7 @@ async def search_conversation(
     """Adaptive dual-channel conversation search with cost optimization.
 
     Supports both single-channel (summary only) and dual-channel (raw + summary) modes.
-    When query_raw is None, uses summary embedding only for ~50% cost savings.
+    When query_raw is None, only the summary is embedded: one embedding call instead of two.
     The BM25 mirror wrapper is unwrapped first: the conversation collection is
     not mirrored and is queried through named vectors.
     """

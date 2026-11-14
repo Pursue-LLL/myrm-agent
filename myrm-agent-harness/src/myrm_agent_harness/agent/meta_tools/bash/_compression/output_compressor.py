@@ -14,8 +14,8 @@ and failed command outputs; unrecognized commands pass through.
 
 [POS]
 Command-aware semantic compressor for bash tool outputs. Sits between raw execution
-output and character-level truncation, reducing token consumption by 68-99% for
-common dev commands while preserving all decision-relevant information for the LLM.
+output and character-level truncation, reducing token consumption for common
+dev commands while preserving all decision-relevant information for the LLM.
 """
 
 from __future__ import annotations

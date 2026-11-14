@@ -64,7 +64,7 @@ const kit = vi.hoisted(() => ({
     messages: [] as ChatMessage[],
     loading: false,
     sendMessage: vi.fn<(text: string) => Promise<void>>(),
-    setCameraFrames: vi.fn<(frames: string[]) => void>(),
+    setVisionFrames: vi.fn<(frames: string[]) => void>(),
     agentConfig: undefined as { agentId?: string } | undefined,
   },
   useVoiceSession: vi.fn<(options: VoiceSessionOptions) => VoiceSessionStub>(),

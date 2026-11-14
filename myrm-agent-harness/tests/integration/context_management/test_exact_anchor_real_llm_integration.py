@@ -31,7 +31,7 @@ _RAW_MODEL = os.environ.get("BASIC_MODEL", "minimax/MiniMax-M3.1-Flash-Preview")
 _TEST_BASE_URL = os.environ.get("BASIC_BASE_URL", "https://api.minimaxi.com/v1")
 _TEST_API_KEY = os.environ.get("BASIC_API_KEY", "")
 
-pytestmark = pytest.mark.timeout(180)
+pytestmark = [pytest.mark.timeout(180), pytest.mark.integration]
 
 
 def _normalize_model(raw: str) -> tuple[str, str | None]:

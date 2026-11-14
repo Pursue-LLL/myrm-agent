@@ -3,10 +3,13 @@
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
 - myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
+- myrm_agent_harness.api::AgentEventType (POS: Stream event types)
+- app.services.agent.approval_payload::is_tool_stuck_pause, is_browser_takeover_request (POS: Tell a loop guard pause and a browser step that needs a person from an approval)
+- app.services.kanban.task_runner.outcomes::APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON (POS: The block reasons of the two requests nobody can answer)
 - app.core.storage.files_service (POS: 文件存储 SSOT；附件字节读取 via get_content)
 
 [OUTPUT]
-- _StreamAccumulator: Accumulates agent stream events (answer text, usage, cost, error) into a final result.
+- _StreamAccumulator: Accumulates agent stream events (answer text, usage, cost, error, the request the run stopped on) into a final result.
 - build_multimodal_query: Assembles text or multimodal query from task attachments.
 
 [POS]
@@ -21,9 +24,16 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
+from myrm_agent_harness.api import AgentEventType
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
+from app.services.agent.approval_payload import is_browser_takeover_request, is_tool_stuck_pause
+from app.services.kanban.task_runner.outcomes import APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON
+
 logger = logging.getLogger(__name__)
+
+# Both end the stream on an interrupt that waits for an answer; a kanban run has nobody to give it.
+_APPROVAL_STOP_EVENTS = frozenset({AgentEventType.TOOL_APPROVAL_REQUEST.value, AgentEventType.APPROVAL_REQUIRED.value})
 
 _IMAGE_EXTENSIONS = frozenset(
     {
@@ -64,6 +74,12 @@ class _StreamAccumulator:
     usage: dict[str, int] | None = None
     cost_usd: float | None = None
     error: str | None = None
+    request_reason: str | None = None
+
+    @property
+    def unanswered_request_reason(self) -> str | None:
+        """The block reason of the request the run ended on instead of failing: a run error outranks it."""
+        return self.request_reason if self.error is None else None
 
     def add(self, event: dict[str, object]) -> None:
         event_type = event.get("type", "")
@@ -87,6 +103,12 @@ class _StreamAccumulator:
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")
             self.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
+        elif event_type in _APPROVAL_STOP_EVENTS and not is_tool_stuck_pause(data) and self.request_reason is None:
+            # The loop guard's pause arrives as ``approval_required`` too, but it reports a failure and asks for no approval.
+            # The first request names the reason; the run is held for a person either way.
+            self.request_reason = (
+                TAKEOVER_NEEDED_BLOCK_REASON if is_browser_takeover_request(data) else APPROVAL_NEEDED_BLOCK_REASON
+            )
 
     def to_result(self) -> tuple[bool, str]:
         if self.error:

@@ -192,8 +192,8 @@ class RouterCommandsModesMixin:
         """Handle /steer command: inject a new instruction into the running agent mid-execution.
 
         In a group the run belongs to the person whose message started it, so only that person can steer it. With no
-        run to steer (this includes a finished turn that stays registered only so its approval can be answered) the
-        instruction is a turn of its own.
+        run to steer (this includes a finished turn that stays registered only so its approval can be answered, and
+        a run that ended before taking the instruction) the instruction is a turn of its own.
         """
         chat_id = msg.chat_id or msg.sender_id
         session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
@@ -217,14 +217,15 @@ class RouterCommandsModesMixin:
 
         active = self._active_tasks.get(session_key)
         token = active.steering_token if active is not None and not active.task.done() else None
-        if active is None or token is None:
-            self._gate.submit(dataclasses.replace(msg, content=instruction))
-        elif msg.is_group and (not active.requester_id or msg.sender_id != active.requester_id):
-            await reply(get_text(msg, "steer_requester_only"))
-        else:
-            token.steer(instruction)
-            preview = instruction[:80] + "..." if len(instruction) > 80 else instruction
-            await reply(get_text(msg, "steering_applied", preview=preview))
+        if active is not None and token is not None:
+            if msg.is_group and (not active.requester_id or msg.sender_id != active.requester_id):
+                await reply(get_text(msg, "steer_requester_only"))
+                return
+            if token.steer(instruction):
+                preview = instruction[:80] + "..." if len(instruction) > 80 else instruction
+                await reply(get_text(msg, "steering_applied", preview=preview))
+                return
+        self._gate.submit(dataclasses.replace(msg, content=instruction))
 
     async def _handle_queue_command(
         self: RouterCommandsHost,

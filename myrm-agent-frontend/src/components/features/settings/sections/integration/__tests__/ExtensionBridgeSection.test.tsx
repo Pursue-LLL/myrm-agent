@@ -48,7 +48,7 @@ const CONNECTED: ExtensionStatus = {
   allow_all_eligible_tabs: false,
   paused_tab_ids: [],
   access_policy_valid: true,
-  capabilities: ['navigate_url', 'list_tabs', 'attach_debugger', 'detach_debugger', 'agent_tab_control'],
+  capabilities: ['navigate_url', 'list_tabs', 'agent_tab_control'],
   available_tabs: [{ tab_id: 7, url: 'https://a.com/x', title: 'A page', domain: 'a.com', active: true }],
 };
 const HINTS: ExtensionSetupHints = {

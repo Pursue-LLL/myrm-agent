@@ -1,9 +1,10 @@
 """Summary of recorded host load: pressure percentiles, distinct peaks and who drove them.
 
 [INPUT]
-- LoadSample rows from host_load_store.read_window
+- host_load_sampler.LoadSample rows (the caller reads them with host_load_store.read_window)
 - host_resource_governor load-ratio thresholds (same scale the governor acts on)
-- host_vm_stats.PRESSURE_WARN (kernel level from which memory counts as under pressure)
+- host_vm_stats.PRESSURE_WARN / VmSample (kernel level from which memory counts as under pressure,
+  and the stored kernel reading)
 
 [OUTPUT]
 - render_summary(samples, hours=..., peaks=...) -> str

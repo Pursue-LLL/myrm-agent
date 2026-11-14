@@ -28,7 +28,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `distribution_wheel_helpers.py` | 辅助 | architecture 测试用最小合法 wheel zip 构造（core wheel 按平台键写入对应 CPU 的 Mach-O / ELF / PE 头） | — |
 | `test_distribution_manifest_gate.py` | Gate | 算法区新增模块须 manifest 或 `@distribution-public` | — |
 | `test_distribution_codegen.py` | Gate | manifest codegen 新鲜度 + core IP import 可加载 | — |
-| `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元覆盖（≥90%） | — |
+| `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元测试 | — |
 | `test_no_legacy_distribution_imports.py` | Gate | 禁止 Python 源码 reintroduce `myrm_agent_harness.distribution` import | — |
 | `test_unbounded_communicate_sites.py` | Gate | AST：`src/` 内每个 `.communicate(` 调用必须登记（文件 → 调用数 + 理由）：要么写明输出与时长已由命令本身限定，要么列入「待决」一栏（已知缺口，等待改用 `communicate_bounded` 或证明其边界）；未登记、调用数对不上（含文件已不再调用）都失败；只数 `.communicate(` 这一种写法；自带检测器正反例 | — |
 | `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 `get_transport()` 或一次性补全 helper `acomplete_text` 的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 TransportChatModel）除外；自带检测器正反例与过期登记检查 | — |
@@ -78,6 +78,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_no_web_corpus_regression.py` | Gate | 已移除的 `web_corpus` / `corpus=web` 不得回归（静态守卫） | — |
 | `test_tool_env_dependency_correlation.py` | Gate | Tool 宿主环境依赖双向映射与探针健康门禁 | — |
 | `test_pytest_warning_gate.py` | Gate | Pytest 零告警容忍（Zero-Warning / filterwarnings = error）CI 门禁 | — |
+| `test_xdist_worker_cap.py` | Gate | `pyproject.toml` addopts 里的 `--maxprocesses` 封顶：进程内用 `pytester.parseconfig` 解析仓库真实 ini，再调用 xdist 自己的 `pytest_cmdline_main` 读出实际要启动的 worker 数（不起子进程，约 0.2 s/项）：显式 `-n N`（N 大于封顶）仍只启动封顶数；显式 `--maxprocesses` 放宽后随之放宽；`-o addopts=` 清空后封顶消失（说明探针对封顶敏感，也记下已知的绕过方式）。xdist 只对 `-n auto` 与 `-n logical` 承诺该选项，封顶显式 `-n N` 是其当前实现行为，所以用运行时探针而不是 grep 配置。每个 worker 是独立 Python 进程，内存随 `-n` 增长（实测一次 `-n 10` 常驻约 12 GiB） | — |
 | `test_toolkits_llms_media_layout.py` | Gate | LLM 媒体理解归属 `toolkits/llms/`，禁止顶层平铺 | — |
 | `test_prompt_token_budget_gate.py` | Gate | Turn-1 默认工具集与系统提示词 Token 预算上限与压缩比 CI 门禁 | — |
 | `test_tool_wire_budget_gate.py` | Gate | Turn-1 默认工具集的线上真实 Token 上限：以 `tool_bind_kwargs` 的真实产物（转换并按模型规整后的 function 载荷，含参数 schema）计量，补上描述门禁看不到的参数 schema 一块；除总量外每个工具另有单工具上限（未登记的工具不得超过默认 500，重工具各登记约高出实测 4% 的上限，防止一个工具膨胀被另一个缩小抵消）；另守「默认工具全部绑定成功」（失败会被静默跳过而藏起成本）与「估算器不低估线上」 | — |

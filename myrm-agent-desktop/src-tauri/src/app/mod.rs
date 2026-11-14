@@ -11,6 +11,7 @@
 //! [POS]
 //! Tauri Builder 组装层唯一入口；main.rs 仅委托本模块。
 
+pub(crate) mod autostart;
 pub(crate) mod chain;
 pub(crate) mod lifecycle;
 mod linux_gpu;

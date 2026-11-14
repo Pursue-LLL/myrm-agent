@@ -11,7 +11,7 @@
 - register_recall_tool: register memory_recall on an MCPServer
 
 [POS]
-Read plane of the MCP adapter. Recalled bodies are sanitized and followed by a static untrusted advisory; an empty recall explains rule matching.
+Read plane of the MCP adapter. Recalled bodies are sanitized and followed by a static untrusted advisory; an empty recall explains rule matching and names the explicit time window it ran under.
 """
 
 from __future__ import annotations
@@ -177,16 +177,18 @@ def register_recall_tool(mcp: MCPServer, resolve: ManagerResolver) -> None:
             valid = [CATEGORY_TO_TYPE[c] for c in parsed_cats if c in CATEGORY_TO_TYPE]
             types = valid or None
 
+        parsed_since = _parse_time_bound(since)
+        parsed_until = _parse_time_bound(until)
         results = await mgr.search(
             query,
             memory_types=types,
             limit=normalize_recall_limit(limit),
-            since=_parse_time_bound(since),
-            until=_parse_time_bound(until),
+            since=parsed_since,
+            until=parsed_until,
         )
         if not results:
             if mgr.last_retrieval_trace is not None and mgr.last_retrieval_trace.degraded:
                 return "Memory search timed out. Try a more specific query or retry."
-            return no_result_reply(types)
+            return no_result_reply(types, since=parsed_since, until=parsed_until)
 
         return _format_recall_results(results)

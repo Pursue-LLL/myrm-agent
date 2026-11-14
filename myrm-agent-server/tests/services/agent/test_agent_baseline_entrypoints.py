@@ -29,7 +29,7 @@ _ENTRYPOINTS: tuple[tuple[str, str, str], ...] = (
         "ExecutionSurface.CRON",
     ),
     (
-        "app/services/kanban/task_runner/runner.py",
+        "app/services/kanban/task_runner/agent_run.py",
         "resolve_agent_mount",
         "ExecutionSurface.KANBAN",
     ),

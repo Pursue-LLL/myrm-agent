@@ -5,6 +5,7 @@ app.api::api_router (POS: API 路由聚合)
 app.server.lifespan::optimized_lifespan (POS: 生命周期函数)
 app.config.settings::settings (POS: 统一配置中心)
 app.core.monitoring::FASTAPI_TELEMETRY (POS: FastAPI 原生遥测策略：不产出 HTTP 请求 span，不自建导出器)
+app.startup.listen_address::publish_listen_address (POS: 以脚本运行时解析监听地址并上报给 /api/v1/health)
 
 [OUTPUT]
 FastAPI 应用实例：HTTP 服务入口，生命周期管理，中间件注册，Prometheus metrics暴露，
@@ -111,19 +112,7 @@ async def health_check() -> str:
 if __name__ == "__main__":
     import uvicorn
 
-    from app.config.deploy_mode import is_webui_mode
+    from app.startup.listen_address import publish_listen_address
 
-    if is_webui_mode():
-        port = settings.webui.port
-        if settings.webui.allow_remote:
-            host = "0.0.0.0"
-            logger.info("Starting in WebUI Remote mode: %s:%d", host, port)
-        else:
-            host = "127.0.0.1"
-            logger.info("Starting in WebUI Local mode: %s:%d", host, port)
-    else:
-        host = "127.0.0.1"
-        port = settings.port
-        logger.info("Starting in Desktop Sidecar mode: %s:%d", host, port)
-
+    host, port = publish_listen_address()
     uvicorn.run(app, host=host, port=port)

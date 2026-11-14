@@ -30,7 +30,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 - 智能上下文管理（Filtering/Compression/Summarization），支持**Prompt 记忆快照与绝对预算锁定 (Strict Prompt Budgeting)**
 - **三域记忆拓扑与渐进式披露 (Memory Domain Mesh)**：记忆按 User / Assistant / Task 三域九类归属，并带 L0 摘要 / L1 概览 / L2 原文三层详略，`memory_search_tool` 默认返回 L1 概览、按 ID 展开 L2 原文；持久化走 SQLite + Qdrant，检索时按 `graph_max_depth`（默认 2）做多跳图扩展
 - Protocol-backed `conversation_search` 历史会话召回（经 `memory_search_tool(corpus=sessions)` 暴露）：框架只处理 DTO、格式化、引用事件，不依赖数据库、Server 或产品身份语义
-- **工具冲突闸门 (Tool Conflict Gate)**：每个 Agent 一道先到先得的共享/独占闸门——并发安全的工具互相共享，其余工具（含未声明的）独占运行，写入类调用不会与同一 Agent 的任何其他调用重叠，排队中的写入不会被后到的读取饿死
+- **工具冲突闸门 (Tool Conflict Gate)**：每个 Agent 一道先到先得的共享/独占闸门——并发安全的工具互相共享，其余工具（含未声明的）独占运行，写入类调用不会与同一 Agent 的任何其他调用重叠，排队中的写入不会被后到的读取饿死，同一条模型消息里相互冲突的调用按模型给出的顺序开始
 - **Myrm-Guard (AI Diagnostic & Self-Healing)**：主动式熔断、错误脱敏、前端一键修复与 Tool Integrity Guard
 - **动态重规划纠错引擎 (Dynamic Replan Loop)**：拦截工具执行错误并交由 LLM 自我纠错
 - **Harness 引擎参数化 (Engine Parameterization)**：中间件核心参数（如 `max_tool_calls`, `max_replan_attempts`）完全数据化，支持按 Agent 实例动态配置，为未来的 Agentic 自进化奠定基础
@@ -47,8 +47,8 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 - **子智能体跨层异步审批 (Asynchronous Escalation)**：基于 LangGraph 原生 `NodeInterrupt` 的穿透式中断架构，实现自主体级高危操作前端 GUI 拦截。父子双图协同挂起，完全释放服务器并发资源，避免网关强制超时，并保持主对话前缀布局稳定以利于 Prompt Cache 命中。
 - **防宕机全双工终端流 (Safe Full-Duplex Terminal)**：从底层 PTY 拦截并流式下发数据，内置 10FPS 节流与 500KB 流量熔断阀门，物理阻绝 SSE 瀑布流 DDOS 攻击导致的浏览器白屏
 - **协议驱动**：3 个核心协议（`SandboxExecutor`, `StorageProvider`, `SkillBackend`）
-- **性能优先**：智能缓存（7x 加速）、异步 I/O、高效算法
-- **类型安全**：100% 类型覆盖，禁止 `Any` 类型
+- **性能优先**：智能缓存、异步 I/O、高效算法
+- **类型安全**：mypy strict 与 pyright 配置，禁止 `Any` 类型
 
 ---
 
@@ -426,20 +426,20 @@ class UserService:
 - **测试**：默认 `pytest`（串行 + 安全 marker 过滤，见 `tests/_ARCH.md`）；覆盖率策略见 `pyproject.toml` 的 `[tool.coverage.*]`；CI 见 `myrm-agent/.github/workflows/harness-test.yml`。
 - **性能**：对外宣称延迟、吞吐或加速比时，须附带可复现命令、环境与数据。
 
-### 性能数据（实测）
+### 关键运行时机制
 
 #### 场景化并发编队与 JIT 架构 (agent/meta_tools/spawn_subagent)
 
 **Prompt Cache 静态免疫保护**：
 
-- 缓存命中率：频繁切换不同 JIT 虚拟阵容时，首轮对话的前缀缓存命中率从 0% 提升至 100%
-- 成本节约：单次首轮对话 Token 成本下降约 90%（基于大模型静态 Prefix Cache 计费规则）
+- 前缀稳定：切换 JIT 虚拟阵容不改变 Tool Schema 与 System Prompt，阵容差异只出现在 User Message 尾部，阵容切换本身不会破坏前缀缓存
 - 实现机制：Tool Schema 彻底静态化，动态名册改为 User Message 尾缀 XML 隐式注入
+- 命中率度量：以服务商返回的 usage（`cache_read_input_tokens`）为准，见 `docs/PROMPT_CACHE_PLACEMENT.md`
 
 **大并发委派限流防崩**：
 
-- 错误率控制：在单次委派 5-10 个并发子任务时，大模型 API 429 限流崩溃率降至 0%
-- 实现机制：底层基于 `asyncio.Semaphore(3)` 进行并发收束与平滑排队
+- 单轮上限：单次模型响应中超出 `MAX_CONCURRENT_SUBAGENTS`（3）的 `delegate_task_tool` 调用被截断（`agent/middlewares/subagent_limit_middleware.py`），防止模型一次扇出过多子任务触达 API 限流
+- 并发收束：`SubAgentManager` 以 `asyncio.Semaphore`（默认 5，`agent/sub_agents/manager.py`）限制同时运行的子 Agent 数
 
 #### LLM降级管理（toolkits/llms/fallback）
 
@@ -471,15 +471,6 @@ class UserService:
   - probe_count：恢复前的探测次数
   - was_in_cooldown：是否处于冷却期
 - 使用场景：用户实时通知、运营监控、故障追踪、恢复分析
-
-**智能Fallback推荐**：
-
-- recommend_fallback()：根据主模型智能推荐最佳fallback
-- 覆盖15个主流模型（GPT-4系列、Claude 3系列、Gemini系列、Mistral系列）
-- generate_quantified_reason()：生成量化推荐理由
-  - 示例："Lower cost (90% cost reduction, 30% quality trade-off)"
-- 推荐依据：模型能力相似性、替代提供商、成本特性
-- 降低配置门槛，减少配置错误
 
 **丰富化运营指标（OpenTelemetry）**：
 

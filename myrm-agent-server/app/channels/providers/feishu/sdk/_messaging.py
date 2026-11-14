@@ -140,40 +140,24 @@ class FeishuMessagingMixin:
         new_message_id = data.get("message_id") if isinstance(data, dict) else None
         return str(new_message_id) if new_message_id else None
 
-    async def update_message(self, message_id: str, msg_type: str, content: str) -> bool:
-        """Update an existing message (alias for patch_message)."""
-        return await self.patch_message(message_id, msg_type, content)
+    async def update_card(self, message_id: str, content: str) -> bool:
+        """Replace the card of a sent message.
 
-    async def edit_message(self, message_id: str, msg_type: str, content: str) -> bool:
-        """Edit a previously sent message.
-
-        API: PUT /im/v1/messages/{message_id}
+        API: PATCH /im/v1/messages/{message_id}. ``PUT`` on that path edits text and post messages only, so a card
+        goes through here, and only while its config sets ``update_multi: true`` before and after the update.
         """
-        token = await self.ensure_token()
-        http = self._get_http()
-        resp = await http.put(
-            f"{self.api_base}/im/v1/messages/{message_id}",
-            headers=self._auth(token),
-            json={"msg_type": msg_type, "content": defuse_at_all(content)},
-        )
-
-        body = self._safe_json(resp, "edit")
-        if body.get("code", -1) != 0:
-            logger.warning("Feishu edit failed: %s", body.get("msg"))
-            return False
-        return True
-
-    async def patch_message(self, message_id: str, msg_type: str, content: str) -> bool:
-        """Update a message via PATCH (for interactive card updates)."""
         token = await self.ensure_token()
         http = self._get_http()
         resp = await http.patch(
             f"{self.api_base}/im/v1/messages/{message_id}",
             headers=self._auth(token),
-            json={"msg_type": msg_type, "content": defuse_at_all(content)},
+            json={"content": defuse_at_all(content)},
         )
-        if resp.status_code >= 400:
-            logger.debug("Feishu patch failed: HTTP %d", resp.status_code)
+
+        body = self._safe_json(resp, "card update")
+        if body.get("code", -1) != 0:
+            # Only the response body names the reason (a card that fails validation, an expired message, ...).
+            logger.warning("Feishu card update failed: HTTP %s %s", resp.status_code, resp.text[:300])
             return False
         return True
 

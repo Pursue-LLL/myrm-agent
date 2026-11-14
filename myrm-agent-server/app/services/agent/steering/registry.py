@@ -10,8 +10,8 @@
 会话级 Steering 令牌注册表。使 HTTP API 能够通过 chat_id 定位正在运行的
 Agent 会话的 SteeringToken，从而在运行时注入引导消息。
 与 CancellationRegistry（按 request_id 索引）形成对称设计。
-未注册 token（回合尚在启动或已结束）时 steer/redirect 直接返回 False，
-消息的去留由调用方决定，注册表不做缓冲。
+未注册 token（回合尚在启动或已结束），或 token 已被运行关闭（回合已走到收尾）时，
+steer/redirect 直接返回 False，消息的去留由调用方决定，注册表不做缓冲。
 """
 
 import logging
@@ -57,15 +57,15 @@ class SteeringRegistry:
             message: The steering message.
 
         Returns:
-            True if the token was found, False otherwise (the caller keeps the message).
+            True if the running turn took the message; False when there is no registered token or the turn has
+            already ended (the caller keeps the message).
         """
         with cls._lock:
             token = cls._tokens.get(chat_id)
-            if token:
-                token.steer(message)
-                logger.info("Steering message injected: chat_id=%s", chat_id)
-                return True
-        return False
+            if token is None or not token.steer(message):
+                return False
+        logger.info("Steering message injected: chat_id=%s", chat_id)
+        return True
 
     @classmethod
     def redirect(cls, chat_id: str, message: str) -> bool:
@@ -79,15 +79,15 @@ class SteeringRegistry:
             message: The redirect message.
 
         Returns:
-            True if the token was found, False otherwise (the caller keeps the message).
+            True if the running turn took the message; False when there is no registered token or the turn has
+            already ended (the caller keeps the message).
         """
         with cls._lock:
             token = cls._tokens.get(chat_id)
-            if token:
-                token.redirect(message)
-                logger.info("Redirect triggered: chat_id=%s", chat_id)
-                return True
-        return False
+            if token is None or not token.redirect(message):
+                return False
+        logger.info("Redirect triggered: chat_id=%s", chat_id)
+        return True
 
     @classmethod
     def get_token(cls, chat_id: str) -> SteeringToken | None:

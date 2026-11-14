@@ -9,7 +9,7 @@
 - search_memory_corpus, search_wiki_corpus, search_sessions_corpus: Corpus-specific recall execution.
 
 [POS]
-Runtime execution layer for memory_search_tool corpus routing and formatting; an empty search explains rule matching.
+Runtime execution layer for memory_search_tool corpus routing and formatting; an empty search explains rule matching and names the explicit time window it ran under.
 """
 
 from __future__ import annotations
@@ -162,7 +162,7 @@ async def search_memory_corpus(
                 codes = manager.last_retrieval_trace.warning_codes
                 code_suffix = f" ({', '.join(codes)})" if codes else ""
                 return f"Memory search degraded due to timeout or internal store error{code_suffix}. Try a more specific query or retry."
-        return no_result_reply(types)
+        return no_result_reply(types, since=parsed_since, until=parsed_until)
 
     for result in results:
         memory = result.memory
@@ -268,7 +268,7 @@ async def search_memory_corpus(
         )
 
     if not output:
-        return no_result_reply(types)
+        return no_result_reply(types, since=parsed_since, until=parsed_until)
 
     text = finalize_recall_tool_output("\n".join(output))
     text += RECALL_DRIFT_DEFENSE_FOOTER

@@ -193,7 +193,7 @@ class TokenUsage:
 
         Args:
             cache_read_ratio: Cache-read cost as fraction of base input cost.
-                Anthropic: 0.1 (90% off), OpenAI: 0.5 (50% off)
+                Anthropic bills 0.1; other providers publish their own ratio per model.
         """
         return compute_prompt_cache_stats(self.prompt_tokens, self.cached_tokens, cache_read_ratio=cache_read_ratio)
 

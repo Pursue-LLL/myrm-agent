@@ -7,16 +7,20 @@
 [OUTPUT]
 - extract_approval_registry_payload: ApprovalRegistry payload SSOT for SSE interrupts
 - is_tool_stuck_pause: whether an interrupt is a loop guard pause, which is no approval
+- is_browser_takeover_request: whether an interrupt asks a person to act in the browser, which approves nothing
 
 [POS]
 Shared approval payload normalization for streaming.py, the stream collector, the voice bridge, the channel stream
-mapper, the phase stepper and approval persistence tests. The web app and the browser extension side panel tell a loop
-guard pause apart on the client by the same ``action_type``.
+mapper, the phase stepper, the kanban run's stream accumulator and approval persistence tests. The web app and the
+browser extension side panel tell a loop guard pause apart on the client by the same ``action_type``.
 """
 
 from __future__ import annotations
 
 from myrm_agent_harness.agent.errors import TOOL_STUCK_ACTION_TYPE
+
+# ``action_type`` of the interrupt the browser toolkit's ``browser_ask_human`` tool raises.
+BROWSER_TAKEOVER_ACTION_TYPE = "browser_takeover"
 
 _APPROVAL_META_KEYS = frozenset(
     {
@@ -43,6 +47,14 @@ def is_tool_stuck_pause(interrupt_data: object) -> bool:
     user continues the chat. So it is no approval record and no turn left open.
     """
     return isinstance(interrupt_data, dict) and interrupt_data.get("action_type") == TOOL_STUCK_ACTION_TYPE
+
+
+def is_browser_takeover_request(interrupt_data: object) -> bool:
+    """True for ``browser_ask_human``'s interrupt: the agent needs a person to act in the browser (a login, a captcha).
+
+    It reaches the stream as an ``approval_required`` event too, yet there is nothing to approve: the person does the step.
+    """
+    return isinstance(interrupt_data, dict) and interrupt_data.get("action_type") == BROWSER_TAKEOVER_ACTION_TYPE
 
 
 def extract_approval_registry_payload(approval_data: dict[str, object]) -> dict[str, object]:

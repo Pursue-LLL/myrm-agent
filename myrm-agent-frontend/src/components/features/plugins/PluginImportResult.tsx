@@ -76,7 +76,7 @@ function ReadinessBlock({ state }: { state: ImportedAgentReadiness }) {
       </p>
     );
   }
-  return <AgentReadinessList items={state.report.items} withLinks />;
+  return <AgentReadinessList items={state.report.items} />;
 }
 
 function ImportedAgentCard({ agent, readiness }: { agent: PluginAgentResult; readiness: ImportedAgentReadiness }) {

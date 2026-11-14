@@ -1,8 +1,8 @@
 """[INPUT]
 - app.channels.providers.feishu.cards.actions::build_card_actions / parse_card_action (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
-- app.channels.providers.feishu.cards.builders::_format_cost_note / build_component_card / build_result_card / build_thinking_card / wrap_text_as_card (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
+- app.channels.providers.feishu.cards.builders::_format_cost_note / build_component_card / build_result_card / wrap_text_as_card (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
 - app.channels.providers.feishu.cards.special::build_contact_disambiguation_card / build_deliverable_card (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
-- app.channels.providers.feishu.cards.text::build_post_content / has_rich_text / merge_streaming_text / resolve_send_mode (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
+- app.channels.providers.feishu.cards.text::build_post_content / has_rich_text / resolve_send_mode (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
 
 [OUTPUT]
 - build_card_actions
@@ -10,13 +10,11 @@
 - _format_cost_note
 - build_component_card
 - build_result_card
-- build_thinking_card
 - wrap_text_as_card
 - build_contact_disambiguation_card
 - build_deliverable_card
 - build_post_content
 - has_rich_text
-- merge_streaming_text
 - resolve_send_mode
 
 [POS]
@@ -28,7 +26,6 @@ from app.channels.providers.feishu.cards.builders import (
     _format_cost_note,
     build_component_card,
     build_result_card,
-    build_thinking_card,
     wrap_text_as_card,
 )
 from app.channels.providers.feishu.cards.special import (
@@ -38,7 +35,6 @@ from app.channels.providers.feishu.cards.special import (
 from app.channels.providers.feishu.cards.text import (
     build_post_content,
     has_rich_text,
-    merge_streaming_text,
     resolve_send_mode,
 )
 
@@ -50,9 +46,7 @@ __all__ = [
     "build_deliverable_card",
     "build_post_content",
     "build_result_card",
-    "build_thinking_card",
     "has_rich_text",
-    "merge_streaming_text",
     "parse_card_action",
     "resolve_send_mode",
     "wrap_text_as_card",

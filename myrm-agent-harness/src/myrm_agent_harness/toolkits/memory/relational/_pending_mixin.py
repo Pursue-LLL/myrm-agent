@@ -7,11 +7,15 @@
 - toolkits.memory.types::PendingRecord (POS: Memory type definitions)
 
 [OUTPUT]
-- SQLitePendingMixin: submit_pending, get_pending, pending_exists, mark_pending, list_pending, count_pending,
+- SQLitePendingMixin: submit_pending, get_pending, mark_pending, list_pending, count_pending,
   batch_mark_pending, delete_pending_by_source_chat_id, count_pending_by_source_chat_id
 
 [POS]
 Approval-queue persistence of SQLiteRelationalStore: a record stays pending until it is marked with a resolution status.
+One memory type and content has at most one pending record: the queue itself refuses an identical second proposal,
+whichever store on the database raised it (a resolved record does not count), and the refusal raises the waiting
+record again: it moves to the front of the queue and, when its payload carries a creation time, takes the
+repeated proposal's.
 A record is linked to a chat when it was written from it (its ``source_chat_id`` column) or built from it among others
 (the ``source_chat_ids`` of the memory it carries); a resolved record keeps the proposed text and stays linked.
 """
@@ -45,14 +49,22 @@ class SQLitePendingMixin(SQLiteStoreHost):
     """Approval-queue reads and writes of SQLiteRelationalStore."""
 
     async def submit_pending(self, record: PendingRecord) -> str:
+        """Queue the record and return its id; ``""`` when an identical open proposal already waits.
+
+        The conflict target is the unique index over open proposals, so only that duplicate is turned away quietly:
+        any other constraint failure, a reused id included, is still an error. The proposal that waits is raised
+        again by the duplicate: it moves to the front of the queue and, once approved, ranks by the later proposal's
+        date, so a preference the user changed and then changed back is the newest one.
+        """
         await self._ensure_integrity_before_write()
         conn = await self._get_connection()
         now = now_iso()
         try:
-            await conn.execute(
+            cursor = await conn.execute(
                 """INSERT INTO pending_records
                    (id, user_id, memory_type, content, memory_data, source_chat_id, source_message_id, status, created_at, resolution_action, target_memory_id, target_content, built_from_chats)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
+                   ON CONFLICT (memory_type, content) WHERE status = 'pending' DO NOTHING""",
                 (
                     record.id,
                     "default",
@@ -68,11 +80,33 @@ class SQLitePendingMixin(SQLiteStoreHost):
                     int(bool(record.memory_data.get("source_chat_ids"))),
                 ),
             )
+            queued = cursor.rowcount == 1
+            if not queued:
+                await self._raise_open_proposal(record, now)
             await conn.commit()
-            return record.id
+            return record.id if queued else ""
         except Exception as e:
             await self._handle_query_error("submit_pending", e)
-            return record.id
+            return ""
+
+    async def _raise_open_proposal(self, record: PendingRecord, now: str) -> None:
+        """Move the open proposal identical to ``record`` to the front of the queue, dated as ``record`` is."""
+        conn = await self._get_connection()
+        async with conn.execute(
+            "SELECT id, memory_data FROM pending_records WHERE memory_type = ? AND content = ? AND status = 'pending'",
+            (record.memory_type.value, record.content),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:  # resolved between the refused insert and this read
+            return
+        memory_data = json.loads(str(row[1])) if row[1] else {}
+        proposed_at = record.memory_data.get("created_at")
+        if proposed_at is not None and "created_at" in memory_data:
+            memory_data["created_at"] = proposed_at
+        await conn.execute(
+            "UPDATE pending_records SET created_at = ?, memory_data = ? WHERE id = ?",
+            (now, json.dumps(memory_data), row[0]),
+        )
 
     async def get_pending(self, pending_id: str) -> PendingRecord | None:
         conn = await self._get_connection()
@@ -83,18 +117,6 @@ class SQLitePendingMixin(SQLiteStoreHost):
         except Exception as e:
             await self._handle_query_error("get_pending", e)
             return None
-
-    async def pending_exists(self, memory_type: str, content: str) -> bool:
-        conn = await self._get_connection()
-        try:
-            async with conn.execute(
-                "SELECT 1 FROM pending_records WHERE memory_type = ? AND content = ? AND status = 'pending' LIMIT 1",
-                (memory_type, content),
-            ) as cursor:
-                return await cursor.fetchone() is not None
-        except Exception as e:
-            await self._handle_query_error("pending_exists", e)
-            return False
 
     async def mark_pending(self, pending_id: str, status: str) -> None:
         await self._ensure_integrity_before_write()

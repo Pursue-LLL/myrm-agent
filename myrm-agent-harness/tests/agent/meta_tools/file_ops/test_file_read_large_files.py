@@ -98,6 +98,18 @@ class TestStreamPage:
         assert "grep_tool" in out
         assert len(out) < 100_000
 
+    async def test_the_tool_has_no_chunk_size_and_one_the_model_still_sends_changes_nothing(
+        self, workspace: Path
+    ) -> None:
+        """A chunk size of 0 used to read an empty page and a negative one read the whole file into memory."""
+        tool = create_file_read_tool()
+        assert "chunk_size_mb" not in tool.args
+        assert "chunk_size_mb" not in tool.description
+
+        page = await _read({"paths": ["big.log"], "mode": "stream"})
+        for stray in (0, -1, 1):
+            assert await _read({"paths": ["big.log"], "mode": "stream", "chunk_size_mb": stray}) == page
+
 
 class TestReadFileChunked:
     async def test_stops_one_character_past_max_chars(self, tmp_path: Path) -> None:

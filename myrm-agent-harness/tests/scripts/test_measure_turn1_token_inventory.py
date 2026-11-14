@@ -157,7 +157,7 @@ async def test_build_default_turn1_tools_resolves_default_profile() -> None:
 #
 # Scope note: the inventory doc's per-tool numbers and its "schema wrapper" total are the
 # description-only + wrapper scope — the tool parameter JSON schema is tracked separately
-# (§六, ~5,142 tokens for 14 tools) and is intentionally out of this gate's baseline.
+# (scripts/measure_tool_schema_tokens.py) and is intentionally out of this gate's baseline.
 #
 # Host-independent baseline. Every tool except ``bash_code_execute_tool`` produces a
 # byte-constant description, so its token count is asserted exactly. The bash tool is
@@ -172,9 +172,9 @@ _BASH_STATIC_DESCRIPTION_TOKENS = 1355
 
 _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "bash_process_tool": 107,
-    "file_edit_tool": 132,
-    "file_read_tool": 332,
-    "file_write_tool": 118,
+    "file_edit_tool": 66,
+    "file_read_tool": 47,
+    "file_write_tool": 39,
     "glob_tool": 201,
     "grep_tool": 205,
     "memory_manage_tool": 289,

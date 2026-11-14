@@ -9,13 +9,11 @@ from .delegation_pause_gate import (
     pause_delegation,
     resume_delegation,
 )
-from .send_teammate_tool import create_send_teammate_message_tool
 
 __all__ = [
     "BatchDelegateInput",
     "TaskRequest",
     "create_delegate_task_tool",
-    "create_send_teammate_message_tool",
     "create_subagent_control_tool",
     "delegation_pause_status",
     "execute_batch_delegation",

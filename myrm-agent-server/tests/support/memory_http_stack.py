@@ -7,7 +7,7 @@ tests.support.minimal_app::build_minimal_app (POS: memory-preset FastAPI app)
 [OUTPUT]
 MemoryHttpStack: the HTTP client, the embedding configs the factory saw, the manager it built
 memory_http_stack(): builds the stack and releases every store on exit
-retrieval_settings(): the slice of ``UserConfigs`` the platform retrieval loader reads
+settings_entries(): the settings store seam (``load_user_config_entry``) holding only the ``retrieval`` entry
 
 [POS]
 Shared by the memory HTTP suites that must not override the manager dependencies, which is what the
@@ -21,7 +21,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -39,15 +38,24 @@ from app.services.memory.backup.volume_store import VolumeBackupStore
 from tests.support.minimal_app import build_minimal_app
 
 
-def retrieval_settings(*, embedding: bool) -> SimpleNamespace:
-    """The slice of ``UserConfigs`` the platform retrieval loader reads."""
-    retrieval: dict[str, object] | None = None
-    if embedding:
-        retrieval = {
-            "embeddingApplied": True,
-            "embeddingConfig": {"model": "BAAI/bge-m3", "apiKey": "sk-unit", "apiBase": "http://127.0.0.1:9/v1"},
-        }
-    return SimpleNamespace(retrieval_dict=retrieval)
+def retrieval_entry(*, embedding: bool) -> dict[str, object] | None:
+    """The ``retrieval`` settings entry the platform retrieval loader reads (None: nothing saved)."""
+    if not embedding:
+        return None
+    return {
+        "embeddingApplied": True,
+        "embeddingConfig": {"model": "BAAI/bge-m3", "apiKey": "sk-unit", "apiBase": "http://127.0.0.1:9/v1"},
+    }
+
+
+def settings_entries(*, embedding: bool) -> AsyncMock:
+    """Stand-in for ``load_user_config_entry``: only the ``retrieval`` entry exists."""
+    retrieval = retrieval_entry(embedding=embedding)
+
+    async def entry(config_key: str) -> dict[str, object] | None:
+        return retrieval if config_key == "retrieval" else None
+
+    return AsyncMock(side_effect=entry)
 
 
 @dataclass
@@ -90,8 +98,8 @@ async def memory_http_stack(
 
     monkeypatch.setattr(memory_setup, "create_memory_manager", isolated_create)
     monkeypatch.setattr(
-        "app.core.channel_bridge.config_loader.load_user_configs",
-        AsyncMock(return_value=retrieval_settings(embedding=embedding)),
+        "app.core.channel_bridge.config_loader.load_user_config_entry",
+        settings_entries(embedding=embedding),
     )
     monkeypatch.setattr(
         "app.services.memory.extract_retry.resolve_chat_extraction_llm.get_platform_dedup_llm",

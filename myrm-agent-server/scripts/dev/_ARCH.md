@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `profile_test_memory.py` | 工具 | 按 test 文件测量 peak RSS（macOS `time -l`） | ✅ |
-| `run_tests_low_memory.sh` | 工具 | 本地低内存 pytest（`-n0`；`PYTEST_XDIST_WORKERS=N`）；**非** live E2E 联调 | ✅ |
+| `run_tests_low_memory.sh` | 工具 | 本地低内存 pytest（`-n0`；`PYTEST_XDIST_WORKERS=N`，N 超过 `pyproject.toml` 里 `--maxprocesses` 的封顶时仍只起封顶数，要更多再加 `--maxprocesses=M`）；**非** live E2E 联调 | ✅ |
 | `backfill-chat-usage.py` | 工具 | 按消息 `extra_data` 重算 `Chat.total_calls/total_tokens/total_usd`（默认仅改写陈旧值，`--force` 全量重写）；历史数据一次性回填，复用 `app.api.statistics.usage_aggregation` 与 `ChatRepository` | — |
 
 ## 依赖

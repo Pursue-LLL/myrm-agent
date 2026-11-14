@@ -5,7 +5,6 @@
 - ._comments::FeishuCommentsMixin (POS: comment threads)
 - ._docx::DocumentContent, FeishuDocxMixin (POS: Docx content and blocks)
 - ._bitable::FeishuBitableMixin (POS: Bitable records and Bases)
-- ._cardkit::FeishuCardKitMixin (POS: CardKit streaming API methods of FeishuClient, used to stream a reply into an interactive card.)
 
 [OUTPUT]
 - FeishuDocumentsMixin: every document-level API method, as one mixin for FeishuClient.
@@ -18,14 +17,13 @@ Facade of the document domain; FeishuClient inherits this one class.
 from __future__ import annotations
 
 from ._bitable import FeishuBitableMixin
-from ._cardkit import FeishuCardKitMixin
 from ._comments import FeishuCommentsMixin
 from ._docx import DocumentContent, FeishuDocxMixin
 from ._drive import FeishuDriveMixin
 
 
-class FeishuDocumentsMixin(FeishuDriveMixin, FeishuCommentsMixin, FeishuDocxMixin, FeishuBitableMixin, FeishuCardKitMixin):
-    """Drive, wiki, comment, Docx, Bitable and CardKit operations."""
+class FeishuDocumentsMixin(FeishuDriveMixin, FeishuCommentsMixin, FeishuDocxMixin, FeishuBitableMixin):
+    """Drive, wiki, comment, Docx and Bitable operations."""
 
 
 __all__ = ["DocumentContent", "FeishuDocumentsMixin"]

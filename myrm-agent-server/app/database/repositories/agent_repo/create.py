@@ -83,11 +83,6 @@ class CreateMixin:
             mcp_tool_selections=meta.get("mcp_tool_selections"),
             subagent_ids=meta.get("subagent_ids", []),
             trusted_desktop_apps=list(meta.get("trusted_desktop_apps", []) or []),
-            responsibility_scope=meta.get("responsibility_scope") if isinstance(meta.get("responsibility_scope"), str) else None,
-            owner_label=meta.get("owner_label") if isinstance(meta.get("owner_label"), str) else None,
-            acceptance_criteria=(
-                [str(x) for x in meta["acceptance_criteria"]] if isinstance(meta.get("acceptance_criteria"), list) else None
-            ),
             allow_discovery=(bool(meta["allow_discovery"]) if meta.get("allow_discovery") is not None else True),
             enabled_builtin_tools=persist_enabled_builtin_tools(meta.get("enabled_builtin_tools", profile.tools_allowed)),
             browser_source=meta.get("browser_source"),

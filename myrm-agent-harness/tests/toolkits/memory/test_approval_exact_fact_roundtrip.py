@@ -44,21 +44,24 @@ async def test_every_queued_candidate_is_approved_and_keeps_its_exact_fact_state
 
 async def test_a_row_queued_with_identifier_lists_in_its_metadata_is_approved(new_manager: NewManager) -> None:
     manager = new_manager()
-    await manager.store_batch([SemanticMemory(content=WITH_IDENTIFIER)], _force_pending=True)
-    [queued] = await manager.list_pending()
+    await manager.store_batch([SemanticMemory(content=text) for text in (WITH_IDENTIFIER, PLAIN)], _force_pending=True)
+    queued_by_content = {record.content: record for record in await manager.list_pending()}
+    queued, bystander = queued_by_content[WITH_IDENTIFIER], queued_by_content[PLAIN]
     stored_metadata = queued.memory_data.get("metadata")
     assert isinstance(stored_metadata, dict)
     identifiers = queued.memory_data["exact_identifiers"]
-    # This row carries the identifier list inside its metadata as well as in the typed field.
+    # This row carries the identifier list inside its metadata as well as in the typed field. The queue holds one
+    # open proposal per content, so it takes the place of the proposal it was copied from.
     stuck_data = {
         **queued.memory_data,
         "metadata": {**stored_metadata, "is_exact_fact": True, "exact_identifiers": identifiers},
     }
+    await manager.reject(queued.id)
     await manager._relational.submit_pending(queued.model_copy(update={"id": "stuck-row", "memory_data": stuck_data}))
 
     approved = await manager.approve("stuck-row")
 
-    assert [record.id for record in await manager.list_pending()] == [queued.id]
+    assert [record.id for record in await manager.list_pending()] == [bystander.id]
     reloaded = await manager.get_memory(approved.id)
     assert reloaded is not None
     assert reloaded.is_exact_fact is True

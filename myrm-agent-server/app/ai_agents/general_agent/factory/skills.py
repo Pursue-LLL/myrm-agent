@@ -63,6 +63,7 @@ async def load_skill_runtime(
         user_id=user_id,
         workspace_path=workspace_root,
         allowed_prebuilt_ids=allowed_prebuilt,
+        credential_track=agent_wrapper.credential_track,
     )
 
     return SkillRuntime(

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.file_ops.validators.auto_verify import (
+    AUTO_VERIFY_TIMEOUT_SECONDS,
     LINTER_REGISTRY,
     Diagnostic,
     _filter_diagnostics,
@@ -16,6 +17,7 @@ from myrm_agent_harness.agent.meta_tools.file_ops.validators.auto_verify import 
     _reset_cache,
     run_auto_verify,
 )
+from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
 
 
 @pytest.fixture(autouse=True)
@@ -444,3 +446,23 @@ class TestRunAutoVerify:
 
         result = await run_auto_verify(executor, "/workspace/main.py")
         assert result is None
+
+
+class TestWorkspaceContext:
+    """The detection and the linter run from the workspace root, not from the directory of the host process."""
+
+    @pytest.mark.asyncio
+    async def test_detection_and_lint_run_from_the_workspace_root(self):
+        executor = AsyncMock()
+        executor.workspace_path = "/srv/ws"
+        executor.execute_bash.return_value = ExecutionResult(success=True, exit_code=0)
+
+        await run_auto_verify(executor, "/srv/ws/a.py")
+
+        contexts = [call.args[0] for call in executor.execute_bash.await_args_list]
+        assert [context.code for context in contexts] == ["which pyright", "pyright --outputjson /srv/ws/a.py"]
+        assert [context.timeout for context in contexts] == [5, AUTO_VERIFY_TIMEOUT_SECONDS]
+        for context in contexts:
+            assert context.work_dir == "/workspace"
+            assert context.enter_work_dir is True
+            assert context.workspace_root == "/srv/ws"

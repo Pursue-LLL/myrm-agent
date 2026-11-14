@@ -211,7 +211,7 @@ from myrm_agent_harness.toolkits.wiki import (
 llm = ChatOpenAI(model="gpt-4")
 structure = WikiStructure(base_dir="./my-wiki")
 config = WikiConfig(
-    parallel_compilation=True,  # 10x faster compilation
+    parallel_compilation=True,  # compile pages concurrently
     auto_archive_enabled=True,
 )
 
@@ -272,7 +272,7 @@ agent = await create_skill_agent(spec, llm_config=LLMConfig(model="gpt-4", api_k
 - `False`：模型每轮至多发出一个工具调用
 - 未设置 / `None`（默认）：使用 LLM 提供商的默认值
 
-该设定随每次带工具的模型调用发给提供商（`parallel_tool_calls`）；是否并发执行同一轮的多个调用，由工具冲突闸门按工具的并发安全性决定，与此开关无关。
+该设定随每次带工具的模型调用发给提供商（`parallel_tool_calls`）；是否并发执行同一轮的多个调用，由工具冲突闸门按工具的并发安全性决定，与此开关无关；相互冲突（至少一个不并发安全）的调用按模型给出的顺序依次开始。
 
 ### 直接使用 SkillAgent（完全控制）
 

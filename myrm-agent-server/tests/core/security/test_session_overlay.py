@@ -1,9 +1,9 @@
-"""Unit tests for the request-scoped security overlays (session presets, remote admission, /learn authoring)."""
+"""Unit tests for the request-scoped security overlays (session presets, session grants, remote admission, /learn authoring)."""
 
 import pytest
 from myrm_agent_harness.agent.security.config import remote_exposed_permissions
 
-from app.core.security.session_overlay import PRESET_OVERLAYS, SecurityOverlaySpec, apply_session_preset
+from app.core.security.session_overlay import PRESET_OVERLAYS, SecurityOverlaySpec, YoloGrant, apply_session_preset
 
 # ---------------------------------------------------------------------------
 # apply_session_preset: pure dict merge
@@ -175,9 +175,75 @@ class TestSecurityOverlaySpec:
         assert permissions["skill_manage"] == "ask"
 
     def test_serialization_round_trip_keeps_every_field(self) -> None:
-        spec = SecurityOverlaySpec(preset="explore", trust_zone="remote_exposed", admission_path="tunnel", learn_authoring=True)
+        spec = SecurityOverlaySpec(
+            preset="explore",
+            trust_zone="remote_exposed",
+            admission_path="tunnel",
+            learn_authoring=True,
+            yolo=YoloGrant(enabled_at=1_700_000_000.5, timeout_seconds=600),
+            approval_window_seconds=1800,
+        )
         assert SecurityOverlaySpec.model_validate(spec.model_dump(mode="json")) == spec
 
     def test_spec_is_immutable(self) -> None:
         with pytest.raises(ValueError):
             SecurityOverlaySpec().preset = "explore"  # type: ignore[misc]
+
+
+class TestSessionGrants:
+    """A channel turn's own YOLO grant and approval window are overlays too: layered over the saved config on every reload."""
+
+    def test_a_yolo_grant_turns_yolo_on_with_its_own_timer(self) -> None:
+        spec = SecurityOverlaySpec(yolo=YoloGrant(enabled_at=1_700_000_000.0, timeout_seconds=600))
+        assert spec.apply(None) == {
+            "yolo_mode_enabled": True,
+            "yolo_mode_enabled_at": 1_700_000_000.0,
+            "yolo_mode_timeout": 600,
+        }
+
+    def test_a_yolo_grant_without_a_timeout_has_no_time_limit(self) -> None:
+        result = SecurityOverlaySpec(yolo=YoloGrant(enabled_at=1.0)).apply(None)
+        assert result is not None
+        assert result["yolo_mode_enabled"] is True
+        assert result["yolo_mode_timeout"] is None
+
+    def test_a_yolo_grant_replaces_a_timer_the_saved_config_carries(self) -> None:
+        saved: dict[str, object] = {
+            "yolo_mode_enabled": True,
+            "yolo_mode_enabled_at": 1.0,
+            "yolo_mode_timeout": 60,
+            "permissions": {"shell_exec": "ask"},
+        }
+        result = SecurityOverlaySpec(yolo=YoloGrant(enabled_at=2.0)).apply(saved)
+        assert result is not None
+        assert result["yolo_mode_enabled_at"] == 2.0
+        assert result["yolo_mode_timeout"] is None
+        assert result["permissions"] == {"shell_exec": "ask"}
+
+    def test_an_approval_window_replaces_the_saved_one_and_nothing_else(self) -> None:
+        saved: dict[str, object] = {"approvalTimeoutSeconds": 120, "approvalTimeoutBehavior": "deny"}
+        result = SecurityOverlaySpec(approval_window_seconds=1800).apply(saved)
+        assert result == {"approvalTimeoutSeconds": 1800, "approvalTimeoutBehavior": "deny"}
+
+    def test_grants_never_mutate_the_saved_config(self) -> None:
+        saved: dict[str, object] = {"approvalTimeoutSeconds": 120}
+        SecurityOverlaySpec(yolo=YoloGrant(enabled_at=1.0), approval_window_seconds=1800).apply(saved)
+        assert saved == {"approvalTimeoutSeconds": 120}
+
+    def test_a_remote_exposed_request_turns_a_session_yolo_grant_off(self) -> None:
+        spec = SecurityOverlaySpec(
+            yolo=YoloGrant(enabled_at=1.0),
+            trust_zone="remote_exposed",
+            admission_path="tunnel",
+        )
+        result = spec.apply(None)
+        assert result is not None
+        assert result["yoloModeEnabled"] is False
+        assert result["yolo_mode_enabled"] is False
+
+    @pytest.mark.parametrize("seconds", [0, -1])
+    def test_a_grant_or_window_that_is_not_positive_cannot_be_built(self, seconds: int) -> None:
+        with pytest.raises(ValueError):
+            YoloGrant(enabled_at=1.0, timeout_seconds=seconds)
+        with pytest.raises(ValueError):
+            SecurityOverlaySpec(approval_window_seconds=seconds)

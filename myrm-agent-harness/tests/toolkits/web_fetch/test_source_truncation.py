@@ -1,7 +1,8 @@
 """A source the fetcher cut at its size ceiling is flagged on its Document, and the model is told.
 
-``ContentPipeline.process`` sets the flag once for every path that builds a Document. The full-content tool names the
-cut pages in a notice that sits outside the untrusted boundary, so a page cannot forge or suppress it.
+``ContentPipeline.process`` sets the flag once for every path that builds a Document; the binary router sets it on a
+parsed file whose text it cuts at ``MAX_PARSED_CHARS``. The full-content tool names the cut pages in a notice that sits
+outside the untrusted boundary, so a page cannot forge or suppress it.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from langchain_core.documents import Document
 from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
 from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
 from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetchResult
+from myrm_agent_harness.toolkits.web_fetch.processing.binary_router import MAX_PARSED_CHARS, route_binary_content
 from myrm_agent_harness.toolkits.web_fetch.processing.full_content_delivery import FetchedPage, plan_full_content
 from myrm_agent_harness.toolkits.web_fetch.processing.pipeline import SOURCE_TRUNCATED_KEY, ContentPipeline
 from myrm_agent_harness.toolkits.web_fetch.web_fetch_agent_tools import _fetch_full_content
@@ -128,3 +130,31 @@ async def test_tool_adds_no_notice_when_every_source_was_read_whole(monkeypatch:
     result = await _fetch_full_content(["https://a.example/1"])
 
     assert NOTICE_LEAD not in str(result["content"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("parsed_chars", "notice_expected"),
+    [(MAX_PARSED_CHARS + 1, True), (MAX_PARSED_CHARS, False)],
+    ids=["text_over_the_cap", "text_at_the_cap"],
+)
+async def test_tool_names_a_document_whose_parsed_text_the_router_cut(
+    monkeypatch: pytest.MonkeyPatch, parsed_chars: int, notice_expected: bool
+) -> None:
+    parser = AsyncMock()
+    parser.parse = AsyncMock(return_value=("report line\n" * parsed_chars)[:parsed_chars])
+    with patch("myrm_agent_harness.toolkits.file_parsers.get_parser", return_value=parser):
+        document = await route_binary_content(
+            b"%PDF-1.4 fake pdf", {"content-type": "application/pdf"}, "https://a.example/report.pdf"
+        )
+    assert document is not None
+
+    async def crawl_many(urls: list[str]) -> tuple[list[tuple[str, Document]], list[tuple[str, None]]]:
+        return [(urls[0], document)], []
+
+    monkeypatch.setattr(web_fetch_tools, "crawl_many", crawl_many)
+
+    result = await _fetch_full_content(["https://a.example/report.pdf"])
+
+    _, outside = str(result["content"]).split("<<<END_UNTRUSTED_DATA", 1)
+    assert (f"{NOTICE_LEAD} 【1】:" in outside) is notice_expected

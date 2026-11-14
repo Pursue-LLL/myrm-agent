@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.channels.rendering.renderer import render, strip_thinking_tags
 from app.channels.types import (
     OutboundMessage,
@@ -73,22 +75,31 @@ class TestReasoningBlock:
         assert "Thinking" in result[0]
         assert "I think about this" in result[0]
 
-    def test_reasoning_collapsed_markdown(self) -> None:
+    @pytest.mark.parametrize("supports_latex", [True, False])
+    def test_reasoning_collapsed_is_a_markdown_quote(self, supports_latex: bool) -> None:
+        """Whether a channel renders LaTeX says nothing about HTML: only a channel that asks gets the HTML form."""
         result = render(
             _msg(reasoning="Deep thought"),
-            _style(reasoning_display=ReasoningDisplay.COLLAPSED, supports_latex=True),
+            _style(reasoning_display=ReasoningDisplay.COLLAPSED, supports_latex=supports_latex),
         )
-        assert "> " in result[0]
-        assert "Thinking" in result[0]
-        assert "Deep thought" in result[0]
+        assert result[0].startswith("> \U0001f9e0 **Thinking**\n>\n> Deep thought")
+        assert "<blockquote" not in result[0]
 
-    def test_reasoning_collapsed_html(self) -> None:
+    def test_reasoning_collapsed_is_an_expandable_blockquote_for_a_channel_that_renders_it(self) -> None:
         result = render(
             _msg(reasoning="Deep thought"),
-            _style(reasoning_display=ReasoningDisplay.COLLAPSED, supports_latex=False),
+            _style(reasoning_display=ReasoningDisplay.COLLAPSED, supports_expandable_blockquote=True),
         )
-        assert "<blockquote expandable>" in result[0]
-        assert "Deep thought" in result[0]
+        assert result[0].startswith("<blockquote expandable>\U0001f9e0 Thinking\n\nDeep thought\n</blockquote>")
+        assert "> " not in result[0]
+
+    def test_reasoning_collapsed_by_the_reply_is_a_markdown_quote_on_a_channel_that_shows_none(self) -> None:
+        result = render(
+            _msg(reasoning="Deep thought", metadata={"reasoning_display_mode": "collapsed"}),
+            _style(reasoning_display=ReasoningDisplay.OFF),
+        )
+        assert "> Deep thought" in result[0]
+        assert "<blockquote" not in result[0]
 
     def test_reasoning_truncated(self) -> None:
         long_reasoning = "x" * 3000

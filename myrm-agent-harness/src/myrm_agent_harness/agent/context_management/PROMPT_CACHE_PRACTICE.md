@@ -165,7 +165,7 @@ messages[idx] = HumanMessage(content=f"{msg.content}\n\n{prompt}")
 
 **关键设计**：
 
-- **历史消息使用确定性时间戳**：同一 `ts + UTC offset` 永远产生相同输出，保证历史部分前缀 100% 命中
+- **历史消息使用确定性时间戳**：同一 `ts + UTC offset` 永远产生相同输出，保证历史部分的前缀字节稳定，这是服务商命中缓存的前提
 - **仅最后一条消息（新内容）无法缓存**——这是不可避免的
 - **System Prompt 永远不包含动态内容**——完全冻结
 - **说明文案与数据分离**：`datetime_rules` 在 System Prompt 中声明一次（被缓存），每条消息只携带 ~12 tokens 的时间戳数据，相比每条重复完整说明节省 ~28 tokens/条
@@ -625,7 +625,7 @@ LIFECYCLE: Retained while session active (30d) or file accessed (14d)
 
 **关键设计**：
 - **显式系统隔离 (Fencing)**：摘要块采用 `<memory-context>` 包裹，并硬编码前缀 `[System note: The following is recalled memory context...]`。这彻底阻断了模型将“过去的摘要”误认为“当前用户指令”的幻觉。
-- **100% 缓存继承**：由于生成的 `<memory-context>` 被严格插入在受保护的头部（System Prompt + 首轮对话）**之后**，即使发生摘要重置，占据最多 Token 的头部信息依然完全静止，**完美命中 Prompt Cache**。
+- **头部缓存继承**：由于生成的 `<memory-context>` 被严格插入在受保护的头部（System Prompt + 首轮对话）**之后**，即使发生摘要重置，占据最多 Token 的头部信息依然完全静止，头部前缀可继续命中 Prompt Cache（是否命中取决于服务商缓存的 TTL 与精确匹配规则）。
 - **结构化输出保证 (with_structured_output)**：由于摘要作为上下文的关键基石，不可出现 JSON 损坏或格式错误。框架不做正则表达式提取，而是用 LLM 的 `with_structured_output(StructuredSummary)` 机制强制输出符合 12 字段结构，避免上下文内容干扰导致摘要结构错乱。
 - **服务端防并发控制 (Concurrent Compaction Lock)**：在多用户 / 多任务 Server 侧（`compact_chat`），同一 `chat_id` 的压缩操作由进程级 `asyncio.Lock` 保护。这防止了用户短时间内多次发起任务导致两个并行任务同时触发 `Summarize` 并写入相同的锚点，进而导致持久化内容被覆盖或历史上下文意外损坏。
 
@@ -636,6 +636,8 @@ LIFECYCLE: Retained while session active (30d) or file accessed (14d)
 ```python
 BUILTIN_PROTECTED_TOOLS = frozenset({"skill_select_tool", "todo_write", "file_read_tool"})
 ```
+
+业务保护集合 `DEFAULT_BUSINESS_PROTECTED_TOOLS`（默认 `{"memory_search_tool"}`，应用可增减）里的工具，其结果同样不被过滤，也不被主动裁剪、不被缓存 TTL 裁剪。保护按工具名精确匹配，所以集合里的每个名字都必须是已登记的工具名（`tests/agent/context_management/test_tool_protection.py` 逐个核对）。
 
 注意：保护只针对 Filter（不可逆），不针对 Compress（可逆）。压缩后 Agent 可以通过 `cat` 恢复原始内容。
 
@@ -768,7 +770,7 @@ Pipeline 按 `max_context_tokens` 缓存实例，避免重复创建。
 
 ### 5.5 Resume-Aware Cache Preservation（HITL专用）
 
-**设计目标**：当Agent从`interrupt()`恢复时，保持历史messages完全不变，确保Prompt Cache命中率95%+。
+**设计目标**：当Agent从`interrupt()`恢复时，保持历史messages完全不变，使Prompt Cache前缀保持稳定。
 
 **核心原则**：
 1. **只追加，不删除**：Resume时绝对不修改历史messages
@@ -836,14 +838,7 @@ if request.resume_value is not None:
     params.context["hitl_session_active"] = True  # 标记HITL会话活跃
 ```
 
-**缓存效果**：
-
-| 场景 | Before | After | 提升 |
-|------|--------|-------|------|
-| 单次HITL Resume | 0% | 95%+ | ♾️ |
-| 多次HITL交互 | 0% | 90%+ | ♾️ |
-| Resume成本 | $3.00/M | $0.30/M | 90% ↓ |
-| Resume TTFT | 2000ms | 800ms | 60% ↓ |
+**缓存效果**：Resume 时历史 messages 与中断前逐字节一致，服务商可对整段历史前缀命中缓存，命中部分按缓存读取价计费（Claude 为基础输入价的 10%）。实际命中率以服务商返回的 usage（`cache_read_input_tokens`）和会话 trace 的 `prompt_cache_hit_ratio` 为准。
 
 **配套工具**：
 - 错误恢复清理：Resume失败时自动清理checkpoint（业务层实现）
@@ -924,10 +919,10 @@ class TokenUsage:
         }
 ```
 
-在会话结束时（`base_agent.py`），自动输出累积统计：
+在会话结束时（`base_agent.py`），自动输出累积统计（示例）：
 
 ```
-💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 81.0% (7738 tokens)
+💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 76.8% (92124 tokens)
 ```
 
 `utils/token_economics/usage_fields.py::extract_cached_tokens()` 从传输层统一后的 `usage` 中提取缓存命中数，支持所有提供商。统一发生在传输层边界（`toolkits/llms/transport`）：Anthropic 与 Gemini 的解码器写入 `prompt_tokens_details.cached_tokens`，OpenAI 兼容线路在 `openai_chat.py` 把顶层的缓存读取数（DeepSeek 的 `prompt_cache_hit_tokens`、网关转发的 `cache_read_input_tokens`）同步写入同一字段，提供商已给出的非零值不会被覆盖：
@@ -943,7 +938,7 @@ class TokenUsage:
 
 每次 LLM 调用在详细日志路径下显示缓存命中率与相对「全部按普通 input 计价」的节省比例。数值由 ``utils/token_economics/cache_economics.compute_prompt_cache_stats(prompt_tokens, cached_tokens, cache_read_ratio=0.1)`` 计算；NDJSON 指标与 ``TokenUsage.get_cache_effectiveness()`` 使用同一函数。
 
-语义要点：普通 input 计价系数 1.0，cache read 计价系数通过 ``cache_read_ratio`` 参数化（默认 0.1 匹配 Anthropic，OpenAI 为 0.5）；不纳入首次 cache write 的加价项（与 §6.3 下文说明一致）。
+语义要点：普通 input 计价系数 1.0，cache read 计价系数通过 ``cache_read_ratio`` 参数化（默认 0.1 对应 Anthropic 的缓存读取价；其他提供商按各自价目表和计费模型传入）；不纳入首次 cache write 的加价项（与 §6.3 下文说明一致）。
 
 ```python
 stats = compute_prompt_cache_stats(prompt_tokens, cached_tokens)
@@ -958,22 +953,22 @@ cost_savings_pct = stats["cost_savings_pct"]
   Token Usage:
     - Prompt Tokens: 10000
     - Cached Tokens: 8530
-    💾 Cache Hit Rate: 85.3% | Cost Savings: 81.0%
+    💾 Cache Hit Rate: 85.3% | Cost Savings: 76.8%
 ```
 
-**成本节省公式说明**（相对于无缓存场景）：
+**成本节省公式说明**（相对于无缓存场景；`cache_read_ratio` 默认 0.1）：
 - 无缓存成本 = 10000 × 100% = 10000 单位
-- 有缓存成本 = 8530 × 5% + 1470 × 100% = 426.5 + 1470 = 1896.5 单位
-- 节省 = (10000 - 1896.5) / 10000 = 81.0%
+- 有缓存成本 = 8530 × 10% + 1470 × 100% = 853 + 1470 = 2323 单位
+- 节省 = (10000 - 2323) / 10000 = 76.8%
 
-**注意**：此计算不包含首次创建缓存的 125% 成本（一次性支付）。实际长期使用中，创建成本会被后续多次命中摊平。
+**注意**：此计算不包含首次创建缓存的加价（Anthropic 为基础输入价的 125%，一次性支付）。实际长期使用中，创建成本会被后续多次命中摊平。
 
 通过三层可观测性，开发者可以：
 1. **设置时预期**：断点是否合理，预期命中率
 2. **会话级累积**：整体缓存效果，总成本节省
 3. **单次调用实际**：即时验证命中率和成本节省
 
-**完整的监控流程**：
+**完整的监控流程（示例）**：
 ```
 Turn 1: 
   📊 [ExplicitCache] Expected Cache: 0%    ← 首次无缓存
@@ -982,10 +977,10 @@ Turn 1:
 Turn 2:
   📊 [ExplicitCache] Expected Cache: 85%   ← 预期 85% 命中
   📥 LLM Response: Cached: 8530 tokens      ← 实际 85.3% 命中
-  💾 Cache Hit Rate: 85.3% | Cost Savings: 81.0%
+  💾 Cache Hit Rate: 85.3% | Cost Savings: 76.8%
 
 Turn 12 (会话结束):
-  💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 81.0% (7738 tokens)
+  💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 76.8% (92124 tokens)
                                                                           ← 会话总成本节省
 ```
 
@@ -1012,7 +1007,7 @@ Turn 12 (会话结束):
 **部署与配置**：
 
 - **单实例语义**：默认 ``threading.Lock`` 假定单框架实例。多实例部署（如水平扩展）时，**控制平面必须**为每个实例注入不同的 ``MYRM_CACHE_METRICS_DIR``（例如 ``/logs/metrics/instance-1``），或将数据路由到统一的日志聚合器，以避免多进程交错写入导致 NDJSON 格式损坏。并发写入经过严格测试：20线程高竞争场景下吞吐量>500写入/秒，``threading.Lock`` 确保原子追加，无数据损坏或记录丢失。
-- **定价参数**：cache read 倍数通过 ``cache_read_ratio`` 参数化（默认 0.1 匹配 Anthropic 90% off，OpenAI 为 0.5 即 50% off），调用方按需传入。
+- **定价参数**：cache read 倍数通过 ``cache_read_ratio`` 参数化（默认 0.1 对应 Anthropic 的缓存读取价，即基础输入价的 10%；其他提供商按各自价目表和计费模型传入），调用方按需传入。
 - **异常检测**：``compute_prompt_cache_stats`` 自动钳制 ``hit_rate`` 到 [0, 1]。当 ``cached_tokens > prompt_tokens`` 时（``hit_rate > 1``），记录 WARNING 日志并钳制为 1.0，提示提供商 ``usage`` 异常。
 
 **NDJSON记录示例**：
@@ -1256,7 +1251,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 
 ### 7.4 缓存命中率突然下降
 
-**现象**：原本 >80% 的命中率突然降到 <20%
+**现象**：原本稳定的命中率突然大幅下降
 
 **可能原因**：
 
@@ -1396,7 +1391,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 **为什么？**
 - 动态内容（如子 Agent 通知、后台任务结果、实时时间戳）每次不同
 - `SystemMessage` 变化会破坏 Prompt Cache 前缀，导致所有后续缓存失效
-- 这会导致 **10x 成本增加**（95% 缓存命中率 → 0%）
+- 这会让原本按缓存读取价计费的前缀（Claude 为基础输入价的 10%）回到全价，输入成本成倍上升
 
 **正确做法**：
 - 动态内容 **必须** 使用 `HumanMessage`

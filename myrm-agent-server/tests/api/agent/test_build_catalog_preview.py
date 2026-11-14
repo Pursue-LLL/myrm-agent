@@ -10,7 +10,6 @@ through the runtime path and through `_build_catalog_preview`.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator
-from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -28,6 +27,7 @@ from app.core.skills.loader import create_skill_backend
 from app.core.skills.providers.local import LocalSkillsProvider
 from app.core.skills.store.service import SkillsService
 from app.core.storage.types import SkillType
+from tests.support.skill_credential_store import CredentialState, CredentialStore
 
 _CATALOG_BUDGET = "myrm_agent_harness.agent.skills.runtime.catalog_display.L1_CATALOG_MAX_TOKENS"
 _IMAP_KEYS = ("EMAIL_IMAP_HOST", "EMAIL_IMAP_USER", "EMAIL_IMAP_PASSWORD")
@@ -90,11 +90,6 @@ async def _runtime_skills(service: SkillsService, skill_ids: list[str]) -> list[
         allowed_prebuilt_ids=enabled,
     )
     return await backend.load_skills(skill_ids)
-
-
-@asynccontextmanager
-async def _no_db_session() -> AsyncIterator[None]:
-    yield None
 
 
 @pytest.mark.asyncio
@@ -243,13 +238,9 @@ async def test_build_catalog_preview_omits_skill_whose_keys_are_missing(
 @pytest.mark.asyncio
 @pytest.mark.parametrize(("connected", "expected_inline"), [(True, 1), (False, 0)])
 async def test_build_catalog_preview_follows_the_integration_credential_gate(
-    monkeypatch: pytest.MonkeyPatch, service: SkillsService, connected: bool, expected_inline: int
+    service: SkillsService, credentials: CredentialStore, connected: bool, expected_inline: int
 ) -> None:
-    monkeypatch.setattr("app.database.connection.get_session", _no_db_session)
-    monkeypatch.setattr(
-        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
-        AsyncMock(return_value=connected),
-    )
+    await credentials.seed(CredentialState(google=connected))
 
     preview = await _build_catalog_preview(["google-workspace"], _configs(["google-workspace"], is_core=True))
 

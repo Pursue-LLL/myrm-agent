@@ -148,6 +148,16 @@ def _parse_path_policy(raw: dict[str, object]) -> PathPolicy:
     )
 
 
+def _yolo_timer(raw: dict[str, object], snake_key: str, camel_key: str) -> object | None:
+    """A YOLO timer value from the config.
+
+    The snake_case key is what server-side grants write, so it wins whenever it is present, ``None`` included:
+    that is a grant without a time limit and must not inherit a timer the user once set in the web UI, whose
+    camelCase key is only the fallback.
+    """
+    return raw[snake_key] if snake_key in raw else raw.get(camel_key)
+
+
 def parse_security_config(raw: dict[str, object] | None) -> SecurityConfig | None:
     """Parse a JSON config dict into a SecurityConfig.
 
@@ -245,9 +255,9 @@ def parse_security_config(raw: dict[str, object] | None) -> SecurityConfig | Non
     injection_policy = str(injection_policy_raw) if injection_policy_raw in ("log_only", "fail_closed") else "log_only"
 
     yolo_mode_enabled = bool(raw.get("yoloModeEnabled") or raw.get("yolo_mode_enabled", False))
-    yolo_mode_enabled_at_raw = raw.get("yolo_mode_enabled_at")
+    yolo_mode_enabled_at_raw = _yolo_timer(raw, "yolo_mode_enabled_at", "yoloModeEnabledAt")
     yolo_mode_enabled_at = parse_float(yolo_mode_enabled_at_raw, 0.0) if yolo_mode_enabled_at_raw is not None else None
-    yolo_mode_timeout_raw = raw.get("yolo_mode_timeout")
+    yolo_mode_timeout_raw = _yolo_timer(raw, "yolo_mode_timeout", "yoloModeTimeout")
     yolo_mode_timeout = parse_int(yolo_mode_timeout_raw, 0, min_val=1) if yolo_mode_timeout_raw is not None else None
 
     classify_all_shell = bool(

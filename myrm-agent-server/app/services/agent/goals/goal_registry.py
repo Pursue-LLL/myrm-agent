@@ -9,7 +9,7 @@
 - app.core.utils.chat_utils::parse_judge_json (POS: judge JSON 解析)
 
 [OUTPUT]
-- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider
+- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider；has_active_goal 读存储真值（与 provider 是否注册无关）
 - ServerGoalManager: 扩展 harness GoalManager，提供 semantic judge 与 Goal 完成时的会话交付物汇总
 
 [POS]
@@ -54,7 +54,7 @@ async def _collect_session_deliverables(session_id: str) -> list[dict[str, str]]
     from app.database.models.artifact import Artifact
 
     async with get_session() as db:
-        result: Result[tuple[str, str]] = await db.execute(
+        result: Result[str, str] = await db.execute(
             select(Artifact.id, Artifact.name)
             .where(Artifact.chat_id == session_id, Artifact.is_deleted.is_(False))
             .order_by(Artifact.created_at.asc())
@@ -223,6 +223,18 @@ class GoalRegistry:
         """Get the goal provider for a session if it exists in memory."""
         with cls._lock:
             return cls._providers.get(session_id)
+
+    @staticmethod
+    async def has_active_goal(session_id: str) -> bool:
+        """Whether storage holds an ACTIVE goal for the session, whether or not a provider is registered.
+
+        An active goal mounts complete_goal_tool and planning when an agent is built, so execution-cache
+        keys depend on it. Providers are registered only while a turn runs; reading the provider map
+        would give a different answer between turns than during one.
+        """
+        from app.platform_utils import get_storage_provider
+
+        return await GoalManager(get_storage_provider()).get_active_goal(session_id) is not None
 
     @classmethod
     def session_ids(cls) -> list[str]:

@@ -104,18 +104,27 @@ describe('useAppLayoutState: layout, sidebar and phone behaviour', () => {
       expect(result.current.handleSidebarDoubleClick).toBe(mocks.resizeReset);
     });
 
-    it.each(['/work', '/projects', '/settings/system'])('has no sidebar next to %s, only the rail', (pathname) => {
-      const view = mountAt(pathname);
+    it.each(['/work', '/projects', '/research', '/settings/system'])(
+      'has no sidebar next to %s, only the rail',
+      (pathname) => {
+        const view = mountAt(pathname);
 
-      expect(view.result.current.shouldShowContentSidebar).toBe(false);
-      expect(view.result.current.paddingLeft).toBe(`${NAVBAR_WIDTH}px`);
-    });
+        expect(view.result.current.shouldShowContentSidebar).toBe(false);
+        expect(view.result.current.paddingLeft).toBe(`${NAVBAR_WIDTH}px`);
+      },
+    );
   });
 
   describe('what kind of page it is', () => {
     it('recognises the settings pages', () => {
       expect(mountAt('/settings/system').result.current.isSettingsPage).toBe(true);
       expect(mountAt('/').result.current.isSettingsPage).toBe(false);
+    });
+
+    it('recognises the research workbench, and only that exact page', () => {
+      expect(mountAt('/research').result.current.isResearchPage).toBe(true);
+      expect(mountAt('/research-notes').result.current.isResearchPage).toBe(false);
+      expect(mountAt('/').result.current.isResearchPage).toBe(false);
     });
 
     it('asks the phone-remote check about the current page', () => {

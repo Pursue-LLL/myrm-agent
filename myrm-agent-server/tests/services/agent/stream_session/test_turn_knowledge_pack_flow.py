@@ -108,7 +108,11 @@ def flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[_Flow]:
 
     coordinator = TurnPrewarmCoordinator()
     monkeypatch.setattr(coordinator_module, "AgentFactory", MagicMock())
-    monkeypatch.setattr(coordinator_module, "compute_execution_fingerprint", lambda wrapper: "fp-1")
+    monkeypatch.setattr(
+        coordinator_module,
+        "compute_execution_fingerprint",
+        lambda wrapper, *, has_active_goal=False: "fp-1",
+    )
     monkeypatch.setattr(coordinator_module, "get_turn_prewarm_coordinator", lambda: coordinator)
 
     from app.core.channel_bridge import config_loader

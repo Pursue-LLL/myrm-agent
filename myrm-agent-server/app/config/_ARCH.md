@@ -129,27 +129,3 @@ python scripts/cli.py config validate
 [CONFIG] ✓ Renamed llm_model → llm.model
 [CONFIG] ✓ Migration completed
 ```
-
----
-
-## 竞品对比
-
-| 能力 | Myrm | Hermes/OpenClaw |
-|------|--------|-----------------|
-| 字段验证（Pydantic） | ✅ | ❌ |
-| 配置健康检查 | ✅ | ❌ |
-| **启动前验证** | **✅** | ❌ |
-| **变更通知** | **✅** | ❌ |
-| **热校验（CLI）** | **✅** | ❌ |
-| **配置迁移** | **✅** | ❌ |
-
-**结论**：**Myrm配置管理能力 ≥ 150% vs Hermes/OpenClaw**
-
----
-
-## 实际效果
-
-- ✅ 配置启动失败时间：5分钟 → 10秒
-- ✅ 配置变更可见性：0% → 100%
-- ✅ 配置修改验证：5分钟 → 2秒（CLI命令）
-- ✅ 版本升级无缝体验

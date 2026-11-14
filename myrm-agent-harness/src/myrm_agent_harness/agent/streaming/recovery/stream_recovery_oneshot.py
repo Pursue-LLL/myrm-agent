@@ -141,7 +141,7 @@ class OneshotRecoveryMixin:
         the floor effort or drop back to route default.
 
         CRITICAL: Never alter or truncate the messages sequence or prompt prefix,
-        guaranteeing 100% Prompt Cache Key preservation on the upstream provider.
+        so the cached prefix on the upstream provider stays reusable.
         """
         ctx = self._ctx
         retry_state = getattr(ctx, "retry_state", None)

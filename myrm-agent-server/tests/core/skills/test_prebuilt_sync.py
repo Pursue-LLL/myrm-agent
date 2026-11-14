@@ -397,6 +397,10 @@ async def test_sync_copies_skill_bundle_scripts(storage: LocalStorageBackend) ->
     assert stored == seed_script.read_text(encoding="utf-8")
     assert "calendar-today" in stored
 
+    # google_api.py imports this sibling module, so a skill copy without it cannot run.
+    sibling_path = get_skill_file_path(SkillType.PREBUILT, "google-workspace", "scripts/calendar_overlaps.py")
+    assert "def find_conflicts" in await storage.read_text(sibling_path)
+
 
 @pytest.mark.asyncio
 async def test_cleanup_stale_prebuilt_skills(storage: LocalStorageBackend) -> None:

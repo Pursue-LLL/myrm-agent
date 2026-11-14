@@ -1,19 +1,25 @@
 """
-@input: 依赖 gc_policy 的「启动期暂停循环 GC」、health_check 的「启动健康检查」，依赖 uvicorn 外部库
+@input: 依赖 gc_policy 的「启动期暂停循环 GC」、health_check 的「启动健康检查」、config.env 的调试开关、config.deploy_mode 的运行方式判断、core.infra.frontend_launcher 的 WebUI 前端启动（FrontendLauncher）、services.webui 的二维码与一次性设置令牌、app.main 的 ASGI 应用、harness 的本机局域网地址（get_local_ip），依赖 uvicorn 外部库
 @output: 对外提供 uvicorn 单进程启动（含 WebUI 模式、QR 码、浏览器自动打开）
 @pos: uvicorn 服务器启动器 —— 默认启动模式
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
 """
 
+from __future__ import annotations
+
 import os
 import signal
 import sys
 import webbrowser
+from typing import TYPE_CHECKING
 
 from app.config.env import is_debug_mode
 from app.startup.gc_policy import defer_collection
 from app.startup.health_check import run_startup_health_check
+
+if TYPE_CHECKING:
+    from app.core.infra.frontend_launcher import FrontendLauncher
 
 
 def _uvloop_available() -> bool:
@@ -76,7 +82,7 @@ def start_with_uvicorn(
         auto_recovery=not no_auto_recovery,
     )
 
-    frontend_launcher_instance = None
+    frontend_launcher_instance: FrontendLauncher | None = None
 
     if webui_mode:
         frontend_launcher_instance = _setup_webui_mode(
@@ -162,10 +168,10 @@ def _hard_exit(code: int) -> None:
         os._exit(code)
 
 
-def _exit_after_server_stop(frontend_launcher_instance: object | None) -> None:
+def _exit_after_server_stop(frontend_launcher_instance: FrontendLauncher | None) -> None:
     if frontend_launcher_instance is not None:
         try:
-            frontend_launcher_instance.stop()  # type: ignore[attr-defined]
+            frontend_launcher_instance.stop()
         except Exception as exc:  # pragma: no cover - best-effort teardown
             print(f"⚠️  Frontend stop during shutdown failed: {exc}")
     print("📍 Server stopped")
@@ -178,24 +184,9 @@ def _setup_webui_mode(
     remote_mode: bool,
     no_qrcode: bool,
     no_browser: bool,
-) -> object:
+) -> FrontendLauncher | None:
     """配置 WebUI 模式：启动前端、显示连接信息、QR 码、打开浏览器。返回 frontend_launcher 或 None。"""
-    try:
-        from myrm_agent_harness.utils import get_local_ip
-    except ImportError:
-        print("⚠️  Warning: Failed to import network utils, using fallback")
-
-        def get_local_ip() -> str:  # type: ignore[misc]
-            import socket
-
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                s.connect(("8.8.8.8", 80))
-                ip = s.getsockname()[0]
-                s.close()
-                return ip
-            except Exception:
-                return "127.0.0.1"
+    from myrm_agent_harness.utils import get_local_ip
 
     local_ip = get_local_ip()
     bind_host = "0.0.0.0" if remote_mode else "127.0.0.1"
@@ -247,6 +238,8 @@ def _setup_webui_mode(
         print("⚠️  Security Notice:")
         print("   This server uses HTTP. For remote access over untrusted networks,")
         print("   use a reverse proxy (nginx/Caddy) with HTTPS to encrypt traffic.")
+        print("   The proxy must pass through the public Host header or the client address")
+        print("   (X-Forwarded-For); otherwise its requests count as local and skip login.")
     else:
         print("📍 Local Mode - No authentication required")
 

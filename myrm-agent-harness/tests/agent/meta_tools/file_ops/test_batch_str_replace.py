@@ -136,3 +136,66 @@ def test_apply_preserves_crlf_via_line_endings() -> None:
     content = "a\r\nb\r\n"
     result, _ = apply_batch_str_replace(content, (StrReplaceEdit(old_str="b", new_str="B"),))
     assert "\r\n" in result
+
+
+_LOADER = "\n".join(
+    [
+        "import os",
+        "",
+        "def load(path):",
+        "    with open(path) as fh:",
+        "        raw = fh.read()",
+        "    data = json.loads(raw)",
+        "    validate(data)",
+        "    return data",
+        "",
+        "def save(path, data):",
+        "    pass",
+    ]
+)
+
+
+# First and last line are the file's; two of the lines in between are misremembered.
+_MISREMEMBERED_LOADER = "\n".join(
+    [
+        "def load(path):",
+        "    with open(path, encoding='utf-8') as fh:",
+        "        text = fh.read()",
+        "    data = json.loads(text)",
+        "    validate(data)",
+        "    return data",
+    ]
+)
+
+
+def test_a_block_with_misremembered_lines_is_refused_and_the_real_lines_are_shown() -> None:
+    with pytest.raises(ValueError, match="Edit 1: text not found") as exc_info:
+        apply_batch_str_replace(
+            _LOADER,
+            (StrReplaceEdit(old_str=_MISREMEMBERED_LOADER, new_str="def load(path):\n    ..."),),
+        )
+
+    message = str(exc_info.value)
+    assert "Did you mean" in message
+    assert "   5|         raw = fh.read()" in message
+    assert "   6|     data = json.loads(raw)" in message
+
+
+def test_a_refused_block_in_a_batch_leaves_no_partial_result() -> None:
+    edits = (
+        StrReplaceEdit(old_str="import os", new_str="import os\nimport sys"),
+        StrReplaceEdit(old_str=_MISREMEMBERED_LOADER, new_str="x"),
+    )
+    with pytest.raises(ValueError, match="Edit 2: text not found"):
+        apply_batch_str_replace(_LOADER, edits)
+
+
+def test_a_block_that_differs_only_in_indentation_still_applies() -> None:
+    shifted = "def load(path):\n  with open(path) as fh:\n      raw = fh.read()\n  data = json.loads(raw)"
+    result, strategies = apply_batch_str_replace(
+        _LOADER,
+        (StrReplaceEdit(old_str=shifted, new_str="def load(path):\n    return {}"),),
+    )
+    assert strategies != ["exact"]
+    assert "return {}" in result
+    assert "    validate(data)" in result

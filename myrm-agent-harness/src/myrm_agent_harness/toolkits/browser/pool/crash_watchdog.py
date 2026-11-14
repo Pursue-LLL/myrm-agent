@@ -3,10 +3,10 @@
 [INPUT]
 - patchright.async_api::Browser, Page (POS: Patchright browser and page instances)
 - .browser_launcher::BrowserInstance (POS: browser instance metadata)
-- utils.page_health::probe_alive, probe_browser_alive (POS: bounded browser and page health primitives)
+- utils.page_health::probe_alive, probe_browser_alive, DriverClosedError (POS: bounded browser and page health primitives)
 
 [OUTPUT]
-- CrashWatchdogMixin: three-layer crash detection + semaphore safety net mixin; `is_page_crashed` tells a caller its held page died
+- CrashWatchdogMixin: three-layer crash detection + semaphore safety net mixin; `is_page_crashed` tells a caller its held page died; `_evict_after_driver_exit` runs the L3 tick on demand
 
 [POS]
 Provides automatic crash recovery for GlobalBrowserPool:
@@ -14,7 +14,11 @@ Provides automatic crash recovery for GlobalBrowserPool:
   started (`BrowserInstance.expected_close`) and an external browser's disconnect are routine, not crashes
 - L2: page.on('crash') real-time page renderer crash detection
 - L3: _lifecycle_tick periodic fallback (30s interval); liveness = browser-level CDP round trip
-  first, pooled-page evaluate as second opinion, so a slow or wedged page never evicts a live browser
+  first, pooled-page evaluate as second opinion, so a slow or wedged page never evicts a live browser;
+  an exited Playwright driver is conclusive on its own (it fires no 'disconnected' event, so a browser
+  whose pooled pages are already gone would otherwise pass for alive forever); an acquisition that fails
+  on an exited driver runs the tick on demand (`_evict_after_driver_exit`), so the dead browsers are gone
+  before it retries instead of waiting for the next interval
 - Semaphore safety net: prevents semaphore leaks or double releases on crash; a page crash returns a
   permit only for a page a caller holds (a member of its `PagePool` busy set), never for an idle one
 """
@@ -26,7 +30,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from ..utils.page_health import probe_alive, probe_browser_alive
+from ..utils.page_health import DriverClosedError, probe_alive, probe_browser_alive
 
 if TYPE_CHECKING:
     from patchright.async_api import Browser, Page
@@ -207,11 +211,25 @@ class CrashWatchdogMixin:
                     self._browsers.remove(inst)
                     evicted.append((inst, 0))
 
-        # Phase 4 (no lock): release semaphore slots + close evicted instances
-        for inst, slots in evicted:
+        # Phase 4 (no lock): return every permit before the first close awaits, so a caller that is cancelled while
+        # an on-demand tick runs in its task cannot strand the permits of the instances not yet closed
+        for _inst, slots in evicted:
             for _ in range(slots):
                 self._global_semaphore.release()
+        for inst, _slots in evicted:
             await self._close_browser_instance(inst)
+
+    async def _evict_after_driver_exit(self) -> None:
+        """Run the lifecycle tick now, so the browsers an exited driver took down leave the pool at once.
+
+        Left to the periodic tick they would stay until it runs (up to 30 s, and only once an acquisition has
+        started the loop) and the next acquisition would be handed one of them. A tick that fails is only logged:
+        the acquisition that asked for it reports what is still wrong.
+        """
+        try:
+            await self._lifecycle_tick()
+        except Exception:
+            logger.warning("Lifecycle tick after a driver exit failed", exc_info=True)
 
     @staticmethod
     async def _check_browser_alive(inst: BrowserInstance) -> bool:
@@ -222,9 +240,13 @@ class CrashWatchdogMixin:
         browser still serves ``Browser.getVersion``, so a slow page is never mistaken for a
         dead browser. Only when the process probe fails are pooled pages asked as a second
         opinion (engines without a browser-level CDP endpoint, such as Firefox, land here).
+        A browser whose Playwright driver has exited is dead without asking any page.
         """
-        if await probe_browser_alive(inst.browser):
-            return True
+        try:
+            if await probe_browser_alive(inst.browser):
+                return True
+        except DriverClosedError:
+            return False
         return await _pooled_page_answers(inst)
 
 
@@ -235,7 +257,8 @@ async def _pooled_page_answers(inst: BrowserInstance) -> bool:
     than methods — calling them (``browser.contexts()``) raises TypeError, and cached
     property access never sends a CDP request, so neither can detect a dead browser. A
     browser without any pooled page is trusted as alive: a real process death is caught
-    synchronously by the L1 'disconnected' event.
+    synchronously by the L1 'disconnected' event (the death of the driver, which fires no
+    event, is told apart by the browser probe before this runs).
     """
     probed = False
     try:

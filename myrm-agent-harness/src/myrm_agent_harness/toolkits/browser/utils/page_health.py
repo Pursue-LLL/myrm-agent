@@ -6,6 +6,8 @@
 
 [OUTPUT]
 - PageUnresponsiveError: a page stopped answering protocol commands and cannot be reused
+- DriverClosedError: the Playwright driver behind a browser has exited, so nothing can reach the browser anymore
+- is_driver_closed_error: whether a failed protocol call was caused by an exited Playwright driver (the error or any link of its cause chain)
 - abort_pending_navigation: stop an in-flight navigation without blocking on a stalled page
 - probe_alive: bounded liveness check of a page
 - probe_browser_alive: bounded liveness check of the browser process, independent of any page
@@ -14,10 +16,10 @@
 [POS]
 Bounded browser and page health primitives, shared by navigation (timeout settlement, SSRF route
 teardown), the download manager (a request that gives up stops the navigation it started), pool
-(idle page reuse, crash watchdog), network intelligence and session recovery (tab healing). A main
-frame stuck in a stalled navigation or a spinning renderer leaves page-level
-commands (`evaluate`, `unroute`, `close`, CDP `detach`) hanging with no timeout of their own, so
-every call here carries its own bound. `Page.stopLoading` and the browser-level
+(idle page reuse, crash watchdog, driver recovery in the launcher), network intelligence and session
+recovery (tab healing). A main frame stuck in a stalled navigation or a spinning renderer leaves
+page-level commands (`evaluate`, `unroute`, `close`, CDP `detach`) hanging with no timeout of their
+own, so every call here carries its own bound. `Page.stopLoading` and the browser-level
 `Browser.getVersion` are the commands the browser keeps answering in that state, which is why
 abort and the browser probe use them.
 """
@@ -37,10 +39,32 @@ _ABORT_TIMEOUT_S = 1.0
 _DETACH_TIMEOUT_S = 1.0
 _CLOSE_TIMEOUT_S = 2.0
 _PROBE_TIMEOUT_S = 2.0
+_DRIVER_CLOSED_MESSAGE = "connection closed while reading from the driver"
 
 
 class PageUnresponsiveError(BrowserSessionError):
     """A page stopped answering protocol commands and cannot be reused."""
+
+
+class DriverClosedError(BrowserSessionError):
+    """The Playwright driver behind a browser has exited, so nothing can reach the browser anymore."""
+
+
+def is_driver_closed_error(error: BaseException) -> bool:
+    """Whether a protocol call failed because the Playwright driver process is no longer running.
+
+    The driver's exit takes every browser it launched down without a 'disconnected' event, and patchright reports
+    it as a bare ``Exception``, so the message is the only thing to go by. A caller that wrapped the failure in an
+    error of its own (the ARIA snapshot does) keeps it on the cause chain, so the whole chain is read.
+    """
+    seen: set[int] = set()
+    link: BaseException | None = error
+    while link is not None and id(link) not in seen:
+        if _DRIVER_CLOSED_MESSAGE in str(link).lower():
+            return True
+        seen.add(id(link))
+        link = link.__cause__ or link.__context__
+    return False
 
 
 async def abort_pending_navigation(page: Page) -> None:
@@ -97,12 +121,18 @@ async def probe_browser_alive(browser: Browser) -> bool:
 
     The browser serves this command whatever its pages are doing, so a slow page never reads as
     a dead browser. Non-Chromium browsers have no browser-level CDP session and report False.
+
+    Raises:
+        DriverClosedError: The driver behind the browser has exited. Unlike every other failure this one is
+            conclusive, because no 'disconnected' event will ever mark such a browser dead.
     """
     cdp: CDPSession | None = None
     try:
         cdp = await asyncio.wait_for(browser.new_browser_cdp_session(), timeout=_PROBE_TIMEOUT_S)
         await asyncio.wait_for(cdp.send("Browser.getVersion"), timeout=_PROBE_TIMEOUT_S)
-    except Exception:
+    except Exception as error:
+        if is_driver_closed_error(error):
+            raise DriverClosedError(str(error)) from error
         return False
     finally:
         if cdp is not None:

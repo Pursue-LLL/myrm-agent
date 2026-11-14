@@ -303,25 +303,5 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     return done(ctx);
   }
 
-  if (data.type === H.AgentEventType.TEAMMATE_MESSAGE) {
-    const chatId = H.resolveStreamChatId(ctx.state);
-    const payload = data.data as Record<string, string | number> | undefined;
-    if (payload?.from_task_id && payload?.to_task_id) {
-      import('@/lib/utils/teammateMessage').then(({ normalizeTeammateEntry }) => {
-        H.writeSubagentStore(ctx.state, (store) => {
-          store.appendTeammateMessage(normalizeTeammateEntry(payload));
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(
-              new CustomEvent('teammate_message', {
-                detail: { chat_id: chatId, message: payload },
-              }),
-            );
-          }
-        });
-      });
-    }
-    return done(ctx);
-  }
-
   return null;
 }

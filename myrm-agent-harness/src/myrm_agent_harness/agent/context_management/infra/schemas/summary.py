@@ -12,15 +12,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-if TYPE_CHECKING:
-    pass
-
-# Minimum compression savings threshold (Prompt Cache protection).
-# See CONTEXT_ENGINEERING.md §5.2.
-# Assumes T_prefix=30k, T_cleared > T_prefix * (1-P), at 90% discount: 30k * 0.1 = 3k.
-# 3000 tokens balances cache protection without being overly conservative.
 
 @dataclass
 class CompactToolCall:
@@ -37,6 +30,7 @@ class CompactToolCall:
     timestamp: str = ""
     original_tokens: int = 0
     evicted_path: str | None = None
+
 
 @dataclass
 class CompressionIntent:
@@ -75,6 +69,7 @@ class CompressionIntent:
             "failed_tool_call_ids": self.failed_tool_call_ids,
             "user_goal_hint": self.user_goal_hint,
         }
+
 
 @dataclass
 class StructuredSummary:

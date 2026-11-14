@@ -212,11 +212,6 @@
   {
     "layer": "EXTENDED",
     "layer_value": 3,
-    "name": "send_teammate_message_tool"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
     "name": "skill_manage_tool"
   },
   {

@@ -1,7 +1,7 @@
 """Feishu channel Doctor diagnostic suite.
 
 Performs structured health checks across Feishu App credentials, bot identity,
-CardKit streaming permissions, WebSocket long connection, and Webhook reachability.
+and the transport mode (WebSocket long connection or Webhook reachability).
 
 [INPUT]
 - FeishuClient, channel configuration, and network endpoints.
@@ -55,8 +55,7 @@ async def diagnose_feishu_channel(
     Checks:
     1. Tenant Access Token acquisition.
     2. Bot identity & open_id resolution.
-    3. CardKit streaming capability test.
-    4. Transport mode validation (WebSocket vs Public Webhook).
+    3. Transport mode validation (WebSocket vs Public Webhook).
 
     Args:
         client: Active FeishuClient instance.
@@ -111,40 +110,7 @@ async def diagnose_feishu_channel(
     if not bot_ok:
         recommendations.append("Ensure Bot capability is enabled in Feishu App Developer Console.")
 
-    # Check 3: CardKit Streaming API Probe
-    import uuid
-
-    probe_card_id = f"doctor-probe-{uuid.uuid4().hex[:8]}"
-    cardkit_ok = False
-    try:
-        # Probe CardKit streaming create endpoint
-        cardkit_ok = await client.streaming_card_create(probe_card_id, seq=1)
-        checks.append(
-            DiagnosticCheckItem(
-                name="cardkit_streaming",
-                passed=cardkit_ok,
-                message=(
-                    "CardKit streaming API verified."
-                    if cardkit_ok
-                    else "CardKit streaming API unavailable (will fallback to edit_message)."
-                ),
-            )
-        )
-    except Exception as e:
-        checks.append(
-            DiagnosticCheckItem(
-                name="cardkit_streaming",
-                passed=False,
-                message=f"CardKit probe failed: {e}",
-            )
-        )
-
-    if not cardkit_ok:
-        recommendations.append(
-            "CardKit streaming requires 'cardkit:card:operate' permission. Fallback edit mode will be used automatically."
-        )
-
-    # Check 4: Transport & Callback Reachability
+    # Check 3: Transport & Callback Reachability
     if transport_mode == "webhook":
         has_url = bool(webhook_url)
         checks.append(

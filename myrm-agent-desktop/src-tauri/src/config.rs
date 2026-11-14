@@ -8,6 +8,7 @@
 //! [INPUT]
 //! - Tauri AppHandle（应用配置目录路径）
 //! - 磁盘上的 system_config.json（持久化配置）
+//! - utils::data_dir (POS: 数据根目录解析，决定传给后端的 MYRM_DATA_DIR)
 //!
 //! [OUTPUT]
 //! - SystemConfig（端口、托盘、快捷键、WebUI 远程接入等）
@@ -170,20 +171,14 @@ impl BackendConfig {
             .ok()
             .and_then(|raw| raw.trim().parse::<u16>().ok())
             .filter(|value| *value > 0)
-            .unwrap_or_else(|| {
-                if config.enable_webui_mode && config.api_port > 0 {
-                    config.api_port
-                } else {
-                    8080
-                }
+            .unwrap_or(if config.enable_webui_mode && config.api_port > 0 {
+                config.api_port
+            } else {
+                8080
             });
-        // A development build must not open the real user's database (the desktop, the local WebUI
-        // and the dev stack all default to ~/.myrm, and two servers on one SQLite file corrupt it).
-        let custom_data_dir = std::env::var("MYRM_DESKTOP_DATA_DIR")
-            .ok()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
-            .or_else(|| config.custom_data_dir.clone());
+        // A development build gets its own data directory: two servers on one SQLite file corrupt it.
+        let custom_data_dir =
+            crate::utils::data_dir::override_dir(config.custom_data_dir.as_deref());
         Self {
             port,
             host: if config.enable_webui_mode && config.enable_remote_access {

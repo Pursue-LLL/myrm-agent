@@ -127,7 +127,7 @@ export class IntentDispatcher {
         this.router.push(`/chat/${intent.id}`);
         break;
       case 'agent':
-        this.router.push(`/agents/${intent.id}`);
+        this.router.push(`/settings/agents?agentId=${encodeURIComponent(intent.id)}`);
         break;
       case 'ask':
         this.openFlowPad(intent.text);

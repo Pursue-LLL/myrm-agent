@@ -16,7 +16,6 @@
 export const SETTINGS_PATH_PREFIX = '/settings/';
 
 export const RESERVED_APP_SEGMENTS = new Set([
-  'agents',
   'artifacts',
   'audit',
   'brain',

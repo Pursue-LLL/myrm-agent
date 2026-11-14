@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from app.channels.routing.message_effects import MessageEffects
     from app.channels.routing.pending_approvals import PendingApprovals
     from app.channels.routing.policy_resolver import PolicyResolver
+    from app.channels.routing.progress_estimator import ProgressEstimator
     from app.channels.routing.retry_policy import RetryPolicy
     from app.channels.routing.router_models import (
         _ActiveTask,
@@ -52,7 +53,6 @@ if TYPE_CHECKING:
     from app.channels.routing.session_gate import SessionGate
     from app.channels.routing.session_rate_limiter import SessionRateLimiter
     from app.channels.routing.stream_manager import (
-        ProgressEstimator,
         StreamCoordinator,
     )
     from app.channels.routing.stream_metrics import StreamMetrics

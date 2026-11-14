@@ -5,8 +5,8 @@
 [INPUT]
 - langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
 - utils.text_utils::get_token_count (POS: Token 计数工具)
-- filters::FilterContext, SemanticFilter, StructuralFilter (POS: 过滤器实现)
-- filters.base::STRUCTURAL_CONTENT_TYPES, ContentType, detect_content_type (POS: 内容类型检测)
+- filters::FilterContext, RowSampleFilter, SemanticFilter, StructuralFilter (POS: 过滤器实现)
+- filters.base::STRUCTURAL_CONTENT_TYPES, BaseFilter, ContentType, detect_content_type (POS: 内容类型检测)
 
 [OUTPUT]
 - FilteredResult: 过滤后的结果类（包含内容类型、摘要、结构概览、读取建议）
@@ -14,9 +14,10 @@
 - create_filtered_result(): 创建过滤结果（使用混合过滤策略）
 - format_filtered_message(): 格式化过滤后的消息
 - FILTER_TOKEN_THRESHOLD: 过滤阈值常量（20000 tokens）
+- ROW_LISTING_TOOLS: 结果为行列表的工具名集合（grep_tool / glob_tool）
 
 [POS]
-Tool result filter. Truncates large tool outputs and generates smart previews via structural extraction or LLM summarization.
+Tool result filter. Truncates large tool outputs and generates smart previews: the real first and last rows for row listings, structural extraction for structured data, LLM summarization otherwise.
 
 """
 
@@ -26,10 +27,14 @@ from langchain_core.language_models import BaseChatModel
 
 from myrm_agent_harness.utils.text_utils import get_token_count
 
-from .filters import FilterContext, SemanticFilter, StructuralFilter
-from .filters.base import STRUCTURAL_CONTENT_TYPES, ContentType, detect_content_type
+from .filters import FilterContext, RowSampleFilter, SemanticFilter, StructuralFilter
+from .filters.base import STRUCTURAL_CONTENT_TYPES, BaseFilter, ContentType, detect_content_type
 
 FILTER_TOKEN_THRESHOLD = 20000
+
+# Tools whose result is a listing of independent rows (one match or path per line). Neither an outline
+# nor a summary of such a listing says which rows matched; the real first and last rows do.
+ROW_LISTING_TOOLS: frozenset[str] = frozenset({"grep_tool", "glob_tool"})
 
 
 @dataclass
@@ -54,16 +59,24 @@ def should_filter(content: str, threshold: int = FILTER_TOKEN_THRESHOLD) -> bool
 
 
 async def create_filtered_result(
-    content: str, file_path: str, user_query: str, llm: BaseChatModel | None = None, file_id: str | None = None
+    content: str,
+    file_path: str,
+    user_query: str,
+    llm: BaseChatModel | None = None,
+    file_id: str | None = None,
+    tool_name: str | None = None,
 ) -> FilteredResult:
     """创建过滤结果（纯内存，智能预览）
 
     混合过滤策略：
+    - 行列表工具（ROW_LISTING_TOOLS）：使用 RowSampleFilter（原样保留首尾行，无需 LLM）
     - 结构化数据（JSON/XML/代码/CSV/YAML/日志）：使用 StructuralFilter（无需 LLM）
     - 非结构化数据 + LLM 可用：使用 SemanticFilter + LLM
     - 非结构化数据 + LLM 不可用：降级为 StructuralFilter（head/tail 预览）
     """
-    content_type = detect_content_type(content)
+    row_listing = tool_name in ROW_LISTING_TOOLS
+    # A listing is typed by its tool, not by its text: result rows that quote code words or commas read as code or CSV.
+    content_type: ContentType = "plain_text" if row_listing else detect_content_type(content)
     estimated_tokens = get_token_count(content)
 
     display_path = file_id if file_id else file_path
@@ -71,8 +84,11 @@ async def create_filtered_result(
         content=content, file_path=display_path, content_type=content_type, user_query=user_query
     )
 
-    if content_type in STRUCTURAL_CONTENT_TYPES or llm is None:
-        filter_instance: StructuralFilter | SemanticFilter = StructuralFilter()
+    filter_instance: BaseFilter
+    if row_listing:
+        filter_instance = RowSampleFilter()
+    elif content_type in STRUCTURAL_CONTENT_TYPES or llm is None:
+        filter_instance = StructuralFilter()
     else:
         filter_instance = SemanticFilter(llm)
 

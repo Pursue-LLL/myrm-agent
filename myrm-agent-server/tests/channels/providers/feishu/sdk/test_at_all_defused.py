@@ -1,7 +1,7 @@
 """Agent text cannot mention everyone in a Feishu chat, whichever message type carries it.
 
 ``<at user_id="all">`` in a text message and ``<at id=all>`` in card markdown notify the whole group when they
-arrive as sent. Every message the client posts or edits, and every streamed card update, defuses them.
+arrive as sent. Every message the client posts or edits defuses them.
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ def _sent_strings(requests: list[tuple[str, dict[str, object]]]) -> list[str]:
 
 @pytest.mark.parametrize("form", _AT_ALL_FORMS)
 @pytest.mark.parametrize("kind", ["text", "post", "card", "result card"])
-@pytest.mark.parametrize("operation", ["send", "reply", "edit", "patch"])
+@pytest.mark.parametrize("operation", ["send", "reply", "update"])
 @pytest.mark.asyncio
 async def test_every_message_operation_defuses_mention_everyone(operation: str, kind: str, form: str) -> None:
     requests: list[tuple[str, dict[str, object]]] = []
@@ -89,10 +89,8 @@ async def test_every_message_operation_defuses_mention_everyone(operation: str, 
         await client.send_message("oc_1", "text", content)
     elif operation == "reply":
         await client.reply_message("om_1", "text", content)
-    elif operation == "edit":
-        await client.edit_message("om_1", "interactive", content)
     else:
-        await client.patch_message("om_1", "interactive", content)
+        await client.update_card("om_1", content)
 
     sent = _sent_strings(requests)
     assert not any(_AT_ALL.search(s) for s in sent)
@@ -101,20 +99,6 @@ async def test_every_message_operation_defuses_mention_everyone(operation: str, 
     carried_a_tag = any(_AT_ALL.search(s) for s in _strings(json.loads(content)))
     assert carried_a_tag or (kind == "post" and "\n" in form)
     assert carried_a_tag == any(_ZWSP in s for s in sent)
-
-
-@pytest.mark.parametrize("form", _AT_ALL_FORMS)
-@pytest.mark.parametrize("is_final", [False, True])
-@pytest.mark.asyncio
-async def test_a_streamed_card_update_defuses_mention_everyone(form: str, is_final: bool) -> None:
-    requests: list[tuple[str, dict[str, object]]] = []
-    client = _client(requests)
-
-    await client.streaming_card_update("card_1", f"so far {form}", seq=2, is_final=is_final)
-
-    text = str(requests[0][1]["content"])
-    assert not _AT_ALL.search(text)
-    assert text.replace(_ZWSP, "") == f"so far {form}"
 
 
 @pytest.mark.parametrize("text", _INERT_TEXT)
@@ -128,13 +112,3 @@ async def test_other_text_is_sent_unchanged(kind: str, text: str) -> None:
     await client.send_message("oc_1", "text", content)
 
     assert requests[0][1]["content"] == content
-
-
-@pytest.mark.asyncio
-async def test_a_streamed_card_update_without_a_mention_is_unchanged() -> None:
-    requests: list[tuple[str, dict[str, object]]] = []
-    client = _client(requests)
-
-    await client.streaming_card_update("card_1", '<at user_id="ou_1">Alice</at> done', seq=2)
-
-    assert requests[0][1]["content"] == '<at user_id="ou_1">Alice</at> done'

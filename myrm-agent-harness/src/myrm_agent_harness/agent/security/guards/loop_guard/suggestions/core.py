@@ -82,8 +82,7 @@ TOOL_SUGGESTIONS: dict[str, str] = {
     ),
     "file_edit_tool": (
         "Check: (1) file exists (use 'file_read_tool'), (2) search string is exact, "
-        "(3) replacement string is different, (4) consider using 'file_write_tool' instead, "
-        "or (5) verify the file content first."
+        "(3) replacement string is different, or (4) verify the file content first."
     ),
     "glob_tool": (
         "Try: (1) different glob pattern, (2) broader pattern (e.g., '**/*.py'), "

@@ -1,4 +1,4 @@
-"""Feishu outbound: message send (text / post / card), media upload, CardKit streaming and reactions.
+"""Feishu outbound: message send (text / post / card), media upload, placeholder cards and reactions.
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
@@ -7,12 +7,12 @@
 - channels.providers.feishu.cards (POS: card / post content builders)
 - channels.providers.feishu.reactions::feishu_emoji_type (POS: reaction emoji vocabulary)
 - channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
-- channels.rendering.renderer::render (POS: channel message rendering pipeline)
+- channels.rendering.renderer::render, is_rendered (POS: channel message rendering pipeline; is_rendered tells a reply the router already rendered)
 - channels.types::OutboundMessage, MediaAttachment (POS: channel message value types)
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
-- FeishuOutboundMixin: send, placeholder / edit / delete, media upload and CardKit streaming used by FeishuChannel
+- FeishuOutboundMixin: send, placeholder / edit / delete and media upload used by FeishuChannel
 
 [POS]
 Outbound half of FeishuChannel. The host owns the API client and the render configuration; the mixin only builds and sends messages.
@@ -24,7 +24,6 @@ import dataclasses
 import json
 import logging
 import re
-import uuid
 from datetime import UTC, datetime
 from functools import partial
 
@@ -33,7 +32,7 @@ from app.channels.core.base import BaseChannel
 from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.exceptions import ChannelSendError, RateLimitError
 from app.channels.core.reaction_ledger import ReactionLedger
-from app.channels.rendering.renderer import render
+from app.channels.rendering.renderer import is_rendered, render
 from app.channels.types import (
     MediaAttachment,
     MediaType,
@@ -46,7 +45,6 @@ from .cards import (
     build_card_actions,
     build_post_content,
     build_result_card,
-    build_thinking_card,
     has_rich_text,
     wrap_text_as_card,
 )
@@ -79,8 +77,6 @@ class FeishuOutboundMixin(BaseChannel):
     _client: FeishuClient
     _render_mode: str
     _reactions: ReactionLedger
-    _streaming_card_ids: dict[str, str]
-    _streaming_seq: dict[str, int]
 
     async def send(self, msg: OutboundMessage) -> str | None:
         chat_id = msg.recipient_id
@@ -108,7 +104,7 @@ class FeishuOutboundMixin(BaseChannel):
             if self._render_mode == "raw" or (self._render_mode != "card" and not self._should_use_card(msg.content, msg)):
                 content_chunks = render(msg, self.render_style)
             else:
-                # In card mode, apply table slicing and Lark Markdown protection across 24KB boundaries
+                # A card message over 30KB is refused, so slice: each slice closes its code blocks and keeps its table headers
                 content_chunks = slice_card_markdown(msg.content)
 
             async def send_chunk(chunk: str, index: int) -> str | None:
@@ -172,28 +168,15 @@ class FeishuOutboundMixin(BaseChannel):
         *,
         thread_id: str | None = None,
     ) -> str | None:
-        receive_type = self._resolve_receive_type(chat_id)
-        card_id = str(uuid.uuid4())
-        card = build_thinking_card(text, card_id=card_id)
-        content = json.dumps(card, ensure_ascii=False)
-        msg_id = await self._client.send_message(
+        """Send the card that progress edits and the final reply later replace in place."""
+        return await self._client.send_message(
             chat_id,
             "interactive",
-            content,
-            receive_id_type=receive_type,
+            json.dumps(wrap_text_as_card(text), ensure_ascii=False),
+            receive_id_type=self._resolve_receive_type(chat_id),
         )
-        if msg_id:
-            ok = await self._client.streaming_card_create(card_id)
-            if ok:
-                self._streaming_card_ids[msg_id] = card_id
-                self._streaming_seq[msg_id] = 1
-            else:
-                logger.debug("CardKit streaming init failed, will use edit fallback")
-        return msg_id
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
-        if await self._streaming_update(message_id, text):
-            return
         await self._edit_card(message_id, wrap_text_as_card(text))
 
     async def edit_placeholder_message(
@@ -202,15 +185,14 @@ class FeishuOutboundMixin(BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        """Replace placeholder with a rich result card; finalize streaming if active."""
-        await self._streaming_finalize(message_id, msg.content or "")
+        """Replace the placeholder with the result card."""
         await self._edit_card(message_id, self._build_outbound_card(msg))
 
     async def _edit_card(self, message_id: str, card: dict[str, object]) -> None:
-        """Replace the card of ``message_id``; Feishu answers a refused edit with a false result, not an error."""
+        """Replace the card of ``message_id``; Feishu answers a refused update with a false result, not an error."""
         content = json.dumps(card, ensure_ascii=False)
-        if not await self._client.edit_message(message_id, "interactive", content):
-            raise ChannelSendError("Feishu did not accept the card edit", channel=self.name, retriable=False)
+        if not await self._client.update_card(message_id, content):
+            raise ChannelSendError("Feishu did not accept the card update", channel=self.name, retriable=False)
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         await self._client.delete_message(message_id)
@@ -256,13 +238,15 @@ class FeishuOutboundMixin(BaseChannel):
         cron = extract_cron_context(msg)
         content = msg.content or ""
         cost_meta = msg.metadata.get("cost_metadata") if msg.metadata else None
+        # A rendered message holds its sources and cost line in ``content``; the card must not add them again.
+        rendered = is_rendered(msg)
         card = build_result_card(
             content,
             title=cron.job_name if cron else "",
-            sources=self._extract_sources(msg),
+            sources=[] if rendered else self._extract_sources(msg),
             success=cron.success if cron else None,
             timestamp=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
-            cost_metadata=cost_meta if isinstance(cost_meta, dict) else None,
+            cost_metadata=cost_meta if isinstance(cost_meta, dict) and not rendered else None,
         )
         actions = build_card_actions(msg.quick_replies, msg.components)
         if actions:
@@ -349,27 +333,3 @@ class FeishuOutboundMixin(BaseChannel):
         reaction_id = self._reactions.take(chat_id, message_id)
         if reaction_id:
             await self._client.delete_reaction(message_id, reaction_id)
-
-    async def _streaming_update(self, message_id: str, text: str) -> bool:
-        """Push incremental streaming; returns False to fall back to edit."""
-        card_id = self._streaming_card_ids.get(message_id)
-        if not card_id:
-            return False
-        seq = self._streaming_seq.get(message_id, 1) + 1
-        ok = await self._client.streaming_card_update(card_id, text, seq=seq)
-        if ok:
-            self._streaming_seq[message_id] = seq
-        return ok
-
-    async def _streaming_finalize(self, message_id: str, text: str) -> None:
-        """Send the final streaming update and clean up the session."""
-        card_id = self._streaming_card_ids.pop(message_id, "")
-        seq = self._streaming_seq.pop(message_id, 1)
-        if not card_id:
-            return
-        await self._client.streaming_card_update(
-            card_id,
-            text,
-            seq=seq + 1,
-            is_final=True,
-        )

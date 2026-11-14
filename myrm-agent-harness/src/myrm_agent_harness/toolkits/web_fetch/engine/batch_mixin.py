@@ -77,7 +77,6 @@ class FetchEngineBatchMixin:
         left running under the engine's own crawl timeout: other callers may be coalesced on it, and its page or
         failure still lands in the engine's caches.
         """
-        self._ensure_workers_started()
         loop = asyncio.get_running_loop()
         hard_s = self._crawl_timeout + _UNWIND_GRACE_S
         soft_s = min(_STRAGGLER_AFTER_S, hard_s)
@@ -140,8 +139,6 @@ class FetchEngineBatchMixin:
         max_concurrency: int = 10,
     ) -> tuple[SuccessResult, FailedResult]:
         """Warm up cache (concurrent + auto-retry on failure + exponential backoff)."""
-        self._ensure_workers_started()
-
         success_results: SuccessResult = []
         failed_results: FailedResult = []
         results_lock = asyncio.Lock()
@@ -183,8 +180,6 @@ class FetchEngineBatchMixin:
 
     async def prefetch(self: FetchEngine, urls: list[str], *, max_concurrency: int = 5) -> None:
         """Cache warmup: background async load URLs into cache."""
-        self._ensure_workers_started()
-
         sem = asyncio.Semaphore(max_concurrency)
 
         async def prefetch_one(url: str) -> None:

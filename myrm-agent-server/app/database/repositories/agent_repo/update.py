@@ -106,15 +106,6 @@ class UpdateMixin:
                 agent.subagent_ids = cast(list[str], metadata["subagent_ids"])
             if "trusted_desktop_apps" in metadata and metadata["trusted_desktop_apps"] is not None:
                 agent.trusted_desktop_apps = list(metadata["trusted_desktop_apps"])
-            if "responsibility_scope" in metadata:
-                raw_rs = metadata["responsibility_scope"]
-                agent.responsibility_scope = raw_rs if isinstance(raw_rs, str) else None
-            if "owner_label" in metadata:
-                raw_ol = metadata["owner_label"]
-                agent.owner_label = raw_ol if isinstance(raw_ol, str) else None
-            if "acceptance_criteria" in metadata:
-                raw_ac = metadata["acceptance_criteria"]
-                agent.acceptance_criteria = [str(x) for x in raw_ac] if isinstance(raw_ac, list) else None
             if "allow_discovery" in metadata and metadata["allow_discovery"] is not None:
                 agent.allow_discovery = bool(metadata["allow_discovery"])
             if "workspace_policy" in metadata:

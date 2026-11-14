@@ -7,7 +7,10 @@
 - .config::LaunchMode, _DEFAULT_CDP_ENDPOINT (POS: launch method enum and default CDP endpoint)
 - .chrome_discovery::discover_chrome_cdp_endpoint (POS: DevToolsActivePort-based browser discovery)
 - .camoufox_availability::require_camoufox_ready (POS: non-downloading Camoufox readiness gate)
-- .browser_launch_env::chromium_launch_env, camoufox_launch_env (POS: environment of launched browser processes)
+- .camoufox_launch::launch_camoufox (POS: Camoufox start with a persisted fingerprint)
+- .browser_launch_env::chromium_launch_env (POS: environment of launched Chromium processes)
+- .chromium_install::auto_install_chromium, build_install_failure_message (POS: zero-config Chromium installation)
+- ..utils.page_health::is_driver_closed_error (POS: tells a call that failed on an exited Playwright driver from other failures)
 
 [OUTPUT]
 - BrowserLauncher: browser instance launcher (supports launch/connect/auto modes)
@@ -21,27 +24,28 @@ Dedicated to browser instance launching, including:
 4. Automatic CDP port detection (HTTP GET /json/version)
 5. Auto mode: DevToolsActivePort discovery → probe → connect → fallback to launch
 6. Smart retry strategy (3 retries + exponential backoff)
-7. Zero-config auto-install: detects missing Chromium and installs via patchright with CDN mirror fallback
-8. Camoufox: fingerprint persistence (launch_options(), from_options reload, corrupted-JSON self-heal) and a readiness gate that refuses to start without the browser build, so no implicit ~1.2 GB download runs inside a request
+7. Zero-config auto-install: a launch that reports a missing Chromium runs ``chromium_install`` and retries
+8. Camoufox: started through `camoufox_launch` (fingerprint persistence, corrupted-JSON self-heal) behind a readiness gate that refuses to start without the browser build, so no implicit ~1.2 GB download runs inside a request
+9. Driver recovery: a launch or CDP connect that fails because the Playwright driver process is gone drops the cached driver, so the next attempt starts a new one instead of failing on the dead one forever
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
-import functools
-import json
 import logging
-import os
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from ..exceptions import BrowserLaunchError
-from .browser_launch_env import camoufox_launch_env, chromium_launch_env
+from ..utils.page_health import is_driver_closed_error
+from .browser_launch_env import chromium_launch_env
 from .camoufox_availability import require_camoufox_ready
+from .camoufox_launch import launch_camoufox
+from .chromium_install import auto_install_chromium, build_install_failure_message
 from .config import _DEFAULT_CDP_ENDPOINT, BrowserEngine, LaunchMode
 
 if TYPE_CHECKING:
@@ -51,140 +55,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_CDP_PROBE_TIMEOUT_S = 2.0
-_INSTALL_TIMEOUT_S = 600  # 10 minutes max for Chromium download
-_INSTALL_COOLDOWN_S = 1800  # 30 minutes cooldown after failed install
-
-_install_lock: asyncio.Lock | None = None
-_last_install_failure_at: float = 0.0
-
-
-_CDN_PROBE_URL = "https://cdn.playwright.dev"
-_CN_MIRROR_HOST = "https://cdn.npmmirror.com/binaries/playwright"
-_CN_MIRROR_CHROMIUM_HOST = "https://cdn.npmmirror.com/binaries/chrome-for-testing"
-_CDN_PROBE_TIMEOUT_S_INSTALL = 5.0
-
 
 def _is_executable_missing(error: Exception) -> bool:
     """Detect if a launch failure is caused by missing browser executable."""
     msg = str(error).lower()
     return "executable doesn't exist" in msg or "no such file or directory" in msg
-
-
-def _get_install_env() -> dict[str, str]:
-    """Build env dict for patchright install with CDN mirror fallback.
-
-    Respects user-set PLAYWRIGHT_DOWNLOAD_HOST. When unset, probes the
-    default Playwright CDN; if unreachable within 5 s (common in mainland
-    China / corporate firewalls), falls back to npmmirror.
-    """
-    env = dict(os.environ)
-    if env.get("PLAYWRIGHT_DOWNLOAD_HOST"):
-        return env
-
-    import urllib.error
-    import urllib.request
-
-    try:
-        req = urllib.request.Request(_CDN_PROBE_URL, method="HEAD")
-        urllib.request.urlopen(req, timeout=_CDN_PROBE_TIMEOUT_S_INSTALL)  # noqa: S310
-    except urllib.error.HTTPError:
-        pass  # HTTP 4xx/5xx means server is reachable
-    except Exception:
-        env["PLAYWRIGHT_DOWNLOAD_HOST"] = _CN_MIRROR_HOST
-        env["PLAYWRIGHT_CHROMIUM_DOWNLOAD_HOST"] = _CN_MIRROR_CHROMIUM_HOST
-        logger.info("Default Playwright CDN unreachable — using npmmirror (%s)", _CN_MIRROR_HOST)
-    return env
-
-
-async def _auto_install_chromium() -> bool:
-    """Install Chromium via patchright with cooldown protection.
-
-    Returns True if installation succeeded, False otherwise.
-    Prevents repeated attempts within _INSTALL_COOLDOWN_S after a failure.
-    """
-    global _last_install_failure_at, _install_lock
-
-    if _last_install_failure_at and (time.monotonic() - _last_install_failure_at) < _INSTALL_COOLDOWN_S:
-        remaining = int(_INSTALL_COOLDOWN_S - (time.monotonic() - _last_install_failure_at))
-        logger.warning("Chromium auto-install skipped: previous failure cooldown (%ds remaining)", remaining)
-        return False
-
-    if _install_lock is None:
-        _install_lock = asyncio.Lock()
-
-    async with _install_lock:
-        # Double-check after acquiring lock
-        if _last_install_failure_at and (time.monotonic() - _last_install_failure_at) < _INSTALL_COOLDOWN_S:
-            return False
-
-        logger.info("Auto-installing Chromium via patchright (this may take a few minutes)...")
-        try:
-            env = await asyncio.get_running_loop().run_in_executor(None, _get_install_env)
-            # Invoke via `python -m patchright` so install works regardless of PATH
-            # (the `patchright` CLI may live in a venv bin dir that is not on PATH).
-            install_args = [sys.executable, "-m", "patchright", "install", "chromium"]
-            proc = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    *install_args,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    env=env,
-                ),
-                timeout=_INSTALL_TIMEOUT_S,
-            )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=_INSTALL_TIMEOUT_S)
-
-            if proc.returncode == 0:
-                logger.info("Chromium auto-install succeeded")
-                _last_install_failure_at = 0.0
-                return True
-
-            _last_install_failure_at = time.monotonic()
-            logger.error(
-                "Chromium auto-install failed (exit %d): %s",
-                proc.returncode,
-                (stderr or stdout or b"").decode(errors="replace")[:500],
-            )
-            return False
-
-        except TimeoutError:
-            _last_install_failure_at = time.monotonic()
-            logger.error("Chromium auto-install timed out after %ds", _INSTALL_TIMEOUT_S)
-            return False
-        except FileNotFoundError:
-            _last_install_failure_at = time.monotonic()
-            logger.error("'patchright' CLI not found — cannot auto-install Chromium")
-            return False
-        except Exception as exc:
-            _last_install_failure_at = time.monotonic()
-            logger.error("Chromium auto-install unexpected error: %s", exc)
-            return False
-
-
-def _build_install_failure_message(original_error: Exception) -> str:
-    """Build a user-friendly error message when auto-install fails.
-
-    Includes diagnostic hints (disk space, network, permissions) to help
-    GUI users who cannot easily run terminal commands.
-    """
-    lines = [
-        "Browser engine (Chromium) is not installed and automatic installation failed.",
-        "",
-        "To fix this manually, open a terminal and run:",
-        "  patchright install chromium",
-        "",
-        "If the download is slow or fails (e.g. in mainland China), use a mirror:",
-        f"  PLAYWRIGHT_DOWNLOAD_HOST={_CN_MIRROR_HOST} patchright install chromium",
-        "",
-        "Common causes:",
-        "  - Insufficient disk space (Chromium requires ~400 MB)",
-        "  - No internet connection (download required)",
-        "  - Permission issues (try running with elevated privileges)",
-        "",
-        f"Original error: {original_error}",
-    ]
-    return "\n".join(lines)
 
 
 @dataclass
@@ -239,6 +114,26 @@ class BrowserLauncher:
 
             self._playwright = await async_playwright().start()
         return self._playwright
+
+    async def _discard_playwright(self) -> None:
+        """Stop and forget the cached driver, so the next ``_ensure_playwright`` starts a new one.
+
+        The cache is cleared first: a caller that arrives while the old driver is still stopping must not pick it up.
+        """
+        playwright, self._playwright = self._playwright, None
+        if playwright is not None:
+            with contextlib.suppress(Exception):
+                await playwright.stop()
+
+    async def _discard_playwright_if_gone(self, error: Exception) -> None:
+        """Drop the cached driver when ``error`` says its process is gone.
+
+        The driver took every browser it launched down with it, and a dead driver can neither launch nor
+        connect anything: the next attempt has to run on a new one.
+        """
+        if self._playwright is not None and is_driver_closed_error(error):
+            logger.warning("Playwright driver process is gone; the next attempt starts a new driver")
+            await self._discard_playwright()
 
     async def create_browser(self, headers: dict[str, str] | None = None) -> BrowserInstance:
         """Create Browser via configured launch_mode (launch/connect/auto/remote/extension).
@@ -325,21 +220,23 @@ class BrowserLauncher:
         """Connect to an existing Chrome instance via CDP with retry.
 
         Retries up to 3 times with exponential backoff (1s, 2s) to handle
-        transient CDP unavailability (e.g. Chrome still initializing).
+        transient CDP unavailability (e.g. Chrome still initializing). A retry
+        whose failure was an exited Playwright driver runs on a new driver.
 
         The returned BrowserInstance has is_managed=False.
         Calling browser.close() on a CDP-connected browser only
         disconnects the CDP session — it does NOT kill the Chrome process.
         """
-        pw = await self._ensure_playwright()
         last_exc: Exception | None = None
 
         from .chrome_prompt_guard import watch_chrome_remote_debugging_prompt
 
         for attempt in range(3):
+            pw = await self._ensure_playwright()
             try:
                 async with watch_chrome_remote_debugging_prompt(timeout=4.0):
-                    browser = await pw.chromium.connect_over_cdp(endpoint, headers=headers)
+                    # The driver rejects an empty mapping ("headers: expected array, got object"): none means None.
+                    browser = await pw.chromium.connect_over_cdp(endpoint, headers=headers or None)
                 self._total_browsers += 1
                 logger.info(
                     f"Connected to existing Chrome via CDP at {endpoint} "
@@ -350,6 +247,7 @@ class BrowserLauncher:
             except Exception as exc:
                 last_exc = exc
                 logger.warning(f"CDP connect failed (attempt {attempt + 1}/3): {exc}")
+                await self._discard_playwright_if_gone(exc)
                 if attempt < 2:
                     await asyncio.sleep(2**attempt)
 
@@ -378,55 +276,7 @@ class BrowserLauncher:
         for attempt in range(3):
             try:
                 if self._engine == BrowserEngine.FIREFOX_CAMOUFOX:
-                    from camoufox.async_api import AsyncCamoufox
-                    from camoufox.utils import launch_options as build_camoufox_options
-
-                    fp_file = self._fingerprint_dir / "camoufox_fingerprint.json" if self._fingerprint_dir else None
-                    camoufox_config: dict[str, object] | None = None
-                    if fp_file and fp_file.is_file():
-                        try:
-                            camoufox_config = json.loads(fp_file.read_text(encoding="utf-8"))
-                            if not isinstance(camoufox_config, dict):
-                                raise ValueError("expected dict, got " + type(camoufox_config).__name__)
-                            logger.debug("Loaded Camoufox fingerprint from %s", fp_file)
-                        except (json.JSONDecodeError, ValueError):
-                            logger.warning(
-                                "Corrupted Camoufox fingerprint at %s — deleting and regenerating",
-                                fp_file,
-                            )
-                            fp_file.unlink(missing_ok=True)
-                            camoufox_config = None
-
-                    if camoufox_config is None:
-                        build_kwargs: dict[str, object] = {
-                            "headless": self._launch_options.get("headless", True),
-                            "fingerprint_preset": True,
-                            "env": camoufox_launch_env(None),
-                        }
-                        proxy = self._launch_options.get("proxy")
-                        if proxy is not None:
-                            build_kwargs["proxy"] = proxy
-
-                        loop = asyncio.get_running_loop()
-                        camoufox_config = await loop.run_in_executor(
-                            None,
-                            functools.partial(build_camoufox_options, **build_kwargs),  # type: ignore[arg-type]
-                        )
-
-                        if fp_file:
-                            fp_file.parent.mkdir(parents=True, exist_ok=True)
-                            fp_file.write_text(
-                                json.dumps(camoufox_config, default=str, ensure_ascii=False),
-                                encoding="utf-8",
-                            )
-                            logger.info("Camoufox fingerprint saved to %s", fp_file)
-
-                    if isinstance(camoufox_config, dict):
-                        camoufox_config = dict(camoufox_config)
-                        camoufox_config["env"] = camoufox_launch_env(camoufox_config.get("env"))
-
-                    # start() hands back the launched browser although the inherited signature says Playwright.
-                    browser = cast("Browser", await AsyncCamoufox(from_options=camoufox_config).start())  # type: ignore[no-untyped-call]
+                    browser = await launch_camoufox(self._launch_options, self._fingerprint_dir)
 
                     logger.info(f"Launched new Camoufox Browser instance (attempt {attempt + 1}/3)")
                 else:
@@ -447,6 +297,8 @@ class BrowserLauncher:
                 return BrowserInstance(browser=browser, engine=self._engine.value, is_managed=True)
 
             except Exception as exc:
+                await self._discard_playwright_if_gone(exc)
+
                 if is_timeout_error(exc):
                     last_exc = exc
                     logger.warning(f"Browser launch timeout (attempt {attempt + 1}/3): {exc}")
@@ -470,13 +322,10 @@ class BrowserLauncher:
                     and self._engine != BrowserEngine.FIREFOX_CAMOUFOX
                 ):
                     logger.info("Chromium executable not found — attempting auto-install")
-                    if await _auto_install_chromium():
+                    if await auto_install_chromium():
                         auto_installed = True
                         # Reset playwright so the new executable is picked up
-                        if self._playwright:
-                            with contextlib.suppress(Exception):
-                                await self._playwright.stop()
-                            self._playwright = None
+                        await self._discard_playwright()
                         continue  # retry immediately after install
 
                 if attempt < 2:
@@ -486,7 +335,7 @@ class BrowserLauncher:
         if self._engine == BrowserEngine.FIREFOX_CAMOUFOX:
             error_msg = f"Camoufox stealth engine failed to launch after 3 attempts: {last_exc}"
         elif last_exc and _is_executable_missing(last_exc):
-            error_msg = _build_install_failure_message(last_exc)
+            error_msg = build_install_failure_message(last_exc)
         logger.error(error_msg)
         raise BrowserLaunchError(error_msg) from last_exc
 
@@ -495,7 +344,7 @@ class BrowserLauncher:
 
         The extension_bridge (injected from business layer) handles:
         - WebSocket connection management
-        - Tab selection and domain authorization
+        - Domain authorization: which of the user's tabs the Agent may touch
         - chrome.debugger attachment and CDP message routing
 
         Returns:
@@ -529,7 +378,4 @@ class BrowserLauncher:
 
     async def shutdown(self) -> None:
         """Shutdown Playwright."""
-        if self._playwright:
-            with contextlib.suppress(Exception):
-                await self._playwright.stop()
-            self._playwright = None
+        await self._discard_playwright()
