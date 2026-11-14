@@ -130,6 +130,30 @@ def test_download_of_a_non_latin1_filename_carries_an_rfc6266_header(client):
     assert "filename*=UTF-8''%E4%B8%AD%E6%96%87%E6%8A%A5%E5%91%8A.txt" in disposition
 
 
+def test_download_of_an_undecodable_multipart_filename_still_succeeds(client):
+    """Bytes that are not UTF-8 reach the stored name as text, so the download header must still be valid."""
+    boundary = b"UPLOADBOUNDARY"
+    body = (
+        b"--" + boundary + b'\r\nContent-Disposition: form-data; name="files"; filename="\xff\xfe.txt"\r\n'
+        b"Content-Type: text/plain\r\n\r\nhello\r\n--" + boundary + b"--\r\n"
+    )
+
+    uploaded = client.post(
+        "/api/v1/files/upload",
+        content=body,
+        headers={"content-type": "multipart/form-data; boundary=UPLOADBOUNDARY"},
+    )
+    assert uploaded.status_code == 200
+    path = uploaded.json()["data"]["files"][0]["file_url"].replace("http://testserver", "")
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert response.content == b"hello"
+    disposition = response.headers["content-disposition"]
+    assert disposition.startswith("inline; filename=")
+    assert "filename*=UTF-8''" in disposition
+
+
 def test_download_as_attachment_names_the_file_in_the_header(client):
     path = _uploaded_content_path(client, "notes.txt", b"hello")
 
