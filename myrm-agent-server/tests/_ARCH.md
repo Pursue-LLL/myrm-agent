@@ -852,6 +852,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/skills/test_draft_skill_name.py` | 模块 | `slugify_draft_skill_name`：技能名成为目录名的各种写法（空格、连续空白、结尾句号、首尾空白、首尾连字符、非 ASCII 字母、路径、NUL、Kelvin 符号、超长、清洗后什么都不剩、空名字）各一例；对敌意输入逐一确认结果恒为一个由 `a-zA-Z0-9_-` 组成、不超过 64 字符的目录项名 |
 | `core/skills/test_managed_skill_reader.py` | 模块 | `ManagedSkillSnapshotReader`：读服务根下的 SKILL.md 与资源字节、缺失技能/资源抛 `FileNotFoundError`、根在每次调用时读取（服务根被改后跟随）、技能名与资源路径越界（`..`、绝对路径）被拒 |
 | `core/skills/test_prebuilt_skill_script_commands.py` | 模块 | 预置技能的 SKILL.md 里写出的每条脚本命令（`python3 .claude/skills/<name>/…`）都是该技能的「纯调用」：执行器只对纯调用交出技能的保存设置，模型照文档写的命令因此拿得到设置；同时锁定三个脚本技能（邮箱、Google Workspace、X 搜索）确实被扫描到 |
+| `core/skills/test_prebuilt_sync_snapshot_cost.py` | 单元 | 预置技能种子的快照（token 计数、tags）仅在安装或上游变化时构建：首次启动为每个种子计数，之后与留存副本一致的种子不再计数，上游变化的种子是唯一被重新计数的 |
 | `api/skills/test_skill_reveal_api.py` | 模块 | `POST /skills/{id}/reveal`：打开真实技能目录、非本地模式拒绝、未知技能/无本地存储/目录缺失的错误映射 |
 | `services/agent/test_converter_agent_prompt_delivery.py` | 模块 | 真实转换器按 Web 请求形状（含 `agent_config`）交付智能体人设：保存的人设追加在客户端全局指令之后且只出现一次；会话级 `agent_config.system_prompt` 整体替换、空串清空、已保存的智能体不存在时仍生效；无 `agent_config` 的请求照用保存的人设 |
 | `services/agent/test_shared_context_name_resolution.py` | 模块 | 共享上下文显示名经真实 `SharedContextService` 与数据库往返抵达 agent params 与 wiki lane（会话导入出错会被兜底静默吞掉，故不 mock） |
