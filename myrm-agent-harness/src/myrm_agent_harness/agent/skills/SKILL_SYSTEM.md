@@ -216,9 +216,11 @@ Level 0: 发现（Discovery）
   → 同时执行依赖检查和信任级别标注
 
 Level 1: 摘要（Summary）
-  → generate_skill_prompt() 生成安全 XML 摘要
-  → 注入系统 Prompt，供 LLM 了解可用技能
-  → Token 消耗：~50 tokens/技能
+  → render_bound_skills_catalog() 生成安全 XML 摘要（runtime/skill_catalog_delivery.py，条目由 registry.get_metadata_summary() 渲染）
+  → 写入会话首条 HumanMessage 作为基线，绑定列表变化时以 <bound_skills_update> 前置到新的 HumanMessage；不进 SystemMessage
+  → Token 消耗：完整条目共用 L1_CATALOG_MAX_TOKENS（2,000）预算，每条含描述与契约摘要
+    （131 个预置技能实测：均值约 196、最小 47、最大 343）；预算外的技能只占一个名字（均值约 7），
+    名字行另有 L1_HIDDEN_NAMES_MAX_TOKENS（1,500）上限
 
 Level 2: 正文（Body）
   → get_skill_content() 返回 SKILL.md 正文
@@ -257,7 +259,7 @@ Level 3: 资源（Resources）
 - 通用规则在 `skill_select_tool` 静态 description，减少误触发；
 - `trust` 属性让 LLM 知道技能的信任级别；
 - L1 仅在有技能未内联（`hidden_count > 0`）时输出 search/hidden 动态规则；
-- L1 按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算选择完整 `name + description` 条目，不再按技能个数截断；
+- L1 按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算选择完整条目，不再按技能个数截断；完整条目 = 完整 `description` + 带契约的技能的 `<contract>` 摘要（步骤/陷阱/验证计数、成功标准、依赖、至多 2 条验证与 2 条陷阱，每段截到 160 字符；上方示例为简洁省略了它）；
 - 预算外的技能不再只是一个数字：目录末尾的 `<hidden_skill_names>` 一行按字母序列出它们的名字（上限 `L1_HIDDEN_NAMES_MAX_TOKENS = 1,500`，超出时以 `and N more not listed` 收尾）。名字在目录里，模型直接 select；只知能力、不知名字才 search。
 - 走 PTC 的 MCP 技能（服务器没有自带 instructions）在自己的条目里多一行 `<functions>`，按名字列出它的全部函数；目录里另有一个 `<function_index_rules>` 块，写明这类条目无需先 select，并给出调用约定（与 L2 正文共用 `agent/skills/runtime/ptc_calling.py` 的文本）。函数覆盖请求时，模型直接在 `bash_code_execute_tool` 里 `from skills.<name> import <函数>`，省掉一轮 `skill_select_tool`；需要全部签名时仍可 select。清单的预算 `L1_FUNCTION_INDEX_MAX_TOKENS = 1,200` 与条目预算分开计，不会挤掉其他技能的条目；一张清单要么整张列出要么不列（放不下时该服务器保持先 select）。服务器自带 instructions 时同样保持先 select，因为 instructions 只在 L2 正文里。
 
