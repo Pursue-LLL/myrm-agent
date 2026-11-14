@@ -6,7 +6,7 @@ local-only fixture endpoint (`POST /chats/test/seed-kanban-in-review-fixture`)
 that drives the real KanbanService/store — the backend stays the single writer,
 so no second sqlite3 writer can corrupt its WAL. The test then verifies the
 badges `pendingApprovals` count ticks up, that the in-review deep link (the one
-push notifications and task toasts open) lands on the pending task, and that
+a pending-review push notification opens) lands on the pending task, and that
 the count falls back after the approve (IN_REVIEW -> COMPLETED) and reject
 (IN_REVIEW -> READY) transitions, both performed like a real user inside the
 kanban task drawer.
@@ -93,9 +93,9 @@ def _verify_in_review_deep_link(
 ) -> None:
     """Open the in-review deep link and verify it lands on the pending task.
 
-    `/settings/kanban?board_id=…&status=in_review` is the link push
-    notifications and task toasts open. It must land on the board with the
-    status filter chip rendered and the pending task card present.
+    `/settings/kanban?board_id=…&status=in_review` is the link a pending-review
+    push notification opens. It must land on the board with the status filter
+    chip rendered and the pending task card present.
     """
     target_url = f"{ui_url}/settings/kanban?board_id={board_id}&status=in_review"
     navigate_mcp_page(client, page, target_url, timeout_ms=90_000)
