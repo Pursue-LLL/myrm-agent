@@ -8,8 +8,11 @@ from app.database.models import Chat, Message
 from app.database.repositories.conversation_recall import ConversationRecallRepository
 
 
-async def seed_chat_and_messages(db: AsyncSession) -> str:
-    """Insert a chat with several messages for search tests."""
+async def seed_chat_and_messages(db: AsyncSession, *, last_sent_at: datetime | None = None) -> str:
+    """Insert a chat with several messages for search tests.
+
+    ``last_sent_at`` is when the last message was sent; by default it goes out with the others.
+    """
     chat_id = "chat-search-test-1"
     chat = Chat(
         id=chat_id,
@@ -24,7 +27,7 @@ async def seed_chat_and_messages(db: AsyncSession) -> str:
         ("msg-2", "assistant", "You can use docker compose up -d to deploy in detached mode.", now),
         ("msg-3", "user", "What about Kubernetes deployment?", now),
         ("msg-4", "assistant", "For Kubernetes you would use kubectl apply -f deployment.yaml", now),
-        ("msg-5", "user", "Python asyncio question", now),
+        ("msg-5", "user", "Python asyncio question", last_sent_at or now),
     ]
     for msg_id, role, content, sent_at in messages_data:
         msg = Message(
