@@ -611,6 +611,23 @@ class TestCheckTokenizerHealth:
 
 
 class TestCheckLocalTraceExportAudit:
+    @pytest.fixture(autouse=True)
+    def _no_langsmith_switch(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from myrm_agent_harness.infra.tracing.langsmith_gate import LANGSMITH_TRACING_SWITCHES
+
+        for name in LANGSMITH_TRACING_SWITCHES:
+            monkeypatch.delenv(name, raising=False)
+
+    @pytest.mark.asyncio
+    async def test_local_trace_only_langsmith_leak_risk(self):
+        from myrm_agent_harness.observability.diagnostics.probes import check_local_trace_export_audit
+
+        with patch.dict("os.environ", {"MYRM_LOCAL_TRACE_ONLY": "1", "LANGSMITH_TRACING": "true"}):
+            report = await check_local_trace_export_audit()
+            assert report.status == "fail"
+            assert report.code == "ERR_LANGSMITH_LEAK_RISK"
+            assert report.meta_data == {"local_trace_only": True, "langsmith": True}
+
     @pytest.mark.asyncio
     async def test_local_trace_only_clean_pass(self):
         from myrm_agent_harness.observability.diagnostics.probes import check_local_trace_export_audit

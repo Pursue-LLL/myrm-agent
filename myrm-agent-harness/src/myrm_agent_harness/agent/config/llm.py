@@ -34,12 +34,12 @@ from myrm_agent_harness.core.config.llm import CustomModelDef, LLMConfig
 class TracingConfig:
     """可视化追踪配置 (Tracing)
 
-    支持本地开源可视化 (Arize Phoenix) 和商业云端 (LangSmith)。
-    注意：为了保证数据隐私，默认推荐使用本地 Phoenix。
+    支持本地开源可视化 (Arize Phoenix)。
+    注意：为了保证数据隐私，默认推荐使用本地 Phoenix。LangSmith 不在此配置：它由 LangChain 自己的环境变量
+    (LANGSMITH_TRACING 等) 开启，设置了 MYRM_LOCAL_TRACE_ONLY 时 ``setup_tracing`` 会把它关掉。
     """
 
     enable_local_ui: bool = False  # 是否启用本地 Phoenix UI (需安装 [observability] 依赖)
-    enable_langsmith: bool = False  # 是否启用 LangSmith (需配置 LANGCHAIN_TRACING_V2 等环境变量)
     phoenix_project_name: str = "myrm-agent"  # Phoenix 项目名称
 
 
@@ -192,7 +192,6 @@ class AgentConfig(BaseModel):
 
         tracing_config = TracingConfig(
             enable_local_ui=os.getenv("MYRM_ENABLE_LOCAL_UI", "false").lower() == "true",
-            enable_langsmith=os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true",
             phoenix_project_name=os.getenv("MYRM_PHOENIX_PROJECT", "myrm-agent"),
         )
 
