@@ -13,9 +13,10 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import cast
 
 # This module imports dev_gate.* at module scope and is invoked directly as a
 # script (`python .../dev_gate/cli.py ...`) by test.sh / e2e_bootstrap.sh. When
@@ -26,13 +27,14 @@ _lib_root = str(Path(__file__).resolve().parent.parent)
 if _lib_root not in sys.path:
     sys.path.insert(0, _lib_root)
 
-from dev_gate.coordinator import (
+from dev_gate.code_fingerprint import coordinator_code_fingerprint  # noqa: E402
+from dev_gate.coordinator import (  # noqa: E402
     CoordinatorService,
     default_socket_path,
     normalized_socket_path,
     request,
 )
-from dev_gate.store import DevGateStore, default_store_path
+from dev_gate.store import DevGateStore, default_store_path  # noqa: E402
 
 _START_TIMEOUT_SEC = 8.0
 _PING_WAIT_SEC = 10.0
@@ -40,32 +42,6 @@ _SUBMIT_REQUEST_TIMEOUT_SEC = 120.0
 
 _IN_PROCESS_SERVICE: CoordinatorService | None = None
 _IN_PROCESS_SERVICE_LOCK = threading.Lock()
-
-_COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
-    "dev_gate/coordinator.py",
-    "dev_gate/cli.py",
-    "dev_gate/contract.py",
-    "dev_gate/cleanup_observed_seal.py",
-    "dev_gate/owner_identity.py",
-    "dev_gate/session.py",
-    "dev_gate/private_resource_controller.py",
-    "dev_gate/store.py",
-    "e2e_core/stale_lease_reap.py",
-    "e2e_core/pytest_dedupe.py",
-    "e2e_session_runtime/registry.py",
-    "e2e_core/stack_mutation_policy.py",
-)
-
-
-def coordinator_code_fingerprint() -> str:
-    # Dev lib root (parent of this package): flat module paths + root-level shims live there.
-    lib = Path(__file__).resolve().parent.parent
-    parts: list[str] = []
-    for name in _COORDINATOR_CODE_FP_FILES:
-        path = lib / name
-        if path.is_file():
-            parts.append(f"{name}:{path.stat().st_mtime_ns}")
-    return "|".join(parts)
 
 
 def _coordinator_code_stamp_path(database_target: Path) -> Path:
@@ -657,8 +633,8 @@ def send(payload: dict[str, object]) -> dict[str, object]:
         if last_missing is not None:
             if ensure_coordinator() is None:
                 return _handle_in_process(payload)
-            raise last_missing
-        raise RuntimeError("DEV_GATE_SOCKET_RETRY_EXHAUSTED")
+            raise last_missing from None
+        raise RuntimeError("DEV_GATE_SOCKET_RETRY_EXHAUSTED") from None
     except RuntimeError as exc:
         message = str(exc)
         decode_or_empty = "DEV_GATE_COORDINATOR_ERROR" in message and (
@@ -1091,7 +1067,7 @@ def _coordinator_reap(_args: argparse.Namespace) -> int:
         json.dumps(
             {
                 "reaped_session_ids": (
-                    reaped_ids if isinstance(reaped_ids, list) else list(reaped_ids)
+                    reaped_ids if isinstance(reaped_ids, list) else list(cast(Iterable[str], reaped_ids))
                 ),
                 "stale_heartbeat_reaped": stale,
                 "mux_idle_reaped": mux_reaped,

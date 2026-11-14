@@ -12,6 +12,7 @@ Dev Gate 协调层：session 注册、lease/credit、launch-check、cleanup.seal
 | `session.py` | ExecutionMode / AccessScope / 状态机；`parse_submit_meta` 只保留格式正确的 SUBMIT 观测元数据（`source_fingerprint` / `command_started_at`），畸形项丢弃而不拒绝提交 |
 | `store.py` | SQLite WAL registry + event journal；SUBMIT/RESUBMIT 事件 detail 携带提交元数据 |
 | `coordinator.py` | Unix socket 协调器 serve loop；background maintenance tick 含 hung-reap + idle `plane_health.converge_plane_if_idle` |
+| `code_fingerprint.py` | 协调器代码指纹：哪些源码变化会使运行中的协调器过期（目录条目按包内全部模块计入，包里新增模块无需改清单） |
 | `cli.py` | submit/finish/reap 客户端；`submit --source-fingerprint/--command-started-at` 随请求发送观测元数据；代码漂移重启协调器时只向命令行绑定本 socket/database 的 serve 进程发信号（`coordinator.pid` 里的 pid 可能已被回收） |
 | `status.py` | e2e-context registry 快照 |
 | `async_queue.py` | 异步写入队列 |
