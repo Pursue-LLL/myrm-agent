@@ -311,10 +311,11 @@ def split_markdown_rich(text: str, limit: int = _RICH_MAX_LENGTH) -> list[str]:
     Unlike ``split_message`` which tracks HTML tags, this function splits plain Markdown text at semantic
     boundaries. A code block, whatever its fence (backticks or tildes, any length), is never cut when it fits in a
     part: it moves whole into the next part, or fills the part it starts. A block bigger than a part is cut into
-    fenced pieces.
+    fenced pieces. No part is whitespace alone (Telegram refuses a message with no visible text): what a cut leaves at
+    the head or the tail of the text is dropped, and a text of nothing else gives no part.
     """
     if len(text.encode("utf-8")) <= limit:
-        return [text]
+        return [text] if text.strip() else []
 
     chunks: list[str] = []
     remaining = text
@@ -322,7 +323,8 @@ def split_markdown_rich(text: str, limit: int = _RICH_MAX_LENGTH) -> list[str]:
     while remaining:
         byte_len = len(remaining.encode("utf-8"))
         if byte_len <= limit:
-            chunks.append(remaining)
+            if remaining.strip():
+                chunks.append(remaining)
             break
 
         cut = _find_utf8_cut(remaining, limit)
@@ -341,7 +343,8 @@ def split_markdown_rich(text: str, limit: int = _RICH_MAX_LENGTH) -> list[str]:
                 remaining = remaining[end:].lstrip("\n") if end is not None else ""
                 continue
 
-        chunks.append(remaining[:cut])
+        if remaining[:cut].strip():
+            chunks.append(remaining[:cut])
         remaining = remaining[cut:].lstrip("\n")
 
     return chunks
@@ -356,7 +359,7 @@ def _find_utf8_cut(text: str, byte_limit: int) -> int:
             lo = mid
         else:
             hi = mid - 1
-    max_chars = lo
+    max_chars = max(lo, 1)  # a character dearer than the limit still goes out alone, so the cut always advances
 
     search_start = max(0, max_chars - 2000)
     window = text[search_start:max_chars]

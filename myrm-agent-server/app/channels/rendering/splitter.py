@@ -159,7 +159,8 @@ def _smart_split_line(line: str, max_len: int, unit: LengthUnit = "chars") -> li
     segments = []
     current_pos = 0
 
-    while current_pos < len(line):
+    # Each cut falls before the end of the line and after the previous cut, so only the last segment ends the loop.
+    while True:
         end_pos = _fit_end(line, current_pos, max_len, unit)
 
         if end_pos < len(line):
