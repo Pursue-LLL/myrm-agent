@@ -2,20 +2,24 @@
 
 [INPUT]
 - the caller's two loopback ports and a temporary directory to build the bundle in
+- the pid of the process the stand-in lives and dies with (default: the process building the bundle)
 
 [OUTPUT]
 - Ports: the two ports a stand-in shell serves on
 - stand_in_bundle(): a macOS `.app` or Linux `squashfs-root`-style directory whose executable starts a backend and a
   frontend as children on those ports, with a chosen behaviour (healthy, crash, leaky, ...), page, data and
-  channel API
+  channel API; the shell and both servers exit on their own once the owner process is gone
 
 [POS]
 Test double for scripts/ci/desktop-release/smoke_launch_shell.py: the smoke has to be shown to fail on every way the
 product can misbehave, which a real bundle cannot be made to do on demand. POSIX only (the stand-in is a shell script).
+A test run that is killed mid-test never reaches the smoke's own cleanup, and a stand-in is an endless loop holding
+two ports, so each stand-in watches its owner and leaves with it.
 """
 
 from __future__ import annotations
 
+import os
 import plistlib
 import sys
 from pathlib import Path
@@ -29,11 +33,14 @@ class Ports(Protocol):
 
 _SERVER = """
 import json
+import os
 import sys
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 role, port, frontend, data, channels = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
+OWNER = int(sys.argv[6])
 PAGE = b'<script src="/_next/static/app.js"></script>' if frontend != "bare" else b"<html></html>"
 STARTED = time.monotonic()
 # The lists the backend builds from its bundled data, in the two response shapes the real API uses.
@@ -100,6 +107,17 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+def exit_with_owner():
+    # Not tied to the shell: the leaky shell must be able to leave this server running for the smoke to find it.
+    while True:
+        time.sleep(0.5)
+        try:
+            os.kill(OWNER, 0)
+        except (ProcessLookupError, PermissionError):  # EPERM: the pid now belongs to another user's process
+            os._exit(0)
+
+
+threading.Thread(target=exit_with_owner, daemon=True).start()
 HTTPServer(("127.0.0.1", port), Handler).serve_forever()
 """
 
@@ -111,6 +129,7 @@ import sys
 import time
 
 BEHAVIOUR = "{behaviour}"
+OWNER = {owner}
 # Where the shell was started, for the test to read back; next to the executable is the one place a stand-in may write.
 with open(os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), "cwd.txt"), "w") as record:
     record.write(os.getcwd())
@@ -124,7 +143,7 @@ if BEHAVIOUR == "canonical-path-only" and os.path.realpath(sys.argv[0]) != sys.a
 
 SERVERS = [("backend", {backend})] + ([] if BEHAVIOUR == "backend-only" else [("frontend", {frontend})])
 children = [
-    subprocess.Popen([sys.executable, "-c", {server!r}, role, str(port), "{page}", "{data}", "{channels}"])
+    subprocess.Popen([sys.executable, "-c", {server!r}, role, str(port), "{page}", "{data}", "{channels}", str(OWNER)])
     for role, port in SERVERS
 ]
 
@@ -137,9 +156,19 @@ def quit_(*_args):
     sys.exit(0)
 
 
+def owner_alive():
+    try:
+        os.kill(OWNER, 0)
+    except (ProcessLookupError, PermissionError):  # EPERM: the pid now belongs to another user's process
+        return False
+    return True
+
+
 signal.signal(signal.SIGTERM, quit_)
-while True:
+# The test that built this bundle can be killed without a chance to stop the shell; nothing may outlive it.
+while owner_alive():
     time.sleep(0.2)
+quit_()
 """
 
 
@@ -152,8 +181,12 @@ def stand_in_bundle(
     data: str = "full",
     channels: str = "healthy",
     executable: str = "AppRun",
+    owner_pid: int | None = None,
 ) -> Path:
-    """A bundle whose executable acts like the shell: it starts the backend and the Next server as children."""
+    """A bundle whose executable acts like the shell: it starts the backend and the Next server as children.
+
+    The shell and its servers exit once ``owner_pid`` (default: this process) no longer exists.
+    """
     is_app = executable.startswith("Contents/")
     bundle = tmp_path / ("MyrmAgent.app" if is_app else "squashfs-root")
     shell = bundle / executable
@@ -164,6 +197,7 @@ def stand_in_bundle(
         _SHELL.format(
             python=sys.executable,
             behaviour=behaviour,
+            owner=os.getpid() if owner_pid is None else owner_pid,
             backend=ports.backend,
             frontend=ports.frontend,
             server=_SERVER,
