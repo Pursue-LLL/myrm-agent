@@ -10,7 +10,8 @@ from collections.abc import Callable
 from dev_gate.contract import LIVE_SHPOIB_MAX_CONCURRENT
 from dev_gate.private_admission import QUEUE_SCHEMA, PrivateAdmission
 from dev_gate.session import SessionState
-from dev_gate.store import DevGateStore, _begin_immediate
+from dev_gate.store import DevGateStore
+from dev_gate.store.connection import begin_immediate
 
 PRIVATE_ADMIT_TIMEOUT_SEC = 900.0
 PRIVATE_QUEUE_PROGRESS_SEC = 30.0
@@ -91,7 +92,7 @@ class PrivateResourceController:
         admitted_at = time.time() if now is None else now
         capacity = self._effective_capacity_credits()
         with self._connect() as connection:
-            _begin_immediate(connection)
+            begin_immediate(connection)
             self._release_terminal_sessions(connection, admitted_at)
             session = self._owned_private_session(connection, session_id, owner_token)
             connection.execute(
@@ -169,7 +170,7 @@ class PrivateResourceController:
         released_at = time.time() if now is None else now
         capacity = self._effective_capacity_credits()
         with self._connect() as connection:
-            _begin_immediate(connection)
+            begin_immediate(connection)
             row = self._queue_row(connection, session_id)
             if str(row["owner_token"]) != owner_token:
                 raise PermissionError(f"private admission owner mismatch: {session_id}")
@@ -195,7 +196,7 @@ class PrivateResourceController:
         for attempt in range(8):
             try:
                 with self._connect() as connection:
-                    _begin_immediate(connection)
+                    begin_immediate(connection)
                     self._release_terminal_sessions(connection, captured_at)
                     active = self._active_credits(connection)
                     waiting = connection.execute(
@@ -243,7 +244,7 @@ class PrivateResourceController:
         captured_at = time.time() if now is None else now
         capacity = self._effective_capacity_credits()
         with self._connect() as connection:
-            _begin_immediate(connection)
+            begin_immediate(connection)
             self._release_terminal_sessions(connection, captured_at)
             granted = self._grant_waiters(
                 connection,

@@ -314,7 +314,7 @@ def _coordinator_row(raw: sqlite3.Row, *, now: float) -> LiveE2ESessionRow | Non
         body_elapsed_sec=(
             max(0.0, now - phase_started_at) if wall_phase == "body" else None
         ),
-        # store.py writes node_started_at=0 until the first advance() to a real
+        # store/progress.py writes node_started_at=0 until the first advance() to a real
         # node; never surface a bogus epoch-derived giant node clock (it would
         # look like an eternal NODE_STUCK to hung-reap / FAIL_FAST).
         node_elapsed_sec=(

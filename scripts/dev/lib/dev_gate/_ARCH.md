@@ -10,7 +10,7 @@ Dev Gate 协调层：session 注册、lease/credit、launch-check、cleanup.seal
 |------|------|
 | `contract.py` | 超时、token、pytest floor SSOT；`chrome_e2e_skips_attach_health_reprobe`（含 `MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH` burst lane） |
 | `session.py` | ExecutionMode / AccessScope / 状态机；`parse_submit_meta` 只保留格式正确的 SUBMIT 观测元数据（`source_fingerprint` / `command_started_at`），畸形项丢弃而不拒绝提交 |
-| `store.py` | SQLite WAL registry + event journal；SUBMIT/RESUBMIT 事件 detail 携带提交元数据 |
+| `store/` | SQLite WAL registry + event journal（包，`DevGateStore` 由按职责拆分的 mixin 组合）；SUBMIT/RESUBMIT 事件 detail 携带提交元数据。`__init__.py` 门面（`DevGateStore`、`default_store_path`）· `base.py` 连接/建表/行编解码 · `connection.py` 忙等与写事务重试 · `schema.py` 表结构/迁移/日志保留 · `progress.py` submit/transition/heartbeat · `ownership.py` 所有权行与 CAS · `terminal.py` cleanup receipt 与 finish · `reaper.py` 回收与日志压缩 · `queries.py` 只读查询 |
 | `coordinator.py` | Unix socket 协调器 serve loop；background maintenance tick 含 hung-reap + idle `plane_health.converge_plane_if_idle` |
 | `code_fingerprint.py` | 协调器代码指纹：哪些源码变化会使运行中的协调器过期（目录条目按包内全部模块计入，包里新增模块无需改清单） |
 | `cli.py` | submit/finish/reap 客户端；`submit --source-fingerprint/--command-started-at` 随请求发送观测元数据；代码漂移重启协调器时只向命令行绑定本 socket/database 的 serve 进程发信号（`coordinator.pid` 里的 pid 可能已被回收） |

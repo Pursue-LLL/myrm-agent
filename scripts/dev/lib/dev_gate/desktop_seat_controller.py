@@ -9,7 +9,8 @@ import time
 from dataclasses import dataclass
 
 from dev_gate.session import TERMINAL_STATES, Workload
-from dev_gate.store import DevGateStore, _begin_immediate
+from dev_gate.store import DevGateStore
+from dev_gate.store.connection import begin_immediate
 
 DESKTOP_SEAT_TIMEOUT_SEC = 900.0
 DESKTOP_SEAT_QUEUE_PROGRESS_SEC = 30.0
@@ -90,7 +91,7 @@ class DesktopSeatController:
         if record.policy.workload is not Workload.DESKTOP:
             raise ValueError(f"desktop seat requires DESKTOP workload: {session_id}")
         with self._connect() as connection:
-            _begin_immediate(connection)
+            begin_immediate(connection)
             self._release_terminal_sessions(connection, admitted_at)
             connection.execute(
                 """
@@ -149,7 +150,7 @@ class DesktopSeatController:
     ) -> tuple[str, ...]:
         released_at = time.time() if now is None else now
         with self._connect() as connection:
-            _begin_immediate(connection)
+            begin_immediate(connection)
             row = self._queue_row(connection, session_id)
             if str(row["owner_token"]) != owner_token:
                 raise PermissionError(f"desktop seat owner mismatch: {session_id}")
@@ -168,7 +169,7 @@ class DesktopSeatController:
         for attempt in range(8):
             try:
                 with self._connect() as connection:
-                    _begin_immediate(connection)
+                    begin_immediate(connection)
                     self._release_terminal_sessions(connection, captured_at)
                     active = self._active_seats(connection)
                     waiting = connection.execute(
