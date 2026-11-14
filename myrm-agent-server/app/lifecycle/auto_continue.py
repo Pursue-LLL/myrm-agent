@@ -143,21 +143,6 @@ async def _dispatch_auto_continue(
                 marker.chat_id, exclude_message_id=marker.user_message_id or None
             )
 
-        from myrm_agent_harness.utils.runtime.steering import (
-            SteeringToken,
-            set_steering_token,
-        )
-
-        # Replay persisted pending steering messages upon recovery
-        if marker.pending_steering_messages:
-            logger.info(
-                "[Auto-continue] Restoring %d pending steering message(s) for chat: %s",
-                len(marker.pending_steering_messages),
-                marker.chat_id,
-            )
-            steering_token = SteeringToken(initial_messages=list(marker.pending_steering_messages))
-            set_steering_token(steering_token)
-
         logger.info("[Auto-continue] Resuming interrupted turn for chat: %s", marker.chat_id)
 
         answer = AnswerDraft()

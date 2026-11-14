@@ -97,23 +97,6 @@ def test_close_if_idle_refuses_every_later_message() -> None:
     assert t.collect_all_steering_messages() == []
 
 
-def test_a_refused_message_never_reaches_the_storage_listener() -> None:
-    enqueued: list[str] = []
-
-    class Listener:
-        def on_steering_enqueued(self, message: str, redirect: bool) -> None:
-            enqueued.append(message)
-
-        def on_steering_consumed(self, messages: list[str]) -> None:
-            pass
-
-    t = SteeringToken(storage_listener=Listener())
-    t.close_if_idle()
-    t.steer("late")
-    t.redirect("later")
-    assert enqueued == []
-
-
 def test_close_if_idle_keeps_the_token_open_while_a_message_waits() -> None:
     t = SteeringToken()
     t.steer("waiting")
@@ -199,29 +182,3 @@ def test_get_set_steering_token() -> None:
     set_steering_token(token)
     assert get_steering_token() is token
     set_steering_token(prev)
-
-
-def test_steering_storage_protocol_callbacks() -> None:
-    enqueued: list[tuple[str, bool]] = []
-    consumed: list[list[str]] = []
-
-    class MockStorage:
-        def on_steering_enqueued(self, message: str, redirect: bool) -> None:
-            enqueued.append((message, redirect))
-
-        def on_steering_consumed(self, messages: list[str]) -> None:
-            consumed.append(messages)
-
-    storage = MockStorage()
-    token = SteeringToken(storage_listener=storage, initial_messages=["init_1"])
-    assert token.has_pending is True
-
-    token.steer("steer_msg")
-    assert enqueued == [("steer_msg", False)]
-
-    token.redirect("redirect_msg")
-    assert enqueued == [("steer_msg", False), ("redirect_msg", True)]
-
-    msgs = token.collect_all_steering_messages()
-    assert msgs == ["init_1", "steer_msg", "redirect_msg"]
-    assert consumed == [["init_1", "steer_msg", "redirect_msg"]]

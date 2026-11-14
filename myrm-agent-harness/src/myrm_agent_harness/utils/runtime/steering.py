@@ -6,7 +6,6 @@
 
 [OUTPUT]
 - SteeringToken: Steering 令牌类，允许外部在 Agent 运行时注入消息；`steer`/`redirect` 返回是否被接收，运行在结束处 `close_if_idle` 之后一律拒收
-- SteeringStorageProtocol: 转向消息外部持久化监听协议
 - get_steering_token(): 获取当前请求的 SteeringToken
 - set_steering_token(): 设置当前请求的 SteeringToken
 
@@ -17,25 +16,12 @@ Steering token mechanism. Allows external message injection during Agent runtime
 
 import threading
 from contextvars import ContextVar
-from typing import Protocol
 
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 logger = get_agent_logger(__name__)
 
 STEERING_SKIP_MESSAGE = "Skipped: user sent a new message, remaining tool calls cancelled."
-
-
-class SteeringStorageProtocol(Protocol):
-    """Protocol for external persistence of steering messages (e.g. database backing)."""
-
-    def on_steering_enqueued(self, message: str, redirect: bool) -> None:
-        """Called when a steering message is enqueued."""
-        ...
-
-    def on_steering_consumed(self, messages: list[str]) -> None:
-        """Called when steering messages are consumed by the runtime."""
-        ...
 
 
 class SteeringToken:
@@ -53,24 +39,14 @@ class SteeringToken:
     被拒的消息仍在发送方手里；close_if_idle() 前已接收的消息一定会被运行取走。
     """
 
-    def __init__(
-        self,
-        storage_listener: SteeringStorageProtocol | None = None,
-        initial_messages: list[str] | None = None,
-    ) -> None:
-        self._queue: list[str] = list(initial_messages or [])
+    def __init__(self) -> None:
+        self._queue: list[str] = []
         self._activated_messages: list[str] = []
         self._active: bool = False
         self._steering_applied: bool = False
         self._redirect_requested: bool = False
         self._closed: bool = False
-        self._storage_listener = storage_listener
         self._lock = threading.Lock()
-
-    def set_storage_listener(self, listener: SteeringStorageProtocol | None) -> None:
-        """Set or update the external persistence listener."""
-        with self._lock:
-            self._storage_listener = listener
 
     def steer(self, message: str) -> bool:
         """注入 steering 消息（外部 API，线程安全）
@@ -81,18 +57,11 @@ class SteeringToken:
         Returns:
             True 表示运行已接收（一定会交付给模型）；False 表示运行已结束，调用方保留该消息。
         """
-        listener: SteeringStorageProtocol | None = None
         with self._lock:
             if self._closed:
                 logger.info("Steering message refused: the run has ended")
                 return False
             self._queue.append(message)
-            listener = self._storage_listener
-        if listener is not None:
-            try:
-                listener.on_steering_enqueued(message, redirect=False)
-            except Exception as e:
-                logger.warning(f"Failed to notify steering storage listener: {e}")
         logger.warning(f"Steering message queued: {message[:80]}...")
         return True
 
@@ -109,19 +78,12 @@ class SteeringToken:
         Returns:
             True 表示运行已接收；False 表示运行已结束，调用方保留该消息。
         """
-        listener: SteeringStorageProtocol | None = None
         with self._lock:
             if self._closed:
                 logger.info("Redirect refused: the run has ended")
                 return False
             self._queue.append(message)
             self._redirect_requested = True
-            listener = self._storage_listener
-        if listener is not None:
-            try:
-                listener.on_steering_enqueued(message, redirect=True)
-            except Exception as e:
-                logger.warning(f"Failed to notify steering storage listener: {e}")
         logger.warning(f"Redirect requested: {message[:80]}...")
         return True
 
@@ -192,17 +154,10 @@ class SteeringToken:
         Returns:
             所有 steering 消息列表
         """
-        listener: SteeringStorageProtocol | None = None
         with self._lock:
             msgs = self._activated_messages + self._queue
             self._activated_messages.clear()
             self._queue.clear()
-            listener = self._storage_listener
-        if listener is not None and msgs:
-            try:
-                listener.on_steering_consumed(msgs)
-            except Exception as e:
-                logger.warning(f"Failed to notify steering storage listener on consumption: {e}")
         return msgs
 
     def reset_turn(self) -> None:

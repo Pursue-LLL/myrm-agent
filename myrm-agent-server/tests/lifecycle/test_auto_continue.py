@@ -43,7 +43,6 @@ def _make_marker(
     attempt_count: int = 0,
     created_at: datetime | None = None,
     serialized_params: dict | None = None,
-    pending_steering_messages: list[str] | None = None,
 ) -> MagicMock:
     m = MagicMock()
     m.id = marker_id
@@ -52,7 +51,6 @@ def _make_marker(
     m.action_mode = "fast"
     m.agent_id = "default"
     m.attempt_count = attempt_count
-    m.pending_steering_messages = pending_steering_messages
     m.created_at = created_at or datetime.now(UTC)
     m.serialized_params = serialized_params or {
         "chat_id": chat_id,
@@ -185,60 +183,6 @@ async def test_auto_continue_persists_a_restarted_segment_once():
 
     mock_persist.assert_awaited_once()
     assert mock_persist.call_args[0][1] == "Checking. The answer."
-
-
-@pytest.mark.asyncio
-async def test_auto_continue_replays_pending_steering_messages():
-    """Pending steering messages in marker are restored to steering token upon recovery."""
-    marker = _make_marker(pending_steering_messages=["redirect to topic b"])
-    factory, db = _mock_session_factory()
-
-    async def _fake_stream(*_a, **_kw):
-        yield {"type": "message", "data": "Steered ok"}
-        yield {"type": "message_end", "usage": {}}
-
-    mock_notif = AsyncMock()
-    mock_persist = AsyncMock()
-    mock_chat_history = AsyncMock(return_value=[])
-
-    result_mock = MagicMock()
-    result_mock.scalars.return_value.all.return_value = [marker]
-    db.execute = AsyncMock(return_value=result_mock)
-
-    with (
-        patch("app.platform_utils.get_session_factory", return_value=factory),
-        patch(
-            "app.core.channel_bridge.config_loader.load_user_configs",
-            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": True})),
-        ),
-        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", mock_chat_history),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
-        patch(
-            "app.services.infra.system_notification.SystemNotificationService.create_notification",
-            mock_notif,
-        ),
-        patch("myrm_agent_harness.utils.runtime.steering.set_steering_token") as mock_set_token,
-    ):
-        mock_params = MagicMock(
-            model_cfg=MagicMock(),
-            chat_id="chat-auto-001",
-            query="hello",
-            message_id="msg-user-001",
-            timezone="UTC",
-        )
-        mock_params_cls.model_validate.return_value = mock_params
-
-        from app.lifecycle.auto_continue import auto_continue_interrupted_turns
-
-        await auto_continue_interrupted_turns()
-        await asyncio.sleep(0.15)
-
-        assert mock_set_token.called
-        token_arg = mock_set_token.call_args[0][0]
-        assert token_arg.has_pending is True
-        assert token_arg.collect_all_steering_messages() == ["redirect to topic b"]
 
 
 @pytest.mark.asyncio
@@ -840,57 +784,3 @@ async def test_dispatch_cleanup_failure_is_swallowed():
         from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
-
-
-@pytest.mark.asyncio
-async def test_auto_continue_restores_pending_steering_messages():
-    """Validates that marker.pending_steering_messages are injected into SteeringToken upon auto-continue."""
-    marker = _make_marker(pending_steering_messages=["Stop doing X and focus on Y", "Format output as JSON"])
-    factory, db = _mock_session_factory()
-
-    async def _fake_stream(*_a, **_kw):
-        yield {"type": "message", "data": "acknowledged"}
-
-    mock_set_steering = MagicMock()
-
-    with (
-        patch("app.platform_utils.get_session_factory", return_value=factory),
-        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch(
-            "app.services.agent.streaming.ai_agent_service_stream",
-            side_effect=_fake_stream,
-        ),
-        patch(
-            "app.services.chat.chat_service.ChatService.load_web_chat_history",
-            AsyncMock(return_value=[]),
-        ),
-        patch(
-            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
-            AsyncMock(),
-        ),
-        patch(
-            "app.services.infra.system_notification.SystemNotificationService.create_notification",
-            AsyncMock(),
-        ),
-        patch(
-            "myrm_agent_harness.utils.runtime.steering.set_steering_token",
-            mock_set_steering,
-        ),
-    ):
-        mock_params_cls.model_validate.return_value = MagicMock(
-            model_cfg=MagicMock(),
-            chat_id="chat-auto-001",
-            message_id="msg-user-001",
-            timezone="UTC",
-        )
-
-        from app.lifecycle.auto_continue import _dispatch_auto_continue
-
-        await _dispatch_auto_continue(marker, factory)
-
-    mock_set_steering.assert_called_once()
-    token = mock_set_steering.call_args[0][0]
-    assert token.collect_all_steering_messages() == [
-        "Stop doing X and focus on Y",
-        "Format output as JSON",
-    ]

@@ -28,7 +28,6 @@ class MCPAnnotations(TypedDict, total=False):
     readOnlyHint: bool
     idempotentHint: bool
     destructiveHint: bool
-    thirdPartyVisibleHint: bool
     openWorldHint: bool
 
 
