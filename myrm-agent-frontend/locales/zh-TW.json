@@ -3184,7 +3184,7 @@
       "routingFeatureTitle": "動態模型路由 (Routing)",
       "routingFeatureDesc": "針對當前階段或任務專精，動態選定單次執行的最優模型。",
       "moaFeatureTitle": "多模型融合 (MoA)",
-      "moaFeatureDesc": "通過提出者-聚合者多模型協同共識機制，成倍提升複雜決策的上限。",
+      "moaFeatureDesc": "通過提出者-聚合者多模型協同共識機制，提升複雜決策的品質與共識度。",
       "economicsTitle": "Token 經濟學與成本治理",
       "economicsDesc": "在大幅提升產出上限的同時，顯著降低 Token 消耗與運行成本。",
       "economicsPoint1": "重用前置快取 (Prefix Cache)，支援快取的服務商會以折扣價計費重複的輸入 Token。",
