@@ -70,7 +70,7 @@ _LOAD_CONDITION_OVERRIDES: dict[str, str] = {
     "bash_process_tool": "Turn1 when shell enabled (CORE; co-mounted with bash_code_execute)",
     "skill_market_tool": "enabled_builtin_tools: skill_market (server ToolSetupMixin Turn1)",
     "skill_search_tool": "Turn1 when searchable skills exist",
-    "skill_select_tool": "skill_backend present",
+    "skill_select_tool": "non-empty skills and skill_backend present",
     "skill_manage_tool": "enabled_builtin_tools: skill_manage or /learn force_skill_manage (server Turn1)",
     "delegate_task_tool": "SubagentManagementExtension + entitlements",
     "subagent_control_tool": "SubagentManagementExtension + entitlements",
@@ -114,10 +114,10 @@ CORE_ACTION_TOOL_NAMES: frozenset[str] = frozenset(
     }
 )
 
-# EXTENDED-layer tools that are default-on via their product_id but stay out of the
-# Turn1 eager bind (prompt-cache prefix protection): they are invoked on demand and
-# placed at the prompt tail when used. Keeping them EXTENDED also keeps the initial
-# registration minimal even though the product switch defaults them on.
+# EXTENDED-layer tools whose product_id is default-on. They are mounted and bound on Turn1
+# like any mounted tool; staying EXTENDED sorts them after CORE and HIGH_PRIORITY, so they
+# never shift the cached prefix of those layers. The catalog check exempts them from
+# "a default-on product must not be EXTENDED" and requires them to stay EXTENDED.
 EXTENDED_DEFAULT_ON_TOOL_EXCEPTIONS: frozenset[str] = frozenset(
     {
         "ask_question_tool",
