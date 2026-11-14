@@ -12,7 +12,7 @@
 
 [POS]
 Library-agnostic capture of the four service paths, through the same public classes the product calls. The committed
-``golden_services_baseline.json`` was recorded by running this module against the previous client library (litellm
+``golden_services_baseline.json`` was recorded by running this module against the baseline client library (litellm
 1.97.0) at commit b218e6f1d7; the golden test replays the matrix on the transport and diffs requests and results.
 Nothing here imports the client library, so the same module runs against either stack.
 """
@@ -221,7 +221,7 @@ def capture_services(monkeypatch: pytest.MonkeyPatch, families: frozenset[str] |
     """Run the matrix on the installed stack; sleeping between retries is skipped so the run stays short."""
     answer = Answerer()
     sink = install_request_recorder(monkeypatch, answer)
-    # the previous client library read the Google PSE engine and key only from the environment
+    # the baseline client library read the Google PSE engine and key only from the environment
     monkeypatch.setenv("GOOGLE_PSE_ENGINE_ID", _ENGINE_ID)
     monkeypatch.setenv("GOOGLE_PSE_API_KEY", _KEY)
     real_sleep = asyncio.sleep

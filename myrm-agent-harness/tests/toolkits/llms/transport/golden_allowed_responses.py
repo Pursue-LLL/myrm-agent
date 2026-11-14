@@ -7,8 +7,8 @@
 - RESPONSES_RULES: the rules of this section, in registry order
 
 [POS]
-The Responses wire: the adapter's own translation replaces the previous library's bridge. Assembled with the other
-sections into ``golden_allowed.RULES``; each rule states why the difference is wanted.
+The Responses wire: the adapter translates messages and tools itself; the baseline library bridged inside itself.
+Assembled with the other sections into ``golden_allowed.RULES``; each rule states why the difference is wanted.
 """
 
 from __future__ import annotations
@@ -16,11 +16,11 @@ from __future__ import annotations
 from .golden_allowed_types import AllowedDiff
 
 RESPONSES_RULES: tuple[AllowedDiff, ...] = (
-    # --- Responses wire: adapter translation replaces the previous library's bridge --------------------------------
+    # --- Responses wire: adapter translation, not the baseline library's bridge ------------------------------------
     AllowedDiff(
         "responses-instructions",
-        "The system prompt is sent as Responses `instructions`; before, a `developer` prompt became a user-role "
-        "input message.",
+        "The system prompt is sent as Responses `instructions`; the baseline library turned a `developer` prompt into a "
+        "user-role input message.",
         "+",
         r"/body/instructions",
         providers=("openai_gpt5", "xai"),
@@ -41,7 +41,7 @@ RESPONSES_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "xai-search-tools",
-        "xAI native search is a `web_search` tool on the Responses endpoint, as before; tool items carry no "
+        "xAI native search is a `web_search` tool on the Responses endpoint, as in the baseline; tool items carry no "
         "`strict: null`.",
         "-",
         r"/body/tools(\[\d+\]/strict)?",
@@ -70,7 +70,7 @@ RESPONSES_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "responses-stream-flag",
-        "A streaming Responses request to a custom endpoint now states `stream: true`; before the field was missing.",
+        "A streaming Responses request to a custom endpoint states `stream: true`; the baseline library left the field out.",
         "+",
         r"/body/stream",
         providers=("openai_like",),
@@ -79,7 +79,7 @@ RESPONSES_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "responses-chat-fallback",
         "DeepSeek has no Responses endpoint: a Responses configuration falls back to chat completions with the "
-        "adapter's own message conversion (the previous library bridged inside itself).",
+        "adapter's own message conversion (the baseline library bridged inside itself).",
         "~",
         r"/body/(max_tokens|messages\[\d+\]/content)",
         providers=("deepseek",),
@@ -95,7 +95,7 @@ RESPONSES_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "responses-chat-fallback-removed",
-        "Fields only the previous library's bridge produced (empty tool list, per-call tool index, strict flag).",
+        "Fields only the baseline library's bridge produced (empty tool list, per-call tool index, strict flag).",
         "-",
         r"/body/(tools|messages\[\d+\]/tool_calls\[\d+\]/index|tools\[\d+\]/function/strict)",
         providers=("deepseek",),

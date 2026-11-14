@@ -38,7 +38,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "sampling-options-misplaced",
         "`top_p` and `top_k` from the model configuration were written at the top level of the Gemini and Ollama "
-        "bodies, where neither API reads them (Gemini rejects unknown fields); they now sit in `generationConfig` "
+        "bodies, where neither API reads them (Gemini rejects unknown fields); they sit in `generationConfig` "
         "and `options`.",
         "-",
         r"/body/top(_(p|k)|[PK])",
@@ -55,7 +55,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "anthropic-sampling-sent",
-        "`top_k` from the model configuration is sent to the Messages API, which reads it; the previous library "
+        "`top_k` from the model configuration is sent to the Messages API, which reads it; the baseline library "
         "dropped it without saying so. `top_p` stays unsent beside a temperature, which current Claude models "
         "refuse. Not exercised against a real Anthropic server.",
         "+",
@@ -85,7 +85,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
         "gemini-user-message-after-tool-result",
         "A user message right after a tool result was sent as a second user turn, which the API refuses (turns must "
         "alternate) or, folded into the result's turn, which Gemini 3 reads as the result's continuation; a model "
-        "turn now separates them.",
+        "turn separates them.",
         "~",
         r"/body/contents",
         providers=GEMINI,
@@ -93,8 +93,8 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "gemini-2-tool-result-media-beside",
-        "Google documents media inside a function response for Gemini 3 and later only; the previous library nested "
-        "it for every model. Earlier models now get it as parts beside the response in the same turn, the shape "
+        "Google documents media inside a function response for Gemini 3 and later only; the baseline library nested "
+        "it for every model. Earlier models get it as parts beside the response in the same turn, the shape "
         "Google's own CLI sends. Not exercised against a real Gemini server.",
         "~",
         r"/body/contents\[\d+\]/parts",
@@ -105,7 +105,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "gemini-3-api-version",
         "Gemini 3 models are called on the stable-beta path (`v1beta`, which carries thinking levels, thought "
-        "signatures and function-call ids); the previous library used the `v1alpha` path.",
+        "signatures and function-call ids); the baseline library used the `v1alpha` path.",
         "~",
         r"/url",
         providers=GEMINI_3,
@@ -113,7 +113,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "gemini-3-default-temperature",
-        "The previous library stated Gemini 3's default temperature (1.0) explicitly when the caller set none; the "
+        "The baseline library stated Gemini 3's default temperature (1.0) explicitly when the caller set none; the "
         "API applies the same default on its own.",
         "-",
         r"/body/generationConfig/temperature",
@@ -124,7 +124,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "gemini-xhigh-thinking-level",
         "`xhigh` is mapped to Gemini's highest thinking level (`high`), or to a token budget of 8192 on models that "
-        "think by budget; the previous library dropped the effort it could not map and sent no thinking configuration.",
+        "think by budget; the baseline library dropped the effort it could not map and sent no thinking configuration.",
         "+",
         r"/body/generationConfig/thinkingConfig",
         providers=GEMINI,
@@ -142,7 +142,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "gemini-flash-ceiling-catalog",
-        "The bundled catalog is newer than the previous library's price map and states 65536 as the output ceiling of "
+        "The bundled catalog is newer than the baseline library's price map and states 65536 as the output ceiling of "
         "Gemini 2.5 Flash-Lite and 3 Flash (65535 there); the thinking headroom lifts a small cap to that ceiling "
         "for `xhigh`. Vertex refuses 65536 on the Flash-Lite line, which the output-cap recovery reads from the "
         "rejection and remembers.",
@@ -177,7 +177,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "cohere-compatibility-endpoint",
         "Cohere is called through its OpenAI-compatible endpoint (`/compatibility/v1/chat/completions`) instead of the "
-        "native v2 chat API; with a custom api_base the previous library sent the bare base URL without any path.",
+        "native v2 chat API; with a custom api_base the baseline library sent the bare base URL without any path.",
         "~",
         r"/url",
         providers=("cohere_chat",),
@@ -193,7 +193,7 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "groq-native-json-schema",
-        "A json_schema response format is sent natively; the previous library emulated it with a forced "
+        "A json_schema response format is sent natively; the baseline library emulated it with a forced "
         "`json_tool_call` function. A model without native support answers 400 and the caller's JSON-mode fallback applies.",
         "+",
         r"/body/response_format",
@@ -228,8 +228,8 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "developer-role-first-party",
-        "The adapter marks the instruction message of GPT-5 / o-series models with the `developer` role; the previous "
-        "library rewrote it back to `system`. It now reaches api.openai.com as `developer`; gateways still get `system`.",
+        "The adapter marks the instruction message of GPT-5 / o-series models with the `developer` role; the baseline "
+        "library rewrote it back to `system`. It reaches api.openai.com as `developer`; gateways still get `system`.",
         "~",
         r"/body/messages\[\d+\]/role",
         providers=("openai_gpt5", "openai_gpt51", "openai_gpt52", "openai_o3"),

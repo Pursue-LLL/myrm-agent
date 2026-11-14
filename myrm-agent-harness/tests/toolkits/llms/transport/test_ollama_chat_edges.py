@@ -75,8 +75,8 @@ class TestRequest:
     def test_only_a_part_typed_text_carries_text_so_any_other_one_is_dropped_loudly(
         self, part: Message, named: str, caplog: pytest.LogCaptureFixture
     ) -> None:
-        # The old stack read the `text` key of any part on this wire; Anthropic and Gemini never did, so a request
-        # built for one provider must not silently mean something else on another.
+        # Anthropic and Gemini never read the `text` key of a part that is not typed as text, so a request built for
+        # one provider must not silently mean something else on another.
         with caplog.at_level(logging.WARNING):
             body = _body([{"role": "user", "content": [{"type": "text", "text": "hi"}, part]}])
 

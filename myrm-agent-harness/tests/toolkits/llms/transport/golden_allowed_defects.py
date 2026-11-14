@@ -1,4 +1,4 @@
-"""Registered differences, section: defects of the previous request construction.
+"""Registered differences, section: defects of the baseline request construction.
 
 [INPUT]
 - golden_allowed_types (POS: AllowedDiff, the provider groups and the predicates the rules use)
@@ -7,7 +7,7 @@
 - DEFECT_RULES: the rules of this section, in registry order
 
 [POS]
-The previous request was invalid or unsafe for the provider: a leaked or misplaced field, a wrong endpoint, a
+The baseline request was invalid or unsafe for the provider: a leaked or misplaced field, a wrong endpoint, a
 parameter the API refuses. Assembled with the other sections into ``golden_allowed.RULES``; each rule states why the
 difference is wanted.
 """
@@ -17,7 +17,7 @@ from __future__ import annotations
 from .golden_allowed_types import ANTHROPIC, GEMINI, NATIVE_SEARCH_CLAUDE, AllowedDiff, contains
 
 DEFECT_RULES: tuple[AllowedDiff, ...] = (
-    # --- defects of the previous request construction -------------------------------------------------------------
+    # --- defects of the baseline request construction -------------------------------------------------------------
     AllowedDiff(
         "model-kwargs-leak",
         "The caller's `model_kwargs` container was copied into the provider body as an unknown top-level field.",
@@ -33,7 +33,7 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "bearer-beside-vendor-key",
         "A bearer Authorization header was added next to the vendor's own key header (x-api-key, x-goog-api-key, "
-        "api-key). It is now sent only to custom Anthropic hosts, where gateways expect it.",
+        "api-key). It is sent only to custom Anthropic hosts, where gateways expect it.",
         "-",
         r"/headers/authorization",
         providers=(*ANTHROPIC, "azure", *GEMINI),
@@ -57,7 +57,7 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "sdk-fingerprint-headers",
-        "Some calls of the previous library went through the OpenAI Python SDK, which stamps its own client "
+        "Some calls of the baseline library went through the OpenAI Python SDK, which stamps its own client "
         "fingerprint (platform, runtime, package version, retry counter, read timeout) on the request. The transport "
         "has no SDK.",
         "-",
@@ -65,7 +65,7 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "thinking-floor-not-clamped-to-catalog",
-        "With no budget set, a thinking model gets the 16384-token floor. The previous library then lowered it to the "
+        "With no budget set, a thinking model gets the 16384-token floor. The baseline library then lowered it to the "
         "catalog's output ceiling (8192 for MiniMax-M2) without saying so; the transport sends the floor and, if the "
         "provider refuses it, learns the limit from the error and retries. Not exercised against a real MiniMax "
         "server.",
@@ -77,7 +77,7 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "yunshu-output-limit",
-        "`max_tokens` is capped at the model's catalog output limit (16384 for gpt-4o-mini); the previous library found "
+        "`max_tokens` is capped at the model's catalog output limit (16384 for gpt-4o-mini); the baseline library found "
         "no catalog entry under the `yunshu/` prefix and sent 32768, which the model would refuse.",
         "~",
         r"/body/max_tokens",
@@ -108,7 +108,7 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "anthropic-xhigh-unsupported-model",
-        "Claude Sonnet 4.6 has no `xhigh` effort: the previous library refused the call before sending anything; the "
+        "Claude Sonnet 4.6 has no `xhigh` effort: the baseline library refused the call before sending anything; the "
         "wire sends the highest level the model has (`max`).",
         "count",
         r"",
@@ -117,7 +117,7 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "anthropic-native-search-added",
-        "The bundled catalog is newer than the previous library's price map and marks Claude Sonnet 4.6 / Opus 4.7 as "
+        "The bundled catalog is newer than the baseline library's price map and marks Claude Sonnet 4.6 / Opus 4.7 as "
         "offering the native web search tool; the model factory enables it for every model the catalog flags "
         "(`core/llm.py`), as it already did for GPT-5, Gemini and Grok.",
         "+",
@@ -136,7 +136,7 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "anthropic-native-search-replaces-placeholder",
-        "The placeholder tool's fields, absent from the native search tool that now makes the declaration.",
+        "The placeholder tool's fields, absent from the native search tool that makes the declaration.",
         "-",
         r"/body/tools\[\d+\]/(description|input_schema)",
         providers=NATIVE_SEARCH_CLAUDE,

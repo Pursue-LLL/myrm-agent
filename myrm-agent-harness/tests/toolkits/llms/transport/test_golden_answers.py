@@ -1,8 +1,8 @@
-"""Golden answers test: every recorded provider answer is read as the previous stack read it, except where registered.
+"""Golden answers test: every recorded provider answer is read as the baseline read it, except where registered.
 
 [INPUT]
 - golden_answers (POS: replays the recorded answers through the chat adapter on the installed stack)
-- golden_answers_baseline.json (POS: the answers and the message the previous stack returned for each)
+- golden_answers_baseline.json (POS: the answers and the message the baseline returned for each)
 - golden_answers_allowed (POS: registry of intended differences)
 - golden_compare (POS: comparison engine)
 
@@ -14,7 +14,7 @@
 Safety net for what a user sees and what a turn costs. 121 answers of the OpenAI, Anthropic, Gemini and Ollama wires
 (plain, server-sent-event and NDJSON bodies; tool calls, cache and reasoning usage, thinking blocks, blocked prompts,
 cut-off outputs, and bodies that are no answer) must yield the same text, tool calls, finish reason, token counts and
-raise-or-return outcome as before the stack was replaced.
+raise-or-return outcome as the baseline.
 """
 
 from __future__ import annotations

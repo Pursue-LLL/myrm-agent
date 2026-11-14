@@ -8,7 +8,7 @@
 
 [POS]
 Library-agnostic fake of the provider side. The answer is chosen by the endpoint the request addresses and sized by
-what the request asked for (number of inputs, ``top_n``, ``n``), so the previous client library and the transport
+what the request asked for (number of inputs, ``top_n``, ``n``), so the baseline client library and the transport
 both receive a well-formed answer for whatever URL they chose. Every answer carries the fields of all the provider
 dialects it can be read as: a client picks the fields of its own provider and ignores the rest.
 """

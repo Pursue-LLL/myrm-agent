@@ -17,7 +17,7 @@ environment that holds only what the case sets. A fact is one thing a provider (
 can see: the URL and query, each credential header with the secret replaced by its name, the secrets that reached the
 body or the URL, and for a signed Bedrock request the scope, the signed headers and whether the signature is valid by
 an independent computation. The committed ``golden_credentials_baseline.json`` was recorded by running this module
-against the previous client library (litellm 1.97.0); ``test_golden_credentials`` replays the matrix on the transport.
+against the baseline client library (litellm 1.97.0); ``test_golden_credentials`` replays the matrix on the transport.
 Nothing here imports a client library, so the same module runs against either stack.
 """
 

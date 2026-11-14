@@ -1,8 +1,8 @@
-"""Golden failures test: every recorded failure is classified and carded as the previous stack did, except where registered.
+"""Golden failures test: every recorded failure is classified and carded as the baseline did, except where registered.
 
 [INPUT]
 - golden_failures (POS: replays the recorded failures through the chat adapter on the installed stack)
-- golden_failures_baseline.json (POS: the failures and the verdicts the previous stack reached on them)
+- golden_failures_baseline.json (POS: the failures and the verdicts the baseline reached on them)
 - golden_failures_allowed (POS: registry of intended differences)
 - golden_compare (POS: comparison engine)
 
@@ -16,7 +16,7 @@ Azure, Anthropic, Gemini and Ollama endpoints and the vendors behind them; 40 of
 sentence, 18 that name the cause only in a kind or code field, a plain-text body or a status number) and 36 streams
 (an error event first or after text, an empty or garbage body, a connection cut off on the way) must lead to the same
 failover reason, error kind, overflow and quota verdicts, the same wait the provider asked for and the same error
-card, with and without a custom local endpoint, as before the stack was replaced.
+card, with and without a custom local endpoint, as the baseline.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Anthropic Messages request rules that depend on the model or on what the API refuses.
 
-The golden request test pins what the previous client library sent; these tests pin the rules behind the cases it
+The golden request test pins what the baseline client library sent; these tests pin the rules behind the cases it
 cannot see: model generations, replayed histories and values the API answers with a 400.
 """
 

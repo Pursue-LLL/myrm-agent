@@ -12,7 +12,7 @@
 An independent second opinion on the signature the Bedrock wire sends: the verifier rebuilds the canonical request from
 the request the server would receive (method, path as sent, the headers the signature names, the body) and signs it
 the way the published algorithm says, so a wrong signed-header list, a wrong region or a signature over other bytes
-than were sent all fail. It is checked against the signatures the previous client library sent
+than were sent all fail. It is checked against the signatures the baseline client library sent
 (``golden_credentials_baseline.json``), which makes it a verifier of the algorithm, not of one implementation.
 """
 

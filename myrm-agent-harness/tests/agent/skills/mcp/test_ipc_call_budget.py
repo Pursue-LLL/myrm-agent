@@ -1,8 +1,7 @@
 """Call budget of the MCP IPC server.
 
 The budget guards against one runaway script becoming an unbounded external-API
-amplifier. It is not a lifetime counter per chat: a chat that has made many MCP calls in total can still run
-another MCP script. These tests pin its two properties:
+amplifier. It is not a per-chat counter that never resets. These tests pin its two properties:
 
 1. the budget belongs to one script execution (an id minted by the server), so scripts do not starve each other;
 2. a session-wide ceiling per time window still bounds a chat that keeps starting scripts.

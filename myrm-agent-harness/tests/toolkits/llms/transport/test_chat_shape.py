@@ -20,9 +20,9 @@ from myrm_agent_harness.toolkits.llms.transport.http import Chunk
 
 Payload = dict[str, object]
 
-# What the finish-reason table of the stack this one replaced answered for every word it knew (taken from that stack's
-# source), as {OpenAI's word: the words that map onto it}. Words it did not know fell back to "stop".
-_PREVIOUS_STACK: Final = {
+# The provider words the transport maps onto each of OpenAI's finish reasons, as {OpenAI's word: the words that map
+# onto it}; a word outside the table is a normal end ("stop").
+_FINISH_WORDS: Final = {
     "stop": (
         "COMPLETE ERROR FINISH_REASON_UNSPECIFIED MALFORMED_FUNCTION_CALL MALFORMED_RESPONSE STOP TOO_MANY_TOOL_CALLS "
         "end_turn eos eos_token error network_error stop stop_sequence"
@@ -35,7 +35,7 @@ _PREVIOUS_STACK: Final = {
         "SAFETY SPII content_filter content_filtered guardrail_intervened refusal sensitive"
     ),
 }
-_FINISH_OF_WORD: Final = {word: finish for finish, words in _PREVIOUS_STACK.items() for word in words.split()}
+_FINISH_OF_WORD: Final = {word: finish for finish, words in _FINISH_WORDS.items() for word in words.split()}
 
 
 def _answer(message: Payload | None = None, finish: object = "stop") -> Payload:
@@ -143,7 +143,7 @@ class TestShapeUsage:
 
 class TestFinishReasons:
     @pytest.mark.parametrize(("word", "finish"), sorted(_FINISH_OF_WORD.items()))
-    def test_every_word_the_previous_stack_knew_means_what_it_meant(self, word: str, finish: str) -> None:
+    def test_every_listed_word_means_its_openai_finish(self, word: str, finish: str) -> None:
         assert _shaped_finish(_answer(finish=word)) == finish
 
     def test_a_response_that_filled_the_context_window_is_cut_off_whoever_forwards_the_word(self) -> None:
@@ -292,7 +292,7 @@ class TestShapeChunk:
         assert _chunk_of({"delta": {}, "finish_reason": word})["finish_reason"] == finish
 
     def test_a_stream_that_stops_after_tool_calls_is_not_turned_into_tool_calls(self) -> None:
-        # The stack this replaced reported what the provider said; the consumers read tool calls from the deltas.
+        # The finish reason reports what the provider said; the consumers read tool calls from the deltas.
         delta = {"tool_calls": [{"index": 0, "id": "c", "function": {"name": "f", "arguments": "{}"}}]}
 
         choice = _chunk_of({"delta": delta, "finish_reason": "stop"})

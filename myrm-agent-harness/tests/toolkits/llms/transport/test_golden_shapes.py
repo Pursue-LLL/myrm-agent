@@ -1,8 +1,8 @@
-"""Golden shapes test: every shape of saved base URL reaches the endpoint it reached before, except where registered.
+"""Golden shapes test: every shape of saved base URL reaches the endpoint the baseline reached, except where registered.
 
 [INPUT]
 - golden_shapes (POS: scenario matrix recorder for chat, embedding, rerank and image calls)
-- golden_shapes_baseline.json (POS: where each call went under the previous client library)
+- golden_shapes_baseline.json (POS: where each call went under the baseline client library)
 - golden_shapes_allowed (POS: registry of intentional differences)
 
 [OUTPUT]

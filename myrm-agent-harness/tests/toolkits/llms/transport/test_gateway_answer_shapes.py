@@ -1,10 +1,10 @@
 """Answers that differ from OpenAI's documented shape, replayed through the whole call path (adapter included).
 
 Gateways put ``null`` where OpenAI puts a number, name a finish reason in another vendor's words, leave out a role, or
-answer a failure with HTTP 200. The old stack's litellm layer absorbed all of it; each case here is one such answer,
-and what the call turns it into was measured on that stack first, so the expectations below are the behaviour that was
-there, except where a case says it is deliberately better (content given as typed parts is read; an ``error`` finish
-reason or an ``error`` object next to the choices is a failure and not an answer).
+answer a failure with HTTP 200. A litellm-based client absorbs all of it; each case here is one such answer, and the
+expectations below are what that client turns it into, except where a case says it is deliberately better (content
+given as typed parts is read; an ``error`` finish reason or an ``error`` object next to the choices is a failure and
+not an answer).
 """
 
 from __future__ import annotations

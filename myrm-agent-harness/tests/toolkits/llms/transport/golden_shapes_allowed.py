@@ -1,4 +1,4 @@
-"""Registry of every intentional difference between where the previous client library sent a call and where the transport does.
+"""Registry of every intentional difference between where the baseline client library sent a call and where the transport does.
 
 [INPUT]
 - (none) Pure data.
@@ -10,7 +10,7 @@
 [POS]
 Companion of ``golden_shapes``. Cases are named ``family/provider|scenario|shape``. The golden shapes test fails on a
 difference that no rule here covers and on a rule that covers nothing, so each entry states why the new endpoint is the
-one wanted: the previous request could not have worked as written, or it is a change the other golden registries
+one wanted: the baseline request could not have worked as written, or it is a change the other golden registries
 already record for the default endpoint.
 """
 
@@ -93,40 +93,40 @@ SHAPE_RULES: tuple[ShapeRule, ...] = (
     ShapeRule(
         "cohere-compatibility-endpoint",
         "Same decision as the golden request registry's rule of that name: Cohere chat goes through its OpenAI-"
-        "compatible endpoint, so the transport appends `/chat/completions` where the previous library posted to the "
+        "compatible endpoint, so the transport appends `/chat/completions` where the baseline library posted to the "
         "base URL itself.",
         providers=("chat/cohere_chat",),
     ),
     ShapeRule(
         "flux-settings-alias",
-        "Same decision as the golden services registry's rule of that name: the previous library rejected `flux/"
+        "Same decision as the golden services registry's rule of that name: the baseline library rejected `flux/"
         "schnell` before sending anything, so it reached no endpoint; the transport maps it to Together's FLUX.1.",
         providers=("image/flux",),
     ),
     ShapeRule(
         "image-edit-refused-before-sending",
         "Same decision as the golden services registry's rule of that name: Image edit is not offered for Gemini "
-        "Imagen and Stability; the previous library sent a request and failed, the transport refuses before sending.",
+        "Imagen and Stability; the baseline library sent a request and failed, the transport refuses before sending.",
         providers=("image/gemini_imagen", "image/stability"),
         scenarios=("edit",),
     ),
     ShapeRule(
         "image-edit-attempted-for-xai-together",
         "Same decision as the golden services registry's rule of that name: edit is not offered for xAI and Together, "
-        "so the previous library refused it up front; called directly, the transport sends `/images/edits`.",
+        "so the baseline library refused it up front; called directly, the transport sends `/images/edits`.",
         providers=("image/xai", "image/together_flux"),
         scenarios=("edit",),
     ),
     ShapeRule(
         "together-rerank-honours-base",
-        "Same decision as the golden services registry's rule of that name: the previous library ignored the given "
+        "Same decision as the golden services registry's rule of that name: the baseline library ignored the given "
         "base and called api.together.xyz; the transport calls the configured endpoint.",
         providers=("rerank/together_ai",),
     ),
     ShapeRule(
         "azure-ai-rerank-endpoint",
         "The settings do not offer Azure AI rerank and the transport has no `azure_ai` provider, so the id goes to "
-        "the given endpoint with `/rerank` appended; for a base that stops short of `/v1` the previous library "
+        "the given endpoint with `/rerank` appended; for a base that stops short of `/v1` the baseline library "
         "completed it to `/v1/rerank`.",
         providers=("rerank/azure_ai",),
         shapes=("bare", "slash", "gw"),
@@ -140,7 +140,7 @@ SHAPE_RULES: tuple[ShapeRule, ...] = (
     ),
     ShapeRule(
         "jina-rerank-keeps-the-gateway-prefix",
-        "The previous library dropped a gateway prefix from a Jina endpoint (`/gw` and `/gw/v1` both became "
+        "The baseline library dropped a gateway prefix from a Jina endpoint (`/gw` and `/gw/v1` both became "
         "`/v1/rerank`), so a gateway never saw its own path; the transport keeps it (`/gw/v1/rerank`).",
         providers=("rerank/jina_ai",),
         shapes=("gw", "gw_v1"),

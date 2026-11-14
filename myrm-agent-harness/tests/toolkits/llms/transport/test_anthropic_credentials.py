@@ -1,6 +1,6 @@
 """Anthropic credentials: which header carries the key, how a subscription token is sent, and the beta flags it needs.
 
-The golden credentials test pins what the previous client library sent; these tests pin the rules behind it, and the
+The golden credentials test pins what the baseline client library sent; these tests pin the rules behind it, and the
 cases where the transport deliberately sends less (one Authorization header, no bearer next to the vendor's key).
 """
 

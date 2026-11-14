@@ -1,8 +1,8 @@
 """Responses-wire answers replayed through the whole call path (adapter included).
 
-Each case was measured on the stack this one replaced first: the answer that has no usage, the usage that is not
-numbers and the failure in the middle of a stream are where the two must behave alike, or better (an ``error`` event
-OpenAI documents with ``code`` and ``message`` on the event itself used to end the answer quietly).
+The cases are where an answer is easiest to get wrong: the answer that has no usage, the usage that is not numbers
+and the failure in the middle of a stream (an ``error`` event OpenAI documents with ``code`` and ``message`` on the
+event itself surfaces as a failure instead of ending the answer quietly).
 """
 
 from __future__ import annotations

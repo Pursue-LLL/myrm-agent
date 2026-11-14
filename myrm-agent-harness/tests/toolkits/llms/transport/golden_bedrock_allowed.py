@@ -1,4 +1,4 @@
-"""Registry of every intentional difference between the previous client library's Bedrock requests and the transport's.
+"""Registry of every intentional difference between the baseline client library's Bedrock requests and the transport's.
 
 [INPUT]
 - golden_allowed_types (POS: AllowedDiff, the shape of one registered difference)
@@ -34,9 +34,9 @@ _CLAUDE = (
     "bedrock_sonnet46",
     "bedrock_opus47",
 )
-# An application inference profile hides its model; the wire treats it as Claude, the previous library did too.
+# An application inference profile hides its model; the wire treats it as Claude, the baseline library did too.
 _CLAUDE_LIKE = (*_CLAUDE, "bedrock_arn")
-# Models that have no reasoning to switch on; the previous library sent them a Claude thinking block regardless.
+# Models that have no reasoning to switch on; the baseline library sent them a Claude thinking block regardless.
 _UNREASONING = ("bedrock_nova", "bedrock_llama33", "bedrock_llama3", "bedrock_mistral", "bedrock_deepseek")
 _NOT_CLAUDE = (*_UNREASONING, "bedrock_nova2", "bedrock_gptoss")
 _REASONING = (
@@ -49,7 +49,7 @@ _REASONING = (
     "json_schema_reasoning",
     "tools_json_reasoning",
 )
-# What the previous library copied into additionalModelRequestFields without any model reading it.
+# What the baseline library copied into additionalModelRequestFields without any model reading it.
 _UNREAD = frozenset(
     {
         "extra_body",
@@ -114,7 +114,7 @@ def _window_clamp(diff: object) -> bool:
 BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "bedrock-unread-model-fields",
-        "The previous library copied every parameter it had no field for into additionalModelRequestFields: the output "
+        "The baseline library copied every parameter it had no field for into additionalModelRequestFields: the output "
         "limit a second time, stop words, seed and penalty, the whole extra_body object, stream options, the response "
         "format, the reasoning effort. No model reads them (Claude refuses unknown ones); the transport sends there "
         "only what a model takes.",
@@ -132,7 +132,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-thinking-for-model-without-reasoning",
-        "The previous library turned a reasoning effort into a Claude thinking block for every model, Nova Pro, Llama, "
+        "The baseline library turned a reasoning effort into a Claude thinking block for every model, Nova Pro, Llama, "
         "Mistral and DeepSeek R1 included. None of them takes a thinking block, and the API refuses the field; the "
         "transport sends reasoning only to the families that have it.",
         "-",
@@ -143,7 +143,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-extra-body-fields",
-        "The caller's extra_body fields are additionalModelRequestFields entries; the previous library nested them one "
+        "The caller's extra_body fields are additionalModelRequestFields entries; the baseline library nested them one "
         "level deeper, under an extra_body key no model reads.",
         "+",
         r"/body/additionalModelRequestFields/foo",
@@ -152,7 +152,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-top-k",
-        "top_k goes where the model takes it (Claude's own field, Nova's inferenceConfig.topK); the previous library "
+        "top_k goes where the model takes it (Claude's own field, Nova's inferenceConfig.topK); the baseline library "
         "nested it under the extra_body key no model reads, so it never took effect.",
         "+",
         r"/body/additionalModelRequestFields/(top_k|inferenceConfig)",
@@ -161,7 +161,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-model-refuses-sampling",
-        "Claude Opus 4.7 takes no sampling parameter (the catalog flags it so); the previous request sent a "
+        "Claude Opus 4.7 takes no sampling parameter (the catalog flags it so); the baseline request sent a "
         "temperature to it.",
         "-",
         r"/body/inferenceConfig/temperature",
@@ -171,7 +171,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
         "bedrock-thinking-after-completed-tool-turn",
         "Converse puts a short assistant turn between a tool result and the user text that follows it, so the last "
         "assistant turn calls no tool and asks for no thinking block; only a tool loop in progress makes the API demand "
-        "one. The previous library switched thinking off because an earlier assistant turn had called tools without a "
+        "one. The baseline library switched thinking off because an earlier assistant turn had called tools without a "
         "signed block.",
         "+",
         r"/body/additionalModelRequestFields/thinking",
@@ -180,7 +180,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-thinking-default-temperature",
-        "Extended thinking takes only the default temperature (the Anthropic wire drops it the same way); the previous "
+        "Extended thinking takes only the default temperature (the Anthropic wire drops it the same way); the baseline "
         "request sent 0.2 beside the thinking block.",
         "-",
         r"/body/inferenceConfig/temperature",
@@ -189,7 +189,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-top-p-beside-temperature",
-        "Only Claude takes just one of temperature and top_p; the previous library dropped top_p from every Bedrock "
+        "Only Claude takes just one of temperature and top_p; the baseline library dropped top_p from every Bedrock "
         "request that carried both, while Nova, Llama, Mistral, DeepSeek and gpt-oss accept the pair.",
         "+",
         r"/body/inferenceConfig/topP",
@@ -199,7 +199,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "bedrock-tool-use-id-charset",
         "Converse accepts only letters, digits, underscore and hyphen in a toolUseId, so the ids of another provider "
-        "('functions.get_weather:0') are rewritten, the call and its result alike; the previous library sent them as "
+        "('functions.get_weather:0') are rewritten, the call and its result alike; the baseline library sent them as "
         "they were.",
         "~",
         r"/body/messages\[\d+\]/content\[\d+\]/(toolUse|toolResult)/toolUseId",
@@ -210,7 +210,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "bedrock-output-window-shared-with-input",
         "A model whose output limit equals its context window (Llama 3 70B: 8192 of 8192) had its maxTokens lowered by "
-        "the previous library to what the prompt left, counted with its own tokenizer; the transport sends the "
+        "the baseline library to what the prompt left, counted with its own tokenizer; the transport sends the "
         "ceiling and leaves a request the window cannot hold to the provider's refusal.",
         "~",
         r"/body/inferenceConfig/maxTokens",
@@ -220,7 +220,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-forced-choice-beside-no-reasoning",
-        "The previous library demoted a forced tool call to automatic whenever a reasoning effort was set, because it "
+        "The baseline library demoted a forced tool call to automatic whenever a reasoning effort was set, because it "
         "had turned the effort into a thinking block. A model with no reasoning gets no block, so the call the caller "
         "demanded stays forced.",
         "+",
@@ -230,7 +230,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-forced-choice-beside-no-reasoning-auto",
-        "The automatic choice the previous library put there instead (see bedrock-forced-choice-beside-no-reasoning).",
+        "The automatic choice the baseline library put there instead (see bedrock-forced-choice-beside-no-reasoning).",
         "-",
         r"/body/toolConfig/toolChoice/auto",
         providers=_UNREASONING,
@@ -238,7 +238,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-structured-tool-forced-beside-no-reasoning",
-        "The previous library left the synthetic structured-output tool unforced whenever a reasoning effort was set, "
+        "The baseline library left the synthetic structured-output tool unforced whenever a reasoning effort was set, "
         "for the same reason (see bedrock-forced-choice-beside-no-reasoning); a model with no reasoning is made to call "
         "it, as it is without the effort.",
         "+",
@@ -248,7 +248,7 @@ BEDROCK_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "bedrock-xhigh-unsupported-model",
-        "Claude Sonnet 4.6 has no `xhigh` effort: the previous library refused the call before sending anything; the "
+        "Claude Sonnet 4.6 has no `xhigh` effort: the baseline library refused the call before sending anything; the "
         "wire sends the highest level the model has (`max`).",
         "count",
         r"",

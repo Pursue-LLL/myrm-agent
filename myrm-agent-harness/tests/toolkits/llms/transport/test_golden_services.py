@@ -1,8 +1,8 @@
-"""Golden services test: embedding, rerank, image and web-search calls match the previous client library, except where registered.
+"""Golden services test: embedding, rerank, image and web-search calls match the baseline client library, except where registered.
 
 [INPUT]
 - golden_services (POS: scenario matrix recorder for the four service paths)
-- golden_services_baseline.json (POS: requests, results and failure kinds recorded from the previous client library)
+- golden_services_baseline.json (POS: requests, results and failure kinds recorded from the baseline client library)
 - golden_services_allowed (POS: registry of intentional differences)
 
 [OUTPUT]

@@ -1883,7 +1883,7 @@ class TestCancelChildEdgeCases:
 
 
 # =========================================================================
-# _run_subagent_core mock tests — budget_tokens
+# _run_subagent_core mock tests — budget_tokens & timeout retry
 # =========================================================================
 
 

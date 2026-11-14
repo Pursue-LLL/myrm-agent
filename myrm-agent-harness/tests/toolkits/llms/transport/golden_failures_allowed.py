@@ -1,4 +1,4 @@
-"""Registry of the failures the installed stack classifies or words differently from the previous one, each with its reason.
+"""Registry of the failures the installed stack classifies or words differently from the baseline, each with its reason.
 
 [INPUT]
 - golden_compare::Allowed (POS: one entry: the facts that changed, with their new values, and why they are right)
@@ -10,7 +10,7 @@
 [POS]
 A failure is classified once and the agent's recovery reads that verdict: repeat, switch key or provider, drop images,
 compact, give up; the user reads the error card built from the same failure. An entry exists only where the new verdict
-is the better input for that recovery or the better card for the user, or where the previous one came from reading a
+is the better input for that recovery or the better card for the user, or where the baseline verdict came from reading a
 field name or a number of the raw body as the provider's words; the reason says which. ``test_golden_failures`` fails
 on a changed verdict with no entry, on an entry whose facts differ from what happens now, and on an entry whose case
 no longer differs.
@@ -31,13 +31,13 @@ HTTP_ALLOWED: Final[Mapping[str, Allowed]] = {
     ),
     "anthropic.kind_timeout_500": Allowed(
         {"card": "overloaded", "card_custom": "overloaded"},
-        "A 500 is the provider failing, and the card says the service is overloaded. The previous stack showed the "
+        "A 500 is the provider failing, and the card says the service is overloaded. The baseline showed the "
         "timeout card only because it read the word in the kind field of the raw body; a timeout kind comes with a 504, "
         "which keeps the timeout card (anthropic.kind_timeout_504).",
     ),
     "anthropic.kind_timeout_504": Allowed(
         {"reason": "overloaded", "kind": "overloaded"},
-        "A 504 with a JSON body is filed with the provider being unavailable, as the previous stack already filed an "
+        "A 504 with a JSON body is filed with the provider being unavailable, as the baseline already filed an "
         "HTML body and Gemini's: both reasons are transient and switch provider, only the probe schedule differs. The "
         "card still says the request timed out.",
     ),
@@ -53,12 +53,12 @@ HTTP_ALLOWED: Final[Mapping[str, Allowed]] = {
     "gemini.deadline": Allowed(
         {"card": "timeout", "card_custom": "timeout"},
         "A 504 is a gateway timeout, and the card says the request timed out and suggests streaming on every wire; the "
-        "previous stack showed that card only for OpenAI-compatible endpoints and an overload card for Gemini.",
+        "baseline showed that card only for OpenAI-compatible endpoints and an overload card for Gemini.",
     ),
     "gemini.entity_not_found_404": Allowed(
         {"card": "unknown", "card_custom": "unknown"},
-        "A 404 whose sentence names no model is not announced as a missing model: the previous stack read the numeric "
-        "code field of the raw body as words, and the card now quotes the sentence the provider wrote.",
+        "A 404 whose sentence names no model is not announced as a missing model: the baseline read the numeric "
+        "code field of the raw body as words, and the card quotes the sentence the provider wrote.",
     ),
     "ollama.bad_request": Allowed(
         {"reason": "format", "kind": "format_error", "card": "format_error", "card_custom": "format_error"},
@@ -78,7 +78,7 @@ HTTP_ALLOWED: Final[Mapping[str, Allowed]] = {
     "openai.code_unauthorized_400": Allowed(
         {"reason": "auth_permanent", "kind": "auth", "card": "api_key", "card_custom": "api_key"},
         "A body whose code says unauthorized is a rejected key even under a 400: the agent rotates the key instead of "
-        "repeating the request and the card asks for a new one; the previous stack saw only the sentence and called "
+        "repeating the request and the card asks for a new one; the baseline saw only the sentence and called "
         "the request malformed.",
     ),
     "openai.ctx_groq_tpm_413": Allowed(
@@ -99,12 +99,12 @@ HTTP_ALLOWED: Final[Mapping[str, Allowed]] = {
     "openai.type_billing_400": Allowed(
         {"reason": "billing", "kind": "billing", "quota": True, "card": "billing", "card_custom": "billing"},
         "A body whose type says billing_error is an account problem even under a 400: the agent switches key or "
-        "provider and the card points to billing; the previous stack saw only the sentence and called the request "
+        "provider and the card points to billing; the baseline saw only the sentence and called the request "
         "malformed.",
     ),
 }
 
-# What a stream that completed empty before reports now: the adapter's EmptyStreamError, which blames no provider fault.
+# A stream that completed empty reports the adapter's EmptyStreamError, which blames no provider fault.
 _RAISES_EMPTY_STREAM: Final[Mapping[str, object]] = {
     "outcome": "RAISED",
     "text": None,

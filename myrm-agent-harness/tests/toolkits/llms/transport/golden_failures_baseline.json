@@ -1,10 +1,10 @@
 {
  "_meta": {
-  "cards": "Each raised case also records the error card type a user was shown, without a context ('card') and with a custom local endpoint ('card_custom'): the case was served to the previous stack (litellm 1.97.0, main 5a9990bb39) and its exception diagnosed by that stack's LLMErrorDiagnostic. The replies whose body holds no sentence (status-only cases s<status>_*) were recorded the same way. The replies whose cause is named only in the kind or code field of the body, next to a sentence with none of the card's keywords (kind_*, code_*, type_*, status_*, plain_* and html_* cases), were recorded the same way.",
+  "cards": "Each raised case also records the error card type a user was shown, without a context ('card') and with a custom local endpoint ('card_custom'): the case was served to the baseline (litellm 1.97.0, main 5a9990bb39) and its exception diagnosed by that stack's LLMErrorDiagnostic. The replies whose body holds no sentence (status-only cases s<status>_*) were recorded the same way. The replies whose cause is named only in the kind or code field of the body, next to a sentence with none of the card's keywords (kind_*, code_*, type_*, status_*, plain_* and html_* cases), were recorded the same way.",
   "cross_check": "The same corpus served to litellm 1.106.0 (the harness lock) reads the same in 36 of 36 streams and 121 of 121 answers and differs in 4 of 132 error replies: three Ollama replies (400, 404, 500) that 1.97.0 reports as a connection failure and one Moonshot policy refusal that 1.97.0 reads as a malformed request.",
   "method": "Each case was served by a loopback HTTP server to the previous adapter; the raised exception went through that stack's own errors package.",
   "recorded": "2026-11-06",
-  "stack": "litellm 1.97.0 (the version the server's uv.lock pins, which is the one the product runs) behind the previous ChatLiteLLM adapter, main c0cbd9185d"
+  "stack": "litellm 1.97.0 (the version the server's uv.lock pins, which is the one the product runs) behind the ChatLiteLLM adapter, main c0cbd9185d"
  },
  "http": {
   "anthropic.auth": {

@@ -2,7 +2,7 @@
 
 [INPUT]
 - golden_allowed / golden_bedrock_allowed (POS: the registries of intentional differences)
-- golden_allowed_types (POS: AllowedDiff and the URLs the previous library fetched on its own)
+- golden_allowed_types (POS: AllowedDiff and the URLs the baseline library fetched on its own)
 
 [OUTPUT]
 - Diff / diff_request / diff_case: the differences between a baseline and a current request
@@ -103,7 +103,7 @@ def _requests(case: Mapping[str, object]) -> list[Mapping[str, object]]:
 
 
 def visible_requests(case: Mapping[str, object]) -> list[Mapping[str, object]]:
-    """The case's requests minus the hidden fetches of the previous client library (tokenizers, config downloads)."""
+    """The case's requests minus the hidden fetches of the baseline client library (tokenizers, config downloads)."""
     return [r for r in _requests(case) if not any(hidden in str(r["url"]) for hidden in HIDDEN_FETCHES)]
 
 

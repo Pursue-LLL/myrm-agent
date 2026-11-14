@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - AllowedDiff: one registered difference (provider, kind of change, field, reason)
-- HIDDEN_FETCHES: URLs the previous library called on its own, outside the model call itself
+- HIDDEN_FETCHES: URLs the baseline library called on its own, outside the model call itself
 - ANTHROPIC, GEMINI, GEMINI_2, GEMINI_3, NATIVE_SEARCH_CLAUDE: capture-matrix provider keys grouped by model family
 - contains, only_repair_turns, media_moved_beside: predicates over one difference
 
@@ -20,7 +20,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-# Calls the previous library made by itself while serving a model call (tokenizer downloads from a model hub,
+# Calls the baseline library made by itself while serving a model call (tokenizer downloads from a model hub,
 # a configuration file fetched from a code-hosting site, Ollama's model-info lookup around an embedding call).
 # The transport makes none of them. Matched as substrings of the request URL.
 HIDDEN_FETCHES = ("huggingface.co", "raw.githubusercontent.com", "/api/show")
@@ -36,7 +36,7 @@ ANTHROPIC = (
     "anthropic_opus47",
     "anthropic_haiku45",
 )
-# Claude generations whose catalog entry flags the native web search tool (the previous library's map did not).
+# Claude generations whose catalog entry flags the native web search tool (the baseline library's map did not).
 NATIVE_SEARCH_CLAUDE = ("anthropic_sonnet46", "anthropic_opus47")
 
 

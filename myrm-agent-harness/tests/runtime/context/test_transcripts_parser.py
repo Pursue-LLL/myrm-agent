@@ -15,16 +15,16 @@ from myrm_agent_harness.runtime.context.transcripts import (
 
 
 def test_sandbox_path_remapper() -> None:
-    host_root = "/Users/yululiu/projects/AI/open-perplexity"
+    host_root = "/Users/alice/projects/my-app"
     remapper = SandboxPathRemapper(host_root=host_root, sandbox_root="/workspace")
 
-    original_text = "I modified /Users/yululiu/projects/AI/open-perplexity/src/main.py successfully."
+    original_text = "I modified /Users/alice/projects/my-app/src/main.py successfully."
     remapped_text = remapper.remap_text(original_text)
     assert remapped_text == "I modified /workspace/src/main.py successfully."
 
     args = {
-        "file_path": "/Users/yululiu/projects/AI/open-perplexity/README.md",
-        "commands": ["cat /Users/yululiu/projects/AI/open-perplexity/package.json"],
+        "file_path": "/Users/alice/projects/my-app/README.md",
+        "commands": ["cat /Users/alice/projects/my-app/package.json"],
         "count": 5,
     }
     remapped_args = remapper.remap_arguments(args)
@@ -67,7 +67,12 @@ def test_tool_output_compactor() -> None:
 
 def test_claude_transcript_parser() -> None:
     events = [
-        {"type": "user", "message": "Can you check <system-reminder>secret</system-reminder> distributed rpc timeout?", "timestamp": 1700000000.0, "cwd": "/Users/dev/order-svc"},
+        {
+            "type": "user",
+            "message": "Can you check <system-reminder>secret</system-reminder> distributed rpc timeout?",
+            "timestamp": 1700000000.0,
+            "cwd": "/Users/dev/order-svc",
+        },
         {
             "type": "assistant",
             "text": "<thinking>Let me search the logs first.</thinking>Running grep to locate timeout occurrences.",
@@ -280,4 +285,3 @@ def test_codex_parser_edge_cases(tmp_path: object) -> None:
     file_res = parser.parse_file(p)
     assert file_res.session_id == "codex-disk"
     assert file_res.title == "Disk task"
-

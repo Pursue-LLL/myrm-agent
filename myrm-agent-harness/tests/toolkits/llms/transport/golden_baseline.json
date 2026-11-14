@@ -30529,7 +30529,7 @@
   ]
  },
  "bedrock|custom_base|defaults": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-a",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/workspace/myrm-agent/myrm-a",
   "requests": [
    {
     "body": {
@@ -30929,7 +30929,7 @@
   ]
  },
  "bedrock|custom_base|sampling": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-a",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/workspace/myrm-agent/myrm-a",
   "requests": [
    {
     "body": {
@@ -31280,7 +31280,7 @@
   ]
  },
  "bedrock|default_base|defaults": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-a",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/workspace/myrm-agent/myrm-a",
   "requests": [
    {
     "body": {
@@ -31680,7 +31680,7 @@
   ]
  },
  "bedrock|default_base|sampling": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-a",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/workspace/myrm-agent/myrm-a",
   "requests": [
    {
     "body": {
@@ -33065,7 +33065,7 @@
   ]
  },
  "cohere_chat|custom_base|basic": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33094,7 +33094,7 @@
   ]
  },
  "cohere_chat|custom_base|cache_control": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33133,7 +33133,7 @@
   ]
  },
  "cohere_chat|custom_base|defaults": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace/myrm-agent/myrm-",
   "requests": [
    {
     "body": {
@@ -33160,7 +33160,7 @@
   ]
  },
  "cohere_chat|custom_base|extra_body": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33190,7 +33190,7 @@
   ]
  },
  "cohere_chat|custom_base|headers": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33225,7 +33225,7 @@
   ]
  },
  "cohere_chat|custom_base|image": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33265,7 +33265,7 @@
   ]
  },
  "cohere_chat|custom_base|json_schema": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33311,7 +33311,7 @@
   ]
  },
  "cohere_chat|custom_base|reasoning_high": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33341,7 +33341,7 @@
   ]
  },
  "cohere_chat|custom_base|reasoning_tools": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33416,7 +33416,7 @@
   ]
  },
  "cohere_chat|custom_base|sampling": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace/myrm-agent/myrm-",
   "requests": [
    {
     "body": {
@@ -33494,7 +33494,7 @@
   ]
  },
  "cohere_chat|custom_base|tool_history": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33568,7 +33568,7 @@
   ]
  },
  "cohere_chat|custom_base|tools": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity-wt/litellm-remov",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace",
   "requests": [
    {
     "body": {
@@ -33687,7 +33687,7 @@
   ]
  },
  "cohere_chat|default_base|defaults": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace/myrm-agent/myrm-",
   "requests": [
    {
     "body": {
@@ -33970,7 +33970,7 @@
   ]
  },
  "cohere_chat|default_base|sampling": {
-  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-",
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/workspace/myrm-agent/myrm-",
   "requests": [
    {
     "body": {

@@ -1,6 +1,6 @@
 """Bedrock Converse request: endpoint and region, credential, generation parameters and how each model family reasons.
 
-The golden request test pins what the previous client library sent for the same calls; these tests pin the rules
+The golden request test pins what the baseline client library sent for the same calls; these tests pin the rules
 behind it, in particular the ones the golden cases cannot see: regions, environment, model generations and replays.
 """
 

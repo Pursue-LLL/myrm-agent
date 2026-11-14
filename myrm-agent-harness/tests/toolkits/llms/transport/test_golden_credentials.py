@@ -1,8 +1,8 @@
-"""Golden credentials test: every credential, endpoint and signature is sent as the previous stack sent it, except where registered.
+"""Golden credentials test: every credential, endpoint and signature is sent as the baseline sent it, except where registered.
 
 [INPUT]
 - golden_credentials (POS: scenario matrix recorder)
-- golden_credentials_baseline.json (POS: the facts the previous client library produced for each case)
+- golden_credentials_baseline.json (POS: the facts the baseline client library produced for each case)
 - golden_credentials_allowed (POS: registry of intended differences)
 - golden_catalog.json (POS: the model facts the baseline was recorded with, pinned so a catalog refresh cannot move them)
 - golden_compare (POS: comparison engine)

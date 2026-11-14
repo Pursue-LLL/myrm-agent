@@ -1,4 +1,4 @@
-"""Registry of every intentional difference between the previous client library's service calls and the transport's.
+"""Registry of every intentional difference between the baseline client library's service calls and the transport's.
 
 [INPUT]
 - golden_allowed_types (POS: AllowedDiff, the shape of one registered difference)
@@ -10,8 +10,8 @@
 Companion of ``golden_allowed`` for the non-chat services. Providers are named ``family/provider`` (for example
 ``embedding/ollama``) because the same provider key appears in several families. The golden services test fails on a
 difference that is not listed here and on a rule that matches nothing, so each entry states why the difference is
-wanted: the previous request was a defect, the transport sends the same meaning in another valid form, or the
-previous library refused something the transport now attempts.
+wanted: the baseline request was a defect, the transport sends the same meaning in another valid form, or the
+baseline library refused something the transport attempts.
 """
 
 from __future__ import annotations
@@ -67,17 +67,17 @@ def _status(old: str, new: str) -> Callable[..., bool]:
 
 
 SERVICE_RULES: tuple[AllowedDiff, ...] = (
-    # --- fingerprints of the previous client stack ----------------------------------------------------------------
+    # --- fingerprints of the baseline client library --------------------------------------------------------------
     AllowedDiff(
         "sdk-fingerprint-headers",
-        "The previous library called through the OpenAI Python SDK, which stamps its own client fingerprint (platform, "
+        "The baseline library called through the OpenAI Python SDK, which stamps its own client fingerprint (platform, "
         "runtime, package version, retry counter, read timeout) on every call. The transport has no SDK.",
         "-",
         r"/headers/x-stainless-[a-z-]+",
     ),
     AllowedDiff(
         "library-attribution-headers",
-        "The previous library identified itself to OpenRouter as 'liteLLM' (litellm.ai) in its attribution headers.",
+        "The baseline library identified itself to OpenRouter as 'liteLLM' (litellm.ai) in its attribution headers.",
         "-",
         r"/headers/(http-referer|x-title)",
         providers=("embedding/openrouter",),
@@ -110,7 +110,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "lm-studio-default-endpoint",
-        "Without an `api_base` the previous library failed with a 400 (no default endpoint); the transport defaults "
+        "Without an `api_base` the baseline library failed with a 400 (no default endpoint); the transport defaults "
         "to LM Studio's local server `http://localhost:1234/v1`, as it does for chat.",
         "count",
         r"",
@@ -128,14 +128,14 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "azure-ai-rerank-prefix",
         "The settings do not offer Azure AI rerank; the transport has no `azure_ai` provider, so the id is passed to "
-        "the given `api_base` whole, where the previous library stripped the `azure_ai/` prefix.",
+        "the given `api_base` whole, where the baseline library stripped the `azure_ai/` prefix.",
         "~",
         r"/body/model",
         providers=("rerank/azure_ai",),
     ),
     AllowedDiff(
         "cohere-rerank-base-path",
-        "Given `api_base` is the endpoint root, the previous library appended Cohere's `/v2/rerank` to it "
+        "Given `api_base` is the endpoint root, the baseline library appended Cohere's `/v2/rerank` to it "
         "(`.../v1/v2/rerank`); the transport appends `/rerank`, as it does for every other provider.",
         "~",
         r"/url",
@@ -144,7 +144,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "together-rerank-honours-base",
-        "The previous library ignored `api_base` for Together rerank and called api.together.xyz, bypassing a "
+        "The baseline library ignored `api_base` for Together rerank and called api.together.xyz, bypassing a "
         "configured gateway; the transport calls the configured endpoint.",
         "~",
         r"/url",
@@ -154,7 +154,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     # --- image generation and edit --------------------------------------------------------------------------------
     AllowedDiff(
         "image-style-only-dall-e-3",
-        "`style` is an option of DALL-E 3 only; the previous library forwarded it to Together and xAI models that "
+        "`style` is an option of DALL-E 3 only; the baseline library forwarded it to Together and xAI models that "
         "have no such option.",
         "-",
         r"/body/style",
@@ -162,7 +162,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "minimax-image-count",
-        "The previous provider code was written to send `n` but litellm never delivered it, so asking for several "
+        "The baseline provider code was written to send `n` but litellm never delivered it, so asking for several "
         "images produced one; the transport sends `n`.",
         "+",
         r"/body/n",
@@ -191,7 +191,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "image-edit-refused-before-sending",
         "Image edit is offered for DALL-E 2 and GPT Image 1 only (`supports_edit`). For Gemini Imagen and Stability the "
-        "previous library sent a request and then failed (IndexError, 'model isn't mapped'); the transport refuses "
+        "baseline library sent a request and then failed (IndexError, 'model isn't mapped'); the transport refuses "
         "before sending. Same failure kind (ImageGenerationError), one request fewer.",
         "count",
         r"",
@@ -201,7 +201,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "flux-settings-alias",
-        "`flux/schnell` is offered by the settings but the previous library rejected it ('LLM Provider NOT "
+        "`flux/schnell` is offered by the settings but the baseline library rejected it ('LLM Provider NOT "
         "provided'), so every call failed before sending; the transport maps it to Together's FLUX.1-schnell.",
         "count",
         r"",
@@ -216,7 +216,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "image-edit-attempted-for-xai-together",
-        "Image edit is not offered for xAI or Together (`supports_edit` is false) and the previous library refused it "
+        "Image edit is not offered for xAI or Together (`supports_edit` is false) and the baseline library refused it "
         "up front ('image edit is not supported'); called directly, the transport sends an OpenAI-compatible "
         "`/images/edits` request and reports whatever the provider answers.",
         "count",
@@ -236,7 +236,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     # --- web search -----------------------------------------------------------------------------------------------
     AllowedDiff(
         "search-same-query-parameters",
-        "The same query parameters in another order, with `true` where the previous library wrote Python's `True`.",
+        "The same query parameters in another order, with `true` where the baseline library wrote Python's `True`.",
         "~",
         r"/query",
         providers=("search/brave", "search/google_pse"),
@@ -244,7 +244,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "google-pse-no-engine-leak",
-        "The previous library copied its `search_engine_id` argument into the query string as an extra parameter on "
+        "The baseline library copied its `search_engine_id` argument into the query string as an extra parameter on "
         "top of the engine id `cx` that Google reads.",
         "~",
         r"/query",
@@ -253,7 +253,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "google-pse-gateway-key",
-        "Behind a tool gateway the previous library sent the key from its environment variable and dropped the "
+        "Behind a tool gateway the baseline library sent the key from its environment variable and dropped the "
         "gateway token; the transport sends the gateway token the gateway authenticates.",
         "~",
         r"/query",
@@ -273,7 +273,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     AllowedDiff(
         "dataforseo-gateway-token-config-error",
         "A gateway token is not a DataForSEO `login:password` pair, so both stacks fail before sending anything: the "
-        "previous library with a 500 ('DATAFORSEO_LOGIN is not set'), the transport with a configuration error that "
+        "baseline library with a 500 ('DATAFORSEO_LOGIN is not set'), the transport with a configuration error that "
         "names the required key form.",
         "~",
         r"/error",
@@ -283,7 +283,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "search-rejected-key-surfaced",
-        "For Brave, Google PSE and SearXNG the previous library swallowed a 401 and returned an empty result list, so "
+        "For Brave, Google PSE and SearXNG the baseline library swallowed a 401 and returned an empty result list, so "
         "a wrong key looked like 'no results'; the transport raises the failure.",
         "~",
         r"/error|/result",

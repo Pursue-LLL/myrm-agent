@@ -1,7 +1,7 @@
-"""Replays the failures the previous stack was recorded on and reduces each to the verdicts the agent acts on.
+"""Replays the recorded failures and reduces each to the verdicts the agent acts on.
 
 [INPUT]
-- golden_failures_baseline.json (POS: every served failure with the previous stack's verdict on it)
+- golden_failures_baseline.json (POS: every served failure with the baseline's verdict on it)
 - golden_replay (POS: the in-memory provider and the adapter a replay goes through)
 - errors (POS: the classifiers the agent's recovery reads)
 - agent.errors.diagnostics::LLMErrorDiagnostic (POS: the error card a user is shown)
@@ -17,9 +17,9 @@ only its status says what happened, and a reply whose cause is named only in a k
 facts: the failover reason, the error kind, whether the context window or the request size is exhausted, whether the
 quota is spent and how long the provider asked to wait. What the user is told is the error card (its type, without a
 context and with a custom local endpoint). Those are what is compared. The committed
-``golden_failures_baseline.json`` was recorded by serving each case from a loopback HTTP server to the previous chat
-adapter (litellm 1.97.0, the version the server's uv.lock pins and the product runs) and reducing the exception it raised
-with the classifiers and the diagnostics of that stack's own packages; ``_meta`` states at which main, and how the
+``golden_failures_baseline.json`` was recorded by serving each case from a loopback HTTP server to the litellm chat
+adapter (litellm 1.97.0, the version the server's uv.lock pinned then) and reducing the exception it raised
+with the classifiers and the diagnostics of that library's own packages; ``_meta`` states at which main, and how the
 harness lock's litellm 1.106.0 reads the same corpus.
 """
 

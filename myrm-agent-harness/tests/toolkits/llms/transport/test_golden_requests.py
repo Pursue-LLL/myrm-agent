@@ -1,8 +1,8 @@
-"""Golden request test: the transport sends what the previous client library sent, except where registered.
+"""Golden request test: the transport sends what the baseline client library sent, except where registered.
 
 [INPUT]
 - golden_capture (POS: scenario matrix recorder)
-- golden_baseline.json (POS: requests recorded from the previous client library)
+- golden_baseline.json (POS: requests recorded from the baseline client library)
 - golden_catalog.json (POS: the model facts the baseline was recorded with, pinned so a catalog refresh cannot move them)
 - golden_allowed / golden_bedrock_allowed (POS: registries of intentional differences)
 

@@ -1,4 +1,4 @@
-"""Registry of the credential facts the installed stack sends differently from the previous one, each with its reason.
+"""Registry of the credential facts the installed stack sends differently from the baseline, each with its reason.
 
 [INPUT]
 - golden_compare::Allowed (POS: one entry: the facts that changed, with their new values, and why they are right)
@@ -24,7 +24,7 @@ _BEARER_BESIDE_KEY: Final = (
     "api-key); the vendor reads the key header alone, and only gateways in front of Anthropic expect the bearer."
 )
 _FETCHED_BETA_LIST: Final = (
-    "Before the call, the previous library downloaded a beta-header configuration file from raw.githubusercontent.com, "
+    "Before the call, the baseline library downloaded a beta-header configuration file from raw.githubusercontent.com, "
     "so a chat call depended on a third-party host; the transport contacts no host but the provider's."
 )
 _DOUBLED_AUTHORIZATION: Final = (
@@ -32,7 +32,7 @@ _DOUBLED_AUTHORIZATION: Final = (
 )
 _BODY_LEAK: Final = (
     "The caller's `model_kwargs` container, the Entra token inside it included, was copied into the request body as an "
-    "unknown top-level field; the token now travels only in the Authorization header."
+    "unknown top-level field; the token travels only in the Authorization header."
 )
 
 CREDENTIAL_ALLOWED: Final[Mapping[str, Allowed]] = {
@@ -67,7 +67,7 @@ CREDENTIAL_ALLOWED: Final[Mapping[str, Allowed]] = {
     "azure|ad_token": Allowed({"secrets_in_body": []}, _BODY_LEAK),
     "azure|ad_token_and_key": Allowed(
         {"h.authorization": "Bearer <ad_token>", "secrets_in_body": []},
-        f"{_BODY_LEAK} With both a resource key and an Entra token, the previous library sent the resource key as the "
+        f"{_BODY_LEAK} With both a resource key and an Entra token, the baseline library sent the resource key as the "
         "bearer token and not the Entra token; the token is the credential and the key is not sent.",
     ),
     "bedrock|bearer_env": Allowed(
@@ -80,7 +80,7 @@ CREDENTIAL_ALLOWED: Final[Mapping[str, Allowed]] = {
             "secrets_in_url": [],
             "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2%3A0/converse",
         },
-        "The Bedrock profile's key variable AWS_BEARER_TOKEN_BEDROCK supplies the bearer token; the previous library never "
+        "The Bedrock profile's key variable AWS_BEARER_TOKEN_BEDROCK supplies the bearer token; the baseline library never "
         "read it and failed with 'Unable to locate credentials'.",
     ),
 }

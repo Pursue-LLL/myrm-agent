@@ -3,11 +3,11 @@ from myrm_agent_harness.toolkits.code_execution.executors.models import scrub_se
 
 def test_scrub_absolute_paths():
     """Absolute paths are replaced with static placeholders."""
-    text = "The log file is at /Users/yululiu/project/logs/test.log"
+    text = "The log file is at /Users/alice/project/logs/test.log"
     expected = "The log file is at <HOME>/project/logs/test.log"
     assert scrub_sensitive_info(text) == expected
 
-    text_esc = "Path: \\/Users\\/yululiu\\/test.py"
+    text_esc = "Path: \\/Users\\/alice\\/test.py"
     expected_esc = "Path: <HOME>\\/test.py"
     assert scrub_sensitive_info(text_esc) == expected_esc
 
@@ -30,7 +30,7 @@ def test_scrub_credentials():
 
 def test_scrub_mixed_content():
     """Mixed paths + credentials are both scrubbed."""
-    text = "User /Users/yululiu accessed /tmp/data with API_KEY=mysecretvalue123"
+    text = "User /Users/alice accessed /tmp/data with API_KEY=mysecretvalue123"
     res = scrub_sensitive_info(text)
     assert "<HOME>" in res
     assert "<ABS_PATH>" in res
