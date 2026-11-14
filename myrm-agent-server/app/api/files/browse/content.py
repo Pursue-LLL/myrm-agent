@@ -16,11 +16,11 @@ import os
 from fastapi import Query
 from fastapi.responses import FileResponse, Response
 
+from app.api.files.content_disposition import build_content_disposition
 from app.core.utils.errors import validation_error
 
 from .common import (
     _MAX_CONTENT_SIZE,
-    _content_disposition,
     _is_text_file,
     _is_within_boundary,
     router,
@@ -103,7 +103,7 @@ async def browse_content(
 
     disposition = "attachment" if download else "inline"
     headers = {
-        "Content-Disposition": _content_disposition(disposition, filename),
+        "Content-Disposition": build_content_disposition(disposition, filename),
     }
 
     # Binary files are streamed in full (no truncation) so rich media

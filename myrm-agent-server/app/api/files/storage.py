@@ -9,6 +9,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from app.api.files.content_disposition import build_content_disposition
 from app.core.storage import files_service
 from app.core.storage.models import File as FileModel
 from app.core.storage.types import FilePurpose
@@ -190,9 +191,7 @@ async def get_file_content(
     return Response(
         content=content,
         media_type=file.content_type,
-        headers={
-            "Content-Disposition": f'{disposition}; filename="{file.filename}"',
-        },
+        headers={"Content-Disposition": build_content_disposition(disposition, file.filename)},
     )
 
 
