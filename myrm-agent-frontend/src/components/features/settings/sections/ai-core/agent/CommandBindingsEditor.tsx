@@ -85,7 +85,7 @@ export function CommandBindingsEditor({ value, issues, onChange }: CommandBindin
           onPatch={(patch) => patchBinding(index, patch)}
         />
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={addBinding}>
+      <Button type="button" variant="outline" size="sm" data-testid="command-binding-add" onClick={addBinding}>
         <Plus className="h-3.5 w-3.5" />
         {t('add')}
       </Button>
@@ -122,6 +122,7 @@ function BindingRow({ binding, issue, skills, skillsLoading, expanded, onToggle,
 
   return (
     <div
+      data-testid="command-binding-row"
       className={cn(
         'rounded-xl border bg-card/60 transition-colors',
         visibleIssue ? 'border-destructive/40' : expanded ? 'border-primary/40' : 'border-border/50',
@@ -156,6 +157,7 @@ function BindingRow({ binding, issue, skills, skillsLoading, expanded, onToggle,
           variant="ghost"
           size="icon"
           aria-label={t('remove')}
+          data-testid="command-binding-remove"
           className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive-text"
           onClick={onRemove}
         >
@@ -178,6 +180,7 @@ function BindingRow({ binding, issue, skills, skillsLoading, expanded, onToggle,
             </Label>
             <Input
               id={`${idPrefix}-name`}
+              data-testid="command-binding-name"
               value={binding.command_name}
               onChange={(e) => onPatch({ command_name: sanitizeCommandToken(e.target.value) })}
               placeholder={t('namePlaceholder')}
@@ -249,6 +252,7 @@ function SkillChip({ label, selected, onClick }: { label: string; selected: bool
     <button
       type="button"
       aria-pressed={selected}
+      data-testid="command-binding-skill"
       onClick={onClick}
       className={cn(
         'inline-flex items-center rounded-full px-2.5 py-1 text-xs transition-colors',

@@ -21,7 +21,7 @@ export function AgentCommandBindings({ state }: { state: AgentCommandBindingsSta
   const t = useTranslations('agent.commandBindings');
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/50 bg-card/60 p-4">
+    <div data-testid="agent-command-bindings" className="space-y-3 rounded-xl border border-border/50 bg-card/60 p-4">
       <div>
         <h4 className="text-sm font-medium text-foreground">{t('title')}</h4>
         <p className="mt-0.5 text-xs text-muted-foreground">{t('description')}</p>
