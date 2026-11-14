@@ -57,7 +57,7 @@
 | `bash/` | PTY/bash 执行、输出压缩与 eviction | `bash_code_execute_tool`（聚合根）、`bash_executor`（4 mixin 聚合） |
 | `file_ops/` | 读写编辑、validators、observers；`file_read_tool` 支持 `vault://`；`file_edit_tool` 支持 `edits[]` 批量原子替换 | `file_read_tool`, `file_write_tool`, `file_edit_tool` |
 | `file_search/` | glob/grep 文件名与内容搜索 | `glob_tool`, `grep_tool` |
-| `spawn_subagent/` | delegate/control/teammate (mode=batch|parallel on delegate) | `delegate_task_tool`, `subagent_control_tool` |
+| `spawn_subagent/` | delegate/control (mode=batch|parallel on delegate) | `delegate_task_tool`, `subagent_control_tool` |
 | `skills/` | select/manage/discovery 技能工具 | `create_skill_*_tool` 系列（见各子目录） |
 | `goals/` | Goal 引擎 LLM 工具面（域逻辑在 `agent/goals/`） | `create_goal_tools` |
 | `progress/` | 主 Agent 多步 todo 进度（workspace SSOT + SSE，支持 blocked 状态与自愈） | `create_todo_write_tool` |

@@ -72,7 +72,6 @@ class DelegationCapabilityManifest:
         orchestrator_child_tools = (
             "delegate_task_tool",
             "subagent_control_tool",
-            "send_teammate_message_tool",
         )
         privileged_skill_tools = frozenset({"skill_manage_tool", "skill_market_tool"})
         legacy_delegation_tools = frozenset(

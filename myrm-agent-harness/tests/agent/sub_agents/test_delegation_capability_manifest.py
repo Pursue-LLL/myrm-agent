@@ -23,7 +23,6 @@ def test_default_manifest_blocks_hitl_and_delegation_tools() -> None:
     assert manifest.orchestrator_child_tools == (
         "delegate_task_tool",
         "subagent_control_tool",
-        "send_teammate_message_tool",
     )
 
 

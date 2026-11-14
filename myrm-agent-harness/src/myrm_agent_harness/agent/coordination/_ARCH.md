@@ -1,28 +1,16 @@
-# coordination — Subagent P2P Mailbox
+# coordination — Background Completion Wakeup
 
 ## 架构概述
 
-Session-scoped in-memory queues with optional workspace JSONL persistence (`teammate_mailbox_{session_id}.jsonl`). Used for sibling subagent direct messaging without polluting parent context.
-
-- **Rate limit**: sliding window 30 sends / 60s per `from_task_id`; failures return `TeammateSendResult.error`.
-- **Target validation**: `send_teammate_message_tool` rejects unknown `target_task_id` (not in active roster).
-- **JSONL retention**: trim file to last 1000 lines after persist.
-- **GUI SSE (M1)**: `send_teammate_message_tool` success → `emit_teammate_message_sse` via `ToolProgressSink`; drain path still emits for recipient turn.
-- **Roster injection**: `drain_teammate_messages_for_task(include_roster=True)` appends `<active_teammates>` XML so the LLM knows sibling task IDs for P2P messaging. The `_drain_teammate_messages` closure in `agent_runtime.py` uses a `_roster_injected` flag to inject roster on the first turn and refresh it only when new messages arrive.
+后台任务结算之后，是否、以何种方式再次唤醒父会话的协调层。`adaptive_wakeup/` 在有界的连续唤醒预算内给出 FOLLOWUP / DEGRADE / SUPPRESS 决策。子 Agent 之间没有直连通道：每个子 Agent 的结果只汇报给父 Agent，由父 Agent 通过 `subagent_control_tool` 与完成通知统一读取。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `types.py` | 核心 | `TeammateMessage` dataclass | ✅ |
-| `mailbox.py` | 核心 | `TeammateMailbox`, send/drain/history/group | ✅ |
 | `adaptive_wakeup/` | 核心 | 后台任务完成后的自适应唤醒路由：用户停止抑制、有界连续唤醒预算（FOLLOWUP / DEGRADE / SUPPRESS；结算只读预算，唤醒回合真正开始时由宿主 `claim_wake_turn` 扣一次）(types, budget_tracker, adaptive_router) | ✅ |
 | `__init__.py` | 导出 | Public API surface | ✅ |
 
 ## 模块依赖
 
-- `agent.sub_agents.manager` — spawn registers / complete unregisters roster on mailbox
-- `agent.meta_tools.spawn_subagent.send_teammate_tool` — LLM send path
-- `app.api.agents.subagents` — API hydrate via `list_teammate_history`
 - `app.services.agent.wakeup_handler` & `background_job_finish_handler` — hand settlements to `adaptive_wakeup/service.py`, which decides the followup (the router only reads the budget; the wake turn spends it)
-

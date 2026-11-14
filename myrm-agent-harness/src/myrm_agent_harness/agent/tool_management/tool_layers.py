@@ -134,7 +134,6 @@ _TOOL_LAYERS: dict[str, ToolLayer] = {
     # --- Sub-Agent 管理 ---
     "delegate_task_tool": ToolLayer.EXTENDED,
     "subagent_control_tool": ToolLayer.EXTENDED,
-    "send_teammate_message_tool": ToolLayer.EXTENDED,
     # --- Wiki 知识库 (Agent 面向仅 ingest / query / apply) ---
     "wiki_ingest_tool": ToolLayer.EXTENDED,
     "wiki_query_tool": ToolLayer.EXTENDED,

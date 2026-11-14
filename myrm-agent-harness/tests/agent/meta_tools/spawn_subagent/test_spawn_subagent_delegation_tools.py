@@ -1,8 +1,8 @@
-"""Unit tests for spawn_subagent delegation tool factories (parallel + teammate + pause gate)."""
+"""Unit tests for spawn_subagent delegation tool factories (parallel + pause gate)."""
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -84,85 +84,6 @@ class TestExecuteParallelDelegation:
             assert "paused" in str(result["error"]).lower()
         finally:
             resume_delegation("chat_test")
-
-
-class TestSendTeammateMessageTool:
-    @pytest.mark.asyncio
-    async def test_rejects_outside_subagent_context(self) -> None:
-        from myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool import (
-            create_send_teammate_message_tool,
-        )
-
-        parent = _make_parent()
-        tool = create_send_teammate_message_tool(parent)
-        with patch(
-            "myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool.get_subagent_task_id",
-            return_value=None,
-        ):
-            result = await tool.ainvoke({"target_task_id": "peer-1", "body": "hello"})
-        assert result["success"] is False
-        assert "subagent context" in result["error"]
-
-    @pytest.mark.asyncio
-    async def test_sends_when_roster_contains_target(self) -> None:
-        from myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool import (
-            create_send_teammate_message_tool,
-        )
-
-        parent = _make_parent()
-        parent.list_children.return_value = [{"task_id": "self-1", "agent_type": "worker"}]
-        tool = create_send_teammate_message_tool(parent)
-
-        mailbox = MagicMock()
-        mailbox.list_active_roster.return_value = [{"task_id": "peer-1", "agent_type": "worker"}]
-        send_result = MagicMock()
-        send_result.accepted = True
-        send_result.error = None
-        mailbox.send = AsyncMock(return_value=send_result)
-
-        with (
-            patch(
-                "myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool.get_subagent_task_id",
-                return_value="self-1",
-            ),
-            patch(
-                "myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool.get_approval_session",
-                return_value="chat_test",
-            ),
-            patch(
-                "myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool.get_teammate_mailbox",
-                new=AsyncMock(return_value=mailbox),
-            ),
-            patch(
-                "myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool.emit_teammate_message_sse",
-                new=AsyncMock(),
-            ) as emit_sse,
-        ):
-            result = await tool.ainvoke({"target_task_id": "peer-1", "body": "hello"})
-
-        assert result["success"] is True
-        emit_sse.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_rejects_missing_session_id(self) -> None:
-        from myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool import (
-            create_send_teammate_message_tool,
-        )
-
-        tool = create_send_teammate_message_tool(_make_parent())
-        with (
-            patch(
-                "myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool.get_subagent_task_id",
-                return_value="self-1",
-            ),
-            patch(
-                "myrm_agent_harness.agent.meta_tools.spawn_subagent.send_teammate_tool.get_approval_session",
-                return_value="",
-            ),
-        ):
-            result = await tool.ainvoke({"target_task_id": "peer-1", "body": "hello"})
-        assert result["success"] is False
-        assert "session_id" in result["error"]
 
 
 class TestDelegateTaskPauseGate:
@@ -306,9 +227,8 @@ class TestSubagentControlToolFactory:
 
 
 class TestDelegationCapabilityManifest:
-    def test_orchestrator_child_tools_include_three(self) -> None:
-        names = DELEGATION_CAPABILITY_MANIFEST.orchestrator_child_tools
-        assert "delegate_task_tool" in names
-        assert "subagent_control_tool" in names
-        assert "send_teammate_message_tool" in names
-        assert len(names) == 3
+    def test_orchestrator_child_tools_are_delegate_and_control(self) -> None:
+        assert DELEGATION_CAPABILITY_MANIFEST.orchestrator_child_tools == (
+            "delegate_task_tool",
+            "subagent_control_tool",
+        )

@@ -516,12 +516,6 @@ class SubagentManager(SubagentSpawnMixin, SubagentControlMixin):
         session_id = ""
         if hasattr(self._parent_agent, "session_id"):
             session_id = str(getattr(self._parent_agent, "session_id", ""))
-        if session_id and not internal:
-            from myrm_agent_harness.agent.coordination.mailbox import (
-                unregister_active_teammate,
-            )
-
-            unregister_active_teammate(session_id, task_id)
         metadata = self._child_observability_metadata(task_id)
         budget = metadata.get("budget")
 

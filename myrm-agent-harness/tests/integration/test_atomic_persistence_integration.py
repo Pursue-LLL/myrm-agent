@@ -4,7 +4,6 @@ These tests exercise the real filesystem (no mocks on the critical write path)
 to prove the crash-consistency guarantees the atomic-write fixes promise:
 
 - context snapshot offload writes through the atomic byte path and is readable back
-- teammate mailbox JSONL trim keeps a fully parseable file after exceeding the cap
 - usage ledger concurrent appends never interleave into a corrupt JSONL
 - encryption key file is written atomically with restricted permissions
 - skill instance/state files are written atomically and round-trip
@@ -23,11 +22,6 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.coordination.mailbox import (
-    TeammateMailbox,
-    list_teammate_history,
-)
-from myrm_agent_harness.agent.coordination.types import TeammateMessage
 from myrm_agent_harness.backends.skills.state_manager import SkillStateManager
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -115,41 +109,6 @@ async def test_context_snapshot_roundtrip_via_real_executor(
 
 
 @pytest.mark.integration
-def test_mailbox_trim_keeps_parseable_jsonl(tmp_path: Path) -> None:
-    """After trimming past the cap, the JSONL must remain fully parseable."""
-    from myrm_agent_harness.agent.coordination.mailbox import _MAX_JSONL_LINES
-
-    workspace = tmp_path / "ws"
-    workspace.mkdir()
-    mailbox = TeammateMailbox("sess-trim-integ", workspace_path=str(workspace))
-    msg = TeammateMessage(
-        message_id="m-integ",
-        session_id="sess-trim-integ",
-        from_task_id="a",
-        to_task_id="b",
-        from_agent_type="coder",
-        body="line",
-        created_at=1.0,
-    )
-    path = workspace / "teammate_mailbox_sess-trim-integ.jsonl"
-    path.write_text(
-        "\n".join('{"message_id":"x"}' for _ in range(_MAX_JSONL_LINES + 50)) + "\n"
-    )
-
-    mailbox._persist(msg)
-
-    # Every line must parse as JSON (no partial line from a non-atomic rewrite).
-    lines = path.read_text(encoding="utf-8").splitlines()
-    assert len(lines) <= _MAX_JSONL_LINES
-    for line in lines:
-        json.loads(line)
-
-    # The history reader must return the trimmed rows (pass a large limit).
-    history = list_teammate_history("sess-trim-integ", str(workspace), limit=2000)
-    assert len(history) == len(lines)
-
-
-@pytest.mark.integration
 def test_usage_ledger_concurrent_appends_stay_parseable(tmp_path: Path) -> None:
     """Concurrent appends must never interleave into a corrupt JSONL."""
     import threading
@@ -229,31 +188,3 @@ def test_skill_state_manager_atomic_roundtrip(tmp_path: Path) -> None:
     # No atomic temp residue anywhere under the skills tree.
     residue = [p for p in (tmp_path / "skills").rglob(".atomic_*")]
     assert residue == []
-
-
-@pytest.mark.integration
-def test_mailbox_send_persists_and_reads_back(tmp_path: Path) -> None:
-    """A normal send must persist to JSONL and be readable back via history."""
-    workspace = tmp_path / "ws"
-    workspace.mkdir()
-    mailbox = TeammateMailbox("sess-send-integ", workspace_path=str(workspace))
-    msg = TeammateMessage(
-        message_id="m-send-integ",
-        session_id="sess-send-integ",
-        from_task_id="a",
-        to_task_id="b",
-        from_agent_type="coder",
-        body="hello teammate",
-        created_at=1.0,
-    )
-
-    result = mailbox.send_sync(msg)
-    assert result.accepted
-
-    # The message must be readable back from the JSONL file.
-    history = list_teammate_history("sess-send-integ", str(workspace))
-    assert len(history) == 1
-    assert history[0]["message_id"] == "m-send-integ"
-    assert history[0]["body"] == "hello teammate"
-    assert history[0]["from_task_id"] == "a"
-    assert history[0]["to_task_id"] == "b"

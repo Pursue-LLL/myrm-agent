@@ -74,7 +74,6 @@ _LOAD_CONDITION_OVERRIDES: dict[str, str] = {
     "skill_manage_tool": "enabled_builtin_tools: skill_manage or /learn force_skill_manage (server Turn1)",
     "delegate_task_tool": "SubagentManagementExtension + entitlements",
     "subagent_control_tool": "SubagentManagementExtension + entitlements",
-    "send_teammate_message_tool": "SubagentManagementExtension + entitlements",
     "complete_goal_tool": "active Goal on chat",
     "channel_notify_tool": "Agent notify_targets configured",
     "cron_manage_tool": "user cron capability wired",
