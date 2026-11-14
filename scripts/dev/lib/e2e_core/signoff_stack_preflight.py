@@ -1,11 +1,11 @@
 """Stack preflight SSOT — hot attach vs bounded heal for epoch preflight (Phase C / maintainer gates).
 
 [INPUT]
-- gate_epoch_core.SoloSnapshot, api_verify, runtime_identity.collect_runtime_parts, frontend_epoch hot state, endpoint_health probes
+- gate_epoch_core.SoloSnapshot, myrm_cmd, api_verify, runtime_identity.collect_runtime_parts, frontend_epoch hot state, endpoint_health probes
 - e2e_core.dev_ports::shared_api_base / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
-- run_signoff_ready_under_flock() → exit rc for subprocess myrm ready
+- run_signoff_ready_under_flock() → exit rc for subprocess `myrm-dev ready`
 
 [POS]
 Dev gate layer only. Bounded `ready --chrome` during solo-cluster epoch preflight.
@@ -21,7 +21,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from e2e_core.dev_ports import shared_api_base, shared_ui_base
-from e2e_core.gate_epoch_core import SoloSnapshot, read_solo_snapshot
+from e2e_core.gate_epoch_core import SoloSnapshot, myrm_cmd, read_solo_snapshot
 
 
 class SignoffReadyMode(StrEnum):
@@ -40,10 +40,6 @@ class StackHotSnapshot:
 
 def _emit(token: str) -> None:
     print(token, flush=True)
-
-
-def _myrm_cmd(monorepo_root: Path, *parts: str) -> list[str]:
-    return [str(monorepo_root / "myrm"), *parts]
 
 
 def shared_stack_ports_reachable() -> bool:
@@ -173,7 +169,7 @@ def run_signoff_ready_under_flock(
             f"shell_hot={hot.shell_hot} client_hot={hot.client_hot} "
             f"epoch_match={hot.epoch_match} blocked={hot.blocked} wall={attach_wall}s"
         )
-        cmd = _myrm_cmd(monorepo_root, "ready", "--attach", "--chrome")
+        cmd = myrm_cmd(monorepo_root, "ready", "--attach", "--chrome")
         flock_wait = float(min(90, attach_wall + 30))
     else:
         heal_wall = max(30, min(wall_sec, 300))
@@ -184,7 +180,7 @@ def run_signoff_ready_under_flock(
             f"shell_hot={hot.shell_hot} client_hot={hot.client_hot} "
             f"epoch_match={hot.epoch_match} blocked={hot.blocked} wall={heal_wall}s"
         )
-        cmd = _myrm_cmd(monorepo_root, "ready", "--chrome")
+        cmd = myrm_cmd(monorepo_root, "ready", "--chrome")
         flock_wait = float(min(330, heal_wall + 30))
 
     try:

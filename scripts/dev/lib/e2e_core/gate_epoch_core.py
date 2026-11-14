@@ -7,7 +7,7 @@
 [OUTPUT]
 - `PreflightOutcome` / `PreflightResult` / `SoloSnapshot`: the verdict types of the preflight
 - `read_solo_snapshot()` / `solo_cluster_clear()` / `epoch_ready()`: whether the solo cluster is idle and the epoch matches
-- `emit()` / `myrm_cmd()` / `run_heal_flocked()`: gate tokens on stdout and `./myrm` commands run under the heal flock
+- `emit()` / `myrm_cmd()` / `run_heal_flocked()`: gate tokens on stdout and `./myrm-dev` commands run under the heal flock
 
 [POS]
 Dev gate layer only. Shared by `gate_epoch_chrome_heal.py`, `gate_epoch_ready.py` and `gate_epoch_preflight.py`; holds no heal policy of its own.
@@ -100,4 +100,5 @@ def run_heal_flocked(
 
 
 def myrm_cmd(monorepo_root: Path, *parts: str) -> list[str]:
-    return [str(monorepo_root / "myrm"), *parts]
+    """Developer CLI command line: `ready`, `restart` and `verify-api` live there, not in the user CLI."""
+    return [str(monorepo_root / "myrm-dev"), *parts]

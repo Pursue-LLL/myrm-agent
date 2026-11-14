@@ -5,7 +5,7 @@
     uv run python tests/benchmarks/bench_mcp_ptc_vs_direct.py
 
 前置条件:
-    - Myrm server 已启动 (./myrm start 或 ./myrm dev)
+    - Myrm server 已启动 (./myrm start 或 ./myrm-dev dev)
     - .env.test 配置 BASIC_*
     - Node ``12306-mcp`` 可用（npm install -g 12306-mcp）
 

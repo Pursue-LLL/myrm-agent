@@ -64,7 +64,7 @@ def main() -> None:
         raise SystemExit(1) from exc
     except urllib.error.URLError as exc:
         print(
-            f"Backend not reachable at {args.api_base}. Start ./myrm dev first.",
+            f"Backend not reachable at {args.api_base}. Start ./myrm-dev dev first.",
             file=sys.stderr,
         )
         raise SystemExit(1) from exc
