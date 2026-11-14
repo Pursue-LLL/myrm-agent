@@ -205,6 +205,16 @@ def test_split_message_text_inside_hundreds_of_open_tags_still_goes_out():
     chunks = split_message("<b>" * 700 + words, limit=4096)
     assert all(_utf16_len(chunk) <= 4096 and _is_balanced(chunk) for chunk in chunks)
     assert "".join(_text_of(chunk) for chunk in chunks) == words
+    # Each chunk keeps an eighth of the limit for text, so 7,200 characters are not spread over thousands of chunks
+    assert len(chunks) <= 16
+
+
+@pytest.mark.parametrize(("limit", "kept", "text_per_chunk"), [(79, 10, 9), (78, 9, 15)])
+def test_split_message_keeps_an_eighth_of_the_limit_free_for_text(limit, kept, text_per_chunk):
+    # An eighth of 78 and of 79 is 9 units, and a <b> with its closer takes 7. Ten of them plus those 9 units end exactly
+    # on 79, so all ten stay; at 78 the tenth would pass the limit by one unit and is dropped.
+    chunks = split_message("<b>" * (kept + 2) + "x" * (text_per_chunk * 30), limit=limit)
+    assert chunks == ["<b>" * kept + "x" * text_per_chunk + "</b>" * kept] * 30
 
 
 _TAGS = ("b", "i", "u", "s", "code", "pre")
