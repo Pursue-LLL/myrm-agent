@@ -21,6 +21,8 @@ After each sync the snapshot's ``requires`` matches the SKILL.md that stays in s
 when it differs from the seed), so the Skills page gates what the runtime gates. Editing SKILL.md
 through the files API refreshes it at the next sync. The snapshot also carries the seed's declared
 ``required_permissions``, which the enable-time permission gate reads.
+A seed's snapshot (token count, tags) is built only when the seed is installed or changed; seeds that
+already match their stored copy are never tokenized, so a later start spends no pre-listen time counting tokens.
 Also handles stale entry cleanup for removed bundled skills.
 """
 
@@ -30,6 +32,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
@@ -82,13 +85,13 @@ def _build_skill_from_seed(
     description: str,
     category: str | None,
     version: str | None,
-    tags: list[str],
     allowed_tools: list[str] | None = None,
     requires: SkillRequires | None = None,
     required_oauth_issuers: list[str] | None = None,
     required_mcp_server_ids: list[str] | None = None,
     required_permissions: list[str] | None = None,
 ) -> Skill:
+    """Build the storage snapshot of a bundled seed; counting its tokens is the expensive part."""
     skill_id = frontmatter_name or skill_dir_name
     storage_path = f"skills/prebuilt/{skill_id}"
     token_cost: int | None = None
@@ -106,7 +109,7 @@ def _build_skill_from_seed(
         storage_path=storage_path,
         version=version or "1.0.0",
         category=category,
-        tags=tags,
+        tags=_parse_tags(parse_skill_md(content)),
         token_cost=token_cost,
         allowed_tools=allowed_tools,
         requires=requires or SkillRequires(),
@@ -230,8 +233,6 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             )
             continue
 
-        raw_meta = parse_skill_md(source_content)
-        tags = _parse_tags(raw_meta)
         skill_id = frontmatter.name or skill_dir.name
         skill_ids.append(skill_id)
 
@@ -239,14 +240,16 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             [t.strip() for t in frontmatter.allowed_tools.split() if t.strip()] if frontmatter.allowed_tools else None
         )
         seed_requires = frontmatter.requires or SkillRequires()
-        skill = _build_skill_from_seed(
+        # Only installs and upstream changes write a snapshot; unchanged seeds (every start after the
+        # first) skip building it, which would tokenize the whole SKILL.md of every bundled skill.
+        build_skill = partial(
+            _build_skill_from_seed,
             skill_dir_name=skill_dir.name,
             content=source_content,
             frontmatter_name=frontmatter.name,
             description=frontmatter.description,
             category=frontmatter.category,
             version=frontmatter.version,
-            tags=tags,
             allowed_tools=allowed_tools_list,
             requires=seed_requires,
             required_oauth_issuers=frontmatter.required_oauth_issuers,
@@ -272,6 +275,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
 
         if existing_md is None:
             # First-time sync: write content, metadata, and record origin_hash
+            skill = build_skill()
             skill.origin_hash = source_hash
             await _write_skill_to_storage(storage, skill, skill_md_storage, metadata_storage, source_content)
             await _sync_skill_bundle_files(storage, skill_id, skill_dir)
@@ -286,6 +290,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
 
         if origin_hash is None:
             # Migration from pre-origin_hash era: baseline current content as origin
+            skill = build_skill()
             skill.origin_hash = source_hash
             if current_hash == source_hash:
                 # Content matches upstream — normal write to add origin_hash
@@ -308,6 +313,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             # User modified this skill — protect their changes
             if source_hash != origin_hash:
                 # Upstream also changed — mark for user review
+                skill = build_skill()
                 skill.origin_hash = origin_hash
                 skill.has_upstream_update = True
                 skill.requires = kept_requires
@@ -321,6 +327,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
 
         # User hasn't modified — check if upstream has a newer version
         if source_hash != origin_hash:
+            skill = build_skill()
             skill.origin_hash = source_hash
             skill.has_upstream_update = False
             await _write_skill_to_storage(storage, skill, skill_md_storage, metadata_storage, source_content)
