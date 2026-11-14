@@ -5617,11 +5617,6 @@
           "prompt_injection": "Prompt blocked by safety scan",
           "unsupported_job_type": "Unsupported task type"
         },
-        "tokenEconomics": {
-          "title": "Token usage comparison",
-          "description": "{count} skill(s) detected — here is how per-turn token cost compares",
-          "savings": "{percent}% saved"
-        },
         "sessionsTitle": "Session Lane — {count} session(s) detected",
         "resumptionReady": "Ready for Resumption",
         "sessionsDesc": "Full conversational transcripts extracted from external assistant. Directly imported into your chat list, preserving sandbox paths and prompt cache affinity.",

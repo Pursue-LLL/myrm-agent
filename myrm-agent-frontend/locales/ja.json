@@ -5617,11 +5617,6 @@
           "prompt_injection": "プロンプトがセキュリティスキャンでブロックされました",
           "unsupported_job_type": "未対応のタスクタイプ"
         },
-        "tokenEconomics": {
-          "title": "ターンあたりのトークン使用量比較",
-          "description": "{count} 個のスキルが検出されました — ターンあたりのトークンコストの比較",
-          "savings": "{percent}% 削減"
-        },
         "sessionsTitle": "セッションレーン — {count} 件の過去セッションを検出",
         "resumptionReady": "即時再開可能",
         "sessionsDesc": "外部アシスタントから完全なトランスクリプトを忠実に抽出。チャットリストに直接インポートされ、サンドボックスパスと Prompt Cache 親和性を保持します。",

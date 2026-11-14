@@ -5617,11 +5617,6 @@
           "prompt_injection": "提示詞未通過安全掃描",
           "unsupported_job_type": "不支援的任務類型"
         },
-        "tokenEconomics": {
-          "title": "每輪 Token 用量對比",
-          "description": "檢測到 {count} 個技能 — 以下是每輪對話 Token 開銷對比",
-          "savings": "節省 {percent}%"
-        },
         "sessionsTitle": "會話車道 — 檢測到 {count} 個歷史會話",
         "resumptionReady": "可直接續聊",
         "sessionsDesc": "從外部助手高保真提取完整轉錄本，匯入後直接落庫會話列表，保留沙箱路徑與 Prompt Cache 親和性。",

@@ -17,7 +17,6 @@ import {
   MigrationLaneMatrix,
   SessionPreviewCard,
   SummaryCell,
-  TokenEconomicsCard,
 } from './PreviewCards';
 import {
   CronSkippedPanel,
@@ -134,14 +133,6 @@ export function PreviewStep({
       {source.competitor === 'hermes' && <HermesArchitectureMappingCard t={t} />}
 
       <CronSkippedPanel items={dryRun.cron_skipped ?? []} t={t} />
-
-      {dryRun.token_economics && (
-        <TokenEconomicsCard
-          data={dryRun.token_economics}
-          sourceName={resolveSourceDisplayName(source.competitor, t)}
-          t={t}
-        />
-      )}
 
       {(dryRun.instruction_total_chars ?? 0) > 8000 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-700 dark:text-amber-400">
