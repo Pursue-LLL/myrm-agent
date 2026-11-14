@@ -16,8 +16,6 @@ E2E_LAUNCH_CHECK_WALL_SOLO_SEC: Final[float] = 45.0
 E2E_LAUNCH_CHECK_WALL_LEASE_SCALE_SEC: Final[float] = 15.0
 E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 180.0
 
-# attach crash-heal try-lock; defer instead of 180s×N dogpile under parallel attach.
-E2E_ATTACH_CRASH_HEAL_FLOCK_WAIT_SEC: Final[float] = 5.0
 SHARED_ATTACH_RECOVERY_WAIT_SEC: Final[int] = 360
 # contract: attach recovery must cover a full frontend heal cycle
 # (STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC=360). The previous 20s cap made
@@ -310,5 +308,4 @@ def shared_ui_hydrate_wait_sec() -> int:
     return E2E_ADMISSION_WALL_CLOCK_SEC
 
 
-SIGNOFF_ATTACH_WAIT_SEC: Final[int] = 120
 SIGNOFF_ATTACH_PARALLEL_CAP_SEC: Final[int] = 420

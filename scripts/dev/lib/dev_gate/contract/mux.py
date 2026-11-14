@@ -14,7 +14,6 @@ from dev_gate.contract.wall_clock import (
     signoff_effective_bootstrap_wall_sec,
 )
 
-MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
 CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT: Final[int] = 180_000
 LEGACY_MUX_REQUEST_TIMEOUT_MS: Final[tuple[int, ...]] = (55_000, 65_000, 120_000)
 # mux tools/list probe budget during attach/bootstrap (align chrome-e2e-preflight.sh).

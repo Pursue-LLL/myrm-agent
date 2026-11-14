@@ -216,28 +216,6 @@ def signoff_new_page_join_timeout_sec(
     return result
 
 
-def signoff_new_page_join_stall_abandon_sec(
-    *,
-    join_timeout_sec: float,
-    parallel_peers: int | None = None,
-) -> float:
-    """abandon hung threaded new_page early under parallel mux queue starvation."""
-    peers = parallel_peers
-    if peers is None:
-        peers = parallel_pressure.parallel_signoff_pressure_peers()
-    base = 120.0 + max(0, int(peers)) * 20.0
-    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
-        base = max(base, 180.0)
-    elif is_e2e_signoff_runtime():
-        base = max(base, 240.0)
-    stall_cap = 300.0
-    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
-        stall_cap = 420.0
-    elif is_e2e_signoff_runtime():
-        stall_cap = 360.0
-    return min(join_timeout_sec, min(base, stall_cap))
-
-
 def shpoib_rebind_location_wait_cap_sec() -> float:
     """SHPOIB navigate location settle; signoff scales under parallel shared-UI compile."""
     if not is_e2e_signoff_runtime():

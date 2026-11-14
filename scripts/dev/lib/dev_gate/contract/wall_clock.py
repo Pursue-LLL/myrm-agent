@@ -40,8 +40,6 @@ E2E_BOOTSTRAP_SHELL_MIN_SEC: Final[float] = 60.0
 E2E_TEARDOWN_WALL_CLOCK_SEC: Final[int] = 30
 # parallel burst SQLite lock + observed seal can exceed 60s; client must wait.
 E2E_TEARDOWN_FINISH_CLIENT_TIMEOUT_SEC: Final[int] = 120
-# Legacy alias: BODY budget for signoff quality gate (not queue+bootstrap merged).
-SIGNOFF_LEG_MTB_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 # pytest-timeout spans ADMIT+BOOTSTRAP fixtures + BODY (func_only=False); must not
 # kill during SHPOIB capacity wait under parallel chrome_e2e. Quality gate still uses
 # ceil(startup+junit_time) ≤600s for BODY-only elapsed.
@@ -50,8 +48,6 @@ SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = (
     + E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
     + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 )
-SIGNOFF_DEDUPE_WAIT_SEC: Final[int] = 60
-SIGNOFF_HUNG_BLOCKER_ELAPSED_SEC: Final[int] = SIGNOFF_LEG_MTB_SEC
 _SIGNOFF_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 
 
@@ -110,11 +106,6 @@ def signoff_effective_bootstrap_wall_sec() -> float:
     if batch_bootstrap_raw.isdigit():
         bootstrap_sec = max(bootstrap_sec, float(int(batch_bootstrap_raw)))
     return bootstrap_sec
-
-
-def chrome_e2e_skips_signoff_private_preflight() -> bool:
-    """Private SHPOIB preflight seed always runs (no API-only signoff bypass)."""
-    return False
 
 
 def resolve_e2e_wall_profile() -> E2eWallProfile:

@@ -159,7 +159,6 @@ from dev_gate.contract.open_page import (
     SignoffOpenMcpBudgets,
     shpoib_rebind_location_wait_cap_sec,
     signoff_bootstrap_open_mcp_budgets,
-    signoff_new_page_join_stall_abandon_sec,
     signoff_new_page_join_timeout_sec,
     signoff_open_mcp_budgets,
 )
@@ -311,7 +310,7 @@ __all__ = (
     "signoff_bootstrap_open_mcp_budgets", "signoff_bootstrap_transport_stall_cap_sec",
     "signoff_desktop_open_nav_attempt_wall_sec", "signoff_effective_body_wall_sec", "signoff_effective_bootstrap_wall_sec",
     "signoff_hitl_pin_max_attempts", "signoff_hitl_pin_request_timeout_sec", "signoff_mux_transport_wait_budget_sec",
-    "signoff_new_page_join_stall_abandon_sec", "signoff_new_page_join_timeout_sec", "signoff_open_mcp_budgets",
+    "signoff_new_page_join_timeout_sec", "signoff_open_mcp_budgets",
     "signoff_open_page_transport_stall_cap_sec", "signoff_outer_kill_sec", "signoff_pytest_timeout_ceiling_sec",
     "signoff_read_shpoib_body_wall_sec", "signoff_stack_recovery_admit_budget_sec", "signoff_wave_open_wait_sec",
 )
