@@ -41,7 +41,11 @@ async def await_shared_result(
 
 class FetchEngineCacheMixin:
     def _ensure_workers_started(self: FetchEngine) -> None:
-        """Lazy start background workers (idempotent, thread-safe)."""
+        """Start the background revalidation workers on first use (idempotent).
+
+        Only a stale hit that queues a refresh calls this. An engine that never serves a stale entry (such as the
+        one a tool call builds and drops) therefore holds no task, and nothing is left pending when it is collected.
+        """
         if self._workers_started:
             return
 
@@ -94,6 +98,7 @@ class FetchEngineCacheMixin:
                     cache_key=cache_key,
                     cached_item=cached_item,
                 )
+                self._ensure_workers_started()
                 self._background_queue.put_nowait(task)
             return cached_item.doc
 
