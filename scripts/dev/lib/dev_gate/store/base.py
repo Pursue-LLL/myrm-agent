@@ -17,7 +17,7 @@ from dev_gate.session import (
     SessionState,
     Workload,
 )
-from dev_gate.store.connection import dev_gate_sqlite_busy_timeout_ms
+from dev_gate.store.connection import dev_gate_sqlite_busy_timeout_ms, enable_wal
 from dev_gate.store.schema import MIGRATIONS, SCHEMA
 
 
@@ -29,7 +29,7 @@ class StoreBase:
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30.0)
         connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA journal_mode=WAL")
+        enable_wal(connection)
         connection.execute("PRAGMA synchronous=FULL")
         connection.execute("PRAGMA foreign_keys=ON")
         busy_ms = dev_gate_sqlite_busy_timeout_ms()
@@ -42,8 +42,9 @@ class StoreBase:
             for statement in MIGRATIONS:
                 try:
                     connection.execute(statement)
-                except sqlite3.OperationalError:
-                    pass
+                except sqlite3.OperationalError as exc:
+                    if "duplicate column name" not in str(exc).lower():
+                        raise
         self.path.chmod(0o600)
 
     @staticmethod
