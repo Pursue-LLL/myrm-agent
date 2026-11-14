@@ -6,7 +6,6 @@ import asyncio
 import hashlib
 import io
 import tarfile
-import tempfile
 import time
 from collections.abc import Generator
 from pathlib import Path
@@ -57,11 +56,9 @@ def test_wb_bench_download_unknown_subset(client: TestClient) -> None:
     assert "Unknown WBBench subset" in res.json()["error"]
 
 
-def test_wb_bench_download_reports_progress(client: TestClient) -> None:
+def test_wb_bench_download_reports_progress(client: TestClient, tmp_path: Path) -> None:
     """The download-only endpoint installs the source and records progress."""
     from app.core.eval import wb_bench as wb
-
-    tmp = Path(tempfile.mkdtemp())
 
     async def _fake_ensure(
         subset_id: str,
@@ -70,7 +67,7 @@ def test_wb_bench_download_reports_progress(client: TestClient) -> None:
         progress_callback=None,
         should_abort=None,
     ):
-        source_root = tmp / "sources" / "wb-bench-web-v1.0"
+        source_root = tmp_path / "sources" / "wb-bench-web-v1.0"
         (source_root / "tasks" / "t1").mkdir(parents=True)
         (source_root / "tasks" / "t1" / "task.toml").write_text('[verifier]\nengine = "composite"\n')
         if progress_callback:
@@ -78,7 +75,7 @@ def test_wb_bench_download_reports_progress(client: TestClient) -> None:
         return source_root
 
     with (
-        patch.object(wb, "SOURCES_DIR", tmp / "sources"),
+        patch.object(wb, "SOURCES_DIR", tmp_path / "sources"),
         patch("app.core.eval.wb_bench.ensure_wb_bench_source", side_effect=_fake_ensure),
     ):
         res = client.post("/api/v1/eval/wb-bench/download", json={"subset_id": "web"})
@@ -94,7 +91,7 @@ def test_wb_bench_download_reports_progress(client: TestClient) -> None:
             "total_bytes": 2048 * 1024,
         }
 
-    assert (tmp / "sources" / "wb-bench-web-v1.0" / "tasks" / "t1").is_dir()
+    assert (tmp_path / "sources" / "wb-bench-web-v1.0" / "tasks" / "t1").is_dir()
 
 
 @pytest.mark.asyncio
@@ -193,7 +190,7 @@ def test_wb_bench_run_requires_local_dataset(client: TestClient) -> None:
         assert "offline" in status["error"] or "Unknown" in status["error"]
 
 
-def test_wb_bench_run_with_mocked_download(client: TestClient) -> None:
+def test_wb_bench_run_with_mocked_download(client: TestClient, tmp_path: Path) -> None:
     """A successfully downloaded subset schedules a real eval run."""
     from app.core.eval import wb_bench as wb
 
@@ -255,11 +252,10 @@ def test_wb_bench_run_with_mocked_download(client: TestClient) -> None:
             return _FakeResp()
 
     # Point storage at an isolated temp dir.
-    tmp = Path(tempfile.mkdtemp())
     with (
-        patch.object(wb.download, "ARCHIVES_DIR", tmp / "archives"),
-        patch.object(wb.download, "SOURCES_DIR", tmp / "sources"),
-        patch.object(wb.download, "WORKSPACES_DIR", tmp / "workspaces"),
+        patch.object(wb.download, "ARCHIVES_DIR", tmp_path / "archives"),
+        patch.object(wb.download, "SOURCES_DIR", tmp_path / "sources"),
+        patch.object(wb.download, "WORKSPACES_DIR", tmp_path / "workspaces"),
         patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
         patch(
             "app.core.eval.wb_bench.download.httpx.AsyncClient",
@@ -277,4 +273,4 @@ def test_wb_bench_run_with_mocked_download(client: TestClient) -> None:
         assert mock_run.called
 
         # The source was downloaded into the temp sources dir.
-        assert (tmp / "sources" / "wb-bench-office-v1.0" / "tasks").is_dir()
+        assert (tmp_path / "sources" / "wb-bench-office-v1.0" / "tasks").is_dir()

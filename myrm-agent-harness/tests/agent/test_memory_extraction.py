@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -360,11 +361,9 @@ class TestPersistExtractedMemories:
             assert count == 0
 
     @pytest.mark.asyncio
-    async def test_deep_scan_llm_func_applies_pseudonymization(self) -> None:
+    async def test_deep_scan_llm_func_applies_pseudonymization(self, tmp_path: Path) -> None:
         """Verify deep_scan_llm_func triggers LLM-based PII detection on memories."""
         import json
-        import tempfile
-        from pathlib import Path
 
         from myrm_agent_harness.agent.security.detection.pseudonym_store import (
             PseudonymStore,
@@ -378,8 +377,7 @@ class TestPersistExtractedMemories:
         mock_manager.store_batch = AsyncMock(return_value=[mock_memory])
         mock_manager.get_profile_attribute = AsyncMock(return_value=None)
 
-        tmp = tempfile.mkdtemp()
-        store = PseudonymStore(str(Path(tmp) / "test.db"))
+        store = PseudonymStore(str(tmp_path / "test.db"))
 
         async def _mock_llm(_s: str, _u: str) -> str:
             return json.dumps(
@@ -471,11 +469,8 @@ class TestApplyDeepPIIScan:
         mock_warning.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_llm_failure_keeps_original(self) -> None:
+    async def test_llm_failure_keeps_original(self, tmp_path: Path) -> None:
         """When LLM call raises exception, memories pass through (fail-open)."""
-        import tempfile
-        from pathlib import Path
-
         from myrm_agent_harness.agent.security.detection.pseudonym_store import (
             PseudonymStore,
         )
@@ -486,8 +481,7 @@ class TestApplyDeepPIIScan:
         mock_manager = MagicMock()
         mock_manager.get_profile_attribute = AsyncMock(return_value=None)
 
-        tmp = tempfile.mkdtemp()
-        store = PseudonymStore(str(Path(tmp) / "test.db"))
+        store = PseudonymStore(str(tmp_path / "test.db"))
 
         async def _fail_llm(_s: str, _u: str) -> str:
             raise RuntimeError("LLM unavailable")
@@ -502,11 +496,9 @@ class TestApplyDeepPIIScan:
         store.close()
 
     @pytest.mark.asyncio
-    async def test_no_pii_detected_keeps_original(self) -> None:
+    async def test_no_pii_detected_keeps_original(self, tmp_path: Path) -> None:
         """When LLM finds no PII, content stays unchanged."""
         import json
-        import tempfile
-        from pathlib import Path
 
         from myrm_agent_harness.agent.security.detection.pseudonym_store import (
             PseudonymStore,
@@ -518,8 +510,7 @@ class TestApplyDeepPIIScan:
         mock_manager = MagicMock()
         mock_manager.get_profile_attribute = AsyncMock(return_value=None)
 
-        tmp = tempfile.mkdtemp()
-        store = PseudonymStore(str(Path(tmp) / "test.db"))
+        store = PseudonymStore(str(tmp_path / "test.db"))
 
         async def _mock_llm(_s: str, _u: str) -> str:
             return json.dumps([[]])
@@ -534,11 +525,9 @@ class TestApplyDeepPIIScan:
         store.close()
 
     @pytest.mark.asyncio
-    async def test_multiple_memories_batch(self) -> None:
+    async def test_multiple_memories_batch(self, tmp_path: Path) -> None:
         """Multiple memories are batch-processed in a single LLM call."""
         import json
-        import tempfile
-        from pathlib import Path
 
         from myrm_agent_harness.agent.security.detection.pseudonym_store import (
             PseudonymStore,
@@ -554,8 +543,7 @@ class TestApplyDeepPIIScan:
         mock_manager = MagicMock()
         mock_manager.get_profile_attribute = AsyncMock(return_value=None)
 
-        tmp = tempfile.mkdtemp()
-        store = PseudonymStore(str(Path(tmp) / "test.db"))
+        store = PseudonymStore(str(tmp_path / "test.db"))
 
         call_count = 0
 

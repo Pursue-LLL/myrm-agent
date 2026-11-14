@@ -294,16 +294,14 @@ def test_wiki_pending_edits(client: TestClient) -> None:
         assert response.status_code in [200, 401, 403]
 
 
-async def test_wiki_pending_pagination_reaches_every_draft(client: TestClient) -> None:
+async def test_wiki_pending_pagination_reaches_every_draft(client: TestClient, tmp_path: Path) -> None:
     """Pages reach drafts beyond the first 50 while stats stay exact."""
-    import tempfile
-
     from myrm_agent_harness.toolkits.wiki import WikiStructure
     from myrm_agent_harness.toolkits.wiki.pipeline.pending import WikiPendingEditsManager
 
     from app.services.wiki.vault import reset_wiki_archiver_cache_for_tests
 
-    vault_root = Path(tempfile.mkdtemp(prefix="wiki_pending_pages_")) / "wiki"
+    vault_root = tmp_path / "wiki"
     reset_wiki_archiver_cache_for_tests()
     try:
         with patch("app.services.wiki.vault.service.resolve_wiki_vault_path", return_value=vault_root):
