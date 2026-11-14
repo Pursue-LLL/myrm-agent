@@ -141,7 +141,7 @@ export function useAgentCommandBindings(
       const saved = await updateAgent(agentId, { command_bindings: toBindingsPayload(submitted) });
       const confirmed = (saved.command_bindings ?? []).map(normalizeBinding);
       setSnapshot({ agentId, generation, bindings: confirmed });
-      // 请求期间用户若继续编辑，保留其最新草稿，只把它改为基于刚保存的快照。
+      // 请求期间用户若继续编辑，保留其最新草稿，并以刚保存的快照作为它的比较基线。
       setDraftState((latest) =>
         latest && !areBindingsEqual(latest.value, submitted) ? { baseline: confirmed, value: latest.value } : null,
       );

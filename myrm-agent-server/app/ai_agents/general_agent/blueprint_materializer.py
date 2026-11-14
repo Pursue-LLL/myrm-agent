@@ -4,7 +4,7 @@ Parses frontend-provided dict[str, object] into SubagentConfig objects
 ready to be injected into the DatabaseSubagentCatalog.
 
 [INPUT]
-- ai_agents.ephemeral_agent_factory::EphemeralAgentFactory (POS: Business-layer factory that constructs ephemeral user agents)
+- app.ai_agents.ephemeral_agent_factory::EphemeralAgentFactory (POS: builds the SkillAgent of an in-memory blueprint subagent)
 - myrm_agent_harness.agent.sub_agents.types::SubagentConfig (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 
 [OUTPUT]

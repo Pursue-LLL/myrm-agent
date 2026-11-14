@@ -24,7 +24,7 @@ from .warm_ui import _trigger_attach_client_warmup_once, _trigger_attach_fronten
 
 def _ensure_react_e2e_bridge_timeout_sec(requested: float) -> float:
     """Hot-path reused shells need extra bridge budget under parallel SHPOIB mux pressure."""
-    from e2e_core.shared_ui_session import (
+    from e2e_core.shared_ui_session.caps import (
         _bootstrap_hot_path_reused,
         _parallel_bridge_ready_cap_sec,
         _resolve_bridge_ready_timeout_sec,
@@ -44,7 +44,7 @@ def _ensure_react_e2e_bridge_timeout_sec(requested: float) -> float:
 
 def _orchestrator_shared_ui_contract_timeout_sec() -> float:
     """Orchestrator open_page contract: parallel lanes get full bridge cap (180s)."""
-    from e2e_core.shared_ui_session import (
+    from e2e_core.shared_ui_session.caps import (
         _parallel_bridge_ready_cap_sec,
         _resolve_bridge_ready_timeout_sec,
     )
@@ -82,7 +82,7 @@ def _react_bridge_wait_timeout_sec(requested: float) -> float:
         from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
-            from e2e_core.shared_ui_session import _parallel_bridge_ready_cap_sec
+            from e2e_core.shared_ui_session.caps import _parallel_bridge_ready_cap_sec
 
             return min(max(requested, 90.0), _parallel_bridge_ready_cap_sec())
     except ImportError:

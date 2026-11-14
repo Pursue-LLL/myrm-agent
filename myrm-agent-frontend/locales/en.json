@@ -623,7 +623,7 @@
       "builtinPresets": "Built-in Presets",
       "customAgents": "My Agents",
       "openConfigPanel": "Detailed Configuration...",
-      "manageAgents": "Manage Agents Hub...",
+      "manageAgents": "Manage Agents...",
       "switchSuccess": "Agent switched"
     },
     "readiness": {

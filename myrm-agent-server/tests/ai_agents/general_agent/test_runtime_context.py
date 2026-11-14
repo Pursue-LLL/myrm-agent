@@ -108,7 +108,7 @@ class TestOptionalRuntimeContext:
 
         assert SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY not in context
 
-    def test_a_history_in_the_legacy_pair_form_is_not_read_for_the_compression_focus(self) -> None:
+    def test_a_history_of_role_text_pairs_is_not_read_for_the_compression_focus(self) -> None:
         context = _context(_agent(), query="look at app/main.py", chat_history=[["user", "see app/old.py"]])
 
         assert context["compression_intent"]["focus_files"] == ["app/main.py"]

@@ -623,7 +623,7 @@
       "builtinPresets": "プリセット",
       "customAgents": "マイエージェント",
       "openConfigPanel": "詳細設定と微調整...",
-      "manageAgents": "エージェント管理ハブ...",
+      "manageAgents": "エージェントを管理...",
       "switchSuccess": "エージェントを切り替えました"
     },
     "readiness": {

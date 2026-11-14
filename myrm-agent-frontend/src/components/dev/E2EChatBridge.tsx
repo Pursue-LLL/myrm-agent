@@ -352,12 +352,12 @@ const SEND_TURN_NO_OP_INJECTED_MS = 45_000;
 let activeTurnTrace: TurnTrace | null = null;
 /**
  * How long a new chat may take to commit its first assistant output, which persists the user
- * row. Must equal SEND_TURN_OBSERVE_SEC in scripts/dev/lib/dev_gate/contract.py (a test pins it).
+ * row. Must equal SEND_TURN_OBSERVE_SEC in scripts/dev/lib/dev_gate/contract/wall_clock.py (a test pins it).
  */
 const SEND_TURN_OBSERVE_MS = 90_000;
 /**
  * Cap on one message-list poll. Must equal SEND_TURN_API_POLL_TIMEOUT_SEC in
- * scripts/dev/lib/dev_gate/contract.py (a test pins it). Without it a poll that never answers
+ * scripts/dev/lib/dev_gate/contract/wall_clock.py (a test pins it). Without it a poll that never answers
  * holds the observe loop until the Python wall ends the send as an unclassified timeout.
  */
 const SEND_TURN_API_POLL_TIMEOUT_MS = 10_000;

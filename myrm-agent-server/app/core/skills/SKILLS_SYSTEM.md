@@ -103,7 +103,7 @@ builtin_initializer                  BuiltIn Agent 不绑定 user 技能（skill
 | 第三方 SaaS（Google/Notion/Linear）怎么用？ | **Skill** 编排 `web_fetch_tool` / `bash_code_execute_tool`；或用户配置 **MCP** |
 | 何时新增 harness `@tool()`？ | 仅当能力是**跨项目通用框架原语**（见 `toolkits/_ARCH.md`） |
 | 预置 skill 上架条件 | `allowed-tools` 工具名正确（CI：`test_prebuilt_allowed_tools_match_tool_registry`）+ 依赖 OAuth/MCP **已在产品中可用** |
-| 正例 | Google Workspace prebuilt skill + Settings OAuth GUI；`x-live-search` prebuilt skill + xAI provider + 沙箱标准脚本 PTC（**不依赖** Agent Web Search/Tavily，0 Action Tool 注册） |
+| 正例 | Google Workspace prebuilt skill + Settings OAuth GUI；`x-live-search` prebuilt skill + xAI 凭证（provider 密钥或 SuperGrok OAuth）+ 沙箱标准脚本 PTC（**不依赖** Agent Web Search/Tavily，0 Action Tool 注册） |
 
 Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harness 工具实现单一厂商集成。
 
@@ -121,7 +121,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | 步骤 | 说明 |
 |------|------|
 | OAuth 存储 | `app/services/integrations/oauth_store.py` — `oauthCredentials` 加密 blob |
-| 判定 | 由生产凭证装配器 `assemble_session_credentials`（不带渠道）对存储凭证的装配结果推导：skill 需要的每个 issuer（frontmatter `oauth_issuer` 声明 + 专属 issuer）都有 token 才可用，「列出」与「该回合实际发放」同源，不会漂移——xAI 既可来自 provider 密钥也可来自 SuperGrok OAuth，已有 xAI OAuth 时不再发放 provider 密钥；仅当涉及 `xai` 时才读取 provider 配置（读取可能联网续期订阅令牌）；`credential_track` 区分个人与共享口径，共享轨道只发放渠道令牌，账号类 skill 在共享群里不列出 |
+| 判定 | 由生产凭证装配器 `assemble_session_credentials`（不带渠道）对存储凭证的装配结果推导：skill 需要的每个 issuer（frontmatter `oauth_issuer` 声明 + 专属 issuer）都有 token 才可用，「列出」与「该回合实际发放」同源，不会漂移——xAI 既可来自 provider 密钥也可来自 SuperGrok OAuth（两者并存时只发放 OAuth 令牌）；仅当涉及 `xai` 时才读取 provider 配置（读取可能联网续期订阅令牌）；`credential_track` 区分个人与共享口径，共享轨道只发放渠道令牌，账号类 skill 在共享群里不列出 |
 | Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/available` |
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING；判定使用本回合的 `credential_track`（preamble → `GeneralAgentParams` → `GeneralAgent` → `create_skill_backend`），该值计入执行单元指纹，换轨道不复用已构建的技能后端；委派的自定义子 Agent 在委派轮内运行、拿到的就是该轮的凭证，其技能后端按同一轨道构建（`build_general_agent` → `SubagentManagementExtension` → `DatabaseSubagentCatalog` → `CustomAgentFactory` → `create_skill_backend`） |
 | 快照与适配 | Skills 页读取持久化快照；prebuilt 快照的 `requires` 在同步时取自实际留存的 SKILL.md（用户改过则以用户副本为准），在线编辑 SKILL.md 后于下次同步对齐；快照还带上种子 frontmatter 声明的 `required_permissions`，启用技能的授权门读取它。绑定到 Agent 的 LOCAL 技能经 `/user/` 路由由 `runtime_metadata.skill_to_runtime_metadata` 还原为运行时元数据（requires / trust / allowed_tools / always / 调用开关等），绑定的 prebuilt 技能由 `/prebuilt/` 路由从 SKILL.md 读取；availability 由运行时 gate 重算，Agent 配置页的 Turn1 预览走同一套组装与同一组 gate |

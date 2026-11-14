@@ -60,8 +60,8 @@ CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL = (
 # two modes that a user could once pick, ``lean`` and ``naked``, no longer exist and become ``full``.
 NORMALIZE_RETIRED_PROMPT_MODES_SQL = "UPDATE agents SET prompt_mode = 'full' WHERE prompt_mode IN ('lean', 'naked')"
 
-# 数据库迁移语句（按顺序执行）
-# 已完成的迁移会被清理，新迁移添加到此列表
+# 数据库迁移语句，按顺序执行；版本号就是列表下标，只在末尾追加，已发布的语句不删、不改、不挪位
+# （tests/database/test_migration_list_append_only.py 固定了已发布语句的摘要）。
 MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE procedural_rules ADD COLUMN source VARCHAR(32) NOT NULL DEFAULT 'user_extracted'",
     "ALTER TABLE cron_jobs ADD COLUMN delivery JSON",

@@ -14,7 +14,7 @@
  * [POS]
  * 输入区选项区（「能力」组）与手机操作表里的核心操作项。默认展示当前活跃 Agent 头像/图标与名称；
  * 点击弹出轻量 DropdownMenu，支持在活跃多轮会话中 1 秒热切内置预设（Presets）与自定义智能体（Custom Agents），
- * 联动底层 agentId、skills、MCP、systemPrompt 与安全预设，底部保留详细配置面板与管理中心入口。
+ * 联动底层 agentId、skills、MCP、systemPrompt 与安全预设，底部保留详细配置面板与设置页智能体列表入口。
  * 菜单项被选中后由下拉自己关闭；每次切换先读取智能体详情，较早发起却较晚完成的切换不会覆盖较新的选择。
  */
 
@@ -53,7 +53,7 @@ const MAX_NAME_CHARS = 5;
  * 位于 Composer 输入框的选项区（手机上在操作表里）：
  * 1. 默认展示当前激活智能体头像/图标与名称
  * 2. 点击弹出轻量 DropdownMenu 快速切换已保存智能体或内置预设
- * 3. 底部保留「详细配置与微调」与「管理智能体中心」入口
+ * 3. 底部保留「详细配置与微调」与「管理智能体」（设置页智能体列表）入口
  */
 const AgentIndicator = () => {
   const t = useTranslations('agent.indicator');
@@ -280,7 +280,7 @@ const AgentIndicator = () => {
           <span>{t('openConfigPanel')}</span>
         </DropdownMenuItem>
 
-        {/* 管理智能体中心 */}
+        {/* 设置页智能体列表入口 */}
         <DropdownMenuItem
           onClick={() => router.push('/settings/agents')}
           className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer text-muted-foreground hover:text-foreground"

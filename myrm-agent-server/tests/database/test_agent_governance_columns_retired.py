@@ -43,7 +43,7 @@ async def test_an_upgrading_database_loses_the_columns_and_keeps_its_agents(
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            # The shape of an upgrading database: the table still carries the columns the models no longer map.
+            # The shape of an upgrading database: the table still carries the columns the models do not map.
             for add in _ADDS:
                 await conn.execute(text(add))
         monkeypatch.setattr(migrations, "MIGRATION_STATEMENTS", _RELEASED)

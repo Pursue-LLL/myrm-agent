@@ -27,7 +27,7 @@ const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCAN_ROOTS = ['src', '../myrm-agent-extension', '../myrm-agent-desktop', '../myrm-agent-server'];
 /**
  * 剪掉依赖、构建产物、第三方快照与本地运行态：`.venv` 里是 patchright/playwright 自带的报告页，
- * `external_reference_project` 是竞品快照（含它们的测试页），`.myrm` 是 git 忽略的本地工作区数据
+ * `external_reference_project` 是第三方代码快照（含它们的测试页），`.myrm` 是 git 忽略的本地工作区数据
  * （基准夹具、临时产物），三者都不是我们的产品代码。
  */
 const PRUNE_DIRS = new Set([

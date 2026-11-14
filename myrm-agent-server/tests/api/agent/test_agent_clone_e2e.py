@@ -1,7 +1,7 @@
-"""端到端集成测试：Agent 克隆，以及已退役的 JSON 交换通道不再对外提供。
+"""端到端集成测试：Agent 克隆，以及 JSON 导入导出与工作区文件束的路由不存在。
 
 专家之间的交换格式只有 Agent Plugins ZIP（见 tests/api/plugins、tests/services/plugins）；
-这里覆盖仍保留的克隆端点，并守住 JSON 导入导出与工作区文件束路由不会回来。
+这里覆盖克隆端点，并断言这些 JSON / 文件束路径没有任何接口响应。
 """
 
 import pytest
@@ -76,7 +76,7 @@ async def test_agent_clone_e2e(async_client: AsyncClient):
         await async_client.delete(f"/api/agents/{source_id}")
 
 
-RETIRED_ROUTES = (
+ABSENT_ROUTES = (
     ("GET", "/api/agents/some-agent/export"),
     ("POST", "/api/agents/import"),
     ("GET", "/api/agents/some-agent/bundle"),
@@ -87,9 +87,9 @@ RETIRED_ROUTES = (
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("method", "path"), RETIRED_ROUTES)
-async def test_retired_exchange_routes_are_not_served(async_client: AsyncClient, method: str, path: str):
-    """JSON export/import and workspace bundles are gone; nothing may answer on those paths."""
+@pytest.mark.parametrize(("method", "path"), ABSENT_ROUTES)
+async def test_json_exchange_routes_are_absent(async_client: AsyncClient, method: str, path: str):
+    """JSON export/import and workspace bundle paths have no route; nothing may answer on them."""
     response = await async_client.request(method, path, json={} if method == "POST" else None)
 
     assert response.status_code in (404, 405), f"{method} {path} is still served: {response.status_code}"
