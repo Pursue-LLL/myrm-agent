@@ -8,7 +8,7 @@
 端点：
 - GET /api/v1/health - 基础健康检查
 - GET /api/v1/health/liveness - Agent 全局存活状态 SSOT（聚合 Agent/渠道/内存）
-- GET /api/v1/health/ready - 就绪检查（readiness），检查所有依赖服务
+- GET /api/v1/health/ready - 就绪检查（readiness），检查所有依赖服务；数据库就绪即视为首屏将要加载，后台预热随后启动
 - GET /api/v1/health/info - 系统配置信息（部署模式、数据驻留、可选语音组件就绪状态、引擎版本）
 - GET /api/v1/health/doctor - 聚合 Harness + Server 诊断（fail-only SSE 告警策略）
 - GET /api/v1/health/browser - 浏览器运行时健康状态
@@ -94,7 +94,8 @@ async def health_check() -> dict[str, object]:
 async def readiness_check() -> dict[str, bool | dict[str, bool]]:
     """就绪检查端点
 
-    检查所有依赖服务是否就绪（数据库、向量库、图数据库等）
+    检查所有依赖服务是否就绪（数据库、向量库、图数据库等）。
+    数据库就绪时前端放行首屏，后台预热据此在首屏请求处理完后再启动，不与首屏争抢事件循环。
 
     Returns:
         dict: 包含就绪状态的字典
@@ -139,6 +140,11 @@ async def readiness_check() -> dict[str, bool | dict[str, bool]]:
 
     # 所有检查都通过才算就绪
     all_ready = all(checks.values())
+
+    if checks["database"]:
+        from app.server.lifespan.background import start_warmup_after_first_screen
+
+        start_warmup_after_first_screen()
 
     return {
         "ready": all_ready,
