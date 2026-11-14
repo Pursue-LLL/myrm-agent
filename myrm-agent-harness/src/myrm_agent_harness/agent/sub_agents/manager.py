@@ -164,7 +164,7 @@ class SubagentManager(SubagentSpawnMixin, SubagentControlMixin):
     - SubAgentStatus tracking with agent_type-aware auto-cleanup
     - Log isolation with [subagent:{task_id}] prefix
     - Result truncation (max_result_tokens)
-    - Lifecycle hooks (on_spawn/on_complete/on_error)
+    - Lifecycle events delivered through the global hook system (SUBAGENT_START/STOP and cancel start/complete)
     - Push-based completion notifications (auto-injected into parent context)
     - trace_id for parent-child call chain tracing
     - steer_child for mid-run message injection (reuses SteeringToken mechanism)

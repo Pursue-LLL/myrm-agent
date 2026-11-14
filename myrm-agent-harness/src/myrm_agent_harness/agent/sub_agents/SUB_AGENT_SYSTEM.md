@@ -378,15 +378,13 @@ configs/subagents/
 
 ### 14. 生命周期 Hook
 
-```python
-SubAgentHook(
-    on_spawn=async_fn,    # 子 agent 创建时
-    on_complete=async_fn, # 子 agent 成功完成时
-    on_error=async_fn,    # 子 agent 失败时
-)
-```
+子 agent 的生命周期事件走全局 Hook 系统，没有 per-config 内联 hook 字段：
 
-Hook 异常不影响主流程（catch + warning 日志）。
+- `SUBAGENT_START`：一次 run 开始（payload 含 `task_id` / `agent_type` / `task_description` / `trace_id`）
+- `SUBAGENT_STOP`：一次 run 结束，与 START 成对（语义见下方能力矩阵「Hook 成对」）
+- `SUBAGENT_CANCEL_START` / `SUBAGENT_CANCEL_COMPLETE`：取消流程的开始与完成
+
+订阅方在全局 Hook 注册表注册；单个订阅方抛出的异常被逐个捕获并记 warning 日志，不影响子 agent 主流程（`agent/hooks/executor.py`）。
 
 ---
 

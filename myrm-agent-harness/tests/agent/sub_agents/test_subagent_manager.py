@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -32,15 +30,6 @@ _SEARCH_CONFIG = SubagentConfig(
     system_prompt="You are a search subagent.",
     tools=("web_search_tool",),
 )
-
-
-@dataclass(frozen=True, slots=True)
-class SubAgentHook:
-    """Hook fixture shape used by skipped exception-safety tests."""
-
-    on_spawn: Callable[[str, str, dict[str, object]], Awaitable[None]] | None = None
-    on_complete: Callable[[str, str, dict[str, object]], Awaitable[None]] | None = None
-    on_error: Callable[[str, str, dict[str, object]], Awaitable[None]] | None = None
 
 
 class FakeLLM:
@@ -1894,7 +1883,7 @@ class TestCancelChildEdgeCases:
 
 
 # =========================================================================
-# _run_subagent_core mock tests — hook exceptions & budget_tokens
+# _run_subagent_core mock tests — budget_tokens
 # =========================================================================
 
 
@@ -1922,128 +1911,6 @@ class _FakeStats:
 
     def __init__(self, total_tokens: int = 100) -> None:
         self.token_usage = type("U", (), {"total_tokens": total_tokens})()
-
-
-@pytest.mark.skip(
-    reason="SubAgentHook is superseded by the global HookEvent system "
-    "(HookEvent.SUBAGENT_START/STOP + fire_hook in hooks/executor.py). "
-    "Config-level inline hooks add unnecessary complexity."
-)
-class TestHookExceptionSafety:
-    """Ensure hook exceptions never crash the subagent main flow."""
-
-    @pytest.mark.asyncio
-    async def test_on_spawn_hook_exception_is_swallowed(self) -> None:
-        from unittest.mock import patch
-
-        async def _bad_spawn(tid: str, atype: str, ctx: dict[str, object]) -> None:
-            raise RuntimeError("spawn hook boom")
-
-        config = SubagentConfig(
-            system_prompt="test",
-            description="test",
-            timeout_seconds=10,
-            max_retries=1,
-            hook=SubAgentHook(on_spawn=_bad_spawn),
-        )
-
-        mock_child = _MockChildAgent(events=[{"type": "message", "data": "hi"}], last_run_stats=_FakeStats(50))
-
-        agent = BaseAgent(llm=FakeLLM())
-        manager = agent._subagent_manager
-
-        with patch(
-            "myrm_agent_harness.agent.sub_agents.executor_attempt_mixin.build_child_agent",
-            return_value=mock_child,
-        ):
-            result = await manager._run_subagent_core(
-                task_id="hook_spawn",
-                agent_type="search",
-                task_description="test",
-                config=config,
-                context={"session_id": "s"},
-                tool_registry_getter=lambda: [],
-            )
-
-        assert result.success is True
-        assert result.result == "hi"
-
-    @pytest.mark.asyncio
-    async def test_on_complete_hook_exception_is_swallowed(self) -> None:
-        from unittest.mock import patch
-
-        async def _bad_complete(tid: str, atype: str, ctx: dict[str, object]) -> None:
-            raise ValueError("complete hook boom")
-
-        config = SubagentConfig(
-            system_prompt="test",
-            description="test",
-            timeout_seconds=10,
-            max_retries=1,
-            hook=SubAgentHook(on_complete=_bad_complete),
-        )
-
-        mock_child = _MockChildAgent(events=[{"type": "message", "data": "done"}], last_run_stats=_FakeStats(20))
-
-        agent = BaseAgent(llm=FakeLLM())
-        manager = agent._subagent_manager
-
-        with patch(
-            "myrm_agent_harness.agent.sub_agents.executor_attempt_mixin.build_child_agent",
-            return_value=mock_child,
-        ):
-            result = await manager._run_subagent_core(
-                task_id="hook_complete",
-                agent_type="search",
-                task_description="test",
-                config=config,
-                context={"session_id": "s"},
-                tool_registry_getter=lambda: [],
-            )
-
-        assert result.success is True
-
-    @pytest.mark.asyncio
-    async def test_on_error_hook_exception_is_swallowed(self) -> None:
-        from unittest.mock import patch
-
-        async def _bad_error(tid: str, atype: str, ctx: dict[str, object]) -> None:
-            raise TypeError("error hook boom")
-
-        config = SubagentConfig(
-            system_prompt="test",
-            description="test",
-            timeout_seconds=10,
-            max_retries=1,
-            hook=SubAgentHook(on_error=_bad_error),
-        )
-
-        async def _exploding_run(query: str, chat_history: list[object], context: dict[str, object]):
-            raise RuntimeError("child exploded")
-            yield
-
-        mock_child = _MockChildAgent(events=[])
-        mock_child.run = _exploding_run  # type: ignore[assignment]
-
-        agent = BaseAgent(llm=FakeLLM())
-        manager = agent._subagent_manager
-
-        with patch(
-            "myrm_agent_harness.agent.sub_agents.executor_attempt_mixin.build_child_agent",
-            return_value=mock_child,
-        ):
-            result = await manager._run_subagent_core(
-                task_id="hook_error",
-                agent_type="search",
-                task_description="test",
-                config=config,
-                context={"session_id": "s"},
-                tool_registry_getter=lambda: [],
-            )
-
-        assert result.success is False
-        assert result.status == SubAgentStatus.FAILED
-        assert "child exploded" in (result.error or "")
 
 
 class TestBudgetTokensLimit:
