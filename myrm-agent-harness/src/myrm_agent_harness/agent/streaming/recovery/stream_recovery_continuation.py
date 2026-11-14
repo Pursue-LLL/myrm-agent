@@ -113,6 +113,17 @@ class StreamContinuationRecoveryMixin(StreamRedriveMixin):
         )
         return True
 
+    async def _close_steering(self, collected_messages: list[BaseMessage]) -> bool:
+        """The turn's last steering check: close the token to new messages unless one is already waiting.
+
+        A message accepted after the handlers looked would otherwise be reported as taken and never read. Returns
+        True when one got in first: it is injected and the turn runs once more.
+        """
+        token = self._ctx.steering_token
+        if token is None or token.close_if_idle():
+            return False
+        return await self._handle_steering(collected_messages)
+
     async def _handle_teammate_messages(self, collected_messages: list[BaseMessage]) -> bool:
         """Drain P2P teammate inbox into the next subagent turn and emit SSE."""
         ctx = self._ctx

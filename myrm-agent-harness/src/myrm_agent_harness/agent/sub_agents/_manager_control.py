@@ -204,7 +204,10 @@ class SubagentControlMixin:
         message: str,
         config_overlay: dict[str, object] | None = None,
     ) -> bool:
-        """Inject a steering message and optional Continual config overlay into a running child agent."""
+        """Inject a steering message and optional Continual config overlay into a running child agent.
+
+        Returns False when the child cannot take the message (unknown, finished, or already closing its run).
+        """
         st = self._children_steering.get(task_id)
         if st is None:
             task = self._children.get(task_id)
@@ -213,7 +216,9 @@ class SubagentControlMixin:
                 return False
             logger.warning("Cannot steer task %s: no steering token (already completed?)", task_id)
             return False
-        st.steer(message)
+        if not st.steer(message):
+            logger.warning("Cannot steer task %s: its run has ended", task_id)
+            return False
         logger.info("[subagent:%s] Steering message queued (%d chars)", task_id, len(message))
 
         if config_overlay:

@@ -150,3 +150,15 @@ class TestSteeringRegistry:
 
         assert not token.redirect_requested
         assert not token.has_pending
+
+    def test_steer_and_redirect_are_refused_once_the_run_closed_its_token(self) -> None:
+        """The run is at its last moments: the caller keeps the message instead of being told it was taken."""
+        token = SteeringToken()
+        SteeringRegistry.register("chat-closed", token)
+        assert token.close_if_idle()
+
+        assert not SteeringRegistry.steer("chat-closed", "too late")
+        assert not SteeringRegistry.redirect("chat-closed", "far too late")
+
+        assert not token.has_pending
+        assert not token.redirect_requested

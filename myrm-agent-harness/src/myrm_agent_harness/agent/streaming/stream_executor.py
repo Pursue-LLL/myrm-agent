@@ -405,6 +405,9 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                     reset_loop_guard(is_resume=True, round_budget=ctx.round_budget)
                     continue
 
+                if await self._close_steering(collected_messages):
+                    continue
+
                 await self._flush_turn_memory()
                 break
 

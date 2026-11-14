@@ -18,7 +18,7 @@ Action Tools SSOT: [../tool_management/_ARCH.md](../tool_management/_ARCH.md)
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Core | Public re-export: `ORCHESTRATION_SIGNAL_NAMES` | ✅ |
-| steering.py | Core | `SteeringQueue` inbound queue; `build_steering_context_block` envelope; `drain_into_token` live-Mechanism adapter; snapshot persistence | ✅ |
+| steering.py | Core | `SteeringQueue` inbound queue; `build_steering_context_block` envelope; `drain_into_token` live-Mechanism adapter (notes a closed token refuses are taken back, not counted as injected); snapshot persistence | ✅ |
 
 ## Submodule Index
 

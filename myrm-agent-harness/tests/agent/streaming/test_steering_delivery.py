@@ -2,8 +2,9 @@
 
 The first half drives the real ``create_agent`` loop, the real steering middleware and a real checkpointer through
 ``StreamExecutor.execute()``: a steer lands while a tool is running, the middleware cancels the remaining tool calls,
-and the message must then be read by the model. The second half pins what the steering handler leaves as the next
-input for each kind of turn.
+and the message must then be read by the model. It also covers the two ways an accepted message could still be lost:
+the pass restarted by error recovery, and the moment between the last steering check and the end of the turn. The
+second half pins what the steering handler leaves as the next input for each kind of turn.
 """
 
 import asyncio
@@ -14,6 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langchain_core.outputs import ChatResult
 from langchain_core.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command, interrupt
@@ -22,13 +24,16 @@ from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware im
 from myrm_agent_harness.agent.streaming.stream_executor import StreamExecutor
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.core.message_origin import is_user_authored_human_message
+from myrm_agent_harness.toolkits.llms.errors.exceptions import MyrmLLMError
 from myrm_agent_harness.utils.runtime.steering import SteeringToken, set_steering_token
 
 from .scripted_agent import THREAD_ID, TRACKER_PATH, ScriptedModel, Turn, make_context, make_executor
 
 REQUEST = "do the job"
 STEER = "USER: use the 2024 data instead"
+LATE_STEER = "USER: and cite the source"
 TIMEOUT_S = 10
+JITTER_PATH = "myrm_agent_harness.toolkits.llms.reliability.jittered_backoff.calculate_adaptive_jittered_delay"
 
 
 def tool_turn(name: str, args: dict[str, object], call_id: str) -> Turn:
@@ -55,10 +60,26 @@ def tracker():
     set_steering_token(None)
 
 
+class FlakyModel(ScriptedModel):
+    """Raises ``error`` once on request number ``fail_on`` (0: never), before that request is recorded or scripted."""
+
+    fail_on: int = 0
+    error: str = "timeout"
+    failed: bool = False
+
+    async def _agenerate(
+        self, messages: list[BaseMessage], stop: list[str] | None = None, run_manager: object = None, **kwargs: object
+    ) -> ChatResult:
+        if not self.failed and len(self.requests) + 1 == self.fail_on:
+            self.failed = True
+            raise Exception(self.error)
+        return self._respond(messages)
+
+
 class Scenario:
     """The agent loop under test: a ``work`` tool the test holds open and a ``gate`` tool that asks for approval."""
 
-    def __init__(self, tracker: MagicMock, turns: list[Turn]) -> None:
+    def __init__(self, tracker: MagicMock, turns: list[Turn], fail_on: int = 0, error: str = "timeout") -> None:
         self.started = asyncio.Event()
         self.release = asyncio.Event()
         self.executed: list[int] = []
@@ -76,7 +97,7 @@ class Scenario:
             """Ask for approval before writing."""
             return f"approved:{interrupt({'path': path})}"
 
-        self.model = ScriptedModel(turns=turns, tracker=tracker)
+        self.model = FlakyModel(turns=turns, tracker=tracker, fail_on=fail_on, error=error)
         self.agent = create_agent(
             model=self.model,
             tools=[work, gate],
@@ -162,6 +183,90 @@ async def test_a_steer_landing_during_a_tool_is_read_by_the_model(tracker: Magic
     assert contents.count(STEER) == 1
     ids = [message.id for message in thread]
     assert len(ids) == len(set(ids)), "the continued turn must not duplicate messages already in its thread"
+
+
+@pytest.mark.asyncio
+async def test_a_steer_survives_the_pass_that_error_recovery_restarts(tracker: MagicMock):
+    """The finished tool already took the steer off the queue; the pass then fails and runs again, still owing it."""
+    turns = [
+        tool_turn("work", {"step": 1}, "w1"),
+        answer("stopping here"),  # the model's second request fails once before this
+        answer("following the new instruction"),
+    ]
+    scenario = Scenario(tracker, turns, fail_on=2)
+    token = SteeringToken()
+
+    with patch(JITTER_PATH, return_value=(0.0, "stage")):
+        executor = await scenario.run({"messages": [HumanMessage(content=REQUEST)]}, token, lambda: token.steer(STEER))
+
+    assert scenario.model.failed, "the scenario must really have restarted the pass"
+    assert events_of(executor, AgentEventType.ERROR) == []
+    assert len(scenario.model.requests) == len(turns)
+    assert scenario.read_by_model(STEER)
+    assert [event["data"]["count"] for event in events_of(executor, AgentEventType.STEERING)] == [1]
+    assert [str(message.content) for message in await scenario.thread()].count(STEER) == 1
+
+
+# ---------------------------------------------------------------------------
+# The turn's last moments: accepted means delivered, anything later is refused
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resumed", [False, True], ids=["fresh", "resumed"])
+async def test_a_steer_accepted_after_the_last_check_is_still_delivered(tracker: MagicMock, resumed: bool):
+    """The token takes a message after every steering check has looked: the run must read it, not end over it."""
+    turns = [answer("all done"), answer("citing the source")]
+    if resumed:
+        turns.insert(0, tool_turn("gate", {"path": "report.md"}, "g1"))
+    scenario = Scenario(tracker, turns)
+    first_input = {"messages": [HumanMessage(content=REQUEST)]}
+    token = SteeringToken()
+    accepted: list[bool] = []
+    last_check = StreamExecutor._handle_goal_continuation
+
+    async def land_after_the_checks(self: StreamExecutor, *args: object, **kwargs: object) -> bool:
+        decision = await last_check(self, *args, **kwargs)
+        if not accepted:
+            accepted.append(token.steer(LATE_STEER))
+        return decision
+
+    if resumed:
+        await scenario.run(first_input, SteeringToken())
+        assert await scenario.paused_on_approval()
+    with patch.object(StreamExecutor, "_handle_goal_continuation", land_after_the_checks):
+        executor = await scenario.run(Command(resume="approved") if resumed else first_input, token)
+
+    assert accepted == [True]
+    assert events_of(executor, AgentEventType.ERROR) == []
+    assert len(scenario.model.requests) == len(turns)
+    assert scenario.read_by_model(LATE_STEER)
+    assert [event["data"]["count"] for event in events_of(executor, AgentEventType.STEERING)] == [1]
+    assert [str(message.content) for message in await scenario.thread()].count(LATE_STEER) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_run_that_ended_refuses_steering_so_the_sender_keeps_the_message(tracker: MagicMock):
+    scenario = Scenario(tracker, [answer("all done")])
+    token = SteeringToken()
+
+    await scenario.run({"messages": [HumanMessage(content=REQUEST)]}, token)
+
+    assert token.steer(LATE_STEER) is False
+    assert token.redirect(LATE_STEER) is False
+    assert token.has_pending is False
+
+
+@pytest.mark.asyncio
+async def test_a_failed_attempt_leaves_its_token_open_for_the_retry(tracker: MagicMock):
+    """Only a completed turn closes its token: a sub-agent whose attempt failed is retried on the same token."""
+    scenario = Scenario(tracker, [answer("never reached")], fail_on=1, error="provider exploded")
+    token = SteeringToken()
+
+    with pytest.raises(MyrmLLMError, match="provider exploded"):
+        await scenario.run({"messages": [HumanMessage(content=REQUEST)]}, token)
+
+    assert token.steer(STEER) is True
 
 
 # ---------------------------------------------------------------------------

@@ -21,6 +21,7 @@ from myrm_agent_harness.agent.sub_agents.types import (
     SubAgentResult,
     SubAgentStatus,
 )
+from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 
 def _make_manager() -> SubagentManager:
@@ -305,6 +306,16 @@ class TestSteerChild:
         mgr = _make_manager()
         mgr._children["t1"] = MagicMock()
         assert not mgr.steer_child("t1", "msg")
+
+    def test_steer_refused_when_the_childs_run_stopped_taking_messages(self):
+        """The child is finishing its run: the caller learns the message was not taken."""
+        mgr = _make_manager()
+        token = SteeringToken()
+        mgr._children_steering["t1"] = token
+        assert token.close_if_idle()
+
+        assert not mgr.steer_child("t1", "too late")
+        assert not token.has_pending
 
 
 # ---------------------------------------------------------------------------

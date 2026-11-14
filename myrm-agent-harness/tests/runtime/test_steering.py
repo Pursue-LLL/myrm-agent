@@ -92,10 +92,11 @@ class TestSteeringToken:
         assert set(msgs) == {f"msg-{i}" for i in range(10)}
 
     def test_reset_turn_then_steer_and_activate_again(self) -> None:
-        """After reset_turn, new steer+activate cycle works correctly."""
+        """After the handler collected a round and reset_turn, a new steer+activate cycle works correctly."""
         token = SteeringToken()
         token.steer("round1")
         token.activate()
+        token.collect_all_steering_messages()
         token.reset_turn()
 
         token.steer("round2")
@@ -152,15 +153,15 @@ class TestSteeringToken:
         msgs = token.activate()
         assert msgs == [long_msg]
 
-    def test_collect_all_after_reset_only_gets_queue(self) -> None:
-        """After reset_turn, collect_all only returns queue items, not activated."""
+    def test_collect_all_after_reset_returns_activated_messages_ahead_of_the_queue(self) -> None:
+        """A reset that follows no collection leaves the activated message owed, ahead of later arrivals."""
         token = SteeringToken()
         token.steer("activated-msg")
         token.activate()
         token.reset_turn()
         token.steer("new-queue-msg")
         msgs = token.collect_all_steering_messages()
-        assert msgs == ["new-queue-msg"]
+        assert msgs == ["activated-msg", "new-queue-msg"]
 
     def test_multiple_reset_cycles(self) -> None:
         """Token works correctly across multiple reset cycles (simulating multi-turn)."""
@@ -169,9 +170,11 @@ class TestSteeringToken:
             token.steer(f"turn-{i}")
             msgs = token.activate()
             assert msgs == [f"turn-{i}"]
+            assert token.collect_all_steering_messages() == [f"turn-{i}"]
             token.reset_turn()
             assert not token.is_active
             assert not token.steering_applied
+            assert not token.has_pending
 
 
 class TestSteeringRedirect:
