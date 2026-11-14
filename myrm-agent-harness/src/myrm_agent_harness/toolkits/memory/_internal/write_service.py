@@ -163,7 +163,7 @@ class MemoryWriter(MemoryBuildersMixin):
         """
         self._validate_supported_memory(memory)
         self._attach_current_trace_id(memory)
-        bound_memory = self._bind_owner(self._bind_scope(memory))
+        bound_memory = self._bind_for_store(memory, scope_prevalidated=scope_prevalidated)
         if not scope_prevalidated:
             self._validate_write_scope(bound_memory)
         if self._config.security_scan_enabled:
@@ -385,3 +385,12 @@ class MemoryWriter(MemoryBuildersMixin):
                 "Downgraded AGENT_SELF rule from CRITICAL to HIGH: %s",
                 memory.content[:60],
             )
+
+    def _bind_for_store(self, memory: AnyMemory, *, scope_prevalidated: bool) -> AnyMemory:
+        """Bind the memory to this writer, except that a replayed proposal keeps the scope it was queued with.
+
+        The reviewing manager is bound to another agent, so binding the proposal again would move a rule out of the
+        agent that proposed it. A proposal queued without any scope still takes the reviewer's.
+        """
+        keeps_queued_scope = scope_prevalidated and bool(memory.scope.namespaces)
+        return self._bind_owner(memory if keeps_queued_scope else self._bind_scope(memory))
