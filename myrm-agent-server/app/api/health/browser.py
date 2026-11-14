@@ -6,7 +6,7 @@
 - GET /api/v1/health/browser - 浏览器运行时健康状态
 - GET /api/v1/health/browser/doctor - 完整浏览器诊断
 - GET /api/v1/health/browser/orphans - 列出孤儿自动化进程
-- DELETE /api/v1/health/browser/orphans - 清理孤儿进程（需要 confirm 参数）
+- DELETE /api/v1/health/browser/orphans - 清理孤儿进程、过期沙箱与临时 profile 目录（需要 confirm 参数）
 - POST /api/v1/health/browser/test-cloud-connection - 测试云浏览器连接
 - POST /api/v1/health/browser/test-proxy-connection - 测试浏览器代理连接
 
@@ -14,7 +14,7 @@
 - app.config.browser::get_configured_browser_pool (POS: 浏览器池配置)
 - myrm_agent_harness.toolkits.browser::run_doctor (POS: 浏览器诊断)
 - app.services.extension.relay_check::check_extension_relay (POS: 扩展 CDP relay 诊断，作为 run_doctor 的额外检查)
-- myrm_agent_harness.toolkits.browser::cleanup_orphan_processes / cleanup_stale_automation_sandboxes (POS: 浏览器孤儿进程与沙箱清理)
+- myrm_agent_harness.toolkits.browser::cleanup_orphan_processes / cleanup_stale_automation_sandboxes / cleanup_stale_browser_profiles (POS: 浏览器孤儿进程、沙箱与临时 profile 目录清理)
 - app.lifecycle.browser::resolve_browser_proxy_pool (POS: 代理池解析)
 
 [OUTPUT]
@@ -120,11 +120,11 @@ async def list_browser_orphans() -> dict[str, object]:
 async def cleanup_browser_orphans(
     confirm: bool = Query(False, description="Must be True to actually kill processes"),
 ) -> dict[str, object]:
-    """Clean up orphan automation browser processes and stale automation sandboxes.
+    """Clean up orphan automation browser processes, stale automation sandboxes and stale browser profiles.
 
     Safety mechanism: requires confirm=true to actually kill processes.
     Otherwise returns dry-run results only. The dry run and the real cleanup
-    judge sandboxes by the same age threshold, so the preview matches what is pruned.
+    judge sandboxes and browser profiles by the same age threshold, so the preview matches what is pruned.
 
     Args:
         confirm: Must be True to execute cleanup (safety confirmation)
@@ -135,6 +135,7 @@ async def cleanup_browser_orphans(
     from myrm_agent_harness.toolkits.browser import (
         cleanup_orphan_processes,
         cleanup_stale_automation_sandboxes,
+        cleanup_stale_browser_profiles,
         find_orphan_automation_processes,
     )
 
@@ -152,27 +153,43 @@ async def cleanup_browser_orphans(
             }
 
         sandbox_result = await asyncio.to_thread(cleanup_stale_automation_sandboxes, dry_run=not confirm)
+        profile_result = await asyncio.to_thread(cleanup_stale_browser_profiles, dry_run=not confirm)
 
         killed = int(proc_result.get("killed", 0))
         sandboxes_pruned = int(sandbox_result.get("pruned", 0))
-        reclaimed_bytes = int(sandbox_result.get("reclaimed_bytes", 0))
-        failed_items = list(proc_result.get("failed", [])) + list(sandbox_result.get("failed", []))
+        sandbox_bytes = int(sandbox_result.get("reclaimed_bytes", 0))
+        profiles_pruned = int(profile_result.get("pruned", 0))
+        profile_bytes = int(profile_result.get("reclaimed_bytes", 0))
+        failed_items = (
+            list(proc_result.get("failed", [])) + list(sandbox_result.get("failed", [])) + list(profile_result.get("failed", []))
+        )
 
-        reclaimed_mb = round(reclaimed_bytes / (1024 * 1024), 1)
         if confirm:
             msg_parts: list[str] = []
             if killed > 0:
                 msg_parts.append(f"Killed {killed} process(es)")
             if sandboxes_pruned > 0:
-                msg_parts.append(f"pruned {sandboxes_pruned} sandbox(es) ({reclaimed_mb} MB reclaimed)")
-            msg = ", ".join(msg_parts) if msg_parts else "No orphan processes or stale sandboxes needed cleanup"
+                sandbox_mb = round(sandbox_bytes / (1024 * 1024), 1)
+                msg_parts.append(f"pruned {sandboxes_pruned} sandbox(es) ({sandbox_mb} MB reclaimed)")
+            if profiles_pruned > 0:
+                profile_mb = round(profile_bytes / (1024 * 1024), 1)
+                msg_parts.append(f"pruned {profiles_pruned} browser profile(s) ({profile_mb} MB reclaimed)")
+            msg = (
+                ", ".join(msg_parts)
+                if msg_parts
+                else "No orphan processes, stale sandboxes or stale browser profiles needed cleanup"
+            )
         else:
-            msg = f"Dry-run: {len(orphan_pids)} process(es) and {sandboxes_pruned} sandbox(es) would be cleaned"
+            msg = (
+                f"Dry-run: {len(orphan_pids)} process(es), {sandboxes_pruned} sandbox(es) "
+                f"and {profiles_pruned} browser profile(s) would be cleaned"
+            )
 
         return {
             "killed": killed,
             "sandboxes_pruned": sandboxes_pruned,
-            "reclaimed_bytes": reclaimed_bytes,
+            "profiles_pruned": profiles_pruned,
+            "reclaimed_bytes": sandbox_bytes + profile_bytes,
             "dry_run": not confirm,
             "message": msg,
             "orphans": orphans,
@@ -235,9 +252,11 @@ async def test_cloud_browser_connection() -> dict[str, object]:
             import aiohttp
 
             start = _time.perf_counter()
+            # aiohttp declares the fields of ClientWSTimeout with untyped attr.ib(), so type checkers see no parameters.
+            ws_timeout = aiohttp.ClientWSTimeout(ws_close=8)  # pyright: ignore[reportCallIssue]
             async with asyncio.timeout(10):
                 async with aiohttp.ClientSession() as session:
-                    async with session.ws_connect(endpoint, timeout=aiohttp.ClientWSTimeout(ws_close=8)):
+                    async with session.ws_connect(endpoint, timeout=ws_timeout):
                         latency_ms = round((_time.perf_counter() - start) * 1000)
                         return {
                             "status": "connected",

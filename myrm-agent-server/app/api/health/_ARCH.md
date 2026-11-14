@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
-| `browser.py` | 模块 | 浏览器运行时健康端点：`/browser` 健康（池健康读取失败降级为 `unhealthy` 并记 warning 日志）、`/browser/doctor` 诊断（把 server 自有的 `extension_relay` 检查作为 `run_doctor` 的 `extra_checks` 传入，relay 行计入报告与 summary）、`/browser/orphans` GET/DELETE（统一 automation 扫描 + confirm 安全门 + 联动沙箱清理与空间释放透出（预览与清理共用 harness 默认沙箱年龄阈值，预览数即清理数）+ failed 透传；失败时先 `logger.exception` 记录根因再返回通用 500）、云/代理连通性测试 | ✅ |
+| `browser.py` | 模块 | 浏览器运行时健康端点：`/browser` 健康（池健康读取失败降级为 `unhealthy` 并记 warning 日志）、`/browser/doctor` 诊断（把 server 自有的 `extension_relay` 检查作为 `run_doctor` 的 `extra_checks` 传入，relay 行计入报告与 summary）、`/browser/orphans` GET/DELETE（统一 automation 扫描 + confirm 安全门 + 联动沙箱与临时 profile 目录清理、两类目录的空间释放求和透出（预览与清理共用 harness 默认年龄阈值，预览数即清理数）+ 两类目录的 failed 合并透传；失败时先 `logger.exception` 记录根因再返回通用 500）、云/代理连通性测试 | ✅ |
 | `memory.py` | 模块 | Memory diagnostics API. | ✅ |
 | `liveness.py` | 模块 | Agent 全局存活状态 SSOT 端点（`GET /api/v1/health/liveness`），聚合 Agent 活跃会话与不经 gateway 的进行中 agent 运行（cron / 看板 / IM 渠道 / eval 运行 + 已脱离子代理，`agents.backgroundRunCount`，任一非零即 `busy`）、渠道健康、内存压力、`pendingOutboundCount`、`gatewayRuntime` 零载荷 vitals；gateway 异常时 `state=degraded`；`metrics_enabled` 时刷新 Prometheus `myrm_gateway_*` gauges | ✅ |
 | `router.py` | 路由 | HTTP 路由处理器（含 health/readiness、`/health` 的 `system_status` 透出数据库与向量库降级标志、`/health/info` 系统配置与数据驻留 `data_region` 透出；doctor 经 `health_snapshot` 采集、`health_alert_policy` fail-only SSE；挂载 browser 等子路由；`GET /health/resources` 只读报告各资源状态（不接受恢复参数，数据库从备份恢复只在启动阶段发生）；`POST /health/database/safe-purge` 会话清空（无可选参数），有会话运行中返回 409） | ✅ |

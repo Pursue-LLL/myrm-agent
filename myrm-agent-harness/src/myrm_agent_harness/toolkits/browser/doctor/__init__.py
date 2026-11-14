@@ -4,11 +4,12 @@ Validates dependencies, configuration, environment, and browser launchability
 before actual operations. Provides clear fix suggestions for each failure.
 Includes leftover process detection (browsers whose launching process is gone, read
 from the ownership stamp) with safety mechanisms (dry-run default, force flag required
-for cleanup).
+for cleanup), and the dry-run-first prune of stale automation sandboxes and stale
+browser profile directories.
 
 This package is the public facade for the doctor subdomain; it re-exports the
 public symbols of the internal ``checks``, ``launch_check``, ``orphan_check``,
-``orphans``, ``sandboxes``, and ``report`` modules so that
+``orphans``, ``sandboxes``, ``profiles``, and ``report`` modules so that
 ``myrm_agent_harness.toolkits.browser.doctor`` remains a single import point.
 
 [INPUT]
@@ -17,6 +18,7 @@ public symbols of the internal ``checks``, ``launch_check``, ``orphan_check``,
 - .orphan_check (POS: orphan process doctor check adapter)
 - .orphans (POS: stamp-based leftover process detection and cleanup)
 - .sandboxes (POS: stale automation sandbox cleanup)
+- .profiles (POS: stale browser profile directory cleanup)
 - .report (POS: doctor data models and CLI rendering)
 
 [OUTPUT]
@@ -24,7 +26,8 @@ public symbols of the internal ``checks``, ``launch_check``, ``orphan_check``,
 - check_memory / check_disk / check_browser_launch: individual checks reused outside the orchestrator (re-export)
 - check_orphan_processes / cleanup_orphan_processes / find_orphan_automation_processes: orphan process utilities (re-export)
 - cleanup_stale_automation_sandboxes: stale sandbox prune (re-export)
-- OrphanProcess / OrphanCleanupResult / SandboxCleanupResult: typed result shapes (re-export)
+- cleanup_stale_browser_profiles: stale browser profile directory prune (re-export)
+- OrphanProcess / OrphanCleanupResult / SandboxCleanupResult / ProfileCleanupResult: typed result shapes (re-export)
 - CheckStatus / DoctorCheckResult / DoctorReport / format_report: report contract (re-export)
 
 [POS]
@@ -43,6 +46,7 @@ from .orphans import (
     cleanup_orphan_processes,
     find_orphan_automation_processes,
 )
+from .profiles import ProfileCleanupResult, cleanup_stale_browser_profiles
 from .report import (
     CheckStatus,
     DoctorCheckResult,
@@ -57,6 +61,7 @@ __all__ = [
     "DoctorReport",
     "OrphanCleanupResult",
     "OrphanProcess",
+    "ProfileCleanupResult",
     "SandboxCleanupResult",
     "check_browser_launch",
     "check_disk",
@@ -64,6 +69,7 @@ __all__ = [
     "check_orphan_processes",
     "cleanup_orphan_processes",
     "cleanup_stale_automation_sandboxes",
+    "cleanup_stale_browser_profiles",
     "find_orphan_automation_processes",
     "format_report",
     "run_doctor",

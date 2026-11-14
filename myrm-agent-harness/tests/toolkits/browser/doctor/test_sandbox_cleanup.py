@@ -216,8 +216,13 @@ def test_doctor_check_reports_only_clones_without_a_running_browser(tmp_path: Pa
     live = _clone_with_payload(tmp_path, _CHROME_ID)
     os.utime(live, (0, 0))
     find_orphans = "myrm_agent_harness.toolkits.browser.doctor.orphan_check.find_orphan_automation_processes"
+    scan_profiles = "myrm_agent_harness.toolkits.browser.doctor.orphan_check.cleanup_stale_browser_profiles"
 
-    with patch(find_orphans, return_value=[]), _sandbox_candidates([live.parent]):
+    with (
+        patch(find_orphans, return_value=[]),
+        patch(scan_profiles, return_value={"pruned": 0, "reclaimed_bytes": 0}),
+        _sandbox_candidates([live.parent]),
+    ):
         with patch(_RUNNING_IDS_PATH, return_value=frozenset({_CHROME_ID})):
             while_running = check_orphan_processes()
         after_exit = check_orphan_processes()

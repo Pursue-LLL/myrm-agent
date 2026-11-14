@@ -15,6 +15,7 @@ def test_browser_package_reexports_doctor_symbols() -> None:
     assert {
         "cleanup_orphan_processes",
         "cleanup_stale_automation_sandboxes",
+        "cleanup_stale_browser_profiles",
         "find_orphan_automation_processes",
         "format_report",
         "run_doctor",

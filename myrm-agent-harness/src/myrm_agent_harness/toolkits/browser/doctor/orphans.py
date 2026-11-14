@@ -14,6 +14,7 @@ default (``force=True`` required) and re-verifies each pid right before signalli
 [OUTPUT]
 - find_orphan_automation_processes: stamped Chromium processes whose owner is gone
 - cleanup_orphan_processes: safe cleanup (dry-run by default, SIGTERM then SIGKILL after a grace period)
+- extract_user_data_dir: the ``--user-data-dir`` value of a command line (also read by ``profiles``)
 - OrphanProcess / OrphanCleanupResult / KillFailure: typed shapes of the scan and cleanup results
 
 [POS]
@@ -109,7 +110,7 @@ def find_orphan_automation_processes() -> list[OrphanProcess]:
                         "pid": proc.pid,
                         "name": proc.name(),
                         "ppid": proc.ppid(),
-                        "user_data_dir": _extract_user_data_dir(proc.cmdline()),
+                        "user_data_dir": extract_user_data_dir(proc.cmdline()),
                     }
                 )
             except (psutil.NoSuchProcess, psutil.AccessDenied, SystemError):  # SystemError: psutil on macOS
@@ -120,7 +121,7 @@ def find_orphan_automation_processes() -> list[OrphanProcess]:
     return orphans
 
 
-def _extract_user_data_dir(args: list[str]) -> str:
+def extract_user_data_dir(args: list[str]) -> str:
     """The ``--user-data-dir`` value (``=`` joined or the next argument) of a command line, or ``""``.
 
     Works on the argument list, so a profile path that contains spaces stays whole.

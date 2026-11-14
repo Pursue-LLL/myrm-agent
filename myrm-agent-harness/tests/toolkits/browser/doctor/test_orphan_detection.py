@@ -15,7 +15,7 @@ import pytest
 
 import myrm_agent_harness
 from myrm_agent_harness.toolkits.browser.doctor import find_orphan_automation_processes
-from myrm_agent_harness.toolkits.browser.doctor.orphans import _extract_user_data_dir, _is_chromium_process
+from myrm_agent_harness.toolkits.browser.doctor.orphans import _is_chromium_process, extract_user_data_dir
 from myrm_agent_harness.toolkits.browser.process_owner import OWNER_ENV_VAR
 from tests.toolkits.browser._stamped_processes import StampedProcesses, dead_owner_stamp, live_owner_stamp
 
@@ -221,4 +221,4 @@ def test_process_with_no_readable_source_is_not_a_browser(error: Exception) -> N
     ],
 )
 def test_user_data_dir_is_read_from_either_flag_syntax(args: list[str], expected: str) -> None:
-    assert _extract_user_data_dir(args) == expected
+    assert extract_user_data_dir(args) == expected

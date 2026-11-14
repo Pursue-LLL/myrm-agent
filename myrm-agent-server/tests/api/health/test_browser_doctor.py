@@ -4,11 +4,13 @@ Covers ``/api/v1/health/browser/doctor`` and ``/api/v1/health/browser/orphans``:
 - doctor endpoint hands the server-owned extension relay check to ``run_doctor`` as an extra check,
   so the relay row is part of the report and of its summary
 - orphan list/cleanup endpoints use the unified automation scan and keep the
-  ``confirm`` safety semantics (D1/D3 regression)
+  ``confirm`` safety semantics (D1/D3 regression); the cleanup also prunes stale
+  sandboxes and stale browser profiles and reports both with their summed space
 Also covers the ``/browser`` pool health endpoint (healthy or degraded).
 """
 
 import logging
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,10 +22,23 @@ from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="health")
 
+_NO_SANDBOXES = {"candidates_inspected": 0, "pruned": 0, "reclaimed_bytes": 0, "dry_run": True, "failed": []}
+_NO_PROFILES = {"pruned": 0, "reclaimed_bytes": 0, "dry_run": True, "failed": []}
+
 
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _no_directory_cleanup() -> Iterator[None]:
+    """DELETE with confirm=true removes real sandbox and profile directories, so no test may reach them unpatched."""
+    with (
+        patch("myrm_agent_harness.toolkits.browser.cleanup_stale_automation_sandboxes", return_value=_NO_SANDBOXES),
+        patch("myrm_agent_harness.toolkits.browser.cleanup_stale_browser_profiles", return_value=_NO_PROFILES),
+    ):
+        yield
 
 
 def _fake_report() -> SimpleNamespace:
@@ -173,7 +188,7 @@ def test_cleanup_browser_orphans_dry_run_announces_only_what_would_be_pruned(
     assert response.status_code == 200
     data = response.json()
     assert data["sandboxes_pruned"] == 1
-    assert data["message"] == "Dry-run: 0 process(es) and 1 sandbox(es) would be cleaned"
+    assert data["message"] == "Dry-run: 0 process(es), 1 sandbox(es) and 0 browser profile(s) would be cleaned"
 
 
 @pytest.mark.parametrize("confirm", [False, True])
@@ -285,6 +300,73 @@ def test_cleanup_browser_orphans_prunes_sandboxes_and_reports_bytes(
     assert data["sandboxes_pruned"] == 5
     assert data["reclaimed_bytes"] == 104857600
     assert "pruned 5 sandbox(es) (100.0 MB reclaimed)" in data["message"]
+
+
+@patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[])
+def test_cleanup_browser_orphans_dry_run_announces_the_browser_profiles_it_would_prune(
+    _mock_find: object,
+    client: TestClient,
+) -> None:
+    """The preview counts only the profiles the prune would remove, next to the processes and sandboxes."""
+    with patch(
+        "myrm_agent_harness.toolkits.browser.cleanup_stale_browser_profiles",
+        return_value={"pruned": 4, "reclaimed_bytes": 3 * 1024 * 1024, "dry_run": True, "failed": []},
+    ):
+        response = client.delete("/api/v1/health/browser/orphans")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["profiles_pruned"] == 4
+    assert data["reclaimed_bytes"] == 3 * 1024 * 1024
+    assert data["message"] == "Dry-run: 0 process(es), 0 sandbox(es) and 4 browser profile(s) would be cleaned"
+
+
+@pytest.mark.parametrize("confirm", [False, True])
+@patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[])
+def test_cleanup_browser_orphans_judge_profiles_by_the_harness_default_age(
+    _mock_find: object,
+    client: TestClient,
+    confirm: bool,
+) -> None:
+    """Preview and prune use the same profile age threshold, so the preview matches what is pruned."""
+    with patch(
+        "myrm_agent_harness.toolkits.browser.cleanup_stale_browser_profiles",
+        return_value=_NO_PROFILES,
+    ) as mock_profiles:
+        response = client.delete(f"/api/v1/health/browser/orphans?confirm={str(confirm).lower()}")
+
+    assert response.status_code == 200
+    mock_profiles.assert_called_once_with(dry_run=not confirm)
+
+
+@patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[])
+def test_cleanup_browser_orphans_reports_both_kinds_of_directories_with_their_summed_space(
+    _mock_find: object,
+    client: TestClient,
+) -> None:
+    """DELETE with confirm=true prunes sandboxes and profiles, adds their bytes up and passes on every failure."""
+    sandbox_failure = {"path": "/x/a.code_sign_clone", "reason": "directory_still_exists_after_rmtree"}
+    profile_failure = {"path": "/tmp/playwright_chromiumdev_profile-B", "reason": "denied"}
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.browser.cleanup_stale_automation_sandboxes",
+            return_value={"pruned": 1, "reclaimed_bytes": 100 * 1024 * 1024, "dry_run": False, "failed": [sandbox_failure]},
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.browser.cleanup_stale_browser_profiles",
+            return_value={"pruned": 3, "reclaimed_bytes": 2 * 1024 * 1024, "dry_run": False, "failed": [profile_failure]},
+        ),
+    ):
+        response = client.delete("/api/v1/health/browser/orphans?confirm=true")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sandboxes_pruned"] == 1
+    assert data["profiles_pruned"] == 3
+    assert data["reclaimed_bytes"] == 102 * 1024 * 1024
+    assert data["failed"] == [sandbox_failure, profile_failure]
+    assert "pruned 1 sandbox(es) (100.0 MB reclaimed)" in data["message"]
+    assert "pruned 3 browser profile(s) (2.0 MB reclaimed)" in data["message"]
 
 
 @patch("app.config.browser.get_configured_browser_pool")

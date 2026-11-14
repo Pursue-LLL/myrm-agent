@@ -36,6 +36,7 @@ Reuses the existing ``ManagedBrowser`` (Patchright) infrastructure.
 - find_orphan_automation_processes: 孤儿进程检测（re-export, doctor 子包）
 - cleanup_orphan_processes: 孤儿进程安全清理（re-export, doctor 子包）
 - cleanup_stale_automation_sandboxes: 过期自动化沙箱清理（re-export, doctor 子包）
+- cleanup_stale_browser_profiles: 过期浏览器临时 profile 目录清理（re-export, doctor 子包）
 
 Note: create_browser_tools lives in the myrm_agent_harness.toolkits module
 
@@ -74,6 +75,7 @@ if TYPE_CHECKING:
         DoctorReport,
         cleanup_orphan_processes,
         cleanup_stale_automation_sandboxes,
+        cleanup_stale_browser_profiles,
         find_orphan_automation_processes,
         format_report,
         run_doctor,
@@ -129,6 +131,7 @@ __all__ = [
     "VaultMetrics",
     "cleanup_orphan_processes",
     "cleanup_stale_automation_sandboxes",
+    "cleanup_stale_browser_profiles",
     "find_orphan_automation_processes",
     "format_report",
     "load_or_create_key",
@@ -145,6 +148,9 @@ _LAZY_MODULES = {
     ],
     "doctor.sandboxes": [
         "cleanup_stale_automation_sandboxes",
+    ],
+    "doctor.profiles": [
+        "cleanup_stale_browser_profiles",
     ],
     "doctor.report": [
         "CheckStatus",

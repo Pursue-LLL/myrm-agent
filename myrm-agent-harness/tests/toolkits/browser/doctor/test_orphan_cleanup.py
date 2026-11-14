@@ -239,6 +239,10 @@ def test_check_orphan_processes_previews_only_first_pids() -> None:
             "myrm_agent_harness.toolkits.browser.doctor.orphan_check.cleanup_stale_automation_sandboxes",
             return_value={"pruned": 0, "reclaimed_bytes": 0},
         ),
+        patch(
+            "myrm_agent_harness.toolkits.browser.doctor.orphan_check.cleanup_stale_browser_profiles",
+            return_value={"pruned": 0, "reclaimed_bytes": 0},
+        ),
     ):
         result = check_orphan_processes()
 
@@ -251,6 +255,8 @@ def test_check_orphan_processes_previews_only_first_pids() -> None:
         "paths": ["/tmp/x", "/tmp/x", "/tmp/x", "/tmp/x"],
         "stale_sandboxes": 0,
         "stale_sandbox_bytes": 0,
+        "stale_profiles": 0,
+        "stale_profile_bytes": 0,
     }
 
 
@@ -264,6 +270,10 @@ def test_check_orphan_processes_reports_stale_sandboxes_when_no_orphans() -> Non
         patch(
             "myrm_agent_harness.toolkits.browser.doctor.orphan_check.cleanup_stale_automation_sandboxes",
             return_value={"pruned": 3, "reclaimed_bytes": 104857600},
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.browser.doctor.orphan_check.cleanup_stale_browser_profiles",
+            return_value={"pruned": 0, "reclaimed_bytes": 0},
         ),
     ):
         result = check_orphan_processes()

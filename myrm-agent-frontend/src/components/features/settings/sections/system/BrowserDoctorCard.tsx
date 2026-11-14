@@ -12,7 +12,7 @@
  *
  * [POS]
  * 系统设置页的浏览器栈诊断入口：头条与徽标只呈现「需关注项」，英文 message/fix 收进可展开的技术详情；
- * 孤儿进程与过期沙箱经二次确认后清理。
+ * 孤儿进程、过期沙箱与临时 profile 目录经二次确认后清理。
  */
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
