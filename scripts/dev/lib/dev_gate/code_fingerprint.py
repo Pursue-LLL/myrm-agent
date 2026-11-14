@@ -10,8 +10,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
-# Paths relative to the dev lib root. A directory stands for every module of that package, so a module added to
-# the package is covered without editing this list.
+# Paths relative to the dev lib root. A directory stands for every module below it, sub-packages included, so a module
+# added to the package is covered without editing this list.
 COORDINATOR_CODE_SOURCES: tuple[str, ...] = (
     "dev_gate/coordinator.py",
     "dev_gate/cli.py",
@@ -30,12 +30,15 @@ COORDINATOR_CODE_SOURCES: tuple[str, ...] = (
 
 
 def source_fingerprint(lib_root: Path, sources: Iterable[str]) -> str:
-    """`name:mtime_ns` of every existing source, joined by `|`; a package entry lists each of its modules."""
+    """`name:mtime_ns` of every existing source, joined by `|`; a package entry lists each module below it."""
     parts: list[str] = []
     for name in sources:
         path = lib_root / name
         if path.is_dir():
-            parts.extend(f"{name}/{module.name}:{module.stat().st_mtime_ns}" for module in sorted(path.glob("*.py")))
+            parts.extend(
+                f"{name}/{module.relative_to(path).as_posix()}:{module.stat().st_mtime_ns}"
+                for module in sorted(path.rglob("*.py"))
+            )
         elif path.is_file():
             parts.append(f"{name}:{path.stat().st_mtime_ns}")
     return "|".join(parts)
