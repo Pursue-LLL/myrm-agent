@@ -1,28 +1,37 @@
 """Per-process hotspot capture: who is burning CPU, holding memory or running many threads.
 
 [INPUT]
-- ``ps -axo pid=,ppid=,%cpu=,rss=,etime=,command=`` (one subprocess per capture)
+- ``/bin/ps -axo pid=,ppid=,%cpu=,rss=,etime=,command=`` (one subprocess per capture, capped
+  at PS_TIMEOUT_SEC)
 - proc_footprint.platform_reader (physical footprint per process)
 - proc_threads.platform_thread_reader (thread totals and running threads per process)
-- host_load_sampler.classify_role (same role labels as the aggregate rows)
+- host_load_sampler.classify_role / parse_elapsed / PS_TIMEOUT_SEC (same role labels as the aggregate
+  rows, ps elapsed-time parsing, the ps time cap)
+- host_resource_governor.collect_host_pressure_snapshot and host_vm_stats.read_vm_snapshot (the host
+  readings stored beside the processes)
+- real_user_home.real_user_home (the home directory that prints as ``~``)
 - command_redaction.redact_command (the only path a command line takes into a row)
 
 [OUTPUT]
 - Hotspot / HotProc: the stored row (host context, the hottest processes, their ancestors)
 - HostContext: the host readings stored beside the processes
-- parse_process_table(text) -> list[TableRow]
+- parse_process_table(text) / capture_process_table() -> list[TableRow]: the parsed process table
 - build_hotspot(...) -> Hotspot: pure, ranks a captured table
 - capture_hotspot(ts, reasons, context) -> Hotspot: reads the machine, then builds
 - host_context_now() -> HostContext
+- TOP_PER_RANKING / MIN_CPU_PCT / MIN_FOOTPRINT_MB / MIN_RUNNING_THREADS / MAX_ANCESTOR_DEPTH /
+  MAX_PARENTS / ARGUMENT_ROLES: the ranking limits and the roles that keep arguments
 
 [POS]
 The recorder's aggregate rows say which role was busy; this row says which process, with which
 command, under which parent. It is captured only when a trigger fires (see
 host_hotspot_trigger), so a calm machine pays nothing. A process enters the row when it ranks
-in the top few by CPU (``%cpu`` is the kernel's recent-usage figure, the same window the
-recorder samples), by footprint, or by running threads; its ancestors (up to three levels)
-are stored once in ``parents`` so pytest-xdist workers and Next dev children can be tied to the
-test run or dev server that owns them. Commands go through command_redaction and only the
+in the top TOP_PER_RANKING by CPU (``%cpu`` is the kernel's recent-usage figure, the same window
+the recorder samples), by footprint, or by running threads and reaches that ranking's floor
+(MIN_CPU_PCT, MIN_FOOTPRINT_MB, MIN_RUNNING_THREADS); a process whose footprint cannot be read
+counts at its RSS. Its ancestors (up to MAX_ANCESTOR_DEPTH levels, at most MAX_PARENTS labels per
+row) are stored once in ``parents`` so pytest-xdist workers and Next dev children can be tied to
+the test run or dev server that owns them. Commands go through command_redaction and only the
 roles in ARGUMENT_ROLES keep arguments.
 """
 

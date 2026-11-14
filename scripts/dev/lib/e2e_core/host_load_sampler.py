@@ -3,20 +3,24 @@
 [INPUT]
 - host_resource_governor.collect_host_pressure_snapshot (load average, CPU count, free memory)
 - ``host_statistics`` cumulative CPU ticks (ctypes, no subprocess)
-- ``ps -axo pid,rss,time,etime,command`` (one subprocess per sample)
+- ``/bin/ps -axo pid=,rss=,time=,etime=,command=`` (one subprocess per sample, capped at
+  PS_TIMEOUT_SEC)
 - proc_footprint.platform_reader (per-process physical footprint)
-- host_vm_stats.read_vm_snapshot (kernel pressure level, compressor, swap, paging traffic)
+- host_vm_stats.read_vm_snapshot / vm_sample (kernel pressure level, compressor, swap, paging rates)
 
 [OUTPUT]
-- LoadSampler.sample() -> LoadSample | None (None while priming)
+- LoadSampler.sample() -> LoadSample | None (None while priming, after a gap longer than
+  MAX_SAMPLE_GAP_SEC, and where CPU ticks are unreadable)
+- LoadSample / RoleStat: the stored row types
 - classify_role(command) -> role label
+- parse_elapsed(etime) -> seconds and PS_TIMEOUT_SEC: shared with host_hotspot_capture
 
 [POS]
 Read-only observer behind host_load_recorder. A sample holds counts, CPU cores, RSS and
 footprint per role label and never a command line, so persisted rows are safe to share.
 Footprint (resident + compressed + swapped) is what a process weighs on the machine under
 memory pressure; RSS alone understates it, so a process whose footprint cannot be read
-counts at its RSS and the field is omitted when no footprint source exists.
+counts at its RSS and the field is omitted when no process footprint could be read at all.
 Processes that start and exit between two samples are invisible per role; their CPU shows up
 as ``unattributed_cores`` (machine-busy cores minus the sum over visible processes).
 """

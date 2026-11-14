@@ -2,13 +2,16 @@
 
 [INPUT]
 - LoadSample rows from host_load_sampler (CPU idle, per-role footprint, kernel pressure level)
-- host_hotspot_capture.capture_hotspot (the per-process capture)
-- host_load_store (hotspot files under dev_state_dir)
+- host_vm_stats.PRESSURE_WARN (kernel level from which memory counts as under pressure)
+- host_hotspot_capture.capture_hotspot / HostContext / Hotspot (the per-process capture, its types)
+- host_load_store.append_hotspot / prune_expired_hotspots (hotspot files, recorder's directory)
 
 [OUTPUT]
 - SampleSource: anything with ``sample() -> LoadSample | None``
 - HotspotTrigger.reasons(sample) -> list[str]: why a capture is due, [] when none is
-- HotspotRecorder: a SampleSource that passes samples through and stores a hotspot on a trigger
+- HotspotRecorder: a SampleSource that passes samples through and stores a hotspot on a trigger;
+  ``prune_expired(today)`` applies the hotspot retention
+- SATURATED_IDLE_PCT / SURGE_MB / SURGE_WINDOW_SEC / COOLDOWN_SEC: the trigger thresholds
 
 [POS]
 A calm tick compares the sample against two thresholds and the last few minutes of per-role

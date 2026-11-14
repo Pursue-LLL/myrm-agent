@@ -1,7 +1,8 @@
 """Readable view of stored hotspot captures.
 
 [INPUT]
-- Hotspot rows from host_load_store.read_hotspots
+- host_hotspot_capture.Hotspot / HotProc (the stored row types; callers pass rows read with
+  host_load_store.read_hotspots)
 
 [OUTPUT]
 - render_hotspot(hotspot) -> str: one capture
@@ -10,9 +11,9 @@
 [POS]
 Answers "which process, started by what, was behind that spike" from a stored capture alone.
 Each capture lists its processes under the rankings they made (CPU, footprint, running
-threads) with the parent chain that started them, so a pytest-xdist worker reads as the test
-run that owns it. Sizes print in binary units (MiB, GiB), the unit the stored ``*_mb`` fields
-count in.
+threads), at most five per ranking, with the first two levels of the parent chain that started
+them, so a pytest-xdist worker reads as the test run that owns it. Sizes print in binary units
+(MiB, GiB), the unit the stored ``*_mb`` fields count in.
 """
 
 from __future__ import annotations
