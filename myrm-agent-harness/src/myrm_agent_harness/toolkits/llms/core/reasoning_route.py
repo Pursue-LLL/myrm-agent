@@ -1,4 +1,4 @@
-"""Provider-aware identity of a model call for reasoning-parameter normalization.
+"""Provider-aware identity of a model call for reasoning-parameter rules.
 
 [INPUT]
 - transport.profile::resolve_route (POS: provider, bare model id and endpoint of one call)
@@ -11,7 +11,7 @@
 The leading segment of a model id (``openai/``, ``azure/``) names the wire protocol a call speaks, not the model
 family: SiliconFlow, OpenCode Go, NVIDIA and custom endpoints reach their own models through the ``openai/``
 segment. Reasoning-parameter rules therefore read the bare model id together with whether the endpoint is the
-provider's own, the same facts the wire router uses, instead of matching the route string.
+provider's own, the same facts the wire router uses.
 """
 
 from __future__ import annotations

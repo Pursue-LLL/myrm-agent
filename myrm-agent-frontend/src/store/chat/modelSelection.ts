@@ -3,9 +3,10 @@
  * @/lib/model-binding::resolveActiveModelConfig (POS: Frontend model selection resolver)
  * @/lib/model-routing::resolveSmartRouting (POS: Single decision point for smart routing activation and slots)
  * @/store/useProviderStore::useProviderStore (POS: Provider and default model configuration store)
+ * @/components/features/message-input-actions/ThinkingIntensityButton::getThinkingEffort (POS: Thinking-intensity choice, undefined on auto)
  *
  * [OUTPUT]
- * getModelSelection: Resolve the active model for chat requests.
+ * getModelSelection: Resolve the active model for chat requests; the thinking-intensity choice rides as `reasoning_effort` (auto adds nothing, so a depth configured on the model stays).
  * getRoutingModelSelections: Resolve the light / reasoning routing slots a request carries (empty when smart routing does not apply).
  * get*ModelSelection / get*Fallback*ModelSelection: Resolve the lite, fallback, safety, vision, code and long-document slots.
  * getAutoMoaReasoning / getAutoMoaPresetId: Resolve the automatic MoA reasoning switch and preset.

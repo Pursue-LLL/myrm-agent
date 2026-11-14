@@ -6,6 +6,7 @@ Review agent/context_management/PROMPT_CACHE_PRACTICE.md §6.1-6.2 whenever this
 - adapters.chat_model::TransportChatModel, clean_model_kwargs (POS: LangChain adapter)
 - catalog::supports_web_search (POS: model native search capability detection)
 - transport::speaks_openai_body (POS: whether the provider takes an OpenAI-shaped request body)
+- core.deepseek_reasoning / openai_reasoning / openrouter_verbosity / reasoning_profile (POS: per-provider reasoning-effort normalization and the shared reasoning profile)
 
 [OUTPUT]
 - create_chat_model(): factory function to create chat model instances

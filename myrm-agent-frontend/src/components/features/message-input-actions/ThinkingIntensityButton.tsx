@@ -1,5 +1,24 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/store/useProviderStore::useProviderStore (POS: Provider and default model configuration store)
+ * - @/lib/model-binding::resolveActiveModelSelection (POS: Resolves the model a mode or agent binds)
+ * - @/lib/reasoning-model-detection::detectReasoningSupport (POS: Whether a model can reason)
+ * - @/hooks/ui/persistedStringStore::createPersistedStringStore (POS: Per-device key-to-string memory that survives reloads)
+ *
+ * [OUTPUT]
+ * - ThinkingIntensityButton (default): composer picker for the thinking intensity of the active model.
+ * - IntensityLevel, INTENSITY_OPTIONS: the selectable levels (auto, off, low, medium, high, xhigh, max).
+ * - setGlobalIntensity, setGlobalCustomValue, getThinkingEffort, useGlobalIntensity: the module-level intensity state
+ *   shared with the thinking-budget store, the mobile sheet and the request builder; getThinkingEffort is what a request
+ *   carries (a custom value when set, else the level, undefined on auto).
+ *
+ * [POS]
+ * Thinking-intensity picker and the intensity state behind it. `auto` (default) asks nothing of the model and is not
+ * saved; `off`, another level or a custom value is saved per model on this device and restored when the model comes back.
+ */
+
 import { useState, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';

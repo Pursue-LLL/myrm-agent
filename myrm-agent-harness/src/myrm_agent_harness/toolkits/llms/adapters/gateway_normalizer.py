@@ -14,7 +14,8 @@ or optional parameters with HTTP 400.
 - drop_rejected_reasoning_params(): Removes the reasoning controls an endpoint already rejected from a request
 
 [POS]
-Adapters gateway normalizer.
+OpenAI-compatible gateway normalizer. Downgrades a request the gateway rejected with HTTP 400 and remembers
+the rejection per endpoint, so the same request does not fail again.
 """
 
 from __future__ import annotations

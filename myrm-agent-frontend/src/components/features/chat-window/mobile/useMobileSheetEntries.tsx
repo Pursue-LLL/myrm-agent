@@ -4,7 +4,7 @@
  * - @/store/useProviderStore (POS: 模型与 Provider 注册表)
  * - @/lib/model-binding (POS: 模型选择解析)
  * - @/store/useFeatureGateStore (POS: 功能门控状态)
- * - ThinkingIntensityButton::useGlobalIntensity (POS: 响应式思考强度状态)
+ * - ThinkingIntensityButton::useGlobalIntensity (POS: 思考强度选择器及其响应式全局状态)
  *
  * [OUTPUT]
  * - useMobileSheetEntries: 为 MobileActionSheet 构建 entries 数据的 hook。

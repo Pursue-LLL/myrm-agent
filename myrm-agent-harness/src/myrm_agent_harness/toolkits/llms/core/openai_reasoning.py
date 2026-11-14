@@ -2,7 +2,7 @@
 
 [INPUT]
 - model identifier, base_url, llm_kwargs dictionary
-- reasoning_route::resolve_reasoning_route (POS: provider, bare model id and endpoint kind of the call)
+- reasoning_route::resolve_reasoning_route (POS: provider-aware identity of a model call for reasoning-parameter rules)
 
 [OUTPUT]
 - is_openai_model(): whether the call reaches an OpenAI model (first-party endpoint, Azure, or an OpenAI model id

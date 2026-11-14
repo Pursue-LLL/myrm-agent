@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useThinkingBudgetStore } from '../useThinkingBudgetStore';
-import * as legacyIntensity from '@/components/features/message-input-actions/ThinkingIntensityButton';
+import * as intensityBus from '@/components/features/message-input-actions/ThinkingIntensityButton';
 
 describe('useThinkingBudgetStore', () => {
   beforeEach(() => {
@@ -12,7 +12,7 @@ describe('useThinkingBudgetStore', () => {
       reasoningEffort: undefined,
     });
     vi.restoreAllMocks();
-    legacyIntensity.setGlobalIntensity('auto');
+    intensityBus.setGlobalIntensity('auto');
   });
 
   afterEach(() => {
@@ -27,7 +27,7 @@ describe('useThinkingBudgetStore', () => {
   });
 
   it('updates level, token budget, and syncs legacy intensity bus', () => {
-    const spySetGlobal = vi.spyOn(legacyIntensity, 'setGlobalIntensity');
+    const spySetGlobal = vi.spyOn(intensityBus, 'setGlobalIntensity');
     const { setLevel } = useThinkingBudgetStore.getState();
 
     setLevel('medium', 'claude-3-7-sonnet');
@@ -55,16 +55,16 @@ describe('useThinkingBudgetStore', () => {
 
   it('moves the intensity bus to the hydrated level', () => {
     localStorage.setItem('myrm_thinking_budget_o3-mini', 'high');
-    legacyIntensity.setGlobalIntensity('low');
+    intensityBus.setGlobalIntensity('low');
 
     useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
 
-    expect(legacyIntensity.getThinkingEffort()).toBe('high');
+    expect(intensityBus.getThinkingEffort()).toBe('high');
   });
 
   it('keeps the preference the intensity control saved for a model when switching to it', () => {
     localStorage.setItem('thinkingIntensity_o3-mini', 'max');
-    legacyIntensity.setGlobalIntensity('high', 'gpt-4o');
+    intensityBus.setGlobalIntensity('high', 'gpt-4o');
 
     useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
 
@@ -74,7 +74,7 @@ describe('useThinkingBudgetStore', () => {
 
   it('keeps a custom value the intensity control saved for a model when switching to it', () => {
     localStorage.setItem('thinkingIntensityCustom_o3-mini', '24k');
-    legacyIntensity.setGlobalIntensity('medium', 'gpt-4o');
+    intensityBus.setGlobalIntensity('medium', 'gpt-4o');
 
     useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
 
@@ -82,7 +82,7 @@ describe('useThinkingBudgetStore', () => {
   });
 
   it('ignores hydration for an empty model name or the model already hydrated', () => {
-    legacyIntensity.setGlobalIntensity('low');
+    intensityBus.setGlobalIntensity('low');
 
     useThinkingBudgetStore.getState().hydrateForModel('');
     expect(useThinkingBudgetStore.getState().currentModel).toBe('');
@@ -92,7 +92,7 @@ describe('useThinkingBudgetStore', () => {
     useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
 
     expect(useThinkingBudgetStore.getState().level).toBe('auto');
-    expect(legacyIntensity.getThinkingEffort()).toBe('low');
+    expect(intensityBus.getThinkingEffort()).toBe('low');
   });
 
   it('falls back to auto for an unrecognised stored level', () => {
@@ -110,16 +110,16 @@ describe('useThinkingBudgetStore', () => {
     useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
 
     expect(useThinkingBudgetStore.getState().level).toBe('off');
-    expect(legacyIntensity.getThinkingEffort()).toBe('off');
+    expect(intensityBus.getThinkingEffort()).toBe('off');
   });
 
   it('keeps a model with nothing saved on auto, which asks nothing of the model', () => {
-    legacyIntensity.setGlobalIntensity('high');
+    intensityBus.setGlobalIntensity('high');
 
     useThinkingBudgetStore.getState().hydrateForModel('gpt-4o');
 
     expect(useThinkingBudgetStore.getState().level).toBe('auto');
-    expect(legacyIntensity.getThinkingEffort()).toBeUndefined();
+    expect(intensityBus.getThinkingEffort()).toBeUndefined();
   });
 
   it('still changes level when storage is blocked', () => {
@@ -133,7 +133,7 @@ describe('useThinkingBudgetStore', () => {
 
     expect(useThinkingBudgetStore.getState().currentModel).toBe('blocked-model');
     expect(useThinkingBudgetStore.getState().level).toBe('high');
-    expect(legacyIntensity.getThinkingEffort()).toBe('high');
+    expect(intensityBus.getThinkingEffort()).toBe('high');
   });
 
   it('removes the storage entry when setting the level to auto', () => {
@@ -151,6 +151,6 @@ describe('useThinkingBudgetStore', () => {
     setLevel('off', 'gpt-4o');
 
     expect(localStorage.getItem('myrm_thinking_budget_gpt-4o')).toBe('off');
-    expect(legacyIntensity.getThinkingEffort()).toBe('off');
+    expect(intensityBus.getThinkingEffort()).toBe('off');
   });
 });

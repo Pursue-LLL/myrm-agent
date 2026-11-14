@@ -208,11 +208,9 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "gateway-reasoning-effort-sent",
-        "A reasoning effort set for a model behind an OpenAI-compatible gateway reaches the gateway. The previous "
-        "library dropped it for every model named under the `openai/` route prefix, which only names the wire "
-        "protocol, not the model family; a gateway that rejects the field is retried without it and the rejection is "
-        "remembered. Checked against a real OpenCode Go DeepSeek V4.1 Flash and a local gateway, not against every "
-        "gateway.",
+        "A reasoning effort set for a model behind an OpenAI-compatible gateway reaches the gateway: the `openai/` "
+        "route prefix names the wire protocol, not the model family, so it does not decide whether a model takes the "
+        "field. A gateway that rejects the field is retried without it and the rejection is remembered.",
         "+",
         r"/body/reasoning_effort",
         providers=("openai_like",),
@@ -220,8 +218,8 @@ EQUIVALENT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "gateway-reasoning-output-headroom",
-        "The thinking headroom (`max_tokens` floor for `high`) that goes with the reasoning effort now sent by "
-        "`gateway-reasoning-effort-sent`.",
+        "The thinking headroom (`max_tokens` floor for `high`) that goes with the reasoning effort "
+        "`gateway-reasoning-effort-sent` lets through.",
         "~",
         r"/body/max_tokens",
         providers=("openai_like",),
