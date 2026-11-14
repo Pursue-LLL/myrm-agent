@@ -30,6 +30,7 @@ and are re-exported here.
 
 from __future__ import annotations
 
+import itertools
 import logging
 import time as _time
 from collections.abc import Sequence
@@ -243,6 +244,20 @@ _OSV_ECOSYSTEM_MAP: dict[str, str] = {
     "python3": "PyPI",
 }
 
+_INTERPRETER_COMMANDS = frozenset({"python", "python3"})
+
+
+def _interpreter_module(args: list[str]) -> str | None:
+    """The module a ``python -m <module>`` launch names; None when it runs a script path or inline code.
+
+    A script path is local code, not a registry package: OSV has no record of it, and looking it up would send a
+    local file path to a third party and wait for a reply that cannot matter.
+    """
+    for flag, value in itertools.pairwise(arg.strip() for arg in args):
+        if flag == "-m" and value and not value.startswith("-"):
+            return value
+    return None
+
 
 def _extract_package_info(
     command: str,
@@ -258,6 +273,10 @@ def _extract_package_info(
     ecosystem = _OSV_ECOSYSTEM_MAP.get(cmd_base)
     if ecosystem is None:
         return None
+
+    if cmd_base in _INTERPRETER_COMMANDS:
+        module = _interpreter_module(args or [])
+        return (module, ecosystem) if module else None
 
     for arg in args or []:
         stripped = arg.strip()
