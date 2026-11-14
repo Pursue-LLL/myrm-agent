@@ -48,11 +48,14 @@ async def test_every_error_kind_replies_with_catalog_wording_and_a_reference(kin
 
 @pytest.mark.asyncio
 async def test_reply_hides_the_provider_text_and_the_billing_state() -> None:
-    _persist_mock, reply = await _finalize(_failed_acc(), ((), frozenset()))
+    # The reference id is random hex, so it can spell the status code by chance; the check reads the wording without it.
+    with patch("app.channels.routing.friendly_errors._error_ref_id", return_value="f1b4a403"):
+        _persist_mock, reply = await _finalize(_failed_acc(), ((), frozenset()))
 
+    wording = _REF.sub("", reply.content)
     for leaked in ("403", "_XaiEntitlementError", "monthly spending limit", "credits", "balance"):
-        assert leaked not in reply.content
-    assert "administrator" in reply.content
+        assert leaked not in wording
+    assert "administrator" in wording
 
 
 @pytest.mark.asyncio
