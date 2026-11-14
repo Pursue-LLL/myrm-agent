@@ -7,9 +7,11 @@ the raw bytes to the appropriate file parser for extraction.
 [INPUT]
 - toolkits.file_parsers (POS: File parsers toolkit entry point.)
 - utils.content_sniff::magic_extension (POS: Format signature to file extension)
+- web_fetch.processing.pipeline::SOURCE_TRUNCATED_KEY (POS: Document metadata flag for a source cut short)
 
 [OUTPUT]
 - MAX_BINARY_SIZE: the largest file body the router parses; a larger one is dropped
+- MAX_PARSED_CHARS: the most parsed text a Document keeps; a longer text is cut and the Document carries SOURCE_TRUNCATED_KEY
 - route_binary_content: Detect and parse binary content from a FetchResult
 
 [POS]
@@ -28,9 +30,13 @@ from langchain_core.documents import Document
 
 from myrm_agent_harness.utils.content_sniff import magic_extension
 
+from .pipeline import SOURCE_TRUNCATED_KEY
+
 logger = logging.getLogger(__name__)
 
 MAX_BINARY_SIZE = 20 * 1024 * 1024  # 20 MB safety limit
+# A parsed file can hold far more text than a prompt can use; the Document keeps the beginning and says it was cut.
+MAX_PARSED_CHARS = 100_000
 
 _CONTENT_TYPE_MAP: dict[str, str] = {
     "application/pdf": ".pdf",
@@ -120,14 +126,16 @@ async def route_binary_content(
         if not result or not result.strip():
             return None
 
-        return Document(
-            page_content=result[:100_000],
-            metadata={
-                "url": url,
-                "source_type": f"binary_{ext.lstrip('.')}",
-                "extension": ext,
-            },
-        )
+        metadata: dict[str, str | bool] = {
+            "url": url,
+            "source_type": f"binary_{ext.lstrip('.')}",
+            "extension": ext,
+        }
+        if len(result) > MAX_PARSED_CHARS:
+            logger.info("Parsed text cut at %d of %d characters: %s", MAX_PARSED_CHARS, len(result), url[:100])
+            metadata[SOURCE_TRUNCATED_KEY] = True
+
+        return Document(page_content=result[:MAX_PARSED_CHARS], metadata=metadata)
     except Exception as e:
         logger.warning("Failed to parse binary content from %s: %s", url[:100], e)
         return None

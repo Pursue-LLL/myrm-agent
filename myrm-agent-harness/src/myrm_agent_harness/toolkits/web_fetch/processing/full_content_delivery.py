@@ -6,10 +6,10 @@
 - core.security.detection.content_boundary::wrap_untrusted (POS: UNTRUSTED_DATA boundary) [lazy]
 
 [OUTPUT]
-- FetchedPage: one fetched page (source URL, title, Markdown body, whether the fetcher cut its source short)
+- FetchedPage: one fetched page (source URL, title, Markdown body, whether its source was cut short)
 - ReadRange: omitted lines of the stored copy, labelled with the page they belong to
 - FullContentDelivery: the model-visible text, the full text to persist, the omitted-line ranges, and the trusted
-  notice about pages whose source was cut at the fetch size ceiling
+  notice about pages whose source was cut short
 - plan_full_content(): split the shared budget fairly, cut each long page, locate the omitted lines, name the
   source-cut pages; the pages carry the numbers the caller gives (the run's source numbers), from 1 when none
 - clamp_read_ranges(): drop the ranges a capped stored copy no longer holds
@@ -52,7 +52,8 @@ class FetchedPage:
     url: str
     title: str
     body: str
-    # The fetcher cut the source at its size ceiling: ``body`` is only the beginning of the page.
+    # The source was cut short (by the fetcher at its size ceiling, or by the binary router at its parsed-text cap):
+    # ``body`` is only the beginning of it.
     source_truncated: bool = False
 
 
@@ -72,7 +73,7 @@ class FullContentDelivery:
     stored_text: str | None
     read_ranges: tuple[ReadRange, ...]
     raw_chars: int
-    # Trusted guidance naming the pages whose source was cut at the fetch size ceiling; empty when none was.
+    # Trusted guidance naming the pages whose source was cut short; empty when none was.
     source_notice: str = ""
 
     @property
