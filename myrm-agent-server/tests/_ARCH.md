@@ -373,7 +373,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/gap_toast_chrome_e2e_contract.py` | 辅助 | Gap Toast E2E Dual-Plane SSOT（Verification=API/integration · Experience=browser send+poll；禁止 chrome_e2e body 内 agent-stream httpx） |
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
 | `support/local_embedding_server.py` | 辅助 | 本地 OpenAI 兼容 embedding 端点（`/v1/embeddings`，确定性 1024 维哈希向量）；产品支持任意自托管 embedding `api_base`，用于外部 embedding 账户配额不可用时打通真实链路（`e2e/test_memory_ab_model_disclosure_chrome_e2e.py` 使用） |
-| `support/retrieval_embedding.py` | 辅助 | `configured_retrieval_embedding(api_url)`：为 Chrome E2E 写入 WebUI `retrieval.embeddingConfig`（已配置则沿用；否则用 `.env.test` 的真实 embedding 账户，缺失时回退 `local_embedding_server`），使 `create_memory_manager` 走真实嵌入 |
+| `support/retrieval_embedding.py` | 辅助 | `configured_retrieval_embedding(api_url)`：为 Chrome E2E 写入 WebUI `retrieval.embeddingConfig`（已配置则沿用；否则用 `.env.test` 的真实 embedding 账户，但先发一次单文本请求验证它出得了向量（`embedding_unusable_reason`，用单测 `unit/support/test_retrieval_embedding.py` 钉住），账户缺失或不可用（余额耗尽、密钥被拒、端点不通）时回退 `local_embedding_server`，否则稠密召回静默降级、需要向量的写入全部失败），使 `create_memory_manager` 走真实嵌入 |
 | `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（仅 touch，不再重置 body 计时） |
 | `support/e2e_fixture_stamps.py` | 辅助 | Chrome E2E 租约夹具（`conftest.py::_require_live_e2e_lease`）内的墙钟戳：一次输出 `E2E_LEASE_FIXTURE_STAMPS` 行，根仓 `scripts/dev/e2e_wait_audit.py` 的 `C4b`–`C4i` 据此拆分后端启动后到 body 前的夹具耗时 |
 | `../../scripts/dev/lib/e2e_core/shared_ui_session.py` | 辅助 | Shared UI Session Contract（marker `e2e_search_policy` · conftest env · bootstrap/`click_new_chat` 四阶段 reset） |
