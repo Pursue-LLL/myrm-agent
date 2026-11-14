@@ -132,8 +132,9 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
     [enabledModels, currentSelection],
   );
 
-  const { intensity: currentIntensity } = useGlobalIntensity();
-  const currentEffort = currentIntensity === 'off' ? undefined : currentIntensity;
+  const { intensity: currentIntensity, customValue } = useGlobalIntensity();
+  // A custom value replaces the level, so no listed level is the active one while it is set.
+  const currentThinkingLabel = customValue || thinkT(currentIntensity);
 
   const handleIntensitySelect = useCallback((key: string) => {
     setGlobalIntensity(key as IntensityLevel);
@@ -144,9 +145,9 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
       INTENSITY_OPTIONS.map(({ value, labelKey }) => ({
         key: value,
         label: thinkT(labelKey),
-        active: currentEffort === (value === 'off' ? undefined : value),
+        active: !customValue && currentIntensity === value,
       })),
-    [thinkT, currentEffort],
+    [thinkT, currentIntensity, customValue],
   );
 
   return useMemo(() => {
@@ -166,7 +167,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
         key: 'thinking',
         icon: <Sparkles size={16} />,
         label: thinkT('title'),
-        meta: currentEffort ?? thinkT('off'),
+        meta: currentThinkingLabel,
         submenu: {
           title: thinkT('title'),
           options: intensityOptions,
@@ -214,7 +215,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
     t,
     thinkT,
     currentModelLabel,
-    currentEffort,
+    currentThinkingLabel,
     modelOptions,
     handleModelSelect,
     handleIntensitySelect,

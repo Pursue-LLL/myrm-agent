@@ -47,8 +47,8 @@ describe('thinking slider and intensity button together', () => {
       },
     );
     localStorage.clear();
-    setGlobalIntensity('off');
-    useThinkingBudgetStore.setState({ level: 'off', currentModel: '', tokenBudget: 0, reasoningEffort: undefined });
+    setGlobalIntensity('auto');
+    useThinkingBudgetStore.setState({ level: 'auto', currentModel: '', tokenBudget: 0, reasoningEffort: undefined });
     useChatStore.setState({ actionMode: 'agent', agentConfig: null });
     selectModel('o3-mini');
   });

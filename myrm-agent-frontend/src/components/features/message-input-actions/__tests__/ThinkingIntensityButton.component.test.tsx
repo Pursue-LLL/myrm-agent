@@ -70,7 +70,7 @@ describe('ThinkingIntensityButton', () => {
       },
     );
     localStorage.clear();
-    setGlobalIntensity('off');
+    setGlobalIntensity('auto');
     configureModel(REASONING_MODEL);
   });
 
@@ -109,11 +109,18 @@ describe('ThinkingIntensityButton', () => {
   });
 
   describe('trigger', () => {
-    it('is named after the control while the intensity is off, with no level text', () => {
+    it('is named after the control while the intensity is auto, with no level text', () => {
       renderButton();
 
       const trigger = screen.getByRole('button', { name: 'Thinking Intensity' });
       expect(trigger).toHaveTextContent('');
+    });
+
+    it('says so when thinking is asked to be off', () => {
+      localStorage.setItem(`thinkingIntensity_${REASONING_MODEL}`, 'off');
+      renderButton();
+
+      expect(screen.getByRole('button', { name: 'Thinking Intensity: Off' })).toHaveTextContent('Off');
     });
 
     it('carries the active level in its text and name', () => {
@@ -146,7 +153,7 @@ describe('ThinkingIntensityButton', () => {
 
       const dialog = await openPopover(userEvent.setup());
 
-      expect(within(dialog).getAllByRole('button')).toHaveLength(7);
+      expect(within(dialog).getAllByRole('button')).toHaveLength(8);
       const pressed = within(dialog).getAllByRole('button', { pressed: true });
       expect(pressed).toHaveLength(1);
       expect(pressed[0]).toHaveTextContent('X-High');
@@ -165,16 +172,39 @@ describe('ThinkingIntensityButton', () => {
       expect(screen.getByRole('button', { name: 'Thinking Intensity: High' })).toBeInTheDocument();
     });
 
-    it('forgets the saved level when switching back to off', async () => {
+    it('marks auto as the default and starts on it', async () => {
+      renderButton();
+
+      const dialog = await openPopover(userEvent.setup());
+
+      const auto = within(dialog).getByRole('button', { name: /^Auto/ });
+      expect(auto).toHaveAttribute('aria-pressed', 'true');
+      expect(auto).toHaveTextContent('Default');
+      expect(getThinkingEffort()).toBeUndefined();
+    });
+
+    it('forgets the saved level when switching back to auto', async () => {
       localStorage.setItem(`thinkingIntensity_${REASONING_MODEL}`, 'high');
       const user = userEvent.setup();
       renderButton();
       const dialog = await openPopover(user);
 
-      await user.click(within(dialog).getByRole('button', { name: /^Off/ }));
+      await user.click(within(dialog).getByRole('button', { name: /^Auto/ }));
 
       expect(getThinkingEffort()).toBeUndefined();
       expect(localStorage.getItem(`thinkingIntensity_${REASONING_MODEL}`)).toBeNull();
+    });
+
+    it('asks for no thinking on off, which is a choice of its own that is saved for the model', async () => {
+      const user = userEvent.setup();
+      renderButton();
+      const dialog = await openPopover(user);
+
+      await user.click(within(dialog).getByRole('button', { name: 'Off' }));
+
+      expect(getThinkingEffort()).toBe('off');
+      expect(localStorage.getItem(`thinkingIntensity_${REASONING_MODEL}`)).toBe('off');
+      expect(screen.getByRole('button', { name: 'Thinking Intensity: Off' })).toBeInTheDocument();
     });
 
     it('replaces a saved custom value when a level is chosen', async () => {
@@ -310,7 +340,14 @@ describe('ThinkingIntensityButton', () => {
       expect(getThinkingEffort()).toBeUndefined();
     });
 
-    it('swaps in the saved choice of each model, and goes back to off for a model with none', () => {
+    it('restores a saved off, which differs from having chosen nothing', () => {
+      localStorage.setItem(`thinkingIntensity_${REASONING_MODEL}`, 'off');
+      renderButton();
+
+      expect(getThinkingEffort()).toBe('off');
+    });
+
+    it('swaps in the saved choice of each model, and goes back to auto for a model with none', () => {
       localStorage.setItem('thinkingIntensity_o3-mini', 'high');
       localStorage.setItem('thinkingIntensity_o4-mini', 'low');
       renderButton();

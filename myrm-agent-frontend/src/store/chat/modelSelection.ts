@@ -63,11 +63,10 @@ export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConf
     ...modelExtraParams,
   };
 
+  // The picker's `auto` carries no choice, so a depth configured on the model stays; any other choice replaces it.
   const thinkingEffort = getThinkingEffort();
   if (thinkingEffort) {
     mergedKwargs.reasoning_effort = thinkingEffort;
-  } else {
-    delete mergedKwargs.reasoning_effort;
   }
 
   const activeKeyCount = provider.apiKeys.filter((k) => k.isActive && k.key).length;

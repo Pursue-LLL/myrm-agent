@@ -16,16 +16,30 @@ const CUSTOM_KEY = 'thinkingIntensityCustom_test-model';
 describe('thinking intensity choice', () => {
   beforeEach(() => {
     localStorage.clear();
-    setGlobalIntensity('off');
+    setGlobalIntensity('auto');
   });
 
-  it('offers off, low, medium, high, xhigh and max, in that order', () => {
-    expect(INTENSITY_OPTIONS.map((option) => option.value)).toEqual(['off', 'low', 'medium', 'high', 'xhigh', 'max']);
+  it('offers auto, off, low, medium, high, xhigh and max, in that order', () => {
+    expect(INTENSITY_OPTIONS.map((option) => option.value)).toEqual([
+      'auto',
+      'off',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ]);
   });
 
   describe('getThinkingEffort', () => {
-    it('is undefined while the intensity is off', () => {
+    it('is undefined while the intensity is auto: nothing is asked of the model', () => {
       expect(getThinkingEffort()).toBeUndefined();
+    });
+
+    it('is "off" once thinking is asked to be off, which is not the same as asking nothing', () => {
+      setGlobalIntensity('off');
+
+      expect(getThinkingEffort()).toBe('off');
     });
 
     it.each(['low', 'medium', 'high', 'xhigh', 'max'] as const)('is "%s" once that level is chosen', (level) => {
@@ -34,11 +48,11 @@ describe('thinking intensity choice', () => {
       expect(getThinkingEffort()).toBe(level);
     });
 
-    it('follows each change, back to undefined on off', () => {
+    it('follows each change, back to undefined on auto', () => {
       for (const { value } of INTENSITY_OPTIONS) {
         setGlobalIntensity(value);
 
-        expect(getThinkingEffort()).toBe(value === 'off' ? undefined : value);
+        expect(getThinkingEffort()).toBe(value === 'auto' ? undefined : value);
       }
     });
   });
@@ -50,12 +64,18 @@ describe('thinking intensity choice', () => {
       expect(localStorage.getItem(LEVEL_KEY)).toBe('xhigh');
     });
 
-    it('forgets the saved level on off', () => {
+    it('forgets the saved level on auto', () => {
       setGlobalIntensity('high', 'test-model');
 
-      setGlobalIntensity('off', 'test-model');
+      setGlobalIntensity('auto', 'test-model');
 
       expect(localStorage.getItem(LEVEL_KEY)).toBeNull();
+    });
+
+    it('saves off for the model: it is a choice, unlike auto', () => {
+      setGlobalIntensity('off', 'test-model');
+
+      expect(localStorage.getItem(LEVEL_KEY)).toBe('off');
     });
 
     it('replaces a saved custom value', () => {
@@ -132,17 +152,17 @@ describe('thinking intensity choice', () => {
         renders += 1;
         return useGlobalIntensity();
       });
-      expect(result.current).toEqual({ intensity: 'off', customValue: '' });
+      expect(result.current).toEqual({ intensity: 'auto', customValue: '' });
       const initialRenders = renders;
 
-      act(() => setGlobalIntensity('off'));
+      act(() => setGlobalIntensity('auto'));
       expect(renders).toBe(initialRenders);
 
       act(() => setGlobalIntensity('high'));
       expect(result.current).toEqual({ intensity: 'high', customValue: '' });
 
       act(() => setGlobalCustomValue('32k'));
-      expect(result.current).toEqual({ intensity: 'off', customValue: '32k' });
+      expect(result.current).toEqual({ intensity: 'auto', customValue: '32k' });
 
       act(() => setGlobalCustomValue('32k'));
       expect(renders).toBe(initialRenders + 2);

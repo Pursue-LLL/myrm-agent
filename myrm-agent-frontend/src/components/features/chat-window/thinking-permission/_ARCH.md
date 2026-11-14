@@ -7,10 +7,10 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |---|---|---|---|
-| `thinkingPermissionTypes.ts` | 核心契约 | 定义 Thinking 5 档预算、3 档权限模式与高危 Shell 命令正则检查规则；档位名称与说明以 `thinkingPermission` 命名空间的 message key 表达（`labelKey` / `descriptionKey` / `latencyDescriptionKey`），由两个 UI 组件解析 | 纯契约导出与工具函数 |
+| `thinkingPermissionTypes.ts` | 核心契约 | 定义 Thinking 6 档预算（自动 / 关 / 低 / 中 / 高 / 最大；自动不带预算，滑块上显示档位名）、3 档权限模式与高危 Shell 命令正则检查规则；档位名称与说明以 `thinkingPermission` 命名空间的 message key 表达（`labelKey` / `descriptionKey` / `latencyDescriptionKey`），由两个 UI 组件解析 | 纯契约导出与工具函数 |
 | `useThinkingBudgetStore.ts` | 状态机 | 管理推理模型思考预算、Token 预算映射、模型级本地持久化与全局总线同步（`setLevel` 同时写入强度控件的按模型存档；`hydrateForModel` 只在内存里把总线移到该模型的档位，不改写强度控件为该模型保存的选择） | Zustand 响应式 Store |
 | `usePermissionTierStore.ts` | 门禁状态机 | 管理三档权限模式切换、只读探测放行、常规文件编辑放行与高危 Shell 阻断判定 | 结合 `shouldAutoApprove` 的安全状态机 |
 | `usePermissionAutoApprove.ts` | 桥接 Hook | 将三档权限模式无缝桥接至工具审批流程，实现安全编辑放行与高危命令拦截 | 审批流专用集成 Hook |
-| `ThinkingBudgetEffortSlider.tsx` | UI 组件 | 5 档平滑步进滑块与气泡反馈，智能适配模型 reasoning 支持能力；挂在输入框选项区的「思考」组 | React 可交互组件 |
+| `ThinkingBudgetEffortSlider.tsx` | UI 组件 | 6 档平滑步进滑块与气泡反馈（首档「自动」为默认，「关」是明确要求不思考），智能适配模型 reasoning 支持能力；挂在输入框选项区的「思考」组 | React 可交互组件 |
 | `PermissionModeTierSwitcher.tsx` | UI 组件 | 三档权限胶囊切换器与规则说明菜单（`DropdownMenu` 门户渲染，不受输入框内裁切容器影响；切换器在输入框主行，不在可收起的选项区），提供零打扰与高安全的可选平衡；三档为 `menuitemradio`，可用方向键与 Esc 操作 | React 可交互组件 |
 | `index.ts` | 导出出口 | 子包干净聚合出口 | 模块门面 |

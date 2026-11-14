@@ -12,13 +12,15 @@
  * Permission Mode Switcher in the chat window, preventing arbitrary string errors.
  */
 
-export type ThinkingEffortLevel = 'off' | 'low' | 'medium' | 'high' | 'max';
+/** `auto` leaves the depth to the model; `off` asks for no thinking; the others ask for that depth. */
+export type ThinkingEffortLevel = 'auto' | 'off' | 'low' | 'medium' | 'high' | 'max';
 
 export interface ThinkingBudgetTierConfig {
   level: ThinkingEffortLevel;
   labelKey: string;
   tokenBudget: number;
-  tokenLabel: string;
+  /** Budget shown on the slider; null for `auto`, which has no fixed budget and shows its `labelKey` text. */
+  tokenLabel: string | null;
   /** `thinkingPermission` message key of the one-line latency/use-case hint. */
   latencyDescriptionKey: string;
   reasoningEffort?: 'low' | 'medium' | 'high';
@@ -27,6 +29,16 @@ export interface ThinkingBudgetTierConfig {
 }
 
 export const THINKING_BUDGET_TIERS: readonly ThinkingBudgetTierConfig[] = [
+  {
+    level: 'auto',
+    labelKey: 'thinkingTierAuto',
+    tokenBudget: 0,
+    tokenLabel: null,
+    latencyDescriptionKey: 'thinkingTierAutoLatency',
+    reasoningEffort: undefined,
+    colorClass: 'bg-primary/50',
+    activeColorClass: 'text-muted-foreground',
+  },
   {
     level: 'off',
     labelKey: 'thinkingTierOff',
@@ -156,6 +168,11 @@ export function isHighRiskCommand(command: string): boolean {
 
 export interface PermissionCheckResult {
   approved: boolean;
-  reason: 'strict_mode_requires_approval' | 'semi_auto_code_safe_allowed' | 'semi_auto_safe_command_allowed' | 'semi_auto_high_risk_intercepted' | 'full_auto_yolo_allowed';
+  reason:
+    | 'strict_mode_requires_approval'
+    | 'semi_auto_code_safe_allowed'
+    | 'semi_auto_safe_command_allowed'
+    | 'semi_auto_high_risk_intercepted'
+    | 'full_auto_yolo_allowed';
   message: string;
 }

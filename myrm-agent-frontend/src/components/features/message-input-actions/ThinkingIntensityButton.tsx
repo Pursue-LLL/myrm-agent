@@ -13,7 +13,11 @@ import { detectReasoningSupport } from '@/lib/reasoning-model-detection';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import type { ActionMode, AgentConfig } from '@/store/chat/types';
 
-export type IntensityLevel = 'off' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+/**
+ * `auto` asks for nothing: the model keeps its own default depth (and any default configured on the model).
+ * `off` asks for no thinking. The other levels ask for that depth.
+ */
+export type IntensityLevel = 'auto' | 'off' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export interface IntensityOption {
   value: IntensityLevel;
@@ -23,6 +27,7 @@ export interface IntensityOption {
 }
 
 export const INTENSITY_OPTIONS: IntensityOption[] = [
+  { value: 'auto', labelKey: 'auto', color: 'bg-primary/50', activeColor: 'text-muted-foreground' },
   { value: 'off', labelKey: 'off', color: 'bg-slate-400', activeColor: 'text-slate-500 dark:text-slate-400' },
   { value: 'low', labelKey: 'low', color: 'bg-sky-400', activeColor: 'text-sky-500 dark:text-sky-400' },
   { value: 'medium', labelKey: 'medium', color: 'bg-amber-400', activeColor: 'text-amber-500 dark:text-amber-400' },
@@ -33,7 +38,7 @@ export const INTENSITY_OPTIONS: IntensityOption[] = [
 
 const STORAGE_PREFIX = 'thinkingIntensity_';
 const CUSTOM_STORAGE_PREFIX = 'thinkingIntensityCustom_';
-const DEFAULT_INTENSITY: IntensityLevel = 'off';
+const DEFAULT_INTENSITY: IntensityLevel = 'auto';
 
 interface StoredIntensity {
   intensity: IntensityLevel;
@@ -47,7 +52,7 @@ const savedCustomValues = createPersistedStringStore(CUSTOM_STORAGE_PREFIX);
 function getStoredIntensity(modelName: string): StoredIntensity | null {
   const customStored = savedCustomValues.read(modelName);
   if (customStored) {
-    return { intensity: 'off', customValue: customStored };
+    return { intensity: DEFAULT_INTENSITY, customValue: customStored };
   }
   const stored = savedLevels.read(modelName);
   if (stored && INTENSITY_OPTIONS.some((o) => o.value === stored)) {
@@ -75,12 +80,12 @@ function storeCustomValue(modelName: string, value: string): void {
 }
 
 function intensityToReasoningEffort(level: IntensityLevel): string | undefined {
-  return level === 'off' ? undefined : level;
+  return level === 'auto' ? undefined : level;
 }
 
 const ThinkingIcon = ({ className, intensity }: { className?: string; intensity: IntensityLevel }) => {
   const option = INTENSITY_OPTIONS.find((o) => o.value === intensity);
-  const isActive = intensity !== 'off';
+  const isActive = intensity !== 'auto' && intensity !== 'off';
 
   return (
     <svg
@@ -131,10 +136,10 @@ export function setGlobalIntensity(level: IntensityLevel, modelName?: string) {
 }
 
 export function setGlobalCustomValue(value: string, modelName?: string) {
-  if (_state.customValue === value && _state.intensity === 'off') {
+  if (_state.customValue === value && _state.intensity === DEFAULT_INTENSITY) {
     return;
   }
-  _state = { intensity: 'off', customValue: value };
+  _state = { intensity: DEFAULT_INTENSITY, customValue: value };
   if (modelName) {
     storeCustomValue(modelName, value);
   }
@@ -247,7 +252,8 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
   }
 
   const activeOption = INTENSITY_OPTIONS.find((o) => o.value === intensity);
-  const displayLabel = customValue || (intensity !== 'off' ? t(activeOption?.labelKey ?? 'off') : null);
+  const isDefaultChoice = intensity === DEFAULT_INTENSITY && !customValue;
+  const displayLabel = customValue || (intensity !== DEFAULT_INTENSITY ? t(activeOption?.labelKey ?? 'off') : null);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -261,7 +267,7 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
                 className={cn(
                   'group relative flex items-center gap-1 px-2 h-8 rounded-lg transition-all duration-200',
                   'hover:bg-black/[0.06] dark:hover:bg-white/[0.08]',
-                  intensity !== 'off' || customValue ? 'bg-black/[0.04] dark:bg-white/[0.06]' : '',
+                  isDefaultChoice ? '' : 'bg-black/[0.04] dark:bg-white/[0.06]',
                 )}
               >
                 <ThinkingIcon intensity={customValue ? 'high' : intensity} />
@@ -305,7 +311,7 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
                   <span className={cn('font-medium', isSelected ? 'text-foreground' : 'text-muted-foreground')}>
                     {t(option.labelKey)}
                   </span>
-                  {option.value === 'off' && (
+                  {option.value === DEFAULT_INTENSITY && (
                     <span className="text-xs text-muted-foreground/70 ml-auto">{t('default')}</span>
                   )}
                 </button>

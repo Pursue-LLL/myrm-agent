@@ -32,19 +32,22 @@ function resolveTierConfig(level: ThinkingEffortLevel) {
   return found ?? THINKING_BUDGET_TIERS[0];
 }
 
+const DEFAULT_LEVEL: ThinkingEffortLevel = 'auto';
+
 function getStoredLevel(modelName: string): ThinkingEffortLevel {
   if (typeof window === 'undefined') {
-    return 'off';
+    return DEFAULT_LEVEL;
   }
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${modelName}`);
-    if (raw && ['off', 'low', 'medium', 'high', 'max'].includes(raw)) {
-      return raw as ThinkingEffortLevel;
+    const stored = THINKING_BUDGET_TIERS.find((tier) => tier.level === raw);
+    if (stored) {
+      return stored.level;
     }
   } catch {
     // Ignore localStorage access failure
   }
-  return 'off';
+  return DEFAULT_LEVEL;
 }
 
 function persistLevel(modelName: string, level: ThinkingEffortLevel): void {
@@ -52,7 +55,7 @@ function persistLevel(modelName: string, level: ThinkingEffortLevel): void {
     return;
   }
   try {
-    if (level === 'off') {
+    if (level === DEFAULT_LEVEL) {
       localStorage.removeItem(`${STORAGE_PREFIX}${modelName}`);
     } else {
       localStorage.setItem(`${STORAGE_PREFIX}${modelName}`, level);
@@ -63,7 +66,7 @@ function persistLevel(modelName: string, level: ThinkingEffortLevel): void {
 }
 
 export const useThinkingBudgetStore = create<ThinkingBudgetState>((set, get) => ({
-  level: 'off',
+  level: DEFAULT_LEVEL,
   currentModel: '',
   tokenBudget: 0,
   reasoningEffort: undefined,

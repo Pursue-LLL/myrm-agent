@@ -6,22 +6,22 @@ describe('useThinkingBudgetStore', () => {
   beforeEach(() => {
     localStorage.clear();
     useThinkingBudgetStore.setState({
-      level: 'off',
+      level: 'auto',
       currentModel: '',
       tokenBudget: 0,
       reasoningEffort: undefined,
     });
     vi.restoreAllMocks();
-    legacyIntensity.setGlobalIntensity('off');
+    legacyIntensity.setGlobalIntensity('auto');
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('initializes with default off tier and 0 token budget', () => {
+  it('initializes with the auto tier and 0 token budget', () => {
     const state = useThinkingBudgetStore.getState();
-    expect(state.level).toBe('off');
+    expect(state.level).toBe('auto');
     expect(state.tokenBudget).toBe(0);
     expect(state.reasoningEffort).toBeUndefined();
   });
@@ -91,17 +91,35 @@ describe('useThinkingBudgetStore', () => {
     localStorage.setItem('myrm_thinking_budget_o3-mini', 'max');
     useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
 
-    expect(useThinkingBudgetStore.getState().level).toBe('off');
+    expect(useThinkingBudgetStore.getState().level).toBe('auto');
     expect(legacyIntensity.getThinkingEffort()).toBe('low');
   });
 
-  it('falls back to off for an unrecognised stored level', () => {
+  it('falls back to auto for an unrecognised stored level', () => {
     localStorage.setItem('myrm_thinking_budget_o3-mini', 'turbo');
 
     useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
 
-    expect(useThinkingBudgetStore.getState().level).toBe('off');
+    expect(useThinkingBudgetStore.getState().level).toBe('auto');
     expect(useThinkingBudgetStore.getState().tokenBudget).toBe(0);
+  });
+
+  it('hydrates a stored off as off: asking for no thinking is a saved choice', () => {
+    localStorage.setItem('myrm_thinking_budget_o3-mini', 'off');
+
+    useThinkingBudgetStore.getState().hydrateForModel('o3-mini');
+
+    expect(useThinkingBudgetStore.getState().level).toBe('off');
+    expect(legacyIntensity.getThinkingEffort()).toBe('off');
+  });
+
+  it('keeps a model with nothing saved on auto, which asks nothing of the model', () => {
+    legacyIntensity.setGlobalIntensity('high');
+
+    useThinkingBudgetStore.getState().hydrateForModel('gpt-4o');
+
+    expect(useThinkingBudgetStore.getState().level).toBe('auto');
+    expect(legacyIntensity.getThinkingEffort()).toBeUndefined();
   });
 
   it('still changes level when storage is blocked', () => {
@@ -118,12 +136,21 @@ describe('useThinkingBudgetStore', () => {
     expect(legacyIntensity.getThinkingEffort()).toBe('high');
   });
 
-  it('removes storage entry when setting level to off', () => {
+  it('removes the storage entry when setting the level to auto', () => {
     localStorage.setItem('myrm_thinking_budget_gpt-4o', 'low');
+    const { setLevel } = useThinkingBudgetStore.getState();
+
+    setLevel('auto', 'gpt-4o');
+
+    expect(localStorage.getItem('myrm_thinking_budget_gpt-4o')).toBeNull();
+  });
+
+  it('stores off, since it is a choice and not the default', () => {
     const { setLevel } = useThinkingBudgetStore.getState();
 
     setLevel('off', 'gpt-4o');
 
-    expect(localStorage.getItem('myrm_thinking_budget_gpt-4o')).toBeNull();
+    expect(localStorage.getItem('myrm_thinking_budget_gpt-4o')).toBe('off');
+    expect(legacyIntensity.getThinkingEffort()).toBe('off');
   });
 });

@@ -7,17 +7,18 @@
  * - lucide-react::BrainCircuit, SlidersHorizontal, Info (POS: Vector icons.)
  *
  * [OUTPUT]
- * - ThinkingBudgetEffortSlider: 5-tier fluid slider for model reasoning budget and effort control.
+ * - ThinkingBudgetEffortSlider: 6-tier fluid slider for model reasoning budget and effort control.
  *
  * [POS]
  * Embedded input toolbar widget allowing knowledge workers to tune reasoning depth
- * (Off / 2k / 8k / 16k / 32k) to strike the perfect balance between latency, cost, and depth.
+ * (Auto / Off / 2k / 8k / 16k / 32k) to strike the perfect balance between latency, cost, and depth.
  */
 
 import React, { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { BrainCircuit, Info } from 'lucide-react';
 import {
+  type ThinkingBudgetTierConfig,
   type ThinkingEffortLevel,
   THINKING_BUDGET_TIERS,
 } from './thinkingPermissionTypes';
@@ -34,15 +35,8 @@ export interface ThinkingBudgetEffortSliderProps {
   disabled?: boolean;
 }
 
-const TIER_INDEX_MAP: Record<ThinkingEffortLevel, number> = {
-  off: 0,
-  low: 1,
-  medium: 2,
-  high: 3,
-  max: 4,
-};
-
-const INDEX_TO_TIER: readonly ThinkingEffortLevel[] = ['off', 'low', 'medium', 'high', 'max'];
+const INDEX_TO_TIER: readonly ThinkingEffortLevel[] = THINKING_BUDGET_TIERS.map((tier) => tier.level);
+const TIER_INDEX_MAP = new Map(INDEX_TO_TIER.map((level, index) => [level, index]));
 
 export default function ThinkingBudgetEffortSlider({
   modelName,
@@ -51,6 +45,8 @@ export default function ThinkingBudgetEffortSlider({
   disabled = false,
 }: ThinkingBudgetEffortSliderProps) {
   const t = useTranslations('thinkingPermission');
+  // `auto` has no fixed budget, so it reads as its name; the other tiers read as their token budget.
+  const tierText = (tier: ThinkingBudgetTierConfig) => tier.tokenLabel ?? t(tier.labelKey);
   const sliderId = useId();
   const actionMode = useChatStore((state) => state.actionMode);
   const agentConfig = useChatStore((state) => state.agentConfig);
@@ -82,7 +78,7 @@ export default function ThinkingBudgetEffortSlider({
     }
   }, [resolvedModelName, hydrateForModel]);
 
-  const activeIndex = TIER_INDEX_MAP[currentLevel] ?? 0;
+  const activeIndex = TIER_INDEX_MAP.get(currentLevel) ?? 0;
   const activeTierConfig = useMemo(() => {
     const active = THINKING_BUDGET_TIERS.find((tier) => tier.level === currentLevel);
     return active ?? THINKING_BUDGET_TIERS[0];
@@ -102,7 +98,7 @@ export default function ThinkingBudgetEffortSlider({
       return;
     }
     const idx = Number.parseInt(event.target.value, 10);
-    const targetTier = INDEX_TO_TIER[idx] ?? 'off';
+    const targetTier = INDEX_TO_TIER[idx] ?? 'auto';
     setLevel(targetTier, resolvedModelName);
   };
 
@@ -123,7 +119,7 @@ export default function ThinkingBudgetEffortSlider({
       <div className="flex items-center gap-1.5 shrink-0">
         <BrainCircuit
           className={`w-3.5 h-3.5 transition-colors ${
-            !isActuallyDisabled && currentLevel !== 'off'
+            !isActuallyDisabled && currentLevel !== 'auto' && currentLevel !== 'off'
               ? activeTierConfig.activeColorClass
               : 'text-muted-foreground'
           }`}
@@ -148,7 +144,7 @@ export default function ThinkingBudgetEffortSlider({
               id={sliderId}
               type="range"
               min={0}
-              max={4}
+              max={INDEX_TO_TIER.length - 1}
               step={1}
               value={activeIndex}
               onChange={handleSliderChange}
@@ -183,9 +179,9 @@ export default function ThinkingBudgetEffortSlider({
                       ? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
-                  title={`${tier.tokenLabel} · ${t(tier.latencyDescriptionKey)}`}
+                  title={`${tierText(tier)} · ${t(tier.latencyDescriptionKey)}`}
                 >
-                  {tier.tokenLabel}
+                  {tierText(tier)}
                 </button>
               );
             })}
@@ -197,7 +193,7 @@ export default function ThinkingBudgetEffortSlider({
             className="text-[11px] font-medium text-muted-foreground min-w-[28px] text-right"
             title={t(displayTier.latencyDescriptionKey)}
           >
-            {displayTier.tokenLabel}
+            {tierText(displayTier)}
           </span>
         </div>
       )}
