@@ -36,7 +36,7 @@ from myrm_agent_harness.toolkits.memory.conversation_search.types import (
     ConversationSearchResponse,
 )
 
-# The index filters on the time of a conversation's last message, so a conversation that continued past the window is
+# ConversationSearchRequest bounds a conversation by its most recent message, so one that continued past the window is
 # left out even when part of it falls inside; the note says so, or a model reads the window as "when it was discussed".
 _WINDOW_NOTE = (
     "This search was limited to conversations whose last message was sent {window}: "
@@ -88,8 +88,8 @@ async def format_conversation_search_response(
 ) -> dict[str, object]:
     """Format provider response with conversation_history sources in metadata.
 
-    ``since`` and ``until`` are the explicit bounds the search ran under. The service reports an empty result the same
-    way whether nothing matched or the window excluded the match, so an empty reply names the window itself.
+    ``since`` and ``until`` are the explicit bounds the search ran under. A response does not say whether nothing
+    matched or the window excluded the match, so an empty reply names the window itself.
     """
     notice = _format_coverage_notice(response.coverage)
 

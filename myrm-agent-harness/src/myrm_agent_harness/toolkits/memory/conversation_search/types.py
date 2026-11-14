@@ -4,11 +4,11 @@
 pydantic::BaseModel (POS: validation and serialization layer)
 
 [OUTPUT]
-ConversationSearchRequest: typed provider request.
-    ConversationSourceRef: UI-safe source reference for one recalled conversation.
-    ConversationSearchHit: one conversation-level recall result.
-    ConversationIndexCoverage: index coverage and backfill metrics DTO.
-    ConversationSearchResponse: provider response envelope.
+ConversationSearchRequest: typed provider request; its since/until bound a conversation by its most recent message.
+ConversationSourceRef: UI-safe source reference for one recalled conversation.
+ConversationSearchHit: one conversation-level recall result.
+ConversationIndexCoverage: index coverage and backfill metrics DTO.
+ConversationSearchResponse: provider response envelope.
 
 [POS]
 Conversation recall type definitions. Provides storage-agnostic DTOs for exact snippets, precomputed summaries,
@@ -57,7 +57,13 @@ class ConversationSourceRef(BaseModel):
 
 
 class ConversationSearchRequest(BaseModel):
-    """Provider request for conversation-level recall."""
+    """Provider request for conversation-level recall.
+
+    ``since`` and ``until`` bound the time of a conversation's most recent message, in search and recent mode alike:
+    a conversation is kept or dropped as a whole, so one that continued past ``until`` is dropped even when part of it
+    falls inside the window. A request that sets both ``expand_conversation_id`` and ``expand_message_id`` returns that
+    message window and ignores ``since`` and ``until``.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
