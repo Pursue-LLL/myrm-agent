@@ -20,6 +20,7 @@ COORDINATOR_CODE_SOURCES: tuple[str, ...] = (
     "dev_gate/owner_identity.py",
     "dev_gate/session.py",
     "dev_gate/private_resource_controller.py",
+    "dev_gate/private_admission.py",
     "dev_gate/store.py",
     "e2e_core/stale_lease_reap.py",
     "e2e_core/pytest_dedupe.py",
