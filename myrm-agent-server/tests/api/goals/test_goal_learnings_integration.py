@@ -8,9 +8,13 @@ Requires:
 """
 
 import os
+from collections.abc import AsyncIterator
 
 import pytest
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
+from langchain_openai import ChatOpenAI
+
+from tests.support.live_chat_model import live_chat_model
 
 load_dotenv(override=False)
 
@@ -25,10 +29,9 @@ pytestmark = [
 ]
 
 
-def _build_real_llm():
-    """Build a real LLM instance from env vars for integration testing."""
-    from dotenv import dotenv_values
-
+@pytest.fixture
+async def llm() -> AsyncIterator[ChatOpenAI]:
+    """A real LLM instance built from env vars for integration testing."""
     env = dotenv_values()
     api_key = env.get("BASIC_API_KEY") or os.getenv("BASIC_API_KEY", "")
     base_url = env.get("BASIC_BASE_URL") or os.getenv("BASIC_BASE_URL", "")
@@ -37,15 +40,10 @@ def _build_real_llm():
     # Strip provider prefix for direct OpenAI-compatible call
     model_name = raw_model.split("/", 1)[-1] if "/" in raw_model else raw_model
 
-    from langchain_openai import ChatOpenAI
-
-    return ChatOpenAI(
-        model=model_name,
-        api_key=api_key,
-        base_url=base_url if base_url else None,
-        temperature=0,
-        max_tokens=4096,
-    )
+    async with live_chat_model(
+        model=model_name, api_key=api_key, base_url=base_url or None, temperature=0, max_tokens=4096
+    ) as chat:
+        yield chat
 
 
 def _build_realistic_goal_messages() -> list[dict[str, str]]:
@@ -72,7 +70,7 @@ def _build_realistic_goal_messages() -> list[dict[str, str]]:
 class TestGoalLearningsIntegrationReal:
     """Integration tests using real LLM for goal learnings extraction."""
 
-    async def test_extract_goal_learnings_real_llm(self):
+    async def test_extract_goal_learnings_real_llm(self, llm: ChatOpenAI):
         """Full pipeline: real LLM extracts actionable learnings from goal trace."""
         from myrm_agent_harness.api.hooks import (
             create_extraction_llm_func,
@@ -81,7 +79,6 @@ class TestGoalLearningsIntegrationReal:
             extract_goal_learnings,
         )
 
-        llm = _build_real_llm()
         llm_func = create_extraction_llm_func(llm)
         messages = _build_realistic_goal_messages()
 
@@ -125,7 +122,7 @@ class TestGoalLearningsIntegrationReal:
             print(f"  [{i}] (conf={learning.confidence}, imp={learning.importance}) {learning.content}")
         print(f"{'=' * 60}")
 
-    async def test_extract_learnings_quality_filtering(self):
+    async def test_extract_learnings_quality_filtering(self, llm: ChatOpenAI):
         """Verify that low-quality conversations yield fewer/no learnings."""
         from myrm_agent_harness.api.hooks import (
             create_extraction_llm_func,
@@ -134,7 +131,6 @@ class TestGoalLearningsIntegrationReal:
             extract_goal_learnings,
         )
 
-        llm = _build_real_llm()
         llm_func = create_extraction_llm_func(llm)
 
         trivial_messages = [

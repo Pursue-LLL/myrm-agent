@@ -5,6 +5,7 @@ Tests wiki functionality with actual LLM calls (no mocks).
 
 import os
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,8 @@ from myrm_agent_harness.toolkits.wiki import (
     WikiStructure,
 )
 
+from tests.support.live_chat_model import live_chat_model
+
 # Skip if no API key
 pytestmark = pytest.mark.skipif(
     not os.getenv("BASIC_API_KEY"),
@@ -26,7 +29,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture
-def llm():
+async def llm() -> AsyncIterator[ChatOpenAI]:
     """Create real LLM instance."""
     api_key = os.getenv("BASIC_API_KEY")
     model = os.getenv("BASIC_MODEL")
@@ -37,12 +40,8 @@ def llm():
     if "/" in model:
         model = model.split("/", 1)[1]
 
-    return ChatOpenAI(
-        model=model,
-        api_key=api_key,
-        base_url=base_url,
-        temperature=0,
-    )
+    async with live_chat_model(model=model, api_key=api_key, base_url=base_url, temperature=0) as chat:
+        yield chat
 
 
 @pytest.fixture
@@ -59,6 +58,8 @@ def wiki_structure(test_wiki_dir: Path) -> WikiStructure:
     return structure
 
 
+# Sequential calls to a reasoning model (compile, articles, query, lint): 209 s to 334 s measured, around the 300 s default.
+@pytest.mark.timeout(900)
 @pytest.mark.asyncio
 async def test_full_wiki_workflow_with_real_llm(
     llm: ChatOpenAI,

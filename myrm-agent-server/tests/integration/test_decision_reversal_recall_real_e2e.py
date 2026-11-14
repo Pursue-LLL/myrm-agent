@@ -12,15 +12,18 @@ on its own, which is why the reversal is split across sessions.
 """
 
 import os
+from collections.abc import AsyncIterator
+from pathlib import Path
 
 import pytest
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
+from langchain_openai import ChatOpenAI
 from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractedMemory
 from myrm_agent_harness.toolkits.memory.types import MemoryType, SemanticMemory
 
-load_dotenv()
+from tests.support.live_chat_model import live_chat_model
 
-_MAX_ATTEMPTS = 4
+load_dotenv()
 
 _FIRST_SESSION = [
     {"role": "user", "content": "帮我定一下我们项目的技术方案。"},
@@ -37,21 +40,20 @@ _SECOND_SESSION = [
 ]
 
 
-def _build_real_llm():
-    from dotenv import dotenv_values
-    from langchain_openai import ChatOpenAI
-
+@pytest.fixture
+async def real_llm() -> AsyncIterator[ChatOpenAI]:
     env = dotenv_values()
     raw_model = env.get("BASIC_MODEL") or os.getenv("BASIC_MODEL", "")
     model_name = raw_model.split("/", 1)[-1] if "/" in raw_model else raw_model
     assert model_name, "BASIC_MODEL must be configured in .env.test"
-    return ChatOpenAI(
+    async with live_chat_model(
         model=model_name,
         api_key=env.get("BASIC_API_KEY") or os.getenv("BASIC_API_KEY", ""),
         base_url=env.get("BASIC_BASE_URL") or os.getenv("BASIC_BASE_URL") or None,
         temperature=0,
         max_tokens=2048,
-    )
+    ) as chat:
+        yield chat
 
 
 def _embedding_config():
@@ -67,7 +69,7 @@ def _embedding_config():
     )
 
 
-async def _extract(messages: list[dict[str, str]]) -> list[ExtractedMemory]:
+async def _extract(llm: ChatOpenAI, messages: list[dict[str, str]]) -> list[ExtractedMemory]:
     from myrm_agent_harness.api.hooks import create_extraction_llm_func
     from myrm_agent_harness.toolkits.memory.strategies.extractor import (
         extract_memories_from_conversation,
@@ -75,12 +77,12 @@ async def _extract(messages: list[dict[str, str]]) -> list[ExtractedMemory]:
 
     result = await extract_memories_from_conversation(
         messages=messages,
-        llm_func=create_extraction_llm_func(_build_real_llm()),
+        llm_func=create_extraction_llm_func(llm),
     )
     return [m for m in result.memories if m.content.strip()]
 
 
-async def _build_manager(base_path):
+async def _build_manager(base_path: Path, dedup_llm: ChatOpenAI):
     from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
 
     # The manager only builds a deduplicator when one is supplied, and conflict
@@ -89,7 +91,7 @@ async def _build_manager(base_path):
     return await create_local_memory_manager(
         base_path=base_path,
         embedding_config=_embedding_config(),
-        dedup_llm=_build_real_llm(),
+        dedup_llm=dedup_llm,
     )
 
 
@@ -97,37 +99,33 @@ async def _build_manager(base_path):
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio
-async def test_reversed_decision_survives_to_recall_on_a_real_store(tmp_path) -> None:
+async def test_reversed_decision_survives_to_recall_on_a_real_store(tmp_path: Path, real_llm: ChatOpenAI) -> None:
     """The store must serve the surviving choice and hold both records for a human."""
-    if True:
-        earlier = await _extract(_FIRST_SESSION)
-        later = await _extract(_SECOND_SESSION)
-        rejected = next((m for m in earlier if "redis" in m.content.lower()), None)
-        chosen = [m for m in later if "memcached" in m.content.lower()]
-        if not rejected or not chosen:
-            pytest.skip("the model did not phrase the reversal as two comparable memories")
+    earlier = await _extract(real_llm, _FIRST_SESSION)
+    later = await _extract(real_llm, _SECOND_SESSION)
+    rejected = next((m for m in earlier if "redis" in m.content.lower()), None)
+    chosen = [m for m in later if "memcached" in m.content.lower()]
+    if not rejected or not chosen:
+        pytest.skip("the model did not phrase the reversal as two comparable memories")
 
-        def _as_semantic(m: ExtractedMemory) -> SemanticMemory:
-            return SemanticMemory(content=m.content, confidence=0.9)
+    def _as_semantic(m: ExtractedMemory) -> SemanticMemory:
+        return SemanticMemory(content=m.content, confidence=0.9)
 
-        manager = await _build_manager(tmp_path)
-        try:
-            assert manager.has_vector, "the real vector store is required for this check"
+    manager = await _build_manager(tmp_path, real_llm)
+    try:
+        assert manager.has_vector, "the real vector store is required for this check"
 
-            stored_rejected = _as_semantic(rejected)
-            await manager.store_batch([stored_rejected])
-            await manager.store_batch([_as_semantic(m) for m in chosen])
+        stored_rejected = _as_semantic(rejected)
+        await manager.store_batch([stored_rejected])
+        await manager.store_batch([_as_semantic(m) for m in chosen])
 
-            hits = await manager.search(
-                "我们项目的缓存层用什么方案",
-                memory_types=[MemoryType.SEMANTIC],
-                limit=5,
-            )
-            assert hits, "the settled decision must be recallable"
-            top = hits[0].content.lower()
-            assert "memcached" in top, f"recall served the rejected option first: {hits[0].content}"
-        finally:
-            await manager.close()
-        return
-
-    pytest.skip("the model did not phrase the decision reversal as two comparable memories")
+        hits = await manager.search(
+            "我们项目的缓存层用什么方案",
+            memory_types=[MemoryType.SEMANTIC],
+            limit=5,
+        )
+        assert hits, "the settled decision must be recallable"
+        top = hits[0].content.lower()
+        assert "memcached" in top, f"recall served the rejected option first: {hits[0].content}"
+    finally:
+        await manager.close()
