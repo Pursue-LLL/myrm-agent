@@ -36,7 +36,6 @@ from app.api.commerce.spending_router import router as commerce_spending_router
 from app.api.companion.doctor_router import router as companion_doctor_router
 from app.api.companion.router import router as companion_router
 from app.api.compounding_playbook import router as compounding_playbook_router
-from app.api.config.artifact_mappings import router as artifact_mappings_router
 from app.api.config.router import router as config_router
 from app.api.connect.router import router as connect_router
 from app.api.context.router import router as context_bundle_router
@@ -276,7 +275,6 @@ api_router.include_router(tts_router, prefix="/tts", tags=["tts"])
 api_router.include_router(voice_ws_router, prefix="/ws/voice", tags=["voice"])
 api_router.include_router(voice_realtime_router, prefix="/voice", tags=["voice"])
 api_router.include_router(voice_gemini_live_router, prefix="/voice", tags=["voice"])
-api_router.include_router(artifact_mappings_router, prefix="/config", tags=["config"])
 api_router.include_router(build_statistics_router(), prefix="/statistics", tags=["statistics"])
 api_router.include_router(system_router, prefix="/system", tags=["system"])
 api_router.include_router(instance_archive_router, prefix="/instance-archive", tags=["instance-archive"])

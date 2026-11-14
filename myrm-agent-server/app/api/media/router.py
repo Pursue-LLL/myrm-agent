@@ -122,6 +122,43 @@ async def list_tags(
     return await media_library_service.get_all_tags(db)
 
 
+class BatchIdsRequest(BaseModel):
+    """Request body with a list of media IDs."""
+
+    ids: list[str] = Field(..., min_length=1, max_length=100)
+
+
+class BatchTagsRequest(BaseModel):
+    """Request body for batch tag update."""
+
+    ids: list[str] = Field(..., min_length=1, max_length=100)
+    tags: list[str]
+
+
+# Registered ahead of the /{media_id} routes: FastAPI serves a request with the first route that matches, and
+# PUT /batch/tags would otherwise be taken by PUT /{media_id}/tags.
+@router.post("/batch/delete")
+async def batch_delete_media(
+    body: BatchIdsRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, int]:
+    """Delete multiple media items at once."""
+    count = await media_library_service.batch_delete(db, body.ids)
+    await db.commit()
+    return {"deleted": count}
+
+
+@router.put("/batch/tags")
+async def batch_update_tags(
+    body: BatchTagsRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, int]:
+    """Update tags for multiple media items at once."""
+    count = await media_library_service.batch_update_tags(db, body.ids, body.tags)
+    await db.commit()
+    return {"updated": count}
+
+
 @router.get("/{media_id}", response_model=MediaItemResponse)
 async def get_media(
     media_id: str,
@@ -205,38 +242,3 @@ async def delete_media(
         raise HTTPException(status_code=404, detail="Media not found")
     await db.commit()
     return {"deleted": True}
-
-
-class BatchIdsRequest(BaseModel):
-    """Request body with a list of media IDs."""
-
-    ids: list[str] = Field(..., min_length=1, max_length=100)
-
-
-class BatchTagsRequest(BaseModel):
-    """Request body for batch tag update."""
-
-    ids: list[str] = Field(..., min_length=1, max_length=100)
-    tags: list[str]
-
-
-@router.post("/batch/delete")
-async def batch_delete_media(
-    body: BatchIdsRequest,
-    db: AsyncSession = Depends(get_db_session),
-) -> dict[str, int]:
-    """Delete multiple media items at once."""
-    count = await media_library_service.batch_delete(db, body.ids)
-    await db.commit()
-    return {"deleted": count}
-
-
-@router.put("/batch/tags")
-async def batch_update_tags(
-    body: BatchTagsRequest,
-    db: AsyncSession = Depends(get_db_session),
-) -> dict[str, int]:
-    """Update tags for multiple media items at once."""
-    count = await media_library_service.batch_update_tags(db, body.ids, body.tags)
-    await db.commit()
-    return {"updated": count}
