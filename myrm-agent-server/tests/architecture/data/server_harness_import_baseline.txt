@@ -36,7 +36,6 @@ myrm_agent_harness.agent.context_management.strategies.summary.summarizer
 myrm_agent_harness.agent.context_management.strategies.summary.summary_parser
 myrm_agent_harness.agent.context_management.tracking.task_metrics
 myrm_agent_harness.agent.coordination.adaptive_wakeup
-myrm_agent_harness.agent.coordination.mailbox
 myrm_agent_harness.agent.dynamic_workflow
 myrm_agent_harness.agent.dynamic_workflow.paths
 myrm_agent_harness.agent.dynamic_workflow.template_store

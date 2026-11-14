@@ -357,17 +357,6 @@ export interface CouncilPhaseStreamEvent extends BaseAgentEvent {
   };
 }
 
-export interface TeammateMessageStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.TEAMMATE_MESSAGE;
-  data?: {
-    message_id?: string;
-    from_task_id?: string;
-    to_task_id?: string;
-    body?: string;
-    created_at?: number | string;
-  };
-}
-
 export interface IterationLimitReachedStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.ITERATION_LIMIT_REACHED;
   data?: {

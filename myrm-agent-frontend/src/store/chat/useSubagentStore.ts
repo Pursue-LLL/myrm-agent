@@ -51,14 +51,6 @@ export interface SubagentVerification {
   findings?: VerificationFinding[];
 }
 
-export interface TeammateMessageEntry {
-  message_id?: string;
-  from_task_id: string;
-  to_task_id: string;
-  body: string;
-  created_at: number;
-}
-
 export type StreamEntryKind = 'tool' | 'progress' | 'thinking' | 'error';
 
 export interface StreamEntry {
@@ -89,9 +81,6 @@ export interface SubagentNode {
   startedAt?: number;
   estimatedTotalDuration?: number;
   overtimeDismissed?: boolean;
-  teammateMessages?: TeammateMessageEntry[];
-  /** Hydrated from API `teammate_messages` */
-  teammate_messages?: TeammateMessageEntry[];
   stream?: StreamEntry[];
   effective_model?: string;
   token_usage?: Record<string, SubagentMetadataValue>;
@@ -141,7 +130,6 @@ export interface SubagentStore {
   completeNode: (taskId: string, status: SubagentStatus, error?: string) => void;
   setNodes: (nodes: SubagentNode[]) => void;
   fetchSubagents: (chatId: string) => Promise<void>;
-  appendTeammateMessage: (entry: TeammateMessageEntry) => void;
   appendStream: (taskId: string, entry: StreamEntry) => void;
   setFissionBatch: (
     batch: {
@@ -296,32 +284,6 @@ export const useSubagentStore = create<SubagentStore>((set, get) => ({
       console.error('fetchSubagents failed', error);
     }
   },
-
-  appendTeammateMessage: (entry) =>
-    set((state) => {
-      const nodes = { ...state.nodes };
-      const targets = [entry.to_task_id, entry.from_task_id];
-      let changed = false;
-      for (const taskId of targets) {
-        const node = nodes[taskId];
-        if (!node) {
-          continue;
-        }
-        const prev = node.teammateMessages ?? [];
-        if (entry.message_id && prev.some((m) => m.message_id === entry.message_id)) {
-          continue;
-        }
-        nodes[taskId] = {
-          ...node,
-          teammateMessages: [...prev, entry].slice(-20),
-        };
-        changed = true;
-      }
-      if (!changed) {
-        return state;
-      }
-      return { nodes };
-    }),
 
   appendStream: (taskId, entry) =>
     set((state) => {
