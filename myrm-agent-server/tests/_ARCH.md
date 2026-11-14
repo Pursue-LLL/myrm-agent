@@ -480,7 +480,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import readiness gap（LIVE×3 SHPOIB：`mcp_warning` · `provider_critical` · `diagnostic_critical` 各独立 `::test_*` · 禁 batch） |
 | `e2e/test_mem0_import_review_chrome_e2e.py` | 模块 | mem0 export 真实 UI 导入 Chrome E2E（SHARED+NAMESPACE_WRITE×1：/settings/memory file picker 上传 mem0 `memories` JSON → 前端 POST dry-run → server auto-detect=mem0 → review dialog 渲染翻译后 `sources.mem0`（C1 无 raw key 泄漏）+ `memories` 映射桶；**停在 confirm 前不写真实记忆**，写路径由 unit/API 覆盖） |
 | `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认 Chrome E2E（READ×1 SHPOIB 单会话：toggle cancel/confirm · delete · import JSON · add/save → `GET /config/mcpServers` 断言） |
-| `e2e/test_muse_spark_responses_wire_chrome_e2e.py` | 模块 | muse-spark Responses wire Chrome LIVE×1 SHPOIB（PRIVATE+LIVE：`muse-spark-1.2-contributor` + OpenCode Go BYOK API seed → agent 关 workflow · 仅 `web_search` → Turn1 `TOOL_LOOP_OK` → Turn2 reasoning blob replay `TURN2_OK`；前置 `~/.cursor-byok/opencode-go.json`；**shared**：`./myrm ready --attach --chrome` → `./myrm test -m chrome_e2e -n0 ::test_muse_spark_responses_wire_two_turn_tool_loop`；**争用隔离**：`./myrm isolate muse-spark-wire restart --chrome` + `MYRM_E2E_ISOLATED_RUNTIME_ID=muse-spark-wire MYRM_E2E_FULL_ISOLATED=1` 同上 test） |
+| `e2e/test_muse_spark_responses_wire_chrome_e2e.py` | 模块 | muse-spark Responses wire Chrome LIVE×1 SHPOIB（PRIVATE+LIVE：`muse-spark-1.2-contributor` + OpenCode Go BYOK API seed → agent 关 workflow · 仅 `web_search` → Turn1 `TOOL_LOOP_OK` → Turn2 reasoning blob replay `TURN2_OK`；前置 `~/.cursor-byok/opencode-go.json`；**shared**：`./myrm-dev ready --attach --chrome` → `./myrm-dev test -m chrome_e2e -n0 ::test_muse_spark_responses_wire_two_turn_tool_loop`；**争用隔离**：`./myrm-dev isolate muse-spark-wire restart --chrome` + `MYRM_E2E_ISOLATED_RUNTIME_ID=muse-spark-wire MYRM_E2E_FULL_ISOLATED=1` 同上 test） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×14：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板 + stats bar running N/M + ready 排队 badge ±（占满显示/未满不显示）+ 多 ready 同时排队 badge + 真实执行排队释放闭环 + 队列按序释放 badge 递减 + model_override UI 建卡 / 抽屉徽章编辑清除 + 技能选择器 UI 建卡（真实技能集，picker 搜索选择 → extra_skill_ids 持久化）+ 抽屉技能编辑保存（chips → 编辑态 → picker 增选 → 保存 → 退出编辑态且持久化）） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
 | `e2e/test_wiki_dedup_chrome_e2e.py` | 模块 | Wiki corpus dedup Chrome MCP E2E（SHARED+READ×1：seed-after-warm → duplicateReview exact group panel） |
@@ -891,24 +891,24 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 
 | 层级 | marker | 职责 | LLM | Chrome | 默认 `addopts` | monorepo 命令 |
 |------|--------|------|-----|--------|----------------|---------------|
-| 单元 | 无 / 快测 | 单模块逻辑 | 否 | 否 | 收集 | `./myrm test -n0 <路径>` |
-| integration | `@pytest.mark.integration` | 跨模块 wiring（registry、mount、converter、HTTP 契约） | 通常否 | 否 | 收集 | `./myrm test -n0 <路径>` |
-| e2e | `@pytest.mark.e2e` | Agent-stream 全回合（SSE、MCP stdio、工具链） | 是（`.env.test`） | 否 | **排除** | `./myrm test -m e2e <路径>` |
-| chrome_e2e | `@pytest.mark.chrome_e2e` | WebUI 用户操作（共享 dev UI + MCP mux） | 常要 | 是 | **排除** | `./myrm ready --chrome` + `./myrm test -m chrome_e2e …` |
+| 单元 | 无 / 快测 | 单模块逻辑 | 否 | 否 | 收集 | `./myrm-dev test -n0 <路径>` |
+| integration | `@pytest.mark.integration` | 跨模块 wiring（registry、mount、converter、HTTP 契约） | 通常否 | 否 | 收集 | `./myrm-dev test -n0 <路径>` |
+| e2e | `@pytest.mark.e2e` | Agent-stream 全回合（SSE、MCP stdio、工具链） | 是（`.env.test`） | 否 | **排除** | `./myrm-dev test -m e2e <路径>` |
+| chrome_e2e | `@pytest.mark.chrome_e2e` | WebUI 用户操作（共享 dev UI + MCP mux） | 常要 | 是 | **排除** | `./myrm-dev ready --chrome` + `./myrm-dev test -m chrome_e2e …` |
 
-- 入口统一 **`./myrm test`**（`test.sh` → `run-pytest-safe.sh` → `.venv/bin/python -m pytest`）；禁止 `uv run pytest`。
-- **不涉及前端**：integration / e2e / `support/verify_api_base.py` + `./myrm verify-api`；多数 `@pytest.mark.e2e` 用 TestClient 进程内跑，不必起 live server。
-- **harness**（`myrm-agent-harness/tests/`）：默认 `-m 'not integration and not e2e …'` → monorepo `./myrm test -m integration …`。
+- 入口统一 **`./myrm-dev test`**（`test.sh` → `run-pytest-safe.sh` → `.venv/bin/python -m pytest`）；禁止 `uv run pytest`。
+- **不涉及前端**：integration / e2e / `support/verify_api_base.py` + `./myrm-dev verify-api`；多数 `@pytest.mark.e2e` 用 TestClient 进程内跑，不必起 live server。
+- **harness**（`myrm-agent-harness/tests/`）：默认 `-m 'not integration and not e2e …'` → monorepo `./myrm-dev test -m integration …`。
 - `-m e2e` 与 `-m chrome_e2e` 互不包含；缺 marker 时带 e2e 标签的 node 会 deselect。
 
 示例：
 
 ```bash
 # integration（默认收集）
-./myrm test -n0 tests/integration/test_chat_runtime_pool_live_integration.py
+./myrm-dev test -n0 tests/integration/test_chat_runtime_pool_live_integration.py
 
 # e2e（须 -m e2e）
-./myrm test -m e2e tests/api/agent/test_mcp.py::TestAgentMCP::test_agent_with_12306_python_mcp
+./myrm-dev test -m e2e tests/api/agent/test_mcp.py::TestAgentMCP::test_agent_with_12306_python_mcp
 ```
 
 ---
@@ -916,16 +916,16 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 ## 测试分层（默认 `pytest`）
 
 - 默认 `addopts`：`-m 'not e2e and not chrome_e2e and not performance'`（跳过 e2e、Chrome MCP UI E2E 与 benchmark/performance）
-- **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 monorepo **`./myrm test -n0`**
-- 单元 + API 集成：monorepo **`./myrm test -n0`**（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
-- E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（`test.sh` 对非 chrome 路径自动设 `MYRM_E2E_LEASE_ID`；如 `tests/api/agent/test_kanban_agent_stream_e2e.py`）
-- **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm test -m chrome_e2e -n0`**（须 `./myrm ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
+- **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 monorepo **`./myrm-dev test -n0`**
+- 单元 + API 集成：monorepo **`./myrm-dev test -n0`**（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
+- E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm-dev test -m e2e`**（`test.sh` 对非 chrome 路径自动设 `MYRM_E2E_LEASE_ID`；如 `tests/api/agent/test_kanban_agent_stream_e2e.py`）
+- **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm-dev test -m chrome_e2e -n0`**（须 `./myrm-dev ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（`execution_mode=SHARED` ×14：看板列渲染 + `?source_chat=` 深链 + Chat 成功卡 → 过滤看板 + stats bar running `N/M` 并发占用 + ready 排队 badge ±（并发占满时显示 / 未满不显示）+ 多 ready 同时排队 badge（1 running + 2 ready 全部显示）+ 真实执行排队释放闭环（UI 建卡 → dispatcher 真实 LLM 执行 → 占槽 badge 出现 → 释放后 badge 消失 → 双双完成）+ 队列按序释放 badge 递减（3 任务单槽：2 badge→1 badge→0 badge）+ model_override UI 建卡/抽屉徽章编辑清除 + 技能选择器 UI 建卡（picker 搜索选择真实技能 → `extra_skill_ids` 持久化）+ 抽屉技能编辑保存（chips → 编辑态 → picker 增选 → 保存 → 退出编辑态且 API 持久化）。marker 已用现代 profile 字段（`execution_mode/access_scope/workload`），不再支持 legacy `private_backend` 字段（`scripts/dev/e2e_session/profile.py` 强制）。
-- **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享后端（`private_backend=False`）；**`private_backend=True`（SHPOIB）测例走私池 :180xx，并行窗口内无需 restart 共享栈**；仅共享 READ 写库测例新增 server 路由后须 `./myrm restart` 或 **`./myrm isolate <id> ready --chrome`**。
+- **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享后端（`private_backend=False`）；**`private_backend=True`（SHPOIB）测例走私池 :180xx，并行窗口内无需 restart 共享栈**；仅共享 READ 写库测例新增 server 路由后须 `./myrm-dev restart` 或 **`./myrm-dev isolate <id> ready --chrome`**。
 - **Clarify refresh Chrome E2E**：`tests/e2e/test_clarify_refresh_chrome_e2e.py`（READ×4 SHPOIB：`POST /chats/test/seed-clarify-refresh-fixture?variant=pending|answered|regenerate_sibling|structured_form` → 深链 `/{chat_id}` → `__MYRM_E2E_CHAT__.turnSnapshot` + DOM（`data-clarification-form` / `data-chat-input`）→ `client.reload` 二次断言；无 LLM）。HTTP 覆盖：`tests/api/chats/test_clarify_refresh_seed_fixture.py`（5 项 mock）。产品 hydrate SSOT：`clarificationState.ts` + `hitl_timeout.mark_pending_clarification_answered`。
-- **Clarify skip LIVE Chrome E2E**：`tests/e2e/test_clarify_skip_chrome_e2e.py`（LIVE×1 SHPOIB：真实 LLM HITL → Skip → agent resume；`E2E_SIGNOFF=1` 时 API fallback 加长 SSE 预算）。日常：`./myrm test -m chrome_e2e tests/e2e/test_clarify_skip_chrome_e2e.py`。
+- **Clarify skip LIVE Chrome E2E**：`tests/e2e/test_clarify_skip_chrome_e2e.py`（LIVE×1 SHPOIB：真实 LLM HITL → Skip → agent resume；`E2E_SIGNOFF=1` 时 API fallback 加长 SSE 预算）。日常：`./myrm-dev test -m chrome_e2e tests/e2e/test_clarify_skip_chrome_e2e.py`。
 - **Inspector 面板生命周期 Chrome E2E**：`tests/e2e/test_inspector_panel_lifecycle_chrome_e2e.py`（PRIVATE+LIVE×1：真实前端 SSE handler 驱动 turn-engagement 状态机——`simulateBrowserToolStart`/`simulateBrowserViewUpdate` 经生产 handler 注入 TOOL_START/BROWSER_VIEW_UPDATE（engage turn + open panel + `sourceChatId` 绑定）→ 真实 LLM turn MESSAGE_END 触发 `releaseTurnInspectorControls(chatId)` 回收本 turn viewData → 手动打开的 desktop 面板（无 engagement）在 turn 结束时存活；`__MYRM_E2E_CHAT__` bridge 仅注入 view-data 制造步，全部断言落在真实 store/DOM）
-- **muse-spark Responses wire Chrome E2E**：`tests/e2e/test_muse_spark_responses_wire_chrome_e2e.py`（PRIVATE+LIVE×1 SHPOIB：`muse-spark-1.2-contributor` OpenCode Go Responses wire；Turn1 强制 `web_search` → `TOOL_LOOP_OK`；Turn2 reasoning blob replay → `TURN2_OK`；前置 `~/.cursor-byok/opencode-go.json`）。**shared**：`./myrm ready --attach --chrome` → `./myrm test -m chrome_e2e -n0 ::test_muse_spark_responses_wire_two_turn_tool_loop`。**争用隔离**：`./myrm isolate muse-spark-wire restart --chrome` + `MYRM_E2E_ISOLATED_RUNTIME_ID=muse-spark-wire MYRM_E2E_FULL_ISOLATED=1` 同上。Harness 集成：`myrm-agent-harness/tests/toolkits/llms/adapters/wire/test_wire_integration.py::test_chat_model_responses_stream`（`-m integration`）
+- **muse-spark Responses wire Chrome E2E**：`tests/e2e/test_muse_spark_responses_wire_chrome_e2e.py`（PRIVATE+LIVE×1 SHPOIB：`muse-spark-1.2-contributor` OpenCode Go Responses wire；Turn1 强制 `web_search` → `TOOL_LOOP_OK`；Turn2 reasoning blob replay → `TURN2_OK`；前置 `~/.cursor-byok/opencode-go.json`）。**shared**：`./myrm-dev ready --attach --chrome` → `./myrm-dev test -m chrome_e2e -n0 ::test_muse_spark_responses_wire_two_turn_tool_loop`。**争用隔离**：`./myrm-dev isolate muse-spark-wire restart --chrome` + `MYRM_E2E_ISOLATED_RUNTIME_ID=muse-spark-wire MYRM_E2E_FULL_ISOLATED=1` 同上。Harness 集成：`myrm-agent-harness/tests/toolkits/llms/adapters/wire/test_wire_integration.py::test_chat_model_responses_stream`（`-m integration`）
 - **RevertFiles Chrome E2E**：`tests/e2e/test_revert_files_chrome_e2e.py`（SHARED×5：modify undo+diff+confirm；empty toast；large_skip non-revertible toast；reload hydrate undo；session SessionRevertButton）。seed fixture（`app/api/chats/test_fixtures/revert.py`）模拟真实 agent 路径：快照 key 为 `r-` 前缀请求 ID、assistant 消息 DB 主键为独立 UUID、`extra_data.request_message_id` 携带 r- ID——刷新 hydrate 后前端用 `requestMessageId || messageId` 定位回退目标，E2E probe 与 `RevertFiles` 组件走同一解析逻辑，防止「消息主键 == 快照 key」的假自洽盲区
 - **RevertFiles LIVE Chrome E2E**：`tests/e2e/test_revert_files_live_agent_chrome_e2e.py`（LIVE×1 SHPOIB：workspace seed 后真实 LLM 回合 `file_edit_tool` 修改文件并回复 `REVERT_LIVE_OK`；回合预算 300s、attempt=1，受 coordinator BODY_WALL 600s 约束；快照记录 → 页面刷新 hydrate `requestMessageId` → 真实 UI 回退断言文件恢复 seed 内容）
 - **Memory citations Chrome E2E**：`tests/e2e/test_memory_citations_chrome_e2e.py`（READ lane ×2：`/settings/memory` 开「历史会话搜索」；聊天页注入 citations → 「依据/Evidence N」Sheet）。并行 attach 若 mux timeout drift，须 `MYRM_MUX_ALLOW_TIMEOUT_RESTART=1`（见 `chrome-e2e-preflight.sh` attach heal）。
@@ -949,7 +949,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - **MCP reload confirm Chrome E2E**：`tests/e2e/test_mcp_reload_confirm_chrome_e2e.py`（READ×1 SHPOIB 单会话：toggle · delete · import · add/save → `MCPReloadConfirmDialog`；见 `CHROME_MCP_E2E.md` §MCP reload confirm）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；每个 worker 是独立 Python 进程，内存随 worker 数叠加，所以 `pyproject.toml` 的 `--maxprocesses=4` 把 `-n auto` 与显式 `-n N` 都封顶在 4 个，要更多须显式加 `--maxprocesses=M`（`tests/architecture/test_xdist_worker_cap.py` 守着这一条）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
-- WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane、`test_channel_routing_general_only_chrome_e2e` General-only 签收、`test_push_approval_deeplink_chrome_e2e` 等）；READ 只读测例不占 LIVE_AGENT cap（`scripts/dev/e2e_session/lane.py`）
+- WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm-dev ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm-dev test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane、`test_channel_routing_general_only_chrome_e2e` General-only 签收、`test_push_approval_deeplink_chrome_e2e` 等）；READ 只读测例不占 LIVE_AGENT cap（`scripts/dev/e2e_session/lane.py`）
 - CI 默认套件：`scripts/ci/run_default_tests.sh`（串行 `-n0`，标记过滤取自 `pyproject.toml` 的 `addopts`，workflow `server-unit-tests.yml`）
 - `tests/api/skills/test_drafts_seed_mock.py`：seed-mock HTTP 单测（含 `agent_id` 查询参数，默认套件执行）
 - `tests/core/cron/test_seo_weekly_audit_blueprint.py`：SEO 巡检蓝图与 `web-project-seo-optimization` 技能元数据/实例化单测
