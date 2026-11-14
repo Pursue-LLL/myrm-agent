@@ -15,6 +15,7 @@ from dotenv import dotenv_values, load_dotenv
 from langchain_openai import ChatOpenAI
 
 from tests.support.live_chat_model import live_chat_model
+from tests.support.recorded_llm_func import RecordedLlmFunc
 
 load_dotenv(override=False)
 
@@ -79,30 +80,23 @@ class TestGoalLearningsIntegrationReal:
             extract_goal_learnings,
         )
 
-        llm_func = create_extraction_llm_func(llm)
+        llm_func = RecordedLlmFunc(create_extraction_llm_func(llm))
         messages = _build_realistic_goal_messages()
 
         # Retry up to _MAX_RETRIES to handle LLM non-deterministic output
-        last_error: Exception | None = None
         learnings = []
-        for attempt in range(_MAX_RETRIES + 1):
-            try:
-                learnings = await extract_goal_learnings(
-                    messages=messages,
-                    goal_objective="Implement dark mode toggle in the settings page",
-                    llm_func=llm_func,
-                )
-                if learnings:
-                    break
-            except Exception as exc:
-                last_error = exc
-                if attempt < _MAX_RETRIES:
-                    continue
-                raise
+        for _ in range(_MAX_RETRIES + 1):
+            learnings = await extract_goal_learnings(
+                messages=messages,
+                goal_objective="Implement dark mode toggle in the settings page",
+                llm_func=llm_func,
+            )
+            if learnings:
+                break
 
-        assert len(learnings) >= 1, (
-            f"Expected at least 1 learning after {_MAX_RETRIES + 1} attempts, got 0. Last error: {last_error}"
-        )
+        # The extractor swallows a failed model call, so the reason for an empty result is only known from the recording.
+        llm_func.require_answer()
+        assert len(learnings) >= 1, f"Expected at least 1 learning after {_MAX_RETRIES + 1} attempts, got 0"
 
         for learning in learnings:
             assert learning.memory_type == "semantic"
@@ -131,7 +125,7 @@ class TestGoalLearningsIntegrationReal:
             extract_goal_learnings,
         )
 
-        llm_func = create_extraction_llm_func(llm)
+        llm_func = RecordedLlmFunc(create_extraction_llm_func(llm))
 
         trivial_messages = [
             {"role": "user", "content": "Hello"},
@@ -146,6 +140,8 @@ class TestGoalLearningsIntegrationReal:
             llm_func=llm_func,
         )
 
+        # The extractor swallows a failed model call and returns nothing, which would satisfy the bound below.
+        llm_func.require_answer()
         # Trivial conversation should yield very few or no learnings
         assert len(learnings) <= 1, f"Trivial chat should yield 0-1 learnings, got {len(learnings)}"
         print(f"\nTrivial conversation yielded {len(learnings)} learnings (expected 0-1)")

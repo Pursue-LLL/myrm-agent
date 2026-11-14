@@ -21,6 +21,7 @@ from myrm_agent_harness.toolkits.memory.strategies.deduplicator import SmartDedu
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
 from tests.support.live_chat_model import live_chat_model
+from tests.support.recorded_llm_func import RecordedLlmFunc
 
 load_dotenv()
 
@@ -92,16 +93,18 @@ def _embedding() -> AsyncMock:
     return embedder
 
 
-async def _extract(llm: ChatOpenAI, messages: list[dict[str, str]]) -> list[str]:
+def _recorded_extraction(llm: ChatOpenAI) -> RecordedLlmFunc:
     from myrm_agent_harness.api.hooks import create_extraction_llm_func
+
+    return RecordedLlmFunc(create_extraction_llm_func(llm))
+
+
+async def _extract(llm_func: RecordedLlmFunc, messages: list[dict[str, str]]) -> list[str]:
     from myrm_agent_harness.toolkits.memory.strategies.extractor import (
         extract_memories_from_conversation,
     )
 
-    result = await extract_memories_from_conversation(
-        messages=messages,
-        llm_func=create_extraction_llm_func(llm),
-    )
+    result = await extract_memories_from_conversation(messages=messages, llm_func=llm_func)
     return [m.content for m in result.memories]
 
 
@@ -109,9 +112,10 @@ async def _extract(llm: ChatOpenAI, messages: list[dict[str, str]]) -> list[str]
 @pytest.mark.asyncio
 async def test_reversed_decision_is_detected_against_whatever_the_model_wrote(real_llm: ChatOpenAI) -> None:
     """Whichever way the model words it, the rejection is not silently accepted."""
+    extraction = _recorded_extraction(real_llm)
     for _ in range(_MAX_ATTEMPTS):
-        earlier = await _extract(real_llm, _FIRST_SESSION)
-        later = await _extract(real_llm, _SECOND_SESSION)
+        earlier = await _extract(extraction, _FIRST_SESSION)
+        later = await _extract(extraction, _SECOND_SESSION)
         rejected = next((c for c in earlier if "redis" in c.lower()), None)
         chosen = next((c for c in later if "memcached" in c.lower()), None)
         if not rejected or not chosen:
@@ -135,4 +139,7 @@ async def test_reversed_decision_is_detected_against_whatever_the_model_wrote(re
             continue
         return
 
+    # The extractor swallows a failed model call, so silence would look like an unrecognised wording: only a model
+    # that answered can make the run inconclusive.
+    extraction.require_answer()
     pytest.skip("the model did not phrase the decision reversal as two comparable memories")

@@ -22,6 +22,7 @@ from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractedMem
 from myrm_agent_harness.toolkits.memory.types import MemoryType, SemanticMemory
 
 from tests.support.live_chat_model import live_chat_model
+from tests.support.recorded_llm_func import RecordedLlmFunc
 
 load_dotenv()
 
@@ -69,16 +70,18 @@ def _embedding_config():
     )
 
 
-async def _extract(llm: ChatOpenAI, messages: list[dict[str, str]]) -> list[ExtractedMemory]:
+def _recorded_extraction(llm: ChatOpenAI) -> RecordedLlmFunc:
     from myrm_agent_harness.api.hooks import create_extraction_llm_func
+
+    return RecordedLlmFunc(create_extraction_llm_func(llm))
+
+
+async def _extract(llm_func: RecordedLlmFunc, messages: list[dict[str, str]]) -> list[ExtractedMemory]:
     from myrm_agent_harness.toolkits.memory.strategies.extractor import (
         extract_memories_from_conversation,
     )
 
-    result = await extract_memories_from_conversation(
-        messages=messages,
-        llm_func=create_extraction_llm_func(llm),
-    )
+    result = await extract_memories_from_conversation(messages=messages, llm_func=llm_func)
     return [m for m in result.memories if m.content.strip()]
 
 
@@ -101,11 +104,15 @@ async def _build_manager(base_path: Path, dedup_llm: ChatOpenAI):
 @pytest.mark.asyncio
 async def test_reversed_decision_survives_to_recall_on_a_real_store(tmp_path: Path, real_llm: ChatOpenAI) -> None:
     """The store must serve the surviving choice and hold both records for a human."""
-    earlier = await _extract(real_llm, _FIRST_SESSION)
-    later = await _extract(real_llm, _SECOND_SESSION)
+    extraction = _recorded_extraction(real_llm)
+    earlier = await _extract(extraction, _FIRST_SESSION)
+    later = await _extract(extraction, _SECOND_SESSION)
     rejected = next((m for m in earlier if "redis" in m.content.lower()), None)
     chosen = [m for m in later if "memcached" in m.content.lower()]
     if not rejected or not chosen:
+        # The extractor swallows a failed model call, so silence would look like an unrecognised wording: only a model
+        # that answered can make the run inconclusive.
+        extraction.require_answer()
         pytest.skip("the model did not phrase the reversal as two comparable memories")
 
     def _as_semantic(m: ExtractedMemory) -> SemanticMemory:
