@@ -105,7 +105,7 @@ async def test_approval_script_preview_truncated(mock_session: MagicMock) -> Non
 
 @pytest.mark.asyncio
 async def test_channel_batch_approve_lets_privileged_script_through(mock_session: MagicMock) -> None:
-    """IM approve arrives as {"decisions": [{"type": "approve"}]}; it used to be read as a denial."""
+    """IM approve arrives as {"decisions": [{"type": "approve"}]} and is read as an approval."""
     with (
         patch("langgraph.types.interrupt", return_value={"decisions": [{"type": "approve"}]}),
         patch("myrm_agent_harness.core.security.audit.record_decision"),

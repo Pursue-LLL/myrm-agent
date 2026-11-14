@@ -1,8 +1,8 @@
-"""Regression: the turn body stamps the memo turn identity before the marker serialises params.
+"""The turn body stamps the memo turn identity before the marker serialises params.
 
-The identity used to be written before ``params`` was built, which raised ``UnboundLocalError``
-on every persisted turn (``orchestrator_turn_body.py``). This test drives the real body with
-the surrounding pipeline stubbed so the assignment point is what is exercised.
+The identity is written after ``params`` is built; writing it earlier would raise ``UnboundLocalError`` on every
+persisted turn (``orchestrator_turn_body.py``). This test drives the real body with the surrounding pipeline
+stubbed so the assignment point is what is exercised.
 """
 
 from __future__ import annotations

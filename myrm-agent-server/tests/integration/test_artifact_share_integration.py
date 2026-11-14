@@ -246,9 +246,8 @@ async def test_password_share_full_flow_real_vault(share_client, db_session, wor
 async def test_pdf_share_real_vault_serves_pdf_media_type(share_client, db_session, workspace) -> None:
     """Extension-less vault PDF object must be served as application/pdf.
 
-    Regression for the physical-uuid naming bug: without the artifact-name hint
-    the bundle entry was the opaque UUID, so ``_guess_media_type`` fell back to
-    text/html and served corrupted PDF bytes.
+    The artifact-name hint names the bundle entry: with only the opaque physical UUID,
+    ``_guess_media_type`` would fall back to text/html and serve corrupted PDF bytes.
     """
     vault = ArtifactVault(str(workspace))
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"

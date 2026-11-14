@@ -70,12 +70,10 @@ class TestSanitizePersistableContext:
         cv: ContextVar[object] = ContextVar("probe", default=None)
         token = cv.set(object())
 
-        sanitized = sanitize_persistable_context(
-            {"goal": "demo", WORKSPACE_BIND_CTX_KEY: token}
-        )
+        sanitized = sanitize_persistable_context({"goal": "demo", WORKSPACE_BIND_CTX_KEY: token})
 
         assert sanitized == {"goal": "demo"}
-        # The result must survive the JSON persistence step that previously failed.
+        # The sanitized context must serialize to JSON, which is how it is persisted.
         json.dumps(sanitized)
 
     def test_original_context_is_not_mutated(self) -> None:
@@ -153,9 +151,7 @@ class TestExtractCheckpointStateUsesSanitizer:
             ),
         ]
         checkpointer = AsyncMock()
-        checkpointer.aget = AsyncMock(
-            return_value={"channel_values": {"messages": messages}}
-        )
+        checkpointer.aget = AsyncMock(return_value={"channel_values": {"messages": messages}})
 
         state = await extract_checkpoint_state(
             checkpointer=checkpointer,

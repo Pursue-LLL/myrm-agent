@@ -33,8 +33,8 @@ def test_validate_credential_key_success_and_blocked() -> None:
 def test_a_credential_cannot_be_named_after_a_variable_that_makes_a_program_run_its_value(name: str) -> None:
     """A staged variable reaches every command it is bound to, including one the risk classifier judged read-only.
 
-    ``GIT_EXTERNAL_DIFF=hook`` makes ``git diff --no-index a b`` run ``hook``, so each name of the shared
-    code-injection set is refused, not only the handful that used to be listed here.
+    ``GIT_EXTERNAL_DIFF=hook`` makes ``git diff --no-index a b`` run ``hook``, so every name of the shared
+    code-injection set is refused, not just a hand-picked few.
     """
     with pytest.raises(ValueError, match="Blocked credential key"):
         validate_credential_key(name)

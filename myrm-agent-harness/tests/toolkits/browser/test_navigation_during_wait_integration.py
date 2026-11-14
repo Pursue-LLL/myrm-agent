@@ -2,8 +2,8 @@
 
 On a domain where networkidle has been seen to fail, SMART goes straight to the hybrid probe, which holds a
 DOM-quiet window open for half a second. A page that redirects itself inside that window destroys the probe's
-document; ``navigate()`` used to raise the driver's "Execution context was destroyed" error instead of
-waiting for the page the script was sending the tab to. Run with:
+document; ``navigate()`` must not raise the driver's "Execution context was destroyed" error but wait for
+the page the script was sending the tab to. Run with:
 `pytest -m integration tests/toolkits/browser/test_navigation_during_wait_integration.py`.
 """
 

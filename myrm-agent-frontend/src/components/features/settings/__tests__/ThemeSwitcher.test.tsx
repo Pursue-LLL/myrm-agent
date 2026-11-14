@@ -4,7 +4,7 @@
  * [OUTPUT]
  * Vitest: theme switcher renders 3 buttons, setTheme called correctly.
  * [POS]
- * Regression guard for system theme following fix (enableSystem=true).
+ * Pins system theme following (enableSystem=true).
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';

@@ -55,7 +55,7 @@ describe('useDragDrop', () => {
     return event;
   };
 
-  describe('P0 Bug Fix: dragenter/dragleave Counter', () => {
+  describe('dragenter/dragleave counter', () => {
     it('should not flicker isDragging when dragging over nested elements', () => {
       const { result } = renderHook(() =>
         useDragDrop({

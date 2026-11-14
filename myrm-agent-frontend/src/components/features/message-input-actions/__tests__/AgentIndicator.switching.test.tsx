@@ -225,11 +225,11 @@ describe('AgentIndicator switching', () => {
       await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
     });
 
-    it('goes to the agents hub, and closes the menu', async () => {
+    it('goes to the agent list in settings, and closes the menu', async () => {
       renderIndicator();
       openMenu();
 
-      fireEvent.click(menuItem('Manage Agents Hub...'));
+      fireEvent.click(menuItem('Manage Agents...'));
 
       expect(kit.router.push).toHaveBeenCalledExactlyOnceWith('/settings/agents');
       await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
@@ -251,7 +251,7 @@ describe('AgentIndicator switching', () => {
         'Searcher',
         'Finance',
         'Detailed Configuration...',
-        'Manage Agents Hub...',
+        'Manage Agents...',
       ]);
     });
 

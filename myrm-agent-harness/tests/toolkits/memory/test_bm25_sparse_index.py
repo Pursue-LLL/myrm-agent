@@ -4,7 +4,8 @@ Covers the persistent BM25 channel end-to-end: hash tokenization, saturated
 term-frequency vectors, capability decision at the factory, wrapper write
 interception (fail-open), backfill warmup, sparse retrieval with time
 bounds, incremental upsert/delete sync, and degradation to the legacy
-corpus-scroll path before warmup or on non-sparse backends.
+corpus-scroll path before warmup or on non-sparse backends, including that
+path's visible overflow past the corpus cap.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index import (
 )
 from myrm_agent_harness.toolkits.memory._internal.storage_search import search_bm25
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+from myrm_agent_harness.toolkits.memory.metrics import get_search_metrics
 from myrm_agent_harness.toolkits.memory.protocols.vector import FilterDict, VectorDocument
 from myrm_agent_harness.toolkits.vector.base import SparsePoint
 
@@ -96,6 +98,30 @@ class _ScrollOnlyStub:
     ) -> tuple[list[VectorDocument], str | None]:
         self.scrolled.append(collection)
         return [], None
+
+
+class _CorpusScrollStub:
+    """Scroll-only backend holding fixed semantic and episodic memories; ``scroll`` honours ``limit`` like a real store."""
+
+    def __init__(self, *, semantic: int, episodic: int) -> None:
+        now = datetime.now(UTC)
+        self.docs = {
+            CONFIG.semantic_collection: [make_doc(f"needle fact {i}", now) for i in range(semantic)],
+            CONFIG.episodic_collection: [make_doc(f"needle event {i}", now) for i in range(episodic)],
+        }
+        for doc in self.docs[CONFIG.episodic_collection]:
+            doc.metadata["memory_type"] = "episodic"
+
+    async def scroll(
+        self,
+        collection: str,
+        *,
+        limit: int = 100,
+        offset: str | None = None,
+        filters: FilterDict | None = None,
+        order_by: tuple[str, str] | None = None,
+    ) -> tuple[list[VectorDocument], str | None]:
+        return self.docs[collection][:limit], None
 
 
 class _PayloadCopyRecorder:
@@ -190,6 +216,35 @@ class TestWrapperDegradation:
         assert set(stub.scrolled) == {CONFIG.semantic_collection, CONFIG.episodic_collection}
 
 
+class TestCorpusScrollOverflow:
+    """The corpus-scroll path answers up to ``bm25_max_corpus_size`` memories and degrades visibly beyond it."""
+
+    CAPPED = MemoryConfig(embedding_model="test-model", collection_prefix="bmi", bm25_max_corpus_size=10)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("semantic", "episodic"), [(10, 0), (0, 10), (5, 5)])
+    async def test_a_store_at_the_cap_still_answers(self, semantic: int, episodic: int) -> None:
+        overflow_before = get_search_metrics().snapshot().degradation_corpus_overflow_count
+
+        results = await search_bm25("needle", _CorpusScrollStub(semantic=semantic, episodic=episodic), self.CAPPED)  # type: ignore[arg-type]
+
+        assert len(results) == 10
+        assert get_search_metrics().snapshot().degradation_corpus_overflow_count == overflow_before
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("semantic", "episodic"), [(11, 0), (0, 11), (40, 0), (6, 6), (11, 1)])
+    async def test_a_store_over_the_cap_degrades_visibly_instead_of_truncating(
+        self, semantic: int, episodic: int
+    ) -> None:
+        """A single type over the cap is an overflow too, not a corpus silently cut to the cap."""
+        overflow_before = get_search_metrics().snapshot().degradation_corpus_overflow_count
+
+        results = await search_bm25("needle", _CorpusScrollStub(semantic=semantic, episodic=episodic), self.CAPPED)  # type: ignore[arg-type]
+
+        assert results == []
+        assert get_search_metrics().snapshot().degradation_corpus_overflow_count == overflow_before + 1
+
+
 class TestWrapperPayloadBackfill:
     @pytest.mark.asyncio
     async def test_dense_deployment_backfills_the_dense_collection(self) -> None:
@@ -269,8 +324,6 @@ class TestBM25SparseE2E:
             assert gone == []
 
             # search_bm25 entry point picks the sparse channel (no corpus ceiling)
-            from myrm_agent_harness.toolkits.memory.metrics import get_search_metrics
-
             overflow_before = get_search_metrics().snapshot().degradation_corpus_overflow_count
             routed = await search_bm25("litellm", wrapped, CONFIG)
             assert routed is not None and len(routed) == 2

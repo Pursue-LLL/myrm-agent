@@ -28,7 +28,7 @@ class TestCloseTruncatedJson:
 
 
 class TestStackBasedClosing:
-    """Bug fix: stack instead of counters for correct nesting order."""
+    """Closers follow the real nesting order (a stack, not per-type counters)."""
 
     def test_mixed_nesting_object_in_array(self) -> None:
         result = close_truncated_json('[{"a": 1, "b": [{"c": 2')
@@ -72,7 +72,7 @@ class TestStackBasedClosing:
 
 
 class TestDanglingKeyNullFill:
-    """Bug fix: fill dangling key with null."""
+    """A dangling key is filled with null."""
 
     def test_simple_dangling_key(self) -> None:
         result = close_truncated_json('{"content":')

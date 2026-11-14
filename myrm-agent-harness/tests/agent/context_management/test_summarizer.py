@@ -482,8 +482,8 @@ class TestInvokeSummaryWithParser:
         """JSON-mode providers return plain dict — must converge to StructuredSummary.
 
         Guards the real-LM chain: ``with_structured_output`` on OpenAI-compatible
-        providers returns a dict, and ``_invoke_summary`` previously crashed on
-        ``summary.context_dump_path = ...`` against a dict. Also verifies the
+        providers returns a dict, and ``_invoke_summary`` must still set
+        ``summary.context_dump_path`` on the converged ``StructuredSummary``. Also verifies the
         full-field mapping (O-3) survives the convergence.
         """
         from myrm_agent_harness.agent.context_management.strategies.summary.summarizer import (

@@ -1,6 +1,7 @@
 """Database Subagent Catalog Implementation.
 
 [INPUT]
+- myrm_agent_harness.agent.security::CredentialTrack (POS: the credential pool a turn draws on)
 - app.ai_agents.subagent_presets::load_subagent_presets (POS: the YAML subagent presets)
 - app.ai_agents.custom_agent_factory::CustomAgentFactory (POS: builds the SkillAgent of a database custom agent)
 - app.services.agent.agent_service::AgentService (POS: the stored custom agent profiles)
@@ -17,8 +18,8 @@ When loading custom agents from DB as subagents:
     or EPHEMERAL_SESSION when the owning chat is incognito so no memory is read or written
   - Gates the agent's skills for the delegating turn's credential track
 
-For YAML presets, injects a ModelResolver so config.model can be resolved
-to an actual LLM instance instead of silently falling back to parent LLM.
+For a YAML preset or an in-memory (blueprint) config that names a model, injects a ModelResolver so config.model
+resolves to an LLM instance of its own; a config that names no model runs on the delegating agent's LLM.
 """
 
 import logging
@@ -72,7 +73,7 @@ class _LLMModelResolver:
 class DatabaseSubagentCatalog:
     """Subagent catalog: YAML presets + database custom agents.
 
-    For YAML presets, injects model_resolver so config.model can be resolved.
+    For YAML presets and in-memory configs that name a model, injects model_resolver so config.model is resolved.
     For DB custom agents, injects CustomAgentFactory so that build_child_agent()
     creates a SkillAgent with full capabilities instead of a bare BaseAgent.
 

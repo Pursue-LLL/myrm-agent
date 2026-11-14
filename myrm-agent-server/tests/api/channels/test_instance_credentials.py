@@ -1,8 +1,8 @@
 """Channel credential keys, the instance credential loader and delete, and the camelCase to snake_case
 normalization applied when an instance is created.
 
-Covers the credential key mismatch bug (write via ``config_key`` column vs read/delete via ``id`` column) and
-camelCase → snake_case normalization for channel constructors.
+Covers the credential key contract (write, read and delete all address an instance by its ``config_key`` column)
+and camelCase → snake_case normalization for channel constructors.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class TestCamelToSnake:
         assert camel_to_snake("botOpenId") == "bot_open_id"
 
     def test_consecutive_capitals_preserved(self) -> None:
-        # The old regex produced base_u_r_l; lookbehind version must not.
+        # Consecutive capitals stay together: ``baseURL`` -> ``base_url``, never ``base_u_r_l``.
         assert camel_to_snake("baseURL") == "base_url"
         assert camel_to_snake("ilinkBotId") == "ilink_bot_id"
 

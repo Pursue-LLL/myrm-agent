@@ -1,18 +1,21 @@
 """Unified session credential assembly for agent execution paths.
 
 [INPUT]
+- myrm_agent_harness.agent.security::CredentialTrack, EphemeralUserCredential (POS: the credential pool a turn draws on, and one per-turn credential)
 - app.core.channel_bridge.config_loader::UserConfigs (OAuth + providers)
 - app.channels.storage::CredentialsStore (channel tokens)
 - app.services.agent.platform_config::resolve_xai_search_config (xAI provider key)
 
 [OUTPUT]
-- assemble_session_credentials: build EphemeralUserCredential tuple for user_credentials_ctx
+- assemble_session_credentials: build the EphemeralUserCredential tuple of one CredentialTrack for user_credentials_ctx
+  (PERSONAL: owner OAuth tokens + xAI provider key; any other track: channel token only)
 - session_credentials_scope: inject credentials for a context block
 - user_config_session_credentials_scope: load WebUI user configs then inject credentials
-- XAI_ISSUER: canonical issuer key for xAI provider API keys
+- XAI_ISSUER: canonical issuer key for xAI (provider API key and SuperGrok OAuth)
 
 [POS]
-Single assembly point for Web stream, channel bridge, cron runner, and other agent entry paths.
+Single assembly point for Web stream, channel bridge, cron runner, and other agent entry paths; the skill-availability
+gate runs it too, so a skill is listed exactly when a turn is handed the credential it declares.
 """
 
 from __future__ import annotations

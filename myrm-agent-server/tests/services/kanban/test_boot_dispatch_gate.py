@@ -1,8 +1,8 @@
 """Boot gate: a server with no usable model configuration must not claim queued tasks.
 
-A 390-task board used to produce 390 failure rows, ~760 tracebacks and 1505 `database is locked`
-errors on every boot, plus ~8-10 s of startup time, because every dispatcher claimed its READY
-tasks immediately and each claim failed for the same reason. These tests pin the gate.
+Without the gate every dispatcher would claim its READY tasks at boot and each claim would fail for the
+same reason, writing one failure row per task and contending on the database (`database is locked`). These tests
+pin the gate.
 """
 
 from __future__ import annotations

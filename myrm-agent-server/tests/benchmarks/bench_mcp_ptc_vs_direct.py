@@ -1,4 +1,4 @@
-"""Myrm (真实 server) vs Hermes (真实 CLI) 公平基准测试
+"""Myrm PTC vs DIRECT_FC — 同框架 MCP 路由模式对比基准
 
 运行方式:
     cd myrm-agent-server
@@ -8,24 +8,18 @@
     - Myrm server 已启动 (./myrm start 或 ./myrm dev)
     - .env.test 配置 BASIC_*
     - Node ``12306-mcp`` 可用（npm install -g 12306-mcp）
-    - Hermes CLI 可用（external_reference_project/claw/hermes-agent/）
 
 公平设计:
-    - 两者用同一 LLM 模型: MiniMax-M3.1-Flash-Preview
-    - 两者用同一 API 协议: OpenAI Chat Completions
-    - 两者用同一 MCP 服务: 12306-mcp (stdio)
+    - 两种模式（AUTO/PTC 与 DIRECT_FC）只有 surface_mode 不同；LLM 模型取自 .env.test 的 BASIC_*，
+      API 协议同为 OpenAI Chat Completions，MCP 服务同为 12306-mcp (stdio)，查询相同
     - 计时: wall-clock 端到端（从发出请求到收到完整回答）
-    - Myrm: 真实 server 的 /api/v1/agents/agent-stream SSE 端点
-    - Hermes: 真实 CLI --oneshot
+    - 走真实 server 的 /api/v1/agents/agent-stream SSE 端点
 """
 
 from __future__ import annotations
 
 import json
-import os
-import re
 import shutil
-import subprocess
 import sys
 import time
 import uuid
@@ -248,80 +242,6 @@ def bench_myrm_server(surface_mode: str = "auto") -> dict[str, object]:
         "total_output": total_completion_tokens,
         "cached": total_cached_tokens,
         "answer_preview": final_answer[:200],
-    }
-
-
-# ── Benchmark: Hermes CLI ────────────────────────────────────────────────
-
-def bench_hermes() -> dict[str, object]:
-    """Run Hermes CLI benchmark."""
-    # 竞品镜像已移出项目根，物理根由仓根 `.external-refs-root` 单一事实源给出
-    refs_root_file = Path(__file__).resolve().parents[4] / ".external-refs-root"
-    hermes_root = Path(refs_root_file.read_text().strip()) / "claw/hermes-agent"
-    hermes_venv = hermes_root / ".venv-test"
-    python_bin = hermes_venv / "bin" / "python"
-    cli_py = hermes_root / "cli.py"
-
-    if not python_bin.exists() or not cli_py.exists():
-        return {"mode": "Hermes", "error": f"Hermes not found: python={python_bin.exists()}, cli={cli_py.exists()}"}
-
-    env = os.environ.copy()
-    env["HERMES_HOME"] = "/tmp/hermes_bench_test"
-    env["MINIMAX_API_KEY"] = API_KEY
-
-    cmd = [
-        str(python_bin), str(cli_py),
-        "--model", "MiniMax-M3.1-Flash-Preview",
-        "--provider", "custom-minimax",
-        "-q", QUERY,
-        "--oneshot",
-        "-t", "12306",
-    ]
-
-    t_start = time.monotonic()
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env, cwd=str(hermes_root))
-    total_time = time.monotonic() - t_start
-
-    tool_calls_total = 0
-    duration_reported = 0.0
-    final_answer = ""
-    in_response = False
-    response_lines: list[str] = []
-
-    for line in proc.stdout.splitlines():
-        dur_match = re.search(r"Duration:\s+(\d+)s", line)
-        if dur_match:
-            duration_reported = float(dur_match.group(1))
-
-        msg_match = re.search(r"(\d+)\s+tool\s+calls?\b", line)
-        if msg_match:
-            tool_calls_total = int(msg_match.group(1))
-
-        if "\u2624 Hermes" in line:
-            in_response = True
-            continue
-        if in_response and line.startswith("\u2570"):
-            in_response = False
-            continue
-        if in_response:
-            clean = line.strip("\u2502").strip()
-            if clean:
-                response_lines.append(clean)
-
-    if response_lines:
-        final_answer = " ".join(response_lines)[:200]
-
-    return {
-        "mode": "Hermes",
-        "rounds": 0,
-        "tool_calls": tool_calls_total,
-        "total_time": total_time,
-        "llm_time": duration_reported,
-        "mcp_time": 0,
-        "total_input": 0,
-        "total_output": 0,
-        "cached": 0,
-        "answer_preview": final_answer,
     }
 
 

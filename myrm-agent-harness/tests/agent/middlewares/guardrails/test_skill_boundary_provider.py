@@ -141,8 +141,8 @@ def _granted_checker(granted: frozenset[str]) -> PermissionChecker:
 async def test_ssot_file_edit_maps_to_file_write_gate() -> None:
     """file_edit_tool must resolve via SSOT to file_write (no heuristic drift).
 
-    Previously the boundary heuristic missed the tool name and silently allowed
-    edits without FILE_WRITE. Regression guard for the drift.
+    A name-based boundary heuristic would miss the tool name and silently allow
+    edits without FILE_WRITE; the SSOT mapping prevents that drift.
     """
     _load_skill()
     provider = SkillBoundaryProvider(permission_checker=_granted_checker(frozenset({"file_read"})))

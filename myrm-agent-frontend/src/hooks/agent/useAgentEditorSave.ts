@@ -4,6 +4,7 @@
  * [INPUT]
  * @/hooks/agent/useAgentEditor::useAgentEditor (POS: 表单整体编辑与保存)
  * @/hooks/agent/useAgentCommandBindings::AgentCommandBindingsState (POS: 命令绑定独立持久化)
+ * @/hooks/shared/useToast::toast (POS: 全局轻提示交互钩子)
  * @/services/riskHeldToast::isRiskHeldError (POS: 风险拦截错误判定)
  *
  * [OUTPUT]
@@ -11,7 +12,7 @@
  *
  * [POS]
  * Agent 编辑面板的保存编排。命令绑定与其余配置走两条互不覆盖的更新请求，对用户只呈现一个保存入口：
- * 绑定先保存，校验未通过或失败即整体中止；只有绑定有改动时不再触发整体保存，避免多余的全量更新与快照，
+ * 绑定先保存，校验未通过或失败即整体中止；只有绑定有改动时不触发整体保存，避免多余的全量更新与快照，
  * 并由本层给出“已保存”提示（整体保存自带成功提示，不重复）。
  */
 
@@ -46,7 +47,7 @@ export function useAgentEditorSave(
       await saveBindingsDraft();
       return true;
     } catch (error) {
-      // 被服务端风控拦下时，统一提示已经弹出，这里不再叠加“操作失败”。
+      // 被服务端风控拦下时，统一提示已经弹出，这里不叠加“操作失败”。
       if (!isRiskHeldError(error)) {
         toast({
           title: t('agent.operationFailed'),

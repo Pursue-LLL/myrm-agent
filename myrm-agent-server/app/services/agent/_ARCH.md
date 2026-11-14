@@ -66,7 +66,7 @@ Design notes:
 | `moa_preset_resolver.py` | ✅ 核心 | Agent Profile 顾问自动激活与会话级 MoA preset 解析：支持 manual/always/risk_triggered 声明式激活策略，结合显式请求、REASONING tier 与高危工具触发条件动态生效，presets.{default,review,fast} 独立 ref 池与参数模板 | ✅ |
 | `mcp_surface_mode.py` | ✅ 辅助 | `engine_params.mcp_surface_mode` 归一化（obsolete `catalog_invoke` → `auto`） | ✅ |
 | `external_cli_gate.py` | ✅ 核心 | Local persist gate：`external_cli` ∈ `enabled_builtin_tools` 时要求 Settings CLI backend 或本地 auto-detect；与 runtime `_resolve_external_agent_cfgs` 同源 |
-| `builtin_agent_specs.py` | ✅ 门面 | 聚合 `_BUILTIN_AGENTS`（27 段规格 tuple）+ re-export 类型/工具常量；实现位于 `builtin_specs/` |
+| `builtin_agent_specs.py` | ✅ 门面 | 聚合 `_BUILTIN_AGENTS`（28 个内置智能体规格：core 5 + search 2 + extended 5 + vertical 16，分四段 tuple）+ re-export 类型/工具常量；实现位于 `builtin_specs/` |
 | `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退）；`is_tool_stuck_pause` 判定 loop guard 的暂停（`action_type=tool_stuck`）：它无人可答、不是审批，`streaming.py` 不为它登记审批记录、不发 `awaiting_approval`，收集器按它落「已暂停」步骤；语音桥、IM 渠道流（`stream_events`）与阶段步进器（`stream_session/phase_stepper.py`）也用它：语音桥播报停下、IM 记 `tool_stuck_paused` 并在回复里说明、步进器不为它推进到「等待审批」节点；Web 前端与浏览器扩展侧栏按同一个 `action_type` 在客户端判断，改标记时一并改；`is_browser_takeover_request` 判定 `browser_ask_human` 的中断（`action_type=browser_takeover`，要人去浏览器里做一步，没有可批的东西），看板运行的流累积器用它给这类阻塞写专门的原因句、不当审批说 |
 | `memo_scope.py` | ✅ 核心 | 模型调用 memo 的业务侧装配：按「回合身份 + 账本路径」构造本回合的 memo 作用域并包住 agent 流；作用域 token 只跨单次 `__anext__`（跨 Task 关闭 async generator 不会触发 ContextVar.reset 报错）；没有回合身份或账本路径时不启用，行为不变 |
 | `streaming.py` | ✅ 核心 | General Agent Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Dynamic Workflow 的计划确认与 human ask 等它）；browser takeover 事件经 `streaming_support/takeover_live_assist.py` 在服务端直出 `live_assist_url`；finally 中检测 interrupt 类事件（approval/clarification）并发布 `awaiting_approval` session_status 激活侧边栏 per-chat 注意力指示（loop guard 的 `tool_stuck` 暂停除外：无人可答，不登记审批记录——登记了，下一条用户消息会被 `orchestrator` 的待审批守卫当成「正忙」拒绝——也不发该状态）；POOLED 路径经 `finalize_agent_session` 释放 execution cache | ✅ |
@@ -90,7 +90,7 @@ Design notes:
 | `browser_snapshot.py` | ✅ 辅助 | Browser snapshot payload SSOT（WebUI 与 mobile remote 路由共用）；`chat_id` 必填，委托 harness `capture_browser_view_update_data` | ✅ |
 | `resolve_enable_web_fetch.py` | ✅ 辅助 | 从 `agent_security_raw.capabilities` 推导 `enable_web_fetch`（bool 门控 web_fetch_tool Turn1 bind）；Web/Channel/Cron/Kanban/Eval/Voice 全入口共享 | ✅ |
 | `template_utils.py` | ✅ 辅助 | Agent 模板实例化共享工具（`PREBUILT_AGENTS_DIR` / `resolve_i18n` / `ensure_skills_enabled`），API templates router 与 onboarding presets 复用 | ✅ |
-| `session_credential_assembler.py` | ✅ 核心 | 统一会话凭据组装——`assemble_session_credentials` / `session_credentials_scope` / `user_config_session_credentials_scope` 注入 `EphemeralUserCredential`；`XAI_ISSUER` 规范 xAI issuer key | ✅ |
+| `session_credential_assembler.py` | ✅ 核心 | 统一会话凭据组装——`assemble_session_credentials` / `session_credentials_scope` / `user_config_session_credentials_scope` 注入 `EphemeralUserCredential`；`credential_track`（`CredentialTrack`）选择凭证池：个人轨道发放所有者的 OAuth 令牌与 xAI provider 密钥（xAI OAuth 与 provider 密钥并存时只发放 OAuth），其余轨道只发放渠道令牌；技能可用性 gate 也经它判定，「列出」与回合实际拿到的凭证同源；`XAI_ISSUER` 规范 xAI issuer key | ✅ |
 | `agent_assembler_service.py` | ✅ 核心 | 模块化能力拼装服务 — 针对 6 大类积木（大脑/人设/工具/技能/记忆/沙箱）提供依赖合法性体检、预制积木卡片库以及即时微沙箱演练试跑 | ✅ |
 
 

@@ -1,10 +1,9 @@
 """Chrome E2E: hyphenated slash command keeps the user-typed prefix (no LLM).
 
-Regression for the unified `SLASH_COMMAND_SUFFIX_RE` (regex drift bug): a command
-name containing a hyphen (e.g. `/systematic-d`) previously failed to be stripped
-by the `\\w`-based suffix regex, wiping the user's prefix on skill activation and
-blocking Escape dismissal. This test exercises the real composer with an agent
-bound to the `systematic-debugging` skill (hyphenated id).
+A command name containing a hyphen (e.g. `/systematic-d`) is stripped by the unified
+`SLASH_COMMAND_SUFFIX_RE` like any other, so skill activation keeps the user's prefix and Escape dismisses the
+palette. This test exercises the real composer with an agent bound to the `systematic-debugging` skill
+(hyphenated id).
 """
 
 from __future__ import annotations

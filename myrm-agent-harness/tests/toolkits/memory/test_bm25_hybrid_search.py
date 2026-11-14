@@ -411,15 +411,18 @@ class TestMemoryManagerBM25Integration:
             assert results[0].score >= results[1].score
 
     @pytest.mark.asyncio
-    async def test_user_id_filtering(self, mock_vector_store, memory_config):
-        """Test that scroll is called with correct filters (no user_id after removal)."""
+    async def test_scroll_excludes_archived_and_reads_one_past_the_cap(self, mock_vector_store, memory_config):
+        """Each type is scrolled one past the corpus cap, so an over-cap type is detected, and archived rows are excluded."""
         mock_vector_store.scroll.side_effect = [([], None), ([], None)]
 
         await search_bm25("test", mock_vector_store, memory_config)
 
-        mock_vector_store.scroll.assert_any_call(
-            memory_config.semantic_collection, limit=5000, filters={"archived": {"not": True}}
-        )
+        for collection in (memory_config.semantic_collection, memory_config.episodic_collection):
+            mock_vector_store.scroll.assert_any_call(
+                collection,
+                limit=memory_config.bm25_max_corpus_size + 1,
+                filters={"archived": {"not": True}},
+            )
 
 
 class TestBM25Configuration:

@@ -6,7 +6,7 @@
 - myrm_agent_harness.toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: Stable public import path for the memory toolkit façade.)
 - app.ai_agents.extensions::ArchiveCheckpointMemoryExtension / PreCompactMemoryExtension / ZeroCostMemoryExtension / ArchiveCheckpointMemoryExtension / PreCompactMemoryExtension / ZeroCostMemoryExtension (POS: app.ai_agents.extensions)
-- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放）， 工具创建委托给 ToolSetupMixin。)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 初始化与流式执行， 工具创建委托给 ToolSetupMixin，资源释放委托给 AgentLifecycleMixin。)
 - myrm_agent_harness.toolkits.code_execution.factory::create_executor (POS: Code executor factory. Creates LocalExecutor for in-container code execution based on configuration.)
 - app.ai_agents.general_agent.config_builders::build_execution_config (POS: Config builders for General Agent)
 - myrm_agent_harness.runtime.context.offload::create_compress_offload_callback / create_context_snapshot_callback (POS: Context offload: persist full tool outputs and conversation snapshots to persistent volume.)

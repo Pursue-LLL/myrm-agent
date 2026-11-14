@@ -1,9 +1,8 @@
 """Integration: smart-routing LLM judge creation path in converter.
 
-Verifies the judge LLM is actually created via ``get_llm_from_config`` and
-forwarded to ``route_task`` — guarding the TypeError regression where the
-config object was passed as a positional string (``(cfg, "api_keys", None)``),
-which silently disabled the LLM-judge phase of smart routing.
+Verifies the judge LLM is actually created via ``get_llm_from_config`` (one positional ``ModelConfig``, no
+extra arguments) and forwarded to ``route_task``; a malformed call would silently disable the LLM-judge phase of
+smart routing.
 """
 
 from __future__ import annotations

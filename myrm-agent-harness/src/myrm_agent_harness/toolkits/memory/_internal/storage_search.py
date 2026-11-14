@@ -202,14 +202,18 @@ async def _scroll_vector_memories(
     since: datetime | None = None,
     until: datetime | None = None,
 ) -> tuple[list[VectorDocument], list[VectorDocument]]:
-    """Scroll the active memories of the requested types in the configured namespace boundary."""
-    max_size = config.bm25_max_corpus_size
+    """Scroll the active memories of the requested types in the configured namespace boundary.
+
+    Each type is read one memory past ``bm25_max_corpus_size``: a type that alone exceeds the cap must still count as
+    an overflow, not be cut to the cap and searched as if it were the whole corpus.
+    """
+    scroll_limit = config.bm25_max_corpus_size + 1
     uf = _user_filter(namespaces=namespaces, since=since, until=until)
 
     async def scroll_type(memory_type: MemoryType, collection: str) -> list[VectorDocument]:
         if memory_type not in memory_types:
             return []
-        docs, _ = await vector.scroll(collection, limit=max_size, filters=uf)
+        docs, _ = await vector.scroll(collection, limit=scroll_limit, filters=uf)
         return docs
 
     sem_docs, epi_docs = await asyncio.gather(

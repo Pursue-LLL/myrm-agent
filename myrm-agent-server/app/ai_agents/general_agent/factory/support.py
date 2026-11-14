@@ -2,7 +2,7 @@
 - myrm_agent_harness.toolkits.kanban::KanbanStore / create_kanban_tools (POS: Kanban toolkit entry point. Aggregates dispatcher, protocols, built-in implementations, and data models for the protocol-first kanban framework.)
 - myrm_agent_harness.toolkits.mcp.config::MCPConfig (POS: MCP Configuration)
 - myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: Stable public import path for the memory toolkit façade.)
-- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放）， 工具创建委托给 ToolSetupMixin。)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 初始化与流式执行， 工具创建委托给 ToolSetupMixin，资源释放委托给 AgentLifecycleMixin。)
 - app.core.types::MCPServerConfig (POS: Core types package)
 - app.config.computer_use_deploy::is_computer_use_deploy_supported (POS: Deploy-mode gates for computer_use (Semantic Desktop Control).)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities / get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)

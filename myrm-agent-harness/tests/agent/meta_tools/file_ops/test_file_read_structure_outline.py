@@ -1,8 +1,8 @@
 """``parse_mode='structure'`` outlines the whole file it scans, and says where the outline stops when it cannot.
 
-Runs the real chain: ``file_read_tool`` through a ``LocalExecutor`` on real files. The outline used to be cut from the
-text the page cap (``max_read_chars``) leaves, so a file past a few hundred lines got an outline of its first
-screenful with nothing to say it was partial.
+Runs the real chain: ``file_read_tool`` through a ``LocalExecutor`` on real files. The outline is not cut from the
+text the page cap (``max_read_chars``) leaves, so a file past a few hundred lines is never outlined by its first
+screenful alone without saying the outline is partial.
 """
 
 from __future__ import annotations

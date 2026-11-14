@@ -346,7 +346,7 @@ async def test_out_of_bounds_coordinate_passes():
 
 
 async def test_channel_batch_approve_lets_high_risk_activation_through():
-    """IM approve arrives as {"decisions": [{"type": "approve"}]}; it used to be read as a denial."""
+    """IM approve arrives as {"decisions": [{"type": "approve"}]} and is read as an approval."""
     with patch("langgraph.types.interrupt", return_value={"decisions": [{"type": "approve"}]}):
         result = await enforce_desktop_interact_guard(
             ctx=_ctx(),

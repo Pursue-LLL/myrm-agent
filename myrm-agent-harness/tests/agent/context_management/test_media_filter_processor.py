@@ -81,7 +81,7 @@ class TestShouldProcess:
     async def test_process_always_runs_except_resume(self) -> None:
         proc = MediaFilterProcessor()
         ctx = _make_context([_img()], supports_vision=True)
-        # Now always runs to check for historical media stripping
+        # Always runs: historical media is stripped on every call
         assert await proc.should_process(ctx) is True
 
     @pytest.mark.asyncio

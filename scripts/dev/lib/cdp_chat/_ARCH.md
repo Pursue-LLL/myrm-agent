@@ -5,7 +5,7 @@ WebUI chat 自动化：transport / bootstrap / input / submit / turn / support �
 | 文件 | 职责 |
 |------|------|
 | `transport.py` | CDP/MCP transport 抽象 |
-| `bootstrap.py` | 页面/chat 引导 |
+| `bootstrap/` | 页面/chat 引导，分层包：每层一个模块，后一层继承前一层，只调用本层和更早层的成员——`clock`（启动、会话、布局计时与停滞判定）· `binding`（API base 绑定、provider 与 React 水合等待、弹窗、mux 恢复、共享 UI 契约）· `shell_ready`（页面成为可用聊天壳的等待与自愈、新聊天复位）· `layout`（聊天首页水合与布局等待）· `surface`（`wait_shell_ready`、`navigate_to_chat`、`ensure_chat_surface`、`click_new_chat`）· `flow`（`CdpChatBootstrap`：deadline 切分、warm-shell 探测——热路径开关取自 `e2e_core/shared_ui_session/caps.py`、shell 与 bridge 两阶段）；`__init__.py` 导出 `CdpChatBootstrap`，测试按读取名字的子模块打补丁 |
 | `input.py` / `submit.py` / `turn.py` | 输入与回合观测 |
 | `support.py` | E2E API URL、Goal SSE、provider ready |
 | `ui.py` | 稳定导出层 |

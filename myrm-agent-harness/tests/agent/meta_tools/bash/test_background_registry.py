@@ -229,9 +229,8 @@ async def test_progress_listener_fires_for_explicit_marker() -> None:
 async def test_since_cursor_respects_cross_stream_interleave() -> None:
     """The per-line cursor must filter both streams without bleeding counts.
 
-    Regression for the bug where a shared monotonic counter combined with
-    per-stream ``[-delta:]`` slicing returned stale lines (stderr ate into
-    stdout's quota).
+    A shared monotonic counter combined with per-stream ``[-delta:]`` slicing would
+    return stale lines (stderr eating into stdout's quota); the per-line cursor avoids that.
     """
     registry = BackgroundProcessRegistry()
     proc = _FakeProc(

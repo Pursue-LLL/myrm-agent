@@ -558,10 +558,9 @@ async def test_close_fails_in_flight_call_instead_of_hanging(
 ) -> None:
     """close() cancelling a busy owner task must fail the in-flight call.
 
-    Without the ``asyncio.CancelledError`` branch, the cancelled owner task
-    leaves the caller's future unresolved forever (the call's proxy tool has
-    no outer timeout), which hangs the agent mid-turn. Regression test for
-    the close() grace-window cancel path.
+    The ``asyncio.CancelledError`` branch resolves the caller's future when the owner
+    task is cancelled: the call's proxy tool has no outer timeout, so an unresolved
+    future would hang the agent mid-turn. Covers the close() grace-window cancel path.
     """
     monkeypatch.setattr("myrm_agent_harness.toolkits.mcp.session_actor._CLOSE_TIMEOUT", 0.2)
     init_calls: list[int] = []
