@@ -15,7 +15,7 @@ Usage::
 
 [OUTPUT]
 - SQLiteBackupManager: Hot-backup, verify, restore, quarantine for SQLite databases.
-- hot_copy_database: Online page-wise copy of a live database to a standalone file.
+- hot_copy_database: Online copy of a live database to a standalone file (defined in sqlite_backup_models).
 - BackupRecord: Immutable metadata for a single backup snapshot.
 - RestoreResult: Outcome of a restore operation.
 - SnapshotVerificationResult: Integrity verification outcome.
@@ -38,7 +38,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .sqlite_backup_models import (
-    _BACKUP_PAGE_BATCH,
+    _CREATE_BACKUP_LOCK,
     _DEFAULT_RETENTION,
     _MANIFEST_FILE,
     _MANIFEST_VERSION,
@@ -56,6 +56,7 @@ from .sqlite_backup_models import (
     _require_backup_image,
     _sweep_stale_tmp_backups,
     _timestamp_dirname,
+    hot_copy_database,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,23 +72,6 @@ __all__ = [
     "_pragma_integrity_check",
     "_pragma_schema_version",
 ]
-
-
-def hot_copy_database(src_path: str | Path, dst_path: str | Path) -> None:
-    """Copy a live SQLite database page-wise through the online backup API.
-
-    Readers and writers of the source stay unblocked; the destination is a
-    consistent single-file image (no WAL/SHM siblings).
-    """
-    src = sqlite3.connect(str(src_path), timeout=10.0)
-    try:
-        dst = sqlite3.connect(str(dst_path))
-        try:
-            src.backup(dst, pages=_BACKUP_PAGE_BATCH)
-        finally:
-            dst.close()
-    finally:
-        src.close()
 
 
 class SQLiteBackupManager:
@@ -123,10 +107,10 @@ class SQLiteBackupManager:
     def create_backup(self) -> BackupRecord:
         """Create a hot-backup of the database.
 
-        Uses ``sqlite3.Connection.backup()`` which copies pages without
-        blocking concurrent readers/writers.  The backup file is written
-        to a temporary path first, verified with ``PRAGMA quick_check``,
-        then atomically published via ``os.replace``.
+        Uses ``sqlite3.Connection.backup()`` which copies pages without blocking concurrent
+        readers/writers. The image is written to a temporary path, verified with ``PRAGMA quick_check``
+        and atomically published via ``os.replace``. Callers are serialized per process, so a call
+        waits for a backup already running in another thread.
 
         Returns:
             BackupRecord with metadata of the new snapshot.
@@ -137,43 +121,44 @@ class SQLiteBackupManager:
         """
         self._snapshots_dir.mkdir(parents=True, exist_ok=True)
 
-        backup_id = f"{int(time.time() * 1000)}"
-        tmp_name = f"{_TMP_PREFIX}{backup_id}.sqlite"
-        final_name = f"backup-{backup_id}.sqlite"
-        tmp_path = self._snapshots_dir / tmp_name
-        final_path = self._snapshots_dir / final_name
+        with _CREATE_BACKUP_LOCK:
+            backup_id = f"{int(time.time() * 1000)}"
+            tmp_name = f"{_TMP_PREFIX}{backup_id}.sqlite"
+            final_name = f"backup-{backup_id}.sqlite"
+            tmp_path = self._snapshots_dir / tmp_name
+            final_path = self._snapshots_dir / final_name
 
-        logger.info("[SQLiteBackup] Starting hot backup of %s", self._db_path)
+            logger.info("[SQLiteBackup] Starting hot backup of %s", self._db_path)
 
-        swept = _sweep_stale_tmp_backups(self._snapshots_dir)
-        if swept:
-            logger.info("[SQLiteBackup] Removed %d abandoned temporary backup files", swept)
+            swept = _sweep_stale_tmp_backups(self._snapshots_dir)
+            if swept:
+                logger.info("[SQLiteBackup] Removed %d abandoned temporary backup files", swept)
 
-        with _discard_on_failure(tmp_path):
-            hot_copy_database(self._db_path, tmp_path)
-            _require_backup_image(tmp_path)
-            qc = _pragma_quick_check(tmp_path)
-            if qc != "ok":
-                msg = f"Backup quick_check failed: {qc}"
-                logger.error("[SQLiteBackup] %s", msg)
-                raise RuntimeError(msg)
-            checksum = _compute_sha256(tmp_path)
-            schema_ver = _pragma_schema_version(tmp_path)
-            os.replace(str(tmp_path), str(final_path))
+            with _discard_on_failure(tmp_path):
+                hot_copy_database(self._db_path, tmp_path)
+                _require_backup_image(tmp_path)
+                qc = _pragma_quick_check(tmp_path)
+                if qc != "ok":
+                    msg = f"Backup quick_check failed: {qc}"
+                    logger.error("[SQLiteBackup] %s", msg)
+                    raise RuntimeError(msg)
+                checksum = _compute_sha256(tmp_path)
+                schema_ver = _pragma_schema_version(tmp_path)
+                os.replace(str(tmp_path), str(final_path))
 
-        record = BackupRecord(
-            backup_id=backup_id,
-            file_name=final_name,
-            created_at=time.time(),
-            size_bytes=final_path.stat().st_size,
-            checksum_sha256=checksum,
-            quick_check="ok",
-            schema_version=schema_ver,
-            restore_tested=False,
-        )
+            record = BackupRecord(
+                backup_id=backup_id,
+                file_name=final_name,
+                created_at=time.time(),
+                size_bytes=final_path.stat().st_size,
+                checksum_sha256=checksum,
+                quick_check="ok",
+                schema_version=schema_ver,
+                restore_tested=False,
+            )
 
-        self._append_to_manifest(record)
-        self._enforce_retention()
+            self._append_to_manifest(record)
+            self._enforce_retention()
 
         logger.info(
             "[SQLiteBackup] Backup complete: %s (%d bytes, sha256=%s…)",

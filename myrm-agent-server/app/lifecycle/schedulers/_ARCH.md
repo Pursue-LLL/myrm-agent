@@ -10,7 +10,7 @@
 | `common.py` | 辅助 | 共享 logger 与 monitor 批量常量（冷启动清洗批次） | ✅ |
 | `cron.py` | 核心 | Cron Scheduler 启动 | ✅ |
 | `context.py` | 核心 | 上下文文件每日清理 + 三个遥测 dispatcher（压缩 / memory brief / guardian）起停 | ✅ |
-| `maintenance.py` | 核心 | 数据库维护（6 小时）：WAL、共享库 GC、浏览器会话 GC、无痕清理、checkpoint 裁剪、实例备份；含 monitor 批量清洗 | ✅ |
+| `maintenance.py` | 核心 | 数据库维护（6 小时，首次在启动后 3 分钟，不与首屏请求抢事件循环与 SQLite 写锁；整库备份在工作线程执行）：WAL、共享库 GC、浏览器会话 GC、无痕清理、checkpoint 裁剪、实例备份；含 monitor 批量清洗 | ✅ |
 | `security.py` | 核心 | 审批 TTL、取消令牌、登录会话、认证日志清理 | ✅ |
 | `kanban.py` | 核心 | Kanban 派发准备（`prepare_kanban_dispatch`：Boot Recovery + runner/specifier/decomposer，HTTP bind 之前）、dispatcher 后台启动（`start_kanban_dispatchers`：bind 之后延后 `BOOT_DISPATCH_DELAY_SECONDS`）与停止（`stop_kanban_dispatchers`：先结束后台启动，再并发协作式停止各 dispatcher） | ✅ |
 | `backup.py` | 核心 | 远程记忆备份的小时级检查 | ✅ |

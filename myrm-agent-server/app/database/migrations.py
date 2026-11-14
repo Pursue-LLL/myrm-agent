@@ -6,7 +6,7 @@ sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
 app.database.personality_style_merge::MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL (POS: 沟通风格并入 system_prompt 的冻结语句)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt） / NORMALIZE_RETIRED_PROMPT_MODES_SQL（已退役的 lean / naked 提示词模式行改为 full）
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / has_pending_migrations(engine)（是否还有待执行的迁移，决定是否需要迁移前快照） / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt） / NORMALIZE_RETIRED_PROMPT_MODES_SQL（已退役的 lean / naked 提示词模式行改为 full）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -1154,22 +1154,31 @@ INDEX_STATEMENTS = [
 ]
 
 
-async def run_migrations(engine: AsyncEngine) -> None:
-    """运行数据库迁移 (Zero-Ops Stateful Migration Engine)
-
-    采用状态化迁移引擎，自动维护 _schema_migrations 表，
-    提供精准计时、慢查询捕获和基线平滑升级能力。
-    """
-    migrations = [MigrationStatement(version=i, sql=stmt) for i, stmt in enumerate(MIGRATION_STATEMENTS)]
-
-    migration_engine = StatefulMigrationEngine(
+def _migration_engine(engine: AsyncEngine) -> StatefulMigrationEngine:
+    return StatefulMigrationEngine(
         engine=engine,
         table_name="_schema_migrations",
         baseline_check_sql="SELECT 1 FROM sqlite_master WHERE type='table' AND name='chats'",
         slow_threshold_ms=100.0,
     )
 
-    report = await migration_engine.run_migrations(migrations)
+
+def _migration_statements() -> list[MigrationStatement]:
+    return [MigrationStatement(version=i, sql=stmt) for i, stmt in enumerate(MIGRATION_STATEMENTS)]
+
+
+async def has_pending_migrations(engine: AsyncEngine) -> bool:
+    """Whether ``run_migrations`` would still do work; a start with nothing pending needs no pre-migration snapshot."""
+    return await _migration_engine(engine).has_pending(_migration_statements())
+
+
+async def run_migrations(engine: AsyncEngine) -> None:
+    """运行数据库迁移 (Zero-Ops Stateful Migration Engine)
+
+    采用状态化迁移引擎，自动维护 _schema_migrations 表，
+    提供精准计时、慢查询捕获和基线平滑升级能力。
+    """
+    report = await _migration_engine(engine).run_migrations(_migration_statements())
 
     if report.failed_count > 0:
         logger.error(

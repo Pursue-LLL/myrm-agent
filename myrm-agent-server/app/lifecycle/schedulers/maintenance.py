@@ -67,7 +67,8 @@ async def _db_maintenance_job() -> None:
 
         manager = get_sqlite_backup_manager()
         if manager is not None:
-            manager.create_backup()
+            # Copying, verifying and hashing the image takes seconds on a grown database: keep it off the event loop.
+            await asyncio.to_thread(manager.create_backup)
             logger.info("Periodic database backup completed")
     except Exception as e:
         logger.warning("Periodic database backup failed: %s", e)
@@ -193,9 +194,11 @@ async def start_db_maintenance_scheduler() -> None:
         async def run_scheduler() -> None:
             """Run scheduler in context manager."""
             async with AsyncScheduler() as scheduler:
+                # First pass a few minutes after boot (not at once): the snapshot, trash purge and GC sweeps would
+                # otherwise compete with the first screen's requests for the event loop and SQLite write locks.
                 await scheduler.add_schedule(
                     _db_maintenance_job,
-                    IntervalTrigger(hours=6),
+                    IntervalTrigger(hours=6, start_time=datetime.now(UTC) + timedelta(minutes=3)),
                     id="db_maintenance",
                 )
                 await scheduler.add_schedule(

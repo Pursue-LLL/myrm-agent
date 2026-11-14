@@ -6,6 +6,7 @@
     from app.database.connection import get_db, get_session, init_database
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
@@ -80,7 +81,7 @@ async def init_database() -> None:
 
     # Import all models to ensure they're registered with Base.metadata
     from app.database import models  # noqa: F401
-    from app.database.migrations import create_indexes, run_migrations
+    from app.database.migrations import create_indexes, has_pending_migrations, run_migrations
     from app.database.models import Base
     from app.database.models import skill_optimization as _opt_models  # noqa: F401
 
@@ -94,15 +95,17 @@ async def init_database() -> None:
 
     # Pre-migration safety snapshot: protects against multi-step table rebuild
     # migrations (e.g. CREATE AS SELECT → DROP → RENAME) that leave the DB in
-    # an inconsistent state if interrupted mid-sequence.
+    # an inconsistent state if interrupted mid-sequence. It is only taken while a
+    # migration is pending: with nothing to run there is nothing to protect, and
+    # copying and verifying a large database on every start delays the port opening.
     # Fail-closed: abort migration if backup fails when manager is available,
     # to prevent destructive DDL without a recovery safety net.
     from app.database.operations.backup import get_sqlite_backup_manager
 
     manager = get_sqlite_backup_manager()
-    if manager is not None:
+    if manager is not None and await has_pending_migrations(engine):
         try:
-            manager.create_backup()
+            await asyncio.to_thread(manager.create_backup)
         except Exception as e:
             logger.error("Pre-migration backup failed, aborting migration: %s", e)
             raise
