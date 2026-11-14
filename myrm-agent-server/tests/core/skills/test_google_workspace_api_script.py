@@ -9,8 +9,11 @@ import subprocess
 import sys
 import urllib.error
 import urllib.parse
+from collections.abc import Mapping
 from datetime import datetime
+from email.message import Message
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
@@ -23,7 +26,7 @@ _RANGE_BOUNDS = {"time_min": "2026-06-25T00:00:00+08:00", "time_max": "2026-06-2
 _CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 
 
-def _json_response(payload: dict[str, object]) -> MagicMock:
+def _json_response(payload: Mapping[str, object]) -> MagicMock:
     response = MagicMock()
     response.read.return_value = json.dumps(payload).encode()
     response.__enter__ = MagicMock(return_value=response)
@@ -36,7 +39,7 @@ def _event(event_id: str, start: str, end: str) -> dict[str, object]:
 
 
 @pytest.fixture
-def google_api_module(monkeypatch: pytest.MonkeyPatch):
+def google_api_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     # A staged script finds its sibling modules because its own directory leads sys.path.
     monkeypatch.syspath_prepend(str(SCRIPT_PATH.parent))
     spec = importlib.util.spec_from_file_location("google_api", SCRIPT_PATH)
@@ -47,20 +50,8 @@ def google_api_module(monkeypatch: pytest.MonkeyPatch):
 
 
 class TestGoogleApiCalendarToday:
-    def test_calendar_today_parses_response(self, google_api_module) -> None:
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(
-            {
-                "items": [
-                    {
-                        "summary": "Standup",
-                        "start": {"dateTime": "2026-06-25T09:00:00Z"},
-                    }
-                ]
-            }
-        ).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=None)
+    def test_calendar_today_parses_response(self, google_api_module: ModuleType) -> None:
+        mock_response = _json_response({"items": [{"summary": "Standup", "start": {"dateTime": "2026-06-25T09:00:00Z"}}]})
 
         with patch.object(google_api_module.urllib.request, "urlopen", return_value=mock_response):
             result = google_api_module.calendar_today("test-access-token")
@@ -70,14 +61,14 @@ class TestGoogleApiCalendarToday:
         assert isinstance(items, list)
         assert items[0]["summary"] == "Standup"
 
-    def test_calendar_today_http_error_exits(self, google_api_module) -> None:
+    def test_calendar_today_http_error_exits(self, google_api_module: ModuleType) -> None:
         import urllib.error
 
         error = urllib.error.HTTPError(
             url="https://example.com",
             code=401,
             msg="Unauthorized",
-            hdrs=None,
+            hdrs=Message(),
             fp=MagicMock(read=MagicMock(return_value=b'{"error":"invalid_token"}')),
         )
 
@@ -89,7 +80,9 @@ class TestGoogleApiCalendarToday:
 
         assert exc.value.code == 1
 
-    def test_calendar_today_uses_user_timezone_day_bounds(self, google_api_module, monkeypatch) -> None:
+    def test_calendar_today_uses_user_timezone_day_bounds(
+        self, google_api_module: ModuleType, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         fixed_now = datetime(2026, 6, 25, 10, 30, tzinfo=ZoneInfo("Asia/Shanghai"))
         monkeypatch.setenv("MYRM_USER_TIMEZONE", "Asia/Shanghai")
 
@@ -98,11 +91,7 @@ class TestGoogleApiCalendarToday:
         def fake_urlopen(request: object, timeout: int = 30) -> MagicMock:
             _ = timeout
             captured_url.append(getattr(request, "full_url", str(request)))
-            mock_response = MagicMock()
-            mock_response.read.return_value = json.dumps({"items": []}).encode()
-            mock_response.__enter__ = MagicMock(return_value=mock_response)
-            mock_response.__exit__ = MagicMock(return_value=None)
-            return mock_response
+            return _json_response({"items": []})
 
         with (
             patch.object(google_api_module, "datetime") as mock_datetime,
@@ -118,19 +107,14 @@ class TestGoogleApiCalendarToday:
 
 
 class TestGoogleApiGmailInbox:
-    def test_gmail_inbox_enriches_message_metadata(self, google_api_module) -> None:
-        list_response = MagicMock()
-        list_response.read.return_value = json.dumps(
+    def test_gmail_inbox_enriches_message_metadata(self, google_api_module: ModuleType) -> None:
+        list_response = _json_response(
             {
                 "messages": [{"id": "msg-1", "threadId": "thread-1"}],
                 "resultSizeEstimate": 1,
             }
-        ).encode()
-        list_response.__enter__ = MagicMock(return_value=list_response)
-        list_response.__exit__ = MagicMock(return_value=None)
-
-        detail_response = MagicMock()
-        detail_response.read.return_value = json.dumps(
+        )
+        detail_response = _json_response(
             {
                 "id": "msg-1",
                 "threadId": "thread-1",
@@ -143,9 +127,7 @@ class TestGoogleApiGmailInbox:
                     ]
                 },
             }
-        ).encode()
-        detail_response.__enter__ = MagicMock(return_value=detail_response)
-        detail_response.__exit__ = MagicMock(return_value=None)
+        )
 
         with patch.object(
             google_api_module.urllib.request,
@@ -163,11 +145,8 @@ class TestGoogleApiGmailInbox:
 
 
 class TestGoogleApiWriteCommands:
-    def test_gmail_send_posts_to_api(self, google_api_module) -> None:
-        send_response = MagicMock()
-        send_response.read.return_value = json.dumps({"id": "sent-1", "threadId": "thread-1"}).encode()
-        send_response.__enter__ = MagicMock(return_value=send_response)
-        send_response.__exit__ = MagicMock(return_value=None)
+    def test_gmail_send_posts_to_api(self, google_api_module: ModuleType) -> None:
+        send_response = _json_response({"id": "sent-1", "threadId": "thread-1"})
 
         with patch.object(google_api_module.urllib.request, "urlopen", return_value=send_response) as mock_open:
             result = google_api_module.gmail_send(
@@ -183,7 +162,7 @@ class TestGoogleApiWriteCommands:
         assert request.full_url.endswith("/messages/send")
         assert request.method == "POST"
 
-    def test_calendar_create_posts_the_event_to_the_primary_calendar(self, google_api_module) -> None:
+    def test_calendar_create_posts_the_event_to_the_primary_calendar(self, google_api_module: ModuleType) -> None:
         created = _json_response({"id": "evt-1", "summary": "Standup", "htmlLink": "https://calendar.example/evt-1"})
 
         with patch.object(google_api_module.urllib.request, "urlopen", return_value=created) as mock_open:
@@ -213,7 +192,7 @@ class TestGoogleApiWriteCommands:
             "description": "Daily sync",
         }
 
-    def test_calendar_delete_targets_the_event_id_as_one_path_segment(self, google_api_module) -> None:
+    def test_calendar_delete_targets_the_event_id_as_one_path_segment(self, google_api_module: ModuleType) -> None:
         deleted = _json_response({})
         deleted.status = 204
 
@@ -225,11 +204,8 @@ class TestGoogleApiWriteCommands:
         assert request.full_url == f"{_CALENDAR_EVENTS_URL}/a%2Fb%20c"
         assert request.method == "DELETE"
 
-    def test_gmail_inbox_empty_inbox_returns_empty_messages(self, google_api_module) -> None:
-        list_response = MagicMock()
-        list_response.read.return_value = json.dumps({"messages": [], "resultSizeEstimate": 0}).encode()
-        list_response.__enter__ = MagicMock(return_value=list_response)
-        list_response.__exit__ = MagicMock(return_value=None)
+    def test_gmail_inbox_empty_inbox_returns_empty_messages(self, google_api_module: ModuleType) -> None:
+        list_response = _json_response({"messages": [], "resultSizeEstimate": 0})
 
         with patch.object(google_api_module.urllib.request, "urlopen", return_value=list_response):
             result = google_api_module.gmail_inbox("test-access-token")
@@ -242,7 +218,7 @@ class TestGoogleApiWriteCommands:
 class TestGoogleApiCalendarPagination:
     """A calendar query reads every page it is allowed to and says when it stopped short."""
 
-    def test_reads_every_page_until_the_token_runs_out(self, google_api_module) -> None:
+    def test_reads_every_page_until_the_token_runs_out(self, google_api_module: ModuleType) -> None:
         events = [
             _event("a", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00"),
             _event("b", "2026-06-25T10:00:00+08:00", "2026-06-25T10:30:00+08:00"),
@@ -266,7 +242,7 @@ class TestGoogleApiCalendarPagination:
         assert all(query["maxResults"] == ["50"] for query in queries)
 
     @pytest.mark.parametrize("empty_page", [{"items": []}, {}], ids=["empty-items", "no-items-key"])
-    def test_follows_a_token_past_an_empty_page(self, google_api_module, empty_page: dict[str, object]) -> None:
+    def test_follows_a_token_past_an_empty_page(self, google_api_module: ModuleType, empty_page: dict[str, object]) -> None:
         early = _event("early", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00")
         late = _event("late", "2026-06-25T15:00:00+08:00", "2026-06-25T15:30:00+08:00")
         pages = [
@@ -282,7 +258,7 @@ class TestGoogleApiCalendarPagination:
         assert result["truncated"] is False
         assert mock_open.call_count == 3
 
-    def test_stops_at_the_page_cap_and_reports_truncation(self, google_api_module) -> None:
+    def test_stops_at_the_page_cap_and_reports_truncation(self, google_api_module: ModuleType) -> None:
         cap = google_api_module._MAX_EVENT_PAGES
         event = _event("busy", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00")
 
@@ -298,7 +274,7 @@ class TestGoogleApiCalendarPagination:
         assert result["items"] == [event] * cap
         assert "nextPageToken" not in result
 
-    def test_a_range_ending_on_the_last_allowed_page_is_complete(self, google_api_module) -> None:
+    def test_a_range_ending_on_the_last_allowed_page_is_complete(self, google_api_module: ModuleType) -> None:
         cap = google_api_module._MAX_EVENT_PAGES
         event = _event("busy", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00")
         pages = [_json_response({"items": [event], "nextPageToken": f"t{n}"}) for n in range(cap - 1)]
@@ -310,7 +286,7 @@ class TestGoogleApiCalendarPagination:
         assert mock_open.call_count == cap
         assert result["truncated"] is False
 
-    def test_finds_conflicts_across_a_page_boundary(self, google_api_module) -> None:
+    def test_finds_conflicts_across_a_page_boundary(self, google_api_module: ModuleType) -> None:
         early = _event("early", "2026-06-25T09:00:00+08:00", "2026-06-25T10:00:00+08:00")
         overlapping = _event("overlapping", "2026-06-25T09:30:00+08:00", "2026-06-25T10:30:00+08:00")
         pages = [
@@ -323,7 +299,7 @@ class TestGoogleApiCalendarPagination:
 
         assert [(pair["first"]["id"], pair["second"]["id"]) for pair in result["conflicts"]] == [("early", "overlapping")]
 
-    def test_keeps_raw_events_and_metadata_with_the_verdict_fields_first(self, google_api_module) -> None:
+    def test_keeps_raw_events_and_metadata_with_the_verdict_fields_first(self, google_api_module: ModuleType) -> None:
         event = {
             **_event("raw", "2026-06-25T09:00:00+08:00", "2026-06-25T09:30:00+08:00"),
             "attendees": [{"email": "me@example.com", "self": True, "responseStatus": "accepted"}],
@@ -339,12 +315,14 @@ class TestGoogleApiCalendarPagination:
         assert list(result)[:2] == ["truncated", "conflicts"]
         assert list(result)[-1] == "items"
 
-    def test_a_failing_later_page_fails_the_whole_call(self, google_api_module, capsys) -> None:
+    def test_a_failing_later_page_fails_the_whole_call(
+        self, google_api_module: ModuleType, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         error = urllib.error.HTTPError(
             url="https://example.com",
             code=500,
             msg="Server Error",
-            hdrs=None,
+            hdrs=Message(),
             fp=MagicMock(read=MagicMock(return_value=b"upstream failure")),
         )
         first_page = _json_response(
@@ -369,7 +347,11 @@ class TestGoogleApiCalendarPagination:
         ids=["calendar-today", "calendar-range"],
     )
     def test_the_calendar_commands_print_the_verdict_fields(
-        self, google_api_module, monkeypatch, capsys, command: list[str]
+        self,
+        google_api_module: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        command: list[str],
     ) -> None:
         events = [
             _event("standup", "2026-06-25T09:00:00+08:00", "2026-06-25T10:00:00+08:00"),
