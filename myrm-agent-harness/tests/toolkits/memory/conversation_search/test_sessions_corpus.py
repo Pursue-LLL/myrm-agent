@@ -1,6 +1,9 @@
-"""`search_sessions_corpus` maps `memory_search_tool(corpus=sessions)` arguments onto the provider request."""
+"""`search_sessions_corpus` maps `memory_search_tool(corpus=sessions)` arguments onto the provider request and words
+an empty reply that ran under an explicit since/until window."""
 
 from __future__ import annotations
+
+from datetime import UTC, datetime
 
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_execution import (
     search_sessions_corpus,
@@ -53,6 +56,8 @@ async def _search(
     *,
     query: str,
     limit: int = 5,
+    since: datetime | None = None,
+    until: datetime | None = None,
     expand_conversation_id: str | None = None,
     expand_message_id: str | None = None,
     expand_window: int = 5,
@@ -61,8 +66,8 @@ async def _search(
         MemorySearchBackends(conversation_provider=provider),
         query=query,
         limit=limit,
-        since=None,
-        until=None,
+        since=since,
+        until=until,
         expand_conversation_id=expand_conversation_id,
         expand_message_id=expand_message_id,
         expand_window=expand_window,
@@ -116,6 +121,38 @@ async def test_expand_arguments_are_forwarded_to_the_provider() -> None:
     assert request.expand_conversation_id == "chat-2"
     assert request.expand_message_id == "msg-2"
     assert request.expand_window == 8
+
+
+async def test_an_empty_search_under_a_window_names_it_and_still_sends_it_to_the_provider() -> None:
+    since, until = datetime(2026, 12, 10, tzinfo=UTC), datetime(2026, 12, 24, tzinfo=UTC)
+    provider = _RecordingProvider(_empty_search_response())
+
+    result = await _search(provider, query="deployment", since=since, until=until)
+
+    assert (provider.requests[0].since, provider.requests[0].until) == (since, until)
+    assert isinstance(result, dict)
+    assert str(result["content"]).endswith(
+        "This search was limited to conversations whose last message was sent after 2026-12-10 00:00 UTC and before "
+        "2026-12-24 00:00 UTC: other conversations are not returned, even if part of them falls inside that period. "
+        "If what you need may be outside that period, retry without since/until."
+    )
+
+
+async def test_an_expand_request_is_not_blamed_on_the_window() -> None:
+    refusal = "No visible messages found for the requested expand window."
+    provider = _RecordingProvider(ConversationSearchResponse(mode="search", query="", hits=[], rejected_reason=refusal))
+
+    result = await _search(
+        provider,
+        query="",
+        since=datetime(2026, 12, 10, tzinfo=UTC),
+        until=datetime(2026, 12, 24, tzinfo=UTC),
+        expand_conversation_id="chat-2",
+        expand_message_id="msg-2",
+    )
+
+    assert isinstance(result, dict)
+    assert result["content"] == refusal
 
 
 async def test_missing_provider_reports_unavailable() -> None:

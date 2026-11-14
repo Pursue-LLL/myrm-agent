@@ -6,9 +6,10 @@
 
 [OUTPUT]
 - no_result_reply: The zero-hit reply; a search that covers rules adds how stored rules are matched, and one run under an explicit since/until window names that save-time window.
+- describe_time_window: The bounds of an explicit since/until window as "after … UTC and before … UTC" (UTC, to the minute), None when neither is set.
 
 [POS]
-Shared by memory_search_tool and the MCP memory_recall, so a model that finds no rule, or nothing inside a time window, learns the same way to look again on either surface.
+Shared by memory_search_tool and the MCP memory_recall, so a model that finds no rule, or nothing inside a time window, learns the same way to look again on either surface; the sessions-corpus zero-hit reply names its window with the same renderer.
 """
 
 from __future__ import annotations
@@ -59,18 +60,24 @@ def no_result_reply(
     return " ".join(parts)
 
 
-def _window_note(types: Sequence[MemoryType] | None, since: datetime | None, until: datetime | None) -> str | None:
-    """Names the save-time window a search ran under; None when it had no bound or read none of its types."""
-    if types is not None and _TIME_FILTERED_TYPES.isdisjoint(types):
-        return None
+def describe_time_window(since: datetime | None, until: datetime | None) -> str | None:
+    """The bounds that are set, in UTC to the minute, so the same instant reads the same on every surface."""
     bounds = [
         f"{word} {bound.astimezone(UTC).strftime('%Y-%m-%d %H:%M')} UTC"
         for word, bound in (("after", since), ("before", until))
         if bound is not None
     ]
-    if not bounds:
+    return " and ".join(bounds) or None
+
+
+def _window_note(types: Sequence[MemoryType] | None, since: datetime | None, until: datetime | None) -> str | None:
+    """Names the save-time window a search ran under; None when it had no bound or read none of its types."""
+    if types is not None and _TIME_FILTERED_TYPES.isdisjoint(types):
+        return None
+    window = describe_time_window(since, until)
+    if window is None:
         return None
     return (
-        f"This search was limited to memories saved {' and '.join(bounds)}: since/until match when a memory was saved, "
+        f"This search was limited to memories saved {window}: since/until match when a memory was saved, "
         "not the date it describes. If the memory may have been saved outside this period, retry without since/until."
     )

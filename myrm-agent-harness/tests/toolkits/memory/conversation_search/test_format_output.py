@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
+import pytest
+
 from myrm_agent_harness.toolkits.memory.conversation_search.format_output import (
     _format_coverage_notice,
     format_conversation_hit,
@@ -266,3 +270,88 @@ async def test_format_response_recent_hit_is_bounded_and_offers_the_expand_tip()
     assert "A" * 701 not in body
     assert len(body) < 1200
     assert "tip: pass expand_conversation_id='chat-recent'" in body
+
+
+_REJECTED = "No sufficiently relevant previous conversations found."
+_PARTIAL_COVERAGE = ConversationIndexCoverage(
+    total_conversations=20,
+    indexed_conversations=15,
+    coverage_ratio=0.75,
+    unindexed_recent_count=5,
+)
+_PARTIAL_NOTICE = "[Notice: Conversation search covered 15/20 sessions (75.0%); 5 sessions pending index]"
+_SINCE = datetime(2026, 12, 10, tzinfo=UTC)
+_UNTIL = datetime(2026, 12, 24, tzinfo=UTC)
+_WINDOW_NOTE = (
+    "This search was limited to conversations whose last message was sent after 2026-12-10 00:00 UTC and before "
+    "2026-12-24 00:00 UTC: other conversations are not returned, even if part of them falls inside that period. "
+    "If what you need may be outside that period, retry without since/until."
+)
+_EMPTY_REJECTED = ConversationSearchResponse(mode="search", query="docker", hits=[], rejected_reason=_REJECTED)
+# (empty response, its message, the message when the coverage notice is present)
+_EMPTY_REPLIES = [
+    pytest.param(
+        ConversationSearchResponse(mode="recent", hits=[]),
+        "No previous conversations found.",
+        "No previous conversations found.",
+        id="recent",
+    ),
+    pytest.param(_EMPTY_REJECTED, _REJECTED, _REJECTED, id="rejected"),
+    pytest.param(
+        ConversationSearchResponse(mode="search", query="docker", hits=[]),
+        "No matching conversations found.",
+        "No matching conversations found in indexed history.",
+        id="no-match",
+    ),
+]
+
+
+async def _content(response: ConversationSearchResponse, **window: datetime | None) -> str:
+    return str((await format_conversation_search_response(response, **window))["content"])
+
+
+def _with_partial_coverage(response: ConversationSearchResponse) -> ConversationSearchResponse:
+    return response.model_copy(update={"coverage": _PARTIAL_COVERAGE})
+
+
+@pytest.mark.parametrize(("response", "message", "indexed_message"), _EMPTY_REPLIES)
+async def test_an_empty_response_without_a_window_is_its_plain_message(
+    response: ConversationSearchResponse, message: str, indexed_message: str
+) -> None:
+    assert await _content(response) == message
+    assert await _content(_with_partial_coverage(response)) == f"{_PARTIAL_NOTICE}\n{indexed_message}"
+
+
+@pytest.mark.parametrize(("response", "message", "indexed_message"), _EMPTY_REPLIES)
+async def test_an_empty_response_under_a_window_ends_with_the_window(
+    response: ConversationSearchResponse, message: str, indexed_message: str
+) -> None:
+    assert await _content(response, since=_SINCE, until=_UNTIL) == f"{message}\n{_WINDOW_NOTE}"
+    assert (
+        await _content(_with_partial_coverage(response), since=_SINCE, until=_UNTIL)
+        == f"{_PARTIAL_NOTICE}\n{indexed_message}\n{_WINDOW_NOTE}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("since", "until", "period"),
+    [(_SINCE, None, "after 2026-12-10 00:00 UTC"), (None, _UNTIL, "before 2026-12-24 00:00 UTC")],
+    ids=["since-only", "until-only"],
+)
+async def test_a_window_names_only_the_bound_that_was_given(
+    since: datetime | None, until: datetime | None, period: str
+) -> None:
+    body = await _content(_EMPTY_REJECTED, since=since, until=until)
+
+    assert f"limited to conversations whose last message was sent {period}: other conversations" in body
+
+
+async def test_a_response_with_hits_is_not_annotated_with_the_window() -> None:
+    hit = ConversationSearchHit(
+        conversation_id="chat-1", title="Docker setup", snippet="docker compose up -d", score=0.9
+    )
+
+    body = await _content(_single_hit_response(mode="search", query="docker", hit=hit), since=_SINCE, until=_UNTIL)
+
+    assert "Docker setup" in body
+    assert "limited to conversations" not in body
