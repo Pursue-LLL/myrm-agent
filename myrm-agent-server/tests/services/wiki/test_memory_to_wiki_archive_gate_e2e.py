@@ -11,29 +11,16 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
-from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.wiki import WikiConfig
 
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
+from tests.support.live_chat_model import live_chat_model
 
 pytestmark = pytest.mark.e2e
-
-
-def _real_llm() -> BaseChatModel:
-    """Build the real test model from .env.test (loaded by pytest env config)."""
-    from langchain_openai import ChatOpenAI
-
-    model = os.environ["BASIC_MODEL"]
-    _, _, short_name = model.partition("/")
-    return ChatOpenAI(
-        model=short_name or model,
-        base_url=os.environ["BASIC_BASE_URL"],
-        api_key=os.environ["BASIC_API_KEY"],
-        timeout=60,
-    )
 
 
 def _harness_notes(last_idx: int, body_len: int) -> str:
@@ -49,12 +36,17 @@ def _harness_notes(last_idx: int, body_len: int) -> str:
 
 
 @pytest.fixture
-def real_archiver(tmp_path: Path) -> MemoryToWikiArchiver:
-    return MemoryToWikiArchiver(
-        llm=_real_llm(),
-        wiki_dir=str(tmp_path / "vault"),
-        config=WikiConfig(),
-    )
+async def real_archiver(tmp_path: Path) -> AsyncIterator[MemoryToWikiArchiver]:
+    """The archiver over the real test model from .env.test (loaded by pytest env config)."""
+    model = os.environ["BASIC_MODEL"]
+    _, _, short_name = model.partition("/")
+    async with live_chat_model(
+        model=short_name or model,
+        base_url=os.environ["BASIC_BASE_URL"],
+        api_key=os.environ["BASIC_API_KEY"],
+        timeout=60,
+    ) as llm:
+        yield MemoryToWikiArchiver(llm=llm, wiki_dir=str(tmp_path / "vault"), config=WikiConfig())
 
 
 class TestArchiveGateValues:

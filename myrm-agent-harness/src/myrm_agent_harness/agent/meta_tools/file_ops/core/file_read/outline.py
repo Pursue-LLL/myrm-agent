@@ -15,7 +15,9 @@ from source code or document files. Supports truncated file reads and structure-
 
 [POS]
 In-memory zero-dependency outline extraction supporting Python (AST + regex fallback),
-TypeScript/JavaScript, Go, Rust, Java, C/C++, C#, and Markdown.
+TypeScript/JavaScript, Go, Rust, Java, C/C++, C#, and Markdown. The regex scan reads one line at a time, so it lists a
+definition whose signature starts on that line: type parameters (`<T>`, `[T]`) and an arrow function's return type
+are covered, an arrow function whose parameters continue on the next line is not.
 """
 
 from __future__ import annotations
@@ -34,20 +36,35 @@ _GUTTER_LINE_RE = re.compile(r"^\s*(\d+)\|")
 # lists the symbols (in milliseconds) without their ranges.
 _AST_MAX_SOURCE_CHARS = 300_000
 
+# Between a definition's name and its parameter list (or initializer) TypeScript writes `<T>`, Go and Python write
+# `[T]`. A pattern that expects `name(` or `name =` straight after the name silently drops every generic definition,
+# and the model is told the file has no such symbol. The lazy match ends at the first closing bracket that is followed
+# by what the pattern needs next, so nested brackets (`<T extends Array<U>>`, `[M ~map[K]V]`) are covered. The bound
+# keeps a hostile one-line file (`const a = <>(<>(<>(...`) linear: unbounded, every `>(` is retried against the rest
+# of the line and a 120 KB line takes 1.6 s.
+_ANGLE_TYPE_PARAMS = r"(?:<.{0,200}?>\s*)?"
+_SQUARE_BRACKETS = r"\[.{0,200}?\]"
+_SQUARE_TYPE_PARAMS = rf"(?:{_SQUARE_BRACKETS}\s*)?"
+
 # Pre-compiled symbol matching regexes for non-Python or fallback extraction
 # Each pattern captures (kind, name) or (name)
 _GENERIC_SYMBOL_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "ts_js": [
-        re.compile(r"^(?:export\s+(?:default\s+)?)?((?:async\s+)?function)\s+([a-zA-Z0-9_$]+)\s*\("),
+        re.compile(
+            rf"^(?:export\s+(?:default\s+)?)?((?:async\s+)?function)\s+([a-zA-Z0-9_$]+)\s*{_ANGLE_TYPE_PARAMS}\("
+        ),
         re.compile(r"^(?:export\s+(?:default\s+)?)?(class)\s+([a-zA-Z0-9_$]+)"),
         re.compile(r"^(?:export\s+)?(interface)\s+([a-zA-Z0-9_$]+)"),
-        re.compile(r"^(?:export\s+)?(type)\s+([a-zA-Z0-9_$]+)\s*="),
+        re.compile(rf"^(?:export\s+)?(type)\s+([a-zA-Z0-9_$]+)\s*{_ANGLE_TYPE_PARAMS}="),
         re.compile(r"^(?:export\s+)?(enum)\s+([a-zA-Z0-9_$]+)"),
-        re.compile(r"^(?:export\s+)?(const)\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>"),
+        # An arrow function: the variable may carry a type (`: FC<Props>`), the arrow a return type (`): void =>`).
+        re.compile(
+            rf"^(?:export\s+)?(const)\s+([a-zA-Z0-9_$]+)\s*(?::[^=]*)?=\s*(?:async\s*)?{_ANGLE_TYPE_PARAMS}\([^)]*\)\s*(?::[^=]*)?=>"
+        ),
     ],
     "go": [
-        re.compile(r"^(func)\s+(?:\([^)]+\)\s+)?([a-zA-Z0-9_]+)\s*\("),
-        re.compile(r"^(type)\s+([a-zA-Z0-9_]+)\s+(?:struct|interface)"),
+        re.compile(rf"^(func)\s+(?:\([^)]+\)\s+)?([a-zA-Z0-9_]+)\s*{_SQUARE_TYPE_PARAMS}\("),
+        re.compile(rf"^(type)\s+([a-zA-Z0-9_]+)(?:\s+|{_SQUARE_BRACKETS}\s*)(?:struct|interface)"),
     ],
     "rust": [
         re.compile(r"^(?:pub(?:\([^)]+\))?\s+)?((?:async\s+)?fn)\s+([a-zA-Z0-9_]+)"),
@@ -58,14 +75,18 @@ _GENERIC_SYMBOL_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"^(?:public|protected|private|static|final|abstract|sealed|\s)*(class)\s+([a-zA-Z0-9_]+)"),
         re.compile(r"^(?:public|protected|private|static|final|abstract|\s)*(interface)\s+([a-zA-Z0-9_]+)"),
         re.compile(r"^(?:public|protected|private|static|final|abstract|\s)*(enum)\s+([a-zA-Z0-9_]+)"),
-        re.compile(r"^(?:public|protected|private|static|async|\s)+[\w<>\[\],\s]+\s+([a-zA-Z0-9_]+)\s*\([^;]*$"),
+        # A method: a modifier, a return type, then the name, which a whitespace character must precede (the
+        # lookbehind). Writing "type run, `\s+`, name" as nested greedy runs retries every split of a long line: 112 KB
+        # of "public static " took a minute.
+        re.compile(r"^(?:public|protected|private|static|async)[\w<>\[\],\s]{2,}?(?<=\s)([a-zA-Z0-9_]+)\s*\([^;]*$"),
     ],
     "c_cpp": [
         re.compile(r"^(class|struct|enum)\s+([a-zA-Z0-9_]+)"),
-        re.compile(r"^(?:[\w:*&<>\s]+)\s+([a-zA-Z0-9_]+)\s*\([^;]*\)\s*(?:const)?\s*\{?"),
+        # A function: a return type, then the name behind a whitespace character (see the Java method above).
+        re.compile(r"^[\w:*&<>\s]+?(?<=\s)([a-zA-Z0-9_]+)\s*\([^;]*\)\s*(?:const)?\s*\{?"),
     ],
     "python_fallback": [
-        re.compile(r"^((?:async\s+)?def)\s+([a-zA-Z0-9_]+)\s*\("),
+        re.compile(rf"^((?:async\s+)?def)\s+([a-zA-Z0-9_]+)\s*{_SQUARE_TYPE_PARAMS}\("),
         re.compile(r"^(class)\s+([a-zA-Z0-9_]+)"),
     ],
     "markdown": [

@@ -4,6 +4,7 @@
 - toolkits.memory.manager::MemoryManager (POS: Memory store orchestrator)
 - toolkits.memory.conversation_search.types::ConversationSearchRequest (POS: Conversation search request DTO)
 - toolkits.memory.agent_surface.memory_recall_no_result::no_result_reply (POS: the reply to a search that finds nothing)
+- toolkits.memory.conversation_search.format_output::format_conversation_search_response (POS: renders sessions hits and the empty-result reply, window note included)
 
 [OUTPUT]
 - search_memory_corpus, search_wiki_corpus, search_sessions_corpus: Corpus-specific recall execution.
@@ -171,7 +172,7 @@ async def search_memory_corpus(
             dom_str = str(getattr(dom, "value", dom) or "")
             if not dom_str:
                 m_type = getattr(memory, "memory_type", "")
-                m_type_str = m_type.value if hasattr(m_type, "value") else str(m_type)
+                m_type_str = str(getattr(m_type, "value", m_type))
                 inferred_dom, _ = infer_domain_and_category(
                     memory_type=m_type_str,
                     content=getattr(memory, "content", ""),
@@ -349,7 +350,13 @@ async def search_sessions_corpus(
     )
     if response is None:
         return "Conversation history search timed out (GATHER_SESSIONS_TIMEOUT). Try a more specific query or retry."
-    return await format_conversation_search_response(response)
+    # Expanding a message window ignores since/until, so no window limited that reply.
+    expanding = bool(expand_conversation_id and expand_message_id)
+    return await format_conversation_search_response(
+        response,
+        since=None if expanding else since,
+        until=None if expanding else until,
+    )
 
 
 async def drill_down_single_memory(
@@ -368,9 +375,9 @@ async def drill_down_single_memory(
     age = memory_age_label(effective_time)
     provenance = _channel_label(memory.scope.channel_id)
     mem_type = getattr(memory, "memory_type", "memory")
-    mem_type_val = mem_type.value if hasattr(mem_type, "value") else str(mem_type)
+    mem_type_val = str(getattr(mem_type, "value", mem_type))
     domain = getattr(memory, "domain", "user")
-    domain_val = domain.value if hasattr(domain, "value") else str(domain)
+    domain_val = str(getattr(domain, "value", domain))
     cat = getattr(memory, "domain_category", "")
 
     header = f"{provenance}[{mem_type_val}] (id: {memory.id}, domain: {domain_val}/{cat}, age: {age})"

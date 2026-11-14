@@ -140,6 +140,23 @@ class TestOutlineOfWhatAReadShows:
 
         assert out.splitlines()[1:] == ["  - Line 6: # Real heading", "  - Line 8: ## Second"]
 
+    async def test_typescript_generics_and_arrow_functions_with_a_type_are_listed(self, workspace: Path) -> None:
+        (workspace / "panel.tsx").write_text(
+            "export function deferred<T>() {\n  return null;\n}\n\n"
+            "export type Listener<K extends Key = Key> = (key: K) => void;\n\n"
+            "export const Panel: FC<Props> = ({ title }) => {\n  return null;\n};\n\n"
+            "export const resplit = (): void => {\n};\n"
+        )
+
+        out = await _outline("panel.tsx")
+
+        assert out.splitlines()[1:] == [
+            "  - Line 1: function deferred",
+            "  - Line 5: type Listener",
+            "  - Line 7: const Panel",
+            "  - Line 11: const resplit",
+        ]
+
     async def test_the_rest_of_a_truncated_python_read_is_outlined_with_ranges(self, workspace: Path) -> None:
         padding = 120
         tail = "class Tail:\n    def last(self):\n        return 9\n\n\ndef tail_fn():\n    return 1\n"

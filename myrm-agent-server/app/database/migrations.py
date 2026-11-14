@@ -1150,6 +1150,7 @@ INDEX_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_cron_jobs_project_id ON cron_jobs(project_id)",
     "DROP INDEX IF EXISTS idx_a2a_peers_base_url",
     "DROP TABLE IF EXISTS a2a_peers",
+    "ALTER TABLE interrupted_turn_markers DROP COLUMN pending_steering_messages",
 ]
 
 

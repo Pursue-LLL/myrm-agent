@@ -3,9 +3,11 @@
 [INPUT]
 - toolkits.memory.conversation_search.types::ConversationSearchHit, ConversationSearchResponse (POS: Conversation search DTOs)
 - toolkits.memory.agent_surface.memory_recall_formatting (POS: Recall redact → sanitize/preamble helpers)
+- toolkits.memory.agent_surface.memory_recall_no_result::describe_time_window (POS: renders an explicit since/until window, UTC to the minute, for the zero-hit replies)
+- toolkits.memory.agent_surface.tool_result_sources::pack_tool_result_with_sources (POS: pack metadata.sources into memory_search results)
 
 [OUTPUT]
-- format_conversation_search_response: Render hits with conversation_history sources in tool metadata.
+- format_conversation_search_response: Render hits with conversation_history sources in tool metadata; an empty result run under an explicit since/until window ends with a note naming that window.
 
 [POS]
 Agent-facing formatter for memory_search conversation corpus results.
@@ -20,6 +22,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
     recall_preamble_overhead_chars,
     sanitize_recalled_content,
 )
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_no_result import describe_time_window
 from myrm_agent_harness.toolkits.memory.agent_surface.tool_result_sources import (
     pack_tool_result_with_sources,
 )
@@ -31,6 +34,14 @@ from myrm_agent_harness.toolkits.memory.conversation_search.types import (
     ConversationIndexCoverage,
     ConversationSearchHit,
     ConversationSearchResponse,
+)
+
+# The index filters on the time of a conversation's last message, so a conversation that continued past the window is
+# left out even when part of it falls inside; the note says so, or a model reads the window as "when it was discussed".
+_WINDOW_NOTE = (
+    "This search was limited to conversations whose last message was sent {window}: "
+    "other conversations are not returned, even if part of them falls inside that period. "
+    "If what you need may be outside that period, retry without since/until."
 )
 
 
@@ -49,25 +60,41 @@ def _format_coverage_notice(coverage: ConversationIndexCoverage | None) -> str |
     return None
 
 
+def _format_empty_reply(
+    response: ConversationSearchResponse,
+    notice: str | None,
+    since: datetime | None,
+    until: datetime | None,
+) -> str:
+    """Reply for a search that found nothing: coverage notice, the reason, then the since/until window it ran under."""
+    if response.mode == "recent":
+        message = "No previous conversations found."
+    elif response.rejected_reason:
+        message = response.rejected_reason
+    elif notice:
+        message = "No matching conversations found in indexed history."
+    else:
+        message = "No matching conversations found."
+    window = describe_time_window(since, until)
+    window_note = _WINDOW_NOTE.format(window=window) if window else None
+    return "\n".join(part for part in (notice, message, window_note) if part)
+
+
 async def format_conversation_search_response(
     response: ConversationSearchResponse,
+    *,
+    since: datetime | None = None,
+    until: datetime | None = None,
 ) -> dict[str, object]:
-    """Format provider response with conversation_history sources in metadata."""
+    """Format provider response with conversation_history sources in metadata.
+
+    ``since`` and ``until`` are the explicit bounds the search ran under. The service reports an empty result the same
+    way whether nothing matched or the window excluded the match, so an empty reply names the window itself.
+    """
     notice = _format_coverage_notice(response.coverage)
 
     if not response.hits:
-        if response.mode == "recent":
-            msg = f"{notice}\nNo previous conversations found." if notice else "No previous conversations found."
-            return pack_tool_result_with_sources(msg, [])
-        if response.rejected_reason:
-            msg = f"{notice}\n{response.rejected_reason}" if notice else response.rejected_reason
-            return pack_tool_result_with_sources(msg, [])
-        msg = (
-            f"{notice}\nNo matching conversations found in indexed history."
-            if notice
-            else "No matching conversations found."
-        )
-        return pack_tool_result_with_sources(msg, [])
+        return pack_tool_result_with_sources(_format_empty_reply(response, notice, since, until), [])
 
     max_output_chars = MAX_TOOL_OUTPUT_CHARS - recall_preamble_overhead_chars()
     lines: list[str] = []

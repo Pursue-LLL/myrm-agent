@@ -47,9 +47,7 @@ def executor(workspace: Path) -> LocalExecutor:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_context_snapshot_roundtrip_via_real_executor(
-    executor: LocalExecutor, workspace: Path
-) -> None:
+async def test_context_snapshot_roundtrip_via_real_executor(executor: LocalExecutor, workspace: Path) -> None:
     """A real snapshot write must land on disk atomically and be readable back.
 
     The snapshot path is normally under the sandbox ``/persistent`` mount, which
@@ -65,9 +63,7 @@ async def test_context_snapshot_roundtrip_via_real_executor(
         create_context_snapshot_callback,
     )
 
-    snapshot_abs = str(
-        workspace / ".context" / "chat_integ" / "snapshots" / "snap.jsonl.gz"
-    )
+    snapshot_abs = str(workspace / ".context" / "chat_integ" / "snapshots" / "snap.jsonl.gz")
     snapshot_rel = ".context/chat_integ/snapshots/snap.jsonl.gz"
 
     with (
