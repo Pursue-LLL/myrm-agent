@@ -66,7 +66,6 @@ _CLASSIFICATION: dict[str, tuple[Disposition, Mechanism]] = {
     "memory_manage_tool": (_EVERY, Mechanism.PARENT_BOUND_STORE),
     "memory_save_tool": (_EVERY, Mechanism.PARENT_BOUND_STORE),
     "delegate_task_tool": (_EVERY, Mechanism.DELEGATION),
-    "send_teammate_message_tool": (_EVERY, Mechanism.DELEGATION),
     "subagent_control_tool": (_EVERY, Mechanism.DELEGATION),
     "skill_manage_tool": (_EVERY, Mechanism.SKILL_LIBRARY),
     "bash_code_execute_tool": (_READ_ONLY, Mechanism.WORKSPACE_WRITE),

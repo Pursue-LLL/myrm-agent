@@ -77,7 +77,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 | `background_worker/` | Idle task registry, shadow bulkhead | [background_worker/_ARCH.md](background_worker/_ARCH.md) |
 | `config/` | Unified config types export | [config/_ARCH.md](config/_ARCH.md) |
 | `context_management/` | Context pipeline, compression, cache | [CONTEXT_MANAGEMENT_SYSTEM.md](context_management/CONTEXT_MANAGEMENT_SYSTEM.md) |
-| `coordination/` | Subagent P2P mailbox (TeammateMailbox) | [coordination/_ARCH.md](coordination/_ARCH.md) |
+| `coordination/` | Background-completion wakeup coordination (`adaptive_wakeup`) | [coordination/_ARCH.md](coordination/_ARCH.md) |
 | `dynamic_workflow/` | LLM-generated PTC orchestration scripts | [DYNAMIC_WORKFLOW_SYSTEM.md](dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) |
 | `orchestration/` | Control-plane signals (not Action Tools) | [orchestration/_ARCH.md](orchestration/_ARCH.md) |
 | `errors/` | Execution errors + diagnostics | [ERROR_SYSTEM.md](errors/ERROR_SYSTEM.md) |

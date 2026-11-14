@@ -8,7 +8,7 @@
 - SubagentExecutorDelegationMixin._attach_child_delegation_tools
 
 [POS]
-Orchestrator-role child agents receive scoped delegation meta-tools (2 + teammate).
+Orchestrator-role child agents receive scoped delegation meta-tools (delegate and control).
 """
 
 from __future__ import annotations
@@ -49,7 +49,6 @@ class SubagentExecutorDelegationMixin:
 
         from myrm_agent_harness.agent.meta_tools.spawn_subagent import (
             create_delegate_task_tool,
-            create_send_teammate_message_tool,
             create_subagent_control_tool,
             update_delegate_task_description,
         )
@@ -69,7 +68,6 @@ class SubagentExecutorDelegationMixin:
         child_tool_by_name = {
             "delegate_task_tool": delegate_tool,
             "subagent_control_tool": create_subagent_control_tool(child_agent),
-            "send_teammate_message_tool": create_send_teammate_message_tool(child_agent),
         }
         child_agent.add_tools(
             [child_tool_by_name[tool_name] for tool_name in DELEGATION_CAPABILITY_MANIFEST.orchestrator_child_tools]

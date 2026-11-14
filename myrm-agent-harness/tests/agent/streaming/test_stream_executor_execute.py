@@ -822,37 +822,6 @@ async def test_execute_goal_continuation_keeps_the_guards_on_the_runs_round_budg
 
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
-async def test_execute_teammate_messages_triggers_continue(fire_hook_mock, base_ctx):
-    """_handle_teammate_messages returning True triggers loop continuation."""
-    executor = _make_executor(base_ctx)
-    call_count = [0]
-
-    async def _astream_two_turns(*args, **kwargs):
-        call_count[0] += 1
-        yield ("messages", (AIMessage(content=f"turn {call_count[0]}"), {"tags": []}))
-
-    base_ctx.agent.astream = _astream_two_turns
-    teammate_call = [0]
-
-    original_handle_teammate = executor._handle_teammate_messages
-
-    async def _mock_teammate(collected):
-        teammate_call[0] += 1
-        if teammate_call[0] == 1:
-            return True
-        return await original_handle_teammate(collected)
-
-    with (
-        patch.object(executor, "_dispatch_chunk", new_callable=AsyncMock),
-        patch.object(executor, "_handle_teammate_messages", side_effect=_mock_teammate),
-    ):
-        await executor.execute()
-
-    assert call_count[0] == 2
-
-
-@pytest.mark.asyncio
-@patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
 async def test_execute_length_truncation_triggers_continue(fire_hook_mock, base_ctx):
     """_handle_length_truncation returning True increments counter and continues."""
     executor = _make_executor(base_ctx)

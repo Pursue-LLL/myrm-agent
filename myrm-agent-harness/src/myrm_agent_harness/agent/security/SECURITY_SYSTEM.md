@@ -1268,7 +1268,6 @@ LangChain 工具有具体名称（如 `bash_code_execute_tool`），而安全策
 | 工具名 | 保留 ASK 的理由 |
 |--------|-----------------|
 | `browser_execute_script_tool` | 任意 JS 执行——保持 ASK（特权 API 另有工具内 HITL） |
-| `send_teammate_message_tool` | 跨 Agent 消息派发——外部副作用，保持 ASK |
 
 门禁将本集合视为合法的第三治理状态，不会把它们标记为未覆盖。
 

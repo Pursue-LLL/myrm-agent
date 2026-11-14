@@ -32,8 +32,7 @@
 │  LLM 工具集:                                                  │
 │  ├── delegate_task_tool                                       │
 │  │   (mode=single|batch|parallel|council|alternatives)        │
-│  ├── subagent_control_tool (action=list|cancel|steer|wait)    │
-│  └── send_teammate_message_tool (orchestrator P2P)            │
+│  └── subagent_control_tool (action=list|cancel|steer|wait)    │
 └──────────────────────────────────────────────────────────────┘
          │ spawn_child()          │ cancel_all()
          ▼                        ▼
@@ -126,7 +125,7 @@ Layer 5: OCap spawn handle（delegate_task 单/批量模式）
 | 策略 | 枚举 | 值 | 说明 |
 |:--|:--|:--|:--|
 | **ControlScope** | `LEAF` | 叶子节点 | 默认，禁止再次委托，强制 max_spawn_depth=0 |
-|  | `ORCHESTRATOR` | 受控协调者 | 仅可信配置可用；必须显式通过 `role="orchestrator"` 请求，运行时注入 child-scoped `delegate_task_tool` + `subagent_control_tool` + `send_teammate_message_tool` |
+|  | `ORCHESTRATOR` | 受控协调者 | 仅可信配置可用；必须显式通过 `role="orchestrator"` 请求，运行时注入 child-scoped `delegate_task_tool` + `subagent_control_tool` |
 | **MemoryIsolationPolicy** | `EPHEMERAL_SESSION` | 临时会话 | 默认；spawn 期间 ContextVar 记忆管理器是父记忆的只读视图（`ReadOnlyMemoryView`），子 agent 没有记忆写工具（L1 剥离） |
 |  | `COLLABORATIVE_SESSION` | 协作会话 | 框架行为与上一行一致，不存在子 agent 共享的写入层 |
 |  | `READ_ONLY_GLOBAL` | 只读全局 | 框架行为与上一行一致；三个取值只影响宿主如何装配子 agent 自带的记忆管理器 |
@@ -213,7 +212,7 @@ Level 4: parent LLM (继承父 agent 的 LLM，兜底)
 `ControlScope` 是可信配置上限，`DelegateRole` 是本次委派请求的运行时角色。
 默认 `role="leaf"` 会把子 agent 收敛为 Worker，并移除再次委派能力；只有当 catalog
 配置为 `ControlScope.ORCHESTRATOR` 且请求显式使用 `role="orchestrator"` 时，Executor
-才会在子 agent 上重新绑定 child-scoped `delegate_task_tool` + `subagent_control_tool` + `send_teammate_message_tool`
+才会在子 agent 上重新绑定 child-scoped `delegate_task_tool` + `subagent_control_tool`
 工具。注入列表来自 `DelegationCapabilityManifest.orchestrator_child_tools`，与 leaf 黑名单
 保持同源。这样 Coordinator 只能控制自己的子树，不能观察或干预兄弟任务。
 

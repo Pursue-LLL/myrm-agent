@@ -106,7 +106,6 @@ class StreamContext:
     round_budget: int = DEFAULT_ROUND_BUDGET
     event_logger: EventLogger | None = None
     drain_subagent_notifications: Callable[[], str | None] | None = None
-    drain_teammate_messages: Callable[[], str | None] | None = None
     llm_info: dict[str, str | None] | None = None
     goal_provider: GoalProvider | None = None
     on_goal_terminal: Callable[[Goal, list[BaseMessage], GoalExecutionSummary], Awaitable[None]] | None = None
@@ -349,9 +348,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                 self._consecutive_overloaded = 0
 
                 if await self._handle_subagent_notifications(collected_messages):
-                    continue
-
-                if await self._handle_teammate_messages(collected_messages):
                     continue
 
                 if await self._handle_steering(collected_messages):

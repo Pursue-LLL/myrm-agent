@@ -85,7 +85,6 @@ AUTO_APPROVED_BUILTIN_TOOLS: dict[str, str] = {
 EXPLICIT_MCP_FALLBACK_TOOLS: frozenset[str] = frozenset(
     {
         "browser_execute_script_tool",  # arbitrary JS execution — keep ASK (plus in-tool HITL for privileged APIs)
-        "send_teammate_message_tool",  # cross-agent message dispatch — external side effect, keep ASK
     }
 )
 

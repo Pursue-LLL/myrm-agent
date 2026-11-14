@@ -273,17 +273,3 @@ async def test_a_withheld_call_leaves_its_arguments_in_the_log(caplog: pytest.Lo
     logged = " ".join(record.getMessage() for record in caplog.records)
     assert "write_file" in logged
     assert "Revenue grew by 1" in logged
-
-
-@pytest.mark.asyncio
-async def test_teammate_note_is_runtime_authored_not_a_user_message():
-    """A teammate's note reaches the model as a user-turn message but carries no user authority."""
-    executor = _executor({"messages": [QUESTION]})
-    executor._ctx.drain_teammate_messages = lambda: "[from worker-a] the numbers are final"
-
-    injected = await executor._handle_teammate_messages([QUESTION])
-
-    assert injected is True
-    note = _next_messages(executor)[-1]
-    assert "worker-a" in str(note.content)
-    assert is_user_authored_human_message(note) is False
