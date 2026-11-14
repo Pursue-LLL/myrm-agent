@@ -5,6 +5,12 @@
 - app.platform_utils.deployment_capabilities (POS: deploy-mode capability flags)
 - app.core.security.auth.public_paths (POS: unauthenticated path whitelist)
 - app.core.security.auth.cp_proxy (POS: CP HMAC proxy signature verification)
+- app.config.deploy_mode (POS: sandbox deploy-mode detection)
+- app.remote_access.trust_zone (POS: admission path and trust zone resolution)
+- app.remote_access.mobile_gate (POS: path-scoped pair token authorization)
+- app.remote_access.pairing (POS: HMAC-signed pairing token parsing)
+- app.services.webui.access_policy (POS: WebUI session requirement and cookie user resolution)
+- app.services.webui.session (POS: remote idle TTL for WebUI sessions)
 
 [OUTPUT]
 - resolve_identity, resolve_identity_from_http_scope, resolve_identity_from_ws_scope
