@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 
 from myrm_agent_harness.agent.config.provider_routing import (
+    BUILTIN_PROVIDER_ROUTE_SEGMENT,
+    CUSTOM_COMPAT_TYPE_ROUTE_SEGMENT,
     known_route_segments_ordered,
     normalize_env_model_selection_string,
     route_prefix_for_effective,
@@ -19,6 +21,15 @@ class TestRoutePrefixForEffective:
         assert route_prefix_for_effective("openai_compatible") == "openai/"
         assert route_prefix_for_effective("spark") == "openai/"
         assert route_prefix_for_effective("vercel_ai_gateway") == "openai/"
+
+    @pytest.mark.parametrize(
+        ("provider", "segment"),
+        [*BUILTIN_PROVIDER_ROUTE_SEGMENT.items(), *CUSTOM_COMPAT_TYPE_ROUTE_SEGMENT.items()],
+    )
+    def test_every_declared_provider_routes_by_its_declared_segment(self, provider: str, segment: str) -> None:
+        # A provider the route table maps to a shared wire (``openai``) but the prefix rule does not know would
+        # keep its own id as the prefix, and that prefix would reach the provider as part of the model id.
+        assert route_prefix_for_effective(provider) == f"{segment}/"
 
     def test_gemini_family(self) -> None:
         assert route_prefix_for_effective("gemini-like") == "gemini/"

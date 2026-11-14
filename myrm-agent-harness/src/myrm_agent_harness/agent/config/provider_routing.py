@@ -64,6 +64,7 @@ _OPENAI_ROUTE_FAMILY: frozenset[str] = frozenset(
         "ai302",
         "opencode_go",
         "vercel_ai_gateway",
+        "nvidia",
     }
 )
 
