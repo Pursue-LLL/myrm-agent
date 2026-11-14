@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Literal
+from collections.abc import Callable
+from typing import Literal, Protocol
 
 E2E_SEARCH_POLICY_ENV = "MYRM_E2E_SEARCH_POLICY"
 SearchPolicy = Literal["empty", "hydrate_private"]
@@ -40,9 +41,14 @@ def _reset_empty_policy_runtime_state_for_tests() -> None:
     _EMPTY_POLICY_STRONG_CLEAR_DONE.clear()
 
 
+class _PytestMarker(Protocol):
+    args: tuple[object, ...]
+    kwargs: dict[str, object]
+
+
 def resolve_search_policy_from_item(item: object) -> SearchPolicy:
     """Map pytest markers to shared UI search policy (default hydrate_private)."""
-    get_marker = getattr(item, "get_closest_marker", None)
+    get_marker: Callable[[str], _PytestMarker | None] | None = getattr(item, "get_closest_marker", None)
     if not callable(get_marker):
         return DEFAULT_SEARCH_POLICY
 

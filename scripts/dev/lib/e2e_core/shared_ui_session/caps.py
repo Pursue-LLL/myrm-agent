@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import time
+from typing import overload
 
 _PARALLEL_BRIDGE_READY_CAP_SEC = 180.0
 _SIGNOFF_PARALLEL_BRIDGE_READY_CAP_SEC = 240.0
@@ -88,6 +89,14 @@ def _shared_ui_deadline_extend_cap_sec() -> float:
     except ImportError:
         pass
     return base
+
+
+@overload
+def _extend_shared_ui_deadline_if_wall_allows(deadline: float) -> float: ...
+
+
+@overload
+def _extend_shared_ui_deadline_if_wall_allows(deadline: None) -> None: ...
 
 
 def _extend_shared_ui_deadline_if_wall_allows(

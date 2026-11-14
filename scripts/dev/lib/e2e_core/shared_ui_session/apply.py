@@ -7,6 +7,7 @@ import asyncio
 import sys
 import time
 import urllib.error
+from collections.abc import Awaitable, Callable
 
 from cdp_chat.support import ensure_e2e_search_cleared_in_browser, get_e2e_api_url
 from dev_gate.contract import EvaluateIntent
@@ -132,7 +133,7 @@ async def apply_shared_ui_session_contract(
         file=sys.stderr,
         flush=True,
     )
-    ensure_bridge = getattr(chat, "ensure_react_e2e_bridge", None)
+    ensure_bridge: Callable[..., Awaitable[None]] | None = getattr(chat, "ensure_react_e2e_bridge", None)
     if callable(ensure_bridge):
         assert_phase_budget("E2E_SHARED_UI_SESSION_BRIDGE")
         try:

@@ -7,6 +7,7 @@ import asyncio
 import os
 import sys
 import time
+from collections.abc import Awaitable, Callable
 from typing import Protocol, runtime_checkable
 
 from dev_gate.contract import EvaluateIntent
@@ -97,7 +98,7 @@ async def _ensure_bridge_probe_ready(
     """Final bridge probe with CDP re-hydrate retries after SEARCH_POLICY side effects."""
     from e2e_session_runtime.lifecycle import assert_phase_budget
 
-    ensure_bridge = getattr(chat, "ensure_react_e2e_bridge", None)
+    ensure_bridge: Callable[..., Awaitable[None]] | None = getattr(chat, "ensure_react_e2e_bridge", None)
     last_probe: dict[str, object] = {}
 
     for rehydrate_pass in range(BRIDGE_PROBE_MAX_REHYDRATE + 1):
