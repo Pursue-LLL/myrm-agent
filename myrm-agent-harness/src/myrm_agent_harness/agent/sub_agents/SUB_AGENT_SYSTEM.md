@@ -396,7 +396,7 @@ Hook 异常不影响主流程（catch + warning 日志）。
 |:--|:--|
 | 工具安全 | 类型准入、DelegationCapabilityManifest 同源能力清单、per-config allow/block list、父子工具交集和 readonly 沙箱 |
 | 运行时角色 | `ControlScope` 限定可信上限，`DelegateRole` 控制 leaf/orchestrator 运行时行为 |
-| 委派入口隔离 | leaf 子 agent 剥离 `delegate_task_tool`、`subagent_control_tool` 和技能管理工具；orchestrator 只注入 child-scoped 委派/控制/队友工具 |
+| 委派入口隔离 | leaf 子 agent 剥离 `delegate_task_tool`、`subagent_control_tool` 和技能管理工具；orchestrator 只注入 child-scoped 委派/控制工具 |
 | 预算治理 | token、单节点子任务数、全树后代数、批量规模、race 成本准入和全局深度上限 |
 | 批处理语义 | `delegate_task_tool(mode=batch)` 返回 completed / partial_success / failed、成功/失败计数和 failure_reasons |
 | 策略可观测性 | `DelegationPolicyDecision` + typed SubagentLifecycleEvent 透传 role/control_scope/policy reason |
