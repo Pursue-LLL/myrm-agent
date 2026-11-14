@@ -3193,7 +3193,7 @@
       "routingFeatureTitle": "动态模型路由 (Routing)",
       "routingFeatureDesc": "针对当前阶段或任务专精，动态选定单次执行的最优模型。",
       "moaFeatureTitle": "多模型融合 (MoA)",
-      "moaFeatureDesc": "通过提出者-聚合者多模型协同共识机制，成倍提升复杂决策的上限。",
+      "moaFeatureDesc": "通过提出者-聚合者多模型协同共识机制，提升复杂决策的质量与共识度。",
       "economicsTitle": "Token 经济学与成本治理",
       "economicsDesc": "在大幅提升产出上限的同时，显著降低 Token 消耗与运行成本。",
       "economicsPoint1": "复用前缀缓存 (Prefix Cache)，支持缓存的服务商会按折扣价计费重复的输入 Token。",
