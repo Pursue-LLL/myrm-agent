@@ -112,6 +112,10 @@ async def create_skill_agent(
 
     assert_distribution_ready()
 
+    if executor is not None:
+        # The venv takes seconds on a fresh state root; the rest of the assembly and the first model request hide it.
+        executor.warm_up()
+
     if llm is None:
         if llm_config is None:
             raise ValueError(
@@ -149,14 +153,15 @@ async def create_skill_agent(
             temperature=0.2,
             streaming=True,
         )
+        cloud_llm = llm
         llm = PrivacyRoutingModel(
-            cloud_llm=llm,
+            cloud_llm=cloud_llm,
             local_llm=local_llm,
             routing_config=privacy_routing_config,
         )
         logger.info(
             " Privacy routing enabled: cloud=%s, local=%s, s2=%s, s3=%s",
-            type(llm.cloud_llm).__name__,
+            type(cloud_llm).__name__,
             privacy_routing_config.local_model,
             privacy_routing_config.s2_strategy,
             privacy_routing_config.s3_strategy,

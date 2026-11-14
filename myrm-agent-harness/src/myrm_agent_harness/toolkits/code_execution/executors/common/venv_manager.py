@@ -8,7 +8,7 @@ Manages shared virtual environment creation, initialization, and pip command rew
 - infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
-- VenvManager: Shared virtual environment manager (lazy create, pip rewrite, crash-safe discard).
+- VenvManager: Shared virtual environment manager (single-flight lazy create, pip rewrite, crash-safe discard).
 
 [POS]
 Virtual environment management service.
@@ -52,6 +52,7 @@ class VenvManager:
         self.config = config
         self._python_executable: str | None = None
         self._venv_initialized = False
+        self._resolve_lock = asyncio.Lock()
 
     def get_venv_path(self) -> Path:
         """Return the shared virtual environment path."""
@@ -97,10 +98,20 @@ class VenvManager:
         return True
 
     async def get_python_executable(self) -> str:
-        """Return the Python executable path, creating the venv if needed."""
+        """Return the Python executable path, creating the venv if needed.
+
+        Callers that arrive while the venv is being created wait for that one creation, so a background
+        warm-up and the first Python run never build it twice.
+        """
         if self._python_executable and self._venv_initialized:
             return self._python_executable
 
+        async with self._resolve_lock:
+            if self._python_executable and self._venv_initialized:
+                return self._python_executable
+            return await self._resolve_python_executable()
+
+    async def _resolve_python_executable(self) -> str:
         venv_path = self.get_venv_path()
         python_path = venv_path / "bin" / "python"
 

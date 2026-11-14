@@ -3,11 +3,13 @@
 Covers:
 - get_venv_path: default path resolution from MYRM_DATA_DIR
 - get_python_executable: venv creation and fallback behavior
+- get_python_executable: concurrent callers share one creation
 - rewrite_pip_command: pip command rewriting
 """
 
 from __future__ import annotations
 
+import asyncio
 import os
 import tempfile
 from pathlib import Path
@@ -140,3 +142,64 @@ class TestVenvManagerCreation:
         # Should gracefully fall back to sys.executable on permission error
         py_exec = await manager.get_python_executable()
         assert Path(py_exec).exists()
+
+
+class _FakeVenvProcess:
+    """Stands in for ``python -m venv``: ``bin/python`` appears only after a delay, as in a real creation."""
+
+    returncode = 0
+
+    def __init__(self, venv_path: Path) -> None:
+        self._venv_path = venv_path
+
+    async def communicate(self) -> tuple[bytes, bytes]:
+        await asyncio.sleep(0.05)
+        python = self._venv_path / "bin" / "python"
+        python.parent.mkdir(parents=True)
+        python.touch()
+        return b"", b""
+
+
+class TestVenvManagerSingleFlight:
+    """Callers that arrive during a creation wait for it instead of starting another."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_callers_share_one_creation(self, tmp_path: Path):
+        config = MagicMock()
+        config.local.shared_venv_path = str(tmp_path / "venvs")
+        config.local.auto_create_venv = True
+        manager = VenvManager(config)
+        spawned: list[tuple[str, ...]] = []
+
+        async def fake_spawn(*argv: str, **_kwargs: object) -> _FakeVenvProcess:
+            spawned.append(argv)
+            return _FakeVenvProcess(Path(argv[-1]))
+
+        with patch(
+            "myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager.asyncio.create_subprocess_exec",
+            side_effect=fake_spawn,
+        ):
+            results = await asyncio.gather(*(manager.get_python_executable() for _ in range(4)))
+
+        assert len(spawned) == 1
+        assert set(results) == {str(tmp_path / "venvs" / "bin" / "python")}
+
+    @pytest.mark.asyncio
+    async def test_a_resolved_manager_does_not_spawn_again(self, tmp_path: Path):
+        config = MagicMock()
+        config.local.shared_venv_path = str(tmp_path / "venvs")
+        config.local.auto_create_venv = True
+        manager = VenvManager(config)
+
+        async def fake_spawn(*argv: str, **_kwargs: object) -> _FakeVenvProcess:
+            return _FakeVenvProcess(Path(argv[-1]))
+
+        with patch(
+            "myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager.asyncio.create_subprocess_exec",
+            side_effect=fake_spawn,
+        ) as spawn:
+            first = await manager.get_python_executable()
+            second = await manager.get_python_executable()
+
+        assert first == second
+        assert spawn.await_count == 1

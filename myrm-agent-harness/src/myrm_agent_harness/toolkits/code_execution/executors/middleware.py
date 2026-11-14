@@ -113,5 +113,8 @@ class CodeExecutorMiddleware(CodeExecutor):
     async def restore_workspace(self, session_id: str, storage_path: str) -> bool:
         return await self.inner.restore_workspace(session_id, storage_path)
 
+    def warm_up(self) -> None:
+        self.inner.warm_up()
+
     async def close(self) -> None:
         await self.inner.close()

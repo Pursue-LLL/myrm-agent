@@ -114,3 +114,19 @@ def test_appcontainer_provider_cleanup_sync_safety() -> None:
         with patch("os.path.exists", return_value=True):
             provider.cleanup()
         mock_remove.assert_called_once_with("/tmp/nonexistent_path_for_test", "S-1-15-2-12345")
+
+
+def test_code_executor_warm_up_defaults_to_nothing() -> None:
+    _DummyExecutor().warm_up()
+
+
+def test_code_executor_middleware_warm_up_delegation() -> None:
+    class _WarmableExecutor(_DummyExecutor):
+        warmed = False
+
+        def warm_up(self) -> None:
+            self.warmed = True
+
+    inner = _WarmableExecutor()
+    CodeExecutorMiddleware(inner).warm_up()
+    assert inner.warmed

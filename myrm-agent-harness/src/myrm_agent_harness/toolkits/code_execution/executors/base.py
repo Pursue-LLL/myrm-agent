@@ -3,7 +3,7 @@
 Defines the unified interface for code execution and file operations.
 CodeExecutor is the single entry point for all execution operations.
 
-Lifecycle: bind_workspace(path) -> execute()/execute_bash()/read_file()/... -> close()
+Lifecycle: bind_workspace(path) -> warm_up() -> execute()/execute_bash()/read_file()/... -> close()
 
 [INPUT]
 - toolkits.code_execution.config::ExecutionConfig (POS: Code execution configuration layer. Defines execution modes, network policies, and runtime settings for the Agent-in-Sandbox architecture.)
@@ -73,7 +73,7 @@ class CodeExecutor(ABC):
     - File operations have default implementations via execute_bash()
     - LocalExecutor overrides file methods with native pathlib I/O
 
-    Lifecycle: bind_workspace(path) -> execute()/read_file()/... -> cleanup()
+    Lifecycle: bind_workspace(path) -> warm_up() -> execute()/read_file()/... -> close()
 
     Metrics: Each executor instance maintains an ExecutionMetrics object
     that accumulates execution statistics (counts, timings, error distribution).
@@ -104,6 +104,13 @@ class CodeExecutor(ABC):
     async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
         """Execute a Bash command."""
         ...
+
+    def warm_up(self) -> None:
+        """Start preparing, in the background, what the first execution would otherwise wait for.
+
+        Returns immediately and must be called from a running event loop. The default has nothing to prepare.
+        """
+        return None
 
     async def close(self) -> None:
         """Release underlying processes, file descriptors, and sandbox resources."""
