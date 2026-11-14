@@ -3,7 +3,8 @@
 Renders OutboundMessage into a list of sendable text chunks for channels.
 Three-stage pipeline: _prepare → _format → split_message, all pure functions, 100% unit-testable.
 
-Format layer performs format downgrade based on RenderStyle capability declarations:
+Format layer first scrubs the assembled text of what no platform accepts (NUL and lone surrogates), so no converter or
+splitter after it can misread or choke on one, then performs format downgrade based on RenderStyle capability declarations:
 - supports_latex=False  → LaTeX formulas ``$$…$$`` stripped to plain text
 - supports_tables=False → Markdown tables downgraded to lists or code blocks
 - supports_expandable_blockquote=False → a collapsed reasoning is a Markdown quote, not Telegram's
@@ -51,6 +52,7 @@ from .text_utils import (
     downgrade_content,
     downgrade_html_fences,
     md_to_plaintext,
+    scrub_unsendable_chars,
     strip_orphan_citations,
     strip_thinking_tags,
     with_protected_code_blocks,
@@ -282,7 +284,7 @@ def _format(prepared: _PreparedContent, style: RenderStyle) -> str:
         prepared.tool_summary_block,
         prepared.cost_footer,
     ]
-    raw = "".join(p for p in parts if p)
+    raw = scrub_unsendable_chars("".join(p for p in parts if p))
 
     if not raw.strip():
         raw = _EMPTY_FALLBACK

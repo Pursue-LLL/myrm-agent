@@ -30,6 +30,12 @@ def test_utf16_len_matches_telegram_units() -> None:
     assert utf16_len("😀") == 2
 
 
+def test_a_lone_surrogate_is_one_unit_instead_of_an_error() -> None:
+    # The reply is measured before it is rendered; a surrogate a tool left in it must not lose the whole reply.
+    assert utf16_len("a\ud83db") == 3
+    assert qualifies_short_circuit(_outbound("short \udc00 reply")) is True
+
+
 def test_short_circuit_requires_no_tool_steps() -> None:
     short = "x" * 100
     assert qualifies_short_circuit(_outbound(short)) is True

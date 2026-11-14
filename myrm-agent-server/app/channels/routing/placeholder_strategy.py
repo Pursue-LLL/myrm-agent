@@ -17,8 +17,11 @@ SendPlaceholderFn = Callable[[], Awaitable[str | None]]
 
 
 def utf16_len(text: str) -> int:
-    """Return Telegram-compatible UTF-16 code unit length."""
-    return len(text.encode("utf-16-le")) // 2
+    """Return Telegram-compatible UTF-16 code unit length.
+
+    The reply is measured before it is rendered, so a lone surrogate in it counts as the one unit it is.
+    """
+    return len(text.encode("utf-16-le", "surrogatepass")) // 2
 
 
 def qualifies_short_circuit(result: OutboundMessage) -> bool:

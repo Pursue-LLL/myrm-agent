@@ -6,6 +6,7 @@
 [OUTPUT]
 - extract_safe_regions(): Extract pattern matches outside code blocks
 - strip_thinking_tags(): Remove LLM thinking/reasoning tags from text
+- scrub_unsendable_chars(): Text without NUL and without surrogate code points (what no platform accepts and the converters misread)
 - strip_orphan_citations(): Remove orphan citation markers when sources absent
 - downgrade_content(): Apply LaTeX stripping and table downgrade on non-code-block text based on RenderStyle
 - downgrade_html_fences(): Replace HTML/SVG code fences with a short placeholder for IM channels
@@ -43,6 +44,8 @@ _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
 _LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 _BLOCKQUOTE_RE = re.compile(r"^>\s?", re.MULTILINE)
+
+_SURROGATE_RE = re.compile("[\ud800-\udfff]")
 
 _CJK_CITATION_RE = re.compile(r"【\d+】")
 _BARE_CITATION_RE = re.compile(r"(?<!\])\[(\d+)\](?!\()")
@@ -169,6 +172,20 @@ def strip_thinking_tags(text: str) -> str:
     result = _THINK_PAIRED_RE.sub("", text)
     result = _THINK_ORPHAN_RE.sub("", result)
     return result.strip()
+
+
+def scrub_unsendable_chars(text: str) -> str:
+    """``text`` without NUL and without surrogate code points: a high half followed by a low half is joined into the
+    character they encode, any other surrogate becomes U+FFFD.
+
+    A lone surrogate is no character: it cannot be encoded as UTF-8, so a byte-limit splitter, a JSON body or a
+    socket write that meets one raises and the reply is lost. NUL is what the converters put around the code they
+    set aside (``\\x00CODE0\\x00``), so one in the text would be taken for such a marker.
+    """
+    text = text.replace("\x00", "")
+    if _SURROGATE_RE.search(text):
+        text = text.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "replace")
+    return text
 
 
 def strip_orphan_citations(text: str) -> str:
