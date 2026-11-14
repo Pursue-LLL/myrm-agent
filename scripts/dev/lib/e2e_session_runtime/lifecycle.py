@@ -110,7 +110,7 @@ def _normalize_phase(raw: str) -> SessionPhase:
     if normalized in _LEGACY_PHASE_ALIASES:
         return _LEGACY_PHASE_ALIASES[normalized]
     if normalized in ("admit", "bootstrap", "body", "teardown"):
-        return normalized  # type: ignore[return-value]
+        return normalized
     return "admit"
 
 

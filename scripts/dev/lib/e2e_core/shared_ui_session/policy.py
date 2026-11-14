@@ -61,7 +61,7 @@ def resolve_search_policy_from_item(item: object) -> SearchPolicy:
         )
         policy = str(raw or "").strip()
         if policy in ("empty", "hydrate_private"):
-            return policy  # type: ignore[return-value]
+            return policy
         raise ValueError(
             f"Invalid e2e_search_policy marker value {raw!r}; "
             "expected 'empty' or 'hydrate_private'"
@@ -88,5 +88,5 @@ def prime_search_policy_env(item: object) -> SearchPolicy:
 def current_search_policy() -> SearchPolicy | None:
     raw = os.environ.get(E2E_SEARCH_POLICY_ENV, "").strip()
     if raw in ("empty", "hydrate_private"):
-        return raw  # type: ignore[return-value]
+        return raw
     return None
