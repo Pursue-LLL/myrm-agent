@@ -8,6 +8,7 @@ are properly closed and reopened across chunk boundaries.
 
 [OUTPUT]
 - split_message(): str → list[str] (message chunk list; join-preserving line iteration; limit counted in characters or UTF-8 bytes)
+- fenced_block_at(): the code block a cut would split (where it starts and ends), read with the fence rules split_message follows
 - cap_stream_preview(): cap streaming placeholder preview to channel max length, in the same unit
 - BOUNDARY_CHARS / CJK_BOUNDARY_CHARS: shared smart-split punctuation sets
 
@@ -73,6 +74,33 @@ def _close_fence(body: str, fence_marker: str) -> str:
     if body and not body.endswith("\n"):
         body += "\n"
     return body + _fence_symbol(fence_marker)
+
+
+def fenced_block_at(text: str, position: int) -> tuple[int, int | None] | None:
+    """The code block a cut at ``position`` would split, as (start of its opening fence line, end of its closing fence line).
+
+    None when the cut is outside any block; the end is None for a block that is never closed. Fence lines are read as
+    ``split_message`` reads them: a block ends at a bare fence of the same character at least as long as its opener.
+    """
+    opener: int | None = None
+    symbol = ""
+    offset = 0
+    while offset < len(text):
+        if opener is None and offset >= position:
+            return None
+        line_end = text.find("\n", offset)
+        if line_end < 0:
+            line_end = len(text)
+        is_fence, marker = _detect_fence(text[offset:line_end])
+        if is_fence:
+            if opener is None:
+                opener, symbol = offset, _fence_symbol(marker)
+            elif _closes_fence(marker, symbol):
+                if line_end > position:
+                    return opener, line_end
+                opener = None
+        offset = line_end + 1
+    return None if opener is None else (opener, None)
 
 
 def _utf8_len(text: str) -> int:

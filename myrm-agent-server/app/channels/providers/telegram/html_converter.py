@@ -4,7 +4,7 @@ Telegram HTML supports: <b>, <i>, <s>, <code>, <pre>, <a href>.
 Only &, <, > need escaping in non-tag text — much simpler than MarkdownV2.
 
 [INPUT]
-- channels.rendering.splitter::CJK_BOUNDARY_CHARS (POS: shared CJK punctuation SSOT for smart splitting)
+- channels.rendering.splitter::CJK_BOUNDARY_CHARS, fenced_block_at, split_message (POS: shared CJK punctuation SSOT for smart splitting; the code block a cut would split; fence-safe UTF-8 splitting of a block bigger than a part)
 - channels.rendering.text_utils::FENCED_BLOCK_RE, fenced_block_html (POS: fenced block and its <pre> markup, shared with Matrix)
 - telegram.table_renderer::convert_tables (POS: GFM tables as monospace <pre> boxes)
 
@@ -26,7 +26,8 @@ from __future__ import annotations
 import html
 import re
 
-from app.channels.rendering.splitter import CJK_BOUNDARY_CHARS
+from app.channels.rendering.splitter import CJK_BOUNDARY_CHARS, fenced_block_at
+from app.channels.rendering.splitter import split_message as split_fenced_message
 from app.channels.rendering.text_utils import FENCED_BLOCK_RE, fenced_block_html
 
 from .table_renderer import convert_tables
@@ -303,14 +304,14 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
 
 _RICH_MAX_LENGTH = 32000  # practical limit below 32768 for headroom
 
-_CODE_FENCE_RE = re.compile(r"^```", re.MULTILINE)
-
 
 def split_markdown_rich(text: str, limit: int = _RICH_MAX_LENGTH) -> list[str]:
     """Split raw Markdown for sendRichMessage (32768 UTF-8 character limit).
 
-    Unlike ``split_message`` which tracks HTML tags, this function splits
-    plain Markdown text at semantic boundaries while preserving code fences.
+    Unlike ``split_message`` which tracks HTML tags, this function splits plain Markdown text at semantic
+    boundaries. A code block, whatever its fence (backticks or tildes, any length), is never cut when it fits in a
+    part: it moves whole into the next part, or fills the part it starts. A block bigger than a part is cut into
+    fenced pieces.
     """
     if len(text.encode("utf-8")) <= limit:
         return [text]
@@ -325,16 +326,22 @@ def split_markdown_rich(text: str, limit: int = _RICH_MAX_LENGTH) -> list[str]:
             break
 
         cut = _find_utf8_cut(remaining, limit)
-        chunk = remaining[:cut]
+        block = fenced_block_at(remaining, cut)
+        if block:
+            start, end = block
+            if remaining[:start].strip():
+                cut = start  # the block moves whole into the next part
+            elif start:
+                remaining = remaining[start:]  # blank lines ahead of the block are no content
+                continue
+            else:
+                # The block starts this part, and an unclosed one runs to the end of the text. The router splitter
+                # keeps it whole when it fits and otherwise closes and reopens its fence around every cut.
+                chunks.extend(split_fenced_message(remaining[:end], limit, unit="utf8"))
+                remaining = remaining[end:].lstrip("\n") if end is not None else ""
+                continue
 
-        fence_count = len(_CODE_FENCE_RE.findall(chunk))
-        if fence_count % 2 != 0:
-            last_fence = chunk.rfind("```")
-            if last_fence > 0:
-                chunk = remaining[:last_fence]
-                cut = last_fence
-
-        chunks.append(chunk)
+        chunks.append(remaining[:cut])
         remaining = remaining[cut:].lstrip("\n")
 
     return chunks
