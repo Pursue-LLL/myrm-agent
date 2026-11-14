@@ -67,8 +67,8 @@ A test that needs a real model credential (`BASIC_API_KEY`, `LITE_API_KEY`, ...)
 
 | Profile | Command | Notes |
 |---------|---------|-------|
-| Monorepo default | `./myrm test -n0 <path>`（open-perplexity 根） | monorepo 内统一走 `./myrm test`，不裸跑 `uv run pytest`；CI 用 `uv run --no-sync`；harness gate 自愈 editable |
-| Monorepo integration | `./myrm test -m integration <path>` | 默认 addopts 排除 integration |
+| Monorepo default | `./myrm-dev test -n0 <path>`（monorepo 根） | monorepo 内统一走 `./myrm-dev test`，不裸跑 `uv run pytest`；CI 用 `uv run --no-sync`；harness gate 自愈 editable |
+| Monorepo integration | `./myrm-dev test -m integration <path>` | 默认 addopts 排除 integration |
 | Local default (harness-only) | `pytest` (addopts apply filter automatically) | Serial; ~300–500MB typical peak (darwin arm64, 2026-06) |
 | Full suite | `pytest -m ""` | All markers including integration/e2e/performance |
 | Browser integration | `pytest -m "integration or e2e" --timeout=600` | Real Chromium; run separately |

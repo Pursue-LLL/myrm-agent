@@ -36,7 +36,7 @@
 | `desktop-tcc-recover.sh` | Unix | macOS desktop E2E 授权链恢复：探针 `/webui/desktop/permissions`，AX 缺失时仅 TERM **本栈启动的**端口 owner（环境戳校验；owner 不是本栈启动的则 `TCC_FAIL` 且不动它）并经 `_start_backend_bg` 从当前已授权 shell 冷启（幂等：AX 已授权则零动作）；被 desktop approval runner 中途哨兵指引引用 |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
 | `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录；已有 default 时幂等 reconcile `BASIC_MODEL` + `LITE_MODEL` provider catalog、`liteModel.primary` 与 **`apiUrl`/`apiKey`/`name`**，避免复用私池数据库后缺少 openai-like provider 或仍指向旧 gateway） |
-| `wave-resource-lease.sh` | Unix | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
+| `wave-resource-lease.sh` | Unix | `./myrm-dev` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `moa-overlay-e2e-prepare.mjs` | 双平台 | MoA overlay prepare：临时 Agent（`moa_overlay`）、PATCH `active-moa-preset`、`agent-stream` 带 `active_moa_preset_id`、断言 SSE `moa_overlay_active` + `moa_ref_done` → JSON；Env：`E2E_API_BASE` / `E2E_UI_BASE` / `E2E_MOA_PRESET_ID` |

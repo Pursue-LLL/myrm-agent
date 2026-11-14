@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪文本文件出现私有开发壳的规划目录、名称、维护者速查文档名与规划条目编号、禁止跟踪符号链接、禁止测试目录提交完整厂商格式凭据、定时任务 REST 的请求与响应字段漏转（路由没读的请求字段、响应映射没填的响应字段）、蓝图填充响应的服务端与前端字段不一致、首轮静态 system 提示的体积超出基线上限。
+Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪文本文件出现私有开发壳的规划目录、名称、维护者速查文档名、维护者本机的同级项目目录与规划条目编号、禁止跟踪文本文件让读者经用户 CLI 执行开发者子命令、禁止跟踪符号链接、禁止测试目录提交完整厂商格式凭据、定时任务 REST 的请求与响应字段漏转（路由没读的请求字段、响应映射没填的响应字段）、蓝图填充响应的服务端与前端字段不一致、首轮静态 system 提示的体积超出基线上限。
 
 ## 文件清单
 
@@ -56,7 +56,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_dev_pid_path_ssot.py` | `scripts/**` 禁止读取子目录 `.myrm-dev-*` pid（cleanup rm 豁免） |
 | `test_server_pyproject_lock_parity.py` | pyproject 主依赖/optional extras 与 uv.lock requires-dist 同构；harness 须为 in-repo editable path source，且 lock 不解析出平台 core 轮子包（`compiled-core` extra 里的需求声明不算）；lock 只含 `pypi.org`/`files.pythonhosted.org`；main 依赖不得含 GPL/optional 包、harness 已 pin 的 `langchain`/`langchain-core` 与 `litellm`；lock 里每个包锁定的版本必须落在 `[project]` 声明的区间内（`override-dependencies` 整条替换声明的下限，lock 保留旧版本时下限形同虚设） |
 | `test_no_user_id.py` | 单机 server 禁止多租户 user_id 泄漏 |
-| `test_no_private_references.py` | 开源仓全部已跟踪文本文件（不限 `*.md`）禁止出现私有开发壳的规划目录、名称、维护者速查文档名与 `topic_NN` 规划条目编号；一次 `git grep -I -i -E` 扫描（不区分大小写，目录名带不带斜杠都命中），编号用显式边界，紧贴中文的写法也命中；模式与样例由片段拼成，守卫文件不会命中自己；自带模式正反例自证；整树扫描另由不带路径过滤的 `.github/workflows/public-tree-guards.yml` 在每次 push main 与 PR 上独立运行（前端、桌面、脚本、根目录文档的改动同样被覆盖） |
+| `test_no_private_references.py` | 开源仓全部已跟踪文本文件（不限 `*.md`）的两类守卫，各是一次 `git grep -I -E` 整树扫描。其一：禁止出现私有开发壳的规划目录、名称、维护者速查文档名、维护者本机存放同级项目的目录与 `topic_NN` 规划条目编号（不区分大小写，目录名带不带斜杠都命中；编号用显式边界，紧贴中文的写法也命中）。其二：禁止让读者经用户 CLI 执行开发者子命令（`ready` / `test` / `restart` / `isolate` / `verify-api` / `harness`，它们只存在于开发者 CLI（`./myrm-dev <子命令>`），用户 CLI 没有这些子命令、只会打印帮助）；命令后面跟空格、反引号或行尾才命中，引号内的写法是定时任务生命周期守卫的测试数据，不命中；另有一个测试从用户 CLI 的 case 标签读出它实际分发的命令，断言与开发者子命令清单不相交——用户 CLI 日后真有同名命令时，守卫直接提示清单需要复核，而不是误报。模式与样例由片段拼成，守卫文件不会命中自己；两类模式各自带正反例自证；整树扫描另由不带路径过滤的 `.github/workflows/public-tree-guards.yml` 在每次 push main 与 PR 上独立运行（前端、桌面、脚本、根目录文档的改动同样被覆盖） |
 | `test_no_tracked_symlinks.py` | 开源仓禁止跟踪符号链接：链接目标是提交者本机上的路径，入库后新检出就会出错（例如入库的 `myrm-agent-server/.venv` 链接会让 `uv sync` 报 `File exists`、桌面发布契约随之变红）；常见来源是 worktree 为共用虚拟环境或 `node_modules` 建的链接被 `git add -A` 收进暂存区；读 `git ls-files -s` 里文件模式为 `120000` 的路径，列出即失败并给出路径；自带一个用真实 git 暂存链接与普通文件的探测自证（Windows 跳过） |
 | `test_client_ip_single_source.py` | 应用代码禁止从访客可写的转发头取客户端地址：`app/` 下字符串常量恰为 `x-forwarded-for`、`x-real-ip`、`forwarded`、`cf-connecting-ip`、`true-client-ip`、`x-client-ip` 的文件，只能是白名单里的 `remote_access/trust_zone.py`（它用这些头区分隧道入口与本机开发代理，不用来选限流地址）；限流、锁定与 IP 名单的地址一律取 `app.core.security.client_address.client_ip`；白名单项必须仍读这些头；含探测器自检：读头的文件被检出，只在文字里提到头名的不被检出 |
 | `test_no_provider_shaped_secrets_in_tests.py` | server 测试目录禁止出现完整的厂商格式凭据（Stripe 密钥、Slack token），否则 GitHub push protection 会拒绝整个推送；假值统一经 `tests/support/fake_secrets.py` 拼装。含守卫自检：正则必须仍能匹配夹具输出，避免扫描空转 |

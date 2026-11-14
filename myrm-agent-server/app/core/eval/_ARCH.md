@@ -39,7 +39,7 @@
 
 ## 测试覆盖
 
-- Chrome E2E：`tests/e2e/test_eval_capture_chrome_e2e.py` 覆盖真实浏览器中从对话向评测集一键沉淀、写入 JSONL 数据集的完整链路（`./myrm test -m chrome_e2e -k test_eval_capture_chat_to_dataset_chrome_e2e` PASSED）。
+- Chrome E2E：`tests/e2e/test_eval_capture_chrome_e2e.py` 覆盖真实浏览器中从对话向评测集一键沉淀、写入 JSONL 数据集的完整链路（`./myrm-dev test -m chrome_e2e -k test_eval_capture_chat_to_dataset_chrome_e2e` PASSED）。
 - 单测/集成测试：`tests/api/eval/test_capture_endpoint_integration.py` 与 `test_capture_sanitization.py` 覆盖端点与 Base64 清洗逻辑。
 
 ## 依赖关系
