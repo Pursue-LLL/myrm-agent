@@ -22,8 +22,8 @@ function readSavedRoutes(): Record<string, string> {
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       return {};
     }
-    // A page is only restored while it still belongs to the tab it was saved under; otherwise that tab would open a
-    // page it no longer owns.
+    // A page is only restored while it belongs to the tab it was saved under; otherwise that tab would open a page
+    // that belongs to another tab.
     return Object.fromEntries(
       Object.entries(parsed).filter(
         (entry): entry is [string, string] => typeof entry[1] === 'string' && getTabFromPathname(entry[1]) === entry[0],

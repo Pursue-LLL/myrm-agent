@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * @/services/skill::listSkills (POS: 技能列表 API)
+ * @/services/agent::CommandBindingConfig (POS: Agent API 客户端与 DTO 类型)
  * @/lib/utils/agent-config::sanitizeCommandToken, parseAliasList, BindingIssue (POS: 命令绑定清洗/校验纯逻辑)
  *
  * [OUTPUT]

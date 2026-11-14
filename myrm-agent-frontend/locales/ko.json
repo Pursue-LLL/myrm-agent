@@ -623,7 +623,7 @@
       "builtinPresets": "사전 설정",
       "customAgents": "내 에이전트",
       "openConfigPanel": "상세 구성 및 미세 조정...",
-      "manageAgents": "에이전트 관리 허브...",
+      "manageAgents": "에이전트 관리...",
       "switchSuccess": "에이전트가 전환되었습니다"
     },
     "readiness": {

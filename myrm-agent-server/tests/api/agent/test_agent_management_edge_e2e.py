@@ -31,8 +31,7 @@ async def test_agent_duplicate_creation(async_client: AsyncClient, test_user_id:
     assert res1.status_code == 200
     agent_id = res1.json()["data"]["id"]
 
-    # 第二次创建同名 Agent（单机沙箱模式下，ProfileManager 允许同名，但 ID 会自动生成新的）
-    # 如果业务层有名称唯一性约束，则会报错。目前 Server 层已移除 agents 表，所以允许同名不同 ID。
+    # 第二次创建同名 Agent：Agent 名称没有唯一性约束，每次创建都会生成新的 ID
     res2 = await async_client.post("/api/agents", json=payload)
     assert res2.status_code == 200
     assert res2.json()["data"]["id"] != agent_id

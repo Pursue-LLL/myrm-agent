@@ -623,7 +623,7 @@
       "builtinPresets": "预置专家",
       "customAgents": "我的智能体",
       "openConfigPanel": "详细配置与微调...",
-      "manageAgents": "管理智能体中心...",
+      "manageAgents": "管理智能体...",
       "switchSuccess": "已切换智能体"
     },
     "readiness": {

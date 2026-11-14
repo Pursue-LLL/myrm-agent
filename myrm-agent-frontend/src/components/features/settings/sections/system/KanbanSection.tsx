@@ -47,10 +47,10 @@ export default function KanbanSection() {
 
   const fetchBoards = useCallback(async () => {
     try {
-      // A deep link (board_id / status, e.g. from a push notification or the
-      // Fleet "Pending" KPI) targets a specific pending task regardless of the
-      // current project filter — fetch every board so auto-selection can land
-      // on it. Browsing without a deep link keeps the project scoping.
+      // A deep link (board_id / status, e.g. from a push notification) targets
+      // a specific pending task regardless of the current project filter —
+      // fetch every board so auto-selection can land on it. Browsing without a
+      // deep link keeps the project scoping.
       const isDeepLink = Boolean(boardIdParam || statusParam);
       const result = isDeepLink ? await listBoards() : await listBoards({ projectId: activeProjectId });
       setBoards(result.items);
@@ -93,8 +93,8 @@ export default function KanbanSection() {
       }
     }
 
-    // A status-only deep link (e.g. Fleet "Pending" KPI) has no board_id;
-    // land on the board that actually holds tasks in that status instead of
+    // A status deep link with no board_id, or whose board no longer exists,
+    // lands on the board that actually holds tasks in that status instead of
     // the last-used board with an empty filtered column.
     if (statusParam) {
       const lastId = readKanbanLastBoardId(activeProjectId);

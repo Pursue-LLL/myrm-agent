@@ -336,7 +336,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/reliability/test_durable_outbound_poison_isolation.py` | 单元 | 持久化出站队列：带按钮的消息重启后完整读回；无法解码的记录隔离到失败桶，不拖垮其余记录、仅一次性上报永久失败且绝不重发，网关启动不受影响 |
 | `channels/reliability/test_durable_outbound_persist_failure.py` | 单元 | 持久化出站写盘失败（磁盘满等）时降级为不落盘的内存发送并记 WARNING：原消息原样返回、`mark_attempting` / `ack` 为空操作、真实总线仍把消息投递出去；取消信号不被吞掉 |
 | `api/memory/test_pending_proposal_seed.py` | 单元 | `POST /memory/test/seed-pending-proposal` 契约（local-only 404 · correct/delete 入队 · 目标不存在或非语义记忆 404 · 重复提案 409） |
-| `api/agent/test_agent_clone_e2e.py` | 模块 | Agent 克隆 API E2E（自定义名 / 默认「(Copy)」/ 不存在 404 / 提示词与技能随克隆保留、家目录与头像不带）+ 已退役的 JSON 导入导出与工作区文件束路由不再对外提供（404/405 守卫） |
+| `api/agent/test_agent_clone_e2e.py` | 模块 | Agent 克隆 API E2E（自定义名 / 默认「(Copy)」/ 不存在 404 / 提示词与技能随克隆保留、家目录与头像不带）+ JSON 导入导出与工作区文件束的路由不存在（404/405 守卫） |
 | `integration/test_diagnostic_copy_ui_labels_i18n_sync.py` | 模块 | 跨层同步：harness 错误诊断目录里引用的产品入口（如「设置 > 模型服务 > 默认模型」）须与 6 个 locale 的前端 `settings.*` 菜单文案逐一一致；目录里任何新的「A > B」路径必须登记后才能通过，避免界面改名后诊断步骤指向不存在的入口 |
 | `integration/test_diagnostic_copy_zh_tw_glossary_i18n_sync.py` | 模块 | 跨层同步：harness 繁体诊断目录（`zh-TW.json` 的全部文案）与繁体恢复按钮标签须不含前端 `scripts/i18n-glossary.json` 的 zh-TW 禁用词（字符串按小写子串、`/正则/` 按忽略大小写，规则同前端 `verify:i18n`）与 `scripts/zh-simplified-glyphs.txt` 的简体独有字形；有按钮的错误类型从英文目录推导（新增带按钮的类型自动被扫描）；自检用例让禁用词、简体字形、正则写法各自单独生效，避免词表读空后守护空转 |
 | `integration/test_expert_export_i18n_sync.py` | 模块 | 跨层同步：专家导出的 `Omit` 原因码与 `OmittedKind` 种类须与 6 个 locale 的 `agent.expertExport.omitReason` / `omittedKinds` 键完全一致，避免导出对话框显示原始 key |
@@ -444,6 +444,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
+| `database/test_agent_governance_columns_retired.py` | 模块 | 智能体表职责范围、负责人标签、验收标准三列的删除迁移对真实 SQLite：升级中的库丢掉这三列，智能体行与其余列原样保留；从不带这三列的库跳过这些删除；新库不带这三列、模型也不映射它们，迁移重复执行不出错；每条删除都排在添加该列的语句之后 |
 | `database/test_capability_token_migration.py` | 模块 | 能力词表迁移对真实 SQLite：升级中的库把作业能力、Agent 安全覆盖与安全档案里存着的 `code_interpreter_tool` 整词改成 `code_interpreter`，只是含有这段文字的其他值（如域名白名单项）与已用新词的行保持原样；三条语句相邻、各管一张表，重复执行不再改动任何行 |
 | `database/test_channel_key_match.py` | 模块 | 渠道会话键的边界匹配对真实 SQLite：续接匹配含自身与话题、智能体、纪元，纪元匹配只含自身与 `:e=` 键；更长的对端、相邻对端与 `_` 通配符都不被匹配；解析器与交接写出的各策略纪元键都被纪元匹配命中 |
 | `database/test_legacy_wakeup_notice_backfill.py` | 模块 | 旧版通知行补标记迁移对真实 SQLite：没有标记、标记为 JSON null 或带其他字段的 `wakeup_` 用户行补上 `followup` 且保留原字段；已有标记（`followup` / `degraded`）的行、助手行、真人发言行、大小写或前缀不同的 id 都不动；重复执行不再改动任何行；迁移已登记在迁移列表里 |
