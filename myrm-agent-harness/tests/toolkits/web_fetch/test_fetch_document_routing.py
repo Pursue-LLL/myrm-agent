@@ -16,6 +16,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
 from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetcherType, FetchResult
+from myrm_agent_harness.toolkits.web_fetch.processing.binary_router import MAX_PARSED_CHARS
+from myrm_agent_harness.toolkits.web_fetch.processing.pipeline import SOURCE_TRUNCATED_KEY
 from myrm_agent_harness.utils.content_sniff import PayloadKind
 from tests.support.minimal_pdf import minimal_pdf_bytes
 
@@ -77,6 +79,26 @@ async def test_document_is_parsed_instead_of_degraded(
     assert doc is not None
     assert MARKER in doc.page_content
     assert degradable is False
+
+
+async def test_document_text_over_the_parser_cap_reaches_the_caller_flagged(
+    engine_with_http: tuple[FetchEngine, AsyncMock],
+) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = FetchResult(
+        html="", url=URL, headers={"content-type": "application/pdf"}, raw_body=minimal_pdf_bytes(MARKER)
+    )
+    parser = AsyncMock()
+    parser.parse = AsyncMock(return_value=MARKER + "x" * MAX_PARSED_CHARS)
+
+    with patch("myrm_agent_harness.toolkits.file_parsers.get_parser", return_value=parser):
+        doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+
+    assert doc is not None
+    assert degradable is False
+    assert doc.page_content.startswith(MARKER)
+    assert len(doc.page_content) == MAX_PARSED_CHARS
+    assert doc.metadata[SOURCE_TRUNCATED_KEY] is True
 
 
 async def test_file_no_parser_reads_ends_the_fetch(engine_with_http: tuple[FetchEngine, AsyncMock]) -> None:

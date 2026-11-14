@@ -9,11 +9,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.web_fetch.processing.binary_router import (
+    MAX_PARSED_CHARS,
     _detect_extension_from_content_type,
     _detect_extension_from_disposition,
     detect_binary_extension,
     route_binary_content,
 )
+from myrm_agent_harness.toolkits.web_fetch.processing.pipeline import SOURCE_TRUNCATED_KEY
 
 
 class TestDetectExtensionFromContentType:
@@ -134,6 +136,7 @@ class TestRouteBinaryContent:
         assert result.metadata["source_type"] == "binary_pdf"
         assert result.metadata["extension"] == ".pdf"
         assert result.metadata["url"] == "http://example.com/doc.pdf"
+        assert SOURCE_TRUNCATED_KEY not in result.metadata
 
     @pytest.mark.asyncio
     async def test_empty_parse_result_returns_none(self) -> None:
@@ -212,3 +215,25 @@ class TestRouteBinaryContent:
 
         assert result is not None
         assert len(result.page_content) == 100_000
+        assert result.metadata[SOURCE_TRUNCATED_KEY] is True
+        assert result.metadata["source_type"] == "binary_pdf"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("length", "cut"),
+        [(MAX_PARSED_CHARS - 1, False), (MAX_PARSED_CHARS, False), (MAX_PARSED_CHARS + 1, True)],
+        ids=["below_cap", "at_cap", "over_cap"],
+    )
+    async def test_only_text_over_the_cap_is_cut_and_flagged(self, length: int, cut: bool) -> None:
+        parsed = "文" * length  # the cap counts characters, not bytes
+        mock_parser = AsyncMock()
+        mock_parser.parse = AsyncMock(return_value=parsed)
+
+        with patch("myrm_agent_harness.toolkits.file_parsers.get_parser", return_value=mock_parser):
+            result = await route_binary_content(
+                b"%PDF-1.4 fake pdf", {"content-type": "application/pdf"}, "http://example.com/edge.pdf"
+            )
+
+        assert result is not None
+        assert result.page_content == parsed[:MAX_PARSED_CHARS]
+        assert (SOURCE_TRUNCATED_KEY in result.metadata) is cut
