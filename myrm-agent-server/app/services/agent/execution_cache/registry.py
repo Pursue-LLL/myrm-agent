@@ -148,6 +148,9 @@ class ChatAgentExecutionCache:
                     scope_key,
                     "config_changed" if entry.config_fingerprint != config_fingerprint else "missing",
                 )
+                # Unlink before closing: a failing teardown or build must not leave a closed unit in the
+                # cache for a later acquire to hand out again.
+                del self._entries[scope_key]
                 await entry.unit.teardown()
 
             unit = await build_unit()

@@ -28,6 +28,10 @@ def _make_unit(name: str = "unit") -> BuiltExecutionUnit:
     return BuiltExecutionUnit(skill_agent=skill_agent)
 
 
+async def _failing_build() -> BuiltExecutionUnit:
+    raise RuntimeError("build failed")
+
+
 @pytest.mark.asyncio
 async def test_acquire_reuses_unit_for_same_scope_and_fingerprint() -> None:
     registry = ChatAgentExecutionCache(idle_seconds=3600.0)
@@ -62,6 +66,43 @@ async def test_acquire_replaces_unit_when_fingerprint_changes() -> None:
     assert first is not second
     assert len(units) == 2
     first.skill_agent.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_replacement_build_leaves_nothing_cached() -> None:
+    registry = ChatAgentExecutionCache(idle_seconds=3600.0)
+
+    async def build_unit() -> BuiltExecutionUnit:
+        return _make_unit()
+
+    first = await registry.acquire("chat-1:default", "fp-a", build_unit)
+    with pytest.raises(RuntimeError, match="build failed"):
+        await registry.acquire("chat-1:default", "fp-b", _failing_build)
+
+    first.skill_agent.close.assert_awaited_once()
+    assert registry.warm_entry_count == 0
+    assert not await registry.is_warm("chat-1:default", "fp-a")
+
+
+@pytest.mark.asyncio
+async def test_a_scope_whose_replacement_failed_rebuilds_instead_of_reusing_the_closed_unit() -> None:
+    registry = ChatAgentExecutionCache(idle_seconds=3600.0)
+    units: list[BuiltExecutionUnit] = []
+
+    async def build_unit() -> BuiltExecutionUnit:
+        unit = _make_unit()
+        units.append(unit)
+        return unit
+
+    first = await registry.acquire("chat-1:default", "fp-a", build_unit)
+    with pytest.raises(RuntimeError, match="build failed"):
+        await registry.acquire("chat-1:default", "fp-b", _failing_build)
+
+    again = await registry.acquire("chat-1:default", "fp-a", build_unit)
+
+    assert again is not first
+    assert len(units) == 2
+    again.skill_agent.close.assert_not_called()
 
 
 @pytest.mark.asyncio

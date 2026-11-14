@@ -6,7 +6,7 @@ since/until match when a memory was saved, so a memory saved outside an explicit
 a client that is not told the window concludes the memory does not exist.
 
 [INPUT]
-- toolkits.memory.agent_surface.memory_recall_no_result::no_result_reply (POS: the zero-hit reply both surfaces share)
+- toolkits.memory.agent_surface.memory_recall_no_result::no_result_reply, describe_time_window (POS: the zero-hit reply both surfaces share, and its window renderer)
 - toolkits.memory.agent_surface.mcp_server::MemoryMCPServer (POS: MCP adapter exposing memory_recall)
 - toolkits.memory.agent_surface.memory_recall_budget::DEFAULT_RECALL_LIMIT, MAX_RECALL_LIMIT (POS: the recall limits the reply quotes)
 
@@ -24,7 +24,10 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import MemoryMCPServer
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_budget import DEFAULT_RECALL_LIMIT, MAX_RECALL_LIMIT
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_no_result import no_result_reply
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_no_result import (
+    describe_time_window,
+    no_result_reply,
+)
 from myrm_agent_harness.toolkits.memory.types import MemoryType
 
 _PLAIN = "No relevant memories found."
@@ -138,7 +141,7 @@ def test_without_a_window_the_reply_is_the_plain_sentence_or_the_plain_sentence_
     assert no_result_reply(None) == f"{_PLAIN} {_RULES_NOTE}"
 
 
-@pytest.mark.parametrize(
+_EACH_BOUND = pytest.mark.parametrize(
     ("since", "until", "period"),
     [
         (_MARCH_START, _MARCH_END, "after 2026-03-01 00:00 UTC and before 2026-03-31 23:59 UTC"),
@@ -147,6 +150,9 @@ def test_without_a_window_the_reply_is_the_plain_sentence_or_the_plain_sentence_
     ],
     ids=["both-bounds", "since-only", "until-only"],
 )
+
+
+@_EACH_BOUND
 def test_the_window_note_names_each_bound_that_was_given(
     since: datetime | None, until: datetime | None, period: str
 ) -> None:
@@ -156,6 +162,17 @@ def test_the_window_note_names_each_bound_that_was_given(
         f"{_PLAIN} This search was limited to memories saved {period}: since/until match when a memory was saved, "
         f"not the date it describes. {_RETRY_ADVICE}"
     )
+
+
+@_EACH_BOUND
+def test_a_window_is_described_by_each_bound_that_was_given(
+    since: datetime | None, until: datetime | None, period: str
+) -> None:
+    assert describe_time_window(since, until) == period
+
+
+def test_a_search_without_a_bound_describes_no_window() -> None:
+    assert describe_time_window(None, None) is None
 
 
 def test_a_bound_with_an_offset_is_named_in_utc() -> None:

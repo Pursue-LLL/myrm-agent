@@ -37,7 +37,6 @@ def _marker(chat: str) -> MagicMock:
     marker.chat_id = chat
     marker.user_message_id = "msg-user"
     marker.attempt_count = 0
-    marker.pending_steering_messages = None
     marker.created_at = datetime.now(UTC)
     marker.serialized_params = {"chat_id": chat, "query": "hello", "model_cfg": {"provider": "test", "model": "m"}}
     return marker

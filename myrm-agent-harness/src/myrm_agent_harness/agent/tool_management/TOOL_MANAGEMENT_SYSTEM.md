@@ -118,7 +118,7 @@ Only **LLM tools** (`_TOOL_LAYERS` + ToolRegistry) appear here. Orchestration si
 | `memory_manage_tool` | HIGH_PRIORITY | user_capability | memory | enable_memory + enabled_builtin_tools: memory |
 | `memory_save_tool` | HIGH_PRIORITY | user_capability | memory | enable_memory + enabled_builtin_tools: memory |
 | `memory_search_tool` | HIGH_PRIORITY | user_capability | memory | enable_memory + enabled_builtin_tools: memory; corpus=sessions when memoryEnableConversationSearch |
-| `skill_select_tool` | HIGH_PRIORITY | user_capability | — | skill_backend present |
+| `skill_select_tool` | HIGH_PRIORITY | user_capability | — | non-empty skills and skill_backend present |
 | `web_search_tool` | HIGH_PRIORITY | user_capability | web_search | enabled_builtin_tools: web_search (default on) |
 | `ask_question_tool` | EXTENDED | user_capability | structured_clarify | server mount policy (interactive web_chat); requires_confirmation WebUI emphasis; ClarificationGuardMiddleware one call/turn; HitlToolPolicy L1 subagent block |
 | `browser_ask_human_tool` | EXTENDED | user_capability | browser | enabled_builtin_tools: browser |
