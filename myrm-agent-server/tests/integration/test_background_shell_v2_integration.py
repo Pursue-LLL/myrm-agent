@@ -197,17 +197,23 @@ async def test_rest_preview_redacts_secrets(tmp_path: Path) -> None:
     cmd = f"{sys.executable} -c \"print('{secret}', flush=True)\""
     pid, job_id = await _spawn_background(tmp_path, chat_id=chat_id, command=cmd, reason="redact integration")
 
-    for _ in range(30):
-        preview_source = get_background_registry().get(pid)
-        if preview_source and preview_source.last_stdout_tail:
+    deadline = time.monotonic() + _EVENT_WAIT_S
+    while True:
+        entry = get_background_registry().get(pid)
+        if entry and entry.last_stdout_tail:
             break
+        assert time.monotonic() < deadline, "the job's first stdout line never reached the registry"
         await asyncio.sleep(0.05)
 
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        row = (await client.get(f"/api/v1/background-tasks/shell:{job_id}")).json()
+        response = await client.get(f"/api/v1/background-tasks/shell:{job_id}")
 
-    assert secret not in str(row.get("result_preview", ""))
+    assert response.status_code == 200
+    preview = response.json()["result_preview"]
+    # The captured line has to reach the REST row; without it the check below would pass without inspecting any output.
+    assert preview
+    assert secret not in preview
 
 
 @pytest.mark.integration
