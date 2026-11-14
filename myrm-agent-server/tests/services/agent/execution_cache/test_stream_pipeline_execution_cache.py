@@ -272,10 +272,9 @@ async def test_pooled_stream_seeds_yolo_security_context_before_run() -> None:
 async def test_goal_provider_injection_decoupled_from_memory_manager() -> None:
     """on_goal_terminal must inject whenever goal_provider exists, even with memory disabled.
 
-    Regression guard for the fix that decoupled callback injection from
-    `agent.memory_manager` (memory disabled → memory_manager is None, but the
-    goal lifecycle callbacks must still be wired so dequeue/learnings-notify
-    keep working).
+    Callback injection does not depend on `agent.memory_manager` (memory disabled →
+    memory_manager is None, but the goal lifecycle callbacks must still be wired so
+    dequeue/learnings-notify keep working).
     """
     wrapper = GeneralAgent(
         model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),

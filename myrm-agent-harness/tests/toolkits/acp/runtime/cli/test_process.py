@@ -63,7 +63,7 @@ class TestLines:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("size", [100_000, 3_000_000])
     async def test_a_single_line_far_beyond_the_default_stream_limit_arrives_intact(self, size: int) -> None:
-        """A tool result can be a whole file on one NDJSON line; asyncio's 64 KiB default used to fail the turn."""
+        """A tool result can be a whole file on one NDJSON line, far beyond asyncio's 64 KiB default stream limit."""
         async with _spawn(f"print('x' * {size})") as process:
             lines = await _collect(process)
 

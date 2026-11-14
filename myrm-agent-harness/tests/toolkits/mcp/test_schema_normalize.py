@@ -567,7 +567,7 @@ def test_flatten_json_schema_deep_nesting_survives_ref_depth_bound():
 
     The depth bound guards circular ``$ref`` recursion; deeply nested but
     acyclic schemas must survive so ``flatten_deep_schema`` can later
-    flatten them to dot-path notation. Regression for the 5-level truncation.
+    flatten them to dot-path notation (no truncation at a fixed nesting level).
     """
     schema = {"type": "object"}
     cur = schema

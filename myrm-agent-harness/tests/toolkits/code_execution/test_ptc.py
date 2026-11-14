@@ -202,7 +202,6 @@ class TestHelpers:
         assert "hello" in fn_shell_quote("hello world")
 
 
-
 # ---------------------------------------------------------------------------
 # stub_generator.py tests
 # ---------------------------------------------------------------------------
@@ -278,7 +277,7 @@ class TestPtcDispatcher:
     async def test_dispatch_preserves_dict_payload(self):
         """Structured tool results must survive the wire as dicts, not repr strings.
 
-        Regression guard for the DW contract tear: prompts.py declares every
+        The DW contract: prompts.py declares every
         myrm_tools primitive as ``-> dict`` and few-shot examples unpack them
         (``**result`` / ``answers["results"]``). Serializing to a string makes
         those scripts fail with TypeError at runtime.
@@ -406,9 +405,7 @@ class TestPtcRpcServer:
 
         try:
             for i in range(3):
-                req = PtcRpcRequest(
-                    tool="mock_file_read", args={"path": f"/{i}"}, auth_token=server.auth_token
-                )
+                req = PtcRpcRequest(tool="mock_file_read", args={"path": f"/{i}"}, auth_token=server.auth_token)
                 payload = req.model_dump_json().encode("utf-8")
                 header = struct.pack("!I", len(payload))
 
@@ -453,9 +450,7 @@ class TestPtcRpcServer:
         server._use_tcp = True
         await server.start()
         try:
-            req = PtcRpcRequest(
-                tool="mock_file_read", args={"path": "/tcp"}, auth_token=server.auth_token
-            )
+            req = PtcRpcRequest(tool="mock_file_read", args={"path": "/tcp"}, auth_token=server.auth_token)
             payload = req.model_dump_json().encode("utf-8")
             header = struct.pack("!I", len(payload))
 

@@ -1,8 +1,7 @@
 """Smoke tests for Memory Archive Restore HTTP routes.
 
-Covers the four restore endpoints that were previously implemented in the
-service + API layer but not mounted in the memory router. Guards against
-regression where the feature silently returns 404.
+Covers the four restore endpoints of the service + API layer: each is mounted in the memory router and
+answers the request instead of returning 404.
 """
 
 from __future__ import annotations

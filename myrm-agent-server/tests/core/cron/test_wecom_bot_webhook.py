@@ -385,7 +385,7 @@ class TestChannelDeliveryRouting:
 
     @pytest.mark.asyncio
     async def test_routes_wecom_channel_with_wecom_url(self) -> None:
-        """Bug fix: channel='wecom' + wecom bot URL should route to bot webhook."""
+        """channel='wecom' + wecom bot URL routes to the bot webhook."""
         from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 
         job = _make_job(channel="wecom")

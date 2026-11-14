@@ -358,8 +358,7 @@ def _clear_max_iterations_js() -> str:
 @pytest.mark.timeout(600)
 def test_agent_max_iterations_clear_resets_to_default_via_ui() -> None:
     """Clearing the Max Iterations input must send an explicit null and reset the
-    stored value back to the system default (DB NULL). Regression for the
-    ``is not None`` guard that silently ignored explicit null resets."""
+    stored value back to the system default (DB NULL): an explicit null is a reset, never ignored."""
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
 

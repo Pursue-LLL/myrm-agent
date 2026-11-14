@@ -242,9 +242,8 @@ async def test_turn_state_endpoint_rejects_a_pair_bound_to_another_chat_by_itsel
 async def test_attach_stream_terminates_after_collector_cleanup() -> None:
     """After a turn finalizes (collector removed), the attach SSE stream must end.
 
-    Regression guard for the frontend loading-hang: if the attach stream stays open
-    after `collector.cleanup()`, `consumeStream` never sees EOF and the chat store's
-    `loading` flag is never reset.
+    An attach stream that stayed open after `collector.cleanup()` would leave
+    `consumeStream` without EOF and the chat store's `loading` flag never reset.
     """
     chat_id = "chat-attach-terminates-on-cleanup"
     collector = StreamContentCollector(chat_id=chat_id)

@@ -197,7 +197,7 @@ async def test_the_hook_leaves_the_note_for_a_tool_that_answers_with_its_own_com
 
 
 def test_claiming_a_note_without_a_published_store_is_empty() -> None:
-    """A run that never published degrades to the old behaviour instead of raising."""
+    """A run that never published a store yields an empty note instead of raising."""
     from myrm_agent_harness.core.context_vars import approval_notes_var, claim_approval_note
 
     approval_notes_var.set(None)

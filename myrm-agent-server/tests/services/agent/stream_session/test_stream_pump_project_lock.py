@@ -290,12 +290,11 @@ async def test_cancel_path_releases_lock(monkeypatch):
 async def test_cancel_while_waiting_releases_reserved_gateway_session(monkeypatch):
     """Cancel while queued on a held lock must release the pre-reserved gateway session.
 
-    Regression guard for the permanent-busy bug: try_reserve adds the chat to
-    AgentGateway._active_sessions before the turn reaches execute_stream. When the
-    turn is cancelled while queued on the project lock, execute_stream never takes
-    over — without the pump cleanup the reservation leaked and the chat stayed
-    busy forever for all subsequent turns (user sees AgentBusyError 409 even long
-    after the lock was released).
+    try_reserve adds the chat to AgentGateway._active_sessions before the turn reaches
+    execute_stream. When the turn is cancelled while queued on the project lock,
+    execute_stream never takes over, so the pump must release the reservation itself:
+    otherwise the chat would stay busy for all subsequent turns (AgentBusyError 409
+    even long after the lock was released).
     """
     from app.services.agent.gateway import get_agent_gateway
 

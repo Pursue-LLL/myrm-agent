@@ -1,10 +1,10 @@
-"""Regression tests for positive-IDF BM25 scoring.
+"""Positive-IDF BM25 scoring.
 
 ``rank_bm25``'s stock IDF goes negative for terms present in more than half of the
 documents and is then floored at ``epsilon * average_idf``, which collapses to zero
-on small corpora. The sparse channel then scored a matching term as irrelevant and
-silently returned nothing, so memory recall reported "no such memory" even though the
-fact was stored. These tests pin the positive-IDF behaviour that fixes it.
+on small corpora. A sparse channel built on it would score a matching term as irrelevant and
+silently return nothing, so memory recall would report "no such memory" although the
+fact is stored. These tests pin the positive-IDF behaviour that keeps a matching term relevant.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from myrm_agent_harness.toolkits.retriever.bm25_retrieval import (
     preprocess_text,
 )
 
-# The exact one-document shape that previously produced a silent empty channel.
+# The one-document shape on which the stock IDF would silence the channel.
 _SINGLE_DOC = "我最喜欢的颜色是深海蓝，我有一只叫'奥利奥'的猫。"
 
 # Mirrors the CJK corpus shape used by test_cjk_recall_quality.

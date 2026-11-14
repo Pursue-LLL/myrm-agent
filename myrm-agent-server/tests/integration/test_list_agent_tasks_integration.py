@@ -3,8 +3,8 @@
 Validates the full pipeline:
   POST seed task → KanbanService.store → _list_agent_tasks() → REST response
 
-Covers the core bug fix: voice-spawned tasks are visible in the WebUI panel,
-alongside btw-spawned tasks. Non-persistent tasks are correctly filtered.
+Covers the core behavior: voice-spawned tasks are visible in the WebUI panel,
+alongside btw-spawned tasks. Non-persistent tasks are filtered out.
 """
 
 from __future__ import annotations

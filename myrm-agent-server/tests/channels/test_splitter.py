@@ -169,15 +169,13 @@ class TestCodeFenceReserveSpace:
                 assert chunk.startswith("```typescript\n"), "Reopened fence should have language tag"
 
 
-class TestBugFixes:
-    """Test specific bug fixes and enhancements."""
+class TestFenceHandling:
+    """How chunk splitting treats fenced code blocks."""
 
-    def test_bug_2_long_line_in_fence_no_escape(self) -> None:
-        """Bug Fix: Long lines inside fences should NOT escape fence protection.
+    def test_long_line_in_fence_stays_fenced(self) -> None:
+        """A line longer than ``max_len`` inside a fence is hard-split, yet every piece stays fenced.
 
-        This was a critical bug where super-long single lines inside code blocks
-        would be hard-split and the middle portions would lose fence wrapping,
-        causing Markdown rendering errors. CoPaw had this bug too.
+        A piece without its fence wrapping would render as broken Markdown.
         """
         # Create a 150-character single line inside a fence
         long_line = "x" * 150
@@ -194,7 +192,7 @@ class TestBugFixes:
                 assert chunk.rstrip().endswith("```"), f"Chunk containing fence content should end with fence: {chunk[-20:]}"
 
     def test_tilde_fence_support(self) -> None:
-        """Enhancement: ~~~ fences should be supported (not just ```)."""
+        """~~~ fences are supported (not just ```)."""
         text = "normal\n~~~python\ncode line 1\ncode line 2\n~~~\nend"
 
         # Test both no-split and split scenarios
@@ -212,7 +210,7 @@ class TestBugFixes:
                 assert "~~~" in chunk or "~~~python" in chunk, f"Code content should be fence-wrapped: {chunk[:30]}"
 
     def test_multiple_backticks_support(self) -> None:
-        """Enhancement: Support 4+ backticks (3-10 symbols).
+        """4+ backticks (3-10 symbols) are supported.
 
         Useful for nested code blocks, e.g.:
         `````
@@ -236,7 +234,7 @@ class TestBugFixes:
                 assert "`````" in chunk or "```" in chunk, f"Nested fence content should be wrapped: {chunk}"
 
     def test_smart_split_at_whitespace(self) -> None:
-        """Enhancement: Long lines should be split at whitespace/punctuation boundaries when possible."""
+        """Long lines are split at whitespace/punctuation boundaries when possible."""
         # Long line with many whitespace opportunities
         long_line = "This is a very long line with many words " * 5  # ~210 chars
         text = f"```python\n{long_line}\n```"

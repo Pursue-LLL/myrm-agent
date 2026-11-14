@@ -3,8 +3,8 @@
 Exercises the reasoning-model-aware extraction in ``run_dynamic_workflow_stream``:
 the orchestrator prompt is fed to a real LLM, the response is routed through
 ``extract_answer_text`` and ``strip_script_markdown``, and must yield a valid
-Python orchestration script (not the literal ``"None"`` a reasoning model with
-``content=None`` used to produce). No mocks on the LLM path.
+Python orchestration script, never the literal ``"None"`` that a reasoning model's
+``content=None`` would otherwise leave behind. No mocks on the LLM path.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ async def test_orchestrator_generates_valid_python_script(basic_llm) -> None:
     assert "<think>" not in raw_script, "think blocks must be stripped from the script"
     assert script_code.strip(), "strip_script_markdown produced an empty script"
     assert script_code != "None", (
-        "orchestrator script must not be the literal 'None' a reasoning model with content=None used to produce"
+        "orchestrator script must not be the literal 'None' that a reasoning model's content=None would leave behind"
     )
 
     tree = ast.parse(script_code)

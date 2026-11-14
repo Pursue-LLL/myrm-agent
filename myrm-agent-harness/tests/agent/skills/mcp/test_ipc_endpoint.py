@@ -1,9 +1,7 @@
 """The MCP IPC server lives exactly as long as the script execution it serves.
 
-It used to be one process-wide server bound to the loop that happened to start it, reused by every execution of every
-chat, and it took the identity of each call (session, agent, workspace, read-only state) from the request. A loop that
-ended left a listener nothing answered. These tests pin the replacement: ``mcp_ipc_endpoint`` starts a server for one
-execution, scoped to that execution's caller, and stops it however the execution ends.
+``mcp_ipc_endpoint`` starts a server for one execution, scoped to that execution's caller (session, agent, workspace,
+read-only state), and stops it however the execution ends.
 """
 
 from __future__ import annotations

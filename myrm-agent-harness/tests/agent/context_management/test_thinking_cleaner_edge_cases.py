@@ -257,7 +257,7 @@ async def test_no_cleaning_no_log_no_tokens_saved():
     assert result.tokens_saved == 99
 
 
-# ── Bug fix: model switch thinking block leak ────────────────────────
+# ── Model switch: the latest AI message's thinking blocks are stripped ──
 
 
 @pytest.mark.asyncio
