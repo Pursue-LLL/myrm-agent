@@ -339,3 +339,25 @@ class TestRoutedModelOverride:
         assert resolved is not None
         assert resolved.model == "openai_like/deepseek-chat"
         assert resolved.model_resolver is not None
+
+
+class TestNumericFieldsFromTheChatPanel:
+    """Numbers arrive as numbers or as strings; a value that is neither usable falls back to the default."""
+
+    def test_numeric_strings_are_read(self):
+        config = materialize_jit_configs({"a": {"max_turns": "7", "auto_vault_threshold": "1200"}})["a"]
+
+        assert (config.max_turns, config.auto_vault_threshold) == (7, 1200)
+
+    def test_a_nested_threshold_is_read_when_the_top_level_has_none(self):
+        config = materialize_jit_configs({"a": {"config": {"auto_vault_threshold": 900}}})["a"]
+
+        assert config.auto_vault_threshold == 900
+
+    @pytest.mark.parametrize("unusable", ["many", "", True, None, [3]], ids=["word", "empty", "bool", "none", "list"])
+    def test_an_unusable_value_leaves_the_default(self, unusable):
+        defaults = materialize_jit_configs({"a": {}})["a"]
+
+        config = materialize_jit_configs({"a": {"max_turns": unusable, "auto_vault_threshold": unusable}})["a"]
+
+        assert (config.max_turns, config.auto_vault_threshold) == (defaults.max_turns, defaults.auto_vault_threshold)

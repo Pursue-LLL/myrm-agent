@@ -1,5 +1,6 @@
 """Shared subagent assembly steps: tool boundary, memory_search_tool rebinding and the write backend."""
 
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -7,6 +8,7 @@ import pytest
 from app.ai_agents.subagent_assembly import (
     apply_subagent_memory_search_rebind,
     filter_tools_by_profile,
+    inherit_parent_security_config,
     rebind_subagent_memory_search_tool,
 )
 
@@ -228,3 +230,26 @@ def test_subagent_write_backend_present_when_skill_manage_allowed() -> None:
         tools=["skill_manage_tool"],
     )
     assert subagent_write_backend(config) is not None
+
+
+def test_inherit_parent_security_config_hands_the_child_the_parents_posture() -> None:
+    security = object()
+    parent = SimpleNamespace(config=SimpleNamespace(security_config=security))
+
+    assert inherit_parent_security_config(parent) is security
+
+
+def test_inherit_parent_security_config_is_none_for_a_parent_without_runtime_config(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger="app.ai_agents.subagent_assembly"):
+        assert inherit_parent_security_config(SimpleNamespace()) is None
+
+    assert caplog.records == []
+
+
+def test_inherit_parent_security_config_warns_when_the_parent_has_none(caplog: pytest.LogCaptureFixture) -> None:
+    parent = SimpleNamespace(config=SimpleNamespace(security_config=None))
+
+    with caplog.at_level(logging.WARNING, logger="app.ai_agents.subagent_assembly"):
+        assert inherit_parent_security_config(parent) is None
+
+    assert "child will fall back to fail-closed defaults" in caplog.text

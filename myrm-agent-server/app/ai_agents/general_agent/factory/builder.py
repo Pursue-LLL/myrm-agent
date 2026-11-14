@@ -153,7 +153,7 @@ async def build_general_agent(
 
             goal_tools = create_goal_tools(goal_provider, effective_chat_id)
             tools.extend(goal_tools)
-            logger.info("🎯 已加载目标导向工具: complete_goal_tool")
+            logger.info("Goal tools loaded: complete_goal_tool")
 
     # 4.5 Channel notification tool (Turn1 when notify_targets configured)
     channel_notify_tool_loaded = load_channel_notify_tool(agent_wrapper, tools)
@@ -184,7 +184,7 @@ async def build_general_agent(
     from app.platform_utils import get_checkpointer
 
     checkpointer = get_checkpointer()
-    logger.info(f"使用 checkpointer: {type(checkpointer).__name__}")
+    logger.info("Using checkpointer: %s", type(checkpointer).__name__)
 
     # 8. System prompt
     system_prompt = build_system_prompt(
@@ -475,5 +475,5 @@ async def build_general_agent(
     except Exception as e:
         logger.warning("Failed to load budget guard (non-blocking): %s", e)
 
-    logger.info("GeneralAgent 初始化完成")
+    logger.info("GeneralAgent initialized")
     return agent

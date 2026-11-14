@@ -1,11 +1,13 @@
 """Shared builders for the preamble tests.
 
 An inbound message, user configs, ``build_channel_execution_agent`` with every argument but the varying ones at its plain
-default, and the turn it assembles for a message.
+default, the params its agent is created from, and the turn it assembles for a message.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from myrm_agent_harness.agent.security import CredentialTrack
@@ -17,7 +19,8 @@ from app.channels.types import InboundMessage
 from app.core.channel_bridge.agent_executor.execute_preamble.agent import build_channel_execution_agent
 from app.core.channel_bridge.agent_executor.execute_preamble.types import ChannelAgentBuildOutcome, ChannelAgentBuildResult
 from app.core.channel_bridge.config_loader import UserConfigs
-from app.core.types.business import ModelConfig
+from app.core.types.business import MCPServerConfig, ModelConfig
+from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 OWNER_MEMORY_SCOPE = TurnMemoryScope(policy=None, extra_namespaces=(), is_compartment=False)
 
@@ -60,6 +63,11 @@ async def build_agent(
     memory_settings: dict[str, object] | None = None,
     memory_scope: TurnMemoryScope = OWNER_MEMORY_SCOPE,
     credential_track: CredentialTrack = CredentialTrack.PERSONAL,
+    resolved_profile: ResolvedAgentProfile | None = None,
+    mcp_configs: list[MCPServerConfig] | None = None,
+    fallback_model_cfg: ModelConfig | None = None,
+    fallback_lite_model_cfg: ModelConfig | None = None,
+    vision_fallback_model_cfg: ModelConfig | None = None,
 ) -> ChannelAgentBuildOutcome:
     """``build_channel_execution_agent`` for ``msg``, every other argument at its plain default."""
     return await build_channel_execution_agent(
@@ -70,16 +78,16 @@ async def build_agent(
         memory_settings=memory_settings or {},
         embedding_cfg=None,
         reranker_cfg=None,
-        mcp_configs=None,
+        mcp_configs=mcp_configs,
         lite_model_cfg=None,
-        fallback_model_cfg=None,
-        fallback_lite_model_cfg=None,
-        vision_fallback_model_cfg=None,
+        fallback_model_cfg=fallback_model_cfg,
+        fallback_lite_model_cfg=fallback_lite_model_cfg,
+        vision_fallback_model_cfg=vision_fallback_model_cfg,
         user_instructions="",
         chat_id="chat-db-id",
         session_key="telegram:chat-1",
         resolved_agent_id=None,
-        resolved_profile=None,
+        resolved_profile=resolved_profile,
         agent_skill_ids=[],
         agent_subagent_ids=None,
         agent_max_iterations=None,
@@ -92,14 +100,9 @@ async def build_agent(
     )
 
 
-async def build_live_turn(
-    msg: InboundMessage,
-    *,
-    is_resume: bool = False,
-    configs: UserConfigs | None = None,
-    query: str | list[dict[str, object]] = "test query",
-) -> tuple[ChannelAgentBuildResult, GeneralAgentParams]:
-    """The turn ``build_channel_execution_agent`` assembles for ``msg``, and the params its agent was created from."""
+@contextmanager
+def captured_agent_params() -> Iterator[dict[str, GeneralAgentParams]]:
+    """Stand in for the agent factory and the collaborators that need a database; yields the params the agent is created from."""
     captured: dict[str, GeneralAgentParams] = {}
 
     def _capture_create_agent(params: GeneralAgentParams) -> MagicMock:
@@ -122,6 +125,18 @@ async def build_live_turn(
             return_value=[],
         ),
     ):
+        yield captured
+
+
+async def build_live_turn(
+    msg: InboundMessage,
+    *,
+    is_resume: bool = False,
+    configs: UserConfigs | None = None,
+    query: str | list[dict[str, object]] = "test query",
+) -> tuple[ChannelAgentBuildResult, GeneralAgentParams]:
+    """The turn ``build_channel_execution_agent`` assembles for ``msg``, and the params its agent was created from."""
+    with captured_agent_params() as captured:
         outcome = await build_agent(msg, is_resume=is_resume, configs=configs, query=query)
 
     assert outcome.result is not None

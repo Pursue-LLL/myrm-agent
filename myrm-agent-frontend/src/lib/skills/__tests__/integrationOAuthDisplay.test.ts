@@ -13,6 +13,7 @@ import {
   SETTINGS_CREDENTIALS_PATH,
   SETTINGS_PROVIDERS_PATH,
   SETTINGS_AGENTS_LOADOUT_PATH,
+  SETTINGS_SKILLS_PATH,
   X_LIVE_SEARCH_SKILL_ID,
 } from '../integrationOAuthDisplay';
 import type { Skill, SkillRequires } from '@/store/skill/types';
@@ -212,6 +213,67 @@ describe('getIntegrationSkillSettingsPath account routing', () => {
     const skill = buildSkill({ id: 'x-live-search', available: false, unavailable_reason: 'raw reason' });
 
     expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_PROVIDERS_PATH);
+  });
+});
+
+describe('integrationOAuthDisplay settings link of every other skill', () => {
+  const mockTranslator = (key: string) => key;
+
+  it('sends a skill waiting on a connector to the agents loadout and words it as configuration', () => {
+    const skill = buildSkill({ available: false, required_mcp_server_ids: ['notion'] });
+
+    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_AGENTS_LOADOUT_PATH);
+    expect(getIntegrationSkillSettingsLinkLabel(skill, mockTranslator)).toBe(
+      'card.integrationOAuth.envSkill.configureInSettings',
+    );
+  });
+
+  it('sends a skill waiting on a declared account to Credentials and words it as connecting the account', () => {
+    const skill = buildSkill({ available: false, required_oauth_issuers: ['github'] });
+
+    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_CREDENTIALS_PATH);
+    expect(getIntegrationSkillSettingsLinkLabel(skill, mockTranslator)).toBe(
+      'card.integrationOAuth.googleWorkspace.connectInSettings',
+    );
+  });
+
+  it('keeps Google Workspace on Credentials when the catalog declares no account for it', () => {
+    const skill = buildSkill({ id: 'google-workspace', available: false });
+
+    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_CREDENTIALS_PATH);
+    expect(getIntegrationSkillSettingsLinkLabel(skill, mockTranslator)).toBe(
+      'card.integrationOAuth.googleWorkspace.connectInSettings',
+    );
+  });
+
+  it('falls back to the skills page for a skill that waits on nothing it can name', () => {
+    const skill = buildSkill({ available: false });
+
+    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_SKILLS_PATH);
+    expect(getIntegrationSkillSettingsLinkLabel(skill, mockTranslator)).toBe(
+      'card.integrationOAuth.envSkill.configureInSettings',
+    );
+  });
+});
+
+describe('integrationOAuthDisplay when the server gave no reason', () => {
+  const mockTranslator = (key: string) => key;
+
+  it('shows the generic unavailable text for a skill that also waits on a bin, env or config', () => {
+    const skill = buildSkill({
+      available: false,
+      unavailable_reason: null,
+      requires: { bins: ['gh'], env: [], config: [] },
+      required_oauth_issuers: ['github'],
+    });
+
+    expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe('card.unavailable');
+  });
+
+  it('shows the generic unavailable text for a skill that names nothing it waits on', () => {
+    const skill = buildSkill({ available: false, unavailable_reason: null });
+
+    expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe('card.unavailable');
   });
 });
 

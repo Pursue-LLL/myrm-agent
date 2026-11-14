@@ -98,6 +98,24 @@ describe('SkillAvailabilityNotice', () => {
     expect(screen.queryByRole('button', { name: CONFIGURE })).toBeNull();
   });
 
+  it('sends X live search to the model providers where its xAI key is added, never to a key action', () => {
+    const skill = buildSkill({
+      id: 'x-live-search',
+      name: 'x-live-search',
+      required_oauth_issuers: ['xai'],
+      requires: { bins: [], env: [], config: [] },
+      unavailable_reason:
+        'Add an xAI provider in Settings → Models & Providers, or connect your SuperGrok token in Settings → Integrations → Credentials',
+    });
+    render(<SkillAvailabilityNotice skill={skill} onConfigureKeys={vi.fn()} />);
+
+    expect(screen.getByText('card.integrationOAuth.xLiveSearch.unavailable')).toBeTruthy();
+    const link = screen.getByRole('link');
+    expect(link.getAttribute('href')).toBe('/settings/models');
+    expect(link.textContent).toBe('card.integrationOAuth.xLiveSearch.connectInSettings');
+    expect(screen.queryByRole('button', { name: CONFIGURE })).toBeNull();
+  });
+
   it('renders nothing for an available skill', () => {
     const { container } = render(<SkillAvailabilityNotice skill={buildSkill({ available: true })} />);
 

@@ -211,7 +211,7 @@ async def create_skill_backend(
         else:
             final_backend = CompositeSkillBackend(routes=routes)
     elif not routes:
-        logger.info("只加载内置技能（从对象存储：%s/）", PREBUILT_SKILLS_PREFIX)
+        logger.info("Serving prebuilt skills only (object storage prefix: %s/)", PREBUILT_SKILLS_PREFIX)
         final_backend = prebuilt_backend
     else:
         final_backend = CompositeSkillBackend(routes=routes, default=prebuilt_backend)
@@ -264,10 +264,10 @@ def _load_workspace_skill_backend(
         if skills_dir.is_dir() and any(skills_dir.iterdir()):
             try:
                 backend = LocalSkillBackend(skills_dir)
-                logger.warning("📂 已加载项目/跨生态技能目录: %s", skills_dir)
+                logger.info("Loaded workspace skill directory: %s", skills_dir)
                 valid_backends.append(backend)
             except (FileNotFoundError, ValueError) as e:
-                logger.warning("⚠️ 技能目录无效 %s: %s", skills_dir, e)
+                logger.warning("Skipping invalid workspace skill directory %s: %s", skills_dir, e)
 
     if not valid_backends:
         return None
