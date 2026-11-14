@@ -82,7 +82,8 @@ def _stand_in(tmp_path: Path, behaviour: str) -> Iterator[_Running]:
     try:
         yield _Running(owner, shell, _wait_for_servers(shell))
     finally:
-        with suppress(ProcessLookupError):
+        # macOS answers EPERM, not ESRCH, for a group whose leader has exited and is not reaped yet.
+        with suppress(ProcessLookupError, PermissionError):
             os.killpg(shell.pid, signal.SIGKILL)
         shell.wait()
         owner.kill()
