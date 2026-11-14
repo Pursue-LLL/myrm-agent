@@ -656,8 +656,6 @@ MIGRATION_STATEMENTS: list[str] = [
         ON user_tool_allowlist(permission, tool_name, tool_args_hash, command_pattern, agent_id)""",
     "ALTER TABLE user_tool_allowlist ADD COLUMN expires_at TIMESTAMP",
     "ALTER TABLE cron_jobs ADD COLUMN skill_ids JSON",
-    # No model maps the next three agent columns and nothing reads or writes them. The statements stay because a
-    # migration's version is its position in this list; the columns stay because dropping them discards data for good.
     "ALTER TABLE agents ADD COLUMN responsibility_scope TEXT",
     "ALTER TABLE agents ADD COLUMN owner_label VARCHAR(100)",
     "ALTER TABLE agents ADD COLUMN acceptance_criteria JSON",
@@ -739,6 +737,10 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents DROP COLUMN personality_style",
     "ALTER TABLE agent_profile_history DROP COLUMN personality_style",
     NORMALIZE_RETIRED_PROMPT_MODES_SQL,
+    # No model maps an agent's responsibility scope, owner label or acceptance criteria, and nothing reads or writes them.
+    "ALTER TABLE agents DROP COLUMN responsibility_scope",
+    "ALTER TABLE agents DROP COLUMN owner_label",
+    "ALTER TABLE agents DROP COLUMN acceptance_criteria",
 ]
 
 # 创建索引的SQL语句列表
