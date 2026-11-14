@@ -37,7 +37,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 
 ## 指纹变化的生效路径
 
-`acquire` 遇到指纹变化时替换旧单元：先 `teardown()` 旧单元（关闭其浏览器/桌面会话与 SkillAgent），再重建。
+`acquire` 遇到指纹变化时替换旧单元：先把旧条目从缓存摘除并 `teardown()`（关闭其浏览器/桌面会话与 SkillAgent），再重建。摘除在拆除之前，所以拆除或重建失败后缓存里不会残留已关闭的单元，之后的 `acquire` 会重新构建。
 
 - **其他回合正在运行**：该 scope 的 turn lock 被另一个回合持有时，只推迟替换并复用旧单元（保护运行中的回合），回合结束后的下一次 `acquire` 再替换。
 - **持锁回合自己 acquire**：`guard_turn` 保证同 scope 的回合串行，持锁者就是唯一使用该单元的回合，经 `holds_turn_guard=True` 声明身份后立即替换。`stream_pipeline` 整个回合都在 `guard_turn` 内，经 `coalesced_acquire(..., holds_turn_guard=True)` acquire，所以所有 POOLED 入口（编排器、无人值守目标触发、自动续跑、语音、OpenAI 兼容、fast 模式）在指纹变化后的第一个回合就跑在新单元上，不依赖回合前的预热。
