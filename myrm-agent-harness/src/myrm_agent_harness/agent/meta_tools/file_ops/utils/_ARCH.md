@@ -8,7 +8,7 @@ Utility functions module.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Utility functions module. | — |
-| document_reader.py | Core | Document file reader for file_read_tool. Converts .docx/.doc/.xlsx/.xls/.pptx/.ppt/.ipynb to Markdown via file_parsers with multimodal plot blocks and magic bytes sniffing. | ✅ |
+| document_reader.py | Core | Document file reader for file_read_tool. Converts .docx/.doc/.xlsx/.xls/.pptx/.ppt/.ipynb to Markdown via file_parsers with multimodal plot blocks and magic bytes sniffing. A workbook read as its structure (asked for, or a large one by default) shows no cell values, so its result ends with the call that reads them (`parse_mode='content'`). | ✅ |
 | file_utils.py | Core | Provides parse_path_with_range with positive line numbers and ordered range validation. | ✅ |
 | image_reader.py | Core | Provides is_image_path, read_image_as_content_blocks. Quality Ladder compression (95->20) + (original/attached/scale) coordinate scale factor disclosure. | ✅ |
 | line_endings.py | Core | Line ending detection and normalization (CRLF/LF preserved across edits) plus UTF-8 BOM stripping on display. | ✅ |
