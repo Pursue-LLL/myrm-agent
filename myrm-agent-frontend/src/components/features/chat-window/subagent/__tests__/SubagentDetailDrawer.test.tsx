@@ -61,7 +61,6 @@ describe('SubagentDetailDrawer', () => {
       'detailTabOverview',
       'detailTabJournal',
       'detailTabTools',
-      'detailTabMessages',
       'detailTabReplay',
       'detailTabViewport',
       'detailTaskSpec',
@@ -74,14 +73,13 @@ describe('SubagentDetailDrawer', () => {
     expect(screen.getByLabelText('detailCopy')).toBeDefined();
   });
 
-  it('shows translated empty states for the journal, tools, messages and replay tabs', async () => {
+  it('shows translated empty states for the journal, tools and replay tabs', async () => {
     const user = userEvent.setup();
     render(<SubagentDetailDrawer node={makeNode({})} open={true} onOpenChange={vi.fn()} />);
 
     const emptyStateByTab: Array<[string, string]> = [
       ['detailTabJournal', 'detailJournalEmpty'],
       ['detailTabTools', 'detailToolsEmpty'],
-      ['detailTabMessages', 'detailMessagesEmpty'],
       ['detailTabReplay', 'detailReplayEmpty'],
     ];
     for (const [tabKey, emptyKey] of emptyStateByTab) {
@@ -95,7 +93,7 @@ describe('SubagentDetailDrawer', () => {
     render(<SubagentDetailDrawer node={makeNode({})} open={true} onOpenChange={vi.fn()} />);
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(6);
+    expect(tabs).toHaveLength(5);
     expect(screen.getByRole('tablist').className).toContain('overflow-x-auto');
     for (const tab of tabs) {
       expect(tab.className).toContain('shrink-0');
@@ -120,11 +118,11 @@ describe('SubagentDetailDrawer', () => {
     const tabStops = () => screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'));
 
     act(() => overview.focus());
-    expect(tabStops()).toEqual(['0', '-1', '-1', '-1', '-1', '-1']);
+    expect(tabStops()).toEqual(['0', '-1', '-1', '-1', '-1']);
     await user.keyboard('{ArrowRight}');
     const journal = screen.getByRole('tab', { name: 'detailTabJournal' });
     expect(document.activeElement).toBe(journal);
-    expect(tabStops()).toEqual(['-1', '0', '-1', '-1', '-1', '-1']);
+    expect(tabStops()).toEqual(['-1', '0', '-1', '-1', '-1']);
     expect(journal.getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(journal.id);
 

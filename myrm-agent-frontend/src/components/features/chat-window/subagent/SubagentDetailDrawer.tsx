@@ -8,7 +8,7 @@
  * ./SubagentViewportTab::SubagentViewportTab (POS: Sandboxed browser live peek panel and terminal snapshot view for subagents)
  *
  * [OUTPUT]
- * SubagentDetailDrawer: Detail drawer shell for one subagent node: header, metrics strip, horizontally scrollable keyboard-navigable tablist (Radix Tabs: roving focus, arrow/Home/End keys, tab-to-panel ARIA wiring), and the journal, tools, messages, and replay tabs.
+ * SubagentDetailDrawer: Detail drawer shell for one subagent node: header, metrics strip, horizontally scrollable keyboard-navigable tablist (Radix Tabs: roving focus, arrow/Home/End keys, tab-to-panel ARIA wiring), and the journal, tools, and replay tabs.
  *
  * [POS]
  * Subagent inspection surface. Owns the active-tab and replay-step state and delegates the overview and viewport tabs to their own components.
@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitive
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
 import { Badge } from '@/components/primitives/badge';
 import { fmtCost, fmtTokens, extractCostUsd, extractTotalTokens } from '@/lib/utils/subagent/subagentTree';
-import type { SubagentNode, StreamEntry, TeammateMessageEntry } from '@/store/chat/useSubagentStore';
+import type { SubagentNode, StreamEntry } from '@/store/chat/useSubagentStore';
 import { STATUS_ICON_MAP } from './SubagentStream';
 import { SubagentOverviewTab } from './SubagentOverviewTab';
 import { SubagentViewportTab } from './SubagentViewportTab';
@@ -35,7 +35,7 @@ interface SubagentDetailDrawerProps {
   chatId?: string;
 }
 
-type TabType = 'overview' | 'journal' | 'tool_calls' | 'messages' | 'replay' | 'viewport';
+type TabType = 'overview' | 'journal' | 'tool_calls' | 'replay' | 'viewport';
 
 export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node, open, onOpenChange, chatId }) => {
   const t = useTranslations('subagentDashboard');
@@ -52,7 +52,6 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
   const cost = fmtCost(extractCostUsd(node));
   const tokens = fmtTokens(extractTotalTokens(node));
   const stream = node.stream || [];
-  const teammateMsgs = node.teammateMessages || node.teammate_messages || [];
 
   // Filter out tool calls
   const toolEntries = stream.filter((s: StreamEntry) => s.kind === 'tool');
@@ -61,7 +60,6 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
     { id: 'overview', label: t('detailTabOverview') },
     { id: 'journal', label: t('detailTabJournal', { count: stream.length }) },
     { id: 'tool_calls', label: t('detailTabTools', { count: toolEntries.length }) },
-    { id: 'messages', label: t('detailTabMessages', { count: teammateMsgs.length }) },
     { id: 'replay', label: t('detailTabReplay') },
     { id: 'viewport', label: t('detailTabViewport'), testId: 'subagent-drawer-tab-viewport' },
   ];
@@ -209,38 +207,6 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
                       </pre>
                     </div>
                   ))
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="messages" className="mt-0">
-              <div className="space-y-2">
-                {teammateMsgs.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-muted-foreground">{t('detailMessagesEmpty')}</div>
-                ) : (
-                  teammateMsgs.map((msg: TeammateMessageEntry, idx: number) => {
-                    const isOutbound = msg.from_task_id === node.task_id;
-                    return (
-                      <div
-                        key={idx}
-                        className={`p-2.5 rounded-lg border text-xs ${
-                          isOutbound
-                            ? 'bg-primary/5 border-primary/20 text-foreground ml-4'
-                            : 'bg-muted/40 border-border mr-4'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-                          <span>
-                            {isOutbound
-                              ? t('teammateOutbound', { to: msg.to_task_id })
-                              : t('teammateInbound', { from: msg.from_task_id })}
-                          </span>
-                          <span className="font-mono">{new Date(msg.created_at).toLocaleTimeString()}</span>
-                        </div>
-                        <p className="whitespace-pre-wrap break-words">{msg.body}</p>
-                      </div>
-                    );
-                  })
                 )}
               </div>
             </TabsContent>

@@ -5,7 +5,7 @@
  * chat"). A's stream keeps running in the background; its subagents must not show up in B's task tray, where "stop all"
  * would act on B and leave A's subagents running. A's own messages are routed per chat and are not affected.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AgentEventType } from '@/store/chat/types';
 import { useSubagentStore } from '@/store/chat/useSubagentStore';
@@ -163,40 +163,6 @@ describe('subagent stream events and the open chat', () => {
 
       await handle(topology, OPEN_CHAT);
       expect(useSubagentStore.getState().fissionTopology?.fission_id).toBe('fission-1');
-    });
-  });
-
-  describe('TEAMMATE_MESSAGE', () => {
-    const message = {
-      type: AgentEventType.TEAMMATE_MESSAGE,
-      data: { message_id: 'm-1', from_task_id: 'task-from', to_task_id: 'task-to', body: 'Found it', created_at: 1 },
-    };
-    const onTeammateMessage = vi.fn();
-
-    beforeEach(() => {
-      onTeammateMessage.mockReset();
-      window.addEventListener('teammate_message', onTeammateMessage);
-      useSubagentStore.getState().upsertNode({ task_id: 'task-from', status: 'running' });
-      useSubagentStore.getState().upsertNode({ task_id: 'task-to', status: 'running' });
-    });
-
-    afterEach(() => {
-      window.removeEventListener('teammate_message', onTeammateMessage);
-    });
-
-    it('delivers the message and tells the dashboard which chat it belongs to', async () => {
-      await handle(message, OPEN_CHAT);
-
-      expect(useSubagentStore.getState().nodes['task-to'].teammateMessages).toHaveLength(1);
-      expect(onTeammateMessage).toHaveBeenCalledTimes(1);
-      expect((onTeammateMessage.mock.calls[0][0] as CustomEvent).detail.chat_id).toBe(OPEN_CHAT);
-    });
-
-    it('neither delivers the message of a background chat nor announces it for the open chat', async () => {
-      await handle(message, BACKGROUND_CHAT);
-
-      expect(useSubagentStore.getState().nodes['task-to'].teammateMessages).toBeUndefined();
-      expect(onTeammateMessage).not.toHaveBeenCalled();
     });
   });
 });

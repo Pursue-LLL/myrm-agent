@@ -2,10 +2,8 @@
 
 [INPUT]
 - services.agent.gateway::get_agent_gateway (POS: active agent session registry for streaming runs)
-- services.chat.chat_service::ChatService (POS: workspace dir for teammate mailbox hydrate)
 - sub_agents.session_tree::merge_active_subagent_children, cancel_active_children_for_session (POS: ACTIVE_SUBAGENTS registry SSOT)
 - sub_agents.checkpoint.saver::SubagentCheckpointStorage (POS: interrupted subagent checkpoint persistence)
-- coordination.mailbox::list_teammate_history, group_history_by_task (POS: P2P teammate message history)
 - services.risk.refusal::reject_if_risky (POS: refuses a steering message a risk rule holds)
 
 [OUTPUT]
@@ -20,59 +18,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Path
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.agent.coordination.mailbox import (
-    group_history_by_task,
-    list_teammate_history,
-)
 from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
 from myrm_agent_harness.agent.sub_agents.manager import ACTIVE_SUBAGENTS
 
 from app.core.utils.response_utils import error_response, success_response
 from app.services.agent.gateway import get_agent_gateway
-from app.services.chat.chat_service import ChatService
 from app.services.risk.refusal import reject_if_risky
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-async def _merge_teammate_messages_into_children(
-    chat_id: str,
-    children_data: list[dict[str, object]],
-) -> None:
-    """Attach persisted teammate mailbox rows onto subagent list entries."""
-    if not children_data:
-        return
-
-    workspace_dir: str | None = None
-    try:
-        workspace_dir = await ChatService.ensure_default_workspace_dir(chat_id)
-    except Exception:
-        logger.exception("Failed to resolve workspace for teammate hydrate: %s", chat_id)
-
-    gateway = get_agent_gateway()
-    info = gateway._session_info.get(chat_id)
-    if info and info.agent and info.agent() is not None:
-        agent = info.agent()
-        agent_ws = getattr(agent, "workspace_path", None) or getattr(agent, "workspace_dir", None)
-        if isinstance(agent_ws, str) and agent_ws:
-            workspace_dir = workspace_dir or agent_ws
-
-    history = list_teammate_history(chat_id, workspace_dir, limit=200)
-    if not history:
-        return
-
-    grouped = group_history_by_task(history)
-    for child in children_data:
-        if not isinstance(child, dict):
-            continue
-        task_id = child.get("task_id")
-        if not isinstance(task_id, str) or not task_id:
-            continue
-        msgs = grouped.get(task_id)
-        if msgs:
-            child["teammate_messages"] = msgs
 
 
 @router.get("/{chat_id}/subagents")
@@ -120,8 +75,6 @@ async def list_subagents(
                 children_data.append(node)
     except Exception:
         logger.exception("Failed to list subagent checkpoints for session %s", chat_id)
-
-    await _merge_teammate_messages_into_children(chat_id, children_data)
 
     return success_response(data=children_data)
 

@@ -58,7 +58,6 @@ export const AgentEventType = {
   SUBAGENT_LOG: 'subagent_log',
   SUBAGENT_COMPLETION: 'subagent_completion',
   SUBAGENT_STALE: 'subagent_stale',
-  TEAMMATE_MESSAGE: 'teammate_message',
   FILE_DIFF: 'file_diff',
   ITERATION_LIMIT_REACHED: 'iteration_limit_reached',
   CONTEXT_OVERFLOW_RESET: 'context_overflow_reset',

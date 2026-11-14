@@ -50,6 +50,5 @@
 - `reactCodeProcessor.ts`：React 代码检测 — `isValidReactCode` 有效性判定（React import/JSX/export 三要素）与工件预览依赖处理。
 - `reactUtils.ts`：React children 工具 — `getChildrenAsText` children prop 纯文本转换。
 - `requestManager.ts`：全局请求管理 — 仍在等待响应的请求（流式请求的建立阶段、建议与标题生成）注册、跟踪，布局卸载时统一取消（AbortController 集合管理）；开始读取后的流由各自的 AbortController 管理。不监听 `beforeunload` / `unload`：页面离开时浏览器自行终止在途请求，`unload` 已被弃用，导航被用户取消时也不该误杀在途请求（单测 `__tests__/requestManager.test.ts`）。
-- `teammateMessage.ts`：teammate 消息归一 — `normalizeTeammateEntry` 消息行（message_id/from/to/body/created_at）到 `TeammateMessageEntry` 归一。
 - `toast.ts`：Toast 统一包装 — 兼容 shadcn/ui 与 Sonner 双 API 形态，错误信息经 `errorRedactor` 脱敏后展示。
 - `scheduleWhenIdle.ts`：低优先级启动任务的调度 — `scheduleWhenIdle(task)` 在浏览器空闲时运行，没有 `requestIdleCallback` 的环境（macOS 的 WKWebView 即是）退化为 1ms 定时器，返回的取消函数在两条路径上都有效；应用壳层的延迟挂载、配置同步的后台 store、布局的特性开关与成长数据加载、通知文案预热共用它，不要各自再写一份回退。

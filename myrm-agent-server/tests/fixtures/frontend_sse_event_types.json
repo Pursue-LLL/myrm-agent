@@ -61,7 +61,6 @@
   "subagent_stale",
   "subagent_start",
   "tasks_steps",
-  "teammate_message",
   "token_usage",
   "tool_approval_request",
   "tool_cancelled",
