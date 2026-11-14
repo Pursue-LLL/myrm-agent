@@ -22,7 +22,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 
-import httpx
 import pytest
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.runnables import Runnable, RunnableLambda
@@ -40,6 +39,7 @@ from pydantic import BaseModel
 
 from app.services.wiki.consolidation_bridge import make_consolidation_wiki_bridge
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
+from tests.support.live_chat_model import live_chat_model
 
 pytestmark = [pytest.mark.e2e, pytest.mark.integration]
 
@@ -107,21 +107,16 @@ class _ChatDeletingModel:
 
 @pytest.fixture
 async def llm() -> AsyncIterator[BaseChatModel]:
-    from langchain_openai import ChatOpenAI
-
     model = os.environ["BASIC_MODEL"]
-    # A client of its own per test: langchain-openai shares one cached async client per base URL across the process,
-    # and its pooled connections die with the event loop of the test that opened them.
-    async with httpx.AsyncClient(timeout=120) as client:
-        yield ChatOpenAI(
-            model=model.partition("/")[2] or model,
-            base_url=os.environ["BASIC_BASE_URL"],
-            api_key=os.environ["BASIC_API_KEY"],
-            temperature=0,
-            max_tokens=_OUTPUT_TOKEN_BUDGET,
-            timeout=120,
-            http_async_client=client,
-        )
+    async with live_chat_model(
+        model=model.partition("/")[2] or model,
+        base_url=os.environ["BASIC_BASE_URL"],
+        api_key=os.environ["BASIC_API_KEY"],
+        temperature=0,
+        max_tokens=_OUTPUT_TOKEN_BUDGET,
+        timeout=120,
+    ) as chat:
+        yield chat
 
 
 @pytest.fixture

@@ -120,7 +120,7 @@ class ToolLayer(IntEnum):
 | memory_manage_tool | Rank 10 | enable_memory + `enabled_builtin_tools: memory`（默认开） |
 | memory_search_tool | Rank 11 | enable_memory + `enabled_builtin_tools: memory`（默认开） |
 | memory_save_tool | Rank 12 | enable_memory + `enabled_builtin_tools: memory`（默认开） |
-| skill_select_tool | Rank 20 | skill_backend present（默认开） |
+| skill_select_tool | Rank 20 | 有可用技能且 skill_backend present（默认开） |
 
 **不在 HIGH_PRIORITY 的 opt-in 工具**（如 `todo_write` / `planning`、`ask_question_tool` / `structured_clarify`）登记在 EXTENDED；后者虽默认开但因 HITL/cache 策略列入 `EXTENDED_DEFAULT_ON_TOOL_EXCEPTIONS`。
 

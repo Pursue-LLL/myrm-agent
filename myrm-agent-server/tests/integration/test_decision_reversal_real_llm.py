@@ -8,15 +8,20 @@ which a fixture-based test cannot show.
 """
 
 import os
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
+from langchain_openai import ChatOpenAI
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument, VectorSearchResult
 from myrm_agent_harness.toolkits.memory.strategies.deduplicator import SmartDeduplicator
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
+
+from tests.support.live_chat_model import live_chat_model
+from tests.support.recorded_llm_func import RecordedLlmFunc
 
 load_dotenv()
 
@@ -36,24 +41,18 @@ _SECOND_SESSION = [
 ]
 
 
-def _build_real_llm():
-    from dotenv import dotenv_values
-
+@pytest.fixture
+async def real_llm() -> AsyncIterator[ChatOpenAI]:
     env = dotenv_values()
     api_key = env.get("BASIC_API_KEY") or os.getenv("BASIC_API_KEY", "")
     base_url = env.get("BASIC_BASE_URL") or os.getenv("BASIC_BASE_URL", "")
     raw_model = env.get("BASIC_MODEL") or os.getenv("BASIC_MODEL", "")
     model_name = raw_model.split("/", 1)[-1] if "/" in raw_model else raw_model
 
-    from langchain_openai import ChatOpenAI
-
-    return ChatOpenAI(
-        model=model_name,
-        api_key=api_key,
-        base_url=base_url if base_url else None,
-        temperature=0,
-        max_tokens=2048,
-    )
+    async with live_chat_model(
+        model=model_name, api_key=api_key, base_url=base_url or None, temperature=0, max_tokens=2048
+    ) as chat:
+        yield chat
 
 
 def _store_holding(content: str) -> AsyncMock:
@@ -94,26 +93,29 @@ def _embedding() -> AsyncMock:
     return embedder
 
 
-async def _extract(messages: list[dict[str, str]]) -> list[str]:
+def _recorded_extraction(llm: ChatOpenAI) -> RecordedLlmFunc:
     from myrm_agent_harness.api.hooks import create_extraction_llm_func
+
+    return RecordedLlmFunc(create_extraction_llm_func(llm))
+
+
+async def _extract(llm_func: RecordedLlmFunc, messages: list[dict[str, str]]) -> list[str]:
     from myrm_agent_harness.toolkits.memory.strategies.extractor import (
         extract_memories_from_conversation,
     )
 
-    result = await extract_memories_from_conversation(
-        messages=messages,
-        llm_func=create_extraction_llm_func(_build_real_llm()),
-    )
+    result = await extract_memories_from_conversation(messages=messages, llm_func=llm_func)
     return [m.content for m in result.memories]
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_reversed_decision_is_detected_against_whatever_the_model_wrote() -> None:
+async def test_reversed_decision_is_detected_against_whatever_the_model_wrote(real_llm: ChatOpenAI) -> None:
     """Whichever way the model words it, the rejection is not silently accepted."""
+    extraction = _recorded_extraction(real_llm)
     for _ in range(_MAX_ATTEMPTS):
-        earlier = await _extract(_FIRST_SESSION)
-        later = await _extract(_SECOND_SESSION)
+        earlier = await _extract(extraction, _FIRST_SESSION)
+        later = await _extract(extraction, _SECOND_SESSION)
         rejected = next((c for c in earlier if "redis" in c.lower()), None)
         chosen = next((c for c in later if "memcached" in c.lower()), None)
         if not rejected or not chosen:
@@ -137,4 +139,7 @@ async def test_reversed_decision_is_detected_against_whatever_the_model_wrote() 
             continue
         return
 
+    # The extractor swallows a failed model call, so silence would look like an unrecognised wording: only a model
+    # that answered can make the run inconclusive.
+    extraction.require_answer()
     pytest.skip("the model did not phrase the decision reversal as two comparable memories")

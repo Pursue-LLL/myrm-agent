@@ -6,10 +6,11 @@ Skipped without LITE_API_KEY.
 import os
 from collections.abc import AsyncIterator
 
-import httpx
 import pytest
 from dotenv import load_dotenv
 from myrm_agent_harness.toolkits.memory.strategies.extractor import LLMFunc
+
+from tests.support.live_chat_model import live_chat_model
 
 load_dotenv(override=False)
 
@@ -21,11 +22,7 @@ load_dotenv(override=False)
 
 @pytest.fixture()
 async def lite_llm_func() -> AsyncIterator[LLMFunc]:
-    """Build a real LLM function using LITE_MODEL for integration tests.
-
-    The HTTP client belongs to the test's own event loop: langchain-openai caches a default async client per process,
-    and that client stays bound to the first test's loop, so every later test would fail with ``Event loop is closed``.
-    """
+    """Build a real LLM function using LITE_MODEL for integration tests."""
     from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
     )
@@ -38,17 +35,7 @@ async def lite_llm_func() -> AsyncIterator[LLMFunc]:
 
     model = raw_model.split("/", 1)[-1] if "/" in raw_model else raw_model
 
-    from langchain_openai import ChatOpenAI
-
-    async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as http_async_client:
-        llm = ChatOpenAI(
-            model=model,
-            api_key=api_key,
-            base_url=base_url,
-            temperature=0,
-            max_tokens=512,
-            http_async_client=http_async_client,
-        )
+    async with live_chat_model(model=model, api_key=api_key, base_url=base_url, temperature=0, max_tokens=512, timeout=60) as llm:
         yield create_extraction_llm_func(llm)
 
 

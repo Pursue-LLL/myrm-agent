@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.api::SkillAgent (POS: harness agent 实例)
+- myrm_agent_harness.toolkits.browser::BrowserSession (POS: 随单元复用的浏览器会话，类型与 GeneralAgent 持有的一致)
 
 [OUTPUT]
 - ExecutionMode, BuiltExecutionUnit
@@ -18,6 +19,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from myrm_agent_harness.api import SkillAgent
+    from myrm_agent_harness.toolkits.browser import BrowserSession
 
 
 class ExecutionMode(StrEnum):
@@ -32,7 +34,7 @@ class BuiltExecutionUnit:
     """Heavy build artifacts kept warm across messages in one chat scope."""
 
     skill_agent: SkillAgent
-    browser_session: object | None = None
+    browser_session: BrowserSession | None = None
     desktop_session: object | None = None
 
     async def teardown(self) -> None:
