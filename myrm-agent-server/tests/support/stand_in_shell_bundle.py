@@ -12,9 +12,9 @@
 
 [POS]
 Test double for scripts/ci/desktop-release/smoke_launch_shell.py: the smoke has to be shown to fail on every way the
-product can misbehave, which a real bundle cannot be made to do on demand. POSIX only (the stand-in is a shell script).
-A test run that is killed mid-test never reaches the smoke's own cleanup, and a stand-in is an endless loop holding
-two ports, so each stand-in watches its owner and leaves with it.
+product can misbehave, which a real bundle cannot be made to do on demand. POSIX only (the stand-in is a script that
+the OS starts through its shebang). A test run that is killed mid-test never reaches the smoke's own cleanup, and a
+stand-in is an endless loop holding two ports, so each stand-in watches its owner and leaves with it.
 """
 
 from __future__ import annotations
