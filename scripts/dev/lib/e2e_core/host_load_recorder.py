@@ -2,13 +2,20 @@
 
 [INPUT]
 - host_load_sampler.LoadSampler (one aggregate sample per tick)
-- host_hotspot_trigger.HotspotRecorder (stores a per-process hotspot when a tick looks bad)
-- host_load_store (daily JSONL files under dev_state_dir)
+- host_hotspot_trigger.HotspotRecorder / SampleSource (stores a per-process hotspot when a tick
+  looks bad)
+- host_hotspot_capture.capture_hotspot / host_context_now (the on-demand ``snapshot`` capture)
+- host_load_report.render_summary / host_hotspot_report.render_hotspots (the readable views)
+- host_load_store (daily JSONL files: append, retention and windowed reads for both kinds)
+- bootstrap_deadline.dev_state_dir (MYRM_DEV_STATE_DIR or ~/.local/state/myrm-dev) and
+  real_user_home.real_user_home (where the LaunchAgent plist lives)
 
 [OUTPUT]
-- ``run``: sample every SAMPLE_INTERVAL_SEC until stopped (the LaunchAgent entry point)
-- ``summary`` / ``status``: read-only views over recorded data
-- ``hotspots``: the stored per-process captures, readable; ``snapshot``: take one now
+- ``run [--interval SEC]``: sample until stopped, every SAMPLE_INTERVAL_SEC by default (the
+  LaunchAgent entry point)
+- ``summary [--hours N] [--peaks N]`` / ``status``: read-only views over recorded data
+- ``hotspots [--hours N] [--limit N]``: the stored per-process captures, readable;
+  ``snapshot``: take one now
 - ``install`` / ``uninstall``: manage ~/Library/LaunchAgents/com.myrm.host-load-recorder.plist
 
 [POS]

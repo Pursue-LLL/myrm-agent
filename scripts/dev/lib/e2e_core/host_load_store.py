@@ -3,9 +3,9 @@
 [INPUT]
 - LoadSample rows from host_load_sampler
 - Hotspot rows from host_hotspot_capture
-- bootstrap_deadline.dev_state_dir (MYRM_DEV_STATE_DIR or ~/.local/state/myrm-dev)
 
 [OUTPUT]
+- FILE_PREFIX / HOTSPOT_PREFIX / RETENTION_DAYS: the two file-name prefixes, retention in days
 - append_sample(directory, sample) -> Path
 - prune_expired(directory, today=...) -> int removed
 - read_window(directory, since=...) -> list[LoadSample]
@@ -17,7 +17,8 @@
 One file per local day and kind (``host-load-YYYYMMDD.jsonl``, ``hotspots-YYYYMMDD.jsonl``) so
 retention is a file delete, never a rewrite of a large log. Readers skip torn or foreign lines
 instead of failing the report. Hotspot files are created owner-only: their rows carry
-redacted command lines.
+redacted command lines. The directory is the caller's choice: host_load_recorder passes
+bootstrap_deadline.dev_state_dir() (MYRM_DEV_STATE_DIR or ~/.local/state/myrm-dev).
 """
 
 from __future__ import annotations
