@@ -10,7 +10,7 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
 | `dependencies.py` | 核心 | FastAPI 依赖注入统一入口 | ✅ |
-| `router.py` | 核心 | 全量子路由注册表 | — |
+| `router.py` | 核心 | 全量子路由注册表。主界面加载时调用的 router（清单取自真实前端，见 `tests/startup/first_screen_requests.txt`）注册在表头段，健康探测与就绪闸门之前的请求排在最前：FastAPI 按注册顺序匹配并在首次匹配时构建途经的每个 router 的路由状态，所以首屏只构建这一段，其余 router 由启动预热在首屏之后构建；首屏开始调用新端点时，把它的 router 放进表头段并更新清单，两者由 `tests/startup/test_route_table_order.py` 互相核对 | — |
 
 ## 子模块导航（按域）
 
