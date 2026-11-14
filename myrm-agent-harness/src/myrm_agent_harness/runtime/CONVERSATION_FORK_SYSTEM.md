@@ -226,7 +226,7 @@ Works seamlessly with:
 # New message #6: Incremental cache (adds [5])
 ```
 
-**Result:** 0ms cache invalidation, optimal token reuse.
+**Result:** the cached prefix is never invalidated, so token reuse is maximal.
 
 ---
 

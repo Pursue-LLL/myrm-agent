@@ -3,7 +3,7 @@ name: security-diff-scan
 description: >-
   Agentic codebase and diff vulnerability scan using verify-then-report.
   Extracts AST syntax slices, constructs minimal dynamic PoC payloads in sandbox,
-  and outputs deterministic, zero-false-positive security findings.
+  and reports Critical/High findings only after a sandbox PoC confirms them.
 version: 1.0.0
 category: security
 tags:

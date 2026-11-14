@@ -993,7 +993,7 @@ do anything now | bypass safety | 忽略...之前...指令 | 你现在是...一�
 
 **位置**：`detection/intent_router.py`（规范实现 `core/security/detection/intent_router.py`）
 
-在 Agent ReAct Loop 启动及大模型调用前，以零延迟（<0.2ms）完成句级高危破坏与外发意图识别。
+在 Agent ReAct Loop 启动及大模型调用前，用基于规则的检查完成句级高危破坏与外发意图识别（开发机实测：短提示词远低于 1 ms，约 8 KB 的粘贴文本约 3 ms）。
 
 - **三维危险意图分类**：
   1. `MASS_DESTRUCTION`：递归文件删除（`rm -rf /`）、数据库全量删除/清空（`DROP DATABASE` / `TRUNCATE TABLE` / `DELETE WHERE 1=1`）、磁盘格式化与毁灭性俚语（`全扬了/格盘/删库跑路`）；

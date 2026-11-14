@@ -566,7 +566,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 3. 可解 CAPTCHA（Cloudflare/reCAPTCHA/hCaptcha）→ CaptchaSolver 尝试解决
 4. 行为式 WAF（DataDome/Kasada/Akamai/Imperva/PerimeterX）→ 即时 fast-fail（<1ms），跳过 solver 和 takeover UI，升级 Camoufox（需已安装）
 5. 其他 CAPTCHA/反爬检测失败 → 升级 Camoufox（需已安装）+ Progress SSE（`notify_category=browser`）
-6. 仍失败 → Terminal Challenge（10min TTL，0ms 快速失败，防 LLM 反复重试）
+6. 仍失败 → Terminal Challenge（10min TTL，命中缓存立即快速失败，防 LLM 反复重试）
 7. Camoufox 未安装 / 接入真实浏览器 / 启动失败 → `BROWSER_CAMOUFOX_UNAVAILABLE`（会话保持可用，不进入 Terminal Challenge 缓存）；升级后的重试页若仍是 403/429，不记录域名引擎亲和
 
 **生产验证域名**：
@@ -910,12 +910,12 @@ ToolError(
 
 **终端挑战记忆 (Terminal Challenge Memory)**：
 - 首次失败后，域名被记录到 `BrowserSession._terminal_challenges` 内存字典。
-- 后续导航同一域名时，0ms 快速失败（跳过 240s 的检测+求解+升级超时），返回 `BROWSER_TERMINAL_CHALLENGE_CACHED` ToolError。
+- 后续导航同一域名时，命中缓存立即快速失败（跳过 240s 的检测+求解+升级超时），返回 `BROWSER_TERMINAL_CHALLENGE_CACHED` ToolError。
 - TTL 10 分钟，过期后自动清除，允许 re-attempt（网站可能已移除验证）。
 - 轻量实现：无 LRU 库依赖，纯 `dict[str, float]`，单 session 生命周期内域名数有限，无内存泄漏风险。
 
 **设计优势**：
-- 与 `LoopGuard`（agent/security/guards/loop_guard.py）协同：LoopGuard 限制总重试次数，Terminal Challenge Memory 将每次重试的时间成本从 240s 降至 0ms。
+- 与 `LoopGuard`（agent/security/guards/loop_guard.py）协同：LoopGuard 限制总重试次数，Terminal Challenge Memory 将每次重试的时间成本从 240s 降为一次缓存命中后的立即失败。
 - `CaptchaHandleResult` 结构化返回（protocols.py）提供类型安全的 CAPTCHA 处理结果判断。
 
 **前端集成**：通过 `CAPTCHA_DETECTED / CAPTCHA_RESOLVED / CAPTCHA_TIMEOUT` 三种 SSE 事件，前端渲染为 ProgressItem 状态卡片。
@@ -946,9 +946,9 @@ ToolError(
 **架构设计**：
 在 `browser_navigate_tool`、`browser_interact_tool` 和 `browser_execute_script_tool` 中提供 `verify_goal` 参数。当 Agent 传入该参数时，系统自动触发**三层极速视觉漏斗**：
 
-1. **Layer 1: DOM 突变拦截 (0ms)**：利用 `MutationObserver`（或等效机制），如果 DOM 毫无变化，直接判定失败。
-2. **Layer 2: 像素哈希校验 (dHash, 2ms)**：利用现有的 `FastComparator`，如果动作前后截图的哈希相似度 > 99%，直接判定失败，在调用视觉模型之前就拦下无变化的动作。
-3. **Layer 3: 轻量级视觉打分 (~1s)**：只有通过前两层，才将新截图和 `verify_goal` 发给后端的轻量级视觉模型（如 GPT-4o-mini）。如果打分 < 4，将视觉模型的“失败理由”（如：“被弹窗遮挡”）作为纯文本返回给主控 Agent。
+1. **Layer 1: DOM 突变拦截（无需截图，也不调用模型）**：利用 `MutationObserver`（或等效机制），如果 DOM 毫无变化，直接判定失败。
+2. **Layer 2: 像素哈希校验（dHash）**：利用现有的 `FastComparator`，如果动作前后截图的哈希相似度 > 99%，直接判定失败，在调用视觉模型之前就拦下无变化的动作。
+3. **Layer 3: 轻量级视觉打分**：只有通过前两层，才将新截图和 `verify_goal` 发给后端的轻量级视觉模型（如 GPT-4o-mini）。如果打分 < 4，将视觉模型的“失败理由”（如：“被弹窗遮挡”）作为纯文本返回给主控 Agent。
 
 **核心优势**：
 - **保护缓存**：主控 Agent 只接收纯文本失败理由，绝对保护了主模型的提示词缓存（Prompt Cache）。

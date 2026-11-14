@@ -12,7 +12,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 - **会话历史加载**：`loadChatHistory` / `loadMoreChatHistory` 给每个请求编号，只采纳最新一次请求的结果——来源 / 关键词 / 项目筛选切换后，更早发出的响应无论先到还是后到（成功或失败）都被丢弃，不会盖掉新筛选的列表，也不会提前结束新请求的加载态；分页结果合并进响应返回时的最新列表，请求期间改名、删除或新增的会话不被覆盖；`loadChatHistory` 默认只在列表为空且空闲时才读取，`{ force: true }` 是刷新（回收站恢复会话后、系统唤醒后使用）：旧列表留在屏幕上直到第一页到达再整体换入，并顶替仍在路上的读取。
 - **`useWorkspaceStore` (内存 RAM)**：负责持久化所有后台标签页的“现场快照（Snapshot）”和“控制句柄（AbortController）”。
 - **智能路由 (Smart Updater)**：在 `store/chat/smartUpdater.ts` 中拦截流式更新，若流属于后台 Tab，则直接写入 `WorkspaceStore` 快照，绝不污染当前 UI。
-- **快照直出 (Snapshot-First Rendering)**：切换标签页时，瞬间将 `WorkspaceStore` 中的快照恢复到 `useChatStore`，实现 0ms 极速切页。
+- **快照直出 (Snapshot-First Rendering)**：切换标签页时，瞬间将 `WorkspaceStore` 中的快照恢复到 `useChatStore`，切页无需等待网络请求。
 
 ## 子模块
 
