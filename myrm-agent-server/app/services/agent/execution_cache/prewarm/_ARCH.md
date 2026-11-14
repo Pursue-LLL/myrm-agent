@@ -6,6 +6,8 @@
 
 Chat turn1 冷启动优化：EmptyChat / MessageInput focus 触发后台并行预热（`execution_cache` agent build + memory brief snapshot），Send 路径 `join_for_turn` 复用缓存，`stream_pipeline` 经 `coalesced_acquire` 与 prewarm 共用一个 in-flight task。
 
+memory brief 与 agent 不同：它是对存储的纯读取（真实 SQLite 上 60 条规则加 30 条画像，新聊天首建 7 ms、同聊天复建中位数 2.2 ms，p95 3.3 ms；极端的 2000 条规则加 300 条画像，新聊天首建 93–136 ms、复建中位数 40 ms，p95 95 ms，满载下最大 281 ms），预热省不下什么，缓存久了只会让回合读到旧记忆块。所以一份 brief 只服务取走它的那一个回合（`BriefCache.take`），预热而没人取走的那份 10 秒后作废；此后每个回合都在 `join_for_turn` 里按存储的当前内容重建（等在途构建至多 0.3 s，超时回合不带快照，由 `memory_context_middleware` 自己读一次；超时后才建完的那份仍留在缓存里，下一回合若在 10 秒内到来会取到它，取走即作废）。这样用户在这个聊天、别的聊天或记忆页改过的规则，下一回合就进块，而不是让第一回合的旧块一直压着新偏好；记忆没被编辑时各回合的块逐字节相同，前缀缓存不受影响。
+
 ---
 
 ## 文件清单
@@ -13,7 +15,7 @@ Chat turn1 冷启动优化：EmptyChat / MessageInput focus 触发后台并行�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `coordinator.py` | 核心 | `TurnPrewarmCoordinator`: ensure_warming / join_for_turn / coalesced_acquire（`holds_turn_guard` 标明调用方即持锁回合）/ cancel_scope | ✅ |
-| `brief_cache.py` | 核心 | scope+fingerprint TTL 缓存 memory brief preview/snapshot | ✅ |
+| `brief_cache.py` | 核心 | scope+fingerprint 的 memory brief preview/snapshot 短时缓存：一份只服务一个回合（`take`），预热而未取走的 10 秒后作废 | ✅ |
 | `params.py` | 辅助 | `resolve_prewarm_agent_params` — 无用户消息构建 GeneralAgentParams | ✅ |
 | `types.py` | 辅助 | `TurnPrewarmJoinResult` | ✅ |
 
@@ -29,4 +31,4 @@ Goal：`ensure_warming` / `join_for_turn` 的指纹都带 `has_active_goal`（`G
 
 `stream_pipeline.py`：`coalesced_acquire` 完成后 emit `turn_prewarm_*_clear` STATUS（agent 在 still_warming 时；memory 在 join 为 `brief_pending` 时无条件 dismiss waiting，避免 brief 超时/晚到导致 ProgressSteps 残留）。
 
-测试：`tests/services/agent/execution_cache/test_turn_prewarm_coordinator.py` · `tests/api/agent/test_prewarm_api.py` · `tests/e2e/test_cdp_log_helpers.py` · Chrome E2E `tests/e2e/test_execution_cache_chrome_e2e.py`（`Turn prewarm requested` log 断言）。
+测试：`tests/services/agent/execution_cache/test_turn_prewarm_coordinator.py` · `tests/services/agent/execution_cache/test_turn_prewarm_brief_freshness.py`（一份 brief 只服务一个回合、改过的规则下一回合进块）· Chrome E2E `tests/e2e/test_memory_rule_preference_change_live_chrome_e2e.py`（已开聊天在偏好改动后继续跟随新偏好）· `tests/api/agent/test_prewarm_api.py` · `tests/e2e/test_cdp_log_helpers.py` · Chrome E2E `tests/e2e/test_execution_cache_chrome_e2e.py`（`Turn prewarm requested` log 断言）。

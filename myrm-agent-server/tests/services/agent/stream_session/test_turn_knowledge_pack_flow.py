@@ -3,11 +3,11 @@
 [INPUT]
 - app.services.agent.execution_cache.prewarm.coordinator::TurnPrewarmCoordinator (POS: focus prewarm + send-path join, real)
 - app.services.agent.stream_session.orchestrator_turn_setup::build_turn_extra_context (POS: run context of one turn, real)
-- app.services.agent.stream_session.memory_brief::build_memory_brief_snapshot (POS: cached memory brief, real)
+- app.services.agent.stream_session.memory_brief::build_memory_brief_snapshot (POS: memory brief builder, real)
 - myrm_agent_harness proactive_pack_middleware (POS: Human-tail injection of the pack, real)
 
 [OUTPUT]
-- Tests that the pack follows each turn's question, never rides in the cached brief, and reaches the end of the final question.
+- Tests that the pack follows each turn's question, never rides in the memory brief, and reaches the end of the final question.
 
 [POS]
 Flow-level contract between the server's per-turn retrieval and the harness middleware that renders it.
@@ -143,7 +143,7 @@ async def test_the_first_question_after_a_focus_prewarm_gets_its_pack(flow: _Flo
     assert context["memory_brief_status"] == {"state": "ready", "source": "preflight"}
 
 
-async def test_each_question_gets_its_own_pack_while_the_brief_is_reused(flow: _Flow) -> None:
+async def test_each_question_gets_its_own_pack_while_the_memory_block_stays_the_same(flow: _Flow) -> None:
     await flow.focus_prewarm()
 
     first = await flow.turn("what is the zephyr budget limit for hotels")
@@ -151,7 +151,9 @@ async def test_each_question_gets_its_own_pack_while_the_brief_is_reused(flow: _
 
     assert _titles(first) == ["Hotel Limits"]
     assert _titles(second) == ["Flight Rules"]
-    assert flow.memory_manager.get_context.await_count == 1
+    # The first turn takes the brief the focus built; the second reads the store again. An unedited memory gives the same
+    # block, so the pack riding on the question never breaks the cached prefix.
+    assert flow.memory_manager.get_context.await_count == 2
     assert (
         cast("dict[str, object]", second["memory_brief_snapshot"])["snapshot_id"]
         == (cast("dict[str, object]", first["memory_brief_snapshot"])["snapshot_id"])

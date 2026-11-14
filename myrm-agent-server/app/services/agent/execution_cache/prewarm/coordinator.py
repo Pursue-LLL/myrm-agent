@@ -74,9 +74,6 @@ class TurnPrewarmCoordinator:
             return False
         return action_mode != "fast"
 
-    def has_brief_cached(self, scope_key: str, fingerprint: str) -> bool:
-        return self._brief_cache.get(scope_key, fingerprint) is not None
-
     async def ensure_warming(
         self,
         params: GeneralAgentParams,
@@ -195,7 +192,9 @@ class TurnPrewarmCoordinator:
 
         preview: dict[str, object] | None = None
         snapshot: dict[str, object] | None = None
-        cached = self._brief_cache.get(scope_key, fingerprint)
+        # A brief serves the one turn that takes it: the next turn builds from the store again, so a rule the user
+        # changed (in this chat or another) reaches it instead of the block the first turn was given.
+        cached = self._brief_cache.take(scope_key, fingerprint)
         if cached is not None:
             preview = cached.preview
             snapshot = cached.snapshot
@@ -209,7 +208,7 @@ class TurnPrewarmCoordinator:
                     pass
                 except Exception as exc:
                     logger.warning("Turn prewarm join brief task failed: %s", exc)
-                cached = self._brief_cache.get(scope_key, fingerprint)
+                cached = self._brief_cache.take(scope_key, fingerprint)
                 if cached is not None:
                     preview = cached.preview
                     snapshot = cached.snapshot
