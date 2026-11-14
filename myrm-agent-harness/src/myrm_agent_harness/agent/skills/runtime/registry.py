@@ -4,12 +4,12 @@
 
 [INPUT]
 - backends.skills.types::SkillMetadata (POS: skill metadata type definition)
-- agent.skills.runtime.function_index::fit_function_indexes / FUNCTION_INDEX_RULES (POS: ``<functions>`` lines of PTC-routed MCP entries and the rules for them)
+- agent.skills.runtime.function_index::fit_function_indexes / function_index_rules (POS: ``<functions>`` blocks of PTC-routed MCP entries and the rules for them)
 
 [OUTPUT]
 - SkillRegistry: Skill registry class (manages registration, lookup, updates)
 - skill_registry: Global skill registry singleton
-- get_metadata_summary(): XML-format skill summary (embedded in first HumanMessage ``<bound_skills>``, not tool schema; the hidden skill names drive the dynamic listed/select vs search rules and the ``<hidden_skill_names>`` line; an MCP entry that lists its functions adds a ``<functions>`` line and the one ``<function_index_rules>`` block)
+- get_metadata_summary(): XML-format skill summary (embedded in first HumanMessage ``<bound_skills>``, not tool schema; the hidden skill names drive the dynamic listed/select vs search rules and the ``<hidden_skill_names>`` line; an MCP entry that lists its functions adds a ``<functions>`` block and the one ``<function_index_rules>`` block)
 
 [POS]
 Skill registry. Manages runtime caches and lookups, primarily for MCP-based skills.
@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from functools import lru_cache
 from xml.sax.saxutils import escape, quoteattr
 
-from myrm_agent_harness.agent.skills.runtime.function_index import FUNCTION_INDEX_RULES, fit_function_indexes
+from myrm_agent_harness.agent.skills.runtime.function_index import fit_function_indexes, function_index_rules
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.utils.text_utils import get_token_count
 
@@ -164,8 +164,8 @@ def _routing_rules(hidden_skill_count: int) -> list[str]:
 def _render_skill_entry(skill: SkillMetadata, function_index: str = "") -> list[str]:
     """Render one XML skill entry shared by the catalog and its token estimate.
 
-    ``function_index`` is the entry's ``<functions>`` line; the token estimate leaves it out because it is budgeted
-    apart (``function_index.L1_FUNCTION_INDEX_MAX_TOKENS``).
+    ``function_index`` is the entry's ``<functions>`` block; the token estimate leaves it out because it is budgeted
+    apart (``function_index.L1_FUNCTION_INDEX_MAX_TOKENS`` / ``L1_DOCUMENTED_INDEX_MAX_TOKENS``).
     """
     attrs = f"name={quoteattr(skill.name)} available={quoteattr(str(skill.available).lower())} trust={quoteattr(skill.trust.name.lower())}"
     if not skill.available and skill.unavailable_reason:
@@ -236,7 +236,7 @@ def get_metadata_summary(
     ``L1_CATALOG_MAX_TOKENS``; every other model-visible skill arrives as ``hidden_skill_names``
     and is rendered as one name line (alphabetical, within ``L1_HIDDEN_NAMES_MAX_TOKENS``), so
     a known name goes straight to ``skill_select_tool`` and an unknown capability goes to
-    ``skill_search_tool``. A PTC-routed MCP entry also carries its ``<functions>`` line (budgeted apart in
+    ``skill_search_tool``. A PTC-routed MCP entry also carries its ``<functions>`` block (budgeted apart in
     ``function_index``), so a task those functions cover needs no ``skill_select_tool`` round.
 
     Cache impact: stable catalog bytes keep tool schema bytes stable; catalog
@@ -247,9 +247,9 @@ def get_metadata_summary(
         return "<skills>No skills available.</skills>"
 
     function_indexes = fit_function_indexes(skills)
-    lines = ["<skills>", *_routing_rules(len(names)), *(FUNCTION_INDEX_RULES if function_indexes else ())]
+    lines = ["<skills>", *_routing_rules(len(names)), *function_index_rules(function_indexes)]
     for skill in skills:
-        lines.extend(_render_skill_entry(skill, function_indexes.get(skill.name, "")))
+        lines.extend(_render_skill_entry(skill, function_indexes.blocks.get(skill.name, "")))
     lines.extend(_render_hidden_names(names))
     lines.append("</skills>")
     return "\n".join(lines)
