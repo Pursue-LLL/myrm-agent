@@ -1,0 +1,55 @@
+# What the main screen asks the backend for on load, as the real frontend sends it: one `METHOD path` per line in
+# arrival order, from the readiness gate to an idle screen, chat ids replaced by `c-1`. Captured on a fresh install (empty
+# data directory, local mode) through a recording reverse proxy in front of the dev frontend, the page loaded in a clean
+# browser profile. The long-lived streams are listed because the screen opens them on load.
+# When the first screen starts calling another endpoint, add it here and register its router in the first-screen block
+# of app/api/router.py (tests/startup/test_route_table_order.py checks the two against each other).
+GET /api/v1/health
+GET /api/v1/security/managed-policy/effective
+GET /api/v1/health/liveness
+GET /api/v1/health/pressure
+GET /api/v1/health/update-status
+GET /api/v1/workspace/stream
+GET /api/v1/tasks/stream
+GET /api/v1/notifications/stream
+GET /api/v1/health/ready
+GET /api/v1/features
+GET /api/v1/progression
+GET /api/v1/goals/active
+GET /api/v1/approvals
+GET /api/v1/chats/c-1/subagents/delegation/status
+GET /api/v1/chats/c-1/subagents
+GET /api/v1/config
+GET /api/v1/chats/catchup
+GET /api/v1/projects/
+GET /api/v1/chats/
+GET /api/v1/security/estop
+GET /api/v1/chats/trash/count
+POST /api/v1/skills/local/scan
+GET /api/v1/statistics/badges
+GET /api/v1/agents/templates
+GET /api/v1/budget/status
+GET /api/v1/user-agents
+GET /api/v1/migration/discover
+GET /api/v1/skills/
+GET /api/v1/skills/config
+GET /api/v1/skills/local/paths
+GET /api/v1/memory/pending
+GET /api/v1/extension/clip-agent
+GET /api/v1/config/readiness
+GET /api/v1/dev-ports
+GET /api/v1/background-tasks
+GET /api/v1/tasks
+GET /api/v1/memory/shared-contexts/
+POST /api/v1/agents/chats/c-1/prewarm
+GET /api/v1/notifications
+GET /api/v1/cron/scheduler/health
+GET /api/v1/agents/active-sessions
+GET /api/v1/integrations/provider-oauth/status/xai
+GET /api/v1/integrations/ollama/chat-model
+GET /api/v1/goals/c-1/status
+GET /api/v1/goals/c-1/queue
+GET /api/v1/goals/c-1/plan
+PUT /api/v1/extension/clip-agent
+GET /api/v1/memory/shared-contexts/bindings/targets/conversation/c-1
+GET /api/v1/instance-archive/outcome
