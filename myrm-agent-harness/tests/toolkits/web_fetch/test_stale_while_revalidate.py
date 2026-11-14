@@ -384,7 +384,8 @@ async def test_background_priority_queue():
         return (first_doc, first_result)
 
     with patch.object(engine, "_crawl_with_degradation", new_callable=AsyncMock) as mock_crawl:
-        mock_crawl.side_effect = track_revalidation
+        # 预热阶段立即返回：慢速抓取会让先写入的条目在预热期间就过期并被清理，之后的访问只是普通未命中
+        mock_crawl.side_effect = lambda url, **kwargs: (first_doc, first_result)
 
         # 预热：创建 3 个缓存条目
         # page0: 访问 1 次
@@ -399,6 +400,9 @@ async def test_background_priority_queue():
         # 等待缓存过期
         time.sleep(0.6)
 
+        # 切换到慢速刷新：只有过期命中才会进入后台队列
+        mock_crawl.side_effect = track_revalidation
+
         # 快速触发 3 个后台刷新（只有 2 个会执行）
         await engine.crawl("https://example.com/page0")
         await engine.crawl("https://example.com/page1")
@@ -411,7 +415,8 @@ async def test_background_priority_queue():
         metrics = engine.get_cache_metrics()
         bg_metrics = metrics["background_revalidation"]
 
-        # 队列应该有任务（worker 正在处理）
+        # 3 次访问都是真正的过期命中；worker 在第一次过期命中时才启动
+        assert metrics["crawl_cache"]["stale_hits"] == 3
         assert bg_metrics["queue_size"] >= 0
         assert bg_metrics["active_workers"] == 2
 
