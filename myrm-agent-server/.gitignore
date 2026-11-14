@@ -127,7 +127,6 @@ tests/**/*.db
 .event_logs/
 
 Antigravity-Manager/
-external_reference_project/
 
 # Backup and temp files
 *.bak
