@@ -4,7 +4,7 @@ Covers:
 - Qdrant filter builder DatetimeRange detection
 - _user_filter since/until parameter
 - _parse_time_bound relative + ISO 8601 parsing
-- memory_recall tool since/until passthrough
+- memory_search_tool since/until passthrough (corpus=memory and corpus=sessions)
 - MemoryManager.search since/until passthrough
 """
 
@@ -223,7 +223,7 @@ class TestParseTimeBound:
 
 
 class TestMemoryRecallTimePassing:
-    """Verify memory_recall tool passes since/until through to MemoryManager.search."""
+    """Verify memory_search_tool(corpus=memory) passes since/until through to MemoryManager.search."""
 
     @pytest.mark.asyncio
     async def test_recall_passes_since_and_until(self, mock_vector_store, mock_embedding, memory_config):
@@ -302,3 +302,36 @@ class TestMemoryRecallTimePassing:
 
         call_kwargs = search_mock.call_args
         assert call_kwargs.kwargs.get("since") is None
+
+
+class TestSessionsRecallTimePassing:
+    """Verify memory_search_tool(corpus=sessions) hands the parsed since/until to the conversation provider."""
+
+    @pytest.mark.asyncio
+    async def test_sessions_search_passes_parsed_since_and_until(
+        self, mock_vector_store, mock_embedding, memory_config
+    ):
+        from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
+        from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
+            MemorySearchBackends,
+            MemorySearchPolicy,
+        )
+        from myrm_agent_harness.toolkits.memory.conversation_search.types import ConversationSearchResponse
+        from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+        manager = MemoryManager(memory_config, user_id="test_user", vector=mock_vector_store, embedding=mock_embedding)
+        provider = AsyncMock()
+        provider.search.return_value = ConversationSearchResponse(mode="search")
+
+        tools = create_memory_tools(
+            manager,
+            search_policy=MemorySearchPolicy(allow_sessions=True),
+            search_backends=MemorySearchBackends(conversation_provider=provider),
+        )
+        search_tool = next(t for t in tools if t.name == "memory_search_tool")
+        await search_tool.ainvoke({"query": "test", "corpus": "sessions", "since": "2026-04-10", "until": "2026-04-24"})
+
+        provider.search.assert_awaited_once()
+        request = provider.search.call_args.args[0]
+        assert request.since == datetime(2026, 4, 10, tzinfo=UTC)
+        assert request.until == datetime(2026, 4, 24, tzinfo=UTC)
