@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from dev_gate.contract import EvaluateIntent
@@ -129,7 +130,8 @@ class _BootstrapShellReady(_BootstrapBinding):
                     continue
                 raise
             except TimeoutError:
-                state = {"probeError": "evaluate_timeout"}
+                timeout_probe: dict[str, object] = {"probeError": "evaluate_timeout"}
+                state = timeout_probe
             last = state if isinstance(state, dict) else {"probeError": state}
             if _shell_probe_ready(last):
                 if require_bridge:
@@ -185,7 +187,9 @@ class _BootstrapShellReady(_BootstrapBinding):
                 and _blank_chat_shell_probe(last)
                 and _bootstrap_shell_heal_polls(polls)
             ):
-                heal = getattr(self, "_heal_empty_chat_shell_for_bridge", None)
+                heal: Callable[[], Awaitable[None]] | None = getattr(
+                    self, "_heal_empty_chat_shell_for_bridge", None
+                )
                 if callable(heal):
                     import sys
 
@@ -203,7 +207,9 @@ class _BootstrapShellReady(_BootstrapBinding):
                         file=sys.stderr,
                         flush=True,
                     )
-                    click_new = getattr(self, "click_new_chat", None)
+                    click_new: Callable[..., Awaitable[dict[str, object]]] | None = getattr(
+                        self, "click_new_chat", None
+                    )
                     if active >= 3 and callable(click_new):
                         try:
                             await asyncio.wait_for(

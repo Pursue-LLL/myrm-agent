@@ -58,6 +58,7 @@ class _BootstrapSurface(_BootstrapLayout):
                 if callable(abandon):
                     abandon()
                 await asyncio.sleep(1.0)
+        raise AssertionError("unreachable: the last attempt returns or raises")
 
     async def navigate_to_chat(
         self,
@@ -146,9 +147,11 @@ class _BootstrapSurface(_BootstrapLayout):
                         await asyncio.sleep(1.0)
                         continue
                     raise
-                probe = {"probeError": "evaluate_failed"}
+                failed_probe: dict[str, object] = {"probeError": "evaluate_failed"}
+                probe = failed_probe
             except TimeoutError:
-                probe = {"probeError": "evaluate_failed"}
+                timed_out_probe: dict[str, object] = {"probeError": "evaluate_failed"}
+                probe = timed_out_probe
             last = probe if isinstance(probe, dict) else {"probeError": probe}
             self._check_skeleton_stall(last, phase="ensure_chat_surface")
             path = str(last.get("path") or "")

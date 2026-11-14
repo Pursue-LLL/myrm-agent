@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 
 from dev_gate.contract import EvaluateIntent
 
@@ -251,7 +252,9 @@ class _BootstrapLayout(_BootstrapShellReady):
                 require_bridge=True,
             )
             await self._after_new_chat_reset(deadline=deadline)
-            ensure_bridge = getattr(self, "ensure_react_e2e_bridge", None)
+            ensure_bridge: Callable[..., Awaitable[None]] | None = getattr(
+                self, "ensure_react_e2e_bridge", None
+            )
             if not callable(ensure_bridge):
                 return
             bridge_remaining = max(0.0, deadline - time.monotonic())

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+from typing import TYPE_CHECKING
 
 from cdp_chat.transport import CdpChatTransport
 
@@ -50,6 +51,17 @@ class _BootstrapClock(CdpChatTransport):
     _shell_session_started: float | None = None
     _shell_skeleton_since: float | None = None
     _shell_hydrate_depth: int = 0
+
+    if TYPE_CHECKING:
+        # Bridge hooks implemented by the CdpChatInput subclass; declared here so every layer
+        # type-checks against the real signatures. They add nothing at runtime.
+        async def ensure_dev_bridge(self, *, timeout_sec: float = 90.0, allow_reload: bool = True) -> None: ...
+
+        async def ensure_react_e2e_bridge(
+            self, *, timeout_sec: float = 90.0, allow_reload: bool | None = None
+        ) -> None: ...
+
+        async def _heal_empty_chat_shell_for_bridge(self) -> None: ...
 
     def _mark_bootstrap_started(self) -> None:
         if self._bootstrap_started_monotonic is None:
