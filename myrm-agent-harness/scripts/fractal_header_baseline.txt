@@ -18,7 +18,6 @@ myrm_agent_harness/agent/context_management/pipeline/__init__.py
 myrm_agent_harness/agent/context_management/pipeline/processors/__init__.py
 myrm_agent_harness/agent/context_management/strategies/filters/__init__.py
 myrm_agent_harness/agent/coordination/__init__.py
-myrm_agent_harness/agent/coordination/types.py
 myrm_agent_harness/agent/errors/__init__.py
 myrm_agent_harness/agent/errors/diagnostics/i18n/constants.py
 myrm_agent_harness/agent/errors/diagnostics/types.py

@@ -335,12 +335,6 @@ class SubagentSpawnMixin:
             from .manager import ACTIVE_SUBAGENT_SESSIONS
 
             ACTIVE_SUBAGENT_SESSIONS[task_id] = session_id
-            from myrm_agent_harness.agent.coordination.mailbox import (
-                register_active_teammate,
-            )
-
-            workspace_path = str(context.get("workspace_path", "") or "") or None
-            await register_active_teammate(session_id, workspace_path, task_id, agent_type)
 
         observability_metadata = self._child_observability_metadata(task_id)  # type: ignore[attr-defined]
         budget_payload = observability_metadata.get("budget")

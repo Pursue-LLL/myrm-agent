@@ -5,10 +5,9 @@
 - agent.streaming.recovery.goal_session::goal_session_id (POS: goal lookup key of a run)
 - agent.streaming.recovery.stream_recovery_redrive::StreamRedriveMixin (POS: the re-run input shared by fresh and resumed turns)
 - agent.streaming.types::AgentEventType (POS: streaming event type constants)
-- core.message_origin::runtime_human_message (POS: marks a teammate injection as runtime-authored, not user words)
 
 [OUTPUT]
-- StreamContinuationRecoveryMixin: handles steering/redirect on fresh and resumed turns (with partial AIMessage preservation), teammate P2P drain, subagent completion events, and goal continuation.
+- StreamContinuationRecoveryMixin: handles steering/redirect on fresh and resumed turns (with partial AIMessage preservation), subagent completion events, and goal continuation.
 
 [POS]
 Streaming continuation layer. Handles external steering/redirect, subagent notifications, and goal lifecycle continuation without changing prompt-cache behavior.
@@ -25,7 +24,6 @@ from langgraph.types import Command
 from myrm_agent_harness.agent.streaming.recovery.goal_session import goal_session_id
 from myrm_agent_harness.agent.streaming.recovery.stream_recovery_redrive import StreamRedriveMixin
 from myrm_agent_harness.agent.streaming.types import AgentEventType
-from myrm_agent_harness.core.message_origin import runtime_human_message
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
@@ -123,52 +121,6 @@ class StreamContinuationRecoveryMixin(StreamRedriveMixin):
         if token is None or token.close_if_idle():
             return False
         return await self._handle_steering(collected_messages)
-
-    async def _handle_teammate_messages(self, collected_messages: list[BaseMessage]) -> bool:
-        """Drain P2P teammate inbox into the next subagent turn and emit SSE."""
-        ctx = self._ctx
-        if ctx.stats.was_cancelled or ctx.drain_teammate_messages is None:
-            return False
-        if isinstance(ctx.agent_input, Command):
-            return False
-
-        injection = ctx.drain_teammate_messages()
-        if not injection:
-            return False
-
-        from myrm_agent_harness.agent.middlewares._session_context import (
-            get_subagent_task_id,
-        )
-
-        task_id = get_subagent_task_id() or ""
-        from myrm_agent_harness.agent.coordination.mailbox import (
-            get_last_drained_messages,
-        )
-
-        drained = get_last_drained_messages(task_id)
-        session_id = str(ctx.merged_context.get("session_id", ""))
-
-        assert not isinstance(ctx.agent_input, Command)
-        messages_dict = ctx.agent_input
-        messages = cast(list["BaseMessage"], messages_dict.get("messages", []))
-        messages.clear()
-        messages.extend(collected_messages)
-        messages.append(runtime_human_message(injection))
-        messages_dict["messages"] = cast("list[AnyMessage]", messages)
-        self.streaming_final_answer = False
-
-        for msg in drained:
-            await self._compactor.put(
-                {
-                    "type": "teammate_message",
-                    "data": {
-                        **msg.to_dict(),
-                        "chat_id": session_id,
-                    },
-                    "messageId": ctx.message_id,
-                }
-            )
-        return True
 
     async def _handle_subagent_notifications(self, collected_messages: list[BaseMessage]) -> bool:
         """Drain subagent completion notifications and emit SSE event."""

@@ -624,7 +624,6 @@ def test_filter_tools_blocks_all_global_blacklisted_tools() -> None:
     assert "delegate_task_tool" not in filtered_names
     assert "batch_delegate_tasks_tool" not in filtered_names
     assert "subagent_control_tool" not in filtered_names
-    assert "send_teammate_message_tool" not in filtered_names
     assert "skill_manage_tool" not in filtered_names
     assert "skill_market_tool" not in filtered_names
 
