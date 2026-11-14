@@ -107,3 +107,17 @@ def test_a_hostile_one_line_file_is_scanned_in_linear_time() -> None:
     started = time.perf_counter()
     assert extract_file_outline(hostile, "a.ts") == ""
     assert time.perf_counter() - started < 1.0
+
+
+@pytest.mark.parametrize(
+    ("path", "hostile"),
+    [
+        pytest.param("A.java", "public static " * 1_400, id="java-modifier-run"),
+        pytest.param("a.cpp", "int x" + " " * 20_000 + "y", id="cpp-whitespace-run"),
+    ],
+)
+def test_no_language_takes_longer_than_its_line_to_scan(path: str, hostile: str) -> None:
+    """These shapes cost the Java and C/C++ patterns seconds per line (a 112 KB Java line: a minute)."""
+    started = time.perf_counter()
+    extract_file_outline(hostile, path)
+    assert time.perf_counter() - started < 1.0

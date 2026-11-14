@@ -75,11 +75,15 @@ _GENERIC_SYMBOL_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"^(?:public|protected|private|static|final|abstract|sealed|\s)*(class)\s+([a-zA-Z0-9_]+)"),
         re.compile(r"^(?:public|protected|private|static|final|abstract|\s)*(interface)\s+([a-zA-Z0-9_]+)"),
         re.compile(r"^(?:public|protected|private|static|final|abstract|\s)*(enum)\s+([a-zA-Z0-9_]+)"),
-        re.compile(r"^(?:public|protected|private|static|async|\s)+[\w<>\[\],\s]+\s+([a-zA-Z0-9_]+)\s*\([^;]*$"),
+        # A method: a modifier, a return type, then the name, which a whitespace character must precede (the
+        # lookbehind). Writing "type run, `\s+`, name" as nested greedy runs retries every split of a long line: 112 KB
+        # of "public static " took a minute.
+        re.compile(r"^(?:public|protected|private|static|async)[\w<>\[\],\s]{2,}?(?<=\s)([a-zA-Z0-9_]+)\s*\([^;]*$"),
     ],
     "c_cpp": [
         re.compile(r"^(class|struct|enum)\s+([a-zA-Z0-9_]+)"),
-        re.compile(r"^(?:[\w:*&<>\s]+)\s+([a-zA-Z0-9_]+)\s*\([^;]*\)\s*(?:const)?\s*\{?"),
+        # A function: a return type, then the name behind a whitespace character (see the Java method above).
+        re.compile(r"^[\w:*&<>\s]+?(?<=\s)([a-zA-Z0-9_]+)\s*\([^;]*\)\s*(?:const)?\s*\{?"),
     ],
     "python_fallback": [
         re.compile(rf"^((?:async\s+)?def)\s+([a-zA-Z0-9_]+)\s*{_SQUARE_TYPE_PARAMS}\("),
