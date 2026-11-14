@@ -1,6 +1,6 @@
 """[INPUT]
 - .startup / .shutdown (POS: lifespan phases)
-- .background::schedule_background_work (POS: starts the boot's background tasks once uvicorn accepts connections)
+- .background::schedule_background_work (POS: starts recovery after the socket bind and the warm-up after the first screen)
 - app.lifecycle (POS: channel gateway, cron and remote backup schedulers, kanban dispatch preparation)
 - app.startup.desktop_path::hydrate_desktop_path (POS: recovers the login-shell PATH for a GUI-launched desktop sidecar)
 
@@ -9,7 +9,7 @@
 
 [POS]
 The FastAPI lifespan: runs the sequential and parallel startup phases, schedules the background work for after the
-socket bind, then shutdown.
+socket bind and the first screen, then shutdown.
 """
 
 from __future__ import annotations
@@ -66,13 +66,14 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         Then, in order:                    Channel Routes → MCP Memory Endpoint → Memory Extract Retry Worker →
                                             Branch Watcher → Unattended Curtain Watcher → Usage-Limit Wake Daemon →
                                             Wake Schedule Reporter → Channel Budget Guards
-        Phase 3  (Background - Async):     Warmup (schedulers, browser pool, batch recovery, tokenizer, risk rules,
-                                            vector cache and more; see ``warmup``) ‖ Orphaned Goals ‖
+        Phase 3  (Background - Async):     Orphaned Goals (started once the socket is bound), then, once the first
+                                            screen has loaded: Warmup (schedulers, browser pool, batch recovery,
+                                            tokenizer, risk rules, vector cache and more; see ``warmup``) ‖
                                             Kanban Dispatchers ‖ @startup Events ‖ Trunk Templates ‖
-                                            Agent Tool Layers (started once the socket is bound; see ``background``)
+                                            Agent Tool Layers (see ``background``)
 
     Shutdown (see ``shutdown``):
-        1. Cancel the delayed background start; stop the curtain watcher and the wake daemons
+        1. Cancel the background starts that have not fired; stop the curtain watcher and the wake daemons
         2. Drain the agent gateway; stop the tunnel, the frontend server and the periodic background tasks
         3. Stop in parallel: Cron ‖ Channel Gateway ‖ Kanban Dispatchers ‖ Browser Pool ‖ Checkpointer ‖
            Schedulers ‖ Workers ‖ MCP Endpoint ‖ the remaining components

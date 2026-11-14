@@ -90,6 +90,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
 | `server/test_lifespan_config_migration.py` | 单元 | 启动阶段在每种部署模式下都调用 `seal_stored_configs`：调用不在任何 `if` 之下、失败只记警告不外抛（读启动函数源码，删掉调用或加上模式判断即红） |
 | `server/test_lifespan_channel_image_sweep.py` | 单元 | 服务启动把渠道图片缓存的过期清扫交给维护守护进程：恰好提交一次、且在守护进程工作线程启动之后；提交被拒（队列满）只记警告、不拖垮启动（读启动函数源码，删掉提交、挪到启动之前或去掉保护即红） |
+| `server/test_lifespan_background.py` | 单元 | 后台任务分两步启动：孤儿目标恢复在 socket 绑定后启动；预热在就绪路由首次报告数据库就绪后的稳定期启动，无人查询就绪时由兜底延迟启动，反复的就绪轮询不会把启动往后推；关闭时取消尚未触发的启动、之后的就绪通知不再启动任何任务；任务失败记 ERROR 且不影响其余、预热任务全部结束后才结束启动期 GC 暂停 |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
@@ -662,6 +663,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/health/test_liveness_gateway_runtime.py` | 模块 | GET `/health/liveness` 返回 `gatewayRuntime` 零载荷块；gateway 异常时 `state=degraded`；Prometheus `myrm_gateway_*` gauge 刷新 |
 | `api/health/test_browser_doctor.py` | 模块 | 健康 browser 端点：`/health/browser`（pool health 正常/异常降级且根因进日志）+ `/health/browser/doctor`（relay 检查作为 `extra_checks` 传入 + launch_test 透传 + 真实 `run_doctor` 下 relay 行进入 `checks` 与 `summary`）+ `/health/browser/orphans` GET/DELETE（automation 扫描、confirm 安全门、预览只报会被清理的沙箱数、预览与清理共用 harness 默认沙箱年龄阈值、failed 透传、空孤儿、失败时根因进日志） |
 | `api/health/test_browser_connectivity.py` | 模块 | `/health/browser/test-cloud-connection`（not_configured/disabled/invalid/connected/failed/无 WS 库）+ `/health/browser/test-proxy-connection`（not_configured/disabled/invalid/connected/http error/异常；mock config_service + websockets/httpx） |
+| `api/health/test_readiness_warmup_hook.py` | 单元 | `/health/ready` 在数据库就绪时通知后台预热（前端据此放行首屏），数据库不可用时不通知；三项依赖检查以替身注入，不打开任何存储 |
 | `integration/extension_real_browser/test_extension_lifecycle_real_browser.py` | 集成 | 无人看着时仍成立的保证（`-m e2e`）：私网地址的后台导航开在用户窗口之外的独立窗口，Agent 在那里点击、截图乃至要求置前都不会改变用户的焦点窗口与当前标签页；浏览器回收 service worker 后扩展自行重连、Agent 继续可用；用户主动断开后重连计时器不会把它重新接上 |
 | `integration/extension_real_browser/test_agent_session_real_browser.py` | 集成 | Playwright 经生产 bridge 与 CDP relay 使用用户已登录的浏览器（`-m e2e`）：读取已登录页面、点击、截图；不能离开已授权域名，页面自己跳到未授权域名后被摘离、读不到内容、标签页保留；Agent 自己的标签页可回到空白页而用户的不行；不能在未授权或非网页地址开标签页；关闭页面时 Agent 的标签页真正关闭、用户的标签页只被放开；Agent 标签页进同一个「Myrm Agent」标签组；Agent 的页面在用户窗口里前台打开且不抢焦点、要求置前不改变任何事；第二条连接与第一条并行可用、关掉它不影响第一条；空白的 Agent 标签页不被当作用户的标签页列出 |
 | `integration/extension_real_browser/test_agent_browser_session_real_browser.py` | 集成 | Agent 的 `BrowserSession` 跑在生产浏览器池上（`-m e2e`）：导航并读取已登录页面、点击、截图；被拦在用户未授权的域名；同一会话的多个标签页共用一条连接，在标签页之间切换时能读到后面的那个且不改变用户看到的画面，关掉一个标签页它就在用户浏览器里真正关闭；会话结束后（页面始终在授权域名内时）不留下 Agent 自己的标签页、保留用户的标签页 |
