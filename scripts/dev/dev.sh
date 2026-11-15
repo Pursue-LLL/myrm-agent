@@ -17,7 +17,7 @@ LOG_FILE="$(dev_backend_log_file)"
 
 if _start_backend_bg "${SERVER_DIR}"; then
   echo "✅ Backend http://127.0.0.1:$(dev_default_backend_port) (log: ${LOG_FILE})"
-  echo "   Open UI: myrm start   or   cd myrm-agent-frontend && bun run dev"
+  echo "   Open UI: ./myrm-dev start   (shared stack, http://127.0.0.1:$(dev_default_frontend_port))"
 else
   exit 1
 fi
