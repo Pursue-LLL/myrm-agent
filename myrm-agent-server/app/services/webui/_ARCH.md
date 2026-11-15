@@ -11,7 +11,7 @@ WebUI 辅助服务：二维码/URL 组装、Open Graph 链接预览抓取，以�
 | 文件 | 职责 |
 |------|------|
 | `qrcode.py` | 二维码与访问 URL |
-| `og_metadata.py` | Open Graph 元数据抓取（内存 LRU），服务端代理绕过浏览器 CORS |
+| `og_metadata.py` | Open Graph 元数据抓取（内存 LRU），服务端代理绕过浏览器 CORS；页面经 harness `secure_get` 下载（逐跳 DNS 绑定、重定向逐跳复检、响应体上限 4 MiB），回环 / 内网 / 云元数据地址一律拒绝，被拒绝或抓取失败的 URL 只返回 `{"url": …}` |
 | `admin_store.py` | `~/.myrm/webui/admin.json` 管理员凭据 |
 | `passwords.py` | scrypt 密码哈希 |
 | `temp_token.py` | 首次 setup 临时令牌（含 `WEBUI_SETUP_TOKEN`） |
