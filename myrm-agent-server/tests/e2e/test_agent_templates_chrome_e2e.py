@@ -59,7 +59,7 @@ def test_expert_summon_funnel_summary_api():
     """Statistics API serves expert summon funnel events and aggregated summary."""
     api_url = get_e2e_api_url()
     event_payload = {
-        "event_type": "council_phase_completed",
+        "event_type": "first_message_sent",
         "surface": "flow_pad_inline",
         "context_key": "flowpad:e2e",
         "trigger": "plus_popover_card",
