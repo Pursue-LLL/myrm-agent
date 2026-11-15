@@ -9,7 +9,7 @@
 1. **框架绑定 vs 通用工具分离**：`toolkits/` 可独立 import；`meta_tools/` 必须绑定 Agent 会话/运行时
 2. **标准化文件与命令工具**：bash、file_ops、file_search 覆盖命令执行、文件读写、精确字符串替换与 glob/grep 搜索
 3. **条件加载**：通过 `tool_management/tool_layers.py` 三层（CORE/HIGH_PRIORITY/EXTENDED）控制 token 开销
-4. **LLM 委派入口**：子 Agent 创建走 `meta_tools/spawn_subagent/`（`delegate_task_tool` 等 7 个 LLM 工具）；Dynamic Workflow 的 PTC `spawn_subagent` 在 `agent/dynamic_workflow/tools/`，不进 `_TOOL_LAYERS`；并行路径复用 `parallel/`
+4. **LLM 委派入口**：子 Agent 创建走 `meta_tools/spawn_subagent/`（`delegate_task_tool` 与 `subagent_control_tool` 两个 LLM 工具）；Dynamic Workflow 的 PTC `spawn_subagent` 在 `agent/dynamic_workflow/tools/`，不进 `_TOOL_LAYERS`；并行路径复用 `parallel/`
 
 ---
 
