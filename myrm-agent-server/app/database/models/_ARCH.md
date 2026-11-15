@@ -23,7 +23,7 @@
 | `fission.py` | 域模块 | FissionTaskRecord（高并发子代理执行图持久化，防刷新丢失） | ✅ |
 | `vault_credential.py` | 域模块 | VaultCredential | ✅ |
 | `web_push_subscription.py` | 域模块 | WebPushSubscription（Web Push VAPID 订阅） | ✅ |
-| `memory.py` | 域模块 | ProfileAttribute, ProceduralRule, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
+| `memory.py` | 域模块 | ProfileAttribute, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
 | `config.py` | 域模块 | UserConfig | ✅ |
 | `cron.py` | 域模块 | CronJobModel, CronRunModel, MonitorStateModel | ✅ |
 | `channel.py` | 域模块 | ChannelPairingModel（渠道配对持久化实体，含 role 权限角色与 daily_quota 每日限额，支撑所有者独占与成员特权隔离） | ✅ |

@@ -1,13 +1,13 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[OUTPUT] ProfileAttribute: 用户画像属性, ProceduralRule: 程序性规则, PendingMemory: 记忆冲突待裁决记录,
+[OUTPUT] ProfileAttribute: 用户画像属性, PendingMemory: 记忆冲突待裁决记录,
 SharedContextModel: 共享上下文, SharedContextBindingModel: 共享上下文绑定,
 SharedContextWriteProposalModel: 共享上下文写入提案, MemoryOperationEventModel: 记忆操作账本,
 MemoryHealthSnapshotModel: 记忆健康快照, MemoryMigrationProvenanceModel: 记忆迁移来源,
 MemoryImportDryRunModel: 记忆导入审查会话, MemoryImportBatchModel: 记忆导入批次账本,
 MemoryImportItemModel: 记忆导入条目账本, MemoryArchiveRestoreBatchModel: 记忆归档恢复批次账本,
 MemoryArchiveRestoreItemModel: 记忆归档恢复条目账本, MemoryExtractRetryModel: 记忆提取重试队列
-[POS] 记忆域模型。管理用户画像、程序性规则、待审批记忆和产品层共享上下文。
+[POS] 记忆域模型。管理用户画像、待审批记忆和产品层共享上下文；智能体遵循的规则存放在记忆库自己的文件（`memory.db`）里，这里没有规则表。
 """
 
 from datetime import datetime
@@ -39,25 +39,6 @@ class ProfileAttribute(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (UniqueConstraint("attribute_key", name="uq_profile_attribute"),)
-
-
-class ProceduralRule(Base):
-    """程序性记忆规则表
-
-    存储用户的操作偏好规则，如"创建文件时总是使用 UTF-8"。
-    """
-
-    __tablename__ = "procedural_rules"
-
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
-
-    rule_text: Mapped[str] = mapped_column(Text, nullable=False)
-    context: Mapped[str] = mapped_column(String(255), nullable=False, default="general", index=True)
-    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class PendingMemory(Base):
@@ -416,5 +397,3 @@ class MemoryExtractRetryModel(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-
