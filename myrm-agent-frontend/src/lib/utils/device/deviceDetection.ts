@@ -9,8 +9,8 @@
  * 用 window.innerWidth 而不是 User-Agent：支持分屏与浏览器缩放。
  */
 
-/** 移动端断点：窗口宽度小于此值视为移动端 */
-const MOBILE_BREAKPOINT = 1024;
+/** 移动布局断点：窗口宽度小于此值，应用外壳进入移动形态 */
+const MOBILE_LAYOUT_BREAKPOINT = 1024;
 
 /**
  * 检测当前窗口宽度是否为移动端
@@ -22,5 +22,5 @@ export function checkIsMobile(): boolean {
   if (typeof window === 'undefined') {
     return false;
   }
-  return window.innerWidth < MOBILE_BREAKPOINT;
+  return window.innerWidth < MOBILE_LAYOUT_BREAKPOINT;
 }
