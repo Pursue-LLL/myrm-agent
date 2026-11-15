@@ -10,7 +10,8 @@
  * CapabilityEditor: Cron agent execution policy editor (required_capabilities + tools_allowed presets).
  *
  * [POS]
- * CronRunHistory per-job surface. Presets mirror server blueprints.py _CAP_* / _TOOLS_* SSOT.
+ * CronRunHistory per-job surface. Presets mirror the server's _CAP_* / _TOOLS_* constants in
+ * app/core/cron/blueprints/core/types.py (SSOT).
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -34,7 +35,7 @@ const CAPABILITY_DEFS = [
   { id: 'code_interpreter', icon: Code },
 ] as const;
 
-/** SSOT: keep aligned with server `blueprints.py` `_CAP_*` / `_TOOLS_*`. */
+/** SSOT: keep aligned with the server's `_CAP_*` / `_TOOLS_*` in `app/core/cron/blueprints/core/types.py`. */
 const BLUEPRINT_EXECUTION_POLICY = {
   web: {
     caps: ['web_search_tool', 'net_fetch'],
