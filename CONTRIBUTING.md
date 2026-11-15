@@ -63,11 +63,11 @@ bash scripts/install.sh   # or: myrm setup
 myrm start                # backend :8080 + frontend :3000
 ```
 
-Manual split:
+Manual split (two terminals):
 
 ```bash
-bash scripts/dev/dev.sh   # backend only
-cd myrm-agent-frontend && bun install && bun run dev
+cd myrm-agent-server && .venv/bin/python run.py        # backend :8080
+cd myrm-agent-frontend && bun install && bun run dev   # frontend :3000
 ```
 
 See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.

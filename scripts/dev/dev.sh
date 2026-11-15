@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Backend only (background); port: dev_state_paths.sh.
-# Usage: bash scripts/dev/dev.sh   (monorepo: ./myrm-dev dev)
+# Usage: ./myrm-dev dev   (runtime namespace `shared`, not the user stack's)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
