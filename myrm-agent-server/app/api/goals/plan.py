@@ -2,8 +2,6 @@
 
 [INPUT]
 - app.services.chat.chat_todo_sync::resolve_session_todo_store (POS: Authoritative branch todo resolver)
-- app.services.chat.chat_todo_sync::sync_workspace_todos_for_active_branch (POS: Active branch workspace synchronizer)
-- app.services.chat.chat_todo_sync::sync_workspace_todos_after_rewind (POS: Rewind workspace synchronizer alias)
 
 [OUTPUT]
 - plan_router: APIRouter for plan and DAG progress endpoints
@@ -21,11 +19,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.services.chat.chat_todo_sync import (
-    resolve_session_todo_store,
-    sync_workspace_todos_after_rewind,
-    sync_workspace_todos_for_active_branch,
-)
+from app.services.chat.chat_todo_sync import resolve_session_todo_store
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +70,4 @@ __all__ = [
     "get_goal_dag",
     "get_goal_plan",
     "plan_router",
-    "resolve_session_todo_store",
-    "sync_workspace_todos_after_rewind",
-    "sync_workspace_todos_for_active_branch",
 ]

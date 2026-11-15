@@ -10,7 +10,6 @@
 [OUTPUT]
 - resolve_session_todo_store: Resolves authoritative todo store with branch-fold priority
 - sync_workspace_todos_for_active_branch: Realigns workspace progress file with current active branch messages
-- sync_workspace_todos_after_rewind: Backward-compatible alias for sync_workspace_todos_for_active_branch
 
 [POS]
 Provides service-layer business logic for active conversation branch todo folding
@@ -111,11 +110,7 @@ async def sync_workspace_todos_for_active_branch(chat_id: str) -> None:
         logger.warning("Failed to sync workspace todos for active branch on chat %s: %s", chat_id, exc)
 
 
-sync_workspace_todos_after_rewind = sync_workspace_todos_for_active_branch
-
-
 __all__ = [
     "resolve_session_todo_store",
-    "sync_workspace_todos_after_rewind",
     "sync_workspace_todos_for_active_branch",
 ]

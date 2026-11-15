@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.api.goals.router::router (POS: Goal endpoints router)
-- app.api.goals.plan::resolve_session_todo_store, sync_workspace_todos_for_active_branch (POS: Target functions)
+- app.services.chat.chat_todo_sync::sync_workspace_todos_for_active_branch (POS: Active branch workspace synchronizer)
 - myrm_agent_harness.agent.meta_tools.progress.schemas::TodoItem, TodoStatus, TodoStore
 
 [OUTPUT]
@@ -33,6 +33,7 @@ from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
 from app.api.goals.router import router as goals_router
 from app.database.dto import MessageDTO
+from app.services.chat.chat_todo_sync import sync_workspace_todos_for_active_branch
 
 
 @pytest.fixture
@@ -178,10 +179,8 @@ async def test_forked_branches_isolation(test_client_fixture: tuple[TestClient, 
 
 
 @pytest.mark.asyncio
-async def test_sync_workspace_todos_after_rewind_clears_stale_file(tmp_path: Path) -> None:
+async def test_sync_workspace_todos_for_active_branch_on_rewind_clears_stale_file(tmp_path: Path) -> None:
     """Rewinding to before any todos existed safely deletes leftover workspace progress file."""
-    from app.api.goals.plan import sync_workspace_todos_after_rewind
-
     chat_id = "rewind-clean-session"
     workspace_svc = create_workspace_service(root_dir=tmp_path)
     workspace = await workspace_svc.get_or_create(session_id=f"chat_{chat_id}")
@@ -200,17 +199,15 @@ async def test_sync_workspace_todos_after_rewind_clears_stale_file(tmp_path: Pat
         with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
             # Remaining messages contain no todos
             mock_msgs.return_value = []
-            await sync_workspace_todos_after_rewind(chat_id)
+            await sync_workspace_todos_for_active_branch(chat_id)
 
     # Verify stale workspace file was purged
     assert not todos_path(workspace_root, chat_id).is_file()
 
 
 @pytest.mark.asyncio
-async def test_sync_workspace_todos_after_rewind_restores_earlier_state(tmp_path: Path) -> None:
+async def test_sync_workspace_todos_for_active_branch_on_rewind_restores_earlier_state(tmp_path: Path) -> None:
     """Rewinding restores the earlier step's state in physical workspace."""
-    from app.api.goals.plan import sync_workspace_todos_after_rewind
-
     chat_id = "rewind-revert-session"
     workspace_svc = create_workspace_service(root_dir=tmp_path)
     workspace = await workspace_svc.get_or_create(session_id=f"chat_{chat_id}")
@@ -244,7 +241,7 @@ async def test_sync_workspace_todos_after_rewind_restores_earlier_state(tmp_path
         mock_settings.return_value.database.harness_dir = str(tmp_path)
         with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
             mock_msgs.return_value = [remaining_msg]
-            await sync_workspace_todos_after_rewind(chat_id)
+            await sync_workspace_todos_for_active_branch(chat_id)
 
     # Workspace should now reflect the rewound earlier state
     synced = read_todos_sync_from_workspace(workspace_root, chat_id)
@@ -306,10 +303,8 @@ def test_stream_collector_captures_and_persists_tool_result_details() -> None:
     ],
 )
 @pytest.mark.asyncio
-async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path: Path, content: str) -> None:
+async def test_sync_workspace_todos_for_active_branch_on_rewind_protects_existing_file(tmp_path: Path, content: str) -> None:
     """When messages exist but fold yields no store, workspace file is preserved rather than unlinked or replaced."""
-    from app.services.chat.chat_todo_sync import sync_workspace_todos_after_rewind
-
     workspace_root = str(tmp_path / "ws_safe")
     chat_id = "chat_safe_rewind"
 
@@ -334,7 +329,7 @@ async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path
             mock_msgs.return_value = [msg_without_todos]
             with patch("app.services.chat.chat_todo_sync._resolve_workspace_root_safely", new_callable=AsyncMock) as mock_root:
                 mock_root.return_value = workspace_root
-                await sync_workspace_todos_after_rewind(chat_id)
+                await sync_workspace_todos_for_active_branch(chat_id)
 
     # Workspace file must NOT have been unlinked!
     assert todos_path(workspace_root, chat_id).is_file()
@@ -346,8 +341,6 @@ async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path
 @pytest.mark.asyncio
 async def test_sync_workspace_todos_for_active_branch_on_sibling_switch(tmp_path: Path) -> None:
     """Switching active branch aligns workspace file with new sibling branch state."""
-    from app.services.chat.chat_todo_sync import sync_workspace_todos_for_active_branch
-
     workspace_root = str(tmp_path / "ws_sibling")
     chat_id = "chat_sibling_test"
 
@@ -385,8 +378,6 @@ async def test_sync_workspace_todos_for_active_branch_on_sibling_switch(tmp_path
 @pytest.mark.asyncio
 async def test_sync_workspace_todos_for_active_branch_on_undo_clears_file(tmp_path: Path) -> None:
     """When all messages in conversation are undone/cleared, workspace file is cleanly unlinked."""
-    from app.services.chat.chat_todo_sync import sync_workspace_todos_for_active_branch
-
     workspace_root = str(tmp_path / "ws_undo")
     chat_id = "chat_undo_test"
 
@@ -409,8 +400,6 @@ async def test_sync_workspace_todos_for_active_branch_on_undo_clears_file(tmp_pa
 @pytest.mark.asyncio
 async def test_sync_workspace_todos_for_active_branch_on_regenerate(tmp_path: Path) -> None:
     """When regenerating last turn, inactive sibling assistant todos are folded away from workspace."""
-    from app.services.chat.chat_todo_sync import sync_workspace_todos_for_active_branch
-
     workspace_root = str(tmp_path / "ws_regen")
     chat_id = "chat_regen_test"
 
