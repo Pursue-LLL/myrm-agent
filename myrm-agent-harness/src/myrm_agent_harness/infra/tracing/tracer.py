@@ -14,7 +14,6 @@ Framework design:
 [INPUT]
 - opentelemetry.sdk (POS: provider and batch processor, optional extra)
 - infra.tracing.otlp (POS: target resolution, official exporters, privacy guard, resource, posture)
-- infra.tracing.langsmith_gate (POS: switches LangSmith's upload off under the zero-egress policy)
 
 [OUTPUT]
 - setup_tracing: initialize tracing (called by the business layer)
@@ -40,7 +39,6 @@ from typing import TYPE_CHECKING, ParamSpec, TypeVar
 from opentelemetry import trace
 from opentelemetry.trace import Span
 
-from myrm_agent_harness.infra.tracing.langsmith_gate import block_langsmith_tracing
 from myrm_agent_harness.infra.tracing.otlp.config import (
     PROTOCOL_HTTP,
     apply_local_isolation,
@@ -127,8 +125,7 @@ def setup_tracing(
         otlp_headers: Explicit headers (dict or ``k=v,k2=v2``); otherwise ``OTEL_EXPORTER_OTLP_HEADERS``.
         otlp_protocol: ``http/protobuf`` or ``grpc``; otherwise the standard variables, then what the endpoint
             names (``grpc://`` or port 4317 means gRPC), then HTTP.
-        local_trace_only: Refuse remote export (also enforced by ``MYRM_LOCAL_TRACE_ONLY``); LangChain's
-            LangSmith upload is switched off as well.
+        local_trace_only: Refuse remote export (also enforced by ``MYRM_LOCAL_TRACE_ONLY``).
         sampler: Optional SDK sampler; otherwise ``OTEL_TRACES_SAMPLER`` / ``OTEL_TRACES_SAMPLER_ARG``,
             default parent-based always-on.
         resource_attributes: Default resource attributes (``OTEL_RESOURCE_ATTRIBUTES`` wins).
@@ -139,10 +136,6 @@ def setup_tracing(
     reported by the posture probe; it never falls back to another protocol or to stdout.
     """
     global _tracer_provider, _initialized
-
-    # First, before anything can raise or return: LangSmith's upload does not depend on an OTLP pipeline.
-    if local_trace_only or is_local_trace_only():
-        block_langsmith_tracing()
 
     target = apply_local_isolation(
         resolve_target("traces", endpoint=otlp_endpoint, protocol=otlp_protocol, headers=otlp_headers),

@@ -9,7 +9,6 @@
 - parse_otlp_headers: W3C key=value header list parsing
 - configured_endpoints: every endpoint the environment names (for audits)
 - redact_endpoint: endpoint safe to log and show (no credentials)
-- env_flag: one reading of a truthy environment switch (also used by the LangSmith gate)
 - is_local_trace_only / is_local_endpoint / assert_local_trace_only / apply_local_isolation: zero-egress gate
 
 [POS]
@@ -54,11 +53,6 @@ _USERINFO = re.compile(r"(?:(?<=//)|^)[^/@\s]*@")
 
 def _env(name: str) -> str:
     return os.environ.get(name, "").strip()
-
-
-def env_flag(name: str) -> bool:
-    """True when the environment variable ``name`` holds ``1``, ``true``, ``yes`` or ``on`` (any case)."""
-    return _env(name).lower() in _TRUTHY
 
 
 def sdk_disabled() -> bool:
@@ -179,7 +173,7 @@ def redact_endpoint(endpoint: str) -> str:
 
 def is_local_trace_only() -> bool:
     """True when ``MYRM_LOCAL_TRACE_ONLY`` enforces zero remote trace egress."""
-    return env_flag("MYRM_LOCAL_TRACE_ONLY")
+    return _env("MYRM_LOCAL_TRACE_ONLY").lower() in _TRUTHY
 
 
 def is_local_endpoint(endpoint: str) -> bool:

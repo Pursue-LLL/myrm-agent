@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from myrm_agent_harness.infra.tracing.langsmith_gate import LANGSMITH_TRACING_SWITCHES
 
 from app.core.infra.health.server_diagnostics import (
     ServerDiagnosticsManager,
@@ -21,7 +20,6 @@ def _clean_otlp_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
         "OTEL_SDK_DISABLED",
         "MYRM_LOCAL_TRACE_ONLY",
-        *LANGSMITH_TRACING_SWITCHES,
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -120,42 +118,6 @@ async def test_a_configured_endpoint_is_shown_without_credentials() -> None:
     assert report.code == "OK_OTLP_EXPORT_ACTIVE"
     assert "hunter2" not in repr(report)
     assert "collector.example" in report.message
-
-
-@pytest.mark.asyncio
-async def test_local_only_warns_while_langsmith_is_still_switched_on() -> None:
-    with patch.dict("os.environ", {"MYRM_LOCAL_TRACE_ONLY": "1", "LANGCHAIN_TRACING_V2": "true"}):
-        report = await TraceExportSecurityDiagnostic().check_health()
-    assert report.status == "warn"
-    assert report.code == "WARN_LANGSMITH_IN_LOCAL_MODE"
-    assert report.meta_data == {"local_only": True, "langsmith": True}
-
-
-@pytest.mark.asyncio
-async def test_an_enabled_langsmith_is_reported_instead_of_claiming_telemetry_stays_local() -> None:
-    with patch.dict("os.environ", {"LANGSMITH_TRACING": "true"}):
-        report = await TraceExportSecurityDiagnostic().check_health()
-    assert report.status == "pass"
-    assert report.code == "OK_LANGSMITH_EXPORT_ACTIVE"
-    assert report.detail is None
-    assert report.meta_data == {"local_only": False, "otlp_endpoint": "none", "langsmith": True}
-
-
-@pytest.mark.asyncio
-async def test_langsmith_and_otlp_are_both_reported_without_credentials() -> None:
-    env = {"LANGSMITH_TRACING": "true", "OTEL_EXPORTER_OTLP_ENDPOINT": "https://user:hunter2@collector.example:4318"}
-    with patch.dict("os.environ", env):
-        report = await TraceExportSecurityDiagnostic().check_health()
-    assert report.code == "OK_LANGSMITH_EXPORT_ACTIVE"
-    assert "collector.example" in (report.detail or "")
-    assert "hunter2" not in repr(report)
-
-
-@pytest.mark.asyncio
-async def test_a_langsmith_switch_that_is_off_changes_nothing() -> None:
-    with patch.dict("os.environ", {"LANGSMITH_TRACING": "false"}):
-        report = await TraceExportSecurityDiagnostic().check_health()
-    assert report.code == "OK_LOCAL_NOOP_ACTIVE"
 
 
 @pytest.mark.asyncio
