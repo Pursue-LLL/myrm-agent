@@ -3,6 +3,7 @@
 [INPUT]
 - model identifier, base_url, llm_kwargs dictionary
 - reasoning_route::resolve_reasoning_route (POS: provider-aware identity of a model call for reasoning-parameter rules)
+- reasoning_profile::MAX_EFFORT_VALUES (POS: the spellings of the strongest reasoning level)
 
 [OUTPUT]
 - is_deepseek_model(): whether the call targets DeepSeek's own API
@@ -33,6 +34,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from myrm_agent_harness.toolkits.llms.core.reasoning_profile import MAX_EFFORT_VALUES
 from myrm_agent_harness.toolkits.llms.core.reasoning_route import resolve_reasoning_route
 
 logger = logging.getLogger(__name__)
@@ -52,7 +54,6 @@ _CONFIGURABLE_REASONING_SUBSTRINGS: tuple[str, ...] = (
 )
 
 _OFF_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
-_MAX_VALUES: frozenset[str] = frozenset({"max", "xhigh", "ultra"})
 _HIGH_VALUES: frozenset[str] = frozenset({"high", "medium", "standard", "normal"})
 _LOW_VALUES: frozenset[str] = frozenset({"low", "min"})
 
@@ -173,7 +174,7 @@ def apply_deepseek_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) -> N
 
     # Case 4: effort enabled with level mapping
     mapped_effort: str
-    if effort_str in _MAX_VALUES:
+    if effort_str in MAX_EFFORT_VALUES:
         mapped_effort = "max"
     elif effort_str in _HIGH_VALUES:
         mapped_effort = "high"
