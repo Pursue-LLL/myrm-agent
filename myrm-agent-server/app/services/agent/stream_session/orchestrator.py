@@ -5,9 +5,10 @@
 - app.services.agent.stream_session.orchestrator_turn_launch (POS: E1 accept phase, starts the background turn and answers the client)
 - app.services.agent.stream_session.orchestrator_turn_body (POS: write-ahead interrupted-turn marker written by the turn)
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: first-resolver arbitration between the approval timeout timer and a manual resume)
+- app.services.agent.streaming_support.stream_collector::release_parked_hitl, settle_tool_approvals_of (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata, and holds the registry of each chat's parked run)
 
 [OUTPUT]
-- run_agent_stream: validation + reserve + already-resolved resume refusal (HTTP 409) + early StreamingResponse | JSONResponse
+- run_agent_stream: validation + reserve + already-resolved resume refusal (HTTP 409) + retiring the card a new message leaves unanswered + early StreamingResponse | JSONResponse
 
 [POS]
 Service-layer stream orchestration entry. Pre-reserve validation stays synchronous; post-reserve turn runs in the background (`orchestrator_turn_launch` starts it, `orchestrator_turn_body` is the turn) so clients receive live SSE during pre-reply compact.
@@ -46,6 +47,7 @@ from app.services.agent.stream_session.turn_capability_terminal import (
     has_turn_capability_terminal_context,
     record_turn_capability_send_failed,
 )
+from app.services.agent.streaming_support.stream_collector import release_parked_hitl, settle_tool_approvals_of
 
 logger = logging.getLogger(__name__)
 
@@ -234,9 +236,12 @@ async def run_agent_stream(
                     status_code=409,
                     content={"detail": "This approval has already been resolved."},
                 )
-            from app.services.agent.streaming_support.stream_collector import settle_tool_approvals_of
-
             settle_tool_approvals_of(request.chat_id)
+        elif request.chat_id:
+            # A message that is not an answer leaves the card a parked run holds unanswered. Retired here, its timer cannot
+            # resume a conversation that moved on, and a late answer is refused instead of running against a graph this message
+            # replaces.
+            release_parked_hitl(request.chat_id)
 
         # A run that gets this far is a new one, also when it resumes under the id of the turn that asked for the
         # approval: the finished turn's buffer would replay that turn and never carry the resumed one.

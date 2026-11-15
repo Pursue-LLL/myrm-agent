@@ -1,5 +1,6 @@
-"""run_agent_stream hands a reserved turn and a buffer of its own to the E1 launcher, always releases its reservation, and refuses a resume the approval timeout already answered."""
+"""run_agent_stream hands a reserved turn and a buffer of its own to the E1 launcher, always releases its reservation, refuses a resume the approval timeout already answered, and retires the card a new message leaves unanswered."""
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Iterator
 from types import SimpleNamespace
@@ -192,5 +193,58 @@ async def test_a_refused_resume_leaves_the_parked_run_as_it_was(handoff: SimpleN
         await run_agent_stream(handoff.request, handoff.http_request)
 
         assert parked.has_pending_tool_approval() is True
+    finally:
+        parked.cleanup()
+
+
+def _parked_behind_a_clarification(chat_id: str) -> StreamContentCollector:
+    collector = StreamContentCollector(chat_id=chat_id)
+    collector.feed_event({"type": "clarification_required", "messageId": "msg-handoff", "data": {}})
+    assert collector.has_pending_hitl_replay() is True
+    return collector
+
+
+@pytest.mark.asyncio
+async def test_a_new_message_retires_the_card_a_parked_run_holds(handoff: SimpleNamespace) -> None:
+    """The user moved on instead of answering: the card's timer must not resume the old conversation, and a late answer is refused."""
+    fired = AsyncMock()
+    ApprovalTimeoutScheduler.get().schedule("chat-handoff", 0.05, "deny", fired)
+    parked = _parked_behind_a_clarification("chat-handoff")
+    try:
+        await run_agent_stream(handoff.request, handoff.http_request)
+        await asyncio.sleep(0.2)
+
+        fired.assert_not_awaited()
+        assert ACTIVE_COLLECTORS.get("chat-handoff") is None
+        assert ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff") is False
+    finally:
+        parked.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_a_message_the_busy_chat_refuses_leaves_the_card_as_it_was(handoff: SimpleNamespace) -> None:
+    """A refused message changed nothing in the conversation: the card stays answerable."""
+    handoff.reservation.try_reserve.return_value = MagicMock(name="busy")
+    parked = _parked_behind_a_clarification("chat-handoff")
+    try:
+        await run_agent_stream(handoff.request, handoff.http_request)
+
+        assert ACTIVE_COLLECTORS.get("chat-handoff") is parked
+        assert ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff") is True
+    finally:
+        parked.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_an_answer_does_not_retire_the_card_it_answers(handoff: SimpleNamespace) -> None:
+    """The resumed run takes the chat over from the parked run; retiring the card here would refuse the answer that carries it."""
+    handoff.request.resume_value = {"card-1": {"answer": "yes"}}
+    parked = _parked_behind_a_clarification("chat-handoff")
+    try:
+        response = await run_agent_stream(handoff.request, handoff.http_request)
+
+        assert response is handoff.launcher.return_value
+        assert ACTIVE_COLLECTORS.get("chat-handoff") is parked
+        assert parked.has_pending_hitl_replay() is True
     finally:
         parked.cleanup()

@@ -6,15 +6,16 @@
 - myrm_agent_harness.agent.security.approval_flow::get_allowlist, reset_denial_counter (POS: session-scoped approval grants and the cross-turn denial circuit breaker)
 - app.config.settings::get_settings (POS: location of the event log directory)
 - app.services.agent.execution_cache::close_execution_cache_for_chat_all_agents (POS: per-chat agent execution scopes)
+- app.services.agent.streaming_support.stream_collector::release_parked_hitl (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata, and holds the registry of each chat's parked run)
 - app.services.external_agents.runtime_pool_registry::close_external_agent_pool_for_chat (POS: per-chat external agent runtimes)
 - app.services.agent.adaptive_wakeup::get_adaptive_wakeup_service (POS: the wake budget and stop flag kept in memory per chat)
 - app.core.memory::get_cascade_memory_manager (POS: memory store used for deletion cascades)
 - app.services.infra.sandbox_cleanup::cleanup_chat_workspaces (POS: storage workspace and artifact vault cleanup, one vault scan per batch)
 
 [OUTPUT]
-- clear_conversation_state: checkpoint threads, session grants and the denial counter of a chat
+- clear_conversation_state: checkpoint threads, session grants and the denial counter of a chat, and the card its parked run waits at
 - reset_external_agent_sessions: the in-memory conversation of a chat's external agents
-- clear_runtime_caches: running pools, execution scopes, ephemeral session deltas, wake budget and stop flag of a chat
+- clear_runtime_caches: the card its parked run waits at, running pools, execution scopes, ephemeral session deltas, wake budget and stop flag of a chat
 - remove_chat_event_log: the event log file of a chat
 - clear_extract_retry_queue: pending memory-extraction retries of a chat
 - forget_chat_memories: memories derived from a chat plus its retry queue
@@ -42,6 +43,7 @@ from myrm_agent_harness.runtime.context.session.session_continuity import clear_
 
 from app.config.settings import get_settings
 from app.services.agent.execution_cache import close_execution_cache_for_chat_all_agents
+from app.services.agent.streaming_support.stream_collector import release_parked_hitl
 from app.services.external_agents.runtime_pool_registry import close_external_agent_pool_for_chat
 
 logger = logging.getLogger(__name__)
@@ -50,15 +52,17 @@ _GRANT_OWNER = "sandbox"
 
 
 async def clear_conversation_state(chat_id: str) -> bool:
-    """Drop the LangGraph checkpoint threads and the session-scoped approvals of a chat.
+    """Drop the LangGraph checkpoint threads and the session-scoped approvals of a chat, and retire its parked card.
 
-    Checkpoints are derived state (every turn rebuilds the history from the database), so a failure is
-    reported through the return value instead of raised. Session grants and the denial counter are cleared
-    even when the checkpoint is not, so no privilege outlives the conversation.
+    The card a parked run waits at belongs to a checkpoint thread this step deletes, so it is retired first: its timer
+    would otherwise resume a conversation that no longer exists. Checkpoints are derived state (every turn rebuilds the
+    history from the database), so a failure is reported through the return value instead of raised. Session grants and
+    the denial counter are cleared even when the checkpoint is not, so no privilege outlives the conversation.
 
     Returns:
         True when every checkpoint thread alias of the chat is gone.
     """
+    release_parked_hitl(chat_id)
     checkpoint_cleared = False
     try:
         from app.platform_utils import get_checkpointer
@@ -87,9 +91,10 @@ async def reset_external_agent_sessions(chat_id: str) -> None:
 
 
 async def clear_runtime_caches(chat_id: str) -> None:
-    """Stop what is still running for a chat and evict its in-memory state."""
+    """Stop what is still running for a chat and evict its in-memory state, including the card its parked run waits at."""
     from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
 
+    release_parked_hitl(chat_id)
     await close_external_agent_pool_for_chat(chat_id)
     await close_execution_cache_for_chat_all_agents(chat_id)
     # The delta store deletes its SQLite rows synchronously and waits up to 30 s for the write lock. A coroutine that

@@ -4,11 +4,12 @@
 - app.platform_utils::get_checkpointer (POS: LangGraph checkpointer)
 - app.services.agent.gateway::get_agent_gateway (POS: active session guard)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: goal pause on rewind)
+- app.services.agent.streaming_support.stream_collector::release_parked_hitl (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata, and holds the registry of each chat's parked run)
 
 [OUTPUT]
 - SessionBusyError: raised when chat session is actively streaming
-- invalidate_chat_checkpoint: drop the chat's checkpoint threads so the next run
-  rebuilds them from persisted history (propagates CheckpointClearError)
+- invalidate_chat_checkpoint: drop the chat's checkpoint threads, and retire the card a parked run holds in them,
+  so the next run rebuilds the threads from persisted history (propagates CheckpointClearError)
 - pause_active_goal_for_rewind: pause running goal after successful rewind mutation
 - CheckpointClearError: re-export harness checkpoint-clear failure
 - assert_session_available_for_continuity: guard against in-flight agent runs
@@ -37,6 +38,7 @@ __all__ = [
 
 from app.services.agent.gateway import get_agent_gateway
 from app.services.agent.goals.goal_registry import GoalRegistry
+from app.services.agent.streaming_support.stream_collector import release_parked_hitl
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +55,14 @@ def assert_session_available_for_continuity(chat_id: str) -> None:
 
 
 async def invalidate_chat_checkpoint(chat_id: str) -> int:
-    """Drop the chat's checkpoint threads; the next run rebuilds from persisted history."""
+    """Drop the chat's checkpoint threads and retire the card a parked run holds in them; the next run rebuilds from persisted history.
+
+    The rewritten history no longer contains the turn the card paused, so its timer must not resume it, whether or not the
+    threads could be cleared.
+    """
     from app.platform_utils import get_checkpointer
 
+    release_parked_hitl(chat_id)
     cleared = await clear_checkpoint_threads(get_checkpointer(), chat_id)
     logger.info("Cleared checkpoint threads for chat=%s (threads=%d)", chat_id, cleared)
     return cleared
