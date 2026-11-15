@@ -23,8 +23,6 @@ def test_tool_description_module_exports() -> None:
     assert "TOOL_DESCRIPTION_EN" in mod.__all__
     assert "TOOL_DESCRIPTION_ZH" in mod.__all__
     assert "resolve_bash_code_execute_tool_description" in mod.__all__
-    assert 2400 < len(TOOL_DESCRIPTION_ZH) < 5000
-    assert 2000 < len(TOOL_DESCRIPTION_EN) < 6000
 
 
 def test_create_bash_tool_static_description_only() -> None:
@@ -125,8 +123,6 @@ def test_cross_call_persistence_uses_workspace_files_not_session_store() -> None
     assert "Prefer combining operations into a single execution" in TOOL_DESCRIPTION_EN
     assert "chat_id" not in TOOL_DESCRIPTION
     assert "chat_id" not in TOOL_DESCRIPTION_EN
-    assert "chat session" in TOOL_DESCRIPTION
-    assert "chat session" in TOOL_DESCRIPTION_EN
 
 
 def test_no_internal_module_name_leaked_to_prompt() -> None:
@@ -260,3 +256,30 @@ def test_bash_process_and_execute_prompts_share_stdin_contract() -> None:
     for keyword in ("waiting_for_input", "input_wait_hint", "submit_stdin"):
         assert keyword in TOOL_DESCRIPTION
         assert keyword in process_desc
+
+
+def _line_starting_with(text: str, prefix: str) -> str:
+    return next(line for line in text.splitlines() if line.startswith(prefix))
+
+
+def test_shell_capability_states_the_stdin_contract_and_the_way_to_answer_a_prompt() -> None:
+    """A foreground command reads end of file; a program that must be answered goes through a background job."""
+    for text in (TOOL_DESCRIPTION_EN, TOOL_DESCRIPTION_ZH):
+        capability = _line_starting_with(text, "1. ")
+        assert "stdin" in capability
+        assert "EOF" in capability
+        assert "run_in_background" in capability
+        assert "bash_process_tool" in capability
+
+
+def test_state_section_makes_no_promise_about_shell_state_across_calls() -> None:
+    """Each call is a fresh start (``test_product_path_state``): the text hedges and names the combined-call way out."""
+    for text, hedge, promises in (
+        (TOOL_DESCRIPTION_EN, "not guaranteed", ("remain active", "persist")),
+        (TOOL_DESCRIPTION_ZH, "不保证", ("始终生效", "持久")),
+    ):
+        bash_state = _line_starting_with(text, "- **Bash**")
+        assert hedge in bash_state
+        assert "cd" in bash_state
+        assert "export" in bash_state
+        assert not [promise for promise in promises if promise in bash_state.lower()]

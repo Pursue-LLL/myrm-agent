@@ -168,7 +168,7 @@ async def test_build_default_turn1_tools_resolves_default_profile() -> None:
 # 32 on ubuntu-latest, 31/36 on other Linux flavors) — so the gate pins the
 # host-independent static half and subtracts the locally measured hint instead.
 _BASH_TOOL_NAME = "bash_code_execute_tool"
-_BASH_STATIC_DESCRIPTION_TOKENS = 1355
+_BASH_STATIC_DESCRIPTION_TOKENS = 1398
 
 _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "bash_process_tool": 107,
@@ -191,8 +191,8 @@ async def test_measure_turn1_inventory_matches_documented_token_baseline() -> No
     """Lock measure script output to inventory doc — prevents silent doc drift.
 
     Host-agnostic: the bash tool's description is ``static + host OS hint``, so the gate
-    pins both halves independently. It therefore holds on macOS arm64 (1,425) and
-    ubuntu-latest CI (1,399) alike, while still failing on any genuine drift.
+    pins both halves independently. It therefore holds on macOS arm64 and ubuntu-latest CI
+    alike, while still failing on any genuine drift.
     """
     report = await measure.measure_turn1_inventory()
     per_tool = report["per_tool"]

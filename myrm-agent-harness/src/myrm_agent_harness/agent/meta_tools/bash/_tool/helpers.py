@@ -129,13 +129,9 @@ class BashInput(BaseModel):
     timeout: int | None = Field(
         default=None,
         description=(
-            "Timeout in seconds for foreground execution, up to 600. "
-            "IMPORTANT: the default is 120s. Long-running commands (e.g. "
-            "'npm install', 'docker build', 'sleep 300') will be interrupted "
-            "if you omit this — always pass an explicit value larger than your "
-            "expected runtime. Ignored when run_in_background=True — background "
-            "jobs run until they exit on their own or bash_process_tool(action='kill') "
-            "is invoked."
+            "Foreground timeout in seconds (default 60, max 600); a longer-running command is killed, "
+            "so pass a larger value for long commands (`npm install`, `docker build`). "
+            "Ignored when `run_in_background=true`."
         ),
         ge=1,
         le=600,
@@ -143,18 +139,15 @@ class BashInput(BaseModel):
     run_in_background: bool = Field(
         default=False,
         description=(
-            "Detach the command as a background process and return immediately "
-            "with its PID instead of waiting for completion. Use for dev "
-            "servers, watchers, long crawlers, or any job whose stdout you "
-            "intend to poll later via bash_process_tool(action='output'). Limit to one "
-            "active background job per task unless explicitly needed."
+            "Detach the command and return its PID immediately (dev servers, watchers, long jobs); "
+            "poll or stop it with `bash_process_tool`. Keep to one active job per task unless more are needed."
         ),
     )
     yield_after_seconds: int | None = Field(
         default=None,
         description=(
-            "For build/test whitelist commands only: spawn as background, wait up to N seconds "
-            "for partial output, then return pid if still running. Default 10 when omitted; set 0 to disable."
+            "Build/test commands only: if still running after N seconds, detach and return the PID "
+            "(default 10; 0 waits in the foreground)."
         ),
         ge=0,
         le=120,
