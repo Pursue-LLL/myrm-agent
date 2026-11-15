@@ -22,6 +22,7 @@ from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError
 from myrm_agent_harness.toolkits.llms.transport.images import GeneratedImage
 from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError
 
+_MODEL = "gpt-image-2.6-sunburst"
 _GENERATE = "myrm_agent_harness.toolkits.llms.image.generator.agenerate_images"
 _EDIT = "myrm_agent_harness.toolkits.llms.image.generator.aedit_images"
 _TO_BYTES = "myrm_agent_harness.toolkits.llms.image.models.ImageResult.to_bytes_with_mime"
@@ -52,13 +53,17 @@ class TestSafeTruncate:
 
 class TestSecretStr:
     def test_api_key_is_secret(self) -> None:
-        config = ImageGenerationConfig(api_key=SecretStr("sk-secret-key"))
+        config = ImageGenerationConfig(model=_MODEL, api_key=SecretStr("sk-secret-key"))
         assert "sk-secret-key" not in repr(config)
         assert "sk-secret-key" not in str(config)
 
     def test_api_key_none(self) -> None:
-        config = ImageGenerationConfig()
+        config = ImageGenerationConfig(model=_MODEL)
         assert config.api_key is None
+
+    def test_model_is_required(self) -> None:
+        with pytest.raises(ValueError):
+            ImageGenerationConfig()  # type: ignore[call-arg]
 
 
 class TestRetryClassification:
@@ -78,7 +83,7 @@ class TestRetryClassification:
 
     @pytest.mark.asyncio()
     async def test_non_retryable_error_stops_after_one_call(self) -> None:
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3", max_retries=2))
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, max_retries=2))
         with (
             patch(_GENERATE, new_callable=AsyncMock, side_effect=_http_error(401)) as mock,
             pytest.raises(ImageGenerationError),
@@ -88,7 +93,7 @@ class TestRetryClassification:
 
     @pytest.mark.asyncio()
     async def test_retryable_error_is_retried(self) -> None:
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3", max_retries=1))
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, max_retries=1))
         with (
             patch(_GENERATE, new_callable=AsyncMock, side_effect=[_http_error(500), _image()]) as mock,
             patch("asyncio.sleep", new_callable=AsyncMock),
@@ -101,7 +106,7 @@ class TestRetryClassification:
 class TestImageGeneratorMetrics:
     @pytest.mark.asyncio()
     async def test_metrics_increment_on_success(self) -> None:
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3"))
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL))
 
         assert gen.call_count == 0
         assert gen.error_count == 0
@@ -116,7 +121,7 @@ class TestImageGeneratorMetrics:
 
     @pytest.mark.asyncio()
     async def test_metrics_error_count(self) -> None:
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3", max_retries=0))
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, max_retries=0))
 
         with (
             patch(_GENERATE, new_callable=AsyncMock, side_effect=RuntimeError("API down")),
@@ -130,31 +135,38 @@ class TestImageGeneratorMetrics:
 
 class TestRequestParameters:
     @pytest.mark.asyncio()
-    async def test_config_defaults_and_overrides_reach_the_call(self) -> None:
+    async def test_config_and_call_arguments_reach_the_request(self) -> None:
         config = ImageGenerationConfig(
-            model="dall-e-3",
+            model=_MODEL,
             api_key=SecretStr("sk-test"),
             base_url="https://proxy.example.com/v1",
             default_size="1024x1024",
-            default_quality="standard",
             timeout_seconds=45,
         )
         gen = ImageGenerator(config)
 
         with patch(_GENERATE, new_callable=AsyncMock, return_value=_image()) as mock:
-            await gen.generate("a cat", size="1792x1024", style="vivid", n=2)
+            await gen.generate("a cat", size="1536x1024", quality="high")
 
         args, kwargs = mock.await_args
-        assert args == ("dall-e-3", "a cat")
+        assert args == (_MODEL, "a cat")
         assert kwargs == {
-            "size": "1792x1024",
-            "quality": "standard",
-            "style": "vivid",
-            "n": 2,
+            "size": "1536x1024",
+            "quality": "high",
             "api_key": "sk-test",
             "api_base": "https://proxy.example.com/v1",
             "timeout": 45,
         }
+
+    @pytest.mark.asyncio()
+    async def test_unspecified_quality_is_not_sent_and_size_falls_back_to_config(self) -> None:
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, default_size="1024x1024"))
+
+        with patch(_GENERATE, new_callable=AsyncMock, return_value=_image()) as mock:
+            await gen.generate("a cat")
+
+        assert mock.await_args.kwargs["quality"] is None
+        assert mock.await_args.kwargs["size"] == "1024x1024"
 
 
 class TestFailover:
@@ -203,7 +215,7 @@ class TestGatewayFallback:
     def _config(**overrides: object) -> ImageGenerationConfig:
         gateway = ToolGatewayConfig(use_gateway=True, gateway_url="https://gw.example.com/", auth_token="gw-token")
         return ImageGenerationConfig(
-            model="dall-e-3",
+            model=_MODEL,
             api_key=SecretStr("sk-own"),
             gateway_config=gateway,
             max_retries=0,
@@ -269,24 +281,22 @@ class TestEditFailover:
         assert received == [image_data, image_data]
 
     @pytest.mark.asyncio()
-    async def test_edit_materialises_file_like_inputs(self) -> None:
-        import io
-
-        gen = ImageGenerator(ImageGenerationConfig(model="gpt-image-1", max_retries=0))
+    async def test_edit_forwards_mask_and_size(self) -> None:
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, max_retries=0))
 
         with patch(_EDIT, new_callable=AsyncMock, return_value=_image()) as mock:
-            await gen.edit(io.BytesIO(b"image"), "edit", mask=io.BytesIO(b"mask"), size="1024x1024", n=2)
+            await gen.edit(b"image", "edit", mask=b"mask", size="1024x1024")
 
         args, kwargs = mock.await_args
-        assert args == ("gpt-image-1", b"image", "edit")
+        assert args == (_MODEL, b"image", "edit")
         assert kwargs["mask"] == b"mask"
-        assert kwargs["n"] == 2
+        assert kwargs["size"] == "1024x1024"
 
 
 class TestCancellation:
     @pytest.mark.asyncio()
     async def test_cancellation_before_call(self) -> None:
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3", max_retries=0))
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, max_retries=0))
 
         cancel = asyncio.Event()
         cancel.set()
@@ -297,59 +307,88 @@ class TestCancellation:
 
 class TestMediaCallback:
     @pytest.mark.asyncio()
-    async def test_callback_invoked_on_b64(self) -> None:
-        callback = AsyncMock(return_value="https://storage/persisted.png")
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3", media_callback=callback))
+    async def test_callback_receives_the_bytes_and_its_reference_is_attached(self) -> None:
+        callback = AsyncMock(return_value="media://abc123")
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, media_callback=callback))
         b64_data = base64.b64encode(b"fake-image-bytes").decode()
 
         with patch(_GENERATE, new_callable=AsyncMock, return_value=_image(url=None, b64_json=b64_data)):
             result = await gen.generate("test")
 
-        assert result.persisted_url == "https://storage/persisted.png"
-        callback.assert_called_once()
+        assert result.persisted_ref == "media://abc123"
+        callback.assert_awaited_once()
+        assert callback.await_args.args[0] == b"fake-image-bytes"
 
     @pytest.mark.asyncio()
-    async def test_callback_invoked_on_url_result(self) -> None:
-        """URL results are downloaded then persisted via callback."""
-        callback = AsyncMock(return_value="https://storage/persisted.png")
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3", media_callback=callback))
-        fake_image_bytes = b"downloaded-image-content"
+    async def test_url_results_are_downloaded_then_stored(self) -> None:
+        callback = AsyncMock(return_value="media://abc123")
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, media_callback=callback))
 
         with (
             patch(_GENERATE, new_callable=AsyncMock, return_value=_image(url="https://api/img.png")),
-            patch(_TO_BYTES, new_callable=AsyncMock, return_value=(fake_image_bytes, "image/png")),
+            patch(_TO_BYTES, new_callable=AsyncMock, return_value=(b"downloaded-image-content", "image/webp")),
         ):
             result = await gen.generate("test")
 
-        assert result.persisted_url == "https://storage/persisted.png"
-        assert result.mime_type == "image/png"
-        callback.assert_called_once()
-        assert callback.call_args[0][0] == fake_image_bytes
-        assert callback.call_args[0][1] == "image/png"
+        assert result.persisted_ref == "media://abc123"
+        assert result.mime_type == "image/webp"
+        assert callback.await_args.args[:2] == (b"downloaded-image-content", "image/webp")
 
     @pytest.mark.asyncio()
-    async def test_no_callback_without_config(self) -> None:
-        """No persistence when media_callback is not configured."""
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3"))
+    async def test_no_callback_means_no_reference(self) -> None:
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL))
 
         with patch(_GENERATE, new_callable=AsyncMock, return_value=_image(url="https://api/img.png")):
             result = await gen.generate("test")
 
-        assert result.persisted_url is None
+        assert result.persisted_ref is None
 
     @pytest.mark.asyncio()
-    async def test_callback_failure_does_not_break_generation(self) -> None:
-        """Persistence failure is swallowed — generation result still returned."""
-        callback = AsyncMock(side_effect=OSError("storage unavailable"))
-        gen = ImageGenerator(ImageGenerationConfig(model="dall-e-3", media_callback=callback))
+    @pytest.mark.parametrize(
+        "callback",
+        [AsyncMock(side_effect=OSError("storage unavailable")), AsyncMock(return_value="")],
+        ids=["callback-raises", "empty-reference"],
+    )
+    async def test_an_image_that_cannot_be_stored_fails_the_generation(self, callback: AsyncMock) -> None:
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, media_callback=callback))
 
         with (
             patch(_GENERATE, new_callable=AsyncMock, return_value=_image(url="https://api/img.png")),
             patch(_TO_BYTES, new_callable=AsyncMock, return_value=(b"image-bytes", "image/png")),
+            pytest.raises(ImageGenerationError, match="Failed to store the generated image"),
         ):
-            result = await gen.generate("test")
+            await gen.generate("test")
 
-        assert result.url == "https://api/img.png"
-        assert result.persisted_url is None
-        assert gen.call_count == 1
-        assert gen.error_count == 0
+        assert gen.error_count == 1
+
+    @pytest.mark.asyncio()
+    async def test_an_image_without_downloadable_data_fails_the_generation(self) -> None:
+        callback = AsyncMock(return_value="media://abc123")
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, media_callback=callback))
+
+        with (
+            patch(_GENERATE, new_callable=AsyncMock, return_value=_image(url="https://api/img.png")),
+            patch(_TO_BYTES, new_callable=AsyncMock, return_value=None),
+            pytest.raises(ImageGenerationError, match="no downloadable image data"),
+        ):
+            await gen.generate("test")
+
+        callback.assert_not_awaited()
+
+    @pytest.mark.asyncio()
+    async def test_a_storage_failure_never_regenerates_or_falls_back(self) -> None:
+        callback = AsyncMock(side_effect=OSError("storage unavailable"))
+        config = ImageGenerationConfig(
+            model=_MODEL, fallback_models=["flux/schnell"], max_retries=2, media_callback=callback
+        )
+        gen = ImageGenerator(config)
+
+        with (
+            patch(_GENERATE, new_callable=AsyncMock, return_value=_image(url="https://api/img.png")) as generate,
+            patch(_TO_BYTES, new_callable=AsyncMock, return_value=(b"image-bytes", "image/png")),
+            pytest.raises(ImageGenerationError, match="Failed to store"),
+        ):
+            await gen.generate("test")
+
+        assert generate.await_count == 1
+        assert callback.await_count == 1

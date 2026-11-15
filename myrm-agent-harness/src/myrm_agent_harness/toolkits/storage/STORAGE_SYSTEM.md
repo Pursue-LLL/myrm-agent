@@ -64,6 +64,7 @@
 | `copy` | `(src_key, dst_key) -> None` | 复制文件/目录 |
 | `move` | `(src_key, dst_key) -> None` | 移动文件 |
 | `get_url` | `(key: str, expires_in?) -> str` | 获取文件访问 URL |
+| `local_path` | `(key: str) -> Path \| None` | 本地文件系统后端返回文件绝对路径（越出存储根抛 `StorageError`），其余后端返回 `None`；调用方据此用 `FileResponse` 等零拷贝方式直接服务文件 |
 
 ---
 

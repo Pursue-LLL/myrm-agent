@@ -5,7 +5,7 @@
 Framework-agnostic async job queue — task models, executor protocol, SQLite persistence.
 **Not an agent tool** — no `*_agent_tools.py`; zero LLM token footprint.
 
-Domain-specific media payload DTOs live in `toolkits/llms/media_task_types.py`. The worker
+The media job type ids live in `toolkits/llms/media_task_types.py`; payloads and results are plain dicts at this layer. The worker
 loop, REST/SSE, and payload encryption live in `myrm-agent-server/app/tasks/`.
 
 Detailed design: [TASK_QUEUE_SYSTEM.md](TASK_QUEUE_SYSTEM.md).
@@ -52,7 +52,7 @@ Detailed design: [TASK_QUEUE_SYSTEM.md](TASK_QUEUE_SYSTEM.md).
 | Server worker | `myrm-agent-server/app/tasks/worker.py` | Background task queue processing |
 | Server REST | `myrm-agent-server/app/api/tasks/router.py` | Task status API + SSE |
 | Harness media | `toolkits/llms/{image,video}/async_*_engine.py` | Async media jobs via TaskStore; optional `payload_postprocessor` before persist |
-| Media DTOs | `toolkits/llms/media_task_types.py` | Typed payloads for media async jobs |
+| Media job types | `toolkits/llms/media_task_types.py` | The `image_generate` / `video_generate` type ids |
 
 ## Key Dependencies
 
@@ -62,5 +62,5 @@ Detailed design: [TASK_QUEUE_SYSTEM.md](TASK_QUEUE_SYSTEM.md).
 ## Forbidden
 
 - `agent/` imports
-- Domain-specific payload dataclasses (belong in `llms/media_task_types.py` or server)
+- Domain-specific payload dataclasses (belong in the server executors)
 - Worker loop, REST routes, payload encryption (belong in host server)

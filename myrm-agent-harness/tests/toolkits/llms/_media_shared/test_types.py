@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from myrm_agent_harness.toolkits.llms._media_shared.types import (
-    MediaTaskState,
     ModeCapabilities,
     NormalizationRecord,
     ProviderModeCapabilities,
@@ -53,13 +52,6 @@ class TestProviderModeCapabilities:
         assert mc.generate is not None
         assert mc.generate.supported_durations == (4, 6)
         assert mc.image_to_video is None
-
-
-class TestMediaTaskState:
-    def test_values(self) -> None:
-        assert MediaTaskState.QUEUED == "queued"
-        assert MediaTaskState.COMPLETED == "completed"
-        assert MediaTaskState.FAILED == "failed"
 
 
 class TestNormalizationRecord:

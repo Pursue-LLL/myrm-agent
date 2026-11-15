@@ -36,7 +36,7 @@ SERVICE_PROFILES: Final[dict[str, ProviderProfile]] = {
     "stability": ProviderProfile(id="stability", base_url="https://api.stability.ai"),
     "minimax_image": ProviderProfile(id="minimax_image", base_url="https://api.minimax.io"),
 }
-_OPENAI_FAMILY_BARE: Final = ("text-embedding-", "dall-e", "gpt-image")
+_OPENAI_FAMILY_BARE: Final = ("text-embedding-", "gpt-image")
 _ENDPOINT_SUFFIXES: Final = ("/embeddings", "/embed", "/rerank", "/images/generations", "/images/edits")
 # Ids a custom endpoint still reads as its own scheme; every other ``provider/model`` there is a gateway route.
 _OWN_SCHEME_UNDER_BASE: Final = frozenset({"openai", "azure"})

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from myrm_agent_harness.toolkits.llms.tts.models import (
+    SUPPORTED_TTS_PROVIDERS,
     MediaMeta,
     TTSConfig,
     TTSGenerationError,
@@ -36,8 +37,17 @@ def test_tts_result_frozen() -> None:
         result.provider = "elevenlabs"  # type: ignore[misc]
 
 
-def test_tts_config_defaults() -> None:
-    cfg = TTSConfig()
-    assert cfg.provider == "openai"
-    assert cfg.model == "tts-1"
-    assert cfg.voice == "alloy"
+def test_tts_config_requires_provider_model_and_voice() -> None:
+    with pytest.raises(ValueError, match="provider"):
+        TTSConfig()  # type: ignore[call-arg]
+
+
+def test_tts_config_keeps_the_selection_and_default_tuning() -> None:
+    cfg = TTSConfig(provider="elevenlabs", model="eleven_v2", voice="v1")
+    assert (cfg.provider, cfg.model, cfg.voice) == ("elevenlabs", "eleven_v2", "v1")
+    assert cfg.speed == 1.0
+    assert cfg.media_callback is None
+
+
+def test_supported_providers_cover_the_engine_request_builders() -> None:
+    assert sorted(SUPPORTED_TTS_PROVIDERS) == ["elevenlabs", "openai", "volcengine"]

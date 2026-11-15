@@ -1,7 +1,7 @@
 # video/
 
 ## Overview
-Video generation module — multi-provider video generation with failover.
+Video generation module — multi-provider video generation with failover. Generation is the async task path: `async_video_engine.py` enqueues, a worker runs `generator.py`.
 
 ## File & Submodule Index
 
@@ -9,11 +9,11 @@ Video generation module — multi-provider video generation with failover.
 |------|------|-------------|-------|
 | `__init__.py` | Package | Video generation module — multi-provider video generation with failover. | ✅ |
 | `_helpers.py` | Internal | Used by generator.py for retry logic, error formatting, content validation, and non-retryable classification (including ModerationBlockedError). | ✅ |
-| `generator.py` | Core | Video generation orchestrator with ModerationBlockedError fast-fail dispatch. | ✅ |
+| `_overrides.py` | Internal | Pure `sanitize_overrides`: fits aspect ratio, resolution, duration, audio and reference inputs to what a provider declares, reporting ignored overrides and normalizations. | ✅ |
+| `generator.py` | Core | Video generation orchestrator with ModerationBlockedError fast-fail dispatch; stores the winning result once through the primary media callback (fail-closed). | ✅ |
 | `models.py` | Core | Pure data types with no business logic. Includes ModerationBlockedError and ProviderCapabilities. | ✅ |
-| `task_store.py` | Core | Framework provides Protocol + two implementations (in-memory default, file-based). | ✅ |
-| `async_video_engine.py` | Core | Async enqueue adapter (`task_id` immediate return) for non-blocking video generation. | ✅ |
-| `video_engine.py` | Core | Video generation engine; LangChain adapter in server `media_tools/`. | ✅ |
+| `async_video_engine.py` | Core | Async enqueue adapter: returns the task id of the created video task. | ✅ |
+| `video_engine.py` | Core | Provider discovery (`list_providers`) for the server `media_tools/` adapter. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|
@@ -21,5 +21,5 @@ Video generation module — multi-provider video generation with failover.
 
 ## Key Dependencies
 
-- `core.security.http.secure_fetch` (secure_get/secure_request for user/model result URL downloads in `video_engine` and all providers, with `max_content_length` cap and `ContentTooLargeError` handling)
+- `core.security.http.secure_fetch` (secure_get/secure_request for result URL downloads in the providers, with `max_content_length` cap and `ContentTooLargeError` handling)
 - `core`

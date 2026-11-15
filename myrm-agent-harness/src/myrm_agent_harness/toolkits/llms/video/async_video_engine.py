@@ -16,7 +16,6 @@ returns immediately so the frontend can track progress through TaskStore + SSE.
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from collections.abc import Callable
@@ -83,14 +82,6 @@ class AsyncVideoGenerationTools:
     def _execution_config_payload(self) -> dict[str, object]:
         return self._serialize_config(self._config, include_fallbacks=True)
 
-    @staticmethod
-    def _detect_mode(reference_images: list[str] | None, reference_videos: list[str] | None) -> str:
-        if reference_videos:
-            return "V2V (video-to-video)"
-        if reference_images:
-            return "I2V (image-to-video)"
-        return "T2V (text-to-video)"
-
     async def generate_video(
         self,
         prompt: str,
@@ -103,13 +94,15 @@ class AsyncVideoGenerationTools:
         enable_audio: bool | None = None,
         reference_images: list[str] | None = None,
         reference_videos: list[str] | None = None,
-        force: bool = False,
         extra_params: dict[str, object] | None = None,
         user_id: str = "local",
         agent_id: str | None = None,
         chat_id: str | None = None,
     ) -> str:
-        """Enqueue a video generation task and return task metadata."""
+        """Enqueue a video generation task and return its id.
+
+        References (``reference_images`` / ``reference_videos``) are resolved by the worker, not here.
+        """
         task_id = f"vid-{uuid.uuid4().hex[:8]}"
         payload: dict[str, object] = {
             "prompt": prompt,
@@ -121,7 +114,6 @@ class AsyncVideoGenerationTools:
             "enable_audio": enable_audio,
             "reference_images": reference_images,
             "reference_videos": reference_videos,
-            "force": force,
             "extra_params": extra_params,
             **self._execution_config_payload(),
         }
@@ -144,18 +136,7 @@ class AsyncVideoGenerationTools:
         )
         await self._task_store.create_task(task)
         logger.info("Created video generation task: %s", task_id)
-
-        mode = self._detect_mode(reference_images, reference_videos)
-        return json.dumps(
-            {
-                "task_id": task_id,
-                "task_type": TASK_TYPE_VIDEO_GENERATE,
-                "status": "pending",
-                "mode": mode,
-                "message": "Video generation task created. Monitor status via SSE.",
-            },
-            ensure_ascii=False,
-        )
+        return task_id
 
 
 __all__ = ["AsyncVideoGenerationTools", "PayloadPostprocessor"]

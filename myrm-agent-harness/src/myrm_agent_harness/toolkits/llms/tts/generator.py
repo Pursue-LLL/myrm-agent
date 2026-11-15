@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from dataclasses import replace
 
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
 
@@ -47,7 +48,7 @@ class AsyncTTSEngine:
 
         for attempt in range(max_attempts):
             try:
-                return await self._call_provider(text, bypass_gateway=bypass_gateway, style=style)
+                result = await self._call_provider(text, bypass_gateway=bypass_gateway, style=style)
             except Exception as e:
                 last_error = e
                 error_msg = str(e).lower()
@@ -75,6 +76,9 @@ class AsyncTTSEngine:
 
                 if attempt < max_attempts - 1:
                     await asyncio.sleep(1.0 * (2**attempt))
+            else:
+                # Outside the try: a storage failure is not a provider failure, so it is never retried.
+                return await self._persist(result, text)
 
         latency_ms = (time.time() - start_time) * 1000
         raise TTSGenerationError(
@@ -119,23 +123,37 @@ class AsyncTTSEngine:
 
         latency_ms = (time.time() - start_time) * 1000
 
-        persisted_url = None
-        if self.config.media_callback:
-            meta = MediaMeta(prompt=text, model=self.config.model, provider=provider)
-            try:
-                persisted_url = await self.config.media_callback(audio_bytes, mime_type, meta)
-            except Exception as e:
-                logger.warning("Failed to persist TTS audio: %s", e)
-
         return TTSResult(
             audio_bytes=audio_bytes,
             mime_type=mime_type,
             provider=provider,
             model=self.config.model,
             latency_ms=latency_ms,
-            persisted_url=persisted_url,
             duration_seconds=duration_seconds,
         )
+
+    async def _persist(self, result: TTSResult, text: str) -> TTSResult:
+        """Store the audio through the media callback and attach its stable reference.
+
+        Fail-closed: with a callback configured, audio that cannot be stored (callback error, empty reference) is a
+        failed generation. Without one the result is returned as the provider gave it.
+        """
+        callback = self.config.media_callback
+        if callback is None:
+            return result
+        try:
+            reference = await callback(
+                result.audio_bytes,
+                result.mime_type,
+                MediaMeta(prompt=text, model=result.model, provider=result.provider),
+            )
+            if not reference:
+                raise ValueError("the media callback returned an empty reference")
+        except Exception as exc:
+            raise TTSGenerationError(
+                f"Failed to store the generated audio: {exc}", latency_ms=result.latency_ms
+            ) from exc
+        return replace(result, persisted_ref=reference)
 
     def _build_request(self, text: str, bypass_gateway: bool) -> tuple[str, dict[str, str], dict[str, object]]:
         provider = self.config.provider

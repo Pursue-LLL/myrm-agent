@@ -1,9 +1,10 @@
 """Data types for the TTS (Text-to-Speech) module.
 
 [OUTPUT]
+- SUPPORTED_TTS_PROVIDERS: Providers the TTS engine can call
 - TTSConfig: TTS service configuration
 - TTSResult: Structured result from a TTS request
-- TTSGenerationError: Exception raised when TTS fails
+- TTSGenerationError: Exception raised when TTS fails or the audio cannot be persisted
 
 [POS]
 Pure data types with no business logic. Separated from generator.py
@@ -39,7 +40,14 @@ class MediaMeta:
 
 
 MediaCallback = Callable[[bytes, str, MediaMeta], Awaitable[str]]
-"""Async callback: (audio_bytes, mime_type, metadata) -> persisted URL."""
+"""Async callback: (audio_bytes, mime_type, metadata) -> stable reference of the stored audio.
+
+The reference is an opaque, non-empty string the business layer can resolve later (for example ``media://<id>``).
+The callback raises when it cannot store the audio; the engine then fails the generation.
+"""
+
+SUPPORTED_TTS_PROVIDERS = frozenset({"openai", "elevenlabs", "volcengine"})
+"""Provider ids the engine calls with the user's own key; any other id works only through the tool gateway."""
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +57,9 @@ class TTSConfig(BaseModel):
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    provider: str = Field(
-        default="openai", description="TTS provider (openai, elevenlabs)"
-    )
-    model: str = Field(default="tts-1", description="TTS model identifier")
-    voice: str = Field(default="alloy", description="Voice identifier")
+    provider: str = Field(description="TTS provider (one of SUPPORTED_TTS_PROVIDERS)")
+    model: str = Field(description="TTS model identifier")
+    voice: str = Field(description="Voice identifier")
     speed: float = Field(
         default=1.0,
         ge=0.25,
@@ -66,14 +72,10 @@ class TTSConfig(BaseModel):
         le=20.0,
         description="Pitch adjustment in Hz (provider-dependent)",
     )
-    api_key: SecretStr | None = Field(
-        default=None, description="API key (protected from logging)"
-    )
+    api_key: SecretStr | None = Field(default=None, description="API key (protected from logging)")
     base_url: str | None = Field(default=None, description="Custom API base URL")
     timeout_seconds: int = Field(default=60, description="Request timeout in seconds")
-    max_retries: int = Field(
-        default=1, ge=0, le=3, description="Max retry attempts on failure"
-    )
+    max_retries: int = Field(default=1, ge=0, le=3, description="Max retry attempts on failure")
     gateway_config: ToolGatewayConfig | None = Field(
         default=None,
         description="Unified gateway configuration for proxying and billing",
@@ -81,7 +83,7 @@ class TTSConfig(BaseModel):
     media_callback: MediaCallback | None = Field(
         default=None,
         exclude=True,
-        description="Async callback for persisting generated audio",
+        description="Async callback that stores the generated audio and returns its stable reference",
     )
 
 
@@ -94,7 +96,7 @@ class TTSResult:
     provider: str
     model: str
     latency_ms: float = 0.0
-    persisted_url: str | None = None
+    persisted_ref: str | None = None
     duration_seconds: float | None = None
 
 

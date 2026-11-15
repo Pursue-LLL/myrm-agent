@@ -24,7 +24,7 @@ host application (Myrm server + frontend).
 │  Server: app/lifecycle/task_worker.py (store singleton)    │  Lifecycle wiring
 ├─────────────────────────────────────────────────────────────┤
 │  Harness: toolkits/llms/image/async_image_engine.py         │  Media enqueue adapter
-│  Harness: toolkits/llms/media_task_types.py                 │  Payload/result DTOs
+│  Harness: toolkits/llms/media_task_types.py                 │  Job type ids
 ├─────────────────────────────────────────────────────────────┤
 │  Harness: toolkits/tasks/                                   │  Framework queue (this module)
 │  (Task, TaskStatus, SQLiteTaskStore)                        │
@@ -142,7 +142,7 @@ from the caller.
 
 ## Extending task_type
 
-1. Add payload/result DTO in `toolkits/llms/media_task_types.py`
+1. Add the job type id in `toolkits/llms/media_task_types.py`
 2. Implement the worker's `TaskExecutor` protocol (`app/tasks/worker.py`) in host server (`app/tasks/executors/`)
 3. Register executor in `TaskWorker` — **queue layer unchanged**
 

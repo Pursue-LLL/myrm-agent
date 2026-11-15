@@ -15,7 +15,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.llms.video.providers import registry as registry_module
 
-_EXPECTED_IDS = {"openai", "gemini", "qwen", "minimax", "xai", "fal", "volcengine"}
+_EXPECTED_IDS = {"gemini", "qwen", "minimax", "xai", "fal", "volcengine"}
 
 
 @pytest.fixture(autouse=True)

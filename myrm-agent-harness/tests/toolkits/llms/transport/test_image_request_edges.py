@@ -14,11 +14,11 @@ _PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
 def test_a_gemini_image_model_given_an_unreadable_size_sends_no_image_config() -> None:
     route = service_route("gemini/gemini-3-pro-image-preview", api_key="k", api_base=None)
 
-    request = images._gemini_request(route, "a cat", "huge", 1, 30.0)
+    request = images._gemini_request(route, "a cat", "huge", 30.0)
 
     assert request.body == {
         "contents": [{"parts": [{"text": "a cat"}]}],
-        "generationConfig": {"response_modalities": ["IMAGE", "TEXT"], "candidateCount": 1},
+        "generationConfig": {"response_modalities": ["IMAGE", "TEXT"]},
     }
 
 
@@ -34,8 +34,8 @@ def test_a_stability_request_with_an_unreadable_size_and_no_key_names_neither_ra
 def _azure_versions() -> tuple[dict[str, str], dict[str, str]]:
     """The ``api-version`` query of a generation and of an edit sent to an Azure deployment."""
     route = service_route("azure/gpt-image-1", api_key="k", api_base="https://r.openai.azure.com")
-    generation = images._openai_generation(route, "a cat", "1024x1024", None, None, 1, 30.0)
-    edit = images._openai_edit(route, _PNG, "a cat", None, "1024x1024", 1, 30.0)
+    generation = images._openai_generation(route, "a cat", "1024x1024", None, 30.0)
+    edit = images._openai_edit(route, _PNG, "a cat", None, "1024x1024", 30.0)
     return dict(generation.query), dict(edit.query)
 
 

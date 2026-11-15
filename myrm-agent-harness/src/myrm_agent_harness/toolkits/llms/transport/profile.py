@@ -245,7 +245,7 @@ _UNSUPPORTED: Final = frozenset({"replicate"})
 
 # A model id without a provider segment: the family prefix names the first-party provider.
 _BARE_MODEL_PROVIDER: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
-    (re.compile(r"^(?:gpt-|o[1-9]|chatgpt-|codex|text-embedding-|dall-e|gpt-image)", re.IGNORECASE), "openai"),
+    (re.compile(r"^(?:gpt-|o[1-9]|chatgpt-|codex|text-embedding-|gpt-image)", re.IGNORECASE), "openai"),
     (re.compile(r"^claude", re.IGNORECASE), "anthropic"),
     (re.compile(r"^gemini", re.IGNORECASE), "gemini"),
 )

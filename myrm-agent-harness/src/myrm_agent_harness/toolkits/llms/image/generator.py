@@ -2,24 +2,23 @@
 
 [INPUT]
 - transport.images::{agenerate_images, aedit_images, GeneratedImage} (POS: provider image requests)
-- core.security.http.secure_fetch::secure_get (POS: SSRF-protected outbound HTTP for URL-based image downloads)
 - models::{ImageGenerationConfig, ImageResult, ...} (POS: configuration and result types)
+- types::{get_profile, editable_model_names} (POS: model capability lookup)
 
 [OUTPUT]
 - ImageGenerator: Core image generation and editing with failover, smart retry,
-  latency tracking, cancellation support, instance-level metrics,
-  reference image support, and exception-safe media persistence
-  (both b64 and URL download paths)
+  latency tracking, cancellation support, instance-level metrics, reference image
+  input and fail-closed media persistence
 
 [POS]
 Core image generation and editing engine. Calls the transport's image endpoints
-(DALL-E / GPT Image, Gemini Imagen, Stability AI, Together Flux, xAI, MiniMax,
-any OpenAI-compatible gateway) through one interface.
-Supports multi-model failover, reference image input (for style transfer and
-continuous editing), media storage decoupling via callback, SecretStr API key
+(GPT Image, Gemini Imagen, Stability AI, Together Flux, xAI, MiniMax,
+any OpenAI-compatible gateway) through one interface. One call produces one image.
+Supports multi-model failover, reference image input (bytes the caller already
+resolved), media storage decoupling via callback, SecretStr API key
 protection, error message truncation, instance-level call metrics, cancellation
-via asyncio.Event, and exception-safe media persistence that handles both
-b64_json and URL results.
+via asyncio.Event, and persistence that runs once on the final result: a generation whose
+image cannot be stored fails instead of returning an artifact nobody can reach.
 """
 
 from __future__ import annotations
@@ -27,8 +26,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable
-from typing import BinaryIO
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import replace
 
 import httpx
 
@@ -43,7 +42,7 @@ from .models import (
     MediaCallback,
     MediaMeta,
 )
-from .types import get_profile
+from .types import editable_model_names, get_profile
 
 __all__ = [
     "FailoverAttempt",
@@ -124,72 +123,47 @@ class ImageGenerator:
         *,
         size: str | None = None,
         quality: str | None = None,
-        style: str | None = None,
-        n: int = 1,
-        reference_image_urls: list[str] | None = None,
+        reference_images: Sequence[bytes] = (),
         cancellation_event: asyncio.Event | None = None,
-        allow_private_networks: bool = False,
     ) -> ImageResult:
-        """Generate an image from a text prompt with failover.
+        """Generate one image from a text prompt with failover.
 
         Args:
             prompt: Text description of the desired image.
-            size: Image dimensions (overrides config default).
-            quality: Image quality (overrides config default).
-            style: Style option (DALL-E 3: "vivid" or "natural").
-            n: Number of images to generate.
-            reference_image_urls: URLs of reference images for style transfer
-                or continuous editing. When the provider supports it
-                (e.g. Gemini multimodal, DALL-E edit), images are sent
-                natively; otherwise the URLs are appended to the prompt
-                as context for the model.
+            size: Image dimensions as WIDTHxHEIGHT (overrides the config default).
+            quality: Provider quality value; not sent when ``None`` so the provider applies its own default.
+            reference_images: Image bytes the result should follow (style transfer, continuing an earlier image).
+                They go through the provider's edit endpoint and only the first one is used; a model that
+                accepts no input images fails instead of generating without them.
             cancellation_event: Set this event to cancel generation.
 
         Returns:
-            ImageResult with URL or base64 data.
+            ImageResult with URL or base64 data, plus the stored reference when a media callback is configured.
 
         Raises:
-            ImageGenerationError: If generation fails across all models.
+            ImageGenerationError: If generation fails across all models, the model accepts no input images
+                while references were given, or the image cannot be stored.
         """
-        if reference_image_urls:
+        if reference_images:
             profile = get_profile(self._config.model)
-            # When active model is pure text-to-image (does not support edit/image input, e.g. DALL-E 3),
-            # avoid sending invalid edit requests or wasting bandwidth on binary downloads.
-            if profile and not profile.supports_edit and profile.max_input_images == 0:
-                logger.info(
-                    "Model %s does not support native edit/image inputs; appending reference URLs as prompt context",
-                    self._config.model,
+            if profile is not None and profile.max_input_images == 0:
+                raise ImageGenerationError(
+                    f"Model {self._config.model} does not accept input images. "
+                    f"Models that do: {', '.join(editable_model_names())}"
                 )
-                ref_context = f" (Reference: {', '.join(reference_image_urls)})"
-                if len(prompt) + len(ref_context) <= profile.max_prompt_length:
-                    prompt = f"{prompt}{ref_context}"
-            else:
-                ref_bytes = await _download_reference_images(
-                    reference_image_urls,
-                    allow_private_networks=allow_private_networks,
+            if len(reference_images) > 1:
+                logger.warning(
+                    "Only 1 reference image supported per generation, using first of %d",
+                    len(reference_images),
                 )
-                if ref_bytes:
-                    try:
-                        return await self._generate_with_references(
-                            prompt=prompt,
-                            ref_bytes=ref_bytes,
-                            size=size,
-                            n=n,
-                            cancellation_event=cancellation_event,
-                        )
-                    except ImageGenerationError as exc:
-                        logger.warning(
-                            "Native reference generation failed for %s (%s); falling back to text-guided generation",
-                            self._config.model,
-                            exc,
-                        )
-                        ref_context = f" (Reference: {', '.join(reference_image_urls)})"
-                        max_len = profile.max_prompt_length if profile else 4000
-                        if len(prompt) + len(ref_context) <= max_len:
-                            prompt = f"{prompt}{ref_context}"
+            return await self.edit(
+                reference_images[0],
+                prompt,
+                size=size,
+                cancellation_event=cancellation_event,
+            )
 
         effective_size = size or self._config.default_size
-        effective_quality = quality or self._config.default_quality
 
         async def call(model: str, bypass_gateway: bool) -> list[GeneratedImage]:
             api_key, api_base = self._credentials(bypass_gateway)
@@ -197,9 +171,7 @@ class ImageGenerator:
                 model,
                 prompt,
                 size=effective_size,
-                quality=effective_quality,
-                style=style,
-                n=n,
+                quality=quality,
                 api_key=api_key,
                 api_base=api_base,
                 timeout=self._config.timeout_seconds,
@@ -220,74 +192,40 @@ class ImageGenerator:
         api_key = self._config.api_key.get_secret_value() if self._config.api_key else None
         return api_key, self._config.base_url or None
 
-    async def _generate_with_references(
-        self,
-        prompt: str,
-        ref_bytes: list[bytes],
-        *,
-        size: str | None = None,
-        n: int = 1,
-        cancellation_event: asyncio.Event | None = None,
-    ) -> ImageResult:
-        """Generate using reference images via the edit API path.
-
-        Providers that support image editing (DALL-E 2, GPT-Image-1, etc.)
-        receive the first reference image as the source image. This provides
-        native reference image support across most providers without
-        provider-specific branching.
-        """
-        if len(ref_bytes) > 1:
-            logger.warning(
-                "Only 1 reference image supported per generation, using first of %d",
-                len(ref_bytes),
-            )
-        return await self.edit(
-            image=ref_bytes[0],
-            prompt=prompt,
-            size=size,
-            n=n,
-            cancellation_event=cancellation_event,
-        )
-
     async def edit(
         self,
-        image: bytes | BinaryIO,
+        image: bytes,
         prompt: str,
         *,
-        mask: bytes | BinaryIO | None = None,
+        mask: bytes | None = None,
         size: str | None = None,
-        n: int = 1,
         cancellation_event: asyncio.Event | None = None,
     ) -> ImageResult:
         """Edit an image based on a text prompt with failover.
 
         Args:
-            image: Source image data (PNG, < 4MB).
+            image: Source image data.
             prompt: Text description of the desired edit.
             mask: Optional mask image (transparent areas indicate edit regions).
             size: Output image dimensions (overrides config default).
-            n: Number of edited images to generate.
             cancellation_event: Set this event to cancel editing.
 
         Returns:
             ImageResult with URL or base64 data.
 
         Raises:
-            ImageGenerationError: If editing fails across all models.
+            ImageGenerationError: If editing fails across all models or the image cannot be stored.
         """
         effective_size = size or self._config.default_size
-        image_bytes = _to_bytes(image)
-        mask_bytes = _to_bytes(mask) if mask is not None else None
 
         async def call(model: str, bypass_gateway: bool) -> list[GeneratedImage]:
             api_key, api_base = self._credentials(bypass_gateway)
             return await aedit_images(
                 model,
-                image_bytes,
+                image,
                 prompt,
-                mask=mask_bytes,
+                mask=mask,
                 size=effective_size,
-                n=n,
                 api_key=api_key,
                 api_base=api_base,
                 timeout=self._config.timeout_seconds,
@@ -310,7 +248,7 @@ class ImageGenerator:
         size_label: str,
         cancellation_event: asyncio.Event | None,
     ) -> ImageResult:
-        """Try primary model, then each fallback in order."""
+        """Try primary model, then each fallback in order; store the winning image once."""
         models = [self._config.model, *self._config.fallback_models]
         attempts: list[FailoverAttempt] = []
         self._call_count += 1
@@ -324,19 +262,6 @@ class ImageGenerator:
                     size_label=size_label,
                     cancellation_event=cancellation_event,
                 )
-                result_with_attempts = ImageResult(
-                    url=result.url,
-                    b64_json=result.b64_json,
-                    revised_prompt=result.revised_prompt,
-                    model=result.model,
-                    latency_ms=result.latency_ms,
-                    persisted_url=result.persisted_url,
-                    mime_type=result.mime_type,
-                    attempts=attempts,
-                )
-                self._total_latency_ms += result.latency_ms
-                return result_with_attempts
-
             except ImageGenerationError as e:
                 attempts.append(
                     FailoverAttempt(
@@ -361,6 +286,10 @@ class ImageGenerator:
                     f"Attempts: {_safe_truncate(all_errors, 1000)}",
                     latency_ms=sum(a.latency_ms for a in attempts),
                 ) from e
+            else:
+                # Outside the try: a storage failure is not a model failure, so it never triggers a fallback model.
+                self._total_latency_ms += result.latency_ms
+                return await self._persist(replace(result, attempts=attempts))
 
         raise ImageGenerationError("No models configured")
 
@@ -392,27 +321,6 @@ class ImageGenerator:
                 elapsed_ms = (time.monotonic() - t0) * 1000
                 data = images[0]
 
-                result = ImageResult(
-                    url=data.url,
-                    b64_json=data.b64_json,
-                    revised_prompt=data.revised_prompt,
-                    model=model,
-                    latency_ms=elapsed_ms,
-                )
-
-                persist_result = await self._maybe_persist(result)
-                if persist_result:
-                    p_url, p_mime = persist_result
-                    result = ImageResult(
-                        url=result.url,
-                        b64_json=result.b64_json,
-                        revised_prompt=result.revised_prompt,
-                        model=model,
-                        latency_ms=elapsed_ms,
-                        persisted_url=p_url,
-                        mime_type=p_mime,
-                    )
-
                 logger.info(
                     "Image %s: model=%s size=%s elapsed=%.0fms",
                     operation,
@@ -420,7 +328,13 @@ class ImageGenerator:
                     size_label,
                     elapsed_ms,
                 )
-                return result
+                return ImageResult(
+                    url=data.url,
+                    b64_json=data.b64_json,
+                    revised_prompt=data.revised_prompt,
+                    model=model,
+                    latency_ms=elapsed_ms,
+                )
 
             except Exception as exc:
                 last_error = exc
@@ -467,86 +381,29 @@ class ImageGenerator:
 
     # -- Media persistence -------------------------------------------------
 
-    async def _maybe_persist(self, result: ImageResult) -> tuple[str, str] | None:
-        """Persist image via callback and return ``(persisted_url, mime_type)``.
+    async def _persist(self, result: ImageResult) -> ImageResult:
+        """Store the image through the media callback and attach its stable reference.
 
-        Handles both b64_json and URL results. Persistence failures are
-        logged but never propagate — the caller always gets the generation
-        result regardless of storage outcome.
+        Fail-closed: with a callback configured, an image that cannot be stored (no data, callback error, empty
+        reference) is a failed generation. Without one the result is returned as the provider gave it.
         """
-        if not self._config.media_callback:
-            return None
-
+        callback = self._config.media_callback
+        if callback is None:
+            return result
         try:
             pair = await result.to_bytes_with_mime()
             if pair is None:
-                return None
+                raise ValueError("the provider returned no downloadable image data")
             image_bytes, mime_type = pair
-            meta = MediaMeta(
-                prompt=result.revised_prompt,
-                model=result.model,
+            reference = await callback(
+                image_bytes, mime_type, MediaMeta(prompt=result.revised_prompt, model=result.model)
             )
-            url = await self._config.media_callback(image_bytes, mime_type, meta)
-            return (url, mime_type) if url else None
-        except Exception:
-            logger.warning(
-                "Image persistence failed for model=%s, result still returned",
-                result.model,
-                exc_info=True,
-            )
-            return None
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-_REF_DOWNLOAD_TIMEOUT_S = 30
-_REF_MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
-
-
-async def _download_reference_images(
-    urls: list[str],
-    *,
-    allow_private_networks: bool = False,
-) -> list[bytes]:
-    """Download reference images from URLs.
-
-    Silently skips URLs that fail (timeout, 4xx/5xx, oversized, SSRF blocked).
-    Returns empty list if all downloads fail.
-    """
-    from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
-    from myrm_agent_harness.core.security.http.secure_fetch import (
-        ContentTooLargeError,
-        secure_get,
-    )
-
-    results: list[bytes] = []
-    for url in urls:
-        try:
-            resp = await secure_get(
-                url,
-                timeout=_REF_DOWNLOAD_TIMEOUT_S,
-                enable_ssrf_shield=not allow_private_networks,
-                max_content_length=_REF_MAX_SIZE_BYTES,
-            )
-            resp.raise_for_status()
-            results.append(resp.content)
-        except ContentTooLargeError:
-            logger.warning(
-                "Reference image too large (cap %d), skipping: %s",
-                _REF_MAX_SIZE_BYTES,
-                url[:100],
-            )
-        except SSRFSecurityError as exc:
-            logger.warning("Reference image blocked by SSRF protection %s: %s", url[:100], exc)
-        except Exception as e:
-            logger.warning("Failed to download reference image %s: %s", url[:100], e)
-    return results
-
-
-def _to_bytes(data: bytes | BinaryIO) -> bytes:
-    """Materialise BinaryIO into bytes for safe reuse across failover retries."""
-    if isinstance(data, bytes):
-        return data
-    return data.read()
+            if not reference:
+                raise ValueError("the media callback returned an empty reference")
+        except Exception as exc:
+            self._error_count += 1
+            raise ImageGenerationError(
+                _safe_truncate(f"Failed to store the generated image: {exc}"),
+                latency_ms=result.latency_ms,
+            ) from exc
+        return replace(result, persisted_ref=reference, mime_type=mime_type)

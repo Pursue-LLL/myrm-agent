@@ -67,7 +67,7 @@ class VideoGenerationProvider(ABC):
     @property
     @abstractmethod
     def display_name(self) -> str:
-        """Human-readable display name (e.g. 'OpenAI Sora')."""
+        """Human-readable display name (e.g. 'Google Veo')."""
 
     @property
     @abstractmethod
