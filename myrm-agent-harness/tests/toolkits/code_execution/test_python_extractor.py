@@ -101,6 +101,40 @@ class TestExtractPythonFromBash:
         cmd = "cat <<'EOF' > conf.yaml\nfilters:\n  - name: a\nEOF"
         assert extract_python_from_bash(cmd) is None
 
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "cat > data.json <<'EOF'\n{\"a\": 1}\nEOF",
+            "cat > .env <<'EOF'\nPORT=8080\nWORKERS=4\nEOF",
+            "cat > settings.ini <<EOF\nDEBUG=True\nEOF",
+            "cat > notes.txt <<'EOF'\nhello\nworld\nEOF",
+            "cat > requirements.txt <<'EOF'\nnumpy\npandas\nEOF",
+            "cat <<'EOF' > cfg.json\n{\"k\": [1, 2]}\nEOF",
+            "cat > job.py.bak <<'EOF'\nprint(1)\nEOF",
+            "cd /workspace && cat > data.json <<'EOF'\n{\"a\": 1}\nEOF",
+        ],
+        ids=["json", "env", "ini", "txt", "requirements", "json-marker-first", "py-backup", "after-cd"],
+    )
+    def test_cat_heredoc_to_a_non_python_file_is_not_rewritten(self, command):
+        """Text that merely parses as Python (a dict, ``KEY=1``, bare words) must still be written as a file."""
+        assert extract_python_from_bash(command) is None
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "cat > job.py <<'EOF'\nprint(1)\nEOF",
+            "cat >job.py <<EOF\nprint(1)\nEOF",
+            "cat > 'job.py' <<'EOF'\nprint(1)\nEOF",
+            'cat > "job.py" <<EOF\nprint(1)\nEOF',
+            "cat <<'EOF' > job.py\nprint(1)\nEOF",
+            "cat <<'EOF' > 'job.py'\nprint(1)\nEOF\npython3 job.py",
+            "cd /workspace && cat > sub/job.py <<'EOF'\nprint(1)\nEOF",
+        ],
+        ids=["plain", "no-space", "single-quoted", "double-quoted", "marker-first", "marker-first-quoted", "after-cd"],
+    )
+    def test_cat_heredoc_to_a_python_file_is_extracted(self, command):
+        assert extract_python_from_bash(command) == "print(1)"
+
     def test_cat_heredoc_without_redirect_is_not_a_file_write(self):
         cmd = "cat <<EOF\nfrom skills.mcp_k8s_ops_skill import list_pods\nEOF"
         assert extract_python_from_bash(cmd) is None

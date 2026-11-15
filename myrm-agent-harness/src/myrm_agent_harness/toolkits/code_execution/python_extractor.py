@@ -34,7 +34,7 @@ def extract_python_from_bash(command: str) -> str | None:
     Supports (in priority order):
     1. ``python3 -c "..."`` / ``python3 -c '...'`` — quote-aware extraction
     2. ``python3 <<EOF ... EOF`` / ``python3 - <<EOF ... EOF`` — heredoc
-    3. ``cat > path <<EOF ... EOF`` / ``cat <<EOF > path ... EOF`` — shell heredoc file write wrappers,
+    3. ``cat > file.py <<EOF ... EOF`` / ``cat <<EOF > file.py ... EOF`` — heredoc writes of a Python script,
        alone or after ``cd ... &&``
     4. Raw Python containing ``from skills.`` / ``from tools.`` imports (non-shell)
 
@@ -304,11 +304,13 @@ _HEREDOC_RE = re.compile(
     re.DOTALL,
 )
 
-# A file-writing ``cat`` at the start of a line or of a ``&&`` / ``;`` step, with the redirect on either side of the
-# heredoc marker: ``cat > path <<EOF`` and ``cat <<EOF > path`` are the same command to the shell.
+# A ``cat`` that writes a ``.py`` file, at the start of a line or of a ``&&`` / ``;`` step, with the redirect on either
+# side of the heredoc marker: ``cat > job.py <<EOF`` and ``cat <<EOF > job.py`` are the same command to the shell.
+# Only a Python target is rewritten: any other file (JSON, ini, ``.env``, notes) is written by the shell verbatim, even
+# when its text happens to parse as Python.
 _CAT_HEREDOC_RES = tuple(
     re.compile(rf"(?:^|&&|;)[ \t]*cat\s+{shape}\s*\n(.+?)\n\1\b", re.DOTALL | re.MULTILINE)
-    for shape in (rf">\s*\S+\s+{_HEREDOC_OPEN}", rf"{_HEREDOC_OPEN}\s*>\s*\S+")
+    for shape in (rf">\s*\S+\.py['\"]?\s+{_HEREDOC_OPEN}", rf"{_HEREDOC_OPEN}\s*>\s*\S+\.py['\"]?(?=\s|$)")
 )
 
 _SHELL_WRAPPER_PREFIXES = (
@@ -375,11 +377,11 @@ def _extract_heredoc(command: str) -> str | None:
 
 
 def _extract_cat_heredoc(command: str) -> str | None:
-    """Extract Python body from ``cat > path << EOF ... EOF`` shell wrappers.
+    """Extract Python body from ``cat > file.py << EOF ... EOF`` shell wrappers.
 
-    Returns the body only when it parses as valid Python.  Non-Python heredocs
-    (e.g. writing YAML or shell config files) fall back to bash execution so the
-    file is written verbatim instead of being rejected by Python syntax checks.
+    Returns the body only when the target is a ``.py`` file and the body parses as valid Python.  Every other
+    heredoc write (a JSON or ini file, ``.env``, notes, YAML, a shell script) falls back to bash execution so the
+    file is written verbatim: running its text as Python would report success and leave no file behind.
     """
     for pattern in _CAT_HEREDOC_RES:
         match = pattern.search(command)
