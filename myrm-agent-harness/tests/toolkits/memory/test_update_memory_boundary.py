@@ -92,7 +92,7 @@ async def test_an_importance_a_rule_cannot_hold_is_reported_and_the_rest_of_the_
     new_manager: NewManager, manage: Manage
 ) -> None:
     manager = new_manager()
-    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT, trigger_keywords=["deploy"])
+    rule = await manager.add_rule(RULE_TRIGGER, RULE_TEXT)
 
     answer = await manage(
         manager,
@@ -104,7 +104,7 @@ async def test_an_importance_a_rule_cannot_hold_is_reported_and_the_rest_of_the_
     )
     kept = await manager.get_memory(rule.id)
     assert isinstance(kept, ProceduralMemory)
-    assert (kept.action, kept.trigger_keywords) == (RULE_REWORDED, ["deploy"])
+    assert (kept.trigger, kept.action) == (RULE_TRIGGER, RULE_REWORDED)
     assert kept.content == f"When: {RULE_TRIGGER} → Do: {RULE_REWORDED}"
 
 

@@ -121,8 +121,6 @@ def _model_item(raw: dict[str, object], *, content: str, bucket: str) -> dict[st
         item["tags"] = ["pasted_memory", "profile"]
         return item
     if bucket == BUCKET_PROCEDURAL:
-        trigger = str(raw.get("trigger", "")).strip()
-        item["trigger_keywords"] = [trigger] if trigger else ["pasted_memory"]
         item["tags"] = ["pasted_memory", "rule"]
         return item
     item["importance"] = _bounded_float(raw.get("importance"), default=0.7)

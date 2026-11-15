@@ -12,8 +12,9 @@
 
 [POS]
 Schema bootstrap for SQLiteRelationalStore. Stateless: every function operates on the given connection.
-Migrations only move forward: a ``priority`` column found on procedural_rules is dropped, so a build that still
-reads or writes that column can no longer read, create or update rules in a database this code has opened.
+Migrations only move forward: a ``priority`` or ``trigger_keywords`` column found on procedural_rules is dropped, so
+a build that still reads or writes either column can no longer read, create or update rules in a database this code
+has opened.
 """
 
 import aiosqlite
@@ -22,6 +23,10 @@ from myrm_agent_harness.toolkits.memory.relational._converters import now_iso
 from myrm_agent_harness.toolkits.memory.relational._exact_fact_store import init_exact_fact_tables
 
 _OPEN_PROPOSAL_INDEX = "idx_pending_open_proposal"
+
+# Columns older releases wrote on every rule and nothing read: rules are ordered by creation time and found by their
+# trigger and action text. A database that still has one gets it dropped when opened.
+_DEAD_RULE_COLUMNS = ("priority", "trigger_keywords")
 
 
 async def _table_exists(conn: aiosqlite.Connection, table_name: str) -> bool:
@@ -88,7 +93,6 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
                     trigger_text TEXT NOT NULL,
                     action_text TEXT NOT NULL,
                     is_active INTEGER NOT NULL DEFAULT 1,
-                    trigger_keywords TEXT,
                     source TEXT NOT NULL DEFAULT 'user_extracted',
                     metadata TEXT,
                     primary_namespace TEXT NOT NULL DEFAULT '',
@@ -106,11 +110,10 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
                 """
                 INSERT INTO procedural_rules (
                     id, user_id, content, trigger_text, action_text, is_active,
-                    trigger_keywords, source, metadata, primary_namespace, namespaces,
-                    created_at, updated_at
+                    source, metadata, primary_namespace, namespaces, created_at, updated_at
                 )
                 SELECT id, user_id, content, trigger_text, action_text, is_active,
-                       trigger_keywords, source, metadata, '', '[]', created_at, updated_at
+                       source, metadata, '', '[]', created_at, updated_at
                 FROM procedural_rules_legacy
             """
             )
@@ -132,9 +135,9 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             await conn.execute("ALTER TABLE procedural_rules ADD COLUMN is_user_locked INTEGER NOT NULL DEFAULT 0")
         if "expected_valid_days" not in rule_columns:
             await conn.execute("ALTER TABLE procedural_rules ADD COLUMN expected_valid_days INTEGER")
-        # procedural_rules has no priority column: rules are ordered by creation time, so a leftover column goes.
-        if "priority" in rule_columns:
-            await conn.execute("ALTER TABLE procedural_rules DROP COLUMN priority")
+        for dead_column in _DEAD_RULE_COLUMNS:
+            if dead_column in rule_columns:
+                await conn.execute(f"ALTER TABLE procedural_rules DROP COLUMN {dead_column}")
 
     if await _table_exists(conn, "pending_records"):
         pending_columns = await _table_columns(conn, "pending_records")
@@ -207,7 +210,6 @@ async def init_relational_schema(conn: aiosqlite.Connection) -> bool:
             trigger_text TEXT NOT NULL,
             action_text TEXT NOT NULL,
             is_active INTEGER NOT NULL DEFAULT 1,
-            trigger_keywords TEXT,
             source TEXT NOT NULL DEFAULT 'user_extracted',
             metadata TEXT,
             primary_namespace TEXT NOT NULL DEFAULT '',

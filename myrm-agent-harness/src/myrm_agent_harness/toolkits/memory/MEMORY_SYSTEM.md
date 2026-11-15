@@ -782,6 +782,8 @@ result = await extractor.extract(messages=messages)
 
 > 规则没有整数优先级：规则表、`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的参数、Markdown 导出行都不含这个字段，先后只由锁定与创建时间决定。库里还留有 `procedural_rules.priority` 列时，打开库会把它删掉（`relational/_schema.py`，只进不退：仍读写该列的旧版本能打开这个库，但读取、新建、修改规则都报缺少 `priority` 列）；导入时忽略导出文件里的 `priority` 字段。
 
+> 规则也没有触发关键词字段：规则表、`add_rule`、各导入器与导出行都不含它，规则靠触发文本与动作文本被找到（`search_rules` 匹配 `trigger_text` 与 `action_text`）。库里还留有 `procedural_rules.trigger_keywords` 列时，打开库会把它与 `priority` 一并删掉（只进不退：仍读写该列的旧版本能打开这个库，但读取、新建、修改规则都报缺少 `trigger_keywords` 列）；导入时忽略导出文件和审批队列里旧提案携带的 `trigger_keywords`，MCP `memory_store` 收到多余的 `rule_keywords` 参数时忽略它，规则照常存下。
+
 | 级别 | 来源 | 生命周期 |
 |------|------|---------|
 | CRITICAL | 用户显式确立 | 免 TTL 归档；参与 retention 评分时重要度不低于 0.95；不决定提示词里的去留（见上） |
