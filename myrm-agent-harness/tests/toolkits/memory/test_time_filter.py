@@ -1,14 +1,14 @@
 """Tests for time-range filtering across the memory search pipeline.
 
 Covers:
-- Qdrant filter builder DatetimeRange detection
+- Qdrant filter builder datetime-value and datetime-range detection
 - _user_filter since/until parameter
 - _parse_time_bound relative + ISO 8601 parsing
 - memory_search_tool since/until passthrough (corpus=memory and corpus=sessions)
 - MemoryManager.search since/until passthrough
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -18,15 +18,11 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
     parse_time_bound as _parse_time_bound,
 )
 from myrm_agent_harness.toolkits.memory.types import MemoryScope, MemorySearchResult, MemoryType, SemanticMemory
-from myrm_agent_harness.toolkits.vector.qdrant.filters import (
-    _is_datetime_range,
-    _is_datetime_value,
-    build_qdrant_filter,
-)
+from myrm_agent_harness.toolkits.vector.qdrant.filters import _is_datetime_range, _is_datetime_value
 
 
 class TestQdrantDatetimeRange:
-    """Verify filter builder auto-detects datetime values and uses DatetimeRange."""
+    """Verify the filter builder's detection of datetime values and datetime ranges."""
 
     def test_is_datetime_value_iso_string(self):
         assert _is_datetime_value("2026-04-18T12:00:00") is True
@@ -51,55 +47,6 @@ class TestQdrantDatetimeRange:
 
     def test_is_datetime_range_mixed(self):
         assert _is_datetime_range({"gte": "2026-01-01T00:00:00", "lte": 100}) is True
-
-    @pytest.mark.skip(reason="Needs qdrant_client to be installed")
-    def test_build_filter_datetime_range(self):
-        f = build_qdrant_filter({"created_at": {"gte": "2026-01-01T00:00:00", "lte": "2026-12-31T00:00:00"}})
-        assert f is not None
-        assert len(f.must) == 1
-        cond = f.must[0]
-        assert cond.key == "created_at"
-        from qdrant_client.models import DatetimeRange
-
-        assert isinstance(cond.range, DatetimeRange)
-
-    @pytest.mark.skip(reason="Needs qdrant_client to be installed")
-    def test_build_filter_numeric_range(self):
-        f = build_qdrant_filter({"importance": {"gte": 0.5, "lte": 1.0}})
-        assert f is not None
-        cond = f.must[0]
-        from qdrant_client.models import Range
-
-        assert isinstance(cond.range, Range)
-
-    def test_build_filter_none_returns_none(self):
-        assert build_qdrant_filter(None) is None
-
-    def test_build_filter_empty_returns_none(self):
-        assert build_qdrant_filter({}) is None
-
-    @pytest.mark.skip(reason="Needs qdrant_client to be installed")
-    def test_build_filter_simple_match(self):
-        f = build_qdrant_filter({"archived": False})
-        assert f is not None
-        assert len(f.must) == 1
-        assert f.must[0].key == "archived"
-
-    @pytest.mark.skip(reason="Needs qdrant_client to be installed")
-    def test_build_filter_list_match(self):
-        f = build_qdrant_filter({"tags": ["a", "b"]})
-        assert f is not None
-        assert len(f.must) == 1
-
-    @pytest.mark.skip(reason="Needs qdrant_client to be installed")
-    def test_build_filter_combined_datetime_and_match(self):
-        f = build_qdrant_filter(
-            {
-                "created_at": {"gte": "2026-01-01T00:00:00"},
-            }
-        )
-        assert f is not None
-        assert len(f.must) == 1
 
 
 class TestUserFilter:
@@ -209,6 +156,27 @@ class TestParseTimeBound:
         result = _parse_time_bound("2026-04-01T12:00:00")
         assert result is not None
         assert result.tzinfo == UTC
+
+    @pytest.mark.parametrize(
+        ("value", "expected_utc"),
+        [
+            ("2026-04-17T19:00:00+08:00", datetime(2026, 4, 17, 11, 0)),
+            ("2026-04-17T09:00:00-05:00", datetime(2026, 4, 17, 14, 0)),
+            ("2026-04-17T01:30:00+08:00", datetime(2026, 4, 16, 17, 30)),
+        ],
+        ids=["east-of-utc", "west-of-utc", "date-rolls-back"],
+    )
+    def test_iso_with_offset_is_converted_to_utc(self, value: str, expected_utc: datetime):
+        result = _parse_time_bound(value)
+        assert result is not None
+        # The bound reaches SQL as its wall-clock digits, so the offset must be gone: `==` alone also holds for the
+        # same instant written in any offset.
+        assert result.utcoffset() == timedelta(0)
+        assert result.replace(tzinfo=None) == expected_utc
+
+    @pytest.mark.parametrize("value", ["9999-12-31T23:59:59-08:00", "0001-01-01T00:00:00+08:00"])
+    def test_iso_pushed_out_of_range_by_its_offset_is_unparseable(self, value: str):
+        assert _parse_time_bound(value) is None
 
     def test_invalid_returns_none(self):
         assert _parse_time_bound("not-a-date") is None

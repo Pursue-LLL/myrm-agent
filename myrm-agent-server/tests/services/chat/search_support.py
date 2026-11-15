@@ -8,10 +8,13 @@ from app.database.models import Chat, Message
 from app.database.repositories.conversation_recall import ConversationRecallRepository
 
 
-async def seed_chat_and_messages(db: AsyncSession, *, last_sent_at: datetime | None = None) -> str:
+async def seed_chat_and_messages(
+    db: AsyncSession, *, created_at: datetime | None = None, last_sent_at: datetime | None = None
+) -> str:
     """Insert a chat with several messages for search tests.
 
-    ``last_sent_at`` is when the last message was sent; by default it goes out with the others.
+    ``created_at`` is when the chat row was created, by default when the test runs. ``last_sent_at`` is when the last
+    message was sent; by default it goes out with the others.
     """
     chat_id = "chat-search-test-1"
     chat = Chat(
@@ -19,6 +22,8 @@ async def seed_chat_and_messages(db: AsyncSession, *, last_sent_at: datetime | N
         title="Docker deployment discussion",
         action_mode="agent",
     )
+    if created_at is not None:
+        chat.created_at = created_at
     db.add(chat)
 
     now = datetime(2026, 4, 17, 12, 0, 0, tzinfo=timezone.utc)

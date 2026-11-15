@@ -69,9 +69,9 @@ def parse_time_bound(value: str | None) -> datetime | None:
     try:
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except ValueError:
+            return dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC)
+    except (ValueError, OverflowError):
         return None
 
 
