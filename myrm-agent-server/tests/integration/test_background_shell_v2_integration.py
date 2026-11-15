@@ -71,7 +71,7 @@ def _session_config(chat_id: str, tmp_path: Path) -> dict[str, object]:
 _EVENT_WAIT_S = 30.0
 
 # The child prints one line and then stays silent until the test creates the gate file, so the test decides when it
-# exits instead of racing a sleep; the deadline only keeps a child from outliving an aborted test run.
+# exits; the deadline only keeps a child from outliving an aborted test run.
 _TICKER_SCRIPT = """\
 import pathlib
 import sys
