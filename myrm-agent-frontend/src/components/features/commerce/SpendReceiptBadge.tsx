@@ -7,11 +7,10 @@
  * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
- * SpendReceiptBadge: 精致的微扣款收据小芯片，展示自主支付记录与防篡改验证标识
+ * SpendReceiptBadge: 账本流水状态小芯片，展示商户、金额、状态与条目哈希记录标识
  *
  * [POS]
- * Presentation chip rendered inside agent message blocks or tool outputs when autonomous
- * micro-payments occur.
+ * Presentation chip for one spending-gate ledger entry, rendered in the settings ledger table.
  */
 
 import React, { memo } from 'react';

@@ -3,7 +3,7 @@
  * @/lib/api::apiRequest (POS: HTTP client wrapper)
  *
  * [OUTPUT]
- * Autonomous Agentic Commerce Budget and Spending Ledger APIs.
+ * Spending limit gate APIs: budget status and config, emergency freeze, and ledger entries.
  *
  * [POS]
  * Frontend commerce budget client service. Interacts with /api/v1/commerce/spending.

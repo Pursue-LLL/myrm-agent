@@ -1,4 +1,4 @@
-"""Commerce Budget Service for Autonomous Agent Spending.
+"""Commerce Budget Service for the spending limit gate.
 
 [INPUT]
 - myrm_agent_harness.core.security.spend.spend_governor::SpendGovernor, SpendGovernorConfig
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 class CommerceBudgetConfigDTO(BaseModel):
-    """Configuration payload for autonomous commerce spending limits."""
+    """Configuration payload for commerce spending limits."""
 
     daily_cap_cents: int = Field(default=1000, ge=10, le=100000, description="Daily limit in USD Cents")
     per_action_cap_cents: int = Field(default=200, ge=10, le=5000, description="Per-action limit in USD Cents")
@@ -60,7 +60,7 @@ class CommerceBudgetConfigDTO(BaseModel):
 
 
 class CommerceBudgetStatusDTO(BaseModel):
-    """Live status and real-time metrics for autonomous commerce budget."""
+    """Live status and real-time metrics for the commerce spending budget."""
 
     daily_cap_cents: int
     per_action_cap_cents: int
@@ -87,7 +87,7 @@ class PreAuthResultDTO(BaseModel):
 
 
 class VirtualCardVoucherDTO(BaseModel):
-    """One-time isolated virtual card token binding for autonomous purchases."""
+    """In-memory one-time voucher record bound to a merchant domain and amount cap (no card is issued)."""
 
     voucher_id: str
     merchant_domain: str
@@ -260,7 +260,7 @@ class CommerceBudgetService:
         ttl_seconds: int = 300,
         session_id: str = "",
     ) -> dict[str, object]:
-        """Issue an isolated one-time virtual card voucher with bounded amount and merchant."""
+        """Create an in-memory one-time voucher backed by a pre-authorized lease (no card is issued)."""
         with self._lock:
             pre_auth = self.pre_authorize_spend(
                 merchant_domain=merchant_domain,
