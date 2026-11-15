@@ -3,6 +3,7 @@
 [INPUT]
 - model identifier, base_url, llm_kwargs dictionary
 - reasoning_route::resolve_reasoning_route (POS: provider-aware identity of a model call for reasoning-parameter rules)
+- reasoning_profile::DISABLED_EFFORT_VALUES / HEAVY_EFFORT_VALUES (POS: the spellings of 'no reasoning' and of 'high or stronger')
 
 [OUTPUT]
 - is_openai_model(): whether the call reaches an OpenAI model (first-party endpoint, Azure, or an OpenAI model id
@@ -31,6 +32,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from myrm_agent_harness.toolkits.llms.core.reasoning_profile import DISABLED_EFFORT_VALUES, HEAVY_EFFORT_VALUES
 from myrm_agent_harness.toolkits.llms.core.reasoning_route import resolve_reasoning_route
 
 logger = logging.getLogger(__name__)
@@ -49,8 +51,6 @@ _OPENAI_REASONING_SUBSTRINGS: tuple[str, ...] = (
 
 _LOW_VALUES: frozenset[str] = frozenset({"low", "minimal", "min"})
 _MEDIUM_VALUES: frozenset[str] = frozenset({"medium", "standard", "normal", "balanced"})
-_HIGH_VALUES: frozenset[str] = frozenset({"high", "max", "xhigh", "ultra"})
-_OFF_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
 
 
 def is_openai_model(
@@ -123,7 +123,7 @@ def apply_openai_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) -> Non
     # Case 2: Reasoning model (o1, o3, gpt-5) -> Remap to valid enum ('low', 'medium', 'high')
     norm_val = str(raw_effort).strip().lower()
 
-    if norm_val in _OFF_VALUES:
+    if norm_val in DISABLED_EFFORT_VALUES:
         llm_kwargs.pop("reasoning_effort", None)
         if isinstance(extra_body, dict):
             extra_body.pop("reasoning_effort", None)
@@ -137,7 +137,7 @@ def apply_openai_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) -> Non
         mapped_effort = "low"
     elif norm_val in _MEDIUM_VALUES:
         mapped_effort = "medium"
-    elif norm_val in _HIGH_VALUES:
+    elif norm_val in HEAVY_EFFORT_VALUES:
         mapped_effort = "high"
     else:
         # Fallback to provider default if value is unrecognized
