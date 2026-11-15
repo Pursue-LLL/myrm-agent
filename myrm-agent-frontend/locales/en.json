@@ -19157,7 +19157,6 @@
     "currentSearchService": "Current Search Service",
     "builtInDefault": "Local",
     "searxngFreeLocal": "SearXNG (Free Local)",
-    "duckduckgoFree": "DuckDuckGo (Free Cloud)",
     "modelPlaceholder": "provider/model (e.g., openai/gpt-4, anthropic/claude-3-opus-20240229)",
     "apiKeyPlaceholder": "Enter your API key",
     "baseUrlPlaceholder": "Provider API URL or custom URL (built-in common provider URLs don't need to be filled in)",

@@ -19157,7 +19157,6 @@
     "currentSearchService": "현재 검색 서비스",
     "builtInDefault": "로컬",
     "searxngFreeLocal": "SearXNG (무료 로컬)",
-    "duckduckgoFree": "DuckDuckGo (무료 클라우드)",
     "modelPlaceholder": "provider/model (예: openai/gpt-4, anthropic/claude-3-opus-20240229)",
     "apiKeyPlaceholder": "API 키를 입력하세요",
     "baseUrlPlaceholder": "공급자 API URL 또는 커스텀 URL (일반 공급자 URL은 입력할 필요 없음)",

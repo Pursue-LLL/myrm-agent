@@ -19157,7 +19157,6 @@
     "currentSearchService": "Aktueller Suchdienst",
     "builtInDefault": "Lokal",
     "searxngFreeLocal": "SearXNG (kostenlos lokal)",
-    "duckduckgoFree": "DuckDuckGo (Kostenlose Cloud)",
     "modelPlaceholder": "Anbieter/Modell (z. B. openai/gpt-4, anthropic/claude-3-opus-20240229)",
     "apiKeyPlaceholder": "Geben Sie Ihren API-Schlüssel ein",
     "baseUrlPlaceholder": "Anbieter API URL oder benutzerdefinierte URL (integrierte allgemeine Anbieter-URLs müssen nicht ausgefüllt werden)",

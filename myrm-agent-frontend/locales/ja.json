@@ -19157,7 +19157,6 @@
     "currentSearchService": "現在検索サービス",
     "builtInDefault": "ローカル",
     "searxngFreeLocal": "SearXNG（無料ローカル）",
-    "duckduckgoFree": "DuckDuckGo（無料クラウド）",
     "modelPlaceholder": "プロバイダー/モデル名（例：openai/gpt-4, anthropic/claude-3-opus-20240229）",
     "apiKeyPlaceholder": "APIキーを入力してください",
     "baseUrlPlaceholder": "プロバイダーの API URL またはカスタム URL（組み込みの一般的なプロバイダー URL は入力不要）",

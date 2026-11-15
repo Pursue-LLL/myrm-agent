@@ -19157,7 +19157,6 @@
     "currentSearchService": "當前搜尋服務",
     "builtInDefault": "本地",
     "searxngFreeLocal": "SearXNG（免費本地）",
-    "duckduckgoFree": "DuckDuckGo（免費雲端）",
     "modelPlaceholder": "提供商/模型名（如：openai/gpt-4, anthropic/claude-3-opus-20240229）",
     "apiKeyPlaceholder": "輸入您的 API 金鑰",
     "baseUrlPlaceholder": "提供商的API地址或自定義地址 (內建常見提供商地址無需填寫)",
