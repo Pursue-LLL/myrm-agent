@@ -119,7 +119,7 @@ PTC（程序化工具调用）
 `CodeExecutor` 的本地实现，直接在当前进程环境中执行代码：
 
 - **Python 执行**：每次调用创建独立子进程，通过 wrapper script 注入模块黑名单。内置 **Actionable Diagnostic Hints** 机制，拦截 `ModuleNotFoundError` 并追加 `python -m pip install` 修复建议，引导大模型自主纠错（`skills` 是虚拟命名空间而不是可安装的包，其错误改给出调用技能的正确写法）。
-- **Bash 执行**：通过 `PersistentSession` 维护长驻 Bash 进程，`export` 的变量和工作目录跨命令保持（凭证除外：按命令注入并在命令后清除）
+- **Bash 执行**：通过 `PersistentSession` 维护长驻 Bash 进程；直接进入该进程的命令（如单行 `cd`、`export`）留下的变量和工作目录跨命令保持（凭证除外：按命令注入并在命令后清除）。bash 工具发出的非 Python 命令都先被拼上近三百行的注入头（`scripts/resilience_init.sh`），行数超过脚本装甲的直通上限（`max_direct_lines`），所以每条命令都被落盘成脚本、交给子 bash 执行：这条路径上 `cd`、`export`、函数定义不会带到下一次调用，工具描述据此对模型说「不保证跨调用保留」
 - **文件操作**：直接使用 `pathlib` 本地 IO，零网络开销
 - **授权目录与 shell**：bash 与后台进程仅在 OS 沙箱生效时（Seatbelt / bwrap / AppContainer；容器内 AUTO 模式不启用沙箱）可以使用授权目录：可读写目录并入沙箱可写路径，只读目录只加入可读路径，授权目录里的 `.git/config` 与 `.git/hooks` 仍只读；命令校验器只在沙箱生效时对这些目录放行路径检查，没有沙箱时仍拒绝点名授权目录的命令。常驻 shell 的沙箱在启动时固定，授权集合变化会换用新的 shell（会话键带授权签名）并关闭旧的，旧 shell 的工作目录与环境变量不保留。只认 `declared` 与 `session` 根。Python 脚本走自己的审计钩子，写入只限工作区与临时目录，因此无法写入授权目录。钩子判断「在工作区或临时目录里」按完整的路径段比较：与工作区同名前缀的同级目录（`/work` 与 `/work-evil`）在外面。
 - **文件操作边界**：原生文件操作的边界是工作区加上用户在本会话批准的目录（`executors/granted_roots.py` 读取与权限引擎同一份 `AccessGrants`：声明根、本会话记住的目录与批准当次调用打开的目录）；边界之外的路径一律拒绝，只读授权的目录拒绝写、删和 `mkdir`。容器内的 `/workspace/...` 路径别名统一由 `WorkspacePathResolver.container_relative` 解析成工作区相对路径；读取 `.gz` 文件时解压结果上限为 `MAX_GUNZIP_BYTES`（64 MiB），超出即拒绝，避免几 KB 的压缩包展开成数 GB。
@@ -216,7 +216,7 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 | 维度 | Agent-in-Sandbox（本模块） | Agent-outside-Sandbox |
 |------|---------------------------|----------------------|
 | **执行延迟** | 本地子进程，微秒级 | Docker exec / SSH，毫秒级 |
-| **会话状态** | PersistentSession 跨命令保持 | 每次 spawn 新进程，状态丢失 |
+| **会话状态** | PersistentSession 对直接进入它的命令跨命令保持；bash 工具发出的命令不保证（见「Bash 执行」） | 每次 spawn 新进程，状态丢失 |
 | **文件操作** | 直接 pathlib IO | 需要 FsBridge 抽象层 |
 | **流式输出** | 逐行实时 | 等命令结束后一次性返回 |
 | **安全深度** | 5 层纵深防御 | 仅 Docker 配置级 |
