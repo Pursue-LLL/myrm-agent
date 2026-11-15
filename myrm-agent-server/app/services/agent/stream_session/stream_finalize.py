@@ -7,6 +7,7 @@
 - app.services.agent.stream_session.turn_end (POS: compaction drain, run digest close and lifecycle event, shared with the end of a timer-resumed turn)
 - app.services.agent.stream_session.turn_capability_terminal (POS: records the completed or failed terminal state of a turn that carries capability telemetry)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle, unregistered when the turn ends)
+- myrm_agent_harness.agent.streaming.interrupt_events::INTERRUPT_ID_KEY (POS: key under which a stored card remembers the pause it was announced for)
 
 [OUTPUT]
 - finalize_agent_stream_session: persist the turn, record its terminal state, arm the HITL timeout of a pending interrupt and release the turn's session state
@@ -22,6 +23,7 @@ import logging
 from contextvars import Token
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.agent.streaming.interrupt_events import INTERRUPT_ID_KEY
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 from myrm_agent_harness.core.security.types import EphemeralUserCredential, user_credentials_ctx
 from myrm_agent_harness.utils.runtime.cancellation import (
@@ -71,25 +73,29 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _collector_has_unanswered_clarification(session: AgentStreamSession) -> bool:
+def _unanswered_clarification(session: AgentStreamSession) -> dict[str, object] | None:
+    """The clarification card the turn's collector holds while nobody has answered it."""
     extra = session.collector.extra_data
     if not isinstance(extra, dict):
-        return False
+        return None
     clarification = extra.get("clarification")
-    if not isinstance(clarification, dict):
-        return False
-    return clarification.get("answered") is False
+    if not isinstance(clarification, dict) or clarification.get("answered") is not False:
+        return None
+    return clarification
 
 
-def _clarification_timeout_needed(
-    session: AgentStreamSession,
-    clarification: ClarificationTimeoutHolder,
-) -> bool:
+def _pending_clarification_interrupt_id(session: AgentStreamSession) -> str | None:
+    """The id of the pause the unanswered card was announced for; None when the card carries no usable id."""
+    card = _unanswered_clarification(session)
+    interrupt_id = card.get(INTERRUPT_ID_KEY) if card else None
+    return interrupt_id if isinstance(interrupt_id, str) and interrupt_id else None
+
+
+def _stopped_at_clarification(session: AgentStreamSession, clarification: ClarificationTimeoutHolder) -> bool:
+    """Whether the turn ends at a clarification card nobody has answered."""
     if clarification.pending:
         return True
-    if session.request.chat_id is None:
-        return False
-    return _collector_has_unanswered_clarification(session)
+    return session.request.chat_id is not None and _unanswered_clarification(session) is not None
 
 
 async def _settle_session_draft(session: AgentStreamSession) -> PendingSessionDraft | None:
@@ -205,18 +211,14 @@ async def _clear_turn_marker(session: AgentStreamSession) -> None:
             logger.debug("Turn marker cleanup skipped: %s", marker_exc)
 
 
-def _arm_pending_interrupt_timeout(
-    session: AgentStreamSession,
-    approval: ApprovalTimeoutHolder,
-    clarification_pending: bool,
-) -> None:
+def _arm_pending_interrupt_timeout(session: AgentStreamSession, approval: ApprovalTimeoutHolder) -> None:
     """Arm the timer of the interrupt the turn stopped at, or reopen one that has none."""
     if session.request.chat_id:
         arm_interrupt_timeout(
             session.request.chat_id,
             session.params,
             approval_timeout=approval.value,
-            clarification_pending=clarification_pending,
+            clarification_interrupt_id=_pending_clarification_interrupt_id(session),
             awaiting_answer=session.collector.has_pending_hitl_replay(),
         )
 
@@ -286,17 +288,13 @@ async def finalize_agent_stream_session(
         live_readiness_status=session.migration_live_readiness_status,
     )
 
-    clarification_sched_needed = _clarification_timeout_needed(session, clarification)
+    stopped_at_clarification = _stopped_at_clarification(session, clarification)
 
-    _arm_pending_interrupt_timeout(session, approval, clarification_sched_needed)
+    _arm_pending_interrupt_timeout(session, approval)
     schedule_compaction_drain(session.request.chat_id)
     _release_turn_state(session)
 
-    pending_hitl = bool(
-        clarification_sched_needed
-        or (approval.value and not clarification_sched_needed)
-        or session.collector.has_pending_hitl_replay()
-    )
+    pending_hitl = bool(stopped_at_clarification or approval.value or session.collector.has_pending_hitl_replay())
     await commit_turn_history_sync(session, pending_hitl=pending_hitl)
     if not pending_hitl:
         await _record_turn_capability_terminal(session)

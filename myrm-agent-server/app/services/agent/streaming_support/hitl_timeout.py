@@ -13,9 +13,9 @@
 - app.services.agent.stream_session.stream_finalize::assistant_turn_payload (POS: the stored form of a turn's answer, imported lazily)
 
 [OUTPUT]
-- CLARIFICATION_TIMEOUT_SECONDS / CLARIFICATION_NO_ANSWER_RESUME_VALUE: ask_question timeout and its empty answer
+- CLARIFICATION_TIMEOUT_SECONDS: how long an ask_question card waits before it is skipped
 - arm_interrupt_timeout: arm the timer of the interrupt a run stopped at, or reopen one that has no timer
-- schedule_approval_timeout / schedule_clarification_timeout: arm one interrupt kind
+- schedule_approval_timeout / schedule_clarification_timeout: arm one interrupt kind; a clarification timer skips the card it names
 - HitlAnswerRecord / hitl_answer_record: who settled a card (the user or the timeout default) and the answer that settled it,
   without the id the answer was addressed to
 - mark_pending_clarification_answered: flip the stored card to answered and keep the record on it (best effort)
@@ -26,8 +26,9 @@ timeout decision. The resumed run takes the chat under a server turn lease like 
 yields to a run that is already live and the chat Stop button and the emergency stop reach it. It also takes the chat's
 collector from the run parked at the answered card, as a page-driven resume does: a page that reloads meanwhile attaches
 to the resumed run, and the next card the run stops at is held by that run, where a reload and the turn state find it.
-When it stops at the next interrupt it arms that interrupt's timer; an interrupt without a timer is reopened so its
-manual answer is not refused as already resolved. When it ends without another interrupt it ends the turn the way a
+When it stops at another approval it arms that approval's timer. Any other interrupt is reopened so its manual answer is
+not refused as already resolved: that includes a clarification, because a run an expired timer resumed never starts
+another silent countdown for a question. When it ends without another interrupt it ends the turn the way a
 request's finalize does: it stores the answer through the same builder, records the thread as in sync with the chat,
 closes the run digest, announces the outcome to the lifecycle webhooks and gives the chat's collector up.
 """
@@ -48,11 +49,7 @@ from app.services.agent.context_compaction_telemetry import enqueue_context_comp
 from app.services.agent.gateway import AgentBusyError, AgentDrainingError
 from app.services.agent.stream_session.turn_end import close_run_digest, schedule_compaction_drain
 from app.services.agent.stream_session.turn_history_sync import commit_run_history_sync
-from app.services.agent.streaming_support.sse_helpers import (
-    clear_context_task_metrics,
-    extract_approval_timeout,
-    extract_clarification_required,
-)
+from app.services.agent.streaming_support.sse_helpers import clear_context_task_metrics, extract_approval_timeout
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.agent.turn_lease import server_turn_lease
 
@@ -76,11 +73,8 @@ def hitl_answer_record(by: Literal["user", "timeout"], resume_value: dict[str, o
     return {"by": by, "value": {key: value for key, value in resume_value.items() if key != INTERRUPT_ID_KEY}}
 
 
-# Web structured clarify: auto-resume when user leaves the form open (900 s).
+# A clarification card nobody answers within this time is skipped and the agent continues on its best judgment.
 CLARIFICATION_TIMEOUT_SECONDS = 900.0
-
-# Empty dict is falsy in _on_ask_question and triggers best-judgment continuation.
-CLARIFICATION_NO_ANSWER_RESUME_VALUE: dict[str, object] = {}
 
 _DEFAULT_APPROVAL_TIMEOUT_SECONDS = 300.0
 
@@ -131,15 +125,18 @@ def schedule_approval_timeout(
     )
 
 
-def schedule_clarification_timeout(chat_id: str, params: GeneralAgentParams) -> None:
-    """Register a backend timeout guard for a pending ask_question interrupt."""
+def schedule_clarification_timeout(chat_id: str, params: GeneralAgentParams, interrupt_id: str) -> None:
+    """Register a backend timeout guard that skips the pending ask_question card announced for ``interrupt_id``.
+
+    The skip is an empty answer addressed to that pause: an unaddressed empty answer reaches no pause at all.
+    """
     _arm(
         chat_id,
         params,
         "clarification",
         timeout_seconds=CLARIFICATION_TIMEOUT_SECONDS,
         behavior="deny",
-        resume_value_override=CLARIFICATION_NO_ANSWER_RESUME_VALUE,
+        resume_value_override={INTERRUPT_ID_KEY: interrupt_id},
     )
 
 
@@ -148,16 +145,16 @@ def arm_interrupt_timeout(
     params: GeneralAgentParams,
     *,
     approval_timeout: dict[str, object] | None,
-    clarification_pending: bool,
+    clarification_interrupt_id: str | None,
     awaiting_answer: bool,
 ) -> None:
-    """Arm the timer of the interrupt a run stopped at.
+    """Arm the timer of the interrupt a run stopped at; ``clarification_interrupt_id`` names the card it would skip.
 
-    An interrupt that carries no timer (plan confirmation, browser takeover) is reopened instead, so its
-    manual answer is not refused as already resolved by an earlier interrupt of the same chat.
+    An interrupt that carries no timer (plan confirmation, browser takeover, a clarification card without an id) is
+    reopened instead, so its manual answer is not refused as already resolved by an earlier interrupt of the same chat.
     """
-    if clarification_pending:
-        schedule_clarification_timeout(chat_id, params)
+    if clarification_interrupt_id:
+        schedule_clarification_timeout(chat_id, params, clarification_interrupt_id)
     elif approval_timeout:
         schedule_approval_timeout(chat_id, approval_timeout, params)
     elif awaiting_answer:
@@ -232,7 +229,6 @@ async def _resume_after_timeout(
     collector = StreamContentCollector()
     extra_context: dict[str, object] = {}
     next_approval_timeout: dict[str, object] | None = None
-    clarification_pending = False
     parked_run: StreamContentCollector | None = None
     phase = RunDigestPhase.COMPLETED
     turn_over = False
@@ -257,7 +253,6 @@ async def _resume_after_timeout(
                     )
                     collector.feed_sse(sse_line)
                     next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
-                    clarification_pending = clarification_pending or extract_clarification_required(sse_line)
                 if cancel_token.is_cancelled:
                     phase = RunDigestPhase.CANCELLED
                     # A request's stream loop turns a stopped run into this event; it is what stores the turn as stopped with
@@ -301,12 +296,13 @@ async def _resume_after_timeout(
                     request_message_id=resume_params.message_id,
                 )
         finally:
-            # The run already stopped: whatever the bookkeeping above did, the next interrupt must stay answerable.
+            # The run already stopped: whatever the bookkeeping above did, the next interrupt must stay answerable. A question
+            # it stops at waits for the user: a timer that skips one question must not chain into skipping the next.
             arm_interrupt_timeout(
                 chat_id,
                 resume_params,
                 approval_timeout=next_approval_timeout,
-                clarification_pending=clarification_pending,
+                clarification_interrupt_id=None,
                 awaiting_answer=collector.has_pending_hitl_replay(),
             )
     finally:

@@ -56,7 +56,27 @@ async def test_a_timer_run_that_stops_at_another_card_arms_the_timer_of_that_car
     assert armed_timer.call_args.args[1] is received_params[0]
     assert armed_timer.call_args.kwargs == {
         "approval_timeout": {"seconds": 45, "behavior": "allow"},
-        "clarification_pending": False,
+        "clarification_interrupt_id": None,
+        "awaiting_answer": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_a_timer_run_that_stops_at_a_clarification_arms_no_countdown_for_it(
+    parked: StreamContentCollector,
+    resumed_run: list[bool],
+    stops_at_a_clarification: list[bool],
+    armed_timer: MagicMock,
+) -> None:
+    """The user has not been heard from, so the run's next question waits for them instead of being skipped on a timer too."""
+    stops_at_a_clarification.append(True)
+    with patch.object(hitl_timeout, "server_turn_lease", granted_lease):
+        await hitl_timeout._resume_after_timeout(CHAT_ID, params_of_the_card(), {"decision": "allow"}, "approval")
+
+    armed_timer.assert_called_once()
+    assert armed_timer.call_args.kwargs == {
+        "approval_timeout": None,
+        "clarification_interrupt_id": None,
         "awaiting_answer": True,
     }
 
@@ -71,7 +91,7 @@ async def test_a_timer_run_that_ends_the_turn_arms_no_timer(
     armed_timer.assert_called_once()
     assert armed_timer.call_args.kwargs == {
         "approval_timeout": None,
-        "clarification_pending": False,
+        "clarification_interrupt_id": None,
         "awaiting_answer": False,
     }
 
