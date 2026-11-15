@@ -13,7 +13,8 @@
 - extract_reasoning_effort(): Extracted caller reasoning intensity level (top level, ``extra_body``, OpenRouter's
   ``reasoning.effort`` or a gateway's ``chat_template_kwargs``)
 - is_disabled_effort(): Whether an effort value asks for no reasoning
-- MAX_EFFORT_VALUES: The spellings of the strongest reasoning level
+- DISABLED_EFFORT_VALUES / MAX_EFFORT_VALUES / HEAVY_EFFORT_VALUES: The spellings of 'no reasoning', of the strongest
+  level and of 'high or stronger', shared by the provider mappings
 - strip_untranslated_off_effort(): Drops an 'off' effort no provider rule translated
 
 [POS]
@@ -47,13 +48,14 @@ _DEFAULT_HEADROOM_FLOOR: int = 16384
 _DEFAULT_REASONING_TIMEOUT_FLOOR: float = 450.0
 _HEAVY_REASONING_TIMEOUT_FLOOR: float = 600.0
 
-# Normalized effort values
-_DISABLED_EFFORT_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
-_HEAVY_EFFORT_VALUES: frozenset[str] = frozenset({"high", "max", "xhigh", "ultra"})
+# Normalized effort values: the one vocabulary every provider mapping reads
+DISABLED_EFFORT_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
 # Spellings of the strongest level; DeepSeek and the gateways that carry its models all map them to ``max``
 MAX_EFFORT_VALUES: frozenset[str] = frozenset({"max", "xhigh", "ultra"})
+# ``high`` and everything stronger
+HEAVY_EFFORT_VALUES: frozenset[str] = MAX_EFFORT_VALUES | {"high"}
 # Spellings of 'off' that are not values of the OpenAI-compatible reasoning_effort enum ('none' is one)
-_NON_WIRE_OFF_VALUES: frozenset[str] = frozenset({"off", "disabled", "false", "0"})
+_NON_WIRE_OFF_VALUES: frozenset[str] = DISABLED_EFFORT_VALUES - {"none"}
 
 # Authoritative catalog of known reasoning models and their baseline timeout floors (seconds)
 # Ordered by specificity when matching prefixes.
@@ -170,7 +172,7 @@ def extract_reasoning_effort(llm_kwargs: Mapping[str, object] | None) -> str | N
 
 def is_disabled_effort(effort: object) -> bool:
     """Whether ``effort`` is one of the spellings that ask for no reasoning (``off``, ``none``, ...)."""
-    return isinstance(effort, str) and effort.strip().lower() in _DISABLED_EFFORT_VALUES
+    return isinstance(effort, str) and effort.strip().lower() in DISABLED_EFFORT_VALUES
 
 
 def _thinking_switch(extra_body: Mapping[str, object]) -> bool | None:
@@ -278,7 +280,7 @@ def get_model_timeout_floor(
     # L2 Driver/Config: Explicit supports_reasoning=True grants floor for custom/unlisted models
     if llm_kwargs and llm_kwargs.get("supports_reasoning") is True:
         effort = extract_reasoning_effort(llm_kwargs)
-        if effort in _HEAVY_EFFORT_VALUES:
+        if effort in HEAVY_EFFORT_VALUES:
             return _HEAVY_REASONING_TIMEOUT_FLOOR
         return _DEFAULT_REASONING_TIMEOUT_FLOOR
 
