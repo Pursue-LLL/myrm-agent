@@ -77,13 +77,20 @@ describe('chat history section', () => {
     expect(decoded?.items[0].lastMessage).toBe('x'.repeat(CHAT_PREVIEW_MAX_CHARS));
   });
 
-  it('cuts by characters, so an emoji at the cut stays whole', () => {
+  it('keeps an emoji whole when it ends inside the limit', () => {
+    const preview = `${'a'.repeat(CHAT_PREVIEW_MAX_CHARS - 2)}\u{1F600}tail`;
+
+    const decoded = decodeChatHistory(roundTrip(encodeChatHistory('all', [chat('a', { lastMessage: preview })])));
+
+    expect(decoded?.items[0].lastMessage).toBe(`${'a'.repeat(CHAT_PREVIEW_MAX_CHARS - 2)}\u{1F600}`);
+  });
+
+  it('drops the lone half of an emoji the cut would leave at the end', () => {
     const preview = `${'a'.repeat(CHAT_PREVIEW_MAX_CHARS - 1)}\u{1F600}tail`;
 
     const decoded = decodeChatHistory(roundTrip(encodeChatHistory('all', [chat('a', { lastMessage: preview })])));
 
-    expect(Array.from(decoded?.items[0].lastMessage ?? '')).toHaveLength(CHAT_PREVIEW_MAX_CHARS);
-    expect(decoded?.items[0].lastMessage.endsWith('\u{1F600}')).toBe(true);
+    expect(decoded?.items[0].lastMessage).toBe('a'.repeat(CHAT_PREVIEW_MAX_CHARS - 1));
   });
 
   it('gives a row stored without a preview an empty one', () => {

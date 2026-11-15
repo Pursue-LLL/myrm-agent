@@ -56,9 +56,12 @@ export function chatHistoryFilterKey(projectFilter: string | null | undefined): 
   return projectFilter === null ? 'unassigned' : `project:${projectFilter}`;
 }
 
-/** Cut by characters, not UTF-16 units, so an emoji at the cut is not split in half. */
+/** The first CHAT_PREVIEW_MAX_CHARS UTF-16 units, without the lone half of an emoji the cut may leave at the end. */
 function cutPreview(text: string): string {
-  return text.length <= CHAT_PREVIEW_MAX_CHARS ? text : Array.from(text).slice(0, CHAT_PREVIEW_MAX_CHARS).join('');
+  const cut = text.slice(0, CHAT_PREVIEW_MAX_CHARS);
+  const last = cut.charCodeAt(cut.length - 1);
+  const endsInHighSurrogate = last >= 0xd800 && last <= 0xdbff;
+  return endsInHighSurrogate ? cut.slice(0, -1) : cut;
 }
 
 function encodeChat(chat: ChatItem): StoredChat {
