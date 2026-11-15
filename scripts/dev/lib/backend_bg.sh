@@ -8,7 +8,7 @@
 #   - health probe fail + leases>0: defer kill (protect parallel E2E)
 #   - health probe fail + leases>0 + SUPERVISOR/WAVE bypass: SHC leader crash heal may kill+restart
 # - source drift + leases>0: defer reload + record-pending (SMP)
-#   - cold-start health wait requires new_pid to own the listen port before success
+#   - cold-start health wait (backend_ready_wait.sh) requires new_pid to own the listen port before success
 # [POS] Dev 栈 backend 进程管理。source stack-epoch.sh 获取 _wave_active_lease_count。
 set -euo pipefail
 
@@ -16,6 +16,8 @@ set -euo pipefail
 source "${BASH_SOURCE[0]%/*}/dev_state_paths.sh"
 # shellcheck source=stack_stage.sh
 source "${BASH_SOURCE[0]%/*}/stack_stage.sh"
+# shellcheck source=backend_ready_wait.sh
+source "${BASH_SOURCE[0]%/*}/backend_ready_wait.sh"
 
 # The server venv must import the in-repo harness (editable path source); a stale venv that still
 # holds an installed wheel would make tests pass while the live backend runs old harness code.
@@ -350,59 +352,6 @@ os.execv(sys.argv[1], sys.argv[1:])
     return 1
   fi
 
-  local health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-180}"
-
-  for _ in $(seq 1 "${health_wait_sec}"); do
-    local listener_pid
-    listener_pid="$(lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
-    if curl -sf "${health_url}" >/dev/null 2>&1; then
-      if [[ "${listener_pid}" == "${new_pid}" ]]; then
-        _stack_stage backend_listening
-        local stack_epoch_lib
-        stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-        if [[ -f "${stack_epoch_lib}" ]]; then
-          # shellcheck source=stack-epoch.sh
-          source "${stack_epoch_lib}"
-          _bump_stack_epoch "${new_pid}" "${server_dir}" >/dev/null || true
-          if [[ "${runtime_id}" == "shared" ]]; then
-            python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/e2e_core" && pwd)/stack_mutation_policy.py" \
-              clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
-          fi
-        fi
-        _stack_stage epoch_bumped
-        return 0
-      fi
-      if [[ -n "${listener_pid}" ]]; then
-        # 端口已被另一个健康 backend 抢先占用：只有它是本栈的（并发 ensure 竞争）才接管
-        # 记录并回收本实例；非己方进程（例如桌面 sidecar）既不接管、不盖 epoch，也不动它。
-        kill -TERM "${new_pid}" 2>/dev/null || true
-        if ! _adopt_port_owner "${py}" "${identity_helper}" "${identity_file}" "${runtime_id}" \
-          "${listener_pid}" "${backend_port}"; then
-          rm -f "${pid_file}" "${identity_file}"
-          return 1
-        fi
-        echo "STACK_SYNC: :${backend_port} served by existing pid ${listener_pid} — adopted record, killed new pid ${new_pid}" >&2
-        echo "${listener_pid}" > "${pid_file}"
-        local stack_epoch_lib_adopt
-        stack_epoch_lib_adopt="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-        if [[ -f "${stack_epoch_lib_adopt}" ]]; then
-          # shellcheck source=stack-epoch.sh
-          source "${stack_epoch_lib_adopt}"
-          _bump_stack_epoch "${listener_pid}" "${server_dir}" >/dev/null || true
-        fi
-        return 0
-      fi
-    fi
-    sleep 1
-  done
-
-  # 超时仍未获得端口：终止本实例，避免孤儿进程，清除记录。
-  kill -TERM "${new_pid}" 2>/dev/null || true
-  sleep 1
-  if dev_pid_alive "${new_pid}"; then
-    kill -KILL "${new_pid}" 2>/dev/null || true
-  fi
-  rm -f "${pid_file}" "${identity_file}"
-  echo "ERROR: backend not ready on :${backend_port}. See ${log_file}" >&2
-  return 1
+  _wait_backend_ready "${new_pid}" "${backend_port}" "${health_url}" "${log_file}" "${pid_file}" \
+    "${identity_file}" "${server_dir}" "${runtime_id}" "${state_dir}" "${py}" "${identity_helper}" || return $?
 }
