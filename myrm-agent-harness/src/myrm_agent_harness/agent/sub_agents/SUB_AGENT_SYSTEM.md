@@ -378,7 +378,7 @@ configs/subagents/
 
 ### 14. 生命周期 Hook
 
-子 agent 的生命周期事件走全局 Hook 系统，没有 per-config 内联 hook 字段：
+子 agent 的生命周期事件由全局 Hook 系统投递：
 
 - `SUBAGENT_START`：一次 run 开始（payload 含 `task_id` / `agent_type` / `task_description` / `trace_id`）
 - `SUBAGENT_STOP`：一次 run 结束，与 START 成对（语义见下方能力矩阵「Hook 成对」）

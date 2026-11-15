@@ -10,7 +10,7 @@
 - set_steering_token(): 设置当前请求的 SteeringToken
 
 [POS]
-Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain. A message the token accepts is delivered to the model or never accepted: the run closes the token at the point it would end, and a refused message stays with its sender.
+Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain. A turn that completes normally closes the token at its last gate: every message accepted before the close is delivered to the model, and a later one is refused and stays with its sender.
 
 """
 
@@ -35,8 +35,10 @@ class SteeringToken:
 
     线程安全：steer() 可从任意线程调用（如 HTTP POST 端点）。
 
-    接收即交付：运行在要结束的那一刻调用 close_if_idle()，此后 steer()/redirect() 一律拒收（返回 False），
+    接收即交付：正常结束的回合在最后一道关口调用 close_if_idle()，此后 steer()/redirect() 一律拒收（返回 False），
     被拒的消息仍在发送方手里；close_if_idle() 前已接收的消息一定会被运行取走。
+    以错误、迭代上限（无目标）或供应商窗口挂起结束的回合不经过这道关口，令牌不被关闭；
+    被 Stop 的回合不再处理等待中的消息。这些回合里已接收却未取走的消息不会被读到。
     """
 
     def __init__(self) -> None:
@@ -55,7 +57,8 @@ class SteeringToken:
             message: 用户的新消息
 
         Returns:
-            True 表示运行已接收（一定会交付给模型）；False 表示运行已结束，调用方保留该消息。
+            True 表示运行已接收（回合正常结束前一定交付给模型，异常结束的回合见类说明）；
+            False 表示令牌已关闭（运行已走到收尾），调用方保留该消息。
         """
         with self._lock:
             if self._closed:
@@ -76,7 +79,7 @@ class SteeringToken:
             message: 用户的新消息
 
         Returns:
-            True 表示运行已接收；False 表示运行已结束，调用方保留该消息。
+            True 表示运行已接收；False 表示令牌已关闭（运行已走到收尾），调用方保留该消息。
         """
         with self._lock:
             if self._closed:
