@@ -156,7 +156,8 @@ target-version = "py313"
 line-length = 130
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I", "S"]
+# TC005 only (empty `if TYPE_CHECKING:` blocks), not the whole flake8-type-checking family.
+select = ["E", "F", "B", "I", "S", "TC005"]
 ignore = [
   "B008", "E501",
   # S 规则噪音抑制（与 harness 一致策略）
