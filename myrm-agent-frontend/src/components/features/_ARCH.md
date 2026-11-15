@@ -9,7 +9,7 @@
 | 目录                                          | 职责                                                                 | 文档                                                                              |
 | --------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `app-shell/`                                  | 启动屏、认证/PWA 初始化器、全局对话框                                | [_ARCH.md](app-shell/_ARCH.md)                                                    |
-| `chat-window/`                                | 主对话窗口、审批、Agent 配置、目标 DAG                               | [_ARCH.md](chat-window/_ARCH.md)                                                  |
+| `chat-window/`                                | 主对话窗口、审批、Agent 配置、子代理与 Goal 控制面                   | [_ARCH.md](chat-window/_ARCH.md)                                                  |
 | `message-box/`                                | 消息渲染与进度                                                       | [_ARCH.md](message-box/_ARCH.md)                                                  |
 | `sidebar/`                                    | 会话侧栏                                                             | [_ARCH.md](sidebar/_ARCH.md)                                                      |
 | `settings/`                                   | 设置页各 Section（含 Settings→通信→渠道 Provider 配置卡）            | [_ARCH.md](settings/_ARCH.md)                                                     |
