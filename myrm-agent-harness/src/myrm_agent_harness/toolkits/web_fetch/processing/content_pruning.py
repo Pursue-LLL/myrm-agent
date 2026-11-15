@@ -50,6 +50,10 @@ _SKIP_TAGS = frozenset(
     }
 )
 
+# Visibility that follows the viewport: `md:hidden` marks a copy shown on small screens only. State variants such as
+# `dark:hidden` or `group-hover:hidden` follow the theme or the pointer, so what they hide is real page content.
+_BREAKPOINT_HIDDEN = frozenset(f"{breakpoint}:hidden" for breakpoint in ("sm", "md", "lg", "xl", "2xl"))
+
 # Scoring walks the ancestors of every element and re-reads each subtree's text, so its cost follows the number of
 # ancestor-descendant pairs (the sum of all element depths), not the page size. Real pages stay well below this limit;
 # a page far above it is a nesting bomb that would hold the conversion thread for minutes.
@@ -215,8 +219,11 @@ class ContentPruningFilter:
         return children_with_links >= 2
 
     def _has_hidden_class(self, class_list: list[str]) -> bool:
-        classes_str = " ".join(str(cls) for cls in class_list)
-        return " hidden " in f" {classes_str} " or "hidden-" in classes_str or ":hidden" in classes_str
+        classes = [str(cls) for cls in class_list]
+        classes_str = " ".join(classes)
+        if " hidden " in f" {classes_str} " or "hidden-" in classes_str:
+            return True
+        return not _BREAKPOINT_HIDDEN.isdisjoint(classes)
 
     def _has_ssr_variant_class(self, class_list: list[str]) -> bool:
         return any("ssr-variant" in str(cls) for cls in class_list)
