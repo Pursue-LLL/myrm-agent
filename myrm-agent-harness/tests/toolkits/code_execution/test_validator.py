@@ -15,11 +15,9 @@ from myrm_agent_harness.toolkits.code_execution.security.validator import (
     is_command_allowed,
     is_module_allowed,
     is_path_allowed,
-    is_path_component_safe,
     validate_command,
     validate_module,
     validate_path,
-    validate_path_component,
 )
 
 # ---------------------------------------------------------------------------
@@ -274,53 +272,6 @@ class TestValidatePath:
 
     def test_is_path_allowed_convenience(self) -> None:
         assert is_path_allowed("file.txt") is True
-
-
-# ---------------------------------------------------------------------------
-# validate_path_component
-# ---------------------------------------------------------------------------
-
-
-class TestValidatePathComponent:
-    def test_valid_component(self) -> None:
-        result = validate_path_component("user-123")
-        assert result.is_safe is True
-
-    def test_empty_component(self) -> None:
-        result = validate_path_component("")
-        assert result.is_safe is False
-
-    def test_too_long(self) -> None:
-        result = validate_path_component("a" * 256)
-        assert result.is_safe is False
-
-    def test_starts_with_dot(self) -> None:
-        result = validate_path_component(".hidden")
-        assert result.is_safe is False
-
-    def test_contains_dotdot(self) -> None:
-        result = validate_path_component("foo..bar")
-        assert result.is_safe is False
-
-    def test_contains_slash(self) -> None:
-        result = validate_path_component("foo/bar")
-        assert result.is_safe is False
-
-    def test_contains_backslash(self) -> None:
-        result = validate_path_component("foo\\bar")
-        assert result.is_safe is False
-
-    def test_special_chars(self) -> None:
-        result = validate_path_component("foo@bar")
-        assert result.is_safe is False
-
-    def test_alphanumeric_hyphen_underscore(self) -> None:
-        result = validate_path_component("valid_user-name123")
-        assert result.is_safe is True
-
-    def test_is_path_component_safe_convenience(self) -> None:
-        assert is_path_component_safe("abc123") is True
-        assert is_path_component_safe("") is False
 
 
 # ---------------------------------------------------------------------------

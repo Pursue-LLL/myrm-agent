@@ -17,7 +17,6 @@ this validator provides defense-in-depth for the local code executor.
 - validate_module / is_module_allowed: Python module import checks.
 - validate_command / is_command_allowed: Bash command checks (threat analysis, path and host allow-lists).
 - validate_path / is_path_allowed: File path access checks.
-- validate_path_component / is_path_component_safe: Path component (user_id, chat_id) traversal checks.
 
 [POS]
 Unified security validator for code execution.
@@ -419,88 +418,12 @@ def is_path_allowed(path: str | Path, mode: str = "read") -> bool:
     return validate_path(path, mode=mode).is_safe
 
 
-# ============================================================
-# Path component validation (for user_id, chat_id, etc.)
-# ============================================================
-
-
-def validate_path_component(component: str, component_name: str = "path component") -> ValidationResult:
-    """Validate a path component for safety (user_id, chat_id, workspace_id, etc.).
-
-    Prevents path traversal attacks and filesystem restriction bypass.
-
-    Args:
-        component: Path component to validate.
-        component_name: Component name for error messages.
-
-    Returns:
-        ValidationResult with validation outcome.
-
-    Rules:
-    - Only alphanumeric, hyphen (-), underscore (_) allowed
-    - No path separators (/, \\)
-    - No path traversal (..)
-    - Cannot start with dot (hidden files)
-    - Length: 1-255 characters
-    """
-    if not component:
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: empty value",
-            blocked_item=component,
-        )
-
-    if len(component) > 255:
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: exceeds maximum length (255 characters)",
-            blocked_item=component,
-        )
-
-    if component.startswith("."):
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: cannot start with '.'",
-            blocked_item=component,
-        )
-
-    if ".." in component:
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: contains path traversal pattern '..'",
-            blocked_item=component,
-        )
-
-    if "/" in component or "\\" in component:
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: contains path separator",
-            blocked_item=component,
-        )
-
-    if not re.match(r"^[a-zA-Z0-9_-]+$", component):
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: contains invalid characters (only alphanumeric, '-', '_' allowed)",
-            blocked_item=component,
-        )
-
-    return ValidationResult(is_safe=True)
-
-
-def is_path_component_safe(component: str, component_name: str = "path component") -> bool:
-    """Check if a path component is safe (convenience wrapper)."""
-    return validate_path_component(component, component_name).is_safe
-
-
 __all__ = [
     "ValidationResult",
     "is_command_allowed",
     "is_module_allowed",
     "is_path_allowed",
-    "is_path_component_safe",
     "validate_command",
     "validate_module",
     "validate_path",
-    "validate_path_component",
 ]
