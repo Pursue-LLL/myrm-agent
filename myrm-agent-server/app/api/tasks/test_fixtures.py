@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.config.deploy_mode::is_local_mode (POS: local-only route guard)
-- app.lifecycle.task_worker::get_task_store (POS: SQLiteTaskStore provider)
+- app.api.tasks.deps::get_task_store (POS: SQLiteTaskStore FastAPI dependency)
 
 [OUTPUT]
 - seed_media_fixture: insert image_generate rows into live TaskStore for Panel E2E
