@@ -366,6 +366,11 @@ async def evaluate_calls(
             extra_ctx["hide_allow_always"] = True
             record_decision(tool_name, "SOCIAL_IRREVERSIBLE_GATE_ESCALATED", reason)
 
+        if action == PermissionAction.ALLOW and is_financial_or_spend_tool(tool_name, tool_input):
+            action = PermissionAction.ASK
+            reason = f"Financial spend operation ({tool_name}) requires explicit human approval"
+            record_decision(tool_name, "FINANCIAL_GATE_ESCALATED", reason)
+
         is_destr, destr_reason, blast_info = is_destructive_shell_tool_call(tool_name, tool_input)
         if action == PermissionAction.ALLOW and is_destr:
             action = PermissionAction.ASK
@@ -760,6 +765,7 @@ async def evaluate_calls(
             and _batch_review._security_reviewer is not None
             and is_threshold_breached(session_key) == ThresholdBreach.NONE
             and not is_irreversible_social_action(tool_name, tool_input)
+            and not is_financial_or_spend_tool(tool_name, tool_input)
         ):
             # Build command representation for the classifier
             if permission_type in ("shell_exec", "code_interpreter"):
