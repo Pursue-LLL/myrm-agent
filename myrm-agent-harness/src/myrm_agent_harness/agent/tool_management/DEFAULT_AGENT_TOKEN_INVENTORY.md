@@ -3,7 +3,7 @@
 > **术语**：下文 **「工具」= LLM 工具**（Action Tool）。§4.18 所列编排信号**不是** LLM 工具，不计入 LLM 工具总数（见文末 `TOOL_COUNT` 自动生成块）。
 
 > 测量方法：`tiktoken o200k_base` 规划 SSOT（`utils/text_utils.PLANNING_ENCODING`；与 GPT-5 / GPT-4o 族一致）
-> 测量时间：2026-11-13（`scripts/measure_turn1_token_inventory.py`、`scripts/measure_tool_schema_tokens.py`）。§二、§三 的 Turn-1 默认 13 个工具由漂移门禁逐项锁定；§一 的各分量与合计按当前源码测得；§四 的 37 个 EXTENDED 工具与 §4.24 的 5 个 server 工具：各工具经 `create_*` 工厂构造（后端用 stub；`image_tool` / `video_tool` 经 server 的异步装配传入 `async_config`，描述因此带 Workflow 段），取 `tool.description` 的 o200k_base token 数；`delegate_task_tool` 的描述含运行期 sub-agent 名册，只计固定部分（空名册）；`image_tool` / `video_tool` 的描述含运行期模型名，数值随配置浮动；§4.18 的编排信号不是 LLM 工具，只记其描述；§四 各行都不由测试锁定
+> 测量时间：2026-11-13（`scripts/measure_turn1_token_inventory.py`、`scripts/measure_tool_schema_tokens.py`）。§二、§三 的 Turn-1 默认 13 个工具由漂移门禁逐项锁定；§一 的各分量与合计按当前源码测得；§四 的 37 个 EXTENDED 工具与 §4.24 的 5 个 server 工具：各工具经 `create_*` 工厂构造（后端用 stub），取 `tool.description` 的 o200k_base token 数；`delegate_task_tool` 的描述含运行期 sub-agent 名册，只计固定部分（空名册）；`image_tool` / `video_tool` / `tts_generate` 的描述不含运行期模型名与供应商名，数值不随所选模型变化；§4.18 的编排信号不是 LLM 工具，只记其描述；§四 各行都不由测试锁定
 > 测量宿主：macOS 25.5.0 / arm64 / bash（bash 工具描述里的 OS hint、toolchain 探测行与 VNC 行随宿主变化，见 §二 标注）
 > 测量对象：默认通用智能体，Turn 1 初始化时的完整 prompt 结构；`prompt_mode=full`、`enable_answer_tool=False`（server 默认）、locale EN（工具描述为主，prompt 主体见 §一 双列）
 > 漂移门禁：`tests/scripts/test_measure_turn1_token_inventory.py` 锁定 Turn-1 默认 13 个工具（§二、§三）的逐工具数值，`tests/architecture/test_prompt_token_budget_gate.py` 锁定预算上限；server 仓 `tests/architecture/test_first_turn_static_prompt_budget.py` 按语言锁定静态首轮 system 消息
@@ -213,9 +213,9 @@ Token 明细（tiktoken o200k_base）：
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
 | 88 | channel_notify_tool | 102 | `server/services/agent/outbound_notify/channel_notify_tool.py` | Agent 主动 IM 出站（白名单+频控+附件） | Agent 配置 `notify_targets` 时 [Turn1] |
-| 89 | image_tool | 144 | `server/ai_agents/media_tools/image_agent_tool.py` | 图像生成工具（DALL-E / SD / Flux）；描述含运行期模型名，144 为 server 异步装配（传入 `async_config`，描述带 Workflow 段）下引擎默认模型 dall-e-3 的值，无 `async_config` 时为 53 | enabled_builtin_tools: image_generation |
-| 90 | video_tool | 159 | `server/ai_agents/media_tools/video_agent_tool.py` | 视频生成工具；描述含运行期供应商与模型名，159 为 server 异步装配（传入 `async_config`，描述带 Workflow 段）下引擎默认配置 openai/sora 的值，无 `async_config` 时为 91 | enabled_builtin_tools: video_generation |
-| 91 | tts_generate | 43 | `server/ai_agents/media_tools/tts_agent_tool.py` | 语音合成工具 | enabled_builtin_tools: tts |
+| 89 | image_tool | 120 | `server/ai_agents/media_tools/image_agent_tool.py` | 图像生成与编辑工具；描述不含模型名，所有内置档案均为 120；没有默认模型 | enabled_builtin_tools: image_generation，且已选图像模型、凭证或网关就绪 |
+| 90 | video_tool | 106 | `server/ai_agents/media_tools/video_agent_tool.py` | 视频生成工具；描述不含供应商与模型名，所有内置供应商均为 106（参数 schema 按供应商能力裁剪，不计入描述）；没有默认供应商 | enabled_builtin_tools: video_generation，且已选供应商与模型、凭证或网关就绪 |
+| 91 | tts_generate | 53 | `server/ai_agents/media_tools/tts_agent_tool.py` | 语音合成工具；没有默认供应商与音色 | enabled_builtin_tools: tts，且已选供应商与音色、凭证或网关就绪 |
 | 92 | artifact_publish | 78 | `server/services/hosting/agent_publish_tool.py` | 工件/网页在线打包与托管发布 | server 凭证就绪 |
 
 > 注：`x-live-search` 采用 Prebuilt Skill + 沙箱标准脚本 PTC（Programmatic Tool Calling）范式，0 Action Tool 注册（Turn1 0 Token 开销，不污染 Action Space）。
@@ -315,13 +315,13 @@ Token 明细（tiktoken o200k_base）：
 | System Prompt 层 | **1,946** |
 | CORE 工具层 | **2,169** |
 | HIGH_PRIORITY 工具层 | **2,445** |
-| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,569（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,043 + EXTERNAL 5 个 ~526；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
+| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,502（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,043 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,575** (55 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
-| **tiktoken 小计** | **~18,400（粗估）** |
+| **tiktoken 小计** | **~18,300（粗估）** |
 
-> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 55 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 37 + EXTERNAL 5）。本场景假设全部 55 工具同轮 bind，EXTENDED / EXTERNAL 行为 §四 各行描述值求和，仅作量级参考：`delegate_task_tool` 只计固定部分，不含运行期名册；kanban 的 worker 与 orchestrator 两组工具按角色互斥挂载，此处同时计入；`image_tool` / `video_tool` 的描述含运行期模型名，按引擎默认配置计。
+> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 55 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 37 + EXTERNAL 5）。本场景假设全部 55 工具同轮 bind，EXTENDED / EXTERNAL 行为 §四 各行描述值求和，仅作量级参考：`delegate_task_tool` 只计固定部分，不含运行期名册；kanban 的 worker 与 orchestrator 两组工具按角色互斥挂载，此处同时计入。
 
 ---
 

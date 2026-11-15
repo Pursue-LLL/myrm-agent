@@ -25,10 +25,9 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 - `toolkits/cron/delivery.py`
 - `toolkits/openapi_bridge/spec_parser.py`, `http_executor.py`
 - `toolkits/wiki/pipeline/ingress/asset_store.py`
-- `toolkits/llms/image/generator.py`, `models.py` (reference/result URL downloads)
-- `toolkits/llms/video/video_engine.py` (`_resolve_media_sources` HTTP branch)
+- `toolkits/llms/image/models.py` (result URL download)
+- `toolkits/llms/media_inputs.py` (http(s) references of the unified media input resolver)
 - `toolkits/llms/video/providers/google_provider.py`, `minimax_provider.py`, `qwen_provider.py` (API result download URLs)
-- `myrm-agent-server/app/ai_agents/media_tools/image_agent_tool.py`
 - `myrm-agent-server/app/channels/media/image_enrichment.py`
 - `myrm-agent-server/app/channels/providers/feishu/sdk/client.py` (`download_url`)
 - `myrm-agent-server/app/api/integrations/llms/` (model discovery)

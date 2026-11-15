@@ -72,7 +72,7 @@ class FileContentReader(Protocol):
     holds nothing for the key.
     """
 
-    async def __call__(self, file_id: str) -> bytes | None: ...
+    async def __call__(self, key: str, /) -> bytes | None: ...
 
 
 async def resolve_image_reference_to_data_url(
