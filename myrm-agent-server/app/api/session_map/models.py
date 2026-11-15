@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - SessionNodeModel: Representation of a chat session/agent node in the 2D topology.
-- ProjectClusterModel: Project container grouping sessions by repository and working path.
+- ProjectClusterModel: Project container grouping its sessions, with the project's workspace path.
 - FleetCockpitSummary: Aggregate metrics for hundreds of concurrent agents in fleet.
 - SessionSearchRequest & SessionSearchResponse: Multi-attribute and full-text session retrieval.
 
@@ -41,8 +41,7 @@ class ProjectClusterModel(BaseModel):
     name: str = Field(..., description="Project name")
     description: str = Field(default="", description="Project objective description")
     color: str = Field(default="#6366f1", description="Theme accent color hex")
-    workspace_path: Optional[str] = Field(None, description="Local root workspace path")
-    git_repo_url: Optional[str] = Field(None, description="Bound Git repository URL or remote")
+    workspace_path: Optional[str] = Field(None, description="Local root workspace path; unset when the project has none")
     sessions: List[SessionNodeModel] = Field(default_factory=list, description="Child session nodes")
     active_agent_count: int = Field(default=0, description="Count of agents currently working or ready")
     total_tokens: int = Field(default=0, description="Aggregate token consumption across all sessions")

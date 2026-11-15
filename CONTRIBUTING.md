@@ -66,8 +66,8 @@ myrm start                # backend :8080 + frontend :3000
 Manual split:
 
 ```bash
+bash scripts/dev/dev.sh   # backend only
 cd myrm-agent-frontend && bun install && bun run dev
-myrm dev                  # backend only
 ```
 
 See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.
@@ -166,7 +166,7 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `dev_ports/` | harness `toolkits/code_execution/utils/port_sniffer` (listening-port discovery, process control, preview tunnels) |
 | `presentation/` · `spreadsheet/` | in-module generators (`python-pptx` slides, styled Excel export) — no service layer |
 | `self_evolution/` | in-module component locate / recover pipeline for UI self-evolution tickets |
-| `session_map/` | direct DB aggregation over chat and project models |
+| `session_map/` | direct DB aggregation over chat, project and approval models |
 | `runs/` | in-module read-only timeline aggregation over `core/cron/`, `services/kanban/`, `core/channel_bridge/` and `services/agent/` shell tasks — no service layer |
 | `system_assistant/` | in-module natural-language system control routes |
 | `workbench/` | in-module workspace file tree, command and plugin routes |

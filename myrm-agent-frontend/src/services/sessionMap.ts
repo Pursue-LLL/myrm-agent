@@ -5,7 +5,7 @@
  * [OUTPUT]
  * - AgentState: Runtime status enum ('working' | 'ready' | 'waiting_input' | 'idle' | 'error')
  * - SessionNode: Representation of a chat session in the topology graph
- * - ProjectCluster: Project boundary grouping sessions with isolated workspace path & repo
+ * - ProjectCluster: Project boundary grouping its sessions, with the project's workspace path
  * - FleetCockpitSummary: Aggregate metrics for hundreds of concurrent agents
  * - SessionSearchHit / SessionSearchResponse: Instant multi-attribute search results
  * - fetchSessionMapProjects: Async query for project topology
@@ -42,7 +42,6 @@ export interface ProjectCluster {
   description: string;
   color: string;
   workspace_path?: string;
-  git_repo_url?: string;
   sessions: SessionNode[];
   active_agent_count: number;
   total_tokens: number;
@@ -75,9 +74,7 @@ export interface SessionSearchResponse {
 
 const SESSION_MAP_BASE = '/session-map';
 
-export async function fetchSessionMapProjects(
-  stateFilter?: AgentState,
-): Promise<ProjectCluster[]> {
+export async function fetchSessionMapProjects(stateFilter?: AgentState): Promise<ProjectCluster[]> {
   const query = stateFilter ? `?state_filter=${encodeURIComponent(stateFilter)}` : '';
   return apiClient.get<ProjectCluster[]>(`${SESSION_MAP_BASE}/projects${query}`);
 }

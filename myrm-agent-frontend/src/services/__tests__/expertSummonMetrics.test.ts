@@ -6,9 +6,6 @@ import {
   __resetExpertSummonMetricsForTest,
   getExpertSummonSummary,
   inferExpertSummonFailureReason,
-  recordExpertCouncilConsensusReached,
-  recordExpertCouncilPhaseCompleted,
-  recordExpertRebuttalEffective,
   recordExpertSummonAttempted,
   recordExpertSummonFailed,
   recordExpertSummonFirstMessageSent,
@@ -178,31 +175,6 @@ describe('expertSummonMetrics', () => {
 
         expect(sentPayload(0).context_key).toBe(filed);
       });
-    });
-
-    it('posts council phase, consensus, and rebuttal events', async () => {
-      recordExpertCouncilPhaseCompleted('flow_pad_inline', 'plus_popover_card', {
-        contextKey: 'council:session:1',
-        templateKind: 'team',
-      });
-      recordExpertCouncilConsensusReached('flow_pad_inline', 'plus_popover_card', {
-        contextKey: 'council:session:1',
-        templateKind: 'team',
-      });
-      recordExpertRebuttalEffective('flow_pad_inline', 'plus_popover_card', {
-        contextKey: 'council:session:1',
-        templateKind: 'team',
-      });
-
-      await __flushExpertSummonMetricsForTest();
-
-      expect(apiRequestMock).toHaveBeenCalledTimes(3);
-      expect([0, 1, 2].map((index) => sentPayload(index).event_type)).toEqual([
-        'council_phase_completed',
-        'council_consensus_reached',
-        'expert_rebuttal_effective',
-      ]);
-      expect(sentPayload(0)).toMatchObject({ trigger: 'plus_popover_card', template_kind: 'team' });
     });
   });
 

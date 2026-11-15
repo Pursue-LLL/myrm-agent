@@ -128,7 +128,7 @@ bash scripts/install.sh   # or: myrm setup
 myrm start                # backend :8080 + frontend :3000
 ```
 
-`myrm dev` 要求 server venv 的 harness 指向仓库内源码（修复：`cd myrm-agent-server && uv sync`）。详见 [scripts/_ARCH.md](scripts/_ARCH.md)。
+`myrm start` 要求 server venv 的 harness 指向仓库内源码（修复：`cd myrm-agent-server && uv sync`）。详见 [scripts/_ARCH.md](scripts/_ARCH.md)。
 
 WebUI: http://localhost:3000 · API: http://localhost:8080
 

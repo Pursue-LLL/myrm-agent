@@ -91,27 +91,6 @@ def test_expert_summon_summary_accumulates_metrics(client: TestClient) -> None:
             "used_use_case": True,
         },
         {
-            "event_type": "council_phase_completed",
-            "surface": "flow_pad_inline",
-            "context_key": "flowpad:inline",
-            "trigger": "plus_popover_card",
-            "template_kind": "team",
-        },
-        {
-            "event_type": "council_consensus_reached",
-            "surface": "flow_pad_inline",
-            "context_key": "flowpad:inline",
-            "trigger": "plus_popover_card",
-            "template_kind": "team",
-        },
-        {
-            "event_type": "expert_rebuttal_effective",
-            "surface": "flow_pad_inline",
-            "context_key": "flowpad:inline",
-            "trigger": "plus_popover_card",
-            "template_kind": "team",
-        },
-        {
             "event_type": "dropped_report",
             "surface": "message_input_plus",
             "context_key": "composer:plus",
@@ -188,6 +167,15 @@ def test_expert_summon_rejects_non_dropped_count(client: TestClient) -> None:
         headers={"Authorization": "Bearer local"},
     )
     assert response.status_code == 400
+
+
+def test_expert_summon_rejects_event_type_outside_the_contract(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/statistics/expert-summon/events",
+        json={"event_type": "unlisted_event", "surface": "flow_pad_inline", "trigger": "template_card"},
+        headers={"Authorization": "Bearer local"},
+    )
+    assert response.status_code == 422
 
 
 def test_expert_summon_requires_trigger_for_summon_events(client: TestClient) -> None:

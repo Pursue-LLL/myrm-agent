@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import tempfile
+from collections.abc import Collection
 from pathlib import Path
 
 import psutil
@@ -40,15 +41,45 @@ def _processes_using(profile: Path) -> list[psutil.Process]:
     return users
 
 
-def _drivers() -> list[psutil.Process]:
-    """The Playwright drivers this process started (the bundled ``driver/node`` executable)."""
+def _drivers(ignoring: Collection[int] = ()) -> list[psutil.Process]:
+    """The Playwright drivers (the bundled ``driver/node`` executable) running below this process.
+
+    The pids in *ignoring* are left out.
+    """
     drivers: list[psutil.Process] = []
     for child in psutil.Process().children(recursive=True):
         with contextlib.suppress(psutil.Error):
             argv = child.cmdline()
-            if argv and "/driver/" in argv[0].replace("\\", "/"):
+            if child.pid not in ignoring and argv and "/driver/" in argv[0].replace("\\", "/"):
                 drivers.append(child)
     return drivers
+
+
+def _browser_family(profile: Path) -> list[psutil.Process]:
+    """The browser running on ``profile`` and every process below it.
+
+    Its GPU and network service processes carry no ``--user-data-dir`` yet keep writing into the profile until they exit.
+    """
+    family: dict[int, psutil.Process] = {}
+    for browser in _processes_using(profile):
+        family[browser.pid] = browser
+        with contextlib.suppress(psutil.NoSuchProcess):
+            family.update((child.pid, child) for child in browser.children(recursive=True))
+    return list(family.values())
+
+
+def _kill(proc: psutil.Process) -> None:
+    """SIGKILL ``proc``; one that exited by itself since it was listed is as gone as one that was killed."""
+    with contextlib.suppress(psutil.NoSuchProcess):
+        proc.kill()
+
+
+def _is_alive(proc: psutil.Process) -> bool:
+    """Whether ``proc`` still runs; a zombie has exited and only waits for its parent to collect it."""
+    try:
+        return proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
 
 
 async def test_a_profile_a_killed_driver_leaves_behind_is_removed_once_no_browser_uses_it(
@@ -59,6 +90,9 @@ async def test_a_profile_a_killed_driver_leaves_behind_is_removed_once_no_browse
     # The driver reads TMPDIR when it starts, so the browser's profile lands in the test's directory, not the real one.
     monkeypatch.setenv("TMPDIR", str(tmp_path))
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    # The tests of a run share this process, so a driver an earlier test left running is neither this test's driver nor
+    # one to kill with it.
+    left_running = {driver.pid for driver in _drivers()}
     playwright = await async_playwright().start()
     try:
         await playwright.chromium.launch(headless=True)
@@ -67,12 +101,15 @@ async def test_a_profile_a_killed_driver_leaves_behind_is_removed_once_no_browse
 
         assert cleanup_stale_browser_profiles(max_age_hours=0.0)["pruned"] == 0, "a running browser keeps its profile"
 
-        (driver,) = _drivers()
-        driver.kill()
-        for user in _processes_using(profile):
-            user.kill()  # a headless Chromium ends by itself, a headed one can outlive the driver; either way it is gone
+        (driver,) = _drivers(ignoring=left_running)
+        # Listed while the browser runs: once its main process is gone, nothing ties its children to the profile.
+        browser = _browser_family(profile)
+        _kill(driver)
+        # A headless Chromium ends by itself, a headed one can outlive the driver; either way it is gone.
+        for proc in browser:
+            _kill(proc)
         async with asyncio.timeout(_STEP_TIMEOUT_S):
-            while _processes_using(profile):
+            while any(_is_alive(proc) for proc in browser) or _processes_using(profile):
                 await asyncio.sleep(0.1)
 
         assert profile.exists(), "nothing but a graceful close through the driver deletes the profile"
@@ -87,7 +124,7 @@ async def test_a_profile_a_killed_driver_leaves_behind_is_removed_once_no_browse
         assert result["failed"] == []
         assert not profile.exists()
     finally:
-        for driver in _drivers():
-            driver.kill()
+        for driver in _drivers(ignoring=left_running):
+            _kill(driver)
         with contextlib.suppress(Exception):
             await asyncio.wait_for(playwright.stop(), timeout=_STEP_TIMEOUT_S)

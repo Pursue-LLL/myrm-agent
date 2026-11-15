@@ -1,7 +1,8 @@
 """Open Graph metadata fetcher with in-memory LRU cache.
 
 [INPUT]
-HTTP(S) page URLs from WebUI embed link preview requests.
+- HTTP(S) page URLs from WebUI embed link preview requests
+- myrm_agent_harness.core.security.http.secure_fetch::secure_get (POS: SSRF-protected download with per-hop DNS pinning, redirect validation and a size cap)
 
 [OUTPUT]
 Parsed Open Graph title/description/image fields for JSON API responses.
@@ -11,7 +12,10 @@ WebUI service helper. Server-side OG fetch to bypass browser CORS for embed prev
 
 Proxies OG metadata requests through the server to solve CORS issues
 for the WebUI embed system, enabling rich link previews across all
-deployment modes (local/tauri/cloud).
+deployment modes (local/tauri/cloud). The URL is chosen by the caller, so
+the page is downloaded through the SSRF shield: loopback, private and
+cloud-metadata targets are refused on the first request and on every
+redirect hop, and such a URL yields only ``{"url": url}``.
 """
 
 from __future__ import annotations
@@ -23,11 +27,15 @@ from collections import OrderedDict
 from typing import TypedDict
 
 import httpx
+from myrm_agent_harness.core.security.http.secure_fetch import secure_get
 
 logger = logging.getLogger(__name__)
 
-_TIMEOUT = httpx.Timeout(5.0, connect=3.0)
-_MAX_BODY_BYTES = 64 * 1024
+_TIMEOUT_SECONDS = 5.0
+# The tags read live in the first _PARSE_WINDOW_CHARS of the page, but secure_get aborts an oversized body instead of
+# truncating it, so the download cap leaves room for heavy pages (inline state blobs) whose <head> is small.
+_MAX_FETCH_BYTES = 4 * 1024 * 1024
+_PARSE_WINDOW_CHARS = 64 * 1024
 _USER_AGENT = "MyrmagentBot/1.0 (+https://myrmagent.com)"
 
 _OG_RE = re.compile(
@@ -120,7 +128,11 @@ def _cache_put(url: str, metadata: OgMetadata) -> OgMetadata:
 
 
 async def fetch_og_metadata(url: str) -> OgMetadata:
-    """Fetch Open Graph metadata for a URL with caching."""
+    """Fetch Open Graph metadata for a URL with caching.
+
+    A URL the SSRF shield refuses, a page that fails to load and a non-HTML response all come back as
+    ``{"url": url}`` and are cached like any other result.
+    """
     try:
         parsed = httpx.URL(url)
         if parsed.scheme not in _ALLOWED_SCHEMES:
@@ -132,20 +144,19 @@ async def fetch_og_metadata(url: str) -> OgMetadata:
         return cached
 
     try:
-        async with httpx.AsyncClient(
-            timeout=_TIMEOUT,
-            follow_redirects=True,
+        resp = await secure_get(
+            url,
+            timeout=_TIMEOUT_SECONDS,
             headers={"User-Agent": _USER_AGENT},
-        ) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
+            max_content_length=_MAX_FETCH_BYTES,
+        )
+        resp.raise_for_status()
 
-            content_type = resp.headers.get("content-type", "")
-            if "text/html" not in content_type and "application/xhtml" not in content_type:
-                return _cache_put(url, {"url": url})
+        content_type = resp.headers.get("content-type", "")
+        if "text/html" not in content_type and "application/xhtml" not in content_type:
+            return _cache_put(url, {"url": url})
 
-            body = resp.text[:_MAX_BODY_BYTES]
-            return _cache_put(url, _parse_og_tags(body, url))
+        return _cache_put(url, _parse_og_tags(resp.text[:_PARSE_WINDOW_CHARS], url))
     except Exception:
         logger.debug("Failed to fetch OG metadata for %s", url, exc_info=True)
         return _cache_put(url, {"url": url})

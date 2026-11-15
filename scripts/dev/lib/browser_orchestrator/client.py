@@ -291,10 +291,9 @@ def _socket_cap_from_operation_budgets(raw: object) -> float:
 def _default_socket_path() -> str:
     """Stable socket path independent of TMPDIR.
 
-    TMPDIR is repointed by myrm dev isolation (e.g. detach spawns a private
-    tmp.XXXX dir) while the daemon may be started by a sibling process with a
-    different TMPDIR — so a tmpdir-derived socket path silently splits the pair
-    into two worlds. Anchor on the real user home, same directory that holds
+    The daemon may be started by a sibling process with a different TMPDIR than
+    its clients — so a tmpdir-derived socket path silently splits the pair into
+    two worlds. Anchor on the real user home, same directory that holds
     ``daemon.pid``.
     """
     from e2e_core.real_user_home import real_user_home

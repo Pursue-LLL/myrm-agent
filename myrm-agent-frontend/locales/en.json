@@ -1829,7 +1829,7 @@
       "title": "Failed to load configuration",
       "description": "Unable to connect to the service. Please check if the backend is running and try again.",
       "retry": "Retry",
-      "hintUnreachable": "Backend not reachable. Run: myrm dev or myrm start. Ensure .env.local has API_PORT=8080.",
+      "hintUnreachable": "Backend not reachable. Run: myrm start. Ensure .env.local has API_PORT=8080.",
       "hintSplitDev": "Backend OK at http://{host}:{port}. Run myrm start, or bun run dev then open http://localhost:3000 (API_PORT={proxyPort}).",
       "hintStandalone": "Backend OK at http://{host}:{port}. Run myrm start, or set API_PORT={proxyPort} in .env.local."
     },

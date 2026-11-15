@@ -26,9 +26,6 @@ export type ExpertSummonMetricEventType =
   | 'route_applied'
   | 'route_apply_failed'
   | 'first_message_sent'
-  | 'council_phase_completed'
-  | 'council_consensus_reached'
-  | 'expert_rebuttal_effective'
   | 'dropped_report';
 export type ExpertSummonFailureReason = 'network_error' | 'route_apply_failed' | 'server_error' | 'unknown_error';
 
@@ -222,11 +219,6 @@ interface SummonEventOptions {
   usedUseCase?: boolean;
 }
 
-interface CouncilEventOptions {
-  contextKey?: string;
-  templateKind?: ExpertTemplateKind;
-}
-
 interface SimpleEventOptions extends SummonEventOptions {
   trigger?: ExpertSummonMetricTrigger;
   queryLength?: number;
@@ -348,30 +340,6 @@ export function recordExpertSummonFirstMessageSent(
   options?: SummonEventOptions,
 ): void {
   enqueueSimpleEvent('first_message_sent', surface, { ...options, trigger });
-}
-
-export function recordExpertCouncilPhaseCompleted(
-  surface: ExpertSummonMetricSurface,
-  trigger: ExpertSummonMetricTrigger,
-  options?: CouncilEventOptions,
-): void {
-  enqueueSimpleEvent('council_phase_completed', surface, { ...options, trigger });
-}
-
-export function recordExpertCouncilConsensusReached(
-  surface: ExpertSummonMetricSurface,
-  trigger: ExpertSummonMetricTrigger,
-  options?: CouncilEventOptions,
-): void {
-  enqueueSimpleEvent('council_consensus_reached', surface, { ...options, trigger });
-}
-
-export function recordExpertRebuttalEffective(
-  surface: ExpertSummonMetricSurface,
-  trigger: ExpertSummonMetricTrigger,
-  options?: CouncilEventOptions,
-): void {
-  enqueueSimpleEvent('expert_rebuttal_effective', surface, { ...options, trigger });
 }
 
 export async function getExpertSummonSummary(days: number = 30): Promise<ExpertSummonSummary> {
