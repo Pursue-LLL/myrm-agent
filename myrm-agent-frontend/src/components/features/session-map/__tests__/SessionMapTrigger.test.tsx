@@ -66,6 +66,17 @@ vi.mock('@/services/sessionMap', () => ({
   fetchFleetCockpitSummary: () => mockFetchFleetCockpitSummary(),
 }));
 
+// A request whose settle time the test controls, to make responses arrive out of order.
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('SessionMapTrigger component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -186,6 +197,58 @@ describe('SessionMapTrigger component', () => {
       expect(screen.queryByText('loadFailed')).toBeNull();
     });
     expect(mockFetchSessionMapProjects).toHaveBeenCalledTimes(2);
+  });
+
+  // The first call is the open-time load; the next two are the "working" and then "error" filter requests.
+  const switchFiltersWhileOlderRequestIsPending = async () => {
+    const older = deferred<ProjectCluster[]>();
+    const newer = deferred<ProjectCluster[]>();
+    mockFetchSessionMapProjects
+      .mockResolvedValueOnce(mockProjects)
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    render(<SessionMapTrigger />);
+
+    openFromMenu();
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeDefined();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'viewList' }));
+    await waitFor(() => {
+      expect(screen.getByText('Myrm Agent Core')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'filterWorking' }));
+    fireEvent.click(screen.getByRole('button', { name: 'filterError' }));
+    await act(async () => {
+      newer.resolve([{ ...mockProjects[0], id: 'proj-error', name: 'Errored Project' }]);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Errored Project')).toBeDefined();
+    });
+    return older;
+  };
+
+  it('ignores an older filter response that settles after the newest one', async () => {
+    const older = await switchFiltersWhileOlderRequestIsPending();
+
+    await act(async () => {
+      older.resolve([{ ...mockProjects[0], id: 'proj-working', name: 'Working Project' }]);
+    });
+
+    expect(screen.queryByText('Working Project')).toBeNull();
+    expect(screen.getByText('Errored Project')).toBeDefined();
+  });
+
+  it('ignores an older filter failure that settles after the newest success', async () => {
+    const older = await switchFiltersWhileOlderRequestIsPending();
+
+    await act(async () => {
+      older.reject(new Error('stale request failed'));
+    });
+
+    expect(screen.queryByText('loadFailed')).toBeNull();
+    expect(screen.getByText('Errored Project')).toBeDefined();
   });
 
   it('shows a project workspace path in the list view only when the project has one', async () => {

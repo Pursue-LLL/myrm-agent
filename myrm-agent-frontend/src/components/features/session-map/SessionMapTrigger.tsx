@@ -19,7 +19,7 @@
  * Strict typing: Zero `any`. File length < 360 lines. Zero native emoji.
  */
 
-import { useState, useEffect, useCallback, useId } from 'react';
+import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconActivity, IconX, IconFolder } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
@@ -57,18 +57,31 @@ export function SessionMapTrigger() {
   const [selectedProject, setSelectedProject] = useState<ProjectCluster | null>(null);
   const [isJumpModalOpen, setIsJumpModalOpen] = useState<boolean>(false);
 
+  // Only the newest request may publish its outcome, so a slow response for an older filter cannot overwrite the data
+  // (or the error state) of the filter the user is looking at.
+  const latestRequestId = useRef(0);
+
   // Load topology and cockpit summary data
   const loadData = useCallback(async (filter?: AgentState) => {
+    const requestId = ++latestRequestId.current;
+    const isLatest = () => requestId === latestRequestId.current;
     setIsLoading(true);
     try {
       const [projData, sumData] = await Promise.all([fetchSessionMapProjects(filter), fetchFleetCockpitSummary()]);
+      if (!isLatest()) {
+        return;
+      }
       setClusters(projData);
       setSummary(sumData);
       setLoadFailed(false);
     } catch {
-      setLoadFailed(true);
+      if (isLatest()) {
+        setLoadFailed(true);
+      }
     } finally {
-      setIsLoading(false);
+      if (isLatest()) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
