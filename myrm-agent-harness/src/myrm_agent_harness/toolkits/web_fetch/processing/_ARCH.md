@@ -19,6 +19,7 @@ Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL norm
 | spill.py | Util | Saves the complete text through the injected evicted-content callbacks, builds the read guide and announces the saved file to the GUI | ✅ |
 | html_scan.py | Util | Linear-time scans of raw HTML text (title, body, script/style blocks, tags) for pages that may be hostile | ✅ |
 | antibot_detector.py | Util | Anti-bot detection heuristics | ✅ |
+| charset_detector.py | Util | Tiered charset detection of a fetched body: header charset, `<meta>` charset, strict UTF-8, CJK trial decodes, then a replacement decode. `partial` marks a body cut at an arbitrary byte: its last half character is dropped, so the cut cannot fail the strict decodes or let a CJK trial decode read the page as mojibake. Needs only the standard library | ✅ |
 | binary_router.py | Util | Binary content type routing (Content-Type, Content-Disposition, then `utils.content_sniff.magic_extension`); a body over `MAX_BINARY_SIZE` (20 MB, also the L1 transfer bound) is dropped, and a payload no parser accepts is rejected, never decoded as text; a parsed text over `MAX_PARSED_CHARS` (100,000 characters) is cut and its Document carries `SOURCE_TRUNCATED_KEY`, so the full-content tool names it in the size-limit notice | ✅ |
 
 ## Dependencies

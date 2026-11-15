@@ -9,8 +9,7 @@ Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fall
 | Submodule | Role | Description |
 |-----------|------|-------------|
 | [engine/](engine/_ARCH.md) | Core | FetchEngine tiered fetcher pool |
-| [processing/](processing/_ARCH.md) | Core | Post-fetch pipeline, markdown, full-content delivery, anti-bot |
-| [probe/](probe/_ARCH.md) | Util | HTTP/3 probe and charset detection |
+| [processing/](processing/_ARCH.md) | Core | Post-fetch pipeline, markdown, charset detection, full-content delivery, anti-bot |
 | [extractors/](extractors/_ARCH.md) | Core | WeChat / Bilibili / YouTube / X fast-paths |
 | [fetchers/](fetchers/_ARCH.md) | Core | L1/L2/L3 fetcher implementations |
 | [router/](router/_ARCH.md) | Core | Per-domain tier breaker and domain learning data |

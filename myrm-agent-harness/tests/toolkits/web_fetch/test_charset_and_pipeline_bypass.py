@@ -5,7 +5,7 @@ import json
 import pytest
 
 from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetcherType, FetchResult
-from myrm_agent_harness.toolkits.web_fetch.probe.charset_detector import (
+from myrm_agent_harness.toolkits.web_fetch.processing.charset_detector import (
     _normalize_encoding_name,
     detect_and_decode_html,
     probe_meta_charset,

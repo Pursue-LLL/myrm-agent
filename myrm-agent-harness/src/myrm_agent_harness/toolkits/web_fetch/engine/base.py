@@ -15,11 +15,10 @@ Cache: In-memory LRU (default 1 h TTL, 500 entries, 100 MB cap)
 Boundary: single-sandbox, single-process semantics; tier breaker state lives in memory, per process.
 
 [INPUT]
-web_fetch.fetchers.http_fetcher::HttpFetcher (POS: L1 HTTP fetcher with optional HTTP/3 retry)
+web_fetch.fetchers.http_fetcher::HttpFetcher (POS: L1 HTTP fetcher)
 web_fetch.fetchers.browser_fetcher::BrowserFetcher (POS: L2 browser-based fetcher)
 web_fetch.fetchers.protocols::FetcherType, FetchResult (POS: Fetcher protocol types)
 web_fetch.processing.antibot_detector::is_blocked (POS: Anti-bot detection)
-web_fetch.probe.http3_probe::get_http3_retry_metrics (POS: QUIC egress probe and L1 retry metrics)
 web_fetch.router.tier_breaker::get_global_tier_breaker (POS: Per-domain start-tier policy)
 web_fetch.router.domain_metrics::get_global_domain_metrics_manager (POS: Per-domain failure history behind the staleness hint)
 browser.pool.proxy::ProxyPool (POS: Proxy pool for browser fetchers)
@@ -58,7 +57,6 @@ from myrm_agent_harness.utils.lru_cache import LRUCache
 from ..fetchers.browser_fetcher import BrowserFetcher
 from ..fetchers.http_fetcher import HttpFetcher
 from ..fetchers.stealth_fetcher import StealthFetcher
-from ..probe.http3_probe import get_http3_retry_metrics
 from ..processing.pipeline import ContentPipeline
 from ..router import get_global_domain_metrics_manager, get_global_tier_breaker
 from .batch_mixin import FetchEngineBatchMixin, cancel_fetches
@@ -323,7 +321,6 @@ class FetchEngine(
         return {
             "crawl_cache": self._crawl_cache.get_metrics(),
             "fail_cache": self._fail_cache.get_metrics(),
-            "http3_retry": get_http3_retry_metrics(),
             "background_revalidation": {
                 "success": self._bg_revalidations_success,
                 "failed": self._bg_revalidations_failed,

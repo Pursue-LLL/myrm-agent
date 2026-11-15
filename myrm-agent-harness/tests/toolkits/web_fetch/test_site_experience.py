@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -34,7 +35,6 @@ class TestSiteExperience:
             url_patterns={"search": "/search?q={query}"},
             known_traps=["CAPTCHA on login"],
             successful_flows=["Use site search"],
-            prefer_http3=True,
             last_verified="2024-03-20",
             verification_count=3,
         )
@@ -47,7 +47,6 @@ class TestSiteExperience:
         assert restored.url_patterns == {"search": "/search?q={query}"}
         assert restored.known_traps == ["CAPTCHA on login"]
         assert restored.successful_flows == ["Use site search"]
-        assert restored.prefer_http3 is True
         assert restored.last_verified == "2024-03-20"
         assert restored.verification_count == 3
 
@@ -119,17 +118,34 @@ class TestSiteExperienceStore:
         assert "JS heavy" in exp.platform_features
         assert "popup" in exp.known_traps
 
-    def test_prefer_http3_roundtrip(self, tmp_store: SiteExperienceStore) -> None:
-        tmp_store.set_prefer_http3("news.example.com")
-        assert tmp_store.get_prefer_http3("news.example.com") is True
-        assert tmp_store.get_prefer_http3("www.news.example.com") is True
+    def test_stored_file_with_a_key_this_version_does_not_know_still_loads(self, tmp_path: Path) -> None:
+        # A file written by an older version carries ``prefer_http3``; it must neither fail the load nor survive a save.
+        path = tmp_path / "site_experience.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "news.example.com": {
+                        "domain": "news.example.com",
+                        "known_traps": ["popup"],
+                        "prefer_http3": True,
+                        "verification_count": 2,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
 
-        tmp_store.set_prefer_http3("news.example.com", enabled=False)
-        assert tmp_store.get_prefer_http3("news.example.com") is False
+        store = SiteExperienceStore(storage_path=path)
+        exp, _stale = store.get("news.example.com")
 
-        tmp_store.save()
-        reloaded = SiteExperienceStore(storage_path=tmp_store._storage_path)
-        assert reloaded.get_prefer_http3("news.example.com") is False
+        assert exp is not None
+        assert exp.known_traps == ["popup"]
+        assert exp.verification_count == 2
+        assert "prefer_http3" not in exp.to_dict()
+
+        store.save_experience("news.example.com", known_traps=["login wall"])
+        store.save()
+        assert "prefer_http3" not in json.loads(path.read_text(encoding="utf-8"))["news.example.com"]
 
     def test_get_nonexistent(self, tmp_store: SiteExperienceStore) -> None:
         exp, stale = tmp_store.get("nonexistent.com")

@@ -69,7 +69,7 @@ async def test_http_fetcher_cookiejar_injection(install_fake_scrapling: AsyncMoc
 
     # Mock AsyncFetcher.get to intercept the call and check kwargs
     mock_get = install_fake_scrapling
-    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false", "MYRM_HTTP3_RETRY": "0"}):
+    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false"}):
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.body = b"<html><body><p>" + (b"Test content. " * 20) + b"</p></body></html>"
@@ -140,7 +140,7 @@ async def test_http_fetcher_keeps_non_text_body_whole(install_fake_scrapling: As
     document = b"%PDF-1.7\n" + b"x" * (MAX_PLAIN_TEXT_BODY_BYTES + 1_000)
     install_fake_scrapling.return_value = _mock_response("https://example.com/paper.pdf", "application/pdf", document)
 
-    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false", "MYRM_HTTP3_RETRY": "0"}):
+    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false"}):
         result = await HttpFetcher().fetch("https://example.com/paper.pdf")
 
     assert result is not None
@@ -154,7 +154,7 @@ async def test_http_fetcher_truncates_text_body_above_cap(install_fake_scrapling
     page = b"<html><body>" + b"a" * (MAX_HTML_BODY_BYTES + 1_000) + b"</body></html>"
     install_fake_scrapling.return_value = _mock_response("https://example.com/long", "text/html", page)
 
-    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false", "MYRM_HTTP3_RETRY": "0"}):
+    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false"}):
         result = await HttpFetcher().fetch("https://example.com/long")
 
     assert result is not None

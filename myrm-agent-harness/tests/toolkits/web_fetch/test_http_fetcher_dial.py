@@ -45,7 +45,7 @@ def _response(location: str | None = None) -> MagicMock:
 
 async def _fetch(fetcher: HttpFetcher, url: str, *, shield: bool = True) -> FetchResult | None:
     return await fetcher._fetch_with_redirects(
-        url, headers={}, cookie_jar=None, enable_ssrf_shield=shield, allowed_hosts=[], use_http3=False
+        url, headers={}, cookie_jar=None, enable_ssrf_shield=shield, allowed_hosts=[]
     )
 
 

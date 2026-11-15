@@ -8,8 +8,23 @@ import pytest
 
 from myrm_agent_harness.core.security.guards.url_allowlist import SSRFSecurityError
 from myrm_agent_harness.toolkits.web_fetch.fetchers.http_fetcher import HttpFetcher
-from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetchResult
-from tests.toolkits.web_fetch._http3_support import success_result
+from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetcherType, FetchResult
+
+
+def success_result() -> FetchResult:
+    body = (
+        "<html><body><article>"
+        "<p>Real article content here with enough text to pass has_content checks. "
+        "Additional paragraph padding to exceed the two-hundred character minimum "
+        "required by FetchResult.has_content for L1 success detection.</p>"
+        "</article></body></html>"
+    )
+    return FetchResult(
+        html=body,
+        url="https://blocked.example/article",
+        status_code=200,
+        fetcher_type=FetcherType.HTTP,
+    )
 
 
 @pytest.mark.asyncio
@@ -30,7 +45,6 @@ async def test_fetch_with_redirects_text_response(install_fake_scrapling: AsyncM
             cookie_jar=None,
             enable_ssrf_shield=False,
             allowed_hosts=[],
-            use_http3=False,
         )
 
     assert result is not None
@@ -55,7 +69,6 @@ async def test_fetch_with_redirects_304(install_fake_scrapling: AsyncMock) -> No
         cookie_jar=None,
         enable_ssrf_shield=False,
         allowed_hosts=[],
-        use_http3=False,
     )
 
     assert result is not None
@@ -79,7 +92,6 @@ async def test_fetch_with_redirects_binary_body(install_fake_scrapling: AsyncMoc
         cookie_jar=None,
         enable_ssrf_shield=False,
         allowed_hosts=[],
-        use_http3=False,
     )
 
     assert result is not None
@@ -95,11 +107,10 @@ async def test_fetch_forwards_cache_headers() -> None:
         _url: str,
         *,
         headers: dict[str, str],
-        use_http3: bool,
         **_kwargs: object,
     ) -> FetchResult | None:
         captured_headers.append(headers.copy())
-        return success_result() if not use_http3 else None
+        return success_result()
 
     with patch.object(fetcher, "_fetch_with_redirects", side_effect=fake_fetch_with_redirects):
         result = await fetcher.fetch(
@@ -138,7 +149,6 @@ async def test_fetch_with_redirects_follows_location(install_fake_scrapling: Asy
         cookie_jar=None,
         enable_ssrf_shield=False,
         allowed_hosts=[],
-        use_http3=False,
     )
 
     assert result is not None
@@ -163,7 +173,6 @@ async def test_fetch_with_redirects_ssrf_blocked(install_fake_scrapling: AsyncMo
             cookie_jar=None,
             enable_ssrf_shield=True,
             allowed_hosts=[],
-            use_http3=False,
         )
 
     install_fake_scrapling.assert_not_called()
@@ -186,7 +195,6 @@ async def test_fetch_with_redirects_redirect_missing_location(install_fake_scrap
         cookie_jar=None,
         enable_ssrf_shield=False,
         allowed_hosts=[],
-        use_http3=False,
     )
 
     assert result is None
@@ -209,7 +217,6 @@ async def test_fetch_with_redirects_too_many_redirects(install_fake_scrapling: A
         cookie_jar=None,
         enable_ssrf_shield=False,
         allowed_hosts=[],
-        use_http3=False,
     )
 
     assert result is None
@@ -227,7 +234,6 @@ async def test_fetch_with_redirects_async_fetcher_exception(install_fake_scrapli
         cookie_jar=None,
         enable_ssrf_shield=False,
         allowed_hosts=[],
-        use_http3=False,
     )
 
     assert result is None
@@ -247,7 +253,7 @@ async def test_proxy_pool_injects_proxy_kwarg(install_fake_scrapling: AsyncMock)
     mock_response.headers = {"content-type": "text/html"}
     install_fake_scrapling.return_value = mock_response
 
-    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false", "MYRM_HTTP3_RETRY": "0"}):
+    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false"}):
         await fetcher.fetch("https://blocked.example/article")
 
     assert install_fake_scrapling.call_args.kwargs["proxy"] == "http://proxy.local:8080"
@@ -282,7 +288,7 @@ async def test_session_vault_empty_entry_skips_cookies(install_fake_scrapling: A
     mock_response.headers = {"content-type": "text/html"}
     install_fake_scrapling.return_value = mock_response
 
-    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false", "MYRM_HTTP3_RETRY": "0"}):
+    with patch.dict("os.environ", {"MYRM_ENABLE_SSRF_SHIELD": "false"}):
         await fetcher.fetch("https://blocked.example/article")
 
     assert "cookies" not in install_fake_scrapling.call_args.kwargs
@@ -309,7 +315,6 @@ async def test_fetch_with_redirects_ssrf_rewrites_url(install_fake_scrapling: As
             cookie_jar=None,
             enable_ssrf_shield=True,
             allowed_hosts=["blocked.example"],
-            use_http3=False,
         )
 
     assert result is not None
@@ -342,10 +347,13 @@ async def test_fetch_with_redirects_pinned_ip_tls_mismatch_fallback(install_fake
             cookie_jar=None,
             enable_ssrf_shield=True,
             allowed_hosts=["blocked.example"],
-            use_http3=False,
         )
 
     assert result is not None
     assert install_fake_scrapling.call_count == 2
     assert install_fake_scrapling.call_args_list[0].args[0] == "https://10.0.0.1/safe"
     assert install_fake_scrapling.call_args_list[1].args[0] == "https://blocked.example/article"
+
+
+def test_extract_domain_strips_www() -> None:
+    assert HttpFetcher._extract_domain("https://www.blocked.example/path") == "blocked.example"

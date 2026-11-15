@@ -84,7 +84,7 @@ class StealthFetcher:
                     response = await StealthyFetcher.async_fetch(url, **kwargs)
                 if guard is not None:
                     await guard.pin(response.url or url)
-                from ..probe.charset_detector import detect_and_decode_html
+                from ..processing.charset_detector import detect_and_decode_html
 
                 html, _ = detect_and_decode_html(response.body, response.encoding)
                 return FetchResult(

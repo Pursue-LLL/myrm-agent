@@ -1,7 +1,7 @@
 """L1 classifies each response body once: web page, text or binary file.
 
 A web page keeps the HTML pipeline, text is decoded and kept as it is, and a file travels as ``raw_body`` so the
-file parsers get its exact bytes. The HTTP/3 retry lane only helps web pages that came back empty or blocked.
+file parsers get its exact bytes.
 """
 
 from __future__ import annotations
@@ -145,19 +145,3 @@ def test_result_carrying_raw_bytes_is_always_binary() -> None:
     assert FetchResult(html="", url=URL, raw_body=b"bytes").kind is PayloadKind.BINARY
     assert FetchResult(html="", url=URL, kind=PayloadKind.TEXT, raw_body=b"bytes").kind is PayloadKind.BINARY
     assert FetchResult(html="<p>page</p>", url=URL).kind is PayloadKind.WEB
-
-
-@pytest.mark.parametrize(
-    ("result", "expected"),
-    [
-        (FetchResult(html="short", url=URL), True),
-        (FetchResult(html="short", url=URL, kind=PayloadKind.TEXT), False),
-        (FetchResult(html="", url=URL, raw_body=PDF), False),
-        (FetchResult(html="short", url=URL, status_code=403, kind=PayloadKind.TEXT), True),
-        (FetchResult(html="short", url=URL, status_code=404), False),
-        (None, True),
-    ],
-    ids=["empty-page", "text", "file", "text-forbidden", "not-found", "no-response"],
-)
-def test_http3_retry_only_helps_web_pages(result: FetchResult | None, expected: bool) -> None:
-    assert HttpFetcher._should_retry_with_http3(result) is expected
