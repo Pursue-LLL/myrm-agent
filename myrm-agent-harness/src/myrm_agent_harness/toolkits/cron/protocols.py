@@ -406,13 +406,6 @@ class StreamListener(Protocol):
         """Tear down all active stream connections (graceful shutdown)."""
         ...
 
-    def active_streams(self) -> dict[str, str]:
-        """Return ``{job_id: stream_url}`` for all active connections.
-
-        Used by the frontend status indicator and health checks.
-        """
-        ...
-
 
 # ---------------------------------------------------------------------------
 # CronNoticeCallback — what the engine tells the user about a job

@@ -33,6 +33,11 @@ from app.core.cron.adapters.stream_listener import (
 _SSRF_OK = SSRFResult(safe=True, hostname="localhost", resolved_ips=("127.0.0.1",))
 
 
+def _stream_tasks() -> list[str]:
+    """Names of the live stream tasks; the manager names each one ``stream-<protocol>-<job id>``."""
+    return sorted(task.get_name() for task in asyncio.all_tasks() if task.get_name().startswith("stream-"))
+
+
 # ---------------------------------------------------------------------------
 # Fixtures: in-process aiohttp test server with WS & SSE endpoints
 # ---------------------------------------------------------------------------
@@ -364,10 +369,10 @@ class TestStreamLifecycle:
             return_value=_SSRF_OK,
         ):
             await mgr.start_stream("stop-test", StreamTrigger(url=test_server.ws_url()), on_event)
-            assert "stop-test" in mgr.active_streams()
+            assert _stream_tasks() == ["stream-ws-stop-test"]
 
             await mgr.stop_stream("stop-test")
-            assert "stop-test" not in mgr.active_streams()
+            assert _stream_tasks() == []
 
         test_server.app["_ws_close_event"].set()
         await mgr.stop_all()
@@ -383,7 +388,7 @@ class TestStreamLifecycle:
         ):
             await mgr.start_stream("restart", StreamTrigger(url=test_server.ws_url()), on_event)
             await mgr.start_stream("restart", StreamTrigger(url=test_server.ws_url()), on_event)
-            assert len(mgr.active_streams()) == 1
+            assert _stream_tasks() == ["stream-ws-restart"]
 
         test_server.app["_ws_close_event"].set()
         await mgr.stop_all()
@@ -537,7 +542,7 @@ class TestStreamEdgeCases:
         """Stopping a stream that doesn't exist should not raise."""
         mgr = StreamListenerManager()
         await mgr.stop_stream("nonexistent")
-        assert mgr.active_streams() == {}
+        assert _stream_tasks() == []
         await mgr.stop_all()
 
     @pytest.mark.asyncio

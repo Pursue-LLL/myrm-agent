@@ -82,7 +82,6 @@ class StreamListenerManager:
     def __init__(self, *, max_concurrent_streams: int = _DEFAULT_MAX_STREAMS) -> None:
         self._max_streams = max_concurrent_streams
         self._tasks: dict[str, asyncio.Task[None]] = {}
-        self._urls: dict[str, str] = {}
         self._session: aiohttp.ClientSession | None = None
 
     def _ensure_session(self) -> aiohttp.ClientSession:
@@ -124,12 +123,10 @@ class StreamListenerManager:
             )
 
         self._tasks[job_id] = task
-        self._urls[job_id] = trigger.url
         logger.info("Stream started for job %s → %s (%s)", job_id, trigger.url, trigger.protocol.value)
 
     async def stop_stream(self, job_id: str) -> None:
         task = self._tasks.pop(job_id, None)
-        self._urls.pop(job_id, None)
         if task and not task.done():
             task.cancel()
             try:
@@ -145,9 +142,6 @@ class StreamListenerManager:
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
-
-    def active_streams(self) -> dict[str, str]:
-        return dict(self._urls)
 
     async def _ws_loop(
         self,

@@ -10,11 +10,9 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
     BACKOFF_SCHEDULE_MS,
     _ensure_utc,
     classify_transient_error,
-    compute_stagger_offset_s,
     error_backoff_ms,
     extract_telemetry,
     is_past_misfire_grace,
-    is_top_of_hour_cron,
     pre_execution_check,
     resolve_failure_alert,
     resolve_stagger_ms,
@@ -81,31 +79,6 @@ class TestStagger:
 
     def test_interval_no_stagger(self) -> None:
         assert resolve_stagger_ms(_job(schedule=_SCHED_INTERVAL)) == 0
-
-
-class TestIsTopOfHourCron:
-    def test_top_of_hour(self) -> None:
-        assert is_top_of_hour_cron("0 * * * *") is True
-
-    def test_specific_hour(self) -> None:
-        assert is_top_of_hour_cron("0 9 * * *") is False
-
-    def test_non_zero_minute(self) -> None:
-        assert is_top_of_hour_cron("30 * * * *") is False
-
-    def test_short_expr(self) -> None:
-        assert is_top_of_hour_cron("0 *") is False
-
-
-class TestComputeStaggerOffsetS:
-    def test_explicit(self) -> None:
-        assert compute_stagger_offset_s(10_000, None) == 10.0
-
-    def test_auto_top_of_hour(self) -> None:
-        assert compute_stagger_offset_s(None, "0 * * * *") == 300.0
-
-    def test_no_stagger(self) -> None:
-        assert compute_stagger_offset_s(None, "30 * * * *") == 0.0
 
 
 class TestPreExecutionCheck:

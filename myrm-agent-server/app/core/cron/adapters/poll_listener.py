@@ -46,7 +46,6 @@ class PollListenerManager:
     def __init__(self, *, max_concurrent_polls: int = _DEFAULT_MAX_POLLS) -> None:
         self._max_polls = max_concurrent_polls
         self._tasks: dict[str, asyncio.Task[None]] = {}
-        self._urls: dict[str, str] = {}
         self._hashes: dict[str, str] = {}
         self._session: aiohttp.ClientSession | None = None
 
@@ -80,12 +79,10 @@ class PollListenerManager:
             name=f"poll-{job_id}",
         )
         self._tasks[job_id] = task
-        self._urls[job_id] = trigger.url
         logger.info("Poll started for job %s → %s (every %ds)", job_id, trigger.url, interval)
 
     async def stop_poll(self, job_id: str) -> None:
         task = self._tasks.pop(job_id, None)
-        self._urls.pop(job_id, None)
         self._hashes.pop(job_id, None)
         if task and not task.done():
             task.cancel()
@@ -102,9 +99,6 @@ class PollListenerManager:
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
-
-    def active_polls(self) -> dict[str, str]:
-        return dict(self._urls)
 
     async def _poll_loop(
         self,

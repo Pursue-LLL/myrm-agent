@@ -1,10 +1,12 @@
-"""[INPUT]
+"""Scheduling, alert, and error helpers for the cron engine.
+
+All public functions are pure (no I/O) and safe to call from any context.
+
+[INPUT]
 - toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig (POS: Cron job domain types.)
 
 [OUTPUT]
 - resolve_stagger_ms: Compute the effective stagger delay for a job.
-- is_top_of_hour_cron: Return True if *expression* fires at minute-0 every hour.
-- compute_stagger_offset_s: Return the stagger upper-bound in seconds for a given schedule.
 - is_within_active_hours: Return True if *now* falls within the active window, or if no window is set.
 - is_stale_run: Detect a zombie task whose execution was interrupted by an unclean shutdown.
 - auto_pause_notice: The notice for a pre-execution verdict that paused the job.
@@ -21,12 +23,6 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from myrm_agent_harness.toolkits.cron.types import CronNotice, CronNoticeKind, FailureAlertConfig
-
-"""Scheduling, alert, and error helpers for the cron engine.
-
-All public functions are pure (no I/O) and safe to call from any context.
-"""
-
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.types import (
@@ -77,32 +73,6 @@ def resolve_stagger_ms(job: CronJob) -> int:
     if minute_field == "0":
         return _DEFAULT_TOP_OF_HOUR_STAGGER_MS
     return 0
-
-
-def is_top_of_hour_cron(expression: str) -> bool:
-    """Return True if *expression* fires at minute-0 every hour.
-
-    Matches patterns like ``0 * * * *`` or ``0 9 * * *`` where the minute
-    field is exactly ``0`` and the hour field contains ``*``.
-    """
-    parts = expression.strip().split()
-    if len(parts) < 5:
-        return False
-    return parts[0] == "0" and "*" in parts[1]
-
-
-def compute_stagger_offset_s(schedule_stagger_ms: int | None, expr: str | None) -> float:
-    """Return the stagger upper-bound in seconds for a given schedule.
-
-    - Explicit ``stagger_ms > 0`` -> use that value.
-    - ``stagger_ms is None`` + top-of-hour cron -> 5-minute default.
-    - Otherwise -> 0 (exact timing).
-    """
-    if schedule_stagger_ms is not None:
-        return max(0, schedule_stagger_ms) / 1000.0
-    if expr and is_top_of_hour_cron(expr):
-        return _DEFAULT_TOP_OF_HOUR_STAGGER_MS / 1000.0
-    return 0.0
 
 
 # ---------------------------------------------------------------------------
