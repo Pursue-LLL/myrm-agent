@@ -21111,7 +21111,7 @@
     },
     "commerceBudget": {
       "title": "Spending Limit Gate",
-      "description": "Per-payment and daily caps, a merchant-domain allowlist and a one-click freeze. The gate holds no card numbers, and payment-like tool calls still ask for your approval each time.",
+      "description": "Per-payment and daily caps, a merchant-domain allowlist and a one-click freeze. The gate holds no card numbers. YOLO Mode and Always Allow never release payment-like tool calls, but with Smart Intent Guard on, a payment that clearly matches your request can still be approved automatically.",
       "dailyCap": "Daily Spending Cap",
       "dailyCapDesc": "Maximum total the gate accepts for reservations per day",
       "perActionCap": "Per-Action Limit",

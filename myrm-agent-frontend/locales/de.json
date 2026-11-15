@@ -21111,7 +21111,7 @@
     },
     "commerceBudget": {
       "title": "Ausgabenlimit-Gate",
-      "description": "Limits pro Zahlung und pro Tag, eine Händler-Domain-Allowlist und ein Ein-Klick-Stopp. Das Gate speichert keine Kartennummern, und zahlungsähnliche Tool-Aufrufe brauchen weiterhin jedes Mal Ihre Freigabe.",
+      "description": "Limits pro Zahlung und pro Tag, eine Händler-Domain-Allowlist und ein Ein-Klick-Stopp. Das Gate speichert keine Kartennummern. YOLO-Modus und „Immer zulassen“ geben zahlungsähnliche Tool-Aufrufe nie frei, aber mit aktivem Smart Intent Guard kann eine Zahlung, die eindeutig zu Ihrer Anfrage passt, weiterhin automatisch genehmigt werden.",
       "dailyCap": "Tägliches Ausgabenlimit",
       "dailyCapDesc": "Maximaler Gesamtbetrag, den das Gate pro Tag für Reservierungen annimmt",
       "perActionCap": "Limit pro Transaktion",
