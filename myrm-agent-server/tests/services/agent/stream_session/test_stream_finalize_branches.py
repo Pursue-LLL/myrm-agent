@@ -223,7 +223,7 @@ class TestFinalizeBranchCoverage:
     async def test_resume_marks_pending_clarification_answered(self) -> None:
         """Resumed turns mark the pending clarification answered."""
         session = _make_session()
-        session.request.resume_value = "resume-payload"
+        session.request.resume_value = {"framework": "langchain"}
         session.collector.extra_data = {"clarification": {"answered": False}}
         clarification_msg = MagicMock(id="m-clarify", role="assistant")
         clarification_msg.extra_data = {"clarification": {"answered": False}}

@@ -1,5 +1,6 @@
 /**
- * Tests for OS notification dispatch on CLARIFICATION_REQUIRED in toolsProgressEvents handler.
+ * Tests for what the toolsProgressEvents handler raises on CLARIFICATION_REQUIRED: the card with the pause it answers,
+ * and the OS notification.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,6 +34,7 @@ vi.mock('../handlerDeps', () => ({
     TOOLS_SNAPSHOT: 'tools_snapshot',
   },
   findAssistantMessageIndex: vi.fn(() => 0),
+  resolveStreamChatId: vi.fn(() => 'c1'),
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', actionMode: 'auto', addEnvironmentAlert: vi.fn() })),
   },
@@ -52,6 +54,7 @@ vi.mock('../handlerDeps', () => ({
   mergeMessageSources: vi.fn(),
 }));
 
+import { findAssistantMessageIndex } from '../handlerDeps';
 import { toolsProgressEvents } from '../toolsProgressEvents';
 import type { StreamCtx } from '../../streamContext';
 
@@ -228,5 +231,50 @@ describe('toolsProgressEvents clarification notification', () => {
       expect.any(String),
       expect.objectContaining({ body: undefined, fallbackToToast: false }),
     );
+  });
+});
+
+type CardRow = { clarification?: { answered: boolean; interruptId?: string } };
+
+/** Runs the handler for one announced card and applies its store update to a draft holding `rows`. */
+async function announceCard(extra: Record<string, unknown>, rows: CardRow[]): Promise<CardRow[]> {
+  const setMessages = vi.fn();
+  const ctx = makeCtx('clarification_required', { data: productionClarifyData, ...extra });
+  ctx.actions.setMessages = setMessages;
+  await toolsProgressEvents(ctx);
+  const apply = setMessages.mock.calls[0]?.[0] as (draft: { messages: CardRow[] }) => void;
+  const draft = { messages: rows };
+  apply(draft);
+  return draft.messages;
+}
+
+describe('toolsProgressEvents clarification card address', () => {
+  // The answer is addressed to the pause that asked, so the card has to remember which pause that was.
+  it('keeps the interrupt id the card was announced with', async () => {
+    const [row] = await announceCard({ interruptId: 'int-1' }, [{}]);
+
+    expect(row.clarification).toMatchObject({ answered: false, interruptId: 'int-1' });
+  });
+
+  it('keeps it on the row the card creates when the stream has none yet', async () => {
+    vi.mocked(findAssistantMessageIndex).mockReturnValueOnce(-1);
+
+    const [row] = await announceCard({ interruptId: 'int-1' }, []);
+
+    expect(row.clarification?.interruptId).toBe('int-1');
+  });
+
+  it('replaces the id of an earlier card on the same row with the id of the new pause', async () => {
+    const [row] = await announceCard({ interruptId: 'int-2' }, [
+      { clarification: { answered: true, interruptId: 'int-1' } },
+    ]);
+
+    expect(row.clarification).toMatchObject({ answered: false, interruptId: 'int-2' });
+  });
+
+  it('leaves the card without an id when the pause was announced without one', async () => {
+    const [row] = await announceCard({}, [{}]);
+
+    expect(row.clarification?.interruptId).toBeUndefined();
   });
 });

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.agent.stream_session.stream_session_types::AgentStreamSession (POS: request resume value of the turn)
-- app.services.agent.streaming_support.hitl_timeout::mark_pending_clarification_answered (POS: flip the newest unanswered stored card)
+- app.services.agent.streaming_support.hitl_timeout::hitl_answer_record / mark_pending_clarification_answered (POS: the record a settled card keeps, and flipping the newest unanswered stored card)
 
 [OUTPUT]
 - settle_answered_cards: mark the answered card done and keep how it was answered on it
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.hitl_timeout import (
-    HitlAnswerRecord,
+    hitl_answer_record,
     mark_pending_clarification_answered,
 )
 
@@ -32,5 +32,4 @@ async def settle_answered_cards(session: AgentStreamSession) -> None:
     resume_value = session.request.resume_value
     if resume_value is None:
         return
-    record: HitlAnswerRecord = {"by": "user", "value": resume_value}
-    await mark_pending_clarification_answered(chat_id, record)
+    await mark_pending_clarification_answered(chat_id, hitl_answer_record("user", resume_value))

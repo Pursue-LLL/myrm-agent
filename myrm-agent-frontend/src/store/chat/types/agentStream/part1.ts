@@ -259,6 +259,8 @@ export interface ClarificationRequiredWireData {
 
 export interface ClarificationRequiredStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.CLARIFICATION_REQUIRED;
+  /** LangGraph interrupt the card answers: the answer is addressed to it, so it can never settle a later pause. */
+  interruptId?: string;
   data: ClarificationRequiredWireData;
 }
 

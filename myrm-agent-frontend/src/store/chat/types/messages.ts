@@ -185,6 +185,8 @@ export type Message = {
     title?: string;
     form?: ClarificationForm;
     answerRecord?: HitlAnswerRecord;
+    /** The pause the card was announced for; absent on a card the server stored without one. */
+    interruptId?: string;
   };
   planConfirmation?: {
     plan: string;

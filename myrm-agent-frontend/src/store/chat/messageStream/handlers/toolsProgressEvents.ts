@@ -222,14 +222,12 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.CLARIFICATION_REQUIRED) {
     const form = resolveClarificationFormFromEventData(data.data);
+    // The card remembers the pause it asks about: its answer is addressed to that pause and no later one.
+    const clarification = { answered: false, title: form?.title ?? undefined, form, interruptId: data.interruptId };
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {
-        state.messages[messageIndex].clarification = {
-          answered: false,
-          title: form?.title ?? undefined,
-          form,
-        };
+        state.messages[messageIndex].clarification = clarification;
       } else {
         state.messages.push({
           content: '',
@@ -237,11 +235,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
           chatId: H.resolveStreamChatId(ctx.state),
           role: 'assistant',
           createdAt: new Date(),
-          clarification: {
-            answered: false,
-            title: form?.title ?? undefined,
-            form,
-          },
+          clarification,
         });
         ctx.added = true;
       }

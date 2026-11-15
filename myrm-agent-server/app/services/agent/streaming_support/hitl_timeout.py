@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: per-chat timer and first-resolver arbitration)
+- myrm_agent_harness.agent.streaming.interrupt_events::INTERRUPT_ID_KEY (POS: key an answer carries to name the pause it is for)
 - app.services.agent.turn_lease::server_turn_lease (POS: chat session claim + cancel token of a turn the server starts)
 - app.services.agent.gateway::AgentBusyError, AgentDrainingError (POS: the chat is held by a live run, or the app drains)
 - app.services.agent.streaming::ai_agent_service_stream (POS: gateway-managed agent run, imported lazily)
@@ -15,7 +16,8 @@
 - CLARIFICATION_TIMEOUT_SECONDS / CLARIFICATION_NO_ANSWER_RESUME_VALUE: ask_question timeout and its empty answer
 - arm_interrupt_timeout: arm the timer of the interrupt a run stopped at, or reopen one that has no timer
 - schedule_approval_timeout / schedule_clarification_timeout: arm one interrupt kind
-- HitlAnswerRecord: who settled a card (the user or the timeout default) and the resume value that settled it
+- HitlAnswerRecord / hitl_answer_record: who settled a card (the user or the timeout default) and the answer that settled it,
+  without the id the answer was addressed to
 - mark_pending_clarification_answered: flip the stored card to answered and keep the record on it (best effort)
 
 [POS]
@@ -38,6 +40,7 @@ from typing import TYPE_CHECKING, Literal, TypedDict
 
 import orjson
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.agent.streaming.interrupt_events import INTERRUPT_ID_KEY
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 from myrm_agent_harness.utils.coercion import parse_float
 
@@ -66,6 +69,11 @@ class HitlAnswerRecord(TypedDict):
 
     by: Literal["user", "timeout"]
     value: object
+
+
+def hitl_answer_record(by: Literal["user", "timeout"], resume_value: dict[str, object]) -> HitlAnswerRecord:
+    """The record a settled card keeps: the answer as given, without the id that routed it to its pause."""
+    return {"by": by, "value": {key: value for key, value in resume_value.items() if key != INTERRUPT_ID_KEY}}
 
 
 # Web structured clarify: auto-resume when user leaves the form open (900 s).
@@ -278,9 +286,8 @@ async def _resume_after_timeout(
 
         try:
             # Mark before persisting: the continuation may carry a new unanswered card that must stay unanswered.
-            timeout_record: HitlAnswerRecord = {"by": "timeout", "value": resume_value}
             if kind == "clarification":
-                await mark_pending_clarification_answered(chat_id, timeout_record)
+                await mark_pending_clarification_answered(chat_id, hitl_answer_record("timeout", resume_value))
 
             if collector.has_persistable_turn:
                 from app.services.agent.stream_session.stream_finalize import assistant_turn_payload
