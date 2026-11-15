@@ -16,7 +16,9 @@
 
 [POS]
 Execution segment of ``AgentRouter``, composed into it via multiple inheritance. It builds on ``RouterDeliveryMixin``
-and runs after ``RouterTurnMixin`` (``pipeline/turn.py``) has handed it one merged message.
+and runs after ``RouterTurnMixin`` (``pipeline/turn.py``) has handed it one merged message. It owns the turn's
+``SteeringToken``: at teardown it closes the token and gives a sender back the ``/steer`` instructions a turn that ended
+by itself never read, so an instruction the token accepted is read or returned (a cancelled turn ends with its guidance).
 """
 
 from __future__ import annotations
@@ -326,6 +328,12 @@ class RouterExecutionMixin(RouterDeliveryMixin):
                 scratch.deferred_placeholder = None
             raise
         finally:
+            # A turn that ended by itself without reaching the last steering gate (an error, ...) still holds
+            # instructions the model never read: they go back to the sender. Cancelling (``/stop``, ``/new``) ends the
+            # run and the guidance addressed to it. From here on ``/steer`` is refused and becomes a turn of its own.
+            unread_steering = steering_token.close_and_drain()
+            if unread_steering and not cancel_token.is_cancelled:
+                await self._fx.send_unread_steering_reply(ctx.exec_msg, "\n".join(f"- {text}" for text in unread_steering))
             placeholder_id = self._resolve_live_placeholder_id(ctx.state_key)
             await self._cleanup_effects(
                 ctx.state_key,

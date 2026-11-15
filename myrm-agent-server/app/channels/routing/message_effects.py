@@ -18,7 +18,7 @@ instead of raw internal errors.
 - channels.routing.reactions::ReactionFunnel (POS: the one place a reaction leaves the router)
 
 [OUTPUT]
-- MessageEffects: Helper for typing/keepalive/placeholder/reply/busy-ack operations; ``reactions`` is its ReactionFunnel
+- MessageEffects: Helper for typing/keepalive/placeholder/reply/busy-ack operations and the notice that gives a sender back the ``/steer`` instructions a turn never read; ``reactions`` is its ReactionFunnel
 
 [POS]
 Message side-effect operations collection: every auxiliary channel interaction the router performs
@@ -378,6 +378,13 @@ class MessageEffects:
             await self._bus.publish_outbound(reply)
         except Exception:
             logger.debug("busy_ack send failed for %s/%s", msg.channel, reply.recipient_id, exc_info=True)
+
+    async def send_unread_steering_reply(self, msg: InboundMessage, instructions: str) -> None:
+        """Give the sender back the ``/steer`` instructions (one per line) a turn ended without reading."""
+        try:
+            await self._bus.publish_outbound(_system_notice(msg, get_text(msg, "steering_unread", instructions=instructions)))
+        except Exception:
+            logger.warning("Unread steering not returned to %s/%s", msg.channel, msg.chat_id or msg.sender_id, exc_info=True)
 
     @staticmethod
     async def wait_for_edit_gap(last_progress_at: float, min_interval: float = 2.0) -> None:

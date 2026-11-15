@@ -29,6 +29,7 @@ import type {
   SessionRecordingStreamEvent,
   SourcesStreamEvent,
   SteeringStreamEvent,
+  SteeringUnreadStreamEvent,
   TasksStepsStreamEvent,
   TokenUsageStreamEvent,
   ToolApprovalRequestStreamEvent,
@@ -103,6 +104,7 @@ export type AgentStreamEvent =
   | SkillGapStreamEvent
   | PhaseTransitionStreamEvent
   | SteeringStreamEvent
+  | SteeringUnreadStreamEvent
   | ToolStartStreamEvent
   | ToolEndStreamEvent
   | ToolFailureStreamEvent

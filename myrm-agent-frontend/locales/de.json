@@ -2713,6 +2713,7 @@
         "queue": "Agent beschäftigt... Strg/⌘+Enter zum Einreihen"
       },
       "pausedStopped": "Warteschlange pausiert, weil Sie die Antwort gestoppt haben.",
+      "steeringReturned": "Der Lauf endete, bevor er Ihre Anweisung lesen konnte – sie wurde in die Warteschlange gestellt.",
       "resume": "Fortsetzen",
       "retry": "Erneut versuchen",
       "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",

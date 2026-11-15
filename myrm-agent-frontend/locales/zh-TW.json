@@ -2713,6 +2713,7 @@
         "queue": "正在執行... Ctrl/⌘+Enter 排隊跟進"
       },
       "pausedStopped": "你已停止回覆，佇列已暫停。",
+      "steeringReturned": "任務在讀到你的指令之前就結束了，已將指令放入佇列。",
       "resume": "繼續傳送",
       "retry": "重試",
       "attachments": "{count} 個附件",

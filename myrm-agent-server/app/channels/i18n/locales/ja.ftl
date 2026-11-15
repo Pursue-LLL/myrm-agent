@@ -39,6 +39,9 @@ permission_denied =  権限不足：`/{ $cmd }` には管理者権限が必要�
 usage_steer = 使い方：`/steer <新しい指示>`
 steering_applied = 指示を適用しました：_{ $preview }_
 steer_requester_only = この実行を開始した本人だけが指示を変更できます。
+steering_unread =
+    実行が指示を読み取る前に終了したため、指示は適用されませんでした。まだ必要な場合は、もう一度送信してください：
+    { $instructions }
 usage_queue = 使い方：`/queue <タスクの説明>`
 queue_queued = キューに追加しました。現在のタスク完了後に実行されます。
 queue_immediate = アクティブなタスクなし — 直ちに実行します。

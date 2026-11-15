@@ -39,6 +39,9 @@ permission_denied =  权限不足：`/{ $cmd }` 需要管理员权限。
 usage_steer = 用法：`/steer <新指令>`
 steering_applied = 指令已应用：_{ $preview }_
 steer_requester_only = 只有发起本次运行的人才能调整它。
+steering_unread =
+    本次运行在读到你的指令之前就结束了，该指令未被应用。如仍需要，请重新发送：
+    { $instructions }
 usage_queue = 用法：`/queue <任务描述>`
 queue_queued = 已排队，将在当前任务完成后执行。
 queue_immediate = 当前没有运行中的任务 — 立即执行。

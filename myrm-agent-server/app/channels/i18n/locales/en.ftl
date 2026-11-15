@@ -39,6 +39,9 @@ permission_denied =  Permission denied: `/{ $cmd }` requires admin access.
 usage_steer = Usage: `/steer <new instruction>`
 steering_applied = Steering applied: _{ $preview }_
 steer_requester_only = Only the person who started this run can steer it.
+steering_unread =
+    The run ended before it could read your instruction, so it was not applied. Send it again if you still need it:
+    { $instructions }
 usage_queue = Usage: `/queue <task description>`
 queue_queued = Queued. Will execute after the current task completes.
 queue_immediate = No active task — executing immediately.
