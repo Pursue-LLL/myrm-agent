@@ -3,7 +3,7 @@
  * Chat SSE event handler slice (agentControlEvents).
  */
 
-import { translateI18nKey } from '@/services/i18nToastService';
+import { showI18nToast, translateI18nKey } from '@/services/i18nToastService';
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import * as H from './handlerDeps';
@@ -124,6 +124,19 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         });
       }
     });
+    return done(ctx);
+  }
+
+  if (data.type === H.AgentEventType.STEERING_UNREAD) {
+    // The turn ended by itself before the model read these: they rejoin the chat's follow-up queue, which sends them
+    // once the chat is idle.
+    const chatId = H.resolveStreamChatId(ctx.state);
+    for (const text of data.data?.messages ?? []) {
+      H.useMessageQueueStore.getState().enqueue(chatId, { text, files: [] });
+    }
+    if (H.isStreamForOpenChat(ctx.state)) {
+      showI18nToast('chat.queue.steeringReturned', undefined, { type: 'info' });
+    }
     return done(ctx);
   }
 

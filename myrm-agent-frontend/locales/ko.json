@@ -2713,6 +2713,7 @@
         "queue": "실행 중... Ctrl/⌘+Enter로 대기열에 추가"
       },
       "pausedStopped": "응답을 중지하여 대기열이 일시 중지되었습니다.",
+      "steeringReturned": "작업이 지시를 읽기 전에 종료되어 지시를 대기열에 추가했습니다.",
       "resume": "다시 시작",
       "retry": "다시 시도",
       "attachments": "첨부 파일 {count}개",

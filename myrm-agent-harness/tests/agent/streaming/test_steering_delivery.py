@@ -269,6 +269,31 @@ async def test_a_failed_attempt_leaves_its_token_open_for_the_retry(tracker: Mag
     assert token.steer(STEER) is True
 
 
+@pytest.mark.asyncio
+async def test_an_instruction_a_failed_run_never_read_is_still_there_for_its_owner_to_hand_back(tracker: MagicMock):
+    """A run that fails does not pass the last gate: what it accepted and never read stays in the token for the owner."""
+    scenario = Scenario(tracker, [answer("never reached")], fail_on=1, error="provider exploded")
+    token = SteeringToken()
+    assert token.steer(STEER) is True
+
+    with pytest.raises(MyrmLLMError, match="provider exploded"):
+        await scenario.run({"messages": [HumanMessage(content=REQUEST)]}, token)
+
+    assert token.close_and_drain() == [STEER]
+    assert token.steer(LATE_STEER) is False
+
+
+@pytest.mark.asyncio
+async def test_a_run_that_read_its_instruction_has_nothing_left_for_its_owner(tracker: MagicMock):
+    scenario = Scenario(tracker, [tool_turn("work", {"step": 1}, "w1"), answer("stopping here"), answer("new plan")])
+    token = SteeringToken()
+
+    await scenario.run({"messages": [HumanMessage(content=REQUEST)]}, token, lambda: token.steer(STEER))
+
+    assert scenario.read_by_model(STEER)
+    assert token.close_and_drain() == []
+
+
 # ---------------------------------------------------------------------------
 # Handler: what the next input is, per kind of turn
 # ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@
 - app.services.agent.stream_session.stream_loop (POS: Core streaming loop: routes to fast / reasoning / wiki-knowledge lanes, handles approval timeouts, compression exhaustion, workflow escalation, and context overflow reset)
 - app.services.agent.stream_session.stream_disconnect (POS: 直连 SSE 断连监控的启停作用域，先于 finalize 退出)
 - app.services.agent.stream_session.stream_exception_chunks (POS: 把流异常转成用户可见的错误 chunk)
+- app.services.agent.stream_session.steering_unread (POS: 回合结束时把模型没读到的转向指令交还客户端)
 - app.services.agent.stream_session.stream_finalize (POS: 会话 teardown)
 
 [OUTPUT]
@@ -22,6 +23,7 @@ from collections.abc import AsyncGenerator
 from myrm_agent_harness.toolkits.llms.fallback import with_failover_emitter
 
 from app.schemas.streaming import SSEEnvelope
+from app.services.agent.stream_session.steering_unread import unread_steering_chunk
 from app.services.agent.stream_session.stream_disconnect import watch_client_disconnect
 from app.services.agent.stream_session.stream_exception_chunks import yield_stream_exception_chunks
 from app.services.agent.stream_session.stream_finalize import finalize_agent_stream_session
@@ -238,6 +240,7 @@ async def generate_cancellable_stream(
 
     try:
         async with with_failover_emitter(failover_emitter), watch_client_disconnect(session):
+            consumer_closed = False
             try:
                 async for chunk in merge_stream_with_emitter(
                     iter_agent_stream_chunks(session, approval, clarification),
@@ -245,8 +248,14 @@ async def generate_cancellable_stream(
                 ):
                     yield chunk
             except BaseException as exc:
+                consumer_closed = isinstance(exc, GeneratorExit)
                 async for chunk in yield_stream_exception_chunks(session, exc):
                     yield chunk
+            # A turn that ended by itself (completed, failed) hands the instructions the model never read back to the
+            # person who sent them; a cancelled turn drops them (the helper decides) and a consumer that closed the
+            # generator has nobody to receive them.
+            if not consumer_closed and (unread_chunk := unread_steering_chunk(session)) is not None:
+                yield unread_chunk
     finally:
         failover_emitter.close()
         await finalize_agent_stream_session(session, token_ctx, approval, clarification)

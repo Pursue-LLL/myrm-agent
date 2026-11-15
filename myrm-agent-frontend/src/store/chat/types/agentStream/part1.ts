@@ -62,6 +62,7 @@ export const AgentEventType = {
   ITERATION_LIMIT_REACHED: 'iteration_limit_reached',
   CONTEXT_OVERFLOW_RESET: 'context_overflow_reset',
   STEERING: 'steering',
+  STEERING_UNREAD: 'steering_unread',
   REDIRECTED: 'redirected',
   CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
   CAPTCHA_DETECTED: 'captcha_detected',
@@ -264,6 +265,12 @@ export interface ClarificationRequiredStreamEvent extends BaseAgentEvent {
 export interface SteeringStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.STEERING;
   data?: { count?: number; messages?: string[] } | string;
+}
+
+/** The turn ended without reading these instructions: they go back to the sender's follow-up queue. */
+export interface SteeringUnreadStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.STEERING_UNREAD;
+  data?: { count?: number; messages?: string[] };
 }
 
 export interface RedirectedStreamEvent extends BaseAgentEvent {

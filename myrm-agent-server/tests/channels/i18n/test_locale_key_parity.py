@@ -288,6 +288,7 @@ _RENDER_SAMPLES: dict[str, str | int] = {
     "id": 1,
     "identity_label": "（identity）",
     "index": 0,
+    "instructions": "- narrow it to 2026",
     "items": 2,
     "job_name": "daily report",
     "last_activity": "now",

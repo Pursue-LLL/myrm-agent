@@ -2722,6 +2722,7 @@
         "queue": "正在执行... Ctrl/⌘+Enter 排队跟进"
       },
       "pausedStopped": "你已停止回复，队列已暂停。",
+      "steeringReturned": "任务在读到你的指令之前就结束了，已将指令放入队列。",
       "resume": "继续发送",
       "retry": "重试",
       "attachments": "{count} 个附件",

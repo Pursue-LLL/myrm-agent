@@ -2722,6 +2722,7 @@
         "queue": "Agent busy... Ctrl/⌘+Enter to queue follow-up"
       },
       "pausedStopped": "Queue paused because you stopped the reply.",
+      "steeringReturned": "The run ended before it could read your guidance, so it was added to the queue.",
       "resume": "Resume",
       "retry": "Retry",
       "attachments": "{count, plural, one {# attachment} other {# attachments}}",

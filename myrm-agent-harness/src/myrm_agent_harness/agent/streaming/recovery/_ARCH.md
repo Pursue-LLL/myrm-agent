@@ -57,18 +57,23 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the recov
   retry act while the stream is still mid-run and replay the `Command` itself (verified for 429, 500 and 503
   after an approval); overflow compaction, goal continuation and the one-shot
   recoveries are declined on a resumed turn.
-- **A steer a completing turn accepted is delivered or was never accepted.** `SteeringToken.steer`/`redirect` return
+- **An accepted steer is read by the model or handed back to its sender.** `SteeringToken.steer`/`redirect` return
   whether the run took the message; callers keep a refused one (the web client queues it as the next turn,
   `/steer` submits it as a turn of its own, delegation and background callers report it as not steered).
-  Two things keep an accepted message from being lost: a pass restarted by error recovery keeps what the
-  last pass's tools had already taken off the queue (`reset_turn` returns activated-but-uncollected messages
-  to the queue), and the turn does not end until `_close_steering` has closed the token with nothing
-  waiting. The close is one atomic step (`close_if_idle`), so a message that gets in after the steering
-  handler looked is injected and the turn runs once more, and every later one is refused. Only a turn that
-  completes closes its token: a failed attempt leaves it open because a sub-agent retries on the same token.
+  Two things keep an accepted message from being lost while the run is alive: a pass restarted by error
+  recovery keeps what the last pass's tools had already taken off the queue (`reset_turn` returns
+  activated-but-uncollected messages to the queue), and the turn does not end until `_close_steering` has
+  closed the token with nothing waiting. The close is one atomic step (`close_if_idle`), so a message that
+  gets in after the steering handler looked is injected and the turn runs once more, and every later one is
+  refused. Only a turn that completes closes its token: a failed attempt leaves it open because a sub-agent
+  retries on the same token.
   A turn that ends through a fatal error, the iteration limit without a goal or a provider-window hold does
-  not pass the gate, and a Stop does not act on a message that is waiting: a message accepted since the
-  last steering check is neither read nor reported back to its sender.
+  not pass the gate, so a message accepted since the last steering check is still in the token: the token's
+  owner closes it with `close_and_drain` when the run ends and hands the unread messages back to the sender
+  (the web stream emits `steering_unread`, a chat channel sends a notice). A cancelled turn (Stop, `/stop`,
+  `/new`, a disconnect) ends together with the guidance addressed to it: its token is closed and nothing is
+  returned. Delegated tasks, background tasks and sub-agents own their tokens separately and do not hand
+  unread messages back.
 - **Recovery hints are runtime-authored.** The hint a recovery appends is a
   HumanMessage built by `runtime_human_message`, marked `is_system_synthetic`: the approval intent ledger
   and the user-input guard read user words and skip it. Steering is the user's own message and stays
