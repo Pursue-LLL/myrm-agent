@@ -74,6 +74,7 @@ export function SessionMapTrigger() {
 
   useEffect(() => {
     if (isOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect -- opening the panel or changing the filter starts a backend fetch; the loading flag mirrors that in-flight request
       loadData(activeFilter);
     }
   }, [isOpen, activeFilter, loadData]);
