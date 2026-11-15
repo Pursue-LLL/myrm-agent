@@ -32,7 +32,7 @@ contract:
       mitigation: "Never print or echo credential env vars. Runtime injects them into bash process automatically."
       severity: critical
     - description: "Sending emails without user confirmation"
-      mitigation: "Always confirm recipient, subject, and body with user before executing send/reply"
+      mitigation: "Always confirm recipient, subject, and body with user before executing send/reply; a reply goes to the message's reply_to when it lists one, otherwise to its from"
       severity: high
     - description: "163/NetEase requires IMAP ID command after login"
       mitigation: "The script handles RFC 2971 ID automatically for all connections"
@@ -133,6 +133,13 @@ python3 .claude/skills/imap-smtp-email/scripts/email_manager.py mark-read 12345,
 ```bash
 python3 .claude/skills/imap-smtp-email/scripts/email_manager.py send --to user@example.com --subject "Meeting Notes" --body "Here are the notes..."
 ```
+
+### Reply (name the destination first!)
+```bash
+python3 .claude/skills/imap-smtp-email/scripts/email_manager.py reply --uid 12345 --body "Reply content"
+```
+
+A reply goes to the message's `Reply-To` addresses, not to `from`. `check`, `search` and `read` add a `reply_to` field to a message whose reply would go to other addresses than the sender's. When it is present, tell the user that address before replying, and point out the mismatch: it is how spoofed and phishing mail steers an answer to someone else.
 
 ## Error Handling
 
