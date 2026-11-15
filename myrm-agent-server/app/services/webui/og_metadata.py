@@ -19,7 +19,7 @@ from __future__ import annotations
 import html
 import logging
 import re
-from functools import lru_cache
+from collections import OrderedDict
 from typing import TypedDict
 
 import httpx
@@ -97,12 +97,26 @@ def _parse_og_tags(body: str, source_url: str) -> OgMetadata:
     return result
 
 
-@lru_cache(maxsize=256)
-def _cached_key(url: str) -> str:
-    return url
+_CACHE_MAX_ENTRIES = 256
+
+# Least recently used first: every lookup and store moves its URL to the end, so trimming from the front
+# discards the page previews have gone longest without asking for.
+_og_cache: OrderedDict[str, OgMetadata] = OrderedDict()
 
 
-_og_cache: dict[str, OgMetadata] = {}
+def _cache_get(url: str) -> OgMetadata | None:
+    cached = _og_cache.get(url)
+    if cached is not None:
+        _og_cache.move_to_end(url)
+    return cached
+
+
+def _cache_put(url: str, metadata: OgMetadata) -> OgMetadata:
+    _og_cache[url] = metadata
+    _og_cache.move_to_end(url)
+    while len(_og_cache) > _CACHE_MAX_ENTRIES:
+        _og_cache.popitem(last=False)
+    return metadata
 
 
 async def fetch_og_metadata(url: str) -> OgMetadata:
@@ -114,9 +128,8 @@ async def fetch_og_metadata(url: str) -> OgMetadata:
     except Exception:
         return {"url": url}
 
-    cache_key = _cached_key(url)
-    if cache_key in _og_cache:
-        return _og_cache[cache_key]
+    if (cached := _cache_get(url)) is not None:
+        return cached
 
     try:
         async with httpx.AsyncClient(
@@ -129,16 +142,10 @@ async def fetch_og_metadata(url: str) -> OgMetadata:
 
             content_type = resp.headers.get("content-type", "")
             if "text/html" not in content_type and "application/xhtml" not in content_type:
-                result: OgMetadata = {"url": url}
-                _og_cache[cache_key] = result
-                return result
+                return _cache_put(url, {"url": url})
 
             body = resp.text[:_MAX_BODY_BYTES]
-            result = _parse_og_tags(body, url)
-            _og_cache[cache_key] = result
-            return result
+            return _cache_put(url, _parse_og_tags(body, url))
     except Exception:
         logger.debug("Failed to fetch OG metadata for %s", url, exc_info=True)
-        result = {"url": url}
-        _og_cache[cache_key] = result
-        return result
+        return _cache_put(url, {"url": url})
