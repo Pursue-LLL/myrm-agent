@@ -42,7 +42,6 @@ describe('sessionMap service', () => {
           description: 'AI Search Engine',
           color: '#6366f1',
           workspace_path: '/workspace/open-perplexity',
-          git_repo_url: 'https://github.com/myrm-agent/open-perplexity.git',
           sessions: [],
           active_agent_count: 2,
           total_tokens: 45000,
@@ -60,9 +59,7 @@ describe('sessionMap service', () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce([]);
 
       await fetchSessionMapProjects('working');
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/session-map/projects?state_filter=working',
-      );
+      expect(apiClient.get).toHaveBeenCalledWith('/session-map/projects?state_filter=working');
     });
   });
 

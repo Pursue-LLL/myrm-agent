@@ -144,6 +144,70 @@ describe('SessionMapTrigger component', () => {
     });
   });
 
+  it('shows the loading text, not the empty state, while the first load is pending', async () => {
+    mockFetchSessionMapProjects.mockReturnValue(new Promise(() => {}));
+    render(<SessionMapTrigger />);
+
+    openFromMenu();
+
+    await waitFor(() => {
+      expect(screen.getByText('loadingTopology')).toBeDefined();
+    });
+    expect(screen.queryByText('defaultTitle')).toBeNull();
+  });
+
+  it('shows the empty state when there are no projects or sessions', async () => {
+    mockFetchSessionMapProjects.mockResolvedValue([]);
+    render(<SessionMapTrigger />);
+
+    openFromMenu();
+
+    await waitFor(() => {
+      expect(screen.getByText('defaultTitle')).toBeDefined();
+    });
+    expect(screen.getByText('defaultDescription')).toBeDefined();
+  });
+
+  it('shows a retryable error state when loading fails', async () => {
+    mockFetchSessionMapProjects.mockRejectedValueOnce(new Error('server unavailable'));
+    render(<SessionMapTrigger />);
+
+    openFromMenu();
+
+    await waitFor(() => {
+      expect(screen.getByText('loadFailed')).toBeDefined();
+    });
+    expect(screen.getByText('loadFailedDesc')).toBeDefined();
+    expect(screen.queryByText('defaultTitle')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('loadFailed')).toBeNull();
+    });
+    expect(mockFetchSessionMapProjects).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows a project workspace path in the list view only when the project has one', async () => {
+    mockFetchSessionMapProjects.mockResolvedValue([
+      ...mockProjects,
+      { ...mockProjects[0], id: 'proj-2', name: 'No Workspace Project', workspace_path: undefined, sessions: [] },
+    ]);
+    render(<SessionMapTrigger />);
+
+    openFromMenu();
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeDefined();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'viewList' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('No Workspace Project')).toBeDefined();
+    });
+    expect(screen.getByText('(/workspace/core)')).toBeDefined();
+    expect(screen.getAllByText(/^\(.*\)$/)).toHaveLength(1);
+  });
+
   it('switches to list view and can open jump modal on session click', async () => {
     render(<SessionMapTrigger />);
 

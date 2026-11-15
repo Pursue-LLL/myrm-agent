@@ -24,7 +24,6 @@ describe('SessionMapGraph component', () => {
     description: 'Autonomous Search Platform',
     color: '#6366f1',
     workspace_path: '/workspace/open-perplexity',
-    git_repo_url: 'https://github.com/myrm-agent/open-perplexity.git',
     sessions: [mockSession],
     active_agent_count: 1,
     total_tokens: 15400,
