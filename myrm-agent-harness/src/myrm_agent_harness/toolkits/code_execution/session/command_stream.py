@@ -161,11 +161,11 @@ class CommandStreamMixin:
                     with suppress(RuntimeError):
                         await dispatch_custom_event("tool_stdout_chunk", {"chunk": remaining})
         except TimeoutError:
-            # A wedged shell (blocking command like `cat`/`tail -f`/`sleep 9999`)
-            # never finishes; leaving the process alive poisons every later
-            # execute. Kill the tree and mark TERMINATED so the next call
-            # transparently rebuilds the session. A request that was cancelled
-            # meanwhile takes the same exit, but is no failure of the shell.
+            # A command that never finishes wedges the shell; leaving the
+            # process alive poisons every later execute. Kill the tree and
+            # mark TERMINATED so the next call transparently rebuilds the
+            # session. A request that was cancelled meanwhile takes the same
+            # exit, but is no failure of the shell.
             await self._discard_shell()
             if cut.by_cancel:
                 return SessionExecutionResult(
@@ -192,9 +192,12 @@ class CommandStreamMixin:
             raise
 
         if stream_buf.parse_failed:
-            # exit_marker was echoed back as raw text (e.g. `cat`/`ssh`/`python
-            # -c input()` consumed the trailing marker commands from stdin),
-            # which is indistinguishable from a permanently broken shell.
+            # The text between the two markers is not an exit code: the marker
+            # lines were consumed or rewritten instead of printed (a command read
+            # them from the session's stdin, which the bash block shields and the
+            # Windows flavors do not, or changed how the shell prints). The
+            # boundary can no longer be trusted, which is indistinguishable from
+            # a permanently broken shell.
             self._consecutive_failures += 1
             await self._discard_shell()
             return SessionExecutionResult(

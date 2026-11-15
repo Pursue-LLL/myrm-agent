@@ -50,9 +50,14 @@ class TestBasicExecution:
             await session.close()
 
 
+# Shadowing ``echo`` makes the shell print the exit-code field of the wrapper as ``0x``, which is not a number.
+_UNREADABLE_EXIT_CODE = 'echo() { builtin echo "$1x"; }'
+
+
 class TestSessionWedgeRecovery:
-    """A wedged shell (blocking command / stdin-swallowing command) must be
-    killed and transparently rebuilt on the next call, not left poisoned."""
+    """A wedged shell (a command that never returns, or one that leaves the output boundary unreadable) must be
+    killed and transparently rebuilt on the next call, not left poisoned. A command that reads stdin is no wedge:
+    the command block's stdin is empty."""
 
     @pytest.mark.asyncio
     async def test_timeout_wedge_recovered_on_next_execute(self) -> None:
@@ -74,20 +79,39 @@ class TestSessionWedgeRecovery:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_stdin_swallowing_command_detected_and_recovered(self) -> None:
-        """`cat` consumes the trailing marker commands from stdin and echoes
-        them back; the corrupted boundary must poison-kill the shell."""
+    async def test_a_command_that_reads_stdin_gets_end_of_file_and_the_shell_lives_on(self) -> None:
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
-            poisoned = await session.execute("cat", timeout=2)
+            assert session.process is not None
+            pid = session.process.pid
+            await session.execute("export KEPT=yes")
+
+            reader = await session.execute("cat", timeout=5)
+            assert reader.success
+            assert reader.stdout == ""
+            assert state_of(session) == SessionState.ACTIVE
+
+            after = await session.execute("echo $KEPT", timeout=5)
+            assert after.stdout == "yes"
+            assert session.process.pid == pid
+        finally:
+            await session.close()
+
+    @pytest.mark.asyncio
+    async def test_an_unreadable_exit_code_replaces_the_shell(self) -> None:
+        session = LocalPersistentSession(make_config())
+        await session.start()
+        try:
+            poisoned = await session.execute(_UNREADABLE_EXIT_CODE, timeout=5)
             assert not poisoned.success
-            assert poisoned.error in ("Session corrupted", "Timeout")
+            assert poisoned.error == "Session corrupted"
             assert session.state == SessionState.TERMINATED
 
             recovered = await session.execute("echo ok", timeout=5)
             assert recovered.success
             assert recovered.stdout == "ok"
+            assert state_of(session) == SessionState.ACTIVE
         finally:
             await session.close()
 
@@ -109,15 +133,31 @@ class TestSessionWedgeRecovery:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_stream_stdin_swallowing_command_detected(self) -> None:
+    async def test_a_streamed_command_that_reads_stdin_gets_end_of_file_and_the_shell_lives_on(self) -> None:
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
-            chunks: list[str] = []
-            async for chunk in session.execute_stream("cat", timeout=2):
-                chunks.append(chunk)
+            chunks = [chunk async for chunk in session.execute_stream("cat", timeout=5)]
+            assert not any("[ERROR]" in c for c in chunks)
+            assert state_of(session) == SessionState.ACTIVE
+
+            after = await session.execute("echo ok", timeout=5)
+            assert after.stdout == "ok"
+        finally:
+            await session.close()
+
+    @pytest.mark.asyncio
+    async def test_a_streamed_command_with_an_unreadable_exit_code_replaces_the_shell(self) -> None:
+        session = LocalPersistentSession(make_config())
+        await session.start()
+        try:
+            chunks = [chunk async for chunk in session.execute_stream(_UNREADABLE_EXIT_CODE, timeout=5)]
             assert any("corrupted" in c for c in chunks)
             assert session.state == SessionState.TERMINATED
+
+            recovered = await session.execute("echo ok", timeout=5)
+            assert recovered.success
+            assert recovered.stdout == "ok"
         finally:
             await session.close()
 

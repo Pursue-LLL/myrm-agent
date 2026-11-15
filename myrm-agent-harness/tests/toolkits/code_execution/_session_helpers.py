@@ -1,4 +1,4 @@
-"""Builders shared by the ``test_persistent_session*.py`` files."""
+"""Builders shared by the persistent-session and shell-flavor tests."""
 
 from __future__ import annotations
 
@@ -6,6 +6,9 @@ import os
 
 from myrm_agent_harness.toolkits.code_execution.session import LocalPersistentSession, SessionConfig
 from myrm_agent_harness.toolkits.code_execution.session.models import SessionState
+
+# The line that closes the command block of ``BashFlavor.build_wrapped_command`` and seals its stdin.
+BASH_BLOCK_CLOSE = "} </dev/null"
 
 
 # Every session writes its tee logs under ``<work_dir>/.myrm/tee``. A test that reads that directory must pass a
@@ -27,3 +30,14 @@ def pid_exists(pid: int) -> bool:
         return False
     except PermissionError:
         return True
+
+
+def split_bash_wrapper(wrapped: str) -> tuple[list[str], list[str], list[str]]:
+    """The lines before, inside and after the command block of a wrapped bash command.
+
+    The block ends at the line that seals its stdin, so a wrapper without that line cannot be split.
+    """
+    lines = wrapped.splitlines()
+    start = lines.index("{")
+    end = lines.index(BASH_BLOCK_CLOSE)
+    return lines[:start], lines[start + 1 : end], lines[end + 1 :]
