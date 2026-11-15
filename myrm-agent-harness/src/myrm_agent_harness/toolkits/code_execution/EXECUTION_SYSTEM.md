@@ -155,7 +155,7 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 - 命令发送前对 bash 命令做 `bash -n` **语法预检**，畸形多行命令（裸 `}`、未闭合的 `if`/heredoc）被前置拒绝，避免语法错误杀死长驻 Shell
 - 注入 `exit()` 拦截函数（`builtin return`），LLM 生成的尾部 `exit N` 从命令块返回而非终止长驻 Shell，cwd/env 状态不丢失；嵌套 `bash -c "exit N"` 不受影响
 - 命令包装为**块内捕获 rc** 的多行结构（`{ <command>; __myrm_rc__=$?; }`），注释行/空命令/heredoc/续行均不会使花括号块悬挂，rc 语义与退出状态零变化
-- **命令块的 stdin 是 `/dev/null`**（`{ <command>; __myrm_rc__=$?; } </dev/null`）：会话自己的 stdin 是承载后续标记命令的控制通道，不能交给命令：读 stdin 的命令（`cat`、`read`、`wc -l`、`ssh`）会把标记命令读走，输出边界随之损坏。块内的命令读到 EOF 即返回；命令自己指定的输入（管道、heredoc、`< file`）照常到达；标记命令与 `EXIT` trap 在块外，Shell 照常从管道读取。Windows 的 PowerShell 与 cmd 两种 flavor 的包装不隔离 stdin
+- **命令块的 stdin 是 `/dev/null`**（`{ <command>; __myrm_rc__=$?; } </dev/null`）：会话自己的 stdin 是承载后续标记命令的控制通道，不能交给命令：读 stdin 的命令（`cat`、`read`、`wc -l`、`ssh`）会把标记命令读走，输出边界随之损坏。块内的命令读到 EOF 即返回；命令自己指定的输入（管道、heredoc、`< file`）照常到达；标记命令与 `EXIT` trap 在块外，Shell 照常从管道读取。Windows 的 PowerShell 与 cmd 两种 flavor 的包装不隔离 stdin。Python 脚本子进程（`run_python_subprocess`）同样以 `/dev/null` 为 stdin：`input()` 立即得到 `EOFError`，不会等待宿主自己的 stdin
 - 包装命令前置 **`EXIT` trap**，当 `set -e` 等 errexit 崩溃导致 Shell 进程终止时仍输出完整标记对与真实退出码，使流式解析正常收尾而非误报「意外崩溃」触发无谓恢复；正常命令下 trap 静默，标记恰好输出一次
 - 实时输出（SSE）经 **PII 脱敏**（主机路径 + 凭证 token 掩码），`execute` 与 `execute_stream` 双路径一致，由 `StreamOutputProcessor` 在累积之后按整行进行：脱敏函数只在一段完整文本里认得出密钥，所以未结束的行与未闭合的 `-----BEGIN` 私钥块先暂存（上限 16 384 字符，超出原样放行），命令结束时整体脱敏发出；实时输出因此按整行出现，用回车刷新的进度条不受影响；tee 日志保留原始供排查
 - 环境变量注入使用 **ANSI-C quoting**（`$'…'`）:值内 `$`、反引号、双引号保持字面（不二次展开），`\n`/`\t` 等控制字符转义为单行序列，注入命令永不破坏初始化批次（把 `"` 转义成 `\\"` 会导致引号错配、长驻 Shell 卡死等续行）

@@ -14,7 +14,7 @@ utils.os_compat::get_process_group_kwargs, kill_spawned_group (POS: Unified abst
 run_python_subprocess: Execute a Python script in a sandboxed subprocess with timeout.
 
 [POS]
-Python subprocess execution. Handles environment preparation, sandbox wrapping,
+Python subprocess execution. Handles environment preparation, sandbox wrapping, an empty stdin (``/dev/null``),
 graceful timeout (SIGTERM → SIGKILL of the whole process group, including what the script left running), cancel-aware
 stop (a cancelled request ends the script like a timeout, but reports "cancelled"), and output parsing for Python code
 execution. Each pipe is read up to a cap (stdout has the headroom for the wrapper's encoded result, stderr is raw
@@ -182,9 +182,12 @@ async def run_python_subprocess(
             full_cmd_executable = python_executable
             full_cmd_args = (str(script_path),)
 
+        # The script reads no stdin: inheriting the host's would make ``input()`` wait on the host's own input
+        # until the timeout, where an empty stdin raises EOFError at once.
         process = await asyncio.create_subprocess_exec(
             full_cmd_executable,
             *full_cmd_args,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,

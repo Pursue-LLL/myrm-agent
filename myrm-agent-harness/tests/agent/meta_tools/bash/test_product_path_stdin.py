@@ -1,8 +1,9 @@
 """A foreground command reads an empty stdin, through the real bash tool and a real shell.
 
 A command in the persistent shell reads end of file at once: it cannot take the commands that end it off the pipe
-carrying them, so the shell is not killed and does not wait out its timeout. Every case runs while the host's stdin
-is a pipe that never ends, as it is for a host started from a terminal or a desktop shell.
+carrying them, so the shell is not killed and does not wait out its timeout. A Python run's ``input()`` raises
+``EOFError`` at once instead of waiting on the host's own stdin. Every case runs while the host's stdin is a pipe that
+never ends, as it is for a host started from a terminal or a desktop shell.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from collections.abc import Iterator
 
 import pytest
 
+from myrm_agent_harness.utils.errors import ToolError
 from tests.agent.meta_tools.bash.real_stack import RealBashStack
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell semantics")
@@ -41,6 +43,7 @@ def _host_stdin_never_ends() -> Iterator[None]:
         pytest.param('read -r line\necho "got:[$line]"', "got:[]", id="read"),
         pytest.param("wc -l", "0", id="wc"),
         pytest.param("head -1", "", id="head"),
+        pytest.param("python3 -c 'import sys; print(repr(sys.stdin.read()))'", "''", id="python-sys-stdin"),
     ],
 )
 async def test_a_command_that_reads_stdin_gets_end_of_file_and_the_next_call_runs(
@@ -64,3 +67,8 @@ async def test_input_a_command_names_itself_still_reaches_it(
     shared_real_stack: RealBashStack, command: str, expected: str
 ) -> None:
     assert expected in await shared_real_stack.run(command, timeout=_TIMEOUT)
+
+
+async def test_python_that_asks_for_input_gets_end_of_file_at_once(shared_real_stack: RealBashStack) -> None:
+    with pytest.raises(ToolError, match="EOFError"):
+        await shared_real_stack.run("answer = input('name? ')\nprint('hello', answer)", timeout=_TIMEOUT)
