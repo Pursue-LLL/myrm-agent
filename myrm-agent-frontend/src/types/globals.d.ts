@@ -229,8 +229,8 @@ interface Window {
       query: string,
       messageId: string,
     ) => Promise<{ ok: boolean; busy: boolean; err?: string }>;
-    /** CDP E2E: resume active clarification with empty answer (Skip parity). */
-    skipActiveClarificationForE2e?: () => { messageId: string };
+    /** CDP E2E: skip the active clarification the way its Skip button does (answer flow, addressed to the card's pause). */
+    skipActiveClarificationForE2e?: () => { messageId: string; interruptId: string | null };
     setBrowserSource?: (source: string) => void;
     getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;

@@ -19,6 +19,7 @@ from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     chat_has_pending_clarification,
     chat_messages_have_clarify_skip_done,
+    chat_pending_clarification_interrupt_id,
     clarify_skip_resume_should_retry,
     ensure_e2e_yolo_mode,
     get_e2e_api_url,
@@ -174,14 +175,25 @@ _UI_SKIP_DONE_JS = """(() => {
   const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
   const sample = String(snap.lastAssistantSample || '');
   const doneSkipped = /DONE-SKIPPED/i.test(sample);
+  // The card closing on click is no evidence: a skip that reached no agent closes it too. Text after the card is.
   return {
-    ready: snap.clarificationAnswered === true || doneSkipped,
+    ready: doneSkipped || (snap.clarificationAnswered === true && sample.trim() !== ''),
     clarificationAnswered: snap.clarificationAnswered === true,
     doneSkipped,
     isStreaming: Boolean(snap.isStreaming),
     sample: sample.slice(0, 240),
   };
 })()"""
+
+
+def _failed_resume(error_type: str, message: str) -> dict[str, object]:
+    return {
+        "ok": False,
+        "events": [],
+        "event_types": [],
+        "final_text": "",
+        "error": {"type": "error", "error_type": error_type, "error": message},
+    }
 
 
 def _is_resume_progress_stall(result: dict[str, object]) -> bool:
@@ -482,7 +494,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         api_base: str,
         max_attempts: int | None = None,
     ) -> dict[str, object]:
-        """Drop WebUI SSE lease (no cancel API) then POST resumeValue {} like API E2E."""
+        """Drop WebUI SSE lease (no cancel API) then skip the open card over the API, addressed to its pause."""
         if max_attempts is None:
             max_attempts = _signoff_clarify_resume_max_attempts() if is_e2e_signoff_runtime() else 5
         last: dict[str, object] = {"ok": False, "err": "not-attempted"}
@@ -503,11 +515,21 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     max(60.0, remaining_wall_sec() - 60.0),
                 )
             call_timeout = api_timeout + 10.0
+            interrupt_id = await asyncio.to_thread(chat_pending_clarification_interrupt_id, chat_id, api_url=api_base)
+            if interrupt_id is None:
+                # The card may not be persisted yet, or the backend stalled: retry like any other transient outcome.
+                last = _failed_resume("NoOpenClarification", f"chat {chat_id} has no open clarification card to skip")
+                if attempt + 1 < max_attempts:
+                    heartbeat_once()
+                    await asyncio.sleep(pause)
+                    continue
+                return last
             try:
                 last = await asyncio.wait_for(
                     asyncio.to_thread(
                         resume_clarify_skip_via_api,
                         chat_id,
+                        interrupt_id=interrupt_id,
                         model_selection=get_lite_model_selection(),
                         api_url=api_base,
                         timeout_sec=api_timeout,
@@ -515,17 +537,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     timeout=call_timeout + 5.0,
                 )
             except asyncio.TimeoutError:
-                last = {
-                    "ok": False,
-                    "events": [],
-                    "event_types": [],
-                    "final_text": "",
-                    "error": {
-                        "type": "error",
-                        "error_type": "ResumeApiCallTimeout",
-                        "error": (f"clarify resume to_thread timeout after {call_timeout + 5.0:.0f}s"),
-                    },
-                }
+                last = _failed_resume("ResumeApiCallTimeout", f"clarify resume to_thread timeout after {call_timeout + 5.0:.0f}s")
             if _is_no_user_query_error(last):
                 heartbeat_once()
                 try:
@@ -533,6 +545,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                         asyncio.to_thread(
                             resume_clarify_skip_via_api,
                             chat_id,
+                            interrupt_id=interrupt_id,
                             model_selection=get_lite_model_selection(),
                             api_url=api_base,
                             timeout_sec=api_timeout,
@@ -541,17 +554,10 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                         timeout=call_timeout + 5.0,
                     )
                 except asyncio.TimeoutError:
-                    last = {
-                        "ok": False,
-                        "events": [],
-                        "event_types": [],
-                        "final_text": "",
-                        "error": {
-                            "type": "error",
-                            "error_type": "ResumeApiCallTimeout",
-                            "error": (f"clarify resume fallback to_thread timeout after {call_timeout + 5.0:.0f}s"),
-                        },
-                    }
+                    last = _failed_resume(
+                        "ResumeApiCallTimeout",
+                        f"clarify resume fallback to_thread timeout after {call_timeout + 5.0:.0f}s",
+                    )
             if last.get("ok") is True:
                 return last
             if is_hitl_already_resolved(last):
@@ -608,38 +614,14 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 except AssertionError:
                     pass
             assert resume_result.get("ok") is True, f"API skip resume failed: {resume_result}; form={form_state}"
+            # `ok` is continuation evidence (text after the skip, no new card); whether the model also said
+            # DONE-SKIPPED is only reported.
             after_skip: dict[str, object] = {
                 "ready": True,
                 "source": "resume_stream",
                 "doneSkipped": "DONE-SKIPPED" in str(resume_result.get("final_text") or "").upper(),
                 "answered": True,
             }
-            if not after_skip.get("doneSkipped"):
-                event_types = resume_result.get("event_types")
-                if isinstance(event_types, list) and "message_end" in event_types:
-                    after_skip = {
-                        "ready": True,
-                        "source": "resume_stream_message_end",
-                        "doneSkipped": True,
-                        "answered": True,
-                    }
-                else:
-                    try:
-                        after_skip = await _wait_api_skip_done(
-                            chat_id=chat_id,
-                            api_base=api_base,
-                            timeout_sec=min(90.0, poll_budget),
-                        )
-                    except AssertionError:
-                        if resume_result.get("ok") is True:
-                            after_skip = {
-                                "ready": True,
-                                "source": "resume_stream_ok",
-                                "doneSkipped": True,
-                                "answered": True,
-                            }
-                        else:
-                            raise
             return after_skip, resume_result
 
         if api_stream_fallback and is_e2e_signoff_runtime():

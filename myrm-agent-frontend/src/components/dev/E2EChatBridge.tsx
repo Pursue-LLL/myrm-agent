@@ -7,6 +7,7 @@
  * - @/store/chat/messageRequest::getModelSelection (POS: 发送前模型选择解析)
  * - @/components/dev/e2eTurnTrace::createTurnTrace (POS: 每次发送的 SSE 事件与结束方式记录)
  * - @/components/dev/e2eStoreTimelineWatcher::watchChatStoreTimeline (POS: 每次发送期间 chat store 消息列表变化记录)
+ * - @/components/dev/e2eClarificationSkip::skipActiveClarification (POS: 与「跳过」按钮同一条答复流程的澄清卡跳过)
  *
  * [OUTPUT]
  * - E2EChatBridge: localhost dev-only `window.__MYRM_E2E_CHAT__` for CDP Chrome E2E; submitAndObserveTurn results
@@ -15,6 +16,7 @@
  * - pinLiteModelForE2e: bind agent chat to defaultModelConfig.liteModel (API E2E parity)
  * - pinBasicModelForE2e: bind desktop E2E to defaultModelConfig.baseModel (mimo SSOT)
  * - releaseAgentModelPinForE2e: clear the agent's pinned model so the turn is smart-routed like a default user's
+ * - skipActiveClarificationForE2e: skip the waiting clarification card through the answer flow of its Skip button
  * - isE2eProviderSendReady / waitE2eProviderSendReady: getModelSelection SSOT (lite or base)
  *
  * [POS]
@@ -51,6 +53,7 @@ import { getApiBaseUrl, resolveE2eApiBase as resolveInjectedE2eApiBase } from '@
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
 import { isModelAvailable } from '@/lib/model-binding';
 import { shouldPreserveE2eActionMode, shouldRunPrepareAutomationSend } from '@/components/dev/e2eChatBridgeSendPolicy';
+import { skipActiveClarification } from '@/components/dev/e2eClarificationSkip';
 import { createTurnTrace, type TurnTrace } from '@/components/dev/e2eTurnTrace';
 import { watchChatStoreTimeline, type StoreTimelineWatch } from '@/components/dev/e2eStoreTimelineWatcher';
 import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
@@ -1640,19 +1643,7 @@ export default function E2EChatBridge() {
           useChatStore.getState().updateAgentConfig({ modelSelection: null });
         });
       },
-      skipActiveClarificationForE2e: () => {
-        const state = useChatStore.getState();
-        const pending = [...state.messages]
-          .reverse()
-          .find((message) => message.role === 'assistant' && message.clarification && !message.clarification.answered);
-        if (!pending?.messageId) {
-          throw new Error('e2e-no-active-clarification');
-        }
-        void state.sendMessage('', pending.messageId, undefined, {}).catch((error: unknown) => {
-          console.error('[E2E_CLARIFICATION_SKIP] sendMessage failed', error);
-        });
-        return { messageId: pending.messageId };
-      },
+      skipActiveClarificationForE2e: skipActiveClarification,
       setBrowserSource: (source: string) => {
         flushSync(() => {
           const chat = useChatStore.getState();
