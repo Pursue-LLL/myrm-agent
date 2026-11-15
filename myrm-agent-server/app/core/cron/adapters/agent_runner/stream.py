@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.core.security.audit import get_audit_entries
@@ -43,9 +42,6 @@ from ..effectful_steps import has_effectful_tools
 from ..failure_recoverability import is_transient_failure
 from ..provider_window_deferral import usage_limit_deferral
 from .support import _coerce_usage_int, _derive_stop_reason_from_event, _source_sort_key
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

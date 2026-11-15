@@ -14,12 +14,8 @@ import asyncio
 import json
 import time
 import uuid
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason
-
-if TYPE_CHECKING:
-    pass
 
 from .common import (
     _APPROVAL_HINT_EN,

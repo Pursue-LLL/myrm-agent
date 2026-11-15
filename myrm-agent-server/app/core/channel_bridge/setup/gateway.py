@@ -25,7 +25,6 @@ channel_bridge setup 子包的一部分；由 __init__.py 聚合导出。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from app.config.deploy_mode import is_local_mode
 from app.core.channel_bridge import channel_gateway
@@ -43,11 +42,6 @@ from app.core.web_push.dispatcher import WebPushDispatcher
 from . import state
 
 logger = logging.getLogger(__name__)
-
-
-
-if TYPE_CHECKING:
-    pass
 
 
 def get_background_task_handler() -> ChannelBackgroundTaskHandler | None:

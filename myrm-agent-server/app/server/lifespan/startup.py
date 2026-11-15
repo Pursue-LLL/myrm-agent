@@ -11,7 +11,6 @@ Startup phases of the server lifespan.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
 
 from app.config.settings import settings
 from app.database.connection import init_database
@@ -19,9 +18,6 @@ from app.lifecycle import (
     init_allowlist_store,
     init_workspace_trust_store,
 )
-
-if TYPE_CHECKING:
-    pass
 
 from . import state
 from .state import logger

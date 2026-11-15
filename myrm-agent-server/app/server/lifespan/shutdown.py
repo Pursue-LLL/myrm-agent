@@ -12,7 +12,6 @@ Graceful shutdown of the server lifespan.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 
@@ -47,9 +46,6 @@ from app.server.shutdown import (
 )
 from app.services.agent.evolution.evolution_runtime import shutdown_evolution_runtime
 from app.services.memory.imports.integration_sync_daemon import stop_integration_sync_daemon
-
-if TYPE_CHECKING:
-    pass
 
 from . import state
 from .background import cancel_scheduled_background_work

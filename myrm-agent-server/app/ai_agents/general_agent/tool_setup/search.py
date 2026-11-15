@@ -13,16 +13,11 @@ ToolSetupMixin 的一个工具族；由 mixin.py 组合。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+
+from app.ai_agents.general_agent.tool_setup.common import _should_mount_ask_question_tool
 
 from ..ask_question_result import format_ask_question_result
 from .base import ToolSetupBaseMixin
-
-if TYPE_CHECKING:
-
-    pass
-
-from app.ai_agents.general_agent.tool_setup.common import _should_mount_ask_question_tool
 
 logger = logging.getLogger(__name__)
 
