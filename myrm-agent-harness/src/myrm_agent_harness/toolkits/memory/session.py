@@ -214,7 +214,6 @@ class MemorySession:
         action: str,
         *,
         source: RuleSource = RuleSource.USER_EXTRACTED,
-        trigger_keywords: list[str] | None = None,
     ) -> ProceduralMemory | None:
         """Add procedural rule to session buffer.
 
@@ -233,7 +232,6 @@ class MemorySession:
             content=content,
             trigger=trigger,
             action=instruction,
-            trigger_keywords=trigger_keywords or [],
             source=source,
             source_chat_id=self.chat_id,
             trace_id=resolve_current_trace_id(),

@@ -136,7 +136,7 @@ class TestModelAssistedPasteItems:
         profile_item = result.normalized_data["profile"][0]
         assert profile_item["key"] == "tone"
         assert profile_item["value"] == "concise"
-        assert result.normalized_data["procedural"][0]["trigger_keywords"] == ["deploy"]
+        assert result.normalized_data["procedural"][0]["content"] == "Run tests before merge"
         assert result.normalized_data["episodic"][0]["importance"] == 0.6
         assert result.summary.mapped_items == 3
 

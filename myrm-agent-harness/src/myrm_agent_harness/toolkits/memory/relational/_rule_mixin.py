@@ -73,11 +73,11 @@ class SQLiteRuleMixin(SQLiteStoreHost):
         try:
             await conn.execute(
                 """INSERT INTO procedural_rules
-                   (id, user_id, content, trigger_text, action_text, is_active, trigger_keywords,
+                   (id, user_id, content, trigger_text, action_text, is_active,
                     source, metadata, primary_namespace, namespaces, agent_id, channel_id, conversation_id,
                     task_id, tool_name, tool_rule_priority, access_count, last_accessed_at,
                     created_at, updated_at, is_user_locked, expected_valid_days)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     rule_id,
                     "default",
@@ -85,7 +85,6 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                     rule.trigger,
                     rule.action,
                     int(rule.is_active),
-                    json.dumps(rule.trigger_keywords),
                     rule.source.value,
                     self._encode_rule_metadata(rule),
                     primary_namespace,
@@ -200,7 +199,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
             cursor = await conn.execute(
                 """UPDATE procedural_rules
                    SET content = ?, trigger_text = ?, action_text = ?,
-                       is_active = ?, trigger_keywords = ?, source = ?, metadata = ?,
+                       is_active = ?, source = ?, metadata = ?,
                        primary_namespace = ?, namespaces = ?, agent_id = ?, channel_id = ?,
                        conversation_id = ?, task_id = ?, tool_name = ?,
                        tool_rule_priority = ?, access_count = ?, last_accessed_at = ?,
@@ -211,7 +210,6 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                     rule.trigger,
                     rule.action,
                     int(rule.is_active),
-                    json.dumps(rule.trigger_keywords),
                     rule.source.value,
                     self._encode_rule_metadata(rule),
                     rule.scope.primary_namespace,

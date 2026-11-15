@@ -35,7 +35,7 @@ from myrm_agent_harness.toolkits.memory.types import (
 
 PROCEDURAL_COLUMNS = (
     "id, user_id, content, trigger_text, action_text, "
-    "is_active, trigger_keywords, source, metadata, "
+    "is_active, source, metadata, "
     "primary_namespace, namespaces, agent_id, channel_id, conversation_id, task_id, "
     "tool_name, tool_rule_priority, access_count, last_accessed_at, created_at, updated_at, "
     "is_user_locked, expected_valid_days"
@@ -90,23 +90,22 @@ def row_to_profile(row: tuple[object, ...]) -> ProfileEntry:
 
 def row_to_procedural(row: tuple[object, ...]) -> ProceduralMemory:
     """Column order: id, user_id, content, trigger_text, action_text,
-    is_active, trigger_keywords, source, metadata, primary_namespace,
+    is_active, source, metadata, primary_namespace,
     namespaces, agent_id, channel_id, conversation_id, task_id,
     tool_name, tool_rule_priority, access_count, last_accessed_at,
     created_at, updated_at, is_user_locked, expected_valid_days.
     """
-    keywords = json.loads(str(row[6])) if row[6] else []
-    metadata = json.loads(str(row[8])) if row[8] else {}
+    metadata = json.loads(str(row[7])) if row[7] else {}
     active = bool(row[5])
 
-    tool_name_val = str(row[15]) if row[15] else None
+    tool_name_val = str(row[14]) if row[14] else None
     try:
-        tool_priority = ToolRulePriority(str(row[16])) if row[16] else ToolRulePriority.NORMAL
+        tool_priority = ToolRulePriority(str(row[15])) if row[15] else ToolRulePriority.NORMAL
     except ValueError:
         tool_priority = ToolRulePriority.NORMAL
 
-    is_locked = bool(row[21]) if len(row) > 21 and row[21] else False
-    expected_valid_days = int(str(row[22])) if len(row) > 22 and row[22] is not None else None
+    is_locked = bool(row[20]) if len(row) > 20 and row[20] else False
+    expected_valid_days = int(str(row[21])) if len(row) > 21 and row[21] is not None else None
 
     cleaned_metadata = dict(metadata)
     raw_error_fp = cleaned_metadata.pop("error_fingerprint", None)
@@ -124,23 +123,22 @@ def row_to_procedural(row: tuple[object, ...]) -> ProceduralMemory:
         action=str(row[4]),
         is_active=active,
         status=MemoryStatus.ACTIVE if active else MemoryStatus.DISABLED,
-        trigger_keywords=keywords,
-        source=RuleSource(str(row[7])) if row[7] else RuleSource.USER_EXTRACTED,
+        source=RuleSource(str(row[6])) if row[6] else RuleSource.USER_EXTRACTED,
         metadata=cleaned_metadata,
         scope=MemoryScope(
-            primary_namespace=str(row[9] or ""),
-            namespaces=json.loads(str(row[10])) if row[10] else [],
-            agent_id=str(row[11]) if row[11] else None,
-            channel_id=str(row[12]) if row[12] else None,
-            conversation_id=str(row[13]) if row[13] else None,
-            task_id=str(row[14]) if row[14] else None,
+            primary_namespace=str(row[8] or ""),
+            namespaces=json.loads(str(row[9])) if row[9] else [],
+            agent_id=str(row[10]) if row[10] else None,
+            channel_id=str(row[11]) if row[11] else None,
+            conversation_id=str(row[12]) if row[12] else None,
+            task_id=str(row[13]) if row[13] else None,
         ),
         tool_name=tool_name_val,
         tool_rule_priority=tool_priority,
-        access_count=int(str(row[17])) if row[17] else 0,
-        last_accessed_at=parse_dt(str(row[18])) if row[18] else None,
-        created_at=parse_dt(str(row[19])),
-        updated_at=parse_dt(str(row[20])),
+        access_count=int(str(row[16])) if row[16] else 0,
+        last_accessed_at=parse_dt(str(row[17])) if row[17] else None,
+        created_at=parse_dt(str(row[18])),
+        updated_at=parse_dt(str(row[19])),
         is_user_locked=is_locked,
         expected_valid_days=expected_valid_days,
         error_fingerprint=error_fp,
