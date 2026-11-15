@@ -18,6 +18,7 @@
 - myrm_agent_harness.agent.middlewares.approval._cron_policy::resolve_cron_ask (POS: A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval, except for asks that carry a risk the declaration does not cover: credential data leaving the session, writes outside the job's directories, integration write mutations.)
 - myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-only lease, the permission engine, the shell-escalation check and the LLM security review.)
 - myrm_agent_harness.agent.middlewares.approval.helpers::ThresholdBreach / is_threshold_breached / record_approval / record_denial (POS: Approval middleware helper functions. Implements dual-threshold denial tracking (consecutive + total) with proactive guidance on every denial and automatic consecutive counter reset on any allowed operation.)
+- myrm_agent_harness.agent.middlewares.approval.batch_processor._workspace_snapshot::pre_destructive_snapshot_id (POS: 破坏性命令等待审批时的回滚点；决策循环与 YOLO 分支共用。)
 - myrm_agent_harness.agent.middlewares.approval.batch_processor.yolo::operator_as_key_deny_message (POS: batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。)
 
 [OUTPUT]
@@ -96,6 +97,7 @@ from ..helpers import (
     record_approval,
     record_denial,
 )
+from ._workspace_snapshot import pre_destructive_snapshot_id
 from .yolo import operator_as_key_deny_message
 
 logger = logging.getLogger(__name__)
@@ -366,6 +368,11 @@ async def evaluate_calls(
             extra_ctx["hide_allow_always"] = True
             record_decision(tool_name, "SOCIAL_IRREVERSIBLE_GATE_ESCALATED", reason)
 
+        if action == PermissionAction.ALLOW and is_financial_or_spend_tool(tool_name, tool_input):
+            action = PermissionAction.ASK
+            reason = f"Financial spend operation ({tool_name}) requires explicit human approval"
+            record_decision(tool_name, "FINANCIAL_GATE_ESCALATED", reason)
+
         is_destr, destr_reason, blast_info = is_destructive_shell_tool_call(tool_name, tool_input)
         if action == PermissionAction.ALLOW and is_destr:
             action = PermissionAction.ASK
@@ -377,13 +384,8 @@ async def evaluate_calls(
             extra_ctx["high_risk"] = True
             extra_ctx["hide_allow_always"] = True
             extra_ctx["blast_radius"] = blast_info
-            from pathlib import Path
-
-            from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import create_workspace_snapshot
-
-            snap_res = create_workspace_snapshot(Path.cwd())
-            if snap_res.snapshot_id:
-                extra_ctx["snapshot_id"] = snap_res.snapshot_id
+            if snapshot_id := pre_destructive_snapshot_id():
+                extra_ctx["snapshot_id"] = snapshot_id
             record_decision(tool_name, "DESTRUCTIVE_IRREVERSIBLE_GATE_ESCALATED", reason)
 
         if (
@@ -760,6 +762,7 @@ async def evaluate_calls(
             and _batch_review._security_reviewer is not None
             and is_threshold_breached(session_key) == ThresholdBreach.NONE
             and not is_irreversible_social_action(tool_name, tool_input)
+            and not is_financial_or_spend_tool(tool_name, tool_input)
         ):
             # Build command representation for the classifier
             if permission_type in ("shell_exec", "code_interpreter"):
@@ -879,13 +882,8 @@ async def evaluate_calls(
             extra_ctx["blast_radius"] = blast_info
             extra_ctx["high_risk"] = True
             extra_ctx["hide_allow_always"] = True
-            from pathlib import Path
-
-            from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import create_workspace_snapshot
-
-            snap_res = create_workspace_snapshot(Path.cwd())
-            if snap_res.snapshot_id:
-                extra_ctx["snapshot_id"] = snap_res.snapshot_id
+            if snapshot_id := pre_destructive_snapshot_id():
+                extra_ctx["snapshot_id"] = snapshot_id
 
         raw_path_arg = str(
             tool_input.get("path", "") or tool_input.get("file_path", "") or tool_input.get("filepath", "")

@@ -776,7 +776,7 @@ class AllowlistEntry:
    - ASK 且为只读 MCP / PTC 工具（is_read_only && !is_open_world && !is_destructive）→ ALLOW
 3. ASK → Allowlist：可信工作区声明的 shell 命令前缀，或用户 allowlist 命中 → ALLOW
    批次高风险双保险、资金类工具、社交不可逆动作、受保护指令文件不可由 allowlist 放行；组织策略（MAP）可让该模型忽略 allowlist
-4. ALLOW → 升级检查（命中任一项即改为 ASK）：社交不可逆动作；破坏性 shell（同时创建工作区快照）；auto-mode 下拒绝阈值被突破；
+4. ALLOW → 升级检查（命中任一项即改为 ASK）：社交不可逆动作；资金类工具（审计 `FINANCIAL_GATE_ESCALATED`）；破坏性 shell（同时创建工作区快照）；auto-mode 下拒绝阈值被突破；
    污点冲突（auto-mode 下先交 LLM 审核：ALLOW 放行 / DENY 拒绝 / UNCERTAIN 回到 ASK）
    auto-mode 下，invoke_external_agent 与非平凡 shell 在放行前还要过一次 LLM 审核（拒绝或存疑时不放行）
    全部通过 → 执行工具
@@ -785,7 +785,7 @@ class AllowlistEntry:
      a. Cron 会话 → resolve_cron_ask：能力声明视为预授权，凭据外送、越界路径、集成写入除外；未声明能力集 fail-closed 拒绝
      b. 技能钩子：BLOCK → 拒绝；REQUIRE_APPROVAL → 待审
      c. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
-     d. auto-mode LLM 审核（只排除社交不可逆动作，资金类工具不排除）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
+     d. auto-mode LLM 审核（社交不可逆动作与资金类工具不交审核模型，直接进 e）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
      e. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）
 7. 限流（evaluate_target）：同一用户在滑动窗口内审批请求过多 → 本批待审调用全部拒绝
 8. 发问（ToolApprovalMiddleware）：被拒调用 → 错误 ToolMessage；待审调用合并为一次 interrupt(payload) 批量审批
