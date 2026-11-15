@@ -1184,7 +1184,10 @@
         "imageMissing": "图片生成：当前图片模型对应的服务商未配置 API Key",
         "videoMissing": "视频生成：当前视频服务商未配置 API Key",
         "ttsMissing": "语音合成：当前 TTS 服务商未配置 API Key",
-        "hint": "未配置凭证时，运行时不会挂载对应媒体工具。请在设置中配置（图片/视频见模型服务；TTS 见渠道 > 语音）。",
+        "imageNotSelected": "图片生成：尚未选择图片模型",
+        "videoNotSelected": "视频生成：尚未选择视频服务商和模型",
+        "ttsNotSelected": "语音合成：尚未选择 TTS 服务商、模型和音色",
+        "hint": "选好模型并配置对应服务商的 API Key 后，智能体才会获得媒体工具。请在设置中选择模型并配置密钥。",
         "openSettings": "打开设置",
         "recheck": "重新检查"
       },
@@ -9995,7 +9998,6 @@
   "imageGen": {
     "generated": "已生成",
     "download": "下载",
-    "regenerate": "重新生成",
     "editThisImage": "编辑此图",
     "editPromptPrefix": "请修改上面生成的图片：",
     "referenceImages": "参考图",
@@ -11928,7 +11930,9 @@
     "retryTask": "重试任务",
     "retrying": "重试中...",
     "cancelled": "任务已取消",
-    "videoCompletedFallback": "视频已完成，可在工件面板查看输出。",
+    "expired": "任务记录已过期，生成的文件仍保存在媒体库中。",
+    "openLibrary": "打开媒体库",
+    "resultUnavailable": "无法在此处显示该结果，请到媒体库中查看文件。",
     "videoUnsupported": "当前浏览器不支持视频播放。",
     "alternateLabel": "备用 {index}",
     "providerLabel": "提供商",
@@ -15812,7 +15816,10 @@
       "ttsModel": "模型",
       "ttsVoice": "音色",
       "ttsDoubaoKeyHint": "Doubao-TTS 使用复合格式凭据 \"appid:access_token\"（火山引擎控制台：语音技术 → 应用详情）。",
-      "ttsProbeSlowHint": "Seed-Audio 为生成式模型，测试会合成一段短音频，约需 1-2 分钟。"
+      "ttsProbeSlowHint": "Seed-Audio 为生成式模型，测试会合成一段短音频，约需 1-2 分钟。",
+      "selectPlaceholder": "请选择",
+      "reselectPlaceholder": "请重新选择",
+      "ttsSelectionSaveFailed": "保存选择失败"
     },
     "acp": {
       "title": "ACP 编程助手",

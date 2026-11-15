@@ -1,23 +1,29 @@
 /**
  * [INPUT]
  * @/hooks/tasks/useTasksSubscription::useTaskSubscription (POS: Task realtime subscription hook)
+ * @/lib/api-url::getStorageUrl (POS: Turns a stored-media reference into a URL the browser can load)
  * ./TaskCardPlaceholder (POS: Task pending/running placeholder card)
  * ./TaskCardError (POS: Task failure card)
+ * ./TaskCardNotice / ./TaskCardExpired (POS: Result-less task states)
  *
  * [OUTPUT]
- * VideoTaskCard: Renders an async video-generation task across loading, progress, success, failure and cancelled states.
+ * VideoTaskCard: Renders an async video-generation task across loading, progress, success, failure, cancelled and
+ * expired states.
  *
  * [POS]
  * Video task card with dynamic rendering. It subscribes to task status by ID and
- * renders a playable preview when persisted video URLs are available.
+ * renders a playable preview of the stored video; its address is resolved only when the browser loads it.
  */
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { useTaskSubscription } from '@/hooks/tasks/useTasksSubscription';
+import { getStorageUrl } from '@/lib/api-url';
 import { cancelMediaTask } from '@/services/mediaTasks';
 import TaskCardPlaceholder from './TaskCardPlaceholder';
 import TaskCardError from './TaskCardError';
+import TaskCardExpired from './TaskCardExpired';
+import TaskCardNotice from './TaskCardNotice';
 import { useTaskRetry } from './useTaskRetry';
 
 interface VideoTaskCardProps {
@@ -57,8 +63,12 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
   const t = useTranslations('taskCard');
   const { isRetrying, retryErrorMessage, retry } = useTaskRetry(task_id, task?.status);
 
-  if (!task) {
+  if (task === undefined) {
     return <TaskCardPlaceholder className={className} />;
+  }
+
+  if (task === null) {
+    return <TaskCardExpired className={className} />;
   }
 
   if (task.status === 'pending' || task.status === 'queued' || task.status === 'running') {
@@ -74,20 +84,21 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
     );
   }
 
-  if (task.status === 'succeeded' && task.result) {
-    const result = normalizeVideoResult(task.result);
+  if (task.status === 'succeeded') {
+    const result = task.result ? normalizeVideoResult(task.result) : null;
     if (!result) {
-      return (
-        <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
-          <p className="text-sm text-muted-foreground">{t('videoCompletedFallback')}</p>
-        </div>
-      );
+      return <TaskCardNotice className={className}>{t('resultUnavailable')}</TaskCardNotice>;
     }
 
     const card = (
       <div className="rounded-lg border border-border/50 bg-card p-4 space-y-3">
         {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- no captions are available for user-supplied or generated media */}
-        <video controls className="w-full rounded-md bg-black/80" src={result.videoUrls[0]} preload="metadata">
+        <video
+          controls
+          className="w-full rounded-xl bg-black/80"
+          src={getStorageUrl(result.videoUrls[0])}
+          preload="metadata"
+        >
           {t('videoUnsupported')}
         </video>
         {result.videoUrls.length > 1 && (
@@ -95,7 +106,7 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
             {result.videoUrls.slice(1).map((url, index) => (
               <a
                 key={url}
-                href={url}
+                href={getStorageUrl(url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline underline-offset-2 hover:text-foreground"
@@ -140,11 +151,7 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
   }
 
   if (task.status === 'cancelled') {
-    return (
-      <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
-        <p className="text-sm text-muted-foreground">{t('cancelled')}</p>
-      </div>
-    );
+    return <TaskCardNotice className={className}>{t('cancelled')}</TaskCardNotice>;
   }
 
   return null;

@@ -56,9 +56,6 @@ vi.mock('@/components/features/message-box/ToolImageGallery', () => ({
 vi.mock('@/components/features/message-box/SessionRecordingCard', () => ({
   default: (props: Props) => <div data-testid="recording" data-file={String(props.filename)} />,
 }));
-vi.mock('@/components/features/message-box/TtsAudioCard', () => ({
-  default: (props: Props) => <div data-testid="tts" data-url={String(props.url)} />,
-}));
 vi.mock('@/components/features/message-box/CronJobSystemCard', () => ({
   CronJobSystemCard: () => <div data-testid="cron" />,
 }));
@@ -67,9 +64,10 @@ vi.mock('@/components/features/message-box/KanbanTaskCreatedCard', () => ({
     <div data-testid="kanban" data-task={props.result.task_id} />
   ),
 }));
-vi.mock('@/components/features/task-card', () => ({
-  ImageTaskCard: (props: Props) => <div data-testid="image-task" data-task={String(props.task_id)} />,
-  VideoTaskCard: (props: Props) => <div data-testid="video-task" data-task={String(props.task_id)} />,
+vi.mock('../GeneratedMediaCards', () => ({
+  GeneratedMediaCards: (props: { entries: unknown[] }) => (
+    <div data-testid="media-cards" data-entries={JSON.stringify(props.entries)} />
+  ),
 }));
 
 function message(extra: Partial<Message> = {}): Message {
@@ -92,8 +90,6 @@ function renderOutputs(extra: Partial<Message> = {}, props: Partial<Parameters<t
         isLast={false}
         chatId="chat-1"
         approvalPending={false}
-        taskResponse={null}
-        ttsAudioResponse={null}
         {...props}
       />
     </div>,
@@ -186,14 +182,20 @@ describe('AssistantRunOutputs', () => {
     expect(screen.getByTestId('visual-approval').getAttribute('data-chat')).toBe('null');
   });
 
-  it('shows image and video task cards for a task reply', () => {
-    const { unmount } = renderOutputs({}, { taskResponse: { task_id: 't1' } });
-    expect(screen.getByTestId('image-task').getAttribute('data-task')).toBe('t1');
-    unmount();
+  it('hands the registered media of the message to the media cards, whatever the answer text says', () => {
+    const entries = [
+      { kind: 'image', task_id: 't1' },
+      { kind: 'tts', media: 'media://media_speech' },
+    ];
+    renderOutputs({ content: 'Here you go!', metadata: { media_generated: entries } });
 
-    renderOutputs({}, { taskResponse: { task_id: 't2', task_type: 'video_generate' } });
-    expect(screen.getByTestId('video-task').getAttribute('data-task')).toBe('t2');
-    expect(screen.queryByTestId('image-task')).toBeNull();
+    expect(JSON.parse(screen.getByTestId('media-cards').getAttribute('data-entries') ?? '[]')).toEqual(entries);
+  });
+
+  it('shows no media cards for a message that registered no media', () => {
+    renderOutputs({ content: '{"tasks":[{"task_id":"t1","task_type":"image_generate","status":"pending"}]}' });
+
+    expect(screen.queryByTestId('media-cards')).toBeNull();
   });
 
   it('shows the council result and the generated artifacts when the message has them', () => {
@@ -211,12 +213,6 @@ describe('AssistantRunOutputs', () => {
 
     expect(screen.queryByTestId('council')).toBeNull();
     expect(screen.queryByTestId('artifacts')).toBeNull();
-  });
-
-  it('plays a text-to-speech reply in place', () => {
-    renderOutputs({}, { ttsAudioResponse: { audio_url: '/a.mp3' } });
-
-    expect(screen.getByTestId('tts').getAttribute('data-url')).toBe('/a.mp3');
   });
 
   it('shows the cards of the attachments it recognises and ignores malformed ones', () => {

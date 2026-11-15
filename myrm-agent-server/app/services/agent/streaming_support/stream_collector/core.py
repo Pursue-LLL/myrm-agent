@@ -3,6 +3,7 @@
 [INPUT]
 JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 - stream_collector_helpers (POS: stateless SSE event parsing helpers)
+- media_generated (POS: media registered from the structured results of media tools)
 - app.core.agent.stop_reason (POS: stored shape of a stop reason, and which reason is kept)
 - evicted_output (POS: evicted tool output references matched to progress steps)
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: first-resolver arbitration between a card's timeout timer and a manual answer)
@@ -11,7 +12,7 @@ JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 settle_tool_approvals_of: takes the answered tool-approval cards away from the run parked at them.
 release_parked_hitl: retires the card of a chat whose conversation moved on without answering it (timer cancelled, a late answer refused).
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
-retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
+retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, media_generated, cron_job_result,
 HITL clarification (`clarification`), plan confirmation (`planConfirmation`),
 file mutation failures (`fileMutationFailures`), council phase progress (`councilPhases`),
 reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`),
@@ -120,6 +121,7 @@ class StreamContentCollector(StreamStateMixin, StreamEventHandlersMixin, StreamC
         self._pending_interrupt_events: list[dict[str, object]] = []
         self._tool_stuck_paused = False
         self._kanban_tasks_created: list[dict[str, object]] = []
+        self._media_generated: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
         self._file_mutation_failures: list[dict[str, object]] = []
         self._council_phases: list[dict[str, object]] = []
@@ -279,6 +281,7 @@ class StreamContentCollector(StreamStateMixin, StreamEventHandlersMixin, StreamC
         handler = _EVENT_HANDLERS.get(event_type) if isinstance(event_type, str) else None
         if handler is not None:
             handler(self, event, data)
+
 
 _EVENT_HANDLERS: dict[str, Callable[[StreamContentCollector, dict[str, object], object], None]] = {
     "iteration_limit_reached": StreamContentCollector._on_iteration_limit_reached,

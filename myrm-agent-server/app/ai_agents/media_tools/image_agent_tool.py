@@ -1,313 +1,213 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.llms.image.image_engine::ImageGenerationTools (POS: sync generate/edit/list)
-- myrm_agent_harness.toolkits.llms.image.async_image_engine::AsyncImageGenerationTools (POS: async generate enqueue)
+- myrm_agent_harness.toolkits.llms.image.image_engine::ImageGenerationTools (POS: edit one image / list models)
+- myrm_agent_harness.toolkits.llms.image.async_image_engine::AsyncImageGenerationTools (POS: one-task-per-image enqueue)
 - myrm_agent_harness.toolkits.llms.image.models::ImageGenerationConfig (POS: shared engine config)
-- myrm_agent_harness.core.security.http.secure_fetch::secure_get (POS: SSRF-protected edit/mask URL fetch)
-- app.ai_agents.media_tools.image_clamp::clamp_image_payload (POS: payload downsampling and format normalization)
-- app.tasks.serializer::serialize_media_task (POS: 媒体任务队列 Task 模型统一状态序列化器)
+- myrm_agent_harness.toolkits.llms.media_inputs::resolve_media_inputs (POS: the single reference resolver)
+- myrm_agent_harness.utils.mime_types::sniff_image_mime (POS: image container detection)
+- app.ai_agents.media_tools.input_policy::build_media_input_policy (POS: reference-resolution policy)
+- app.ai_agents.media_tools.task_results (POS: shared error, started-tasks and status results)
+- app.tasks.task_payload_crypto::seal_task_payload_secrets (POS: payload secret sealing)
 
 [OUTPUT]
 - create_image_generation_tool(): LangChain BaseTool adapter for image generation
 
 [POS]
-LangChain adapter: generate enqueues via TaskStore when async_config is provided;
-edit/list stay on synchronous ImageGenerationTools.
+LangChain adapter of the image engines. ``generate`` enqueues one background task per image (``n`` tasks) and answers
+with the task list; ``edit`` answers in the call; ``status`` and ``list`` read the queue and the model catalog. Every
+failure is an explicit error result: nothing is silently generated differently from what was asked.
 """
 
 from __future__ import annotations
 
-import json
 import logging
+from collections.abc import Sequence
+from dataclasses import replace
 from typing import Literal
 
-import httpx
 from langchain_core.tools import BaseTool, tool
+from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
 from myrm_agent_harness.toolkits.llms.image.image_engine import ImageGenerationTools
 from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+from myrm_agent_harness.toolkits.llms.media_inputs import MediaInputError, resolve_media_inputs
+from myrm_agent_harness.toolkits.llms.media_task_types import TASK_TYPE_IMAGE_GENERATE
+from myrm_agent_harness.utils.mime_types import sniff_image_mime
 from pydantic import BaseModel, Field
 
+from app.ai_agents.media_tools.input_policy import build_media_input_policy
+from app.ai_agents.media_tools.task_results import (
+    media_task_status_result,
+    media_task_store,
+    started_tasks_result,
+    tool_error,
+)
+from app.tasks.task_payload_crypto import seal_task_payload_secrets
+
 logger = logging.getLogger(__name__)
+
+_TOOL_DESCRIPTION = (
+    "Generate or edit images. Each generated image is a background task whose result appears in the chat by itself, "
+    "so never repeat its media:// address in your reply. "
+    "action='generate': new images from a text prompt; reference_image_urls steer the style or content. "
+    "action='edit': change one existing image as the prompt says (optional mask_url); answers in the call and needs a "
+    "model that edits images. "
+    "action='status': state and result of a task_id, which is also how to get the media:// address of an earlier image. "
+    "action='list': the available models and what they support."
+)
 
 
 class ImageToolInput(BaseModel):
     action: Literal["generate", "edit", "list", "status"] = Field(
         default="generate",
-        description=(
-            "Action to perform: 'generate' (create new images from text prompt, supports reference_image_urls for style transfer/visual continuity), "
-            "'edit' (modify an existing image via image_url and descriptive prompt, optional mask_url for inpainting), "
-            "'list' (discover available models and capabilities), "
-            "'status' (query progress and final URL of task_id)."
-        ),
+        description="Action to perform: 'generate', 'edit', 'list' or 'status'.",
     )
     prompt: str = Field(
         default="",
-        description="Detailed text description of the image to generate or modification instructions for edit (required for generate/edit).",
+        description="Detailed description of the image to generate, or the changes to make for edit (required for generate and edit).",
     )
     size: str | None = Field(
         default=None,
-        description="Image dimensions or aspect ratio (e.g. '1024x1024', '1792x1024', '1024x1792', or '16:9').",
+        description=(
+            "Image size as WIDTHxHEIGHT, both sides divisible by 16 and aspect ratio at most 3:1 "
+            "(e.g. '1536x1024', '2048x1152'). Never pass aspect ratios such as '16:9'."
+        ),
     )
-    quality: str | None = Field(
+    quality: Literal["low", "medium", "high"] | None = Field(
         default=None,
-        description="Image quality setting: 'standard' or 'hd'.",
-    )
-    style: str | None = Field(
-        default=None,
-        description="Visual rendering style for DALL-E 3: 'vivid' (hyper-real/dramatic) or 'natural' (realistic/photographic).",
+        description="Rendering quality; omit it to let the model decide.",
     )
     n: int = Field(
         default=1,
         ge=1,
         le=4,
-        description="Number of image variations to generate (1-4).",
+        description="How many images to generate (1-4); each one is its own task. Not for edit.",
     )
     reference_image_urls: list[str] | None = Field(
         default=None,
-        description="Optional reference image URLs for visual style transfer or multi-image guided generation.",
+        description="Reference images for generate: media:// references from earlier results, workspace file paths or http(s) URLs.",
     )
     image_url: str | None = Field(
         default=None,
-        description="Source image URL to modify when action='edit' (HTTP/HTTPS URL).",
+        description="Image to modify when action='edit': a media:// reference, workspace file path or http(s) URL.",
     )
     mask_url: str | None = Field(
         default=None,
-        description="Optional mask image URL for inpainting when action='edit' (transparent areas will be regenerated).",
+        description="Optional mask for action='edit', same forms as image_url; transparent areas are regenerated.",
     )
     task_id: str | None = Field(
         default=None,
-        description="Task ID returned from a previous action='generate' call (required when action='status').",
+        description="Task ID from an earlier generate result (required when action='status').",
     )
 
 
-def _serialize_task(task: object) -> dict[str, object]:
-    """Serialize a queue task for status output."""
-    from app.tasks.serializer import serialize_media_task
-
-    return serialize_media_task(task)
-
-
-async def _fetch_image_bytes(url: str, *, allow_private_networks: bool = False) -> tuple[bytes, str | None, int]:
-    from app.ai_agents.media_tools.image_clamp import clamp_image_payload
-
-    if allow_private_networks:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            content_type = response.headers.get("content-type")
-            return clamp_image_payload(response.content, content_type=content_type)
-
-    from myrm_agent_harness.core.security.http.secure_fetch import secure_get
-
-    response = await secure_get(url, timeout=30.0)
-    response.raise_for_status()
-    content_type = response.headers.get("content-type")
-    return clamp_image_payload(response.content, content_type=content_type)
-
-
 def create_image_generation_tool(
-    engine: ImageGenerationTools,
+    config: ImageGenerationConfig,
     *,
-    allow_private_networks: bool = False,
-    async_config: ImageGenerationConfig | None = None,
+    allowed_roots: Sequence[str] = (),
     task_user_id: str = "default",
     agent_id: str | None = None,
     chat_id: str | None = None,
 ) -> BaseTool:
-    """Wrap ImageGenerationTools as ``image_tool``.
+    """Build ``image_tool`` for the image model in ``config``.
 
-    When *async_config* is set, ``action=generate`` enqueues a background task and
-    returns ``task_id`` JSON; edit/list remain synchronous on *engine*.
+    ``allowed_roots`` are the workspace folders the agent's file references may point into.
     """
+    editor = ImageGenerationTools(config)
+    policy = build_media_input_policy(allowed_roots)
 
-    async def _enqueue_generate(
+    async def _generate(
         prompt: str,
         *,
         size: str | None,
         quality: str | None,
-        style: str | None,
         n: int,
         reference_image_urls: list[str] | None,
     ) -> str:
-        if async_config is None:
-            return await engine.generate_image(
-                prompt,
-                size=size,
-                quality=quality,
-                style=style,
-                n=n,
-                reference_image_urls=reference_image_urls,
-            )
+        if not prompt.strip():
+            return tool_error("prompt is required when action=generate")
         try:
-            from myrm_agent_harness.toolkits.llms.image.async_image_engine import (
-                AsyncImageGenerationTools,
-            )
+            task_store = media_task_store()
+        except RuntimeError as exc:
+            logger.warning("Task store unavailable for image generation: %s", exc)
+            return tool_error("Task store unavailable")
 
-            from app.lifecycle.task_worker import get_task_store
-            from app.tasks.task_payload_crypto import seal_task_payload_secrets
-
-            async_engine = AsyncImageGenerationTools(
-                async_config,
-                get_task_store(),
-                allow_private_networks=allow_private_networks,
-                payload_postprocessor=seal_task_payload_secrets,
-            )
-            return await async_engine.generate_image(
+        enqueuer = AsyncImageGenerationTools(config, task_store, payload_postprocessor=seal_task_payload_secrets)
+        references = [ref.strip() for ref in reference_image_urls or [] if ref.strip()]
+        task_ids = [
+            await enqueuer.generate_image(
                 prompt,
                 size=size,
                 quality=quality,
-                style=style,
-                n=n,
-                reference_image_urls=reference_image_urls,
+                reference_image_urls=references or None,
+                allowed_roots=allowed_roots,
                 user_id=task_user_id,
                 agent_id=agent_id,
                 chat_id=chat_id,
             )
-        except RuntimeError as exc:
-            logger.warning("Async image enqueue unavailable, using sync generate: %s", exc)
-            return await engine.generate_image(
-                prompt,
-                size=size,
-                quality=quality,
-                style=style,
-                n=n,
-                reference_image_urls=reference_image_urls,
-            )
+            for _ in range(n)
+        ]
+        return started_tasks_result(
+            TASK_TYPE_IMAGE_GENERATE,
+            task_ids,
+            message="Generation started; each image appears in the chat when it is ready.",
+        )
 
-    async def _status(task_id: str | None) -> str:
-        if not task_id:
-            return json.dumps(
-                {"error": "task_id is required when action=status"},
-                ensure_ascii=False,
-            )
+    async def _edit(
+        prompt: str,
+        *,
+        size: str | None,
+        n: int,
+        image_url: str | None,
+        mask_url: str | None,
+    ) -> str:
+        if not image_url or not image_url.strip():
+            return tool_error("image_url is required when action=edit")
+        if not prompt.strip():
+            return tool_error("prompt is required when action=edit")
+        if n > 1:
+            return tool_error("edit returns one image per call; call it again for another variation, or use action=generate")
         try:
-            from app.lifecycle.task_worker import get_task_store
-
-            task = await get_task_store().get_task(task_id)
-            if task is None:
-                return json.dumps(
-                    {"error": "Task not found", "task_id": task_id},
-                    ensure_ascii=False,
-                )
-            return json.dumps(_serialize_task(task), ensure_ascii=False)
-        except RuntimeError as exc:
-            logger.warning("Task store unavailable for image status lookup: %s", exc)
-            return json.dumps(
-                {"error": "Task store unavailable", "task_id": task_id},
-                ensure_ascii=False,
-            )
+            (image,) = await resolve_media_inputs([image_url], "image", policy, field_name="image_url")
+            mask: bytes | None = None
+            if mask_url and mask_url.strip():
+                # A mask carries its meaning in its transparency, which the downsizing hook would flatten.
+                (mask,) = await resolve_media_inputs([mask_url], "image", replace(policy, image_hook=None), field_name="mask_url")
+        except MediaInputError as exc:
+            return tool_error(str(exc))
+        return await editor.edit_image(
+            image,
+            prompt,
+            mask=mask,
+            size=size,
+            image_mime=sniff_image_mime(image),
+            image_size_bytes=len(image),
+        )
 
     @tool("image_tool", args_schema=ImageToolInput)
     async def image_tool(
         action: Literal["generate", "edit", "list", "status"] = "generate",
         prompt: str = "",
         size: str | None = None,
-        quality: str | None = None,
-        style: str | None = None,
+        quality: Literal["low", "medium", "high"] | None = None,
         n: int = 1,
         reference_image_urls: list[str] | None = None,
         image_url: str | None = None,
         mask_url: str | None = None,
         task_id: str | None = None,
     ) -> str:
-        """Generate, edit, poll status of, or list image generation models.
-
-        Workflow:
-        1) To create new images, call with action='generate' and a descriptive prompt.
-        2) To modify an existing image, call with action='edit', image_url='<URL>', and prompt describing changes.
-        3) To inspect available providers/models, call with action='list'.
-        4) To inspect progress and retrieve the final image URL, call with action='status' and task_id='<ID>'.
-        """
+        """Generate, edit, poll the status of, or list images."""
         if action == "list":
-            return engine.list_models()
+            return editor.list_models()
         if action == "status":
-            return await _status(task_id)
+            return await media_task_status_result(task_id)
         if action == "edit":
-            if not image_url or not image_url.strip():
-                return json.dumps({"error": "image_url is required when action=edit"}, ensure_ascii=False)
-            if not prompt.strip():
-                return json.dumps({"error": "prompt is required when action=edit"}, ensure_ascii=False)
-
-            # Defensive adaptation: when active model does not support native inpainting edit,
-            # gracefully route to reference-guided generation to avoid ValidationError crashes.
-            from myrm_agent_harness.toolkits.llms.image.types import get_profile
-
-            model_name = async_config.model if async_config else getattr(engine, "model", None)
-            profile = get_profile(model_name) if model_name else None
-            if profile and not profile.supports_edit:
-                logger.info(
-                    "Model %s does not support native edit; gracefully adapting edit request to reference-guided generate",
-                    profile.name,
-                )
-                augmented_prompt = prompt
-                ref_urls: list[str] | None = [image_url.strip()]
-                # If model does not accept image inputs (e.g. pure T2I like DALL-E 3),
-                # embed reference image URL in prompt context to avoid downstream 400 edit errors.
-                if profile.max_input_images == 0:
-                    augmented_prompt = f"{prompt} (Reference image: {image_url.strip()})"
-                    ref_urls = None
-
-                return await _enqueue_generate(
-                    augmented_prompt,
-                    size=size,
-                    quality=quality,
-                    style=style,
-                    n=n,
-                    reference_image_urls=ref_urls,
-                )
-
-            try:
-                image_bytes, image_mime, image_size = await _fetch_image_bytes(
-                    image_url.strip(),
-                    allow_private_networks=allow_private_networks,
-                )
-            except Exception as exc:
-                logger.warning("Failed to fetch image_url: %s", exc)
-                return json.dumps(
-                    {"error": "Failed to fetch image_url"},
-                    ensure_ascii=False,
-                )
-            mask_bytes = None
-            if mask_url and mask_url.strip():
-                try:
-                    mask_bytes, _, _ = await _fetch_image_bytes(
-                        mask_url.strip(),
-                        allow_private_networks=allow_private_networks,
-                    )
-                except Exception as exc:
-                    logger.warning("Failed to fetch mask_url: %s", exc)
-                    return json.dumps(
-                        {"error": "Failed to fetch mask_url"},
-                        ensure_ascii=False,
-                    )
-            return await engine.edit_image(
-                image_bytes,
-                prompt,
-                mask=mask_bytes,
-                size=size,
-                n=n,
-                image_mime=image_mime,
-                image_size_bytes=image_size,
-            )
-        if not prompt.strip():
-            return '{"error": "prompt is required when action=generate"}'
-        return await _enqueue_generate(
+            return await _edit(prompt, size=size, n=n, image_url=image_url, mask_url=mask_url)
+        return await _generate(
             prompt,
             size=size,
             quality=quality,
-            style=style,
             n=n,
             reference_image_urls=reference_image_urls,
         )
 
-    if async_config is not None:
-        image_tool.description = (
-            f"{engine.tool_description} "
-            "Workflow: 1) Call action='generate' with prompt to start and receive task_id. "
-            "For visual refinement or style transfer, pass reference_image_urls with previous image URLs. "
-            "2) Call action='status' with task_id to inspect progress and retrieve the final image URL upon completion. "
-            "3) Call action='edit' with image_url and prompt to modify an existing image. "
-            "4) Call action='list' to inspect available providers/models."
-        )
-    else:
-        image_tool.description = engine.tool_description
+    image_tool.description = _TOOL_DESCRIPTION
     return image_tool

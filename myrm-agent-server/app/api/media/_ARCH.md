@@ -2,12 +2,11 @@
 
 ## 架构概述
 
-图片/视频等媒体生成 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)。
+媒体库 HTTP 层：列表与检索、标签、原文件与缩略图、删除。生成的媒体以 `media://<id>` 引用，浏览器经 `/{media_id}/file` 取回字节。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Media gallery API routes. | ✅ |
-| `batch_routes.py` | 路由 | Batch image generation API — create, control, monitor batch jobs. | ✅ |
-| `router.py` | 路由 | Media gallery API — list, search, tag, serve, delete media items. | ✅ |
+| `router.py` | 路由 | 媒体库路由：游标分页列表与过滤、标签列表、批量删除与批量标签替换、单项、原文件（支持 Range，缓存头永不过期）、缩略图、改标签、删除；静态的 `/batch/*` 路由声明在 `/{media_id}` 之前，否则会被当作名为 `batch` 的媒体 | ✅ |

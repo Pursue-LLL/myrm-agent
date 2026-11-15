@@ -48,6 +48,33 @@ class TestSyncUploadedFilesToWorkspace:
         assert not os.path.exists(os.path.join(workspace, "_uploaded"))
 
     @pytest.mark.asyncio
+    async def test_copies_a_small_image_so_the_model_can_reference_it(self, tmp_path: Path):
+        """An attached image is synced whatever its size: its path is the only handle the model can pass to a tool."""
+        from app.core.storage.models import File
+        from app.core.storage.types import FilePurpose
+
+        content = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+        small_image = File(
+            id="file_img",
+            purpose=FilePurpose.UPLOAD,
+            filename="photo.png",
+            content_type="image/png",
+            size=len(content),
+            storage_path="uploads/file_img/photo.png",
+        )
+
+        mock_svc = AsyncMock()
+        mock_svc.get_file = AsyncMock(return_value=small_image)
+        mock_svc.get_file_content_by_path = AsyncMock(return_value=content)
+        with patch("app.core.storage.files_service", mock_svc):
+            workspace = str(tmp_path)
+            result = await sync_uploaded_files_to_workspace(["file_img"], workspace)
+
+        assert result == [("photo.png", "_uploaded/photo.png")]
+        assert len(content) <= _SYNC_THRESHOLD_BYTES
+        assert Path(workspace, "_uploaded", "photo.png").read_bytes() == content
+
+    @pytest.mark.asyncio
     async def test_copies_large_file(self, tmp_path: Path):
         """Files exceeding threshold should be copied to _uploaded/."""
         from app.core.storage.models import File

@@ -3,11 +3,10 @@ import { describe, expect, it } from 'vitest';
 import type { McpAppView, Message, ProgressItem, ToolImageOutput } from '@/store/chat/types';
 import {
   closeUnbalancedReasoningTags,
-  parseAsyncTaskResponse,
-  parseTtsAudioResponse,
   readCronJobResult,
   readKanbanTasksCreated,
   readMcpApps,
+  readMediaGenerated,
   readSessionRecording,
   readToolImages,
   resolveProgressSteps,
@@ -55,55 +54,6 @@ describe('closeUnbalancedReasoningTags', () => {
     expect(closeUnbalancedReasoningTags('<reasoning>a<think>b')).toBe(
       '<reasoning>a<think>b</think> <a> </a></reasoning> <a> </a>',
     );
-  });
-});
-
-describe('parseAsyncTaskResponse', () => {
-  it.each([
-    [
-      'an image task',
-      '{"task_id":"t-1","task_type":"image_generate"}',
-      { task_id: 't-1', task_type: 'image_generate' },
-    ],
-    ['a task without a type', '{"task_id":"t-2"}', { task_id: 't-2' }],
-  ])('reads %s', (_name, content, expected) => {
-    expect(parseAsyncTaskResponse(content)).toEqual(expected);
-  });
-
-  it.each(['{"task_id":""}', '{"task_id":5}', '{}', 'null', '[1]', '"task_id"', '42', '{oops', '', 'plain answer'])(
-    'is not a task reply: %j',
-    (content) => {
-      expect(parseAsyncTaskResponse(content)).toBeNull();
-    },
-  );
-});
-
-describe('parseTtsAudioResponse', () => {
-  it('reads a successful reply with its optional fields', () => {
-    const content = '{"status":"success","audio_url":"/a.mp3","model":"tts-1","duration_seconds":3}';
-
-    expect(parseTtsAudioResponse(content)).toEqual({
-      status: 'success',
-      audio_url: '/a.mp3',
-      model: 'tts-1',
-      duration_seconds: 3,
-    });
-  });
-
-  it('accepts an empty audio url', () => {
-    expect(parseTtsAudioResponse('{"status":"success","audio_url":""}')).toEqual({ status: 'success', audio_url: '' });
-  });
-
-  it.each([
-    '{"status":"error","audio_url":"/a.mp3"}',
-    '{"status":"success"}',
-    '{"status":"success","audio_url":5}',
-    'null',
-    '[1]',
-    '{oops',
-    '',
-  ])('is not a successful reply: %j', (content) => {
-    expect(parseTtsAudioResponse(content)).toBeNull();
   });
 });
 
@@ -172,6 +122,31 @@ describe('readKanbanTasksCreated', () => {
     ['tasks that are not a list', { kanban_tasks_created: 'k1' }],
   ])('has nothing for %s', (_name, metadata) => {
     expect(readKanbanTasksCreated(message({ metadata }))).toEqual([]);
+  });
+});
+
+describe('readMediaGenerated', () => {
+  const task = { kind: 'image', task_id: 'img-1' };
+  const speech = { kind: 'tts', media: 'media://media_speech', model: 'gpt-4o-mini-tts', duration_seconds: 2 };
+
+  it('reads the registered entries in order', () => {
+    expect(readMediaGenerated(message({ metadata: { media_generated: [task, speech] } }))).toEqual([task, speech]);
+  });
+
+  it('keeps only well-formed entries', () => {
+    const metadata = {
+      media_generated: [task, { kind: 'image' }, null, 'text', { kind: 'tts', media: 'https://x/a.mp3' }],
+    };
+
+    expect(readMediaGenerated(message({ metadata }))).toEqual([task]);
+  });
+
+  it.each([
+    ['no metadata', undefined],
+    ['no entries', { other: 1 }],
+    ['entries that are not a list', { media_generated: task }],
+  ])('has nothing for %s', (_name, metadata) => {
+    expect(readMediaGenerated(message({ metadata }))).toEqual([]);
   });
 });
 

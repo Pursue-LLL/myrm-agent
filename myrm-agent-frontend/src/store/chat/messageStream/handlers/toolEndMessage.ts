@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * @/store/chat/types::Message, ToolEndStreamEvent (POS: chat domain / SSE types)
+ * @/lib/chat/mediaGenerated (POS: media a media tool call registers from its structured result)
  * ../skillManageBatchLink::linkSkillManageBatch (POS: skill_manage Undo batch linking)
  * ./handlerDeps (POS: memory citation helpers)
  *
@@ -12,6 +13,11 @@
  * never a message read from the stream's start-of-turn snapshot (which cannot contain the running turn).
  */
 
+import {
+  MEDIA_GENERATED_METADATA_KEY,
+  mediaGeneratedEntriesOf,
+  mergeMediaGeneratedEntries,
+} from '@/lib/chat/mediaGenerated';
 import type { Message, ToolEndStreamEvent } from '@/store/chat/types';
 import { linkSkillManageBatch } from '../skillManageBatchLink';
 import * as H from './handlerDeps';
@@ -53,6 +59,21 @@ function recordKanbanTaskCreated(message: Message, result: unknown): void {
   const list = Array.isArray(prior) ? [...prior] : prior ? [prior] : [];
   list.push({ task_id: taskId, title, board_id: boardId });
   message.metadata = { ...message.metadata, kanban_tasks_created: list };
+}
+
+/** The media a finished image / video / tts call produced, registered so its card shows whatever the reply says. */
+function recordMediaGenerated(message: Message, data: ToolEndStreamEvent): void {
+  const entries = mediaGeneratedEntriesOf(data.tool_name, readJsonObject(data.result));
+  if (entries.length === 0) {
+    return;
+  }
+  message.metadata = {
+    ...message.metadata,
+    [MEDIA_GENERATED_METADATA_KEY]: mergeMediaGeneratedEntries(
+      message.metadata?.[MEDIA_GENERATED_METADATA_KEY],
+      entries,
+    ),
+  };
 }
 
 function recordMemoryRecall(message: Message, data: ToolEndStreamEvent): void {
@@ -104,6 +125,8 @@ export function applyToolEndToMessage(message: Message, data: ToolEndStreamEvent
   if (data.tool_name === 'kanban_add_task' && data.result) {
     recordKanbanTaskCreated(message, data.result);
   }
+
+  recordMediaGenerated(message, data);
 
   // MCP Apps (ext-apps): detect mcp_app metadata and attach view to message
   const mcpApp = data.mcp_app;

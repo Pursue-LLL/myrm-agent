@@ -127,7 +127,6 @@ _EXEMPT: dict[tuple[str, str], str] = {
     ("api/faq/router.py", "create_entry"): _FAQ_REASON,
     ("api/faq/router.py", "update_entry"): _FAQ_REASON,
     ("api/faq/router.py", "bulk_import"): _FAQ_REASON,
-    ("api/media/batch_routes.py", "create_batch_job"): "prompts for an image generator, not instructions an agent follows",
     (
         "api/skills/desktop_recorder/router.py",
         "compile_desktop_plan",

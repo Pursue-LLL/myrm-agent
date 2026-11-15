@@ -9,17 +9,21 @@ import TtsGenerationSection from '../TtsGenerationSection';
 const kit = vi.hoisted(() => ({
   fetch: vi.fn<(url: string, init: RequestInit) => Promise<{ json: () => Promise<unknown> }>>(),
   providers: [] as unknown[],
+  voice: {} as Record<string, unknown>,
 }));
 
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 vi.mock('@/lib/api', () => ({
-  apiRequest: async () => ({ value: { ttsApiKey: 'sk-stored' }, meta: { version: 'v1' } }),
+  apiRequest: async () => ({ value: kit.voice, meta: { version: 'v1' } }),
 }));
 vi.mock('@/store/useProviderStore', () => ({
   default: (select: (state: { providers: unknown[] }) => unknown) => select({ providers: kit.providers }),
 }));
 vi.mock('@/hooks/shared/useToast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock('@/lib/utils/media', () => ({ providerHasActiveApiKey: () => false }));
+vi.mock('@/lib/utils/media', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/utils/media')>()),
+  providerHasActiveApiKey: () => false,
+}));
 vi.mock('@/lib/utils/apiConfig', () => ({ getBackendUrl: () => 'http://backend' }));
 vi.mock('@/lib/utils/authHeaders', () => ({ getAuthHeaders: () => ({ Authorization: 'Bearer token' }) }));
 
@@ -33,6 +37,7 @@ async function renderSection() {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubGlobal('fetch', kit.fetch);
+  kit.voice = { ttsProvider: 'openai', ttsModel: 'tts-1', ttsVoice: 'alloy', ttsApiKey: 'sk-stored' };
 });
 
 afterEach(() => {
@@ -40,7 +45,7 @@ afterEach(() => {
 });
 
 describe('TtsGenerationSection connection test', () => {
-  it('probes the chosen provider and model with the auth headers', async () => {
+  it('probes the chosen provider, model and voice with the auth headers', async () => {
     kit.fetch.mockResolvedValue({ json: async () => ({ success: true }) });
     const user = userEvent.setup();
     await renderSection();
@@ -50,9 +55,20 @@ describe('TtsGenerationSection connection test', () => {
     expect(kit.fetch).toHaveBeenCalledExactlyOnceWith('http://backend/api/v1/agents/test-media-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token' },
-      body: JSON.stringify({ mediaType: 'tts', provider: 'openai', model: 'tts-1' }),
+      body: JSON.stringify({ mediaType: 'tts', provider: 'openai', model: 'tts-1', voice: 'alloy' }),
     });
     expect(testButton().querySelector('.text-green-500')).not.toBeNull();
+  });
+
+  it.each([
+    ['nothing is chosen yet', {}],
+    ['the stored provider is one only channel replies can use', { ttsProvider: 'edge', ttsApiKey: 'sk-stored' }],
+  ])('cannot be started while %s', async (_case, voice) => {
+    kit.voice = voice;
+    await renderSection();
+
+    expect(testButton()).toBeDisabled();
+    expect(kit.fetch).not.toHaveBeenCalled();
   });
 
   it('accepts the nested status answer as success', async () => {

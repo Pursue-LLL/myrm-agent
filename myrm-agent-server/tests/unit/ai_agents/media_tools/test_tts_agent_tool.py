@@ -1,20 +1,23 @@
+"""Tests for the tts_generate tool: success carries the stored reference, everything else is an explicit error."""
+
+from __future__ import annotations
+
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.core.artifacts.constants import ArtifactType
-from myrm_agent_harness.toolkits.llms.tts import TTSConfig
+from myrm_agent_harness.toolkits.llms.tts import TTSConfig, TTSGenerationError, TTSResult
 
-from app.ai_agents.media_tools.tts_agent_tool import TTSTool, create_tts_tool
-
-
-@pytest.fixture
-def mock_config():
-    return TTSConfig(provider="openai", api_key="test-key")
+from app.ai_agents.media_tools.tts_agent_tool import MAX_TTS_TEXT_LENGTH, TTSTool, create_tts_tool
 
 
 @pytest.fixture
-def mock_engine_generate():
+def config() -> TTSConfig:
+    return TTSConfig(provider="openai", model="gpt-4o-mini-tts", voice="alloy", api_key="test-key")
+
+
+@pytest.fixture
+def engine_generate():
     with patch(
         "app.ai_agents.media_tools.tts_agent_tool.AsyncTTSEngine.generate",
         new_callable=AsyncMock,
@@ -22,192 +25,94 @@ def mock_engine_generate():
         yield mock
 
 
-def test_tts_tool_init(mock_config):
-    """Test TTSTool initialization."""
-    mock_callback = MagicMock()
-    tool = TTSTool(config=mock_config, on_artifact_created=mock_callback)
+def _result(*, persisted_ref: str | None = "media://media_speech", duration_seconds: float | None = 3.24) -> TTSResult:
+    return TTSResult(
+        audio_bytes=b"audio",
+        mime_type="audio/mpeg",
+        provider="openai",
+        model="gpt-4o-mini-tts",
+        latency_ms=150.4,
+        persisted_ref=persisted_ref,
+        duration_seconds=duration_seconds,
+    )
 
-    assert tool.name == "tts_generate"
-    assert tool.config == mock_config
-    assert tool._on_artifact_created == mock_callback
 
+def test_factory_returns_the_named_tool(config: TTSConfig) -> None:
+    tool = create_tts_tool(config)
 
-def test_create_tts_tool_factory(mock_config):
-    """Test create_tts_tool factory."""
-    tool = create_tts_tool(mock_config)
     assert isinstance(tool, TTSTool)
     assert tool.name == "tts_generate"
+    assert tool.config == config
 
 
-def test_tts_tool_run_raises_not_implemented(mock_config):
-    """Test synchronous run raises NotImplementedError."""
-    tool = TTSTool(config=mock_config)
-    with pytest.raises(NotImplementedError, match="TTSTool only supports async execution"):
-        tool._run(text="hello")
-
-
-@pytest.mark.asyncio
-async def test_tts_tool_arun_success_with_artifact(mock_config, mock_engine_generate):
-    """Test async run success with artifact push."""
-    mock_callback = MagicMock()
-    tool = TTSTool(config=mock_config, on_artifact_created=mock_callback)
-
-    mock_result = MagicMock()
-    mock_result.provider = "openai"
-    mock_result.model = "tts-1"
-    mock_result.latency_ms = 150.5
-    mock_result.persisted_url = "s3://bucket/audio.mp3"
-    mock_result.mime_type = "audio/mpeg"
-    mock_result.duration_seconds = None
-    mock_engine_generate.return_value = mock_result
-
-    result_str = await tool._arun(text="hello world")
-
-    mock_engine_generate.assert_called_once_with("hello world", style=None)
-
-    mock_callback.assert_called_once()
-    args = mock_callback.call_args[0]
-    assert args[0].startswith("generated_tts-1.mp3")
-    assert args[1] == "s3://bucket/audio.mp3"
-    assert args[2] == ArtifactType.AUDIO
-    assert args[3] == "audio/mpeg"
-
-    result_dict = json.loads(result_str)
-    assert result_dict["status"] == "success"
-    assert result_dict["audio_url"] == "s3://bucket/audio.mp3"
+def test_the_tool_is_async_only(config: TTSConfig) -> None:
+    with pytest.raises(NotImplementedError, match="only supports async"):
+        TTSTool(config)._run(text="hello")
 
 
 @pytest.mark.asyncio
-async def test_tts_tool_arun_success_no_url(mock_config, mock_engine_generate):
-    """Test async run success when no URL is returned."""
-    mock_callback = MagicMock()
-    tool = TTSTool(config=mock_config, on_artifact_created=mock_callback)
+async def test_success_carries_the_stored_reference_and_what_produced_it(config: TTSConfig, engine_generate) -> None:
+    engine_generate.return_value = _result()
 
-    mock_result = MagicMock()
-    mock_result.provider = "openai"
-    mock_result.model = "tts-1"
-    mock_result.latency_ms = 150.5
-    mock_result.persisted_url = None
-    mock_result.duration_seconds = None
-    mock_engine_generate.return_value = mock_result
+    payload = json.loads(await TTSTool(config).ainvoke({"text": "Hello"}))
 
-    result_str = await tool._arun(text="hello world")
-
-    mock_callback.assert_not_called()
-
-    result_dict = json.loads(result_str)
-    assert result_dict["status"] == "success"
-    assert "audio_url" not in result_dict
-    assert "failed to persist" in result_dict["message"]
+    assert payload == {
+        "status": "success",
+        "provider": "openai",
+        "model": "gpt-4o-mini-tts",
+        "latency_ms": 150,
+        "audio_url": "media://media_speech",
+        "message": "Audio generated; it appears in the chat for the user to play.",
+        "duration_seconds": 3.2,
+    }
 
 
 @pytest.mark.asyncio
-async def test_tts_tool_arun_error(mock_config, mock_engine_generate):
-    """Test async run error handling."""
-    tool = TTSTool(config=mock_config)
+async def test_a_result_without_a_stored_reference_is_an_error(config: TTSConfig, engine_generate) -> None:
+    engine_generate.return_value = _result(persisted_ref=None)
 
-    mock_engine_generate.side_effect = Exception("API Error")
+    payload = json.loads(await TTSTool(config).ainvoke({"text": "Hello"}))
 
-    result_str = await tool._arun(text="hello world")
-
-    result_dict = json.loads(result_str)
-    assert result_dict["status"] == "error"
-    assert "API Error" in result_dict["error"]
+    assert payload["status"] == "error"
+    assert "not stored" in payload["error"]
+    assert "audio_url" not in payload
 
 
 @pytest.mark.asyncio
-async def test_tts_tool_push_artifact_skipped_without_callback(mock_config, mock_engine_generate):
-    tool = TTSTool(config=mock_config, on_artifact_created=None)
+async def test_an_engine_failure_is_reported_not_swallowed(config: TTSConfig, engine_generate) -> None:
+    engine_generate.side_effect = TTSGenerationError("provider down")
 
-    mock_result = MagicMock()
-    mock_result.provider = "openai"
-    mock_result.model = "tts-1"
-    mock_result.latency_ms = 10.0
-    mock_result.persisted_url = "https://cdn.example/a.mp3"
-    mock_result.mime_type = "audio/mpeg"
-    mock_result.duration_seconds = None
-    mock_engine_generate.return_value = mock_result
+    payload = json.loads(await TTSTool(config).ainvoke({"text": "Hello"}))
 
-    result_str = await tool._arun(text="hello")
-    result_dict = json.loads(result_str)
-    assert result_dict["status"] == "success"
-
-
-def test_tts_tool_push_artifact_no_url(mock_config):
-    mock_callback = MagicMock()
-    tool = TTSTool(config=mock_config, on_artifact_created=mock_callback)
-
-    mock_result = MagicMock()
-    mock_result.persisted_url = None
-
-    tool._push_artifact(mock_result)
-    mock_callback.assert_not_called()
+    assert payload["status"] == "error"
+    assert "provider down" in payload["error"]
 
 
 @pytest.mark.asyncio
-async def test_tts_tool_arun_empty_text_error(mock_config):
-    """Empty or whitespace text returns error without calling engine."""
-    tool = TTSTool(config=mock_config)
-    result_str = await tool._arun(text="   ")
-    result_dict = json.loads(result_str)
-    assert result_dict["status"] == "error"
-    assert "cannot be empty" in result_dict["error"]
+async def test_empty_text_is_rejected(config: TTSConfig, engine_generate) -> None:
+    payload = json.loads(await TTSTool(config).ainvoke({"text": "   "}))
+
+    assert payload["status"] == "error"
+    engine_generate.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_tts_tool_arun_oversize_text_error(mock_config):
-    """Text exceeding MAX_TTS_TEXT_LENGTH returns helpful defensive error."""
-    from app.ai_agents.media_tools.tts_agent_tool import MAX_TTS_TEXT_LENGTH
+async def test_text_over_the_limit_is_rejected(config: TTSConfig, engine_generate) -> None:
+    payload = json.loads(await TTSTool(config).ainvoke({"text": "x" * (MAX_TTS_TEXT_LENGTH + 1)}))
 
-    tool = TTSTool(config=mock_config)
-    long_text = "a" * (MAX_TTS_TEXT_LENGTH + 10)
-    result_str = await tool._arun(text=long_text)
-    result_dict = json.loads(result_str)
-    assert result_dict["status"] == "error"
-    assert "exceeds the safe single-turn limit" in result_dict["error"]
+    assert payload["status"] == "error"
+    assert str(MAX_TTS_TEXT_LENGTH) in payload["error"]
+    engine_generate.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_tts_tool_push_artifact_callback_failure(mock_config, mock_engine_generate):
-    """Artifact callback exceptions are swallowed."""
-    mock_callback = MagicMock(side_effect=RuntimeError("push failed"))
-    tool = TTSTool(config=mock_config, on_artifact_created=mock_callback)
+async def test_style_is_trimmed_and_clamped_before_it_reaches_the_engine(config: TTSConfig, engine_generate) -> None:
+    engine_generate.return_value = _result(duration_seconds=None)
 
-    mock_result = MagicMock()
-    mock_result.provider = "openai"
-    mock_result.model = "tts-1"
-    mock_result.latency_ms = 10.0
-    mock_result.persisted_url = "https://cdn.example/a.mp3"
-    mock_result.mime_type = "audio/mpeg"
-    mock_result.duration_seconds = None
-    mock_engine_generate.return_value = mock_result
+    payload = json.loads(await TTSTool(config).ainvoke({"text": "Hi", "style": "  " + "calm " * 80}))
 
-    result_str = await tool._arun(text="hello")
-    result_dict = json.loads(result_str)
-    assert result_dict["status"] == "success"
-    mock_callback.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_tts_tool_arun_style_passthrough_and_duration(mock_config, mock_engine_generate):
-    """Style directive is clamped and forwarded; duration_seconds is surfaced in output."""
-    tool = TTSTool(config=mock_config)
-
-    mock_result = MagicMock()
-    mock_result.provider = "volcengine"
-    mock_result.model = "seed-audio-1.0"
-    mock_result.latency_ms = 900.0
-    mock_result.persisted_url = "https://media.example/voice.mp3"
-    mock_result.mime_type = "audio/mpeg"
-    mock_result.duration_seconds = 3.7
-    mock_engine_generate.return_value = mock_result
-
-    long_style = "x" * 300
-    result_str = await tool._arun(text="read this", style=long_style)
-
-    # Style is clamped to 200 chars before forwarding to the engine.
-    mock_engine_generate.assert_called_once_with("read this", style="x" * 200)
-
-    result_dict = json.loads(result_str)
-    assert result_dict["status"] == "success"
-    assert result_dict["duration_seconds"] == 3.7
+    engine_generate.assert_awaited_once()
+    style = engine_generate.await_args.kwargs["style"]
+    assert style == ("calm " * 80).strip()[:200]
+    assert len(style) == 200
+    assert "duration_seconds" not in payload

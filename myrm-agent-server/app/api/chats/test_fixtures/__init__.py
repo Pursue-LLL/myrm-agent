@@ -34,6 +34,7 @@ from .evicted import router as evicted_fixture_router
 from .file_edit_batch import router as file_edit_batch_fixture_router
 from .file_mutation import router as file_mutation_fixture_router
 from .guardrail_bash import router as guardrail_bash_fixture_router
+from .media_cards import router as media_cards_fixture_router
 from .memory_lifecycle import router as memory_lifecycle_fixture_router
 from .prior_chat import router as prior_chat_fixture_router
 from .revert import router as revert_fixture_router
@@ -72,6 +73,7 @@ router.include_router(wiki_dedup_fixture_router)
 router.include_router(wiki_provenance_fixture_router)
 router.include_router(context_retention_fixture_router)
 router.include_router(rich_media_preview_fixture_router)
+router.include_router(media_cards_fixture_router)
 router.include_router(security_preset_fixture_router)
 router.include_router(memory_lifecycle_fixture_router)
 router.include_router(prior_chat_fixture_router)

@@ -43,12 +43,6 @@ GET /health/metrics
 GET /health/resources
 GET /integrations/catalog/{entry_id}
 GET /kanban/boards/{board_id}/tasks/{task_id}/race/winner
-POST /media/batch
-POST /media/batch/{job_id}/cancel
-POST /media/batch/{job_id}/pause
-POST /media/batch/{job_id}/resume
-POST /media/batch/{job_id}/retry
-POST /media/batch/{job_id}/start
 POST /migrations/memory/submit
 GET /migrations/workbuddy/skills-map
 GET /public/chat-share/{token}

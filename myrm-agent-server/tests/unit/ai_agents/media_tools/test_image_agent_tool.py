@@ -1,447 +1,315 @@
-"""Tests for image_agent_tool BaseTool wrapper."""
+"""Tests for image_tool: generate fans out one task per image, edit answers in the call, nothing degrades silently."""
 
 from __future__ import annotations
 
+import io
 import json
+from collections.abc import Sequence
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.tools import BaseTool
+from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+from myrm_agent_harness.toolkits.tasks import Task, TaskStatus
+from PIL import Image
+from pydantic import ValidationError
 
 from app.ai_agents.media_tools.image_agent_tool import create_image_generation_tool
 from app.tasks.task_payload_crypto import seal_task_payload_secrets
 
-
-@pytest.mark.asyncio
-async def test_image_tool_list_action() -> None:
-    engine = MagicMock()
-    engine.list_models.return_value = '{"models":[]}'
-    tool = create_image_generation_tool(engine)
-
-    result = await tool.ainvoke({"action": "list"})
-
-    assert result == '{"models":[]}'
-    engine.list_models.assert_called_once()
+_MODULE = "app.ai_agents.media_tools.image_agent_tool"
+_MODEL = "gpt-image-2.6-sunburst"
 
 
-@pytest.mark.asyncio
-async def test_image_tool_generate_requires_prompt() -> None:
-    engine = MagicMock()
-    tool = create_image_generation_tool(engine)
-
-    result = await tool.ainvoke({"action": "generate", "prompt": "  "})
-
-    assert "prompt is required" in result
-    engine.generate_image.assert_not_called()
+def _png(size: tuple[int, int] = (8, 8)) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", size, (200, 30, 30)).save(buf, format="PNG")
+    return buf.getvalue()
 
 
-@pytest.mark.asyncio
-async def test_image_tool_edit_requires_prompt() -> None:
-    engine = MagicMock()
-    tool = create_image_generation_tool(engine)
-
-    result = await tool.ainvoke(
-        {
-            "action": "edit",
-            "prompt": "  ",
-            "image_url": "https://example.com/source.png",
-        }
-    )
-
-    payload = json.loads(result)
-    assert "prompt is required" in payload["error"]
-
-
-@pytest.mark.asyncio
-async def test_image_tool_generate_delegates_to_engine_sync() -> None:
-    engine = MagicMock()
-    engine.generate_image = AsyncMock(return_value='{"image_url":"https://cdn.example/g.png"}')
-    tool = create_image_generation_tool(engine)
-
-    result = await tool.ainvoke({"action": "generate", "prompt": "a cat"})
-
-    assert "image_url" in result
-    engine.generate_image.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_image_tool_generate_enqueues_when_async_config() -> None:
-    engine = MagicMock()
-    engine.generate_image = AsyncMock()
-    async_config = MagicMock()
-    mock_store = MagicMock()
-
-    with (
-        patch(
-            "app.lifecycle.task_worker.get_task_store",
-            return_value=mock_store,
-        ),
-        patch(
-            "myrm_agent_harness.toolkits.llms.image.async_image_engine.AsyncImageGenerationTools",
-        ) as async_cls,
-    ):
-        async_engine = MagicMock()
-        async_engine.generate_image = AsyncMock(
-            return_value='{"task_id":"img-abc","status":"pending"}',
-        )
-        async_cls.return_value = async_engine
-
-        tool = create_image_generation_tool(
-            engine,
-            async_config=async_config,
-            task_user_id="user-1",
-            agent_id="agent-42",
-            chat_id="chat-99",
-        )
-        result = await tool.ainvoke({"action": "generate", "prompt": "a cat"})
-
-    payload = json.loads(result)
-    assert payload["task_id"] == "img-abc"
-    assert payload["status"] == "pending"
-    engine.generate_image.assert_not_called()
-    async_engine.generate_image.assert_awaited_once()
-    call_kwargs = async_engine.generate_image.await_args.kwargs
-    assert call_kwargs["user_id"] == "user-1"
-    assert call_kwargs["agent_id"] == "agent-42"
-    assert call_kwargs["chat_id"] == "chat-99"
-    async_cls.assert_called_once_with(
-        async_config,
-        mock_store,
-        allow_private_networks=False,
-        payload_postprocessor=seal_task_payload_secrets,
+def _tool(
+    *,
+    allowed_roots: Sequence[str] = (),
+    task_user_id: str = "default",
+    agent_id: str | None = None,
+    chat_id: str | None = None,
+) -> BaseTool:
+    return create_image_generation_tool(
+        ImageGenerationConfig(model=_MODEL),
+        allowed_roots=allowed_roots,
+        task_user_id=task_user_id,
+        agent_id=agent_id,
+        chat_id=chat_id,
     )
 
 
-@pytest.mark.asyncio
-async def test_image_tool_generate_fallback_sync_when_task_store_unavailable() -> None:
-    engine = MagicMock()
-    engine.generate_image = AsyncMock(return_value='{"image_url":"https://cdn.example/g.png"}')
-    async_config = MagicMock()
-
-    with patch(
-        "app.lifecycle.task_worker.get_task_store",
-        side_effect=RuntimeError("task store not initialized"),
-    ):
-        tool = create_image_generation_tool(engine, async_config=async_config)
-        result = await tool.ainvoke({"action": "generate", "prompt": "a cat"})
-
-    assert "image_url" in result
-    engine.generate_image.assert_awaited_once()
+def _patched_enqueuer(task_ids: list[str]) -> tuple[MagicMock, MagicMock]:
+    enqueuer = MagicMock()
+    enqueuer.generate_image = AsyncMock(side_effect=task_ids)
+    return MagicMock(return_value=enqueuer), enqueuer
 
 
-@pytest.mark.asyncio
-async def test_image_tool_edit_with_mask_fetches_both() -> None:
-    engine = MagicMock()
-    engine.edit_image = AsyncMock(return_value='{"image_url":"https://cdn.example/x.png"}')
-    tool = create_image_generation_tool(engine, allow_private_networks=True)
-
-    with patch(
-        "app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes",
-        new=AsyncMock(side_effect=[(b"img", "image/png", 3), (b"mask", "image/png", 2)]),
-    ) as fetch_mock:
-        await tool.ainvoke(
-            {
-                "action": "edit",
-                "prompt": "mask edit",
-                "image_url": "http://localhost/source.png",
-                "mask_url": "http://localhost/mask.png",
-            }
-        )
-
-    assert fetch_mock.await_count == 2
-    engine.edit_image.assert_awaited_once()
+def _patched_editor(response: str = '{"images":[{"url":"media://media_edit","mime_type":"image/png"}]}') -> MagicMock:
+    editor = MagicMock()
+    editor.edit_image = AsyncMock(return_value=response)
+    return editor
 
 
-@pytest.mark.asyncio
-async def test_image_tool_edit_fetch_failure_returns_error() -> None:
-    engine = MagicMock()
-    tool = create_image_generation_tool(engine)
+def test_the_factory_returns_the_named_tool() -> None:
+    tool = _tool()
 
-    with patch(
-        "app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes",
-        new=AsyncMock(side_effect=RuntimeError("network down")),
-    ):
-        result = await tool.ainvoke(
-            {
-                "action": "edit",
-                "prompt": "edit",
-                "image_url": "https://example.com/source.png",
-            }
-        )
-
-    payload = json.loads(result)
-    assert "Failed to fetch image_url" in payload["error"]
-
-
-@pytest.mark.asyncio
-async def test_fetch_image_bytes_uses_httpx_in_local_mode() -> None:
-    from app.ai_agents.media_tools.image_agent_tool import _fetch_image_bytes
-
-    response = MagicMock()
-    response.raise_for_status = MagicMock()
-    response.headers = {"content-type": "image/jpeg"}
-    response.content = b"jpeg"
-
-    mock_client = MagicMock()
-    mock_client.get = AsyncMock(return_value=response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch(
-        "app.ai_agents.media_tools.image_agent_tool.httpx.AsyncClient",
-        return_value=mock_client,
-    ):
-        body, mime, size = await _fetch_image_bytes(
-            "http://localhost:8080/x.jpg",
-            allow_private_networks=True,
-        )
-
-    assert body == b"jpeg"
-    assert mime == "image/jpeg"
-    assert size == 4
-    mock_client.get.assert_awaited_once_with("http://localhost:8080/x.jpg")
-
-
-@pytest.mark.asyncio
-async def test_fetch_image_bytes_reads_response() -> None:
-    from app.ai_agents.media_tools.image_agent_tool import _fetch_image_bytes
-
-    response = MagicMock()
-    response.raise_for_status = MagicMock()
-    response.headers = {"content-type": "image/png"}
-    response.content = b"abc"
-
-    with patch(
-        "myrm_agent_harness.core.security.http.secure_fetch.secure_get",
-        new_callable=AsyncMock,
-        return_value=response,
-    ):
-        body, mime, size = await _fetch_image_bytes("https://example.com/x.png")
-
-    assert body == b"abc"
-    assert mime == "image/png"
-    assert size == 3
-
-
-@pytest.mark.asyncio
-async def test_image_tool_edit_mask_fetch_failure_returns_error() -> None:
-    engine = MagicMock()
-    tool = create_image_generation_tool(engine)
-
-    with patch(
-        "app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes",
-        new=AsyncMock(side_effect=[(b"img", "image/png", 3), RuntimeError("mask fetch failed")]),
-    ):
-        result = await tool.ainvoke(
-            {
-                "action": "edit",
-                "prompt": "edit",
-                "image_url": "https://example.com/source.png",
-                "mask_url": "https://example.com/mask.png",
-            }
-        )
-
-    payload = json.loads(result)
-    assert "Failed to fetch mask_url" in payload["error"]
-
-
-@pytest.mark.asyncio
-async def test_image_tool_edit_requires_image_url() -> None:
-    engine = MagicMock()
-    tool = create_image_generation_tool(engine)
-
-    result = await tool.ainvoke({"action": "edit", "prompt": "make it blue"})
-
-    payload = json.loads(result)
-    assert "image_url is required" in payload["error"]
-
-
-@pytest.mark.asyncio
-async def test_image_tool_edit_blocks_ssrf_when_not_local_mode() -> None:
-    engine = MagicMock()
-    tool = create_image_generation_tool(engine, allow_private_networks=False)
-
-    result = await tool.ainvoke(
-        {
-            "action": "edit",
-            "prompt": "make it blue",
-            "image_url": "http://127.0.0.1/image.png",
-        }
-    )
-
-    payload = json.loads(result)
-    assert "error" in payload
-    engine.edit_image.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_image_tool_edit_fetches_and_delegates_in_local_mode() -> None:
-    engine = MagicMock()
-    engine.edit_image = AsyncMock(return_value='{"image_url":"https://cdn.example/x.png"}')
-    tool = create_image_generation_tool(engine, allow_private_networks=True)
-
-    with patch(
-        "app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes",
-        new=AsyncMock(return_value=(b"png-bytes", "image/png", 4)),
-    ):
-        result = await tool.ainvoke(
-            {
-                "action": "edit",
-                "prompt": "make it blue",
-                "image_url": "http://localhost:8080/source.png",
-            }
-        )
-
-    assert "image_url" in result
-    engine.edit_image.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_image_tool_edit_mask_url_ssrf_blocked() -> None:
-    from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
-
-    engine = MagicMock()
-    tool = create_image_generation_tool(engine, allow_private_networks=False)
-
-    with patch(
-        "app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes",
-        new=AsyncMock(
-            side_effect=[
-                (b"img", "image/png", 3),
-                SSRFSecurityError("private IP"),
-            ]
-        ),
-    ):
-        result = await tool.ainvoke(
-            {
-                "action": "edit",
-                "prompt": "edit",
-                "image_url": "https://example.com/source.png",
-                "mask_url": "http://10.0.0.1/mask.png",
-            }
-        )
-
-    payload = json.loads(result)
-    assert "Failed to fetch mask_url" in payload["error"]
-    engine.edit_image.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_image_tool_async_config_description_contains_workflow() -> None:
-    engine = MagicMock()
-    engine.tool_description = "Image generation and editing tool. Active model: dalle-3."
-    async_config = MagicMock()
-    tool = create_image_generation_tool(engine, async_config=async_config)
-    assert "Workflow:" in tool.description
-    assert "action='generate'" in tool.description
-    assert "action='status'" in tool.description
-    assert "action='edit'" in tool.description
-    assert "dalle-3" in tool.description
-
-
-def test_create_image_generation_tool_returns_basetool() -> None:
-    engine = MagicMock()
-    engine.tool_description = "desc"
-    tool = create_image_generation_tool(engine)
     assert isinstance(tool, BaseTool)
     assert tool.name == "image_tool"
+    for action in ("generate", "edit", "status", "list"):
+        assert f"action='{action}'" in tool.description
+
+
+def test_the_schema_carries_official_parameters_only() -> None:
+    tool = _tool()
+
+    assert set(tool.args) == {
+        "action",
+        "prompt",
+        "size",
+        "quality",
+        "n",
+        "reference_image_urls",
+        "image_url",
+        "mask_url",
+        "task_id",
+    }
+    assert "style" not in tool.args
+    assert tool.args["quality"]["anyOf"][0]["enum"] == ["low", "medium", "high"]
 
 
 @pytest.mark.asyncio
-async def test_image_tool_status_requires_task_id() -> None:
-    engine = MagicMock()
-    tool = create_image_generation_tool(engine)
-    result = await tool.ainvoke({"action": "status"})
-    payload = json.loads(result)
+@pytest.mark.parametrize("bad_input", [{"quality": "hd"}, {"n": 0}, {"n": 5}, {"action": "regenerate"}])
+async def test_values_outside_the_schema_are_rejected_before_any_work(bad_input: dict[str, object]) -> None:
+    enqueuer_cls, _ = _patched_enqueuer([])
+
+    with patch(f"{_MODULE}.AsyncImageGenerationTools", enqueuer_cls), pytest.raises(ValidationError):
+        await _tool().ainvoke({"action": "generate", "prompt": "a cat", **bad_input})
+
+    enqueuer_cls.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_list_returns_the_catalog_with_the_selected_model() -> None:
+    payload = json.loads(await _tool().ainvoke({"action": "list"}))
+
+    assert payload["active_model"] == _MODEL
+    assert len(payload["models"]) > 1
+
+
+@pytest.mark.asyncio
+async def test_generate_requires_a_prompt() -> None:
+    enqueuer_cls, _ = _patched_enqueuer([])
+
+    with patch(f"{_MODULE}.AsyncImageGenerationTools", enqueuer_cls):
+        payload = json.loads(await _tool().ainvoke({"action": "generate", "prompt": "  "}))
+
+    assert "prompt is required" in payload["error"]
+    enqueuer_cls.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_starts_one_task_per_image() -> None:
+    enqueuer_cls, enqueuer = _patched_enqueuer(["img-1", "img-2", "img-3"])
+    store = MagicMock()
+    tool = _tool(allowed_roots=["/work/chat-9"], task_user_id="user-1", agent_id="agent-42", chat_id="chat-99")
+
+    with patch(f"{_MODULE}.AsyncImageGenerationTools", enqueuer_cls), patch(f"{_MODULE}.media_task_store", return_value=store):
+        payload = json.loads(
+            await tool.ainvoke(
+                {
+                    "action": "generate",
+                    "prompt": "a cat",
+                    "size": "1536x1024",
+                    "quality": "high",
+                    "n": 3,
+                    "reference_image_urls": [" media://media_ref ", "  "],
+                }
+            )
+        )
+
+    assert [task["task_id"] for task in payload["tasks"]] == ["img-1", "img-2", "img-3"]
+    assert {(task["task_type"], task["status"]) for task in payload["tasks"]} == {("image_generate", "pending")}
+    enqueuer_cls.assert_called_once()
+    assert enqueuer_cls.call_args.args[1] is store
+    assert enqueuer_cls.call_args.kwargs == {"payload_postprocessor": seal_task_payload_secrets}
+    assert enqueuer.generate_image.await_count == 3
+    for call in enqueuer.generate_image.await_args_list:
+        assert call.args == ("a cat",)
+        assert call.kwargs == {
+            "size": "1536x1024",
+            "quality": "high",
+            "reference_image_urls": ["media://media_ref"],
+            "allowed_roots": ["/work/chat-9"],
+            "user_id": "user-1",
+            "agent_id": "agent-42",
+            "chat_id": "chat-99",
+        }
+
+
+@pytest.mark.asyncio
+async def test_generate_without_a_task_store_is_an_explicit_error_not_a_sync_fallback() -> None:
+    enqueuer_cls, _ = _patched_enqueuer([])
+    editor = _patched_editor()
+
+    with (
+        patch(f"{_MODULE}.ImageGenerationTools", return_value=editor),
+        patch(f"{_MODULE}.AsyncImageGenerationTools", enqueuer_cls),
+        patch(f"{_MODULE}.media_task_store", side_effect=RuntimeError("task store not initialized")),
+    ):
+        payload = json.loads(await _tool().ainvoke({"action": "generate", "prompt": "a cat"}))
+
+    assert payload == {"error": "Task store unavailable"}
+    enqueuer_cls.assert_not_called()
+    editor.edit_image.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_edit_resolves_image_and_mask_through_the_single_resolver() -> None:
+    image, mask = _png(), _png((4, 4))
+    editor = _patched_editor()
+    resolve = AsyncMock(side_effect=[[image], [mask]])
+
+    with patch(f"{_MODULE}.ImageGenerationTools", return_value=editor), patch(f"{_MODULE}.resolve_media_inputs", resolve):
+        tool = _tool(allowed_roots=["/work/chat-9"])
+        payload = json.loads(
+            await tool.ainvoke(
+                {
+                    "action": "edit",
+                    "prompt": "make it blue",
+                    "image_url": "media://media_src",
+                    "mask_url": "mask.png",
+                    "size": "1024x1024",
+                }
+            )
+        )
+
+    assert payload["images"][0]["url"] == "media://media_edit"
+    image_call, mask_call = resolve.await_args_list
+    assert image_call.args[:2] == (["media://media_src"], "image")
+    assert image_call.kwargs == {"field_name": "image_url"}
+    assert mask_call.args[:2] == (["mask.png"], "image")
+    assert mask_call.kwargs == {"field_name": "mask_url"}
+    # A mask means something by its transparency, so only the image goes through the downsizing hook.
+    assert image_call.args[2].image_hook is not None
+    assert mask_call.args[2].image_hook is None
+    assert [str(root) for root in image_call.args[2].allowed_roots] == ["/work/chat-9"]
+    editor.edit_image.assert_awaited_once_with(
+        image, "make it blue", mask=mask, size="1024x1024", image_mime="image/png", image_size_bytes=len(image)
+    )
+
+
+@pytest.mark.asyncio
+async def test_edit_reads_a_media_library_image_end_to_end() -> None:
+    editor = _patched_editor()
+    source = _png((32, 32))
+
+    with (
+        patch(f"{_MODULE}.ImageGenerationTools", return_value=editor),
+        patch("app.ai_agents.media_tools.input_policy.read_media_reference", AsyncMock(return_value=source)) as read,
+    ):
+        payload = json.loads(await _tool().ainvoke({"action": "edit", "prompt": "brighter", "image_url": "media://media_src"}))
+
+    read.assert_awaited_once_with("media_src")
+    assert "error" not in payload
+    sent = editor.edit_image.await_args.args[0]
+    with Image.open(io.BytesIO(sent)) as decoded:
+        assert decoded.size == (32, 32)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ({"prompt": "make it blue"}, "image_url is required"),
+        ({"prompt": "  ", "image_url": "media://media_src"}, "prompt is required"),
+        ({"prompt": "make it blue", "image_url": "media://media_src", "n": 2}, "one image per call"),
+    ],
+)
+async def test_edit_rejects_incomplete_requests_without_calling_the_engine(arguments: dict[str, object], expected: str) -> None:
+    editor = _patched_editor()
+
+    with patch(f"{_MODULE}.ImageGenerationTools", return_value=editor):
+        payload = json.loads(await _tool().ainvoke({"action": "edit", **arguments}))
+
+    assert expected in payload["error"]
+    editor.edit_image.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("arguments", "field"),
+    [
+        ({"image_url": "file:///etc/passwd"}, "image_url"),
+        ({"image_url": "media://media_src", "mask_url": "file:///etc/passwd"}, "mask_url"),
+    ],
+)
+async def test_edit_names_the_reference_it_cannot_use(arguments: dict[str, object], field: str) -> None:
+    editor = _patched_editor()
+
+    with (
+        patch(f"{_MODULE}.ImageGenerationTools", return_value=editor),
+        patch("app.ai_agents.media_tools.input_policy.read_media_reference", AsyncMock(return_value=_png())),
+    ):
+        payload = json.loads(await _tool().ainvoke({"action": "edit", "prompt": "brighter", **arguments}))
+
+    assert payload["error"].startswith(f"{field}: ")
+    editor.edit_image.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_status_requires_a_task_id() -> None:
+    payload = json.loads(await _tool().ainvoke({"action": "status"}))
+
     assert "task_id is required" in payload["error"]
 
 
 @pytest.mark.asyncio
-async def test_image_tool_status_with_task_id_reads_task_store() -> None:
-    from myrm_agent_harness.toolkits.tasks import Task, TaskStatus
+async def test_status_reports_an_unknown_task_explicitly() -> None:
+    store = MagicMock()
+    store.get_task = AsyncMock(return_value=None)
 
-    engine = MagicMock()
-    task = Task(
-        task_id="img-123",
-        task_type="image_generate",
-        user_id="user-1",
-        status=TaskStatus.SUCCEEDED,
-        payload={"prompt": "cyberpunk city"},
-        result={"images": [{"url": "https://vault.example.com/img-123.png"}]},
-        progress=1.0,
-    )
-    mock_store = MagicMock()
-    mock_store.get_task = AsyncMock(return_value=task)
+    with patch("app.ai_agents.media_tools.task_results.media_task_store", return_value=store):
+        payload = json.loads(await _tool().ainvoke({"action": "status", "task_id": "img-missing"}))
 
-    with patch(
-        "app.lifecycle.task_worker.get_task_store",
-        return_value=mock_store,
-    ):
-        tool = create_image_generation_tool(engine)
-        result = await tool.ainvoke({"action": "status", "task_id": "img-123"})
-
-    payload = json.loads(result)
-    assert payload["task_id"] == "img-123"
-    assert payload["status"] == "succeeded"
-    assert payload["task_type"] == "image_generate"
-    assert payload["result"]["images"][0]["url"] == "https://vault.example.com/img-123.png"
-    mock_store.get_task.assert_awaited_once_with("img-123")
+    assert payload == {"error": "Task not found", "task_id": "img-missing"}
 
 
 @pytest.mark.asyncio
-async def test_image_tool_edit_gracefully_adapts_for_dalle3_pure_t2i() -> None:
-    """When active model (e.g. dall-e-3) lacks native inpainting and has max_input_images=0,
-    adapt edit to generate with reference image embedded in prompt context (no reference_image_urls).
-    """
-    from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+async def test_status_reports_an_unavailable_store_explicitly() -> None:
+    with patch("app.ai_agents.media_tools.task_results.media_task_store", side_effect=RuntimeError("not started")):
+        payload = json.loads(await _tool().ainvoke({"action": "status", "task_id": "img-1"}))
 
-    engine = MagicMock()
-    engine.model = "dall-e-3"
-    async_config = ImageGenerationConfig(
-        model="dall-e-3",
-        api_key="test-key",
-    )
+    assert payload == {"error": "Task store unavailable", "task_id": "img-1"}
 
-    mock_async_engine = MagicMock()
-    mock_async_engine.generate_image = AsyncMock(
-        return_value=json.dumps({"task_id": "img-adapted-456", "status": "pending"})
-    )
 
-    with (
-        patch("app.lifecycle.task_worker.get_task_store", return_value=MagicMock()),
-        patch(
-            "myrm_agent_harness.toolkits.llms.image.async_image_engine.AsyncImageGenerationTools",
-            return_value=mock_async_engine,
-        ),
-        patch("app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes") as mock_fetch,
-    ):
-        tool = create_image_generation_tool(
-            engine,
-            async_config=async_config,
-            task_user_id="user-auto",
-            chat_id="chat-auto",
-        )
-        result = await tool.ainvoke(
-            {
-                "action": "edit",
-                "prompt": "change background to snowy mountains",
-                "image_url": "https://cdn.example.com/original.png",
-            }
-        )
+@pytest.mark.asyncio
+async def test_status_of_a_finished_task_returns_its_stored_result() -> None:
+    result = {"images": [{"url": "media://media_done", "mime_type": "image/png"}], "model": _MODEL}
+    task = Task(task_id="img-1", task_type="image_generate", user_id="u", status=TaskStatus.SUCCEEDED, payload={}, result=result)
+    store = MagicMock()
+    store.get_task = AsyncMock(return_value=task)
 
-    # Must NOT waste bandwidth downloading image when model doesn't support edit
-    mock_fetch.assert_not_called()
-    # Must route to generate_image with prompt containing reference image and reference_image_urls=None
-    mock_async_engine.generate_image.assert_called_once_with(
-        "change background to snowy mountains (Reference image: https://cdn.example.com/original.png)",
-        size=None,
-        quality=None,
-        style=None,
-        n=1,
-        reference_image_urls=None,
-        user_id="user-auto",
-        agent_id=None,
-        chat_id="chat-auto",
-    )
-    payload = json.loads(result)
-    assert payload["task_id"] == "img-adapted-456"
+    with patch("app.ai_agents.media_tools.task_results.media_task_store", return_value=store):
+        payload = json.loads(await _tool().ainvoke({"action": "status", "task_id": "img-1"}))
+
+    assert payload["status"] == "succeeded"
+    assert payload["result"] == result
+    assert "next_step" not in payload
+
+
+@pytest.mark.asyncio
+async def test_status_of_a_failed_task_tells_the_model_what_to_do_next() -> None:
+    task = Task(task_id="img-2", task_type="image_generate", user_id="u", status=TaskStatus.FAILED, payload={})
+    store = MagicMock()
+    store.get_task = AsyncMock(return_value=task)
+
+    with patch("app.ai_agents.media_tools.task_results.media_task_store", return_value=store):
+        payload = json.loads(await _tool().ainvoke({"action": "status", "task_id": "img-2"}))
+
+    assert payload["status"] == "failed"
+    assert "do not reword the prompt" in payload["next_step"]

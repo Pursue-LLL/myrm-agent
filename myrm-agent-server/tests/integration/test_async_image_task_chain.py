@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -38,9 +37,9 @@ async def test_async_image_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
     await store.initialize()
 
     config = ImageGenerationConfig(
-        model="flux-pro",
+        model="gpt-image-2.6-sunburst",
         api_key="sk-integration-test",
-        fallback_models=["dall-e-3"],
+        fallback_models=["gpt-image-2.6-flare"],
     )
     async_engine = AsyncImageGenerationTools(
         config,
@@ -48,30 +47,30 @@ async def test_async_image_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
         payload_postprocessor=seal_task_payload_secrets,
     )
 
-    raw = await async_engine.generate_image(
+    task_id = await async_engine.generate_image(
         "a red cube",
         size="1024x1024",
         user_id="user-int",
         agent_id="agent-int",
         chat_id="chat-int",
     )
-    payload = json.loads(raw)
-    task_id = payload["task_id"]
 
     task = await store.get_task(task_id)
     assert task is not None
-    assert task.payload["model"] == "flux-pro"
+    assert task.payload["model"] == "gpt-image-2.6-sunburst"
+    assert "default_quality" not in task.payload
     assert "api_key" not in task.payload
     assert isinstance(task.payload.get(API_KEY_ENC_FIELD), str)
     assert task.payload["chat_id"] == "chat-int"
     assert task.payload["agent_id"] == "agent-int"
 
     generated = ImageResult(
-        url="https://cdn.example/int.png",
+        url=None,
         b64_json=None,
         revised_prompt=None,
-        model="flux-pro",
+        model="gpt-image-2.6-sunburst",
         latency_ms=99,
+        persisted_ref="media://media_int",
     )
 
     with patch(
@@ -87,13 +86,13 @@ async def test_async_image_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
     resolved = resolve_image_generation_config(task)
     generator_cls.assert_called_once()
     called_config = generator_cls.call_args.args[0]
-    assert called_config.model == resolved.model == "flux-pro"
+    assert called_config.model == resolved.model == "gpt-image-2.6-sunburst"
     assert called_config.api_key is not None
     assert called_config.api_key.get_secret_value() == "sk-integration-test"
     assert called_config.media_callback is not None
 
-    assert result["model"] == "flux-pro"
-    assert result["images"][0]["url"] == "https://cdn.example/int.png"
+    assert result["model"] == "gpt-image-2.6-sunburst"
+    assert result["images"][0]["url"] == "media://media_int"
 
     await store.update_task(task_id, status=TaskStatus.SUCCEEDED, result=result)
     updated = await store.get_task(task_id)
@@ -112,7 +111,7 @@ async def test_async_image_gateway_only_enqueue_persists_sealed_auth_token(
     await store.initialize()
 
     config = ImageGenerationConfig(
-        model="flux-pro",
+        model="gpt-image-2.6-sunburst",
         gateway_config=ToolGatewayConfig(
             use_gateway=True,
             gateway_url="https://gateway.example/tool-relay",
@@ -125,8 +124,7 @@ async def test_async_image_gateway_only_enqueue_persists_sealed_auth_token(
         payload_postprocessor=seal_task_payload_secrets,
     )
 
-    raw = await async_engine.generate_image("a skyline", user_id="user-gw")
-    task_id = json.loads(raw)["task_id"]
+    task_id = await async_engine.generate_image("a skyline", user_id="user-gw")
 
     task = await store.get_task(task_id)
     assert task is not None

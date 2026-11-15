@@ -1184,7 +1184,10 @@
         "imageMissing": "Bildgenerierung: kein API-Schlüssel für den gewählten Bildanbieter",
         "videoMissing": "Videogenerierung: kein API-Schlüssel für den gewählten Videoanbieter",
         "ttsMissing": "Text-zu-Sprache: kein API-Schlüssel für den gewählten TTS-Anbieter",
-        "hint": "Ohne Anmeldeinformationen erhält der Agent zur Laufzeit keine Medientools. Konfigurieren Sie Tasten in den Einstellungen (Modelldienst für Bild/Video; Kanäle > Sprache für TTS).",
+        "imageNotSelected": "Bildgenerierung: kein Bildmodell ausgewählt",
+        "videoNotSelected": "Videogenerierung: kein Videoanbieter und kein Modell ausgewählt",
+        "ttsNotSelected": "Text-zu-Sprache: kein TTS-Anbieter, kein Modell und keine Stimme ausgewählt",
+        "hint": "Der Agent erhält ein Medientool erst, wenn ein Modell gewählt und der API-Schlüssel des Anbieters hinterlegt ist. Wählen Sie Modelle und hinterlegen Sie Schlüssel in den Einstellungen.",
         "openSettings": "Einstellungen öffnen",
         "recheck": "Erneut prüfen"
       },
@@ -9995,7 +9998,6 @@
   "imageGen": {
     "generated": "Generiert",
     "download": "Herunterladen",
-    "regenerate": "Regenerieren",
     "editThisImage": "Bearbeiten Sie dieses Bild",
     "editPromptPrefix": "Bitte ändern Sie das Bild oben:",
     "referenceImages": "Referenzbilder",
@@ -11928,7 +11930,9 @@
     "retryTask": "Aufgabe wiederholen",
     "retrying": "Erneuter Versuch...",
     "cancelled": "Aufgabe abgebrochen",
-    "videoCompletedFallback": "Video fertiggestellt. Öffnen Sie das Artefaktfenster, um die Ausgabe anzuzeigen.",
+    "expired": "Dieser Aufgabeneintrag ist abgelaufen. Erzeugte Dateien bleiben in Ihrer Medienbibliothek.",
+    "openLibrary": "Medienbibliothek öffnen",
+    "resultUnavailable": "Dieses Ergebnis kann hier nicht angezeigt werden. Die Datei finden Sie in Ihrer Medienbibliothek.",
     "videoUnsupported": "Ihr Browser unterstützt die Videowiedergabe nicht.",
     "alternateLabel": "Alternativ {index}",
     "providerLabel": "Anbieter",
@@ -15812,7 +15816,10 @@
       "ttsModel": "Modell",
       "ttsVoice": "Stimme",
       "ttsDoubaoKeyHint": "Doubao-TTS verwendet den zusammengesetzten Schlüssel \"appid:access_token\" (Volcengine-Konsole: Speech Technology → App-Details).",
-      "ttsProbeSlowHint": "Seed-Audio ist ein generatives Modell – der Test erzeugt einen kurzen Audioclip und kann 1–2 Minuten dauern."
+      "ttsProbeSlowHint": "Seed-Audio ist ein generatives Modell – der Test erzeugt einen kurzen Audioclip und kann 1–2 Minuten dauern.",
+      "selectPlaceholder": "Auswählen",
+      "reselectPlaceholder": "Erneut auswählen",
+      "ttsSelectionSaveFailed": "Auswahl konnte nicht gespeichert werden"
     },
     "acp": {
       "title": "ACP-Agenten",

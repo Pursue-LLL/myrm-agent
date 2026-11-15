@@ -1,6 +1,11 @@
 /**
+ * [INPUT]
+ * - @/lib/utils/apiConfig::getBackendUrl (POS: API endpoint configuration)
+ * - @/lib/utils/authHeaders::getAuthHeaders (POS: auth headers for REST calls)
+ * - @/services/config/types::VideoGenerationProvider (POS: config service types)
+ *
  * [OUTPUT]
- * - fetchMediaProviderStatus, resolveImageProviderId, VIDEO_PROVIDER_CONFIG_IDS
+ * - fetchMediaProviderStatus, resolveImageProviderId, VIDEO_PROVIDER_CONFIG_IDS, videoProviderConfigId
  *
  * [POS]
  * Shared media provider status fetch + provider id mapping for Settings and Agent config panels.
@@ -20,7 +25,6 @@ export interface MediaProviderStatus {
 }
 
 export const VIDEO_PROVIDER_CONFIG_IDS: Record<VideoGenerationProvider, string> = {
-  openai: 'openai',
   gemini: 'gemini',
   qwen: 'dashscope',
   minimax: 'minimax',
@@ -28,6 +32,11 @@ export const VIDEO_PROVIDER_CONFIG_IDS: Record<VideoGenerationProvider, string> 
   fal: 'fal',
   volcengine: 'volcengine',
 };
+
+/** Provider-table id of a stored video provider; undefined for one the server no longer offers. */
+export function videoProviderConfigId(provider: string): string | undefined {
+  return (VIDEO_PROVIDER_CONFIG_IDS as Record<string, string | undefined>)[provider];
+}
 
 export async function fetchMediaProviderStatus(): Promise<Record<string, MediaProviderStatus>> {
   try {

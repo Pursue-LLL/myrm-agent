@@ -46,6 +46,47 @@ describe('AttachButton choosing files on the desktop', () => {
     expect(kit.uploadFiles).not.toHaveBeenCalled();
   });
 
+  it('uploads the chosen images too, so the model gets a path it can edit, and keeps their paths on disk', async () => {
+    kit.selectFiles.mockResolvedValue([local('a.png'), local('b.pdf')]);
+    const view = renderAttach();
+
+    await clickAttach(view);
+
+    expect(kit.uploadPickedImages).toHaveBeenCalledTimes(1);
+    expect(kit.uploadPickedImages.mock.calls[0][0]).toEqual([local('a.png'), local('b.pdf')]);
+    expect(kit.uploadPickedImages.mock.calls[0][2]).toBe(kit.uploadSignal);
+    expect(kit.resetUploadController).toHaveBeenCalledTimes(1);
+    expect(view.list.current).toEqual([
+      {
+        id: 'id:a.png',
+        fileName: 'a.png',
+        fileExtension: 'png',
+        fileType: 'local_path',
+        localPath: '/home/me/a.png',
+        fileUrl: '/uploads/a.png',
+      },
+      { id: undefined, fileName: 'b.pdf', fileExtension: 'pdf', fileType: 'local_path', localPath: '/home/me/b.pdf' },
+    ]);
+  });
+
+  it.each([
+    ['an error with a message', new Error('disk full'), 'disk full'],
+    ['something that is not an error', 'nope', 'uploadFailedRetry'],
+  ])('still attaches the images by path, and says the upload failed, for %s', async (_what, failure, text) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    kit.uploadPickedImages.mockRejectedValue(failure);
+    kit.selectFiles.mockResolvedValue([local('a.png')]);
+    const view = renderAttach();
+
+    await clickAttach(view);
+
+    expect(kit.toast).toHaveBeenCalledExactlyOnceWith({ title: 'uploadFailed', description: text });
+    expect(view.list.current).toEqual([
+      { id: undefined, fileName: 'a.png', fileExtension: 'png', fileType: 'local_path', localPath: '/home/me/a.png' },
+    ]);
+    expect(view.button()).toBeInTheDocument();
+  });
+
   it('adds nothing, and says nothing, when the dialog is dismissed', async () => {
     const view = renderAttach();
 

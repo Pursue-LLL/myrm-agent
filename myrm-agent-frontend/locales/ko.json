@@ -1184,7 +1184,10 @@
         "imageMissing": "이미지 생성: 선택한 이미지 공급자의 API 키 없음",
         "videoMissing": "비디오 생성: 선택한 비디오 공급자의 API 키 없음",
         "ttsMissing": "텍스트 음성 변환: 선택한 TTS 공급자의 API 키 없음",
-        "hint": "자격 증명이 없으면 에이전트가 런타임에서 미디어 도구를 받지 못합니다. 설정에서 키를 구성하세요 (이미지/비디오는 모델 서비스, TTS는 채널 > 음성).",
+        "imageNotSelected": "이미지 생성: 이미지 모델이 선택되지 않음",
+        "videoNotSelected": "비디오 생성: 비디오 공급자와 모델이 선택되지 않음",
+        "ttsNotSelected": "텍스트 음성 변환: TTS 공급자, 모델, 음성이 선택되지 않음",
+        "hint": "모델을 선택하고 해당 공급자의 API 키를 설정해야 에이전트가 미디어 도구를 사용할 수 있습니다. 설정에서 모델을 선택하고 키를 구성하세요.",
         "openSettings": "설정 열기",
         "recheck": "다시 확인"
       },
@@ -9995,7 +9998,6 @@
   "imageGen": {
     "generated": "생성됨",
     "download": "다운로드",
-    "regenerate": "재생성",
     "editThisImage": "이 이미지 편집",
     "editPromptPrefix": "위 이미지를 수정해 주세요: ",
     "referenceImages": "참조 이미지",
@@ -11928,7 +11930,9 @@
     "retryTask": "작업 재시도",
     "retrying": "재시도 중...",
     "cancelled": "작업이 취소되었습니다",
-    "videoCompletedFallback": "비디오가 완료되었습니다. 아티팩트 패널을 열어 출력을 확인하세요.",
+    "expired": "이 작업 기록은 만료되었습니다. 생성된 파일은 미디어 라이브러리에 그대로 남아 있습니다.",
+    "openLibrary": "미디어 라이브러리 열기",
+    "resultUnavailable": "이 결과는 여기에서 표시할 수 없습니다. 미디어 라이브러리에서 파일을 확인하세요.",
     "videoUnsupported": "브라우저가 비디오 재생을 지원하지 않습니다.",
     "alternateLabel": "대안 {index}",
     "providerLabel": "제공자",
@@ -15812,7 +15816,10 @@
       "ttsModel": "모델",
       "ttsVoice": "음성",
       "ttsDoubaoKeyHint": "Doubao-TTS는 복합 자격 증명 \"appid:access_token\"을 사용합니다 (Volcengine 콘솔: Speech Technology → 앱 세부정보).",
-      "ttsProbeSlowHint": "Seed-Audio는 생성형 모델입니다. 테스트는 짧은 오디오를 합성하며 1~2분 정도 걸릴 수 있습니다."
+      "ttsProbeSlowHint": "Seed-Audio는 생성형 모델입니다. 테스트는 짧은 오디오를 합성하며 1~2분 정도 걸릴 수 있습니다.",
+      "selectPlaceholder": "선택하세요",
+      "reselectPlaceholder": "다시 선택하세요",
+      "ttsSelectionSaveFailed": "선택을 저장하지 못했습니다"
     },
     "acp": {
       "title": "ACP 에이전트",

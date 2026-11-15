@@ -1184,7 +1184,10 @@
         "imageMissing": "Image Generation: no API key for the selected image provider",
         "videoMissing": "Video Generation: no API key for the selected video provider",
         "ttsMissing": "Text to Speech: no API key for the selected TTS provider",
-        "hint": "Without credentials the agent will not receive media tools at runtime. Configure keys in Settings (Model Service for image/video; Channels > Voice for TTS).",
+        "imageNotSelected": "Image Generation: no image model is selected",
+        "videoNotSelected": "Video Generation: no video provider and model are selected",
+        "ttsNotSelected": "Text to Speech: no TTS provider, model and voice are selected",
+        "hint": "The agent only gets a media tool once a model is chosen and its provider has an API key. Choose models and set keys in Settings.",
         "openSettings": "Open Settings",
         "recheck": "Recheck"
       },
@@ -9995,7 +9998,6 @@
   "imageGen": {
     "generated": "Generated",
     "download": "Download",
-    "regenerate": "Regenerate",
     "editThisImage": "Edit this image",
     "editPromptPrefix": "Please modify the image above: ",
     "referenceImages": "Reference Images",
@@ -11928,7 +11930,9 @@
     "retryTask": "Retry Task",
     "retrying": "Retrying...",
     "cancelled": "Task cancelled",
-    "videoCompletedFallback": "Video completed. Open the artifacts panel to view output.",
+    "expired": "This task record has expired. Files it produced stay in your media library.",
+    "openLibrary": "Open media library",
+    "resultUnavailable": "This result can't be displayed here. Check your media library for the file.",
     "videoUnsupported": "Your browser does not support video playback.",
     "alternateLabel": "Alternate {index}",
     "providerLabel": "Provider",
@@ -15812,7 +15816,10 @@
       "ttsModel": "Model",
       "ttsVoice": "Voice",
       "ttsDoubaoKeyHint": "Doubao-TTS uses the composite credential \"appid:access_token\" (Volcengine console: Speech Technology → App Details).",
-      "ttsProbeSlowHint": "Seed-Audio is a generative model — the test synthesizes a short audio clip and may take 1–2 minutes."
+      "ttsProbeSlowHint": "Seed-Audio is a generative model — the test synthesizes a short audio clip and may take 1–2 minutes.",
+      "selectPlaceholder": "Select…",
+      "reselectPlaceholder": "Select again",
+      "ttsSelectionSaveFailed": "Failed to save your selection"
     },
     "acp": {
       "title": "ACP Agents",

@@ -67,7 +67,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
                                             Branch Watcher → Unattended Curtain Watcher → Usage-Limit Wake Daemon →
                                             Wake Schedule Reporter → Channel Budget Guards
         Phase 3  (Background - Async):     Orphaned Goals (started once the socket is bound), then, once the first
-                                            screen has loaded: Warmup (schedulers, browser pool, batch recovery,
+                                            screen has loaded: Warmup (schedulers, browser pool,
                                             tokenizer, risk rules, vector cache and more; see ``warmup``) ‖
                                             Kanban Dispatchers ‖ @startup Events ‖ Trunk Templates ‖
                                             Agent Tool Layers (see ``background``)

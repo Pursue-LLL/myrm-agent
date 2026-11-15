@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -10,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
-from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig, ImageResult
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
 
 from app.tasks.executors.image_executor import ImageTaskExecutor
@@ -59,40 +58,40 @@ async def test_rest_get_image_task_reflects_payload_snapshot_and_executor_result
     await store.initialize()
 
     config = ImageGenerationConfig(
-        model="flux-pro",
+        model="gpt-image-2.6-sunburst",
         api_key="sk-rest-integration",
-        fallback_models=["dall-e-3"],
+        fallback_models=["gpt-image-2.6-flare"],
     )
     async_engine = AsyncImageGenerationTools(
         config,
         store,
         payload_postprocessor=seal_task_payload_secrets,
     )
-    raw = await async_engine.generate_image(
+    task_id = await async_engine.generate_image(
         "a blue sphere",
         size="512x512",
         user_id="user-rest",
         agent_id="agent-rest",
         chat_id="chat-rest",
     )
-    task_id = json.loads(raw)["task_id"]
 
     task = await store.get_task(task_id)
     assert task is not None
     assert "api_key" not in task.payload
     assert isinstance(task.payload.get(API_KEY_ENC_FIELD), str)
 
-    mock_result = MagicMock()
-    mock_result.persisted_url = "https://cdn.example/rest.png"
-    mock_result.url = "https://cdn.example/rest.png"
-    mock_result.mime_type = "image/png"
-    mock_result.revised_prompt = None
-    mock_result.model = "flux-pro"
-    mock_result.latency_ms = 42
+    generated = ImageResult(
+        url=None,
+        b64_json=None,
+        revised_prompt=None,
+        model="gpt-image-2.6-sunburst",
+        latency_ms=42,
+        persisted_ref="media://media_rest",
+    )
 
     with patch("app.tasks.executors.image_executor.ImageGenerator") as generator_cls:
         generator = MagicMock()
-        generator.generate = AsyncMock(return_value=mock_result)
+        generator.generate = AsyncMock(return_value=generated)
         generator_cls.return_value = generator
 
         executor = ImageTaskExecutor(resolve_image_generation_config)
@@ -107,12 +106,12 @@ async def test_rest_get_image_task_reflects_payload_snapshot_and_executor_result
         body = get_resp.json()
         assert body["task_id"] == task_id
         assert body["status"] == "succeeded"
-        assert body["payload"]["model"] == "flux-pro"
+        assert body["payload"]["model"] == "gpt-image-2.6-sunburst"
         assert "api_key" not in body["payload"]
         assert isinstance(body["payload"].get(API_KEY_ENC_FIELD), str)
         assert body["payload"]["agent_id"] == "agent-rest"
         assert body["payload"]["chat_id"] == "chat-rest"
-        assert body["result"]["images"][0]["url"] == "https://cdn.example/rest.png"
+        assert body["result"]["images"][0]["url"] == "media://media_rest"
 
         list_resp = await client.get("/api/v1/tasks", params={"task_type": "image_generate"})
         assert list_resp.status_code == 200
@@ -128,7 +127,7 @@ async def test_rest_list_tasks_supports_ids_and_detail(tmp_path: object) -> None
     await store.initialize()
 
     config = ImageGenerationConfig(
-        model="flux-pro",
+        model="gpt-image-2.6-sunburst",
         api_key="sk-rest-ids",
     )
     async_engine = AsyncImageGenerationTools(
@@ -136,8 +135,7 @@ async def test_rest_list_tasks_supports_ids_and_detail(tmp_path: object) -> None
         store,
         payload_postprocessor=seal_task_payload_secrets,
     )
-    raw = await async_engine.generate_image("a yellow cube", user_id="user-rest")
-    task_id = json.loads(raw)["task_id"]
+    task_id = await async_engine.generate_image("a yellow cube", user_id="user-rest")
 
     transport = ASGITransport(app=_build_rest_app(store))
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -172,7 +170,7 @@ async def test_rest_retry_uses_structured_errors_and_recovers_failed_task(tmp_pa
     await store.initialize()
 
     config = ImageGenerationConfig(
-        model="flux-pro",
+        model="gpt-image-2.6-sunburst",
         api_key="sk-rest-retry",
     )
     async_engine = AsyncImageGenerationTools(
@@ -180,8 +178,7 @@ async def test_rest_retry_uses_structured_errors_and_recovers_failed_task(tmp_pa
         store,
         payload_postprocessor=seal_task_payload_secrets,
     )
-    raw = await async_engine.generate_image("a retry cube", user_id="user-rest-retry")
-    task_id = json.loads(raw)["task_id"]
+    task_id = await async_engine.generate_image("a retry cube", user_id="user-rest-retry")
 
     transport = ASGITransport(app=_build_rest_app(store))
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -256,7 +253,7 @@ async def test_rest_cancel_uses_structured_errors_for_missing_and_terminal_task(
     await store.initialize()
 
     config = ImageGenerationConfig(
-        model="flux-pro",
+        model="gpt-image-2.6-sunburst",
         api_key="sk-rest-cancel",
     )
     async_engine = AsyncImageGenerationTools(
@@ -264,8 +261,7 @@ async def test_rest_cancel_uses_structured_errors_for_missing_and_terminal_task(
         store,
         payload_postprocessor=seal_task_payload_secrets,
     )
-    raw = await async_engine.generate_image("a cancel cube", user_id="user-rest-cancel")
-    task_id = json.loads(raw)["task_id"]
+    task_id = await async_engine.generate_image("a cancel cube", user_id="user-rest-cancel")
     await store.update_task(task_id, status=TaskStatus.SUCCEEDED)
 
     transport = ASGITransport(app=_build_rest_app(store))

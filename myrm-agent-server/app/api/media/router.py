@@ -1,25 +1,41 @@
+"""Media gallery API: list, search, tag, serve and delete media items.
+
+[INPUT]
+- app.core.media.service::media_library_service, MediaQueryParams (POS: media library records and their write path)
+- app.platform_utils::get_storage_provider (POS: process-wide file storage behind a record's storage key)
+- app.api.dependencies::get_db_session (POS: request-scoped DB session)
+
+[OUTPUT]
+- router: ``/media`` routes: cursor-paginated listing with type, tag, keyword, session and time filters, the tag list,
+  batch delete and batch tag replace, one item, its file (HTTP range requests), its 256px thumbnail, tag update, delete
+
+[POS]
+The HTTP door to the media library. ``/{media_id}/file`` is where a ``media://<id>`` reference ends up in the browser,
+so it answers range requests (video and audio cannot seek or play in Safari without them) and carries a cache header
+that never expires, since the bytes behind an id never change.
+"""
+
 from __future__ import annotations
 
 import logging
 from datetime import datetime
 
+from anyio import to_thread
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
 from app.core.media.service import MediaQueryParams, media_library_service
 from app.database.models import MediaLibrary
-
-"""Media gallery API — list, search, tag, serve, delete media items.
-
-Supports cursor-based pagination, tag filtering, keyword search,
-and serves both original and thumbnail versions.
-"""
+from app.platform_utils import get_storage_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# The bytes behind a media id never change, so a client may keep its copy for good.
+_IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable"
 
 
 class MediaItemResponse(BaseModel):
@@ -35,7 +51,6 @@ class MediaItemResponse(BaseModel):
     file_size: int
     tags: list[str] = Field(default_factory=list)
     session_id: str | None = None
-    batch_job_id: str | None = None
     thumbnail_url: str | None = None
     created_at: datetime
 
@@ -69,7 +84,6 @@ def _to_response(item: "MediaLibrary", api_prefix: str = "/api/v1") -> MediaItem
         file_size=item.file_size,
         tags=item.tags or [],
         session_id=item.session_id,
-        batch_job_id=item.batch_job_id,
         thumbnail_url=thumb_url,
         created_at=item.created_at,
     )
@@ -82,7 +96,6 @@ async def list_media(
     tags: str | None = Query(None, description="Comma-separated tags to filter by"),
     keyword: str | None = Query(None, description="Search prompt or model name"),
     session_id: str | None = Query(None),
-    batch_job_id: str | None = Query(None),
     before: datetime | None = Query(None),
     after: datetime | None = Query(None),
     cursor: str | None = Query(None, description="Cursor for pagination (media ID)"),
@@ -96,7 +109,6 @@ async def list_media(
         tags=tag_list,
         keyword=keyword,
         session_id=session_id,
-        batch_job_id=batch_job_id,
         before=before,
         after=after,
         cursor=cursor,
@@ -122,6 +134,43 @@ async def list_tags(
     return await media_library_service.get_all_tags(db)
 
 
+class BatchIdsRequest(BaseModel):
+    """Request body with a list of media IDs."""
+
+    ids: list[str] = Field(..., min_length=1, max_length=100)
+
+
+class BatchTagsRequest(BaseModel):
+    """Request body for batch tag update."""
+
+    ids: list[str] = Field(..., min_length=1, max_length=100)
+    tags: list[str]
+
+
+# Declared before the ``/{media_id}`` routes on purpose: a route matches in declaration order, so
+# ``PUT /batch/tags`` placed after ``PUT /{media_id}/tags`` would be taken for the tags of a media item named ``batch``.
+@router.post("/batch/delete")
+async def batch_delete_media(
+    body: BatchIdsRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, int]:
+    """Delete multiple media items at once."""
+    count = await media_library_service.batch_delete(db, body.ids)
+    await db.commit()
+    return {"deleted": count}
+
+
+@router.put("/batch/tags")
+async def batch_update_tags(
+    body: BatchTagsRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, int]:
+    """Update tags for multiple media items at once."""
+    count = await media_library_service.batch_update_tags(db, body.ids, body.tags)
+    await db.commit()
+    return {"updated": count}
+
+
 @router.get("/{media_id}", response_model=MediaItemResponse)
 async def get_media(
     media_id: str,
@@ -139,24 +188,41 @@ async def serve_media_file(
     media_id: str,
     db: AsyncSession = Depends(get_db_session),
 ) -> Response:
-    """Serve the original media file."""
+    """Serve the original media file.
+
+    A file on the local disk is streamed by the server, which answers HTTP range requests: browsers cannot seek a
+    video or audio element otherwise, and Safari will not play one at all. Remote storage is read whole.
+    """
     item = await media_library_service.get_by_id(db, media_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Media not found")
 
-    from app.platform_utils import get_storage_provider
-
     ext = item.storage_key.rsplit(".", 1)[-1] if "." in item.storage_key else "bin"
+    filename = f"{item.id}.{ext}"
     storage = get_storage_provider()
+    local_path = storage.local_path(item.storage_key)
+    if local_path is not None:
+        if not await to_thread.run_sync(local_path.is_file):
+            raise HTTPException(status_code=404, detail="Media file not found in storage")
+        return FileResponse(
+            local_path,
+            media_type=item.content_type,
+            filename=filename,
+            content_disposition_type="inline",
+            headers={"Cache-Control": _IMMUTABLE_CACHE_CONTROL},
+        )
+
     try:
         content = await storage.read(item.storage_key)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Media file not found in storage") from None
-    filename = f"{item.id}.{ext}"
     return Response(
         content=content,
         media_type=item.content_type,
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": _IMMUTABLE_CACHE_CONTROL,
+        },
     )
 
 
@@ -169,8 +235,6 @@ async def serve_thumbnail(
     item = await media_library_service.get_by_id(db, media_id)
     if item is None or not item.thumbnail_key:
         raise HTTPException(status_code=404, detail="Thumbnail not found")
-
-    from app.platform_utils import get_storage_provider
 
     storage = get_storage_provider()
     try:
@@ -205,38 +269,3 @@ async def delete_media(
         raise HTTPException(status_code=404, detail="Media not found")
     await db.commit()
     return {"deleted": True}
-
-
-class BatchIdsRequest(BaseModel):
-    """Request body with a list of media IDs."""
-
-    ids: list[str] = Field(..., min_length=1, max_length=100)
-
-
-class BatchTagsRequest(BaseModel):
-    """Request body for batch tag update."""
-
-    ids: list[str] = Field(..., min_length=1, max_length=100)
-    tags: list[str]
-
-
-@router.post("/batch/delete")
-async def batch_delete_media(
-    body: BatchIdsRequest,
-    db: AsyncSession = Depends(get_db_session),
-) -> dict[str, int]:
-    """Delete multiple media items at once."""
-    count = await media_library_service.batch_delete(db, body.ids)
-    await db.commit()
-    return {"deleted": count}
-
-
-@router.put("/batch/tags")
-async def batch_update_tags(
-    body: BatchTagsRequest,
-    db: AsyncSession = Depends(get_db_session),
-) -> dict[str, int]:
-    """Update tags for multiple media items at once."""
-    count = await media_library_service.batch_update_tags(db, body.ids, body.tags)
-    await db.commit()
-    return {"updated": count}

@@ -28,14 +28,11 @@ def test_image_generation_registers_basetool() -> None:
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
-    mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key="test-key")
+    mixin.declared_allowed_roots = ()
+    mixin.image_generation_params = ImageGenerationParams(model="gpt-image-2.6-sunburst", api_key="test-key")
     tools: list[object] = []
 
-    with patch(
-        "app.ai_agents.general_agent.tool_setup.common._get_artifact_push_fn",
-        return_value=None,
-    ):
-        mixin._setup_image_generation_tools(tools)
+    mixin._setup_image_generation_tools(tools)
 
     assert len(tools) == 1
     tool = tools[0]
@@ -48,7 +45,7 @@ def test_image_generation_skipped_without_api_key_or_gateway() -> None:
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
-    mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key=None)
+    mixin.image_generation_params = ImageGenerationParams(model="gpt-image-2.6-sunburst", api_key=None)
     tools: list[object] = []
 
     mixin._setup_image_generation_tools(tools)
@@ -61,8 +58,9 @@ def test_image_generation_accepts_gateway_only() -> None:
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
+    mixin.declared_allowed_roots = ()
     mixin.image_generation_params = ImageGenerationParams(
-        model="dall-e-3",
+        model="gpt-image-2.6-sunburst",
         api_key=None,
         gateway_config={
             "use_gateway": True,
@@ -72,11 +70,7 @@ def test_image_generation_accepts_gateway_only() -> None:
     )
     tools: list[object] = []
 
-    with patch(
-        "app.ai_agents.general_agent.tool_setup.common._get_artifact_push_fn",
-        return_value=None,
-    ):
-        mixin._setup_image_generation_tools(tools)
+    mixin._setup_image_generation_tools(tools)
 
     assert len(tools) == 1
     assert getattr(tools[0], "name", None) == "image_tool"
@@ -87,8 +81,8 @@ def test_video_generation_skipped_without_api_key() -> None:
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.video_generation_params = VideoGenerationParams(
-        provider="openai",
-        model="sora",
+        provider="volcengine",
+        model="seedance-2-0",
         api_key=None,
     )
     tools: list[object] = []
@@ -105,18 +99,15 @@ def test_video_generation_registers_basetool() -> None:
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
+    mixin.declared_allowed_roots = ()
     mixin.video_generation_params = VideoGenerationParams(
-        provider="openai",
-        model="sora",
+        provider="volcengine",
+        model="seedance-2-0",
         api_key="test-key",
     )
     tools: list[object] = []
 
-    with patch(
-        "app.ai_agents.general_agent.tool_setup.common._get_artifact_push_fn",
-        return_value=None,
-    ):
-        mixin._setup_video_generation_tools(tools)
+    mixin._setup_video_generation_tools(tools)
 
     assert len(tools) == 1
     tool = tools[0]
@@ -130,19 +121,16 @@ def test_video_generation_accepts_fallback_provider_key_only() -> None:
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
+    mixin.declared_allowed_roots = ()
     mixin.video_generation_params = VideoGenerationParams(
-        provider="openai",
-        model="sora",
+        provider="volcengine",
+        model="seedance-2-0",
         api_key=None,
-        fallback_providers=[{"provider": "openai", "model": "sora", "api_key": "fallback-only-key"}],
+        fallback_providers=[{"provider": "gemini", "model": "veo-3.1-fast-generate-preview", "api_key": "fallback-only-key"}],
     )
     tools: list[object] = []
 
-    with patch(
-        "app.ai_agents.general_agent.tool_setup.common._get_artifact_push_fn",
-        return_value=None,
-    ):
-        mixin._setup_video_generation_tools(tools)
+    mixin._setup_video_generation_tools(tools)
 
     assert len(tools) == 1
 

@@ -7,7 +7,9 @@
  */
 
 import { isTauriRuntime } from '@/lib/deploy-mode';
+import type { UploadOptions } from '@/services/file';
 import { FileService, FileReference, toStoreFile, fromStoreFile } from './types';
+import { uploadPickedImages as uploadImagesOf } from './uploadPickedImages';
 
 // 服务单例缓存
 let _fileService: FileService | null = null;
@@ -57,3 +59,7 @@ export const readFileAsDataURL = (file: FileReference) => getFileService().readF
 export const readFileAsText = (file: FileReference, encoding?: string) =>
   getFileService().readFileAsText(file, encoding);
 export const getFileUrl = (file: FileReference) => getFileService().getFileUrl(file);
+
+/** 把选中的本地图片上传到服务器（模型据此拿到可编辑的工作区路径），保留本地路径；非本地图片原样返回 */
+export const uploadPickedImages = (refs: FileReference[], options?: UploadOptions, signal?: AbortSignal) =>
+  uploadImagesOf(refs, (ref) => getFileService().readFile(ref), options, signal);

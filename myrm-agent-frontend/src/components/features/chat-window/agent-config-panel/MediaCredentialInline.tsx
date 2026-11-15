@@ -9,9 +9,29 @@ import useProviderStore from '@/store/useProviderStore';
 import { apiRequest } from '@/lib/api';
 import type { BuiltinToolId } from '@/store/chat/types';
 import type { VoiceConfigValue } from '@/services/config/types';
-import { collectMediaCredentialWarnings, type MediaCredentialWarningTool } from '@/lib/utils/media';
-import { fetchMediaProviderStatus, type MediaProviderStatus } from '@/lib/utils/media';
+import {
+  collectMediaCredentialWarnings,
+  fetchMediaProviderStatus,
+  type MediaCredentialWarning,
+  type MediaProviderStatus,
+} from '@/lib/utils/media';
 import { cn } from '@/lib/utils/classnameUtils';
+
+/** What each warning says: nothing usable is chosen yet, or the chosen provider has no key. */
+const WARNING_COPY_KEYS: Record<MediaCredentialWarning['tool'], Record<MediaCredentialWarning['reason'], string>> = {
+  image_generation: {
+    notSelected: 'mediaCredential.imageNotSelected',
+    noCredential: 'mediaCredential.imageMissing',
+  },
+  video_generation: {
+    notSelected: 'mediaCredential.videoNotSelected',
+    noCredential: 'mediaCredential.videoMissing',
+  },
+  tts: {
+    notSelected: 'mediaCredential.ttsNotSelected',
+    noCredential: 'mediaCredential.ttsMissing',
+  },
+};
 
 interface MediaCredentialInlineProps {
   enabledBuiltinTools: BuiltinToolId[];
@@ -53,6 +73,7 @@ export const MediaCredentialInline = ({ enabledBuiltinTools, tPanel }: MediaCred
   }, [mediaToolsEnabled]);
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- the effect starts the credential-status request; the loading flag only mirrors that external fetch
     void refresh();
   }, [refresh, enabledBuiltinTools, providers, imageGeneration, videoGeneration]);
 
@@ -85,22 +106,22 @@ export const MediaCredentialInline = ({ enabledBuiltinTools, tPanel }: MediaCred
         <span>{tPanel('mediaCredential.title')}</span>
       </div>
       <ul className="ml-5 list-disc space-y-0.5">
-        {warnings.map((tool) => (
-          <MediaCredentialWarningItem key={tool} tool={tool} tPanel={tPanel} />
+        {warnings.map(({ tool, reason }) => (
+          <li key={tool}>{tPanel(WARNING_COPY_KEYS[tool][reason])}</li>
         ))}
       </ul>
       <p className="text-[10px] opacity-75">{tPanel('mediaCredential.hint')}</p>
       <div className="flex items-center gap-2 pt-1">
         <Link
           href="/settings/models?sub=default"
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
         >
           <ExternalLink size={12} />
           {tPanel('mediaCredential.openSettings')}
         </Link>
         <button
           type="button"
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
           onClick={() => void refresh()}
           disabled={loading}
         >
@@ -111,19 +132,3 @@ export const MediaCredentialInline = ({ enabledBuiltinTools, tPanel }: MediaCred
     </div>
   );
 };
-
-function MediaCredentialWarningItem({
-  tool,
-  tPanel,
-}: {
-  tool: MediaCredentialWarningTool;
-  tPanel: (key: string) => string;
-}) {
-  const key =
-    tool === 'image_generation'
-      ? 'mediaCredential.imageMissing'
-      : tool === 'video_generation'
-        ? 'mediaCredential.videoMissing'
-        : 'mediaCredential.ttsMissing';
-  return <li>{tPanel(key)}</li>;
-}

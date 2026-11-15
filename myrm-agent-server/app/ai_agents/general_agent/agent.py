@@ -397,9 +397,9 @@ class GeneralAgent(ToolSetupMixin, AgentLifecycleMixin):
         if self.video_fallback_model_cfgs:
             context["video_fallback_model_cfgs"] = self.video_fallback_model_cfgs
 
-        from app.core.utils.media_file_reader import read_uploaded_media_file_content
+        from app.core.utils.media_file_reader import read_media_content
 
-        context["file_content_reader"] = read_uploaded_media_file_content
+        context["file_content_reader"] = read_media_content
 
         history_messages: Sequence[BaseMessage] | None = None
         if chat_history is not None and len(chat_history) > 0:

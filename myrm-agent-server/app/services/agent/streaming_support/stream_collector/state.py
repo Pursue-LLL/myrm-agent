@@ -221,6 +221,8 @@ class StreamStateMixin(StreamCollectorBase):
             result["deliverableTier"] = self._deliverable_tier
         if self._kanban_tasks_created:
             result["kanban_tasks_created"] = list(self._kanban_tasks_created)
+        if self._media_generated:
+            result["media_generated"] = list(self._media_generated)
         if self._cron_job_result is not None:
             result["cron_job_result"] = self._cron_job_result
         if self._file_mutation_failures:
@@ -293,4 +295,3 @@ def _sync_run_digest(collector: StreamCollectorBase) -> None:
     from app.services.copilot.run_digest_store import RunDigestStore
 
     RunDigestStore.update_from_progress(chat_id, collector._progress_steps)
-

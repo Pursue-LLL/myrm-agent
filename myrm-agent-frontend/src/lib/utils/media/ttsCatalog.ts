@@ -5,12 +5,12 @@
  * [OUTPUT]
  * - TtsProviderId, TtsModelOption, StoredVoice, StoredChoices
  * - TTS_PROVIDER_OPTIONS, TTS_MODEL_OPTIONS, TTS_VOICE_OPTIONS
- * - DEFAULT_PROVIDER, DEFAULT_MODEL, DEFAULT_VOICE
- * - readStoredChoices
+ * - isTtsProvider, isTtsSelected, readStoredChoices
  *
  * [POS]
  * What the TTS settings card offers (providers, models, voices) and how the shared `voice` config maps onto those
- * choices. Pure data and functions, so the card keeps only its state and layout.
+ * choices. Nothing is chosen until the user chooses it: no provider, model or voice is filled in on their behalf. Pure
+ * data and functions, so the card and the agent readiness check share one definition of "chosen".
  */
 
 import type { VoiceConfigValue } from '@/services/config/types';
@@ -65,21 +65,28 @@ export const TTS_VOICE_OPTIONS: Record<TtsProviderId, TtsModelOption[]> = {
     { value: 'TxGEqnHWrfWFTfGW9XjX', label: 'Josh', description: '' },
   ],
   volcengine: [
-    { value: 'zh_female_vv_uranus_bigtts', label: 'Uranus · 中文女声', description: 'Default' },
+    { value: 'zh_female_vv_uranus_bigtts', label: 'Uranus · 中文女声', description: '' },
     { value: 'zh_male_rough_mars_bigtts', label: 'Mars · 中文男声', description: '' },
     { value: 'en_female_emily_mars_bigtts', label: 'Emily · English', description: '' },
   ],
 };
 
-export const DEFAULT_PROVIDER: TtsProviderId = 'openai';
-export const DEFAULT_MODEL = 'tts-1';
-export const DEFAULT_VOICE = 'alloy';
-
-const isTtsProvider = (id: string | undefined): id is TtsProviderId =>
+export const isTtsProvider = (id: string | undefined): id is TtsProviderId =>
   TTS_PROVIDER_OPTIONS.some((option) => option.value === id);
 
+/**
+ * The server's own test for handing the agent the speech tool: a provider the engine calls, with a model and a voice.
+ * A provider the channel voice settings save (edge, piper, ...) fails it, because the tool cannot synthesize with it.
+ */
+export const isTtsSelected = (
+  provider: string | undefined,
+  model: string | undefined,
+  voice: string | undefined,
+): boolean => isTtsProvider(provider) && Boolean(model?.trim()) && Boolean(voice?.trim());
+
 export interface StoredChoices {
-  provider: TtsProviderId;
+  /** As stored, empty when nothing is: a provider the card does not offer is kept so the card can ask for a new one. */
+  provider: string;
   model: string;
   voice: string;
   keySaved: boolean;
@@ -87,19 +94,16 @@ export interface StoredChoices {
 
 /**
  * The card's choices as the stored settings describe them. The channel voice settings share these fields and also
- * save providers this card does not offer (edge, piper, ...); their model, voice and key mean nothing here, so such
- * settings give the card's defaults instead of a combination it cannot show.
+ * save providers this card does not offer (edge, piper, ...); their model, voice and key mean nothing here, so for such
+ * a provider only the provider itself is reported.
  */
 export function readStoredChoices(value: StoredVoice): StoredChoices {
-  const saved = value.ttsProvider;
-  const provider = isTtsProvider(saved) ? saved : DEFAULT_PROVIDER;
-  const own: StoredVoice = saved && provider !== saved ? {} : value;
-  const savedModel = own.ttsModel || DEFAULT_MODEL;
+  const provider = value.ttsProvider?.trim() ?? '';
+  const own: StoredVoice = isTtsProvider(provider) ? value : {};
   return {
     provider,
-    // 'tts-1' is OpenAI's model: another provider still holding it was never given a model of its own.
-    model: provider !== 'openai' && savedModel === DEFAULT_MODEL ? TTS_MODEL_OPTIONS[provider][0].value : savedModel,
-    voice: own.ttsVoice || TTS_VOICE_OPTIONS[provider][0].value,
+    model: own.ttsModel?.trim() ?? '',
+    voice: own.ttsVoice?.trim() ?? '',
     keySaved: Boolean(own.ttsApiKey?.trim()),
   };
 }

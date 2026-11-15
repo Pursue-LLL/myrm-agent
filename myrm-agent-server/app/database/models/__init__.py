@@ -31,7 +31,7 @@ from .faq import FaqCorpus, FaqEntry, FaqHitLog
 from .fission import FissionTaskRecord
 from .kanban import KanbanBoardModel, KanbanTaskEdgeModel, KanbanTaskModel
 from .lifecycle_webhook import LifecycleWebhookModel
-from .media import BatchImageJob, MediaLibrary
+from .media import MediaLibrary
 from .memory import (
     MemoryArchiveRestoreBatchModel,
     MemoryArchiveRestoreItemModel,
@@ -125,7 +125,6 @@ __all__ = [
     "ChannelPairingModel",
     "ChannelMessageModel",
     # Media
-    "BatchImageJob",
     "MediaLibrary",
     # Security
     "UserToolAllowlist",

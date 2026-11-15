@@ -67,6 +67,23 @@ describe('getStorageUrl', () => {
   it('prefixes relative storage paths with backend base URL', () => {
     expect(getStorageUrl('/api/v1/files/storage/abc')).toBe('http://127.0.0.1:8080/api/v1/files/storage/abc');
   });
+
+  it('maps media:// references to the media file endpoint', () => {
+    expect(getStorageUrl('media://media_8f3a')).toBe('http://127.0.0.1:8080/api/v1/media/media_8f3a/file');
+  });
+
+  it('percent-encodes the media id so it cannot escape the endpoint path', () => {
+    expect(getStorageUrl('media://a/../b')).toBe('http://127.0.0.1:8080/api/v1/media/a%2F..%2Fb/file');
+  });
+
+  it('keeps an empty media:// reference on the plain path rule instead of calling the endpoint', () => {
+    expect(getStorageUrl('media://')).not.toContain('/media//file');
+  });
+
+  it('returns http(s) URLs and empty input untouched', () => {
+    expect(getStorageUrl('https://cdn.example/a.png')).toBe('https://cdn.example/a.png');
+    expect(getStorageUrl('')).toBe('');
+  });
 });
 
 describe('fetchWithTimeout Global Auth Interceptor', () => {

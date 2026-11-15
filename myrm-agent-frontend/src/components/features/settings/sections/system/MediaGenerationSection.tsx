@@ -1,17 +1,26 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - lib/utils/media (POS: image model catalog, provider-table ids, provider status, key detection)
+ * - store/useConfigStore (POS: stored image / video selections, synced to the server)
+ * - store/useProviderStore (POS: provider rows and their keys)
+ * - ./MediaSettingsParts (POS: key badge, key form, empty-dropdown prompt)
+ * - ./TtsGenerationSection (POS: speech card)
+ *
+ * [OUTPUT]
+ * - MediaGenerationSection: Settings panel for the image, video and speech tools of the agent.
+ *
+ * [POS]
+ * Media tool configuration. Nothing is chosen for the user: with no stored choice, or one the catalog no longer
+ * offers (for example a model its vendor has retired), the dropdowns ask for a choice, and the agent gets the tool
+ * only once the user has made it.
+ */
+
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
-import {
-  IconLoader,
-  IconCheckCircle,
-  IconXCircle,
-  IconAlertCircle,
-  IconEye,
-  IconEyeOff,
-  IconSave,
-} from '@/components/features/icons/PremiumIcons';
+import { IconLoader, IconCheckCircle, IconXCircle } from '@/components/features/icons/PremiumIcons';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import useConfigStore from '@/store/useConfigStore';
@@ -21,31 +30,24 @@ import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import type { ImageGenerationConfig, VideoGenerationConfig, VideoGenerationProvider } from '@/services/config/types';
 import {
   fetchMediaProviderStatus,
-  VIDEO_PROVIDER_CONFIG_IDS,
+  IMAGE_MODEL_OPTIONS,
+  isImageModelSelected,
+  providerHasActiveApiKey,
+  resolveImageProviderId,
+  videoProviderConfigId,
   type MediaProviderStatus,
 } from '@/lib/utils/media';
 import OptionSelect from '../../OptionSelect';
 import SettingsSection from '../SettingsSection';
+import { KeyStatusBadge, MediaApiKeyForm, selectionPlaceholderKey, type KeyStatus } from './MediaSettingsParts';
 import TtsGenerationSection from './TtsGenerationSection';
 
-const IMAGE_MODEL_OPTIONS = [
-  { value: 'dall-e-3', label: 'DALL·E 3', description: 'OpenAI' },
-  { value: 'dall-e-2', label: 'DALL·E 2', description: 'OpenAI' },
-  { value: 'gpt-image-1', label: 'GPT Image 1', description: 'OpenAI' },
-  { value: 'gemini/imagen-3.0-generate-002', label: 'Imagen 3.0', description: 'Google' },
-  { value: 'flux/schnell', label: 'Flux Schnell', description: 'Together AI' },
-  { value: 'flux/pro', label: 'Flux Pro', description: 'Together AI' },
-  { value: 'stability/stable-diffusion-xl', label: 'SDXL', description: 'Stability AI' },
-  { value: 'xai/grok-imagine-image', label: 'Grok Imagine', description: 'xAI' },
-  { value: 'xai/grok-imagine-image-quality', label: 'Grok Imagine Quality', description: 'xAI' },
-];
-
+/** Shown while the server's provider list is not available. */
 const FALLBACK_VIDEO_PROVIDERS: {
   value: VideoGenerationProvider;
   label: string;
   description: string;
 }[] = [
-  { value: 'openai', label: 'OpenAI Sora', description: 'sora / sora-2' },
   { value: 'gemini', label: 'Google Veo', description: 'veo-3.1-fast-generate-preview' },
   { value: 'qwen', label: 'Qwen Wan', description: 'wan2.6-t2v' },
   { value: 'minimax', label: 'MiniMax Hailuo', description: 'MiniMax-Hailuo-2.3' },
@@ -54,28 +56,25 @@ const FALLBACK_VIDEO_PROVIDERS: {
   { value: 'volcengine', label: 'Volcengine Seedance', description: 'seedance-2-0' },
 ];
 
-const PROVIDER_CONFIG_IDS = VIDEO_PROVIDER_CONFIG_IDS;
+/** The stored image settings with another model; settings the app no longer keeps are not carried along. */
+function withImageModel(current: ImageGenerationConfig | undefined, model: string): ImageGenerationConfig {
+  return {
+    model,
+    fallbackModels: current?.fallbackModels ?? [],
+    defaultSize: current?.defaultSize ?? '1024x1024',
+    timeoutSeconds: current?.timeoutSeconds ?? 120,
+    maxRetries: current?.maxRetries ?? 1,
+  };
+}
 
-const DEFAULT_IMAGE_CONFIG: ImageGenerationConfig = {
-  model: 'dall-e-3',
-  fallbackModels: [],
-  defaultSize: '1024x1024',
-  defaultQuality: 'standard',
-  timeoutSeconds: 120,
-  maxRetries: 1,
-};
-
-const DEFAULT_VIDEO_CONFIG: VideoGenerationConfig = {
-  provider: 'openai',
-  model: 'sora',
+/** The settings of a video selection that are not the selection itself. */
+const VIDEO_CONFIG_BASE = {
   fallbackProviders: [],
   timeoutSeconds: 300,
   maxRetries: 1,
-};
+} satisfies Omit<VideoGenerationConfig, 'provider' | 'model'>;
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
-
-type ProviderStatus = MediaProviderStatus;
 
 async function testMediaConfig(
   mediaType: 'image' | 'video',
@@ -94,42 +93,39 @@ async function testMediaConfig(
   return { ok: false, message: data.message ?? 'Test failed' };
 }
 
-function ProviderStatusBadge({
-  provider: _provider,
-  status,
-  t,
-}: {
-  provider: VideoGenerationProvider;
-  status: ProviderStatus | undefined;
-  t: ReturnType<typeof useTranslations>;
-}) {
+function videoKeyStatus(status: MediaProviderStatus | undefined): KeyStatus | undefined {
   if (!status) {
-    return null;
+    return undefined;
   }
-
   if (status.configured) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-        <IconCheckCircle className="h-3 w-3" />
-        {t('configured')}
-      </span>
-    );
+    return 'configured';
   }
+  return status.hasApiKey ? 'failed' : 'needsKey';
+}
 
-  if (!status.hasApiKey) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-        <IconAlertCircle className="h-3 w-3" />
-        {t('needsApiKey')}
-      </span>
-    );
-  }
-
+function TestConnectionButton({
+  status,
+  label,
+  disabled,
+  onClick,
+}: {
+  status: TestStatus;
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-red-500">
-      <IconXCircle className="h-3 w-3" />
-      {t('connectionFailed')}
-    </span>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || status === 'testing'}
+      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+    >
+      {status === 'testing' && <IconLoader className="h-3 w-3 animate-spin" />}
+      {status === 'success' && <IconCheckCircle className="h-3 w-3 text-green-500" />}
+      {status === 'error' && <IconXCircle className="h-3 w-3 text-red-500" />}
+      {label}
+    </button>
   );
 }
 
@@ -144,39 +140,43 @@ const MediaGenerationSection = memo(() => {
       setVideoGeneration: s.setVideoGeneration,
     })),
   );
+  const providers = useProviderStore((s) => s.providers);
+  const addApiKey = useProviderStore((s) => s.addApiKey);
 
   const [imageTestStatus, setImageTestStatus] = useState<TestStatus>('idle');
   const [videoTestStatus, setVideoTestStatus] = useState<TestStatus>('idle');
   const [testMessage, setTestMessage] = useState('');
-  const [providerStatuses, setProviderStatuses] = useState<Record<string, ProviderStatus>>({});
+  const [providerStatuses, setProviderStatuses] = useState<Record<string, MediaProviderStatus>>({});
 
   const [videoApiKey, setVideoApiKey] = useState('');
-  const [showVideoApiKey, setShowVideoApiKey] = useState(false);
   const [savingVideoKey, setSavingVideoKey] = useState(false);
-
   const [imageApiKey, setImageApiKey] = useState('');
-  const [showImageApiKey, setShowImageApiKey] = useState(false);
   const [savingImageKey, setSavingImageKey] = useState(false);
-  const [imageProviderStatus, setImageProviderStatus] = useState<ProviderStatus | undefined>();
-
-  const addApiKey = useProviderStore((s) => s.addApiKey);
 
   useEffect(() => {
-    fetchMediaProviderStatus().then((statuses) => {
-      setProviderStatuses(statuses);
-      setImageProviderStatus(statuses['openai']);
-    });
+    fetchMediaProviderStatus().then(setProviderStatuses);
   }, []);
 
-  const imageModel = imageGeneration?.model ?? DEFAULT_IMAGE_CONFIG.model;
-  const videoProvider = videoGeneration?.provider ?? DEFAULT_VIDEO_CONFIG.provider;
-  const videoModel = videoGeneration?.model ?? DEFAULT_VIDEO_CONFIG.model;
+  const imageModel = imageGeneration?.model ?? '';
+  const videoProvider: string = videoGeneration?.provider ?? '';
+  const videoModel = videoGeneration?.model ?? '';
+
+  const imageKeyProvider = isImageModelSelected(imageModel) ? resolveImageProviderId(imageModel) : undefined;
+  const imageKeyStatus: KeyStatus | undefined =
+    imageKeyProvider === undefined
+      ? undefined
+      : providerHasActiveApiKey(providers, imageKeyProvider)
+        ? 'configured'
+        : 'needsKey';
 
   const handleTestImage = useCallback(async () => {
+    if (imageKeyProvider === undefined) {
+      return;
+    }
     setImageTestStatus('testing');
     setTestMessage('');
     try {
-      const result = await testMediaConfig('image', 'openai', imageModel);
+      const result = await testMediaConfig('image', imageKeyProvider, imageModel);
       setImageTestStatus(result.ok ? 'success' : 'error');
       if (!result.ok) {
         setTestMessage(result.message);
@@ -186,7 +186,7 @@ const MediaGenerationSection = memo(() => {
       setTestMessage('Network error');
     }
     setTimeout(() => setImageTestStatus('idle'), 3000);
-  }, [imageModel]);
+  }, [imageKeyProvider, imageModel]);
 
   const handleTestVideo = useCallback(async () => {
     setVideoTestStatus('testing');
@@ -206,20 +206,19 @@ const MediaGenerationSection = memo(() => {
 
   const handleImageModelChange = useCallback(
     (model: string) => {
-      setImageGeneration({ ...(imageGeneration ?? DEFAULT_IMAGE_CONFIG), model });
+      setImageGeneration(withImageModel(imageGeneration, model));
     },
     [imageGeneration, setImageGeneration],
   );
 
   const handleVideoProviderChange = useCallback(
     (provider: string) => {
-      const p = provider as VideoGenerationProvider;
-      const status = providerStatuses[p];
-      const defaultModel = status?.defaultModel ?? status?.models?.[0]?.id ?? 'sora';
+      const status = providerStatuses[provider];
       setVideoGeneration({
-        ...(videoGeneration ?? DEFAULT_VIDEO_CONFIG),
-        provider: p,
-        model: defaultModel,
+        ...VIDEO_CONFIG_BASE,
+        ...videoGeneration,
+        provider: provider as VideoGenerationProvider,
+        model: status?.defaultModel || status?.models?.[0]?.id || '',
       });
     },
     [videoGeneration, setVideoGeneration, providerStatuses],
@@ -227,25 +226,27 @@ const MediaGenerationSection = memo(() => {
 
   const handleVideoModelChange = useCallback(
     (model: string) => {
-      setVideoGeneration({ ...(videoGeneration ?? DEFAULT_VIDEO_CONFIG), model });
+      if (!videoGeneration) {
+        return;
+      }
+      setVideoGeneration({ ...videoGeneration, model });
     },
     [videoGeneration, setVideoGeneration],
   );
 
   const handleSaveVideoApiKey = useCallback(async () => {
-    if (!videoApiKey.trim()) {
+    const configId = videoProviderConfigId(videoProvider);
+    if (!videoApiKey.trim() || !configId) {
       return;
     }
 
     setSavingVideoKey(true);
     try {
-      const configId = PROVIDER_CONFIG_IDS[videoProvider];
       addApiKey(configId, videoApiKey.trim(), 'Video Generation');
 
       await getConfigSyncManager().forceSync();
 
-      const newStatuses = await fetchMediaProviderStatus();
-      setProviderStatuses(newStatuses);
+      setProviderStatuses(await fetchMediaProviderStatus());
       setVideoApiKey('');
 
       toast.success(t('apiKeySaved'));
@@ -258,18 +259,19 @@ const MediaGenerationSection = memo(() => {
   }, [videoProvider, videoApiKey, addApiKey, t]);
 
   const handleSaveImageApiKey = useCallback(async () => {
-    if (!imageApiKey.trim()) {
+    if (!imageApiKey.trim() || imageKeyProvider === undefined) {
       return;
     }
 
     setSavingImageKey(true);
     try {
-      addApiKey('openai', imageApiKey.trim(), 'Image Generation');
+      addApiKey(imageKeyProvider, imageApiKey.trim(), 'Image Generation');
+      // A provider the app has no row for keeps no key: say so instead of reporting a save that did not happen.
+      if (!providerHasActiveApiKey(useProviderStore.getState().providers, imageKeyProvider)) {
+        throw new Error(`No provider row to hold the key of '${imageKeyProvider}'`);
+      }
 
       await getConfigSyncManager().forceSync();
-
-      const newStatuses = await fetchMediaProviderStatus();
-      setImageProviderStatus(newStatuses['openai']);
       setImageApiKey('');
 
       toast.success(t('apiKeySaved'));
@@ -279,7 +281,7 @@ const MediaGenerationSection = memo(() => {
     } finally {
       setSavingImageKey(false);
     }
-  }, [imageApiKey, addApiKey, t]);
+  }, [imageApiKey, imageKeyProvider, addApiKey, t]);
 
   const videoProviderOptions =
     Object.keys(providerStatuses).length > 0
@@ -291,6 +293,7 @@ const MediaGenerationSection = memo(() => {
       : FALLBACK_VIDEO_PROVIDERS;
 
   const currentProviderStatus = providerStatuses[videoProvider];
+  const currentVideoKeyStatus = videoKeyStatus(currentProviderStatus);
   const videoModelOptions =
     currentProviderStatus?.models && currentProviderStatus.models.length > 0
       ? currentProviderStatus.models.map((m) => ({
@@ -308,85 +311,36 @@ const MediaGenerationSection = memo(() => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('model')}</label>
-              {imageProviderStatus &&
-                (imageProviderStatus.configured ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                    <IconCheckCircle className="h-3 w-3" />
-                    {t('configured')}
-                  </span>
-                ) : !imageProviderStatus.hasApiKey ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                    <IconAlertCircle className="h-3 w-3" />
-                    {t('needsApiKey')}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs text-red-500">
-                    <IconXCircle className="h-3 w-3" />
-                    {t('connectionFailed')}
-                  </span>
-                ))}
+              {imageKeyStatus && <KeyStatusBadge status={imageKeyStatus} t={t} />}
             </div>
             <OptionSelect
               value={imageModel}
               options={IMAGE_MODEL_OPTIONS}
               onChange={handleImageModelChange}
+              placeholder={t(selectionPlaceholderKey(imageModel, IMAGE_MODEL_OPTIONS))}
               hideDescription={false}
             />
           </div>
 
-          {imageProviderStatus && !imageProviderStatus.hasApiKey && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3 space-y-3">
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                {t('apiKeyHint')}
-              </p>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">{t('apiKey')}</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type={showImageApiKey ? 'text' : 'password'}
-                      value={imageApiKey}
-                      onChange={(e) => setImageApiKey(e.target.value)}
-                      placeholder={t('enterApiKey')}
-                      className="w-full rounded-full border border-border bg-background px-3 py-1.5 text-sm pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowImageApiKey(!showImageApiKey)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showImageApiKey ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSaveImageApiKey}
-                    disabled={!imageApiKey.trim() || savingImageKey}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    {savingImageKey ? (
-                      <IconLoader className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <IconSave className="h-3 w-3" />
-                    )}
-                    {t('save')}
-                  </button>
-                </div>
-              </div>
-            </div>
+          {imageKeyStatus === 'needsKey' && (
+            <MediaApiKeyForm
+              hint={t('apiKeyHint')}
+              label={t('apiKey')}
+              placeholder={t('enterApiKey')}
+              saveLabel={t('save')}
+              value={imageApiKey}
+              onChange={setImageApiKey}
+              onSave={handleSaveImageApiKey}
+              saving={savingImageKey}
+            />
           )}
 
-          <button
-            type="button"
+          <TestConnectionButton
+            status={imageTestStatus}
+            label={t('testConnection')}
+            disabled={imageKeyProvider === undefined}
             onClick={handleTestImage}
-            disabled={imageTestStatus === 'testing'}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-          >
-            {imageTestStatus === 'testing' && <IconLoader className="h-3 w-3 animate-spin" />}
-            {imageTestStatus === 'success' && <IconCheckCircle className="h-3 w-3 text-green-500" />}
-            {imageTestStatus === 'error' && <IconXCircle className="h-3 w-3 text-red-500" />}
-            {t('testConnection')}
-          </button>
+          />
           {imageTestStatus === 'error' && testMessage && <p className="text-xs text-red-500">{testMessage}</p>}
         </div>
       </SettingsSection>
@@ -396,56 +350,28 @@ const MediaGenerationSection = memo(() => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('provider')}</label>
-              <ProviderStatusBadge provider={videoProvider} status={providerStatuses[videoProvider]} t={t} />
+              {currentVideoKeyStatus && <KeyStatusBadge status={currentVideoKeyStatus} t={t} />}
             </div>
             <OptionSelect
               value={videoProvider}
               options={videoProviderOptions}
               onChange={handleVideoProviderChange}
+              placeholder={t(selectionPlaceholderKey(videoProvider, videoProviderOptions))}
               hideDescription={false}
             />
           </div>
 
           {currentProviderStatus && !currentProviderStatus.hasApiKey && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3 space-y-3">
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                {t('apiKeyHint')}
-              </p>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">{t('apiKey')}</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type={showVideoApiKey ? 'text' : 'password'}
-                      value={videoApiKey}
-                      onChange={(e) => setVideoApiKey(e.target.value)}
-                      placeholder={t('enterApiKey')}
-                      className="w-full rounded-full border border-border bg-background px-3 py-1.5 text-sm pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowVideoApiKey(!showVideoApiKey)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showVideoApiKey ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSaveVideoApiKey}
-                    disabled={!videoApiKey.trim() || savingVideoKey}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    {savingVideoKey ? (
-                      <IconLoader className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <IconSave className="h-3 w-3" />
-                    )}
-                    {t('save')}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <MediaApiKeyForm
+              hint={t('apiKeyHint')}
+              label={t('apiKey')}
+              placeholder={t('enterApiKey')}
+              saveLabel={t('save')}
+              value={videoApiKey}
+              onChange={setVideoApiKey}
+              onSave={handleSaveVideoApiKey}
+              saving={savingVideoKey}
+            />
           )}
 
           <div className="space-y-2">
@@ -454,20 +380,19 @@ const MediaGenerationSection = memo(() => {
               value={videoModel}
               options={videoModelOptions}
               onChange={handleVideoModelChange}
+              placeholder={t(
+                currentProviderStatus ? selectionPlaceholderKey(videoModel, videoModelOptions) : 'selectPlaceholder',
+              )}
+              disabled={!currentProviderStatus}
               hideDescription={false}
             />
           </div>
-          <button
-            type="button"
+          <TestConnectionButton
+            status={videoTestStatus}
+            label={t('testConnection')}
+            disabled={!currentProviderStatus}
             onClick={handleTestVideo}
-            disabled={videoTestStatus === 'testing'}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-          >
-            {videoTestStatus === 'testing' && <IconLoader className="h-3 w-3 animate-spin" />}
-            {videoTestStatus === 'success' && <IconCheckCircle className="h-3 w-3 text-green-500" />}
-            {videoTestStatus === 'error' && <IconXCircle className="h-3 w-3 text-red-500" />}
-            {t('testConnection')}
-          </button>
+          />
           {videoTestStatus === 'error' && testMessage && <p className="text-xs text-red-500">{testMessage}</p>}
         </div>
       </SettingsSection>

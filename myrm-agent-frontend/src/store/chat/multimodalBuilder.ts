@@ -1,6 +1,7 @@
 import { File } from '@/store/chat/types';
 import { partitionFilesByType, getMimeType } from '@/lib/utils/fileUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
+import { toMediaReference } from '@/lib/mediaReference';
 import { fromStoreFile } from '@/services/file-service/types';
 import { extractPdfContent, extractDocumentContent } from '@/services/file';
 import { showI18nToast } from '@/services/i18nToastService';
@@ -17,10 +18,14 @@ export type VisionContentPart = VisionTextPart | VisionImagePart | VisionVideoPa
  * MediaResolverProcessor resolves them to base64 right before the LLM call,
  * keeping checkpoints and message history lean.
  *
+ * - Media library: media://<id> (server reads it from storage; same in every mode)
  * - Tauri: file:// local path (harness reads from disk)
  * - Sandbox: StorageProvider HTTP URL (harness fetches via HTTP)
  */
 const resolveImageUrl = async (file: File): Promise<string | null> => {
+  if (file.mediaId) {
+    return toMediaReference(file.mediaId);
+  }
   if (isTauriRuntime()) {
     return file.localPath ? `file://${file.localPath}` : null;
   }
@@ -37,6 +42,15 @@ const buildExtractParams = (file: File): { fileId: string } | { filePath: string
 const attachmentReferencePart = (fileName: string): VisionContentPart => ({
   type: 'text',
   text: `[Attachment: ${fileName}]`,
+});
+
+/**
+ * Names a media-library attachment in text. The image block shows the model the picture; this handle is the address
+ * it passes to a tool (e.g. image_tool edit) to work on that exact picture.
+ */
+const mediaHandlePart = (file: File & { mediaId: string }): VisionContentPart => ({
+  type: 'text',
+  text: `[Attachment: ${file.fileName} → ${toMediaReference(file.mediaId)}]`,
 });
 
 /** Collapse ascending page numbers into a compact “2-4, 7” form for the toast copy. */
@@ -268,7 +282,8 @@ const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]>
  * VisionFallbackEngine handles routing to a vision model when needed.
  *
  * - Vision frames: data URLs injected as image_url parts.
- * - Images: passed as URL references (file:// or HTTP) for lazy resolution.
+ * - Images: passed as URL references (media://, file:// or HTTP) for lazy resolution. Media-library images also get a
+ *   text handle naming their media:// address.
  * - Videos: passed as video_url parts for server-side analysis.
  * - PDFs: text-first extraction; sparse-text PDFs rendered as page images.
  * - Documents (.docx/.xlsx/.xls/.ipynb): extracted to Markdown text via backend.
@@ -305,11 +320,16 @@ export const buildMultimodalQuery = async (
 
   if (imageFiles.length > 0) {
     const imageUrls = await Promise.all(imageFiles.map(resolveImageUrl));
-    for (const url of imageUrls) {
-      if (url) {
-        contentParts.push({ type: 'image_url', image_url: { url, detail: 'auto' } });
+    imageFiles.forEach((file, index) => {
+      const url = imageUrls[index];
+      if (!url) {
+        return;
       }
-    }
+      contentParts.push({ type: 'image_url', image_url: { url, detail: 'auto' } });
+      if (file.mediaId) {
+        contentParts.push(mediaHandlePart({ ...file, mediaId: file.mediaId }));
+      }
+    });
   }
 
   if (videoFiles.length > 0) {

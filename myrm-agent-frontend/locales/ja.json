@@ -1184,7 +1184,10 @@
         "imageMissing": "画像生成：現在の画像モデルに対するサービスが設定されていません。API Key を設定してください",
         "videoMissing": "動画生成：現在の動画サービスが設定されていません。API Key を設定してください",
         "ttsMissing": "音声合成：現在の TTS サービスが設定されていません。API Key を設定してください",
-        "hint": "認証情報未設定の場合、実行時にメディアツールはマウントされません。設定でキーを構成してください（画像/動画はモデルサービス、TTS はチャンネル > 音声）。",
+        "imageNotSelected": "画像生成：画像モデルが選択されていません",
+        "videoNotSelected": "動画生成：動画サービスとモデルが選択されていません",
+        "ttsNotSelected": "音声合成：TTS サービス、モデル、音声が選択されていません",
+        "hint": "モデルを選択し、そのサービスの API Key を設定すると、エージェントがメディアツールを使えるようになります。設定でモデルの選択とキーの構成を行ってください。",
         "openSettings": "設定を開く",
         "recheck": "再検査"
       },
@@ -9995,7 +9998,6 @@
   "imageGen": {
     "generated": "生成済み",
     "download": "ダウンロード",
-    "regenerate": "再生成",
     "editThisImage": "この画像を編集",
     "editPromptPrefix": "上で生成された画像を次のように変更してください： ",
     "referenceImages": "参照画像",
@@ -11928,7 +11930,9 @@
     "retryTask": "タスクを再試行",
     "retrying": "再試行中…",
     "cancelled": "タスクをキャンセルしました",
-    "videoCompletedFallback": "動画が完了しました。アーティファクトパネルを開いて出力を確認してください。",
+    "expired": "このタスクの記録は期限切れです。生成されたファイルはメディアライブラリに残っています。",
+    "openLibrary": "メディアライブラリを開く",
+    "resultUnavailable": "この結果はここでは表示できません。メディアライブラリでファイルをご確認ください。",
     "videoUnsupported": "お使いのブラウザは動画再生をサポートしていません。",
     "alternateLabel": "代替 {index}",
     "providerLabel": "プロバイダー",
@@ -15812,7 +15816,10 @@
       "ttsModel": "モデル",
       "ttsVoice": "ボイス",
       "ttsDoubaoKeyHint": "Doubao-TTS は複合資格情報 \"appid:access_token\" を使用します（Volcengine コンソール：音声技術 → アプリ詳細）。",
-      "ttsProbeSlowHint": "Seed-Audio は生成型モデルです。テストでは短い音声を合成するため、1～2分かかる場合があります。"
+      "ttsProbeSlowHint": "Seed-Audio は生成型モデルです。テストでは短い音声を合成するため、1～2分かかる場合があります。",
+      "selectPlaceholder": "選択してください",
+      "reselectPlaceholder": "もう一度選択してください",
+      "ttsSelectionSaveFailed": "選択の保存に失敗しました"
     },
     "acp": {
       "title": "ACP エージェント",

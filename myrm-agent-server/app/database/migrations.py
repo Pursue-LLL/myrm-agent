@@ -1151,6 +1151,11 @@ INDEX_STATEMENTS = [
     "DROP INDEX IF EXISTS idx_a2a_peers_base_url",
     "DROP TABLE IF EXISTS a2a_peers",
     "ALTER TABLE interrupted_turn_markers DROP COLUMN pending_steering_messages",
+    # The batch image job subsystem is gone: its table and the media_library link column no longer exist.
+    # SQLite refuses to drop an indexed column, so the index goes first.
+    "DROP INDEX IF EXISTS idx_media_library_batch_job_id",
+    "ALTER TABLE media_library DROP COLUMN batch_job_id",
+    "DROP TABLE IF EXISTS batch_image_jobs",
 ]
 
 

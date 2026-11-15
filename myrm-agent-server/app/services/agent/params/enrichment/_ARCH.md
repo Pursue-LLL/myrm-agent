@@ -9,7 +9,7 @@
 | `__init__.py` | 子域出口 | 聚合导出 `enrich_query` 与 archive restore / upload sync 的公共 API | — |
 | `pipeline.py` | 核心 | `enrich_query()`：按固定顺序注入 archive restore、@mention、上传文件、@agent 委派、/learn 重写，最后过 ContextBomb 溢出；`EnrichedQuery` 返回最终 query + 告警 + restore 结果 + JIT 子 Agent | ✅ |
 | `archive_restore.py` | 核心 | Typed archive restore 校验与 prompt 物化（`prevalidate_archive_restore_actions`、XML 注入） | ✅ |
-| `upload_sync.py` | 辅助 | 上传文件 workspace 同步与 RAG 智能路由：>100KB 复制到 `{workspace}/_uploaded/`，大型文档标记 `wiki_ingest_then_query` | ✅ |
+| `upload_sync.py` | 辅助 | 上传文件 workspace 同步与 RAG 智能路由：>100KB 的文件与所有图片（不论大小：模型只能凭工作区路径引用附件图去编辑）复制到 `{workspace}/_uploaded/`，大型文档标记 `wiki_ingest_then_query` | ✅ |
 
 ## 依赖关系
 

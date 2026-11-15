@@ -174,7 +174,7 @@ async def run_async_warmup() -> None:
     """Background warmup tasks after HTTP server is ready.
 
     These tasks are moved to background to reduce HTTP startup latency.
-    Tasks include: schedulers (auth/cleanup/maintenance), browser pool, batch recovery, tokenizer preload, etc.
+    Tasks include: schedulers (auth/cleanup/maintenance), browser pool, tokenizer preload, etc.
     """
     warmup_tasks: list[Awaitable[object]] = []
 
@@ -259,20 +259,6 @@ async def run_async_warmup() -> None:
         await warmup_global_browser_pool()
     except Exception as exc:
         logger.error("[Startup] Browser pool initialization failed: %s", exc, exc_info=True)
-
-    try:
-        from app.core.media.batch.orchestrator import batch_orchestrator
-        from app.platform_utils import get_session_factory
-
-        factory = get_session_factory()
-
-        async def _recover_stale_jobs() -> None:
-            async with factory() as session:
-                await batch_orchestrator.recover_stale_jobs(session)
-
-        warmup_tasks.append(_recover_stale_jobs())
-    except Exception as e:
-        logger.warning("Batch job recovery skipped in warmup: %s", e)
 
     warmup_tasks.append(_recover_incomplete_memory_import_rollbacks())
 

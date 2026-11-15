@@ -2,63 +2,63 @@
 
 /**
  * [INPUT]
- * - ./ttsCatalog (POS: provider/model/voice options and the mapping of stored voice settings onto them)
+ * - lib/utils/media (POS: TTS catalog, stored-choice mapping, providers-row credential fallback check)
  * - lib/api::apiRequest (POS: unified REST entry with auth + locale headers)
- * - lib/utils/media::providerHasActiveApiKey (POS: providers-row credential fallback check)
+ * - ./MediaSettingsParts (POS: key badge, key form, empty-dropdown prompt)
  * - app-shell/config-load-error::ConfigLoadError (POS: failed-read view with retry)
  * - primitives/skeleton::Skeleton (POS: loading placeholder)
- * - PremiumIcons (POS: premium glyph set, no native emoji)
  *
  * [OUTPUT]
  * - TtsGenerationSection: Settings panel for the tts_generate agent tool.
  *
  * [POS]
- * TTS tool configuration UI. Provider/model/voice selection plus credential
- * entry. Reads/writes the shared `voice` config (ttsProvider/ttsModel/
- * ttsVoice/ttsApiKey) with optimistic-lock read-modify-write, mirroring the
- * server-side media param extraction chain. The card is offered only once the
- * stored settings have been read, and a save re-reads them first: a read that
- * fails never turns into a write, so the other voice settings are never
- * replaced by defaults. The channel voice settings share these fields, so a
- * stored provider this card does not offer shows the card's own defaults.
+ * TTS tool configuration UI. Provider/model/voice selection plus credential entry. Reads/writes the shared `voice`
+ * config (ttsProvider/ttsModel/ttsVoice/ttsApiKey) with optimistic-lock read-modify-write, mirroring the server-side
+ * media param extraction chain. Nothing is chosen for the user: with no stored choice the dropdowns ask for one, and
+ * every choice is saved as soon as it is made, because the agent gets the tool only from a saved provider, model and
+ * voice. Changing the provider replaces the model and voice with that provider's first ones and drops the stored key,
+ * which belonged to the previous provider. The card is offered only once the stored settings have been read, and each
+ * write re-reads them first: a read that fails never turns into a write, so the other voice settings are never
+ * replaced by defaults. The channel voice settings share these fields, so a stored provider this card does not offer
+ * counts as nothing chosen here.
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconLoader,
-  IconCheckCircle,
-  IconXCircle,
-  IconAlertCircle,
-  IconEye,
-  IconEyeOff,
-  IconSave,
-} from '@/components/features/icons/PremiumIcons';
 import { ConfigLoadError } from '@/components/features/app-shell/config-load-error';
+import { IconCheckCircle, IconLoader, IconXCircle } from '@/components/features/icons/PremiumIcons';
 import { Skeleton } from '@/components/primitives/skeleton';
 import useProviderStore from '@/store/useProviderStore';
 import { toast } from '@/hooks/shared/useToast';
 import { apiRequest } from '@/lib/api';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
-import { providerHasActiveApiKey } from '@/lib/utils/media';
-import OptionSelect from '../../OptionSelect';
-import SettingsSection from '../SettingsSection';
 import {
-  DEFAULT_MODEL,
-  DEFAULT_PROVIDER,
-  DEFAULT_VOICE,
+  isTtsProvider,
+  providerHasActiveApiKey,
   readStoredChoices,
   TTS_MODEL_OPTIONS,
   TTS_PROVIDER_OPTIONS,
   TTS_VOICE_OPTIONS,
   type StoredVoice,
   type TtsProviderId,
-} from './ttsCatalog';
+} from '@/lib/utils/media';
+import OptionSelect from '../../OptionSelect';
+import SettingsSection from '../SettingsSection';
+import { KeyStatusBadge, MediaApiKeyForm, selectionPlaceholderKey } from './MediaSettingsParts';
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 
 type LoadStatus = 'loading' | 'ready' | 'failed';
+
+/** What the card shows as chosen; an empty string is nothing chosen. */
+interface Choices {
+  provider: string;
+  model: string;
+  voice: string;
+}
+
+const NOTHING_CHOSEN: Choices = { provider: '', model: '', voice: '' };
 
 /**
  * Rejects when the stored settings cannot be read, so a failed read is never taken for "nothing saved yet": that case
@@ -84,11 +84,28 @@ async function putVoiceConfig(next: StoredVoice, expectedVersion: string): Promi
   });
 }
 
-async function testTtsConfig(provider: string, model: string): Promise<{ ok: boolean; message: string }> {
+/** Writes the choices (and any other fields given) into what is stored now, keeping every other voice setting. */
+async function saveVoiceFields(fields: StoredVoice): Promise<void> {
+  const record = await fetchVoiceRecord();
+  await putVoiceConfig({ ...record.value, ...fields }, record.version);
+}
+
+const choiceFields = (choices: Choices): StoredVoice => ({
+  ttsProvider: choices.provider,
+  ttsModel: choices.model,
+  ttsVoice: choices.voice,
+});
+
+async function testTtsConfig(choices: Choices): Promise<{ ok: boolean; message: string }> {
   const resp = await fetch(`${getBackendUrl()}/api/v1/agents/test-media-config`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify({ mediaType: 'tts', provider, model }),
+    body: JSON.stringify({
+      mediaType: 'tts',
+      provider: choices.provider,
+      model: choices.model,
+      voice: choices.voice,
+    }),
   });
   const data = await resp.json();
   if (data.success || data.data?.status === 'ok') {
@@ -102,30 +119,30 @@ const TtsGenerationSection = memo(() => {
 
   const providers = useProviderStore((s) => s.providers);
 
-  const [ttsProvider, setTtsProvider] = useState<TtsProviderId>(DEFAULT_PROVIDER);
-  const [ttsModel, setTtsModel] = useState<string>(DEFAULT_MODEL);
-  const [ttsVoice, setTtsVoice] = useState<string>(DEFAULT_VOICE);
+  const [choices, setChoices] = useState<Choices>(NOTHING_CHOSEN);
   const [apiKey, setApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
   const [keyConfigured, setKeyConfigured] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   const [testMessage, setTestMessage] = useState('');
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
   const [reloads, setReloads] = useState(0);
+  // Choices are written one after another, so quick successive changes never overwrite each other.
+  const writes = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     let cancelled = false;
-    fetchVoiceRecord().then(
+    // A read waits for the choices still being written, so it never brings back an older answer.
+    writes.current.then(fetchVoiceRecord).then(
       ({ value }) => {
         if (cancelled) {
           return;
         }
-        const choices = readStoredChoices(value);
-        setTtsProvider(choices.provider);
-        setTtsModel(choices.model);
-        setTtsVoice(choices.voice);
-        setKeyConfigured(choices.keySaved || providerHasActiveApiKey(providers, choices.provider));
+        const stored = readStoredChoices(value);
+        setChoices({ provider: stored.provider, model: stored.model, voice: stored.voice });
+        setKeyConfigured(
+          stored.keySaved || (isTtsProvider(stored.provider) && providerHasActiveApiKey(providers, stored.provider)),
+        );
         setLoadStatus('ready');
       },
       () => {
@@ -145,20 +162,38 @@ const TtsGenerationSection = memo(() => {
     setReloads((count) => count + 1);
   }, []);
 
-  const handleProviderChange = useCallback((next: string) => {
-    const p = next as TtsProviderId;
-    setTtsProvider(p);
-    setTtsModel(TTS_MODEL_OPTIONS[p][0].value);
-    setTtsVoice(TTS_VOICE_OPTIONS[p][0].value);
-  }, []);
+  /** Shows the choices now and saves them; a save that fails brings back what is really stored. */
+  const choose = useCallback(
+    (next: Choices, otherFields: StoredVoice = {}) => {
+      setChoices(next);
+      writes.current = writes.current
+        .then(() => saveVoiceFields({ ...choiceFields(next), ...otherFields }))
+        .catch((error: unknown) => {
+          console.error('Failed to save TTS selection:', error);
+          toast.error(t('ttsSelectionSaveFailed'));
+          setReloads((count) => count + 1);
+        });
+    },
+    [t],
+  );
 
-  const handleModelChange = useCallback((model: string) => {
-    setTtsModel(model);
-  }, []);
+  const handleProviderChange = useCallback(
+    (next: string) => {
+      if (!isTtsProvider(next) || next === choices.provider) {
+        return;
+      }
+      choose(
+        { provider: next, model: TTS_MODEL_OPTIONS[next][0].value, voice: TTS_VOICE_OPTIONS[next][0].value },
+        { ttsApiKey: '' },
+      );
+      setKeyConfigured(providerHasActiveApiKey(providers, next));
+    },
+    [choices.provider, choose, providers],
+  );
 
-  const handleVoiceChange = useCallback((voice: string) => {
-    setTtsVoice(voice);
-  }, []);
+  const handleModelChange = useCallback((model: string) => choose({ ...choices, model }), [choices, choose]);
+
+  const handleVoiceChange = useCallback((voice: string) => choose({ ...choices, voice }), [choices, choose]);
 
   const handleSaveApiKey = useCallback(async () => {
     const trimmed = apiKey.trim();
@@ -168,10 +203,9 @@ const TtsGenerationSection = memo(() => {
     setSavingKey(true);
     try {
       // The write merges into what is stored now. A read that fails ends the save here: writing without it would
-      // replace the other voice settings with whatever this card knows. Settings not saved yet read as an empty
-      // value, and the server fills in the rest.
-      const record = await fetchVoiceRecord();
-      await putVoiceConfig({ ...record.value, ttsProvider, ttsModel, ttsVoice, ttsApiKey: trimmed }, record.version);
+      // replace the other voice settings with whatever this card knows.
+      await writes.current;
+      await saveVoiceFields({ ...choiceFields(choices), ttsApiKey: trimmed });
       setKeyConfigured(true);
       setApiKey('');
       toast.success(t('apiKeySaved'));
@@ -181,13 +215,13 @@ const TtsGenerationSection = memo(() => {
     } finally {
       setSavingKey(false);
     }
-  }, [ttsProvider, ttsModel, ttsVoice, apiKey, t]);
+  }, [choices, apiKey, t]);
 
   const handleTest = useCallback(async () => {
     setTestStatus('testing');
     setTestMessage('');
     try {
-      const result = await testTtsConfig(ttsProvider, ttsModel);
+      const result = await testTtsConfig(choices);
       setTestStatus(result.ok ? 'success' : 'error');
       if (!result.ok) {
         setTestMessage(result.message);
@@ -197,7 +231,7 @@ const TtsGenerationSection = memo(() => {
       setTestMessage('Network error');
     }
     setTimeout(() => setTestStatus('idle'), 3000);
-  }, [ttsProvider, ttsModel]);
+  }, [choices]);
 
   if (loadStatus !== 'ready') {
     return (
@@ -215,9 +249,11 @@ const TtsGenerationSection = memo(() => {
     );
   }
 
-  const isDoubao = ttsProvider === 'volcengine' && ttsModel === 'doubao-tts';
-  const isSeedAudio = ttsProvider === 'volcengine' && ttsModel === 'seed-audio-1.0';
-  const keyPlaceholder = isDoubao ? 'appid:access_token' : t('enterApiKey');
+  const provider: TtsProviderId | undefined = isTtsProvider(choices.provider) ? choices.provider : undefined;
+  const modelOptions = provider ? TTS_MODEL_OPTIONS[provider] : [];
+  const voiceOptions = provider ? TTS_VOICE_OPTIONS[provider] : [];
+  const isDoubao = provider === 'volcengine' && choices.model === 'doubao-tts';
+  const isSeedAudio = provider === 'volcengine' && choices.model === 'seed-audio-1.0';
 
   return (
     <SettingsSection title={t('ttsTitle')} description={t('ttsDescription')}>
@@ -225,22 +261,13 @@ const TtsGenerationSection = memo(() => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-foreground">{t('ttsProvider')}</label>
-            {keyConfigured ? (
-              <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                <IconCheckCircle className="h-3 w-3" />
-                {t('configured')}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                <IconAlertCircle className="h-3 w-3" />
-                {t('needsApiKey')}
-              </span>
-            )}
+            {provider && <KeyStatusBadge status={keyConfigured ? 'configured' : 'needsKey'} t={t} />}
           </div>
           <OptionSelect
-            value={ttsProvider}
+            value={choices.provider}
             options={TTS_PROVIDER_OPTIONS}
             onChange={handleProviderChange}
+            placeholder={t(selectionPlaceholderKey(choices.provider, TTS_PROVIDER_OPTIONS))}
             hideDescription={false}
           />
         </div>
@@ -248,9 +275,11 @@ const TtsGenerationSection = memo(() => {
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">{t('ttsModel')}</label>
           <OptionSelect
-            value={ttsModel}
-            options={TTS_MODEL_OPTIONS[ttsProvider]}
+            value={choices.model}
+            options={modelOptions}
             onChange={handleModelChange}
+            placeholder={t(provider ? selectionPlaceholderKey(choices.model, modelOptions) : 'selectPlaceholder')}
+            disabled={!provider}
             hideDescription={false}
           />
         </div>
@@ -258,56 +287,33 @@ const TtsGenerationSection = memo(() => {
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">{t('ttsVoice')}</label>
           <OptionSelect
-            value={ttsVoice}
-            options={TTS_VOICE_OPTIONS[ttsProvider]}
+            value={choices.voice}
+            options={voiceOptions}
             onChange={handleVoiceChange}
+            placeholder={t(provider ? selectionPlaceholderKey(choices.voice, voiceOptions) : 'selectPlaceholder')}
+            disabled={!provider}
             hideDescription={false}
           />
         </div>
 
-        {!keyConfigured && (
-          <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              {isDoubao ? t('ttsDoubaoKeyHint') : t('apiKeyHint')}
-            </p>
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">{t('apiKey')}</label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={keyPlaceholder}
-                    className="w-full rounded-full border border-border bg-background px-3 py-1.5 pr-10 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showApiKey ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSaveApiKey}
-                  disabled={!apiKey.trim() || savingKey}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {savingKey ? <IconLoader className="h-3 w-3 animate-spin" /> : <IconSave className="h-3 w-3" />}
-                  {t('save')}
-                </button>
-              </div>
-            </div>
-          </div>
+        {provider && !keyConfigured && (
+          <MediaApiKeyForm
+            hint={isDoubao ? t('ttsDoubaoKeyHint') : t('apiKeyHint')}
+            label={t('apiKey')}
+            placeholder={isDoubao ? 'appid:access_token' : t('enterApiKey')}
+            saveLabel={t('save')}
+            value={apiKey}
+            onChange={setApiKey}
+            onSave={handleSaveApiKey}
+            saving={savingKey}
+          />
         )}
 
         {isSeedAudio && <p className="text-xs text-amber-600 dark:text-amber-400">{t('ttsProbeSlowHint')}</p>}
         <button
           type="button"
           onClick={handleTest}
-          disabled={testStatus === 'testing'}
+          disabled={!provider || testStatus === 'testing'}
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
         >
           {testStatus === 'testing' && <IconLoader className="h-3 w-3 animate-spin" />}

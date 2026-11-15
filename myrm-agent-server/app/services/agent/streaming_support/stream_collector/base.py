@@ -52,6 +52,7 @@ class StreamCollectorBase:
     _plan_confirmation: dict[str, object] | None
     _pending_interrupt_events: list[dict[str, object]]
     _kanban_tasks_created: list[dict[str, object]]
+    _media_generated: list[dict[str, object]]
     _cron_job_result: dict[str, object] | None
     _file_mutation_failures: list[dict[str, object]]
     _council_phases: list[dict[str, object]]

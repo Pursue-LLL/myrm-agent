@@ -65,6 +65,8 @@
 | `TokenUsageDisplay.tsx` | 组件 | Token 用量详情 tooltip：5 类 token 分类、费用、缓存命中率与节省、cache break 归因、模型/工具分解、智能路由归因与判定说明（routingReason 经 `lib/chat/routingReason` 映射为本地化文案，未识别原因不展示）、TTFT/P95/TPS、会话基线对比、View Trace | ✅ |
 | `ToolImageGallery.tsx` | 组件 | MCP/工具图像画廊：base64+URL 双模式渲染、Lightbox 预览（箭头导航/键盘翻页/一键下载/计数器/标注编辑），缩略图与 Lightbox 控件的文案取 `chat.toolImage` | ✅ |
 | `__tests__/ToolImageGallery.test.tsx` | 测试 | 缩略图 alt、Lightbox 各控件与大图 alt 都走翻译，翻页后大图随之切换 | ✅ |
+| `TtsAudioCard.tsx` | 组件 | `tts_generate` 结果的行内播放卡：地址以 `media://` 引用到达、加载时才解析成后端地址，显示模型与时长，播放失败时给出提示 | ✅ |
+| `__tests__/TtsAudioCard.test.tsx` | 测试 | `media://` 引用解析成后端文件地址、模型与时长的显示条件、播放失败提示 | ✅ |
 | `SessionRecordingCard.tsx` | 组件 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | ✅ |
 | `UserMessage.tsx` | 核心 | 用户消息气泡：编辑重发、Rewind、Fork；动作行触屏常显、桌面悬停或键盘聚焦时显示（`REVEAL_ON_HOVER`）；发送失败时气泡下显示 `SendFailedNotice`；长文本（`isLongPaste`）显示为 `PastedTextCard`（动作行随之换到卡片下方；原文就在消息里的长文本仍可复制、编辑；只有已被服务端转存成文件的历史消息没有可复制、可编辑的原文，故不提供复制与编辑）；附件预览交给 `UserMessageAttachments` | ✅ |

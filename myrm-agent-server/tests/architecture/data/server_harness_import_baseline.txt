@@ -208,7 +208,6 @@ myrm_agent_harness.backends.skills.stats_collector
 myrm_agent_harness.backends.skills.types
 myrm_agent_harness.backends.skills.usage_recorder
 myrm_agent_harness.backends.skills.versioning
-myrm_agent_harness.core.artifacts.constants
 myrm_agent_harness.core.artifacts.manifest
 myrm_agent_harness.core.artifacts.paths
 myrm_agent_harness.core.config.gateway
@@ -393,6 +392,7 @@ myrm_agent_harness.toolkits.llms.image.async_image_engine
 myrm_agent_harness.toolkits.llms.image.image_engine
 myrm_agent_harness.toolkits.llms.image.models
 myrm_agent_harness.toolkits.llms.image.types
+myrm_agent_harness.toolkits.llms.media_inputs
 myrm_agent_harness.toolkits.llms.media_task_types
 myrm_agent_harness.toolkits.llms.routing
 myrm_agent_harness.toolkits.llms.routing.complexity_router
@@ -407,7 +407,6 @@ myrm_agent_harness.toolkits.llms.video
 myrm_agent_harness.toolkits.llms.video.async_video_engine
 myrm_agent_harness.toolkits.llms.video.models
 myrm_agent_harness.toolkits.llms.video.providers
-myrm_agent_harness.toolkits.llms.video.video_engine
 myrm_agent_harness.toolkits.llms.vision
 myrm_agent_harness.toolkits.llms.vision.fallback_engine
 myrm_agent_harness.toolkits.llms.vision.video_analysis_engine

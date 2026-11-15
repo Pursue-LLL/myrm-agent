@@ -127,7 +127,7 @@ Before planning shots, call `video_tool(action="list")` and read `max_duration_s
 
 Divide the target duration into shots that fit the provider's supported durations. Prefer the shortest supported duration (typically 5s or 6s) for tighter creative control. Each shot should have a clear purpose: establishing, action, detail, transition, or closing.
 
-To maximize video rendering fidelity across modern neural video engines (FAL Kling, FLUX.3 Video, Sora, MiniMax), structure each scene prompt using the **Cinematic Storyboard JSON specification** before invoking `video_tool`:
+To maximize video rendering fidelity across modern neural video engines (FAL Kling, FLUX.3 Video, MiniMax), structure each scene prompt using the **Cinematic Storyboard JSON specification** before invoking `video_tool`:
 
 ```json
 {
@@ -160,12 +160,12 @@ Example compiled prompt:
 
 ### Step 3 — Generate a base image for visual consistency
 
-Before generating video clips, use `image_tool` to create a single **base image** that anchors the visual style (character appearance, color palette, lighting). Reuse this image as `reference_images` for every shot to maintain consistency across clips.
+Before generating video clips, use `image_tool` to create a single **base image** that anchors the visual style (character appearance, color palette, lighting). Once that task has finished, read the image's `media://` address with `image_tool(action="status", task_id=...)` and reuse it as `reference_images` for every shot to maintain consistency across clips.
 
 ### Step 4 — Generate clips with I2V
 
 For each shot, call `video_tool(action="generate")` with:
-- `reference_images` pointing to the base image (or a targeted edit of it for the specific shot)
+- `reference_images` pointing to the base image's `media://` address (or a targeted edit of it for the specific shot)
 - `enable_audio=false` to produce silent clips — this prevents per-clip ambient sound from conflicting with the final soundtrack
 - `duration_seconds` set to the provider's supported value from Step 1
 

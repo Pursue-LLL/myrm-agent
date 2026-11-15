@@ -33,8 +33,8 @@ describe('VideoTaskCard', () => {
       payload: { prompt: 'sunset' },
       result: {
         video_urls: ['https://cdn.example/video.mp4'],
-        provider: 'openai',
-        model: 'sora',
+        provider: 'gemini',
+        model: 'veo-3.1-fast-generate-preview',
         latency_ms: 1450,
       },
       priority: 0,
@@ -48,8 +48,8 @@ describe('VideoTaskCard', () => {
     const videoElement = container.querySelector('video');
     expect(videoElement).not.toBeNull();
     expect(videoElement?.getAttribute('src')).toBe('https://cdn.example/video.mp4');
-    expect(screen.getByText('providerLabel: openai')).toBeInTheDocument();
-    expect(screen.getByText('modelLabel: sora')).toBeInTheDocument();
+    expect(screen.getByText('providerLabel: gemini')).toBeInTheDocument();
+    expect(screen.getByText('modelLabel: veo-3.1-fast-generate-preview')).toBeInTheDocument();
     expect(screen.getByText('latencyLabel: 1450ms')).toBeInTheDocument();
   });
 
@@ -120,5 +120,53 @@ describe('VideoTaskCard', () => {
     await waitFor(() => {
       expect(screen.getByText('Only failed tasks can be retried')).toBeInTheDocument();
     });
+  });
+
+  describe('a finished task', () => {
+    const finished = (result: Record<string, unknown> | undefined) => ({
+      task_id: 'vid-ok',
+      task_type: 'video_generate',
+      status: 'succeeded',
+      payload: { prompt: 'sunset' },
+      result,
+      priority: 0,
+      progress: 100,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    });
+
+    it('plays the stored video the executor result names', () => {
+      mockUseTaskSubscription.mockReturnValue(
+        finished({ video_urls: ['media://media_vid'], model: 'seedance-2-0', prompt: 'sunset', latency_ms: 90000 }),
+      );
+
+      const { container } = render(<VideoTaskCard task_id="vid-ok" />);
+
+      expect(container.querySelector('video')?.getAttribute('src')).toMatch(/\/api\/v1\/media\/media_vid\/file$/);
+      expect(screen.getByText('modelLabel: seedance-2-0')).toBeInTheDocument();
+      expect(screen.queryByText(/providerLabel/)).toBeNull();
+    });
+
+    it.each([
+      ['has no result', undefined],
+      ['names no video', { model: 'seedance-2-0', video_urls: [] }],
+      ['names videos without an address', { video_urls: ['', 5] }],
+    ])('says the result cannot be shown, rather than rendering nothing, when it %s', (_label, result) => {
+      mockUseTaskSubscription.mockReturnValue(finished(result));
+
+      const { container } = render(<VideoTaskCard task_id="vid-ok" />);
+
+      expect(screen.getByText('resultUnavailable')).toBeInTheDocument();
+      expect(container.querySelector('video')).toBeNull();
+    });
+  });
+
+  it('says the task record has expired and points to the media library when the server no longer has it', () => {
+    mockUseTaskSubscription.mockReturnValue(null);
+
+    render(<VideoTaskCard task_id="vid-pruned" />);
+
+    expect(screen.getByText(/expired/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'openLibrary' }).getAttribute('href')).toBe('/library');
   });
 });

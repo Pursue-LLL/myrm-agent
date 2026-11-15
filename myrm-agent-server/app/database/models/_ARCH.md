@@ -28,7 +28,7 @@
 | `cron.py` | 域模块 | CronJobModel, CronRunModel, MonitorStateModel | ✅ |
 | `channel.py` | 域模块 | ChannelPairingModel（渠道配对持久化实体，含 role 权限角色与 daily_quota 每日限额，支撑所有者独占与成员特权隔离） | ✅ |
 | `channel_message.py` | 域模块 | ChannelMessageModel（多渠道入站明细持久化实体，支撑凭据脱敏、打标与记忆候选） | ✅ |
-| `media.py` | 域模块 | BatchImageJob, MediaLibrary | ✅ |
+| `media.py` | 域模块 | MediaLibrary | ✅ |
 | `security.py` | 域模块 | UserToolAllowlist, RiskRule, RiskHit, SecurityProfile, SkillPermissionGrant, SkillPermissionUsageLog | ✅ |
 | `skill.py` | 域模块 | PendingMigration, ExperienceLedgerEvent | ✅ |
 | `approval.py` | 域模块 | ApprovalRecord | ✅ |

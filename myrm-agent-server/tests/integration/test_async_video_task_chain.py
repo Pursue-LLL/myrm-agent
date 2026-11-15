@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -39,8 +38,8 @@ async def test_async_video_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
     await store.initialize()
 
     config = VideoGenerationConfig(
-        provider="openai",
-        model="sora",
+        provider="volcengine",
+        model="seedance-2-0",
         api_key="sk-video-integration-test",
         timeout_seconds=180,
     )
@@ -50,19 +49,17 @@ async def test_async_video_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
         payload_postprocessor=seal_task_payload_secrets,
     )
 
-    raw = await async_engine.generate_video(
+    task_id = await async_engine.generate_video(
         "a red cube rotates in studio light",
         user_id="user-int",
         agent_id="agent-int",
         chat_id="chat-int",
     )
-    payload = json.loads(raw)
-    task_id = payload["task_id"]
 
     task = await store.get_task(task_id)
     assert task is not None
-    assert task.payload["model"] == "sora"
-    assert task.payload["provider"] == "openai"
+    assert task.payload["model"] == "seedance-2-0"
+    assert task.payload["provider"] == "volcengine"
     assert "api_key" not in task.payload
     assert isinstance(task.payload.get(API_KEY_ENC_FIELD), str)
     assert task.payload["chat_id"] == "chat-int"
@@ -70,9 +67,9 @@ async def test_async_video_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
 
     mock_result = MagicMock()
     mock_result.to_dict.return_value = {
-        "video_urls": ["https://cdn.example/int-video.mp4"],
-        "provider": "openai",
-        "model": "sora",
+        "video_urls": ["media://media_int_video"],
+        "provider": "volcengine",
+        "model": "seedance-2-0",
         "count": 1,
         "latency_ms": 1880,
     }
@@ -90,12 +87,13 @@ async def test_async_video_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
     resolved = resolve_video_generation_config(task)
     generator_cls.assert_called_once()
     called_config = generator_cls.call_args.args[0]
-    assert called_config.model == resolved.model == "sora"
-    assert called_config.provider == resolved.provider == "openai"
+    assert called_config.model == resolved.model == "seedance-2-0"
+    assert called_config.provider == resolved.provider == "volcengine"
+    assert called_config.media_callback is not None
     assert called_config.api_key is not None
     assert called_config.api_key.get_secret_value() == "sk-video-integration-test"
 
-    assert result["video_urls"][0] == "https://cdn.example/int-video.mp4"
+    assert result["video_urls"][0] == "media://media_int_video"
     assert result["prompt"] == "a red cube rotates in studio light"
 
     await store.update_task(task_id, status=TaskStatus.SUCCEEDED, result=result)
@@ -113,8 +111,8 @@ async def test_async_video_gateway_only_enqueue_persists_sealed_auth_token(
     await store.initialize()
 
     config = VideoGenerationConfig(
-        provider="openai",
-        model="sora",
+        provider="volcengine",
+        model="seedance-2-0",
         gateway_config=ToolGatewayConfig(
             use_gateway=True,
             gateway_url="https://gateway.example/tool-relay",
@@ -127,8 +125,7 @@ async def test_async_video_gateway_only_enqueue_persists_sealed_auth_token(
         payload_postprocessor=seal_task_payload_secrets,
     )
 
-    raw = await async_engine.generate_video("an airplane crossing clouds", user_id="user-gw")
-    task_id = json.loads(raw)["task_id"]
+    task_id = await async_engine.generate_video("an airplane crossing clouds", user_id="user-gw")
 
     task = await store.get_task(task_id)
     assert task is not None

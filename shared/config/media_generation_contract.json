@@ -1,0 +1,184 @@
+{
+  "image_models": [
+    "gpt-image-2.6-sunburst",
+    "gpt-image-2.6-flare",
+    "gemini/imagen-3.0-generate-002",
+    "flux/schnell",
+    "flux/pro",
+    "stability/stable-diffusion-xl",
+    "xai/grok-imagine-image",
+    "xai/grok-imagine-image-quality"
+  ],
+  "shapes": {
+    "started_task": {
+      "required": { "task_id": "string", "task_type": "string", "status": "string" }
+    },
+    "generate_result": {
+      "required": { "tasks": { "list": "started_task" } }
+    },
+    "image": {
+      "required": { "url": "media_reference", "mime_type": "string" }
+    },
+    "image_result": {
+      "required": {
+        "images": { "list": "image" },
+        "model": "string",
+        "prompt": "string",
+        "latency_ms": "number"
+      },
+      "optional": { "provider": "string" }
+    },
+    "video_result": {
+      "required": { "video_urls": { "list": "media_reference" } },
+      "optional": { "provider": "string", "model": "string", "prompt": "string", "latency_ms": "number" }
+    },
+    "speech_result": {
+      "required": { "status": "string", "audio_url": "media_reference", "model": "string" },
+      "optional": { "duration_seconds": "number" }
+    },
+    "task_entry": {
+      "required": { "kind": { "one_of": ["image", "video"] }, "task_id": "string" }
+    },
+    "stored_entry": {
+      "required": { "kind": { "one_of": ["image", "tts"] }, "media": "media_reference" },
+      "optional": { "model": "string", "duration_seconds": "number" }
+    }
+  },
+  "examples": {
+    "generate_result": {
+      "tasks": [
+        { "task_id": "task_img_1", "task_type": "image_generate", "status": "pending" },
+        { "task_id": "task_img_2", "task_type": "image_generate", "status": "pending" }
+      ],
+      "message": "Image generation started"
+    },
+    "image_result": {
+      "images": [{ "url": "media://media_img_1", "mime_type": "image/png" }],
+      "model": "gpt-image-2.6-sunburst",
+      "prompt": "a red fox in the snow",
+      "latency_ms": 8200
+    },
+    "video_result": {
+      "video_urls": ["media://media_vid_1"],
+      "provider": "gemini",
+      "model": "veo-3.1-fast-generate-preview",
+      "prompt": "waves at sunset",
+      "latency_ms": 61000
+    },
+    "speech_result": {
+      "status": "success",
+      "provider": "elevenlabs",
+      "model": "eleven_turbo_v2_5",
+      "latency_ms": 900,
+      "audio_url": "media://media_tts_1",
+      "duration_seconds": 3.2,
+      "message": "Audio generated; it appears in the chat for the user to play."
+    },
+    "task_entry": { "kind": "image", "task_id": "task_img_1" },
+    "stored_entry": {
+      "kind": "tts",
+      "media": "media://media_tts_1",
+      "model": "eleven_turbo_v2_5",
+      "duration_seconds": 3.2
+    }
+  },
+  "collector_cases": [
+    {
+      "name": "an image generate call registers one entry per started task",
+      "tool": "image_tool",
+      "result": {
+        "tasks": [
+          { "task_id": "task_img_1", "task_type": "image_generate", "status": "pending" },
+          { "task_id": "task_img_2", "task_type": "image_generate", "status": "pending" }
+        ],
+        "message": "Image generation started"
+      },
+      "entries": [
+        { "kind": "image", "task_id": "task_img_1" },
+        { "kind": "image", "task_id": "task_img_2" }
+      ]
+    },
+    {
+      "name": "a video generate call registers the started task",
+      "tool": "video_tool",
+      "result": {
+        "tasks": [{ "task_id": "task_vid_1", "task_type": "video_generate", "status": "pending" }],
+        "message": "Video generation started"
+      },
+      "entries": [{ "kind": "video", "task_id": "task_vid_1" }]
+    },
+    {
+      "name": "a synchronous image edit registers the stored image with its model",
+      "tool": "image_tool",
+      "result": {
+        "images": [{ "url": "media://media_edit_1", "mime_type": "image/png" }],
+        "model": "gpt-image-2.6-sunburst",
+        "prompt": "add a red scarf",
+        "latency_ms": 7400
+      },
+      "entries": [{ "kind": "image", "media": "media://media_edit_1", "model": "gpt-image-2.6-sunburst" }]
+    },
+    {
+      "name": "a successful speech call registers the stored audio with its model and length",
+      "tool": "tts_generate",
+      "result": {
+        "status": "success",
+        "model": "eleven_turbo_v2_5",
+        "audio_url": "media://media_tts_1",
+        "duration_seconds": 3.2
+      },
+      "entries": [
+        { "kind": "tts", "media": "media://media_tts_1", "model": "eleven_turbo_v2_5", "duration_seconds": 3.2 }
+      ]
+    },
+    {
+      "name": "a speech call without a length registers the audio alone",
+      "tool": "tts_generate",
+      "result": { "status": "success", "audio_url": "media://media_tts_2" },
+      "entries": [{ "kind": "tts", "media": "media://media_tts_2" }]
+    },
+    {
+      "name": "a failed speech call registers nothing",
+      "tool": "tts_generate",
+      "result": { "status": "error", "error": "TTS generation failed: the audio was not stored" },
+      "entries": []
+    },
+    {
+      "name": "a status call registers nothing, so a task never gets a second card",
+      "tool": "image_tool",
+      "result": {
+        "task_id": "task_img_1",
+        "task_type": "image_generate",
+        "status": "succeeded",
+        "result": { "images": [{ "url": "media://media_img_1", "mime_type": "image/png" }] }
+      },
+      "entries": []
+    },
+    {
+      "name": "a list call registers nothing",
+      "tool": "image_tool",
+      "result": { "models": [], "active_model": "gpt-image-2.6-sunburst", "fallback_models": [] },
+      "entries": []
+    },
+    {
+      "name": "an error registers nothing",
+      "tool": "image_tool",
+      "result": { "error": "prompt is required" },
+      "entries": []
+    },
+    {
+      "name": "an image that is not a media library reference registers nothing",
+      "tool": "image_tool",
+      "result": { "images": [{ "url": "https://cdn.example/a.png", "mime_type": "image/png" }], "model": "x" },
+      "entries": []
+    },
+    {
+      "name": "another tool registers nothing, whatever it returns",
+      "tool": "web_search",
+      "result": {
+        "tasks": [{ "task_id": "task_img_1", "task_type": "image_generate", "status": "pending" }]
+      },
+      "entries": []
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""Unit tests for image_clamp module and media tools input resilience."""
+"""Unit tests for image_clamp and for the single clamp every resolved image passes through."""
 
 from __future__ import annotations
 
@@ -7,11 +7,13 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.llms.media_inputs import resolve_media_inputs
 from PIL import Image
 
 from app.ai_agents.media_tools.image_clamp import (
     clamp_image_payload,
 )
+from app.ai_agents.media_tools.input_policy import build_media_input_policy
 
 
 def _create_test_image(
@@ -107,52 +109,25 @@ def test_clamp_exif_orientation_baked() -> None:
 
 
 @pytest.mark.asyncio
-async def test_image_agent_tool_fetch_uses_clamp() -> None:
-    from app.ai_agents.media_tools.image_agent_tool import _fetch_image_bytes
+async def test_a_media_library_reference_is_clamped_on_the_way_out() -> None:
+    oversized = _create_test_image((2500, 1000), mode="RGB", fmt="JPEG")
 
-    oversized_raw = _create_test_image((2500, 1000), mode="RGB", fmt="JPEG")
-
-    mock_response = AsyncMock()
-    mock_response.content = oversized_raw
-    mock_response.headers = {"content-type": "image/jpeg"}
-    mock_response.raise_for_status = lambda: None
-
-    with patch(
-        "myrm_agent_harness.core.security.http.secure_fetch.secure_get",
-        return_value=mock_response,
-    ):
-        body, content_type, size = await _fetch_image_bytes(
-            "https://example.com/oversized.jpg",
-            allow_private_networks=False,
+    with patch("app.ai_agents.media_tools.input_policy.read_media_reference", AsyncMock(return_value=oversized)):
+        (resolved,) = await resolve_media_inputs(
+            ["media://media_big"], "image", build_media_input_policy(), field_name="image_url"
         )
 
-    assert content_type == "image/jpeg"
-    assert size == len(body)
-    with Image.open(io.BytesIO(body)) as img:
+    with Image.open(io.BytesIO(resolved)) as img:
         assert max(img.width, img.height) <= 2048
 
 
-def test_video_agent_tool_clamp_reference_sources(tmp_path: Path) -> None:
-    from app.ai_agents.media_tools.video_agent_tool import _clamp_reference_sources
+@pytest.mark.asyncio
+async def test_a_workspace_file_reference_is_clamped_on_the_way_out(tmp_path: Path) -> None:
+    (tmp_path / "large_photo.jpg").write_bytes(_create_test_image((3200, 1600), mode="RGB", fmt="JPEG"))
 
-    oversized_file = tmp_path / "large_photo.jpg"
-    oversized_raw = _create_test_image((3200, 1600), mode="RGB", fmt="JPEG")
-    oversized_file.write_bytes(oversized_raw)
+    (resolved,) = await resolve_media_inputs(
+        ["large_photo.jpg"], "image", build_media_input_policy([str(tmp_path)]), field_name="reference_images"
+    )
 
-    remote_url = "https://example.com/video_ref.jpg"
-    sources = [str(oversized_file), remote_url]
-
-    sanitized = _clamp_reference_sources(sources)
-    assert sanitized is not None
-    assert len(sanitized) == 2
-
-    # The local oversized file was clamped to a new temp file
-    clamped_path = Path(sanitized[0])
-    assert clamped_path.is_file()
-    assert str(clamped_path) != str(oversized_file)
-
-    with Image.open(clamped_path) as img:
+    with Image.open(io.BytesIO(resolved)) as img:
         assert max(img.width, img.height) <= 2048
-
-    # The remote URL is untouched at ingestion (handled downstream by executor)
-    assert sanitized[1] == remote_url

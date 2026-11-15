@@ -48,7 +48,7 @@ async def build_agent_middlewares(
         user_instructions_middleware,
         widget_capability_middleware,
     )
-    from app.core.utils.media_file_reader import read_uploaded_media_file_content
+    from app.core.utils.media_file_reader import read_media_content
 
     from ..agent_middlewares.citation_rules_middleware import citation_rules_middleware
     from ..agent_middlewares.tool_selection_middleware import tool_selection_middleware
@@ -124,7 +124,7 @@ async def build_agent_middlewares(
         budget_pressure_fn=_get_budget_pressure_fn(),
         time_decay_half_life_days=time_decay_half_life_days,
         cache_ttl_prune_config=resolve_cache_ttl_prune_policy(agent_wrapper.model_cfg.model).config,
-        file_content_reader=read_uploaded_media_file_content,
+        file_content_reader=read_media_content,
     )
 
     middlewares_list = [

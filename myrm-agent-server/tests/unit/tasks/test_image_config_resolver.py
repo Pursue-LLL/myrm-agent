@@ -30,10 +30,9 @@ def _local_encryption() -> None:
 def test_resolve_image_generation_config_from_payload_snapshot() -> None:
     plain = {
         "prompt": "a cat",
-        "model": "flux-pro",
-        "fallback_models": ["dall-e-3"],
+        "model": "gpt-image-2.6-sunburst",
+        "fallback_models": ["gpt-image-2.6-flare"],
         "default_size": "1792x1024",
-        "default_quality": "hd",
         "timeout_seconds": 90,
         "max_retries": 2,
         "api_key": "sk-test",
@@ -51,10 +50,9 @@ def test_resolve_image_generation_config_from_payload_snapshot() -> None:
     config = resolve_image_generation_config(task)
 
     assert isinstance(config, ImageGenerationConfig)
-    assert config.model == "flux-pro"
-    assert config.fallback_models == ["dall-e-3"]
+    assert config.model == "gpt-image-2.6-sunburst"
+    assert config.fallback_models == ["gpt-image-2.6-flare"]
     assert config.default_size == "1792x1024"
-    assert config.default_quality == "hd"
     assert config.timeout_seconds == 90
     assert config.max_retries == 2
     assert config.api_key is not None
@@ -62,7 +60,7 @@ def test_resolve_image_generation_config_from_payload_snapshot() -> None:
     assert config.media_callback is not None
 
 
-def test_resolve_image_generation_config_defaults_without_snapshot_fields() -> None:
+def test_a_snapshot_without_a_model_is_an_error_not_a_default() -> None:
     task = Task(
         task_id="img-test-2",
         task_type="image_generate",
@@ -71,17 +69,30 @@ def test_resolve_image_generation_config_defaults_without_snapshot_fields() -> N
         payload={"prompt": "a dog"},
     )
 
+    with pytest.raises(ValueError, match="model"):
+        resolve_image_generation_config(task)
+
+
+def test_a_task_without_a_chat_still_gets_the_persist_callback() -> None:
+    """Background jobs (cron, kanban, channels) have no chat; their images are stored all the same."""
+    task = Task(
+        task_id="img-test-no-chat",
+        task_type="image_generate",
+        user_id="user-1",
+        status=TaskStatus.PENDING,
+        payload={"prompt": "a dog", "model": "gpt-image-2.6-sunburst"},
+    )
+
     config = resolve_image_generation_config(task)
 
-    assert config.model == "dall-e-3"
     assert config.api_key is None
-    assert config.media_callback is None
+    assert config.media_callback is not None
 
 
 def test_resolve_image_generation_config_from_sealed_payload() -> None:
     plain = {
         "prompt": "a cat",
-        "model": "flux-pro",
+        "model": "flux/pro",
         "api_key": "sk-sealed",
         "chat_id": "chat-sealed",
     }
@@ -102,7 +113,7 @@ def test_resolve_image_generation_config_from_sealed_payload() -> None:
 def test_resolve_image_generation_config_from_sealed_gateway_payload() -> None:
     plain = {
         "prompt": "a skyline",
-        "model": "flux-pro",
+        "model": "flux/pro",
         "gateway_config": {
             "use_gateway": True,
             "gateway_url": "https://gateway.example/tool-relay",

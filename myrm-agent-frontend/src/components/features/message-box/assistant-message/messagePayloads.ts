@@ -1,12 +1,13 @@
 /**
  * [INPUT]
  * @/store/chat/types::{Message,McpAppView,ProgressItem,ToolImageOutput} (POS: Chat message model and its attachment views)
+ * @/lib/chat/mediaGenerated (POS: Media a media tool call registers from its structured result)
  * ../CronJobSystemCard::CronJobResult (POS: Scheduled-job result shown by the cron system card)
  * ../KanbanTaskCreatedCard::KanbanTaskCreatedResult (POS: Created-task result shown by the kanban card)
  *
  * [OUTPUT]
- * closeUnbalancedReasoningTags / parseAsyncTaskResponse / parseTtsAudioResponse / readSessionRecording /
- * readToolImages / readMcpApps / readCronJobResult / readKanbanTasksCreated / resolveProgressSteps:
+ * closeUnbalancedReasoningTags / readSessionRecording / readToolImages / readMcpApps / readCronJobResult /
+ * readKanbanTasksCreated / readMediaGenerated / resolveProgressSteps:
  * Typed readers that turn the loosely typed payload of one assistant message into what its cards render.
  *
  * [POS]
@@ -14,29 +15,19 @@
  * reader validates what it returns and falls back to an empty result instead of throwing.
  */
 
+import {
+  MEDIA_GENERATED_METADATA_KEY,
+  readMediaGeneratedEntries,
+  type MediaGeneratedEntry,
+} from '@/lib/chat/mediaGenerated';
 import type { McpAppView, Message, ProgressItem, ToolImageOutput } from '@/store/chat/types';
 import type { CronJobResult } from '../CronJobSystemCard';
 import type { KanbanTaskCreatedResult } from '../KanbanTaskCreatedCard';
-
-/** Reply of an async generation tool: the answer is a task card, not text. */
-export type AsyncTaskResponse = { task_id: string; task_type?: string; status?: string; message?: string };
-
-/** Successful reply of the text-to-speech tool: the answer is an audio player, not text. */
-export type TtsAudioResponse = { audio_url: string; model?: string; duration_seconds?: number };
 
 const REASONING_TAGS = ['think', 'thinking', 'thought', 'antthinking', 'reasoning', 'REASONING_SCRATCHPAD'] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function parseJsonObject(content: string): Record<string, unknown> | null {
-  try {
-    const parsed: unknown = JSON.parse(content);
-    return isRecord(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
 }
 
 /** Closes every reasoning block the stream is still inside, so the renderer always receives complete blocks. */
@@ -56,18 +47,6 @@ export function closeUnbalancedReasoningTags(content: string): string {
     }
   }
   return closed;
-}
-
-export function parseAsyncTaskResponse(content: string): AsyncTaskResponse | null {
-  const parsed = parseJsonObject(content);
-  return parsed && typeof parsed.task_id === 'string' && parsed.task_id ? (parsed as AsyncTaskResponse) : null;
-}
-
-export function parseTtsAudioResponse(content: string): TtsAudioResponse | null {
-  const parsed = parseJsonObject(content);
-  return parsed && parsed.status === 'success' && typeof parsed.audio_url === 'string'
-    ? (parsed as TtsAudioResponse)
-    : null;
 }
 
 export function readSessionRecording(message: Message): { filename: string; preview_url: string } | null {
@@ -102,6 +81,13 @@ function isKanbanTaskCreated(item: unknown): item is KanbanTaskCreatedResult {
 export function readKanbanTasksCreated(message: Message): KanbanTaskCreatedResult[] {
   const raw = isRecord(message.metadata) ? message.metadata.kanban_tasks_created : undefined;
   return Array.isArray(raw) ? raw.filter(isKanbanTaskCreated) : [];
+}
+
+/** The images, videos and audio the message's media tools produced, in the order they were produced. */
+export function readMediaGenerated(message: Message): MediaGeneratedEntry[] {
+  return readMediaGeneratedEntries(
+    isRecord(message.metadata) ? message.metadata[MEDIA_GENERATED_METADATA_KEY] : undefined,
+  );
 }
 
 /** The steps shown for a message: `progressSteps`, or the copy in `metadata.progressSteps` when that is empty. */
