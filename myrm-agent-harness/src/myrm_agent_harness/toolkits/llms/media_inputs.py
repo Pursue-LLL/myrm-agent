@@ -60,7 +60,7 @@ class MediaInputPolicy:
     loaders: Mapping[str, MediaLoader] = field(default_factory=dict)
     """Scheme (lower case, no ``://``) -> loader."""
     image_hook: Callable[[bytes], bytes] | None = None
-    """Applied once to every resolved image (size and format normalisation)."""
+    """Applied once to every resolved image (size and format normalisation); runs in a worker thread."""
     max_image_bytes: int = 20 * 1024 * 1024
     max_video_bytes: int = 100 * 1024 * 1024
 
@@ -86,7 +86,9 @@ async def resolve_media_inputs(
             _validate(data, kind)
         except MediaInputError as exc:
             raise MediaInputError(f"{where}: {exc}") from None
-        resolved.append(policy.image_hook(data) if kind == "image" and policy.image_hook else data)
+        if kind == "image" and policy.image_hook is not None:
+            data = await asyncio.to_thread(policy.image_hook, data)  # CPU-bound re-encoding must not stall the loop
+        resolved.append(data)
     return resolved
 
 

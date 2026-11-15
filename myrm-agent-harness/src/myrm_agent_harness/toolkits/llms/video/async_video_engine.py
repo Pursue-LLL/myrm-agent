@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from myrm_agent_harness.toolkits.llms.media_task_types import TASK_TYPE_VIDEO_GENERATE
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, Task, TaskStatus
@@ -95,13 +95,15 @@ class AsyncVideoGenerationTools:
         reference_images: list[str] | None = None,
         reference_videos: list[str] | None = None,
         extra_params: dict[str, object] | None = None,
+        allowed_roots: Sequence[str] | None = None,
         user_id: str = "local",
         agent_id: str | None = None,
         chat_id: str | None = None,
     ) -> str:
         """Enqueue a video generation task and return its id.
 
-        References (``reference_images`` / ``reference_videos``) are resolved by the worker, not here.
+        References (``reference_images`` / ``reference_videos``) are resolved by the worker, not here;
+        ``allowed_roots`` is the snapshot of folders it may read file references from.
         """
         task_id = f"vid-{uuid.uuid4().hex[:8]}"
         payload: dict[str, object] = {
@@ -117,6 +119,8 @@ class AsyncVideoGenerationTools:
             "extra_params": extra_params,
             **self._execution_config_payload(),
         }
+        if allowed_roots:
+            payload["allowed_roots"] = list(allowed_roots)
         if agent_id:
             payload["agent_id"] = agent_id
         if chat_id:

@@ -12,6 +12,7 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `llms_<start>
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package |   Init   | — |
+| media_inputs.py | Core | The one entry that resolves image and video references (injected scheme loaders such as `media://`, paths inside allowed roots, `data:` images, http(s) through `secure_get`) to bytes: size checked before reading, magic bytes must be an image or video container, one image hook on the way out, any failing reference raises an error naming it. | ✅ |
 | media_task_types.py | Core | The two async media job type ids (`image_generate`, `video_generate`) shared by the enqueue engines and the server executors | ✅ |
 | capability_learner.py | Core | In-process model capability cache — records runtime-discovered capabilities (e.g. rejects_media, rejects_allowed_tools_tool_choice) with TTL. | ✅ |
 | allowed_tools_capability.py | Core | Provider gate for OpenAI ``tool_choice.type=allowed_tools``; execution-layer policy remains authoritative when skipped. | ✅ |
@@ -25,7 +26,7 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `llms_<start>
 | transport/ | Typed protocol wires over `httpx` for every provider (OpenAI chat/Responses, Anthropic Messages, Gemini, Ollama, AWS Bedrock Converse), embeddings, rerank and image calls. See [transport/_ARCH.md](transport/_ARCH.md). |
 | catalog/ | Model facts (context windows, output ceilings, prices, capability flags): bundled snapshot plus runtime registrations. See [catalog/_ARCH.md](catalog/_ARCH.md). |
 | consensus/ | Multi-model consensus (MoA) inference — parallel reference queries + aggregator synthesis (arXiv:2406.04692). |
-| _media_shared/ | Provider mode-capability types, the video normalization engine and the single resolver that turns image and video references into validated bytes. |
+| _media_shared/ | Provider mode-capability types and the video normalization engine. |
 | adapters/ | LLM layer: LangChain , messageconverts, handles, toolcallsparse, Schema normalize; **wire/** Responses API transport; `image_payload_evictor.py` framework-neutral 400/413 image eviction |
 | core/ | LLM core: LLM classes, strategy-aware manager, and credential pool. |
 | errors/ | LLM error processing layer: three-tier error classification, fault-tolerant calls, and standardized  |

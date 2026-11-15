@@ -14,7 +14,7 @@ before they reach the remote API.  Three defence layers:
   L2 Capability — request params vs ModelProfile constraints
   L3 Input    — MIME allowlist + file size limit for edit images
 
-Reference inputs are bounded by ``_media_shared.input_resolver`` and provider result downloads by
+Reference inputs are bounded by ``media_inputs`` and provider result downloads by
 ``models._download_url`` (SSRF-protected through ``core.security.http.secure_fetch.secure_get``).
 """
 

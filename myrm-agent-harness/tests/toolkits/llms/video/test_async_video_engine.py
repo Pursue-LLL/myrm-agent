@@ -55,6 +55,21 @@ async def test_async_video_engine_enqueues_a_task_and_returns_its_id(tmp_path: P
 
 
 @pytest.mark.asyncio
+async def test_the_allowed_roots_are_snapshotted_only_when_given(tmp_path: Path) -> None:
+    store = SQLiteTaskStore(db_path=str(tmp_path / "video-tasks-roots.db"))
+    await store.initialize()
+    engine = AsyncVideoGenerationTools(VideoGenerationConfig(**_CONFIG), store)
+
+    scoped = await store.get_task(await engine.generate_video("a", allowed_roots=("/work/chat-1",)))
+    unscoped = await store.get_task(await engine.generate_video("b"))
+
+    assert scoped is not None
+    assert scoped.payload["allowed_roots"] == ["/work/chat-1"]
+    assert unscoped is not None
+    assert "allowed_roots" not in unscoped.payload
+
+
+@pytest.mark.asyncio
 async def test_the_payload_carries_no_force_flag(tmp_path: Path) -> None:
     store = SQLiteTaskStore(db_path=str(tmp_path / "video-tasks-force.db"))
     await store.initialize()

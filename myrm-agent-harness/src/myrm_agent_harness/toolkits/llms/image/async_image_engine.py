@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from myrm_agent_harness.toolkits.llms.media_task_types import TASK_TYPE_IMAGE_GENERATE
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, Task, TaskStatus
@@ -73,6 +73,7 @@ class AsyncImageGenerationTools:
         size: str | None = None,
         quality: str | None = None,
         reference_image_urls: list[str] | None = None,
+        allowed_roots: Sequence[str] | None = None,
         user_id: str = "local",
         agent_id: str | None = None,
         chat_id: str | None = None,
@@ -84,6 +85,7 @@ class AsyncImageGenerationTools:
             size: Image dimensions as WIDTHxHEIGHT.
             quality: Provider quality value; not sent when ``None``.
             reference_image_urls: Optional references (resolved by the worker, not here).
+            allowed_roots: Folders the worker may read file references from, snapshotted at enqueue time.
             user_id: User who owns this task (for multi-tenant isolation).
             agent_id: Agent that enqueued the task (opaque metadata for server resolver).
             chat_id: Chat session id recorded on the stored media.
@@ -99,6 +101,8 @@ class AsyncImageGenerationTools:
             "reference_image_urls": reference_image_urls,
             **self._execution_config_payload(),
         }
+        if allowed_roots:
+            payload["allowed_roots"] = list(allowed_roots)
         if agent_id:
             payload["agent_id"] = agent_id
         if chat_id:

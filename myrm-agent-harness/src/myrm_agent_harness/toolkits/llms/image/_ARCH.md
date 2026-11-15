@@ -5,7 +5,7 @@
 Image generation and editing; one call produces one image. `generator.py` runs a request with failover and stores the
 result through the media callback (fail-closed). Text-to-image is the async path: `async_image_engine.py` enqueues via
 `toolkits/tasks/` — full chain in [TASK_QUEUE_SYSTEM.md](../../tasks/TASK_QUEUE_SYSTEM.md). `image_engine.py` is the
-synchronous edit and model-listing surface. Reference inputs arrive as bytes already resolved by `_media_shared/input_resolver.py`.
+synchronous edit and model-listing surface. Reference inputs arrive as bytes already resolved by `media_inputs.py`.
 
 ## File & Submodule Index
 
@@ -22,5 +22,5 @@ synchronous edit and model-listing surface. Reference inputs arrive as bytes alr
 ## Key Dependencies
 
 - `core.security.http.secure_fetch` (secure_get for provider result URL downloads)
-- `_media_shared.input_resolver` (the business layer resolves reference inputs with it before calling the engine)
+- `media_inputs` (the business layer resolves reference inputs with it before calling the engine)
 - `core`

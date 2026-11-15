@@ -68,6 +68,19 @@ async def test_generate_image_persists_the_request_and_execution_snapshot(
 
 
 @pytest.mark.asyncio
+async def test_the_allowed_roots_are_snapshotted_only_when_given(temp_store: SQLiteTaskStore) -> None:
+    engine = AsyncImageGenerationTools(ImageGenerationConfig(model=_MODEL), temp_store)
+
+    scoped = await temp_store.get_task(await engine.generate_image("a", allowed_roots=("/work/chat-1",)))
+    unscoped = await temp_store.get_task(await engine.generate_image("b"))
+
+    assert scoped is not None
+    assert scoped.payload["allowed_roots"] == ["/work/chat-1"]
+    assert unscoped is not None
+    assert "allowed_roots" not in unscoped.payload
+
+
+@pytest.mark.asyncio
 async def test_the_payload_carries_no_fields_the_engine_does_not_honour(temp_store: SQLiteTaskStore) -> None:
     engine = AsyncImageGenerationTools(ImageGenerationConfig(model=_MODEL), temp_store)
 

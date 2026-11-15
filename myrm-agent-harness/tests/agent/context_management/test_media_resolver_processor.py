@@ -136,6 +136,30 @@ class TestMediaResolverProcessor:
         reader.assert_awaited_once_with("file_abc123")
 
     @pytest.mark.asyncio
+    async def test_resolves_media_reference_via_reader_with_the_whole_reference_as_key(self) -> None:
+        """media:// references go to the injected reader as-is and never to the network."""
+        png = _make_bmp_bytes(4, 4)
+        reader = AsyncMock(return_value=png)
+        proc = MediaResolverProcessor(file_content_reader=reader)
+        ctx = _make_context([_img_url("media://media_abc123")])
+
+        result = await proc.process(ctx)
+
+        reader.assert_awaited_once_with("media://media_abc123")
+        url = result.messages[0].content[1]["image_url"]["url"]
+        assert url.startswith("data:image/")
+
+    @pytest.mark.asyncio
+    async def test_media_reference_without_reader_or_data_stays_unresolved(self) -> None:
+        for reader in (None, AsyncMock(return_value=None), AsyncMock(side_effect=RuntimeError("boom"))):
+            proc = MediaResolverProcessor(file_content_reader=reader)
+            ctx = _make_context([_img_url("media://media_gone")])
+
+            result = await proc.process(ctx)
+
+            assert result.messages[0].content[1]["image_url"]["url"] == "media://media_gone"
+
+    @pytest.mark.asyncio
     async def test_mixed_base64_and_url(self) -> None:
         """Only non-base64 URLs are resolved; existing base64 is untouched."""
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:

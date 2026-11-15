@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import threading
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -11,12 +12,8 @@ import pytest
 
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import ContentTooLargeError
-from myrm_agent_harness.toolkits.llms._media_shared import input_resolver
-from myrm_agent_harness.toolkits.llms._media_shared.input_resolver import (
-    MediaInputError,
-    MediaInputPolicy,
-    resolve_media_inputs,
-)
+from myrm_agent_harness.toolkits.llms import media_inputs
+from myrm_agent_harness.toolkits.llms.media_inputs import MediaInputError, MediaInputPolicy, resolve_media_inputs
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 MP4 = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 32
@@ -72,7 +69,7 @@ class TestAccepted:
         async def fake_secure_get(url: str, **_: object) -> httpx.Response:
             return httpx.Response(200, content=PNG, request=httpx.Request("GET", url))
 
-        monkeypatch.setattr(input_resolver, "secure_get", fake_secure_get)
+        monkeypatch.setattr(media_inputs, "secure_get", fake_secure_get)
         assert await _images(policy, "https://example.com/a.png") == [PNG]
 
     @pytest.mark.parametrize("allow_private", [True, False])
@@ -85,7 +82,7 @@ class TestAccepted:
             seen.append(kwargs["enable_ssrf_shield"])
             return httpx.Response(200, content=PNG, request=httpx.Request("GET", url))
 
-        monkeypatch.setattr(input_resolver, "secure_get", fake_secure_get)
+        monkeypatch.setattr(media_inputs, "secure_get", fake_secure_get)
         local = MediaInputPolicy(allowed_roots=(root,), allow_private_networks=allow_private)
         assert await _images(local, "http://127.0.0.1:8000/a.png") == [PNG]
         assert seen == [not allow_private]
@@ -100,6 +97,19 @@ class TestAccepted:
         hooked = MediaInputPolicy(allowed_roots=(root,), image_hook=hook)
         assert await _images(hooked, "_uploaded/photo.png") == [b"\x89PNG\r\n\x1a\nclamped"]
         assert calls == [PNG]
+
+    async def test_image_hook_runs_off_the_event_loop_thread(self, root: Path) -> None:
+        threads: list[int] = []
+
+        def hook(data: bytes) -> bytes:
+            threads.append(threading.get_ident())
+            return data
+
+        hooked = MediaInputPolicy(allowed_roots=(root,), image_hook=hook)
+        await _images(hooked, "_uploaded/photo.png")
+
+        assert threads
+        assert threads[0] != threading.get_ident()
 
 
 class TestRejected:
@@ -176,7 +186,7 @@ class TestRejected:
         async def blocked(url: str, **_: object) -> httpx.Response:
             raise SSRFSecurityError("private address")
 
-        monkeypatch.setattr(input_resolver, "secure_get", blocked)
+        monkeypatch.setattr(media_inputs, "secure_get", blocked)
         with pytest.raises(MediaInputError, match="blocked by the network policy"):
             await _images(policy, "http://169.254.169.254/latest")
 
@@ -184,7 +194,7 @@ class TestRejected:
         async def too_big(url: str, **_: object) -> httpx.Response:
             raise ContentTooLargeError
 
-        monkeypatch.setattr(input_resolver, "secure_get", too_big)
+        monkeypatch.setattr(media_inputs, "secure_get", too_big)
         with pytest.raises(MediaInputError, match="larger than"):
             await _images(policy, "https://example.com/huge.png")
 
@@ -192,7 +202,7 @@ class TestRejected:
         async def not_found(url: str, **_: object) -> httpx.Response:
             return httpx.Response(404, request=httpx.Request("GET", url))
 
-        monkeypatch.setattr(input_resolver, "secure_get", not_found)
+        monkeypatch.setattr(media_inputs, "secure_get", not_found)
         with pytest.raises(MediaInputError, match="download failed"):
             await _images(policy, "https://example.com/gone.png")
 
