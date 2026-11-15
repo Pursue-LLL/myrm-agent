@@ -2,7 +2,8 @@
 
 [INPUT]
 - core.reasoning_route::resolve_reasoning_route (POS: provider, bare model id, gateway and body shape of one call)
-- core.reasoning_profile::extract_reasoning_effort / is_disabled_effort (POS: the reasoning intent a request carries)
+- core.reasoning_profile::extract_reasoning_effort / is_disabled_effort / MAX_EFFORT_VALUES (POS: the reasoning intent a request carries)
+- transport.gateways::is_nvidia_deepseek_v4 (POS: whether a gateway and model are the NVIDIA DeepSeek V4 family)
 
 [OUTPUT]
 - apply_gateway_thinking(): rewrites an explicit thinking choice into the switch the call's gateway documents
@@ -32,15 +33,15 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from myrm_agent_harness.toolkits.llms.core.reasoning_profile import extract_reasoning_effort, is_disabled_effort
+from myrm_agent_harness.toolkits.llms.core.reasoning_profile import (
+    MAX_EFFORT_VALUES,
+    extract_reasoning_effort,
+    is_disabled_effort,
+)
 from myrm_agent_harness.toolkits.llms.core.reasoning_route import resolve_reasoning_route
+from myrm_agent_harness.toolkits.llms.transport.gateways import is_nvidia_deepseek_v4
 
 logger = logging.getLogger(__name__)
-
-_NVIDIA_DEEPSEEK_V4 = "deepseek-v4"
-# Levels of the reasoning_effort enum NVIDIA documents for DeepSeek V4; ``xhigh`` / ``ultra`` are DeepSeek's own aliases of ``max``.
-_NVIDIA_HIGH_LEVELS: frozenset[str] = frozenset({"high"})
-_NVIDIA_MAX_LEVELS: frozenset[str] = frozenset({"max", "xhigh", "ultra"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,9 +84,9 @@ def _nvidia_deepseek_v4(choice: _Choice, llm_kwargs: dict[str, object], extra_bo
         switch = {"thinking": False}
     elif choice.level is None:
         switch = {"thinking": True}
-    elif choice.level in _NVIDIA_HIGH_LEVELS:
+    elif choice.level == "high":
         switch = {"thinking": True, "reasoning_effort": "high"}
-    elif choice.level in _NVIDIA_MAX_LEVELS:
+    elif choice.level in MAX_EFFORT_VALUES:  # NVIDIA documents none / high / max; DeepSeek's aliases of max are folded
         switch = {"thinking": True, "reasoning_effort": "max"}
     current = extra_body.get("chat_template_kwargs")
     template_kwargs = {**switch, **(current if isinstance(current, dict) else {})}  # the caller's own keys win
@@ -108,8 +109,7 @@ def apply_gateway_thinking(model: str, llm_kwargs: dict[str, object]) -> None:
     )
     if route is None or route.gateway is None or not route.openai_body:
         return
-    is_nvidia_v4 = route.gateway == "nvidia" and _NVIDIA_DEEPSEEK_V4 in route.model
-    if route.gateway == "nvidia" and not is_nvidia_v4:
+    if route.gateway == "nvidia" and not is_nvidia_deepseek_v4(route.gateway, route.model):
         return
 
     current = llm_kwargs.get("extra_body")

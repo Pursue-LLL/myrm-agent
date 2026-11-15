@@ -13,6 +13,7 @@
 - extract_reasoning_effort(): Extracted caller reasoning intensity level (top level, ``extra_body``, OpenRouter's
   ``reasoning.effort`` or a gateway's ``chat_template_kwargs``)
 - is_disabled_effort(): Whether an effort value asks for no reasoning
+- MAX_EFFORT_VALUES: The spellings of the strongest reasoning level
 - strip_untranslated_off_effort(): Drops an 'off' effort no provider rule translated
 
 [POS]
@@ -49,6 +50,8 @@ _HEAVY_REASONING_TIMEOUT_FLOOR: float = 600.0
 # Normalized effort values
 _DISABLED_EFFORT_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
 _HEAVY_EFFORT_VALUES: frozenset[str] = frozenset({"high", "max", "xhigh", "ultra"})
+# Spellings of the strongest level; DeepSeek and the gateways that carry its models all map them to ``max``
+MAX_EFFORT_VALUES: frozenset[str] = frozenset({"max", "xhigh", "ultra"})
 # Spellings of 'off' that are not values of the OpenAI-compatible reasoning_effort enum ('none' is one)
 _NON_WIRE_OFF_VALUES: frozenset[str] = frozenset({"off", "disabled", "false", "0"})
 
@@ -188,8 +191,7 @@ def is_reasoning_explicitly_disabled(llm_kwargs: Mapping[str, object] | None) ->
     if llm_kwargs.get("supports_reasoning") is False:
         return True
 
-    effort = extract_reasoning_effort(llm_kwargs)
-    if effort in _DISABLED_EFFORT_VALUES:
+    if is_disabled_effort(extract_reasoning_effort(llm_kwargs)):
         return True
 
     extra_body = llm_kwargs.get("extra_body")
@@ -212,7 +214,7 @@ def is_reasoning_explicitly_enabled(llm_kwargs: Mapping[str, object] | None) -> 
         return True
 
     effort = extract_reasoning_effort(llm_kwargs)
-    if effort is not None and effort not in _DISABLED_EFFORT_VALUES:
+    if effort is not None and not is_disabled_effort(effort):
         return True
 
     extra_body = llm_kwargs.get("extra_body")

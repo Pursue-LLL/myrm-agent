@@ -144,6 +144,13 @@ class TestThreeTierIntentLadder:
     def test_other_values_are_not_a_disabled_effort(self, value: object) -> None:
         assert is_disabled_effort(value) is False
 
+    @pytest.mark.parametrize("effort", ["off", " off ", "OFF"])
+    def test_a_disabled_effort_is_explicitly_disabled_reasoning_however_it_is_spelled(self, effort: str) -> None:
+        kwargs: dict[str, object] = {"reasoning_effort": effort}
+
+        assert is_reasoning_explicitly_disabled(kwargs) is True
+        assert is_reasoning_explicitly_enabled(kwargs) is False
+
 
 class TestApplyThinkingHeadroom:
     """Test max_tokens headroom bounding logic."""

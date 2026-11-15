@@ -6,6 +6,7 @@
 [OUTPUT]
 - Gateway: the gateways this module recognises
 - gateway_of: the gateway an endpoint URL belongs to, decided by its host
+- is_nvidia_deepseek_v4: whether a gateway and model id name the DeepSeek V4 family of NVIDIA's hosted API
 - documented_output_ceiling: the largest ``max_tokens`` a gateway documents for a model, or None
 
 [POS]
@@ -45,8 +46,13 @@ def gateway_of(base_url: str | None) -> Gateway | None:
     return _GATEWAY_HOSTS.get(host.lower()) if host else None
 
 
+def is_nvidia_deepseek_v4(gateway: Gateway | None, model: str) -> bool:
+    """Whether ``model`` is a DeepSeek V4 model of NVIDIA's hosted API, the family whose dialect and range it documents."""
+    return gateway == "nvidia" and "deepseek-v4" in model.lower()
+
+
 def documented_output_ceiling(base_url: str | None, model: str) -> int | None:
     """The largest ``max_tokens`` the endpoint documents for ``model``, or None when it documents none."""
-    if gateway_of(base_url) == "nvidia" and "deepseek-v4" in model.lower():
+    if is_nvidia_deepseek_v4(gateway_of(base_url), model):
         return _NVIDIA_DEEPSEEK_V4_MAX_TOKENS
     return None

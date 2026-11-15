@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.toolkits.llms.transport.gateways import documented_output_ceiling, gateway_of
+from myrm_agent_harness.toolkits.llms.transport.gateways import (
+    Gateway,
+    documented_output_ceiling,
+    gateway_of,
+    is_nvidia_deepseek_v4,
+)
 
 
 class TestGatewayOf:
@@ -38,6 +43,23 @@ class TestGatewayOf:
     )
     def test_anything_else_is_not_recognised(self, base_url: str | None) -> None:
         assert gateway_of(base_url) is None
+
+
+class TestIsNvidiaDeepseekV4:
+    @pytest.mark.parametrize(
+        ("gateway", "model", "expected"),
+        [
+            ("nvidia", "deepseek-ai/deepseek-v4-flash", True),
+            ("nvidia", "DeepSeek-AI/DeepSeek-V4-Pro", True),
+            ("nvidia", "meta/llama-3.3-70b-instruct", False),
+            ("siliconflow", "deepseek-ai/deepseek-v4-flash", False),
+            (None, "deepseek-ai/deepseek-v4-flash", False),
+        ],
+    )
+    def test_both_the_gateway_and_the_model_family_must_match(
+        self, gateway: Gateway | None, model: str, expected: bool
+    ) -> None:
+        assert is_nvidia_deepseek_v4(gateway, model) is expected
 
 
 class TestDocumentedOutputCeiling:
