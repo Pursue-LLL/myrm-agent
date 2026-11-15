@@ -9,14 +9,19 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from myrm_agent_harness.toolkits.web_fetch.fetchers import connection_pin
+
 
 @pytest.fixture
-def install_fake_scrapling() -> Iterator[AsyncMock]:
+def install_fake_scrapling(monkeypatch: pytest.MonkeyPatch) -> Iterator[AsyncMock]:
     """Install a minimal scrapling.fetchers module for HttpFetcher tests.
 
     The yielded mock stands in for the request: it receives the request parameters and returns the response. The body
-    of that response reaches the fetcher the way libcurl delivers it, through the write callback.
+    of that response reaches the fetcher the way libcurl delivers it, through the write callback. The stand-in opens
+    no curl session, so the connection-pin probe, which sends a real request through Scrapling, has nothing to check
+    here and counts as passed; ``test_connection_pin.py`` exercises the real request path.
     """
+    monkeypatch.setattr(connection_pin, "_probe_passed", True)
     mock_get = AsyncMock()
 
     async def get(url: str, *, content_callback: Callable[[bytes], int] | None = None, **kwargs: object) -> object:

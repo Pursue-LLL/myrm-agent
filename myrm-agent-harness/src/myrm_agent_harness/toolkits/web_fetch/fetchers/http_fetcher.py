@@ -1,14 +1,14 @@
 """L1 HTTP fetcher via Scrapling curl_cffi.
 
 [INPUT]
-- .bounded_get::bounded_get (POS: a GET through Scrapling whose body is held to a size bound while it is received)
+- .bounded_get::bounded_get (POS: a GET through Scrapling whose body is held to a size bound while it is received, connecting only to the addresses it is given)
 - .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy and network blocklist for the web_fetch tiers)
 - toolkits.web_fetch.processing.charset_detector::detect_and_decode_html (POS: Multi-tier charset detection)
 - toolkits.browser.pool.proxy::ProxyPool (POS: Proxy rotation pool for FetchEngine)
 - utils.content_sniff::classify_payload (POS: web page, text or binary file, decided once for every fetch tier)
 
 [OUTPUT]
-- HttpFetcher: L1 tier fetcher; every hop (the requested URL and each redirect ``Location``) is judged and dialed in its canonical spelling, and a hop the SSRF policy or the network blocklist rejects raises SSRFSecurityError instead of degrading to the next tier
+- HttpFetcher: L1 tier fetcher; every hop (the requested URL and each redirect ``Location``) is judged and dialed in its canonical spelling, at the addresses the judgment looked at, and a hop the SSRF policy or the network blocklist rejects raises SSRFSecurityError instead of degrading to the next tier
 
 [POS]
 L1 lightweight HTTP fetcher. Delegates TLS impersonation to Scrapling defaults.
@@ -23,6 +23,7 @@ import logging
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
+from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import (
     is_ssrf_shield_enabled,
     parse_allowed_internal_hosts,
@@ -165,7 +166,6 @@ class HttpFetcher:
     ) -> FetchResult | None:
         current_url = url
         redirect_count = 0
-        request_headers = headers.copy()
         guard = FetchTargetGuard.for_fetch(
             url,
             allow_private_networks=self._allow_private_networks,
@@ -175,35 +175,18 @@ class HttpFetcher:
         )
 
         while redirect_count <= _MAX_REDIRECTS:
-            request_url = current_url
-
+            addresses: tuple[str, ...] = ()
             if guard is not None:
                 # A rejected hop raises SSRFSecurityError: returning None would let the browser tiers
                 # fetch the same URL. The hop is judged and dialed in its canonical spelling, because
-                # libcurl may read another spelling as a different host than the one the policy classified.
+                # libcurl may read another spelling as a different host than the one the policy classified,
+                # and it connects only to the addresses the judgment looked at: it does not resolve the
+                # name again, and the URL keeps the name so the certificate is checked against it.
                 current_url = guard.canonical_url(current_url)
-                request_url, host_header = await guard.pin(current_url)
-                request_headers.pop("Host", None)  # the previous hop's pinned Host must not leak onto this hop
-                request_headers.update(host_header)
+                addresses = await guard.pin(current_url)
 
             try:
-                kwargs = self._build_request_kwargs(request_headers, cookie_jar)
-                try:
-                    response = await bounded_get(request_url, kwargs)
-                except Exception as exc:
-                    if request_url != current_url:
-                        logger.info(
-                            "HttpFetcher DNS-pinned URL failed at %s (%s); retrying with validated domain %s",
-                            request_url,
-                            exc,
-                            current_url,
-                        )
-                        fallback_headers = request_headers.copy()
-                        fallback_headers.pop("Host", None)
-                        fallback_kwargs = self._build_request_kwargs(fallback_headers, cookie_jar)
-                        response = await bounded_get(current_url, fallback_kwargs)
-                    else:
-                        raise
+                response = await bounded_get(current_url, self._build_request_kwargs(headers, cookie_jar), addresses)
 
                 if response.status in (301, 302, 303, 307, 308):
                     location = response.headers.get("Location") or response.headers.get("location")
@@ -214,6 +197,8 @@ class HttpFetcher:
                     continue
 
                 return self._response_to_fetch_result(response, current_url)
+            except SSRFSecurityError:
+                raise
             except Exception as exc:
                 logger.warning("HttpFetcher failed at %s — %s", current_url, exc)
                 return None

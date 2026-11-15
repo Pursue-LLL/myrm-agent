@@ -146,24 +146,24 @@ class TestFetchTargetGuard:
         assert guard is not None
         lookup = AsyncMock(side_effect=AssertionError("the name was resolved"))
 
-        with patch(f"{_GUARD}.async_pin_url", new=lookup), pytest.raises(NetworkBlocklistError):
+        with patch(f"{_GUARD}.async_vetted_addresses", new=lookup), pytest.raises(NetworkBlocklistError):
             await guard.pin("https://blocked.example/x")
 
-    async def test_with_the_shield_off_an_unlisted_hop_is_requested_as_written(self) -> None:
+    async def test_with_the_shield_off_an_unlisted_hop_is_left_to_the_client(self) -> None:
         guard = self._guard(shield=False, blocklist=("blocked.example",))
         assert guard is not None
 
-        assert await guard.pin("https://fine.example/x") == ("https://fine.example/x", {})
+        assert await guard.pin("https://fine.example/x") == ()
 
     async def test_with_the_shield_on_an_unlisted_hop_still_gets_the_ssrf_policy(self) -> None:
         guard = self._guard(shield=True, blocklist=("blocked.example",))
         assert guard is not None
-        pinned = AsyncMock(return_value=("https://93.184.216.34/x", {"Host": "fine.example"}))
+        vetted = AsyncMock(return_value=("93.184.216.34",))
 
-        with patch(f"{_GUARD}.async_pin_url", new=pinned):
-            assert await guard.pin("https://fine.example/x") == ("https://93.184.216.34/x", {"Host": "fine.example"})
+        with patch(f"{_GUARD}.async_vetted_addresses", new=vetted):
+            assert await guard.pin("https://fine.example/x") == ("93.184.216.34",)
 
-        pinned.assert_awaited_once()
+        vetted.assert_awaited_once()
 
 
 @pytest.mark.asyncio

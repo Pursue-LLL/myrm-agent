@@ -1,6 +1,7 @@
 """A GET through Scrapling whose body is held to a size bound while it is received.
 
 [INPUT]
+- .connection_pin::pinned_connection (POS: limits the connection to the addresses a fetch vetted, with the host name kept in the URL)
 - toolkits.web_fetch.processing.binary_router::MAX_BINARY_SIZE (POS: the largest file body the router parses)
 - scrapling.fetchers::AsyncFetcher (POS: curl_cffi request with TLS impersonation; imported on first use)
 - curl_cffi.curl::CURL_WRITEFUNC_ERROR (POS: the write-callback result that ends a transfer)
@@ -9,7 +10,7 @@
 [OUTPUT]
 - MAX_TRANSFER_BYTES: the most decoded body bytes a fetch holds without being over the bound
 - FetchedResponse: status, headers, final URL, encoding hint and the kept body of one GET
-- bounded_get: AsyncFetcher.get that keeps at most MAX_TRANSFER_BYTES + 1 body bytes and ends the transfer there
+- bounded_get: AsyncFetcher.get that keeps at most MAX_TRANSFER_BYTES + 1 body bytes and ends the transfer there, optionally connecting only to given addresses
 
 [POS]
 L1 transfer bound. Scrapling buffers a whole response and parses it as a document before any size check can run, so
@@ -24,6 +25,7 @@ import io
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.web_fetch.fetchers.connection_pin import pinned_connection
 from myrm_agent_harness.toolkits.web_fetch.processing.binary_router import MAX_BINARY_SIZE
 
 if TYPE_CHECKING:
@@ -71,11 +73,14 @@ class _BodySink:
         return self._buffer.getvalue()
 
 
-async def bounded_get(url: str, request: GetRequestParams) -> FetchedResponse:
+async def bounded_get(url: str, request: GetRequestParams, addresses: tuple[str, ...] = ()) -> FetchedResponse:
     """GET ``url`` with Scrapling's request parameters, keeping at most ``MAX_TRANSFER_BYTES + 1`` body bytes.
 
     Scrapling forwards the ``content_callback`` argument to curl_cffi unchanged. The request is attempted once
     (``retries=1``): a transfer the sink ended on purpose must not be repeated.
+
+    With ``addresses`` the connection goes only to them while ``url`` keeps its host name, so the certificate is
+    checked against the name. A request through a proxy is not pinned: the proxy resolves the host itself.
     """
     # Imported here, like Scrapling, so that the module loads without the ``web`` extra installed.
     from curl_cffi.curl import CURL_WRITEFUNC_ERROR
@@ -84,8 +89,10 @@ async def bounded_get(url: str, request: GetRequestParams) -> FetchedResponse:
 
     sink = _BodySink(CURL_WRITEFUNC_ERROR)
     single_attempt: GetRequestParams = {**request, "retries": 1}
+    pinned = () if request.get("proxy") else addresses
     try:
-        response = await AsyncFetcher.get(url, content_callback=sink, **single_attempt)  # type: ignore[call-arg]
+        async with pinned_connection(url, pinned):
+            response = await AsyncFetcher.get(url, content_callback=sink, **single_attempt)  # type: ignore[call-arg]
     except RequestsError as exc:
         # The sink ending the transfer surfaces as a write error that carries the response whose status and headers
         # had already arrived. Any other failure is the caller's to handle. Scrapling logs the write error once.

@@ -290,3 +290,62 @@ class TestResolvedHostnames:
             await RedirectHopEvaluator(grants=PrivateOriginGrants()).evaluate_hop_resolved("http://Site.Example./x")
 
         resolver.assert_awaited_once_with("site.example")
+
+
+class TestVerdictAddresses:
+    """A name that was allowed after a lookup carries the addresses that were judged, so a caller dials only those."""
+
+    @pytest.mark.asyncio
+    async def test_a_public_name_carries_the_addresses_it_resolved_to(self) -> None:
+        result = await _resolved("http://site.example/", "93.184.216.34", "2606:2800:220:1::1")
+
+        assert result.addresses == ("93.184.216.34", "2606:2800:220:1::1")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("address", ["10.0.0.5", "100.64.0.7", "198.18.1.234"])
+    async def test_an_address_the_policy_does_not_judge_is_carried_too(self, address: str) -> None:
+        result = await _resolved("http://site.example/", address)
+
+        assert result.addresses == (address,)
+
+    @pytest.mark.asyncio
+    async def test_a_mapped_answer_is_carried_as_the_address_that_was_judged(self) -> None:
+        """An IPv4-only host cannot dial the mapped spelling, and both spellings are the same destination."""
+        result = await _resolved("http://site.example/", "::ffff:93.184.216.34")
+
+        assert result.addresses == ("93.184.216.34",)
+
+    @pytest.mark.asyncio
+    async def test_a_granted_origin_resolving_locally_carries_the_addresses_it_was_allowed_at(self) -> None:
+        result = await _resolved("http://app.example:3000/x", "127.0.0.1", granted="http://app.example:3000/")
+
+        assert result.matched_rule == "EXPLICIT_PRIVATE_ORIGIN"
+        assert result.addresses == ("127.0.0.1",)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("url", "answers"),
+        [
+            ("http://rebind.example/", ("127.0.0.1",)),
+            ("http://creds.example/", ("169.254.169.254",)),
+            ("http://mixed.example/", ("93.184.216.34", "127.0.0.1")),
+        ],
+    )
+    async def test_a_blocked_verdict_carries_no_addresses(self, url: str, answers: tuple[str, ...]) -> None:
+        result = await _resolved(url, *answers)
+
+        assert result.disposition != HopDisposition.ALLOW
+        assert result.addresses == ()
+
+    @pytest.mark.asyncio
+    async def test_a_lookup_that_found_nothing_carries_no_addresses(self) -> None:
+        result = await _resolved("http://site.example/")
+
+        assert result.addresses == ()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("url", ["http://93.184.216.34/", "http://localhost:3000/", "http://app.local/"])
+    async def test_a_host_that_is_not_looked_up_carries_no_addresses(self, url: str) -> None:
+        result = await _resolved(url, "93.184.216.34", granted=url)
+
+        assert result.addresses == ()
