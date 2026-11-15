@@ -5617,11 +5617,6 @@
           "prompt_injection": "提示词未通过安全扫描",
           "unsupported_job_type": "不支持的任务类型"
         },
-        "tokenEconomics": {
-          "title": "每轮 Token 用量对比",
-          "description": "检测到 {count} 个技能 — 以下是每轮对话 Token 开销对比",
-          "savings": "节省 {percent}%"
-        },
         "sessionsTitle": "会话车道 — 检测到 {count} 个历史会话",
         "resumptionReady": "可直接续聊",
         "sessionsDesc": "从外部助手高保真提取完整转录本，导入后直接落库会话列表，保留沙箱路径与 Prompt Cache 亲和性。",

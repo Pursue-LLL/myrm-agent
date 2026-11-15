@@ -13,15 +13,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING
 
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

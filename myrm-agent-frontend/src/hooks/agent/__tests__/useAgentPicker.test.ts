@@ -32,7 +32,7 @@ vi.mock('@/lib/deploy-mode', async (importOriginal) => ({
 }));
 vi.mock('@/lib/utils/toast', () => ({ toast: { warning: mocks.warn } }));
 
-import { useAgentGallery } from '../useAgentGallery';
+import { useAgentPicker } from '../useAgentPicker';
 
 const STAMP = '2026-11-09T00:00:00Z';
 
@@ -42,21 +42,21 @@ function listed(id: string, overrides: Partial<AgentListItem> = {}): AgentListIt
 
 const builtIn = (id: string, overrides: Partial<AgentListItem> = {}) => listed(id, { is_built_in: true, ...overrides });
 
-function mountGallery(
+function mountPicker(
   callbacks: {
     onSelectPreset?: (agent: PresetAgent) => void;
     onSelectCustomAgent?: (agent: AgentListItem) => void;
   } = {},
 ) {
   return renderHook(() =>
-    useAgentGallery({
+    useAgentPicker({
       onSelectPreset: callbacks.onSelectPreset ?? vi.fn(),
       onSelectCustomAgent: callbacks.onSelectCustomAgent,
     }),
   );
 }
 
-describe('useAgentGallery', () => {
+describe('useAgentPicker', () => {
   beforeEach(() => {
     mocks.locale = 'en';
     mocks.isLocal = true;
@@ -68,8 +68,8 @@ describe('useAgentGallery', () => {
   });
 
   describe('loading what the list needs', () => {
-    it('starts the providers and force-loads the whole agent roster for the gallery', () => {
-      mountGallery();
+    it('starts the providers and force-loads the whole agent roster for the picker', () => {
+      mountPicker();
 
       expect(mocks.initProviders).toHaveBeenCalledTimes(1);
       expect(mocks.fetchAgents).toHaveBeenCalledTimes(1);
@@ -79,14 +79,14 @@ describe('useAgentGallery', () => {
     it('leaves the providers alone when they are already up', () => {
       mocks.providersReady = true;
 
-      mountGallery();
+      mountPicker();
 
       expect(mocks.initProviders).not.toHaveBeenCalled();
       expect(mocks.fetchAgents).toHaveBeenCalledTimes(1);
     });
 
     it('does not fetch the agents a second time when the providers finish starting', () => {
-      const view = mountGallery();
+      const view = mountPicker();
 
       mocks.providersReady = true;
       view.rerender();
@@ -100,7 +100,7 @@ describe('useAgentGallery', () => {
     it('lists the built-in agents as presets and keeps the agents the viewer made apart from them', () => {
       mocks.agents = [builtIn('builtin-general'), listed('my-agent'), builtIn('builtin-coder')];
 
-      const { result } = mountGallery();
+      const { result } = mountPicker();
 
       expect(result.current.presetAgents.map((agent) => agent.id)).toEqual(['builtin-general', 'builtin-coder']);
       expect(result.current.customAgents.map((agent) => agent.id)).toEqual(['my-agent']);
@@ -111,7 +111,7 @@ describe('useAgentGallery', () => {
       (id) => {
         mocks.agents = [builtIn(id), builtIn('builtin-general')];
 
-        const { result } = mountGallery();
+        const { result } = mountPicker();
 
         expect(result.current.presetAgents.map((agent) => agent.id)).toEqual(['builtin-general']);
         expect(result.current.customAgents).toEqual([]);
@@ -121,7 +121,7 @@ describe('useAgentGallery', () => {
     it('describes a preset by its id, name, icon and availability only, loading the rest on activation', () => {
       mocks.agents = [builtIn('builtin-general', { avatar_url: 'icon:Brain' })];
 
-      const { result } = mountGallery();
+      const { result } = mountPicker();
 
       expect(result.current.presetAgents).toEqual([
         {
@@ -139,14 +139,14 @@ describe('useAgentGallery', () => {
     it('falls back to the chat icon for an agent without an avatar', () => {
       mocks.agents = [builtIn('builtin-general')];
 
-      expect(mountGallery().result.current.presetAgents[0]?.icon).toBe('MessageCircle');
+      expect(mountPicker().result.current.presetAgents[0]?.icon).toBe('MessageCircle');
     });
 
     it('names a built-in agent in the language of the viewer, and keeps the server name for one it does not know', () => {
       mocks.locale = 'zh';
       mocks.agents = [builtIn('builtin-general'), builtIn('builtin-unlisted', { name: 'Server Name' })];
 
-      const view = mountGallery();
+      const view = mountPicker();
 
       expect(view.result.current.presetAgents.map((agent) => agent.name)).toEqual(['通用助手', 'Server Name']);
 
@@ -163,7 +163,7 @@ describe('useAgentGallery', () => {
       (id) => {
         mocks.agents = [builtIn(id)];
 
-        const { result } = mountGallery();
+        const { result } = mountPicker();
 
         expect(result.current.presetAgents).toEqual([
           expect.objectContaining({ id, category: 'cli_visual', isAvailable: true }),
@@ -175,7 +175,7 @@ describe('useAgentGallery', () => {
       mocks.isLocal = false;
       mocks.agents = [builtIn('cli_visual'), builtIn('builtin-general')];
 
-      const { result } = mountGallery();
+      const { result } = mountPicker();
 
       expect(result.current.presetAgents.map((agent) => agent.id)).toEqual(['builtin-general']);
     });
@@ -185,7 +185,7 @@ describe('useAgentGallery', () => {
     it('selects the preset that was clicked', () => {
       mocks.agents = [builtIn('builtin-general')];
       const onSelectPreset = vi.fn();
-      const { result } = mountGallery({ onSelectPreset });
+      const { result } = mountPicker({ onSelectPreset });
       const preset = result.current.presetAgents[0];
       expectDefined(preset, 'preset');
 
@@ -198,7 +198,7 @@ describe('useAgentGallery', () => {
     it('explains why the visual command-line agent cannot be chosen when it is unavailable, and does not select it', () => {
       mocks.agents = [builtIn('cli_visual')];
       const onSelectPreset = vi.fn();
-      const { result } = mountGallery({ onSelectPreset });
+      const { result } = mountPicker({ onSelectPreset });
       const preset = result.current.presetAgents[0];
       expectDefined(preset, 'preset');
 
@@ -213,7 +213,7 @@ describe('useAgentGallery', () => {
       mocks.agents = [own];
       const onSelectCustomAgent = vi.fn();
 
-      mountGallery({ onSelectCustomAgent }).result.current.handleCustomAgentClick(own);
+      mountPicker({ onSelectCustomAgent }).result.current.handleCustomAgentClick(own);
 
       expect(onSelectCustomAgent).toHaveBeenCalledWith(own);
     });
@@ -222,7 +222,7 @@ describe('useAgentGallery', () => {
       const own = listed('my-agent');
       mocks.agents = [own];
 
-      expect(() => mountGallery().result.current.handleCustomAgentClick(own)).not.toThrow();
+      expect(() => mountPicker().result.current.handleCustomAgentClick(own)).not.toThrow();
     });
   });
 });

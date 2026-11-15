@@ -22,7 +22,7 @@ Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀�
 import logging
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field, field_validator
@@ -31,9 +31,6 @@ from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wi
 from app.channels.types import VoiceConfig
 from app.services.meeting_notes.service import process_meeting_audio
 from app.services.wiki import MemoryToWikiArchiver
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Dev Gate 协调层：session 注册、lease/credit、launch-check、cleanup.sealed。P1 domain repack（2026-08-11）。
+Dev Gate 协调层：session 注册、lease/credit、launch-check、cleanup.sealed。
 
 ## 文件清单
 

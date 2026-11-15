@@ -35,9 +35,7 @@ def _build_request(content: object) -> ModelRequest:
                 }
             ],
         ),
-        ToolMessage(
-            content=content, tool_call_id="call_1", name="bash_code_execute_tool"
-        ),
+        ToolMessage(content=content, tool_call_id="call_1", name="bash_code_execute_tool"),
     ]
     return ModelRequest(model=AsyncMock(), messages=messages)
 
@@ -45,9 +43,7 @@ def _build_request(content: object) -> ModelRequest:
 @pytest.mark.asyncio
 async def test_string_content_passes_through(middleware: DebugLoggerMiddleware) -> None:
     handler = AsyncMock()
-    await middleware.awrap_model_call(
-        _build_request("ls: No such file or directory"), handler
-    )
+    await middleware.awrap_model_call(_build_request("ls: No such file or directory"), handler)
     handler.assert_awaited_once()
 
 
@@ -55,7 +51,7 @@ async def test_string_content_passes_through(middleware: DebugLoggerMiddleware) 
 async def test_list_content_structured_tool_result(
     middleware: DebugLoggerMiddleware,
 ) -> None:
-    # 回归：结构化/多部分工具结果 content 为 list，此前在 startswith 处崩溃
+    # 结构化/多部分工具结果的 content 是 list，不能在 startswith 处崩溃
     content = [
         {"type": "text", "text": "workspace contains 3 files"},
         {"type": "file", "path": "/tmp/wb_bench/readme.md"},

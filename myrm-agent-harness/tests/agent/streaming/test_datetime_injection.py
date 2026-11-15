@@ -78,13 +78,11 @@ class TestDatetimeInjection:
         assert "UTC+8" in prompt, "Prompt should contain timezone offset"
 
     def test_weekday_regression_case(self) -> None:
-        """回归测试：验证原始bug场景（2026-04-13应该是Monday，不是Sunday）"""
-        bug_date = datetime(2026, 4, 13, 17, 13, tzinfo=_SHANGHAI)
-        prompt = get_datetime_prompt(timezone="Asia/Shanghai", dt=bug_date)
+        """2026-04-13（上海时区）是 Monday，提示词里不得出现 Sunday。"""
+        monday = datetime(2026, 4, 13, 17, 13, tzinfo=_SHANGHAI)
+        prompt = get_datetime_prompt(timezone="Asia/Shanghai", dt=monday)
 
-        assert "Monday" in prompt, (
-            "2026-04-13 is Monday, not Sunday. This was the original bug - AI incorrectly said 'Sunday'"
-        )
+        assert "Monday" in prompt, f"2026-04-13 is Monday, not Sunday: {prompt}"
         assert "Sunday" not in prompt, f"2026-04-13 should not be Sunday, got: {prompt}"
 
 

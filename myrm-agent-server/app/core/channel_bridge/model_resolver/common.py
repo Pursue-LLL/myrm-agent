@@ -11,13 +11,10 @@ Model resolver shared primitives: header building, provider key discovery and pr
 from __future__ import annotations
 
 import ipaddress
-from typing import TYPE_CHECKING, cast
+from typing import cast
 from urllib.parse import urlparse
 
 from myrm_agent_harness.agent.config.parsers import parse_route_model_id, to_route_model_id
-
-if TYPE_CHECKING:
-    pass
 
 _PROVIDER_API_BASES: dict[str, str] = {
     "siliconflow": "https://api.siliconflow.cn/v1",

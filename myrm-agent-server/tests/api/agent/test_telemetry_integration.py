@@ -60,7 +60,7 @@ def test_circuit_breaker_integration(client: TestClient, caplog: pytest.LogCaptu
     os.environ["MYRM_TERMINAL_ERRORS_PATH"] = str(storage_path)
 
     try:
-        # 核心确定性断言：God-Mode 文件注入 survives reset（历史 bug 修复点）
+        # 核心确定性断言：God-Mode 文件注入在 reset 后仍保留
         reset_terminal_errors()
         assert "network_blocked" in get_terminal_errors().get_all(), (
             "God-Mode file injection must survive reset_terminal_errors()"

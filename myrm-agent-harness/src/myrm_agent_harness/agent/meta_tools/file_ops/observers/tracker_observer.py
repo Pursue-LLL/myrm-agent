@@ -15,12 +15,8 @@ Provides TrackerObserver.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from .base import FileOperationObserver
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

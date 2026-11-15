@@ -21,10 +21,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.database.models import Base
 from app.schemas.memory.archive import MemoryImportConfirmRequest
 from app.services.memory.imports.import_sessions import MemoryImportSessionService
-from app.services.memory.operations.crud.import_archive import (
-    _COMPETITOR_AVG_SKILL_TOKENS,
-    _MYRM_AVG_INDEX_TOKENS,
-)
 from app.services.memory.operations.crud.import_flows.confirm_flow import confirm_import_memories
 from app.services.memory.operations.crud.import_flows.confirm_followups import (
     resolve_migration_competitor,
@@ -32,7 +28,6 @@ from app.services.memory.operations.crud.import_flows.confirm_followups import (
 from app.services.memory.operations.crud.import_flows.dry_run_preview import (
     build_instruction_preview,
     build_lane_response_rows,
-    build_token_economics,
     skipped_cron_preview,
 )
 from app.services.memory.operations.crud.import_flows.instruction_lane import (
@@ -215,15 +210,6 @@ def test_lane_rows_flag_excluded_episodic_only_when_the_user_opted_out() -> None
     assert excluded[1].detail == "ok"
 
 
-def test_token_economics_uses_the_published_constants() -> None:
-    assert build_token_economics(0) is None
-    estimate = build_token_economics(10)
-    assert estimate is not None
-    assert estimate.source_tokens_per_turn == 10 * _COMPETITOR_AVG_SKILL_TOKENS
-    assert estimate.myrm_tokens_per_turn == 10 * _MYRM_AVG_INDEX_TOKENS
-    assert estimate.savings_percent == 94.0
-
-
 def test_instruction_preview_truncates_persona_and_skips_empty_rule_names() -> None:
     persona, rule_names = build_instruction_preview(
         {
@@ -310,8 +296,6 @@ async def test_dry_run_previews_every_competitor_lane_and_binds_metadata(
     assert response.pending_skills_total == 1
     assert response.instruction_preview_persona == "Be a careful engineer."
     assert response.instruction_preview_rule_names == ["imported-hermes-agents.md"]
-    assert response.token_economics is not None
-    assert response.token_economics.skill_count == 1
     assert [row.lane for row in response.migration_lanes] == ["instruction", "memory", "skill", "credential", "cron", "session"]
     memory_lane = next(row for row in response.migration_lanes if row.lane == "memory")
     assert memory_lane.status == "ready"
@@ -364,7 +348,6 @@ async def test_dry_run_native_payload_skips_competitor_introspection(db_session:
 
     assert response.result.summary.mapped_items == 1
     assert response.migration_lanes == []
-    assert response.token_economics is None
     assert response.instruction_preview_persona is None
     assert response.mcp_servers_preview == []
     assert response.cron_skipped == []

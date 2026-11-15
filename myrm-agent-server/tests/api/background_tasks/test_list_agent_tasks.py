@@ -285,7 +285,7 @@ async def test_status_mapping_failed_cancelled(_patches: tuple[MagicMock, MagicM
 
 @pytest.mark.asyncio
 async def test_voice_task_visible(_patches: tuple[MagicMock, MagicMock]) -> None:
-    """Voice-spawned tasks must appear in the panel (the core bug fix)."""
+    """Voice-spawned tasks must appear in the panel."""
     mock_get_handler, mock_get_svc = _patches
     mock_get_handler.return_value = _mock_handler()
 

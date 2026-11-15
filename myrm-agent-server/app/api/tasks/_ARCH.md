@@ -21,11 +21,11 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Task API module. | ✅ |
 | `router.py` | 路由 | Task management API routes. | ✅ |
-| `deps.py` | 辅助 | `get_task_store` / `get_task_worker` FastAPI 依赖（worker 未启动时为 None） | ✅ |
+| `deps.py` | 辅助 | `get_task_store` / `get_task_worker` FastAPI 依赖（`get_task_store` 首次使用时打开存储，worker 启动前也可读；worker 未启动时 `get_task_worker` 为 None） | ✅ |
 | `timeline_router.py` | 路由 | 任务执行时序树与瀑布流快照查询、即时插嘴打断端点（`/tasks/{task_id}/timeline`, `/tasks/{task_id}/interrupt`） | ✅ |
 | `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /tasks/test/seed-media-fixture`；`mode=failed` / `succeeded` / `running`） | ✅ |
 
 ## Key Dependencies
 
-- `app.lifecycle.task_worker.get_task_store` / `get_task_worker` — harness `SQLiteTaskStore` 与运行中的 `TaskWorker`
+- `app.lifecycle.task_worker.ensure_task_store` / `get_task_worker` — harness `SQLiteTaskStore` 与运行中的 `TaskWorker`
 - `app.tasks.events` — SSE 事件总线

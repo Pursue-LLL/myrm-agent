@@ -69,8 +69,8 @@ describe('buildTooltip', () => {
 //   2. fetch success + !ok  → 'degraded' (NOT offline)
 //   3. fetch exception      → 'offline'
 // Items 1-2 are fully verified by toLivenessState tests above.
-// The critical bug fix (catch → 'offline', !ok → 'degraded') is a
-// direct consequence of these mappings. Integration coverage of poll()
+// The critical mappings (catch → 'offline', !ok → 'degraded') follow
+// directly from these cases. Integration coverage of poll()
 // is handled by Chrome MCP e2e against the real running frontend.
 
 describe('state design contract', () => {

@@ -1,13 +1,14 @@
 """配置管理 API 组合根。
 
 [POS]
-只负责按原路径顺序挂载 routes/ 下的域路由与 pricing/privacy-preview 子路由。
+只负责按固定顺序挂载 routes/ 下的域路由与 pricing/privacy-preview/artifact-mappings 子路由；crud 的 `/{config_key}` 排在字面路径兄弟之后。
 """
 
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.api.config.artifact_mappings import router as artifact_mappings_router
 from app.api.config.pricing import pricing_router
 from app.api.config.privacy_preview import privacy_preview_router
 from app.api.config.routes import catalog, crud, diagnostics, media_health, onboarding
@@ -47,5 +48,7 @@ router.include_router(onboarding.router)
 router.include_router(media_health.router)
 router.include_router(pricing_router)
 router.include_router(privacy_preview_router)
+# Ahead of crud: GET /artifact-mappings would otherwise be taken by GET /{config_key}.
+router.include_router(artifact_mappings_router)
 router.include_router(crud.router)
 router.include_router(diagnostics.router)

@@ -36,9 +36,10 @@ class TestModelCapabilityDetector:
     def test_deepseek_through_openai_like_gateway(self, detector):
         """DeepSeek via openai-like gateways keeps model-name detection.
 
-        Regression: `openai-like/deepseek-v4-flash` (console-gateway) is neither
-        provider "deepseek", a "deepseek/" prefix, nor an api.deepseek.com host,
-        so reasoning_content echo-back was skipped and replays returned HTTP 400.
+        `openai-like/deepseek-v4-flash` (console-gateway) is neither provider
+        "deepseek", a "deepseek/" prefix, nor an api.deepseek.com host, so only
+        model-name detection recognizes it; skipping reasoning_content echo-back
+        would make replays return HTTP 400.
         """
         assert detector.needs_reasoning_content_echo(
             provider="openai-like", model="deepseek-v4-flash", base_url="https://gateway.example/v1"

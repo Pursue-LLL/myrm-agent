@@ -258,7 +258,7 @@ class TestAgentBuiltinToolsCRUD:
         assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
 
     def test_builtin_preset_tools_match_initializer_spec(self, auth_headers: dict[str, str]) -> None:
-        """Gallery SSOT: visible built-in agents expose canonical tool matrices."""
+        """The agent list shows every visible built-in agent with its initializer tool matrix and omits hidden ones."""
         from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
         from app.services.agent.builtin_specs.builtin_tool_ids import normalize_enabled_builtin_tools
         from app.services.features.product_surface import HIDDEN_BUILTIN_AGENT_IDS

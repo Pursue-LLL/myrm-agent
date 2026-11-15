@@ -19,7 +19,6 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.cron.situation import (
     SituationContext,
@@ -33,9 +32,6 @@ from myrm_agent_harness.toolkits.cron.types import (
 
 from . import support
 from .support import _OVERLOAD_RETRY_DELAY, _build_effective_prompt
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

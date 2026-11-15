@@ -5617,11 +5617,6 @@
           "prompt_injection": "안전 스캔에 의해 프롬프트 차단됨",
           "unsupported_job_type": "지원되지 않는 작업 유형"
         },
-        "tokenEconomics": {
-          "title": "턴당 토큰 사용량 비교",
-          "description": "{count}개의 스킬이 감지됨 — 턴당 토큰 비용 비교",
-          "savings": "{percent}% 절약"
-        },
         "sessionsTitle": "세션 레인 — {count}개의 이전 세션 감지됨",
         "resumptionReady": "즉시 재개 가능",
         "sessionsDesc": "외부 어시스턴트에서 완전한 대화록을 충실히 추출했습니다. 채팅 목록으로 직접 가져와 샌드박스 경로 및 Prompt Cache 선호도를 보존합니다.",

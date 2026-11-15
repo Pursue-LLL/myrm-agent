@@ -185,7 +185,7 @@ def test_mkdir_missing_dir_outside_workspace_still_blocked(audit_hook):
 
 
 def test_mkdir_existing_tmpdir_allowed_under_mismatched_tmpdir(monkeypatch, tmp_path):
-    """Regression: hook whose tmpdir differs (stale/mismatched TMPDIR) must not
+    """A hook whose tmpdir differs (stale/mismatched TMPDIR) must not
     block mkdir on an existing system tmpdir — the E2E `os.mkdir TMPDIR` case."""
     import tempfile
 

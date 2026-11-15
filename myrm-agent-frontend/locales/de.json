@@ -5617,11 +5617,6 @@
           "prompt_injection": "Eingabeaufforderung durch Sicherheitsscan blockiert",
           "unsupported_job_type": "Nicht unterstützter Aufgabentyp"
         },
-        "tokenEconomics": {
-          "title": "Token-Verbrauch pro Runde",
-          "description": "{count} Skill(s) erkannt — Token-Kosten pro Runde im Vergleich",
-          "savings": "{percent}% gespart"
-        },
         "sessionsTitle": "Sitzungsspur — {count} historische Sitzung(en) erkannt",
         "resumptionReady": "Bereit zur Fortsetzung",
         "sessionsDesc": "Vollständige Dialogprotokolle aus externem Assistenten extrahiert. Direkt in Ihre Chatliste importiert, unter Beibehaltung von Sandbox-Pfaden und Prompt-Cache-Affinität.",

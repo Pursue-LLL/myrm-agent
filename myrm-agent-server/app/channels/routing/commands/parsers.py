@@ -19,10 +19,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 import re
-from typing import TYPE_CHECKING, Literal, get_args
-
-if TYPE_CHECKING:
-    pass
+from typing import Literal, get_args
 
 logger = logging.getLogger(__name__)
 

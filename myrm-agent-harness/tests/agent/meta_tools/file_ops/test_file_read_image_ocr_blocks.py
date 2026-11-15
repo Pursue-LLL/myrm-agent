@@ -64,8 +64,8 @@ async def test_build_multimodal_image_no_vision_string_result() -> None:
 async def test_build_multimodal_image_uses_ocr_tier_when_no_vision_route_exists() -> None:
     """A text-only model with no vision chain still reads image text via the OCR tier.
 
-    Regression: the OCR tier existed but nothing invoked it, so such a model got only a
-    metadata line ("model does not support vision") for every image.
+    Without the OCR tier invoked, such a model would get only a metadata line
+    ("model does not support vision") for every image.
     """
     with patch(
         "myrm_agent_harness.toolkits.llms.vision.ocr_tier.OcrTierEngine.describe_local_image",

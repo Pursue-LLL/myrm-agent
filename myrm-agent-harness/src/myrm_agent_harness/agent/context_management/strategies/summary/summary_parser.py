@@ -74,7 +74,7 @@ def extract_existing_summary(messages: list[BaseMessage]) -> StructuredSummary |
 
     压缩重建总是把新摘要块放在消息列表的尾部位置（``create_summary_message``
     置于 protected_head 之后、recent_messages 之前），因此消息位置即时间顺序：
-    反向遍历取最后一个可解析块 = 最新摘要。多块残留场景（修复前的历史会话）下
+    反向遍历取最后一个可解析块 = 最新摘要。消息里残留多个摘要块（如持久化的历史会话）时，
     避免增量合并以旧摘要为基准，导致新摘要信息丢失。
     """
     for msg in reversed(messages):

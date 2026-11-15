@@ -11,7 +11,6 @@ Covers:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,10 +18,6 @@ from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.base_agent import BaseAgent
 from myrm_agent_harness.agent.extensions.protocols import AgentExtension
-
-if TYPE_CHECKING:
-    pass
-
 
 # ---------------------------------------------------------------------------
 # Helpers

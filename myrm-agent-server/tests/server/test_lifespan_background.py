@@ -5,8 +5,9 @@
 
 [OUTPUT]
 - Coverage that recovery starts after the bind delay, that the warm-up waits for the first screen (readiness reporting the
-  database ready) or the fallback delay, that polling readiness cannot push the warm-up back, that every task runs, that a
-  failure is logged, that the settle step waits for the warm-up, and that a shutdown cancels the starts that have not fired
+  database ready) or the fallback delay, that polling readiness cannot push the warm-up back, that every task runs (the
+  route-table walk on the application the lifespan handed over), that a failure is logged, that the settle step waits for
+  the warm-up, and that a shutdown cancels the starts that have not fired
 
 [POS]
 Server tests. Uvicorn binds its socket only after the lifespan yields, and the first screen's requests follow the readiness
@@ -19,13 +20,17 @@ import asyncio
 from collections.abc import Awaitable, Callable, Iterator
 
 import pytest
+from fastapi import FastAPI
 
 from app.server.lifespan import background, startup
 from app.server.lifespan.state import logger
 
 _RECOVERY_TASKS = ("orphaned-goals",)
-_WARMUP_TASKS = ("warmup", "kanban-dispatchers", "startup-event", "trunk-templates", "tool-layers")
+_WARMUP_TASKS = ("warmup", "kanban-dispatchers", "startup-event", "trunk-templates", "tool-layers", "route-table")
 _ALL_TASKS = sorted((*_RECOVERY_TASKS, *_WARMUP_TASKS))
+
+# The application the lifespan hands over; the warm-up must walk this one's route table.
+_APP = FastAPI()
 
 
 @pytest.fixture(autouse=True)
@@ -37,7 +42,7 @@ def _no_pending_starts() -> Iterator[None]:
 
 
 def _install_fakes(monkeypatch: pytest.MonkeyPatch, started: list[str], *, failing: str | None = None) -> asyncio.Event:
-    """Replace the six background coroutines; each records its start, waits for ``release``, then ends or fails.
+    """Replace the seven background coroutines; each records its start, waits for ``release``, then ends or fails.
 
     The fallback is far away, so only readiness (or a test that shortens it) can start the warm-up.
     """
@@ -58,6 +63,13 @@ def _install_fakes(monkeypatch: pytest.MonkeyPatch, started: list[str], *, faili
     monkeypatch.setattr(startup, "_dispatch_startup_event", fake("startup-event"))
     monkeypatch.setattr(startup, "_seed_trunk_templates", fake("trunk-templates"))
     monkeypatch.setattr(startup, "_preload_agent_tool_layers", fake("tool-layers"))
+
+    async def fake_route_table(app: FastAPI) -> None:
+        assert app is _APP
+        started.append("route-table")
+        await release.wait()
+
+    monkeypatch.setattr(background, "warm_route_table", fake_route_table)
     monkeypatch.setattr(background, "RECOVERY_DELAY_SECONDS", 0.02)
     monkeypatch.setattr(background, "FIRST_SCREEN_SETTLE_SECONDS", 0.2)
     monkeypatch.setattr(background, "WARMUP_FALLBACK_DELAY_SECONDS", 30.0)
@@ -80,7 +92,7 @@ async def _until(condition: Callable[[], bool], timeout: float = 5.0) -> None:
 
 async def _boot_and_load_first_screen(started: list[str]) -> None:
     """Schedule the background work and report readiness; returns once recovery and the warm-up have both started."""
-    background.schedule_background_work()
+    background.schedule_background_work(_APP)
     background.start_warmup_after_first_screen()
     await _until(lambda: sorted(started) == _ALL_TASKS)
 
@@ -92,7 +104,7 @@ async def test_recovery_starts_after_the_bind_delay_and_the_warmup_waits_for_the
     _install_fakes(monkeypatch, started)
     _capture_settle(monkeypatch)
 
-    background.schedule_background_work()
+    background.schedule_background_work(_APP)
     assert started == []
 
     await _until(lambda: started == list(_RECOVERY_TASKS))
@@ -106,7 +118,7 @@ async def test_readiness_starts_the_warmup_after_the_settle_delay(monkeypatch: p
     settled = _capture_settle(monkeypatch)
     loop = asyncio.get_running_loop()
 
-    background.schedule_background_work()
+    background.schedule_background_work(_APP)
     await _until(lambda: started == list(_RECOVERY_TASKS))
     asked_at = loop.time()
     background.start_warmup_after_first_screen()
@@ -126,7 +138,7 @@ async def test_polling_readiness_does_not_push_the_warmup_back(monkeypatch: pyte
     settled = _capture_settle(monkeypatch)
     loop = asyncio.get_running_loop()
 
-    background.schedule_background_work()
+    background.schedule_background_work(_APP)
     give_up_at = loop.time() + 5.0
     while "warmup" not in started and loop.time() < give_up_at:
         background.start_warmup_after_first_screen()
@@ -144,7 +156,7 @@ async def test_the_fallback_starts_the_warmup_when_no_client_asks(monkeypatch: p
     settled = _capture_settle(monkeypatch)
     monkeypatch.setattr(background, "WARMUP_FALLBACK_DELAY_SECONDS", 0.1)
 
-    background.schedule_background_work()
+    background.schedule_background_work(_APP)
     await _until(lambda: sorted(started) == _ALL_TASKS)
 
     release.set()
@@ -217,7 +229,7 @@ async def test_a_shutdown_cancels_both_starts_and_a_later_readiness_starts_nothi
     _install_fakes(monkeypatch, started)
     settled = _capture_settle(monkeypatch)
 
-    background.schedule_background_work()
+    background.schedule_background_work(_APP)
     background.cancel_scheduled_background_work()
     background.start_warmup_after_first_screen()
     await asyncio.sleep(0.3)
@@ -232,7 +244,7 @@ async def test_a_shutdown_after_recovery_started_still_keeps_the_warmup_from_sta
     release = _install_fakes(monkeypatch, started)
     settled = _capture_settle(monkeypatch)
 
-    background.schedule_background_work()
+    background.schedule_background_work(_APP)
     await _until(lambda: started == list(_RECOVERY_TASKS))
 
     background.cancel_scheduled_background_work()

@@ -1,9 +1,9 @@
 """Real-browser integration tests for ActionCaptureEngine navigation resilience.
 
-Regression tests for the world-isolation bug where capture silently stopped
+Tests for the world-isolation hazard where capture could silently stop
 after a navigation: `add_init_script` targets the main world while
 `page.evaluate` defaults to the isolated world, and the main-world context is
-only materialized lazily after navigation. The engine now re-injects listeners
+only materialized lazily after navigation. The engine re-injects listeners
 via `evaluate` on `framenavigated`, so:
 
 1. capture keeps working after a navigation (S3)

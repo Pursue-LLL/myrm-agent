@@ -18,7 +18,6 @@ channel_bridge setup 子包的一部分；由 __init__.py 聚合导出。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from app.core.channel_bridge import channel_gateway
 from app.core.channel_bridge.background_task_handler import ChannelBackgroundTaskHandler
@@ -29,9 +28,6 @@ from app.core.channel_bridge.setup.policies import _load_reaction_policy, _load_
 from . import state
 
 logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    pass
 
 
 async def _enable_core_router() -> None:

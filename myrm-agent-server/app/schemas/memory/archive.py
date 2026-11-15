@@ -158,15 +158,6 @@ class MemoryImportDryRunRequest(BaseModel):
     )
 
 
-class TokenEconomicsComparison(BaseModel):
-    """Per-turn token cost comparison between source and Myrm skill loading."""
-
-    skill_count: int = Field(description="Number of skills detected in source")
-    source_tokens_per_turn: int = Field(description="Estimated tokens injected per turn by source agent")
-    myrm_tokens_per_turn: int = Field(description="Estimated tokens injected per turn by Myrm on-demand loading")
-    savings_percent: float = Field(description="Percentage of tokens saved (0–100)")
-
-
 class WorkspaceBindCandidate(BaseModel):
     """Suggested host path for post-migration project workspace bind."""
 
@@ -202,10 +193,6 @@ class MemoryImportDryRunResponse(BaseModel):
     pending_skills_total: int = Field(default=0, description="Total skills found before the import cap")
     coverage_items: list[dict[str, str]] = Field(default_factory=list)
     migration_lanes: list[MigrationLanePreviewItem] = Field(default_factory=list)
-    token_economics: TokenEconomicsComparison | None = Field(
-        None,
-        description="Skill-loading token cost comparison (source full-injection vs Myrm on-demand)",
-    )
     instruction_preview_persona: str | None = Field(
         None,
         description="Truncated persona preview for external assistant migration",

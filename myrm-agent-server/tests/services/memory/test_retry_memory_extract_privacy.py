@@ -157,8 +157,8 @@ class TestPrivacyDeepScanContext:
     def test_deep_scan_only_builds_store_without_pseudonymize(self):
         """Deep scan alone (REDACT/BLOCK actions) must still build the store.
 
-        Regression: needs_store only considered PSEUDONYMIZE actions, so
-        privacyDeepScan + default REDACT actions silently skipped the LLM deep
+        needs_store cannot depend on PSEUDONYMIZE actions alone: privacyDeepScan
+        with the default REDACT actions would otherwise silently skip the LLM deep
         scan (detected PII is pseudonymized through the store).
         """
         settings = {

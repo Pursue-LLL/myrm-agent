@@ -9,7 +9,7 @@
  * 什么样的会话配置算「已选择智能体」、悬停提示。
  *
  * [POS]
- * 真实的 Radix 提示；状态总线、画廊、路由与提示由 agentIndicatorKit 替身，文案是真实语言包。
+ * 真实的 Radix 提示；状态总线、智能体列表 Hook、路由与提示由 agentIndicatorKit 替身，文案是真实语言包。
  * 切换与菜单见 AgentIndicator.switching.test.tsx，头像见 AgentIndicatorAvatar.test.tsx。
  */
 import { fireEvent, screen } from '@testing-library/react';

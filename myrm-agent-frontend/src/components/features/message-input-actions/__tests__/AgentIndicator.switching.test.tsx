@@ -9,7 +9,7 @@
  * 菜单随选择自动关闭、底部的配置面板与管理入口、加载中与非 agent 模式的表现。
  *
  * [POS]
- * 真实的 Radix 下拉与提示；状态总线、画廊、路由与提示由 agentIndicatorKit 替身，文案是真实英文。
+ * 真实的 Radix 下拉与提示；状态总线、智能体列表 Hook、路由与提示由 agentIndicatorKit 替身，文案是真实英文。
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,7 +39,7 @@ describe('AgentIndicator switching', () => {
 
   describe('a built-in preset', () => {
     beforeEach(() => {
-      kit.gallery.presets = [preset()];
+      kit.picker.presets = [preset()];
     });
 
     it('applies the saved agent behind the preset, keeping the preset identity', async () => {
@@ -82,7 +82,7 @@ describe('AgentIndicator switching', () => {
     ])(
       'falls back to the preset itself when its details cannot be loaded, $name',
       async ({ overrides, skills, prompt }) => {
-        kit.gallery.presets = [preset(overrides)];
+        kit.picker.presets = [preset(overrides)];
         renderIndicator();
         openMenu();
 
@@ -117,7 +117,7 @@ describe('AgentIndicator switching', () => {
 
   describe('a custom agent', () => {
     beforeEach(() => {
-      kit.gallery.customAgents = [customAgent({ avatar_url: 'gradient:2', skill_ids: ['calc'], mcp_ids: ['sheets'] })];
+      kit.picker.customAgents = [customAgent({ avatar_url: 'gradient:2', skill_ids: ['calc'], mcp_ids: ['sheets'] })];
     });
 
     it('applies the saved agent as it is stored', async () => {
@@ -163,7 +163,7 @@ describe('AgentIndicator switching', () => {
     });
 
     it('treats a list entry without skills or connections as having none', async () => {
-      kit.gallery.customAgents = [customAgent()];
+      kit.picker.customAgents = [customAgent()];
       renderIndicator();
       openMenu();
 
@@ -190,8 +190,8 @@ describe('AgentIndicator switching', () => {
     ])(
       'keeps $later when $earlier, chosen first, finishes loading after it',
       async ({ earlier, earlierId, later, laterId }) => {
-        kit.gallery.presets = [preset()];
-        kit.gallery.customAgents = [customAgent()];
+        kit.picker.presets = [preset()];
+        kit.picker.customAgents = [customAgent()];
         const slow = deferred<ReturnType<typeof fullAgent> | null>();
         kit.fetchAgent.mockImplementation((agentId) => (agentId === earlierId ? slow.promise : Promise.resolve(null)));
         renderIndicator();
@@ -238,8 +238,8 @@ describe('AgentIndicator switching', () => {
 
   describe('the menu contents', () => {
     it('lists presets and custom agents under their own headings', () => {
-      kit.gallery.presets = [preset(), preset({ id: 'searcher', name: 'Searcher', icon: 'Search' })];
-      kit.gallery.customAgents = [customAgent()];
+      kit.picker.presets = [preset(), preset({ id: 'searcher', name: 'Searcher', icon: 'Search' })];
+      kit.picker.customAgents = [customAgent()];
       renderIndicator();
 
       const menu = within(openMenu());
@@ -270,8 +270,8 @@ describe('AgentIndicator switching', () => {
       { current: { presetId: 'coder' }, marked: 'Coder' },
       { current: { agentId: 'finance' }, marked: 'Finance' },
     ])('marks only the current agent ($current) in the list', ({ current, marked }) => {
-      kit.gallery.presets = [preset()];
-      kit.gallery.customAgents = [customAgent()];
+      kit.picker.presets = [preset()];
+      kit.picker.customAgents = [customAgent()];
       kit.chat.agentConfig = {
         selectedSkillIds: [],
         selectedMcpNames: [],
@@ -291,7 +291,7 @@ describe('AgentIndicator switching', () => {
     });
 
     it('gives a preset without a known icon the bot placeholder in the list', () => {
-      kit.gallery.presets = [preset({ icon: 'NoSuchIcon' })];
+      kit.picker.presets = [preset({ icon: 'NoSuchIcon' })];
       renderIndicator();
 
       openMenu();
@@ -301,7 +301,7 @@ describe('AgentIndicator switching', () => {
     });
 
     it('shows the icon of a preset when it has a known one', () => {
-      kit.gallery.presets = [preset()];
+      kit.picker.presets = [preset()];
       renderIndicator();
 
       openMenu();

@@ -178,9 +178,9 @@ def _patch_pdf_pipeline(result, engine):
 async def test_pdf_scanned_pages_reach_text_only_model_through_vision_fallback():
     """A scanned PDF must not lose its pages just because the primary model is text-only.
 
-    Regression: ``read_pdf_as_content_blocks`` gated page images behind
-    ``supports_vision``, so the auxiliary chain never saw them and every scan page
-    vanished with no textual trace.
+    ``read_pdf_as_content_blocks`` must not gate page images behind
+    ``supports_vision``: the auxiliary chain would never see them and every scan
+    page would vanish with no textual trace.
     """
     from myrm_agent_harness.agent.meta_tools.file_ops.utils import pdf_reader as _pdf_reader
 
@@ -272,8 +272,8 @@ async def test_pdf_without_any_vision_route_stays_plain_text():
 async def test_text_mode_keeps_pdf_text_when_the_reader_returns_blocks():
     """The text-mode path must not drop a PDF just because a vision chain turned it into blocks.
 
-    Regression: it only appended the result when it was a ``str``, so with an auxiliary chain
-    configured the whole document vanished from the text parts.
+    The result must be appended whether it is a ``str`` or blocks: appending only a ``str``
+    would drop the whole document from the text parts whenever an auxiliary chain is configured.
     """
     from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read import multimodal as _handlers
 

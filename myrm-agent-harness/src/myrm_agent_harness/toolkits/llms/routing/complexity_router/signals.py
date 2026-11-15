@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.llms.routing.complexity_router.keywords import (
     _CODE_BLOCK_RE,
@@ -27,9 +26,6 @@ from myrm_agent_harness.toolkits.llms.routing.complexity_router.keywords import 
     _LATEX_BLOCK_RE,
     _MATH_RE,
 )
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

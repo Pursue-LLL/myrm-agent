@@ -1,7 +1,7 @@
 """Task management API routes.
 
 [INPUT]
-- app.lifecycle.task_worker::get_task_store, get_task_worker (POS: TaskStore / TaskWorker provider lifecycle entry)
+- app.api.tasks.deps::get_task_store, get_task_worker (POS: TaskStore / TaskWorker FastAPI dependencies)
 - app.tasks.events::task_event_bus (POS: SSE task status event hub)
 
 [OUTPUT]

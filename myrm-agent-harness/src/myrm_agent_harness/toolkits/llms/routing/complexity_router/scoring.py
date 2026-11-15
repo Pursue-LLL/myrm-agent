@@ -14,7 +14,6 @@ complexity_router 子包的一部分；由 __init__.py 聚合导出。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.llms.routing.complexity_router.keywords import _TRACEBACK_RE
 from myrm_agent_harness.toolkits.llms.routing.complexity_router.signals import (
@@ -26,9 +25,6 @@ from myrm_agent_harness.toolkits.llms.routing.complexity_router.signals import (
     _word_count,
 )
 from myrm_agent_harness.toolkits.llms.routing.complexity_router.types import RoutingTier
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

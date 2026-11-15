@@ -11,14 +11,10 @@ Lifecycle schedulers: remote memory backup auto-sync.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
 
 from app.core.infra.background_task import spawn_observed_task
 
 from .common import logger
-
-if TYPE_CHECKING:
-    pass
 
 _remote_backup_scheduler_task: asyncio.Task[None] | None = None
 

@@ -219,10 +219,14 @@ const SamplePrompts = React.memo(() => {
   ];
 
   return (
-    <div className="w-full space-y-3 animate-in fade-in duration-500">
-      {/* Context-Aware Life/Work Operator Selector Bar */}
+    <div className="flex w-full flex-col gap-3 animate-in fade-in duration-500">
+      {/* Context-Aware Life/Work Operator Selector Bar. Phones: the pills stay 30px high and each carries an invisible
+          `after:` box that lifts its touch target to 44px (8px per side: an absolutely positioned box is offset from
+          the padding edge, so 7px beyond the pill plus its 1px border). A horizontal scroller clips whatever lies
+          outside its own box, so the row pads 8px above and below and takes the same 8px back through a negative
+          margin: the layout footprint is unchanged and the gap to the cards below stays the 12px of `gap-3`. */}
       {(!agentConfig?.suggestionPrompts || agentConfig.suggestionPrompts.length === 0) && (
-        <div className="flex items-center justify-start gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap sm:justify-center sm:overflow-visible">
+        <div className="flex items-center justify-start gap-1.5 overflow-x-auto scrollbar-hide max-sm:-my-[8px] max-sm:py-[8px] sm:flex-wrap sm:justify-center sm:overflow-visible">
           {slotTabs.map(({ id, label, Icon }) => {
             const isActive = (selectedSlot === 'auto' && id === currentTimeSlot) || selectedSlot === id;
             return (
@@ -231,7 +235,7 @@ const SamplePrompts = React.memo(() => {
                 aria-pressed={isActive}
                 onClick={() => handleSelectSlot(id === currentTimeSlot && selectedSlot !== 'auto' ? 'auto' : id)}
                 className={cn(
-                  'inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 sm:py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer select-none',
+                  'inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 sm:py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer select-none max-sm:relative max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-[8px]',
                   isActive
                     ? 'bg-primary/15 text-primary border border-primary/30 shadow-xs'
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-transparent',

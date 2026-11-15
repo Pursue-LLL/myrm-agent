@@ -7,8 +7,8 @@ app.services.statistics.usage_aggregation (POS: 用量聚合纯逻辑)
 app.api.statistics.* (POS: HTTP 统计路由与装配)
 
 [POS]
-API 层兼容入口。纯聚合逻辑已下沉至 services 层，本模块仅 re-export，
-保持既有 API 路由、脚本与测试的 import 路径稳定。
+API 层入口。纯聚合逻辑在 services 层，本模块仅 re-export，
+供 API 路由、脚本与测试按 app.api.statistics 的 import 路径使用。
 """
 
 from app.services.statistics.usage_aggregation import (
