@@ -2,10 +2,10 @@
 - app.services / app.core schedulers (POS: the schedulers this module starts)
 
 [OUTPUT]
-- _db_maintenance_scheduler, _db_maintenance_scheduler_task, _db_maintenance_job, _incognito_cleanup_job, _checkpoint_history_prune_job, _instance_auto_backup_job, start_db_maintenance_scheduler, stop_db_maintenance_scheduler
+- _db_maintenance_scheduler, _db_maintenance_scheduler_task, _db_maintenance_job, _incognito_cleanup_job, _checkpoint_history_prune_job, _browser_profile_gc_job, _instance_auto_backup_job, start_db_maintenance_scheduler, stop_db_maintenance_scheduler
 
 [POS]
-Lifecycle schedulers: database maintenance, incognito purge, checkpoint prune and instance backup jobs.
+Lifecycle schedulers: database maintenance, incognito purge, checkpoint prune, browser profile GC and instance backup jobs.
 """
 
 from __future__ import annotations
@@ -174,6 +174,18 @@ async def _checkpoint_history_prune_job() -> None:
     await run_checkpoint_history_prune()
 
 
+async def _browser_profile_gc_job() -> None:
+    """Remove the throw-away browser profile directories that a killed Playwright driver left in the temp directory."""
+    try:
+        from myrm_agent_harness.toolkits.browser import cleanup_stale_browser_profiles
+
+        # Blocking directory walk and process-table read: off the event loop. A directory that a running browser still
+        # uses is left alone, so a live session is never touched.
+        await asyncio.to_thread(cleanup_stale_browser_profiles, dry_run=False)
+    except Exception as e:
+        logger.warning("Browser profile GC failed: %s", e)
+
+
 async def _instance_auto_backup_job() -> None:
     """Hourly check of the scheduled whole-instance backup; starts one only when it is due."""
     from app.services.instance_archive.auto_backup import run_auto_backup_tick
@@ -212,6 +224,13 @@ async def start_db_maintenance_scheduler() -> None:
                     _checkpoint_history_prune_job,
                     IntervalTrigger(hours=6, start_time=datetime.now(UTC) + timedelta(minutes=10)),
                     id="checkpoint_history_prune",
+                )
+                # The first pass may remove many days of leftovers and reads the whole process table: delayed past
+                # startup, and offset from the other delayed passes so they do not all begin in the same second.
+                await scheduler.add_schedule(
+                    _browser_profile_gc_job,
+                    IntervalTrigger(hours=6, start_time=datetime.now(UTC) + timedelta(minutes=15)),
+                    id="browser_profile_gc",
                 )
                 # First check a few minutes after boot (not at once) so a backup due from a closed period does
                 # not compete with startup; the due-ness itself comes from the recorded last completed backup.

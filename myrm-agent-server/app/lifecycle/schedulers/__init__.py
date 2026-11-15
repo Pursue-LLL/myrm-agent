@@ -37,6 +37,7 @@ from .kanban import (
     stop_kanban_dispatchers,
 )
 from .maintenance import (
+    _browser_profile_gc_job,
     _checkpoint_history_prune_job,
     _db_maintenance_job,
     _incognito_cleanup_job,
@@ -64,6 +65,7 @@ __all__ = [
     "_db_maintenance_job",
     "_incognito_cleanup_job",
     "_checkpoint_history_prune_job",
+    "_browser_profile_gc_job",
     "_instance_auto_backup_job",
     "_approval_ttl_job",
     "_cancellation_token_cleanup_job",
