@@ -261,7 +261,6 @@
 | `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：就绪态、整段会话累计与 K/M 缩写、缓存读取低于门限的普通态、门限达成/累计达成/服务端标记三种绿色高亮与节省额（不足 1 美分取四位小数，其余三位）、命中率取累计值，以及单价浮层拿到所选或默认模型                                                                                                   | ✅    |
 | `__tests__/InputHistoryPopup.test.tsx` | 测试 | 输入历史弹窗：listbox 名称、条目单行预览与完整 tooltip、选中态、同一时刻的条目不撞 key、时间边界（刚刚/分钟/小时/昨天/天/日期）与按界面语言排版、悬停与按下回报、点击外部关闭（只在打开期间监听）、活动项滚入视野 | ✅ |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                                              | ✅    |
-| `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                                         | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                                          | ✅    |
 | `thinking-permission/`                       | 子包 | 可调节思考推理预算滑块、Thinking 深度折叠呈现与三档权限自动化模式即时换挡器（Item 81 P0，详见 `thinking-permission/_ARCH.md`）                                                      | ✅    |
 | `digital-self/`                              | 子包 | 数字分身拟人化语气草拟回复、同事上下文对齐与外部出站发送绝对确认安全门禁（Item 82 P0，详见 `digital-self/_ARCH.md`）                                                                | ✅    |

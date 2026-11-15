@@ -14032,17 +14032,6 @@
     "sandboxIframeTitle": "インタラクティブなプロトタイプキャンバス",
     "submitShortcutHint": "⌘+Enter で送信"
   },
-  "structuredAsking": {
-    "skippedBadge": "スキップ済み",
-    "answeredBadge": "決定済み",
-    "recommended": "おすすめ",
-    "textSlotPlaceholder": "任意の値やメモを入力…",
-    "skipControl": "スキップ（エージェントに任せる）",
-    "confirmSelection": "選択を確定",
-    "skippedExplanation": "この質問はスキップされました。エージェントは推奨のデフォルトで進めます。",
-    "userChoseLabel": "選択済み",
-    "noneSelected": "なし"
-  },
   "dataDashboard": {
     "defaultSubtitle": "Myrm ビジュアルエンジンが自動生成",
     "copySummary": "指標の要約をコピー",

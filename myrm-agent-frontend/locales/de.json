@@ -14032,17 +14032,6 @@
     "sandboxIframeTitle": "Interaktive Prototyp-Zeichenfläche",
     "submitShortcutHint": "⌘+Enter zum Absenden"
   },
-  "structuredAsking": {
-    "skippedBadge": "Übersprungen",
-    "answeredBadge": "Entschieden",
-    "recommended": "Empfohlen",
-    "textSlotPlaceholder": "Eigenen Wert oder Notiz eingeben …",
-    "skipControl": "Überspringen (Agent entscheidet)",
-    "confirmSelection": "Auswahl bestätigen",
-    "skippedExplanation": "Diese Frage wurde übersprungen; der Agent fährt mit dem empfohlenen Standard fort.",
-    "userChoseLabel": "Gewählt",
-    "noneSelected": "Keine"
-  },
   "dataDashboard": {
     "defaultSubtitle": "Automatisch von der Myrm Visual Engine erzeugt",
     "copySummary": "Kennzahlen-Zusammenfassung kopieren",

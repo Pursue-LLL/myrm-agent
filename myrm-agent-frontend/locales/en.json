@@ -14032,17 +14032,6 @@
     "sandboxIframeTitle": "Interactive prototype canvas",
     "submitShortcutHint": "⌘+Enter to submit"
   },
-  "structuredAsking": {
-    "skippedBadge": "Skipped",
-    "answeredBadge": "Decided",
-    "recommended": "Recommended",
-    "textSlotPlaceholder": "Enter custom value or notes...",
-    "skipControl": "Skip (Let Agent Decide)",
-    "confirmSelection": "Confirm Selection",
-    "skippedExplanation": "User skipped this question; agent will proceed with the recommended default.",
-    "userChoseLabel": "Selected",
-    "noneSelected": "None"
-  },
   "dataDashboard": {
     "defaultSubtitle": "Generated autonomously by Myrm Visual Engine",
     "copySummary": "Copy Metric Summary",

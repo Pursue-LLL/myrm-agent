@@ -14032,17 +14032,6 @@
     "sandboxIframeTitle": "인터랙티브 프로토타입 캔버스",
     "submitShortcutHint": "⌘+Enter로 제출"
   },
-  "structuredAsking": {
-    "skippedBadge": "건너뜀",
-    "answeredBadge": "결정됨",
-    "recommended": "추천",
-    "textSlotPlaceholder": "직접 입력한 값이나 메모를 적어 주세요…",
-    "skipControl": "건너뛰기(에이전트가 결정)",
-    "confirmSelection": "선택 확정",
-    "skippedExplanation": "이 질문은 건너뛰었습니다. 에이전트가 추천 기본값으로 진행합니다.",
-    "userChoseLabel": "선택됨",
-    "noneSelected": "없음"
-  },
   "dataDashboard": {
     "defaultSubtitle": "Myrm 비주얼 엔진이 자동으로 생성했습니다",
     "copySummary": "지표 요약 복사",

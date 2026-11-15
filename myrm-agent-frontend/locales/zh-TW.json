@@ -14032,17 +14032,6 @@
     "sandboxIframeTitle": "互動式原型畫布",
     "submitShortcutHint": "⌘+Enter 提交"
   },
-  "structuredAsking": {
-    "skippedBadge": "已跳過",
-    "answeredBadge": "已完成決策",
-    "recommended": "推薦",
-    "textSlotPlaceholder": "請輸入補充說明或具體數值...",
-    "skipControl": "跳過 (由智慧體決策)",
-    "confirmSelection": "確認選擇",
-    "skippedExplanation": "使用者已跳過此問題，交由智慧體按最優策略自動處理。",
-    "userChoseLabel": "已選擇",
-    "noneSelected": "無"
-  },
   "dataDashboard": {
     "defaultSubtitle": "由 Myrm 自主視覺化引擎生成",
     "copySummary": "複製指標摘要",
