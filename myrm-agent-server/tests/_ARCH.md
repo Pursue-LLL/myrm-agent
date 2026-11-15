@@ -451,6 +451,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
 | `database/test_agent_governance_columns_retired.py` | 模块 | 智能体表职责范围、负责人标签、验收标准三列的删除迁移对真实 SQLite：升级中的库丢掉这三列，智能体行与其余列原样保留；从不带这三列的库跳过这些删除；新库不带这三列、模型也不映射它们，迁移重复执行不出错；每条删除都排在添加该列的语句之后 |
+| `database/test_procedural_rules_table_retired.py` | 模块 | server 主库里旧规则表 `procedural_rules` 的删除对真实 SQLite：模型不再映射该表；删除语句只放在 `INDEX_STATEMENTS`、排在所有仍提到该表的语句之后；升级中的库丢掉表与它的索引（含残留的行），其余表与索引原样保留，`PRAGMA user_version` 不变，重复启动无变化；该表索引语句的记录丢失时先重跑再删表；表已不在也能启动；新库从不建它；记忆库自己文件里的同名规则表与规则不受影响 |
 | `database/test_capability_token_migration.py` | 模块 | 能力词表迁移对真实 SQLite：升级中的库把作业能力、Agent 安全覆盖与安全档案里存着的 `code_interpreter_tool` 整词改成 `code_interpreter`，只是含有这段文字的其他值（如域名白名单项）与已用新词的行保持原样；三条语句相邻、各管一张表，重复执行不再改动任何行 |
 | `database/test_channel_key_match.py` | 模块 | 渠道会话键的边界匹配对真实 SQLite：续接匹配含自身与话题、智能体、纪元，纪元匹配只含自身与 `:e=` 键；更长的对端、相邻对端与 `_` 通配符都不被匹配；解析器与交接写出的各策略纪元键都被纪元匹配命中 |
 | `database/test_legacy_wakeup_notice_backfill.py` | 模块 | 旧版通知行补标记迁移对真实 SQLite：没有标记、标记为 JSON null 或带其他字段的 `wakeup_` 用户行补上 `followup` 且保留原字段；已有标记（`followup` / `degraded`）的行、助手行、真人发言行、大小写或前缀不同的 id 都不动；重复执行不再改动任何行；迁移已登记在迁移列表里 |
