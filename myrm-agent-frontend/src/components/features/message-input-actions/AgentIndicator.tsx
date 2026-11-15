@@ -4,7 +4,7 @@
  * [INPUT]
  * @/store/useChatStore::useChatStore (POS: 聊天状态总线)
  * @/store/useAgentStore::useAgentStore (POS: 智能体数据中心)
- * @/hooks/agent/useAgentGallery::useAgentGallery (POS: 智能体画廊与环境可用性逻辑)
+ * @/hooks/agent/useAgentPicker::useAgentPicker (POS: 输入框智能体下拉的列表与环境可用性逻辑)
  * @/lib/utils/agent-config::buildAgentConfig (POS: 智能体配置映射)
  * ./AgentIndicatorAvatar::AgentIndicatorAvatar (POS: 按钮里的智能体头像)
  *
@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
 import { findLucideIcon } from '@/components/agent/lucide-icon-resolver';
-import { useAgentGallery } from '@/hooks/agent/useAgentGallery';
+import { useAgentPicker } from '@/hooks/agent/useAgentPicker';
 import { buildAgentConfig } from '@/lib/utils/agent-config';
 import type { PresetAgent } from '@/types/presetAgent';
 import type { AgentListItem } from '@/services/agent';
@@ -131,7 +131,7 @@ const AgentIndicator = () => {
     [setAgentConfig, t],
   );
 
-  const { presetAgents, customAgents, handlePresetClick, handleCustomAgentClick } = useAgentGallery({
+  const { presetAgents, customAgents, handlePresetClick, handleCustomAgentClick } = useAgentPicker({
     onSelectPreset: handleSelectPreset,
     onSelectCustomAgent: handleSelectCustomAgent,
   });

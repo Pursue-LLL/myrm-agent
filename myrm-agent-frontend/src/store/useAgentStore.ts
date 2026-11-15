@@ -29,7 +29,7 @@ interface AgentState {
   clearError: () => void;
 }
 
-// Roster reads overlap (events, gallery mount) and can finish out of order. A read only counts when it started after
+// Roster reads overlap (events, agent picker mount) and can finish out of order. A read only counts when it started after
 // the one already applied, so a slow old read never brings back an outdated roster.
 let latestRosterRequest = 0;
 let appliedRosterRequest = 0;

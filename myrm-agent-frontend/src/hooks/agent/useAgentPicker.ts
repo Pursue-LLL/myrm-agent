@@ -1,5 +1,5 @@
 /**
- * 智能体画廊Hook
+ * 输入框智能体下拉 Hook
  *
  * 管理预置智能体和自定义智能体的状态、可用性检查、点击处理等逻辑
  *
@@ -10,7 +10,7 @@
  *   customAgents,
  *   handlePresetClick,
  *   handleCustomAgentClick,
- * } = useAgentGallery({
+ * } = useAgentPicker({
  *   onSelectPreset,
  *   onSelectCustomAgent,
  * });
@@ -29,12 +29,12 @@ import { isLocalMode } from '@/lib/deploy-mode';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { toast } from '@/lib/utils/toast';
 
-interface UseAgentGalleryParams {
+interface UseAgentPickerParams {
   onSelectPreset: (agent: PresetAgent) => void;
   onSelectCustomAgent?: (agent: AgentListItem) => void;
 }
 
-export function useAgentGallery({ onSelectPreset, onSelectCustomAgent }: UseAgentGalleryParams) {
+export function useAgentPicker({ onSelectPreset, onSelectCustomAgent }: UseAgentPickerParams) {
   const t = useTranslations('presetAgent');
   const locale = useLocale();
 
@@ -61,7 +61,7 @@ export function useAgentGallery({ onSelectPreset, onSelectCustomAgent }: UseAgen
     }
   }, [isInitialized, initProviders]);
 
-  // The built-in presets alone exceed default page_size=20; fetch enough for gallery SSOT.
+  // Refresh the whole roster on mount: the store skips an unforced read once agents are cached.
   // A forced fetch is not de-duplicated by the store, so it must not re-run when the providers finish starting.
   useEffect(() => {
     fetchAgents(true);

@@ -4,15 +4,15 @@
  * - ../AgentIndicator (POS: 被测组件)
  *
  * [OUTPUT]
- * - kit: 替身句柄：语言、聊天状态、路由、提示、智能体详情读取、画廊数据
- * - resetIndicatorKit: 恢复为空画廊、无已选智能体的 agent 模式，并给 Radix 弹层补上 ResizeObserver
+ * - kit: 替身句柄：语言、聊天状态、路由、提示、智能体详情读取、智能体列表数据
+ * - resetIndicatorKit: 恢复为空智能体列表、无已选智能体的 agent 模式，并给 Radix 弹层补上 ResizeObserver
  * - renderIndicator / openMenu: 渲染指示器；用键盘打开真实的下拉菜单
- * - preset / customAgent / fullAgent: 画廊预设、自定义智能体列表项、智能体详情的样例构造器
+ * - preset / customAgent / fullAgent: 内置预设、自定义智能体列表项、智能体详情的样例构造器
  * - deferred: 手动控制完成时机的 Promise
  *
  * [POS]
  * AgentIndicator 行为测试的共享底座。必须先于 ../AgentIndicator 导入：vi.mock 在本模块求值时登记。
- * 下拉与提示用真实的 Radix 组件；状态总线、画廊 Hook、路由与提示换成替身；文案取真实语言包；
+ * 下拉与提示用真实的 Radix 组件；状态总线、智能体列表 Hook、路由与提示换成替身；文案取真实语言包；
  * 图标解析只认识 Code 与 Search，每个名称对应一个稳定的占位组件，其余返回 null，与真实解析器一致。
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -35,7 +35,7 @@ const kit = vi.hoisted(() => ({
   router: { push: vi.fn<(href: string) => void>() },
   toast: vi.fn<(options: { title: string; description?: string }) => void>(),
   fetchAgent: vi.fn<(agentId: string) => Promise<Agent | null>>(),
-  gallery: { presets: [] as PresetAgent[], customAgents: [] as AgentListItem[] },
+  picker: { presets: [] as PresetAgent[], customAgents: [] as AgentListItem[] },
 }));
 export { kit };
 
@@ -46,16 +46,16 @@ vi.mock('@/store/useChatStore', () => ({
   default: (selector: (state: typeof kit.chat) => unknown) => selector(kit.chat),
 }));
 vi.mock('@/store/useAgentStore', () => ({ default: { getState: () => ({ fetchAgent: kit.fetchAgent }) } }));
-vi.mock('@/hooks/agent/useAgentGallery', () => ({
-  useAgentGallery: ({
+vi.mock('@/hooks/agent/useAgentPicker', () => ({
+  useAgentPicker: ({
     onSelectPreset,
     onSelectCustomAgent,
   }: {
     onSelectPreset: (agent: PresetAgent) => void;
     onSelectCustomAgent: (agent: AgentListItem) => void;
   }) => ({
-    presetAgents: kit.gallery.presets,
-    customAgents: kit.gallery.customAgents,
+    presetAgents: kit.picker.presets,
+    customAgents: kit.picker.customAgents,
     handlePresetClick: onSelectPreset,
     handleCustomAgentClick: onSelectCustomAgent,
   }),
@@ -119,7 +119,7 @@ export function resetIndicatorKit(): void {
   vi.resetAllMocks();
   kit.locale = 'en';
   Object.assign(kit.chat, { agentConfig: null, actionMode: 'agent', loading: false });
-  Object.assign(kit.gallery, { presets: [], customAgents: [] });
+  Object.assign(kit.picker, { presets: [], customAgents: [] });
   kit.fetchAgent.mockResolvedValue(null);
   vi.stubGlobal(
     'ResizeObserver',
