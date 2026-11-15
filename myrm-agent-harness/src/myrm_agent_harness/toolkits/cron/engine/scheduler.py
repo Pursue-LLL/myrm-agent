@@ -5,15 +5,15 @@ job instead of fixed-interval polling.  Due jobs are dispatched into async
 tasks bounded by a concurrency semaphore.
 
 Execution lifecycle is delegated to ``JobExecutor``; startup recovery to
-``StartupRecovery``.  This module owns only the timer machinery and
-concurrency control.
-
+``StartupRecovery``; trigger dispatch and the guarded execution path to
+``SchedulerDispatchMixin``.  This module owns only the timer machinery and
+the claim of due jobs.
 
 [INPUT]
 - cron.engine.executor::JobExecutor (POS: job execution lifecycle manager)
-- cron.engine.helpers::_ensure_utc, is_within_active_hours, pre_execution_check, etc. (POS: scheduling helper utilities)
-- cron.engine.job_freshness::adopt_latest (POS: stored job as the truth after the stagger and slot waits)
+- cron.engine.helpers::_ensure_utc, is_past_misfire_grace (POS: scheduling helper utilities)
 - cron.engine.recovery::StartupRecovery (POS: startup recovery for missed jobs)
+- cron.engine.scheduler_dispatch::SchedulerDispatchMixin (POS: trigger dispatch and the guarded execution path, mixed into the scheduler)
 - cron.types::CronConfig, CronJob, JobStatus, JobType (POS: cron data models)
 
 [OUTPUT]
@@ -30,29 +30,19 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import random
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.cron.engine.executor import JobExecutor
-from myrm_agent_harness.toolkits.cron.engine.helpers import (
-    _ensure_utc,
-    auto_pause_notice,
-    is_within_active_hours,
-    pre_execution_check,
-)
+from myrm_agent_harness.toolkits.cron.engine.helpers import _ensure_utc
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     is_past_misfire_grace as _is_past_grace,
 )
-from myrm_agent_harness.toolkits.cron.engine.helpers import (
-    resolve_stagger_ms as _resolve_stagger_ms,
-)
-from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
 from myrm_agent_harness.toolkits.cron.engine.recovery import StartupRecovery
+from myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch import SchedulerDispatchMixin
 from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
     CronJob,
-    JobStatus,
     JobType,
 )
 
@@ -81,7 +71,7 @@ _WATCHDOG_INTERVAL_S = 60.0
 _STARTUP_TICK_DELAY_S = 2.0
 
 
-class CronScheduler:
+class CronScheduler(SchedulerDispatchMixin):
     """Precise timer-based cron scheduler.
 
     Instantiated once by the application layer, started in the server
@@ -301,142 +291,3 @@ class CronScheduler:
                 logger.warning("Purged %d old cron run records (before %s)", deleted, cutoff.isoformat())
         except Exception as exc:
             logger.warning("Failed to purge old runs: %s", exc)
-
-    # ------------------------------------------------------------------
-    # Trigger dispatch (event-driven execution)
-    # ------------------------------------------------------------------
-
-    async def dispatch_event(
-        self,
-        message: str,
-        channel: str,
-        user_id: str,
-    ) -> int:
-        """Check event triggers against an incoming message.
-
-        Returns the number of jobs triggered.  When no ``TriggerProvider``
-        is injected, returns 0 immediately.
-        """
-        if not self._trigger_provider:
-            return 0
-        try:
-            jobs = await self._trigger_provider.check_event_triggers(message, channel, user_id)
-        except Exception as exc:
-            logger.warning("Event trigger check failed: %s", exc)
-            return 0
-
-        context = f"[TRIGGER: event]\nChannel: {channel}\nUser: {user_id}\nMessage: {message}"
-        for job in jobs:
-            self._spawn(self._execute_and_persist(job, context=context, trigger_source="event"))
-        return len(jobs)
-
-    async def dispatch_system_event(
-        self,
-        source: str,
-        event_type: str,
-        payload: dict[str, object],
-    ) -> int:
-        """Check system-event triggers.  Returns the number of jobs triggered."""
-        if not self._trigger_provider:
-            return 0
-        try:
-            jobs = await self._trigger_provider.check_system_event(source, event_type, payload)
-        except Exception as exc:
-            logger.warning("System event trigger check failed: %s", exc)
-            return 0
-
-        import json
-
-        payload_str = json.dumps(payload, ensure_ascii=False, default=str)[:4000]
-        context = f"[TRIGGER: system_event]\nSource: {source}\nEvent: {event_type}\nPayload:\n{payload_str}"
-        for job in jobs:
-            self._spawn(self._execute_and_persist(job, context=context, trigger_source="system_event"))
-        return len(jobs)
-
-    async def dispatch_webhook(
-        self,
-        path: str,
-        secret: str,
-        payload: dict[str, object],
-    ) -> CronJob | None:
-        """Validate and execute a webhook-triggered job.
-
-        Returns the matched ``CronJob`` or ``None``.
-        """
-        if not self._trigger_provider:
-            return None
-        try:
-            job = await self._trigger_provider.handle_webhook(path, secret, payload)
-        except Exception as exc:
-            logger.warning("Webhook trigger failed for path %s: %s", path, exc)
-            return None
-
-        if job is None:
-            return None
-
-        import json
-
-        payload_str = json.dumps(payload, ensure_ascii=False, default=str)[:4000]
-        context = f"[TRIGGER: webhook]\nPath: {path}\nPayload:\n{payload_str}"
-        self._spawn(self._execute_and_persist(job, context=context, trigger_source="webhook"))
-        return job
-
-    # ------------------------------------------------------------------
-    # Execution dispatch (stagger + concurrency + delegate to executor)
-    # ------------------------------------------------------------------
-
-    async def _execute_and_persist(
-        self,
-        job: CronJob,
-        *,
-        context: str = "",
-        trigger_source: str = "cron",
-    ) -> None:
-        try:
-            now = datetime.now(UTC)
-            skip_reason = pre_execution_check(job, now)
-            if skip_reason:
-                logger.warning("Job %s skipped: %s", job.id, skip_reason)
-                pause_notice = auto_pause_notice(job, skip_reason)
-                if pause_notice is not None:
-                    await self._store.save_job(job)
-                    await self._executor.emit_notice(pause_notice)
-                return
-
-            if not is_within_active_hours(job.active_hours):
-                logger.warning("Job %s skipped: outside active hours", job.id)
-                return
-
-            if job.skip_if_active and job.id in self._active_jobs:
-                logger.warning("Job %s skipped: previous instance still running (skip_if_active)", job.id)
-                return
-
-            stagger = _resolve_stagger_ms(job)
-            if stagger > 0:
-                delay_ms = random.randint(0, stagger)
-                logger.warning("Job %s: stagger delay %dms", job.id, delay_ms)
-                await asyncio.sleep(delay_ms / 1000)
-
-            runner = self._runners.get(job.job_type)
-            if not runner:
-                logger.warning("No runner registered for job type %s", job.job_type)
-                return
-
-            self._active_jobs.add(job.id)
-            try:
-                async with self._global_sem:
-                    # The waits above can last minutes; the stored job decides whether the run still happens.
-                    if not await adopt_latest(self._store, job) or job.status != JobStatus.ACTIVE:
-                        logger.info("Job %s was deleted or paused before it started, skipping", job.id)
-                        return
-                    job.fire_count += 1
-                    await self._executor.run_and_record(
-                        job,
-                        runner,
-                        context=context,
-                        trigger_source=trigger_source,
-                    )
-            finally:
-                self._active_jobs.discard(job.id)
-        except Exception as exc:
-            logger.warning("Unhandled error in job %s: %s", job.id, exc)

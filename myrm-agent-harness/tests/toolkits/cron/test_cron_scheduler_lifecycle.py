@@ -311,7 +311,7 @@ class TestExecuteAndPersist:
         sched._running = True
 
         with patch(
-            "myrm_agent_harness.toolkits.cron.engine.scheduler.pre_execution_check",
+            "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
             return_value="expired",
         ):
             await sched._execute_and_persist(_make_job())
@@ -325,7 +325,7 @@ class TestExecuteAndPersist:
         sched._running = True
 
         with patch(
-            "myrm_agent_harness.toolkits.cron.engine.scheduler.pre_execution_check",
+            "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
             return_value="max_fires_reached",
         ):
             await sched._execute_and_persist(_make_job())
@@ -339,7 +339,7 @@ class TestExecuteAndPersist:
         sched._running = True
 
         with patch(
-            "myrm_agent_harness.toolkits.cron.engine.scheduler.pre_execution_check",
+            "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
             return_value="paused",
         ):
             await sched._execute_and_persist(_make_job())
@@ -354,11 +354,11 @@ class TestExecuteAndPersist:
 
         with (
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.pre_execution_check",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.is_within_active_hours",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.is_within_active_hours",
                 return_value=False,
             ),
         ):
@@ -376,15 +376,15 @@ class TestExecuteAndPersist:
         job = _make_job(skip_if_active=True)
         with (
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.pre_execution_check",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.is_within_active_hours",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.is_within_active_hours",
                 return_value=True,
             ),
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler._resolve_stagger_ms",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch._resolve_stagger_ms",
                 return_value=0,
             ),
         ):
@@ -410,15 +410,15 @@ class TestExecuteAndPersist:
         job = _make_job(job_type=JobType.SHELL)
         with (
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.pre_execution_check",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.is_within_active_hours",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.is_within_active_hours",
                 return_value=True,
             ),
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler._resolve_stagger_ms",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch._resolve_stagger_ms",
                 return_value=0,
             ),
         ):
@@ -436,15 +436,15 @@ class TestExecuteAndPersist:
         job = _make_job(schedule=schedule)
         with (
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.pre_execution_check",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.is_within_active_hours",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.is_within_active_hours",
                 return_value=True,
             ),
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler._resolve_stagger_ms",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch._resolve_stagger_ms",
                 return_value=100,
             ),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
@@ -461,7 +461,7 @@ class TestExecuteAndPersist:
 
         with (
             patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler.pre_execution_check",
+                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
                 side_effect=RuntimeError("unexpected"),
             ),
         ):
