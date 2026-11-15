@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import time
 from collections.abc import AsyncIterator, Iterator
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel, output_cap_recovery
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import (
@@ -46,7 +47,7 @@ WINDOW_ERROR = (
 WINDOW_ERROR_NO_ROOM = WINDOW_ERROR.replace("198000", "199800")
 WINDOW_REMAINDER_RETRY = 2000 - 64
 
-MESSAGES = [HumanMessage(content="hi")]
+MESSAGES: list[BaseMessage] = [HumanMessage(content="hi")]
 SYNC_PATHS = ("generate", "stream")
 ASYNC_PATHS = ("agenerate", "astream")
 
@@ -71,8 +72,8 @@ def _rate_limited(message: str) -> Exception:
     return provider_error("openai", 429, {"error": {"message": message, "type": "rate_limit_error"}})
 
 
-def _model(**kwargs: object) -> TransportChatModel:
-    model = TransportChatModel(model=MODEL, max_tokens=REQUESTED, **kwargs)
+def _model() -> TransportChatModel:
+    model = TransportChatModel(model=MODEL, max_tokens=REQUESTED)
     model.client = MagicMock()
     return model
 
@@ -107,11 +108,12 @@ def _success(path: str) -> object:
 def _script(model: TransportChatModel, path: str, *outcomes: object) -> MagicMock:
     """Install the provider fake for ``path``: exceptions are raised, the string 'ok' becomes a normal response."""
     resolved = [_success(path) if outcome == "ok" else outcome for outcome in outcomes]
+    client = cast("MagicMock", model.client)  # _model() installed a MagicMock
     if path in ASYNC_PATHS:
-        model.client.acompletion = AsyncMock(side_effect=resolved)
-        return model.client.acompletion
-    model.client.completion = MagicMock(side_effect=resolved)
-    return model.client.completion
+        client.acompletion = AsyncMock(side_effect=resolved)
+        return cast("MagicMock", client.acompletion)
+    client.completion = MagicMock(side_effect=resolved)
+    return cast("MagicMock", client.completion)
 
 
 def _run_sync(model: TransportChatModel, path: str) -> str:
@@ -263,28 +265,36 @@ class TestRetryLoops:
         assert get_ephemeral_max_output_tokens() is None
 
 
+# SiliconFlow's own wording of a model ceiling, and the sentence form other gateways and clients print.
+SILICONFLOW_WORDINGS = (
+    f"max_tokens: Must be less than or equal to {CEILING}",
+    f"max_tokens must be less than or equal to {CEILING}.",
+)
+
+
 class TestSiliconFlowFlatBody:
     """SiliconFlow answers with a flat ``{code, message, data}`` body instead of an ``error`` envelope."""
 
     @staticmethod
-    def _rejection() -> Exception:
-        message = f"max_tokens must be less than or equal to {CEILING}."
+    def _rejection(message: str) -> Exception:
         return provider_error("openai", 400, {"code": 20015, "message": message, "data": None})
 
+    @pytest.mark.parametrize("message", SILICONFLOW_WORDINGS)
     @pytest.mark.parametrize("path", SYNC_PATHS)
-    def test_sync_max_tokens_ceiling_is_retried(self, path: str) -> None:
+    def test_sync_max_tokens_ceiling_is_retried(self, path: str, message: str) -> None:
         model = _model()
-        client = _script(model, path, self._rejection(), "ok")
+        client = _script(model, path, self._rejection(message), "ok")
 
         assert _run_sync(model, path) == "ok"
 
         assert _max_tokens_sent(client) == [REQUESTED, CEILING]
         _assert_only_max_tokens_differs(client)
 
+    @pytest.mark.parametrize("message", SILICONFLOW_WORDINGS)
     @pytest.mark.parametrize("path", ASYNC_PATHS)
-    async def test_async_max_tokens_ceiling_is_retried(self, path: str) -> None:
+    async def test_async_max_tokens_ceiling_is_retried(self, path: str, message: str) -> None:
         model = _model()
-        client = _script(model, path, self._rejection(), "ok")
+        client = _script(model, path, self._rejection(message), "ok")
 
         assert await _run_async(model, path) == "ok"
 

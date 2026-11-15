@@ -54,7 +54,8 @@ _MODEL_CEILING_PATTERNS: tuple[re.Pattern[str], ...] = (
     # Volcengine Ark: "The parameter `max_tokens` ... is not valid: integer above maximum value, expected a value <= N"
     re.compile(rf"max_(?:completion_)?tokens\W.{{0,120}}?integer above maximum value\W+expected a value\s*<=\s*{_NUM}"),
     # Groq: "max_completion_tokens must be less than or equal to 40960"
-    re.compile(rf"max_(?:completion_)?tokens must be less than or equal to\s*{_NUM}"),
+    # SiliconFlow (code 20015): "max_tokens: Must be less than or equal to 16384"
+    re.compile(rf"max_(?:completion_)?tokens:?\s*must be less than or equal to\s*{_NUM}"),
     # AWS Bedrock Converse: "The maximum tokens you requested exceeds the model limit of 8192. Try again with ..."
     re.compile(rf"maximum tokens you requested exceeds the model limit of\s*{_NUM}"),
 )
