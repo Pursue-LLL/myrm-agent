@@ -201,14 +201,15 @@ def test_a_task_result_no_browser_can_load_never_passes_the_load_check(kind: str
         shown = wait_for_state(client, page, _reply_visible_js(), timeout_sec=60.0, page_url=chat_url)
         assert shown.get("ready") is True, shown
 
-        loaded = wait_for_state(
-            client,
-            page,
-            _media_probe_js(kind, str(seeded["marker"])),
-            timeout_sec=_UNLOADABLE_WAIT_SEC,
-            page_url=chat_url,
-        )
-        assert loaded.get("ready") is not True, loaded
+        # A wait that never sees the state turn ready gives up with the last state it read: the probe's "not loaded" verdict.
+        with pytest.raises(AssertionError, match=r"did not become ready: \{'ready': False"):
+            wait_for_state(
+                client,
+                page,
+                _media_probe_js(kind, str(seeded["marker"])),
+                timeout_sec=_UNLOADABLE_WAIT_SEC,
+                page_url=chat_url,
+            )
 
 
 @pytest.mark.chrome_e2e(
