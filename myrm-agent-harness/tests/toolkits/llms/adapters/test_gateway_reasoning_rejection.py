@@ -189,6 +189,8 @@ class TestGatewayDialectControls:
         ("control", "value", "message"),
         [
             ("enable_thinking", False, "Unrecognized request argument supplied: enable_thinking"),
+            # SiliconFlow's answer to a model that has no switch (CherryHQ/cherry-studio issue 6642, code 20015).
+            ("enable_thinking", False, "Value error, current model does not support parameter `enable_thinking`."),
             ("enable_thinking", True, "unknown field enable_thinking"),
             ("chat_template_kwargs", {"thinking": True}, "Unsupported parameter(s): chat_template_kwargs"),
             (
