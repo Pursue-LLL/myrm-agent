@@ -10,7 +10,8 @@
  * SpendReceiptBadge: 账本流水状态小芯片，展示商户、金额、状态与条目哈希记录标识
  *
  * [POS]
- * Presentation chip for one spending-gate ledger entry, rendered in the settings ledger table.
+ * Presentation chip for one spending-gate ledger entry, rendered in the settings
+ * ledger table.
  */
 
 import React, { memo } from 'react';

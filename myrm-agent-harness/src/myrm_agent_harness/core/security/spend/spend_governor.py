@@ -141,14 +141,12 @@ class SpendGovernor:
         current_time = time.time() if now is None else now
         expired_count = 0
         terminal_retention = 3600.0
+        terminal_statuses = ("expired", "committed", "released")
         for lid, lease in list(self._leases.items()):
             if lease.status == "reserved" and current_time > lease.expires_at:
                 lease.status = "expired"
                 expired_count += 1
-            elif (
-                lease.status in ("expired", "committed", "released")
-                and current_time > lease.expires_at + terminal_retention
-            ):
+            elif lease.status in terminal_statuses and current_time > lease.expires_at + terminal_retention:
                 self._leases.pop(lid, None)
         return expired_count
 
