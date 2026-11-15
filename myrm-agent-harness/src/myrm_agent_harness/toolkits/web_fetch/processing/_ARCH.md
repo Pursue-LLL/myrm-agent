@@ -1,7 +1,7 @@
 # processing/
 
 ## Overview
-Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL normalization, full-content delivery (one shared budget, complete text saved), anti-bot, binary routing.
+Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL normalization and rewriting, full-content delivery (one shared budget, complete text saved), anti-bot, binary routing.
 
 ## File Index
 
@@ -15,6 +15,7 @@ Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL norm
 | markdown_table.py | Util | Markdown table layout of converted table rows: the header and delimiter lines span the widest row and body rows keep their own cells, so one wide row among many short ones never multiplies the output (blank header when the table has none) | ✅ |
 | markdown_generator.py | Util | Markdown document generation | ✅ |
 | url_normalizer.py | Util | `normalize_url`: canonical URL used as the fetch cache key — known tracking parameters (`utm_*`, `fbclid`, ...) dropped but not generic names such as `ref` or `source`, which can select content; scheme and host lowercased, default port dropped, a plain anchor dropped while a hash route (`#/...`, `#!/...`) stays, repeated slashes collapsed, query sorted | ✅ |
+| github_blob_url.py | Util | `github_blob_to_raw`: the `/raw/` URL of a github.com blob page (`/<owner>/<repo>/blob/<ref>/<path>`, query and fragment dropped), any other URL unchanged — another host, `www.`, a port or credentials, a path with an empty segment. The blob page wraps the file in a large HTML page that the HTTP tier cuts at its body ceiling; `/raw/` is the file, and GitHub resolves a branch name with slashes itself, so nothing here guesses where the ref ends. The engine applies it before the cache key (a blob link and a raw link share one entry); the redirect to `raw.githubusercontent.com` is judged by the fetch like any hop, so a blocklisted `raw.githubusercontent.com` still stops it | ✅ |
 | full_content_delivery.py | Core | Delivery plan for full-content reads: one shared character budget split max-min fairly across pages, a truncation window per cut page, the exact saved-file line range of every omitted section, newline-normalized and soft-wrapped saved text, failed-URL listing; pages are labelled with the numbers the caller gives (`indices`: the run's source numbers, so a label is the index of the page's card), from 1 when none; `source_notice` names, by those numbers only (so it may sit outside the untrusted boundary), the pages whose source was cut, by the fetcher at its size ceiling or by the binary router at its parsed-text cap | ✅ |
 | spill.py | Util | Saves the complete text through the injected evicted-content callbacks, builds the read guide and announces the saved file to the GUI | ✅ |
 | html_scan.py | Util | Linear-time scans of raw HTML text (title, body, script/style blocks, tags) for pages that may be hostile | ✅ |

@@ -9,6 +9,7 @@ Tier breaker: a domain's L1/L2 tier that a higher tier keeps making up for is sk
 Cache: In-memory LRU (default 1 h TTL, 500 entries, 100 MB cap)
   - Request coalescing: concurrent requests for the same URL trigger only one network call (30 s timeout guard; waiters take over a cancelled leader's fetch)
   - URL normalisation: strips known tracking params for better hit rate
+  - GitHub blob links are fetched as their raw file, so a long source file is not cut at the page-size ceiling
   - HTTP conditional requests: sends ETag / Last-Modified on cache expiry to save bandwidth
   - Stale-While-Revalidate: returns stale cache immediately, refreshes via background priority queue (30 s timeout)
   - Cache warm-up: concurrent pre-warming with exponential back-off retry
@@ -211,6 +212,7 @@ class FetchEngine(
         allow_escalation: bool = True,
     ) -> Document | None:
         """Crawl a single URL, return Document or None."""
+        from ..processing.github_blob_url import github_blob_to_raw
         from ..processing.url_normalizer import normalize_url
 
         # A pure string check, so it runs ahead of the SSRF lookup, which may resolve the name.
@@ -234,6 +236,9 @@ class FetchEngine(
                 logger.warning("URL blocked by domain allowlist: %s (host=%s)", url, hostname)
                 return None
 
+        # The policy checks above judged the URL as given; the rewrite stays on the same host, and the redirect it
+        # leads to is judged hop by hop in the fetch. A blob link then shares the cache entry of its raw link.
+        url = github_blob_to_raw(url)
         cache_key = normalize_url(url)
 
         if cache_key in self._url_access_stats:
