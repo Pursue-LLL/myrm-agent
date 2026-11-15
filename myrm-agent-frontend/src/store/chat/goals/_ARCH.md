@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-对话内 Goal DAG 与 Plan 步骤状态。与 `components/features/chat-window/goals/` UI 配对；REST 经 `fetchWithTimeout` 直调 `/goals/*`。
+对话内 Goal 与 Plan 步骤状态。与 `components/features/chat-window/goals/` UI 配对；REST 经 `fetchWithTimeout` 直调 `/goals/*`。
 
 ## 文件清单
 

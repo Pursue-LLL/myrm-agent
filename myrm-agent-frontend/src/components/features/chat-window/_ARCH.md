@@ -171,7 +171,7 @@
 | `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher：到期按 `timeoutBehavior` 自动应答（同一批次的成员一并送达），应答确已送达才提示（每个批次一条）；没送达则卡片保留、由 hook 报错 | ✅ |
 | `WorkspaceDirPicker.tsx` | 组件 | 会话工作目录的唯一入口，渲染在输入框与操作栏之间的一行（桌面与手机同一位置）：未绑定时显示「会话目录」并说明只在该会话目录内工作，已绑定显示紧凑路径；Popover 内路径输入+Enter 导航、子目录过滤（>8 项）、最近使用 LRU 5（`lib/directoryBrowseRecent.ts`：弹层打开时才读存储，存储拒绝写入不影响选目录；Windows 路径按 `\` 紧凑显示）、返回上级按钮有名称、Tauri 桌面端原生 OS picker（`@tauri-apps/plugin-dialog`）、一键初始化办公目录（只创建缺失目录）；选目录先写入本地 store 再 PATCH，会话尚未落库时 404 视为成功（目录随首条消息提交），服务端拒绝的目录按原因提示并回滚本地状态 | ✅ |
 | `EvidenceStageHUD.tsx` | 组件 | "Evidence Before Claims" 执行阶段 HUD：Prepared/Executing/Observed/Verified 四态派生流转与证据快照抽屉；步骤错误/警告按 `getDisplayStatus` 派生（用户拒绝、审批超时记为警告阶段）；证据卡的结果与责任方用界面语言的词（`getStatusLabelKey`、`faultSides`），拒绝类调用写「用户已拒绝 / 审批超时」而不是状态码 | ✅ |
-| `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
+| `goals/` | 目录 | Goal 控制面 | 见下表 |
 | `mobile/` | 目录 | 移动端 Command Center 壳层与状态面板（MobileStatusBoard 等） | 见 [mobile/_ARCH.md](mobile/_ARCH.md) |
 | `catchup/` | 目录 | 会话 catch-up 收件箱 UI（`GET /catchup` 列出用户离开期间有动静的会话，在场水位线由 `hooks/chat/usePresenceReadMark` 盖章） | 见 [catchup/_ARCH.md](catchup/_ARCH.md) |
 | `virtual-message-list/` | 目录 | 虚拟化消息列表（`@tanstack/react-virtual` 高度缓存） | 见 [virtual-message-list/_ARCH.md](virtual-message-list/_ARCH.md) |
