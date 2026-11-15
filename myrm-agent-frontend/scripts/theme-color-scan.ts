@@ -1,7 +1,7 @@
 /**
  * 主题色写法静态扫描：找出把主题变量包进 `hsl()` / `hsla()` / `rgb()` / `rgba()` 的写法。
  *
- * 为什么需要：主题变量存的是完整颜色（`globals.css` 的 `--primary: #6799a0`，`theme-engine` 运行时写入的
+ * 为什么需要：主题变量存的是完整颜色（`theme-variables.css` 的 `--primary: #6799a0`，`theme-engine` 运行时写入的
  * 同样是 `#rrggbb`），包进颜色函数后整条声明在计算时失效。浏览器不报错、控制台没有告警：SVG 描边变 `none`、
  * 填充变黑、`box-shadow` 整条消失，单测与 jsdom 都看不见，只有真实渲染才暴露。
  *
@@ -43,7 +43,7 @@ export function findWrappedThemeColorSites(source: string): WrappedThemeColorSit
 }
 
 /**
- * 语义色工具类（`text-warning`、`bg-success/10`、`to-error`）必须在 `globals.css` 里有对应的 `--color-*` 声明。
+ * 语义色工具类（`text-warning`、`bg-success/10`、`to-error`）必须在 `tailwind-theme.css` 的 `@theme` 里有对应的 `--color-*` 声明。
  * Tailwind 4 只为已声明的颜色生成工具类，未声明的类名不报错也不出样式：告警框没底色没描边，单测与 jsdom 看不见。
  *
  * 只盯这几个“像主题语义色、却最容易漏定义”的名字，避免把 `text-xs`、`bg-cover` 之类误判成颜色；
@@ -59,9 +59,9 @@ export interface UndefinedSemanticColorSite {
   token: string;
 }
 
-/** 读出 `globals.css` 里声明过的 `--color-<name>`（Tailwind 据此生成颜色工具类）。 */
-export function parseDeclaredColorTokens(globalsCss: string): Set<string> {
-  return new Set(Array.from(globalsCss.matchAll(/--color-([\w-]+)\s*:/g), (match) => match[1]));
+/** 读出 `@theme` 样式里声明过的 `--color-<name>`（Tailwind 据此生成颜色工具类）。 */
+export function parseDeclaredColorTokens(themeCss: string): Set<string> {
+  return new Set(Array.from(themeCss.matchAll(/--color-([\w-]+)\s*:/g), (match) => match[1]));
 }
 
 export function findUndefinedSemanticColorSites(
@@ -80,7 +80,7 @@ export function findUndefinedSemanticColorSites(
 
 /**
  * `--destructive` 是实心填充色（按钮底、着色底），不是文字色：浅色作文字只有 3.8:1，深色（#801d1d）在页面底只有 2.0:1、
- * 弹层上只有 1.5:1。错误提示、危险按钮的文字与线性图标要用 `text-destructive-text`（`globals.css` 的
+ * 弹层上只有 1.5:1。错误提示、危险按钮的文字与线性图标要用 `text-destructive-text`（`theme-variables.css` 的
  * `--destructive-text`，两套主题都 ≥4.5:1，有契约测试钉住）。浏览器不报错、单测与 jsdom 看不见，只有深色真实渲染才暴露。
  *
  * 命中 `text-destructive`，不论带不带变体前缀（`hover:`、`dark:`、`[&>svg]:` …）和 `/NN` 透明度；

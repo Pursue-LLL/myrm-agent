@@ -81,7 +81,7 @@ describe('empty chat phone first-screen contract', () => {
     const source = read('../composer/ComposerSendControls.tsx');
     const sendClassName = source.match(/className="([^"]*message-send-btn[^"]*)"/)?.[1] ?? '';
 
-    // globals.css treats any class list containing fixed / absolute / sticky as already positioned and drops the
+    // brand.css treats any class list containing fixed / absolute / sticky as already positioned and drops the
     // brand elevation's `position: relative; z-index`, so the touch box has to be a child element, not an `after:`.
     expect(sendClassName).toContain('btn-brand-elevation');
     expect(sendClassName).not.toMatch(/fixed|absolute|sticky/);

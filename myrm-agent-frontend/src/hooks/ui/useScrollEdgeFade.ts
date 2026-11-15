@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - A horizontally scrollable element (hidden scrollbar) that carries the `.scroll-fade-x` utility from globals.css.
+ * - A horizontally scrollable element (hidden scrollbar) that carries the `.scroll-fade-x` utility from base.css.
  *
  * [OUTPUT]
  * - observeScrollEdges: keeps `data-fade-start` / `data-fade-end` in sync with the content clipped past each edge.

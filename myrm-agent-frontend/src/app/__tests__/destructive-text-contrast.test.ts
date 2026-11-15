@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * src/app/globals.css 全文。
+ * src/app/theme-variables.css 与 src/app/tailwind-theme.css 全文。
  * [OUTPUT]
  * Vitest: `--destructive-text` 在两套主题里承载文字的每种表面上都 ≥4.5:1，并已声明成 Tailwind 颜色（`text-destructive-text`）。
  * [POS]
@@ -12,7 +12,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const GLOBALS_CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
+const THEME_VARIABLES_CSS = readFileSync(resolve(process.cwd(), 'src/app/theme-variables.css'), 'utf8');
+const TAILWIND_THEME_CSS = readFileSync(resolve(process.cwd(), 'src/app/tailwind-theme.css'), 'utf8');
 
 const MIN_TEXT_CONTRAST = 4.5;
 /**
@@ -126,11 +127,11 @@ function failures(css: string): string[] {
 
 describe('--destructive-text', () => {
   it('reads at least 4.5:1 on every surface that carries text, in both themes', () => {
-    expect(failures(GLOBALS_CSS)).toEqual([]);
+    expect(failures(THEME_VARIABLES_CSS)).toEqual([]);
   });
 
   it('is declared as a Tailwind color so `text-destructive-text` generates a style', () => {
-    expect(GLOBALS_CSS).toMatch(/--color-destructive-text:\s*var\(--destructive-text\);/);
+    expect(TAILWIND_THEME_CSS).toMatch(/--color-destructive-text:\s*var\(--destructive-text\);/);
   });
 
   it.each([
@@ -144,9 +145,9 @@ describe('--destructive-text', () => {
       'light destructive/20 ',
     ],
   ])('rejects %s', (_name, pattern, replacement, failurePrefix) => {
-    const mutated = GLOBALS_CSS.replace(pattern, `$1${replacement}`);
+    const mutated = THEME_VARIABLES_CSS.replace(pattern, `$1${replacement}`);
 
-    expect(mutated).not.toBe(GLOBALS_CSS);
+    expect(mutated).not.toBe(THEME_VARIABLES_CSS);
     expect(failures(mutated).some((failure) => failure.startsWith(failurePrefix))).toBe(true);
   });
 });
