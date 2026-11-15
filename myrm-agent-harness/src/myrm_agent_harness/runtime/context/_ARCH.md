@@ -22,7 +22,7 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | token_estimator.py | Core | Provides high-throughput, drift-free token estimation anchored on provider billing data for context management decisions. | ✅ |
 | tracker_manager.py | Core | Generic singleton manager for tracker instances. | ✅ |
 | transparent_reader.py | Core | Transparent decompression for context files. | ✅ |
-| tree_state.py | Core | Session-tree bound branch state and tool result details replayer; pure-function branch fold, mono-collapsing anchor, and zero-I/O branch isolation. | ✅ |
+| tree_state.py | Core | Branch-bound todo state: pure-function fold of the active message branch into the authoritative `TodoStore`, zero I/O; reads only the `tool_result_details` snapshot slot, so message text and loose keys never become a plan. | ✅ |
 | session/（子包） | Core | Session 级上下文生命周期子域：volume-backed 置顶文件注册表（跨压缩保留）、LangGraph checkpoint/message SSOT（rewind/truncate/edit-resend）。3 个 `session_*` 模块聚合于此，`session/__init__.py` 为聚合门面统一 re-export | ✅ |
 | transcripts/（子包） | Core | 跨助手会话转录本纯净解析与连续性重锚子域：Claude Code / Codex CLI 会话流解析、沙箱工作区路径重锚（`/workspace`）与两阶段紧凑规约。5 个模块聚合于此，`transcripts/__init__.py` 为门面统一 re-export | ✅ |
 

@@ -4,7 +4,6 @@
 - app.api.goals.router::router (POS: Goal endpoints router)
 - app.api.goals.plan::resolve_session_todo_store, sync_workspace_todos_for_active_branch (POS: Target functions)
 - myrm_agent_harness.agent.meta_tools.progress.schemas::TodoItem, TodoStatus, TodoStore
-- myrm_agent_harness.runtime.context.tree_state::create_compaction_todo_anchor
 
 [OUTPUT]
 - Test cases verifying branch isolation, workspace fallback, and atomic rewind alignment.
@@ -30,7 +29,6 @@ from myrm_agent_harness.agent.meta_tools.progress.storage import (
     todos_path,
     write_todos_sync_to_workspace,
 )
-from myrm_agent_harness.runtime.context.tree_state import create_compaction_todo_anchor
 from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
 from app.api.goals.router import router as goals_router
@@ -103,8 +101,8 @@ async def test_get_goal_plan_prioritizes_active_branch_over_workspace(
     )
     branch_message = _create_fake_message(
         chat_id=chat_id,
-        content=json.dumps({"todos": [t.model_dump() for t in branch_store.todos], "summary": {}}),
-        extra_data={"tool_result_details": {"todos": [t.model_dump() for t in branch_store.todos]}},
+        content="Plan updated",
+        extra_data={"tool_result_details": branch_store.model_dump()},
     )
 
     with patch("app.config.settings.get_settings") as mock_settings:
@@ -117,7 +115,8 @@ async def test_get_goal_plan_prioritizes_active_branch_over_workspace(
     assert response.status_code == 200
     plan = response.json().get("plan")
     assert plan is not None
-    assert plan["goal"] == "Authoritative branch goal" or plan["steps"][0]["step_id"] == "step_1"
+    assert plan["goal"] == "Authoritative branch goal"
+    assert plan["revision"] == 2
     assert len(plan["steps"]) == 2
     assert plan["steps"][0]["step_id"] == "step_1"
     assert plan["steps"][1]["step_id"] == "step_2"
@@ -176,56 +175,6 @@ async def test_forked_branches_isolation(test_client_fixture: tuple[TestClient, 
     assert resp_child.status_code == 200
     assert len(resp_child.json()["plan"]["steps"]) == 2
     assert resp_child.json()["plan"]["steps"][1]["step_id"] == "child_task"
-
-
-@pytest.mark.asyncio
-async def test_compaction_anchor_replaying(test_client_fixture: tuple[TestClient, Path]) -> None:
-    """State successfully re-establishes from compaction anchor followed by subsequent updates."""
-    client, tmp_path = test_client_fixture
-    chat_id = "session-compaction-1"
-
-    base_store = TodoStore(
-        goal="Compacted milestone",
-        todos=[
-            TodoItem(id="p1", content="Step 1", status=TodoStatus.COMPLETED),
-            TodoItem(id="p2", content="Step 2", status=TodoStatus.COMPLETED),
-        ],
-        revision=10,
-    )
-    anchor_extra = create_compaction_todo_anchor(base_store)
-    compaction_msg = _create_fake_message(
-        chat_id=chat_id,
-        content="Summary of earlier conversation turns",
-        extra_data=anchor_extra,
-    )
-
-    next_store = TodoStore(
-        goal="Compacted milestone",
-        todos=[
-            TodoItem(id="p1", content="Step 1", status=TodoStatus.COMPLETED),
-            TodoItem(id="p2", content="Step 2", status=TodoStatus.COMPLETED),
-            TodoItem(id="p3", content="Step 3 active", status=TodoStatus.IN_PROGRESS),
-        ],
-        revision=11,
-    )
-    followup_msg = _create_fake_message(
-        chat_id=chat_id,
-        content="",
-        extra_data={"tool_result_details": next_store.model_dump()},
-    )
-
-    with patch("app.config.settings.get_settings") as mock_settings:
-        mock_settings.return_value.database.harness_dir = str(tmp_path)
-        with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
-            mock_msgs.return_value = [compaction_msg, followup_msg]
-
-            response = client.get(f"/api/v1/goals/{chat_id}/dag")
-
-    assert response.status_code == 200
-    nodes = response.json().get("nodes", [])
-    assert len(nodes) == 3
-    assert nodes[2]["id"] == "p3"
-    assert nodes[2]["data"]["status"] == "in_progress"
 
 
 @pytest.mark.asyncio
@@ -346,9 +295,19 @@ def test_stream_collector_captures_and_persists_tool_result_details() -> None:
     assert len(folded.todos) == 2
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param("Hello, help me write code", id="plain-text"),
+        pytest.param(
+            json.dumps({"revision": 99, "todos": [{"id": "pasted", "content": "Pasted step", "status": "pending"}]}),
+            id="text-shaped-like-a-plan",
+        ),
+    ],
+)
 @pytest.mark.asyncio
-async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path: Path) -> None:
-    """When messages exist but fold yields no store, workspace file is preserved rather than unlinked."""
+async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path: Path, content: str) -> None:
+    """When messages exist but fold yields no store, workspace file is preserved rather than unlinked or replaced."""
     from app.services.chat.chat_todo_sync import sync_workspace_todos_after_rewind
 
     workspace_root = str(tmp_path / "ws_safe")
@@ -362,10 +321,10 @@ async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path
     write_todos_sync_to_workspace(workspace_root, initial_store, chat_id)
     assert todos_path(workspace_root, chat_id).is_file()
 
-    # Remaining messages exist (e.g. user prompt only, without tool details)
+    # Remaining messages exist but carry no todo snapshot (a prompt, or text that merely looks like a plan)
     msg_without_todos = _create_fake_message(
         chat_id=chat_id,
-        content="Hello, help me write code",
+        content=content,
         extra_data=None,
     )
 

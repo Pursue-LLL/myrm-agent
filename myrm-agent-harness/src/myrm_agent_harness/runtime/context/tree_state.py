@@ -1,150 +1,71 @@
-"""Session-tree bound branch state and tool result details replayer.
+"""Branch-bound todo state: folds the active message branch into the authoritative TodoStore.
 
 [INPUT]
-- progress.schemas::TodoStore (POS: models)
-- Sequence of message-like objects or dicts with extra_data/details
+- progress.schemas::TodoStore (POS: Pydantic models of the per-chat todo list)
+- Sequence of message-like objects or dicts whose extra_data may carry a todo_write snapshot
 
 [OUTPUT]
-- fold_branch_todo_state: pure function folding active message branch into authoritative TodoStore
-- extract_todo_store_from_payload: safe extractor for tool details or extra_data
-- create_compaction_todo_anchor: mono-collapsing anchor snapshot generator for Compaction
+- TOOL_DETAILS_KEY: extra_data slot holding a message's todo_write snapshot
+- fold_branch_todo_state: pure fold of an active message branch into the TodoStore its latest snapshot describes
 
 [POS]
-Replaces global workspace file writes with message-tree bound local state.
-Enables true time-travel navigation across branches and atomic rewind.
+Binds todo state to the message tree, so every branch yields its own plan and a rewind, retry or sibling switch
+can realign the workspace todo file without cross-branch leakage. Only the snapshot slot is trusted: message text
+and loose keys never become a plan.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
+
+from pydantic import ValidationError
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoStore
 
 logger = logging.getLogger(__name__)
 
-COMPACTION_TODO_ANCHOR_KEY = "compaction_todo_anchor"
 TOOL_DETAILS_KEY = "tool_result_details"
-TODO_WRITE_TOOL_NAME = "todo_write"
 
 
-def extract_todo_store_from_payload(payload: object) -> TodoStore | None:
-    """Safely extract TodoStore from dictionary or model payload."""
-    if not isinstance(payload, dict):
+def _read_snapshot(msg: object) -> TodoStore | None:
+    """Parse the todo_write snapshot a message carries in its extra_data slot, if any."""
+    extra_data = msg.get("extra_data") if isinstance(msg, Mapping) else getattr(msg, "extra_data", None)
+    if not isinstance(extra_data, dict):
+        return None
+    snapshot = extra_data.get(TOOL_DETAILS_KEY)
+    if not isinstance(snapshot, dict) or not isinstance(snapshot.get("todos"), list):
         return None
 
-    # Case 1: direct TodoStore structure
-    if "todos" in payload and isinstance(payload.get("todos"), list):
-        try:
-            from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoStore
+    # Imported on first use: loading agent.meta_tools imports this package.
+    from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoStore
 
-            return TodoStore.model_validate(payload)
-        except Exception:
-            pass
-
-    # Case 2: nested inside tool_result_details
-    details = payload.get(TOOL_DETAILS_KEY)
-    if isinstance(details, dict):
-        nested = extract_todo_store_from_payload(details)
-        if nested is not None:
-            return nested
-
-    # Case 3: nested inside compaction anchor
-    anchor = payload.get(COMPACTION_TODO_ANCHOR_KEY)
-    if isinstance(anchor, dict):
-        nested = extract_todo_store_from_payload(anchor)
-        if nested is not None:
-            return nested
-
-    return None
-
-
-def _get_message_attr(msg: object, key: str) -> object:
-    if isinstance(msg, Mapping):
-        return msg.get(key)
-    return getattr(msg, key, None)
-
-
-def _extract_todo_from_single_message(msg: object) -> TodoStore | None:
-    """Extract TodoStore state emitted by a single message node."""
-    extra_data = _get_message_attr(msg, "extra_data")
-    if isinstance(extra_data, dict):
-        store = extract_todo_store_from_payload(extra_data)
-        if store is not None:
-            return store
-
-    # Check direct details attribute if available
-    details = _get_message_attr(msg, "details")
-    if isinstance(details, dict):
-        store = extract_todo_store_from_payload(details)
-        if store is not None:
-            return store
-
-    # Check content if it is a JSON serialized string from todo_write
-    content = _get_message_attr(msg, "content")
-    if isinstance(content, str) and content.strip().startswith("{") and "todos" in content:
-        try:
-            parsed = json.loads(content)
-            if isinstance(parsed, dict) and "todos" in parsed:
-                return extract_todo_store_from_payload(parsed)
-        except Exception:
-            pass
-
-    return None
+    try:
+        return TodoStore.model_validate(snapshot)
+    except ValidationError as exc:
+        # Only the count is logged: the validation text echoes task content, which must not reach logs.
+        logger.warning("Skipping malformed todo snapshot (%d validation errors)", exc.error_count())
+        return None
 
 
 def fold_branch_todo_state(messages: Sequence[object]) -> TodoStore | None:
-    """Fold active message branch into authoritative current TodoStore.
+    """Fold the active message branch (root to leaf) into the TodoStore its latest snapshot describes.
 
-    Traverses from root to active leaf.
-    Compaction anchors establish fresh base snapshots; subsequent steps update state.
+    A snapshot with a lower revision than the current state never overwrites it; an unversioned one always does.
     """
-    if not messages:
-        return None
-
-    current_store: TodoStore | None = None
-
+    current: TodoStore | None = None
     for msg in messages:
-        # 1. Check if message carries a compaction anchor (monotonically collapses history)
-        extra_data = _get_message_attr(msg, "extra_data")
-        if isinstance(extra_data, dict) and COMPACTION_TODO_ANCHOR_KEY in extra_data:
-            anchor_payload = extra_data.get(COMPACTION_TODO_ANCHOR_KEY)
-            anchor_store = extract_todo_store_from_payload(anchor_payload)
-            if anchor_store is not None:
-                current_store = anchor_store
-
-        # 2. Extract potential new todo update from the message
-        step_store = _extract_todo_from_single_message(msg)
-        if step_store is not None:
-            if current_store is None:
-                current_store = step_store
-            else:
-                # Merge or advance revision if step_store is newer
-                if step_store.revision >= current_store.revision or not step_store.revision:
-                    current_store = step_store
-
-    return current_store
-
-
-def create_compaction_todo_anchor(store: TodoStore) -> dict[str, object]:
-    """Create a collapsed snapshot payload for compaction summary nodes."""
-    return {
-        COMPACTION_TODO_ANCHOR_KEY: {
-            "goal": store.goal,
-            "revision": store.revision,
-            "todos": [item.model_dump() for item in store.todos],
-        }
-    }
+        snapshot = _read_snapshot(msg)
+        if snapshot is None:
+            continue
+        if current is None or snapshot.revision >= current.revision or not snapshot.revision:
+            current = snapshot
+    return current
 
 
 __all__ = [
-    "COMPACTION_TODO_ANCHOR_KEY",
-    "TODO_WRITE_TOOL_NAME",
     "TOOL_DETAILS_KEY",
-    "create_compaction_todo_anchor",
-    "extract_todo_store_from_payload",
     "fold_branch_todo_state",
 ]
