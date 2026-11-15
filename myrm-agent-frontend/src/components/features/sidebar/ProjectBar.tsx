@@ -12,6 +12,7 @@ import { useCallback, useState, useRef, useEffect } from 'react';
 import { Plus, FolderOpen, FolderInput } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useProjectStore } from '@/store/useProjectStore';
+import { seedProjectsFromSnapshot } from '@/store/first-screen/restore';
 import type { Project } from '@/services/projects';
 import { useTranslations } from 'next-intl';
 import ProjectWorkspaceMount from '@/components/features/project-workspace/ProjectWorkspaceMount';
@@ -43,6 +44,8 @@ export default function ProjectBar({ isMobile = false }: ProjectBarProps) {
 
   useEffect(() => {
     if (!loaded) {
+      // The chips of the last session stay up while the backend starts; the fetched list replaces them.
+      seedProjectsFromSnapshot();
       fetchProjects();
     }
   }, [loaded, fetchProjects]);

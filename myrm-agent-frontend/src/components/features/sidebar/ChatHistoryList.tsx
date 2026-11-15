@@ -19,6 +19,7 @@ import { useBatchMode } from './useBatchMode';
 import { useChatActions } from './useChatActions';
 import { useHistorySearch } from './useHistorySearch';
 import { useProjectStore } from '@/store/useProjectStore';
+import { seedChatHistoryFromSnapshot } from '@/store/first-screen/restore';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { createPriorChatDragStartHandler } from '@/lib/chat/priorChatDrag';
 
@@ -109,7 +110,13 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, isMobile = fal
   // Starts the history over from the first page when the sidebar mounts and whenever the project filter changes: the
   // list the store still holds may belong to another project. It is declared before the effect below so that its
   // request is already in flight when that one looks, instead of both asking the server for the same page.
+  // The first mount of a desktop window may instead put up the list the last session ended with: it stays on screen
+  // while the backend starts, and the forced read swaps the server's first page in when it arrives.
   useEffect(() => {
+    if (seedChatHistoryFromSnapshot(projectFilter)) {
+      void loadChatHistory(1, 20, { force: true });
+      return;
+    }
     useChatStore.setState({
       chatHistoryItems: [],
       chatHistoryPagination: null,
