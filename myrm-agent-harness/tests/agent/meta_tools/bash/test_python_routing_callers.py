@@ -3,9 +3,9 @@
 The executor, the bash tool's own checks, the permission layer and the reserved-import guard each ask
 ``code_detector`` how a command will run, and each acts on the answer: text run as Python gets Python's rules, text
 a shell reads gets the shell's. If one of them answered differently, a command would be judged under one language
-and run under the other. The first three cases are commands the old line-count and keyword router got wrong; the
-last is Python that a line scan for ``import myrm_tools`` cannot see. Every test reads a caller's own consequence of
-the route.
+and run under the other. The first cases are short Python and shell text that names a Python keyword, which a
+router that counted lines or looked for keywords gets wrong; the last is Python that a line scan for
+``import myrm_tools`` cannot see. Every test reads a caller's own consequence of the route.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ from myrm_agent_harness.core.security.types import PermissionAction
 from myrm_agent_harness.utils.errors import ToolError
 from tests.agent.meta_tools.bash.test_bash_tool import _patch_bash_tool_deps
 
-# Short Python (the old router sent anything of three lines or fewer to the shell).
+# Short Python: a router that counts lines sends anything of three lines or fewer to the shell.
 PYTHON_BITWISE_AND = "flags = 6 & 3\nprint(flags)"
 PYTHON_REGEX_ANCHOR = "import re\nprint(re.match(r'^v$', 'v'))"
-# Shell that names a Python keyword in a string (the old router sent any text containing ``await`` to Python).
+# Shell that names a Python keyword in a string: a router that looks for keywords sends ``await`` to Python.
 SHELL_DETACHED_AMPERSAND = 'grep -rn "await" src/ & echo started'
 SHELL_ANSI_C_QUOTING = "grep -rn \"await\" src/ && echo $'done'"
 

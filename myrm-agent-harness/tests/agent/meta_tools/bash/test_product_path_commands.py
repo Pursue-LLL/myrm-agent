@@ -1,7 +1,8 @@
 """Shell commands the bash tool must hand to the shell as written, run through the real tool and a real shell.
 
-Each case is a mistake a model makes every day. The tool used to turn it into something else (a file write that
-ran as Python and left no file, a redirect the path guard refused) while the unit tests of each layer stayed green.
+Each case is a command a model writes every day: a heredoc that writes a data file leaves that file, and a redirect
+to ``/dev/null`` runs. The outcome depends on the router, the path guard and the shell together, which a unit test
+of one layer cannot see.
 """
 
 from __future__ import annotations
