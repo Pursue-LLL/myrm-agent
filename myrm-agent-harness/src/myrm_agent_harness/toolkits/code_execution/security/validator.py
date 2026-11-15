@@ -137,6 +137,10 @@ _PATH_PATTERN = re.compile(
     re.VERBOSE,
 )
 
+# The one device file a command may name anywhere: writes to it are dropped and reads return EOF, so a redirect
+# such as ``cmd > /dev/null 2>&1`` or ``cmd < /dev/null`` neither exposes nor changes anything.
+_DISCARD_DEVICE = Path("/dev/null")
+
 
 def _get_allowed_paths(
     workspace_path: Path | None = None,
@@ -150,6 +154,7 @@ def _get_allowed_paths(
     3. /workspace (container-isolated)
     4. /tmp (temporary files)
     5. The context root in effect, so an agent reading its own offloaded context is not blocked
+    6. /dev/null, the sink and empty source of shell redirections (no other device file)
 
     Args:
         workspace_path: Current session workspace directory.
@@ -170,6 +175,7 @@ def _get_allowed_paths(
     allowed.append(Path("/workspace"))
     allowed.append(Path("/tmp"))
     allowed.append(Path(get_context_root()))
+    allowed.append(_DISCARD_DEVICE)
 
     return allowed
 

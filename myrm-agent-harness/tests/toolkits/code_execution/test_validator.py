@@ -244,6 +244,42 @@ class TestValidateCommand:
         assert is_command_allowed("rm -rf /") is False
 
 
+class TestDevNullRedirects:
+    """``/dev/null`` is the only device file a command may name, however the redirect is spelled."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "ls >/dev/null",
+            "ls 2>/dev/null",
+            "ls > /dev/null",
+            "ls 2> /dev/null",
+            "ls >> /dev/null",
+            "cmd > /dev/null 2>&1",
+            "cat < /dev/null",
+            "python3 check.py > /dev/null && echo ok",
+        ],
+    )
+    def test_redirect_to_or_from_dev_null_is_allowed(self, command: str, tmp_path: Path) -> None:
+        assert validate_command(command, workspace_path=tmp_path).is_safe is True
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "ls /etc",
+            "cat /dev/zero",
+            "cat /dev/tty",
+            "cat < /dev/stdin",
+            "ls > /dev/null.bak",
+            "cat /dev/null/../zero",
+        ],
+    )
+    def test_other_system_paths_and_devices_stay_blocked(self, command: str, tmp_path: Path) -> None:
+        result = validate_command(command, workspace_path=tmp_path)
+        assert result.is_safe is False
+        assert "Only current session workspace is accessible" in (result.reason or "")
+
+
 # ---------------------------------------------------------------------------
 # validate_path
 # ---------------------------------------------------------------------------
