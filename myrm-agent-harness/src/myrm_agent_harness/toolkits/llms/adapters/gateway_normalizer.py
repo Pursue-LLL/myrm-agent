@@ -9,7 +9,8 @@ or optional parameters with HTTP 400.
 
 [OUTPUT]
 - sanitize_gateway_params_on_400(): Adaptive parameter stripping on HTTP 400 format errors; a rejected parameter
-  leaves both the top level and ``extra_body``, and a rejected reasoning control is remembered per endpoint and value
+  leaves both the top level and ``extra_body``, and a rejected reasoning control (``reasoning_effort``, ``thinking``,
+  ``enable_thinking``, ``chat_template_kwargs``) is remembered per endpoint and value
 - is_gateway_param_rejection(): Check whether 400 error is due to an unsupported parameter
 - drop_rejected_reasoning_params(): Removes the reasoning controls an endpoint already rejected from a request
 
@@ -58,6 +59,14 @@ _PARAM_REJECTION_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] =
             re.IGNORECASE,
         ),
         ("thinking",),
+    ),
+    (
+        re.compile(r"enable_thinking", re.IGNORECASE),
+        ("enable_thinking",),
+    ),
+    (
+        re.compile(r"chat_template_kwargs", re.IGNORECASE),
+        ("chat_template_kwargs",),
     ),
     (
         re.compile(r"presence_penalty|frequency_penalty", re.IGNORECASE),
@@ -133,7 +142,7 @@ _MEMO_CAP: Final = 256
 # Reasoning controls an endpoint rejected: (model, base_url, param, value) -> expiry. Dropping one costs the caller's
 # intent, so the memory expires (a provider may add support) and carries the value: a level the endpoint rejected
 # does not block a level it accepts.
-_REASONING_PARAMS: Final = ("reasoning_effort", "thinking")
+_REASONING_PARAMS: Final = ("reasoning_effort", "thinking", "enable_thinking", "chat_template_kwargs")
 _REJECTED_REASONING: dict[tuple[str, str, str, str], float] = {}
 _REJECTED_REASONING_TTL_S: Final = 3600.0
 

@@ -61,3 +61,23 @@ class TestResolveReasoningRoute:
     @pytest.mark.parametrize("model", ["nonexistent/foo", "plain-model-without-endpoint"])
     def test_unresolvable_model_returns_none(self, model: str) -> None:
         assert resolve_reasoning_route(model) is None
+
+
+class TestGatewayIdentity:
+    @pytest.mark.parametrize(
+        ("model", "base_url", "gateway"),
+        [
+            ("openai/Qwen/Qwen3-32B", "https://api.siliconflow.cn/v1", "siliconflow"),
+            ("openai/deepseek-ai/DeepSeek-V4-Flash", "https://api.siliconflow.com/v1", "siliconflow"),
+            ("openai/deepseek-ai/deepseek-v4-flash", "https://integrate.api.nvidia.com/v1", "nvidia"),
+            ("openai/deepseek-v4.1-flash", _GATEWAY, None),
+            ("openai/gpt-4o", None, None),
+        ],
+    )
+    def test_the_gateway_is_read_from_the_endpoint_host(
+        self, model: str, base_url: str | None, gateway: str | None
+    ) -> None:
+        route = resolve_reasoning_route(model, base_url)
+
+        assert route is not None
+        assert route.gateway == gateway

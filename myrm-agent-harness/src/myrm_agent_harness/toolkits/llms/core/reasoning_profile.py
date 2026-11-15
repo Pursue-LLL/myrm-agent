@@ -10,7 +10,9 @@
 - get_model_headroom_floor(): Minimum token headroom budget for reasoning output
 - is_thinking_model(): Whether a model qualifies as reasoning/thinking
 - apply_thinking_headroom(): In-place proactive adjustment of max_tokens
-- extract_reasoning_effort(): Extracted caller reasoning intensity level
+- extract_reasoning_effort(): Extracted caller reasoning intensity level (top level, ``extra_body``, OpenRouter's
+  ``reasoning.effort`` or a gateway's ``chat_template_kwargs``)
+- is_disabled_effort(): Whether an effort value asks for no reasoning
 - strip_untranslated_off_effort(): Drops an 'off' effort no provider rule translated
 
 [POS]
@@ -131,6 +133,7 @@ def extract_reasoning_effort(llm_kwargs: Mapping[str, object] | None) -> str | N
     1. Top-level ``reasoning_effort``
     2. ``extra_body.reasoning_effort``
     3. ``extra_body.reasoning.effort`` (OpenRouter format)
+    4. ``extra_body.chat_template_kwargs.reasoning_effort`` (chat-template gateways)
     """
     if not llm_kwargs:
         return None
@@ -153,6 +156,27 @@ def extract_reasoning_effort(llm_kwargs: Mapping[str, object] | None) -> str | N
         if effort is not None:
             return str(effort).lower()
 
+    template_kwargs = extra_body.get("chat_template_kwargs")
+    if isinstance(template_kwargs, Mapping):
+        effort = template_kwargs.get("reasoning_effort")
+        if effort is not None:
+            return str(effort).lower()
+
+    return None
+
+
+def is_disabled_effort(effort: object) -> bool:
+    """Whether ``effort`` is one of the spellings that ask for no reasoning (``off``, ``none``, ...)."""
+    return isinstance(effort, str) and effort.strip().lower() in _DISABLED_EFFORT_VALUES
+
+
+def _thinking_switch(extra_body: Mapping[str, object]) -> bool | None:
+    """The on/off state a request body states as a boolean: ``enable_thinking`` or a chat-template flag; else None."""
+    template_kwargs = extra_body.get("chat_template_kwargs")
+    for holder in (extra_body, template_kwargs if isinstance(template_kwargs, Mapping) else {}):
+        for key in ("enable_thinking", "thinking"):
+            if isinstance(value := holder.get(key), bool):
+                return value
     return None
 
 
@@ -171,9 +195,9 @@ def is_reasoning_explicitly_disabled(llm_kwargs: Mapping[str, object] | None) ->
     extra_body = llm_kwargs.get("extra_body")
     if isinstance(extra_body, Mapping):
         thinking = extra_body.get("thinking")
-        if thinking is False:
-            return True
         if isinstance(thinking, Mapping) and thinking.get("type") == "disabled":
+            return True
+        if _thinking_switch(extra_body) is False:
             return True
 
     return False
@@ -194,9 +218,9 @@ def is_reasoning_explicitly_enabled(llm_kwargs: Mapping[str, object] | None) -> 
     extra_body = llm_kwargs.get("extra_body")
     if isinstance(extra_body, Mapping):
         thinking = extra_body.get("thinking")
-        if thinking is True:
-            return True
         if isinstance(thinking, Mapping) and thinking.get("type") == "enabled":
+            return True
+        if _thinking_switch(extra_body) is True:
             return True
 
     return False
