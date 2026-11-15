@@ -1,11 +1,14 @@
 """URL normalization for a higher cache hit rate.
 
 Strips known tracking parameters (``utm_*``, ``fbclid``, ``gclid``, ``_hsenc``, ``li_fat_id``, ``ttclid``
-and others), lowercases the scheme and host, drops default ports, collapses repeated slashes in the path
-and sorts the query parameters, so URLs that differ only in those details share one cache key.
+and others), lowercases the scheme and host, drops default ports, collapses repeated slashes in the path,
+sorts the query parameters and drops a plain anchor, so URLs that differ only in those details share one
+cache key.
 
 The parameters come from Google Analytics, Facebook, Google Ads, Bing, Mailchimp, HubSpot, Adobe, LinkedIn,
-Twitter and TikTok, plus the generic names ``ref``, ``referrer`` and ``source``.
+Twitter and TikTok. Generic names such as ``ref`` and ``source`` stay in the key because sites use them to
+select content (GitHub's contents API picks the branch or tag with ``?ref=``), and so does a hash route
+(``#/inbox``, ``#!/inbox``) because a single-page app shows a different view for each one.
 
 [INPUT]
 - (none)
@@ -58,12 +61,20 @@ _TRACKING_PARAMS = frozenset(
         "twclid",
         # TikTok
         "ttclid",
-        # Generic
-        "ref",
-        "referrer",
-        "source",
     }
 )
+
+# A fragment starting with one of these is a client-side route, not an anchor.
+_ROUTE_FRAGMENT_PREFIXES = ("/", "!/")
+
+
+def _route_fragment(fragment: str) -> str:
+    """Return ``fragment`` when it is a hash route, an empty string for a plain anchor.
+
+    A hash-routed page shows a different view for ``#/inbox`` and ``#/sent`` while the server sees one URL, so
+    the route belongs in the key; an anchor such as ``#section`` only scrolls inside the same page.
+    """
+    return fragment if fragment.startswith(_ROUTE_FRAGMENT_PREFIXES) else ""
 
 
 def normalize_url(url: str) -> str:
@@ -76,7 +87,7 @@ def normalize_url(url: str) -> str:
     4. Drop the default port (``:80`` for http, ``:443`` for https).
     5. Collapse repeated slashes in the path.
     6. Sort the query parameters alphabetically.
-    7. Drop the fragment.
+    7. Drop the fragment unless it is a hash route (``#/...`` or ``#!/...``).
 
     Args:
         url: Original URL.
@@ -102,4 +113,4 @@ def normalize_url(url: str) -> str:
     filtered_params = {k: v for k, v in query_params.items() if k not in _TRACKING_PARAMS}
     sorted_query = urlencode(sorted(filtered_params.items()), doseq=True)
 
-    return urlunparse((scheme, netloc, path, parsed.params, sorted_query, ""))
+    return urlunparse((scheme, netloc, path, parsed.params, sorted_query, _route_fragment(parsed.fragment)))
