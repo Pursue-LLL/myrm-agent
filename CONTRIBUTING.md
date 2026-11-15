@@ -66,8 +66,8 @@ myrm start                # backend :8080 + frontend :3000
 Manual split:
 
 ```bash
+bash scripts/dev/dev.sh   # backend only
 cd myrm-agent-frontend && bun install && bun run dev
-myrm dev                  # backend only
 ```
 
 See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.

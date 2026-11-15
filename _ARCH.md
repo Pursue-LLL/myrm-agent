@@ -32,7 +32,7 @@ MIT 开源仓库，包含 `myrm-agent-harness`（Agent 执行引擎框架，同�
 
 ## 模块依赖
 
-- **Python / harness**：`myrm-agent-harness/` 与 server 同仓。`myrm-agent-server/pyproject.toml` 以 `[tool.uv.sources]` 把 harness 声明为 in-repo editable path source，`uv.lock` 解析到同一提交（`myrm setup` → `uv sync`）；`myrm dev` 要求 venv 指向仓库内 harness 源码（否则 exit 1，见 [scripts/_ARCH.md](scripts/_ARCH.md)）。harness 发布到 PyPI 由 `harness-v*` tag 触发 `.github/workflows/harness-publish.yml`
+- **Python / harness**：`myrm-agent-harness/` 与 server 同仓。`myrm-agent-server/pyproject.toml` 以 `[tool.uv.sources]` 把 harness 声明为 in-repo editable path source，`uv.lock` 解析到同一提交（`myrm setup` → `uv sync`）；`myrm start` 要求 venv 指向仓库内 harness 源码（否则 exit 1，见 [scripts/_ARCH.md](scripts/_ARCH.md)）。harness 发布到 PyPI 由 `harness-v*` tag 触发 `.github/workflows/harness-publish.yml`
 - **前端**：`myrm-agent-frontend/package.json` + `bun.lock`
 
 子模块详述（架构文档优先于子包 README）：

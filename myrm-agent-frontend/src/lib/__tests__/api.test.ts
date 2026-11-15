@@ -4,7 +4,7 @@ import { apiRequest, fetchOnPageExit, fetchWithTimeout, getApiUrl, getStorageUrl
 const ensureLocalBackendReady = vi.fn<(...args: unknown[]) => Promise<boolean>>(() => Promise.resolve(true));
 const markLocalBackendUnreachable = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
 const resolveBackendUnreachableMessage = vi.fn<(...args: unknown[]) => Promise<string>>(() =>
-  Promise.resolve('Backend not reachable. Run: myrm dev or myrm start.'),
+  Promise.resolve('Backend not reachable. Run: myrm start.'),
 );
 
 const toastMock = vi.hoisted(() =>
@@ -237,7 +237,7 @@ describe('apiRequest local backend gate', () => {
     await expect(apiRequest('/projects', { silent: true })).rejects.toMatchObject({
       businessCode: 'BACKEND_UNREACHABLE',
       code: 503,
-      message: 'Backend not reachable. Run: myrm dev or myrm start.',
+      message: 'Backend not reachable. Run: myrm start.',
     });
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -255,7 +255,7 @@ describe('apiRequest local backend gate', () => {
 
     await expect(apiRequest('/projects', { silent: true })).rejects.toMatchObject({
       businessCode: 'BACKEND_UNREACHABLE',
-      message: 'Backend not reachable. Run: myrm dev or myrm start.',
+      message: 'Backend not reachable. Run: myrm start.',
     });
     expect(resolveBackendUnreachableMessage).toHaveBeenCalled();
   });

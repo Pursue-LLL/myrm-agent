@@ -1829,7 +1829,7 @@
       "title": "配置載入失敗",
       "description": "無法連線到服務，請檢查後端是否正常執行後重試。",
       "retry": "重試",
-      "hintUnreachable": "後端未響應。請執行 myrm dev 或 myrm start，並確認 .env.local 含 API_PORT=8080。",
+      "hintUnreachable": "後端未響應。請執行 myrm start，並確認 .env.local 含 API_PORT=8080。",
       "hintSplitDev": "後端已就緒 http://{host}:{port}。請執行 myrm start，或 bun run dev 後開啟 http://localhost:3000（API_PORT={proxyPort}）",
       "hintStandalone": "後端已就緒 http://{host}:{port}。請執行 myrm start，或設定 .env.local 的 API_PORT={proxyPort}"
     },

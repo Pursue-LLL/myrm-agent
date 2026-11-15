@@ -9,7 +9,6 @@
 ```bash
 # 在 myrm-agent 根目录（推荐）
 myrm setup    # 默认安装全部 optional extra，但排除 GPL/heavy（见 scripts/lib/server_sync_flags.sh）
-myrm dev      # 仅后端 :8080
 myrm start    # 后端 + 前端 → http://localhost:3000
 
 # 或仅 server 目录（本地 STT 需加 --extra local-stt；Edge TTS 需 --extra voice-tts）
