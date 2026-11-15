@@ -174,7 +174,11 @@ class ScanningSkillWriteBackend:
                 error=f"Content too large: {content_size:,} bytes (max {_MAX_RESOURCE_SIZE:,} bytes).",
             )
 
-        scan_result = scan_skill_content(f"{skill_name}/{resource_path}", content)
+        scan_result = scan_skill_content(
+            f"{skill_name}/{resource_path}",
+            content,
+            file_extension=posixpath.splitext(resource_path)[1].lower(),
+        )
         report = format_scan_report(scan_result)
 
         if scan_result.trust_recommendation == SkillTrustRecommendation.REJECT:
