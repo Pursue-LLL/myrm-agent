@@ -465,6 +465,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/test_channel_budget_cost_recovery.py` | 模块 | 渠道预算的当日成本与审计对真实 SQLite：汇总本群全部聊天（纪元、话题、智能体），相邻群组与 `_` 通配符的支出不计入 |
 | `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务；数据库维护任务 `db_maintenance` 每 6 小时、首次在启动后约 3 分钟（不与首屏请求抢事件循环） |
+| `lifecycle/test_checkpoint_history_schedule.py` | 模块 | 调度器注册 checkpoint 历史裁剪：任务 id `checkpoint_history_prune`、每 6 小时、启动后约 10 分钟首次触发、不影响同调度器的相邻任务；任务把裁剪交给服务 |
+| `lifecycle/test_browser_profile_gc_schedule.py` | 模块 | 调度器注册浏览器临时 profile 目录回收：任务 id `browser_profile_gc`、每 6 小时、启动后约 15 分钟首次触发、不影响相邻任务；任务以 `dry_run=False` 且保持库默认的 24 小时年龄闸真实回收，并在工作线程执行（目录遍历与进程表读取不占事件循环）；回收失败只记警告、不逃逸给调度器 |
 | `lifecycle/test_db_maintenance_backup.py` | 模块 | 数据库维护任务里的整库备份在工作线程执行（不占事件循环）；备份失败只记警告、其余清扫照常运行 |
 | `lifecycle/test_remote_backup_sync_schedule.py` | 模块 | 调度器注册云端记忆定时备份检查：任务 id `remote_backup_auto_sync`、每小时间隔、启动后约 5 分钟首次触发；任务把已存设置交给 tick（从未配置时按「未设置」交付，被已丢失密钥封存的设置经真实 `ConfigService.get` 按「不可读」交付并暂停同步）；任务内任何失败都不逃逸给调度器 |
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告；同一次任务真实清扫（临时目录上的）渠道图片缓存：超过保留期的图片被删、保留期内的保留；清扫失败只记录警告、不影响其余清理 |
@@ -845,7 +847,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `lifecycle/test_cognitive_clock.py` | 模块 | 认知时钟调度：T2 维护流水线每一步按真实签名调用（签名约束桩 autospec，健康快照与 SQLite 备份的调用必须匹配真实签名）、T3 仅随 T2 放行的 tick 且满一周才运行、首次读取唤醒守卫前的 15 分钟空闲间隔不遮住用户活动让步、唤醒心跳随协调器启停 |
 | `lifecycle/test_wakeup_guard.py` | 模块 | 唤醒平滑守卫：两次读取之间的空闲间隔本身不算唤醒、墙钟与单调时钟漂移不论间隔多长都算唤醒、心跳运行期间的漏拍算唤醒、心跳启动时忘掉此前的时间、心跳停止期间的空闲间隔不算冻结 |
 | `lifecycle/test_cognitive_clock_schedule.py` | 模块 | 虚拟时钟下真实协调器循环 + 唤醒心跳 + 守卫的节拍：空闲不算唤醒、间隔中途宿主挂起不拖延下一轮 T2、轮前一分钟挂起则等宽限期后重试、整个场景里 T3 只运行一次 |
-| `lifecycle/conftest.py` | 辅助 | 每个用例前后把认知时钟的进程级单例（唤醒守卫、活动感知器、暂停信号）重置为全新状态，用例之间不经全局状态互相影响 |
+| `lifecycle/conftest.py` | 辅助 | 每个用例前后把认知时钟的进程级单例（唤醒守卫、活动感知器、暂停信号）重置为全新状态，用例之间不经全局状态互相影响；夹具 `maintenance_schedules` 在录制替身上启动真实的数据库维护调度器，等到它被启动后交出全部注册（未启动就注册的调度器会让所有任务不运行，夹具会因此失败） |
+| `support/recording_scheduler.py` | 辅助 | `RecordingScheduler`：`apscheduler.AsyncScheduler` 的替身，只记录注册（任务 id 对应任务函数与触发器）、不运行；`start_in_background` 置位 `started`，`created_at` 是被测代码使用它之前的时刻，供「首次触发时间」断言；数据库维护调度器的三份调度测试共用 |
 | `lifecycle/test_memory_guardian_sqlite_backup.py` | 模块 | 维护周期末尾的 SQLite 热备份：对真实数据库落盘并校验、非文件库安静跳过、页拷贝脱离事件循环、失败只记 WARNING 不使周期失败 |
 | `ai_agents/general_agent/test_human_tail_mount_order.py` | 模块 | factory 里 Human 尾部中间件晚于上下文压缩挂载，顺序固定为知识包、会话覆盖 deltas、两层上下文 |
 | `ai_agents/general_agent/test_instructions_and_memory_block_order.py` | 模块 | factory 里用户指令中间件先于记忆上下文中间件挂载（读 factory 的挂载列表）；真实 `create_agent` 图上两轮对话，每次模型调用里用户指令与记忆块各恰好一次、顺序为身份提示词、用户指令、记忆块 |
