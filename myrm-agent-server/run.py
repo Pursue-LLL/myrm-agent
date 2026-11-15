@@ -26,7 +26,7 @@ run_config_check()
 
 # 从环境变量读取默认端口和主机地址
 _default_port = int(os.getenv("PORT", "8080"))
-_default_host = os.getenv("HOST", "0.0.0.0")
+_default_host = os.getenv("HOST", "127.0.0.1")
 
 
 def _should_use_granian() -> bool:

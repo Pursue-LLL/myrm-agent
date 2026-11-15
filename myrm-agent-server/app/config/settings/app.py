@@ -104,7 +104,7 @@ class AppSettings(BaseSettings):
 
     # --- [P] HTTP listen ---
     port: int = 8080  # PORT
-    host: str = "0.0.0.0"  # HOST
+    host: str = "127.0.0.1"  # HOST
 
     # --- Code constants (not env-overridable in .env.example) ---
     app_name: str = "MyrmAgent"

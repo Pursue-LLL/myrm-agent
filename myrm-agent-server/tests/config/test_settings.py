@@ -12,6 +12,8 @@
 """
 
 import os
+import re
+from pathlib import Path
 
 import pytest
 
@@ -55,9 +57,22 @@ class TestDefaultValues:
     def test_root_defaults(self) -> None:
         s = _make_settings()
         assert s.port == 8080
-        assert s.host == "0.0.0.0"
+        assert s.host == "127.0.0.1"
         assert s.app_name == "MyrmAgent"
         assert s.api_prefix == "/api/v1"
+
+    def test_listen_host_default_is_loopback_in_every_bare_install_source(self) -> None:
+        """A bare `python run.py` or a copied `.env.example` listens on loopback only.
+
+        The default lives in three places that are read independently (settings field, run.py,
+        env template); a container that needs every interface sets `HOST` or `--host` itself.
+        """
+        server_root = Path(__file__).resolve().parents[2]
+        run_default = re.search(r'os\.getenv\("HOST", "([^"]+)"\)', (server_root / "run.py").read_text(encoding="utf-8"))
+        template_host = re.search(r"^HOST=(\S+)", (server_root / ".env.example").read_text(encoding="utf-8"), re.MULTILINE)
+        assert run_default is not None, "run.py no longer reads HOST with a literal default"
+        assert template_host is not None, ".env.example no longer lists HOST"
+        assert {AppSettings.model_fields["host"].default, run_default.group(1), template_host.group(1)} == {"127.0.0.1"}
 
     def test_mcp_defaults(self) -> None:
         s = _make_settings()
