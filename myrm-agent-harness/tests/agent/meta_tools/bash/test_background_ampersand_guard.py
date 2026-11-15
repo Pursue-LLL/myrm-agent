@@ -85,7 +85,6 @@ async def test_spawn_background_strips_trailing_ampersand() -> None:
     executor = _mock_executor()
     proc = MagicMock()
     executor.spawn_background_process = AsyncMock(return_value=proc)
-    executor.bind_workspace = MagicMock()
 
     bash_exec = BashExecutor(executor, enable_skill_execution=False)
     fake_info = MagicMock(pid=4242, command="python server.py", status="running")
@@ -118,7 +117,6 @@ async def test_spawn_background_clears_skill_cache_on_workspace_invalidation() -
     executor = _mock_executor()
     proc = MagicMock()
     executor.spawn_background_process = AsyncMock(return_value=proc)
-    executor.bind_workspace = MagicMock()
 
     bash_exec = BashExecutor(executor, enable_skill_execution=False)
     bash_exec._skill_manager.clear_workspace_cache = MagicMock()
@@ -176,7 +174,6 @@ async def test_spawn_background_raises_on_quota_exceeded() -> None:
     proc = MagicMock()
     proc.kill = MagicMock()
     executor.spawn_background_process = AsyncMock(return_value=proc)
-    executor.bind_workspace = MagicMock()
 
     bash_exec = BashExecutor(executor, enable_skill_execution=False)
 
@@ -207,7 +204,6 @@ async def test_spawn_background_strips_after_fence_unwrap() -> None:
     executor = _mock_executor()
     proc = MagicMock()
     executor.spawn_background_process = AsyncMock(return_value=proc)
-    executor.bind_workspace = MagicMock()
 
     bash_exec = BashExecutor(executor, enable_skill_execution=False)
     fake_info = MagicMock(pid=4343, command="python server.py", status="running")
@@ -241,7 +237,6 @@ async def test_the_stripped_ampersand_warning_shows_a_masked_command(caplog: pyt
     caplog.set_level(logging.WARNING)
     executor = _mock_executor()
     executor.spawn_background_process = AsyncMock(return_value=MagicMock())
-    executor.bind_workspace = MagicMock()
 
     bash_exec = BashExecutor(executor, enable_skill_execution=False)
     fake_info = MagicMock(pid=4444, command="python server.py", status="running")
