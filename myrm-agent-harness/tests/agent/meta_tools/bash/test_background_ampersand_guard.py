@@ -1,6 +1,6 @@
 """Trailing ``&`` orphan-guard tests for background spawn.
 
-`spawn_background` runs ``sh -c <command>``. A bare trailing ``&`` makes ``sh``
+`spawn_background` runs ``<shell> -c <command>``. A bare trailing ``&`` makes the shell
 return immediately while the real process keeps running detached, so the
 registered PID points at an exited shell and bash_process_tool cannot manage it.
 These tests lock the normalization and the prompt contract.

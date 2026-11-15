@@ -217,7 +217,7 @@ code_detector = CodeTypeDetector()
 def runs_as_python(command: str, *, run_in_background: bool = False) -> bool:
     """Whether the bash tool hands ``command`` to the Python wrapper instead of a shell.
 
-    A background spawn is always ``sh -c``, whatever the text looks like. Otherwise the executor strips the
+    A background spawn is always read by a shell, whatever the text looks like. Otherwise the executor strips the
     command, unwraps one Markdown fence and routes it by ``code_detector``; this repeats those steps, so a check
     that only makes sense for shell syntax can stand down exactly when no shell reads the text.
     """

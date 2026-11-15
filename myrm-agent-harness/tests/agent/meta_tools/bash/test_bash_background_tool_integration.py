@@ -84,7 +84,7 @@ def _clear_background_registry() -> None:
 async def test_background_spawn_automount_list_output_kill(tmp_path: Path, trailing_ampersand: bool) -> None:
     """Real background spawn stays manageable even with a trailing ``&``.
 
-    ``run_in_background=true`` combined with a bare trailing ``&`` would make ``sh -c``
+    ``run_in_background=true`` combined with a bare trailing ``&`` would make the shell
     return immediately while the real process ran detached, leaving the registered PID
     pointing at an exited shell; the spawn keeps the PID on the real process so
     list/output/kill work.

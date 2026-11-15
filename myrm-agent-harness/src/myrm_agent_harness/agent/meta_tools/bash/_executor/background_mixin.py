@@ -6,6 +6,7 @@
 - agent.security.checks::check_shell_threats (POS: hidden-character and quoting layer, applied to the text a shell is about to read)
 - agent.artifacts.file_id_registry::resolve_file_ids_in_text (POS: File ID resolution)
 - toolkits.code_execution.executors.base::ExecutionContext, CodeExecutor (POS: Code executor base classes)
+- toolkits.code_execution.platform::detect_platform (POS: Cross-platform runtime detection and shell configuration)
 - toolkits.code_execution::ExecutionConfig (POS: Code execution configuration layer)
 - .workspace_manager::WorkspaceManager (POS: Workspace Manager)
 - .skill_workspace_manager::SkillWorkspaceManager (POS: Skill Workspace Manager)
@@ -30,6 +31,7 @@ from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
 from myrm_agent_harness.agent.security.checks import check_shell_threats
 from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.toolkits.code_execution.executors.base import ExecutionContext
+from myrm_agent_harness.toolkits.code_execution.platform import detect_platform
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
@@ -49,10 +51,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def strip_trailing_background_ampersand(command: str) -> str:
-    """Remove a bare trailing ``&`` so ``sh -c`` cannot orphan the spawned job.
+def _background_shell() -> str:
+    """The shell that reads a background command: the platform's bash, the one the foreground session runs.
 
-    ``spawn_background`` runs ``sh -c <command>``. A trailing ``&`` makes ``sh``
+    Without one (Windows with PowerShell or cmd) it is the ``sh`` on PATH.
+    """
+    platform_info = detect_platform()
+    return platform_info.shell_path if platform_info.shell_type == "bash" else "sh"
+
+
+def strip_trailing_background_ampersand(command: str) -> str:
+    """Remove a bare trailing ``&`` so the shell cannot orphan the spawned job.
+
+    ``spawn_background`` runs ``<shell> -c <command>``. A trailing ``&`` makes the shell
     return immediately while the real process keeps running detached: the
     registered PID then points at an already-exited shell and every
     ``bash_process_tool`` action (output/kill/wait) silently fails. ``&&`` is a
@@ -138,7 +149,7 @@ class BashExecutorBackgroundMixin:
         network_config = self.config.network
 
         context = ExecutionContext(
-            code="sh",
+            code=_background_shell(),
             args=["-c", command],
             original_code=command,
             session_id=session_id,
