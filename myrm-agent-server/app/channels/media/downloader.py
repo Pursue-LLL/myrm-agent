@@ -24,6 +24,7 @@ from .config import MediaDownloadConfig
 from .exceptions import MediaDownloadError
 from .progress import ProgressCallback
 from .retry import RetryPolicy, retry_with_policy
+from .ssrf_target import resolve_media_ssrf_target
 from .validators import (
     ContentTypeValidator,
     MagicBytesValidator,
@@ -246,8 +247,6 @@ class MediaDownloader:
 
         # Prepare HTTP request
         headers = dict(config.headers or {})
-        request_url = url
-        stream_headers = headers
 
         # If proxy is configured, create a temporary client with proxy
         # (httpx.stream() doesn't accept proxies parameter)
@@ -257,24 +256,20 @@ class MediaDownloader:
             temp_client = httpx.AsyncClient(proxy=config.proxy)
             http_client = temp_client
 
-        if config.validate_ssrf:
-            from .ssrf_target import resolve_media_ssrf_target
-
-            target = await resolve_media_ssrf_target(
-                url=url,
-                config=config,
-                http_client=http_client,
-                headers=stream_headers,
-            )
-            request_url = target.request_url
-            stream_headers = target.headers
+        target = await resolve_media_ssrf_target(
+            url=url,
+            config=config,
+            http_client=http_client,
+            headers=headers,
+        )
 
         try:
             # Start streaming download (redirects resolved above when validate_ssrf=True)
             async with http_client.stream(
                 "GET",
-                request_url,
-                headers=stream_headers,
+                target.request_url,
+                headers=target.headers,
+                extensions=target.extensions,
                 timeout=config.timeout_seconds,
                 follow_redirects=False,
             ) as response:

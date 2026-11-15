@@ -9,7 +9,7 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports secure fetch and redirect guard APIs. | — |
 | redirect_guard.py | Core | Outbound HTTP redirect sensitive header protection. `extract_origin` (default port 80/443 normalization), `is_same_origin`, `is_sensitive_header` (standard RFC keys + wildcard regex), `strip_sensitive_headers_on_redirect` (purges credentials on cross-origin redirect and blocks HTTPS->HTTP downgrade), and `create_mcp_redirect_guard_event_hooks` (httpx/httpx2 client hooks for MCP transports). | ✅ |
-| secure_fetch.py | Core | DNS-pinned HTTP with manual redirect loop (`secure_get`, `secure_request`, `resolve_secure_http_target`) and integrated cross-origin sensitive header stripping (`strip_sensitive_headers_on_redirect`). `secure_get`/`secure_request` accept `max_content_length` to abort oversized bodies mid-stream (`ContentTooLargeError`); defaults to `DEFAULT_MAX_CONTENT_LENGTH` (20 MB) unless `None` is passed to disable. With `truncate=True` a body over the cap is cut at the cap and the stream abandoned instead of raising, for callers that need only the start of a page. `parse_allowed_internal_hosts` reads `MYRM_ALLOWED_INTERNAL_HOSTS` in canonical spelling, the form the SSRF guard compares hosts in; an entry that names no host stays as written and exempts nothing. | ✅ |
+| secure_fetch.py | Core | DNS-pinned HTTP with manual redirect loop (`secure_get`, `secure_request`, `resolve_secure_http_target`) and integrated cross-origin sensitive header stripping (`strip_sensitive_headers_on_redirect`). `secure_get`/`secure_request` accept `max_content_length` to abort oversized bodies mid-stream (`ContentTooLargeError`); defaults to `DEFAULT_MAX_CONTENT_LENGTH` (20 MB) unless `None` is passed to disable. With `truncate=True` a body over the cap is cut at the cap and the stream abandoned instead of raising, for callers that need only the start of a page. `resolve_secure_http_target` returns a `SecureHttpTarget` for callers that stream the final hop themselves: its `extensions` carry the TLS server name of a pinned HTTPS hop (dialed at an IP literal) and go to httpx with `request_url` and `headers`, else the certificate is checked against the IP. `parse_allowed_internal_hosts` reads `MYRM_ALLOWED_INTERNAL_HOSTS` in canonical spelling, the form the SSRF guard compares hosts in; an entry that names no host stays as written and exempts nothing. | ✅ |
 
 ## Key Dependencies
 
@@ -29,6 +29,7 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 - `toolkits/llms/media_inputs.py` (http(s) references of the unified media input resolver)
 - `toolkits/llms/video/providers/google_provider.py`, `minimax_provider.py`, `qwen_provider.py` (API result download URLs)
 - `myrm-agent-server/app/channels/media/image_enrichment.py`
+- `myrm-agent-server/app/channels/media/ssrf_target.py` (the streamed target of `MediaDownloader`)
 - `myrm-agent-server/app/channels/providers/feishu/sdk/client.py` (`download_url`)
 - `myrm-agent-server/app/api/integrations/llms/` (model discovery)
 - `myrm-agent-server/app/services/kanban/kanban_attach_handler.py`

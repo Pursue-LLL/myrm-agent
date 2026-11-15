@@ -10,6 +10,7 @@ import pytest
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import (
     ContentTooLargeError,
+    SecureHttpTarget,
     _https_pin_extensions,
     resolve_secure_http_target,
     secure_get,
@@ -103,6 +104,7 @@ async def test_resolve_secure_http_target_returns_pinned_final_hop() -> None:
             assert target.logical_url == "https://example.com/final"
             assert target.request_url == "https://5.6.7.8/final"
             assert target.headers["Host"] == "example.com"
+            assert target.extensions == {"sni_hostname": "example.com"}
 
 
 @pytest.mark.asyncio
@@ -127,6 +129,16 @@ def test_https_pin_extensions_sets_sni_for_pinned_https_ip() -> None:
         {"Host": "opencode.ai"},
     )
     assert extensions == {"sni_hostname": "opencode.ai"}
+
+
+def test_target_extensions_name_the_host_only_for_a_pinned_https_hop() -> None:
+    pinned = SecureHttpTarget("https://example.com/a", "https://93.184.216.34/a", {"Host": "example.com"}, "GET")
+    unpinned = SecureHttpTarget("https://example.com/a", "https://example.com/a", {}, "GET")
+    plain_http = SecureHttpTarget("http://example.com/a", "http://93.184.216.34/a", {"Host": "example.com"}, "GET")
+
+    assert pinned.extensions == {"sni_hostname": "example.com"}
+    assert unpinned.extensions == {}
+    assert plain_http.extensions == {}
 
 
 def test_https_pin_extensions_skips_non_ip_and_http() -> None:

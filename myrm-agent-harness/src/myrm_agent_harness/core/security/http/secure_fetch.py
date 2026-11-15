@@ -7,7 +7,8 @@
 
 [OUTPUT]
 - secure_get / secure_request: SSRF-safe HTTP with manual redirect loop
-- resolve_secure_http_target: pinned target for streaming callers
+- resolve_secure_http_target: pinned target for streaming callers (SecureHttpTarget: request URL, headers, and the
+  TLS server name of a pinned HTTPS hop in ``extensions``)
 - ContentTooLargeError: raised when a response body exceeds max_content_length (unless the caller asks to truncate)
 - DEFAULT_MAX_CONTENT_LENGTH: secure-by-default response body cap (20 MB)
 - parse_allowed_internal_hosts: the MYRM_ALLOWED_INTERNAL_HOSTS entries in canonical spelling
@@ -46,12 +47,21 @@ _METHODS_WITH_BODY = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 @dataclass(frozen=True, slots=True)
 class SecureHttpTarget:
-    """Final hop of a redirect chain, ready for streaming or follow-up requests."""
+    """Final hop of a redirect chain, ready for streaming or follow-up requests.
+
+    A caller sends ``request_url`` with ``headers`` and ``extensions``: a pinned HTTPS hop is dialed at an IP literal,
+    and only ``extensions`` carries the host name the TLS handshake and the certificate check need.
+    """
 
     logical_url: str
     request_url: str
     headers: dict[str, str]
     method: str
+
+    @property
+    def extensions(self) -> dict[str, object]:
+        """httpx request extensions that name the logical host in the TLS handshake of a pinned HTTPS hop."""
+        return _https_pin_extensions(self.request_url, self.headers)
 
 
 class ContentTooLargeError(Exception):
