@@ -9,6 +9,7 @@ from myrm_agent_harness.toolkits.code_execution.code_detector import (
     CodeType,
     CodeTypeDetector,
     code_detector,
+    detect_for_execution,
     runs_as_python,
 )
 
@@ -44,6 +45,20 @@ class TestRunsAsPython:
     def test_it_agrees_with_the_detector_the_executor_uses(self) -> None:
         for command in (PYTHON_SOURCE, "echo hi", "python3 -c 'print(1)'", "x = await f()", ""):
             assert runs_as_python(command) == code_detector.is_python(command.strip())
+
+
+class TestDetectForExecution:
+    """The route every check that depends on a command's language asks for: the one the executor gives it."""
+
+    def test_python_in_a_markdown_fence_is_python_with_the_fence_removed(self) -> None:
+        result = detect_for_execution(f"```python\n{PYTHON_SOURCE}\n```")
+
+        assert result.code_type == CodeType.PYTHON
+        assert result.extracted_code == PYTHON_SOURCE
+
+    def test_it_is_the_detector_on_the_stripped_and_unwrapped_text(self) -> None:
+        for command in (PYTHON_SOURCE, "echo hi", "python3 -c 'print(1)'", f"\n  {PYTHON_SOURCE}\n"):
+            assert detect_for_execution(command) == code_detector.detect(command.strip())
 
 
 class TestCodeTypeDetector:

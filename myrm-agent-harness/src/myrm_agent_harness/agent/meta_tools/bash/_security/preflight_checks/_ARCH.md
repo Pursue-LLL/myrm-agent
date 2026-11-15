@@ -9,7 +9,7 @@ bash 命令执行前的安全检查：每个文件一类检查，`__init__.py` �
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 门面 | 聚合导出全部预检函数与共享常量 | ✅ |
-| `tool_guard.py` | 核心 | 阻断 bash 中的 myrm_tools（AST/sh -c/-m/管道/引用脚本） | ✅ |
+| `tool_guard.py` | 核心 | 阻断 bash 中的 myrm_tools（AST/sh -c/-m/管道/引用脚本）；按执行器的路由判定语言（`detect_for_execution`），围栏里的 Python 同样走 AST | ✅ |
 | `url_guard.py` | 核心 | URL 数据外泄拦截 | ✅ |
 | `destructive.py` | 核心 | 破坏性命令拦截与高风险命令评估 | ✅ |
 | `interactive.py` | 核心 | 交互式命令识别 | ✅ |

@@ -11,6 +11,7 @@ Detects whether user input is Python or Bash and extracts embedded Python from
 - CodeDetectionResult: detection outcome with extracted code
 - CodeTypeDetector: detector class
 - code_detector: module singleton
+- detect_for_execution: the route of a command as the bash tool takes it, with the Python to run
 - runs_as_python: whether the bash tool hands a command to the Python wrapper instead of a shell
 
 [POS]
@@ -214,15 +215,22 @@ class CodeTypeDetector:
 code_detector = CodeTypeDetector()
 
 
+def detect_for_execution(command: str) -> CodeDetectionResult:
+    """The route the bash tool gives ``command``: the executor strips it and unwraps one Markdown fence first.
+
+    A check that depends on the language of a command asks here, so a command is judged in the language it runs
+    in: Python wrapped in a fence is still Python.
+    """
+    from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
+
+    return code_detector.detect(unwrap_markdown_fence(command.strip()))
+
+
 def runs_as_python(command: str, *, run_in_background: bool = False) -> bool:
     """Whether the bash tool hands ``command`` to the Python wrapper instead of a shell.
 
-    A background spawn is always read by a shell, whatever the text looks like. Otherwise the executor strips the
-    command, unwraps one Markdown fence and routes it by ``code_detector``; this repeats those steps, so a check
-    that only makes sense for shell syntax can stand down exactly when no shell reads the text.
+    A background spawn is always read by a shell, whatever the text looks like. Otherwise the route is
+    ``detect_for_execution``'s, so a check that only makes sense for shell syntax can stand down exactly when
+    no shell reads the text.
     """
-    if run_in_background:
-        return False
-    from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
-
-    return code_detector.is_python(unwrap_markdown_fence(command.strip()))
+    return not run_in_background and detect_for_execution(command).code_type == CodeType.PYTHON

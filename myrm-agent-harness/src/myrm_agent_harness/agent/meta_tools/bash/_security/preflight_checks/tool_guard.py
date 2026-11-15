@@ -199,10 +199,10 @@ def check_myrm_tools_import(command: str, *, workspace_root: str | None = None) 
     """
     from myrm_agent_harness.toolkits.code_execution.code_detector import (
         CodeType,
-        code_detector,
+        detect_for_execution,
     )
 
-    detection = code_detector.detect(command)
+    detection = detect_for_execution(command)
     code = detection.extracted_code if detection.code_type == CodeType.PYTHON else command
 
     if _python_ast_references_myrm_tools(code):

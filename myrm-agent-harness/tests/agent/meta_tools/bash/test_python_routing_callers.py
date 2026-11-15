@@ -1,11 +1,11 @@
-"""One command, three callers, one route.
+"""One command, four callers, one route.
 
-The executor, the bash tool's own checks and the permission layer each ask ``code_detector`` how a command will run,
-and each acts on the answer: text run as Python gets Python's rules, text a shell reads gets the shell's. If one of
-them answered differently, a command would be judged under one language and run under the other. Every command below
-is one the old line-count and keyword router got wrong, and every test reads a caller's own consequence of the route.
-(The reserved-import preflight asks the same detector but blocks the same text under either route, so it has no
-route-dependent behavior to compare.)
+The executor, the bash tool's own checks, the permission layer and the reserved-import guard each ask
+``code_detector`` how a command will run, and each acts on the answer: text run as Python gets Python's rules, text
+a shell reads gets the shell's. If one of them answered differently, a command would be judged under one language
+and run under the other. The first three cases are commands the old line-count and keyword router got wrong; the
+last is Python that a line scan for ``import myrm_tools`` cannot see. Every test reads a caller's own consequence of
+the route.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import pytest
 
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import BashExecutionError
 from myrm_agent_harness.agent.meta_tools.bash._executor.executor import BashExecutor
+from myrm_agent_harness.agent.meta_tools.bash._security.preflight_checks import check_myrm_tools_import
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
 from myrm_agent_harness.agent.security.checks import check_shell_threats
 from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope
@@ -76,3 +77,21 @@ def test_the_permission_layer_reads_a_regex_anchor_in_python_but_not_in_a_shell(
     action, reason = check_shell_threats("code_interpreter", {"command": SHELL_ANSI_C_QUOTING})
     assert action == PermissionAction.DENY
     assert "ANSI-C quoting" in reason
+
+
+# Imports only a syntax tree sees: the guard's line scan reads ``import myrm_tools`` at the start of a line.
+PYTHON_RESERVED_IMPORTS = [
+    pytest.param("import os, myrm_tools\nprint(os.getcwd())", id="multi-name-import"),
+    pytest.param("if True: import myrm_tools", id="import-after-a-colon"),
+]
+
+
+@pytest.mark.parametrize("source", PYTHON_RESERVED_IMPORTS)
+@pytest.mark.parametrize("fenced", [pytest.param(False, id="plain"), pytest.param(True, id="in-a-fence")])
+def test_the_reserved_import_guard_reads_python_as_python_inside_a_markdown_fence_too(
+    source: str, fenced: bool
+) -> None:
+    command = f"```python\n{source}\n```" if fenced else source
+
+    with pytest.raises(ToolError, match="myrm_tools"):
+        check_myrm_tools_import(command)
