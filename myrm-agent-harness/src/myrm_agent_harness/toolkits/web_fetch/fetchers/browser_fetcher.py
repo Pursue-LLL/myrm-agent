@@ -7,12 +7,15 @@ Reuses Navigator for navigation logic and gets throttling for free.
 [INPUT]
 - toolkits.browser.pool::GlobalBrowserPool (POS: Runtime pool management layer. Provides multi-backend unified management, concurrency control, health monitoring, and config-driven registration — the central dispatcher of the runtime system.)
 - toolkits.browser.navigation::Navigator (POS: Page navigation utility module. Responsibilities: 1. Page navigation (goto) + throttle control 2. History navigation (back/forward/reload) 3. Smart wait (hybrid detection: DOM + network dual guarantee) 4. Timeout control + full metrics exposure Design principles: Independent utility module, reusable by BrowserSession and BrowserFetcher Integrates throttle strategy for unified navigation frequency control Smart wait: hybrid detection (DOM stable + network idle) dual guarantee Single responsibility: only handles navigation logic; does not handle tab management, snapshot, interaction, etc.)
+- .target_guard::assert_not_blocklisted (POS: the network blocklist verdict for one URL)
 
 [OUTPUT]
-- BrowserFetcher: class — Browser Fetcher; a navigation blocked by the SSRF policy raises SSRFSecurityError instead of degrading to the next tier
+- BrowserFetcher: class — Browser Fetcher; a navigation blocked by the SSRF policy, or to a host on the network blocklist, raises SSRFSecurityError instead of degrading to the next tier
 
 [POS]
-Provides BrowserFetcher.
+Provides BrowserFetcher. The pooled CRAWL contexts are shared by every fetch, so no per-user domain list can be bound to
+them: the network blocklist is judged on the requested URL before the page is acquired and on the final URL before the
+page content is read, which keeps content of a listed host from being returned.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from .protocols import FetcherType, FetchResult
+from .target_guard import assert_not_blocklisted
 
 if TYPE_CHECKING:
     from patchright.async_api import Page
@@ -50,6 +54,7 @@ class BrowserFetcher:
         allow_private_networks: bool = False,
         session_vault: SessionVault | None = None,
         launch_mode_preference: LaunchMode | None = None,
+        network_blocklist: tuple[str, ...] = (),
     ):
         """Initialize BrowserFetcher
 
@@ -57,6 +62,7 @@ class BrowserFetcher:
             browser_pool: GlobalBrowserPool instance (optional; defaults to the global singleton)
             allow_private_networks: Skip SSRF private-IP blocking in Navigator (local mode).
             session_vault: Optional SessionVault for cookie/state sharing.
+            network_blocklist: Hosts (exact or ``*.`` wildcard) whose pages are never returned.
         """
         from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
 
@@ -64,6 +70,7 @@ class BrowserFetcher:
         self._allow_private_networks = allow_private_networks
         self._session_vault = session_vault
         self._launch_mode_preference = launch_mode_preference
+        self._network_blocklist = network_blocklist
 
     def set_launch_mode_preference(self, launch_mode: LaunchMode | None) -> None:
         """Override browser launch mode (e.g. EXTENSION for user Chrome sessions)."""
@@ -87,6 +94,8 @@ class BrowserFetcher:
         from myrm_agent_harness.toolkits.browser.pool import ContextType
 
         from ..router.domain_metrics import get_global_domain_metrics_manager
+
+        assert_not_blocklisted(url, self._network_blocklist)
 
         page: Page | None = None
         context_key: str | None = None
@@ -126,6 +135,8 @@ class BrowserFetcher:
                 auto_dismiss_popups=self._pool.config.auto_dismiss_popups,
             )
             _title, final_url, status_code = await navigator.goto(url)
+            # Redirect hops are not visible here; the page that was reached is, and its content is what leaves.
+            assert_not_blocklisted(final_url, self._network_blocklist)
 
             html = await page.content()
 
@@ -139,6 +150,9 @@ class BrowserFetcher:
         except BrowserNavigationBlockedError as exc:
             # Policy verdicts are terminal; degrading to another tier would fetch the same URL.
             raise SSRFSecurityError(str(exc)) from exc
+
+        except SSRFSecurityError:
+            raise
 
         except Exception as exc:
             logger.warning(f"BrowserFetcher failed: {url} — {exc}")

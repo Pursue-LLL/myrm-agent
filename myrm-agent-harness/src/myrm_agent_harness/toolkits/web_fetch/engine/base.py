@@ -17,6 +17,7 @@ Boundary: single-sandbox, single-process semantics; tier breaker state lives in 
 [INPUT]
 web_fetch.fetchers.http_fetcher::HttpFetcher (POS: L1 HTTP fetcher)
 web_fetch.fetchers.browser_fetcher::BrowserFetcher (POS: L2 browser-based fetcher)
+web_fetch.fetchers.target_guard::assert_not_blocklisted (POS: network blocklist verdict for one URL)
 web_fetch.fetchers.protocols::FetcherType, FetchResult (POS: Fetcher protocol types)
 web_fetch.processing.antibot_detector::is_blocked (POS: Anti-bot detection)
 web_fetch.router.tier_breaker::get_global_tier_breaker (POS: Per-domain start-tier policy)
@@ -31,6 +32,8 @@ FetchEngine: Layered fetch engine with a tier breaker, caching, and request coal
 [POS]
 Core fetch engine. Orchestrates L1/L2/L3 fetchers behind a per-domain tier breaker with
 in-memory caching, request coalescing, and stale-while-revalidate semantics.
+The network blocklist is fixed for the life of an engine, so its caches never hold a page fetched under another
+list; a caller whose list can change builds a new engine for each call.
 
 """
 
@@ -52,11 +55,13 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.browser.pool.proxy import ProxyPool
     from myrm_agent_harness.toolkits.browser.session_vault import SessionVault
 
+from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.utils.lru_cache import LRUCache
 
 from ..fetchers.browser_fetcher import BrowserFetcher
 from ..fetchers.http_fetcher import HttpFetcher
 from ..fetchers.stealth_fetcher import StealthFetcher
+from ..fetchers.target_guard import assert_not_blocklisted
 from ..processing.pipeline import ContentPipeline
 from ..router import get_global_domain_metrics_manager, get_global_tier_breaker
 from .batch_mixin import FetchEngineBatchMixin, cancel_fetches
@@ -117,18 +122,29 @@ class FetchEngine(
         crawl_timeout: float = _DEFAULT_CRAWL_TIMEOUT,
         domain_allowlist: DomainAllowlist | None = None,
         allow_private_networks: bool = False,
+        network_blocklist: tuple[str, ...] = (),
         youtube_languages: list[str] | None = None,
     ):
         self._domain_allowlist = domain_allowlist
         self._allow_private_networks = allow_private_networks
+        self._network_blocklist = network_blocklist
         self._youtube_languages = youtube_languages
         self._http_fetcher = HttpFetcher(
-            proxy_pool=proxy_pool, session_vault=session_vault, allow_private_networks=allow_private_networks
+            proxy_pool=proxy_pool,
+            session_vault=session_vault,
+            allow_private_networks=allow_private_networks,
+            network_blocklist=network_blocklist,
         )
         self._browser_fetcher = BrowserFetcher(
-            allow_private_networks=allow_private_networks, session_vault=session_vault
+            allow_private_networks=allow_private_networks,
+            session_vault=session_vault,
+            network_blocklist=network_blocklist,
         )
-        self._stealth_fetcher = StealthFetcher(proxy_pool=proxy_pool, allow_private_networks=allow_private_networks)
+        self._stealth_fetcher = StealthFetcher(
+            proxy_pool=proxy_pool,
+            allow_private_networks=allow_private_networks,
+            network_blocklist=network_blocklist,
+        )
         self._pipeline = ContentPipeline(use_raw_markdown=use_raw_markdown)
 
         self._tier_breaker = get_global_tier_breaker()
@@ -196,6 +212,13 @@ class FetchEngine(
     ) -> Document | None:
         """Crawl a single URL, return Document or None."""
         from ..processing.url_normalizer import normalize_url
+
+        # A pure string check, so it runs ahead of the SSRF lookup, which may resolve the name.
+        try:
+            assert_not_blocklisted(url, self._network_blocklist)
+        except SSRFSecurityError as exc:
+            logger.warning(f"URL blocked by outbound policy: {url} — {exc}")
+            return None
 
         if not self._allow_private_networks:
             from myrm_agent_harness.core.security.guards.ssrf import validate_url_for_ssrf

@@ -1,5 +1,5 @@
 """[INPUT]
-- app.ai_agents.general_agent.ask_question_result::format_ask_question_result (POS: The user's skip and the HITL timeout both resume the interrupt with an empty value.)
+- app.ai_agents.general_agent.ask_question_result::format_ask_question_result (POS: A skip and the HITL timeout answer the pause they name with an empty value.)
 - app.ai_agents.general_agent.tool_setup.base::ToolSetupBaseMixin (POS: 各工具族 mixin 共同继承，避免重复声明宿主属性。)
 - app.ai_agents.general_agent.tool_setup.common::_should_mount_ask_question_tool (POS: 只放无 self 依赖的判断/构造工具，供各工具族 mixin 复用。)
 
@@ -13,16 +13,11 @@ ToolSetupMixin 的一个工具族；由 mixin.py 组合。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+
+from app.ai_agents.general_agent.tool_setup.common import _should_mount_ask_question_tool
 
 from ..ask_question_result import format_ask_question_result
 from .base import ToolSetupBaseMixin
-
-if TYPE_CHECKING:
-
-    pass
-
-from app.ai_agents.general_agent.tool_setup.common import _should_mount_ask_question_tool
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +74,8 @@ class SearchToolsMixin(ToolSetupBaseMixin):
                     sufficiency_config=sufficiency_cfg,
                     sufficiency_llm_config=sufficiency_llm,
                     blocked_hostnames=getattr(self, "benchmark_blocked_hostnames", ()) or None,
+                    # Read on every call: a blocklist edited mid-session reaches this pooled agent's next fetch.
+                    network_blocklist_provider=lambda: self._merged_security_config().network_blocklist,
                     description_locale=tool_description_locale,
                 )
             )

@@ -37,11 +37,23 @@ def _name_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _local(requested: str, allowed_hosts: list[str] | None = None) -> FetchTargetGuard:
-    return FetchTargetGuard(requested_url=requested, allow_private_networks=True, allowed_hosts=allowed_hosts or [])
+    return FetchTargetGuard(
+        requested_url=requested,
+        allow_private_networks=True,
+        allowed_hosts=allowed_hosts or [],
+        ssrf_shield=True,
+        network_blocklist=(),
+    )
 
 
 def _cloud(requested: str = "https://example.com/", allowed_hosts: list[str] | None = None) -> FetchTargetGuard:
-    return FetchTargetGuard(requested_url=requested, allow_private_networks=False, allowed_hosts=allowed_hosts or [])
+    return FetchTargetGuard(
+        requested_url=requested,
+        allow_private_networks=False,
+        allowed_hosts=allowed_hosts or [],
+        ssrf_shield=True,
+        network_blocklist=(),
+    )
 
 
 @pytest.mark.asyncio

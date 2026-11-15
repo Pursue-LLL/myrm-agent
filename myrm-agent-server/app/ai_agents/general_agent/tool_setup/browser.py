@@ -73,19 +73,7 @@ class BrowserToolsMixin(ToolSetupBaseMixin):
             domain_allowlist = None
             domain_blocklist = None
             # BrowserSession is created before BaseAgent init (self.agent is still None).
-            # Resolve merged network policy the same way SecurityPolicyExtension does.
-            from myrm_agent_harness.agent.security.channel_presets import (
-                build_channel_security_config,
-            )
-
-            merged_security = build_channel_security_config(
-                self.channel_name,
-                self.security_config_raw,
-                agent_security_raw=self.agent_security_raw,
-                declared_capabilities=self.declared_capabilities,
-                declared_allowed_roots=self.declared_allowed_roots,
-                local_mode=is_local_mode(),
-            )
+            merged_security = self._merged_security_config()
             if merged_security.network_allowlist:
                 domain_allowlist = DomainAllowlist.from_strings(merged_security.network_allowlist)
             if merged_security.network_blocklist:

@@ -4,7 +4,7 @@ Patchright solves CDP leaks at the source level, BrowserForge generates fine-gra
 Auto-bypasses Cloudflare Turnstile/Interstitial, hides Canvas fingerprints.
 
 [INPUT]
-- .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy for the web_fetch tiers that follow redirects)
+- .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy and network blocklist for the web_fetch tiers)
 - toolkits.browser.pool.proxy::ProxyPool (POS: Manages proxy rotation across Browser Pool and FetchEngine. Supports: 1. Round-robin rotation across multiple proxies 2. Sticky sessions (same proxy for a given session_id with TTL) 3. Concurrency-safe in asyncio single-threaded event loop 4. Environment variable loading (MYRM_PROXIES) 5. Automatic expired session cleanup (via lifecycle tick))
 
 [OUTPUT]
@@ -12,8 +12,9 @@ Auto-bypasses Cloudflare Turnstile/Interstitial, hides Canvas fingerprints.
 
 [POS]
 Stealth Fetcher — Maximum anti-detection based on Scrapling Patchright + BrowserForge.
-Scrapling navigates without a route hook, so redirect hops cannot be vetted in flight; the final URL
-is judged before the body is returned and a rejected one raises SSRFSecurityError.
+Scrapling navigates without a route hook, so redirect hops cannot be vetted in flight; the requested URL
+is judged before the navigation and the final URL before the body is returned, against the SSRF policy
+and the network blocklist, and a rejected one raises SSRFSecurityError.
 """
 
 from __future__ import annotations
@@ -47,22 +48,22 @@ class StealthFetcher:
         max_concurrent: int = _MAX_CONCURRENT_STEALTH,
         proxy_pool: ProxyPool | None = None,
         allow_private_networks: bool = False,
+        network_blocklist: tuple[str, ...] = (),
     ):
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._proxy_pool = proxy_pool
         self._allow_private_networks = allow_private_networks
+        self._network_blocklist = network_blocklist
 
     async def fetch(self, url: str) -> FetchResult | None:
         from scrapling.fetchers import StealthyFetcher  # type: ignore[import-untyped]
 
-        guard = (
-            FetchTargetGuard(
-                requested_url=url,
-                allow_private_networks=self._allow_private_networks,
-                allowed_hosts=parse_allowed_internal_hosts(),
-            )
-            if is_ssrf_shield_enabled()
-            else None
+        guard = FetchTargetGuard.for_fetch(
+            url,
+            allow_private_networks=self._allow_private_networks,
+            allowed_hosts=parse_allowed_internal_hosts(),
+            ssrf_shield=is_ssrf_shield_enabled(),
+            network_blocklist=self._network_blocklist,
         )
         async with self._semaphore:
             try:

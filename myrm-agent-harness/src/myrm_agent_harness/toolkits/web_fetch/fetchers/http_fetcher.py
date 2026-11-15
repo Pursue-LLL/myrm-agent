@@ -2,13 +2,13 @@
 
 [INPUT]
 - .bounded_get::bounded_get (POS: a GET through Scrapling whose body is held to a size bound while it is received)
-- .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy for the web_fetch tiers that follow redirects)
+- .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy and network blocklist for the web_fetch tiers)
 - toolkits.web_fetch.processing.charset_detector::detect_and_decode_html (POS: Multi-tier charset detection)
 - toolkits.browser.pool.proxy::ProxyPool (POS: Proxy rotation pool for FetchEngine)
 - utils.content_sniff::classify_payload (POS: web page, text or binary file, decided once for every fetch tier)
 
 [OUTPUT]
-- HttpFetcher: L1 tier fetcher; every hop (the requested URL and each redirect ``Location``) is judged and dialed in its canonical spelling, and a hop the SSRF policy rejects raises SSRFSecurityError instead of degrading to the next tier
+- HttpFetcher: L1 tier fetcher; every hop (the requested URL and each redirect ``Location``) is judged and dialed in its canonical spelling, and a hop the SSRF policy or the network blocklist rejects raises SSRFSecurityError instead of degrading to the next tier
 
 [POS]
 L1 lightweight HTTP fetcher. Delegates TLS impersonation to Scrapling defaults.
@@ -68,12 +68,14 @@ class HttpFetcher:
         proxy_pool: ProxyPool | None = None,
         session_vault: SessionVault | None = None,
         allow_private_networks: bool = False,
+        network_blocklist: tuple[str, ...] = (),
     ):
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._timeout = timeout
         self._proxy_pool = proxy_pool
         self._session_vault = session_vault
         self._allow_private_networks = allow_private_networks
+        self._network_blocklist = network_blocklist
 
     async def fetch(self, url: str, *, etag: str | None = None, last_modified: str | None = None) -> FetchResult | None:
         enable_ssrf_shield = is_ssrf_shield_enabled()
@@ -164,14 +166,12 @@ class HttpFetcher:
         current_url = url
         redirect_count = 0
         request_headers = headers.copy()
-        guard = (
-            FetchTargetGuard(
-                requested_url=url,
-                allow_private_networks=self._allow_private_networks,
-                allowed_hosts=allowed_hosts,
-            )
-            if enable_ssrf_shield
-            else None
+        guard = FetchTargetGuard.for_fetch(
+            url,
+            allow_private_networks=self._allow_private_networks,
+            allowed_hosts=allowed_hosts,
+            ssrf_shield=enable_ssrf_shield,
+            network_blocklist=self._network_blocklist,
         )
 
         while redirect_count <= _MAX_REDIRECTS:

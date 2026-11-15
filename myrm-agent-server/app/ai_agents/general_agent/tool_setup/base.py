@@ -5,7 +5,7 @@
 - ToolSetupBaseMixin: Mixin providing all tool initialization methods for GeneralAgent.
 
 [POS]
-各工具族 mixin 共同继承，避免重复声明宿主属性。
+各工具族 mixin 共同继承，避免重复声明宿主属性；并提供各工具族共用的宿主安全策略解析（`_merged_security_config`）。
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from ..external_agents import ExternalAgentsMixin
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.security.types import SecurityConfig
     from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.memory.config import RecallMode
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -84,3 +85,22 @@ class ToolSetupBaseMixin(ExternalAgentsMixin):
         def _setup_image_generation_tools(self, tools: list[object], *, task_user_id: str = "default") -> None: ...
         def _setup_video_generation_tools(self, tools: list[object], *, task_user_id: str = "default") -> None: ...
         def _setup_tts_tools(self, tools: list[object]) -> None: ...
+
+    def _merged_security_config(self) -> SecurityConfig:
+        """The channel preset with the user's and the agent's overrides, as ``SecurityPolicyExtension`` resolves it.
+
+        Tool families that carry their own network policy read it here: the browser builds its domain lists once, the
+        web fetch tool reads the blocklist on every call, so a list edited mid-session applies to the next fetch.
+        """
+        from myrm_agent_harness.agent.security.channel_presets import build_channel_security_config
+
+        from app.config.deploy_mode import is_local_mode
+
+        return build_channel_security_config(
+            self.channel_name,
+            self.security_config_raw,
+            agent_security_raw=self.agent_security_raw,
+            declared_capabilities=self.declared_capabilities,
+            declared_allowed_roots=self.declared_allowed_roots,
+            local_mode=is_local_mode(),
+        )
