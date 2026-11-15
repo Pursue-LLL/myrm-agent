@@ -234,7 +234,9 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
             }
           }}
           className={cn(
-            'group mt-2 flex min-w-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-left text-xs transition-colors',
+            // Phones: the row stays 30px; the invisible `after:` box lifts the touch target to 44px inside the gaps around
+            // it (8px per side: an absolutely positioned box is offset from the padding edge, so 7px beyond the row plus its 1px border).
+            'group mt-2 flex min-w-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-left text-xs transition-colors relative max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-[8px]',
             currentDir
               ? 'w-fit max-w-full border-primary/25 bg-primary/5 text-foreground hover:bg-primary/10'
               : 'w-full border-dashed border-border bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground',

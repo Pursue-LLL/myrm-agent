@@ -246,6 +246,9 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: SetFil
               'bg-background dark:bg-muted/60',
               'transition duration-200',
               'hover:bg-border dark:hover:bg-muted/80 text-foreground/70 hover:text-foreground',
+              // Phones: the button stays 32px; the invisible `after:` box lifts the touch target to 44×44, reaching left
+              // into free space and only 2px right, where the send button sits 4px away.
+              'relative max-sm:after:absolute max-sm:after:-inset-y-1.5 max-sm:after:-left-2.5 max-sm:after:-right-0.5',
             )}
           >
             {!isTauriRuntime() && (
