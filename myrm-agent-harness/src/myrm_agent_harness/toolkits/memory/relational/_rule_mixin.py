@@ -13,11 +13,12 @@
 Procedural-rule persistence of SQLiteRelationalStore; trigger keywords and extra metadata are stored as JSON columns,
 the metadata one also carrying the rule's error fingerprint, resolution steps and chat links. Rules are read newest
 first (``created_at DESC, id DESC``); ``create_rule`` stores the creation time the rule carries, in UTC, because the
-column is ordered as text and offsets would misorder it.
+column is ordered as text and offsets would misorder it: a time without an offset is UTC, and a time later than now is
+stored as now, so a wrong clock in an imported record cannot outrank every rule stated after it.
 """
 
 import json
-from datetime import UTC
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from myrm_agent_harness.toolkits.memory.relational._converters import PROCEDURAL_COLUMNS, now_iso, row_to_procedural
@@ -42,14 +43,25 @@ class SQLiteRuleMixin(SQLiteStoreHost):
             meta["source_chat_ids"] = json.dumps(list(rule.source_chat_ids))
         return json.dumps(meta) if meta else None
 
+    @staticmethod
+    def _creation_time_text(created: datetime) -> str:
+        """UTC ISO text of a rule's creation time, which is the column the store orders rules by as text.
+
+        A time without an offset is UTC (the memory package convention), so the order does not depend on the host
+        zone; a time later than now is stored as now, so a wrong clock in an imported record cannot pin the rule
+        above every preference the user states after it.
+        """
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=UTC)
+        return min(created, datetime.now(UTC)).astimezone(UTC).isoformat()
+
     async def create_rule(self, rule: ProceduralMemory) -> ProceduralMemory:
         await self._ensure_integrity_before_write()
         conn = await self._get_connection()
         rule_id = rule.id or str(uuid4())
         now = now_iso()
-        # The rule keeps the creation time it carries (an approved proposal keeps the moment it was proposed), in UTC
-        # so that the column's text order is its time order.
-        created_at = rule.created_at.astimezone(UTC).isoformat()
+        # The rule keeps the creation time it carries (an approved proposal keeps the moment it was proposed).
+        created_at = self._creation_time_text(rule.created_at)
         (
             primary_namespace,
             namespaces_json,
