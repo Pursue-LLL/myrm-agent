@@ -142,22 +142,22 @@ async def test_a_reindex_after_a_later_message_moves_the_conversation_out(fts_db
 # The seeded last message was sent at 2026-04-17 12:00 UTC. The bounds are the strings the agent passes, parsed the way
 # the tool parses them: one that carries an offset must move the window to the instant it names, not keep its digits.
 @pytest.mark.parametrize(
-    ("bound", "value", "window_note"),
+    ("since", "until", "window_note"),
     [
-        ("since", "2026-04-17T19:00:00+08:00", None),  # 11:00 UTC, before the last message
-        ("since", "2026-04-17T09:00:00-05:00", "sent after 2026-04-17 14:00 UTC:"),
-        ("until", "2026-04-17T08:00:00-05:00", None),  # 13:00 UTC, after the last message
-        ("until", "2026-04-17T18:00:00+08:00", "sent before 2026-04-17 10:00 UTC:"),
+        ("2026-04-17T19:00:00+08:00", None, None),  # 11:00 UTC, before the last message
+        ("2026-04-17T09:00:00-05:00", None, "sent after 2026-04-17 14:00 UTC:"),
+        (None, "2026-04-17T08:00:00-05:00", None),  # 13:00 UTC, after the last message
+        (None, "2026-04-17T18:00:00+08:00", "sent before 2026-04-17 10:00 UTC:"),
     ],
     ids=["since-included", "since-excluded", "until-included", "until-excluded"],
 )
 @pytest.mark.asyncio
 async def test_a_bound_written_with_a_utc_offset_bounds_the_instant_it_names(
-    fts_db: AsyncSession, bound: str, value: str, window_note: str | None
+    fts_db: AsyncSession, since: str | None, until: str | None, window_note: str | None
 ) -> None:
     await seed_chat_and_messages(fts_db)
 
-    reply = await _sessions("docker", **{bound: parse_time_bound(value)})
+    reply = await _sessions("docker", since=parse_time_bound(since), until=parse_time_bound(until))
 
     if window_note is None:
         assert "Docker deployment discussion" in reply
