@@ -7,10 +7,10 @@
 [OUTPUT]
 - LocalSearchProbeResult: structured probe outcome for a search endpoint
 - probe_searxng_endpoints: ping and HTML-search verify for SearXNG URLs
-- probe_local_search_services: discover reachable local/self-hosted search backends
+- probe_local_search_services: probe the self-hosted SearXNG backend and return its one-element result list
 
 [POS]
-HTTP probes for SearXNG and other self-hosted search endpoints during onboarding/setup.
+HTTP probes for SearXNG endpoints during onboarding/setup.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ SearchRegionPreset = Literal["global", "china", "code", "academic"]
 
 
 class LocalSearchProbeResult(BaseModel):
-    """Result of probing a local or self-hosted search endpoint."""
+    """Result of probing a SearXNG endpoint."""
 
     provider: Literal["searxng"] = Field(..., description="Search backend identifier")
     base_url: str = Field(default="", description="Resolved api_base for SearXNG")
