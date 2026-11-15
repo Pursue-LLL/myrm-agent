@@ -145,8 +145,7 @@ _start_backend_bg() {
 
       # owner 健康 → 走 drift 检查；不健康 → 重试 3 次仍失败才重建（抗瞬时负载误杀）。
       local owner_healthy=0
-      local retry_i
-      for retry_i in 1 2 3; do
+      for _ in 1 2 3; do
         if curl -sf --max-time "${health_timeout}" "${health_url}" >/dev/null 2>&1; then
           owner_healthy=1
           break
@@ -265,8 +264,7 @@ _start_backend_bg() {
   if [[ "${need_rebuild}" -eq 1 ]]; then
     if [[ -n "${rebuild_target}" ]] && dev_pid_alive "${rebuild_target}"; then
       kill -TERM "${rebuild_target}" 2>/dev/null || true
-      local wait_i
-      for wait_i in $(seq 1 20); do
+      for _ in $(seq 1 20); do
         dev_pid_alive "${rebuild_target}" || break
         sleep 0.25
       done
@@ -274,8 +272,7 @@ _start_backend_bg() {
         kill -KILL "${rebuild_target}" 2>/dev/null || true
       fi
     fi
-    local free_i
-    for free_i in $(seq 1 20); do
+    for _ in $(seq 1 20); do
       if ! lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t >/dev/null 2>&1; then
         break
       fi
