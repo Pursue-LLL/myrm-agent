@@ -18,6 +18,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
+from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import create_bash_process_tool
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
@@ -29,7 +30,17 @@ from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind impo
 )
 
 _REASON = "exercise the bash tool through the production path"
-_SESSION = "real-stack"
+SESSION_ID = "real-stack"
+_BACKGROUND_WAIT_SECONDS = 10
+
+
+@dataclass(frozen=True)
+class BackgroundRun:
+    """What a finished background job left: its exit code and what it printed on each stream."""
+
+    exit_code: int | None
+    stdout: str
+    stderr: str
 
 
 @dataclass(frozen=True)
@@ -38,6 +49,7 @@ class RealBashStack:
 
     workspace: Path
     tool: BaseTool
+    process_tool: BaseTool
     config: RunnableConfig
 
     async def run(self, command: str, *, timeout: int | None = None) -> str:
@@ -49,21 +61,47 @@ class RealBashStack:
         assert isinstance(result, dict)
         return str(result["content"])
 
+    async def run_background(self, command: str) -> BackgroundRun:
+        """Start *command* as a background job, wait for it to end and return what it printed."""
+        spawned = await self.tool.ainvoke(
+            {"command": command, "reason": _REASON, "run_in_background": True}, config=self.config
+        )
+        assert isinstance(spawned, dict)
+        pid = int(spawned["metadata"]["pid"])
+        await self.process_tool.ainvoke(
+            {"action": "wait", "pid": pid, "timeout_seconds": _BACKGROUND_WAIT_SECONDS}, config=self.config
+        )
+        polled = await self.process_tool.ainvoke({"action": "output", "pid": pid}, config=self.config)
+        assert isinstance(polled, dict)
+        content = polled["content"]
+        assert isinstance(content, dict)
+        return BackgroundRun(
+            exit_code=content["exit_code"],
+            stdout="\n".join(content["stdout"]),
+            stderr="\n".join(content["stderr"]),
+        )
+
 
 @asynccontextmanager
-async def real_bash_stack(workspace: Path) -> AsyncIterator[RealBashStack]:
-    """Build the stack on *workspace* and release its shell sessions and bindings on exit."""
+async def real_bash_stack(workspace: Path, *, storage_root: Path | None = None) -> AsyncIterator[RealBashStack]:
+    """Build the stack on *workspace* and release its shell sessions and bindings on exit.
+
+    *workspace* is the directory the executor is bound to, the one ``/workspace`` means to a command.
+    *storage_root* is where the host keeps each chat's own workspace directory; it defaults to *workspace*, which is
+    the shape of a chat bound to a project: the project is in use and the chat's own directory lies elsewhere.
+    """
     no_sandbox = (NullProvider(), SandboxStatus(enabled=False, provider_name="null", reason="test"))
+    storage = storage_root or workspace
     executor = LocalExecutor(ExecutionConfig())
     executor.bind_workspace(str(workspace))
     executor_token = set_executor(executor)
-    storage_token = bind_workspace_storage_root(workspace)
+    storage_token = bind_workspace_storage_root(storage)
     config: RunnableConfig = {
         "configurable": {
             "context": {
-                "session_id": _SESSION,
+                "session_id": SESSION_ID,
                 "workspace_path": str(workspace),
-                "workspaces_storage_root": str(workspace),
+                "workspaces_storage_root": str(storage),
             }
         }
     }
@@ -76,7 +114,12 @@ async def real_bash_stack(workspace: Path) -> AsyncIterator[RealBashStack]:
         patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", AsyncMock()),
     ):
         try:
-            yield RealBashStack(workspace=workspace, tool=create_bash_code_execute_tool(), config=config)
+            yield RealBashStack(
+                workspace=workspace,
+                tool=create_bash_code_execute_tool(),
+                process_tool=create_bash_process_tool(),
+                config=config,
+            )
         finally:
             await executor.close()
             release_workspace_storage_bind_token(storage_token)

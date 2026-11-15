@@ -77,6 +77,7 @@ class BashExecutorBackgroundMixin:
         # Provided by BashExecutor / BashExecutorContextMixin.
         @property
         def config(self) -> ExecutionConfig: ...
+        def _execution_workspace_root(self, session_root: str | None) -> str | None: ...
         async def _log_bash_command_execution(
             self,
             command: str,
@@ -130,10 +131,9 @@ class BashExecutorBackgroundMixin:
         if invalidated_workspace_id:
             self._skill_manager.clear_workspace_cache(invalidated_workspace_id)
 
-        workspace_root_str = self._workspace_manager.get_workspace_path(workspace)
-        if workspace_root_str:
-            self._executor.bind_workspace(workspace_root_str)
-        workspace_root = workspace_root_str or ""
+        # The job starts where a foreground command does, in the root ``/workspace`` means to the executor: the project
+        # for a project-bound chat, not the session's own storage directory. Starting a job leaves that binding alone.
+        workspace_root = self._execution_workspace_root(self._workspace_manager.get_workspace_path(workspace)) or ""
 
         network_config = self.config.network
 
