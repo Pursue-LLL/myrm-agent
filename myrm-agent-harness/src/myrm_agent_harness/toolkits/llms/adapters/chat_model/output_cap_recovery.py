@@ -4,10 +4,12 @@
 - errors.output_limit::parse_output_limit (POS: output limit a provider printed in a rejection)
 - errors.normalize::normalize_provider_error (POS: HTTP status of the rejection)
 - toolkits.llms.ephemeral_output_tokens (POS: one-shot larger budget set by truncation recovery)
+- transport.gateways::documented_output_ceiling (POS: the ``max_tokens`` range a gateway documents for a model)
 
 [OUTPUT]
 - recover_output_cap(): lower a rejected request's ``max_tokens`` to what the provider says it accepts
 - apply_learned_output_cap(): clamp a request to a model ceiling this endpoint already rejected once
+- apply_documented_output_cap(): clamp a request to the ``max_tokens`` range its gateway documents for the model
 - TransportChatModelOutputCapMixin: resolves a request's ``max_tokens`` and recovers from a rejected one
 
 [POS]
@@ -29,6 +31,7 @@ from myrm_agent_harness.toolkits.llms.ephemeral_output_tokens import (
 )
 from myrm_agent_harness.toolkits.llms.errors.normalize import normalize_provider_error
 from myrm_agent_harness.toolkits.llms.errors.output_limit import parse_output_limit
+from myrm_agent_harness.toolkits.llms.transport.gateways import documented_output_ceiling
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +86,19 @@ def apply_learned_output_cap(params: dict[str, object], *, model: str, base_url:
     if isinstance(requested, int) and requested > ceiling:
         params["max_tokens"] = ceiling
         logger.info(" max_tokens %d clamped to the learned ceiling %d of %s", requested, ceiling, model)
+
+
+def apply_documented_output_cap(params: dict[str, object], *, model: str, base_url: str) -> None:
+    """Lower ``max_tokens`` to the range the endpoint documents for the model; never raises it.
+
+    The model's own ceiling is wider than what some gateways serve, and the thinking-headroom floor can ask for
+    more than that range, so the request would be rejected on its first attempt.
+    """
+    ceiling = documented_output_ceiling(base_url, model)
+    requested = params.get("max_tokens")
+    if ceiling is not None and isinstance(requested, int) and requested > ceiling:
+        params["max_tokens"] = ceiling
+        logger.info(" max_tokens %d clamped to the documented ceiling %d of %s", requested, ceiling, model)
 
 
 def recover_output_cap(exc: Exception, params: dict[str, object], *, model: str, base_url: str) -> bool:
@@ -148,12 +164,13 @@ class TransportChatModelOutputCapMixin:
             logger.info(" Ephemeral max_tokens override applied: %d", override)
 
     def _apply_output_budget(self, params: dict[str, object]) -> None:
-        """Resolve ``max_tokens`` for one request: the boost override first, then the learned model ceiling.
+        """Resolve ``max_tokens`` for one request: the boost override first, then the ceilings of this endpoint.
 
-        The ceiling is applied last because a boosted budget must still fit what this endpoint accepts.
+        The ceilings are applied last because a boosted budget must still fit what this endpoint accepts.
         """
         self._apply_ephemeral_output_override(params)
         model, base_url = self._endpoint_identity()
+        apply_documented_output_cap(params, model=model, base_url=base_url)
         apply_learned_output_cap(params, model=model, base_url=base_url)
 
     def _recover_output_cap(self, exc: Exception, params: dict[str, object]) -> bool:

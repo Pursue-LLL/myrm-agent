@@ -25,6 +25,7 @@ parameters and guarantees thinking mode activation or deactivation without HTTP 
 DeepSeek models behind other providers (OpenCode Go, SiliconFlow, NVIDIA, custom endpoints) follow the same
 effort mapping and the same explicit off switch, but a request that selects nothing is left untouched and an
 explicit level adds no ``thinking`` field: those gateways already default to thinking and decide what else they take.
+``core.gateway_dialect`` then turns the explicit choice into the switch SiliconFlow and NVIDIA document.
 """
 
 from __future__ import annotations
