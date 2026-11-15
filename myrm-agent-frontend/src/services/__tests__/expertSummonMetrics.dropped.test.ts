@@ -90,13 +90,13 @@ describe('expertSummonMetrics dropped events', () => {
     failNext(3);
 
     metrics.recordExpertSummonSurfaceViewed('mobile_hub_chip');
-    metrics.recordExpertSummonSurfaceViewed('template_market');
-    metrics.recordExpertSummonSurfaceViewed('template_market');
+    metrics.recordExpertSummonSurfaceViewed('message_input_plus');
+    metrics.recordExpertSummonSurfaceViewed('message_input_plus');
     metrics.recordExpertSummonSurfaceViewed('flow_pad_inline');
     await metrics.__flushExpertSummonMetricsForTest();
 
     expect(reports().map(({ surface, count }) => [surface, count])).toEqual([
-      ['template_market', 2],
+      ['message_input_plus', 2],
       ['mobile_hub_chip', 1],
     ]);
   });
@@ -131,14 +131,14 @@ describe('expertSummonMetrics dropped events', () => {
   });
 
   it('stops counting once a thousand events wait to be reported', async () => {
-    const metrics = await loadMetrics({ template_market: 1000 });
+    const metrics = await loadMetrics({ message_input_plus: 1000 });
     failNext(1);
 
     metrics.recordExpertSummonSurfaceViewed('flow_pad_inline');
     metrics.recordExpertSummonSurfaceViewed('flow_pad_inline');
     await metrics.__flushExpertSummonMetricsForTest();
 
-    expect(reportedTotal('template_market')).toBe(1000);
+    expect(reportedTotal('message_input_plus')).toBe(1000);
     expect(reportedTotal('flow_pad_inline')).toBe(0);
   });
 
@@ -152,7 +152,7 @@ describe('expertSummonMetrics dropped events', () => {
       expect(JSON.parse(String(localStorage.getItem(STORAGE_KEY)))).toMatchObject({ flow_pad_inline: 2 });
 
       const after = await loadMetrics();
-      after.recordExpertSummonSurfaceViewed('template_market');
+      after.recordExpertSummonSurfaceViewed('message_input_plus');
       await after.__flushExpertSummonMetricsForTest();
 
       expect(reportedTotal('flow_pad_inline')).toBe(2);
@@ -161,27 +161,34 @@ describe('expertSummonMetrics dropped events', () => {
 
     it('trusts only sane counts from storage', async () => {
       const metrics = await loadMetrics({
-        template_market: 5,
+        retired_surface: 5,
         flow_pad_inline: 5000,
         mobile_hub_chip: -2,
         message_input_plus: 'many',
-        empty_chat_featured: 7.9,
       });
 
-      metrics.recordExpertSummonSurfaceViewed('template_market');
+      metrics.recordExpertSummonSurfaceViewed('flow_pad_inline');
       await metrics.__flushExpertSummonMetricsForTest();
 
-      expect(reportedTotal('template_market')).toBe(5);
       expect(reportedTotal('flow_pad_inline')).toBe(1000);
-      expect(reportedTotal('empty_chat_featured')).toBe(7);
       expect(reportedTotal('mobile_hub_chip')).toBe(0);
       expect(reportedTotal('message_input_plus')).toBe(0);
+      expect(reportedTotal('retired_surface')).toBe(0);
+    });
+
+    it('rounds a fractional count from storage down', async () => {
+      const metrics = await loadMetrics({ message_input_plus: 7.9 });
+
+      metrics.recordExpertSummonSurfaceViewed('flow_pad_inline');
+      await metrics.__flushExpertSummonMetricsForTest();
+
+      expect(reportedTotal('message_input_plus')).toBe(7);
     });
 
     it('starts empty when what storage holds cannot be read', async () => {
       const metrics = await loadMetrics('{not json');
 
-      metrics.recordExpertSummonSurfaceViewed('template_market');
+      metrics.recordExpertSummonSurfaceViewed('flow_pad_inline');
       await metrics.__flushExpertSummonMetricsForTest();
 
       expect(reports()).toEqual([]);

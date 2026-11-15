@@ -50,8 +50,8 @@ describe('expertSummonMetrics', () => {
   });
 
   it('posts summon_attempted event in silent mode', async () => {
-    recordExpertSummonAttempted('template_market', 'use_case_chip', {
-      contextKey: 'template-market',
+    recordExpertSummonAttempted('flow_pad_inline', 'use_case_chip', {
+      contextKey: 'flowpad:inline',
       templateKind: 'team',
       fromSearch: true,
       usedUseCase: true,
@@ -62,8 +62,8 @@ describe('expertSummonMetrics', () => {
       method: 'POST',
       body: JSON.stringify({
         event_type: 'summon_attempted',
-        surface: 'template_market',
-        context_key: 'template-market',
+        surface: 'flow_pad_inline',
+        context_key: 'flowpad:inline',
         count: 1,
         trigger: 'use_case_chip',
         template_kind: 'team',
@@ -80,8 +80,8 @@ describe('expertSummonMetrics', () => {
     it.each([
       [
         'surface viewed',
-        () => recordExpertSummonSurfaceViewed('template_market', 'ctx'),
-        { event_type: 'surface_viewed', surface: 'template_market', context_key: 'ctx' },
+        () => recordExpertSummonSurfaceViewed('flow_pad_inline', 'ctx'),
+        { event_type: 'surface_viewed', surface: 'flow_pad_inline', context_key: 'ctx' },
       ],
       [
         'summon attempted',
@@ -127,13 +127,13 @@ describe('expertSummonMetrics', () => {
     });
 
     it('posts search_used with query length', async () => {
-      recordExpertSummonSearchUsed('template_market', 23, 'template-market');
+      recordExpertSummonSearchUsed('flow_pad_inline', 23, 'flowpad:inline');
       await __flushExpertSummonMetricsForTest();
 
       const payload = sentPayload(0);
       expect(payload.event_type).toBe('search_used');
       expect(payload.query_length).toBe(23);
-      expect(payload.surface).toBe('template_market');
+      expect(payload.surface).toBe('flow_pad_inline');
     });
 
     it.each([
@@ -142,7 +142,7 @@ describe('expertSummonMetrics', () => {
       [12.7, 12],
       [999, 200],
     ])('sends a query length of %s as %i, within what the server accepts', async (given, sent) => {
-      recordExpertSummonSearchUsed('template_market', given);
+      recordExpertSummonSearchUsed('flow_pad_inline', given);
       await __flushExpertSummonMetricsForTest();
 
       expect(sentPayload(0).query_length).toBe(sent);
@@ -153,7 +153,7 @@ describe('expertSummonMetrics', () => {
       ['   ', 'global'],
       ['  council:7  ', 'council:7'],
     ])('files an event under the context %j as "%s"', async (given, filed) => {
-      recordExpertSummonSurfaceViewed('template_market', given);
+      recordExpertSummonSurfaceViewed('flow_pad_inline', given);
       await __flushExpertSummonMetricsForTest();
 
       expect(sentPayload(0).context_key).toBe(filed);
@@ -173,7 +173,7 @@ describe('expertSummonMetrics', () => {
         ],
         ['characters are counted, not UTF-16 units, so 100 emoji stay whole', emoji.repeat(100), emoji.repeat(100)],
       ])('%s', async (_name, given, filed) => {
-        recordExpertSummonSurfaceViewed('template_market', given);
+        recordExpertSummonSurfaceViewed('flow_pad_inline', given);
         await __flushExpertSummonMetricsForTest();
 
         expect(sentPayload(0).context_key).toBe(filed);

@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.statistics.expert_summon import _surface_breakdown, _trigger_breakdown
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("notifications", preset="statistics")
@@ -28,17 +33,17 @@ def test_expert_summon_summary_accumulates_metrics(client: TestClient) -> None:
     before = _get_summary(client)
 
     events = [
-        {"event_type": "surface_viewed", "surface": "template_market", "context_key": "template-market"},
+        {"event_type": "surface_viewed", "surface": "message_input_plus", "context_key": "composer:plus"},
         {
             "event_type": "search_used",
-            "surface": "template_market",
-            "context_key": "template-market",
+            "surface": "message_input_plus",
+            "context_key": "composer:plus",
             "query_length": 12,
         },
         {
             "event_type": "summon_attempted",
-            "surface": "template_market",
-            "context_key": "template-market",
+            "surface": "message_input_plus",
+            "context_key": "composer:plus",
             "trigger": "use_case_chip",
             "template_kind": "team",
             "from_search": True,
@@ -46,8 +51,8 @@ def test_expert_summon_summary_accumulates_metrics(client: TestClient) -> None:
         },
         {
             "event_type": "summon_succeeded",
-            "surface": "template_market",
-            "context_key": "template-market",
+            "surface": "message_input_plus",
+            "context_key": "composer:plus",
             "trigger": "use_case_chip",
             "template_kind": "team",
             "from_search": True,
@@ -108,8 +113,8 @@ def test_expert_summon_summary_accumulates_metrics(client: TestClient) -> None:
         },
         {
             "event_type": "dropped_report",
-            "surface": "template_market",
-            "context_key": "template-market",
+            "surface": "message_input_plus",
+            "context_key": "composer:plus",
             "count": 2,
         },
     ]
@@ -143,7 +148,7 @@ def test_expert_summon_summary_accumulates_metrics(client: TestClient) -> None:
 
     viewed_by_surface = after["viewed_by_surface"]
     assert isinstance(viewed_by_surface, dict)
-    assert "template_market" in viewed_by_surface
+    assert "message_input_plus" in viewed_by_surface
     assert "flow_pad_inline" in viewed_by_surface
 
     attempted_by_trigger = after["attempted_by_trigger"]
@@ -163,7 +168,7 @@ def test_expert_summon_rejects_failure_reason_for_non_failed_event(client: TestC
         "/api/v1/statistics/expert-summon/events",
         json={
             "event_type": "surface_viewed",
-            "surface": "template_market",
+            "surface": "flow_pad_inline",
             "failure_reason": "network_error",
         },
         headers={"Authorization": "Bearer local"},
@@ -176,7 +181,7 @@ def test_expert_summon_rejects_non_dropped_count(client: TestClient) -> None:
         "/api/v1/statistics/expert-summon/events",
         json={
             "event_type": "summon_attempted",
-            "surface": "template_market",
+            "surface": "flow_pad_inline",
             "trigger": "template_card",
             "count": 2,
         },
@@ -190,8 +195,28 @@ def test_expert_summon_requires_trigger_for_summon_events(client: TestClient) ->
         "/api/v1/statistics/expert-summon/events",
         json={
             "event_type": "summon_attempted",
-            "surface": "template_market",
+            "surface": "flow_pad_inline",
         },
         headers={"Authorization": "Bearer local"},
     )
     assert response.status_code == 400
+
+
+async def test_breakdowns_leave_out_stored_rows_whose_surface_or_trigger_is_not_in_the_contract() -> None:
+    """Rows kept for 90 days may name a surface or trigger the contract no longer lists; they must not break the summary."""
+    since = datetime.now(timezone.utc)
+    db = AsyncMock()
+    db.execute.side_effect = [
+        SimpleNamespace(all=lambda: [("flow_pad_inline", 3), ("retired_surface", 9)]),
+        SimpleNamespace(all=lambda: [("template_card", 4), ("retired_trigger", 9)]),
+    ]
+
+    by_surface = await _surface_breakdown(db, since, "surface_viewed")
+    by_trigger = await _trigger_breakdown(db, since, "summon_attempted")
+
+    assert by_surface["flow_pad_inline"] == 3
+    assert "retired_surface" not in by_surface
+    assert sum(by_surface.values()) == 3
+    assert by_trigger["template_card"] == 4
+    assert "retired_trigger" not in by_trigger
+    assert sum(by_trigger.values()) == 4

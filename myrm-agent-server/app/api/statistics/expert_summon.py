@@ -35,21 +35,8 @@ from app.database.models import ExpertSummonMetricEvent
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-_SURFACES = (
-    "template_market",
-    "flow_pad_inline",
-    "empty_chat_featured",
-    "message_input_plus",
-    "mobile_hub_chip",
-)
-_TRIGGERS = (
-    "template_card",
-    "use_case_chip",
-    "route_menu",
-    "featured_chip",
-    "plus_popover_card",
-    "mobile_chip",
-)
+_SURFACES = ("flow_pad_inline", "message_input_plus", "mobile_hub_chip")
+_TRIGGERS = ("template_card", "use_case_chip", "route_menu", "plus_popover_card", "mobile_chip")
 _RETENTION_DAYS = 90
 _CLEANUP_MIN_INTERVAL = timedelta(hours=6)
 _cleanup_lock = asyncio.Lock()
@@ -63,10 +50,8 @@ ExpertSummonFailureReason = Literal[
 ]
 
 
-ExpertSummonSurface = Literal[
-    "template_market", "flow_pad_inline", "empty_chat_featured", "message_input_plus", "mobile_hub_chip"
-]
-ExpertSummonTrigger = Literal["template_card", "use_case_chip", "route_menu", "featured_chip", "plus_popover_card", "mobile_chip"]
+ExpertSummonSurface = Literal["flow_pad_inline", "message_input_plus", "mobile_hub_chip"]
+ExpertSummonTrigger = Literal["template_card", "use_case_chip", "route_menu", "plus_popover_card", "mobile_chip"]
 ExpertSummonEventType = Literal[
     "surface_viewed",
     "search_used",
