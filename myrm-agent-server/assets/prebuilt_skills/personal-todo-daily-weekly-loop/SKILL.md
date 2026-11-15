@@ -13,6 +13,7 @@ tags:
 allowed-tools:
   - file_write_tool
   - file_read_tool
+  - todo_write
 ---
 
 # Personal Todo, Daily Log & Weekly Report Closed Loop (个人待办-对账-周报闭环管理技能)
