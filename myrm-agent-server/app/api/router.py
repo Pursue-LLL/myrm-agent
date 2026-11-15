@@ -117,19 +117,51 @@ from app.config.deploy_mode import is_local_mode
 
 api_router = APIRouter()
 
+# First-screen routers: every router the main screen calls while it loads (captured from the real frontend, listed in
+# tests/startup/first_screen_requests.txt). FastAPI matches included routers in registration order and builds the
+# route state of every router a request has to walk past, so these come before all others; the rest of the table is built
+# after the screen has loaded (app.server.lifespan.route_warmup). A router the first screen does not call goes below this
+# block; tests/startup/test_route_table_order.py pins it.
+api_router.include_router(health_router, prefix="/health", tags=["health"])
+api_router.include_router(security_managed_policy_router, tags=["security"])
+api_router.include_router(security_estop_router, tags=["security"])
+api_router.include_router(features_router, prefix="/features", tags=["features"])
+api_router.include_router(progression_router, prefix="/progression", tags=["progression"])
+api_router.include_router(notifications_router)
+# 本地模式：事件通知（SSE）
+if is_local_mode():
+    from app.api.events import router as events_router
+
+    api_router.include_router(events_router, tags=["events"])
+api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"])
+api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
+api_router.include_router(user_agent.router, prefix="/user-agents", tags=["user-agents"])
+api_router.include_router(goals_router)
+api_router.include_router(approvals_router)
+api_router.include_router(chat_router, prefix="/chats", tags=["chats"])
+api_router.include_router(subagents.router, prefix="/chats", tags=["subagents"])
+api_router.include_router(project_router, prefix="/projects", tags=["projects"])
+api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
+api_router.include_router(config_router, prefix="/config", tags=["config"])
+api_router.include_router(build_statistics_router(), prefix="/statistics", tags=["statistics"])
+api_router.include_router(budget_router, prefix="/budget", tags=["budget"])
+api_router.include_router(migration_discovery_router, tags=["migration"])
+api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
+api_router.include_router(extension_router, tags=["extension"])
+api_router.include_router(dev_ports_router, prefix="/dev-ports", tags=["dev-ports"])
+api_router.include_router(background_tasks_router, prefix="/background-tasks", tags=["background-tasks"])
+api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
+api_router.include_router(cron_router, prefix="/cron", tags=["cron"])
+api_router.include_router(integrations_router, prefix="/integrations", tags=["integrations"])
+api_router.include_router(instance_archive_router, prefix="/instance-archive", tags=["instance-archive"])
 api_router.include_router(workspace_router, prefix="/workspace", tags=["workspace"])
 
 
 # AI Agents
 
-api_router.include_router(notifications_router)
 api_router.include_router(web_push_router)
-api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"])
-api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
 api_router.include_router(subagent_presets.router, prefix="/agents", tags=["agents"])
 api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])
-api_router.include_router(subagents.router, prefix="/chats", tags=["subagents"])
-api_router.include_router(user_agent.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(generate_prompt.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(ai_build.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(agent_extras.router, prefix="/user-agents", tags=["user-agents"])
@@ -142,14 +174,10 @@ api_router.include_router(openapi_services.router, prefix="/agents", tags=["agen
 api_router.include_router(profile_audit.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(readiness.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(recovery.router, tags=["user-agents"])
-api_router.include_router(goals_router)
 api_router.include_router(external_agents_router, prefix="/external-agents", tags=["external-agents"])
 
 
 # 核心业务
-api_router.include_router(approvals_router)
-api_router.include_router(chat_router, prefix="/chats", tags=["chats"])
-api_router.include_router(project_router, prefix="/projects", tags=["projects"])
 api_router.include_router(files_router, prefix="/files", tags=["files"])
 api_router.include_router(theme_router)
 api_router.include_router(
@@ -163,30 +191,24 @@ api_router.include_router(
     tags=["public-chat-share"],
 )
 api_router.include_router(vault_proxy_router, prefix="/files", tags=["files"])
-api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(ssh_vault_router, prefix="", tags=["ssh-vault"])
 api_router.include_router(browser_domain_skills_router, prefix="/browser", tags=["browser-domain-skills"])
 api_router.include_router(browser_recording_router, prefix="/browser", tags=["browser-recording"])
 api_router.include_router(browser_sessions_router, prefix="/browser", tags=["browser-sessions"])
 api_router.include_router(skill_growth_router, tags=["skill-growth"])
 api_router.include_router(evolution_router, tags=["evolution"])
-api_router.include_router(migration_discovery_router, tags=["migration"])
 api_router.include_router(migration_upload_router, tags=["migration"])
 api_router.include_router(migrations_router, tags=["migrations"])
 api_router.include_router(skill_optimization_router, tags=["skill-optimization"])
 api_router.include_router(batch_directory_router, tags=["batch-directories"])
 api_router.include_router(credentials_router, prefix="/credentials", tags=["credentials"])
-api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
 api_router.include_router(context_bundle_router, tags=["context-bundle"])
 api_router.include_router(wiki_router, prefix="/wiki", tags=["wiki"])
 api_router.include_router(faq_router, prefix="/faq", tags=["faq"])
 api_router.include_router(widget_storage_router, tags=["widget-storage"])
-api_router.include_router(cron_router, prefix="/cron", tags=["cron"])
 api_router.include_router(kanban_router)
 api_router.include_router(kanban_pipeline_router)
-api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 
-api_router.include_router(background_tasks_router, prefix="/background-tasks", tags=["background-tasks"])
 api_router.include_router(runs_router)
 api_router.include_router(eval_router, tags=["eval"])
 api_router.include_router(commerce_spending_router)
@@ -195,7 +217,6 @@ api_router.include_router(datasets_router, prefix="/datasets", tags=["datasets"]
 api_router.include_router(lifecycle_webhook_router, tags=["lifecycle-webhooks"])
 api_router.include_router(self_evolution_router, prefix="/self-evolution", tags=["self-evolution"])
 api_router.include_router(system_assistant_router, prefix="/system-assistant", tags=["system-assistant"])
-api_router.include_router(dev_ports_router, prefix="/dev-ports", tags=["dev-ports"])
 api_router.include_router(presentation_router, prefix="/presentation", tags=["presentation"])
 api_router.include_router(spreadsheet_router, prefix="/spreadsheet", tags=["spreadsheet"])
 api_router.include_router(session_map_router, prefix="/session-map", tags=["session-map"])
@@ -238,35 +259,26 @@ if is_local_mode():
     api_router.include_router(channels_bitable_copilot_router, tags=["channels"])
     api_router.include_router(channels_topics_router, prefix="/channels/manage", tags=["channels"])
 
-# Feature Flags
-api_router.include_router(features_router, prefix="/features", tags=["features"])
 
 # Provider Live Balance & Quotas
 api_router.include_router(provider_balance_router, tags=["provider-balance"])
 
-# User Progression
-api_router.include_router(progression_router, prefix="/progression", tags=["progression"])
 
 # Agent Plugins (Agent Plugins 1.0.0 import / expert export)
 api_router.include_router(plugins_import_router, prefix="/plugins", tags=["plugins"])
 api_router.include_router(plugins_export_router, prefix="/plugins", tags=["plugins"])
 
 # 集成与基础设施
-api_router.include_router(integrations_router, prefix="/integrations", tags=["integrations"])
 api_router.include_router(connect_router, tags=["connect"])
-api_router.include_router(config_router, prefix="/config", tags=["config"])
 api_router.include_router(allowlist_router, prefix="/security/allowlist", tags=["security"])
 api_router.include_router(workspace_trust_router, prefix="/security/workspace-trust", tags=["security"])
-api_router.include_router(security_estop_router, tags=["security"])
 api_router.include_router(security_dashboard_router, tags=["security"])
 api_router.include_router(security_generate_router, tags=["security"])
 api_router.include_router(security_profiles_router, tags=["security"])
-api_router.include_router(security_managed_policy_router, tags=["security"])
 api_router.include_router(vault_router, prefix="/security", tags=["security"])
 api_router.include_router(vault_credentials_router, prefix="/security", tags=["security"])
 api_router.include_router(risk_router, prefix="/risk", tags=["risk"])
 api_router.include_router(audit_router, tags=["audit"])
-api_router.include_router(health_router, prefix="/health", tags=["health"])
 api_router.include_router(ops_router)
 api_router.include_router(checkpoint_router, tags=["checkpoint"])
 api_router.include_router(stt_router, prefix="/stt", tags=["stt"])
@@ -275,14 +287,11 @@ api_router.include_router(tts_router, prefix="/tts", tags=["tts"])
 api_router.include_router(voice_ws_router, prefix="/ws/voice", tags=["voice"])
 api_router.include_router(voice_realtime_router, prefix="/voice", tags=["voice"])
 api_router.include_router(voice_gemini_live_router, prefix="/voice", tags=["voice"])
-api_router.include_router(build_statistics_router(), prefix="/statistics", tags=["statistics"])
 api_router.include_router(system_router, prefix="/system", tags=["system"])
-api_router.include_router(instance_archive_router, prefix="/instance-archive", tags=["instance-archive"])
 api_router.include_router(system_shutdown_router, prefix="/system", tags=["system"])
 api_router.include_router(system_model_ping_router)
 api_router.include_router(remote_access_router, prefix="/remote-access", tags=["remote-access"])
 
-api_router.include_router(budget_router, prefix="/budget", tags=["budget"])
 api_router.include_router(api_keys_router)
 api_router.include_router(companion_router, prefix="/companion", tags=["companion"])
 api_router.include_router(companion_doctor_router, prefix="/companion", tags=["companion"])
@@ -291,11 +300,4 @@ api_router.include_router(workflow_templates_router, tags=["workflow-templates"]
 api_router.include_router(media_router, prefix="/media", tags=["media"])
 api_router.include_router(client_logs_router, tags=["logs"])
 
-# 本地模式：事件通知（SSE）
-if is_local_mode():
-    from app.api.events import router as events_router
-
-    api_router.include_router(events_router, tags=["events"])
-
-api_router.include_router(extension_router, tags=["extension"])
 api_router.include_router(extension_ws_router, prefix="/ws", tags=["extension"])
