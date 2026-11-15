@@ -44,7 +44,7 @@ from .constraints import (
     update_goal_constraints,
     update_goal_objective,
 )
-from .plan import get_goal_dag, get_goal_plan, plan_router
+from .plan import get_goal_plan, plan_router
 from .queue import QueueReorderRequest, get_goal_queue, queue_router
 from .schemas import (
     GoalBudgetUpdateRequest,
@@ -380,7 +380,6 @@ __all__ = [
     "ObjectiveUpdateRequest",
     "QueueReorderRequest",
     "get_goal_constraints",
-    "get_goal_dag",
     "get_goal_plan",
     "get_goal_queue",
     "router",
