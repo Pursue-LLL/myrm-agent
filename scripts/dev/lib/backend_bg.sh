@@ -8,7 +8,8 @@
 #   - health probe fail + leases>0: defer kill (protect parallel E2E)
 #   - health probe fail + leases>0 + SUPERVISOR/WAVE bypass: SHC leader crash heal may kill+restart
 # - source drift + leases>0: defer reload + record-pending (SMP)
-#   - cold-start health wait (backend_ready_wait.sh) requires new_pid to own the listen port before success
+#   - cold-start health wait (backend_ready_wait.sh) requires new_pid to own the listen port before success;
+#     a new pid that died with nothing on the port fails the start at once, and every failed start prints its log tail
 # [POS] Dev 栈 backend 进程管理。source stack-epoch.sh 获取 _wave_active_lease_count。
 set -euo pipefail
 
@@ -345,7 +346,7 @@ os.execv(sys.argv[1], sys.argv[1:])
     --expected-command-token run.py >/dev/null; then
     kill -TERM "${new_pid}" 2>/dev/null || true
     rm -f "${pid_file}" "${identity_file}"
-    echo "ERROR: failed to record backend process ownership" >&2
+    _report_backend_start_failure "failed to record backend process ownership" "${log_file}"
     return 1
   fi
 

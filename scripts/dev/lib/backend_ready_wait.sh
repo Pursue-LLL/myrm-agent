@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 # Cold-start wait of the backend that `_start_backend_bg` just spawned: success needs the new pid to own the
 # listen port and answer health; a healthy listener that won the port first is adopted when it is this stack's.
-# [POS] backend_bg.sh 的冷启动健康等待；被其 source，无其他调用方。
+# A backend that never came up explains itself only in its log, and the next bootstrap attempt of an isolated
+# runtime wipes the directory holding it, so a failed start reports the end of that log instead of only naming it.
+# [POS] backend_bg.sh 的冷启动健康等待与失败现场；被其 source，无其他调用方。
+
+# Args: headline, log file. Prints `ERROR: <headline>. See <log file>` and the log's last lines to stderr.
+_report_backend_start_failure() {
+  local headline="$1" log_file="$2"
+  echo "ERROR: ${headline}. See ${log_file}" >&2
+  if [[ -s "${log_file}" ]]; then
+    echo "---- last lines of ${log_file} ----" >&2
+    tail -n 40 "${log_file}" >&2 || true
+    echo "---- end of backend log ----" >&2
+  fi
+}
 
 # Args: new_pid backend_port health_url log_file pid_file identity_file server_dir runtime_id state_dir python identity_helper
 # Returns 0 ready or adopted | 1 failed (record and process cleaned up).
@@ -10,6 +23,7 @@ _wait_backend_ready() {
   local server_dir="$7" runtime_id="$8" state_dir="$9" py="${10}" identity_helper="${11}"
 
   local health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-180}"
+  local dead_polls=0
 
   for _ in $(seq 1 "${health_wait_sec}"); do
     local listener_pid
@@ -52,6 +66,18 @@ _wait_backend_ready() {
         return 0
       fi
     fi
+    # 本实例已退出且端口无人监听：不会再有响应，等满窗口只会拖住调用方（隔离 runtime 的 bootstrap
+    # 在此期间占着唯一的名额）。连续两次才判定，窗口内被 peer 抢到端口的并发 ensure 仍走上面的接管。
+    if [[ -z "${listener_pid}" ]] && ! dev_pid_alive "${new_pid}"; then
+      dead_polls=$((dead_polls + 1))
+      if [[ "${dead_polls}" -ge 2 ]]; then
+        rm -f "${pid_file}" "${identity_file}"
+        _report_backend_start_failure "backend pid ${new_pid} exited before listening on :${backend_port}" "${log_file}"
+        return 1
+      fi
+    else
+      dead_polls=0
+    fi
     sleep 1
   done
 
@@ -62,6 +88,6 @@ _wait_backend_ready() {
     kill -KILL "${new_pid}" 2>/dev/null || true
   fi
   rm -f "${pid_file}" "${identity_file}"
-  echo "ERROR: backend not ready on :${backend_port}. See ${log_file}" >&2
+  _report_backend_start_failure "backend not ready on :${backend_port}" "${log_file}"
   return 1
 }
