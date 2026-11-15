@@ -179,7 +179,9 @@ async def _maybe_prune_old_events(db: AsyncSession) -> int:
         result = await db.execute(prune_stmt)
         await db.commit()
         _last_cleanup_at = now
-        return int(result.rowcount or 0)
+        # DML results carry rowcount at runtime; the async Result stub does not declare it.
+        rowcount = getattr(result, "rowcount", None)
+        return max(rowcount, 0) if isinstance(rowcount, int) else 0
 
 
 async def _sum_event_count(
@@ -368,7 +370,7 @@ async def get_expert_summon_summary(
             "attempted_by_trigger": await _trigger_breakdown(db, start_dt, "summon_attempted"),
             "failure_reason_breakdown": await _failure_reason_breakdown(db, start_dt),
         }
-        summary = ExpertSummonSummaryResponse(**summary_dict)
+        summary = ExpertSummonSummaryResponse.model_validate(summary_dict)
         return success_response(data=summary.model_dump(mode="json"))
     except Exception as e:
         if getattr(e, "status_code", None) == 400:

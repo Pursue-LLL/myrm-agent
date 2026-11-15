@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.statistics.expert_summon import _surface_breakdown, _trigger_breakdown
+from app.api.statistics.expert_summon import _maybe_prune_old_events, _surface_breakdown, _trigger_breakdown
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("notifications", preset="statistics")
@@ -208,3 +208,16 @@ async def test_breakdowns_leave_out_stored_rows_whose_surface_or_trigger_is_not_
     assert by_trigger["template_card"] == 4
     assert "retired_trigger" not in by_trigger
     assert sum(by_trigger.values()) == 4
+
+
+@pytest.mark.parametrize(("driver_rowcount", "expected"), [(3, 3), (0, 0), (-1, 0), (None, 0)])
+async def test_prune_reports_the_deleted_row_count_and_never_a_negative_one(
+    monkeypatch: pytest.MonkeyPatch, driver_rowcount: int | None, expected: int
+) -> None:
+    """A driver that cannot count the deleted rows reports -1 or None; the response must not echo that as a count."""
+    monkeypatch.setattr("app.api.statistics.expert_summon._last_cleanup_at", None)
+    db = AsyncMock()
+    db.execute.return_value = SimpleNamespace(rowcount=driver_rowcount)
+
+    assert await _maybe_prune_old_events(db) == expected
+    db.commit.assert_awaited_once()
