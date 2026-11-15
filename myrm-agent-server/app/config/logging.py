@@ -74,6 +74,10 @@ def configure_logging() -> None:
     for _module in ("app.lifecycle.schedulers", "app.services.memory.imports.integration_sync_daemon"):
         logging.getLogger(_module).setLevel(logging.INFO)
 
+    # Production-visible clarification silence: how often a skipped or timed-out question reaches the model is the
+    # evidence for whether silence needs a code-level gate, and at the default WARNING level the line is dropped.
+    logging.getLogger("app.ai_agents.general_agent.ask_question_result").setLevel(logging.INFO)
+
 
 def _suppress_library_logs(logger_name: str, level: int) -> None:
     """设置指定库的日志级别"""

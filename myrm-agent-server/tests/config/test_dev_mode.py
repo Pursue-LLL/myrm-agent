@@ -45,6 +45,17 @@ def test_logging_level_debug_mode() -> None:
         assert root_logger.level == logging.WARNING
 
 
+def test_a_silent_clarification_resume_is_visible_at_the_production_log_level() -> None:
+    """The line that counts skipped and timed-out questions must survive the WARNING default, or the count is always zero."""
+    from app.ai_agents.general_agent import ask_question_result
+
+    with patch.dict(os.environ, {"DEBUG": "false"}, clear=False):
+        configure_logging()
+
+    assert logging.getLogger().level == logging.WARNING
+    assert ask_question_result.logger.isEnabledFor(logging.INFO)
+
+
 def test_error_traceback_in_debug_mode() -> None:
     """Test MyrmError returns traceback in debug mode."""
     with patch.dict(os.environ, {"DEBUG": "true"}, clear=False):
@@ -52,7 +63,7 @@ def test_error_traceback_in_debug_mode() -> None:
         register_exception_handlers(app)
 
         @app.get("/test-error")
-        async def _trigger_error():
+        async def _trigger_error() -> None:
             raise MyrmError(
                 code=BusinessCode.INTERNAL_ERROR,
                 message="Test error",
@@ -71,7 +82,7 @@ def test_error_traceback_in_debug_mode() -> None:
         register_exception_handlers(app2)
 
         @app2.get("/test-error")
-        async def _trigger_error2():
+        async def _trigger_error2() -> None:
             raise MyrmError(
                 code=BusinessCode.INTERNAL_ERROR,
                 message="Test error",
