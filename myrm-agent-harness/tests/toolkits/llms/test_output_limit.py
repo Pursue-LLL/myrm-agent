@@ -83,6 +83,11 @@ MODEL_CAP_WORDINGS = [
         id="groq",
     ),
     pytest.param(
+        '400 {"code":20015,"message":"max_tokens must be less than or equal to 16384.","data":null}',
+        16384,
+        id="siliconflow",
+    ),
+    pytest.param(
         "400 undefined: The maximum tokens you requested exceeds the model limit of 8192. Try again with a maximum "
         "tokens value that is",
         8192,
@@ -310,6 +315,11 @@ NOT_AN_OUTPUT_LIMIT = [
         id="other-parameter-above-maximum",
     ),
     pytest.param("temperature must be less than or equal to 2", id="other-parameter-less-than-or-equal"),
+    pytest.param(
+        '400 {"code":20015,"message":"length of prompt_tokens (51353) must be less than max_seq_len (32768).",'
+        '"data":null}',
+        id="siliconflow-prompt-overflow-shares-the-code-20015",
+    ),
     pytest.param(
         "Unable to submit request because it has a temperature value of 3 but the supported range is from 0 "
         "(inclusive) to 2 (exclusive). Update the value and try again.",

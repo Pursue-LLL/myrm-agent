@@ -263,6 +263,35 @@ class TestRetryLoops:
         assert get_ephemeral_max_output_tokens() is None
 
 
+class TestSiliconFlowFlatBody:
+    """SiliconFlow answers with a flat ``{code, message, data}`` body instead of an ``error`` envelope."""
+
+    @staticmethod
+    def _rejection() -> Exception:
+        message = f"max_tokens must be less than or equal to {CEILING}."
+        return provider_error("openai", 400, {"code": 20015, "message": message, "data": None})
+
+    @pytest.mark.parametrize("path", SYNC_PATHS)
+    def test_sync_max_tokens_ceiling_is_retried(self, path: str) -> None:
+        model = _model()
+        client = _script(model, path, self._rejection(), "ok")
+
+        assert _run_sync(model, path) == "ok"
+
+        assert _max_tokens_sent(client) == [REQUESTED, CEILING]
+        _assert_only_max_tokens_differs(client)
+
+    @pytest.mark.parametrize("path", ASYNC_PATHS)
+    async def test_async_max_tokens_ceiling_is_retried(self, path: str) -> None:
+        model = _model()
+        client = _script(model, path, self._rejection(), "ok")
+
+        assert await _run_async(model, path) == "ok"
+
+        assert _max_tokens_sent(client) == [REQUESTED, CEILING]
+        _assert_only_max_tokens_differs(client)
+
+
 class TestNothingIsRetriedOnceStreamingStarted:
     """A retry restarts the stream; after the consumer received output it would duplicate that output."""
 
