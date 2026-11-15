@@ -61,7 +61,7 @@ CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL = (
 NORMALIZE_RETIRED_PROMPT_MODES_SQL = "UPDATE agents SET prompt_mode = 'full' WHERE prompt_mode IN ('lean', 'naked')"
 
 # 数据库迁移语句，按顺序执行；版本号就是列表下标，只在末尾追加，已发布的语句不删、不改、不挪位
-# （tests/database/test_migration_list_append_only.py 固定了已发布语句的摘要）。
+# （tests/database/test_migration_list_append_only.py 固定了本列表与 INDEX_STATEMENTS 中已发布语句的摘要）。
 MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE procedural_rules ADD COLUMN source VARCHAR(32) NOT NULL DEFAULT 'user_extracted'",
     "ALTER TABLE cron_jobs ADD COLUMN delivery JSON",
@@ -1151,6 +1151,9 @@ INDEX_STATEMENTS = [
     "DROP INDEX IF EXISTS idx_a2a_peers_base_url",
     "DROP TABLE IF EXISTS a2a_peers",
     "ALTER TABLE interrupted_turn_markers DROP COLUMN pending_steering_messages",
+    # This database has no procedural_rules table: the rules the agent follows live in the memory store's own file, in
+    # a table of the same name. The released statements that still name it keep their positions, so the drop follows them.
+    "DROP TABLE IF EXISTS procedural_rules",
 ]
 
 
