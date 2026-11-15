@@ -67,23 +67,26 @@ print(pathlib.Path(myrm_agent_harness.__file__).resolve().parent)
 # Ownership is proven by the dev stamp the stack puts into every process it spawns, never by
 # the command line: the desktop sidecar runs the same `run.py`, on the user's real data dir.
 # A listener this stack did not start is never adopted, epoch-stamped or signalled.
+# A refusal quotes the helper's last line, which says why: the owner is gone, its command is not run.py, or it
+# carries no stamp of this runtime (with its command line).
 # Args: python identity_helper identity_file runtime_id pid port. Returns 0 adopted | 1 refused.
 _adopt_port_owner() {
   local py="$1" identity_helper="$2" identity_file="$3" runtime_id="$4" owner_pid="$5" port="$6"
-  local rc=0
-  "${py}" "${identity_helper}" record \
+  local rc=0 reason="" detail=""
+  reason="$("${py}" "${identity_helper}" record \
     --pid "${owner_pid}" \
     --identity-file "${identity_file}" \
     --runtime-id "${runtime_id}" \
     --role backend \
-    --expected-command-token run.py >/dev/null 2>&1 || rc=$?
+    --expected-command-token run.py 2>&1 >/dev/null)" || rc=$?
+  detail="${reason##*$'\n'}"
   case "${rc}" in
     0) return 0 ;;
     6)
-      echo "STACK_FOREIGN_LISTENER: :${port} is held by pid ${owner_pid}, which this dev stack (runtime=${runtime_id}) did not start — refusing to adopt, stamp or signal it. Stop it yourself, or run on an isolated runtime: ./myrm-dev isolate" >&2
+      echo "STACK_FOREIGN_LISTENER: :${port} is held by pid ${owner_pid}, which this dev stack (runtime=${runtime_id}) did not start — refusing to adopt, stamp or signal it${detail:+ [${detail:0:300}]}. Stop it yourself, or run on an isolated runtime: ./myrm-dev isolate" >&2
       ;;
     *)
-      echo "STACK_FAIL: :${port} owned by non-backend pid ${owner_pid} — refusing to reclaim foreign process" >&2
+      echo "STACK_FAIL: :${port} owned by non-backend pid ${owner_pid}${detail:+ [${detail:0:300}]} — refusing to reclaim foreign process" >&2
       ;;
   esac
   return 1
