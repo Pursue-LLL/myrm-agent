@@ -23,6 +23,8 @@ from tests.support.retrieval_embedding import (
 
 _KEY = "account-key"
 _VOYAGE_KEY = "voyage-key"
+_ARK_KEY = "ark-key"
+_ARK_MODEL = "doubao-embedding-vision"
 # What a Voyage organisation without a payment method is allowed per minute.
 _QUOTA_PER_MINUTE = 3
 
@@ -108,13 +110,20 @@ def _voyage_account() -> dict[str, str]:
     return {"provider": "voyage", "model": "voyage-4-lite", "apiKey": _VOYAGE_KEY}
 
 
-def _secrets(primary: _Upstream | None = None, *, voyage: bool = False) -> dict[str, str | None]:
-    """The ``.env.test`` view: an ``EMBEDDING_*`` account on ``primary`` and, if ``voyage``, the Voyage backup."""
+def _ark_account(api_base: str) -> dict[str, str]:
+    """Volcengine Ark as the settings page stores it: an OpenAI-compatible endpoint of its own."""
+    return {"provider": "openai_compatible", "model": _ARK_MODEL, "apiKey": _ARK_KEY, "apiBase": api_base}
+
+
+def _secrets(primary: _Upstream | None = None, *, voyage: bool = False, ark: _Upstream | None = None) -> dict[str, str | None]:
+    """The ``.env.test`` view: an ``EMBEDDING_*`` account on ``primary``, the Voyage backup if ``voyage``, the Ark one on ``ark``."""
     secrets: dict[str, str | None] = {}
     if primary is not None:
         secrets.update(EMBEDDING_API_KEY=_KEY, EMBEDDING_MODEL="BAAI/bge-m3", EMBEDDING_BASE_URL=primary.base)
     if voyage:
         secrets.update(VOYAGE_API_KEY=_VOYAGE_KEY, VOYAGE_EMBEDDING_MODEL="voyage/voyage-4-lite")
+    if ark is not None:
+        secrets.update(ARK_EMBEDDING_API_KEY=_ARK_KEY, ARK_EMBEDDING_MODEL=_ARK_MODEL, ARK_EMBEDDING_BASE_URL=ark.base)
     return secrets
 
 
@@ -257,6 +266,56 @@ def test_a_voyage_backup_that_cannot_serve_the_chain_gives_way_to_the_local_serv
     output = capsys.readouterr().out
     assert "seeded account: HTTP 402" in output
     assert "voyage backup: HTTP " in output
+
+
+def test_a_throttled_voyage_backup_gives_way_to_the_ark_backup_and_each_key_reaches_only_its_own_endpoint(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with _upstream(_exhausted) as seeded, _upstream(_throttled) as voyage, _upstream(_alive) as ark:
+        existing = _account_at(seeded.base)
+        run = _run(monkeypatch, _secrets(seeded, voyage=True, ark=ark), existing, voyage_base=voyage.base)
+
+        assert run.config_while_open == _ark_account(ark.base)
+        assert run.reason_while_open is None
+        assert run.backend.embedding_config == existing
+        assert ark.last_body["model"] == _ARK_MODEL
+        assert seeded.last_authorization == f"Bearer {_KEY}"
+        assert voyage.last_authorization == f"Bearer {_VOYAGE_KEY}"
+        assert ark.last_authorization == f"Bearer {_ARK_KEY}"
+    assert "ark backup in use (seeded account: HTTP 402; voyage backup: HTTP 429)" in capsys.readouterr().out
+
+
+def test_with_every_account_refused_the_local_server_is_used_and_each_refusal_is_reported(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with _upstream(_exhausted) as seeded, _upstream(_throttled) as voyage, _upstream(_exhausted) as ark:
+        existing = _account_at(seeded.base)
+        run = _run(monkeypatch, _secrets(seeded, voyage=True, ark=ark), existing, voyage_base=voyage.base)
+
+    assert str(run.config_while_open["apiBase"]).startswith("http://127.0.0.1:")
+    assert run.config_while_open["apiBase"] not in {seeded.base, ark.base}
+    assert run.backend.embedding_config == existing
+    output = capsys.readouterr().out
+    assert "seeded account: HTTP 402" in output
+    assert "voyage backup: HTTP 429" in output
+    assert "ark backup: HTTP 402" in output
+
+
+@pytest.mark.parametrize(
+    "missing",
+    ["ARK_EMBEDDING_API_KEY", "ARK_EMBEDDING_MODEL", "ARK_EMBEDDING_BASE_URL"],
+)
+def test_an_ark_backup_missing_any_part_is_not_a_candidate(missing: str) -> None:
+    """Without its own endpoint the key would be sent to a provider's default host, so a part missing means no account."""
+    complete = {
+        "ARK_EMBEDDING_API_KEY": _ARK_KEY,
+        "ARK_EMBEDDING_MODEL": _ARK_MODEL,
+        "ARK_EMBEDDING_BASE_URL": "https://ark.example.invalid/api/v3",
+    }
+    assert [label for label, _ in retrieval_embedding._test_accounts(test_secrets.TestSecrets(raw=complete))] == ["ark backup"]
+
+    complete.pop(missing)
+    assert retrieval_embedding._test_accounts(test_secrets.TestSecrets(raw=complete)) == []
 
 
 def test_without_a_seeded_account_the_test_account_is_used_and_nothing_is_left_behind(

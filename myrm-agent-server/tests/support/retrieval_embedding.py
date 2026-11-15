@@ -5,8 +5,8 @@ Memory APIs that build a MemoryManager need ``retrieval.embeddingConfig``. This 
 sure the backend has one that can actually embed, written through the same settings API
 the WebUI uses. The config the stack seeded (the ``.env.test`` account) is kept once a
 burst of one-text requests proves it works. Otherwise the ``.env.test`` accounts are
-tried in order, the ``EMBEDDING_*`` account and then the Voyage backup, and a local
-OpenAI-compatible server stands in when none can embed: such an account silently
+tried in order, the ``EMBEDDING_*`` account, the Voyage backup and then the Volcengine Ark
+backup, and a local OpenAI-compatible server stands in when none can embed: such an account silently
 degrades dense recall and fails every write that needs a vector. An account that cannot
 embed is one with an exhausted balance, a rejected key, an unreachable endpoint, or a
 per-minute quota (a Voyage organisation without a payment method answers the fourth
@@ -105,6 +105,13 @@ def _test_accounts(secrets: TestSecrets) -> list[tuple[str, dict[str, str]]]:
         accounts.append(("test account", _settings_form(model, key, secrets.get("EMBEDDING_BASE_URL"))))
     if (key := secrets.get("VOYAGE_API_KEY")) and (model := secrets.get("VOYAGE_EMBEDDING_MODEL")):
         accounts.append(("voyage backup", _settings_form(model, key)))
+    # Ark is only reachable through its own endpoint: without one the key would be sent to a provider's default host.
+    if (
+        (key := secrets.get("ARK_EMBEDDING_API_KEY"))
+        and (model := secrets.get("ARK_EMBEDDING_MODEL"))
+        and (api_base := secrets.get("ARK_EMBEDDING_BASE_URL"))
+    ):
+        accounts.append(("ark backup", _settings_form(model, key, api_base)))
     return accounts
 
 
