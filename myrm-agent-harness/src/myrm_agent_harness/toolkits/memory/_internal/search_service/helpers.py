@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from time import perf_counter
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from myrm_agent_harness.toolkits.memory._internal.temporal_window import TemporalWindow
 from myrm_agent_harness.toolkits.memory.observability import (
@@ -34,9 +34,6 @@ from myrm_agent_harness.toolkits.memory.observability import (
     GATHER_SEMANTIC_FAILED,
     GATHER_SEMANTIC_TIMEOUT,
 )
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

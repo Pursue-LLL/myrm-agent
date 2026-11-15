@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.retriever import MemoryRetriever
@@ -19,9 +18,6 @@ from myrm_agent_harness.toolkits.memory.types import (
     ConversationMemory,
     MemorySearchResult,
 )
-
-if TYPE_CHECKING:
-    pass
 
 from .base import MemorySearchBase
 

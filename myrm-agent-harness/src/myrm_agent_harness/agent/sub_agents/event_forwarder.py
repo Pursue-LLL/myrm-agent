@@ -20,15 +20,11 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.sub_agents.types import SubagentBudgetExceededError, SubagentConfig
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.runtime.progress_sink import ToolProgressSink, get_tool_progress_sink
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_agent_logger(__name__)
 

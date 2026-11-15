@@ -11,10 +11,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
-
-if TYPE_CHECKING:
-    pass
+from typing import Literal
 
 CLAIM_STATUSES = frozenset({"supported", "contested", "unsupported", "unknown"})
 

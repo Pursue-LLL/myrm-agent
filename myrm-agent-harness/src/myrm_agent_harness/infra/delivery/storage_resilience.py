@@ -28,10 +28,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, TypeVar
-
-if TYPE_CHECKING:
-    pass
+from typing import TypeVar
 
 logger = logging.getLogger(__name__)
 

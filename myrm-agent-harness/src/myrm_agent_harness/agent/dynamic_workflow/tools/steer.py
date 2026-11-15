@@ -11,13 +11,9 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
