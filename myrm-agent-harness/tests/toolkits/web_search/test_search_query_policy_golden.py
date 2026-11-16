@@ -8,6 +8,7 @@ from myrm_agent_harness.toolkits.web_search.web_search_agent_tools import (
     create_web_search_tool,
 )
 
+
 class TestWebSearchDescriptionBaseline:
     def test_tool_description_retains_compact_rewrite_rules(self) -> None:
         tool = create_web_search_tool(
