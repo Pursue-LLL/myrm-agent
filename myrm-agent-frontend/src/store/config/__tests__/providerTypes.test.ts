@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { BUILT_IN_PROVIDER_INFO } from '../providerCatalog';
 import {
-  BUILT_IN_PROVIDER_INFO,
   getInitialProviders,
   getRoutedModelName,
   hasActiveApiKey,

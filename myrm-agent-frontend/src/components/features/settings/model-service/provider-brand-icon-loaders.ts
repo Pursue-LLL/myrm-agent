@@ -4,7 +4,7 @@
  * [POS] model-service 层 LobeHub static SVG 加载器；每个 Provider 独立 dynamic import chunk，零 peer 依赖。
  */
 
-import type { BuiltInProviderId } from '@/store/config/providerTypes';
+import type { BuiltInProviderId } from '@/store/config/providerCatalog';
 
 export type ProviderBrandIconModule = { default: string };
 

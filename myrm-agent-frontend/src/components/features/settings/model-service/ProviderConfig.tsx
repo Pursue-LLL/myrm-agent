@@ -9,13 +9,13 @@ import {
   ApiKeyConfig,
   CredentialPoolStrategy,
   getRoutedModelName,
-  BUILT_IN_PROVIDER_INFO,
   hasActiveApiKey,
   hasUsableProviderAuth,
   normalizeApiUrl,
   resolveProviderApiKeyForRequests,
   resolveCustomProviderTypeInfo,
 } from '@/store/config/providerTypes';
+import { BUILT_IN_PROVIDER_INFO } from '@/store/config/providerCatalog';
 import ApiKeyManager from './ApiKeyManager';
 import ModelCheckbox from './ModelCheckbox';
 import ApiUrlSelector from './ApiUrlSelector';
