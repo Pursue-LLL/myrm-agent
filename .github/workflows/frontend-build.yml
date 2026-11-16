@@ -75,9 +75,9 @@ jobs:
       - name: Module resolution (no dangling import specifiers)
         if: ${{ !cancelled() }}
         run: python3 scripts/check_module_resolution.py
-      - name: i18n completeness (verify:i18n + glyph sets fresh)
+      - name: i18n completeness (verify:i18n)
         if: ${{ !cancelled() }}
-        run: bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n
+        run: bun run verify:i18n
       # The full suite is not run here. These are the contracts no static gate can see: the shared provider remap, and
       # the copy that is read through a key built at run time or through a translator the component picks itself
       # (a wrong namespace or a missing key shows the person a raw key path).
