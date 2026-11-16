@@ -192,6 +192,18 @@ describe.each(['live', 'read'] as const)('the exits of the %s profile', (profile
       );
     }
   });
+
+  it.each([
+    { userCount: 1, streaming: false },
+    { userCount: 0, streaming: true },
+  ])('seals on either kind of progress ($userCount user rows, streaming $streaming)', async (progress) => {
+    world.api.users = 1;
+    world.progress.value = { ...progress, uiProgress: true };
+    const result = await run('hello', { profile });
+
+    expect(result.mode).toBe('sendTurnSealed');
+    expect(result.debug).toMatchObject(progress);
+  });
 });
 
 describe('a send promise that ends', () => {

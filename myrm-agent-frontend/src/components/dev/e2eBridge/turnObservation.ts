@@ -190,10 +190,9 @@ export async function observeTurn({
     // A local placeholder/stream can be produced before the private backend
     // accepts the POST. It is not an admission signal: sealing here would
     // let the E2E flow continue while the API still has no user row. Every
-    // live turn must therefore have both UI progress and an API-side row.
-    const liveOk = apiOk && uiProgress;
-    const readOk = apiOk && uiProgress;
-    if ((profile === 'live' && liveOk) || (profile === 'read' && readOk)) {
+    // turn, whichever its profile, must therefore have both UI progress and an
+    // API-side row; the profile only labels the result.
+    if (apiOk && uiProgress) {
       // store.agentConfig may have been reset by attach after POST; the payload
       // itself is guaranteed by agentConfigOverride, so reflect that in diagnostics.
       const ephKeys = window.__MYRM_E2E_EPH_APPLIED__?.keys ?? [];
