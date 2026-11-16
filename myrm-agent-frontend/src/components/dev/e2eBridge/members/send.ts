@@ -4,7 +4,8 @@
  * - @/store/useToolApprovalStore::useToolApprovalStore
  * - @/store/skill::useSkillStore
  * - @/components/dev/e2eBridge/e2eClarificationSkip::skipActiveClarification (POS: The skip of the CDP E2E bridge.)
- * - @/components/dev/e2eBridge/submitAndObserveTurn::E2eSubmitResult, SendTurnProfile, submitAndObserveTurn (POS: 发送并观察一个聊天回合的流水线)
+ * - @/components/dev/e2eBridge/submitAndObserveTurn::submitAndObserveTurn (POS: 发送并观察一个聊天回合的流水线编排)
+ * - @/components/dev/e2eBridge/sendTurnResult::E2eSubmitResult, SendTurnProfile (POS: 一次发送的结果词汇)
  * - @/components/dev/e2eBridge/hostEnv::requireE2eChatBridge (POS: 开发桥的页面环境探针)
  * - @/components/dev/e2eBridge/members/types::E2eBridgeMembers (POS: 桥成员分组的类型)
  *
@@ -20,11 +21,8 @@ import useChatStore from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { useSkillStore } from '@/store/skill';
 import { skipActiveClarification } from '@/components/dev/e2eBridge/e2eClarificationSkip';
-import {
-  type E2eSubmitResult,
-  type SendTurnProfile,
-  submitAndObserveTurn,
-} from '@/components/dev/e2eBridge/submitAndObserveTurn';
+import { submitAndObserveTurn } from '@/components/dev/e2eBridge/submitAndObserveTurn';
+import type { E2eSubmitResult, SendTurnProfile } from '@/components/dev/e2eBridge/sendTurnResult';
 import { requireE2eChatBridge } from '@/components/dev/e2eBridge/hostEnv';
 import type { E2eBridgeMembers } from '@/components/dev/e2eBridge/members/types';
 
