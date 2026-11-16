@@ -335,10 +335,13 @@ class TestOutlineOfTheViewARead:
 
         assert _entries(out) == ["  - Line 6: # Real", "  - Line 8: ## Second"]
 
-    def test_a_lone_carriage_return_inside_a_line_does_not_shift_the_numbers(self) -> None:
-        out = extract_file_outline(_view("x = 1  # a\rb\ndef f():\n    pass"), "mod.py")
+    def test_a_lone_carriage_return_ends_a_line_in_the_view_and_the_outline_numbers_follow_it(self) -> None:
+        view = _view("x = 1  # a\rb\ndef f():\n    pass")
 
-        assert _entries(out) == ["  - Line 2-3: def f"]
+        out = extract_file_outline(view, "mod.py")
+
+        assert "3|def f():\n" in view
+        assert _entries(out) == ["  - Line 3-4: def f"]
 
     def test_an_escape_python_warns_about_does_not_cost_the_outline_its_ranges(self) -> None:
         """The suite turns warnings into errors: a warning the parse lets through would abort it."""

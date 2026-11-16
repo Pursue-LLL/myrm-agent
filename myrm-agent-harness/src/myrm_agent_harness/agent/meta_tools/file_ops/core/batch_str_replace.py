@@ -5,7 +5,7 @@
 - utils.closest_lines::find_closest_lines (POS: "Did you mean?" hint for a text that was not found)
 - core.file_conflict_guard::compute_edit_line_range (POS: Edit line range calculator)
 - core.operation_context::StrReplaceEdit (POS: Single edit payload)
-- utils.line_endings::detect_line_ending, normalize_line_endings (POS: CRLF/LF preservation)
+- utils.line_endings::detect_line_ending, normalize_line_endings (POS: Line-ending rules shared by the edit pipeline and the view)
 
 [OUTPUT]
 - apply_batch_str_replace: In-memory sequential batch apply

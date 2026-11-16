@@ -5,9 +5,18 @@ edits performed by the agent. Agent tool parameters arrive via JSON which
 does not transmit `\\r` (RFC 8259 §7), so without explicit normalization
 every edit on a CRLF file introduces mixed line endings.
 
+[INPUT]
+- (none)
+
 [OUTPUT]
+- strip_utf8_bom: function — Drop a leading UTF-8 BOM from displayed text
 - detect_line_ending: function — Detect dominant line ending
 - normalize_line_endings: function — Convert all line endings to target
+- view_lines: function — The lines a view shows for text split on LF: CRLF and a bare CR end a line too
+
+[POS]
+Line-ending rules shared by the edit pipeline (match on LF text, write the file's own endings back) and the view
+(show lines, whatever ends them).
 """
 
 from __future__ import annotations
@@ -58,3 +67,16 @@ def normalize_line_endings(text: str, target: str) -> str:
     if target == "\r\n":
         return lf_only.replace("\n", "\r\n")
     return lf_only
+
+
+def view_lines(raw_lines: list[str]) -> list[str]:
+    """The lines a view shows for text that was split on ``\\n``; always a new list.
+
+    A line ends with ``\\n``, ``\\r\\n`` or a bare ``\\r``, as in the universal-newline reading ``preview`` and ``stream``
+    use, so the same text shows the same lines whatever ends them. Only the view does this: the integrity hash and the
+    edit pipeline keep working on the raw text, whose endings are written back as they were.
+    """
+    text = "\n".join(raw_lines)
+    if "\r" not in text:
+        return list(raw_lines)
+    return normalize_line_endings(text, "\n").split("\n")

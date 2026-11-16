@@ -100,8 +100,22 @@ def test_format_shows_plain_lines_for_a_crlf_file_in_view_range():
     assert "3|c\n" in result
 
 
-def test_format_removes_only_the_carriage_return_that_ends_a_line():
-    assert "1|a\rb\n" in _format(["a\rb\r", "c"])
+def test_format_ends_a_line_at_a_bare_carriage_return():
+    result = _format(["a\rb\r", "c"])
+
+    assert "\r" not in result
+    assert "(3 lines)" in result
+    assert "1|a\n" in result
+    assert "2|b\n" in result
+    assert "3|c\n" in result
+
+
+def test_format_numbers_a_cr_only_file_by_its_lines_in_a_view_range():
+    result = _format(["a1\rb2\rc3\r"], view_range=ViewRange(start=2, end=2))
+
+    assert "(lines 2-2 of 4)" in result
+    assert "2|b2\n" in result
+    assert "1|a1" not in result
 
 
 def test_format_clamps_a_crlf_line_by_its_text_without_the_carriage_return():
