@@ -9,7 +9,7 @@ Conversation Recall 索引仓储。类不持有实例状态：12 个方法全部
 | `__init__.py` | 子域出口 | 保持原 `__all__`：3 个 SQL 常量、4 个行类型、`ConversationRecallRepository` | — |
 | `store.py` | 核心 | `ConversationRecallRepository(WritesMixin, SearchMixin, QueriesMixin)`，无 `__init__`、无实例状态 | — |
 | `writes.py` | 核心 | `bootstrap_missing` / `rebuild_chat` / `append_message` / `append_salient_tool_segment` / `set_excluded` / `delete_chat` | ✅ |
-| `search.py` | 核心 | FTS5 `search`（含 degraded/rebuild 自愈与 LIKE 回退；两条 `snippet()` 用 `..sql` 的高亮标记）、`list_documents`、行去重与时间排序 helper | ✅ |
+| `search.py` | 核心 | FTS5 `search`（含 degraded/rebuild 自愈与 LIKE 回退，回退按存储原文找，needle 先去掉 FTS 短语的引号；两条 `snippet()` 用 `..sql` 的高亮标记）、`list_documents`、行去重与时间排序 helper | ✅ |
 | `queries.py` | 核心 | `get_context` / `get_lineage_chat_ids` / `recent` / `health` | ✅ |
 
 ## 说明

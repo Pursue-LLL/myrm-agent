@@ -151,9 +151,11 @@ class SearchMixin:
             return results
 
         # Two-tier fallback for short keywords (< 3 chars) or CJK where trigram yields 0 hits
+        # The phrase quotes of the FTS query are not part of the stored text this scan reads.
+        needle = safe_query.replace('"', "")
         fallback_rows: Sequence[RowMapping] = []
         try:
-            fallback_params = {**params, "kw_pattern": f"%{safe_query}%"}
+            fallback_params = {**params, "kw_pattern": f"%{needle}%"}
             fallback_rows = (
                 (
                     await db.execute(

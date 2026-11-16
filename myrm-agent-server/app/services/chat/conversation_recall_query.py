@@ -95,7 +95,7 @@ def build_conversation_recall_fts_queries(raw_query: str, safe_query: str) -> li
         if not safe_tokens:
             continue
         weight = 0.9 if is_relaxed else 1.0
-        quoted_query = " ".join(f'"{t}"' if " " in t else t for t in safe_tokens)
+        quoted_query = " ".join(_as_operand(t) for t in safe_tokens)
         queries.append(
             ConversationRecallFtsQuery(
                 query=quoted_query,
@@ -116,6 +116,17 @@ def build_conversation_recall_fts_queries(raw_query: str, safe_query: str) -> li
             )
         )
     return queries
+
+
+def _as_operand(safe_token: str) -> str:
+    """``safe_token`` as one FTS5 operand: a token that holds several words is searched as a phrase.
+
+    The sanitizer quotes the parts of a token that FTS5 cannot read as a word; those quotes would end the phrase early.
+    """
+    if " " not in safe_token:
+        return safe_token
+    words = safe_token.replace('"', "")
+    return f'"{words}"'
 
 
 def _fallback_or_query(raw_query: str) -> str:

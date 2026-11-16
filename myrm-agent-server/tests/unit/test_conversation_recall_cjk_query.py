@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import sqlite3
+
+import pytest
+from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
+
 from app.services.chat.conversation_recall_query import (
     build_conversation_recall_fts_queries,
 )
@@ -47,3 +52,43 @@ def test_build_conversation_recall_fts_queries_pure_ascii() -> None:
 def test_build_conversation_recall_fts_queries_empty() -> None:
     assert build_conversation_recall_fts_queries("", "") == []
     assert build_conversation_recall_fts_queries("   ", "   ") == []
+
+
+@pytest.mark.parametrize(
+    ("raw_query", "expected"),
+    [
+        ("a.-b", '"a. b"'),
+        ("foo#bar.baz", '"foo bar.baz"'),
+        ("v1.2+beta", '"v1.2 beta"'),
+    ],
+)
+def test_a_token_that_holds_several_words_is_searched_as_one_phrase(raw_query: str, expected: str) -> None:
+    queries = build_conversation_recall_fts_queries(raw_query, sanitize_fts5_query(raw_query))
+
+    assert queries[0].query == expected
+
+
+# Raw queries whose ASCII tokens carry punctuation; once sanitized, such a token can hold quoted parts next to a space.
+_PUNCTUATED_QUERIES = (
+    "a.-b",
+    "foo#bar.baz",
+    "v1.2+beta",
+    "c++ x..y",
+    "node.js -a.b",
+    "i.e. don't",
+    "42 a.-b 日本語",
+    "docker compose up",
+)
+
+
+@pytest.mark.parametrize("tokenizer", ["unicode61", "trigram"])
+@pytest.mark.parametrize("raw_query", _PUNCTUATED_QUERIES)
+def test_every_planned_query_is_one_fts5_can_parse(raw_query: str, tokenizer: str) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute(f"CREATE VIRTUAL TABLE docs USING fts5(content, tokenize='{tokenizer}')")
+
+    planned = build_conversation_recall_fts_queries(raw_query, sanitize_fts5_query(raw_query))
+
+    assert planned
+    for fts_query in planned:
+        conn.execute("SELECT rowid FROM docs WHERE docs MATCH ?", (fts_query.query,)).fetchall()
