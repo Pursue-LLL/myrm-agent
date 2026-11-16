@@ -109,7 +109,6 @@ async def test_every_section_is_collected_for_real(event_logs: Path) -> None:
             "model": "test-model",
             "max_iterations": 20,
             "built_in": False,
-            "no_builtin_tools": False,
             "created_at": "2026-01-01T00:00:00+00:00",
             "tools_allowed": ["web_search"],
             "skills_count": 2,

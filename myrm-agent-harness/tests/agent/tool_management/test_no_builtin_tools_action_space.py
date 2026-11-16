@@ -2,8 +2,7 @@
 
 Verifies that when no_builtin_tools is enabled:
 1. ToolRegistry excludes ToolSource.META tools from resolve().
-2. AgentProfile supports no_builtin_tools: bool flag.
-3. Pure domain custom tools completely control the action space.
+2. Pure domain custom tools completely control the action space.
 """
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ from langchain_core.tools import tool
 
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.agent.tool_management.types import ToolSource
-from myrm_agent_harness.backends.profiles.types import AgentProfile
 
 
 @tool
@@ -25,14 +23,6 @@ def custom_file_write(path: str, content: str) -> str:
 def built_in_meta_tool(query: str) -> str:
     """Built-in framework meta tool."""
     return "meta result"
-
-
-def test_agent_profile_no_builtin_tools_flag() -> None:
-    profile = AgentProfile(id="domain_specialist", no_builtin_tools=True)
-    assert profile.no_builtin_tools is True
-
-    default_profile = AgentProfile(id="standard_agent")
-    assert default_profile.no_builtin_tools is False
 
 
 def test_tool_registry_no_builtin_tools_filtering() -> None:
