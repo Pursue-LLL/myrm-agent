@@ -14,7 +14,7 @@ invariants must hold at that quiet point:
 - no run leaves its in-flight marker behind, and while a run is in flight its marker is the only one
 - a stop counts no failure for the run it cut short, and a crash is reported exactly once
 
-Runtime: about 20 s for the eight seeds.
+Runtime: about 30 s for the eight seeds.
 """
 
 from __future__ import annotations
