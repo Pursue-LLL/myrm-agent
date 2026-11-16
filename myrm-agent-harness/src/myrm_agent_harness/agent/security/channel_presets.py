@@ -184,7 +184,7 @@ def build_channel_security_config(
     set with that exact list. When empty, the CRON channel preset capabilities are kept and
     the job counts as undeclared: ``file_write_tool`` / ``file_edit_tool`` stay denied unless
     ``file_write`` is declared, and every ask is denied fail-closed (``resolve_cron_ask``),
-    since a declaration is the only approval a scheduled run can get.
+    since a declaration is the only thing that can answer the ask of a scheduled run.
     ``declared_allowed_roots`` provides additional path access grants (union-merged
     with existing allowed_roots). Applies to all channel types.
     """

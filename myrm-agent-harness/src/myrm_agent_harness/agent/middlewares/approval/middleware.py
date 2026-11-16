@@ -21,9 +21,9 @@ Users can approve per-request or "always allow this domain" (session-scoped).
 
 A scheduled run (a cron job and every agent it delegates to, see ``_cron_policy.is_cron_run``) has nobody to answer an
 ASK, so none of its calls reaches ``interrupt()``: ``_cron_settle`` settles each one from the declared capability set,
-which acts as pre-approval, except for credential egress, out-of-zone paths, integration writes and payment-like tool
-calls. An undeclared capability set is refused fail-closed. With YOLO on, the calls YOLO still asks about (payment-like,
-destructive, socially irreversible) are settled the same way.
+which acts as pre-approval, except for the calls ``_cron_policy.cron_never_class`` names (credential egress, out-of-zone
+paths, integration writes, payment-like tool calls): those stay refused even when the allowlist or the reviewer approved
+them. An undeclared capability set is refused fail-closed. YOLO plays no part in a scheduled run.
 
 Uses LangGraph's native ``interrupt()`` mechanism for Human-in-the-Loop:
 - First call: interrupt() raises GraphInterrupt, stream ends

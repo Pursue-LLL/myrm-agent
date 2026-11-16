@@ -9,19 +9,17 @@
 
 [OUTPUT]
 - CronAskVerdict: outcome of one unattended ask (denied flag, audit reason, model-facing message)
-- PAYMENT_DENIED: the verdict for a payment-like tool call in a run nobody can approve
+- cron_never_class: the verdict for a call in a class no approval can cover, None for any other call
 - resolve_cron_ask: decide an ask that no human can answer
 - is_cron_run: whether a run belongs to a scheduled job: its config says so, or its session key has the cron prefix
 
 [POS]
-A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval,
-except for asks that carry a risk the declaration does not cover: credential data leaving the
-session, writes outside the job's directories, integration write mutations, payment-like tool
-calls. Reached through ``_cron_settle``, which batch_processor calls after the allowlist and the
-optional LLM review had their say, and again at the end of a batch for every call that would
-otherwise wait: the asks a YOLO switch leaves open (it answers none in a scheduled run), a review that
-could not decide, the agents the job delegated to. The YOLO branch refuses a payment-like call itself
-with PAYMENT_DENIED, ahead of that settlement.
+A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval. Four classes of
+call carry a risk no approval covers, whoever gave it (the declaration, a standing approval of the user, the
+reviewer): credential data leaving the session, file paths outside the run's zones, integration write mutations,
+payment-like tool calls. ``cron_never_class`` names them and ``resolve_cron_ask`` answers every other ask from the
+declaration. Reached through ``_cron_settle``, which batch_processor calls for each ask that would wait for a person
+and, at the end of a batch, for each call the allowlist or the reviewer approved.
 """
 
 from __future__ import annotations
@@ -60,31 +58,29 @@ def _denied(audit_reason: str, tool_message: str) -> CronAskVerdict:
     return CronAskVerdict(denied=True, audit_reason=f"cron fail-closed: {audit_reason}", tool_message=tool_message)
 
 
-PAYMENT_DENIED = _denied(
+_PAYMENT_DENIED = _denied(
     "payment-like tool call",
     "Tool denied: cron jobs cannot pre-approve payment-like tool calls, and nobody is present to approve this "
     "one. Do not retry; finish the task without this call.",
 )
 
 
-def resolve_cron_ask(
+def cron_never_class(
     *,
     permission_type: str,
     tool_name: str,
     tool_input: dict[str, object],
     config: SecurityConfig,
     workspace_root: str | None,
-) -> CronAskVerdict:
-    """Pre-approve the ask through the job's declared capabilities, or deny it fail-closed."""
-    if config.capabilities == DEFAULT_CAPABILITIES:
-        return _denied(
-            "no explicit capability declaration",
-            "Tool denied: cron fail-closed policy. This cron job has no explicit capability declaration.",
-        )
+) -> CronAskVerdict | None:
+    """The refusal for a call in a class no approval covers, or None for any other call.
 
+    Nobody is present to consent to these, so neither the job's declaration nor a standing approval of the user nor
+    the reviewer's verdict lifts them.
+    """
     # A capability names a kind of tool; it is not consent to spend, and no human is present to give that consent.
     if is_financial_or_spend_tool(tool_name, tool_input):
-        return PAYMENT_DENIED
+        return _PAYMENT_DENIED
 
     if permission_type in _SHELL_PERMISSIONS:
         command = str(tool_input.get("command", "") or tool_input.get("code", "") or tool_input.get("data", "")).strip()
@@ -94,8 +90,8 @@ def resolve_cron_ask(
                 "Tool denied: cron jobs cannot auto-approve Google/integration write operations.",
             )
 
-    # Recomputed instead of read from the escalation upstream: the same ask reaches this point
-    # whether the engine or the taint check raised it, and the reviewer may have been unavailable.
+    # Recomputed instead of read from the escalation upstream: the call reaches this point whether the engine,
+    # the taint check or an approval raised it, and the reviewer may have been unavailable.
     egress_conflict = get_taint_tracker().check_sink(
         tool_name, tool_input=tool_input, trusted_hosts=config.network_allowlist
     )
@@ -114,4 +110,29 @@ def resolve_cron_ask(
             f"Tool denied: {path_reason}. A cron job cannot ask for approval; skip this step or choose another path.",
         )
 
-    return _PRE_APPROVED
+    return None
+
+
+def resolve_cron_ask(
+    *,
+    permission_type: str,
+    tool_name: str,
+    tool_input: dict[str, object],
+    config: SecurityConfig,
+    workspace_root: str | None,
+) -> CronAskVerdict:
+    """Pre-approve the ask through the job's declared capabilities, or deny it fail-closed."""
+    if config.capabilities == DEFAULT_CAPABILITIES:
+        return _denied(
+            "no explicit capability declaration",
+            "Tool denied: cron fail-closed policy. This cron job has no explicit capability declaration.",
+        )
+
+    never_class = cron_never_class(
+        permission_type=permission_type,
+        tool_name=tool_name,
+        tool_input=tool_input,
+        config=config,
+        workspace_root=workspace_root,
+    )
+    return _PRE_APPROVED if never_class is None else never_class

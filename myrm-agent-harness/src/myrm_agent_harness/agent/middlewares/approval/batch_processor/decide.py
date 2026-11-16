@@ -18,7 +18,7 @@
 - myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-only lease, the permission engine, the shell-escalation check and the LLM security review.)
 - myrm_agent_harness.agent.middlewares.approval.helpers::ThresholdBreach / is_threshold_breached / record_approval / record_denial (POS: Approval middleware helper functions. Implements dual-threshold denial tracking (consecutive + total) with proactive guidance on every denial and automatic consecutive counter reset on any allowed operation.)
 - myrm_agent_harness.agent.middlewares.approval.batch_processor._workspace_snapshot::pre_destructive_snapshot_id (POS: 破坏性命令等待审批时的回滚点；决策循环与 YOLO 分支共用。)
-- myrm_agent_harness.agent.middlewares.approval.batch_processor.yolo::operator_as_key_deny_message (POS: batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。)
+- myrm_agent_harness.agent.middlewares.approval.batch_processor.yolo::operator_as_key_deny_message (POS: batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用、且不是定时运行时调用。)
 
 [OUTPUT]
 - evaluate_calls: evaluate_calls
@@ -385,9 +385,9 @@ async def evaluate_calls(
         if (
             action == PermissionAction.ALLOW
             and auto_mode_enabled
-            and is_threshold_breached(session_key) != ThresholdBreach.NONE
+            and not is_cron  # nobody can lift a scheduled run's suspension; the job's declaration answers each ask
+            and (breach := is_threshold_breached(session_key)) != ThresholdBreach.NONE
         ):
-            breach = is_threshold_breached(session_key)
             action = PermissionAction.ASK
             reason = f"Auto-mode suspended ({breach.value} denial threshold breached) — explicit approval required"
             extra_ctx = extra_ctx or {}

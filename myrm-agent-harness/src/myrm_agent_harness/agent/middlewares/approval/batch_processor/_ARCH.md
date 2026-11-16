@@ -10,9 +10,9 @@
 |------|------|------|-------|
 | `__init__.py` | 门面 | 聚合导出 evaluate / apply / interrupt / reviewer 等公开与测试依赖名 | ✅ |
 | `_workspace_snapshot.py` | 辅助 | `pre_destructive_snapshot_id`：破坏性命令等待审批前对工作目录做快照并返回快照 id，决策循环与 YOLO 分支共用 | ✅ |
-| `core.py` | 核心 | `evaluate_tool_batch` 入口、上下文组装与自动模式判定；定时运行（含其委派的子智能体）没有人能批，两条分支做完后仍挂起的调用交给 `_cron_settle` 按作业声明裁决，返回的挂起列表恒为空 | ✅ |
-| `decide.py` | 核心 | 逐工具判定循环（预检、策略、allowlist、HITL 分类）；定时运行里本分支产生的 ASK 由 `_cron_settle.settle_ask` 就地裁决 | ✅ |
-| `yolo.py` | 核心 | `_evaluate_yolo_batch`（资金、社交不可逆、破坏性调用仍挂起等人审批；定时运行里没有人能批，付款类调用在此直接拒绝并记 `CRON_DENY`，没有 YOLO 本会询问的调用（引擎 ASK、会话污点冲突）同样挂起，连同其余挂起项由 `core.py` 交 `_cron_settle` 按作业声明裁决，YOLO 不替声明作答）、YOLO 可用性与 operator-as-key 拒绝 | ✅ |
+| `core.py` | 核心 | `evaluate_tool_batch` 入口、上下文组装与自动模式判定；定时运行（含其委派的子智能体）没有人能批，不走 YOLO 分支：一般分支放行的调用交给 `_cron_settle.veto_never_classes` 复核（落入四类的改为拒绝），仍挂起的调用交给 `_cron_settle` 按作业声明裁决，返回的挂起列表恒为空 | ✅ |
+| `decide.py` | 核心 | 逐工具判定循环（预检、策略、allowlist、HITL 分类）；定时运行里本分支产生的 ASK 由 `_cron_settle.settle_ask` 就地裁决；定时运行的 auto-mode 不因拒绝累积而暂停 | ✅ |
+| `yolo.py` | 核心 | `_evaluate_yolo_batch`（资金、社交不可逆、破坏性调用仍挂起等人审批；只服务有人在场的运行，定时运行不进入这个分支）、YOLO 可用性与 operator-as-key 拒绝 | ✅ |
 
 ## 已知遗留
 

@@ -6,16 +6,16 @@ Decides, for each tool call of a model turn, whether it runs, is refused or wait
 - agent.security::engine, checks, audit, approval_flow, command_allowlist_pattern, managed_policy_gates, path_security, ptc_verifier, script_operand_verifier, tool_registry, types, guards.{taint_tracker, untrusted_ingress_fence}, workspace_trust.{context, gate, types} (POS: The layered security stack this processor orchestrates: permission engine, path and taint checks, allowlist, managed-policy and workspace-trust gates.)
 - core.security::readonly_research_sandbox, device_policy, spend_governance, remote_ops_ledger (POS: Foundation security primitives: read-only lease check, batch risk, spend rules, recovery hints.)
 - toolkits.code_execution.security::ast_parser, risk_classifier, workspace_snapshot; toolkits.computer_use::safety (POS: Shell AST and risk classification, pre-destructive snapshots, desktop control guardrails.)
-- agent.middlewares::_session_context; ._batch_review, ._batch_decisions, ._interrupt_payload, ._cron_settle::settle_pending, .denial_diagnostic_bridge::build_auto_review_denial_message, .helpers (POS: Shared middleware ContextVars, LLM review, interrupt payloads, cron settlement, the refusal text the model reads, denial tracking.)
+- agent.middlewares::_session_context; ._batch_review, ._batch_decisions, ._interrupt_payload, ._cron_settle::settle_pending / veto_never_classes, .denial_diagnostic_bridge::build_auto_review_denial_message, .helpers (POS: Shared middleware ContextVars, LLM review, interrupt payloads, cron settlement, the refusal text the model reads, denial tracking.)
 
 [OUTPUT]
 - register_security_reviewer, reset_runtime_domains: reviewer registration and the per-session runtime domain reset
-- evaluate_tool_batch: classify every tool call into approved, denied or pending; a run with no approver gets no pending call
+- evaluate_tool_batch: classify every tool call into approved, denied or pending; a run with no approver gets no pending call and no approval for a class of call nobody present could accept
 - build_interrupt_payload, apply_approval_decisions: the approval interrupt payload and the user's decisions applied back
 - is_yolo_mode_active, operator_as_key_deny_message: the YOLO state check and the refusal for a desktop vision key action naming a lone printable operator
 
 [POS]
-Orchestrates allowlist, YOLO and auto mode, path and taint checks, the read-only lease, cron declarations and the LLM security review into one verdict per call. Called by the approval middleware. In a run with no approver (a scheduled job and every agent it delegates to) the job's declared capabilities answer whatever the branches leave pending, so nothing waits for a person who is not there.
+Orchestrates allowlist, YOLO and auto mode, path and taint checks, the read-only lease, cron declarations and the LLM security review into one verdict per call. Called by the approval middleware. In a run with no approver (a scheduled job and every agent it delegates to) the job's declared capabilities replace YOLO and answer whatever the branches leave pending, and a call the allowlist or the reviewer approved is refused when it falls in a class no approval covers, so nothing waits for a person who is not there.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ from .._batch_review import (
     register_security_reviewer,
     reset_runtime_domains,
 )
-from .._cron_settle import settle_pending
+from .._cron_settle import settle_pending, veto_never_classes
 from .._interrupt_payload import build_interrupt_payload
 from .decide import evaluate_calls
 from .yolo import _evaluate_yolo_batch, operator_as_key_deny_message
@@ -120,11 +120,15 @@ async def evaluate_tool_batch(
     agent_primary_model = get_agent_primary_model_slug()
     auto_mode_enabled = effective_auto_mode_enabled(config, map_policy, agent_primary_model)
 
-    if is_yolo_mode_active(config, session_key=session_key) and yolo_allowed_for_model(map_policy, agent_primary_model):
+    # A scheduled run has nobody who could answer for a YOLO switch, so the job's declaration decides instead.
+    if (
+        not is_cron
+        and is_yolo_mode_active(config, session_key=session_key)
+        and yolo_allowed_for_model(map_policy, agent_primary_model)
+    ):
         auto_approved, auto_denied, pending_approval = await _evaluate_yolo_batch(
             tool_calls,
             config,
-            is_cron=is_cron,
             workspace_root=workspace_root,
             session_key=session_key,
         )
@@ -157,9 +161,13 @@ async def evaluate_tool_batch(
             pending_approval=pending_approval,
         )
 
-    if is_cron and pending_approval:
-        settled_approved, settled_denied = settle_pending(
-            pending_approval, config=config, workspace_root=workspace_root, session_key=session_key
-        )
-        return [*auto_approved, *settled_approved], [*auto_denied, *settled_denied], []
-    return auto_approved, auto_denied, pending_approval
+    if not is_cron:
+        return auto_approved, auto_denied, pending_approval
+
+    kept, vetoed = veto_never_classes(
+        auto_approved, config=config, workspace_root=workspace_root, session_key=session_key
+    )
+    settled_approved, settled_denied = settle_pending(
+        pending_approval, config=config, workspace_root=workspace_root, session_key=session_key
+    )
+    return [*kept, *settled_approved], [*auto_denied, *vetoed, *settled_denied], []

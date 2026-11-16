@@ -15340,7 +15340,7 @@
           "title": "Recommended Use Cases",
           "case1": "Local development and debugging",
           "case2": "CI/CD automation pipelines",
-          "case3": "Scheduled tasks and batch processing",
+          "case3": "Batch processing and long-running tasks",
           "case4": "Trusted environments with high confidence in AI behavior"
         }
       },
