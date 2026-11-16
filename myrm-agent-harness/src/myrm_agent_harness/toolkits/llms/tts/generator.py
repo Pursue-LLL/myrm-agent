@@ -188,6 +188,7 @@ class AsyncTTSEngine:
             else:
                 raise ValueError(f"Unsupported TTS provider: {provider}")
 
+        payload: dict[str, object]
         if provider == "openai":
             payload = {
                 "model": self.config.model,

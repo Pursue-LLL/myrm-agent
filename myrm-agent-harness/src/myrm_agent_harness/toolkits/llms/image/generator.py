@@ -2,6 +2,7 @@
 
 [INPUT]
 - transport.images::{agenerate_images, aedit_images, GeneratedImage} (POS: provider image requests)
+- media_inputs::MediaInputError (POS: a media reference that cannot be used however often it is retried)
 - models::{ImageGenerationConfig, ImageResult, ...} (POS: configuration and result types)
 - types::{get_profile, editable_model_names} (POS: model capability lookup)
 
@@ -31,6 +32,7 @@ from dataclasses import replace
 
 import httpx
 
+from myrm_agent_harness.toolkits.llms.media_inputs import MediaInputError
 from myrm_agent_harness.toolkits.llms.transport.images import GeneratedImage, aedit_images, agenerate_images
 from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError
 
@@ -141,13 +143,13 @@ class ImageGenerator:
             ImageResult with URL or base64 data, plus the stored reference when a media callback is configured.
 
         Raises:
-            ImageGenerationError: If generation fails across all models, the model accepts no input images
-                while references were given, or the image cannot be stored.
+            ImageGenerationError: If generation fails across all models or the image cannot be stored.
+            MediaInputError: References were given but the model accepts no input images; no retry can fix that.
         """
         if reference_images:
             profile = get_profile(self._config.model)
             if profile is not None and profile.max_input_images == 0:
-                raise ImageGenerationError(
+                raise MediaInputError(
                     f"Model {self._config.model} does not accept input images. "
                     f"Models that do: {', '.join(editable_model_names())}"
                 )
@@ -160,6 +162,7 @@ class ImageGenerator:
                 reference_images[0],
                 prompt,
                 size=size,
+                quality=quality,
                 cancellation_event=cancellation_event,
             )
 
@@ -199,6 +202,7 @@ class ImageGenerator:
         *,
         mask: bytes | None = None,
         size: str | None = None,
+        quality: str | None = None,
         cancellation_event: asyncio.Event | None = None,
     ) -> ImageResult:
         """Edit an image based on a text prompt with failover.
@@ -208,6 +212,7 @@ class ImageGenerator:
             prompt: Text description of the desired edit.
             mask: Optional mask image (transparent areas indicate edit regions).
             size: Output image dimensions (overrides config default).
+            quality: Provider quality value; not sent when ``None`` so the provider applies its own default.
             cancellation_event: Set this event to cancel editing.
 
         Returns:
@@ -226,6 +231,7 @@ class ImageGenerator:
                 prompt,
                 mask=mask,
                 size=effective_size,
+                quality=quality,
                 api_key=api_key,
                 api_base=api_base,
                 timeout=self._config.timeout_seconds,

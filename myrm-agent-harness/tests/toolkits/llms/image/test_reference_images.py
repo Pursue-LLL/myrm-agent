@@ -9,10 +9,10 @@ import pytest
 
 from myrm_agent_harness.toolkits.llms.image.generator import (
     ImageGenerationConfig,
-    ImageGenerationError,
     ImageGenerator,
 )
 from myrm_agent_harness.toolkits.llms.image.models import ImageResult
+from myrm_agent_harness.toolkits.llms.media_inputs import MediaFetchError, MediaInputError
 from myrm_agent_harness.toolkits.llms.transport.images import GeneratedImage
 
 _EDITABLE = "gpt-image-2.6-sunburst"
@@ -37,8 +37,18 @@ class TestGenerateWithReferences:
             b"ref-image-bytes",
             "edit the image",
             size="1536x1024",
+            quality=None,
             cancellation_event=None,
         )
+
+    @pytest.mark.asyncio()
+    async def test_the_quality_asked_for_reaches_the_edit_request(self) -> None:
+        gen = ImageGenerator(ImageGenerationConfig(model=_EDITABLE, max_retries=0))
+
+        with patch(_EDIT, new_callable=AsyncMock, return_value=[GeneratedImage(url="https://x/e.png")]) as mock_edit:
+            await gen.generate("test", quality="high", reference_images=[b"ref"])
+
+        assert mock_edit.call_args.kwargs["quality"] == "high"
 
     @pytest.mark.asyncio()
     async def test_extra_references_are_ignored_with_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
@@ -60,12 +70,13 @@ class TestGenerateWithReferences:
         with (
             patch(_GENERATE, new_callable=AsyncMock) as mock_generate,
             patch(_EDIT, new_callable=AsyncMock) as mock_edit,
-            pytest.raises(ImageGenerationError, match=r"does not accept input images.*gpt-image-2"),
+            pytest.raises(MediaInputError, match=r"does not accept input images.*gpt-image-2") as refused,
         ):
             await gen.generate("test", reference_images=[b"ref"])
 
         mock_generate.assert_not_awaited()
         mock_edit.assert_not_awaited()
+        assert not isinstance(refused.value, MediaFetchError)  # no retry can make the model accept them
 
     @pytest.mark.asyncio()
     async def test_an_unprofiled_model_gets_the_reference_and_the_provider_decides(self) -> None:

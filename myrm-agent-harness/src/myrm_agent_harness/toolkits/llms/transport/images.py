@@ -137,12 +137,14 @@ def _openai_generation(route: Route, prompt: str, size: str, quality: str | None
 
 
 def _openai_edit(
-    route: Route, image: bytes, prompt: str, mask: bytes | None, size: str, timeout: float
+    route: Route, image: bytes, prompt: str, mask: bytes | None, size: str, quality: str | None, timeout: float
 ) -> PreparedRequest:
     url, query, headers = openai_endpoint(route, split_params({}), "/images/edits")
     form = {"prompt": prompt, "size": size}
     if route.profile.wire != "azure_openai":
         form["model"] = route.model
+    if quality:
+        form["quality"] = quality
     files: dict[str, FilePart] = {"image[]": _upload("image", image)}  # the GPT image models take a list of inputs
     if mask is not None:
         files["mask"] = _upload("mask", mask)
@@ -355,6 +357,7 @@ async def aedit_images(
     *,
     mask: bytes | None,
     size: str,
+    quality: str | None,
     api_key: str | None,
     api_base: str | None,
     timeout: float,
@@ -363,5 +366,5 @@ async def aedit_images(
     route = _route(model, api_key, api_base)
     if route.profile.wire not in _OPENAI_WIRES or route.profile.id in _NON_OPENAI_IMAGE_PROVIDERS:
         raise UnsupportedProviderError(f"Provider '{route.profile.id}' has no image editing endpoint")
-    payload = await asend_json(_openai_edit(route, image, prompt, mask, size, timeout))
+    payload = await asend_json(_openai_edit(route, image, prompt, mask, size, quality, timeout))
     return _parse_openai(payload, route.profile.id)

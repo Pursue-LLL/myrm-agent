@@ -13,7 +13,12 @@ import pytest
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import ContentTooLargeError
 from myrm_agent_harness.toolkits.llms import media_inputs
-from myrm_agent_harness.toolkits.llms.media_inputs import MediaInputError, MediaInputPolicy, resolve_media_inputs
+from myrm_agent_harness.toolkits.llms.media_inputs import (
+    MediaFetchError,
+    MediaInputError,
+    MediaInputPolicy,
+    resolve_media_inputs,
+)
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 MP4 = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 32
@@ -203,8 +208,32 @@ class TestRejected:
             return httpx.Response(404, request=httpx.Request("GET", url))
 
         monkeypatch.setattr(media_inputs, "secure_get", not_found)
-        with pytest.raises(MediaInputError, match="download failed"):
+        with pytest.raises(MediaFetchError, match="download failed"):
             await _images(policy, "https://example.com/gone.png")
+
+    async def test_corrupt_base64_with_non_ascii_text(self, policy: MediaInputPolicy) -> None:
+        with pytest.raises(MediaInputError, match="invalid base64"):
+            await _images(policy, "data:image/png;base64,caf\u00e9")
+
+    async def test_path_with_a_nul_byte(self, policy: MediaInputPolicy) -> None:
+        with pytest.raises(MediaInputError, match="image_url: not a valid file path"):
+            await _images(policy, "photo\x00.png")
+
+    async def test_file_that_cannot_be_read(self, policy: MediaInputPolicy, monkeypatch: pytest.MonkeyPatch) -> None:
+        def unreadable(self: Path) -> bytes:
+            raise PermissionError("denied")
+
+        monkeypatch.setattr(Path, "read_bytes", unreadable)
+        with pytest.raises(MediaInputError, match="image_url: the file cannot be read"):
+            await _images(policy, "_uploaded/photo.png")
+
+    async def test_malformed_url(self, policy: MediaInputPolicy, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def malformed(url: str, **_: object) -> httpx.Response:
+            raise httpx.InvalidURL("bad")
+
+        monkeypatch.setattr(media_inputs, "secure_get", malformed)
+        with pytest.raises(MediaInputError, match="not a valid URL"):
+            await _images(policy, "http://exa mple.com/a.png")
 
 
 class TestErrorNamesTheOffendingReference:
@@ -217,3 +246,71 @@ class TestErrorNamesTheOffendingReference:
     async def test_nothing_is_dropped_silently(self, policy: MediaInputPolicy) -> None:
         with pytest.raises(MediaInputError):
             await resolve_media_inputs(["media://abc", "media://zzz-missing"], "image", policy, field_name="refs")
+
+
+class TestWhatARetryCanFix:
+    """``MediaFetchError`` marks trouble reaching the source; every other refusal fails the same way again."""
+
+    @pytest.mark.parametrize(
+        "failure", [httpx.ConnectTimeout("slow"), httpx.ConnectError("down"), httpx.ReadTimeout("slow")]
+    )
+    async def test_network_trouble_is_a_fetch_error(
+        self, policy: MediaInputPolicy, monkeypatch: pytest.MonkeyPatch, failure: httpx.HTTPError
+    ) -> None:
+        async def broken(url: str, **_: object) -> httpx.Response:
+            raise failure
+
+        monkeypatch.setattr(media_inputs, "secure_get", broken)
+        with pytest.raises(MediaFetchError, match=r"image_url: download failed"):
+            await _images(policy, "https://example.com/a.png")
+
+    @pytest.mark.parametrize("failure", [TimeoutError(), ConnectionResetError()])
+    async def test_a_store_that_is_down_is_a_fetch_error(self, root: Path, failure: OSError) -> None:
+        async def down(ref: str) -> bytes:
+            raise failure
+
+        flaky = MediaInputPolicy(allowed_roots=(root,), loaders={"media": down})
+        with pytest.raises(MediaFetchError, match=r"image_url: could not be loaded right now"):
+            await _images(flaky, "media://abc")
+
+    async def test_a_loader_that_cannot_find_the_file_is_not_a_fetch_error(self, root: Path) -> None:
+        async def gone(ref: str) -> bytes:
+            raise FileNotFoundError(ref)
+
+        missing = MediaInputPolicy(allowed_roots=(root,), loaders={"media": gone})
+        with pytest.raises(MediaInputError, match="not found") as refused:
+            await _images(missing, "media://abc")
+        assert type(refused.value) is MediaInputError
+
+    @pytest.mark.parametrize(
+        "ref",
+        ["  ", ".env", "_uploaded/none.png", "../outside.png", "ftp://host/a.png", "media://missing", "photo\x00.png"],
+    )
+    async def test_a_refused_reference_is_not_a_fetch_error(self, policy: MediaInputPolicy, ref: str) -> None:
+        with pytest.raises(MediaInputError) as refused:
+            await _images(policy, ref)
+        assert type(refused.value) is MediaInputError
+
+    async def test_a_blocked_address_is_not_a_fetch_error(
+        self, policy: MediaInputPolicy, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def blocked(url: str, **_: object) -> httpx.Response:
+            raise SSRFSecurityError("private address")
+
+        monkeypatch.setattr(media_inputs, "secure_get", blocked)
+        with pytest.raises(MediaInputError) as refused:
+            await _images(policy, "http://169.254.169.254/latest")
+        assert type(refused.value) is MediaInputError
+
+    async def test_naming_the_field_keeps_the_retry_class(self, root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def down(url: str, **_: object) -> httpx.Response:
+            raise httpx.ConnectError("down")
+
+        monkeypatch.setattr(media_inputs, "secure_get", down)
+        with pytest.raises(MediaFetchError, match=r"reference_image_urls\[1\]: download failed"):
+            await resolve_media_inputs(
+                ["_uploaded/photo.png", "https://example.com/a.png"],
+                "image",
+                MediaInputPolicy(allowed_roots=(root,)),
+                field_name="reference_image_urls",
+            )

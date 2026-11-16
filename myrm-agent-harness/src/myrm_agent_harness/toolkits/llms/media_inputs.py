@@ -7,7 +7,9 @@
 
 [OUTPUT]
 - MediaInputPolicy: where references may be read from and how large the bytes may be
-- MediaInputError: a reference that cannot become usable media bytes; the message names the offending field
+- MediaInputError: a reference that cannot become usable media bytes, however often it is retried; the message names the
+  offending field
+- MediaFetchError: a MediaInputError raised when the source could not be reached this time (network or storage trouble)
 - MediaLoader: injected async loader of one reference scheme (the business layer owns what ``media://`` means)
 - resolve_media_inputs(): references -> validated bytes
 
@@ -16,14 +18,14 @@ Image reference inputs and video reference inputs go through here and nowhere el
 same way: a reference is a loader scheme, a path inside the allowed roots, ``data:`` (images only) or http(s); its size
 is checked before it is read in full; its leading bytes must be an image / video container (a ``.env`` or a key file
 is refused here); the optional image hook runs once on the way out. Any reference that fails raises a
-``MediaInputError`` naming it, so a caller never generates from fewer inputs than were asked for.
+``MediaInputError`` naming it, so a caller never generates from fewer inputs than were asked for; the subclass
+``MediaFetchError`` marks the failures a retry can fix, which is how a task runner offers Retry only where it can help.
 """
 
 from __future__ import annotations
 
 import asyncio
 import base64
-import binascii
 import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -46,7 +48,11 @@ _VIDEO_TIMEOUT_S = 60.0
 
 
 class MediaInputError(ValueError):
-    """A media reference could not be turned into usable bytes."""
+    """A media reference cannot be used as given: asking again with the same reference fails the same way."""
+
+
+class MediaFetchError(MediaInputError):
+    """A reference could not be fetched this time (network or storage trouble); the same reference may work later."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,8 +81,10 @@ async def resolve_media_inputs(
     """Resolve every reference to validated bytes, in order.
 
     Raises:
-        MediaInputError: A reference is empty, unsupported, outside the allowed roots, too large, unreachable or not
-            an image / video; the message starts with ``field_name`` (indexed when there are several references).
+        MediaInputError: A reference is empty, unsupported, outside the allowed roots, unreadable, too large, blocked
+            or not an image / video; the message starts with ``field_name`` (indexed when there are several references).
+        MediaFetchError: A reference could not be downloaded or loaded because the network or the store is failing;
+            asking again may succeed. A loader's own unexpected failures propagate unchanged.
     """
     resolved: list[bytes] = []
     for index, ref in enumerate(refs):
@@ -85,7 +93,7 @@ async def resolve_media_inputs(
             data = await _load(ref.strip(), kind, policy)
             _validate(data, kind)
         except MediaInputError as exc:
-            raise MediaInputError(f"{where}: {exc}") from None
+            raise type(exc)(f"{where}: {exc}") from None  # the subclass says whether a retry can help
         if kind == "image" and policy.image_hook is not None:
             data = await asyncio.to_thread(policy.image_hook, data)  # CPU-bound re-encoding must not stall the loop
         resolved.append(data)
@@ -98,7 +106,7 @@ async def _load(ref: str, kind: MediaKind, policy: MediaInputPolicy) -> bytes:
     limit = policy.max_image_bytes if kind == "image" else policy.max_video_bytes
     match = _SCHEME.match(ref)
     if match is None:
-        return await asyncio.to_thread(_read_path, ref, policy.allowed_roots, limit)
+        return await _read_local(ref, policy.allowed_roots, limit)
     scheme, rest = match.group(1).lower(), match.group(2)
     if scheme in policy.loaders:
         return await _run_loader(policy.loaders[scheme], rest.removeprefix("//"), limit)
@@ -130,11 +138,24 @@ def _too_large(limit: int) -> MediaInputError:
 async def _run_loader(loader: MediaLoader, ref: str, limit: int) -> bytes:
     try:
         data = await loader(ref)
+    except (ConnectionError, TimeoutError) as exc:  # before OSError, which they subclass: a store that is down now
+        raise MediaFetchError("could not be loaded right now") from exc
     except (OSError, LookupError) as exc:
         raise MediaInputError("not found") from exc
     if len(data) > limit:
         raise _too_large(limit)
     return data
+
+
+async def _read_local(ref: str, allowed_roots: Sequence[Path], limit: int) -> bytes:
+    try:
+        return await asyncio.to_thread(_read_path, ref, allowed_roots, limit)
+    except MediaInputError:
+        raise
+    except ValueError:  # a path with an embedded NUL byte
+        raise MediaInputError("not a valid file path") from None
+    except OSError:  # found but not readable: permissions, a file that vanished mid-read
+        raise MediaInputError("the file cannot be read") from None
 
 
 def _read_path(ref: str, allowed_roots: Sequence[Path], limit: int) -> bytes:
@@ -164,7 +185,7 @@ def _decode_data_url(rest: str, limit: int) -> bytes:
         raise _too_large(limit)
     try:
         return base64.b64decode(payload, validate=True)
-    except binascii.Error:
+    except ValueError:  # binascii.Error, or characters that are not ASCII at all
         raise MediaInputError("invalid base64 data") from None
 
 
@@ -182,5 +203,7 @@ async def _fetch(url: str, allow_private_networks: bool, limit: int, timeout: fl
         raise _too_large(limit) from None
     except SSRFSecurityError:
         raise MediaInputError("address is blocked by the network policy") from None
-    except (httpx.HTTPError, httpx.InvalidURL) as exc:
-        raise MediaInputError(f"download failed ({type(exc).__name__})") from None
+    except httpx.InvalidURL:
+        raise MediaInputError("not a valid URL") from None
+    except httpx.HTTPError as exc:
+        raise MediaFetchError(f"download failed ({type(exc).__name__})") from None

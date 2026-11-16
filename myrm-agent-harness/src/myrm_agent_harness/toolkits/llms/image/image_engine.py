@@ -66,6 +66,7 @@ class ImageGenerationTools:
         *,
         mask: bytes | None = None,
         size: str | None = None,
+        quality: str | None = None,
         image_mime: str | None = None,
         image_size_bytes: int | None = None,
         cancellation_event: asyncio.Event | None = None,
@@ -77,6 +78,7 @@ class ImageGenerationTools:
             prompt: Text description of the desired edit.
             mask: Optional mask image (transparent areas indicate edit regions).
             size: Output image dimensions.
+            quality: Provider quality value; not sent when ``None`` so the provider applies its own default.
             image_mime: MIME type of the input image (for validation).
             image_size_bytes: Size of input image in bytes (for validation).
             cancellation_event: Set to cancel editing.
@@ -102,6 +104,7 @@ class ImageGenerationTools:
                 prompt,
                 mask=mask,
                 size=size,
+                quality=quality,
                 cancellation_event=cancellation_event,
             )
             return _format_result(result, prompt)

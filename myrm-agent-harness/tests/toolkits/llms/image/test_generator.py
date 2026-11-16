@@ -292,6 +292,16 @@ class TestEditFailover:
         assert kwargs["mask"] == b"mask"
         assert kwargs["size"] == "1024x1024"
 
+    @pytest.mark.asyncio()
+    @pytest.mark.parametrize("quality", ["low", "high", None])
+    async def test_edit_forwards_the_quality_it_was_given(self, quality: str | None) -> None:
+        gen = ImageGenerator(ImageGenerationConfig(model=_MODEL, max_retries=0))
+
+        with patch(_EDIT, new_callable=AsyncMock, return_value=_image()) as mock:
+            await gen.edit(b"image", "edit", quality=quality)
+
+        assert mock.await_args.kwargs["quality"] == quality
+
 
 class TestCancellation:
     @pytest.mark.asyncio()

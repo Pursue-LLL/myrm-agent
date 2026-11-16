@@ -35,7 +35,7 @@ def _azure_versions() -> tuple[dict[str, str], dict[str, str]]:
     """The ``api-version`` query of a generation and of an edit sent to an Azure deployment."""
     route = service_route("azure/gpt-image-1", api_key="k", api_base="https://r.openai.azure.com")
     generation = images._openai_generation(route, "a cat", "1024x1024", None, 30.0)
-    edit = images._openai_edit(route, _PNG, "a cat", None, "1024x1024", 30.0)
+    edit = images._openai_edit(route, _PNG, "a cat", None, "1024x1024", None, 30.0)
     return dict(generation.query), dict(edit.query)
 
 

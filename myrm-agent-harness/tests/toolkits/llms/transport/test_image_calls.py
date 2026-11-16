@@ -45,6 +45,12 @@ async def _generate(model: str, *, size: str = "1024x1024", **overrides: object)
     return await agenerate_images(model, "a cat", size=size, **params)  # type: ignore[arg-type]
 
 
+async def _edit(image: bytes, *, model: str = "gpt-image-1", **overrides: object) -> list[GeneratedImage]:
+    params: dict[str, object] = {"mask": None, "quality": None, "api_key": "k", "api_base": None, "timeout": 30.0}
+    params.update(overrides)
+    return await aedit_images(model, image, "edit", size="1024x1024", **params)  # type: ignore[arg-type]
+
+
 _OPENAI_ANSWER: Answer = {
     "data": [{"url": "https://img/1.png", "revised_prompt": "a fluffy cat"}, {"b64_json": "QUJD"}]
 }
@@ -154,6 +160,7 @@ class TestEdit:
             "make it blue",
             mask=b"\x89PNG\r\n\x1a\nmask",
             size="1024x1024",
+            quality=None,
             api_key="k",
             api_base=None,
             timeout=30.0,
@@ -172,35 +179,32 @@ class TestEdit:
         self, sent: Callable[[Answer], list[PreparedRequest]]
     ) -> None:
         requests = sent(_OPENAI_ANSWER)
-        await aedit_images(
-            "gpt-image-1", _PNG, "edit", mask=None, size="1024x1024", api_key="k", api_base=None, timeout=30.0
-        )
+        await _edit(_PNG)
         assert requests[0].files is not None
         assert set(requests[0].files) == {"image[]"}
+
+    async def test_quality_is_a_form_field_only_when_the_caller_names_one(
+        self, sent: Callable[[Answer], list[PreparedRequest]]
+    ) -> None:
+        requests = sent(_OPENAI_ANSWER)
+        await _edit(_PNG, quality="high")
+        await _edit(_PNG)
+        assert requests[0].form is not None
+        assert requests[0].form["quality"] == "high"
+        assert requests[1].form is not None
+        assert "quality" not in requests[1].form
 
     async def test_jpeg_upload_is_labelled_by_its_content(
         self, sent: Callable[[Answer], list[PreparedRequest]]
     ) -> None:
         requests = sent(_OPENAI_ANSWER)
-        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 16
-        await aedit_images(
-            "gpt-image-1", jpeg, "edit", mask=None, size="1024x1024", api_key="k", api_base=None, timeout=30.0
-        )
+        await _edit(b"\xff\xd8\xff\xe0" + b"\x00" * 16)
         assert requests[0].files is not None
         assert requests[0].files["image[]"][2] == "image/jpeg"  # type: ignore[index]
 
     async def test_provider_without_an_edit_endpoint_is_rejected(self) -> None:
         with pytest.raises(UnsupportedProviderError, match="no image editing endpoint"):
-            await aedit_images(
-                "gemini/imagen-3.0-generate-002",
-                _PNG,
-                "edit",
-                mask=None,
-                size="1024x1024",
-                api_key="k",
-                api_base=None,
-                timeout=30.0,
-            )
+            await _edit(_PNG, model="gemini/imagen-3.0-generate-002")
 
 
 class TestGemini:

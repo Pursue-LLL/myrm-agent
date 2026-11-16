@@ -45,6 +45,17 @@ class TestEditImage:
         assert result["prompt"] == "revised"
 
     @pytest.mark.asyncio()
+    async def test_the_quality_asked_for_reaches_the_provider(self) -> None:
+        tools = ImageGenerationTools(ImageGenerationConfig(model=_MODEL))
+
+        with patch(
+            _EDIT, new_callable=AsyncMock, return_value=[GeneratedImage(url="https://example.com/i.png")]
+        ) as mock:
+            await tools.edit_image(b"png-bytes", "edit it", quality="high")
+
+        assert mock.await_args.kwargs["quality"] == "high"
+
+    @pytest.mark.asyncio()
     async def test_a_failed_edit_is_reported_as_an_error(self) -> None:
         tools = ImageGenerationTools(ImageGenerationConfig(model=_MODEL, max_retries=0))
 

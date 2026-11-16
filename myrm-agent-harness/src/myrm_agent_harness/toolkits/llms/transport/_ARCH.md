@@ -49,7 +49,7 @@ take a credential only from the caller, never from the environment.
 | `service_routes.py` | Config | Endpoint (the call's, else the provider's own variable, else its default) and credential (the call's only) resolution for embedding, rerank and image providers; `SERVICE_PROFILES` for the ones that serve no chat | ✅ |
 | `embeddings.py` | Core | OpenAI-compatible `/embeddings`, Cohere `/embed` and Gemini `:batchEmbedContents`; a custom `api_base` is a gateway that keeps the whole model id | ✅ |
 | `rerank.py` | Core | `/rerank` for Cohere, Jina, Together, SiliconFlow, Voyage and compatible gateways; an endpoint that stops short of a version segment gets the provider's (`/v2` Cohere, `/v1` Jina and Voyage) | ✅ |
-| `images.py` | Core | Image generation and editing: OpenAI-family (an Azure deployment takes its API version as chat and embeddings do), Gemini, Stability, MiniMax | ✅ |
+| `images.py` | Core | Image generation and editing: OpenAI-family (an Azure deployment takes its API version as chat and embeddings do; `quality` goes out on a generation and on an edit only when the caller names one), Gemini, Stability, MiniMax | ✅ |
 
 ## Key Dependencies
 

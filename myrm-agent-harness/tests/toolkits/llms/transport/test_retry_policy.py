@@ -111,7 +111,9 @@ class TestServiceCalls:
     async def test_image_generation_and_editing_are_sent_once(self, sent: list[PreparedRequest]) -> None:
         common = {"size": "1024x1024", "api_key": "k", "api_base": None, "timeout": 30.0}
         await images.agenerate_images("openai/gpt-image-1", "a cat", quality=None, **common)
-        await images.aedit_images("openai/gpt-image-1", b"\x89PNG\r\n\x1a\n", "a hat", mask=None, **common)
+        await images.aedit_images(
+            "openai/gpt-image-1", b"\x89PNG\r\n\x1a\n", "a hat", mask=None, quality=None, **common
+        )
 
         assert [request.retries for request in sent] == [0, 0]
 
