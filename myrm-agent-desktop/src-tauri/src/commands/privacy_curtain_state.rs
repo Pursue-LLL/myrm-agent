@@ -38,7 +38,7 @@ pub const CURTAIN_STATE_FILE: &str = "curtain_state.json";
 static MUTATE_LOCK: Mutex<()> = Mutex::new(());
 
 /// 文件桥状态：server 无人值守 watcher 与 Tauri 帷幕状态机的共享事实。
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct CurtainState {
     /// 帷幕当前拉起。
