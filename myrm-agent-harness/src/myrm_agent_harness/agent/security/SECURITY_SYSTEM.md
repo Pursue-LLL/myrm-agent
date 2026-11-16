@@ -621,7 +621,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 - 渠道 `/yolo` 命令（Router 内存态，通过 `InboundMessage.metadata["yolo_state"]` 注入）
 - Agent 安全配置中显式启用（per-Agent YOLO，适用于定时任务等无人值守场景）
 
-安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性三类调用不受 YOLO 放行，仍挂起等人审批；唯独 cron 会话里没有人能批，其中的付款类调用由 `yolo.py` 直接拒绝（记 `CRON_DENY`），不会挂起。
+安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性三类调用不受 YOLO 放行，仍挂起等人审批；唯独定时运行（定时作业本身与它委派的子智能体）里没有人能批：付款类调用由 `yolo.py` 直接拒绝（记 `CRON_DENY`），其余仍挂起的调用由 `batch_processor/core.py` 交给 `_cron_settle` 按作业声明裁决（声明了就放行，没声明就拒绝），都不会挂起。
 
 ### 5.0.1 Managed Approval Policy (MAP) — 组织审批下限
 
@@ -754,7 +754,7 @@ class AllowlistEntry:
 - 连续拒绝达到 3 次（`_CONSECUTIVE_THRESHOLD`）：引导升级为"auto-mode 暂停，后续动作都需人工批准，停下来向用户解释"。任何一次被放行的操作都会让连续计数清零。
 - 累计拒绝达到 20 次（`_TOTAL_THRESHOLD`）：同样升级；之后一次显式批准把累计降到阈值以下以解除，平时每连续 3 次安全执行抵消 1 次累计拒绝。
 - 任一阈值被突破期间 auto-mode 真的被暂停（`batch_processor/decide.py`）：auto mode 下原本 ALLOW 的调用升级为 ASK（审计 `AUTO_MODE_SUSPENDED_ALLOW_ESCALATED`，审批卡标为高风险并隐藏"始终允许"），LLM 安全复核也不再自动放行。
-- 定时任务会话（session key 以 `cron:` 开头）没有人可问，升级文案改为"不要重试被拒动作，先完成不依赖它们的部分，并在最终回复里说明被拦下的动作与原因"。
+- 定时运行（作业本身与它委派的子智能体：`SecurityConfig.is_cron` 为真，或 session key 以 `cron:` 开头）没有人可问，升级文案改为"不要重试被拒动作，先完成不依赖它们的部分，并在最终回复里说明被拦下的动作与原因"。
 - 计数按会话键隔离，进程内注册表上限 10000 个会话，超限淘汰最早的一个。
 
 连续拒绝触发的升级引导示例：
@@ -786,11 +786,12 @@ class AllowlistEntry:
    全部通过 → 执行工具
 5. DENY → 记录审计 → 记录拒绝计数 → 返回错误 ToolMessage
 6. ASK 的后续裁决，依次：
-     a. Cron 会话 → resolve_cron_ask：能力声明视为预授权，付款类工具调用、凭据外送、越界路径、集成写入除外；未声明能力集 fail-closed 拒绝
+     a. 定时运行 → `_cron_settle.settle_ask`（`resolve_cron_ask`）：能力声明视为预授权，付款类工具调用、凭据外送、越界路径、集成写入除外；未声明能力集 fail-closed 拒绝
      b. 技能钩子：BLOCK → 拒绝；REQUIRE_APPROVAL → 待审
      c. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
      d. auto-mode LLM 审核（社交不可逆动作与资金类工具不交审核模型，直接进 e）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
      e. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）
+     定时运行没有人答复待审：本批做完后仍待审的调用（YOLO 分支留下的社交不可逆与破坏性调用、审核模型无法裁决的调用、委派出去的智能体的各类 ASK），由 `evaluate_tool_batch` 末尾交 `_cron_settle.settle_pending`，按 a 的规则放行或拒绝，返回的待审列表恒为空
 7. 限流（evaluate_target）：同一用户在滑动窗口内审批请求过多 → 本批待审调用全部拒绝
 8. 发问（ToolApprovalMiddleware）：被拒调用 → 错误 ToolMessage；待审调用合并为一次 interrupt(payload) 批量审批
      子 Agent 的 payload 带 action_type=subagent_approval 与 subagent_task_id（缺 task_id 时直接拒绝）；影子 Agent 没有 UI 通道，直接拒绝
@@ -1166,7 +1167,7 @@ ruleset = (
 )
 ```
 
-Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但付款类工具调用（工具名或参数命中资金类词表）即使声明了能力也 DENY（`_cron_policy.py` 的 `resolve_cron_ask`；YOLO 开启时不走这条结算，`yolo.py` 对付款类调用同样直接拒绝）。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
+Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按 `_cron_policy.resolve_cron_ask` 处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但付款类工具调用（工具名或参数命中资金类词表）即使声明了能力也 DENY（YOLO 开启时 `yolo.py` 对付款类调用同样直接拒绝，其余待审调用在 `evaluate_tool_batch` 末尾走同一条结算）。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
 
 ### 本地模式浏览器放宽
 
@@ -1399,10 +1400,11 @@ Cron 是非交互式的，运行时无人可以审批。因此：
 1. **声明式能力围栏** — `CronJob.required_capabilities: tuple[str, ...]` 在创建时声明所需能力
 2. **声明式路径授权** — `CronJob.allowed_roots: tuple[str, ...]` 在创建时声明可访问的文件路径根目录
 3. **强制声明** — 每个 Cron Job 必须声明能力和路径，空声明 = 无能力 + 仅 workspace 内路径
-4. **fail-closed 策略** — Cron 渠道不强制 ALLOW `shell_exec/code_interpreter/mcp_invoke`，这些权限回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支决策：无声明式能力围栏时 DENY（fail-closed），有声明式能力围栏时 pre-approval ALLOW
+4. **fail-closed 策略** — Cron 渠道不强制 ALLOW `shell_exec/code_interpreter/mcp_invoke`，这些权限回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按声明决策：无声明式能力围栏时 DENY（fail-closed），有声明式能力围栏时 pre-approval ALLOW
+5. **定时运行里没有调用会挂起等人** — 「定时运行」指作业本身与它委派的子智能体、工作流节点：`SecurityConfig.is_cron`（CRON 渠道的配置带此标记，委派出去的智能体继承同一份配置）为真，或会话键以 `cron:` 开头（`_cron_policy.is_cron_run`）。委派出去的智能体的会话键是任务 id，不带 `cron:` 前缀，所以判定不能只看会话键。`evaluate_tool_batch` 在两条分支做完后，把仍待审的调用统一交给 `_cron_settle.settle_pending`，上述 fail-closed 规则对作业本身与委派出去的智能体一视同仁
 
 ```python
-# channel_presets.py — Cron 构建声明式能力集; declared_allowed_roots 适用于所有渠道
+# channel_presets.py — Cron 构建声明式能力集并标记定时作业; declared_allowed_roots 适用于所有渠道
 if channel_type == ChannelType.CRON and declared_capabilities:
     capabilities = _build_declared_capability_set(declared_capabilities)
 
@@ -1410,16 +1412,22 @@ if declared_allowed_roots:
     merged_roots = tuple(sorted(set(path_policy.allowed_roots) | set(declared_allowed_roots)))
     path_policy = PathPolicy(forbidden_paths=path_policy.forbidden_paths, allowed_roots=merged_roots)
 
-# batch_processor/ — Cron fail-closed 决策
-if is_cron:
-    if config.capabilities == DEFAULT_CAPABILITIES:
-        record_decision(tool_name, "CRON_DENY", "cron fail-closed: no explicit capability declaration")
-    elif is_financial_or_spend_tool(tool_name, tool_input):
-        record_decision(tool_name, "CRON_DENY", "cron fail-closed: payment-like tool call")
-    elif is_integration_mutation_command(shell_cmd):
-        record_decision(tool_name, "CRON_DENY", "cron fail-closed: integration write mutation")
-    else:
-        record_decision(tool_name, "ALLOW", "cron capability pre-approval")
+SecurityConfig(..., is_cron=channel_type == ChannelType.CRON)
+
+# batch_processor/core.py — 定时运行里本批仍待审的调用，在返回前一次裁决
+if is_cron and pending_approval:
+    settled_approved, settled_denied = settle_pending(pending_approval, ...)
+    return [*auto_approved, *settled_approved], [*auto_denied, *settled_denied], []
+
+# _cron_policy.resolve_cron_ask 给出裁决，_cron_settle.settle_ask 记审计 — Cron fail-closed 决策
+if config.capabilities == DEFAULT_CAPABILITIES:
+    record_decision(tool_name, "CRON_DENY", "cron fail-closed: no explicit capability declaration")
+elif is_financial_or_spend_tool(tool_name, tool_input):
+    record_decision(tool_name, "CRON_DENY", "cron fail-closed: payment-like tool call")
+elif is_integration_mutation_command(shell_cmd):
+    record_decision(tool_name, "CRON_DENY", "cron fail-closed: integration write mutation")
+else:
+    record_decision(tool_name, "ALLOW", "cron capability pre-approval")
 ```
 
 ---

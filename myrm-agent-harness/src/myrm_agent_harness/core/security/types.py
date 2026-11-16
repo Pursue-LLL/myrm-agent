@@ -432,6 +432,9 @@ class SecurityConfig:
     yolo_mode_timeout: int | None = None
     classify_all_shell_in_auto_mode: bool = False
     is_sandbox: bool = False
+    # A scheduled job's config. No person can answer an approval ask in such a run, nor in the agents it delegates
+    # to (they inherit this object), so the job's declared capabilities answer instead of a pause.
+    is_cron: bool = False
 
     # ------------------------------------------------------------------
     # Factory methods — pre-built profiles for common security postures
@@ -470,7 +473,6 @@ class SecurityConfig:
             PermissionRule("invoke_external_agent", "*", PermissionAction.DENY),
         )
         return cls(
-            capabilities=frozenset({Capability("*", "*")}),
             ruleset=read_only_rules,
             path_policy=PathPolicy(
                 access_roots=access_roots_from_paths(allowed_roots),
@@ -506,7 +508,6 @@ class SecurityConfig:
             PermissionRule("invoke_external_agent", "*", PermissionAction.ASK),
         )
         return cls(
-            capabilities=frozenset({Capability("*", "*")}),
             ruleset=workspace_rules,
             path_policy=PathPolicy(
                 access_roots=access_roots_from_paths(allowed_roots),
@@ -523,7 +524,6 @@ class SecurityConfig:
         """
         full_rules: PermissionRuleset = (PermissionRule("*", "*", PermissionAction.ALLOW),)
         return cls(
-            capabilities=frozenset({Capability("*", "*")}),
             ruleset=full_rules,
             yolo_mode_enabled=True,
         )
@@ -546,9 +546,7 @@ class SecurityConfig:
             PermissionRule("invoke_external_agent", "*", PermissionAction.DENY),
         )
         return cls(
-            capabilities=frozenset({Capability("*", "*")}),
             ruleset=remote_rules,
-            yolo_mode_enabled=False,
         )
 
 
