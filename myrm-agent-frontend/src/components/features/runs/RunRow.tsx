@@ -1,8 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useId, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Timer,
   CheckCircle2,
@@ -19,7 +19,7 @@ import {
 import { cn } from '@/lib/utils/classnameUtils';
 import type { UnifiedRun, RunSource, RunStatus } from '@/services/runs';
 import { skipReasonLabelKey } from '@/components/features/cron/cron-utils';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 
 const ExecutionTraceTimeline = dynamic(
   () => import('@/components/features/settings/sections/system/ExecutionTraceTimeline'),
@@ -44,7 +44,7 @@ const SOURCE_LABEL_KEY: Record<RunSource, 'sourceCron' | 'sourceKanban' | 'sourc
 const SOURCE_COLORS: Record<RunSource, string> = {
   cron: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   kanban: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  background: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+  background: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
 };
 
 function formatDuration(ms: number | null): string {
@@ -62,23 +62,6 @@ function formatDuration(ms: number | null): string {
   }
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
-}
-
-function formatRelativeTime(isoDate: string, t: ReturnType<typeof useTranslations>): string {
-  const diff = Date.now() - new Date(isoDate).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) {
-    return t('timeJustNow');
-  }
-  if (minutes < 60) {
-    return t('timeMinutesAgo', { count: minutes });
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return t('timeHoursAgo', { count: hours });
-  }
-  const days = Math.floor(hours / 24);
-  return t('timeDaysAgo', { count: days });
 }
 
 function stopReasonLabelKey(code: string | undefined): string {
@@ -105,6 +88,8 @@ function stopReasonLabelKey(code: string | undefined): string {
 
 export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslations> }) {
   const tCron = useTranslations('cron');
+  const locale = useLocale();
+  const detailId = useId();
   const [expanded, setExpanded] = useState(false);
   // A skipped cron run's output is the code of what skipped it; the label is what the user can read.
   const skipLabelKey =
@@ -118,68 +103,79 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
   const stopReasonMessage = run.stop_reason?.message?.trim() || null;
   const compactStopReason = !run.error ? stopReasonMessage : null;
 
+  // The header is the only toggle: the detail region holds its own controls (trace replay, export, selectable
+  // output), so it must not sit inside the element that collapses the row. Button content is phrasing-only.
+  const summaryContent = (
+    <>
+      <span className="mt-0.5 shrink-0">{STATUS_ICON[run.status]}</span>
+      <span className="block flex-1 min-w-0 space-y-0.5">
+        <span className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground truncate">{run.title}</span>
+          <span className={cn('shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium', SOURCE_COLORS[run.source])}>
+            {t(SOURCE_LABEL_KEY[run.source])}
+          </span>
+          {run.has_execution_steps && (
+            <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+              {t('executionStepsBadge')}
+            </span>
+          )}
+        </span>
+        {!expanded && run.error && (
+          <span className="block text-[11px] text-destructive-text font-mono truncate">{run.error}</span>
+        )}
+        {!expanded && !run.error && compactStopReason && (
+          <span className="block text-[11px] text-warning truncate">{compactStopReason}</span>
+        )}
+        {!expanded && !run.error && !compactStopReason && summary && (
+          <span className="block text-[11px] text-muted-foreground truncate">{summary}</span>
+        )}
+      </span>
+      <span className="shrink-0 flex flex-col items-end gap-0.5">
+        <span className="text-[10px] text-muted-foreground">{formatRelativeTime(run.started_at, locale)}</span>
+        {run.duration_ms != null && (
+          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+            <Timer className="h-2.5 w-2.5" />
+            {formatDuration(run.duration_ms)}
+          </span>
+        )}
+        {hasDetail &&
+          (expanded ? (
+            <ChevronUp className="h-3 w-3 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          ))}
+      </span>
+    </>
+  );
+
   return (
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
-    <div
-      className={cn(
-        'rounded-lg border border-border/20 bg-card/30 transition-colors',
-        hasDetail && 'cursor-pointer hover:bg-card/60',
+    <div className="rounded-lg border border-border/20 bg-card/30">
+      {hasDetail ? (
+        <button
+          type="button"
+          className={cn(
+            'flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-card/60',
+            expanded ? 'rounded-t-lg' : 'rounded-lg',
+          )}
+          aria-expanded={expanded}
+          aria-controls={expanded ? detailId : undefined}
+          onClick={() => setExpanded((open) => !open)}
+        >
+          {summaryContent}
+        </button>
+      ) : (
+        <div className="flex items-start gap-3 px-3 py-2.5">{summaryContent}</div>
       )}
-      onClick={hasDetail ? () => setExpanded(!expanded) : undefined}
-      role={hasDetail ? 'button' : undefined}
-      tabIndex={hasDetail ? 0 : undefined}
-      onKeyDown={activateOnKey}
-    >
-      <div className="flex items-start gap-3 px-3 py-2.5">
-        <div className="mt-0.5 shrink-0">{STATUS_ICON[run.status]}</div>
-        <div className="flex-1 min-w-0 space-y-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground truncate">{run.title}</span>
-            <span className={cn('shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium', SOURCE_COLORS[run.source])}>
-              {t(SOURCE_LABEL_KEY[run.source])}
-            </span>
-            {run.has_execution_steps && (
-              <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                {t('executionStepsBadge')}
-              </span>
-            )}
-          </div>
-          {!expanded && run.error && (
-            <p className="text-[11px] text-red-500/80 dark:text-red-400/80 font-mono truncate">{run.error}</p>
-          )}
-          {!expanded && !run.error && compactStopReason && (
-            <p className="text-[11px] text-amber-600/90 dark:text-amber-300/90 truncate">{compactStopReason}</p>
-          )}
-          {!expanded && !run.error && !compactStopReason && summary && (
-            <p className="text-[11px] text-muted-foreground truncate">{summary}</p>
-          )}
-        </div>
-        <div className="shrink-0 flex flex-col items-end gap-0.5">
-          <span className="text-[10px] text-muted-foreground">{formatRelativeTime(run.started_at, t)}</span>
-          {run.duration_ms != null && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-              <Timer className="h-2.5 w-2.5" />
-              {formatDuration(run.duration_ms)}
-            </span>
-          )}
-          {hasDetail &&
-            (expanded ? (
-              <ChevronUp className="h-3 w-3 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-3 w-3 text-muted-foreground" />
-            ))}
-        </div>
-      </div>
 
       {expanded && (
-        <div className="px-3 pb-3 pt-0 space-y-2 border-t border-border/10 mt-0">
+        <div id={detailId} className="px-3 pb-3 pt-0 space-y-2 border-t border-border/10 mt-0">
           {output && (
             <pre className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words font-mono max-h-48 overflow-y-auto">
               {output}
             </pre>
           )}
           {run.error && (
-            <pre className="text-xs text-red-500/80 dark:text-red-400/80 bg-red-500/5 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+            <pre className="text-xs text-destructive-text bg-red-500/5 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
               {run.error}
             </pre>
           )}
@@ -223,10 +219,8 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
                           step.error ? 'bg-red-400' : 'bg-emerald-400',
                         )}
                       />
-                      <span className="font-mono text-foreground/80 truncate">
-                        {step.tool_name || step.step_key || `step ${idx + 1}`}
-                      </span>
-                      {step.error && <span className="text-red-400 truncate ml-1">{step.error}</span>}
+                      <span className="font-mono text-foreground/80 truncate">{step.tool_name || step.step_key}</span>
+                      {step.error && <span className="text-destructive-text truncate ml-1">{step.error}</span>}
                     </div>
                   ),
                 )}
