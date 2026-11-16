@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- is_safe_session_id: validate a session/chat id as a safe filesystem path component
+- is_safe_session_id: validate a session/chat id (any value; non-strings are rejected) as a safe filesystem path component
 
 [POS]
 通用安全工具。为任何把 session_id/chat_id 拼进文件路径的调用方提供统一白名单校验，
@@ -24,7 +24,7 @@ import re
 _SESSION_ID_RE = re.compile(r"[A-Za-z0-9:_-]{1,255}")
 
 
-def is_safe_session_id(session_id: str) -> bool:
+def is_safe_session_id(session_id: object) -> bool:
     """Return True only if ``session_id`` is a safe filesystem path component.
 
     Rejects path traversal (`..`), backslashes, NUL bytes, any character

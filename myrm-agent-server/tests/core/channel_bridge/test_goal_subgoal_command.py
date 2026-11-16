@@ -41,5 +41,6 @@ async def test_a_subgoal_added_between_turns_lands_on_the_stored_goal(chat_id: s
     assert reply == get_text(_message(), "subgoal_added", text="collect the figures")
     stored = await GoalRegistry.resolve_provider(chat_id).get_goal(goal.goal_id)
     assert stored is not None
+    assert stored.subgoals is not None
     assert [subgoal["text"] for subgoal in stored.subgoals] == ["collect the figures"]
     assert GoalRegistry.get_provider(chat_id) is None
