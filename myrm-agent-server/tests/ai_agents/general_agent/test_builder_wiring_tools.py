@@ -202,6 +202,11 @@ class TestExternalAgents:
 
 
 class TestGoals:
+    @pytest.fixture(autouse=True)
+    def _language_comes_from_the_session(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An operator's ``MYRM_LOCALE`` must not decide which language the goal tool is described in."""
+        monkeypatch.delenv("MYRM_LOCALE", raising=False)
+
     def _provider(self, harness: BuilderHarness, *, active_goal: object) -> tuple[MagicMock, MagicMock]:
         """The chat's goal provider and the harness factory of the goal tools it is handed to."""
         provider = MagicMock(name="goal_provider")
@@ -217,9 +222,27 @@ class TestGoals:
         handed = await harness.build(harness.wrapper(enable_planning=False))
 
         provider.get_active_goal.assert_awaited_once_with(CHAT_ID)
-        create_tools.assert_called_once_with(provider, CHAT_ID)
+        create_tools.assert_called_once_with(provider, CHAT_ID, locale="en")
         assert handed["enable_planning"] is True
         assert "complete_goal_tool" in allowed_tools(handed)
+
+    @pytest.mark.parametrize(
+        ("params", "described_in"),
+        [
+            pytest.param({"locale": "zh-CN"}, "zh-CN", id="chinese-session"),
+            pytest.param({"channel_name": "feishu"}, "zh-CN", id="im-channel-without-a-session-language"),
+            pytest.param({"locale": "en", "channel_name": "feishu"}, "en", id="english-session-on-an-im-channel"),
+            pytest.param({}, "en", id="no-language-at-all"),
+        ],
+    )
+    async def test_the_goal_tool_is_described_in_the_language_of_the_session(
+        self, harness: BuilderHarness, params: dict[str, str], described_in: str
+    ) -> None:
+        provider, create_tools = self._provider(harness, active_goal=SimpleNamespace(id="goal-1"))
+
+        await harness.build(harness.wrapper(enable_planning=False, **params))
+
+        create_tools.assert_called_once_with(provider, CHAT_ID, locale=described_in)
 
     async def test_a_provider_with_no_active_goal_changes_nothing(self, harness: BuilderHarness) -> None:
         _, create_tools = self._provider(harness, active_goal=None)

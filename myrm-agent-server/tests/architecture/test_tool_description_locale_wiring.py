@@ -47,12 +47,9 @@ _EXEMPT = {
 }
 # Calls that still leave it out and are to be fixed. An entry fails as stale as soon as its call passes the locale.
 _KNOWN_GAPS = {
-    "server:ai_agents/general_agent/factory/builder.py::create_goal_tools": "the goal tool does not get the session language yet",
     "server:ai_agents/general_agent/tool_setup/cron.py::create_cron_tools": (
         "the cron description gets the session language together with the rewrite of its Chinese text"
     ),
-    "server:ai_agents/general_agent/tool_setup/skill.py::create_skill_manage_tool": "not wired yet",
-    "server:ai_agents/general_agent/tool_setup/skill.py::create_skill_market_tool": "not wired yet",
 }
 _REGISTERED = frozenset(_EXEMPT) | frozenset(_KNOWN_GAPS)
 

@@ -51,6 +51,7 @@ class SkillToolsMixin(ToolSetupBaseMixin):
                 backend,
                 install_from_url_fn=install_url_fn,
                 uninstall_fn=uninstall_fn,
+                locale=self._tool_description_locale(),
             )
         )
         logger.info("Loaded skill_market_tool [Turn1]")
@@ -93,6 +94,7 @@ class SkillToolsMixin(ToolSetupBaseMixin):
                 skill_backend,
                 batch_committed_hook=ServerSkillManageBatchHook(),
                 snapshot_reader=ManagedSkillSnapshotReader(skill_creation_service),
+                locale=self._tool_description_locale(),
             )
         )
         logger.info("Loaded skill_manage_tool [Turn1]")

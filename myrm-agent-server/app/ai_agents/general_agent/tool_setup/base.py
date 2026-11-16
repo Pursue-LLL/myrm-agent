@@ -1,11 +1,13 @@
 """[INPUT]
 - app.ai_agents.general_agent.external_agents::ExternalAgentsMixin (POS: 外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP 后端注册、 本地模式自动检测（请求热路径使用 path-only 探测，版本探测留给设置态）， 以及绕过 LangChain 直接向前端流式转发外部 Agent 事件。)
+- app.core.agent.tool_description_locale::resolve_tool_description_locale (POS: locale a tool description is rendered in)
 
 [OUTPUT]
 - ToolSetupBaseMixin: Mixin providing all tool initialization methods for GeneralAgent.
 
 [POS]
-各工具族 mixin 共同继承，避免重复声明宿主属性；并提供各工具族共用的宿主安全策略解析（`_merged_security_config`）。
+各工具族 mixin 共同继承，避免重复声明宿主属性；并提供各工具族共用的宿主安全策略解析（`_merged_security_config`）
+与工具描述语言解析（`_tool_description_locale`）。
 """
 
 from __future__ import annotations
@@ -103,4 +105,18 @@ class ToolSetupBaseMixin(ExternalAgentsMixin):
             declared_capabilities=self.declared_capabilities,
             declared_allowed_roots=self.declared_allowed_roots,
             local_mode=is_local_mode(),
+        )
+
+    def _tool_description_locale(self) -> str:
+        """The language the harness writes tool descriptions in for this session.
+
+        The prompt locale is what the system prompt is written in, so it leads; an IM channel without any language of
+        its own gets the channel's default, which is how a Feishu session reads Chinese descriptions.
+        """
+        from app.core.agent.tool_description_locale import resolve_tool_description_locale
+
+        # getattr: a host that mounts only some tool families may carry no language attributes.
+        return resolve_tool_description_locale(
+            agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
+            channel=getattr(self, "channel_name", None),
         )
