@@ -44,9 +44,9 @@ Bilibili (B站) is China's leading video platform with extensive knowledge, educ
 
 ### Finding Videos
 
-Use `web_search_tool` with Bilibili-specific queries:
+Use `web_search_tool` with Bilibili-specific queries. Put `site:bilibili.com` in every query of the call; the Bilibili video search only runs when all of them carry it:
 - `site:bilibili.com "topic"` — direct Bilibili results
-- `"topic" bilibili 教程` — filtered by type
+- `site:bilibili.com "topic" 教程` — filtered by type
 - BV number lookup: `BV1xx411c7xx` format
 
 ### Extract Video Metadata
