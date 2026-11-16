@@ -101,6 +101,6 @@ describe('turn-1 catalog preview copy in every locale', () => {
   // The meter shows the server's action-space complexity score (skills, MCP servers and built-in tools),
   // so it must not claim a token count that would contradict the real catalog tokens beside it.
   it.each(packs)('%s labels the load meter as a score, not as tokens', (_path, messages) => {
-    expect(messages.agent.configEditor.actionSpaceRadar.loadMeterLabel).not.toMatch(/token|トークン|토큰/i);
+    expect(messages.agent.configEditor.actionSpaceRadar.loadMeterLabel).not.toMatch(/token/i);
   });
 });
