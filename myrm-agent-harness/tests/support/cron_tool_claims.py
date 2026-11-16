@@ -160,7 +160,8 @@ async def active_window(w: World) -> None:
     assert (await w.accepted_job(active_start="09:00", **_DAILY)).active_hours is None
     both = await w.accepted_job(active_start="09:00", active_end="18:00", tz=SHANGHAI, **_DAILY)
     assert both.active_hours is not None and both.active_hours.tz == SHANGHAI
-    own = await w.accepted_job(active_start="09:00", active_end="18:00", tz=SHANGHAI, active_tz=NEW_YORK, **_DAILY)
+    # 09:00 in Shanghai is 20:00 or 21:00 the evening before in New York, so the window there must cover the evening.
+    own = await w.accepted_job(active_start="19:00", active_end="23:00", tz=SHANGHAI, active_tz=NEW_YORK, **_DAILY)
     assert own.active_hours is not None and own.active_hours.tz == NEW_YORK
 
 

@@ -5,8 +5,8 @@
 - toolkits.cron.stores::InMemoryCronStore (POS: job, run and in-flight marker persistence without a database)
 
 [OUTPUT]
-- InflightStack / make_inflight_stack: the store, a runner that holds every run on a gate and the scheduler, with `add`,
-  `launch`, `drain`, `markers`, `interrupted` and `end_runs`
+- InflightStack / make_inflight_stack: the store, a runner that holds every run on a gate, the scheduler and the notices
+  it raised, with `add`, `launch`, `drain`, `markers`, `interrupted` and `end_runs`; a notice callback may be injected
 - GateRunner: a runner that waits on a gate and records what the store held when a run was cancelled
 - EventLock: a lock that is free or taken and appends to a shared event list when released
 - SlowClearStore: a store whose marker deletion waits on a gate
@@ -21,13 +21,25 @@ the run it cares about, and reads the markers and run records back from the stor
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.cron import CronConfig, CronScheduler
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
-from myrm_agent_harness.toolkits.cron.types import CronJob, CronRunRecord, JobResult, JobType, Schedule, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    CronNotice,
+    CronRunRecord,
+    JobResult,
+    JobType,
+    Schedule,
+    ScheduleKind,
+)
 from tests.support.cron_manager_stack import NoDelivery
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.cron.protocols import CronNoticeCallback
 
 HOURLY = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0)
 ONCE = Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(UTC) - timedelta(seconds=1))
@@ -104,6 +116,7 @@ class InflightStack:
     store: InMemoryCronStore
     runner: GateRunner
     scheduler: CronScheduler
+    notices: list[CronNotice] = field(default_factory=list)
 
     async def add(
         self,
@@ -159,10 +172,26 @@ class InflightStack:
         await self.drain()
 
 
-def make_inflight_stack(store: InMemoryCronStore | None = None, *, lock: EventLock | None = None) -> InflightStack:
+def make_inflight_stack(
+    store: InMemoryCronStore | None = None,
+    *,
+    lock: EventLock | None = None,
+    on_notice: CronNoticeCallback | None = None,
+) -> InflightStack:
+    """The stack; without an ``on_notice`` every notice the scheduler raises is collected in ``notices``."""
     store = store or InMemoryCronStore()
     runner = GateRunner(store)
+    notices: list[CronNotice] = []
+
+    async def collect(notice: CronNotice) -> None:
+        notices.append(notice)
+
     scheduler = CronScheduler(
-        store, {JobType.AGENT: runner}, NoDelivery(), config=CronConfig(max_concurrent=4), lock=lock
+        store,
+        {JobType.AGENT: runner},
+        NoDelivery(),
+        config=CronConfig(max_concurrent=4),
+        lock=lock,
+        on_notice=on_notice or collect,
     )
-    return InflightStack(store, runner, scheduler)
+    return InflightStack(store, runner, scheduler, notices)

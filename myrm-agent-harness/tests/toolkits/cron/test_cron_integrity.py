@@ -15,6 +15,19 @@ from myrm_agent_harness.toolkits.cron.types import CronRunRecord, RunStatus
 _NOW = datetime(2026, 3, 29, 12, 0, 0, tzinfo=UTC)
 
 
+def _unhashed(run_id: str, offset_min: int = 0) -> CronRunRecord:
+    """A run the writer leaves out of the chain: a skip or an interrupted run carries no hash."""
+    t = _NOW + timedelta(minutes=offset_min)
+    return CronRunRecord(
+        id=run_id,
+        job_id="j1",
+        started_at=t,
+        finished_at=t + timedelta(seconds=1),
+        duration_ms=1000,
+        status=RunStatus.SKIPPED,
+    )
+
+
 def _run(
     run_id: str,
     job_id: str = "j1",
@@ -61,13 +74,24 @@ class TestVerifyChain:
     def test_empty_chain(self) -> None:
         assert verify_chain([]) == []
 
-    def test_stops_at_missing_hash(self) -> None:
-        r1 = CronRunRecord(
-            id="r1",
-            job_id="j1",
-            started_at=_NOW,
-            finished_at=_NOW + timedelta(seconds=1),
-            duration_ms=1000,
-            status=RunStatus.OK,
-        )
-        assert verify_chain([r1]) == []
+    def test_a_run_without_a_hash_is_not_part_of_the_chain(self) -> None:
+        r1 = _run("r1", offset_min=0)
+        r2 = _run("r2", offset_min=2, prev_hash=r1.integrity_hash or "")
+        assert verify_chain([_unhashed("s0", offset_min=-1), r1, _unhashed("s1", offset_min=1), r2]) == []
+
+    def test_tampering_after_a_run_without_a_hash_is_still_detected(self) -> None:
+        r1 = _run("r1", offset_min=0)
+        r2 = _run("r2", offset_min=2, prev_hash=r1.integrity_hash or "")
+        r3 = _run("r3", offset_min=3, prev_hash=r2.integrity_hash or "")
+        relinked_r2 = dc_replace(r2, prev_hash="tampered")
+        rewritten_r3 = dc_replace(r3, status=RunStatus.ERROR)
+
+        chain = [r1, _unhashed("s1", offset_min=1), relinked_r2, rewritten_r3]
+
+        breaks = {(b.run_id, b.kind) for b in verify_chain(chain)}
+
+        assert breaks == {
+            ("r2", "prev_hash_mismatch"),
+            ("r2", "integrity_hash_mismatch"),
+            ("r3", "integrity_hash_mismatch"),
+        }

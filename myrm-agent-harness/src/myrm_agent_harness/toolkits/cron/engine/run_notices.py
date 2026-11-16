@@ -1,11 +1,11 @@
-"""Notices the executor raises about a job: a delivered run's outcome and an automatic pause.
+"""Notices the executor raises about a job: a delivered run's outcome, a run a crash cut short and an automatic pause.
 
 [INPUT]
 - toolkits.cron.protocols::CronNoticeCallback (POS: Protocols for the cron toolkit.)
 - toolkits.cron.types::CronJob, CronNotice, CronNoticeKind, DeliveryStatus, JobResult (POS: Cron job domain types.)
 
 [OUTPUT]
-- RunNoticeMixin: `emit_notice` and `_notify_run_outcome`, mixed into the executor
+- RunNoticeMixin: `emit_notice`, `_notify_run_outcome` and `notify_interrupted`, mixed into the executor
 
 [POS]
 Mixed into ``JobExecutor``. The engine reports facts only (the kind of notice, the job's name, a snippet of the
@@ -56,6 +56,23 @@ class RunNoticeMixin:
                 kind=CronNoticeKind.RUN_SUCCEEDED if result.success else CronNoticeKind.RUN_FAILED,
                 job_name=job.name,
                 text=f"[{job.name}] {outcome[:_OUTCOME_SNIPPET_CHARS]}",
+                chat_id=job.chat_id,
+            )
+        )
+
+    async def notify_interrupted(self, job: CronJob) -> None:
+        """Notice of a run a crash cut short: no run closes it, so no outcome would ever report it.
+
+        A job that delivers nowhere stays quiet, as a run whose delivery was skipped does (``_try_deliver``).
+        """
+        if job.delivery.channel == "none":
+            return
+
+        await self.emit_notice(
+            CronNotice(
+                kind=CronNoticeKind.RUN_FAILED,
+                job_name=job.name,
+                text=f"[{job.name}] {(job.last_error or '')[:_OUTCOME_SNIPPET_CHARS]}",
                 chat_id=job.chat_id,
             )
         )

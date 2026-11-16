@@ -2,9 +2,8 @@
 
 [INPUT]
 - infra.incremental.types::ResetReason (POS: Domain types for incremental monitoring.)
-- cron.engine.helpers::next_eligible_run (POS: pure engine helpers: the next slot to book)
 - cron.engine.scheduler::CronScheduler (POS: timer-based scheduling engine)
-- cron.manager_validation::CronValidationMixin (POS: validation half of the cron CRUD manager)
+- cron.manager_validation::CronValidationMixin (POS: validation half of the cron CRUD manager and the one booking a user's input makes)
 - cron.types::CronJob, CronJobPatch, JobStatus (POS: cron data models)
 
 [OUTPUT]
@@ -25,7 +24,6 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.cron.engine.helpers import next_eligible_run
 from myrm_agent_harness.toolkits.cron.manager_validation import CronValidationMixin
 from myrm_agent_harness.toolkits.cron.types import JobStatus, ScheduleKind
 
@@ -68,7 +66,7 @@ class CronUpdateMixin(CronValidationMixin):
         self._validate_resume_preconditions(job, now)
         job.status = JobStatus.ACTIVE
         job.consecutive_failures = 0
-        job.next_run_at = next_eligible_run(job, now)
+        job.next_run_at = self._book_slot(job, now)
 
     async def _reset_baseline_on_change(self, job_id: str, reset_reason: ResetReason) -> None:
         """Reset monitor baseline and record reason.
@@ -237,7 +235,7 @@ class CronUpdateMixin(CronValidationMixin):
         if activating:
             self._activate(job, now)
         elif job.status == JobStatus.ACTIVE and _moves_slot(job, patch):
-            job.next_run_at = next_eligible_run(job, now)
+            job.next_run_at = self._book_slot(job, now)
         job.updated_at = now
 
         if reset_reason:

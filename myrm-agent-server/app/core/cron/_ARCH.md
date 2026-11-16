@@ -37,7 +37,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ |
 | `adapters/acceptance_verification.py` | 核心 | Cron 直接执行路径的 acceptance_criteria 验证：复用 harness VerificationGatekeeper 对成功结果做结构化验收 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
-| `notifier.py` | 核心 | 调度器的通知回调：把引擎抛出的 `CronNotice`（运行结果、自动暂停）按种类定级别、标题与文案（`channel_t` 按用户语言渲染），发布 `CRON_UPDATED` 与 `SYSTEM_NOTIFICATION` | ✅ |
+| `notifier.py` | 核心 | 调度器的通知回调：把引擎抛出的 `CronNotice`（运行结果、被崩溃打断的运行、自动暂停）按种类定级别、标题与文案（`channel_t` 按用户语言渲染），发布 `CRON_UPDATED` 与 `SYSTEM_NOTIFICATION` | ✅ |
 | `blueprints/` | 子包 | 自动化蓝图：`core/` 类型与注册/填充逻辑，`catalog/` 按主题存放 21 个内置蓝图；详见 [blueprints/_ARCH.md](blueprints/_ARCH.md) | — |
 | `__init__.py` | 入口 | 包标记，不导出名称；`adapters/` 不经此入口 | — |
 
@@ -143,7 +143,7 @@ API 支持：分页（offset/limit）、状态过滤（ok/error）、全局查�
 
 周期任务的下一个槽位在其运行开始之前就已订下（`scheduler._admit` 用一次条件写订槽，再启动运行），所以进程崩溃不会留下没有下一时刻的启用任务。每次运行在做任何事之前先写一行在飞标记（`cron_inflight` 表，见 `adapters/sqlalchemy_inflight.py`），任务的最后一次运行结束时清除；进程死在运行中时标记留在表里，下一次启动据此得知那次运行。标记属于运行而不属于任务行（没有外键，任务被删后运行仍在继续）。服务重启后 `StartupRecovery.run()` 依次执行三步：
 
-0. **报告被打断的运行**（`report_interrupted(counted=True)`）：对每个遗留标记，先删标记，再给任务写一条 ERROR 运行记录（`trigger_source=recovery`，错误为 `Interrupted: the server stopped before this run finished`，起点取标记时间、时长为 0，因为崩溃不留下结束时间）并计一次失败（`consecutive_failures + 1`，超过 `max_retries` 则暂停任务并清空下一时刻）；任务已被删除的标记直接丢弃。被打断的一次性任务仍然到点，在 grace 窗口内由第 2 步重新投递，所以每次运行都让进程崩溃的一次性任务在第三次尝试后被暂停；周期任务已订下下一个槽位，不会被重启重跑
+0. **报告被打断的运行**（`report_interrupted(counted=True)`）：对每个遗留标记，先删标记，再给任务写一条 ERROR 运行记录（`trigger_source=recovery`，错误为 `Interrupted: the server stopped before this run finished`，起点取标记时间、时长为 0，因为崩溃不留下结束时间）并计一次失败（`consecutive_failures + 1`，超过 `max_retries` 则暂停任务并清空下一时刻）；任务已被删除的标记直接丢弃。被打断的一次性任务仍然到点，在 grace 窗口内由第 2 步重新投递，所以每次运行都让进程崩溃的一次性任务在第三次尝试后被暂停；周期任务已订下下一个槽位，不会被重启重跑。崩溃留下的中断记录在记录与失败数存好之后，还会以 `RUN_FAILED` 通知交给 `on_notice`（`StartupRecovery` 的 `on_interrupted`，调度器接 `JobExecutor.notify_interrupted`；投递渠道为 `none` 的任务保持安静，回调失败只丢这条通知、不影响报告）
 1. **Phase 1 — Missed-Slot 精确回放**：对 CRON 类型任务，用 `compute_prev_run()` 计算上一个
    应执行槽位，若 `prev_slot` 晚于 `max(last_run_at, updated_at)` 说明确实漏执行，立即回放。
    跳过处于 error backoff 窗口内的任务（`is_in_error_backoff()`），不回放从未运行过的新任务
@@ -153,7 +153,7 @@ API 支持：分页（offset/limit）、状态过滤（ok/error）、全局查�
 后两步都把任务交给调度器的准入 `_admit`。纯函数 `is_in_error_backoff()`、`compute_prev_run()` 均在 helpers/parser 中，
 无 I/O 依赖，易于单元测试。
 
-**优雅停止**：`CronScheduler.stop()` 先给仍在飞的运行写记录（`report_interrupted(counted=False)`：`trigger_source=shutdown`，错误为 `Interrupted: the application was stopping before this run finished`，不计失败），再取消全部运行任务并最多等 0.5 秒（桌面端壳在约 2 秒后强杀慢退出，记录在取消之前写下，强杀也不会丢），最后释放调度器锁；停止删掉了标记，下次启动不会重复报告。分布式锁不能在持有者存活期间转交给另一个进程：启动时每个标记都被当作已死进程的遗迹。
+**优雅停止**：`CronScheduler.stop()` 先给仍在飞的运行写记录（`report_interrupted(counted=False)`：`trigger_source=shutdown`，错误为 `Interrupted: the application was stopping before this run finished`，不计失败、不发通知），再取消全部运行任务并最多等 0.5 秒（桌面端壳在约 2 秒后强杀慢退出，记录在取消之前写下，强杀也不会丢），最后释放调度器锁；停止删掉了标记，下次启动不会重复报告。分布式锁不能在持有者存活期间转交给另一个进程：启动时每个标记都被当作已死进程的遗迹。
 
 **边界**：订下槽位与写入标记之间进程死亡，这一个槽位的运行丢失且没有记录（下一个槽位已订，一次性任务不预订，不受影响）；运行已经收尾、只差清除标记时进程死亡，下次启动无法与未收尾的运行区分，会按被打断报告并计一次失败；同一任务在上一次运行清除标记的同一瞬间启动新运行，新运行的标记可能被一并清掉，这次运行若恰好被打断则没有记录；被打断的 cron 任务的补回放起点（`max(last_run_at, updated_at)`）变为报告时间，停机期间该任务的槽位不再补回放。
 
@@ -246,10 +246,10 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 
 ### Cron 通知（实时 Toast）
 
-引擎只陈述事实：每次运行结果与每次自动暂停都以 `CronNotice` 交给调度器的 `on_notice` 回调（`adapters/setup.py` 接 `notifier.publish_cron_notice`），级别与措辞由本层决定。
+引擎只陈述事实：每次运行结果、每次被崩溃打断的运行与每次自动暂停都以 `CronNotice` 交给调度器的 `on_notice` 回调（`adapters/setup.py` 接 `notifier.publish_cron_notice`），级别与措辞由本层决定。
 
-- **后端**：`notifier.py` 发布 `CRON_UPDATED`（刷新定时任务视图）与 `SYSTEM_NOTIFICATION`（用户读到的提示），经 SSE 到 WebUI，同一事件也进 Web Push、IM 卡片与语音播报
-- **种类与级别**：`RUN_SUCCEEDED` → `success`，`RUN_FAILED` → `error`，`JOB_EXPIRED` / `JOB_MAX_FIRES_REACHED`（调度器已自动暂停该任务）→ `warning`；级别写入 `meta_data.level`，前端 toast 按级别展示
+- **后端**：`notifier.py` 发布 `CRON_UPDATED`（刷新定时任务视图）与 `SYSTEM_NOTIFICATION`（用户读到的提示），经 SSE 到 WebUI，同一事件也进 Web Push、IM 卡片与语音播报；两条事件都用事件总线默认的回放，服务启动时（崩溃恢复）发出、早于任何客户端连接的通知，之后连上的客户端仍会收到（`tests/core/cron/test_cron_notifier.py`）
+- **种类与级别**：`RUN_SUCCEEDED` → `success`，`RUN_FAILED`（含被崩溃打断的运行）→ `error`，`JOB_EXPIRED` / `JOB_MAX_FIRES_REACHED`（调度器已自动暂停该任务）→ `warning`；级别写入 `meta_data.level`，前端 toast 按级别展示
 - **语言**：标题与暂停说明由 `channel_t` 按用户语言渲染（`cron_notice_*` 键，覆盖 en / zh-CN）；运行结果的正文是执行输出（失败时是错误）的前 100 个字符
 - **过滤**：`delivery_status=skipped`（SILENT 响应）不发通知
 - **语音**：运行结果沿用 `voice_background_task_done` 类型；任务绑定了聊天时，双工语音在该聊天里播报
@@ -336,6 +336,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 - **调度层**：`scheduler._dispatch()` 在执行前调用 `is_within_active_hours()`，
   不在活跃时段则跳过本次执行：定时到点的槽位记一条 SKIPPED 运行记录并订下下一个槽位（`next_eligible_run` 只选落在时段内的时刻），不视为失败；一次性任务不受活跃时段限制
 - **跨午夜**：支持 `start > end` 的跨午夜场景（如 22:00–06:00）
+- **不可达的时段**：创建、编辑与恢复任务时，若周期日程的运行永远落不进时段（扫描到的下一个槽位在时段外且至少一天之后），管理器拒绝并说明原因（`CronValidationMixin._book_slot`）；一次性任务不受限，每隔几秒触发的日程不会被误拒
 - **工具层**：`cron_manage_tool` 工具接受 `active_start`, `active_end`, `active_tz` 参数
 - **API 层**：`CronJobCreate/Update` 支持 `active_hours` JSON 字段
 - **前端**：CronJobCard 显示紫色 SunMoon 图标 + 时段标签，CronRunHistory 提供 ActiveHoursEditor 编辑器

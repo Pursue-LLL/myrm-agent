@@ -126,7 +126,11 @@ class CronScheduler(SchedulerDispatchMixin):
             on_notice=on_notice,
             pre_condition=pre_condition,
         )
-        self._recovery = StartupRecovery(store=store, admit_fn=self._admit)
+        self._recovery = StartupRecovery(
+            store=store,
+            admit_fn=self._admit,
+            on_interrupted=self._executor.notify_interrupted,
+        )
 
     def _spawn(self, coro: Coroutine[object, object, None]) -> None:
         """Schedule a tracked fire-and-forget task, guarding against premature GC."""
