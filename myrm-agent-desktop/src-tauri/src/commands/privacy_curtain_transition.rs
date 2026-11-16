@@ -2,6 +2,7 @@
 //!
 //! [INPUT]
 //! - commands::privacy_curtain_state (POS: 帷幕状态桥，mutate_state 返回 false = 文件原样保留)
+//! - commands::privacy_curtain_state_changes (POS: 状态的具名迁移，收起用 `release`)
 //!
 //! [OUTPUT]
 //! - raise_curtain: 窗口先落地、再记状态、没记下就撤销窗口
@@ -14,7 +15,7 @@
 
 use tauri::AppHandle;
 
-use crate::commands::privacy_curtain_state::mutate_state;
+use crate::commands::privacy_curtain_state::{mutate_state, CurtainState};
 
 /// 状态文件读不到或没写进去时交给调用方的错误（会原样展示给用户，不含路径等内部细节）。
 pub(crate) fn state_unavailable() -> String {
@@ -49,10 +50,7 @@ pub(crate) fn raise_curtain(
 /// 收起帷幕后记下状态。`Err` = 没记下、文件原样保留：自动收起的决策在下个 tick 依旧成立，
 /// 手动收起由用户重试补记（窗口早已不在，重试只剩记状态这一步）。
 pub(crate) fn record_release(app: &AppHandle) -> Result<(), String> {
-    ensure_recorded(mutate_state(app, |state| {
-        state.active = false;
-        state.auto_engaged = false;
-    }))
+    ensure_recorded(mutate_state(app, CurtainState::release))
 }
 
 #[cfg(test)]

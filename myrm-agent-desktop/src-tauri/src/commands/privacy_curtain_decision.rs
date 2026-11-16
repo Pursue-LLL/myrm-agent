@@ -5,7 +5,7 @@
 //!
 //! [OUTPUT]
 //! - TickFacts / TickAction / decide: 一个 tick 观测到的外部事实 → 应执行的动作
-//! - mark_auto_engaged / needs_monitor_count: 自动拉起的状态迁移 / 显示器数量的查询条件
+//! - needs_monitor_count: 显示器数量的查询条件
 //!
 //! [POS]
 //! 纯函数、不依赖 Tauri：状态机因此可脱离窗口与状态文件单测。副作用（窗口 / 状态文件）
@@ -69,13 +69,6 @@ pub(super) fn decide(facts: &TickFacts) -> TickAction {
         return TickAction::Rebuild;
     }
     TickAction::Idle
-}
-
-/// 自动拉起帷幕的状态迁移。刻意不碰 last_physical_input_ms：静默期基准只记录帷幕上真实的
-/// 物理输入，锁屏本身不是输入——人是否还在机前由 server 的硬件输入空闲探针判定。
-pub(super) fn mark_auto_engaged(s: &mut CurtainState) {
-    s.active = true;
-    s.auto_engaged = true;
 }
 
 /// 本 tick 是否需要比对显示器数量：只有重建会用到，且仅在 locked 或持租约时可能触发。
@@ -278,19 +271,5 @@ mod tests {
             next_tick.locked = locked;
             assert_eq!(decide(&next_tick), action);
         }
-    }
-
-    /// 锁屏不是帷幕上的物理输入：自动拉起若把它记成静默期起点，锁屏后 5 分钟内
-    /// 手机派发的任务都会被挡在屏幕外。
-    #[test]
-    fn auto_engage_keeps_the_physical_input_timestamp() {
-        let mut state = CurtainState {
-            last_physical_input_ms: 42,
-            ..CurtainState::default()
-        };
-        mark_auto_engaged(&mut state);
-        assert!(state.active);
-        assert!(state.auto_engaged);
-        assert_eq!(state.last_physical_input_ms, 42);
     }
 }
