@@ -12,7 +12,7 @@
 | `_workspace_snapshot.py` | 辅助 | `pre_destructive_snapshot_id`：破坏性命令等待审批前对工作目录做快照并返回快照 id，决策循环与 YOLO 分支共用 | ✅ |
 | `core.py` | 核心 | `evaluate_tool_batch` 入口、上下文组装与自动模式判定 | ✅ |
 | `decide.py` | 核心 | 逐工具判定循环（预检、策略、allowlist、HITL 分类） | ✅ |
-| `yolo.py` | 核心 | `_evaluate_yolo_batch`、YOLO 可用性与 operator-as-key 拒绝 | ✅ |
+| `yolo.py` | 核心 | `_evaluate_yolo_batch`（资金、社交不可逆、破坏性调用仍挂起等人审批；cron 会话里没有人能批，付款类调用改为直接拒绝并记 `CRON_DENY`）、YOLO 可用性与 operator-as-key 拒绝 | ✅ |
 
 ## 已知遗留
 

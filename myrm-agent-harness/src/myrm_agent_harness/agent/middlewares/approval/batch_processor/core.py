@@ -63,6 +63,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 def is_yolo_mode_active(config: SecurityConfig, *, session_key: str = "") -> bool:
     """Return True when YOLO is enabled and optional timeout has not expired."""
     if not config.yolo_mode_enabled:
@@ -125,6 +126,7 @@ async def evaluate_tool_batch(
         return await _evaluate_yolo_batch(
             tool_calls,
             config,
+            is_cron=is_cron,
             workspace_root=workspace_root,
             session_key=session_key,
         )

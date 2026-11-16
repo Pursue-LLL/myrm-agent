@@ -7,7 +7,9 @@
 - myrm_agent_harness.core.security.readonly_research_sandbox::get_readonly_research_sandbox_facade (POS: Entry of the read-only research lease package.)
 - myrm_agent_harness.core.security.spend_governance::compute_action_digest / is_financial_or_spend_tool / is_irreversible_social_action / parse_spend_amount (POS: Foundational Agent Commerce governance module in core/security/.)
 - myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
+- myrm_agent_harness.agent.middlewares.approval._cron_policy::PAYMENT_DENIED (POS: A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval, except for asks that carry a risk the declaration does not cover: credential data leaving the session, writes outside the job's directories, integration write mutations, payment-like tool calls.)
 - myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-only lease, the permission engine, the shell-escalation check and the LLM security review.)
+- myrm_agent_harness.agent.middlewares.approval.helpers::record_denial (POS: Approval middleware helper functions. Implements dual-threshold denial tracking (consecutive + total) with proactive guidance on every denial and automatic consecutive counter reset on any allowed operation.)
 - myrm_agent_harness.agent.middlewares.approval.batch_processor._workspace_snapshot::pre_destructive_snapshot_id (POS: 破坏性命令等待审批时的回滚点；决策循环与 YOLO 分支共用。)
 
 [OUTPUT]
@@ -15,7 +17,8 @@
 - _evaluate_yolo_batch: _evaluate_yolo_batch
 
 [POS]
-batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。
+batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。资金、社交不可逆、破坏性三类调用仍交给人审批；
+但无人值守的 cron 会话里没有人能批，付款类调用在这里直接拒绝，不挂起等一个不会来的答复。
 """
 
 from __future__ import annotations
@@ -51,7 +54,9 @@ from myrm_agent_harness.toolkits.code_execution.security.ast_parser import (
     is_destructive_shell_tool_call,
 )
 
+from .._cron_policy import PAYMENT_DENIED
 from ..denial_diagnostic_bridge import build_auto_review_denial_message
+from ..helpers import record_denial
 from ._workspace_snapshot import pre_destructive_snapshot_id
 
 _VISION_KEY_TOOL_NAMES = frozenset({"desktop_vision_tool", "desktop_vision"})
@@ -90,6 +95,7 @@ async def _evaluate_yolo_batch(
     tool_calls: list[ToolCall],
     config: SecurityConfig,
     *,
+    is_cron: bool,
     workspace_root: str | None,
     session_key: str,
 ) -> tuple[
@@ -173,6 +179,17 @@ async def _evaluate_yolo_batch(
             record_decision(tool_name, "YOLO_DENY_OVERRIDE", reason)
             auto_denied.append((idx, tool_call, build_auto_review_denial_message(tool_name, reason)))
         elif is_financial_or_spend_tool(tool_name, tool_input):
+            if is_cron:
+                logger.warning(
+                    "[CRON_POLICY] Tool %s DENIED in cron session %s under YOLO: %s",
+                    tool_name,
+                    session_key,
+                    PAYMENT_DENIED.audit_reason,
+                )
+                record_decision(tool_name, "CRON_DENY", PAYMENT_DENIED.audit_reason)
+                hint = record_denial(tool_name, session_key)
+                auto_denied.append((idx, tool_call, f"{PAYMENT_DENIED.tool_message}{hint}"))
+                continue
             logger.warning(
                 "[YOLO_FINANCIAL_GATE] Tool %s blocked from YOLO auto-approval (financial spend detected)",
                 tool_name,

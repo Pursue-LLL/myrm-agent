@@ -6,6 +6,8 @@ Verifies:
 3. Asks outside the job's directories, or on sensitive/protected files, are denied, not pre-approved.
 4. A payment-like tool call is denied even when the job declared the capability: a declaration does not cover spending.
 5. The decision holds end to end through the approval middleware, with the LLM reviewer unavailable.
+6. With YOLO on, an unattended payment-like call is denied instead of left waiting for an approval nobody can give;
+   an attended session still waits for the user, and every other call keeps YOLO's auto-approval.
 """
 
 from __future__ import annotations
@@ -28,7 +30,10 @@ from myrm_agent_harness.agent.middlewares.approval import (
     set_workspace_root,
 )
 from myrm_agent_harness.agent.middlewares.approval._cron_policy import CronAskVerdict, resolve_cron_ask
-from myrm_agent_harness.agent.middlewares.approval.batch_processor import register_security_reviewer
+from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
+    evaluate_tool_batch,
+    register_security_reviewer,
+)
 from myrm_agent_harness.agent.middlewares.approval.helpers import clear_all_session_denials_for_tests
 from myrm_agent_harness.agent.security.audit import get_audit_entries, reset_audit_log
 from myrm_agent_harness.agent.security.channel_presets import build_channel_security_config
@@ -214,6 +219,10 @@ class TestResolveCronAsk:
         assert not _ask(config, dirs, "mcp__notes__create_note", {"title": "x"}).denied
 
 
+def _yolo_config() -> SecurityConfig:
+    return build_channel_security_config("cron", {"yoloModeEnabled": True}, declared_capabilities=("mcp_invoke",))
+
+
 async def _denials(tool_name: str, args: dict[str, object]) -> list[str]:
     """Denial messages the middleware returned for one cron tool call (empty: it was approved)."""
     state = {
@@ -315,3 +324,46 @@ class TestCronRunThroughTheMiddleware:
         set_security_config(build_channel_security_config("cron", declared_capabilities=("mcp_invoke",)))
 
         assert await _denials("mcp__notes__create_note", {"title": "x"}) == []
+
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    async def test_payment_like_call_is_denied_and_audited_under_yolo(
+        self, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        set_security_config(_yolo_config())
+
+        denials = await _denials(tool_name, tool_input)
+
+        assert len(denials) == 1
+        assert "payment-like" in denials[0]
+        assert any(e.decision == "CRON_DENY" and e.tool_name == tool_name for e in get_audit_entries())
+
+
+async def _yolo_batch(tool_name: str, args: dict[str, object], *, session_key: str) -> tuple[int, int, int]:
+    """Approved, denied and pending counts for one call evaluated with YOLO on."""
+    approved, denied, pending = await evaluate_tool_batch(
+        [ToolCall(type="tool_call", name=tool_name, args=args, id="call_1")],
+        _yolo_config(),
+        is_cron=session_key.startswith("cron:"),
+        workspace_root="/tmp",
+        session_key=session_key,
+        args_hashes={},
+        is_interactive=False,
+    )
+    return len(approved), len(denied), len(pending)
+
+
+class TestYoloPaymentsWithNobodyToApprove:
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    async def test_unattended_payment_like_call_is_denied_not_left_pending(
+        self, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        assert await _yolo_batch(tool_name, tool_input, session_key="cron:job-1") == (0, 1, 0)
+
+    async def test_every_other_unattended_call_keeps_the_yolo_auto_approval(self) -> None:
+        assert await _yolo_batch("mcp__notes__create_note", {"title": "x"}, session_key="cron:job-1") == (1, 0, 0)
+
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    async def test_attended_session_still_waits_for_the_user(
+        self, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        assert await _yolo_batch(tool_name, tool_input, session_key="chat:1") == (0, 0, 1)
