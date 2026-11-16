@@ -23,7 +23,7 @@ E2E 聊天自动化的底层辅助包：被测栈的 API/UI 地址与仅回环 H
 
 包内（`A ← B` 表示 B 依赖 A）：
 
-- `paths` ← `timeouts` · `api_client` · `backend_log`
+- `paths` ← `api_client` · `backend_log`
 - `api_client` ← `binding` · `readiness` · `goal` · `backend_log` · `chat/*` · `config/*`
 - `timeouts` ← `binding` · `readiness` · `chat/session` · `chat/stream` · `config/store`
 - `binding` ← `backend_log`
@@ -33,3 +33,5 @@ E2E 聊天自动化的底层辅助包：被测栈的 API/UI 地址与仅回环 H
 ## 补丁作用域
 
 补丁只影响读取该名字的模块。包外代码在调用时经门面按名字读取，打在门面上的补丁对它们有效；包内模块持有的是定义处模块里的名字，测试要给读者所在的模块打补丁（例如 `cdp_chat.support.chat.evidence.fetch_chat_messages`），打在门面上到不了包内读者。
+
+`timeouts` 的各个预算按同一份负载读数缩放：wave 租约数取自 `dev_gate.contract.parallel_pressure.wave_active_lease_count_for_mux`（`dev_gate.contract` 各层读的是同一个读数），并行用例数与 mux 对端数取自 `mux.transport_supervisor`。给 `wave_active_lease_count_for_mux`、或给它调用的 `e2e_core.stack_mutation_policy.wave_active_lease_count` 打补丁，所有预算都生效；`mux.transport_supervisor` 的读数同样在源模块上打补丁。
