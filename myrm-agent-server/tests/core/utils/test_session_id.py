@@ -15,6 +15,8 @@ from app.core.utils.session_id import is_safe_session_id
         ("kanban-task-no-chat-record", True),
         ("3fa85f64-5717-4562-b3fc-2c963f66afa6", True),
         ("a" * 255, True),
+        # 非法：超过 chats.id 列宽与文件名长度上限
+        ("a" * 256, False),
         # 非法：路径穿越 / 控制字符 / 分隔符
         ("..%5c..%5cetc", False),
         ("..\\..\\boot", False),

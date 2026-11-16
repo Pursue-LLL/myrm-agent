@@ -4,7 +4,7 @@
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Goal registry)
 - app.services.agent.goals.goal_controls::select_cancellable_goal, continue_resumed_goal, note_goal_resumed, stop_goal_turn, wait_for_stopped_turn (POS: Goal control rules shared with IM)
 - app.api.goals.schemas (POS: request/response bodies of the endpoints)
-- app.api.dependencies::require_safe_session_id (POS: Router-level guard answering 404 for a path session id outside the safe charset)
+- app.api.dependencies::require_safe_path_ids (POS: Router-level guard answering 404 for a path parameter outside the safe id charset)
 - myrm_agent_harness.agent.goals.types::GoalStatus (POS: Goal status enum)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
@@ -13,8 +13,8 @@
 
 [POS]
 Provides HTTP endpoints for the frontend to pause, resume, and clear goals. Resume puts the goal back to work, or
-is refused (409) while the turn a pause stopped is still winding down. A session id outside the safe charset is
-a 404 on every route that carries one, before the handler runs.
+is refused (409) while the turn a pause stopped is still winding down. A path parameter outside the safe id charset
+is a 404 on every route that carries one, before the handler runs.
 """
 
 import logging
@@ -26,7 +26,7 @@ from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.api.hooks import GOAL_WAIT_KIND_KEY, GOAL_WAIT_KIND_USAGE_LIMIT
 from myrm_agent_harness.core.features import get_features
 
-from app.api.dependencies import get_optional_llm_for_user, require_safe_session_id
+from app.api.dependencies import get_optional_llm_for_user, require_safe_path_ids
 from app.services.agent.goals.goal_controls import (
     NON_TERMINAL_GOAL_STATUSES,
     continue_resumed_goal,
@@ -71,7 +71,7 @@ def verify_goals_enabled() -> None:
 router = APIRouter(
     prefix="/goals",
     tags=["goals"],
-    dependencies=[Depends(verify_goals_enabled), Depends(require_safe_session_id)],
+    dependencies=[Depends(verify_goals_enabled), Depends(require_safe_path_ids)],
 )
 router.include_router(plan_router)
 router.include_router(queue_router)
