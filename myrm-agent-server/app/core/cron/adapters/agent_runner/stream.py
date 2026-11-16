@@ -1,5 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: The one consumer-side definition of the restart contract that ``StreamExecutor`` recoveries emit (the top-level ``restart`` flag on STATUS events).)
+- myrm_agent_harness.api::AgentEventType (POS: Stream event types)
 - myrm_agent_harness.core.security.audit::get_audit_entries (POS: Cross-cutting concern. Called from tool_interceptor_middleware and all security guard modules at every decision point.)
 - myrm_agent_harness.toolkits.cron.types::CronJob / JobResult / SessionTarget (POS: Cron job domain types.)
 - app.core.agent.stop_reason::merge_stop_reason (POS: The chat stream collector (services), the cron runner (core) and the Runs Hub (api) all store and read the same ``stopReason`` shape; this is the one definition they share.)
@@ -19,7 +20,8 @@
 - _consume_dynamic_workflow_stream: _consume_dynamic_workflow_stream
 
 [POS]
-agent_runner 的流处理层：把 Agent 事件累加成 JobResult，不参与任务编排。
+agent_runner 的流处理层：把 Agent 事件累加成 JobResult，不参与任务编排。运行停在等人回答的事件上（工具审批、接管、澄清、并行委派让步、
+循环守卫暂停）时，没人能答、本次运行没跑完，记为失败且不可安全重跑。
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ import logging
 from dataclasses import dataclass, field
 
 from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
+from myrm_agent_harness.api import AgentEventType
 from myrm_agent_harness.core.security.audit import get_audit_entries
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
@@ -44,6 +47,19 @@ from ..provider_window_deferral import usage_limit_deferral
 from .support import _coerce_usage_int, _derive_stop_reason_from_event, _source_sort_key
 
 logger = logging.getLogger(__name__)
+
+# Every graph interrupt reaches the stream as one of these events, and the stream ends on it.
+_PAUSE_EVENTS = frozenset(
+    {
+        AgentEventType.TOOL_APPROVAL_REQUEST.value,
+        AgentEventType.APPROVAL_REQUIRED.value,
+        AgentEventType.CLARIFICATION_REQUIRED.value,
+        "swarm_fission",
+    }
+)
+_PAUSED_ERROR = (
+    "The run stopped at a step that needs a person's answer. A scheduled run has nobody to ask, so the rest of it did not run."
+)
 
 
 def _timeout_result(job: CronJob) -> JobResult:
@@ -91,6 +107,8 @@ class _StreamAccumulator:
     error: str | None = None
     stop_reason: dict[str, object] | None = None
     circuit_broken: bool = False
+    # The stream stopped on a question for a person. Nobody is there to answer, so the run ends unfinished.
+    paused: bool = False
     # A workflow step began: its nodes may already have acted, and the workflow stream names no tools.
     workflow_step_ran: bool = False
     _seen_indices: set[int] = field(default_factory=set)
@@ -102,6 +120,11 @@ class _StreamAccumulator:
         It may already have taken effect and survives a failure of the run, so a repeat could do it again.
         """
         return self.workflow_step_ran or has_effectful_tools(self.progress_steps)
+
+    def note_pause(self, job_id: str, event_type: str) -> None:
+        if not self.paused:
+            logger.warning("Cron job %s stopped on an unanswered %s event", job_id, event_type)
+        self.paused = True
 
     def add_sources(self, items: list[dict[str, object]]) -> None:
         for src in items:
@@ -134,6 +157,16 @@ class _StreamAccumulator:
                 metadata=metadata or None,
                 circuit_broken=self.circuit_broken,
                 retry_safe=not self.effectful,
+            )
+
+        if self.paused:
+            # A repeat stops at the same question, and the steps before it may already have acted.
+            return JobResult(
+                success=False,
+                output=output,
+                error=_PAUSED_ERROR,
+                metadata=metadata or None,
+                retry_safe=False,
             )
 
         # Also set on success: a later verification step can still turn this result into a failure.
@@ -226,6 +259,8 @@ async def _consume_stream(
                     "error": (event.get("error") if event.get("status") == "error" else None),
                 }
             )
+        elif event_type in _PAUSE_EVENTS:
+            acc.note_pause(job.id, event_type)
         elif event_type == "sources" and isinstance(event.get("data"), list):
             raw_list = event.get("data")
             assert isinstance(raw_list, list)
@@ -282,6 +317,8 @@ async def _consume_dynamic_workflow_stream(
                             "error": None,
                         }
                     )
+        elif event_type in _PAUSE_EVENTS:
+            acc.note_pause(job.id, event_type)
         elif event_type == "sources" and isinstance(event.get("data"), list):
             raw_list = event.get("data")
             assert isinstance(raw_list, list)
