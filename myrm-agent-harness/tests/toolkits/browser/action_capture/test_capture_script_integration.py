@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import re
 import threading
-import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -54,11 +53,9 @@ def recorder(capture_js: str) -> Recorder:
     from patchright.async_api import async_playwright
 
     steps: list[dict[str, Any]] = []
-    results: dict[int, tuple[str | None, BaseException | None]] = {}
-    _next_key = 0
     start_barrier = threading.Event()
 
-    async def _emit(html: str, tag: str, key: int) -> None:
+    async def _emit(html: str, tag: str) -> str | None:
         pw = None
         browser = None
         try:
@@ -112,30 +109,20 @@ def recorder(capture_js: str) -> Recorder:
                     {"html": html, "tag": tag},
                 )
             await page.wait_for_timeout(100)
-            results[key] = (steps[-1].get("elementText") if steps else None, None)
-        except BaseException as exc:  # surfaced to the test thread
-            results[key] = (None, exc)
+            return steps[-1].get("elementText") if steps else None
         finally:
-            if browser is not None:
-                await browser.close()
-            if pw is not None:
-                await pw.stop()
+            try:
+                if browser is not None:
+                    await browser.close()
+            finally:
+                if pw is not None:
+                    await pw.stop()
 
     def emit_sync(html: str, tag: str = "select") -> str | None:
-        nonlocal _next_key
         steps.clear()
-        key = _next_key
-        _next_key += 1
-        loop.call_soon_threadsafe(asyncio.create_task, _emit(html, tag, key))
-        deadline = time.monotonic() + 30
-        while key not in results:
-            if time.monotonic() > deadline:
-                raise TimeoutError(f"browser op did not finish within 30s (key={key})")
-            time.sleep(0.05)
-        value, exc = results.pop(key)
-        if exc is not None:
-            raise exc
-        return value
+        # Returns only once `_emit` has stopped its driver: one still shutting down when the next call starts, or when
+        # the loop stops, would outlive this module as a stray process.
+        return asyncio.run_coroutine_threadsafe(_emit(html, tag), loop).result(timeout=30)
 
     # Start the dedicated loop and fail fast if it cannot boot the browser.
     loop = asyncio.new_event_loop()

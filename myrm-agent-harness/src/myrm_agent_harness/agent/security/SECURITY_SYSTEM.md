@@ -177,7 +177,7 @@ class SSRFResult:
 
 提供同步 (`validate_url_for_ssrf`) 和异步 (`async_validate_url_for_ssrf`) 两个版本。
 
-**出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、cron webhook、HTTP hooks、LobeHub 技能安装、wiki asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
+**出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、cron webhook、HTTP hooks、LobeHub 技能安装、wiki asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载、WebUI 链接预览抓取。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
 
 **浏览器 document 导航层（Playwright）**：`toolkits/browser/navigation/ssrf_guard.py` 先把导航 URL 规范化（`canonical_navigation_url`，没有规范写法的网络 URL 抛 `BrowserNavigationBlockedError`），再在 `page.goto` 期间注册 document 级 route 拦截，对每个 document 请求与 redirect 链逐跳调用 `async_pin_url` 校验。不拦截 subresource。本地模式 `allow_private_networks=True` 时改用私网源授权策略：会话显式导航到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝。
 
@@ -782,7 +782,7 @@ class AllowlistEntry:
    全部通过 → 执行工具
 5. DENY → 记录审计 → 记录拒绝计数 → 返回错误 ToolMessage
 6. ASK 的后续裁决，依次：
-     a. Cron 会话 → resolve_cron_ask：能力声明视为预授权，凭据外送、越界路径、集成写入除外；未声明能力集 fail-closed 拒绝
+     a. Cron 会话 → resolve_cron_ask：能力声明视为预授权，付款类工具调用、凭据外送、越界路径、集成写入除外；未声明能力集 fail-closed 拒绝
      b. 技能钩子：BLOCK → 拒绝；REQUIRE_APPROVAL → 待审
      c. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
      d. auto-mode LLM 审核（社交不可逆动作与资金类工具不交审核模型，直接进 e）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
@@ -1162,7 +1162,7 @@ ruleset = (
 )
 ```
 
-Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
+Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但付款类工具调用（工具名或参数命中资金类词表）即使声明了能力也 DENY（`_cron_policy.py` 的 `resolve_cron_ask`）。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
 
 ### 本地模式浏览器放宽
 
@@ -1410,6 +1410,8 @@ if declared_allowed_roots:
 if is_cron:
     if config.capabilities == DEFAULT_CAPABILITIES:
         record_decision(tool_name, "CRON_DENY", "cron fail-closed: no explicit capability declaration")
+    elif is_financial_or_spend_tool(tool_name, tool_input):
+        record_decision(tool_name, "CRON_DENY", "cron fail-closed: payment-like tool call")
     elif is_integration_mutation_command(shell_cmd):
         record_decision(tool_name, "CRON_DENY", "cron fail-closed: integration write mutation")
     else:

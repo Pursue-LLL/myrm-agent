@@ -231,7 +231,7 @@ class TestUsageSidecarIntegration:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Core bug fix validation: skill with usage history must NOT be stale-flagged by Curator."""
+        """A migrated skill with usage history must NOT be stale-flagged by Curator."""
         import app.core.skills.models as models_mod
 
         root = tmp_path / ".hermes"

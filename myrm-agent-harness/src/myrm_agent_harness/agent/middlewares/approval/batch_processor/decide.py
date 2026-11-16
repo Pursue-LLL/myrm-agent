@@ -15,9 +15,10 @@
 - myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
 - myrm_agent_harness.agent.middlewares.approval::_batch_review (POS: Tool approval subsystem — Human-in-the-Loop approval flow.)
 - myrm_agent_harness.agent.middlewares.approval._batch_review::_evaluate_skill_hooks_for_tool / _get_runtime_domains / _run_llm_review / _truncate_tool_args (POS: Batch review helpers — LLM review, runtime domain tracking, skill hook evaluation.)
-- myrm_agent_harness.agent.middlewares.approval._cron_policy::resolve_cron_ask (POS: A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval, except for asks that carry a risk the declaration does not cover: credential data leaving the session, writes outside the job's directories, integration write mutations.)
+- myrm_agent_harness.agent.middlewares.approval._cron_policy::resolve_cron_ask (POS: A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval, except for asks that carry a risk the declaration does not cover: credential data leaving the session, writes outside the job's directories, integration write mutations, payment-like tool calls.)
 - myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-only lease, the permission engine, the shell-escalation check and the LLM security review.)
 - myrm_agent_harness.agent.middlewares.approval.helpers::ThresholdBreach / is_threshold_breached / record_approval / record_denial (POS: Approval middleware helper functions. Implements dual-threshold denial tracking (consecutive + total) with proactive guidance on every denial and automatic consecutive counter reset on any allowed operation.)
+- myrm_agent_harness.agent.middlewares.approval.batch_processor._workspace_snapshot::pre_destructive_snapshot_id (POS: 破坏性命令等待审批时的回滚点；决策循环与 YOLO 分支共用。)
 - myrm_agent_harness.agent.middlewares.approval.batch_processor.yolo::operator_as_key_deny_message (POS: batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。)
 
 [OUTPUT]
@@ -96,6 +97,7 @@ from ..helpers import (
     record_approval,
     record_denial,
 )
+from ._workspace_snapshot import pre_destructive_snapshot_id
 from .yolo import operator_as_key_deny_message
 
 logger = logging.getLogger(__name__)
@@ -382,13 +384,8 @@ async def evaluate_calls(
             extra_ctx["high_risk"] = True
             extra_ctx["hide_allow_always"] = True
             extra_ctx["blast_radius"] = blast_info
-            from pathlib import Path
-
-            from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import create_workspace_snapshot
-
-            snap_res = create_workspace_snapshot(Path.cwd())
-            if snap_res.snapshot_id:
-                extra_ctx["snapshot_id"] = snap_res.snapshot_id
+            if snapshot_id := pre_destructive_snapshot_id():
+                extra_ctx["snapshot_id"] = snapshot_id
             record_decision(tool_name, "DESTRUCTIVE_IRREVERSIBLE_GATE_ESCALATED", reason)
 
         if (
@@ -885,13 +882,8 @@ async def evaluate_calls(
             extra_ctx["blast_radius"] = blast_info
             extra_ctx["high_risk"] = True
             extra_ctx["hide_allow_always"] = True
-            from pathlib import Path
-
-            from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import create_workspace_snapshot
-
-            snap_res = create_workspace_snapshot(Path.cwd())
-            if snap_res.snapshot_id:
-                extra_ctx["snapshot_id"] = snap_res.snapshot_id
+            if snapshot_id := pre_destructive_snapshot_id():
+                extra_ctx["snapshot_id"] = snapshot_id
 
         raw_path_arg = str(
             tool_input.get("path", "") or tool_input.get("file_path", "") or tool_input.get("filepath", "")

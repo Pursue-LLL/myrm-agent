@@ -35,21 +35,8 @@ from app.database.models import ExpertSummonMetricEvent
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-_SURFACES = (
-    "template_market",
-    "flow_pad_inline",
-    "empty_chat_featured",
-    "message_input_plus",
-    "mobile_hub_chip",
-)
-_TRIGGERS = (
-    "template_card",
-    "use_case_chip",
-    "route_menu",
-    "featured_chip",
-    "plus_popover_card",
-    "mobile_chip",
-)
+_SURFACES = ("flow_pad_inline", "message_input_plus", "mobile_hub_chip")
+_TRIGGERS = ("template_card", "use_case_chip", "route_menu", "plus_popover_card", "mobile_chip")
 _RETENTION_DAYS = 90
 _CLEANUP_MIN_INTERVAL = timedelta(hours=6)
 _cleanup_lock = asyncio.Lock()
@@ -63,10 +50,8 @@ ExpertSummonFailureReason = Literal[
 ]
 
 
-ExpertSummonSurface = Literal[
-    "template_market", "flow_pad_inline", "empty_chat_featured", "message_input_plus", "mobile_hub_chip"
-]
-ExpertSummonTrigger = Literal["template_card", "use_case_chip", "route_menu", "featured_chip", "plus_popover_card", "mobile_chip"]
+ExpertSummonSurface = Literal["flow_pad_inline", "message_input_plus", "mobile_hub_chip"]
+ExpertSummonTrigger = Literal["template_card", "use_case_chip", "route_menu", "plus_popover_card", "mobile_chip"]
 ExpertSummonEventType = Literal[
     "surface_viewed",
     "search_used",
@@ -76,9 +61,6 @@ ExpertSummonEventType = Literal[
     "route_applied",
     "route_apply_failed",
     "first_message_sent",
-    "council_phase_completed",
-    "council_consensus_reached",
-    "expert_rebuttal_effective",
     "dropped_report",
 ]
 
@@ -160,9 +142,6 @@ def _validate_metric_fields(payload: ExpertSummonEventRequest) -> None:
         "route_applied",
         "route_apply_failed",
         "first_message_sent",
-        "council_phase_completed",
-        "council_consensus_reached",
-        "expert_rebuttal_effective",
     }
     trigger_forbidden_events = {"surface_viewed", "search_used", "dropped_report"}
 
@@ -200,7 +179,9 @@ async def _maybe_prune_old_events(db: AsyncSession) -> int:
         result = await db.execute(prune_stmt)
         await db.commit()
         _last_cleanup_at = now
-        return int(result.rowcount or 0)
+        # DML results carry rowcount at runtime; the async Result stub does not declare it.
+        rowcount = getattr(result, "rowcount", None)
+        return max(rowcount, 0) if isinstance(rowcount, int) else 0
 
 
 async def _sum_event_count(
@@ -389,7 +370,7 @@ async def get_expert_summon_summary(
             "attempted_by_trigger": await _trigger_breakdown(db, start_dt, "summon_attempted"),
             "failure_reason_breakdown": await _failure_reason_breakdown(db, start_dt),
         }
-        summary = ExpertSummonSummaryResponse(**summary_dict)
+        summary = ExpertSummonSummaryResponse.model_validate(summary_dict)
         return success_response(data=summary.model_dump(mode="json"))
     except Exception as e:
         if getattr(e, "status_code", None) == 400:

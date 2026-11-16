@@ -46,9 +46,7 @@ class TestSystemPromptHashStability:
         ]
         hash_after = _compute_system_prompt_hash(with_system)
 
-        assert hash_before != hash_after, (
-            "Adding SystemMessage MUST change system prompt hash (this is the bug we fixed)"
-        )
+        assert hash_before != hash_after, "Adding SystemMessage MUST change system prompt hash"
 
     def test_empty_messages(self) -> None:
         hash_val = _compute_system_prompt_hash([])

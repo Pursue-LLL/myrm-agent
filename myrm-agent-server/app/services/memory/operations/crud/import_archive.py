@@ -12,8 +12,7 @@ modules so the API layer keeps a single import site.
 
 [POS]
 Router-facing facade of the memory export/import lifecycle: the phase modules
-own the behavior and this file only re-exports their public handlers plus the
-constants the token-economics tests pin.
+own the behavior and this file only re-exports their public handlers.
 """
 
 from __future__ import annotations
@@ -23,10 +22,6 @@ from app.services.memory.operations.crud.import_flows.confirm_flow import (  # n
 )
 from app.services.memory.operations.crud.import_flows.dry_run import (  # noqa: F401
     dry_run_import_memories,
-)
-from app.services.memory.operations.crud.import_flows.dry_run_preview import (  # noqa: F401
-    _COMPETITOR_AVG_SKILL_TOKENS,
-    _MYRM_AVG_INDEX_TOKENS,
 )
 from app.services.memory.operations.crud.import_flows.export_flow import (  # noqa: F401
     export_memories,

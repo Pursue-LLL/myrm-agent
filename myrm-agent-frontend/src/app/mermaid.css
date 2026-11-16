@@ -10,14 +10,6 @@
   will-change: transform;
 }
 
-.mermaid-container .group:hover .opacity-0 {
-  opacity: 1;
-}
-
-.mermaid-container.fixed {
-  backdrop-filter: blur(4px);
-}
-
 @media (max-width: 768px) {
   .mermaid-container {
     margin: 0.75rem 0;

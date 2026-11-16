@@ -16,12 +16,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.config.llm import LLMConfig
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

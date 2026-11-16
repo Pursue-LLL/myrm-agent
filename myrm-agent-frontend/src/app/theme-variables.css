@@ -1,0 +1,256 @@
+/* CSS 变量定义 */
+:root {
+  /* 字体：Inter 自托管（next/font/local）；CJK 回退系统字体，--font-inter 缺失时整串仍成立 */
+  --font-sans:
+    var(--font-inter, ui-sans-serif), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', 'Noto Sans', Arial, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+  /* 使用themeLight的颜色 */
+  --background: #fdfdfb;
+  --foreground: #0a0a0a;
+  /* 表面阶梯：亮色下卡片用纯白，浮层同白；语义派生，主题切换自动生效 */
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+
+  /* 使用themeColors的primary颜色 */
+  --primary: #6799a0;
+  --primary-foreground: #fbfbf8;
+  --primary-hover: #4a7d84;
+  --primary-dark: #10505a;
+
+  --accent-warm: #e07830;
+  --accent-warm-foreground: #fffaf5;
+  --accent-warm-muted: color-mix(in srgb, var(--accent-warm) 12%, transparent);
+  --brand-mix: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
+  --brand-gradient: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    var(--primary) 50%,
+    color-mix(in srgb, var(--primary) 55%, var(--accent-warm)) 78%,
+    var(--accent-warm) 100%
+  );
+  --brand-gradient-subtle: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 12%, transparent) 0%,
+    color-mix(in srgb, var(--primary) 8%, transparent) 72%,
+    color-mix(in srgb, var(--accent-warm) 8%, transparent) 100%
+  );
+  --brand-gradient-border: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 40%, transparent) 0%,
+    color-mix(in srgb, var(--accent-warm) 28%, transparent) 100%
+  );
+  /* Logo wordmark — fixed default teal→orange; never follows theme/skin */
+  --brand-logo-gradient: linear-gradient(
+    135deg,
+    #6799a0 0%,
+    #6799a0 50%,
+    color-mix(in srgb, #6799a0 55%, #e07830) 78%,
+    #e07830 100%
+  );
+  --shadow-brand:
+    inset 0 1px 0 0 color-mix(in srgb, white 52%, transparent),
+    inset 0 -2px 6px 0 color-mix(in srgb, black 8%, transparent),
+    0 2px 4px color-mix(in srgb, var(--accent-warm) 14%, transparent),
+    0 6px 14px color-mix(in srgb, var(--accent-warm) 20%, transparent),
+    0 10px 20px color-mix(in srgb, var(--accent-warm) 12%, transparent);
+  --shadow-brand-lg:
+    inset 0 1px 0 0 color-mix(in srgb, white 58%, transparent),
+    inset 0 -2px 6px 0 color-mix(in srgb, black 6%, transparent),
+    0 4px 8px color-mix(in srgb, var(--accent-warm) 16%, transparent),
+    0 8px 16px color-mix(in srgb, var(--accent-warm) 24%, transparent),
+    0 12px 24px color-mix(in srgb, var(--accent-warm) 14%, transparent);
+  --shadow-brand-sm:
+    inset 0 2px 6px 0 color-mix(in srgb, black 10%, transparent),
+    inset 0 1px 0 0 color-mix(in srgb, white 24%, transparent),
+    0 2px 10px color-mix(in srgb, var(--accent-warm) 14%, transparent);
+  --shadow-brand-inset: inset 0 1px 0 color-mix(in srgb, var(--accent-warm) 16%, transparent);
+  --button-fill: var(--accent-warm);
+  --button-fill-hover: #c96a28;
+  --button-fill-foreground: var(--accent-warm-foreground);
+
+  /* 使用themeLight的次要颜色 */
+  --secondary: #f6f6f1;
+  --secondary-foreground: #111111;
+  --muted: #ededeaac;
+  --muted-foreground: color-mix(in srgb, var(--foreground) 60%, transparent);
+  --accent: #f2f2edd1;
+  --accent-foreground: #111111;
+
+  --destructive: #ee4343;
+  --destructive-foreground: #fbfbf8;
+  /* 危险红作文字色（--destructive 是实心填充色，作文字只有 3.8:1）：页面底 6.4:1、弹层 6.5:1、直到 20% 着色底都不低于 4.8:1 */
+  --destructive-text: #b91c1c;
+
+  /* 警示琥珀：作文字色时在页面底 5.5:1、在 10% 着色底 4.8:1，作实心底时配 --warning-foreground 5.5:1 */
+  --warning: #915c00;
+  --warning-foreground: #fffdf5;
+
+  --border: #eceae4;
+  --input: #efefe9;
+  --ring: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
+
+  --chart-1: #ea8989;
+  --chart-2: #4add80;
+  --chart-3: #5b6066;
+  --chart-4: #f9d466;
+  --chart-5: #f5ae74;
+  --radius: 0.5rem;
+}
+
+.dark {
+  /* 使用themeDark的颜色 */
+  --background: #0a0a0a;
+  --foreground: #fbfbf8;
+  /* 表面阶梯：从背景与前景派生，任何主题/art 组合下都保持同一套层级关系 */
+  --card: color-mix(in srgb, var(--background) 94%, var(--foreground) 6%);
+  --card-foreground: #fbfbf8;
+  --popover: color-mix(in srgb, var(--background) 88%, var(--foreground) 12%);
+  --popover-foreground: #fbfbf8;
+
+  /* 青橙默认主题：深色模式也用 teal 主色，与官网一致 */
+  --primary: #6ba3aa;
+  --primary-foreground: #0a0a0a;
+  --primary-hover: #7eb5bc;
+  --primary-dark: #588e95;
+
+  --accent-warm: #f5b868;
+  --accent-warm-foreground: #1a1208;
+  --accent-warm-muted: color-mix(in srgb, var(--accent-warm) 18%, transparent);
+  --brand-mix: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
+  --brand-gradient: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    var(--primary) 50%,
+    color-mix(in srgb, var(--primary) 55%, var(--accent-warm)) 78%,
+    var(--accent-warm) 100%
+  );
+  --brand-gradient-subtle: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 14%, transparent) 0%,
+    color-mix(in srgb, var(--primary) 10%, transparent) 72%,
+    color-mix(in srgb, var(--accent-warm) 10%, transparent) 100%
+  );
+  --brand-gradient-border: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 42%, transparent) 0%,
+    color-mix(in srgb, var(--accent-warm) 30%, transparent) 100%
+  );
+  --shadow-brand:
+    inset 0 1px 0 0 color-mix(in srgb, white 22%, transparent),
+    inset 0 -2px 6px 0 color-mix(in srgb, black 22%, transparent),
+    0 2px 4px color-mix(in srgb, var(--accent-warm) 18%, transparent),
+    0 6px 14px color-mix(in srgb, var(--accent-warm) 24%, transparent),
+    0 10px 20px color-mix(in srgb, var(--accent-warm) 14%, transparent);
+  --shadow-brand-lg:
+    inset 0 1px 0 0 color-mix(in srgb, white 26%, transparent),
+    inset 0 -2px 6px 0 color-mix(in srgb, black 18%, transparent),
+    0 4px 8px color-mix(in srgb, var(--accent-warm) 20%, transparent),
+    0 8px 16px color-mix(in srgb, var(--accent-warm) 28%, transparent),
+    0 12px 24px color-mix(in srgb, var(--accent-warm) 16%, transparent);
+  --shadow-brand-sm:
+    inset 0 2px 6px 0 color-mix(in srgb, black 18%, transparent),
+    inset 0 1px 0 0 color-mix(in srgb, white 14%, transparent),
+    0 2px 10px color-mix(in srgb, var(--accent-warm) 16%, transparent);
+  --shadow-brand-inset: inset 0 1px 0 color-mix(in srgb, var(--accent-warm) 18%, transparent);
+  --button-fill: var(--accent-warm);
+  --button-fill-hover: #ffc47a;
+  --button-fill-foreground: var(--accent-warm-foreground);
+
+  /* 使用themeDark的次要颜色 */
+  --secondary: #111111;
+  --secondary-foreground: #fbfbf8;
+  --muted: #1c1c1c;
+  --muted-foreground: color-mix(in srgb, var(--foreground) 60%, transparent);
+  --accent: #111111;
+  --accent-foreground: #fbfbf8;
+
+  --destructive: #801d1d;
+  --destructive-foreground: #fbfbf8;
+  /* 深色下提亮：文字色页面底 7.2:1、弹层 5.4:1、直到 20% 着色底都不低于 5.1:1（--destructive 作文字在弹层只有 1.5:1） */
+  --destructive-text: #f87171;
+
+  /* 深色下琥珀提亮：文字色 9.3:1（页面底）/ 8.2:1（10% 着色底），实心底配 --warning-foreground 8.7:1 */
+  --warning: #e3a82b;
+  --warning-foreground: #1a1208;
+
+  --border: #252320;
+  --input: #1c1c1c;
+  --ring: color-mix(in srgb, var(--primary) 58%, var(--accent-warm));
+
+  --chart-1: #2661d8;
+  --chart-2: #2db789;
+  --chart-3: #e88c30;
+  --chart-4: #af56db;
+  --chart-5: #e2366f;
+}
+
+/* Theme Engine v2 — runtime tokens injected by ThemeProfileProvider; shell material hooks */
+html[data-myrm-theme-art='on'] [data-theme-shell='nav'] {
+  background-color: color-mix(in srgb, var(--background) calc(var(--myrm-theme-nav-opacity, 0.72) * 100%), transparent);
+}
+
+html[data-myrm-theme-art='on'] [data-theme-shell='sidebar'] {
+  background-color: color-mix(
+    in srgb,
+    var(--background) calc(var(--myrm-theme-sidebar-opacity, 0.68) * 100%),
+    transparent
+  );
+}
+
+html[data-myrm-theme-art='on'] [data-theme-shell='main'] {
+  background-color: color-mix(
+    in srgb,
+    var(--background) calc(var(--myrm-theme-main-opacity, 0.72) * 100%),
+    transparent
+  );
+}
+
+html[data-myrm-theme-art='on'] [data-theme-shell='surface'] {
+  background-color: color-mix(
+    in srgb,
+    var(--background) calc(var(--myrm-theme-surface-opacity, 0.78) * 100%),
+    transparent
+  );
+}
+
+html[data-myrm-theme-art='on'][data-myrm-theme-scene='functional'] [data-theme-shell='main'] [class*='sticky'] {
+  backdrop-filter: blur(12px) saturate(1.05);
+}
+
+/* Dual-accent profiles: solid CTA buttons use warm accent; chat send stays teal primary */
+html[data-myrm-theme-dual-accent='true'] .bg-primary.text-primary-foreground:not(.message-send-btn),
+html[data-myrm-theme-dual-accent='true'] .bg-primary.text-white:not(.message-send-btn) {
+  background-color: var(--accent-warm);
+  color: var(--accent-warm-foreground);
+}
+
+html[data-myrm-theme-dual-accent='true'] .hover\:bg-primary-hover:hover.bg-primary:not(.message-send-btn),
+html[data-myrm-theme-dual-accent='true'] .bg-primary.hover\:bg-primary-hover:hover:not(.message-send-btn) {
+  background-color: var(--button-fill-hover);
+}
+
+html[data-myrm-theme-dual-accent='true'] .hover\:bg-primary\/90:hover.bg-primary:not(.message-send-btn),
+html[data-myrm-theme-dual-accent='true'] .bg-primary.hover\:bg-primary\/90:hover:not(.message-send-btn) {
+  background-color: color-mix(in srgb, var(--accent-warm) 90%, transparent);
+}
+
+/* Dark mode: boost accent surface contrast across theme profiles */
+.dark .bg-accent-warm\/5 {
+  background-color: color-mix(in srgb, var(--accent-warm) 12%, transparent);
+}
+
+.dark .bg-accent-warm\/10 {
+  background-color: color-mix(in srgb, var(--accent-warm) 18%, transparent);
+}
+
+.dark .border-accent-warm\/30 {
+  border-color: color-mix(in srgb, var(--accent-warm) 38%, transparent);
+}
+
+.dark .text-accent-warm {
+  color: color-mix(in srgb, var(--accent-warm) 92%, white);
+}

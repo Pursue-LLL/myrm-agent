@@ -10,6 +10,7 @@ import asyncio
 import sys
 import time
 import zipfile
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import psutil
@@ -18,6 +19,7 @@ import pytest
 from myrm_agent_harness.agent.meta_tools.file_ops.observers.layout_qa_observer import (
     run_layout_qa_check,
 )
+from myrm_agent_harness.core.security.bounded_communicate import BoundedOutput, communicate_bounded
 
 _MODULE = "myrm_agent_harness.agent.meta_tools.file_ops.observers.layout_qa_observer"
 _posix_only = pytest.mark.skipif(sys.platform == "win32", reason="the stand-in soffice is a POSIX shell script")
@@ -41,6 +43,27 @@ def _install_soffice(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str)
     docx_path = tmp_path / "report.docx"
     _write_minimal_docx(docx_path)
     return docx_path
+
+
+def _start_the_deadline_once_the_child_runs(monkeypatch: pytest.MonkeyPatch, pid_file: Path) -> None:
+    """Let the conversion's deadline begin only once the stand-in has started its background child.
+
+    The stand-in is a shell script: on a loaded host it can need longer than a one-second deadline merely to start,
+    and a deadline that fires before the child exists leaves the test nothing to find and check.
+    """
+
+    async def bounded_once_started(
+        proc: asyncio.subprocess.Process, *, timeout: float, on_abort: Callable[[], Awaitable[None]]
+    ) -> BoundedOutput:
+        try:
+            while not (pid_file.exists() and pid_file.read_text().strip()):
+                await asyncio.sleep(0.01)
+        except BaseException:
+            await on_abort()  # cancelled before the deadline began: what the stand-in started must still stop
+            raise
+        return await communicate_bounded(proc, timeout=timeout, on_abort=on_abort)
+
+    monkeypatch.setattr(f"{_MODULE}.communicate_bounded", bounded_once_started)
 
 
 async def _stops_running(pid: int, within: float = 2.0) -> bool:
@@ -115,6 +138,7 @@ async def test_a_conversion_that_does_not_finish_is_stopped_with_everything_it_s
     pid_file = tmp_path / "child.pid"
     docx_path = _install_soffice(tmp_path, monkeypatch, _NEVER_ENDS[scenario].format(pid_file=pid_file))
     monkeypatch.setattr(f"{_MODULE}._CONVERT_TIMEOUT_SECONDS", 1.0)
+    _start_the_deadline_once_the_child_runs(monkeypatch, pid_file)
 
     async with asyncio.timeout(_GUARD_SECONDS):
         warnings = await run_layout_qa_check(docx_path)

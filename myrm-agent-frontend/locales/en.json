@@ -1832,7 +1832,7 @@
       "title": "Failed to load configuration",
       "description": "Unable to connect to the service. Please check if the backend is running and try again.",
       "retry": "Retry",
-      "hintUnreachable": "Backend not reachable. Run: myrm dev or myrm start. Ensure .env.local has API_PORT=8080.",
+      "hintUnreachable": "Backend not reachable. Run: myrm start. Ensure .env.local has API_PORT=8080.",
       "hintSplitDev": "Backend OK at http://{host}:{port}. Run myrm start, or bun run dev then open http://localhost:3000 (API_PORT={proxyPort}).",
       "hintStandalone": "Backend OK at http://{host}:{port}. Run myrm start, or set API_PORT={proxyPort} in .env.local."
     },
@@ -5620,11 +5620,6 @@
           "invalid_schedule": "Invalid or unsupported schedule",
           "prompt_injection": "Prompt blocked by safety scan",
           "unsupported_job_type": "Unsupported task type"
-        },
-        "tokenEconomics": {
-          "title": "Token usage comparison",
-          "description": "{count} skill(s) detected — here is how per-turn token cost compares",
-          "savings": "{percent}% saved"
         },
         "sessionsTitle": "Session Lane — {count} session(s) detected",
         "resumptionReady": "Ready for Resumption",
@@ -19158,7 +19153,6 @@
     "currentSearchService": "Current Search Service",
     "builtInDefault": "Local",
     "searxngFreeLocal": "SearXNG (Free Local)",
-    "duckduckgoFree": "DuckDuckGo (Free Cloud)",
     "modelPlaceholder": "provider/model (e.g., openai/gpt-4, anthropic/claude-3-opus-20240229)",
     "apiKeyPlaceholder": "Enter your API key",
     "baseUrlPlaceholder": "Provider API URL or custom URL (built-in common provider URLs don't need to be filled in)",
@@ -21112,33 +21106,33 @@
       "criticalPauseActive": "Critical Pause Awaiting Approval"
     },
     "commerceBudget": {
-      "title": "Autonomous Spending & Commerce Sandbox",
-      "description": "Controlled micro-budget autonomous payment vault with merchant allowlists to eliminate trivial fee interruptions",
+      "title": "Spending Limit Gate",
+      "description": "Per-payment and daily caps, a merchant-domain allowlist and a one-click freeze. The gate holds no card numbers. YOLO Mode, Always Allow and Smart Intent Guard never release payment-like tool calls; in a chat you are watching, each one waits for your approval.",
       "dailyCap": "Daily Spending Cap",
-      "dailyCapDesc": "Maximum daily total amount permitted for autonomous agent spending",
+      "dailyCapDesc": "Maximum total the gate accepts for reservations per day",
       "perActionCap": "Per-Action Limit",
       "perActionCapDesc": "Maximum allowance per single micro-payment operation (recommended <= $2.00)",
       "todaySpent": "Spent Today",
       "activeReserved": "Active Reserved",
       "remainingBudget": "Remaining Budget",
       "emergencyFreeze": "Emergency Freeze",
-      "emergencyFreezeDesc": "Blocks all autonomous spending instantly and forces human approval",
+      "emergencyFreezeDesc": "While frozen, the gate rejects every new reservation until you unfreeze it",
       "frozenStatus": "Emergency Frozen",
-      "activeStatus": "Sandbox Active",
+      "activeStatus": "Gate Active",
       "allowedMerchants": "Allowed Merchants Whitelist",
-      "allowedMerchantsDesc": "Only allow payments to whitelisted domains (supports wildcards e.g. *.openai.com)",
+      "allowedMerchantsDesc": "Only reservations for allowlisted domains are accepted (wildcards such as *.openai.com are supported)",
       "addMerchant": "Add Merchant",
       "addMerchantPlaceholder": "Enter merchant domain (e.g. namesilo.com)",
       "save": "Save Changes",
       "savedSuccess": "Commerce budget settings updated successfully",
-      "ledgerTitle": "Tamper-Evident Spending Ledger",
-      "ledgerDesc": "Cryptographically chained audit trail with HMAC signatures",
-      "noEntries": "No autonomous spending transactions recorded",
+      "ledgerTitle": "Spending Ledger",
+      "ledgerDesc": "A record of every reservation and commit. Committed entries carry a SHA-256 entry hash, kept for reference and not verified on read",
+      "noEntries": "No spending transactions recorded",
       "merchant": "Merchant",
       "amount": "Amount",
       "status": "Status",
       "time": "Time",
-      "verifiedReceipt": "HMAC Signature Verified",
+      "verifiedReceipt": "Entry hash recorded",
       "entryHashLabel": "Entry hash:",
       "entryHashPending": "Pending / N/A",
       "idempotencyKeyLabel": "Idempotency key:"
@@ -22110,11 +22104,11 @@
     "noChanges": "No changes"
   },
   "commerceReceipt": {
-    "statusCommitted": "Paid & Verified",
+    "statusCommitted": "Committed",
     "statusReserved": "Reserved",
-    "statusRefunded": "Refunded",
+    "statusRefunded": "Released",
     "statusRejected": "Blocked",
-    "hashVerified": "Ledger hash verified (HMAC)"
+    "hashVerified": "Ledger entry hash recorded"
   },
   "evidencePack": {
     "modalTitle": "Six-step project experience wizard",

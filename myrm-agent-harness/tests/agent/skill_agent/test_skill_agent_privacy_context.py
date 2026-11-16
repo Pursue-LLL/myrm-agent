@@ -3,7 +3,7 @@
 Validates that ``_cleanup_session`` rebuilds the security/policy/store/closure
 context after ``cleanup_run`` cleared it, so end_session flush and
 auto-extraction memories are persisted with the same PII protection as in-run
-writes (regression: fire-and-forget writes ran with a cleared context).
+writes (fire-and-forget writes must not run with a cleared context).
 """
 
 from __future__ import annotations
@@ -131,8 +131,8 @@ class TestReestablishPrivacyContext:
     def test_reestablishes_with_deep_scan_only_policy(self) -> None:
         """Deep scan alone (S2/S3=REDACT) must still initialize the store.
 
-        Regression: needs_store only considered PSEUDONYMIZE actions, so
-        privacyDeepScan + the default REDACT actions silently disabled the LLM
+        needs_store cannot depend on PSEUDONYMIZE actions alone: privacyDeepScan
+        with the default REDACT actions would otherwise silently disable the LLM
         deep scan on every memory-write path.
         """
         mock_store = MagicMock()
@@ -180,9 +180,9 @@ class TestReestablishPrivacyContext:
     def test_partial_failure_restores_all_contextvars(self) -> None:
         """A store-init exception must leave no partial context behind.
 
-        Regression: only security config was restored on failure, so a store
-        set before the closure registration raised would leak into the current
-        task context (and teardown was skipped because restored=False).
+        Restoring only the security config on failure would leak a store set
+        before the closure registration raised into the current task context
+        (and teardown is skipped because restored=False).
         """
         mock_store = MagicMock()
 

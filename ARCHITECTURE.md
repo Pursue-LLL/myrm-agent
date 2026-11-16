@@ -28,7 +28,7 @@
 
 | 模式 | 用户如何接入 | server 运行位置 | 是否需要 CP |
 |------|--------------|-----------------|-------------|
-| **本地 WebUI** | `curl\|bash` / `irm\|iex` → `myrm start` 或 monorepo `./myrm-dev setup` + `./myrm-dev ready`（`./myrm-dev test` / `./myrm-dev restart`） | 本机 :8080 | 否 |
+| **本地 WebUI** | `curl\|bash` / `irm\|iex` → `myrm start` 或 monorepo `./myrm-dev setup` + `./myrm-dev ready`（`./myrm-dev test` / `./myrm-dev restart`） | 本机 :8080（`./myrm-dev ready` 的共享 dev 栈为 :28080） | 否 |
 | **Tauri 桌面** | GitHub Releases 安装包 | 内嵌 Python sidecar（默认 :8080） | 否 |
 | **SaaS 云托管** | `app.myrmagent.ai` | CP 分配的**独立沙箱**内 server | 是（调度/Volume/ingress） |
 
@@ -128,7 +128,7 @@ bash scripts/install.sh   # or: myrm setup
 myrm start                # backend :8080 + frontend :3000
 ```
 
-`myrm dev` 要求 server venv 的 harness 指向仓库内源码（修复：`cd myrm-agent-server && uv sync`）。详见 [scripts/_ARCH.md](scripts/_ARCH.md)。
+`myrm start` 要求 server venv 的 harness 指向仓库内源码（修复：`cd myrm-agent-server && uv sync`）。详见 [scripts/_ARCH.md](scripts/_ARCH.md)。
 
 WebUI: http://localhost:3000 · API: http://localhost:8080
 

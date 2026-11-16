@@ -8,9 +8,9 @@ and ``run_manager`` (reserved keyword-only params in langchain-core
 ``tool_calls`` — asserting the server actually receives the arguments. Nothing
 is mocked on the wire path; only the LLM-produced argument dict is simulated.
 
-Regression guard: before the SafeStructuredTool fix, langchain's
-``StructuredTool._arun`` swallowed a ``config`` argument into its own keyword
-parameter and the server rejected the call with ``Field required``.
+Regression guard: langchain's ``StructuredTool._arun`` swallows a ``config``
+argument into its own keyword parameter and the server then rejects the call with
+``Field required``; ``SafeStructuredTool`` must pass the argument through.
 """
 
 from __future__ import annotations
@@ -68,9 +68,7 @@ async def _actor(tmp_path) -> object:
 async def test_config_argument_reaches_server_via_proxy_ainvoke(_actor: object) -> None:
     """A ``config``-named tool argument survives proxy ainvoke end-to-end."""
     proxy = _find_tool(_actor, "apply_config")
-    result = await proxy.ainvoke(
-        {"config": {"env": "dev", "retention_days": 30}, "tags": ["ops"]}
-    )
+    result = await proxy.ainvoke({"config": {"env": "dev", "retention_days": 30}, "tags": ["ops"]})
     assert isinstance(result, str)
     assert "config={'env': 'dev', 'retention_days': 30}" in result
     assert "tags=['ops']" in result
@@ -158,9 +156,7 @@ async def test_real_tool_node_executes_config_tool(_actor: object) -> None:
         config,
     )
     messages = result["messages"]
-    tool_message = next(
-        m for m in messages if getattr(m, "tool_call_id", None) == "call-tn-1"
-    )
+    tool_message = next(m for m in messages if getattr(m, "tool_call_id", None) == "call-tn-1")
     assert "config={'env': 'prod'}" in tool_message.content
     assert "tags=['tn']" in tool_message.content
 

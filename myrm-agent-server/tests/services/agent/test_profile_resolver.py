@@ -327,8 +327,8 @@ class TestCoerceStrTuple:
 class TestFalsyEdgeCases:
     """Verify [] vs None distinction in profile resolution.
 
-    Regression tests for the bug where `if raw_builtin_tools` treated [] as falsy,
-    causing fallback to defaults even when the user explicitly disabled all tools.
+    `if raw_builtin_tools` would treat [] as falsy and fall back to defaults even
+    when the user explicitly disabled all tools; [] must stay distinct from None.
     """
 
     @pytest.mark.asyncio

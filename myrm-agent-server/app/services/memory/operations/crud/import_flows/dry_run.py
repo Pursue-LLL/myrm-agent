@@ -30,7 +30,6 @@ from app.services.memory.operations.crud.import_flows.dry_run_preview import (
     build_lane_response_rows,
     build_lane_rows,
     build_session_preview,
-    build_token_economics,
     skipped_cron_preview,
 )
 from app.services.memory.operations.crud.import_flows.dry_run_source import (
@@ -133,7 +132,6 @@ async def dry_run_import_memories(
         pending_skills_total=pending_skills_total,
         coverage_items=coverage_items,
         migration_lanes=migration_lanes,
-        token_economics=build_token_economics(pending_skills_total) if is_competitor else None,
         instruction_preview_persona=instruction_preview_persona,
         instruction_preview_rule_names=instruction_preview_rule_names,
         instruction_total_chars=instruction_total_chars if is_competitor else 0,

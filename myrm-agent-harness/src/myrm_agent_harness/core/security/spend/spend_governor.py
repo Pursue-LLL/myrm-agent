@@ -1,7 +1,7 @@
 """Spend Governor and Atomic Lease Controller for Agent Commerce.
 
 [INPUT]
-- .spend_contracts::SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult, SpendMetrics, is_spend_voucher (POS: 预算保险箱数据模型与契约)
+- .spend_contracts::SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult, SpendMetrics, is_spend_voucher (POS: 预算额度闸数据模型与契约)
 - base64::base64 (POS: Python 标准 base64 编解码库)
 - fnmatch::fnmatch (POS: 域名通配符模式匹配库)
 - hashlib, hmac (POS: Python 加密散列与签名标准库)
@@ -9,7 +9,7 @@
 - os, time (POS: 系统调用与时间标准库)
 
 [OUTPUT]
-- SpendGovernor: 纯状态机预算保险箱控制器
+- SpendGovernor: 纯状态机预算额度闸控制器
 - SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult, SpendMetrics, is_spend_voucher: 重新导出契约
 
 [POS]
@@ -59,14 +59,14 @@ __all__ = [
 
 
 class SpendGovernor:
-    """In-memory deterministic state machine enforcing autonomous micro-spending bounds.
+    """In-memory deterministic state machine enforcing micro-spending bounds.
 
     Guarantees:
     1. Zero float rounding: all financial accounting runs strictly in integer USD Cents.
     2. Atomic reservation: concurrency cannot breach the daily or per-action cap.
     3. Merchant domain allowlist: strict domain and wildcard glob verification.
     4. Auto-expiry release: uncommitted leases automatically expire and release budget.
-    5. Process-level tamper-evident HMAC vouchers, checked by ``verify_spend_voucher``.
+    5. Process-level HMAC-signed vouchers (signed, not encrypted), checked by ``verify_spend_voucher``.
     """
 
     def __init__(
@@ -91,7 +91,7 @@ class SpendGovernor:
         self._config = new_config
 
     def freeze(self) -> None:
-        """Emergency circuit breaker: freeze all autonomous spending."""
+        """Emergency circuit breaker: reject every new reservation until ``unfreeze``."""
         self._config = SpendGovernorConfig(
             daily_cap_cents=self._config.daily_cap_cents,
             per_action_cap_cents=self._config.per_action_cap_cents,
@@ -102,7 +102,7 @@ class SpendGovernor:
         )
 
     def unfreeze(self) -> None:
-        """Resume autonomous spending operations."""
+        """Resume accepting reservations."""
         self._config = SpendGovernorConfig(
             daily_cap_cents=self._config.daily_cap_cents,
             per_action_cap_cents=self._config.per_action_cap_cents,
@@ -141,13 +141,13 @@ class SpendGovernor:
         current_time = time.time() if now is None else now
         expired_count = 0
         terminal_retention = 3600.0
+        terminal_statuses = ("expired", "committed", "released")
         for lid, lease in list(self._leases.items()):
             if lease.status == "reserved" and current_time > lease.expires_at:
                 lease.status = "expired"
                 expired_count += 1
-            elif lease.status in ("expired", "committed", "released"):
-                if current_time > lease.expires_at + terminal_retention:
-                    self._leases.pop(lid, None)
+            elif lease.status in terminal_statuses and current_time > lease.expires_at + terminal_retention:
+                self._leases.pop(lid, None)
         return expired_count
 
     def get_active_reserved_cents(self, now: float | None = None) -> int:
@@ -176,7 +176,7 @@ class SpendGovernor:
                 return SpendLeaseResult(
                     success=False,
                     code="FROZEN",
-                    message="Autonomous spending is currently frozen by emergency breaker.",
+                    message="Spending is currently frozen by the emergency breaker.",
                 )
 
             if amount_cents <= 0:
@@ -329,7 +329,7 @@ class SpendGovernor:
         return False
 
     def _mint_voucher(self, lease: SpendLease) -> str:
-        """Create a cryptographic AES-256-GCM / HMAC authenticated voucher token."""
+        """Create an HMAC-SHA256-signed voucher token (base64 JSON payload plus signature, not encrypted)."""
         payload_dict: Mapping[str, str | int | float] = {
             "lid": lease.lease_id,
             "dom": lease.merchant_domain,

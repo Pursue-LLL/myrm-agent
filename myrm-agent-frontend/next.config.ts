@@ -77,6 +77,9 @@ const nextConfig: NextConfig = {
   env: {
     // Cache key for /api/i18n/deferred so a long browser cache is dropped when translations change.
     NEXT_PUBLIC_LOCALE_VERSION: computeLocaleContentVersion(path.join(frontendRoot, 'locales')),
+    // The release this bundle is built for (release workflows export RELEASE_TAG): the first-screen snapshot another
+    // build stored is not shown by this one.
+    NEXT_PUBLIC_APP_BUILD: process.env.RELEASE_TAG?.trim() || 'dev',
   },
   // The dev server and the production build must not share one output directory: `next build` clears
   // the dist dir, which deletes the running dev server's chunks and leaves it serving HTML whose

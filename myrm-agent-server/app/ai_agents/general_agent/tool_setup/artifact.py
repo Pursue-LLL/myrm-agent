@@ -11,13 +11,8 @@ ToolSetupMixin 的一个工具族；由 mixin.py 组合。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from .base import ToolSetupBaseMixin
-
-if TYPE_CHECKING:
-
-    pass
 
 logger = logging.getLogger(__name__)
 

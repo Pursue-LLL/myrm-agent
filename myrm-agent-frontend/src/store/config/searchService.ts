@@ -87,11 +87,6 @@ const disableSamePriority = (
   return configs.map((c) => (c.id !== exceptId && c.enabled && c.priority === priority ? { ...c, enabled: false } : c));
 };
 
-// 加载搜索服务配置列表（已废弃，persist 自动处理）
-export const loadSearchServiceConfigs = (): SearchServiceConfigItem[] => {
-  return [];
-};
-
 export const setSearchServiceConfigs = (configs: LegacySearchConfigItem[]): SearchServiceConfigItem[] => {
   return normalizeSearchServiceConfigs(configs);
 };

@@ -253,7 +253,7 @@ class TestPemBlockRedaction:
         assert "MIIEvg" not in result
 
     def test_pem_block_with_slash_lines_not_leaked(self) -> None:
-        """Regression: lines containing '/' were skipped by entropy check."""
+        """PEM base64 lines containing '/' must be redacted too (the entropy check must not skip them)."""
         pem = (
             "-----BEGIN PRIVATE KEY-----\n"
             "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7s0Z1GZHVYvKE\n"

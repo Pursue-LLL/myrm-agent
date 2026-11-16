@@ -25,8 +25,6 @@ Coordinates host agent detection, insight distillation, and persistent memory in
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from myrm_agent_harness.toolkits.memory import (
     FirstEncounterReport,
     MultiSourceOnboardingSampler,
@@ -45,9 +43,6 @@ from app.schemas.onboarding_insight import (
     OnboardingScanSummaryResponse,
     ScanAgentSourcesRequest,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 class OnboardingInsightService:

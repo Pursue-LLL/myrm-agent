@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-本地开发启动脚本。由根 `scripts/myrm` / `myrm.ps1` 分发调用，不直接暴露给终端用户（用户使用 `myrm dev` / `myrm start`）。
+本地开发启动脚本。`setup` / `start` 由根 `scripts/myrm` / `myrm.ps1` 分发调用，不直接暴露给终端用户（用户使用 `myrm setup` / `myrm start`）；仅后端的 `dev.sh` 不在 Unix 用户命令里，由开发者 CLI `./myrm-dev dev` 调用，运行时命名空间是 `shared`（:28080，不是用户栈的 :8080；Windows 的 `myrm.ps1 dev` 分发 `dev.ps1`，固定 :8080）。
 
 **职责边界**：本目录只放 **栈启动/守门**、**MCP Chrome UI E2E 胶水** 与 **ChromeAgent 的消费侧**（`_ARCH.md` 文件表内条目）。ChromeAgent 本体（`:9410` 服务、`chrome-agent` CLI、代理源码与测试）是机器级服务，在独立项目中维护，由它安装与升级（`chrome-agent upgrade`）；本仓只经 `chrome-agent` CLI（`lib/chrome_agent_cli.sh` 定位）和 `:9410` 端点使用它，不含其运行时源码。可重复的 API/契约验证一律在 `myrm-agent-server/tests/`（`./myrm-dev test` / `./myrm-dev test -m chrome_e2e`），禁止在此新增「半 pytest」一次性联调脚本。**Dev Gate 基建 pytest 唯一根**在维护者 monorepo 的 `scripts/dev/tests/`（不在本仓内）。
 

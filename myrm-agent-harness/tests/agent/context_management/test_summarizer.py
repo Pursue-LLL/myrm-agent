@@ -1101,7 +1101,7 @@ class TestSequentialCompactionInvariant:
 
     @pytest.mark.asyncio
     async def test_residual_multi_block_anchors_latest_and_cleans(self) -> None:
-        """F1-F5 修复前多块残留会话：增量锚点为最新可解析摘要块，压缩后孤儿全清。"""
+        """多块残留会话：增量锚点为最新可解析摘要块，压缩后孤儿全清。"""
         from myrm_agent_harness.agent.context_management.strategies.summary.summary_builder import (
             create_summary_message,
         )

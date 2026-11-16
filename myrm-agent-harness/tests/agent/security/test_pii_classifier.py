@@ -104,8 +104,8 @@ class TestS2Detection:
         assert "china_phone" in result.patterns
 
     def test_bare_ascii_china_courier_detected(self) -> None:
-        # Regression: china_courier matches pure ASCII (SF/YT/EMS + digits) and was
-        # skipped by the same fast path.
+        # china_courier matches pure ASCII (SF/YT/EMS + digits), so the CJK-only
+        # fast path must not skip it.
         result = classify_content("SF1234567890123", _ENABLED)
         assert result.level == SensitivityLevel.S2
         assert "china_courier" in result.patterns

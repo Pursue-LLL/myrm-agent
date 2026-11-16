@@ -8,6 +8,7 @@
 - myrm_agent_harness.core.security.spend_governance::compute_action_digest / is_financial_or_spend_tool / is_irreversible_social_action / parse_spend_amount (POS: Foundational Agent Commerce governance module in core/security/.)
 - myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
 - myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-only lease, the permission engine, the shell-escalation check and the LLM security review.)
+- myrm_agent_harness.agent.middlewares.approval.batch_processor._workspace_snapshot::pre_destructive_snapshot_id (POS: 破坏性命令等待审批时的回滚点；决策循环与 YOLO 分支共用。)
 
 [OUTPUT]
 - operator_as_key_deny_message: Fail-closed before HITL: lone printable operators are never key names.
@@ -16,8 +17,6 @@
 [POS]
 batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。
 """
-
-
 
 from __future__ import annotations
 
@@ -53,8 +52,10 @@ from myrm_agent_harness.toolkits.code_execution.security.ast_parser import (
 )
 
 from ..denial_diagnostic_bridge import build_auto_review_denial_message
+from ._workspace_snapshot import pre_destructive_snapshot_id
 
 _VISION_KEY_TOOL_NAMES = frozenset({"desktop_vision_tool", "desktop_vision"})
+
 
 def operator_as_key_deny_message(tool_name: str, tool_input: dict[str, object]) -> str | None:
     """Fail-closed before HITL: lone printable operators are never key names.
@@ -238,19 +239,12 @@ async def _evaluate_yolo_batch(
                     "YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED",
                     f"Irreversible destructive operations are immune to YOLO auto-approval: {destr_reason}",
                 )
-                from pathlib import Path
-
-                from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
-                    create_workspace_snapshot,
-                )
-
-                snap_res = create_workspace_snapshot(Path.cwd())
                 destr_ctx: dict[str, object] = {
                     "irreversible_destructive": True,
                     "high_risk": True,
                     "hide_allow_always": True,
                     "blast_radius": blast_info,
-                    "snapshot_id": snap_res.snapshot_id,
+                    "snapshot_id": pre_destructive_snapshot_id(),
                 }
                 pending_approval.append(
                     (

@@ -12,7 +12,7 @@
 Detects when a user query matches **substring triggers** for a GUI-togglable builtin tool group
 that is not enabled on the current Agent profile. Primary runtime consumer: server
 capability gap intent detection.
-Substring enable-and-resend SSE toasts were removed; registry entries remain for intent matching only.
+Registry entries serve intent matching only; no enable-and-resend SSE toast is driven from them.
 ``skill_market`` / ``skill_manage`` are profile toggles but excluded from this registry (install/author via Settings or explicit profile opt-in).
 ``AGENT_BASELINE_BUILTIN_TOOLS`` (file_ops, code_execute) are forced at runtime and omitted from
 ``CAPABILITY_GAP_REGISTRY``.

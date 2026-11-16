@@ -8,6 +8,7 @@
 [OUTPUT]
 - public_api_openapi(): 路径表 + OpenAPI 生成期间捕获的 `Duplicate Operation ID` 警告 + 指向不存在组件的 `$ref`
 - public_api_handlers(): 每个操作背后的端点函数（`app/` 下的文件 + 函数名 + 方法 + 客户端路径）
+- public_api_unreachable_routes(): 自己的请求被注册在前的路由接走的操作（`/{id}` 排在字面兄弟路径之前）
 - build_public_api_app(): 每次新建一个挂好全部公开路由的应用；共享快照有缓存、不可改，要补挂路由的测试用这个
 - API_VERBS: 计入「操作」的 HTTP 方法
 
@@ -164,3 +165,43 @@ def public_api_handlers() -> tuple[ApiHandler, ...]:
             ApiHandler(file, code.co_name, method, path) for method in sorted(context.methods or ()) if method in API_VERBS
         )
     return tuple(handlers)
+
+
+# One value per path-parameter kind that its convertor's pattern accepts.
+_PATH_PARAM_SAMPLES = {
+    "PathConvertor": "a/b",
+    "IntegerConvertor": "1",
+    "FloatConvertor": "1.5",
+    "UUIDConvertor": "00000000-0000-0000-0000-000000000001",
+}
+
+
+@cache
+def public_api_unreachable_routes() -> tuple[str, ...]:
+    """Operations whose own request is answered by an earlier route, so their handler never runs.
+
+    FastAPI serves a request with the first registered route that matches its method and path. A route with a path
+    parameter registered before a literal sibling (``/artifacts/{id}`` before ``/artifacts/shares``) therefore takes
+    the sibling's requests. Each route is probed with a request built from its own path.
+    """
+    contexts = list(iter_route_contexts(_shared_app().routes))
+
+    def first_match(method: str, path: str) -> int | None:
+        for position, context in enumerate(contexts):
+            if method in (context.methods or ()) and context.path_regex is not None and context.path_regex.match(path):
+                return position
+        return None
+
+    unreachable: list[str] = []
+    for position, context in enumerate(contexts):
+        if not context.methods or context.path_format is None:
+            continue
+        path = context.path_format
+        for name, convertor in (context.param_convertors or {}).items():
+            path = path.replace("{" + name + "}", _PATH_PARAM_SAMPLES.get(type(convertor).__name__, "x"))
+        for method in sorted(context.methods):
+            winner = first_match(method, path)
+            if winner != position:
+                served_by = contexts[winner].path_format if winner is not None else None
+                unreachable.append(f"{method} {context.path_format} is served by {served_by}")
+    return tuple(unreachable)

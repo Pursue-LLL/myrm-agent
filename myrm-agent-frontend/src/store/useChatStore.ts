@@ -316,7 +316,6 @@ const useChatStore = create<ChatState>()(
           );
         }
       },
-      setNewChatCreated: (created) => set({ newChatCreated: created }),
       setMessages: (updater: (state: ChatState) => void) => set(updater),
       refreshCompactionState: async (chatId, meta) => {
         const { getChatDetail, listContextBranches, getContextPins } = await import('@/services/chat');

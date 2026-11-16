@@ -22,7 +22,7 @@ pytestmark = [
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
-def test_template_market_lists_official_document_assistant():
+def test_agent_templates_list_official_document_assistant():
     """Templates API returns official_document_assistant with correct metadata."""
     api_url = get_e2e_api_url()
     data = http_json("GET", f"{api_url}/api/v1/agents/templates")
@@ -38,7 +38,7 @@ def test_template_market_lists_official_document_assistant():
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
-def test_template_market_i18n_negotiation():
+def test_agent_templates_i18n_negotiation():
     """Templates API respects Accept-Language for i18n content."""
     api_url = get_e2e_api_url()
 
@@ -59,7 +59,7 @@ def test_expert_summon_funnel_summary_api():
     """Statistics API serves expert summon funnel events and aggregated summary."""
     api_url = get_e2e_api_url()
     event_payload = {
-        "event_type": "council_phase_completed",
+        "event_type": "first_message_sent",
         "surface": "flow_pad_inline",
         "context_key": "flowpad:e2e",
         "trigger": "plus_popover_card",

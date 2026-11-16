@@ -61,10 +61,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Only the Labs panels call these (command center, engine consoles, archive restore, tool guidance, profile notes,
+# first-encounter onboarding, ephemeral delta, cognitive clock status and T1 trigger, import rollback preview); nothing
+# in the default UI does. They sit ahead of crud, whose PUT /{memory_type}/{memory_id} would otherwise take
+# PUT /profile-notes/contents.
 if settings.memory_labs_enabled:
     router.include_router(command_center.router, tags=["memory-command-center"])
     router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
     router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
+    router.include_router(archive_restore.router, tags=["memory-archive-restore"])
+    router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
+    router.include_router(profile_notes_router, tags=["memory-profile-notes"])
+    router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
+    router.include_router(ephemeral_delta_router, tags=["memory-ephemeral-delta"])
+    router.include_router(cognitive_clock_console.router, tags=["memory-guardian"])
+    router.include_router(import_rollback_preview.router, tags=["memory-crud"])
+    router.include_router(private_notebook_router, tags=["memory-private-notebook"])
+    router.include_router(two_layer_dialectic_router, tags=["memory-two-layer-dialectic"])
+    router.include_router(score_honesty_router, tags=["memory-score-honesty"])
 
 # The Journey graph tab and the memory card evidence drawer call these two under the command-center prefix,
 # so they are not Labs-only.
@@ -89,17 +103,3 @@ router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 if is_local_mode():
     router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
     router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
-# Only the Labs panels call these (engine consoles, archive restore, tool guidance, profile notes, first-encounter
-# onboarding, ephemeral delta, cognitive clock status and T1 trigger, import rollback preview); nothing in the default
-# UI does.
-if settings.memory_labs_enabled:
-    router.include_router(archive_restore.router, tags=["memory-archive-restore"])
-    router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
-    router.include_router(profile_notes_router, tags=["memory-profile-notes"])
-    router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
-    router.include_router(ephemeral_delta_router, tags=["memory-ephemeral-delta"])
-    router.include_router(cognitive_clock_console.router, tags=["memory-guardian"])
-    router.include_router(import_rollback_preview.router, tags=["memory-crud"])
-    router.include_router(private_notebook_router, tags=["memory-private-notebook"])
-    router.include_router(two_layer_dialectic_router, tags=["memory-two-layer-dialectic"])
-    router.include_router(score_honesty_router, tags=["memory-score-honesty"])

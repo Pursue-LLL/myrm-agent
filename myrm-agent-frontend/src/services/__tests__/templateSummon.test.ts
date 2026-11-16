@@ -19,7 +19,9 @@ describe('templateSummon', () => {
 
     it('transparently preserves real error messages without loss', () => {
       const err = new Error("Template requires skill 'office-document' which does not exist in the system.");
-      expect(extractSummonErrorMessage(err, fallback)).toBe("Template requires skill 'office-document' which does not exist in the system.");
+      expect(extractSummonErrorMessage(err, fallback)).toBe(
+        "Template requires skill 'office-document' which does not exist in the system.",
+      );
 
       const authErr = new Error('Authentication required');
       expect(extractSummonErrorMessage(authErr, fallback)).toBe('Authentication required');
@@ -38,16 +40,16 @@ describe('templateSummon', () => {
 
       const result = await instantiateTemplateWithMetrics({
         templateId: 'hr_recruiter',
-        surface: 'empty_chat_featured',
-        trigger: 'featured_chip',
+        surface: 'flow_pad_inline',
+        trigger: 'use_case_chip',
         templateKind: 'individual',
         fromSearch: false,
         usedUseCase: true,
       });
 
       expect(result).toBe(mockAgent);
-      expect(spyAttempted).toHaveBeenCalledWith('empty_chat_featured', 'featured_chip', expect.any(Object));
-      expect(spySucceeded).toHaveBeenCalledWith('empty_chat_featured', 'featured_chip', expect.any(Object));
+      expect(spyAttempted).toHaveBeenCalledWith('flow_pad_inline', 'use_case_chip', expect.any(Object));
+      expect(spySucceeded).toHaveBeenCalledWith('flow_pad_inline', 'use_case_chip', expect.any(Object));
     });
 
     it('records failed metrics and re-throws when instantiation fails', async () => {
@@ -66,7 +68,12 @@ describe('templateSummon', () => {
         }),
       ).rejects.toThrow('Backend failed');
 
-      expect(spyFailed).toHaveBeenCalledWith('flow_pad_inline', 'template_card', expect.any(String), expect.any(Object));
+      expect(spyFailed).toHaveBeenCalledWith(
+        'flow_pad_inline',
+        'template_card',
+        expect.any(String),
+        expect.any(Object),
+      );
     });
   });
 });

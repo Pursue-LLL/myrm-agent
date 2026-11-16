@@ -133,7 +133,7 @@ class TestValidateCommandWithVenvWhitelist:
         assert result.is_safe
 
     def test_without_additional_paths_venv_blocked(self, tmp_workspace: Path, tmp_venv: Path) -> None:
-        """Before the fix: venv paths are blocked without additional_paths."""
+        """Without additional_paths, venv paths are blocked."""
         python_path = str(tmp_venv / "bin" / "python")
         script = tmp_workspace / "run.py"
         script.touch()

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.config.deploy_mode::is_local_mode (POS: local-only route guard)
-- app.lifecycle.task_worker::get_task_store (POS: SQLiteTaskStore provider)
+- app.api.tasks.deps::get_task_store (POS: SQLiteTaskStore FastAPI dependency)
 - app.ai_agents.media_tools.media_persist::create_media_persist_callback (POS: the production store-and-reference path)
 - app.tasks.executors.image_executor::image_task_result (POS: the result shape of a finished image task)
 

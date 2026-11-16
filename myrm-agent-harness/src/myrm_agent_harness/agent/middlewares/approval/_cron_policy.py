@@ -4,6 +4,7 @@
 - agent.security.engine::check_tool_path_policy (POS: Path-zone verdict shared with the permission engine.)
 - agent.security.guards.taint_tracker::TaintLabel, get_taint_tracker (POS: Session-scoped data-flow taint state.)
 - agent.security.types::DEFAULT_CAPABILITIES, PermissionAction, SecurityConfig (POS: Security type hierarchy.)
+- core.security.spend_governance::is_financial_or_spend_tool (POS: Foundational Agent Commerce governance module in core/security/.)
 - toolkits.code_execution.security.shell_command_analyzer::is_integration_mutation_command (POS: Detects integration write mutations in shell commands.)
 
 [OUTPUT]
@@ -13,8 +14,8 @@
 [POS]
 A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval,
 except for asks that carry a risk the declaration does not cover: credential data leaving the
-session, writes outside the job's directories, integration write mutations. Called by
-batch_processor after the allowlist and the optional LLM review had their say.
+session, writes outside the job's directories, integration write mutations, payment-like tool
+calls. Called by batch_processor after the allowlist and the optional LLM review had their say.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from dataclasses import dataclass
 from myrm_agent_harness.agent.security.engine import check_tool_path_policy
 from myrm_agent_harness.agent.security.guards.taint_tracker import TaintLabel, get_taint_tracker
 from myrm_agent_harness.agent.security.types import DEFAULT_CAPABILITIES, PermissionAction, SecurityConfig
+from myrm_agent_harness.core.security.spend_governance import is_financial_or_spend_tool
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
     is_integration_mutation_command,
 )
@@ -60,6 +62,14 @@ def resolve_cron_ask(
         return _denied(
             "no explicit capability declaration",
             "Tool denied: cron fail-closed policy. This cron job has no explicit capability declaration.",
+        )
+
+    # A capability names a kind of tool; it is not consent to spend, and no human is present to give that consent.
+    if is_financial_or_spend_tool(tool_name, tool_input):
+        return _denied(
+            "payment-like tool call",
+            "Tool denied: cron jobs cannot pre-approve payment-like tool calls, and nobody is present to approve this "
+            "one. Do not retry; finish the task without this call.",
         )
 
     if permission_type in _SHELL_PERMISSIONS:

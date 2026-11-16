@@ -18,11 +18,76 @@ const SWIPEABLE_ROWS: Array<{ file: string; row: string; tokens: string[] }> = [
   },
 ];
 
+/**
+ * Every control on the phone first screen reaches a 44px touch target while its drawn size stays put. The figures
+ * come from hit-testing (`elementFromPoint`) a 390x844 touch emulation; each entry pins the tokens that produce them.
+ * An absolutely positioned box is offset from the padding edge, so bordered controls need 1px more per side.
+ */
+const TOUCH_TARGETS: Array<{ file: string; control: string; tokens: string[] }> = [
+  {
+    file: '../../../layout/AppLayout.tsx',
+    control: 'sidebar toggle',
+    tokens: ['after:absolute', 'after:-inset-[5px]'],
+  },
+  {
+    file: '../WorkspaceDirPicker.tsx',
+    control: 'workspace row',
+    tokens: ['max-sm:after:absolute', 'max-sm:after:inset-x-0', 'max-sm:after:-inset-y-[8px]'],
+  },
+  {
+    file: '../../message-input-actions/SearchModeSelector.tsx',
+    control: 'Fast / Agent switch',
+    tokens: ['max-sm:min-w-11', 'max-sm:after:absolute', 'max-sm:after:inset-x-0', 'max-sm:after:-inset-y-1.5'],
+  },
+  {
+    file: '../../message-input-actions/AttachButton.tsx',
+    control: 'attach button',
+    tokens: ['max-sm:after:absolute', 'max-sm:after:-inset-y-1.5', 'max-sm:after:-left-2.5', 'max-sm:after:-right-0.5'],
+  },
+  {
+    file: '../composer/ComposerSendControls.tsx',
+    control: 'send button',
+    tokens: ['-inset-y-[5.5px]', '-left-0.5', '-right-[9px]', 'hidden max-sm:block'],
+  },
+  {
+    file: '../SamplePrompts.tsx',
+    control: 'time-slot pills',
+    tokens: [
+      'max-sm:-my-[8px]',
+      'max-sm:py-[8px]',
+      'max-sm:relative',
+      'max-sm:after:absolute',
+      'max-sm:after:inset-x-0',
+      'max-sm:after:-inset-y-[8px]',
+      'flex w-full flex-col gap-3',
+    ],
+  },
+];
+
 describe('empty chat phone first-screen contract', () => {
   it.each(SWIPEABLE_ROWS)('keeps the $row on one swipeable row below the sm breakpoint', ({ file, tokens }) => {
     const source = read(file);
 
     expect(tokens.filter((token) => !source.includes(token))).toEqual([]);
+  });
+
+  it.each(TOUCH_TARGETS)('keeps the $control on a 44px touch target below the sm breakpoint', ({ file, tokens }) => {
+    const source = read(file);
+
+    expect(tokens.filter((token) => !source.includes(token))).toEqual([]);
+  });
+
+  it('keeps the send button free of positioning words and its slot out of the way of the attach button', () => {
+    const source = read('../composer/ComposerSendControls.tsx');
+    const sendClassName = source.match(/className="([^"]*message-send-btn[^"]*)"/)?.[1] ?? '';
+
+    // brand.css treats any class list containing fixed / absolute / sticky as already positioned and drops the
+    // brand elevation's `position: relative; z-index`, so the touch box has to be a child element, not an `after:`.
+    expect(sendClassName).toContain('btn-brand-elevation');
+    expect(sendClassName).not.toMatch(/fixed|absolute|sticky/);
+    // The slot's 8px padding ring overlaps the attach button on phones (4px gap); it must not take pointer input.
+    expect(source).toContain('brand-elevation-slot pointer-events-none');
+    expect(sendClassName).toContain('pointer-events-auto');
   });
 
   it('keeps the featured experts strip on one swipeable row at every width, so its placeholder is the same box', () => {

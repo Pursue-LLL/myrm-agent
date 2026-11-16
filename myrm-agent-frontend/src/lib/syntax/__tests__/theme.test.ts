@@ -2,7 +2,7 @@
  * [INPUT]
  * - lib/syntax/theme: the syntax themes under test
  * - theme-engine/oklch::contrastRatio: the product's WCAG contrast function
- * - src/app/globals.css: the `--foreground` and `--muted-foreground` tokens the line numbers are drawn with
+ * - src/app/theme-variables.css: the `--foreground` and `--muted-foreground` tokens the line numbers are drawn with
  * [OUTPUT]
  * Vitest: every colour of the syntax themes reaches 4.5:1 on every surface the product draws code on, in both
  * appearances, including the tinted rows of diffs; the themes differ from the stock ones in colours only.
@@ -22,14 +22,14 @@ import { SYNTAX_THEME_DARK, SYNTAX_THEME_LIGHT, syntaxThemeFor, type SyntaxTheme
 
 const MIN_CONTRAST = 4.5;
 
-const globalsCss = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
+const themeVariablesCss = readFileSync(resolve(process.cwd(), 'src/app/theme-variables.css'), 'utf8');
 
-/** The value of a custom property in the `:root` (light) or `.dark` block of globals.css. */
+/** The value of a custom property in the `:root` (light) or `.dark` block of theme-variables.css. */
 function token(block: ':root' | '.dark', name: string): string {
-  const from = globalsCss.indexOf(`\n${block} {`);
-  const value = globalsCss.slice(from).match(new RegExp(`\\n\\s+${name}:\\s*([^;]+);`))?.[1];
+  const from = themeVariablesCss.indexOf(`\n${block} {`);
+  const value = themeVariablesCss.slice(from).match(new RegExp(`\\n\\s+${name}:\\s*([^;]+);`))?.[1];
   if (from === -1 || value === undefined) {
-    throw new Error(`${name} is not defined in the ${block} block of globals.css`);
+    throw new Error(`${name} is not defined in the ${block} block of theme-variables.css`);
   }
   return value.trim();
 }

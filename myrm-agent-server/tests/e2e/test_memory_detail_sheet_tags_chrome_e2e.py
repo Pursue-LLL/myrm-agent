@@ -6,7 +6,7 @@ Covers the user journey on WebUI /settings/memory:
    real same-origin API.
 2. Open the memory settings page and click the seeded memory card.
 3. Verify the detail sheet renders the tag and the related entity — both fields
-   were dropped by the read converters before the storage_converters fix.
+   must survive the read converters (storage_converters).
 4. Delete the seeded memory again (hygiene).
 """
 

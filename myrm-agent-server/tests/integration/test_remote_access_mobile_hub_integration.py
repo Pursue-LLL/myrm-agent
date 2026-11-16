@@ -148,7 +148,7 @@ class TestMobileHubIntegration:
         assert any(str(item.get("chatId")) == chat_id for item in active_sessions)
 
         # 帷幕状态契约：hub 载荷必须携带 curtain（非桌面端 available=False），
-        # 移动端看板据此渲染「屏幕已保护」胶囊，取代已移除的无消费者 SSE 路径。
+        # 移动端看板据此渲染「屏幕已保护」胶囊。
         curtain = payload.get("curtain")
         assert isinstance(curtain, dict), f"mobile hub must expose curtain status: {payload.keys()}"
         assert isinstance(curtain.get("available"), bool), curtain

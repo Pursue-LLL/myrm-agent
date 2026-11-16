@@ -147,8 +147,8 @@ class BatchTagsRequest(BaseModel):
     tags: list[str]
 
 
-# Declared before the ``/{media_id}`` routes on purpose: a route matches in declaration order, so
-# ``PUT /batch/tags`` placed after ``PUT /{media_id}/tags`` would be taken for the tags of a media item named ``batch``.
+# Registered ahead of the /{media_id} routes: FastAPI serves a request with the first route that matches, and
+# PUT /batch/tags would otherwise be taken by PUT /{media_id}/tags.
 @router.post("/batch/delete")
 async def batch_delete_media(
     body: BatchIdsRequest,

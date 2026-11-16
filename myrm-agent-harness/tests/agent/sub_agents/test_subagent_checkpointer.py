@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -33,9 +32,6 @@ from myrm_agent_harness.agent.sub_agents.checkpointer import (
     resolve_subagent_checkpoint_db_path,
 )
 from myrm_agent_harness.agent.sub_agents.types import SubAgentStatus
-
-if TYPE_CHECKING:
-    pass
 
 
 @pytest.fixture(autouse=True)

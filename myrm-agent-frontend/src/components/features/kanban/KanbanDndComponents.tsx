@@ -264,7 +264,7 @@ function DraggableTaskCard({
           onTaskSelect(task.task_id, e);
         }}
         className={cn(
-          // globals.css 的 `* { border-color }` 不在 layer 内，会盖掉普通的 border 色类，描边色必须加 `!` 才生效；
+          // base.css 的 `* { border-color }` 不在 layer 内，会盖掉普通的 border 色类，描边色必须加 `!` 才生效；
           // 描边用完整主色，未选中的圆圈在深浅两套主题下才与卡片底色保持 3:1 以上的对比度。
           'absolute -top-1.5 -left-1.5 z-10 size-[18px] rounded-full !border-primary bg-background shadow-sm',
           'after:absolute after:-inset-1.5 after:content-[""] [&_svg]:size-3',

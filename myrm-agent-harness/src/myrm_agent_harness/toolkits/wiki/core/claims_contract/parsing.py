@@ -12,12 +12,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
-
-if TYPE_CHECKING:
-    pass
 
 from .models import CLAIM_STATUSES, WikiClaim, WikiEvidence
 

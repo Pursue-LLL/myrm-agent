@@ -1832,7 +1832,7 @@
       "title": "Konfiguration konnte nicht geladen werden",
       "description": "Verbindung zum Service nicht möglich. Bitte prüfen Sie, ob das Backend läuft, und versuchen Sie es erneut.",
       "retry": "Erneut versuchen",
-      "hintUnreachable": "Backend nicht erreichbar. Ausführen: myrm dev oder myrm start (:8080), dann bun run dev. .env.local: API_PORT=8080.",
+      "hintUnreachable": "Backend nicht erreichbar. Ausführen: myrm start. .env.local: API_PORT=8080.",
       "hintSplitDev": "Backend OK: http://{host}:{port} (split_dev). API_PORT={proxyPort} in .env.local, dann http://localhost:3000",
       "hintStandalone": "Backend OK: http://{host}:{port} (standalone). API_PORT={proxyPort} in .env.local oder eingebettetes Frontend."
     },
@@ -5620,11 +5620,6 @@
           "invalid_schedule": "Ungültiger oder nicht unterstützter Zeitplan",
           "prompt_injection": "Eingabeaufforderung durch Sicherheitsscan blockiert",
           "unsupported_job_type": "Nicht unterstützter Aufgabentyp"
-        },
-        "tokenEconomics": {
-          "title": "Token-Verbrauch pro Runde",
-          "description": "{count} Skill(s) erkannt — Token-Kosten pro Runde im Vergleich",
-          "savings": "{percent}% gespart"
         },
         "sessionsTitle": "Sitzungsspur — {count} historische Sitzung(en) erkannt",
         "resumptionReady": "Bereit zur Fortsetzung",
@@ -19158,7 +19153,6 @@
     "currentSearchService": "Aktueller Suchdienst",
     "builtInDefault": "Lokal",
     "searxngFreeLocal": "SearXNG (kostenlos lokal)",
-    "duckduckgoFree": "DuckDuckGo (Kostenlose Cloud)",
     "modelPlaceholder": "Anbieter/Modell (z. B. openai/gpt-4, anthropic/claude-3-opus-20240229)",
     "apiKeyPlaceholder": "Geben Sie Ihren API-Schlüssel ein",
     "baseUrlPlaceholder": "Anbieter API URL oder benutzerdefinierte URL (integrierte allgemeine Anbieter-URLs müssen nicht ausgefüllt werden)",
@@ -21112,33 +21106,33 @@
       "criticalPauseActive": "Kritische Pause wartet auf Genehmigung"
     },
     "commerceBudget": {
-      "title": "Autonomes Micro-Payment & Ausgaben-Tresor",
-      "description": "Kontrollierter Agenten-Micro-Budget-Zahlungstresor mit Händler-Allowlist",
+      "title": "Ausgabenlimit-Gate",
+      "description": "Limits pro Zahlung und pro Tag, eine Händler-Domain-Allowlist und ein Ein-Klick-Stopp. Das Gate speichert keine Kartennummern. YOLO-Modus, „Immer zulassen“ und Smart Intent Guard geben zahlungsähnliche Tool-Aufrufe nie frei; in einem Chat, den Sie verfolgen, wartet jede Zahlung auf Ihre Genehmigung.",
       "dailyCap": "Tägliches Ausgabenlimit",
-      "dailyCapDesc": "Maximaler Betrag, den der Agent pro Tag autonom ausgeben darf",
+      "dailyCapDesc": "Maximaler Gesamtbetrag, den das Gate pro Tag für Reservierungen annimmt",
       "perActionCap": "Limit pro Transaktion",
       "perActionCapDesc": "Maximalbetrag pro Micro-Zahlung (empfohlen <= $2.00)",
       "todaySpent": "Heute ausgegeben",
       "activeReserved": "Aktiv reserviert",
       "remainingBudget": "Verbleibendes Budget",
       "emergencyFreeze": "Notfall-Sperre",
-      "emergencyFreezeDesc": "Blockiert alle autonomen Zahlungen sofort und erzwingt manuelle Freigabe",
+      "emergencyFreezeDesc": "Solange eingefroren, lehnt das Gate jede neue Reservierung ab, bis Sie es wieder freigeben",
       "frozenStatus": "Notfall-gesperrt",
-      "activeStatus": "Tresor aktiv",
+      "activeStatus": "Gate aktiv",
       "allowedMerchants": "Erlaubte Händler-Whitelist",
-      "allowedMerchantsDesc": "Erlaubt nur Zahlungen an Domains der Whitelist (unterstützt *.openai.com)",
+      "allowedMerchantsDesc": "Nur Reservierungen für Domains der Allowlist werden angenommen (Platzhalter wie *.openai.com werden unterstützt)",
       "addMerchant": "Händler hinzufügen",
       "addMerchantPlaceholder": "Händler-Domain eingeben (z. B. namesilo.com)",
       "save": "Änderungen speichern",
-      "savedSuccess": "Ausgaben-Tresor-Einstellungen erfolgreich aktualisiert",
-      "ledgerTitle": "Manipulationssicheres Ausgabenbuch",
-      "ledgerDesc": "Kryptographisch verketteter Prüfpfad mit HMAC-Signaturen",
+      "savedSuccess": "Einstellungen des Ausgabenlimit-Gates erfolgreich aktualisiert",
+      "ledgerTitle": "Ausgabenbuch",
+      "ledgerDesc": "Protokoll jeder Reservierung und Verbuchung. Verbuchte Einträge tragen einen SHA-256-Eintrags-Hash, nur zur Referenz und beim Lesen nicht geprüft",
       "noEntries": "Keine Transaktionen aufgezeichnet",
       "merchant": "Händler",
       "amount": "Betrag",
       "status": "Statuszustand",
       "time": "Zeit",
-      "verifiedReceipt": "HMAC-Signatur verifiziert",
+      "verifiedReceipt": "Eintrags-Hash erfasst",
       "entryHashLabel": "Eintrags-Hash:",
       "entryHashPending": "Ausstehend / entfällt",
       "idempotencyKeyLabel": "Idempotenzschlüssel:"
@@ -22110,11 +22104,11 @@
     "noChanges": "Keine Änderungen"
   },
   "commerceReceipt": {
-    "statusCommitted": "Bezahlt und geprüft",
+    "statusCommitted": "Verbucht",
     "statusReserved": "Reserviert",
-    "statusRefunded": "Erstattet",
+    "statusRefunded": "Freigegeben",
     "statusRejected": "Blockiert",
-    "hashVerified": "Ledger-Hash per HMAC geprüft"
+    "hashVerified": "Hash des Ledger-Eintrags erfasst"
   },
   "evidencePack": {
     "modalTitle": "Projekterfahrung in sechs Schritten",

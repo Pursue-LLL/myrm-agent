@@ -10,6 +10,7 @@ import { isTauriEnvironment } from '@/lib/tauri';
 import { isSandbox } from '@/lib/deploy-mode';
 import { getReadinessStatus, type ReadinessResponse } from '@/services/onboarding';
 import { shouldShowBootScreen } from '@/components/features/app-shell/boot-screen-gate';
+import { startFirstScreenSnapshotWriter } from '@/store/first-screen/writer';
 import { useFocusedMode } from '@/hooks/ui/useFocusedMode';
 import AppShellSkeleton from '../features/app-shell/AppShellSkeleton';
 
@@ -104,6 +105,15 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
 
     void runReadinessGate();
   }, [isStandaloneRoute, isFocusedMode, runReadinessGate]);
+
+  // The sidebar lists are stored as they change, so the next start of a desktop window can draw them before its backend is up.
+  useEffect(() => {
+    if (isStandaloneRoute || isFocusedMode) {
+      return;
+    }
+
+    return startFirstScreenSnapshotWriter();
+  }, [isStandaloneRoute, isFocusedMode]);
 
   const handleOnboardingComplete = useCallback(() => {
     setNeedsOnboarding(false);

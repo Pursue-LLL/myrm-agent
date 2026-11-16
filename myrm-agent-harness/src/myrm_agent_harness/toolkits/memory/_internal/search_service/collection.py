@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from myrm_agent_harness.toolkits.memory._assistant_retrieval import search_conversation_two_pass
 from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import bm25_scope
@@ -39,9 +39,6 @@ from myrm_agent_harness.toolkits.memory.types import (
     MemoryType,
     ProceduralMemory,
 )
-
-if TYPE_CHECKING:
-    pass
 
 from .base import FTS5SearcherFunc, MemorySearchBase
 from .helpers import _stream_warning_code

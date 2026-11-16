@@ -9,10 +9,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from myrm_agent_harness.toolkits.memory import MemoryType
 
-from app.services.memory.operations.crud.import_flows.dry_run_preview import (
-    _COMPETITOR_AVG_SKILL_TOKENS,
-    _MYRM_AVG_INDEX_TOKENS,
-)
 from app.services.memory.operations.crud.import_flows.paste_lane import (
     _is_paste_payload,
     _with_model_extracted_paste_items,
@@ -176,5 +172,3 @@ async def test_paste_model_lane_maps_only_supported_non_empty_buckets() -> None:
         }
     ]
     assert "_model_extraction_failed" not in enriched
-    assert _COMPETITOR_AVG_SKILL_TOKENS == 500
-    assert _MYRM_AVG_INDEX_TOKENS == 30

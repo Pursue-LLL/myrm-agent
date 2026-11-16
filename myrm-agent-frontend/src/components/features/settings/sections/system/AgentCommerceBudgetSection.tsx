@@ -6,10 +6,10 @@
  * lucide-react::ShieldCheck, AlertOctagon, Save, Plus, Trash2, Lock, Unlock, History, CheckCircle2, Clock
  *
  * [OUTPUT]
- * AgentCommerceBudgetSection: 智能体自主微支付与白名单消费保险箱设置面板
+ * AgentCommerceBudgetSection: 消费额度闸设置面板（单笔与每日上限、商户白名单、冻结开关、账本流水）
  *
  * [POS]
- * System settings section for autonomous agent spending limits, emergency freezes, and ledger inspection.
+ * System settings section for the spending limit gate: caps, merchant allowlist, emergency freeze, and ledger inspection.
  */
 
 import React, { memo, useCallback, useEffect, useState } from 'react';

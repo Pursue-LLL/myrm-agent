@@ -1083,7 +1083,7 @@ Turn 12 (会话结束):
 | Summarize 摘要 | ``SummarizeProcessor`` 注入 **HumanMessage** | 不破坏 cache |
 | 记忆上下文 | ``memory_context_middleware`` **SystemMessage**（请求局部：每次调用按本轮记忆上下文重建，不写回线程状态） | 同一轮内绑定的工具不变时各次调用字节相同；只有记忆快照重建后才反映记忆的编辑（计为 ``system prompt changed``），会话中的记忆写入另经 ephemeral delta 追加到最新 Human 尾部，不动 System 前缀 |
 
-**单工具 invoke 规则（2026-07-23 增补）**：
+**单工具 invoke 规则**：
 
 | 规则 | 说明 |
 |------|------|

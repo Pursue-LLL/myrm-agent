@@ -16,8 +16,6 @@ StreamContentCollector 的状态更新 mixin；只改内存状态，不读事件
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from myrm_agent_harness.agent.streaming.citation_audit import (
     audit_citation_markers,
     resolve_source_count_for_audit,
@@ -36,9 +34,6 @@ from app.services.agent.streaming_support.evicted_output import (
 
 from .base import StreamCollectorBase
 from .constants import _MAX_REASONING_CHARS
-
-if TYPE_CHECKING:
-    pass
 
 
 class StreamStateMixin(StreamCollectorBase):

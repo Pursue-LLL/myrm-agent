@@ -83,7 +83,7 @@ All settings are the standard OpenTelemetry variables. Arguments of `setup_traci
 | `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES` | Win over the defaults the application passes (this is how an operator labels an instance without a code change). |
 | `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | Sampling, handled by the SDK (see [Sampling](#sampling)). |
 | `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` | Opt-in capture of prompt, reply and tool content (see [Privacy](#privacy)). |
-| `MYRM_LOCAL_TRACE_ONLY=1` | Zero-egress policy: a remote endpoint is refused. The host is parsed (`localhost.attacker.example` is remote). LangChain's own LangSmith upload (`LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2`) does not go through OTLP, so `setup_tracing` also sets those switches to `false`. |
+| `MYRM_LOCAL_TRACE_ONLY=1` | Zero-egress policy: a remote endpoint is refused. The host is parsed (`localhost.attacker.example` is remote). |
 | `OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true` | SDK self-monitoring metrics (`otel.sdk.processor.span.queue.size`, `.queue.capacity`, `.processed`, `otel.sdk.span.live`, `otel.sdk.span.started`); needs `setup_metrics()`, read when the tracer provider is created. |
 
 A protocol that cannot be served (the exporter package is missing) leaves that signal **off** and is reported by the posture. The framework never swaps to another protocol or to stdout, because that would silently point telemetry at an endpoint that does not speak it.
@@ -187,7 +187,7 @@ The GenAI client metrics are recorded from the model call itself, so lowering th
 
 1. `get_telemetry_posture()["status"]`: `ready` means the pipeline is up but nothing has been sent yet (no span has finished, or the first batch is still queued; `active` follows the first accepted batch), `noop` means no endpoint is configured, `disabled` means `OTEL_SDK_DISABLED=true`, `degraded` carries the reason (for example a missing `opentelemetry-exporter-otlp-proto-http`), `failing` means the collector rejected or could not receive the last batch (`last_failure_at`, `failed_batches`).
 2. Check the protocol/port pair: HTTP/protobuf is conventionally `:4318`, gRPC `:4317` (an unset protocol is inferred from that port).
-3. `MYRM_LOCAL_TRACE_ONLY=1` refuses remote endpoints by design (and switches LangSmith's upload off).
+3. `MYRM_LOCAL_TRACE_ONLY=1` refuses remote endpoints by design.
 4. A sampler of `always_off` or a ratio of `0` drops every trace: the posture shows the active sampler.
 
 **No metrics in the backend**

@@ -279,7 +279,7 @@ async def _ai_agent_service_stream_inner(
                         )
                         # Enrich event with approval_id so frontend knows which ID to resolve
 
-                        # Fix for AgentStreamEvent object not supporting item assignment
+                        # AgentStreamEvent objects do not support item assignment, so enrich their dict form
                         if params.message_id:
                             approval_data["messageId"] = params.message_id
                         if hasattr(event, "to_dict"):

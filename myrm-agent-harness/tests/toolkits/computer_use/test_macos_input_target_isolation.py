@@ -3,7 +3,7 @@
 复现场景：同进程两个 desktop 后台任务交错执行 healer bbox 路径 —
 任务 A set_target 后在 await 点让出，任务 B 完整执行一次 set/post/clear，
 任务 A 恢复后继续投递。若路由状态是进程全局，A 的后续事件会误投
-（B clear 后回落全局 HID，直击前台窗口）；修复后 A 全程直投自己的 pid。
+（B clear 后回落全局 HID，直击前台窗口）；路由状态按任务隔离时，A 全程直投自己的 pid。
 """
 
 from __future__ import annotations

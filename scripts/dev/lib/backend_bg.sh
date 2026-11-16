@@ -8,7 +8,8 @@
 #   - health probe fail + leases>0: defer kill (protect parallel E2E)
 #   - health probe fail + leases>0 + SUPERVISOR/WAVE bypass: SHC leader crash heal may kill+restart
 # - source drift + leases>0: defer reload + record-pending (SMP)
-#   - cold-start health wait requires new_pid to own the listen port before success
+#   - cold-start health wait (backend_ready_wait.sh) requires new_pid to own the listen port before success;
+#     a new pid that died with nothing on the port fails the start at once, and every failed start prints its log tail
 # [POS] Dev 栈 backend 进程管理。source stack-epoch.sh 获取 _wave_active_lease_count。
 set -euo pipefail
 
@@ -16,6 +17,8 @@ set -euo pipefail
 source "${BASH_SOURCE[0]%/*}/dev_state_paths.sh"
 # shellcheck source=stack_stage.sh
 source "${BASH_SOURCE[0]%/*}/stack_stage.sh"
+# shellcheck source=backend_ready_wait.sh
+source "${BASH_SOURCE[0]%/*}/backend_ready_wait.sh"
 
 # The server venv must import the in-repo harness (editable path source); a stale venv that still
 # holds an installed wheel would make tests pass while the live backend runs old harness code.
@@ -64,23 +67,26 @@ print(pathlib.Path(myrm_agent_harness.__file__).resolve().parent)
 # Ownership is proven by the dev stamp the stack puts into every process it spawns, never by
 # the command line: the desktop sidecar runs the same `run.py`, on the user's real data dir.
 # A listener this stack did not start is never adopted, epoch-stamped or signalled.
+# A refusal quotes the helper's last line, which says why: the owner is gone, its command is not run.py, or it
+# carries no stamp of this runtime (with its command line).
 # Args: python identity_helper identity_file runtime_id pid port. Returns 0 adopted | 1 refused.
 _adopt_port_owner() {
   local py="$1" identity_helper="$2" identity_file="$3" runtime_id="$4" owner_pid="$5" port="$6"
-  local rc=0
-  "${py}" "${identity_helper}" record \
+  local rc=0 reason="" detail=""
+  reason="$("${py}" "${identity_helper}" record \
     --pid "${owner_pid}" \
     --identity-file "${identity_file}" \
     --runtime-id "${runtime_id}" \
     --role backend \
-    --expected-command-token run.py >/dev/null 2>&1 || rc=$?
+    --expected-command-token run.py 2>&1 >/dev/null)" || rc=$?
+  detail="${reason##*$'\n'}"
   case "${rc}" in
     0) return 0 ;;
     6)
-      echo "STACK_FOREIGN_LISTENER: :${port} is held by pid ${owner_pid}, which this dev stack (runtime=${runtime_id}) did not start — refusing to adopt, stamp or signal it. Stop it yourself, or run on an isolated runtime: ./myrm-dev isolate" >&2
+      echo "STACK_FOREIGN_LISTENER: :${port} is held by pid ${owner_pid}, which this dev stack (runtime=${runtime_id}) did not start — refusing to adopt, stamp or signal it${detail:+ [${detail:0:300}]}. Stop it yourself, or run on an isolated runtime: ./myrm-dev isolate" >&2
       ;;
     *)
-      echo "STACK_FAIL: :${port} owned by non-backend pid ${owner_pid} — refusing to reclaim foreign process" >&2
+      echo "STACK_FAIL: :${port} owned by non-backend pid ${owner_pid}${detail:+ [${detail:0:300}]} — refusing to reclaim foreign process" >&2
       ;;
   esac
   return 1
@@ -143,8 +149,7 @@ _start_backend_bg() {
 
       # owner 健康 → 走 drift 检查；不健康 → 重试 3 次仍失败才重建（抗瞬时负载误杀）。
       local owner_healthy=0
-      local retry_i
-      for retry_i in 1 2 3; do
+      for _ in 1 2 3; do
         if curl -sf --max-time "${health_timeout}" "${health_url}" >/dev/null 2>&1; then
           owner_healthy=1
           break
@@ -263,8 +268,7 @@ _start_backend_bg() {
   if [[ "${need_rebuild}" -eq 1 ]]; then
     if [[ -n "${rebuild_target}" ]] && dev_pid_alive "${rebuild_target}"; then
       kill -TERM "${rebuild_target}" 2>/dev/null || true
-      local wait_i
-      for wait_i in $(seq 1 20); do
+      for _ in $(seq 1 20); do
         dev_pid_alive "${rebuild_target}" || break
         sleep 0.25
       done
@@ -272,8 +276,7 @@ _start_backend_bg() {
         kill -KILL "${rebuild_target}" 2>/dev/null || true
       fi
     fi
-    local free_i
-    for free_i in $(seq 1 20); do
+    for _ in $(seq 1 20); do
       if ! lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t >/dev/null 2>&1; then
         break
       fi
@@ -346,63 +349,10 @@ os.execv(sys.argv[1], sys.argv[1:])
     --expected-command-token run.py >/dev/null; then
     kill -TERM "${new_pid}" 2>/dev/null || true
     rm -f "${pid_file}" "${identity_file}"
-    echo "ERROR: failed to record backend process ownership" >&2
+    _report_backend_start_failure "failed to record backend process ownership" "${log_file}"
     return 1
   fi
 
-  local health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-180}"
-
-  for _ in $(seq 1 "${health_wait_sec}"); do
-    local listener_pid
-    listener_pid="$(lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
-    if curl -sf "${health_url}" >/dev/null 2>&1; then
-      if [[ "${listener_pid}" == "${new_pid}" ]]; then
-        _stack_stage backend_listening
-        local stack_epoch_lib
-        stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-        if [[ -f "${stack_epoch_lib}" ]]; then
-          # shellcheck source=stack-epoch.sh
-          source "${stack_epoch_lib}"
-          _bump_stack_epoch "${new_pid}" "${server_dir}" >/dev/null || true
-          if [[ "${runtime_id}" == "shared" ]]; then
-            python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/e2e_core" && pwd)/stack_mutation_policy.py" \
-              clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
-          fi
-        fi
-        _stack_stage epoch_bumped
-        return 0
-      fi
-      if [[ -n "${listener_pid}" ]]; then
-        # 端口已被另一个健康 backend 抢先占用：只有它是本栈的（并发 ensure 竞争）才接管
-        # 记录并回收本实例；非己方进程（例如桌面 sidecar）既不接管、不盖 epoch，也不动它。
-        kill -TERM "${new_pid}" 2>/dev/null || true
-        if ! _adopt_port_owner "${py}" "${identity_helper}" "${identity_file}" "${runtime_id}" \
-          "${listener_pid}" "${backend_port}"; then
-          rm -f "${pid_file}" "${identity_file}"
-          return 1
-        fi
-        echo "STACK_SYNC: :${backend_port} served by existing pid ${listener_pid} — adopted record, killed new pid ${new_pid}" >&2
-        echo "${listener_pid}" > "${pid_file}"
-        local stack_epoch_lib_adopt
-        stack_epoch_lib_adopt="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-        if [[ -f "${stack_epoch_lib_adopt}" ]]; then
-          # shellcheck source=stack-epoch.sh
-          source "${stack_epoch_lib_adopt}"
-          _bump_stack_epoch "${listener_pid}" "${server_dir}" >/dev/null || true
-        fi
-        return 0
-      fi
-    fi
-    sleep 1
-  done
-
-  # 超时仍未获得端口：终止本实例，避免孤儿进程，清除记录。
-  kill -TERM "${new_pid}" 2>/dev/null || true
-  sleep 1
-  if dev_pid_alive "${new_pid}"; then
-    kill -KILL "${new_pid}" 2>/dev/null || true
-  fi
-  rm -f "${pid_file}" "${identity_file}"
-  echo "ERROR: backend not ready on :${backend_port}. See ${log_file}" >&2
-  return 1
+  _wait_backend_ready "${new_pid}" "${backend_port}" "${health_url}" "${log_file}" "${pid_file}" \
+    "${identity_file}" "${server_dir}" "${runtime_id}" "${state_dir}" "${py}" "${identity_helper}" || return $?
 }

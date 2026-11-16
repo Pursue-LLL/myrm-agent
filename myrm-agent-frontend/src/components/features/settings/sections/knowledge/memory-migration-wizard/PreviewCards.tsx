@@ -8,7 +8,6 @@ import type {
   MemoryImportCoverageItem,
   MigrationLanePreviewItem,
   SessionMigrationPreviewItem,
-  TokenEconomicsComparison,
 } from '@/services/memory/archive';
 
 import { COVERAGE_LABEL_KEYS, type TranslationFn } from './wizardShared';
@@ -205,59 +204,6 @@ export function SessionPreviewCard({ sessions, t }: { sessions: SessionMigration
             </span>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-export function TokenEconomicsCard({
-  data,
-  sourceName,
-  t,
-}: {
-  data: TokenEconomicsComparison;
-  sourceName: string;
-  t: TranslationFn;
-}) {
-  const sourcePercent = 100;
-  const myrmPercent =
-    data.source_tokens_per_turn > 0 ? Math.round((data.myrm_tokens_per_turn / data.source_tokens_per_turn) * 100) : 0;
-
-  return (
-    <div className="space-y-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">{t('preview.tokenEconomics.title')}</h3>
-        <Badge variant="default" className="text-[10px] bg-emerald-600 hover:bg-emerald-700">
-          {t('preview.tokenEconomics.savings', { percent: data.savings_percent })}
-        </Badge>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {t('preview.tokenEconomics.description', { count: data.skill_count })}
-      </p>
-      <div className="space-y-2.5">
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">{sourceName}</span>
-            <span className="tabular-nums font-medium">{data.source_tokens_per_turn.toLocaleString()} tokens</span>
-          </div>
-          <div className="h-2 rounded-full bg-secondary overflow-hidden">
-            <div
-              className="h-full rounded-full bg-amber-500/70 transition-all"
-              style={{ width: `${sourcePercent}%` }}
-            />
-          </div>
-        </div>
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Myrm</span>
-            <span className="tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
-              {data.myrm_tokens_per_turn.toLocaleString()} tokens
-            </span>
-          </div>
-          <div className="h-2 rounded-full bg-secondary overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${myrmPercent}%` }} />
-          </div>
-        </div>
       </div>
     </div>
   );

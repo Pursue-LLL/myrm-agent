@@ -177,7 +177,6 @@ export interface ChatState {
 
   // 操作方法
   setChatId: (id: string | undefined) => void;
-  setNewChatCreated: (created: boolean) => void;
   setMessages: (updater: (state: ChatState) => void) => void;
   refreshCompactionState: (chatId: string, meta?: { tokensSaved: number; snapshotPath?: string }) => Promise<void>;
   setCompactedSummary: (summary: string | null) => void;
