@@ -1,7 +1,7 @@
 """File revert service — undo AI file changes of a message or of a whole session.
 
 Reads snapshots from SnapshotStore and restores files to their pre-modification
-state. Integrates with FileIntegrityGuard (hash update) and ArtifactTracker (cleanup).
+state. Integrates with FileIntegrityGuard (hash update) and the artifact trail (revert record).
 
 [INPUT]
 - agent.context_management.tracking.artifact_tracker::ArtifactAction, get_artifact_tracker (POS: artifact trail tracker; ArtifactAction names the file operation: created, modified, deleted or read)
@@ -183,6 +183,7 @@ async def _revert_single(snap: FileSnapshot, executor: CodeExecutor | None, sess
             if path.is_file():
                 path.unlink()
                 logger.info("Reverted (deleted created file): %s", snap.path)
+            _record_revert(snap.path, session_id, file_removed=True)
             return _SingleRevertResult(success=True)
 
         if snap.original_content is None:
@@ -201,7 +202,7 @@ async def _revert_single(snap: FileSnapshot, executor: CodeExecutor | None, sess
         if guard is not None:
             guard.record_write(snap.path, snap.original_content)
 
-        _cleanup_artifact(snap.path, session_id)
+        _record_revert(snap.path, session_id, file_removed=False)
 
         logger.info("Reverted file: %s", snap.path)
         return _SingleRevertResult(success=True)
@@ -238,8 +239,11 @@ def _resolve_local_path(snap_path: str) -> Path:
     return local
 
 
-def _cleanup_artifact(path: str, session_id: str) -> None:
-    """Record a reverted file in the artifact trail of ``session_id``, so a later summary does not list the undone change.
+def _record_revert(path: str, session_id: str, *, file_removed: bool) -> None:
+    """Record a reverted file in the artifact trail of ``session_id``, so a later summary shows the file as the user left it.
+
+    A file the revert removed is a deletion. A file it restored still exists, so it stays a modification that the
+    user undid: recording it as deleted would tell the model a file is gone when it is there.
 
     A revert runs from an API request, outside any agent turn, so the session to update is the one it is for, not the
     chat bound to the caller. A session that has no trail has nothing to correct.
@@ -251,7 +255,8 @@ def _cleanup_artifact(path: str, session_id: str) -> None:
 
     tracker = get_artifact_tracker(session_id)
     if tracker is not None:
-        tracker.record(path, ArtifactAction.DELETED, description="Reverted by user")
+        action = ArtifactAction.DELETED if file_removed else ArtifactAction.MODIFIED
+        tracker.record(path, action, description="Reverted by user")
 
 
 def _schedule_disk_cleanup(store: SnapshotStore, scope: str, session_id: str, message_id: str | None = None) -> None:
