@@ -112,12 +112,10 @@ class SkillAgentToolsMixin:
 
             market_backend = self.market_backend  # type: ignore[attr-defined]
             install_url_fn = getattr(market_backend, "install_from_url", None)
-            uninstall_fn = getattr(market_backend, "uninstall", None)
             supplemental_user_tools.append(
                 create_skill_market_tool(
                     market_backend,
                     install_from_url_fn=install_url_fn,
-                    uninstall_fn=uninstall_fn,
                     locale=prompt_locale,
                 )
             )

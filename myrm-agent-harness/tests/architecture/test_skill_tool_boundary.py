@@ -45,7 +45,6 @@ def discover_tool_market_on():
 def marketplace_tool():
     backend = MagicMock()
     backend.install_from_url = MagicMock()
-    backend.uninstall = MagicMock()
     return create_skill_market_tool(backend)
 
 

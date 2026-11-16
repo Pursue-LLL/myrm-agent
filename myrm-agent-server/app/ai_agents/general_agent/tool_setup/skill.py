@@ -49,16 +49,10 @@ class SkillToolsMixin(ToolSetupBaseMixin):
             install_from_url_for_agent_session,
         )
 
-        backend = AgentSessionSkillMarketBackend(market_service)
-        install_url_fn = None
-        if getattr(market_service, "install_from_url", None) is not None:
-            install_url_fn = install_from_url_for_agent_session
-        uninstall_fn = getattr(market_service, "uninstall", None)
         tools.append(
             create_skill_market_tool(
-                backend,
-                install_from_url_fn=install_url_fn,
-                uninstall_fn=uninstall_fn,
+                AgentSessionSkillMarketBackend(market_service),
+                install_from_url_fn=install_from_url_for_agent_session,
                 locale=self._tool_description_locale(),
             )
         )

@@ -159,7 +159,7 @@ class TestMixedMessageGuard:
     @pytest.mark.asyncio
     async def test_preserves_skill_market_mutation(self) -> None:
         """Safety: content + skill_market_tool(install) must NOT be stripped —
-        the install/uninstall actions write the skill library; registry marks it
+        the install actions write the skill library; registry marks it
         read-only but the actions are effectful, so stripping would silently
         drop the install."""
         state = make_state(

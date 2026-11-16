@@ -53,9 +53,6 @@ class _StubMarketBackend:
     async def install_from_url(self, url: str, user_id: str) -> dict[str, object]:
         return {"url": url, "user_id": user_id}
 
-    async def uninstall(self, skill_id: str, user_id: str) -> dict[str, object]:
-        return {"skill_id": skill_id, "user_id": user_id}
-
 
 def _sample_skill() -> SkillMetadata:
     return SkillMetadata(
@@ -104,11 +101,9 @@ def _mount_market_tool(
     market_backend: _StubMarketBackend,
 ) -> object:
     install_url_fn = getattr(market_backend, "install_from_url", None)
-    uninstall_fn = getattr(market_backend, "uninstall", None)
     return create_skill_market_tool(
         market_backend,
         install_from_url_fn=install_url_fn,
-        uninstall_fn=uninstall_fn,
     )
 
 

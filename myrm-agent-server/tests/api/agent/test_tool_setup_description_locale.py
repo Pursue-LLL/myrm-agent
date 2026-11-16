@@ -8,7 +8,6 @@ and manage tools by the descriptions they end up with.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -94,7 +93,7 @@ def test_skill_tools_are_described_in_the_language_of_the_session(
     host.locale, host.channel_name = locale, channel
     tools: list[object] = []
 
-    host._setup_skill_market_tool(tools, SimpleNamespace(install_from_url=object(), uninstall=object()))
+    host._setup_skill_market_tool(tools, object())
     host._setup_skill_manage_tool(tools, object(), object())
 
     descriptions = {tool.name: tool.description for tool in tools}
