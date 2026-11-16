@@ -33,6 +33,9 @@ interface SendTurnOptions {
   ephemeralSubagents?: Record<string, unknown>;
 }
 
+/** The text of a message; empty when it has none. */
+const textOf = (message: { content?: string } | undefined): string => message?.content ?? '';
+
 /** One send through the product pipeline; the result is also kept on the bridge as `lastSubmitResult`. */
 async function runSend(text: string, opts?: SendTurnOptions): Promise<E2eSubmitResult> {
   const baselineUsers =
@@ -85,7 +88,7 @@ export function createSendMembers(): E2eBridgeMembers {
         ? { ok: true, mode: 'steerSendFallback', detail: result }
         : { ok: false, err: 'steer-fallback-send-failed', detail: result };
     },
-    sendChatMessage: async (text: string, opts?: SendTurnOptions & { waitForStreamCompletion?: boolean }) => {
+    sendChatMessage: async (text: string, opts?: SendTurnOptions) => {
       window.__MYRM_E2E_EPH_OPTS__ = {
         hasOpts: Boolean(opts),
         hasEph: Boolean(opts?.ephemeralSubagents),
@@ -94,7 +97,6 @@ export function createSendMembers(): E2eBridgeMembers {
       };
       return runSend(text, opts);
     },
-    kickoffChatMessage: runSend,
     submitAndObserveTurn: runSend,
     handleSubmit: async () => {
       const resolveMessage = (): string => {
@@ -133,27 +135,7 @@ export function createSendMembers(): E2eBridgeMembers {
       const users = state.messages.filter((message) => message.role === 'user');
       const assistants = state.messages.filter((message) => message.role === 'assistant');
       const lastAssistant = assistants[assistants.length - 1];
-      const assistantText = (() => {
-        const content: unknown = lastAssistant?.content;
-        if (typeof content === 'string') {
-          return content;
-        }
-        if (Array.isArray(content)) {
-          return content
-            .map((part) => {
-              if (typeof part === 'string') {
-                return part;
-              }
-              if (part && typeof part === 'object' && 'text' in part) {
-                const text = (part as { text?: unknown }).text;
-                return typeof text === 'string' ? text : '';
-              }
-              return '';
-            })
-            .join('');
-        }
-        return '';
-      })();
+      const assistantText = textOf(lastAssistant);
       const pending = state.pendingExplicitSkillActivation;
       const boundSkillIds = state.agentConfig?.selectedSkillIds ?? [];
       const skillCatalog = useSkillStore.getState();
@@ -174,29 +156,13 @@ export function createSendMembers(): E2eBridgeMembers {
         // the store rather than guessed at.
         lastTwoMessages: state.messages.slice(-2).map((m) => ({
           role: m?.role,
-          contentType: Array.isArray(m?.content) ? 'array' : typeof m?.content,
+          contentType: typeof m?.content,
           contentPreview: typeof m?.content === 'string' ? m.content.slice(0, 160) : null,
           keys: Object.keys(m ?? {}).slice(0, 18),
         })),
         // Test-only view: a tool-approval turn appends an empty assistant placeholder, so the
         // last assistant alone under-reports the visible answer.
-        assistantSamples: assistants.slice(-4).map((m) => {
-          const c: unknown = m?.content;
-          if (typeof c === 'string') {
-            return c.slice(0, 120);
-          }
-          if (Array.isArray(c)) {
-            return c
-              .map((part) =>
-                part && typeof part === 'object' && 'text' in part
-                  ? String((part as { text?: unknown }).text ?? '')
-                  : '',
-              )
-              .join('')
-              .slice(0, 120);
-          }
-          return '';
-        }),
+        assistantSamples: assistants.slice(-4).map((m) => textOf(m).slice(0, 120)),
         lastAssistantHasDoneSkipped: /DONE-SKIPPED/i.test(assistantText),
         clarificationAnswered: lastAssistant?.clarification?.answered === true,
         toolApprovalQueueLen: useToolApprovalStore.getState().queue.length,

@@ -1,6 +1,5 @@
 /**
  * [INPUT]
- * - @/store/useChatStore::useChatStore (POS: Active chat state manager.)
  * - @/components/dev/e2eBridge/submitAndObserveTurn::recordActiveTurnEvent (POS: 发送并观察一个聊天回合的流水线编排)
  * - @/components/dev/e2eBridge/members/types::E2eBridgeMembers (POS: 桥成员分组的类型)
  *
@@ -11,7 +10,6 @@
  * [POS]
  * 页面侧 SSE 事件捕获：保留最近 64 条事件（可按消息 id 圈定），并向桥暴露读取与清空入口。
  */
-import useChatStore from '@/store/useChatStore';
 import { recordActiveTurnEvent } from '@/components/dev/e2eBridge/submitAndObserveTurn';
 import type { E2eBridgeMembers } from '@/components/dev/e2eBridge/members/types';
 
@@ -66,7 +64,6 @@ export function createSseCapture(): { record: SseEventRecorder; members: E2eBrid
       sseCaptureMessageId = null;
       sseCaptureLocked = true;
     },
-    allocateStreamMessageId: () => useChatStore.getState().allocateNewSessionMessageId(),
     setSseCaptureMessageId: (messageId: string | null | undefined) => {
       sseCaptureMessageId = typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
       sseCaptureLocked = false;

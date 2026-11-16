@@ -1,9 +1,9 @@
 /**
- * The three bridge entry points that send a message hand the text to the send pipeline under one contract.
+ * The two bridge entry points that send a message hand the text to the send pipeline under one contract.
  *
- * Real scenario: `sendChatMessage`, `kickoffChatMessage` and `submitAndObserveTurn` each resolve the baseline user
- * count, the profile and the action-mode flag before calling `submitAndObserveTurn`; when one of them drifts (an option
- * dropped from a single entry point) a CDP E2E run sends something else than the test asked for, without a type error.
+ * Real scenario: `sendChatMessage` and `submitAndObserveTurn` each resolve the baseline user count, the profile and the
+ * action-mode flag before calling `submitAndObserveTurn`; when one of them drifts (an option dropped from a single
+ * entry point) a CDP E2E run sends something else than the test asked for, without a type error.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,10 +12,10 @@ import { createSendMembers } from '@/components/dev/e2eBridge/members/send';
 const pipeline = vi.hoisted(() => ({ submitAndObserveTurn: vi.fn() }));
 vi.mock('@/components/dev/e2eBridge/submitAndObserveTurn', () => pipeline);
 
-type EntryPoint = 'sendChatMessage' | 'kickoffChatMessage' | 'submitAndObserveTurn';
+type EntryPoint = 'sendChatMessage' | 'submitAndObserveTurn';
 type Send = (text: string, opts?: Record<string, unknown>) => Promise<unknown>;
 
-const ENTRY_POINTS: EntryPoint[] = ['sendChatMessage', 'kickoffChatMessage', 'submitAndObserveTurn'];
+const ENTRY_POINTS: EntryPoint[] = ['sendChatMessage', 'submitAndObserveTurn'];
 const members = createSendMembers() as unknown as Record<EntryPoint, Send>;
 const sealed = { ok: true, mode: 'sendTurnSealed', chatId: 'c-1' };
 
@@ -94,8 +94,8 @@ describe('the options record of the ephemeral-subagent diagnostics', () => {
     expect(window.__MYRM_E2E_EPH_OPTS__).toMatchObject({ hasOpts: false, hasEph: false, keys: [] });
   });
 
-  it.each(['kickoffChatMessage', 'submitAndObserveTurn'] as const)('is not written by %s', async (entry) => {
-    await members[entry]('hi', { ephemeralSubagents: { a: {} } });
+  it('is not written by submitAndObserveTurn', async () => {
+    await members.submitAndObserveTurn('hi', { ephemeralSubagents: { a: {} } });
     expect(window.__MYRM_E2E_EPH_OPTS__).toBeUndefined();
   });
 });
