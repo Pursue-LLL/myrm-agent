@@ -31,7 +31,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 from langchain.tools import tool
-from langchain_core.messages.content import create_text_block
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -110,11 +109,6 @@ class FileReadInput(BaseModel):
         ),
     )
 
-    preserve_in_context: bool = Field(
-        default=False,
-        description="Keep this content through context compaction. Only for critical specs or skill files.",
-    )
-
     reason: str | None = Field(default=None, description=REASON_FIELD_DESCRIPTION)
 
     @model_validator(mode="before")
@@ -169,7 +163,6 @@ def create_file_read_tool(
         mode: str = "all",
         parse_mode: str | None = None,
         reason: str | None = None,
-        preserve_in_context: bool = False,
         *,
         config: RunnableConfig,
     ) -> str | Sequence[object]:
@@ -251,7 +244,7 @@ def create_file_read_tool(
             has_documents = bool(document_paths) and executor is not None
 
             if (use_multimodal or has_documents) and executor is not None:
-                blocks = await build_multimodal_result(
+                return await build_multimodal_result(
                     image_paths,
                     pdf_paths,
                     document_paths,
@@ -271,10 +264,6 @@ def create_file_read_tool(
                     mode=mode,
                     config=config,
                 )
-                if preserve_in_context:
-                    blocks.insert(0, create_text_block("<preserve_context>\n"))
-                    blocks.append(create_text_block("\n</preserve_context>"))
-                return blocks
 
             text_parts: list[str] = list(url_errors)
             await append_media_text_parts(
@@ -311,10 +300,7 @@ def create_file_read_tool(
                 )
 
             result = "\n\n".join(text_parts) if text_parts else "No results."
-            final_text = append_mcp_docs_next_step_hint(result, text_paths)
-            if preserve_in_context:
-                final_text = f"<preserve_context>\n{final_text}\n</preserve_context>"
-            return final_text
+            return append_mcp_docs_next_step_hint(result, text_paths)
 
         except ToolError:
             raise

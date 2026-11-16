@@ -1,4 +1,4 @@
-"""file_read_tool: input normalization, preserved reads, secret redaction, rejected paths and error wrapping, MCP hints."""
+"""file_read_tool: input normalization, secret redaction, rejected paths and error wrapping, MCP hints."""
 
 from __future__ import annotations
 
@@ -32,7 +32,8 @@ class TestFileReadInputNormalization:
 
 
 @pytest.mark.asyncio
-async def test_file_read_tool_multimodal_with_preserve_context(tmp_path: Path) -> None:
+async def test_file_read_tool_media_blocks_come_back_unwrapped_for_a_stale_argument(tmp_path: Path) -> None:
+    """A model still sending the removed ``preserve_in_context`` gets the media blocks as built, not an error."""
     img = tmp_path / "chart.png"
     img.write_bytes(b"\x89PNG\r\n\x1a\n")
     mock_executor = MagicMock()
@@ -62,7 +63,8 @@ async def test_file_read_tool_multimodal_with_preserve_context(tmp_path: Path) -
 
     assert isinstance(result, list)
     texts = [b["text"] for b in result if isinstance(b, dict)]
-    assert any("<preserve_context>" in t for t in texts)
+    assert any("vision ok" in t for t in texts)
+    assert not any("<preserve_context>" in t for t in texts)
 
 
 @pytest.mark.asyncio
@@ -115,12 +117,14 @@ async def test_file_read_tool_raises_tool_error_on_unexpected() -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_read_tool_text_preserve_in_context(tmp_path: Path) -> None:
+async def test_file_read_tool_text_comes_back_unwrapped_for_a_stale_argument(tmp_path: Path) -> None:
+    """The schema no longer declares ``preserve_in_context``; a stale call is read normally, not wrapped or refused."""
     f = tmp_path / "note.txt"
     f.write_text("note", encoding="utf-8")
     mock_executor = MagicMock()
     mock_executor.workspace_path = str(tmp_path)
     tool = create_file_read_tool()
+    assert "preserve_in_context" not in FileReadInput.model_json_schema()["properties"]
     with (
         patch(
             "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.get_executor",
@@ -136,8 +140,7 @@ async def test_file_read_tool_text_preserve_in_context(tmp_path: Path) -> None:
             {"paths": [str(f)], "preserve_in_context": True},
             config=_DUMMY_CONFIG,
         )
-    assert isinstance(result, str)
-    assert "<preserve_context>" in result
+    assert result == "note body"
 
 
 @pytest.mark.asyncio

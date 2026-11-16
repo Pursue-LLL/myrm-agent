@@ -244,11 +244,11 @@ Token 明细（tiktoken o200k_base）：
 
 ---
 
-## 六、格式开销（Turn-1 默认 13 个工具：参数 schema 3,780 + wrapper 845 + 特殊 token ~500 ≈ **~5,125 tokens**，模型/API 相关）
+## 六、格式开销（Turn-1 默认 13 个工具：参数 schema 3,573 + wrapper 845 + 特殊 token ~500 ≈ **~4,918 tokens**，模型/API 相关）
 
 | 组件 | Token (估算) | 说明 |
 |------|------------:|------|
-| 工具参数 schema | 3,780（13 工具，均值 ≈291/tool） | 参数 JSON Schema 本体；`estimate_tool_descriptions_tokens` 不含此项（只数描述 + wrapper），`estimate_request_tools_tokens` 与 `measure_tool_schema_tokens.py` 的全量口径含此项 |
+| 工具参数 schema | 3,573（13 工具，均值 ≈275/tool） | 参数 JSON Schema 本体；`estimate_tool_descriptions_tokens` 不含此项（只数描述 + wrapper），`estimate_request_tools_tokens` 与 `measure_tool_schema_tokens.py` 的全量口径含此项 |
 | schema wrapper 包装 | ~65/tool | 每个工具 API 格式的**包装**开销（function name、schema 外壳等），**不含参数 schema**；参数 schema 见上一行 |
 | Qwen tokenizer 差异 | ~20-30% | Qwen3 tokenizer 对中文分词效率低于 tiktoken，中文内容 token 数会更高 |
 | 特殊 token/消息格式 | ~500 | role tags, tool_use markers, message boundaries 等 |
