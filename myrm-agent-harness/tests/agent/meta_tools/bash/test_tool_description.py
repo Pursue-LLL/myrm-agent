@@ -260,12 +260,17 @@ def _line_starting_with(text: str, prefix: str) -> str:
     return next(line for line in text.splitlines() if line.startswith(prefix))
 
 
-def test_shell_capability_states_the_stdin_contract_and_the_way_to_answer_a_prompt() -> None:
-    """A foreground command reads end of file; a program that must be answered goes through a background job."""
-    for text in (TOOL_DESCRIPTION_EN, TOOL_DESCRIPTION_ZH):
+def test_shell_capability_says_a_foreground_prompt_cannot_be_answered_and_names_the_way_out() -> None:
+    """The text states the outcome the model sees, not how input is isolated (that differs per shell), and routes
+    a program that must be answered through a background job (``test_product_path_stdin`` covers the behavior)."""
+    for text, cannot_be_answered in (
+        (TOOL_DESCRIPTION_EN, "cannot be answered"),
+        (TOOL_DESCRIPTION_ZH, "无法应答"),
+    ):
         capability = _line_starting_with(text, "1. ")
-        assert "stdin" in capability
-        assert "EOF" in capability
+        assert cannot_be_answered in capability
+        assert "stdin" not in capability
+        assert "EOF" not in capability
         assert "run_in_background" in capability
         assert "bash_process_tool" in capability
 

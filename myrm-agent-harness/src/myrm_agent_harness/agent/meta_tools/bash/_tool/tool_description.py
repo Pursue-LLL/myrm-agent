@@ -13,7 +13,7 @@ Kept apart from ``bash_code_execute_tool.py`` so the tool factory stays focused 
 
 [POS]
 Prompt content displayed to the LLM. Defines the contract for calling
-``bash_code_execute_tool``: capabilities with the foreground stdin contract, merge/OBSERVATION rules,
+``bash_code_execute_tool``: capabilities with the rule for interactive programs, merge/OBSERVATION rules,
 native-tool routing, what a call leaves for the next one, background job stdin/eviction hints, output format,
 and prohibitions.
 """
@@ -31,7 +31,7 @@ TOOL_DESCRIPTION_ZH: Final[str] = """
 
 ## 能力
 
-1. **Shell 命令**:执行 shell 命令(mv/cp/rm、包管理、构建测试、git、curl 等)。必须使用非交互参数（如 `-y`、`--yes`、`git commit -m "..."`）:前台 stdin 为空(EOF),交互提示得不到应答。确需应答的交互式程序,用 `run_in_background` 启动,再经 `bash_process_tool` 应答。
+1. **Shell 命令**:执行 shell 命令(mv/cp/rm、包管理、构建测试、git、curl 等)。必须使用非交互参数（如 `-y`、`--yes`、`git commit -m "..."`）:前台命令里的交互提示无法应答。确需应答的交互式程序,用 `run_in_background` 启动,再经 `bash_process_tool` 应答。
 2. **执行脚本**:运行已存在的脚本文件(python script.py / bash script.sh)。
 3. **执行 Python 代码**:**直接将 Python 源码作为 command 传入**（支持原生多行代码，无需压缩或转义）。
    - 预装三方库:pandas, numpy, scipy, matplotlib, seaborn;Python 标准库(json, datetime, re 等)均可用。
@@ -142,7 +142,7 @@ Execute Shell commands or Python code to solve problems accurately and efficient
 
 ## Capabilities
 
-1. **Shell commands**: Execute shell commands (mv/cp/rm, package management, build & test, git, curl, etc.). Always pass non-interactive flags (`-y`, `--yes`, `git commit -m "..."`): foreground stdin is empty (EOF), so a prompt gets no answer. To answer an interactive program, start it with `run_in_background` and reply through `bash_process_tool`.
+1. **Shell commands**: Execute shell commands (mv/cp/rm, package management, build & test, git, curl, etc.). Always pass non-interactive flags (`-y`, `--yes`, `git commit -m "..."`): an interactive prompt in a foreground command cannot be answered. To answer an interactive program, start it with `run_in_background` and reply through `bash_process_tool`.
 2. **Execute scripts**: Run existing script files (`python script.py` / `bash script.sh`).
 3. **Execute Python code**: **Pass Python source code directly as `command`** (supports raw multi-line scripts without escaping or compression).
    - Pre-installed libraries: pandas, numpy, scipy, matplotlib, seaborn; Python standard library (json, datetime, re, etc.) are available.
