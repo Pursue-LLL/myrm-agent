@@ -423,6 +423,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/goals/test_goal_unwait.py` | 模块 | 经 HTTP 结束等待：等待中的目标回到运行并启动目标回合；会话已被用户消息的回合占用时只置回运行、不另起回合 |
 | `api/goals/test_active_goals_failure_log.py` | 模块 | `GET /goals/active`：一个会话的提供者抛意外异常时被跳过并由路由以 WARNING 点名；一个会话在存储里的索引读不出来（真实文件故障）时由 `GoalStorage` 点名一次、连续请求不重复；两种情形下其余会话的目标都照常列出 |
 | `api/goals/test_session_id_guard.py` | 模块 | 路径参数不在白名单时，目标路由器上每个带路径参数的端点（取自路由器自己的 OpenAPI 清单，含挂载的子路由）一律 404 且存储无告警：逐个参数（会话 id、排队目标 id、子目标序号）注入存储键装不下的值（空字节、换行、`..`）、超过文件名长度的 256 位值，以及只在白名单外的值（反斜杠、点），响应是守卫自己的「Resource not found」而不是路由未命中；清单覆盖每个子路由与每种路径参数、不会因枚举为空而空过；系统实际签发的 id（网页聊天、看板任务、uuid、255 位）、合法的排队目标 id 与子目标序号、不带路径参数的端点照常服务 |
+| `api/goals/test_routes_between_turns.py` | 模块 | 回合之间会话没有注册的 provider、目标在存储里：目标路由器的三个模块（状态、队列、约束各取一个端点）仍从存储读出目标，且不为该会话注册 provider |
+| `services/agent/test_goal_registry_resolve_provider.py` | 模块 | `GoalRegistry.resolve_provider`：已注册的 provider 原样返回；未注册的会话得到一个从存储读目标的普通 `GoalManager`（不带运行中回合的状态），且永远不被注册进注册表、不会出现在 `GET /goals/active` 的遍历里 |
 | `core/channel_bridge/test_goal_stop_commands.py` | 模块 | IM `/goal clear` 与 `/goal pause`：与 Web 同一规则，清除运行中/暂停/预算受限/待复核/等待中的目标，已结束的目标不动；正在干活的目标被暂停/清除时中断它的回合，不在干活的目标不碰会话当前回合 |
 | `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume` 与 `/goal unwait`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，无令牌且仅有中断信号的回合同样算已被叫停，等不到则回复稍后再发且目标保持暂停）；恢复或结束等待后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
 | `services/agent/goals/unattended/test_failure_policy.py` | 模块 | 无人值守目标流的失败去向：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标，已被 run 停放/暂停/完成的目标保持原状态 |
