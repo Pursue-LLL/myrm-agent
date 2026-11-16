@@ -9,12 +9,13 @@
 //!
 //! [POS]
 //! 产品页所在位置的唯一事实源：IPC capability 的 Remote 来源与所有须落到产品路由的窗口
-//! 共用同一个值，二者不会漂移。发布版与 `frontend-shell` 占位页跳转的是同一来源（同样固定
-//! `127.0.0.1`）；开发版主窗口不经占位页，子窗口须与它同源，故取 `build.devUrl`。
+//! 共用同一个值，二者不会漂移。发布版主窗口先显示 `frontend-shell`，Next 应答后由 Rust
+//! 导航到同一来源（`standalone_root`，同样固定 `127.0.0.1`）；开发版主窗口不经壳页，
+//! 子窗口须与它同源，故取 `build.devUrl`。
 
 use tauri::Url;
 
-/// 与 `frontend-shell` 跳转目标一致；刻意不用 `localhost`（可能解析为 `::1`，而 Next 绑定 IPv4）。
+/// Next 回环页的主机；刻意不用 `localhost`（可能解析为 `::1`，而 Next 绑定 IPv4）。
 const PRODUCT_HOST: &str = "127.0.0.1";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,6 +30,12 @@ impl ProductOrigin {
         let base = Url::parse(&format!("http://{PRODUCT_HOST}:{port}/"))
             .expect("loopback origin built from a fixed scheme, host and u16 port is valid");
         Self { base }
+    }
+
+    /// Next standalone 的首页：Rust 在 Next 应答后把主窗口从壳页导航到这里，Next 被看护重启后
+    /// 也回到这里。与 `new(port)` 同源，因此与发布版 capability 的 Remote 来源恒一致。
+    pub fn standalone_root(port: u16) -> Url {
+        Self::new(port).page_url(&[], &[])
     }
 
     /// 本次运行的产品页来源。开发版的主窗口直连 `build.devUrl`（`localhost`），而浏览器存储与
@@ -69,13 +76,18 @@ impl ProductOrigin {
 mod tests {
     use tauri::Url;
 
-    use super::{ProductOrigin, PRODUCT_HOST};
+    use super::ProductOrigin;
 
-    /// 壳页跳转的主机若与这里不一致，发布版 capability 的 Remote 来源就对不上实际页面。
+    /// 主窗口的导航目标若与 capability 授权的 Remote 来源不同，产品页上的 IPC 会被拒绝。
     #[test]
-    fn frontend_shell_navigates_to_the_same_host() {
-        const SHELL_PAGE: &str = include_str!("../../frontend-shell/index.html");
-        assert!(SHELL_PAGE.contains(&format!("const host = \"{PRODUCT_HOST}\";")));
+    fn standalone_root_is_the_origin_the_capability_authorizes() {
+        let root = ProductOrigin::standalone_root(3777);
+
+        assert_eq!(root.as_str(), "http://127.0.0.1:3777/");
+        assert_eq!(
+            root.origin().ascii_serialization(),
+            ProductOrigin::new(3777).exact_origin()
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -205,6 +205,18 @@
         line-height: 1.6;
         word-break: break-word;
       }
+      /* The raw reason is selectable so it can be pasted into a bug report. */
+      .error-detail {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        font-size: 0.78rem;
+        color: var(--muted);
+        line-height: 1.5;
+        word-break: break-word;
+        -webkit-user-select: text;
+        user-select: text;
+      }
       @keyframes shimmer {
         0% { background-position: 200% 0; }
         100% { background-position: -200% 0; }
@@ -232,7 +244,7 @@
       </div>
       <div class="status-pill">
         <span class="status-dot"></span>
-        <span id="status-text">正在就绪本地 AI 内核…</span>
+        <span data-i18n="status"></span>
       </div>
     </div>
 
@@ -254,8 +266,8 @@
               <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/>
             </svg>
           </div>
-          <h1 class="hero-title">Myrm AI 个人工作站</h1>
-          <p class="hero-sub">本地专属沙箱与安全中枢已准备就绪，马上进入工作台…</p>
+          <h1 class="hero-title" data-i18n="heroTitle"></h1>
+          <p class="hero-sub" data-i18n="heroSub"></p>
         </div>
 
         <div class="input-skeleton">
@@ -266,68 +278,72 @@
 
     <div id="error-modal">
       <div class="error-card">
-        <h2 id="error-title" class="error-title">启动遇到异常</h2>
-        <p id="error-desc" class="error-message">正在初始化…</p>
+        <h2 id="error-title" class="error-title"></h2>
+        <p id="error-desc" class="error-message"></p>
+        <p id="error-detail" class="error-detail" hidden></p>
       </div>
     </div>
 
+    <!-- All visible copy: zh for any Chinese system language, en otherwise. Both languages must
+         define the same keys; scripts/ci/verify-launch-contract.sh enforces it. -->
+    <script type="application/json" id="shell-copy">
+      {
+        "zh": {
+          "status": "正在启动本地 AI 内核…",
+          "heroTitle": "Myrm AI 个人工作站",
+          "heroSub": "本地专属沙箱与安全中枢正在就绪，马上进入工作台…",
+          "frontendFailedTitle": "客户端启动异常",
+          "frontendFailed": "前端渲染服务启动失败。请重启应用或检查 WebUI 端口设置。",
+          "backendFailedTitle": "AI 后端未就绪",
+          "backendFailed": "本地 AI 后端未能正常响应。请检查端口是否被占用。"
+        },
+        "en": {
+          "status": "Starting the local AI engine…",
+          "heroTitle": "Myrm AI Personal Workstation",
+          "heroSub": "Your private sandbox and security hub are getting ready. Opening your workspace shortly…",
+          "frontendFailedTitle": "The app couldn't start",
+          "frontendFailed": "The interface service failed to start. Restart the app, or check the WebUI port in Settings.",
+          "backendFailedTitle": "The AI engine isn't ready",
+          "backendFailed": "The local AI engine didn't respond. Check whether its port is already in use."
+        }
+      }
+    </script>
+
     <script>
-      const host = "127.0.0.1";
-      let stopped = false;
+      const shellCopy = JSON.parse(document.getElementById("shell-copy").textContent);
+      const locale = navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+      const t = (key) => shellCopy[locale][key];
 
-      function showError(message) {
-        stopped = true;
-        document.getElementById("error-title").textContent = "客户端启动异常";
-        document.getElementById("error-desc").textContent = message;
+      document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+      document.querySelectorAll("[data-i18n]").forEach((el) => {
+        el.textContent = t(el.dataset.i18n);
+      });
+
+      // Guidance is localized; the raw reason from Rust stays as selectable detail.
+      function showFailure(title, guidance, reason) {
+        document.getElementById("error-title").textContent = title;
+        document.getElementById("error-desc").textContent = guidance;
+        const detail = document.getElementById("error-detail");
+        detail.textContent = reason;
+        detail.hidden = !reason;
         document.getElementById("error-modal").style.display = "grid";
       }
+      const showFrontendFailure = (reason) =>
+        showFailure(t("frontendFailedTitle"), t("frontendFailed"), reason);
+      const showBackendFailure = (reason) =>
+        showFailure(t("backendFailedTitle"), t("backendFailed"), reason);
+      const reasonOf = (payload) => (typeof payload === "string" ? payload : "");
 
-      function showBackendWarning(message) {
-        document.getElementById("error-title").textContent = "AI 后端未就绪";
-        document.getElementById("error-desc").textContent = message;
-        document.getElementById("error-modal").style.display = "grid";
+      // A very early backend failure can race the event listener; the shell URL carries
+      // the reason so the modal is guaranteed to render on this load.
+      const startupError = new URLSearchParams(window.location.search).get("startup_error");
+      const listen = window.__TAURI__?.event?.listen;
+      if (startupError) {
+        showBackendFailure(startupError);
+      } else if (listen) {
+        listen("frontend-start-failed", (event) => showFrontendFailure(reasonOf(event.payload)));
+        listen("backend-start-failed", (event) => showBackendFailure(reasonOf(event.payload)));
       }
-
-      function bindEvents() {
-        const listen = window.__TAURI__?.event?.listen;
-        if (!listen) return;
-
-        listen("frontend-start-failed", (event) => {
-          const message = typeof event.payload === "string" && event.payload
-            ? event.payload
-            : "前端渲染服务启动失败。请重启应用或检查 WebUI 端口设置。";
-          showError(message);
-        });
-
-        listen("backend-start-failed", (event) => {
-          const message = typeof event.payload === "string" && event.payload
-            ? event.payload
-            : "本地 AI 后端未能正常响应。请检查端口是否被占用。";
-          showBackendWarning(message);
-        });
-      }
-
-      async function bootstrap() {
-        // A very early backend failure can race the event listener; the shell URL carries
-        // the reason so the modal is guaranteed to render on this load.
-        const startupError = new URLSearchParams(window.location.search).get("startup_error");
-        if (startupError) {
-          showBackendWarning(startupError);
-          return;
-        }
-        bindEvents();
-        // 预取桌面配置以同步端口与环境状态（Launch Contract 保证）
-        try {
-          const invoke = window.__TAURI__?.core?.invoke;
-          if (invoke) {
-            await invoke("load_system_config");
-          }
-        } catch (e) {
-          console.warn("[FrontendShell] load_system_config prefetch notice:", e);
-        }
-      }
-
-      bootstrap();
     </script>
   </body>
 </html>

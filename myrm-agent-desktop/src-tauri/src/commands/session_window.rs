@@ -15,7 +15,8 @@ fn session_window_label(session_id: &str) -> String {
 }
 
 /// 会话窗口页面地址：产品页来源上的 `/<session_id>?mode=focused`。发布版的 `WebviewUrl::App`
-/// 会回落到壳页（其后跳转只回产品根路径），必须给出完整来源；会话 ID 经百分号编码，逃不出所在路径段。
+/// 会回落到壳页（壳页不自行跳转，Rust 也只导航主窗口），必须给出完整来源；会话 ID 经百分号编码，
+/// 逃不出所在路径段。
 fn session_window_url(origin: &ProductOrigin, session_id: &str) -> Url {
     origin.page_url(&[session_id], &[("mode", "focused")])
 }

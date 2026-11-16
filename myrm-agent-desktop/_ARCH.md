@@ -28,7 +28,7 @@ myrm-agent 产品仓桌面子模块根。L0 模块地图；L1 见 ARCHITECTURE.m
 | 目录 | 职责 |
 |------|------|
 | `src-tauri/` | Rust 主程序、IPC、托盘、更新校验（工程根） | [src-tauri/_ARCH.md](src-tauri/_ARCH.md) · [ARCHITECTURE.md](ARCHITECTURE.md) |
-| `src-tauri/frontend-shell/` | Release 模式 WebView 占位页：IPC 读 `webui_port` 轮询 Next；`frontend-start-failed` 阻断，`backend-start-failed` 警告后继续跳转 | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
+| `src-tauri/frontend-shell/` | Release 模式 WebView 启动骨架页（中/英文案）：只显示启动与失败状态，导航由 Rust 在 Next 应答后驱动；`frontend-start-failed` / `backend-start-failed` 事件与 `startup_error` 查询参数触发失败面板 | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
 | `sidecar/` | PyInstaller 后端 Sidecar 构建入口 |
 | `scripts/` | 桌面构建/签名辅助 → [scripts/_ARCH.md](scripts/_ARCH.md) |
 
