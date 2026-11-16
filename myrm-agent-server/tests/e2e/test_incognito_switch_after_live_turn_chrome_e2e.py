@@ -75,7 +75,6 @@ _SEND_JS = """(async () => {
   if (!bridge?.sendChatMessage) return { ok: false, err: 'no-sendChatMessage' };
   bridge.setActionMode?.('agent');
   return await bridge.sendChatMessage(%s, {
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   });
 })()""" % json.dumps(_QUESTION)

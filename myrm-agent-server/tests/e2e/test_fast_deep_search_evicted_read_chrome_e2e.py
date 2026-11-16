@@ -196,7 +196,6 @@ def _kickoff_fast_search_js(prompt: str) -> str:
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   const result = await bridge.sendChatMessage({json.dumps(prompt)}, {{
     baselineUserCount: usersBefore,
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   }});
   return {{ ...result, usersBefore, chatId: bridge.turnSnapshot?.().chatId ?? result.chatId ?? null, streamRequestMessageId: bridge.debugProviderState?.()?.streamRequestMessageId ?? null }};
@@ -226,7 +225,6 @@ def _kickoff_fast_search_with_prep_js(search_depth: str, prompt: str) -> str:
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   const result = await bridge.sendChatMessage({json.dumps(prompt)}, {{
     baselineUserCount: usersBefore,
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   }});
   return {{
