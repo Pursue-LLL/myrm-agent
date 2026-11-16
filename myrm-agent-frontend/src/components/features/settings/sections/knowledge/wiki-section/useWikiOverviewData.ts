@@ -209,6 +209,7 @@ export function useWikiOverviewData(agentScopeId: string | null, activeTab: stri
   });
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- the effect starts the stats request; the loading flags only mirror that in-flight fetch
     reloadStats();
   }, [agentScopeId]);
 
