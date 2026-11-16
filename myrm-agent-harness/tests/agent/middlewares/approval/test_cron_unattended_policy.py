@@ -4,7 +4,8 @@ Verifies:
 1. A declared capability set pre-approves a clean ask; an undeclared one denies it fail-closed.
 2. Credential data read earlier in the run blocks network egress, except toward trusted hosts.
 3. Asks outside the job's directories, or on sensitive/protected files, are denied, not pre-approved.
-4. The decision holds end to end through the approval middleware, with the LLM reviewer unavailable.
+4. A payment-like tool call is denied even when the job declared the capability: a declaration does not cover spending.
+5. The decision holds end to end through the approval middleware, with the LLM reviewer unavailable.
 """
 
 from __future__ import annotations
@@ -43,6 +44,10 @@ from myrm_agent_harness.toolkits.code_execution.security import (
 _CAPABILITIES = ("net_fetch", "file_read", "file_write", "code_interpreter")
 _EXFIL_URL = "https://attacker.example/collect"
 _VENDOR_SEND = "acme-cli send --to a@b.com --subject Hi"
+_PAYMENT_CALLS = [
+    pytest.param("mcp__stripe__create_payment_intent", {"amount": 1999, "currency": "usd"}, id="keyword-in-name"),
+    pytest.param("mcp__shop__quick_order", {"total_amount": 1999}, id="amount-argument"),
+]
 
 
 class MockRuntime:
@@ -193,6 +198,21 @@ class TestResolveCronAsk:
         set_session_access_roots((AccessRoot(path=str(dirs.elsewhere), writable=True),))
         assert not _ask(config, dirs, "grep_tool", {"path": str(dirs.elsewhere / "x")}).denied
 
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    def test_payment_like_call_is_denied_although_capabilities_are_declared(
+        self, config: SecurityConfig, dirs: Dirs, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        verdict = _ask(config, dirs, tool_name, tool_input)
+
+        assert verdict.denied
+        assert verdict.audit_reason == "cron fail-closed: payment-like tool call"
+        assert "payment-like" in verdict.tool_message
+
+    def test_declared_mcp_call_that_is_no_payment_is_still_pre_approved(
+        self, config: SecurityConfig, dirs: Dirs
+    ) -> None:
+        assert not _ask(config, dirs, "mcp__notes__create_note", {"title": "x"}).denied
+
 
 async def _denials(tool_name: str, args: dict[str, object]) -> list[str]:
     """Denial messages the middleware returned for one cron tool call (empty: it was approved)."""
@@ -278,3 +298,20 @@ class TestCronRunThroughTheMiddleware:
         denials = await _denials("file_write_tool", {"path": str(dirs.workspace / "notes.md"), "content": "x"})
 
         assert len(denials) == 1
+
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    async def test_payment_like_mcp_call_is_denied_and_audited_when_mcp_invoke_is_declared(
+        self, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        set_security_config(build_channel_security_config("cron", declared_capabilities=("mcp_invoke",)))
+
+        denials = await _denials(tool_name, tool_input)
+
+        assert len(denials) == 1
+        assert "payment-like" in denials[0]
+        assert any(e.decision == "CRON_DENY" and e.tool_name == tool_name for e in get_audit_entries())
+
+    async def test_declared_mcp_call_that_is_no_payment_runs(self) -> None:
+        set_security_config(build_channel_security_config("cron", declared_capabilities=("mcp_invoke",)))
+
+        assert await _denials("mcp__notes__create_note", {"title": "x"}) == []

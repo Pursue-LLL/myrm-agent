@@ -21,7 +21,7 @@ Users can approve per-request or "always allow this domain" (session-scoped).
 
 Cron sessions (session_key starts with "cron:") have nobody to answer an ASK, so
 ``_cron_policy.resolve_cron_ask`` settles it: the declared capability set acts as
-pre-approval, except for credential egress, out-of-zone paths and integration writes.
+pre-approval, except for credential egress, out-of-zone paths, integration writes and payment-like tool calls.
 An undeclared capability set is denied fail-closed.
 
 Uses LangGraph's native ``interrupt()`` mechanism for Human-in-the-Loop:
