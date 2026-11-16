@@ -83,7 +83,7 @@
 | 有意的例外 | 记忆导入读取其他工具（`~/.claude`、`~/.codex` 等）自己的历史目录，不属于 Myrm 目录 | `toolkits/memory/onboarding/adapters.py` |
 | 已知偏离（§8） | 未设置 `MYRM_DATA_DIR` 时落 cwd 相对的 `.myrm/…`：子 agent JSON checkpoint（已设置 `{root}/checkpoints`）、Camoufox 指纹（已设置 `{root}/browser_fingerprints`）、动态工作流事件库的回退（优先落工作区 `.myrm/`，取不到工作区才看 `MYRM_DATA_DIR`，再回退 cwd） | `agent/sub_agents/checkpoint/saver.py`、`toolkits/browser/pool/pool_scheduling.py::_resolve_fingerprint_dir`、`agent/dynamic_workflow/paths.py` |
 | `MYRM_PERSISTENT_ROOT` | `.context` / `.memories` / `workspace` 由它派生 | `/persistent` |
-| `MYRM_LOCALES_DIR` | 覆盖诊断 i18n 目录 | 内置 `agent/errors/diagnostics/i18n/locales/`（de / en / ja / ko / zh-CN） |
+| `MYRM_LOCALES_DIR` | 覆盖诊断 i18n 目录 | 内置 `agent/errors/diagnostics/i18n/locales/`（en / zh-CN） |
 | `MYRM_GATEWAY_URL` / `_TOKEN` | 第三方工具中继地址与凭证 | 不需要该能力时不必设置 |
 
 `MYRM_PERSISTENT_ROOT` 必须每次调用时读取（`core/paths.py::get_persistent_root`，由 `runtime/paths/execution_paths.py` 转发），禁止在导入时快照成常量；部署层在启动之后设置也必须对所有调用方生效。路径根原语放 `core/` 而非 `runtime/`，因为 `toolkits/` 需要根路径但禁止 import `runtime/`；消费方同样按调用时求值，不得缓存——bash 路径白名单直接取 `core/paths.py::get_context_root()`（`toolkits/code_execution/security/validator.py`），因此改根之后 `.context` 仍在该白名单内。
