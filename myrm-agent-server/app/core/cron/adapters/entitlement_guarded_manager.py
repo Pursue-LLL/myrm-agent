@@ -7,7 +7,7 @@
 - app.core.cron.adapters.tools_policy::normalize_cron_tools_allowed (POS: cron tools policy — restricts per-job tool access at schedule and runtime)
 
 [OUTPUT]
-- EntitlementGuardedCronManager: create/duplicate take a plan slot; create/update run the lifecycle guard and tool-name normalisation; typed pass-through for the job lookups, the run listing and the lifecycle calls services make
+- EntitlementGuardedCronManager: create/duplicate take a plan slot; create/update run the lifecycle guard and tool-name normalisation; typed pass-through for the job lookups and counts, the run listing and counts, the monitor state and the lifecycle calls services make
 
 [POS]
 Server business-layer gate on harness CronManager mutations. All callers use ``get_cron_manager()``.
@@ -19,7 +19,7 @@ from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.infra.incremental.types import MonitorConfig
+from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorState
 from myrm_agent_harness.toolkits.cron.triggers import TriggerConfig
 from myrm_agent_harness.toolkits.cron.types import (
     ActiveHours,
@@ -224,5 +224,23 @@ class EntitlementGuardedCronManager:
     ) -> list[CronRunRecord]:
         return await self._inner.list_runs(job_id=job_id, limit=limit, offset=offset, status=status)
 
-    def __getattr__(self, name: str) -> object:
-        return getattr(self._inner, name)
+    async def count_jobs(
+        self,
+        *,
+        name_filter: str | None = None,
+        chat_id: str | None = None,
+        project_id: str | None = None,
+    ) -> int:
+        return await self._inner.count_jobs(name_filter=name_filter, chat_id=chat_id, project_id=project_id)
+
+    async def count_runs(self, *, job_id: str | None = None, status: str | None = None) -> int:
+        return await self._inner.count_runs(job_id=job_id, status=status)
+
+    async def get_monitor_state(self, job_id: str) -> MonitorState | None:
+        return await self._inner.get_monitor_state(job_id)
+
+    async def batch_get_monitor_states(self, job_ids: list[str]) -> dict[str, MonitorState]:
+        return await self._inner.batch_get_monitor_states(job_ids)
+
+    async def reset_monitor_baseline(self, job_id: str) -> bool:
+        return await self._inner.reset_monitor_baseline(job_id)
