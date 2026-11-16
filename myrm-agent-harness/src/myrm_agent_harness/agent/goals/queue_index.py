@@ -28,10 +28,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Adding (IM, cron), cancelling and reordering (goals panel) and dequeuing the next goal run as separate tasks, and
-# each is a read-modify-write of one document: unserialized, a write-back erases a change made while it was being
-# prepared. The lock is per process, which is enough because the server runs as one process; it is keyed by session
-# alone because a process holds one goal storage. Weak values let a session's lock go once no task uses it.
+# Every change is a read-modify-write of one document and the storage has no transaction or compare-and-swap, so
+# unserialized, a write-back erases a change made while it was being prepared. The lock is module-level and keyed by
+# session: it serializes the changes of one session across every storage object in the process, and does not reach
+# other processes. Weak values let a session's lock go once no task uses it.
 _SESSION_LOCKS: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 
 

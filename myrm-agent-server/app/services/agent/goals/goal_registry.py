@@ -9,13 +9,13 @@
 - app.core.utils.chat_utils::parse_judge_json (POS: judge JSON 解析)
 
 [OUTPUT]
-- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider；resolve_provider 为 HTTP API 取 provider（已注册的，否则一个不注册的存储直读 manager）；has_active_goal 读存储真值（与 provider 是否注册无关）
+- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider；resolve_provider 为 HTTP API 与 IM 命令取 provider（已注册的，否则一个不注册的、绑定该会话的 ServerGoalManager，直读存储）；has_active_goal 读存储真值（与 provider 是否注册无关）
 - ServerGoalManager: 扩展 harness GoalManager，提供 semantic judge 与 Goal 完成时的会话交付物汇总
 
 [POS]
 会话级 Goal 注册表。使 HTTP API 能够通过 session_id 定位正在运行的
 Agent 会话的 GoalProvider，从而在运行时控制 Goal 状态（暂停/恢复）；
-回合之间没有注册 provider 的会话，由 resolve_provider 退回存储直读。
+读写 Goal 状态（HTTP API、IM 命令）一律走 resolve_provider，回合之间无注册 provider 时它退回存储直读。
 与 SteeringRegistry 和 CancellationRegistry 形成对称设计。
 """
 
@@ -206,10 +206,10 @@ class GoalRegistry:
 
     @classmethod
     def get_or_create_provider(cls, session_id: str) -> "GoalProvider":
-        """Get the goal provider for a session, creating it if it doesn't exist.
+        """Get the goal provider for a session, creating and registering it if there is none.
 
-        This ensures that the GoalManager (which holds memory state like suppression flags)
-        is a singleton per session during the server's lifecycle.
+        The registered provider is the live handle of the session's turn, so its in-memory state (suppression
+        flags) stays one object while the turn runs; the end of the turn unregisters it.
         """
         with cls._lock:
             if session_id not in cls._providers:
@@ -221,7 +221,7 @@ class GoalRegistry:
 
     @classmethod
     def get_provider(cls, session_id: str) -> "GoalProvider | None":
-        """Get the goal provider for a session if it exists in memory."""
+        """The live provider of the session's running turn, None between turns; to read or change goals use `resolve_provider`."""
         with cls._lock:
             return cls._providers.get(session_id)
 
@@ -229,12 +229,14 @@ class GoalRegistry:
     def resolve_provider(cls, session_id: str) -> "GoalProvider":
         """The session's registered provider, else a manager over the same storage that is not registered.
 
-        Providers are registered only while a turn runs, yet the HTTP API serves a session between turns
-        too, and its goals live in storage. The stand-in is never registered: a registered provider is the
-        live handle of a running session, and `GET /goals/active` lists every registered session.
+        Providers are registered only while a turn runs, yet the HTTP API and the IM commands serve a
+        session between turns too, and its goals live in storage. The stand-in is a `ServerGoalManager` of
+        the session, so completing a goal through it collects the deliverables like a turn's provider does.
+        It is never registered: a registered provider is the live handle of a running session, and
+        `GET /goals/active` lists every registered session.
         """
         provider = cls.get_provider(session_id)
-        return provider if provider is not None else cls._storage_manager()
+        return provider if provider is not None else cls._storage_manager(session_id)
 
     @classmethod
     async def has_active_goal(cls, session_id: str) -> bool:
@@ -244,14 +246,14 @@ class GoalRegistry:
         keys depend on it. Providers are registered only while a turn runs; reading the provider map
         would give a different answer between turns than during one.
         """
-        return await cls._storage_manager().get_active_goal(session_id) is not None
+        return await cls._storage_manager(session_id).get_active_goal(session_id) is not None
 
     @staticmethod
-    def _storage_manager() -> GoalManager:
-        """A plain manager over the platform storage, holding none of a running session's state."""
+    def _storage_manager(session_id: str) -> ServerGoalManager:
+        """An unregistered manager of the session over the platform storage, holding none of a running turn's state."""
         from app.platform_utils import get_storage_provider
 
-        return GoalManager(get_storage_provider())
+        return ServerGoalManager(get_storage_provider(), session_id=session_id)
 
     @classmethod
     def session_ids(cls) -> list[str]:
