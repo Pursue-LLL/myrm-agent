@@ -193,8 +193,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
             _weave_dynamic_schemas,
         )
 
-        no_builtin = self.config.no_builtin_tools
-        self._cached_tools = _weave_dynamic_schemas(self._tool_registry.resolve(no_builtin_tools=no_builtin))
+        self._cached_tools = _weave_dynamic_schemas(self._tool_registry.resolve())
 
         if self._extensions:
             from myrm_agent_harness.agent.tool_management.tool_layers import (
@@ -318,13 +317,13 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
         """Create a fresh ToolRegistry for this build cycle."""
         from ._internals.agent_runtime import create_registry
 
-        return create_registry()
+        return create_registry(no_builtin_tools=self.config.no_builtin_tools)
 
     def _emit_tools_snapshot(self) -> list[dict[str, object]] | None:
         """Serializable snapshot of the Turn1-bound tools the model can call, for the GUI availability view."""
         from ._internals.agent_runtime import emit_tools_snapshot
 
-        return emit_tools_snapshot(self._tool_registry, no_builtin_tools=self.config.no_builtin_tools)
+        return emit_tools_snapshot(self._tool_registry)
 
     async def _build_tools(self) -> list[BaseTool]:
         """Build tool list via ToolRegistry (user + middleware sources)."""

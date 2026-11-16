@@ -12,6 +12,7 @@
 
 [POS]
 Single registry for the tools one build cycle binds: accumulates them from every source, de-duplicates them by source priority and orders them by layer.
+Built with ``no_builtin_tools`` it refuses the built-in meta tools, so what it holds is the host's whole action space.
 Orchestration signals (Verifier) are **not** registered here — see ``agent/orchestration/``.
 """
 
@@ -75,6 +76,10 @@ def _safe_extract_schema(tool: BaseTool) -> dict[str, object] | None:
 class ToolRegistry:
     """Accumulates tools from multiple sources and produces a final ordered list.
 
+    With ``no_builtin_tools=True`` the built-in framework meta tools (``ToolSource.META``) are never registered, so
+    every view of the registry (``resolve``, ``snapshot``, ``has_tool``, ``tool_names``) is the same action space, and
+    a host tool that shares a built-in's name is the only tool with that name.
+
     Usage::
 
         reg = ToolRegistry()
@@ -83,7 +88,8 @@ class ToolRegistry:
         tools = reg.resolve()
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, no_builtin_tools: bool = False) -> None:
+        self._no_builtin_tools = no_builtin_tools
         self._entries: list[ToolEntry] = []
 
     def register(
@@ -104,7 +110,8 @@ class ToolRegistry:
         tool:
             A LangChain ``BaseTool`` instance.
         source:
-            Where the tool comes from (META / USER / MIDDLEWARE).
+            Where the tool comes from (META / USER / MIDDLEWARE). A registry built with ``no_builtin_tools``
+            does not register META tools.
         layer:
             Explicit cache-ordering layer.  When ``None`` the layer is
             looked up from the global ``_TOOL_LAYERS`` mapping (falling
@@ -121,6 +128,10 @@ class ToolRegistry:
             ReplaySafety classification (SAFE / NEVER). Defaults to lookup in
             SSOT _TOOL_REPLAY_SAFETY, falling back to NEVER.
         """
+        if self._no_builtin_tools and source == ToolSource.META:
+            logger.debug("Built-in tool '%s' not registered: no_builtin_tools is enabled", tool.name)
+            return
+
         resolved_layer = layer if layer is not None else get_tool_layer(tool.name)
         resolved_safety = replay_safety if replay_safety is not None else get_tool_replay_safety(tool.name)
 
@@ -170,16 +181,10 @@ class ToolRegistry:
                 bind_mode=bind_mode,
             )
 
-    def _resolve_entries(self, *, include_meta: bool = True) -> list[ToolEntry]:
-        """Deduplicate and sort entries (shared by resolve/snapshot).
-
-        With ``include_meta=False`` the built-in meta tools are dropped before names are de-duplicated, so
-        a tool of another source that shares a built-in's name is not shadowed by an entry that is then discarded.
-        """
+    def _resolve_entries(self) -> list[ToolEntry]:
+        """Deduplicate and sort entries (shared by resolve/snapshot)."""
         best: dict[str, ToolEntry] = {}
         for entry in self._entries:
-            if not include_meta and entry.source == ToolSource.META:
-                continue
             name = entry.tool.name
             existing = best.get(name)
             if existing is None or source_priority(entry.source) < source_priority(existing.source):
@@ -193,7 +198,7 @@ class ToolRegistry:
             ),
         )
 
-    def resolve(self, *, no_builtin_tools: bool = False) -> list[BaseTool]:
+    def resolve(self) -> list[BaseTool]:
         """Deduplicate and sort all registered tools.
 
         Dedup rule: on name collision the entry with the **highest source
@@ -202,13 +207,9 @@ class ToolRegistry:
         Sort rule: first by ``ToolLayer`` (CORE → HIGH_PRIORITY → EXTENDED → EXTERNAL),
         then HIGH_PRIORITY group priority, then alphabetically within each tier.
 
-        When ``no_builtin_tools=True``, the built-in framework meta tools (source == ToolSource.META) are left out
-        before names are de-duplicated; user-provided and middleware tools stay, including one that shares a
-        built-in's name.
-
         Only returns Turn1-bound tools (``bind_mode == TURN1``).
         """
-        entries = self._resolve_entries(include_meta=not no_builtin_tools)
+        entries = self._resolve_entries()
 
         # Update allowed domains map in session context
         from myrm_agent_harness.agent.middlewares._session_context import (
@@ -244,14 +245,13 @@ class ToolRegistry:
         entries = self._resolve_entries()
         return [e.tool for e in entries if e.bind_mode == ToolBindMode.RUNTIME_ONLY]
 
-    def snapshot(self, *, no_builtin_tools: bool = False) -> list[ToolSnapshot]:
+    def snapshot(self) -> list[ToolSnapshot]:
         """Return a serializable snapshot of all registered tools (internal/debug).
 
-        ``no_builtin_tools`` leaves the built-in meta tools out exactly as ``resolve()`` does.
         For GUI exposure use ``emit_tools_snapshot`` which filters to Turn1 only.
         """
         snapshots: list[ToolSnapshot] = []
-        for entry in self._resolve_entries(include_meta=not no_builtin_tools):
+        for entry in self._resolve_entries():
             tool = entry.tool
             desc = tool.description or ""
             params = _safe_extract_schema(tool)

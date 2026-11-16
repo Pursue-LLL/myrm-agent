@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - build_middlewares: Build the full middleware chain for a BaseAgent.
-- create_registry: Create a fresh ToolRegistry for one build cycle.
+- create_registry: Create a fresh ToolRegistry for one build cycle, one that refuses the built-in meta tools under ``no_builtin_tools``.
 - build_tools: Build the resolved tool list via ToolRegistry.
 - emit_tools_snapshot: Return Turn1-bound tools for GUI availability view.
 
@@ -197,9 +197,15 @@ def build_middlewares(
     return middlewares
 
 
-def create_registry() -> ToolRegistry:
-    """Create a fresh ToolRegistry for one build cycle."""
-    return ToolRegistry()
+def create_registry(*, no_builtin_tools: bool = False) -> ToolRegistry:
+    """Create a fresh ToolRegistry for one build cycle.
+
+    With ``no_builtin_tools`` the registry refuses the built-in meta tools, so the host's own tools are the whole
+    action space of every graph the agent builds from it.
+    """
+    if no_builtin_tools:
+        logger.info("no_builtin_tools is enabled: built-in meta tools are excluded from action space")
+    return ToolRegistry(no_builtin_tools=no_builtin_tools)
 
 
 def _weave_dynamic_schemas(resolved_tools: list[BaseTool]) -> list[BaseTool]:
@@ -276,16 +282,16 @@ async def build_tools(
     return _weave_dynamic_schemas(resolved_tools)
 
 
-def emit_tools_snapshot(registry: ToolRegistry, *, no_builtin_tools: bool = False) -> list[dict[str, object]] | None:
+def emit_tools_snapshot(registry: ToolRegistry) -> list[dict[str, object]] | None:
     """Return Turn1-bound tools for GUI availability view.
 
-    Excludes RUNTIME_ONLY entries, and the built-in meta tools when ``no_builtin_tools`` leaves them out, so the panel
-    matches ``registry.resolve(no_builtin_tools=...)`` (what the model can call on the current turn).
+    Excludes RUNTIME_ONLY entries, so the panel matches ``registry.resolve()`` (what the model can call on the
+    current turn).
     """
     try:
         from myrm_agent_harness.agent.tool_management import ToolBindMode
 
-        snapshots = registry.snapshot(no_builtin_tools=no_builtin_tools)
+        snapshots = registry.snapshot()
         turn1_snapshots = [s for s in snapshots if s.bind_mode == ToolBindMode.TURN1.value]
         if not turn1_snapshots:
             return None

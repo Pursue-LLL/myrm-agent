@@ -13,8 +13,9 @@
 [POS]
 Tool building mixin for SkillAgent. Assembles meta-tools, skill_manage_tool (from ``write_backend``, unless the
 caller supplies one), todo_write (planning, or a top-level agent resuming workspace todos), wiki tools, and
-RUNTIME_ONLY hooks; ``config.no_builtin_tools`` leaves out every built-in meta tool, the skill_manage_tool built
-from ``write_backend`` included. The skill market tool is not built here: the host mounts it through ``tools=``.
+RUNTIME_ONLY hooks; under ``config.no_builtin_tools`` the registry refuses every built-in meta tool, the
+skill_manage_tool built from ``write_backend`` included. The skill market tool is not built here: the host mounts it
+through ``tools=``.
 The class-body annotations are the contract with the host class.
 """
 
@@ -164,12 +165,7 @@ class SkillAgentToolsMixin:
         if wiki_tools:
             meta_tools.extend(wiki_tools)
 
-        no_builtin_tools = self.config.no_builtin_tools
-        if not no_builtin_tools:
-            registry.register_many(meta_tools, source=ToolSource.META)
-        else:
-            logger.info("no_builtin_tools is enabled: built-in meta tools are excluded from action space")
-
+        registry.register_many(meta_tools, source=ToolSource.META)
         registry.register_many(normalize_tool_names(self.user_tools), source=ToolSource.USER)
 
         all_middlewares: list[object] = list(self.user_middlewares)
@@ -207,7 +203,7 @@ class SkillAgentToolsMixin:
             locale=prompt_locale,
         )
 
-        resolved = registry.resolve(no_builtin_tools=no_builtin_tools)
+        resolved = registry.resolve()
 
         self._runtime_skill_count = len(skills)
         self._runtime_tool_count = len(resolved)

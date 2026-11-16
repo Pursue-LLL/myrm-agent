@@ -203,7 +203,7 @@ python scripts/validate_tool_registry.py --generate-docs  # 刷新 TOOL_COUNT + 
 
 - `resolve()` — 仅返回 `TURN1` 工具（LLM 首回合可见 schema）
 - `get_runtime_tools()` — 仅 `RUNTIME_ONLY`（中间件注入、不进 Turn1 schema 的工具）
-- `resolve(no_builtin_tools=True)` 与 `snapshot(no_builtin_tools=True)` — 先剔除 `ToolSource.META` 的内置元工具、再按名称去重，所以与内置元工具同名的宿主工具保留；`emit_tools_snapshot` 带同一开关，GUI 面板与模型可调用的工具一致
+- `ToolRegistry(no_builtin_tools=True)` — 注册阶段拒收 `ToolSource.META` 的内置元工具（开关来自 `AgentRuntimeConfig.no_builtin_tools`，由 `BaseAgent._create_registry` 传入）；`resolve()` / `snapshot()` / `has_tool()` / `tool_names()` 看到同一个动作空间，与内置元工具同名的宿主工具保留，`emit_tools_snapshot` 与模型可调用的工具一致，`add_tools` 与故障转移重建的图也不含内置元工具
 
 **典型映射**：
 
