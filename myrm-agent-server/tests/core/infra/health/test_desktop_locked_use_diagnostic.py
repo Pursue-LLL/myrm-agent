@@ -11,11 +11,15 @@ from app.services.locked_use.curtain_bridge import CurtainBridgeState
 
 
 @pytest.mark.asyncio
-async def test_non_macos_reports_pass_na() -> None:
-    with patch("app.core.infra.health.desktop_locked_use_diagnostic.platform.system", return_value="Linux"):
+@pytest.mark.parametrize("system", ["Linux", "Windows"])
+async def test_non_macos_reports_pass_na(system: str) -> None:
+    with patch("app.core.infra.health.desktop_locked_use_diagnostic.platform.system", return_value=system):
         report = await DesktopLockedUseDiagnostic().check_health()
     assert report.status == "pass"
     assert report.code == "OK_DESKTOP_LOCKED_USE_N_A"
+    # The privacy curtain runs on Windows too, so the not-applicable copy must say where each feature is available.
+    assert "Windows" in report.message
+    assert "macOS" in report.message
 
 
 @pytest.mark.asyncio
