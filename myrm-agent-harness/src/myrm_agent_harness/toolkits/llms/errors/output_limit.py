@@ -55,7 +55,8 @@ _MODEL_CEILING_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(rf"max_(?:completion_)?tokens\W.{{0,120}}?integer above maximum value\W+expected a value\s*<=\s*{_NUM}"),
     # Groq: "max_completion_tokens must be less than or equal to 40960"
     # SiliconFlow (code 20015): "max_tokens: Must be less than or equal to 16384"
-    re.compile(rf"max_(?:completion_)?tokens:?\s*must be less than or equal to\s*{_NUM}"),
+    # Cohere: "too many tokens: max tokens must be less than or equal to 4096, the maximum output length for this model"
+    re.compile(rf"max[_ ](?:completion[_ ])?tokens:?\s*must be less than or equal to\s*{_NUM}"),
     # AWS Bedrock Converse: "The maximum tokens you requested exceeds the model limit of 8192. Try again with ..."
     re.compile(rf"maximum tokens you requested exceeds the model limit of\s*{_NUM}"),
 )
@@ -78,6 +79,11 @@ _PASSED_INPUT_TOKENS_RE = re.compile(
     rf"you passed\s+{_NUM}\s+input tokens.*?context length is only\s+{_NUM}\s+tokens", re.S
 )
 _CONTEXT_SUM_RE = re.compile(rf"exceed context limit\D*{_NUM}\s*\+\s*{_NUM}\s*>\s*{_NUM}")
+# Hugging Face TGI: "`inputs` tokens + `max_new_tokens` must be <= 4096. Given: 3000 `inputs` tokens and 2000
+# `max_new_tokens`". The first number is the whole window, the second the prompt; gateways may strip the backticks.
+_TOTAL_TOKENS_RE = re.compile(
+    rf"inputs`?\s+tokens\s*\+\s*`?max_new_tokens`?\s*must be\s*<=\s*{_NUM}\.\s*given:\s*{_NUM}\s*`?inputs"
+)
 
 # Keyword groups that mark a message as an output-budget complaint for the window formats whose
 # regexes alone are loose (they also appear in plain prompt-overflow rejections).
@@ -128,6 +134,8 @@ def _remainder_candidates(msg: str) -> Iterator[int]:
         yield _as_int(match.group(2)) - _as_int(match.group(1))
     if match := _CONTEXT_SUM_RE.search(msg):
         yield _as_int(match.group(3)) - _as_int(match.group(1))
+    if match := _TOTAL_TOKENS_RE.search(msg):
+        yield _as_int(match.group(1)) - _as_int(match.group(2))
 
 
 def _window_remainder(msg: str) -> int | None:

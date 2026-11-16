@@ -104,6 +104,22 @@ MODEL_CAP_WORDINGS = [
         65535,
         id="gemini-exclusive-range",
     ),
+    pytest.param(
+        "too many tokens: max tokens must be less than or equal to 4096, the maximum output length for this model "
+        "- received 1000000.",
+        4096,
+        id="cohere",
+    ),
+    pytest.param(
+        "Too Many Tokens: Max Tokens must be less than or equal to 4,096, the maximum output length for this model",
+        4096,
+        id="cohere-case-and-thousands-separator",
+    ),
+    pytest.param(
+        "max completion tokens must be less than or equal to 8192",
+        8192,
+        id="space-separated-completion-tokens",
+    ),
 ]
 
 
@@ -272,6 +288,41 @@ class TestVLLMFormat:
         assert _limit(message) == OutputLimit(tokens=2048 - 400, model_cap=False)
 
 
+class TestTGIInputValidation:
+    """Hugging Face TGI states the whole window and the prompt; the completion room is their difference.
+
+    The sentence structure is as recorded in OpenCode's provider-error tests; the numbers of the positive
+    cases are adapted so that the prompt fits the window (the recorded prompt alone overflows it).
+    """
+
+    MESSAGE = (
+        "Input validation error: `inputs` tokens + `max_new_tokens` must be <= 4096. "
+        "Given: 3000 `inputs` tokens and 2000 `max_new_tokens`"
+    )
+
+    def test_room_is_the_window_minus_the_prompt(self) -> None:
+        assert _limit(self.MESSAGE) == OutputLimit(tokens=4096 - 3000, model_cap=False)
+
+    def test_wording_without_backticks(self) -> None:
+        message = self.MESSAGE.replace("`", "")
+        assert _limit(message) == OutputLimit(tokens=4096 - 3000, model_cap=False)
+
+    def test_thousands_separators_are_accepted(self) -> None:
+        message = self.MESSAGE.replace("4096", "131,073").replace("3000", "100,000")
+        assert _tokens(message) == 131073 - 100000
+
+    def test_prompt_alone_overflowing_the_window_yields_none(self) -> None:
+        message = (
+            "Input validation error: `inputs` tokens + `max_new_tokens` must be <= 131073. "
+            "Given: 600035 `inputs` tokens and 16 `max_new_tokens`"
+        )
+        assert _limit(message) is None
+
+    def test_prompt_filling_the_window_exactly_yields_none(self) -> None:
+        message = self.MESSAGE.replace("3000", "4096")
+        assert _limit(message) is None
+
+
 # ---------------------------------------------------------------------------
 # Edge cases and rejections that are not output limits (must return None)
 # ---------------------------------------------------------------------------
@@ -334,6 +385,17 @@ NOT_AN_OUTPUT_LIMIT = [
     pytest.param(
         "Invalid 'max_tokens': integer below minimum value. Expected a value >= 1, but got 0 instead.",
         id="max-tokens-below-minimum",
+    ),
+    pytest.param(
+        "too many tokens: size limit exceeded by 168512 tokens. Try using shorter or fewer inputs. "
+        "The limit for this model is 132000 tokens.",
+        id="cohere-prompt-overflow",
+    ),
+    pytest.param("max input tokens must be less than or equal to 8000", id="space-separated-prompt-limit"),
+    pytest.param("max tokens allowed per minute must be less than or equal to 8000", id="space-separated-other-limit"),
+    pytest.param(
+        "Input validation error: `inputs` must have less than 4096 tokens. Given: 5000",
+        id="tgi-prompt-only-length",
     ),
 ]
 
