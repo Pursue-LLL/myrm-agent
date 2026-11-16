@@ -2,7 +2,7 @@
  * [INPUT]
  * - @/store/useChatStore::useChatStore (POS: 聊天 Zustand store 的业务分层)
  * - @/store/useWorkspaceStore::useWorkspaceStore (POS: 工作区 pane 状态)
- * - @/components/dev/e2eStoreTimeline::createStoreTimeline (POS: 消息列表变化记录)
+ * - @/components/dev/e2eBridge/e2eStoreTimeline::createStoreTimeline (POS: 消息列表变化记录)
  *
  * [OUTPUT]
  * - watchChatStoreTimeline: starts recording the chat store's message list changes until `stop`
@@ -16,7 +16,7 @@ import {
   createStoreTimeline,
   type StoreTimelineSample,
   type StoreTimelineSnapshot,
-} from '@/components/dev/e2eStoreTimeline';
+} from '@/components/dev/e2eBridge/e2eStoreTimeline';
 import type { ChatState } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import useWorkspaceStore from '@/store/useWorkspaceStore';

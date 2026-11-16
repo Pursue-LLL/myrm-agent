@@ -4,7 +4,6 @@ src/app/library/components/WikiGraph3D.tsx
 src/app/subscription/page.tsx
 src/components/agent/builtin-agent-i18n-data.ts
 src/components/billing/QuotaDisplay.tsx
-src/components/dev/E2EChatBridge.tsx
 src/components/features/app-shell/search-dialog.tsx
 src/components/features/artifacts/ArtifactCard.tsx
 src/components/features/artifacts/ArtifactPortal.tsx

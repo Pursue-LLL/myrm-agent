@@ -7,7 +7,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { skipActiveClarification } from '@/components/dev/e2eClarificationSkip';
+import { skipActiveClarification } from '@/components/dev/e2eBridge/e2eClarificationSkip';
 import type { Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
