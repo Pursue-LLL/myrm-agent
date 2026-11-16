@@ -124,8 +124,6 @@ async def test_a_job_without_a_chat_publishes_an_empty_chat_id(bus: _RecordingBu
     [
         ("en", f"Reminder: {_JOB}", f"Scheduled task paused: {_JOB}", "It has run 3 times"),
         ("zh-CN", f"提醒：{_JOB}", f"定时任务已暂停：{_JOB}", "已执行 3 次"),
-        ("zh-TW", f"提醒：{_JOB}", f"定時任務已暫停：{_JOB}", "已執行 3 次"),
-        ("ja", f"リマインダー：{_JOB}", f"スケジュールタスクを一時停止しました：{_JOB}", "上限の 3 回"),
     ],
 )
 async def test_titles_and_messages_speak_the_users_language(
@@ -147,7 +145,7 @@ async def test_titles_and_messages_speak_the_users_language(
     assert max_fires_message in pause["message"]
 
 
-@pytest.mark.parametrize("locale", ["en", "zh-CN", "zh-TW", "ja"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 @pytest.mark.parametrize("kind", list(CronNoticeKind))
 async def test_every_notice_kind_reads_in_every_language(
     bus: _RecordingBus, monkeypatch: pytest.MonkeyPatch, kind: CronNoticeKind, locale: str

@@ -54,33 +54,6 @@ class TestCooldownHint:
 
         assert "Retry after 120 seconds" in diagnostic.user_message
 
-    def test_cooldown_japanese(self):
-        """Test cooldown hint in Japanese."""
-        exc = Exception("too many requests")
-
-        diagnostic = LLMErrorDiagnostic.diagnose(exc, locale="ja", cooldown_remaining_ms=45000)
-
-        assert diagnostic.locale == "ja"
-        assert "45秒後に再試行してください" in diagnostic.user_message
-
-    def test_cooldown_korean(self):
-        """Test cooldown hint in Korean."""
-        exc = Exception("rate limit exceeded")
-
-        diagnostic = LLMErrorDiagnostic.diagnose(exc, locale="ko", cooldown_remaining_ms=90000)
-
-        assert diagnostic.locale == "ko"
-        assert "90초 후에 다시 시도하세요" in diagnostic.user_message
-
-    def test_cooldown_german(self):
-        """Test cooldown hint in German."""
-        exc = Exception("429 too many requests")
-
-        diagnostic = LLMErrorDiagnostic.diagnose(exc, locale="de", cooldown_remaining_ms=75000)
-
-        assert diagnostic.locale == "de"
-        assert "75 Sekunden erneut" in diagnostic.user_message
-
     def test_cooldown_zero_milliseconds(self):
         """Test cooldown_remaining_ms=0 (no hint)."""
         exc = Exception("rate limit")
@@ -102,9 +75,9 @@ class TestCooldownHint:
         test_cases = [
             ("connection refused", "connection", "en", 30000, "30 seconds"),
             ("invalid api key", "api_key", "zh-CN", 45000, "45秒"),
-            ("model not found", "model", "ja", 60000, "60秒"),
-            ("context length exceeded", "context_overflow", "ko", 90000, "90초"),
-            ("timeout", "timeout", "de", 120000, "120 Sekunden"),
+            ("model not found", "model", "zh-CN", 60000, "60秒"),
+            ("context length exceeded", "context_overflow", "en", 90000, "90 seconds"),
+            ("timeout", "timeout", "zh-CN", 120000, "120秒"),
         ]
 
         for error_msg, expected_type, locale, cooldown_ms, expected_hint_fragment in test_cases:

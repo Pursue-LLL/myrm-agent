@@ -16,23 +16,12 @@ describe('localeUtils', () => {
       expect(normalizeLocaleForBackend('en')).toBe('en');
     });
 
-    it('should keep ja as ja', () => {
-      expect(normalizeLocaleForBackend('ja')).toBe('ja');
-    });
-
-    it('should keep ko as ko', () => {
-      expect(normalizeLocaleForBackend('ko')).toBe('ko');
-    });
-
-    it('should keep de as de', () => {
-      expect(normalizeLocaleForBackend('de')).toBe('de');
-    });
-
     it('should return undefined for null input', () => {
       expect(normalizeLocaleForBackend(null)).toBeUndefined();
     });
 
-    it('should pass through unmapped locales', () => {
+    it('should pass through a saved locale the app no longer offers', () => {
+      expect(normalizeLocaleForBackend('ja')).toBe('ja');
       expect(normalizeLocaleForBackend('fr')).toBe('fr');
     });
   });
@@ -43,14 +32,12 @@ describe('localeUtils', () => {
       expect(parseLocaleQueryParam('zh')).toBe('zh');
     });
 
-    it('accepts other supported app locales', () => {
-      expect(parseLocaleQueryParam('ja')).toBe('ja');
-    });
-
     it('rejects unknown or empty values', () => {
       expect(parseLocaleQueryParam(null)).toBeNull();
       expect(parseLocaleQueryParam('')).toBeNull();
       expect(parseLocaleQueryParam('fr')).toBeNull();
+      expect(parseLocaleQueryParam('ja')).toBeNull();
+      expect(parseLocaleQueryParam('zh-TW')).toBeNull();
     });
   });
 
@@ -73,34 +60,36 @@ describe('localeUtils', () => {
   describe('negotiateLocale', () => {
     it('returns exact match for simple header', () => {
       expect(negotiateLocale('en')).toBe('en');
-      expect(negotiateLocale('ja')).toBe('ja');
-      expect(negotiateLocale('ko')).toBe('ko');
-      expect(negotiateLocale('de')).toBe('de');
       expect(negotiateLocale('zh')).toBe('zh');
     });
 
     it('matches region variant to base locale', () => {
       expect(negotiateLocale('en-US')).toBe('en');
       expect(negotiateLocale('en-GB,en;q=0.9')).toBe('en');
-      expect(negotiateLocale('ja-JP')).toBe('ja');
-      expect(negotiateLocale('ko-KR')).toBe('ko');
-      expect(negotiateLocale('de-DE')).toBe('de');
+      expect(negotiateLocale('zh-CN')).toBe('zh');
     });
 
-    it('matches zh-TW exactly before falling back to zh', () => {
-      expect(negotiateLocale('zh-TW')).toBe('zh-TW');
-      expect(negotiateLocale('zh-CN')).toBe('zh');
+    it('maps every Chinese variant to zh', () => {
+      expect(negotiateLocale('zh-TW')).toBe('zh');
       expect(negotiateLocale('zh-HK')).toBe('zh');
+      expect(negotiateLocale('zh-Hant')).toBe('zh');
     });
 
     it('respects quality factor ordering', () => {
-      expect(negotiateLocale('fr;q=0.8,ja;q=0.9,en;q=0.7')).toBe('ja');
-      expect(negotiateLocale('ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7')).toBe('ko');
+      expect(negotiateLocale('fr;q=0.8,zh;q=0.9,en;q=0.7')).toBe('zh');
+      expect(negotiateLocale('en;q=0.5,zh;q=0.9')).toBe('zh');
+    });
+
+    it('skips languages the app does not offer and takes the next supported one', () => {
+      expect(negotiateLocale('ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7')).toBe('en');
+      expect(negotiateLocale('ja-JP,ja;q=0.9,zh;q=0.8')).toBe('zh');
     });
 
     it('falls back to en for unsupported languages', () => {
       expect(negotiateLocale('fr-FR,fr;q=0.9')).toBe('en');
       expect(negotiateLocale('pt-BR')).toBe('en');
+      expect(negotiateLocale('ja')).toBe('en');
+      expect(negotiateLocale('de-DE')).toBe('en');
       expect(negotiateLocale('ar')).toBe('en');
     });
 
@@ -111,18 +100,18 @@ describe('localeUtils', () => {
     });
 
     it('skips wildcard entries', () => {
-      expect(negotiateLocale('*;q=0.5,ja;q=0.9')).toBe('ja');
+      expect(negotiateLocale('*;q=0.5,zh;q=0.9')).toBe('zh');
       expect(negotiateLocale('*')).toBe('en');
     });
 
     it('handles malformed quality factor gracefully', () => {
       expect(negotiateLocale('en;q=abc')).toBe('en');
-      expect(negotiateLocale('ja;q=')).toBe('ja');
+      expect(negotiateLocale('zh;q=')).toBe('zh');
     });
 
     it('handles complex real-world Accept-Language headers', () => {
-      expect(negotiateLocale('zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7')).toBe('zh-TW');
-      expect(negotiateLocale('de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.5')).toBe('de');
+      expect(negotiateLocale('zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7')).toBe('zh');
+      expect(negotiateLocale('de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.5')).toBe('en');
     });
   });
 });

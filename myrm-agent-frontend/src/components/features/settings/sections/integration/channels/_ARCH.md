@@ -46,7 +46,7 @@
 
 - `__tests__/topicWorkspaceLabel.test.ts` — workspace 展示 label 解析
 - `__tests__/issueMessages.test.ts` — 诊断消息到本地化键的映射：Telegram 的错误、令牌被拒与 Bot API 不可达（及其修复提示）、轮询降级、HTTPS 与 webhook 配置失败消息各得其键，webhook 配置失败不被通用降级抢先，前缀型模式保留后半段，未知消息原样返回，表内每个键在 `channels.issues` 有文案
-- `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：线程共享、回复模式两行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文（如德语）不撑出卡片
+- `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：线程共享、回复模式两行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文不撑出卡片
 - `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
 - `__tests__/ChannelConfigCards.placeholders.test.tsx` — Matrix 代理与 OneBot 令牌输入框的占位提示走 `channels` 本地化文案
 - `__tests__/ChannelPolicyOverride.test.tsx` — 群触发摘要区与「编辑全局」入口的无障碍标签走本地化文案

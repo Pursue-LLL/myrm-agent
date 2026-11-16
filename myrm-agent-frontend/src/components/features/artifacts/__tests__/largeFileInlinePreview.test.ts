@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * locales/{zh,en,ja,zh-TW}.json — artifacts.inlinePreview namespace keys.
+ * locales/{zh,en}.json — artifacts.inlinePreview namespace keys.
  * lib/constants/artifact.ts — LARGE_FILE_THRESHOLD constant.
  * [OUTPUT]
  * Vitest: large file inline preview i18n keys exist + LARGE_FILE_THRESHOLD is sane.
@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { LARGE_FILE_THRESHOLD } from '@/lib/constants/artifact';
 
 const LOCALES_ROOT = resolve(process.cwd(), 'locales');
-const LANGUAGES = ['zh', 'en', 'ja', 'zh-TW'] as const;
+const LANGUAGES = ['zh', 'en'] as const;
 
 const REQUIRED_KEYS = ['largeFileHint', 'viewFullscreen'] as const;
 

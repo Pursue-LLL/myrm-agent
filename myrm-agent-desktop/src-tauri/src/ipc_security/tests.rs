@@ -17,22 +17,14 @@ fn parses_confirmation_locale_variants() {
     );
     assert_eq!(
         parse_confirmation_locale(Some("zh_Hant_TW")),
-        ConfirmationLocale::ZhHant
-    );
-    assert_eq!(
-        parse_confirmation_locale(Some("ja-JP")),
-        ConfirmationLocale::Ja
-    );
-    assert_eq!(
-        parse_confirmation_locale(Some("ko-KR")),
-        ConfirmationLocale::Ko
-    );
-    assert_eq!(
-        parse_confirmation_locale(Some("de-DE")),
-        ConfirmationLocale::De
+        ConfirmationLocale::ZhHans
     );
     assert_eq!(
         parse_confirmation_locale(Some("en-US")),
+        ConfirmationLocale::En
+    );
+    assert_eq!(
+        parse_confirmation_locale(Some("ja-JP")),
         ConfirmationLocale::En
     );
     assert_eq!(

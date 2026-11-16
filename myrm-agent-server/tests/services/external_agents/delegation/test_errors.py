@@ -54,7 +54,7 @@ def _diagnostic(event: SseEvent) -> dict[str, object]:
 
 
 @pytest.mark.parametrize(("code", "auth_mode", "error_type"), _GUIDED)
-@pytest.mark.parametrize("locale", ["en", "zh", "zh-CN", "ja", "de-DE", ""])
+@pytest.mark.parametrize("locale", ["en", "zh", "zh-CN", "fr", "fr-FR", ""])
 def test_guidance_follows_the_frontend_error_contract(code: AcpErrorCode, auth_mode: str, error_type: str, locale: str) -> None:
     event = _failure(code, auth_mode, locale)
     diagnostic = _diagnostic(event)
@@ -78,9 +78,8 @@ def test_guidance_follows_the_frontend_error_contract(code: AcpErrorCode, auth_m
         ("ZH_cn", "zh"),
         ("en", "en"),
         ("en-US", "en"),
-        ("ja", "en"),
-        ("ko", "en"),
-        ("de", "en"),
+        ("fr", "en"),
+        ("fr-FR", "en"),
         ("", "en"),
     ],
 )
@@ -161,7 +160,7 @@ _STANDALONE = [
 
 
 @pytest.mark.parametrize(("build", "error_type"), _STANDALONE)
-@pytest.mark.parametrize("locale", ["en", "zh", "zh-CN", "ja", ""])
+@pytest.mark.parametrize("locale", ["en", "zh", "zh-CN", "fr", ""])
 def test_a_failure_before_any_turn_follows_the_frontend_error_contract(build, error_type: str, locale: str) -> None:
     event = build("codex", locale)
     diagnostic = _diagnostic(event)

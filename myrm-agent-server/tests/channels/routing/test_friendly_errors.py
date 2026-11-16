@@ -93,7 +93,7 @@ def test_text_has_no_surrounding_whitespace() -> None:
 
 
 _OWNER_KINDS = (ErrorKind.BILLING, ErrorKind.AUTH, ErrorKind.MODEL_NOT_FOUND)
-_LOCALES = ("en", "zh-CN", "zh-TW", "ja")
+_LOCALES = ("en", "zh-CN")
 
 
 def _deployment(*, platform_budget: bool) -> AbstractContextManager[MagicMock]:

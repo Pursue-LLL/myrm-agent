@@ -264,13 +264,13 @@ describe('cron-blueprints', () => {
         mockBlueprint,
         { time: '08:00', weekdays: 'everyday' },
         'Asia/Shanghai',
-        'ja',
+        'zh',
       );
 
       expect(fillBlueprint).toHaveBeenCalledWith(
         'morning_briefing',
         { time: '08:00', weekdays: 'everyday' },
-        'ja',
+        'zh',
         'Asia/Shanghai',
       );
       expect(payload.prompt).toBe('Server prompt');

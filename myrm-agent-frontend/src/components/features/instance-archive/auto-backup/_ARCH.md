@@ -12,7 +12,7 @@
 - **关闭后仍可找到已有副本与所选文件夹**：关闭只收起状态、频率、份数与立即备份；存在副本，或用户选过自定义文件夹时，文件夹行与副本列表保持可见。所选文件夹读不到（拔出的硬盘、离线的共享盘）、因而列不出副本时同样保持可见：它是更换文件夹的唯一入口，开启被拒后用户由此改选或恢复默认。只有从未配置过（默认文件夹、无副本）的卡片只显示开关与局限说明。
 - **失败只显示本地化文案**：保存失败与运行失败都按稳定错误码映射（`lib/instance-archive/errors.ts`），服务端措辞永不展示。
 - **进度由服务端报告**：备份进行中每 2 秒轮询，直到服务端报告结束，界面不猜测结果。
-- 文案命名空间为 `instanceArchive.auto`（六语言 monolith `locales/*.json`）；连续失败的全局提示见 `hooks/globalEvents/backupAlertToast.ts`，直达本卡片锚点 `#auto-backup`。
+- 文案命名空间为 `instanceArchive.auto`（中英双语 monolith `locales/*.json`）；连续失败的全局提示见 `hooks/globalEvents/backupAlertToast.ts`，直达本卡片锚点 `#auto-backup`。
 
 ## 文件清单
 

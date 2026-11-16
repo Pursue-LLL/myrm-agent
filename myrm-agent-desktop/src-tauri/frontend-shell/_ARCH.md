@@ -27,7 +27,7 @@ Rust 在 Next standalone 就绪后导航到产品页；若后端启动失败，R
 
 | 文件 | 职责 |
 |------|------|
-| `index.html` | 产品级同构骨架屏（Progressive Skeleton Shell）：0.05s 瞬时呈现工作台轮廓；全部可见文案以 JSON 内联在 `#shell-copy`（zh / en 两套，键必须一致且全部被使用，Launch Contract 校验）；监听启动失败事件并读取 `startup_error` 查询参数，显示本地化指引，原始原因折叠在详情里；导航由 Rust 统一驱动；系统设置了「减少动态效果」时所有循环动画静止 |
+| `index.html` | 产品级同构骨架屏（Progressive Skeleton Shell）：随包静态页，渲染不依赖网络与后端，启动期间窗口先显示工作台轮廓而不是白屏；全部可见文案以 JSON 内联在 `#shell-copy`（zh / en 两套，键必须一致且全部被使用，Launch Contract 校验）；监听启动失败事件并读取 `startup_error` 查询参数，显示本地化指引，原始原因折叠在详情里；导航由 Rust 统一驱动；系统设置了「减少动态效果」时所有循环动画静止 |
 
 ## 约束
 

@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - next-intl::useTranslations (POS: 六语言文案，命名空间 settings.wiki.concepts.links)
+ * - next-intl::useTranslations (POS: 中英双语文案，命名空间 settings.wiki.concepts.links)
  * - @/services/wikiService::wikiService (POS: Wiki REST 客户端，提供 getConceptLinks 词条双向链接检索)
  * - @/components/primitives/button::Button (POS: 基础按钮组件)
  * - @/components/primitives/tabs::Tabs, TabsList, TabsTrigger, TabsContent (POS: 标签页原语，提供 tablist/tab/tabpanel 语义与方向键切换)

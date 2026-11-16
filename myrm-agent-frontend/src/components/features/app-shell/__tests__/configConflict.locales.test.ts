@@ -6,20 +6,12 @@ import { describe, expect, it } from 'vitest';
 
 import { ALL_CONFIG_KEYS } from '@/services/config/types';
 
-import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
-import ja from '../../../../../locales/ja.json';
-import ko from '../../../../../locales/ko.json';
-import zhTW from '../../../../../locales/zh-TW.json';
 import zh from '../../../../../locales/zh.json';
 
 const locales = [
   ['en', en],
   ['zh', zh],
-  ['zh-TW', zhTW],
-  ['ja', ja],
-  ['ko', ko],
-  ['de', de],
 ] as const;
 
 describe('configConflict.keys', () => {

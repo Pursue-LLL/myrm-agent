@@ -1,15 +1,15 @@
 /**
  * [INPUT]
  * - myrm-agent-server/app/schemas/memory/import_warning_codes.py (POS: 记忆导入告警码 SSOT)
- * - locales/{en,zh,zh-TW,ja,ko,de}.json (POS: 六语言文案 SSOT)
+ * - locales/{zh,en}.json (POS: 中英双语文案 SSOT)
  *
  * [OUTPUT]
- * 告警码 ↔ 六语言文案契约测试。
+ * 告警码 ↔ 中英双语文案契约测试。
  *
  * [POS]
- * 记忆导入告警码的跨仓契约：服务端声明的每个告警码都必须在六语言 memory.importWarnings
+ * 记忆导入告警码的跨仓契约：服务端声明的每个告警码都必须在中英双语 memory.importWarnings
  * 命名空间里有文案，且文案里不得出现未声明的多余键——新增告警码时这里先失败，
- * 避免六语言产品里冒出英文裸码。
+ * 避免中英双语产品里冒出英文裸码。
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 // Vitest runs with the frontend package as the working directory.
 const REPO_ROOT = path.resolve(process.cwd(), '..');
 const VOCABULARY_PATH = path.join(REPO_ROOT, 'myrm-agent-server/app/schemas/memory/import_warning_codes.py');
-const LOCALES = ['en', 'zh', 'zh-TW', 'ja', 'ko', 'de'] as const;
+const LOCALES = ['en', 'zh'] as const;
 
 const readDeclaredCodes = (): string[] => {
   const source = readFileSync(VOCABULARY_PATH, 'utf8');

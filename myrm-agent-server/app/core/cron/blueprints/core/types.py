@@ -1,5 +1,5 @@
 """[INPUT]
-- app.core.cron.blueprints.i18n::SUPPLEMENTAL_BY_ID (POS: `app.core.cron.blueprints.i18n` 的唯一入口；按主题分组的文案在子模块中定义。)
+- (none)
 
 [OUTPUT]
 - BlueprintFillError: Raised when blueprint slot values fail validation.
@@ -10,8 +10,6 @@
 - BlueprintFailureAlertDefaults: Default failure-alert policy to apply when creating a job from a blueprint.
 - BlueprintJobDefaults: Execution defaults used to materialize a full Cron create payload.
 - CronBlueprint: A reusable automation template.
-- _merge_locale_dict: _merge_locale_dict
-- _with_supplemental_locales: Attach ja/de/ko catalog fields from the supplemental locale module.
 - _time_to_cron: _time_to_cron
 - _time_to_cron_weekday: _time_to_cron_weekday
 - _time_to_cron_with_weekdays: _time_to_cron_with_weekdays
@@ -25,8 +23,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from typing import Literal
-
-from app.core.cron.blueprints.i18n import SUPPLEMENTAL_BY_ID
 
 
 class BlueprintFillError(ValueError):
@@ -141,35 +137,6 @@ _CAP_WIKI = ("file_read", "knowledge_read", "knowledge_write")
 _TOOLS_WIKI = ("wiki", "memory", "file_ops")
 _ASSET_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 _QUOTE_CURRENCY_RE = re.compile(r"^[a-z0-9]{2,10}$")
-
-
-def _merge_locale_dict(base: dict[str, str], extra: dict[str, str]) -> dict[str, str]:
-    merged = dict(base)
-    merged.update(extra)
-    return merged
-
-
-def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
-    """Attach ja/de/ko catalog fields from the supplemental locale module."""
-    supplement = SUPPLEMENTAL_BY_ID.get(bp.id)
-    if supplement is None:
-        return bp
-    return CronBlueprint(
-        id=bp.id,
-        icon=bp.icon,
-        title=_merge_locale_dict(bp.title, supplement["title"]),
-        description=_merge_locale_dict(bp.description, supplement["description"]),
-        prompt_template=_merge_locale_dict(bp.prompt_template, supplement["prompt_template"]),
-        slots=bp.slots,
-        category=bp.category,
-        tags=bp.tags,
-        sort_order=bp.sort_order,
-        default_required_capabilities=bp.default_required_capabilities,
-        default_tools_allowed=bp.default_tools_allowed,
-        default_skill_ids=bp.default_skill_ids,
-        job_defaults=bp.job_defaults,
-        _schedule_builder=bp._schedule_builder,
-    )
 
 
 def _time_to_cron(time_str: str) -> str:

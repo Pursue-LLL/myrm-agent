@@ -20,7 +20,7 @@ describe('SendFailedNotice', () => {
 
   // jsdom computes no layout, so the layout contract is pinned through its two causes. Measured in a browser on a
   // 343px column: when the hint fills the line, a button that may shrink gets its label broken apart (one character
-  // per line in Chinese, Japanese and Korean, one word per line in German).
+  // per line in Chinese).
   it('lets the line wrap so a long hint takes rows of its own', () => {
     render(<SendFailedNotice onRetry={vi.fn()} />);
 

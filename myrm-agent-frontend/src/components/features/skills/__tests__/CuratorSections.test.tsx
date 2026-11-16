@@ -11,7 +11,7 @@ import type { CuratorHistoryEntry, SkillDoctorDiagnosticsResponse } from '@/serv
 // The global setup stubs next-intl with an identity translator; this suite asserts the real locale copy.
 vi.mock('next-intl', async (importOriginal) => importOriginal<typeof import('next-intl')>());
 
-const LOCALES = ['en', 'zh', 'zh-TW', 'ja', 'ko', 'de'] as const;
+const LOCALES = ['en', 'zh'] as const;
 type Locale = (typeof LOCALES)[number];
 
 function messagesFor(locale: Locale): AbstractIntlMessages {

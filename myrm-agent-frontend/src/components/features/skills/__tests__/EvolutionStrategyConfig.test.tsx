@@ -12,7 +12,7 @@ vi.mock('next-intl', async (importOriginal) => importOriginal<typeof import('nex
 const storeState = vi.hoisted(() => ({ evolutionStrategy: 'balanced', updateEvolutionStrategy: vi.fn() }));
 vi.mock('@/store/skill', () => ({ useSkillStore: () => storeState }));
 
-const LOCALES = ['en', 'zh', 'zh-TW', 'ja', 'ko', 'de'] as const;
+const LOCALES = ['en', 'zh'] as const;
 type Locale = (typeof LOCALES)[number];
 
 function copyFor(locale: Locale): Record<string, string> {

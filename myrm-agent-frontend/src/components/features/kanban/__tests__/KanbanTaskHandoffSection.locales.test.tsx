@@ -2,7 +2,7 @@
 /**
  * [INPUT]
  * - ../KanbanTaskHandoffSection (real, with the real next-intl translator of the `kanban` namespace)
- * - locales/{en,zh,zh-TW,ja,ko,de}.json (real copy)
+ * - locales/{zh,en}.json (real copy)
  *
  * [OUTPUT]
  * - Test suite proving the handoff section renders translated copy, never a raw key path, in every locale
@@ -18,11 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KanbanTask } from '@/services/kanban';
 import { toast } from 'sonner';
 import { KanbanTaskHandoffSection } from '../KanbanTaskHandoffSection';
-import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
-import ja from '../../../../../locales/ja.json';
-import ko from '../../../../../locales/ko.json';
-import zhTW from '../../../../../locales/zh-TW.json';
 import zh from '../../../../../locales/zh.json';
 
 // The global setup stubs next-intl with an identity translator; this suite asserts the real locale copy.
@@ -45,7 +41,7 @@ vi.mock('@/store/useAgentStore', () => ({
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-const LOCALES = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const LOCALES = { en, zh } as const;
 type LocaleCode = keyof typeof LOCALES;
 
 const task = {

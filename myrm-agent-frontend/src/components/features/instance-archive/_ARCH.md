@@ -11,7 +11,7 @@
 - **全局通知**：用户可能从任意页面重启，`OutcomeNotifier` 挂在 `app-shell/deferred-app-initializers.tsx`，结果、需重新填写的凭据入口与撤销按钮随用户回到应用。
 - **首次启动入口就地展开**：`RestoreEntry` 挂在 `OnboardingWizard`（仅云沙箱出现）的迁移步，即向导首屏，不在后续步骤重复；向导本身是 `z-50` 全屏层，入口就地展开而非再叠对话框；折叠时向导保持挂载，进行中的上传不因折叠丢失。
 - **自动备份**：卡片位于子目录 `auto-backup/`（默认关闭、如实说明局限、只经既有恢复流程恢复），详见 [auto-backup/_ARCH.md](auto-backup/_ARCH.md)；连续失败的全局提示由 `hooks/globalEvents/backupAlertToast.ts` 渲染并直达卡片锚点 `#auto-backup`。
-- 文案命名空间为顶层 `instanceArchive`（六语言 monolith `locales/*.json`），自动备份在 `instanceArchive.auto`，提示在 `notifications.backupFailure*`。
+- 文案命名空间为顶层 `instanceArchive`（中英双语 monolith `locales/*.json`），自动备份在 `instanceArchive.auto`，提示在 `notifications.backupFailure*`。
 
 ## 文件清单
 

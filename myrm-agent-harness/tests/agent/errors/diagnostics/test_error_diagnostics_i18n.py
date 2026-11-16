@@ -163,35 +163,31 @@ class TestErrorDiagnosticsI18n:
         assert manager._normalize_locale("zh_CN.UTF-8") == "zh-CN"
         assert manager._normalize_locale("zh_CN") == "zh-CN"
         assert manager._normalize_locale("zh") == "zh-CN"
-        assert manager._normalize_locale("ja") == "ja"
-        assert manager._normalize_locale("ko") == "ko"
-        assert manager._normalize_locale("de") == "de"
+        assert manager._normalize_locale("en_US.UTF-8") == "en-US"
         assert manager._normalize_locale("fr") == "fr"
-        assert manager._normalize_locale("pt") == "pt-BR"
+        assert manager._normalize_locale("C") == "en"
 
     def test_register_custom_translations(self) -> None:
-        """Test registering custom translations for new locale."""
-        from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
+        """Test registering custom translations for a locale the package does not ship."""
+        from myrm_agent_harness.agent.errors.diagnostics.i18n import LocaleManager
 
-        manager = get_locale_manager()
+        manager = LocaleManager()
 
-        # Register Japanese translations
         manager.register_translations(
-            "ja",
+            "fr",
             {
                 "connection": {
-                    "user_message": "LLMエンドポイントに接続できません",
-                    "resolution_steps": ["サービスが起動しているか確認してください"],
+                    "user_message": "Impossible de se connecter au point de terminaison LLM",
+                    "resolution_steps": ["Vérifiez que le service est démarré"],
                 }
             },
         )
 
-        # Should be able to retrieve Japanese translation
-        result = manager.translate("connection", "user_message", "ja")
-        assert result == "LLMエンドポイントに接続できません"
+        result = manager.translate("connection", "user_message", "fr")
+        assert result == "Impossible de se connecter au point de terminaison LLM"
 
-        result_steps = manager.translate("connection", "resolution_steps", "ja")
-        assert result_steps == ["サービスが起動しているか確認してください"]
+        result_steps = manager.translate("connection", "resolution_steps", "fr")
+        assert result_steps == ["Vérifiez que le service est démarré"]
 
     def test_connection_error_generic(self) -> None:
         """Test generic connection error translation."""
@@ -309,9 +305,9 @@ class TestErrorDiagnosticsI18n:
 
         # Test LC_ALL (second priority)
         monkeypatch.delenv("MYRM_LOCALE")
-        monkeypatch.setenv("LC_ALL", "ja")
+        monkeypatch.setenv("LC_ALL", "fr")
         detected = manager.detect_locale()
-        assert detected == "ja"
+        assert detected == "fr"
 
     def test_safe_format_multiple_missing_params(self) -> None:
         """Test safe format with multiple missing parameters."""
@@ -353,46 +349,6 @@ class TestErrorDiagnosticsI18n:
 
         # Should log warnings for missing translations
         assert any("Missing" in record.message for record in caplog.records)
-
-    def test_japanese_translation(self) -> None:
-        """Test Japanese (ja) error translation."""
-        from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
-
-        context = ErrorContext(model_name="gpt-4", is_custom_endpoint=False)
-        error = Exception("invalid api key")
-
-        result = LLMErrorDiagnostic.diagnose(error, context, locale="ja")
-
-        assert result.locale == "ja"
-        assert result.error_type == "api_key"
-        assert "API" in result.user_message or "キー" in result.user_message
-        assert len(result.resolution_steps) > 0
-
-    def test_korean_translation(self) -> None:
-        """Test Korean (ko) error translation."""
-        from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
-
-        context = ErrorContext(model_name="claude-3", is_custom_endpoint=False)
-        error = Exception("Rate limit exceeded")
-
-        result = LLMErrorDiagnostic.diagnose(error, context, locale="ko")
-
-        assert result.locale == "ko"
-        assert "속도" in result.user_message or "제한" in result.user_message
-        assert len(result.resolution_steps) > 0
-
-    def test_german_translation(self) -> None:
-        """Test German (de) error translation."""
-        from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
-
-        context = ErrorContext(model_name="gpt-4", is_custom_endpoint=False)
-        error = Exception("Connection refused")
-
-        result = LLMErrorDiagnostic.diagnose(error, context, locale="de")
-
-        assert result.locale == "de"
-        assert "Verbindung" in result.user_message or "fehlgeschlagen" in result.user_message.lower()
-        assert len(result.resolution_steps) > 0
 
     def test_bundled_locales_load_without_server(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """LocaleManager loads packaged JSON locales without depending on myrm-agent-server."""

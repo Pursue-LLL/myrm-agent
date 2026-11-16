@@ -18,7 +18,7 @@ from myrm_agent_harness.agent.skills.security import SecretKind
 
 FRONTEND_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
 
-LOCALE_FILES = ("en.json", "zh.json", "zh-TW.json", "ja.json", "ko.json", "de.json")
+LOCALE_FILES = ("en.json", "zh.json")
 
 # The panel falls back to this sentence for a kind it does not know.
 FALLBACK_KIND = "unknown"

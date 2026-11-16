@@ -16,14 +16,17 @@ describe('getLocale', () => {
   });
 
   it('returns a supported locale from the cookie', async () => {
-    cookieValue.current = 'ja';
-    expect(await getLocale()).toBe('ja');
+    cookieValue.current = 'en';
+    expect(await getLocale()).toBe('en');
   });
 
-  it('falls back to the default locale when the cookie holds an unsupported value', async () => {
-    cookieValue.current = 'zh-CN';
-    expect(await getLocale()).toBe('zh');
-  });
+  it.each(['zh-CN', 'ja', 'ko', 'de', 'zh-TW'])(
+    'falls back to the default locale when the cookie holds the unsupported value %s',
+    async (value) => {
+      cookieValue.current = value;
+      expect(await getLocale()).toBe('zh');
+    },
+  );
 
   it('falls back to the default locale without a cookie', async () => {
     expect(await getLocale()).toBe('zh');

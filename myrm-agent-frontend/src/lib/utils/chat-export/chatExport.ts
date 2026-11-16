@@ -279,11 +279,11 @@ export function downloadAsJson(data: ExportData, options?: ExportFormatOptions):
 /**
  * The language of an export page's wording: the app's own language, resolved the way the interface resolves it, not the
  * browser's, which differs for anyone who runs the app in another language. The page has wording in English and
- * Chinese only, so Traditional Chinese reads the Chinese set and every other language reads the English one.
+ * Chinese, the two languages the app offers.
  */
 export function getExportLang(): 'en' | 'zh' {
   const locale = parseLocaleQueryParam(getClientLocale()) ?? defaultLocale;
-  return locale === 'zh' || locale === 'zh-TW' ? 'zh' : 'en';
+  return locale === 'zh' ? 'zh' : 'en';
 }
 
 export async function downloadAsHtml(

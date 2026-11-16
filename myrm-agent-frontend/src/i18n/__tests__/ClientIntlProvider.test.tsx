@@ -70,7 +70,7 @@ describe('ClientIntlProvider deferred locale', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     render(
-      <ClientIntlProvider locale="zh-TW" shellMessages={shellMessages}>
+      <ClientIntlProvider locale="zh" shellMessages={shellMessages}>
         <DeferredReadyProbe />
       </ClientIntlProvider>,
     );
@@ -80,7 +80,7 @@ describe('ClientIntlProvider deferred locale', () => {
     });
     const requested = new URL(String(fetchMock.mock.calls[0]?.[0]), 'http://localhost');
     expect(requested.pathname).toBe('/api/i18n/deferred');
-    expect(requested.searchParams.get('lang')).toBe('zh-TW');
+    expect(requested.searchParams.get('lang')).toBe('zh');
     expect(requested.searchParams.get('v')).toBeTruthy();
   });
 

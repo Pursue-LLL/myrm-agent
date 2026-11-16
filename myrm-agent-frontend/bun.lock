@@ -131,7 +131,6 @@
         "esbuild": "^0.28.2",
         "jsdom": "^31.0.0",
         "micromark-util-types": "^2.0.2",
-        "opencc-js": "^1.4.2",
         "oxc-parser": "0.152.0",
         "oxlint": "^1.91.0",
         "prettier": "^3.9.10",
@@ -1871,8 +1870,6 @@
     "object-assign": ["object-assign@4.1.1", "https://registry.npmmirror.com/object-assign/-/object-assign-4.1.1.tgz", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
 
     "obug": ["obug@3.0.0", "https://registry.npmmirror.com/obug/-/obug-3.0.0.tgz", {}, "sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw=="],
-
-    "opencc-js": ["opencc-js@1.4.2", "https://registry.npmmirror.com/opencc-js/-/opencc-js-1.4.2.tgz", {}, "sha512-EdcspgdROiCCZDM+jZR6Pa670xW+EW2QhctPBQ8gRjg6lrx4IHEl+2s+kt5izk/TkxVRgdWuFgaGkaEdIUfdaw=="],
 
     "opener": ["opener@1.5.2", "https://registry.npmmirror.com/opener/-/opener-1.5.2.tgz", { "bin": { "opener": "bin/opener-bin.js" } }, "sha512-ur5UIdyw5Y7yEj9wLzhqXiy6GZ3Mwx0yGI+5sMn2r0N0v3cKJvUmFH5yPP+WXh9e0xfyzyJX95D8l088DNFj7A=="],
 

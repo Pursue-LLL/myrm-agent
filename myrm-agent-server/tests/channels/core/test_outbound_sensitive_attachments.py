@@ -94,7 +94,7 @@ def test_message_without_sensitive_attachments_is_returned_untouched(tmp_path: P
         assert withhold_sensitive_attachments(msg) is msg
 
 
-@pytest.mark.parametrize("locale", ["en", "zh", "ja"])
+@pytest.mark.parametrize("locale", ["en", "zh"])
 def test_note_is_localized_for_the_recipient(tmp_path: Path, locale: str) -> None:
     msg = dataclasses.replace(make_msg("x", media=(_attach(tmp_path, "server.pem"),)), metadata={"locale": locale})
 
@@ -105,9 +105,9 @@ def test_note_is_localized_for_the_recipient(tmp_path: Path, locale: str) -> Non
 
 
 def test_note_is_translated_in_every_catalog() -> None:
-    notes = {loc: str(channel_t(loc, "attachment_withheld_note", name="a.pem")) for loc in ("en", "zh-CN", "zh-TW", "ja")}
+    notes = {loc: str(channel_t(loc, "attachment_withheld_note", name="a.pem")) for loc in ("en", "zh-CN")}
 
-    assert len(set(notes.values())) == 4
+    assert len(set(notes.values())) == 2
     assert all("a.pem" in note and "attachment_withheld_note" not in note for note in notes.values())
 
 

@@ -221,11 +221,6 @@ async def test_a_silent_run_says_so_instead_of_delivering_an_empty_message() -> 
     [
         ("en", "✅ **Background task finished** `[{id}]` · took ", "The task finished without a written result."),
         ("zh-CN", "✅ **后台任务已完成** `[{id}]` · 用时 ", "任务已结束，但没有产出文字结果。"),
-        (
-            "ja",
-            "✅ **バックグラウンドタスクが完了しました** `[{id}]` · 所要時間 ",
-            "タスクは終了しましたが、文章の結果は出力されませんでした。",
-        ),
     ],
 )
 async def test_the_delivery_speaks_the_senders_language(locale: str, header: str, no_output: str) -> None:

@@ -6,7 +6,8 @@
 
 [OUTPUT]
 - GoalStorage: goal, session-index, stash and queue persistence; an unreadable session index reads as
-  "no goal" and is logged once per window.
+  "no goal" and is logged at most once per window per storage instance.
+- StashRecord: persisted shape of a branch stash, as get_stash returns it.
 
 [POS]
 Handles persistence of Goal state using the framework's standard StorageProvider.
@@ -19,7 +20,7 @@ import json
 import logging
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
+from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from .types import Goal, GoalBudget, GoalStatus
 
@@ -30,9 +31,9 @@ logger = logging.getLogger(__name__)
 
 _GOAL_NAMESPACE = "goals"
 
-# Seconds between WARNINGs for one unreadable (index, session). The goals panel polls every few seconds
-# and the agent reads the active index on every model request, so a persistent fault would otherwise
-# log on each read.
+# Seconds between WARNINGs for one unreadable (index, session) on one GoalStorage instance. The goals
+# panel polls every few seconds and the agent reads the active index on every model request, so a
+# persistent fault would otherwise log on each read.
 _INDEX_WARN_INTERVAL_S = 600.0
 
 
@@ -74,6 +75,20 @@ class _GoalRecord(TypedDict):
     loop_restarts: NotRequired[int]
     consecutive_judge_parse_failures: NotRequired[int]
     metadata: NotRequired[dict[str, object]]
+
+
+class StashRecord(TypedDict):
+    """Persisted shape of a branch stash; only the identity keys are always present.
+
+    The progress state sits under `progress_state`; `planner_state` is the other key `restore_goal` accepts.
+    """
+
+    goal_id: str
+    session_id: str
+    progress_state: NotRequired[dict[str, object] | None]
+    planner_state: NotRequired[dict[str, object] | None]
+    chat_history: NotRequired[list[dict[str, object]] | None]
+    stashed_at: NotRequired[str]
 
 
 class GoalStorage:
@@ -168,7 +183,7 @@ class GoalStorage:
             return None
 
     def _report_index_failure(self, index: str, session_id: str, exc: Exception) -> None:
-        """Log an unreadable index at WARNING once per window and at DEBUG after that.
+        """Log an unreadable index at WARNING once per window (per storage instance) and at DEBUG after that.
 
         The session id comes from request paths and the exception text from the storage backend, so
         both are logged with %r to keep a hostile id from forging log lines.
@@ -272,12 +287,12 @@ class GoalStorage:
         branch_name: str,
         session_id: str,
         goal_id: str,
-        progress_state: dict[str, Any] | None,
-        chat_history: list[dict[str, Any]] | None,
+        progress_state: dict[str, object] | None,
+        chat_history: list[dict[str, object]] | None,
     ) -> None:
         """Save a stashed goal state for a branch."""
 
-        data = {
+        data: StashRecord = {
             "session_id": session_id,
             "goal_id": goal_id,
             "progress_state": progress_state,
@@ -289,14 +304,14 @@ class GoalStorage:
             content=json.dumps(data).encode("utf-8"),
         )
 
-    async def get_stash(self, session_id: str, branch_name: str) -> dict[str, Any] | None:
+    async def get_stash(self, session_id: str, branch_name: str) -> StashRecord | None:
         """Retrieve a stashed goal state for a branch."""
 
         try:
             raw = await self._storage.read(key=f"{_GOAL_NAMESPACE}_stash/{session_id}/{branch_name}")
             if not raw:
                 return None
-            stash: dict[str, Any] = json.loads(raw.decode("utf-8"))
+            stash: StashRecord = json.loads(raw.decode("utf-8"))
             return stash
         except Exception as e:
             logger.debug("Failed to read stash for branch %s: %s", branch_name, e)

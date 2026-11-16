@@ -20,7 +20,9 @@ from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 
 from app.api.cron.routes.blueprints import router as blueprint_router
 from app.core.cron.blueprints import BUILTIN_BLUEPRINTS
-from app.core.cron.blueprints.i18n import BLUEPRINT_UI_LOCALES
+
+# The UI locales every blueprint text is written in; any other language reads the English text.
+_UI_LOCALES = ("en", "zh")
 
 # Blueprints with required empty-default text slots need explicit values in fill tests.
 _FILL_VALUE_OVERRIDES: dict[str, dict[str, str]] = {
@@ -85,10 +87,8 @@ class TestListBlueprints:
         assert bp["category"] == "productivity"
         assert "en" in bp["title"]
         assert "zh" in bp["title"]
-        assert "ja" in bp["title"]
         assert "en" in bp["description"]
         assert "zh" in bp["description"]
-        assert "ja" in bp["description"]
         assert "en" in bp["prompt_template"]
         assert "zh" in bp["prompt_template"]
         assert len(bp["slots"]) == 2
@@ -101,10 +101,10 @@ class TestListBlueprints:
         orders = [bp["sort_order"] for bp in resp.json()]
         assert orders == sorted(orders)
 
-    def test_all_blueprints_have_five_locale_fields(self, client: TestClient) -> None:
+    def test_all_blueprints_have_every_ui_locale_field(self, client: TestClient) -> None:
         resp = client.get("/cron/blueprints")
         for bp in resp.json():
-            for locale in BLUEPRINT_UI_LOCALES:
+            for locale in _UI_LOCALES:
                 assert locale in bp["title"], f"{bp['id']} missing {locale} title"
                 assert locale in bp["description"], f"{bp['id']} missing {locale} description"
                 assert locale in bp["prompt_template"], f"{bp['id']} missing {locale} prompt_template"
@@ -384,13 +384,13 @@ class TestFillBlueprint:
         assert resp.status_code == 200
         assert "wiki source sync" in resp.json()["prompt"].lower()
 
-    def test_fill_japanese_locale(self, client: TestClient) -> None:
+    def test_fill_chinese_locale(self, client: TestClient) -> None:
         resp = client.post(
             "/cron/blueprints/fill",
-            json={"blueprint_id": "read_it_later", "values": {}, "locale": "ja"},
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "zh"},
         )
         assert resp.status_code == 200
-        assert "後で読む" in resp.json()["prompt"]
+        assert "知识库来源同步任务" in resp.json()["prompt"]
 
     def test_fill_all_blueprints_succeed(self, client: TestClient) -> None:
         """Every registered blueprint can be filled with defaults without error."""

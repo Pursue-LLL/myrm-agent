@@ -78,7 +78,6 @@ async def test_text_streamed_before_the_pause_is_kept_and_the_notice_follows() -
     ("locale", "notice"),
     [
         ("zh-CN", "这一步连续失败，我先停在这里了。告诉我接下来怎么处理吧。"),
-        ("ja", "この手順が続けて失敗したため、ここで止めました。どう進めるか教えてください。"),
     ],
 )
 async def test_the_notice_follows_the_sender_locale(locale: str, notice: str) -> None:

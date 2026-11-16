@@ -124,7 +124,7 @@ Settings → Extension Bridge 仅配置 **Wiki clip target agent**（`/extension
 | Side Panel 审批弹窗、审批系统通知、popup 审批提醒开关 | en / zh_CN | `_locales` + `chrome.i18n`（`approval*` / `notifyApproval*` 键） |
 | Side Panel Chat 界面（标题栏提示、空状态、输入框、思考/工具提示、错误提示） | en / zh_CN | `_locales` + `chrome.i18n`（`panel*` 键）；错误只给本地化文案，细节写控制台 |
 | Side Panel 内的 Agent 回复、工具进度行里的工具名 | server 输出 | 回复语言由 server/WebUI 设置决定；工具进度行仍按原名显示 |
-| WebUI Settings → Extension Bridge | 六语 | `myrm-agent-frontend` next-intl |
+| WebUI Settings → Extension Bridge | 中英 | `myrm-agent-frontend` next-intl |
 
 **Degraded deep links:** When `web_ui_origin` is not yet seeded from WebUI, clip still writes to Wiki; popup shows a success hint (`clipSavedWithoutOrigin`) until origin syncs.
 

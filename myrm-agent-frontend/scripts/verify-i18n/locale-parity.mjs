@@ -1,32 +1,26 @@
 /**
  * [INPUT] i18n-shell-core::collectTranslationShells / resolvePath / walkTypes (POS: 翻译壳检测共享逻辑)
  *         context::LANGUAGES (POS: 共享上下文与支持语言)
- *         parity-config::loadParityConfig / loadGlyphSet (POS: 验证 9 配置装载与豁免键)
- *         purity-gates::verify* (POS: 语言纯净门禁 9f-9k)
+ *         parity-config::loadParityConfig (POS: 验证 9 配置装载与豁免键)
+ *         purity-gates::verify* (POS: 语言纯净门禁 9f/9k)
  *         value-rules::isBilingualDirty / placeholderSet (POS: 纯文本判据)
  *         report::reportKeys / reportShells (POS: 违规打印)
  * [OUTPUT] verifyLocaleParity
  * [POS] verify-i18n 全量对齐门禁（验证 9）：每个非 en 语言对 en 做 key parity（9a 缺键 / 9b 孤儿键）、叶子类型一致（9c）、
- *       占位符一致 + glossary forbidden + 双语对照 + 异常哨兵（9d）、翻译壳，再串联 purity-gates 的语言纯净门禁（9f-9k）。
+ *       占位符一致 + 双语对照 + 异常哨兵（9d）、翻译壳，再串联 purity-gates 的语言纯净门禁（9f/9k）。
  *       ICU 语法由 `check-icu-syntax.mjs` 负责，此处不重复校验。
  */
 
 import { collectTranslationShells, resolvePath, walkTypes } from '../i18n-shell-core.mjs';
 import { LANGUAGES } from './context.mjs';
-import { loadGlyphSet, loadParityConfig } from './parity-config.mjs';
-import {
-  verifyEnPurity,
-  verifyEnglishSentenceResidue,
-  verifyForeignScript,
-  verifySimplifiedGlyphs,
-} from './purity-gates.mjs';
+import { loadParityConfig } from './parity-config.mjs';
+import { verifyEnPurity, verifyEnglishSentenceResidue } from './purity-gates.mjs';
 import { reportKeys, reportShells } from './report.mjs';
 import { isBilingualDirty, placeholderSet } from './value-rules.mjs';
 
-/** 按 en 叶子逐值比对：占位符、glossary forbidden、双语对照、哨兵（数组叶子逐元素）。 */
+/** 按 en 叶子逐值比对：占位符、双语对照、哨兵（数组叶子逐元素）。 */
 function collectValueErrors(config, lang, localeData, enData, enLeaves) {
-  const errors = { placeholder: [], glossary: [], bilingual: [], sentinel: [] };
-  const forbiddenPatterns = config.glossaryForbiddenByLocale[lang] || [];
+  const errors = { placeholder: [], bilingual: [], sentinel: [] };
 
   const checkValue = (key, enValue, localeValue) => {
     if (typeof enValue !== 'string') {
@@ -48,25 +42,6 @@ function collectValueErrors(config, lang, localeData, enData, enLeaves) {
         `${key}: en[${placeholderSet(enValue) || '(none)'}] vs ${lang}[${placeholderSet(localeValue) || '(none)'}]`,
       );
       return;
-    }
-    if (forbiddenPatterns.length > 0) {
-      const lower = localeValue.toLowerCase();
-      for (const pattern of forbiddenPatterns) {
-        // 预编译模式：/正则/ → RegExp 实例（加载时已编译，非法正则在彼时 fail-fast 置 null）；
-        // 普通模式 → 小写字符串（lower.includes 匹配）
-        if (pattern === null) {
-          continue;
-        } // 非法正则已在加载阶段报错，此处跳过避免 null 参与匹配
-        if (pattern instanceof RegExp) {
-          if (pattern.test(localeValue)) {
-            errors.glossary.push(`${key} = forbidden pattern /${pattern.source}/`);
-            break;
-          }
-        } else if (lower.includes(pattern)) {
-          errors.glossary.push(`${key} = forbidden pattern ${JSON.stringify(pattern)}`);
-          break;
-        }
-      }
     }
     if (isBilingualDirty(localeValue) && !enValue.includes(' / ')) {
       if (!config.allowedMixedValues.has(localeValue) && !config.allowedMixedKeys.has(key)) {
@@ -99,7 +74,7 @@ function collectValueErrors(config, lang, localeData, enData, enLeaves) {
   return errors;
 }
 
-function verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGates) {
+function verifyOneLocale(ctx, config, lang, enTypes, enLeaves) {
   const enData = ctx.translations.en;
   const data = ctx.translations[lang];
   const localeTypes = new Map();
@@ -139,7 +114,7 @@ function verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGa
     ctx.hasErrors = true;
   }
 
-  // 9d. 占位符一致 + glossary forbidden + 双语对照 + 哨兵（壳检测见 collectTranslationShells）
+  // 9d. 占位符一致 + 双语对照 + 哨兵（壳检测见 collectTranslationShells）
   const valueErrors = collectValueErrors(config, lang, data, enData, enLeaves);
   const shellErrors = collectTranslationShells(enData, data, config.shellAllowlists).map(({ key, en }) => ({
     path: key,
@@ -147,7 +122,6 @@ function verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGa
   }));
   reportShells(ctx, lang, shellErrors);
   const valueReports = [
-    [valueErrors.glossary, '个 glossary forbidden 违规'],
     [valueErrors.placeholder, '个占位符不匹配'],
     [valueErrors.bilingual, '个双语对照脏值（本地语 / English 并存）'],
     [valueErrors.sentinel, '个异常哨兵'],
@@ -160,8 +134,6 @@ function verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGa
     ctx.hasErrors = true;
   }
 
-  const foreignScriptErrors = verifyForeignScript(ctx, lang, enLeaves);
-  const simplifiedGlyphErrors = verifySimplifiedGlyphs(ctx, lang, enLeaves, simplifiedGlyphGates);
   const pureEnErrors = verifyEnglishSentenceResidue(ctx, config, lang, enLeaves);
 
   const failureGroups = [
@@ -170,15 +142,12 @@ function verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGa
     typeMismatches,
     shellErrors,
     valueErrors.placeholder,
-    valueErrors.glossary,
     valueErrors.bilingual,
     valueErrors.sentinel,
-    foreignScriptErrors,
-    simplifiedGlyphErrors,
     pureEnErrors,
   ];
   if (failureGroups.every((errors) => errors.length === 0)) {
-    console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / glossary / 双语对照 / 纯净门禁 检测 通过`);
+    console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / 双语对照 / 纯净门禁 检测 通过`);
   }
 }
 
@@ -191,26 +160,12 @@ export function verifyLocaleParity(ctx) {
   walkTypes(ctx.translations.en, '', enTypes);
   const enLeaves = [...enTypes.keys()];
 
-  // zh-TW 相对繁体字形、ja 相对日文新字体字形；集合由 generate-simplified-glyphs.mjs 从 zh.json 语料 + opencc 生成
-  const simplifiedGlyphGates = [
-    {
-      lang: 'zh-TW',
-      re: loadGlyphSet(ctx, 'scripts/zh-simplified-glyphs.txt', '简体字形集合'),
-      label: '简体独有字形（须转繁体）',
-    },
-    {
-      lang: 'ja',
-      re: loadGlyphSet(ctx, 'scripts/ja-simplified-glyphs.txt', 'ja 简体字形集合'),
-      label: '简体独有字形（须转日文标准字形）',
-    },
-  ];
-
   verifyEnPurity(ctx, config, enLeaves);
 
   for (const lang of LANGUAGES) {
     if (!ctx.translations[lang] || lang === 'en') {
       continue;
     }
-    verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGates);
+    verifyOneLocale(ctx, config, lang, enTypes, enLeaves);
   }
 }

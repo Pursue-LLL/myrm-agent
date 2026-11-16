@@ -44,7 +44,7 @@ async def _delegate_as(router: AgentRouter, msg: InboundMessage) -> str:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("locale", ["en", "ja", "zh-CN"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 async def test_stopping_the_router_tells_each_chat_its_task_was_interrupted_in_its_language(locale: str) -> None:
     router, bus = _router(_hang)
     task_id = await _delegate_as(router, _localized(locale))

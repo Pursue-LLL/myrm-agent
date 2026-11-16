@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * locales/{zh,en,ja,ko,de}.json — artifacts namespace strings for ArtifactsCenter.
+ * locales/{zh,en}.json — artifacts namespace strings for ArtifactsCenter.
  * [OUTPUT]
  * Vitest: every ArtifactsCenter `useTranslations('artifacts')` key exists in all locales.
  * [POS]
@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const LOCALES_ROOT = resolve(process.cwd(), 'locales');
-const LANGUAGES = ['zh', 'en', 'ja', 'ko', 'de'] as const;
+const LANGUAGES = ['zh', 'en'] as const;
 
 const ARTIFACTS_CENTER_KEYS = [
   'title',

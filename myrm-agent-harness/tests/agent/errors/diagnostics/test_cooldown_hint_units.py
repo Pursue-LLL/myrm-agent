@@ -10,7 +10,7 @@ from myrm_agent_harness.agent.errors.diagnostics import cooldown_hint, i18n
 from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 
-_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN")
 _LOCALES_DIR = Path(i18n.__file__).parent / "locales"
 
 # Each wait with the locale keys (and the number each is formatted with) it must be spelled with. Together they use
@@ -71,10 +71,7 @@ def test_a_wait_below_five_minutes_stays_in_seconds_and_a_longer_one_rounds_up_i
         ("zh-CN", 23000, " 请等待6小时24分钟后重试。"),
         ("zh-CN", 2820, " 请等待47分钟后重试。"),
         ("zh-CN", 90000, " 请等待1天1小时后重试。"),
-        ("ja", 23000, " 6時間24分後に再試行してください。"),
-        ("ko", 23000, " 6시간 24분 후에 다시 시도하세요."),
-        ("de", 23000, " Versuchen Sie es in 6 Stunden 24 Minuten erneut."),
-        ("de", 172800, " Versuchen Sie es in 2 Tagen erneut."),
+        ("zh-CN", 172800, " 请等待2天后重试。"),
     ],
 )
 def test_a_long_wait_reads_in_the_callers_language(locale: str, seconds: int, sentence: str) -> None:

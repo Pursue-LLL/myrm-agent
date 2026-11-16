@@ -17,7 +17,7 @@ from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classi
 from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError
 from tests.support.provider_errors import provider_error
 
-_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN")
 _MODEL = "stub-model"
 _PROVIDER = "stub-provider"
 _BASE_URL = "https://provider.test/v1"

@@ -18,17 +18,13 @@ vi.mock('@/services/i18nToastService', () => ({
 import { ask } from '@tauri-apps/plugin-dialog';
 import { confirmAction } from '@/lib/app-dialog';
 import { readText as tauriReadText } from '@tauri-apps/plugin-clipboard-manager';
-import de from '../../../../locales/de.json';
 import en from '../../../../locales/en.json';
-import ja from '../../../../locales/ja.json';
-import ko from '../../../../locales/ko.json';
-import zhTW from '../../../../locales/zh-TW.json';
 import zh from '../../../../locales/zh.json';
 import { readFromClipboard, writeToClipboard } from '../clipboardUtils';
 
 // The global test setup replaces next-intl, so the real translator is loaded explicitly: shipped copy, real ICU.
 const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
-const locales = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const locales = { en, zh } as const;
 const PERMISSION_KEY = 'myrm_clipboard_read_permission';
 
 function stubClipboard(clipboard: Partial<Clipboard>) {

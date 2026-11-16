@@ -19,7 +19,7 @@ from app.services.plugins.export_service import Omit, OmittedKind
 
 FRONTEND_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
 
-LOCALE_FILES = ("en.json", "zh.json", "zh-TW.json", "ja.json", "ko.json", "de.json")
+LOCALE_FILES = ("en.json", "zh.json")
 
 
 @pytest.fixture(params=LOCALE_FILES)

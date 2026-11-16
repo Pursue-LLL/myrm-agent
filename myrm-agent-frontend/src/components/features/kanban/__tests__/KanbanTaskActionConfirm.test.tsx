@@ -5,11 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
-import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
-import ja from '../../../../../locales/ja.json';
-import ko from '../../../../../locales/ko.json';
-import zhTW from '../../../../../locales/zh-TW.json';
 import zh from '../../../../../locales/zh.json';
 import KanbanTaskCardActions from '../KanbanTaskCardActions';
 import { KanbanTaskActionConfirm, useKanbanTaskActionConfirm } from '../KanbanTaskActionConfirm';
@@ -17,7 +13,7 @@ import { KanbanTaskActionConfirm, useKanbanTaskActionConfirm } from '../KanbanTa
 // The global test setup replaces next-intl, so the real translator is loaded explicitly: shipped copy, real ICU.
 const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
 
-const locales = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const locales = { en, zh } as const;
 
 vi.mock('next-intl', async () => {
   const actual = await vi.importActual<typeof import('next-intl')>('next-intl');

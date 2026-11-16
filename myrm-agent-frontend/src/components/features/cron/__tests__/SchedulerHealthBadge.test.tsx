@@ -13,7 +13,7 @@ const stableT = (key: string) => key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
-  useLocale: () => 'ja-JP',
+  useLocale: () => 'zh',
 }));
 
 vi.mock('@/lib/cron/schedulerHealth', () => ({
@@ -37,6 +37,6 @@ describe('SchedulerHealthBadge', () => {
     render(<SchedulerHealthBadge />);
 
     expect(screen.getByText(/schedulerStatus\.lastTick/)).toBeInTheDocument();
-    expect(screen.getByText(/2026\/06\/17 16:30/)).toBeInTheDocument();
+    expect(screen.getByText(/2026年6月17日 16:30/)).toBeInTheDocument();
   });
 });

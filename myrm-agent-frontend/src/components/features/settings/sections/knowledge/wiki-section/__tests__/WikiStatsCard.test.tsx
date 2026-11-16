@@ -160,7 +160,7 @@ describe('WikiStatsCard: the numbers', () => {
     expect(screen.getByText(label)).toBeTruthy();
   });
 
-  it.each(['en', 'ja'])('says when the hot index was updated, in the %s locale', (locale) => {
+  it.each(['en', 'zh'])('says when the hot index was updated, in the %s locale', (locale) => {
     world.locale = locale;
     const updatedAt = '2026-05-06T07:08:09Z';
     renderCard({ overview: { stats: statsOf({ cognitive_hot_updated_at: updatedAt }) } });

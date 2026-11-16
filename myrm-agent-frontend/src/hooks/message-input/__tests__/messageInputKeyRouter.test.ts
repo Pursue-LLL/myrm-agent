@@ -1,11 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BusyInputMode } from '@/store/chat/types';
-import de from '../../../../locales/de.json';
 import en from '../../../../locales/en.json';
-import ja from '../../../../locales/ja.json';
-import ko from '../../../../locales/ko.json';
 import zh from '../../../../locales/zh.json';
-import zhTW from '../../../../locales/zh-TW.json';
 import {
   resolveBusyPlaceholderKey,
   resolveBusySubmitMode,
@@ -204,7 +200,7 @@ describe('resolveBusySubmitMode', () => {
 
 describe('resolveBusyPlaceholderKey', () => {
   const MODES: BusyInputMode[] = ['redirect', 'steer', 'queue'];
-  const LOCALES = { en, zh, 'zh-TW': zhTW, ja, ko, de };
+  const LOCALES = { en, zh };
 
   function lookup(messages: unknown, path: string): unknown {
     return path

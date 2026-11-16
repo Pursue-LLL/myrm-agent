@@ -5,12 +5,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
-import ja from '../../../../../locales/ja.json';
-import ko from '../../../../../locales/ko.json';
 import zh from '../../../../../locales/zh.json';
-import zhTW from '../../../../../locales/zh-TW.json';
 import { DoctorDashboard } from '../DoctorDashboard';
 import type { DoctorResponse } from '@/services/runtime-health';
 
@@ -102,12 +98,8 @@ describe('DoctorDashboard verdict localization', () => {
   );
 
   it.each([
-    ['de', de],
     ['en', en],
-    ['ja', ja],
-    ['ko', ko],
     ['zh', zh],
-    ['zh-TW', zhTW],
   ])('%s translates the memory fallback verdict', (_locale, messages) => {
     expect(messages.settings.systemHealth.doctor.errors.ERR_VECTOR_STORE_ON_MEMORY_FALLBACK.message).not.toBe('');
   });

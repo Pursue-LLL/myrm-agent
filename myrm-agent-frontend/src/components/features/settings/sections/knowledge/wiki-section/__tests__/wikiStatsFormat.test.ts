@@ -15,8 +15,7 @@ describe('formatCognitiveUpdatedAt', () => {
 
   it('writes the date and the time of day in the language of the interface', () => {
     expect(formatCognitiveUpdatedAt(INSTANT, 'en')).toMatch(/^Jan 1[456], 2026, \d{1,2}:\d{2}\s[AP]M$/);
-    expect(formatCognitiveUpdatedAt(INSTANT, 'ja')).toMatch(/^2026\/01\/1[456] \d{2}:\d{2}$/);
-    expect(formatCognitiveUpdatedAt(INSTANT, 'de')).toMatch(/^1[456]\.01\.2026, \d{2}:\d{2}$/);
+    expect(formatCognitiveUpdatedAt(INSTANT, 'zh')).toMatch(/^2026年1月1[456]日 \d{2}:\d{2}$/);
   });
 });
 

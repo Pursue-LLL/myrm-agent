@@ -86,9 +86,9 @@ describe('useWikiScope: which wiki is open', () => {
   });
 
   it('labels the scope with the agent name in the language of the interface', async () => {
-    world.locale = 'ja';
+    world.locale = 'zh';
     const { result } = await setup('agentId=a2');
-    expect(result.current.scopeLabel).toBe('a2:Beta:ja');
+    expect(result.current.scopeLabel).toBe('a2:Beta:zh');
   });
 
   it('labels an agent that is not in the list by its id', async () => {

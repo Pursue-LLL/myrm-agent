@@ -113,7 +113,7 @@ async def test_an_llm_error_whose_context_has_no_cooldown_carries_no_cooldown_fi
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("attached", [None, {}], ids=["absent", "empty"])
-@pytest.mark.parametrize("locale", ["en", "zh-TW", "ja"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 async def test_an_llm_error_without_a_diagnosis_gets_one_in_the_session_language(
     locale: str, attached: dict[str, object] | None
 ) -> None:
@@ -131,10 +131,10 @@ async def test_an_llm_error_without_a_diagnosis_gets_one_in_the_session_language
 @pytest.mark.asyncio
 async def test_the_diagnosis_of_an_llm_error_differs_per_session_language() -> None:
     messages = {
-        locale: (await _payload(_preflight_overflow(), _make_session(locale=locale)))["data"] for locale in ("en", "zh-TW", "ja")
+        locale: (await _payload(_preflight_overflow(), _make_session(locale=locale)))["data"] for locale in ("en", "zh-CN")
     }
 
-    assert len(set(messages.values())) == 3
+    assert len(set(messages.values())) == 2
 
 
 @pytest.mark.asyncio

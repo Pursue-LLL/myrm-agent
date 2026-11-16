@@ -1,5 +1,5 @@
 /**
- * [INPUT] context::LANGUAGES (POS: 共享上下文与支持语言)；ctx.translations (POS: 已加载的六语系 locale)
+ * [INPUT] context::LANGUAGES (POS: 共享上下文与支持语言)；ctx.translations (POS: 已加载的中英 locale)
  * [OUTPUT] verifyAgentConfigPanel / verifyKanbanClosure / verifyArtifactsCenter / verifyCronBlueprint / verifyCronExecutionPolicy / verifyBuiltinToolTexts
  * [POS] verify-i18n 的业务命名空间关键键检查（验证 4/5/5b/6/7）：这些键由运行时 `useTranslations` 直接读取，任一语言缺失即 MISSING_MESSAGE。
  */
@@ -8,7 +8,7 @@ import { LANGUAGES } from './context.mjs';
 
 /**
  * `agent.configPanel` 下必须在所有语言中存在的字符串键（与 `useTranslations('agent.configPanel')` 对齐）。
- * 各 locale 该对象的子键集合可与 en 不完全一致（如 ja 另有 jit 文案），但下列键不得缺失，以免运行时 MISSING_MESSAGE。
+ * 各 locale 该对象的子键集合可与 en 不完全一致，但下列键不得缺失，以免运行时 MISSING_MESSAGE。
  */
 const AGENT_CONFIG_PANEL_REQUIRED_STRING_KEYS = [
   'autoRestoreDomains',

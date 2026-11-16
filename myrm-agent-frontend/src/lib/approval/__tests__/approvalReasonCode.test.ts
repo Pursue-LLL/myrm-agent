@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { APPROVAL_REASON_CODES, parseApprovalReasonCode } from '@/lib/approval/approvalReasonCode';
 
-const LOCALES = ['en', 'zh', 'zh-TW', 'ja', 'ko', 'de'] as const;
+const LOCALES = ['en', 'zh'] as const;
 
 function reasonCopy(locale: string): Record<string, unknown> {
   const messages = JSON.parse(readFileSync(path.join(process.cwd(), 'locales', `${locale}.json`), 'utf8')) as {

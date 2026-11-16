@@ -15,7 +15,7 @@ def root(tmp_path: Path) -> Path:
     """Catalogs for en, zh-CN, de and it (JSON), en and fr (Fluent), and a decoy JSON outside the root."""
     root = tmp_path / "root"
     root.mkdir()
-    for language, text in {"en": "Hello", "zh-CN": "你好", "de": "Hallo", "it": "Ciao"}.items():
+    for language, text in {"en": "Hello", "zh-CN": "你好", "es": "Hola", "it": "Ciao"}.items():
         (root / f"{language}.json").write_text(json.dumps({"hello": text}), encoding="utf-8")
     (root / "en.ftl").write_text("greeting = Hello\n", encoding="utf-8")
     (root / "fr.ftl").write_text("greeting = Bonjour\n", encoding="utf-8")
@@ -38,7 +38,7 @@ def engine(root: Path) -> I18nEngine:
         ("zh-HK", "你好"),
         ("zh-Hans-CN", "你好"),
         ("zh_CN", "你好"),
-        ("de-AT", "Hallo"),
+        ("es-MX", "Hola"),
         ("it-IT", "Ciao"),
         ("pt-BR", "Hello"),
         ("", "Hello"),

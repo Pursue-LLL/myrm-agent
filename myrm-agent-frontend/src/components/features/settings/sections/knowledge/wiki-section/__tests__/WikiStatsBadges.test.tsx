@@ -158,7 +158,7 @@ describe('WikiStatsBadges: last maintenance', () => {
     expect(screen.queryByText(/^stats\.lastMaintain\|/)).toBeNull();
   });
 
-  it.each(['en', 'ja'])('says when the last maintenance ran, in the %s locale', (locale) => {
+  it.each(['en', 'zh'])('says when the last maintenance ran, in the %s locale', (locale) => {
     world.locale = locale;
     renderBadges(maintained());
     const time = formatCognitiveUpdatedAt(ranAt, locale);

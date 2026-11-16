@@ -185,10 +185,10 @@ describe('timeUtils', () => {
       expect(formatMessageTimestamp(date, 'zh', '昨天').title).toBe('2023年12月25日星期一 18:30:45');
     });
 
-    it('should work with ja locale for same year', () => {
+    it('should work with zh locale for same year', () => {
       const currentYear = new Date().getFullYear();
       const date = new Date(currentYear, 0, 5, 9, 0);
-      const result = formatMessageTimestamp(date, 'ja', '昨日');
+      const result = formatMessageTimestamp(date, 'zh', '昨天');
       expect(result.label).toBeTruthy();
       expect(result.title).toBeTruthy();
     });

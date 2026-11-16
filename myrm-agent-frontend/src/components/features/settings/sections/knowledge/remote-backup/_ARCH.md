@@ -30,4 +30,4 @@
 
 - 只依赖 `@/lib/*`、`@/services/config` 与 `@/components/primitives/*`；不反向依赖 Settings 容器。
 - 连续失败的全局提示不在本目录：由服务端的 `health_alert`（`component=remote_memory_backup`）触发，见 `hooks/globalEvents/backupAlertToast.ts`，落点即本卡片。
-- 文案命名空间为 `settings.remoteBackup`（六语言 monolith `locales/*.json`）。
+- 文案命名空间为 `settings.remoteBackup`（中英双语 monolith `locales/*.json`）。
