@@ -6,11 +6,12 @@ Unified Runs Hub：聚合 Cron / Kanban / Shell 后台任务的运行历史，�
 
 ## 文件清单
 
-| 文件                            | 地位 | 职责                                                                                                                                                                | I/O/P |
-| ------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `RunsHub.tsx`                   | 核心 | 运行列表 UI、筛选 Tabs、RunRow 展开详情、Kanban trace 嵌入（`showEvalCase={false}` + 运行中 `pollMs` 实时刷新）、加载失败态；列表有 running 任务时 30s 轮询自动刷新；cron 来源的跳过运行把输出码经 `cron-utils.skipReasonLabelKey` 显示为本地化标签（取自 `cron` namespace），不露出原始码 | —     |
-| `__tests__/RunsHub.test.tsx`    | 测试 | error/retry、emptyFiltered、degraded、loadMore toast、badge、Kanban trace 展开、跳过运行的原因标签                                                                                      | —     |
-| `__tests__/runsLocales.test.ts` | 测试 | 中英双语 `runs` namespace key 完整性                                                                                                                                    | —     |
+| 文件                            | 地位 | 职责                                                                                                                                                                                                                                                                                        | I/O/P |
+| ------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `RunsHub.tsx`                   | 核心 | 运行列表 UI：筛选 Tabs、分页与加载失败态、degraded banner；列表有 running 任务时 30s 轮询自动刷新                                                                                                                                                                                           | —     |
+| `RunRow.tsx`                    | 核心 | 单条运行：状态图标、来源徽标、相对时间与时长、展开详情（输出、错误、停止原因、执行步骤）；Kanban run 嵌入 trace（`showEvalCase={false}` + 运行中 `pollMs` 实时刷新）；cron 来源的跳过运行把输出码经 `cron-utils.skipReasonLabelKey` 显示为本地化标签（取自 `cron` namespace），不露出原始码 | —     |
+| `__tests__/RunsHub.test.tsx`    | 测试 | error/retry、emptyFiltered、degraded、loadMore toast、badge、Kanban trace 展开、跳过运行的原因标签（经 `RunsHub` 渲染 `RunRow`）                                                                                                                                                            | —     |
+| `__tests__/runsLocales.test.ts` | 测试 | 中英双语 `runs` namespace key 完整性                                                                                                                                                                                                                                                        | —     |
 
 ## 路由
 
