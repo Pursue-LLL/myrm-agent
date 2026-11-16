@@ -418,7 +418,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/goals/test_goal_cancel_resume.py` | 模块 | 目标取消与恢复（真实 GoalManager，仅替换无人值守流启动）：取消作用于运行中/暂停/预算受限/待复核/等待中/待审批的目标、只剩已结束目标为 404；恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，等不到则 409 且目标保持暂停）、回到 active 后启动继续回合、会话忙或应用排空时不重复启动、启动失败不影响恢复结果；驳回复核不启动回合（反馈由客户端发送） |
 | `api/goals/test_goal_stop_real_gateway.py` | 模块 | 暂停后的恢复对「已被叫停」的回合的判定（真实 `AgentGateway`，回合由测试用事件闸门卡住）：无消息 id、无取消令牌的回合（审批超时后的自动恢复）与带令牌的聊天回合同样被识别为正在停止；无人叫停的回合不拖住恢复；停止后的下一个回合不继承停止标记；暂停后立即恢复先等回合收尾、会话空闲时恰好启动一个回合；回合收尾不了则 409、目标保持暂停且不启动 |
 | `api/goals/test_goal_unwait.py` | 模块 | 经 HTTP 结束等待：等待中的目标回到运行并启动目标回合；会话已被用户消息的回合占用时只置回运行、不另起回合 |
-| `api/goals/test_active_goals_failure_log.py` | 模块 | `GET /goals/active`：一个会话的目标读不出来（存储忙）时，该会话被跳过、其余会话的目标照常列出，并以 WARNING 点名那个会话，而不是静默丢掉 |
+| `api/goals/test_active_goals_failure_log.py` | 模块 | `GET /goals/active`：一个会话的提供者抛意外异常时被跳过并由路由以 WARNING 点名；一个会话在存储里的索引读不出来（真实文件故障）时由 `GoalStorage` 点名一次、连续请求不重复；两种情形下其余会话的目标都照常列出 |
 | `core/channel_bridge/test_goal_stop_commands.py` | 模块 | IM `/goal clear` 与 `/goal pause`：与 Web 同一规则，清除运行中/暂停/预算受限/待复核/等待中的目标，已结束的目标不动；正在干活的目标被暂停/清除时中断它的回合，不在干活的目标不碰会话当前回合 |
 | `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume` 与 `/goal unwait`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，无令牌且仅有中断信号的回合同样算已被叫停，等不到则回复稍后再发且目标保持暂停）；恢复或结束等待后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
 | `services/agent/goals/unattended/test_failure_policy.py` | 模块 | 无人值守目标流的失败去向：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标，已被 run 停放/暂停/完成的目标保持原状态 |

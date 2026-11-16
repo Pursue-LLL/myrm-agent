@@ -2,7 +2,7 @@
 
 [INPUT]
 - toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth before a closing write)
-- toolkits.cron.engine.parser::compute_next_run (POS: next-run calculation)
+- toolkits.cron.engine.helpers::next_eligible_run (POS: pure engine helpers: the next slot to book)
 - toolkits.cron.protocols::CronStore (POS: job and run persistence)
 - toolkits.cron.types::CronJob, CronRunRecord, JobResult (POS: Cron job domain types.)
 
@@ -25,8 +25,8 @@ import secrets
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.cron.engine.helpers import next_eligible_run
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
-from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     CronRunRecord,
@@ -71,7 +71,7 @@ class SkippedRunMixin:
 
         if job.schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL):
             try:
-                job.next_run_at = compute_next_run(job.schedule, now)
+                job.next_run_at = next_eligible_run(job, now)
             except Exception as e:
                 self._handle_schedule_compute_error(job, e, now)
         elif job.schedule.kind == ScheduleKind.ONCE:

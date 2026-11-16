@@ -151,7 +151,7 @@ async def build_general_agent(
                 create_goal_tools,
             )
 
-            goal_tools = create_goal_tools(goal_provider, effective_chat_id)
+            goal_tools = create_goal_tools(goal_provider, effective_chat_id, locale=agent_wrapper._tool_description_locale())
             tools.extend(goal_tools)
             logger.info("Goal tools loaded: complete_goal_tool")
 

@@ -1,11 +1,12 @@
-"""SQLite-based goal persistence.
+"""Key-value goal persistence over StorageProvider.
 
 [INPUT]
 - toolkits.storage.base::StorageProvider (POS: Storage protocol)
 - .types::Goal, GoalStatus, GoalBudget (POS: Goal data types)
 
 [OUTPUT]
-- GoalStorage: SQLite implementation for goal persistence.
+- GoalStorage: goal, session-index, stash and queue persistence; an unreadable session index reads as
+  "no goal" and is logged once per window.
 
 [POS]
 Handles persistence of Goal state using the framework's standard StorageProvider.
@@ -16,8 +17,9 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from .types import Goal, GoalBudget, GoalStatus
 
@@ -28,12 +30,59 @@ logger = logging.getLogger(__name__)
 
 _GOAL_NAMESPACE = "goals"
 
+# Seconds between WARNINGs for one unreadable (index, session). The goals panel polls every few seconds
+# and the agent reads the active index on every model request, so a persistent fault would otherwise
+# log on each read.
+_INDEX_WARN_INTERVAL_S = 600.0
+
+
+class _BudgetRecord(TypedDict, total=False):
+    """Persisted shape of a GoalBudget; absent keys fall back to the dataclass defaults."""
+
+    max_tokens: int | None
+    max_usd: float | None
+    max_time_seconds: int | None
+    max_turns: int | None
+    convergence_window: int | None
+    loop_on_pause: bool
+    max_loop_restarts: int
+
+
+class _GoalRecord(TypedDict):
+    """Persisted shape of a Goal: the identity and timestamp keys are always written, the rest default when absent."""
+
+    goal_id: str
+    session_id: str
+    objective: str
+    status: str
+    created_at: str
+    updated_at: str
+    ui_summary: NotRequired[str]
+    priority: NotRequired[int]
+    auto_approve: NotRequired[bool]
+    constraints: NotRequired[list[str]]
+    protected_paths: NotRequired[list[str]]
+    budget: NotRequired[_BudgetRecord | None]
+    acceptance_criteria: NotRequired[list[dict[str, object]] | None]
+    subgoals: NotRequired[list[dict[str, object]] | None]
+    verification_retries: NotRequired[int]
+    tokens_used: NotRequired[int]
+    time_used_seconds: NotRequired[int]
+    cost_usd: NotRequired[float]
+    turns_used: NotRequired[int]
+    no_progress_streak: NotRequired[int]
+    loop_restarts: NotRequired[int]
+    consecutive_judge_parse_failures: NotRequired[int]
+    metadata: NotRequired[dict[str, object]]
+
 
 class GoalStorage:
-    """SQLite-based goal persistence using StorageProvider."""
+    """Goal persistence over a StorageProvider."""
 
     def __init__(self, storage: StorageProvider) -> None:
         self._storage = storage
+        # (index, session_id) -> monotonic time of the last WARNING for that unreadable index.
+        self._index_warned_at: dict[tuple[str, str], float] = {}
 
     async def save_goal(self, goal: Goal) -> None:
         """Save goal state to storage."""
@@ -76,13 +125,7 @@ class GoalStorage:
 
     async def get_active_goal_id(self, session_id: str) -> str | None:
         """Get the ID of the currently active goal for a session."""
-        try:
-            raw = await self._storage.read(key=f"{_GOAL_NAMESPACE}_active/{session_id}")
-            if not raw:
-                return None
-            return raw.decode("utf-8")
-        except Exception:
-            return None
+        return await self._read_index("active", session_id)
 
     async def list_active_sessions(self) -> list[str]:
         """Return all session_ids that currently have an ACTIVE goal."""
@@ -106,13 +149,44 @@ class GoalStorage:
 
     async def get_latest_goal_id(self, session_id: str) -> str | None:
         """Get the ID of the latest goal for a session."""
+        return await self._read_index("latest", session_id)
+
+    async def _read_index(self, index: str, session_id: str) -> str | None:
+        """Read a per-session goal-id index; a missing key means the session has no such goal.
+
+        Any other failure also reads as "no goal" so a damaged index never breaks a caller, but it is
+        reported here: callers cannot tell "no goal" from "unreadable", so their own failure handling
+        never sees an error that this method absorbed.
+        """
         try:
-            raw = await self._storage.read(key=f"{_GOAL_NAMESPACE}_latest/{session_id}")
-            if not raw:
-                return None
-            return raw.decode("utf-8")
-        except Exception:
+            raw = await self._storage.read(key=f"{_GOAL_NAMESPACE}_{index}/{session_id}")
+            return raw.decode("utf-8") if raw else None
+        except FileNotFoundError:
             return None
+        except Exception as exc:
+            self._report_index_failure(index, session_id, exc)
+            return None
+
+    def _report_index_failure(self, index: str, session_id: str, exc: Exception) -> None:
+        """Log an unreadable index at WARNING once per window and at DEBUG after that.
+
+        The session id comes from request paths and the exception text from the storage backend, so
+        both are logged with %r to keep a hostile id from forging log lines.
+        """
+        now = time.monotonic()
+        key = (index, session_id)
+        last = self._index_warned_at.get(key)
+        first_in_window = last is None or now - last >= _INDEX_WARN_INTERVAL_S
+        if first_in_window:
+            self._index_warned_at[key] = now
+        logger.log(
+            logging.WARNING if first_in_window else logging.DEBUG,
+            "Goal %s index for session %r could not be read (%s): %.300r",
+            index,
+            session_id,
+            type(exc).__name__,
+            str(exc),
+        )
 
     def _serialize_goal(self, goal: Goal) -> dict[str, object]:
         budget_dict = None
@@ -153,10 +227,10 @@ class GoalStorage:
             "metadata": goal.metadata,
         }
 
-    def _deserialize_goal(self, data: dict[str, object]) -> Goal:
+    def _deserialize_goal(self, data: _GoalRecord) -> Goal:
         budget = None
-        if data.get("budget"):
-            b_data = data["budget"]
+        b_data = data.get("budget")
+        if b_data:
             budget = GoalBudget(
                 max_tokens=b_data.get("max_tokens"),
                 max_usd=b_data.get("max_usd"),
@@ -222,7 +296,8 @@ class GoalStorage:
             raw = await self._storage.read(key=f"{_GOAL_NAMESPACE}_stash/{session_id}/{branch_name}")
             if not raw:
                 return None
-            return json.loads(raw.decode("utf-8"))
+            stash: dict[str, Any] = json.loads(raw.decode("utf-8"))
+            return stash
         except Exception as e:
             logger.debug("Failed to read stash for branch %s: %s", branch_name, e)
             return None
@@ -278,7 +353,8 @@ class GoalStorage:
             raw = await self._storage.read(key=f"{_GOAL_NAMESPACE}_queue/{session_id}")
             if not raw:
                 return []
-            return json.loads(raw.decode("utf-8"))
+            queue: list[dict[str, object]] = json.loads(raw.decode("utf-8"))
+            return queue
         except Exception:
             return []
 

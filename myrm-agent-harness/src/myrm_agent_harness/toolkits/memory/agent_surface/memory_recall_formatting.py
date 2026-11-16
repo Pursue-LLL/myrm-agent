@@ -57,16 +57,16 @@ RECALL_DRIFT_DEFENSE_FOOTER = (
 
 
 def parse_time_bound(value: str | None) -> datetime | None:
-    """Parse a time-bound string into a UTC datetime."""
+    """Parse a time-bound string into a UTC datetime; None when it is unparseable or out of range."""
     if not value:
         return None
     value = value.strip()
-    match = _RELATIVE_TIME_RE.match(value)
-    if match:
-        amount = int(match.group(1))
-        unit_seconds = _RELATIVE_UNITS.get(match.group(2).lower(), 86400)
-        return datetime.now(UTC) - timedelta(seconds=amount * unit_seconds)
     try:
+        match = _RELATIVE_TIME_RE.match(value)
+        if match:
+            amount = int(match.group(1))
+            unit_seconds = _RELATIVE_UNITS.get(match.group(2).lower(), 86400)
+            return datetime.now(UTC) - timedelta(seconds=amount * unit_seconds)
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
             return dt.replace(tzinfo=UTC)

@@ -41,7 +41,10 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     is_stale_run as _is_stale_run,
 )
-from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run, compute_prev_run
+from myrm_agent_harness.toolkits.cron.engine.helpers import (
+    next_eligible_run as _next_eligible_run,
+)
+from myrm_agent_harness.toolkits.cron.engine.parser import compute_prev_run
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     JobStatus,
@@ -107,7 +110,7 @@ class StartupRecovery:
                 job.status = JobStatus.PAUSED
                 job.next_run_at = None
             else:
-                job.next_run_at = compute_next_run(job.schedule, now)
+                job.next_run_at = _next_eligible_run(job, now)
 
             job.updated_at = now
             await self._store.save_job(job)
@@ -196,7 +199,7 @@ class StartupRecovery:
             job.status = JobStatus.COMPLETED
             job.next_run_at = None
         else:
-            job.next_run_at = compute_next_run(job.schedule, now)
+            job.next_run_at = _next_eligible_run(job, now)
         job.last_status = RunStatus.SKIPPED
         job.updated_at = now
         await self._store.save_job(job)
