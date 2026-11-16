@@ -351,3 +351,19 @@ async def test_drill_down_benign_text_passes_through_after_preamble() -> None:
 
     assert result.splitlines()[0] == RECALL_TOOL_UNTRUSTED_PREAMBLE
     assert result.endswith("[L2 Verbatim Full Content]\nDeploys use list[str] on port 8080 under /srv/app.")
+
+
+@pytest.mark.parametrize(
+    "secret",
+    ["AKIA" + "QWERTYUIOPASDFGH", "ghp_" + "aB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5"],
+    ids=["aws-access-key", "github-token"],
+)
+@pytest.mark.asyncio
+async def test_drill_down_overview_fallback_masks_a_credential_the_cut_would_split(secret: str) -> None:
+    # Without a stored L1 the overview is the content cut to 250 chars, and the cut falls 12 chars into the credential.
+    memory = SemanticMemory(id="mem-drill-3", content="w" * 237 + " " + secret + " " + "tail " * 100)
+
+    result = await drill_down_single_memory(_manager_returning(memory), "mem-drill-3", detail_level="overview")
+
+    assert "[L1 Overview]\n" + "w" * 237 in result
+    assert secret[:10] not in result

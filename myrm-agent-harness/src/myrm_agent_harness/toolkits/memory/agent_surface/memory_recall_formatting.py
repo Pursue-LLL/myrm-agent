@@ -183,27 +183,23 @@ def format_drill_down_output(memory: AnyMemory, *, detail_level: str) -> str:
     effective_time = max(memory.created_at, memory.updated_at)
     age = memory_age_label(effective_time)
     provenance = channel_label(memory.scope.channel_id)
-    mem_type = getattr(memory, "memory_type", "memory")
-    mem_type_val = str(getattr(mem_type, "value", mem_type))
-    domain = getattr(memory, "domain", "user")
-    domain_val = str(getattr(domain, "value", domain))
-    cat = getattr(memory, "domain_category", "")
-
-    header = f"{provenance}[{mem_type_val}] (id: {memory.id}, domain: {domain_val}/{cat}, age: {age})"
+    header = (
+        f"{provenance}[{memory.memory_type}] "
+        f"(id: {memory.id}, domain: {memory.domain}/{memory.domain_category}, age: {age})"
+    )
     if detail_level == "overview":
-        overview = getattr(memory, "overview_l1", "") or (memory.content[:250] if hasattr(memory, "content") else "")
+        # Cut after sanitizing: a prefix cut from raw text can strand part of a credential that no pattern matches.
+        overview = (
+            sanitize_recalled_content(memory.overview_l1)
+            if memory.overview_l1
+            else sanitize_recalled_content(memory.content)[:250]
+        )
         return finalize_recall_tool_output(
-            f"{header}\n[L1 Overview]\n{sanitize_recalled_content(overview)}\n\n"
+            f"{header}\n[L1 Overview]\n{overview}\n\n"
             f"[Drill-down]: Call memory_search_tool(memory_id='{memory.id}', detail_level='full') for full verbatim context."
         )
 
-    full_content = getattr(memory, "content", "")
-    metadata_repr = ""
-    if hasattr(memory, "metadata") and memory.metadata:
-        metadata_repr = f"\nMetadata: {memory.metadata}"
-    evidence_repr = ""
-    if hasattr(memory, "evidence") and memory.evidence:
-        evidence_repr = f"\nEvidence: {[e.source_id for e in memory.evidence]}"
-
-    body = sanitize_recalled_content(f"{full_content}{metadata_repr}{evidence_repr}")
+    metadata_repr = f"\nMetadata: {memory.metadata}" if memory.metadata else ""
+    evidence_repr = f"\nEvidence: {[e.source_id for e in memory.evidence]}" if memory.evidence else ""
+    body = sanitize_recalled_content(f"{memory.content}{metadata_repr}{evidence_repr}")
     return finalize_recall_tool_output(f"{header}\n[L2 Verbatim Full Content]\n{body}")
