@@ -8,9 +8,10 @@ const FlowPadModal = dynamic(() => import('./flow-pad-modal').then((module) => (
   ssr: false,
 });
 
-const PWAUpdater = dynamic(() => import('./pwa-updater').then((module) => ({ default: module.PWAUpdater })), {
-  ssr: false,
-});
+const ServiceWorkerRegistrar = dynamic(
+  () => import('./service-worker-registrar').then((module) => ({ default: module.ServiceWorkerRegistrar })),
+  { ssr: false },
+);
 
 const AppUpdatePrompt = dynamic(
   () => import('./app-update-prompt').then((module) => ({ default: module.AppUpdatePrompt })),
@@ -42,7 +43,7 @@ export default function DeferredAppInitializers() {
   return (
     <DeferredMount>
       <FlowPadModal />
-      <PWAUpdater />
+      <ServiceWorkerRegistrar />
       <AppUpdatePrompt />
       <WhatsNewModal />
       <UpdateHandoffNotifier />

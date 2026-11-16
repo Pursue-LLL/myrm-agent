@@ -34,6 +34,9 @@
 # generated locale namespace shards (SSOT: locales/*.json; run bun run i18n:split)
 /locales/namespaces/
 
+# generated Web Push service worker (SSOT: src/app/sw.ts; run bun run build:sw)
+/public/sw.js
+
 *.pem
 
 # debug

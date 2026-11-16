@@ -25,11 +25,11 @@
 
 ## Service Worker（Web PWA）
 
-| 文件    | 地位 | 职责                                                                                                                                            | I/O/P |
-| ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `sw.ts` | 核心 | Serwist SW 源：precache + API runtime cache + Web Push 显示/点击（same-origin URL allowlist；已开 Tab 同 path 不同 query 时 `client.navigate`） | ✅    |
+| 文件    | 地位 | 职责                                                                                                                                                                                                                                                                           | I/O/P |
+| ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
+| `sw.ts` | 核心 | Web Push 专用 SW 源：`push` 显示通知、`notificationclick` 聚焦 / 导航 / 打开窗口（same-origin URL allowlist；已开 Tab 同 path 不同 query 时 `client.navigate`）；没有 `fetch` 监听；`install` 即 `skipWaiting`，`activate` 清掉本源全部 Cache Storage 条目后 `clients.claim()` | ✅    |
 
-编译产物 `public/sw.js` 由根目录 `serwist.config.ts` + `bun run build`（`serwist build` 打包 `sw.ts` 并注入 precache 清单）生成；注册见 `@/components/features/app-shell/pwa-updater.tsx`（生产 Web only；dev 注销 SW；Tauri skip）。
+编译产物 `public/sw.js` 由 `bun run build:sw`（esbuild 打包 `sw.ts`）生成，不入库；注册见 `@/components/features/app-shell/service-worker-registrar.tsx`（生产 Web only；dev 注销 SW；Tauri skip）。
 
 ## 依赖
 

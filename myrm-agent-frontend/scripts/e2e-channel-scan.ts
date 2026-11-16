@@ -22,7 +22,7 @@
  * 函数里；守卫函数（`isLocalDevHost` 之类）也不算——打包器不会折叠跨模块调用，调用它们的分支会连同字符串留在
  * 生产包里，只有直接写出的 `process.env.NODE_ENV` 字面量才会被整段删掉。
  *
- * 静态资源（`public/`）是整份原样发布的文本（`sw.js` 由 Serwist 在构建时打包，按它的产物文本扫描），没有
+ * 静态资源（`public/`）是整份原样发布的文本（`sw.js` 由 `build:sw` 打包生成，已生成时按它的产物文本扫描），没有
  * 「守卫之后」可言：`findChannelTextLines` 给出资源文本里出现通道标识的行，出现即违规。
  */
 import { type Node, visitorKeys } from 'oxc-parser';

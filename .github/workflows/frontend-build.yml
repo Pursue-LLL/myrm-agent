@@ -89,7 +89,7 @@ jobs:
           src/i18n/__tests__/dynamic-key-families.test.ts
           src/lib/i18n/__tests__/translateOrRaw.test.ts
           src/components/features/background-tasks/__tests__/BackgroundTaskRow.test.tsx
-      # `build` ends with scripts/verify-sw-push.mjs, so the production-SW and Web Push handler check runs here.
-      - name: Production build (module graph, Serwist SW build, production-SW and Web Push handler check)
+      # `build` bundles src/app/sw.ts into public/sw.js (build:sw) before `next build`, so a broken Web Push worker fails here.
+      - name: Production build (module graph and Web Push service worker bundle)
         if: ${{ !cancelled() }}
         run: bun run build
