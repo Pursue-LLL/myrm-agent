@@ -61,54 +61,12 @@ async def test_execute_str_replace_rejects_unread_file() -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_str_replace_rejects_partial_read() -> None:
-    """Gate rejects edits after only a partial/range read."""
-    context = str_replace_ctx(executor=None, path="/w/partial.py")
-    service = FileOperationService(context)
-    guard = MagicMock()
-    guard.require_read_before_write.return_value = None
-    guard.require_full_read_before_edit.return_value = "File '/w/partial.py' was only partially read in this session."
-    with ExitStack() as stack:
-        stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/w/partial.py",
-            )
-        )
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",
-            )
-        )
-        mock_vc = stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.ValidatorChain",
-            )
-        )
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.get_file_integrity_guard",
-                return_value=guard,
-            )
-        )
-        mock_vc.return_value.validate = AsyncMock()
-
-        from myrm_agent_harness.utils.errors import ToolError
-
-        with pytest.raises(ToolError) as exc_info:
-            await service.execute()
-        assert "partially read" in str(exc_info.value)
-
-
-@pytest.mark.asyncio
 async def test_execute_str_replace_rejects_stale_version() -> None:
-    """Gate rejects edits when on-disk content changed since full read."""
+    """Gate rejects edits when on-disk content changed since the read."""
     context = str_replace_ctx(executor=None, path="/w/stale.py")
     service = FileOperationService(context)
     guard = MagicMock()
     guard.require_read_before_write.return_value = None
-    guard.require_full_read_before_edit.return_value = None
     guard.require_version_match.return_value = "File '/w/stale.py' has changed on disk since your last read."
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
@@ -162,7 +120,6 @@ async def test_file_operation_service_version_mismatch_raises_structured_tool_er
 
     mock_guard = MagicMock()
     mock_guard.require_read_before_write.return_value = None
-    mock_guard.require_full_read_before_edit.return_value = None
     mock_guard.require_version_match.return_value = (
         "File '/workspace/main.py' has changed on disk since your last read (content hash mismatch).\n"
         "Current disk content snippet:\n```\nx = 100\n```\n"

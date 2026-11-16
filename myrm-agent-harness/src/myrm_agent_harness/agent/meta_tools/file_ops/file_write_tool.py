@@ -62,13 +62,6 @@ class FileWriteInput(BaseModel):
     # The parameter descriptions are the English schema every locale sends; only the tool description is localized.
     path: str = Field(description="File path.")
     content: str = Field(description="Full file content; must not be empty.")
-    verify_command: str | None = Field(
-        default=None,
-        description=(
-            "Strongly recommended for code files: a check run after writing, e.g. 'python -m py_compile f.py' "
-            "or 'node --check f.js'. If it fails the file is deleted and the error returned."
-        ),
-    )
     reason: str | None = Field(default=None, description=REASON_FIELD_DESCRIPTION)
 
 
@@ -123,7 +116,6 @@ def create_file_write_tool(
     async def file_write_func(
         path: str,
         content: str,
-        verify_command: str | None = None,
         reason: str | None = None,
         *,  # 强制后续参数为关键字参数
         config: RunnableConfig,  # LangChain 注入的配置
@@ -133,7 +125,6 @@ def create_file_write_tool(
         Args:
             path: 文件路径（支持 File ID）
             content: 文件内容
-            verify_command: 写入后自动执行的校验命令
             reason: 操作原因（可选，用于日志）
             config: LangChain 运行时配置，包含 context
 
@@ -176,7 +167,6 @@ def create_file_write_tool(
                 skills=skills or [],
                 path=path,  # 支持 @file_001 格式
                 file_text=content,
-                verify_command=verify_command,
                 reason=reason,  # 操作原因（日志）
             )
 

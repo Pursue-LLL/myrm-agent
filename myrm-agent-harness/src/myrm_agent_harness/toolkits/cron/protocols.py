@@ -2,7 +2,7 @@
 
 Seven contracts that the application layer must satisfy:
 
-- ``CronStore``        — persistence (17 methods, unified for scheduler & manager)
+- ``CronStore``        — persistence (20 methods, unified for scheduler & manager)
 - ``PreFlightCondition`` — optional probe that decides, before a run, whether the run is worth making
 - ``JobRunner``        — execute a single job and produce a ``JobResult``
 - ``ResultDelivery``   — push results to the user via some channel
@@ -119,6 +119,23 @@ class CronStore(Protocol):
         deleted, re-booked by an edit or is not due any more, and nothing was written.  The scheduler dispatches a
         run only when this returns True, so two workers can never both run one slot.  The value is stored as UTC.
         """
+        ...
+
+    async def mark_running(self, job_id: str) -> None:
+        """Record that a run of the job is in flight: insert the marker, or overwrite it with the current time.
+
+        The marker outlives a process that dies under its run and is the only trace of that run, so the next start
+        can report it.  One marker per job, whatever the number of overlapping runs.  Independent of the job row: a
+        deleted job's marker stays until its run ends.
+        """
+        ...
+
+    async def clear_running(self, job_id: str) -> None:
+        """Remove the job's in-flight marker.  A missing marker is not an error."""
+        ...
+
+    async def list_running(self) -> list[tuple[str, datetime]]:
+        """Return ``(job_id, started_at)`` of every in-flight marker, oldest first, with ``started_at`` in UTC."""
         ...
 
     async def save_run(self, run: CronRunRecord) -> None:
@@ -284,7 +301,8 @@ class ConcurrencyLock(Protocol):
     """Optional lock for leader election or cross-process coordination.
 
     When multiple scheduler processes run against the same DB, only the lock holder ticks.
-    The implementation must handle automatic renewal internally.
+    The implementation must handle automatic renewal internally, and the lock must not pass to another process
+    while its holder is alive: at start the scheduler reads every in-flight marker as the trace of a dead process.
 
     Lifecycle: ``try_acquire`` at start, ``release`` at stop.
     """

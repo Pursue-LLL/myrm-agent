@@ -51,14 +51,8 @@ class SearchToolsMixin(ToolSetupBaseMixin):
             )
 
         from app.config.deploy_mode import is_local_mode as _is_local
-        from app.core.agent.tool_description_locale import (
-            resolve_tool_description_locale,
-        )
 
-        tool_description_locale = resolve_tool_description_locale(
-            agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
-            channel=getattr(self, "channel_name", None),
-        )
+        tool_description_locale = self._tool_description_locale()
 
         web_fetch_enabled = bool(getattr(self, "enable_web_fetch", True))
         # web_fetch_tool offers fetch_and_extract only with both retrieval services; web_search recommends it only then.
@@ -124,15 +118,6 @@ class SearchToolsMixin(ToolSetupBaseMixin):
                 create_ask_question_tool,
             )
 
-            from app.core.agent.tool_description_locale import (
-                resolve_tool_description_locale,
-            )
-
-            tool_description_locale = resolve_tool_description_locale(
-                agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
-                channel=getattr(self, "channel_name", None),
-            )
-
             async def _on_ask_question(form: AskQuestionInput) -> str:
                 from langgraph.types import interrupt
 
@@ -141,7 +126,7 @@ class SearchToolsMixin(ToolSetupBaseMixin):
                 # Use LangGraph's native interrupt to suspend execution statelessly
                 return format_ask_question_result(form, interrupt(payload))
 
-            tools.append(create_ask_question_tool(_on_ask_question, locale=tool_description_locale))
+            tools.append(create_ask_question_tool(_on_ask_question, locale=self._tool_description_locale()))
             logger.info("🙋 已加载 ask_question_tool (交互式澄清表单)")
         except Exception as e:
             logger.warning(f"⚠️ ask_question_tool 加载失败: {e}")

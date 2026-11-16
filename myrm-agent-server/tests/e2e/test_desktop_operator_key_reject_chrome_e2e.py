@@ -55,10 +55,7 @@ def _soft_type_ok(blob: str) -> bool:
     Accepts explicit completion markers in tool messages/trace, as well as
     completed progressSteps recording the vision tool type-action invocation.
     """
-    if (
-        "Vision action 'type' completed" in blob
-        or 'Vision action "type" completed' in blob
-    ):
+    if "Vision action 'type' completed" in blob or 'Vision action "type" completed' in blob:
         return True
     # Progress step item from StreamContentCollector: 'action: type | text: *'
     if "action: type | text: *" in blob or ("action: type" in blob and "*" in blob):
@@ -83,11 +80,7 @@ def _chat_scoped_gate(msg_blob: str, trace_blob: str) -> tuple[bool, bool, bool]
     hard = _REJECT in scoped or "REMEDY_HINT: Printable operators" in scoped
     soft = _soft_type_ok(scoped)
     lowered = scoped.lower()
-    invoked = (
-        "desktop_vision" in lowered
-        or '"name": "desktop_vision_tool"' in scoped
-        or '"name":"desktop_vision_tool"' in scoped
-    )
+    invoked = "desktop_vision" in lowered or '"name": "desktop_vision_tool"' in scoped or '"name":"desktop_vision_tool"' in scoped
     return hard, soft, invoked
 
 
@@ -138,10 +131,8 @@ async def test_chrome_ui_operator_as_key_rejected(
 ) -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
-    if not wait_e2e_provider_ready(
-        api_url=api_url, timeout_sec=120.0, poll_interval_sec=2.0
-    ):
-        readiness = fetch_provider_readiness_snapshot(api_url=api_url)
+    if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0, poll_interval_sec=2.0):
+        readiness = fetch_provider_readiness_snapshot()
         pytest.fail(f"Provider not ready for chrome e2e: {readiness}")
 
     # Unattended desktop CU must skip HITL + Security Reviewer (sibling chrome E2E SSOT).
@@ -195,10 +186,7 @@ async def test_chrome_ui_operator_as_key_rejected(
         model_label = ""
         if isinstance(provider_debug, dict):
             model_label = str(
-                provider_debug.get("selectedModel")
-                or provider_debug.get("model")
-                or provider_debug.get("modelId")
-                or ""
+                provider_debug.get("selectedModel") or provider_debug.get("model") or provider_debug.get("modelId") or ""
             )
         progress(f"UI model={model_label!r} provider_debug={provider_debug}")
 
@@ -207,9 +195,7 @@ async def test_chrome_ui_operator_as_key_rejected(
 
         send_result = await chat.send_message(_PROMPT, _PROMPT)
         chat_id = str(
-            (send_result.get("started") or {}).get("chatId")
-            or (send_result.get("submit") or {}).get("chatId")
-            or ""
+            (send_result.get("started") or {}).get("chatId") or (send_result.get("submit") or {}).get("chatId") or ""
         ).strip()
         if not chat_id:
             chat_id = str((await chat.bridge_chat_id()) or "").strip()
@@ -243,9 +229,7 @@ async def test_chrome_ui_operator_as_key_rejected(
                     progress(f"desktop approval API resolve: {resolved}")
                 except Exception as exc:  # noqa: BLE001 — poll path stays resilient
                     progress(f"desktop approval API resolve soft-fail: {exc}")
-                clicked = await chat.evaluate(
-                    _CLICK_APPROVE_JS, intent=EvaluateIntent.AGENT_SUBMIT
-                )
+                clicked = await chat.evaluate(_CLICK_APPROVE_JS, intent=EvaluateIntent.AGENT_SUBMIT)
                 progress(f"HITL approve click: {clicked}")
                 approved_n = _approve_pending_tool_approvals(get_e2e_api_url())
                 if approved_n:
@@ -255,9 +239,7 @@ async def test_chrome_ui_operator_as_key_rejected(
             blob = f"{msg_blob}\n{trace_blob}"
             hard_ok, soft_ok, invoked = _chat_scoped_gate(msg_blob, trace_blob)
             if (hard_ok or soft_ok) and invoked:
-                progress(
-                    f"assert gate hard={hard_ok} soft={soft_ok} invoked={invoked}"
-                )
+                progress(f"assert gate hard={hard_ok} soft={soft_ok} invoked={invoked}")
                 break
             await asyncio.sleep(2.0)
             try:
@@ -265,12 +247,9 @@ async def test_chrome_ui_operator_as_key_rejected(
             except RuntimeError as exc:
                 progress(f"heartbeat soft-fail during poll: {exc}")
 
-        progress(
-            f"final gate hard={hard_ok} soft={soft_ok} invoked={invoked} chat_id={chat_id}"
-        )
+        progress(f"final gate hard={hard_ok} soft={soft_ok} invoked={invoked} chat_id={chat_id}")
         assert invoked, (
-            f"Chrome UI turn never invoked desktop_vision_tool. "
-            f"model={model_label!r} chat_id={chat_id} sample={blob[:1500]!r}"
+            f"Chrome UI turn never invoked desktop_vision_tool. model={model_label!r} chat_id={chat_id} sample={blob[:1500]!r}"
         )
         assert hard_ok or soft_ok, (
             f"Chrome UI turn missed operator Safety reject and type-fallback. "

@@ -7,6 +7,7 @@
 [OUTPUT]
 - file_write_tool_call_count, file_write_tool_invoked_in_messages, empty_write_failure_in_messages: whether the file-write tool ran and whether it failed with empty content
 - chat_user_message_count, chat_messages_have_ok, chat_messages_have_done: what the stored messages show of a turn
+- stored_reply_matches: whether enough user messages are stored and the newest assistant reply matches a pattern (the test every reply check shares)
 - wait_chat_messages_done: poll until the newest assistant reply says DONE
 
 [POS]
@@ -19,7 +20,7 @@ import json
 import re
 import time
 import urllib.error
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from cdp_chat.support.api_client import _E2E_API_REQUEST_ATTEMPTS
 from cdp_chat.support.chat.session import fetch_chat_messages
@@ -157,9 +158,31 @@ def chat_user_message_count(
         timeout_sec=timeout_sec,
         max_attempts=max_attempts,
     )
+    return _user_message_count(messages)
+
+
+def _user_message_count(messages: Sequence[object]) -> int:
     return sum(
         1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
     )
+
+
+def _newest_assistant_content(messages: Sequence[object]) -> str | None:
+    """Text of the newest assistant message; None when the chat has no assistant message."""
+    for msg in reversed(messages):
+        if isinstance(msg, dict) and msg.get("role") == "assistant":
+            return str(msg.get("content") or "")
+    return None
+
+
+def stored_reply_matches(
+    messages: Sequence[object], pattern: re.Pattern[str], *, min_user_count: int
+) -> bool:
+    """True when at least `min_user_count` user messages are stored and the newest assistant reply matches."""
+    if _user_message_count(messages) < min_user_count:
+        return False
+    reply = _newest_assistant_content(messages)
+    return reply is not None and pattern.search(reply) is not None
 
 
 def chat_messages_have_ok(
@@ -176,19 +199,9 @@ def chat_messages_have_ok(
         timeout_sec=timeout_sec,
         max_attempts=max_attempts,
     )
-    user_count = sum(
-        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
+    return stored_reply_matches(
+        messages, _AGENT_TURN_DONE_RE, min_user_count=min_user_count
     )
-    if user_count < min_user_count:
-        return False
-    last_assistant: dict[str, object] | None = None
-    for msg in messages:
-        if isinstance(msg, dict) and msg.get("role") == "assistant":
-            last_assistant = msg
-    if last_assistant is None:
-        return False
-    content = str(last_assistant.get("content") or "")
-    return bool(_AGENT_TURN_DONE_RE.search(content))
 
 
 def chat_messages_have_done(
@@ -203,19 +216,7 @@ def chat_messages_have_done(
         api_url=api_url,
         timeout_sec=timeout_sec,
     )
-    user_count = sum(
-        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
-    )
-    if user_count < min_user_count:
-        return False
-    last_assistant: dict[str, object] | None = None
-    for msg in messages:
-        if isinstance(msg, dict) and msg.get("role") == "assistant":
-            last_assistant = msg
-    if last_assistant is None:
-        return False
-    content = str(last_assistant.get("content") or "")
-    return bool(_DONE_REPLY_RE.search(content))
+    return stored_reply_matches(messages, _DONE_REPLY_RE, min_user_count=min_user_count)
 
 
 def wait_chat_messages_done(
@@ -256,14 +257,7 @@ def wait_chat_messages_done(
                 # Leading slice, not a tail: the DONE gate matches the literal word
                 # at the start of the newest assistant reply, so the head is what an
                 # operator needs to see.
-                assistant_head = next(
-                    (
-                        str(msg.get("content") or "")[:80]
-                        for msg in reversed(messages)
-                        if isinstance(msg, dict) and msg.get("role") == "assistant"
-                    ),
-                    "",
-                )
+                assistant_head = (_newest_assistant_content(messages) or "")[:80]
                 print(
                     f"E2E_WAIT_API_DONE_PROGRESS: chatId={chat_id} "
                     f"messages={len(messages)} assistant_head={assistant_head!r} "

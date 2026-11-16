@@ -48,7 +48,7 @@ class ManagerStack:
 
     async def rewrite(self, job_id: str, **changes: object) -> None:
         """Put the stored job into a state the manager would not produce by itself (an auto-pause, a passed time)."""
-        await self.store.save_job(replace(await self.stored(job_id), **changes))
+        await self.store.save_job(replace(await self.stored(job_id), **changes))  # type: ignore[arg-type]
 
 
 def make_manager_stack() -> ManagerStack:

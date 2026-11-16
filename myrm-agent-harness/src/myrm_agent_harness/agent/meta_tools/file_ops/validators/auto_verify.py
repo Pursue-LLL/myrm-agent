@@ -1,8 +1,8 @@
 """Smart Auto-Verify — 编辑后自动类型诊断反馈
 
-当 Agent 未提供 verify_command 时，框架根据文件扩展名自动推断并执行
-对应的 CLI linter（目前只有 pyright，用于 .py），将诊断结果以软报告形式
-附加到工具返回值中，Agent 可据此自主修复。
+每次代码编辑后，框架根据文件扩展名自动推断并执行对应的 CLI linter
+（目前只有 pyright，用于 .py），将诊断结果以软报告形式附加到工具返回值中，
+Agent 可据此自主修复。
 
 设计原则：
 - 软报告：不回滚文件，仅附加诊断信息到返回值
@@ -14,14 +14,14 @@
 
 [INPUT]
 - toolkits.code_execution.executors.base::CodeExecutor (POS: CLI command executor)
-- core.verify_runner::workspace_command_context (POS: runs a check command from the workspace root)
+- toolkits.code_execution.executors.models::ExecutionContext (POS: How a command is run: directory, workspace root, timeout)
 
 [OUTPUT]
 - run_auto_verify: 主入口函数，执行自动诊断并返回格式化结果
 
 [POS]
-Smart Auto-Verify. Runs pyright after Python edits when Agent does not
-provide explicit verify_command. Provides soft diagnostic feedback.
+Smart Auto-Verify. Runs pyright from the workspace root after every Python
+edit and appends soft diagnostic feedback to the tool result.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ..core.verify_runner import workspace_command_context
+from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
@@ -67,12 +67,33 @@ def _reset_cache() -> None:
     _linter_availability_cache.clear()
 
 
+def _workspace_root(executor: CodeExecutor) -> str | None:
+    try:
+        return executor.workspace_path
+    except RuntimeError:
+        return None
+
+
+def _workspace_command_context(executor: CodeExecutor, command: str, timeout: int) -> ExecutionContext:
+    """Context that runs ``command`` from the workspace root, whatever directory the shell is in.
+
+    A relative ``work_dir`` would resolve against the host process and leave the executor's current workspace
+    pointing at it, so the root is given as the abstract ``/workspace`` plus the root the executor is bound to.
+    """
+    return ExecutionContext(
+        code=command,
+        enter_work_dir=True,
+        workspace_root=_workspace_root(executor),
+        timeout=timeout,
+    )
+
+
 async def _check_linter_available(executor: CodeExecutor, detect_cmd: str) -> bool:
     """Check if a linter binary is available via `which`."""
     if detect_cmd in _linter_availability_cache:
         return _linter_availability_cache[detect_cmd]
 
-    ctx = workspace_command_context(executor, f"which {detect_cmd}", timeout=5)
+    ctx = _workspace_command_context(executor, f"which {detect_cmd}", timeout=5)
     try:
         result = await executor.execute_bash(ctx)
         available = bool(result.success)
@@ -208,7 +229,7 @@ async def run_auto_verify(
         return None
 
     cmd = config.command_template.format(path=file_path)
-    ctx = workspace_command_context(executor, cmd, timeout=AUTO_VERIFY_TIMEOUT_SECONDS)
+    ctx = _workspace_command_context(executor, cmd, timeout=AUTO_VERIFY_TIMEOUT_SECONDS)
 
     try:
         result = await asyncio.wait_for(

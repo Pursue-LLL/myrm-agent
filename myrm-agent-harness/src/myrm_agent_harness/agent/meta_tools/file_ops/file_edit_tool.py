@@ -13,7 +13,7 @@
 - create_file_edit_tool: 创建 file_edit_tool 工厂函数
 
 [POS]
-File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, whitespace-tolerant matching, integrity gates, and verify rollback.
+File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, whitespace-tolerant matching, integrity gates, and rollback of an edit that breaks the syntax of a Python, JSON, YAML or TOML file.
 
 """
 
@@ -63,13 +63,6 @@ class FileEditInput(BaseModel):
     edits: list[StrReplaceEditInput] = Field(
         description="Ordered replacements applied atomically (max 20, must not overlap)."
     )
-    verify_command: str | None = Field(
-        default=None,
-        description=(
-            "Strongly recommended for code files: a check run after editing, e.g. 'python -m py_compile f.py' "
-            "or 'node --check f.js'. If it fails all edits are rolled back."
-        ),
-    )
     reason: str | None = Field(default=None, description=REASON_FIELD_DESCRIPTION)
 
     @model_validator(mode="before")
@@ -85,14 +78,14 @@ class FileEditInput(BaseModel):
 
 _FILE_EDIT_TOOL_DESCRIPTION_ZH = (
     "用精确文本替换编辑文件。请始终使用本工具，而不是 bash sed/awk/perl。"
-    "编辑已有文件前，先用 file_read_tool 读取一次（普通读取：不带行号范围、不用 preview/stream，这两类读取不算）。"
+    "编辑已有文件前，先用 file_read_tool 读取一次（带行号范围的读取也算；preview/stream 不算）。"
     "本会话中自己创建或编辑过的文件无需重新读取。"
 )
 
 _FILE_EDIT_TOOL_DESCRIPTION_EN = (
     "Edit a file with exact-text replacements. Always use this instead of bash sed/awk/perl. "
-    "Before editing an existing file, read it once with file_read_tool (plain read: no line range, not preview/stream; "
-    "those do not count). A file you created or edited earlier in this session needs no re-read."
+    "Before editing an existing file, read it once with file_read_tool (a line-range read counts; preview and stream "
+    "do not). A file you created or edited earlier in this session needs no re-read."
 )
 
 
@@ -137,7 +130,6 @@ def create_file_edit_tool(
     async def file_edit_func(
         path: str,
         edits: list[StrReplaceEditInput],
-        verify_command: str | None = None,
         reason: str | None = None,
         *,  # 强制后续参数为关键字参数
         config: RunnableConfig,  # LangChain 注入的配置
@@ -154,7 +146,6 @@ def create_file_edit_tool(
                 skills=skills or [],
                 path=path,
                 edits=edit_tuple,
-                verify_command=verify_command,
                 reason=reason,
             )
 

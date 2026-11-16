@@ -19,6 +19,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 from sqlalchemy import delete, select, update
 from sqlalchemy.sql import func as sqlfunc
 
+from app.core.cron.adapters.sqlalchemy_inflight import SqlAlchemyInflightMixin
 from app.core.cron.adapters.sqlalchemy_mapping import (
     apply_job_to_model,
     as_utc,
@@ -69,8 +70,8 @@ def _normalize_job_monitor_config_in_place(row: CronJobModel) -> bool:
     return True
 
 
-class SqlAlchemyCronStore:
-    """CronStore backed by SQLAlchemy + app.database models."""
+class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
+    """CronStore backed by SQLAlchemy + app.database models; the in-flight markers live in the mixin."""
 
     # ------------------------------------------------------------------
     # Job CRUD

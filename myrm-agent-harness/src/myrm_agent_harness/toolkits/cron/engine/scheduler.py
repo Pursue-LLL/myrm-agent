@@ -6,8 +6,9 @@ tasks bounded by a concurrency semaphore.
 
 Execution lifecycle is delegated to ``JobExecutor``; startup recovery to
 ``StartupRecovery``; admission of due jobs, trigger dispatch and the guarded
-execution path to ``SchedulerDispatchMixin``.  This module owns only the timer
-machinery and the tick that hands due jobs to admission.
+execution path to ``SchedulerDispatchMixin``.  This module owns the timer
+machinery, the tick that hands due jobs to admission and the stop, which
+records the runs it cuts off before it cancels them.
 
 [INPUT]
 - cron.engine.executor::JobExecutor (POS: job execution lifecycle manager)
@@ -22,7 +23,9 @@ machinery and the tick that hands due jobs to admission.
 [POS]
 Cron scheduling engine. Computes exact sleep durations to the next due job, admits due
 jobs (a recurring job's next slot is booked before its run starts) into async tasks with
-semaphore-based concurrency control, and delegates execution to JobExecutor.
+semaphore-based concurrency control, and delegates execution to JobExecutor. A stop
+records the in-flight runs as interrupted (not counted as failures), cancels them and
+releases the lock.
 """
 
 from __future__ import annotations
@@ -66,6 +69,9 @@ _FALLBACK_RETRY_SECONDS = 30
 _PURGE_INTERVAL_SECONDS = 86_400
 _DEFAULT_RETENTION_DAYS = 30
 _MIN_REFIRE_GAP_S = 2.0
+# A host that embeds the scheduler may force-kill a slow exit after about two seconds: the runs' unwinding gets a
+# fraction of that, so the lock release and the rest of the shutdown still fit.
+_STOP_CANCEL_WAIT_S = 0.5
 _WATCHDOG_INTERVAL_S = 60.0
 # First tick after start: the health banner treats "no tick yet" as a startup warning,
 # and waiting a full watchdog interval made every backend restart flash that banner.
@@ -173,9 +179,29 @@ class CronScheduler(SchedulerDispatchMixin):
         if self._watchdog_handle:
             self._watchdog_handle.cancel()
             self._watchdog_handle = None
+        if self._bg_tasks:
+            await self._end_runs()
         if self._lock:
             await self._lock.release("cron:scheduler:lock")
         logger.info("Cron scheduler stopped")
+
+    async def _end_runs(self) -> None:
+        """Cut off the runs still going: leave a trace of each, cancel them, give them a moment to unwind.
+
+        The traces come first and are not failures: the desktop shell force-kills a slow exit, and what was written
+        before the unwind survives it. The wait is short for the same reason; a run that outlives it ends with the
+        process, and its marker is already gone, so the next start reports nothing twice.
+        """
+        try:
+            await self._recovery.report_interrupted(counted=False)
+        except Exception as exc:
+            logger.warning("Cron scheduler stop: could not record the interrupted runs: %s", exc)
+        # Taken after the write: runs that finished meanwhile have left the set.
+        tasks = list(self._bg_tasks)
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.wait(tasks, timeout=_STOP_CANCEL_WAIT_S)
 
     # ------------------------------------------------------------------
     # Timer machinery

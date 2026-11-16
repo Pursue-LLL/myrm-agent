@@ -24,7 +24,7 @@ from .chat import (
 )
 from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
-from .cron import CronJobModel, CronRunModel, MonitorStateModel
+from .cron import CronInflightModel, CronJobModel, CronRunModel, MonitorStateModel
 from .daily_wrap import DailyWrapCache
 from .expert_summon_metric import ExpertSummonMetricEvent
 from .faq import FaqCorpus, FaqEntry, FaqHitLog
@@ -110,6 +110,7 @@ __all__ = [
     "UserConfig",
     "ConfigAuditLog",
     # Cron
+    "CronInflightModel",
     "CronJobModel",
     "CronRunModel",
     "MonitorStateModel",

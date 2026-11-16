@@ -4,23 +4,15 @@
  * - @/lib/deploy-mode::resolveInjectedE2eApiBase (POS: 前端部署模式与基础地址解析层。)
  *
  * [OUTPUT]
- * - isLocalDevHost / resolveE2eApiBase / resolveChatIdFromLocation: page-environment probes (local dev host, injected E2E backend origin, chat id already in the route)
+ * - resolveE2eApiBase / resolveChatIdFromLocation: page-environment probes (injected E2E backend origin, chat id already in the route)
  * - prepareAutomationSend: switch fast mode to agent before an automated send
  * - requireE2eChatBridge: the mounted `window.__MYRM_E2E_CHAT__`, or a thrown error
  *
  * [POS]
- * 开发桥的页面环境探针：本机开发主机判定、注入的 E2E 后端基址、路由里已有的聊天 id、自动化发送前的模式矫正，以及已挂载桥的读取。
+ * 开发桥的页面环境探针：注入的 E2E 后端基址、路由里已有的聊天 id、自动化发送前的模式矫正，以及已挂载桥的读取。
  */
 import useChatStore from '@/store/useChatStore';
 import { resolveE2eApiBase as resolveInjectedE2eApiBase } from '@/lib/deploy-mode';
-
-export function isLocalDevHost(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  const host = window.location.hostname;
-  return host === '127.0.0.1' || host === 'localhost';
-}
 
 export function prepareAutomationSend(): void {
   const { actionMode, setActionMode } = useChatStore.getState();

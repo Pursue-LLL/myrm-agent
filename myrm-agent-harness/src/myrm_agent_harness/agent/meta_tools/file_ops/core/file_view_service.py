@@ -167,12 +167,10 @@ class FileViewService:
                 estimated_tokens=estimated_content_tokens,
             )
 
+        # A line-range read records the hash of the whole file, as the version gate compares the file, not the slice.
         guard = get_file_integrity_guard(self.context.executor)
         if guard is not None:
-            if view_range is None:
-                guard.record_read(resolved_path, content_text)
-            else:
-                guard.record_read_marker(resolved_path)
+            guard.record_read(resolved_path, content_text)
 
         # 通知观察者
         await self.observer_manager.notify_file_viewed(resolved_path)

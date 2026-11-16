@@ -421,13 +421,13 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 
 **位置**：`agent/security/workspace_trust/`（harness）· `app/services/security/workspace_trust_store.py` + `/security/workspace-trust/*`（server）· Settings + FolderGate UI（frontend）
 
-**设计动机**：绑定项目工作区后，仓库内的 **skills / workspace rules / 本地 MCP spawn** 属于「旁路执行面」——不经过 Permission Engine 的常规工具审批链即可触发本机进程或注入 prompt。Myrm 采用 **FolderGate + 默认 Restricted** 模式：**未知或未决策 workspace 一律 RESTRICTED（fail-closed）**。
+**设计动机**：绑定项目工作区后，仓库内的 **skills / workspace rules / 本地 MCP spawn / 编辑后会加载工程代码的格式化器（prettier、`mix format`）** 属于「旁路执行面」——不经过 Permission Engine 的常规工具审批链即可触发本机进程或注入 prompt。Myrm 采用 **FolderGate + 默认 Restricted** 模式：**未知或未决策 workspace 一律 RESTRICTED（fail-closed）**。
 
 ### 信任级别
 
 | 级别 | 旁路行为 |
 |------|----------|
-| `TRUSTED` | 启用 workspace skills、rules 注入、工作区内 MCP spawn；`.myrm/config.toml` 声明的 repo command prefix 可参与 allowlist 自动放行 |
+| `TRUSTED` | 启用 workspace skills、rules 注入、工作区内 MCP spawn、编辑后的 prettier 与 `mix format`；`.myrm/config.toml` 声明的 repo command prefix 可参与 allowlist 自动放行 |
 | `RESTRICTED` / `REVOKED` / 未知 | 禁用上述旁路；MCP spawn 抛出 `WorkspaceTrustBlockedError`；repo prefix 匹配不参与自动 ALLOW |
 | 默认 | 未 bind 或未在 registry 决策 → **RESTRICTED**（`provider.resolve_workspace_trust_level`） |
 
@@ -439,6 +439,7 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 4. **信任前披露读取**：`workspace_trust/manifest.py` 在用户决定之前读取工作区内的 `mcp.json`（四个位置）与 `.myrm/config.toml`，大小与种类同样由仓库决定，所以同样经 `read_text_bounded`，上限 1,048,576 字符：超限的 MCP 配置按一个 server 计，超限的 `config.toml` 记 warning 并视为未声明前缀；披露对任何扫描失败降级为零计数，不阻塞弹窗。
 5. **MCP spawn**：`toolkits/mcp/transport.py` — `assert_mcp_spawn_allowed()`；cwd/plugin_root 落在 workspace 内且未 trust → `WorkspaceTrustBlockedError(reason=mcp_spawn_blocked)`。
 6. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor/` — 仅 TRUSTED 且 **非复合 shell 命令**（`;` / `&&` 等经 `is_compound_shell_command` 拦截）可 prefix 匹配 auto-ALLOW。
+7. **编辑后的格式化**：`agent/meta_tools/file_ops/observers/format_observer.py` — prettier（执行 `prettier.config.js` 与配置里声明的本地插件）与 `mix format`（执行 `.formatter.exs`）只在 TRUSTED 工作区运行；RESTRICTED、REVOKED、未决策或没有执行器时静默跳过，不报错也不在回执里加说明。工作区里的这些文件可由智能体自己的沙箱不经审批写入，写入后的格式化若照跑，就等于在宿主机上执行它们。级别由执行器的工作区根经 `resolve_workspace_trust_level` 在进程级登记表里查，不读运行期的 `ContextVar`（LangGraph 在另一个任务里执行工具体时读不到它，已信任的文件夹会被当成受限）；ruff、black、gofmt、rustfmt 等只读声明式配置的格式化器不受影响。已信任的工作区里这条路径仍然存在：智能体自己写下可执行配置、再靠格式化触发它；没有廉价的判据把它与工程自带的配置区分开（会被执行的文件名单不可穷举），所以这里不处理。
 
 ### 持久化与 API（server）
 

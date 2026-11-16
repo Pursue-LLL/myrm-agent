@@ -346,3 +346,35 @@ async def test_monitor_state_upserts_per_job_and_batch_reads_only_what_exists(st
     assert await store.get_monitor_state("missing") is None
     assert await store.delete_monitor_state("job") is True
     assert await store.delete_monitor_state("job") is False
+
+
+async def test_a_marker_is_one_row_per_job_and_marking_again_moves_its_start_forward(store: CronStore) -> None:
+    before = datetime.now(UTC)
+    await store.mark_running("job-a")
+    await store.mark_running("job-b")
+    await store.mark_running("job-a")  # an overlapping run of the same job overwrites the marker, it never adds one
+
+    running = await store.list_running()
+    assert [job_id for job_id, _ in running] == ["job-b", "job-a"], "oldest first: job-a was stamped again after job-b"
+    assert all(started.tzinfo is not None and before <= started <= datetime.now(UTC) for _, started in running)
+
+
+async def test_clearing_a_marker_removes_it_and_clearing_a_missing_one_is_not_an_error(store: CronStore) -> None:
+    await store.mark_running("job-a")
+    await store.mark_running("job-b")
+
+    await store.clear_running("job-a")
+    await store.clear_running("job-a")
+    await store.clear_running("never-marked")
+
+    assert [job_id for job_id, _ in await store.list_running()] == ["job-b"]
+
+
+async def test_a_marker_belongs_to_the_run_and_not_to_the_job_row(store: CronStore) -> None:
+    await _save(store, _job("job"))
+    await store.mark_running("job")
+
+    assert await store.delete_job_cascade("job") is True
+    await store.mark_running("never-stored")
+
+    assert {job_id for job_id, _ in await store.list_running()} == {"job", "never-stored"}

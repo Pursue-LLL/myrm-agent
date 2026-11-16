@@ -3,7 +3,11 @@
  * - @/store/useChatStore::useChatStore (POS: Active chat state manager.)
  * - @/store/useDesktopInspectorStore::useDesktopInspectorStore, selectScopedDesktopViewData (POS: State management for the Desktop Live View + Interactive Inspector feature.)
  * - @/store/useBrowserInspectorStore::useBrowserInspectorStore, selectScopedBrowserViewData (POS: State management for the Browser Live View + Interactive Inspector feature.)
- * - @/store/chat/types::BrowserRefInfo (POS: @/store/chat/types 稳定入口；实现位于 types/。)
+ * - @/store/chat/types::AgentEventType, BrowserRefInfo (POS: @/store/chat/types 稳定入口；实现位于 types/。)
+ * - @/store/chat/messageStream/streamContext::StreamCtx (POS: Shared context for messageStream/handlers/* event slices.)
+ * - @/store/chat/messageStream/types::StreamHandlerState (POS: Type definitions for the chat message stream handler subsystem.)
+ * - @/store/chat/messageStream/handlers/fileDiffEvents::fileDiffEvents (POS: Chat SSE event handler slice (fileDiffEvents)。)
+ * - @/store/chat/messageStream/handlers/toolLifecycleEvents::toolLifecycleEvents (POS: Chat SSE event handler slice (toolLifecycleEvents).)
  * - @/components/dev/e2eBridge/members/types::E2eBridgeMembers (POS: 桥成员分组的类型)
  *
  * [OUTPUT]
@@ -16,7 +20,41 @@ import useChatStore from '@/store/useChatStore';
 import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
+import type { StreamCtx } from '@/store/chat/messageStream/streamContext';
+import type { StreamHandlerState } from '@/store/chat/messageStream/types';
 import type { E2eBridgeMembers } from '@/components/dev/e2eBridge/members/types';
+
+/** Handler context of a simulated stream event: one assistant message of `chatId`, every store action a no-op. */
+function buildSimulatedStreamContext(chatId: string, messageId: string, loading = false): Omit<StreamCtx, 'data'> {
+  return {
+    input: '',
+    sources: undefined,
+    added: false,
+    state: {
+      messages: [
+        {
+          messageId,
+          chatId,
+          role: 'assistant',
+          content: '',
+          createdAt: new Date(),
+        },
+      ],
+      messageAppeared: false,
+      loading,
+      scheduler: {} as StreamHandlerState['scheduler'],
+    },
+    actions: {
+      setMessages: () => undefined,
+      setMessageAppeared: () => undefined,
+      setLoading: () => undefined,
+      _processSuggestions: async () => undefined,
+      scheduleAutoSave: () => undefined,
+    },
+    recievedMessage: '',
+    files: [],
+  };
+}
 
 export function createInspectorMembers(): E2eBridgeMembers {
   return {
@@ -64,32 +102,7 @@ export function createInspectorMembers(): E2eBridgeMembers {
             viewport_height: 720,
           },
         },
-        input: '',
-        sources: undefined,
-        added: false,
-        state: {
-          messages: [
-            {
-              messageId,
-              chatId: normalizedChatId,
-              role: 'assistant',
-              content: '',
-              createdAt: new Date(),
-            },
-          ],
-          messageAppeared: false,
-          loading: false,
-          scheduler: {} as import('@/store/chat/messageStream/types').StreamHandlerState['scheduler'],
-        },
-        actions: {
-          setMessages: () => undefined,
-          setMessageAppeared: () => undefined,
-          setLoading: () => undefined,
-          _processSuggestions: async () => undefined,
-          scheduleAutoSave: () => undefined,
-        },
-        recievedMessage: '',
-        files: [],
+        ...buildSimulatedStreamContext(normalizedChatId, messageId),
       });
       if (Object.keys(refs).length > 0) {
         useBrowserInspectorStore.getState().setMode('inspect');
@@ -111,32 +124,7 @@ export function createInspectorMembers(): E2eBridgeMembers {
           messageId,
           tool_name: normalizedTool,
         },
-        input: '',
-        sources: undefined,
-        added: false,
-        state: {
-          messages: [
-            {
-              messageId,
-              chatId: normalizedChatId,
-              role: 'assistant',
-              content: '',
-              createdAt: new Date(),
-            },
-          ],
-          messageAppeared: false,
-          loading: false,
-          scheduler: {} as import('@/store/chat/messageStream/types').StreamHandlerState['scheduler'],
-        },
-        actions: {
-          setMessages: () => undefined,
-          setMessageAppeared: () => undefined,
-          setLoading: () => undefined,
-          _processSuggestions: async () => undefined,
-          scheduleAutoSave: () => undefined,
-        },
-        recievedMessage: '',
-        files: [],
+        ...buildSimulatedStreamContext(normalizedChatId, messageId),
       });
       return { ok: true as const, chatId: normalizedChatId, toolName: normalizedTool };
     },
@@ -181,32 +169,7 @@ export function createInspectorMembers(): E2eBridgeMembers {
             viewport_height: 720,
           },
         },
-        input: '',
-        sources: undefined,
-        added: false,
-        state: {
-          messages: [
-            {
-              messageId,
-              chatId: normalizedChatId,
-              role: 'assistant',
-              content: '',
-              createdAt: new Date(),
-            },
-          ],
-          messageAppeared: false,
-          loading: false,
-          scheduler: {} as import('@/store/chat/messageStream/types').StreamHandlerState['scheduler'],
-        },
-        actions: {
-          setMessages: () => undefined,
-          setMessageAppeared: () => undefined,
-          setLoading: () => undefined,
-          _processSuggestions: async () => undefined,
-          scheduleAutoSave: () => undefined,
-        },
-        recievedMessage: '',
-        files: [],
+        ...buildSimulatedStreamContext(normalizedChatId, messageId),
       });
       return { ok: true as const, chatId: normalizedChatId };
     },
@@ -231,32 +194,7 @@ export function createInspectorMembers(): E2eBridgeMembers {
             require_app_approval: true,
           },
         },
-        input: '',
-        sources: undefined,
-        added: false,
-        state: {
-          messages: [
-            {
-              messageId,
-              chatId: normalizedChatId,
-              role: 'assistant',
-              content: '',
-              createdAt: new Date(),
-            },
-          ],
-          messageAppeared: false,
-          loading: true,
-          scheduler: {} as import('@/store/chat/messageStream/types').StreamHandlerState['scheduler'],
-        },
-        actions: {
-          setMessages: () => undefined,
-          setMessageAppeared: () => undefined,
-          setLoading: () => undefined,
-          _processSuggestions: async () => undefined,
-          scheduleAutoSave: () => undefined,
-        },
-        recievedMessage: '',
-        files: [],
+        ...buildSimulatedStreamContext(normalizedChatId, messageId, true),
       });
       return { ok: true as const, chatId: normalizedChatId };
     },

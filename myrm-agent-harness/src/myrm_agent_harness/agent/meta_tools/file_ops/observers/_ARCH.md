@@ -11,7 +11,7 @@ Observers module.
 | artifact_observer.py | Core | Artifact observer for registering generated files and pushing realtime content. | ✅ |
 | base.py | Core | Provides FileOperationObserver. | ✅ |
 | diff_collector.py | Core | Diff collector — cumulative unified diffs via SnapshotStore baseline; corrects blank-CREATE+MODIFY to avoid /dev/null hunks. | ✅ |
-| format_observer.py | Core | Auto-format observer — runs code formatters after AI file edits; skips `.md` under Obsidian vault roots (`.obsidian/`). | ✅ |
+| format_observer.py | Core | Auto-format observer — runs code formatters after AI file edits; skips `.md` under Obsidian vault roots (`.obsidian/`). prettier and `mix format` load code the workspace declares (`prettier.config.js`, local plugins, `.formatter.exs`), so they run only when the workspace is TRUSTED: the level is looked up by the executor's workspace root in the trust registry, not read from the run's ContextVar, and a workspace with no decision, a restricted or revoked one, or no executor skips them silently. The other formatters read declarative config only and run everywhere. | ✅ |
 | layout_qa_observer.py | Core | Optional soffice headless PDF conversion gate for DOCX layout QA; skips silently when soffice unavailable; soffice runs in its own process group under a 60 s deadline, and a deadline or a cancel kills it with everything it started (a timeout is reported in the result) | ✅ |
 | observer_manager.py | Core | Provides ObserverManager. | ✅ |
 | snapshot_observer.py | Core | File snapshot observer — captures pre-modification content for revert; oversized/store-full skips record metadata-only (`skip_reason`, `revertible=false`) for honest UX. `scoped_message_id` binds the turn's message id for a `with` block. | ✅ |

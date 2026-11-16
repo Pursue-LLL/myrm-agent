@@ -93,7 +93,6 @@ async def _read_then_edit(
     *,
     rel_path: str,
     edits: list[dict[str, str]],
-    verify_command: str | None = None,
 ) -> str:
     executor = _make_local_executor(workspace)
     token = set_executor(executor)
@@ -103,8 +102,6 @@ async def _read_then_edit(
 
         edit_tool = create_file_edit_tool()
         payload: dict[str, object] = {"path": rel_path, "edits": edits}
-        if verify_command is not None:
-            payload["verify_command"] = verify_command
         return await edit_tool.ainvoke(payload, config=_DUMMY_CONFIG)
     finally:
         reset_executor(token)
@@ -159,24 +156,26 @@ async def test_batch_edits_overlap_rejected_no_disk_change(workspace: Path) -> N
 
 
 @pytest.mark.asyncio
-async def test_batch_edits_verify_failure_rolls_back(workspace: Path) -> None:
-    target = workspace / "notes.txt"
-    original = "version=1\n"
+async def test_batch_edit_that_breaks_python_syntax_rolls_back(workspace: Path) -> None:
+    target = workspace / "broken.py"
+    original = "value = 1\nother = 2\n"
     target.write_text(original, encoding="utf-8")
 
     executor = _make_local_executor(workspace)
     token = set_executor(executor)
     try:
         read_tool = create_file_read_tool()
-        await read_tool.ainvoke({"paths": ["notes.txt"], "mode": "all"}, config=_DUMMY_CONFIG)
+        await read_tool.ainvoke({"paths": ["broken.py"], "mode": "all"}, config=_DUMMY_CONFIG)
 
         edit_tool = create_file_edit_tool()
-        with pytest.raises(ToolError, match="verification failed"):
+        with pytest.raises(ToolError, match=r"(?i)syntax"):
             await edit_tool.ainvoke(
                 {
-                    "path": "notes.txt",
-                    "edits": [{"old_str": "version=1", "new_str": "version=2"}],
-                    "verify_command": "false",
+                    "path": "broken.py",
+                    "edits": [
+                        {"old_str": "other = 2", "new_str": "other = 3"},
+                        {"old_str": "value = 1", "new_str": "value = ("},
+                    ],
                 },
                 config=_DUMMY_CONFIG,
             )
@@ -348,4 +347,3 @@ async def test_cas_version_conflict_self_healing_real_disk_full_flow(workspace: 
         assert "return amount * 0.05\n" in final_disk
     finally:
         reset_executor(token)
-

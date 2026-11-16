@@ -220,7 +220,6 @@ class GeneralAgentParams(BaseAgentParams):
     # Optional dedicated session ID for event logs (e.g. cron:job-id:YYYY-MM-DD); fallbacks to chat_id if None
     event_log_session_id: str | None = None
     locale: str | None = None
-    prompt_locale: str | None = None
     max_iterations: int | None = None
     memory_policy: AgentMemoryPolicy | None = None
     memory_recall_mode: RecallMode = RecallMode.HYBRID

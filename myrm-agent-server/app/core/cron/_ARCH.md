@@ -23,6 +23,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/lifecycle_guard.py` | 核心 | 创建/更新时拦截 myrm 服务 restart/stop（含 pre_condition_script 与 shell 验收标准的 command） | — |
 | `adapters/tools_policy.py` | 核心 | Cron job tools_allowed 校验、runtime 求交、受限 job 跳过 baseline 强制 | — |
 | `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `chat_id`/`project_id`/`name_filter`（名称子串匹配，不区分大小写，`%` / `_` 按字面量处理；任务没有所有者概念，部署为单用户实例），与 `InMemoryCronStore` 的行为一致性由 `tests/core/cron/adapters/test_cron_store_contract.py` 对两种实现跑同一组用例守住，`get_job` 路径对 legacy `monitor_config` 做 opportunistic 规范化回写，并提供可节流的批量清洗入口用于启动时历史数据治理（含结构化清洗统计与续清标记） | — |
+| `adapters/sqlalchemy_inflight.py` | 核心 | `SqlAlchemyInflightMixin`：在飞运行标记（`cron_inflight` 表）的写入、清除与列出，混入 `SqlAlchemyCronStore`；标记属于运行、不挂在任务行上，进程死在运行中时留下，下次启动据此报告被打断的运行 | — |
 | `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | — |
 | `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
 | `adapters/agent_runner/` | 核心 | JobRunner：ConfigService + AgentFactory；可选 `workflow_template_id` 走 pinned DW（`create_dynamic_workflow_stream` unattended）；执行前 `validate_cron_template_at_execution`（trust/args/readonly）；Cron 绑模板同 SSOT；cron 渠道 `enable_cron_eager=False` 且剔除 `cron` builtin；[SILENT] + SituationReport | — |
@@ -58,7 +59,8 @@ myrm_agent_harness.toolkits.cron (框架层，零业务依赖)
 app.core.cron.adapters.setup (组装入口)
     ├── SqlAlchemyCronStore   → sqlalchemy_mapping (ORM 映射)
     │                         → sqlalchemy_aggregation (用量统计)
-    │                         → app.database.models (CronJobModel, CronRunModel)
+    │                         → sqlalchemy_inflight (在飞运行标记)
+    │                         → app.database.models (CronJobModel, CronRunModel, CronInflightModel)
     ├── AgentJobRunner        → app.core.channel_bridge.config_loader (实时配置加载)
     │                         → app.ai_agents (AgentFactory, GeneralAgent)
     ├── ChannelResultDelivery → app.core.channel_bridge (channel_gateway)
@@ -137,18 +139,23 @@ API 支持：分页（offset/limit）、状态过滤（ok/error）、全局查�
 
 ## 运行时策略
 
-### 两阶段启动恢复（Two-Phase Startup Recovery）
+### 启动恢复与优雅停止（Startup Recovery & Graceful Stop）
 
-周期任务的下一个槽位在其运行开始之前就已订下（`scheduler._admit` 用一次条件写订槽，再启动运行），所以进程崩溃不会留下没有下一时刻的启用任务；恢复只处理停机期间到点的槽位。服务重启后 `StartupRecovery.run()` 依次执行两个阶段：
+周期任务的下一个槽位在其运行开始之前就已订下（`scheduler._admit` 用一次条件写订槽，再启动运行），所以进程崩溃不会留下没有下一时刻的启用任务。每次运行在做任何事之前先写一行在飞标记（`cron_inflight` 表，见 `adapters/sqlalchemy_inflight.py`），任务的最后一次运行结束时清除；进程死在运行中时标记留在表里，下一次启动据此得知那次运行。标记属于运行而不属于任务行（没有外键，任务被删后运行仍在继续）。服务重启后 `StartupRecovery.run()` 依次执行三步：
 
+0. **报告被打断的运行**（`report_interrupted(counted=True)`）：对每个遗留标记，先删标记，再给任务写一条 ERROR 运行记录（`trigger_source=recovery`，错误为 `Interrupted: the server stopped before this run finished`，起点取标记时间、时长为 0，因为崩溃不留下结束时间）并计一次失败（`consecutive_failures + 1`，超过 `max_retries` 则暂停任务并清空下一时刻）；任务已被删除的标记直接丢弃。被打断的一次性任务仍然到点，在 grace 窗口内由第 2 步重新投递，所以每次运行都让进程崩溃的一次性任务在第三次尝试后被暂停；周期任务已订下下一个槽位，不会被重启重跑
 1. **Phase 1 — Missed-Slot 精确回放**：对 CRON 类型任务，用 `compute_prev_run()` 计算上一个
    应执行槽位，若 `prev_slot` 晚于 `max(last_run_at, updated_at)` 说明确实漏执行，立即回放。
    跳过处于 error backoff 窗口内的任务（`is_in_error_backoff()`），不回放从未运行过的新任务
 2. **Phase 2 — Grace 窗口内到期任务**：对 `next_run_at <= now` 且在 `misfire_grace_seconds`
    窗口内的任务正常执行；超过 grace 的订下下一个槽位并记为 SKIPPED（一次性任务记为完成），不执行
 
-两个阶段都把任务交给调度器的准入 `_admit`。纯函数 `is_in_error_backoff()`、`compute_prev_run()` 均在 helpers/parser 中，
+后两步都把任务交给调度器的准入 `_admit`。纯函数 `is_in_error_backoff()`、`compute_prev_run()` 均在 helpers/parser 中，
 无 I/O 依赖，易于单元测试。
+
+**优雅停止**：`CronScheduler.stop()` 先给仍在飞的运行写记录（`report_interrupted(counted=False)`：`trigger_source=shutdown`，错误为 `Interrupted: the application was stopping before this run finished`，不计失败），再取消全部运行任务并最多等 0.5 秒（桌面端壳在约 2 秒后强杀慢退出，记录在取消之前写下，强杀也不会丢），最后释放调度器锁；停止删掉了标记，下次启动不会重复报告。分布式锁不能在持有者存活期间转交给另一个进程：启动时每个标记都被当作已死进程的遗迹。
+
+**边界**：运行已经收尾、只差清除标记时进程死亡，下次启动无法与未收尾的运行区分，会按被打断报告并计一次失败；同一任务在上一次运行清除标记的同一瞬间启动新运行，新运行的标记可能被一并清掉，这次运行若恰好被打断则没有记录；被打断的 cron 任务的补回放起点（`max(last_run_at, updated_at)`）变为报告时间，停机期间该任务的槽位不再补回放。
 
 ### Timeout
 

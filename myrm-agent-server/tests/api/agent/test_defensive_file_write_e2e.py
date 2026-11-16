@@ -1,4 +1,4 @@
-"""E2E test: Defensive File Write (verify_command).
+"""E2E test: Defensive File Write (the built-in syntax check refuses a broken Python file).
 
 Relies on conftest.py autouse fixtures for DB, auth, and user config setup.
 """
@@ -23,16 +23,15 @@ load_dotenv(override=True)
     reason="E2E test requires BASIC_API_KEY environment variable",
 )
 async def test_defensive_file_write_e2e(app):
-    """Test that an agent can use verify_command to catch syntax errors."""
+    """Test that writing a Python file with a syntax error is refused and the agent reports it."""
 
     chat_id = str(uuid.uuid4())
     message_id = str(uuid.uuid4())
 
-    # Instruct the agent to write a bad file and use verify_command.
+    # Instruct the agent to write a file whose syntax is broken.
     query = (
         "Please use the `file_write_tool` tool to create a file named 'bad_script.py'. "
         "The content MUST be exactly `print('hello'` (missing the closing parenthesis). "
-        "You MUST also provide the `verify_command` argument as `python -m py_compile bad_script.py`. "
         "When the tool fails due to the syntax error, tell me 'The verification failed as expected'."
     )
 

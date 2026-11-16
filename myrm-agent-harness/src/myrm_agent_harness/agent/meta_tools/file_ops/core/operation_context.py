@@ -88,9 +88,6 @@ class OperationContext:
     # STR_REPLACE 操作参数（单事务批量应用）
     edits: tuple[StrReplaceEdit, ...] = ()
 
-    # 验证命令（用于文件写入/编辑后的自动校验）
-    verify_command: str | None = None
-
     # 元数据
     reason: str | None = None  # 操作原因（用于日志）
 

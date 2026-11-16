@@ -4,7 +4,7 @@
  * [INPUT]
  * - @/store/chat/useSubagentStore::SubagentNode, useSubagentStore
  * - @/components/dev/e2eBridge/sendTurnContract::SEND_TURN_REV (POS: 发送回合中与 Python 端 dev_gate 契约逐值对应的常量)
- * - @/components/dev/e2eBridge/hostEnv::isLocalDevHost (POS: 开发桥的页面环境探针)
+ * - @/components/dev/localDevHost::isLocalDevHost (POS: 开发桥的挂载守卫)
  * - @/components/dev/e2eBridge/sseCapture::createSseCapture (POS: 页面侧 SSE 事件捕获)
  * - @/components/dev/e2eBridge/members/createE2eChatBridge::createE2eChatBridge (POS: 桥成员的汇合处)
  *
@@ -18,7 +18,7 @@ import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { type SubagentNode, useSubagentStore } from '@/store/chat/useSubagentStore';
 import { SEND_TURN_REV } from '@/components/dev/e2eBridge/sendTurnContract';
-import { isLocalDevHost } from '@/components/dev/e2eBridge/hostEnv';
+import { isLocalDevHost } from '@/components/dev/localDevHost';
 import { createSseCapture, type SseEventRecorder } from '@/components/dev/e2eBridge/sseCapture';
 import { createE2eChatBridge } from '@/components/dev/e2eBridge/members/createE2eChatBridge';
 

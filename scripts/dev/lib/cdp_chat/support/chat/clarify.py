@@ -1,6 +1,7 @@
 """Clarification turns over the API.
 
 [INPUT]
+- cdp_chat.support.chat.evidence::stored_reply_matches (POS: What the stored chat messages prove about a turn: a real file-write tool call, an OK or DONE reply in the newest assistant message, the user message count)
 - cdp_chat.support.chat.session::fetch_chat_messages (POS: Chat session calls of the E2E over the REST API: create, cancel, read messages, steer)
 - cdp_chat.support.chat.stream::_collect_agent_stream_events (POS: Agent-stream turns over REST without a browser: SSE collection of a POST up to a deadline, idle time or terminal event, and the follow-up nudge turn)
 - cdp_chat.clarify_skip::continued_after_skip, open_clarification, pending_clarification_interrupt_id, skip_resume_value, sse_message_text (POS: measurement ruler of the clarify Skip E2E: a skip is judged by evidence of continuation)
@@ -27,6 +28,7 @@ from cdp_chat.clarify_skip import (
     skip_resume_value,
     sse_message_text,
 )
+from cdp_chat.support.chat.evidence import stored_reply_matches
 from cdp_chat.support.chat.session import fetch_chat_messages
 from cdp_chat.support.chat.stream import _collect_agent_stream_events
 
@@ -220,16 +222,6 @@ def chat_messages_have_clarify_skip_done(
 ) -> bool:
     """Return True when the last assistant message shows clarify Skip resume completed."""
     messages = fetch_chat_messages(chat_id, api_url=api_url)
-    user_count = sum(
-        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
+    return stored_reply_matches(
+        messages, _CLARIFY_SKIP_DONE_RE, min_user_count=min_user_count
     )
-    if user_count < min_user_count:
-        return False
-    last_assistant: dict[str, object] | None = None
-    for msg in messages:
-        if isinstance(msg, dict) and msg.get("role") == "assistant":
-            last_assistant = msg
-    if last_assistant is None:
-        return False
-    content = str(last_assistant.get("content") or "")
-    return bool(_CLARIFY_SKIP_DONE_RE.search(content))

@@ -10,6 +10,7 @@
 //! [INPUT]
 //! - tauri AppHandle (POS: 窗口/事件/app data 目录)
 //! - commands::privacy_curtain_state (POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口)
+//! - commands::privacy_curtain_state_changes (POS: 状态的具名迁移：自动拉起 / 启动清理过期声明)
 //! - commands::privacy_curtain_decision (POS: 每个 tick 的纯决策表)
 //! - commands::privacy_curtain_transition (POS: 拉起 / 收起帷幕时窗口与状态的固定顺序及其失败收敛)
 //! - commands::privacy_curtain 窗口 API (POS: 帷幕窗口重建/销毁)
@@ -30,9 +31,11 @@ use crate::commands::privacy_curtain::{
     audit_result, close_curtain_windows, curtain_windows, deploy_curtain_windows, log_audit,
 };
 use crate::commands::privacy_curtain_decision::{
-    decide, mark_auto_engaged, needs_monitor_count, TickAction, TickFacts,
+    decide, needs_monitor_count, TickAction, TickFacts,
 };
-use crate::commands::privacy_curtain_state::{mutate_state, reset_state, try_read_state};
+use crate::commands::privacy_curtain_state::{
+    mutate_state, reset_state, try_read_state, CurtainState,
+};
 use crate::commands::privacy_curtain_transition::{raise_curtain, record_release};
 use crate::utils::screen_lock;
 
@@ -56,12 +59,8 @@ fn reset_stale_state(app: &AppHandle) {
         log_audit("boot_reset", reset_state(app), "state file unreadable");
         return;
     };
-    if state.active || state.auto_engaged || state.pending_auto_unlock {
-        let cleared = mutate_state(app, |s| {
-            s.active = false;
-            s.auto_engaged = false;
-            s.pending_auto_unlock = false;
-        });
+    if state.has_stale_claims() {
+        let cleared = mutate_state(app, CurtainState::clear_stale_claims);
         log_audit("boot_reset", cleared, "stale state from previous run");
     }
 }
@@ -129,7 +128,7 @@ fn apply(app: &AppHandle, action: &TickAction) {
         TickAction::Engage => {
             let raised = raise_curtain(
                 || deploy_curtain_windows(app),
-                || mutate_state(app, mark_auto_engaged),
+                || mutate_state(app, CurtainState::engage_automatically),
                 || close_curtain_windows(app),
             );
             audit_result("auto_engage", "screen locked", &raised);

@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from ..external_agents import ExternalAgentsMixin
 
 if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.agent.security.types import SecurityConfig
     from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.memory.config import RecallMode
@@ -58,7 +59,7 @@ class ToolSetupBaseMixin(ExternalAgentsMixin):
         search_depth: str
         agent_id: str | None
         memory_require_confirmation: bool
-        _lite_llm: object | None
+        _lite_llm: BaseChatModel | None
         agent: SkillAgent | None
         approval_session_key: str | None
         _session_vault: object | None
@@ -110,13 +111,13 @@ class ToolSetupBaseMixin(ExternalAgentsMixin):
     def _tool_description_locale(self) -> str:
         """The language the harness writes tool descriptions in for this session.
 
-        The prompt locale is what the system prompt is written in, so it leads; an IM channel without any language of
-        its own gets the channel's default, which is how a Feishu session reads Chinese descriptions.
+        The session language leads; an IM channel without one gets the channel's default, which is how a Feishu session
+        reads Chinese descriptions.
         """
         from app.core.agent.tool_description_locale import resolve_tool_description_locale
 
         # getattr: a host that mounts only some tool families may carry no language attributes.
         return resolve_tool_description_locale(
-            agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
+            agent_locale=getattr(self, "locale", None),
             channel=getattr(self, "channel_name", None),
         )
