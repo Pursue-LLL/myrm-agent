@@ -203,6 +203,7 @@ def test_stage_grafts_target_posture_rekeys_secrets_and_neutralizes(
     ]
     assert query_rows(staged, "SELECT whitelist_api_keys FROM message_filter_config") == [("[]",)]
     assert query_rows(staged, "SELECT COUNT(*) FROM artifact_share_records") == [(0,)]
+    assert query_rows(staged, "SELECT COUNT(*) FROM cron_inflight") == [(0,)]
     assert query_rows(staged, "SELECT status FROM cron_jobs") == [("paused",)]
 
     assert report.paused_jobs == 1

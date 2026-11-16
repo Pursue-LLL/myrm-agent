@@ -41,6 +41,7 @@ CREATE TABLE message_filter_config (id INTEGER PRIMARY KEY, whitelist_api_keys J
 CREATE TABLE api_keys (id TEXT PRIMARY KEY, label TEXT, extra TEXT);
 CREATE TABLE agent_secrets (id TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE artifact_share_records (id TEXT PRIMARY KEY, share_path TEXT);
+CREATE TABLE cron_inflight (job_id TEXT PRIMARY KEY, started_at TIMESTAMP NOT NULL);
 CREATE TABLE commitments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL);
 """
 
@@ -109,6 +110,7 @@ def source_state(tmp_path: Path) -> Path:
     conn.execute("INSERT INTO api_keys VALUES ('k1', 'source-key-label', 'source-secret')")
     conn.execute("INSERT INTO agent_secrets VALUES ('s1', 'source-agent-secret')")
     conn.execute("INSERT INTO artifact_share_records VALUES ('r1', '/share/x')")
+    conn.execute("INSERT INTO cron_inflight VALUES ('j1', '2026-01-01 00:00:00')")
     conn.execute("INSERT INTO commitments VALUES ('cm1', 'user-a')")
     put_config(conn, "providers", seal_config({"openai": "sk-source-provider"}, SOURCE_KEY), encrypted=True)
     put_config(
