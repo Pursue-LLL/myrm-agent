@@ -5,6 +5,7 @@ Detects whether user input is Python or Bash and extracts embedded Python from
 
 [INPUT]
 - python_extractor::extract_python_from_bash (POS: quote-aware Python extraction)
+- utils.text_utils::unwrap_markdown_fence (POS: text utilities; unwraps one Markdown fence around a command)
 
 [OUTPUT]
 - CodeType: Python vs Bash enum
@@ -31,6 +32,7 @@ from enum import StrEnum
 from myrm_agent_harness.toolkits.code_execution.python_extractor import (
     extract_python_from_bash,
 )
+from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
 
 # Parsing is synchronous and runs on the event loop, so past this size the text is judged by its opening line alone.
 _MAX_PARSE_CHARS = 32_768
@@ -70,8 +72,6 @@ _PYTHON_OPENING_RE = re.compile(
     r"^(?:import\s+[A-Za-z_]|from\s+[A-Za-z_.]+\s+import\b|def\s+[A-Za-z_]|async\s+def\s|class\s+[A-Za-z_])"
 )
 
-_ASYNC_RE = re.compile(r"\b(await|async\s+for|async\s+with)\b")
-
 
 class CodeType(StrEnum):
     PYTHON = "python"
@@ -82,7 +82,6 @@ class CodeType(StrEnum):
 class CodeDetectionResult:
     code_type: CodeType
     extracted_code: str
-    is_async: bool = False
     detection_reason: str = ""
 
 
@@ -150,14 +149,11 @@ class CodeTypeDetector:
                 return CodeDetectionResult(
                     code_type=CodeType.PYTHON,
                     extracted_code=extracted,
-                    is_async=self._contains_async(extracted),
                     detection_reason="python -c command (extracted)",
                 )
-            raw_code = self._raw_extract_python_c(command)
             return CodeDetectionResult(
                 code_type=CodeType.PYTHON,
-                extracted_code=raw_code,
-                is_async=self._contains_async(raw_code),
+                extracted_code=self._raw_extract_python_c(command),
                 detection_reason="python -c command (raw fallback after quote extraction failed)",
             )
 
@@ -166,7 +162,6 @@ class CodeTypeDetector:
             return CodeDetectionResult(
                 code_type=CodeType.PYTHON,
                 extracted_code=embedded,
-                is_async=self._contains_async(embedded),
                 detection_reason="embedded python extracted from bash wrapper",
             )
 
@@ -175,19 +170,14 @@ class CodeTypeDetector:
             return CodeDetectionResult(
                 code_type=CodeType.PYTHON,
                 extracted_code=command,
-                is_async=self._contains_async(command),
                 detection_reason=evidence,
             )
 
         return CodeDetectionResult(
             code_type=CodeType.BASH,
             extracted_code=command,
-            is_async=False,
             detection_reason="default to bash",
         )
-
-    def _contains_async(self, command: str) -> bool:
-        return bool(_ASYNC_RE.search(command))
 
     def _is_python_command(self, command: str) -> bool:
         return bool(re.search(r"python3?\s+-c", command))
@@ -205,12 +195,6 @@ class CodeTypeDetector:
             return rest[1:-1]
         return rest
 
-    def is_python(self, command: str) -> bool:
-        return self.detect(command).code_type == CodeType.PYTHON
-
-    def is_bash(self, command: str) -> bool:
-        return self.detect(command).code_type == CodeType.BASH
-
 
 code_detector = CodeTypeDetector()
 
@@ -221,8 +205,6 @@ def detect_for_execution(command: str) -> CodeDetectionResult:
     A check that depends on the language of a command asks here, so a command is judged in the language it runs
     in: Python wrapped in a fence is still Python.
     """
-    from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
-
     return code_detector.detect(unwrap_markdown_fence(command.strip()))
 
 

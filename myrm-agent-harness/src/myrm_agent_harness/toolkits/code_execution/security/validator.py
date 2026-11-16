@@ -137,8 +137,8 @@ _PATH_PATTERN = re.compile(
     re.VERBOSE,
 )
 
-# The one device file a command may name anywhere: writes to it are dropped and reads return EOF, so a redirect
-# such as ``cmd > /dev/null 2>&1`` or ``cmd < /dev/null`` neither exposes nor changes anything.
+# The one device file the path guard lets through by name: writes to it are dropped and reads return EOF, so
+# a redirect such as ``cmd > /dev/null 2>&1`` or ``cmd < /dev/null`` neither exposes nor changes anything.
 _DISCARD_DEVICE = Path("/dev/null")
 
 

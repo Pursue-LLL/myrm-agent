@@ -245,7 +245,8 @@ class TestValidateCommand:
 
 
 class TestDevNullRedirects:
-    """``/dev/null`` is the only device file a command may name, however the redirect is spelled."""
+    """A redirect to or from ``/dev/null`` passes however it is spaced; any other system path or device file written
+    as a word of its own is blocked."""
 
     @pytest.mark.parametrize(
         "command",

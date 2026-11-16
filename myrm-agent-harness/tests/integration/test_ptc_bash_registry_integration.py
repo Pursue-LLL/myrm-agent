@@ -9,7 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.meta_tools.bash._tool.tool_description import TOOL_DESCRIPTION
+from myrm_agent_harness.agent.meta_tools.bash._tool.tool_description import (
+    TOOL_DESCRIPTION_EN,
+    TOOL_DESCRIPTION_ZH,
+)
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
     create_bash_code_execute_tool,
 )
@@ -35,8 +38,9 @@ def test_bash_tool_description_is_static_without_registry_append() -> None:
     bash_tool = create_bash_code_execute_tool()
     description = bash_tool.description
 
-    assert "tools.session_store" not in TOOL_DESCRIPTION
-    assert "myrm_tools" not in TOOL_DESCRIPTION
+    for static_text in (TOOL_DESCRIPTION_EN, TOOL_DESCRIPTION_ZH):
+        assert "tools.session_store" not in static_text
+        assert "myrm_tools" not in static_text
     assert "myrm_tools.web_search_tool" not in description
     assert get_builtin_tool_registry().get_ptc_description() not in description
 

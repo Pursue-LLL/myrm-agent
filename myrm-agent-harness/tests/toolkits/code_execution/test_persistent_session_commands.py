@@ -20,7 +20,7 @@ class TestLifecycleSafety:
 
     @pytest.mark.asyncio
     async def test_marker_text_in_output_does_not_collide(self) -> None:
-        """User output containing the legacy marker literals is not truncated."""
+        """User output containing a fixed marker literal such as ``__MYRM_EXIT__`` is not truncated."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:

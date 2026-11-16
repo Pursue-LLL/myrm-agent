@@ -44,7 +44,7 @@ class TestRunsAsPython:
 
     def test_it_agrees_with_the_detector_the_executor_uses(self) -> None:
         for command in (PYTHON_SOURCE, "echo hi", "python3 -c 'print(1)'", "x = await f()", ""):
-            assert runs_as_python(command) == code_detector.is_python(command.strip())
+            assert runs_as_python(command) == (code_detector.detect(command.strip()).code_type == CodeType.PYTHON)
 
 
 class TestDetectForExecution:
@@ -62,10 +62,9 @@ class TestDetectForExecution:
 
 
 class TestCodeTypeDetector:
-    def test_await_keyword_detected_as_async_python(self) -> None:
+    def test_a_statement_with_await_is_python(self) -> None:
         result = code_detector.detect("result = await some_func()")
         assert result.code_type == CodeType.PYTHON
-        assert result.is_async is True
         assert result.detection_reason.startswith("python")
 
     def test_python_c_command(self) -> None:
@@ -90,14 +89,6 @@ class TestCodeTypeDetector:
         result = code_detector.detect("python -c something_without_quotes")
         assert result.code_type == CodeType.PYTHON
         assert result.extracted_code == "something_without_quotes"
-        assert "raw fallback" in result.detection_reason
-
-    def test_python_c_raw_fallback_preserves_await_async(self) -> None:
-        """Raw fallback path must still detect await for async-mode dispatch."""
-        cmd = "python3 -c await crazy_unquoted_token"
-        result = code_detector.detect(cmd)
-        assert result.code_type == CodeType.PYTHON
-        assert result.is_async is True
         assert "raw fallback" in result.detection_reason
 
     def test_multiline_python_syntax(self) -> None:
@@ -129,14 +120,6 @@ main()
         code = "echo hello\necho world\nls"
         result = code_detector.detect(code)
         assert result.code_type == CodeType.BASH
-
-    def test_is_python_convenience(self) -> None:
-        assert code_detector.is_python("result = await func()") is True
-        assert code_detector.is_python("ls -la") is False
-
-    def test_is_bash_convenience(self) -> None:
-        assert code_detector.is_bash("ls -la") is True
-        assert code_detector.is_bash("result = await func()") is False
 
     def test_python_with_for_loop(self) -> None:
         code = """
@@ -221,15 +204,6 @@ print("done")
         assert result.code_type == CodeType.BASH
         assert result.detection_reason == "default to bash"
 
-    def test_python_c_with_await_extracts_then_detects_async(self) -> None:
-        """python -c extraction takes priority; await is detected in extracted code."""
-        cmd = 'python -c "result = await some_func()"'
-        result = code_detector.detect(cmd)
-        assert result.code_type == CodeType.PYTHON
-        assert result.is_async is True
-        assert "python -c" in result.detection_reason
-        assert result.extracted_code == "result = await some_func()"
-
     def test_cat_heredoc_extracted_as_python(self) -> None:
         cmd = (
             "cat > /tmp/query.py << 'EOF'\n"
@@ -308,10 +282,6 @@ class TestRoutingBySyntaxTree:
         assert code_detector.detect(python_opening).code_type == CodeType.PYTHON
         assert code_detector.detect(no_python_opening).code_type == CodeType.BASH
         assert code_detector.detect("echo " + "a" * 40_000).code_type == CodeType.BASH
-
-    def test_a_top_level_await_is_reported_as_async_for_the_executor(self) -> None:
-        assert code_detector.detect("result = await f()\nprint(result)").is_async is True
-        assert code_detector.detect("import os\nprint(os.getcwd())").is_async is False
 
 
 # Parses a command whose string holds an invalid Python escape (``"\\d+"``): the compiler warns for every parse of it.

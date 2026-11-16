@@ -9,7 +9,6 @@ Kept apart from ``bash_code_execute_tool.py`` so the tool factory stays focused 
 - DEFAULT_BASH_TOOL_DESCRIPTION_LOCALE: Default English locale constant ("en")
 - TOOL_DESCRIPTION_EN: English tool description SSOT
 - TOOL_DESCRIPTION_ZH: Chinese tool description SSOT
-- TOOL_DESCRIPTION: Backward compatibility alias to Chinese description
 - resolve_bash_code_execute_tool_description(): Locale-aware resolver
 
 [POS]
@@ -219,9 +218,6 @@ When output/wait returns `waiting_for_input=true`, check `input_wait_hint` and r
 Background scripts can emit `echo 'MYRM_PROGRESS {"percent": 42, "message": "Compiling"}'` (or `{"current": 3, "total": 10}`) to automatically update UI progress bars without LLM turns. Use `MYRM_CHECKPOINT {"message": "..."}` for checkpoints.
 """.strip()
 
-# Backward-compatible alias for existing imports expecting Chinese constant
-TOOL_DESCRIPTION: Final[str] = TOOL_DESCRIPTION_ZH
-
 
 def resolve_bash_code_execute_tool_description(
     locale: str | None = DEFAULT_BASH_TOOL_DESCRIPTION_LOCALE,
@@ -237,7 +233,6 @@ def resolve_bash_code_execute_tool_description(
 
 __all__ = [
     "DEFAULT_BASH_TOOL_DESCRIPTION_LOCALE",
-    "TOOL_DESCRIPTION",
     "TOOL_DESCRIPTION_EN",
     "TOOL_DESCRIPTION_ZH",
     "resolve_bash_code_execute_tool_description",

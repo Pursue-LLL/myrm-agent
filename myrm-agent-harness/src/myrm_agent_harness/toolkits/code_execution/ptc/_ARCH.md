@@ -56,7 +56,7 @@ Child Process ← myrm_tools.py (generated stubs for allowed tools only)
 4. **Security-first** — Env scrubbing removes all secrets, recursive PTC blocked, terminal params filtered.
 5. **Middleware reuse** — Dispatcher calls tool.ainvoke() which flows through tool_interceptor_middleware guards.
 6. **Project mode** — When enabled, child process runs in user workspace with venv python, allowing import of project dependencies (pandas, numpy, etc.). Resolves paths at runtime from executor ContextVar.
-7. **Prompt contract** — Bash `TOOL_DESCRIPTION` teaches Pure Script + MCP `skills.*/tools.*` batch; single-step work uses native tools. DW orchestration uses inject_ptc with spawn/notify only.
+7. **Prompt contract** — The bash tool description (`TOOL_DESCRIPTION_EN` / `TOOL_DESCRIPTION_ZH`) teaches raw Python source as the command, with skill/MCP calls batched through `asyncio.gather`; single-step work uses native tools. DW orchestration uses inject_ptc with spawn/notify only.
 
 ## Dependencies
 
