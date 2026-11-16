@@ -19,7 +19,7 @@ import logging
 import traceback
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from myrm_agent_harness.toolkits.tasks import (
     ErrorRecoverability,
@@ -37,6 +37,9 @@ from app.tasks.metrics import (
     task_succeeded_total,
     task_timeout_total,
 )
+
+if TYPE_CHECKING:
+    from prometheus_client import Counter, Histogram
 
 logger = logging.getLogger(__name__)
 
@@ -100,18 +103,18 @@ class TaskWorker:
         self._wake = asyncio.Event()
 
     @staticmethod
-    def _safe_counter_inc(counter: object, **labels: str) -> None:
+    def _safe_counter_inc(counter: "Counter", **labels: str) -> None:
         """Best-effort metric increment that never blocks task execution."""
         try:
-            counter.labels(**labels).inc()  # type: ignore[attr-defined]
+            counter.labels(**labels).inc()
         except Exception as exc:  # pragma: no cover - defensive metrics guard
             logger.debug("Failed to increment task metric: %s", exc)
 
     @staticmethod
-    def _safe_histogram_observe(histogram: object, value: float, **labels: str) -> None:
+    def _safe_histogram_observe(histogram: "Histogram", value: float, **labels: str) -> None:
         """Best-effort histogram observe that never blocks task execution."""
         try:
-            histogram.labels(**labels).observe(value)  # type: ignore[attr-defined]
+            histogram.labels(**labels).observe(value)
         except Exception as exc:  # pragma: no cover - defensive metrics guard
             logger.debug("Failed to observe task metric: %s", exc)
 
