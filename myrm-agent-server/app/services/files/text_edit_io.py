@@ -13,10 +13,10 @@
 - VersionConflict / NotEditable / InvalidContent / WriteBlocked: save outcomes for the API layer
 
 [POS]
-Business-layer I/O behind the human editor of the workspace file browser. The agent has read, full-read
-and version gates (FileIntegrityGuard); this gives the editor the same guarantee: a save is refused when
-the file changed since it was read, and everything the user did not touch stays byte-identical (line
-endings, BOM, permissions). Files the editor cannot round-trip exactly are read-only. No HTTP types.
+Business-layer I/O behind the human editor of the workspace file browser. The agent has read and version gates
+(FileIntegrityGuard); this gives the editor the same guarantee: a save is refused when the file changed since it
+was read, and everything the user did not touch stays byte-identical (line endings, BOM, permissions). Files the
+editor cannot round-trip exactly are read-only. No HTTP types.
 """
 
 from __future__ import annotations

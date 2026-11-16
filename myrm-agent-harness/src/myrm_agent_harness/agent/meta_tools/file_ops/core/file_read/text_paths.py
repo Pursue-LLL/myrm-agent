@@ -22,6 +22,8 @@
 Text read execution for file_read_tool; multimodal.py delegates its text paths and structure outlines here.
 ``preview`` and ``stream`` open files themselves, so they pass the service's path gate and the spawn's capability
 scope first; a refused path is read through the service, which words the refusal exactly as it does for ``all``.
+Neither records a read for the edit gate: a file the model saw only through them is edited after a read through the
+service.
 """
 
 from __future__ import annotations
@@ -42,7 +44,6 @@ from ...constants import MAX_RANGED_READ_SIZE_BYTES
 from ...streaming import read_file_chunked, read_file_preview
 from ...utils.vault_read import path_base
 from ...validators.path_validator import PathValidator
-from ..file_integrity_guard import get_file_integrity_guard
 from ..file_operation_service import FileOperationService
 from ..operation_context import OperationContext, OperationType
 from ..parked_file_view import is_parked_path, page_token_budget, parked_page_chars
@@ -313,16 +314,10 @@ async def process_text_paths(
                 effective_mode = "all"
 
             if effective_mode == "preview":
-                guard = get_file_integrity_guard(executor)
-                if guard is not None:
-                    guard.record_read_marker(str(workspace_path))
                 content = await read_file_preview(workspace_path)
                 content = _clamp_multiline(content, DEFAULT_FILE_IO_CONFIG.max_read_line_length)
                 text_content_parts.append(f"=== {base_path_str} (preview mode) ===\n{content}")
             elif effective_mode == "stream":
-                guard = get_file_integrity_guard(executor)
-                if guard is not None:
-                    guard.record_read_marker(str(workspace_path))
                 content = await _read_stream_page(workspace_path, base_path_str, config=config)
                 text_content_parts.append(f"=== {base_path_str} ===\n{content}")
             else:

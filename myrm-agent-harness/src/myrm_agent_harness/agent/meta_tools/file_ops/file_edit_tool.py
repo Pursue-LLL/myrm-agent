@@ -78,14 +78,14 @@ class FileEditInput(BaseModel):
 
 _FILE_EDIT_TOOL_DESCRIPTION_ZH = (
     "用精确文本替换编辑文件。请始终使用本工具，而不是 bash sed/awk/perl。"
-    "编辑已有文件前，先用 file_read_tool 读取一次（普通读取：不带行号范围、不用 preview/stream，这两类读取不算）。"
+    "编辑已有文件前，先用 file_read_tool 读取一次（带行号范围的读取也算；preview/stream 不算）。"
     "本会话中自己创建或编辑过的文件无需重新读取。"
 )
 
 _FILE_EDIT_TOOL_DESCRIPTION_EN = (
     "Edit a file with exact-text replacements. Always use this instead of bash sed/awk/perl. "
-    "Before editing an existing file, read it once with file_read_tool (plain read: no line range, not preview/stream; "
-    "those do not count). A file you created or edited earlier in this session needs no re-read."
+    "Before editing an existing file, read it once with file_read_tool (a line-range read counts; preview and stream "
+    "do not). A file you created or edited earlier in this session needs no re-read."
 )
 
 

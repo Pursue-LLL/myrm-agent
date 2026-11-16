@@ -3,7 +3,7 @@
 > **术语**：下文 **「工具」= LLM 工具**（Action Tool）。§4.18 所列编排信号**不是** LLM 工具，不计入 LLM 工具总数（见文末 `TOOL_COUNT` 自动生成块）。
 
 > 测量方法：`tiktoken o200k_base` 规划 SSOT（`utils/text_utils.PLANNING_ENCODING`；与 GPT-5 / GPT-4o 族一致）
-> 测量时间：2026-11-14（`scripts/measure_turn1_token_inventory.py`、`scripts/measure_tool_schema_tokens.py`）。§二、§三 的 Turn-1 默认 13 个工具由漂移门禁逐项锁定；§一 的各分量与合计按当前源码测得；§四 的 37 个 EXTENDED 工具与 §4.24 的 5 个 server 工具：各工具经 `create_*` 工厂构造（后端用 stub），取 `tool.description` 的 o200k_base token 数；`delegate_task_tool` 的描述含运行期 sub-agent 名册，只计固定部分（空名册）；`image_tool` / `video_tool` / `tts_generate` 的描述不含运行期模型名与供应商名，数值不随所选模型变化；§4.18 的编排信号不是 LLM 工具，只记其描述；§四 各行都不由测试锁定
+> 测量时间：2026-11-16（`scripts/measure_turn1_token_inventory.py`、`scripts/measure_tool_schema_tokens.py`）。§二、§三 的 Turn-1 默认 13 个工具由漂移门禁逐项锁定；§一 的各分量与合计按当前源码测得；§四 的 37 个 EXTENDED 工具与 §4.24 的 5 个 server 工具：各工具经 `create_*` 工厂构造（后端用 stub），取 `tool.description` 的 o200k_base token 数；`delegate_task_tool` 的描述含运行期 sub-agent 名册，只计固定部分（空名册）；`image_tool` / `video_tool` / `tts_generate` 的描述不含运行期模型名与供应商名，数值不随所选模型变化；§4.18 的编排信号不是 LLM 工具，只记其描述；§四 各行都不由测试锁定
 > 测量宿主：macOS 25.5.0 / arm64 / bash（bash 工具描述里的 OS hint、toolchain 探测行与 VNC 行随宿主变化，见 §二 标注）
 > 测量对象：默认通用智能体，Turn 1 初始化时的完整 prompt 结构；`prompt_mode=full`、`enable_answer_tool=False`（server 默认）、locale EN（工具描述为主，prompt 主体见 §一 双列）
 > 漂移门禁：`tests/scripts/test_measure_turn1_token_inventory.py` 锁定 Turn-1 默认 13 个工具（§二、§三）的逐工具数值，`tests/architecture/test_prompt_token_budget_gate.py` 锁定预算上限；server 仓 `tests/architecture/test_first_turn_static_prompt_budget.py` 按语言锁定静态首轮 system 消息
@@ -57,13 +57,13 @@
 | 4a | web_fetch_tool | 92 | `harness/toolkits/web_fetch/web_fetch_agent_tools.py` | HTTP 抓取/深读（默认只读全文，含 PDF/DOCX/XLSX/PPTX；同时配置 reranker 与 embedding 时提供 fetch_and_extract，描述为 272）。描述不提浏览器工具：「只读优先 web_fetch」的路由提示只在浏览器一侧，挂载 `web_fetch_tool` 时由 `browser_navigate_tool` 的 Dynamic Hints 追加 | Turn1 基线 |
 | 6 | **bash_code_execute_tool** | **1,452** | `harness/agent/meta_tools/bash/_tool/tool_description.py` + `_tool/helpers.py:79` | Shell/Python。**宿主相关**：静态描述 1,395（宿主无关）+ OS hint（含 `os_release`/`arch`，见 `platform.py:116-122`；macOS arm64 58 / ubuntu-latest 32 / 各发行版实测 31–60）+ 可选 toolchain 探测行（干净环境为 0）+ 可选 VNC 视觉桌面行（只有带 DISPLAY、x11vnc 与 websockify 的 Linux 沙箱才有，约 56，示意值，其余宿主为 0）。拼接处 BPE 合并使实测总数比两段之和少 1（1,395+58=1,453，实测 1,452） | 通用 Agent 基线 |
 | 6b | **bash_process_tool** | **107** | `harness/agent/meta_tools/bash/bash_process_tools.py` | 后台进程 list/output/kill（CORE；与 bash_code_execute 同挂） | enable_shell_tools |
-| 7 | file_edit_tool | 66 | `harness/agent/meta_tools/file_ops/file_edit_tool.py` | 批量 edits[] 原子编辑；编辑已有文件前须先普通读取一次（本会话自己创建或编辑过的免读） | 通用 Agent 基线 |
+| 7 | file_edit_tool | 61 | `harness/agent/meta_tools/file_ops/file_edit_tool.py` | 批量 edits[] 原子编辑；编辑已有文件前须先读取一次（带行号范围的读取也算，preview/stream 不算；本会话自己创建或编辑过的免读） | 通用 Agent 基线 |
 | 8 | file_read_tool | 47 | `harness/agent/meta_tools/file_ops/file_read_tool.py` | 读取文件/目录（批量、行号范围、多模态、vault 与 MCP 路径）；参数语义写在 schema 里，描述只留能力范围与网页 URL 的去向 | 通用 Agent 基线 |
 | 9 | file_write_tool | 39 | `harness/agent/meta_tools/file_ops/file_write_tool.py` | 仅创建新文件（缺失的父目录自动创建；路径已存在则拒绝，改用 file_edit_tool） | 通用 Agent 基线 |
 | 10 | glob_tool | 201 | `harness/agent/meta_tools/file_search/glob_tool.py` | 通配符搜索 | 通用 Agent 基线 |
 | 11 | grep_tool | 205 | `harness/agent/meta_tools/file_search/grep_tool.py` | 正则搜索 | 通用 Agent 基线 |
 
-**CORE 描述小计（Turn1）**：**2,209 tokens**（8 工具，macOS arm64 实测；`scripts/measure_turn1_token_inventory.py`）。Linux 宿主因 OS hint 更短而为 2,183（ubuntu-latest 口径）。
+**CORE 描述小计（Turn1）**：**2,204 tokens**（8 工具，macOS arm64 实测；`scripts/measure_turn1_token_inventory.py`）。Linux 宿主因 OS hint 更短而为 2,178（ubuntu-latest 口径）。
 
 ---
 
@@ -286,14 +286,14 @@ Token 明细（tiktoken o200k_base）：
 | 分类 | Token (tiktoken) | 明细 |
 |------|------------------:|------|
 | System Prompt 层 | **1,946** | `messages[0]` 1,173（ZH · full，跨用户缓存）+ widget 能力声明 348 + 跟随用户输入的 canary ≈53、安全边界 299 与可访问目录 ≈73 |
-| CORE 工具层 | **2,209** | 8 工具描述（含 bash_process；`measure_turn1_token_inventory.py` 实测，o200k_base） |
+| CORE 工具层 | **2,204** | 8 工具描述（含 bash_process；`measure_turn1_token_inventory.py` 实测，o200k_base） |
 | HIGH_PRIORITY 工具层 | **2,445** | web_search + memory×3 + skill_select |
 | EXTENDED 工具层 | **0** | harness 基线无附加（见表后注） |
 | schema wrapper 包装 | **845** | 13 工具 × 65（仅 API 包装，不含参数 schema） |
 | 动态注入 | ~1,200 | user_instructions + memory_context + inline_skills |
 | 消息格式 | ~500 | role tags, boundaries 等 |
 | 用户消息 | ~32 | 短消息 + datetime 标签 |
-| **tiktoken 小计** | **~9,180** | |
+| **tiktoken 小计** | **~9,170** | |
 
 > 本表是 harness 基线：`measure_turn1_token_inventory.py` 只构建默认的 13 个工具，EXTENDED 行为 0。server 的交互式 Web chat 另挂 `ask_question_tool`（EXTENDED，描述 316，见 §四 #26）：`structured_clarify` 默认开，挂载条件为非无人值守、`prompt_mode` 非 search、渠道为 web_chat，按 Turn1 绑定；该工具的描述与 wrapper 不在上表小计内。
 
@@ -302,18 +302,18 @@ Token 明细（tiktoken o200k_base）：
 | 分类 | Token (tiktoken) |
 |------|------------------:|
 | System Prompt 层 | **1,946** |
-| CORE 工具层 | **2,209** |
+| CORE 工具层 | **2,204** |
 | schema wrapper 包装 | **520** (8 工具 × 65) |
 | 用户消息 | ~32 |
 | 消息格式 | ~300 |
-| **tiktoken 小计** | **~5,010** |
+| **tiktoken 小计** | **~5,000** |
 
 ### 满载场景（全部已登记 LLM 工具同轮 bind：浏览器+Cron+Wiki+子Agent+看板+桌面控制+IM 通知+媒体生成+发布）
 
 | 分类 | Token (tiktoken) |
 |------|------------------:|
 | System Prompt 层 | **1,946** |
-| CORE 工具层 | **2,209** |
+| CORE 工具层 | **2,204** |
 | HIGH_PRIORITY 工具层 | **2,445** |
 | EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,502（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,043 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,575** (55 工具 × 65) |
@@ -328,7 +328,7 @@ Token 明细（tiktoken o200k_base）：
 ## 缓存分层效果
 
 ```
-[CORE: web_fetch + bash + file_* + glob + grep (~2,209 tok, 8 tools)]
+[CORE: web_fetch + bash + file_* + glob + grep (~2,204 tok, 8 tools)]
   ↑ 通用 Agent 基线前缀（agent 模式）
 
 [HIGH_PRIORITY: web_search + memory_* + skill_select (~2,445 tok)]
@@ -350,15 +350,15 @@ Token 明细（tiktoken o200k_base）：
   ↑ 同用户会话内稳定
 ```
 
-**实测 Turn1 工具层合计**：描述 **4,654** + schema wrapper **845** = **5,499 tokens**（13 工具，`measure_turn1_token_inventory.py`，o200k_base，macOS arm64 宿主，bash OS hint 57）。宿主无关口径下 bash 计入静态描述 1,395，为 **5,442**——CI 门禁以该口径判定，见下方门禁表。
+**实测 Turn1 工具层合计**：描述 **4,649** + schema wrapper **845** = **5,494 tokens**（13 工具，`measure_turn1_token_inventory.py`，o200k_base，macOS arm64 宿主，bash OS hint 57）。宿主无关口径下 bash 计入静态描述 1,395，为 **5,437**——CI 门禁以该口径判定，见下方门禁表。
 
-> **口径边界（重要）**：`5,499` 为「描述 + wrapper 包装」口径，**不含工具参数 schema**。参数 schema 是真实发送给模型的 payload 一部分，全量口径见 `measure_tool_schema_tokens.py`（其 `Turn-1 Total Budget` = 描述 **4,654** + 参数 schema + wrapper **845**）。下方各 Turn-1 场景表的「schema wrapper 包装」行与 harness 门禁阈值均沿用「描述 + wrapper」口径，与 `estimate_tool_descriptions_tokens`（`utils/token_estimation.py`）一致；运行时的上下文预算与压缩预检用含参数 schema 的 `estimate_request_tools_tokens`（`agent/middlewares/context_pipeline/context_pipeline_helpers.py`），并以 provider 实测 `prompt_tokens` 为准（`estimate_context_tokens` 取 `max(estimate, provider)`）。
+> **口径边界（重要）**：`5,494` 为「描述 + wrapper 包装」口径，**不含工具参数 schema**。参数 schema 是真实发送给模型的 payload 一部分，全量口径见 `measure_tool_schema_tokens.py`（其 `Turn-1 Total Budget` = 描述 **4,649** + 参数 schema + wrapper **845**）。下方各 Turn-1 场景表的「schema wrapper 包装」行与 harness 门禁阈值均沿用「描述 + wrapper」口径，与 `estimate_tool_descriptions_tokens`（`utils/token_estimation.py`）一致；运行时的上下文预算与压缩预检用含参数 schema 的 `estimate_request_tools_tokens`（`agent/middlewares/context_pipeline/context_pipeline_helpers.py`），并以 provider 实测 `prompt_tokens` 为准（`estimate_context_tokens` 取 `max(estimate, provider)`）。
 
 **CI 门禁（横跨 harness / server 两仓）**：
 
 | 仓 | 门禁文件 | 锁定项 |
 |----|----------|--------|
-| harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **5,442**，余量 1,058：bash 计入静态 1,395、不计宿主 OS hint；live hint 另锁 ≤ 180（OS 与 toolchain 约 100，沙箱的 VNC 行 57）。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 301（实测 286 + 5%）/ `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 314（实测 299 + 5%）/ `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
+| harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **5,437**，余量 1,063：bash 计入静态 1,395、不计宿主 OS hint；live hint 另锁 ≤ 180（OS 与 toolchain 约 100，沙箱的 VNC 行 57）。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 301（实测 286 + 5%）/ `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 314（实测 299 + 5%）/ `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
 | harness | `tests/scripts/test_measure_turn1_token_inventory.py` | 逐工具描述 token 与 §二/§三 表格一致（漂移即失败并指出工具名）；`bash_code_execute` 的宿主相关 OS hint 单独扣减，上限判定同样以静态 1,395 计，故 macOS 与 Linux CI 结果一致 |
 | server | `tests/ai_agents/test_prompt_integrity.py:152-175`（`cl100k_base`，仅英文 CORE） | CORE full ≤ **2,000** |
 | server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE + 时间规则 + 核心行为规则 + web_chat 渠道提示（为空），所有模型相同）按面与 zh-CN / en 封顶，上限为固定值，比当前实测高 3.7%–4.5%（通用 full：zh-CN **1,217**（实测 1,171）/ en **1,022**（实测 986）；快速搜索：zh-CN **2,316**（实测 2,217）/ en **1,570**（实测 1,508）；深度搜索：zh-CN **2,453**（实测 2,348）/ en **1,688**（实测 1,620））；`<widget_capability>` ≤ **366**（实测 348）。与上表 `messages[0]` 同一组分量，按拼接后的整段计数，与分量求和相差几个 token |

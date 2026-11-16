@@ -74,7 +74,7 @@ class ToolLayer(IntEnum):
 
 - **特征**: 通用 Agent 基线，Turn1 eager；无产品级工具开关（Fast 模式由 `resolve_agent_mount(WEB_FAST)` 关闭 bash 与文件写入类工具，只留只读 `file_read_tool`；`web_fetch_tool` 另受 Agent Security 能力白名单约束，见下）
 - **工具数量**: **8**（`tool_layers.py:72-79`）
-- **Token 消耗**: 描述合计 2,209 tokens（8 工具，macOS arm64 实测；见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
+- **Token 消耗**: 描述合计 2,204 tokens（8 工具，macOS arm64 实测；见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
 
 | 工具名 | 常驻理由 |
 |--------|----------|
@@ -369,8 +369,8 @@ const staleCoreSkills = useMemo(() => {
 
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
-| 最小场景 | 8 个 | ~5,010 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
-| 典型场景 | 13 个 | ~9,180 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
+| 最小场景 | 8 个 | ~5,000 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
+| 典型场景 | 13 个 | ~9,170 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
 | 满载场景 | 55 个 | ~18,400（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
@@ -378,7 +378,7 @@ const staleCoreSkills = useMemo(() => {
 | 组件 | Token | 缓存特性 |
 |------|------:|---------|
 | System Prompt 层 | ~1,946 | `messages[0]` 1,173（跨用户共享缓存）+ widget 能力声明 348 + 跟随用户输入的 canary ≈53、安全边界 299 与可访问目录 ≈73 |
-| CORE 工具层 | ~2,209 | 始终缓存 |
+| CORE 工具层 | ~2,204 | 始终缓存 |
 | HIGH_PRIORITY 工具层 | ~2,445 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |
 | schema wrapper 包装 | ~845 | 13 工具 × 65（仅 API 包装，**不含**参数 schema；参数 schema 约 3,780，`measure_tool_schema_tokens.py` 实测） |
@@ -392,13 +392,13 @@ const staleCoreSkills = useMemo(() => {
 
 ### 7.1 始终加载 (Always Load)
 
-Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,183、合计 5,473，均按 OS hint 差 26 折算）：
+Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,178、合计 5,468，均按 OS hint 差 26 折算）：
 
 | 层级 | 数量 | 描述 Token | 工具 |
 |------|-----:|----------:|------|
-| CORE | 8 | 2,209 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
+| CORE | 8 | 2,204 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
 | HIGH_PRIORITY | 5 | 2,445 | `web_search` + `memory_search/save/manage` + `skill_select` |
-| **合计** | **13** | **4,654** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 5,499**；参数 schema 另计约 3,780（`measure_tool_schema_tokens.py` 实测） |
+| **合计** | **13** | **4,649** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 5,494**；参数 schema 另计约 3,780（`measure_tool_schema_tokens.py` 实测） |
 
 ### 7.2 条件加载 (Conditional Load)
 

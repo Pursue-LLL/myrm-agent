@@ -28,6 +28,31 @@ import {
 import { requireE2eChatBridge } from '@/components/dev/e2eBridge/hostEnv';
 import type { E2eBridgeMembers } from '@/components/dev/e2eBridge/members/types';
 
+interface SendTurnOptions {
+  baselineUserCount?: number;
+  preserveActionMode?: boolean;
+  profile?: SendTurnProfile;
+  ephemeralSubagents?: Record<string, unknown>;
+}
+
+/** One send through the product pipeline; the result is also kept on the bridge as `lastSubmitResult`. */
+async function runSend(text: string, opts?: SendTurnOptions): Promise<E2eSubmitResult> {
+  const baselineUsers =
+    typeof opts?.baselineUserCount === 'number'
+      ? opts.baselineUserCount
+      : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
+  const profile = opts?.profile === 'read' ? 'read' : 'live';
+  const result = await submitAndObserveTurn(
+    text,
+    baselineUsers,
+    profile,
+    opts?.preserveActionMode === true,
+    opts?.ephemeralSubagents,
+  );
+  requireE2eChatBridge().lastSubmitResult = result;
+  return result;
+}
+
 export function createSendMembers(): E2eBridgeMembers {
   return {
     submitSteerNudge: async (message: string) => {
@@ -62,78 +87,17 @@ export function createSendMembers(): E2eBridgeMembers {
         ? { ok: true, mode: 'steerSendFallback', detail: result }
         : { ok: false, err: 'steer-fallback-send-failed', detail: result };
     },
-    sendChatMessage: async (
-      text: string,
-      opts?: {
-        baselineUserCount?: number;
-        waitForStreamCompletion?: boolean;
-        preserveActionMode?: boolean;
-        profile?: SendTurnProfile;
-        ephemeralSubagents?: Record<string, unknown>;
-      },
-    ): Promise<E2eSubmitResult> => {
+    sendChatMessage: async (text: string, opts?: SendTurnOptions & { waitForStreamCompletion?: boolean }) => {
       window.__MYRM_E2E_EPH_OPTS__ = {
         hasOpts: Boolean(opts),
         hasEph: Boolean(opts?.ephemeralSubagents),
         keys: opts?.ephemeralSubagents ? Object.keys(opts.ephemeralSubagents) : [],
         at: Date.now(),
       };
-      const baselineUsers =
-        typeof opts?.baselineUserCount === 'number'
-          ? opts.baselineUserCount
-          : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
-      const profile = opts?.profile === 'read' ? 'read' : 'live';
-      const result = await submitAndObserveTurn(
-        text,
-        baselineUsers,
-        profile,
-        opts?.preserveActionMode === true,
-        opts?.ephemeralSubagents,
-      );
-      requireE2eChatBridge().lastSubmitResult = result;
-      return result;
+      return runSend(text, opts);
     },
-    kickoffChatMessage: async (
-      text: string,
-      opts?: {
-        baselineUserCount?: number;
-        preserveActionMode?: boolean;
-        profile?: SendTurnProfile;
-      },
-    ): Promise<E2eSubmitResult> => {
-      const baselineUsers =
-        typeof opts?.baselineUserCount === 'number'
-          ? opts.baselineUserCount
-          : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
-      const profile = opts?.profile === 'read' ? 'read' : 'live';
-      const result = await submitAndObserveTurn(text, baselineUsers, profile, opts?.preserveActionMode === true);
-      requireE2eChatBridge().lastSubmitResult = result;
-      return result;
-    },
-    submitAndObserveTurn: async (
-      text: string,
-      opts?: {
-        baselineUserCount?: number;
-        preserveActionMode?: boolean;
-        profile?: SendTurnProfile;
-        ephemeralSubagents?: Record<string, unknown>;
-      },
-    ): Promise<E2eSubmitResult> => {
-      const baselineUsers =
-        typeof opts?.baselineUserCount === 'number'
-          ? opts.baselineUserCount
-          : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
-      const profile = opts?.profile === 'read' ? 'read' : 'live';
-      const result = await submitAndObserveTurn(
-        text,
-        baselineUsers,
-        profile,
-        opts?.preserveActionMode === true,
-        opts?.ephemeralSubagents,
-      );
-      requireE2eChatBridge().lastSubmitResult = result;
-      return result;
-    },
+    kickoffChatMessage: runSend,
+    submitAndObserveTurn: runSend,
     handleSubmit: async () => {
       const resolveMessage = (): string => {
         const fromStore = useChatStore.getState().inputMessage.trim();
