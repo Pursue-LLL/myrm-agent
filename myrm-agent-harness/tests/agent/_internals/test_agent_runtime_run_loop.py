@@ -227,8 +227,8 @@ class TestEffectiveRoundBudget:
     def test_explicit_budget_is_counted_two_steps_a_round(self) -> None:
         """Raising a configured budget would override what the operator asked for.
 
-        ``AgentConfig.from_env`` maps ``MYRM_RECURSION_LIMIT`` onto ``recursion_limit`` and the builders map
-        ``max_iterations * 2`` and ``max_turns * 2``: the steps of a bare model/tools loop, two a round.
+        The builders map ``max_iterations * 2`` and ``max_turns * 2`` onto ``recursion_limit``: the steps of
+        a bare model/tools loop, two a round.
         """
         from myrm_agent_harness.agent._internals._agent_helpers import effective_round_budget
 

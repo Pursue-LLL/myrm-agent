@@ -65,7 +65,7 @@
 | Agent 行为 | API / YAML / Pydantic | `AgentConfig`、`LLMConfig`、技能开关、`mcp_surface_mode` |
 | 基础设施路径 | 可选环境变量，由部署层注入 | `MYRM_DATA_DIR`、`MYRM_PERSISTENT_ROOT`、`MYRM_LOCALES_DIR`、`MYRM_GATEWAY_*` |
 
-框架不隐式读取 Agent 行为环境变量；`LLMConfig.from_env()` 与 `AgentConfig.from_env()` 仅在调用方显式调用时生效。
+框架不隐式读取 Agent 行为环境变量；`LLMConfig.from_env()` 仅在调用方显式调用时生效。
 
 路径规则：Myrm 自有的持久化路径都从同一个状态根派生，状态根只有一个解析入口 `infra/data_dir.py::resolve_data_dir()`（`MYRM_DATA_DIR`，未设置时 `~/.myrm`；server 经 `myrm_agent_harness.api` 导出的同名函数使用）。云沙箱里按沙箱区分的状态用同文件的 `resolve_workspace_state_dir()`：显式设置了 `MYRM_DATA_DIR` 就用它，否则存在 `/workspace/` 时落 `/workspace/.myrm`，再否则 `~/.myrm`。
 
