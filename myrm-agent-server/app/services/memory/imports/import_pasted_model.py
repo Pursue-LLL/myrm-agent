@@ -26,6 +26,7 @@ from app.services.memory.imports.import_adapter_utils import (
     build_metadata,
     build_result,
     iso_or_now,
+    rule_fields,
 )
 from app.services.memory.imports.import_pasted import (
     BUCKET_PROCEDURAL,
@@ -121,6 +122,7 @@ def _model_item(raw: dict[str, object], *, content: str, bucket: str) -> dict[st
         item["tags"] = ["pasted_memory", "profile"]
         return item
     if bucket == BUCKET_PROCEDURAL:
+        item.update(rule_fields(content, raw.get("trigger")))
         item["tags"] = ["pasted_memory", "rule"]
         return item
     item["importance"] = _bounded_float(raw.get("importance"), default=0.7)

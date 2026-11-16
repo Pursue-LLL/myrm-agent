@@ -35,6 +35,7 @@ from app.services.memory.imports.import_adapter_utils import (
     build_metadata,
     build_result,
     iso_or_now,
+    rule_fields,
 )
 from app.services.memory.imports.secret_scrubber import scrub_sensitive_data
 
@@ -362,6 +363,7 @@ def _entry_item(entry: _ParsedEntry) -> dict[str, object]:
     if entry.bucket == BUCKET_PROCEDURAL:
         return {
             "content": entry.content,
+            **rule_fields(entry.content),
             "tags": ["pasted_memory", "rule"],
             "created_at": created_at,
             "metadata": metadata,
