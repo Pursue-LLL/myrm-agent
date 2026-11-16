@@ -1,5 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.core.security.http.secure_fetch::secure_request (POS: SSRF-guarded HTTP fetch)
+- myrm_agent_harness.toolkits.llms.transport.profile::endpoint_of (POS: the one grammar for a pasted endpoint address)
 - myrm_agent_harness.infra.tls_compat::create_httpx_client (POS: TLS-compatible httpx client)
 - app.config.deploy_mode::is_local_mode (POS: local/desktop deploy mode)
 
@@ -10,8 +11,10 @@
   _is_trusted_split_stack_host
 
 [POS]
-Model discovery endpoint. Derives candidate endpoints from whatever URL the user pasted and decides
-which hosts local/desktop deployments may probe without a key, while blocking cloud metadata.
+Model discovery endpoint. Derives candidate endpoints from whatever URL the user pasted (read by the same grammar
+the chat call uses, so a probe and a call reach the same root) and decides which hosts local/desktop deployments
+may probe without a key, while blocking cloud metadata. A scheme-less address is refused rather than guessed as
+``http://``: the probe sends the key, and a guess would send it unencrypted to a remote host.
 """
 
 from __future__ import annotations
@@ -25,6 +28,8 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import secure_request
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
+from myrm_agent_harness.toolkits.llms.transport.endpoint import Endpoint
+from myrm_agent_harness.toolkits.llms.transport.profile import ProviderProfile, endpoint_of
 from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
@@ -36,36 +41,15 @@ from .common import _LOCAL_NO_AUTH_KEY_MARKER, router
 _MODELS_DISCOVERY_TIMEOUT_S = 8.0
 
 
-_KNOWN_ENDPOINT_SUFFIXES = (
-    "/chat/completions",
-    "/completions",
-    "/embeddings",
-    "/models",
-)
+_OPENAI_COMPATIBLE = ProviderProfile(id="openai_compatible")
 
 
-def _normalize_api_base(raw_url: str) -> str:
-    candidate = raw_url.strip()
-    if not candidate:
+def _normalize_api_base(raw_url: str) -> Endpoint:
+    """The root and query of the pasted address; raises ValueError when it is empty or not an http(s) URL."""
+    endpoint = endpoint_of(_OPENAI_COMPATIBLE, raw_url)
+    if endpoint is None:
         raise ValueError("API URL is required")
-
-    if "://" not in candidate:
-        candidate = f"http://{candidate}"
-
-    parsed = urlparse(candidate)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError("API URL must use http or https")
-    if not parsed.netloc:
-        raise ValueError("API URL must include a hostname")
-
-    path = parsed.path.rstrip("/")
-    for suffix in _KNOWN_ENDPOINT_SUFFIXES:
-        if path.endswith(suffix):
-            path = path[: -len(suffix)]
-            break
-
-    normalized = parsed._replace(path=path, params="", query="", fragment="")
-    return urlunparse(normalized).rstrip("/")
+    return endpoint
 
 
 def _build_models_candidates(base_url: str) -> list[str]:
@@ -185,7 +169,7 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
     """
 
     try:
-        normalized_api_url = _normalize_api_base(request.api_url)
+        endpoint = _normalize_api_base(request.api_url)
     except ValueError as exc:
         result = ModelDiscoveryResult(
             success=False,
@@ -194,6 +178,7 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
         )
         return success_response(data=result.model_dump())
 
+    normalized_api_url = endpoint.root
     parsed = urlparse(normalized_api_url)
     is_split_stack = _is_trusted_split_stack_host(parsed.hostname)
     api_key = (request.api_key or "").strip()
@@ -235,6 +220,7 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
                     "GET",
                     models_url,
                     headers=headers,
+                    params=dict(endpoint.query) or None,
                     timeout=_MODELS_DISCOVERY_TIMEOUT_S,
                     allowed_internal_hosts=allowed_hosts,
                 )

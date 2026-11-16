@@ -91,6 +91,13 @@ _OPENAI_COMPATIBLE = [
         "frontend",
     ),
     Shape(
+        "OpenCode Go responses URL",
+        _GENERIC,
+        "https://opencode.ai/zen/go/v1/responses/",
+        "https://opencode.ai/zen/go/v1/chat/completions",
+        "frontend",
+    ),
+    Shape(
         "completions operation",
         _GENERIC,
         "https://host.example/v1/completions",

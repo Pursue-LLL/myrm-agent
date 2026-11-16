@@ -11,7 +11,6 @@ import {
   getRoutedModelName,
   hasActiveApiKey,
   hasUsableProviderAuth,
-  normalizeApiUrl,
   resolveProviderApiKeyForRequests,
   resolveCustomProviderTypeInfo,
 } from '@/store/config/providerTypes';
@@ -78,7 +77,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       return checkModelReachability({
         model: modelFullName,
         api_key: apiKey,
-        base_url: normalizeApiUrl(provider.apiUrl) || null,
+        base_url: provider.apiUrl || null,
         egress_proxy: provider.egressProxy?.trim() || null,
         model_kwargs: {},
       });
@@ -118,7 +117,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
     const result = await checkModelReachability({
       model: modelFullName,
       api_key: requestApiKey,
-      base_url: normalizeApiUrl(provider.apiUrl) || null,
+      base_url: provider.apiUrl || null,
       egress_proxy: provider.egressProxy?.trim() || null,
       model_kwargs: {},
     });

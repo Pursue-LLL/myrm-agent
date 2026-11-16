@@ -67,7 +67,7 @@ def test_discover_models_allows_loopback_no_auth_in_local_mode(client: TestClien
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
-            json={"api_url": "127.0.0.1:8899/v1"},
+            json={"api_url": "http://127.0.0.1:8899/v1"},
         )
         assert secure_request_mock.called
 
@@ -90,7 +90,7 @@ def test_discover_models_allows_loopback_with_explicit_key_in_local_mode(client:
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
-            json={"api_url": "127.0.0.1:8899/v1", "api_key": "sk-local"},
+            json={"api_url": "http://127.0.0.1:8899/v1", "api_key": "sk-local"},
         )
 
     assert response.status_code == 200
@@ -153,6 +153,39 @@ def test_discover_models_external_https_provider(client: TestClient) -> None:
     assert secure_request_mock.await_count >= 1
 
 
+def test_discover_models_sends_the_pasted_query_with_every_probe(client: TestClient) -> None:
+    with (
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.discovery.secure_request",
+            return_value=_json_response({"data": [{"id": "m1"}]}, url="https://93.184.216.34/v1/models"),
+        ) as secure_request_mock,
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "https://gw.example/v1/chat/completions?team=a", "api_key": "sk-test"},
+        )
+
+    payload = response.json()["data"]
+    assert payload["success"] is True
+    assert payload["normalized_api_url"] == "https://gw.example/v1"
+    assert secure_request_mock.call_args.kwargs["params"] == {"team": "a"}
+
+
+def test_discover_models_refuses_a_scheme_less_address_before_sending_the_key(client: TestClient) -> None:
+    with patch("app.api.integrations.llms.discovery.secure_request") as secure_request_mock:
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "api.example.com/v1", "api_key": "sk-test"},
+        )
+
+    payload = response.json()["data"]
+    assert payload["success"] is False
+    assert "absolute http:// or https:// URL" in payload["error"]
+    assert "sk-test" not in json.dumps(payload)
+    secure_request_mock.assert_not_called()
+
+
 def test_local_no_auth_marker_overrides_authorization_header() -> None:
     result = _apply_local_no_auth_marker_transport_overrides(
         {"extra_headers": {"X-Test": "1"}},
@@ -168,25 +201,28 @@ def test_non_marker_preserves_model_kwargs() -> None:
     assert result == original
 
 
-def test_normalize_api_base_adds_scheme_and_strips_suffix(client: TestClient) -> None:
-    """_normalize_api_base: scheme defaulting, endpoint suffix strip, validation."""
+def test_normalize_api_base_reads_the_pasted_address_like_a_chat_call(client: TestClient) -> None:
+    """_normalize_api_base: operation suffix strip, query kept apart, fragment dropped."""
     from app.api.integrations.llms import _normalize_api_base
 
-    assert _normalize_api_base("127.0.0.1:8899/v1/chat/completions") == "http://127.0.0.1:8899/v1"
-    assert _normalize_api_base("https://api.openai.com/v1/models") == "https://api.openai.com/v1"
-    assert _normalize_api_base("http://localhost:8080/v1/") == "http://localhost:8080/v1"
+    assert _normalize_api_base("http://127.0.0.1:8899/v1/chat/completions").root == "http://127.0.0.1:8899/v1"
+    assert _normalize_api_base("https://api.openai.com/v1/models").root == "https://api.openai.com/v1"
+    assert _normalize_api_base("https://api.openai.com/v1/responses").root == "https://api.openai.com/v1"
+    assert _normalize_api_base("http://localhost:8080/v1/").root == "http://localhost:8080/v1"
+    endpoint = _normalize_api_base("https://gw.example/v1/models?team=a#top")
+    assert endpoint.root == "https://gw.example/v1"
+    assert dict(endpoint.query) == {"team": "a"}
 
 
 def test_normalize_api_base_rejects_invalid_inputs() -> None:
-    """_normalize_api_base: empty, non-http scheme, missing hostname raise."""
+    """_normalize_api_base: empty, scheme-less, non-http scheme and missing hostname raise."""
     from app.api.integrations.llms import _normalize_api_base
 
     with pytest.raises(ValueError, match="required"):
         _normalize_api_base("   ")
-    with pytest.raises(ValueError, match="http or https"):
-        _normalize_api_base("ftp://host/v1")
-    with pytest.raises(ValueError, match="hostname"):
-        _normalize_api_base("http:///v1")
+    for invalid in ("127.0.0.1:8899/v1", "ftp://host/v1", "http:///v1"):
+        with pytest.raises(ValueError, match=r"absolute http:// or https:// URL"):
+            _normalize_api_base(invalid)
 
 
 def test_build_models_candidates_path_variants() -> None:
@@ -256,7 +292,7 @@ def test_discover_models_provider_http_error(client: TestClient) -> None:
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
-            json={"api_url": "127.0.0.1:8899/v1"},
+            json={"api_url": "http://127.0.0.1:8899/v1"},
         )
 
     assert response.status_code == 200
@@ -282,7 +318,7 @@ def test_discover_models_invalid_json(client: TestClient) -> None:
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
-            json={"api_url": "127.0.0.1:8899/v1"},
+            json={"api_url": "http://127.0.0.1:8899/v1"},
         )
 
     assert response.status_code == 200
@@ -303,7 +339,7 @@ def test_discover_models_generic_error(client: TestClient) -> None:
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
-            json={"api_url": "127.0.0.1:8899/v1"},
+            json={"api_url": "http://127.0.0.1:8899/v1"},
         )
 
     assert response.status_code == 200
@@ -433,7 +469,7 @@ def test_discover_models_bare_lan_ip_with_port(client: TestClient) -> None:
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
-            json={"api_url": "192.168.1.50:11434/v1"},
+            json={"api_url": "http://192.168.1.50:11434/v1"},
         )
         assert secure_request_mock.called
         assert secure_request_mock.call_args.kwargs["allowed_internal_hosts"] == ["192.168.1.50"]

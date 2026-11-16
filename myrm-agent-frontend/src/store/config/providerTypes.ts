@@ -394,31 +394,3 @@ export const getInitialDefaultModelConfig = (): DefaultModelConfig => ({
   longDocModel: null,
   backgroundEvolutionModel: null,
 });
-
-/**
- * 规范化 API URL
- * 用户可能填入具体端点（如 /v1/chat/completions），需要截取 base URL
- *
- * 例如：
- *   https://api.svips.org/v1/chat/completions → https://api.svips.org/v1
- *   https://api.openai.com/v1/chat/completions → https://api.openai.com/v1
- *   https://api.openai.com/v1 → https://api.openai.com/v1 (不变)
- */
-export const normalizeApiUrl = (url: string): string => {
-  if (!url) {
-    return url;
-  }
-
-  const normalized = url.replace(/\/+$/, '');
-
-  // 已知的端点路径，需要截取
-  const endpointPatterns = ['/chat/completions', '/completions', '/embeddings', '/models', '/responses'];
-
-  for (const pattern of endpointPatterns) {
-    if (normalized.endsWith(pattern)) {
-      return normalized.slice(0, -pattern.length);
-    }
-  }
-
-  return normalized;
-};

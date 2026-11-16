@@ -38,6 +38,7 @@ def test_discover_models_injects_attribution_headers_for_vercel_gateway(client: 
         url: str,
         *,
         headers: dict[str, str],
+        params: dict[str, str] | None = None,
         timeout: float,
         allowed_internal_hosts: list[str] | None = None,
     ) -> httpx.Response:
@@ -78,6 +79,7 @@ def test_discover_models_does_not_inject_attribution_headers_for_other_endpoints
         url: str,
         *,
         headers: dict[str, str],
+        params: dict[str, str] | None = None,
         timeout: float,
         allowed_internal_hosts: list[str] | None = None,
     ) -> httpx.Response:
