@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MyrmAgent</title>
     <style>
+      /* WKWebView on macOS ignores the bare user-select, and before Safari 18 backdrop-filter needs the
+         -webkit- spelling too (the bundle runs down to macOS 10.15). This static page has no prefixing
+         build step, so each of them is written as a -webkit- twin followed by the standard declaration
+         (verify-launch-contract.sh enforces it). */
       :root {
         --bg: #09090b;
         --card: #121215;
@@ -27,6 +31,7 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        -webkit-user-select: none;
         user-select: none;
       }
       /* Top window bar */
@@ -38,6 +43,7 @@
         justify-content: space-between;
         padding: 0 16px 0 80px; /* Leave space for macOS traffic lights */
         background: rgba(18, 18, 21, 0.6);
+        -webkit-backdrop-filter: blur(12px);
         backdrop-filter: blur(12px);
         -webkit-app-region: drag;
       }
@@ -178,6 +184,7 @@
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.7);
+        -webkit-backdrop-filter: blur(8px);
         backdrop-filter: blur(8px);
         z-index: 100;
         place-items: center;

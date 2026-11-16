@@ -33,5 +33,6 @@ Rust 在 Next standalone 就绪后导航到产品页；若后端启动失败，R
 
 - 静态单文件，无构建步骤；Launch Contract 由 `scripts/ci/verify-launch-contract.sh` 静态校验
 - 新增或修改文案必须同时给出 zh 与 en，写在 `#shell-copy` 里并用 `data-i18n` 或 `t("键")` 引用
+- 壳页没有 CSS 前缀构建步骤：macOS 的 WKWebView 不识别无前缀的 `user-select`，Safari 18 之前的 WebKit 也要求 `backdrop-filter` 带 `-webkit-` 前缀（应用最低支持 macOS 10.15）。每处标准声明必须紧跟同值的 `-webkit-` 孪生声明，Launch Contract 校验（缺了不会报错，只是在 macOS 上悄悄失效）
 - Next standalone 资源由 `tauri.conf.json#bundle.resources` 打入 `frontend/`
 - 只服务主窗口首屏：跳转目标固定为产品根路径（`runtime/product_origin.rs` 的 `standalone_root`），路径与查询不会保留。会话窗与宠物浮层不经此页，直接以 `runtime/product_origin.rs` 构造的完整地址开窗
