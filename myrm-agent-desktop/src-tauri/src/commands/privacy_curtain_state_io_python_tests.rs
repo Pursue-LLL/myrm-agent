@@ -244,7 +244,10 @@ fn document(round: u32) -> String {
 }
 
 /// 壳是写者的方向：壳用生产的 `replace_document` 持续替换状态文件，真实的 Python 进程按 server 的
-/// 读法持续读。读者读到的必须是完整文档，替换期间不得看到「不存在」或读取出错；壳的每次写入都要落盘。
+/// 读法持续读。读者读到的必须是完整文档，替换期间不得看到「不存在」；壳的每次写入都要落盘。
+/// 读取出错只允许是 Windows 上恰与改名相撞的 `PermissionError`：生产的 `read_curtain_state` 把任何
+/// `OSError` 当作这一轮没有状态，下一轮照常读到（生产里 server 每几秒读一次，撞上的概率远低于这里每
+/// 毫秒读一次）。其余平台不该有任何读取错误，Windows 上出现别的错误种类说明发生了新情况。
 /// 读者的账打印出来，作为这个平台上的实测（CI 日志里可查）。
 #[test]
 fn a_python_reader_survives_the_shell_replacing_the_file() {
@@ -301,8 +304,16 @@ fn a_python_reader_survives_the_shell_replacing_the_file() {
         report.missing, 0,
         "reader saw the file as missing while it was being replaced"
     );
+    let tolerated = if cfg!(windows) {
+        Some("PermissionError")
+    } else {
+        None
+    };
     assert!(
-        report.errors.is_empty(),
+        report
+            .errors
+            .keys()
+            .all(|kind| Some(kind.as_str()) == tolerated),
         "reader could not read the file: {:?}",
         report.errors
     );
