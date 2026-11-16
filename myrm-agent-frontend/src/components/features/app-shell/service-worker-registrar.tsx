@@ -23,7 +23,7 @@ export async function unregisterServiceWorkers(container: ServiceWorkerContainer
  */
 export function ServiceWorkerRegistrar() {
   useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    if (!('serviceWorker' in navigator)) {
       return;
     }
 
