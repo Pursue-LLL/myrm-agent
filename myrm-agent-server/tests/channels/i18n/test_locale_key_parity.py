@@ -210,7 +210,7 @@ def test_ftl_locales_have_no_orphaned_keys() -> None:
 
     A key that exists in every locale but is never called renders nothing — it
     is dead weight that still has to be maintained (translated, kept in sync)
-    across all four files.  ``cmd_*``/``cat_*`` are generated at runtime from
+    across both files.  ``cmd_*``/``cat_*`` are generated at runtime from
     ``SYSTEM_COMMANDS`` so they are validated through the registry in both
     directions: an orphaned ``cmd_*`` key (registered but never rendered) and
     a registered command missing its translation both break /help.  The same

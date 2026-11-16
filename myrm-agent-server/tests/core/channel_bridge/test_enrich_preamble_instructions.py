@@ -167,7 +167,7 @@ async def test_unknown_session_style_adds_no_block() -> None:
 
 @pytest.mark.asyncio
 async def test_retired_reply_policy_key_in_a_saved_profile_changes_nothing() -> None:
-    """An agent saved before the reply-register policy was retired still carries its key; the prompt ignores it."""
+    """An agent whose parameters still hold a ``response_locale_policy`` key gets a prompt that ignores it."""
     from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
     profile = ResolvedAgentProfile(

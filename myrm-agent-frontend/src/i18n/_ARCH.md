@@ -32,12 +32,12 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 
 ## 首次访问 Locale 自动检测
 
-首次访问无 `NEXT_LOCALE` cookie 时，`middleware.ts` 通过 `negotiateLocale()` 解析 `Accept-Language` header（RFC 7231 §5.3.5 quality-factor），匹配 `locales` 列表（任何中文变体归 `zh`）后写入 cookie；浏览器偏好的语言不在列表内时取列表内下一个受支持的语言，无匹配时回退 `'en'`（国际默认），覆盖 WebUI / Cloud / Tauri 三部署场景。cookie 里留着应用不再提供的 locale 值时，与缺失同等处理，重新检测并改写。`layout.tsx` 通过 `getLocale()` 动态设置 `<html lang>`，`DocumentLang` 在客户端同步。
+首次访问无 `NEXT_LOCALE` cookie 时，`middleware.ts` 通过 `negotiateLocale()` 解析 `Accept-Language` header（RFC 7231 §5.3.5 quality-factor），匹配 `locales` 列表（任何中文变体归 `zh`）后写入 cookie；浏览器偏好的语言不在列表内时取列表内下一个受支持的语言，无匹配时回退 `'en'`（国际默认），覆盖 WebUI / Cloud / Tauri 三部署场景。cookie 里的 locale 值不在 `locales` 列表内时，与缺失同等处理，重新检测并改写。`layout.tsx` 通过 `getLocale()` 动态设置 `<html lang>`，`DocumentLang` 在客户端同步。
 
 ## 约束
 
 - UI 文案禁止硬编码；使用 `useTranslations` + `locales/`
-- 新文案只写入 `locales/{lang}.json` 六个文件；`locales/namespaces/` 是 `i18n:split` 的生成物，禁止手写，也禁止另建 `src/locales/` 之类的并行文案目录（运行时只读 `locales/namespaces/`，并行目录永不会被加载）
+- 新文案只写入 `locales/en.json` 与 `locales/zh.json`；`locales/namespaces/` 是 `i18n:split` 的生成物，禁止手写，也禁止另建 `src/locales/` 之类的并行文案目录（运行时只读 `locales/namespaces/`，并行目录永不会被加载）
 - `locales/{lang}.json` 必须是合法 JSON；`pretest` / `build` 首步 `i18n:split` 会对 SSOT 执行 `JSON.parse`
 - Security Profile 委派权限 UI 文案键（语言间 parity 由 `verify:i18n` 强制）：`settings.securityPolicy.permissionTypes`（`securityPolicyUtils.KNOWN_PERMISSIONS` 的每个 id 都要有标签）、`settings.securityPolicy.delegationPermissionsGuide`（含 `bindingHint` 子智能体绑定导航）
 - 静态门禁（`verify:i18n`、`verify-i18n-references`）只看得见写成字面量的 key；`t(变量)` 或模板字符串拼出来的 key，取到的值没人检查，缺了就在界面上露出原始 key 路径。这样的 key 族必须把「取值集合」导出为常量（如 `ARTIFACT_TYPES`、`WEATHER_LABEL_KEYS`）或纯函数，并登记到 `__tests__/dynamic-key-families.test.ts`

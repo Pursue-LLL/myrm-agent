@@ -1,4 +1,4 @@
-"""The reply-register policy key is retired: the migration removes it from saved agents and rollback snapshots.
+"""The migration removes the ``response_locale_policy`` key from saved agents and rollback snapshots.
 
 It touches only rows that hold the key, keeps every other parameter, leaves rows that are not valid JSON alone, and
 does not rewrite the read-only edit history.

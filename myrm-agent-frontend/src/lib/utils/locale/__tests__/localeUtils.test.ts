@@ -53,10 +53,13 @@ describe('localeUtils', () => {
       expect(resolveBackendLocale('', 'en')).toBe('en');
     });
 
-    it.each(['ja', 'ko', 'de'])('follows the interface language when the saved locale is the retired %s', (retired) => {
-      expect(resolveBackendLocale(retired, 'zh')).toBe('zh-CN');
-      expect(resolveBackendLocale(retired, 'en')).toBe('en');
-    });
+    it.each(['ja', 'ko', 'de'])(
+      'follows the interface language when the saved locale is the unsupported %s',
+      (unsupported) => {
+        expect(resolveBackendLocale(unsupported, 'zh')).toBe('zh-CN');
+        expect(resolveBackendLocale(unsupported, 'en')).toBe('en');
+      },
+    );
 
     it('is undefined when neither source names an offered locale', () => {
       expect(resolveBackendLocale(undefined, null)).toBeUndefined();

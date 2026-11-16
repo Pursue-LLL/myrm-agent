@@ -48,7 +48,7 @@ describe('AgentCapabilitiesMoaOverlaySection', () => {
     expect(screen.getByText('agent.moaOverlayFanoutRiskTriggered')).toBeDefined();
   });
 
-  it('verifies moaOverlayFanoutRiskTriggered translation exists in all 6 supported locales', async () => {
+  it('verifies moaOverlayFanoutRiskTriggered translation exists in both supported locales', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const locales = ['zh', 'en'];

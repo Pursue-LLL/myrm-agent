@@ -48,7 +48,7 @@ export function middleware(request: NextRequest) {
     return localeRelay;
   }
 
-  // A cookie naming a locale the app no longer offers is detected afresh like a missing one.
+  // A cookie naming a locale the app does not offer is detected afresh like a missing one.
   const needsLocaleDetection = !parseLocaleQueryParam(request.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value ?? null);
   const { pathname } = request.nextUrl;
 

@@ -107,10 +107,10 @@ describe('messageRequest - reply locale contract', () => {
   });
 
   it.each(['ja', 'ko', 'de'])(
-    'follows the interface language when the saved locale is the retired %s',
-    async (retired) => {
-      expect(await requestedLocale(retired, 'zh')).toBe('zh-CN');
-      expect(await requestedLocale(retired, 'en')).toBe('en');
+    'follows the interface language when the saved locale is the unsupported %s',
+    async (unsupported) => {
+      expect(await requestedLocale(unsupported, 'zh')).toBe('zh-CN');
+      expect(await requestedLocale(unsupported, 'en')).toBe('en');
     },
   );
 

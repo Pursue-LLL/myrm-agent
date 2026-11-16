@@ -138,7 +138,7 @@ for (const lang of languages) {
   console.log(`split locale namespaces: ${lang}`);
 }
 
-// Directories of locales the app no longer ships would otherwise linger in the build and the content version.
+// Directories of locales the app does not ship would otherwise linger in the build and the content version.
 pruneStale(namespacesRoot, new Set([...languages, 'manifest.json']));
 
 writeJson(manifestPath, {

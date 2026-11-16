@@ -454,7 +454,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_persist_user_message_human_turn.py` | 模块 | 已有会话里的新用户消息解除 Stop 并恢复唤醒额度，新会话、审批续跑与重新生成不算 |
 | `api/agents/general_agent/test_stop_holds_autonomous_wakes.py` | 模块 | 两个 Stop 端点（真实网关与取消注册表）终止回合并让该会话不会自行唤醒，只影响被停的会话，什么都没在跑时不动预算；网关按消息 id 反查会话 |
 | `lifecycle/test_auto_continue_turn_lease.py` | 模块 | 崩溃自动续跑的重放回合在租约下运行：持有会话且取消令牌可被停止、无论成败都归还、被停止时结束后台任务、会话已被消息占用时不在其上重放（按失败通知） |
-| `services/agent/goals/unattended/test_trigger_profile.py` | 模块 | 无人值守目标流继承聊天绑定的智能体档案：已下线的回复语体键不再改写提示词、Team 协议与成员、没有绑定智能体、安全覆盖，以及 `trigger_goal_stream` 把档案、`goal_provider` 与记忆开关注入 `GeneralAgentParams` |
+| `services/agent/goals/unattended/test_trigger_profile.py` | 模块 | 无人值守目标流继承聊天绑定的智能体档案：参数里残留的 `response_locale_policy` 键不改写提示词、Team 协议与成员、没有绑定智能体、安全覆盖，以及 `trigger_goal_stream` 把档案、`goal_provider` 与记忆开关注入 `GeneralAgentParams` |
 | `core/channel_bridge/test_goal_status_view.py` | 模块 | IM `/goal status` 回复（`render_goal_status`）：只有目标与状态时两行，预算/约束/验收标准/子目标按固定顺序追加，没有上限的预算不加预算行 |
 | `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案、子目标 `text`、草拟 `objective`、约束与复核驳回备注的风险闸门（自带 `client` 与规则夹具）：命中规则的更新、写入与草拟返回 400（`risk_held`，带规则列表）且不落库，被拦的复核驳回让目标留在待复核，干净文案照常保存、干净的驳回把目标送回运行 |
 | `api/test_authoring_risk_gate.py` | 模块 | 智能体档案（创建与更新的 `system_prompt`、`description`、建议提示词、命令绑定指令；更新不带文字时不过闸）、提示词生成与 AI 创建的意图、批量目录的提示词、技能派生的指令的风险闸门（真实处理函数，只注入规则）：拒绝为 400 `risk_held` 且响应里没有原文、库里什么都没存、命中的文字不送达模型或引擎，干净文本照常通过 |

@@ -19,7 +19,7 @@ from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 @pytest.mark.asyncio
 async def test_resolve_goal_stream_agent_context_ignores_retired_reply_policy_key() -> None:
-    """An agent saved before the reply-register policy was retired still carries its key; the prompt stays as saved."""
+    """An agent whose parameters still hold a ``response_locale_policy`` key keeps its prompt as saved."""
     chat = MagicMock()
     chat.agent_id = "agent-saved"
 

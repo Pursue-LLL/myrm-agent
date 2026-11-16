@@ -7,7 +7,7 @@ Locale 域子包：客户端 locale 读取与协商、多语言文本选择。**
 `__tests__/` 覆盖 locale 读取与文本选择行为。
 
 - `index.ts`：域门面 barrel — 显式导出清单聚合两文件公开符号，组件层统一导入入口；新增导出须同步本清单（漏加即 typecheck 断裂，编译器护栏）。
-- `localeUtils.ts`：Locale 工具集 — NEXT_LOCALE_COOKIE_NAME cookie 常量、getClientLocale 客户端读取、normalizeLocaleForBackend 后端格式映射（应用不再提供的语言映射为 undefined）、resolveBackendLocale 后端回复语言（已保存偏好仍受支持时用偏好，否则用界面语言 cookie）、parseLocaleQueryParam 营销参数解析、negotiateLocale RFC 7231 Accept-Language 协商、urlWithoutLocaleParam 参数剥离。
+- `localeUtils.ts`：Locale 工具集 — NEXT_LOCALE_COOKIE_NAME cookie 常量、getClientLocale 客户端读取、normalizeLocaleForBackend 后端格式映射（应用未提供的语言映射为 undefined）、resolveBackendLocale 后端回复语言（已保存偏好受支持时用偏好，否则用界面语言 cookie）、parseLocaleQueryParam 营销参数解析、negotiateLocale RFC 7231 Accept-Language 协商、urlWithoutLocaleParam 参数剥离。
 - `localeText.ts`：多语言文本选择 — selectLocalizedText 按 locale 选取文案、localizeReactNode 递归本地化 ReactNode 树（Fragment/元素/文本）。
 
 ## 依赖

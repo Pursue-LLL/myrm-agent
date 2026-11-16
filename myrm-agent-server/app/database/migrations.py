@@ -77,7 +77,7 @@ PAUSE_STALLED_ONCE_CRON_JOBS_SQL = (
     "WHERE status = 'active' AND next_run_at IS NULL AND json_extract(schedule, '$.kind') = 'once'"
 )
 
-# The reply-register policy (``response_locale_policy``) no longer exists and no code reads the key, so it is removed
+# No code reads the reply-register policy key (``response_locale_policy``), so it is removed
 # from every agent that holds one; an agent left with no parameters stores NULL, as every save writes it. A row whose
 # ``engine_params`` is NULL, is not valid JSON or has no such key is left alone, and a second pass finds nothing to change.
 STRIP_RETIRED_RESPONSE_LOCALE_POLICY_SQL = (
