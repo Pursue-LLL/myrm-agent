@@ -54,8 +54,10 @@ from .sqlite_backup_models import (
     _pragma_quick_check,
     _pragma_schema_version,
     _require_backup_image,
+    _snapshot_file_name,
     _sweep_stale_tmp_backups,
     _timestamp_dirname,
+    _unused_backup_id,
     hot_copy_database,
 )
 
@@ -109,8 +111,8 @@ class SQLiteBackupManager:
 
         Uses ``sqlite3.Connection.backup()`` which copies pages without blocking concurrent
         readers/writers. The image is written to a temporary path, verified with ``PRAGMA quick_check``
-        and atomically published via ``os.replace``. Callers are serialized per process, so a call
-        waits for a backup already running in another thread.
+        and atomically published via ``os.replace`` under a name no earlier snapshot has. Callers are
+        serialized per process, so a call waits for a backup already running in another thread.
 
         Returns:
             BackupRecord with metadata of the new snapshot.
@@ -122,9 +124,9 @@ class SQLiteBackupManager:
         self._snapshots_dir.mkdir(parents=True, exist_ok=True)
 
         with _CREATE_BACKUP_LOCK:
-            backup_id = f"{int(time.time() * 1000)}"
+            backup_id = _unused_backup_id(self._snapshots_dir)
             tmp_name = f"{_TMP_PREFIX}{backup_id}.sqlite"
-            final_name = f"backup-{backup_id}.sqlite"
+            final_name = _snapshot_file_name(backup_id)
             tmp_path = self._snapshots_dir / tmp_name
             final_path = self._snapshots_dir / final_name
 
