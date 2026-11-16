@@ -2,14 +2,20 @@
  * [INPUT]
  * ../streamContext::StreamCtx (POS: per-SSE-event reducer context)
  * ./handlerDeps::ensureAssistantStreamMessage, mergeMessageSources, resolveStreamChatId, sanitizeStreamText (POS: message lookup, source merge and text hygiene helpers)
+ * @/lib/chat/mediaGenerated::MEDIA_GENERATED_METADATA_KEY, mergeMediaGeneratedEntries, readMediaGeneratedEntries (POS: media a media tool call registers from its structured result)
  *
  * [OUTPUT]
- * catchupEvents: CATCHUP_SNAPSHOT SSE handler that replaces the assistant message of the turn with the server snapshot and seeds the stream accumulator with it.
+ * catchupEvents: CATCHUP_SNAPSHOT SSE handler that replaces the assistant message of the turn with the server snapshot (text, reasoning, steps; sources and generated media are merged in) and seeds the stream accumulator with it.
  *
  * [POS]
  * SSE handler for the snapshot a re-attached stream sends first.
  */
 
+import {
+  MEDIA_GENERATED_METADATA_KEY,
+  mergeMediaGeneratedEntries,
+  readMediaGeneratedEntries,
+} from '@/lib/chat/mediaGenerated';
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import * as H from './handlerDeps';
@@ -25,6 +31,8 @@ export async function catchupEvents(ctx: StreamCtx): Promise<StreamTurn | null> 
   // from the snapshot or the first chunk would replace everything the page was just handed.
   const snapshotText = H.sanitizeStreamText(snap.content || '');
   ctx.recievedMessage = snapshotText;
+  // The media cards of tool calls that finished before the page attached: the stream carries only what comes after.
+  const registeredMedia = readMediaGeneratedEntries(snap.media_generated);
 
   let rowReady = false;
   actions.setMessages((state) => {
@@ -42,6 +50,15 @@ export async function catchupEvents(ctx: StreamCtx): Promise<StreamTurn | null> 
     // Never wipe in-stream sources with an empty catchup payload.
     if (Array.isArray(snap.sources) && snap.sources.length > 0) {
       msg.sources = H.mergeMessageSources(msg.sources || [], snap.sources);
+    }
+    if (registeredMedia.length > 0) {
+      msg.metadata = {
+        ...msg.metadata,
+        [MEDIA_GENERATED_METADATA_KEY]: mergeMediaGeneratedEntries(
+          msg.metadata?.[MEDIA_GENERATED_METADATA_KEY],
+          registeredMedia,
+        ),
+      };
     }
   });
   ctx.added = ctx.added || rowReady;

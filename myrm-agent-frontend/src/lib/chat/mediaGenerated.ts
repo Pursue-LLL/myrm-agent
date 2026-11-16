@@ -7,7 +7,7 @@
  * - MediaGeneratedEntry / MediaTaskEntry / MediaStoredEntry / isMediaTaskEntry: 登记条目的类型与判别
  * - mediaGeneratedEntriesOf: 一次媒体工具结束事件登记的条目
  * - mergeMediaGeneratedEntries: 把新条目并入消息已有的登记（去重）
- * - readMediaGeneratedEntries: 读取消息 metadata 里已登记的条目（丢弃形状不合法的项）
+ * - readMediaGeneratedEntries: 读取消息 metadata 或断线重连快照里已登记的条目（丢弃形状不合法的项）
  *
  * [POS]
  * 生成媒体卡片的唯一数据来源：卡片由工具返回的结构化结果驱动，不解析模型回复文字，所以回复为空、被截断或不是 JSON 时卡片照常出现。
