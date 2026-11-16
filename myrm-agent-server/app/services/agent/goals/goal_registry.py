@@ -9,18 +9,21 @@
 - app.core.utils.chat_utils::parse_judge_json (POS: judge JSON 解析)
 
 [OUTPUT]
-- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider；resolve_provider 为 HTTP API 与 IM 命令取 provider（已注册的，否则一个不注册的、绑定该会话的 ServerGoalManager，直读存储）；has_active_goal 读存储真值（与 provider 是否注册无关）
+- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider；turn_provider 为服务端自启的回合登记句柄并在回合结束时归还；resolve_provider 为 HTTP API、IM 命令与回合之外的服务端逻辑取 provider（已注册的，否则一个不注册的、绑定该会话的 ServerGoalManager，直读存储）；has_active_goal 读存储真值（与 provider 是否注册无关）
 - ServerGoalManager: 扩展 harness GoalManager，提供 semantic judge 与 Goal 完成时的会话交付物汇总
 
 [POS]
 会话级 Goal 注册表。使 HTTP API 能够通过 session_id 定位正在运行的
 Agent 会话的 GoalProvider，从而在运行时控制 Goal 状态（暂停/恢复）；
-读写 Goal 状态（HTTP API、IM 命令）一律走 resolve_provider，回合之间无注册 provider 时它退回存储直读。
+注册只属于运行中的回合：聊天回合在编排器登记、流收尾时归还，服务端自启的回合（无人值守目标续跑）经 turn_provider 同样随回合登记与归还。
+读写 Goal 状态（HTTP API、IM 命令、回调与恢复逻辑）一律走 resolve_provider，回合之间无注册 provider 时它退回存储直读。
 与 SteeringRegistry 和 CancellationRegistry 形成对称设计。
 """
 
 import logging
 import threading
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.goals.manager import GoalManager
@@ -205,19 +208,46 @@ class GoalRegistry:
     _providers: dict[str, "GoalProvider"] = {}
 
     @classmethod
+    def _get_or_register(cls, session_id: str) -> tuple["GoalProvider", bool]:
+        """The session's registered provider, and whether this call registered it."""
+        with cls._lock:
+            registered = cls._providers.get(session_id)
+            if registered is not None:
+                return registered, False
+            from app.platform_utils import get_storage_provider
+
+            created = ServerGoalManager(get_storage_provider(), session_id=session_id)
+            cls._providers[session_id] = created
+            logger.debug("Created new goal provider: session_id=%s", session_id)
+            return created, True
+
+    @classmethod
     def get_or_create_provider(cls, session_id: str) -> "GoalProvider":
         """Get the goal provider for a session, creating and registering it if there is none.
 
         The registered provider is the live handle of the session's turn, so its in-memory state (suppression
-        flags) stays one object while the turn runs; the end of the turn unregisters it.
+        flags) stays one object while the turn runs; the end of the turn unregisters it. Code that runs outside
+        a turn reads and changes goals through `resolve_provider`, which registers nothing.
         """
-        with cls._lock:
-            if session_id not in cls._providers:
-                from app.platform_utils import get_storage_provider
+        return cls._get_or_register(session_id)[0]
 
-                cls._providers[session_id] = ServerGoalManager(get_storage_provider(), session_id=session_id)
-                logger.debug("Created new goal provider: session_id=%s", session_id)
-            return cls._providers[session_id]
+    @classmethod
+    @asynccontextmanager
+    async def turn_provider(cls, session_id: str) -> AsyncIterator["GoalProvider"]:
+        """The session's provider for a turn the server starts itself: registered while the turn runs, released when it ends.
+
+        A chat turn registers its provider at setup and drops it when its stream finalizes. A turn started without
+        a chat stream (the unattended goal turn) holds the provider through this context instead: the agent it
+        builds mounts its goal tools from the registry, and nothing stays registered after it, however it ends.
+        A provider registered before the turn (the IM `/goal` command registers one outside any turn) is shared
+        and stays registered.
+        """
+        provider, created = cls._get_or_register(session_id)
+        try:
+            yield provider
+        finally:
+            if created:
+                cls.unregister(session_id)
 
     @classmethod
     def get_provider(cls, session_id: str) -> "GoalProvider | None":
@@ -229,9 +259,10 @@ class GoalRegistry:
     def resolve_provider(cls, session_id: str) -> "GoalProvider":
         """The session's registered provider, else a manager over the same storage that is not registered.
 
-        Providers are registered only while a turn runs, yet the HTTP API and the IM commands serve a
-        session between turns too, and its goals live in storage. The stand-in is a `ServerGoalManager` of
-        the session, so completing a goal through it collects the deliverables like a turn's provider does.
+        Providers are registered only while a turn runs, yet the HTTP API, the IM commands and the server's own
+        logic outside a turn (callbacks that run once a turn is over, background-job and timer handlers, recovery)
+        work on a session between turns too, and its goals live in storage. The stand-in is a `ServerGoalManager`
+        of the session, so completing a goal through it collects the deliverables like a turn's provider does.
         It is never registered: a registered provider is the live handle of a running session, and
         `GET /goals/active` lists every registered session.
         """

@@ -1,8 +1,9 @@
 """A goal turn the server starts for itself takes the session and carries a cancel token before its agent is built.
 
-Checked against the real gateway and cancellation registry; only the agent stream is a stand-in. The chat Stop
-button, a pause and the emergency stop reach a turn through that session claim and that token, so a turn without
-them cannot be stopped from outside.
+Checked against the real gateway, cancellation registry and goal registry; only the agent stream is a stand-in. The
+chat Stop button, a pause and the emergency stop reach a turn through that session claim and that token, so a turn
+without them cannot be stopped from outside. The turn also holds the session's goal provider while it runs: the agent
+mounts its goal tools from it, and the goal lifecycle callbacks read it from the stream context.
 """
 
 import asyncio
@@ -10,14 +11,18 @@ import uuid
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.goals.protocols import GoalProvider
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
+from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancellationToken, CancelReason
 
 from app.services.agent.gateway import AgentDrainingError, get_agent_gateway
 from app.services.agent.goals import goal_controls
+from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.agent.goals.unattended import trigger
 
 _WAIT_SECONDS = 2.0
@@ -27,8 +32,17 @@ _WAIT_SECONDS = 2.0
 def chat_id() -> Iterator[str]:
     chat = f"goal-turn-{uuid.uuid4().hex[:8]}"
     yield chat
-    # The gateway is one per process: a failing test must not leave its session busy for the next one.
+    # The gateway and the goal registry are one per process: a failing test must not leave its session busy or
+    # registered for the next one.
     get_agent_gateway().release_session(chat)
+    GoalRegistry.unregister(chat)
+
+
+@pytest.fixture(autouse=True)
+def storage(tmp_path: Path) -> Iterator[None]:
+    """The platform storage behind the registry's provider: a throwaway directory."""
+    with patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend(str(tmp_path))):
+        yield
 
 
 @pytest.fixture
@@ -64,6 +78,8 @@ class _Agent:
     cancel_token: CancellationToken | None = None
     session_was_active: bool = False
     turn_id: str | None = None
+    registered_provider: GoalProvider | None = None
+    context_provider: object = None
 
     async def __call__(self, _params: object, **kwargs: object) -> AsyncIterator[dict[str, object]]:
         gateway = get_agent_gateway()
@@ -72,6 +88,11 @@ class _Agent:
         self.cancel_token = token if isinstance(token, CancellationToken) else None
         self.session_was_active = gateway.is_session_active(self.chat)
         self.turn_id = gateway.get_active_message_id(self.chat)
+        # What the agent about to be built sees: the registry its goal tools are mounted from, and the stream context
+        # its goal callbacks are wired from.
+        self.registered_provider = GoalRegistry.get_provider(self.chat)
+        extra_context = kwargs.get("extra_context")
+        self.context_provider = extra_context.get("goal_provider") if isinstance(extra_context, dict) else None
         self.entered.set()
         if self.raises is not None:
             raise self.raises
@@ -150,10 +171,8 @@ def _trigger_environment(stream: Callable[..., AsyncIterator[object]]) -> Iterat
         yield handler
 
 
-async def _start(chat: str, provider: AsyncMock | None = None) -> None:
-    await trigger.trigger_goal_stream(
-        chat, _goal(chat), provider=provider or AsyncMock(), on_failure="needs_human_review", context="runtime test"
-    )
+async def _start(chat: str) -> None:
+    await trigger.trigger_goal_stream(chat, _goal(chat), on_failure="needs_human_review", context="runtime test")
 
 
 async def _settle() -> None:
@@ -181,6 +200,48 @@ async def test_the_turn_holds_the_session_and_a_cancel_token_before_its_agent_is
     assert agent.turn_id is not None
     assert agent.cancel_token is not None
     assert agent.cancel_token.request_id == agent.turn_id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("registered_before", [False, True], ids=["fresh_session", "provider_of_the_im_goal_command"])
+async def test_the_agent_is_built_and_wired_from_the_goal_provider_the_turn_holds(chat_id: str, registered_before: bool) -> None:
+    """Goal tools are mounted from the registry at build time and the goal callbacks from the stream context.
+
+    The IM `/goal` command registers the session's provider outside any turn: the turn shares it and leaves it be.
+    """
+    before = GoalRegistry.get_or_create_provider(chat_id) if registered_before else None
+    agent = _Agent(chat_id, claims_session=False)
+
+    with _trigger_environment(agent):
+        await _start(chat_id)
+        await asyncio.wait_for(agent.entered.wait(), timeout=_WAIT_SECONDS)
+        await _settle()
+
+    assert agent.registered_provider is not None
+    assert agent.context_provider is agent.registered_provider
+    assert GoalRegistry.get_provider(chat_id) is before
+    if before is not None:
+        assert agent.registered_provider is before
+
+
+@pytest.mark.asyncio
+async def test_the_provider_is_given_back_before_the_session_is(chat_id: str) -> None:
+    """A message that takes the session the moment it is free must find the registry clean, not lose its provider."""
+    gateway = get_agent_gateway()
+    release = gateway.release_if_reserved_only
+    held_when_session_freed: list[GoalProvider | None] = []
+
+    def note_then_release(session_id: str) -> None:
+        held_when_session_freed.append(GoalRegistry.get_provider(session_id))
+        release(session_id)
+
+    agent = _Agent(chat_id, claims_session=False)
+    with _trigger_environment(agent), patch.object(gateway, "release_if_reserved_only", note_then_release):
+        await _start(chat_id)
+        await asyncio.wait_for(agent.entered.wait(), timeout=_WAIT_SECONDS)
+        await _settle()
+
+    assert held_when_session_freed == [None]
 
 
 @pytest.mark.asyncio
@@ -252,23 +313,24 @@ async def test_an_emergency_stop_cancels_the_turn_the_server_started(chat_id: st
         pytest.param({"raises": RuntimeError("mid stream")}, True, id="failed_before_taking_the_session"),
     ],
 )
-async def test_the_turn_gives_back_its_session_and_cancel_token_however_it_ends(
+async def test_the_turn_gives_back_its_session_cancel_token_and_goal_provider_however_it_ends(
     chat_id: str, agent_kwargs: dict[str, object], failure_reported: bool
 ) -> None:
     agent = _Agent(chat_id, **agent_kwargs)  # type: ignore[arg-type]
-    provider = AsyncMock()
 
     with _trigger_environment(agent) as handler:
-        await _start(chat_id, provider)
+        await _start(chat_id)
         await asyncio.wait_for(agent.entered.wait(), timeout=_WAIT_SECONDS)
         agent.gate.set()
         await _settle()
 
     assert agent.turn_id is not None
+    assert agent.registered_provider is not None
     assert _released(chat_id, agent.turn_id)
+    assert GoalRegistry.get_provider(chat_id) is None
     assert handler.await_count == int(failure_reported)
     if failure_reported:
-        handler.assert_awaited_once_with(chat_id, "g-runtime", provider, on_failure="needs_human_review", context="runtime test")
+        handler.assert_awaited_once_with(chat_id, "g-runtime", on_failure="needs_human_review", context="runtime test")
 
 
 @pytest.mark.asyncio
@@ -277,15 +339,14 @@ async def test_a_session_taken_by_a_message_is_left_to_it_and_nothing_is_built(c
     gateway = get_agent_gateway()
     gateway.reserve_session(chat_id, active_message_id="user-message")
     agent = _Agent(chat_id)
-    provider = AsyncMock()
 
     with _trigger_environment(agent) as handler:
-        await _start(chat_id, provider)
+        await _start(chat_id)
         await _settle()
 
     assert agent.calls == 0
     handler.assert_not_awaited()
-    provider.update_status.assert_not_called()
+    assert GoalRegistry.get_provider(chat_id) is None
     assert gateway.get_active_message_id(chat_id) == "user-message"
     assert gateway.is_session_active(chat_id)
 
@@ -307,6 +368,8 @@ async def test_a_second_start_leaves_the_first_turn_running_and_builds_nothing(c
         assert get_agent_gateway().get_active_message_id(chat_id) == first.turn_id
         assert first.cancel_token is not None
         assert not first.cancel_token.is_cancelled
+        assert first.registered_provider is not None
+        assert GoalRegistry.get_provider(chat_id) is first.registered_provider
         first.gate.set()
         await _settle()
 
@@ -321,16 +384,15 @@ async def test_a_start_that_meets_a_draining_app_is_not_a_goal_failure(chat_id: 
     agent = _Agent(
         chat_id, raises=AgentDrainingError("Gateway is draining") if drain_starts == "while_the_agent_is_built" else None
     )
-    provider = AsyncMock()
 
     with (
         _trigger_environment(agent) as handler,
         patch.object(gateway, "_draining", drain_starts == "before_the_session_is_taken"),
     ):
-        await _start(chat_id, provider)
+        await _start(chat_id)
         await _settle()
 
     handler.assert_not_awaited()
-    provider.update_status.assert_not_called()
     assert agent.calls == int(drain_starts == "while_the_agent_is_built")
     assert _released(chat_id, agent.turn_id)
+    assert GoalRegistry.get_provider(chat_id) is None

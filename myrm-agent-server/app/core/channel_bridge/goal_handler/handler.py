@@ -174,9 +174,6 @@ class ChannelGoalCommandHandler:
         if not goal:
             return get_text(msg, "no_active_goal_to_pause")
 
-        if not hasattr(provider, "enter_wait"):
-            return get_text(msg, "goal_wait_not_supported")
-
         wait_reason = reason.strip() or "Waiting for external process"
         await provider.enter_wait(goal.goal_id, reason=wait_reason)
         return get_text(msg, "goal_wait", objective=goal.objective[:60], reason=wait_reason[:80])
@@ -191,9 +188,6 @@ class ChannelGoalCommandHandler:
         goal = await provider.get_latest_goal(chat_id)
         if not goal or goal.status != GoalStatus.WAIT:
             return get_text(msg, "goal_not_waiting")
-
-        if not hasattr(provider, "exit_wait"):
-            return get_text(msg, "goal_wait_not_supported")
 
         await provider.exit_wait(goal.goal_id)
         return get_text(msg, "goal_unwait", objective=goal.objective[:60])

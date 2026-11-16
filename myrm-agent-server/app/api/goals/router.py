@@ -220,16 +220,13 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
     try:
         if request.action == "pause":
             await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
-            if request.note and hasattr(provider, "update_metadata"):
+            if request.note:
                 await provider.update_metadata(goal.goal_id, {"pause_reason": request.note.strip()})
             stop_goal_turn(session_id, goal)
         elif request.action == "resume":
             if not await wait_for_stopped_turn(session_id):
                 raise HTTPException(status_code=409, detail="The goal's previous turn is still stopping; try again shortly")
-            if hasattr(provider, "resume_goal"):
-                await provider.resume_goal(goal.goal_id, reset_turns=True)
-            else:
-                await provider.update_status(goal.goal_id, GoalStatus.ACTIVE)
+            await provider.resume_goal(goal.goal_id, reset_turns=True)
             note_goal_resumed(session_id)
             await continue_resumed_goal(session_id, provider, goal.goal_id)
         elif request.action == "cancel":
@@ -241,13 +238,9 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
             await provider.reset_verification_retries(goal.goal_id)
             await provider.update_status(goal.goal_id, GoalStatus.ACTIVE)
         elif request.action == "wait":
-            if not hasattr(provider, "enter_wait"):
-                raise HTTPException(status_code=501, detail="Wait not supported by provider")
             reason = (request.wait_reason or request.note or "Waiting for external process").strip()
             await provider.enter_wait(goal.goal_id, reason=reason)
         elif request.action == "unwait":
-            if not hasattr(provider, "exit_wait"):
-                raise HTTPException(status_code=501, detail="Unwait not supported by provider")
             if goal.status != GoalStatus.WAIT:
                 raise HTTPException(status_code=400, detail="Goal is not in WAIT state")
             if goal.metadata.get(GOAL_WAIT_KIND_KEY) == GOAL_WAIT_KIND_USAGE_LIMIT:

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock
+from collections.abc import Iterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.agent.goals.wait_provider_window import park_goal_for_provider_window
 from myrm_agent_harness.api.hooks import GOAL_WAIT_KIND_KEY, GOAL_WAIT_RESUME_AT_KEY
 
+from app.services.agent.goals.goal_registry import GoalRegistry, ServerGoalManager
 from app.services.agent.goals.usage_limit_resume import daemon as daemon_module
 from app.services.agent.goals.usage_limit_resume.daemon import (
     _BUSY_RETRY_S,
@@ -274,3 +276,34 @@ async def test_start_is_idempotent_and_stop_is_safe_when_never_started() -> None
 
     assert idle._task is first
     await idle.stop()
+
+
+@pytest.fixture
+def storage_registry(storage) -> Iterator[ServerGoalManager]:
+    """The registry as production has it: the session's provider reads the same storage and none is registered."""
+    with patch("app.platform_utils.get_storage_provider", return_value=storage):
+        yield ServerGoalManager(storage, session_id=SESSION)
+    GoalRegistry.unregister(SESSION)
+
+
+async def test_a_wake_leaves_no_provider_registered_once_its_turn_is_started(storage_registry, clock, effects) -> None:
+    """The unattended turn registers the provider its agent needs while it runs; the daemon registers none of its own."""
+    await park_owned_goal(storage_registry, clock)
+    wake_daemon = UsageLimitWakeDaemon(clock=clock)
+    wake_daemon.arm(SESSION, NOW + 600)
+    clock.now = NOW + 600 + _WAKE_MARGIN_S
+
+    await wake_daemon._wake_due()
+
+    effects.trigger.assert_awaited_once()
+    assert GoalRegistry.get_provider(SESSION) is None
+
+
+async def test_a_manual_retry_leaves_no_provider_registered_once_its_turn_is_started(storage_registry, clock, effects) -> None:
+    await park_owned_goal(storage_registry, clock, wait_s=3600)
+
+    result = await resume_goal_after_usage_limit(SESSION)
+
+    assert result is ResumeResult.RESUMED
+    effects.trigger.assert_awaited_once()
+    assert GoalRegistry.get_provider(SESSION) is None

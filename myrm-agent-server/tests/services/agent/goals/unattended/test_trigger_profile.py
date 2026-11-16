@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
+from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
+from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.agent.goals.unattended.trigger import (
     GoalStreamAgentContext,
     _resolve_goal_stream_agent_context,
@@ -234,8 +237,8 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
 
 
 @pytest.mark.asyncio
-async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> None:
-    """GoalProvider must reach the stream via extra_context; enable_memory follows user switch."""
+async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch(tmp_path: Path) -> None:
+    """The session's registered GoalProvider must reach the stream via extra_context; enable_memory follows user switch."""
     goal = Goal(
         goal_id="g-provider",
         session_id="chat-provider-1",
@@ -243,7 +246,6 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
         status=GoalStatus.ACTIVE,
         budget=GoalBudget(max_turns=5),
     )
-    provider = AsyncMock()
     agent_ctx = GoalStreamAgentContext(
         agent_id=None,
         user_instructions=None,
@@ -254,9 +256,11 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
     )
     captured_params: dict[str, object] = {}
     stream_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    registered_in_stream: list[object] = []
 
     async def capturing_stream(*_args: object, **_kwargs: object) -> AsyncGenerator[object, None]:
         stream_calls.append((_args, _kwargs))
+        registered_in_stream.append(GoalRegistry.get_provider("chat-provider-1"))
         if False:
             yield None
 
@@ -324,8 +328,9 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
             new_callable=AsyncMock,
             return_value=["skills/prebuilt/off"],
         ),
+        patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend(str(tmp_path))),
     ):
-        await trigger_goal_stream("chat-provider-1", goal, provider=provider)
+        await trigger_goal_stream("chat-provider-1", goal)
         await asyncio.sleep(0.05)
 
     assert captured_params.get("enable_memory") is True  # enableMemory=True → enabled
@@ -333,7 +338,9 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
     _, stream_kwargs = stream_calls[0]
     extra_context = stream_kwargs.get("extra_context")
     assert isinstance(extra_context, dict)
-    assert extra_context["goal_provider"] is provider
+    assert registered_in_stream[0] is not None
+    assert extra_context["goal_provider"] is registered_in_stream[0]
+    assert GoalRegistry.get_provider("chat-provider-1") is None
     assert extra_context["execution_mode"] == "pooled"
     assert extra_context["disabled_skill_roots"] == ["skills/prebuilt/off"]
 

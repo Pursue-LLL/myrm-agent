@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | ✅ 门面 | 对外入口：hold 回调、守护进程、手动重试 | ✅ |
-| `daemon.py` | ✅ 核心 | `UsageLimitWakeDaemon`：内存 armed 集合 + 单个挂钟轮询任务（≤30s，空集合时空转）；启动时从存储重建；唤醒前重读目标、会话忙/排空则延后、晚于 24h 暂停；`resume_goal_after_usage_limit` 供 REST「立即重试」；`next_due_at()` 返回最早 armed 时间供托管唤醒上报读取；`WAKE_OWNER` 所有权标记使仅经 `on_goal_hold` 停放的目标被本守护进程唤醒 | ✅ |
+| `daemon.py` | ✅ 核心 | `UsageLimitWakeDaemon`：内存 armed 集合 + 单个挂钟轮询任务（≤30s，空集合时空转）；启动时从存储重建；唤醒前重读目标、会话忙/排空则延后、晚于 24h 暂停；`resume_goal_after_usage_limit` 供 REST「立即重试」；唤醒与「立即重试」都在回合之外，经 `resolve_provider` 读写目标、不登记任何 provider（唤醒起的回合自己登记并归还）；`next_due_at()` 返回最早 armed 时间供托管唤醒上报读取；`WAKE_OWNER` 所有权标记使仅经 `on_goal_hold` 停放的目标被本守护进程唤醒 | ✅ |
 | `hold.py` | ✅ 核心 | `build_goal_hold_callback`：`on_goal_hold` 回调——打所有权标记、arm 守护进程、发通知 | ✅ |
 | `notify.py` | ✅ 辅助 | `publish_goal_usage_limit_notification`：wait / resumed / paused 三态 SYSTEM_NOTIFICATION（文案不含时间与技术细节） | ✅ |
 

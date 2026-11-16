@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.api.hooks::GOAL_WAIT_* / PROVIDER_WINDOW_HOLD_MAX_S / pause_goal_after_missed_wake (POS: parked-goal vocabulary)
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: session GoalProvider)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: the session's goal provider; storage-backed between turns, which is when a wake runs)
 - app.services.agent.goals.unattended::trigger_goal_stream_with_failure_policy (POS: unattended headless stream)
 - app.services.agent.gateway::get_agent_gateway (POS: in-flight session and drain state)
 - app.services.agent.goals.usage_limit_resume.notify (POS: user notification)
@@ -103,7 +103,7 @@ async def _resume(provider: GoalProvider, session_id: str, goal: Goal) -> bool:
 
     logger.info("Goal %s resumes after its usage limit reset", goal.goal_id)
     started = await trigger_goal_stream_with_failure_policy(
-        session_id, resumed, provider, on_failure="needs_human_review", context="usage limit resume"
+        session_id, resumed, on_failure="needs_human_review", context="usage limit resume"
     )
     if started:
         await publish_goal_usage_limit_notification(session_id, goal.goal_id, "resumed")
@@ -112,7 +112,7 @@ async def _resume(provider: GoalProvider, session_id: str, goal: Goal) -> bool:
 
 async def resume_goal_after_usage_limit(session_id: str) -> ResumeResult:
     """Manual "retry now": end the usage-limit wait immediately instead of at the reset time."""
-    provider = GoalRegistry.get_or_create_provider(session_id)
+    provider = GoalRegistry.resolve_provider(session_id)
     goal = await provider.get_latest_goal(session_id)
     if goal is None or not _is_usage_limit_wait(goal):
         return ResumeResult.NOT_WAITING
@@ -220,7 +220,7 @@ class UsageLimitWakeDaemon:
 
     async def _wake(self, session_id: str) -> float | None:
         """Resume one due session. Returns when to look again, or None when it needs no more attention."""
-        provider = GoalRegistry.get_or_create_provider(session_id)
+        provider = GoalRegistry.resolve_provider(session_id)
         goal = await provider.get_latest_goal(session_id)
         resume_at = _daemon_resume_at(goal)
         if goal is None or resume_at is None:

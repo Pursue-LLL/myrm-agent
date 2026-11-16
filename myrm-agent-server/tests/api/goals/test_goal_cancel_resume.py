@@ -98,7 +98,7 @@ async def test_resume_puts_the_goal_back_to_work(
     assert response.json()["new_status"] == "active"
     goal_stream_trigger.assert_awaited_once()
     assert goal_stream_trigger.await_args is not None
-    started_session, started_goal, _provider = goal_stream_trigger.await_args.args
+    started_session, started_goal = goal_stream_trigger.await_args.args
     assert started_session == session_id
     assert started_goal.goal_id == goal_id
     assert started_goal.status is GoalStatus.ACTIVE

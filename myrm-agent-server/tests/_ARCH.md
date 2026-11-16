@@ -426,12 +426,18 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/goals/test_session_id_guard.py` | 模块 | 路径参数不在白名单时，目标路由器上每个带路径参数的端点（取自路由器自己的 OpenAPI 清单，含挂载的子路由）一律 404 且存储无告警：逐个参数（会话 id、排队目标 id、子目标序号）注入存储键装不下的值（空字节、换行、`..`）、超过文件名长度的 256 位值，以及只在白名单外的值（反斜杠、点），响应是守卫自己的「Resource not found」而不是路由未命中；清单覆盖每个子路由与每种路径参数、不会因枚举为空而空过；系统实际签发的 id（网页聊天、看板任务、uuid、255 位）、合法的排队目标 id 与子目标序号、不带路径参数的端点照常服务 |
 | `api/goals/test_routes_between_turns.py` | 模块 | 回合之间会话没有注册的 provider、目标在存储里：目标路由器的三个模块（状态、队列、约束各取一个端点）仍从存储读出目标，且不为该会话注册 provider |
 | `services/agent/test_goal_registry_resolve_provider.py` | 模块 | `GoalRegistry.resolve_provider`：已注册的 provider 原样返回；未注册的会话得到一个绑定该会话、从存储读目标的 `ServerGoalManager`（不带运行中回合的状态），经它完成目标同样收集会话交付物；它永远不被注册进注册表、不会出现在 `GET /goals/active` 的遍历里 |
+| `services/agent/test_goal_registry_turn_provider.py` | 模块 | `GoalRegistry.turn_provider`（真实注册表与存储）：回合运行期间 provider 已登记、回合结束归还；回合抛错与被取消同样归还；回合之前已登记的 provider（IM `/goal` 登记的）原样共用并保留 |
+| `services/agent/test_goal_wait_background_resume.py` | 模块 | 后台 bash 作业结束后恢复等待中的目标（真实注册表与管理器，生产键形：作业事件带 `chat_<id>`、目标按聊天 id 存放）：作业匹配则结束等待并启动目标回合（恢复路径不登记 provider）、目标不是在等这个作业或聊天没有目标时原样不动、启动失败把目标送去复核 |
+| `services/agent/test_goal_wait_orphan_recovery.py` | 模块 | 重启后孤儿作业释放等待中的目标：作业台账里的 `chat_<id>` 会话键按聊天 id 匹配目标（等同一个作业号但作业属于别的聊天的目标不被释放），匹配的 WAIT 目标转为待复核并发通知 |
+| `api/goals/test_goal_queue_callbacks.py` | 模块 | 目标终态回调之后的队列接续与 loop 重启（真实队列，回调在回合收尾之后才跑，没有 provider 登记）：下一个排队目标照常启动、空队列不启动、接续深度到限就停且队列原样不动、出队失败止于该处、事件总线失败不挡路、启动失败顺延到后一个排队目标；loop 重启重新触发目标并在失败时保持 ACTIVE |
+| `services/chat/test_rewind_pauses_goal.py` | 模块 | rewind 后暂停会话的活动目标（真实管理器，会话空闲、没有 provider 登记）：ACTIVE 目标被暂停并记下 rewind 原因，非 ACTIVE 的目标与没有目标的聊天原样不动 |
+| `services/kanban/test_unblock_resumes_goal.py` | 模块 | 看板任务从 BLOCKED 解除阻塞时恢复其停放的目标（真实管理器，`kanban:<task_id>` 键）：暂停/等待/待复核/预算受限各自回到 ACTIVE，且不登记 provider |
 | `core/channel_bridge/test_goal_commands_between_turns.py` | 模块 | IM `/goal status`/`pause`/`resume`/`clear`/`wait`/`unwait`/`budget`/`constraint` 与恢复 kickoff 在回合之间（没有注册 provider）作用于存储里的目标；聊天里没有目标时各命令回自己的「无目标」文案，且都不注册 provider |
 | `core/channel_bridge/test_goal_subgoal_command.py` | 模块 | IM `/subgoal add` 在回合之间落在存储里的目标上，且不注册 provider |
 | `core/channel_bridge/test_goal_stop_commands.py` | 模块 | IM `/goal clear` 与 `/goal pause`：与 Web 同一规则，清除运行中/暂停/预算受限/待复核/等待中的目标，已结束的目标不动；正在干活的目标被暂停/清除时中断它的回合，不在干活的目标不碰会话当前回合 |
 | `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume` 与 `/goal unwait`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，无令牌且仅有中断信号的回合同样算已被叫停，等不到则回复稍后再发且目标保持暂停）；恢复或结束等待后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
-| `services/agent/goals/unattended/test_failure_policy.py` | 模块 | 无人值守目标流的失败去向：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标，已被 run 停放/暂停/完成的目标保持原状态 |
-| `services/agent/goals/unattended/test_headless_goal_turn.py` | 模块 | 服务端自启的目标回合在构建 agent 之前预留会话并注册取消令牌（真实 `AgentGateway` 与 `CancellationRegistry`，仅 agent 流为替身）：暂停与 E-Stop 能取消该回合的令牌、回合以任何方式结束都归还会话与令牌、暂停后结束该回合启动的后台任务而跑完的回合不动它们、会话已被消息占用时不构建也不夺走对方的预留、二次启动不扰动首个回合、应用排空不算目标失败 |
+| `services/agent/goals/unattended/test_failure_policy.py` | 模块 | 无人值守目标流的失败去向（真实 `GoalRegistry` 与 `ServerGoalManager`，失败时回合已归还自己的 provider）：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标，已被 run 停放/暂停/完成的目标保持原状态 |
+| `services/agent/goals/unattended/test_headless_goal_turn.py` | 模块 | 服务端自启的目标回合在构建 agent 之前预留会话并注册取消令牌，并在回合内登记会话的 provider（真实 `AgentGateway`、`CancellationRegistry` 与 `GoalRegistry`，仅 agent 流为替身）：暂停与 E-Stop 能取消该回合的令牌、agent 构建时注册表里有 provider 且与流上下文里的 `goal_provider` 是同一个（IM `/goal` 先登记的 provider 原样共用并保留）、回合以任何方式结束都归还会话、令牌与自己登记的 provider（provider 先于会话归还）、暂停后结束该回合启动的后台任务而跑完的回合不动它们、会话已被消息占用时不构建、不登记也不夺走对方的预留、二次启动不扰动首个回合、应用排空不算目标失败 |
 | `services/agent/goals/unattended/trigger_testkit.py` | 辅助 | 无人值守目标触发测试共用的驱动：经生产的 `trigger_goal_stream` 触发目标回合（真实 `AgentGateway`，仅 agent 流、模型解析与用户配置读取为替身），返回每次触发构建出的 `GeneralAgentParams`；`user_configs()` 构造带或不带已保存安全配置的用户配置，`configs=` 让每次读取都返回同一个对象（与加载器缓存一致）；`test_trigger_cache_key.py` 与 `test_trigger_security_grant.py` 共用 |
 | `services/agent/goals/unattended/test_trigger_cache_key.py` | 模块 | 同一聊天的连续无人值守目标回合解析到同一个缓存的执行单元：触发器每次强制开启 YOLO 并盖上开启时刻，两个回合只在这个时刻上不同（含智能体自带 YOLO 超时的情形），仍得到相同的执行指纹，不会每回合拆掉上一回合建好的单元与它持有的浏览器会话 |
 | `services/agent/goals/unattended/test_trigger_security_grant.py` | 模块 | 触发器给无人值守回合的 YOLO 授权只写进该回合自己的配置副本：加载器缓存的已保存安全配置在触发后仍是用户保存的样子（不污染 30 秒内读它的其他对话与渠道）、未开启 YOLO 的已保存配置被授予无时限 YOLO 并保留其余设置、用户自己开启的 YOLO 保留自己的计时 |
@@ -454,7 +460,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_persist_user_message_human_turn.py` | 模块 | 已有会话里的新用户消息解除 Stop 并恢复唤醒额度，新会话、审批续跑与重新生成不算 |
 | `api/agents/general_agent/test_stop_holds_autonomous_wakes.py` | 模块 | 两个 Stop 端点（真实网关与取消注册表）终止回合并让该会话不会自行唤醒，只影响被停的会话，什么都没在跑时不动预算；网关按消息 id 反查会话 |
 | `lifecycle/test_auto_continue_turn_lease.py` | 模块 | 崩溃自动续跑的重放回合在租约下运行：持有会话且取消令牌可被停止、无论成败都归还、被停止时结束后台任务、会话已被消息占用时不在其上重放（按失败通知） |
-| `services/agent/goals/unattended/test_trigger_profile.py` | 模块 | 无人值守目标流继承聊天绑定的智能体档案：参数里残留的 `response_locale_policy` 键不改写提示词、Team 协议与成员、没有绑定智能体、安全覆盖，以及 `trigger_goal_stream` 把档案、`goal_provider` 与记忆开关注入 `GeneralAgentParams` |
+| `services/agent/goals/unattended/test_trigger_profile.py` | 模块 | 无人值守目标流继承聊天绑定的智能体档案：参数里残留的 `response_locale_policy` 键不改写提示词、Team 协议与成员、没有绑定智能体、安全覆盖，以及 `trigger_goal_stream` 把档案与记忆开关注入 `GeneralAgentParams`、把回合登记的会话 `goal_provider`（回合结束后注册表里已无）与执行模式、停用技能根注入流上下文 |
 | `core/channel_bridge/test_goal_status_view.py` | 模块 | IM `/goal status` 回复（`render_goal_status`）：只有目标与状态时两行，预算/约束/验收标准/子目标按固定顺序追加，没有上限的预算不加预算行 |
 | `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案、子目标 `text`、草拟 `objective`、约束与复核驳回备注的风险闸门（自带 `client` 与规则夹具）：命中规则的更新、写入与草拟返回 400（`risk_held`，带规则列表）且不落库，被拦的复核驳回让目标留在待复核，干净文案照常保存、干净的驳回把目标送回运行 |
 | `api/test_authoring_risk_gate.py` | 模块 | 智能体档案（创建与更新的 `system_prompt`、`description`、建议提示词、命令绑定指令；更新不带文字时不过闸）、提示词生成与 AI 创建的意图、批量目录的提示词、技能派生的指令的风险闸门（真实处理函数，只注入规则）：拒绝为 400 `risk_held` 且响应里没有原文、库里什么都没存、命中的文字不送达模型或引擎，干净文本照常通过 |

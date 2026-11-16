@@ -87,7 +87,6 @@ goal_wait =
     Use `/goal unwait` to resume.
 goal_unwait = Goal resumed from wait: **{ $objective }**
 goal_not_waiting = Goal is not in wait state.
-goal_wait_not_supported = Wait is not supported in this environment.
 goal_resumed = Goal resumed: **{ $objective }**
 goal_cleared = Goal cleared: **{ $objective }**
 goal_cannot_resume = Cannot resume goal in '{ $status }' state.

@@ -3,7 +3,7 @@
 [INPUT]
 - app.platform_utils::get_checkpointer (POS: LangGraph checkpointer)
 - app.services.agent.gateway::get_agent_gateway (POS: active session guard)
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: goal pause on rewind)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: the chat's goal provider, for the goal pause on rewind)
 - app.services.agent.streaming_support.stream_collector::release_parked_hitl (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata, and holds the registry of each chat's parked run)
 
 [OUTPUT]
@@ -69,20 +69,21 @@ async def invalidate_chat_checkpoint(chat_id: str) -> int:
 
 
 async def pause_active_goal_for_rewind(chat_id: str) -> bool:
-    """Pause an active goal after a successful rewind mutation."""
-    provider = GoalRegistry.get_provider(chat_id)
-    if provider is None:
-        return False
+    """Pause an active goal after a successful rewind mutation.
+
+    A rewind is refused while the chat runs (`assert_session_available_for_continuity`), so it always lands between
+    turns, when no provider is registered and the goal is read from storage.
+    """
+    provider = GoalRegistry.resolve_provider(chat_id)
 
     goal = await provider.get_active_goal(chat_id)
     if goal is None or goal.status != GoalStatus.ACTIVE:
         return False
 
     await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
-    if hasattr(provider, "update_metadata"):
-        await provider.update_metadata(
-            goal.goal_id,
-            {"pause_reason": "Conversation rewind requested"},
-        )
+    await provider.update_metadata(
+        goal.goal_id,
+        {"pause_reason": "Conversation rewind requested"},
+    )
     logger.info("Paused active goal %s after rewind (chat=%s)", goal.goal_id, chat_id)
     return True

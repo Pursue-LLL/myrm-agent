@@ -1,10 +1,11 @@
 """Trigger unattended headless agent streams for goal continuation.
 
-[INPUT] streaming, turn_lease (session claim + cancel token), gateway (busy / draining), failure, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
+[INPUT] streaming, turn_lease (session claim + cancel token), gateway (busy / draining), goal_registry (the turn's goal provider), failure, config_loader, ChatService, profile_resolver, tool_mount, runtime_context, privacy_settings
 [OUTPUT] GoalStreamAgentContext, trigger_goal_stream*
 [POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile. The turn
 runs under a server turn lease, taken before its agent is built, so a pause, the chat Stop button and the
-emergency stop reach it.
+emergency stop reach it. It also holds the session's goal provider for as long as it runs, as a chat turn does,
+so its agent mounts the goal tools and its goal callbacks are wired.
 """
 
 from __future__ import annotations
@@ -19,7 +20,6 @@ from typing import TYPE_CHECKING
 from app.services.agent.goals.unattended.failure import TriggerFailurePolicy, handle_unattended_goal_stream_failure
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.goals.protocols import GoalProvider
     from myrm_agent_harness.agent.goals.types import Goal
 
 logger = logging.getLogger(__name__)
@@ -101,13 +101,13 @@ async def trigger_goal_stream(
     session_id: str,
     goal: Goal,
     *,
-    provider: GoalProvider | None = None,
     on_failure: TriggerFailurePolicy = "needs_human_review",
     context: str = "goal stream",
 ) -> None:
-    """Trigger a new agent stream for a dequeued goal.
+    """Start the unattended turn that carries a goal on; the turn runs in a background task.
 
-    Loads full user config (model, search, security) and runs as unattended.
+    Loads full user config (model, search, security) and runs as unattended. The turn takes the session and the
+    session's goal provider for as long as it runs and gives both back however it ends.
     """
     from app.ai_agents import GeneralAgentParams
     from app.core.channel_bridge.config_loader import load_user_configs
@@ -251,16 +251,22 @@ async def trigger_goal_stream(
         turn_id = f"goal-turn-{uuid.uuid4().hex}"
         try:
             from app.services.agent.execution_cache.types import ExecutionMode
+            from app.services.agent.goals.goal_registry import GoalRegistry
             from app.services.agent.runtime_context import build_agent_runtime_context
 
-            extra_context = await build_agent_runtime_context(
-                execution_mode=ExecutionMode.POOLED,
-                base={"goal_provider": provider} if provider is not None else None,
-            )
             # The lease is taken before the agent is built, as a chat turn takes its session, so a pause, the chat
             # Stop button and the emergency stop find this turn from the start. A turn that took the session first
-            # (a message, or an earlier start of this goal) carries the goal on.
-            async with server_turn_lease(session_id, turn_id) as cancel_token:
+            # (a message, or an earlier start of this goal) carries the goal on. The provider is registered inside
+            # the lease and given back before it: a start that lost the session registers nothing, and the message
+            # that takes the session next finds the registry clean.
+            async with (
+                server_turn_lease(session_id, turn_id) as cancel_token,
+                GoalRegistry.turn_provider(session_id) as goal_provider,
+            ):
+                extra_context = await build_agent_runtime_context(
+                    execution_mode=ExecutionMode.POOLED,
+                    base={"goal_provider": goal_provider},
+                )
                 async for _ in ai_agent_service_stream(params, cancel_token=cancel_token, extra_context=extra_context):
                     pass
         except (AgentBusyError, AgentDrainingError) as exc:
@@ -275,7 +281,6 @@ async def trigger_goal_stream(
             await handle_unattended_goal_stream_failure(
                 session_id,
                 goal.goal_id,
-                provider,
                 on_failure=on_failure,
                 context=context,
             )
@@ -289,7 +294,6 @@ async def trigger_goal_stream(
 async def trigger_goal_stream_with_failure_policy(
     session_id: str,
     goal: Goal,
-    provider: GoalProvider | None,
     *,
     on_failure: TriggerFailurePolicy = "needs_human_review",
     context: str = "goal stream",
@@ -299,7 +303,6 @@ async def trigger_goal_stream_with_failure_policy(
         await trigger_goal_stream(
             session_id,
             goal,
-            provider=provider,
             on_failure=on_failure,
             context=context,
         )
@@ -315,7 +318,6 @@ async def trigger_goal_stream_with_failure_policy(
         await handle_unattended_goal_stream_failure(
             session_id,
             goal.goal_id,
-            provider,
             on_failure=on_failure,
             context=context,
         )

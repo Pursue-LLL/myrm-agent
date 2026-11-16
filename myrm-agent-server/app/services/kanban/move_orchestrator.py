@@ -292,7 +292,7 @@ async def move_task(
                 from app.services.agent.goals.goal_registry import GoalRegistry
 
                 session_id = f"kanban:{task_id}"
-                provider = GoalRegistry.get_or_create_provider(session_id)
+                provider = GoalRegistry.resolve_provider(session_id)
                 latest_goal = await provider.get_latest_goal(session_id)
                 if latest_goal and latest_goal.status in (
                     GoalStatus.PAUSED,

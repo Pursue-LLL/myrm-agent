@@ -1,4 +1,8 @@
-"""Tests for WAIT goal release when background jobs are orphaned on restart."""
+"""Tests for WAIT goal release when background jobs are orphaned on restart.
+
+The job ledger holds the session key of the run that started each job (`chat_<chat id>`) while goals are stored under the
+chat id, so every record here carries the production key shape.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +13,8 @@ import pytest
 from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
 from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 from myrm_agent_harness.agent.meta_tools.bash._background.job_store_core import BackgroundJobRecord
+
+from app.services.agent.params.workspace_resolve import chat_session_id
 
 _JOB_ID = "c" * 32
 
@@ -28,44 +34,11 @@ def _goal(*, session_id: str, status: GoalStatus, wait_job_id: str | None = None
     )
 
 
-def test_find_goals_to_release_matches_session_and_job_id() -> None:
-    from app.services.agent.goals.goal_wait_orphan_recovery import find_goals_to_release_from_orphaned_jobs
-
-    orphaned = (
-        BackgroundJobRecord(
-            job_id=_JOB_ID,
-            pid=4242,
-            session_id="s1",
-            command="pytest",
-            status="orphaned",
-            started_at=1.0,
-            completed_at=None,
-            exit_code=None,
-            error_category=None,
-            finish_processed=False,
-            vault_log_ref=None,
-        ),
-    )
-    goals = {
-        "s1": _goal(session_id="s1", status=GoalStatus.WAIT, wait_job_id=_JOB_ID),
-        "s2": _goal(session_id="s2", status=GoalStatus.WAIT, wait_job_id="d" * 32),
-    }
-
-    released = find_goals_to_release_from_orphaned_jobs(
-        session_ids=("s1", "s2"),
-        goals_by_session=goals,
-        orphaned_jobs=orphaned,
-    )
-    assert released == ("goal-s1",)
-
-
-@pytest.mark.asyncio
-async def test_release_orphaned_wait_goals_updates_status() -> None:
-    wait_goal = _goal(session_id="s1", status=GoalStatus.WAIT, wait_job_id=_JOB_ID)
-    orphaned = BackgroundJobRecord(
-        job_id=_JOB_ID,
+def _orphaned_job(chat_id: str, job_id: str = _JOB_ID) -> BackgroundJobRecord:
+    return BackgroundJobRecord(
+        job_id=job_id,
         pid=4242,
-        session_id="s1",
+        session_id=chat_session_id(chat_id),
         command="pytest",
         status="orphaned",
         started_at=1.0,
@@ -76,8 +49,32 @@ async def test_release_orphaned_wait_goals_updates_status() -> None:
         vault_log_ref=None,
     )
 
+
+def test_find_goals_to_release_matches_chat_and_job_id() -> None:
+    from app.services.agent.goals.goal_wait_orphan_recovery import find_goals_to_release_from_orphaned_jobs
+
+    goals = {
+        "s1": _goal(session_id="s1", status=GoalStatus.WAIT, wait_job_id=_JOB_ID),
+        "s2": _goal(session_id="s2", status=GoalStatus.WAIT, wait_job_id="d" * 32),
+        # Waits on the same job id, but the orphaned job belongs to another chat.
+        "s3": _goal(session_id="s3", status=GoalStatus.WAIT, wait_job_id=_JOB_ID),
+    }
+
+    released = find_goals_to_release_from_orphaned_jobs(
+        session_ids=("s1", "s2", "s3"),
+        goals_by_session=goals,
+        orphaned_jobs=(_orphaned_job("s1"),),
+    )
+
+    assert released == ("goal-s1",)
+
+
+@pytest.mark.asyncio
+async def test_release_orphaned_wait_goals_updates_status() -> None:
+    wait_goal = _goal(session_id="s1", status=GoalStatus.WAIT, wait_job_id=_JOB_ID)
+
     mock_store = MagicMock()
-    mock_store.list_recent.return_value = [orphaned]
+    mock_store.list_recent.return_value = [_orphaned_job("s1")]
 
     mock_storage = MagicMock()
     mock_storage.list_latest_goal_sessions = AsyncMock(return_value=["s1"])

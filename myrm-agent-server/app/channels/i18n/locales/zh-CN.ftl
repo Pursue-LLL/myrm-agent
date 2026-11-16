@@ -87,7 +87,6 @@ goal_wait =
     使用 `/goal unwait` 恢复。
 goal_unwait = 目标已从等待恢复：**{ $objective }**
 goal_not_waiting = 目标未处于等待状态。
-goal_wait_not_supported = 当前环境不支持等待模式。
 goal_resumed = 目标已恢复：**{ $objective }**
 goal_cleared = 目标已清除：**{ $objective }**
 goal_cannot_resume = 无法恢复处于「{ $status }」状态的目标。
