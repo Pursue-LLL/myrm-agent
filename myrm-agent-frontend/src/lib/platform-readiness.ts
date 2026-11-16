@@ -11,7 +11,7 @@
  * answers again.
  *
  * [POS]
- * Frontend-only coordinator. Subscribers await `whenDatabaseReady()` before
+ * Frontend-only coordinator. Callers await `whenDatabaseReady()` before
  * ConfigSync, approvals recovery, and TauriAdapter config fetches.
  */
 import { getBackendBaseUrl, isLocalMode } from '@/lib/deploy-mode';
@@ -38,8 +38,6 @@ interface HealthReadyResponse {
   };
 }
 
-type ReadinessListener = (snapshot: PlatformReadinessSnapshot) => void;
-
 /**
  * Shell events for failures it will not recover from: the sidecar failed to start, or the watchdog gave up
  * restarting it. `backend-crash` is not final (the watchdog restarts the sidecar), so waits stay parked through it.
@@ -59,25 +57,9 @@ let warmAbort = new AbortController();
 // of polling a whole budget for a backend nobody is restarting.
 let backendFinallyDown = false;
 let listeningForFinalFailure = false;
-const listeners = new Set<ReadinessListener>();
-
-function emit(next: PlatformReadinessSnapshot): void {
-  snapshot = next;
-  for (const listener of listeners) {
-    listener(next);
-  }
-}
 
 export function getPlatformReadinessSnapshot(): PlatformReadinessSnapshot {
   return snapshot;
-}
-
-export function subscribePlatformReadiness(listener: ReadinessListener): () => void {
-  listeners.add(listener);
-  listener(snapshot);
-  return () => {
-    listeners.delete(listener);
-  };
 }
 
 async function probeDatabaseReady(): Promise<PlatformReadinessSnapshot> {
@@ -124,11 +106,11 @@ function listenForFinalFailure(): void {
 
 async function warmUntilDatabaseReady(signal: AbortSignal): Promise<PlatformReadinessSnapshot> {
   if (!isLocalMode()) {
-    emit({ state: 'ready', database: true });
+    snapshot = { state: 'ready', database: true };
     return snapshot;
   }
 
-  emit({ state: 'warming', database: false });
+  snapshot = { state: 'warming', database: false };
 
   // A final failure event is what ends the long poll below early, so subscribe before it starts.
   if (await waitForTauriRuntime({ signal })) {
@@ -139,7 +121,7 @@ async function warmUntilDatabaseReady(signal: AbortSignal): Promise<PlatformRead
   const healthy = await waitForBackendReady({ signal, ...(backendFinallyDown ? { maxAttempts: 1 } : {}) });
 
   if (!healthy) {
-    emit({ state: 'unreachable', database: false });
+    snapshot = { state: 'unreachable', database: false };
     return snapshot;
   }
 
@@ -148,7 +130,7 @@ async function warmUntilDatabaseReady(signal: AbortSignal): Promise<PlatformRead
   for (let attempt = 0; attempt < BACKEND_HEALTH_MAX_ATTEMPTS && !signal.aborted; attempt += 1) {
     const probed = await probeDatabaseReady();
     if (probed.database) {
-      emit({ state: 'ready', database: true });
+      snapshot = { state: 'ready', database: true };
       return snapshot;
     }
 
@@ -161,7 +143,7 @@ async function warmUntilDatabaseReady(signal: AbortSignal): Promise<PlatformRead
     }
   }
 
-  emit({ state: 'unreachable', database: false });
+  snapshot = { state: 'unreachable', database: false };
   return snapshot;
 }
 
@@ -200,7 +182,7 @@ export function markPlatformUnreachable(): void {
     return;
   }
   warmPromise = null;
-  emit({ state: 'unreachable', database: false });
+  snapshot = { state: 'unreachable', database: false };
 }
 
 /** @internal */
@@ -214,5 +196,4 @@ export function resetPlatformReadinessForTests(): void {
     state: isLocalMode() ? 'warming' : 'ready',
     database: !isLocalMode(),
   };
-  listeners.clear();
 }
