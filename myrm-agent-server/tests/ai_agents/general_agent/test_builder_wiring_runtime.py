@@ -1,4 +1,4 @@
-"""What ``build_general_agent`` hands the harness besides tools: skills, MCP servers, workspace, user and guards.
+"""What ``build_general_agent`` hands the harness besides tools: skills, MCP servers, workspace, language, user and guards.
 
 ``builder_wiring_testkit`` says what is real and what is stood in for.
 """
@@ -228,6 +228,21 @@ class TestWorkspace:
 
         assert handed["spec"].workspace_binding is None
         assert handed["task_workspace_root"] is None
+
+
+class TestSessionLanguage:
+    @pytest.mark.parametrize("locale", ["zh-CN", "en", None])
+    async def test_the_runtime_spec_and_the_system_prompt_carry_the_sessions_language(
+        self, harness: BuilderHarness, locale: str | None
+    ) -> None:
+        build_prompt = MagicMock(return_value="system prompt")
+        harness.patch(f"{BUILDER}.build_system_prompt", build_prompt)
+
+        handed = await harness.build(harness.wrapper(locale=locale))
+
+        spec = handed["spec"]
+        assert (spec.locale, spec.prompt_locale) == (locale, locale)
+        assert build_prompt.call_args.kwargs["prompt_locale"] == locale
 
 
 class TestHandOff:
