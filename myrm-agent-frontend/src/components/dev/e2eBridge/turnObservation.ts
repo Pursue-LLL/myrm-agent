@@ -35,6 +35,11 @@ import {
   type SendTurnProfile,
 } from '@/components/dev/e2eBridge/sendTurnResult';
 
+/** Pause between two rounds of the observe loop. */
+const OBSERVE_POLL_MS = 250;
+/** Time since kickoff after which a send promise that ended without UI progress is reported as a no-op. */
+const SETTLED_EMPTY_NO_OP_MS = 1_500;
+
 /** What the send promise has reported so far: written by its settle handlers, read by the observe loop. */
 export interface SendSettlement {
   /** Message of the rejection; null while the promise has not been rejected. */
@@ -105,6 +110,22 @@ export async function observeTurn({
     return poll.users;
   };
   const turnEvidence = () => ({ turnTrace: trace.snapshot(), storeTimeline: watch.snapshot() });
+  /** The readings every result that polled the API reports, next to the identity of the send. */
+  const observation = (
+    phase: 'SUBMIT' | 'OBSERVE' | 'SEAL',
+    apiUsers: number,
+    { userCount, streaming }: { userCount: number; streaming: boolean },
+  ) => ({
+    phase,
+    profile,
+    sendGeneration: startGen,
+    apiUsers,
+    apiPoll: { ...apiPoll },
+    ...turnEvidence(),
+    userCount,
+    streaming,
+    baselineUsers,
+  });
   const observeDeadline = Date.now() + SEND_TURN_OBSERVE_MS;
   while (Date.now() < observeDeadline) {
     if (settlement.submitError) {
@@ -133,12 +154,12 @@ export async function observeTurn({
     const chatState = useChatStore.getState();
     const chatId = chatState.chatId?.trim() || '';
     if (!chatId) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, OBSERVE_POLL_MS));
       continue;
     }
-    const { userCount, streaming, uiProgress } = resolveE2eTurnProgress(chatId, baselineUsers);
+    const progress = resolveE2eTurnProgress(chatId, baselineUsers);
     const elapsedMs = Date.now() - kickoffAt;
-    if (settlement.settledEmpty && elapsedMs >= 1_500) {
+    if (settlement.settledEmpty && elapsedMs >= SETTLED_EMPTY_NO_OP_MS) {
       const apiUsersProbe = await countApiUsers(chatId);
       return {
         ok: false,
@@ -146,21 +167,13 @@ export async function observeTurn({
         mode: 'sendTurnSubmitNoOp',
         chatId,
         debug: {
-          phase: 'SUBMIT',
-          profile,
-          sendGeneration: startGen,
-          apiUsers: apiUsersProbe,
-          apiPoll: { ...apiPoll },
-          ...turnEvidence(),
-          userCount,
-          streaming,
-          baselineUsers,
+          ...observation('SUBMIT', apiUsersProbe, progress),
           elapsedMs,
           ...buildSendTurnDiagnostic(chatId),
         },
       };
     }
-    if (elapsedMs >= resolveSendTurnNoOpMs() && !uiProgress) {
+    if (elapsedMs >= resolveSendTurnNoOpMs() && !progress.uiProgress) {
       const apiUsersProbe = await countApiUsers(chatId);
       if (apiUsersProbe <= baselineUsers) {
         return {
@@ -169,15 +182,7 @@ export async function observeTurn({
           mode: 'sendTurnSubmitNoOp',
           chatId,
           debug: {
-            phase: 'OBSERVE',
-            profile,
-            sendGeneration: startGen,
-            apiUsers: apiUsersProbe,
-            apiPoll: { ...apiPoll },
-            ...turnEvidence(),
-            userCount,
-            streaming,
-            baselineUsers,
+            ...observation('OBSERVE', apiUsersProbe, progress),
             elapsedMs,
             sendSettledEmpty: settlement.settledEmpty,
             ...buildSendTurnDiagnostic(chatId),
@@ -192,7 +197,7 @@ export async function observeTurn({
     // let the E2E flow continue while the API still has no user row. Every
     // turn, whichever its profile, must therefore have both UI progress and an
     // API-side row; the profile only labels the result.
-    if (apiOk && uiProgress) {
+    if (apiOk && progress.uiProgress) {
       // store.agentConfig may have been reset by attach after POST; the payload
       // itself is guaranteed by agentConfigOverride, so reflect that in diagnostics.
       const ephKeys = window.__MYRM_E2E_EPH_APPLIED__?.keys ?? [];
@@ -201,23 +206,15 @@ export async function observeTurn({
         chatId,
         mode: 'sendTurnSealed',
         debug: {
-          phase: 'SEAL',
-          profile,
+          ...observation('SEAL', apiUsers, progress),
           rev: SEND_TURN_REV,
-          sendGeneration: startGen,
-          apiUsers,
-          apiPoll: { ...apiPoll },
-          ...turnEvidence(),
-          userCount,
-          streaming,
-          baselineUsers,
           chatIdBeforeSend: chatIdBeforeSend !== chatId ? chatIdBeforeSend : undefined,
           ephKeys,
           actionModeAtSeal: useChatStore.getState().actionMode,
         },
       };
     }
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, OBSERVE_POLL_MS));
   }
   const finalChatId = useChatStore.getState().chatId?.trim() || chatIdBeforeSend;
   const finalProgress = resolveE2eTurnProgress(finalChatId, baselineUsers);
@@ -228,16 +225,7 @@ export async function observeTurn({
     mode: 'sendTurnObserveTimeout',
     chatId: finalChatId,
     debug: {
-      phase: 'OBSERVE',
-      profile,
-      rev: SEND_TURN_REV,
-      sendGeneration: startGen,
-      apiUsers: finalApiUsers,
-      apiPoll: { ...apiPoll },
-      ...turnEvidence(),
-      userCount: finalProgress.userCount,
-      streaming: finalProgress.streaming,
-      baselineUsers,
+      ...observation('OBSERVE', finalApiUsers, finalProgress),
       sendSettledEmpty: settlement.settledEmpty,
       ...buildSendTurnDiagnostic(finalChatId),
     },
