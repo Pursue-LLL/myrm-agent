@@ -20,7 +20,7 @@ The ``CronManager`` is the single entry point for all job mutations
 [POS]
 Cron CRUD orchestration layer. Validates job configurations, persists changes via CronStore,
 and notifies CronScheduler of mutations. Used by both agent tools and API routes. Creation, duplication,
-deletion, pause, resume and trigger live here; reads (``CronQueryMixin``), updates (``CronUpdateMixin``) and
+deletion, pause, resume, trigger and the manual trial run (``run_now``) live here; reads (``CronQueryMixin``), updates (``CronUpdateMixin``) and
 field validation (``CronValidationMixin``) are mixed in.
 """
 
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.infra.incremental.types import MonitorConfig
     from myrm_agent_harness.toolkits.cron.engine.scheduler import CronScheduler
     from myrm_agent_harness.toolkits.cron.protocols import CronStore
-    from myrm_agent_harness.toolkits.cron.types import Schedule
+    from myrm_agent_harness.toolkits.cron.types import RunNowOutcome, Schedule
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +295,10 @@ class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
         return await self.update_job(job_id, CronJobPatch(status=JobStatus.ACTIVE))
 
     async def trigger_now(self, job_id: str) -> bool:
-        """Set next_run_at to now so the scheduler picks it up immediately."""
+        """Make an active job due now: the scheduler runs it as an ordinary scheduled run (slot booked, fire counted).
+
+        For a manual trial run that touches neither the schedule nor the fire count, use ``run_now``.
+        """
         job = await self._store.get_job(job_id)
         if not job or job.status != JobStatus.ACTIVE:
             return False
@@ -304,3 +307,7 @@ class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
         await self._store.save_job(job)
         self._scheduler.notify_change()
         return True
+
+    async def run_now(self, job_id: str) -> RunNowOutcome:
+        """Start one manual trial run of an active job that is not already running; see ``CronScheduler.run_now``."""
+        return await self._scheduler.run_now(job_id)

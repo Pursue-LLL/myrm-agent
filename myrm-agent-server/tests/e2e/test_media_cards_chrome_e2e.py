@@ -40,7 +40,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _REPLY_TEXT = "MYRM_E2E_MEDIA_CARD_REPLY"
-_EXPIRED_NOTICE = "task record has expired|任务记录已过期|任務記錄已過期"
+_EXPIRED_NOTICE = "task record has expired|任务记录已过期"
 _UNLOADABLE_WAIT_SEC = 25.0
 
 _DISMISS_MIGRATION_JS = """(() => {

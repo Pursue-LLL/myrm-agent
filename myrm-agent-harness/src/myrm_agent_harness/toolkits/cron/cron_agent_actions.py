@@ -7,11 +7,12 @@ returns the text (or JSON) the model sees; failures come back as plain messages.
 [INPUT]
 - toolkits.cron.blueprint_job_spec::DEFAULT_JOB_TIMEOUT_SECONDS, BlueprintJobSpec (POS: blueprint 产出的完整 job 定义)
 - toolkits.cron.cron_agent_params::_MIN_INTERVAL_MINUTES, _MIN_INTERVAL_MS, _build_active_hours, _build_monitor_config, _build_schedule, _build_trigger_config, _parse_context_from, _parse_expires_after, _parse_session_mode (POS: cron_manage_tool 参数解析与校验)
+- toolkits.cron.cron_agent_results::job_result, resume_result (POS: cron_manage_tool 的返回 JSON)
+- toolkits.cron.cron_agent_timezone::resolve_timezone (POS: cron_manage_tool 的时区契约)
 - toolkits.cron.engine.name_generator::generate_job_name (POS: 任务名生成)
-- toolkits.cron.engine.parser::describe_schedule (POS: cron 表达式解析与下次运行时间计算)
 - toolkits.cron.job_listing::format_job_line (POS: list 动作的单行任务摘要)
 - toolkits.cron.manager::CronManager (POS: cron CRUD 编排层)
-- toolkits.cron.types::CronJobPatch, DeliveryConfig, JobType, Schedule, ScheduleKind, SessionTarget (POS: cron 数据模型)
+- toolkits.cron.types::CronJobPatch, DeliveryConfig, JobType, RunNowOutcome, Schedule, ScheduleKind, SessionTarget (POS: cron 数据模型)
 
 [OUTPUT]
 - BlueprintCatalogProvider / DeliveryResolver: callables the tool factory injects into the actions
@@ -44,13 +45,15 @@ from myrm_agent_harness.toolkits.cron.cron_agent_params import (
     _parse_expires_after,
     _parse_session_mode,
 )
+from myrm_agent_harness.toolkits.cron.cron_agent_results import job_result, resume_result
+from myrm_agent_harness.toolkits.cron.cron_agent_timezone import resolve_timezone
 from myrm_agent_harness.toolkits.cron.engine.name_generator import generate_job_name
-from myrm_agent_harness.toolkits.cron.engine.parser import describe_schedule
 from myrm_agent_harness.toolkits.cron.job_listing import format_job_line
 from myrm_agent_harness.toolkits.cron.types import (
     CronJobPatch,
     DeliveryConfig,
     JobType,
+    RunNowOutcome,
     Schedule,
     ScheduleKind,
     SessionTarget,
@@ -61,6 +64,13 @@ if TYPE_CHECKING:
 
 BlueprintCatalogProvider = Callable[[], str]
 DeliveryResolver = Callable[[str], DeliveryConfig]
+
+_RUN_RESULTS = {
+    RunNowOutcome.STARTED: "Task {} triggered.",
+    RunNowOutcome.ALREADY_RUNNING: "Task {} is already running.",
+    RunNowOutcome.NOT_FOUND: "Task {} not found or not active.",
+    RunNowOutcome.NOT_ACTIVE: "Task {} not found or not active.",
+}
 
 
 async def _do_blueprints(provider: BlueprintCatalogProvider | None) -> str:
@@ -109,6 +119,7 @@ async def _do_add(
     spec: BlueprintJobSpec | None,
     resolve_delivery: DeliveryResolver,
 ) -> str:
+    """Create a task. ``tz`` is the zone ``cron_manage`` already resolved (explicit, else the requester's); empty is UTC."""
     has_prompt = bool(prompt.strip())
     has_command = bool(command.strip())
 
@@ -177,11 +188,14 @@ async def _do_add(
 
     delivery = resolve_delivery(webhook_url)
     failure_delivery = resolve_delivery(failure_webhook_url) if failure_webhook_url.strip() else None
-    active_hours = _build_active_hours(active_start, active_end, active_tz)
+    active_zone_error, active_zone = resolve_timezone(active_tz, inherited=tz or None)
+    if active_zone_error:
+        return active_zone_error
+    active_hours = _build_active_hours(active_start, active_end, active_zone or "")
 
     effective_max_fires: int | None = max_fires if max_fires > 0 else None
     try:
-        expires_at = _parse_expires_after(expires_after)
+        expires_at = _parse_expires_after(expires_after, tz or None)
     except (ValueError, TypeError):
         return f"Invalid expires_after format: '{expires_after}'. Use '3d', '2w', '3m', or ISO 8601."
 
@@ -227,38 +241,7 @@ async def _do_add(
     except ValueError as exc:
         return str(exc)
 
-    next_run = job.next_run_at.strftime("%Y-%m-%d %H:%M UTC") if job.next_run_at else "N/A"
-    type_label = {
-        JobType.SHELL: "Shell",
-        JobType.REMINDER: "Reminder",
-        JobType.ROUTER: "Router",
-    }.get(job_type, "Agent")
-
-    result: dict[str, str | int | list[str] | None] = {
-        "status": "success",
-        "action": "add",
-        "job_id": job.id,
-        "name": job.name,
-        "job_type": type_label,
-        "model": job.model,
-        "schedule": describe_schedule(schedule),
-        "next_run": next_run,
-    }
-    if job.max_fires is not None:
-        result["max_fires"] = job.max_fires
-    if job.expires_at is not None:
-        result["expires_at"] = job.expires_at.strftime("%Y-%m-%d %H:%M UTC")
-    if job.context_from:
-        result["context_from"] = list(job.context_from)
-    if job.monitor_config and job.monitor_config.enabled:
-        result["monitor"] = job.monitor_config.monitor_type
-    if trigger_config:
-        if trigger_config.streams:
-            result["stream"] = trigger_config.streams[0].url
-        if trigger_config.polls:
-            result["poll"] = trigger_config.polls[0].url
-
-    return json.dumps(result, ensure_ascii=False)
+    return job_result("add", job, tz or None)
 
 
 async def _do_list(mgr: CronManager, name_filter: str) -> str:
@@ -295,19 +278,23 @@ async def _do_update(
     if not job_id:
         return "job_id required. Use action='list' first."
 
+    existing = await mgr.get_job(job_id)
+    if existing is None:
+        return f"Task {job_id} not found."
+    # An edit that does not repeat the timezone keeps the task's own instead of falling back to the requester's.
+    zone_error, zone = resolve_timezone(tz, inherited=existing.schedule.tz)
+    if zone_error:
+        return zone_error
+
     new_schedule: Schedule | None = None
     if any([cron_expr, every_minutes > 0, at]):
-        if not tz:
-            # A schedule edit that does not repeat the timezone keeps the job's own instead of falling back to UTC.
-            existing = await mgr.get_job(job_id)
-            tz = (existing.schedule.tz if existing else None) or ""
-        err, new_schedule = _build_schedule(cron_expr, every_minutes, at, tz)
+        err, new_schedule = _build_schedule(cron_expr, every_minutes, at, zone or "")
         if err:
             return err
 
     effective_max_fires: int | None = max_fires if max_fires > 0 else None
     try:
-        expires_at = _parse_expires_after(expires_after)
+        expires_at = _parse_expires_after(expires_after, zone)
     except (ValueError, TypeError):
         return f"Invalid expires_after format: '{expires_after}'. Use '3d', '2w', '3m', or ISO 8601."
 
@@ -348,33 +335,7 @@ async def _do_update(
     if not job:
         return f"Task {job_id} not found."
 
-    next_run = job.next_run_at.strftime("%Y-%m-%d %H:%M UTC") if job.next_run_at else "N/A"
-    type_label = {
-        JobType.SHELL: "Shell",
-        JobType.REMINDER: "Reminder",
-    }.get(job.job_type, "Agent")
-
-    result: dict[str, str | int | list[str] | None] = {
-        "status": "success",
-        "action": "update",
-        "job_id": job.id,
-        "name": job.name,
-        "job_type": type_label,
-        "model": job.model,
-        "schedule": describe_schedule(job.schedule),
-        "next_run": next_run,
-    }
-    if job.max_fires is not None:
-        result["max_fires"] = job.max_fires
-        result["fire_count"] = job.fire_count
-    if job.expires_at is not None:
-        result["expires_at"] = job.expires_at.strftime("%Y-%m-%d %H:%M UTC")
-    if job.context_from:
-        result["context_from"] = list(job.context_from)
-    if job.monitor_config and job.monitor_config.enabled:
-        result["monitor"] = job.monitor_config.monitor_type
-
-    return json.dumps(result, ensure_ascii=False)
+    return job_result("update", job, zone)
 
 
 async def _do_remove(mgr: CronManager, job_id: str) -> str:
@@ -387,8 +348,7 @@ async def _do_remove(mgr: CronManager, job_id: str) -> str:
 async def _do_run(mgr: CronManager, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
-    triggered = await mgr.trigger_now(job_id)
-    return f"Task {job_id} triggered." if triggered else f"Task {job_id} not found or not active."
+    return _RUN_RESULTS[await mgr.run_now(job_id)].format(job_id)
 
 
 async def _do_pause(mgr: CronManager, job_id: str) -> str:
@@ -412,8 +372,4 @@ async def _do_resume(mgr: CronManager, job_id: str) -> str:
         return str(exc)
     if not job:
         return f"Task {job_id} not found."
-    next_run = job.next_run_at.strftime("%Y-%m-%d %H:%M UTC") if job.next_run_at else "N/A"
-    return json.dumps(
-        {"status": "success", "action": "resume", "job_id": job.id, "name": job.name, "next_run": next_run},
-        ensure_ascii=False,
-    )
+    return resume_result(job)

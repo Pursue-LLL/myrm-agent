@@ -15,6 +15,7 @@ the tool parameters lives in ``cron_agent_params.py`` and the per-action work in
 - toolkits.cron.blueprint_job_spec::BlueprintFiller, BlueprintJobSpec (POS: blueprint 产出的完整 job 定义)
 - toolkits.cron.cron_agent_actions::BlueprintCatalogProvider, DeliveryResolver, _do_add, _do_blueprints, _do_list, _do_pause, _do_remove, _do_resume, _do_run, _do_update (POS: cron_manage_tool 各 action 的实现)
 - toolkits.cron.cron_agent_params::_parse_csv_tuple (POS: cron_manage_tool 参数解析与校验)
+- toolkits.cron.cron_agent_timezone::resolve_timezone (POS: cron_manage_tool 的时区契约)
 - toolkits.cron.types::DeliveryConfig (POS: cron 数据模型)
 
 [OUTPUT]
@@ -54,6 +55,7 @@ from myrm_agent_harness.toolkits.cron.cron_agent_actions import (
     _do_update,
 )
 from myrm_agent_harness.toolkits.cron.cron_agent_params import _parse_csv_tuple
+from myrm_agent_harness.toolkits.cron.cron_agent_timezone import resolve_timezone
 from myrm_agent_harness.toolkits.cron.types import DeliveryConfig
 
 if TYPE_CHECKING:
@@ -167,6 +169,13 @@ def create_cron_tools(
                 "a cron job execution. This prevents infinite task chains."
             )
 
+        # A new task reads its wall-clock inputs in one zone, blueprint schedules included.
+        zone: str | None = None
+        if action == "add":
+            zone_error, zone = resolve_timezone(tz)
+            if zone_error:
+                return zone_error
+
         # Blueprint-based creation: the filler returns the whole job definition
         spec: BlueprintJobSpec | None = None
         if action == "add" and blueprint.strip() and blueprint_filler:
@@ -177,7 +186,7 @@ def create_cron_tools(
                 except (json.JSONDecodeError, TypeError):
                     return 'Error: blueprint_values must be valid JSON object, e.g. \'{"time": "08:00"}\'.'
 
-            spec = blueprint_filler(blueprint.strip(), bp_values, tz.strip() or None)
+            spec = blueprint_filler(blueprint.strip(), bp_values, zone)
             if spec is None:
                 return f"Error: unknown blueprint '{blueprint.strip()}'. Use list action or check available blueprints."
 
@@ -200,7 +209,7 @@ def create_cron_tools(
                 cron_expr=cron_expr,
                 every_minutes=every_minutes,
                 at=at,
-                tz=tz,
+                tz=zone or "",
                 name=name or (spec.name if spec else ""),
                 webhook_url=webhook_url,
                 failure_webhook_url=failure_webhook_url,

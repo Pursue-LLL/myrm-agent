@@ -119,7 +119,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 
 ### 9. 优先级队列与自动串行执行 (Priority Queue)
 - 当已有 ACTIVE goal 时，新提交的 goal 自动进入 QUEUED 状态（`GoalStatus.QUEUED`），存入持久化队列索引。
-- 队列索引是每会话一份 JSON 列表（`queue_index.py`）。入队（IM、Cron）、取消与重排（目标面板）、出队都是对同一份文档的读-改-写，按会话串行执行，并发的改动不会互相覆盖；该锁只在进程内生效，多进程部署下同一会话的并发改动不受它保护。读不出来的队列（键缺失除外）不会被当成空队列写回：改动抛错且原内容保持不动，只读查询按空队列返回并以 WARNING 点名该 session；内容不是 JSON 列表时记 ERROR 并按空队列读，下一次写入即修复。
+- 队列索引是每会话一份 JSON 列表（`queue_index.py`）。入队（IM、Cron）、取消与重排（目标面板）各自是对同一份文档的读-改-写，按会话串行执行，并发的改动不会互相覆盖；出队（`dequeue_next`：读队列、读目标、把目标存为 ACTIVE、再移出队列）整体不是原子操作，只有其中移出队列这一步在锁内；该锁只在进程内生效，多进程部署下同一会话的并发改动不受它保护。读不出来的队列（键缺失除外）不会被当成空队列写回：改动抛错且原内容保持不动，只读查询按空队列返回并以 WARNING 点名该 session；内容不是 JSON 列表时记 ERROR 并按空队列读，下一次写入即修复。
 - 当前 goal 到达终态（COMPLETE/CANCELLED/BUDGET_LIMITED）后，`on_goal_terminal` 回调自动调用 `dequeue_next()` 取出下一个 goal。
 - 被 dequeue 的 goal 自动设置 `auto_approve=True`，在 `GoalInterceptor` 中跳过 `interrupt()` 审批，直接执行。
 - `trigger_goal_stream_with_failure_policy()` 启动后台 Agent stream；`handle_unattended_goal_stream_failure` 在 setup 或 runtime 失败时标记 NEEDS_HUMAN_REVIEW 并推送 `goal_needs_review` SSE（dequeue/bg resume），或 keep ACTIVE（loop_restart Cron fallback）。

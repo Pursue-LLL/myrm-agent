@@ -21,10 +21,7 @@ import re
 import shutil
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
-
-from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPConfigItem
@@ -415,23 +412,3 @@ class ExecutionMetrics:
             "error_count": self.error_count,
             "error_counts": dict(self.error_counts),
         }
-
-
-class ExecutorConfig(BaseModel):
-    """Configuration for code executors."""
-
-    timeout: int = Field(default=60, ge=1, le=300)
-    workdir: str | None = None
-    env: dict[str, str] = Field(default_factory=dict)
-    memory_limit_mb: int = 512
-    network_enabled: bool = False
-
-
-class SandboxProcessInfo(BaseModel):
-    """Process info from inside a sandbox."""
-
-    pid: int
-    ppid: int
-    user: str
-    command: str
-    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

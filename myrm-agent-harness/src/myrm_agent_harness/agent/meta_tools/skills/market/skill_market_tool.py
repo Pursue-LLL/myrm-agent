@@ -3,7 +3,7 @@
 Provides Agent with abilities to search, install, uninstall skills
 and install directly from GitHub URLs.
 
-Uses SkillMarketBackend Protocol for search/install/get_detail.
+Uses SkillMarketBackend Protocol for search/install.
 install_from_url and uninstall are optional capabilities injected
 as callbacks from the business layer when available.
 
@@ -193,7 +193,7 @@ async def _handle_search(backend: SkillMarketBackend, query: str) -> str:
     return "\n".join(lines)
 
 
-async def _handle_install(backend: SkillMarketBackend, skill_id: str, source: str, user_id: str | None) -> str:
+async def _handle_install(backend: SkillMarketBackend, skill_id: str, source: str, user_id: str) -> str:
     if not skill_id or not source:
         return "Error: 'skill_id' and 'source' are required for install action."
 
@@ -228,7 +228,7 @@ async def _handle_install(backend: SkillMarketBackend, skill_id: str, source: st
     return f"Installation failed: {result.error}"
 
 
-async def _handle_install_from_url(install_fn: InstallFromUrlFn | None, url: str, user_id: str | None) -> str:
+async def _handle_install_from_url(install_fn: InstallFromUrlFn | None, url: str, user_id: str) -> str:
     if not url.strip():
         return "Error: 'url' is required for install_from_url action."
 
@@ -262,7 +262,7 @@ async def _handle_install_from_url(install_fn: InstallFromUrlFn | None, url: str
     return f"Installation from URL failed: {result.error}"
 
 
-async def _handle_uninstall(uninstall_fn: UninstallFn | None, skill_id: str, user_id: str | None) -> str:
+async def _handle_uninstall(uninstall_fn: UninstallFn | None, skill_id: str, user_id: str) -> str:
     if not skill_id.strip():
         return "Error: 'skill_id' is required for uninstall action."
 

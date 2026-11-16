@@ -15,7 +15,7 @@
 - myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
 - myrm_agent_harness.agent.middlewares.approval::_batch_review (POS: Tool approval subsystem — Human-in-the-Loop approval flow.)
 - myrm_agent_harness.agent.middlewares.approval._batch_review::_evaluate_skill_hooks_for_tool / _get_runtime_domains / _run_llm_review / _truncate_tool_args (POS: Batch review helpers — LLM review, runtime domain tracking, skill hook evaluation.)
-- myrm_agent_harness.agent.middlewares.approval._cron_policy::resolve_cron_ask (POS: A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval, except for asks that carry a risk the declaration does not cover: credential data leaving the session, writes outside the job's directories, integration write mutations, payment-like tool calls.)
+- myrm_agent_harness.agent.middlewares.approval._cron_settle::settle_ask (POS: A run with no approver answers an ASK from the capabilities its job declared: approves it, or refuses it with the text the model reads.)
 - myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-only lease, the permission engine, the shell-escalation check and the LLM security review.)
 - myrm_agent_harness.agent.middlewares.approval.helpers::ThresholdBreach / is_threshold_breached / record_approval / record_denial (POS: Approval middleware helper functions. Implements dual-threshold denial tracking (consecutive + total) with proactive guidance on every denial and automatic consecutive counter reset on any allowed operation.)
 - myrm_agent_harness.agent.middlewares.approval.batch_processor._workspace_snapshot::pre_destructive_snapshot_id (POS: 破坏性命令等待审批时的回滚点；决策循环与 YOLO 分支共用。)
@@ -89,7 +89,7 @@ from .._batch_review import (
     _run_llm_review,
     _truncate_tool_args,
 )
-from .._cron_policy import resolve_cron_ask
+from .._cron_settle import settle_ask
 from ..denial_diagnostic_bridge import build_auto_review_denial_message
 from ..helpers import (
     ThresholdBreach,
@@ -672,33 +672,18 @@ async def evaluate_calls(
             continue
 
         if is_cron:
-            cron_verdict = resolve_cron_ask(
+            refusal = settle_ask(
                 permission_type=permission_type,
                 tool_name=tool_name,
                 tool_input=tool_input,
                 config=config,
                 workspace_root=workspace_root,
+                session_key=session_key,
             )
-            if cron_verdict.denied:
-                logger.warning(
-                    "[CRON_POLICY] Tool %s DENIED in cron session %s: %s",
-                    tool_name,
-                    session_key,
-                    cron_verdict.audit_reason,
-                )
-                record_decision(tool_name, "CRON_DENY", cron_verdict.audit_reason)
-                hint = record_denial(tool_name, session_key)
-                auto_denied.append((idx, tool_call, f"{cron_verdict.tool_message}{hint}"))
-            else:
-                logger.warning(
-                    "[CRON_POLICY] Tool %s ASK promoted to ALLOW in cron session %s: "
-                    "Capability Fence declaration acts as pre-approval",
-                    tool_name,
-                    session_key,
-                )
-                record_decision(tool_name, "ALLOW", cron_verdict.audit_reason)
+            if refusal is None:
                 auto_approved.append((idx, tool_call))
-                record_approval(session_key)
+            else:
+                auto_denied.append((idx, tool_call, refusal))
             continue
 
         skill_hook_verdict = _evaluate_skill_hooks_for_tool(tool_name, tool_input)
@@ -870,7 +855,6 @@ async def evaluate_calls(
             extra_ctx = extra_ctx or {}
             extra_ctx["is_irreversible"] = True
             extra_ctx["socially_irreversible"] = True
-            extra_ctx["action_digest"] = compute_action_digest(tool_name, tool_input)
             extra_ctx["high_risk"] = True
             extra_ctx["hide_allow_always"] = True
 

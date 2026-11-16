@@ -3,12 +3,13 @@
 [INPUT]
 - cron.routes.helpers (POS: conversion utilities and manager accessor)
 - cron.schemas (POS: request/response Pydantic models)
+- myrm_agent_harness.toolkits.cron.types::RunNowOutcome (POS: what a manual-run request came to)
 
 [OUTPUT]
 - POST /{job_id}/duplicate — duplicate job with config, paused
 - POST /{job_id}/pause — pause job
 - POST /{job_id}/resume — resume job
-- POST /{job_id}/trigger — trigger immediate execution
+- POST /{job_id}/trigger — start one manual trial run (202; 404 when missing or not active; 409 when already running)
 - POST /{job_id}/test-delivery — send test delivery payload
 - POST /{job_id}/reset-baseline — reset monitor baseline
 
@@ -19,6 +20,7 @@ Cron job operation endpoints. All business logic delegated to CronManager.
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from myrm_agent_harness.toolkits.cron.types import RunNowOutcome
 
 from app.api.cron.schemas import (
     CronJobResponse,
@@ -74,9 +76,11 @@ async def resume_job(job_id: str) -> CronJobResponse:
 
 @router.post("/{job_id}/trigger", status_code=202)
 async def trigger_job(job_id: str) -> dict[str, bool]:
-    mgr = _h._get_manager()
-    triggered = await mgr.trigger_now(job_id)
-    if not triggered:
+    """Start one manual trial run; the job's schedule and fire count are left alone."""
+    outcome = await _h._get_manager().run_now(job_id)
+    if outcome == RunNowOutcome.ALREADY_RUNNING:
+        raise HTTPException(status_code=409, detail="Job is already running")
+    if outcome != RunNowOutcome.STARTED:
         raise HTTPException(status_code=404, detail="Job not found or not active")
     return {"triggered": True}
 

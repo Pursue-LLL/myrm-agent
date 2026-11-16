@@ -127,9 +127,9 @@ def _click_prebuilt_install_js(skill_id: str) -> str:
 _INSTALL_TOAST_READY_JS = """(() => {
   const bodyText = document.body?.innerText || '';
   const toastMatch =
-    /Installed and enabled|已安装并启用|已安裝並啟用/i.test(bodyText);
+    /Installed and enabled|已安装并启用/i.test(bodyText);
   const installedBadge = Array.from(document.querySelectorAll('button')).some((btn) =>
-    /^(Installed|已安装|已安裝)$/i.test((btn.textContent || '').trim()),
+    /^(Installed|已安装)$/i.test((btn.textContent || '').trim()),
   );
   return { ready: toastMatch || installedBadge, toastMatch, installedBadge };
 })()"""
@@ -137,7 +137,7 @@ _INSTALL_TOAST_READY_JS = """(() => {
 
 _MIRROR_PANEL_READY_JS = """(() => {
   const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
-    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+    /Skill market mirror|技能市场镜像/i.test(panel.textContent || ''),
   );
   const combobox = mirrorPanel?.querySelector('button[role="combobox"]');
   return {
@@ -150,7 +150,7 @@ _MIRROR_PANEL_READY_JS = """(() => {
 
 _OPEN_MIRROR_SELECT_JS = """(() => {
   const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
-    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+    /Skill market mirror|技能市场镜像/i.test(panel.textContent || ''),
   );
   const trigger = mirrorPanel?.querySelector('button[role="combobox"]');
   if (!trigger) {
@@ -176,14 +176,14 @@ _SELECT_CN_MIRROR_JS = """(() => {
 _MIRROR_SAVED_TOAST_JS = """(() => {
   const bodyText = document.body?.innerText || '';
   return {
-    ready: /Mirror settings saved|镜像设置已保存|鏡像設定已儲存/i.test(bodyText),
+    ready: /Mirror settings saved|镜像设置已保存/i.test(bodyText),
   };
 })()"""
 
 
 _SELECT_CUSTOM_MIRROR_JS = """(() => {
   const option = Array.from(document.querySelectorAll('[role="option"]')).find((el) =>
-    /Custom|自定义|自訂/i.test(el.textContent || ''),
+    /Custom|自定义/i.test(el.textContent || ''),
   );
   if (!option) {
     return { ok: false, reason: 'custom-option-missing' };
@@ -206,11 +206,11 @@ def _wait_registry_url(api_url: str, expected_url: str, *, timeout_sec: float = 
 
 _CUSTOM_INPUT_READY_JS = """(() => {
   const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
-    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+    /Skill market mirror|技能市场镜像/i.test(panel.textContent || ''),
   );
   const input = mirrorPanel?.querySelector('input');
   const saveBtn = Array.from(mirrorPanel?.querySelectorAll('button') || []).find((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()),
   );
   return { ready: !!input && !!saveBtn, hasInput: !!input, hasSave: !!saveBtn };
 })()"""
@@ -218,7 +218,7 @@ _CUSTOM_INPUT_READY_JS = """(() => {
 
 _FOCUS_CUSTOM_MIRROR_INPUT_JS = """(() => {
   const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
-    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+    /Skill market mirror|技能市场镜像/i.test(panel.textContent || ''),
   );
   const input = mirrorPanel?.querySelector('input');
   if (!input) {
@@ -232,10 +232,10 @@ _FOCUS_CUSTOM_MIRROR_INPUT_JS = """(() => {
 
 _CLICK_CUSTOM_MIRROR_SAVE_JS = """(() => {
   const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
-    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+    /Skill market mirror|技能市场镜像/i.test(panel.textContent || ''),
   );
   const saveBtn = Array.from(mirrorPanel?.querySelectorAll('button') || []).find((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()),
   );
   if (!saveBtn || saveBtn.disabled) {
     return { ok: false, reason: 'save-disabled-or-missing', disabled: !!saveBtn?.disabled };
@@ -445,10 +445,10 @@ def test_discover_custom_mirror_url_save_via_ui() -> None:
                 page,
                 """(() => {
   const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
-    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+    /Skill market mirror|技能市场镜像/i.test(panel.textContent || ''),
   );
   const saveBtn = Array.from(mirrorPanel?.querySelectorAll('button') || []).find((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()),
   );
   return { ready: !!saveBtn && !saveBtn.disabled };
 })()""",

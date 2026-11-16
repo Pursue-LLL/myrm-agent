@@ -1,6 +1,6 @@
 """Execution helper utilities.
 
-Provides common helper methods for executors: time formatting, result building, logging.
+Provides common helper methods for executors: time formatting, error-result building, logging.
 
 [INPUT]
 - toolkits.code_execution.executors.base::ExecutionResult (POS: Code executor base classes.)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class ExecutionHelper:
     """Stateless execution helper.
 
-    Provides time formatting, standardized result building, and logging utilities.
+    Provides time formatting, standardized error-result building, and logging utilities.
     All methods are static.
     """
 
@@ -41,39 +41,6 @@ class ExecutionHelper:
         if seconds < 1:
             return f"{seconds * 1000:.1f}ms"
         return f"{seconds:.2f}s"
-
-    @staticmethod
-    def build_success_result(
-        stdout: str,
-        stderr: str,
-        execution_time: float,
-        generated_files: list[str] | None = None,
-        container_id: str | None = None,
-        result: object | None = None,
-    ) -> ExecutionResult:
-        """Build a successful execution result.
-
-        Args:
-            stdout: Standard output.
-            stderr: Standard error output.
-            execution_time: Execution time in seconds.
-            generated_files: List of generated files.
-            container_id: Container/session ID.
-            result: Execution result object.
-
-        Returns:
-            ExecutionResult instance.
-        """
-        return ExecutionResult(
-            success=True,
-            result=result,
-            stdout=stdout,
-            stderr=stderr,
-            error=None,
-            execution_time=execution_time,
-            container_id=container_id,
-            generated_files=generated_files or [],
-        )
 
     @staticmethod
     def build_error_result(

@@ -53,7 +53,7 @@ TERMINAL_PREVIEW_JS = """(() => {
     return { ready: false, reason: 'progress-panel-missing' };
   }
   const text = panel.innerText || '';
-  const hasTruncated = /LARGE OUTPUT TRUNCATED|输出已截断|出力を切り詰め/.test(text);
+  const hasTruncated = /LARGE OUTPUT TRUNCATED|输出已截断/.test(text);
   return { ready: hasTruncated, preview: text.slice(0, 400) };
 })()"""
 

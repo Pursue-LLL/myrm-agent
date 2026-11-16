@@ -165,21 +165,6 @@ class TestRevertService:
                 os.remove(path)
 
     @pytest.mark.asyncio
-    async def test_revert_file_specific(self):
-        store = SnapshotStore.get()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write("modified")
-            path = f.name
-
-        try:
-            store.record("s1", "m1", FileSnapshot(path, SnapshotOp.MODIFY, "original"))
-            result = await RevertService.revert_file("s1", "m1", path)
-            assert path in result.reverted_files
-        finally:
-            if os.path.exists(path):
-                os.remove(path)
-
-    @pytest.mark.asyncio
     async def test_get_message_changes_skipped(self):
         store = SnapshotStore.get()
         store.record_skipped("s1", "m1", "/big.py", SnapshotOp.MODIFY, SnapshotSkipReason.FILE_TOO_LARGE)
@@ -210,14 +195,6 @@ class TestRevertService:
             assert "/big.py" in result.skipped_files
         finally:
             Path(small_path).unlink(missing_ok=True)
-
-    @pytest.mark.asyncio
-    async def test_revert_file_not_revertible(self):
-        store = SnapshotStore.get()
-        store.record_skipped("s1", "m1", "/big.py", SnapshotOp.MODIFY, SnapshotSkipReason.FILE_TOO_LARGE)
-        result = await RevertService.revert_file("s1", "m1", "/big.py")
-        assert result.reverted_files == []
-        assert "/big.py" in result.skipped_files
 
     @pytest.mark.asyncio
     async def test_get_message_changes(self):
@@ -280,12 +257,6 @@ class TestRevertService:
         assert "m2" in changes
         assert len(changes["m1"]) == 1
         assert len(changes["m2"]) == 1
-
-    @pytest.mark.asyncio
-    async def test_revert_file_no_snapshot(self):
-        result = await RevertService.revert_file("s1", "m1", "/nonexistent.py")
-        assert result.reverted_files == []
-        assert len(result.warnings) > 0
 
     @pytest.mark.asyncio
     async def test_revert_create_with_container_path(self):

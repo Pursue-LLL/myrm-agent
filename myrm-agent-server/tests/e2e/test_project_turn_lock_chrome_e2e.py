@@ -104,7 +104,6 @@ _DOM_WAITING_JS = """(() => {
   const needles = [
     'Waiting for other agents',
     '正在等待项目中其他',
-    '正在等待專案中其他',
   ];
   for (const needle of needles) {
     if (body.includes(needle)) {

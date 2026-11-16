@@ -1,6 +1,8 @@
 """Approval middleware helper functions.
 
 [INPUT]
+- agent.middlewares._session_context::get_approval_session, get_security_config (POS: Middleware session context — shared ContextVars for the middleware chain.)
+- ._cron_policy::is_cron_run (POS: Whether a run belongs to a scheduled job.)
 - agent.security.approval_flow::AllowlistEntry (POS: Core component for "Always Allow" feature in Human-in-the-Loop approval system. Works with middlewares/approval/ subsystem which uses LangGraph interrupt() for approval flow. Allow-always decisions use database persistence (DBAllowlistStore): User clicks "Always Allow" → saved to user_tool_allowlist table On restart → middleware lazy-loads rules via allowlist.load_user() Rules survive backend restarts TTL refresh (default 5min) ensures multi-instance cache consistency when ttl_seconds > 0 ttl_seconds <= 0 disables time-based expiry and opportunistic TTL cleanup Automatic cleanup prevents memory leaks when TTL is enabled (expired locks removed opportunistically))
 - core.security.redact::redact_command_line (POS: Credential redaction of a shell command, here the test of a derived pattern)
 
@@ -27,10 +29,12 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from myrm_agent_harness.agent.middlewares._session_context import get_approval_session, get_security_config
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
 from myrm_agent_harness.agent.security.command_allowlist_pattern import derive_command_pattern
 from myrm_agent_harness.core.security.redact import redact_command_line
 
+from ._cron_policy import is_cron_run
 from .refusal import DenialCause, denial_hint, rejection_cause, rejection_message
 
 logger = logging.getLogger(__name__)
@@ -73,15 +77,8 @@ _session_denial_registry: dict[str, DenialState] = {}
 
 
 def _get_active_session_key() -> str:
-    """Resolve the current session key from session context if available."""
-    try:
-        from myrm_agent_harness.agent.middlewares._session_context import (
-            get_approval_session,
-        )
-
-        return get_approval_session() or ""
-    except Exception:
-        return ""
+    """The session key of the current async context; empty outside a run."""
+    return get_approval_session()
 
 
 def _get_state(session_key: str | None = None) -> DenialState:
@@ -140,7 +137,7 @@ def record_denial(tool_name: str, session_key: str | None = None, *, cause: Deni
         if breach is ThresholdBreach.TOTAL
         else (state.consecutive, _CONSECUTIVE_THRESHOLD)
     )
-    unattended = (session_key or _get_active_session_key()).startswith("cron:")
+    unattended = is_cron_run(get_security_config(), session_key or _get_active_session_key())
     return denial_hint(cause, breach, count, threshold, unattended=unattended)
 
 

@@ -4,7 +4,7 @@ All public functions are pure (no I/O besides log lines) and safe to call from a
 
 [INPUT]
 - toolkits.cron.engine.parser::compute_next_run (POS: next-run calculation)
-- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig, Schedule, ScheduleKind (POS: Cron job domain types.)
+- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig, RunStatus, Schedule, ScheduleKind (POS: Cron job domain types.)
 
 [OUTPUT]
 - resolve_stagger_ms: Compute the effective stagger delay for a job.
@@ -12,10 +12,12 @@ All public functions are pure (no I/O besides log lines) and safe to call from a
 - next_eligible_run: The slot to book as a job's next run, with cooldown, 60 s floor and active window applied.
 - next_slot_or_retry: The slot to book for a recurring job, or a minute ahead when its schedule cannot be computed.
 - auto_pause_notice: The notice for a pre-execution verdict that paused the job.
+- run_status_of: The status a run's record and its job's last status carry.
 
 [POS]
 Pure engine helpers: stagger resolution, schedule-window and backoff checks, the next slot to book, the pre-execution
-guards with the notice an automatic pause raises, failure-alert resolution and telemetry extraction.
+guards with the notice an automatic pause raises, the status a run carries, failure-alert resolution and telemetry
+extraction.
 """
 
 from __future__ import annotations
@@ -26,7 +28,13 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
-from myrm_agent_harness.toolkits.cron.types import CronNotice, CronNoticeKind, FailureAlertConfig, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import (
+    CronNotice,
+    CronNoticeKind,
+    FailureAlertConfig,
+    RunStatus,
+    ScheduleKind,
+)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.types import (
@@ -229,6 +237,13 @@ def auto_pause_notice(job: CronJob, skip_reason: str) -> CronNotice | None:
     if skip_reason == "max_fires_reached":
         return CronNotice(kind=CronNoticeKind.JOB_MAX_FIRES_REACHED, job_name=job.name, max_fires=job.max_fires)
     return None
+
+
+def run_status_of(result: JobResult) -> RunStatus:
+    """The status a run's record and its job's ``last_status`` carry: a circuit break outranks a plain failure."""
+    if result.circuit_broken:
+        return RunStatus.CIRCUIT_BREAK
+    return RunStatus.OK if result.success else RunStatus.ERROR
 
 
 # ---------------------------------------------------------------------------

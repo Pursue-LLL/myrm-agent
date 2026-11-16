@@ -3,12 +3,15 @@
 Covers:
 - detect_line_ending: CRLF, LF, empty, single-line, mixed
 - normalize_line_endings: LF→LF, LF→CRLF, CRLF→LF, CRLF→CRLF, mixed, lone CR, idempotence
+- view_lines: CRLF, lone CR and LF all end a line in a view
 - StorageBackendStrategy.replace_text: CRLF preservation for exact + fuzzy match
 - FileOperationService._execute_create: a new file keeps the line endings it was given
 """
 
 from __future__ import annotations
 
+import io
+import itertools
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,6 +19,7 @@ import pytest
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.line_endings import (
     detect_line_ending,
     normalize_line_endings,
+    view_lines,
 )
 
 # ── detect_line_ending ──────────────────────────────────────────────
@@ -112,6 +116,51 @@ class TestNormalizeLineEndings:
     def test_no_newlines(self) -> None:
         assert normalize_line_endings("no newlines", "\n") == "no newlines"
         assert normalize_line_endings("no newlines", "\r\n") == "no newlines"
+
+
+# ── view_lines ──────────────────────────────────────────────────────
+
+
+class TestViewLines:
+    """A view splits the text a file was read as; every line ending must end a line."""
+
+    @pytest.mark.parametrize(
+        ("text", "shown"),
+        [
+            ("a\nb\n", ["a", "b", ""]),
+            ("a\r\nb\r\n", ["a", "b", ""]),
+            ("a1\rb2\rc3\r", ["a1", "b2", "c3", ""]),
+            ("a\rb\r\nc\n", ["a", "b", "c", ""]),
+            ("x\n\r\ny", ["x", "", "y"]),
+            ("abc\r\r\n", ["abc", "", ""]),
+            ("no newline", ["no newline"]),
+            ("", [""]),
+        ],
+    )
+    def test_every_line_ending_ends_a_line(self, text: str, shown: list[str]) -> None:
+        assert view_lines(text.split("\n")) == shown
+
+    def test_a_text_shows_the_same_lines_with_any_line_ending(self) -> None:
+        lines = ["alpha", "", "beta", "gamma"]
+        shown = {ending: view_lines(ending.join(lines).split("\n")) for ending in ("\n", "\r\n", "\r")}
+        assert shown["\r\n"] == shown["\r"] == shown["\n"] == lines
+
+    def test_agrees_with_universal_newlines_for_every_short_text_over_the_line_ending_alphabet(self) -> None:
+        """``preview`` and ``stream`` read through universal newlines; the view must show the lines they show."""
+        for length in range(7):
+            for chars in itertools.product("a\r\n", repeat=length):
+                text = "".join(chars)
+                expected = io.StringIO(text, newline=None).getvalue().split("\n")
+                assert view_lines(text.split("\n")) == expected, repr(text)
+
+    def test_returns_a_new_list_even_when_there_is_nothing_to_change(self) -> None:
+        raw = ["a", "b"]
+        shown = view_lines(raw)
+        assert shown == raw
+        assert shown is not raw
+
+    def test_no_lines_shows_no_lines(self) -> None:
+        assert view_lines([]) == []
 
 
 # ── StorageBackendStrategy.replace_text CRLF preservation ───────────

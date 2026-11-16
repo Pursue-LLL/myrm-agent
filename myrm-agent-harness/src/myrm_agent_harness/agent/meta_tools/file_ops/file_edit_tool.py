@@ -4,6 +4,7 @@
 
 [INPUT]
 - core::FileOperationService, OperationContext, OperationType (POS: 文件操作服务和上下文)
+- core.batch_str_replace::EditMatchError, EditFailureKind (POS: Why an edit could not be applied; it picks the hint the model gets)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
 - langchain.tools::tool (POS: LangChain 工具装饰器)
 - pydantic::BaseModel, Field (POS: 参数验证)
@@ -32,6 +33,7 @@ from myrm_agent_harness.utils.locale import is_chinese
 
 from .constants import REASON_FIELD_DESCRIPTION
 from .core import FileOperationService, OperationContext, OperationType, StrReplaceEdit
+from .core.batch_str_replace import EditFailureKind, EditMatchError
 from .core.file_edit_normalizer import normalize_edits_payload
 
 if TYPE_CHECKING:
@@ -40,6 +42,13 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 logger = logging.getLogger(__name__)
+
+# The way out the model is given for each way an edit can fail to match, chosen by the kind the engine raised.
+_EDIT_FAILURE_HINTS: dict[EditFailureKind, str] = {
+    "not_found": "An old_str was not found. Check exact text (whitespace/indentation) or combine overlapping edits.",
+    "ambiguous": "An old_str matches multiple times. Add surrounding context to make it unique.",
+    "overlap": "Edits overlap in the file. Merge into one edit or reorder so regions are disjoint.",
+}
 
 
 class StrReplaceEditInput(BaseModel):
@@ -165,17 +174,10 @@ def create_file_edit_tool(
                 message=str(e),
                 user_hint="Permission denied. You cannot edit this file.",
             ) from e
+        except EditMatchError as e:
+            raise ToolError(message=str(e), user_hint=_EDIT_FAILURE_HINTS[e.kind]) from e
         except ValueError as e:
-            error_str = str(e).lower()
-            if "not found" in error_str:
-                hint = (
-                    "An old_str was not found. Check exact text (whitespace/indentation) or combine overlapping edits."
-                )
-            elif "appears" in error_str and "times" in error_str:
-                hint = "An old_str matches multiple times. Add surrounding context to make it unique."
-            elif "overlap" in error_str:
-                hint = "Edits overlap in the file. Merge into one edit or reorder so regions are disjoint."
-            elif "syntax" in error_str:
+            if "syntax" in str(e).lower():
                 hint = f"Syntax validation failed. Please fix the syntax error in your edit: {e}"
             else:
                 hint = "Invalid edit parameters. Check path and edits array."

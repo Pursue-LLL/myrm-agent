@@ -93,16 +93,6 @@ class TestSnapshotStore:
         assert "m1" in session
         assert "m2" in session
 
-    def test_get_file_snapshot(self):
-        store = SnapshotStore.get()
-        snap1 = FileSnapshot("/a.py", SnapshotOp.MODIFY, "v1")
-        snap2 = FileSnapshot("/a.py", SnapshotOp.MODIFY, "v2")
-        store.record("s1", "m1", snap1)
-        store.record("s1", "m1", snap2)
-        result = store.get_file_snapshot("s1", "m1", "/a.py")
-        assert result is not None
-        assert result.original_content == "v2"
-
     def test_remove_message(self):
         store = SnapshotStore.get()
         store.record("s1", "m1", FileSnapshot("/a.py", SnapshotOp.MODIFY, "old"))
@@ -123,7 +113,6 @@ class TestSnapshotStore:
         store = SnapshotStore.get()
         assert store.get_message_snapshots("none", "none") == []
         assert store.get_session_snapshots("none") == {}
-        assert store.get_file_snapshot("none", "none", "/a") is None
 
     @pytest.mark.asyncio
     async def test_persist_skipped_to_disk(self):

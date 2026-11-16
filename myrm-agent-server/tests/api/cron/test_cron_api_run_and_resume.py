@@ -3,7 +3,8 @@
 [INPUT] The jobs and actions routers over a real CronManager and an in-memory store (the scheduler is never started).
 [OUTPUT] Create and update answer 400 for a one-shot whose time has passed; resume answers 409 for a job that cannot
 run and leaves an enabled job as it is; a PATCH that sets ``status`` to ``active`` is a resume (400 where it cannot
-run): both book the next slot and clear the failure count.
+run): both book the next slot and clear the failure count. A manual run answers 202 once started, 409 while the job is
+already running and 404 for a job that is missing or not active, and the refusals leave the job as it is.
 [POS] tests/api/cron/test_cron_api_run_and_resume.py
 """
 
@@ -13,14 +14,14 @@ import asyncio
 from collections.abc import Generator
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronScheduler
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
-from myrm_agent_harness.toolkits.cron.types import JobStatus, Schedule, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import JobStatus, RunNowOutcome, Schedule, ScheduleKind
 
 from app.api.cron.routes import actions_router, helpers, jobs_router
 
@@ -39,6 +40,8 @@ class _NoDelivery:
 class Api:
     client: TestClient
     store: InMemoryCronStore
+    manager: CronManager
+    scheduler: CronScheduler
 
     def create(self, schedule: dict[str, object]) -> str:
         response = self.client.post(
@@ -53,7 +56,7 @@ class Api:
         async def apply() -> None:
             job = await self.store.get_job(job_id)
             assert job is not None
-            await self.store.save_job(replace(job, **changes))
+            await self.store.save_job(replace(job, **changes))  # type: ignore[arg-type]
 
         asyncio.run(apply())
 
@@ -70,7 +73,7 @@ def api() -> Generator[Api, None, None]:
     app.include_router(actions_router, prefix="/cron")
     app.include_router(jobs_router, prefix="/cron")
     with patch.object(helpers, "_get_manager", return_value=manager):
-        yield Api(TestClient(app), store)
+        yield Api(TestClient(app), store, manager, scheduler)
 
 
 def _once(offset: timedelta) -> dict[str, object]:
@@ -202,3 +205,34 @@ class TestStatusPatch:
 
         assert response.status_code == 200
         assert response.json()["status"] == "active"
+
+
+class TestTrigger:
+    def test_a_started_run_is_a_202(self, api: Api) -> None:
+        job_id = api.create(_EVERY_HOUR)
+
+        with patch.object(api.manager, "run_now", AsyncMock(return_value=RunNowOutcome.STARTED)) as run_now:
+            response = api.client.post(f"/cron/{job_id}/trigger")
+
+        assert (response.status_code, response.json()) == (202, {"triggered": True})
+        run_now.assert_awaited_once_with(job_id)
+
+    def test_a_job_that_is_already_running_is_a_409_and_is_left_alone(self, api: Api) -> None:
+        job_id = api.create(_EVERY_HOUR)
+        before = api.client.get(f"/cron/{job_id}").json()
+        api.scheduler._in_flight[job_id] += 1  # a run that has started and not yet ended
+
+        response = api.client.post(f"/cron/{job_id}/trigger")
+
+        assert (response.status_code, response.json()["detail"]) == (409, "Job is already running")
+        assert api.client.get(f"/cron/{job_id}").json() == before
+
+    def test_a_job_that_is_missing_or_not_active_is_a_404(self, api: Api) -> None:
+        paused_id = api.create(_EVERY_HOUR)
+        api.pause(paused_id)
+
+        for job_id in ("nope", paused_id):
+            response = api.client.post(f"/cron/{job_id}/trigger")
+
+            assert (response.status_code, response.json()["detail"]) == (404, "Job not found or not active")
+        assert api.scheduler._in_flight == {}

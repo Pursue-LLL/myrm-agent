@@ -26,7 +26,6 @@ myrm_agent_harness/agent/meta_tools/bash/__init__.py
 myrm_agent_harness/agent/meta_tools/file_ops/__init__.py
 myrm_agent_harness/agent/meta_tools/file_ops/strategies/__init__.py
 myrm_agent_harness/agent/meta_tools/file_ops/utils/__init__.py
-myrm_agent_harness/agent/meta_tools/file_ops/utils/line_endings.py
 myrm_agent_harness/agent/meta_tools/file_ops/validators/__init__.py
 myrm_agent_harness/agent/meta_tools/skills/search/__init__.py
 myrm_agent_harness/agent/meta_tools/skills/search/synonym_expander.py

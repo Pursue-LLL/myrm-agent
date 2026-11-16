@@ -339,43 +339,6 @@ async def test_assert_paths_allowed_for_read_blocks_disabled_skill() -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_read_preserve_in_context_wraps_output(tmp_path) -> None:
-    chat_id = "chat-preserve"
-    workspace = tmp_path / "ws"
-    evicted_dir = workspace / ".context" / chat_id / "evicted"
-    evicted_dir.mkdir(parents=True)
-    spill = evicted_dir / "web_fetch_ab12cd34.md"
-    spill.write_text("keep me", encoding="utf-8")
-    rel = f".context/{chat_id}/evicted/web_fetch_ab12cd34.md"
-
-    mock_executor = MagicMock()
-    mock_executor.workspace_path = str(workspace)
-    tool = create_file_read_tool(path_policy="evicted_uploaded")
-    with (
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.get_executor",
-            return_value=mock_executor,
-        ),
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.extract_context_from_runnable_config",
-            return_value={"chat_id": chat_id},
-        ),
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.process_text_paths",
-            return_value=["keep me"],
-        ),
-    ):
-        result = await tool.ainvoke(
-            {"paths": [rel], "preserve_in_context": True},
-            config=_DUMMY_CONFIG,
-        )
-
-    assert isinstance(result, str)
-    assert result.startswith("<preserve_context>")
-    assert "keep me" in result
-
-
-@pytest.mark.asyncio
 async def test_assert_paths_allowed_for_read_skips_without_resolve_path() -> None:
     await assert_paths_allowed_for_read(["file.md"], _DUMMY_CONFIG, object())
 

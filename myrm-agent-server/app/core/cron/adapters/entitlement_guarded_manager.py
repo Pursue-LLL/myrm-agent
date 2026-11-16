@@ -29,6 +29,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     DeliveryConfig,
     FailureAlertConfig,
     JobType,
+    RunNowOutcome,
     Schedule,
     SessionTarget,
 )
@@ -209,6 +210,9 @@ class EntitlementGuardedCronManager:
 
     async def trigger_now(self, job_id: str) -> bool:
         return await self._inner.trigger_now(job_id)
+
+    async def run_now(self, job_id: str) -> RunNowOutcome:
+        return await self._inner.run_now(job_id)
 
     async def list_runs(
         self,

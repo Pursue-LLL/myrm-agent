@@ -54,7 +54,7 @@ _SUBSET_NAMES: tuple[str, ...] = (
 
 _ACTIVATE_SOURCES_TAB_JS = """(() => {
   const tab = Array.from(document.querySelectorAll('[role="tab"]')).find(
-    (b) => /Dataset Sources|数据集源|データセットソース/i.test(b.textContent || ''),
+    (b) => /Dataset Sources|数据集源/i.test(b.textContent || ''),
   );
   if (!tab || tab.getAttribute('data-state') === 'active') return;
   const opts = { bubbles: true, cancelable: true, view: window, button: 0, buttons: 1, detail: 1 };

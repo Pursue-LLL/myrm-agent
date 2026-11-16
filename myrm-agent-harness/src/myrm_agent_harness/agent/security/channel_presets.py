@@ -287,6 +287,7 @@ def build_channel_security_config(
         yolo_mode_enabled=yolo_mode_enabled,
         yolo_mode_enabled_at=yolo_mode_enabled_at,
         yolo_mode_timeout=yolo_mode_timeout,
+        is_cron=channel_type == ChannelType.CRON,
     )
     if privacy_policy is not None:
         object.__setattr__(result, "privacy_policy", privacy_policy)

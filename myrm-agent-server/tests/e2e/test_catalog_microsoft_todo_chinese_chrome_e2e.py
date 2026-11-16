@@ -84,7 +84,7 @@ def test_microsoft_todo_chinese_discoverability_and_connect_guide() -> None:
                       const inputs = Array.from(document.querySelectorAll('input'));
                       const search = inputs.find((el) => {
                         const ph = (el.getAttribute('placeholder') || '').toLowerCase();
-                        return ph.includes('search') || ph.includes('搜索') || ph.includes('搜尋');
+                        return ph.includes('search') || ph.includes('搜索');
                       });
                       if (!search) return { ready: false, reason: 'search_input_missing' };
                       if (search.value !== '待办') {
@@ -129,7 +129,7 @@ def test_microsoft_todo_chinese_discoverability_and_connect_guide() -> None:
                       const cardEl = title.closest('div');
                       if (!cardEl) return { ok: false, reason: 'card_missing' };
                       const button = Array.from(cardEl.querySelectorAll('button')).find((el) =>
-                        /Connect|连接|連線/i.test(el.textContent || '')
+                        /Connect|连接/i.test(el.textContent || '')
                       );
                       if (!button) return { ok: false, reason: 'card_connect_missing' };
                       button.click();

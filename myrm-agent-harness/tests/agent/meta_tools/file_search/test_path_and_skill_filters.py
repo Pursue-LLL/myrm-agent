@@ -18,7 +18,6 @@ from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
     suggest_similar_paths,
 )
 from myrm_agent_harness.agent.meta_tools.file_search.skill_path_filter import (
-    filter_disabled_skill_paths,
     get_disabled_skill_roots,
     is_under_disabled_skill_root,
 )
@@ -65,22 +64,10 @@ def test_is_under_disabled_skill_root_empty_roots() -> None:
     assert not is_under_disabled_skill_root("/any/path", [])
 
 
-def test_filter_disabled_skill_paths_passthrough_when_no_roots() -> None:
-    paths = ["/workspace/a.py", "/workspace/b.py"]
-    assert filter_disabled_skill_paths(paths, []) == paths
-
-
 def test_is_under_disabled_skill_root_prefix() -> None:
     roots = ["/workspace/skills/disabled-skill"]
     assert is_under_disabled_skill_root("/workspace/skills/disabled-skill/SKILL.md", roots)
     assert not is_under_disabled_skill_root("/workspace/src/main.py", roots)
-
-
-def test_filter_disabled_skill_paths() -> None:
-    paths = ["/workspace/skills/off/a.md", "/workspace/src/b.py"]
-    roots = ["/workspace/skills/off"]
-    filtered = filter_disabled_skill_paths(paths, roots)
-    assert filtered == ["/workspace/src/b.py"]
 
 
 def test_get_disabled_skill_roots_from_config() -> None:

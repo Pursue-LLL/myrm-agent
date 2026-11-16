@@ -45,7 +45,7 @@ _SETTINGS_SHELL_STATE = """(() => {
 
 _STORAGE_CARD_JS = """(() => {
   const labels = Array.from(document.querySelectorAll('label'));
-  const label = labels.find((el) => /Current Data Directory|当前数据目录|目前資料目錄|現在のデータディレクトリ|현재 데이터 디렉터리|Aktuelles Datenverzeichnis/.test(el.textContent || ''));
+  const label = labels.find((el) => /Current Data Directory|当前数据目录/.test(el.textContent || ''));
   if (!label) {
     return { ready: false, reason: 'no-path-label', bodyLength: (document.body?.innerText || '').length };
   }
@@ -55,7 +55,7 @@ _STORAGE_CARD_JS = """(() => {
   const hasPathValue = /\\/|~|:\\\\/.test(cardText);
   const hasUsage = /\\bGB\\b|\\bMB\\b|\\bKB\\b|\\bB\\b|已用|已使用|使用量|剩余|可用/.test(cardText);
   const buttons = card ? Array.from(card.querySelectorAll('button')) : [];
-  const hasChangeButton = buttons.some((b) => /^(Change|更改|變更)$/.test((b.textContent || '').trim()));
+  const hasChangeButton = buttons.some((b) => /^(Change|更改)$/.test((b.textContent || '').trim()));
   const hasHint = /MYRM_DATA_DIR|Persistent Volume|持久化|沙箱|沙盒|WebUI/.test(cardText);
   return {
     ready: hasPathValue && hasUsage && (hasChangeButton || hasHint),

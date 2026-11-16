@@ -1,12 +1,15 @@
-"""Unit tests for engine/parser.py — covers compute_next_run, validate, describe."""
+"""Unit tests for engine/parser.py — covers compute_next_run, validate, describe and the cron minimum gap."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from myrm_agent_harness.toolkits.cron.engine.parser import (
     compute_next_run,
     describe_schedule,
+    min_cron_gap_minutes,
     validate_cron_expr,
     validate_timezone,
 )
@@ -52,6 +55,31 @@ class TestValidateCronExpr:
 
     def test_invalid(self) -> None:
         assert validate_cron_expr("not a cron") is False
+
+
+class TestMinCronGapMinutes:
+    @pytest.mark.parametrize(
+        ("expr", "gap"),
+        [
+            ("* * * * *", 1),
+            ("*/4 * * * *", 4),
+            ("*/5 * * * *", 5),
+            ("0,3 * * * *", 3),
+            ("0,10,20 * * * *", 10),
+            ("0 * * * *", 60),
+            ("0 9 * * *", 1440),
+            ("0 9 * * 1-5", 1440),
+            ("0 9 * * 1", 10080),
+            ("0 9,10 * * *", 60),
+            ("0 0 1 * *", 28 * 1440),
+        ],
+    )
+    def test_it_is_the_shortest_wait_between_two_fires(self, expr: str, gap: float) -> None:
+        assert min_cron_gap_minutes(expr) == gap
+
+    @pytest.mark.parametrize("expr", ["*/10 * * * * *", "0 0 9 * * * 2030", "not a cron", "", "61 * * * *"])
+    def test_an_expression_it_cannot_check_has_no_gap(self, expr: str) -> None:
+        assert min_cron_gap_minutes(expr) is None
 
 
 class TestValidateTimezone:

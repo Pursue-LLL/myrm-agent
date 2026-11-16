@@ -64,8 +64,8 @@ def _queue_file(backend: _Backend, session_id: str = _SESSION) -> Path:
     return backend.base_path / "goals_queue" / session_id
 
 
-async def _queued_ids(storage: GoalStorage, session_id: str = _SESSION) -> list[object]:
-    return [entry["goal_id"] for entry in await storage.get_queue(session_id)]
+async def _queued_ids(storage: GoalStorage, session_id: str = _SESSION) -> list[str]:
+    return [str(entry["goal_id"]) for entry in await storage.get_queue(session_id)]
 
 
 def _records(caplog: pytest.LogCaptureFixture, name: str) -> list[logging.LogRecord]:

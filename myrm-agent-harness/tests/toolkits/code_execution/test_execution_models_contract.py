@@ -49,10 +49,3 @@ def test_execution_context_default_timeout_is_60() -> None:
     """Timeout must be >= IPC client timeout and consistent with LocalExecutionConfig."""
     context = ExecutionContext(code="echo ok")
     assert context.timeout == 60
-
-
-def test_executor_config_default_timeout_is_60() -> None:
-    from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutorConfig
-
-    config = ExecutorConfig()
-    assert config.timeout == 60

@@ -102,7 +102,6 @@ _track_context_access_in_command = track_context_access_in_command
 _build_background_listeners = build_background_listeners
 _classify_background_exit = classify_background_exit
 _maybe_build_image_blocks = maybe_build_image_blocks
-_CONTEXT_PATH_PATTERNS = CONTEXT_PATH_PATTERNS
 
 
 def _coerce_optional_int(value: object) -> int | None:

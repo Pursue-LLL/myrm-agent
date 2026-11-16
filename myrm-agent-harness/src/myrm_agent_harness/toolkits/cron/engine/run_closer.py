@@ -1,20 +1,21 @@
 """Closing write of a run: the job's new state once the run has ended.
 
 [INPUT]
-- toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms, next_eligible_run (POS: pure engine helpers: error classification, backoff and the next slot to book)
+- toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms, next_eligible_run, run_status_of (POS: pure engine helpers: error classification, backoff, the next slot to book and the status a run carries)
 - toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth before a closing write)
 - toolkits.cron.protocols::CronStore (POS: job and run persistence)
 - toolkits.cron.types::CronJob, JobResult, JobStatus, RunStatus, ScheduleKind (POS: Cron job domain types.)
 
 [OUTPUT]
-- RunCloserMixin: `_update_after_run` and its one-time and schedule-error branches, mixed into the executor
+- RunCloserMixin: `_update_after_run` and its one-time and schedule-error branches, and `_record_trial_outcome` for a manual run, mixed into the executor
 
 [POS]
 Mixed into ``JobExecutor``. After a run is recorded, adopts the stored job and applies what the run decided: auto-pause
 on a circuit break or on too many failures, the next slot or the backoff retry, completion of a one-time job (deleted
 only when its run succeeded and its delivery did not fail), and the fallback when the schedule itself cannot be
 computed. Because it writes onto the stored job, a pause, an edit or a
-delete made while the run was in flight is neither undone nor resurrected.
+delete made while the run was in flight is neither undone nor resurrected. A manual run decides nothing about the
+schedule or the job's state: it only becomes the job's latest run.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
     classify_transient_error,
     error_backoff_ms,
     next_eligible_run,
+    run_status_of,
 )
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
 from myrm_agent_harness.toolkits.cron.types import DeliveryStatus, JobStatus, RunStatus, ScheduleKind
@@ -70,7 +72,7 @@ class RunCloserMixin:
             await self._handle_once_completion(job, result, new_failures, finished, delivery_status)
             return
 
-        if getattr(result, "circuit_broken", False):
+        if result.circuit_broken:
             job.status = JobStatus.PAUSED
             job.next_run_at = None
             logger.warning(
@@ -97,11 +99,7 @@ class RunCloserMixin:
             job.next_run_at = finished + timedelta(milliseconds=backoff)
 
         job.last_run_at = finished
-        job.last_status = (
-            RunStatus.CIRCUIT_BREAK
-            if getattr(result, "circuit_broken", False)
-            else (RunStatus.OK if result.success else RunStatus.ERROR)
-        )
+        job.last_status = run_status_of(result)
         job.last_error = result.error if not result.success else None
         job.consecutive_failures = new_failures
 
@@ -112,6 +110,23 @@ class RunCloserMixin:
 
         job.updated_at = datetime.now(UTC)
         await self._store.save_job(job)
+
+    async def _record_trial_outcome(self, job: CronJob, result: JobResult, finished: datetime) -> None:
+        """Close a manual run: it becomes the job's latest run and nothing else about the job moves.
+
+        The schedule, fire count, failure streak and status stay as they are, so a trial can neither postpone a
+        scheduled run, pause the job, nor complete or delete a one-time task. Only the stored job is written back,
+        so an edit made while the trial ran is kept; the duplicate hash is the one value the run itself produced.
+        """
+        latest = await self._store.get_job(job.id)
+        if latest is None:
+            logger.info("Job %s was deleted during its manual run, skipping the post-run update", job.id)
+            return
+        latest.last_run_at = finished
+        latest.last_status = run_status_of(result)
+        latest.last_error = result.error if not result.success else None
+        latest.last_output_hash = job.last_output_hash
+        await self._store.save_job(latest)
 
     async def _handle_once_completion(
         self,

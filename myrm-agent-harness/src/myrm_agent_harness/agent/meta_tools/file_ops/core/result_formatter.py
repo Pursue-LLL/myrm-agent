@@ -4,6 +4,7 @@
 
 [INPUT]
 - parked_file_view::is_parked_path, wrap_long_lines, wrapped_rows_notice (POS: rows of a parked paste)
+- utils.line_endings::strip_utf8_bom, view_lines (POS: Line-ending rules shared by the edit pipeline and the view)
 
 [OUTPUT]
 - FileContent: class — File Content
@@ -19,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..constants import LINE_NUMBER_WIDTH, SEPARATOR_WIDTH
-from ..utils.line_endings import strip_utf8_bom
+from ..utils.line_endings import strip_utf8_bom, view_lines
 from .operation_context import ViewRange
 from .parked_file_view import is_parked_path, wrap_long_lines, wrapped_rows_notice
 
@@ -103,7 +104,7 @@ class ResultFormatter:
         """
         # The lines carry the file's own endings (the integrity hash and the edit pipeline need the raw text); the
         # view shows plain lines, because an edit writes the file's endings back and the model never has to type them.
-        lines = [line.removesuffix("\r") for line in content.lines]
+        lines = view_lines(content.lines)
         if lines:
             lines[0] = strip_utf8_bom(lines[0])
 

@@ -1,9 +1,9 @@
-"""Tests for image_reader reactive compression logic.
+"""Tests for image_reader compression logic.
 
-Covers the three-tier threshold strategy:
-- <= 5MB: raw base64 direct transfer (zero-loss)
-- 5MB to 20MB: reactive compress to JPEG 4096px
-- > 20MB: degrade to text placeholder
+Covers what a read does with an image:
+- within 3MiB and 4096px: raw base64 direct transfer (zero-loss)
+- over 3MiB or 4096px: compressed to JPEG by the dimension and quality ladder
+- > 50MB, a failed compression, or a payload still > 20MB after it: degrade to a text placeholder
 """
 
 from __future__ import annotations
@@ -16,9 +16,9 @@ import pytest
 from PIL import Image
 
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.image_reader import (
-    _INLINE_THRESHOLD,
+    _TARGET_PAYLOAD_THRESHOLD,
+    _ladder_compress,
     _needs_compression,
-    _reactive_compress,
     is_image_path,
     read_image_as_content_blocks,
 )
@@ -40,64 +40,60 @@ def _make_png_bytes(width: int, height: int) -> bytes:
     return buf.getvalue()
 
 
-class TestReactiveCompress:
-    """Unit tests for _reactive_compress."""
+def _ladder(raw: bytes) -> tuple[Image.Image, tuple[int, int] | None]:
+    """The image ``_ladder_compress`` returns for ``raw`` and the dimensions it reports for it."""
+    result = _ladder_compress(raw)
+    assert result is not None
+    compressed, reported = result
+    return Image.open(io.BytesIO(compressed)), reported
 
-    def test_small_image_passes_through(self) -> None:
-        raw = _make_jpeg_bytes(800, 600)
-        result = _reactive_compress(raw)
-        assert result is not None
-        img = Image.open(io.BytesIO(result))
+
+class TestLadderCompress:
+    """Unit tests for _ladder_compress: JPEG out, the 4096px bound, and the dimensions it reports."""
+
+    def test_small_image_keeps_its_size(self) -> None:
+        img, reported = _ladder(_make_jpeg_bytes(800, 600))
         assert img.format == "JPEG"
         assert img.size == (800, 600)
+        assert reported == (800, 600)
 
     def test_large_image_resized_to_4096(self) -> None:
-        raw = _make_jpeg_bytes(6000, 4000)
-        result = _reactive_compress(raw)
-        assert result is not None
-        img = Image.open(io.BytesIO(result))
+        img, reported = _ladder(_make_jpeg_bytes(6000, 4000))
         assert img.format == "JPEG"
         assert max(img.size) <= 4096
         assert img.size == (4096, 2730)
+        assert reported == (4096, 2730)
 
     def test_png_converted_to_jpeg(self) -> None:
-        raw = _make_png_bytes(2000, 1500)
-        result = _reactive_compress(raw)
-        assert result is not None
-        img = Image.open(io.BytesIO(result))
+        img, _ = _ladder(_make_png_bytes(2000, 1500))
         assert img.format == "JPEG"
         assert img.mode == "RGB"
 
     def test_rgba_transparency_handled(self) -> None:
-        img = Image.new("RGBA", (100, 100), (255, 0, 0, 128))
+        source = Image.new("RGBA", (100, 100), (255, 0, 0, 128))
         buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        result = _reactive_compress(buf.getvalue())
-        assert result is not None
-        out = Image.open(io.BytesIO(result))
-        assert out.mode == "RGB"
+        source.save(buf, format="PNG")
+        img, _ = _ladder(buf.getvalue())
+        assert img.mode == "RGB"
 
     def test_corrupt_data_returns_none(self) -> None:
-        result = _reactive_compress(b"not an image at all")
-        assert result is None
+        assert _ladder_compress(b"not an image at all") is None
 
     def test_tall_image_resized_by_height(self) -> None:
-        raw = _make_jpeg_bytes(2000, 8000)
-        result = _reactive_compress(raw)
-        assert result is not None
-        img = Image.open(io.BytesIO(result))
+        img, reported = _ladder(_make_jpeg_bytes(2000, 8000))
         assert img.size[1] <= 4096
         assert img.size == (1024, 4096)
+        assert reported == (1024, 4096)
 
 
 class TestReadImageThresholdStrategy:
-    """Integration tests for the three-tier threshold in read_image_as_content_blocks."""
+    """Integration tests for what read_image_as_content_blocks does at each size."""
 
     @pytest.mark.asyncio
     async def test_small_image_zero_loss(self) -> None:
-        """Images <= 5MB should transfer raw base64 without compression."""
+        """Images within 3MiB and 4096px should transfer raw base64 without compression."""
         small_bytes = _make_jpeg_bytes(1920, 1080)
-        assert len(small_bytes) < _INLINE_THRESHOLD
+        assert len(small_bytes) < _TARGET_PAYLOAD_THRESHOLD
 
         executor = AsyncMock()
         executor.read_file_bytes.return_value = small_bytes
@@ -116,12 +112,10 @@ class TestReadImageThresholdStrategy:
 
     @pytest.mark.asyncio
     async def test_medium_image_compressed(self) -> None:
-        """Images between 5-20MB should be reactively compressed."""
+        """Images over 3MiB go through the compression ladder."""
         medium_bytes = b"\x00" * (6 * 1024 * 1024)
 
-        with patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.utils.image_reader._ladder_compress"
-        ) as mock_compress:
+        with patch("myrm_agent_harness.agent.meta_tools.file_ops.utils.image_reader._ladder_compress") as mock_compress:
             fake_jpeg = _make_jpeg_bytes(4096, 3000)
             mock_compress.return_value = (fake_jpeg, (4096, 3000))
 
@@ -151,9 +145,7 @@ class TestReadImageThresholdStrategy:
         """Images that are still > 20MB after compression should degrade."""
         medium_bytes = b"\x00" * (6 * 1024 * 1024)
 
-        with patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.utils.image_reader._ladder_compress"
-        ) as mock_compress:
+        with patch("myrm_agent_harness.agent.meta_tools.file_ops.utils.image_reader._ladder_compress") as mock_compress:
             fake_huge_jpeg = b"\x00" * (21 * 1024 * 1024)
             mock_compress.return_value = (fake_huge_jpeg, (4096, 4096))
 
@@ -168,7 +160,7 @@ class TestReadImageThresholdStrategy:
 
     @pytest.mark.asyncio
     async def test_compression_failure_falls_back_to_text(self) -> None:
-        """If reactive compression fails, degrade gracefully."""
+        """If compression fails, degrade gracefully."""
         bad_bytes = b"\x89PNG" + b"\x00" * (6 * 1024 * 1024)
 
         with patch(
@@ -224,7 +216,7 @@ class TestImageReaderEdgeBranches:
 
     def test_needs_compression_dimension_trigger(self) -> None:
         raw = _make_jpeg_bytes(5000, 4000)
-        assert len(raw) <= _INLINE_THRESHOLD
+        assert len(raw) <= _TARGET_PAYLOAD_THRESHOLD
         assert _needs_compression(raw) is True
 
     def test_needs_compression_small_passthrough(self) -> None:

@@ -54,7 +54,7 @@ _CAPABILITIES_INPUT_JS = """(() => {
   tab.click();
   return new Promise(resolve => setTimeout(() => {
     const headings = Array.from(document.querySelectorAll('label, h3'));
-    const heading = headings.find((el) => /Max Iterations|最大迭代次数|最大疊代次數/.test(el.textContent || ''));
+    const heading = headings.find((el) => /Max Iterations|最大迭代次数/.test(el.textContent || ''));
     if (!heading) {
       return resolve({
         ready: false,
@@ -83,7 +83,7 @@ _CAPABILITIES_INPUT_JS = """(() => {
 # The expected value is embedded at call time (evaluate only accepts expression + timeout).
 _SET_MAX_ITERATIONS_JS = """(expectedValue) => {
   const headings = Array.from(document.querySelectorAll('label, h3'));
-  const heading = headings.find((el) => /Max Iterations|最大迭代次数|最大疊代次數/.test(el.textContent || ''));
+  const heading = headings.find((el) => /Max Iterations|最大迭代次数/.test(el.textContent || ''));
   if (!heading) {
     return { ok: false, reason: 'no-heading' };
   }
@@ -113,7 +113,7 @@ def _set_max_iterations_js(expected_value: int) -> str:
     """
     return f"""(() => {{
       const headings = Array.from(document.querySelectorAll('label, h3'));
-      const heading = headings.find((el) => /Max Iterations|最大迭代次数|最大疊代次數/.test(el.textContent || ''));
+      const heading = headings.find((el) => /Max Iterations|最大迭代次数/.test(el.textContent || ''));
       if (!heading) return {{ ok: false, reason: 'no-heading' }};
       const card = heading.closest('div.rounded-xl') || heading.parentElement;
       const input = card ? card.querySelector('input[type="number"]') : null;
@@ -128,7 +128,7 @@ def _set_max_iterations_js(expected_value: int) -> str:
       return new Promise(resolve => setTimeout(() => {{
         const section = document.querySelector('[data-section="agents"]') || document.body;
         const saveBtn = Array.from(section.querySelectorAll('button')).find((b) =>
-          /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
+          /^(Save|保存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
         );
         resolve({{
           ok: true,
@@ -148,7 +148,7 @@ def _set_max_iterations_js(expected_value: int) -> str:
 _CLICK_SAVE_JS = """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const matches = Array.from(section.querySelectorAll('button')).filter((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
   const save = matches.find((btn) => !btn.disabled);
   const bodyLength = (document.body?.innerText || '').length;
@@ -189,7 +189,7 @@ _DIAG_DUMP_JS = """(() => ({
   apiBase: window.__MYRM_E2E_API_BASE__ ?? window.__MYRM_E2E_RUNTIME__?.apiBase ?? null,
   putBodies: window.__diag_put_bodies__ ?? [],
   allSaveButtons: Array.from(document.querySelectorAll('button'))
-    .filter((b) => /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()))
+    .filter((b) => /^(Save|保存)$/i.test((b.textContent || '').trim()))
     .map((b) => ({
       text: (b.textContent || '').trim(),
       disabled: b.disabled,
@@ -205,7 +205,7 @@ _SAVE_COMPLETE_JS = """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const buttons = Array.from(section.querySelectorAll('button'));
   const save = buttons.find((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
   const bodyLength = (document.body?.innerText || '').length;
   if (!save) return { ready: false, reason: 'no-visible-save-button', bodyLength };
@@ -324,7 +324,7 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
 def _clear_max_iterations_js() -> str:
     return """(() => {
       const headings = Array.from(document.querySelectorAll('label, h3'));
-      const heading = headings.find((el) => /Max Iterations|最大迭代次数|最大疊代次數/.test(el.textContent || ''));
+      const heading = headings.find((el) => /Max Iterations|最大迭代次数/.test(el.textContent || ''));
       if (!heading) return { ok: false, reason: 'no-heading' };
       const card = heading.closest('div.rounded-xl') || heading.parentElement;
       const input = card ? card.querySelector('input[type="number"]') : null;
@@ -338,7 +338,7 @@ def _clear_max_iterations_js() -> str:
       return new Promise(resolve => setTimeout(() => {
         const section = document.querySelector('[data-section="agents"]') || document.body;
         const saveBtn = Array.from(section.querySelectorAll('button')).find((b) =>
-          /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
+          /^(Save|保存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
         );
         resolve({
           ok: true,

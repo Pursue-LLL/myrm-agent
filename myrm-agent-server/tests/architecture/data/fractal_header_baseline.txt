@@ -197,5 +197,3 @@ app/services/webui/passwords.py
 app/services/webui/qrcode.py
 app/startup/local_search_bootstrap.py
 app/tasks/cleanup.py
-app/tasks/events.py
-app/tasks/metrics.py

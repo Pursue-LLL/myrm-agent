@@ -114,7 +114,7 @@ def _set_agent_name_js(name: str) -> str:
       return new Promise(resolve => setTimeout(() => {{
         const section2 = document.querySelector('[data-section="agents"]') || document.body;
         const saveBtn = Array.from(section2.querySelectorAll('button')).find((b) =>
-          /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
+          /^(Save|保存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
         );
         resolve({{
           ok: true,
@@ -145,7 +145,7 @@ def _set_max_iterations_js(expected_value: int) -> str:
       return new Promise(resolve => setTimeout(() => {{
         const section = document.querySelector('[data-section="agents"]') || document.body;
         const saveBtn = Array.from(section.querySelectorAll('button')).find((b) =>
-          /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
+          /^(Save|保存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
         );
         resolve({{
           ok: true,
@@ -161,7 +161,7 @@ def _click_save_js() -> str:
     return """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const matches = Array.from(section.querySelectorAll('button')).filter((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
   const save = matches.find((btn) => !btn.disabled);
   const bodyLength = (document.body?.innerText || '').length;

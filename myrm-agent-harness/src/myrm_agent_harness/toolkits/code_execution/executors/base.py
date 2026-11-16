@@ -328,13 +328,6 @@ class CodeExecutor(ABC):
         ctx = ExecutionContext(code=command, work_dir=self.workspace_path)
         return await self.execute_bash(ctx)
 
-    def _extract_python_code_from_bash(self, command: str) -> str | None:
-        from myrm_agent_harness.toolkits.code_execution.python_extractor import (
-            extract_python_from_bash,
-        )
-
-        return extract_python_from_bash(command)
-
 
 # ---------------------------------------------------------------------------
 # Executor ContextVar — runtime instance management

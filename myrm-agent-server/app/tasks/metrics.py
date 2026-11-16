@@ -1,21 +1,33 @@
-"""Prometheus metrics for task monitoring.
+"""Prometheus instruments for the task queue and its SSE event bus, plus the recorders that update them.
 
-Uses Harness layer metrics utilities for consistent naming (myrm_ prefix).
+[INPUT]
+- myrm_agent_harness.observability.metrics::{create_counter, create_histogram} (POS: Harness-layer generic metrics utilities for any project using the Myrm framework)
+
+[OUTPUT]
+- task_succeeded_total / task_failed_total / task_cancelled_total / task_timeout_total: task outcome counters
+- task_duration_seconds: execution duration histogram by task type and final status
+- task_event_emitted_total / task_event_dropped_total / task_event_replaced_total: SSE event delivery counters
+- safe_counter_inc / safe_histogram_observe: record one sample and never raise into the caller
+
+[POS]
+- Prometheus instruments and best-effort recorders for the task subsystem. The worker and the event bus record through the
+  safe_* recorders, so a telemetry fault (a label set that drifted from its declaration, or an absent client) cannot fail a
+  task settlement or evict a healthy SSE subscriber. Declare an instrument only together with the code that writes it.
 """
 
-from myrm_agent_harness.observability.metrics import (
-    create_counter,
-    create_gauge,
-    create_histogram,
-)
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+from myrm_agent_harness.observability.metrics import create_counter, create_histogram
+
+if TYPE_CHECKING:
+    from prometheus_client import Counter, Histogram
+
+logger = logging.getLogger(__name__)
 
 # Task counters
-task_created_total = create_counter(
-    "task_created_total",
-    "Total number of tasks created",
-    ("task_type",),
-)
-
 task_succeeded_total = create_counter(
     "task_succeeded_total",
     "Total number of tasks succeeded",
@@ -67,37 +79,36 @@ task_duration_seconds = create_histogram(
     buckets=(0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600),
 )
 
-# Task queue gauge
-task_queue_length = create_gauge(
-    "task_queue_length",
-    "Number of tasks in queue",
-    ("status",),
-)
 
-# Worker health
-worker_active_count = create_gauge(
-    "worker_active_count",
-    "Number of active workers",
-    (),
-)
+def safe_counter_inc(counter: Counter, **labels: str) -> None:
+    """Increment *counter* (its *labels* child when given); a telemetry fault is logged at debug level, never raised.
 
-worker_heartbeat_timestamp = create_gauge(
-    "worker_heartbeat_timestamp",
-    "Last worker heartbeat timestamp",
-    ("worker_id",),
-)
+    The harness factories return ``None`` when prometheus_client is absent and a label set that drifted from its
+    declaration raises ``ValueError``; neither may fail the settlement or delivery being measured.
+    """
+    try:
+        (counter.labels(**labels) if labels else counter).inc()
+    except Exception as exc:
+        logger.debug("Failed to record a task counter (labels=%s): %s", labels, exc)
+
+
+def safe_histogram_observe(histogram: Histogram, value: float, **labels: str) -> None:
+    """Observe *value* on *histogram* (its *labels* child when given) under the same never-raise contract."""
+    try:
+        (histogram.labels(**labels) if labels else histogram).observe(value)
+    except Exception as exc:
+        logger.debug("Failed to record a task histogram sample (labels=%s): %s", labels, exc)
+
 
 __all__ = [
-    "task_created_total",
-    "task_succeeded_total",
-    "task_failed_total",
+    "safe_counter_inc",
+    "safe_histogram_observe",
     "task_cancelled_total",
-    "task_timeout_total",
-    "task_event_emitted_total",
-    "task_event_dropped_total",
-    "task_event_replaced_total",
     "task_duration_seconds",
-    "task_queue_length",
-    "worker_active_count",
-    "worker_heartbeat_timestamp",
+    "task_event_dropped_total",
+    "task_event_emitted_total",
+    "task_event_replaced_total",
+    "task_failed_total",
+    "task_succeeded_total",
+    "task_timeout_total",
 ]

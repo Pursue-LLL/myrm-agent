@@ -3,6 +3,7 @@
 import { memo, useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Search, Loader2, ArrowDownWideNarrow, Link as LinkIcon } from 'lucide-react';
+import { isLocalDevHost } from '@/components/dev/localDevHost';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { toast } from '@/hooks/shared/useToast';
@@ -165,11 +166,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   );
 
   useLayoutEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const host = window.location.hostname;
-    if (host !== 'localhost' && host !== '127.0.0.1') {
+    if (!isLocalDevHost()) {
       return;
     }
     window.__MYRM_E2E_SKILLS_DISCOVER__ = {

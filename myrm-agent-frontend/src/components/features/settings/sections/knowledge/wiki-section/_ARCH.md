@@ -50,5 +50,6 @@ hook 逐层覆盖：`useWikiScope` / `useWikiTabs` / `useWikiPurpose` / `useWiki
 ## 依赖
 
 - `@/services/wikiService`、`@/services/wiki/evidenceMetrics`、`@/services/agent`、`@/lib/api`
+- `@/components/dev/localDevHost::isLocalDevHost`：E2E 注入桥只在本地开发主机上挂（`useWikiOverviewData`）
 - 同级 [`../useWikiIngestSubscription.ts`](../useWikiIngestSubscription.ts)、[`../useWikiMaintainRun.ts`](../useWikiMaintainRun.ts)、[`../wiki/`](../wiki/_ARCH.md)（对话框、原文树与工具函数）
 - 父模块 [`../_ARCH.md`](../_ARCH.md)

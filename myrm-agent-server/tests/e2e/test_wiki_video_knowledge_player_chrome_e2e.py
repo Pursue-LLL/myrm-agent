@@ -43,7 +43,7 @@ _CONCEPTS_TAB_READY_JS = """(() => {
   const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
   if (!shell) return { ready: false, reason: 'no-shell' };
   const tab = [...shell.querySelectorAll('[role="tab"]')].find(
-    (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+    (el) => /词条管理|Concepts/.test((el.textContent || '').trim()),
   );
   return { ready: Boolean(tab), reason: tab ? '' : 'no-tab' };
 })()"""
@@ -170,7 +170,7 @@ def test_wiki_video_knowledge_player_chrome_e2e() -> None:
             """(() => {
               const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
               const tab = shell && [...shell.querySelectorAll('[role="tab"]')].find(
-                (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+                (el) => /词条管理|Concepts/.test((el.textContent || '').trim()),
               );
               if (tab) {
                 for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
@@ -189,7 +189,7 @@ def test_wiki_video_knowledge_player_chrome_e2e() -> None:
             """(() => {
               const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
               const tab = shell && [...shell.querySelectorAll('[role="tab"]')].find(
-                (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+                (el) => /词条管理|Concepts/.test((el.textContent || '').trim()),
               );
               const active = tab?.getAttribute('data-state') === 'active';
               const treeItems = document.querySelectorAll('[role="treeitem"]').length;

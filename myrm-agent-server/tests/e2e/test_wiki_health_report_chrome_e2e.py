@@ -265,7 +265,7 @@ _CLICK_LOAD_STATS_JS = """(() => {
   const loadBtn =
     document.querySelector('[data-testid="wiki-load-stats-btn"]') ||
     Array.from(document.querySelectorAll('button')).find((btn) =>
-      /Load Statistics|加载统计|読み込み統計/i.test((btn.textContent || '').trim()),
+      /Load Statistics|加载统计/i.test((btn.textContent || '').trim()),
     );
   if (loadBtn) {
     loadBtn.scrollIntoView({ block: 'center', inline: 'nearest' });
@@ -285,11 +285,11 @@ _WIKI_STATS_HYDRATE_JS = """(() => {
   const loadBtn =
     document.querySelector('[data-testid="wiki-load-stats-btn"]') ||
     Array.from(document.querySelectorAll('button')).find((btn) =>
-      /Load Statistics|加载统计|読み込み統計/i.test((btn.textContent || '').trim()),
+      /Load Statistics|加载统计/i.test((btn.textContent || '').trim()),
     );
   const loading =
     document.querySelector('[data-testid="wiki-stats-loading"]') ||
-    (shell && /Loading|加载中|読み込み中/i.test(shell.innerText || '') && !panel);
+    (shell && /Loading|加载中/i.test(shell.innerText || '') && !panel);
   return {
     ready: !!(panel || healthSection || loadBtn || loading),
     hasShell: !!shell,
@@ -306,7 +306,7 @@ _WIKI_STATS_PANEL_JS = """(() => {
   const healthSection = document.querySelector('[data-testid="wiki-health-section"]');
   const loading =
     document.querySelector('[data-testid="wiki-stats-loading"]') ||
-    (shell && !panel && /Loading|加载中|読み込み中/i.test(shell.innerText || ''));
+    (shell && !panel && /Loading|加载中/i.test(shell.innerText || ''));
   return {
     ready:
       location.pathname.endsWith('/settings/wiki') &&

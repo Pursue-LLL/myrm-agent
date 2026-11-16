@@ -1,13 +1,13 @@
-"""GoalRegistry.resolve_provider: the provider the HTTP API reads and changes a session's goals through."""
+"""GoalRegistry.resolve_provider: the provider the HTTP API and the IM commands read and change a session's goals through."""
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.agent.goals.manager import GoalManager
+from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.services.agent.goals.goal_registry import GoalRegistry
@@ -43,8 +43,19 @@ async def test_a_session_between_turns_is_read_from_storage(chat_id: str) -> Non
     assert stored.goal_id == goal.goal_id
 
 
-def test_the_stand_in_is_a_plain_manager_holding_no_running_turn_state(chat_id: str) -> None:
-    assert type(GoalRegistry.resolve_provider(chat_id)) is GoalManager
+@pytest.mark.asyncio
+async def test_a_goal_completed_through_the_stand_in_collects_the_chats_deliverables(chat_id: str) -> None:
+    """Approving a review between turns completes the goal through the stand-in, and the goal card lists what the chat produced."""
+    goal = await GoalRegistry.get_or_create_provider(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
+    GoalRegistry.unregister(chat_id)
+    deliverables = [{"id": "a1", "filename": "report.pdf"}, {"id": "a2", "filename": "figures.png"}]
+
+    with patch("app.services.agent.goals.goal_registry._collect_session_deliverables", AsyncMock(return_value=deliverables)):
+        await GoalRegistry.resolve_provider(chat_id).update_status(goal.goal_id, GoalStatus.COMPLETE)
+
+    stored = await GoalRegistry.resolve_provider(chat_id).get_goal(goal.goal_id)
+    assert stored is not None
+    assert stored.metadata["deliverables"] == deliverables
 
 
 def test_the_stand_in_is_never_registered(chat_id: str) -> None:
