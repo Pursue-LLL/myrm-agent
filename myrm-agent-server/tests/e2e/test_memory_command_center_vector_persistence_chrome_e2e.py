@@ -23,6 +23,12 @@ This test drives the real dev stack and the real command-center API (no mock on
 the critical path). It runs PRIVATE because the workspace backend carries the
 new ``vector_persistence`` field that is not yet deployed to the shared backend
 epoch.
+
+The Command Center is a Memory Labs surface: the node needs a runtime started with
+both Labs switches on and skips, naming the command, on one that was not. Formal run::
+
+    MYRM_MEMORY_LABS=1 NEXT_PUBLIC_MEMORY_LABS=1 ./myrm-dev test -m chrome_e2e \\
+      myrm-agent/myrm-agent-server/tests/e2e/test_memory_command_center_vector_persistence_chrome_e2e.py
 """
 
 from __future__ import annotations
@@ -53,10 +59,13 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     warm_ui_route,
 )
 from tests.support.local_embedding_server import LocalEmbeddingServer  # noqa: E402
+from tests.support.memory_labs import require_memory_labs  # noqa: E402
 from tests.support.test_secrets import load_test_secrets  # noqa: E402
 
+# Visible text only: ``textContent`` also carries the inline scripts, and the message bundle in their payload has the
+# key ``loadFailed``, which the pattern below matches.
 _COMMAND_CENTER_READY_JS = """(() => {
-  const text = document.body?.textContent || '';
+  const text = document.body?.innerText || '';
   const buttons = Array.from(document.querySelectorAll('button')).map((el) =>
     (el.textContent || '').trim(),
   );
@@ -189,6 +198,7 @@ def _command_center_verify_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
 @pytest.mark.timeout(600)
 def test_memory_command_center_vector_persistence_row_chrome_e2e() -> None:
     """Real user flow: open Command Center, verify Doctor + Runtime persistence rows."""
+    require_memory_labs(get_e2e_api_url())
     with _command_center_verify_panel() as (client, page):
         ready = wait_for_state(client, page, _COMMAND_CENTER_READY_JS, timeout_sec=90.0)
         assert ready.get("hasVerifyTab") is True, ready

@@ -27,9 +27,12 @@ from app.api.dependencies import get_db_session
 from app.api.memory.utils import get_crud_memory_manager
 from app.config.settings import settings
 from app.schemas.memory.command_center import MemoryEvidencePlaybackResponse
+from tests.support.memory_labs import LABS_ONLY_ROUTE
 
 _ROUTER_MODULE = "app.api.memory.router"
 _LAB_ONLY_PREFIXES = (
+    # The route the Command Center Chrome E2E nodes probe to tell a runtime with Labs on from one without.
+    f"/api/memory{LABS_ONLY_ROUTE}",
     "/api/memory/command-center/economics",
     "/api/memory/command-center/actions",
     "/api/memory/archive/restore",
