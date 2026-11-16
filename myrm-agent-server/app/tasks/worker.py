@@ -48,7 +48,7 @@ _SWEEP_BATCH_SIZE = 100
 _QUEUE_ORDER = "priority DESC, created_at ASC"
 
 # Failures that asking again cannot fix. They are matched by exact class name, so a subclass that is not listed stays
-# retryable: MediaFetchError means the network or the store failed this time, unlike its parent MediaInputError.
+# retryable: MediaFetchError means the network, store or host failed this time, unlike its parent MediaInputError.
 _PERMANENT_ERROR_TYPES = frozenset(
     {"ValidationError", "AuthenticationError", "PermissionError", "NotFoundError", "MediaInputError"}
 )

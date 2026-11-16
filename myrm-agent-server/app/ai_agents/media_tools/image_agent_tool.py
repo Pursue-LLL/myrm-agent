@@ -14,8 +14,9 @@
 [POS]
 LangChain adapter of the image engines. ``generate`` enqueues one background task per image (``n`` tasks) and answers
 with the task list; ``edit`` answers in the call; ``status`` and ``list`` read the queue and the model catalog. Every
-failure is an explicit error result: nothing is silently generated differently from what was asked, so a parameter
-that belongs to another action is refused instead of dropped and ``quality`` reaches every image request.
+failure is an explicit error result, and a parameter that belongs to another action is refused instead of dropped.
+``quality`` is sent on the OpenAI-compatible wire only (``openai_chat``, ``azure_openai``), for generation and edit
+alike; Gemini, Stability and MiniMax requests do not carry it.
 """
 
 from __future__ import annotations
