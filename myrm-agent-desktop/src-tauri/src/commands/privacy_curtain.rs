@@ -9,6 +9,7 @@
 //! - tauri AppHandle (POS: 窗口/事件/app data 目录)
 //! - utils::screen_lock (POS: 锁屏检测/回锁)
 //! - commands::privacy_curtain_state (POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口)
+//! - commands::privacy_curtain_state_changes (POS: 状态的具名迁移：手动拉起 / 交还租约 / 物理输入)
 //! - commands::privacy_curtain_transition (POS: 拉起 / 收起帷幕时窗口与状态的固定顺序及其失败收敛)
 //! - commands::privacy_curtain_page (POS: 看板页面内容与承载它的自定义协议 URL)
 //! - commands::privacy_curtain_presentation (POS: 跨 Space / 菜单栏覆盖的平台呈现层)
@@ -39,7 +40,7 @@ use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 
 use crate::commands::privacy_curtain_page::{self as page, CurtainTexts};
 use crate::commands::privacy_curtain_presentation as presentation;
-use crate::commands::privacy_curtain_state::{mutate_state, try_read_state};
+use crate::commands::privacy_curtain_state::{mutate_state, try_read_state, CurtainState};
 use crate::commands::privacy_curtain_transition::{
     raise_curtain, record_release, state_unavailable,
 };
@@ -221,13 +222,7 @@ pub fn show_privacy_curtain(app: AppHandle, texts: Option<CurtainTexts>) -> Resu
     let already_up = !curtain_windows(&app).is_empty();
     let raised = raise_curtain(
         || deploy_curtain_windows(&app),
-        || {
-            mutate_state(&app, |state| {
-                state.active = true;
-                state.auto_engaged = false;
-                state.last_physical_input_ms = now_ms();
-            })
-        },
+        || mutate_state(&app, |state| state.engage_manually(now_ms())),
         || {
             if !already_up {
                 close_curtain_windows(&app);
@@ -280,9 +275,7 @@ async fn relock_and_release_lease(
         return Ok(());
     }
     // 清位没成功就保持置位（帷幕继续遮蔽，安全方向）：下一次帷幕上的输入或 server 自己的交还会再清。
-    let cleared = mutate_state(app, |state| {
-        state.pending_auto_unlock = false;
-    });
+    let cleared = mutate_state(app, CurtainState::release_lease);
     log_audit("lease_clear", cleared, reason);
     Ok(())
 }
@@ -313,9 +306,7 @@ pub(crate) async fn relock_outstanding_lease(app: &AppHandle) {
 /// 帷幕输入不穿透到底层窗口，路过者交互唯一效果就是加固锁屏。
 #[tauri::command]
 pub async fn curtain_report_physical_input(app: AppHandle, source: String) -> Result<(), String> {
-    let recorded = mutate_state(&app, |state| {
-        state.last_physical_input_ms = now_ms();
-    });
+    let recorded = mutate_state(&app, |state| state.record_physical_input(now_ms()));
     log_audit("physical_input", recorded, &source);
 
     // 基准没记下也要回锁：帷幕上的输入下一次会再次上报，而回锁是加固锁屏的安全动作。
