@@ -1,6 +1,7 @@
 """Chat agent skill_market_tool adapter onto unified market install flow.
 
 [INPUT]
+- myrm_agent_harness.backends.skills.market_protocols::SkillInstallResult, SkillSearchResult (POS: Skill market backend protocol: the unified interface for searching and installing external skills)
 - app.core.skills.marketplace.market_service::SkillMarketService (POS: Business-layer market search with installed versions)
 - app.core.skills.discovery.market_install_flow::run_market_install_flow_by_id (POS: Unified install)
 - app.core.skills.discovery.market_install_flow::run_market_install_flow_from_url (POS: Unified URL install)

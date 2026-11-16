@@ -103,7 +103,7 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 |---|--------|------------------:|----------|------|
 | 21 | skill_manage_tool | 263 | `harness/agent/meta_tools/skills/manage/skill_manage_tool.py` | 创建/修改/删除技能 |
 | 22 | skill_search_tool | 277 | `harness/agent/meta_tools/discover_capability/discover_capability_tool.py` | 统一能力发现；**条件绑定**（hidden_skill_count > 0）；描述随 `skill_market_tool` 是否挂载而变：挂载 277，未挂载 289 |
-| 23 | skill_market_tool | 288 | `harness/agent/meta_tools/skills/market/skill_market_tool.py` | 从外部源安装/卸载技能（market_backend 存在时 Turn1 挂载）；`skill_search_tool` 的交叉提示经 dynamic_hints 按挂载情况注入：已挂载 288，未挂载 271 |
+| 23 | skill_market_tool | 250 | `harness/agent/meta_tools/skills/market/skill_market_tool.py` | 从外部源搜索并安装技能（market_backend 存在时 Turn1 挂载）；`skill_search_tool` 的交叉提示经 dynamic_hints 按挂载情况注入：已挂载 250，未挂载 233 |
 
 ### 4.4 交互工具（harness 提供，按配置加载）
 
@@ -315,7 +315,7 @@ Token 明细（tiktoken o200k_base）：
 | System Prompt 层 | **1,946** |
 | CORE 工具层 | **2,204** |
 | HIGH_PRIORITY 工具层 | **2,445** |
-| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,642（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,183 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
+| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,604（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,145 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,575** (55 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
@@ -334,7 +334,7 @@ Token 明细（tiktoken o200k_base）：
 [HIGH_PRIORITY: web_search + memory_* + skill_select (~2,445 tok)]
   ↑ web_search 优先；memory 组紧随；skill_select 承接；GUI 可关
 
-[EXTENDED: 可选工具 (~0~6,183+ tok)]
+[EXTENDED: 可选工具 (~0~6,145+ tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
 [System Prompt: messages[0] 1,173 (ZH·full)]

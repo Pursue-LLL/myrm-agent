@@ -254,9 +254,8 @@ def wait_chat_messages_done(
                     api_url=api_url,
                     timeout_sec=fetch_timeout_sec,
                 )
-                # Leading slice, not a tail: the DONE gate matches the literal word
-                # at the start of the newest assistant reply, so the head is what an
-                # operator needs to see.
+                # The gate matches the word DONE anywhere in the newest assistant
+                # reply; the log shows how that reply begins.
                 assistant_head = (_newest_assistant_content(messages) or "")[:80]
                 print(
                     f"E2E_WAIT_API_DONE_PROGRESS: chatId={chat_id} "

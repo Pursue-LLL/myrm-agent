@@ -128,14 +128,14 @@ class ToolLayer(IntEnum):
 - **特征**: harness 可选能力，默认关闭，按需 Turn1 或 RUNTIME_ONLY 绑定；组内统一按字母序稳定排序
 - **缓存**: harness 三层末尾；变化不影响 CORE/HIGH_PRIORITY 前缀
 - **工具数量**: 登记 **37** EXTENDED（harness 静态；见 TOOL_COUNT 块）
-- **Token 消耗**: 逐工具描述 token 与各场景合计见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §四、§总计估算；全部 EXTENDED 工具同轮 bind 的描述合计约 6,183（粗估，不含 `delegate_task_tool` 的运行期名册）
+- **Token 消耗**: 逐工具描述 token 与各场景合计见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §四、§总计估算；全部 EXTENDED 工具同轮 bind 的描述合计约 6,145（粗估，不含 `delegate_task_tool` 的运行期名册）
 
 **子分类**:
 
 | 子类 | 加载条件 | 典型工具 | Token 消耗 |
 |------|---------|---------|----------:|
 | 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 277（条件绑定；未挂载 `skill_market_tool` 时 289） |
-| 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~551 |
+| 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~513 |
 | 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；不新增独立工具） | 含于 memory×3；开启后 memory_search 的 description 110 → 232（+122）、args schema 124 → 181（+57）：未开启时 schema 不带 `corpus` 与 `expand_*` |
 | 浏览器工具 | `enabled_builtin_tools: browser` | browser_navigate_tool, browser_snapshot_tool, ... (8个) | ~762 |
 | 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~1,300 |

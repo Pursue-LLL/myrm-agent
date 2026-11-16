@@ -33,7 +33,7 @@ async def test_build_agent_runtime_context_merges_base_and_roots() -> None:
 
 @pytest.mark.asyncio
 async def test_build_agent_runtime_context_carries_the_single_tenant_user_id() -> None:
-    """Harness skill tools (skill_manage, skill_market install/uninstall) read context["user_id"]."""
+    """Harness skill tools (skill_manage, skill_market install) read context["user_id"]."""
     with patch(
         "app.core.skills.gates.disabled_skill_roots.collect_disabled_skill_roots",
         new_callable=AsyncMock,

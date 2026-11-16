@@ -20,7 +20,6 @@ import { createSseCapture } from '@/components/dev/e2eBridge/sseCapture';
 const BRIDGE_MEMBERS = [
   '__e2eFallback',
   'abortActiveStream',
-  'allocateStreamMessageId',
   'attachToChat',
   'clearSearchServicesForE2e',
   'clearSseSnapshot',
@@ -63,7 +62,6 @@ const BRIDGE_MEMBERS = [
   'isProvidersInitialized',
   'isSendReady',
   'isWorkflowMode',
-  'kickoffChatMessage',
   'loadActiveGoalFromApi',
   'openRewindDialog',
   'peekOutboundUserMessage',

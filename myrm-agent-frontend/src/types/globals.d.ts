@@ -79,14 +79,9 @@ interface Window {
       text: string,
       opts?: {
         baselineUserCount?: number;
-        waitForStreamCompletion?: boolean;
         preserveActionMode?: boolean;
         ephemeralSubagents?: Record<string, unknown>;
       },
-    ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
-    kickoffChatMessage?: (
-      text: string,
-      opts?: { baselineUserCount?: number; preserveActionMode?: boolean; profile?: 'live' | 'read' },
     ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
     submitAndObserveTurn?: (
       text: string,

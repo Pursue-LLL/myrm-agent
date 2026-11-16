@@ -449,7 +449,7 @@ async def _run_tools_panel_layer_badges_flow(
     _touch_wall_progress(f"tools_panel_seal apiUsers={seal_api_users} streaming={seal_streaming} baseline={baseline_users}")
 
     if seal_api_users <= baseline_users and not (seal_streaming and submit.get("ok") is True):
-        # LIVE sendTurnSealed may seal on uiProgress+streaming before API row persists (parallel SHPOIB).
+        # The result reports no new API user row: wait until the REST list holds one.
         api_gate_sec = (
             signoff_parallel_force_chat_timeout_sec(180.0) if seal_streaming else signoff_parallel_force_chat_timeout_sec(45.0)
         )

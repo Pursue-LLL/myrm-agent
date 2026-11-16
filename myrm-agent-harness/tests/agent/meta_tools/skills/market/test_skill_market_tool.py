@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import re
+from typing import get_args
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.skills.market.skill_market_tool import (
     create_skill_market_tool,
+    resolve_skill_market_tool_description,
 )
 from myrm_agent_harness.backends.skills.market_protocols import (
     SkillInstallResult,
@@ -44,11 +47,9 @@ def marketplace_tool(market_backend: MagicMock):
             scan_summary="clean",
         )
     )
-    uninstall = AsyncMock(return_value=SkillInstallResult(success=True, skill_name="demo_skill", skill_id="demo"))
     return create_skill_market_tool(
         market_backend,
         install_from_url_fn=install_from_url,
-        uninstall_fn=uninstall,
     )
 
 
@@ -154,34 +155,6 @@ async def test_install_from_url_success(marketplace_tool) -> None:
 
 
 @pytest.mark.asyncio
-async def test_uninstall_requires_skill_id(marketplace_tool) -> None:
-    result = await marketplace_tool.ainvoke(
-        {"action": "uninstall", "skill_id": ""},
-        config=_user_config(),
-    )
-    assert "skill_id' is required" in result
-
-
-@pytest.mark.asyncio
-async def test_uninstall_without_backend_fn(market_backend: MagicMock) -> None:
-    tool = create_skill_market_tool(market_backend)
-    result = await tool.ainvoke(
-        {"action": "uninstall", "skill_id": "demo"},
-        config=_user_config(),
-    )
-    assert "Uninstall is not supported" in result
-
-
-@pytest.mark.asyncio
-async def test_uninstall_success(marketplace_tool) -> None:
-    result = await marketplace_tool.ainvoke(
-        {"action": "uninstall", "skill_id": "demo"},
-        config=_user_config(),
-    )
-    assert "Successfully uninstalled skill 'demo_skill'" in result
-
-
-@pytest.mark.asyncio
 async def test_install_requires_user_id_in_config(market_backend: MagicMock) -> None:
     tool = create_skill_market_tool(market_backend)
     with pytest.raises(ValueError, match="user_id is required"):
@@ -219,12 +192,11 @@ async def test_install_from_url_failure(market_backend: MagicMock) -> None:
     assert "Installation from URL failed: bad zip" in result
 
 
-@pytest.mark.asyncio
-async def test_uninstall_failure(market_backend: MagicMock) -> None:
-    uninstall = AsyncMock(return_value=SkillInstallResult(success=False, error="not found"))
-    tool = create_skill_market_tool(market_backend, uninstall_fn=uninstall)
-    result = await tool.ainvoke(
-        {"action": "uninstall", "skill_id": "demo"},
-        config=_user_config(),
-    )
-    assert "Uninstall failed: not found" in result
+@pytest.mark.parametrize("locale", ["en", "zh"])
+def test_description_lists_exactly_the_actions_the_schema_accepts(marketplace_tool, locale: str) -> None:
+    """A described action the schema rejects (or an accepted one nobody described) misleads the model."""
+    accepted = set(get_args(marketplace_tool.args_schema.model_fields["action"].annotation))
+    described = set(re.findall(r'action="(\w+)"', resolve_skill_market_tool_description(locale)))
+
+    assert accepted
+    assert described == accepted

@@ -80,7 +80,6 @@ _SEND_TURN_JS = """(async () => {{
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   const result = await bridge.sendChatMessage({prompt_json}, {{
     baselineUserCount: usersBefore,
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   }});
   return {{ ...result, usersBefore }};

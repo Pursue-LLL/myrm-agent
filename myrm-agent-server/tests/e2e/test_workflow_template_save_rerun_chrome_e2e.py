@@ -87,7 +87,6 @@ _KICKOFF_DW_JS = f"""(async () => {{
     return {{ ok: false, err: 'no-send' }};
   }}
   return await bridge.sendChatMessage({json.dumps(E2E_PROMPT)}, {{
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   }});
 }})()"""

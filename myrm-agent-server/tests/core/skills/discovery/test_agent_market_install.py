@@ -16,6 +16,8 @@ from app.core.skills.discovery.agent_market_install import (
 from app.core.skills.discovery.market_install_flow import MarketInstallFlowResult
 from app.core.skills.marketplace.market_service import SkillMarketService
 
+_ADAPTER = "app.core.skills.discovery.agent_market_install"
+
 
 @dataclass(frozen=True)
 class _MountStub:
@@ -24,10 +26,13 @@ class _MountStub:
     mount_skill_id: str = "prebuilt::demo"
 
 
-def _flow_result() -> MarketInstallFlowResult:
+_MOUNTED = _MountStub(mounted=True)
+
+
+def _flow_result(mount: _MountStub | None) -> MarketInstallFlowResult:
     return MarketInstallFlowResult(
         result=SkillInstallResult(success=True, skill_id="prebuilt::demo", skill_name="Demo"),
-        mount_result=_MountStub(mounted=True),
+        mount_result=mount,
     )
 
 
@@ -48,47 +53,65 @@ def _hit() -> SkillSearchResult:
     )
 
 
-@pytest.mark.asyncio
-async def test_install_delegates_to_flow(monkeypatch: pytest.MonkeyPatch) -> None:
-    flow_fn = AsyncMock(return_value=_flow_result())
+@pytest.fixture
+def adoption(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    """The adoption bridge, isolated: left real it would reach the agent service and no assertion here would notice."""
     adopt = AsyncMock()
-    monkeypatch.setattr(
-        "app.core.skills.discovery.agent_market_install.run_market_install_flow_by_id",
-        flow_fn,
-    )
-    monkeypatch.setattr(
-        "app.core.skills.discovery.agent_market_install.complete_discovery_adoption",
-        adopt,
-    )
-    backend = AgentSessionSkillMarketBackend(_market())
+    monkeypatch.setattr(f"{_ADAPTER}.complete_discovery_adoption", adopt)
+    return adopt
 
-    out = await backend.install("skill-a", "clawhub", user_id="u1")
+
+@pytest.fixture
+def flow_by_id(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    flow = AsyncMock(return_value=_flow_result(_MOUNTED))
+    monkeypatch.setattr(f"{_ADAPTER}.run_market_install_flow_by_id", flow)
+    return flow
+
+
+@pytest.fixture
+def flow_from_url(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    flow = AsyncMock(return_value=_flow_result(_MOUNTED))
+    monkeypatch.setattr(f"{_ADAPTER}.run_market_install_flow_from_url", flow)
+    return flow
+
+
+@pytest.mark.asyncio
+async def test_install_delegates_to_flow(flow_by_id: AsyncMock, adoption: AsyncMock) -> None:
+    out = await AgentSessionSkillMarketBackend(_market()).install("skill-a", "clawhub", user_id="u1")
 
     assert out.skill_id == "prebuilt::demo"
-    flow_fn.assert_awaited_once_with(
-        "skill-a",
-        "clawhub",
-        agent_id=None,
-        mount_to_agent=True,
-    )
-    adopt.assert_awaited_once_with("agent-1", "prebuilt::demo")
+    flow_by_id.assert_awaited_once_with("skill-a", "clawhub", agent_id=None, mount_to_agent=True)
+    adoption.assert_awaited_once_with("agent-1", "prebuilt::demo")
 
 
 @pytest.mark.asyncio
-async def test_install_from_url_delegates_to_flow(monkeypatch: pytest.MonkeyPatch) -> None:
-    flow_fn = AsyncMock(return_value=_flow_result())
-    monkeypatch.setattr(
-        "app.core.skills.discovery.agent_market_install.run_market_install_flow_from_url",
-        flow_fn,
-    )
+async def test_install_from_url_delegates_to_flow(flow_from_url: AsyncMock, adoption: AsyncMock) -> None:
+    out = await install_from_url_for_agent_session("https://github.com/o/r", None)
 
-    await install_from_url_for_agent_session("https://github.com/o/r", None)
+    assert out.skill_id == "prebuilt::demo"
+    flow_from_url.assert_awaited_once_with("https://github.com/o/r", agent_id=None, mount_to_agent=True)
+    adoption.assert_awaited_once_with("agent-1", "prebuilt::demo")
 
-    flow_fn.assert_awaited_once_with(
-        "https://github.com/o/r",
-        agent_id=None,
-        mount_to_agent=True,
-    )
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mount",
+    [
+        pytest.param(None, id="nothing-was-mounted"),
+        pytest.param(_MountStub(mounted=False), id="mount-did-not-succeed"),
+        pytest.param(_MountStub(mounted=True, mount_skill_id=""), id="no-mounted-skill-id"),
+        pytest.param(_MountStub(mounted=True, agent_id=""), id="no-agent"),
+    ],
+)
+async def test_nothing_is_adopted_unless_a_skill_was_mounted_for_an_agent(
+    flow_by_id: AsyncMock, adoption: AsyncMock, mount: _MountStub | None
+) -> None:
+    flow_by_id.return_value = _flow_result(mount)
+
+    out = await AgentSessionSkillMarketBackend(_market()).install("skill-a", "clawhub")
+
+    assert out.success
+    adoption.assert_not_awaited()
 
 
 @pytest.mark.asyncio
