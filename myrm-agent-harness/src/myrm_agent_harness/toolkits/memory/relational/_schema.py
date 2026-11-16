@@ -15,7 +15,9 @@ Schema bootstrap for SQLiteRelationalStore. Stateless: every function operates o
 Migrations only move forward: a ``priority`` or ``trigger_keywords`` column found on procedural_rules is dropped, so
 a build that still reads or writes either column can no longer read, create or update rules in a database this code
 has opened. Several stores may open one database together: a column step another connection applied between this
-connection's column listing and its own statement counts as done.
+connection's column listing and its own statement counts as done. The one-time rename-and-copy migration of a
+database that predates the scope columns is not covered: it assumes no other store migrates that database at the
+same moment.
 """
 
 from collections.abc import Mapping
