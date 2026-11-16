@@ -227,7 +227,7 @@ async def test_connect_mcp_wiki_pipeline_real_flow(
         # Entering the client keeps one request portal alive for the whole test. A bare TestClient tears its
         # portal down after every request, which cancels the background wiki worker an ingest starts mid-batch
         # and leaves the batch's sources claimed, unlike a server whose event loop outlives its requests.
-        TestClient(app) as client,
+        TestClient(app, base_url="http://localhost:8080") as client,  # the MCP guards need a loopback Host with a port
     ):
         await setup_mcp_endpoint(app)
 

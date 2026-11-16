@@ -216,7 +216,7 @@ async def test_connect_mcp_wiki_real_flow(
         ),
     ):
         await setup_mcp_endpoint(app)
-        client = TestClient(app)
+        client = TestClient(app, base_url="http://localhost:8080")  # the MCP guards need a loopback Host with a port
 
         try:
             headers_wiki = {
