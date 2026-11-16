@@ -38,7 +38,7 @@ _BACKGROUND_WAIT_SECONDS = 10
 class BackgroundRun:
     """What a finished background job left: its exit code and what it printed on each stream."""
 
-    exit_code: int | None
+    exit_code: int
     stdout: str
     stderr: str
 
@@ -64,6 +64,8 @@ class RealBashStack:
     async def run_background(self, command: str, *, reply: str | None = None) -> BackgroundRun:
         """Start *command* as a background job, wait for it to end and return what it printed.
 
+        Raises ``TimeoutError`` when the job has not ended after ``_BACKGROUND_WAIT_SECONDS``.
+
         *reply*, when given, goes to the job's stdin through ``bash_process_tool`` right after the start, the way the
         model answers a prompt. The job is killed when the call ends, so one that never ends leaves no child process
         and no slot of the session's background-job limit behind.
@@ -85,11 +87,14 @@ class RealBashStack:
             assert isinstance(polled, dict)
             content = polled["content"]
             assert isinstance(content, dict)
-            return BackgroundRun(
-                exit_code=content["exit_code"],
-                stdout="\n".join(content["stdout"]),
-                stderr="\n".join(content["stderr"]),
-            )
+            stdout = "\n".join(content["stdout"])
+            stderr = "\n".join(content["stderr"])
+            if content["exit_code"] is None:
+                raise TimeoutError(
+                    f"background job {command!r} had not ended after {_BACKGROUND_WAIT_SECONDS}s; "
+                    f"stdout={stdout!r} stderr={stderr!r}"
+                )
+            return BackgroundRun(exit_code=content["exit_code"], stdout=stdout, stderr=stderr)
         finally:
             await self.process_tool.ainvoke({"action": "kill", "pid": pid}, config=self.config)
 
