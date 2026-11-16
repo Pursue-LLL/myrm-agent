@@ -28,6 +28,21 @@ async def test_create_skill_agent_warms_up_the_executor_once() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("enable_shell_tools", [True, False])
+async def test_create_skill_agent_starts_the_one_time_work_for_its_shell_tools(enable_shell_tools: bool) -> None:
+    from myrm_agent_harness.agent._factory.builder import create_skill_agent
+
+    with (
+        patch("myrm_agent_harness.agent.skill_agent.SkillAgent") as skill_agent_cls,
+        patch("myrm_agent_harness.agent._factory.builder.start_one_time_work") as start_one_time_work,
+    ):
+        skill_agent_cls.return_value = MagicMock()
+        await create_skill_agent(spec=_spec(), llm=MagicMock(), enable_shell_tools=enable_shell_tools)
+
+    start_one_time_work.assert_called_once_with(shell_tools=enable_shell_tools)
+
+
+@pytest.mark.asyncio
 async def test_create_skill_agent_without_an_executor_has_nothing_to_warm() -> None:
     from myrm_agent_harness.agent._factory.builder import create_skill_agent
 

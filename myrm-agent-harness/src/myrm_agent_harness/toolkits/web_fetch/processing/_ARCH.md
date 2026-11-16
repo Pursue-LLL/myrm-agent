@@ -7,7 +7,7 @@ Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL norm
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | Re-exports ContentPipeline | ✅ |
+| __init__.py | Package | Re-exports ContentPipeline on first access, so importing `spill` does not load the HTML pipeline | ✅ |
 | pipeline.py | Core | ContentPipeline — HTML/JSON/XML to Markdown; a text response (`PayloadKind.TEXT`) becomes a Document verbatim. A Document built from a source the fetcher cut at its size ceiling (`FetchResult.source_truncated`) carries `SOURCE_TRUNCATED_KEY` in its metadata, whichever path `process` took (the binary router flags the files it cuts itself); the pipeline itself never shortens a Document, so what the page holds reaches the caller | ✅ |
 | content_sanitize.py | Util | Strip base64 blobs from markdown | ✅ |
 | content_pruning.py | Util | Boilerplate/noise pruning; a page nested beyond the scoring limit skips the scoring passes and keeps the structural cleanup | ✅ |

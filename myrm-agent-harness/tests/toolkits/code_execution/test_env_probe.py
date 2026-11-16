@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import threading
+import time
 from unittest.mock import patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution import env_probe
+
+_WARM_UP_THREAD = "env-probe-warm-up"
 
 
 @pytest.fixture(autouse=True)
@@ -17,6 +21,12 @@ def _reset_probe_cache():
     env_probe._reset_cache_for_tests()
     yield
     env_probe._reset_cache_for_tests()
+
+
+def _join_warm_up_threads() -> None:
+    for thread in threading.enumerate():
+        if thread.name == _WARM_UP_THREAD:
+            thread.join(timeout=5)
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +233,125 @@ class TestCaching:
         result2 = env_probe.get_environment_probe_line(force_refresh=True)
         assert result1 != result2
         assert "python3=missing" in result2
+
+
+# ---------------------------------------------------------------------------
+# Concurrency and warm-up
+# ---------------------------------------------------------------------------
+
+
+class TestConcurrency:
+    """The interpreter probes overlap, and callers that arrive together share one build."""
+
+    def test_the_five_probes_run_at_the_same_time(self, monkeypatch: pytest.MonkeyPatch):
+        """The barrier opens only while all five probes are inside it; one after another, it times out."""
+        barrier = threading.Barrier(5, timeout=5)
+
+        def at_the_barrier(answer: object):
+            def probe(*_args: object) -> object:
+                barrier.wait()
+                return answer
+
+            return probe
+
+        # Two `_python_version_of` calls (python3, python) plus the pip binding, the pip module and PEP 668.
+        monkeypatch.setattr(env_probe, "_python_version_of", at_the_barrier("3.12.4"))
+        monkeypatch.setattr(env_probe, "_has_pip_module", at_the_barrier(True))
+        monkeypatch.setattr(env_probe, "_detect_pep668", at_the_barrier(False))
+        monkeypatch.setattr(env_probe, "_pip_python_version", at_the_barrier("3.12"))
+        monkeypatch.setattr(env_probe.shutil, "which", lambda name: None)
+
+        assert env_probe._build_probe_line() == ""
+
+    def test_python3_missing_ignores_what_the_pip_and_pep_668_probes_answered(self, monkeypatch: pytest.MonkeyPatch):
+        """Both checks of python3 start with the others; an answer about an interpreter that is not there is dropped."""
+        monkeypatch.setattr(env_probe, "_python_version_of", lambda b: "3.12.4" if b == "python" else None)
+        monkeypatch.setattr(env_probe, "_has_pip_module", lambda b: True)
+        monkeypatch.setattr(env_probe, "_detect_pep668", lambda b: True)
+        monkeypatch.setattr(env_probe, "_pip_python_version", lambda: None)
+        monkeypatch.setattr(env_probe.shutil, "which", lambda name: None)
+
+        line = env_probe.get_environment_probe_line()
+
+        assert "python3=missing" in line
+        assert "PEP 668" not in line
+
+    def test_callers_that_arrive_together_share_one_build(self, monkeypatch: pytest.MonkeyPatch):
+        builds: list[int] = []
+        first_started = threading.Event()
+        second_started = threading.Event()
+        release = threading.Event()
+
+        def slow_build() -> str:
+            builds.append(1)
+            if len(builds) > 1:
+                second_started.set()
+            first_started.set()
+            assert release.wait(timeout=5)
+            return "Python toolchain: pip=missing."
+
+        monkeypatch.setattr(env_probe, "_build_probe_line", slow_build)
+        lines: list[str] = []
+        callers = [
+            threading.Thread(target=lambda: lines.append(env_probe.get_environment_probe_line())) for _ in range(4)
+        ]
+
+        callers[0].start()
+        assert first_started.wait(timeout=5)
+        for caller in callers[1:]:
+            caller.start()
+        # A second build would start within this window if the callers did not wait for the first.
+        assert not second_started.wait(timeout=0.3)
+        release.set()
+        for caller in callers:
+            caller.join(timeout=5)
+
+        assert builds == [1]
+        assert lines == ["Python toolchain: pip=missing."] * 4
+
+
+class TestWarmUp:
+    """The warm-up builds the line on a thread; the reader that follows finds it built or waits for it."""
+
+    def test_returns_before_the_build_ends_and_the_reader_gets_its_line(self, monkeypatch: pytest.MonkeyPatch):
+        builds: list[int] = []
+        release = threading.Event()
+
+        def slow_build() -> str:
+            builds.append(1)
+            assert release.wait(timeout=5)
+            return "Python toolchain: pip=missing."
+
+        monkeypatch.setattr(env_probe, "_build_probe_line", slow_build)
+
+        started = time.monotonic()
+        env_probe.warm_up_environment_probe()
+        assert time.monotonic() - started < 2, "the warm-up must not wait for the build"
+
+        lines: list[str] = []
+        reader = threading.Thread(target=lambda: lines.append(env_probe.get_environment_probe_line()))
+        reader.start()
+        release.set()
+        reader.join(timeout=5)
+        _join_warm_up_threads()
+
+        assert lines == ["Python toolchain: pip=missing."]
+        assert builds == [1]
+
+    def test_does_nothing_when_the_line_is_already_built(self, monkeypatch: pytest.MonkeyPatch):
+        builds: list[int] = []
+
+        def build() -> str:
+            builds.append(1)
+            return ""
+
+        monkeypatch.setattr(env_probe, "_build_probe_line", build)
+        env_probe.get_environment_probe_line()
+
+        env_probe.warm_up_environment_probe()
+        _join_warm_up_threads()
+
+        assert builds == [1]
 
 
 # ---------------------------------------------------------------------------

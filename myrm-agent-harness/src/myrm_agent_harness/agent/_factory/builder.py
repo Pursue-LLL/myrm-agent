@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.wiki import SemanticSearchFn
 
 from myrm_agent_harness.agent._factory.mcp_routing import route_mcp_servers
+from myrm_agent_harness.agent._factory.one_time_work import start_one_time_work
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,7 @@ async def create_skill_agent(
     if executor is not None:
         # The venv takes seconds on a fresh state root; the rest of the assembly and the first model request hide it.
         executor.warm_up()
+    start_one_time_work(shell_tools=enable_shell_tools)
 
     if llm is None:
         if llm_config is None:

@@ -20,6 +20,7 @@ Design principles:
 
 [OUTPUT]
 - get_environment_probe_line: Cached one-liner or "" if environment is clean.
+- warm_up_environment_probe: Starts that build on a background thread, without waiting.
 
 [POS]
 Python toolchain probe. Injects environment awareness into bash tool
@@ -33,13 +34,15 @@ import os
 import shutil
 import subprocess
 import threading
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
 _CACHE_LOCK = threading.Lock()
 _CACHE: dict[tuple[str, str], str] = {}
+# Held for a whole build, so concurrent callers share one run of the probes instead of racing on the
+# process-wide failure count they reset and read.
+_BUILD_LOCK = threading.Lock()
 # One entry per distinct search path; a long-lived process sees a handful at most.
 _MAX_CACHE_ENTRIES = 8
 
@@ -157,23 +160,23 @@ def _build_probe_line() -> str:
     """Build the one-liner. Returns "" when nothing notable is detected.
 
     The interpreter probes are independent processes, so they run concurrently: serially they
-    could each spend the full timeout and add up to seconds on the request path.
+    could each spend the full timeout and add up to seconds on the request path. The two checks
+    of ``python3`` itself start with the rest and are only read when ``python3`` answered.
     """
     _reset_probe_failures()
 
-    jobs: dict[str, Callable[[], object]] = {
-        "py3_ver": lambda: _python_version_of("python3"),
-        "py_ver": lambda: _python_version_of("python"),
-        "pip_bound_to": _pip_python_version,
-    }
-    with ThreadPoolExecutor(max_workers=len(jobs), thread_name_prefix="env-probe") as pool:
-        results = {name: pool.submit(job) for name, job in jobs.items()}
-        py3_ver = results["py3_ver"].result()
-        py_ver = results["py_ver"].result()
-        pip_bound_to = results["pip_bound_to"].result()
+    with ThreadPoolExecutor(max_workers=5, thread_name_prefix="env-probe") as pool:
+        py3_ver_probe = pool.submit(_python_version_of, "python3")
+        py_ver_probe = pool.submit(_python_version_of, "python")
+        pip_bound_probe = pool.submit(_pip_python_version)
+        py3_pip_probe = pool.submit(_has_pip_module, "python3")
+        py3_pep668_probe = pool.submit(_detect_pep668, "python3")
+        py3_ver = py3_ver_probe.result()
+        py_ver = py_ver_probe.result()
+        pip_bound_to = pip_bound_probe.result()
+        py3_has_pip = bool(py3_ver) and py3_pip_probe.result()
+        py3_pep668 = bool(py3_ver) and py3_pep668_probe.result()
 
-    py3_has_pip = _has_pip_module("python3") if py3_ver else False
-    py3_pep668 = _detect_pep668("python3") if py3_ver else False
     has_uv = shutil.which("uv") is not None
 
     if _probe_failures():
@@ -235,6 +238,8 @@ def get_environment_probe_line(*, force_refresh: bool = False) -> str:
     """Return the probe line for the current environment, building it on first use.
 
     Returns "" when the environment is clean — the caller should skip appending anything then.
+    One build runs at a time: a caller that arrives while another is building (the warm-up, say)
+    waits for it and returns the line it stored.
 
     Args:
         force_refresh: Rebuild the entry for the current environment before returning it.
@@ -244,17 +249,35 @@ def get_environment_probe_line(*, force_refresh: bool = False) -> str:
         if not force_refresh and key in _CACHE:
             return _CACHE[key]
 
-    try:
-        line = _build_probe_line()
-    except Exception as exc:
-        logger.debug("env_probe failed: %s", exc)
-        line = ""
+    with _BUILD_LOCK:
+        with _CACHE_LOCK:
+            if not force_refresh and key in _CACHE:
+                return _CACHE[key]
 
+        try:
+            line = _build_probe_line()
+        except Exception as exc:
+            logger.debug("env_probe failed: %s", exc)
+            line = ""
+
+        with _CACHE_LOCK:
+            if len(_CACHE) >= _MAX_CACHE_ENTRIES:
+                _CACHE.clear()
+            _CACHE[key] = line
+        return line
+
+
+def warm_up_environment_probe() -> None:
+    """Start building the line for the current environment on a background thread, unless it is cached.
+
+    Returns immediately. The bash tool's description needs the line while the agent is assembled; a
+    first reader that finds it built, or waits for the build already running, does not start the
+    probe processes while the event loop stands still.
+    """
     with _CACHE_LOCK:
-        if len(_CACHE) >= _MAX_CACHE_ENTRIES:
-            _CACHE.clear()
-        _CACHE[key] = line
-    return line
+        if _cache_key() in _CACHE:
+            return
+    threading.Thread(target=get_environment_probe_line, name="env-probe-warm-up", daemon=True).start()
 
 
 def _reset_cache_for_tests() -> None:
