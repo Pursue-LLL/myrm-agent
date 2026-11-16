@@ -309,8 +309,8 @@ function getTauriBackendPort(): number {
 }
 
 /**
- * Chrome E2E SHPOIB: the private backend origin a validated binding put on the page (`public/e2e-runtime-bootstrap.js`
- * or the CDP binding script). The one switch every E2E-aware call site reads; always null in a production build.
+ * Chrome E2E SHPOIB: the private backend origin a validated binding put on the page
+ * (`components/dev/e2e-runtime-bootstrap.js` or the CDP binding script). The one switch every E2E-aware call site reads; always null in a production build.
  */
 export function resolveE2eApiBase(): string | null {
   if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') {

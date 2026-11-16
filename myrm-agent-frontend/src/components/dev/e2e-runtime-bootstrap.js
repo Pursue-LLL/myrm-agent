@@ -3,11 +3,12 @@
 
   const PREFIX = 'myrm-e2e-v1:';
   const raw = window.name;
-  if (!raw.startsWith(PREFIX)) return;
+  if (!raw.startsWith(PREFIX)) {
+    return;
+  }
 
   const isLoopback = (hostname) => hostname === '127.0.0.1' || hostname === 'localhost';
-  const isIdentifier = (value) =>
-    typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(value);
+  const isIdentifier = (value) => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(value);
 
   let binding;
   try {
@@ -32,15 +33,17 @@
   window.__MYRM_E2E_RUNTIME__ = Object.freeze(binding);
   window.__MYRM_E2E_API_BASE__ = binding.apiBase;
 
-  // Capture client-side failures from the very first script.
-  // The bridge wait installs its own sink on the first poll, which is far too late for a hydration
-  // error: the app has already failed by then and the page only shows an empty shell, so the lane
-  // reports "bridge did not become ready" without ever saying why.
-  window.__MYRM_E2E_DIAG_ERRORS__ = [];
+  // Collect client-side failures from the very first script into the sink the bridge diagnostics
+  // read (`window.__MYRM_DIAG_ERRORS__`; the bridge wait reuses an existing sink). A hydration error
+  // is raised long before the first bridge poll, so a sink installed by that poll would miss the
+  // error that broke the boot and the timeout report would have no page error to show.
+  window.__MYRM_DIAG_ERRORS__ = [];
   (() => {
-    const sink = window.__MYRM_E2E_DIAG_ERRORS__;
+    const sink = window.__MYRM_DIAG_ERRORS__;
     const push = (kind, msg) => {
-      if (sink.length < 12) sink.push(`${kind}: ${String(msg).slice(0, 240)}`);
+      if (sink.length < 12) {
+        sink.push(`${kind}: ${String(msg).slice(0, 240)}`);
+      }
     };
     window.addEventListener('error', (e) => push('error', e.message || e.filename));
     window.addEventListener('unhandledrejection', (e) => push('rejection', e.reason?.message || e.reason));
@@ -48,7 +51,9 @@
 
   const routeHttpUrl = (value) => {
     const url = new URL(value, location.origin);
-    if (url.origin !== location.origin) return value;
+    if (url.origin !== location.origin) {
+      return value;
+    }
     if (!url.pathname.startsWith('/api/v1') && !url.pathname.startsWith('/webui')) {
       return value;
     }
@@ -57,30 +62,31 @@
 
   const nativeFetch = window.fetch.bind(window);
   const healthUrl = `${binding.apiBase}/api/v1/health`;
-  const runtimeReady = nativeFetch(healthUrl, { cache: 'no-store' })
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new Error(`E2E_RUNTIME_HEALTH_HTTP_${response.status}`);
-      }
-      const payload = await response.json();
-      if (payload.runtime_id !== binding.runtimeId) {
-        throw new Error(
-          `E2E_RUNTIME_MISMATCH expected=${binding.runtimeId} actual=${payload.runtime_id || '<missing>'}`,
-        );
-      }
-      window.dispatchEvent(new CustomEvent('myrm_e2e_runtime_ready', { detail: binding }));
-      return binding;
-    });
+  const runtimeReady = nativeFetch(healthUrl, { cache: 'no-store' }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(`E2E_RUNTIME_HEALTH_HTTP_${response.status}`);
+    }
+    const payload = await response.json();
+    if (payload.runtime_id !== binding.runtimeId) {
+      throw new Error(`E2E_RUNTIME_MISMATCH expected=${binding.runtimeId} actual=${payload.runtime_id || '<missing>'}`);
+    }
+    window.dispatchEvent(new CustomEvent('myrm_e2e_runtime_ready', { detail: binding }));
+    return binding;
+  });
   window.__MYRM_E2E_RUNTIME_READY__ = runtimeReady;
 
   window.fetch = (input, init) => {
     if (input instanceof Request) {
       const routed = routeHttpUrl(input.url);
-      if (routed === input.url) return nativeFetch(input, init);
+      if (routed === input.url) {
+        return nativeFetch(input, init);
+      }
       return runtimeReady.then(() => nativeFetch(new Request(routed, input), init));
     }
     const routed = routeHttpUrl(String(input));
-    if (routed === input) return nativeFetch(input, init);
+    if (routed === input) {
+      return nativeFetch(input, init);
+    }
     return runtimeReady.then(() => nativeFetch(routed, init));
   };
 
@@ -94,9 +100,7 @@
       construct(Target, args) {
         const [url, ...rest] = args;
         const routed = routeHttpUrl(String(url));
-        const transportUrl = routed.startsWith('http')
-          ? routed.replace(/^http/, protocol)
-          : routed;
+        const transportUrl = routed.startsWith('http') ? routed.replace(/^http/, protocol) : routed;
         return Reflect.construct(Target, [transportUrl, ...rest]);
       },
     });
