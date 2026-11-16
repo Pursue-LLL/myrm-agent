@@ -92,7 +92,7 @@ class TestDispatchEvent:
 
         sched = _make_scheduler(trigger_provider=provider)
 
-        with patch.object(sched, "_execute_and_persist", new_callable=AsyncMock) as mock_exec:
+        with patch.object(sched, "_dispatch", new_callable=AsyncMock) as mock_exec:
             count = await sched.dispatch_event("error detected", "slack", "u1")
             await asyncio.sleep(0.05)
 
@@ -102,6 +102,26 @@ class TestDispatchEvent:
         call_kwargs = mock_exec.call_args
         assert call_kwargs[1]["trigger_source"] == "event"
         assert "error detected" in call_kwargs[1]["context"]
+
+    @pytest.mark.asyncio
+    async def test_a_triggered_run_is_in_flight_until_it_ends(self) -> None:
+        provider = AsyncMock()
+        provider.check_event_triggers = AsyncMock(return_value=[_make_job()])
+        sched = _make_scheduler(trigger_provider=provider)
+        gate = asyncio.Event()
+
+        async def hold(job: CronJob, **_: object) -> None:
+            await gate.wait()
+
+        with patch.object(sched, "_dispatch", side_effect=hold):
+            await sched.dispatch_event("error detected", "slack", "u1")
+            await asyncio.sleep(0)
+            assert sched._in_flight["job-1"] == 1
+
+            gate.set()
+            await asyncio.sleep(0.05)
+
+        assert sched._in_flight["job-1"] == 0
 
     @pytest.mark.asyncio
     async def test_no_matches(self) -> None:
@@ -133,7 +153,7 @@ class TestDispatchSystemEvent:
 
         sched = _make_scheduler(trigger_provider=provider)
 
-        with patch.object(sched, "_execute_and_persist", new_callable=AsyncMock) as mock_exec:
+        with patch.object(sched, "_dispatch", new_callable=AsyncMock) as mock_exec:
             count = await sched.dispatch_system_event("github", "push", {"ref": "refs/heads/main"})
             await asyncio.sleep(0.05)
 
@@ -162,7 +182,7 @@ class TestDispatchWebhook:
 
         sched = _make_scheduler(trigger_provider=provider)
 
-        with patch.object(sched, "_execute_and_persist", new_callable=AsyncMock) as mock_exec:
+        with patch.object(sched, "_dispatch", new_callable=AsyncMock) as mock_exec:
             result = await sched.dispatch_webhook("abc123", "secret", {"event": "test"})
             await asyncio.sleep(0.05)
 

@@ -32,6 +32,13 @@ _REMOVED = (
     "is_top_of_hour_cron",  # top-of-hour cron test; resolve_stagger_ms decides the stagger window
     "compute_stagger_offset_s",  # per-job stagger offset; resolve_stagger_ms decides the window
     "active_streams",  # StreamListener status accessor
+    "claim_due",  # store write that cleared a job's next run time when its run was claimed; advance_next_run books instead
+    "is_stale_run",  # test for a claimed job that never ran again; a booked job always has a next run time
+    "list_orphaned_active",  # store query for enabled jobs without a next run time; none can arise
+    "_recover_stale_runs",  # startup phase that revived claimed jobs
+    "_active_jobs",  # set of dispatched job ids on the scheduler; the in-flight counter replaces it
+    "_execute_and_persist",  # scheduler entry that ran a claimed job; _dispatch is the guarded run
+    "execute_fn",  # StartupRecovery's run callback; admit_fn books and launches
 )
 
 

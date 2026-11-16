@@ -1,17 +1,13 @@
-"""Tests for cron three-phase startup recovery helpers.
+"""Tests for the cron startup recovery helpers.
 
-Covers ``is_stale_run``, ``is_in_error_backoff``, and ``compute_prev_run``
-— all pure functions with no I/O.
+Covers ``is_in_error_backoff`` and ``compute_prev_run``: pure functions with no I/O.
 """
 
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from myrm_agent_harness.toolkits.cron.engine.helpers import (
-    is_in_error_backoff,
-    is_stale_run,
-)
+from myrm_agent_harness.toolkits.cron.engine.helpers import is_in_error_backoff
 from myrm_agent_harness.toolkits.cron.engine.parser import compute_prev_run
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
@@ -44,51 +40,6 @@ def _make_job(
         timeout_seconds=timeout_seconds,
         retry_backoff_ms=retry_backoff_ms,
     )
-
-
-# ── is_stale_run ─────────────────────────────────────────────────────
-
-
-class TestIsStaleRun:
-    def test_stale_when_past_timeout_plus_margin(self) -> None:
-        now = datetime(2025, 1, 1, 10, 0, tzinfo=UTC)
-        job = _make_job(
-            next_run_at=None,
-            last_run_at=datetime(2025, 1, 1, 9, 0, tzinfo=UTC),
-            timeout_seconds=300,
-        )
-        assert is_stale_run(job, now) is True
-
-    def test_not_stale_when_within_timeout(self) -> None:
-        now = datetime(2025, 1, 1, 9, 4, tzinfo=UTC)
-        job = _make_job(
-            next_run_at=None,
-            last_run_at=datetime(2025, 1, 1, 9, 0, tzinfo=UTC),
-            timeout_seconds=300,
-        )
-        assert is_stale_run(job, now) is False
-
-    def test_not_stale_when_next_run_set(self) -> None:
-        now = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
-        job = _make_job(
-            next_run_at=datetime(2025, 1, 1, 13, 0, tzinfo=UTC),
-            last_run_at=datetime(2025, 1, 1, 9, 0, tzinfo=UTC),
-        )
-        assert is_stale_run(job, now) is False
-
-    def test_not_stale_when_never_run(self) -> None:
-        now = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
-        job = _make_job(next_run_at=None, last_run_at=None)
-        assert is_stale_run(job, now) is False
-
-    def test_handles_naive_last_run_at(self) -> None:
-        now = datetime(2025, 1, 1, 10, 0, tzinfo=UTC)
-        job = _make_job(
-            next_run_at=None,
-            last_run_at=datetime(2025, 1, 1, 9, 0),  # naive
-            timeout_seconds=300,
-        )
-        assert is_stale_run(job, now) is True
 
 
 # ── is_in_error_backoff ──────────────────────────────────────────────

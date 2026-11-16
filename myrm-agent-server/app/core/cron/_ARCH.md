@@ -77,7 +77,7 @@ app.core.cron.adapters.setup (组装入口)
 
 ```
 CronJob { prompt, model?, schedule.stagger_ms? }
-    ↓ scheduler._execute_and_persist()
+    ↓ scheduler._dispatch()  ← 这次运行的下一个槽位已由 _admit 订下
     ↓ stagger: sleep(random(0, stagger_ms))  ← 防 thundering-herd
     ↓ AgentJobRunner._run_once()
     ↓ _build_effective_prompt(job)  ← 周期任务追加 [SILENT] 指令
@@ -137,19 +137,17 @@ API 支持：分页（offset/limit）、状态过滤（ok/error）、全局查�
 
 ## 运行时策略
 
-### 三阶段启动恢复（Three-Phase Startup Recovery）
+### 两阶段启动恢复（Two-Phase Startup Recovery）
 
-服务重启后，scheduler 通过 `_startup_recovery()` 执行三个正交的恢复阶段：
+周期任务的下一个槽位在其运行开始之前就已订下（`scheduler._admit` 用一次条件写订槽，再启动运行），所以进程崩溃不会留下没有下一时刻的启用任务；恢复只处理停机期间到点的槽位。服务重启后 `StartupRecovery.run()` 依次执行两个阶段：
 
-1. **Phase 1 — Stale-Run 僵尸恢复**：检测 `status=ACTIVE` 且 `next_run_at=NULL` 的任务
-   （被 `claim_due` 领走后进程崩溃），通过 `is_stale_run()` 判定超时后标记为 ERROR 并重新调度
-2. **Phase 2 — Missed-Slot 精确回放**：对 CRON 类型任务，用 `compute_prev_run()` 计算上一个
-   应执行槽位，若 `prev_slot > last_run_at` 说明确实漏执行，立即回放。跳过处于 error backoff
-   窗口内的任务（`is_in_error_backoff()`），不回放从未运行过的新任务
-3. **Phase 3 — Grace 窗口内到期任务**：对 `next_run_at <= now` 且在 `misfire_grace_seconds`
-   窗口内的任务正常执行，超过 grace 的重新调度到下一周期
+1. **Phase 1 — Missed-Slot 精确回放**：对 CRON 类型任务，用 `compute_prev_run()` 计算上一个
+   应执行槽位，若 `prev_slot` 晚于 `max(last_run_at, updated_at)` 说明确实漏执行，立即回放。
+   跳过处于 error backoff 窗口内的任务（`is_in_error_backoff()`），不回放从未运行过的新任务
+2. **Phase 2 — Grace 窗口内到期任务**：对 `next_run_at <= now` 且在 `misfire_grace_seconds`
+   窗口内的任务正常执行；超过 grace 的订下下一个槽位并记为 SKIPPED（一次性任务记为完成），不执行
 
-纯函数 `is_stale_run()`、`is_in_error_backoff()`、`compute_prev_run()` 均在 helpers/parser 中，
+两个阶段都把任务交给调度器的准入 `_admit`。纯函数 `is_in_error_backoff()`、`compute_prev_run()` 均在 helpers/parser 中，
 无 I/O 依赖，易于单元测试。
 
 ### Timeout
@@ -186,7 +184,7 @@ harness `JobExecutor` 用 `asyncio.wait_for` 包装 `runner.run(job)`，超时�
 - **智能默认**：`stagger_ms=None` 时，自动检测整点 cron 表达式（如 `0 * * * *`），
   设置 5 分钟默认延迟窗口（`_DEFAULT_TOP_OF_HOUR_STAGGER_MS`）
 - **精确执行**：`stagger_ms=0` 表示无延迟，严格按时触发
-- **执行时**：`_execute_and_persist()` 在获取 semaphore 之前 sleep `random(0, stagger_ms)` 毫秒
+- **执行时**：`_dispatch()` 在获取 semaphore 之前 sleep `random(0, stagger_ms)` 毫秒
 - **API 透传**：前端可通过 `ScheduleCreate.stagger_ms` 配置
 
 ### [SILENT] 静默机制
@@ -328,8 +326,8 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 允许每个 CronJob 配置「活跃时段」：
 
 - **数据模型**：`ActiveHours(start, end, tz)` — start/end 为 `HH:MM` 格式，tz 为 IANA 时区名
-- **调度层**：`scheduler._execute_and_persist()` 在执行前调用 `is_within_active_hours()`，
-  不在活跃时段则跳过本次执行（记录 warning 日志），不视为失败
+- **调度层**：`scheduler._dispatch()` 在执行前调用 `is_within_active_hours()`，
+  不在活跃时段则跳过本次执行：定时到点的槽位记一条 SKIPPED 运行记录并订下下一个槽位（`next_eligible_run` 只选落在时段内的时刻），不视为失败；一次性任务不受活跃时段限制
 - **跨午夜**：支持 `start > end` 的跨午夜场景（如 22:00–06:00）
 - **工具层**：`cron_manage_tool` 工具接受 `active_start`, `active_end`, `active_tz` 参数
 - **API 层**：`CronJobCreate/Update` 支持 `active_hours` JSON 字段

@@ -179,14 +179,13 @@ class _Runner:
 
 
 async def _fire(job: CronJob, runner: _Runner) -> CronJob:
-    """What the timer does for a due job, with the scheduler wired exactly as production wires it."""
+    """What the timer does for a booked due job, with the scheduler wired exactly as production wires it."""
     store = InMemoryCronStore()
     scheduler = CronScheduler(store, {JobType.AGENT: runner}, _Delivery(), config=CronConfig(), on_notice=publish_cron_notice)
     await store.save_job(job)
-    await store.claim_due([job.id])
     snapshot = await store.get_job(job.id)
     assert snapshot is not None
-    await scheduler._execute_and_persist(snapshot)
+    await scheduler._dispatch(snapshot)
     stored = await store.get_job(job.id)
     assert stored is not None
     return stored

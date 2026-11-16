@@ -3,9 +3,10 @@
 A child process runs a real scheduler against a SQLite file and wraps one store method or the runner, so that the
 process ends with ``os._exit(137)`` at the chosen point: no handler runs and nothing is flushed, which does to the file
 what SIGKILL does. The parent then starts a new scheduler on the same file and reads what is left. Every point runs for
-a recurring and for a one-time job. This module is also the child's entry point.
+a recurring and for a one-time job, except the one between booking and start, which only a recurring job has: a one-time
+job is never booked. This module is also the child's entry point.
 
-Runtime: about 5 s for the four cases (each child imports the application).
+Runtime: about 4 s for the five cases (each child imports the application).
 """
 
 from __future__ import annotations
@@ -39,22 +40,13 @@ _SURVIVED = 3  # the child reached the end without dying: the injection point wa
 _CHILD_PATIENCE_S = 20
 _WAIT_S = 30
 _NO_TIMER_S = 3600.0
+_BOOKED_NOT_STARTED = "booked_not_started"
 _RUNNER_RUNNING = "runner_running"
 _RUN_RETURNED_UNWRITTEN = "run_returned_unwritten"
-_POINTS = (_RUNNER_RUNNING, _RUN_RETURNED_UNWRITTEN)
 _KINDS = ("recurring", "once")
-
-
-class StalledJobError(AssertionError):
-    """An enabled job without a next run time: nothing will ever run it."""
-
-
-pytestmark = pytest.mark.xfail(
-    raises=StalledJobError,
-    strict=True,
-    reason="a due job is claimed by clearing next_run_at before it runs; a process that dies afterwards leaves it "
-    "enabled with no next run time, and nothing on restart revives a job that never ran",
-)
+_CASES = [(point, kind) for point in (_RUNNER_RUNNING, _RUN_RETURNED_UNWRITTEN) for kind in _KINDS] + [
+    (_BOOKED_NOT_STARTED, "recurring")
+]
 
 
 class _Runner:
@@ -97,6 +89,14 @@ async def _die_in_child(db: Path, kind: str, point: str) -> None:
                     os._exit(_KILLED)
 
                 patch.setattr(store, "save_run", die)
+            if point == _BOOKED_NOT_STARTED:
+                book = store.advance_next_run
+
+                async def die_once_booked(job_id: str, *, next_run_at: datetime) -> bool:
+                    await book(job_id, next_run_at=next_run_at)
+                    os._exit(_KILLED)
+
+                patch.setattr(store, "advance_next_run", die_once_booked)
             job = await manager.create_job("kill-matrix", JobType.AGENT, _schedule(kind), prompt="x", model="m")
             stored = await store.get_job(job.id)
             assert stored is not None
@@ -125,8 +125,7 @@ def _no_timers(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(scheduler_module, name, _NO_TIMER_S)
 
 
-@pytest.mark.parametrize("kind", _KINDS)
-@pytest.mark.parametrize("point", _POINTS)
+@pytest.mark.parametrize(("point", "kind"), _CASES)
 async def test_killed_run_leaves_no_stalled_job(point: str, kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     db = tmp_path / "cron.db"
     command = [sys.executable, "-P", str(Path(__file__)), str(db), kind, point]
@@ -147,8 +146,8 @@ async def test_killed_run_leaves_no_stalled_job(point: str, kind: str, tmp_path:
         finally:
             await scheduler.stop()
     # A one-time job that the restart ran again and deleted is as good as one still waiting for its time.
-    if any(job.status == JobStatus.ACTIVE and job.next_run_at is None for job in jobs):
-        raise StalledJobError(f"the {kind} job killed at {point} is enabled without a next run time after the restart")
+    stalled = [job for job in jobs if job.status == JobStatus.ACTIVE and job.next_run_at is None]
+    assert not stalled, f"the {kind} job killed at {point} is enabled without a next run time after the restart"
 
 
 if __name__ == "__main__":

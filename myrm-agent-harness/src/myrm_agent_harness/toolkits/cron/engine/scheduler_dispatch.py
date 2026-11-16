@@ -1,19 +1,21 @@
-"""Run dispatch for the cron scheduler: trigger-driven runs and the guarded path every run takes to the executor.
+"""Run dispatch for the cron scheduler: admission of due jobs, trigger-driven runs and the guarded path to the executor.
 
 [INPUT]
-- toolkits.cron.engine.helpers::auto_pause_notice, is_within_active_hours, pre_execution_check, resolve_stagger_ms (POS: pure engine helpers: guards, stagger and active hours)
+- toolkits.cron.engine.helpers::auto_pause_notice, is_within_active_hours, next_slot_or_retry, pre_execution_check, resolve_stagger_ms (POS: pure engine helpers: guards, stagger, active hours and the next slot to book)
 - toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth after the stagger and slot waits)
 - toolkits.cron.engine.executor::JobExecutor (POS: job execution lifecycle manager)
 - toolkits.cron.protocols::CronStore, JobRunner, TriggerProvider (POS: Protocols for the cron toolkit.)
-- toolkits.cron.types::CronJob, JobStatus, JobType (POS: Cron job domain types.)
+- toolkits.cron.types::CronJob, JobStatus, JobType, ScheduleKind (POS: Cron job domain types.)
 
 [OUTPUT]
-- SchedulerDispatchMixin: `dispatch_event`, `dispatch_system_event`, `dispatch_webhook` and the guarded execution path `_execute_and_persist`
+- SchedulerDispatchMixin: `dispatch_event`, `dispatch_system_event`, `dispatch_webhook`, the admission `_admit` and the run path `_launch` → `_run` → `_dispatch`
 
 [POS]
-Mixed into ``CronScheduler``. Event, system-event and webhook triggers spawn runs through the same path as a due job:
-the pre-execution guards, the active-hours window, ``skip_if_active``, the stagger delay, the runner lookup, the
-concurrency slot and a last read of the stored job before the executor starts the run.
+Mixed into ``CronScheduler``. A due recurring job is admitted by booking its next slot first; a one-shot, which has no
+later slot, stays due until it completes. Every run, a due slot or an event, webhook or system-event trigger, is
+registered as in flight by ``_launch`` before its task exists, then passes the pre-execution guards, the active-hours
+window, ``skip_if_active``, the stagger delay, the runner lookup, the concurrency slot and a last read of the stored
+job before the executor starts it.
 """
 
 from __future__ import annotations
@@ -28,15 +30,17 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     auto_pause_notice,
     is_within_active_hours,
+    next_slot_or_retry,
     pre_execution_check,
 )
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     resolve_stagger_ms as _resolve_stagger_ms,
 )
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
-from myrm_agent_harness.toolkits.cron.types import JobStatus
+from myrm_agent_harness.toolkits.cron.types import JobStatus, ScheduleKind
 
 if TYPE_CHECKING:
+    from collections import Counter
     from collections.abc import Coroutine
 
     from myrm_agent_harness.toolkits.cron.engine.executor import JobExecutor
@@ -47,9 +51,9 @@ logger = logging.getLogger(__name__)
 
 
 class SchedulerDispatchMixin:
-    """Trigger dispatch and the guarded execution path for ``CronScheduler``.
+    """Admission, trigger dispatch and the guarded execution path for ``CronScheduler``.
 
-    Accesses CronScheduler members via self: _store, _runners, _trigger_provider, _executor, _active_jobs,
+    Accesses CronScheduler members via self: _store, _runners, _trigger_provider, _executor, _in_flight,
     _global_sem, _spawn.
     """
 
@@ -57,7 +61,7 @@ class SchedulerDispatchMixin:
     _runners: dict[JobType, JobRunner]
     _trigger_provider: TriggerProvider | None
     _executor: JobExecutor
-    _active_jobs: set[str]
+    _in_flight: Counter[str]
     _global_sem: asyncio.Semaphore
 
     if TYPE_CHECKING:
@@ -85,7 +89,7 @@ class SchedulerDispatchMixin:
 
         context = f"[TRIGGER: event]\nChannel: {channel}\nUser: {user_id}\nMessage: {message}"
         for job in jobs:
-            self._spawn(self._execute_and_persist(job, context=context, trigger_source="event"))
+            self._launch(job, context=context, trigger_source="event")
         return len(jobs)
 
     async def dispatch_system_event(
@@ -106,7 +110,7 @@ class SchedulerDispatchMixin:
         payload_str = json.dumps(payload, ensure_ascii=False, default=str)[:4000]
         context = f"[TRIGGER: system_event]\nSource: {source}\nEvent: {event_type}\nPayload:\n{payload_str}"
         for job in jobs:
-            self._spawn(self._execute_and_persist(job, context=context, trigger_source="system_event"))
+            self._launch(job, context=context, trigger_source="system_event")
         return len(jobs)
 
     async def dispatch_webhook(
@@ -132,32 +136,79 @@ class SchedulerDispatchMixin:
 
         payload_str = json.dumps(payload, ensure_ascii=False, default=str)[:4000]
         context = f"[TRIGGER: webhook]\nPath: {path}\nPayload:\n{payload_str}"
-        self._spawn(self._execute_and_persist(job, context=context, trigger_source="webhook"))
+        self._launch(job, context=context, trigger_source="webhook")
         return job
 
-    async def _execute_and_persist(
+    async def _admit(self, job: CronJob) -> None:
+        """Book a due recurring job's next slot, then launch the run that is due.
+
+        Booking first keeps the stored job schedulable whatever happens to the run: a crash, a failed closing
+        write or a refusing guard still leaves a next run time. The booking is one conditional write, so a job
+        that was paused, deleted, edited or already dispatched meanwhile is not run. A one-shot has no later
+        slot: it stays due until it completes, so a crash delivers it again instead of losing it.
+        """
+        if job.schedule.kind != ScheduleKind.ONCE:
+            slot = next_slot_or_retry(job, datetime.now(UTC))
+            try:
+                advanced = await self._store.advance_next_run(job.id, next_run_at=slot)
+            except Exception as exc:
+                logger.warning("Job %s not dispatched: could not book its next run: %s", job.id, exc)
+                return
+            if not advanced:
+                logger.info("Job %s not dispatched: it was paused, deleted, edited or already dispatched", job.id)
+                return
+        self._launch(job)
+
+    def _launch(self, job: CronJob, *, context: str = "", trigger_source: str = "cron") -> None:
+        """Register the run as in flight before its task exists, so no tick or trigger can slip in between."""
+        self._in_flight[job.id] += 1
+        self._spawn(self._run(job, context=context, trigger_source=trigger_source))
+
+    async def _run(self, job: CronJob, *, context: str, trigger_source: str) -> None:
+        try:
+            await self._dispatch(job, context=context, trigger_source=trigger_source)
+        finally:
+            self._in_flight[job.id] -= 1
+            if not self._in_flight[job.id]:
+                del self._in_flight[job.id]
+
+    async def _dispatch(
         self,
         job: CronJob,
         *,
         context: str = "",
         trigger_source: str = "cron",
     ) -> None:
+        """Guards, stagger, runner lookup and the concurrency slot, then the executor. Registers nothing in flight."""
         try:
             now = datetime.now(UTC)
+            scheduled = trigger_source == "cron"
+            # A one-shot's instant is explicit: neither a cooldown nor the active window postpones it.
+            once = job.schedule.kind == ScheduleKind.ONCE
+
             skip_reason = pre_execution_check(job, now)
+            if skip_reason == "cooldown_active" and once:
+                skip_reason = None
             if skip_reason:
                 logger.warning("Job %s skipped: %s", job.id, skip_reason)
                 pause_notice = auto_pause_notice(job, skip_reason)
                 if pause_notice is not None:
+                    job.next_run_at = None
                     await self._store.save_job(job)
                     await self._executor.emit_notice(pause_notice)
+                elif scheduled:
+                    await self._executor.record_guard_skip(job, reason=skip_reason, trigger_source=trigger_source)
                 return
 
-            if not is_within_active_hours(job.active_hours):
+            if not once and not is_within_active_hours(job.active_hours):
                 logger.warning("Job %s skipped: outside active hours", job.id)
+                if scheduled:
+                    await self._executor.record_guard_skip(
+                        job, reason="outside_active_hours", trigger_source=trigger_source
+                    )
                 return
 
-            if job.skip_if_active and job.id in self._active_jobs:
+            if job.skip_if_active and self._in_flight[job.id] > 1:
                 logger.warning("Job %s skipped: previous instance still running (skip_if_active)", job.id)
                 return
 
@@ -172,21 +223,17 @@ class SchedulerDispatchMixin:
                 logger.warning("No runner registered for job type %s", job.job_type)
                 return
 
-            self._active_jobs.add(job.id)
-            try:
-                async with self._global_sem:
-                    # The waits above can last minutes; the stored job decides whether the run still happens.
-                    if not await adopt_latest(self._store, job) or job.status != JobStatus.ACTIVE:
-                        logger.info("Job %s was deleted or paused before it started, skipping", job.id)
-                        return
-                    job.fire_count += 1
-                    await self._executor.run_and_record(
-                        job,
-                        runner,
-                        context=context,
-                        trigger_source=trigger_source,
-                    )
-            finally:
-                self._active_jobs.discard(job.id)
+            async with self._global_sem:
+                # The waits above can last minutes; the stored job decides whether the run still happens.
+                if not await adopt_latest(self._store, job) or job.status != JobStatus.ACTIVE:
+                    logger.info("Job %s was deleted or paused before it started, skipping", job.id)
+                    return
+                job.fire_count += 1
+                await self._executor.run_and_record(
+                    job,
+                    runner,
+                    context=context,
+                    trigger_source=trigger_source,
+                )
         except Exception as exc:
             logger.warning("Unhandled error in job %s: %s", job.id, exc)

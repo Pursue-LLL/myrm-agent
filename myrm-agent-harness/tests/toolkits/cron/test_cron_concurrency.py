@@ -53,7 +53,7 @@ async def _dispatch_burst(config: CronConfig | None, jobs: int) -> tuple[_GatedR
     snapshots = [
         await manager.create_job(f"job-{index}", JobType.AGENT, EVERY_HOUR, prompt="prompt") for index in range(jobs)
     ]
-    tasks = [asyncio.create_task(scheduler._execute_and_persist(job)) for job in snapshots]
+    tasks = [asyncio.create_task(scheduler._dispatch(job)) for job in snapshots]
     return runner, tasks
 
 

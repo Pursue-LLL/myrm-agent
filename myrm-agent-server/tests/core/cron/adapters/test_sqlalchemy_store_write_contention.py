@@ -1,10 +1,11 @@
 """Post-run cron writes must not lose to a writer that commits between their read and their write.
 
-The scheduler claims a due job by clearing ``next_run_at``; only the post-run ``save_job`` writes the next run time
-back, and a monitor job's post-run ``save_monitor_state`` stores its new baseline. Under the deferred-read transaction
-policy a read-then-write unit aborts with SQLITE_BUSY_SNAPSHOT when another connection commits in between,
-``busy_timeout`` does not cover that, and the scheduler can only log the failure: a job whose ``save_job`` was lost stays
-ACTIVE with no next run time and never fires again. The tests run the real transaction policy on a file database.
+The post-run ``save_job`` writes a run's outcome (last run time, status, fire count) onto the job, and a monitor job's
+post-run ``save_monitor_state`` stores its new baseline. Under the deferred-read transaction policy a read-then-write
+unit aborts with SQLITE_BUSY_SNAPSHOT when another connection commits in between, ``busy_timeout`` does not cover
+that, and the scheduler can only log the failure: a lost ``save_job`` leaves the run off the job's count and a one-time
+job unfinished, a lost baseline counts the run as a monitor failure. The tests run the real transaction policy on a file
+database.
 """
 
 from __future__ import annotations
@@ -60,9 +61,9 @@ async def _run_while_another_writer_commits(
 @pytest.mark.asyncio
 async def test_save_job_keeps_its_write_when_another_writer_commits_first(policy_db: PolicyDb) -> None:
     store = SqlAlchemyCronStore()
-    claimed = await store.save_job(_job("claimed"))
+    running = await store.save_job(_job("running"))
     finished = replace(
-        claimed,
+        running,
         next_run_at=datetime(2031, 1, 1, tzinfo=UTC),
         last_run_at=datetime(2030, 1, 1, tzinfo=UTC),
         last_status=RunStatus.OK,
@@ -71,7 +72,7 @@ async def test_save_job_keeps_its_write_when_another_writer_commits_first(policy
 
     await _run_while_another_writer_commits(policy_db, lambda: store.save_job(finished))
 
-    persisted = await store.get_job("claimed")
+    persisted = await store.get_job("running")
     assert persisted is not None
     assert persisted.next_run_at is not None
     assert persisted.last_status == RunStatus.OK

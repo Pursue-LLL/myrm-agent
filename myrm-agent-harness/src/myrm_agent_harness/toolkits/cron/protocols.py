@@ -111,11 +111,13 @@ class CronStore(Protocol):
         """Delete a job by ID.  Returns True if a row was deleted."""
         ...
 
-    async def claim_due(self, job_ids: list[str]) -> None:
-        """Atomically mark the given jobs as claimed for execution.
+    async def advance_next_run(self, job_id: str, *, next_run_at: datetime) -> bool:
+        """Book ``next_run_at`` for a job whose stored next run is due.  Returns True when the booking was made.
 
-        Typically sets ``next_run_at = NULL`` so they won't be picked up again.
-        Must be an atomic operation to ensure cross-process safety.
+        One atomic conditional update: the job exists, is ACTIVE, and its stored ``next_run_at`` is set and not
+        later than now, the comparison ``list_jobs(due_before=now)`` makes.  False means the job was paused,
+        deleted, re-booked by an edit or is not due any more, and nothing was written.  The scheduler dispatches a
+        run only when this returns True, so two workers can never both run one slot.  The value is stored as UTC.
         """
         ...
 
@@ -144,16 +146,6 @@ class CronStore(Protocol):
         status: str | None = None,
     ) -> int:
         """Count run records matching the given filters."""
-        ...
-
-    async def list_orphaned_active(self) -> list[CronJob]:
-        """Return ACTIVE jobs with ``next_run_at IS NULL``.
-
-        These are jobs that were claimed for execution (next_run_at cleared
-        by ``claim_due``) but never completed — typically due to a process
-        crash.  The scheduler uses this during startup recovery to detect
-        and heal stale runs.
-        """
         ...
 
     async def purge_old_runs(self, before: datetime) -> int:
