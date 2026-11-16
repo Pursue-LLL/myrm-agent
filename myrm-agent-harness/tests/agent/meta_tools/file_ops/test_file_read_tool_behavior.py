@@ -19,11 +19,11 @@ _DUMMY_CONFIG = RunnableConfig()
 
 class TestFileReadInputNormalization:
     def test_normalize_json_string_paths(self) -> None:
-        model = FileReadInput(paths='["a.txt", "b.txt"]')
+        model = FileReadInput.model_validate({"paths": '["a.txt", "b.txt"]'})
         assert model.paths == ["a.txt", "b.txt"]
 
     def test_normalize_single_string_path(self) -> None:
-        model = FileReadInput(paths="solo.txt")
+        model = FileReadInput.model_validate({"paths": "solo.txt"})
         assert model.paths == ["solo.txt"]
 
     def test_normalize_list_paths(self) -> None:
