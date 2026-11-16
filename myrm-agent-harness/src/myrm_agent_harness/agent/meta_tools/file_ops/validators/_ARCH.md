@@ -8,7 +8,7 @@ Validators module.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Validators module. | — |
-| auto_verify.py | Core | Smart Auto-Verify. Runs pyright from the workspace root after Python edits when Agent does not provide explicit verify_command. Provides soft diagnostic feedback. Other languages are not registered: a per-file check is silent or reports phantom errors, and `cargo check` runs the workspace's `build.rs`. | ✅ |
+| auto_verify.py | Core | Smart Auto-Verify. Runs pyright from the workspace root (`_workspace_command_context`) after every Python edit and appends soft diagnostic feedback to the tool result; the write is kept. Other languages are not registered: a per-file check is silent or reports phantom errors, and `cargo check` runs the workspace's `build.rs`. | ✅ |
 | base.py | Core | Provides Validator. | ✅ |
 | binary_validator.py | Core | Binary file validator | ✅ |
 | client_secret_validator.py | Core | Client-side code secret leak validator blocking hardcoded keys/credentials in frontend files (.tsx, .jsx, .vue, .html, .js). | ✅ |

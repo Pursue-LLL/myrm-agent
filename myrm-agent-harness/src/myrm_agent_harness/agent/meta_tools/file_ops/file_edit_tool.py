@@ -13,7 +13,7 @@
 - create_file_edit_tool: 创建 file_edit_tool 工厂函数
 
 [POS]
-File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, whitespace-tolerant matching, integrity gates, and verify rollback.
+File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, whitespace-tolerant matching, integrity gates, and rollback of an edit that breaks the syntax of a Python, JSON, YAML or TOML file.
 
 """
 
@@ -62,13 +62,6 @@ class FileEditInput(BaseModel):
     path: str = Field(description="File path or @file_id.")
     edits: list[StrReplaceEditInput] = Field(
         description="Ordered replacements applied atomically (max 20, must not overlap)."
-    )
-    verify_command: str | None = Field(
-        default=None,
-        description=(
-            "Strongly recommended for code files: a check run after editing, e.g. 'python -m py_compile f.py' "
-            "or 'node --check f.js'. If it fails all edits are rolled back."
-        ),
     )
     reason: str | None = Field(default=None, description=REASON_FIELD_DESCRIPTION)
 
@@ -137,7 +130,6 @@ def create_file_edit_tool(
     async def file_edit_func(
         path: str,
         edits: list[StrReplaceEditInput],
-        verify_command: str | None = None,
         reason: str | None = None,
         *,  # 强制后续参数为关键字参数
         config: RunnableConfig,  # LangChain 注入的配置
@@ -154,7 +146,6 @@ def create_file_edit_tool(
                 skills=skills or [],
                 path=path,
                 edits=edit_tuple,
-                verify_command=verify_command,
                 reason=reason,
             )
 
