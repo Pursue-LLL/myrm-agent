@@ -1,6 +1,7 @@
 """Endpoint resolution for the non-chat model services (embeddings, reranking, image generation).
 
 [INPUT]
+- transport.endpoint (POS: the grammar that reduces a user's address to a root and a query)
 - transport.profile (POS: PROFILES, ProviderProfile, Route, UnsupportedProviderError)
 
 [OUTPUT]
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from myrm_agent_harness.toolkits.llms.transport.endpoint import NO_QUERY, Endpoint, InvalidEndpointError, parse_endpoint
 from myrm_agent_harness.toolkits.llms.transport.profile import (
     PROFILES,
     ProviderProfile,
@@ -42,20 +44,30 @@ _ENDPOINT_SUFFIXES: Final = ("/embeddings", "/embed", "/rerank", "/images/genera
 _OWN_SCHEME_UNDER_BASE: Final = frozenset({"openai", "azure"})
 
 
-def _root(url: str | None) -> str | None:
-    """The endpoint root: callers may pass a root or the full operation URL."""
-    if not url:
+def _endpoint(url: str | None) -> Endpoint | None:
+    """The root and query of an address: callers may pass a root or the full operation URL."""
+    if not url or not url.strip():
         return None
-    root = url.strip().rstrip("/")
-    for suffix in _ENDPOINT_SUFFIXES:
-        if root.endswith(suffix):
-            return root[: -len(suffix)]
-    return root
+    try:
+        return parse_endpoint(url, _ENDPOINT_SUFFIXES)
+    except InvalidEndpointError as exc:
+        raise UnsupportedProviderError(str(exc)) from exc
 
 
-def _default_root(profile: ProviderProfile) -> str | None:
-    """The endpoint a call that names none reaches: the provider's own variable, else its default endpoint."""
-    return _root(first_env(profile.api_base_env)) or profile.base_url
+def _route(profile: ProviderProfile, model: str, endpoint: Endpoint | None, api_key: str | None) -> Route:
+    """A route to ``endpoint``, else to the provider's default endpoint."""
+    return Route(
+        profile=profile,
+        model=model,
+        base_url=endpoint.root if endpoint else profile.base_url,
+        api_key=api_key,
+        query=endpoint.query if endpoint else NO_QUERY,
+    )
+
+
+def _provider_endpoint(profile: ProviderProfile) -> Endpoint | None:
+    """The endpoint a call that names none reaches before the provider's default: its own variable."""
+    return _endpoint(first_env(profile.api_base_env))
 
 
 def service_route(model: str, *, api_key: str | None, api_base: str | None, gateway_base: bool = False) -> Route:
@@ -64,19 +76,19 @@ def service_route(model: str, *, api_key: str | None, api_base: str | None, gate
     ``gateway_base`` reads a custom ``api_base`` as an OpenAI-compatible gateway (LiteLLM proxy, One API, vLLM) that
     routes on the whole model id, so ``jina_ai/jina-embeddings-v3`` keeps its prefix instead of selecting the Jina API.
     """
-    base = _root(api_base)
+    given = _endpoint(api_base)
     segment, separator, rest = model.partition("/")
     provider = segment.lower()
     profile = (SERVICE_PROFILES.get(provider) or PROFILES.get(provider)) if separator else None
-    if gateway_base and base and provider not in _OWN_SCHEME_UNDER_BASE:
+    if gateway_base and given and provider not in _OWN_SCHEME_UNDER_BASE:
         profile = None
     if profile is not None:
-        return Route(profile=profile, model=rest, base_url=base or _default_root(profile), api_key=api_key)
-    if base:
-        return Route(profile=ProviderProfile(id="openai_compatible"), model=model, base_url=base, api_key=api_key)
+        return _route(profile, rest, given or _provider_endpoint(profile), api_key)
+    if given:
+        return _route(ProviderProfile(id="openai_compatible"), model, given, api_key)
     if model.lower().startswith(_OPENAI_FAMILY_BARE):
         openai = PROFILES["openai"]
-        return Route(profile=openai, model=model, base_url=_default_root(openai), api_key=api_key)
+        return _route(openai, model, _provider_endpoint(openai), api_key)
     raise UnsupportedProviderError(
         f"Cannot resolve a provider for model '{model}': use a 'provider/model' id or set an api_base"
     )

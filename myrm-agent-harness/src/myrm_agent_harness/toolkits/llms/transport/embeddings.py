@@ -18,6 +18,7 @@ of a provider SDK. A custom ``api_base`` is an OpenAI-compatible gateway and kee
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Final
 
 from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest, asend_json
@@ -40,7 +41,7 @@ def _vector(item: object) -> list[float]:
 def _openai_request(route: Route, texts: Sequence[str]) -> PreparedRequest:
     base = route.base_url
     if base and route.profile.wire == "ollama":  # Ollama serves the OpenAI shape under /v1
-        route = Route(route.profile, route.model, f"{base}/v1", route.api_key)
+        route = replace(route, base_url=f"{base}/v1")
     url, query, headers = openai_endpoint(route, split_params({}), "/embeddings")
     body: dict[str, object] = {"model": route.model, "input": list(texts)}
     if route.profile.id not in _NO_ENCODING_FORMAT:

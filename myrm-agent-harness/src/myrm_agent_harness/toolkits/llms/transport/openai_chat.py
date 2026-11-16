@@ -10,7 +10,8 @@
 - prepare: a PreparedRequest for ``/chat/completions`` (OpenAI, Azure OpenAI and every OpenAI-compatible provider)
 - parse: the provider's JSON answer as the chat.completion dict the adapter consumes; a failure sent in its place raises
 - decoder: the SSE decoder yielding chat.completion.chunk dicts; a failure sent in the stream raises
-- openai_endpoint: URL, query and auth headers for an OpenAI-family path (shared with the Responses wire)
+- openai_endpoint: URL, query (the endpoint's own plus the Azure version) and auth headers for an OpenAI-family path
+  (shared with the Responses wire)
 
 [POS]
 The wire most providers speak. The adapter's messages and parameters are already OpenAI-shaped, so building is
@@ -24,8 +25,10 @@ answer. The adapter reads the dict directly, so nothing is re-parsed into SDK mo
 shape differences between gateways afterwards.
 Azure OpenAI addresses a deployment: chat goes to ``/openai/deployments/{model}``, the Responses API to ``/openai/v1``
 for the ``preview``, ``latest`` and ``v1`` versions and to ``/openai`` for a dated one. The ``api-version`` is the
-call's, else ``AZURE_API_VERSION`` (chat only), else ``AZURE_DEFAULT_API_VERSION`` (the Responses API defaults to
-``preview``). A resource key travels as ``api-key``; a Microsoft Entra token, when given, is the only credential sent.
+call's, else the one the endpoint address carried (chat only), else ``AZURE_API_VERSION`` (chat only), else
+``AZURE_DEFAULT_API_VERSION`` (the Responses API defaults to ``preview``). A resource key travels as ``api-key``; a
+Microsoft Entra token, when given, is the only credential sent. Any other query the endpoint address carried is sent
+with every request built on it.
 """
 
 from __future__ import annotations
@@ -146,14 +149,20 @@ def openai_endpoint(route: Route, opts: CallOptions, path: str) -> tuple[str, di
     if not base:
         raise UnsupportedProviderError(f"Provider '{route.profile.id}' needs an api_base: it has no default endpoint")
     headers: dict[str, str] = dict(route.profile.headers)
-    query: dict[str, str] = {}
+    query: dict[str, str] = dict(route.query)
     if route.profile.wire == "azure_openai":
         if path == "/responses":  # the Responses API addresses the model in the body, not by deployment
-            # The environment's version belongs to the chat API; the Responses API has a default of its own.
+            # The version of a chat address (the environment's, the portal's Target URI) belongs to the chat API; the
+            # Responses API has a default of its own.
             version = opts.api_version or _AZURE_RESPONSES_API_VERSION
             url = f"{base}{'/openai/v1' if version in _AZURE_V1_VERSIONS else '/openai'}{path}"
         else:
-            version = opts.api_version or first_env(route.profile.api_version_env) or AZURE_DEFAULT_API_VERSION
+            version = (
+                opts.api_version
+                or route.query.get("api-version")
+                or first_env(route.profile.api_version_env)
+                or AZURE_DEFAULT_API_VERSION
+            )
             url = f"{base}/openai/deployments/{route.model}{path}"
         query["api-version"] = version
         if opts.azure_ad_token:  # a Microsoft Entra token, when given, is the credential; the resource key is not sent
