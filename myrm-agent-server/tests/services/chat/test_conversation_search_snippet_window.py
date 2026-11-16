@@ -49,6 +49,34 @@ def test_a_window_before_a_masked_credential_keeps_its_own_text() -> None:
     assert redacted_window(text, 0, len("the kestrelmark rollout")) == "the kestrelmark rollout"
 
 
+def test_a_window_holding_a_whole_vendor_token_keeps_the_text_on_both_sides() -> None:
+    text = f"alpha bravo charlie {_TOKEN} delta echo foxtrot"
+    start = text.index("charlie")
+    end = text.index("delta") + len("delta")
+
+    window = redacted_window(text, start, end)
+
+    # The mask is shorter than the token, so the window is lined up from both ends, not by its raw length.
+    assert window is not None
+    assert window.startswith("charlie ")
+    assert window.endswith(" delta")
+    assert not shows_part_of(_TOKEN, window)
+
+
+@pytest.mark.parametrize("form", _FORMS.values(), ids=_FORMS.keys())
+def test_a_window_holding_a_whole_labelled_credential_keeps_the_text_on_both_sides(form: Callable[[str], str]) -> None:
+    text = f"alpha bravo charlie {form(_VALUE)} delta echo foxtrot"
+    start = text.index("charlie")
+    end = text.index("delta") + len("delta")
+
+    window = redacted_window(text, start, end)
+
+    assert window is not None
+    assert window.startswith("charlie ")
+    assert window.endswith(" delta")
+    assert not shows_part_of(_VALUE, window)
+
+
 @pytest.mark.parametrize("form", _FORMS.values(), ids=_FORMS.keys())
 @pytest.mark.parametrize("width", [12, 30, 58])
 def test_no_window_position_shows_part_of_a_credential(form: Callable[[str], str], width: int) -> None:
