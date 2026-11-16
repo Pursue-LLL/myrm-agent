@@ -53,7 +53,6 @@ _KNOWN_GAPS = {
     ),
     "server:ai_agents/general_agent/tool_setup/skill.py::create_skill_manage_tool": "not wired yet",
     "server:ai_agents/general_agent/tool_setup/skill.py::create_skill_market_tool": "not wired yet",
-    "harness:agent/skill_agent/tools.py::create_wiki_tools": "not wired yet",
 }
 _REGISTERED = frozenset(_EXEMPT) | frozenset(_KNOWN_GAPS)
 

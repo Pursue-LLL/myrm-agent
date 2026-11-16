@@ -338,6 +338,7 @@ class SkillAgentToolsMixin:
                 query_engine,
                 structure,
                 wiki_scope_id=getattr(self, "_wiki_scope_id", None),
+                locale=self._prompt_locale(),
             )
 
             self._register_large_doc_ingest(structure, compiler)
