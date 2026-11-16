@@ -8,6 +8,8 @@ app.database.models.chat::WAKEUP_NOTICE_KEY (POS: extra_data marker of the notic
 [OUTPUT]
 filter_messages: Filter chat messages before model context construction.
 _sanitize_snippet: Sanitize highlighted FTS snippets for UI output.
+plain_snippet: FTS snippet as plain text for the model (no tags, nothing escaped).
+strip_reasoning_tags, strip_mark_tags: Remove the reasoning tags or the FTS highlight tags from a text.
 RetryResult, RegenerateResult, UndoResult, TruncateResult, ChannelHistoryEntry: Chat service result DTOs.
 WAKEUP_MESSAGE_ID_PREFIX: Id prefix of the system-injected user rows that carry async task results back to a chat.
 SPILLOVER_EXTRA_KEY: Extra-data key of a user row whose pasted text was parked in a file.
@@ -21,7 +23,9 @@ exported_user_text: The text a user row reads as outside the app (export, share 
 
 from __future__ import annotations
 
+import html
 import logging
+import re
 from datetime import datetime
 from typing import NamedTuple
 
@@ -172,18 +176,32 @@ class ChannelHistoryEntry(NamedTuple):
     created_at: datetime
 
 
-def _sanitize_snippet(raw_snippet: str) -> str:
-    """Sanitize FTS5 snippet: preserve only <mark> tags, escape everything else."""
-    import html
-    import re
+_REASONING_TAG_RE = re.compile(r"</?(?:think|thought|thinking|reasoning|REASONING_SCRATCHPAD)[^>]*>", re.IGNORECASE)
+_MARK_TAG_RE = re.compile(r"</?mark>", re.IGNORECASE)
 
-    # Remove reasoning-related tags from FTS5 snippet (case-insensitive) to prevent UI pollution
-    raw_snippet = re.sub(
-        r"</?(?:think|thought|thinking|reasoning|REASONING_SCRATCHPAD)[^>]*>",
-        "",
-        raw_snippet,
-        flags=re.IGNORECASE,
-    )
+
+def strip_reasoning_tags(text: str) -> str:
+    """Remove the tags that wrap a model's reasoning; the text between them stays."""
+    return _REASONING_TAG_RE.sub("", text)
+
+
+def strip_mark_tags(text: str) -> str:
+    """Remove the highlight tags FTS5 wraps around matched terms."""
+    return _MARK_TAG_RE.sub("", text)
+
+
+def plain_snippet(raw_snippet: str) -> str:
+    """FTS5 snippet as the plain text it was cut from: no reasoning tags, no highlight tags, nothing escaped.
+
+    The model reads it as text, so an HTML entity in it is a corrupted quote or bracket, and an escaped quote also
+    hides a quoted credential from the redactor.
+    """
+    return strip_mark_tags(strip_reasoning_tags(raw_snippet))
+
+
+def _sanitize_snippet(raw_snippet: str) -> str:
+    """Sanitize FTS5 snippet for display: preserve only <mark> tags, escape everything else."""
+    raw_snippet = strip_reasoning_tags(raw_snippet)
 
     placeholder = "\x00MARK\x00"
     placeholder_end = "\x00/MARK\x00"

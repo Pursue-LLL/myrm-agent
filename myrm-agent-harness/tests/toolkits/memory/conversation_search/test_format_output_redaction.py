@@ -1,4 +1,4 @@
-"""Conversation search output is redacted before any length cut touches it."""
+"""Conversation search output is redacted before anything alters or cuts it."""
 
 from __future__ import annotations
 
@@ -20,6 +20,11 @@ def _private_key_block() -> tuple[str, list[str]]:
     rows = [base64.b64encode(hashlib.sha256(str(i).encode()).digest() * 2).decode()[:64] for i in range(25)]
     begin, end = "-----BEGIN " + "RSA PRIVATE KEY-----", "-----END " + "RSA PRIVATE KEY-----"
     return "\n".join([begin, *rows, end]), rows
+
+
+def _token() -> str:
+    """A GitHub-token-shaped credential assembled at run time."""
+    return "ghp_" + hashlib.sha256(b"conversation-search").hexdigest()[:36]
 
 
 def _snippet_line(snippet: str, *, is_expanded: bool = False) -> str:
@@ -66,3 +71,33 @@ def test_the_redaction_window_edge_never_exposes_the_start_of_a_private_key_bloc
 
     assert not _exposes_a_row(line, rows)
     assert line.endswith("...")
+
+
+def test_a_line_anchored_credential_is_masked_before_whitespace_is_collapsed() -> None:
+    stored = "database:\n  host: db.internal\n  password: Zk3Qm8Vt2Lp9Xw4R\n  port: 5432\n"
+
+    line = _snippet_line(stored)
+
+    assert "Zk3Qm8Vt2Lp9Xw4R" not in line
+    assert "password: ***" in line
+    assert line == "snippet: database: host: db.internal password: *** port: 5432"
+
+
+def test_whitespace_heavy_text_still_fills_the_snippet_limit() -> None:
+    line = _snippet_line("word    \n\n  " * 8000)
+
+    assert len(line) >= len("snippet: ") + MAX_SNIPPET_CHARS - 1
+    assert line.endswith("...")
+
+
+def test_a_title_naming_a_credential_is_masked() -> None:
+    token = _token()
+    hit = ConversationSearchHit(
+        conversation_id="chat-1", title=f"deploy with {token} today", snippet="notes", score=1.0
+    )
+
+    header = format_conversation_hit(1, hit).splitlines()[0]
+
+    assert token not in header
+    assert header.startswith("1. deploy with ghp_")
+    assert "(conversation_id: chat-1" in header

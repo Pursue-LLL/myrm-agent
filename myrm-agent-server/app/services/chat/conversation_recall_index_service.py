@@ -4,6 +4,7 @@
 - app.database.repositories.conversation_recall::ConversationRecallRepository (POS: Conversation Recall 索引仓储)
 - app.database.repositories.uow::UnitOfWork (POS: 全局工作单元模式)
 - sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
+- app.services.chat.chat_helpers::strip_mark_tags (POS: removes the FTS highlight tags from a snippet)
 
 [OUTPUT]
 - ConversationRecallIndexService: Server business service for recall index lifecycle and management queries.
@@ -16,7 +17,6 @@ Conversation Recall 索引生命周期服务。统一编排索引回填、重建
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime
 
 from sqlalchemy import select
@@ -28,10 +28,9 @@ from app.database.repositories.conversation_recall import (
     ConversationRecallRepository,
 )
 from app.database.repositories.uow import UnitOfWork
+from app.services.chat.chat_helpers import strip_mark_tags
 
 logger = logging.getLogger(__name__)
-
-_MARK_TAG_RE = re.compile(r"</?mark>", re.IGNORECASE)
 
 
 class ConversationRecallIndexService:
@@ -188,7 +187,7 @@ class ConversationRecallIndexService:
             for row in rows:
                 if row.chat_id not in visible_chat_ids:
                     continue
-                snippet = _MARK_TAG_RE.sub("", row.snippet or "").strip()
+                snippet = strip_mark_tags(row.snippet or "").strip()
                 sent_at = row.last_message_at.isoformat() if row.last_message_at else None
                 title = row.title or "Untitled conversation"
                 items.append(

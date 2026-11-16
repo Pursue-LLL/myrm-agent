@@ -38,7 +38,10 @@ ConversationSourceType = Literal["conversation_history"]
 
 
 class ConversationSourceRef(BaseModel):
-    """UI-safe source reference for a recalled conversation."""
+    """UI-safe source reference for a recalled conversation.
+
+    ``snippet`` is display text, which the host may escape and highlight; it never goes into the model's context.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -94,7 +97,12 @@ class ConversationSearchRequest(BaseModel):
 
 
 class ConversationSearchHit(BaseModel):
-    """One conversation-level recall hit."""
+    """One conversation-level recall hit.
+
+    ``snippet`` is plain text: no HTML escaping and no highlight markup. A provider that cuts it out of a longer text
+    redacts that text first, because a credential the cut splits no longer matches the redactor's patterns; the
+    formatter redacts it again before it applies its own limit.
+    """
 
     model_config = ConfigDict(extra="forbid")
 

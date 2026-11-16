@@ -5,6 +5,7 @@ app.database.repositories.conversation_recall::ConversationRecallRepository (POS
 app.services.chat.conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 myrm_agent_harness.toolkits.memory.protocols.conversation_search::ConversationSearchProtocol (POS: conversation search protocol boundary)
 myrm_agent_harness.utils.db.fts5::sanitize_fts5_query, relevance_from_rank (POS: FTS5 query sanitizing and rank relevance)
+app.services.chat.conversation_search_snippet::redact_hit_windows (POS: 会话召回片段脱敏层)
 
 [OUTPUT]
 ConversationHistorySearchProvider: Server adapter implementing Harness conversation search protocol.
@@ -41,7 +42,7 @@ from app.database.repositories.conversation_recall import (
     ConversationRecallRow,
 )
 from app.database.repositories.uow import UnitOfWork
-from app.services.chat.chat_helpers import _sanitize_snippet
+from app.services.chat.chat_helpers import _sanitize_snippet, plain_snippet, strip_mark_tags
 from app.services.chat.conversation_recall_index_service import (
     ConversationRecallIndexService,
 )
@@ -49,6 +50,7 @@ from app.services.chat.conversation_recall_query import (
     ConversationRecallFtsQuery,
     build_conversation_recall_fts_queries,
 )
+from app.services.chat.conversation_search_snippet import redact_hit_windows
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,7 @@ class ConversationSearchService:
         )
         ranked_hits, recall_debug = _rank_fts_hits(fts_hits, request.limit)
         hits = [hit for hit in ranked_hits if hit.score >= request.min_score]
+        hits = await redact_hit_windows(hits)
         rejected_reason = None if hits else "No sufficiently relevant previous conversations found."
         coverage = await ConversationSearchService._compute_coverage()
         return ConversationSearchResponse(
@@ -229,7 +232,7 @@ class ConversationSearchService:
         hit = ConversationSearchHit(
             conversation_id=chat_id,
             title=title,
-            snippet=_sanitize_snippet(expanded_snippet),
+            snippet=plain_snippet(expanded_snippet),
             summary=None,
             score=1.0,
             source="conversation_index",
@@ -364,7 +367,9 @@ def _fts_hit(
     return ConversationSearchHit(
         conversation_id=row.chat_id,
         title=row.title,
-        snippet=_sanitize_snippet(row.snippet),
+        # The window FTS5 cut, minus its highlight tags. `redact_hit_windows` locates the stored text by it and
+        # replaces it, so it never reaches the model as it is.
+        snippet=strip_mark_tags(row.snippet),
         summary=row.summary,
         score=score,
         source="conversation_index",
@@ -383,7 +388,7 @@ def _recent_hit(row: ConversationRecallRow, index: int, agent_id: str | None) ->
     return ConversationSearchHit(
         conversation_id=row.chat_id,
         title=row.title,
-        snippet=_sanitize_snippet(row.snippet),
+        snippet=plain_snippet(row.snippet),
         summary=row.summary,
         score=score,
         source="recent",

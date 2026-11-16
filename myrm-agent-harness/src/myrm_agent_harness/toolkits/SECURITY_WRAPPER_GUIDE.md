@@ -21,7 +21,8 @@
 ├─ 记忆/历史 recall 回读（memory_search memory/sessions/按 id 取回、MCP memory_recall/list）
 │  └─ ✅ 必须 sanitize + 静态 untrusted 前言
 │     └─ 使用 memory_recall_formatting.sanitize_recalled_content（redact → sanitize）+ finalize_recall_tool_output
-│     └─ 长度截断放在脱敏之后（先截后脱敏会把被切开的凭据半截原样留给模型）；无界原文先取有界窗口脱敏，窗口尾部一段不展示（见 conversation_search/format_output.py）
+│     └─ 长度截断放在脱敏之后（先截后脱敏会把被切开的凭据半截原样留给模型）；无界原文先取有界窗口脱敏，窗口尾部一段不展示，空白折叠也放在脱敏之后（部分规则锚定在行首，折叠成一行会让它们失效）（见 conversation_search/format_output.py）
+│     └─ 提供方（宿主）自己从长文本里切出片段时，同样先脱敏后切，并交出不带 HTML 转义、不带高亮标记的纯文本（见 conversation_search/types.py 的 ConversationSearchHit.snippet）
 │     └─ ❌ 不要用 wrap_with_external_sources_tag（会触发引用规则且 random boundary 伤 cache）
 │
 ├─ 记忆 preference save 成功回执（memory_save_tool / MCP memory_store preference）

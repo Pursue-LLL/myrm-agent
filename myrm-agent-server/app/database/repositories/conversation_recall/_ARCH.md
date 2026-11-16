@@ -9,7 +9,7 @@ Conversation Recall 索引仓储子包。集中维护 SQLite/FTS5 DDL、DTO 转�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `repo/` | 核心 | Conversation Recall 索引读写仓储，按关注点拆 3 个 mixin（writes / search / queries）+ `store`（组合，全静态方法、无实例状态）：bootstrap、scope/fork/exclusion/health 查询、FTS5 搜索与损坏自愈、消息/片段写入与重建。见 [repo/_ARCH.md](repo/_ARCH.md) | ✅ |
-| `lookup_repo.py` | 辅助 | 只读可见性查找：`fetch_message_window` expand、`fetch_prior_chat_document` mention | ✅ |
+| `lookup_repo.py` | 辅助 | 只读可见性查找：`fetch_message_window` expand、`fetch_prior_chat_document` mention、`fetch_window_context`（片段窗口所在的存储原文，查找与截取都在 SQLite 里做，长对话不整段出库；`WindowContext` 带窗口在其中的起点） | ✅ |
 | `sql.py` | 核心 | SQLite/FTS5 SQL 契约：schema、bootstrap、rebuild、filter_sql | ✅ |
 | `types.py` | 辅助 | DTO 与 SQLAlchemy row mapper | ✅ |
 | `__init__.py` | 门面 | 对外 re-export 公共 API | ✅ |

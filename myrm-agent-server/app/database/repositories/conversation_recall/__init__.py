@@ -11,7 +11,10 @@
 Conversation Recall 仓储子包聚合出口。对外统一导出索引读写、可见性查找与 schema SQL。
 """
 
-from app.database.repositories.conversation_recall.lookup_repo import ConversationRecallLookupRepository
+from app.database.repositories.conversation_recall.lookup_repo import (
+    ConversationRecallLookupRepository,
+    WindowContext,
+)
 from app.database.repositories.conversation_recall.repo import (
     CONVERSATION_RECALL_BOOTSTRAP_SQL,
     CONVERSATION_RECALL_SCHEMA_SQL,
@@ -33,4 +36,5 @@ __all__ = [
     "ConversationRecallLookupRepository",
     "ConversationRecallRepository",
     "ConversationRecallRow",
+    "WindowContext",
 ]
