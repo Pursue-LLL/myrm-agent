@@ -68,6 +68,16 @@ async def _stored(chat_id: str, goal_id: str) -> Goal:
     return goal
 
 
+async def test_setting_a_goal_stores_it_and_registers_no_provider(chat_id: str) -> None:
+    reply = await _command(GoalSubcommand.SET, _OBJECTIVE)
+
+    assert reply == get_text(_message(), "goal_set", goal=_OBJECTIVE)
+    stored = await GoalRegistry.resolve_provider(chat_id).get_active_goal(chat_id)
+    assert stored is not None
+    assert stored.objective == _OBJECTIVE
+    assert GoalRegistry.get_provider(chat_id) is None
+
+
 async def test_status_shows_the_stored_goal(chat_id: str) -> None:
     await _goal_left_by_a_finished_turn(chat_id)
 

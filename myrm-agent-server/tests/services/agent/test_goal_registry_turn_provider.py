@@ -68,11 +68,11 @@ async def test_the_provider_is_released_when_the_turn_is_cancelled(chat_id: str)
 
 
 @pytest.mark.asyncio
-async def test_a_provider_registered_before_the_turn_is_shared_and_stays_registered(chat_id: str) -> None:
-    """The IM `/goal` command registers a session's provider outside any turn; a turn on that session must not drop it."""
-    registered = GoalRegistry.get_or_create_provider(chat_id)
+async def test_a_provider_registered_before_the_turn_is_the_turns_own_and_is_released_with_it(chat_id: str) -> None:
+    """A registration is the live handle of one turn: a stale one is taken over by the turn that starts, not kept."""
+    stale = GoalRegistry.get_or_create_provider(chat_id)
 
     async with GoalRegistry.turn_provider(chat_id) as provider:
-        assert provider is registered
+        assert provider is stale
 
-    assert GoalRegistry.get_provider(chat_id) is registered
+    assert GoalRegistry.get_provider(chat_id) is None

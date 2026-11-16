@@ -292,3 +292,59 @@ async def test_branch_watcher_reacts_to_head_changes_and_stops(tmp_path: Path, m
         assert first_task.done()
 
         GoalRegistry.unregister("watched-session")
+
+
+@pytest.mark.asyncio
+async def test_a_branch_check_registers_no_provider_for_a_session_without_a_turn(mock_storage) -> None:
+    """Only a running turn registers a provider; the IM `/goal` command checks the branch of sessions that have none."""
+    session_id = "branch-check-without-a-turn"
+
+    with (
+        patch(_BRANCH_GETTER, new_callable=AsyncMock, return_value="branch_a"),
+        patch(_STORAGE_GETTER, return_value=mock_storage),
+    ):
+        GoalRegistry.unregister(session_id)
+        await check_and_handle_branch_stash(session_id)
+
+    assert GoalRegistry.get_provider(session_id) is None
+
+
+@pytest.mark.asyncio
+async def test_the_watcher_does_not_bring_back_the_provider_of_a_session_whose_turn_ended_meanwhile(
+    tmp_path: Path, mock_storage
+) -> None:
+    """The watcher walks a snapshot of the live sessions; one whose turn ends before its check must stay unregistered."""
+    repo = tmp_path / "watched_repo"
+    head = repo / ".git" / "HEAD"
+    head.parent.mkdir(parents=True)
+    head.write_text("ref: refs/heads/main\n", encoding="utf-8")
+    checked: list[str] = []
+    real_check = check_and_handle_branch_stash
+
+    async def check_after_the_second_turn_ended(session_id: str, workspace_dir: str | None = None) -> None:
+        if session_id == "watched-first":
+            GoalRegistry.unregister("watched-second")
+        checked.append(session_id)
+        await real_check(session_id, workspace_dir=workspace_dir)
+
+    with (
+        patch(_STORAGE_GETTER, return_value=mock_storage),
+        patch.object(settings, "project_dir", str(repo)),
+        patch.object(goal_branch_stash, "_POLL_INTERVAL_SECONDS", 0.01),
+        patch.object(goal_branch_stash, "check_and_handle_branch_stash", check_after_the_second_turn_ended),
+    ):
+        GoalRegistry.get_or_create_provider("watched-first")
+        GoalRegistry.get_or_create_provider("watched-second")
+        start_branch_watcher()
+        try:
+            for _ in range(200):
+                if "watched-second" in checked:
+                    break
+                await asyncio.sleep(0.01)
+            await asyncio.sleep(0.05)
+        finally:
+            stop_branch_watcher()
+            GoalRegistry.unregister("watched-first")
+
+    assert checked[:2] == ["watched-first", "watched-second"]
+    assert GoalRegistry.get_provider("watched-second") is None

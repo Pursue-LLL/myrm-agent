@@ -89,7 +89,7 @@ class AgentJobRunner:
         return await session.inject_situation_report(job, prompt, self._situation_builder)
 
     async def _try_enqueue_if_goal_active(self, job: CronJob, *, context: str = "") -> bool:
-        """Enqueue this run as a goal when the chat already has an active goal."""
+        """Enqueue this run as a goal when a running turn of the chat holds an active goal."""
         return await session.try_enqueue_if_goal_active(job, context=context)
 
     async def _run_once(self, job: CronJob, *, context: str = "") -> JobResult:

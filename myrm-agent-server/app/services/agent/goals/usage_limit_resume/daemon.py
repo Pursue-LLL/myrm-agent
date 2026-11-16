@@ -102,9 +102,7 @@ async def _resume(provider: GoalProvider, session_id: str, goal: Goal) -> bool:
         return True
 
     logger.info("Goal %s resumes after its usage limit reset", goal.goal_id)
-    started = await trigger_goal_stream_with_failure_policy(
-        session_id, resumed, on_failure="needs_human_review", context="usage limit resume"
-    )
+    started = await trigger_goal_stream_with_failure_policy(session_id, resumed, context="usage limit resume")
     if started:
         await publish_goal_usage_limit_notification(session_id, goal.goal_id, "resumed")
     return True

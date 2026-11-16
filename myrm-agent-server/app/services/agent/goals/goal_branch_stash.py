@@ -170,7 +170,7 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
 
     from app.platform_utils import get_storage_provider
 
-    provider = GoalRegistry.get_or_create_provider(session_id)
+    provider = GoalRegistry.resolve_provider(session_id)
     storage = get_storage_provider()
     last_branch_key = f"{_LAST_BRANCH_PREFIX}/{session_id}"
     last_branch = await _read_last_branch(storage, last_branch_key)

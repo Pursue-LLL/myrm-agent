@@ -208,20 +208,6 @@ class GoalRegistry:
     _providers: dict[str, "GoalProvider"] = {}
 
     @classmethod
-    def _get_or_register(cls, session_id: str) -> tuple["GoalProvider", bool]:
-        """The session's registered provider, and whether this call registered it."""
-        with cls._lock:
-            registered = cls._providers.get(session_id)
-            if registered is not None:
-                return registered, False
-            from app.platform_utils import get_storage_provider
-
-            created = ServerGoalManager(get_storage_provider(), session_id=session_id)
-            cls._providers[session_id] = created
-            logger.debug("Created new goal provider: session_id=%s", session_id)
-            return created, True
-
-    @classmethod
     def get_or_create_provider(cls, session_id: str) -> "GoalProvider":
         """Get the goal provider for a session, creating and registering it if there is none.
 
@@ -229,7 +215,15 @@ class GoalRegistry:
         flags) stays one object while the turn runs; the end of the turn unregisters it. Code that runs outside
         a turn reads and changes goals through `resolve_provider`, which registers nothing.
         """
-        return cls._get_or_register(session_id)[0]
+        with cls._lock:
+            provider = cls._providers.get(session_id)
+            if provider is None:
+                from app.platform_utils import get_storage_provider
+
+                provider = ServerGoalManager(get_storage_provider(), session_id=session_id)
+                cls._providers[session_id] = provider
+                logger.debug("Created new goal provider: session_id=%s", session_id)
+            return provider
 
     @classmethod
     @asynccontextmanager
@@ -237,17 +231,14 @@ class GoalRegistry:
         """The session's provider for a turn the server starts itself: registered while the turn runs, released when it ends.
 
         A chat turn registers its provider at setup and drops it when its stream finalizes. A turn started without
-        a chat stream (the unattended goal turn) holds the provider through this context instead: the agent it
-        builds mounts its goal tools from the registry, and nothing stays registered after it, however it ends.
-        A provider registered before the turn (the IM `/goal` command registers one outside any turn) is shared
-        and stays registered.
+        a chat stream (the unattended goal turn) holds the provider through this context instead, so its agent and
+        its goal callbacks share one live handle, and nothing stays registered after it, however it ends.
         """
-        provider, created = cls._get_or_register(session_id)
+        provider = cls.get_or_create_provider(session_id)
         try:
             yield provider
         finally:
-            if created:
-                cls.unregister(session_id)
+            cls.unregister(session_id)
 
     @classmethod
     def get_provider(cls, session_id: str) -> "GoalProvider | None":
@@ -259,12 +250,12 @@ class GoalRegistry:
     def resolve_provider(cls, session_id: str) -> "GoalProvider":
         """The session's registered provider, else a manager over the same storage that is not registered.
 
-        Providers are registered only while a turn runs, yet the HTTP API, the IM commands and the server's own
-        logic outside a turn (callbacks that run once a turn is over, background-job and timer handlers, recovery)
-        work on a session between turns too, and its goals live in storage. The stand-in is a `ServerGoalManager`
-        of the session, so completing a goal through it collects the deliverables like a turn's provider does.
-        It is never registered: a registered provider is the live handle of a running session, and
-        `GET /goals/active` lists every registered session.
+        Providers are registered only while a turn runs, yet the HTTP API, the IM commands, the agent builder (an IM,
+        cron or wake turn registers none) and the server's own logic outside a turn (callbacks the harness fires as a
+        turn winds down, background-job and timer handlers, recovery) work on a session between turns too, and its
+        goals live in storage. The stand-in is a `ServerGoalManager` of the session, so completing a goal through it
+        collects the deliverables like a turn's provider does. It is never registered: a registered provider is the
+        live handle of a running session, and `GET /goals/active` lists every registered session.
         """
         provider = cls.get_provider(session_id)
         return provider if provider is not None else cls._storage_manager(session_id)

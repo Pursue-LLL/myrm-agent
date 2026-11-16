@@ -140,19 +140,18 @@ async def build_general_agent(
     from app.services.agent.goals.goal_registry import GoalRegistry
 
     enable_planning = agent_wrapper.enable_planning
-    # Mounted at build time: callers key the execution cache by GoalRegistry.has_active_goal.
-    goal_provider = GoalRegistry.get_provider(effective_chat_id)
-    if goal_provider:
-        active_goal = await goal_provider.get_active_goal(effective_chat_id)
-        if active_goal:
-            enable_planning = True
-            from myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools import (
-                create_goal_tools,
-            )
+    # Mounted from the stored goal, the truth callers key the execution cache by (GoalRegistry.has_active_goal): an
+    # IM, cron or wake turn registers no provider yet runs on a chat whose goal is still active.
+    goal_provider = GoalRegistry.resolve_provider(effective_chat_id)
+    if await goal_provider.get_active_goal(effective_chat_id):
+        enable_planning = True
+        from myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools import (
+            create_goal_tools,
+        )
 
-            goal_tools = create_goal_tools(goal_provider, effective_chat_id, locale=agent_wrapper._tool_description_locale())
-            tools.extend(goal_tools)
-            logger.info("Goal tools loaded: complete_goal_tool")
+        goal_tools = create_goal_tools(goal_provider, effective_chat_id, locale=agent_wrapper._tool_description_locale())
+        tools.extend(goal_tools)
+        logger.info("Goal tools loaded: complete_goal_tool")
 
     # 4.5 Channel notification tool (Turn1 when notify_targets configured)
     channel_notify_tool_loaded = load_channel_notify_tool(agent_wrapper, tools)

@@ -69,12 +69,7 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
 
     from app.services.agent.goals.unattended import trigger_goal_stream_with_failure_policy
 
-    return await trigger_goal_stream_with_failure_policy(
-        chat_id,
-        refreshed,
-        on_failure="needs_human_review",
-        context="background wait resume",
-    )
+    return await trigger_goal_stream_with_failure_policy(chat_id, refreshed, context="background wait resume")
 
 
 __all__ = ["maybe_resume_goal_after_background_job"]

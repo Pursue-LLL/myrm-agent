@@ -14,6 +14,7 @@ import pytest
 from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
+from app.ai_agents.general_agent.goal_learnings import build_loop_restart_callback
 from app.services.agent.goals.goal_registry import GoalRegistry
 
 _TRIGGER_STREAM = "app.services.agent.goals.unattended.trigger.trigger_goal_stream"
@@ -57,7 +58,7 @@ async def test_failure_policy_marks_needs_human_review(chat_id: str) -> None:
     assert goal is not None
 
     with patch(_TRIGGER_STREAM, new_callable=AsyncMock, side_effect=RuntimeError("boom")), patch(_NOTIFY, new_callable=AsyncMock):
-        ok = await trigger_goal_stream_with_failure_policy(chat_id, goal, on_failure="needs_human_review", context="test")
+        ok = await trigger_goal_stream_with_failure_policy(chat_id, goal, context="test")
 
     assert ok is False
     assert await _status_of(chat_id, goal_id) is GoalStatus.NEEDS_HUMAN_REVIEW
@@ -65,18 +66,16 @@ async def test_failure_policy_marks_needs_human_review(chat_id: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_failure_policy_keep_active_skips_status_update(chat_id: str) -> None:
-    from app.services.agent.goals.unattended import trigger_goal_stream_with_failure_policy
-
+async def test_a_loop_restart_that_cannot_start_leaves_the_goal_for_review(chat_id: str) -> None:
+    """A loop restart is a start like any other: when it fails nothing else runs the goal, so it waits for its owner."""
     goal_id = await _goal_in(chat_id)
     goal = await GoalRegistry.resolve_provider(chat_id).get_goal(goal_id)
     assert goal is not None
 
-    with patch(_TRIGGER_STREAM, new_callable=AsyncMock, side_effect=RuntimeError("boom")):
-        ok = await trigger_goal_stream_with_failure_policy(chat_id, goal, on_failure="keep_active", context="loop restart")
+    with patch(_TRIGGER_STREAM, new_callable=AsyncMock, side_effect=RuntimeError("boom")), patch(_NOTIFY, new_callable=AsyncMock):
+        await build_loop_restart_callback()(chat_id, goal)
 
-    assert ok is False
-    assert await _status_of(chat_id, goal_id) is GoalStatus.ACTIVE
+    assert await _status_of(chat_id, goal_id) is GoalStatus.NEEDS_HUMAN_REVIEW
 
 
 @pytest.mark.asyncio
@@ -88,10 +87,10 @@ async def test_failure_policy_success_returns_true(chat_id: str) -> None:
     assert goal is not None
 
     with patch(_TRIGGER_STREAM, new_callable=AsyncMock) as mock_trigger:
-        ok = await trigger_goal_stream_with_failure_policy(chat_id, goal, on_failure="needs_human_review")
+        ok = await trigger_goal_stream_with_failure_policy(chat_id, goal)
 
     assert ok is True
-    mock_trigger.assert_awaited_once_with(chat_id, goal, on_failure="needs_human_review", context="goal stream")
+    mock_trigger.assert_awaited_once_with(chat_id, goal, context="goal stream")
     assert await _status_of(chat_id, goal_id) is GoalStatus.ACTIVE
 
 
@@ -107,7 +106,7 @@ async def test_handle_unattended_goal_stream_failure_publishes_notification(chat
         patch("app.services.agent.goals.unattended.failure.resolve_user_locale", new_callable=AsyncMock, return_value="en"),
         patch("app.channels.i18n.engine.channel_t", side_effect=lambda _locale, key: key),
     ):
-        await handle_unattended_goal_stream_failure(chat_id, goal_id, on_failure="needs_human_review", context="runtime test")
+        await handle_unattended_goal_stream_failure(chat_id, goal_id, context="runtime test")
 
     assert await _status_of(chat_id, goal_id) is GoalStatus.NEEDS_HUMAN_REVIEW
     mock_bus.publish.assert_called_once()
@@ -124,7 +123,7 @@ async def test_failure_after_the_run_moved_the_goal_on_keeps_that_state(chat_id:
     goal_id = await _goal_in(chat_id, status)
 
     with patch(_NOTIFY, new_callable=AsyncMock) as publish:
-        await handle_unattended_goal_stream_failure(chat_id, goal_id, on_failure="needs_human_review", context="runtime test")
+        await handle_unattended_goal_stream_failure(chat_id, goal_id, context="runtime test")
 
     assert await _status_of(chat_id, goal_id) is status
     publish.assert_not_awaited()

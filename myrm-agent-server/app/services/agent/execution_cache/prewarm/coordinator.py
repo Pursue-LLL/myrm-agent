@@ -93,8 +93,8 @@ class TurnPrewarmCoordinator:
         fingerprint = compute_execution_fingerprint(wrapper, has_active_goal=has_active_goal)
         task_key = self._task_key(scope_key, fingerprint)
 
-        # No goal provider is registered between turns, so an agent built now would lack complete_goal_tool
-        # while carrying the active-goal key. The turn that follows builds it with its provider instead.
+        # A chat with an active goal is left to its next turn: an agent warmed now would hold its goal tools over an
+        # unregistered stand-in provider, not over the registered one of the turn that runs it.
         if not has_active_goal and self._should_warm_agent(action_mode):
             await self._schedule_agent_warm(scope_key, fingerprint, wrapper, params, task_key)
 

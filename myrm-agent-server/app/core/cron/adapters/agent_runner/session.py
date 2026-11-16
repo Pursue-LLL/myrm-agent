@@ -7,7 +7,7 @@
 [OUTPUT]
 - run_with_retries: run_with_retries
 - inject_situation_report: Build and prepend a situation report for heartbeat jobs.
-- try_enqueue_if_goal_active: If an active goal exists on this chat, enqueue the cron task as a queued goal.
+- try_enqueue_if_goal_active: If a running turn of this chat holds an active goal, enqueue the cron task as a queued goal behind it.
 
 [POS]
 agent_runner 的会话级辅助：重试退避、心跳情境报告注入、活跃目标入队。
@@ -36,9 +36,7 @@ from .support import _OVERLOAD_RETRY_DELAY, _build_effective_prompt
 logger = logging.getLogger(__name__)
 
 
-async def run_with_retries(
-    job: CronJob, *, context: str, run_once: Callable[..., Awaitable[JobResult]]
-) -> JobResult:
+async def run_with_retries(job: CronJob, *, context: str, run_once: Callable[..., Awaitable[JobResult]]) -> JobResult:
     overload_reason = support._memory_overload_reason()
     if overload_reason is not None:
         # Skip now, retry next tick: skipped runs don't consume retries or
@@ -90,6 +88,7 @@ async def run_with_retries(
 
     return last_result
 
+
 async def inject_situation_report(job: CronJob, prompt: str, builder: SituationReportBuilder | None) -> tuple[str, bool]:
     """Build and prepend a situation report for heartbeat jobs.
 
@@ -130,10 +129,13 @@ async def inject_situation_report(job: CronJob, prompt: str, builder: SituationR
     reset_follow_up_delivery()
     return prompt, False
 
-async def try_enqueue_if_goal_active(job: CronJob, *, context: str = "") -> bool:
-    """If an active goal exists on this chat, enqueue the cron task as a queued goal.
 
-    Returns True if the job was enqueued (caller should skip direct execution).
+async def try_enqueue_if_goal_active(job: CronJob, *, context: str = "") -> bool:
+    """If a running turn of this chat holds an active goal, enqueue the cron task as a queued goal behind it.
+
+    Only a registered provider is a running turn's: a goal left active with no turn running would hold the queued task
+    back until someone resumes it, so the cron run executes directly then. Returns True if the job was enqueued
+    (caller should skip direct execution).
     """
     from app.services.agent.goals.goal_registry import GoalRegistry
 

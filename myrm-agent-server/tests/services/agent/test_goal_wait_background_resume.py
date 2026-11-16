@@ -80,7 +80,7 @@ async def test_a_finished_job_ends_the_wait_of_its_chats_goal_and_starts_its_tur
     session, goal = trigger.await_args.args
     assert session == chat_id
     assert goal.goal_id == goal_id
-    assert trigger.await_args.kwargs == {"on_failure": "needs_human_review", "context": "background wait resume"}
+    assert trigger.await_args.kwargs == {"context": "background wait resume"}
     assert GoalRegistry.get_provider(chat_id) is None
 
 

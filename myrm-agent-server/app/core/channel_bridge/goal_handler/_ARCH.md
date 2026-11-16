@@ -3,7 +3,7 @@
 ## 架构概述
 
 IM 渠道的 `/goal` 与 `/subgoal` 命令处理器：把渠道消息解析到所属 Web 聊天，再经 `GoalRegistry` 的 provider 操作目标。
-读写目标状态一律经 `GoalRegistry.resolve_provider`：没有回合在跑（没有注册 provider）的聊天也能操作存储里的目标；只有创建目标经 `get_or_create_provider`。
+读写目标状态（含创建）一律经 `GoalRegistry.resolve_provider`：没有回合在跑（没有注册 provider）的聊天也能操作存储里的目标；命令处理不登记 provider，注册表只放运行中回合的句柄。
 `__init__.py` 只导出 `ChannelGoalCommandHandler`，对外 import 路径保持 `app.core.channel_bridge.goal_handler`。
 上级文档：[../_ARCH.md](../_ARCH.md)。
 

@@ -1,11 +1,13 @@
 """Trigger unattended headless agent streams for goal continuation.
 
-[INPUT] streaming, turn_lease (session claim + cancel token), gateway (busy / draining), goal_registry (the turn's goal provider), failure, config_loader, ChatService, profile_resolver, tool_mount, runtime_context, privacy_settings
+[INPUT] streaming, turn_lease (session claim + cancel token), gateway (busy / draining), estop, goal_registry (the turn's goal provider), failure, config_loader, ChatService, profile_resolver, tool_mount, runtime_context, privacy_settings
 [OUTPUT] GoalStreamAgentContext, trigger_goal_stream*
 [POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile. The turn
 runs under a server turn lease, taken before its agent is built, so a pause, the chat Stop button and the
-emergency stop reach it. It also holds the session's goal provider for as long as it runs, as a chat turn does,
-so its agent mounts the goal tools and its goal callbacks are wired.
+emergency stop reach it. The turn that ended the goal may still hold the session when the start is scheduled, so
+the start first waits for the session, bounded and only while the goal stays ACTIVE. The turn also holds the
+session's goal provider for as long as it runs, as a chat turn does, so its agent mounts the goal tools and its
+goal callbacks are wired.
 """
 
 from __future__ import annotations
@@ -17,7 +19,10 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from app.services.agent.goals.unattended.failure import TriggerFailurePolicy, handle_unattended_goal_stream_failure
+from myrm_agent_harness.agent.goals.types import GoalStatus
+from myrm_agent_harness.agent.security.guards.estop import check_estop
+
+from app.services.agent.goals.unattended.failure import handle_unattended_goal_stream_failure
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.types import Goal
@@ -25,6 +30,41 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _running_goal_tasks: set[asyncio.Task[None]] = set()
+
+# A start whose session is still held waits for it this long. The turn that ends a goal schedules the next start at
+# its last verdict and keeps the session through its wind-down (memory flush, session hooks), so the session is free
+# a moment later; a message that holds it longer carries the goal on itself.
+_START_WAIT_SECONDS = 30.0
+_START_POLL_SECONDS = 0.5
+
+
+async def _wait_for_free_session(session_id: str, goal_id: str) -> str | None:
+    """Wait, bounded, for the turn holding the session to give it back; None once the session is free to take.
+
+    Otherwise the reason the start is given up: the app is draining, the emergency stop is on, the goal is no longer
+    ACTIVE (a pause, or the turn that held the session ended it), or the session stayed held for the whole wait. The
+    caller takes the session right after a None, with no await in between, so nothing can take it first.
+    """
+    from app.services.agent.gateway import get_agent_gateway
+    from app.services.agent.goals.goal_registry import GoalRegistry
+
+    gateway = get_agent_gateway()
+    if not gateway.is_session_active(session_id):
+        return None
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + _START_WAIT_SECONDS
+    while loop.time() < deadline:
+        await asyncio.sleep(_START_POLL_SECONDS)
+        if gateway.is_draining:
+            return "the app is draining"
+        if check_estop() is not None:
+            return "the emergency stop is on"
+        goal = await GoalRegistry.resolve_provider(session_id).get_goal(goal_id)
+        if goal is None or goal.status is not GoalStatus.ACTIVE:
+            return "the goal is no longer active"
+        if not gateway.is_session_active(session_id):
+            return None
+    return f"the session stayed held for {_START_WAIT_SECONDS:g}s"
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,13 +141,13 @@ async def trigger_goal_stream(
     session_id: str,
     goal: Goal,
     *,
-    on_failure: TriggerFailurePolicy = "needs_human_review",
     context: str = "goal stream",
 ) -> None:
     """Start the unattended turn that carries a goal on; the turn runs in a background task.
 
     Loads full user config (model, search, security) and runs as unattended. The turn takes the session and the
-    session's goal provider for as long as it runs and gives both back however it ends.
+    session's goal provider for as long as it runs and gives both back however it ends. A session still held by the
+    turn that ended the goal is waited for, bounded, inside that task, so callers never block on it.
     """
     from app.ai_agents import GeneralAgentParams
     from app.core.channel_bridge.config_loader import load_user_configs
@@ -254,6 +294,10 @@ async def trigger_goal_stream(
             from app.services.agent.goals.goal_registry import GoalRegistry
             from app.services.agent.runtime_context import build_agent_runtime_context
 
+            if (given_up := await _wait_for_free_session(session_id, goal.goal_id)) is not None:
+                logger.info("Goal %s: %s not started: %s", goal.goal_id, context, given_up)
+                return
+
             # The lease is taken before the agent is built, as a chat turn takes its session, so a pause, the chat
             # Stop button and the emergency stop find this turn from the start. A turn that took the session first
             # (a message, or an earlier start of this goal) carries the goal on. The provider is registered inside
@@ -278,12 +322,7 @@ async def trigger_goal_stream(
                 e,
                 exc_info=True,
             )
-            await handle_unattended_goal_stream_failure(
-                session_id,
-                goal.goal_id,
-                on_failure=on_failure,
-                context=context,
-            )
+            await handle_unattended_goal_stream_failure(session_id, goal.goal_id, context=context)
         finally:
             _running_goal_tasks.discard(task)
 
@@ -295,17 +334,11 @@ async def trigger_goal_stream_with_failure_policy(
     session_id: str,
     goal: Goal,
     *,
-    on_failure: TriggerFailurePolicy = "needs_human_review",
     context: str = "goal stream",
 ) -> bool:
-    """Trigger unattended stream; apply failure policy on setup or runtime errors."""
+    """Trigger the unattended turn; a start that fails leaves the goal for review. False when it failed to start."""
     try:
-        await trigger_goal_stream(
-            session_id,
-            goal,
-            on_failure=on_failure,
-            context=context,
-        )
+        await trigger_goal_stream(session_id, goal, context=context)
         return True
     except Exception as exc:
         logger.error(
@@ -315,10 +348,5 @@ async def trigger_goal_stream_with_failure_policy(
             exc,
             exc_info=True,
         )
-        await handle_unattended_goal_stream_failure(
-            session_id,
-            goal.goal_id,
-            on_failure=on_failure,
-            context=context,
-        )
+        await handle_unattended_goal_stream_failure(session_id, goal.goal_id, context=context)
         return False

@@ -42,7 +42,7 @@ async def test_due_goal_leaves_wait_and_runs_an_unattended_turn(manager, daemon,
     assert GOAL_WAIT_KIND_KEY not in resumed.metadata
     effects.trigger.assert_awaited_once()
     assert effects.trigger.await_args.args[0] == SESSION
-    assert effects.trigger.await_args.kwargs["on_failure"] == "needs_human_review"
+    assert effects.trigger.await_args.kwargs == {"context": "usage limit resume"}
     assert effects.notices == [(SESSION, "resumed")]
     assert daemon._armed == {}
 

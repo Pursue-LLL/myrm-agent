@@ -75,7 +75,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | memory 绑定（记忆工具的命名空间） | enable_memory / incognito / memory_policy / channel_name |
 | memory 召回 | embedding_config（稠密召回）/ reranker_config + enable_advanced_retrieval（重排；开关为关时不挂重排） |
 | kanban | kanban_tool_mode / kanban_default_board_id |
-| goal（complete_goal_tool + 强制 planning） | has_active_goal：wrapper 之外的会话状态，由调用方读存储真值（`GoalRegistry.has_active_goal`）传入；builder 按已注册的 provider 挂载，交互回合在编排器内先注册 provider 再构建 |
+| goal（complete_goal_tool + 强制 planning） | has_active_goal：wrapper 之外的会话状态，由调用方读存储真值（`GoalRegistry.has_active_goal`）传入；builder 读同一份存储真值挂载（`GoalRegistry.resolve_provider`：已注册的 provider，否则不登记的存储直读 provider），所以不登记 provider 的回合（IM、Cron、唤醒）也按存储里的活跃 Goal 构建 |
 | external_agents | external_agents（name/command/args/authMode 固化；api_key 剔除） |
 | openapi_services | openapi_services（spec/base_url/endpoints 固化；整个 auth 子树剥离） |
 

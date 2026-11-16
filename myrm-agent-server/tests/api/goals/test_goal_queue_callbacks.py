@@ -1,8 +1,8 @@
-"""Goal queue chaining and the loop-restart callback: both run after the turn that ended a goal is over.
+"""Goal queue chaining and the loop-restart callback: both start the goal's next turn once the last one has ended it.
 
-The harness schedules these callbacks to run on their own once the turn's last verdict is in, by which time the turn has
-released its provider. They therefore work from storage through the registry's stand-in, and a failure in one start does
-not stop the chain.
+The harness schedules these callbacks at the turn's last verdict, while that turn winds down: its provider may already be
+given back. They therefore work from storage through the registry's stand-in, and a failure in one start does not stop
+the chain.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ async def test_the_next_queued_goal_starts_though_no_turn_is_running(chat_id: st
     session, goal = trigger.await_args.args
     assert (session, goal.goal_id) == (chat_id, second.goal_id)
     assert goal.status is GoalStatus.ACTIVE
-    assert trigger.await_args.kwargs == {"on_failure": "needs_human_review", "context": "dequeued goal"}
+    assert trigger.await_args.kwargs == {"context": "dequeued goal"}
     assert GoalRegistry.get_provider(chat_id) is None
 
 
@@ -126,7 +126,7 @@ async def test_failed_start_moves_on_to_the_following_queued_goal(chat_id: str) 
 
 
 @pytest.mark.asyncio
-async def test_loop_restart_retriggers_the_goal_and_keeps_it_active_on_failure() -> None:
+async def test_loop_restart_retriggers_the_goal() -> None:
     goal = MagicMock()
     goal.goal_id = "g-loop"
     goal.objective = "objective of g-loop"
@@ -135,4 +135,4 @@ async def test_loop_restart_retriggers_the_goal_and_keeps_it_active_on_failure()
     with patch(_TRIGGER, new_callable=AsyncMock) as trigger:
         await build_loop_restart_callback()("session-1", goal)
 
-    trigger.assert_awaited_once_with("session-1", goal, on_failure="keep_active", context="loop restart")
+    trigger.assert_awaited_once_with("session-1", goal, context="loop restart")

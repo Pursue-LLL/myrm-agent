@@ -114,7 +114,7 @@ class ChannelGoalCommandHandler:
         from app.services.agent.goals.goal_branch_stash import check_and_handle_branch_stash
 
         await check_and_handle_branch_stash(chat_id)
-        provider = GoalRegistry.get_or_create_provider(chat_id)
+        provider = GoalRegistry.resolve_provider(chat_id)
         source_meta: dict[str, object] = {
             "source_channel": msg.channel,
             "source_chat_id": msg.chat_id or msg.sender_id or "",

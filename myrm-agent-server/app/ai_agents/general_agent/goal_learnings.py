@@ -150,8 +150,8 @@ async def _try_dequeue_next(session_id: str, *, _depth: int = 0) -> None:
 
     from app.services.agent.goals.goal_registry import GoalRegistry
 
-    # The harness runs this callback once the turn that ended the goal is over and has given its provider back, so
-    # the queue is read from storage through the session's provider.
+    # The harness fires this callback at the turn's last verdict, while that turn still winds down: its provider may
+    # be registered yet or already given back, and the queue lives in storage either way.
     provider = GoalRegistry.resolve_provider(session_id)
 
     try:
@@ -189,12 +189,7 @@ async def _try_dequeue_next(session_id: str, *, _depth: int = 0) -> None:
 
     from app.services.agent.goals.unattended import trigger_goal_stream_with_failure_policy
 
-    triggered = await trigger_goal_stream_with_failure_policy(
-        session_id,
-        next_goal,
-        on_failure="needs_human_review",
-        context="dequeued goal",
-    )
+    triggered = await trigger_goal_stream_with_failure_policy(session_id, next_goal, context="dequeued goal")
     if not triggered:
         await _try_dequeue_next(session_id, _depth=_depth + 1)
 
@@ -217,12 +212,7 @@ def build_loop_restart_callback() -> Callable[[str, "Goal"], Awaitable[None]]:
 
         from app.services.agent.goals.unattended import trigger_goal_stream_with_failure_policy
 
-        await trigger_goal_stream_with_failure_policy(
-            session_id,
-            goal,
-            on_failure="keep_active",
-            context="loop restart",
-        )
+        await trigger_goal_stream_with_failure_policy(session_id, goal, context="loop restart")
 
     return _on_loop_restart
 
