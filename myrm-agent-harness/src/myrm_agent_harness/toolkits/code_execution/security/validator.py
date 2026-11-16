@@ -180,6 +180,22 @@ def _get_allowed_paths(
     return allowed
 
 
+def _is_inside(resolved: Path, allowed: Path, spelled: Path) -> bool:
+    """Whether ``resolved``, where ``spelled`` leads, lies inside the ``allowed`` root.
+
+    The discard device is allowed by name: ``/dev/stdin`` resolves to it whenever the process's stdin is
+    /dev/null, and letting that alias through would make the verdict depend on how the process was started
+    instead of on the path the command names.
+    """
+    if allowed == _DISCARD_DEVICE and spelled.name != _DISCARD_DEVICE.name:
+        return False
+    try:
+        resolved.relative_to(allowed.resolve())
+    except ValueError:
+        return False
+    return True
+
+
 def _is_path_allowed(path_str: str, allowed_paths: list[Path]) -> bool:
     """Check if a path is within allowed zones (whitelist + forbidden check).
 
@@ -205,15 +221,7 @@ def _is_path_allowed(path_str: str, allowed_paths: list[Path]) -> bool:
             return True
 
         resolved = path.resolve()
-
-        for allowed in allowed_paths:
-            try:
-                resolved.relative_to(allowed.resolve())
-                return True
-            except ValueError:
-                continue
-
-        return False
+        return any(_is_inside(resolved, allowed, path) for allowed in allowed_paths)
     except Exception:
         return False
 
@@ -398,13 +406,8 @@ def validate_path(
     try:
         abs_path = path_obj.resolve()
 
-        for allowed in allowed_dirs:
-            allowed_resolved = allowed.resolve()
-            try:
-                abs_path.relative_to(allowed_resolved)
-                return ValidationResult(is_safe=True)
-            except ValueError:
-                continue
+        if any(_is_inside(abs_path, allowed, path_obj) for allowed in allowed_dirs):
+            return ValidationResult(is_safe=True)
     except (OSError, RuntimeError, ValueError) as e:
         return ValidationResult(
             is_safe=False,
