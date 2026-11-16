@@ -1,5 +1,7 @@
 name: Frontend build
 
+# The paths cover what the jobs read: the frontend, shared/, and the compose file whose frontend service the
+# docker-image job runs.
 on:
   push:
     branches:
@@ -7,11 +9,13 @@ on:
     paths:
       - 'myrm-agent-frontend/**'
       - 'shared/**'
+      - 'myrm-agent-server/docker-compose.yaml'
       - '.github/workflows/frontend-build.yml'
   pull_request:
     paths:
       - 'myrm-agent-frontend/**'
       - 'shared/**'
+      - 'myrm-agent-server/docker-compose.yaml'
       - '.github/workflows/frontend-build.yml'
 
 concurrency:
@@ -86,17 +90,52 @@ jobs:
       # without touching this list.
       - name: Vitest (provider remap, run-time translation keys, Web Push chain)
         if: ${{ !cancelled() }}
-        run: >-
-          bunx vitest run
-          src/store/config/__tests__/providerIdentityMigration.test.ts
-          src/i18n/__tests__/dynamic-key-families.test.ts
-          src/lib/i18n/__tests__/translateOrRaw.test.ts
-          src/components/features/background-tasks/__tests__/BackgroundTaskRow.test.tsx
-          src/lib/web-push
-          src/hooks/pwa
-          src/components/features/app-shell/__tests__/service-worker-registrar.test.tsx
+        shell: bash
+        run: |
+          contracts=(
+            src/store/config/__tests__/providerIdentityMigration.test.ts
+            src/i18n/__tests__/dynamic-key-families.test.ts
+            src/lib/i18n/__tests__/translateOrRaw.test.ts
+            src/components/features/background-tasks/__tests__/BackgroundTaskRow.test.tsx
+            src/lib/web-push
+            src/hooks/pwa
+            src/components/features/app-shell/__tests__/service-worker-registrar.test.tsx
+          )
+          # Vitest reads each path as a name filter and drops one that matches nothing without a word, so a moved or
+          # renamed contract would stop running while the step stays green.
+          for contract in "${contracts[@]}"; do
+            test -e "$contract" || { echo "::error::contract test path does not exist: $contract"; exit 1; }
+          done
+          bunx vitest run "${contracts[@]}"
       # `build` bundles src/app/sw.ts into public/sw.js (build:sw) before `next build`: it proves the worker still
       # compiles, while its behavior is covered by the Vitest step above.
       - name: Production build (module graph and Web Push service worker bundle)
         if: ${{ !cancelled() }}
         run: bun run build
+
+  # The quickstart's `docker compose --profile app up`, without the backend: the image must build, start under the
+  # hardening docker-compose.yaml pins and serve the push worker. `build` cannot see any of this, because the
+  # Dockerfile brings its own toolchain and output layout.
+  docker-image:
+    name: Frontend Docker image (compose service)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build and start the frontend service
+        working-directory: myrm-agent-server
+        run: docker compose --profile app up -d --build --no-deps frontend
+      - name: The container serves the push worker
+        run: |
+          for _ in $(seq 30); do
+            curl -fsS -o "$RUNNER_TEMP/sw.js" http://127.0.0.1:3000/sw.js && break
+            sleep 2
+          done
+          if ! grep -q notificationclick "$RUNNER_TEMP/sw.js"; then
+            echo "::error::the container did not serve the push worker on /sw.js"
+            exit 1
+          fi
+      - name: Frontend container logs
+        if: failure()
+        working-directory: myrm-agent-server
+        run: docker compose --profile app logs frontend

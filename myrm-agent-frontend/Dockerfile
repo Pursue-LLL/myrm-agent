@@ -23,11 +23,13 @@ COPY myrm-agent-frontend/package.json myrm-agent-frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 
 # ============================================================================
-# Stage 2: Builder (needs Node.js for next build)
+# Stage 2: Builder (Node.js runs next build, bun runs the build script)
 # ============================================================================
 FROM node:22-alpine AS builder
 
-RUN corepack enable
+# The build script is a bun script. bun comes from the deps stage, so the version that installed the dependencies is
+# the one that builds with them.
+COPY --from=deps /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
 
@@ -44,7 +46,7 @@ ENV API_HOST=$API_HOST \
     API_PORT=$API_PORT \
     NEXT_TELEMETRY_DISABLED=1
 
-RUN npm run build
+RUN bun run build
 
 # ============================================================================
 # Stage 3: Runner
@@ -61,9 +63,12 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/frontend/public ./public
+# next.config.ts sets outputFileTracingRoot to the parent of the frontend directory, so the standalone output nests the
+# server under frontend/. server.js changes to its own directory at start, and that is where it looks for public/ and
+# .next/static.
+COPY --from=builder /app/frontend/public ./frontend/public
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static ./frontend/.next/static
 
 USER nextjs
 
@@ -72,4 +77,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-CMD ["node", "server.js"]
+CMD ["node", "frontend/server.js"]
