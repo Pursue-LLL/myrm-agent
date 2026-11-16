@@ -5,7 +5,7 @@ All checks are pure functions — no side effects, no I/O, trivially testable.
 
 [INPUT]
 - approval_reason::ApprovalReasonCode, CodedReason (POS: tags each decision that waits for a human with a stable code)
-- path_security (POS: protected-file, sensitive-file and boundary predicates)
+- path_security (POS: protected-file, sensitive-file, boundary and network-path predicates)
 - types::PathPolicy, PermissionAction (POS: the path zones and the verdict vocabulary)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace-relative path resolution)
 - toolkits.code_execution.code_detector::runs_as_python (POS: whether the bash tool runs a command as Python or as shell)
@@ -30,9 +30,11 @@ from urllib.parse import urlparse
 from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.path_security import (
     is_executable_git_metadata_file,
+    is_network_or_nt_path,
     is_protected_instruction_file,
     is_sensitive_file,
     is_within_boundary,
+    network_path_refusal,
 )
 from myrm_agent_harness.agent.security.types import PathPolicy, PermissionAction
 from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
@@ -61,7 +63,9 @@ def check_path_policy(
 ) -> tuple[PermissionAction, str]:
     """Evaluate a file path against the PathPolicy.
 
-    Returns (DENY, reason) if blocked by forbidden paths.
+    Returns (DENY, reason) if blocked by forbidden paths, or if the path is spelled as a network share or NT
+    namespace (decided on the text, before the path is normalised: opening such a path on Windows connects to the
+    host it names).
     Returns (ALLOW, "") if in a writable access root or workspace (when writing).
     Returns (ALLOW, "") for read-only roots when require_write is False.
     Returns (ASK, reason) for write attempts on read-only roots (triggers write escalation).
@@ -71,6 +75,9 @@ def check_path_policy(
     Every ASK reason is a ``CodedReason``, so the approval card can word it in the viewer's language.
     Relative paths are resolved against workspace_root when available.
     """
+    if is_network_or_nt_path(raw_path):
+        return PermissionAction.DENY, network_path_refusal(raw_path)
+
     # The executor reads ``/workspace/x`` as ``<workspace>/x``; judge the same file the tool will touch.
     container_relative = WorkspacePathResolver.container_relative(raw_path) if workspace_root else None
     if container_relative is not None:

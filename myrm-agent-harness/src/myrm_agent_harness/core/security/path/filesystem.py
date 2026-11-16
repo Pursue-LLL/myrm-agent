@@ -1,9 +1,9 @@
 """Generic filesystem path safety primitives.
 
-Dangerous system roots, Windows device names, boundary enforcement, traversal-safe
-joining and runtime path coercion. This module knows nothing about *which files a
-product protects* — that policy lives in the sibling `rules` module, so tooling that
-only needs to resolve a path safely does not pull protection policy into scope.
+Dangerous system roots, Windows device names and network-share spellings, boundary
+enforcement, traversal-safe joining and runtime path coercion. This module knows nothing
+about *which files a product protects* — that policy lives in the sibling `rules` module,
+so tooling that only needs to resolve a path safely does not pull protection policy into scope.
 
 [INPUT]
 - (none — stdlib only: os, platform, stat, pathlib)
@@ -18,7 +18,9 @@ only needs to resolve a path safely does not pull protection policy into scope.
 - safe_join_path(base_dir, user_input) -> Path — secure path resolution against traversal
 - is_dangerous_path(path) -> bool — unified check function (path inside a dangerous root; case-folded on macOS/Windows)
 - covers_dangerous_path(path) -> bool — path equals or contains a dangerous root (grant too broad; case-folded on macOS/Windows)
-- is_blocked_device_path(path) -> bool — pre-IO device path blocklist check
+- is_network_or_nt_path(path) -> bool — network share or NT-namespace spelling, judged on the text alone (no filesystem call)
+- network_path_refusal(path) -> str — the refusal text every gate gives a path ``is_network_or_nt_path`` flags
+- is_blocked_device_path(path) -> bool — pre-IO check: device names, device and network namespaces, then lstat and realpath
 
 [POS]
 Generic filesystem path safety — no product protection policy.
@@ -40,7 +42,9 @@ __all__ = (
     "is_blocked_device_path",
     "is_content_not_path",
     "is_dangerous_path",
+    "is_network_or_nt_path",
     "is_within_boundary",
+    "network_path_refusal",
     "safe_join_path",
 )
 
@@ -111,40 +115,19 @@ def _fold(path: str) -> str:
     return path.casefold() if _FOLD_CASE else path
 
 
-BLOCKED_DEVICE_NAMES: frozenset[str] = frozenset(
-    {
-        "CON",
-        "PRN",
-        "AUX",
-        "NUL",
-        "COM1",
-        "COM2",
-        "COM3",
-        "COM4",
-        "COM5",
-        "COM6",
-        "COM7",
-        "COM8",
-        "COM9",
-        "LPT1",
-        "LPT2",
-        "LPT3",
-        "LPT4",
-        "LPT5",
-        "LPT6",
-        "LPT7",
-        "LPT8",
-        "LPT9",
-    }
-)
-"""Windows reserved device names (matched case-insensitively with or without extensions)."""
+# ``COM¹``-``COM³`` and ``LPT¹``-``LPT³`` (superscript digits) are device names beside ``COM1``-``COM9`` and
+# ``LPT1``-``LPT9``, and ``CONIN$`` / ``CONOUT$`` are the console handles.
+_DEVICE_DIGITS = "123456789\u00b9\u00b2\u00b3"
 
-_WINDOWS_DEVICE_NAMESPACE_PREFIXES: tuple[str, ...] = (
-    "\\\\.\\",
-    "//./",
-    "\\\\?\\",
-    "//?/",
+BLOCKED_DEVICE_NAMES: frozenset[str] = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    | {f"{device}{digit}" for device in ("COM", "LPT") for digit in _DEVICE_DIGITS}
 )
+"""Windows reserved device names, upper-case (matched case-insensitively with or without extensions)."""
+
+# The forward-slash spellings of the Win32 device namespaces, refused on every host. The backslash spellings are
+# network-path syntax and fall under ``is_network_or_nt_path``.
+_DEVICE_NAMESPACE_FORWARD_PREFIXES: tuple[str, ...] = ("//./", "//?/")
 
 # Absolute spellings only. A workspace-relative ``dev/notes.txt`` is an ordinary project file; a relative path that
 # really reaches a special filesystem (the process runs in ``/``, or a symlink points into it) is caught by the
@@ -155,6 +138,35 @@ _POSIX_SPECIAL_FILESYSTEM_PREFIXES: tuple[str, ...] = tuple(f"{root}/" for root 
 
 # ``CON``/``AUX``/``NUL``... are reserved only by Windows; elsewhere ``docs/aux.md`` is a normal file.
 _IS_WINDOWS = os.name == "nt"
+
+# ---------------------------------------------------------------------------
+# Network shares and NT namespaces (decided on the text, before any filesystem call)
+# ---------------------------------------------------------------------------
+
+
+def is_network_or_nt_path(path: str) -> bool:
+    r"""Whether *path* is spelled as a network share or in a Windows NT namespace, judged on the text alone.
+
+    Opening such a path on Windows connects to the host it names and sends the user's credentials, so a path a
+    prompt injection supplies must be refused before the first ``stat`` or ``resolve``. The backslash spellings are
+    Windows syntax on every host: ``\\host\share``, the extended-length and device namespaces ``\\?\`` and ``\\.\``,
+    and the NT object prefix ``\??\``. Two leading slashes are an ordinary absolute path on POSIX (``//tmp`` exists
+    on macOS), so only a Windows host reads them as a share. There, any run of two or more leading separators of
+    either kind is refused, so the answer does not depend on how Windows treats the extra ones.
+    """
+    cleaned = path.strip()
+    if cleaned.startswith(("\\\\", "\\??\\")):
+        return True
+    return _IS_WINDOWS and cleaned.replace("\\", "/").startswith("//")
+
+
+def network_path_refusal(path: str) -> str:
+    """The refusal every gate gives a path ``is_network_or_nt_path`` flags: what is refused and the way out."""
+    return (
+        f"Network share and NT namespace paths are not accessible: {path}. "
+        "Use a path inside the workspace or a mapped drive letter."
+    )
+
 
 # ---------------------------------------------------------------------------
 # Path boundary and safe join checks
@@ -318,13 +330,13 @@ def covers_dangerous_path(path: str) -> bool:
 
 
 def is_blocked_device_path(path: str) -> bool:
-    """Check if *path* refers to a blocked character/block/special or Windows device.
+    """Check if *path* refers to a blocked character/block/special device, a Windows device or a network share.
 
-    Performs pre-IO static inspection of path patterns (Windows device names on
-    Windows, absolute POSIX special filesystems) as well as filesystem stat mode
-    checks and a realpath check when the path exists. Relative names such as
-    ``dev/notes.txt`` or ``docs/aux.md`` are ordinary files and pass. Immune to
-    trailing spaces, slashes, or alternate casings.
+    Performs pre-IO static inspection of path patterns (network-share and NT-namespace
+    spellings, Windows device names on Windows, absolute POSIX special filesystems) as
+    well as filesystem stat mode checks and a realpath check when the path exists.
+    Relative names such as ``dev/notes.txt`` or ``docs/aux.md`` are ordinary files and
+    pass. Immune to trailing spaces, slashes, or alternate casings.
     """
     if not path or not path.strip() or is_content_not_path(path):
         return False
@@ -332,8 +344,8 @@ def is_blocked_device_path(path: str) -> bool:
     cleaned = path.strip()
     norm_slash = cleaned.replace("\\", "/")
 
-    # 1. Device namespace prefixes (\\.\, //./, \\?\, //?/)
-    if cleaned.startswith(_WINDOWS_DEVICE_NAMESPACE_PREFIXES):
+    # 1. Network-share and NT-namespace spellings, and the forward-slash device namespaces (//./, //?/)
+    if is_network_or_nt_path(cleaned) or cleaned.startswith(_DEVICE_NAMESPACE_FORWARD_PREFIXES):
         return True
 
     # 2. Absolute POSIX special filesystems (/dev, /proc, /sys)
@@ -343,10 +355,11 @@ def is_blocked_device_path(path: str) -> bool:
     ):
         return True
 
-    # 3. Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9) with or without extensions
+    # 3. Windows reserved device names with or without extensions; Windows drops the spaces before the extension,
+    #    so ``NUL .txt`` is the NUL device
     if _IS_WINDOWS:
         for seg in norm_slash.split("/"):
-            if seg and seg.split(".")[0].upper() in BLOCKED_DEVICE_NAMES:
+            if seg and seg.split(".")[0].rstrip(" ").upper() in BLOCKED_DEVICE_NAMES:
                 return True
 
     # 4. OS filesystem stat mode verification (if path exists on disk, check non-regular special file types)

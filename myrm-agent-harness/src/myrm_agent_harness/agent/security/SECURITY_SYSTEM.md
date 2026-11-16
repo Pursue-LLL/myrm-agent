@@ -379,6 +379,8 @@ Session-scoped HITL grants live in `agent/security/session_access.py` (ContextVa
 ```
 check_path_policy(raw_path, policy, workspace_root, require_write)
   │
+  ├─ 前置：网络共享 / NT 命名空间拼写 → DENY（只按文本判断，先于归一化与 realpath）
+  │
   ├─ Layer 1: forbidden_paths → DENY（绝对优先，不可覆盖）
   │
   ├─ Layer 2: access_roots（writable）→ ALLOW
@@ -400,6 +402,7 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 6. **Revoke 对称** — `revoke_session_access_root` + server `revoke_chat_session_access_root` 持久化到 `session_access_roots`
 7. **云卷部署边界** — `/persistent` 真实挂载时，grant 仅限卷内或 chat workspace；本地桌面允许主机路径（仍受 forbidden/dangerous 约束）
 8. **Directory HITL 900s 超时** — 与 clarify 对称，`{granted:false}` auto-resume，避免挂死
+9. **网络共享与 NT 命名空间路径只按文本拒绝，先于任何文件系统调用** — 在 Windows 上打开 `\\host\share\x` 会让系统去连接那台主机并发送用户凭据（提示注入可以诱导模型去读一个攻击者主机上的共享）。`is_network_or_nt_path`（`core/security/path/filesystem.py`）判定的拼写：反斜杠写法 `\\host\share`、`\\?\`、`\\.\`、`\??\` 在所有宿主上拒绝；开头连续两个及以上的斜杠（正反斜杠混用也算，如 `//host/share`）只在 Windows 主机上拒绝，因为在 POSIX 上 `//tmp` 是普通绝对路径。路径沿途的每一道闸门都在自己的第一个文件系统调用之前做这个判断：权限引擎的 `check_path_policy`（DENY）、目录授权的 `_resolve_named_path`（返回空）、`file_read_tool` 的 Pre-IO 阻断、`PathValidator` 与 `CodeExecutor.resolve_path`；文本由 `network_path_refusal` 统一，提示改用工作区内的路径或映射盘符
 9. **FE SSOT 刷新** — grant/revoke 后 `refreshSessionAccessRoots` 同步 `SessionAccessRootsBar`；path-ASK 带 optimistic fallback
 10. **Runtime path coercion** — `coerce_filesystem_path` 仅接受 `str | Path | os.PathLike`，拒绝 `unittest.mock` 对象（MagicMock 实现 `__fspath__`）；用于工作区 journal sidecar 等写盘边界
 

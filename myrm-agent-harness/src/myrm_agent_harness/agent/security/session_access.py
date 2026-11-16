@@ -31,7 +31,7 @@ from myrm_agent_harness.agent.security.types import (
     PermissionAction,
 )
 from myrm_agent_harness.core.context_vars import access_grants_var, session_access_roots_var
-from myrm_agent_harness.core.security.path import covers_dangerous_path, is_within_boundary
+from myrm_agent_harness.core.security.path import covers_dangerous_path, is_network_or_nt_path, is_within_boundary
 from myrm_agent_harness.core.security.tool_registry import host_file_paths
 
 logger = logging.getLogger(__name__)
@@ -56,9 +56,13 @@ def set_session_access_roots(roots: tuple[AccessRoot, ...]) -> None:
 
 
 def _resolve_named_path(raw_path: str, workspace_root: str | None) -> str:
-    """The absolute, symlink-free path a tool call names (workspace-relative when applicable)."""
+    """The absolute, symlink-free path a tool call names (workspace-relative when applicable).
+
+    Empty for a network share or NT-namespace spelling: it names nothing a grant can open, and resolving it on
+    Windows would connect to the host it names.
+    """
     trimmed = raw_path.strip()
-    if not trimmed:
+    if not trimmed or is_network_or_nt_path(trimmed):
         return ""
     if workspace_root and not os.path.isabs(os.path.expanduser(trimmed)):
         candidate = os.path.join(workspace_root, trimmed)

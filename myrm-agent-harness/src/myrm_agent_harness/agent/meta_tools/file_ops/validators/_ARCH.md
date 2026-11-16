@@ -19,7 +19,7 @@ Validators module.
 | office_write_guard.py | Core | Secondary guard: warn on direct text writes to Office binary paths | ✅ |
 | invariant_validator.py | Core | Goal-scoped invariant file protection: blocks writes matching active Goal protected_paths before they happen. Pattern matching via `core.security.path.pattern`. | ✅ |
 | evidence_readonly_validator.py | Core | Session Evidence read-only protection: blocks writes to evidence/user_inputs to preserve raw audit trail. | ✅ |
-| path_validator.py | Core | Path security validator with symlink detection and actionable error hints for LLM self-correction. | ✅ |
+| path_validator.py | Core | Path security validator with symlink detection and actionable error hints for LLM self-correction. A network share or NT-namespace spelling is refused first, on its text, before any filesystem call (the symlink and boundary checks that follow would open it). | ✅ |
 | permission_validator.py | Core | Provides PermissionValidator. | ✅ |
 | sensitive_file_validator.py | Core | Sensitive file validator — resolves `SENSITIVE_FILE_PATTERNS` through `core.security.path.pattern` so its verdict is identical to `path_security.is_sensitive_file()`. | ✅ |
 | size_validator.py | Core | Provides SizeValidator: rejects a file over its limit (`ValidatorChain(ranged_read=True)` raises the limit to `MAX_RANGED_READ_SIZE_BYTES`); the refusal points to the line range, or to search and shell tools when even a range is too large. | ✅ |
