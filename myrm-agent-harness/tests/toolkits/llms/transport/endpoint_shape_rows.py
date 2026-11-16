@@ -8,7 +8,7 @@ makes the expectation right, so a reviewer can tell an authority from a design c
 - ``azure``    Microsoft Learn's Azure OpenAI URL forms (``/openai/deployments/{name}/...?api-version=``, the v1 route);
 - ``google``   answered by the live Gemini API: ``/v1beta/models/{m}:generateContent`` is routed (403 without a key)
                while the same path under ``/v1beta/openai`` is 404, so the OpenAI-compatibility base is not a native root;
-- ``frontend`` what the UI's former ``normalizeApiUrl`` produced for the same text (it ran before the harness did);
+- ``pasted``   an address copied from a provider's docs or dashboard (a full operation URL, a native path), cut back to the root;
 - ``design``   a choice with no external authority, kept explicit so it is not mistaken for a standard.
 """
 
@@ -47,49 +47,49 @@ OPENAI_COMPATIBLE = [
         GENERIC_MODEL,
         "https://host.example/v1/chat/completions",
         "https://host.example/v1/chat/completions",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "chat operation, slash",
         GENERIC_MODEL,
         "https://host.example/v1/chat/completions/",
         "https://host.example/v1/chat/completions",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "responses operation",
         GENERIC_MODEL,
         "https://host.example/zen/go/v1/responses",
         "https://host.example/zen/go/v1/chat/completions",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "OpenCode Go responses URL",
         GENERIC_MODEL,
         "https://opencode.ai/zen/go/v1/responses/",
         "https://opencode.ai/zen/go/v1/chat/completions",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "completions operation",
         GENERIC_MODEL,
         "https://host.example/v1/completions",
         "https://host.example/v1/chat/completions",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "models list",
         GENERIC_MODEL,
         "https://host.example/v1/models",
         "https://host.example/v1/chat/completions",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "embeddings operation",
         GENERIC_MODEL,
         "https://host.example/v1/embeddings",
         "https://host.example/v1/chat/completions",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "query is the default_query",
@@ -252,43 +252,43 @@ NATIVE_WIRES = [
         "anthropic/claude-sonnet-4-5",
         "https://api.anthropic.com",
         "https://api.anthropic.com/v1/messages",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "anthropic /v1",
         "anthropic/claude-sonnet-4-5",
         "https://api.anthropic.com/v1",
         "https://api.anthropic.com/v1/messages",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "anthropic operation",
         "anthropic/claude-sonnet-4-5",
         "https://api.anthropic.com/v1/messages",
         "https://api.anthropic.com/v1/messages",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "anthropic models list",
         "anthropic/claude-sonnet-4-5",
         "https://api.anthropic.com/v1/models",
         "https://api.anthropic.com/v1/messages",
-        "frontend",
+        "pasted",
     ),
-    Shape("ollama root", "ollama/llama3", "http://localhost:11434", "http://localhost:11434/api/chat", "frontend"),
-    Shape("ollama /v1", "ollama/llama3", "http://localhost:11434/v1", "http://localhost:11434/api/chat", "frontend"),
+    Shape("ollama root", "ollama/llama3", "http://localhost:11434", "http://localhost:11434/api/chat", "pasted"),
+    Shape("ollama /v1", "ollama/llama3", "http://localhost:11434/v1", "http://localhost:11434/api/chat", "pasted"),
     Shape(
         "ollama OpenAI operation",
         "ollama/llama3",
         "http://localhost:11434/v1/chat/completions",
         "http://localhost:11434/api/chat",
-        "frontend",
+        "pasted",
     ),
     Shape(
         "ollama native operation",
         "ollama/llama3",
         "http://localhost:11434/api/chat",
         "http://localhost:11434/api/chat",
-        "frontend",
+        "pasted",
     ),
 ]

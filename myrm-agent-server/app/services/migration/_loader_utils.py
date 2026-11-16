@@ -4,7 +4,7 @@
 Path objects and raw file content from competitor data directories.
 
 [OUTPUT]
-Parsed text/JSON/YAML, path lookups, env key extraction, skill directory scanning.
+Parsed text/JSON/YAML, path lookups, env key names, skill directory scanning.
 
 [POS]
 Shared module used by source_payload_loaders_impl.py, _loaders_openclaw.py, and _loaders_pi.py.
@@ -18,19 +18,9 @@ from pathlib import Path
 
 import yaml
 
-_MEMORY_BULLET_PATTERN = re.compile(r"^[-*]\s+(.+)$", re.MULTILINE)
+from app.services.migration.env_secrets import read_env_secrets
 
-_ENV_API_KEY_NAMES = (
-    "OPENAI_API_KEY",
-    "ANTHROPIC_API_KEY",
-    "OPENROUTER_API_KEY",
-    "GOOGLE_API_KEY",
-    "GEMINI_API_KEY",
-    "GROQ_API_KEY",
-    "XAI_API_KEY",
-    "MISTRAL_API_KEY",
-    "DEEPSEEK_API_KEY",
-)
+_MEMORY_BULLET_PATTERN = re.compile(r"^[-*]\s+(.+)$", re.MULTILINE)
 
 
 def read_text(path: Path) -> str:
@@ -42,17 +32,18 @@ def read_text(path: Path) -> str:
 
 def read_yaml(path: Path) -> object | None:
     try:
-        content = read_text(path)
-        return yaml.safe_load(content)
+        parsed: object | None = yaml.safe_load(read_text(path))
     except Exception:
         return None
+    return parsed
 
 
 def read_json(path: Path) -> object | None:
     try:
-        return json.loads(read_text(path))
+        parsed: object | None = json.loads(read_text(path))
     except (json.JSONDecodeError, OSError):
         return None
+    return parsed
 
 
 def path_by_kind(file_paths: list[str], kind: str) -> Path | None:
@@ -69,16 +60,8 @@ def find_file(root: Path, *relative_parts: str) -> Path | None:
 
 
 def extract_env_key_names(env_path: Path) -> list[dict[str, str]]:
-    content = read_text(env_path)
-    keys: list[dict[str, str]] = []
-    for line in content.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or "=" not in stripped:
-            continue
-        key = stripped.split("=", 1)[0].strip()
-        if key in _ENV_API_KEY_NAMES:
-            keys.append({"name": key})
-    return keys
+    """The names of the provider keys a ``.env`` holds, by the grammar and list the import itself uses."""
+    return [{"name": name} for name in read_env_secrets(env_path)]
 
 
 def load_skill_directories(skills_dir: Path, *, source: str) -> list[dict[str, object]]:
