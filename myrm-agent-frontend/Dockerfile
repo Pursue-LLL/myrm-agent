@@ -33,6 +33,8 @@ COPY --from=deps /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
 
+# Dockerfile.dockerignore, next to this file, keeps the host's dependencies, build output and env files out of the
+# copies below.
 COPY --from=deps /app/node_modules ./frontend/node_modules
 COPY myrm-agent-frontend/ ./frontend
 COPY shared ./shared
