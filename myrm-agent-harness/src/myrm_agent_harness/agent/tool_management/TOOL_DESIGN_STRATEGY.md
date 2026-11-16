@@ -128,7 +128,7 @@ class ToolLayer(IntEnum):
 - **特征**: harness 可选能力，默认关闭，按需 Turn1 或 RUNTIME_ONLY 绑定；组内统一按字母序稳定排序
 - **缓存**: harness 三层末尾；变化不影响 CORE/HIGH_PRIORITY 前缀
 - **工具数量**: 登记 **37** EXTENDED（harness 静态；见 TOOL_COUNT 块）
-- **Token 消耗**: 逐工具描述 token 与各场景合计见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §四、§总计估算；全部 EXTENDED 工具同轮 bind 的描述合计约 6,043（粗估，不含 `delegate_task_tool` 的运行期名册）
+- **Token 消耗**: 逐工具描述 token 与各场景合计见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §四、§总计估算；全部 EXTENDED 工具同轮 bind 的描述合计约 6,183（粗估，不含 `delegate_task_tool` 的运行期名册）
 
 **子分类**:
 
@@ -138,7 +138,7 @@ class ToolLayer(IntEnum):
 | 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~551 |
 | 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；不新增独立工具） | 含于 memory×3；开启后 memory_search 的 description 110 → 232（+122）、args schema 124 → 181（+57）：未开启时 schema 不带 `corpus` 与 `expand_*` |
 | 浏览器工具 | `enabled_builtin_tools: browser` | browser_navigate_tool, browser_snapshot_tool, ... (8个) | ~762 |
-| 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~1,160 |
+| 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~1,300 |
 | Wiki 工具 | `enabled_builtin_tools: wiki` | wiki_query_tool, wiki_ingest_tool, wiki_apply_tool；wiki_compile/maintain 仅 REST/admin | ~344 |
 | 统一知识检索 | wiki + memory 双开 | memory_search_tool 的 wiki corpus 说明、memory_save_tool 的 wiki 边界段 | 增加 ~71（memory_search +14，memory_save +57） |
 | 子 Agent 工具 | SubagentManagementExtension + entitlements | delegate_task_tool, subagent_control_tool | ~347 + 运行期名册 |
@@ -371,7 +371,7 @@ const staleCoreSkills = useMemo(() => {
 |------|--------:|----------:|------|
 | 最小场景 | 8 个 | ~5,000 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
 | 典型场景 | 13 个 | ~9,170 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 55 个 | ~18,400（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
+| 满载场景 | 55 个 | ~18,500（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
@@ -408,7 +408,7 @@ Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表�
 | 技能工具 | 有技能后端 | 4 | ~1,136（含条件绑定的 `skill_search_tool` 277） |
 | 本地文件索引工具 | 用户配置本地索引目录（Discoverable） | 2 | - |
 | 浏览器工具 | 启用浏览器 | 8 | ~762 |
-| 定时任务工具 | 启用 Cron | 1 | ~1,160 |
+| 定时任务工具 | 启用 Cron | 1 | ~1,300 |
 | Wiki 工具 | 有 Wiki 目录 | 3 | ~344 |
 | 子 Agent 工具 | 有子 Agent 配置 | 2 | ~347 + 运行期名册 |
 | 看板工具 | 启用看板 | 12 | worker ~406 / orchestrator ~774 |

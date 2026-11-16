@@ -47,6 +47,7 @@ from myrm_agent_harness.toolkits.cron.engine.failure_alerts import FailureAlertM
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     extract_telemetry as _extract_telemetry,
 )
+from myrm_agent_harness.toolkits.cron.engine.helpers import run_status_of
 from myrm_agent_harness.toolkits.cron.engine.incremental_monitoring import IncrementalMonitoringMixin
 from myrm_agent_harness.toolkits.cron.engine.integrity import (
     GENESIS_HASH,
@@ -56,13 +57,13 @@ from myrm_agent_harness.toolkits.cron.engine.run_closer import RunCloserMixin
 from myrm_agent_harness.toolkits.cron.engine.run_notices import RunNoticeMixin
 from myrm_agent_harness.toolkits.cron.engine.skipped_runs import SkippedRunMixin
 from myrm_agent_harness.toolkits.cron.protocols import PreFlightConditionError
+from myrm_agent_harness.toolkits.cron.triggers import TriggerKind
 from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
     CronJob,
     CronRunRecord,
     DeliveryStatus,
     JobResult,
-    RunStatus,
 )
 
 if TYPE_CHECKING:
@@ -226,19 +227,13 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
 
         prev_hash = await self._store.get_latest_integrity_hash(job.id) or GENESIS_HASH
 
-        run_status = (
-            RunStatus.CIRCUIT_BREAK
-            if getattr(result, "circuit_broken", False)
-            else (RunStatus.OK if result.success else RunStatus.ERROR)
-        )
-
         run = CronRunRecord(
             id=secrets.token_urlsafe(12),
             job_id=job.id,
             started_at=started,
             finished_at=finished,
             duration_ms=duration_ms,
-            status=run_status,
+            status=run_status_of(result),
             output=result.output[:_MAX_OUTPUT_CHARS] if result.output else None,
             error=result.error[:1000] if result.error else None,
             model=model,
@@ -257,6 +252,9 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
         await self._store.save_run(run)
         await self._notify_run_outcome(job, result, delivery_status)
 
+        if trigger_source == TriggerKind.MANUAL:
+            await self._record_trial_outcome(job, result, finished)
+            return
         new_failures = 0 if result.success else job.consecutive_failures + 1
         await self._update_after_run(job, result, new_failures, finished, delivery_status)
 

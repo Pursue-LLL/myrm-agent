@@ -9,7 +9,7 @@ Cron 分域路由注册。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Cron job REST endpoints. | ✅ |
-| `actions.py` | 模块 | Cron 任务生命周期动作端点（duplicate/pause/resume/trigger/test-delivery/reset-baseline） | ✅ |
+| `actions.py` | 模块 | Cron 任务生命周期动作端点（duplicate/pause/resume/trigger/test-delivery/reset-baseline）；`trigger` 起一次手动试跑：已启动 202，任务已在运行 409，不存在或未启用 404，拒绝时任务保持原样 | ✅ |
 | `blueprints.py` | 模块 | `GET/POST /blueprints` — 中英双语（en/zh）蓝图目录与 fill；委托 `core.cron.blueprints` SSOT | ✅ |
 | `connector_health.py` | 模块 | `GET /connectors/health` — 连接器健康聚合与降级状态查询端点 | ✅ |
 | `heartbeat.py` | 模块 | Heartbeat REST endpoints. Supports `agent_id` binding for Agent Profile inheritance; the enable prompt passes the risk gate (`reject_if_risky`) before it is stored. | ✅ |

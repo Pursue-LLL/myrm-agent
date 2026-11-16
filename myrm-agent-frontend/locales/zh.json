@@ -7215,6 +7215,7 @@
     "statsError": "有错误",
     "triggerSuccess": "任务「{name}」已触发执行",
     "triggerFail": "触发失败",
+    "triggerAlreadyRunning": "任务「{name}」正在运行",
     "pauseSuccess": "任务「{name}」已暂停",
     "resumeSuccess": "任务「{name}」已恢复",
     "resumeBlocked": "无法恢复（已过期或达到上限）",

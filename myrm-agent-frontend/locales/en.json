@@ -7215,6 +7215,7 @@
     "statsError": "Errored",
     "triggerSuccess": "Task \"{name}\" triggered",
     "triggerFail": "Trigger failed",
+    "triggerAlreadyRunning": "Task \"{name}\" is already running",
     "pauseSuccess": "Task \"{name}\" paused",
     "resumeSuccess": "Task \"{name}\" resumed",
     "resumeBlocked": "Cannot resume (expired or limit reached)",

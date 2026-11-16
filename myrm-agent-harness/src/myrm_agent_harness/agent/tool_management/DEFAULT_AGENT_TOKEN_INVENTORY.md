@@ -137,7 +137,7 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
-| 47 | cron_manage_tool | 1,160 | `harness/toolkits/cron/cron_agent_tools.py` | 定时任务管理；蓝图目录经 `action=blueprints` 按需拉取，不占 Turn1 描述 |
+| 47 | cron_manage_tool | 1,300 | `harness/toolkits/cron/cron_agent_tools.py` | 定时任务管理；蓝图目录经 `action=blueprints` 按需拉取，不占 Turn1 描述 |
 
 ### 4.10 Wiki 知识库工具（有 Wiki 目录时加载）
 
@@ -315,11 +315,11 @@ Token 明细（tiktoken o200k_base）：
 | System Prompt 层 | **1,946** |
 | CORE 工具层 | **2,204** |
 | HIGH_PRIORITY 工具层 | **2,445** |
-| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,502（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,043 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
+| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,642（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,183 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,575** (55 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
-| **tiktoken 小计** | **~18,400（粗估）** |
+| **tiktoken 小计** | **~18,500（粗估）** |
 
 > 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 55 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 37 + EXTERNAL 5）。本场景假设全部 55 工具同轮 bind，EXTENDED / EXTERNAL 行为 §四 各行描述值求和，仅作量级参考：`delegate_task_tool` 只计固定部分，不含运行期名册；kanban 的 worker 与 orchestrator 两组工具按角色互斥挂载，此处同时计入。
 
@@ -334,7 +334,7 @@ Token 明细（tiktoken o200k_base）：
 [HIGH_PRIORITY: web_search + memory_* + skill_select (~2,445 tok)]
   ↑ web_search 优先；memory 组紧随；skill_select 承接；GUI 可关
 
-[EXTENDED: 可选工具 (~0~6,043+ tok)]
+[EXTENDED: 可选工具 (~0~6,183+ tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
 [System Prompt: messages[0] 1,173 (ZH·full)]

@@ -11,6 +11,7 @@ interval and one-shot schedules.  Pure functions — no I/O.
 - compute_next_run: Return the next fire time **after** *reference* (defaults to now UTC).
 - validate_cron_expr: Return ``True`` when *expr* is a syntactically valid cron expression.
 - validate_timezone: Return ``True`` when *tz_name* is a valid IANA timezone.
+- min_cron_gap_minutes: Shortest gap between consecutive fires of a 5-field cron expression, sampled from a fixed start.
 - describe_schedule: Human-readable summary of a schedule (for UI tooltips).
 
 [POS]
@@ -20,11 +21,15 @@ Cron expression parsing and next-run calculation.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 from zoneinfo import ZoneInfo
 
 from croniter import croniter
 
 from myrm_agent_harness.toolkits.cron.types import Schedule, ScheduleKind
+
+_GAP_SAMPLE_START = datetime(2030, 1, 1, tzinfo=UTC)
+_GAP_SAMPLE_FIRES = 41
 
 
 def compute_prev_run(schedule: Schedule, reference: datetime | None = None) -> datetime | None:
@@ -85,6 +90,25 @@ def validate_timezone(tz_name: str) -> bool:
         return True
     except (KeyError, Exception):
         return False
+
+
+def min_cron_gap_minutes(expr: str) -> float | None:
+    """Shortest gap, in minutes, between consecutive fires among the first 41 fire times of a 5-field *expr*.
+
+    The fire times are listed in UTC from 2030-01-01, a fixed start so the answer does not depend on today's date.
+    Forty gaps expose a dense stretch of a rule that is quick only on some days or hours, such as ``*/2 9 * * 1-5``;
+    the sample is not exhaustive, and a shorter gap beyond it meets the 60-second floor that books every slot.
+    Returns ``None`` for an expression with other than five fields (a seconds field is left to that floor) or whose
+    fire times cannot be listed.
+    """
+    if len(expr.split()) != 5:
+        return None
+    try:
+        fires = croniter(expr, _GAP_SAMPLE_START)
+        times: list[datetime] = [fires.get_next(datetime) for _ in range(_GAP_SAMPLE_FIRES)]
+    except (ValueError, KeyError):
+        return None
+    return min((later - earlier).total_seconds() for earlier, later in pairwise(times)) / 60
 
 
 def describe_schedule(schedule: Schedule) -> str:

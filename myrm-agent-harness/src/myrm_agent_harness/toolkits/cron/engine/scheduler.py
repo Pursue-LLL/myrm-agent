@@ -115,6 +115,8 @@ class CronScheduler(SchedulerDispatchMixin):
         self._last_purge_at: datetime | None = None
         # Runs between launch and close, per job: the one place "running" lives.
         self._in_flight: Counter[str] = Counter()
+        # Jobs whose due slot is being booked: their run launches right after, so a manual request must wait too.
+        self._admitting: set[str] = set()
         self._bg_tasks: set[asyncio.Task[None]] = set()
 
         self._executor = JobExecutor(

@@ -7,6 +7,8 @@ to the model.
 
 [INPUT]
 - infra.incremental.types::MonitorConfig, MonitorType (POS: 增量监控领域类型)
+- toolkits.cron.cron_agent_timezone::parse_local_datetime (POS: cron_manage_tool 的时区契约)
+- toolkits.cron.engine.parser::min_cron_gap_minutes (POS: cron 表达式解析与下次运行时间计算)
 - toolkits.cron.triggers::PollTrigger, StreamProtocol, StreamTrigger, TriggerConfig (POS: 触发器类型定义与安全辅助)
 - toolkits.cron.types::ActiveHours, Schedule, ScheduleKind, SessionTarget (POS: cron 数据模型)
 
@@ -30,6 +32,8 @@ from datetime import datetime as dt
 from typing import get_args
 
 from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorType
+from myrm_agent_harness.toolkits.cron.cron_agent_timezone import parse_local_datetime
+from myrm_agent_harness.toolkits.cron.engine.parser import min_cron_gap_minutes
 from myrm_agent_harness.toolkits.cron.triggers import (
     PollTrigger,
     StreamProtocol,
@@ -58,7 +62,10 @@ def _build_schedule(
     at: str,
     tz: str,
 ) -> tuple[str | None, Schedule | None]:
-    """Return (error_msg, Schedule) — exactly one will be non-None."""
+    """Return (error_msg, Schedule) — exactly one will be non-None.
+
+    ``tz`` is the zone the tool resolved (see ``cron_agent_timezone``); empty means UTC.
+    """
     filled = sum([bool(cron_expr), every_minutes > 0, bool(at)])
     if filled == 0:
         return "Provide one of: cron_expr, every_minutes, or at.", None
@@ -66,6 +73,13 @@ def _build_schedule(
         return "Provide only ONE schedule param (cron_expr / every_minutes / at).", None
 
     if cron_expr:
+        gap = min_cron_gap_minutes(cron_expr)
+        if gap is not None and gap < _MIN_INTERVAL_MINUTES:
+            return (
+                f"cron_expr fires every {gap:g} min; the minimum is {_MIN_INTERVAL_MINUTES} min. "
+                "For one-time tasks use 'at' instead.",
+                None,
+            )
         return None, Schedule(kind=ScheduleKind.CRON, expr=cron_expr, tz=tz or None)
     if every_minutes > 0:
         if every_minutes < _MIN_INTERVAL_MINUTES:
@@ -75,9 +89,10 @@ def _build_schedule(
             )
         return None, Schedule(kind=ScheduleKind.INTERVAL, interval_ms=every_minutes * 60_000)
     if at:
-        run_at = dt.fromisoformat(at)
-        if run_at.tzinfo is None:
-            run_at = run_at.replace(tzinfo=UTC)
+        try:
+            run_at = parse_local_datetime(at, tz or None)
+        except ValueError as exc:
+            return f"Invalid at '{at}': {exc}.", None
         return None, Schedule(kind=ScheduleKind.ONCE, run_at=run_at)
 
     return "Could not determine schedule type.", None
@@ -90,18 +105,15 @@ def _build_schedule(
 _DURATION_UNITS: dict[str, int] = {"d": 1, "w": 7, "m": 30}
 
 
-def _parse_expires_after(value: str) -> dt | None:
-    """Parse a human-friendly duration ("3d", "2w", "3m") or ISO 8601 datetime."""
+def _parse_expires_after(value: str, zone: str | None = None) -> dt | None:
+    """Parse a human-friendly duration ("3d", "2w", "3m") or ISO 8601 datetime; a time without offset is read in *zone*."""
     value = value.strip()
     if not value:
         return None
     if len(value) >= 2 and value[-1] in _DURATION_UNITS and value[:-1].isdigit():
         days = int(value[:-1]) * _DURATION_UNITS[value[-1]]
         return dt.now(UTC) + timedelta(days=days)
-    parsed = dt.fromisoformat(value)
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
-    return parsed
+    return parse_local_datetime(value, zone)
 
 
 def _build_active_hours(start: str, end: str, active_tz: str) -> ActiveHours | None:

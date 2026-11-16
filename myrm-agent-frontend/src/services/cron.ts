@@ -116,8 +116,9 @@ export async function resumeCronJob(id: string): Promise<CronJob> {
   return apiRequest(`/cron/${id}/resume`, { method: 'POST' });
 }
 
+/** Silent: the caller tells "already running" (409) from a failure, so the global error toast would double it. */
 export async function triggerCronJob(id: string): Promise<void> {
-  return apiRequest(`/cron/${id}/trigger`, { method: 'POST' });
+  return apiRequest(`/cron/${id}/trigger`, { method: 'POST', silent: true });
 }
 
 export async function testCronDelivery(

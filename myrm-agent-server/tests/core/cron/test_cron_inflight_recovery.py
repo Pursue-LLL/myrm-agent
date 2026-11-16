@@ -27,6 +27,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobResult,
     JobStatus,
     JobType,
+    RunNowOutcome,
     RunStatus,
     Schedule,
     ScheduleKind,
@@ -240,6 +241,25 @@ async def test_runs_that_end_in_any_ordinary_way_leave_no_marker_and_no_interrup
     restarted = await Process.boot(_Runner())
     await restarted.drain()
     assert await restarted.markers() == [] and await interrupted_runs() == []
+    await restarted.scheduler.stop()
+
+
+async def test_a_manual_run_inside_the_cooldown_leaves_no_marker_and_books_nothing() -> None:
+    process = await Process.boot(_Runner())
+    await process.add("cooled", due=False, cooldown_seconds=3600, last_run_at=datetime.now(UTC) - timedelta(seconds=10))
+    before = await process.stored("cooled")
+
+    assert await process.scheduler.run_now("cooled") == RunNowOutcome.STARTED
+    await process.drain()
+
+    after = await process.stored("cooled")
+    assert process.runner.attempts == 1 and await process.markers() == []
+    assert await process.errors("cooled", "manual") == [None]
+    assert (after.next_run_at, after.fire_count, after.consecutive_failures) == (before.next_run_at, 0, 0)
+    await process.scheduler.stop()
+    restarted = await Process.boot(_Runner())
+    await restarted.drain()
+    assert await restarted.errors("cooled", "recovery") == [] and await restarted.markers() == []
     await restarted.scheduler.stop()
 
 

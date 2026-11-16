@@ -7,7 +7,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.toolkits.cron.manager import CronManager
-from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, CronRunRecord, JobType, Schedule, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    CronJobPatch,
+    CronRunRecord,
+    JobType,
+    RunNowOutcome,
+    Schedule,
+    ScheduleKind,
+)
 
 from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
@@ -171,6 +179,7 @@ async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> Non
     inner.resume_job = AsyncMock(return_value=object())
     inner.delete_job = AsyncMock(return_value=True)
     inner.trigger_now = AsyncMock(return_value=True)
+    inner.run_now = AsyncMock(return_value=RunNowOutcome.ALREADY_RUNNING)
     mgr = EntitlementGuardedCronManager(inner)
 
     assert await mgr.get_job("j1") is inner.get_job.return_value
@@ -179,6 +188,7 @@ async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> Non
     assert await mgr.resume_job("j1") is inner.resume_job.return_value
     assert await mgr.delete_job("j1") is True
     assert await mgr.trigger_now("j1") is True
+    assert await mgr.run_now("j1") is RunNowOutcome.ALREADY_RUNNING
 
     inner.get_job.assert_awaited_once_with("j1")
     inner.list_jobs.assert_awaited_once_with(name_filter="x", chat_id=None, project_id=None, limit=5, offset=2)
@@ -186,6 +196,7 @@ async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> Non
     inner.resume_job.assert_awaited_once_with("j1")
     inner.delete_job.assert_awaited_once_with("j1")
     inner.trigger_now.assert_awaited_once_with("j1")
+    inner.run_now.assert_awaited_once_with("j1")
     inner.count_jobs.assert_not_called()
 
 

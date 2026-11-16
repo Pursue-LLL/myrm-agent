@@ -5,18 +5,20 @@
 - toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth after the stagger and slot waits)
 - toolkits.cron.engine.executor::JobExecutor (POS: job execution lifecycle manager)
 - toolkits.cron.protocols::CronStore, JobRunner, TriggerProvider (POS: Protocols for the cron toolkit.)
-- toolkits.cron.types::CronJob, JobStatus, JobType, ScheduleKind (POS: Cron job domain types.)
+- toolkits.cron.triggers::TriggerKind (POS: Trigger type definitions and security helpers.)
+- toolkits.cron.types::CronJob, JobStatus, JobType, RunNowOutcome, ScheduleKind (POS: Cron job domain types.)
 
 [OUTPUT]
-- SchedulerDispatchMixin: `dispatch_event`, `dispatch_system_event`, `dispatch_webhook`, the admission `_admit` and the run path `_launch` → `_run` → `_dispatch`
+- SchedulerDispatchMixin: `dispatch_event`, `dispatch_system_event`, `dispatch_webhook`, `run_now`, the admission `_admit` and the run path `_launch` → `_run` → `_dispatch`
 
 [POS]
 Mixed into ``CronScheduler``. A due recurring job is admitted by booking its next slot first; a one-shot, which has no
-later slot, stays due until it completes. Every run, a due slot or an event, webhook or system-event trigger, is
-registered as in flight by ``_launch`` before its task exists; its task writes the persisted in-flight marker first and
-clears it when the job's last run ends, then the run passes the pre-execution guards, the active-hours window,
+later slot, stays due until it completes. Every run, a due slot, an event, webhook or system-event trigger or a manual
+run, is registered as in flight by ``_launch`` before its task exists; its task writes the persisted in-flight marker
+first and clears it when the job's last run ends, then the run passes the pre-execution guards, the active-hours window,
 ``skip_if_active``, the stagger delay, the runner lookup, the concurrency slot and a last read of the stored job before
-the executor starts it.
+the executor starts it. A manual run is a trial: it books nothing, counts no fire, and neither the active window, a
+cooldown nor the stagger delay holds it back.
 """
 
 from __future__ import annotations
@@ -38,7 +40,8 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
     resolve_stagger_ms as _resolve_stagger_ms,
 )
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
-from myrm_agent_harness.toolkits.cron.types import JobStatus, ScheduleKind
+from myrm_agent_harness.toolkits.cron.triggers import TriggerKind
+from myrm_agent_harness.toolkits.cron.types import JobStatus, RunNowOutcome, ScheduleKind
 
 if TYPE_CHECKING:
     from collections import Counter
@@ -55,7 +58,7 @@ class SchedulerDispatchMixin:
     """Admission, trigger dispatch and the guarded execution path for ``CronScheduler``.
 
     Accesses CronScheduler members via self: _store, _runners, _trigger_provider, _executor, _in_flight,
-    _global_sem, _spawn.
+    _admitting, _global_sem, _spawn.
     """
 
     _store: CronStore
@@ -63,6 +66,7 @@ class SchedulerDispatchMixin:
     _trigger_provider: TriggerProvider | None
     _executor: JobExecutor
     _in_flight: Counter[str]
+    _admitting: set[str]
     _global_sem: asyncio.Semaphore
 
     if TYPE_CHECKING:
@@ -140,21 +144,44 @@ class SchedulerDispatchMixin:
         self._launch(job, context=context, trigger_source="webhook")
         return job
 
+    async def run_now(self, job_id: str) -> RunNowOutcome:
+        """Start one manual run of an active job, unless it is already running.
+
+        The run is a trial of the job as it is configured: it books nothing, counts no fire and leaves the
+        schedule alone, so the job's next scheduled run is unaffected. A paused or completed job is not run.
+        """
+        job = await self._store.get_job(job_id)
+        if job is None:
+            return RunNowOutcome.NOT_FOUND
+        if job.status != JobStatus.ACTIVE:
+            return RunNowOutcome.NOT_ACTIVE
+        # No await sits between this check and the launch, so two requests cannot both pass it. A due slot that is
+        # being booked counts as running: its run launches as soon as the booking ends.
+        if self._in_flight[job_id] or job_id in self._admitting:
+            return RunNowOutcome.ALREADY_RUNNING
+        self._launch(job, trigger_source=TriggerKind.MANUAL.value)
+        return RunNowOutcome.STARTED
+
     async def _admit(self, job: CronJob) -> None:
         """Book a due recurring job's next slot, then launch the run that is due.
 
         Booking first keeps the stored job schedulable whatever happens to the run: a crash, a failed closing
         write or a refusing guard still leaves a next run time. The booking is one conditional write, so a job
         that was paused, deleted, edited or already dispatched meanwhile is not run. A one-shot has no later
-        slot: it stays due until it completes, so a crash delivers it again instead of losing it.
+        slot: it stays due until it completes, so a crash delivers it again instead of losing it. While the slot is
+        being booked a manual run is refused, as it is while the run itself is in flight.
         """
         if job.schedule.kind != ScheduleKind.ONCE:
             slot = next_slot_or_retry(job, datetime.now(UTC))
+            self._admitting.add(job.id)
             try:
                 advanced = await self._store.advance_next_run(job.id, next_run_at=slot)
             except Exception as exc:
                 logger.warning("Job %s not dispatched: could not book its next run: %s", job.id, exc)
                 return
+            finally:
+                # Nothing awaits between here and ``_launch``, which registers the run before any request can look.
+                self._admitting.discard(job.id)
             if not advanced:
                 logger.info("Job %s not dispatched: it was paused, deleted, edited or already dispatched", job.id)
                 return
@@ -217,11 +244,12 @@ class SchedulerDispatchMixin:
         try:
             now = datetime.now(UTC)
             scheduled = trigger_source == "cron"
-            # A one-shot's instant is explicit: neither a cooldown nor the active window postpones it.
-            once = job.schedule.kind == ScheduleKind.ONCE
+            manual = trigger_source == TriggerKind.MANUAL
+            # A one-shot's instant and a manual request are explicit: neither a cooldown nor the active window postpones them.
+            explicit = manual or job.schedule.kind == ScheduleKind.ONCE
 
             skip_reason = pre_execution_check(job, now)
-            if skip_reason == "cooldown_active" and once:
+            if skip_reason == "cooldown_active" and explicit:
                 skip_reason = None
             if skip_reason:
                 logger.warning("Job %s skipped: %s", job.id, skip_reason)
@@ -234,7 +262,7 @@ class SchedulerDispatchMixin:
                     await self._executor.record_guard_skip(job, reason=skip_reason, trigger_source=trigger_source)
                 return
 
-            if not once and not is_within_active_hours(job.active_hours):
+            if not explicit and not is_within_active_hours(job.active_hours):
                 logger.warning("Job %s skipped: outside active hours", job.id)
                 if scheduled:
                     await self._executor.record_guard_skip(
@@ -246,7 +274,8 @@ class SchedulerDispatchMixin:
                 logger.warning("Job %s skipped: previous instance still running (skip_if_active)", job.id)
                 return
 
-            stagger = _resolve_stagger_ms(job)
+            # The stagger spreads scheduled load; a person waiting for a manual run is not part of it.
+            stagger = 0 if manual else _resolve_stagger_ms(job)
             if stagger > 0:
                 delay_ms = random.randint(0, stagger)
                 logger.warning("Job %s: stagger delay %dms", job.id, delay_ms)
@@ -262,6 +291,7 @@ class SchedulerDispatchMixin:
                 if not await adopt_latest(self._store, job) or job.status != JobStatus.ACTIVE:
                     logger.info("Job %s was deleted or paused before it started, skipping", job.id)
                     return
+                # A manual run's snapshot is never saved (``_record_trial_outcome``), so its count stays in memory.
                 job.fire_count += 1
                 await self._executor.run_and_record(
                     job,
