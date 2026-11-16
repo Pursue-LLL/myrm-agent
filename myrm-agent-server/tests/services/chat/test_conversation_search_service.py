@@ -414,14 +414,12 @@ class TestConversationSearchService:
         assert [hit.conversation_id for hit in filtered.hits] == [response.hits[0].conversation_id]
 
     def test_source_interaction_boost_values(self) -> None:
-        from app.services.chat.conversation_search_service import (
-            _source_interaction_boost,
-        )
+        from app.services.chat.conversation_search_hits import source_interaction_boost
 
-        assert _source_interaction_boost("cron") == -0.10
-        assert _source_interaction_boost("web") == 0.06
-        assert _source_interaction_boost("kanban") == 0.0
-        assert _source_interaction_boost(None) == 0.0
+        assert source_interaction_boost("cron") == -0.10
+        assert source_interaction_boost("web") == 0.06
+        assert source_interaction_boost("kanban") == 0.0
+        assert source_interaction_boost(None) == 0.0
 
     @pytest.mark.asyncio
     async def test_conversation_history_search_provider_default_scope(self) -> None:
