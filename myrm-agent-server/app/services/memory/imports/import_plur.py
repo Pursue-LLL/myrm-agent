@@ -18,8 +18,6 @@ provenance fields in metadata so the imported memory stays auditable.
 
 from __future__ import annotations
 
-from typing import Any
-
 import yaml
 from myrm_agent_harness.toolkits.memory import (
     MemoryImportDryRunResult,
@@ -31,6 +29,7 @@ from app.services.memory.imports.import_adapter_utils import (
     build_result,
     iso_or_now,
     object_dict,
+    rule_fields,
     text,
 )
 
@@ -158,7 +157,7 @@ def _extract_engrams(payload: dict[str, object]) -> list[object]:
     raw_yaml = payload.get("raw_yaml")
     if isinstance(raw_yaml, str) and raw_yaml.strip():
         try:
-            parsed: Any = yaml.safe_load(raw_yaml)
+            parsed: object = yaml.safe_load(raw_yaml)
         except yaml.YAMLError:
             return []
         if isinstance(parsed, dict):
@@ -202,6 +201,7 @@ def _engram_item(entry: dict[str, object], statement: str, bucket: str) -> dict[
     if bucket == "procedural":
         return {
             "content": statement,
+            **rule_fields(statement),
             "tags": tags,
             "created_at": created_at,
             "metadata": metadata,
