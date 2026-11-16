@@ -8,6 +8,7 @@ myrm_agent_harness.toolkits.storage.base::StorageProvider (POS: unified storage 
 
 [OUTPUT]
 sync_prebuilt_seeds: sync version-controlled seeds to storage with three-way hash protection
+verify_reused_sync: the full reconciliation a start that reused the last sync left for later
 PrebuiltSyncResult: synced_count and discovered skill_ids
 
 [POS]
@@ -23,11 +24,14 @@ through the files API refreshes it at the next sync. The snapshot also carries t
 ``required_permissions``, which the enable-time permission gate reads.
 A seed's snapshot (token count, tags) is built only when the seed is installed or changed; seeds that
 already match their stored copy are never tokenized, so a later start spends no pre-listen time counting tokens.
+A start may ask to reuse the last complete sync (``reuse_unchanged``, see ``prebuilt_sync_state``): its reconciliation
+then runs after the first screen, in ``verify_reused_sync``; every other start reconciles in full before it returns.
 Also handles stale entry cleanup for removed bundled skills.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -46,6 +50,13 @@ from myrm_agent_harness.toolkits.storage.base import StorageProvider
 from myrm_agent_harness.utils.text_utils import get_token_count
 
 from app.core.skills.models import Skill, SkillType
+from app.core.skills.prebuilt_bundle_sync import sync_skill_bundle_files
+from app.core.skills.prebuilt_sync_state import (
+    iter_seed_dirs,
+    load_reusable_skill_ids,
+    save_sync_state,
+    seeds_fingerprint,
+)
 from app.core.skills.providers.local import parse_skill_md
 from app.core.storage.paths import (
     SKILL_METADATA_FILE,
@@ -67,6 +78,10 @@ class PrebuiltSyncResult:
 
     synced_count: int
     skill_ids: tuple[str, ...]
+
+
+# Fingerprint of the last complete sync this start reused, until ``verify_reused_sync`` has reconciled it.
+_reused_fingerprint: str | None = None
 
 
 def _parse_tags(raw: dict[str, object] | None) -> list[str]:
@@ -172,36 +187,15 @@ async def _write_skill_to_storage(
     await storage.write_text(metadata_path, json.dumps(skill.to_dict(), indent=2))
 
 
-async def _sync_skill_bundle_files(
-    storage: StorageProvider,
-    skill_id: str,
-    skill_dir: Path,
-) -> None:
-    """Sync bundled seed files (e.g. scripts/) alongside SKILL.md.
+async def sync_prebuilt_seeds(storage: StorageProvider, *, reuse_unchanged: bool = False) -> PrebuiltSyncResult:
+    """Sync prebuilt skill seeds to storage. Runs at most once per process.
 
-    Auxiliary bundle files always follow upstream seeds and are not part of the
-    SKILL.md three-way hash protection (users edit prose, not bundled tooling).
+    With ``reuse_unchanged`` (the boot, in local mode) a start whose seeds are those of the last complete sync, and whose
+    stored copies are all present, returns that sync's skill ids at once: the reconciliation would change nothing the
+    first screen reads, and ``verify_reused_sync`` runs it later. Any other start reconciles in full before it returns
+    and then records the seeds it completed for.
     """
-    for path in skill_dir.rglob("*"):
-        if not path.is_file():
-            continue
-        relative = path.relative_to(skill_dir)
-        if relative.name == SKILL_MD_FILE or relative.name.startswith("."):
-            continue
-        if any(part.startswith("_") for part in relative.parts):
-            continue
-
-        rel_posix = relative.as_posix()
-        storage_path = get_skill_file_path(SkillType.PREBUILT, skill_id, rel_posix)
-        if path.suffix in {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".sh"}:
-            await storage.write_text(storage_path, path.read_text(encoding="utf-8"))
-        else:
-            await storage.write(storage_path, path.read_bytes())
-
-
-async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
-    """Sync prebuilt skill seeds to storage. Runs at most once per process."""
-    global _synced  # noqa: PLW0603
+    global _synced, _reused_fingerprint  # noqa: PLW0603
     if _synced:
         return PrebuiltSyncResult(synced_count=0, skill_ids=())
 
@@ -210,18 +204,42 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
     if not SEEDS_DIR.is_dir():
         return PrebuiltSyncResult(synced_count=0, skill_ids=())
 
+    fingerprint = await asyncio.to_thread(seeds_fingerprint, SEEDS_DIR) if reuse_unchanged else None
+    if fingerprint is not None:
+        reusable_ids = await load_reusable_skill_ids(storage, fingerprint)
+        if reusable_ids is not None:
+            _reused_fingerprint = fingerprint
+            logger.info("Prebuilt skills unchanged since the last complete sync (%d skills)", len(reusable_ids))
+            return PrebuiltSyncResult(synced_count=0, skill_ids=reusable_ids)
+
+    result = await _reconcile(storage)
+    if fingerprint is not None:
+        await save_sync_state(storage, fingerprint, result.skill_ids)
+    return result
+
+
+async def verify_reused_sync(storage: StorageProvider) -> PrebuiltSyncResult | None:
+    """Reconcile in full a start that reused the last complete sync; None when there is nothing to reconcile.
+
+    It repairs what changed in storage since that sync (a bundle file removed, a SKILL.md edited through the files API,
+    a stale entry left behind) exactly as a start that reconciled before listening would have.
+    """
+    global _reused_fingerprint  # noqa: PLW0603
+    fingerprint, _reused_fingerprint = _reused_fingerprint, None
+    if fingerprint is None:
+        return None
+    result = await _reconcile(storage)
+    await save_sync_state(storage, fingerprint, result.skill_ids)
+    return result
+
+
+async def _reconcile(storage: StorageProvider) -> PrebuiltSyncResult:
+    """Bring storage in line with every seed: install, update, protect user copies, repair, drop stale entries."""
     synced = 0
     skill_ids: list[str] = []
 
-    for skill_dir in sorted(SEEDS_DIR.iterdir()):
-        if not skill_dir.is_dir() or skill_dir.name.startswith(("_", ".")):
-            continue
-
-        skill_md_path = skill_dir / SKILL_MD_FILE
-        if not skill_md_path.is_file():
-            continue
-
-        source_content = skill_md_path.read_text(encoding="utf-8")
+    for skill_dir in iter_seed_dirs(SEEDS_DIR):
+        source_content = (skill_dir / SKILL_MD_FILE).read_text(encoding="utf-8")
 
         try:
             frontmatter = parse_skill_frontmatter(source_content, skill_dir.name)
@@ -278,7 +296,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             skill = build_skill()
             skill.origin_hash = source_hash
             await _write_skill_to_storage(storage, skill, skill_md_storage, metadata_storage, source_content)
-            await _sync_skill_bundle_files(storage, skill_id, skill_dir)
+            await sync_skill_bundle_files(storage, skill_id, skill_dir)
             synced += 1
             logger.info("Synced new prebuilt skill: %s", skill_id)
             continue
@@ -295,7 +313,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             if current_hash == source_hash:
                 # Content matches upstream — normal write to add origin_hash
                 await _write_skill_to_storage(storage, skill, skill_md_storage, metadata_storage, source_content)
-                await _sync_skill_bundle_files(storage, skill_id, skill_dir)
+                await sync_skill_bundle_files(storage, skill_id, skill_dir)
                 synced += 1
                 logger.info("Synced prebuilt skill (migration baseline): %s", skill_id)
             else:
@@ -306,7 +324,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
                 meta_json = json.dumps(skill.to_dict(), indent=2)
                 await storage.write_text(metadata_storage, meta_json)
                 logger.info("Preserved user copy of prebuilt skill %s (migration, marked upstream update)", skill_id)
-            await _sync_skill_bundle_files(storage, skill_id, skill_dir)
+            await sync_skill_bundle_files(storage, skill_id, skill_dir)
             continue
 
         if current_hash != origin_hash:
@@ -322,7 +340,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
                 logger.info("Prebuilt skill %s: user-modified, upstream update available", skill_id)
             else:
                 await _patch_snapshot_requires(storage, metadata_storage, existing_meta, kept_requires)
-            await _sync_skill_bundle_files(storage, skill_id, skill_dir)
+            await sync_skill_bundle_files(storage, skill_id, skill_dir)
             continue
 
         # User hasn't modified — check if upstream has a newer version
@@ -336,7 +354,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
         else:
             await _patch_snapshot_requires(storage, metadata_storage, existing_meta, kept_requires)
 
-        await _sync_skill_bundle_files(storage, skill_id, skill_dir)
+        await sync_skill_bundle_files(storage, skill_id, skill_dir)
 
     if synced:
         logger.info("Synced %d prebuilt skill(s) to storage", synced)

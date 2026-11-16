@@ -93,7 +93,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
 | `server/test_lifespan_config_migration.py` | 单元 | 启动阶段在每种部署模式下都调用 `seal_stored_configs`：调用不在任何 `if` 之下、失败只记警告不外抛（读启动函数源码，删掉调用或加上模式判断即红） |
 | `server/test_lifespan_channel_image_sweep.py` | 单元 | 服务启动把渠道图片缓存的过期清扫交给维护守护进程：恰好提交一次、且在守护进程工作线程启动之后；提交被拒（队列满）只记警告、不拖垮启动（读启动函数源码，删掉提交、挪到启动之前或去掉保护即红） |
-| `server/test_lifespan_background.py` | 单元 | 后台任务分两步启动：孤儿目标恢复在 socket 绑定后启动；预热在就绪路由首次报告数据库就绪后的稳定期启动，无人查询就绪时由兜底延迟启动，反复的就绪轮询不会把启动往后推；关闭时取消尚未触发的启动、之后的就绪通知不再启动任何任务；任务失败记 ERROR 且不影响其余、预热任务全部结束后才结束启动期 GC 暂停 |
+| `server/test_lifespan_background.py` | 单元 | 后台任务分两步启动：孤儿目标恢复在 socket 绑定后启动；预热（含预置技能对账）在就绪路由首次报告数据库就绪后的稳定期启动，无人查询就绪时由兜底延迟启动，反复的就绪轮询不会把启动往后推；关闭时取消尚未触发的启动、之后的就绪通知不再启动任何任务；任务失败记 ERROR 且不影响其余、预热任务全部结束后才结束启动期 GC 暂停 |
+| `server/test_lifespan_prebuilt_skills.py` | 单元 | 预置技能同步在 lifespan 里的两个步骤：启动步骤只在本地模式请求沿用上次的完整同步、沙箱模式不请求，并照旧把结果发布给更新面板与技能启用状态；预热步骤只在对账确有变更时才发布；阶段 1b 确实调用启动步骤（读 `_phase_1b_parallel` 源码，去掉调用即红） |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
@@ -913,6 +914,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/skills/test_managed_skill_reader.py` | 模块 | `ManagedSkillSnapshotReader`：读服务根下的 SKILL.md 与资源字节、缺失技能/资源抛 `FileNotFoundError`、根在每次调用时读取（服务根被改后跟随）、技能名与资源路径越界（`..`、绝对路径）被拒 |
 | `core/skills/test_prebuilt_skill_script_commands.py` | 模块 | 预置技能的 SKILL.md 里写出的每条脚本命令（`python3 .claude/skills/<name>/…`）都是该技能的「纯调用」：执行器只对纯调用交出技能的保存设置，模型照文档写的命令因此拿得到设置；同时锁定三个脚本技能（邮箱、Google Workspace、X 搜索）确实被扫描到 |
 | `core/skills/test_prebuilt_sync_snapshot_cost.py` | 单元 | 预置技能种子的快照（token 计数、tags）仅在安装或上游变化时构建：首次启动为每个种子计数，之后与留存副本一致的种子不再计数，上游变化的种子是唯一被重新计数的 |
+| `core/skills/test_prebuilt_sync_reuse.py` | 单元 | 沿用上次完整同步：首次启动完整对账并记录种子；种子没变、副本齐全的下一次启动不对账就返回同样的技能 id，不带标志的调用从不读写记录；没有记录、记录损坏或不是文本或不是对象或格式不符或指纹对不上或没有技能、记录里写着从未存下过的技能、种子的 SKILL.md 或附属文件改动或增删、种子增删、留存的 SKILL.md 或快照或整个技能缺失、列举失败都回到监听前的完整对账；`verify_reused_sync` 修复留存副本在上次同步之后的变化（附属文件被删、SKILL.md 被改、残留条目），沿用时之外的启动没有事可做；记录只在对账完整结束后写入、对账失败时保持原样、写不进去不让启动失败、内容没变不重写，且不会被当成技能列出 |
+| `core/skills/test_prebuilt_sync_state.py` | 单元 | 种子指纹随同步读到的一切输入变化（SKILL.md、附属文件的增删改与移动、种子的增删改名），不随同步跳过的东西变化（隐藏文件、下划线前缀的文件与目录、没有 SKILL.md 的目录、种子目录旁的散文件）；各字段带长度前缀，同一串字节换个切法也得到不同指纹；种子与附属文件的遍历规则与同步一致 |
 | `api/skills/test_skill_reveal_api.py` | 模块 | `POST /skills/{id}/reveal`：打开真实技能目录、非本地模式拒绝、未知技能/无本地存储/目录缺失的错误映射 |
 | `services/agent/test_converter_agent_prompt_delivery.py` | 模块 | 真实转换器按 Web 请求形状（含 `agent_config`）交付智能体人设：保存的人设追加在客户端全局指令之后且只出现一次；会话级 `agent_config.system_prompt` 整体替换、空串清空、已保存的智能体不存在时仍生效；无 `agent_config` 的请求照用保存的人设 |
 | `services/agent/test_shared_context_name_resolution.py` | 模块 | 共享上下文显示名经真实 `SharedContextService` 与数据库往返抵达 agent params 与 wiki lane（会话导入出错会被兜底静默吞掉，故不 mock） |

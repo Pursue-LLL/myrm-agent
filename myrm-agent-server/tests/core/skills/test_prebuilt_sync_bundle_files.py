@@ -1,12 +1,14 @@
 """Bundle files shipped next to a seed's SKILL.md reach storage byte for byte, text and binary alike.
 
-The shipped seeds carry scripts and references of their own, and those reach storage too.
+The shipped seeds carry scripts and references of their own, and those reach storage too. A file that already matches
+is not written again, so a start does not rewrite about a megabyte of identical files.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
@@ -92,3 +94,53 @@ async def test_sync_copies_blender_references(storage: LocalStorageBackend) -> N
     ref_path = get_skill_file_path(SkillType.PREBUILT, "blender-mcp", "references/bpy-patterns.md")
     stored = await storage.read_text(ref_path)
     assert "bpy" in stored
+
+
+def _bundle_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> LocalStorageBackend:
+    seed = tmp_path / "seeds" / "bundle-probe"
+    (seed / "scripts").mkdir(parents=True)
+    (seed / "SKILL.md").write_text(SKILL_MD, encoding="utf-8")
+    (seed / "scripts" / "run.sh").write_text("echo ok\n", encoding="utf-8")
+    (seed / "scripts" / "windows.txt").write_bytes(b"echo a\r\necho b\r\n")
+    (seed / "logo.png").write_bytes(PNG_BYTES)
+    monkeypatch.setattr(prebuilt_sync, "SEEDS_DIR", tmp_path / "seeds")
+    return LocalStorageBackend(str(tmp_path / "storage"))
+
+
+@pytest.mark.asyncio
+async def test_sync_does_not_rewrite_bundle_files_that_already_match(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    storage = _bundle_seed(tmp_path, monkeypatch)
+    await prebuilt_sync.sync_prebuilt_seeds(storage)
+    prebuilt_sync._synced = False  # noqa: SLF001
+
+    with (
+        patch.object(storage, "write_text", wraps=storage.write_text) as write_text,
+        patch.object(storage, "write", wraps=storage.write) as write,
+    ):
+        await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    # The CRLF script is compared as the text the sync stores (universal newlines), so it matches too.
+    assert write_text.call_count == 0
+    assert write.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_sync_rewrites_only_the_bundle_files_that_differ(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    storage = _bundle_seed(tmp_path, monkeypatch)
+    await prebuilt_sync.sync_prebuilt_seeds(storage)
+    script = get_skill_file_path(SkillType.PREBUILT, "bundle-probe", "scripts/run.sh")
+    logo = get_skill_file_path(SkillType.PREBUILT, "bundle-probe", "logo.png")
+    await storage.write_text(script, "echo tampered\n")
+    await storage.delete(logo)
+    prebuilt_sync._synced = False  # noqa: SLF001
+
+    with (
+        patch.object(storage, "write_text", wraps=storage.write_text) as write_text,
+        patch.object(storage, "write", wraps=storage.write) as write,
+    ):
+        await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    assert [call.args[0] for call in write_text.call_args_list] == [script]
+    assert [call.args[0] for call in write.call_args_list] == [logo]
+    assert await storage.read_text(script) == "echo ok\n"
+    assert await storage.read(logo) == PNG_BYTES

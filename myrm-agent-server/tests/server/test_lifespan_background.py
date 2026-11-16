@@ -26,7 +26,15 @@ from app.server.lifespan import background, startup
 from app.server.lifespan.state import logger
 
 _RECOVERY_TASKS = ("orphaned-goals",)
-_WARMUP_TASKS = ("warmup", "kanban-dispatchers", "startup-event", "trunk-templates", "tool-layers", "route-table")
+_WARMUP_TASKS = (
+    "prebuilt-verification",
+    "warmup",
+    "kanban-dispatchers",
+    "startup-event",
+    "trunk-templates",
+    "tool-layers",
+    "route-table",
+)
 _ALL_TASKS = sorted((*_RECOVERY_TASKS, *_WARMUP_TASKS))
 
 # The application the lifespan hands over; the warm-up must walk this one's route table.
@@ -42,7 +50,7 @@ def _no_pending_starts() -> Iterator[None]:
 
 
 def _install_fakes(monkeypatch: pytest.MonkeyPatch, started: list[str], *, failing: str | None = None) -> asyncio.Event:
-    """Replace the seven background coroutines; each records its start, waits for ``release``, then ends or fails.
+    """Replace the eight background coroutines; each records its start, waits for ``release``, then ends or fails.
 
     The fallback is far away, so only readiness (or a test that shortens it) can start the warm-up.
     """
@@ -57,6 +65,7 @@ def _install_fakes(monkeypatch: pytest.MonkeyPatch, started: list[str], *, faili
 
         return run
 
+    monkeypatch.setattr(background, "verify_prebuilt_skills", fake("prebuilt-verification"))
     monkeypatch.setattr(background, "run_async_warmup", fake("warmup"))
     monkeypatch.setattr(background, "pause_orphaned_active_goals", fake("orphaned-goals"))
     monkeypatch.setattr(background, "start_kanban_dispatchers", fake("kanban-dispatchers"))
