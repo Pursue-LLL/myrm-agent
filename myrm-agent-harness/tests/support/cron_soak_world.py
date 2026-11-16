@@ -9,7 +9,8 @@
 
 [POS]
 Pytest-only helper of the cron invariants soak: the soak keeps the random operations and the invariants, this module the
-fake world they run in.
+fake world they run in. The server's tests keep a twin of it in ``myrm-agent-server/tests/support/cron_soak_world.py``
+(the two test suites cannot share one): a change here is made there too.
 """
 
 from __future__ import annotations

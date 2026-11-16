@@ -12,7 +12,9 @@
 
 [POS]
 Pytest-only helper of the cron invariants soak over the in-memory store: a test file picks the store and the seeds, this
-module keeps the random operations and the invariants that test's docstring lists.
+module keeps the random operations and the invariants that test's docstring lists. The server's tests run the same soak
+over the SQLAlchemy store from ``myrm-agent-server/tests/support/cron_soak.py``, a twin of this module (the two test
+suites cannot share one): an operation or an invariant changed here is changed there too.
 """
 
 from __future__ import annotations
