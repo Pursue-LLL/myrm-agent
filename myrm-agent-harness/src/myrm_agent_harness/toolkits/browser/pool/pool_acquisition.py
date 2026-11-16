@@ -59,7 +59,7 @@ class PoolAcquisitionMixin:
     - _crash_handled_pages: set[int]
     - _total_acquires / _total_releases / _current_pages_in_use: int
     - _make_page_pool, _get_least_loaded_browser, _register_page_crash_handler, _ensure_lifecycle_loop,
-      _evict_after_driver_exit (provided by GlobalBrowserPool and its other mixins)
+      _evict_after_driver_exit, _guards_egress (provided by GlobalBrowserPool and its other mixins)
     """
 
     _browsers: list[BrowserInstance]
@@ -86,6 +86,8 @@ class PoolAcquisitionMixin:
         def _register_page_crash_handler(self, page: Page, inst: BrowserInstance) -> None: ...
 
         def _ensure_lifecycle_loop(self) -> None: ...
+
+        def _guards_egress(self, browser_inst: BrowserInstance) -> bool: ...
 
         async def _evict_after_driver_exit(self) -> None: ...
 
@@ -166,6 +168,7 @@ class PoolAcquisitionMixin:
                     extra_kwargs=merged_kwargs,
                     context_key=ctx_key,
                     extension_attached=isinstance(browser_inst, ExtensionBrowserInstance),
+                    guard_egress=self._guards_egress(browser_inst),
                 )
                 new_pool = self._make_page_pool(browser_inst, new_context)
 

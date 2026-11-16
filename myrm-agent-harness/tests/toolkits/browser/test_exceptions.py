@@ -2,13 +2,15 @@
 
 Covers credential masking at construction (str(e) is the propagation path to the
 LLM) and in format_for_llm(), plus the RefNotFoundError URL-change suggestion,
-which must not surface full query strings.
+which must not surface full query strings, and the recovery hint a connection
+the network policy refused gets.
 """
 
 from __future__ import annotations
 
 from myrm_agent_harness.toolkits.browser.exceptions import (
     BrowserError,
+    BrowserNavigationError,
     RefNotFoundError,
 )
 
@@ -82,3 +84,21 @@ class TestRefNotFoundErrorRedaction:
         msg = str(err)
         assert "Page has navigated from" in msg
         assert "app.com" in msg
+
+
+class TestNavigationErrorEgressRefusal:
+    def test_a_refused_connection_points_at_the_network_policy(self) -> None:
+        err = BrowserNavigationError(
+            "Navigation failed",
+            url="http://internal.example/",
+            error_text="Page.goto: net::ERR_SOCKS_CONNECTION_FAILED at http://internal.example/",
+        )
+
+        hints = " ".join(err.recovery_suggestions)
+        assert "network policy" in hints
+        assert "private network" in hints
+
+    def test_other_connection_failures_keep_their_own_hints(self) -> None:
+        err = BrowserNavigationError("Navigation failed", error_text="net::ERR_CONNECTION_REFUSED")
+
+        assert "network policy" not in " ".join(err.recovery_suggestions)

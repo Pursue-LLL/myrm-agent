@@ -6,6 +6,7 @@
 - patchright.async_api::BrowserContext (POS: Patchright browser context)
 - .emulation::EmulationConfig (POS: browser environment emulation config with type safety and parameter validation)
 - .config::ResourceBlockConfig (POS: resource blocking config)
+- .egress_guard::EgressGuard (POS: loopback proxy that lets a context connect only to addresses the SSRF policy admits)
 - domain_filter::DomainAllowlist, DomainBlocklist, install_domain_filter (POS: domain filtering and resource blocking)
 - .stealth::get_stealth_script (POS: stealth anti-detection JS script loader)
 
@@ -30,6 +31,10 @@ Dedicated to BrowserContext creation and configuration, including:
     its window size, network, identity and certificate checks. No viewport, proxy, header, user-agent, emulation,
     permission, certificate or stealth override is applied, because the extension's debugger refuses some of them
     and the rest would change the user's own tab
+11. Connecting through the egress guard (``guard_egress=True``, a browser the pool launched itself) when the factory has
+    one, no proxy applies and the context's policy keeps private networks closed: the context's proxy is the guard's
+    loopback SOCKS5 proxy, so every connection of the page goes only to addresses the SSRF policy admitted. The first
+    such context first proves that the browser honors it
 """
 
 from __future__ import annotations
@@ -44,6 +49,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist, DomainBlocklist
 
     from .config import ResourceBlockConfig
+    from .egress_guard import EgressGuard
     from .emulation import EmulationConfig
     from .proxy import ProxyPool
 
@@ -120,6 +126,7 @@ class ContextFactory:
         self,
         proxy_pool: ProxyPool | None = None,
         default_emulation: EmulationConfig | None = None,
+        egress_guard: EgressGuard | None = None,
     ) -> None:
         """Initialize context factory.
 
@@ -129,10 +136,13 @@ class ContextFactory:
                 does not pass an explicit ``emulation`` to ``create_context``.
                 Used by BrowserPoolConfig to provide default permissions
                 (e.g. clipboard-read/write) across all contexts.
+            egress_guard: Connection guard that the contexts of ``create_context(..., guard_egress=True)`` connect
+                through; a context that has a proxy of its own (the pool's or an explicit one) keeps it.
 
         """
         self._proxy_pool = proxy_pool
         self._default_emulation = default_emulation
+        self._egress_guard = egress_guard
 
     async def create_context(
         self,
@@ -143,6 +153,7 @@ class ContextFactory:
         context_key: str | None = None,
         *,
         extension_attached: bool = False,
+        guard_egress: bool = False,
     ) -> BrowserContext:
         """Create a new BrowserContext with specified configuration.
 
@@ -161,11 +172,15 @@ class ContextFactory:
                 Falls back to context_type if not provided.
             extension_attached: The browser is the user's own, reached through the extension; the context asks
                 for no emulation, viewport, proxy, certificate or permission override.
+            guard_egress: The browser is one the pool launched itself, so the context may connect through the egress
+                guard (when the factory has one, the context has no proxy of its own and its policy does not
+                allow private networks).
 
         Returns:
             Configured BrowserContext instance with 30s default timeout
 
         Raises:
+            EgressGuardError: The browser does not route its connections through the egress guard.
             Exception: If context creation or domain filter installation fails
 
         Note:
@@ -180,6 +195,13 @@ class ContextFactory:
         domain_blocklist = cast("DomainBlocklist | None", policy.get("domain_blocklist"))
         resource_block = cast("ResourceBlockConfig | None", policy.get("resource_block"))
         allow_private_networks = bool(policy.get("allow_private_networks"))
+        if (
+            guard_egress
+            and self._egress_guard is not None
+            and not (extension_attached or allow_private_networks or "proxy" in ctx_opts)
+        ):
+            await self._egress_guard.verify_routing(browser)
+            ctx_opts["proxy"] = await self._egress_guard.start()
 
         try:
             context = await browser.new_context(**ctx_opts)  # type: ignore[arg-type]

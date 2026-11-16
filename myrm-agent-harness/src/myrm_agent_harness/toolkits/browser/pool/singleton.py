@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from .config import BrowserPoolConfig
+    from .egress_guard import EgressGuard
     from .extension_bridge import ExtensionBridge
     from .proxy import ProxyPool
 
@@ -110,6 +111,7 @@ def get_global_browser_pool(
     proxy_pool: ProxyPool | None = None,
     config: BrowserPoolConfig | None = None,
     extension_bridge: ExtensionBridge | None = None,
+    egress_guard: EgressGuard | None = None,
 ) -> GlobalBrowserPool:
     """Get GlobalBrowserPool singleton.
 
@@ -121,6 +123,7 @@ def get_global_browser_pool(
         proxy_pool: Proxy pool (supports rotation and sticky sessions)
         config: Browser pool config (concurrency/rate-limiting/memory-guard)
         extension_bridge: ExtensionBridge protocol impl for EXTENSION launch mode (injected from business layer)
+        egress_guard: Connection guard for the contexts of launched browsers (strict network policy); the pool stops it
 
     Returns:
         GlobalBrowserPool singleton
@@ -135,6 +138,7 @@ def get_global_browser_pool(
             proxy_pool=proxy_pool,
             config=config,
             extension_bridge=extension_bridge,
+            egress_guard=egress_guard,
         )
 
     return _global_pool

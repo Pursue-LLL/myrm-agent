@@ -5,6 +5,7 @@ Auto-bypasses Cloudflare Turnstile/Interstitial, hides Canvas fingerprints.
 
 [INPUT]
 - .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy and network blocklist for the web_fetch tiers)
+- toolkits.browser.pool.egress_guard::EgressGuard, create_egress_guard (POS: loopback proxy that lets a browser connect only to addresses the SSRF policy admits)
 - toolkits.browser.pool.proxy::ProxyPool (POS: Manages proxy rotation across Browser Pool and FetchEngine. Supports: 1. Round-robin rotation across multiple proxies 2. Sticky sessions (same proxy for a given session_id with TTL) 3. Concurrency-safe in asyncio single-threaded event loop 4. Environment variable loading (MYRM_PROXIES) 5. Automatic expired session cleanup (via lifecycle tick))
 
 [OUTPUT]
@@ -14,7 +15,9 @@ Auto-bypasses Cloudflare Turnstile/Interstitial, hides Canvas fingerprints.
 Stealth Fetcher — Maximum anti-detection based on Scrapling Patchright + BrowserForge.
 Scrapling navigates without a route hook, so redirect hops cannot be vetted in flight; the requested URL
 is judged before the navigation and the final URL before the body is returned, against the SSRF policy
-and the network blocklist, and a rejected one raises SSRFSecurityError.
+and the network blocklist, and a rejected one raises SSRFSecurityError. Under the strict network policy the
+browser also connects only through an egress guard that lives as long as the fetch, so a hop, a subresource
+or a rebinding name that was never judged still cannot reach an internal address.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from .protocols import FetcherType, FetchResult
 from .target_guard import FetchTargetGuard
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.browser.pool.egress_guard import EgressGuard
     from myrm_agent_harness.toolkits.browser.pool.proxy import ProxyPool
 
 logger = logging.getLogger(__name__)
@@ -55,8 +59,16 @@ class StealthFetcher:
         self._allow_private_networks = allow_private_networks
         self._network_blocklist = network_blocklist
 
+    def _create_egress_guard(self) -> EgressGuard | None:
+        """The guard for this fetch's browser: strict network policy, and no proxy pool whose proxies carry the connections."""
+        if self._allow_private_networks or self._proxy_pool:
+            return None
+        from myrm_agent_harness.toolkits.browser.pool.egress_guard import create_egress_guard
+
+        return create_egress_guard()
+
     async def fetch(self, url: str) -> FetchResult | None:
-        from scrapling.fetchers import StealthyFetcher  # type: ignore[import-untyped]
+        from scrapling.fetchers import StealthyFetcher
 
         guard = FetchTargetGuard.for_fetch(
             url,
@@ -65,24 +77,28 @@ class StealthFetcher:
             ssrf_shield=is_ssrf_shield_enabled(),
             network_blocklist=self._network_blocklist,
         )
+        egress = self._create_egress_guard()
         async with self._semaphore:
             try:
                 if guard is not None:
                     await guard.pin(url)
-                kwargs: dict[str, object] = {
-                    "headless": True,
-                    "network_idle": True,
-                    "block_webrtc": True,
-                    "hide_canvas": True,
-                    "disable_resources": True,
-                    "block_ads": True,
-                    "solve_cloudflare": True,
-                }
-                if self._proxy_pool:
-                    kwargs["proxy"] = self._proxy_pool.get_next().to_url()
-                    kwargs["dns_over_https"] = True
+                proxy = self._proxy_pool.get_next().to_url() if self._proxy_pool else None
+                # Scrapling's own ``proxy`` option drops ``bypass``; ``additional_args`` reach the context unchanged.
+                guard_proxy = {"proxy": await egress.start()} if egress is not None else None
                 async with asyncio.timeout(_STEALTH_TIMEOUT_S):
-                    response = await StealthyFetcher.async_fetch(url, **kwargs)
+                    response = await StealthyFetcher.async_fetch(
+                        url,
+                        headless=True,
+                        network_idle=True,
+                        block_webrtc=True,
+                        hide_canvas=True,
+                        disable_resources=True,
+                        block_ads=True,
+                        solve_cloudflare=True,
+                        proxy=proxy,
+                        dns_over_https=proxy is not None,
+                        additional_args=guard_proxy,
+                    )
                 if guard is not None:
                     await guard.pin(response.url or url)
                 from ..processing.charset_detector import detect_and_decode_html
@@ -103,6 +119,9 @@ class StealthFetcher:
             except Exception as exc:
                 logger.warning(f"StealthFetcher failed: {url} — {exc}")
                 return None
+            finally:
+                if egress is not None:
+                    await egress.stop()
 
     async def shutdown(self) -> None:
         pass

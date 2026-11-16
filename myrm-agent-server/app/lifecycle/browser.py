@@ -53,6 +53,7 @@ async def warmup_global_browser_pool() -> None:
     from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
 
     from app.config.browser import (
+        get_browser_egress_guard,
         get_browser_launch_options,
         get_browser_pool_config,
         resolve_cloud_browser_endpoint,
@@ -77,6 +78,7 @@ async def warmup_global_browser_pool() -> None:
         launch_options=launch_options,
         extension_bridge=get_extension_bridge(),
         proxy_pool=proxy_pool,
+        egress_guard=get_browser_egress_guard(),
     )
     await pool.warmup(
         browsers=settings.browser_pool.warmup_browsers,

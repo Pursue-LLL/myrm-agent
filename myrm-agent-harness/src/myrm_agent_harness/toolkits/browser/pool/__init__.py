@@ -9,6 +9,9 @@
 - ProxyConfig: proxy server config
 - ProxyPool: proxy pool protocol (supports rotation and sticky sessions)
 - RoundRobinProxyPool: default round-robin proxy pool implementation
+- EgressGuard: loopback SOCKS5 proxy that lets launched browsers connect only to addresses the SSRF policy admits
+- EgressGuardError: a browser that does not route through the guard, or a guard that was stopped
+- create_egress_guard: the guard for this process's browsers, or None where the SSRF policy cannot be applied to connections
 - ExtensionBridge: Protocol for browser extension CDP proxy integration
 - ExtensionTab: data class for tabs exposed by extension
 - ExtensionStatus: real-time extension connection status
@@ -54,6 +57,7 @@ from .config import (
     ThrottleMode,
 )
 from .context_factory import ContextFactory
+from .egress_guard import EgressGuard, EgressGuardError, create_egress_guard
 from .emulation import EmulationConfig
 from .extension_bridge import (
     ExtensionBridge,
@@ -81,6 +85,8 @@ __all__ = [
     "CircuitBreakerOpenError",
     "ContextFactory",
     "ContextType",
+    "EgressGuard",
+    "EgressGuardError",
     "EmulationConfig",
     "ExtensionBridge",
     "ExtensionBridgeNotAvailable",
@@ -102,6 +108,7 @@ __all__ = [
     "RoundRobinProxyPool",
     "ThrottleMode",
     "approve_chrome_remote_debugging_prompt",
+    "create_egress_guard",
     "get_global_browser_pool",
     "is_accessibility_trusted",
     "reset_global_browser_pool_for_tests",

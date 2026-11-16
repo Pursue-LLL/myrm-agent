@@ -5,6 +5,7 @@
 - .config::BrowserEngine, BrowserPoolConfig, LaunchMode (POS: pool configuration)
 - .context_factory::ContextFactory (POS: rebuilt when the proxy pool is replaced)
 - .driver_leftovers::terminate_driver_browsers (POS: ends the browsers a dead driver left running)
+- .egress_guard::EgressGuard (POS: connection guard of the launched browsers; stopped at shutdown, kept across a proxy hot reload)
 - .proxy::ProxyPool (POS: proxy pool that can be replaced while the pool runs)
 - ..utils.page_health::is_driver_closed_error (POS: tells a close that failed on an exited Playwright driver from other failures)
 
@@ -15,7 +16,8 @@
 Everything that starts, ends or reconfigures the pool as a whole. The loop runs the crash watchdog's tick every 30 s
 and stops on its own when the pool is empty; closing an instance closes its page pools and contexts first and the
 browser itself only when the pool launched it (a user's browser is never closed on the user's behalf). A launched
-browser whose driver has exited cannot be closed that way, so its processes are ended instead.
+browser whose driver has exited cannot be closed that way, so its processes are ended instead. Shutdown ends the egress
+guard last, after the browsers whose connections it carried.
 """
 
 from __future__ import annotations
@@ -33,6 +35,7 @@ from .context_factory import ContextFactory
 from .driver_leftovers import terminate_driver_browsers
 
 if TYPE_CHECKING:
+    from .egress_guard import EgressGuard
     from .proxy import ProxyPool
 
 logger = logging.getLogger(__name__)
@@ -47,6 +50,7 @@ class PoolLifecycleMixin:
     - _config: BrowserPoolConfig
     - _launchers / _launch_options: launcher cache and launch options
     - _proxy_pool: ProxyPool | None
+    - _egress_guard: EgressGuard | None
     - _context_factory: ContextFactory
     - _lifecycle_task: asyncio.Task[None] | None
     - _total_acquires / _total_releases: counters reported at shutdown
@@ -58,6 +62,7 @@ class PoolLifecycleMixin:
     _launchers: dict[tuple[BrowserEngine, LaunchMode], BrowserLauncher]
     _launch_options: dict[str, object]
     _proxy_pool: ProxyPool | None
+    _egress_guard: EgressGuard | None
     _context_factory: ContextFactory
     _lifecycle_task: asyncio.Task[None] | None
     _total_acquires: int
@@ -147,6 +152,9 @@ class PoolLifecycleMixin:
                 await launcher.shutdown()
             self._launchers.clear()
 
+        if self._egress_guard is not None:
+            await self._egress_guard.stop()
+
         logger.info("GlobalBrowserPool shutdown completed")
 
     async def update_proxy_pool(self, proxy_pool: ProxyPool | None) -> None:
@@ -161,6 +169,7 @@ class PoolLifecycleMixin:
             self._context_factory = ContextFactory(
                 proxy_pool=proxy_pool,
                 default_emulation=self._config.default_emulation,
+                egress_guard=self._egress_guard,
             )
             doh_flag = "--dns-over-https-templates=https://cloudflare-dns.com/dns-query"
             args = list(raw) if isinstance(raw := self._launch_options.get("args"), list) else []
