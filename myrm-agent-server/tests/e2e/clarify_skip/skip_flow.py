@@ -55,23 +55,32 @@ async def complete_clarify_skip(
     skip_button_visible = form_state.get("hasSkip") is True
     api_stream_fallback = form_state.get("api_stream_fallback") is True
 
+    async def _api_skip_evidence(cap_sec: float) -> dict[str, object] | None:
+        """Skip evidence from the stored messages; None when none shows up within `cap_sec`."""
+        try:
+            return await wait_api_skip_done(chat_id=chat_id, api_base=api_base, timeout_sec=min(cap_sec, poll_budget))
+        except AssertionError:
+            return None
+
+    async def _ui_then_api_skip_evidence() -> dict[str, object] | None:
+        """Skip evidence from the UI bridge, else from the stored messages; hands the stream to the API when neither shows."""
+        try:
+            return await wait_ui_skip_done(chat, timeout_sec=poll_budget)
+        except AssertionError:
+            evidence = await _api_skip_evidence(90.0)
+            if evidence is None:
+                await release_ui_stream_for_api(chat)
+            return evidence
+
     async def _finalize_api_skip_resume(
         resume_result: dict[str, object],
     ) -> tuple[dict[str, object], dict[str, object]]:
         if is_hitl_already_resolved(resume_result):
             pytest.fail(f"Clarify HITL already resolved before skip completed (chat_id={chat_id!r}): {resume_result}")
         if resume_result.get("ok") is not True:
-            try:
-                return (
-                    await wait_api_skip_done(
-                        chat_id=chat_id,
-                        api_base=api_base,
-                        timeout_sec=min(90.0, poll_budget),
-                    ),
-                    resume_result,
-                )
-            except AssertionError:
-                pass
+            evidence = await _api_skip_evidence(90.0)
+            if evidence is not None:
+                return evidence, resume_result
         assert resume_result.get("ok") is True, f"API skip resume failed: {resume_result}; form={form_state}"
         # `ok` is continuation evidence (text after the skip, no new card); whether the model also said
         # DONE-SKIPPED is only reported.
@@ -107,61 +116,25 @@ async def complete_clarify_skip(
 
     bridge = await chat.evaluate(SKIP_VIA_BRIDGE_JS, intent=EvaluateIntent.SYNC_PROBE)
     if isinstance(bridge, dict) and bridge.get("ok") is True:
-        try:
-            return (
-                await wait_ui_skip_done(chat, timeout_sec=poll_budget),
-                resume_result,
-            )
-        except AssertionError:
-            try:
-                return (
-                    await wait_api_skip_done(
-                        chat_id=chat_id,
-                        api_base=api_base,
-                        timeout_sec=min(90.0, poll_budget),
-                    ),
-                    resume_result,
-                )
-            except AssertionError:
-                await release_ui_stream_for_api(chat)
+        evidence = await _ui_then_api_skip_evidence()
+        if evidence is not None:
+            return evidence, resume_result
 
     if form_state.get("hasSkip") is True:
         clicked = await chat.evaluate(CLICK_SKIP_JS, intent=EvaluateIntent.SYNC_PROBE)
         if isinstance(clicked, dict) and clicked.get("ok") is True:
-            try:
-                return (
-                    await wait_ui_skip_done(chat, timeout_sec=poll_budget),
-                    resume_result,
-                )
-            except AssertionError:
-                try:
-                    return (
-                        await wait_api_skip_done(
-                            chat_id=chat_id,
-                            api_base=api_base,
-                            timeout_sec=min(90.0, poll_budget),
-                        ),
-                        resume_result,
-                    )
-                except AssertionError:
-                    await release_ui_stream_for_api(chat)
+            evidence = await _ui_then_api_skip_evidence()
+            if evidence is not None:
+                return evidence, resume_result
 
     # Skip flow may already finish asynchronously after stream release.
     if api_stream_fallback:
         await asyncio.sleep(1.5)
     await release_ui_stream_for_api(chat)
     if not (form_visible and not skip_button_visible):
-        try:
-            return (
-                await wait_api_skip_done(
-                    chat_id=chat_id,
-                    api_base=api_base,
-                    timeout_sec=min(120.0, poll_budget),
-                ),
-                resume_result,
-            )
-        except AssertionError:
-            pass
+        evidence = await _api_skip_evidence(120.0)
+        if evidence is not None:
+            return evidence, resume_result
 
     resume_result = await resume_clarify_skip_after_ui_release(
         chat,
