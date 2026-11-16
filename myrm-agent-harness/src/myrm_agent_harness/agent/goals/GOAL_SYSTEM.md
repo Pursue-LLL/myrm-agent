@@ -110,7 +110,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 - 服务重启后，之前处于 ACTIVE 状态的 Goal 不再有执行引擎驱动（async task 随旧进程消亡）。
 - Server 层 `pause_orphaned_active_goals()` 在 lifespan Phase 3 异步执行：
   - 调用 `GoalStorage.list_active_sessions()` 枚举所有有 ACTIVE Goal 的 session。
-  - 将每个孤儿 Goal 标记为 PAUSED，并在 `goal.metadata["pause_reason"]` 写入原因。
+  - 将每个孤儿 Goal 标记为 PAUSED，并在 `goal.metadata["pause_reason"]` 写入原因。某个 session 的 active 索引读不出来（键缺失除外）时，`get_active_goal_id` 按「没有目标」处理并由 `GoalStorage` 以 WARNING 点名该 session，它的孤儿 Goal 不会被暂停，需按日志里的 session id 定位。
   - 发送 SystemNotification 通知用户。
 - 前端 GoalStatusCard 在 chatId 变化时主动 fetch `GET /goals/{chatId}/status`，确保页面加载即可展示 paused goal。
 - SSE 流的 `message_end` 事件携带 `goal_status.reason`，保证流式更新中 reason 不丢失。
