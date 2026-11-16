@@ -12,7 +12,7 @@ myrm-agent-desktop L1 架构文档。Tauri 桌面壳整体架构、双进程编�
 
 ## 三进程架构
 
-Tauri 启动时 **始终** 拉起 Next.js Standalone（Release 经 `frontend-shell` 轮询 `webui_port` 后跳转）。`enable_webui_mode` 仅切换 Python 后端绑定端口（Desktop `8080` / WebUI `25808`）与远程接入，不控制 Next 是否自启。
+Tauri 启动时 **始终** 拉起 Next.js Standalone（Release 先显示 `frontend-shell`，Next 应答后由 Rust 把主窗口导航过去）。`enable_webui_mode` 仅切换 Python 后端绑定端口（Desktop `8080` / WebUI `25808`）与远程接入，不控制 Next 是否自启。
 
 ```mermaid
 flowchart TD
@@ -39,7 +39,7 @@ flowchart TD
 | `src-tauri/src/runtime/` | Sidecar 编排、Appshot、Watchdog | [src-tauri/src/runtime/_ARCH.md](src-tauri/src/runtime/_ARCH.md) |
 | `src-tauri/src/commands/` | Tauri IPC 命令 | [src-tauri/src/commands/_ARCH.md](src-tauri/src/commands/_ARCH.md) |
 | `src-tauri/src/utils/` | 平台工具（锁屏、凭据、隔离修复、OTA 校验、进程强杀） | [src-tauri/src/utils/_ARCH.md](src-tauri/src/utils/_ARCH.md) |
-| `src-tauri/frontend-shell/` | Release WebView 启动轮询页（`withGlobalTauri` + IPC `webui_port`；`frontend-start-failed` 阻断轮询，`backend-start-failed` 仅警告并继续跳转） | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
+| `src-tauri/frontend-shell/` | Release WebView 启动骨架页（中/英文案，`withGlobalTauri` + 启动失败事件；不轮询、不自行跳转：Rust 在 Next 应答后导航到产品页，后端启动失败时带 `startup_error` 回到本页显示原因） | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
 | `sidecar/` | PyInstaller 后端 Sidecar 构建入口 | [sidecar/_ARCH.md](sidecar/_ARCH.md) |
 | `scripts/` | 构建、验签、分形门禁 | [scripts/_ARCH.md](scripts/_ARCH.md) |
 

@@ -93,9 +93,9 @@ Tauri 主进程 (Rust)
         └── 反向代理：/api/v1/* → http://localhost:{backend.port}/api/v1/*
 ```
 
-Release 模式 WebView 先加载 `frontend-shell/`（`withGlobalTauri: true`），IPC 读取 `webui_port` 后轮询 Next 就绪并跳转。
+Release 模式 WebView 先加载 `frontend-shell/`（`withGlobalTauri: true`）。壳页不轮询、不自行跳转：Rust 在 Next 应答后（若后端此时仍在启动，最多再等 2 s 看它是否快速失败）把主窗口导航到 `ProductOrigin::standalone_root`；后端启动失败则带 `startup_error` 把主窗口导航回壳页显示原因。
 
-该跳转只服务主窗口首屏：会话窗与宠物浮层不经壳页，直接以 `ProductOrigin`（`http://127.0.0.1:<webui_port>`）构造的完整地址开窗（`WebviewUrl::External`）——`WebviewUrl::App` 在发布版会回落到壳页，其跳转只回产品根路径，路径与查询全被丢弃。产品页（含这些子窗口）在发布版属 Remote 来源，Tauri ACL 对它的授权由启动期注册的 capability 给出（见 [ipc_security/_ARCH.md](ipc_security/_ARCH.md)）。
+该导航只服务主窗口首屏：会话窗与宠物浮层不经壳页，直接以 `ProductOrigin`（`http://127.0.0.1:<webui_port>`）构造的完整地址开窗（`WebviewUrl::External`）——`WebviewUrl::App` 在发布版会回落到壳页，壳页不自行跳转、Rust 也只导航主窗口，所以路径与查询到不了产品页。产品页（含这些子窗口）在发布版属 Remote 来源，Tauri ACL 对它的授权由启动期注册的 capability 给出（见 [ipc_security/_ARCH.md](ipc_security/_ARCH.md)）。
 
 ---
 

@@ -13,7 +13,7 @@ const MAIN_WEBVIEW_LABEL: &str = "main";
 const PET_OVERLAY_ROUTE: &str = "pet-overlay";
 
 /// 浮层页面地址：产品页来源上的 `/pet-overlay`。发布版的 `WebviewUrl::App` 会回落到壳页
-/// （其后跳转只回产品根路径），必须给出完整来源。
+/// （壳页不自行跳转，Rust 也只导航主窗口），必须给出完整来源。
 fn pet_overlay_url(origin: &ProductOrigin) -> Url {
     origin.page_url(&[PET_OVERLAY_ROUTE], &[])
 }
