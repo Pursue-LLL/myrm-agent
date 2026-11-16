@@ -40,7 +40,8 @@ def schedule_of(kind: str, now: datetime) -> Schedule:
     return {
         "fast_interval": Schedule(kind=ScheduleKind.INTERVAL, interval_ms=1000),
         "hourly_interval": Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000),
-        "five_field_cron": Schedule(kind=ScheduleKind.CRON, expr="*/10 * * * *", stagger_ms=0),
+        # Hourly, half an hour from now: a slot of its own never falls inside a soak, which only injects the slots it checks.
+        "five_field_cron": Schedule(kind=ScheduleKind.CRON, expr=f"{(now.minute + 30) % 60} * * * *", stagger_ms=0),
         "six_field_cron": Schedule(kind=ScheduleKind.CRON, expr="*/5 * * * * *", stagger_ms=0),
         "once": Schedule(kind=ScheduleKind.ONCE, run_at=now + timedelta(hours=1)),
     }[kind]

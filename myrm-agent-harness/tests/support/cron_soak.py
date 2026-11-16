@@ -97,6 +97,9 @@ class Soak:
             return await original(job)
 
         monkeypatch.setattr(store, "save_job", save_job)
+        # The soak ticks the scheduler itself: a timer of its own would start runs between two of its operations.
+        monkeypatch.setattr(CronScheduler, "_arm_timer", lambda scheduler: None)
+        monkeypatch.setattr(CronScheduler, "_arm_watchdog", lambda scheduler, delay=0.0: None)
 
     async def start(self) -> None:
         self.runner.gate = None  # a new process holds no run
@@ -204,9 +207,16 @@ class Soak:
         await self._wait_live(job)
         return gate
 
-    async def _check_only_marker(self, job: CronJob) -> None:
-        if (markers := [job_id for job_id, _ in await self.store.list_running()]) != [job.id]:
-            self._violate("marker", job.name, f"has one run in flight and the markers are {markers}")
+    async def _check_markers_match_runs(self) -> None:
+        """With runs parked, the markers are exactly their jobs: the one held, and any slot that came due beside it."""
+        in_flight = {job_id for job_id, runs in self.runner.live.items() if runs}
+        markers = {job_id for job_id, _ in await self.store.list_running()}
+        if markers != in_flight:
+            self._violate(
+                "marker",
+                ",".join(sorted(markers ^ in_flight)),
+                f"has runs in flight {sorted(in_flight)} and markers {sorted(markers)}",
+            )
 
     async def _check_manual_refused(self, job: CronJob) -> None:
         if (outcome := await self.mgr.run_now(job.id)) != RunNowOutcome.ALREADY_RUNNING:
@@ -220,7 +230,7 @@ class Soak:
         await self.sched._on_tick()
         await self._check_manual_refused(job)
         await self._drain_but_parked()
-        await self._check_only_marker(job)
+        await self._check_markers_match_runs()
         gate.set()
         self.runner.gate = None
         await self._drain()
@@ -259,7 +269,7 @@ class Soak:
         self.expected[job.id] += 1
         await self.sched._on_tick()
         await self._drain_but_parked()
-        await self._check_only_marker(job)
+        await self._check_markers_match_runs()
         gate.set()
         self.runner.gate = None
         await self._drain()
