@@ -187,7 +187,7 @@ class BaseAgent(BaseAgentModesMixin):
             _weave_dynamic_schemas,
         )
 
-        no_builtin = getattr(self.config, "no_builtin_tools", False)
+        no_builtin = self.config.no_builtin_tools
         self._cached_tools = _weave_dynamic_schemas(self._tool_registry.resolve(no_builtin_tools=no_builtin))
 
         if self._extensions:

@@ -10,6 +10,7 @@ function setHostname(hostname: string): void {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
 });
 
@@ -17,6 +18,12 @@ describe('isLocalDevHost', () => {
   it.each(['127.0.0.1', 'localhost'])('accepts the loopback host %s', (host) => {
     setHostname(host);
     expect(isLocalDevHost()).toBe(true);
+  });
+
+  it.each(['127.0.0.1', 'localhost'])('rejects the loopback host %s in a production build', (host) => {
+    vi.stubEnv('NODE_ENV', 'production');
+    setHostname(host);
+    expect(isLocalDevHost()).toBe(false);
   });
 
   it.each(['', '[::1]', '0.0.0.0', '192.168.1.5', 'example.com', 'localhost.evil.com', '127.0.0.1.evil.com'])(

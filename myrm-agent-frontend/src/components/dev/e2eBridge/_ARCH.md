@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-localhost 开发专用的聊天 E2E 桥实现，**非终端用户功能**。`../E2EChatBridge.tsx` 只在 local dev host 挂载；本目录提供 `window.__MYRM_E2E_CHAT__` 的成员（按职责分组，`members/createE2eChatBridge.ts` 组装）、发送流水线与它读取的页面探针、SSE 捕获和发送诊断（turn trace 与 store timeline）。
+localhost 开发专用的聊天 E2E 桥实现，**非终端用户功能**。`../E2EChatBridge.tsx` 只在非生产构建的 local dev host 挂载；本目录提供 `window.__MYRM_E2E_CHAT__` 的成员（按职责分组，`members/createE2eChatBridge.ts` 组装）、发送流水线与它读取的页面探针、SSE 捕获和发送诊断（turn trace 与 store timeline）。
 Python 端开发工具（`myrm-agent/scripts/dev/lib/cdp_chat/`）按成员名调用这些成员，成员名单由 `__tests__/e2eChatBridgeMembers.test.ts` 钉住；发送预算常量由 Python 测试读源码逐值对照（见 `sendTurnContract.ts`）。
 
 ## 文件清单
@@ -35,6 +35,6 @@ Python 端开发工具（`myrm-agent/scripts/dev/lib/cdp_chat/`）按成员名�
 
 ## 约束
 
-- 禁止在生产构建路径暴露新全局 API；host 检测须 fail-closed（守卫是 `../localDevHost.ts`）
+- 禁止在生产构建路径暴露新全局 API；host 检测须 fail-closed（守卫是 `../localDevHost.ts`，生产构建恒为假）
 - 新增或改名桥成员的规则见 [members/_ARCH.md](members/_ARCH.md) 的约束节
 - 预算常量只在 `sendTurnContract.ts` 声明，改数值同步 `myrm-agent/scripts/dev/lib/dev_gate/contract/wall_clock.py`

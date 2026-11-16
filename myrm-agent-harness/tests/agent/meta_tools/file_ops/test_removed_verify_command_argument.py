@@ -1,8 +1,7 @@
-"""A model that still sends ``verify_command`` is served, and the command it names never runs.
+"""A file-tool call that carries ``verify_command`` is served, and the command it names never runs.
 
-A conversation restored from before the parameter was removed shows the model calls that carry it, and the model
-repeats them. The call is handled like any other: no file tool takes a command, and a command put in an argument must
-not run under the file tool's permission verdict, which never reads the arguments.
+No file tool takes a command, so the argument is ignored like any other undeclared one; a command put in an argument
+must not run under the file tool's permission verdict, which never reads the arguments.
 
 Real chain: the file tools through a ``LocalExecutor`` on real files.
 """

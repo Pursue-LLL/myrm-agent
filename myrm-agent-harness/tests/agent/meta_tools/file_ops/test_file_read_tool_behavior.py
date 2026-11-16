@@ -19,11 +19,11 @@ _DUMMY_CONFIG = RunnableConfig()
 
 class TestFileReadInputNormalization:
     def test_normalize_json_string_paths(self) -> None:
-        model = FileReadInput(paths='["a.txt", "b.txt"]')
+        model = FileReadInput.model_validate({"paths": '["a.txt", "b.txt"]'})
         assert model.paths == ["a.txt", "b.txt"]
 
     def test_normalize_single_string_path(self) -> None:
-        model = FileReadInput(paths="solo.txt")
+        model = FileReadInput.model_validate({"paths": "solo.txt"})
         assert model.paths == ["solo.txt"]
 
     def test_normalize_list_paths(self) -> None:
@@ -33,7 +33,7 @@ class TestFileReadInputNormalization:
 
 @pytest.mark.asyncio
 async def test_file_read_tool_media_blocks_come_back_unwrapped_for_a_stale_argument(tmp_path: Path) -> None:
-    """A model still sending the removed ``preserve_in_context`` gets the media blocks as built, not an error."""
+    """An undeclared ``preserve_in_context`` argument is ignored: the media blocks come back as built, not an error."""
     img = tmp_path / "chart.png"
     img.write_bytes(b"\x89PNG\r\n\x1a\n")
     mock_executor = MagicMock()
@@ -118,7 +118,7 @@ async def test_file_read_tool_raises_tool_error_on_unexpected() -> None:
 
 @pytest.mark.asyncio
 async def test_file_read_tool_text_comes_back_unwrapped_for_a_stale_argument(tmp_path: Path) -> None:
-    """The schema no longer declares ``preserve_in_context``; a stale call is read normally, not wrapped or refused."""
+    """An undeclared ``preserve_in_context`` argument is ignored; the text is read normally, not wrapped or refused."""
     f = tmp_path / "note.txt"
     f.write_text("note", encoding="utf-8")
     mock_executor = MagicMock()

@@ -31,7 +31,7 @@
 ## 依赖
 
 - `@/store/*`（会话与 Agent 状态）
-- `@/components/dev/localDevHost::isLocalDevHost`：`MobileStatusBoard` 的 E2E 钩子 `window.__MYRM_E2E_MOBILE_CC__` 只在本地开发主机上挂
+- `@/components/dev/localDevHost::isLocalDevHost`：`MobileStatusBoard` 的 E2E 钩子 `window.__MYRM_E2E_MOBILE_CC__` 只在非生产构建的本地开发主机上挂
 - `@/services/*`（实时通信与接口交互）
 - `@/hooks/shared/useDraftPersistence`（与桌面 composer 共用的草稿持久化）
 - `../speechKeyterms`（桌面与移动端共用的 STT 热词提取）

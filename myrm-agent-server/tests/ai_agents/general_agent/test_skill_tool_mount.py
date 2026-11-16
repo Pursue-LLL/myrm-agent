@@ -233,13 +233,12 @@ def _calls_named(root: ast.AST, callee: str) -> list[ast.Call]:
 
 
 def test_factory_mounts_skill_tools_only_through_tool_setup() -> None:
-    """build_general_agent must not also hand the backends to the harness: that mounts a second copy."""
+    """build_general_agent must not also hand the write backend to the harness: that mounts a second copy."""
     tree = ast.parse(FACTORY_PATH.read_text(encoding="utf-8"))
     build = next(node for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef) and node.name == "build_general_agent")
 
     (agent_call,) = _calls_named(build, "create_skill_agent")
     handed_to_harness = {keyword.arg: ast.unparse(keyword.value) for keyword in agent_call.keywords}
-    assert handed_to_harness["market_backend"] == "None"
     assert handed_to_harness["write_backend"] == "None"
 
     (manage_gate,) = (

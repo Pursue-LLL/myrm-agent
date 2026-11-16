@@ -1,6 +1,6 @@
 'use client';
 
-import { useDeferredValue, useState, useRef, useEffect, useCallback } from 'react';
+import { useDeferredValue, useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { IconEdit, IconEye } from '@/components/features/icons/PremiumIcons';
@@ -93,8 +93,8 @@ export function WikiMarkdownEditor({
       });
     });
 
-    // Expose the editor for E2E to drive programmatic input
-    if (typeof window !== 'undefined') {
+    // Expose the editor for E2E to drive programmatic input (development builds only)
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
       window.__wikiMarkdownEditor = editorInstance;
       (window as unknown as { monaco?: Monaco }).monaco = monaco;
     }
@@ -103,7 +103,11 @@ export function WikiMarkdownEditor({
   // Ensure Monaco reference and scroll listeners are cleanly disposed on unmount
   useEffect(() => {
     return () => {
-      if (typeof window !== 'undefined' && window.__wikiMarkdownEditor === editorInstanceRef.current) {
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        typeof window !== 'undefined' &&
+        window.__wikiMarkdownEditor === editorInstanceRef.current
+      ) {
         delete window.__wikiMarkdownEditor;
       }
       if (scrollDisposableRef.current) {
@@ -165,7 +169,10 @@ export function WikiMarkdownEditor({
     [t],
   );
 
-  handleToolbarActionRef.current = handleToolbarAction;
+  // Monaco's hotkeys are registered once on mount; they call whichever toolbar handler is current through this ref.
+  useLayoutEffect(() => {
+    handleToolbarActionRef.current = handleToolbarAction;
+  }, [handleToolbarAction]);
 
   const editorPane = (
     <div

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -34,12 +36,30 @@ from myrm_agent_harness.agent.meta_tools.file_ops.core.read_semaphore import (
     get_read_semaphore,
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.observers.observer_manager import ObserverManager
+from myrm_agent_harness.utils.token_estimation import estimate_content_tokens
 
 _MODULE = "myrm_agent_harness.agent.meta_tools.file_ops.core.file_view_service"
 
 
 def _view_service(context: OperationContext, io_config: FileIOConfig | None = None) -> FileViewService:
     return FileViewService(context, io_config or DEFAULT_FILE_IO_CONFIG, ObserverManager())
+
+
+@contextmanager
+def _served_file(lines: list[str]) -> Iterator[AsyncMock]:
+    """Serve ``lines`` as the content of any file path, bypassing validation and the real file system."""
+    with (
+        patch(f"{_MODULE}.FileSystemStrategyFactory.create_strategy") as mock_factory,
+        patch(f"{_MODULE}.ValidatorChain") as mock_vc,
+        patch(f"{_MODULE}.get_file_integrity_guard", return_value=None),
+    ):
+        strategy = AsyncMock()
+        strategy.is_directory.return_value = False
+        strategy.get_file_size.return_value = len("\n".join(lines).encode())
+        strategy.read_file.return_value = lines
+        mock_factory.return_value = strategy
+        mock_vc.return_value.validate = AsyncMock()
+        yield strategy
 
 
 @pytest.mark.asyncio
@@ -272,3 +292,74 @@ async def test_execute_view_records_read_when_integrity_guard_active() -> None:
         mock_vc.return_value.validate = AsyncMock()
         await service.execute()
     guard.record_read.assert_called_once_with("tracked.py", "line")
+
+
+@pytest.mark.asyncio
+async def test_execute_view_skips_token_estimate_for_regular_file() -> None:
+    """Only archived context has a read budget; a regular file's content is never tokenized."""
+    context = OperationContext(operation=OperationType.VIEW, paths=["doc.py"], executor=None)
+    service = _view_service(context)
+    with _served_file(["alpha", "beta"]), patch(f"{_MODULE}.estimate_content_tokens") as estimate:
+        result = await service.execute()
+
+    assert "alpha" in result
+    estimate.assert_not_called()
+
+
+async def _archive_refetch_tokens_after_view(chat_id: str, path_arg: str, lines: list[str]) -> tuple[str, int]:
+    """View ``path_arg`` under a fresh task budget; return the output and the tokens the read was charged."""
+    context = OperationContext(operation=OperationType.VIEW, paths=[path_arg], executor=None)
+    service = _view_service(context)
+    token = set_current_chat_id(chat_id)
+    create_task_metrics(chat_id)
+    try:
+        with _served_file(lines):
+            result = await service.execute()
+        metrics = get_task_metrics(chat_id)
+        assert metrics is not None
+        return result, metrics.archive_refetch_tokens
+    finally:
+        reset_current_chat_id(token)
+        clear_task_metrics(chat_id)
+
+
+@pytest.mark.asyncio
+async def test_archive_range_read_is_charged_for_the_lines_it_shows() -> None:
+    chat_id = "chat_archive_range_charge"
+    lines = [f"requested line {i}" for i in range(1, 6)] + ["unrequested payload " * 20] * 400
+
+    result, charged = await _archive_refetch_tokens_after_view(
+        chat_id, f".context/{chat_id}/compacted/result.txt:1-5", lines
+    )
+
+    assert "requested line 5" in result
+    assert "unrequested payload" not in result
+    assert charged == estimate_content_tokens("\n".join(lines[:5]))
+
+
+@pytest.mark.asyncio
+async def test_archive_range_read_counts_lines_as_the_view_does_when_text_uses_bare_cr() -> None:
+    """A bare CR ends a line in the view, so ``:1-2`` shows two lines of a one-physical-line archive."""
+    chat_id = "chat_archive_range_bare_cr"
+    segments = [f"segment {i} " + "payload " * 20 for i in range(400)]
+
+    result, charged = await _archive_refetch_tokens_after_view(
+        chat_id, f".context/{chat_id}/compacted/result.txt:1-2", ["\r".join(segments)]
+    )
+
+    assert "segment 1 " in result
+    assert "segment 2 " not in result
+    assert charged == estimate_content_tokens("\n".join(segments[:2]))
+
+
+@pytest.mark.asyncio
+async def test_archive_full_read_is_charged_for_the_whole_content() -> None:
+    chat_id = "chat_archive_full_charge"
+    lines = [f"archived line {i}" for i in range(20)]
+
+    result, charged = await _archive_refetch_tokens_after_view(
+        chat_id, f".context/{chat_id}/compacted/result.txt", lines
+    )
+
+    assert "archived line 19" in result
+    assert charged == estimate_content_tokens("\n".join(lines))

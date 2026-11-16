@@ -330,17 +330,17 @@ async function assertLocalBackendReadyForRequest(): Promise<void> {
   if (typeof window === 'undefined' || !isLocalMode()) {
     return;
   }
-  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('e2e_warm_platform_readiness') === 'true') {
-    return;
-  }
-  const e2eBase = resolveE2eApiBase();
-  if (e2eBase) {
-    const runtimeReady = (window as Window & { __MYRM_E2E_RUNTIME_READY__?: Promise<unknown> })
-      .__MYRM_E2E_RUNTIME_READY__;
-    if (runtimeReady) {
-      await runtimeReady;
+  if (process.env.NODE_ENV !== 'production') {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('e2e_warm_platform_readiness') === 'true') {
+      return;
     }
-    return;
+    if (resolveE2eApiBase()) {
+      const runtimeReady = window.__MYRM_E2E_RUNTIME_READY__;
+      if (runtimeReady) {
+        await runtimeReady;
+      }
+      return;
+    }
   }
   const ready = await ensureLocalBackendReady();
   if (!ready) {

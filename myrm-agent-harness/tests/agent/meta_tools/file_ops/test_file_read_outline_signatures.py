@@ -101,6 +101,27 @@ def test_expressions_are_not_listed_as_definitions(source: str) -> None:
     assert _entries(source, "a.ts") == []
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param("function* ids() {\n}\n", id="generator-function"),
+        pytest.param("export async function* pages() {\n}\n", id="async-generator-function"),
+        pytest.param("abstract class Shape {\n}\n", id="abstract-class"),
+        pytest.param("export const enum Flag { On }\n", id="const-enum"),
+        pytest.param("declare function load(): void;\n", id="declare"),
+        pytest.param("namespace Util {\n}\n", id="namespace"),
+        pytest.param('declare module "lib" {\n}\n', id="declare-module"),
+        pytest.param("module Legacy {\n}\n", id="module"),
+        pytest.param(
+            "const handler = (\n  a: string,\n) => {};\n", id="arrow-function-with-parameters-on-the-next-line"
+        ),
+    ],
+)
+def test_the_shapes_the_module_documents_as_unlisted_are_not_listed(source: str) -> None:
+    """``outline.py`` and ``file_read/_ARCH.md`` state these gaps; a scan that learns one must update both."""
+    assert _entries(source, "a.ts") == []
+
+
 def test_a_hostile_one_line_file_is_scanned_in_linear_time() -> None:
     """Unbounded type-parameter matching retries every `>(` against the rest of the line: 180 KB took seconds."""
     hostile = "const a = " + "<>(" * 60_000

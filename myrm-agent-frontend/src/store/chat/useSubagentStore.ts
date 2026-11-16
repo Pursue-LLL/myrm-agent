@@ -309,7 +309,8 @@ export const useSubagentStore = create<SubagentStore>((set, get) => ({
   clear: () => set({ nodes: {}, fissionBatch: null, fissionTopology: null }),
 }));
 
-if (typeof window !== 'undefined') {
+// E2E handle: development builds only.
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   (window as Window & { __myrmSubagentStore?: typeof useSubagentStore }).__myrmSubagentStore = useSubagentStore;
 }
 

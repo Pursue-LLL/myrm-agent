@@ -36,7 +36,14 @@ export const handleMessageStream = async (
   recievedMessage: string;
   meta?: TurnMeta;
 }> => {
-  if (data && typeof data === 'object' && 'type' in data && typeof data.type === 'string') {
+  // The E2E recorder (dev bridge) taps every stream event: development builds only.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    data &&
+    typeof data === 'object' &&
+    'type' in data &&
+    typeof data.type === 'string'
+  ) {
     const recorder = (
       window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null, data?: unknown) => void }
     ).__MYRM_E2E_RECORD_SSE__;

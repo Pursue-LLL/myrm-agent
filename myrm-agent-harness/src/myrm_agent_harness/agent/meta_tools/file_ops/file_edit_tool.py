@@ -128,7 +128,7 @@ def create_file_edit_tool(
         file_edit_tool 工具函数
 
     Note:
-        StorageProvider 通过 context 注入，不再通过参数传递
+        StorageProvider 通过 context 注入
     """
 
     @tool(

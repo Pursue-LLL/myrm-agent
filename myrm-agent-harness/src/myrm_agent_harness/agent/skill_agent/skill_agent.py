@@ -61,9 +61,6 @@ if TYPE_CHECKING:
         ExtractionLifecycleObserver,
     )
     from myrm_agent_harness.backends.secrets.protocols import AgentSecretBackend
-    from myrm_agent_harness.backends.skills.market_protocols import (
-        SkillMarketBackend,
-    )
     from myrm_agent_harness.backends.skills.protocols import (
         SkillBackend as SkillBackendProtocol,
     )
@@ -113,7 +110,6 @@ class SkillAgent(
         executor: "CodeExecutor | None" = None,
         storage_backend: "StorageProvider | None" = None,
         skill_backend: "SkillBackendProtocol | None" = None,
-        market_backend: "SkillMarketBackend | None" = None,
         write_backend: "ScanningSkillWriteBackend | None" = None,
         secret_backend: "AgentSecretBackend | None" = None,
         memory_manager: "MemoryManager | None" = None,
@@ -176,7 +172,6 @@ class SkillAgent(
 
         self.skill_configs = skill_configs
         self.skill_backend = skill_backend
-        self.market_backend = market_backend
         self.write_backend = write_backend
         self.storage_backend = storage_backend
         self.secret_backend = secret_backend

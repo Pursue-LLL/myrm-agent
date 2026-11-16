@@ -972,7 +972,7 @@ export const useIsViewingHistory = () =>
 
 export default useArtifactPortalStore;
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   (window as Window & { __myrmArtifactPortalStore?: typeof useArtifactPortalStore }).__myrmArtifactPortalStore =
     useArtifactPortalStore;
 }

@@ -1230,6 +1230,6 @@ const useChatStore = create<ChatState>()(
 
 export default useChatStore;
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   (window as Window & { __myrmChatStore?: typeof useChatStore }).__myrmChatStore = useChatStore;
 }

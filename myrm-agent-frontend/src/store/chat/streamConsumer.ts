@@ -48,10 +48,8 @@ export async function tryE2eAttachForPendingApproval(
   actions: ChatActionsMethods,
   _abortController: AbortController,
 ): Promise<{ attached: boolean; queueLen: number; attempt: number }> {
-  if (typeof window === 'undefined') {
-    return { attached: false, queueLen: 0, attempt: 0 };
-  }
-  if (!resolveE2eApiBase()) {
+  // E2E-only recovery: the production literal lets a production build drop the body and its diagnostics.
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined' || !resolveE2eApiBase()) {
     return { attached: false, queueLen: 0, attempt: 0 };
   }
   const chatId = state.chatId?.trim();

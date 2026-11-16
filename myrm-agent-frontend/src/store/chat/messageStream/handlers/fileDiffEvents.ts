@@ -167,13 +167,6 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       isTurnView: true,
       updatedAt: Date.now(),
     });
-    if (typeof window !== 'undefined' && data.data.refs) {
-      window.__MYRM_E2E_BROWSER_REFS__ = {
-        refs: data.data.refs,
-        pageUrl: String(data.data.page_url ?? ''),
-        updatedAt: Date.now(),
-      };
-    }
     return done(ctx);
   }
 
@@ -203,7 +196,8 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       isTurnView: true,
       updatedAt: Date.now(),
     });
-    if (typeof window !== 'undefined' && data.data.refs) {
+    // E2E handle (read by the dev bridge): development builds only.
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production' && data.data.refs) {
       window.__MYRM_E2E_DESKTOP_REFS__ = {
         refs: data.data.refs,
         appName: String(data.data.app_name ?? ''),

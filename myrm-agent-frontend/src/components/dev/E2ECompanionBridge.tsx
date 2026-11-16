@@ -11,6 +11,7 @@
  *
  * [POS]
  * App shell dev bridge for companion health-check UI signoff (non-terminal-user feature).
+ * AppLayout renders it only in non-production builds.
  */
 import { useLayoutEffect } from 'react';
 

@@ -8,7 +8,9 @@
 - result_formatter::ResultFormatter, FileContent, DirectoryListing (POS: result formatter)
 - file_integrity_guard::get_file_integrity_guard (POS: records what the model has read, for the read-before-edit gate)
 - context_management.infra.session_lock::get_current_chat_id (POS: current chat context)
-- utils.token_estimation::estimate_content_tokens (POS: file content token estimate)
+- utils.token_estimation::estimate_content_tokens (POS: token estimate of the lines an archived-context read shows)
+- utils.line_endings::view_lines (POS: the lines a view shows, so a range read is charged for what it displays)
+- context_management.infra.archive_reference::is_context_archive_path (POS: only archived context has a read budget)
 - context_management.tracking.archive_restore_runtime::evaluate_archive_refetch_for_path (POS: archived-context read budget)
 - core.archive_restore_guard::evaluate_archive_full_read_before_content, format_archive_restore_block (POS: archive restore read guard)
 - core.read_semaphore::get_read_semaphore (POS: read concurrency control)
@@ -27,6 +29,9 @@ import asyncio
 import logging
 
 from myrm_agent_harness.agent.config import FileIOConfig
+from myrm_agent_harness.agent.context_management.infra.archive_reference import (
+    is_context_archive_path,
+)
 from myrm_agent_harness.agent.context_management.infra.session_lock import (
     get_current_chat_id,
 )
@@ -37,13 +42,14 @@ from myrm_agent_harness.utils.token_estimation import (
 from ..observers.observer_manager import ObserverManager
 from ..strategies.strategy_factory import FileSystemStrategyFactory
 from ..utils.file_utils import parse_path_with_range
+from ..utils.line_endings import view_lines
 from ..validators.validator_chain import ValidatorChain
 from .archive_restore_guard import (
     evaluate_archive_full_read_before_content,
     format_archive_restore_block,
 )
 from .file_integrity_guard import get_file_integrity_guard
-from .operation_context import OperationContext
+from .operation_context import OperationContext, ViewRange
 from .read_semaphore import get_read_semaphore
 from .result_formatter import DirectoryListing, FileContent, ResultFormatter
 
@@ -148,29 +154,15 @@ class FileViewService:
         # 读取文件（返回完整行；行号范围切片统一由 ResultFormatter 处理，
         # 以正确报告总行数与续读 offset——strategy 层不二次切片）
         lines = await strategy.read_file(resolved_path)
-        content_text = "\n".join(lines)
-        estimated_content_tokens = estimate_content_tokens(content_text)
-        from myrm_agent_harness.agent.context_management.tracking.archive_restore_runtime import (
-            evaluate_archive_refetch_for_path,
-        )
-
-        archive_refetch_decision = evaluate_archive_refetch_for_path(
-            resolved_path,
-            estimated_tokens=estimated_content_tokens,
-            current_chat_id=get_current_chat_id(),
-            is_range_read=view_range is not None,
-        )
-        if archive_refetch_decision.is_archive_path and not archive_refetch_decision.allowed:
-            return format_archive_restore_block(
-                archive_refetch_decision,
-                archive_path=resolved_path,
-                estimated_tokens=estimated_content_tokens,
-            )
+        if is_context_archive_path(resolved_path):
+            blocked = self._archive_refetch_block(resolved_path, lines, view_range)
+            if blocked is not None:
+                return blocked
 
         # A line-range read records the hash of the whole file, as the version gate compares the file, not the slice.
         guard = get_file_integrity_guard(self.context.executor)
         if guard is not None:
-            guard.record_read(resolved_path, content_text)
+            guard.record_read(resolved_path, "\n".join(lines))
 
         # 通知观察者
         await self.observer_manager.notify_file_viewed(resolved_path)
@@ -186,3 +178,29 @@ class FileViewService:
             content,
             max_line_length=self.io_config.max_read_line_length,
         )
+
+    @staticmethod
+    def _archive_refetch_block(resolved_path: str, lines: list[str], view_range: ViewRange | None) -> str | None:
+        """The block that refuses a read of archived context past its budget, or ``None`` when the read may go on.
+
+        The read is charged for the lines the view shows, counted as the view counts them (a bare CR ends a line),
+        not for the whole archive; a range read of a large archive is not billed for the rest of it.
+        """
+        from myrm_agent_harness.agent.context_management.tracking.archive_restore_runtime import (
+            evaluate_archive_refetch_for_path,
+        )
+
+        shown = view_lines(lines)
+        if view_range is not None:
+            start_idx, end_idx = view_range.to_slice(len(shown))
+            shown = shown[start_idx:end_idx]
+        estimated_tokens = estimate_content_tokens("\n".join(shown))
+        decision = evaluate_archive_refetch_for_path(
+            resolved_path,
+            estimated_tokens=estimated_tokens,
+            current_chat_id=get_current_chat_id(),
+            is_range_read=view_range is not None,
+        )
+        if decision.allowed:
+            return None
+        return format_archive_restore_block(decision, archive_path=resolved_path, estimated_tokens=estimated_tokens)

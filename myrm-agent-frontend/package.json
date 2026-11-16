@@ -41,6 +41,7 @@
     "verify:hardcoded-copy": "bun scripts/check-hardcoded-copy.mjs",
     "verify:icu-syntax": "bun scripts/check-icu-syntax.mjs",
     "verify:intl-options": "bun scripts/check-ignored-intl-options.mjs",
+    "verify:e2e-channel": "bun scripts/check-e2e-channel.mjs",
     "verify:provider-icons": "vitest run src/components/features/settings/model-service/__tests__/",
     "pretest": "bun run i18n:split && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"
   },

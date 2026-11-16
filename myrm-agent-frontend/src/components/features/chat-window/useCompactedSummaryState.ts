@@ -42,8 +42,9 @@ export type ContextBranchForkDiag = {
   error?: string;
 };
 
+/** Publishes the last fork phase for the E2E lane to read; a production build keeps no diagnostics. */
 export function reportContextBranchForkDiag(diag: ContextBranchForkDiag): void {
-  if (typeof window === 'undefined') {
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') {
     return;
   }
   (window as Window & { __MYRM_CONTEXT_BRANCH_FORK_DIAG__?: ContextBranchForkDiag }).__MYRM_CONTEXT_BRANCH_FORK_DIAG__ =

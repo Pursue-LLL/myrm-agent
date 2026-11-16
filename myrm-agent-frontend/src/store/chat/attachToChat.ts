@@ -48,7 +48,8 @@ async function replayPendingHitlFromProbe(
   state: ChatActionsState,
   actions: ChatActionsMethods,
 ): Promise<number> {
-  if (!resolveE2eApiBase()) {
+  // SHPOIB E2E only: the production literal lets a build drop the probe and its test route.
+  if (process.env.NODE_ENV === 'production' || !resolveE2eApiBase()) {
     return approvalsQueuedFor(chatId);
   }
   try {
