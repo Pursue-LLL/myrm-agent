@@ -16,10 +16,11 @@
 [POS]
 A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval. Four classes of
 call carry a risk no approval covers, whoever gave it (the declaration, a standing approval of the user, the
-reviewer): credential data leaving the session, file paths outside the run's zones, integration write mutations,
-payment-like tool calls. ``cron_never_class`` names them and ``resolve_cron_ask`` answers every other ask from the
-declaration. Reached through ``_cron_settle``, which batch_processor calls for each ask that would wait for a person
-and, at the end of a batch, for each call the allowlist or the reviewer approved.
+reviewer): payment-like tool calls, shell commands that write to an integration (Google Workspace), web requests sent
+after a credential file was read (web fetch, browser tools, curl or wget style commands) and file paths outside the
+run's zones. ``cron_never_class`` names them and ``resolve_cron_ask`` answers every other ask from the declaration.
+Reached through ``_cron_settle``, which batch_processor calls for each ask that would wait for a person and, at the
+end of a batch, for each call the allowlist or the reviewer approved.
 """
 
 from __future__ import annotations

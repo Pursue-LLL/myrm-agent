@@ -58,12 +58,14 @@ describe('CronRunBlockedActions', () => {
     expect(screen.queryByText('×1')).toBeNull();
   });
 
-  it('points to the job settings that can allow the actions', () => {
+  it('points to the job settings that can allow a step and names what no setting allows', () => {
     renderCard('en', LISTED_COUNT);
 
     expect(
       screen.getByText(
-        'If this job should be allowed to do these, adjust its Capability Fence or Allowed Paths in the job settings.',
+        "Steps outside this job's Capability Fence or Allowed Paths can be allowed in the job settings. " +
+          'Payments, Google Workspace write commands, sending data out after a credential file was read, ' +
+          'and protected files are never run unattended.',
       ),
     ).toBeInTheDocument();
   });

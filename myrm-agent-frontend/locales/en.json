@@ -7346,7 +7346,7 @@
       "ttl_expired": "TTL expired"
     },
     "capabilitiesLabel": "Capability Fence",
-    "capabilitiesDesc": "Choose what this task may do on its own. Nobody can approve steps while a scheduled run is going, so anything not chosen here is refused.",
+    "capabilitiesDesc": "Choose what this task may do on its own. Nobody can approve steps while a scheduled run is going, so anything not chosen here is refused. Payments, Google Workspace write commands, sending data out after a credential file was read, and protected files are never run unattended, even when a matching capability is chosen.",
     "capabilitiesAllHint": "Nothing chosen: read files, search and open web pages only",
     "toolsAllowedLabel": "Built-in Tools Scope",
     "toolsAllowedDesc": "Limit which built-in tools mount at run time. Intersected with the bound agent profile. Leave empty for no extra restriction.",
@@ -7380,7 +7380,7 @@
     "verificationError": "Verify Error",
     "verificationSummary": "Delivery review",
     "verificationRunOkReviewFailed": "Task completed; delivery review did not pass — expand for details.",
-    "blockedHint": "If this job should be allowed to do these, adjust its Capability Fence or Allowed Paths in the job settings.",
+    "blockedHint": "Steps outside this job's Capability Fence or Allowed Paths can be allowed in the job settings. Payments, Google Workspace write commands, sending data out after a credential file was read, and protected files are never run unattended.",
     "connectorDegradedBadge": "Connector Degraded",
     "connectorFixSuggestion": "Troubleshooting Suggestion",
     "connectorHealthStatus": "Connector Health",

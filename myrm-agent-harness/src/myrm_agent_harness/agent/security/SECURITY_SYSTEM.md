@@ -621,7 +621,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 - 渠道 `/yolo` 命令（Router 内存态，通过 `InboundMessage.metadata["yolo_state"]` 注入）
 - Agent 安全配置中显式启用（per-Agent YOLO）
 
-安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性三类调用不受 YOLO 放行，仍挂起等人审批。定时运行（定时作业本身与它委派的子智能体）里没有人能为 YOLO 开关负责，所以 `evaluate_tool_batch` 对它不走 YOLO 分支，结果与 YOLO 关闭时完全相同：每个调用由 `_cron_settle` 按作业声明裁决（声明了且不属于下面四类才放行，其余拒绝），都不会挂起；四类指付款类调用、集成写入、读过凭据后的外发、作业区之外的路径，哪怕 allowlist 或审核模型已放行也照样拒绝（见「Cron 渠道安全配置」与「Cron 安全策略」）。
+安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性三类调用不受 YOLO 放行，仍挂起等人审批。定时运行（定时作业本身与它委派的子智能体）里没有人能为 YOLO 开关负责，所以 `evaluate_tool_batch` 对它不走 YOLO 分支，结果与 YOLO 关闭时完全相同：每个调用由 `_cron_settle` 按作业声明裁决（声明了且不属于下面四类才放行，其余拒绝），都不会挂起；四类指付款类调用、集成写入命令、读过凭据文件后的外发请求、作业区之外的路径，哪怕 allowlist 或审核模型已放行也照样拒绝（各类识别的范围见「Cron 渠道安全配置」，另见「Cron 安全策略」）。
 
 ### 5.0.1 Managed Approval Policy (MAP) — 组织审批下限
 
@@ -786,7 +786,7 @@ class AllowlistEntry:
    全部通过 → 执行工具
 5. DENY → 记录审计 → 记录拒绝计数 → 返回错误 ToolMessage
 6. ASK 的后续裁决，依次：
-     a. 定时运行 → `_cron_settle.settle_ask`（`resolve_cron_ask`）：能力声明视为预授权，四类调用除外（`cron_never_class`：付款类工具调用、凭据外送、越界路径、集成写入）；未声明能力集 fail-closed 拒绝
+     a. 定时运行 → `_cron_settle.settle_ask`（`resolve_cron_ask`）：能力声明视为预授权，四类调用除外（`cron_never_class`：付款类工具调用、读过凭据文件后的外发请求、越界路径、集成写入命令；识别范围见「Cron 渠道安全配置」）；未声明能力集 fail-closed 拒绝
      b. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
      c. auto-mode LLM 审核（社交不可逆动作与资金类工具不交审核模型，直接进 d）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
      d. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）；资金类调用另带动作摘要，批准时须原样回传，不符即拒绝（`DIGEST_MISMATCH_REJECT`），社交不可逆调用不带摘要，批准即放行
@@ -1166,7 +1166,7 @@ ruleset = (
 )
 ```
 
-Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按 `_cron_policy.resolve_cron_ask` 处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但落入 `_cron_policy.cron_never_class` 四类的调用（付款类工具调用——工具名或参数命中资金类词表、集成写入、读过凭据后的外发、作业区之外的路径）即使声明了能力也 DENY，allowlist 或审核模型的放行同样解除不了（`evaluate_tool_batch` 末尾对已放行的调用再过一遍 `_cron_settle.veto_never_classes`）。YOLO 开关对 Cron 运行无效，拒绝累积也不会暂停它的 auto-mode。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。
+Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按 `_cron_policy.resolve_cron_ask` 处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但落入 `_cron_policy.cron_never_class` 四类的调用即使声明了能力也 DENY，allowlist 或审核模型的放行同样解除不了（`evaluate_tool_batch` 末尾对已放行的调用再过一遍 `_cron_settle.veto_never_classes`）。四类的识别范围：付款类工具调用——工具名或参数命中资金类词表；集成写入命令——shell 与 code_interpreter 命令命中业务层注册的模式（目前是 Google Workspace）；读过凭据文件后的外发请求——会话带 SECRET 污点后，`web_fetch`、浏览器的导航/快照/提取工具，以及 curl、wget、nc、ncat、socat、ssh、scp、rsync、ftp 后跟 http(s) 链接、或 curl、wget、nc、ncat、socat 带数据参数的 shell 命令（`taint_tracker.py` 的 `TAINT_SINK_POLICIES` 与 `_BASH_EGRESS_RE`）；作业区之外的路径——路径分区检查不放行的文件调用（作业目录之外、敏感或受保护文件）。识别不到的形态（不带 http(s) 链接的 scp、rsync、ssh，nc 直连主机端口，经 code_interpreter 运行的脚本，未注册的集成写入）仍由声明放行，是已登记的设计内残余（见 `middlewares/approval/_ARCH.md`）。YOLO 开关对 Cron 运行无效，拒绝累积也不会暂停它的 auto-mode。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。
 
 ### 本地模式浏览器放宽
 
@@ -1427,7 +1427,7 @@ elif is_financial_or_spend_tool(tool_name, tool_input):
     record_decision(tool_name, "CRON_DENY", "cron fail-closed: payment-like tool call")
 elif is_integration_mutation_command(shell_cmd):
     record_decision(tool_name, "CRON_DENY", "cron fail-closed: integration write mutation")
-# 另有两类：读过凭据后的外发、作业区之外的路径
+# 另有两类：读过凭据文件后的外发请求、作业区之外的路径
 else:
     record_decision(tool_name, "ALLOW", "cron capability pre-approval")
 ```
