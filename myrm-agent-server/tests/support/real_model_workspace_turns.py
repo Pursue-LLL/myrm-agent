@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - stuck_turn_report, routes_and_trust, sent, applied: fixtures (registered for ``tests/api/agent`` by its conftest)
-- new_chat, trusted_project_folder, harness_workspace, turn_request, resume_request, stream_turn, perform_agent_stream, ask, main_request_text: the steps of a turn
+- new_chat, trusted_project_folder, harness_workspace, turn_request, resume_request, stream_turn, perform_agent_stream, ask, main_request_text, tool_message_texts: the steps of a turn
 - TRUST_API, PROJECT_API, TURN_TIMEOUT_SECONDS: shared constants
 
 [POS]
@@ -124,6 +124,19 @@ def main_request_text(requests: Sequence[Sequence[Mapping[str, object]]], prompt
         before_any_tool_result.append(request)
     texts = [json.dumps(request, ensure_ascii=False) for request in before_any_tool_result]
     return "\n".join(text for text in texts if prompt in text and "Update the session notes" not in text)
+
+
+def tool_message_texts(requests: Sequence[Sequence[Mapping[str, object]]]) -> list[str]:
+    """Every tool result the model was handed, as it went into the requests after the call; a result repeats in each later request."""
+    texts: list[str] = []
+    for request in requests:
+        for message in request:
+            if message.get("role") != "tool":
+                continue
+            text = str(message.get("content"))
+            if text not in texts:
+                texts.append(text)
+    return texts
 
 
 async def harness_workspace(chat_id: str) -> Path:

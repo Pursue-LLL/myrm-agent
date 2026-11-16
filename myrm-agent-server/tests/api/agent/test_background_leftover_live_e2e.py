@@ -3,14 +3,17 @@
 [INPUT]
 - POST /api/v1/agents/agent-stream with the LITE model (POS: the whole server path, a real provider call, real shell tools, SSE back)
 - A background command that starts a long-lived child in its own process group and exits (POS: a job that ends and leaves a program behind)
+- The host as it is, and a container host whose sandbox probe finds no OS sandbox (POS: ``tests/support/container_host.py``)
 
 [OUTPUT]
 - Fails when the program the job leaves running was never seen running, when no ``bash_process_tool`` result names it, when no kill
-  report says it was stopped, or when a process carrying the marker is still alive after the turn.
+  report says it was stopped, when a process carrying the marker is still alive after the turn, or, on the container host, when the job
+  did not run on a pseudo-terminal.
 
 [POS]
 What the tools report is decided by the harness; the model only has to call ``wait`` and ``kill`` on the job it started. The child sleeps for a
-bounded time so a run in which the model never kills it cannot leave a process behind for long.
+bounded time so a run in which the model never kills it cannot leave a process behind for long. The job leaves a program behind on both paths
+the harness spawns background jobs on: pipes under an OS sandbox, a pseudo-terminal without one.
 """
 
 from __future__ import annotations
@@ -20,15 +23,21 @@ import re
 import threading
 import time
 import uuid
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
+from tests.support.container_host import record_pty_spawns, without_os_sandbox
 from tests.support.marked_command_lines import leave_one_child_command, processes_with_marker
-from tests.support.real_model_workspace_turns import TURN_TIMEOUT_SECONDS, new_chat, perform_agent_stream
+from tests.support.real_model_workspace_turns import (
+    TURN_TIMEOUT_SECONDS,
+    new_chat,
+    perform_agent_stream,
+    tool_message_texts,
+)
 
 pytestmark = [
     pytest.mark.usefixtures("stuck_turn_report"),
@@ -47,19 +56,6 @@ _PROMPT = (
     "If the result says the job left processes running, call bash_process_tool with action=kill for the same pid. "
     "Finally answer with the word DONE."
 )
-
-
-def _tool_message_texts(requests: Sequence[Sequence[Mapping[str, object]]]) -> list[str]:
-    """Every tool result the model was handed, as it went into the requests after the call; a result repeats in each later request."""
-    texts: list[str] = []
-    for request in requests:
-        for message in request:
-            if message.get("role") != "tool":
-                continue
-            text = str(message.get("content"))
-            if text not in texts:
-                texts.append(text)
-    return texts
 
 
 @contextmanager
@@ -94,8 +90,17 @@ def _wait_until_gone(marker: str, timeout_seconds: float = 10.0) -> list[int]:
     return alive
 
 
+@pytest.fixture(params=["host", "container"])
+def pty_spawns(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> list[bool] | None:
+    """The pseudo-terminal spawns of a container host, which has no OS sandbox; None leaves the host as it is."""
+    if request.param == "host":
+        return None
+    without_os_sandbox(monkeypatch)
+    return record_pty_spawns(monkeypatch)
+
+
 def test_model_is_told_what_a_finished_job_left_running_and_stops_it(
-    client: TestClient, sent: list[list[dict[str, object]]]
+    client: TestClient, sent: list[list[dict[str, object]]], pty_spawns: list[bool] | None
 ) -> None:
     marker = f"MYRM_LANEC_LEFTOVER_{uuid.uuid4().hex[:10]}"
     chat_id = new_chat(client)
@@ -109,8 +114,10 @@ def test_model_is_told_what_a_finished_job_left_running_and_stops_it(
         )
     check_e2e_errors(events)
 
+    if pty_spawns is not None:
+        assert pty_spawns and all(pty_spawns), f"the job did not run on a pseudo-terminal: {pty_spawns}"
     assert seen_running[0], "no process carrying the marker was ever seen running"
-    handed_back = _tool_message_texts(sent)
+    handed_back = tool_message_texts(sent)
     assert handed_back, "no tool result ever went back to the model"
     assert any(_LEFT_RUNNING.search(text) for text in handed_back), handed_back
     assert any(_STOPPED_REPORT in text for text in handed_back), handed_back
