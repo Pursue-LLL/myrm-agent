@@ -324,7 +324,7 @@ async def _archive_refetch_tokens_after_view(chat_id: str, path_arg: str, lines:
 
 
 @pytest.mark.asyncio
-async def test_archive_range_read_is_charged_for_the_lines_it_shows() -> None:
+async def test_archive_range_read_is_charged_for_the_lines_it_requests() -> None:
     chat_id = "chat_archive_range_charge"
     lines = [f"requested line {i}" for i in range(1, 6)] + ["unrequested payload " * 20] * 400
 

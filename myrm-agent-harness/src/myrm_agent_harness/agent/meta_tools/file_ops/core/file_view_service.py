@@ -8,8 +8,9 @@
 - result_formatter::ResultFormatter, FileContent, DirectoryListing (POS: result formatter)
 - file_integrity_guard::get_file_integrity_guard (POS: records what the model has read, for the read-before-edit gate)
 - context_management.infra.session_lock::get_current_chat_id (POS: current chat context)
-- utils.token_estimation::estimate_content_tokens (POS: token estimate of the lines an archived-context read shows)
-- utils.line_endings::view_lines (POS: the lines a view shows, so a range read is charged for what it displays)
+- utils.file_utils::parse_path_with_range, path_base (POS: a path argument's file and line range; the file path alone for display)
+- utils.token_estimation::estimate_content_tokens (POS: token estimate of the lines an archived-context read asks for)
+- utils.line_endings::view_lines (POS: the lines a view counts, so a range read is charged for the lines its range selects)
 - context_management.infra.archive_reference::is_context_archive_path (POS: only archived context has a read budget)
 - context_management.tracking.archive_restore_runtime::evaluate_archive_refetch_for_path (POS: archived-context read budget)
 - core.archive_restore_guard::evaluate_archive_full_read_before_content, format_archive_restore_block (POS: archive restore read guard)
@@ -41,7 +42,7 @@ from myrm_agent_harness.utils.token_estimation import (
 
 from ..observers.observer_manager import ObserverManager
 from ..strategies.strategy_factory import FileSystemStrategyFactory
-from ..utils.file_utils import parse_path_with_range
+from ..utils.file_utils import parse_path_with_range, path_base
 from ..utils.line_endings import view_lines
 from ..validators.validator_chain import ValidatorChain
 from .archive_restore_guard import (
@@ -121,7 +122,7 @@ class FileViewService:
         resolved_path, view_range = parse_path_with_range(path_str)
 
         # 提取显示路径(不含行号范围)
-        display_path = path_str.split(":")[0] if ":" in path_str else path_str
+        display_path = path_base(path_str)
 
         # 创建策略
         strategy = FileSystemStrategyFactory.create_strategy(
@@ -183,8 +184,9 @@ class FileViewService:
     def _archive_refetch_block(resolved_path: str, lines: list[str], view_range: ViewRange | None) -> str | None:
         """The block that refuses a read of archived context past its budget, or ``None`` when the read may go on.
 
-        The read is charged for the lines the view shows, counted as the view counts them (a bare CR ends a line),
-        not for the whole archive; a range read of a large archive is not billed for the rest of it.
+        The read is charged for the lines its range selects (the whole file without one), counted as the view counts
+        them (a bare CR ends a line) and before the line clamp and the page cap shorten what is delivered. It is not
+        charged for the whole archive: a range read of a large archive is not billed for the rest of it.
         """
         from myrm_agent_harness.agent.context_management.tracking.archive_restore_runtime import (
             evaluate_archive_refetch_for_path,

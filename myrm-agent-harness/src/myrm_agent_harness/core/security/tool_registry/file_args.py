@@ -10,7 +10,7 @@
 - file_arg_values: each non-empty path string among those arguments, passed as a string, a JSON array string or a list
 - strip_read_range: a path without its ``:START-END`` line-range selector
 - is_url: whether a path is a network URL, which file tools refuse
-- host_file_paths: the host-filesystem paths a call may open, in every form the reader could open them
+- host_file_paths: the host-filesystem paths a call may open, in every form a reader could open them
 
 [POS]
 Shared by the permission engine (path-zone verdict and rule targets), the session directory grant, the
@@ -100,11 +100,11 @@ def is_url(path: str) -> bool:
 
 
 def host_file_paths(args: dict[str, object]) -> list[str]:
-    """The host-filesystem paths the arguments may open, each in every form the reader could open it.
+    """The host-filesystem paths the arguments may open, each in every form a reader could open it.
 
-    URLs and the virtual namespaces name no host file and are left out. The reader opens a path without its
-    line range and cuts it at the first colon, so a path is returned in both forms and a verdict can be taken
-    on each: a path must not pass for what it looks like as a whole while opening something else.
+    URLs and the virtual namespaces name no host file and are left out. ``file_read_tool`` opens a path without
+    its trailing line range; the form cut at the first colon is returned too, so that a reader that stops at a
+    colon cannot open a file the verdict never saw.
     """
     paths: list[str] = []
     for raw in file_arg_values(args):

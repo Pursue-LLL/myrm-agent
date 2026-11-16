@@ -9,7 +9,6 @@
 
 [OUTPUT]
 - is_vault_uri: predicate for vault:// paths
-- path_base: strip line-range suffix (vault-safe)
 - resolve_workspace_root: workspace for ArtifactVault reads
 - read_vault_text_content: load vault object text with optional line range and preview mode (lines are numbered by newline only)
 - read_vault_paths_to_parts: batch vault reads for file_read_tool; a truncated read continues at an absolute line of the object
@@ -43,14 +42,6 @@ _PREVIEW_MAX_LINES = 1000
 def is_vault_uri(path: str) -> bool:
     """Return True when *path* is a vault:// pointer (optionally with :line-range suffix)."""
     return path.startswith(VAULT_PREFIX)
-
-
-def path_base(path: str) -> str:
-    """Return the path without line-range suffix (vault-safe)."""
-    if is_vault_uri(path):
-        base, _ = parse_path_with_range(path)
-        return base
-    return path.split(":")[0] if ":" in path else path
 
 
 def resolve_workspace_root(executor: CodeExecutor | None) -> str | None:

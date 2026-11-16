@@ -9,7 +9,7 @@ Utility functions module.
 |------|------|-------------|-------|
 | __init__.py | Package | Utility functions module. | — |
 | document_reader.py | Core | Document file reader for file_read_tool. Converts .docx/.doc/.xlsx/.xls/.pptx/.ppt/.ipynb to Markdown via file_parsers with multimodal plot blocks and magic bytes sniffing. A workbook read as its structure (asked for, or a large one by default) shows no cell values, so its result ends with the call that reads them (`parse_mode='content'`). | ✅ |
-| file_utils.py | Core | Provides parse_path_with_range with positive line numbers and ordered range validation. | ✅ |
+| file_utils.py | Core | The one reading of a path argument's range suffix: `parse_path_with_range` (the file and a validated line range, positive numbers in order) and `path_base` (the file alone, for code that classifies, guards or words a path before it is opened). Only a trailing `:START-END` or `:START-` is a range; every other colon, such as a drive letter or the one in `notes:v2.md`, belongs to the file name. | ✅ |
 | image_reader.py | Core | Provides is_image_path, read_image_as_content_blocks. Quality Ladder compression (95->20) + (original/attached/scale) coordinate scale factor disclosure. | ✅ |
 | line_endings.py | Core | Line ending detection and normalization (CRLF/LF preserved across edits), UTF-8 BOM stripping on display, and `view_lines`, the lines a view shows for text split on LF (CRLF and a bare CR end a line too). | ✅ |
 | vault_scope.py | Core | Obsidian vault root detection via `.obsidian/` marker | ✅ |

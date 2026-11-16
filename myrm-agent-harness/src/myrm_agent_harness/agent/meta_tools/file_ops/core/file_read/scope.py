@@ -6,7 +6,8 @@
 - agent.meta_tools.file_search.skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: disabled skill path blocking)
 - core.context_vars::chat_id_var, workspace_root_var (POS: run-scoped chat id and workspace root)
 - core.security.tool_registry::is_url (POS: the one definition of a network URL)
-- utils.vault_read::is_vault_uri, path_base (POS: vault:// URI test and ``:range`` suffix stripping)
+- utils.vault_read::is_vault_uri (POS: vault:// URI test)
+- utils.file_utils::path_base (POS: the file path of a path argument, without its ``:START-END`` range)
 - utils.errors::ToolError (POS: tool error type)
 
 [OUTPUT]
@@ -37,7 +38,8 @@ from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
 from myrm_agent_harness.core.security.tool_registry import is_url
 from myrm_agent_harness.utils.errors import ToolError
 
-from ...utils.vault_read import is_vault_uri, path_base
+from ...utils.file_utils import path_base
+from ...utils.vault_read import is_vault_uri
 
 _URLS_NAMED = 3
 

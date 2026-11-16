@@ -9,7 +9,8 @@
 - core.file_read::assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope, partition_urls (POS: 读取范围守卫：disabled skill 拦截与 Fast 轨范围)
 - file_search.path_hint::suggest_similar_paths, format_path_not_found_hint, find_existing_unicode_path (POS: 路径不存在提示与 Unicode 探测自愈)
 - core.security.path::is_blocked_device_path, is_network_or_nt_path, network_path_refusal (POS: Pre-IO 设备路径与网络共享路径安全阻断)
-- utils.vault_read::is_vault_uri, path_base, read_vault_paths_to_parts (POS: vault:// URI 读取)
+- utils.vault_read::is_vault_uri, read_vault_paths_to_parts (POS: vault:// URI 读取)
+- utils.file_utils::path_base (POS: 路径参数去掉行号范围后的文件路径)
 - mcp_read_next_step_hint::append_mcp_docs_next_step_hint (POS: MCP 函数文档批量读取后的下一步操作提示)
 - utils.*_reader (POS: 多模态与文档读取)
 - utils.errors::ToolError (POS: 工具错误类型)
@@ -66,9 +67,10 @@ from .core.file_read import (
 )
 from .core.mcp_read_next_step_hint import append_mcp_docs_next_step_hint
 from .utils.document_reader import is_document_path
+from .utils.file_utils import path_base
 from .utils.image_reader import is_image_path
 from .utils.pdf_reader import is_pdf_path
-from .utils.vault_read import is_vault_uri, path_base, read_vault_paths_to_parts
+from .utils.vault_read import is_vault_uri, read_vault_paths_to_parts
 from .utils.video_reader import is_video_path
 
 if TYPE_CHECKING:
@@ -172,7 +174,7 @@ def create_file_read_tool(
             for raw_p in paths:
                 if is_network_or_nt_path(raw_p):
                     raise ToolError(message=network_path_refusal(raw_p))
-                base = path_base(raw_p) if not is_vault_uri(raw_p) else raw_p
+                base = path_base(raw_p)
                 if is_blocked_device_path(raw_p) or is_blocked_device_path(base):
                     raise ToolError(
                         message=f"Access to device path is blocked: {raw_p}",

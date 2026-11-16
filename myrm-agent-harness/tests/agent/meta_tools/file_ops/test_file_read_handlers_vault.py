@@ -15,7 +15,6 @@ from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal impo
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths import process_text_paths
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.vault_read import (
-    path_base,
     read_vault_paths_to_parts,
     resolve_workspace_root,
 )
@@ -24,15 +23,6 @@ _DUMMY_CONFIG = RunnableConfig()
 
 
 class TestVaultReadUtilities:
-    def test_path_base_non_vault_with_colon(self) -> None:
-        assert path_base("/tmp/file.py:1-10") == "/tmp/file.py"
-
-    def test_path_base_vault_uri(self, tmp_path: Path) -> None:
-        ws = str(tmp_path)
-        vault = ArtifactVault(ws)
-        pointer = vault.put("x", "a.txt")
-        assert path_base(f"{pointer}:2-4") == pointer
-
     def test_resolve_workspace_root_from_executor(self) -> None:
         executor = MagicMock()
         executor._current_workspace = "/ws/a"
@@ -138,7 +128,7 @@ async def test_build_multimodal_includes_vault_paths(tmp_path: Path) -> None:
             config=_DUMMY_CONFIG,
         )
 
-    texts = [b["text"] for b in blocks if b.get("type") == "text"]
+    texts = [str(block.get("text", "")) for block in blocks if block.get("type") == "text"]
     joined = "\n".join(texts)
     assert "url rejected" in joined
     assert "multi vault" in joined
