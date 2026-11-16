@@ -5,7 +5,7 @@ Dev Gate layer: shared by chrome_e2e LIVE tests; not harness/server business log
 
 from __future__ import annotations
 
-from pathlib import Path
+from dev_gate.contract import parallel_pressure
 
 
 def parallel_live_agent_peer_count() -> int:
@@ -17,13 +17,7 @@ def parallel_live_agent_peer_count() -> int:
         return max(int(load.wave_leases), int(load.mux_contexts))
     except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         pass
-    root = Path(__file__).resolve().parents[5]
-    try:
-        from e2e_core.stack_mutation_policy import wave_active_lease_count
-
-        return wave_active_lease_count(root)
-    except (ImportError, OSError, RuntimeError, ValueError):
-        return 0
+    return parallel_pressure.wave_active_lease_count_for_mux()
 
 
 LIVE_EMPTY_WRITE_STALL_CAP_MAX_SEC: float = 240.0

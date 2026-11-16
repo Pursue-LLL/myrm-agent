@@ -36,16 +36,7 @@ def mux_reset_after_orphan_timeout_sec() -> float:
     desktop leg soak extends cap to 300s under parallel chrome_e2e.
     """
     base = 90.0
-    active_leases = 0
-    try:
-        from pathlib import Path
-
-        from e2e_core.stack_mutation_policy import wave_active_lease_count
-
-        monorepo_root = Path(__file__).resolve().parents[6]
-        active_leases = wave_active_lease_count(monorepo_root)
-    except (ImportError, OSError, RuntimeError, ValueError):
-        active_leases = 0
+    active_leases = parallel_pressure.wave_active_lease_count_for_mux()
     if active_leases < 2:
         scaled = base
     else:
