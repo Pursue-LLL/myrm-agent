@@ -18,7 +18,7 @@ def test_hidden_builtin_agent_ids() -> None:
 
 
 def test_retired_korean_office_preset_stays_hidden_without_a_spec() -> None:
-    """Rows created before the preset was retired stay out of every list; no spec re-creates them."""
+    """A database row that holds the preset id stays out of every list; no spec re-creates it."""
     from app.services.agent.builtin_agent_specs import _BUILTIN_AGENTS
 
     assert is_hidden_builtin_agent("builtin-ko-office")
