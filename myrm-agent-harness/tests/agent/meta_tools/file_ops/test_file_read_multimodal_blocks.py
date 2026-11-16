@@ -1,4 +1,7 @@
-"""file_read multimodal results: vision and PDF blocks, media text parts, video blocks and the PDF structure outline."""
+"""file_read multimodal results: vision and PDF blocks, media text parts, video blocks and the PDF structure outline.
+
+The text of every block is redacted as its file's type is; an image block passes through as it is.
+"""
 
 from __future__ import annotations
 
@@ -241,3 +244,84 @@ async def test_pdf_reader_structure_mode() -> None:
         assert "[DOCUMENT STRUCTURE OUTLINE: paper.pdf (Total Pages: 10)]:" in out
         assert "- Page 1: Introduction" in out
         assert "  - Page 3: System Architecture" in out
+
+
+_MULTIMODAL = "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal"
+_IMAGE_BLOCK = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "iVBORw0KGgo="}}
+
+
+def _text_block(text: str) -> dict[str, str]:
+    return {"type": "text", "text": text}
+
+
+@pytest.mark.asyncio
+async def test_build_multimodal_redacts_the_text_of_every_block_and_leaves_images_alone() -> None:
+    secret_text = "DB_PASSWORD=hunter2"
+    with (
+        patch(
+            f"{_MULTIMODAL}.read_image_as_content_blocks",
+            new_callable=AsyncMock,
+            return_value=[_IMAGE_BLOCK, _text_block(secret_text)],
+        ),
+        patch(f"{_MULTIMODAL}.read_pdf_as_content_blocks", new_callable=AsyncMock, return_value=secret_text),
+        patch(
+            f"{_MULTIMODAL}.read_video_as_content_blocks",
+            new_callable=AsyncMock,
+            return_value=[_text_block(secret_text)],
+        ),
+        patch(
+            f"{_MULTIMODAL}.read_document_multimodal",
+            new_callable=AsyncMock,
+            return_value=[_text_block(secret_text)],
+        ),
+    ):
+        blocks = await build_multimodal_result(
+            image_paths=["pic.png"],
+            pdf_paths=["a.pdf"],
+            document_paths=["b.docx"],
+            text_paths=[],
+            vault_paths=[],
+            executor=MagicMock(),
+            skills=None,
+            reason=None,
+            url_errors=["cannot read URLs: https://a.example/x?api_key=sk-secretvalue1234567890abcdef"],
+            supports_vision=True,
+            video_paths=["clip.mp4"],
+            config=_DUMMY_CONFIG,
+        )
+
+    shown = "\n".join(str(b.get("text", "")) for b in blocks if isinstance(b, dict))
+    assert "hunter2" not in shown
+    assert "sk-secretvalue1234567890abcdef" not in shown
+    assert shown.count("DB_PASSWORD=***") == 4
+    assert _IMAGE_BLOCK in blocks
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("document", "kept"),
+    [("nb.ipynb", True), ("report.docx", False)],
+    ids=["notebook-as-source", "word-in-full"],
+)
+async def test_build_multimodal_redacts_a_document_as_its_file_type_is(document: str, kept: bool) -> None:
+    # Source code that only names a credential is readable; the same words in a Word file are masked.
+    with patch(
+        f"{_MULTIMODAL}.read_document_multimodal",
+        new_callable=AsyncMock,
+        return_value=[_text_block("total_api_tokens = 0")],
+    ):
+        blocks = await build_multimodal_result(
+            image_paths=[],
+            pdf_paths=[],
+            document_paths=[document],
+            text_paths=[],
+            vault_paths=[],
+            executor=MagicMock(),
+            skills=None,
+            reason=None,
+            url_errors=[],
+            supports_vision=True,
+            config=_DUMMY_CONFIG,
+        )
+
+    assert blocks == [_text_block("total_api_tokens = 0" if kept else "total_api_tokens=***")]

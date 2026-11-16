@@ -8,7 +8,8 @@
 - result_formatter::ResultFormatter, FileContent, DirectoryListing (POS: result formatter)
 - file_integrity_guard::get_file_integrity_guard (POS: records what the model has read, for the read-before-edit gate)
 - context_management.infra.session_lock::get_current_chat_id (POS: current chat context)
-- utils.file_utils::parse_path_with_range, path_base (POS: a path argument's file and line range; the file path alone for display)
+- utils.file_utils::parse_path_with_range (POS: a path argument's file and validated line range)
+- core.security.tool_registry::strip_read_range (POS: the file path of a path argument, without its ``:START-END`` range, for display)
 - utils.token_estimation::estimate_content_tokens (POS: token estimate of the lines an archived-context read asks for)
 - utils.line_endings::view_lines (POS: the lines a view counts, so a range read is charged for the lines its range selects)
 - context_management.infra.archive_reference::is_context_archive_path (POS: only archived context has a read budget)
@@ -36,13 +37,14 @@ from myrm_agent_harness.agent.context_management.infra.archive_reference import 
 from myrm_agent_harness.agent.context_management.infra.session_lock import (
     get_current_chat_id,
 )
+from myrm_agent_harness.core.security.tool_registry import strip_read_range
 from myrm_agent_harness.utils.token_estimation import (
     estimate_content_tokens,
 )
 
 from ..observers.observer_manager import ObserverManager
 from ..strategies.strategy_factory import FileSystemStrategyFactory
-from ..utils.file_utils import parse_path_with_range, path_base
+from ..utils.file_utils import parse_path_with_range
 from ..utils.line_endings import view_lines
 from ..validators.validator_chain import ValidatorChain
 from .archive_restore_guard import (
@@ -122,7 +124,7 @@ class FileViewService:
         resolved_path, view_range = parse_path_with_range(path_str)
 
         # 提取显示路径(不含行号范围)
-        display_path = path_base(path_str)
+        display_path = strip_read_range(path_str)
 
         # 创建策略
         strategy = FileSystemStrategyFactory.create_strategy(

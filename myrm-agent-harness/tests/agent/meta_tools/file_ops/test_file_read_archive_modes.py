@@ -2,8 +2,9 @@
 
 A compacted context archive belongs to one session, and a full read of it has a token ceiling; the file service
 enforces both. ``preview`` and ``stream`` open a file themselves, so archived context is left to the service: the archive
-of another session and one too large for a full read are refused in every mode. These tests send real reads through
-``file_read_tool`` with a real ``LocalExecutor`` and a real task budget.
+of another session and one too large for a full read are refused in every mode, and the structure outline
+(``parse_mode='structure'``) shows the refusal as it is. These tests send real reads through ``file_read_tool`` with a
+real ``LocalExecutor`` and a real task budget.
 """
 
 from __future__ import annotations
@@ -89,6 +90,11 @@ async def _read(path: str, mode: str) -> str:
     return str(await tool.ainvoke({"paths": [path], "mode": mode}, config=RunnableConfig()))
 
 
+async def _outline(path: str) -> str:
+    tool = create_file_read_tool()
+    return str(await tool.ainvoke({"paths": [path], "parse_mode": "structure"}, config=RunnableConfig()))
+
+
 def _block_reason(text: str) -> str | None:
     payload = parse_archive_restore_block_payload(text.lstrip())
     return str(payload["reason"]) if payload else None
@@ -147,6 +153,32 @@ async def test_a_small_archive_of_the_session_is_read_in_every_mode(archives: Ar
     text = await _read(archives.small, mode)
 
     assert "SMALL-ARCHIVE-PAYLOAD" in text
+
+
+@pytest.mark.asyncio
+async def test_another_sessions_archive_is_refused_in_structure_mode(archives: Archives) -> None:
+    text = await _outline(archives.other_session)
+
+    assert _block_reason(text) == "archive_refetch_session_mismatch"
+    assert "STRUCTURE OUTLINE" not in text
+
+
+@pytest.mark.asyncio
+async def test_an_archive_too_large_for_a_full_read_asks_for_a_range_in_structure_mode(archives: Archives) -> None:
+    text = await _outline(archives.large)
+
+    assert _block_reason(text) == "archive_restore_range_required"
+    assert "STRUCTURE OUTLINE" not in text
+    metrics = get_task_metrics(_CHAT)
+    assert metrics is not None
+    assert metrics.archive_refetch_tokens == 0
+
+
+@pytest.mark.asyncio
+async def test_a_small_archive_of_the_session_is_outlined_in_structure_mode(archives: Archives) -> None:
+    text = await _outline(archives.small)
+
+    assert "[DOCUMENT STRUCTURE OUTLINE: " in text
 
 
 @pytest.mark.asyncio

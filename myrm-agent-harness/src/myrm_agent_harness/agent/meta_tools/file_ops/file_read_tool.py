@@ -3,14 +3,14 @@
 [INPUT]
 - langchain.tools::tool (POS: LangChain 工具装饰器)
 - core::FileOperationService (POS: 文件操作服务)
-- agent.security.redact::redact_sensitive_text, redact_file_text (POS: 工具输出脱敏；逐文件脱敏：源码文件只对含字符串字面量的行做按变量名脱敏)
+- agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏：URL 拒绝文本、仅文本模式下的媒体文本与 vault 文本)
 - backends.skills.types::SkillMetadata (POS: MCP 技能元数据)
-- core.file_read::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器)
+- core.file_read::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器；文本路径与多模态块的文本都在其内按文件类型脱敏)
 - core.file_read::assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope, partition_urls (POS: 读取范围守卫：disabled skill 拦截与 Fast 轨范围)
 - file_search.path_hint::suggest_similar_paths, format_path_not_found_hint, find_existing_unicode_path (POS: 路径不存在提示与 Unicode 探测自愈)
 - core.security.path::is_blocked_device_path, is_network_or_nt_path, network_path_refusal (POS: Pre-IO 设备路径与网络共享路径安全阻断)
 - utils.vault_read::is_vault_uri, read_vault_paths_to_parts (POS: vault:// URI 读取)
-- utils.file_utils::path_base (POS: 路径参数去掉行号范围后的文件路径)
+- core.security.tool_registry::PATHS_ALIAS_KEYS, coerce_path_list, strip_read_range (POS: 路径参数别名与数组参数的统一读法；路径参数去掉行号范围后的文件路径)
 - mcp_read_next_step_hint::append_mcp_docs_next_step_hint (POS: MCP 函数文档批量读取后的下一步操作提示)
 - utils.*_reader (POS: 多模态与文档读取)
 - utils.errors::ToolError (POS: 工具错误类型)
@@ -49,9 +49,9 @@ from myrm_agent_harness.agent.security.path_security import (
     is_network_or_nt_path,
     network_path_refusal,
 )
-from myrm_agent_harness.agent.security.redact import redact_file_text, redact_sensitive_text
+from myrm_agent_harness.agent.security.redact import redact_sensitive_text
 from myrm_agent_harness.core.context_vars import workspace_root_var
-from myrm_agent_harness.core.security.tool_registry import PATHS_ALIAS_KEYS, coerce_path_list
+from myrm_agent_harness.core.security.tool_registry import PATHS_ALIAS_KEYS, coerce_path_list, strip_read_range
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor, get_executor
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
@@ -67,7 +67,6 @@ from .core.file_read import (
 )
 from .core.mcp_read_next_step_hint import append_mcp_docs_next_step_hint
 from .utils.document_reader import is_document_path
-from .utils.file_utils import path_base
 from .utils.image_reader import is_image_path
 from .utils.pdf_reader import is_pdf_path
 from .utils.vault_read import is_vault_uri, read_vault_paths_to_parts
@@ -174,7 +173,7 @@ def create_file_read_tool(
             for raw_p in paths:
                 if is_network_or_nt_path(raw_p):
                     raise ToolError(message=network_path_refusal(raw_p))
-                base = path_base(raw_p)
+                base = strip_read_range(raw_p)
                 if is_blocked_device_path(raw_p) or is_blocked_device_path(base):
                     raise ToolError(
                         message=f"Access to device path is blocked: {raw_p}",
@@ -186,7 +185,7 @@ def create_file_read_tool(
 
             if not valid_paths:
                 if url_refusal:
-                    return url_refusal
+                    return redact_sensitive_text(url_refusal)
                 raise ValueError("No valid paths provided.")
 
             # 2. Unicode normalization candidate probing & self-healing
@@ -196,7 +195,7 @@ def create_file_read_tool(
                 if is_vault_uri(p) or p.startswith("/mcp/"):
                     healed_paths.append(p)
                     continue
-                base = path_base(p)
+                base = strip_read_range(p)
                 range_suffix = p[len(base) :]
                 found = find_existing_unicode_path(base, base_dir=workspace_root)
                 if found and found != base:
@@ -220,19 +219,19 @@ def create_file_read_tool(
             vision_fallback_model_cfgs = ctx.get("vision_fallback_model_cfgs")
             video_fallback_model_cfgs = ctx.get("video_fallback_model_cfgs")
 
-            image_paths = [p for p in valid_paths if is_image_path(path_base(p)) and not is_vault_uri(p)]
-            pdf_paths = [p for p in valid_paths if is_pdf_path(path_base(p)) and not is_vault_uri(p)]
-            document_paths = [p for p in valid_paths if is_document_path(path_base(p)) and not is_vault_uri(p)]
-            video_paths = [p for p in valid_paths if is_video_path(path_base(p)) and not is_vault_uri(p)]
+            image_paths = [p for p in valid_paths if is_image_path(strip_read_range(p)) and not is_vault_uri(p)]
+            pdf_paths = [p for p in valid_paths if is_pdf_path(strip_read_range(p)) and not is_vault_uri(p)]
+            document_paths = [p for p in valid_paths if is_document_path(strip_read_range(p)) and not is_vault_uri(p)]
+            video_paths = [p for p in valid_paths if is_video_path(strip_read_range(p)) and not is_vault_uri(p)]
             vault_paths = [p for p in valid_paths if is_vault_uri(p)]
             text_paths = [
                 p
                 for p in valid_paths
                 if not is_vault_uri(p)
-                and not is_image_path(path_base(p))
-                and not is_pdf_path(path_base(p))
-                and not is_document_path(path_base(p))
-                and not is_video_path(path_base(p))
+                and not is_image_path(strip_read_range(p))
+                and not is_pdf_path(strip_read_range(p))
+                and not is_document_path(strip_read_range(p))
+                and not is_video_path(strip_read_range(p))
             ]
 
             has_multimodal = (image_paths or pdf_paths or video_paths) and executor is not None
@@ -288,17 +287,16 @@ def create_file_read_tool(
 
             text_parts = [redact_sensitive_text(part) for part in text_parts]
             if text_paths:
-                file_parts = await process_text_paths(
-                    text_paths,
-                    executor,
-                    skills,
-                    reason,
-                    mode,
-                    config=config,
-                    parse_mode=parse_mode,
-                )
                 text_parts.extend(
-                    redact_file_text(path_base(path), part) for path, part in zip(text_paths, file_parts, strict=True)
+                    await process_text_paths(
+                        text_paths,
+                        executor,
+                        skills,
+                        reason,
+                        mode,
+                        config=config,
+                        parse_mode=parse_mode,
+                    )
                 )
 
             result = "\n\n".join(text_parts) if text_parts else "No results."
@@ -307,7 +305,7 @@ def create_file_read_tool(
         except ToolError:
             raise
         except FileNotFoundError as e:
-            hint_path = path_base(valid_paths[0]) if valid_paths else str(e)
+            hint_path = strip_read_range(valid_paths[0]) if valid_paths else str(e)
             suggestions = suggest_similar_paths(hint_path)
             raise ToolError(
                 message=str(e),

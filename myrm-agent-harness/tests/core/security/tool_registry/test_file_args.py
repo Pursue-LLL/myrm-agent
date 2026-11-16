@@ -45,6 +45,11 @@ def test_read_range_suffix_is_stripped_and_only_the_suffix() -> None:
     assert host_file_paths({"paths": ["src/a.py:10-20"]}) == ["src/a.py"]
 
 
+def test_stripping_a_range_never_converts_its_numbers() -> None:
+    """The verdict reads whatever a model sends: a range of ten thousand digits is cut, not parsed into an int."""
+    assert strip_read_range("a.py:" + "9" * 10_000 + "-") == "a.py"
+
+
 def test_the_first_colon_form_is_judged_too() -> None:
     """A path that only looks inside the workspace as a whole is judged by its first-colon form as well."""
     paths = host_file_paths({"paths": ["/etc/hosts:/../../Users/me/ws/x"]})

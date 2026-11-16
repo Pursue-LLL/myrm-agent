@@ -8,14 +8,16 @@
 - PATHS_ALIAS_KEYS: the single-path spellings ``file_read_tool`` accepts for its ``paths`` list
 - coerce_path_list: an array argument as a list, reading a string that holds a JSON array the way the tool does (``url_args`` reads ``urls`` with it too)
 - file_arg_values: each non-empty path string among those arguments, passed as a string, a JSON array string or a list
-- strip_read_range: a path without its ``:START-END`` line-range selector
+- READ_RANGE_PATTERN: the one grammar of the ``:START-END`` line-range selector after a file name (groups: file, start, end)
+- strip_read_range: the file a path argument names: the path without its ``:START-END`` line-range selector
 - is_url: whether a path is a network URL, which file tools refuse
 - host_file_paths: the host-filesystem paths a call may open, in every form a reader could open them
 
 [POS]
 Shared by the permission engine (path-zone verdict and rule targets), the session directory grant, the
 approval-hash canonical parameters and the taint extractors, so that a path sent under any spelling is
-judged the same way everywhere.
+judged the same way everywhere. The file tools parse a range with the same ``READ_RANGE_PATTERN`` that the
+verdict strips it with, so the file a read opens is the file the verdict judged.
 """
 
 from __future__ import annotations
@@ -59,8 +61,9 @@ _URL_SCHEMES = ("http://", "https://", "ftp://", "ftps://")
 # Namespaces the read tool serves itself and that name no host file: MCP skill documents and Artifact Vault pointers.
 _VIRTUAL_PREFIXES = ("/mcp/", "vault://")
 
-# ``path:START-END`` line-range selector that file_read_tool accepts after the file name.
-_READ_RANGE_SUFFIX_RE = re.compile(r":\d+-\d*$")
+# The line-range selector ``file_read_tool`` takes after a file name: ``path:START-END`` or ``path:START-``. Only that
+# trailing form is a range; every other colon (a drive letter, ``notes:v2.md``) belongs to the file name.
+READ_RANGE_PATTERN = re.compile(r"^(.+):(\d+)-(\d*)$")
 
 
 def coerce_path_list(value: object) -> list[object] | None:
@@ -90,8 +93,13 @@ def file_arg_values(args: dict[str, object]) -> Iterator[str]:
 
 
 def strip_read_range(path: str) -> str:
-    """The path without a trailing ``:START-END`` line-range selector."""
-    return _READ_RANGE_SUFFIX_RE.sub("", path)
+    """The file a path argument names: the path without a trailing ``:START-END`` line-range selector.
+
+    Nothing is validated and no file id is resolved, so it is safe on any text; the file tools parse the range's
+    numbers with the same ``READ_RANGE_PATTERN``.
+    """
+    match = READ_RANGE_PATTERN.match(path)
+    return match.group(1) if match else path
 
 
 def is_url(path: str) -> bool:

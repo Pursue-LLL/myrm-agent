@@ -5,9 +5,8 @@
 - agent.context_management.infra.evicted.content::normalize_delivery_chat_id (POS: UECD chat id normalization, symmetric with the writer)
 - agent.meta_tools.file_search.skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: disabled skill path blocking)
 - core.context_vars::chat_id_var, workspace_root_var (POS: run-scoped chat id and workspace root)
-- core.security.tool_registry::is_url (POS: the one definition of a network URL)
+- core.security.tool_registry::is_url, strip_read_range (POS: the one definition of a network URL; the file path of a path argument, without its ``:START-END`` range)
 - utils.vault_read::is_vault_uri (POS: vault:// URI test)
-- utils.file_utils::path_base (POS: the file path of a path argument, without its ``:START-END`` range)
 - utils.errors::ToolError (POS: tool error type)
 
 [OUTPUT]
@@ -35,10 +34,9 @@ from myrm_agent_harness.agent.meta_tools.file_search.skill_path_filter import (
     is_under_disabled_skill_root,
 )
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
-from myrm_agent_harness.core.security.tool_registry import is_url
+from myrm_agent_harness.core.security.tool_registry import is_url, strip_read_range
 from myrm_agent_harness.utils.errors import ToolError
 
-from ...utils.file_utils import path_base
 from ...utils.vault_read import is_vault_uri
 
 _URLS_NAMED = 3
@@ -107,7 +105,7 @@ async def assert_evicted_uploaded_read_scope(
                 message=f"file_read_tool blocked: {raw}",
                 user_hint=hint,
             )
-        base = path_base(raw)
+        base = strip_read_range(raw)
         try:
             resolved = await resolve_path(base)
         except ValueError:
@@ -135,7 +133,7 @@ async def assert_paths_allowed_for_read(
     for raw in paths:
         if is_vault_uri(raw) or is_url(raw):
             continue
-        base = path_base(raw)
+        base = strip_read_range(raw)
         try:
             resolved = await resolve_path(base)
         except ValueError:

@@ -83,6 +83,33 @@ def _lines(count: int, headings: dict[int, str]) -> str:
     return "\n".join(headings.get(i, f"filler {i}") for i in range(1, count + 1))
 
 
+class TestStructureOfWhatIsNotAFile:
+    """A path that shows no file line is not outlined: the model reads what the file service said about it."""
+
+    async def test_a_missing_file_is_reported_missing_not_outlined_as_empty(self, workspace: Path) -> None:
+        out = await _outline("nope.py")
+
+        assert "Path not found: nope.py" in out
+        assert "STRUCTURE OUTLINE" not in out
+
+    async def test_a_directory_is_listed_not_outlined_as_empty(self, workspace: Path) -> None:
+        (workspace / "pkg").mkdir()
+        (workspace / "pkg" / "inner.py").write_text("x = 1\n")
+
+        out = await _outline("pkg")
+
+        assert "inner.py" in out
+        assert "STRUCTURE OUTLINE" not in out
+
+    @pytest.mark.parametrize("content", ["", "\n\n\n", "x = 1\n"], ids=["empty", "blank-lines", "no-symbols"])
+    async def test_a_file_without_symbols_is_still_outlined_as_such(self, workspace: Path, content: str) -> None:
+        (workspace / "plain.py").write_text(content)
+
+        out = await _outline("plain.py")
+
+        assert out == "[DOCUMENT STRUCTURE OUTLINE: plain.py]:\n  (No structural symbols detected)"
+
+
 class TestOutlineOfAFilePastThePageCap:
     @pytest.mark.parametrize(
         ("name", "build", "count", "first", "last"),

@@ -11,13 +11,13 @@ Aggregates the redaction engine (``engine.py``), the command-line entry
 - engine::redact_sensitive_text, engine::redact_for_llm, engine::redact_for_display, engine::redact_field_text, engine::RedactingFormatter and the other public and internal symbols (POS: redaction pipeline and public API of the redactor)
 - bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
 - command_line::redact_command_line, command_line::command_preview (POS: Entry of the commands the audit log and the background-job registry keep, and the preview of the commands a log line quotes)
-- file_view::redact_file_text (POS: per-file redaction by file type, shared by the tools that show a file's text)
+- file_view::redact_file_text, file_view::redact_extracted_text (POS: per-file redaction by file type, shared by the tools that show a file's text)
 - masking::_mask_token (POS: Leaf value-masking helpers of the runtime redactor)
 - nested::redact_nested (POS: Shared walker of the redaction domain: bounded in depth, cuts a container that holds itself)
 - structured_fields::is_secret_field_name (POS: The one key policy: whether a field name is a credential, whatever the spelling)
 
 [OUTPUT]
-- redact_sensitive_text / redact_command_line / command_preview / redact_file_text / redact_for_llm / redact_for_display / redact_field_text / is_secret_field_name / redact_nested / escape_invisible_unicode / RedactingFormatter / set_redact_enabled — public API
+- redact_sensitive_text / redact_command_line / command_preview / redact_file_text / redact_extracted_text / redact_for_llm / redact_for_display / redact_field_text / is_secret_field_name / redact_nested / escape_invisible_unicode / RedactingFormatter / set_redact_enabled — public API
 - _mask_token / _redact_pem_block / _replace_pattern_bounded — internal helpers
 
 [POS]
@@ -36,7 +36,7 @@ from .engine import (
     redact_sensitive_text,
     set_redact_enabled,
 )
-from .file_view import redact_file_text
+from .file_view import redact_extracted_text, redact_file_text
 from .masking import _mask_token
 from .nested import redact_nested
 from .structured_fields import is_secret_field_name
@@ -50,6 +50,7 @@ __all__ = [
     "escape_invisible_unicode",
     "is_secret_field_name",
     "redact_command_line",
+    "redact_extracted_text",
     "redact_field_text",
     "redact_file_text",
     "redact_for_display",

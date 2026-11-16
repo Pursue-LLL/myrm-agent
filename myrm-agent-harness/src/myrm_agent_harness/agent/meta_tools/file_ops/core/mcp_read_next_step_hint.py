@@ -14,7 +14,7 @@ awaits every needed MCP function and emits exactly one ``[RESULT]``.
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.meta_tools.file_ops.utils.file_utils import path_base
+from myrm_agent_harness.core.security.tool_registry import strip_read_range
 
 _MCP_DOC_PREFIX = "/mcp/"
 _MCP_DOC_SUFFIX = ".md"
@@ -35,7 +35,7 @@ def is_mcp_function_doc_batch(paths: list[str]) -> bool:
     if not paths:
         return False
     for raw in paths:
-        base = path_base(raw)
+        base = strip_read_range(raw)
         if not base.startswith(_MCP_DOC_PREFIX) or not base.endswith(_MCP_DOC_SUFFIX):
             return False
     return True

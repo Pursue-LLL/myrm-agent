@@ -15,6 +15,8 @@ from myrm_agent_harness.toolkits.code_execution import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
 from myrm_agent_harness.toolkits.code_execution.executors.local import LocalExecutor
 
+_SECRET_URL = "https://a.example/x?api_key=sk-secretvalue1234567890abcdef"
+
 
 def test_a_call_without_urls_is_left_alone() -> None:
     local, refusal = partition_urls(["a.py", "src/b.py:3-9", "vault://0a1b2c", "/mcp/gmail/send.md"])
@@ -102,3 +104,16 @@ async def test_a_call_made_only_of_urls_answers_with_the_refusal(workspace: Path
     answer = await _read(["https://a.example/x", "ftp://b.example/y"])
 
     assert answer.startswith("file_read_tool cannot read URLs: https://a.example/x, ftp://b.example/y")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "paths",
+    [[_SECRET_URL], [_SECRET_URL, "a.py"]],
+    ids=["only-urls", "beside-a-file"],
+)
+async def test_a_secret_in_a_refused_url_is_not_repeated(workspace: Path, paths: list[str]) -> None:
+    answer = await _read(paths)
+
+    assert "cannot read URLs" in answer
+    assert "sk-secretvalue1234567890abcdef" not in answer

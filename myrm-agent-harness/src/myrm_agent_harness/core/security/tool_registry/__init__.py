@@ -16,12 +16,13 @@ preserving the flat-module import surface for all consumers.
 - SafetyMetadata / MCPAnnotations / resolve_safety_metadata / resolve_permission_type
 - register_ptc_safety_metadata / get_ptc_safety_metadata / compute_canonical_args_hash
 - host_file_paths / is_url / coerce_path_list / PATHS_ALIAS_KEYS — the host files a file-tool call may open (``file_args.py``)
+- READ_RANGE_PATTERN / strip_read_range — the one grammar of a path argument's ``:START-END`` line range, shared by the file tools and the verdict (``file_args.py``)
 - url_arg_values / url_arg_hosts / url_host / url_arg_error — the URLs a network-tool call names, the hosts they name and why a URL has no canonical form (``url_args.py``)
 - check_safety_coverage / _check_safety_coverage — module-load safety gate
 - _FAIL_CLOSED_DEFAULTS / _PTC_* — internal helpers
 """
 
-from .file_args import PATHS_ALIAS_KEYS, coerce_path_list, host_file_paths, is_url
+from .file_args import PATHS_ALIAS_KEYS, READ_RANGE_PATTERN, coerce_path_list, host_file_paths, is_url, strip_read_range
 from .registry import (
     _PTC_SAFETY_METADATA,
     _PTC_TOOL_FLAT_INDEX,
@@ -73,6 +74,7 @@ __all__ = [
     "_PTC_SAFETY_METADATA",
     "_PTC_TOOL_FLAT_INDEX",
     "PATHS_ALIAS_KEYS",
+    "READ_RANGE_PATTERN",
     "MCPAnnotations",
     "SafetyMetadata",
     "_check_safety_coverage",
@@ -86,6 +88,7 @@ __all__ = [
     "register_ptc_safety_metadata",
     "resolve_permission_type",
     "resolve_safety_metadata",
+    "strip_read_range",
     "unregister_ptc_safety_metadata",
     "url_arg_error",
     "url_arg_hosts",

@@ -6,21 +6,24 @@
 - core.parked_file_view::is_parked_path, page_token_budget, parked_page_chars (POS: page size of parked text)
 - agent.context_management.context::AgentContext, extract_context_from_runnable_config (POS: the run's window)
 - agent.context_management.infra.archive_reference::is_context_archive_path (POS: the test for a compacted context archive path)
+- agent.security.redact::redact_file_text (POS: per-file redaction: source files mask name-based assignments only on lines with a string literal)
 - core.result_formatter::clamp_line (POS: per-line clamp)
 - file_read.truncation::truncate_file_output (POS: output truncation)
 - file_read.outline::extract_file_outline (POS: structure-mode outline)
 - streaming::read_file_chunked, read_file_preview (POS: large-file streaming reader)
 - constants::MAX_RANGED_READ_SIZE_BYTES (POS: the size past which a read falls back to preview)
-- utils.file_utils::path_base (POS: the file path of a path argument, without its ``:START-END`` range)
+- core.security.tool_registry::strip_read_range (POS: the file path of a path argument, without its ``:START-END`` range)
 - validators.path_validator::PathValidator (POS: traversal, symlink, dangerous- and device-path gate the file service applies)
 - core.security.ocap.guard::enforce_capability_access (POS: capability scope of the running spawn)
 
 [OUTPUT]
-- process_text_paths: streaming/preview/all text path reads
-- read_structure_outline: the symbol or heading outline of one text path (``parse_mode='structure'``)
+- process_text_paths: streaming/preview/all text path reads and, for ``parse_mode='structure'``, the symbol or heading
+  outline of each path; every part is redacted as its path's file type is
 
 [POS]
-Text read execution for file_read_tool; multimodal.py delegates its text paths and structure outlines here.
+Text read execution for file_read_tool; multimodal.py delegates its text paths and structure outlines here, so a text
+path reads the same whether or not the call also reads media. What ``process_text_paths`` returns is already
+redacted, so no caller can show a text path unredacted.
 ``preview`` and ``stream`` open files themselves, so they pass the service's path gate and the spawn's capability
 scope first; a refused path is read through the service, which words the refusal exactly as it does for ``all``.
 Neither records a read for the edit gate: a file the model saw only through them is edited after a read through the
@@ -41,12 +44,13 @@ from langchain_core.runnables import RunnableConfig
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG
 from myrm_agent_harness.agent.context_management.context import AgentContext, extract_context_from_runnable_config
 from myrm_agent_harness.agent.context_management.infra.archive_reference import is_context_archive_path
+from myrm_agent_harness.agent.security.redact import redact_file_text
 from myrm_agent_harness.core.security.ocap.guard import enforce_capability_access
 from myrm_agent_harness.core.security.ocap.types import CapabilityAction
+from myrm_agent_harness.core.security.tool_registry import strip_read_range
 
 from ...constants import MAX_RANGED_READ_SIZE_BYTES
 from ...streaming import read_file_chunked, read_file_preview
-from ...utils.file_utils import path_base
 from ...validators.path_validator import PathValidator
 from ..file_operation_service import FileOperationService
 from ..operation_context import OperationContext, OperationType
@@ -65,6 +69,9 @@ logger = logging.getLogger(__name__)
 # it is built from the file as the service renders it. Only the scan itself is capped, and the outline says where.
 _STRUCTURE_READ_MAX_LINES = 5000
 _OUTLINE_MAX_SYMBOLS = 100
+# A line of a file as the service renders it, behind its line number: even a blank line of a blank file has one. What
+# the service says about a path that shows no file (missing, a directory, an archive the guards refused) has none.
+_NUMBERED_LINE = re.compile(r"^[ \t]*\d+\|", re.MULTILINE)
 # The first line past the scan that has text. Blank lines hold no symbol: a file that only trails off in them was
 # scanned whole.
 _UNSCANNED_TEXT_LINE = re.compile(r"^[ \t]*(\d+)\|[ \t]*\S", re.MULTILINE)
@@ -138,7 +145,7 @@ async def _read_via_service(
     if max_lines is None:
         max_lines = DEFAULT_FILE_IO_CONFIG.max_read_lines
     # The hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
-    hint_path = path_str if is_dir else path_base(path_str)
+    hint_path = path_str if is_dir else strip_read_range(path_str)
     max_chars = DEFAULT_FILE_IO_CONFIG.max_read_chars
     # Text the context guard parked is read in pages sized in o200k tokens by the model's window, not the char cap.
     if not is_dir and is_parked_path(hint_path):
@@ -218,7 +225,7 @@ async def _direct_read_admitted(
     return True
 
 
-async def read_structure_outline(
+async def _read_structure_outline(
     path_str: str,
     executor: CodeExecutor | None,
     skills: list[SkillMetadata] | None,
@@ -229,10 +236,16 @@ async def read_structure_outline(
     Built from the file as the service renders it, not from the page a read would show: the page cap would end the
     outline a few hundred lines in without a word. Past ``_STRUCTURE_READ_MAX_LINES`` the scan stops, and the outline
     names the line it stopped at and how to read on.
+
+    A path that shows no file line has nothing to outline: a missing path, a directory or an archive the guards refused
+    is answered with what the service said, as every other read answers it, not with an outline of nothing.
     """
-    base_path_str = path_base(path_str)
+    base_path_str = strip_read_range(path_str)
+    viewed = await _view_text(path_str, executor, skills, reason)
+    if _NUMBERED_LINE.search(viewed) is None:
+        return viewed
     # ``maxsplit`` leaves everything past the scanned lines in one last piece: no per-line work on a long tail.
-    lines = (await _view_text(path_str, executor, skills, reason)).split("\n", _STRUCTURE_READ_MAX_LINES)
+    lines = viewed.split("\n", _STRUCTURE_READ_MAX_LINES)
     outline = extract_file_outline(
         "\n".join(lines[:_STRUCTURE_READ_MAX_LINES]), base_path_str, max_symbols=_OUTLINE_MAX_SYMBOLS
     )
@@ -259,15 +272,19 @@ async def process_text_paths(
     config: RunnableConfig,
     parse_mode: str | None = None,
 ) -> list[str]:
-    """Read plain text paths with preview/stream/all modes and truncation."""
+    """Read plain text paths with preview/stream/all modes and truncation, each part redacted as its path's type is.
+
+    A source file keeps code that only names credentials readable. Every branch below appends exactly one part per
+    path, in path order, which the redaction pairs back to its path.
+    """
     max_lines = DEFAULT_FILE_IO_CONFIG.max_read_lines
     text_content_parts: list[str] = []
 
     for path_str in text_paths:
-        base_path_str = path_base(path_str)
+        base_path_str = strip_read_range(path_str)
 
         if parse_mode == "structure":
-            text_content_parts.append(await read_structure_outline(path_str, executor, skills, reason))
+            text_content_parts.append(await _read_structure_outline(path_str, executor, skills, reason))
             continue
 
         # Only the service parses a line range and enforces the session and budget guards of archived context, so
@@ -337,4 +354,7 @@ async def process_text_paths(
                 await _read_via_service(path_str, executor, skills, reason, config=config, max_lines=max_lines)
             )
 
-    return text_content_parts
+    return [
+        redact_file_text(strip_read_range(path), part)
+        for path, part in zip(text_paths, text_content_parts, strict=True)
+    ]

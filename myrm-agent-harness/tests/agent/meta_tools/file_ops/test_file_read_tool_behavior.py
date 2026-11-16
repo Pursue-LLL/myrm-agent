@@ -176,9 +176,9 @@ async def test_file_read_tool_redacts_secrets(tmp_path: Path) -> None:
             return_value=mock_executor,
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.process_text_paths",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._read_via_service",
             new_callable=AsyncMock,
-            return_value=[
+            side_effect=[
                 "app.api.key=mysecretvalue12345678",
                 "deploy --api-key=sk-abcdefghijklmnop1234",
             ],
