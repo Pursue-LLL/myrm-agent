@@ -15,7 +15,7 @@
 
 测试：`tests/services/project/test_workspace_path_resolve.py` · `tests/services/project/test_project_payload.py` · `tests/services/project/test_legacy_workspace_path_migration.py` · `tests/services/project/test_project_orchestrator.py`（并发锁：acquire/release 配对、is_locked 纯查询、release 无等待者清理、waiter 取消后空闲锁延迟复检清理（`_schedule_idle_cleanup`，堵住 wait_for 超时路径的缓存残留）、forget 项目删除清理、同项目串行/异项目并行）· `tests/integration/test_project_workspace_bind_file_write_integration.py` · `tests/api/chats/test_effective_workspace_ssot.py`
 
-启动迁移：`app/database/migrations.py::CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL` 清空历史假路径 `/persistent/workspace/project_%`，用户需通过 Mount Wizard 重新绑定。
+启动迁移：`app/database/migrations/_sql_constants.py::CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL` 清空历史假路径 `/persistent/workspace/project_%`，用户需通过 Mount Wizard 重新绑定。
 
 工作区 SSOT：`app/services/chat/effective_workspace.py` — Agent / GET chat / UI 共用同一目录解析顺序。
 
