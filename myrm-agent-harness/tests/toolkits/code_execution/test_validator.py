@@ -280,6 +280,26 @@ class TestDevNullRedirects:
         assert result.is_safe is False
         assert "Only current session workspace is accessible" in (result.reason or "")
 
+    def test_a_name_that_resolves_to_dev_null_is_not_dev_null(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``/dev/stdin`` resolves to ``/dev/null`` whenever the process's stdin is ``/dev/null``, as a CI step's is.
+
+        The verdict is about the name the command uses, so it must not depend on how the test process was started.
+        """
+        real_resolve = Path.resolve
+
+        def stdin_is_dev_null(self: Path, strict: bool = False) -> Path:
+            return Path("/dev/null") if str(self) == "/dev/stdin" else real_resolve(self, strict=strict)
+
+        monkeypatch.setattr(Path, "resolve", stdin_is_dev_null)
+
+        result = validate_command("cat < /dev/stdin", workspace_path=tmp_path)
+        assert result.is_safe is False
+        assert "Only current session workspace is accessible" in (result.reason or "")
+        assert validate_path("/dev/stdin").is_safe is False
+        assert validate_path("/dev/null").is_safe is True
+
 
 # ---------------------------------------------------------------------------
 # validate_path
