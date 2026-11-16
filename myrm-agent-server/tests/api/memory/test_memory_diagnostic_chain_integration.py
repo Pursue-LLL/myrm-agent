@@ -4,7 +4,7 @@ Covers the real write-read consistency path end to end:
 
 1. POST /memory/command-center/diagnostics/repairs with plan_id=run_diagnostics executes the
    golden recall benchmark against a real MemoryManager backed by a real embedding provider
-   (BAAI/bge-m3 via SiliconFlow, configured in .env.test). The benchmark measures latency
+   (the EMBEDDING_* account of .env.test). The benchmark measures latency
    p50/p95 with perf_counter and the service persists the flattened metrics (including
    benchmark_categories and embedding_model) into the operation ledger.
 2. GET /memory/command-center/diagnostics/history projects the ledger row back into a
@@ -43,16 +43,6 @@ async def db_session(tmp_path: Path) -> AsyncIterator[AsyncSession]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
-
-
-def _patch_memory_path(path: str) -> patch:
-    """Point settings database paths at a temp dir so vector store stays out of user data."""
-    qdrant_path = str(Path(path) / "vector_store")
-    return patch.multiple(
-        "app.config.settings.settings.database",
-        memory_base_path=path,
-        qdrant_path=qdrant_path,
-    )
 
 
 @pytest.mark.e2e

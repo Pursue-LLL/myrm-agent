@@ -12,10 +12,10 @@ workspace provisioning, embedding probe and both agent arms run for real),
 and the browser asserts the run-history table discloses the agent model the
 run really used plus a judge placeholder (WBBench is task-native).
 
-The embedding backend is a local OpenAI-compatible endpoint
-(tests/support/local_embedding_server.py): the product supports arbitrary
-self-hosted embedding endpoints, so this is a real usage path and makes the
-run independent of external embedding account quota.
+The embedding backend is a real account: ``configured_retrieval_embedding``
+(tests/support/retrieval_embedding.py) keeps the seeded one when it embeds,
+else takes a ``.env.test`` backup, and the test fails naming every refusal when
+none can. The run embeds for real, so an exhausted quota must surface.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ from tests.support.e2e_provider_seed import (  # noqa: E402
     strip_provider_prefix,
     upsert_provider,
 )
-from tests.support.local_embedding_server import LocalEmbeddingServer  # noqa: E402
+from tests.support.retrieval_embedding import configured_retrieval_embedding  # noqa: E402
 from tests.support.test_secrets import load_test_secrets  # noqa: E402
 
 EVAL_LAB_URL = f"{get_e2e_ui_url()}/eval-lab"
@@ -250,17 +250,13 @@ _HISTORY_TABLE_JS = """(() => {
 
 
 # ---------------------------------------------------------------------------
-# Provider / embedding configuration (the data path the WebUI settings page
-# writes; kept here so the test does not depend on a pre-seeded database)
+# Provider configuration (the data path the WebUI settings page writes; kept
+# here so the test does not depend on a pre-seeded database)
 # ---------------------------------------------------------------------------
 
 
-def _configure_eval_stack(
-    api_url: str,
-    *,
-    embedding_override: dict[str, str] | None = None,
-) -> dict[str, object]:
-    """Configure LLM providers + default model + embedding via the settings API."""
+def _configure_eval_stack(api_url: str) -> dict[str, object]:
+    """Configure LLM providers + default model via the settings API."""
     secrets = load_test_secrets()
     basic_model = secrets.basic_model
     assert basic_model and secrets.basic_api_key, "BASIC_* missing in .env.test"
@@ -316,45 +312,36 @@ def _configure_eval_stack(
         "customModelInfo": current.get("customModelInfo") or {},
     }
     put_config_value("providers", merged, api_url=api_url)
-
-    if embedding_override is not None:
-        retrieval: dict[str, object] = {
-            "embeddingApplied": True,
-            "embeddingConfig": {
-                "provider": embedding_override["provider"],
-                "model": embedding_override["model"],
-                "apiKey": embedding_override["apiKey"],
-                "apiBase": embedding_override["apiBase"],
-            },
-        }
-    else:
-        embedding_key = secrets.get("EMBEDDING_API_KEY")
-        if not embedding_key:
-            return merged
-        retrieval = {
-            "embeddingApplied": True,
-            "embeddingConfig": {
-                "provider": secrets.get("EMBEDDING_PROVIDER", "siliconflow"),
-                "model": secrets.get("EMBEDDING_MODEL", "BAAI/bge-m3"),
-                "apiKey": embedding_key,
-                "apiBase": secrets.get("EMBEDDING_BASE_URL", ""),
-            },
-        }
-    put_config_value("retrieval", retrieval, api_url=api_url)
     return merged
 
 
-def _wait_memory_ab_finished(api_base: str, *, budget_sec: float = 480.0) -> dict[str, object]:
-    deadline = time.monotonic() + budget_sec
+_PROGRESS_FIELDS = ("stage", "current_arm", "profile_progress", "case_completed")
+
+
+def _wait_memory_ab(api_base: str, *, running: bool, budget_sec: float) -> dict[str, object]:
+    """Poll the run status until ``is_running`` equals ``running``.
+
+    When the budget ends the error carries the last status and the second each progress step was first
+    seen at, so a slow run shows where its time went.
+    """
+    started = time.monotonic()
     status_data: dict[str, object] = {}
-    while time.monotonic() < deadline:
+    steps: list[str] = []
+    last_step = ""
+    while (elapsed := time.monotonic() - started) < budget_sec:
         payload = http_json("GET", f"{api_base}/api/v1/eval/memory-ab/status")
         assert isinstance(payload, dict)
         status_data = payload
-        if not status_data.get("is_running", True):
+        if (step := "/".join(str(status_data.get(field)) for field in _PROGRESS_FIELDS)) != last_step:
+            steps.append(f"{elapsed:.0f}s {step}")
+            last_step = step
+        if bool(status_data.get("is_running", True)) is running:
             return status_data
-        time.sleep(3)
-    raise AssertionError(f"Memory A/B run did not finish in {budget_sec:.0f}s: {status_data}")
+        time.sleep(2)
+    raise AssertionError(
+        f"Memory A/B run {'not started' if running else 'did not finish'} in {budget_sec:.0f}s: {status_data}; "
+        f"progress (stage/arm/profile/cases): {steps}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -377,21 +364,10 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
     if not load_test_secrets().has_basic_credentials:
         pytest.skip("BASIC_* credentials missing in .env.test")
 
-    # A local OpenAI-compatible embedding endpoint stands in for a self-hosted
-    # embedding provider (a supported product usage) so the run does not depend
-    # on the availability/quota of any external embedding account.
-    prev_retrieval = fetch_config_value("retrieval", api_url=api_base)
-    embedding_server = LocalEmbeddingServer(port=8399).start()
-    try:
-        _configure_eval_stack(
-            api_base,
-            embedding_override={
-                "provider": "openai",
-                "model": "test-embed-v1",
-                "apiKey": "test-key",
-                "apiBase": embedding_server.base_url,
-            },
-        )
+    # The run embeds for real: an account that can embed is put in force for the block and the
+    # previous retrieval config comes back afterwards; with none usable the block raises.
+    with configured_retrieval_embedding(api_base):
+        _configure_eval_stack(api_base)
         assert wait_e2e_provider_ready(api_url=api_base), "provider stack not ready"
 
         prepare_e2e_ui_session(api_base)
@@ -402,7 +378,7 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
             # T0: The Eval Lab SPA has mounted and rendered its tabs
             page_state = wait_for_state(client, page, _PAGE_READY_JS, timeout_sec=60.0)
             assert page_state.get("ready") is True, page_state
-            assert "eval" in page_state.get("url", "").lower(), page_state
+            assert "eval" in str(page_state.get("url", "")).lower(), page_state
 
             # T1: Sources tab shows the Office card with the Memory A/B action
             sources = wait_for_state(client, page, _SOURCES_TAB_JS, timeout_sec=45.0)
@@ -423,16 +399,16 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
             started = wait_for_state(client, page, _CLICK_START_EVAL_JS, timeout_sec=15.0)
             assert started.get("ready") is True and started.get("clicked") is True, started
 
-            # Confirm the run was really dispatched by the UI before waiting.
-            time.sleep(2.0)
-            early_status = http_json("GET", f"{api_base}/api/v1/eval/memory-ab/status")
-            assert early_status.get("is_running") is True, (
-                f"run not started by UI: {json.dumps(early_status, ensure_ascii=False, default=str)}"
-            )
+            # Confirm the run was really dispatched by the UI before waiting. The start request first
+            # embeds once against the real account, so the run only shows as running after that returned.
+            try:
+                _wait_memory_ab(api_base, running=True, budget_sec=60.0)
+            except AssertionError as exc:
+                raise AssertionError(f"{exc} | click: {json.dumps(started, ensure_ascii=False, default=str)}") from exc
 
             # T3: Wait for the real dual-arm run to complete (download + workspaces
             # + embedding probe + both agent arms with the real LLM)
-            status_data = _wait_memory_ab_finished(api_base, budget_sec=480.0)
+            status_data = _wait_memory_ab(api_base, running=False, budget_sec=480.0)
             assert status_data.get("error") is None, status_data.get("error")
 
             # The run-history table (MemoryAbHistoryTable) lives on the memory-ab
@@ -446,14 +422,15 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
             table = wait_for_state(client, page, _HISTORY_TABLE_JS, timeout_sec=45.0)
             assert table.get("ready") is True, table
             headers = table.get("headers", [])
-            assert table.get("headerCount", 0) >= 7, f"columns missing: {headers}"
+            header_count = table.get("headerCount", 0)
+            assert isinstance(header_count, int) and header_count >= 7, f"columns missing: {headers}"
 
             agent_col = table.get("agentCol", -1)
             judge_col = table.get("judgeCol", -1)
-            assert agent_col >= 0, f"Agent Model column missing: {headers}"
-            assert judge_col >= 0, f"Judge Model column missing: {headers}"
+            assert isinstance(agent_col, int) and agent_col >= 0, f"Agent Model column missing: {headers}"
+            assert isinstance(judge_col, int) and judge_col >= 0, f"Judge Model column missing: {headers}"
 
-            row_text = table.get("firstRowText", "")
+            row_text = str(table.get("firstRowText", ""))
             # .env.test declares BASIC_MODEL=openai-like/agnes-2.5-flash; the
             # disclosed label is the provider-normalized form (openai/agnes-2.5-flash).
             expected_model = load_test_secrets().basic_model
@@ -461,8 +438,3 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
             assert f"/{model_name}" in row_text, f"agent_model disclosure missing; expected *{model_name} in row: {row_text}"
             # WBBench is task-native, so the judge label is 'none' -> '-' in the table.
             assert " | " in row_text
-    finally:
-        # Restore the pre-test retrieval config so the shared stack is never
-        # left pointing at the (stopped) local embedding endpoint.
-        put_config_value("retrieval", prev_retrieval, api_url=api_base)
-        embedding_server.stop()

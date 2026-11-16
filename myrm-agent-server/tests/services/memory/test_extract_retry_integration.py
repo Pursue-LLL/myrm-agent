@@ -45,7 +45,7 @@ async def test_full_success_cycle_deletes_row(
 
 @pytest.mark.asyncio
 async def test_failure_backoff_then_retry_recovers(
-    test_db,
+    test_db: SessionFactory,
     fetch_retry_row: Callable[[str], Awaitable[MemoryExtractRetryModel | None]],
 ) -> None:
     """Failed attempt schedules exponential backoff; a later due sweep recovers."""
@@ -67,6 +67,7 @@ async def test_failure_backoff_then_retry_recovers(
 
     async with test_db() as db:
         row = await db.get(MemoryExtractRetryModel, "chat-1")
+        assert row is not None
         row.next_attempt_at = datetime.now(UTC) - timedelta(seconds=1)
         await db.commit()
 
@@ -81,7 +82,7 @@ async def test_failure_backoff_then_retry_recovers(
 
 @pytest.mark.asyncio
 async def test_restart_reclaims_inflight_task(
-    test_db,
+    test_db: SessionFactory,
     fetch_retry_row: Callable[[str], Awaitable[MemoryExtractRetryModel | None]],
 ) -> None:
     """A claimed-but-crashed task stays pending and a fresh worker reclaims it."""
@@ -104,7 +105,7 @@ async def test_restart_reclaims_inflight_task(
 
 @pytest.mark.asyncio
 async def test_real_worker_run_retry_no_op_turn_deletes_row(
-    test_db,
+    test_db: SessionFactory,
     fetch_retry_row: Callable[[str], Awaitable[MemoryExtractRetryModel | None]],
 ) -> None:
     """Real cooperation: run_retry_extract_for_chat returns False for a chat whose
@@ -125,7 +126,7 @@ async def test_real_worker_run_retry_no_op_turn_deletes_row(
 
 @pytest.mark.asyncio
 async def test_real_worker_run_retry_missing_chat_deletes_row(
-    test_db,
+    test_db: SessionFactory,
     fetch_retry_row: Callable[[str], Awaitable[MemoryExtractRetryModel | None]],
 ) -> None:
     """Real cooperation: run_retry_extract_for_chat returns False when the chat is
@@ -145,7 +146,7 @@ async def test_real_worker_run_retry_missing_chat_deletes_row(
     reason="E2E requires BASIC_API_KEY and LITE_API_KEY from .env.test",
 )
 async def test_real_llm_full_retry_cycle(
-    test_db,
+    test_db: SessionFactory,
     monkeypatch: pytest.MonkeyPatch,
     fetch_retry_row: Callable[[str], Awaitable[MemoryExtractRetryModel | None]],
 ) -> None:
@@ -237,7 +238,7 @@ async def _seed_e2e_user_configs(factory: SessionFactory) -> None:
     retrieval = {
         "embeddingApplied": True,
         "embeddingConfig": {
-            "provider": "siliconflow",
+            "provider": "openai_compatible",  # the account is reached through EMBEDDING_BASE_URL, whoever hosts it
             "model": os.environ["EMBEDDING_MODEL"],
             "apiKey": os.environ["EMBEDDING_API_KEY"],
             "apiBase": os.environ["EMBEDDING_BASE_URL"],
@@ -267,7 +268,7 @@ async def _seed_e2e_user_configs(factory: SessionFactory) -> None:
 
 @pytest.mark.asyncio
 async def test_real_worker_lifecycle_enqueue_wake_processes_row(
-    test_db,
+    test_db: SessionFactory,
     fetch_retry_row: Callable[[str], Awaitable[MemoryExtractRetryModel | None]],
 ) -> None:
     """Real worker loop lifecycle: start -> enqueue -> wake -> sweep -> row deleted -> stop.
@@ -294,7 +295,7 @@ async def test_real_worker_lifecycle_enqueue_wake_processes_row(
 
 @pytest.mark.asyncio
 async def test_attempts_exhausted_marks_failed_and_records_ledger(
-    test_db,
+    test_db: SessionFactory,
     fetch_retry_row: Callable[[str], Awaitable[MemoryExtractRetryModel | None]],
 ) -> None:
     """MAX_ATTEMPTS failures flip the row to failed, stop reclaims, and record a

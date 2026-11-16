@@ -20,13 +20,15 @@ from __future__ import annotations
 import contextlib
 import json
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from cdp_chat.support import fetch_config_value, put_config_value  # noqa: E402
 from e2e_core.dev_ports import shared_api_base
 
 from tests.support.chrome_mcp_e2e import (
+    ChromeMcpClient,
+    McpPage,
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -36,7 +38,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
-from tests.support.local_embedding_server import LocalEmbeddingServer
+from tests.support.retrieval_embedding import configured_retrieval_embedding
 from tests.support.wb_bench_e2e_helpers import (
     EVAL_LAB_PATH,
     SOURCES_READY_JS,
@@ -341,7 +343,7 @@ def _make_matrix_report(
 
 
 @contextlib.contextmanager
-def _seeded_memory_ab_reports() -> object:
+def _seeded_memory_ab_reports() -> Iterator[None]:
     """Seed two reports (latest + older) into the shared server data dir.
 
     The memory-ab reports live under the server working directory
@@ -403,7 +405,7 @@ def _seeded_memory_ab_reports() -> object:
 
 
 @contextlib.contextmanager
-def _open_eval_lab_page(ui_url: str):  # noqa: ANN202 - generator context manager
+def _open_eval_lab_page(ui_url: str) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     """Open the eval-lab page, retrying once when the route mounts blank.
 
     The route intermittently hydrates as a ~192-character document with no E2E
@@ -489,6 +491,16 @@ def test_memory_ab_report_and_history_render_chrome_e2e() -> None:
             assert selected.get("ready") is True, selected
 
 
+@contextlib.contextmanager
+def _abort_run_on_exit(api_url: str) -> Iterator[None]:
+    """Abort a Memory A/B run left going when the block ends, so the stack is never left evaluating."""
+    try:
+        yield
+    finally:
+        with contextlib.suppress(Exception):  # best-effort hygiene, never mask the assertion
+            http_json("POST", f"{api_url}/api/v1/eval/memory-ab/abort")
+
+
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -500,29 +512,17 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
     prepare_e2e_ui_session(api_url)
     warm_ui_route(EVAL_LAB_PATH)
 
-    # Point the shared stack at a local OpenAI-compatible embedding endpoint so
-    # the run's embedding pre-flight passes without depending on an external
-    # embedding account; restore the pre-test config afterwards.
+    # The run's embedding pre-flight embeds for real, so both backends need an account that
+    # can embed; their retrieval configs come back when the block ends.
     # The eval-lab hook calls the relative /api/v1/eval/memory-ab/* paths, which
     # the WebUI proxy serves from the shared stack, while the test client talks
     # to the private runtime: configure both or the shared-side run fails its
     # embedding pre-flight and the page never leaves idle.
-    shared_api = shared_api_base()
-    prev_retrieval = fetch_config_value("retrieval", api_url=api_url)
-    prev_shared_retrieval = fetch_config_value("retrieval", api_url=shared_api)
-    embedding_server = LocalEmbeddingServer(port=0).start()
-    retrieval_config = {
-        "embeddingApplied": True,
-        "embeddingConfig": {
-            "provider": "openai",
-            "model": "test-embed-v1",
-            "apiKey": "test-key",
-            "apiBase": embedding_server.base_url,
-        },
-    }
-    try:
-        put_config_value("retrieval", retrieval_config, api_url=api_url)
-        put_config_value("retrieval", retrieval_config, api_url=shared_api)
+    with (
+        configured_retrieval_embedding(api_url),
+        configured_retrieval_embedding(shared_api_base()),
+        _abort_run_on_exit(api_url),
+    ):
         with _open_eval_lab_page(ui_url) as (
             client,
             page,
@@ -559,11 +559,3 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
 
             cleared = wait_for_state(client, page, _MEMORY_AB_CLEARED_JS, timeout_sec=90.0)
             assert cleared.get("ready") is True, cleared
-    finally:
-        try:
-            http_json("POST", f"{api_url}/api/v1/eval/memory-ab/abort")
-        except Exception:  # noqa: BLE001 - best-effort hygiene, never mask the assertion
-            pass
-        put_config_value("retrieval", prev_retrieval, api_url=api_url)
-        put_config_value("retrieval", prev_shared_retrieval, api_url=shared_api)
-        embedding_server.stop()
