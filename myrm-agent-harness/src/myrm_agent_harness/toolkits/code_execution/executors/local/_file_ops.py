@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 import stat
 from pathlib import Path
+from typing import Protocol
 
 from myrm_agent_harness.core.security.ocap import CapabilityAction, enforce_capability_access
 from myrm_agent_harness.infra.atomic_write import async_atomic_write
@@ -40,8 +41,8 @@ logger = logging.getLogger(__name__)
 def _current_session_id() -> str | None:
     """Resolve the chat id bound by the agent runtime, or None outside an agent turn.
 
-    File writes are allowed outside an explicit agent context (e.g. CLI utilities),
-    in which case no snapshot hook fires and behavior matches the previous flow.
+    File writes are allowed outside an explicit agent context (e.g. CLI utilities);
+    no snapshot hook fires there.
     """
     try:
         from myrm_agent_harness.core.context_vars import chat_id_var
@@ -76,14 +77,30 @@ async def _trigger_snapshot_hook(
     )
 
 
+class _FileOpsHost(Protocol):
+    """What the file operations need from the executor they are mixed into.
+
+    ``_guard_write`` is defined by the mixin itself; it is listed because the methods reach it through
+    ``self: _FileOpsHost``.
+    """
+
+    @property
+    def workspace_path(self) -> str: ...
+
+    async def resolve_path(self, relative_path: str) -> str: ...
+
+    def _log_context_file_access(self, resolved_path: str, success: bool = True) -> None: ...
+
+    def _guard_write(self, resolved_path: str) -> None: ...
+
+
 class LocalFileOpsMixin:
     """Mixin providing local file operations via pathlib (zero subprocess overhead).
 
-    Requires the host class to provide: ``resolve_path``, ``_guard_write``,
-    ``_log_context_file_access``, and ``workspace_path``.
+    The host supplies the state described by ``_FileOpsHost``.
     """
 
-    def _guard_write(self, resolved_path: str) -> None:
+    def _guard_write(self: _FileOpsHost, resolved_path: str) -> None:
         """Refuse a write that any protection rule forbids.
 
         Credential paths are refused outright. Evidence directories and the active
@@ -95,7 +112,7 @@ class LocalFileOpsMixin:
         fail-closed direction for a surface that cannot ask.
         """
         enforce_capability_access(CapabilityAction.WRITE, resolved_path)
-        refuse_write_into_readonly_grant(resolved_path, self.workspace_path)  # type: ignore[attr-defined]
+        refuse_write_into_readonly_grant(resolved_path, self.workspace_path)
 
         from myrm_agent_harness.core.context_vars import protected_paths_var
         from myrm_agent_harness.core.security.path import (
@@ -123,13 +140,13 @@ class LocalFileOpsMixin:
                 f"Use file_write_tool so the write can be routed through approval."
             )
 
-    async def read_file(self, path: str) -> str:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def read_file(self: _FileOpsHost, path: str) -> str:
+        safe = await self.resolve_path(path)
         enforce_capability_access(CapabilityAction.READ, safe)
-        self._log_context_file_access(safe, success=True)  # type: ignore[attr-defined]
+        self._log_context_file_access(safe, success=True)
         p = Path(safe)
         if not p.exists():
-            self._log_context_file_access(safe, success=False)  # type: ignore[attr-defined]
+            self._log_context_file_access(safe, success=False)
             raise FileNotFoundError(f"File not found: {path}")
 
         if safe.endswith(".gz"):
@@ -139,8 +156,8 @@ class LocalFileOpsMixin:
         # with every line ending changed.
         return p.read_bytes().decode("utf-8")
 
-    async def file_size(self, path: str) -> int:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def file_size(self: _FileOpsHost, path: str) -> int:
+        safe = await self.resolve_path(path)
         enforce_capability_access(CapabilityAction.READ, safe)
         try:
             st = Path(safe).stat()
@@ -150,21 +167,21 @@ class LocalFileOpsMixin:
             raise OSError(f"Not a regular file: {path}")
         return st.st_size
 
-    async def read_file_bytes(self, path: str) -> bytes:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def read_file_bytes(self: _FileOpsHost, path: str) -> bytes:
+        safe = await self.resolve_path(path)
         enforce_capability_access(CapabilityAction.READ, safe)
         p = Path(safe)
         if not p.exists():
             raise FileNotFoundError(f"File not found: {path}")
         return p.read_bytes()
 
-    async def write_file(self, path: str, content: str) -> None:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def write_file(self: _FileOpsHost, path: str, content: str) -> None:
+        safe = await self.resolve_path(path)
         self._guard_write(safe)
 
         # Trigger auto-snapshot hook
         await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,  # type: ignore[attr-defined]
+            workspace_path=self.workspace_path,
             action_type="file_write",
             path=safe,
             size=len(content),
@@ -176,12 +193,12 @@ class LocalFileOpsMixin:
         # CR CR LF.
         p.write_bytes(content.encode("utf-8"))
 
-    async def write_file_bytes(self, path: str, content: bytes) -> None:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def write_file_bytes(self: _FileOpsHost, path: str, content: bytes) -> None:
+        safe = await self.resolve_path(path)
         self._guard_write(safe)
 
         await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,  # type: ignore[attr-defined]
+            workspace_path=self.workspace_path,
             action_type="file_write",
             path=safe,
             size=len(content),
@@ -191,12 +208,12 @@ class LocalFileOpsMixin:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(content)
 
-    async def write_file_atomic(self, path: str, content: str) -> None:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def write_file_atomic(self: _FileOpsHost, path: str, content: str) -> None:
+        safe = await self.resolve_path(path)
         self._guard_write(safe)
 
         await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,  # type: ignore[attr-defined]
+            workspace_path=self.workspace_path,
             action_type="file_write",
             path=safe,
             size=len(content),
@@ -204,12 +221,12 @@ class LocalFileOpsMixin:
 
         await async_atomic_write(safe, content)
 
-    async def write_file_bytes_atomic(self, path: str, content: bytes) -> None:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def write_file_bytes_atomic(self: _FileOpsHost, path: str, content: bytes) -> None:
+        safe = await self.resolve_path(path)
         self._guard_write(safe)
 
         await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,  # type: ignore[attr-defined]
+            workspace_path=self.workspace_path,
             action_type="file_write",
             path=safe,
             size=len(content),
@@ -217,12 +234,12 @@ class LocalFileOpsMixin:
 
         await async_atomic_write(safe, content)
 
-    async def append_file(self, path: str, content: str) -> None:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def append_file(self: _FileOpsHost, path: str, content: str) -> None:
+        safe = await self.resolve_path(path)
         self._guard_write(safe)
 
         await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,  # type: ignore[attr-defined]
+            workspace_path=self.workspace_path,
             action_type="file_append",
             path=safe,
             size=len(content),
@@ -231,35 +248,35 @@ class LocalFileOpsMixin:
         with open(safe, "a", encoding="utf-8") as f:
             f.write(content)
 
-    async def delete_file(self, path: str) -> None:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def delete_file(self: _FileOpsHost, path: str) -> None:
+        safe = await self.resolve_path(path)
         self._guard_write(safe)
 
         await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,  # type: ignore[attr-defined]
+            workspace_path=self.workspace_path,
             action_type="file_delete",
             path=safe,
         )
 
         Path(safe).unlink(missing_ok=True)
 
-    async def file_exists(self, path: str) -> bool:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def file_exists(self: _FileOpsHost, path: str) -> bool:
+        safe = await self.resolve_path(path)
         return Path(safe).exists()
 
-    async def is_file(self, path: str) -> bool:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def is_file(self: _FileOpsHost, path: str) -> bool:
+        safe = await self.resolve_path(path)
         return Path(safe).is_file()
 
-    async def is_dir(self, path: str) -> bool:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def is_dir(self: _FileOpsHost, path: str) -> bool:
+        safe = await self.resolve_path(path)
         return Path(safe).is_dir()
 
-    async def mkdir(self, path: str) -> None:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def mkdir(self: _FileOpsHost, path: str) -> None:
+        safe = await self.resolve_path(path)
         self._guard_write(safe)
         Path(safe).mkdir(parents=True, exist_ok=True)
 
-    async def list_files(self, path: str = ".", pattern: str = "*") -> list[str]:
-        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+    async def list_files(self: _FileOpsHost, path: str = ".", pattern: str = "*") -> list[str]:
+        safe = await self.resolve_path(path)
         return [str(f) for f in Path(safe).glob(pattern) if f.is_file()]

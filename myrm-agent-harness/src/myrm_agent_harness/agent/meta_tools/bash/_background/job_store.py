@@ -21,6 +21,7 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import get_args
 from uuid import uuid4
 
 from myrm_agent_harness.agent.meta_tools.bash._background.job_store_core import (
@@ -39,6 +40,10 @@ logger = logging.getLogger(__name__)
 
 _STORE: BackgroundJobStore | None = None
 _CONFIGURED_PATH: Path | None = None
+
+# The statuses a ledger row can hold, derived from the Literal so the two cannot drift; a stored value outside them
+# reads as ``exited``.
+_STATUS_BY_NAME: dict[str, BackgroundJobStoreStatus] = {name: name for name in get_args(BackgroundJobStoreStatus)}
 
 # Columns the table gained after its first definition, as (name, ALTER statement); a ledger opened without them gets
 # them added, so a new and an existing ledger end up with the same table.
@@ -281,18 +286,12 @@ class BackgroundJobStore:
 
     @staticmethod
     def _row_to_record(row: sqlite3.Row) -> BackgroundJobRecord:
-        status_raw = str(row["status"])
-        status: BackgroundJobStoreStatus
-        if status_raw in ("running", "exited", "killed", "orphaned"):
-            status = status_raw  # type: ignore[assignment]
-        else:
-            status = "exited"
         return BackgroundJobRecord(
             job_id=str(row["job_id"]),
             pid=int(row["pid"]) if row["pid"] is not None else None,
             session_id=str(row["session_id"]),
             command=str(row["command"]),
-            status=status,
+            status=_STATUS_BY_NAME.get(str(row["status"]), "exited"),
             started_at=float(row["started_at"]),
             completed_at=float(row["completed_at"]) if row["completed_at"] is not None else None,
             exit_code=int(row["exit_code"]) if row["exit_code"] is not None else None,
