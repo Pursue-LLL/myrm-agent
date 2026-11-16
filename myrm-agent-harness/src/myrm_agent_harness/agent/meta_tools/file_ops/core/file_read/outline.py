@@ -17,7 +17,10 @@ from source code or document files. Supports truncated file reads and structure-
 In-memory zero-dependency outline extraction supporting Python (AST + regex fallback),
 TypeScript/JavaScript, Go, Rust, Java, C/C++, C#, and Markdown. The regex scan reads one line at a time, so it lists a
 definition whose signature starts on that line: type parameters (`<T>`, `[T]`) and an arrow function's return type
-are covered, an arrow function whose parameters continue on the next line is not.
+are covered, an arrow function whose parameters continue on the next line is not. The scan is a navigation aid, not a
+parser: TypeScript/JavaScript generator functions (`function*`), `abstract class`, `const enum` and `declare`,
+`namespace` and `module` blocks are not listed either. Listing them takes a TypeScript parser, and `grep_tool` finds
+the symbols the outline misses.
 """
 
 from __future__ import annotations
