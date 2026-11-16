@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { findDevBridgeImports, findUnguardedE2eChannelSites, scanE2eChannelSites } from '../e2e-channel-scan.ts';
+import {
+  findChannelTextLines,
+  findDevBridgeImports,
+  findUnguardedE2eChannelSites,
+  scanE2eChannelSites,
+} from '../e2e-channel-scan.ts';
 
 const unguarded = (source: string) => findUnguardedE2eChannelSites(source, 'src/sample.tsx');
 
@@ -76,6 +81,51 @@ describe('scanE2eChannelSites: what counts as a channel reference', () => {
   });
 });
 
+describe('scanE2eChannelSites: reference forms beyond a window member access', () => {
+  it.each([
+    ['an object literal key', `Object.assign(window, { __myrmChatStore: store });`, ['global:__myrmChatStore']],
+    ['a shorthand property, reported once', `Object.assign(window, { __myrmChatStore });`, ['global:__myrmChatStore']],
+    ['a destructured name', `const { __myrmChatStore } = window;`, ['global:__myrmChatStore']],
+    ['a destructured name with a default', `const { __myrmChatStore = null } = window;`, ['global:__myrmChatStore']],
+    ['a bare identifier', `if (typeof __MYRM_E2E_API_BASE__ !== 'undefined') run();`, ['global:__MYRM_E2E_API_BASE__']],
+    ['an identifier under a value assertion', `const s = __myrmChatStore as Store;`, ['global:__myrmChatStore']],
+    [
+      'a marker inside inline script text',
+      `const code = "window.__MYRM_E2E_RUNTIME__ = {};";`,
+      ['string:window.__MYRM_E2E_RUNTIME__ = {};'],
+    ],
+    [
+      'a marker inside a template script',
+      'const code = `window.__myrmChatStore = ${value};`;',
+      ['string:window.__myrmChatStore = '],
+    ],
+    [
+      'a script address',
+      `const el = <Script src="/e2e-runtime-bootstrap.js" />;`,
+      ['string:/e2e-runtime-bootstrap.js'],
+    ],
+  ])('records %s', (_label, source, expected) => {
+    const sites = scanE2eChannelSites(source, 'src/sample.tsx');
+
+    expect(sites.map(({ kind, name }) => `${kind}:${name}`)).toEqual(expected);
+  });
+
+  it('leaves type positions and product words that only resemble a marker alone', () => {
+    const sites = scanE2eChannelSites(
+      `
+      type Handles = { __myrmChatStore: unknown };
+      interface Probe { __MYRM_E2E_CHAT__?: object }
+      const w = window as Window & { __MYRM_E2E_CHAT__?: object };
+      const sentinel = 'prefix __myrm_local_no_auth__ suffix';
+      const word = 'pre_e2e_value';
+    `,
+      'src/sample.tsx',
+    );
+
+    expect(sites).toEqual([]);
+  });
+});
+
 describe('scanE2eChannelSites: guarded references', () => {
   it.each([
     ['an if branch', `if (process.env.NODE_ENV !== 'production') { window.__myrmA = 1; }`],
@@ -115,6 +165,18 @@ describe('scanE2eChannelSites: guarded references', () => {
       `function Loader() { if (process.env.NODE_ENV === 'production' || !isLocalDevHost()) { return null; } return <><E2EChatBridge /><E2EWikiBridge /></>; }`,
     ],
     ['a guarded JSX mount', `const el = <div>{process.env.NODE_ENV !== 'production' && <E2eBridgeLoader />}</div>;`],
+    [
+      'an object literal key behind an if',
+      `if (process.env.NODE_ENV !== 'production') { Object.assign(window, { __myrmChatStore }); }`,
+    ],
+    [
+      'a destructuring after an early return',
+      `function f() { if (process.env.NODE_ENV === 'production') { return; } const { __myrmChatStore } = window; }`,
+    ],
+    [
+      'a guarded script tag',
+      `const el = <div>{process.env.NODE_ENV !== 'production' && <Script src="/e2e-runtime-bootstrap.js" />}</div>;`,
+    ],
   ])('treats %s as guarded', (_label, source) => {
     const sites = scanE2eChannelSites(source, 'src/sample.tsx');
 
@@ -179,6 +241,10 @@ describe('scanE2eChannelSites: unguarded references', () => {
       `function Loader() { if (!isLocalDevHost()) { return null; } return <><E2EChatBridge /><E2EWikiBridge /></>; }`,
     ],
     ['a test route in a template literal', 'const url = `/security/allowlist/test/hitl-probe?chat_id=${id}`;'],
+    ['a shorthand property', `Object.assign(window, { __myrmChatStore });`],
+    ['a destructured name', `const { __myrmChatStore } = window;`],
+    ['an unguarded script tag', `const el = <Script src="/e2e-runtime-bootstrap.js" />;`],
+    ['a marker inside inline script text', `const code = "window.__MYRM_E2E_RUNTIME__ = {};";`],
   ])('flags %s', (_label, source) => {
     expect(unguarded(source).length).toBeGreaterThan(0);
   });
@@ -242,5 +308,35 @@ describe('findDevBridgeImports', () => {
         'src/components/features/x.tsx',
       ),
     ).toEqual([]);
+  });
+});
+
+describe('findChannelTextLines', () => {
+  it('reports each line that carries a marker once, however many markers it holds', () => {
+    const source = [
+      'const a = 1;',
+      `window.__MYRM_E2E_RUNTIME__ = window.__MYRM_E2E_API_BASE__ = 'x';`,
+      'run();',
+      `const prefix = 'myrm-e2e-v1:';`,
+    ].join('\n');
+
+    expect(findChannelTextLines(source)).toEqual([2, 4]);
+  });
+
+  it('counts storage keys and the bootstrap address, which an asset cannot guard', () => {
+    const source = [`sessionStorage.setItem('e2e_flag', '1');`, `<script src="/e2e-runtime-bootstrap.js"></script>`];
+
+    expect(findChannelTextLines(source.join('\r\n'))).toEqual([1, 2]);
+  });
+
+  it('leaves ordinary asset text alone', () => {
+    const source = [
+      `{"name":"Myrm","icons":[{"src":"/icons/icon-192x192.png"}]}`,
+      `window.matchMedia('(prefers-color-scheme: dark)');`,
+      `const sentinel = '__myrm_local_no_auth__';`,
+      `const word = 'e2ee_key_exchange';`,
+    ];
+
+    expect(findChannelTextLines(source.join('\n'))).toEqual([]);
   });
 });
