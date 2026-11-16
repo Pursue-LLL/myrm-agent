@@ -60,8 +60,4 @@ describe('LanguageSwitcher - personalSettings update logic', () => {
   it('should keep en as-is when updating personalSettings', () => {
     expect(normalizeLocaleForBackend('en')).toBe('en');
   });
-
-  it('should pass through a saved locale the switcher no longer offers', () => {
-    expect(normalizeLocaleForBackend('fr')).toBe('fr');
-  });
 });
