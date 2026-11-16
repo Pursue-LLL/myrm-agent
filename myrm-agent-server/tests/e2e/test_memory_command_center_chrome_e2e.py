@@ -17,6 +17,12 @@ Every test is declared PRIVATE because it drives the Memory Command Center again
 the workspace backend (diagnostics actions plus the governance and economics
 panels). A SHARED declaration would route it through the on-demand epoch-pin seed
 whenever the deployed shared epoch has drifted, and skip when that seed times out.
+
+The Command Center is a Memory Labs surface: the nodes need a runtime started with
+both Labs switches on and skip, naming the command, on one that was not. Formal run::
+
+    MYRM_MEMORY_LABS=1 NEXT_PUBLIC_MEMORY_LABS=1 ./myrm-dev test -m chrome_e2e \\
+      myrm-agent/myrm-agent-server/tests/e2e/test_memory_command_center_chrome_e2e.py
 """
 
 from __future__ import annotations
@@ -35,6 +41,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.memory_labs import require_memory_labs
 
 _OPEN_VERIFY_TAB_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button')).find(
@@ -131,6 +138,7 @@ def _memory_center_page() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
 @pytest.mark.timeout(600)
 def test_memory_doctor_panel_run_and_latency_trend_chrome_e2e() -> None:
     """Real user flow: open doctor panel, run diagnostics, verify latency trend."""
+    require_memory_labs(get_e2e_api_url())
     _seed_benchmarked_run()
     with _memory_center_page() as (client, page):
         opened = wait_for_state(client, page, _OPEN_VERIFY_TAB_JS, timeout_sec=60.0)
@@ -201,6 +209,7 @@ _CLICK_REFRESH_TOOL_GUIDANCE_JS = """(() => {
 @pytest.mark.timeout(600)
 def test_memory_tool_guidance_panel_chrome_e2e() -> None:
     """Real user flow: open memory command center, switch to Act tab, verify Tool Guidance panel renders & refresh works."""
+    require_memory_labs(get_e2e_api_url())
     with _memory_center_page() as (client, page):
         opened = wait_for_state(client, page, _OPEN_ACT_TAB_JS, timeout_sec=60.0)
         assert opened.get("clicked") is True, opened
@@ -260,6 +269,7 @@ _CLICK_REFRESH_ECONOMICS_JS = """(() => {
 @pytest.mark.timeout(600)
 def test_memory_economics_panel_chrome_e2e() -> None:
     """Real user flow: open memory command center, switch to Understand tab, verify Memory Economics panel renders & refresh works."""
+    require_memory_labs(get_e2e_api_url())
     with _memory_center_page() as (client, page):
         opened = wait_for_state(client, page, _OPEN_UNDERSTAND_TAB_JS, timeout_sec=60.0)
         assert opened.get("clicked") is True, opened

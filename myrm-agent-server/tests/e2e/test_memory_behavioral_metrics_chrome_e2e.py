@@ -5,6 +5,12 @@ Verifies the user journey on WebUI /settings/memory -> Understand (理解) tab:
 2. Verify Command Center renders and switch to Understand tab.
 3. Assert BehavioralMetricsPanel micro-histogram, peak active window, and latency cards render.
 4. Verify behavioral profile synchronization contract from real browser session.
+
+The Command Center is a Memory Labs surface: the node needs a runtime started with
+both Labs switches on and skips, naming the command, on one that was not. Formal run::
+
+    MYRM_MEMORY_LABS=1 NEXT_PUBLIC_MEMORY_LABS=1 ./myrm-dev test -m chrome_e2e \\
+      myrm-agent/myrm-agent-server/tests/e2e/test_memory_behavioral_metrics_chrome_e2e.py
 """
 
 from __future__ import annotations
@@ -18,6 +24,7 @@ from tests.support.chrome_mcp_e2e import (
     prepare_e2e_ui_session,
     warm_ui_route,
 )
+from tests.support.memory_labs import require_memory_labs
 
 _BEHAVIORAL_METRICS_CONTRACT_JS = """(async () => {
   try {
@@ -70,7 +77,9 @@ _BEHAVIORAL_METRICS_CONTRACT_JS = """(async () => {
 @pytest.mark.timeout(300)
 def test_behavioral_metrics_panel_contract_in_chrome_e2e() -> None:
     """Browser same-origin verification for behavioral metrics insights and sync contract."""
-    prepare_e2e_ui_session(get_e2e_api_url())
+    api_url = get_e2e_api_url()
+    require_memory_labs(api_url)
+    prepare_e2e_ui_session(api_url)
 
     warm_ui_route("/settings/memory")
     with open_settings_subroute("/settings/memory", timeout_ms=90_000) as (
