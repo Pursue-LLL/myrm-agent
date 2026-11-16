@@ -36,6 +36,8 @@ const HUNG_CHECKS_BEFORE_RESTART: u8 = 3;
 /// Restarting at this level turns an unusable process into a short recovery instead of
 /// an outage; a healthy backend sits around a few hundred descriptors.
 const FD_RESTART_THRESHOLD: u64 = 8192;
+// Checked at compile time: a threshold within reach of a healthy backend would restart it for nothing.
+const _: () = assert!(FD_RESTART_THRESHOLD > 1_000);
 
 use std::sync::Arc;
 use tokio::sync::Notify;
@@ -299,7 +301,7 @@ fn update_tray_status(app: &AppHandle, status: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{fd_count_from_pressure, FD_RESTART_THRESHOLD};
+    use super::fd_count_from_pressure;
     use serde_json::json;
 
     #[test]
@@ -308,11 +310,6 @@ mod tests {
             fd_count_from_pressure(&json!({"process": {"fd_count": 255}})),
             Some(255)
         );
-    }
-
-    #[test]
-    fn threshold_is_far_above_a_healthy_process() {
-        assert!(FD_RESTART_THRESHOLD > 1_000);
     }
 
     #[test]
