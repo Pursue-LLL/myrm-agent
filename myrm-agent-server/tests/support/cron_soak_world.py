@@ -10,7 +10,9 @@
 
 [POS]
 Pytest-only helper of the cron invariants soak over the SQLAlchemy store: the soak keeps the random operations and the
-invariants, this module the fake world they run in.
+invariants, this module the fake world they run in. The harness's tests keep a twin of it in
+``myrm-agent-harness/tests/support/cron_soak_world.py`` (the two test suites cannot share one): a change here is made
+there too.
 """
 
 from __future__ import annotations

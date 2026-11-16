@@ -24,7 +24,7 @@
 | SECRET | 不进归档，恢复后由用户重新登录/填写 | `session_vault`、`agent_secrets`、`vault_credentials`、渠道登录态（`whatsapp_auth`、`matrix`） |
 | MACHINE_KEY | 不进归档，目标机保留或自行生成，用户无需操作 | `.encryption_key`、`vault.key` |
 | HOST_BOUND | 目标主机保留自己的（归档不会放宽目标安全姿态） | 工具白名单、风险规则、审批、配对、API key、`channelInstances` 等配置行 |
-| EPHEMERAL | 清空 | 分享链接、离线持久任务、中断回合标记 |
+| EPHEMERAL | 清空 | 分享链接、中断回合标记、定时任务的在飞标记（`cron_inflight`：标记属于源机器上正在跑的那次运行，带到新机器会在首次启动时凭空记一次中断与一次失败） |
 | 网页无痕会话 | 不进归档：整条会话连同消息、全文索引、回忆索引、只按会话 id 记录的普通表行（`CHAT_BOUND_TABLES`）一并删除（`source = 'web'` 且 `is_incognito = 1`），`checkpoints.db` 里该会话的 checkpoint 线程（含两个别名）同样删除；工具在无痕会话里不受限，它在 `harness/workspaces/chat_<id>/`（含其产物保险库）下写的文件同样不进导出，会话取自导出当下的在线库；无痕会话绑定的上传（sidecar 的 `source_chat_id`）及其 PDF 页图、其会话尚无行或已不存在的绑定上传同样不进导出（判据是会话的实际状态：绑定的会话是归档保留的会话时照常携带；前端切换无痕必然开新会话，绑定不会落在可被关掉的旧会话上）；会话转写导入（`source` 非 web）借用无痕标记只为不进侧栏，是真实数据，照常携带 | 导出、定时备份、导入暂存共用 `scrub_sensitive_surface` 与 `checkpoint_scrub`；工作区文件与绑定上传只在导出端由 `incognito_workspaces` / `incognito_uploads` 筛掉 |
 | 配置审计历史 | 不随主行走的配置行（PORTABLE_SECRET / HOST_BOUND）的历史行随行删除，其余照常携带 | `config_audit_logs` 重复保存过的每个值，键被加密之前写下的明文也在其中；导出、定时备份、导入暂存共用 `scrub_sensitive_surface`，来自旧版本归档的明文历史在导入暂存时同样被删 |
 | IDENTITY | 仅当导入身份 = 导出身份时携带 | `commitments`、技能权限使用日志、产物审计日志 |

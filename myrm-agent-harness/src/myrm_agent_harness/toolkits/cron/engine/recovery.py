@@ -5,7 +5,8 @@ leaves every enabled job with a next run time and there is nothing to heal. What
 in-flight marker of each run it was making: recovery turns those into interrupted-run records first, then decides
 what to do with the slots that came due while the process was down:
 
-- **Interrupted runs**: every marker left behind becomes an error run record and one counted failure.
+- **Interrupted runs**: every marker left behind becomes an error run record and one counted failure, and the
+  application is told about each (``on_interrupted``).
 - **Phase 1 — Missed-Slot**: replay cron slots that fired during downtime.
 - **Phase 2 — Grace Window**: execute due jobs still within misfire grace;
   skip and reschedule those past the grace period.
@@ -19,7 +20,7 @@ All recovery logic is encapsulated here; the scheduler calls ``run()`` at start 
 - toolkits.cron.protocols::CronStore (POS: Protocols for the cron toolkit.)
 
 [OUTPUT]
-- StartupRecovery: reports interrupted runs (`report_interrupted`) and runs the startup recovery phases (`run`).
+- StartupRecovery: reports interrupted runs (`report_interrupted`, telling `on_interrupted` about each crashed one) and runs the startup recovery phases (`run`).
 
 [POS]
 Startup recovery strategy, and the one place that turns an in-flight marker into an interrupted-run record.
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 AdmitFn = Callable[[CronJob], Awaitable[None]]
+InterruptedFn = Callable[[CronJob], Awaitable[None]]
 
 _CRASH_MESSAGE = "Interrupted: the server stopped before this run finished"
 _STOP_MESSAGE = "Interrupted: the application was stopping before this run finished"
@@ -70,12 +72,19 @@ class StartupRecovery:
     """Reports interrupted runs and replays what came due during downtime.
 
     Receives ``store`` for persistence and ``admit_fn`` as the scheduler's admission (``CronScheduler._admit``):
-    it books a recurring job's next slot and launches the run that is due.
+    it books a recurring job's next slot and launches the run that is due. ``on_interrupted`` gets the saved job of
+    each run a crash cut short, once its record and failure count are stored (a graceful stop is not announced).
     """
 
-    def __init__(self, store: CronStore, admit_fn: AdmitFn) -> None:
+    def __init__(
+        self,
+        store: CronStore,
+        admit_fn: AdmitFn,
+        on_interrupted: InterruptedFn | None = None,
+    ) -> None:
         self._store = store
         self._admit = admit_fn
+        self._on_interrupted = on_interrupted
 
     async def run(self) -> None:
         """Report the runs the previous process left in flight, then execute both recovery phases in order.
@@ -135,7 +144,24 @@ class StartupRecovery:
                 job.status = JobStatus.PAUSED
                 job.next_run_at = None
         await self._store.save_job(job)
-        logger.warning("Job %s: recorded an interrupted run (counted=%s)", job_id, counted)
+        # A crash is a fault worth a warning; a stop the application asked for is routine.
+        logger.log(
+            logging.WARNING if counted else logging.INFO,
+            "Job %s: recorded an interrupted run (counted=%s)",
+            job_id,
+            counted,
+        )
+        if counted:
+            await self._announce(job)
+
+    async def _announce(self, job: CronJob) -> None:
+        """Tell the application a crash cut the job's run short; a failing callback costs the notice, not the report."""
+        if self._on_interrupted is None:
+            return
+        try:
+            await self._on_interrupted(job)
+        except Exception as exc:
+            logger.warning("Job %s: the interrupted-run notice failed: %s", job.id, exc)
 
     # ------------------------------------------------------------------
     # Phase 1: Missed-Slot replay

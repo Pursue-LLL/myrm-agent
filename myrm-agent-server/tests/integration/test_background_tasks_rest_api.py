@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -43,14 +44,21 @@ def _build_rest_app():
     return app
 
 
-@pytest.fixture(autouse=True)
-def _clear_registry() -> None:
+async def _stop_running_jobs() -> None:
+    """Stop the jobs a test left running: otherwise the garbage collector closes their transports after the test's event loop is gone."""
     registry = get_background_registry()
-    registry._entries.clear()  # type: ignore[attr-defined]
+    await asyncio.gather(*(registry.kill(info.pid) for info in registry.list_processes() if info.status == "running"))
+
+
+@pytest.fixture(autouse=True)
+async def _clear_registry() -> AsyncIterator[None]:
+    registry = get_background_registry()
+    registry._entries.clear()
     reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
     yield
-    registry._entries.clear()  # type: ignore[attr-defined]
+    await _stop_running_jobs()
+    registry._entries.clear()
     reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
 

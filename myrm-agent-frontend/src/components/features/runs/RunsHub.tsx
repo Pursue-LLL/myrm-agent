@@ -23,6 +23,7 @@ import { Button } from '@/components/primitives/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { listUnifiedRuns, type UnifiedRun, type RunSource, type RunStatus } from '@/services/runs';
+import { skipReasonLabelKey } from '@/components/features/cron/cron-utils';
 import { activateOnKey } from '@/lib/utils/a11y';
 
 const ExecutionTraceTimeline = dynamic(
@@ -124,7 +125,9 @@ const SOURCE_FILTERS = [
 export function RunsHub() {
   const t = useTranslations('runs');
   const tRef = useRef(t);
-  tRef.current = t;
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const [runs, setRuns] = useState<UnifiedRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -204,6 +207,7 @@ export function RunsHub() {
 
   useEffect(() => {
     offsetRef.current = 0;
+    // oxlint-disable-next-line react/set-state-in-effect -- changing a filter starts the list request; the loading and error flags only mirror that in-flight fetch
     void fetchRuns(0, false);
   }, [fetchRuns]);
 
@@ -319,7 +323,14 @@ export function RunsHub() {
 }
 
 function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslations> }) {
+  const tCron = useTranslations('cron');
   const [expanded, setExpanded] = useState(false);
+  // A skipped cron run's output is the code of what skipped it; the label is what the user can read.
+  const skipLabelKey =
+    run.source === 'cron' && run.status === 'skipped' ? skipReasonLabelKey(run.output ?? undefined) : undefined;
+  const skipLabel = skipLabelKey ? tCron(skipLabelKey) : null;
+  const output = skipLabel ?? run.output;
+  const summary = skipLabel ?? run.summary;
   const canShowTrace = run.source === 'kanban' && run.task_id != null;
   const hasDetail = !!(run.output || run.error || run.stop_reason || run.has_execution_steps || canShowTrace);
   const stopReasonLabel = run.stop_reason ? t(stopReasonLabelKey(run.stop_reason.code)) : null;
@@ -358,8 +369,8 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
           {!expanded && !run.error && compactStopReason && (
             <p className="text-[11px] text-amber-600/90 dark:text-amber-300/90 truncate">{compactStopReason}</p>
           )}
-          {!expanded && !run.error && !compactStopReason && run.summary && (
-            <p className="text-[11px] text-muted-foreground truncate">{run.summary}</p>
+          {!expanded && !run.error && !compactStopReason && summary && (
+            <p className="text-[11px] text-muted-foreground truncate">{summary}</p>
           )}
         </div>
         <div className="shrink-0 flex flex-col items-end gap-0.5">
@@ -381,9 +392,9 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
 
       {expanded && (
         <div className="px-3 pb-3 pt-0 space-y-2 border-t border-border/10 mt-0">
-          {run.output && (
+          {output && (
             <pre className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words font-mono max-h-48 overflow-y-auto">
-              {run.output}
+              {output}
             </pre>
           )}
           {run.error && (

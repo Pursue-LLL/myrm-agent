@@ -58,7 +58,15 @@ export function formatDuration(ms: number): string {
 }
 
 export type SkipReasonLabelKey =
-  'skippedUsageLimit' | 'skippedBudgetBlocked' | 'skippedCreditExhausted' | 'skippedPreflight' | 'skippedNoContent';
+  | 'skippedUsageLimit'
+  | 'skippedBudgetBlocked'
+  | 'skippedCreditExhausted'
+  | 'skippedPreflight'
+  | 'skippedNoContent'
+  | 'skippedCooldown'
+  | 'skippedOutsideHours'
+  | 'skippedUntrustedWorkflow'
+  | 'skippedMemoryPressure';
 
 /**
  * Codes the server records as the output of a skipped run, each with the label that explains it.
@@ -70,11 +78,41 @@ const SKIP_REASON_LABEL_KEYS = new Map<string, SkipReasonLabelKey>([
   ['credit_exhausted', 'skippedCreditExhausted'],
   ['pre-flight-condition', 'skippedPreflight'],
   ['no-content', 'skippedNoContent'],
+  ['cooldown_active', 'skippedCooldown'],
+  ['outside_active_hours', 'skippedOutsideHours'],
+  ['untrusted-workflow', 'skippedUntrustedWorkflow'],
+  ['memory_pressure:critical', 'skippedMemoryPressure'],
+  ['memory_pressure:emergency', 'skippedMemoryPressure'],
 ]);
 
 /** The label key for a skipped run's output, or `undefined` when the output is not a code with a label. */
 export function skipReasonLabelKey(output: string | undefined): SkipReasonLabelKey | undefined {
   return output ? SKIP_REASON_LABEL_KEYS.get(output) : undefined;
+}
+
+export type TriggerSourceLabelKey =
+  | 'triggerSourceCron'
+  | 'triggerSourceEvent'
+  | 'triggerSourceWebhook'
+  | 'triggerSourceSystem'
+  | 'triggerSourceManual'
+  | 'triggerSourceRecovery'
+  | 'triggerSourceShutdown';
+
+/** What the server records as the source of a run, each with the label that names it (a `Map` for the reason above). */
+const TRIGGER_SOURCE_LABEL_KEYS = new Map<string, TriggerSourceLabelKey>([
+  ['cron', 'triggerSourceCron'],
+  ['event', 'triggerSourceEvent'],
+  ['webhook', 'triggerSourceWebhook'],
+  ['system_event', 'triggerSourceSystem'],
+  ['manual', 'triggerSourceManual'],
+  ['recovery', 'triggerSourceRecovery'],
+  ['shutdown', 'triggerSourceShutdown'],
+]);
+
+/** The label key for a run's source, or `undefined` when the source is not one the server is known to record. */
+export function triggerSourceLabelKey(source: string): TriggerSourceLabelKey | undefined {
+  return TRIGGER_SOURCE_LABEL_KEYS.get(source);
 }
 
 /** What the server accepts for a job's run time limit, in whole seconds. */

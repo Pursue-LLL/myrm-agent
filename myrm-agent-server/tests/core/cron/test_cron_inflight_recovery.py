@@ -314,6 +314,25 @@ async def test_a_recurring_job_killed_once_is_not_run_again_by_the_restarts_that
     assert len(await seed.errors("poison", "recovery")) == 1
 
 
+async def test_a_killed_cron_job_is_still_owed_the_slot_its_downtime_missed() -> None:
+    """The report writes the job without stamping it as edited, so the catch-up replays the missed slot once."""
+    aged = datetime.now(UTC) - timedelta(hours=3)
+    seed = await Process.boot(_Runner(), start=False)
+    for name in ("killed", "untouched"):
+        job = await seed.add(name, HOURLY_CRON, last_run_at=aged)
+        # An insert takes the column default; only an update writes the job's own `updated_at`.
+        await seed.store.save_job(replace(job, updated_at=aged, next_run_at=aged + timedelta(hours=1)))
+    await seed.store.mark_running("killed")
+
+    second = await Process.boot(_Runner())
+    await second.drain()
+
+    assert second.runner.attempts == 2
+    assert await second.errors("killed", "recovery") == [CRASHED]
+    assert await second.errors("untouched", "recovery") == []
+    await second.scheduler.stop()
+
+
 async def test_three_graceful_stops_never_count_against_a_healthy_long_job() -> None:
     seed = await Process.boot(_Runner(), start=False)
     await seed.add("healthy", due=False)

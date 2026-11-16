@@ -7,10 +7,13 @@
  * 分支连同其中的字符串一起删掉。
  *
  * 扫描对象是每一处「通道引用」：
- * - `global`：`window.__MYRM_*` / `window.__myrm*` / `window.__wikiMarkdownEditor` 这类全局的读写；
- * - `string`：`e2e_*` 的存储键、`myrm-e2e-*` / `myrm_e2e_*` 的事件名与绑定前缀、`e2e-runtime-bootstrap` 脚本 id，
+ * - `global`：`__MYRM_*` / `__myrm*` / `__wikiMarkdownEditor` 这批全局名在运行时代码里的任何出现——成员读写
+ *   `window.__myrmX`，也包括对象字面量的键与简写属性（`Object.assign(window, { __myrmX })`）、解构
+ *   （`const { __myrmX } = window`）与裸标识符；类型位置的同名标识符（`declare global`、接口、类型别名、`as` 的
+ *   目标类型）不是运行时引用；
+ * - `string`：`e2e_*` 的存储键、`myrm-e2e-*` / `myrm_e2e_*` 的事件名与绑定前缀、`e2e-runtime-bootstrap` 脚本 id 与脚本地址，
  *   以字符串点名的同批全局（`Object.defineProperty(window, '__MYRM_…')`、`in` 判断），以及 `/…/test/…` 形态的
- *   测试接口路径（字符串字面量与模板字符串的静态片段都认）；
+ *   测试接口路径（字符串字面量与模板字符串的静态片段都认；标识出现在更长的文本中间也认，例如内联脚本的正文）；
  * - `bridge`：开发桥组件的 JSX 挂载（`E2eBridgeLoader`、`E2ECompanionBridge`、`E2EChatBridge`、`E2EWikiBridge`）。
  *
  * 一处引用算「有守卫」，当且仅当它只会在非生产构建里被执行到，且这一点能从它的语法祖先上直接读出：
@@ -18,6 +21,9 @@
  * 必然命中的提前返回。判定是过程内的——引用所在函数的调用方守卫不算，想让一个函数在生产里为空，守卫就写在这个
  * 函数里；守卫函数（`isLocalDevHost` 之类）也不算——打包器不会折叠跨模块调用，调用它们的分支会连同字符串留在
  * 生产包里，只有直接写出的 `process.env.NODE_ENV` 字面量才会被整段删掉。
+ *
+ * 静态资源（`public/`）是整份原样发布的文本（`sw.js` 由 Serwist 在构建时打包，按它的产物文本扫描），没有
+ * 「守卫之后」可言：`findChannelTextLines` 给出资源文本里出现通道标识的行，出现即违规。
  */
 import { type Node, visitorKeys } from 'oxc-parser';
 
@@ -37,10 +43,15 @@ export interface E2eChannelSite {
 
 /** `window` 上的测试句柄：E2E 的全局与 store 句柄（`__MYRM_E2E_*`、`__myrmChatStore`）和编辑器句柄。 */
 const GLOBAL_NAME = /^(?:__MYRM|__myrm|__wikiMarkdownEditor$)/;
-/** 存储键、事件名、绑定前缀与脚本 id。 */
-const CHANNEL_STRING = /^(?:e2e_|myrm[-_]e2e|e2e-runtime-bootstrap$)/;
-/** 以字符串点名的同一批全局；`__myrm_local_no_auth__` 这类产品哨兵值在 `__myrm` 后接下划线，不在其中。 */
-const GLOBAL_STRING = /^(?:__MYRM_|__myrm[A-Z]|__wikiMarkdownEditor$)/;
+/**
+ * 文本里的通道标识：同一批全局名、事件名与绑定前缀、脚本 id 与脚本地址，出现在文本的任何位置都算。
+ * `__myrm_local_no_auth__` 这类产品哨兵值在 `__myrm` 后接下划线，不在其中。
+ */
+const CHANNEL_TOKEN = /__MYRM_|__myrm[A-Z]|__wikiMarkdownEditor|myrm[-_]e2e|e2e-runtime-bootstrap/;
+/** 存储键只认 `e2e_` 开头：词中间的 `e2e_` 不是键，`e2ee_…` 之类的产品词也不是。 */
+const STORAGE_KEY = /^e2e_/;
+/** 静态资源是整份原样发布的文本，没有「守卫之后」可言；存储键前缀在这里也算。 */
+const STATIC_ASSET_CHANNEL = new RegExp(`${CHANNEL_TOKEN.source}|\\be2e_`, 'g');
 /** 只在非生产构建渲染的开发桥组件：两处挂载点渲染的加载器与伴侣桥，以及加载器再渲染的聊天桥与 Wiki 桥。 */
 const BRIDGE_TAGS: ReadonlySet<string> = new Set([
   'E2eBridgeLoader',
@@ -186,14 +197,36 @@ function memberName(node: Node): string | null {
 }
 
 function isChannelText(text: string): boolean {
-  return CHANNEL_STRING.test(text) || GLOBAL_STRING.test(text) || TEST_ROUTE.test(text);
+  return CHANNEL_TOKEN.test(text) || STORAGE_KEY.test(text) || TEST_ROUTE.test(text);
 }
 
-/** 这个节点若是一处通道引用，返回它的种类与名字。 */
-function channelReference(node: Node, parent: Node | undefined): { kind: E2eChannelKind; name: string } | null {
+/** 值与类型之间只做断言的包装：节点仍在运行时执行，其余 `TS*` 祖先都表示这是类型位置。 */
+const RUNTIME_TS_WRAPPERS: ReadonlySet<string> = new Set([
+  'TSAsExpression',
+  'TSSatisfiesExpression',
+  'TSNonNullExpression',
+  'TSTypeAssertion',
+  'TSInstantiationExpression',
+]);
+
+function inTypePosition(ancestors: readonly Node[]): boolean {
+  return ancestors.some((ancestor) => ancestor.type.startsWith('TS') && !RUNTIME_TS_WRAPPERS.has(ancestor.type));
+}
+
+/** 这个节点若是一处通道引用，返回它的种类与名字；`ancestors` 是从根到它的父节点的祖先链。 */
+function channelReference(node: Node, ancestors: readonly Node[]): { kind: E2eChannelKind; name: string } | null {
+  const parent = ancestors[ancestors.length - 1];
   if (node.type === 'MemberExpression') {
     const name = memberName(node);
     return name !== null && GLOBAL_NAME.test(name) ? { kind: 'global', name } : null;
+  }
+  if (node.type === 'Identifier') {
+    // 成员访问的属性名已由 MemberExpression 记过；简写属性的键与值是同一处源码，只记值。
+    const memberProperty = parent?.type === 'MemberExpression' && parent.property === node && !parent.computed;
+    const shorthandKey = parent?.type === 'Property' && parent.shorthand && parent.key === node;
+    return GLOBAL_NAME.test(node.name) && !memberProperty && !shorthandKey && !inTypePosition(ancestors)
+      ? { kind: 'global', name: node.name }
+      : null;
   }
   if (node.type === 'Literal') {
     // 类型位置的字符串不是运行时引用；`window['__myrm…']` 的键已经按成员访问记过一次。
@@ -237,7 +270,7 @@ function walk(node: Node, ancestors: Node[], visit: (node: Node, ancestors: read
 export function scanE2eChannelSites(source: string, fileName: string): E2eChannelSite[] {
   const sites: E2eChannelSite[] = [];
   walk(parseProgram(source, fileName), [], (node, ancestors) => {
-    const reference = channelReference(node, ancestors[ancestors.length - 1]);
+    const reference = channelReference(node, ancestors);
     if (reference !== null) {
       sites.push({ line: lineAt(source, node.start), ...reference, guarded: isGuarded(node, ancestors) });
     }
@@ -248,6 +281,15 @@ export function scanE2eChannelSites(source: string, fileName: string): E2eChanne
 /** 没有守卫的通道引用：生产构建里会带上它们。 */
 export function findUnguardedE2eChannelSites(source: string, fileName: string): E2eChannelSite[] {
   return scanE2eChannelSites(source, fileName).filter((site) => !site.guarded);
+}
+
+/** 静态资源文本里出现通道标识的行号（从 1 起，每行一次）；资源整份原样发布，出现即违规。 */
+export function findChannelTextLines(source: string): number[] {
+  const lines = new Set<number>();
+  for (const hit of source.matchAll(STATIC_ASSET_CHANNEL)) {
+    lines.add(lineAt(source, hit.index));
+  }
+  return [...lines];
 }
 
 /** 把导入路径解析成相对前端根目录的 `src/…` 路径；包名等非本地路径返回 null。 */

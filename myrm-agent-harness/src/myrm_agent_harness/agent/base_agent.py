@@ -3,12 +3,15 @@
 Runtime helpers (middleware, tools, guards) live in ``_internals.agent_runtime``.
 Recovery strategies (overflow, failover, diagnostics) live in ``_internals.agent_recovery``.
 Lifecycle helpers (workspace setup, cleanup, post-processing) live in ``_internals.run_lifecycle``.
+Child-agent management (spawn, observe, cancel, steer, wake up) lives in ``_internals.base_agent_children_mixin``.
 
 [INPUT]
 - utils.chat_utils::ChatHistoryReq (POS: chat history types; ChatHistoryReq is the list of [role, content] entries passed in as history)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - utils.runtime.cancellation::CancellationToken (POS: request-level cancellation token for cooperative async cancellation)
 - utils.runtime.steering::SteeringToken (POS: steering token: injects a message while the agent runs to interrupt the current tool chain)
+- agent._internals.base_agent_children_mixin::BaseAgentChildrenMixin (POS: Mixin: the child-agent management methods of BaseAgent; every call delegates to the agent's SubagentManager.)
+- agent._internals.base_agent_modes_mixin::BaseAgentModesMixin (POS: Mixin: run_consensus on BaseAgent.)
 
 [OUTPUT]
 - BaseAgent: Lightweight agent base class with streaming events, token tracking, and artifacts.
@@ -19,7 +22,7 @@ Base Agent — lightweight agent with streaming, token tracking, and artifacts.
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import TYPE_CHECKING, Any, cast
 
 from langchain.agents import create_agent
@@ -32,12 +35,12 @@ from myrm_agent_harness.agent.tool_management import ToolRegistry
 from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
+from ._internals.base_agent_children_mixin import BaseAgentChildrenMixin
 from ._internals.base_agent_modes_mixin import BaseAgentModesMixin
 from .streaming.agent_core_rules import AGENT_CORE_RULES
 from .streaming.channel_output_hints import resolve_channel_output_hint
 from .streaming.utils import DATETIME_SYSTEM_RULES
-from .sub_agents.manager import SubagentManager, SubagentTask
-from .sub_agents.types import SubagentConfig, SubAgentResult
+from .sub_agents.manager import SubagentManager
 from .types import AgentRunStatistics, AgentRuntimeConfig
 
 if TYPE_CHECKING:
@@ -55,7 +58,7 @@ if TYPE_CHECKING:
 logger = get_agent_logger(__name__)
 
 
-class BaseAgent(BaseAgentModesMixin):
+class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
     """Lightweight agent base class with streaming events, token tracking, and artifacts.
 
     Template-method hooks for subclass customization:
@@ -421,117 +424,6 @@ class BaseAgent(BaseAgentModesMixin):
     async def _prepare_context(self, context: dict[str, object]) -> dict[str, object]:
         """Hook for subclasses to enrich context (e.g. skill paths). No-op by default."""
         return context
-
-    @property
-    def _children(self) -> Mapping[str, SubagentTask]:
-        return self._subagent_manager.children
-
-    @property
-    def _children_results(self) -> Mapping[str, SubAgentResult]:
-        return self._subagent_manager.child_results
-
-    async def _spawn_child(
-        self,
-        task_id: str,
-        agent_type: str,
-        task_description: str,
-        config: SubagentConfig,
-        context: dict[str, object],
-        tool_registry_getter: Callable[[], list[BaseTool]],
-        wait: bool,
-        parent_type: str | None = None,
-        cancel_token: CancellationToken | None = None,
-        resume_command: object | None = None,
-        complexity_tier: str | None = None,
-    ) -> SubAgentResult | dict[str, object]:
-        return await self._subagent_manager.spawn_child(
-            task_id=task_id,
-            agent_type=agent_type,
-            task_description=task_description,
-            config=config,
-            context=context,
-            tool_registry_getter=tool_registry_getter,
-            wait=wait,
-            parent_type=parent_type,
-            cancel_token=cancel_token,
-            resume_command=resume_command,
-            complexity_tier=complexity_tier,
-        )
-
-    def list_children(self) -> list[dict[str, object]]:
-        return self._subagent_manager.list_children()
-
-    def cancel_child(self, task_id: str) -> bool:
-        return self._subagent_manager.cancel_child(task_id)
-
-    def cancel_all_children(self, include_detached: bool = True) -> int:
-        return self._subagent_manager.cancel_all(include_detached=include_detached)
-
-    def steer_child(
-        self,
-        task_id: str,
-        message: str,
-        config_overlay: dict[str, object] | None = None,
-    ) -> bool:
-        return self._subagent_manager.steer_child(task_id, message, config_overlay=config_overlay)
-
-    async def wait_children(
-        self,
-        task_ids: list[str],
-        min_success_rate: float = 0.5,
-        timeout: float | None = None,
-    ) -> dict[str, object]:
-        return await self._subagent_manager.wait_children(task_ids, min_success_rate=min_success_rate, timeout=timeout)
-
-    async def trigger_async_wakeup(self, result: SubAgentResult) -> None:
-        """Trigger an async wakeup event for the parent agent.
-
-        This is called by SubagentManager when a child finishes whose result nobody has received
-        (started with wait=False, or a wait that gave up at its timeout while the child kept running).
-        It uses the global wakeup registry to notify the Server layer (e.g. Gateway/Runner)
-        to trigger a new run, while also pushing to the progress sink if active.
-        """
-        from myrm_agent_harness.agent.streaming.types import AgentEventType
-        from myrm_agent_harness.utils.runtime.progress_sink import (
-            get_tool_progress_sink,
-        )
-        from myrm_agent_harness.utils.runtime.wakeup_registry import (
-            get_global_wakeup_handler,
-        )
-
-        session_id = None
-        agent_id = "unknown"
-        if self._last_context:
-            session_id = self._last_context.get("session_id")
-            agent_id = str(self._last_context.get("agent_id", "unknown"))
-
-        # 1. Notify global handler (for actual background wakeup)
-        handler = get_global_wakeup_handler()
-        if handler:
-            try:
-                await handler.on_async_wakeup(result, agent_id, session_id)
-                logger.info(f"Triggered global wakeup handler for subagent {result.task_id} (session_id={session_id})")
-            except Exception as e:
-                logger.error(f"Global wakeup handler failed: {e}")
-
-        # 2. Push to active SSE stream (if any)
-        sink = get_tool_progress_sink()
-        if sink:
-            try:
-                await sink.emit(
-                    {
-                        "type": AgentEventType.ASYNC_WAKEUP.value,
-                        "data": {
-                            "task_id": result.task_id,
-                            "agent_type": result.agent_type,
-                            "success": result.success,
-                            "agent_id": agent_id,
-                            "session_id": session_id,
-                        },
-                    }
-                )
-            except Exception as e:
-                logger.error(f"Failed to emit ASYNC_WAKEUP: {e}")
 
     async def get_checkpoint_state(self, thread_id: str) -> dict[str, object]:
         """Extract complete execution state for checkpoint save.

@@ -19,17 +19,17 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 
 ## 脚本
 
-详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`oxlint`（errors 阻断 / warnings 不阻断，配置 `.oxlintrc.json` + `.oxlintignore`；`bun run lint` 经 `scripts/run-lint-gates.ts` 把 `verify:stable-mocks` / `verify:a11y` / `verify:theme-colors` / `verify:reduced-motion` / `verify:hardcoded-copy` / `verify:icu-syntax` / `verify:intl-options` / `verify:e2e-channel` 八道静态门禁与 oxlint 全部执行并汇总失败项；`verify:e2e-channel` 保证 E2E 测试通道只存在于非生产构建；`verify:hardcoded-copy` 只统计从产品入口可达的文件，孤儿模块由孤儿门禁管）、`check_fractal_docs.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`check_module_resolution.py`、`check-orphan-modules.mjs`（CI 带 `--base`，只拦相对对照点新增的孤儿；`bun run verify:orphans` 手动盘点存量）、`verify-i18n.mjs`、`verify-sw-push.mjs`（`bun run build` 末段执行）。tsc 与 `check_module_resolution.py` 依赖 `locales/namespaces/` 生成物，CI 与 `dev` / `pretest` 一样先跑 `i18n:split`。
+详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`oxlint`（errors 阻断 / warnings 不阻断，配置 `.oxlintrc.json` + `.oxlintignore`；`bun run lint` 经 `scripts/run-lint-gates.ts` 把 `verify:stable-mocks` / `verify:a11y` / `verify:theme-colors` / `verify:reduced-motion` / `verify:hardcoded-copy` / `verify:icu-syntax` / `verify:intl-options` / `verify:e2e-channel` 八道静态门禁与 oxlint 全部执行并汇总失败项；`verify:e2e-channel` 保证 E2E 测试通道只存在于非生产构建（`src/` 里的引用都在守卫之后，`public/` 静态资源里没有任何通道标识）；`verify:hardcoded-copy` 只统计从产品入口可达的文件，孤儿模块由孤儿门禁管）、`check_fractal_docs.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`check_module_resolution.py`、`check-orphan-modules.mjs`（CI 带 `--base`，只拦相对对照点新增的孤儿；`bun run verify:orphans` 手动盘点存量）、`verify-i18n.mjs`、`verify-sw-push.mjs`（`bun run build` 末段执行）。tsc 与 `check_module_resolution.py` 依赖 `locales/namespaces/` 生成物，CI 与 `dev` / `pretest` 一样先跑 `i18n:split`。
 
 ## PWA / Service Worker（Web 部署）
 
 | 文件 | 职责 |
 |------|------|
 | `src/app/sw.ts` | Serwist SW 源：precache + Web Push（same-origin allowlist；open-tab pathname 匹配时 query 不同则 `client.navigate`） |
-| `serwist.config.ts` | `next build` 后 `inject-manifest`（precache 清单来自 `.next`） |
+| `serwist.config.ts` | `next build` 后 `serwist build` 的配置：打包 `src/app/sw.ts`，precache 清单来自 `.next` |
 | `public/sw.js` | 编译产物；生产由 `pwa-updater.tsx` 注册 `/sw.js`；dev/Tauri 不注册 |
 
-构建：`bun run build` = i18n split → `next build`（`@serwist/next`）→ `build:sw-inject`（esbuild → `.serwist/sw-inject-src.js`）→ `serwist inject-manifest` → `verify-sw-push.mjs`。`build:tauri` 跳过 Serwist。
+构建：`bun run build` = i18n split → `next build`（`@serwist/next`）→ `serwist build`（`NODE_ENV=production`：打包 `src/app/sw.ts`、压缩并折叠开发分支、注入 precache 清单）→ `verify-sw-push.mjs`。`build:tauri` 跳过 Serwist。
 
 ## 子模块
 

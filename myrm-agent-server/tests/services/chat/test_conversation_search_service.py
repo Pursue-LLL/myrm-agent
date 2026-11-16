@@ -16,7 +16,7 @@ from app.services.chat.conversation_recall_index_service import (
     ConversationRecallIndexService,
 )
 from app.services.chat.conversation_search_service import ConversationSearchService
-from tests.services.chat.search_support import seed_chat_and_messages
+from tests.services.chat.search_support import assert_snippet_split, seed_chat_and_messages
 
 
 class TestConversationSearchService:
@@ -43,7 +43,7 @@ class TestConversationSearchService:
         assert len(response.hits) == 1
         assert response.hits[0].conversation_id == chat_id
         assert response.hits[0].summary == "Deployment summary: use Docker Compose locally before Kubernetes."
-        assert "<mark>" in response.hits[0].snippet
+        assert_snippet_split(response.hits[0], "docker")
 
     @pytest.mark.asyncio
     async def test_search_returns_matching_segment_message_id(self, fts_db: AsyncSession):
@@ -57,7 +57,7 @@ class TestConversationSearchService:
         assert response.hits
         assert response.hits[0].conversation_id == chat_id
         assert response.hits[0].message_id in {"msg-3", "msg-4"}
-        assert "<mark>" in response.hits[0].snippet
+        assert_snippet_split(response.hits[0], "kubernetes")
 
     @pytest.mark.asyncio
     async def test_empty_query_returns_recent_conversations(self, fts_db: AsyncSession):
@@ -156,7 +156,7 @@ class TestConversationSearchService:
 
         assert [hit.conversation_id for hit in response.hits] == [chat_id]
         assert response.hits[0].summary == "Strategic recall keyword: bluegreenphoenix cutover plan."
-        assert "<mark>" in response.hits[0].snippet
+        assert_snippet_split(response.hits[0], "bluegreenphoenix")
 
     @pytest.mark.asyncio
     async def test_search_uses_or_fallback_for_broad_natural_language_query(self, fts_db: AsyncSession):

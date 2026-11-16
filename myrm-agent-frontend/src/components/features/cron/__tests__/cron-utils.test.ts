@@ -6,6 +6,7 @@ import {
   isCronOverdue,
   parseTimeoutSeconds,
   skipReasonLabelKey,
+  triggerSourceLabelKey,
 } from '../cron-utils';
 import type { CronJob } from '@/services/cron.types';
 
@@ -171,14 +172,37 @@ describe('skipReasonLabelKey', () => {
     ['credit_exhausted', 'skippedCreditExhausted'],
     ['pre-flight-condition', 'skippedPreflight'],
     ['no-content', 'skippedNoContent'],
+    ['cooldown_active', 'skippedCooldown'],
+    ['outside_active_hours', 'skippedOutsideHours'],
+    ['untrusted-workflow', 'skippedUntrustedWorkflow'],
+    ['memory_pressure:critical', 'skippedMemoryPressure'],
+    ['memory_pressure:emergency', 'skippedMemoryPressure'],
   ])('labels the code %s with %s', (code, labelKey) => {
     expect(skipReasonLabelKey(code)).toBe(labelKey);
   });
 
-  it.each([undefined, '', 'memory_pressure:critical', 'untrusted-workflow', 'constructor', 'toString', '__proto__'])(
+  it.each([undefined, '', 'made-up-code', 'memory_pressure:low', 'constructor', 'toString', '__proto__'])(
     'has no label for %j',
     (output) => {
       expect(skipReasonLabelKey(output)).toBeUndefined();
     },
   );
+});
+
+describe('triggerSourceLabelKey', () => {
+  it.each([
+    ['cron', 'triggerSourceCron'],
+    ['event', 'triggerSourceEvent'],
+    ['webhook', 'triggerSourceWebhook'],
+    ['system_event', 'triggerSourceSystem'],
+    ['manual', 'triggerSourceManual'],
+    ['recovery', 'triggerSourceRecovery'],
+    ['shutdown', 'triggerSourceShutdown'],
+  ])('labels the source %s with %s', (source, labelKey) => {
+    expect(triggerSourceLabelKey(source)).toBe(labelKey);
+  });
+
+  it.each(['', 'made-up-source', 'constructor', 'toString', '__proto__'])('has no label for %j', (source) => {
+    expect(triggerSourceLabelKey(source)).toBeUndefined();
+  });
 });

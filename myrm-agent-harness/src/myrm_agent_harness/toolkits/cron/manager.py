@@ -5,7 +5,6 @@ The ``CronManager`` is the single entry point for all job mutations
 (used by both agent tools and API routes).
 
 [INPUT]
-- cron.engine.helpers::next_eligible_run (POS: pure engine helpers: the next slot to book)
 - cron.manager_queries::CronQueryMixin (POS: read-only queries of the cron CRUD manager)
 - cron.manager_update::CronUpdateMixin (POS: update path of the cron CRUD manager)
 - cron.manager_validation::CronValidationMixin (POS: validation half of the cron CRUD manager)
@@ -32,7 +31,6 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.cron.engine.helpers import next_eligible_run
 from myrm_agent_harness.toolkits.cron.manager_queries import CronQueryMixin
 from myrm_agent_harness.toolkits.cron.manager_update import CronUpdateMixin
 from myrm_agent_harness.toolkits.cron.manager_validation import CronValidationMixin
@@ -182,7 +180,7 @@ class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
                 created_at=now,
                 updated_at=now,
             )
-            job.next_run_at = next_eligible_run(job, now)
+            job.next_run_at = self._book_slot(job, now)
         except ValueError as e:
             # Config validation failed — reject entire job, no fallback
             logger.error("Cron job config validation failed: %s", e)

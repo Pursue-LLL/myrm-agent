@@ -82,14 +82,16 @@ def verify_chain(runs: list[CronRunRecord]) -> list[ChainBreak]:
     """Verify Merkle chain integrity for a sequence of runs.
 
     ``runs`` must be sorted oldest-first (ascending ``started_at``).
-    Returns an empty list when the chain is intact.
+    Returns an empty list when the chain is intact. A run without a hash (a skip, an interrupted run) is not part
+    of the chain: the writer links each run to the latest *hashed* one, so the check passes over it and keeps
+    verifying what follows.
     """
     breaks: list[ChainBreak] = []
     expected_prev = GENESIS_HASH
 
     for run in runs:
         if not run.integrity_hash:
-            break
+            continue
 
         if run.prev_hash != expected_prev:
             breaks.append(

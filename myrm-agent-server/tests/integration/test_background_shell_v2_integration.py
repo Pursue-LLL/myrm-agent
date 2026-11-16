@@ -7,6 +7,7 @@ import shlex
 import sys
 import time
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -39,17 +40,19 @@ from tests.integration.test_background_job_finish_chain import _make_local_execu
 from tests.integration.test_background_tasks_rest_api import (
     _build_rest_app,
     _spawn_background,
+    _stop_running_jobs,
 )
 
 
 @pytest.fixture(autouse=True)
-def _clear_registry() -> None:
+async def _clear_registry() -> AsyncIterator[None]:
     registry = get_background_registry()
-    registry._entries.clear()  # type: ignore[attr-defined]
+    registry._entries.clear()
     reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
     yield
-    registry._entries.clear()  # type: ignore[attr-defined]
+    await _stop_running_jobs()
+    registry._entries.clear()
     reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
 

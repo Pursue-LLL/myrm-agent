@@ -8,8 +8,8 @@ Unified Runs Hub：聚合 Cron / Kanban / Shell 后台任务的运行历史，�
 
 | 文件                            | 地位 | 职责                                                                                                                                                                | I/O/P |
 | ------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `RunsHub.tsx`                   | 核心 | 运行列表 UI、筛选 Tabs、RunRow 展开详情、Kanban trace 嵌入（`showEvalCase={false}` + 运行中 `pollMs` 实时刷新）、加载失败态；列表有 running 任务时 30s 轮询自动刷新 | —     |
-| `__tests__/RunsHub.test.tsx`    | 测试 | error/retry、emptyFiltered、degraded、loadMore toast、badge、Kanban trace 展开                                                                                      | —     |
+| `RunsHub.tsx`                   | 核心 | 运行列表 UI、筛选 Tabs、RunRow 展开详情、Kanban trace 嵌入（`showEvalCase={false}` + 运行中 `pollMs` 实时刷新）、加载失败态；列表有 running 任务时 30s 轮询自动刷新；cron 来源的跳过运行把输出码经 `cron-utils.skipReasonLabelKey` 显示为本地化标签（取自 `cron` namespace），不露出原始码 | —     |
+| `__tests__/RunsHub.test.tsx`    | 测试 | error/retry、emptyFiltered、degraded、loadMore toast、badge、Kanban trace 展开、跳过运行的原因标签                                                                                      | —     |
 | `__tests__/runsLocales.test.ts` | 测试 | 中英双语 `runs` namespace key 完整性                                                                                                                                    | —     |
 
 ## 路由
@@ -22,11 +22,12 @@ Unified Runs Hub：聚合 Cron / Kanban / Shell 后台任务的运行历史，�
 
 - `@/services/runs` — `listUnifiedRuns`、`UnifiedRun` 类型（POS: 统一运行历史 REST 客户端）
 - `@/components/primitives/*` — Button、Tabs、Skeleton
+- `@/components/features/cron/cron-utils` — `skipReasonLabelKey`（POS: 跳过运行的输出码 → 本地化标签 key）
 - `locales/namespaces/*/runs.json` — 运行时 `runs` namespace（中英双语：en/zh）；译者 SSOT 为 `locales/{lang}.json`，改文案后跑 `bun run i18n:split`
 
 ## 约束
 
-- 文案禁止硬编码；使用 `useTranslations('runs')`
+- 文案禁止硬编码；使用 `useTranslations('runs')`，cron 跳过原因的标签沿用 `cron` namespace 的 `skipped*` 键，不在 `runs` 里重复一份
 - `has_execution_steps` = cron metadata 含 progressSteps **或** kanban task 有 progress_note
 - Kanban run（`source === 'kanban' && task_id != null`）展开时嵌入 `ExecutionTraceTimeline sessionId={task_id}`；kanban 无 Chat 记录 → 传 `showEvalCase={false}`（避免「保存为评测用例」必然失败）
 - 首屏加载失败：inline error + retry（不用 toast，避免与 inline 重复）

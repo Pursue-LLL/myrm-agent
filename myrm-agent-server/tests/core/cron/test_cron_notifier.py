@@ -1,7 +1,8 @@
 """``publish_cron_notice`` turns the cron engine's notices into the events the WebUI, voice and push channels read.
 
-The engine states facts only; the notifier owns severity, wording and language. The last tests run the real
-scheduler so a run outcome and an automatic pause both reach the event bus.
+The engine states facts only; the notifier owns severity, wording and language. The later tests run the real
+scheduler so a run outcome, an automatic pause and a run a crash cut short each reach the event bus, and show that
+the bus keeps them for a client that connects afterwards.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.core.cron.notifier import publish_cron_notice
-from app.services.event.app_event_bus import AppEvent, AppEventType
+from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 _JOB = "Water the plants"
 
@@ -242,3 +243,31 @@ async def test_a_job_the_scheduler_pauses_by_itself_tells_the_user(bus: _Recordi
     assert notification.data["title"] == f"Scheduled task paused: {_JOB}"
     assert message in notification.data["message"]
     assert notification.data["meta_data"]["level"] == "warning"
+
+
+async def test_a_run_a_crash_cut_short_tells_the_user_when_the_server_next_starts(bus: _RecordingBus) -> None:
+    store = InMemoryCronStore()
+    await store.save_job(_job())
+    await store.mark_running("job-1")  # what a process that died under its run leaves behind
+    scheduler = CronScheduler(store, {JobType.AGENT: _Runner()}, _Delivery(), config=CronConfig(), on_notice=publish_cron_notice)
+
+    await scheduler.start()
+    await scheduler.stop()
+
+    (notification,) = bus.notifications()
+    assert notification.data["title"] == f"Scheduled task failed: {_JOB}"
+    assert notification.data["message"].startswith(f"[{_JOB}] Interrupted")
+    assert notification.data["meta_data"]["level"] == "error"
+    assert notification.data["meta_data"]["chat_id"] == "chat-9"
+
+
+async def test_a_notice_raised_before_any_client_connects_is_waiting_for_the_first_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Recovery speaks while the server starts, before the web UI has opened its event stream."""
+    real_bus = ServerEventBus()
+    monkeypatch.setattr("app.core.cron.notifier.get_event_bus", lambda: real_bus)
+
+    await publish_cron_notice(CronNotice(CronNoticeKind.RUN_FAILED, _JOB, f"[{_JOB}] Interrupted", "chat-1"))
+
+    late_client = real_bus.subscribe()
+    replayed = [late_client.get_nowait().event_type for _ in range(late_client.qsize())]
+    assert replayed == [AppEventType.CRON_UPDATED, AppEventType.SYSTEM_NOTIFICATION]
