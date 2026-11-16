@@ -1,8 +1,8 @@
-"""Which chats conversation recall may hand to the model, on every way of reading the index.
+"""Which chats conversation recall hands to the model, read by read.
 
-A chat the user excluded and a web incognito chat never come back: not from a search (both FTS tiers and the LIKE
-fallback), the recent list, an expanded message window, the stored text a snippet window is cut from, or the ``@chat:``
-picker. A transcript import carries the incognito flag only to stay out of the sidebar, so it stays readable. The flag lives
+A chat the user excluded and a web incognito chat do not come back from any of these reads: a search (both FTS tiers and
+the LIKE fallback), the recent list, an expanded message window, the stored text a snippet window is cut from, or the
+``@chat:`` picker. A transcript import carries the incognito flag only to stay out of the sidebar, so it stays readable. The flag lives
 on ``chats`` and a chat can change it after it was indexed, so each read decides from the flag's current value.
 """
 

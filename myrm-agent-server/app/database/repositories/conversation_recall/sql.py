@@ -334,8 +334,8 @@ def filter_sql(
 ) -> tuple[str, dict[str, object]]:
     """The conditions a read of the recall documents (alias ``d``) applies, joined by ``AND`` and never empty.
 
-    Visibility always comes first and no argument turns it off, so a read that builds its filters here cannot return a
-    document the model may not see. The caller puts the string after ``WHERE`` or after another condition and ``AND``.
+    Visibility comes first and no argument turns it off, so a read that builds its filters here applies it. The caller
+    puts the string after ``WHERE`` or after another condition and ``AND``.
     """
     clauses: list[str] = [visible_document_sql("d")]
     params: dict[str, object] = {}
