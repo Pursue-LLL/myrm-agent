@@ -303,3 +303,20 @@ class TestSessionsRecallTimePassing:
         request = provider.search.call_args.args[0]
         assert request.since == datetime(2026, 4, 10, tzinfo=UTC)
         assert request.until == datetime(2026, 4, 24, tzinfo=UTC)
+
+
+class TestParseTimeBoundRelativeRange:
+    """A relative amount whose instant a datetime cannot hold is unparseable, like an out-of-range ISO bound."""
+
+    @pytest.mark.parametrize(
+        "value",
+        # 4000 digits overflow the timedelta (OverflowError); 5000 exceed int()'s 4300-digit limit (ValueError).
+        ["9999y", "99999y", "999999d", "999999w", "99999m", "9" * 4000 + "d", "9" * 5000 + "d"],
+        ids=["years", "years-5-digits", "days", "weeks", "months", "4000-digits", "5000-digits"],
+    )
+    def test_amount_beyond_the_datetime_range_is_unparseable(self, value: str):
+        assert _parse_time_bound(value) is None
+
+    @pytest.mark.parametrize("value", ["1000y", "9999d", "99999w", "9999m", "0d"])
+    def test_large_amount_within_the_datetime_range_still_parses(self, value: str):
+        assert _parse_time_bound(value) is not None
