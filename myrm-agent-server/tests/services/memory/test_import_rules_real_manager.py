@@ -1,17 +1,21 @@
-"""A confirmed import stores what its review counted, on a real memory manager.
+"""What a confirmed import or an archive restore stores, on a real memory manager.
 
 [INPUT]
 app.services.memory.imports.import_sessions::MemoryImportSessionService (dry-run, then confirm)
+app.services.memory.archive.restore.archive_restore::MemoryArchiveRestoreService (dry-run, restore, rollback)
 
 [OUTPUT]
 Per channel (PLUR store, pasted text, model-extracted paste): the rules the preview maps are the rules the store
-holds and the rules the prompt loads; profile items the model gave no key land under keys of their own.
+holds and the rules the prompt loads; profile items the model gave no key land under keys of their own; importing
+the same rules again, or restoring an archive over rules the user holds, adds no copy, and a rollback only removes
+what the import or restore itself wrote.
 
 [POS]
 The session tests run on a fake manager that counts every entry as imported. ``MemoryManager.import_memories``
 parses each rule with ``ProceduralMemory`` and drops the one without a trigger or an action, and it writes a profile
 entry under its key, so only a real manager shows a rule that is previewed as mapped and then never stored, or two
-profile items that overwrite each other.
+profile items that overwrite each other. The writer never deduplicates a rule, so a repeated import or restore is
+only idempotent end to end on a real store.
 """
 
 from __future__ import annotations
@@ -25,8 +29,11 @@ from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_sto
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.models import Base
+from app.services.memory.archive.archive import MemoryArchiveService
+from app.services.memory.archive.restore.archive_restore import MemoryArchiveRestoreService
 from app.services.memory.imports.import_adapter_utils import DEFAULT_RULE_TRIGGER
 from app.services.memory.imports.import_adapters import RequestedImportSource
+from app.services.memory.imports.import_session_models import MemoryImportConfirmResult
 from app.services.memory.imports.import_sessions import MemoryImportSessionService
 from tests.support.offline_memory import offline_memory_manager
 
@@ -152,3 +159,83 @@ async def test_model_profile_items_without_a_key_are_stored_one_each(
         profile = await _stored_profile(manager)
         assert sorted(str(value) for value in profile.values()) == ["Lives in Taichung", "Works as a nurse"]
         assert "None" not in profile
+
+
+async def _import_payload(
+    service: MemoryImportSessionService, manager: MemoryManager, payload: dict[str, object], source: RequestedImportSource
+) -> MemoryImportConfirmResult:
+    """One review session, dry-run then confirm, as the import dialog runs it."""
+    dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(payload, source)
+    return await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+
+
+@pytest.mark.parametrize(("payload", "source", "trigger"), CHANNELS)
+async def test_importing_the_same_content_again_adds_no_rule_and_rolling_it_back_keeps_the_first_import(
+    payload: dict[str, object],
+    source: RequestedImportSource,
+    trigger: str,
+    db_session: AsyncSession,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        service = MemoryImportSessionService(db_session)
+        first = await _import_payload(service, manager, payload, source)
+
+        second = await _import_payload(service, manager, payload, source)
+
+        assert second.total_imported == 0
+        assert [item["status"] for item in second.transaction_items if item["memory_type"] == "procedural"] == ["skipped"]
+        assert await _prompt_rules(manager) == [(trigger, _RULE)]
+
+        await service.rollback_import(manager=manager, import_batch_id=second.import_batch_id)
+        assert await _prompt_rules(manager) == [(trigger, _RULE)]
+
+        await service.rollback_import(manager=manager, import_batch_id=first.import_batch_id)
+        assert await _prompt_rules(manager) == []
+
+
+async def test_a_preference_stated_after_an_import_stays_ahead_of_a_second_import_of_the_same_file(
+    db_session: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload: dict[str, object] = {"_source": "pasted_memory", "text": _PASTED_TEXT}
+    newer_action = "Never run the tests before you merge"
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        service = MemoryImportSessionService(db_session)
+        await _import_payload(service, manager, payload, "pasted_memory")
+        await manager.add_rule(DEFAULT_RULE_TRIGGER, newer_action)
+
+        await _import_payload(service, manager, payload, "pasted_memory")
+
+        assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, newer_action), (DEFAULT_RULE_TRIGGER, _RULE)]
+
+
+async def test_restoring_an_archive_adds_only_the_rules_the_user_does_not_hold_and_rolling_back_keeps_the_rest(
+    db_session: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lost_action = "Reply in Chinese"
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        await manager.add_rule(DEFAULT_RULE_TRIGGER, _RULE)
+        await manager.add_rule(DEFAULT_RULE_TRIGGER, lost_action)
+        archive = (await MemoryArchiveService(db_session).export_archive(manager)).model_dump(mode="json")
+        stored = await manager.list_memories(MemoryType.PROCEDURAL, limit=50)
+        lost = next(rule for rule in stored if isinstance(rule, ProceduralMemory) and rule.action == lost_action)
+        await manager.delete_memories_by_ids({"procedural": [lost.id]})
+        assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, _RULE)]
+
+        restore = MemoryArchiveRestoreService(db_session)
+        preview = await restore.dry_run_restore(archive, sections=["memory"])
+        result = await restore.restore_archive(
+            archive,
+            manager=manager,
+            sections=["memory"],
+            expected_payload_hash=preview.payload_hash,
+            expected_plan_hash=preview.plan.plan_hash,
+        )
+
+        assert (result.total_restored, result.skipped_items) == (1, 1)
+        assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, lost_action), (DEFAULT_RULE_TRIGGER, _RULE)]
+
+        await restore.rollback_restore(result.restore_batch_id, manager=manager)
+
+        assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, _RULE)]
