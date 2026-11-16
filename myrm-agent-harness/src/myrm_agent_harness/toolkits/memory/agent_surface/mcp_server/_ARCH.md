@@ -23,6 +23,6 @@ optional so a server whose requests all bind their own manager needs no storage 
 ## Key Dependencies
 
 - `../_memory_agent_tool_descriptions.py` (store/manage descriptions, `surface="mcp"`)
-- `../memory_recall_formatting.py`, `../memory_recall_budget.py`, `../memory_recall_no_result.py`, `../wiki_memory_boundary.py`, `../write_failure_feedback.py`
-- `../../manager.py`, `../../types/`
+- `../memory_recall_formatting.py`, `../memory_recall_budget.py`, `../memory_recall_no_result.py`, `../memory_manage_core.py`, `../wiki_memory_boundary.py`, `../write_failure_feedback.py`
+- `../../manager.py`, `../../types/`, `../../_internal/`
 - External libraries: `mcp`, `starlette`
