@@ -73,7 +73,7 @@ class TestSecurityDecisionDataclass:
     def test_frozen(self):
         d = SecurityDecision(tool_name="t", decision="ALLOW", reason="ok")
         with pytest.raises(AttributeError):
-            d.tool_name = "x"  # type: ignore[misc]
+            d.tool_name = "x"
 
     def test_to_dict(self):
         d = SecurityDecision(
@@ -254,7 +254,6 @@ _STOPPED = frozenset(
         "ESTOP_BLOCKED",
         "SSRF_BLOCKED",
         "INSECURE_REDIRECT_BLOCKED",
-        "SKILL_HOOK_BLOCK",
         "HOOK_BLOCKED",
         "POST_HOOK_BLOCKED",
         "GUARDRAIL_BLOCKED",
@@ -336,7 +335,7 @@ class TestPolicyDenialMetric:
             "CANARY_LEAKED",
             "YOLO_FINANCIAL_GATE_BLOCKED",
         ):
-            record_decision("tool", decision, "reason")  # type: ignore[arg-type]
+            record_decision("tool", decision, "reason")
 
         assert counter.labelled == [
             {"policy": "CRON_DENY", "action": "deny"},

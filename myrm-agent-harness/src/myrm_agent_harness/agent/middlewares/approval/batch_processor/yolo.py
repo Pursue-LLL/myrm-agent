@@ -26,7 +26,6 @@ batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。资�
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from langchain_core.messages import ToolCall
 
@@ -116,11 +115,11 @@ async def _evaluate_yolo_batch(
 ) -> tuple[
     list[tuple[int, ToolCall]],
     list[tuple[int, ToolCall, str]],
-    list[tuple[int, ToolCall, str, str, dict[str, Any] | None]],
+    list[tuple[int, ToolCall, str, str, dict[str, object] | None]],
 ]:
     auto_approved: list[tuple[int, ToolCall]] = []
     auto_denied: list[tuple[int, ToolCall, str]] = []
-    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, Any] | None]] = []
+    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, object] | None]] = []
 
     suffix = "" if not config.yolo_mode_timeout else f" (expires in {config.yolo_mode_timeout}s)"
     logger.info(

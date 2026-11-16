@@ -36,6 +36,7 @@ from myrm_agent_harness.agent.security.types import (
     DEFAULT_RULESET,
     Capability,
     CapabilitySet,
+    InjectionPolicy,
     PathPolicy,
     PermissionAction,
     PermissionRule,
@@ -180,9 +181,10 @@ def build_channel_security_config(
     - timeout: Agent overrides user (if configured)
 
     For Cron jobs, a **non-empty** ``declared_capabilities`` replaces the capability
-    set with that exact list. When empty, the CRON channel preset capabilities are
-    kept (unrestricted within the preset — matches UI "leave empty for all"), except that
-    ``file_write_tool`` / ``file_edit_tool`` stay denied unless ``file_write`` is declared.
+    set with that exact list. When empty, the CRON channel preset capabilities are kept and
+    the job counts as undeclared: ``file_write_tool`` / ``file_edit_tool`` stay denied unless
+    ``file_write`` is declared, and every ask is denied fail-closed (``resolve_cron_ask``),
+    since a declaration is the only approval a scheduled run can get.
     ``declared_allowed_roots`` provides additional path access grants (union-merged
     with existing allowed_roots). Applies to all channel types.
     """
@@ -238,7 +240,7 @@ def build_channel_security_config(
     yolo_mode_enabled = False
     yolo_mode_enabled_at: float | None = None
     yolo_mode_timeout: int | None = None
-    injection_policy: str = "log_only"
+    injection_policy: InjectionPolicy = "log_only"
     if effective:
         network_allowlist = effective.network_allowlist
         network_blocklist = effective.network_blocklist
@@ -283,7 +285,7 @@ def build_channel_security_config(
         auto_review_model=auto_review_model,
         auto_review_timeout_seconds=auto_review_timeout,
         plan_confirm_enabled=plan_confirm_enabled,
-        injection_policy=injection_policy,  # type: ignore[arg-type]
+        injection_policy=injection_policy,
         yolo_mode_enabled=yolo_mode_enabled,
         yolo_mode_enabled_at=yolo_mode_enabled_at,
         yolo_mode_timeout=yolo_mode_timeout,
@@ -399,7 +401,7 @@ def _merge_user_and_agent(user: SecurityConfig | None, agent: SecurityConfig | N
         yolo_at = None
         yolo_timeout = None
 
-    injection_policy: str = "log_only"
+    injection_policy: InjectionPolicy = "log_only"
     if user.injection_policy == "fail_closed" or agent.injection_policy == "fail_closed":
         injection_policy = "fail_closed"
 
@@ -413,7 +415,7 @@ def _merge_user_and_agent(user: SecurityConfig | None, agent: SecurityConfig | N
         network_blocklist=network_blocklist,
         command_denylist=command_denylist,
         domain_hitl_enabled=domain_hitl_enabled,
-        injection_policy=injection_policy,  # type: ignore[arg-type]
+        injection_policy=injection_policy,
         auto_mode_enabled=auto_mode_enabled,
         auto_review_model=auto_review_model,
         auto_review_timeout_seconds=auto_review_timeout,

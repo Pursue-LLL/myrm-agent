@@ -56,7 +56,7 @@ def settle_ask(
         logger.warning("[CRON_POLICY] Tool %s DENIED in session %s: %s", tool_name, session_key, verdict.audit_reason)
         record_decision(tool_name, "CRON_DENY", verdict.audit_reason)
         return f"{verdict.tool_message}{record_denial(tool_name, session_key)}"
-    logger.warning(
+    logger.info(
         "[CRON_POLICY] Tool %s ASK promoted to ALLOW in session %s: declared capabilities act as pre-approval",
         tool_name,
         session_key,

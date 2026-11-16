@@ -23,6 +23,7 @@ from myrm_agent_harness.agent.security.types import (
     DEFAULT_RULESET,
     Capability,
     CapabilitySet,
+    InjectionPolicy,
     PathPolicy,
     PermissionAction,
     PermissionRule,
@@ -252,7 +253,7 @@ def parse_security_config(raw: dict[str, object] | None) -> SecurityConfig | Non
     plan_confirm_enabled = bool(raw.get("planConfirmEnabled") or raw.get("plan_confirm_enabled", False))
 
     injection_policy_raw = raw.get("injectionPolicy") or raw.get("injection_policy", "log_only")
-    injection_policy = str(injection_policy_raw) if injection_policy_raw in ("log_only", "fail_closed") else "log_only"
+    injection_policy: InjectionPolicy = "fail_closed" if injection_policy_raw == "fail_closed" else "log_only"
 
     yolo_mode_enabled = bool(raw.get("yoloModeEnabled") or raw.get("yolo_mode_enabled", False))
     yolo_mode_enabled_at_raw = _yolo_timer(raw, "yolo_mode_enabled_at", "yoloModeEnabledAt")
@@ -274,7 +275,7 @@ def parse_security_config(raw: dict[str, object] | None) -> SecurityConfig | Non
         network_blocklist=network_blocklist,
         command_denylist=command_denylist,
         domain_hitl_enabled=domain_hitl_enabled,
-        injection_policy=injection_policy,  # type: ignore[arg-type]
+        injection_policy=injection_policy,
         auto_mode_enabled=auto_review_enabled,
         auto_review_model=auto_review_model,
         auto_review_timeout_seconds=auto_review_timeout,
@@ -293,31 +294,6 @@ def _ruleset_to_permissions(ruleset: PermissionRuleset) -> dict[str, str]:
         if rule.pattern == "*":
             permissions[rule.permission] = rule.action.value
     return permissions
-
-
-def apply_remote_exposed_overlay(base: SecurityConfig) -> SecurityConfig:
-    """Merge remote-exposed deny rules onto an existing session SecurityConfig."""
-    remote = SecurityConfig.remote_exposed()
-    return SecurityConfig(
-        capabilities=base.capabilities,
-        ruleset=merge(base.ruleset, remote.ruleset),
-        approval_timeout_seconds=base.approval_timeout_seconds,
-        approval_timeout_behavior=base.approval_timeout_behavior,
-        path_policy=base.path_policy,
-        network_allowlist=base.network_allowlist,
-        network_blocklist=base.network_blocklist,
-        command_denylist=base.command_denylist,
-        domain_hitl_enabled=base.domain_hitl_enabled,
-        privacy_policy=base.privacy_policy,
-        injection_policy=base.injection_policy,
-        auto_mode_enabled=base.auto_mode_enabled,
-        auto_review_model=base.auto_review_model,
-        auto_review_timeout_seconds=base.auto_review_timeout_seconds,
-        transcript_window_size=base.transcript_window_size,
-        yolo_mode_enabled=False,
-        yolo_mode_enabled_at=None,
-        yolo_mode_timeout=None,
-    )
 
 
 def remote_exposed_permissions() -> dict[str, str]:

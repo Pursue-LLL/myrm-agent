@@ -2,7 +2,6 @@
 - myrm_agent_harness.agent.security.approval_flow::DEFAULT_USER_ID / get_allowlist (POS: Core component for "Always Allow" feature in Human-in-the-Loop approval system.)
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
 - myrm_agent_harness.agent.security.engine::evaluate_tool_call / extract_url_domains (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
-- myrm_agent_harness.agent.security.guards.skill_approval_hook::HookAction (POS: Integrated into tool_interceptor_middleware between the onion policy engine (L1-L3) and HITL approval.)
 - myrm_agent_harness.agent.security.guards.untrusted_ingress_fence::is_tool_allowed_under_untrusted_ingress / is_untrusted_ingress_active (POS: Layer 2 runtime security guard. Sits between Inbound Task Ingress and Agent Tool Registry.)
 - myrm_agent_harness.agent.security.managed_approval_policy::ManagedApprovalPolicy (POS: Harness SSOT for org floor rules that constrain allowlist honor, YOLO, auto-review, and allow-always UI.)
 - myrm_agent_harness.agent.security.path_security::is_protected_instruction_file (POS: Import-path shim. Holds no logic; `core.security.path.__all__` defines exactly what this module re-exports, so the alias never widens the public API.)
@@ -14,7 +13,7 @@
 - myrm_agent_harness.core.security.spend_governance::compute_action_digest / compute_script_content_hash / extract_script_file_target / is_financial_or_spend_tool / is_irreversible_social_action / parse_spend_amount (POS: Foundational Agent Commerce governance module in core/security/.)
 - myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
 - myrm_agent_harness.agent.middlewares.approval::_batch_review (POS: Tool approval subsystem — Human-in-the-Loop approval flow.)
-- myrm_agent_harness.agent.middlewares.approval._batch_review::_evaluate_skill_hooks_for_tool / _get_runtime_domains / _run_llm_review / _truncate_tool_args (POS: Batch review helpers — LLM review, runtime domain tracking, skill hook evaluation.)
+- myrm_agent_harness.agent.middlewares.approval._batch_review::_get_runtime_domains / _run_llm_review / _truncate_tool_args (POS: Batch review helpers — LLM review and runtime domain tracking.)
 - myrm_agent_harness.agent.middlewares.approval._cron_settle::settle_ask (POS: A run with no approver answers an ASK from the capabilities its job declared: approves it, or refuses it with the text the model reads.)
 - myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-only lease, the permission engine, the shell-escalation check and the LLM security review.)
 - myrm_agent_harness.agent.middlewares.approval.helpers::ThresholdBreach / is_threshold_breached / record_approval / record_denial (POS: Approval middleware helper functions. Implements dual-threshold denial tracking (consecutive + total) with proactive guidance on every denial and automatic consecutive counter reset on any allowed operation.)
@@ -33,7 +32,6 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable
-from typing import Any
 
 from langchain_core.messages import ToolCall
 
@@ -45,9 +43,6 @@ from myrm_agent_harness.agent.security.audit import record_decision
 from myrm_agent_harness.agent.security.engine import (
     evaluate_tool_call,
     extract_url_domains,
-)
-from myrm_agent_harness.agent.security.guards.skill_approval_hook import (
-    HookAction,
 )
 from myrm_agent_harness.agent.security.guards.untrusted_ingress_fence import (
     is_tool_allowed_under_untrusted_ingress,
@@ -84,7 +79,6 @@ from myrm_agent_harness.toolkits.code_execution.security.ast_parser import (
 
 from .. import _batch_review
 from .._batch_review import (
-    _evaluate_skill_hooks_for_tool,
     _get_runtime_domains,
     _run_llm_review,
     _truncate_tool_args,
@@ -121,11 +115,11 @@ async def evaluate_calls(
     batch_assessment: BatchRiskAssessment,
     auto_approved: list[tuple[int, ToolCall]],
     auto_denied: list[tuple[int, ToolCall, str]],
-    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, Any] | None]],
+    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, object] | None]],
 ) -> tuple[
     list[tuple[int, ToolCall]],
     list[tuple[int, ToolCall, str]],
-    list[tuple[int, ToolCall, str, str, dict[str, Any] | None]],
+    list[tuple[int, ToolCall, str, str, dict[str, object] | None]],
 ]:
     for idx, tool_call in enumerate(tool_calls):
         tool_name = tool_call.get("name", "unknown")
@@ -654,12 +648,7 @@ async def evaluate_calls(
                                 "shell command cleared by escalation check",
                             )
 
-                if reason.startswith("Sandbox-aware") or (
-                    getattr(config, "is_sandbox", False) and permission_type in ("shell_exec", "code_interpreter")
-                ):
-                    record_decision(tool_name, "SANDBOX_AUTO_BYPASS", reason)
-                else:
-                    record_decision(tool_name, "ALLOW", reason)
+                record_decision(tool_name, "ALLOW", reason)
                 auto_approved.append((idx, tool_call))
                 record_approval(session_key)
                 continue
@@ -685,43 +674,6 @@ async def evaluate_calls(
             else:
                 auto_denied.append((idx, tool_call, refusal))
             continue
-
-        skill_hook_verdict = _evaluate_skill_hooks_for_tool(tool_name, tool_input)
-        if skill_hook_verdict is not None:
-            if skill_hook_verdict.action == HookAction.BLOCK:
-                logger.warning(
-                    "[SKILL_HOOK] Tool %s BLOCKED by skill '%s': %s",
-                    tool_name,
-                    skill_hook_verdict.blocking_skill,
-                    skill_hook_verdict.reason,
-                )
-                record_decision(tool_name, "SKILL_HOOK_BLOCK", skill_hook_verdict.reason)
-                hint = record_denial(tool_name, session_key)
-                auto_denied.append(
-                    (
-                        idx,
-                        tool_call,
-                        f"Blocked by skill '{skill_hook_verdict.blocking_skill}': {skill_hook_verdict.reason}{hint}",
-                    )
-                )
-                continue
-            if skill_hook_verdict.action == HookAction.REQUIRE_APPROVAL:
-                logger.warning(
-                    "[SKILL_HOOK] Tool %s requires approval: %s",
-                    tool_name,
-                    skill_hook_verdict.reason,
-                )
-                record_decision(tool_name, "SKILL_HOOK_APPROVAL", skill_hook_verdict.reason)
-                pending_approval.append(
-                    (
-                        idx,
-                        tool_call,
-                        permission_type,
-                        f"Skill approval: {skill_hook_verdict.reason}",
-                        extra_ctx,
-                    )
-                )
-                continue
 
         if config.domain_hitl_enabled:
             domains = extract_url_domains(permission_type, tool_input)

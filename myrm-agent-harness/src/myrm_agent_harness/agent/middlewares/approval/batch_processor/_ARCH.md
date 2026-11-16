@@ -16,7 +16,7 @@
 
 ## 已知遗留
 
-`decide.py` 仍约 940 行：单工具循环的各安全分支共享顺序、拒绝计数与 `record_decision` 语义，再往下拆需要按阶段引入显式判定结果对象；当前由 3939 条 approval/security 测试与 characterization 用例锁定行为。
+`decide.py` 仍约 890 行：单工具循环的各安全分支共享顺序、拒绝计数与 `record_decision` 语义，再往下拆需要按阶段引入显式判定结果对象；当前由 approval/security 测试目录里的 characterization 用例锁定行为。
 
 ## 依赖关系
 

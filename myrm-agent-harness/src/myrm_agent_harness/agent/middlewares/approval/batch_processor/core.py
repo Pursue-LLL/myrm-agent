@@ -3,7 +3,7 @@
 Decides, for each tool call of a model turn, whether it runs, is refused or waits for the user.
 
 [INPUT]
-- agent.security::engine, checks, audit, approval_flow, command_allowlist_pattern, managed_policy_gates, path_security, ptc_verifier, script_operand_verifier, tool_registry, types, guards.{skill_approval_hook, taint_tracker, untrusted_ingress_fence}, workspace_trust.{context, gate, types} (POS: The layered security stack this processor orchestrates: permission engine, path and taint checks, allowlist, managed-policy and workspace-trust gates.)
+- agent.security::engine, checks, audit, approval_flow, command_allowlist_pattern, managed_policy_gates, path_security, ptc_verifier, script_operand_verifier, tool_registry, types, guards.{taint_tracker, untrusted_ingress_fence}, workspace_trust.{context, gate, types} (POS: The layered security stack this processor orchestrates: permission engine, path and taint checks, allowlist, managed-policy and workspace-trust gates.)
 - core.security::readonly_research_sandbox, device_policy, spend_governance, remote_ops_ledger (POS: Foundation security primitives: read-only lease check, batch risk, spend rules, recovery hints.)
 - toolkits.code_execution.security::ast_parser, risk_classifier, workspace_snapshot; toolkits.computer_use::safety (POS: Shell AST and risk classification, pre-destructive snapshots, desktop control guardrails.)
 - agent.middlewares::_session_context; ._batch_review, ._batch_decisions, ._interrupt_payload, ._cron_settle::settle_pending, .denial_diagnostic_bridge::build_auto_review_denial_message, .helpers (POS: Shared middleware ContextVars, LLM review, interrupt payloads, cron settlement, the refusal text the model reads, denial tracking.)
@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
 
 from langchain_core.messages import ToolCall
 
@@ -36,7 +35,6 @@ from myrm_agent_harness.agent.security.types import (
 
 from .._batch_decisions import apply_approval_decisions
 from .._batch_review import (
-    _evaluate_skill_hooks_for_tool,
     _get_runtime_domains,
     _run_llm_review,
     _truncate_tool_args,
@@ -49,7 +47,6 @@ from .decide import evaluate_calls
 from .yolo import _evaluate_yolo_batch, operator_as_key_deny_message
 
 __all__ = [
-    "_evaluate_skill_hooks_for_tool",
     "_get_runtime_domains",
     "_run_llm_review",
     "_truncate_tool_args",
@@ -97,7 +94,7 @@ async def evaluate_tool_batch(
 ) -> tuple[
     list[tuple[int, ToolCall]],
     list[tuple[int, ToolCall, str]],
-    list[tuple[int, ToolCall, str, str, dict[str, Any] | None]],
+    list[tuple[int, ToolCall, str, str, dict[str, object] | None]],
 ]:
     """Evaluate all tool calls and classify them into approved/denied/pending.
 
@@ -105,7 +102,7 @@ async def evaluate_tool_batch(
     """
     auto_approved: list[tuple[int, ToolCall]] = []
     auto_denied: list[tuple[int, ToolCall, str]] = []
-    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, Any] | None]] = []
+    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, object] | None]] = []
 
     from myrm_agent_harness.agent.middlewares._session_context import (
         get_agent_primary_model_slug,

@@ -11,7 +11,6 @@ from myrm_agent_harness.agent.security.checks import (
     check_shell_threats,
 )
 from myrm_agent_harness.agent.security.config import (
-    apply_remote_exposed_overlay,
     from_config,
     parse_security_config,
     remote_exposed_permissions,
@@ -663,15 +662,3 @@ class TestSecurityConfigSerialization:
         assert isinstance(perms, dict)
         assert perms.get("skill_manage") == "deny"
         assert perms.get("cron_manage") == "deny"
-
-    def test_apply_remote_exposed_overlay_merges_deny_rules(self) -> None:
-        base = SecurityConfig(
-            network_blocklist=("blocked.test",),
-            yolo_mode_enabled=True,
-            yolo_mode_timeout=120,
-        )
-        merged = apply_remote_exposed_overlay(base)
-        assert merged.network_blocklist == ("blocked.test",)
-        assert merged.yolo_mode_enabled is False
-        assert merged.yolo_mode_timeout is None
-        assert len(merged.ruleset) >= len(base.ruleset)

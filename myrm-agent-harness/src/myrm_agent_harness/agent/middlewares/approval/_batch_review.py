@@ -1,18 +1,17 @@
-"""Batch review helpers — LLM review, domain tracking, skill hooks.
+"""Batch review helpers — LLM review and runtime domain tracking.
 
 [INPUT]
-- agent.security (POS: types, skill approval hooks)
+- agent.security.types::RecentToolCall, ReviewResult, SecurityReviewerProtocol (POS: Security type definitions — re-exported from core.security.types.)
 
 [OUTPUT]
 - register_security_reviewer: Register or unregister a Transcript Classifier.
 - reset_runtime_domains: Reset runtime-approved domains.
 - _run_llm_review: Execute Transcript Classifier with fail-safe handling.
 - _get_runtime_domains: Return session-scoped runtime-approved domains.
-- _evaluate_skill_hooks_for_tool: Collect and evaluate skill hooks.
 - _truncate_tool_args: Truncate large string values in tool arguments.
 
 [POS]
-Batch review helpers — LLM review, runtime domain tracking, skill hook evaluation.
+Batch review helpers — LLM review and runtime domain tracking.
 """
 
 from __future__ import annotations
@@ -20,12 +19,6 @@ from __future__ import annotations
 import logging
 from contextvars import ContextVar
 
-from myrm_agent_harness.agent.security.guards.skill_approval_hook import (
-    HookAction,
-    SkillApprovalHook,
-    SkillHookVerdict,
-    evaluate_skill_hooks,
-)
 from myrm_agent_harness.agent.security.types import (
     RecentToolCall,
     ReviewResult,
@@ -35,7 +28,6 @@ from myrm_agent_harness.agent.security.types import (
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "_evaluate_skill_hooks_for_tool",
     "_get_runtime_domains",
     "_run_llm_review",
     "_truncate_tool_args",
@@ -113,33 +105,3 @@ def _get_runtime_domains() -> set[str]:
 def reset_runtime_domains() -> None:
     """Reset runtime-approved domains (call at session start)."""
     _runtime_allowed_domains.set(set())
-
-
-def _evaluate_skill_hooks_for_tool(tool_name: str, tool_args: dict[str, object]) -> SkillHookVerdict | None:
-    """Collect skill hooks from loaded skills and evaluate them.
-
-    Returns None if no hooks are present (fast path), otherwise
-    returns the merged SkillHookVerdict.
-    """
-    try:
-        from myrm_agent_harness.agent.skill_agent.context import get_loaded_skills
-    except (ImportError, TypeError):
-        return None
-
-    loaded = get_loaded_skills()
-    if not loaded:
-        return None
-
-    hooks: list[tuple[str, SkillApprovalHook]] = []
-    for skill in loaded:
-        hook = getattr(skill, "hook_instance", None)
-        if hook is not None and isinstance(hook, SkillApprovalHook):
-            hooks.append((skill.name, hook))
-
-    if not hooks:
-        return None
-
-    verdict = evaluate_skill_hooks(hooks, tool_name, tool_args)
-    if verdict.action == HookAction.ALLOW:
-        return None
-    return verdict

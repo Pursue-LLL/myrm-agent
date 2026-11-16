@@ -339,12 +339,7 @@ def evaluate_tool_call(
 
         command = command_text(tool_input)
         if command and classify_command_risk(command) == CommandRiskLevel.SAFE:
-            reason = (
-                "Sandbox-aware safe command auto-allow"
-                if getattr(config, "is_sandbox", False)
-                else "Safe read-only command auto-allow"
-            )
-            return PermissionAction.ALLOW, reason
+            return PermissionAction.ALLOW, "Safe read-only command auto-allow"
 
     return result_action, ""
 
