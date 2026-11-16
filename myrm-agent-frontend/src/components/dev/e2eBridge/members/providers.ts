@@ -44,6 +44,45 @@ import {
 import { prepareAutomationSend, resolveE2eApiBase } from '@/components/dev/e2eBridge/hostEnv';
 import type { E2eBridgeMembers } from '@/components/dev/e2eBridge/members/types';
 
+type AuthoritativeProviderConfig = Awaited<ReturnType<typeof fetchE2eProviderConfigBody>>;
+type ModelPin = { providerId: string; model: string };
+
+/**
+ * Commits the primary that passed the check against the backend's authoritative config: the provider store takes the
+ * config over, so the next send runs on the test-seeded primary, and fast mode and the agent chat bind to the primary.
+ */
+function commitAuthoritativePrimary(authoritative: AuthoritativeProviderConfig, primary: ModelPin): ModelPin {
+  const serverProviders = authoritative.providers ?? [];
+  const authoritativeConfig = authoritative.defaultModelConfig;
+  if (serverProviders.length > 0 || authoritativeConfig) {
+    useProviderStore.setState({
+      providers: serverProviders.length > 0 ? serverProviders : useProviderStore.getState().providers,
+      defaultModelConfig: authoritativeConfig ?? useProviderStore.getState().defaultModelConfig,
+    });
+  }
+  const selection = { providerId: primary.providerId, model: primary.model };
+  flushSync(() => {
+    useProviderStore.getState().setFastModeModel(selection);
+    const chat = useChatStore.getState();
+    if (chat.agentConfig) {
+      chat.updateAgentConfig({
+        modelSelection: selection,
+        enabledBuiltinTools: [...chat.currentBuiltinTools],
+      });
+      return;
+    }
+    chat.setAgentConfig({
+      modelSelection: selection,
+      enabledBuiltinTools: [...chat.currentBuiltinTools],
+      selectedSkillIds: [],
+      selectedMcpNames: [],
+      systemPrompt: '',
+      useGlobalInstruction: true,
+    });
+  });
+  return selection;
+}
+
 export function createProviderMembers(): E2eBridgeMembers {
   return {
     __e2eFallback: false,
@@ -129,37 +168,7 @@ export function createProviderMembers(): E2eBridgeMembers {
       if (!isModelAvailable(litePrimary, serverProviders)) {
         throw new Error(`e2e-lite-model-unavailable:${litePrimary.providerId}/${litePrimary.model}`);
       }
-      const authoritativeConfig = authoritative.defaultModelConfig;
-      if (serverProviders.length > 0 || authoritativeConfig) {
-        useProviderStore.setState({
-          providers: serverProviders.length > 0 ? serverProviders : useProviderStore.getState().providers,
-          defaultModelConfig: authoritativeConfig ?? useProviderStore.getState().defaultModelConfig,
-        });
-      }
-      const selection = {
-        providerId: litePrimary.providerId,
-        model: litePrimary.model,
-      };
-      flushSync(() => {
-        useProviderStore.getState().setFastModeModel(selection);
-        const chat = useChatStore.getState();
-        if (chat.agentConfig) {
-          chat.updateAgentConfig({
-            modelSelection: selection,
-            enabledBuiltinTools: [...chat.currentBuiltinTools],
-          });
-          return;
-        }
-        chat.setAgentConfig({
-          modelSelection: selection,
-          enabledBuiltinTools: [...chat.currentBuiltinTools],
-          selectedSkillIds: [],
-          selectedMcpNames: [],
-          systemPrompt: '',
-          useGlobalInstruction: true,
-        });
-      });
-      return selection;
+      return commitAuthoritativePrimary(authoritative, litePrimary);
     },
     pinBasicModelForE2e: async () => {
       // Desktop approval E2E requires tool-capable agent mode; fast/deep can keep send disabled
@@ -184,39 +193,7 @@ export function createProviderMembers(): E2eBridgeMembers {
             ` base=${base} providerId=${provider?.id ?? '?'} models=${JSON.stringify(provider?.enabledModels ?? [])}`,
         );
       }
-      // 用后端权威数据刷新 store（providers + defaultModelConfig），
-      // 保证后续发送走测试 seed 的 corrupt primary。
-      const authoritativeConfig = authoritative.defaultModelConfig;
-      if (serverProviders.length > 0 || authoritativeConfig) {
-        useProviderStore.setState({
-          providers: serverProviders.length > 0 ? serverProviders : useProviderStore.getState().providers,
-          defaultModelConfig: authoritativeConfig ?? useProviderStore.getState().defaultModelConfig,
-        });
-      }
-      const selection = {
-        providerId: primary.providerId,
-        model: primary.model,
-      };
-      flushSync(() => {
-        useProviderStore.getState().setFastModeModel(selection);
-        const chat = useChatStore.getState();
-        if (chat.agentConfig) {
-          chat.updateAgentConfig({
-            modelSelection: selection,
-            enabledBuiltinTools: [...chat.currentBuiltinTools],
-          });
-          return;
-        }
-        chat.setAgentConfig({
-          modelSelection: selection,
-          enabledBuiltinTools: [...chat.currentBuiltinTools],
-          selectedSkillIds: [],
-          selectedMcpNames: [],
-          systemPrompt: '',
-          useGlobalInstruction: true,
-        });
-      });
-      return selection;
+      return commitAuthoritativePrimary(authoritative, primary);
     },
     releaseAgentModelPinForE2e: () => {
       // A pinned agent opts out of smart routing; routing E2E drops the pin after binding providers.
