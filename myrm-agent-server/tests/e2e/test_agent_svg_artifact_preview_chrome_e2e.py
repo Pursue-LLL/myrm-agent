@@ -98,7 +98,7 @@ _SEND_TURN_JS_TEMPLATE = """(async () => {
 
 _OPEN_WORKSPACE_TAB_JS = """(() => {
   const tab = Array.from(document.querySelectorAll('button')).find((b) =>
-    /Files|文件|檔案/.test(b.textContent || ''),
+    /Files|文件/.test(b.textContent || ''),
   );
   if (tab) tab.click();
   return { ok: Boolean(tab), ready: Boolean(tab), text: tab?.textContent || '' };
@@ -136,7 +136,7 @@ _AGENT_SVG_PREVIEW_READY_JS = """(() => {
     svgCount: panel ? panel.querySelectorAll('svg').length : 0,
     panelTextSample: innerText.slice(0, 240),
     hasSpinner: Boolean(panel?.querySelector('.animate-spin')),
-    hasError: /Failed to load|加载失败|載入失敗/.test(innerText),
+    hasError: /Failed to load|加载失败/.test(innerText),
   };
 })()"""
 

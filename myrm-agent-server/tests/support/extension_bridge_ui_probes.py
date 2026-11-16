@@ -14,7 +14,7 @@ EXTENSION_BRIDGE_STATE = """(() => {
     'URL navigation', 'Tab discovery', 'Agent tab control'];
   const matrixHits = matrixLabels.filter((label) => bodyText.includes(label));
   const unavailableHits = (bodyText.match(/不可用|Unavailable/g) || []).length;
-  const relayLine = (bodyText.match(/(私网中继能力|私網中繼能力|Private-network relay capability)[^\\n]*/i) || [])[0] || '';
+  const relayLine = (bodyText.match(/(私网中继能力|Private-network relay capability)[^\\n]*/i) || [])[0] || '';
   const wsMatch = bodyText.match(/ws:\\/\\/[^\\s]+\\/api\\/v1\\/ws\\/extension/i);
   const pairingGuideVisible =
     /加载已解压|Load unpacked|pairing bundle|配对包|Generate pairing|Quick Setup|快速设置/i.test(bodyText);
@@ -49,7 +49,7 @@ CONNECTED_BRIDGE_STATE = """(() => {
     'URL navigation', 'Tab discovery', 'Agent tab control'];
   const matrixHits = matrixLabels.filter((label) => bodyText.includes(label));
   const availableHits = (bodyText.match(/可用|Available/g) || []).length;
-  const relayLine = (bodyText.match(/(私网中继能力|私網中繼能力|Private-network relay capability)[^\\n]*/i) || [])[0] || '';
+  const relayLine = (bodyText.match(/(私网中继能力|Private-network relay capability)[^\\n]*/i) || [])[0] || '';
   return {
     ready:
       !!root &&
@@ -59,7 +59,7 @@ CONNECTED_BRIDGE_STATE = """(() => {
       availableHits >= 3 &&
       (/已连接|Connected/i.test(bodyText)) &&
       (/已就绪|Ready \\(all required actions available\\)/i.test(relayLine) ||
-        /全部必需动作可用|全部必要動作可用/i.test(relayLine)),
+        /全部必需动作可用/i.test(relayLine)),
     hasActiveSection: !!root,
     fetchErrorVisible,
     matrixHits: matrixHits.length,
@@ -74,7 +74,7 @@ ACCESS_POLICY_INVALID_STATE = """(() => {
   const root = document.querySelector('[data-section="extensionBridge"][data-active]');
   const bodyText = root?.innerText || '';
   const invalidHelp =
-    /Add at least one authorized domain|请至少添加一个授权域名|請至少新增一個授權域名/i.test(bodyText);
+    /Add at least one authorized domain|请至少添加一个授权域名/i.test(bodyText);
   return {
     ready:
       !!root &&
@@ -128,7 +128,7 @@ ACCESS_POLICY_VALID_AFTER_DOMAIN = """(() => {
   const root = document.querySelector('[data-section="extensionBridge"][data-active]');
   const bodyText = root?.innerText || '';
   const invalidHelp =
-    /Add at least one authorized domain|请至少添加一个授权域名|請至少新增一個授權域名/i.test(bodyText);
+    /Add at least one authorized domain|请至少添加一个授权域名/i.test(bodyText);
   const hasDomain = /\\*\\.example\\.com/.test(bodyText);
   return {
     ready:
@@ -159,7 +159,7 @@ ACCESS_POLICY_VALID_ALLOW_ALL = """(() => {
   const root = document.querySelector('[data-section="extensionBridge"][data-active]');
   const bodyText = root?.innerText || '';
   const invalidHelp =
-    /Add at least one authorized domain|请至少添加一个授权域名|請至少新增一個授權域名/i.test(bodyText);
+    /Add at least one authorized domain|请至少添加一个授权域名/i.test(bodyText);
   const switchEl = root?.querySelector('[role="switch"]');
   return {
     ready:
@@ -206,8 +206,8 @@ PAUSE_STUB_TAB_JS = """(() => {
 TAB_PAUSED_STATE = """(() => {
   const root = document.querySelector('[data-section="extensionBridge"][data-active]');
   const bodyText = root?.innerText || '';
-  const pausedBadge = /Paused|已暂停|已暫停/i.test(bodyText);
-  const resumeBtn = /Resume|恢复|恢復/i.test(bodyText);
+  const pausedBadge = /Paused|已暂停/i.test(bodyText);
+  const resumeBtn = /Resume|恢复/i.test(bodyText);
   return {
     ready: !!root && pausedBadge && resumeBtn,
     pausedBadge,

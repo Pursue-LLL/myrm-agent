@@ -808,7 +808,7 @@ def test_integration_catalog_tls_verification_failed_end_to_end() -> None:
                             shouldBlock,
                             scanSeen: !!scan,
                             verifySeen: !!verify,
-                            hasTlsMessage: /TLS[^\\n]*(certificate|证书|Zertifikat|証明書|인증서)/i.test(text),
+                            hasTlsMessage: /TLS[^\\n]*(certificate|证书)/i.test(text),
                           };
                         })()""",
                         timeout_sec=45.0,

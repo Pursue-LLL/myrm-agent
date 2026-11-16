@@ -161,7 +161,7 @@ def test_chrome_ui_upstream_update_confirmation_promises_the_undo_it_offers() ->
 
         opened = client.evaluate(
             page,
-            ACCEPT_BUTTON_JS % json.dumps(["Apply Update", "应用更新", "Upstream-Update anwenden", "업데이트 적용"]),
+            ACCEPT_BUTTON_JS % json.dumps(["Apply Update", "应用更新"]),
             timeout_sec=20.0,
         )
         assert isinstance(opened, dict) and opened.get("ok") is True, json.dumps(opened, ensure_ascii=False)[:800]
@@ -176,9 +176,9 @@ def test_chrome_ui_upstream_update_confirmation_promises_the_undo_it_offers() ->
         lowered = text.lower()
         asserts_irreversible = any(
             marker in lowered
-            for marker in ("cannot be undone", "nicht rückgängig", "取り消せません", "되돌릴 수 없습니다", "不可撤销", "不可撤銷")
+            for marker in ("cannot be undone", "不可撤销")
         )
         assert not asserts_irreversible, f"confirmation still claims the update is permanent: {text!r}"
-        assert "undo" in lowered or "rückgängig" in lowered or "되돌릴" in lowered or "撤銷" in lowered or "撤销" in lowered, (
+        assert "undo" in lowered or "撤销" in lowered, (
             f"confirmation does not promise the undo the page offers: {text!r}"
         )

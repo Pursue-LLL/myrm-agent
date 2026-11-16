@@ -27,7 +27,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 # The toggle's accessible name in every shipped locale (memory.incognitoMode).
-_TOGGLE_LABELS = ("Incognito Mode", "无痕模式", "無痕模式", "シークレットモード", "시크릿 모드", "Inkognito-Modus")
+_TOGGLE_LABELS = ("Incognito Mode", "无痕模式")
 
 _FIND_TOGGLE = """const labels = %s;
   const toggle = Array.from(document.querySelectorAll('button[aria-pressed]')).find(

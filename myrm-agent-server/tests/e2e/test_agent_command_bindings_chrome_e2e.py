@@ -122,7 +122,7 @@ _REMOVE_BINDING_JS = """(() => {
 _CLICK_SAVE_JS = """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const matches = Array.from(section.querySelectorAll('button')).filter((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
   const save = matches.find((btn) => !btn.disabled);
   const bodyLength = (document.body?.innerText || '').length;
@@ -137,7 +137,7 @@ _CLICK_SAVE_JS = """(() => {
 _SAVE_COMPLETE_JS = """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const save = Array.from(section.querySelectorAll('button')).find((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
   const bodyLength = (document.body?.innerText || '').length;
   if (!save) {

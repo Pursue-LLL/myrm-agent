@@ -44,7 +44,7 @@ _OPEN_SUBAGENTS_JS = """(() => {
   tab.click();
   return new Promise(resolve => setTimeout(() => {
     const add = Array.from(document.querySelectorAll('button')).find((button) =>
-      /Add Subagent|添加子智能体|新增子智慧體|サブエージェントを追加|하위 에이전트 추가|Subagent hinzufügen/i.test(button.textContent || ''),
+      /Add Subagent|添加子智能体/i.test(button.textContent || ''),
     );
     if (!add) {
       return resolve({
@@ -60,7 +60,7 @@ _OPEN_SUBAGENTS_JS = """(() => {
 
 _SELECT_EXPLORE_JS = """(() => {
   const target = Array.from(document.querySelectorAll('button')).find((button) =>
-    /Codebase Explorer|代码库探索专家|程式碼庫探索專家|コードベース探索|코드베이스 탐색|Codebase-Explorer/i.test(button.textContent || '') &&
+    /Codebase Explorer|代码库探索专家/i.test(button.textContent || '') &&
     button.offsetParent !== null,
   );
   if (!target) {
@@ -81,7 +81,7 @@ _SELECT_EXPLORE_JS = """(() => {
 _CLICK_SAVE_JS = """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const save = Array.from(section.querySelectorAll('button')).find((button) =>
-    /^(Save|保存|儲存)$/i.test((button.textContent || '').trim()) &&
+    /^(Save|保存)$/i.test((button.textContent || '').trim()) &&
     button.offsetParent !== null &&
     !button.disabled,
   );
@@ -93,7 +93,7 @@ _CLICK_SAVE_JS = """(() => {
 _SAVE_COMPLETE_JS = """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const save = Array.from(section.querySelectorAll('button')).find((button) =>
-    /^(Save|保存|儲存)$/i.test((button.textContent || '').trim()) && button.offsetParent !== null,
+    /^(Save|保存)$/i.test((button.textContent || '').trim()) && button.offsetParent !== null,
   );
   if (!save) return { ready: false, reason: 'no-visible-save-button' };
   return { ready: save.disabled && !save.querySelector('.animate-spin'), disabled: save.disabled };

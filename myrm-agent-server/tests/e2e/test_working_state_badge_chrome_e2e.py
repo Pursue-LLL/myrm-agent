@@ -119,7 +119,7 @@ _SAVE_STATE_JS = """(() => {
   })();
   const save = card ? Array.from(card.querySelectorAll('button')).find((el) => {
     const label = (el.textContent || '').trim();
-    return ['Save', '保存', '儲存'].includes(label);
+    return ['Save', '保存'].includes(label);
   }) : null;
   if (!save) return { ok: false, reason: 'save-missing' };
   if (save.disabled) return { ok: false, reason: 'save-disabled' };
@@ -216,7 +216,7 @@ def test_working_state_badge_and_settings_chrome_e2e() -> None:
                   })();
                   const save = card ? Array.from(card.querySelectorAll('button')).find((el) => {
                     const label = (el.textContent || '').trim();
-                    return ['Save', '保存', '儲存'].includes(label);
+                    return ['Save', '保存'].includes(label);
                   }) : null;
                   return { ready: Boolean(save && !save.disabled) };
                 })()""",

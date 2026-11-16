@@ -26,7 +26,7 @@ REFRESH_ALLOWLIST_JS = """(() => {
     if (container && container.querySelector('button')) break;
   }
   const buttons = Array.from((container || anchor).querySelectorAll('button'));
-  const refresh = buttons.find((btn) => /Refresh|刷新|重新整理|更新/.test(btn.textContent || ''));
+  const refresh = buttons.find((btn) => /Refresh|刷新|更新/.test(btn.textContent || ''));
   if (!refresh) return { ok: false, err: 'no-refresh-button' };
   refresh.click();
   return { ok: true };
@@ -46,7 +46,7 @@ def allowlist_pattern_visible_js() -> str:
   const hasPattern = text.includes('{pattern}');
   const hasTool = text.includes('{tool}');
   const hasGranularity =
-    /Similar Commands|相似命令|類似コマンド|유사 명령|Ähnliche Befehle|pattern/i.test(text);
+    /Similar Commands|相似命令|pattern/i.test(text);
   return {{
     ready: hasPattern && hasTool,
     hasPattern,

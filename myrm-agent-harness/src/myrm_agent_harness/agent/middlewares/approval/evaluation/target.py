@@ -4,6 +4,7 @@
 - agent.middlewares._session_context::get_approval_session, get_security_config, get_workspace_root, resolve_security_config_from_runtime, set_security_config (POS: Middleware session context — shared ContextVars for the middleware chain.)
 - agent.security.channel_presets::build_channel_security_config (POS: The fail-closed security configuration of a channel.)
 - agent.security.tool_registry::compute_canonical_args_hash (POS: Canonical hash of a call's arguments, the same for any wording of the same operation.)
+- .._cron_policy::is_cron_run (POS: Whether a run belongs to a scheduled job.)
 - ..refusal::answered_call_ids (POS: Which calls of a model response an earlier guard already answered.)
 
 [OUTPUT]
@@ -34,6 +35,7 @@ from myrm_agent_harness.agent.security.channel_presets import build_channel_secu
 from myrm_agent_harness.agent.security.tool_registry import compute_canonical_args_hash
 from myrm_agent_harness.agent.security.types import SecurityConfig
 
+from .._cron_policy import is_cron_run
 from ..refusal import answered_call_ids
 
 logger = logging.getLogger(__name__)
@@ -109,7 +111,7 @@ def resolve_approval_target(state: Mapping[str, object], runtime: object | None)
         answered_ids=answered_ids,
         session_key=session_key,
         workspace_root=get_workspace_root() or None,
-        is_cron=session_key.startswith("cron:"),
+        is_cron=is_cron_run(config, session_key),
         args_hashes={
             index: compute_canonical_args_hash(call.get("name", "unknown"), call.get("args"))
             for index, call in enumerate(unanswered.tool_calls)

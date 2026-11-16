@@ -442,7 +442,7 @@ _VAULT_LOG_BUTTON_JS = """(async () => {
     return { ready: true, clicked: true, via: 'testid' };
   }
   const btn = Array.from(root.querySelectorAll('button')).find((node) =>
-    /View full log|查看完整日志|檢視完整日誌|完全なログ/.test(node.textContent || '')
+    /View full log|查看完整日志/.test(node.textContent || '')
   );
   if (btn) {
     btn.click();
@@ -489,7 +489,7 @@ _SUCCESS_FINISH_TOAST_JS = """(() => {
   const merged = `${toastText} ${bodyText}`;
   return {
     ready:
-      /Background task finished|后台任务已完成|後臺任務已完成|バックグラウンドタスク完了/.test(merged),
+      /Background task finished|后台任务已完成/.test(merged),
     toastText: toastText.slice(0, 400),
   };
 })()"""

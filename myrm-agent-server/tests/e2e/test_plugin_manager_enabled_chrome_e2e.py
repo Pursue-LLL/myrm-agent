@@ -35,7 +35,7 @@ _DISABLED_SERVER = "e2e-disabled-srv"
 _CLICK_TAB_JS = """() => {
   const tab = Array.from(document.querySelectorAll('[role="tab"]')).find((t) => {
     const text = (t.textContent || '').trim();
-    return /^(Installed|已安装|已安裝)(\\d*)$/.test(text);
+    return /^(Installed|已安装)(\\d*)$/.test(text);
   });
   if (!tab) return { ok: false, err: 'installed-tab-not-found' };
   const opts = {
@@ -58,7 +58,7 @@ _CLICK_TAB_JS = """() => {
 _INSTALLED_TAB_READY_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('[role="tab"]')).find((el) => {
     const text = (el.textContent || '').trim();
-    return /^(Installed|已安装|已安裝)(\\d*)$/.test(text);
+    return /^(Installed|已安装)(\\d*)$/.test(text);
   });
   return { ready: !!btn, err: 'installed-tab-not-found' };
 })()"""
