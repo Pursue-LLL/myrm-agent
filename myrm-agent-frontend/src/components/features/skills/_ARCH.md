@@ -88,4 +88,5 @@
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
+- `@/components/dev/localDevHost::isLocalDevHost`：`SkillDiscoverTab` 的 E2E 钩子 `window.__MYRM_E2E_SKILLS_DISCOVER__` 只在本地开发主机上挂
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

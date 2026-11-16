@@ -45,6 +45,7 @@
 - `@/lib/mobileRemote` — pair header、token 存储与 refresh
 - `@/lib/e2ee/useE2EEStatus` — E2EE 握手状态 Hook
 - `@/components/features/e2ee/E2EESecurityPanel` — E2EE 安全状态 badge
+- `@/components/dev/localDevHost::isLocalDevHost` — `MobileStatusBoard` 的 E2E 钩子只在本地开发主机上挂
 - `@/services/chat::cancelActiveChatAgent` — Stop（`POST /agents/chats/{chatId}/cancel`）：Hub 进行中卡片 + Mobile StatusBoard 两处消费
 - `@/services/i18nToastService::showI18nToast` — Stop 成功/失败 toast（desktop Multi-Pane + Hub 卡片 + mobile 远程，`stopTaskSuccess` / `stopTaskFailed`）
 - `@/lib/api::fetchWithTimeout` — pair header SSOT
