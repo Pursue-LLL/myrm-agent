@@ -43,9 +43,6 @@ async def _resolve_goal_stream_agent_context(
     session_id: str,
 ) -> GoalStreamAgentContext:
     """Load chat-bound agent profile for unattended goal continuation."""
-    from app.services.agent.params.response_locale_suffix import (
-        apply_response_locale_suffix,
-    )
     from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
     from app.services.chat.chat_service import ChatService
 
@@ -90,10 +87,6 @@ async def _resolve_goal_stream_agent_context(
         )
         user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
-    user_instructions = apply_response_locale_suffix(
-        user_instructions,
-        engine_params=profile.engine_params,
-    )
     return GoalStreamAgentContext(
         agent_id=agent_id,
         user_instructions=user_instructions,

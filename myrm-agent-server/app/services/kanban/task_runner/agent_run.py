@@ -167,16 +167,6 @@ async def execute_agent(
         )
         task_user_instructions = f"{task_user_instructions}\n\n{leader_protocol}" if task_user_instructions else leader_protocol
 
-    if profile:
-        from app.services.agent.params.response_locale_suffix import (
-            apply_response_locale_suffix,
-        )
-
-        task_user_instructions = apply_response_locale_suffix(
-            task_user_instructions,
-            engine_params=profile.engine_params,
-        )
-
     declared_roots: tuple[str, ...] = ()
     if workspace_root:
         declared_roots = (workspace_root,)

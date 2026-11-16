@@ -99,15 +99,6 @@ async def resolve_cron_agent_profile(job: CronJob) -> CronAgentProfileBootstrap:
                 )
                 user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
-            from app.services.agent.params.response_locale_suffix import (
-                apply_response_locale_suffix,
-            )
-
-            user_instructions = apply_response_locale_suffix(
-                user_instructions,
-                engine_params=resolved.engine_params,
-            )
-
     return CronAgentProfileBootstrap(
         user_instructions=user_instructions,
         skill_ids=agent_skill_ids,

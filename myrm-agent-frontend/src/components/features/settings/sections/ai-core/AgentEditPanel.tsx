@@ -24,7 +24,6 @@ import { IconKey } from '@/components/features/icons/PremiumIcons';
 import ExpertExportDialog from '@/components/features/plugins/ExpertExportDialog';
 import { toast } from '@/hooks/shared/useToast';
 import { useSkillStore } from '@/store/skill';
-import { isFormalKoreanRepliesEnabled, setFormalKoreanRepliesEnabled } from '@/lib/utils/responseLocalePolicy';
 
 type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'faq' | 'inbox';
 
@@ -50,16 +49,6 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   const editor = useAgentEditor(agentId, isNew, t);
   const commandBindings = useAgentCommandBindings(agentId, isNew, editor.loading);
   const save = useAgentEditorSave(editor, commandBindings, t);
-
-  const { engineParams, setEngineParams } = editor;
-  const formalKoreanReplies = useMemo(() => isFormalKoreanRepliesEnabled(engineParams), [engineParams]);
-
-  const handleFormalKoreanRepliesChange = useCallback(
-    (enabled: boolean) => {
-      setEngineParams(setFormalKoreanRepliesEnabled(engineParams, enabled));
-    },
-    [engineParams, setEngineParams],
-  );
 
   useEffect(() => {
     if (typeof window === 'undefined' || isNew) {
@@ -286,13 +275,11 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
               name={editor.name}
               description={editor.description}
               allowDiscovery={editor.allowDiscovery}
-              formalKoreanReplies={formalKoreanReplies}
               suggestionPrompts={editor.suggestionPrompts}
               readonly={editor.isReadonly}
               onNameChange={editor.setName}
               onDescriptionChange={editor.setDescription}
               onAllowDiscoveryChange={editor.setAllowDiscovery}
-              onFormalKoreanRepliesChange={handleFormalKoreanRepliesChange}
               onSuggestionPromptsChange={editor.setSuggestionPrompts}
             />
           )}

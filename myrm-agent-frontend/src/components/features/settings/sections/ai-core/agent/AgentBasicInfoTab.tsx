@@ -12,13 +12,11 @@ interface AgentBasicInfoTabProps {
   name: string;
   description: string;
   allowDiscovery: boolean;
-  formalKoreanReplies: boolean;
   suggestionPrompts: string[];
   readonly?: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onAllowDiscoveryChange: (value: boolean) => void;
-  onFormalKoreanRepliesChange: (value: boolean) => void;
   onSuggestionPromptsChange: (value: string[]) => void;
 }
 
@@ -26,13 +24,11 @@ export function AgentBasicInfoTab({
   name,
   description,
   allowDiscovery,
-  formalKoreanReplies,
   suggestionPrompts,
   readonly: isReadonly = false,
   onNameChange,
   onDescriptionChange,
   onAllowDiscoveryChange,
-  onFormalKoreanRepliesChange,
   onSuggestionPromptsChange,
 }: AgentBasicInfoTabProps) {
   const t = useTranslations();
@@ -169,16 +165,6 @@ export function AgentBasicInfoTab({
               <p className="text-xs text-muted-foreground">{t('agent.allowDiscovery.description')}</p>
             </div>
             <Switch checked={allowDiscovery} onCheckedChange={onAllowDiscoveryChange} disabled={isReadonly} />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <label className="text-sm font-medium text-foreground">{t('agent.formalKoreanReplies.title')}</label>
-              <p className="text-xs text-muted-foreground">{t('agent.formalKoreanReplies.description')}</p>
-            </div>
-            <Switch checked={formalKoreanReplies} onCheckedChange={onFormalKoreanRepliesChange} disabled={isReadonly} />
           </div>
         </div>
       </div>
