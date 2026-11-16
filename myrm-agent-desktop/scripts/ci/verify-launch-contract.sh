@@ -60,6 +60,25 @@ if failed:
     sys.exit(str(failed))
 PY
 
+# WKWebView on macOS ignores the bare user-select, and before Safari 18 backdrop-filter needs the
+# -webkit- spelling too (the bundle runs down to macOS 10.15). The shell page has no prefixing build
+# step, so a bare declaration silently does nothing there: every one must directly follow its
+# -webkit- twin with the same value.
+python3 - "$SHELL_HTML" <<'PY' || fail "frontend-shell must write user-select and backdrop-filter right after their -webkit- twin"
+import re
+import sys
+
+page = open(sys.argv[1], encoding="utf-8").read()
+unpaired = []
+for prop in ("user-select", "backdrop-filter"):
+    for declaration in re.finditer(rf"(?<![\w-]){prop}\s*:\s*([^;]+);", page):
+        twin = rf"-webkit-{prop}\s*:\s*{re.escape(declaration.group(1))};\s*$"
+        if re.search(twin, page[: declaration.start()]) is None:
+            unpaired.append(f"{prop}: {declaration.group(1)}")
+if unpaired:
+    sys.exit(f"missing -webkit- twin: {unpaired}")
+PY
+
 grep -q '"withGlobalTauri": true' "$TAURI_CONF" \
   || fail "tauri.conf.json must enable withGlobalTauri for frontend-shell IPC"
 
