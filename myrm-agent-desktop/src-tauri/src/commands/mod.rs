@@ -19,6 +19,7 @@ pub mod privacy_curtain_decision;
 pub mod privacy_curtain_page;
 pub mod privacy_curtain_presentation;
 pub mod privacy_curtain_state;
+pub mod privacy_curtain_state_changes;
 pub mod privacy_curtain_state_io;
 #[cfg(test)]
 mod privacy_curtain_state_io_python_tests;
