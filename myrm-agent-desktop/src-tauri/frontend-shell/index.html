@@ -205,13 +205,29 @@
         line-height: 1.6;
         word-break: break-word;
       }
-      /* The raw reason is selectable so it can be pasted into a bug report. */
+      /* The raw reason is developer-facing (paths, system errors), so it stays folded; once
+         opened it is selectable so it can be pasted into a bug report. */
       .error-detail {
         margin-top: 12px;
         padding-top: 12px;
         border-top: 1px solid var(--border);
         font-size: 0.78rem;
         color: var(--muted);
+      }
+      .error-detail summary {
+        width: fit-content;
+        cursor: pointer;
+      }
+      .error-detail summary:hover {
+        color: #d4d4d8;
+      }
+      .error-detail summary:focus-visible {
+        outline: 2px solid #3b82f6;
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+      .error-reason {
+        margin-top: 8px;
         line-height: 1.5;
         word-break: break-word;
         -webkit-user-select: text;
@@ -280,7 +296,10 @@
       <div class="error-card">
         <h2 id="error-title" class="error-title"></h2>
         <p id="error-desc" class="error-message"></p>
-        <p id="error-detail" class="error-detail" hidden></p>
+        <details id="error-detail" class="error-detail" hidden>
+          <summary data-i18n="detailsToggle"></summary>
+          <p id="error-reason" class="error-reason"></p>
+        </details>
       </div>
     </div>
 
@@ -289,22 +308,24 @@
     <script type="application/json" id="shell-copy">
       {
         "zh": {
-          "status": "正在启动本地 AI 内核…",
+          "status": "正在启动本地 AI 引擎…",
           "heroTitle": "Myrm AI 个人工作站",
           "heroSub": "本地专属沙箱与安全中枢正在就绪，马上进入工作台…",
           "frontendFailedTitle": "客户端启动异常",
-          "frontendFailed": "前端渲染服务启动失败。请重启应用或检查 WebUI 端口设置。",
-          "backendFailedTitle": "AI 后端未就绪",
-          "backendFailed": "本地 AI 后端未能正常响应。请检查端口是否被占用。"
+          "frontendFailed": "应用界面未能启动。请重启应用，或在设置中检查 WebUI 端口。",
+          "backendFailedTitle": "AI 引擎未就绪",
+          "backendFailed": "本地 AI 引擎未能正常响应。请检查端口是否被占用。",
+          "detailsToggle": "查看详情"
         },
         "en": {
           "status": "Starting the local AI engine…",
           "heroTitle": "Myrm AI Personal Workstation",
           "heroSub": "Your private sandbox and security hub are getting ready. Opening your workspace shortly…",
           "frontendFailedTitle": "The app couldn't start",
-          "frontendFailed": "The interface service failed to start. Restart the app, or check the WebUI port in Settings.",
+          "frontendFailed": "The app's interface didn't start. Restart the app, or check the WebUI port in Settings.",
           "backendFailedTitle": "The AI engine isn't ready",
-          "backendFailed": "The local AI engine didn't respond. Check whether its port is already in use."
+          "backendFailed": "The local AI engine didn't respond. Check whether its port is already in use.",
+          "detailsToggle": "Show details"
         }
       }
     </script>
@@ -319,13 +340,13 @@
         el.textContent = t(el.dataset.i18n);
       });
 
-      // Guidance is localized; the raw reason from Rust stays as selectable detail.
+      // Guidance is localized; the raw reason from Rust is developer-facing, so it stays
+      // folded behind the details toggle (and the toggle is absent when there is no reason).
       function showFailure(title, guidance, reason) {
         document.getElementById("error-title").textContent = title;
         document.getElementById("error-desc").textContent = guidance;
-        const detail = document.getElementById("error-detail");
-        detail.textContent = reason;
-        detail.hidden = !reason;
+        document.getElementById("error-reason").textContent = reason;
+        document.getElementById("error-detail").hidden = !reason;
         document.getElementById("error-modal").style.display = "grid";
       }
       const showFrontendFailure = (reason) =>
