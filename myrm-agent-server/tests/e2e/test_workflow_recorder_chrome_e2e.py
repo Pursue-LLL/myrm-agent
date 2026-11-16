@@ -31,7 +31,7 @@ _SETTINGS_SHELL_STATE = """(() => {
   const ready = !!document.querySelector('[data-testid="settings-layout"], [data-settings-layout]');
   const text = document.body?.innerText || '';
   return {
-    ready: ready || /Skills|技能|スキル|스킬/.test(text),
+    ready: ready || /Skills|技能/.test(text),
     snippet: text.slice(0, 400),
   };
 })()"""
@@ -40,14 +40,14 @@ _SETTINGS_SHELL_STATE = """(() => {
 # gated on a logged-in user, so the test selects that tab before looking for the trigger.
 _SELECT_INSTALLED_TAB_JS = """(() => {
   const tabs = Array.from(document.querySelectorAll('[role="tab"], button'));
-  const installed = tabs.find((t) => /installed|已安装|インストール済み|설치됨|Installiert/i.test(t.textContent || ''));
+  const installed = tabs.find((t) => /installed|已安装/i.test(t.textContent || ''));
   if (installed) installed.click();
   return { clicked: !!installed };
 })()"""
 
 _RECORDER_TRIGGER_STATE = """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
-  const trigger = buttons.find((b) => /Record Workflow|录制工作流|錄製工作流程|ワークフローを録画|워크플로 녹화|Workflow aufzeichnen/i.test(b.textContent || ''));
+  const trigger = buttons.find((b) => /Record Workflow|录制工作流/i.test(b.textContent || ''));
   const text = document.body?.innerText || '';
   return {
     ready: !!trigger,

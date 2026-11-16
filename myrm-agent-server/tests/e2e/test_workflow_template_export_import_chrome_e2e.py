@@ -52,7 +52,7 @@ _LIBRARY_READY_JS = f"""(async () => {{
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const tab =
     tabs.find((node) =>
-      /Workflow Templates|工作流模板|工作流範本|workflowTemplates/i.test(
+      /Workflow Templates|工作流模板|workflowTemplates/i.test(
         (node.textContent || '').trim(),
       ),
     ) ||
@@ -94,7 +94,7 @@ _LIBRARY_READY_JS = f"""(async () => {{
   }}
   if (!hasTemplate && library) {{
     const refreshBtn = [...library.querySelectorAll('button')].find((btn) =>
-      /Refresh|刷新|重新整理|refresh/i.test((btn.textContent || '').trim()),
+      /Refresh|刷新|refresh/i.test((btn.textContent || '').trim()),
     );
     if (refreshBtn && !refreshBtn.disabled) {{
       refreshBtn.click();
@@ -164,7 +164,7 @@ _CLICK_EXPORT_JS = f"""(() => {{
     return {{ ok: false, err: 'template-row-missing' }};
   }}
   const exportBtn = [...row.querySelectorAll('button')].find((btn) =>
-    /Export|导出|匯出|エクスポート/i.test((btn.textContent || '').trim()),
+    /Export|导出/i.test((btn.textContent || '').trim()),
   );
   if (!exportBtn || exportBtn.disabled) {{
     return {{ ok: false, err: 'export-button-missing-or-disabled' }};
@@ -200,9 +200,8 @@ _CLICK_REFRESH_JS = """(() => {
   const unique = [...new Set(buttons)];
   const exact =
     unique.find((btn) => text(btn) === '刷新') ||
-    unique.find((btn) => text(btn) === 'Refresh') ||
-    unique.find((btn) => text(btn) === '重新整理');
-  const fuzzy = unique.filter((btn) => /刷新|Refresh|重新整理/.test(text(btn)));
+    unique.find((btn) => text(btn) === 'Refresh');
+  const fuzzy = unique.filter((btn) => /刷新|Refresh/.test(text(btn)));
   const refreshBtn = exact || (fuzzy.length === 1 ? fuzzy[0] : null);
   if (!refreshBtn || refreshBtn.disabled) {
     return {

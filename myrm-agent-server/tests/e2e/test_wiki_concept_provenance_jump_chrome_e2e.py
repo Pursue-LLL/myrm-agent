@@ -127,15 +127,15 @@ _CONCEPTS_TAB_READY_JS = """(() => {
     (el) => (el.textContent || '').trim(),
   );
   return {
-    ready: tabs.some((t) => /词条管理|Concepts|概念管理/.test(t)),
+    ready: tabs.some((t) => /词条管理|Concepts/.test(t)),
     pathname: location.pathname,
     tabs,
   };
 })()"""
 
 _PROVENANCE_LINK_JS = """(() => {
-  // i18n: locale may be zh (来源对话 / 來源對話) or en (Source conversation).
-  const srcLabels = ['Source conversation', '来源对话', '來源對話'];
+  // i18n: locale may be zh (来源对话) or en (Source conversation).
+  const srcLabels = ['Source conversation', '来源对话'];
   const panel = [...document.querySelectorAll('a')].find((a) => {
     const text = (a.textContent || '').trim();
     return srcLabels.some((label) => text === label);
@@ -219,7 +219,7 @@ def test_wiki_concept_detail_source_jump() -> None:
               const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
               if (!shell) return { ok: false, reason: 'no-shell' };
               const tab = [...shell.querySelectorAll('[role="tab"]')].find(
-                (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+                (el) => /词条管理|Concepts/.test((el.textContent || '').trim()),
               );
               if (!tab) return { ok: false, reason: 'no-tab' };
               // Radix Tabs triggers need the full pointer sequence under
@@ -240,7 +240,7 @@ def test_wiki_concept_detail_source_jump() -> None:
             """(() => {
               const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
               const tab = shell && [...shell.querySelectorAll('[role="tab"]')].find(
-                (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+                (el) => /词条管理|Concepts/.test((el.textContent || '').trim()),
               );
               const active = tab?.getAttribute('data-state') === 'active';
               const treeItems = document.querySelectorAll('[role="treeitem"]').length;

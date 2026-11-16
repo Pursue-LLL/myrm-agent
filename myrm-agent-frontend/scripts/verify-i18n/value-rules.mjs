@@ -20,7 +20,7 @@ export function placeholderSet(value) {
 export const NON_LATIN_RE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]/;
 
 /**
- * 双语对照脏值：同一语义被写成"本地语 / English"（如 "はい / Yes"、"上下文健康 / Context Health"）。
+ * 双语对照脏值：同一语义被写成"本地语 / English"（如 "是 / Yes"、"上下文健康 / Context Health"）。
  * 判定：恰好两段，一段纯 ASCII（英文），另一段含非拉丁文字（本地语），且不含 ICU 占位符对照。
  * 代码只排除占位符对照（{shown} / {total}）与超长值；合法的术语对照（如 MCP / 技能设置）
  * 须经 i18n-shell-allowlist.json 的 allowedMixedValues / allowedMixedKeys 显式豁免。

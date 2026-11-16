@@ -190,7 +190,8 @@ class LocaleManager:
         """The locales a text is read from, best first: ``locale``, its canonical form, its language's bundles, English.
 
         A locale reads its own bundle first and then the other bundles of its language: ``en_GB`` reads ``en``, and
-        ``zh-HK`` reads ``zh-TW`` and then ``zh-CN``. A language with no bundle reads English.
+        ``zh-HK`` reads ``zh-TW`` (a bundle only a host registers) and then ``zh-CN``. A language with no bundle reads
+        English.
         """
         canonical = normalize_locale(locale)
         language = _language(canonical)

@@ -117,7 +117,7 @@ def _concepts_tab_present_js() -> str:
         (el) => (el.textContent || '').trim(),
       );
       return {
-        ready: tabs.some((t) => /词条管理|Concepts|概念管理/.test(t)),
+        ready: tabs.some((t) => /词条管理|Concepts/.test(t)),
         tabs,
       };
     })()"""
@@ -127,7 +127,7 @@ def _click_concepts_tab_js() -> str:
     return """(() => {
       const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
       const tab = shell && [...shell.querySelectorAll('[role="tab"]')].find(
-        (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+        (el) => /词条管理|Concepts/.test((el.textContent || '').trim()),
       );
       if (!tab) return { ok: false, reason: 'no-tab' };
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
@@ -141,7 +141,7 @@ def _concepts_active_state() -> str:
     return """(() => {
       const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
       const tab = shell && [...shell.querySelectorAll('[role="tab"]')].find(
-        (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+        (el) => /词条管理|Concepts/.test((el.textContent || '').trim()),
       );
       const active = tab?.getAttribute('data-state') === 'active';
       const treeItems = document.querySelectorAll('[role="treeitem"]').length;

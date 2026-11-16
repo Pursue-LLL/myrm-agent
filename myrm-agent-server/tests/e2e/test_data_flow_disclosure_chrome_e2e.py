@@ -21,7 +21,7 @@ DATA_FLOW_PANEL_READY_JS = """(() => {
   const hasTitle =
     /Data Flow & Privacy Disclosure|数据流向与隐私披露/.test(text);
   const hasEgress =
-    /External Egress|外部出站与第三方 API|第三方外部出站流向/.test(text);
+    /External Egress|外部出站与第三方 API/.test(text);
   const hasRights =
     /Your Data Rights|您的数据权利/.test(text);
   const anchor = Array.from(document.querySelectorAll('h2,h3,h4')).find((el) =>

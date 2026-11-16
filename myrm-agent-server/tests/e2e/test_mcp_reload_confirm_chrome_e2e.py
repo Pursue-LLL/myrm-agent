@@ -84,7 +84,7 @@ _CLICK_PROBE_DELETE_JS = """(() => {
 _RELOAD_DIALOG_STATE_JS = """(() => {
   const alert = Array.from(document.querySelectorAll('[role="alertdialog"]')).find((node) => {
     const text = node.textContent || '';
-    return /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
+    return /重新加载 MCP 工具|Reload MCP tools/i.test(text);
   });
   if (!alert) {
     return {
@@ -97,14 +97,14 @@ _RELOAD_DIALOG_STATE_JS = """(() => {
     };
   }
   const text = alert.textContent || '';
-  const titleMatch = /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
-  const descMatch = /提示词缓存|prompt-cache|Prompt-Cache|프롬프트 캐시/i.test(text);
+  const titleMatch = /重新加载 MCP 工具|Reload MCP tools/i.test(text);
+  const descMatch = /提示词缓存|prompt-cache|Prompt-Cache/i.test(text);
   const buttons = Array.from(alert.querySelectorAll('button')).map((b) =>
     (b.textContent || '').trim()
   );
-  const hasCancel = buttons.some((b) => /^(取消|Cancel|Abbrechen|취소)$/i.test(b));
+  const hasCancel = buttons.some((b) => /^(取消|Cancel)$/i.test(b));
   const hasConfirm = buttons.some((b) =>
-    /^(保存并应用|Save and apply|Speichern und anwenden|저장 및 적용)$/i.test(b)
+    /^(保存并应用|Save and apply)$/i.test(b)
   );
   return {
     ready: titleMatch && descMatch && hasCancel && hasConfirm,
@@ -119,28 +119,28 @@ _RELOAD_DIALOG_STATE_JS = """(() => {
 _RELOAD_DIALOG_CLOSED_JS = """(() => {
   const alert = Array.from(document.querySelectorAll('[role="alertdialog"]')).find((node) => {
     const text = node.textContent || '';
-    return /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
+    return /重新加载 MCP 工具|Reload MCP tools/i.test(text);
   });
   return { ready: !alert };
 })()"""
 
 _DELETE_DIALOG_STATE_JS = """(() => {
   const text = document.body?.innerText || '';
-  const titleMatch = /Confirm Delete|确认删除|Löschen bestätigen|삭제 확인/i.test(text);
+  const titleMatch = /Confirm Delete|确认删除/i.test(text);
   const buttons = Array.from(document.querySelectorAll('button')).map((b) => (b.textContent || '').trim());
-  const hasCancel = buttons.some((b) => /^(取消|Cancel|Abbrechen|취소)$/i.test(b));
-  const hasConfirm = buttons.some((b) => /^(Confirm Delete|确认删除|Löschen bestätigen|삭제 확인)$/i.test(b));
+  const hasCancel = buttons.some((b) => /^(取消|Cancel)$/i.test(b));
+  const hasConfirm = buttons.some((b) => /^(Confirm Delete|确认删除)$/i.test(b));
   return { ready: titleMatch && hasCancel && hasConfirm, titleMatch, hasCancel, hasConfirm };
 })()"""
 
 _CLICK_DIALOG_CANCEL_JS = """(() => {
   const alert = Array.from(document.querySelectorAll('[role="alertdialog"]')).find((node) => {
     const text = node.textContent || '';
-    return /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
+    return /重新加载 MCP 工具|Reload MCP tools/i.test(text);
   });
   const scope = alert || document;
   const btn = Array.from(scope.querySelectorAll('button')).find((b) =>
-    /^(取消|Cancel|Abbrechen|취소)$/i.test((b.textContent || '').trim())
+    /^(取消|Cancel)$/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'cancel-not-found' };
   btn.click();
@@ -150,11 +150,11 @@ _CLICK_DIALOG_CANCEL_JS = """(() => {
 _CLICK_DIALOG_CONFIRM_JS = """(() => {
   const alert = Array.from(document.querySelectorAll('[role="alertdialog"]')).find((node) => {
     const text = node.textContent || '';
-    return /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
+    return /重新加载 MCP 工具|Reload MCP tools/i.test(text);
   });
   const scope = alert || document;
   const btn = Array.from(scope.querySelectorAll('button')).find((b) =>
-    /^(保存并应用|Save and apply|Speichern und anwenden|저장 및 적용)$/i.test((b.textContent || '').trim())
+    /^(保存并应用|Save and apply)$/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'confirm-not-found' };
   btn.click();
@@ -163,7 +163,7 @@ _CLICK_DIALOG_CONFIRM_JS = """(() => {
 
 _CLICK_DELETE_CONFIRM_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-    /^(Confirm Delete|确认删除|Löschen bestätigen|삭제 확인)$/i.test((b.textContent || '').trim())
+    /^(Confirm Delete|确认删除)$/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'delete-confirm-not-found' };
   btn.click();
@@ -172,7 +172,7 @@ _CLICK_DELETE_CONFIRM_JS = """(() => {
 
 _MCP_IMPORT_MODAL_READY_JS = """(() => {
   const heading = Array.from(document.querySelectorAll('h3')).find((h) =>
-    /Import MCP Configuration|导入 MCP 配置|MCP-Konfiguration importieren|MCP 구성 가져오기/i.test(
+    /Import MCP Configuration|导入 MCP 配置/i.test(
       (h.textContent || '').trim()
     )
   );
@@ -183,7 +183,7 @@ _MCP_IMPORT_MODAL_READY_JS = """(() => {
 
 _CLICK_IMPORT_JSON_BUTTON_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-    /Import JSON|导入 JSON|JSON importieren|JSON 가져오기/i.test((b.textContent || '').trim())
+    /Import JSON|导入 JSON/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'import-button-not-found' };
   btn.click();
@@ -193,7 +193,7 @@ _CLICK_IMPORT_JSON_BUTTON_JS = """(() => {
 _MCP_ADD_EDITOR_READY_JS = """(() => {
   const modal = document.querySelector('.fixed.inset-0');
   const heading = Array.from(modal?.querySelectorAll('h3') || []).find((h) =>
-    /Add Service|添加服务|新增服務|追加サービス|Dienst hinzufügen|서비스 추가/i.test(
+    /Add Service|添加服务/i.test(
       (h.textContent || '').trim()
     )
   );
@@ -203,7 +203,7 @@ _MCP_ADD_EDITOR_READY_JS = """(() => {
 
 _CLICK_ADD_SERVICE_BUTTON_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-    /Add Service|添加服务|新增服務|追加サービス|Dienst hinzufügen|서비스 추가/i.test((b.textContent || '').trim())
+    /Add Service|添加服务/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'add-button-not-found' };
   btn.click();
@@ -214,7 +214,7 @@ _OPEN_CONNECTION_TYPE_JS = """(() => {
   const modal = document.querySelector('.fixed.inset-0');
   if (!modal) return { ok: false, err: 'add-modal-not-found' };
   const typeLabel = Array.from(modal.querySelectorAll('label, p.text-sm')).find((node) =>
-    /Connection Type|连接类型|連線類型|接続タイプ|Verbindungstyp|연결 유형/i.test(
+    /Connection Type|连接类型/i.test(
       (node.textContent || '').replace(/\\s+/g, ' ').trim()
     )
   );
@@ -238,7 +238,7 @@ _CLICK_STDIO_OPTION_JS = """(() => {
   const modal = document.querySelector('.fixed.inset-0');
   if (!modal) return { ok: false, err: 'add-modal-not-found' };
   const typeLabel = Array.from(modal.querySelectorAll('label, p.text-sm')).find((node) =>
-    /Connection Type|连接类型|連線類型|接続タイプ|Verbindungstyp|연결 유형/i.test(
+    /Connection Type|连接类型/i.test(
       (node.textContent || '').replace(/\\s+/g, ' ').trim()
     )
   );
@@ -257,7 +257,7 @@ _CLICK_STDIO_OPTION_JS = """(() => {
 _MCP_STDIO_FIELDS_READY_JS = """(() => {
   const modal = document.querySelector('.fixed.inset-0');
   const commandLabel = Array.from(modal?.querySelectorAll('label, p.text-sm') || []).find((node) =>
-    /Command|命令|コマンド|Befehl|명령/i.test((node.textContent || '').replace(/\\s+/g, ' ').trim())
+    /Command|命令/i.test((node.textContent || '').replace(/\\s+/g, ' ').trim())
   );
   return { ready: !!commandLabel };
 })()"""
@@ -267,7 +267,7 @@ def _set_import_textarea_js(value: str) -> str:
     escaped = json.dumps(value)
     return f"""(() => {{
   const heading = Array.from(document.querySelectorAll('h3')).find((h) =>
-    /Import MCP Configuration|导入 MCP 配置|MCP-Konfiguration importieren|MCP 구성 가져오기/i.test(
+    /Import MCP Configuration|导入 MCP 配置/i.test(
       (h.textContent || '').trim()
     )
   );
@@ -313,13 +313,13 @@ def _fill_input_by_label_js(label_pattern: str, value: str) -> str:
 
 _CLICK_IMPORT_SUBMIT_JS = """(() => {
   const modal = Array.from(document.querySelectorAll('h3')).find((h) =>
-    /Import MCP Configuration|导入 MCP 配置|MCP-Konfiguration importieren|MCP 구성 가져오기/i.test(
+    /Import MCP Configuration|导入 MCP 配置/i.test(
       (h.textContent || '').trim()
     )
   )?.closest('.fixed.inset-0');
   const scope = modal || document;
   const btn = Array.from(scope.querySelectorAll('button')).find((b) =>
-    /^(Import|导入|Importieren|가져오기)$/i.test((b.textContent || '').trim())
+    /^(Import|导入)$/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'import-submit-not-found' };
   btn.click();
@@ -328,7 +328,7 @@ _CLICK_IMPORT_SUBMIT_JS = """(() => {
 
 _CLICK_SAVE_CONFIG_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-    /Save Configuration|保存配置|Konfiguration speichern|구성 저장/i.test((b.textContent || '').trim())
+    /Save Configuration|保存配置/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'save-config-not-found' };
   btn.click();
@@ -350,7 +350,7 @@ _MCP_MODAL_VALIDATION_ERROR_JS = """(() => {
 _ADD_MODAL_OPEN_JS = """(() => {
   const modal = document.querySelector('.fixed.inset-0');
   const heading = Array.from(modal?.querySelectorAll('h3') || []).find((h) =>
-    /Add Service|添加服务|新增服務|追加サービス|Dienst hinzufügen|서비스 추가/i.test(
+    /Add Service|添加服务/i.test(
       (h.textContent || '').trim()
     )
   );
@@ -360,23 +360,23 @@ _ADD_MODAL_OPEN_JS = """(() => {
 _MCP_SAVE_VALIDATION_IDLE_JS = """(() => {
   const allBtns = Array.from(document.querySelectorAll('button'));
   const saveBtn = allBtns.find((b) =>
-    /Save Configuration|保存配置|Konfiguration speichern|구성 저장/i.test((b.textContent || '').trim())
+    /Save Configuration|保存配置/i.test((b.textContent || '').trim())
   );
   const validatingBtn = allBtns.find((b) =>
-    /Validating|验证中|驗證中|검증 중|Validierung/i.test((b.textContent || '').trim())
+    /Validating|验证中/i.test((b.textContent || '').trim())
   );
   if (!saveBtn && validatingBtn) {
     return { ready: false, validating: true, text: (validatingBtn.textContent || '').trim() };
   }
   if (!saveBtn) return { ready: true, phase: 'no-save-btn' };
   const text = (saveBtn.textContent || '').trim();
-  const validating = saveBtn.disabled || /Validating|验证|驗證|검증|Validierung/i.test(text);
+  const validating = saveBtn.disabled || /Validating|验证/i.test(text);
   return { ready: !validating, validating, text };
 })()"""
 
 _CLICK_SCAN_ACK_CONFIRM_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-    /Acknowledge and continue|了解风险并继续|瞭解風險並繼續|リスク.*続行|risques.*continuer/i.test(
+    /Acknowledge and continue|了解风险并继续/i.test(
       (b.textContent || '').trim()
     )
   );
@@ -387,14 +387,14 @@ _CLICK_SCAN_ACK_CONFIRM_JS = """(() => {
 
 _CLICK_DESCRIPTION_CUSTOM_JS = """(() => {
   const heading = Array.from(document.querySelectorAll('h3')).find((h) =>
-    /Choose Description|选择描述|選擇描述|説明を選択|Beschreibung wählen|설명 선택/i.test(
+    /Choose Description|选择描述/i.test(
       (h.textContent || '').trim()
     )
   );
   if (!heading) return { ok: false, err: 'description-dialog-not-found' };
   const root = heading.closest('.fixed.inset-0') || document.body;
   const customLabel = Array.from(root.querySelectorAll('span')).find((s) =>
-    /Custom Description|自定义描述|自訂描述|カスタム|Benutzerdefiniert|사용자/i.test(
+    /Custom Description|自定义描述/i.test(
       (s.textContent || '').trim()
     )
   );
@@ -710,7 +710,7 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         name_filled = client.evaluate(
             page,
             _fill_input_by_label_js(
-                "Service Name|服务名称|服務名稱|サービス名前|Dienstname|서비스 이름",
+                "Service Name|服务名称",
                 _ADD_SERVER_NAME,
             ),
             timeout_sec=15.0,
@@ -732,11 +732,11 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         stdio_ready = wait_for_state(client, page, _MCP_STDIO_FIELDS_READY_JS, timeout_sec=15.0)
         assert stdio_ready.get("ready") is True, json.dumps(stdio_ready, ensure_ascii=False)
         for label_pattern, value in (
-            ("Command|命令|コマンド|Befehl|명령", sys.executable),
-            ("Arguments|参数|參數|Argumente|인수", str(_E2E_STDIO_MCP_STUB)),
-            ("Description|描述|服務描述|サービス説明|Beschreibung|설명", "E2E add probe server"),
-            ("Cache TTL|缓存时长|快取時長|キャッシュ TTL|캐시 TTL|Cache-TTL", "60"),
-            ("Cacheable tools|可缓存工具|可快取工具|キャッシュ可能なツール|캐시 가능한 도구|Cachefähige Tools", "ping"),
+            ("Command|命令", sys.executable),
+            ("Arguments|参数", str(_E2E_STDIO_MCP_STUB)),
+            ("Description|描述", "E2E add probe server"),
+            ("Cache TTL|缓存时长", "60"),
+            ("Cacheable tools|可缓存工具", "ping"),
         ):
             filled_field = client.evaluate(
                 page,

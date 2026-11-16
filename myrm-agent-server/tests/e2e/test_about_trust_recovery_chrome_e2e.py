@@ -22,10 +22,6 @@ from tests.support.chrome_mcp_e2e import (
 _PANEL_TITLES = (
     "Stack updates",
     "堆栈更新",
-    "堆疊更新",
-    "スタック更新",
-    "스택 업데이트",
-    "Stack-Updates",
 )
 _WEB_MARKERS = (
     "Server ",

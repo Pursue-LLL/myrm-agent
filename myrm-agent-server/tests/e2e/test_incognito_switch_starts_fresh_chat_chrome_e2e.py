@@ -33,7 +33,7 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
-_TOGGLE_LABELS = ("Incognito Mode", "无痕模式", "無痕模式", "シークレットモード", "시크릿 모드", "Inkognito-Modus")
+_TOGGLE_LABELS = ("Incognito Mode", "无痕模式")
 
 _FIND_TOGGLE = """const labels = %s;
   const toggle = Array.from(document.querySelectorAll('button[aria-pressed]')).find(

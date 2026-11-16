@@ -141,7 +141,7 @@ _SWITCH_EVOLUTION_TAB_JS = """(() => {
     return { ready: false, reason: 'growth-not-rendered', hasTabs: document.querySelectorAll('[role="tab"]').length, snippet: bodyText.slice(0, 500) };
   }
   const tab = Array.from(document.querySelectorAll('[role="tab"]')).find((b) => {
-    return /(evolution|演进|進化|进化复盘|進化復盤)/.test((b.textContent || '').trim());
+    return /(evolution|演进|进化复盘)/.test((b.textContent || '').trim());
   });
   if (!tab) {
     return { ready: false, reason: 'no-evolution-tab', tabs: Array.from(document.querySelectorAll('[role="tab"]')).map((t) => t.textContent), snippet: bodyText.slice(0, 500) };
@@ -151,7 +151,7 @@ _SWITCH_EVOLUTION_TAB_JS = """(() => {
     ? (list.querySelector('[aria-selected="true"]')?.textContent || '')
     : '';
   const digestMounted = /(Behavioral Pattern Discovery|行为模式发现|Learning in Progress|学习进行中)/.test(bodyText);
-  if (!/(evolution|演进|進化|进化复盘|進化復盤)/.test(selected) && !digestMounted) {
+  if (!/(evolution|演进|进化复盘)/.test(selected) && !digestMounted) {
     for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
       tab.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
     }
@@ -379,7 +379,7 @@ _GROWTH_DASHBOARD_RENDERED_JS = """(() => {
 _OVERVIEW_TABBED_JS = """(() => {
   const text = document.body?.innerText || '';
   const tab = Array.from(document.querySelectorAll('[role="tab"]')).find((b) => {
-    return /(overview|总览|總覽)/.test((b.textContent || '').trim());
+    return /(overview|总览)/.test((b.textContent || '').trim());
   });
   if (!tab) return { ready: false, reason: 'no-overview-tab' };
   for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {

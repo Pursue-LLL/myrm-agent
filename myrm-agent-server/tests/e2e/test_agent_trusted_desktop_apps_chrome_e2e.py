@@ -39,8 +39,8 @@ _DISMISS_MIGRATION_JS = """(() => {
   return { ok: true };
 })()"""
 
-_HEADING_RE = "/Pre-trusted|预信任|預信任|事前承認|사전 승인|Vorab genehmigte/"
-_ADD_RE = "/^(Add|添加|新增|追加|추가|Hinzufügen)$/"
+_HEADING_RE = "/Pre-trusted|预信任/"
+_ADD_RE = "/^(Add|添加|新增|追加)$/"
 
 _SECTION_JS = """(() => {
   const tab = document.querySelector('[data-testid="agent-tab-capabilities"]');
@@ -84,7 +84,7 @@ def _add_app_js(app_name: str) -> str:
       return new Promise(resolve => setTimeout(() => {{
         const section = document.querySelector('[data-section="agents"]') || document.body;
         const saveBtn = Array.from(section.querySelectorAll('button')).find((b) =>
-          /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
+          /^(Save|保存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
         );
         resolve({{
           ok: true,
@@ -98,7 +98,7 @@ def _add_app_js(app_name: str) -> str:
 _CLICK_SAVE_JS = """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const matches = Array.from(section.querySelectorAll('button')).filter((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
   const save = matches.find((btn) => !btn.disabled);
   const bodyLength = (document.body?.innerText || '').length;
@@ -113,7 +113,7 @@ _SAVE_COMPLETE_JS = """(() => {
   const section = document.querySelector('[data-section="agents"]') || document.body;
   const buttons = Array.from(section.querySelectorAll('button'));
   const save = buttons.find((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
+    /^(Save|保存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
   const bodyLength = (document.body?.innerText || '').length;
   if (!save) return { ready: false, reason: 'no-visible-save-button', bodyLength };

@@ -36,14 +36,14 @@ _DISMISS_MIGRATION_JS = """(() => {
 _SCHEDULER_BADGE_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasBadge =
-    /Scheduler Running|Scheduler Degraded|Scheduler Stopped|调度器运行中|调度器异常|调度器已停止|排程器/.test(text);
+    /Scheduler Running|Scheduler Degraded|Scheduler Stopped|调度器运行中|调度器异常|调度器已停止/.test(text);
   return { ready: hasBadge, sample: text.slice(0, 300) };
 })()"""
 
 _OPEN_CREATE_DIALOG_JS = """(() => {
   const btn = document.querySelector('[data-testid="cron-create-job-button"]')
     || Array.from(document.querySelectorAll('button')).find((el) =>
-      /(Create|创建|建立|作成|Erstellen)/i.test((el.textContent || '').trim()),
+      /(Create|创建|建立)/i.test((el.textContent || '').trim()),
     );
   if (!btn) {
     const all = Array.from(document.querySelectorAll('button')).map((el) => (el.textContent || '').trim());
@@ -60,15 +60,15 @@ _CREATE_DIALOG_READY_JS = """(() => {
     return { ready: true };
   }
   const text = document.body?.innerText || '';
-  const hasCustom = /(Custom|自定义|自訂)/i.test(text);
-  const hasTemplate = /(From Template|从模板|テンプレート|模板)/i.test(text);
+  const hasCustom = /(Custom|自定义)/i.test(text);
+  const hasTemplate = /(From Template|从模板|模板)/i.test(text);
   return { ready: hasCustom && hasTemplate, text: text.slice(0, 400) };
 })()"""
 
 _SWITCH_CUSTOM_TAB_JS = """(() => {
   const tab = document.querySelector('[data-testid="cron-create-mode-custom"]')
     || Array.from(document.querySelectorAll('button')).find((el) =>
-      /(Custom|自定义|自訂)/i.test((el.textContent || '').trim()),
+      /(Custom|自定义)/i.test((el.textContent || '').trim()),
     );
   if (!tab) {
     return { ready: false, reason: 'no-custom-tab' };

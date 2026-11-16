@@ -90,7 +90,7 @@ _SETTINGS_WECHAT_OFFICIAL_PROBE_JS = """(() => {
   const channelBtn =
     document.querySelector('[data-testid="channel-list-item-wechat_official"]') ||
     Array.from(document.querySelectorAll('button')).find((btn) =>
-      /微信公众号|WeChat Official Account|微信公眾號/i.test((btn.textContent || '').trim()),
+      /微信公众号|WeChat Official Account/i.test((btn.textContent || '').trim()),
     );
   if (channelBtn) {
     channelBtn.click();

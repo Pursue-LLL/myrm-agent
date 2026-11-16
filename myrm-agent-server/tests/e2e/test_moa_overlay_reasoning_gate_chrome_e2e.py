@@ -45,7 +45,7 @@ _CAPABILITIES_MOA_PROBE_JS = """(() => {
   tab.click();
   return new Promise(resolve => setTimeout(() => {
     const text = document.body?.innerText || '';
-    const hasMoa = /MoA Advisor|MoA 顾问|MoA 顧問|MoA アドバイザー|MoA-Berater/i.test(text);
+    const hasMoa = /MoA Advisor|MoA 顾问/i.test(text);
     resolve({
       ready: hasMoa,
       hasMoa,

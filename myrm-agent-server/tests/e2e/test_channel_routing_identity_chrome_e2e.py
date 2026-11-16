@@ -37,15 +37,15 @@ _IDENTITY_ROW_STATE = """(() => {
     webhookBtn.click();
   }
   const labelFound =
-    /Team Identity|团队身份|チームアイデンティティ|팀 아이덴티티|Team-Identität/i.test(bodyText);
+    /Team Identity|团队身份/i.test(bodyText);
   const inputs = Array.from(document.querySelectorAll('input[placeholder]'));
   const nameInput = inputs.find((el) =>
-    /Name this teammate|为伙伴取名|名前を付ける|為夥伴取名|이름 지정|Partner benennen/i.test(
+    /Name this teammate|为伙伴取名/i.test(
       el.getAttribute('placeholder') || ''
     )
   );
   const scopeBtns = navButtons.filter((el) =>
-    /^(Inherit|Shared|Private|继承|共享|独立|継承|共有|상속|공유|Vererbt|Geteilt|Unabhängig)$/i.test(
+    /^(Inherit|Shared|Private|继承|共享|独立)$/i.test(
       (el.textContent || '').trim()
     )
   );
