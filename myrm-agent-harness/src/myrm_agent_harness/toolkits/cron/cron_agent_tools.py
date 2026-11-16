@@ -6,9 +6,8 @@ fill ``cron_expr`` → cron, ``every_minutes`` → interval, ``at`` → one-shot
 Includes a ContextVar-based self-scheduling guard that blocks ``add``/``update``
 when called from within a cron job execution, preventing infinite task chains.
 
-This file declares the tool and resolves a blueprint and the CSV parameters; parsing of
-the tool parameters lives in ``cron_agent_params.py`` and the per-action work in
-``cron_agent_actions.py``.
+This file declares the tool and resolves a blueprint and the CSV parameters; parsing of the tool parameters
+lives in ``cron_agent_params.py`` and the per-action work in ``cron_agent_actions.py``.
 
 [INPUT]
 - toolkits.cron._cron_tool_description::resolve_cron_tool_description (POS: cron_manage_tool 提示词 SSOT 与多语言描述解析)

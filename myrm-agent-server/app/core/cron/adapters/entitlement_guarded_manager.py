@@ -10,9 +10,7 @@
 - EntitlementGuardedCronManager: create/duplicate take a plan slot; create/update run the lifecycle guard and tool-name normalisation; typed pass-through for the job lookups and counts, the run listing and counts, the monitor state and the lifecycle calls services make
 
 [POS]
-Server business-layer gate on harness CronManager mutations. All callers use ``get_cron_manager()``.
-It holds a ``CronManager`` rather than inheriting from one and satisfies the harness ``CronManagerPort`` by shape,
-which is what lets the cron tools and the heartbeat take it.
+Server business-layer gate on harness CronManager mutations; it holds a ``CronManager`` and satisfies the harness ``CronManagerPort`` by shape, which is what lets the cron tools and the heartbeat take it. All callers use ``get_cron_manager()``.
 """
 
 from __future__ import annotations
