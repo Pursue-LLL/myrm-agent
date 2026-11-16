@@ -378,6 +378,11 @@ class TestOtherOperations:
 
         assert _wire(embeddings._openai_request(route, ["x"])) == "https://host.example/v1/embeddings?team=a"
 
+    def test_ollama_embeddings_add_the_v1_path_and_keep_the_pasted_query(self) -> None:
+        route = service_route("ollama/nomic-embed-text", api_key="k", api_base="http://host.example:11434?team=a")
+
+        assert _wire(embeddings._openai_request(route, ["x"])) == "http://host.example:11434/v1/embeddings?team=a"
+
     def test_a_service_address_is_read_by_the_same_grammar(self) -> None:
         route = service_route(
             "openai/text-embedding-3-small", api_key="k", api_base="https://host.example/v1/embeddings/#frag"
